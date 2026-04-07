@@ -1,0 +1,637 @@
+﻿cargo.exe :    Compiling finance-app v0.1.0 (C:\Users\BuHiYo-001\Desktop\projects\fiance\src-tauri)
+所在位置 行:1 字符: 1
++ & "$env:USERPROFILE\.cargo\bin\cargo.exe" test transaction::double_en ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (   Compiling fi...ance\src-tauri):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+warning: unused imports: `AccountError` and `AccountEvent`
+ --> src\domain\aggregates\mod.rs:5:28
+  |
+5 | pub use account::{Account, AccountError, AccountEvent, AccountType};
+  |                            ^^^^^^^^^^^^  ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `TransactionError`, `TransactionEvent`, and `Transaction`
+ --> src\domain\aggregates\mod.rs:9:23
+  |
+9 | pub use transaction::{Transaction, TransactionError, TransactionEvent};
+  |                       ^^^^^^^^^^^  ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+
+warning: unused import: `account_repository::SqliteAccountRepository`
+ --> src\infrastructure\repositories\mod.rs:5:9
+  |
+5 | pub use account_repository::SqliteAccountRepository;
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `chart_of_accounts_repository::SqliteChartOfAccountsRepository`
+ --> src\infrastructure\repositories\mod.rs:6:9
+  |
+6 | pub use chart_of_accounts_repository::SqliteChartOfAccountsRepository;
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `currency_repository::SqliteCurrencyRepository`
+ --> src\infrastructure\repositories\mod.rs:7:9
+  |
+7 | pub use currency_repository::SqliteCurrencyRepository;
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: variants `AccountCreated`, `BalanceUpdated`, and `AccountDeleted` are never constructed
+  --> src\domain\aggregates\account.rs:37:5
+   |
+36 | pub enum AccountEvent {
+   |          ------------ variants in this enum
+37 |     AccountCreated {
+   |     ^^^^^^^^^^^^^^
+...
+42 |     BalanceUpdated {
+   |     ^^^^^^^^^^^^^^
+...
+47 |     AccountDeleted {
+   |     ^^^^^^^^^^^^^^
+   |
+   = note: `AccountEvent` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored dur
+ing dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: enum `AccountError` is never used
+  --> src\domain\aggregates\account.rs:54:10
+   |
+54 | pub enum AccountError {
+   |          ^^^^^^^^^^^^
+
+warning: field `pending_events` is never read
+   --> src\domain\aggregates\account.rs:120:16
+    |
+112 | pub struct Account {
+    |            ------- field in this struct
+...
+120 |     pub(crate) pending_events: Vec<AccountEvent>,
+    |                ^^^^^^^^^^^^^^
+    |
+    = note: `Account` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during 
+dead code analysis
+
+warning: multiple associated items are never used
+   --> src\domain\aggregates\account.rs:124:12
+    |
+123 | impl Account {
+    | ------------ associated items in this implementation
+124 |     pub fn new(
+    |            ^^^
+...
+162 |     pub fn update_balance(&mut self, balance: Money) -> Result<(), AccountError> {
+    |            ^^^^^^^^^^^^^^
+...
+178 |     pub fn change_name(&mut self, name: impl Into<String>) -> Result<(), AccountError> {
+    |            ^^^^^^^^^^^
+...
+191 |     pub fn soft_delete(&mut self) -> Result<(), AccountError> {
+    |            ^^^^^^^^^^^
+...
+205 |     pub fn pull_events(&mut self) -> Vec<AccountEvent> {
+    |            ^^^^^^^^^^^
+...
+209 |     fn ensure_not_deleted(&self) -> Result<(), AccountError> {
+    |        ^^^^^^^^^^^^^^^^^^
+...
+217 |     fn touch(&mut self) {
+    |        ^^^^^
+
+warning: function `validate_balance` is never used
+   --> src\domain\aggregates\account.rs:223:4
+    |
+223 | fn validate_balance(
+    |    ^^^^^^^^^^^^^^^^
+
+warning: function `validate_chart_of_accounts` is never used
+   --> src\domain\aggregates\account.rs:249:4
+    |
+249 | fn validate_chart_of_accounts(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: variants `InvalidCodeFormat`, `InvalidLevel`, `ParentCodeRequired`, `ParentCodeNotAllowed`, and `InvalidParent
+Level` are never constructed
+  --> src\domain\aggregates\chart_of_accounts.rs:66:5
+   |
+65 | pub enum ChartOfAccountsError {
+   |          -------------------- variants in this enum
+66 |     InvalidCodeFormat(String),
+   |     ^^^^^^^^^^^^^^^^^
+67 |     InvalidLevel(i32),
+   |     ^^^^^^^^^^^^
+...
+70 |     ParentCodeRequired,
+   |     ^^^^^^^^^^^^^^^^^^
+71 |     ParentCodeNotAllowed,
+   |     ^^^^^^^^^^^^^^^^^^^^
+72 |     InvalidParentLevel,
+   |     ^^^^^^^^^^^^^^^^^^
+   |
+   = note: `ChartOfAccountsError` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ign
+ored during dead code analysis
+
+warning: associated items `new`, `validate_code_format`, `validate_parent_code`, `is_deleted`, and `soft_delete` are ne
+ver used
+   --> src\domain\aggregates\chart_of_accounts.rs:121:12
+    |
+120 | impl ChartOfAccounts {
+    | -------------------- associated items in this implementation
+121 |     pub fn new(
+    |            ^^^
+...
+156 |     fn validate_code_format(code: &str, level: i32) -> Result<(), ChartOfAccountsError> {
+    |        ^^^^^^^^^^^^^^^^^^^^
+...
+170 |     fn validate_parent_code(
+    |        ^^^^^^^^^^^^^^^^^^^^
+...
+191 |     pub fn is_deleted(&self) -> bool {
+    |            ^^^^^^^^^^
+...
+195 |     pub fn soft_delete(&mut self) {
+    |            ^^^^^^^^^^^
+
+warning: enum `TransactionEvent` is never used
+ --> src\domain\aggregates\transaction.rs:7:10
+  |
+7 | pub enum TransactionEvent {
+  |          ^^^^^^^^^^^^^^^^
+
+warning: enum `TransactionError` is never used
+  --> src\domain\aggregates\transaction.rs:19:10
+   |
+19 | pub enum TransactionError {
+   |          ^^^^^^^^^^^^^^^^
+
+warning: struct `Transaction` is never constructed
+  --> src\domain\aggregates\transaction.rs:56:12
+   |
+56 | pub struct Transaction {
+   |            ^^^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> src\domain\aggregates\transaction.rs:66:12
+    |
+ 65 | impl Transaction {
+    | ---------------- associated items in this implementation
+ 66 |     pub fn new(
+    |            ^^^
+...
+ 93 |     pub fn add_entry(&mut self, entry: TransactionEntry) -> Result<(), TransactionError> {
+    |            ^^^^^^^^^
+...
+110 |     pub fn is_balanced(&self) -> bool {
+    |            ^^^^^^^^^^^
+...
+117 |     pub fn validate(&self) -> Result<(), TransactionError> {
+    |            ^^^^^^^^
+...
+135 |     pub fn pull_events(&mut self) -> Vec<TransactionEvent> {
+    |            ^^^^^^^^^^^
+...
+139 |     fn totals(&self) -> Result<(Money, Money), TransactionError> {
+    |        ^^^^^^
+...
+178 |     fn touch(&mut self) {
+    |        ^^^^^
+
+warning: enum `TransactionEntryError` is never used
+ --> src\domain\value_objects\transaction_entry.rs:6:10
+  |
+6 | pub enum TransactionEntryError {
+  |          ^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `TransactionEntry` is never constructed
+  --> src\domain\value_objects\transaction_entry.rs:27:12
+   |
+27 | pub struct TransactionEntry {
+   |            ^^^^^^^^^^^^^^^^
+
+warning: associated items `new`, `validate`, and `currency_code` are never used
+  --> src\domain\value_objects\transaction_entry.rs:36:12
+   |
+35 | impl TransactionEntry {
+   | --------------------- associated items in this implementation
+36 |     pub fn new(
+   |            ^^^
+...
+55 |     pub fn validate(&self) -> Result<(), TransactionEntryError> {
+   |            ^^^^^^^^
+...
+63 |     pub fn currency_code(&self) -> Option<&str> {
+   |            ^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+  --> src\infrastructure\repositories\account_repository.rs:18:12
+   |
+17 | impl SqliteAccountRepository {
+   | ---------------------------- associated function in this implementation
+18 |     pub fn new(pool: SqlitePool) -> Self {
+   |            ^^^
+
+warning: associated function `new` is never used
+  --> src\infrastructure\repositories\chart_of_accounts_repository.rs:14:12
+   |
+13 | impl SqliteChartOfAccountsRepository {
+   | ------------------------------------ associated function in this implementation
+14 |     pub fn new(pool: SqlitePool) -> Self {
+   |            ^^^
+
+warning: variant `InvalidParentLevel` is never constructed
+  --> src\domain\aggregates\chart_of_accounts.rs:72:5
+   |
+65 | pub enum ChartOfAccountsError {
+   |          -------------------- variant in this enum
+...
+72 |     InvalidParentLevel,
+   |     ^^^^^^^^^^^^^^^^^^
+   |
+   = note: `ChartOfAccountsError` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ign
+ored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: fields `transaction_date` and `description` are never read
+  --> src\domain\aggregates\transaction.rs:58:9
+   |
+56 | pub struct Transaction {
+   |            ----------- fields in this struct
+57 |     pub id: Uuid,
+58 |     pub transaction_date: NaiveDate,
+   |         ^^^^^^^^^^^^^^^^
+59 |     pub description: String,
+   |         ^^^^^^^^^^^
+   |
+   = note: `Transaction` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored duri
+ng dead code analysis
+
+warning: `finance-app` (bin "finance-app" test) generated 8 warnings (1 duplicate) (run `cargo fix --bin "finance-app" 
+-p finance-app --tests` to apply 5 suggestions)
+warning: `finance-app` (bin "finance-app") generated 22 warnings (5 duplicates)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 20.70s
+     Running unittests src\lib.rs (target\debug\deps\finance_app-f2203d67ef949423.exe)
+
+running 5 tests
+test domain::aggregates::transaction::tests::transaction::double_entry::single_entry_transaction_fails ... ok
+test domain::aggregates::transaction::tests::transaction::double_entry::unbalanced_transaction_fails ... ok
+test domain::aggregates::transaction::tests::transaction::double_entry::add_entry_requires_transaction_to_remain_balanced ... ok
+test domain::aggregates::transaction::tests::transaction::double_entry::balanced_transaction_succeeds ... ok
+test domain::aggregates::transaction::tests::transaction::double_entry::mixed_currency_transaction_fails ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 49 filtered out; finished in 0.00s
+
+     Running unittests src\main.rs (target\debug\deps\finance_app-91395947d35fe044.exe)
+
+running 5 tests
+test domain::aggregates::transaction::tests::transaction::double_entry::unbalanced_transaction_fails ... ok
+test domain::aggregates::transaction::tests::transaction::double_entry::balanced_transaction_succeeds ... ok
+test domain::aggregates::transaction::tests::transaction::double_entry::add_entry_requires_transaction_to_remain_balanced ... ok
+test domain::aggregates::transaction::tests::transaction::double_entry::mixed_currency_transaction_fails ... ok
+test domain::aggregates::transaction::tests::transaction::double_entry::single_entry_transaction_fails ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 49 filtered out; finished in 0.00s
+
+     Running tests\chart_of_accounts_repository.rs (target\debug\deps\chart_of_accounts_repository-7b55829a29522cf6.exe
+)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests\currency_repository.rs (target\debug\deps\currency_repository-9a05fcf28a3147f6.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests\smoke.rs (target\debug\deps\smoke-985e22dff22078a3.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+cargo.exe : warning: unused imports: `AccountError` and `AccountEvent`
+所在位置 行:1 字符: 189
++ ... DE -eq 0) { & "$env:USERPROFILE\.cargo\bin\cargo.exe" test transactio ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: unused... `AccountEvent`:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+ --> src\domain\aggregates\mod.rs:5:28
+  |
+5 | pub use account::{Account, AccountError, AccountEvent, AccountType};
+  |                            ^^^^^^^^^^^^  ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `TransactionError`, `TransactionEvent`, and `Transaction`
+ --> src\domain\aggregates\mod.rs:9:23
+  |
+9 | pub use transaction::{Transaction, TransactionError, TransactionEvent};
+  |                       ^^^^^^^^^^^  ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+
+warning: unused import: `account_repository::SqliteAccountRepository`
+ --> src\infrastructure\repositories\mod.rs:5:9
+  |
+5 | pub use account_repository::SqliteAccountRepository;
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `chart_of_accounts_repository::SqliteChartOfAccountsRepository`
+ --> src\infrastructure\repositories\mod.rs:6:9
+  |
+6 | pub use chart_of_accounts_repository::SqliteChartOfAccountsRepository;
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `currency_repository::SqliteCurrencyRepository`
+ --> src\infrastructure\repositories\mod.rs:7:9
+  |
+7 | pub use currency_repository::SqliteCurrencyRepository;
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: variants `AccountCreated`, `BalanceUpdated`, and `AccountDeleted` are never constructed
+  --> src\domain\aggregates\account.rs:37:5
+   |
+36 | pub enum AccountEvent {
+   |          ------------ variants in this enum
+37 |     AccountCreated {
+   |     ^^^^^^^^^^^^^^
+...
+42 |     BalanceUpdated {
+   |     ^^^^^^^^^^^^^^
+...
+47 |     AccountDeleted {
+   |     ^^^^^^^^^^^^^^
+   |
+   = note: `AccountEvent` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored dur
+ing dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: enum `AccountError` is never used
+  --> src\domain\aggregates\account.rs:54:10
+   |
+54 | pub enum AccountError {
+   |          ^^^^^^^^^^^^
+
+warning: field `pending_events` is never read
+   --> src\domain\aggregates\account.rs:120:16
+    |
+112 | pub struct Account {
+    |            ------- field in this struct
+...
+120 |     pub(crate) pending_events: Vec<AccountEvent>,
+    |                ^^^^^^^^^^^^^^
+    |
+    = note: `Account` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during 
+dead code analysis
+
+warning: multiple associated items are never used
+   --> src\domain\aggregates\account.rs:124:12
+    |
+123 | impl Account {
+    | ------------ associated items in this implementation
+124 |     pub fn new(
+    |            ^^^
+...
+162 |     pub fn update_balance(&mut self, balance: Money) -> Result<(), AccountError> {
+    |            ^^^^^^^^^^^^^^
+...
+178 |     pub fn change_name(&mut self, name: impl Into<String>) -> Result<(), AccountError> {
+    |            ^^^^^^^^^^^
+...
+191 |     pub fn soft_delete(&mut self) -> Result<(), AccountError> {
+    |            ^^^^^^^^^^^
+...
+205 |     pub fn pull_events(&mut self) -> Vec<AccountEvent> {
+    |            ^^^^^^^^^^^
+...
+209 |     fn ensure_not_deleted(&self) -> Result<(), AccountError> {
+    |        ^^^^^^^^^^^^^^^^^^
+...
+217 |     fn touch(&mut self) {
+    |        ^^^^^
+
+warning: function `validate_balance` is never used
+   --> src\domain\aggregates\account.rs:223:4
+    |
+223 | fn validate_balance(
+    |    ^^^^^^^^^^^^^^^^
+
+warning: function `validate_chart_of_accounts` is never used
+   --> src\domain\aggregates\account.rs:249:4
+    |
+249 | fn validate_chart_of_accounts(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: variants `InvalidCodeFormat`, `InvalidLevel`, `ParentCodeRequired`, `ParentCodeNotAllowed`, and `InvalidParent
+Level` are never constructed
+  --> src\domain\aggregates\chart_of_accounts.rs:66:5
+   |
+65 | pub enum ChartOfAccountsError {
+   |          -------------------- variants in this enum
+66 |     InvalidCodeFormat(String),
+   |     ^^^^^^^^^^^^^^^^^
+67 |     InvalidLevel(i32),
+   |     ^^^^^^^^^^^^
+...
+70 |     ParentCodeRequired,
+   |     ^^^^^^^^^^^^^^^^^^
+71 |     ParentCodeNotAllowed,
+   |     ^^^^^^^^^^^^^^^^^^^^
+72 |     InvalidParentLevel,
+   |     ^^^^^^^^^^^^^^^^^^
+   |
+   = note: `ChartOfAccountsError` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ign
+ored during dead code analysis
+
+warning: associated items `new`, `validate_code_format`, `validate_parent_code`, `is_deleted`, and `soft_delete` are ne
+ver used
+   --> src\domain\aggregates\chart_of_accounts.rs:121:12
+    |
+120 | impl ChartOfAccounts {
+    | -------------------- associated items in this implementation
+121 |     pub fn new(
+    |            ^^^
+...
+156 |     fn validate_code_format(code: &str, level: i32) -> Result<(), ChartOfAccountsError> {
+    |        ^^^^^^^^^^^^^^^^^^^^
+...
+170 |     fn validate_parent_code(
+    |        ^^^^^^^^^^^^^^^^^^^^
+...
+191 |     pub fn is_deleted(&self) -> bool {
+    |            ^^^^^^^^^^
+...
+195 |     pub fn soft_delete(&mut self) {
+    |            ^^^^^^^^^^^
+
+warning: enum `TransactionEvent` is never used
+ --> src\domain\aggregates\transaction.rs:7:10
+  |
+7 | pub enum TransactionEvent {
+  |          ^^^^^^^^^^^^^^^^
+
+warning: enum `TransactionError` is never used
+  --> src\domain\aggregates\transaction.rs:19:10
+   |
+19 | pub enum TransactionError {
+   |          ^^^^^^^^^^^^^^^^
+
+warning: struct `Transaction` is never constructed
+  --> src\domain\aggregates\transaction.rs:56:12
+   |
+56 | pub struct Transaction {
+   |            ^^^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> src\domain\aggregates\transaction.rs:66:12
+    |
+ 65 | impl Transaction {
+    | ---------------- associated items in this implementation
+ 66 |     pub fn new(
+    |            ^^^
+...
+ 93 |     pub fn add_entry(&mut self, entry: TransactionEntry) -> Result<(), TransactionError> {
+    |            ^^^^^^^^^
+...
+110 |     pub fn is_balanced(&self) -> bool {
+    |            ^^^^^^^^^^^
+...
+117 |     pub fn validate(&self) -> Result<(), TransactionError> {
+    |            ^^^^^^^^
+...
+135 |     pub fn pull_events(&mut self) -> Vec<TransactionEvent> {
+    |            ^^^^^^^^^^^
+...
+139 |     fn totals(&self) -> Result<(Money, Money), TransactionError> {
+    |        ^^^^^^
+...
+178 |     fn touch(&mut self) {
+    |        ^^^^^
+
+warning: enum `TransactionEntryError` is never used
+ --> src\domain\value_objects\transaction_entry.rs:6:10
+  |
+6 | pub enum TransactionEntryError {
+  |          ^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `TransactionEntry` is never constructed
+
+running 11 tests
+test domain::aggregates::transaction::tests::transaction::domain_events::failed_entry_addition_emits_no_event ... ok
+test domain::aggregates::transaction::tests::transaction::domain_events::emits_updated_event_when_entry_is_added ... ok
+test domain::value_objects::transaction_entry::tests::transaction_entry::business_rules::accepts_debit_only_entries ... ok
+test domain::aggregates::transaction::tests::transaction::double_entry::add_entry_requires_transaction_to_remain_balanced ... ok
+test domain::aggregates::transaction::tests::transaction::double_entry::balanced_transaction_succeeds ... ok
+test domain::value_objects::transaction_entry::tests::transaction_entry::business_rules::rejects_entries_with_both_debit_and_credit ... ok
+test domain::value_objects::transaction_entry::tests::transaction_entry::business_rules::rejects_entries_without_debit_or_credit ... ok
+test domain::aggregates::transaction::tests::transaction::domain_events::emits_created_event ... ok
+test domain::aggregates::transaction::tests::transaction::double_entry::mixed_currency_transaction_fails ... ok
+test domain::aggregates::transaction::tests::transaction::double_entry::single_entry_transaction_fails ... ok
+  --> src\domain\value_objects\transaction_entry.rs:27:12
+   |
+test domain::aggregates::transaction::tests::transaction::double_entry::unbalanced_transaction_fails ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 43 filtered out; finished in 0.00s
+
+
+running 11 tests
+test domain::aggregates::transaction::tests::transaction::double_entry::balanced_transaction_succeeds ... ok
+test domain::aggregates::transaction::tests::transaction::double_entry::mixed_currency_transaction_fails ... ok
+test domain::value_objects::transaction_entry::tests::transaction_entry::business_rules::rejects_entries_without_debit_or_credit ... ok
+test domain::aggregates::transaction::tests::transaction::domain_events::emits_updated_event_when_entry_is_added ... ok
+test domain::aggregates::transaction::tests::transaction::domain_events::emits_created_event ... ok
+test domain::aggregates::transaction::tests::transaction::double_entry::single_entry_transaction_fails ... ok
+test domain::aggregates::transaction::tests::transaction::double_entry::unbalanced_transaction_fails ... ok
+test domain::aggregates::transaction::tests::transaction::domain_events::failed_entry_addition_emits_no_event ... ok
+test domain::aggregates::transaction::tests::transaction::double_entry::add_entry_requires_transaction_to_remain_balanced ... ok
+test domain::value_objects::transaction_entry::tests::transaction_entry::business_rules::accepts_debit_only_entries ... ok
+test domain::value_objects::transaction_entry::tests::transaction_entry::business_rules::rejects_entries_with_both_debit_and_credit ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 43 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+27 | pub struct TransactionEntry {
+   |            ^^^^^^^^^^^^^^^^
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+warning: associated items `new`, `validate`, and `currency_code` are never used
+  --> src\domain\value_objects\transaction_entry.rs:36:12
+   |
+35 | impl TransactionEntry {
+   | --------------------- associated items in this implementation
+36 |     pub fn new(
+   |            ^^^
+...
+55 |     pub fn validate(&self) -> Result<(), TransactionEntryError> {
+   |            ^^^^^^^^
+...
+63 |     pub fn currency_code(&self) -> Option<&str> {
+   |            ^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+  --> src\infrastructure\repositories\account_repository.rs:18:12
+   |
+17 | impl SqliteAccountRepository {
+   | ---------------------------- associated function in this implementation
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+18 |     pub fn new(pool: SqlitePool) -> Self {
+   |            ^^^
+
+warning: associated function `new` is never used
+  --> src\infrastructure\repositories\chart_of_accounts_repository.rs:14:12
+   |
+13 | impl SqliteChartOfAccountsRepository {
+   | ------------------------------------ associated function in this implementation
+14 |     pub fn new(pool: SqlitePool) -> Self {
+   |            ^^^
+
+warning: variant `InvalidParentLevel` is never constructed
+  --> src\domain\aggregates\chart_of_accounts.rs:72:5
+   |
+65 | pub enum ChartOfAccountsError {
+   |          -------------------- variant in this enum
+...
+72 |     InvalidParentLevel,
+   |     ^^^^^^^^^^^^^^^^^^
+   |
+   = note: `ChartOfAccountsError` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ign
+ored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: fields `transaction_date` and `description` are never read
+  --> src\domain\aggregates\transaction.rs:58:9
+   |
+56 | pub struct Transaction {
+   |            ----------- fields in this struct
+57 |     pub id: Uuid,
+58 |     pub transaction_date: NaiveDate,
+   |         ^^^^^^^^^^^^^^^^
+59 |     pub description: String,
+   |         ^^^^^^^^^^^
+   |
+   = note: `Transaction` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored duri
+ng dead code analysis
+
+warning: `finance-app` (bin "finance-app") generated 22 warnings (run `cargo fix --bin "finance-app" -p finance-app` to
+ apply 5 suggestions)
+warning: `finance-app` (bin "finance-app" test) generated 8 warnings (6 duplicates)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.28s
+     Running unittests src\lib.rs (target\debug\deps\finance_app-f2203d67ef949423.exe)
+     Running unittests src\main.rs (target\debug\deps\finance_app-91395947d35fe044.exe)
+     Running tests\chart_of_accounts_repository.rs (target\debug\deps\chart_of_accounts_repository-7b55829a29522cf6.exe
+)
+     Running tests\currency_repository.rs (target\debug\deps\currency_repository-9a05fcf28a3147f6.exe)
+     Running tests\smoke.rs (target\debug\deps\smoke-985e22dff22078a3.exe)

@@ -154,3 +154,10 @@
 - DateTime parsing: Support both SQLite and RFC3339 formats with fallback
 - Soft delete pattern: deleted_at IS NULL in WHERE clauses
 - Money handling: CAST(balance AS TEXT) in SELECT, to_string() in INSERT/UPDATE
+
+## [2026-04-07] Task 11: Transaction Aggregate - COMPLETED
+- Added `TransactionEntry` with XOR validation so each line item carries exactly one of `debit_amount` or `credit_amount`.
+- Added `Transaction` aggregate enforcing at least 2 entries, same-currency entries, and debit-total equals credit-total before creation or mutation.
+- `add_entry()` preserves aggregate validity by reverting failed additions and only emitting `TransactionUpdated` when the transaction remains balanced.
+- `cargo test transaction::double_entry` and `cargo test transaction` both passed using `$env:USERPROFILE\.cargo\bin\cargo.exe`; evidence saved to `.sisyphus/evidence/task-11-transaction-validation.txt`.
+- `rust-analyzer` is still unavailable in this environment, so Rust verification relied on `cargo test` output instead of LSP diagnostics.
