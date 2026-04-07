@@ -1,9 +1,24 @@
-use crate::domain::aggregates::{ChartOfAccounts, ChartOfAccountsType};
+use crate::domain::aggregates::{Account, AccountType, ChartOfAccounts, ChartOfAccountsType};
 use crate::domain::value_objects::Currency;
 use rust_decimal::Decimal;
+use uuid::Uuid;
 
-#[allow(dead_code)]
-pub trait AccountRepository: Send + Sync {}
+#[allow(async_fn_in_trait, dead_code)]
+pub trait AccountRepository: Send + Sync {
+    async fn create(&self, account: &Account) -> sqlx::Result<()>;
+
+    async fn find_by_id(&self, id: Uuid) -> sqlx::Result<Option<Account>>;
+
+    async fn find_all(&self) -> sqlx::Result<Vec<Account>>;
+
+    async fn find_by_type(&self, account_type: AccountType) -> sqlx::Result<Vec<Account>>;
+
+    async fn update(&self, account: &Account) -> sqlx::Result<bool>;
+
+    async fn soft_delete(&self, id: Uuid) -> sqlx::Result<bool>;
+
+    async fn find_all_including_deleted(&self) -> sqlx::Result<Vec<Account>>;
+}
 
 #[allow(dead_code)]
 pub trait TransactionRepository: Send + Sync {}

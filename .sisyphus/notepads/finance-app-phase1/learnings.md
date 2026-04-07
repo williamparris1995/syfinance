@@ -122,3 +122,35 @@
 - Added `Account` aggregate root with account-specific type validation, chart-of-accounts linkage, currency consistency checks, soft delete via `SyncMetadata`, and pending domain events for create/balance-delete transitions.
 - `cargo test account::business_rules` and `cargo test account` both passed when run from `src-tauri` with `$env:USERPROFILE\.cargo\bin\cargo.exe`; evidence saved to `.sisyphus/evidence/task-9-account-rules.txt`.
 - Re-exporting another aggregate-specific `AccountType` collided with the chart-of-accounts enum, so shared callers now use the alias `ChartOfAccountsType` when they mean the accounting classification enum.
+
+## Task 10: Account Repository Implementation
+
+### Implementation Details
+- Created AccountRepository trait with CRUD operations: create, find_by_id, find_all, find_by_type, update, soft_delete, find_all_including_deleted
+- Implemented SqliteAccountRepository with full CRUD support
+- Money serialization: Store amount as TEXT (Decimal.to_string()) and currency_code separately
+- SyncMetadata handling: Parse SQLite datetime format (YYYY-MM-DD HH:MM:SS) and RFC3339, store as RFC3339
+- Soft delete: Set deleted_at timestamp, exclude from queries by default with WHERE deleted_at IS NULL
+- Device_id: SyncMetadata.device_id is non-optional Uuid, use unwrap_or_else(Uuid::new_v4) when parsing from DB
+
+### Technical Challenges
+- SyncMetadata.device_id is Uuid (not Option<Uuid>), required fallback for missing values
+- Account.pending_events is private, changed to pub(crate) for infrastructure layer access
+- DateTime parsing: Support both SQLite format and RFC3339 for compatibility
+- ChartOfAccountsType import: Use from aggregates module, not chart_of_accounts submodule
+
+### Test Coverage
+- 7 integration tests covering all CRUD operations
+- test_create_and_find_by_id: Basic create and retrieve
+- test_find_all_excludes_deleted: Soft delete filtering
+- test_find_by_type: Filter by AccountType
+- test_update_account: Update name and balance
+- test_soft_delete: Soft delete functionality
+- test_find_all_including_deleted: Admin query for all records
+- test_money_serialization_preserves_precision: Decimal precision preservation
+
+### Patterns Established
+- DateTime serialization: Always use to_rfc3339() for consistency
+- DateTime parsing: Support both SQLite and RFC3339 formats with fallback
+- Soft delete pattern: deleted_at IS NULL in WHERE clauses
+- Money handling: CAST(balance AS TEXT) in SELECT, to_string() in INSERT/UPDATE

@@ -117,7 +117,7 @@ pub struct Account {
     pub currency_code: String,
     pub balance: Money,
     pub sync_metadata: SyncMetadata,
-    pending_events: Vec<AccountEvent>,
+    pub(crate) pending_events: Vec<AccountEvent>,
 }
 
 impl Account {
