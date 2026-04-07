@@ -71,7 +71,7 @@
 ## Task 6: ChartOfAccounts Aggregate (2026-04-07)
 
 ### Implementation Details
-- Created ChartOfAccounts aggregate with ÖÐ¹ú»á¼Æ×¼Ôò (Chinese Accounting Standards) structure
+- Created ChartOfAccounts aggregate with ï¿½Ð¹ï¿½ï¿½ï¿½ï¿½×¼ï¿½ï¿½ (Chinese Accounting Standards) structure
 - Implemented 3-level hierarchical account system (level 1: 4 digits, level 2: 4 digits, level 3: 6 digits)
 - Added validation for code format, parent-child relationships, and account types
 - Repository supports hierarchical queries (get_children) and filtering by level/type
@@ -83,18 +83,18 @@
 - Removed duplicate seed data from initial migration (20260407000002) to avoid conflicts
 
 ### Standard Accounts Seeded
-**Level 1 (Ò»¼¶¿ÆÄ¿):**
-- 1000: ×Ê²ú (Assets) - debit
-- 2000: ¸ºÕ® (Liabilities) - credit
-- 3000: È¨Òæ (Equity) - credit
-- 4000: ÊÕÈë (Income) - credit
-- 5000: Ö§³ö (Expenses) - debit
+**Level 1 (Ò»ï¿½ï¿½ï¿½ï¿½Ä¿):**
+- 1000: ï¿½Ê²ï¿½ (Assets) - debit
+- 2000: ï¿½ï¿½Õ® (Liabilities) - credit
+- 3000: È¨ï¿½ï¿½ (Equity) - credit
+- 4000: ï¿½ï¿½ï¿½ï¿½ (Income) - credit
+- 5000: Ö§ï¿½ï¿½ (Expenses) - debit
 
-**Level 2 (¶þ¼¶¿ÆÄ¿):**
-- 1001: ¿â´æÏÖ½ð, 1002: ÒøÐÐ´æ¿î, 1012: ÆäËû»õ±Ò×Ê½ð (Assets)
-- 2001: ¶ÌÆÚ½è¿î, 2201: Ó¦¸¶ÕË¿î (Liabilities)
-- 4001: Ö÷ÓªÒµÎñÊÕÈë (Income)
-- 5001: Ö÷ÓªÒµÎñ³É±¾, 5201: ²ÆÎñ·ÑÓÃ (Expenses)
+**Level 2 (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¿):**
+- 1001: ï¿½ï¿½ï¿½ï¿½Ö½ï¿½, 1002: ï¿½ï¿½ï¿½Ð´ï¿½ï¿½, 1012: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê½ï¿½ (Assets)
+- 2001: ï¿½ï¿½ï¿½Ú½ï¿½ï¿½, 2201: Ó¦ï¿½ï¿½ï¿½Ë¿ï¿½ (Liabilities)
+- 4001: ï¿½ï¿½ÓªÒµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (Income)
+- 5001: ï¿½ï¿½ÓªÒµï¿½ï¿½É±ï¿½, 5201: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (Expenses)
 
 ### Test Results
 - 11 unit tests passed (validation rules)
@@ -105,3 +105,9 @@
 - SQLite CURRENT_TIMESTAMP returns format incompatible with chrono::DateTime::parse_from_rfc3339
 - Solution: Use datetime('now') in migrations and parse both formats in repository
 - Soft delete requires update() method, not create() with same code (UNIQUE constraint)
+
+## [2026-04-07] Task 7: Money Value Object - COMPLETED
+- Added `Money` as a Decimal-backed value object with currency-code validation, 2-decimal precision enforcement, same-currency arithmetic, comparison helpers, and exchange-rate conversion.
+- Display formatting uses basic localized symbols for common currencies and thousands separators (example: `Â¥1,234.56`).
+- Property-based tests with proptest passed for commutativity and associativity, and `cargo test money` passed end-to-end.
+- Cargo still needs the full executable path `$env:USERPROFILE\.cargo\bin\cargo.exe` in this environment.
