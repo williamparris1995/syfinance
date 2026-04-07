@@ -1,0 +1,9 @@
+﻿20260407000001/installed create currencies
+20260407000002/installed create chart of accounts
+20260407000003/installed create accounts
+20260407000004/installed create transactions
+20260407000005/installed create transaction entries
+20260407000006/installed create debts
+20260407000007/installed create debt payments
+20260407000008/installed create reminders
+20260407000009/installed create sync metadata
