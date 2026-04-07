@@ -1,0 +1,14 @@
+﻿=== PNPM Install ===
+Already up to date
+Done in 140ms
+
+
+=== Cargo Build (in src-tauri) ===
+cargo.exe :     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.68s
+所在位置 行:1 字符: 176
++ ... $output += (& "$env:USERPROFILE\.cargo\bin\cargo.exe" build 2>&1 | Ou ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (    Finished `d...get(s) in 0.68s:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+

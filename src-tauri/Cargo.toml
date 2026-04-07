@@ -1,0 +1,17 @@
+[package]
+name = "finance-app"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+
+[build-dependencies]
+tauri-build = "2"
+
+[dependencies]
+axum = "0.7"
+chrono = { version = "0.4", features = ["serde"] }
+rust_decimal = { version = "1", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+sqlx = { version = "0.8", features = ["sqlite", "postgres", "runtime-tokio-rustls", "macros"] }
+tauri = { version = "2" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
