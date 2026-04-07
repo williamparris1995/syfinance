@@ -626,7 +626,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src-tauri/src/domain/value_objects/currency.rs, src-tauri/src/infrastructure/repositories/currency_repository.rs`
   - Pre-commit: `cargo test currency`
 
-- [ ] 6. ChartOfAccounts Aggregate - 中国会计准则科目
+- [x] 6. ChartOfAccounts Aggregate - 中国会计准则科目
 
   **What to do**:
   - Create ChartOfAccounts aggregate in domain/aggregates/chart_of_accounts.rs

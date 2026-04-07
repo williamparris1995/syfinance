@@ -67,3 +67,41 @@
 - Implemented `CurrencyRepository` and a SQLite-backed repository that stores Decimal rates as text and maps rows back into domain objects.
 - Integration tests need a clean currencies table because the base migration seeds CNY, USD, and EUR by default.
 - For SQLite tests on Windows, `SqliteConnectOptions` with a fixed `test.db` path was the most reliable setup.
+
+## Task 6: ChartOfAccounts Aggregate (2026-04-07)
+
+### Implementation Details
+- Created ChartOfAccounts aggregate with 中国会计准则 (Chinese Accounting Standards) structure
+- Implemented 3-level hierarchical account system (level 1: 4 digits, level 2: 4 digits, level 3: 6 digits)
+- Added validation for code format, parent-child relationships, and account types
+- Repository supports hierarchical queries (get_children) and filtering by level/type
+
+### Technical Decisions
+- Used INSERT OR IGNORE in seed migration to handle idempotent migrations
+- Implemented datetime parsing for both SQLite format (YYYY-MM-DD HH:MM:SS) and RFC3339
+- Added update() method to repository for soft delete operations
+- Removed duplicate seed data from initial migration (20260407000002) to avoid conflicts
+
+### Standard Accounts Seeded
+**Level 1 (一级科目):**
+- 1000: 资产 (Assets) - debit
+- 2000: 负债 (Liabilities) - credit
+- 3000: 权益 (Equity) - credit
+- 4000: 收入 (Income) - credit
+- 5000: 支出 (Expenses) - debit
+
+**Level 2 (二级科目):**
+- 1001: 库存现金, 1002: 银行存款, 1012: 其他货币资金 (Assets)
+- 2001: 短期借款, 2201: 应付账款 (Liabilities)
+- 4001: 主营业务收入 (Income)
+- 5001: 主营业务成本, 5201: 财务费用 (Expenses)
+
+### Test Results
+- 11 unit tests passed (validation rules)
+- 6 integration tests passed (CRUD, hierarchical queries, seed data verification)
+- Evidence saved to .sisyphus/evidence/task-6-seed-data.txt and task-6-hierarchy-test.txt
+
+### Gotchas
+- SQLite CURRENT_TIMESTAMP returns format incompatible with chrono::DateTime::parse_from_rfc3339
+- Solution: Use datetime('now') in migrations and parse both formats in repository
+- Soft delete requires update() method, not create() with same code (UNIQUE constraint)

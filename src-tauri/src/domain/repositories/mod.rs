@@ -1,3 +1,4 @@
+use crate::domain::aggregates::{AccountType, ChartOfAccounts};
 use crate::domain::value_objects::Currency;
 use rust_decimal::Decimal;
 
@@ -22,4 +23,21 @@ pub trait CurrencyRepository: Send + Sync {
     async fn list_all(&self) -> sqlx::Result<Vec<Currency>>;
 
     async fn update_rate(&self, code: &str, exchange_rate: Decimal) -> sqlx::Result<bool>;
+}
+
+#[allow(async_fn_in_trait, dead_code)]
+pub trait ChartOfAccountsRepository: Send + Sync {
+    async fn create(&self, account: &ChartOfAccounts) -> sqlx::Result<()>;
+
+    async fn update(&self, account: &ChartOfAccounts) -> sqlx::Result<bool>;
+
+    async fn find_by_code(&self, code: &str) -> sqlx::Result<Option<ChartOfAccounts>>;
+
+    async fn list_by_level(&self, level: i32) -> sqlx::Result<Vec<ChartOfAccounts>>;
+
+    async fn list_by_type(&self, account_type: AccountType) -> sqlx::Result<Vec<ChartOfAccounts>>;
+
+    async fn get_children(&self, parent_code: &str) -> sqlx::Result<Vec<ChartOfAccounts>>;
+
+    async fn list_all(&self) -> sqlx::Result<Vec<ChartOfAccounts>>;
 }
