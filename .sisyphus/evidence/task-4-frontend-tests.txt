@@ -1,0 +1,6 @@
+RUN  v4.1.2 C:/Users/BuHiYo-001/Desktop/projects/fiance
+
+Test Files  1 passed (1)
+Tests  1 passed (1)
+Start at  12:43:15
+Duration  2.32s (transform 69ms, setup 225ms, import 315ms, tests 149ms, environment 1.42s)

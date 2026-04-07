@@ -267,7 +267,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
 
 ### Wave 1: Foundation (8 tasks, start immediately)
 
-- [ ] 1. Project Scaffolding - Tauri + React + Rust
+- [x] 1. Project Scaffolding - Tauri + React + Rust
 
   **What to do**:
   - Initialize Tauri 2.x project with React + TypeScript template
@@ -342,7 +342,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `package.json, Cargo.toml, src-tauri/*, src/*, vite.config.ts, tailwind.config.js`
   - Pre-commit: `cargo check && pnpm type-check`
 
-- [ ] 2. Database Schema Design - SQLite + PostgreSQL
+- [x] 2. Database Schema Design - SQLite + PostgreSQL
 
   **What to do**:
   - Design database schema for both SQLite (local) and PostgreSQL (remote)
@@ -420,7 +420,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src-tauri/migrations/*.sql`
   - Pre-commit: `sqlx migrate run --database-url sqlite::memory:`
 
-- [ ] 3. DDD Layer Structure Setup
+- [x] 3. DDD Layer Structure Setup
 
   **What to do**:
   - Create Rust module structure for DDD layers in src-tauri/src/
