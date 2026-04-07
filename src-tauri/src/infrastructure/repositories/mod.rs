@@ -1,1 +1,1 @@
-// Infrastructure repository module placeholder.
+pub mod currency_repository;

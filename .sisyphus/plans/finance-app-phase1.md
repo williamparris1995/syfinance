@@ -480,7 +480,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src-tauri/src/domain/, src-tauri/src/application/, src-tauri/src/infrastructure/, src-tauri/src/presentation/`
   - Pre-commit: `cargo check`
 
-- [ ] 4. Test Infrastructure Setup
+- [x] 4. Test Infrastructure Setup
 
   **What to do**:
   - Configure cargo test in src-tauri/Cargo.toml
@@ -551,7 +551,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `Cargo.toml, vitest.config.ts, src-tauri/tests/, src/__tests__/`
   - Pre-commit: `cargo test && pnpm vitest run`
 
-- [ ] 5. Currency Value Object + Repository
+- [x] 5. Currency Value Object + Repository
 
   **What to do**:
   - Create Currency value object in domain/value_objects/currency.rs

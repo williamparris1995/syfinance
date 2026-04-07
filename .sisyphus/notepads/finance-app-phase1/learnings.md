@@ -61,3 +61,9 @@
 - Added example smoke tests in `src/__tests__/App.test.tsx` and `src-tauri/tests/smoke.rs` to prove both test runners execute.
 - Verified `cargo test` and `pnpm vitest run` both pass; evidence saved under `.sisyphus/evidence/`.
 - Cargo still needs the full executable path `$env:USERPROFILE\.cargo\bin\cargo.exe` in this environment.
+
+## [2026-04-07] Task 5: Currency Domain + SQLite Repository - COMPLETED
+- Added `Currency` as a domain value object with ISO 4217 validation limited to exactly 3 uppercase ASCII letters.
+- Implemented `CurrencyRepository` and a SQLite-backed repository that stores Decimal rates as text and maps rows back into domain objects.
+- Integration tests need a clean currencies table because the base migration seeds CNY, USD, and EUR by default.
+- For SQLite tests on Windows, `SqliteConnectOptions` with a fixed `test.db` path was the most reliable setup.

@@ -1,1 +1,3 @@
-// Domain value object module placeholder.
+pub mod currency;
+
+pub use currency::{Currency, CurrencyValidationError};
