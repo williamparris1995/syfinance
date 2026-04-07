@@ -1,0 +1,1 @@
+// Infrastructure repository module placeholder.

@@ -1,0 +1,1 @@
+// Domain aggregate module placeholder.
