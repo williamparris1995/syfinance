@@ -838,7 +838,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
 
 ### Wave 2: Core Domain (7 tasks, depends on Wave 1)
 
-- [ ] 9. Account Aggregate + Repository
+- [x] 9. Account Aggregate + Repository
 
   **What to do**:
   - Create Account aggregate in domain/aggregates/account.rs using TDD

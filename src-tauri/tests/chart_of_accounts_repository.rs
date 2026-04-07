@@ -1,6 +1,6 @@
 use finance_app::{
     domain::{
-        aggregates::{AccountType, BalanceDirection, ChartOfAccounts},
+        aggregates::{BalanceDirection, ChartOfAccounts, ChartOfAccountsType},
         repositories::ChartOfAccountsRepository,
     },
     infrastructure::repositories::SqliteChartOfAccountsRepository,
@@ -88,7 +88,7 @@ async fn test_create_and_find_account() {
         "1003".to_string(),
         "应收账款".to_string(),
         2,
-        AccountType::Asset,
+        ChartOfAccountsType::Asset,
         Some("1000".to_string()),
         BalanceDirection::Debit,
     )
@@ -107,12 +107,15 @@ async fn test_create_and_find_account() {
 async fn test_list_by_type() {
     let repository = setup_repository().await;
 
-    let asset_accounts = repository.list_by_type(AccountType::Asset).await.unwrap();
+    let asset_accounts = repository
+        .list_by_type(ChartOfAccountsType::Asset)
+        .await
+        .unwrap();
     
     assert!(asset_accounts.len() >= 4, "Should have at least 4 asset accounts (1 level 1 + 3 level 2)");
     
     for account in &asset_accounts {
-        assert_eq!(account.account_type, AccountType::Asset);
+        assert_eq!(account.account_type, ChartOfAccountsType::Asset);
     }
 }
 
@@ -125,7 +128,7 @@ async fn test_soft_delete() {
         "1004".to_string(),
         "预付账款".to_string(),
         2,
-        AccountType::Asset,
+        ChartOfAccountsType::Asset,
         Some("1000".to_string()),
         BalanceDirection::Debit,
     )

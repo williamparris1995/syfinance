@@ -117,3 +117,8 @@
 - `mark_deleted()` clears `synced_at` so deleted entities are always considered dirty until resynced.
 - Cargo test filter `sync_metadata::state_transitions` matched the nested test module path as expected.
 - Evidence saved to `.sisyphus/evidence/task-8-sync-metadata.txt`.
+
+## [2026-04-07] Task 9: Account Aggregate - COMPLETED
+- Added `Account` aggregate root with account-specific type validation, chart-of-accounts linkage, currency consistency checks, soft delete via `SyncMetadata`, and pending domain events for create/balance-delete transitions.
+- `cargo test account::business_rules` and `cargo test account` both passed when run from `src-tauri` with `$env:USERPROFILE\.cargo\bin\cargo.exe`; evidence saved to `.sisyphus/evidence/task-9-account-rules.txt`.
+- Re-exporting another aggregate-specific `AccountType` collided with the chart-of-accounts enum, so shared callers now use the alias `ChartOfAccountsType` when they mean the accounting classification enum.

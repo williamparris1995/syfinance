@@ -1,4 +1,4 @@
-use crate::domain::aggregates::{AccountType, ChartOfAccounts};
+use crate::domain::aggregates::{ChartOfAccounts, ChartOfAccountsType};
 use crate::domain::value_objects::Currency;
 use rust_decimal::Decimal;
 
@@ -35,7 +35,10 @@ pub trait ChartOfAccountsRepository: Send + Sync {
 
     async fn list_by_level(&self, level: i32) -> sqlx::Result<Vec<ChartOfAccounts>>;
 
-    async fn list_by_type(&self, account_type: AccountType) -> sqlx::Result<Vec<ChartOfAccounts>>;
+    async fn list_by_type(
+        &self,
+        account_type: ChartOfAccountsType,
+    ) -> sqlx::Result<Vec<ChartOfAccounts>>;
 
     async fn get_children(&self, parent_code: &str) -> sqlx::Result<Vec<ChartOfAccounts>>;
 

@@ -1,5 +1,5 @@
 use crate::domain::{
-    aggregates::{AccountType, BalanceDirection, ChartOfAccounts, ChartOfAccountsError},
+    aggregates::{BalanceDirection, ChartOfAccounts, ChartOfAccountsError, ChartOfAccountsType},
     repositories::ChartOfAccountsRepository,
 };
 use chrono::{DateTime, Utc};
@@ -30,7 +30,7 @@ impl SqliteChartOfAccountsRepository {
         let device_id: Option<String> = row.try_get("device_id")?;
         let synced_at: Option<String> = row.try_get("synced_at")?;
 
-        let account_type = AccountType::from_str(&account_type_str)
+        let account_type = ChartOfAccountsType::from_str(&account_type_str)
             .map_err(|e: ChartOfAccountsError| sqlx::Error::Decode(Box::new(e)))?;
 
         let balance_direction = BalanceDirection::from_str(&balance_direction_str)
@@ -166,7 +166,10 @@ impl ChartOfAccountsRepository for SqliteChartOfAccountsRepository {
             .collect()
     }
 
-    async fn list_by_type(&self, account_type: AccountType) -> sqlx::Result<Vec<ChartOfAccounts>> {
+    async fn list_by_type(
+        &self,
+        account_type: ChartOfAccountsType,
+    ) -> sqlx::Result<Vec<ChartOfAccounts>> {
         let rows = sqlx::query(
             r#"
             SELECT id, code, name, level, account_type, parent_code, 
