@@ -111,3 +111,9 @@
 - Display formatting uses basic localized symbols for common currencies and thousands separators (example: `¥1,234.56`).
 - Property-based tests with proptest passed for commutativity and associativity, and `cargo test money` passed end-to-end.
 - Cargo still needs the full executable path `$env:USERPROFILE\.cargo\bin\cargo.exe` in this environment.
+
+## [2026-04-07] Task 8: SyncMetadata Value Object - COMPLETED
+- Added `SyncMetadata` as a reusable sync-tracking value object with `updated_at`, `deleted_at`, `device_id`, and `synced_at` fields.
+- `mark_deleted()` clears `synced_at` so deleted entities are always considered dirty until resynced.
+- Cargo test filter `sync_metadata::state_transitions` matched the nested test module path as expected.
+- Evidence saved to `.sisyphus/evidence/task-8-sync-metadata.txt`.

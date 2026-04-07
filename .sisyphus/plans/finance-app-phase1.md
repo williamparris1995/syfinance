@@ -702,7 +702,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src-tauri/src/domain/aggregates/chart_of_accounts.rs, src-tauri/src/infrastructure/repositories/chart_of_accounts_repository.rs, src-tauri/migrations/003_seed_chart_of_accounts.sql`
   - Pre-commit: `cargo test chart_of_accounts`
 
-- [ ] 7. Money Value Object - rust_decimal
+- [x] 7. Money Value Object - rust_decimal
 
   **What to do**:
   - Create Money value object in domain/value_objects/money.rs
@@ -777,7 +777,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src-tauri/src/domain/value_objects/money.rs`
   - Pre-commit: `cargo test money`
 
-- [ ] 8. SyncMetadata Value Object
+- [x] 8. SyncMetadata Value Object
 
   **What to do**:
   - Create SyncMetadata value object in domain/value_objects/sync_metadata.rs
