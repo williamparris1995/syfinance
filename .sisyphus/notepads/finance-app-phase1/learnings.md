@@ -207,3 +207,31 @@
  -   C h a r t O f A c c o u n t s : : n e w ( )   r e q u i r e s   S t r i n g   p a r a m e t e r s ,   n o t   & s t r   ( u s e   . t o _ s t r i n g ( )   i n   t e s t s ) 
   
  
+## [2026-04-08] Task 12: Reminder Aggregate - COMPLETED
+- Added Reminder aggregate with ReminderType (DebtPayment, BillDue, Custom) and RepeatPattern (Daily, Weekly, Monthly, Yearly)
+- Implemented scheduling logic: should_trigger_now() checks if remind_at <= now and notified == false
+- Implemented mark_notified() to update notified status and sync metadata
+- Implemented calculate_next_occurrence() with support for simple repeat patterns:
+  - Daily: adds 1 day
+  - Weekly: adds 7 days
+  - Monthly: adds 1 month (handles month-end edge cases like Jan 31 -> Feb 28)
+  - Yearly: adds 12 months
+- Added ReminderRepository trait with CRUD operations and find_pending_reminders()
+- All 19 unit tests passed covering validation, triggering, and repeat patterns
+- Fixed chrono import: needed Timelike trait for hour(), minute(), second() methods on DateTime
+- Fixed transaction_service.rs: removed duplicate closing brace that caused syntax error
+- Evidence saved to .sisyphus/evidence/task-12-reminder-tests.txt and task-12-reminder-repeat.txt
+
+### Technical Decisions
+- Used chrono::Timelike trait for time component access (hour, minute, second)
+- RepeatPattern and ReminderType use as_str() and from_str() for database serialization
+- calculate_next_occurrence() returns Option<DateTime<Utc>> (None for one-time reminders)
+- should_trigger_now() combines time check with notified flag to prevent duplicate triggers
+- mark_notified() calls touch() to update sync_metadata for proper sync tracking
+
+### Test Coverage
+- 19 unit tests covering all functionality:
+  - ReminderType and RepeatPattern string conversion (6 tests)
+  - Validation rules (3 tests)
+  - Triggering logic (4 tests)
+  - Repeat pattern calculations (6 tests including month-end edge case)

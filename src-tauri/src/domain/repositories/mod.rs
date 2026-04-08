@@ -1,14 +1,17 @@
 mod debt_repository;
+mod reminder_repository;
 
 use crate::domain::aggregates::{
-    Account, AccountType, ChartOfAccounts, ChartOfAccountsType, Debt, DebtType, Transaction,
+    Account, AccountType, ChartOfAccounts, ChartOfAccountsType, Debt, DebtType, Reminder,
+    Transaction,
 };
 use crate::domain::value_objects::Currency;
-use chrono::NaiveDate;
+use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
 pub use debt_repository::DebtRepository;
+pub use reminder_repository::ReminderRepository;
 
 #[allow(async_fn_in_trait, dead_code)]
 pub trait AccountRepository: Send + Sync {
@@ -44,8 +47,7 @@ pub trait TransactionRepository: Send + Sync {
     async fn soft_delete(&self, id: Uuid) -> sqlx::Result<bool>;
 }
 
-#[allow(dead_code)]
-pub trait ReminderRepository: Send + Sync {}
+
 
 #[allow(async_fn_in_trait, dead_code)]
 pub trait CurrencyRepository: Send + Sync {
