@@ -14,10 +14,11 @@ chrono = { version = "0.4", features = ["serde"] }
 futures = "0.3.32"
 rust_decimal = { version = "1", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
-sqlx = { version = "0.8", features = ["sqlite", "postgres", "runtime-tokio-rustls", "macros", "migrate", "uuid", "chrono", "rust_decimal"] }
+sqlx = { version = "0.8", features = ["sqlite", "postgres", "runtime-tokio-rustls", "macros", "migrate", "chrono", "uuid", "rust_decimal"] }
 tauri = { version = "2" }
+tauri-plugin-notification = "2"
 thiserror = "2.0.18"
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "test-util"] }
 uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
