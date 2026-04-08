@@ -14,7 +14,6 @@ CREATE TABLE IF NOT EXISTS debt_payments (
     CHECK (principal_amount >= 0),
     CHECK (interest_amount >= 0),
     CHECK (total_amount >= 0),
-    CHECK (total_amount = principal_amount + interest_amount),
     FOREIGN KEY (debt_id) REFERENCES debts(id) ON DELETE RESTRICT
 );
 

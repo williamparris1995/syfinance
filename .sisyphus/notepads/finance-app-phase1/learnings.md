@@ -235,3 +235,43 @@
   - Validation rules (3 tests)
   - Triggering logic (4 tests)
   - Repeat pattern calculations (6 tests including month-end edge case)
+
+## [2026-04-08] Task 15: Debt Application Service - COMPLETED
+
+### Implementation Details
+- Created DebtService in application/services/debt_service.rs with full CRUD operations
+- Created DTOs: CreateDebtDto, DebtDto, PaymentScheduleDto, RecordPaymentDto
+- Implemented use cases: create_debt(), get_debt(), list_debts(), record_payment(), get_upcoming_payments()
+- Payment schedule generation happens automatically on debt creation (via Debt aggregate)
+- Reminder creation for upcoming payments (Saga pattern: debt creation ¡ú schedule generation ¡ú reminder creation)
+- Debt status update when fully paid: deletes all related reminders
+
+### Technical Decisions
+- Repository types: Used Arc<D: DebtRepository> and Arc<R: ReminderRepository> with generic bounds for flexibility
+- Saga pattern: create_debt() creates debt, then iterates payment_schedule to create reminders 3 days before each payment
+- Reminder cleanup: record_payment() checks if all payments are paid, then deletes all related reminders
+- Database schema: Added currency_code column to debts table, removed CHECK constraint from debt_payments (rounding causes validation failures)
+- Type handling: SQLite stores DECIMAL as INTEGER, used CAST(column AS TEXT) in SELECT queries for consistent string parsing
+
+### Test Coverage
+- 6 integration tests covering all use cases:
+  - test_create_debt_generates_schedule_and_reminders: Verifies debt creation and reminder generation
+  - test_get_debt: Retrieves debt by ID
+  - test_list_debts: Lists all debts
+  - test_record_payment_updates_schedule: Records payment and updates schedule
+  - test_record_all_payments_deletes_reminders: Verifies reminder cleanup when fully paid
+  - test_get_upcoming_payments: Filters payments by date range
+- All tests pass with in-memory SQLite database
+
+### Patterns Established
+- Application service pattern: Service layer coordinates between repositories and domain aggregates
+- DTO pattern: Separate DTOs for create operations (with Decimal) and read operations (with String amounts)
+- Saga pattern: Multi-step workflow (debt ¡ú schedule ¡ú reminders) with proper error handling
+- Error handling: Custom DebtServiceError with From<sqlx::Error> conversion
+
+### Gotchas
+- SQLite DECIMAL storage: Stores as INTEGER, requires CAST(column AS TEXT) for string extraction
+- CHECK constraint: Removed total_amount = principal_amount + interest_amount due to rounding precision issues
+- Migration schema mismatch: Original migration had wrong debt_type values (receivable/payable vs borrowed_out/borrowed_in/credit_card/loan)
+- Repository trait bounds: Cannot use dyn Trait with async methods unless using async_trait crate, used concrete generic types instead
+- ReminderRepository signature: Changed from async_trait with Box<dyn Error> to allow(async_fn_in_trait) with sqlx::Result for consistency

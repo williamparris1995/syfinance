@@ -1,3 +1,5 @@
+pub mod debt_service;
 pub mod transaction_service;
 
+pub use debt_service::{DebtService, DebtServiceError};
 pub use transaction_service::{TransactionService, TransactionServiceError};
