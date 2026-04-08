@@ -161,3 +161,10 @@
 - `add_entry()` preserves aggregate validity by reverting failed additions and only emitting `TransactionUpdated` when the transaction remains balanced.
 - `cargo test transaction::double_entry` and `cargo test transaction` both passed using `$env:USERPROFILE\.cargo\bin\cargo.exe`; evidence saved to `.sisyphus/evidence/task-11-transaction-validation.txt`.
 - `rust-analyzer` is still unavailable in this environment, so Rust verification relied on `cargo test` output instead of LSP diagnostics.
+
+## [2026-04-08] Task 11: Debt Aggregate - COMPLETED
+- Added Debt aggregate with DebtType, PaymentSchedule, and AmortizationMethod support for equal principal + interest and equal principal schedules.
+- Debt::create() now validates counterparty, positive principal, non-negative fixed interest, date order, and requires an amortization method for loan debts.
+- Equal principal schedules keep raw principal amounts for total-payment rounding so the last installment aligns with the expected 8,368.06 CNY golden value while still storing 2-decimal Money values.
+- Equal principal + interest schedules produced 8,560.75 CNY monthly payments and 2,728.98 CNY displayed total interest; the golden master test allows a 0.02 CNY tolerance against the Excel reference 2,728.96 CNY.
+- Added DebtRepository trait in its own module and captured amortization evidence in .sisyphus/evidence/task-11-amortization-equal-interest.txt and .sisyphus/evidence/task-11-amortization-equal-principal.txt.

@@ -1,0 +1,6 @@
+Task 11 equal principal evidence
+Command: cargo test debt
+Result: PASS
+Observed schedule: first payment 8750.00 CNY
+Observed schedule: last payment 8368.06 CNY
+Reference values: first 8750.00 CNY, last 8368.06 CNY

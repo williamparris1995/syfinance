@@ -1,0 +1,7 @@
+Task 11 equal principal + interest evidence
+Command: cargo test debt
+Result: PASS
+Observed schedule: first payment 8560.75 CNY
+Observed displayed total interest: 2728.98 CNY
+Reference value: 2728.96 CNY
+Assertion policy: <= 0.02 CNY tolerance against Excel-derived reference
