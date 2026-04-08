@@ -991,7 +991,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src-tauri/src/domain/aggregates/transaction.rs, src-tauri/src/domain/repositories/transaction_repository.rs`
   - Pre-commit: `cargo test transaction`
 
-- [ ] 11. Debt Aggregate + Amortization Calculation
+- [x] 11. Debt Aggregate + Amortization Calculation
 
   **What to do**:
   - Create Debt aggregate in domain/aggregates/debt.rs using TDD
@@ -1068,7 +1068,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src-tauri/src/domain/aggregates/debt.rs, src-tauri/src/domain/repositories/debt_repository.rs`
   - Pre-commit: `cargo test debt`
 
-- [ ] 12. Reminder Aggregate + Scheduling Logic
+- [x] 12. Reminder Aggregate + Scheduling Logic
 
   **What to do**:
   - Create Reminder aggregate in domain/aggregates/reminder.rs
@@ -1139,7 +1139,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src-tauri/src/domain/aggregates/reminder.rs, src-tauri/src/domain/repositories/reminder_repository.rs`
   - Pre-commit: `cargo test reminder`
 
-- [ ] 13. Account Application Service + Use Cases
+- [x] 13. Account Application Service + Use Cases
 
   **What to do**:
   - Create AccountService in application/services/account_service.rs
@@ -1212,7 +1212,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src-tauri/src/application/services/account_service.rs, src-tauri/src/application/dtos/account_dto.rs`
   - Pre-commit: `cargo test account_service`
 
-- [ ] 14. Transaction Application Service + Use Cases
+- [x] 14. Transaction Application Service + Use Cases
 
   **What to do**:
   - Create TransactionService in application/services/transaction_service.rs
@@ -1285,7 +1285,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src-tauri/src/application/services/transaction_service.rs, src-tauri/src/application/dtos/transaction_dto.rs`
   - Pre-commit: `cargo test transaction_service`
 
-- [ ] 15. Debt Application Service + Use Cases
+- [x] 15. Debt Application Service + Use Cases
 
   **What to do**:
   - Create DebtService in application/services/debt_service.rs
@@ -1365,7 +1365,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
 
 ### Wave 3: Infrastructure + API (8 tasks, depends on Wave 2)
 
-- [ ] 16. SQLite Repository Implementations
+- [x] 16. SQLite Repository Implementations
 
   **What to do**:
   - Implement AccountRepositorySqlite in infrastructure/repositories/account_repository_sqlite.rs
@@ -1446,7 +1446,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src-tauri/src/infrastructure/repositories/*_sqlite.rs`
   - Pre-commit: `cargo test repositories::sqlite`
 
-- [ ] 17. PostgreSQL Repository Implementations
+- [x] 17. PostgreSQL Repository Implementations
 
   **What to do**:
   - Implement AccountRepositoryPostgres in infrastructure/repositories/account_repository_postgres.rs
@@ -1588,7 +1588,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src-tauri/src/infrastructure/sync/sync_service.rs`
   - Pre-commit: `cargo test sync_service`
 
-- [ ] 19. Notification Service - tauri-plugin-notification
+- [x] 19. Notification Service - tauri-plugin-notification
 
   **What to do**:
   - Create NotificationService in infrastructure/notifications/notification_service.rs
@@ -1661,7 +1661,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src-tauri/src/infrastructure/notifications/notification_service.rs, src-tauri/Cargo.toml (add plugin)`
   - Pre-commit: `cargo test notification_service`
 
-- [ ] 20. Tauri Commands - Accounts
+- [x] 20. Tauri Commands - Accounts
 
   **What to do**:
   - Create account commands in presentation/tauri_commands/account_commands.rs
@@ -1733,7 +1733,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src-tauri/src/presentation/tauri_commands/account_commands.rs, src-tauri/src/lib.rs (register commands)`
   - Pre-commit: `cargo test account_commands`
 
-- [ ] 21. Tauri Commands - Transactions
+- [x] 21. Tauri Commands - Transactions
 
   **What to do**:
   - Create transaction commands in presentation/tauri_commands/transaction_commands.rs
