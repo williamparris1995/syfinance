@@ -107,10 +107,7 @@ where
         self.sender.send(reminder).await
     }
 
-    pub async fn schedule_notification(
-        &self,
-        reminder: Reminder,
-    ) -> Result<(), NotificationError> {
+    pub async fn schedule_notification(&self, reminder: Reminder) -> Result<(), NotificationError> {
         if reminder.notified {
             return Ok(());
         }
@@ -227,7 +224,10 @@ mod tests {
             unimplemented!("not used in tests")
         }
 
-        async fn find_by_related_entity(&self, _related_entity_id: Uuid) -> sqlx::Result<Vec<Reminder>> {
+        async fn find_by_related_entity(
+            &self,
+            _related_entity_id: Uuid,
+        ) -> sqlx::Result<Vec<Reminder>> {
             unimplemented!("not used in tests")
         }
 
@@ -243,7 +243,10 @@ mod tests {
             unimplemented!("not used in tests")
         }
 
-        async fn get_changes_since(&self, _timestamp: chrono::DateTime<Utc>) -> sqlx::Result<Vec<Reminder>> {
+        async fn get_changes_since(
+            &self,
+            _timestamp: chrono::DateTime<Utc>,
+        ) -> sqlx::Result<Vec<Reminder>> {
             unimplemented!("not used in tests")
         }
 
@@ -312,7 +315,10 @@ mod tests {
         let service = NotificationService::new(repo, sender.clone());
         let reminder = reminder("Future", Utc::now() + ChronoDuration::minutes(10), None);
 
-        service.schedule_notification(reminder.clone()).await.unwrap();
+        service
+            .schedule_notification(reminder.clone())
+            .await
+            .unwrap();
         tokio::task::yield_now().await;
 
         assert!(service.cancel_notification(reminder.id).await.unwrap());
@@ -333,7 +339,10 @@ mod tests {
             Some(RepeatPattern::Daily),
         );
 
-        service.schedule_notification(reminder.clone()).await.unwrap();
+        service
+            .schedule_notification(reminder.clone())
+            .await
+            .unwrap();
         tokio::task::yield_now().await;
 
         tokio::time::advance(StdDuration::from_secs(60)).await;

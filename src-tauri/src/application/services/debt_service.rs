@@ -121,10 +121,7 @@ impl<D: DebtRepository, R: ReminderRepository> DebtService<D, R> {
         Ok(debts.into_iter().map(|d| self.to_dto(d)).collect())
     }
 
-    pub async fn record_payment(
-        &self,
-        dto: RecordPaymentDto,
-    ) -> Result<(), DebtServiceError> {
+    pub async fn record_payment(&self, dto: RecordPaymentDto) -> Result<(), DebtServiceError> {
         let mut debt = self
             .debt_repo
             .find_by_id(dto.debt_id)
@@ -290,10 +287,7 @@ mod tests {
         let debt = debt_repo.find_by_id(debt_id).await.unwrap().unwrap();
         assert_eq!(debt.payment_schedule.len(), 12);
 
-        let reminders = reminder_repo
-            .find_by_related_entity(debt_id)
-            .await
-            .unwrap();
+        let reminders = reminder_repo.find_by_related_entity(debt_id).await.unwrap();
         assert_eq!(reminders.len(), 12);
     }
 
@@ -423,10 +417,7 @@ mod tests {
             service.record_payment(payment_dto).await.unwrap();
         }
 
-        let reminders = reminder_repo
-            .find_by_related_entity(debt_id)
-            .await
-            .unwrap();
+        let reminders = reminder_repo.find_by_related_entity(debt_id).await.unwrap();
         assert_eq!(reminders.len(), 0);
     }
 

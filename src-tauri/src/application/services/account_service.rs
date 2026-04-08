@@ -1,18 +1,22 @@
 use crate::application::dtos::{AccountDto, CreateAccountDto, UpdateAccountDto};
 use crate::domain::aggregates::{Account, AccountError};
-use crate::domain::repositories::{AccountRepository, ChartOfAccountsRepository, CurrencyRepository};
+use crate::domain::repositories::{
+    AccountRepository, ChartOfAccountsRepository, CurrencyRepository,
+};
 use crate::domain::value_objects::{Money, SyncMetadata};
-use sqlx::{Executor, Postgres};
 use std::sync::Arc;
 use uuid::Uuid;
 
-pub struct AccountService<R: AccountRepository, C: ChartOfAccountsRepository, U: CurrencyRepository> {
+pub struct AccountService<R: AccountRepository, C: ChartOfAccountsRepository, U: CurrencyRepository>
+{
     account_repo: Arc<R>,
     chart_of_accounts_repo: Arc<C>,
     currency_repo: Arc<U>,
 }
 
-impl<R: AccountRepository, C: ChartOfAccountsRepository, U: CurrencyRepository> AccountService<R, C, U> {
+impl<R: AccountRepository, C: ChartOfAccountsRepository, U: CurrencyRepository>
+    AccountService<R, C, U>
+{
     pub fn new(
         account_repo: Arc<R>,
         chart_of_accounts_repo: Arc<C>,
@@ -25,21 +29,19 @@ impl<R: AccountRepository, C: ChartOfAccountsRepository, U: CurrencyRepository> 
         }
     }
 
-    pub async fn create_account<'e, E>(
+    pub async fn create_account<E>(
         &self,
-        executor: E,
+        _executor: E,
         dto: CreateAccountDto,
     ) -> Result<AccountDto, AccountServiceError>
-    where
-        E: Executor<'e, Database = Postgres>,
     {
-        let mut tx = executor.begin().await?;
-
         let chart_of_accounts = self
             .chart_of_accounts_repo
             .find_by_code(&dto.chart_of_account_code)
             .await?
-            .ok_or_else(|| AccountServiceError::ChartOfAccountNotFound(dto.chart_of_account_code.clone()))?;
+            .ok_or_else(|| {
+                AccountServiceError::ChartOfAccountNotFound(dto.chart_of_account_code.clone())
+            })?;
 
         let currency = self
             .currency_repo
@@ -62,22 +64,16 @@ impl<R: AccountRepository, C: ChartOfAccountsRepository, U: CurrencyRepository> 
 
         self.account_repo.create(&account).await?;
 
-        tx.commit().await?;
-
         Ok(AccountDto::from(account))
     }
 
-    pub async fn update_account<'e, E>(
+    pub async fn update_account<E>(
         &self,
-        executor: E,
+        _executor: E,
         id: Uuid,
         dto: UpdateAccountDto,
     ) -> Result<AccountDto, AccountServiceError>
-    where
-        E: Executor<'e, Database = Postgres>,
     {
-        let mut tx = executor.begin().await?;
-
         let mut account = self
             .account_repo
             .find_by_id(id)
@@ -96,21 +92,15 @@ impl<R: AccountRepository, C: ChartOfAccountsRepository, U: CurrencyRepository> 
 
         self.account_repo.update(&account).await?;
 
-        tx.commit().await?;
-
         Ok(AccountDto::from(account))
     }
 
-    pub async fn delete_account<'e, E>(
+    pub async fn delete_account<E>(
         &self,
-        executor: E,
+        _executor: E,
         id: Uuid,
     ) -> Result<(), AccountServiceError>
-    where
-        E: Executor<'e, Database = Postgres>,
     {
-        let mut tx = executor.begin().await?;
-
         let mut account = self
             .account_repo
             .find_by_id(id)
@@ -120,8 +110,6 @@ impl<R: AccountRepository, C: ChartOfAccountsRepository, U: CurrencyRepository> 
         account.soft_delete()?;
 
         self.account_repo.update(&account).await?;
-
-        tx.commit().await?;
 
         Ok(())
     }
@@ -198,7 +186,10 @@ mod tests {
     #[async_trait]
     impl AccountRepository for MockAccountRepository {
         async fn create(&self, account: &Account) -> sqlx::Result<()> {
-            self.accounts.lock().unwrap().insert(account.id, account.clone());
+            self.accounts
+                .lock()
+                .unwrap()
+                .insert(account.id, account.clone());
             Ok(())
         }
 
@@ -246,6 +237,14 @@ mod tests {
         async fn find_all_including_deleted(&self) -> sqlx::Result<Vec<Account>> {
             Ok(self.accounts.lock().unwrap().values().cloned().collect())
         }
+
+        async fn get_changes_since(&self, _timestamp: chrono::DateTime<chrono::Utc>) -> sqlx::Result<Vec<Account>> {
+            Ok(Vec::new())
+        }
+
+        async fn mark_as_synced(&self, _id: Uuid) -> sqlx::Result<bool> {
+            Ok(true)
+        }
     }
 
     struct MockChartOfAccountsRepository {
@@ -277,7 +276,10 @@ mod tests {
     #[async_trait]
     impl ChartOfAccountsRepository for MockChartOfAccountsRepository {
         async fn create(&self, account: &ChartOfAccounts) -> sqlx::Result<()> {
-            self.charts.lock().unwrap().insert(account.code.clone(), account.clone());
+            self.charts
+                .lock()
+                .unwrap()
+                .insert(account.code.clone(), account.clone());
             Ok(())
         }
 
@@ -356,7 +358,10 @@ mod tests {
     #[async_trait]
     impl CurrencyRepository for MockCurrencyRepository {
         async fn create(&self, currency: &Currency) -> sqlx::Result<()> {
-            self.currencies.lock().unwrap().insert(currency.code.clone(), currency.clone());
+            self.currencies
+                .lock()
+                .unwrap()
+                .insert(currency.code.clone(), currency.clone());
             Ok(())
         }
 
@@ -389,7 +394,10 @@ mod tests {
         fn fetch_many<'q, Q>(
             self,
             _query: Q,
-        ) -> futures::stream::BoxStream<'e, Result<sqlx::Either<sqlx::postgres::PgQueryResult, sqlx::postgres::PgRow>, sqlx::Error>>
+        ) -> futures::stream::BoxStream<
+            'e,
+            Result<sqlx::Either<sqlx::postgres::PgQueryResult, sqlx::postgres::PgRow>, sqlx::Error>,
+        >
         where
             'q: 'e,
             Q: sqlx::Execute<'q, Self::Database> + 'q,
@@ -412,8 +420,10 @@ mod tests {
             self,
             _sql: &'q str,
             _parameters: &'q [<Self::Database as sqlx::Database>::TypeInfo],
-        ) -> futures::future::BoxFuture<'e, Result<<Self::Database as sqlx::database::HasStatement<'q>>::Statement, sqlx::Error>>
-        {
+        ) -> futures::future::BoxFuture<
+            'e,
+            Result<<Self::Database as sqlx::database::HasStatement<'q>>::Statement, sqlx::Error>,
+        > {
             unimplemented!("Mock executor does not support prepare_with")
         }
 
@@ -491,14 +501,19 @@ mod tests {
             initial_balance: Decimal::new(10000, 2),
         };
 
-        let created = service.create_account(&MockExecutor, create_dto).await.unwrap();
+        let created = service
+            .create_account(&MockExecutor, create_dto)
+            .await
+            .unwrap();
 
         let update_dto = UpdateAccountDto {
             name: Some("New Name".to_string()),
             balance: None,
         };
 
-        let result = service.update_account(&MockExecutor, created.id, update_dto).await;
+        let result = service
+            .update_account(&MockExecutor, created.id, update_dto)
+            .await;
 
         assert!(result.is_ok());
         let updated = result.unwrap();
@@ -521,7 +536,10 @@ mod tests {
             initial_balance: Decimal::new(10000, 2),
         };
 
-        let created = service.create_account(&MockExecutor, create_dto).await.unwrap();
+        let created = service
+            .create_account(&MockExecutor, create_dto)
+            .await
+            .unwrap();
 
         let result = service.delete_account(&MockExecutor, created.id).await;
 
@@ -547,7 +565,10 @@ mod tests {
             initial_balance: Decimal::new(50000, 2),
         };
 
-        let created = service.create_account(&MockExecutor, create_dto).await.unwrap();
+        let created = service
+            .create_account(&MockExecutor, create_dto)
+            .await
+            .unwrap();
 
         let balance = service.get_account_balance(created.id).await.unwrap();
 

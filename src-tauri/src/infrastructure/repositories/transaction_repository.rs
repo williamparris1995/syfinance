@@ -75,12 +75,11 @@ impl SqliteTransactionRepository {
                     // For now, we'll store currency in the entry or derive it
                     // Since TransactionEntry needs Money, we need currency code
                     // Let's query the account to get currency
-                    let currency_code: String = sqlx::query_scalar(
-                        "SELECT currency_code FROM accounts WHERE id = ?",
-                    )
-                    .bind(account_id.to_string())
-                    .fetch_one(&mut *executor)
-                    .await?;
+                    let currency_code: String =
+                        sqlx::query_scalar("SELECT currency_code FROM accounts WHERE id = ?")
+                            .bind(account_id.to_string())
+                            .fetch_one(&mut *executor)
+                            .await?;
 
                     Some(
                         Money::new(amount, &currency_code)
@@ -97,12 +96,11 @@ impl SqliteTransactionRepository {
                 if s != "null" && !s.is_empty() {
                     let amount =
                         Decimal::from_str(&s).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
-                    let currency_code: String = sqlx::query_scalar(
-                        "SELECT currency_code FROM accounts WHERE id = ?",
-                    )
-                    .bind(account_id.to_string())
-                    .fetch_one(&mut *executor)
-                    .await?;
+                    let currency_code: String =
+                        sqlx::query_scalar("SELECT currency_code FROM accounts WHERE id = ?")
+                            .bind(account_id.to_string())
+                            .fetch_one(&mut *executor)
+                            .await?;
 
                     Some(
                         Money::new(amount, &currency_code)
@@ -270,8 +268,9 @@ impl TransactionRepository for SqliteTransactionRepository {
             let entries = self.load_entries(id, &mut conn).await?;
 
             // Reconstruct Transaction
-            let transaction = Transaction::new(id, transaction_date, description, entries, sync_metadata)
-                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+            let transaction =
+                Transaction::new(id, transaction_date, description, entries, sync_metadata)
+                    .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
             Ok(Some(transaction))
         } else {
@@ -344,8 +343,9 @@ impl TransactionRepository for SqliteTransactionRepository {
             let entries = self.load_entries(id, &mut conn).await?;
 
             // Reconstruct Transaction
-            let transaction = Transaction::new(id, transaction_date, description, entries, sync_metadata)
-                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+            let transaction =
+                Transaction::new(id, transaction_date, description, entries, sync_metadata)
+                    .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
             transactions.push(transaction);
         }
@@ -412,8 +412,9 @@ impl TransactionRepository for SqliteTransactionRepository {
             let entries = self.load_entries(id, &mut conn).await?;
 
             // Reconstruct Transaction
-            let transaction = Transaction::new(id, transaction_date, description, entries, sync_metadata)
-                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+            let transaction =
+                Transaction::new(id, transaction_date, description, entries, sync_metadata)
+                    .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
             transactions.push(transaction);
         }
@@ -516,8 +517,9 @@ impl TransactionRepository for SqliteTransactionRepository {
             let entries = self.load_entries(id, &mut conn).await?;
 
             // Reconstruct Transaction
-            let transaction = Transaction::new(id, transaction_date, description, entries, sync_metadata)
-                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+            let transaction =
+                Transaction::new(id, transaction_date, description, entries, sync_metadata)
+                    .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
             transactions.push(transaction);
         }

@@ -33,7 +33,10 @@ impl fmt::Display for MoneyValidationError {
 impl Error for MoneyValidationError {}
 
 impl Money {
-    pub fn new(amount: Decimal, currency_code: impl Into<String>) -> Result<Self, MoneyValidationError> {
+    pub fn new(
+        amount: Decimal,
+        currency_code: impl Into<String>,
+    ) -> Result<Self, MoneyValidationError> {
         let currency_code = currency_code.into();
 
         if !is_valid_currency_code(&currency_code) {
@@ -62,7 +65,11 @@ impl Money {
         Self::new(self.amount - other.amount, self.currency_code.clone())
     }
 
-    pub fn convert_to(&self, target_currency: impl Into<String>, exchange_rate: Decimal) -> Result<Self, MoneyValidationError> {
+    pub fn convert_to(
+        &self,
+        target_currency: impl Into<String>,
+        exchange_rate: Decimal,
+    ) -> Result<Self, MoneyValidationError> {
         let target_currency = target_currency.into();
 
         if !is_valid_currency_code(&target_currency) {
@@ -186,14 +193,20 @@ mod tests {
             fn rejects_invalid_precision() {
                 let error = Money::new(Decimal::new(12345, 3), "CNY").unwrap_err();
 
-                assert!(matches!(error, MoneyValidationError::InvalidAmountPrecision(_)));
+                assert!(matches!(
+                    error,
+                    MoneyValidationError::InvalidAmountPrecision(_)
+                ));
             }
 
             #[test]
             fn rejects_invalid_currency_code() {
                 let error = Money::new(Decimal::new(100, 2), "cn").unwrap_err();
 
-                assert!(matches!(error, MoneyValidationError::InvalidCurrencyCode(_)));
+                assert!(matches!(
+                    error,
+                    MoneyValidationError::InvalidCurrencyCode(_)
+                ));
             }
 
             #[test]
@@ -213,8 +226,14 @@ mod tests {
                 let left = money(1_000, "CNY");
                 let right = money(1_000, "USD");
 
-                assert!(matches!(left.add(&right), Err(MoneyValidationError::CurrencyMismatch { .. })));
-                assert!(matches!(left.subtract(&right), Err(MoneyValidationError::CurrencyMismatch { .. })));
+                assert!(matches!(
+                    left.add(&right),
+                    Err(MoneyValidationError::CurrencyMismatch { .. })
+                ));
+                assert!(matches!(
+                    left.subtract(&right),
+                    Err(MoneyValidationError::CurrencyMismatch { .. })
+                ));
             }
 
             #[test]
@@ -249,9 +268,18 @@ mod tests {
                 let left = money(500, "CNY");
                 let right = money(700, "USD");
 
-                assert!(matches!(left.eq(&right), Err(MoneyValidationError::CurrencyMismatch { .. })));
-                assert!(matches!(left.gt(&right), Err(MoneyValidationError::CurrencyMismatch { .. })));
-                assert!(matches!(left.lt(&right), Err(MoneyValidationError::CurrencyMismatch { .. })));
+                assert!(matches!(
+                    left.eq(&right),
+                    Err(MoneyValidationError::CurrencyMismatch { .. })
+                ));
+                assert!(matches!(
+                    left.gt(&right),
+                    Err(MoneyValidationError::CurrencyMismatch { .. })
+                ));
+                assert!(matches!(
+                    left.lt(&right),
+                    Err(MoneyValidationError::CurrencyMismatch { .. })
+                ));
             }
         }
 

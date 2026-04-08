@@ -1,4 +1,7 @@
-use crate::domain::aggregates::{Account, AccountType};
+use crate::domain::{
+    aggregates::{Account, AccountType},
+    value_objects::Money,
+};
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -32,6 +35,12 @@ pub struct AccountDto {
     pub deleted_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccountBalanceDto {
+    pub amount: Decimal,
+    pub currency_code: String,
+}
+
 impl From<Account> for AccountDto {
     fn from(account: Account) -> Self {
         Self {
@@ -44,6 +53,15 @@ impl From<Account> for AccountDto {
             created_at: account.sync_metadata.updated_at,
             updated_at: account.sync_metadata.updated_at,
             deleted_at: account.sync_metadata.deleted_at,
+        }
+    }
+}
+
+impl From<Money> for AccountBalanceDto {
+    fn from(balance: Money) -> Self {
+        Self {
+            amount: balance.amount,
+            currency_code: balance.currency_code,
         }
     }
 }

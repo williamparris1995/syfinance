@@ -1,7 +1,5 @@
 use crate::domain::{
-    aggregates::chart_of_accounts::{
-        AccountType as ChartOfAccountsType, ChartOfAccounts,
-    },
+    aggregates::chart_of_accounts::{AccountType as ChartOfAccountsType, ChartOfAccounts},
     value_objects::{Currency, Money, SyncMetadata},
 };
 use chrono::{DateTime, Utc};
@@ -54,7 +52,10 @@ pub enum AccountEvent {
 pub enum AccountError {
     EmptyName,
     ChartOfAccountDeleted(String),
-    CurrencyMismatch { expected: String, actual: String },
+    CurrencyMismatch {
+        expected: String,
+        actual: String,
+    },
     InvalidChartOfAccountCode {
         account_type: AccountType,
         chart_of_account_code: String,
@@ -301,10 +302,7 @@ mod tests {
     use super::*;
     use crate::domain::aggregates::chart_of_accounts::BalanceDirection;
 
-    fn chart_of_accounts(
-        code: &str,
-        account_type: ChartOfAccountsType,
-    ) -> ChartOfAccounts {
+    fn chart_of_accounts(code: &str, account_type: ChartOfAccountsType) -> ChartOfAccounts {
         let level = if code.len() == 4 { 2 } else { 3 };
         ChartOfAccounts::new(
             format!("coa-{code}"),
@@ -385,10 +383,7 @@ mod tests {
                     metadata(),
                 );
 
-                assert!(matches!(
-                    result,
-                    Err(AccountError::CurrencyMismatch { .. })
-                ));
+                assert!(matches!(result, Err(AccountError::CurrencyMismatch { .. })));
             }
 
             #[test]
@@ -467,10 +462,7 @@ mod tests {
 
                 let result = account.update_balance(money(100, "USD"));
 
-                assert!(matches!(
-                    result,
-                    Err(AccountError::CurrencyMismatch { .. })
-                ));
+                assert!(matches!(result, Err(AccountError::CurrencyMismatch { .. })));
             }
 
             #[test]

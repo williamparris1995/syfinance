@@ -18,9 +18,17 @@ pub enum TransactionEvent {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TransactionError {
     EntryValidation(TransactionEntryError),
-    MinimumEntries { actual: usize },
-    MixedCurrencies { expected: String, actual: String },
-    UnbalancedTransaction { debit_total: Money, credit_total: Money },
+    MinimumEntries {
+        actual: usize,
+    },
+    MixedCurrencies {
+        expected: String,
+        actual: String,
+    },
+    UnbalancedTransaction {
+        debit_total: Money,
+        credit_total: Money,
+    },
 }
 
 impl fmt::Display for TransactionError {
@@ -100,10 +108,11 @@ impl Transaction {
         }
 
         self.touch();
-        self.pending_events.push(TransactionEvent::TransactionUpdated {
-            transaction_id: self.id,
-            entry_count: self.entries.len(),
-        });
+        self.pending_events
+            .push(TransactionEvent::TransactionUpdated {
+                transaction_id: self.id,
+                entry_count: self.entries.len(),
+            });
         Ok(())
     }
 
@@ -144,9 +153,11 @@ impl Transaction {
         for entry in &self.entries {
             entry.validate()?;
 
-            let entry_currency = entry.currency_code().ok_or(
-                TransactionError::EntryValidation(TransactionEntryError::MissingDebitAndCredit),
-            )?;
+            let entry_currency = entry
+                .currency_code()
+                .ok_or(TransactionError::EntryValidation(
+                    TransactionEntryError::MissingDebitAndCredit,
+                ))?;
 
             if let Some(expected_currency) = currency_code {
                 if expected_currency != entry_currency {
@@ -157,8 +168,10 @@ impl Transaction {
                 }
             } else {
                 currency_code = Some(entry_currency);
-                debit_total = Some(Money::new(rust_decimal::Decimal::ZERO, entry_currency).unwrap());
-                credit_total = Some(Money::new(rust_decimal::Decimal::ZERO, entry_currency).unwrap());
+                debit_total =
+                    Some(Money::new(rust_decimal::Decimal::ZERO, entry_currency).unwrap());
+                credit_total =
+                    Some(Money::new(rust_decimal::Decimal::ZERO, entry_currency).unwrap());
             }
 
             if let Some(amount) = &entry.debit_amount {
@@ -279,7 +292,10 @@ mod tests {
                     metadata(),
                 );
 
-                assert!(matches!(result, Err(TransactionError::MixedCurrencies { .. })));
+                assert!(matches!(
+                    result,
+                    Err(TransactionError::MixedCurrencies { .. })
+                ));
             }
 
             #[test]

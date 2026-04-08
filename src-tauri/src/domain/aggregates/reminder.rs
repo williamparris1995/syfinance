@@ -239,7 +239,10 @@ mod tests {
 
         #[test]
         fn parses_from_string() {
-            assert_eq!(RepeatPattern::from_str("daily").unwrap(), RepeatPattern::Daily);
+            assert_eq!(
+                RepeatPattern::from_str("daily").unwrap(),
+                RepeatPattern::Daily
+            );
             assert_eq!(
                 RepeatPattern::from_str("weekly").unwrap(),
                 RepeatPattern::Weekly

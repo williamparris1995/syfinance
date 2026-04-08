@@ -106,9 +106,8 @@ impl DebtRepository for SqliteDebtRepository {
         };
 
         let debt_id: String = row.get("id");
-        let debt_id = Uuid::parse_str(&debt_id).map_err(|e| {
-            sqlx::Error::Decode(format!("invalid UUID: {}", e).into())
-        })?;
+        let debt_id = Uuid::parse_str(&debt_id)
+            .map_err(|e| sqlx::Error::Decode(format!("invalid UUID: {}", e).into()))?;
 
         let debt_type_str: String = row.get("debt_type");
         let debt_type = Self::parse_debt_type(&debt_type_str)?;
@@ -121,16 +120,14 @@ impl DebtRepository for SqliteDebtRepository {
         let due_date: String = row.get("due_date");
 
         let principal = Money::new(
-            rust_decimal::Decimal::from_str(&principal_val).map_err(|e| {
-                sqlx::Error::Decode(format!("invalid decimal: {}", e).into())
-            })?,
+            rust_decimal::Decimal::from_str(&principal_val)
+                .map_err(|e| sqlx::Error::Decode(format!("invalid decimal: {}", e).into()))?,
             &currency_code,
         )
         .map_err(|e| sqlx::Error::Decode(format!("invalid money: {}", e).into()))?;
 
-        let interest_rate = rust_decimal::Decimal::from_str(&interest_rate_val).map_err(|e| {
-            sqlx::Error::Decode(format!("invalid decimal: {}", e).into())
-        })?;
+        let interest_rate = rust_decimal::Decimal::from_str(&interest_rate_val)
+            .map_err(|e| sqlx::Error::Decode(format!("invalid decimal: {}", e).into()))?;
 
         let start_date = NaiveDate::parse_from_str(&start_date, "%Y-%m-%d")
             .map_err(|e| sqlx::Error::Decode(format!("invalid date: {}", e).into()))?;

@@ -52,8 +52,8 @@ impl SqliteChartOfAccountsRepository {
             .transpose()
             .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
-        let updated_at_parsed = parse_sqlite_datetime(&updated_at)
-            .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+        let updated_at_parsed =
+            parse_sqlite_datetime(&updated_at).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
         let synced_at_parsed = synced_at
             .map(|s| parse_sqlite_datetime(&s))
@@ -161,9 +161,7 @@ impl ChartOfAccountsRepository for SqliteChartOfAccountsRepository {
         .fetch_all(&self.pool)
         .await?;
 
-        rows.iter()
-            .map(Self::row_to_chart_of_accounts)
-            .collect()
+        rows.iter().map(Self::row_to_chart_of_accounts).collect()
     }
 
     async fn list_by_type(
@@ -183,9 +181,7 @@ impl ChartOfAccountsRepository for SqliteChartOfAccountsRepository {
         .fetch_all(&self.pool)
         .await?;
 
-        rows.iter()
-            .map(Self::row_to_chart_of_accounts)
-            .collect()
+        rows.iter().map(Self::row_to_chart_of_accounts).collect()
     }
 
     async fn get_children(&self, parent_code: &str) -> sqlx::Result<Vec<ChartOfAccounts>> {
@@ -202,9 +198,7 @@ impl ChartOfAccountsRepository for SqliteChartOfAccountsRepository {
         .fetch_all(&self.pool)
         .await?;
 
-        rows.iter()
-            .map(Self::row_to_chart_of_accounts)
-            .collect()
+        rows.iter().map(Self::row_to_chart_of_accounts).collect()
     }
 
     async fn list_all(&self) -> sqlx::Result<Vec<ChartOfAccounts>> {
@@ -220,8 +214,6 @@ impl ChartOfAccountsRepository for SqliteChartOfAccountsRepository {
         .fetch_all(&self.pool)
         .await?;
 
-        rows.iter()
-            .map(Self::row_to_chart_of_accounts)
-            .collect()
+        rows.iter().map(Self::row_to_chart_of_accounts).collect()
     }
 }

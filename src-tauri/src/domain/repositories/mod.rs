@@ -55,8 +55,6 @@ pub trait TransactionRepository: Send + Sync {
     async fn mark_as_synced(&self, id: Uuid) -> sqlx::Result<bool>;
 }
 
-
-
 #[allow(async_fn_in_trait, dead_code)]
 pub trait CurrencyRepository: Send + Sync {
     async fn create(&self, currency: &Currency) -> sqlx::Result<()>;

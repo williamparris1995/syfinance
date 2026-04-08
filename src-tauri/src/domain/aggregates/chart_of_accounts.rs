@@ -76,7 +76,11 @@ impl fmt::Display for ChartOfAccountsError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ChartOfAccountsError::InvalidCodeFormat(code) => {
-                write!(f, "Invalid code format: {}. Level 1/2 must be 4 digits, level 3 must be 6 digits", code)
+                write!(
+                    f,
+                    "Invalid code format: {}. Level 1/2 must be 4 digits, level 3 must be 6 digits",
+                    code
+                )
             }
             ChartOfAccountsError::InvalidLevel(level) => {
                 write!(f, "Invalid level: {}. Must be 1, 2, or 3", level)
@@ -342,7 +346,10 @@ mod tests {
             BalanceDirection::Debit,
         );
 
-        assert!(matches!(account, Err(ChartOfAccountsError::InvalidLevel(4))));
+        assert!(matches!(
+            account,
+            Err(ChartOfAccountsError::InvalidLevel(4))
+        ));
     }
 
     #[test]
@@ -365,14 +372,8 @@ mod tests {
 
     #[test]
     fn test_account_type_from_str() {
-        assert_eq!(
-            AccountType::from_str("asset").unwrap(),
-            AccountType::Asset
-        );
-        assert_eq!(
-            AccountType::from_str("ASSET").unwrap(),
-            AccountType::Asset
-        );
+        assert_eq!(AccountType::from_str("asset").unwrap(), AccountType::Asset);
+        assert_eq!(AccountType::from_str("ASSET").unwrap(), AccountType::Asset);
         assert!(AccountType::from_str("invalid").is_err());
     }
 

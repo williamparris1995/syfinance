@@ -48,12 +48,11 @@ impl PostgresTransactionRepository {
             let note: Option<String> = row.try_get("note")?;
 
             // Get currency from account
-            let currency_code: String = sqlx::query_scalar(
-                "SELECT currency_code FROM accounts WHERE id = $1",
-            )
-            .bind(account_id)
-            .fetch_one(&mut *executor)
-            .await?;
+            let currency_code: String =
+                sqlx::query_scalar("SELECT currency_code FROM accounts WHERE id = $1")
+                    .bind(account_id)
+                    .fetch_one(&mut *executor)
+                    .await?;
 
             let debit_money = debit_amount
                 .map(|amt| Money::new(amt, &currency_code))
@@ -193,8 +192,9 @@ impl TransactionRepository for PostgresTransactionRepository {
 
             let entries = self.load_entries(id, &mut conn).await?;
 
-            let transaction = Transaction::new(id, transaction_date, description, entries, sync_metadata)
-                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+            let transaction =
+                Transaction::new(id, transaction_date, description, entries, sync_metadata)
+                    .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
             Ok(Some(transaction))
         } else {
@@ -243,8 +243,9 @@ impl TransactionRepository for PostgresTransactionRepository {
 
             let entries = self.load_entries(id, &mut conn).await?;
 
-            let transaction = Transaction::new(id, transaction_date, description, entries, sync_metadata)
-                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+            let transaction =
+                Transaction::new(id, transaction_date, description, entries, sync_metadata)
+                    .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
             transactions.push(transaction);
         }
@@ -287,8 +288,9 @@ impl TransactionRepository for PostgresTransactionRepository {
 
             let entries = self.load_entries(id, &mut conn).await?;
 
-            let transaction = Transaction::new(id, transaction_date, description, entries, sync_metadata)
-                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+            let transaction =
+                Transaction::new(id, transaction_date, description, entries, sync_metadata)
+                    .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
             transactions.push(transaction);
         }
@@ -368,8 +370,9 @@ impl TransactionRepository for PostgresTransactionRepository {
 
             let entries = self.load_entries(id, &mut conn).await?;
 
-            let transaction = Transaction::new(id, transaction_date, description, entries, sync_metadata)
-                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+            let transaction =
+                Transaction::new(id, transaction_date, description, entries, sync_metadata)
+                    .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
             transactions.push(transaction);
         }

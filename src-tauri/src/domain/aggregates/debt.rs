@@ -47,13 +47,22 @@ impl fmt::Display for DebtError {
             Self::InvalidPrincipal(principal) => {
                 write!(f, "principal must be greater than zero: {principal}")
             }
-            Self::InvalidInterestRate(rate) => write!(f, "interest rate must be non-negative: {rate}"),
+            Self::InvalidInterestRate(rate) => {
+                write!(f, "interest rate must be non-negative: {rate}")
+            }
             Self::InvalidDateRange {
                 start_date,
                 due_date,
-            } => write!(f, "due date {due_date} must be after start date {start_date}"),
-            Self::MissingAmortizationMethod => write!(f, "loan debts require an amortization method"),
-            Self::PaymentNotFound(payment_date) => write!(f, "payment not found for date {payment_date}"),
+            } => write!(
+                f,
+                "due date {due_date} must be after start date {start_date}"
+            ),
+            Self::MissingAmortizationMethod => {
+                write!(f, "loan debts require an amortization method")
+            }
+            Self::PaymentNotFound(payment_date) => {
+                write!(f, "payment not found for date {payment_date}")
+            }
         }
     }
 }
@@ -132,7 +141,9 @@ impl Debt {
         Ok(debt)
     }
 
-    pub fn generate_schedule_equal_principal_interest(&self) -> Result<Vec<PaymentSchedule>, DebtError> {
+    pub fn generate_schedule_equal_principal_interest(
+        &self,
+    ) -> Result<Vec<PaymentSchedule>, DebtError> {
         let months = term_in_months(self.start_date, self.due_date)?;
         let monthly_rate = self.interest_rate / Decimal::from(12u32);
         let raw_payment = if monthly_rate.is_zero() {
@@ -167,7 +178,10 @@ impl Debt {
 
             schedule.push(PaymentSchedule {
                 payment_date: payment_date_for_installment(self.start_date, installment as u32),
-                principal_amount: money_from_decimal(principal_amount, &self.principal.currency_code),
+                principal_amount: money_from_decimal(
+                    principal_amount,
+                    &self.principal.currency_code,
+                ),
                 interest_amount: money_from_decimal(interest_amount, &self.principal.currency_code),
                 total_amount: money_from_decimal(total_amount, &self.principal.currency_code),
                 paid: false,
@@ -203,7 +217,10 @@ impl Debt {
 
             schedule.push(PaymentSchedule {
                 payment_date: payment_date_for_installment(self.start_date, installment as u32),
-                principal_amount: money_from_decimal(principal_amount, &self.principal.currency_code),
+                principal_amount: money_from_decimal(
+                    principal_amount,
+                    &self.principal.currency_code,
+                ),
                 interest_amount: money_from_decimal(interest_amount, &self.principal.currency_code),
                 total_amount: money_from_decimal(total_amount, &self.principal.currency_code),
                 paid: false,
@@ -419,7 +436,10 @@ mod tests {
                 let debt = loan(AmortizationMethod::EqualPrincipalInterest);
 
                 assert_eq!(debt.payment_schedule.len(), 12);
-                assert_eq!(debt.payment_schedule[0].total_amount, cny(Decimal::new(856_075, 2)));
+                assert_eq!(
+                    debt.payment_schedule[0].total_amount,
+                    cny(Decimal::new(856_075, 2))
+                );
             }
 
             #[test]
@@ -432,8 +452,14 @@ mod tests {
                     .sum::<Decimal>();
                 let expected_total_interest = Decimal::new(272_896, 2);
 
-                assert_eq!(debt.payment_schedule[0].total_amount, cny(Decimal::new(856_075, 2)));
-                assert!((total_interest.round_dp(2) - expected_total_interest).abs() <= Decimal::new(2, 2));
+                assert_eq!(
+                    debt.payment_schedule[0].total_amount,
+                    cny(Decimal::new(856_075, 2))
+                );
+                assert!(
+                    (total_interest.round_dp(2) - expected_total_interest).abs()
+                        <= Decimal::new(2, 2)
+                );
             }
 
             #[test]
@@ -441,8 +467,14 @@ mod tests {
                 let debt = loan(AmortizationMethod::EqualPrincipal);
 
                 assert_eq!(debt.payment_schedule.len(), 12);
-                assert_eq!(debt.payment_schedule[0].total_amount, cny(Decimal::new(875_000, 2)));
-                assert_eq!(debt.payment_schedule[11].total_amount, cny(Decimal::new(836_806, 2)));
+                assert_eq!(
+                    debt.payment_schedule[0].total_amount,
+                    cny(Decimal::new(875_000, 2))
+                );
+                assert_eq!(
+                    debt.payment_schedule[11].total_amount,
+                    cny(Decimal::new(836_806, 2))
+                );
             }
         }
 
@@ -472,7 +504,9 @@ mod tests {
 
                 let result = debt.mark_payment_paid(missing_date);
 
-                assert!(matches!(result, Err(DebtError::PaymentNotFound(date)) if date == missing_date));
+                assert!(
+                    matches!(result, Err(DebtError::PaymentNotFound(date)) if date == missing_date)
+                );
             }
         }
     }

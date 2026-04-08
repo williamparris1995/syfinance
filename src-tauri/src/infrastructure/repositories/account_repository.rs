@@ -24,7 +24,7 @@ impl SqliteAccountRepository {
         let id = Uuid::from_str(&id).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
         let name: String = row.try_get("name")?;
-        
+
         let account_type_str: String = row.try_get("account_type")?;
         let account_type = match account_type_str.as_str() {
             "cash" => AccountType::Cash,
@@ -33,16 +33,20 @@ impl SqliteAccountRepository {
             "investment" => AccountType::Investment,
             "loan" => AccountType::Loan,
             "other" => AccountType::Other,
-            _ => return Err(sqlx::Error::Decode(format!("Invalid account type: {}", account_type_str).into())),
+            _ => {
+                return Err(sqlx::Error::Decode(
+                    format!("Invalid account type: {}", account_type_str).into(),
+                ))
+            }
         };
 
         let chart_of_account_code: String = row.try_get("chart_of_account_code")?;
         let currency_code: String = row.try_get("currency_code")?;
-        
+
         let balance_str: String = row.try_get("balance")?;
-        let balance_amount = Decimal::from_str(&balance_str)
-            .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
-        
+        let balance_amount =
+            Decimal::from_str(&balance_str).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+
         let balance = Money::new(balance_amount, &currency_code)
             .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
@@ -62,8 +66,8 @@ impl SqliteAccountRepository {
                 .map(|ndt| DateTime::<Utc>::from_naive_utc_and_offset(ndt, Utc))
         };
 
-        let updated_at_parsed = parse_sqlite_datetime(&updated_at)
-            .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+        let updated_at_parsed =
+            parse_sqlite_datetime(&updated_at).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
         let deleted_at_parsed = deleted_at
             .map(|s| parse_sqlite_datetime(&s))
@@ -422,11 +426,14 @@ mod tests {
         let pool = setup_test_db().await;
         let repo = SqliteAccountRepository::new(pool);
 
-        let mut account = create_test_account("Checking", AccountType::Bank, Decimal::new(10000, 2));
+        let mut account =
+            create_test_account("Checking", AccountType::Bank, Decimal::new(10000, 2));
         repo.create(&account).await.unwrap();
 
         account.change_name("Primary Checking").unwrap();
-        account.update_balance(Money::new(Decimal::new(15000, 2), "USD").unwrap()).unwrap();
+        account
+            .update_balance(Money::new(Decimal::new(15000, 2), "USD").unwrap())
+            .unwrap();
 
         let updated = repo.update(&account).await.unwrap();
         assert!(updated);
@@ -489,7 +496,7 @@ mod tests {
 
         let account1 = create_test_account("Account1", AccountType::Bank, Decimal::new(10000, 2));
         let account2 = create_test_account("Account2", AccountType::Cash, Decimal::new(5000, 2));
-        
+
         repo.create(&account1).await.unwrap();
         repo.create(&account2).await.unwrap();
 
@@ -512,7 +519,7 @@ mod tests {
 
         let account = create_test_account("Test", AccountType::Bank, Decimal::new(10000, 2));
         let account_id = account.id;
-        
+
         repo.create(&account).await.unwrap();
 
         // Initially synced_at should be None

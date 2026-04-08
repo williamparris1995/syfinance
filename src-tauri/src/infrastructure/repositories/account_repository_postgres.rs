@@ -22,7 +22,7 @@ impl PostgresAccountRepository {
     fn row_to_account(row: &sqlx::postgres::PgRow) -> Result<Account, sqlx::Error> {
         let id: Uuid = row.try_get("id")?;
         let name: String = row.try_get("name")?;
-        
+
         let account_type_str: String = row.try_get("account_type")?;
         let account_type = match account_type_str.as_str() {
             "cash" => AccountType::Cash,
@@ -31,13 +31,17 @@ impl PostgresAccountRepository {
             "investment" => AccountType::Investment,
             "loan" => AccountType::Loan,
             "other" => AccountType::Other,
-            _ => return Err(sqlx::Error::Decode(format!("Invalid account type: {}", account_type_str).into())),
+            _ => {
+                return Err(sqlx::Error::Decode(
+                    format!("Invalid account type: {}", account_type_str).into(),
+                ))
+            }
         };
 
         let chart_of_account_code: String = row.try_get("chart_of_account_code")?;
         let currency_code: String = row.try_get("currency_code")?;
         let balance_amount: Decimal = row.try_get("balance")?;
-        
+
         let balance = Money::new(balance_amount, &currency_code)
             .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 

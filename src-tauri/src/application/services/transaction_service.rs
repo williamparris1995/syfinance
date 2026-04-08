@@ -1,4 +1,6 @@
-use crate::application::dtos::{CreateTransactionDto, CreateTransactionEntryDto, TransactionDto, TransactionEntryDto};
+use crate::application::dtos::{
+    CreateTransactionDto, CreateTransactionEntryDto, TransactionDto, TransactionEntryDto,
+};
 use crate::domain::{
     aggregates::Transaction,
     repositories::{AccountRepository, TransactionRepository},
@@ -118,10 +120,7 @@ impl TransactionService {
 
             let new_balance = if let Some(debit) = &entry.debit_amount {
                 account.balance.add(debit).map_err(|e| {
-                    TransactionServiceError::ValidationError(format!(
-                        "failed to add debit: {}",
-                        e
-                    ))
+                    TransactionServiceError::ValidationError(format!("failed to add debit: {}", e))
                 })?
             } else if let Some(credit) = &entry.credit_amount {
                 account.balance.subtract(credit).map_err(|e| {
@@ -200,10 +199,7 @@ impl TransactionService {
                     chart_of_account_code: e.chart_of_account_code.clone(),
                     debit_amount: e.debit_amount.as_ref().map(|m| m.amount.to_string()),
                     credit_amount: e.credit_amount.as_ref().map(|m| m.amount.to_string()),
-                    currency_code: e
-                        .currency_code()
-                        .unwrap_or("UNKNOWN")
-                        .to_string(),
+                    currency_code: e.currency_code().unwrap_or("UNKNOWN").to_string(),
                     memo: if e.note.is_empty() {
                         None
                     } else {

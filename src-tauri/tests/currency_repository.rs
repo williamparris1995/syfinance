@@ -54,5 +54,8 @@ async fn currency_repository_crud() {
     assert!(updated);
 
     let refreshed = repository.find_by_code("CNY").await.unwrap().unwrap();
-    assert_eq!(refreshed.exchange_rate, Decimal::from_str("7.2500").unwrap());
+    assert_eq!(
+        refreshed.exchange_rate,
+        Decimal::from_str("7.2500").unwrap()
+    );
 }
