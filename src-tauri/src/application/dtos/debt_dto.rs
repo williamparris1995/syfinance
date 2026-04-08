@@ -47,3 +47,9 @@ pub struct RecordPaymentDto {
     pub payment_date: NaiveDate,
     pub transaction_id: Uuid,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpcomingPaymentDto {
+    pub debt: DebtDto,
+    pub payment: PaymentScheduleDto,
+}
