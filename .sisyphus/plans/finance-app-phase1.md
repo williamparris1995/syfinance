@@ -1790,7 +1790,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src-tauri/src/presentation/tauri_commands/transaction_commands.rs`
   - Pre-commit: `cargo test transaction_commands`
 
-- [ ] 22. Tauri Commands - Debts
+- [x] 22. Tauri Commands - Debts
 
   **What to do**:
   - Create debt commands in presentation/tauri_commands/debt_commands.rs
@@ -1847,7 +1847,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src-tauri/src/presentation/tauri_commands/debt_commands.rs`
   - Pre-commit: `cargo test debt_commands`
 
-- [ ] 23. REST API - Sync Endpoints
+- [x] 23. REST API - Sync Endpoints
 
   **What to do**:
   - Create Axum REST API in presentation/api/sync_api.rs
