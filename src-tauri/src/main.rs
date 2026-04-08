@@ -3,6 +3,7 @@ mod domain;
 mod infrastructure;
 mod presentation;
 
+use presentation::api::create_sync_routes;
 use presentation::tauri_commands::{
     account_commands::{
         create_account, delete_account, get_account, get_account_balance, list_accounts,
@@ -18,13 +19,29 @@ use presentation::tauri_commands::{
     },
 };
 
-fn main() {
-    let account_state = tauri::async_runtime::block_on(AppState::create_default())
+#[tokio::main]
+async fn main() {
+    let account_state = AppState::create_default()
+        .await
         .expect("failed to initialize account command state");
-    let debt_state: DebtAppState = tauri::async_runtime::block_on(create_debt_default_state())
+    let debt_state: DebtAppState = create_debt_default_state()
+        .await
         .expect("failed to initialize debt command state");
-    let transaction_state = tauri::async_runtime::block_on(create_default_state())
+    let transaction_state = create_default_state()
+        .await
         .expect("failed to initialize transaction command state");
+
+    // Start Axum REST API server in background
+    let app = create_sync_routes();
+    tokio::spawn(async move {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+            .await
+            .expect("failed to bind to port 3000");
+        println!("REST API server listening on http://127.0.0.1:3000");
+        axum::serve(listener, app)
+            .await
+            .expect("failed to start axum server");
+    });
 
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
