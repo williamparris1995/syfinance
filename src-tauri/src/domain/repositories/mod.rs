@@ -28,6 +28,10 @@ pub trait AccountRepository: Send + Sync {
     async fn soft_delete(&self, id: Uuid) -> sqlx::Result<bool>;
 
     async fn find_all_including_deleted(&self) -> sqlx::Result<Vec<Account>>;
+
+    async fn get_changes_since(&self, timestamp: DateTime<Utc>) -> sqlx::Result<Vec<Account>>;
+
+    async fn mark_as_synced(&self, id: Uuid) -> sqlx::Result<bool>;
 }
 
 #[allow(async_fn_in_trait, dead_code)]
@@ -45,6 +49,10 @@ pub trait TransactionRepository: Send + Sync {
     async fn find_all(&self) -> sqlx::Result<Vec<Transaction>>;
 
     async fn soft_delete(&self, id: Uuid) -> sqlx::Result<bool>;
+
+    async fn get_changes_since(&self, timestamp: DateTime<Utc>) -> sqlx::Result<Vec<Transaction>>;
+
+    async fn mark_as_synced(&self, id: Uuid) -> sqlx::Result<bool>;
 }
 
 

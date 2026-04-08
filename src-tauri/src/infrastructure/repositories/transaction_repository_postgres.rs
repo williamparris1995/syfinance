@@ -331,4 +331,84 @@ impl TransactionRepository for PostgresTransactionRepository {
             Ok(false)
         }
     }
+
+    async fn get_changes_since(&self, timestamp: DateTime<Utc>) -> sqlx::Result<Vec<Transaction>> {
+        let mut conn = self.pool.acquire().await?;
+
+        let rows = sqlx::query(
+            r#"
+            SELECT 
+                id, transaction_date, description,
+                updated_at, deleted_at, device_id, synced_at
+            FROM transactions
+            WHERE updated_at > $1 AND (synced_at IS NULL OR synced_at < updated_at)
+            ORDER BY updated_at ASC
+            "#,
+        )
+        .bind(timestamp)
+        .fetch_all(&mut *conn)
+        .await?;
+
+        let mut transactions = Vec::new();
+        for row in rows {
+            let id: Uuid = row.try_get("id")?;
+            let transaction_date: NaiveDate = row.try_get("transaction_date")?;
+            let description: String = row.try_get("description")?;
+            let updated_at: DateTime<Utc> = row.try_get("updated_at")?;
+            let deleted_at: Option<DateTime<Utc>> = row.try_get("deleted_at")?;
+            let device_id: Uuid = row.try_get("device_id")?;
+            let synced_at: Option<DateTime<Utc>> = row.try_get("synced_at")?;
+
+            let sync_metadata = SyncMetadata {
+                updated_at,
+                deleted_at,
+                device_id,
+                synced_at,
+            };
+
+            let entries = self.load_entries(id, &mut conn).await?;
+
+            let transaction = Transaction::new(id, transaction_date, description, entries, sync_metadata)
+                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+
+            transactions.push(transaction);
+        }
+
+        Ok(transactions)
+    }
+
+    async fn mark_as_synced(&self, id: Uuid) -> sqlx::Result<bool> {
+        let mut tx = self.pool.begin().await?;
+
+        let result = sqlx::query(
+            r#"
+            UPDATE transactions
+            SET synced_at = NOW()
+            WHERE id = $1
+            RETURNING id
+            "#,
+        )
+        .bind(id)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        if result.is_some() {
+            // Also mark entries as synced
+            sqlx::query(
+                r#"
+                UPDATE transaction_entries
+                SET synced_at = NOW()
+                WHERE transaction_id = $1
+                "#,
+            )
+            .bind(id)
+            .execute(&mut *tx)
+            .await?;
+
+            tx.commit().await?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
 }

@@ -455,4 +455,109 @@ impl TransactionRepository for SqliteTransactionRepository {
             Ok(false)
         }
     }
+
+    async fn get_changes_since(&self, timestamp: DateTime<Utc>) -> sqlx::Result<Vec<Transaction>> {
+        let mut conn = self.pool.acquire().await?;
+
+        let rows = sqlx::query(
+            r#"
+            SELECT 
+                id, transaction_date, description,
+                updated_at, deleted_at, device_id, synced_at
+            FROM transactions
+            WHERE updated_at > ? AND (synced_at IS NULL OR synced_at < updated_at)
+            ORDER BY updated_at ASC
+            "#,
+        )
+        .bind(timestamp.to_rfc3339())
+        .fetch_all(&mut *conn)
+        .await?;
+
+        let mut transactions = Vec::new();
+        for row in rows {
+            let id: String = row.try_get("id")?;
+            let id = Uuid::from_str(&id).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+
+            let transaction_date: String = row.try_get("transaction_date")?;
+            let transaction_date = NaiveDate::parse_from_str(&transaction_date, "%Y-%m-%d")
+                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+
+            let description: String = row.try_get("description")?;
+
+            let updated_at: String = row.try_get("updated_at")?;
+            let deleted_at: Option<String> = row.try_get("deleted_at")?;
+            let device_id: String = row.try_get("device_id")?;
+            let synced_at: Option<String> = row.try_get("synced_at")?;
+
+            let updated_at_parsed = Self::parse_sqlite_datetime(&updated_at)
+                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+
+            let deleted_at_parsed = deleted_at
+                .map(|s| Self::parse_sqlite_datetime(&s))
+                .transpose()
+                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+
+            let device_id_parsed =
+                Uuid::from_str(&device_id).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+
+            let synced_at_parsed = synced_at
+                .map(|s| Self::parse_sqlite_datetime(&s))
+                .transpose()
+                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+
+            let sync_metadata = SyncMetadata {
+                updated_at: updated_at_parsed,
+                deleted_at: deleted_at_parsed,
+                device_id: device_id_parsed,
+                synced_at: synced_at_parsed,
+            };
+
+            // Load entries
+            let entries = self.load_entries(id, &mut conn).await?;
+
+            // Reconstruct Transaction
+            let transaction = Transaction::new(id, transaction_date, description, entries, sync_metadata)
+                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+
+            transactions.push(transaction);
+        }
+
+        Ok(transactions)
+    }
+
+    async fn mark_as_synced(&self, id: Uuid) -> sqlx::Result<bool> {
+        let mut tx = self.pool.begin().await?;
+
+        let result = sqlx::query(
+            r#"
+            UPDATE transactions
+            SET synced_at = ?
+            WHERE id = ?
+            "#,
+        )
+        .bind(Utc::now().to_rfc3339())
+        .bind(id.to_string())
+        .execute(&mut *tx)
+        .await?;
+
+        if result.rows_affected() > 0 {
+            // Also mark entries as synced
+            sqlx::query(
+                r#"
+                UPDATE transaction_entries
+                SET synced_at = ?
+                WHERE transaction_id = ?
+                "#,
+            )
+            .bind(Utc::now().to_rfc3339())
+            .bind(id.to_string())
+            .execute(&mut *tx)
+            .await?;
+
+            tx.commit().await?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
 }

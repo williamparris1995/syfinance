@@ -1,5 +1,5 @@
 use crate::domain::aggregates::{Debt, DebtType};
-use chrono::NaiveDate;
+use chrono::{DateTime, NaiveDate, Utc};
 use uuid::Uuid;
 
 #[allow(async_fn_in_trait, dead_code)]
@@ -17,4 +17,8 @@ pub trait DebtRepository: Send + Sync {
     async fn update(&self, debt: &Debt) -> sqlx::Result<bool>;
 
     async fn soft_delete(&self, id: Uuid) -> sqlx::Result<bool>;
+
+    async fn get_changes_since(&self, timestamp: DateTime<Utc>) -> sqlx::Result<Vec<Debt>>;
+
+    async fn mark_as_synced(&self, id: Uuid) -> sqlx::Result<bool>;
 }

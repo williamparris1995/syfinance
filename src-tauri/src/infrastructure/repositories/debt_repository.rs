@@ -3,7 +3,7 @@ use crate::domain::{
     repositories::DebtRepository,
     value_objects::{Money, SyncMetadata},
 };
-use chrono::{NaiveDate, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use sqlx::{Row, SqlitePool};
 use std::str::FromStr;
 use uuid::Uuid;
@@ -388,6 +388,49 @@ impl DebtRepository for SqliteDebtRepository {
             UPDATE debts
             SET deleted_at = ?, synced_at = NULL
             WHERE id = ? AND deleted_at IS NULL
+            "#,
+        )
+        .bind(Utc::now().to_rfc3339())
+        .bind(id.to_string())
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    async fn get_changes_since(&self, timestamp: DateTime<Utc>) -> sqlx::Result<Vec<Debt>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT id
+            FROM debts
+            WHERE updated_at > ? AND (synced_at IS NULL OR synced_at < updated_at)
+            ORDER BY updated_at ASC
+            "#,
+        )
+        .bind(timestamp.to_rfc3339())
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut debts = Vec::new();
+        for row in rows {
+            let id: String = row.get("id");
+            let id = Uuid::parse_str(&id)
+                .map_err(|e| sqlx::Error::Decode(format!("invalid UUID: {}", e).into()))?;
+
+            if let Some(debt) = self.find_by_id(id).await? {
+                debts.push(debt);
+            }
+        }
+
+        Ok(debts)
+    }
+
+    async fn mark_as_synced(&self, id: Uuid) -> sqlx::Result<bool> {
+        let result = sqlx::query(
+            r#"
+            UPDATE debts
+            SET synced_at = ?
+            WHERE id = ?
             "#,
         )
         .bind(Utc::now().to_rfc3339())

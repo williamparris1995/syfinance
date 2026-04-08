@@ -241,6 +241,41 @@ impl AccountRepository for SqliteAccountRepository {
 
         rows.iter().map(Self::row_to_account).collect()
     }
+
+    async fn get_changes_since(&self, timestamp: DateTime<Utc>) -> sqlx::Result<Vec<Account>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT 
+                id, name, account_type, chart_of_account_code,
+                currency_code, CAST(balance AS TEXT) AS balance,
+                updated_at, deleted_at, device_id, synced_at
+            FROM accounts
+            WHERE updated_at > ? AND (synced_at IS NULL OR synced_at < updated_at)
+            ORDER BY updated_at ASC
+            "#,
+        )
+        .bind(timestamp.to_rfc3339())
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.iter().map(Self::row_to_account).collect()
+    }
+
+    async fn mark_as_synced(&self, id: Uuid) -> sqlx::Result<bool> {
+        let result = sqlx::query(
+            r#"
+            UPDATE accounts
+            SET synced_at = ?
+            WHERE id = ?
+            "#,
+        )
+        .bind(Utc::now().to_rfc3339())
+        .bind(id.to_string())
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
 }
 
 #[cfg(test)]
@@ -445,5 +480,51 @@ mod tests {
         let found = repo.find_by_id(account_id).await.unwrap().unwrap();
         assert_eq!(found.balance.amount, Decimal::new(123456, 2));
         assert_eq!(found.balance.currency_code, "USD");
+    }
+
+    #[tokio::test]
+    async fn test_get_changes_since() {
+        let pool = setup_test_db().await;
+        let repo = SqliteAccountRepository::new(pool);
+
+        let account1 = create_test_account("Account1", AccountType::Bank, Decimal::new(10000, 2));
+        let account2 = create_test_account("Account2", AccountType::Cash, Decimal::new(5000, 2));
+        
+        repo.create(&account1).await.unwrap();
+        repo.create(&account2).await.unwrap();
+
+        // Mark account1 as synced
+        repo.mark_as_synced(account1.id).await.unwrap();
+
+        // Get changes since 1 hour ago
+        let one_hour_ago = Utc::now() - chrono::Duration::hours(1);
+        let changes = repo.get_changes_since(one_hour_ago).await.unwrap();
+
+        // Should only return account2 (not synced)
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes[0].name, "Account2");
+    }
+
+    #[tokio::test]
+    async fn test_mark_as_synced() {
+        let pool = setup_test_db().await;
+        let repo = SqliteAccountRepository::new(pool);
+
+        let account = create_test_account("Test", AccountType::Bank, Decimal::new(10000, 2));
+        let account_id = account.id;
+        
+        repo.create(&account).await.unwrap();
+
+        // Initially synced_at should be None
+        let found = repo.find_by_id(account_id).await.unwrap().unwrap();
+        assert!(found.sync_metadata.synced_at.is_none());
+
+        // Mark as synced
+        let marked = repo.mark_as_synced(account_id).await.unwrap();
+        assert!(marked);
+
+        // Now synced_at should be set
+        let found = repo.find_by_id(account_id).await.unwrap().unwrap();
+        assert!(found.sync_metadata.synced_at.is_some());
     }
 }

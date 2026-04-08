@@ -280,4 +280,47 @@ impl ReminderRepository for SqliteReminderRepository {
 
         Ok(result.rows_affected() > 0)
     }
+
+    async fn get_changes_since(&self, timestamp: DateTime<Utc>) -> sqlx::Result<Vec<Reminder>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT id
+            FROM reminders
+            WHERE updated_at > ? AND (synced_at IS NULL OR synced_at < updated_at)
+            ORDER BY updated_at ASC
+            "#,
+        )
+        .bind(timestamp.to_rfc3339())
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut reminders = Vec::new();
+        for row in rows {
+            let id: String = row.get("id");
+            let id = Uuid::parse_str(&id)
+                .map_err(|e| sqlx::Error::Decode(format!("invalid UUID: {}", e).into()))?;
+
+            if let Some(reminder) = self.find_by_id(id).await? {
+                reminders.push(reminder);
+            }
+        }
+
+        Ok(reminders)
+    }
+
+    async fn mark_as_synced(&self, id: Uuid) -> sqlx::Result<bool> {
+        let result = sqlx::query(
+            r#"
+            UPDATE reminders
+            SET synced_at = ?
+            WHERE id = ?
+            "#,
+        )
+        .bind(Utc::now().to_rfc3339())
+        .bind(id.to_string())
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
 }

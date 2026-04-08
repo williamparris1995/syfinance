@@ -12,4 +12,6 @@ pub trait ReminderRepository: Send + Sync {
     async fn update(&self, reminder: &Reminder) -> sqlx::Result<bool>;
     async fn delete(&self, id: Uuid) -> sqlx::Result<bool>;
     async fn soft_delete(&self, id: Uuid) -> sqlx::Result<bool>;
+    async fn get_changes_since(&self, timestamp: DateTime<Utc>) -> sqlx::Result<Vec<Reminder>>;
+    async fn mark_as_synced(&self, id: Uuid) -> sqlx::Result<bool>;
 }
