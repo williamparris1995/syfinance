@@ -913,7 +913,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src-tauri/src/domain/aggregates/account.rs, src-tauri/src/domain/repositories/account_repository.rs`
   - Pre-commit: `cargo test account`
 
-- [ ] 10. Transaction Aggregate + Double-Entry Validation
+- [x] 10. Transaction Aggregate + Double-Entry Validation
 
   **What to do**:
   - Create Transaction aggregate in domain/aggregates/transaction.rs using TDD

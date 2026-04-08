@@ -1,5 +1,6 @@
-use crate::domain::aggregates::{Account, AccountType, ChartOfAccounts, ChartOfAccountsType};
+use crate::domain::aggregates::{Account, AccountType, ChartOfAccounts, ChartOfAccountsType, Transaction};
 use crate::domain::value_objects::Currency;
+use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
@@ -20,8 +21,22 @@ pub trait AccountRepository: Send + Sync {
     async fn find_all_including_deleted(&self) -> sqlx::Result<Vec<Account>>;
 }
 
-#[allow(dead_code)]
-pub trait TransactionRepository: Send + Sync {}
+#[allow(async_fn_in_trait, dead_code)]
+pub trait TransactionRepository: Send + Sync {
+    async fn create(&self, transaction: &Transaction) -> sqlx::Result<()>;
+
+    async fn find_by_id(&self, id: Uuid) -> sqlx::Result<Option<Transaction>>;
+
+    async fn find_by_date_range(
+        &self,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+    ) -> sqlx::Result<Vec<Transaction>>;
+
+    async fn find_all(&self) -> sqlx::Result<Vec<Transaction>>;
+
+    async fn soft_delete(&self, id: Uuid) -> sqlx::Result<bool>;
+}
 
 #[allow(dead_code)]
 pub trait DebtRepository: Send + Sync {}

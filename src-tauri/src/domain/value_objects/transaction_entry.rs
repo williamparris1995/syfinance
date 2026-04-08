@@ -25,6 +25,7 @@ impl Error for TransactionEntryError {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TransactionEntry {
+    pub id: Uuid,
     pub account_id: Uuid,
     pub chart_of_account_code: String,
     pub debit_amount: Option<Money>,
@@ -41,6 +42,7 @@ impl TransactionEntry {
         note: impl Into<String>,
     ) -> Result<Self, TransactionEntryError> {
         let entry = Self {
+            id: Uuid::new_v4(),
             account_id,
             chart_of_account_code: chart_of_account_code.into().trim().to_string(),
             debit_amount,
