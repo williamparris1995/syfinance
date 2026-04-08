@@ -9,7 +9,7 @@ use rust_decimal::Decimal;
 use std::{error::Error, fmt};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum AccountType {
     Cash,
     Bank,

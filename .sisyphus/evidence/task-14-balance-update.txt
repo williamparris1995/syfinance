@@ -1,0 +1,649 @@
+﻿cargo.exe : warning: unused import: `CreateTransactionEntryDto`
+所在位置 行:1 字符: 1
++ & "$env:USERPROFILE\.cargo\bin\cargo.exe" test test_create_balanced_t ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: unused...actionEntryDto`:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+ --> src\application\services\transaction_service.rs:1:54
+  |
+1 | use crate::application::dtos::{CreateTransactionDto, CreateTransactionEntryDto, TransactionDto, TransactionEntryDto
+};
+  |                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `DebtType`, `Debt`, and `Reminder`
+ --> src\domain\repositories\mod.rs:5:65
+  |
+5 |     Account, AccountType, ChartOfAccounts, ChartOfAccountsType, Debt, DebtType, Reminder,
+  |                                                                 ^^^^  ^^^^^^^^  ^^^^^^^^
+
+warning: unused imports: `DateTime` and `Utc`
+ --> src\domain\repositories\mod.rs:9:14
+  |
+9 | use chrono::{DateTime, NaiveDate, Utc};
+  |              ^^^^^^^^             ^^^
+
+warning: unused variable: `id`
+  --> src\infrastructure\repositories\transaction_repository.rs:56:17
+   |
+56 |             let id = Uuid::from_str(&id).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+   |                 ^^ help: if this is intentional, prefix it with an underscore: `_id`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `finance-app` (lib) generated 4 warnings (run `cargo fix --lib -p finance-app` to apply 4 suggestions)
+warning: unused imports: `AccountDto`, `CreateAccountDto`, and `UpdateAccountDto`
+ --> src\application\dtos\mod.rs:4:23
+  |
+4 | pub use account_dto::{AccountDto, CreateAccountDto, UpdateAccountDto};
+  |                       ^^^^^^^^^^  ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `CreateTransactionEntryDto`
+ --> src\application\services\transaction_service.rs:1:54
+  |
+1 | use crate::application::dtos::{CreateTransactionDto, CreateTransactionEntryDto, TransactionDto, TransactionEntryDto
+};
+  |                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `TransactionServiceError` and `TransactionService`
+ --> src\application\services\mod.rs:3:31
+  |
+3 | pub use transaction_service::{TransactionService, TransactionServiceError};
+  |                               ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `AccountError` and `AccountEvent`
+ --> src\domain\aggregates\mod.rs:7:28
+  |
+7 | pub use account::{Account, AccountError, AccountEvent, AccountType};
+  |                            ^^^^^^^^^^^^  ^^^^^^^^^^^^
+
+warning: unused imports: `AmortizationMethod`, `DebtError`, and `PaymentSchedule`
+  --> src\domain\aggregates\mod.rs:11:16
+   |
+11 | pub use debt::{AmortizationMethod, Debt, DebtError, DebtType, PaymentSchedule};
+   |                ^^^^^^^^^^^^^^^^^^        ^^^^^^^^^            ^^^^^^^^^^^^^^^
+
+warning: unused imports: `ReminderError`, `ReminderType`, and `RepeatPattern`
+  --> src\domain\aggregates\mod.rs:12:30
+   |
+12 | pub use reminder::{Reminder, ReminderError, ReminderType, RepeatPattern};
+   |                              ^^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^
+
+warning: unused imports: `TransactionError` and `TransactionEvent`
+  --> src\domain\aggregates\mod.rs:13:36
+   |
+13 | pub use transaction::{Transaction, TransactionError, TransactionEvent};
+   |                                    ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+
+warning: unused import: `debt_repository::DebtRepository`
+  --> src\domain\repositories\mod.rs:13:9
+   |
+13 | pub use debt_repository::DebtRepository;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `reminder_repository::ReminderRepository`
+  --> src\domain\repositories\mod.rs:14:9
+   |
+14 | pub use reminder_repository::ReminderRepository;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `chart_of_accounts_repository::SqliteChartOfAccountsRepository`
+ --> src\infrastructure\repositories\mod.rs:7:9
+  |
+7 | pub use chart_of_accounts_repository::SqliteChartOfAccountsRepository;
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `currency_repository::SqliteCurrencyRepository`
+ --> src\infrastructure\repositories\mod.rs:8:9
+  |
+8 | pub use currency_repository::SqliteCurrencyRepository;
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `CreateAccountDto` is never constructed
+ --> src\application\dtos\account_dto.rs:8:12
+  |
+8 | pub struct CreateAccountDto {
+  |            ^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `UpdateAccountDto` is never constructed
+  --> src\application\dtos\account_dto.rs:17:12
+   |
+17 | pub struct UpdateAccountDto {
+   |            ^^^^^^^^^^^^^^^^
+
+warning: struct `AccountDto` is never constructed
+  --> src\application\dtos\account_dto.rs:23:12
+   |
+23 | pub struct AccountDto {
+   |            ^^^^^^^^^^
+
+warning: struct `CreateTransactionEntryDto` is never constructed
+ --> src\application\dtos\transaction_dto.rs:7:12
+  |
+7 | pub struct CreateTransactionEntryDto {
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `CreateTransactionDto` is never constructed
+  --> src\application\dtos\transaction_dto.rs:16:12
+   |
+16 | pub struct CreateTransactionDto {
+   |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `TransactionEntryDto` is never constructed
+  --> src\application\dtos\transaction_dto.rs:23:12
+   |
+23 | pub struct TransactionEntryDto {
+   |            ^^^^^^^^^^^^^^^^^^^
+
+warning: struct `TransactionDto` is never constructed
+  --> src\application\dtos\transaction_dto.rs:33:12
+   |
+33 | pub struct TransactionDto {
+   |            ^^^^^^^^^^^^^^
+
+warning: struct `TransactionService` is never constructed
+  --> src\application\services\transaction_service.rs:11:12
+   |
+11 | pub struct TransactionService {
+   |            ^^^^^^^^^^^^^^^^^^
+
+warning: enum `TransactionServiceError` is never used
+  --> src\application\services\transaction_service.rs:17:10
+   |
+17 | pub enum TransactionServiceError {
+   |          ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> src\application\services\transaction_service.rs:44:12
+    |
+ 43 | impl TransactionService {
+    | ----------------------- associated items in this implementation
+ 44 |     pub fn new(
+    |            ^^^
+...
+ 54 |     pub async fn create_transaction(
+    |                  ^^^^^^^^^^^^^^^^^^
+...
+147 |     pub async fn get_transaction(
+    |                  ^^^^^^^^^^^^^^^
+...
+160 |     pub async fn list_transactions(&self) -> Result<Vec<TransactionDto>, TransactionServiceError> {
+    |                  ^^^^^^^^^^^^^^^^^
+...
+165 |     pub async fn get_transactions_by_account(
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+178 |     pub async fn get_transactions_by_date_range(
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+190 |     fn to_dto(&self, transaction: Transaction) -> TransactionDto {
+    |        ^^^^^^
+
+warning: variants `AccountCreated`, `BalanceUpdated`, and `AccountDeleted` are never constructed
+  --> src\domain\aggregates\account.rs:37:5
+   |
+36 | pub enum AccountEvent {
+   |          ------------ variants in this enum
+37 |     AccountCreated {
+   |     ^^^^^^^^^^^^^^
+...
+42 |     BalanceUpdated {
+   |     ^^^^^^^^^^^^^^
+...
+47 |     AccountDeleted {
+   |     ^^^^^^^^^^^^^^
+   |
+   = note: `AccountEvent` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored dur
+ing dead code analysis
+
+warning: enum `AccountError` is never used
+  --> src\domain\aggregates\account.rs:54:10
+   |
+54 | pub enum AccountError {
+   |          ^^^^^^^^^^^^
+
+warning: field `pending_events` is never read
+   --> src\domain\aggregates\account.rs:120:16
+    |
+112 | pub struct Account {
+    |            ------- field in this struct
+...
+120 |     pub(crate) pending_events: Vec<AccountEvent>,
+    |                ^^^^^^^^^^^^^^
+    |
+    = note: `Account` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during 
+dead code analysis
+
+warning: multiple associated items are never used
+   --> src\domain\aggregates\account.rs:124:12
+    |
+123 | impl Account {
+    | ------------ associated items in this implementation
+124 |     pub fn new(
+    |            ^^^
+...
+162 |     pub fn update_balance(&mut self, balance: Money) -> Result<(), AccountError> {
+    |            ^^^^^^^^^^^^^^
+...
+178 |     pub fn change_name(&mut self, name: impl Into<String>) -> Result<(), AccountError> {
+    |            ^^^^^^^^^^^
+...
+191 |     pub fn soft_delete(&mut self) -> Result<(), AccountError> {
+    |            ^^^^^^^^^^^
+...
+205 |     pub fn pull_events(&mut self) -> Vec<AccountEvent> {
+    |            ^^^^^^^^^^^
+...
+209 |     fn ensure_not_deleted(&self) -> Result<(), AccountError> {
+    |        ^^^^^^^^^^^^^^^^^^
+...
+217 |     fn touch(&mut self) {
+    |        ^^^^^
+
+warning: function `validate_balance` is never used
+   --> src\domain\aggregates\account.rs:223:4
+    |
+223 | fn validate_balance(
+    |    ^^^^^^^^^^^^^^^^
+
+warning: function `validate_chart_of_accounts` is never used
+   --> src\domain\aggregates\account.rs:249:4
+    |
+249 | fn validate_chart_of_accounts(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: variants `InvalidCodeFormat`, `InvalidLevel`, `ParentCodeRequired`, `ParentCodeNotAllowed`, and `InvalidParent
+Level` are never constructed
+  --> src\domain\aggregates\chart_of_accounts.rs:66:5
+   |
+65 | pub enum ChartOfAccountsError {
+   |          -------------------- variants in this enum
+66 |     InvalidCodeFormat(String),
+   |     ^^^^^^^^^^^^^^^^^
+67 |     InvalidLevel(i32),
+   |     ^^^^^^^^^^^^
+...
+70 |     ParentCodeRequired,
+   |     ^^^^^^^^^^^^^^^^^^
+71 |     ParentCodeNotAllowed,
+   |     ^^^^^^^^^^^^^^^^^^^^
+72 |     InvalidParentLevel,
+   |     ^^^^^^^^^^^^^^^^^^
+   |
+   = note: `ChartOfAccountsError` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ign
+ored during dead code analysis
+
+warning: associated items `new`, `validate_code_format`, `validate_parent_code`, `is_deleted`, and `soft_delete` are ne
+ver used
+   --> src\domain\aggregates\chart_of_accounts.rs:121:12
+    |
+120 | impl ChartOfAccounts {
+    | -------------------- associated items in this implementation
+121 |     pub fn new(
+    |            ^^^
+...
+156 |     fn validate_code_format(code: &str, level: i32) -> Result<(), ChartOfAccountsError> {
+    |        ^^^^^^^^^^^^^^^^^^^^
+...
+170 |     fn validate_parent_code(
+    |        ^^^^^^^^^^^^^^^^^^^^
+...
+191 |     pub fn is_deleted(&self) -> bool {
+    |            ^^^^^^^^^^
+...
+195 |     pub fn soft_delete(&mut self) {
+    |            ^^^^^^^^^^^
+
+warning: variants `BorrowedOut`, `BorrowedIn`, `CreditCard`, and `Loan` are never constructed
+  --> src\domain\aggregates\debt.rs:9:5
+   |
+ 8 | pub enum DebtType {
+   |          -------- variants in this enum
+ 9 |     BorrowedOut,
+   |     ^^^^^^^^^^^
+10 |     BorrowedIn,
+   |     ^^^^^^^^^^
+11 |     CreditCard,
+   |     ^^^^^^^^^^
+12 |     Loan,
+   |     ^^^^
+   |
+   = note: `DebtType` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during 
+dead code analysis
+
+warning: enum `AmortizationMethod` is never used
+  --> src\domain\aggregates\debt.rs:16:10
+   |
+16 | pub enum AmortizationMethod {
+   |          ^^^^^^^^^^^^^^^^^^
+
+warning: enum `DebtError` is never used
+  --> src\domain\aggregates\debt.rs:31:10
+   |
+31 | pub enum DebtError {
+   |          ^^^^^^^^^
+
+warning: multiple fields are never read
+  --> src\domain\aggregates\debt.rs:65:9
+   |
+64 | pub struct Debt {
+   |            ---- fields in this struct
+65 |     pub id: Uuid,
+   |         ^^
+66 |     pub debt_type: DebtType,
+   |         ^^^^^^^^^
+67 |     pub counterparty: String,
+   |         ^^^^^^^^^^^^
+68 |     pub principal: Money,
+   |         ^^^^^^^^^
+69 |     pub interest_rate: Decimal,
+   |         ^^^^^^^^^^^^^
+70 |     pub start_date: NaiveDate,
+   |         ^^^^^^^^^^
+71 |     pub due_date: NaiveDate,
+   |         ^^^^^^^^
+72 |     pub payment_schedule: Vec<PaymentSchedule>,
+   |         ^^^^^^^^^^^^^^^^
+73 |     pub sync_metadata: SyncMetadata,
+   |         ^^^^^^^^^^^^^
+   |
+   = note: `Debt` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead
+ code analysis
+
+warning: associated items `create`, `generate_schedule_equal_principal_interest`, `generate_schedule_equal_principal`, 
+`mark_payment_paid`, `remaining_balance`, and `touch` are never used
+   --> src\domain\aggregates\debt.rs:77:12
+    |
+ 76 | impl Debt {
+    | --------- associated items in this implementation
+ 77 |     pub fn create(
+    |            ^^^^^^
+...
+135 |     pub fn generate_schedule_equal_principal_interest(&self) -> Result<Vec<PaymentSchedule>, DebtError> {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+182 |     pub fn generate_schedule_equal_principal(&self) -> Result<Vec<PaymentSchedule>, DebtError> {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+218 |     pub fn mark_payment_paid(&mut self, payment_date: NaiveDate) -> Result<(), DebtError> {
+    |            ^^^^^^^^^^^^^^^^^
+...
+232 |     pub fn remaining_balance(&self) -> Money {
+    |            ^^^^^^^^^^^^^^^^^
+...
+243 |     fn touch(&mut self) {
+    |        ^^^^^
+
+warning: function `term_in_months` is never used
+   --> src\domain\aggregates\debt.rs:249:4
+    |
+249 | fn term_in_months(start_date: NaiveDate, due_date: NaiveDate) -> Result<i64, DebtError> {
+    |    ^^^^^^^^^^^^^^
+
+warning: function `payment_date_for_installment` is never used
+   --> src\domain\aggregates\debt.rs:268:4
+    |
+268 | fn payment_date_for_installment(start_date: NaiveDate, installment: u32) -> NaiveDate {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `compound_factor` is never used
+   --> src\domain\aggregates\debt.rs:274:4
+    |
+274 | fn compound_factor(monthly_rate: Decimal, months: i64) -> Decimal {
+    |    ^^^^^^^^^^^^^^^
+
+warning: function `round_money` is never used
+   --> src\domain\aggregates\debt.rs:285:4
+    |
+285 | fn round_money(value: Decimal) -> Decimal {
+    |    ^^^^^^^^^^^
+
+warning: function `money_from_decimal` is never used
+   --> src\domain\aggregates\debt.rs:289:4
+    |
+289 | fn money_from_decimal(amount: Decimal, currency_code: &str) -> Money {
+    |    ^^^^^^^^^^^^^^^^^^
+
+warning: enum `ReminderType` is never used
+ --> src\domain\aggregates\reminder.rs:7:10
+  |
+7 | pub enum ReminderType {
+  |          ^^^^^^^^^^^^
+
+warning: associated items `as_str` and `from_str` are never used
+  --> src\domain\aggregates\reminder.rs:14:12
+   |
+13 | impl ReminderType {
+   | ----------------- associated items in this implementation
+14 |     pub fn as_str(&self) -> &'static str {
+   |            ^^^^^^
+...
+22 |     pub fn from_str(s: &str) -> Result<Self, ReminderError> {
+   |            ^^^^^^^^
+
+warning: enum `RepeatPattern` is never used
+  --> src\domain\aggregates\reminder.rs:33:10
+   |
+33 | pub enum RepeatPattern {
+   |          ^^^^^^^^^^^^^
+
+warning: associated items `as_str` and `from_str` are never used
+  --> src\domain\aggregates\reminder.rs:41:12
+   |
+40 | impl RepeatPattern {
+   | ------------------ associated items in this implementation
+41 |     pub fn as_str(&self) -> &'static str {
+   |            ^^^^^^
+...
+50 |     pub fn from_str(s: &str) -> Result<Self, ReminderError> {
+   |            ^^^^^^^^
+
+warning: enum `ReminderError` is never used
+  --> src\domain\aggregates\reminder.rs:62:10
+   |
+62 | pub enum ReminderError {
+   |          ^^^^^^^^^^^^^
+
+warning: struct `Reminder` is never constructed
+  --> src\domain\aggregates\reminder.rs:83:12
+   |
+83 | pub struct Reminder {
+   |            ^^^^^^^^
+
+warning: associated items `create`, `should_trigger_now`, `mark_notified`, `calculate_next_occurrence`, and `touch` are
+ never used
+   --> src\domain\aggregates\reminder.rs:96:12
+    |
+ 95 | impl Reminder {
+    | ------------- associated items in this implementation
+ 96 |     pub fn create(
+    |            ^^^^^^
+...
+126 |     pub fn should_trigger_now(&self) -> bool {
+    |            ^^^^^^^^^^^^^^^^^^
+...
+135 |     pub fn mark_notified(&mut self) {
+    |            ^^^^^^^^^^^^^
+...
+140 |     pub fn calculate_next_occurrence(&self) -> Option<DateTime<Utc>> {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+175 |     fn touch(&mut self) {
+    |        ^^^^^
+
+warning: variant `TransactionUpdated` is never constructed
+  --> src\domain\aggregates\transaction.rs:12:5
+   |
+ 7 | pub enum TransactionEvent {
+   |          ---------------- variant in this enum
+...
+12 |     TransactionUpdated {
+   |     ^^^^^^^^^^^^^^^^^^
+   |
+   = note: `TransactionEvent` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored
+ during dead code analysis
+
+warning: methods `add_entry`, `is_balanced`, `pull_events`, and `touch` are never used
+   --> src\domain\aggregates\transaction.rs:93:12
+    |
+ 65 | impl Transaction {
+    | ---------------- methods in this implementation
+...
+ 93 |     pub fn add_entry(&mut self, entry: TransactionEntry) -> Result<(), TransactionError> {
+    |            ^^^^^^^^^
+...
+110 |     pub fn is_balanced(&self) -> bool {
+    |            ^^^^^^^^^^^
+...
+135 |     pub fn pull_events(&mut self) -> Vec<TransactionEvent> {
+    |            ^^^^^^^^^^^
+...
+178 |     fn touch(&mut self) {
+    |        ^^^^^
+
+warning: trait `ReminderRepository` is never used
+ --> src\domain\repositories\reminder_repository.rs:7:11
+  |
+7 | pub trait ReminderRepository: Send + Sync {
+  |           ^^^^^^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+  --> src\infrastructure\repositories\account_repository.rs:18:12
+   |
+17 | impl SqliteAccountRepository {
+   | ---------------------------- associated function in this implementation
+18 |     pub fn new(pool: SqlitePool) -> Self {
+   |            ^^^
+
+warning: associated function `new` is never used
+  --> src\infrastructure\repositories\chart_of_accounts_repository.rs:14:12
+   |
+13 | impl SqliteChartOfAccountsRepository {
+   | ------------------------------------ associated function in this implementation
+14 |     pub fn new(pool: SqlitePool) -> Self {
+   |            ^^^
+
+warning: associated function `new` is never used
+  --> src\infrastructure\repositories\transaction_repository.rs:18:12
+   |
+17 | impl SqliteTransactionRepository {
+   | -------------------------------- associated function in this implementation
+18 |     pub fn new(pool: SqlitePool) -> Self {
+   |            ^^^
+
+warning: `finance-app` (bin "finance-app") generated 55 warnings (3 duplicates) (run `cargo fix --bin "finance-app" -p 
+finance-app` to apply 11 suggestions)
+warning: method `get_transactions_by_account` is never used
+   --> src\application\services\transaction_service.rs:165:18
+    |
+ 43 | impl TransactionService {
+    | ----------------------- method in this implementation
+...
+165 |     pub async fn get_transactions_by_account(
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: variant `InvalidParentLevel` is never constructed
+  --> src\domain\aggregates\chart_of_accounts.rs:72:5
+   |
+65 | pub enum ChartOfAccountsError {
+   |          -------------------- variant in this enum
+...
+72 |     InvalidParentLevel,
+   |     ^^^^^^^^^^^^^^^^^^
+   |
+   = note: `ChartOfAccountsError` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ign
+ored during dead code analysis
+
+warning: variant `CreditCard` is never constructed
+  --> src\domain\aggregates\debt.rs:11:5
+   |
+ 8 | pub enum DebtType {
+   |          -------- variant in this enum
+...
+11 |     CreditCard,
+   |     ^^^^^^^^^^
+   |
+   = note: `DebtType` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during 
+dead code analysis
+
+warning: fields `id` and `counterparty` are never read
+  --> src\domain\aggregates\debt.rs:65:9
+   |
+64 | pub struct Debt {
+   |            ---- fields in this struct
+65 |     pub id: Uuid,
+   |         ^^
+66 |     pub debt_type: DebtType,
+67 |     pub counterparty: String,
+   |         ^^^^^^^^^^^^
+   |
+   = note: `Debt` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead
+ code analysis
+
+warning: variant `RemindAtInPast` is never constructed
+  --> src\domain\aggregates\reminder.rs:66:5
+   |
+62 | pub enum ReminderError {
+   |          ------------- variant in this enum
+...
+66 |     RemindAtInPast(DateTime<Utc>),
+   |     ^^^^^^^^^^^^^^
+   |
+   = note: `ReminderError` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored du
+ring dead code analysis
+
+warning: unused imports: `DebtType`, `Debt`, and `Reminder`
+ --> src\domain\repositories\mod.rs:5:65
+  |
+5 |     Account, AccountType, ChartOfAccounts, ChartOfAccountsType, Debt, DebtType, Reminder,
+  |                                                                 ^^^^  ^^^^^^^^  ^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `finance-app` (bin "finance-app" test) generated 23 warnings (18 duplicates)
+warning: `finance-app` (lib test) generated 3 warnings (2 duplicates) (run `cargo fix --lib -p finance-app --tests` to 
+apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.64s
+     Running unittests src\lib.rs (src-tauri\target\debug\deps\finance_app-d1c4e90059713d40.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 87 filtered out; finished in 0.00s
+
+     Running unittests src\main.rs (src-tauri\target\debug\deps\finance_app-025342c3b4fb4ef5.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 87 filtered out; finished in 0.00s
+
+     Running tests\chart_of_accounts_repository.rs (src-tauri\target\debug\deps\chart_of_accounts_repository-4798c48a33
+52621c.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests\currency_repository.rs (src-tauri\target\debug\deps\currency_repository-78e926ac9bddd130.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests\smoke.rs (src-tauri\target\debug\deps\smoke-add42c67eaba9c6f.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests\transaction_repository.rs (src-tauri\target\debug\deps\transaction_repository-0ed88cf0bb984222.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
