@@ -166,7 +166,6 @@ mod tests {
     use super::*;
     use crate::domain::aggregates::{AccountType, ChartOfAccounts, ChartOfAccountsType};
     use crate::domain::value_objects::Currency;
-    use async_trait::async_trait;
     use rust_decimal::Decimal;
     use std::collections::HashMap;
     use std::sync::Mutex;
@@ -183,7 +182,6 @@ mod tests {
         }
     }
 
-    #[async_trait]
     impl AccountRepository for MockAccountRepository {
         async fn create(&self, account: &Account) -> sqlx::Result<()> {
             self.accounts
@@ -273,7 +271,6 @@ mod tests {
         }
     }
 
-    #[async_trait]
     impl ChartOfAccountsRepository for MockChartOfAccountsRepository {
         async fn create(&self, account: &ChartOfAccounts) -> sqlx::Result<()> {
             self.charts
@@ -355,7 +352,6 @@ mod tests {
         }
     }
 
-    #[async_trait]
     impl CurrencyRepository for MockCurrencyRepository {
         async fn create(&self, currency: &Currency) -> sqlx::Result<()> {
             self.currencies
@@ -376,63 +372,12 @@ mod tests {
         async fn update_rate(&self, code: &str, exchange_rate: Decimal) -> sqlx::Result<bool> {
             let mut currencies = self.currencies.lock().unwrap();
             if let Some(currency) = currencies.get_mut(code) {
-                *currency = Currency::new(&currency.code, &currency.name, exchange_rate).unwrap();
+                *currency =
+                    Currency::new(&currency.code, &currency.symbol, exchange_rate).unwrap();
                 Ok(true)
             } else {
                 Ok(false)
             }
-        }
-    }
-
-    // Mock executor for tests
-    struct MockExecutor;
-
-    #[async_trait]
-    impl<'e> Executor<'e> for &'e MockExecutor {
-        type Database = Postgres;
-
-        fn fetch_many<'q, Q>(
-            self,
-            _query: Q,
-        ) -> futures::stream::BoxStream<
-            'e,
-            Result<sqlx::Either<sqlx::postgres::PgQueryResult, sqlx::postgres::PgRow>, sqlx::Error>,
-        >
-        where
-            'q: 'e,
-            Q: sqlx::Execute<'q, Self::Database> + 'q,
-        {
-            unimplemented!("Mock executor does not support fetch_many")
-        }
-
-        fn fetch_optional<'q, Q>(
-            self,
-            _query: Q,
-        ) -> futures::future::BoxFuture<'e, Result<Option<sqlx::postgres::PgRow>, sqlx::Error>>
-        where
-            'q: 'e,
-            Q: sqlx::Execute<'q, Self::Database> + 'q,
-        {
-            unimplemented!("Mock executor does not support fetch_optional")
-        }
-
-        fn prepare_with<'q>(
-            self,
-            _sql: &'q str,
-            _parameters: &'q [<Self::Database as sqlx::Database>::TypeInfo],
-        ) -> futures::future::BoxFuture<
-            'e,
-            Result<<Self::Database as sqlx::database::HasStatement<'q>>::Statement, sqlx::Error>,
-        > {
-            unimplemented!("Mock executor does not support prepare_with")
-        }
-
-        fn describe<'q>(
-            self,
-            _sql: &'q str,
-        ) -> futures::future::BoxFuture<'e, Result<sqlx::Describe<Self::Database>, sqlx::Error>>
-        {
-            unimplemented!("Mock executor does not support describe")
         }
     }
 
@@ -452,7 +397,7 @@ mod tests {
             initial_balance: Decimal::new(10000, 2),
         };
 
-        let result = service.create_account(&MockExecutor, dto).await;
+        let result = service.create_account((), dto).await;
 
         assert!(result.is_ok());
         let account_dto = result.unwrap();
@@ -476,7 +421,7 @@ mod tests {
             initial_balance: Decimal::new(10000, 2),
         };
 
-        let result = service.create_account(&MockExecutor, dto).await;
+        let result = service.create_account((), dto).await;
 
         assert!(result.is_err());
         assert!(matches!(
@@ -502,7 +447,7 @@ mod tests {
         };
 
         let created = service
-            .create_account(&MockExecutor, create_dto)
+            .create_account((), create_dto)
             .await
             .unwrap();
 
@@ -512,7 +457,7 @@ mod tests {
         };
 
         let result = service
-            .update_account(&MockExecutor, created.id, update_dto)
+            .update_account((), created.id, update_dto)
             .await;
 
         assert!(result.is_ok());
@@ -537,11 +482,11 @@ mod tests {
         };
 
         let created = service
-            .create_account(&MockExecutor, create_dto)
+            .create_account((), create_dto)
             .await
             .unwrap();
 
-        let result = service.delete_account(&MockExecutor, created.id).await;
+        let result = service.delete_account((), created.id).await;
 
         assert!(result.is_ok());
 
@@ -566,7 +511,7 @@ mod tests {
         };
 
         let created = service
-            .create_account(&MockExecutor, create_dto)
+            .create_account((), create_dto)
             .await
             .unwrap();
 

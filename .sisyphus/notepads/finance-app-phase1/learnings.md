@@ -275,3 +275,8 @@
 - Migration schema mismatch: Original migration had wrong debt_type values (receivable/payable vs borrowed_out/borrowed_in/credit_card/loan)
 - Repository trait bounds: Cannot use dyn Trait with async methods unless using async_trait crate, used concrete generic types instead
 - ReminderRepository signature: Changed from async_trait with Box<dyn Error> to allow(async_fn_in_trait) with sqlx::Result for consistency
+
+## [2026-04-09] Task 18: Sync Service verification
+- Removed the unused MockExecutor from account service tests and passed () because the service methods do not use the executor generic.
+- Test mocks implementing native async repository traits must not use sync_trait; removing the macro fixed trait-signature mismatches.
+- 	hiserror treats a field named source as an error source, so string payloads should use a neutral field name like message.
