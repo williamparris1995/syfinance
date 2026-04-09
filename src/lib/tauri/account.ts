@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invokeTauri } from '../tauri';
 
 export type AccountType = 'Cash' | 'Bank' | 'CreditCard' | 'Investment' | 'Loan' | 'Other';
 
@@ -33,16 +33,16 @@ export interface AccountBalanceDto {
 }
 
 export const createAccount = (dto: CreateAccountDto) =>
-  invoke<AccountDto>('create_account', { dto });
+  invokeTauri<AccountDto>('create_account', { dto });
 
 export const updateAccount = (id: string, dto: UpdateAccountDto) =>
-  invoke<AccountDto>('update_account', { id, dto });
+  invokeTauri<AccountDto>('update_account', { id, dto });
 
-export const deleteAccount = (id: string) => invoke<void>('delete_account', { id });
+export const deleteAccount = (id: string) => invokeTauri<void>('delete_account', { id });
 
-export const getAccount = (id: string) => invoke<AccountDto>('get_account', { id });
+export const getAccount = (id: string) => invokeTauri<AccountDto>('get_account', { id });
 
-export const listAccounts = () => invoke<AccountDto[]>('list_accounts');
+export const listAccounts = () => invokeTauri<AccountDto[]>('list_accounts');
 
 export const getAccountBalance = (id: string) =>
-  invoke<AccountBalanceDto>('get_account_balance', { id });
+  invokeTauri<AccountBalanceDto>('get_account_balance', { id });

@@ -1,0 +1,144 @@
+﻿cargo.exe : warning: unused imports: `DebtType`, `Debt`, and `Reminder`
+所在位置 行:1 字符: 76
++ ... | Out-Null; & "$env:USERPROFILE\.cargo\bin\cargo.exe" test --lib 2>&1 ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: unused... and `Reminder`:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+ --> src\domain\repositories\mod.rs:5:65
+  |
+5 |     Account, AccountType, ChartOfAccounts, ChartOfAccountsType, Debt, DebtType, Reminder,
+  |                                                                 ^^^^  ^^^^^^^^  ^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::str::FromStr`
+ --> src\infrastructure\repositories\account_repository_postgres.rs:9:5
+  |
+9 | use std::str::FromStr;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::str::FromStr`
+ --> src\infrastructure\repositories\transaction_repository_postgres.rs:9:5
+  |
+9 | use std::str::FromStr;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `id`
+  --> src\infrastructure\repositories\transaction_repository.rs:56:17
+   |
+56 |             let id = Uuid::from_str(&id).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+   |                 ^^ help: if this is intentional, prefix it with an underscore: `_id`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `id`
+  --> src\infrastructure\repositories\transaction_repository_postgres.rs:43:17
+   |
+43 |             let id: Uuid = row.try_get("id")?;
+   |                 ^^ help: if this is intentional, prefix it with an underscore: `_id`
+
+warning: `finance-app` (lib test) generated 5 warnings (run `cargo fix --lib -p finance-app --tests` to apply 5 suggest
+ions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.38s
+     Running unittests src\lib.rs (target\debug\deps\finance_app-40fb563fc171b290.exe)
+
+running 95 tests
+test domain::aggregates::account::tests::account::business_rules::balance_currency_mismatch_fails ... ok
+test domain::aggregates::account::tests::account::business_rules::bank_account_requires_bank_chart_of_accounts_code ... ok
+test domain::aggregates::account::tests::account::business_rules::cash_account_rejects_invalid_chart_of_accounts_code ... ok
+test domain::aggregates::account::tests::account::business_rules::cash_account_with_negative_balance_fails ... ok
+test domain::aggregates::account::tests::account::business_rules::credit_card_account_with_negative_balance_succeeds ... ok
+test domain::aggregates::account::tests::account::business_rules::investment_account_with_negative_balance_fails ... ok
+test domain::aggregates::account::tests::account::business_rules::soft_delete_marks_sync_metadata_deleted ... ok
+test domain::aggregates::account::tests::account::business_rules::update_balance_allows_negative_credit_card_balance ... ok
+test domain::aggregates::account::tests::account::business_rules::update_balance_enforces_currency_rule ... ok
+test domain::aggregates::account::tests::account::domain_events::emits_created_and_balance_updated_events ... ok
+test domain::aggregates::account::tests::account::domain_events::emits_deleted_event ... ok
+test domain::aggregates::chart_of_accounts::tests::test_account_type_from_str ... ok
+test domain::aggregates::chart_of_accounts::tests::test_balance_direction_from_str ... ok
+test domain::aggregates::chart_of_accounts::tests::test_create_level1_account_success ... ok
+test domain::aggregates::chart_of_accounts::tests::test_create_level2_account_success ... ok
+test domain::aggregates::chart_of_accounts::tests::test_create_level3_account_success ... ok
+test domain::aggregates::chart_of_accounts::tests::test_invalid_code_format_level1 ... ok
+test domain::aggregates::chart_of_accounts::tests::test_invalid_code_format_level3 ... ok
+test domain::aggregates::chart_of_accounts::tests::test_invalid_level ... ok
+test domain::aggregates::chart_of_accounts::tests::test_level1_with_parent_code_fails ... ok
+test domain::aggregates::chart_of_accounts::tests::test_level2_without_parent_code_fails ... ok
+test domain::aggregates::chart_of_accounts::tests::test_soft_delete ... ok
+test domain::aggregates::debt::tests::debt::amortization::create_generates_equal_principal_interest_schedule ... ok
+test domain::aggregates::debt::tests::debt::amortization::equal_principal_interest_matches_golden_master_values ... ok
+test domain::aggregates::debt::tests::debt::amortization::equal_principal_matches_golden_master_values ... ok
+test domain::aggregates::debt::tests::debt::payments::mark_payment_paid_rejects_unknown_schedule_date ... ok
+test domain::aggregates::debt::tests::debt::payments::mark_payment_paid_updates_status_and_remaining_balance ... ok
+test domain::aggregates::debt::tests::debt::validation::loan_requires_amortization_method ... ok
+test domain::aggregates::debt::tests::debt::validation::rejects_due_date_before_start_date ... ok
+test domain::aggregates::debt::tests::debt::validation::rejects_empty_counterparty ... ok
+test domain::aggregates::debt::tests::debt::validation::rejects_non_positive_principal ... ok
+test domain::aggregates::reminder::tests::reminder_type::converts_to_string ... ok
+test application::services::transaction_service::tests::test_create_balanced_transaction_updates_account_balances ... ok
+test domain::aggregates::reminder::tests::reminder_type::parses_from_string ... ok
+test application::services::transaction_service::tests::test_list_transactions ... ok
+test application::services::debt_service::tests::test_get_debt ... ok
+test application::services::transaction_service::tests::test_get_transaction ... ok
+test application::services::debt_service::tests::test_list_debts ... ok
+test domain::aggregates::reminder::tests::reminder_type::rejects_invalid_type ... ok
+test domain::aggregates::reminder::tests::repeat_pattern::converts_to_string ... ok
+test application::services::debt_service::tests::test_get_upcoming_payments ... ok
+test domain::aggregates::reminder::tests::repeat_pattern::parses_from_string ... ok
+test domain::aggregates::reminder::tests::repeat_patterns::daily_pattern_adds_one_day ... ok
+test domain::aggregates::reminder::tests::repeat_patterns::monthly_pattern_adds_one_month ... ok
+test domain::aggregates::reminder::tests::repeat_pattern::rejects_invalid_pattern ... ok
+test domain::aggregates::reminder::tests::repeat_patterns::weekly_pattern_adds_seven_days ... ok
+test domain::aggregates::reminder::tests::repeat_patterns::yearly_pattern_adds_one_year ... ok
+test domain::aggregates::reminder::tests::triggering::should_not_trigger_when_already_notified ... ok
+test domain::aggregates::reminder::tests::repeat_patterns::no_repeat_pattern_returns_none ... ok
+test domain::aggregates::reminder::tests::repeat_patterns::monthly_pattern_handles_month_end ... ok
+test application::services::debt_service::tests::test_record_payment_updates_schedule ... ok
+test domain::aggregates::reminder::tests::triggering::should_not_trigger_when_time_is_future ... ok
+test domain::aggregates::reminder::tests::triggering::should_trigger_when_time_has_passed ... ok
+test domain::aggregates::reminder::tests::validation::creates_valid_reminder ... ok
+test domain::aggregates::reminder::tests::validation::trims_title_and_description ... ok
+test domain::aggregates::reminder::tests::validation::rejects_empty_title ... ok
+test domain::aggregates::transaction::tests::transaction::domain_events::emits_created_event ... ok
+test domain::aggregates::transaction::tests::transaction::domain_events::emits_updated_event_when_entry_is_added ... ok
+test domain::aggregates::transaction::tests::transaction::domain_events::failed_entry_addition_emits_no_event ... ok
+test domain::aggregates::transaction::tests::transaction::double_entry::add_entry_requires_transaction_to_remain_balanced ... ok
+test domain::aggregates::transaction::tests::transaction::double_entry::balanced_transaction_succeeds ... ok
+test domain::value_objects::currency::tests::accepts_valid_iso_4217_codes ... ok
+test domain::aggregates::transaction::tests::transaction::double_entry::unbalanced_transaction_fails ... ok
+test domain::aggregates::transaction::tests::transaction::double_entry::mixed_currency_transaction_fails ... ok
+test domain::aggregates::transaction::tests::transaction::double_entry::single_entry_transaction_fails ... ok
+test domain::value_objects::currency::tests::rejects_invalid_iso_4217_codes ... ok
+test domain::value_objects::money::tests::money::arithmetic::adds_and_subtracts_same_currency ... ok
+test application::services::transaction_service::tests::test_create_unbalanced_transaction_rejected ... ok
+test application::services::transaction_service::tests::test_get_transactions_by_date_range ... ok
+test domain::value_objects::money::tests::money::arithmetic::compares_same_currency ... ok
+test domain::value_objects::money::tests::money::arithmetic::converts_currency_with_exchange_rate ... ok
+test domain::value_objects::money::tests::money::arithmetic::creates_valid_money ... ok
+test domain::value_objects::money::tests::money::arithmetic::displays_with_currency_symbol_and_grouping ... ok
+test domain::value_objects::money::tests::money::arithmetic::rejects_cross_currency_arithmetic ... ok
+test domain::value_objects::money::tests::money::arithmetic::rejects_cross_currency_comparison ... ok
+test domain::value_objects::money::tests::money::arithmetic::rejects_invalid_currency_code ... ok
+test domain::value_objects::money::tests::money::arithmetic::rejects_invalid_precision ... ok
+test domain::value_objects::sync_metadata::tests::state_transitions::tracks_sync_state_transitions ... ok
+test domain::value_objects::transaction_entry::tests::transaction_entry::business_rules::accepts_debit_only_entries ... ok
+test domain::value_objects::transaction_entry::tests::transaction_entry::business_rules::rejects_entries_with_both_debit_and_credit ... ok
+test domain::value_objects::transaction_entry::tests::transaction_entry::business_rules::rejects_entries_without_debit_or_credit ... ok
+test domain::aggregates::reminder::tests::triggering::mark_notified_updates_status_and_sync ... ok
+test infrastructure::repositories::account_repository::tests::test_mark_as_synced ... ok
+test infrastructure::repositories::account_repository::tests::test_create_and_find_by_id ... ok
+test infrastructure::repositories::account_repository::tests::test_find_by_type ... ok
+test infrastructure::repositories::account_repository::tests::test_find_all_including_deleted ... ok
+test infrastructure::repositories::account_repository::tests::test_find_all_excludes_deleted ... ok
+test application::services::debt_service::tests::test_create_debt_generates_schedule_and_reminders ... ok
+test domain::value_objects::money::tests::money::properties::addition_is_commutative ... ok
+test infrastructure::repositories::account_repository::tests::test_money_serialization_preserves_precision ... ok
+test domain::value_objects::money::tests::money::properties::addition_is_associative ... ok
+test infrastructure::repositories::account_repository::tests::test_get_changes_since ... ok
+test infrastructure::repositories::account_repository::tests::test_soft_delete ... ok
+test infrastructure::repositories::account_repository::tests::test_update_account ... ok
+test application::services::debt_service::tests::test_record_all_payments_deletes_reminders ... ok
+
+test result: ok. 95 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+

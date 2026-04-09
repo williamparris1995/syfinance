@@ -1508,7 +1508,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src-tauri/src/infrastructure/repositories/*_postgres.rs`
   - Pre-commit: `cargo test repositories::postgres`
 
-- [ ] 18. Sync Service - Conflict Resolution
+- [x] 18. Sync Service - Conflict Resolution
 
   **What to do**:
   - Create SyncService in infrastructure/sync/sync_service.rs
@@ -1989,7 +1989,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src/components/ui/*, src/lib/utils.ts, tailwind.config.js, src/App.tsx`
   - Pre-commit: `pnpm type-check`
 
-- [ ] 25. TanStack Query + Router Setup
+- [x] 25. TanStack Query + Router Setup
 
   **What to do**:
   - Install and configure TanStack Query for data fetching
