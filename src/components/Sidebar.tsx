@@ -1,41 +1,46 @@
 import { Link } from '@tanstack/react-router';
+import { Home, Wallet, Receipt, CreditCard, BarChart3, Settings } from 'lucide-react';
 
 type NavItem = {
   to: '/' | '/accounts' | '/transactions' | '/debts' | '/reports' | '/settings';
   label: string;
+  icon: React.ComponentType<{ className?: string }>;
   exact?: boolean;
 };
 
 const navItems: NavItem[] = [
-  { to: '/', label: 'Overview', exact: true },
-  { to: '/accounts', label: 'Accounts' },
-  { to: '/transactions', label: 'Transactions' },
-  { to: '/debts', label: 'Debts' },
-  { to: '/reports', label: 'Reports' },
-  { to: '/settings', label: 'Settings' },
+  { to: '/', label: 'Overview', icon: Home, exact: true },
+  { to: '/accounts', label: 'Accounts', icon: Wallet },
+  { to: '/transactions', label: 'Transactions', icon: Receipt },
+  { to: '/debts', label: 'Debts', icon: CreditCard },
+  { to: '/reports', label: 'Reports', icon: BarChart3 },
+  { to: '/settings', label: 'Settings', icon: Settings },
 ] as const;
 
 export function Sidebar() {
   return (
-    <aside className="w-64 border-r border-slate-800 bg-slate-900/80 px-4 py-6">
-      <div className="mb-6">
-        <p className="text-xs uppercase tracking-[0.3em] text-emerald-400">Finance App</p>
-        <h1 className="mt-2 text-xl font-semibold text-slate-50">Navigation</h1>
+    <aside className="flex h-full w-64 flex-col border-r bg-sidebar">
+      <div className="border-b px-6 py-4">
+        <h1 className="text-lg font-semibold text-sidebar-foreground">Finance App</h1>
       </div>
-      <nav className="space-y-2">
-        {navItems.map((item) => (
-          <Link
-            key={item.to}
-            to={item.to}
-            activeOptions={item.exact ? { exact: true } : undefined}
-            activeProps={{
-              className: 'bg-emerald-400 text-slate-950 shadow-sm shadow-emerald-500/20',
-            }}
-            className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-slate-50"
-          >
-            {item.label}
-          </Link>
-        ))}
+      <nav className="flex-1 space-y-1 p-4">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              activeOptions={item.exact ? { exact: true } : undefined}
+              activeProps={{
+                className: 'bg-sidebar-accent text-sidebar-accent-foreground',
+              }}
+              className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              <Icon className="h-4 w-4" />
+              {item.label}
+            </Link>
+          );
+        })}
       </nav>
     </aside>
   );

@@ -1,5 +1,5 @@
 import { Outlet, createRootRoute, createRoute, createRouter } from '@tanstack/react-router';
-import { Sidebar } from './components/Sidebar';
+import { AppLayout } from './components/layout/AppLayout';
 import { AccountsPage } from './pages/AccountsPage';
 import { DebtsPage } from './pages/DebtsPage';
 import { HomePage } from './pages/HomePage';
@@ -9,12 +9,9 @@ import { TransactionsPage } from './pages/TransactionsPage';
 
 function RootLayout() {
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-100">
-      <Sidebar />
-      <main className="flex-1 px-8 py-6">
-        <Outlet />
-      </main>
-    </div>
+    <AppLayout>
+      <Outlet />
+    </AppLayout>
   );
 }
 

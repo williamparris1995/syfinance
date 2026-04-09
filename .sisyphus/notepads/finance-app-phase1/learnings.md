@@ -287,3 +287,52 @@
 - Added a typed Tauri invoke wrapper in `src/lib/tauri.ts` and pointed existing account commands through it.
 - Built a root layout with a sidebar and empty route shells for `/`, `/accounts`, `/transactions`, `/debts`, `/reports`, and `/settings`.
 - Playwright confirmed sidebar navigation changes the URL and renders the expected shell for each route; evidence saved to `.sisyphus/evidence/task-25-route-navigation.txt`.
+## [2026-04-09] Task 18: Sync Service - COMPLETED
+
+### Implementation Details
+- Created SyncService in infrastructure/sync/sync_service.rs with bidirectional sync support
+- Implemented Last Write Wins (LWW) conflict resolution using updated_at timestamp comparison
+- Added retry logic with exponential backoff (1s, 2s, 4s delays)
+- Generic implementation works with any entity implementing SyncEntity trait
+- Supports both local-to-remote and remote-to-local sync operations
+
+### Technical Decisions
+- SyncEntity trait: Requires id() and updated_at() methods for conflict resolution
+- SyncRepository trait: Defines get_changes_since(), find_by_id(), upsert(), mark_as_synced()
+- Conflict resolution: resolve_conflict() compares updated_at timestamps, newer wins
+- Retry strategy: retry_with_backoff() attempts operation 4 times with exponential delays
+- Tombstone handling: Delegated to repository implementations (soft delete with deleted_at)
+
+### Test Coverage
+- 5 unit tests covering all sync scenarios:
+  - test_resolves_conflict_with_last_write_wins: LWW conflict resolution
+  - test_syncs_newer_local_entity_to_remote: Local-to-remote sync
+  - test_syncs_remote_entity_back_to_local_when_remote_is_newer: Remote-to-local sync
+  - test_retries_until_operation_succeeds: Retry with backoff success case
+  - test_returns_retry_exhausted_after_max_attempts: Retry exhaustion case
+- All tests pass with mock repositories
+
+### Patterns Established
+- Generic sync service pattern: Works with any entity type via trait bounds
+- Last Write Wins: Simple, deterministic conflict resolution for distributed systems
+- Exponential backoff: Network failure resilience with configurable retry delays
+- Tombstone sync: Soft deletes propagate through sync like regular updates
+
+### Gotchas
+- async_trait required for trait methods returning futures
+- SyncError must implement thiserror::Error for proper error handling
+- Retry loop must handle both success and exhaustion cases explicitly
+- Mock repositories need careful state management for testing retry logic
+## [2026-04-09] Task 24: shadcn/ui Setup - COMPLETED
+
+### Implementation Details
+- Installed shadcn/ui components: Button, Input, Select, Table, Dialog, Card, Form
+- Configured Tailwind CSS with financial color palette (income/expense/asset/liability)
+- Created layout components: AppLayout, Sidebar, Header
+- Setup theme provider in App.tsx
+
+### Technical Decisions
+- Used shadcn/ui default styling (no excessive customization)
+- Financial colors: green for income, red for expense, blue for asset, orange for liability
+- Light mode only (dark mode deferred to later phase)
+
