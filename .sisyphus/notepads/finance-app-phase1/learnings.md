@@ -243,7 +243,7 @@
 - Created DTOs: CreateDebtDto, DebtDto, PaymentScheduleDto, RecordPaymentDto
 - Implemented use cases: create_debt(), get_debt(), list_debts(), record_payment(), get_upcoming_payments()
 - Payment schedule generation happens automatically on debt creation (via Debt aggregate)
-- Reminder creation for upcoming payments (Saga pattern: debt creation ¡ú schedule generation ¡ú reminder creation)
+- Reminder creation for upcoming payments (Saga pattern: debt creation ï¿½ï¿½ schedule generation ï¿½ï¿½ reminder creation)
 - Debt status update when fully paid: deletes all related reminders
 
 ### Technical Decisions
@@ -266,7 +266,7 @@
 ### Patterns Established
 - Application service pattern: Service layer coordinates between repositories and domain aggregates
 - DTO pattern: Separate DTOs for create operations (with Decimal) and read operations (with String amounts)
-- Saga pattern: Multi-step workflow (debt ¡ú schedule ¡ú reminders) with proper error handling
+- Saga pattern: Multi-step workflow (debt ï¿½ï¿½ schedule ï¿½ï¿½ reminders) with proper error handling
 - Error handling: Custom DebtServiceError with From<sqlx::Error> conversion
 
 ### Gotchas
@@ -280,3 +280,10 @@
 - Removed the unused MockExecutor from account service tests and passed () because the service methods do not use the executor generic.
 - Test mocks implementing native async repository traits must not use sync_trait; removing the macro fixed trait-signature mismatches.
 - 	hiserror treats a field named source as an error source, so string payloads should use a neutral field name like message.
+
+## [2026-04-09] Task 25: TanStack Query + Router Setup - COMPLETED
+- Added TanStack Query and TanStack Router to the frontend and wired the app through `QueryClientProvider` + `RouterProvider`.
+- Configured the shared `QueryClient` with 5 minute stale time, 30 minute GC time, and window-focus refetch disabled.
+- Added a typed Tauri invoke wrapper in `src/lib/tauri.ts` and pointed existing account commands through it.
+- Built a root layout with a sidebar and empty route shells for `/`, `/accounts`, `/transactions`, `/debts`, `/reports`, and `/settings`.
+- Playwright confirmed sidebar navigation changes the URL and renders the expected shell for each route; evidence saved to `.sisyphus/evidence/task-25-route-navigation.txt`.

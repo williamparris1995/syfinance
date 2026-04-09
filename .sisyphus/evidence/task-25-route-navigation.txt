@@ -1,0 +1,16 @@
+Task 25: TanStack Query + Router Setup
+
+Verification:
+- `pnpm type-check` passed.
+- Playwright navigation check passed against `http://localhost:5173`.
+
+Route checks:
+- `/accounts -> http://localhost:5173/accounts -> Accounts`
+- `/transactions -> http://localhost:5173/transactions -> Transactions`
+- `/debts -> http://localhost:5173/debts -> Debts`
+- `/reports -> http://localhost:5173/reports -> Reports`
+- `/settings -> http://localhost:5173/settings -> Settings`
+
+Notes:
+- Sidebar links navigated correctly.
+- Route shells rendered for each page.

@@ -6,10 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "type-check": "tsc --noEmit",
     "preview": "vite preview",
     "tauri": "tauri"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.96.2",
+    "@tanstack/react-router": "^1.168.10",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
