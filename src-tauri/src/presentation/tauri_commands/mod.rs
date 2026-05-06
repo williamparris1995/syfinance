@@ -1,10 +1,15 @@
 pub mod account_commands;
+pub mod currency_commands;
 pub mod debt_commands;
 pub mod transaction_commands;
 
 pub use account_commands::{
     create_account, delete_account, get_account, get_account_balance, list_accounts,
     update_account, AppState,
+};
+pub use currency_commands::{
+    add_currency, create_default_state as create_currency_default_state, list_currencies,
+    update_currency_rate, CurrencyCommandState,
 };
 pub use debt_commands::{
     create_debt, create_default_state as create_debt_default_state, get_debt,

@@ -9,6 +9,10 @@ use presentation::tauri_commands::{
         create_account, delete_account, get_account, get_account_balance, list_accounts,
         update_account, AppState,
     },
+    currency_commands::{
+        add_currency, create_default_state as create_currency_default_state, list_currencies,
+        update_currency_rate, CurrencyCommandState,
+    },
     debt_commands::{
         create_debt, create_default_state as create_debt_default_state, get_debt,
         get_upcoming_payments, list_debts, record_payment, AppState as DebtAppState,
@@ -27,6 +31,9 @@ async fn main() {
     let debt_state: DebtAppState = create_debt_default_state()
         .await
         .expect("failed to initialize debt command state");
+    let currency_state: CurrencyCommandState = create_currency_default_state()
+        .await
+        .expect("failed to initialize currency command state");
     let transaction_state = create_default_state()
         .await
         .expect("failed to initialize transaction command state");
@@ -47,6 +54,7 @@ async fn main() {
         .plugin(tauri_plugin_notification::init())
         .manage(account_state)
         .manage(debt_state)
+        .manage(currency_state)
         .manage(transaction_state)
         .invoke_handler(tauri::generate_handler![
             create_account,
@@ -55,6 +63,9 @@ async fn main() {
             get_account,
             list_accounts,
             get_account_balance,
+            list_currencies,
+            add_currency,
+            update_currency_rate,
             create_debt,
             get_debt,
             list_debts,
