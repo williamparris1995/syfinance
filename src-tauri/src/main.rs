@@ -3,6 +3,9 @@ mod domain;
 mod infrastructure;
 mod presentation;
 
+use infrastructure::notifications::{NotificationService, TauriNotificationSender};
+use infrastructure::reminders::ReminderScheduler;
+use infrastructure::repositories::SqliteReminderRepository;
 use infrastructure::sync::SyncScheduler;
 use presentation::api::create_sync_routes;
 use presentation::tauri_commands::{
@@ -38,6 +41,10 @@ async fn main() {
     let debt_state: DebtAppState = create_debt_default_state()
         .await
         .expect("failed to initialize debt command state");
+    
+    // Clone the pool before debt_state is moved
+    let debt_pool = debt_state.pool.clone();
+    
     let currency_state: CurrencyCommandState = create_currency_default_state()
         .await
         .expect("failed to initialize currency command state");
@@ -100,6 +107,20 @@ async fn main() {
             app.handle().manage(sync_state_with_scheduler);
             
             scheduler.start();
+            
+            // Initialize reminder scheduler (manual trigger for now)
+            let reminder_repo = Arc::new(SqliteReminderRepository::new(
+                debt_pool.clone()
+            ));
+            let notification_sender = Arc::new(TauriNotificationSender::new(app.handle().clone()));
+            let notification_service = Arc::new(NotificationService::new(
+                reminder_repo.clone(),
+                notification_sender,
+            ));
+            let _reminder_scheduler = Arc::new(ReminderScheduler::new(
+                reminder_repo,
+                notification_service,
+            ));
             
             Ok(())
         })

@@ -12,6 +12,7 @@ pub type DebtServiceType = DebtService<SqliteDebtRepository, SqliteReminderRepos
 
 pub struct AppState {
     service: DebtServiceType,
+    pub pool: SqlitePool,
 }
 
 impl AppState {
@@ -29,10 +30,11 @@ impl AppState {
 
     pub fn from_pool(pool: SqlitePool) -> Self {
         let debt_repo = Arc::new(SqliteDebtRepository::new(pool.clone()));
-        let reminder_repo = Arc::new(SqliteReminderRepository::new(pool));
+        let reminder_repo = Arc::new(SqliteReminderRepository::new(pool.clone()));
 
         Self {
             service: DebtService::new(debt_repo, reminder_repo),
+            pool,
         }
     }
 
