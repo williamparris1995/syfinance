@@ -277,7 +277,7 @@ fn validate_chart_of_accounts(
     let allowed_codes = match account_type {
         AccountType::Cash => Some(&["1001", "1002", "1012"][..]),
         AccountType::Bank => Some(&["1002"][..]),
-        AccountType::CreditCard => Some(&["2201"][..]),
+        AccountType::CreditCard => Some(&["2201", "2202"][..]),
         AccountType::Loan => Some(&["2001"][..]),
         AccountType::Investment | AccountType::Other => None,
     };
