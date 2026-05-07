@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { TransactionForm } from '../components/TransactionForm';
 import { Button } from '../components/ui/button';
 import {
@@ -18,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
+import { getUserFriendlyError } from '../lib/error-handler';
 import { listAccounts } from '../lib/tauri/account';
 import {
   createTransaction,
@@ -54,6 +56,10 @@ export function TransactionsPage() {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       setIsCreateDialogOpen(false);
+      toast.success('Transaction recorded successfully');
+    },
+    onError: (error) => {
+      toast.error(getUserFriendlyError(error));
     },
   });
 
@@ -171,12 +177,6 @@ export function TransactionsPage() {
               ))}
             </TableBody>
           </Table>
-        </div>
-      )}
-
-      {createMutation.isError && (
-        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          Error creating transaction: {(createMutation.error as Error).message}
         </div>
       )}
 

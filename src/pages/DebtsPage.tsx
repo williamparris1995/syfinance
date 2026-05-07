@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, Calendar } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { DebtForm } from '../components/DebtForm';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -19,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
+import { getUserFriendlyError } from '../lib/error-handler';
 import {
   createDebt,
   getUpcomingPayments,
@@ -56,6 +58,10 @@ export function DebtsPage() {
       queryClient.invalidateQueries({ queryKey: ['debts'] });
       queryClient.invalidateQueries({ queryKey: ['upcoming-payments'] });
       setIsCreateDialogOpen(false);
+      toast.success('Debt created successfully');
+    },
+    onError: (error) => {
+      toast.error(getUserFriendlyError(error));
     },
   });
 
@@ -66,6 +72,10 @@ export function DebtsPage() {
       queryClient.invalidateQueries({ queryKey: ['upcoming-payments'] });
       setPaymentToRecord(null);
       setSelectedDebt(null);
+      toast.success('Payment recorded successfully');
+    },
+    onError: (error) => {
+      toast.error(getUserFriendlyError(error));
     },
   });
 
@@ -266,18 +276,6 @@ export function DebtsPage() {
               })}
             </TableBody>
           </Table>
-        </div>
-      )}
-
-      {createMutation.isError && (
-        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          Error creating debt: {(createMutation.error as Error).message}
-        </div>
-      )}
-
-      {recordPaymentMutation.isError && (
-        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          Error recording payment: {(recordPaymentMutation.error as Error).message}
         </div>
       )}
 

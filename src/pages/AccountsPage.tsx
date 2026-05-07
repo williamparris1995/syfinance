@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { AccountForm } from '../components/AccountForm';
 import { Button } from '../components/ui/button';
 import {
@@ -18,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
+import { getUserFriendlyError } from '../lib/error-handler';
 import {
   createAccount,
   deleteAccount,
@@ -41,14 +43,45 @@ export function AccountsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       setIsCreateDialogOpen(false);
+      toast.success('Account created successfully');
+    },
+    onError: (error) => {
+      toast.error(getUserFriendlyError(error));
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteAccount,
+    onMutate: async (accountId) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['accounts'] });
+
+      // Snapshot previous value
+      const previousAccounts = queryClient.getQueryData<AccountDto[]>(['accounts']);
+
+      // Optimistically update
+      if (previousAccounts) {
+        queryClient.setQueryData<AccountDto[]>(
+          ['accounts'],
+          previousAccounts.filter((account) => account.id !== accountId)
+        );
+      }
+
+      return { previousAccounts };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accounts'] });
       setDeleteConfirmId(null);
+      toast.success('Account deleted successfully');
+    },
+    onError: (error, _accountId, context) => {
+      // Rollback on error
+      if (context?.previousAccounts) {
+        queryClient.setQueryData(['accounts'], context.previousAccounts);
+      }
+      toast.error(getUserFriendlyError(error));
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
     },
   });
 
@@ -113,18 +146,6 @@ export function AccountsPage() {
               ))}
             </TableBody>
           </Table>
-        </div>
-      )}
-
-      {createMutation.isError && (
-        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          Error creating account: {(createMutation.error as Error).message}
-        </div>
-      )}
-
-      {deleteMutation.isError && (
-        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          Error deleting account: {(deleteMutation.error as Error).message}
         </div>
       )}
 

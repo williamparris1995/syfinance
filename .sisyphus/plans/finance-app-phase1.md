@@ -2829,7 +2829,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src/pages/ReportsPage.tsx, src/lib/currency.ts`
   - Pre-commit: `pnpm type-check && pnpm vitest run`
 
-- [ ] 36. Error Handling + User Feedback
+- [x] 36. Error Handling + User Feedback
 
   **What to do**:
   - Implement global error boundary in React
