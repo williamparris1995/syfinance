@@ -66,6 +66,10 @@ pub async fn create_default_state() -> sqlx::Result<CurrencyCommandState> {
     CurrencyCommandState::create_default_state().await
 }
 
+pub async fn create_default_state_from_pool(pool: SqlitePool) -> sqlx::Result<CurrencyCommandState> {
+    Ok(CurrencyCommandState::from_pool(pool))
+}
+
 fn currency_validation_error_message(error: CurrencyValidationError) -> String {
     match error {
         CurrencyValidationError::InvalidCode(code) => {

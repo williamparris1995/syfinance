@@ -47,6 +47,10 @@ pub async fn create_default_state() -> sqlx::Result<AppState> {
     AppState::create_default().await
 }
 
+pub async fn create_default_state_from_pool(pool: SqlitePool) -> sqlx::Result<AppState> {
+    Ok(AppState::from_pool(pool))
+}
+
 pub async fn create_debt_with_state(
     state: &AppState,
     dto: CreateDebtDto,

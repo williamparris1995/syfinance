@@ -14,11 +14,11 @@ use presentation::tauri_commands::{
         update_account, AppState,
     },
     currency_commands::{
-        add_currency, create_default_state as create_currency_default_state, list_currencies,
+        add_currency, create_default_state_from_pool as create_currency_default_state_from_pool, list_currencies,
         update_currency_rate, CurrencyCommandState,
     },
     debt_commands::{
-        create_debt, create_default_state as create_debt_default_state, get_debt,
+        create_debt, create_default_state_from_pool as create_debt_default_state_from_pool, get_debt,
         get_upcoming_payments, list_debts, record_payment, AppState as DebtAppState,
     },
     sync_commands::{
@@ -26,29 +26,47 @@ use presentation::tauri_commands::{
         sync_from_server, sync_to_server, update_sync_settings,
     },
     transaction_commands::{
-        create_default_state, create_transaction, get_transaction, get_transactions_by_account,
+        create_default_state_from_pool as create_default_state_from_pool, create_transaction, get_transaction, get_transactions_by_account,
         get_transactions_by_date_range, list_transactions,
     },
 };
+use sqlx::sqlite::SqlitePool;
+use std::str::FromStr;
 use std::sync::Arc;
 use tauri::Manager;
 
 #[tokio::main]
 async fn main() {
-    let account_state = AppState::create_default()
+    // Create a single shared database pool for all services
+    let options = sqlx::sqlite::SqliteConnectOptions::from_str("sqlite::memory:")
+        .expect("failed to create sqlite options")
+        .create_if_missing(true);
+    
+    let pool = sqlx::sqlite::SqlitePoolOptions::new()
+        .max_connections(5)
+        .connect_with(options)
         .await
-        .expect("failed to initialize account command state");
-    let debt_state: DebtAppState = create_debt_default_state()
+        .expect("failed to connect to database");
+    
+    // Run migrations once
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("failed to run migrations");
+    
+    // Create all states from the same pool
+    let account_state = AppState::from_pool(pool.clone());
+    let debt_state: DebtAppState = create_debt_default_state_from_pool(pool.clone())
         .await
         .expect("failed to initialize debt command state");
     
     // Clone the pool before debt_state is moved
-    let debt_pool = debt_state.pool.clone();
+    let debt_pool = pool.clone();
     
-    let currency_state: CurrencyCommandState = create_currency_default_state()
+    let currency_state: CurrencyCommandState = create_currency_default_state_from_pool(pool.clone())
         .await
         .expect("failed to initialize currency command state");
-    let transaction_state = create_default_state()
+    let transaction_state = create_default_state_from_pool(pool.clone())
         .await
         .expect("failed to initialize transaction command state");
     let sync_state = create_sync_default_state();

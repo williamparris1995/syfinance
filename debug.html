@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tauri Debug</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .status { padding: 1rem; margin: 1rem 0; border-radius: 4px; }
+        .success { background: #d1fae5; color: #065f46; }
+        .error { background: #fee2e2; color: #991b1b; }
+        pre { background: #f3f4f6; padding: 1rem; border-radius: 4px; overflow-x: auto; }
+        button { padding: 0.5rem 1rem; margin: 0.5rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Tauri Environment Debug</h1>
+    
+    <div id="status"></div>
+    
+    <h2>Environment Checks</h2>
+    <pre id="env-info"></pre>
+    
+    <h2>Test Tauri Commands</h2>
+    <button onclick="testListAccounts()">Test: List Accounts</button>
+    <button onclick="testListCurrencies()">Test: List Currencies</button>
+    
+    <h3>Results:</h3>
+    <pre id="results"></pre>
+
+    <script type="module">
+        const statusDiv = document.getElementById('status');
+        const envInfo = document.getElementById('env-info');
+        const results = document.getElementById('results');
+
+        // Check environment
+        const checks = {
+            'window.__TAURI__': typeof window.__TAURI__ !== 'undefined',
+            'window.__TAURI_INTERNALS__': typeof window.__TAURI_INTERNALS__ !== 'undefined',
+            'User Agent': navigator.userAgent,
+            'Location': window.location.href,
+        };
+
+        envInfo.textContent = JSON.stringify(checks, null, 2);
+
+        if (checks['window.__TAURI__'] || checks['window.__TAURI_INTERNALS__']) {
+            statusDiv.className = 'status success';
+            statusDiv.textContent = '✅ Running in Tauri environment';
+        } else {
+            statusDiv.className = 'status error';
+            statusDiv.textContent = '❌ NOT running in Tauri environment';
+        }
+
+        // Test functions
+        window.testListAccounts = async () => {
+            try {
+                const { invoke } = await import('@tauri-apps/api/core');
+                const accounts = await invoke('list_accounts');
+                results.textContent = 'list_accounts SUCCESS:\n' + JSON.stringify(accounts, null, 2);
+            } catch (error) {
+                results.textContent = 'list_accounts ERROR:\n' + error.toString();
+            }
+        };
+
+        window.testListCurrencies = async () => {
+            try {
+                const { invoke } = await import('@tauri-apps/api/core');
+                const currencies = await invoke('list_currencies');
+                results.textContent = 'list_currencies SUCCESS:\n' + JSON.stringify(currencies, null, 2);
+            } catch (error) {
+                results.textContent = 'list_currencies ERROR:\n' + error.toString();
+            }
+        };
+    </script>
+</body>
+</html>
