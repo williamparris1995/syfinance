@@ -2749,7 +2749,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src-tauri/src/infrastructure/reminders/reminder_scheduler.rs, src-tauri/src/main.rs`
   - Pre-commit: `cargo test reminder_integration`
 
-- [ ] 35. Multi-Currency Report Aggregation
+- [x] 35. Multi-Currency Report Aggregation
 
   **What to do**:
   - Implement currency conversion in report generation
