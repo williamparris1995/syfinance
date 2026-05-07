@@ -20,10 +20,20 @@ VALUES
     -- Liabilities
     ('coa-2001', '2001', '短期借款', 2, 'liability', '2000', 'credit', datetime('now')),
     ('coa-2201', '2201', '应付账款', 2, 'liability', '2000', 'credit', datetime('now')),
+    ('coa-2202', '2202', '应付信用卡款', 2, 'liability', '2000', 'credit', datetime('now')),
     
     -- Income
     ('coa-4001', '4001', '主营业务收入', 2, 'income', '4000', 'credit', datetime('now')),
+    ('coa-4101', '4101', '工资收入', 2, 'income', '4000', 'credit', datetime('now')),
     
     -- Expenses
     ('coa-5001', '5001', '主营业务成本', 2, 'expense', '5000', 'debit', datetime('now')),
-    ('coa-5201', '5201', '财务费用', 2, 'expense', '5000', 'debit', datetime('now'));
+    ('coa-5201', '5201', '财务费用', 2, 'expense', '5000', 'debit', datetime('now')),
+    ('coa-5401', '5401', '餐饮费用', 2, 'expense', '5000', 'debit', datetime('now')),
+    ('coa-5402', '5402', '交通费用', 2, 'expense', '5000', 'debit', datetime('now')),
+    ('coa-5403', '5403', '住房费用', 2, 'expense', '5000', 'debit', datetime('now')),
+    ('coa-5404', '5404', '娱乐费用', 2, 'expense', '5000', 'debit', datetime('now')),
+    ('coa-5405', '5405', '购物费用', 2, 'expense', '5000', 'debit', datetime('now')),
+    ('coa-5406', '5406', '医疗费用', 2, 'expense', '5000', 'debit', datetime('now')),
+    ('coa-5407', '5407', '教育费用', 2, 'expense', '5000', 'debit', datetime('now')),
+    ('coa-5408', '5408', '其他费用', 2, 'expense', '5000', 'debit', datetime('now'));
