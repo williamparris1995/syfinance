@@ -336,3 +336,108 @@
 - Financial colors: green for income, red for expense, blue for asset, orange for liability
 - Light mode only (dark mode deferred to later phase)
 
+
+ 
+ # #   T a s k   2 4 :   s h a d c n / u i   S e t u p   +   T h e m e   C o n f i g u r a t i o n 
+ 
+ # # #   C o m p l e t e d   A c t i o n s 
+ -   I n i t i a l i z e d   s h a d c n / u i   w i t h   b a s e - n o v a   s t y l e   p r e s e t 
+ -   I n s t a l l e d   c o r e   c o m p o n e n t s :   b u t t o n ,   i n p u t ,   s e l e c t ,   t a b l e ,   d i a l o g ,   c a r d ,   l a b e l 
+ -   C o n f i g u r e d   T a i l w i n d   C S S   w i t h   f i n a n c i a l   c o l o r   p a l e t t e   ( i n c o m e / e x p e n s e   C S S   v a r i a b l e s ) 
+ -   C r e a t e d   l a y o u t   c o m p o n e n t s :   A p p L a y o u t ,   S i d e b a r ,   H e a d e r 
+ -   U p d a t e d   r o u t e r   t o   u s e   n e w   l a y o u t   s t r u c t u r e 
+ -   U p d a t e d   H o m e P a g e   w i t h   s h a d c n / u i   c o m p o n e n t s   d e m o n s t r a t i n g   s t y l e d   c a r d s   a n d   b u t t o n s 
+ 
+ # # #   K e y   F i n d i n g s 
+ -   s h a d c n / u i   w a s   a l r e a d y   p a r t i a l l y   c o n f i g u r e d   ( c o m p o n e n t s . j s o n   e x i s t e d ) 
+ -   U s e d   C S S   v a r i a b l e s   f o r   f i n a n c i a l   c o l o r s   ( - - i n c o m e ,   - - e x p e n s e )   i n   i n d e x . c s s 
+ -   L a y o u t   u s e s   f l e x b o x   f o r   s i d e b a r   +   m a i n   c o n t e n t   s t r u c t u r e 
+ -   A l l   c o m p o n e n t s   r e n d e r   c o r r e c t l y   w i t h   T a i l w i n d   s t y l i n g 
+ -   D e v   s e r v e r   r u n s   o n   p o r t   5 1 7 3 
+ 
+ # # #   T e c h n i c a l   D e t a i l s 
+ -   S t y l e :   b a s e - n o v a   w i t h   n e u t r a l   b a s e   c o l o r 
+ -   I c o n   l i b r a r y :   l u c i d e - r e a c t 
+ -   C S S   v a r i a b l e s   e n a b l e d   f o r   t h e m i n g 
+ -   F i n a n c i a l   c o l o r s :   g r e e n   ( i n c o m e ) ,   r e d   ( e x p e n s e )   u s i n g   o k l c h   c o l o r   s p a c e 
+ -   C o m p o n e n t   p a t h   a l i a s :   @ / c o m p o n e n t s / u i 
+ 
+ # # #   E v i d e n c e 
+ -   S c r e e n s h o t   s a v e d :   . s i s y p h u s / e v i d e n c e / t a s k - 2 4 - c o m p o n e n t s - s t y l e d . p n g 
+ -   N o   T y p e S c r i p t / L S P   e r r o r s   i n   s r c /   d i r e c t o r y 
+  
+ 
+
+## Task 29: Reports Page - Balance Sheet & Income Statement
+
+### Completed Actions
+- ReportsPage.tsx already existed with full implementation
+- Balance Sheet report displays assets, liabilities, and equity
+- Income Statement report shows income and expenses by account code
+- Date range filtering with presets (This Month, This Quarter, This Year, Custom)
+- Bar chart visualization using recharts library
+- CSV export functionality for both reports
+- Tab navigation between Balance Sheet and Income Statement
+
+### Key Findings
+- Reports page was already fully implemented in previous task
+- Uses TanStack Query for data fetching from Tauri commands
+- Balance Sheet formula: Assets - Liabilities = Equity
+- Income Statement formula: Income - Expenses = Net Income
+- Multi-currency note displayed (conversion not yet implemented)
+- Financial colors used: green for positive net income, red for negative
+
+### Technical Details
+- Date range calculation uses JavaScript Date API
+- Account filtering by type: Cash/Bank/Investment = Assets, CreditCard/Loan = Liabilities
+- Transaction filtering by chart of account code: 4xxx = Income, 5xxx = Expenses
+- CSV export creates downloadable blob with proper formatting
+- Recharts BarChart component for income vs expenses visualization
+- Number formatting with toLocaleString for proper currency display
+
+### Evidence
+- Type-check passed: pnpm type-check ?
+- Vitest tests passed (1 test, fixed App.test.tsx)
+- Dev server runs on port 5173
+- Commit: feat(frontend): add reports page with balance sheet and income statement
+
+# #   T a s k   2 8 :   D e b t   M a n a g e m e n t   P a g e   -   L e a r n i n g s 
+ 
+ # # #   I m p l e m e n t a t i o n   N o t e s 
+ -   D e b t s P a g e   a n d   D e b t F o r m   w e r e   a l r e a d y   i m p l e m e n t e d   i n   p r e v i o u s   t a s k s 
+ -   C o m p o n e n t s   f o l l o w   e s t a b l i s h e d   p a t t e r n s   f r o m   A c c o u n t s P a g e   a n d   T r a n s a c t i o n F o r m 
+ -   P a y m e n t   s c h e d u l e   p r e v i e w   u s e s   c l i e n t - s i d e   c a l c u l a t i o n   w i t h   5 0 0 m s   d e b o u n c e 
+ -   A m o r t i z a t i o n   f o r m u l a s   i m p l e m e n t e d   i n   D e b t F o r m   m a t c h   b a c k e n d   R u s t   i m p l e m e n t a t i o n 
+ 
+ # # #   D e s i g n   S y s t e m   A d h e r e n c e 
+ -   U s e d   s h a d c n / u i   c o m p o n e n t s :   B u t t o n ,   I n p u t ,   S e l e c t ,   T a b l e ,   D i a l o g ,   C a r d ,   F o r m ,   L a b e l ,   B a d g e 
+ -   F i n a n c i a l   c o l o r s :   r e d   ( t e x t - r e d - 6 0 0 )   f o r   o v e r d u e   d e b t s ,   b l u e   f o r   u p c o m i n g   p a y m e n t s 
+ -   C o n s i s t e n t   s p a c i n g   w i t h   g a p - 4 ,   p - 4 ,   m b - 6   p a t t e r n s 
+ -   T y p o g r a p h y :   t e x t - 3 x l   f o r   p a g e   t i t l e ,   t e x t - l g   f o r   s e c t i o n   h e a d e r s 
+ 
+ # # #   T e c h n i c a l   P a t t e r n s 
+ -   T a n S t a c k   Q u e r y   f o r   d a t a   f e t c h i n g   w i t h   q u e r y K e y :   [ ' d e b t s ' ] ,   [ ' u p c o m i n g - p a y m e n t s ' ] 
+ -   M u t a t i o n   i n v a l i d a t i o n   p a t t e r n :   i n v a l i d a t e Q u e r i e s   a f t e r   c r e a t e / r e c o r d   o p e r a t i o n s 
+ -   D i a l o g   s t a t e   m a n a g e m e n t   w i t h   u s e S t a t e   f o r   c r e a t e / v i e w / r e c o r d   d i a l o g s 
+ -   C u r r e n c y   f o r m a t t i n g   h e l p e r   f u n c t i o n   w i t h   s y m b o l   m a p p i n g   ( C N Y :   ¥ ,   U S D :   $ ,   E U R :   ¬ ) 
+ -   D a t e   f o r m a t t i n g   w i t h   t o L o c a l e D a t e S t r i n g ( ' e n - U S ' ,   {   y e a r ,   m o n t h ,   d a y   } ) 
+ 
+ # # #   T y p e   S a f e t y   F i x e s 
+ -   A c c o u n t D t o . b a l a n c e   c h a n g e d   f r o m   s t r i n g   t o   n u m b e r 
+ -   C r e a t e A c c o u n t D t o . i n i t i a l _ b a l a n c e   c h a n g e d   f r o m   s t r i n g   t o   n u m b e r 
+ -   F i x e d   T r a n s a c t i o n F o r m   t e s t   m o c k s   t o   u s e   n u m b e r   t y p e   f o r   b a l a n c e 
+ -   A l l   t y p e - c h e c k   e r r o r s   r e s o l v e d 
+ 
+ # # #   T e s t   P a t t e r n s 
+ -   Q u e r y C l i e n t   w i t h   r e t r y :   f a l s e   f o r   p r e d i c t a b l e   t e s t   b e h a v i o r 
+ -   M o c k   d a t a   w i t h   p r o p e r   T y p e S c r i p t   t y p e s 
+ -   w a i t F o r ( )   f o r   a s y n c   a s s e r t i o n s 
+ -   g e t A l l B y T e x t ( )   f o r   e l e m e n t s   a p p e a r i n g   m u l t i p l e   t i m e s   ( o v e r d u e   +   t a b l e ) 
+ 
+ # # #   G o t c h a s 
+ -   O v e r d u e   d e b t s   a p p e a r   i n   b o t h   a l e r t   s e c t i o n   a n d   m a i n   t a b l e   ( i n t e n t i o n a l   U X ) 
+ -   P a y m e n t   s c h e d u l e   p r e v i e w   c a l c u l a t i o n   m u s t   m a t c h   b a c k e n d   a m o r t i z a t i o n   l o g i c 
+ -   D a t e   i n p u t s   r e q u i r e   Y Y Y Y - M M - D D   f o r m a t   s t r i n g s 
+ -   C u r r e n c y   s y m b o l s   r e q u i r e   m a n u a l   m a p p i n g   ( n o   I n t l . N u m b e r F o r m a t   c u r r e n c y   d i s p l a y ) 
+  
+ 

@@ -6,13 +6,17 @@
     "ses_2954e5944ffeL6yRfCLqXtH8a1",
     "ses_2954e5944ffeL6yRfCLqXtH8a1",
     "ses_293445cdbffelOUT9VEoIAfGjY",
-    "ses_290231939ffeA0xgirpYAMw59r"
+    "ses_290231939ffeA0xgirpYAMw59r",
+    "ses_28e7cdf0fffef3NyOVTcwpeQtP",
+    "ses_203646181ffexrhGYfOUrNH16J",
+    "ses_20309afbeffe6EDelKXmYeFIdU"
   ],
   "session_origins": {
     "ses_29a2c1aa9ffeFf1b5Gwt9oWF7C": "direct",
     "ses_2954e5944ffeL6yRfCLqXtH8a1": "direct",
     "ses_293445cdbffelOUT9VEoIAfGjY": "direct",
-    "ses_290231939ffeA0xgirpYAMw59r": "direct"
+    "ses_290231939ffeA0xgirpYAMw59r": "direct",
+    "ses_28e7cdf0fffef3NyOVTcwpeQtP": "direct"
   },
   "plan_name": "finance-app-phase1",
   "agent": "atlas",
@@ -102,10 +106,19 @@
       "task_key": "todo:24",
       "task_label": "24",
       "task_title": "shadcn/ui Setup + Theme Configuration",
-      "session_id": "ses_28f1bf6d8ffeZCtpEpI1z9qY4h",
+      "session_id": "ses_28f14d64fffeDS3DzyvJb7zUW9",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-04-09T06:55:53.651Z"
+    },
+    "todo:32": {
+      "task_key": "todo:32",
+      "task_label": "32",
+      "task_title": "Account Registration + Device Binding",
+      "session_id": "ses_20308255dffeYVguC5X7feVTQz",
       "agent": "Sisyphus-Junior",
       "category": "visual-engineering",
-      "updated_at": "2026-04-09T06:24:54.477Z"
+      "updated_at": "2026-05-07T01:19:49.373Z"
     }
   }
 }

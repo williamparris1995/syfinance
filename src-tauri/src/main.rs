@@ -17,6 +17,10 @@ use presentation::tauri_commands::{
         create_debt, create_default_state as create_debt_default_state, get_debt,
         get_upcoming_payments, list_debts, record_payment, AppState as DebtAppState,
     },
+    sync_commands::{
+        create_default_state as create_sync_default_state, get_sync_status, sync_from_server,
+        sync_to_server,
+    },
     transaction_commands::{
         create_default_state, create_transaction, get_transaction, get_transactions_by_account,
         get_transactions_by_date_range, list_transactions,
@@ -37,6 +41,7 @@ async fn main() {
     let transaction_state = create_default_state()
         .await
         .expect("failed to initialize transaction command state");
+    let sync_state = create_sync_default_state();
 
     // Start Axum REST API server in background
     let app = create_sync_routes();
@@ -56,6 +61,7 @@ async fn main() {
         .manage(debt_state)
         .manage(currency_state)
         .manage(transaction_state)
+        .manage(sync_state)
         .invoke_handler(tauri::generate_handler![
             create_account,
             update_account,
@@ -75,7 +81,10 @@ async fn main() {
             get_transaction,
             list_transactions,
             get_transactions_by_account,
-            get_transactions_by_date_range
+            get_transactions_by_date_range,
+            sync_to_server,
+            sync_from_server,
+            get_sync_status
         ])
         .setup(|_app| {
             // NotificationService::reschedule_all() should be called here once the app state is wired.

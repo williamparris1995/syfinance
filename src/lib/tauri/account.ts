@@ -7,12 +7,12 @@ export interface CreateAccountDto {
   account_type: AccountType;
   chart_of_account_code: string;
   currency_code: string;
-  initial_balance: string;
+  initial_balance: number;
 }
 
 export interface UpdateAccountDto {
-  name?: string | null;
-  balance?: string | null;
+  name?: string;
+  balance?: number;
 }
 
 export interface AccountDto {
@@ -21,14 +21,14 @@ export interface AccountDto {
   account_type: AccountType;
   chart_of_account_code: string;
   currency_code: string;
-  balance: string;
+  balance: number;
   created_at: string;
   updated_at: string;
-  deleted_at?: string | null;
+  deleted_at?: string;
 }
 
 export interface AccountBalanceDto {
-  amount: string;
+  amount: number;
   currency_code: string;
 }
 

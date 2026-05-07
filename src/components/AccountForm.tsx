@@ -27,7 +27,10 @@ const accountFormSchema = z.object({
   }),
   chart_of_account_code: z.string().min(1, 'Chart of account code is required'),
   currency_code: z.string().min(3, 'Currency code is required').max(3, 'Currency code must be 3 characters'),
-  initial_balance: z.string().min(1, 'Initial balance is required'),
+  initial_balance: z.string().min(1, 'Initial balance is required').refine(
+    (val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0,
+    'Initial balance must be a valid positive number'
+  ),
 });
 
 type AccountFormValues = z.infer<typeof accountFormSchema>;
@@ -54,6 +57,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
     onSubmit({
       ...values,
       account_type: values.account_type as AccountType,
+      initial_balance: parseFloat(values.initial_balance),
     });
   };
 

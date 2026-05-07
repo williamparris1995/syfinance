@@ -14,14 +14,16 @@ pub struct CurrencyDto {
     pub code: String,
     pub symbol: String,
     pub exchange_rate: String,
+    pub updated_at: String,
 }
 
-impl From<Currency> for CurrencyDto {
-    fn from(currency: Currency) -> Self {
+impl CurrencyDto {
+    pub fn from_currency_with_timestamp(currency: Currency, updated_at: String) -> Self {
         Self {
             code: currency.code,
             symbol: currency.symbol,
             exchange_rate: currency.exchange_rate.to_string(),
+            updated_at,
         }
     }
 }
@@ -95,9 +97,14 @@ pub async fn list_currencies_with_service(
 ) -> Result<Vec<CurrencyDto>, String> {
     state
         .repository()
-        .list_all()
+        .list_all_with_timestamps()
         .await
-        .map(|currencies| currencies.into_iter().map(CurrencyDto::from).collect())
+        .map(|currencies| {
+            currencies
+                .into_iter()
+                .map(|(currency, updated_at)| CurrencyDto::from_currency_with_timestamp(currency, updated_at))
+                .collect()
+        })
         .map_err(database_error_message)
 }
 

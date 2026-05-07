@@ -125,7 +125,8 @@ export function SettingsPage() {
               <TableRow>
                 <TableHead>Code</TableHead>
                 <TableHead>Symbol</TableHead>
-                <TableHead className="text-right">Exchange Rate</TableHead>
+                <TableHead className="text-right">Exchange Rate (to CNY)</TableHead>
+                <TableHead>Last Updated</TableHead>
                 <TableHead className="w-[150px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -142,7 +143,23 @@ export function SettingsPage() {
                   </TableCell>
                   <TableCell>{currency.symbol}</TableCell>
                   <TableCell className="text-right">
-                    {parseFloat(currency.exchange_rate).toFixed(6)}
+                    <div className="flex flex-col items-end">
+                      <span className="font-mono">
+                        {parseFloat(currency.exchange_rate).toFixed(6)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        1 {currency.code} = {parseFloat(currency.exchange_rate).toFixed(2)} CNY
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {new Date(currency.updated_at).toLocaleString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
                   </TableCell>
                   <TableCell>
                     {currency.code !== 'CNY' && (

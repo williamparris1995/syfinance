@@ -1,6 +1,7 @@
 pub mod account_commands;
 pub mod currency_commands;
 pub mod debt_commands;
+pub mod sync_commands;
 pub mod transaction_commands;
 
 pub use account_commands::{
@@ -14,6 +15,10 @@ pub use currency_commands::{
 pub use debt_commands::{
     create_debt, create_default_state as create_debt_default_state, get_debt,
     get_upcoming_payments, list_debts, record_payment, AppState as DebtCommandState,
+};
+pub use sync_commands::{
+    create_default_state as create_sync_default_state, get_sync_status, sync_from_server,
+    sync_to_server, SyncCommandState,
 };
 pub use transaction_commands::{
     create_transaction, get_transaction, get_transactions_by_account,

@@ -4,6 +4,7 @@ export interface CurrencyDto {
   code: string;
   symbol: string;
   exchange_rate: string;
+  updated_at: string;
 }
 
 export interface AddCurrencyDto {

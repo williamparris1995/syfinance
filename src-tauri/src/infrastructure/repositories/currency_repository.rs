@@ -28,6 +28,48 @@ impl SqliteCurrencyRepository {
         Currency::new(code, symbol, exchange_rate)
             .map_err(|error: CurrencyValidationError| sqlx::Error::Decode(Box::new(error)))
     }
+
+    pub async fn find_by_code_with_timestamp(&self, code: &str) -> sqlx::Result<Option<(Currency, String)>> {
+        let row = sqlx::query(
+            r#"
+            SELECT code, symbol, CAST(exchange_rate AS TEXT) AS exchange_rate, updated_at
+            FROM currencies
+            WHERE code = ?
+            "#,
+        )
+        .bind(code)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        match row {
+            Some(row) => {
+                let currency = Self::row_to_currency(&row)?;
+                let updated_at: String = row.try_get("updated_at")?;
+                Ok(Some((currency, updated_at)))
+            }
+            None => Ok(None),
+        }
+    }
+
+    pub async fn list_all_with_timestamps(&self) -> sqlx::Result<Vec<(Currency, String)>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT code, symbol, CAST(exchange_rate AS TEXT) AS exchange_rate, updated_at
+            FROM currencies
+            ORDER BY code ASC
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.iter()
+            .map(|row| {
+                let currency = Self::row_to_currency(row)?;
+                let updated_at: String = row.try_get("updated_at")?;
+                Ok((currency, updated_at))
+            })
+            .collect()
+    }
 }
 
 impl CurrencyRepository for SqliteCurrencyRepository {

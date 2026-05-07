@@ -95,7 +95,7 @@ export function AccountsPage() {
                   <TableCell>{account.account_type}</TableCell>
                   <TableCell>{account.currency_code}</TableCell>
                   <TableCell className="text-right">
-                    {parseFloat(account.balance).toLocaleString('en-US', {
+                    {account.balance.toLocaleString('en-US', {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })}
