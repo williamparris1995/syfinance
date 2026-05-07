@@ -1,8 +1,10 @@
-import { Outlet, createRootRoute, createRoute, createRouter } from '@tanstack/react-router';
+import { Outlet, createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router';
 import { AppLayout } from './components/layout/AppLayout';
+import { isRegistered } from './lib/auth';
 import { AccountsPage } from './pages/AccountsPage';
 import { DebtsPage } from './pages/DebtsPage';
 import { HomePage } from './pages/HomePage';
+import { OnboardingPage } from './pages/OnboardingPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { TransactionsPage } from './pages/TransactionsPage';
@@ -17,6 +19,15 @@ function RootLayout() {
 
 const rootRoute = createRootRoute({
   component: RootLayout,
+  beforeLoad: async ({ location }) => {
+    const registered = await isRegistered();
+    if (!registered && location.pathname !== '/onboarding') {
+      throw redirect({ to: '/onboarding' });
+    }
+    if (registered && location.pathname === '/onboarding') {
+      throw redirect({ to: '/' });
+    }
+  },
 });
 
 const homeRoute = createRoute({
@@ -55,6 +66,12 @@ const settingsRoute = createRoute({
   component: SettingsPage,
 });
 
+const onboardingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'onboarding',
+  component: OnboardingPage,
+});
+
 const routeTree = rootRoute.addChildren([
   homeRoute,
   accountsRoute,
@@ -62,6 +79,7 @@ const routeTree = rootRoute.addChildren([
   debtsRoute,
   reportsRoute,
   settingsRoute,
+  onboardingRoute,
 ]);
 
 export const router = createRouter({

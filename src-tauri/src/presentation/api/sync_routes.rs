@@ -8,9 +8,11 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use super::dtos::{
-    EntityChange, PullRequest, PullResponse, PushRequest, PushResponse, SyncStatus,
+    EntityChange, PullRequest, PullResponse, PushRequest, PushResponse, RegisterResponse,
+    SyncStatus,
 };
 use super::error::ApiError;
+use uuid::Uuid;
 
 // Placeholder sync state - in real implementation, this would use SyncService
 #[derive(Clone)]
@@ -34,6 +36,7 @@ pub fn create_sync_routes() -> Router {
     let state = SyncState::new();
     
     Router::new()
+        .route("/api/register", post(register))
         .route("/api/sync/push", post(push_changes))
         .route("/api/sync/pull", post(pull_changes))
         .route("/api/sync/status", get(sync_status))
@@ -112,5 +115,16 @@ async fn sync_status(
         last_sync_at: *last_sync,
         pending_changes: pending.len(),
         is_syncing: *is_syncing,
+    }))
+}
+
+async fn register() -> Result<Json<RegisterResponse>, ApiError> {
+    // Generate new account_id and device_id
+    let account_id = Uuid::new_v4().to_string();
+    let device_id = Uuid::new_v4().to_string();
+
+    Ok(Json(RegisterResponse {
+        account_id,
+        device_id,
     }))
 }

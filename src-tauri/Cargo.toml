@@ -19,6 +19,7 @@ serde_json = "1"
 sqlx = { version = "0.8", features = ["sqlite", "postgres", "runtime-tokio-rustls", "macros", "migrate", "chrono", "uuid", "rust_decimal"] }
 tauri = { version = "2", features = [] }
 tauri-plugin-notification = "2"
+tauri-plugin-store = "2.4.3"
 thiserror = "2.0.18"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "test-util"] }
 uuid = { version = "1", features = ["v4"] }

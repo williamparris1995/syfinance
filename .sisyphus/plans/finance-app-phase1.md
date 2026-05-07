@@ -2,47 +2,47 @@
 
 ## TL;DR
 
-> **Quick Summary**: 构建个人财务管理桌面应用的核心财务功能，包括多币种账户管理、复式记账收支跟踪、借贷还款管理、财务报表生成和数据同步。采用DDD分层架构，Tauri跨平台客户端，Rust后端服务，遵循中国会计准则�?> 
+> **Quick Summary**: 构建个人财务管理桌面应用的核心财务功能，包括多币种账户管理、复式记账收支跟踪、借贷还款管理、财务报表生成和数据同步。采用DDD分层架构，Tauri跨平台客户端，Rust后端服务，遵循中国会计准则�?> 
 > **Deliverables**: 
-> - Tauri桌面应用（Windows/macOS/Linux�?> - 账户管理系统（三级会计科目）
-> - 多币种支持（汇率管理�?> - 收支记录系统（复式记账）
-> - 借贷管理系统（还款计�?提醒�?> - 财务报表（资产负债表、收支表、科目余额表�?> - 数据同步服务（SQLite �?PostgreSQL�?> - 系统通知（还款提醒、逾期提醒�?> 
-> **Estimated Effort**: Large�?-8周）
+> - Tauri桌面应用（Windows/macOS/Linux�?> - 账户管理系统（三级会计科目）
+> - 多币种支持（汇率管理�?> - 收支记录系统（复式记账）
+> - 借贷管理系统（还款计�?提醒�?> - 财务报表（资产负债表、收支表、科目余额表�?> - 数据同步服务（SQLite �?PostgreSQL�?> - 系统通知（还款提醒、逾期提醒�?> 
+> **Estimated Effort**: Large�?-8周）
 > **Parallel Execution**: YES - 5 waves
-> **Critical Path**: Wave 1 �?Wave 2 �?Wave 3 �?Wave 4 �?Wave 5 �?Final Verification
+> **Critical Path**: Wave 1 �?Wave 2 �?Wave 3 �?Wave 4 �?Wave 5 �?Final Verification
 
 ---
 
 ## Context
 
 ### Original Request
-用户需要开发一个综合性个人财务管理应用，使用Tauri框架构建跨平台客户端，Rust后端服务，采用DDD设计和TDD开发方式。Phase 1聚焦核心财务功能：账户管理、收支记录、借贷管理、报表生成、数据同步�?
+用户需要开发一个综合性个人财务管理应用，使用Tauri框架构建跨平台客户端，Rust后端服务，采用DDD设计和TDD开发方式。Phase 1聚焦核心财务功能：账户管理、收支记录、借贷管理、报表生成、数据同步�?
 ### Interview Summary
 **Key Discussions**:
-- 数据存储：离线优先（本地SQLite�? 后台自动同步到PostgreSQL
+- 数据存储：离线优先（本地SQLite�? 后台自动同步到PostgreSQL
 - 前端技术栈：React + TypeScript + TanStack Query/Router + shadcn/ui
-- 用户模式：单用户（带账号ID用于同步识别�?- 测试策略：简化测试（核心逻辑单元测试 + Agent QA场景�?- 多币种支持：需要（汇率管理、多币种汇总）
-- 会计准则：遵循中国会计准则（三级科目体系�?- 借贷管理：区分借出/借入/信用�?贷款，支持还款提醒和逾期管理
+- 用户模式：单用户（带账号ID用于同步识别�?- 测试策略：简化测试（核心逻辑单元测试 + Agent QA场景�?- 多币种支持：需要（汇率管理、多币种汇总）
+- 会计准则：遵循中国会计准则（三级科目体系�?- 借贷管理：区分借出/借入/信用�?贷款，支持还款提醒和逾期管理
 
 ### Metis Review
 **Identified Gaps** (addressed):
 - 数据库迁移策略：使用sqlx migrations，服务端拥有schema真相
 - 同步冲突解决：Last Write Wins（updated_at时间戳比较），软删除tombstone策略
-- 账号ID生成：服务端生成UUID，首次启动注册获�?- 复式记账验证：Transaction聚合根包含借贷双方，领域层断言debit == credit
+- 账号ID生成：服务端生成UUID，首次启动注册获�?- 复式记账验证：Transaction聚合根包含借贷双方，领域层断言debit == credit
 - 通知调度：OS级定时通知，应用启动时重新调度
 - 会计科目体系：遵循中国会计准则，实现常用科目，支持用户自定义三级科目
-- 多币种精度：使用rust_decimal + rust_money�?
+- 多币种精度：使用rust_decimal + rust_money�?
 ---
 
 ## Work Objectives
 
 ### Core Objective
-构建个人财务管理系统的核心财务模块（Phase 1），实现多币种账户管理、复式记账、借贷还款跟踪、财务报表生成和离线优先的数据同步，遵循DDD分层架构和中国会计准则�?
+构建个人财务管理系统的核心财务模块（Phase 1），实现多币种账户管理、复式记账、借贷还款跟踪、财务报表生成和离线优先的数据同步，遵循DDD分层架构和中国会计准则�?
 ### Concrete Deliverables
-- `src-tauri/`: Rust后端DDD分层架构（Domain/Application/Infrastructure/Presentation�?- `src/`: React前端应用（账户、交易、借贷、报表页面）
+- `src-tauri/`: Rust后端DDD分层架构（Domain/Application/Infrastructure/Presentation�?- `src/`: React前端应用（账户、交易、借贷、报表页面）
 - SQLite数据库schema（本地存储）
 - PostgreSQL数据库schema（云端同步）
-- Tauri Commands API（前后端通信�?- REST API（同步服务）
+- Tauri Commands API（前后端通信�?- REST API（同步服务）
 - 系统通知集成（还款提醒）
 
 ### Definition of Done
@@ -50,27 +50,27 @@
 - [ ] `pnpm build` 前端构建成功
 - [ ] `cargo test` 所有单元测试通过
 - [ ] `pnpm vitest run` 关键组件测试通过
-- [ ] `tauri build` 生成可执行文件（Windows/macOS/Linux�?- [ ] 所有QA场景验证通过，证据文件存在于`.sisyphus/evidence/`
+- [ ] `tauri build` 生成可执行文件（Windows/macOS/Linux�?- [ ] 所有QA场景验证通过，证据文件存在于`.sisyphus/evidence/`
 - [ ] 数据库迁移脚本可重复执行
-- [ ] 同步功能正常（本地↔云端�?- [ ] 还款提醒正常触发
+- [ ] 同步功能正常（本地↔云端�?- [ ] 还款提醒正常触发
 
 ### Must Have
 - 三级会计科目体系（遵循中国会计准则）
-- 复式记账（每笔交易借贷平衡�?- 多币种支持（至少CNY, USD, EUR�?- 汇率管理（手动输入）
-- 借贷类型区分（借出/借入/信用�?贷款�?- 还款计划自动生成（等额本�?等额本金�?- 还款提醒（到期前N天）
-- 逾期管理和提�?- 离线优先数据同步
-- 软删除（保留历史记录�?- rust_decimal精确货币计算
+- 复式记账（每笔交易借贷平衡�?- 多币种支持（至少CNY, USD, EUR�?- 汇率管理（手动输入）
+- 借贷类型区分（借出/借入/信用�?贷款�?- 还款计划自动生成（等额本�?等额本金�?- 还款提醒（到期前N天）
+- 逾期管理和提�?- 离线优先数据同步
+- 软删除（保留历史记录�?- rust_decimal精确货币计算
 
 ### Must NOT Have (Guardrails)
-- �?富文本编辑器（Phase 1仅纯文本�?- �?文件附件上传
-- �?实时汇率API（手动输入，API在Phase 2�?- �?预算功能（Phase 2�?- �?投资跟踪（Phase 2�?- �?税务报表（Phase 2�?- �?日历功能（Phase 3�?- �?待办事项（Phase 3�?- �?备忘录（Phase 3�?- �?邮件通知（后续迭代）
-- �?暗黑模式（后续迭代）
-- �?数据导入导出（后续迭代）
-- �?可变利率贷款
-- �?贷款重组或部分提前还款重�?- �?子任务或依赖关系
-- �?过度抽象（保持简单直接）
-- �?过度验证（仅必要的业务规则验证）
-- �?过度文档化（代码即文档，仅关键处注释�?
+- �?富文本编辑器（Phase 1仅纯文本�?- �?文件附件上传
+- �?实时汇率API（手动输入，API在Phase 2�?- �?预算功能（Phase 2�?- �?投资跟踪（Phase 2�?- �?税务报表（Phase 2�?- �?日历功能（Phase 3�?- �?待办事项（Phase 3�?- �?备忘录（Phase 3�?- �?邮件通知（后续迭代）
+- �?暗黑模式（后续迭代）
+- �?数据导入导出（后续迭代）
+- �?可变利率贷款
+- �?贷款重组或部分提前还款重�?- �?子任务或依赖关系
+- �?过度抽象（保持简单直接）
+- �?过度验证（仅必要的业务规则验证）
+- �?过度文档化（代码即文档，仅关键处注释�?
 ---
 
 ## Verification Strategy (MANDATORY)
@@ -80,7 +80,7 @@
 
 ### Test Decision
 - **Infrastructure exists**: NO（需要搭建）
-- **Automated tests**: 简化测试（核心逻辑单元测试�?- **Framework**: 
+- **Automated tests**: 简化测试（核心逻辑单元测试�?- **Framework**: 
   - Rust: cargo test
   - TypeScript: vitest
 - **TDD**: 核心领域逻辑使用TDD（Account, Transaction, Debt聚合根）
@@ -161,7 +161,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
 -> Present results -> Get explicit user okay
 ```
 
-**Critical Path**: T1 �?T6 �?T9 �?T10 �?T16 �?T21 �?T27 �?T36 �?T37 �?F1-F4 �?user okay
+**Critical Path**: T1 �?T6 �?T9 �?T10 �?T16 �?T21 �?T27 �?T36 �?T37 �?F1-F4 �?user okay
 
 **Parallel Speedup**: ~65% faster than sequential
 
@@ -172,53 +172,53 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
 **Wave 1 (1-8)**: No dependencies - can start immediately
 
 **Wave 2**:
-- **9**: 6, 7 �?10, 13, 16, 17
-- **10**: 6, 7, 9 �?14, 16, 17
-- **11**: 7, 9 �?12, 15, 16, 17
-- **12**: 11 �?15, 19
-- **13**: 9 �?20
-- **14**: 10 �?21
-- **15**: 11, 12 �?22
+- **9**: 6, 7 �?10, 13, 16, 17
+- **10**: 6, 7, 9 �?14, 16, 17
+- **11**: 7, 9 �?12, 15, 16, 17
+- **12**: 11 �?15, 19
+- **13**: 9 �?20
+- **14**: 10 �?21
+- **15**: 11, 12 �?22
 
 **Wave 3**:
-- **16**: 9, 10, 11 �?20, 21, 22
-- **17**: 9, 10, 11 �?18, 23
-- **18**: 16, 17 �?23, 33
-- **19**: 12 �?34
-- **20**: 13, 16 �?26, 30
-- **21**: 14, 16 �?27, 29
-- **22**: 15, 16 �?28
-- **23**: 18, 17 �?31, 32
+- **16**: 9, 10, 11 �?20, 21, 22
+- **17**: 9, 10, 11 �?18, 23
+- **18**: 16, 17 �?23, 33
+- **19**: 12 �?34
+- **20**: 13, 16 �?26, 30
+- **21**: 14, 16 �?27, 29
+- **22**: 15, 16 �?28
+- **23**: 18, 17 �?31, 32
 
 **Wave 4**:
-- **24**: 1 �?26-31
-- **25**: 1 �?26-31
-- **26**: 20, 24, 25 �?36
-- **27**: 21, 24, 25 �?36
-- **28**: 22, 24, 25 �?34, 36
-- **29**: 21, 24, 25 �?35, 36
-- **30**: 20, 24, 25 �?35
-- **31**: 23, 24, 25 �?32
+- **24**: 1 �?26-31
+- **25**: 1 �?26-31
+- **26**: 20, 24, 25 �?36
+- **27**: 21, 24, 25 �?36
+- **28**: 22, 24, 25 �?34, 36
+- **29**: 21, 24, 25 �?35, 36
+- **30**: 20, 24, 25 �?35
+- **31**: 23, 24, 25 �?32
 
 **Wave 5**:
-- **32**: 23, 31 �?33
-- **33**: 18, 32 �?37
-- **34**: 19, 28 �?37
-- **35**: 29, 30 �?37
-- **36**: 26, 27, 28, 29 �?37
-- **37**: 32-36 �?F1-F4
+- **32**: 23, 31 �?33
+- **33**: 18, 32 �?37
+- **34**: 19, 28 �?37
+- **35**: 29, 30 �?37
+- **36**: 26, 27, 28, 29 �?37
+- **37**: 32-36 �?F1-F4
 
 **Wave FINAL**:
-- **F1-F4**: 37 �?user okay
+- **F1-F4**: 37 �?user okay
 
 ### Agent Dispatch Summary
 
-- **Wave 1**: 8 tasks - T1,3,4,5,7,8 �?`quick`, T2,6 �?`unspecified-high`
-- **Wave 2**: 7 tasks - T9,10,11 �?`deep`, T12-15 �?`unspecified-high`
-- **Wave 3**: 8 tasks - T16,17,18,23 �?`unspecified-high`/`deep`, T19-22 �?`quick`
-- **Wave 4**: 8 tasks - T24,26-31 �?`visual-engineering`, T25 �?`quick`
-- **Wave 5**: 6 tasks - T32-36 �?`unspecified-high`/`deep`, T37 �?`quick`
-- **Wave FINAL**: 4 tasks - F1 �?`oracle`, F2,F3 �?`unspecified-high`, F4 �?`deep`
+- **Wave 1**: 8 tasks - T1,3,4,5,7,8 �?`quick`, T2,6 �?`unspecified-high`
+- **Wave 2**: 7 tasks - T9,10,11 �?`deep`, T12-15 �?`unspecified-high`
+- **Wave 3**: 8 tasks - T16,17,18,23 �?`unspecified-high`/`deep`, T19-22 �?`quick`
+- **Wave 4**: 8 tasks - T24,26-31 �?`visual-engineering`, T25 �?`quick`
+- **Wave 5**: 6 tasks - T32-36 �?`unspecified-high`/`deep`, T37 �?`quick`
+- **Wave FINAL**: 4 tasks - F1 �?`oracle`, F2,F3 �?`unspecified-high`, F4 �?`deep`
 
 ---
 
@@ -340,7 +340,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   **References**:
   - Official docs: https://docs.rs/sqlx/latest/sqlx/migrate/ - sqlx migrations
   - Pattern: Double-entry bookkeeping schema design (transactions + entries tables)
-  - Constraint: 中国会计准则科目编码规则 (1000-资产, 2000-负�? 3000-权益, 4000-收入, 5000-支出)
+  - Constraint: 中国会计准则科目编码规则 (1000-资产, 2000-负�? 3000-权益, 4000-收入, 5000-支出)
 
   **Acceptance Criteria**:
   - [ ] `sqlx migrate run --database-url sqlite:local.db` succeeds
@@ -414,7 +414,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - **Blocked By**: Task 1
 
   **References**:
-  - Pattern: DDD layered architecture in Rust (Domain �?Application �?Infrastructure �?Presentation)
+  - Pattern: DDD layered architecture in Rust (Domain �?Application �?Infrastructure �?Presentation)
   - Pattern: Trait-based dependency injection with Arc<dyn Trait>
 
   **Acceptance Criteria**:
@@ -597,7 +597,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Create ChartOfAccounts aggregate in domain/aggregates/chart_of_accounts.rs
   - Fields: code (String, e.g. "1001"), name (String), level (1/2/3), account_type (Asset/Liability/Equity/Income/Expense), parent_code (Option<String>), balance_direction (Debit/Credit)
   - Implement 中国会计准则 standard accounts as constants or seed data
-  - Level 1: 1000-资产, 2000-负�? 3000-权益, 4000-收入, 5000-支出
+  - Level 1: 1000-资产, 2000-负�? 3000-权益, 4000-收入, 5000-支出
   - Level 2: 1001-库存现金, 1002-银行存款, 1012-其他货币资金, 2001-短期借款, 2201-应付账款, 4001-主营业务收入, 5001-主营业务成本, 5201-财务费用
   - Add validation: code format, parent must exist for level 2/3
   - Create ChartOfAccountsRepository trait
@@ -629,7 +629,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - [ ] Seed data includes all level 1 and common level 2 accounts
   - [ ] ChartOfAccounts::new validates code format (4 digits for level 1/2, 6 digits for level 3)
   - [ ] Repository can query accounts by level and type
-  - [ ] Repository can retrieve account hierarchy (parent �?children)
+  - [ ] Repository can retrieve account hierarchy (parent �?children)
 
   **QA Scenarios**:
 
@@ -639,7 +639,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
     Preconditions: Migrations applied, seed data inserted
     Steps:
       1. Query `sqlite3 test.db "SELECT COUNT(*) FROM chart_of_accounts WHERE level=1"`
-      2. Assert count = 5 (资产/负�?权益/收入/支出)
+      2. Assert count = 5 (资产/负�?权益/收入/支出)
       3. Query `sqlite3 test.db "SELECT COUNT(*) FROM chart_of_accounts WHERE level=2"`
       4. Assert count >= 8 (common level 2 accounts)
     Expected Result: Standard accounts exist
@@ -705,7 +705,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - [ ] Adding Money(100, CNY) + Money(50, CNY) = Money(150, CNY)
   - [ ] Adding Money(100, CNY) + Money(50, USD) returns error
   - [ ] Property test: ∀ a, b: Money, a + b = b + a (commutativity)
-  - [ ] Display formats correctly: Money(1234.56, CNY) �?"¥1,234.56"
+  - [ ] Display formats correctly: Money(1234.56, CNY) �?"¥1,234.56"
 
   **QA Scenarios**:
 
@@ -1005,8 +1005,8 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
     Steps:
       1. Run `cargo test debt::equal_principal_interest`
       2. Create loan: 100,000 CNY, 5% annual rate, 12 months
-      3. Assert monthly payment �?8,560.75 CNY (within 0.01 tolerance)
-      4. Assert total interest �?2,728.96 CNY
+      3. Assert monthly payment �?8,560.75 CNY (within 0.01 tolerance)
+      4. Assert total interest �?2,728.96 CNY
     Expected Result: Calculation matches expected values
     Failure Indicators: Payment amount incorrect, rounding errors
     Evidence: .sisyphus/evidence/task-11-amortization-equal-interest.txt
@@ -1017,8 +1017,8 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
     Steps:
       1. Run `cargo test debt::equal_principal`
       2. Create loan: 100,000 CNY, 5% annual rate, 12 months
-      3. Assert first payment �?8,750.00 CNY (principal 8,333.33 + interest 416.67)
-      4. Assert last payment �?8,368.06 CNY (principal 8,333.33 + interest 34.72)
+      3. Assert first payment �?8,750.00 CNY (principal 8,333.33 + interest 416.67)
+      4. Assert last payment �?8,368.06 CNY (principal 8,333.33 + interest 34.72)
     Expected Result: Calculation matches expected values
     Failure Indicators: Incorrect principal/interest split
     Evidence: .sisyphus/evidence/task-11-amortization-equal-principal.txt
@@ -1279,7 +1279,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   **References**:
   - `src-tauri/src/domain/aggregates/debt.rs` - Debt aggregate
   - `src-tauri/src/domain/aggregates/reminder.rs` - Reminder for payment notifications
-  - Pattern: Saga pattern (debt creation �?schedule generation �?reminder creation)
+  - Pattern: Saga pattern (debt creation �?schedule generation �?reminder creation)
 
   **Acceptance Criteria**:
   - [ ] DebtService::create_debt() generates payment schedule and creates reminders
@@ -2135,7 +2135,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   **Acceptance Criteria**:
   - [ ] Transaction list displays correctly
   - [ ] Multi-entry form allows adding/removing entries
-  - [ ] Balance validation shows error if debit �?credit
+  - [ ] Balance validation shows error if debit �?credit
   - [ ] Transaction created successfully
   - [ ] Account balances update after transaction
 
@@ -2151,7 +2151,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
       3. Fill date, description
       4. Add entry 1: account="Checking", debit=100 CNY
       5. Add entry 2: account="Cash", credit=100 CNY
-      6. Assert balance indicator shows "Balanced �?
+      6. Assert balance indicator shows "Balanced �?
       7. Click "Save"
       8. Assert transaction appears in list
       9. Navigate to /accounts
@@ -2234,7 +2234,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
       2. Click "Create Debt"
       3. Fill: type="Loan", principal=100000 CNY, rate=5%, term=12 months, method="等额本息"
       4. Assert payment schedule preview displays 12 payments
-      5. Assert first payment amount �?8,560.75 CNY
+      5. Assert first payment amount �?8,560.75 CNY
       6. Click "Save"
       7. Assert debt appears in list
       8. Click debt to view details
@@ -2273,7 +2273,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Create ReportsPage component in src/pages/ReportsPage.tsx
   - Implement Balance Sheet report (资产负债表)
   - Show assets, liabilities, equity with totals
-  - Implement Income Statement report (收支�?
+  - Implement Income Statement report (收支�?
   - Show income, expenses by category with totals
   - Add date range selector (month, quarter, year, custom)
   - Display multi-currency amounts with conversion to base currency
@@ -2504,7 +2504,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
 
 ### Wave 5: Integration + Polish (6 tasks, depends on Wave 4)
 
-- [ ] 32. Account Registration + Device Binding
+- [x] 32. Account Registration + Device Binding
 
   **What to do**:
   - Create onboarding flow for first-time users
@@ -2800,7 +2800,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
       4. Select display currency: CNY
       5. Assert total assets = 1000 + (100*7.25) + (50*8.00) = 2125 CNY
       6. Change display currency to USD
-      7. Assert total assets = (1000/7.25) + 100 + (50*8.00/7.25) �?293.10 USD
+      7. Assert total assets = (1000/7.25) + 100 + (50*8.00/7.25) �?293.10 USD
       8. Hover over USD account
       9. Assert tooltip shows: "100.00 USD (original)"
     Expected Result: Conversion accurate
@@ -2998,34 +2998,34 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
 
 ---
 
-## Final Verification Wave (MANDATORY �?after ALL implementation tasks)
+## Final Verification Wave (MANDATORY �?after ALL implementation tasks)
 
 > 4 review agents run in PARALLEL. ALL must APPROVE. Present consolidated results to user and get explicit "okay" before completing.
 >
 > **Do NOT auto-proceed after verification. Wait for user's explicit approval before marking work complete.**
 > **Never mark F1-F4 as checked before getting user's okay.** Rejection or user feedback -> fix -> re-run -> present again -> wait for okay.
 
-- [ ] F1. **Plan Compliance Audit** �?`oracle`
+- [ ] F1. **Plan Compliance Audit** �?`oracle`
 
-  Read the plan end-to-end. For each "Must Have": verify implementation exists (read file, curl endpoint, run command). For each "Must NOT Have": search codebase for forbidden patterns �?reject with file:line if found. Check evidence files exist in .sisyphus/evidence/. Compare deliverables against plan.
+  Read the plan end-to-end. For each "Must Have": verify implementation exists (read file, curl endpoint, run command). For each "Must NOT Have": search codebase for forbidden patterns �?reject with file:line if found. Check evidence files exist in .sisyphus/evidence/. Compare deliverables against plan.
   
   Output: `Must Have [N/N] | Must NOT Have [N/N] | Tasks [N/N] | VERDICT: APPROVE/REJECT`
 
-- [ ] F2. **Code Quality Review** �?`unspecified-high`
+- [ ] F2. **Code Quality Review** �?`unspecified-high`
 
   Run `cargo build --release` + `cargo clippy` + `pnpm build`. Review all changed files for: `as any`/`@ts-ignore`, empty catches, console.log in prod, commented-out code, unused imports. Check AI slop: excessive comments, over-abstraction, generic names (data/result/item/temp).
   
   Output: `Build [PASS/FAIL] | Clippy [PASS/FAIL] | TypeScript [PASS/FAIL] | Files [N clean/N issues] | VERDICT`
 
-- [ ] F3. **Real Manual QA** �?`unspecified-high` (+ `playwright` skill if UI)
+- [ ] F3. **Real Manual QA** �?`unspecified-high` (+ `playwright` skill if UI)
 
-  Start from clean state. Execute EVERY QA scenario from EVERY task �?follow exact steps, capture evidence. Test cross-task integration (features working together, not isolation). Test edge cases: empty state, invalid input, rapid actions. Save to `.sisyphus/evidence/final-qa/`.
+  Start from clean state. Execute EVERY QA scenario from EVERY task �?follow exact steps, capture evidence. Test cross-task integration (features working together, not isolation). Test edge cases: empty state, invalid input, rapid actions. Save to `.sisyphus/evidence/final-qa/`.
   
   Output: `Scenarios [N/N pass] | Integration [N/N] | Edge Cases [N tested] | VERDICT`
 
-- [ ] F4. **Scope Fidelity Check** �?`deep`
+- [ ] F4. **Scope Fidelity Check** �?`deep`
 
-  For each task: read "What to do", read actual diff (git log/diff). Verify 1:1 �?everything in spec was built (no missing), nothing beyond spec was built (no creep). Check "Must NOT do" compliance. Detect cross-task contamination: Task N touching Task M's files. Flag unaccounted changes.
+  For each task: read "What to do", read actual diff (git log/diff). Verify 1:1 �?everything in spec was built (no missing), nothing beyond spec was built (no creep). Check "Must NOT do" compliance. Detect cross-task contamination: Task N touching Task M's files. Flag unaccounted changes.
   
   Output: `Tasks [N/N compliant] | Contamination [CLEAN/N issues] | Unaccounted [CLEAN/N files] | VERDICT`
 
@@ -3086,7 +3086,7 @@ ls .sisyphus/evidence/ | wc -l  # Should have 100+ evidence files
 - [ ] All tests pass (cargo test + pnpm vitest run)
 - [ ] All QA scenarios executed with evidence captured
 - [ ] Database migrations work on both SQLite and PostgreSQL
-- [ ] Sync functionality works (local �?cloud)
+- [ ] Sync functionality works (local �?cloud)
 - [ ] Reminder notifications trigger correctly
 - [ ] Multi-currency conversion accurate
 - [ ] Double-entry bookkeeping enforced

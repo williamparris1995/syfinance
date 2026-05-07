@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { Copy, CheckCircle2, Link as LinkIcon } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { CurrencyForm } from '../components/CurrencyForm';
@@ -30,6 +31,8 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Label } from '../components/ui/label';
 import {
   addCurrency,
   listCurrencies,
@@ -38,6 +41,7 @@ import {
   type CurrencyDto,
   type UpdateCurrencyRateDto,
 } from '../lib/tauri/currency';
+import { getAccountId, linkDevice } from '../lib/auth';
 
 const updateRateSchema = z.object({
   exchange_rate: z
@@ -50,10 +54,23 @@ const updateRateSchema = z.object({
 
 type UpdateRateFormValues = z.infer<typeof updateRateSchema>;
 
+const linkDeviceSchema = z.object({
+  account_id: z.string().min(1, 'Account ID is required'),
+});
+
+type LinkDeviceFormValues = z.infer<typeof linkDeviceSchema>;
+
 export function SettingsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [updateRateDialogData, setUpdateRateDialogData] = useState<CurrencyDto | null>(null);
+  const [isLinkDeviceDialogOpen, setIsLinkDeviceDialogOpen] = useState(false);
+  const [accountId, setAccountId] = useState<string | null>(null);
+  const [copiedAccountId, setCopiedAccountId] = useState(false);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    getAccountId().then(setAccountId);
+  }, []);
 
   const { data: currencies = [], isLoading } = useQuery({
     queryKey: ['currencies'],
@@ -88,6 +105,23 @@ export function SettingsPage() {
     },
   });
 
+  const linkDeviceForm = useForm<LinkDeviceFormValues>({
+    resolver: zodResolver(linkDeviceSchema),
+    defaultValues: {
+      account_id: '',
+    },
+  });
+
+  const linkDeviceMutation = useMutation({
+    mutationFn: (accountId: string) => linkDevice(accountId),
+    onSuccess: async () => {
+      const newAccountId = await getAccountId();
+      setAccountId(newAccountId);
+      setIsLinkDeviceDialogOpen(false);
+      linkDeviceForm.reset();
+    },
+  });
+
   const handleUpdateRate = (values: UpdateRateFormValues) => {
     if (updateRateDialogData) {
       updateRateMutation.mutate({
@@ -102,10 +136,75 @@ export function SettingsPage() {
     updateRateForm.reset({ exchange_rate: currency.exchange_rate });
   };
 
+  const handleLinkDevice = (values: LinkDeviceFormValues) => {
+    linkDeviceMutation.mutate(values.account_id);
+  };
+
+  const handleCopyAccountId = async () => {
+    if (accountId) {
+      await navigator.clipboard.writeText(accountId);
+      setCopiedAccountId(true);
+      setTimeout(() => setCopiedAccountId(false), 2000);
+    }
+  };
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Currency Settings</h1>
+        <h1 className="text-3xl font-bold">Settings</h1>
+      </div>
+
+      {/* Account & Device Section */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Account & Device</CardTitle>
+          <CardDescription>
+            Manage your account and link additional devices
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="current-account-id">Your Account ID</Label>
+            <div className="flex gap-2">
+              <Input
+                id="current-account-id"
+                value={accountId || 'Loading...'}
+                readOnly
+                className="font-mono text-sm"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleCopyAccountId}
+                disabled={!accountId}
+                className="flex-shrink-0"
+              >
+                {copiedAccountId ? (
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Use this ID to link other devices to your account
+            </p>
+          </div>
+
+          <Button
+            onClick={() => setIsLinkDeviceDialogOpen(true)}
+            variant="outline"
+            className="w-full gap-2"
+          >
+            <LinkIcon className="h-4 w-4" />
+            Link Another Device
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Currency Settings Section */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-2xl font-bold">Currency Settings</h2>
         <Button onClick={() => setIsAddDialogOpen(true)}>Add Currency</Button>
       </div>
 
@@ -248,6 +347,65 @@ export function SettingsPage() {
                 </Button>
                 <Button type="submit" disabled={updateRateMutation.isPending}>
                   {updateRateMutation.isPending ? 'Updating...' : 'Update Rate'}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isLinkDeviceDialogOpen}
+        onOpenChange={setIsLinkDeviceDialogOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Link Another Device</DialogTitle>
+            <DialogDescription>
+              Enter the Account ID from another device to link them together
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...linkDeviceForm}>
+            <form
+              onSubmit={linkDeviceForm.handleSubmit(handleLinkDevice)}
+              className="space-y-4"
+            >
+              <FormField
+                control={linkDeviceForm.control}
+                name="account_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Account ID</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="text"
+                        placeholder="Enter Account ID"
+                        className="font-mono text-sm"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {linkDeviceMutation.isError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+                  Error linking device: {(linkDeviceMutation.error as Error).message}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsLinkDeviceDialogOpen(false)}
+                  disabled={linkDeviceMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={linkDeviceMutation.isPending}>
+                  {linkDeviceMutation.isPending ? 'Linking...' : 'Link Device'}
                 </Button>
               </div>
             </form>

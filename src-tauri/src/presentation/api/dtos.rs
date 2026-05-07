@@ -53,3 +53,9 @@ pub struct SyncStatus {
     pub pending_changes: usize,
     pub is_syncing: bool,
 }
+
+#[derive(Debug, Serialize)]
+pub struct RegisterResponse {
+    pub account_id: String,
+    pub device_id: String,
+}
