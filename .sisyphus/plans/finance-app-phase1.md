@@ -2912,7 +2912,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src/components/ErrorBoundary.tsx, src/components/Toast.tsx, src/lib/error-handler.ts`
   - Pre-commit: `pnpm type-check && pnpm vitest run`
 
-- [ ] 37. Application Build + Packaging
+- [x] 37. Application Build + Packaging
 
   **What to do**:
   - Configure Tauri build settings in tauri.conf.json
