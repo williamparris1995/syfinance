@@ -8,7 +8,15 @@ let store: Store | null = null;
 
 async function getStore(): Promise<Store> {
   if (!store) {
-    store = await Store.load(STORE_FILE);
+    try {
+      store = await Store.load(STORE_FILE);
+      console.log('Store loaded successfully');
+    } catch (error) {
+      console.error('Failed to load store:', error);
+      // Create new store if loading fails
+      store = new Store(STORE_FILE);
+      console.log('Created new store');
+    }
   }
   return store;
 }
@@ -19,20 +27,37 @@ export interface RegisterResponse {
 }
 
 export async function getAccountId(): Promise<string | null> {
-  const s = await getStore();
-  const accountId = await s.get<string>(ACCOUNT_ID_KEY);
-  return accountId ?? null;
+  try {
+    const s = await getStore();
+    const accountId = await s.get<string>(ACCOUNT_ID_KEY);
+    return accountId ?? null;
+  } catch (error) {
+    console.error('Failed to get account ID:', error);
+    return null;
+  }
 }
 
 export async function getDeviceId(): Promise<string | null> {
-  const s = await getStore();
-  const deviceId = await s.get<string>(DEVICE_ID_KEY);
-  return deviceId ?? null;
+  try {
+    const s = await getStore();
+    const deviceId = await s.get<string>(DEVICE_ID_KEY);
+    return deviceId ?? null;
+  } catch (error) {
+    console.error('Failed to get device ID:', error);
+    return null;
+  }
 }
 
 export async function isRegistered(): Promise<boolean> {
-  const accountId = await getAccountId();
-  return accountId !== null;
+  try {
+    const accountId = await getAccountId();
+    const result = accountId !== null;
+    console.log('isRegistered:', result, 'accountId:', accountId);
+    return result;
+  } catch (error) {
+    console.error('isRegistered error:', error);
+    return false;
+  }
 }
 
 export async function registerDevice(): Promise<RegisterResponse> {
