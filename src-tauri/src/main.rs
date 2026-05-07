@@ -37,8 +37,21 @@ use tauri::Manager;
 
 #[tokio::main]
 async fn main() {
+    // Get app data directory for persistent storage
+    let app_data_dir = std::env::var("APPDATA")
+        .or_else(|_| std::env::var("HOME").map(|h| format!("{}/.local/share", h)))
+        .unwrap_or_else(|_| ".".to_string());
+    
+    let db_dir = std::path::Path::new(&app_data_dir).join("finance-app");
+    std::fs::create_dir_all(&db_dir).expect("failed to create app data directory");
+    
+    let db_path = db_dir.join("finance.db");
+    let db_url = format!("sqlite:{}", db_path.display());
+    
+    println!("Using database at: {}", db_path.display());
+    
     // Create a single shared database pool for all services
-    let options = sqlx::sqlite::SqliteConnectOptions::from_str("sqlite::memory:")
+    let options = sqlx::sqlite::SqliteConnectOptions::from_str(&db_url)
         .expect("failed to create sqlite options")
         .create_if_missing(true);
     
