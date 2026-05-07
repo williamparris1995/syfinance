@@ -1,11 +1,13 @@
 use axum::{
     extract::State,
+    http::{HeaderValue, Method},
     routing::{get, post},
     Json, Router,
 };
 use chrono::Utc;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tower_http::cors::{Any, CorsLayer};
 
 use super::dtos::{
     EntityChange, PullRequest, PullResponse, PushRequest, PushResponse, RegisterResponse,
@@ -35,11 +37,18 @@ impl SyncState {
 pub fn create_sync_routes() -> Router {
     let state = SyncState::new();
     
+    // Configure CORS
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_headers(Any);
+    
     Router::new()
         .route("/api/register", post(register))
         .route("/api/sync/push", post(push_changes))
         .route("/api/sync/pull", post(pull_changes))
         .route("/api/sync/status", get(sync_status))
+        .layer(cors)
         .with_state(state)
 }
 
