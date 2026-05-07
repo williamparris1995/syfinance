@@ -25,10 +25,5 @@
     "active": true,
     "targets": "all",
     "icon": []
-  },
-  "plugins": {
-    "store": {
-      "default": true
-    }
   }
 }
