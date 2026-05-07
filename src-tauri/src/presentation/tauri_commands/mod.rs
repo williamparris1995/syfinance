@@ -17,8 +17,8 @@ pub use debt_commands::{
     get_upcoming_payments, list_debts, record_payment, AppState as DebtCommandState,
 };
 pub use sync_commands::{
-    create_default_state as create_sync_default_state, get_sync_status, sync_from_server,
-    sync_to_server, SyncCommandState,
+    create_default_state as create_sync_default_state, get_sync_settings, get_sync_status,
+    sync_from_server, sync_to_server, update_sync_settings, SyncCommandState,
 };
 pub use transaction_commands::{
     create_transaction, get_transaction, get_transactions_by_account,

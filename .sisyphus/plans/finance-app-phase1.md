@@ -2586,7 +2586,7 @@ Wave FINAL (Verification - 4 parallel reviews, then user okay):
   - Files: `src/pages/OnboardingPage.tsx, src/lib/auth.ts, src-tauri/Cargo.toml (add tauri-plugin-store)`
   - Pre-commit: `cargo test && pnpm type-check`
 
-- [ ] 33. Background Sync Scheduler
+- [x] 33. Background Sync Scheduler
 
   **What to do**:
   - Create background sync scheduler in src-tauri/src/infrastructure/sync/sync_scheduler.rs

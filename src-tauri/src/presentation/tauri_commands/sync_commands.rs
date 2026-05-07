@@ -3,6 +3,10 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+use crate::infrastructure::sync::{SyncScheduler, SyncSettings};
+
+pub use crate::infrastructure::sync::SyncSettings as SyncSettingsDto;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SyncStatusDto {
     pub last_sync_at: Option<DateTime<Utc>>,
@@ -15,6 +19,7 @@ pub struct SyncCommandState {
     last_sync: Arc<RwLock<Option<DateTime<Utc>>>>,
     is_syncing: Arc<RwLock<bool>>,
     last_error: Arc<RwLock<Option<String>>>,
+    scheduler: Option<Arc<SyncScheduler>>,
 }
 
 impl SyncCommandState {
@@ -23,7 +28,13 @@ impl SyncCommandState {
             last_sync: Arc::new(RwLock::new(None)),
             is_syncing: Arc::new(RwLock::new(false)),
             last_error: Arc::new(RwLock::new(None)),
+            scheduler: None,
         }
+    }
+
+    pub fn with_scheduler(mut self, scheduler: Arc<SyncScheduler>) -> Self {
+        self.scheduler = Some(scheduler);
+        self
     }
 }
 
@@ -164,4 +175,33 @@ pub async fn get_sync_status(
 
 pub fn create_default_state() -> SyncCommandState {
     SyncCommandState::new()
+}
+
+#[tauri::command]
+pub async fn update_sync_settings(
+    state: tauri::State<'_, SyncCommandState>,
+    enabled: bool,
+    interval_minutes: u64,
+) -> Result<SyncSettingsDto, String> {
+    if let Some(scheduler) = &state.scheduler {
+        let settings = SyncSettings {
+            enabled,
+            interval_minutes,
+        };
+        scheduler.update_settings(settings.clone()).await;
+        Ok(settings)
+    } else {
+        Err("Scheduler not initialized".to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn get_sync_settings(
+    state: tauri::State<'_, SyncCommandState>,
+) -> Result<SyncSettingsDto, String> {
+    if let Some(scheduler) = &state.scheduler {
+        Ok(scheduler.get_settings().await)
+    } else {
+        Err("Scheduler not initialized".to_string())
+    }
 }

@@ -3,6 +3,7 @@ mod domain;
 mod infrastructure;
 mod presentation;
 
+use infrastructure::sync::SyncScheduler;
 use presentation::api::create_sync_routes;
 use presentation::tauri_commands::{
     account_commands::{
@@ -18,14 +19,16 @@ use presentation::tauri_commands::{
         get_upcoming_payments, list_debts, record_payment, AppState as DebtAppState,
     },
     sync_commands::{
-        create_default_state as create_sync_default_state, get_sync_status, sync_from_server,
-        sync_to_server,
+        create_default_state as create_sync_default_state, get_sync_settings, get_sync_status,
+        sync_from_server, sync_to_server, update_sync_settings,
     },
     transaction_commands::{
         create_default_state, create_transaction, get_transaction, get_transactions_by_account,
         get_transactions_by_date_range, list_transactions,
     },
 };
+use std::sync::Arc;
+use tauri::Manager;
 
 #[tokio::main]
 async fn main() {
@@ -62,7 +65,6 @@ async fn main() {
         .manage(debt_state)
         .manage(currency_state)
         .manage(transaction_state)
-        .manage(sync_state)
         .invoke_handler(tauri::generate_handler![
             create_account,
             update_account,
@@ -85,10 +87,20 @@ async fn main() {
             get_transactions_by_date_range,
             sync_to_server,
             sync_from_server,
-            get_sync_status
+            get_sync_status,
+            update_sync_settings,
+            get_sync_settings
         ])
-        .setup(|_app| {
-            // NotificationService::reschedule_all() should be called here once the app state is wired.
+        .setup(move |app| {
+            // Start background sync scheduler
+            let scheduler = Arc::new(SyncScheduler::new(app.handle().clone()));
+            
+            // Update sync_state with scheduler reference
+            let sync_state_with_scheduler = sync_state.with_scheduler(Arc::clone(&scheduler));
+            app.handle().manage(sync_state_with_scheduler);
+            
+            scheduler.start();
+            
             Ok(())
         })
         .run(tauri::generate_context!())

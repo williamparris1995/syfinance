@@ -501,3 +501,66 @@
 - Settings page groups Account & Device in separate Card above Currency Settings
 - Account ID is always visible in Settings (not hidden behind dialog)
 
+
+## Task 33: Background Sync Scheduler
+
+### Implementation Details
+- Created sync_scheduler.rs with tokio-based background scheduler
+- Scheduler runs in separate tokio task spawned at app startup
+- Uses 	okio::time::sleep for interval-based triggering (not interval to allow dynamic intervals)
+- Exponential backoff: 2s, 4s, 8s, 16s on consecutive failures
+- Network connectivity check via TCP connect to 127.0.0.1:3000 before each sync
+- Emits Tauri events (sync:status) to frontend with status updates
+
+### Frontend Integration
+- Added sync settings UI in SettingsPage.tsx with toggle and interval dropdown
+- Settings stored in localStorage (sync_enabled, sync_interval_minutes)
+- Listen to sync:status events from backend using @tauri-apps/api/event
+- Created Switch UI component using @radix-ui/react-switch
+- Select component already existed using @base-ui/react/select
+
+### Testing Approach
+- Unit tests for settings validation and backoff delays
+- Integration tests marked as #[ignore] - require full Tauri test harness
+- Tests pass: 5 total (3 passed, 2 ignored as placeholders)
+- Used tokio test-util features already in Cargo.toml
+
+### Key Patterns
+- Arc<RwLock<SyncSettings>> for shared state between scheduler and potential command handlers
+- Scheduler checks settings.enabled in loop - can be disabled without stopping task
+- Backoff resets to 0 on successful sync
+- TODO: Integrate actual SyncService (currently placeholder)
+- TODO: Add Tauri commands to update settings from frontend
+
+### Dependencies
+- No new dependencies needed - tokio time features already present
+- Added @radix-ui/react-switch for frontend Switch component
+
+
+## Task 33: Background Sync Scheduler - FIXES APPLIED
+
+### Critical Issues Fixed
+1. **perform_sync() implementation**: Replaced placeholder with actual REST API calls to /api/sync/push and /api/sync/pull
+2. **Tauri commands added**: Created update_sync_settings() and get_sync_settings() commands
+3. **Frontend integration**: Removed all TODO comments, wired up actual Tauri command calls
+4. **Tests cleaned up**: Removed #[ignore] placeholder tests, kept only 3 working unit tests
+
+### Implementation Details
+- SyncScheduler.perform_sync() now calls actual sync REST API endpoints
+- SyncCommandState extended with optional scheduler reference for settings management
+- Frontend loads settings from backend on mount (not localStorage)
+- Settings changes immediately call Tauri commands to update scheduler
+- Added tauri::Manager trait import to main.rs for app.handle().manage()
+
+### Architecture
+- Scheduler holds Arc<RwLock<SyncSettings>> for thread-safe settings updates
+- SyncCommandState.with_scheduler() builder pattern to inject scheduler reference
+- Settings flow: Frontend ¡ú Tauri command ¡ú Scheduler.update_settings() ¡ú RwLock update
+- Scheduler loop checks settings.enabled and respects new interval values
+
+### Verification
+- cargo test sync_scheduler: 7 tests passed (3 in sync_scheduler_test.rs, 2 in lib, 2 in main)
+- pnpm type-check: Clean, no errors
+- LSP diagnostics: Clean on all modified files
+- No TODO/FIXME comments remaining in code
+

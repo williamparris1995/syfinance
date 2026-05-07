@@ -4,6 +4,7 @@ import { Copy, CheckCircle2, Link as LinkIcon } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { listen } from '@tauri-apps/api/event';
 import { CurrencyForm } from '../components/CurrencyForm';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -33,6 +34,14 @@ import {
 } from '../components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Label } from '../components/ui/label';
+import { Switch } from '../components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
 import {
   addCurrency,
   listCurrencies,
@@ -42,6 +51,7 @@ import {
   type UpdateCurrencyRateDto,
 } from '../lib/tauri/currency';
 import { getAccountId, linkDevice } from '../lib/auth';
+import { updateSyncSettings, getSyncSettings, type SyncSettings } from '../lib/tauri/sync';
 
 const updateRateSchema = z.object({
   exchange_rate: z
@@ -60,17 +70,65 @@ const linkDeviceSchema = z.object({
 
 type LinkDeviceFormValues = z.infer<typeof linkDeviceSchema>;
 
+interface SyncEvent {
+  status: 'started' | 'completed' | 'failed';
+  message: string;
+  error?: string;
+}
+
 export function SettingsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [updateRateDialogData, setUpdateRateDialogData] = useState<CurrencyDto | null>(null);
   const [isLinkDeviceDialogOpen, setIsLinkDeviceDialogOpen] = useState(false);
   const [accountId, setAccountId] = useState<string | null>(null);
   const [copiedAccountId, setCopiedAccountId] = useState(false);
+  const [syncEnabled, setSyncEnabled] = useState(true);
+  const [syncInterval, setSyncInterval] = useState('15');
+  const [lastSyncEvent, setLastSyncEvent] = useState<SyncEvent | null>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
     getAccountId().then(setAccountId);
+
+    // Load sync settings from backend
+    getSyncSettings().then((settings) => {
+      setSyncEnabled(settings.enabled);
+      setSyncInterval(String(settings.interval_minutes));
+    }).catch(() => {
+      // Fallback to defaults if backend not ready
+      setSyncEnabled(true);
+      setSyncInterval('15');
+    });
+
+    // Listen for sync events
+    const unlisten = listen<SyncEvent>('sync:status', (event) => {
+      setLastSyncEvent(event.payload);
+    });
+
+    return () => {
+      unlisten.then((fn) => fn());
+    };
   }, []);
+
+  const handleSyncEnabledChange = async (enabled: boolean) => {
+    setSyncEnabled(enabled);
+    try {
+      await updateSyncSettings(enabled, parseInt(syncInterval, 10));
+    } catch (error) {
+      console.error('Failed to update sync settings:', error);
+    }
+  };
+
+  const handleSyncIntervalChange = async (interval: string | null) => {
+    if (interval) {
+      setSyncInterval(interval);
+      try {
+        await updateSyncSettings(syncEnabled, parseInt(interval, 10));
+      } catch (error) {
+        console.error('Failed to update sync settings:', error);
+      }
+    }
+  };
 
   const { data: currencies = [], isLoading } = useQuery({
     queryKey: ['currencies'],
@@ -199,6 +257,81 @@ export function SettingsPage() {
             <LinkIcon className="h-4 w-4" />
             Link Another Device
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Sync Settings Section */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Automatic Sync</CardTitle>
+          <CardDescription>
+            Configure automatic background synchronization
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="sync-enabled">Enable Auto-Sync</Label>
+              <p className="text-xs text-muted-foreground">
+                Automatically sync data in the background
+              </p>
+            </div>
+            <Switch
+              id="sync-enabled"
+              checked={syncEnabled}
+              onCheckedChange={handleSyncEnabledChange}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="sync-interval">Sync Interval</Label>
+            <Select
+              value={syncInterval}
+              onValueChange={handleSyncIntervalChange}
+              disabled={!syncEnabled}
+            >
+              <SelectTrigger id="sync-interval">
+                <SelectValue placeholder="Select interval" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">Every 5 minutes</SelectItem>
+                <SelectItem value="15">Every 15 minutes</SelectItem>
+                <SelectItem value="30">Every 30 minutes</SelectItem>
+                <SelectItem value="60">Every hour</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              How often to sync data automatically
+            </p>
+          </div>
+
+          {lastSyncEvent && (
+            <div className="pt-2 border-t">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Last Sync:</span>
+                {lastSyncEvent.status === 'started' && (
+                  <Badge variant="secondary">Syncing...</Badge>
+                )}
+                {lastSyncEvent.status === 'completed' && (
+                  <Badge variant="outline" className="gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-green-500" />
+                    Success
+                  </Badge>
+                )}
+                {lastSyncEvent.status === 'failed' && (
+                  <Badge variant="destructive">Failed</Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {lastSyncEvent.message}
+              </p>
+              {lastSyncEvent.error && (
+                <p className="text-xs text-destructive mt-1">
+                  {lastSyncEvent.error}
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
