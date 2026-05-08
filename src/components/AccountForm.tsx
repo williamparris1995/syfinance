@@ -21,16 +21,6 @@ import {
 } from './ui/select';
 import type { AccountType, CreateAccountDto } from '@/lib/tauri/account';
 
-// Mapping from account type to chart of account code
-const ACCOUNT_TYPE_TO_CODE: Record<string, string> = {
-  Cash: '1001',        // 库存现金
-  Bank: '1002',        // 银行存款
-  CreditCard: '2202',  // 应付信用卡款
-  Investment: '1012',  // 其他货币资金
-  Loan: '2001',        // 短期借款
-  Other: '1012',       // 其他货币资金
-};
-
 const accountFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   account_type: z.enum(['Cash', 'Bank', 'CreditCard', 'Investment', 'Loan', 'Other'], {
@@ -40,6 +30,24 @@ const accountFormSchema = z.object({
   initial_balance: z.string().min(1, 'Initial balance is required').refine(
     (val) => !isNaN(parseFloat(val)),
     'Initial balance must be a valid number'
+  ),
+  account_number: z.string().optional(),
+  institution: z.string().optional(),
+  credit_limit: z.string().optional().refine(
+    (val) => !val || !isNaN(parseFloat(val)),
+    'Credit limit must be a valid number'
+  ),
+  billing_day: z.string().optional().refine(
+    (val) => !val || (!isNaN(parseInt(val)) && parseInt(val) >= 1 && parseInt(val) <= 31),
+    'Billing day must be between 1 and 31'
+  ),
+  payment_due_day: z.string().optional().refine(
+    (val) => !val || (!isNaN(parseInt(val)) && parseInt(val) >= 1 && parseInt(val) <= 31),
+    'Payment due day must be between 1 and 31'
+  ),
+  interest_rate: z.string().optional().refine(
+    (val) => !val || !isNaN(parseFloat(val)),
+    'Interest rate must be a valid number'
   ),
 });
 
@@ -59,19 +67,34 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
       account_type: undefined,
       currency_code: 'CNY',
       initial_balance: '0.00',
+      account_number: '',
+      institution: '',
+      credit_limit: '',
+      billing_day: '',
+      payment_due_day: '',
+      interest_rate: '',
     },
   });
 
+  const watchAccountType = form.watch('account_type');
+
   const handleSubmit = (values: AccountFormValues) => {
-    // Auto-select chart of account code based on account type
-    const chart_of_account_code = ACCOUNT_TYPE_TO_CODE[values.account_type] || '1012';
-    
-    onSubmit({
-      ...values,
-      chart_of_account_code,
+    const dto: CreateAccountDto = {
+      name: values.name,
       account_type: values.account_type as AccountType,
+      currency_code: values.currency_code,
       initial_balance: parseFloat(values.initial_balance),
-    });
+    };
+
+    // Add optional fields if provided
+    if (values.account_number) dto.account_number = values.account_number;
+    if (values.institution) dto.institution = values.institution;
+    if (values.credit_limit) dto.credit_limit = parseFloat(values.credit_limit);
+    if (values.billing_day) dto.billing_day = parseInt(values.billing_day);
+    if (values.payment_due_day) dto.payment_due_day = parseInt(values.payment_due_day);
+    if (values.interest_rate) dto.interest_rate = parseFloat(values.interest_rate);
+
+    onSubmit(dto);
   };
 
   return (
@@ -112,9 +135,6 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
                   <SelectItem value="Other">Other (其他)</SelectItem>
                 </SelectContent>
               </Select>
-              <FormDescription>
-                Chart of account code will be automatically assigned
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -159,6 +179,99 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
             </FormItem>
           )}
         />
+
+        <FormField
+          control={form.control}
+          name="account_number"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Account Number (Optional)</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g., 1234567890" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="institution"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Institution (Optional)</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g., Bank of China" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {watchAccountType === 'CreditCard' && (
+          <>
+            <FormField
+              control={form.control}
+              name="credit_limit"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Credit Limit (Optional)</FormLabel>
+                  <FormControl>
+                    <Input type="text" placeholder="0.00" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="billing_day"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Billing Day (Optional)</FormLabel>
+                  <FormControl>
+                    <Input type="text" placeholder="1-31" {...field} />
+                  </FormControl>
+                  <FormDescription>Day of month when statement is generated</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="payment_due_day"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Payment Due Day (Optional)</FormLabel>
+                  <FormControl>
+                    <Input type="text" placeholder="1-31" {...field} />
+                  </FormControl>
+                  <FormDescription>Day of month when payment is due</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </>
+        )}
+
+        {watchAccountType === 'Loan' && (
+          <FormField
+            control={form.control}
+            name="interest_rate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Interest Rate (Optional)</FormLabel>
+                <FormControl>
+                  <Input type="text" placeholder="e.g., 5.5" {...field} />
+                </FormControl>
+                <FormDescription>Annual interest rate as percentage</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
         <div className="flex justify-end gap-2 pt-4">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>

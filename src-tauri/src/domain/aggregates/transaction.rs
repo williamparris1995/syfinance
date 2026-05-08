@@ -207,6 +207,7 @@ mod tests {
         TransactionEntry::new(
             Uuid::new_v4(),
             "1002",
+            None,
             Some(money(amount, currency_code)),
             None,
             "debit",
@@ -218,6 +219,7 @@ mod tests {
         TransactionEntry::new(
             Uuid::new_v4(),
             "4001",
+            None,
             None,
             Some(money(amount, currency_code)),
             "credit",

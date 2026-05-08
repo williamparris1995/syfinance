@@ -85,6 +85,7 @@ impl TransactionService {
             let entry = TransactionEntry::new(
                 entry_dto.account_id,
                 &entry_dto.chart_of_account_code,
+                entry_dto.category_id,
                 debit_amount,
                 credit_amount,
                 entry_dto.memo.as_deref().unwrap_or(""),
@@ -197,6 +198,7 @@ impl TransactionService {
                 .map(|e| TransactionEntryDto {
                     account_id: e.account_id,
                     chart_of_account_code: e.chart_of_account_code.clone(),
+                    category_id: e.category_id,
                     debit_amount: e.debit_amount.as_ref().map(|m| m.amount.to_string()),
                     credit_amount: e.credit_amount.as_ref().map(|m| m.amount.to_string()),
                     currency_code: e.currency_code().unwrap_or("UNKNOWN").to_string(),
@@ -249,16 +251,6 @@ mod tests {
             Uuid::new_v4(),
             "Test Account",
             AccountType::Bank,
-            &crate::domain::aggregates::ChartOfAccounts::new(
-                "coa-1002".to_string(),
-                "1002".to_string(),
-                "Bank Deposits".to_string(),
-                2,
-                crate::domain::aggregates::chart_of_accounts::AccountType::Asset,
-                Some("1000".to_string()),
-                crate::domain::aggregates::chart_of_accounts::BalanceDirection::Debit,
-            )
-            .unwrap(),
             &Currency::new(currency_code, currency_code, Decimal::ONE).unwrap(),
             Money::new(Decimal::new(1000_00, 2), currency_code).unwrap(),
             SyncMetadata::new(Uuid::new_v4()),
@@ -285,6 +277,7 @@ mod tests {
                 CreateTransactionEntryDto {
                     account_id: account1.id,
                     chart_of_account_code: "1002".to_string(),
+                    category_id: None,
                     debit_amount: Some(Decimal::new(500_00, 2)),
                     credit_amount: None,
                     memo: Some("Debit entry".to_string()),
@@ -292,6 +285,7 @@ mod tests {
                 CreateTransactionEntryDto {
                     account_id: account2.id,
                     chart_of_account_code: "1002".to_string(),
+                    category_id: None,
                     debit_amount: None,
                     credit_amount: Some(Decimal::new(500_00, 2)),
                     memo: Some("Credit entry".to_string()),
@@ -328,6 +322,7 @@ mod tests {
                 CreateTransactionEntryDto {
                     account_id: account1.id,
                     chart_of_account_code: "1002".to_string(),
+                    category_id: None,
                     debit_amount: Some(Decimal::new(500_00, 2)),
                     credit_amount: None,
                     memo: None,
@@ -335,6 +330,7 @@ mod tests {
                 CreateTransactionEntryDto {
                     account_id: account2.id,
                     chart_of_account_code: "1002".to_string(),
+                    category_id: None,
                     debit_amount: None,
                     credit_amount: Some(Decimal::new(400_00, 2)),
                     memo: None,
@@ -368,6 +364,7 @@ mod tests {
                 CreateTransactionEntryDto {
                     account_id: account1.id,
                     chart_of_account_code: "1002".to_string(),
+                    category_id: None,
                     debit_amount: Some(Decimal::new(100_00, 2)),
                     credit_amount: None,
                     memo: None,
@@ -375,6 +372,7 @@ mod tests {
                 CreateTransactionEntryDto {
                     account_id: account2.id,
                     chart_of_account_code: "1002".to_string(),
+                    category_id: None,
                     debit_amount: None,
                     credit_amount: Some(Decimal::new(100_00, 2)),
                     memo: None,
@@ -409,6 +407,7 @@ mod tests {
                 CreateTransactionEntryDto {
                     account_id: account1.id,
                     chart_of_account_code: "1002".to_string(),
+                    category_id: None,
                     debit_amount: Some(Decimal::new(100_00, 2)),
                     credit_amount: None,
                     memo: None,
@@ -416,6 +415,7 @@ mod tests {
                 CreateTransactionEntryDto {
                     account_id: account2.id,
                     chart_of_account_code: "1002".to_string(),
+                    category_id: None,
                     debit_amount: None,
                     credit_amount: Some(Decimal::new(100_00, 2)),
                     memo: None,
@@ -448,6 +448,7 @@ mod tests {
                 CreateTransactionEntryDto {
                     account_id: account1.id,
                     chart_of_account_code: "1002".to_string(),
+                    category_id: None,
                     debit_amount: Some(Decimal::new(100_00, 2)),
                     credit_amount: None,
                     memo: None,
@@ -455,6 +456,7 @@ mod tests {
                 CreateTransactionEntryDto {
                     account_id: account2.id,
                     chart_of_account_code: "1002".to_string(),
+                    category_id: None,
                     debit_amount: None,
                     credit_amount: Some(Decimal::new(100_00, 2)),
                     memo: None,

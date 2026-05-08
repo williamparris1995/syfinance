@@ -1,5 +1,6 @@
 pub mod account_repository;
 pub mod account_repository_postgres;
+pub mod category_repository;
 pub mod chart_of_accounts_repository;
 pub mod currency_repository;
 pub mod debt_repository;
@@ -11,6 +12,7 @@ pub mod transaction_repository_postgres;
 
 pub use account_repository::SqliteAccountRepository;
 pub use account_repository_postgres::PostgresAccountRepository;
+pub use category_repository::SqliteCategoryRepository;
 pub use chart_of_accounts_repository::SqliteChartOfAccountsRepository;
 pub use currency_repository::SqliteCurrencyRepository;
 pub use debt_repository::SqliteDebtRepository;

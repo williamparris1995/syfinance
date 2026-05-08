@@ -67,6 +67,7 @@ impl PostgresTransactionRepository {
             let entry = TransactionEntry::new(
                 account_id,
                 &chart_of_account_code,
+                None,
                 debit_money,
                 credit_money,
                 note.as_deref().unwrap_or(""),

@@ -6,6 +6,7 @@ export interface CreateTransactionEntryDto {
   debit_amount: string | null;
   credit_amount: string | null;
   memo: string | null;
+  category_id?: string;
 }
 
 export interface CreateTransactionDto {
@@ -21,6 +22,7 @@ export interface TransactionEntryDto {
   credit_amount: string | null;
   currency_code: string;
   memo: string | null;
+  category_id?: string;
 }
 
 export interface TransactionDto {

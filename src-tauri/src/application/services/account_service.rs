@@ -1,30 +1,27 @@
 use crate::application::dtos::{AccountDto, CreateAccountDto, UpdateAccountDto};
 use crate::domain::aggregates::{Account, AccountError};
 use crate::domain::repositories::{
-    AccountRepository, ChartOfAccountsRepository, CurrencyRepository,
+    AccountRepository, CurrencyRepository,
 };
 use crate::domain::value_objects::{Money, SyncMetadata};
 use std::sync::Arc;
 use uuid::Uuid;
 
-pub struct AccountService<R: AccountRepository, C: ChartOfAccountsRepository, U: CurrencyRepository>
+pub struct AccountService<R: AccountRepository, U: CurrencyRepository>
 {
     account_repo: Arc<R>,
-    chart_of_accounts_repo: Arc<C>,
     currency_repo: Arc<U>,
 }
 
-impl<R: AccountRepository, C: ChartOfAccountsRepository, U: CurrencyRepository>
-    AccountService<R, C, U>
+impl<R: AccountRepository, U: CurrencyRepository>
+    AccountService<R, U>
 {
     pub fn new(
         account_repo: Arc<R>,
-        chart_of_accounts_repo: Arc<C>,
         currency_repo: Arc<U>,
     ) -> Self {
         Self {
             account_repo,
-            chart_of_accounts_repo,
             currency_repo,
         }
     }
@@ -35,14 +32,6 @@ impl<R: AccountRepository, C: ChartOfAccountsRepository, U: CurrencyRepository>
         dto: CreateAccountDto,
     ) -> Result<AccountDto, AccountServiceError>
     {
-        let chart_of_accounts = self
-            .chart_of_accounts_repo
-            .find_by_code(&dto.chart_of_account_code)
-            .await?
-            .ok_or_else(|| {
-                AccountServiceError::ChartOfAccountNotFound(dto.chart_of_account_code.clone())
-            })?;
-
         let currency = self
             .currency_repo
             .find_by_code(&dto.currency_code)
@@ -56,7 +45,6 @@ impl<R: AccountRepository, C: ChartOfAccountsRepository, U: CurrencyRepository>
             Uuid::new_v4(),
             dto.name,
             dto.account_type,
-            &chart_of_accounts,
             &currency,
             balance,
             SyncMetadata::new(Uuid::new_v4()),
@@ -145,9 +133,6 @@ pub enum AccountServiceError {
     #[error("Account not found: {0}")]
     AccountNotFound(Uuid),
 
-    #[error("Chart of accounts not found: {0}")]
-    ChartOfAccountNotFound(String),
-
     #[error("Currency not found: {0}")]
     CurrencyNotFound(String),
 
@@ -164,7 +149,7 @@ pub enum AccountServiceError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::aggregates::{AccountType, ChartOfAccounts, ChartOfAccountsType};
+    use crate::domain::aggregates::AccountType;
     use crate::domain::value_objects::Currency;
     use rust_decimal::Decimal;
     use std::collections::HashMap;
@@ -245,96 +230,6 @@ mod tests {
         }
     }
 
-    struct MockChartOfAccountsRepository {
-        charts: Mutex<HashMap<String, ChartOfAccounts>>,
-    }
-
-    impl MockChartOfAccountsRepository {
-        fn new() -> Self {
-            let mut charts = HashMap::new();
-            charts.insert(
-                "1002".to_string(),
-                ChartOfAccounts::new(
-                    "coa-1002".to_string(),
-                    "1002".to_string(),
-                    "Bank".to_string(),
-                    2,
-                    ChartOfAccountsType::Asset,
-                    Some("1000".to_string()),
-                    crate::domain::aggregates::chart_of_accounts::BalanceDirection::Debit,
-                )
-                .unwrap(),
-            );
-            Self {
-                charts: Mutex::new(charts),
-            }
-        }
-    }
-
-    impl ChartOfAccountsRepository for MockChartOfAccountsRepository {
-        async fn create(&self, account: &ChartOfAccounts) -> sqlx::Result<()> {
-            self.charts
-                .lock()
-                .unwrap()
-                .insert(account.code.clone(), account.clone());
-            Ok(())
-        }
-
-        async fn update(&self, account: &ChartOfAccounts) -> sqlx::Result<bool> {
-            let mut charts = self.charts.lock().unwrap();
-            if charts.contains_key(&account.code) {
-                charts.insert(account.code.clone(), account.clone());
-                Ok(true)
-            } else {
-                Ok(false)
-            }
-        }
-
-        async fn find_by_code(&self, code: &str) -> sqlx::Result<Option<ChartOfAccounts>> {
-            Ok(self.charts.lock().unwrap().get(code).cloned())
-        }
-
-        async fn list_by_level(&self, level: i32) -> sqlx::Result<Vec<ChartOfAccounts>> {
-            Ok(self
-                .charts
-                .lock()
-                .unwrap()
-                .values()
-                .filter(|c| c.level == level)
-                .cloned()
-                .collect())
-        }
-
-        async fn list_by_type(
-            &self,
-            account_type: ChartOfAccountsType,
-        ) -> sqlx::Result<Vec<ChartOfAccounts>> {
-            Ok(self
-                .charts
-                .lock()
-                .unwrap()
-                .values()
-                .filter(|c| c.account_type == account_type)
-                .cloned()
-                .collect())
-        }
-
-        async fn get_children(&self, parent_code: &str) -> sqlx::Result<Vec<ChartOfAccounts>> {
-            Ok(self
-                .charts
-                .lock()
-                .unwrap()
-                .values()
-                .filter(|c| c.parent_code.as_deref() == Some(parent_code))
-                .cloned()
-                .collect())
-        }
-
-        async fn list_all(&self) -> sqlx::Result<Vec<ChartOfAccounts>> {
-            Ok(self.charts.lock().unwrap().values().cloned().collect())
-        }
-    }
-
     struct MockCurrencyRepository {
         currencies: Mutex<HashMap<String, Currency>>,
     }
@@ -384,15 +279,13 @@ mod tests {
     #[tokio::test]
     async fn test_create_account_success() {
         let account_repo = Arc::new(MockAccountRepository::new());
-        let chart_repo = Arc::new(MockChartOfAccountsRepository::new());
         let currency_repo = Arc::new(MockCurrencyRepository::new());
 
-        let service = AccountService::new(account_repo.clone(), chart_repo, currency_repo);
+        let service = AccountService::new(account_repo.clone(), currency_repo);
 
         let dto = CreateAccountDto {
             name: "Checking Account".to_string(),
             account_type: AccountType::Bank,
-            chart_of_account_code: "1002".to_string(),
             currency_code: "CNY".to_string(),
             initial_balance: Decimal::new(10000, 2),
         };
@@ -406,18 +299,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_create_account_invalid_chart_of_accounts() {
+    async fn test_create_account_invalid_currency() {
         let account_repo = Arc::new(MockAccountRepository::new());
-        let chart_repo = Arc::new(MockChartOfAccountsRepository::new());
         let currency_repo = Arc::new(MockCurrencyRepository::new());
 
-        let service = AccountService::new(account_repo, chart_repo, currency_repo);
+        let service = AccountService::new(account_repo, currency_repo);
 
         let dto = CreateAccountDto {
             name: "Invalid Account".to_string(),
             account_type: AccountType::Bank,
-            chart_of_account_code: "9999".to_string(),
-            currency_code: "CNY".to_string(),
+            currency_code: "USD".to_string(),
             initial_balance: Decimal::new(10000, 2),
         };
 
@@ -426,22 +317,20 @@ mod tests {
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
-            AccountServiceError::ChartOfAccountNotFound(_)
+            AccountServiceError::CurrencyNotFound(_)
         ));
     }
 
     #[tokio::test]
     async fn test_update_account_name() {
         let account_repo = Arc::new(MockAccountRepository::new());
-        let chart_repo = Arc::new(MockChartOfAccountsRepository::new());
         let currency_repo = Arc::new(MockCurrencyRepository::new());
 
-        let service = AccountService::new(account_repo.clone(), chart_repo, currency_repo);
+        let service = AccountService::new(account_repo.clone(), currency_repo);
 
         let create_dto = CreateAccountDto {
             name: "Old Name".to_string(),
             account_type: AccountType::Bank,
-            chart_of_account_code: "1002".to_string(),
             currency_code: "CNY".to_string(),
             initial_balance: Decimal::new(10000, 2),
         };
@@ -468,15 +357,13 @@ mod tests {
     #[tokio::test]
     async fn test_delete_account() {
         let account_repo = Arc::new(MockAccountRepository::new());
-        let chart_repo = Arc::new(MockChartOfAccountsRepository::new());
         let currency_repo = Arc::new(MockCurrencyRepository::new());
 
-        let service = AccountService::new(account_repo.clone(), chart_repo, currency_repo);
+        let service = AccountService::new(account_repo.clone(), currency_repo);
 
         let create_dto = CreateAccountDto {
             name: "To Delete".to_string(),
             account_type: AccountType::Bank,
-            chart_of_account_code: "1002".to_string(),
             currency_code: "CNY".to_string(),
             initial_balance: Decimal::new(10000, 2),
         };
@@ -497,15 +384,13 @@ mod tests {
     #[tokio::test]
     async fn test_get_account_balance() {
         let account_repo = Arc::new(MockAccountRepository::new());
-        let chart_repo = Arc::new(MockChartOfAccountsRepository::new());
         let currency_repo = Arc::new(MockCurrencyRepository::new());
 
-        let service = AccountService::new(account_repo, chart_repo, currency_repo);
+        let service = AccountService::new(account_repo, currency_repo);
 
         let create_dto = CreateAccountDto {
             name: "Balance Test".to_string(),
             account_type: AccountType::Bank,
-            chart_of_account_code: "1002".to_string(),
             currency_code: "CNY".to_string(),
             initial_balance: Decimal::new(50000, 2),
         };

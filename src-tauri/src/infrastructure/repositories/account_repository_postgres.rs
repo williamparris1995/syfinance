@@ -38,7 +38,6 @@ impl PostgresAccountRepository {
             }
         };
 
-        let chart_of_account_code: String = row.try_get("chart_of_account_code")?;
         let currency_code: String = row.try_get("currency_code")?;
         let balance_amount: Decimal = row.try_get("balance")?;
 
@@ -61,9 +60,14 @@ impl PostgresAccountRepository {
             id,
             name,
             account_type,
-            chart_of_account_code,
             currency_code,
             balance,
+            account_number: None,
+            institution: None,
+            credit_limit: None,
+            billing_day: None,
+            payment_due_day: None,
+            interest_rate: None,
             sync_metadata,
             pending_events: Vec::new(),
         })
@@ -75,11 +79,11 @@ impl AccountRepository for PostgresAccountRepository {
         sqlx::query(
             r#"
             INSERT INTO accounts (
-                id, name, account_type, chart_of_account_code, 
+                id, name, account_type, 
                 currency_code, balance, updated_at, deleted_at, 
                 device_id, synced_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             ON CONFLICT (id) DO UPDATE SET
                 name = EXCLUDED.name,
                 balance = EXCLUDED.balance,
@@ -92,7 +96,6 @@ impl AccountRepository for PostgresAccountRepository {
         .bind(account.id)
         .bind(&account.name)
         .bind(account.account_type.to_string())
-        .bind(&account.chart_of_account_code)
         .bind(&account.currency_code)
         .bind(account.balance.amount)
         .bind(account.sync_metadata.updated_at)
@@ -109,7 +112,7 @@ impl AccountRepository for PostgresAccountRepository {
         let row = sqlx::query(
             r#"
             SELECT 
-                id, name, account_type, chart_of_account_code,
+                id, name, account_type,
                 currency_code, balance,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
@@ -127,7 +130,7 @@ impl AccountRepository for PostgresAccountRepository {
         let rows = sqlx::query(
             r#"
             SELECT 
-                id, name, account_type, chart_of_account_code,
+                id, name, account_type,
                 currency_code, balance,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
@@ -145,7 +148,7 @@ impl AccountRepository for PostgresAccountRepository {
         let rows = sqlx::query(
             r#"
             SELECT 
-                id, name, account_type, chart_of_account_code,
+                id, name, account_type,
                 currency_code, balance,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
@@ -208,7 +211,7 @@ impl AccountRepository for PostgresAccountRepository {
         let rows = sqlx::query(
             r#"
             SELECT 
-                id, name, account_type, chart_of_account_code,
+                id, name, account_type,
                 currency_code, balance,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
@@ -225,7 +228,7 @@ impl AccountRepository for PostgresAccountRepository {
         let rows = sqlx::query(
             r#"
             SELECT 
-                id, name, account_type, chart_of_account_code,
+                id, name, account_type,
                 currency_code, balance,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts

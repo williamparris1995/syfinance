@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { listAccounts } from '@/lib/tauri/account';
 import { listTransactions } from '@/lib/tauri/transaction';
+import { listCategories } from '@/lib/tauri/category';
 
 export function HomePage() {
   const { data: accounts = [], isLoading: accountsLoading } = useQuery({
@@ -14,6 +15,11 @@ export function HomePage() {
   const { data: transactions = [], isLoading: transactionsLoading } = useQuery({
     queryKey: ['transactions'],
     queryFn: listTransactions,
+  });
+
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
+    queryKey: ['categories'],
+    queryFn: listCategories,
   });
 
   // Calculate total balance from all accounts
@@ -30,17 +36,20 @@ export function HomePage() {
     const transactionDate = new Date(transaction.transaction_date);
     if (transactionDate >= currentMonthStart) {
       transaction.entries.forEach((entry) => {
+        // Find category for this entry
+        const category = entry.category_id ? categories.find(c => c.id === entry.category_id) : null;
+        
         if (entry.debit_amount) {
           const amount = parseFloat(entry.debit_amount);
-          // Debit in expense accounts = expense
-          if (entry.chart_of_account_code.startsWith('5')) {
+          // If category is Expense type, it's an expense
+          if (category && category.category_type === 'Expense') {
             monthlyExpenses += amount;
           }
         }
         if (entry.credit_amount) {
           const amount = parseFloat(entry.credit_amount);
-          // Credit in income accounts = income
-          if (entry.chart_of_account_code.startsWith('4')) {
+          // If category is Income type, it's income
+          if (category && category.category_type === 'Income') {
             monthlyIncome += amount;
           }
         }
@@ -50,7 +59,7 @@ export function HomePage() {
 
   const monthlySavings = monthlyIncome - monthlyExpenses;
 
-  const isLoading = accountsLoading || transactionsLoading;
+  const isLoading = accountsLoading || transactionsLoading || categoriesLoading;
 
   return (
     <div className="space-y-6 p-6">

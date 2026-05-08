@@ -40,7 +40,6 @@ impl SqliteAccountRepository {
             }
         };
 
-        let chart_of_account_code: String = row.try_get("chart_of_account_code")?;
         let currency_code: String = row.try_get("currency_code")?;
 
         let balance_str: String = row.try_get("balance")?;
@@ -49,6 +48,29 @@ impl SqliteAccountRepository {
 
         let balance = Money::new(balance_amount, &currency_code)
             .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+
+        // Read new optional fields
+        let account_number: Option<String> = row.try_get("account_number")?;
+        let institution: Option<String> = row.try_get("institution")?;
+        
+        let credit_limit_str: Option<String> = row.try_get("credit_limit")?;
+        let credit_limit = credit_limit_str
+            .map(|s| {
+                let amount = Decimal::from_str(&s).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+                Money::new(amount, &currency_code).map_err(|e| sqlx::Error::Decode(Box::new(e)))
+            })
+            .transpose()?;
+        
+        let billing_day: Option<i64> = row.try_get("billing_day")?;
+        let billing_day = billing_day.map(|d| d as u8);
+        
+        let payment_due_day: Option<i64> = row.try_get("payment_due_day")?;
+        let payment_due_day = payment_due_day.map(|d| d as u8);
+        
+        let interest_rate_str: Option<String> = row.try_get("interest_rate")?;
+        let interest_rate = interest_rate_str
+            .map(|s| Decimal::from_str(&s).map_err(|e| sqlx::Error::Decode(Box::new(e))))
+            .transpose()?;
 
         let updated_at: String = row.try_get("updated_at")?;
         let deleted_at: Option<String> = row.try_get("deleted_at")?;
@@ -95,9 +117,14 @@ impl SqliteAccountRepository {
             id,
             name,
             account_type,
-            chart_of_account_code,
             currency_code,
             balance,
+            account_number,
+            institution,
+            credit_limit,
+            billing_day,
+            payment_due_day,
+            interest_rate,
             sync_metadata,
             pending_events: Vec::new(),
         })
@@ -109,19 +136,25 @@ impl AccountRepository for SqliteAccountRepository {
         sqlx::query(
             r#"
             INSERT INTO accounts (
-                id, name, account_type, chart_of_account_code, 
-                currency_code, balance, updated_at, deleted_at, 
-                device_id, synced_at
+                id, name, account_type, currency_code, balance,
+                account_number, institution, credit_limit, billing_day, 
+                payment_due_day, interest_rate,
+                updated_at, deleted_at, device_id, synced_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(account.id.to_string())
         .bind(&account.name)
         .bind(account.account_type.to_string())
-        .bind(&account.chart_of_account_code)
         .bind(&account.currency_code)
         .bind(account.balance.amount.to_string())
+        .bind(&account.account_number)
+        .bind(&account.institution)
+        .bind(account.credit_limit.as_ref().map(|m| m.amount.to_string()))
+        .bind(account.billing_day.map(|d| d as i64))
+        .bind(account.payment_due_day.map(|d| d as i64))
+        .bind(account.interest_rate.map(|r| r.to_string()))
         .bind(account.sync_metadata.updated_at.to_rfc3339())
         .bind(account.sync_metadata.deleted_at.map(|dt| dt.to_rfc3339()))
         .bind(account.sync_metadata.device_id.to_string())
@@ -136,8 +169,12 @@ impl AccountRepository for SqliteAccountRepository {
         let row = sqlx::query(
             r#"
             SELECT 
-                id, name, account_type, chart_of_account_code,
-                currency_code, CAST(balance AS TEXT) AS balance,
+                id, name, account_type, currency_code, 
+                CAST(balance AS TEXT) AS balance,
+                account_number, institution, 
+                CAST(credit_limit AS TEXT) AS credit_limit,
+                billing_day, payment_due_day, 
+                CAST(interest_rate AS TEXT) AS interest_rate,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE id = ? AND deleted_at IS NULL
@@ -154,8 +191,12 @@ impl AccountRepository for SqliteAccountRepository {
         let rows = sqlx::query(
             r#"
             SELECT 
-                id, name, account_type, chart_of_account_code,
-                currency_code, CAST(balance AS TEXT) AS balance,
+                id, name, account_type, currency_code, 
+                CAST(balance AS TEXT) AS balance,
+                account_number, institution, 
+                CAST(credit_limit AS TEXT) AS credit_limit,
+                billing_day, payment_due_day, 
+                CAST(interest_rate AS TEXT) AS interest_rate,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE deleted_at IS NULL
@@ -172,8 +213,12 @@ impl AccountRepository for SqliteAccountRepository {
         let rows = sqlx::query(
             r#"
             SELECT 
-                id, name, account_type, chart_of_account_code,
-                currency_code, CAST(balance AS TEXT) AS balance,
+                id, name, account_type, currency_code, 
+                CAST(balance AS TEXT) AS balance,
+                account_number, institution, 
+                CAST(credit_limit AS TEXT) AS credit_limit,
+                billing_day, payment_due_day, 
+                CAST(interest_rate AS TEXT) AS interest_rate,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE account_type = ? AND deleted_at IS NULL
@@ -215,13 +260,15 @@ impl AccountRepository for SqliteAccountRepository {
     }
 
     async fn soft_delete(&self, id: Uuid) -> sqlx::Result<bool> {
+        let now = Utc::now().to_rfc3339();
         let result = sqlx::query(
             r#"
             UPDATE accounts
-            SET deleted_at = CURRENT_TIMESTAMP
+            SET deleted_at = ?
             WHERE id = ? AND deleted_at IS NULL
             "#,
         )
+        .bind(&now)
         .bind(id.to_string())
         .execute(&self.pool)
         .await?;
@@ -233,8 +280,12 @@ impl AccountRepository for SqliteAccountRepository {
         let rows = sqlx::query(
             r#"
             SELECT 
-                id, name, account_type, chart_of_account_code,
-                currency_code, CAST(balance AS TEXT) AS balance,
+                id, name, account_type, currency_code, 
+                CAST(balance AS TEXT) AS balance,
+                account_number, institution, 
+                CAST(credit_limit AS TEXT) AS credit_limit,
+                billing_day, payment_due_day, 
+                CAST(interest_rate AS TEXT) AS interest_rate,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
             ORDER BY name ASC
@@ -250,8 +301,12 @@ impl AccountRepository for SqliteAccountRepository {
         let rows = sqlx::query(
             r#"
             SELECT 
-                id, name, account_type, chart_of_account_code,
-                currency_code, CAST(balance AS TEXT) AS balance,
+                id, name, account_type, currency_code, 
+                CAST(balance AS TEXT) AS balance,
+                account_number, institution, 
+                CAST(credit_limit AS TEXT) AS credit_limit,
+                billing_day, payment_due_day, 
+                CAST(interest_rate AS TEXT) AS interest_rate,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE updated_at > ? AND (synced_at IS NULL OR synced_at < updated_at)
@@ -286,10 +341,7 @@ impl AccountRepository for SqliteAccountRepository {
 mod tests {
     use super::*;
     use crate::domain::{
-        aggregates::{
-            chart_of_accounts::{BalanceDirection, ChartOfAccounts},
-            Account, AccountType, ChartOfAccountsType,
-        },
+        aggregates::{Account, AccountType},
         value_objects::Currency,
     };
     use rust_decimal::Decimal;
@@ -308,9 +360,14 @@ mod tests {
                 id TEXT PRIMARY KEY NOT NULL,
                 name VARCHAR(100) NOT NULL,
                 account_type VARCHAR(20) NOT NULL,
-                chart_of_account_code VARCHAR(10) NOT NULL,
                 currency_code VARCHAR(3) NOT NULL,
                 balance DECIMAL(20,2) NOT NULL,
+                account_number VARCHAR(50),
+                institution VARCHAR(100),
+                credit_limit DECIMAL(20,2),
+                billing_day INTEGER,
+                payment_due_day INTEGER,
+                interest_rate DECIMAL(10,6),
                 deleted_at TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 device_id TEXT,
@@ -326,33 +383,6 @@ mod tests {
     }
 
     fn create_test_account(name: &str, account_type: AccountType, balance: Decimal) -> Account {
-        let chart_code = match account_type {
-            AccountType::Cash => "1001",
-            AccountType::Bank => "1002",
-            AccountType::CreditCard => "2201",
-            AccountType::Loan => "2001",
-            _ => "1012",
-        };
-
-        let chart_type = match account_type {
-            AccountType::Cash | AccountType::Bank | AccountType::Investment => {
-                ChartOfAccountsType::Asset
-            }
-            AccountType::CreditCard | AccountType::Loan => ChartOfAccountsType::Liability,
-            _ => ChartOfAccountsType::Asset,
-        };
-
-        let chart = ChartOfAccounts::new(
-            format!("coa-{}", chart_code),
-            chart_code.to_string(),
-            format!("Chart {}", chart_code),
-            2,
-            chart_type,
-            Some("1000".to_string()),
-            BalanceDirection::Debit,
-        )
-        .unwrap();
-
         let currency = Currency::new("USD", "$", Decimal::ONE).unwrap();
         let money = Money::new(balance, "USD").unwrap();
         let sync_metadata = SyncMetadata::new(Uuid::new_v4());
@@ -361,7 +391,6 @@ mod tests {
             Uuid::new_v4(),
             name,
             account_type,
-            &chart,
             &currency,
             money,
             sync_metadata,

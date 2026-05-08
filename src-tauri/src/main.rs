@@ -13,6 +13,10 @@ use presentation::tauri_commands::{
         create_account, delete_account, get_account, get_account_balance, list_accounts,
         update_account, AppState,
     },
+    category_commands::{
+        create_category, delete_category, get_category, list_categories, list_categories_by_type,
+        update_category, CategoryAppState,
+    },
     currency_commands::{
         add_currency, create_default_state_from_pool as create_currency_default_state_from_pool, list_currencies,
         update_currency_rate, CurrencyCommandState,
@@ -69,6 +73,7 @@ async fn main() {
     
     // Create all states from the same pool
     let account_state = AppState::from_pool(pool.clone());
+    let category_state = CategoryAppState::from_pool(pool.clone());
     let debt_state: DebtAppState = create_debt_default_state_from_pool(pool.clone())
         .await
         .expect("failed to initialize debt command state");
@@ -100,6 +105,7 @@ async fn main() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .manage(account_state)
+        .manage(category_state)
         .manage(debt_state)
         .manage(currency_state)
         .manage(transaction_state)
@@ -110,6 +116,12 @@ async fn main() {
             get_account,
             list_accounts,
             get_account_balance,
+            create_category,
+            update_category,
+            delete_category,
+            get_category,
+            list_categories,
+            list_categories_by_type,
             list_currencies,
             add_currency,
             update_currency_rate,

@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo run *)",
+      "Bash(cargo build *)",
+      "Bash(cat C:\\\\\\\\Users\\\\\\\\BUHIYO~1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\c--Users-BuHiYo-001-Desktop-projects-fiance\\\\\\\\4d8bd391-360e-477b-a9bf-b8006e500747\\\\\\\\tasks\\\\\\\\b09roesmy.output)",
+      "Bash(cat C:\\\\\\\\Users\\\\\\\\BUHIYO~1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\c--Users-BuHiYo-001-Desktop-projects-fiance\\\\\\\\4d8bd391-360e-477b-a9bf-b8006e500747\\\\\\\\tasks\\\\\\\\bfyzxrzx1.output)",
+      "Bash(cat C:\\\\\\\\Users\\\\\\\\BUHIYO~1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\c--Users-BuHiYo-001-Desktop-projects-fiance\\\\\\\\4d8bd391-360e-477b-a9bf-b8006e500747\\\\\\\\tasks\\\\\\\\bdadhw2im.output)",
+      "Bash(netstat -ano)",
+      "Bash(awk '{print $5}')",
+      "Bash(cat C:\\\\\\\\Users\\\\\\\\BUHIYO~1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\c--Users-BuHiYo-001-Desktop-projects-fiance\\\\\\\\4d8bd391-360e-477b-a9bf-b8006e500747\\\\\\\\tasks\\\\\\\\bbv7cex99.output)",
+      "Bash(tee /tmp/app_output.log)",
+      "Bash(sleep 20 && head -100 /tmp/app_output.log 2>/dev/null | tail -50)",
+      "Read(//tmp/**)",
+      "Bash(taskkill //F //IM finance-app.exe)",
+      "Bash(awk '{print $NF}')",
+      "Bash(cargo clean *)",
+      "Bash(taskkill //F //IM cargo.exe)",
+      "Bash(curl -s http://127.0.0.1:3000/categories)",
+      "Bash(pkill -f \"target/debug/finance-app\")",
+      "Bash(pnpm tauri *)",
+      "Bash(tail -50 C:\\\\\\\\Users\\\\\\\\BUHIYO~1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\c--Users-BuHiYo-001-Desktop-projects-fiance\\\\\\\\4d8bd391-360e-477b-a9bf-b8006e500747\\\\\\\\tasks\\\\\\\\bl148qjoo.output)",
+      "Bash(wc -l C:\\\\\\\\Users\\\\\\\\BUHIYO~1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\c--Users-BuHiYo-001-Desktop-projects-fiance\\\\\\\\4d8bd391-360e-477b-a9bf-b8006e500747\\\\\\\\tasks\\\\\\\\bl148qjoo.output)",
+      "Bash(cargo test *)"
+    ]
+  }
+}

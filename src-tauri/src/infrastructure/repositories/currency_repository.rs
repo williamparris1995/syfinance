@@ -2,6 +2,7 @@ use crate::domain::{
     repositories::CurrencyRepository,
     value_objects::{Currency, CurrencyValidationError},
 };
+use chrono::Utc;
 use rust_decimal::Decimal;
 use sqlx::{sqlite::SqlitePool, Row};
 use std::str::FromStr;
@@ -120,14 +121,16 @@ impl CurrencyRepository for SqliteCurrencyRepository {
     }
 
     async fn update_rate(&self, code: &str, exchange_rate: Decimal) -> sqlx::Result<bool> {
+        let now = Utc::now().to_rfc3339();
         let result = sqlx::query(
             r#"
             UPDATE currencies
-            SET exchange_rate = ?, updated_at = CURRENT_TIMESTAMP
+            SET exchange_rate = ?, updated_at = ?
             WHERE code = ?
             "#,
         )
         .bind(exchange_rate.to_string())
+        .bind(&now)
         .bind(code)
         .execute(&self.pool)
         .await?;

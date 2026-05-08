@@ -4,6 +4,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { listAccounts } from '@/lib/tauri/account';
+import { listCategoriesByType, type CategoryType } from '@/lib/tauri/category';
 import type { CreateTransactionDto } from '@/lib/tauri/transaction';
 import { Button } from './ui/button';
 import {
@@ -30,6 +31,7 @@ const transactionEntrySchema = z
     debit_amount: z.string().nullable(),
     credit_amount: z.string().nullable(),
     memo: z.string().nullable(),
+    category_id: z.string().optional(),
   })
   .refine(
     (data) => {
@@ -63,14 +65,24 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
     queryFn: listAccounts,
   });
 
+  const { data: incomeCategories = [] } = useQuery({
+    queryKey: ['categories', 'Income'],
+    queryFn: () => listCategoriesByType('Income'),
+  });
+
+  const { data: expenseCategories = [] } = useQuery({
+    queryKey: ['categories', 'Expense'],
+    queryFn: () => listCategoriesByType('Expense'),
+  });
+
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionFormSchema),
     defaultValues: {
       transaction_date: new Date().toISOString().split('T')[0],
       description: '',
       entries: [
-        { account_id: '', chart_of_account_code: '', debit_amount: null, credit_amount: null, memo: null },
-        { account_id: '', chart_of_account_code: '', debit_amount: null, credit_amount: null, memo: null },
+        { account_id: '', chart_of_account_code: '', debit_amount: null, credit_amount: null, memo: null, category_id: '' },
+        { account_id: '', chart_of_account_code: '', debit_amount: null, credit_amount: null, memo: null, category_id: '' },
       ],
     },
   });
@@ -120,6 +132,7 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
         debit_amount: entry.debit_amount && entry.debit_amount !== '' ? entry.debit_amount : null,
         credit_amount: entry.credit_amount && entry.credit_amount !== '' ? entry.credit_amount : null,
         memo: entry.memo && entry.memo !== '' ? entry.memo : null,
+        category_id: entry.category_id && entry.category_id !== '' ? entry.category_id : undefined,
       })),
     });
   };
@@ -129,8 +142,30 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
     const account = accounts.find((a) => a.id === accountId);
     if (account) {
       form.setValue(`entries.${index}.account_id`, accountId);
-      form.setValue(`entries.${index}.chart_of_account_code`, account.chart_of_account_code);
+      // Set a default chart_of_account_code based on account type
+      const defaultCode = account.account_type === 'Cash' ? '1001' : 
+                         account.account_type === 'Bank' ? '1002' :
+                         account.account_type === 'CreditCard' ? '2202' :
+                         account.account_type === 'Investment' ? '1012' :
+                         account.account_type === 'Loan' ? '2001' : '1012';
+      form.setValue(`entries.${index}.chart_of_account_code`, defaultCode);
     }
+  };
+
+  const getCategoriesForEntry = (index: number) => {
+    const entry = watchEntries[index];
+    if (!entry) return [];
+    
+    // If debit amount is set, show expense categories
+    if (entry.debit_amount && entry.debit_amount !== '') {
+      return expenseCategories;
+    }
+    // If credit amount is set, show income categories
+    if (entry.credit_amount && entry.credit_amount !== '') {
+      return incomeCategories;
+    }
+    
+    return [];
   };
 
   return (
@@ -178,6 +213,7 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
                   debit_amount: null,
                   credit_amount: null,
                   memo: null,
+                  category_id: '',
                 })
               }
             >
@@ -220,7 +256,7 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
                       <SelectContent>
                         {accounts.map((account) => (
                           <SelectItem key={account.id} value={account.id}>
-                            {account.name} ({account.chart_of_account_code})
+                            {account.name} ({account.account_type})
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -298,6 +334,35 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
                         onChange={(e) => field.onChange(e.target.value === '' ? null : e.target.value)}
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name={`entries.${index}.category_id`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category (Optional)</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value || ''}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="">None</SelectItem>
+                        {getCategoriesForEntry(index).map((category) => (
+                          <SelectItem key={category.id} value={category.id}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { listAccounts, type AccountDto } from '../lib/tauri/account';
 import { listTransactions, type TransactionDto } from '../lib/tauri/transaction';
+import { listCategories, type CategoryDto } from '../lib/tauri/category';
 
 type DateRangePreset = 'month' | 'quarter' | 'year' | 'custom';
 
@@ -41,6 +42,11 @@ export function ReportsPage() {
   const { data: transactions = [], isLoading: isLoadingTransactions } = useQuery({
     queryKey: ['transactions'],
     queryFn: listTransactions,
+  });
+
+  const { data: categories = [], isLoading: isLoadingCategories } = useQuery({
+    queryKey: ['categories'],
+    queryFn: listCategories,
   });
 
   const dateRange = useMemo(() => {
@@ -119,18 +125,21 @@ export function ReportsPage() {
 
     filteredTransactions.forEach((transaction: TransactionDto) => {
       transaction.entries.forEach((entry) => {
-        const code = entry.chart_of_account_code;
+        // Find category for this entry
+        const category = entry.category_id ? categories.find(c => c.id === entry.category_id) : null;
+        
+        if (!category) return; // Skip entries without category
 
-        // Income accounts (4xxx)
-        if (code.startsWith('4')) {
+        // Income categories
+        if (category.category_type === 'Income') {
           const amount = entry.credit_amount ? parseFloat(entry.credit_amount) : 0;
-          incomeMap.set(code, (incomeMap.get(code) || 0) + amount);
+          incomeMap.set(category.name, (incomeMap.get(category.name) || 0) + amount);
         }
 
-        // Expense accounts (5xxx)
-        if (code.startsWith('5')) {
+        // Expense categories
+        if (category.category_type === 'Expense') {
           const amount = entry.debit_amount ? parseFloat(entry.debit_amount) : 0;
-          expenseMap.set(code, (expenseMap.get(code) || 0) + amount);
+          expenseMap.set(category.name, (expenseMap.get(category.name) || 0) + amount);
         }
       });
     });
@@ -143,7 +152,7 @@ export function ReportsPage() {
     const netIncome = totalIncome - totalExpenses;
 
     return { income, expenses, totalIncome, totalExpenses, netIncome };
-  }, [transactions, dateRange]);
+  }, [transactions, dateRange, categories]);
 
   const chartData = useMemo(() => {
     return [
@@ -205,7 +214,7 @@ export function ReportsPage() {
     downloadCSV(data, `income-statement-${dateRange.start}-to-${dateRange.end}.csv`);
   };
 
-  const isLoading = isLoadingAccounts || isLoadingTransactions;
+  const isLoading = isLoadingAccounts || isLoadingTransactions || isLoadingCategories;
 
   return (
     <div className="p-6">
