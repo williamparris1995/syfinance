@@ -1,0 +1,109 @@
+﻿cargo :     Blocking waiting for file lock on build directory
+所在位置 行:1 字符: 1
++ cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings 2>&1 ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (    Blocking wa...build directory:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    Checking finance-app v0.1.0 (C:\Users\BuHiYo-001\Desktop\projects\fiance\src-tauri)
+error: unused import: `CreateTransactionEntryDto`
+ --> src\application\services\transaction_service.rs:2:27
+  |
+2 |     CreateTransactionDto, CreateTransactionEntryDto, TransactionDto, TransactionEntryDto,
+  |                           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `-D unused-imports` implied by `-D warnings`
+  = help: to override `-D warnings` add `#[allow(unused_imports)]`
+
+error: unused imports: `DebtType`, `Debt`, and `Reminder`
+ --> src\domain\repositories\mod.rs:5:89
+  |
+5 |     Account, AccountType, Category, CategoryType, ChartOfAccounts, ChartOfAccountsType, Debt, DebtType, Reminder,
+  |                                                                                         ^^^^  ^^^^^^^^  ^^^^^^^^
+
+error: unused import: `std::str::FromStr`
+ --> src\infrastructure\repositories\account_repository_postgres.rs:9:5
+  |
+9 | use std::str::FromStr;
+  |     ^^^^^^^^^^^^^^^^^
+
+error: unused import: `std::str::FromStr`
+ --> src\infrastructure\repositories\transaction_repository_postgres.rs:9:5
+  |
+9 | use std::str::FromStr;
+  |     ^^^^^^^^^^^^^^^^^
+
+error: unused import: `interval`
+ --> src\infrastructure\sync\sync_scheduler.rs:6:19
+  |
+6 | use tokio::time::{interval, sleep};
+  |                   ^^^^^^^^
+
+error: unused import: `HeaderValue`
+ --> src\presentation\api\sync_routes.rs:3:12
+  |
+3 |     http::{HeaderValue, Method},
+  |            ^^^^^^^^^^^
+
+error: unused variable: `id`
+  --> src\infrastructure\repositories\transaction_repository.rs:56:17
+   |
+56 |             let id = Uuid::from_str(&id).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+   |                 ^^ help: if this is intentional, prefix it with an underscore: `_id`
+   |
+   = note: `-D unused-variables` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(unused_variables)]`
+
+error: unused variable: `id`
+  --> src\infrastructure\repositories\transaction_repository_postgres.rs:43:17
+   |
+43 |             let id: Uuid = row.try_get("id")?;
+   |                 ^^ help: if this is intentional, prefix it with an underscore: `_id`
+
+error: using `clone` on type `Option<DateTime<Utc>>` which implements the `Copy` trait
+   --> src\domain\aggregates\account.rs:179:35
+    |
+179 |         if let Some(deleted_at) = self.sync_metadata.deleted_at.clone() {
+    |                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try removing the `clone` call: `sel
+f.sync_metadata.deleted_at`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#clone_on_copy
+    = note: `-D clippy::clone-on-copy` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::clone_on_copy)]`
+
+error: this function has too many arguments (8/7)
+  --> src\domain\aggregates\category.rs:78:5
+   |
+78 | /     pub fn new(
+79 | |         id: String,
+80 | |         name: impl Into<String>,
+81 | |         icon: impl Into<String>,
+...  |
+86 | |         sync_metadata: SyncMetadata,
+87 | |     ) -> Result<Self, CategoryError> {
+   | |____________________________________^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#too_many_argume
+nts
+   = note: `-D clippy::too-many-arguments` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::too_many_arguments)]`
+
+error: using `clone` on type `Option<DateTime<Utc>>` which implements the `Copy` trait
+   --> src\domain\aggregates\category.rs:197:35
+    |
+197 |         if let Some(deleted_at) = self.sync_metadata.deleted_at.clone() {
+    |                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try removing the `clone` call: `sel
+f.sync_metadata.deleted_at`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#clone_on_copy
+
+error: method `from_str` can be confused for the standard trait method `std::str::FromStr::from_str`
+  --> src\domain\aggregates\chart_of_accounts.rs:27:5
+   |
+27 | /     pub fn from_str(s: &str) -> Result<Self, ChartOfAccountsError> {
+28 | |         match s.to_lowercase().as_str() {
+29 | |             "asset" => Ok(AccountType::Asset),
+30 | |             "liability" => Ok(AccountType::Liability),
+...  |
+36 | |     }
+   | |_____^

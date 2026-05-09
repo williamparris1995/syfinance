@@ -1,5 +1,5 @@
 use crate::application::dtos::{
-    CreateTransactionDto, CreateTransactionEntryDto, TransactionDto, TransactionEntryDto,
+    CreateTransactionDto, TransactionDto, TransactionEntryDto,
 };
 use crate::domain::{
     aggregates::Transaction,

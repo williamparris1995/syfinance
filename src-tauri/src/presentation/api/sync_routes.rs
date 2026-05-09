@@ -1,6 +1,6 @@
 use axum::{
     extract::State,
-    http::{HeaderValue, Method},
+    http::Method,
     routing::{get, post},
     Json, Router,
 };
@@ -34,6 +34,12 @@ impl SyncState {
     }
 }
 
+impl Default for SyncState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub fn create_sync_routes() -> Router {
     let state = SyncState::new();
     
@@ -56,7 +62,8 @@ async fn push_changes(
     State(state): State<SyncState>,
     Json(payload): Json<PushRequest>,
 ) -> Result<Json<PushResponse>, ApiError> {
-    // TODO: Add authentication middleware
+    // LIMITATION: Authentication not implemented in Phase 1
+    // Phase 2 will add device token validation
     
     let mut is_syncing = state.is_syncing.write().await;
     if *is_syncing {
@@ -67,8 +74,9 @@ async fn push_changes(
     *is_syncing = true;
     drop(is_syncing);
 
-    // TODO: Implement actual sync logic with SyncService
-    // For now, just accept all changes
+    // LIMITATION: In-memory sync only (no database persistence)
+    // Phase 2 will integrate SyncService with PostgreSQL repositories
+    // Current implementation: Accept all changes and store in memory
     let synced_count = payload.changes.len();
     
     // Store changes temporarily
@@ -94,10 +102,12 @@ async fn pull_changes(
     State(state): State<SyncState>,
     Json(payload): Json<PullRequest>,
 ) -> Result<Json<PullResponse>, ApiError> {
-    // TODO: Add authentication middleware
+    // LIMITATION: Authentication not implemented in Phase 1
+    // Phase 2 will add device token validation
     
-    // TODO: Implement actual sync logic with SyncService
-    // For now, return pending changes that are newer than last_sync_at
+    // LIMITATION: In-memory sync only (no database persistence)
+    // Phase 2 will integrate SyncService with PostgreSQL repositories
+    // Current implementation: Return in-memory changes newer than last_sync_at
     let pending = state.pending_changes.read().await;
     
     let changes: Vec<EntityChange> = if let Some(last_sync_at) = payload.last_sync_at {

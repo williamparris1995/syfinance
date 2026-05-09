@@ -10,12 +10,10 @@ async function getStore(): Promise<Store> {
   if (!store) {
     try {
       store = await Store.load(STORE_FILE);
-      console.log('Store loaded successfully');
     } catch (error) {
-      console.error('Failed to load store:', error);
-      // Create new store if loading fails
-      store = new Store(STORE_FILE);
-      console.log('Created new store');
+      // If Store.load fails, we cannot create a new Store
+      // because the constructor is private. Re-throw the error.
+      throw new Error(`Failed to load store: ${error}`);
     }
   }
   return store;
@@ -51,11 +49,8 @@ export async function getDeviceId(): Promise<string | null> {
 export async function isRegistered(): Promise<boolean> {
   try {
     const accountId = await getAccountId();
-    const result = accountId !== null;
-    console.log('isRegistered:', result, 'accountId:', accountId);
-    return result;
+    return accountId !== null;
   } catch (error) {
-    console.error('isRegistered error:', error);
     return false;
   }
 }

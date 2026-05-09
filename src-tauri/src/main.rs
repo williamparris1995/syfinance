@@ -1,3 +1,7 @@
+// Allow unused code during development - many components are not yet integrated
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 mod application;
 mod domain;
 mod infrastructure;

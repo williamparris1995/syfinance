@@ -6,7 +6,6 @@ use crate::domain::{
 use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use sqlx::{postgres::PgPool, Row};
-use std::str::FromStr;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -40,7 +39,7 @@ impl PostgresTransactionRepository {
 
         let mut entries = Vec::new();
         for row in rows {
-            let id: Uuid = row.try_get("id")?;
+            let _id: Uuid = row.try_get("id")?;
             let account_id: Uuid = row.try_get("account_id")?;
             let chart_of_account_code: String = row.try_get("chart_of_account_code")?;
             let debit_amount: Option<Decimal> = row.try_get("debit_amount")?;

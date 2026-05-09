@@ -75,6 +75,7 @@ pub struct Category {
 }
 
 impl Category {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: String,
         name: impl Into<String>,
@@ -194,7 +195,7 @@ impl Category {
         self.ensure_not_deleted()?;
         self.sync_metadata.mark_deleted();
 
-        if let Some(deleted_at) = self.sync_metadata.deleted_at.clone() {
+        if let Some(deleted_at) = self.sync_metadata.deleted_at {
             self.pending_events.push(CategoryEvent::CategoryDeleted {
                 category_id: self.id.clone(),
                 deleted_at,

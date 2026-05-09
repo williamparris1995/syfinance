@@ -5,8 +5,8 @@ pub mod debt;
 pub mod reminder;
 pub mod transaction;
 
-pub use account::{Account, AccountError, AccountEvent, AccountType};
-pub use category::{Category, CategoryError, CategoryEvent, CategoryType};
+pub use account::{Account, AccountError, AccountType};
+pub use category::{Category, CategoryError, CategoryType};
 pub use chart_of_accounts::{
     AccountType as ChartOfAccountsType, BalanceDirection, ChartOfAccounts, ChartOfAccountsError,
 };

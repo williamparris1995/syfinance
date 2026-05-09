@@ -8,6 +8,4 @@ pub use category_dto::{CategoryDto, CreateCategoryDto, UpdateCategoryDto};
 pub use debt_dto::{
     CreateDebtDto, DebtDto, PaymentScheduleDto, RecordPaymentDto, UpcomingPaymentDto,
 };
-pub use transaction_dto::{
-    CreateTransactionDto, CreateTransactionEntryDto, TransactionDto, TransactionEntryDto,
-};
+pub use transaction_dto::{CreateTransactionDto, TransactionDto, TransactionEntryDto};

@@ -6,7 +6,6 @@ use crate::domain::{
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use sqlx::{postgres::PgPool, Row};
-use std::str::FromStr;
 use uuid::Uuid;
 
 #[derive(Clone)]

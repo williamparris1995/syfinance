@@ -24,6 +24,7 @@ export interface AccountDto {
   id: string;
   name: string;
   account_type: AccountType;
+  chart_of_account_code: string;
   currency_code: string;
   balance: number;
   account_number?: string;

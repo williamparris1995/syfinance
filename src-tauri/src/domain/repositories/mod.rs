@@ -2,7 +2,7 @@ mod debt_repository;
 mod reminder_repository;
 
 use crate::domain::aggregates::{
-    Account, AccountType, Category, CategoryType, ChartOfAccounts, ChartOfAccountsType, Debt, DebtType, Reminder,
+    Account, AccountType, Category, CategoryType, ChartOfAccounts, ChartOfAccountsType,
     Transaction,
 };
 use crate::domain::value_objects::Currency;

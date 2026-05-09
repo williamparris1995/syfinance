@@ -38,6 +38,12 @@ impl SyncCommandState {
     }
 }
 
+impl Default for SyncCommandState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[tauri::command]
 pub async fn sync_to_server(
     state: tauri::State<'_, SyncCommandState>,

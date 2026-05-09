@@ -1,12 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
-import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp, Receipt, CreditCard, BarChart3, Plus } from 'lucide-react';
+import { useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { QuickActions } from '@/components/QuickActions';
+import { EmptyState } from '@/components/EmptyState';
 import { listAccounts } from '@/lib/tauri/account';
 import { listTransactions } from '@/lib/tauri/transaction';
 import { listCategories } from '@/lib/tauri/category';
 
 export function HomePage() {
+  const navigate = useNavigate();
+  
   const { data: accounts = [], isLoading: accountsLoading } = useQuery({
     queryKey: ['accounts'],
     queryFn: listAccounts,
@@ -135,15 +140,55 @@ export function HomePage() {
             </Card>
           </div>
 
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <QuickActions
+                actions={[
+                  {
+                    id: 'new-transaction',
+                    label: 'Record Transaction',
+                    icon: Receipt,
+                    onClick: () => navigate({ to: '/transactions' }),
+                  },
+                  {
+                    id: 'new-account',
+                    label: 'Create Account',
+                    icon: Plus,
+                    onClick: () => navigate({ to: '/accounts' }),
+                  },
+                  {
+                    id: 'view-reports',
+                    label: 'View Reports',
+                    icon: BarChart3,
+                    onClick: () => navigate({ to: '/reports' }),
+                  },
+                  {
+                    id: 'manage-debts',
+                    label: 'Manage Debts',
+                    icon: CreditCard,
+                    onClick: () => navigate({ to: '/debts' }),
+                  },
+                ]}
+                layout="grid"
+              />
+            </CardContent>
+          </Card>
+
+          {/* Empty State for New Users */}
           {accounts.length === 0 && (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <p className="text-neutral-500 mb-4">No accounts yet</p>
-                <Button onClick={() => window.location.href = '/accounts'}>
-                  Create your first account
-                </Button>
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={Wallet}
+              title="No accounts yet"
+              description="Create your first account to start tracking your finances"
+              action={{
+                label: 'Create Account',
+                onClick: () => navigate({ to: '/accounts' }),
+              }}
+            />
           )}
         </>
       )}

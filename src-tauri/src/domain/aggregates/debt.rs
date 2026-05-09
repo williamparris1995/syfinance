@@ -83,6 +83,7 @@ pub struct Debt {
 }
 
 impl Debt {
+    #[allow(clippy::too_many_arguments)]
     pub fn create(
         id: Uuid,
         debt_type: DebtType,

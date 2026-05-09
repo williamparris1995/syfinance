@@ -52,8 +52,7 @@ impl SqliteTransactionRepository {
 
         let mut entries = Vec::new();
         for row in rows {
-            let id: String = row.try_get("id")?;
-            let id = Uuid::from_str(&id).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+            let _id: String = row.try_get("id")?;
 
             let account_id: String = row.try_get("account_id")?;
             let account_id =

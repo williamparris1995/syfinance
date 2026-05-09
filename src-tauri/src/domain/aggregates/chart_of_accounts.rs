@@ -24,6 +24,7 @@ impl fmt::Display for AccountType {
 }
 
 impl AccountType {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, ChartOfAccountsError> {
         match s.to_lowercase().as_str() {
             "asset" => Ok(AccountType::Asset),
@@ -52,6 +53,7 @@ impl fmt::Display for BalanceDirection {
 }
 
 impl BalanceDirection {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, ChartOfAccountsError> {
         match s.to_lowercase().as_str() {
             "debit" => Ok(BalanceDirection::Debit),

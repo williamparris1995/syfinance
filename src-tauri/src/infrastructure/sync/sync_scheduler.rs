@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::RwLock;
-use tokio::time::{interval, sleep};
+use tokio::time::sleep;
 
 const DEFAULT_SYNC_INTERVAL_MINUTES: u64 = 15;
 const MIN_SYNC_INTERVAL_MINUTES: u64 = 5;

@@ -176,7 +176,7 @@ impl Account {
         self.ensure_not_deleted()?;
         self.sync_metadata.mark_deleted();
 
-        if let Some(deleted_at) = self.sync_metadata.deleted_at.clone() {
+        if let Some(deleted_at) = self.sync_metadata.deleted_at {
             self.pending_events.push(AccountEvent::AccountDeleted {
                 account_id: self.id,
                 deleted_at,
