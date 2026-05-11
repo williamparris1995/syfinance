@@ -1,65 +1,113 @@
-import { Link, useLocation } from '@tanstack/react-router';
-import { Home, Receipt, Wallet, CreditCard, BarChart3, Settings } from 'lucide-react';
+import { 
+  Home, 
+  Receipt, 
+  Wallet, 
+  CreditCard, 
+  BarChart3, 
+  Settings, 
+  HelpCircle 
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { SidebarHeader } from './SidebarHeader';
+import { SidebarMenuItem } from './SidebarMenuItem';
+import { SidebarMenuGroup } from './SidebarMenuGroup';
+import { SidebarUserMenu } from './SidebarUserMenu';
 import { cn } from '@/lib/utils';
 
 interface SidebarProps {
   onNavigate?: () => void;
+  collapsed?: boolean;
 }
 
-export function Sidebar({ onNavigate }: SidebarProps) {
-  const location = useLocation();
+export function Sidebar({ onNavigate, collapsed }: SidebarProps) {
   const { t } = useTranslation();
 
-  const navItems = [
-    { to: '/', label: t('nav.dashboard'), icon: Home },
-    { to: '/transactions', label: t('nav.transactions'), icon: Receipt },
-    { to: '/accounts', label: t('nav.accounts'), icon: Wallet },
-    { to: '/debts', label: t('nav.debts'), icon: CreditCard },
-    { to: '/reports', label: t('nav.reports'), icon: BarChart3 },
-    { to: '/settings', label: t('nav.settings'), icon: Settings },
-  ];
-
   return (
-    <aside className="flex h-full w-64 flex-col border-r bg-card">
-      {/* App branding */}
-      <div className="flex h-16 items-center border-b px-6">
-        <h2 className="text-lg font-semibold">{t('common.appName')}</h2>
-      </div>
+    <aside className={cn(
+      'flex h-full flex-col border-r bg-card transition-all duration-300',
+      collapsed ? 'w-16' : 'w-64'
+    )}>
+      {/* Header */}
+      <SidebarHeader 
+        organizationName={t('common.appName')}
+        subtitle="Finance Management"
+        collapsed={collapsed}
+      />
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-4">
-        <div className="space-y-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = location.pathname === item.to;
-            
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                onClick={onNavigate}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                )}
-              >
-                <Icon className="h-5 w-5" />
-                {item.label}
-              </Link>
-            );
-          })}
+      <nav className={cn(
+        'flex-1 overflow-y-auto p-4',
+        collapsed && 'p-2'
+      )}>
+        <div className="space-y-6">
+          {/* General Section */}
+          {!collapsed && <SidebarMenuGroup label="General" />}
+          <div className="space-y-0.5">
+            <SidebarMenuItem
+              to="/"
+              label={t('nav.dashboard')}
+              icon={Home}
+              onClick={onNavigate}
+              collapsed={collapsed}
+            />
+            <SidebarMenuItem
+              to="/transactions"
+              label={t('nav.transactions')}
+              icon={Receipt}
+              onClick={onNavigate}
+              collapsed={collapsed}
+            />
+            <SidebarMenuItem
+              to="/accounts"
+              label={t('nav.accounts')}
+              icon={Wallet}
+              onClick={onNavigate}
+              collapsed={collapsed}
+            />
+            <SidebarMenuItem
+              to="/debts"
+              label={t('nav.debts')}
+              icon={CreditCard}
+              onClick={onNavigate}
+              collapsed={collapsed}
+            />
+            <SidebarMenuItem
+              to="/reports"
+              label={t('nav.reports')}
+              icon={BarChart3}
+              onClick={onNavigate}
+              collapsed={collapsed}
+            />
+          </div>
+
+          {/* Other Section */}
+          {!collapsed && <SidebarMenuGroup label="Other" />}
+          <div className="space-y-0.5">
+            <SidebarMenuItem
+              to="/settings"
+              label={t('nav.settings')}
+              icon={Settings}
+              onClick={onNavigate}
+              collapsed={collapsed}
+            />
+            <SidebarMenuItem
+              to="/help"
+              label={t('sidebar.helpCenter')}
+              icon={HelpCircle}
+              onClick={onNavigate}
+              collapsed={collapsed}
+            />
+          </div>
         </div>
       </nav>
 
-      {/* Bottom section (optional - for user info, etc.) */}
-      <div className="border-t p-4">
-        <div className="text-xs text-muted-foreground">
-          {/* Can add user info or app version here */}
-        </div>
-      </div>
+      {/* User Menu */}
+      <SidebarUserMenu
+        userName="User"
+        userEmail="user@example.com"
+        userInitials="U"
+        collapsed={collapsed}
+      />
     </aside>
   );
 }

@@ -277,12 +277,27 @@
     "netIncome": "Net Income (Income - Expenses)",
     "incomeVsExpenses": "Income vs Expenses"
   },
+  "sidebar": {
+    "noOrganizations": "No organizations",
+    "addOrganization": "Add organization",
+    "helpCenter": "Help Center"
+  },
+  "header": {
+    "search": "Search",
+    "profile": "Profile",
+    "billing": "Billing",
+    "settings": "Settings",
+    "newTeam": "New Team",
+    "signOut": "Sign out",
+    "upgradeToPro": "Upgrade to Pro"
+  },
   "settings": {
     "title": "Settings",
     "language": "Language",
     "languageDesc": "Choose your preferred language",
     "english": "English",
     "chinese": "中文",
+    "notifications": "Notifications",
     "accountDevice": "Account & Device",
     "accountDeviceDesc": "Manage your account and link additional devices",
     "yourAccountId": "Your Account ID",

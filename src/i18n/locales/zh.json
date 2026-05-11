@@ -221,12 +221,27 @@
     "totalExpenses": "总支出",
     "netIncome": "净收入 (收入 - 支出)"
   },
+  "sidebar": {
+    "noOrganizations": "暂无组织",
+    "addOrganization": "添加组织",
+    "helpCenter": "帮助中心"
+  },
+  "header": {
+    "search": "搜索",
+    "profile": "个人资料",
+    "billing": "账单",
+    "settings": "设置",
+    "newTeam": "新建团队",
+    "signOut": "退出登录",
+    "upgradeToPro": "升级到专业版"
+  },
   "settings": {
     "title": "设置",
     "language": "语言",
     "languageDesc": "选择您的首选语言",
     "english": "English",
     "chinese": "中文",
+    "notifications": "通知",
     "accountDevice": "账户与设备",
     "accountDeviceDesc": "管理您的账户并链接其他设备",
     "yourAccountId": "您的账户ID",

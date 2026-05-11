@@ -1,7 +1,6 @@
 import { ReactNode, useState } from 'react';
-import { Menu, X } from 'lucide-react';
-import { Button } from '../ui/button';
 import { Sidebar } from './Sidebar';
+import { Header } from './Header';
 import { cn } from '@/lib/utils';
 
 interface AppLayoutProps {
@@ -9,18 +8,24 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // Mobile: show/hide
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // Desktop: expand/collapse
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* Sidebar - Desktop: always visible, Mobile: overlay */}
+      {/* Sidebar - Desktop: always visible (can be collapsed), Mobile: overlay */}
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed inset-y-0 left-0 z-50 transform transition-all duration-300 ease-in-out lg:relative lg:translate-x-0",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full",
+          sidebarCollapsed ? "lg:w-16" : "lg:w-64",
+          "w-64" // Mobile always full width when open
         )}
       >
-        <Sidebar onNavigate={() => setSidebarOpen(false)} />
+        <Sidebar 
+          collapsed={sidebarCollapsed}
+          onNavigate={() => setSidebarOpen(false)} 
+        />
       </div>
 
       {/* Overlay for mobile */}
@@ -33,38 +38,23 @@ export function AppLayout({ children }: AppLayoutProps) {
 
       {/* Main content area */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Top bar */}
-        <header className="flex h-16 items-center gap-4 border-b bg-card px-6">
-          {/* Sidebar toggle button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="lg:hidden"
-          >
-            {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
-
-          {/* Desktop sidebar toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="hidden lg:flex"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-
-          {/* Top bar content - can be customized per page */}
-          <div className="flex flex-1 items-center justify-between">
-            <div className="flex items-center gap-4">
-              {/* Page-specific actions can go here */}
-            </div>
-            <div className="flex items-center gap-4">
-              {/* Right side actions (search, notifications, user menu, etc.) */}
-            </div>
-          </div>
-        </header>
+        {/* Header with configurable components */}
+        <Header
+          onSidebarToggle={() => {
+            // Mobile: toggle open/close
+            // Desktop: toggle collapse/expand
+            if (window.innerWidth < 1024) {
+              setSidebarOpen(!sidebarOpen);
+            } else {
+              setSidebarCollapsed(!sidebarCollapsed);
+            }
+          }}
+          user={{
+            name: 'User',
+            email: 'user@example.com',
+            initials: 'U',
+          }}
+        />
 
         {/* Content area */}
         <main className="flex-1 overflow-y-auto">
