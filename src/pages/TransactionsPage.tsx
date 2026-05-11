@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { TransactionForm } from '../components/TransactionForm';
 import { Button } from '../components/ui/button';
 import {
@@ -34,6 +35,7 @@ export function TransactionsPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   const { data: accounts = [] } = useQuery({
     queryKey: ['accounts'],
@@ -56,7 +58,7 @@ export function TransactionsPage() {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       setIsCreateDialogOpen(false);
-      toast.success('Transaction recorded successfully');
+      toast.success(t('transactions.recorded'));
     },
     onError: (error) => {
       toast.error(getUserFriendlyError(error));
@@ -95,14 +97,14 @@ export function TransactionsPage() {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Transactions</h1>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>Record Transaction</Button>
+        <h1 className="text-3xl font-bold">{t('transactions.title')}</h1>
+        <Button onClick={() => setIsCreateDialogOpen(true)}>{t('transactions.recordTransaction')}</Button>
       </div>
 
       <div className="flex gap-4 mb-6">
         <div className="flex items-center gap-2">
           <label htmlFor="start-date" className="text-sm font-medium">
-            From:
+            {t('transactions.from')}
           </label>
           <Input
             id="start-date"
@@ -114,7 +116,7 @@ export function TransactionsPage() {
         </div>
         <div className="flex items-center gap-2">
           <label htmlFor="end-date" className="text-sm font-medium">
-            To:
+            {t('transactions.to')}
           </label>
           <Input
             id="end-date"
@@ -126,31 +128,31 @@ export function TransactionsPage() {
         </div>
         {(startDate || endDate) && (
           <Button variant="outline" onClick={handleClearFilters}>
-            Clear Filters
+            {t('transactions.clearFilters')}
           </Button>
         )}
       </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="text-neutral-500">Loading transactions...</div>
+          <div className="text-neutral-500">{t('transactions.loadingTransactions')}</div>
         </div>
       ) : transactions.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <p className="text-neutral-500 mb-4">
-            {startDate || endDate ? 'No transactions found for the selected date range' : 'No transactions yet'}
+            {startDate || endDate ? t('transactions.noTransactionsInRange') : t('transactions.noTransactions')}
           </p>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>Record your first transaction</Button>
+          <Button onClick={() => setIsCreateDialogOpen(true)}>{t('transactions.recordFirst')}</Button>
         </div>
       ) : (
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Accounts</TableHead>
+                <TableHead>{t('common.date')}</TableHead>
+                <TableHead>{t('common.description')}</TableHead>
+                <TableHead className="text-right">{t('common.amount')}</TableHead>
+                <TableHead>{t('transactions.accounts')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -183,9 +185,9 @@ export function TransactionsPage() {
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Record Transaction</DialogTitle>
+            <DialogTitle>{t('transactions.dialogTitle')}</DialogTitle>
             <DialogDescription>
-              Create a new transaction with balanced debits and credits.
+              {t('transactions.dialogDesc')}
             </DialogDescription>
           </DialogHeader>
           <TransactionForm

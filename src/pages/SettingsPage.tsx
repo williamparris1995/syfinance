@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Copy, CheckCircle2, Link as LinkIcon } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { listen } from '@tauri-apps/api/event';
 import { CurrencyForm } from '../components/CurrencyForm';
@@ -53,23 +54,6 @@ import {
 import { getAccountId, linkDevice } from '../lib/auth';
 import { updateSyncSettings, getSyncSettings, type SyncSettings } from '../lib/tauri/sync';
 
-const updateRateSchema = z.object({
-  exchange_rate: z
-    .string()
-    .min(1, 'Exchange rate is required')
-    .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
-      message: 'Exchange rate must be greater than 0',
-    }),
-});
-
-type UpdateRateFormValues = z.infer<typeof updateRateSchema>;
-
-const linkDeviceSchema = z.object({
-  account_id: z.string().min(1, 'Account ID is required'),
-});
-
-type LinkDeviceFormValues = z.infer<typeof linkDeviceSchema>;
-
 interface SyncEvent {
   status: 'started' | 'completed' | 'failed';
   message: string;
@@ -77,6 +61,25 @@ interface SyncEvent {
 }
 
 export function SettingsPage() {
+  const { t, i18n } = useTranslation();
+  
+  const updateRateSchema = z.object({
+    exchange_rate: z
+      .string()
+      .min(1, t('settings.exchangeRateRequired'))
+      .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+        message: t('settings.exchangeRatePositive'),
+      }),
+  });
+
+  type UpdateRateFormValues = z.infer<typeof updateRateSchema>;
+
+  const linkDeviceSchema = z.object({
+    account_id: z.string().min(1, t('settings.accountIdRequired')),
+  });
+
+  type LinkDeviceFormValues = z.infer<typeof linkDeviceSchema>;
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [updateRateDialogData, setUpdateRateDialogData] = useState<CurrencyDto | null>(null);
   const [isLinkDeviceDialogOpen, setIsLinkDeviceDialogOpen] = useState(false);
@@ -209,24 +212,43 @@ export function SettingsPage() {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Settings</h1>
+        <h1 className="text-3xl font-bold">{t('settings.title')}</h1>
       </div>
+
+      {/* Language Settings */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>{t('settings.language')}</CardTitle>
+          <CardDescription>{t('settings.languageDesc')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Select value={i18n.language || 'en'} onValueChange={(value) => value && i18n.changeLanguage(value)}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="en">{t('settings.english')}</SelectItem>
+              <SelectItem value="zh">{t('settings.chinese')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
 
       {/* Account & Device Section */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Account & Device</CardTitle>
+          <CardTitle>{t('settings.accountDevice')}</CardTitle>
           <CardDescription>
-            Manage your account and link additional devices
+            {t('settings.accountDeviceDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="current-account-id">Your Account ID</Label>
+            <Label htmlFor="current-account-id">{t('settings.yourAccountId')}</Label>
             <div className="flex gap-2">
               <Input
                 id="current-account-id"
-                value={accountId || 'Loading...'}
+                value={accountId || t('settings.loading')}
                 readOnly
                 className="font-mono text-sm"
               />
@@ -245,7 +267,7 @@ export function SettingsPage() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Use this ID to link other devices to your account
+              {t('settings.useIdToLink')}
             </p>
           </div>
 
@@ -255,7 +277,7 @@ export function SettingsPage() {
             className="w-full gap-2"
           >
             <LinkIcon className="h-4 w-4" />
-            Link Another Device
+            {t('settings.linkAnotherDevice')}
           </Button>
         </CardContent>
       </Card>
@@ -263,17 +285,17 @@ export function SettingsPage() {
       {/* Sync Settings Section */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Automatic Sync</CardTitle>
+          <CardTitle>{t('settings.autoSync')}</CardTitle>
           <CardDescription>
-            Configure automatic background synchronization
+            {t('settings.autoSyncDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label htmlFor="sync-enabled">Enable Auto-Sync</Label>
+              <Label htmlFor="sync-enabled">{t('settings.enableAutoSync')}</Label>
               <p className="text-xs text-muted-foreground">
-                Automatically sync data in the background
+                {t('settings.autoSyncData')}
               </p>
             </div>
             <Switch
@@ -284,42 +306,42 @@ export function SettingsPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="sync-interval">Sync Interval</Label>
+            <Label htmlFor="sync-interval">{t('settings.syncInterval')}</Label>
             <Select
               value={syncInterval}
               onValueChange={handleSyncIntervalChange}
               disabled={!syncEnabled}
             >
               <SelectTrigger id="sync-interval">
-                <SelectValue placeholder="Select interval" />
+                <SelectValue placeholder={t('settings.selectInterval')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="5">Every 5 minutes</SelectItem>
-                <SelectItem value="15">Every 15 minutes</SelectItem>
-                <SelectItem value="30">Every 30 minutes</SelectItem>
-                <SelectItem value="60">Every hour</SelectItem>
+                <SelectItem value="5">{t('settings.every5Minutes')}</SelectItem>
+                <SelectItem value="15">{t('settings.every15Minutes')}</SelectItem>
+                <SelectItem value="30">{t('settings.every30Minutes')}</SelectItem>
+                <SelectItem value="60">{t('settings.everyHour')}</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              How often to sync data automatically
+              {t('settings.howOftenSync')}
             </p>
           </div>
 
           {lastSyncEvent && (
             <div className="pt-2 border-t">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Last Sync:</span>
+                <span className="text-sm font-medium">{t('settings.lastSync')}</span>
                 {lastSyncEvent.status === 'started' && (
-                  <Badge variant="secondary">Syncing...</Badge>
+                  <Badge variant="secondary">{t('settings.syncing')}</Badge>
                 )}
                 {lastSyncEvent.status === 'completed' && (
                   <Badge variant="outline" className="gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-green-500" />
-                    Success
+                    {t('settings.success')}
                   </Badge>
                 )}
                 {lastSyncEvent.status === 'failed' && (
-                  <Badge variant="destructive">Failed</Badge>
+                  <Badge variant="destructive">{t('settings.failed')}</Badge>
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -337,29 +359,29 @@ export function SettingsPage() {
 
       {/* Currency Settings Section */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold">Currency Settings</h2>
-        <Button onClick={() => setIsAddDialogOpen(true)}>Add Currency</Button>
+        <h2 className="text-2xl font-bold">{t('settings.currencySettings')}</h2>
+        <Button onClick={() => setIsAddDialogOpen(true)}>{t('settings.addCurrency')}</Button>
       </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="text-neutral-500">Loading currencies...</div>
+          <div className="text-neutral-500">{t('settings.loadingCurrencies')}</div>
         </div>
       ) : currencies.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="text-neutral-500 mb-4">No currencies configured</p>
-          <Button onClick={() => setIsAddDialogOpen(true)}>Add your first currency</Button>
+          <p className="text-neutral-500 mb-4">{t('settings.noCurrencies')}</p>
+          <Button onClick={() => setIsAddDialogOpen(true)}>{t('settings.addFirstCurrency')}</Button>
         </div>
       ) : (
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Code</TableHead>
-                <TableHead>Symbol</TableHead>
-                <TableHead className="text-right">Exchange Rate (to CNY)</TableHead>
-                <TableHead>Last Updated</TableHead>
-                <TableHead className="w-[150px]">Actions</TableHead>
+                <TableHead>{t('settings.code')}</TableHead>
+                <TableHead>{t('settings.symbol')}</TableHead>
+                <TableHead className="text-right">{t('settings.exchangeRate')}</TableHead>
+                <TableHead>{t('settings.lastUpdated')}</TableHead>
+                <TableHead className="w-[150px]">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -369,7 +391,7 @@ export function SettingsPage() {
                     <div className="flex items-center gap-2">
                       {currency.code}
                       {currency.code === 'CNY' && (
-                        <Badge variant="secondary">Base Currency</Badge>
+                        <Badge variant="secondary">{t('settings.baseCurrency')}</Badge>
                       )}
                     </div>
                   </TableCell>
@@ -400,7 +422,7 @@ export function SettingsPage() {
                         size="sm"
                         onClick={() => openUpdateRateDialog(currency)}
                       >
-                        Update Rate
+                        {t('settings.updateRate')}
                       </Button>
                     )}
                   </TableCell>
@@ -413,22 +435,22 @@ export function SettingsPage() {
 
       {addMutation.isError && (
         <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          Error adding currency: {(addMutation.error as Error).message}
+          {t('settings.errorAddingCurrency')}: {(addMutation.error as Error).message}
         </div>
       )}
 
       {updateRateMutation.isError && (
         <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          Error updating exchange rate: {(updateRateMutation.error as Error).message}
+          {t('settings.errorUpdatingRate')}: {(updateRateMutation.error as Error).message}
         </div>
       )}
 
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Currency</DialogTitle>
+            <DialogTitle>{t('settings.addCurrency')}</DialogTitle>
             <DialogDescription>
-              Add a new currency with its exchange rate relative to CNY.
+              {t('settings.addCurrencyDesc')}
             </DialogDescription>
           </DialogHeader>
           <CurrencyForm
@@ -445,9 +467,9 @@ export function SettingsPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Update Exchange Rate</DialogTitle>
+            <DialogTitle>{t('settings.updateExchangeRate')}</DialogTitle>
             <DialogDescription>
-              Update the exchange rate for {updateRateDialogData?.code} relative to CNY.
+              {t('settings.updateRateDesc', { code: updateRateDialogData?.code })}
             </DialogDescription>
           </DialogHeader>
           <Form {...updateRateForm}>
@@ -460,9 +482,9 @@ export function SettingsPage() {
                 name="exchange_rate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Exchange Rate</FormLabel>
+                    <FormLabel>{t('common.amount')}</FormLabel>
                     <FormControl>
-                      <Input type="text" placeholder="e.g., 0.14" {...field} />
+                      <Input type="text" placeholder={t('settings.exchangeRatePlaceholder')} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -476,10 +498,10 @@ export function SettingsPage() {
                   onClick={() => setUpdateRateDialogData(null)}
                   disabled={updateRateMutation.isPending}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <Button type="submit" disabled={updateRateMutation.isPending}>
-                  {updateRateMutation.isPending ? 'Updating...' : 'Update Rate'}
+                  {updateRateMutation.isPending ? t('settings.updating') : t('settings.updateRateButton')}
                 </Button>
               </div>
             </form>
@@ -493,9 +515,9 @@ export function SettingsPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Link Another Device</DialogTitle>
+            <DialogTitle>{t('settings.linkDeviceTitle')}</DialogTitle>
             <DialogDescription>
-              Enter the Account ID from another device to link them together
+              {t('settings.linkDeviceDesc')}
             </DialogDescription>
           </DialogHeader>
           <Form {...linkDeviceForm}>
@@ -508,11 +530,11 @@ export function SettingsPage() {
                 name="account_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Account ID</FormLabel>
+                    <FormLabel>{t('settings.accountId')}</FormLabel>
                     <FormControl>
                       <Input
                         type="text"
-                        placeholder="Enter Account ID"
+                        placeholder={t('settings.accountIdPlaceholder')}
                         className="font-mono text-sm"
                         {...field}
                       />
@@ -524,7 +546,7 @@ export function SettingsPage() {
 
               {linkDeviceMutation.isError && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
-                  Error linking device: {(linkDeviceMutation.error as Error).message}
+                  {t('settings.errorLinkingDevice')}: {(linkDeviceMutation.error as Error).message}
                 </div>
               )}
 
@@ -535,10 +557,10 @@ export function SettingsPage() {
                   onClick={() => setIsLinkDeviceDialogOpen(false)}
                   disabled={linkDeviceMutation.isPending}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <Button type="submit" disabled={linkDeviceMutation.isPending}>
-                  {linkDeviceMutation.isPending ? 'Linking...' : 'Link Device'}
+                  {linkDeviceMutation.isPending ? t('settings.linking') : t('settings.linkDevice')}
                 </Button>
               </div>
             </form>

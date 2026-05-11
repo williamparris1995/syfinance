@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { Button } from './ui/button';
 import {
@@ -21,37 +22,35 @@ import {
 } from './ui/select';
 import type { AccountType, CreateAccountDto } from '@/lib/tauri/account';
 
-const accountFormSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
+const createAccountFormSchema = (t: (key: string) => string) => z.object({
+  name: z.string().min(1, t('accountForm.nameRequired')),
   account_type: z.enum(['Cash', 'Bank', 'CreditCard', 'Investment', 'Loan', 'Other'], {
-    required_error: 'Account type is required',
+    required_error: t('accountForm.accountTypeRequired'),
   }),
-  currency_code: z.string().min(3, 'Currency code is required').max(3, 'Currency code must be 3 characters'),
-  initial_balance: z.string().min(1, 'Initial balance is required').refine(
+  currency_code: z.string().min(3, t('accountForm.currencyRequired')).max(3, t('accountForm.currencyLength')),
+  initial_balance: z.string().min(1, t('accountForm.balanceRequired')).refine(
     (val) => !isNaN(parseFloat(val)),
-    'Initial balance must be a valid number'
+    t('accountForm.balanceInvalid')
   ),
   account_number: z.string().optional(),
   institution: z.string().optional(),
   credit_limit: z.string().optional().refine(
     (val) => !val || !isNaN(parseFloat(val)),
-    'Credit limit must be a valid number'
+    t('accountForm.creditLimitInvalid')
   ),
   billing_day: z.string().optional().refine(
     (val) => !val || (!isNaN(parseInt(val)) && parseInt(val) >= 1 && parseInt(val) <= 31),
-    'Billing day must be between 1 and 31'
+    t('accountForm.billingDayInvalid')
   ),
   payment_due_day: z.string().optional().refine(
     (val) => !val || (!isNaN(parseInt(val)) && parseInt(val) >= 1 && parseInt(val) <= 31),
-    'Payment due day must be between 1 and 31'
+    t('accountForm.paymentDueDayInvalid')
   ),
   interest_rate: z.string().optional().refine(
     (val) => !val || !isNaN(parseFloat(val)),
-    'Interest rate must be a valid number'
+    t('accountForm.interestRateInvalid')
   ),
 });
-
-type AccountFormValues = z.infer<typeof accountFormSchema>;
 
 interface AccountFormProps {
   onSubmit: (data: CreateAccountDto) => void;
@@ -60,6 +59,10 @@ interface AccountFormProps {
 }
 
 export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps) {
+  const { t } = useTranslation();
+  const accountFormSchema = createAccountFormSchema(t);
+  type AccountFormValues = z.infer<typeof accountFormSchema>;
+  
   const form = useForm<AccountFormValues>({
     resolver: zodResolver(accountFormSchema),
     defaultValues: {
@@ -104,13 +107,13 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
           control={form.control}
           name="name"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Account Name</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., Checking Account" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+          <FormItem>
+            <FormLabel>{t('accountForm.accountName')}</FormLabel>
+            <FormControl>
+              <Input placeholder={t('accountForm.accountNamePlaceholder')} {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
           )}
         />
 
@@ -118,25 +121,25 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
           control={form.control}
           name="account_type"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Account Type</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select account type" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="Cash">Cash (库存现金)</SelectItem>
-                  <SelectItem value="Bank">Bank (银行存款)</SelectItem>
-                  <SelectItem value="CreditCard">Credit Card (信用卡)</SelectItem>
-                  <SelectItem value="Investment">Investment (投资)</SelectItem>
-                  <SelectItem value="Loan">Loan (借款)</SelectItem>
-                  <SelectItem value="Other">Other (其他)</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
+          <FormItem>
+            <FormLabel>{t('accountForm.accountType')}</FormLabel>
+            <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('accountForm.selectAccountType')} />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <SelectItem value="Cash">{t('accountForm.cashWithChinese')}</SelectItem>
+                <SelectItem value="Bank">{t('accountForm.bankWithChinese')}</SelectItem>
+                <SelectItem value="CreditCard">{t('accountForm.creditCardWithChinese')}</SelectItem>
+                <SelectItem value="Investment">{t('accountForm.investmentWithChinese')}</SelectItem>
+                <SelectItem value="Loan">{t('accountForm.loanWithChinese')}</SelectItem>
+                <SelectItem value="Other">{t('accountForm.otherWithChinese')}</SelectItem>
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
           )}
         />
 
@@ -144,22 +147,22 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
           control={form.control}
           name="currency_code"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Currency</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select currency" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="CNY">CNY (¥)</SelectItem>
-                  <SelectItem value="USD">USD ($)</SelectItem>
-                  <SelectItem value="EUR">EUR (€)</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
+          <FormItem>
+            <FormLabel>{t('accountForm.currency')}</FormLabel>
+            <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('accountForm.selectCurrency')} />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <SelectItem value="CNY">CNY (¥)</SelectItem>
+                <SelectItem value="USD">USD ($)</SelectItem>
+                <SelectItem value="EUR">EUR (€)</SelectItem>
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
           )}
         />
 
@@ -167,16 +170,16 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
           control={form.control}
           name="initial_balance"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Initial Balance</FormLabel>
-              <FormControl>
-                <Input type="text" placeholder="0.00" {...field} />
-              </FormControl>
-              <FormDescription>
-                For credit cards: enter the amount you owe (positive number)
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
+          <FormItem>
+            <FormLabel>{t('accountForm.initialBalance')}</FormLabel>
+            <FormControl>
+              <Input type="text" placeholder="0.00" {...field} />
+            </FormControl>
+            <FormDescription>
+              {t('accountForm.creditCardNote')}
+            </FormDescription>
+            <FormMessage />
+          </FormItem>
           )}
         />
 
@@ -184,13 +187,13 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
           control={form.control}
           name="account_number"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Account Number (Optional)</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., 1234567890" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+          <FormItem>
+            <FormLabel>{t('accountForm.accountNumber')}</FormLabel>
+            <FormControl>
+              <Input placeholder={t('accountForm.accountNumberPlaceholder')} {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
           )}
         />
 
@@ -198,13 +201,13 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
           control={form.control}
           name="institution"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Institution (Optional)</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., Bank of China" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+          <FormItem>
+            <FormLabel>{t('accountForm.institution')}</FormLabel>
+            <FormControl>
+              <Input placeholder={t('accountForm.institutionPlaceholder')} {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
           )}
         />
 
@@ -215,7 +218,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
               name="credit_limit"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Credit Limit (Optional)</FormLabel>
+                  <FormLabel>{t('accountForm.creditLimit')}</FormLabel>
                   <FormControl>
                     <Input type="text" placeholder="0.00" {...field} />
                   </FormControl>
@@ -229,11 +232,11 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
               name="billing_day"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Billing Day (Optional)</FormLabel>
+                  <FormLabel>{t('accountForm.billingDay')}</FormLabel>
                   <FormControl>
                     <Input type="text" placeholder="1-31" {...field} />
                   </FormControl>
-                  <FormDescription>Day of month when statement is generated</FormDescription>
+                  <FormDescription>{t('accountForm.billingDayDesc')}</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -244,11 +247,11 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
               name="payment_due_day"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Payment Due Day (Optional)</FormLabel>
+                  <FormLabel>{t('accountForm.paymentDueDay')}</FormLabel>
                   <FormControl>
                     <Input type="text" placeholder="1-31" {...field} />
                   </FormControl>
-                  <FormDescription>Day of month when payment is due</FormDescription>
+                  <FormDescription>{t('accountForm.paymentDueDayDesc')}</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -262,11 +265,11 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
             name="interest_rate"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Interest Rate (Optional)</FormLabel>
+                <FormLabel>{t('accountForm.interestRate')}</FormLabel>
                 <FormControl>
                   <Input type="text" placeholder="e.g., 5.5" {...field} />
                 </FormControl>
-                <FormDescription>Annual interest rate as percentage</FormDescription>
+                <FormDescription>{t('accountForm.interestRateDesc')}</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -275,10 +278,10 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
 
         <div className="flex justify-end gap-2 pt-4">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button type="submit" disabled={isLoading}>
-            {isLoading ? 'Creating...' : 'Create Account'}
+            {isLoading ? t('accountForm.creating') : t('accountForm.createAccount')}
           </Button>
         </div>
       </form>

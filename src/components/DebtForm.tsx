@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { Button } from './ui/button';
 import {
@@ -81,7 +82,44 @@ interface DebtFormProps {
 }
 
 export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
+  const { t } = useTranslation();
   const [paymentPreview, setPaymentPreview] = useState<PaymentPreview[]>([]);
+  
+  const debtFormSchema = z.object({
+    debt_type: z.enum(['BorrowedOut', 'BorrowedIn', 'CreditCard', 'Loan'], {
+      required_error: t('debtForm.debtTypeRequired'),
+    }),
+    counterparty: z.string().min(1, t('debtForm.counterpartyRequired')),
+    principal_amount: z.string().min(1, t('debtForm.principalRequired')).refine(
+      (val) => {
+        const num = parseFloat(val);
+        return !isNaN(num) && num > 0;
+      },
+      { message: t('debtForm.principalPositive') }
+    ),
+    currency_code: z.string().min(3, t('debtForm.currencyRequired')).max(3, t('debtForm.currencyLength')),
+    interest_rate: z.string().min(1, t('debtForm.interestRateRequired')).refine(
+      (val) => {
+        const num = parseFloat(val);
+        return !isNaN(num) && num >= 0;
+      },
+      { message: t('debtForm.interestRatePositive') }
+    ),
+    start_date: z.string().min(1, t('debtForm.startDateRequired')),
+    due_date: z.string().min(1, t('debtForm.dueDateRequired')),
+    amortization_method: z.enum(['EqualPrincipalInterest', 'EqualPrincipal']).nullable(),
+  }).refine(
+    (data) => {
+      if (data.start_date && data.due_date) {
+        return new Date(data.due_date) > new Date(data.start_date);
+      }
+      return true;
+    },
+    {
+      message: t('debtForm.dueDateAfterStart'),
+      path: ['due_date'],
+    }
+  );
   
   const form = useForm<DebtFormValues>({
     resolver: zodResolver(debtFormSchema),
@@ -209,18 +247,18 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
             name="debt_type"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Debt Type</FormLabel>
+                <FormLabel>{t('debtForm.debtType')}</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select debt type" />
+                      <SelectValue placeholder={t('debtForm.selectDebtType')} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="BorrowedOut">Borrowed Out (Lent Money)</SelectItem>
-                    <SelectItem value="BorrowedIn">Borrowed In (Owed Money)</SelectItem>
-                    <SelectItem value="CreditCard">Credit Card</SelectItem>
-                    <SelectItem value="Loan">Loan</SelectItem>
+                    <SelectItem value="BorrowedOut">{t('debtForm.borrowedOut')}</SelectItem>
+                    <SelectItem value="BorrowedIn">{t('debtForm.borrowedIn')}</SelectItem>
+                    <SelectItem value="CreditCard">{t('debtForm.creditCard')}</SelectItem>
+                    <SelectItem value="Loan">{t('debtForm.loan')}</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -233,9 +271,9 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
             name="counterparty"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Counterparty</FormLabel>
+                <FormLabel>{t('debtForm.counterparty')}</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., Bank of China, John Doe" {...field} />
+                  <Input placeholder={t('debtForm.counterpartyPlaceholder')} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -248,7 +286,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
               name="principal_amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Principal Amount</FormLabel>
+                  <FormLabel>{t('debtForm.principalAmount')}</FormLabel>
                   <FormControl>
                     <Input type="text" placeholder="10000.00" {...field} />
                   </FormControl>
@@ -262,11 +300,11 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
               name="currency_code"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Currency</FormLabel>
+                  <FormLabel>{t('debtForm.currency')}</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select currency" />
+                        <SelectValue placeholder={t('debtForm.selectCurrency')} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -286,7 +324,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
             name="interest_rate"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Interest Rate (% per year)</FormLabel>
+                <FormLabel>{t('debtForm.interestRate')}</FormLabel>
                 <FormControl>
                   <Input type="text" placeholder="5.5" {...field} />
                 </FormControl>
@@ -301,7 +339,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
               name="start_date"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Start Date</FormLabel>
+                  <FormLabel>{t('debtForm.startDate')}</FormLabel>
                   <FormControl>
                     <Input type="date" {...field} />
                   </FormControl>
@@ -315,7 +353,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
               name="due_date"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Due Date</FormLabel>
+                  <FormLabel>{t('debtForm.dueDate')}</FormLabel>
                   <FormControl>
                     <Input type="date" {...field} />
                   </FormControl>
@@ -330,22 +368,22 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
             name="amortization_method"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Amortization Method</FormLabel>
+                <FormLabel>{t('debtForm.amortizationMethod')}</FormLabel>
                 <Select 
                   onValueChange={field.onChange} 
                   defaultValue={field.value || undefined}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select amortization method" />
+                      <SelectValue placeholder={t('debtForm.selectAmortization')} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="EqualPrincipalInterest">
-                      等额本息 (Equal Total Payment)
+                      {t('debtForm.equalPrincipalInterest')}
                     </SelectItem>
                     <SelectItem value="EqualPrincipal">
-                      等额本金 (Equal Principal)
+                      {t('debtForm.equalPrincipal')}
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -356,10 +394,10 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
 
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Creating...' : 'Create Debt'}
+              {isLoading ? t('debtForm.creating') : t('debtForm.createDebt')}
             </Button>
           </div>
         </form>
@@ -368,9 +406,9 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
       {paymentPreview.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Payment Schedule Preview</h3>
+            <h3 className="text-lg font-semibold">{t('debtForm.paymentSchedulePreview')}</h3>
             <div className="text-sm text-neutral-600">
-              Total Interest: {totalInterest.toLocaleString('en-US', {
+              {t('debtForm.totalInterest')}: {totalInterest.toLocaleString('en-US', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}
@@ -381,10 +419,10 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Payment Date</TableHead>
-                  <TableHead className="text-right">Principal</TableHead>
-                  <TableHead className="text-right">Interest</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead>{t('debtForm.paymentDate')}</TableHead>
+                  <TableHead className="text-right">{t('debtForm.principal')}</TableHead>
+                  <TableHead className="text-right">{t('debtForm.interest')}</TableHead>
+                  <TableHead className="text-right">{t('debtForm.total')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

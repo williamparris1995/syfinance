@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Trash2 } from 'lucide-react';
 import { useFieldArray, useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { listAccounts } from '@/lib/tauri/account';
 import { listCategoriesByType, type CategoryType } from '@/lib/tauri/category';
@@ -24,35 +25,6 @@ import {
   SelectValue,
 } from './ui/select';
 
-const transactionEntrySchema = z
-  .object({
-    account_id: z.string().min(1, 'Account is required'),
-    chart_of_account_code: z.string().min(1, 'Chart of account code is required'),
-    debit_amount: z.string().nullable(),
-    credit_amount: z.string().nullable(),
-    memo: z.string().nullable(),
-    category_id: z.string().optional(),
-  })
-  .refine(
-    (data) => {
-      const hasDebit = data.debit_amount && data.debit_amount !== '' && parseFloat(data.debit_amount) !== 0;
-      const hasCredit = data.credit_amount && data.credit_amount !== '' && parseFloat(data.credit_amount) !== 0;
-      return (hasDebit && !hasCredit) || (!hasDebit && hasCredit);
-    },
-    {
-      message: 'Each entry must have either debit OR credit amount (not both, not neither)',
-      path: ['debit_amount'],
-    }
-  );
-
-const transactionFormSchema = z.object({
-  transaction_date: z.string().min(1, 'Transaction date is required'),
-  description: z.string().min(1, 'Description is required'),
-  entries: z.array(transactionEntrySchema).min(2, 'At least 2 entries are required'),
-});
-
-type TransactionFormValues = z.infer<typeof transactionFormSchema>;
-
 interface TransactionFormProps {
   onSubmit: (data: CreateTransactionDto) => void;
   onCancel: () => void;
@@ -60,6 +32,37 @@ interface TransactionFormProps {
 }
 
 export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFormProps) {
+  const { t } = useTranslation();
+  
+  const transactionEntrySchema = z
+    .object({
+      account_id: z.string().min(1, t('transactionForm.accountRequired')),
+      chart_of_account_code: z.string().min(1, t('transactionForm.chartCodeRequired')),
+      debit_amount: z.string().nullable(),
+      credit_amount: z.string().nullable(),
+      memo: z.string().nullable(),
+      category_id: z.string().optional(),
+    })
+    .refine(
+      (data) => {
+        const hasDebit = data.debit_amount && data.debit_amount !== '' && parseFloat(data.debit_amount) !== 0;
+        const hasCredit = data.credit_amount && data.credit_amount !== '' && parseFloat(data.credit_amount) !== 0;
+        return (hasDebit && !hasCredit) || (!hasDebit && hasCredit);
+      },
+      {
+        message: t('transactionForm.entryAmountRequired'),
+        path: ['debit_amount'],
+      }
+    );
+
+  const transactionFormSchema = z.object({
+    transaction_date: z.string().min(1, t('transactionForm.dateRequired')),
+    description: z.string().min(1, t('transactionForm.descriptionRequired')),
+    entries: z.array(transactionEntrySchema).min(2, t('transactionForm.minEntries')),
+  });
+
+  type TransactionFormValues = z.infer<typeof transactionFormSchema>;
+  
   const { data: accounts = [] } = useQuery({
     queryKey: ['accounts'],
     queryFn: listAccounts,
@@ -118,7 +121,7 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
   const handleSubmit = (values: TransactionFormValues) => {
     if (!isBalanced) {
       form.setError('root', {
-        message: 'Transaction must be balanced (total debits = total credits)',
+        message: t("transactionForm.mustBeBalanced"),
       });
       return;
     }
@@ -176,7 +179,7 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
           name="transaction_date"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Transaction Date</FormLabel>
+              <FormLabel>{t("transactionForm.transactionDate")}</FormLabel>
               <FormControl>
                 <Input type="date" {...field} />
               </FormControl>
@@ -190,9 +193,9 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Description</FormLabel>
+              <FormLabel>{t("transactionForm.description")}</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., Salary payment" {...field} />
+                <Input placeholder={t("transactionForm.descriptionPlaceholder")} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -201,7 +204,7 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
 
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <FormLabel>Entries</FormLabel>
+            <FormLabel>{t("transactionForm.entries")}</FormLabel>
             <Button
               type="button"
               variant="outline"
@@ -218,14 +221,14 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
               }
             >
               <Plus className="h-4 w-4 mr-1" />
-              Add Entry
+              {t('transactionForm.addEntry')}
             </Button>
           </div>
 
           {fields.map((field, index) => (
             <div key={field.id} className="border rounded-lg p-4 space-y-3">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">Entry {index + 1}</span>
+                <span className="text-sm font-medium">{t("transactionForm.entry")} {index + 1}</span>
                 {fields.length > 2 && (
                   <Button
                     type="button"
@@ -243,14 +246,14 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
                 name={`entries.${index}.account_id`}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Account</FormLabel>
+                    <FormLabel>{t("transactionForm.account")}</FormLabel>
                     <Select
                       onValueChange={(value) => handleAccountChange(index, value)}
                       defaultValue={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select account" />
+                          <SelectValue placeholder={t("transactionForm.selectAccount")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -272,7 +275,7 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
                   name={`entries.${index}.debit_amount`}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Debit Amount</FormLabel>
+                      <FormLabel>{t("transactionForm.debitAmount")}</FormLabel>
                       <FormControl>
                         <Input
                           type="text"
@@ -298,7 +301,7 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
                   name={`entries.${index}.credit_amount`}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Credit Amount</FormLabel>
+                      <FormLabel>{t("transactionForm.creditAmount")}</FormLabel>
                       <FormControl>
                         <Input
                           type="text"
@@ -325,10 +328,10 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
                 name={`entries.${index}.memo`}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Memo (Optional)</FormLabel>
+                    <FormLabel>{t("transactionForm.memo")}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Additional notes"
+                        placeholder={t("transactionForm.memoPlaceholder")}
                         {...field}
                         value={field.value || ''}
                         onChange={(e) => field.onChange(e.target.value === '' ? null : e.target.value)}
@@ -344,18 +347,18 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
                 name={`entries.${index}.category_id`}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Category (Optional)</FormLabel>
+                    <FormLabel>{t("transactionForm.category")}</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value || ''}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
+                          <SelectValue placeholder={t("transactionForm.selectCategory")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="">{t("transactionForm.none")}</SelectItem>
                         {getCategoriesForEntry(index).map((category) => (
                           <SelectItem key={category.id} value={category.id}>
                             {category.name}
@@ -372,13 +375,13 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
         </div>
 
         <div className="flex items-center justify-between p-4 bg-neutral-50 rounded-lg">
-          <span className="font-medium">Balance:</span>
+          <span className="font-medium">{t('transactionForm.balance')}:</span>
           <span
             className={`font-bold ${
               isBalanced ? 'text-green-600' : 'text-red-600'
             }`}
           >
-            {isBalanced ? '✓ Balanced' : `Unbalanced: ${balance.toFixed(2)} CNY`}
+            {isBalanced ? t('transactionForm.balanced') : `${t('transactionForm.unbalanced')}: ${balance.toFixed(2)} CNY`}
           </span>
         </div>
 
@@ -390,10 +393,10 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
 
         <div className="flex justify-end gap-2 pt-4">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button type="submit" disabled={isLoading || !isBalanced}>
-            {isLoading ? 'Creating...' : 'Create Transaction'}
+            {isLoading ? t("transactionForm.creating") : t("transactionForm.createTransaction")}
           </Button>
         </div>
       </form>

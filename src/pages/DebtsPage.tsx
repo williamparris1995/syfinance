@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, Calendar } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { DebtForm } from '../components/DebtForm';
 import { Badge } from '../components/ui/badge';
@@ -34,6 +35,7 @@ import {
 } from '../lib/tauri/debt';
 
 export function DebtsPage() {
+  const { t } = useTranslation();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedDebt, setSelectedDebt] = useState<DebtDto | null>(null);
   const [paymentToRecord, setPaymentToRecord] = useState<{
@@ -58,7 +60,7 @@ export function DebtsPage() {
       queryClient.invalidateQueries({ queryKey: ['debts'] });
       queryClient.invalidateQueries({ queryKey: ['upcoming-payments'] });
       setIsCreateDialogOpen(false);
-      toast.success('Debt created successfully');
+      toast.success(t('debts.debtCreated'));
     },
     onError: (error) => {
       toast.error(getUserFriendlyError(error));
@@ -72,7 +74,7 @@ export function DebtsPage() {
       queryClient.invalidateQueries({ queryKey: ['upcoming-payments'] });
       setPaymentToRecord(null);
       setSelectedDebt(null);
-      toast.success('Payment recorded successfully');
+      toast.success(t('debts.paymentRecorded'));
     },
     onError: (error) => {
       toast.error(getUserFriendlyError(error));
@@ -101,14 +103,14 @@ export function DebtsPage() {
     const dueDate = new Date(debt.due_date);
 
     if (remainingBalance === 0) {
-      return { label: 'Paid Off', variant: 'secondary' as const };
+      return { label: t('debts.paidOff'), variant: 'secondary' as const };
     }
 
     if (dueDate < today) {
-      return { label: 'Overdue', variant: 'destructive' as const };
+      return { label: t('debts.overdue'), variant: 'destructive' as const };
     }
 
-    return { label: 'Active', variant: 'default' as const };
+    return { label: t('debts.active'), variant: 'default' as const };
   };
 
   const overdueDebts = debts.filter((debt) => {
@@ -137,15 +139,15 @@ export function DebtsPage() {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Debts</h1>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>Create Debt</Button>
+        <h1 className="text-3xl font-bold">{t('debts.title')}</h1>
+        <Button onClick={() => setIsCreateDialogOpen(true)}>{t('debts.createDebt')}</Button>
       </div>
 
       {overdueDebts.length > 0 && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
           <div className="flex items-center gap-2 mb-3">
             <AlertCircle className="h-5 w-5 text-red-600" />
-            <h2 className="text-lg font-semibold text-red-900">Overdue Debts</h2>
+            <h2 className="text-lg font-semibold text-red-900">{t('debts.overdueDebts')}</h2>
           </div>
           <div className="space-y-2">
             {overdueDebts.map((debt) => (
@@ -156,7 +158,7 @@ export function DebtsPage() {
                 <div>
                   <div className="font-medium text-red-900">{debt.counterparty}</div>
                   <div className="text-sm text-red-700">
-                    Due: {new Date(debt.due_date).toLocaleDateString('en-US', {
+                    {t('debts.due')}: {new Date(debt.due_date).toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'short',
                       day: 'numeric',
@@ -179,7 +181,7 @@ export function DebtsPage() {
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <div className="flex items-center gap-2 mb-3">
             <Calendar className="h-5 w-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-blue-900">Upcoming Payments (Next 7 Days)</h2>
+            <h2 className="text-lg font-semibold text-blue-900">{t('debts.upcomingPayments')}</h2>
           </div>
           <div className="space-y-2">
             {upcomingPayments.map((item: UpcomingPaymentDto, index: number) => (
@@ -190,7 +192,7 @@ export function DebtsPage() {
                 <div>
                   <div className="font-medium text-blue-900">{item.debt.counterparty}</div>
                   <div className="text-sm text-blue-700">
-                    Payment Date: {new Date(item.payment.payment_date).toLocaleDateString('en-US', {
+                    {t('debts.paymentDate')}: {new Date(item.payment.payment_date).toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'short',
                       day: 'numeric',
@@ -207,7 +209,7 @@ export function DebtsPage() {
                     onClick={() => setPaymentToRecord({ debt: item.debt, payment: item.payment })}
                     className="mt-1"
                   >
-                    Record Payment
+                    {t('debts.recordPayment')}
                   </Button>
                 </div>
               </div>
@@ -218,25 +220,25 @@ export function DebtsPage() {
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="text-neutral-500">Loading debts...</div>
+          <div className="text-neutral-500">{t('debts.loadingDebts')}</div>
         </div>
       ) : debts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="text-neutral-500 mb-4">No debts yet</p>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>Create your first debt</Button>
+          <p className="text-neutral-500 mb-4">{t('debts.noDebts')}</p>
+          <Button onClick={() => setIsCreateDialogOpen(true)}>{t('debts.createFirstDebt')}</Button>
         </div>
       ) : (
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Type</TableHead>
-                <TableHead>Counterparty</TableHead>
-                <TableHead className="text-right">Principal</TableHead>
-                <TableHead className="text-right">Remaining Balance</TableHead>
-                <TableHead>Due Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
+                <TableHead>{t('debts.type')}</TableHead>
+                <TableHead>{t('debts.counterparty')}</TableHead>
+                <TableHead className="text-right">{t('debts.principal')}</TableHead>
+                <TableHead className="text-right">{t('debts.remainingBalance')}</TableHead>
+                <TableHead>{t('debts.dueDate')}</TableHead>
+                <TableHead>{t('debts.status')}</TableHead>
+                <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -268,7 +270,7 @@ export function DebtsPage() {
                         size="sm"
                         onClick={() => setSelectedDebt(debt)}
                       >
-                        View
+                        {t('debts.view')}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -282,9 +284,9 @@ export function DebtsPage() {
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create Debt</DialogTitle>
+            <DialogTitle>{t('debts.createDebt')}</DialogTitle>
             <DialogDescription>
-              Add a new debt with payment schedule.
+              {t('debts.addDebtDesc')}
             </DialogDescription>
           </DialogHeader>
           <DebtForm
@@ -298,7 +300,7 @@ export function DebtsPage() {
       <Dialog open={!!selectedDebt} onOpenChange={() => setSelectedDebt(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Debt Details</DialogTitle>
+            <DialogTitle>{t('debts.debtDetails')}</DialogTitle>
             <DialogDescription>
               {selectedDebt?.counterparty} - {selectedDebt?.debt_type}
             </DialogDescription>
@@ -307,23 +309,23 @@ export function DebtsPage() {
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <div className="text-sm text-neutral-500">Principal Amount</div>
+                  <div className="text-sm text-neutral-500">{t('debts.principalAmount')}</div>
                   <div className="text-lg font-semibold">
                     {formatCurrency(selectedDebt.principal_amount, selectedDebt.currency_code)}
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-neutral-500">Remaining Balance</div>
+                  <div className="text-sm text-neutral-500">{t('debts.remainingBalance')}</div>
                   <div className="text-lg font-semibold">
                     {formatCurrency(selectedDebt.remaining_balance, selectedDebt.currency_code)}
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-neutral-500">Interest Rate</div>
-                  <div className="text-lg font-semibold">{selectedDebt.interest_rate}% per year</div>
+                  <div className="text-sm text-neutral-500">{t('debts.interestRate')}</div>
+                  <div className="text-lg font-semibold">{selectedDebt.interest_rate}% {t('debts.perYear')}</div>
                 </div>
                 <div>
-                  <div className="text-sm text-neutral-500">Due Date</div>
+                  <div className="text-sm text-neutral-500">{t('debts.dueDate')}</div>
                   <div className="text-lg font-semibold">
                     {new Date(selectedDebt.due_date).toLocaleDateString('en-US', {
                       year: 'numeric',
@@ -335,17 +337,17 @@ export function DebtsPage() {
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold mb-3">Payment Schedule</h3>
+                <h3 className="text-lg font-semibold mb-3">{t('debts.paymentSchedule')}</h3>
                 <div className="border rounded-lg max-h-[400px] overflow-y-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Payment Date</TableHead>
-                        <TableHead className="text-right">Principal</TableHead>
-                        <TableHead className="text-right">Interest</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="w-[120px]">Actions</TableHead>
+                        <TableHead>{t('debts.paymentDate')}</TableHead>
+                        <TableHead className="text-right">{t('debts.principal')}</TableHead>
+                        <TableHead className="text-right">{t('debts.interest')}</TableHead>
+                        <TableHead className="text-right">{t('debts.total')}</TableHead>
+                        <TableHead>{t('debts.status')}</TableHead>
+                        <TableHead className="w-[120px]">{t('common.actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -369,7 +371,7 @@ export function DebtsPage() {
                           </TableCell>
                           <TableCell>
                             <Badge variant={payment.paid ? 'secondary' : 'outline'}>
-                              {payment.paid ? 'Paid' : 'Unpaid'}
+                              {payment.paid ? t('debts.paid') : t('debts.unpaid')}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -379,7 +381,7 @@ export function DebtsPage() {
                                 variant="outline"
                                 onClick={() => setPaymentToRecord({ debt: selectedDebt, payment })}
                               >
-                                Record
+                                {t('debts.record')}
                               </Button>
                             )}
                           </TableCell>
@@ -397,15 +399,15 @@ export function DebtsPage() {
       <Dialog open={!!paymentToRecord} onOpenChange={() => setPaymentToRecord(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Record Payment</DialogTitle>
+            <DialogTitle>{t('debts.recordPayment')}</DialogTitle>
             <DialogDescription>
-              Confirm payment for {paymentToRecord?.debt.counterparty}
+              {t('debts.confirmPayment', { counterparty: paymentToRecord?.debt.counterparty })}
             </DialogDescription>
           </DialogHeader>
           {paymentToRecord && (
             <div className="space-y-4">
               <div>
-                <div className="text-sm text-neutral-500">Payment Date</div>
+                <div className="text-sm text-neutral-500">{t('debts.paymentDate')}</div>
                 <div className="text-lg font-semibold">
                   {new Date(paymentToRecord.payment.payment_date).toLocaleDateString('en-US', {
                     year: 'numeric',
@@ -415,20 +417,20 @@ export function DebtsPage() {
                 </div>
               </div>
               <div>
-                <div className="text-sm text-neutral-500">Amount</div>
+                <div className="text-sm text-neutral-500">{t('debts.amount')}</div>
                 <div className="text-lg font-semibold">
                   {formatCurrency(paymentToRecord.payment.total_amount, paymentToRecord.payment.currency_code)}
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-4">
                 <Button variant="outline" onClick={() => setPaymentToRecord(null)}>
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   onClick={handleRecordPayment}
                   disabled={recordPaymentMutation.isPending}
                 >
-                  {recordPaymentMutation.isPending ? 'Recording...' : 'Confirm Payment'}
+                  {recordPaymentMutation.isPending ? t('debts.recording') : t('debts.confirmPaymentButton')}
                 </Button>
               </div>
             </div>

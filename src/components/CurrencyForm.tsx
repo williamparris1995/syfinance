@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { Button } from './ui/button';
 import {
@@ -36,6 +37,22 @@ interface CurrencyFormProps {
 }
 
 export function CurrencyForm({ onSubmit, onCancel, isLoading }: CurrencyFormProps) {
+  const { t } = useTranslation();
+  
+  const currencyFormSchema = z.object({
+    code: z
+      .string()
+      .length(3, t('currencyForm.codeLength'))
+      .regex(/^[A-Z]{3}$/, t('currencyForm.codeFormat')),
+    symbol: z.string().min(1, t('currencyForm.symbolRequired')),
+    exchange_rate: z
+      .string()
+      .min(1, t('currencyForm.exchangeRateRequired'))
+      .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+        message: t('currencyForm.exchangeRatePositive'),
+      }),
+  });
+  
   const form = useForm<CurrencyFormValues>({
     resolver: zodResolver(currencyFormSchema),
     defaultValues: {
@@ -57,10 +74,10 @@ export function CurrencyForm({ onSubmit, onCancel, isLoading }: CurrencyFormProp
           name="code"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Currency Code</FormLabel>
+              <FormLabel>{t('currencyForm.currencyCode')}</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="e.g., USD"
+                  placeholder={t('currencyForm.currencyCodePlaceholder')}
                   {...field}
                   onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                   maxLength={3}
@@ -76,9 +93,9 @@ export function CurrencyForm({ onSubmit, onCancel, isLoading }: CurrencyFormProp
           name="symbol"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Currency Symbol</FormLabel>
+              <FormLabel>{t('currencyForm.currencySymbol')}</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., $" {...field} />
+                <Input placeholder={t('currencyForm.currencySymbolPlaceholder')} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -90,9 +107,9 @@ export function CurrencyForm({ onSubmit, onCancel, isLoading }: CurrencyFormProp
           name="exchange_rate"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Exchange Rate (relative to CNY)</FormLabel>
+              <FormLabel>{t('currencyForm.exchangeRate')}</FormLabel>
               <FormControl>
-                <Input type="text" placeholder="e.g., 0.14" {...field} />
+                <Input type="text" placeholder={t('currencyForm.exchangeRatePlaceholder')} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -101,10 +118,10 @@ export function CurrencyForm({ onSubmit, onCancel, isLoading }: CurrencyFormProp
 
         <div className="flex justify-end gap-2 pt-4">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button type="submit" disabled={isLoading}>
-            {isLoading ? 'Adding...' : 'Add Currency'}
+            {isLoading ? t('common.create') + '...' : t('settings.addCurrency')}
           </Button>
         </div>
       </form>

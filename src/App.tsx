@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { queryClient } from './lib/queryClient';
 import { router } from './router';
+import './i18n';
 
 export default function App() {
   return (

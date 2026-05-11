@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp, Receipt, CreditCard, BarChart3, Plus } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { QuickActions } from '@/components/QuickActions';
@@ -11,6 +12,7 @@ import { listCategories } from '@/lib/tauri/category';
 
 export function HomePage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   
   const { data: accounts = [], isLoading: accountsLoading } = useQuery({
     queryKey: ['accounts'],
@@ -69,19 +71,19 @@ export function HomePage() {
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold">Dashboard</h2>
+        <h2 className="text-3xl font-bold">{t('dashboard.title')}</h2>
       </div>
       
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="text-neutral-500">Loading dashboard...</div>
+          <div className="text-neutral-500">{t('dashboard.loadingDashboard')}</div>
         </div>
       ) : (
         <>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Balance</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('dashboard.totalBalance')}</CardTitle>
                 <Wallet className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -89,14 +91,14 @@ export function HomePage() {
                   ¥{totalBalance.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Across {accounts.length} account{accounts.length !== 1 ? 's' : ''}
+                  {t('dashboard.acrossAccounts', { count: accounts.length })}
                 </p>
               </CardContent>
             </Card>
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Monthly Income</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('dashboard.monthlyIncome')}</CardTitle>
                 <ArrowUpRight className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
@@ -111,7 +113,7 @@ export function HomePage() {
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Monthly Expenses</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('dashboard.monthlyExpenses')}</CardTitle>
                 <ArrowDownRight className="h-4 w-4 text-red-600" />
               </CardHeader>
               <CardContent>
@@ -126,7 +128,7 @@ export function HomePage() {
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Monthly Savings</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('dashboard.monthlySavings')}</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -134,7 +136,7 @@ export function HomePage() {
                   {monthlySavings >= 0 ? '+' : ''}¥{monthlySavings.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Income - Expenses
+                  {t('dashboard.incomeMinusExpenses')}
                 </p>
               </CardContent>
             </Card>
@@ -143,32 +145,32 @@ export function HomePage() {
           {/* Quick Actions */}
           <Card>
             <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
+              <CardTitle>{t('dashboard.quickActions')}</CardTitle>
             </CardHeader>
             <CardContent>
               <QuickActions
                 actions={[
                   {
                     id: 'new-transaction',
-                    label: 'Record Transaction',
+                    label: t('dashboard.recordTransaction'),
                     icon: Receipt,
                     onClick: () => navigate({ to: '/transactions' }),
                   },
                   {
                     id: 'new-account',
-                    label: 'Create Account',
+                    label: t('dashboard.createAccount'),
                     icon: Plus,
                     onClick: () => navigate({ to: '/accounts' }),
                   },
                   {
                     id: 'view-reports',
-                    label: 'View Reports',
+                    label: t('dashboard.viewReports'),
                     icon: BarChart3,
                     onClick: () => navigate({ to: '/reports' }),
                   },
                   {
                     id: 'manage-debts',
-                    label: 'Manage Debts',
+                    label: t('dashboard.manageDebts'),
                     icon: CreditCard,
                     onClick: () => navigate({ to: '/debts' }),
                   },
@@ -182,10 +184,10 @@ export function HomePage() {
           {accounts.length === 0 && (
             <EmptyState
               icon={Wallet}
-              title="No accounts yet"
-              description="Create your first account to start tracking your finances"
+              title={t('dashboard.noAccounts')}
+              description={t('dashboard.noAccountsDesc')}
               action={{
-                label: 'Create Account',
+                label: t('dashboard.createAccount'),
                 onClick: () => navigate({ to: '/accounts' }),
               }}
             />

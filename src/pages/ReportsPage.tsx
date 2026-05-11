@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Download } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -30,6 +31,7 @@ interface IncomeStatementData {
 }
 
 export function ReportsPage() {
+  const { t } = useTranslation();
   const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('month');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -156,14 +158,14 @@ export function ReportsPage() {
 
   const chartData = useMemo(() => {
     return [
-      { name: 'Income', amount: incomeStatementData.totalIncome },
-      { name: 'Expenses', amount: incomeStatementData.totalExpenses },
+      { name: t('reports.income'), amount: incomeStatementData.totalIncome },
+      { name: t('reports.expenses'), amount: incomeStatementData.totalExpenses },
     ];
-  }, [incomeStatementData]);
+  }, [incomeStatementData, t]);
 
   const downloadCSV = (data: string[][], filename: string) => {
     const csvContent = data.map((row) => row.join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
@@ -176,19 +178,19 @@ export function ReportsPage() {
 
   const exportBalanceSheet = () => {
     const data: string[][] = [
-      ['Balance Sheet', `As of ${dateRange.end}`],
+      [t('reports.balanceSheet'), `${t('reports.asOf')} ${dateRange.end}`],
       [],
-      ['Assets'],
-      ['Account', 'Balance', 'Currency'],
+      [t('reports.assets')],
+      [t('common.account'), t('common.balance'), t('common.currency')],
       ...balanceSheetData.assets.map((item) => [item.name, item.balance.toFixed(2), item.currency]),
-      ['Total Assets', balanceSheetData.totalAssets.toFixed(2), ''],
+      [t('reports.totalAssets'), balanceSheetData.totalAssets.toFixed(2), ''],
       [],
-      ['Liabilities'],
-      ['Account', 'Balance', 'Currency'],
+      [t('reports.liabilities')],
+      [t('common.account'), t('common.balance'), t('common.currency')],
       ...balanceSheetData.liabilities.map((item) => [item.name, item.balance.toFixed(2), item.currency]),
-      ['Total Liabilities', balanceSheetData.totalLiabilities.toFixed(2), ''],
+      [t('reports.totalLiabilities'), balanceSheetData.totalLiabilities.toFixed(2), ''],
       [],
-      ['Equity', balanceSheetData.equity.toFixed(2), ''],
+      [t('reports.equity'), balanceSheetData.equity.toFixed(2), ''],
     ];
 
     downloadCSV(data, `balance-sheet-${dateRange.end}.csv`);
@@ -196,19 +198,19 @@ export function ReportsPage() {
 
   const exportIncomeStatement = () => {
     const data: string[][] = [
-      ['Income Statement', `${dateRange.start} to ${dateRange.end}`],
+      [t('reports.incomeStatement'), `${dateRange.start} to ${dateRange.end}`],
       [],
-      ['Income'],
-      ['Account', 'Amount'],
+      [t('reports.income')],
+      [t('common.account'), t('common.amount')],
       ...incomeStatementData.income.map((item) => [item.name, item.amount.toFixed(2)]),
-      ['Total Income', incomeStatementData.totalIncome.toFixed(2)],
+      [t('reports.totalIncome'), incomeStatementData.totalIncome.toFixed(2)],
       [],
-      ['Expenses'],
-      ['Account', 'Amount'],
+      [t('reports.expenses')],
+      [t('common.account'), t('common.amount')],
       ...incomeStatementData.expenses.map((item) => [item.name, item.amount.toFixed(2)]),
-      ['Total Expenses', incomeStatementData.totalExpenses.toFixed(2)],
+      [t('reports.totalExpenses'), incomeStatementData.totalExpenses.toFixed(2)],
       [],
-      ['Net Income', incomeStatementData.netIncome.toFixed(2)],
+      [t('reports.netIncome'), incomeStatementData.netIncome.toFixed(2)],
     ];
 
     downloadCSV(data, `income-statement-${dateRange.start}-to-${dateRange.end}.csv`);
@@ -219,13 +221,13 @@ export function ReportsPage() {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Reports</h1>
+        <h1 className="text-3xl font-bold">{t('reports.title')}</h1>
       </div>
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Date Range</CardTitle>
-          <CardDescription>Select a date range for the reports</CardDescription>
+          <CardTitle>{t('reports.dateRange')}</CardTitle>
+          <CardDescription>{t('reports.selectDateRange')}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-4">
@@ -234,32 +236,32 @@ export function ReportsPage() {
                 variant={dateRangePreset === 'month' ? 'default' : 'outline'}
                 onClick={() => setDateRangePreset('month')}
               >
-                This Month
+                {t('reports.thisMonth')}
               </Button>
               <Button
                 variant={dateRangePreset === 'quarter' ? 'default' : 'outline'}
                 onClick={() => setDateRangePreset('quarter')}
               >
-                This Quarter
+                {t('reports.thisQuarter')}
               </Button>
               <Button
                 variant={dateRangePreset === 'year' ? 'default' : 'outline'}
                 onClick={() => setDateRangePreset('year')}
               >
-                This Year
+                {t('reports.thisYear')}
               </Button>
               <Button
                 variant={dateRangePreset === 'custom' ? 'default' : 'outline'}
                 onClick={() => setDateRangePreset('custom')}
               >
-                Custom
+                {t('reports.custom')}
               </Button>
             </div>
 
             {dateRangePreset === 'custom' && (
               <div className="flex items-center gap-2">
                 <label htmlFor="start-date" className="text-sm font-medium">
-                  From:
+                  {t('reports.from')}:
                 </label>
                 <Input
                   id="start-date"
@@ -269,7 +271,7 @@ export function ReportsPage() {
                   className="w-40"
                 />
                 <label htmlFor="end-date" className="text-sm font-medium">
-                  To:
+                  {t('reports.to')}:
                 </label>
                 <Input
                   id="end-date"
@@ -283,20 +285,20 @@ export function ReportsPage() {
           </div>
 
           <div className="mt-4 text-sm text-muted-foreground">
-            Selected range: {dateRange.start} to {dateRange.end}
+            {t('reports.selectedRange')}: {dateRange.start} to {dateRange.end}
           </div>
         </CardContent>
       </Card>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="text-neutral-500">Loading reports...</div>
+          <div className="text-neutral-500">{t('reports.loadingReports')}</div>
         </div>
       ) : (
         <Tabs defaultValue="balance-sheet" className="w-full">
           <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="balance-sheet">Balance Sheet</TabsTrigger>
-            <TabsTrigger value="income-statement">Income Statement</TabsTrigger>
+            <TabsTrigger value="balance-sheet">{t('reports.balanceSheet')}</TabsTrigger>
+            <TabsTrigger value="income-statement">{t('reports.incomeStatement')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="balance-sheet" className="space-y-4">
@@ -304,29 +306,29 @@ export function ReportsPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Balance Sheet</CardTitle>
-                    <CardDescription>As of {dateRange.end}</CardDescription>
+                    <CardTitle>{t('reports.balanceSheet')}</CardTitle>
+                    <CardDescription>{t('reports.asOf')} {dateRange.end}</CardDescription>
                   </div>
                   <Button onClick={exportBalanceSheet} variant="outline" size="sm">
                     <Download className="h-4 w-4 mr-2" />
-                    Export CSV
+                    {t('reports.exportCSV')}
                   </Button>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-lg font-semibold mb-3">Assets</h3>
+                    <h3 className="text-lg font-semibold mb-3">{t('reports.assets')}</h3>
                     {balanceSheetData.assets.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No assets found</p>
+                      <p className="text-sm text-muted-foreground">{t('reports.noAssets')}</p>
                     ) : (
                       <div className="border rounded-lg">
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Account</TableHead>
-                              <TableHead className="text-right">Balance</TableHead>
-                              <TableHead>Currency</TableHead>
+                              <TableHead>{t('common.account')}</TableHead>
+                              <TableHead className="text-right">{t('common.balance')}</TableHead>
+                              <TableHead>{t('common.currency')}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -343,7 +345,7 @@ export function ReportsPage() {
                               </TableRow>
                             ))}
                             <TableRow className="font-bold bg-muted/50">
-                              <TableCell>Total Assets</TableCell>
+                              <TableCell>{t('reports.totalAssets')}</TableCell>
                               <TableCell className="text-right">
                                 {balanceSheetData.totalAssets.toLocaleString('en-US', {
                                   minimumFractionDigits: 2,
@@ -359,17 +361,17 @@ export function ReportsPage() {
                   </div>
 
                   <div>
-                    <h3 className="text-lg font-semibold mb-3">Liabilities</h3>
+                    <h3 className="text-lg font-semibold mb-3">{t('reports.liabilities')}</h3>
                     {balanceSheetData.liabilities.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No liabilities found</p>
+                      <p className="text-sm text-muted-foreground">{t('reports.noLiabilities')}</p>
                     ) : (
                       <div className="border rounded-lg">
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Account</TableHead>
-                              <TableHead className="text-right">Balance</TableHead>
-                              <TableHead>Currency</TableHead>
+                              <TableHead>{t('common.account')}</TableHead>
+                              <TableHead className="text-right">{t('common.balance')}</TableHead>
+                              <TableHead>{t('common.currency')}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -386,7 +388,7 @@ export function ReportsPage() {
                               </TableRow>
                             ))}
                             <TableRow className="font-bold bg-muted/50">
-                              <TableCell>Total Liabilities</TableCell>
+                              <TableCell>{t('reports.totalLiabilities')}</TableCell>
                               <TableCell className="text-right">
                                 {balanceSheetData.totalLiabilities.toLocaleString('en-US', {
                                   minimumFractionDigits: 2,
@@ -403,7 +405,7 @@ export function ReportsPage() {
 
                   <div className="border-t pt-4">
                     <div className="flex justify-between items-center text-lg font-bold">
-                      <span>Equity (Assets - Liabilities)</span>
+                      <span>{t('reports.equity')}</span>
                       <span>
                         {balanceSheetData.equity.toLocaleString('en-US', {
                           minimumFractionDigits: 2,
@@ -415,9 +417,7 @@ export function ReportsPage() {
                   </div>
 
                   <div className="mt-4 p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground">
-                    <strong>Note:</strong> Multi-currency conversion not yet implemented. All amounts are
-                    displayed in their original currency. Future updates will include automatic conversion to
-                    base currency (CNY).
+                    <strong>{t('common.note')}:</strong> {t('reports.multiCurrencyNote')}
                   </div>
                 </div>
               </CardContent>
@@ -429,30 +429,30 @@ export function ReportsPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Income Statement</CardTitle>
+                    <CardTitle>{t('reports.incomeStatement')}</CardTitle>
                     <CardDescription>
                       {dateRange.start} to {dateRange.end}
                     </CardDescription>
                   </div>
                   <Button onClick={exportIncomeStatement} variant="outline" size="sm">
                     <Download className="h-4 w-4 mr-2" />
-                    Export CSV
+                    {t('reports.exportCSV')}
                   </Button>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-lg font-semibold mb-3">Income</h3>
+                    <h3 className="text-lg font-semibold mb-3">{t('reports.income')}</h3>
                     {incomeStatementData.income.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No income found for this period</p>
+                      <p className="text-sm text-muted-foreground">{t('reports.noIncome')}</p>
                     ) : (
                       <div className="border rounded-lg">
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Account</TableHead>
-                              <TableHead className="text-right">Amount</TableHead>
+                              <TableHead>{t('common.account')}</TableHead>
+                              <TableHead className="text-right">{t('common.amount')}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -468,7 +468,7 @@ export function ReportsPage() {
                               </TableRow>
                             ))}
                             <TableRow className="font-bold bg-muted/50">
-                              <TableCell>Total Income</TableCell>
+                              <TableCell>{t('reports.totalIncome')}</TableCell>
                               <TableCell className="text-right">
                                 {incomeStatementData.totalIncome.toLocaleString('en-US', {
                                   minimumFractionDigits: 2,
@@ -483,16 +483,16 @@ export function ReportsPage() {
                   </div>
 
                   <div>
-                    <h3 className="text-lg font-semibold mb-3">Expenses</h3>
+                    <h3 className="text-lg font-semibold mb-3">{t('reports.expenses')}</h3>
                     {incomeStatementData.expenses.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No expenses found for this period</p>
+                      <p className="text-sm text-muted-foreground">{t('reports.noExpenses')}</p>
                     ) : (
                       <div className="border rounded-lg">
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Account</TableHead>
-                              <TableHead className="text-right">Amount</TableHead>
+                              <TableHead>{t('common.account')}</TableHead>
+                              <TableHead className="text-right">{t('common.amount')}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -508,7 +508,7 @@ export function ReportsPage() {
                               </TableRow>
                             ))}
                             <TableRow className="font-bold bg-muted/50">
-                              <TableCell>Total Expenses</TableCell>
+                              <TableCell>{t('reports.totalExpenses')}</TableCell>
                               <TableCell className="text-right">
                                 {incomeStatementData.totalExpenses.toLocaleString('en-US', {
                                   minimumFractionDigits: 2,
@@ -524,7 +524,7 @@ export function ReportsPage() {
 
                   <div className="border-t pt-4">
                     <div className="flex justify-between items-center text-lg font-bold">
-                      <span>Net Income (Income - Expenses)</span>
+                      <span>{t('reports.netIncome')}</span>
                       <span
                         className={
                           incomeStatementData.netIncome >= 0 ? 'text-green-600' : 'text-red-600'
@@ -541,7 +541,7 @@ export function ReportsPage() {
 
                   {incomeStatementData.income.length > 0 || incomeStatementData.expenses.length > 0 ? (
                     <div className="mt-6">
-                      <h3 className="text-lg font-semibold mb-3">Income vs Expenses</h3>
+                      <h3 className="text-lg font-semibold mb-3">{t('reports.incomeVsExpenses')}</h3>
                       <ResponsiveContainer width="100%" height={300}>
                         <BarChart data={chartData}>
                           <CartesianGrid strokeDasharray="3 3" />
@@ -556,9 +556,7 @@ export function ReportsPage() {
                   ) : null}
 
                   <div className="mt-4 p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground">
-                    <strong>Note:</strong> Multi-currency conversion not yet implemented. All amounts are
-                    displayed in their original currency. Future updates will include automatic conversion to
-                    base currency (CNY).
+                    <strong>{t('common.note')}:</strong> {t('reports.multiCurrencyNote')}
                   </div>
                 </div>
               </CardContent>

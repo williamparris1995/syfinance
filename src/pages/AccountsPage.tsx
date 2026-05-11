@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { AccountForm } from '../components/AccountForm';
 import { Button } from '../components/ui/button';
 import {
@@ -32,6 +33,7 @@ export function AccountsPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['accounts'],
@@ -43,7 +45,7 @@ export function AccountsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       setIsCreateDialogOpen(false);
-      toast.success('Account created successfully');
+      toast.success(t('accounts.accountCreated'));
     },
     onError: (error) => {
       toast.error(getUserFriendlyError(error));
@@ -71,7 +73,7 @@ export function AccountsPage() {
     },
     onSuccess: () => {
       setDeleteConfirmId(null);
-      toast.success('Account deleted successfully');
+      toast.success(t('accounts.accountDeleted'));
     },
     onError: (error, _accountId, context) => {
       // Rollback on error
@@ -96,29 +98,29 @@ export function AccountsPage() {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Accounts</h1>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>Create Account</Button>
+        <h1 className="text-3xl font-bold">{t('accounts.title')}</h1>
+        <Button onClick={() => setIsCreateDialogOpen(true)}>{t('accounts.createAccount')}</Button>
       </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="text-neutral-500">Loading accounts...</div>
+          <div className="text-neutral-500">{t('accounts.loadingAccounts')}</div>
         </div>
       ) : accounts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="text-neutral-500 mb-4">No accounts yet</p>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>Create your first account</Button>
+          <p className="text-neutral-500 mb-4">{t('accounts.noAccounts')}</p>
+          <Button onClick={() => setIsCreateDialogOpen(true)}>{t('accounts.noAccountsDesc')}</Button>
         </div>
       ) : (
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Currency</TableHead>
-                <TableHead className="text-right">Balance</TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
+                <TableHead>{t('common.name')}</TableHead>
+                <TableHead>{t('common.type')}</TableHead>
+                <TableHead>{t('common.currency')}</TableHead>
+                <TableHead className="text-right">{t('common.balance')}</TableHead>
+                <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -152,9 +154,9 @@ export function AccountsPage() {
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Account</DialogTitle>
+            <DialogTitle>{t('accounts.createAccount')}</DialogTitle>
             <DialogDescription>
-              Add a new account to track your finances.
+              {t('accounts.addAccount')}
             </DialogDescription>
           </DialogHeader>
           <AccountForm
@@ -168,21 +170,21 @@ export function AccountsPage() {
       <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Account</DialogTitle>
+            <DialogTitle>{t('accounts.deleteAccount')}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this account? This action cannot be undone.
+              {t('accounts.deleteConfirm')}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               variant="destructive"
               onClick={() => deleteConfirmId && handleDeleteAccount(deleteConfirmId)}
               disabled={deleteMutation.isPending}
             >
-              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+              {deleteMutation.isPending ? t('accounts.deleting') : t('common.delete')}
             </Button>
           </div>
         </DialogContent>
