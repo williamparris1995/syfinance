@@ -51,7 +51,7 @@ impl ReminderRepository for PostgresReminderRepository {
         .bind(reminder.remind_at)
         .bind(reminder.repeat_pattern.as_ref().map(|p| p.as_str()))
         .bind(reminder.notified)
-        .bind(reminder.priority.as_str())
+        .bind(serde_json::to_string(&reminder.priority).unwrap())
         .bind(reminder.last_notified_at)
         .bind(reminder.notification_count as i32)
         .bind(&reminder.os_task_id)
@@ -100,7 +100,7 @@ impl ReminderRepository for PostgresReminderRepository {
         let notified: bool = row.try_get("notified")?;
 
         let priority: String = row.try_get("priority")?;
-        let priority = crate::domain::aggregates::reminder::Priority::from_str(&priority)
+        let priority = serde_json::from_str(&priority)
             .map_err(|e| sqlx::Error::Decode(format!("invalid priority: {}", e).into()))?;
 
         let last_notified_at: Option<DateTime<Utc>> = row.try_get("last_notified_at")?;

@@ -36,7 +36,7 @@ impl ReminderRepository for SqliteReminderRepository {
         .bind(reminder.remind_at.to_rfc3339())
         .bind(reminder.repeat_pattern.as_ref().map(|p| p.as_str()))
         .bind(reminder.notified)
-        .bind(reminder.priority.as_str())
+        .bind(serde_json::to_string(&reminder.priority).unwrap())
         .bind(reminder.last_notified_at.map(|dt| dt.to_rfc3339()))
         .bind(reminder.notification_count as i64)
         .bind(&reminder.os_task_id)
@@ -101,7 +101,7 @@ impl ReminderRepository for SqliteReminderRepository {
         let notified: bool = row.get("notified");
 
         let priority: String = row.get("priority");
-        let priority = crate::domain::aggregates::reminder::Priority::from_str(&priority)
+        let priority = serde_json::from_str(&priority)
             .map_err(|e| sqlx::Error::Decode(format!("invalid priority: {}", e).into()))?;
 
         let last_notified_at: Option<String> = row.get("last_notified_at");

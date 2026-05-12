@@ -1,5 +1,6 @@
 use crate::domain::value_objects::SyncMetadata;
 use chrono::{DateTime, Duration, Months, Timelike, Utc};
+use serde::{Deserialize, Serialize};
 use std::{error::Error, fmt};
 use uuid::Uuid;
 
@@ -60,34 +61,13 @@ impl RepeatPattern {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Priority {
     Low,
     Normal,
     High,
     Urgent,
-}
-
-impl Priority {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Low => "LOW",
-            Self::Normal => "NORMAL",
-            Self::High => "HIGH",
-            Self::Urgent => "URGENT",
-        }
-    }
-
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(s: &str) -> Result<Self, ReminderError> {
-        match s {
-            "LOW" => Ok(Self::Low),
-            "NORMAL" => Ok(Self::Normal),
-            "HIGH" => Ok(Self::High),
-            "URGENT" => Ok(Self::Urgent),
-            _ => Err(ReminderError::InvalidPriority(s.to_string())),
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -668,23 +648,41 @@ mod tests {
 
         #[test]
         fn converts_to_string() {
-            assert_eq!(Priority::Low.as_str(), "LOW");
-            assert_eq!(Priority::Normal.as_str(), "NORMAL");
-            assert_eq!(Priority::High.as_str(), "HIGH");
-            assert_eq!(Priority::Urgent.as_str(), "URGENT");
+            assert_eq!(serde_json::to_string(&Priority::Low).unwrap(), "\"LOW\"");
+            assert_eq!(
+                serde_json::to_string(&Priority::Normal).unwrap(),
+                "\"NORMAL\""
+            );
+            assert_eq!(serde_json::to_string(&Priority::High).unwrap(), "\"HIGH\"");
+            assert_eq!(
+                serde_json::to_string(&Priority::Urgent).unwrap(),
+                "\"URGENT\""
+            );
         }
 
         #[test]
         fn parses_from_string() {
-            assert_eq!(Priority::from_str("LOW").unwrap(), Priority::Low);
-            assert_eq!(Priority::from_str("NORMAL").unwrap(), Priority::Normal);
-            assert_eq!(Priority::from_str("HIGH").unwrap(), Priority::High);
-            assert_eq!(Priority::from_str("URGENT").unwrap(), Priority::Urgent);
+            assert_eq!(
+                serde_json::from_str::<Priority>("\"LOW\"").unwrap(),
+                Priority::Low
+            );
+            assert_eq!(
+                serde_json::from_str::<Priority>("\"NORMAL\"").unwrap(),
+                Priority::Normal
+            );
+            assert_eq!(
+                serde_json::from_str::<Priority>("\"HIGH\"").unwrap(),
+                Priority::High
+            );
+            assert_eq!(
+                serde_json::from_str::<Priority>("\"URGENT\"").unwrap(),
+                Priority::Urgent
+            );
         }
 
         #[test]
         fn rejects_invalid_priority() {
-            assert!(Priority::from_str("CRITICAL").is_err());
+            assert!(serde_json::from_str::<Priority>("\"CRITICAL\"").is_err());
         }
     }
 
