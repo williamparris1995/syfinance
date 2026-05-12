@@ -236,6 +236,7 @@ mod tests {
             "Test description",
             remind_at,
             repeat_pattern,
+            crate::domain::aggregates::reminder::Priority::Normal,
             metadata(),
         )
         .unwrap()

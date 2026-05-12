@@ -95,6 +95,7 @@ impl<D: DebtRepository, R: ReminderRepository> DebtService<D, R> {
                     ),
                     reminder_date.and_hms_opt(9, 0, 0).unwrap().and_utc(),
                     None,
+                    crate::domain::aggregates::reminder::Priority::Normal,
                     SyncMetadata::new(device_id),
                 )
                 .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;

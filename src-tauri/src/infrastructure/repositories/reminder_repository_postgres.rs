@@ -24,8 +24,9 @@ impl ReminderRepository for PostgresReminderRepository {
             r#"
             INSERT INTO reminders (
                 id, reminder_type, related_entity_id, title, description,
-                remind_at, repeat_pattern, notified, updated_at, device_id
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                remind_at, repeat_pattern, notified, priority, last_notified_at,
+                notification_count, os_task_id, updated_at, device_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             ON CONFLICT (id) DO UPDATE SET
                 reminder_type = EXCLUDED.reminder_type,
                 related_entity_id = EXCLUDED.related_entity_id,
@@ -34,6 +35,10 @@ impl ReminderRepository for PostgresReminderRepository {
                 remind_at = EXCLUDED.remind_at,
                 repeat_pattern = EXCLUDED.repeat_pattern,
                 notified = EXCLUDED.notified,
+                priority = EXCLUDED.priority,
+                last_notified_at = EXCLUDED.last_notified_at,
+                notification_count = EXCLUDED.notification_count,
+                os_task_id = EXCLUDED.os_task_id,
                 updated_at = EXCLUDED.updated_at,
                 device_id = EXCLUDED.device_id
             "#,
@@ -46,6 +51,10 @@ impl ReminderRepository for PostgresReminderRepository {
         .bind(reminder.remind_at)
         .bind(reminder.repeat_pattern.as_ref().map(|p| p.as_str()))
         .bind(reminder.notified)
+        .bind(reminder.priority.as_str())
+        .bind(reminder.last_notified_at)
+        .bind(reminder.notification_count as i32)
+        .bind(&reminder.os_task_id)
         .bind(reminder.sync_metadata.updated_at)
         .bind(reminder.sync_metadata.device_id)
         .execute(&self.pool)
@@ -58,7 +67,8 @@ impl ReminderRepository for PostgresReminderRepository {
         let row = sqlx::query(
             r#"
             SELECT id, reminder_type, related_entity_id, title, description,
-                   remind_at, repeat_pattern, notified, updated_at, deleted_at, device_id, synced_at
+                   remind_at, repeat_pattern, notified, priority, last_notified_at,
+                   notification_count, os_task_id, updated_at, deleted_at, device_id, synced_at
             FROM reminders
             WHERE id = $1 AND deleted_at IS NULL
             "#,
@@ -88,6 +98,16 @@ impl ReminderRepository for PostgresReminderRepository {
             .map_err(|e| sqlx::Error::Decode(format!("invalid repeat pattern: {}", e).into()))?;
 
         let notified: bool = row.try_get("notified")?;
+
+        let priority: String = row.try_get("priority")?;
+        let priority = crate::domain::aggregates::reminder::Priority::from_str(&priority)
+            .map_err(|e| sqlx::Error::Decode(format!("invalid priority: {}", e).into()))?;
+
+        let last_notified_at: Option<DateTime<Utc>> = row.try_get("last_notified_at")?;
+        let notification_count: i32 = row.try_get("notification_count")?;
+        let notification_count = notification_count as u32;
+        let os_task_id: Option<String> = row.try_get("os_task_id")?;
+
         let updated_at: DateTime<Utc> = row.try_get("updated_at")?;
         let device_id: Uuid = row.try_get("device_id")?;
         let synced_at: Option<DateTime<Utc>> = row.try_get("synced_at")?;
@@ -109,6 +129,10 @@ impl ReminderRepository for PostgresReminderRepository {
             remind_at,
             repeat_pattern,
             notified,
+            priority,
+            last_notified_at,
+            notification_count,
+            os_task_id,
             sync_metadata,
         }))
     }

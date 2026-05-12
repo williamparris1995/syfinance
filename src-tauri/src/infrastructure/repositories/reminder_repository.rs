@@ -23,8 +23,9 @@ impl ReminderRepository for SqliteReminderRepository {
             r#"
             INSERT INTO reminders (
                 id, reminder_type, related_entity_id, title, description,
-                remind_at, repeat_pattern, notified, updated_at, device_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                remind_at, repeat_pattern, notified, priority, last_notified_at,
+                notification_count, os_task_id, updated_at, device_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(reminder.id.to_string())
@@ -35,6 +36,10 @@ impl ReminderRepository for SqliteReminderRepository {
         .bind(reminder.remind_at.to_rfc3339())
         .bind(reminder.repeat_pattern.as_ref().map(|p| p.as_str()))
         .bind(reminder.notified)
+        .bind(reminder.priority.as_str())
+        .bind(reminder.last_notified_at.map(|dt| dt.to_rfc3339()))
+        .bind(reminder.notification_count as i64)
+        .bind(&reminder.os_task_id)
         .bind(reminder.sync_metadata.updated_at.to_rfc3339())
         .bind(reminder.sync_metadata.device_id.to_string())
         .execute(&self.pool)
@@ -47,7 +52,8 @@ impl ReminderRepository for SqliteReminderRepository {
         let row = sqlx::query(
             r#"
             SELECT id, reminder_type, related_entity_id, title, description,
-                   remind_at, repeat_pattern, notified, updated_at, deleted_at, device_id, synced_at
+                   remind_at, repeat_pattern, notified, priority, last_notified_at,
+                   notification_count, os_task_id, updated_at, deleted_at, device_id, synced_at
             FROM reminders
             WHERE id = ? AND deleted_at IS NULL
             "#,
@@ -93,6 +99,30 @@ impl ReminderRepository for SqliteReminderRepository {
             .map_err(|e| sqlx::Error::Decode(format!("invalid repeat pattern: {}", e).into()))?;
 
         let notified: bool = row.get("notified");
+
+        let priority: String = row.get("priority");
+        let priority = crate::domain::aggregates::reminder::Priority::from_str(&priority)
+            .map_err(|e| sqlx::Error::Decode(format!("invalid priority: {}", e).into()))?;
+
+        let last_notified_at: Option<String> = row.get("last_notified_at");
+        let last_notified_at = last_notified_at
+            .map(|s| {
+                DateTime::parse_from_rfc3339(&s)
+                    .or_else(|_| {
+                        chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S")
+                            .map(|dt| dt.and_utc().into())
+                    })
+                    .map(|dt| dt.with_timezone(&Utc))
+            })
+            .transpose()
+            .map_err(|e: chrono::ParseError| {
+                sqlx::Error::Decode(format!("invalid datetime: {}", e).into())
+            })?;
+
+        let notification_count: i64 = row.get("notification_count");
+        let notification_count = notification_count as u32;
+
+        let os_task_id: Option<String> = row.get("os_task_id");
 
         let updated_at: String = row.get("updated_at");
         let device_id: String = row.get("device_id");
@@ -146,6 +176,10 @@ impl ReminderRepository for SqliteReminderRepository {
             remind_at,
             repeat_pattern,
             notified,
+            priority,
+            last_notified_at,
+            notification_count,
+            os_task_id,
             sync_metadata,
         }))
     }

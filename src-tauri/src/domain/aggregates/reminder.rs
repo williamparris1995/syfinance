@@ -61,10 +61,41 @@ impl RepeatPattern {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Priority {
+    Low,
+    Normal,
+    High,
+    Urgent,
+}
+
+impl Priority {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Low => "LOW",
+            Self::Normal => "NORMAL",
+            Self::High => "HIGH",
+            Self::Urgent => "URGENT",
+        }
+    }
+
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(s: &str) -> Result<Self, ReminderError> {
+        match s {
+            "LOW" => Ok(Self::Low),
+            "NORMAL" => Ok(Self::Normal),
+            "HIGH" => Ok(Self::High),
+            "URGENT" => Ok(Self::Urgent),
+            _ => Err(ReminderError::InvalidPriority(s.to_string())),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ReminderError {
     EmptyTitle,
     InvalidReminderType(String),
     InvalidRepeatPattern(String),
+    InvalidPriority(String),
     RemindAtInPast(DateTime<Utc>),
 }
 
@@ -74,6 +105,7 @@ impl fmt::Display for ReminderError {
             Self::EmptyTitle => write!(f, "title cannot be empty"),
             Self::InvalidReminderType(t) => write!(f, "invalid reminder type: {t}"),
             Self::InvalidRepeatPattern(p) => write!(f, "invalid repeat pattern: {p}"),
+            Self::InvalidPriority(p) => write!(f, "invalid priority: {p}"),
             Self::RemindAtInPast(dt) => write!(f, "remind_at cannot be in the past: {dt}"),
         }
     }
@@ -91,6 +123,10 @@ pub struct Reminder {
     pub remind_at: DateTime<Utc>,
     pub repeat_pattern: Option<RepeatPattern>,
     pub notified: bool,
+    pub priority: Priority,
+    pub last_notified_at: Option<DateTime<Utc>>,
+    pub notification_count: u32,
+    pub os_task_id: Option<String>,
     pub sync_metadata: SyncMetadata,
 }
 
@@ -104,6 +140,7 @@ impl Reminder {
         description: impl Into<String>,
         remind_at: DateTime<Utc>,
         repeat_pattern: Option<RepeatPattern>,
+        priority: Priority,
         sync_metadata: SyncMetadata,
     ) -> Result<Self, ReminderError> {
         let title = title.into().trim().to_string();
@@ -122,6 +159,10 @@ impl Reminder {
             remind_at,
             repeat_pattern,
             notified: false,
+            priority,
+            last_notified_at: None,
+            notification_count: 0,
+            os_task_id: None,
             sync_metadata,
         })
     }
@@ -137,7 +178,25 @@ impl Reminder {
 
     pub fn mark_notified(&mut self) {
         self.notified = true;
+        self.last_notified_at = Some(Utc::now());
+        self.notification_count += 1;
         self.touch();
+    }
+
+    pub fn set_os_task_id(&mut self, task_id: String) {
+        self.os_task_id = Some(task_id);
+    }
+
+    pub fn should_notify(&self) -> bool {
+        // Check if 24 hours have passed since last notification
+        match self.last_notified_at {
+            None => true,
+            Some(last) => {
+                let now = Utc::now();
+                let duration = now.signed_duration_since(last);
+                duration.num_hours() >= 24
+            }
+        }
     }
 
     pub fn calculate_next_occurrence(&self) -> Option<DateTime<Utc>> {
@@ -279,6 +338,7 @@ mod tests {
                 "Description",
                 future_time(),
                 None,
+                Priority::Normal,
                 metadata(),
             );
 
@@ -295,6 +355,7 @@ mod tests {
                 "  Test Description  ",
                 future_time(),
                 None,
+                Priority::Normal,
                 metadata(),
             )
             .unwrap();
@@ -317,6 +378,7 @@ mod tests {
                 "Monthly payment",
                 remind_at,
                 Some(RepeatPattern::Monthly),
+                Priority::High,
                 metadata(),
             )
             .unwrap();
@@ -328,7 +390,11 @@ mod tests {
             assert_eq!(reminder.description, "Monthly payment");
             assert_eq!(reminder.remind_at, remind_at);
             assert_eq!(reminder.repeat_pattern, Some(RepeatPattern::Monthly));
+            assert_eq!(reminder.priority, Priority::High);
             assert!(!reminder.notified);
+            assert_eq!(reminder.notification_count, 0);
+            assert!(reminder.last_notified_at.is_none());
+            assert!(reminder.os_task_id.is_none());
         }
     }
 
@@ -345,6 +411,7 @@ mod tests {
                 "",
                 past_time(),
                 None,
+                Priority::Normal,
                 metadata(),
             )
             .unwrap();
@@ -362,6 +429,7 @@ mod tests {
                 "",
                 future_time(),
                 None,
+                Priority::Normal,
                 metadata(),
             )
             .unwrap();
@@ -379,6 +447,7 @@ mod tests {
                 "",
                 past_time(),
                 None,
+                Priority::Normal,
                 metadata(),
             )
             .unwrap();
@@ -398,6 +467,7 @@ mod tests {
                 "",
                 past_time(),
                 None,
+                Priority::Normal,
                 metadata(),
             )
             .unwrap();
@@ -410,6 +480,8 @@ mod tests {
             assert!(reminder.notified);
             assert!(reminder.sync_metadata.updated_at > original_updated_at);
             assert!(reminder.sync_metadata.synced_at.is_none());
+            assert_eq!(reminder.notification_count, 1);
+            assert!(reminder.last_notified_at.is_some());
         }
     }
 
@@ -433,6 +505,7 @@ mod tests {
                 "",
                 remind_at,
                 Some(RepeatPattern::Daily),
+                Priority::Normal,
                 metadata(),
             )
             .unwrap();
@@ -463,6 +536,7 @@ mod tests {
                 "",
                 remind_at,
                 Some(RepeatPattern::Weekly),
+                Priority::Normal,
                 metadata(),
             )
             .unwrap();
@@ -493,6 +567,7 @@ mod tests {
                 "",
                 remind_at,
                 Some(RepeatPattern::Monthly),
+                Priority::Normal,
                 metadata(),
             )
             .unwrap();
@@ -523,6 +598,7 @@ mod tests {
                 "",
                 remind_at,
                 Some(RepeatPattern::Yearly),
+                Priority::Normal,
                 metadata(),
             )
             .unwrap();
@@ -547,6 +623,7 @@ mod tests {
                 "",
                 future_time(),
                 None,
+                Priority::Normal,
                 metadata(),
             )
             .unwrap();
@@ -570,6 +647,7 @@ mod tests {
                 "",
                 remind_at,
                 Some(RepeatPattern::Monthly),
+                Priority::Normal,
                 metadata(),
             )
             .unwrap();
@@ -582,6 +660,144 @@ mod tests {
                 .and_utc();
 
             assert_eq!(next, expected);
+        }
+    }
+
+    mod priority {
+        use super::*;
+
+        #[test]
+        fn converts_to_string() {
+            assert_eq!(Priority::Low.as_str(), "LOW");
+            assert_eq!(Priority::Normal.as_str(), "NORMAL");
+            assert_eq!(Priority::High.as_str(), "HIGH");
+            assert_eq!(Priority::Urgent.as_str(), "URGENT");
+        }
+
+        #[test]
+        fn parses_from_string() {
+            assert_eq!(Priority::from_str("LOW").unwrap(), Priority::Low);
+            assert_eq!(Priority::from_str("NORMAL").unwrap(), Priority::Normal);
+            assert_eq!(Priority::from_str("HIGH").unwrap(), Priority::High);
+            assert_eq!(Priority::from_str("URGENT").unwrap(), Priority::Urgent);
+        }
+
+        #[test]
+        fn rejects_invalid_priority() {
+            assert!(Priority::from_str("CRITICAL").is_err());
+        }
+    }
+
+    mod notification_tracking {
+        use super::*;
+
+        #[test]
+        fn mark_notified_increments_count() {
+            let mut reminder = Reminder::create(
+                Uuid::new_v4(),
+                ReminderType::Custom,
+                None,
+                "Test",
+                "",
+                past_time(),
+                None,
+                Priority::Normal,
+                metadata(),
+            )
+            .unwrap();
+
+            assert_eq!(reminder.notification_count, 0);
+            assert!(reminder.last_notified_at.is_none());
+
+            reminder.mark_notified();
+
+            assert_eq!(reminder.notification_count, 1);
+            assert!(reminder.last_notified_at.is_some());
+
+            reminder.mark_notified();
+
+            assert_eq!(reminder.notification_count, 2);
+        }
+
+        #[test]
+        fn should_notify_returns_true_when_never_notified() {
+            let reminder = Reminder::create(
+                Uuid::new_v4(),
+                ReminderType::Custom,
+                None,
+                "Test",
+                "",
+                past_time(),
+                None,
+                Priority::Normal,
+                metadata(),
+            )
+            .unwrap();
+
+            assert!(reminder.should_notify());
+        }
+
+        #[test]
+        fn should_notify_returns_false_within_24_hours() {
+            let mut reminder = Reminder::create(
+                Uuid::new_v4(),
+                ReminderType::Custom,
+                None,
+                "Test",
+                "",
+                past_time(),
+                None,
+                Priority::Normal,
+                metadata(),
+            )
+            .unwrap();
+
+            reminder.mark_notified();
+
+            assert!(!reminder.should_notify());
+        }
+
+        #[test]
+        fn should_notify_returns_true_after_24_hours() {
+            let mut reminder = Reminder::create(
+                Uuid::new_v4(),
+                ReminderType::Custom,
+                None,
+                "Test",
+                "",
+                past_time(),
+                None,
+                Priority::Normal,
+                metadata(),
+            )
+            .unwrap();
+
+            // Simulate notification 25 hours ago
+            reminder.last_notified_at = Some(Utc::now() - Duration::hours(25));
+
+            assert!(reminder.should_notify());
+        }
+
+        #[test]
+        fn set_os_task_id_stores_value() {
+            let mut reminder = Reminder::create(
+                Uuid::new_v4(),
+                ReminderType::Custom,
+                None,
+                "Test",
+                "",
+                future_time(),
+                None,
+                Priority::Normal,
+                metadata(),
+            )
+            .unwrap();
+
+            assert!(reminder.os_task_id.is_none());
+
+            reminder.set_os_task_id("task-123".to_string());
+
+            assert_eq!(reminder.os_task_id, Some("task-123".to_string()));
         }
     }
 }

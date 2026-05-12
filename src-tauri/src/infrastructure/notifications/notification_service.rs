@@ -291,6 +291,7 @@ mod tests {
             "Body",
             remind_at,
             repeat_pattern,
+            crate::domain::aggregates::reminder::Priority::Normal,
             metadata(),
         )
         .unwrap()
