@@ -44,7 +44,7 @@ impl ReminderRepository for PostgresReminderRepository {
             "#,
         )
         .bind(reminder.id)
-        .bind(reminder.reminder_type.as_str())
+        .bind(serde_json::to_string(&reminder.reminder_type).unwrap())
         .bind(reminder.related_entity_id)
         .bind(&reminder.title)
         .bind(&reminder.description)
@@ -83,7 +83,7 @@ impl ReminderRepository for PostgresReminderRepository {
 
         let id: Uuid = row.try_get("id")?;
         let reminder_type: String = row.try_get("reminder_type")?;
-        let reminder_type = ReminderType::from_str(&reminder_type)
+        let reminder_type = serde_json::from_str(&reminder_type)
             .map_err(|e| sqlx::Error::Decode(format!("invalid reminder type: {}", e).into()))?;
 
         let related_entity_id: Option<Uuid> = row.try_get("related_entity_id")?;
@@ -219,7 +219,7 @@ impl ReminderRepository for PostgresReminderRepository {
             RETURNING id
             "#,
         )
-        .bind(reminder.reminder_type.as_str())
+        .bind(serde_json::to_string(&reminder.reminder_type).unwrap())
         .bind(reminder.related_entity_id)
         .bind(&reminder.title)
         .bind(&reminder.description)

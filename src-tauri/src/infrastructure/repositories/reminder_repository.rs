@@ -29,7 +29,7 @@ impl ReminderRepository for SqliteReminderRepository {
             "#,
         )
         .bind(reminder.id.to_string())
-        .bind(reminder.reminder_type.as_str())
+        .bind(serde_json::to_string(&reminder.reminder_type).unwrap())
         .bind(reminder.related_entity_id.map(|id| id.to_string()))
         .bind(&reminder.title)
         .bind(&reminder.description)
@@ -71,7 +71,7 @@ impl ReminderRepository for SqliteReminderRepository {
             .map_err(|e| sqlx::Error::Decode(format!("invalid UUID: {}", e).into()))?;
 
         let reminder_type: String = row.get("reminder_type");
-        let reminder_type = ReminderType::from_str(&reminder_type)
+        let reminder_type = serde_json::from_str(&reminder_type)
             .map_err(|e| sqlx::Error::Decode(format!("invalid reminder type: {}", e).into()))?;
 
         let related_entity_id: Option<String> = row.get("related_entity_id");
@@ -274,7 +274,7 @@ impl ReminderRepository for SqliteReminderRepository {
             WHERE id = ? AND deleted_at IS NULL
             "#,
         )
-        .bind(reminder.reminder_type.as_str())
+        .bind(serde_json::to_string(&reminder.reminder_type).unwrap())
         .bind(reminder.related_entity_id.map(|id| id.to_string()))
         .bind(&reminder.title)
         .bind(&reminder.description)

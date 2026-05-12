@@ -4,31 +4,12 @@ use serde::{Deserialize, Serialize};
 use std::{error::Error, fmt};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ReminderType {
     DebtPayment,
     BillDue,
     Custom,
-}
-
-impl ReminderType {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::DebtPayment => "debt_payment",
-            Self::BillDue => "bill_due",
-            Self::Custom => "custom",
-        }
-    }
-
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(s: &str) -> Result<Self, ReminderError> {
-        match s {
-            "debt_payment" => Ok(Self::DebtPayment),
-            "bill_due" => Ok(Self::BillDue),
-            "custom" => Ok(Self::Custom),
-            _ => Err(ReminderError::InvalidReminderType(s.to_string())),
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
