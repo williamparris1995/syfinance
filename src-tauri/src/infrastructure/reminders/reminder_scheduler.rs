@@ -2,6 +2,7 @@ use crate::domain::repositories::ReminderRepository;
 use crate::infrastructure::notifications::{NotificationService, NotificationSender};
 use chrono::Utc;
 use std::sync::Arc;
+use tracing::error;
 
 pub struct ReminderScheduler<R, S>
 where
@@ -38,14 +39,14 @@ where
         for mut reminder in pending_reminders {
             if reminder.should_trigger_now() {
                 if let Err(err) = self.notification_service.send_notification(&reminder).await {
-                    eprintln!("failed to send notification for reminder {}: {}", reminder.id, err);
+                    error!(reminder_id = %reminder.id, error = %err, "Failed to send notification for reminder");
                     continue;
                 }
 
                 reminder.mark_notified();
 
                 if let Err(err) = self.reminder_repo.update(&reminder).await {
-                    eprintln!("failed to mark reminder {} as notified: {}", reminder.id, err);
+                    error!(reminder_id = %reminder.id, error = %err, "Failed to mark reminder as notified");
                     continue;
                 }
 
@@ -58,10 +59,7 @@ where
                     next_reminder.sync_metadata.synced_at = None;
 
                     if let Err(err) = self.reminder_repo.create(&next_reminder).await {
-                        eprintln!(
-                            "failed to create next occurrence for reminder {}: {}",
-                            reminder.id, err
-                        );
+                        error!(reminder_id = %reminder.id, error = %err, "Failed to create next occurrence for reminder");
                     }
                 }
             }
