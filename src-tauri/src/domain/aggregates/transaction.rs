@@ -1,4 +1,7 @@
-use crate::domain::value_objects::{Money, SyncMetadata, TransactionEntry, TransactionEntryError};
+use crate::domain::value_objects::{
+    Money, OperationType, SyncMetadata, TransactionEntry, TransactionEntryError,
+    TransactionOperation,
+};
 use chrono::{NaiveDate, Utc};
 use std::{error::Error, fmt};
 use uuid::Uuid;
@@ -68,6 +71,7 @@ pub struct Transaction {
     pub entries: Vec<TransactionEntry>,
     pub sync_metadata: SyncMetadata,
     pub(crate) pending_events: Vec<TransactionEvent>,
+    pub operations: Vec<TransactionOperation>,
 }
 
 impl Transaction {
@@ -85,6 +89,7 @@ impl Transaction {
             entries,
             sync_metadata,
             pending_events: Vec::new(),
+            operations: Vec::new(),
         };
 
         transaction.validate()?;
@@ -143,6 +148,33 @@ impl Transaction {
 
     pub fn pull_events(&mut self) -> Vec<TransactionEvent> {
         std::mem::take(&mut self.pending_events)
+    }
+
+    pub fn record_operation(
+        &mut self,
+        operation_type: OperationType,
+        entry_id: Option<Uuid>,
+        payload: serde_json::Value,
+        device_id: Uuid,
+        sequence_number: u64,
+    ) {
+        let operation = TransactionOperation::new(
+            self.id,
+            operation_type,
+            entry_id,
+            payload,
+            device_id,
+            sequence_number,
+        );
+        self.operations.push(operation);
+    }
+
+    pub fn get_operations(&self) -> &[TransactionOperation] {
+        &self.operations
+    }
+
+    pub fn clear_operations(&mut self) {
+        self.operations.clear();
     }
 
     fn totals(&self) -> Result<(Money, Money), TransactionError> {
@@ -395,6 +427,126 @@ mod tests {
 
                 let events = transaction.pull_events();
                 assert!(events.is_empty());
+            }
+        }
+
+        mod operation_logging {
+            use super::*;
+
+            #[test]
+            fn record_operation_adds_to_operations_list() {
+                let mut transaction = Transaction::new(
+                    Uuid::new_v4(),
+                    NaiveDate::from_ymd_opt(2026, 4, 7).unwrap(),
+                    "Test transaction",
+                    vec![debit_entry(5_000_00, "CNY"), credit_entry(5_000_00, "CNY")],
+                    metadata(),
+                )
+                .unwrap();
+
+                let device_id = Uuid::new_v4();
+                let entry_id = Uuid::new_v4();
+                let payload = serde_json::json!({"amount": 5000});
+
+                transaction.record_operation(
+                    OperationType::Create,
+                    Some(entry_id),
+                    payload,
+                    device_id,
+                    1,
+                );
+
+                assert_eq!(transaction.get_operations().len(), 1);
+                let op = &transaction.get_operations()[0];
+                assert_eq!(op.transaction_id, transaction.id);
+                assert_eq!(op.device_id, device_id);
+                assert_eq!(op.sequence_number, 1);
+            }
+
+            #[test]
+            fn get_operations_returns_all_recorded_operations() {
+                let mut transaction = Transaction::new(
+                    Uuid::new_v4(),
+                    NaiveDate::from_ymd_opt(2026, 4, 7).unwrap(),
+                    "Test transaction",
+                    vec![debit_entry(5_000_00, "CNY"), credit_entry(5_000_00, "CNY")],
+                    metadata(),
+                )
+                .unwrap();
+
+                let device_id = Uuid::new_v4();
+
+                transaction.record_operation(
+                    OperationType::Create,
+                    None,
+                    serde_json::json!({}),
+                    device_id,
+                    1,
+                );
+                transaction.record_operation(
+                    OperationType::AddEntry,
+                    None,
+                    serde_json::json!({}),
+                    device_id,
+                    2,
+                );
+                transaction.record_operation(
+                    OperationType::UpdateEntry,
+                    None,
+                    serde_json::json!({}),
+                    device_id,
+                    3,
+                );
+
+                let operations = transaction.get_operations();
+                assert_eq!(operations.len(), 3);
+                assert!(matches!(
+                    operations[0].operation_type,
+                    OperationType::Create
+                ));
+                assert!(matches!(
+                    operations[1].operation_type,
+                    OperationType::AddEntry
+                ));
+                assert!(matches!(
+                    operations[2].operation_type,
+                    OperationType::UpdateEntry
+                ));
+            }
+
+            #[test]
+            fn clear_operations_removes_all_operations() {
+                let mut transaction = Transaction::new(
+                    Uuid::new_v4(),
+                    NaiveDate::from_ymd_opt(2026, 4, 7).unwrap(),
+                    "Test transaction",
+                    vec![debit_entry(5_000_00, "CNY"), credit_entry(5_000_00, "CNY")],
+                    metadata(),
+                )
+                .unwrap();
+
+                let device_id = Uuid::new_v4();
+
+                transaction.record_operation(
+                    OperationType::Create,
+                    None,
+                    serde_json::json!({}),
+                    device_id,
+                    1,
+                );
+                transaction.record_operation(
+                    OperationType::AddEntry,
+                    None,
+                    serde_json::json!({}),
+                    device_id,
+                    2,
+                );
+
+                assert_eq!(transaction.get_operations().len(), 2);
+
+                transaction.clear_operations();
+
+                assert_eq!(transaction.get_operations().len(), 0);
             }
         }
     }
