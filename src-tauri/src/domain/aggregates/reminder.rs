@@ -12,34 +12,13 @@ pub enum ReminderType {
     Custom,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum RepeatPattern {
     Daily,
     Weekly,
     Monthly,
     Yearly,
-}
-
-impl RepeatPattern {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Daily => "daily",
-            Self::Weekly => "weekly",
-            Self::Monthly => "monthly",
-            Self::Yearly => "yearly",
-        }
-    }
-
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(s: &str) -> Result<Self, ReminderError> {
-        match s {
-            "daily" => Ok(Self::Daily),
-            "weekly" => Ok(Self::Weekly),
-            "monthly" => Ok(Self::Monthly),
-            "yearly" => Ok(Self::Yearly),
-            _ => Err(ReminderError::InvalidRepeatPattern(s.to_string())),
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

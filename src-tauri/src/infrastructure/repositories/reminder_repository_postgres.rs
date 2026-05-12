@@ -49,7 +49,7 @@ impl ReminderRepository for PostgresReminderRepository {
         .bind(&reminder.title)
         .bind(&reminder.description)
         .bind(reminder.remind_at)
-        .bind(reminder.repeat_pattern.as_ref().map(|p| p.as_str()))
+        .bind(reminder.repeat_pattern.as_ref().map(|p| serde_json::to_string(p).unwrap()))
         .bind(reminder.notified)
         .bind(serde_json::to_string(&reminder.priority).unwrap())
         .bind(reminder.last_notified_at)
@@ -93,7 +93,7 @@ impl ReminderRepository for PostgresReminderRepository {
 
         let repeat_pattern: Option<String> = row.try_get("repeat_pattern")?;
         let repeat_pattern = repeat_pattern
-            .map(|s| RepeatPattern::from_str(&s))
+            .map(|s| serde_json::from_str(&s))
             .transpose()
             .map_err(|e| sqlx::Error::Decode(format!("invalid repeat pattern: {}", e).into()))?;
 
@@ -224,7 +224,7 @@ impl ReminderRepository for PostgresReminderRepository {
         .bind(&reminder.title)
         .bind(&reminder.description)
         .bind(reminder.remind_at)
-        .bind(reminder.repeat_pattern.as_ref().map(|p| p.as_str()))
+        .bind(reminder.repeat_pattern.as_ref().map(|p| serde_json::to_string(p).unwrap()))
         .bind(reminder.notified)
         .bind(reminder.sync_metadata.updated_at)
         .bind(reminder.sync_metadata.synced_at)

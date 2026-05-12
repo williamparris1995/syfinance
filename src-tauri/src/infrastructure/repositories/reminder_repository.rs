@@ -34,7 +34,7 @@ impl ReminderRepository for SqliteReminderRepository {
         .bind(&reminder.title)
         .bind(&reminder.description)
         .bind(reminder.remind_at.to_rfc3339())
-        .bind(reminder.repeat_pattern.as_ref().map(|p| p.as_str()))
+        .bind(reminder.repeat_pattern.as_ref().map(|p| serde_json::to_string(p).unwrap()))
         .bind(reminder.notified)
         .bind(serde_json::to_string(&reminder.priority).unwrap())
         .bind(reminder.last_notified_at.map(|dt| dt.to_rfc3339()))
@@ -94,7 +94,7 @@ impl ReminderRepository for SqliteReminderRepository {
 
         let repeat_pattern: Option<String> = row.get("repeat_pattern");
         let repeat_pattern = repeat_pattern
-            .map(|s| RepeatPattern::from_str(&s))
+            .map(|s| serde_json::from_str(&s))
             .transpose()
             .map_err(|e| sqlx::Error::Decode(format!("invalid repeat pattern: {}", e).into()))?;
 
@@ -279,7 +279,7 @@ impl ReminderRepository for SqliteReminderRepository {
         .bind(&reminder.title)
         .bind(&reminder.description)
         .bind(reminder.remind_at.to_rfc3339())
-        .bind(reminder.repeat_pattern.as_ref().map(|p| p.as_str()))
+        .bind(reminder.repeat_pattern.as_ref().map(|p| serde_json::to_string(p).unwrap()))
         .bind(reminder.notified)
         .bind(reminder.sync_metadata.updated_at.to_rfc3339())
         .bind(reminder.sync_metadata.synced_at.map(|dt| dt.to_rfc3339()))
