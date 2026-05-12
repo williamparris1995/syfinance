@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 代码质量校验工具
 验证生成的Rust代码是否符合CODING_STANDARDS.md规范
@@ -6,8 +7,14 @@
 
 import re
 import sys
+import io
 from pathlib import Path
 from typing import List, Tuple
+
+# 设置Windows控制台UTF-8编码
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 class CodeValidator:
     def __init__(self, project_root: Path):
