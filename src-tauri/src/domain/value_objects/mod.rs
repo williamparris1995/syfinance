@@ -3,6 +3,7 @@ pub mod money;
 pub mod sync_metadata;
 pub mod transaction_entry;
 pub mod transaction_operation;
+pub mod version_vector;
 
 #[allow(unused_imports)]
 pub use currency::{Currency, CurrencyValidationError};
@@ -14,3 +15,5 @@ pub use sync_metadata::SyncMetadata;
 pub use transaction_entry::{TransactionEntry, TransactionEntryError};
 #[allow(unused_imports)]
 pub use transaction_operation::{OperationType, TransactionOperation};
+#[allow(unused_imports)]
+pub use version_vector::VersionVector;
