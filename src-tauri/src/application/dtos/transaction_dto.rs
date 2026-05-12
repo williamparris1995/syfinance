@@ -20,6 +20,41 @@ pub struct CreateTransactionDto {
     pub entries: Vec<CreateTransactionEntryDto>,
 }
 
+// Simplified DTOs for user-friendly transaction creation
+
+/// 简化的收入交易 DTO
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SimpleIncomeDto {
+    pub transaction_date: NaiveDate,
+    pub amount: Decimal,
+    pub account_id: Uuid,
+    pub category_id: String,
+    pub description: String,
+    pub memo: Option<String>,
+}
+
+/// 简化的支出交易 DTO
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SimpleExpenseDto {
+    pub transaction_date: NaiveDate,
+    pub amount: Decimal,
+    pub account_id: Uuid,
+    pub category_id: String,
+    pub description: String,
+    pub memo: Option<String>,
+}
+
+/// 简化的转账交易 DTO
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SimpleTransferDto {
+    pub transaction_date: NaiveDate,
+    pub amount: Decimal,
+    pub from_account_id: Uuid,
+    pub to_account_id: Uuid,
+    pub description: String,
+    pub memo: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TransactionEntryDto {
     pub account_id: Uuid,

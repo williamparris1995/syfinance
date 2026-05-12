@@ -66,7 +66,9 @@ pub async fn create_default_state() -> sqlx::Result<CurrencyCommandState> {
     CurrencyCommandState::create_default_state().await
 }
 
-pub async fn create_default_state_from_pool(pool: SqlitePool) -> sqlx::Result<CurrencyCommandState> {
+pub async fn create_default_state_from_pool(
+    pool: SqlitePool,
+) -> sqlx::Result<CurrencyCommandState> {
     Ok(CurrencyCommandState::from_pool(pool))
 }
 
@@ -82,9 +84,7 @@ fn database_error_message(error: sqlx::Error) -> String {
     match error {
         sqlx::Error::RowNotFound => "currency not found".to_string(),
         sqlx::Error::Database(database_error) => match database_error.message() {
-            "UNIQUE constraint failed: currencies.code" => {
-                "currency already exists".to_string()
-            }
+            "UNIQUE constraint failed: currencies.code" => "currency already exists".to_string(),
             message => message.to_string(),
         },
         _ => "an unexpected database error occurred".to_string(),
@@ -92,8 +92,7 @@ fn database_error_message(error: sqlx::Error) -> String {
 }
 
 fn parse_exchange_rate(exchange_rate: &str) -> Result<Decimal, String> {
-    Decimal::from_str(exchange_rate)
-        .map_err(|_| format!("invalid exchange rate '{exchange_rate}'"))
+    Decimal::from_str(exchange_rate).map_err(|_| format!("invalid exchange rate '{exchange_rate}'"))
 }
 
 pub async fn list_currencies_with_service(
@@ -106,7 +105,9 @@ pub async fn list_currencies_with_service(
         .map(|currencies| {
             currencies
                 .into_iter()
-                .map(|(currency, updated_at)| CurrencyDto::from_currency_with_timestamp(currency, updated_at))
+                .map(|(currency, updated_at)| {
+                    CurrencyDto::from_currency_with_timestamp(currency, updated_at)
+                })
                 .collect()
         })
         .map_err(database_error_message)
@@ -119,8 +120,8 @@ pub async fn add_currency_with_service(
     exchange_rate: String,
 ) -> Result<(), String> {
     let exchange_rate = parse_exchange_rate(&exchange_rate)?;
-    let currency = Currency::new(code, symbol, exchange_rate)
-        .map_err(currency_validation_error_message)?;
+    let currency =
+        Currency::new(code, symbol, exchange_rate).map_err(currency_validation_error_message)?;
 
     if state
         .repository()

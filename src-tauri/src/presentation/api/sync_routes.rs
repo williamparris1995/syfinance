@@ -42,13 +42,13 @@ impl Default for SyncState {
 
 pub fn create_sync_routes() -> Router {
     let state = SyncState::new();
-    
+
     // Configure CORS
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
         .allow_headers(Any);
-    
+
     Router::new()
         .route("/api/register", post(register))
         .route("/api/sync/push", post(push_changes))
@@ -64,12 +64,10 @@ async fn push_changes(
 ) -> Result<Json<PushResponse>, ApiError> {
     // LIMITATION: Authentication not implemented in Phase 1
     // Phase 2 will add device token validation
-    
+
     let mut is_syncing = state.is_syncing.write().await;
     if *is_syncing {
-        return Err(ApiError::BadRequest(
-            "Sync already in progress".to_string(),
-        ));
+        return Err(ApiError::BadRequest("Sync already in progress".to_string()));
     }
     *is_syncing = true;
     drop(is_syncing);
@@ -78,7 +76,7 @@ async fn push_changes(
     // Phase 2 will integrate SyncService with PostgreSQL repositories
     // Current implementation: Accept all changes and store in memory
     let synced_count = payload.changes.len();
-    
+
     // Store changes temporarily
     let mut pending = state.pending_changes.write().await;
     pending.extend(payload.changes);
@@ -104,12 +102,12 @@ async fn pull_changes(
 ) -> Result<Json<PullResponse>, ApiError> {
     // LIMITATION: Authentication not implemented in Phase 1
     // Phase 2 will add device token validation
-    
+
     // LIMITATION: In-memory sync only (no database persistence)
     // Phase 2 will integrate SyncService with PostgreSQL repositories
     // Current implementation: Return in-memory changes newer than last_sync_at
     let pending = state.pending_changes.read().await;
-    
+
     let changes: Vec<EntityChange> = if let Some(last_sync_at) = payload.last_sync_at {
         pending
             .iter()
@@ -123,9 +121,7 @@ async fn pull_changes(
     Ok(Json(PullResponse { changes }))
 }
 
-async fn sync_status(
-    State(state): State<SyncState>,
-) -> Result<Json<SyncStatus>, ApiError> {
+async fn sync_status(State(state): State<SyncState>) -> Result<Json<SyncStatus>, ApiError> {
     let last_sync = state.last_sync.read().await;
     let pending = state.pending_changes.read().await;
     let is_syncing = state.is_syncing.read().await;

@@ -47,7 +47,9 @@ pub async fn create_default_state() -> sqlx::Result<TransactionCommandState> {
     TransactionCommandState::create_default_state().await
 }
 
-pub async fn create_default_state_from_pool(pool: sqlx::SqlitePool) -> sqlx::Result<TransactionCommandState> {
+pub async fn create_default_state_from_pool(
+    pool: sqlx::SqlitePool,
+) -> sqlx::Result<TransactionCommandState> {
     Ok(TransactionCommandState::from_pool(pool))
 }
 

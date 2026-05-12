@@ -160,7 +160,7 @@ impl SyncScheduler {
     async fn perform_sync(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Call REST API to perform bidirectional sync
         let client = reqwest::Client::new();
-        
+
         // Push changes to server
         let push_response = client
             .post("http://127.0.0.1:3000/api/sync/push")
@@ -170,11 +170,11 @@ impl SyncScheduler {
             }))
             .send()
             .await?;
-        
+
         if !push_response.status().is_success() {
             return Err(format!("Push failed: HTTP {}", push_response.status()).into());
         }
-        
+
         // Pull changes from server
         let pull_response = client
             .post("http://127.0.0.1:3000/api/sync/pull")
@@ -184,11 +184,11 @@ impl SyncScheduler {
             }))
             .send()
             .await?;
-        
+
         if !pull_response.status().is_success() {
             return Err(format!("Pull failed: HTTP {}", pull_response.status()).into());
         }
-        
+
         Ok(())
     }
 

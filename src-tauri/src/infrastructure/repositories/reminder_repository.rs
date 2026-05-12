@@ -34,7 +34,12 @@ impl ReminderRepository for SqliteReminderRepository {
         .bind(&reminder.title)
         .bind(&reminder.description)
         .bind(reminder.remind_at.to_rfc3339())
-        .bind(reminder.repeat_pattern.as_ref().map(|p| serde_json::to_string(p).unwrap()))
+        .bind(
+            reminder
+                .repeat_pattern
+                .as_ref()
+                .map(|p| serde_json::to_string(p).unwrap()),
+        )
         .bind(reminder.notified)
         .bind(serde_json::to_string(&reminder.priority).unwrap())
         .bind(reminder.last_notified_at.map(|dt| dt.to_rfc3339()))
@@ -279,7 +284,12 @@ impl ReminderRepository for SqliteReminderRepository {
         .bind(&reminder.title)
         .bind(&reminder.description)
         .bind(reminder.remind_at.to_rfc3339())
-        .bind(reminder.repeat_pattern.as_ref().map(|p| serde_json::to_string(p).unwrap()))
+        .bind(
+            reminder
+                .repeat_pattern
+                .as_ref()
+                .map(|p| serde_json::to_string(p).unwrap()),
+        )
         .bind(reminder.notified)
         .bind(reminder.sync_metadata.updated_at.to_rfc3339())
         .bind(reminder.sync_metadata.synced_at.map(|dt| dt.to_rfc3339()))

@@ -1,10 +1,10 @@
+use async_trait::async_trait;
 use chrono::{Duration, Utc};
 use fiance::domain::aggregates::{Reminder, ReminderType, RepeatPattern};
 use fiance::domain::repositories::ReminderRepository;
 use fiance::domain::value_objects::SyncMetadata;
-use fiance::infrastructure::notifications::{NotificationService, NotificationSender};
+use fiance::infrastructure::notifications::{NotificationSender, NotificationService};
 use fiance::infrastructure::reminders::ReminderScheduler;
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
@@ -74,10 +74,7 @@ impl ReminderRepository for MockReminderRepository {
             .collect())
     }
 
-    async fn find_by_related_entity(
-        &self,
-        related_entity_id: Uuid,
-    ) -> sqlx::Result<Vec<Reminder>> {
+    async fn find_by_related_entity(&self, related_entity_id: Uuid) -> sqlx::Result<Vec<Reminder>> {
         Ok(self
             .reminders
             .lock()

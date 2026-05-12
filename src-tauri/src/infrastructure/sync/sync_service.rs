@@ -96,7 +96,10 @@ impl<L, R> SyncService<L, R> {
 }
 
 impl<L, R> SyncService<L, R> {
-    pub async fn sync_bidirectional<E>(&self, since: DateTime<Utc>) -> Result<SyncSummary, SyncError>
+    pub async fn sync_bidirectional<E>(
+        &self,
+        since: DateTime<Utc>,
+    ) -> Result<SyncSummary, SyncError>
     where
         E: SyncEntity,
         L: SyncRepository<E>,
@@ -130,10 +133,8 @@ impl<L, R> SyncService<L, R> {
 
             let should_push = match remote {
                 Some(remote_entity) => {
-                    let local_wins = Self::resolve_conflict(
-                        entity.updated_at(),
-                        remote_entity.updated_at(),
-                    );
+                    let local_wins =
+                        Self::resolve_conflict(entity.updated_at(), remote_entity.updated_at());
 
                     if local_wins {
                         summary.conflicts_resolved += 1;
@@ -179,10 +180,8 @@ impl<L, R> SyncService<L, R> {
 
             let should_pull = match local {
                 Some(local_entity) => {
-                    let local_wins = Self::resolve_conflict(
-                        local_entity.updated_at(),
-                        entity.updated_at(),
-                    );
+                    let local_wins =
+                        Self::resolve_conflict(local_entity.updated_at(), entity.updated_at());
 
                     if !local_wins {
                         summary.conflicts_resolved += 1;
@@ -320,7 +319,11 @@ mod tests {
         }
     }
 
-    fn service() -> (Arc<MockSyncRepository>, Arc<MockSyncRepository>, SyncService<MockSyncRepository, MockSyncRepository>) {
+    fn service() -> (
+        Arc<MockSyncRepository>,
+        Arc<MockSyncRepository>,
+        SyncService<MockSyncRepository, MockSyncRepository>,
+    ) {
         let local = Arc::new(MockSyncRepository::default());
         let remote = Arc::new(MockSyncRepository::default());
         let service = SyncService::new(Arc::clone(&local), Arc::clone(&remote));
@@ -337,14 +340,18 @@ mod tests {
             .unwrap()
             .with_timezone(&Utc);
 
-        assert!(SyncService::<MockSyncRepository, MockSyncRepository>::resolve_conflict(
-            local_updated,
-            remote_updated,
-        ));
-        assert!(!SyncService::<MockSyncRepository, MockSyncRepository>::resolve_conflict(
-            remote_updated,
-            local_updated,
-        ));
+        assert!(
+            SyncService::<MockSyncRepository, MockSyncRepository>::resolve_conflict(
+                local_updated,
+                remote_updated,
+            )
+        );
+        assert!(
+            !SyncService::<MockSyncRepository, MockSyncRepository>::resolve_conflict(
+                remote_updated,
+                local_updated,
+            )
+        );
     }
 
     #[tokio::test(start_paused = true)]
@@ -428,11 +435,16 @@ mod tests {
                 .with_timezone(&Utc),
         );
 
-        let local = Arc::new(MockSyncRepository::with_entities(vec![local_entity.clone()]));
+        let local = Arc::new(MockSyncRepository::with_entities(
+            vec![local_entity.clone()],
+        ));
         let remote = Arc::new(MockSyncRepository::with_entities(vec![remote_entity]));
         let service = SyncService::new(Arc::clone(&local), Arc::clone(&remote));
 
-        let summary = service.sync_local_to_remote::<TestEntity>(since).await.unwrap();
+        let summary = service
+            .sync_local_to_remote::<TestEntity>(since)
+            .await
+            .unwrap();
 
         assert_eq!(summary.pushed, 1);
         assert_eq!(summary.conflicts_resolved, 1);
@@ -459,10 +471,15 @@ mod tests {
         );
 
         let local = Arc::new(MockSyncRepository::with_entities(vec![local_entity]));
-        let remote = Arc::new(MockSyncRepository::with_entities(vec![remote_entity.clone()]));
+        let remote = Arc::new(MockSyncRepository::with_entities(vec![
+            remote_entity.clone()
+        ]));
         let service = SyncService::new(Arc::clone(&local), Arc::clone(&remote));
 
-        let summary = service.sync_remote_to_local::<TestEntity>(since).await.unwrap();
+        let summary = service
+            .sync_remote_to_local::<TestEntity>(since)
+            .await
+            .unwrap();
 
         assert_eq!(summary.pulled, 1);
         assert_eq!(summary.conflicts_resolved, 1);

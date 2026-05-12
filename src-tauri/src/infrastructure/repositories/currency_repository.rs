@@ -30,7 +30,10 @@ impl SqliteCurrencyRepository {
             .map_err(|error: CurrencyValidationError| sqlx::Error::Decode(Box::new(error)))
     }
 
-    pub async fn find_by_code_with_timestamp(&self, code: &str) -> sqlx::Result<Option<(Currency, String)>> {
+    pub async fn find_by_code_with_timestamp(
+        &self,
+        code: &str,
+    ) -> sqlx::Result<Option<(Currency, String)>> {
         let row = sqlx::query(
             r#"
             SELECT code, symbol, CAST(exchange_rate AS TEXT) AS exchange_rate, updated_at

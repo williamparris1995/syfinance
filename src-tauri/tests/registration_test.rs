@@ -23,7 +23,7 @@ mod registration_tests {
         assert_eq!(response.status(), 200);
 
         let body: Value = response.json().await.unwrap();
-        
+
         // Verify response has account_id and device_id
         assert!(body.get("account_id").is_some());
         assert!(body.get("device_id").is_some());
@@ -41,7 +41,7 @@ mod registration_tests {
     #[tokio::test]
     async fn test_register_generates_unique_ids() {
         let client = reqwest::Client::new();
-        
+
         // First registration
         let response1 = client
             .post(format!("{}/api/register", API_BASE_URL))

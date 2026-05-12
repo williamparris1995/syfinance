@@ -20,8 +20,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let code: String = row.try_get("code")?;
         let name: String = row.try_get("name")?;
         let updated_at: String = row.try_get("updated_at")?;
-        println!("Code: {}, Name: {}, updated_at: '{}' (len: {}, bytes: {:?})",
-            code, name, updated_at, updated_at.len(), updated_at.as_bytes());
+        println!(
+            "Code: {}, Name: {}, updated_at: '{}' (len: {}, bytes: {:?})",
+            code,
+            name,
+            updated_at,
+            updated_at.len(),
+            updated_at.as_bytes()
+        );
     }
 
     println!("\n=== Checking categories table ===");
@@ -33,8 +39,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let id: String = row.try_get("id")?;
         let name: String = row.try_get("name")?;
         let updated_at: String = row.try_get("updated_at")?;
-        println!("ID: {}, Name: {}, updated_at: '{}' (len: {}, bytes: {:?})",
-            id, name, updated_at, updated_at.len(), updated_at.as_bytes());
+        println!(
+            "ID: {}, Name: {}, updated_at: '{}' (len: {}, bytes: {:?})",
+            id,
+            name,
+            updated_at,
+            updated_at.len(),
+            updated_at.as_bytes()
+        );
     }
 
     Ok(())

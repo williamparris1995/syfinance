@@ -58,7 +58,11 @@ pub async fn update_category(
     id: String,
     dto: UpdateCategoryDto,
 ) -> Result<CategoryDto, String> {
-    let category = state.service().get_category(id.clone()).await.map_err(|error: CategoryServiceError| error.to_string())?;
+    let category = state
+        .service()
+        .get_category(id.clone())
+        .await
+        .map_err(|error: CategoryServiceError| error.to_string())?;
 
     state
         .service()
@@ -74,10 +78,7 @@ pub async fn update_category(
 }
 
 #[tauri::command]
-pub async fn delete_category(
-    state: State<'_, CategoryAppState>,
-    id: String,
-) -> Result<(), String> {
+pub async fn delete_category(state: State<'_, CategoryAppState>, id: String) -> Result<(), String> {
     state
         .service()
         .delete_category(id)

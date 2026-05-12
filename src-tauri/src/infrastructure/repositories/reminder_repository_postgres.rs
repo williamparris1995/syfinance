@@ -49,7 +49,12 @@ impl ReminderRepository for PostgresReminderRepository {
         .bind(&reminder.title)
         .bind(&reminder.description)
         .bind(reminder.remind_at)
-        .bind(reminder.repeat_pattern.as_ref().map(|p| serde_json::to_string(p).unwrap()))
+        .bind(
+            reminder
+                .repeat_pattern
+                .as_ref()
+                .map(|p| serde_json::to_string(p).unwrap()),
+        )
         .bind(reminder.notified)
         .bind(serde_json::to_string(&reminder.priority).unwrap())
         .bind(reminder.last_notified_at)
@@ -224,7 +229,12 @@ impl ReminderRepository for PostgresReminderRepository {
         .bind(&reminder.title)
         .bind(&reminder.description)
         .bind(reminder.remind_at)
-        .bind(reminder.repeat_pattern.as_ref().map(|p| serde_json::to_string(p).unwrap()))
+        .bind(
+            reminder
+                .repeat_pattern
+                .as_ref()
+                .map(|p| serde_json::to_string(p).unwrap()),
+        )
         .bind(reminder.notified)
         .bind(reminder.sync_metadata.updated_at)
         .bind(reminder.sync_metadata.synced_at)

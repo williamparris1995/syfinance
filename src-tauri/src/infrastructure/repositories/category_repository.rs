@@ -51,8 +51,8 @@ impl SqliteCategoryRepository {
                 .map(|ndt| DateTime::<Utc>::from_naive_utc_and_offset(ndt, Utc))
         };
 
-        let updated_at_parsed = parse_sqlite_datetime(&updated_at)
-            .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+        let updated_at_parsed =
+            parse_sqlite_datetime(&updated_at).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
         let deleted_at_parsed = deleted_at
             .map(|s| parse_sqlite_datetime(&s))

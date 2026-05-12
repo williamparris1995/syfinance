@@ -1,5 +1,5 @@
 use crate::domain::repositories::ReminderRepository;
-use crate::infrastructure::notifications::{NotificationService, NotificationSender};
+use crate::infrastructure::notifications::{NotificationSender, NotificationService};
 use chrono::Utc;
 use std::sync::Arc;
 use tracing::error;
@@ -28,7 +28,9 @@ where
         }
     }
 
-    pub async fn check_and_trigger_reminders(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn check_and_trigger_reminders(
+        &self,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let now = Utc::now();
         let pending_reminders = self
             .reminder_repo
@@ -130,7 +132,9 @@ mod tests {
                 .lock()
                 .unwrap()
                 .iter()
-                .filter(|r| r.remind_at <= before && !r.notified && r.sync_metadata.deleted_at.is_none())
+                .filter(|r| {
+                    r.remind_at <= before && !r.notified && r.sync_metadata.deleted_at.is_none()
+                })
                 .cloned()
                 .collect())
         }
@@ -211,7 +215,10 @@ mod tests {
 
     #[async_trait]
     impl NotificationSender for TestNotificationSender {
-        async fn send(&self, reminder: &Reminder) -> Result<(), crate::infrastructure::notifications::NotificationError> {
+        async fn send(
+            &self,
+            reminder: &Reminder,
+        ) -> Result<(), crate::infrastructure::notifications::NotificationError> {
             self.sent.lock().unwrap().push(reminder.id);
             Ok(())
         }

@@ -1,25 +1,17 @@
 use crate::application::dtos::{AccountDto, CreateAccountDto, UpdateAccountDto};
 use crate::domain::aggregates::{Account, AccountError};
-use crate::domain::repositories::{
-    AccountRepository, CurrencyRepository,
-};
+use crate::domain::repositories::{AccountRepository, CurrencyRepository};
 use crate::domain::value_objects::{Money, SyncMetadata};
 use std::sync::Arc;
 use uuid::Uuid;
 
-pub struct AccountService<R: AccountRepository, U: CurrencyRepository>
-{
+pub struct AccountService<R: AccountRepository, U: CurrencyRepository> {
     account_repo: Arc<R>,
     currency_repo: Arc<U>,
 }
 
-impl<R: AccountRepository, U: CurrencyRepository>
-    AccountService<R, U>
-{
-    pub fn new(
-        account_repo: Arc<R>,
-        currency_repo: Arc<U>,
-    ) -> Self {
+impl<R: AccountRepository, U: CurrencyRepository> AccountService<R, U> {
+    pub fn new(account_repo: Arc<R>, currency_repo: Arc<U>) -> Self {
         Self {
             account_repo,
             currency_repo,
@@ -30,8 +22,7 @@ impl<R: AccountRepository, U: CurrencyRepository>
         &self,
         _executor: E,
         dto: CreateAccountDto,
-    ) -> Result<AccountDto, AccountServiceError>
-    {
+    ) -> Result<AccountDto, AccountServiceError> {
         let currency = self
             .currency_repo
             .find_by_code(&dto.currency_code)
@@ -60,8 +51,7 @@ impl<R: AccountRepository, U: CurrencyRepository>
         _executor: E,
         id: Uuid,
         dto: UpdateAccountDto,
-    ) -> Result<AccountDto, AccountServiceError>
-    {
+    ) -> Result<AccountDto, AccountServiceError> {
         let mut account = self
             .account_repo
             .find_by_id(id)
@@ -87,8 +77,7 @@ impl<R: AccountRepository, U: CurrencyRepository>
         &self,
         _executor: E,
         id: Uuid,
-    ) -> Result<(), AccountServiceError>
-    {
+    ) -> Result<(), AccountServiceError> {
         let mut account = self
             .account_repo
             .find_by_id(id)
@@ -221,7 +210,10 @@ mod tests {
             Ok(self.accounts.lock().unwrap().values().cloned().collect())
         }
 
-        async fn get_changes_since(&self, _timestamp: chrono::DateTime<chrono::Utc>) -> sqlx::Result<Vec<Account>> {
+        async fn get_changes_since(
+            &self,
+            _timestamp: chrono::DateTime<chrono::Utc>,
+        ) -> sqlx::Result<Vec<Account>> {
             Ok(Vec::new())
         }
 
@@ -267,8 +259,7 @@ mod tests {
         async fn update_rate(&self, code: &str, exchange_rate: Decimal) -> sqlx::Result<bool> {
             let mut currencies = self.currencies.lock().unwrap();
             if let Some(currency) = currencies.get_mut(code) {
-                *currency =
-                    Currency::new(&currency.code, &currency.symbol, exchange_rate).unwrap();
+                *currency = Currency::new(&currency.code, &currency.symbol, exchange_rate).unwrap();
                 Ok(true)
             } else {
                 Ok(false)
@@ -335,19 +326,14 @@ mod tests {
             initial_balance: Decimal::new(10000, 2),
         };
 
-        let created = service
-            .create_account((), create_dto)
-            .await
-            .unwrap();
+        let created = service.create_account((), create_dto).await.unwrap();
 
         let update_dto = UpdateAccountDto {
             name: Some("New Name".to_string()),
             balance: None,
         };
 
-        let result = service
-            .update_account((), created.id, update_dto)
-            .await;
+        let result = service.update_account((), created.id, update_dto).await;
 
         assert!(result.is_ok());
         let updated = result.unwrap();
@@ -368,10 +354,7 @@ mod tests {
             initial_balance: Decimal::new(10000, 2),
         };
 
-        let created = service
-            .create_account((), create_dto)
-            .await
-            .unwrap();
+        let created = service.create_account((), create_dto).await.unwrap();
 
         let result = service.delete_account((), created.id).await;
 
@@ -395,10 +378,7 @@ mod tests {
             initial_balance: Decimal::new(50000, 2),
         };
 
-        let created = service
-            .create_account((), create_dto)
-            .await
-            .unwrap();
+        let created = service.create_account((), create_dto).await.unwrap();
 
         let balance = service.get_account_balance(created.id).await.unwrap();
 

@@ -52,7 +52,7 @@ impl SqliteAccountRepository {
         // Read new optional fields
         let account_number: Option<String> = row.try_get("account_number")?;
         let institution: Option<String> = row.try_get("institution")?;
-        
+
         let credit_limit_str: Option<String> = row.try_get("credit_limit")?;
         let credit_limit = credit_limit_str
             .map(|s| {
@@ -60,13 +60,13 @@ impl SqliteAccountRepository {
                 Money::new(amount, &currency_code).map_err(|e| sqlx::Error::Decode(Box::new(e)))
             })
             .transpose()?;
-        
+
         let billing_day: Option<i64> = row.try_get("billing_day")?;
         let billing_day = billing_day.map(|d| d as u8);
-        
+
         let payment_due_day: Option<i64> = row.try_get("payment_due_day")?;
         let payment_due_day = payment_due_day.map(|d| d as u8);
-        
+
         let interest_rate_str: Option<String> = row.try_get("interest_rate")?;
         let interest_rate = interest_rate_str
             .map(|s| Decimal::from_str(&s).map_err(|e| sqlx::Error::Decode(Box::new(e))))

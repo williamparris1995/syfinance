@@ -3,21 +3,18 @@ use std::env;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let db_path = format!(
-        "{}/finance-app/finance.db",
-        env::var("APPDATA").unwrap()
-    );
-    
+    let db_path = format!("{}/finance-app/finance.db", env::var("APPDATA").unwrap());
+
     println!("Connecting to database: {}", db_path);
     let pool = SqlitePool::connect(&format!("sqlite:{}", db_path)).await?;
-    
+
     println!("\n=== Testing CategoryDto serialization ===");
-    
+
     // Simulate what the repository does
     let row = sqlx::query("SELECT id, name, icon, color, category_type, chart_code, parent_id, updated_at, deleted_at FROM categories LIMIT 1")
         .fetch_one(&pool)
         .await?;
-    
+
     let id: String = row.try_get("id")?;
     let name: String = row.try_get("name")?;
     let icon: String = row.try_get("icon")?;
@@ -27,7 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let parent_id: Option<String> = row.try_get("parent_id")?;
     let updated_at: String = row.try_get("updated_at")?;
     let deleted_at: Option<String> = row.try_get("deleted_at")?;
-    
+
     println!("Raw data from DB:");
     println!("  id: {}", id);
     println!("  name: {}", name);
@@ -38,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  parent_id: {:?}", parent_id);
     println!("  updated_at: {}", updated_at);
     println!("  deleted_at: {:?}", deleted_at);
-    
+
     // Try to serialize as JSON
     let json_obj = serde_json::json!({
         "id": id,
@@ -52,10 +49,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "updated_at": updated_at,
         "deleted_at": deleted_at,
     });
-    
+
     println!("\n=== JSON serialization ===");
     let json_str = serde_json::to_string_pretty(&json_obj)?;
     println!("{}", json_str);
-    
+
     Ok(())
 }

@@ -2,18 +2,13 @@ use crate::application::{
     dtos::{AccountBalanceDto, AccountDto, CreateAccountDto, UpdateAccountDto},
     services::{AccountService, AccountServiceError},
 };
-use crate::infrastructure::repositories::{
-    SqliteAccountRepository, SqliteCurrencyRepository,
-};
+use crate::infrastructure::repositories::{SqliteAccountRepository, SqliteCurrencyRepository};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
 use std::{str::FromStr, sync::Arc};
 use tauri::State;
 use uuid::Uuid;
 
-pub type AccountServiceType = AccountService<
-    SqliteAccountRepository,
-    SqliteCurrencyRepository,
->;
+pub type AccountServiceType = AccountService<SqliteAccountRepository, SqliteCurrencyRepository>;
 
 pub struct AppState {
     pool: SqlitePool,
@@ -38,10 +33,7 @@ impl AppState {
         let currency_repo = Arc::new(SqliteCurrencyRepository::new(pool.clone()));
 
         Self {
-            account_service: AccountService::new(
-                account_repo,
-                currency_repo,
-            ),
+            account_service: AccountService::new(account_repo, currency_repo),
             pool,
         }
     }

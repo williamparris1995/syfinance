@@ -99,7 +99,10 @@ impl<R: CategoryRepository> CategoryService<R> {
         &self,
         parent_id: Option<String>,
     ) -> Result<Vec<Category>, CategoryServiceError> {
-        let categories = self.category_repo.find_by_parent(parent_id.as_deref()).await?;
+        let categories = self
+            .category_repo
+            .find_by_parent(parent_id.as_deref())
+            .await?;
         Ok(categories)
     }
 }
