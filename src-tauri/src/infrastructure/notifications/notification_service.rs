@@ -5,6 +5,7 @@ use std::{collections::HashMap, sync::Arc};
 use tauri::{AppHandle, Manager, Runtime};
 use tauri_plugin_notification::NotificationExt;
 use tokio::{sync::Mutex, task::JoinHandle};
+use tracing::error;
 use uuid::Uuid;
 
 #[derive(Debug, thiserror::Error)]
@@ -131,7 +132,7 @@ where
                 }
 
                 if let Err(err) = sender.send(&current).await {
-                    eprintln!("failed to send reminder {}: {}", current.id, err);
+                    error!(reminder_id = %current.id, error = %err, "Failed to send reminder");
                     break;
                 }
 
