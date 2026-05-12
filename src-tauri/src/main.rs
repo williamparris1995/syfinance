@@ -42,6 +42,7 @@ use sqlx::sqlite::SqlitePool;
 use std::str::FromStr;
 use std::sync::Arc;
 use tauri::Manager;
+use tracing::{info, error};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -66,7 +67,7 @@ async fn main() {
     let db_path = db_dir.join("finance.db");
     let db_url = format!("sqlite:{}", db_path.display());
     
-    println!("Using database at: {}", db_path.display());
+    info!("Using database at: {}", db_path.display());
     
     // Create a single shared database pool for all services
     let options = sqlx::sqlite::SqliteConnectOptions::from_str(&db_url)
@@ -109,7 +110,7 @@ async fn main() {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
             .await
             .expect("failed to bind to port 3000");
-        println!("REST API server listening on http://127.0.0.1:3000");
+        info!("REST API server listening on http://127.0.0.1:3000");
         axum::serve(listener, app)
             .await
             .expect("failed to start axum server");
