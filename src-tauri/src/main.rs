@@ -42,9 +42,19 @@ use sqlx::sqlite::SqlitePool;
 use std::str::FromStr;
 use std::sync::Arc;
 use tauri::Manager;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() {
+    // Initialize tracing
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "info,finance_app=debug".into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
     // Get app data directory for persistent storage
     let app_data_dir = std::env::var("APPDATA")
         .or_else(|_| std::env::var("HOME").map(|h| format!("{}/.local/share", h)))
