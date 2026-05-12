@@ -1,10 +1,12 @@
 use crate::domain::value_objects::{Money, SyncMetadata};
 use chrono::{Datelike, Months, NaiveDate, Utc};
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::{error::Error, fmt};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum DebtType {
     BorrowedOut,
     BorrowedIn,
@@ -12,7 +14,8 @@ pub enum DebtType {
     Loan,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum AmortizationMethod {
     EqualPrincipalInterest,
     EqualPrincipal,
