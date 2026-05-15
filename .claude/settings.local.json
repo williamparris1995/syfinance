@@ -21,7 +21,24 @@
       "Bash(pnpm tauri *)",
       "Bash(tail -50 C:\\\\\\\\Users\\\\\\\\BUHIYO~1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\c--Users-BuHiYo-001-Desktop-projects-fiance\\\\\\\\4d8bd391-360e-477b-a9bf-b8006e500747\\\\\\\\tasks\\\\\\\\bl148qjoo.output)",
       "Bash(wc -l C:\\\\\\\\Users\\\\\\\\BUHIYO~1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\c--Users-BuHiYo-001-Desktop-projects-fiance\\\\\\\\4d8bd391-360e-477b-a9bf-b8006e500747\\\\\\\\tasks\\\\\\\\bl148qjoo.output)",
-      "Bash(cargo test *)"
+      "Bash(cargo test *)",
+      "Skill(superpowers:brainstorming)",
+      "Skill(superpowers:brainstorming:*)",
+      "Skill(superpowers:writing-plans)",
+      "Skill(superpowers:writing-plans:*)",
+      "Bash(cargo tree *)",
+      "Bash(cargo check *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'chore: add encryption and logging dependencies *)",
+      "Bash(git commit -m 'feat\\(transaction\\): add simplified transaction DTOs *)",
+      "Bash(git commit -m 'feat\\(transaction\\): add simplified transaction service methods *)",
+      "Bash(cd .. && grep -r \"sync\\\\|Sync\\\\|同步\" src --include=\"*.tsx\" --include=\"*.ts\" | grep -i \"nav\\\\|menu\\\\|route\" | head -20)",
+      "Read(//c/Users/BuHiYo-001/Desktop/projects/**)",
+      "Bash(git commit -m 'feat\\(logging\\): add file output to logging framework *)",
+      "Bash(cargo clippy *)",
+      "Bash(grep -E \"warning: used \\\\`\\(unwrap|expect\\)\")",
+      "Bash(grep -A 3 \"warning: used \\\\`unwrap\\\\|warning: used \\\\`expect\")",
+      "Bash(grep \"src\\\\\\\\\")"
     ]
   }
 }

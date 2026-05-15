@@ -10,30 +10,5 @@ disallowed-methods = [
 # 禁止的类型
 disallowed-types = []
 
-# 要求所有公共API有文档
-missing-docs-in-public-items = "warn"
-
-# 要求错误类型实现Error trait
-missing-errors-doc = "warn"
-
-# 禁止TODO注释（应该创建issue）
-todo = "warn"
-
-# 禁止unwrap（应该正确处理错误）
-unwrap-used = "warn"
-expect-used = "warn"
-
-# 要求显式返回类型
-missing-return-type = "warn"
-
-# 禁止过长的函数
-too-many-lines = 100
-
-# 禁止过多的参数
-too-many-arguments = 5
-
-# 要求使用Self而不是具体类型名
-use-self = "warn"
-
-# 检查未使用的结果
-unused-results = "warn"
+# 禁止过多的参数（使用正确的字段名）
+too-many-arguments-threshold = 5

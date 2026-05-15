@@ -282,7 +282,8 @@ impl TransactionService {
         let mut account = account;
         let new_balance = account
             .balance
-            .add(&Money::new(dto.amount, &account.currency_code).unwrap())
+            .add(&Money::new(dto.amount, &account.currency_code)
+                .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?)
             .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
         account
             .update_balance(new_balance)
@@ -352,7 +353,8 @@ impl TransactionService {
         let mut account = account;
         let new_balance = account
             .balance
-            .subtract(&Money::new(dto.amount, &account.currency_code).unwrap())
+            .subtract(&Money::new(dto.amount, &account.currency_code)
+                .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?)
             .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
         account
             .update_balance(new_balance)
@@ -427,7 +429,8 @@ impl TransactionService {
         let mut from_account = from_account;
         let from_new_balance = from_account
             .balance
-            .subtract(&Money::new(dto.amount, &from_account.currency_code).unwrap())
+            .subtract(&Money::new(dto.amount, &from_account.currency_code)
+                .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?)
             .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
         from_account
             .update_balance(from_new_balance)
@@ -437,7 +440,8 @@ impl TransactionService {
         let mut to_account = to_account;
         let to_new_balance = to_account
             .balance
-            .add(&Money::new(dto.amount, &to_account.currency_code).unwrap())
+            .add(&Money::new(dto.amount, &to_account.currency_code)
+                .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?)
             .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
         to_account
             .update_balance(to_new_balance)
