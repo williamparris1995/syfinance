@@ -177,15 +177,28 @@ async fn main() {
 
             scheduler.start();
 
-            // Initialize reminder scheduler (manual trigger for now)
+            // Start reminder scheduler with periodic checks
             let reminder_repo = Arc::new(SqliteReminderRepository::new(debt_pool.clone()));
             let notification_sender = Arc::new(TauriNotificationSender::new(app.handle().clone()));
             let notification_service = Arc::new(NotificationService::new(
                 reminder_repo.clone(),
                 notification_sender,
             ));
-            let _reminder_scheduler =
+            let reminder_scheduler =
                 Arc::new(ReminderScheduler::new(reminder_repo, notification_service));
+
+            // Spawn background task to check reminders every 5 minutes
+            tokio::spawn(async move {
+                let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(300)); // 5 minutes
+                loop {
+                    interval.tick().await;
+                    if let Err(e) = reminder_scheduler.check_and_trigger_reminders().await {
+                        error!("Failed to check reminders: {}", e);
+                    }
+                }
+            });
+
+            info!("Reminder scheduler started (checking every 5 minutes)");
 
             Ok(())
         })
