@@ -2,7 +2,9 @@ use crate::application::{
     dtos::{CreateTransactionDto, TransactionDto},
     services::TransactionService,
 };
-use crate::infrastructure::repositories::{SqliteAccountRepository, SqliteTransactionRepository};
+use crate::infrastructure::repositories::{
+    SqliteAccountRepository, SqliteCategoryRepository, SqliteTransactionRepository,
+};
 use std::{str::FromStr, sync::Arc};
 use tauri::State;
 use uuid::Uuid;
@@ -38,8 +40,13 @@ impl TransactionCommandState {
 
     pub fn from_pool(pool: sqlx::SqlitePool) -> Self {
         let account_repo = Arc::new(SqliteAccountRepository::new(pool.clone()));
-        let transaction_repo = Arc::new(SqliteTransactionRepository::new(pool));
-        Self::from_service(TransactionService::new(transaction_repo, account_repo))
+        let transaction_repo = Arc::new(SqliteTransactionRepository::new(pool.clone()));
+        let category_repo = Arc::new(SqliteCategoryRepository::new(pool));
+        Self::from_service(TransactionService::new(
+            transaction_repo,
+            account_repo,
+            category_repo,
+        ))
     }
 }
 

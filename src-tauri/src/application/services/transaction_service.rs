@@ -1,22 +1,29 @@
-use crate::application::dtos::{CreateTransactionDto, TransactionDto, TransactionEntryDto};
+use crate::application::dtos::{
+    CreateTransactionDto, SimpleExpenseDto, SimpleIncomeDto, SimpleTransferDto, TransactionDto,
+    TransactionEntryDto,
+};
 use crate::domain::{
     aggregates::Transaction,
-    repositories::{AccountRepository, TransactionRepository},
+    repositories::{AccountRepository, CategoryRepository, TransactionRepository},
     value_objects::{Money, SyncMetadata, TransactionEntry},
 };
-use crate::infrastructure::repositories::{SqliteAccountRepository, SqliteTransactionRepository};
+use crate::infrastructure::repositories::{
+    SqliteAccountRepository, SqliteCategoryRepository, SqliteTransactionRepository,
+};
 use std::sync::Arc;
 use uuid::Uuid;
 
 pub struct TransactionService {
     transaction_repo: Arc<SqliteTransactionRepository>,
     account_repo: Arc<SqliteAccountRepository>,
+    category_repo: Arc<SqliteCategoryRepository>,
 }
 
 #[derive(Debug)]
 pub enum TransactionServiceError {
     TransactionNotFound(Uuid),
     AccountNotFound(Uuid),
+    CategoryNotFound(String),
     ValidationError(String),
     RepositoryError(String),
 }
@@ -26,6 +33,7 @@ impl std::fmt::Display for TransactionServiceError {
         match self {
             Self::TransactionNotFound(id) => write!(f, "transaction not found: {id}"),
             Self::AccountNotFound(id) => write!(f, "account not found: {id}"),
+            Self::CategoryNotFound(id) => write!(f, "category not found: {id}"),
             Self::ValidationError(msg) => write!(f, "validation error: {msg}"),
             Self::RepositoryError(msg) => write!(f, "repository error: {msg}"),
         }
@@ -44,10 +52,12 @@ impl TransactionService {
     pub fn new(
         transaction_repo: Arc<SqliteTransactionRepository>,
         account_repo: Arc<SqliteAccountRepository>,
+        category_repo: Arc<SqliteCategoryRepository>,
     ) -> Self {
         Self {
             transaction_repo,
             account_repo,
+            category_repo,
         }
     }
 
@@ -211,6 +221,231 @@ impl TransactionService {
             updated_at: transaction.sync_metadata.updated_at.to_rfc3339(),
         }
     }
+
+    /// 创建收入交易（简化版）
+    /// 自动生成复式记账条目：借记账户（资产增加），贷记收入科目
+    pub async fn create_income(
+        &self,
+        dto: SimpleIncomeDto,
+    ) -> Result<Uuid, TransactionServiceError> {
+        let account = self
+            .account_repo
+            .find_by_id(dto.account_id)
+            .await?
+            .ok_or(TransactionServiceError::AccountNotFound(dto.account_id))?;
+
+        let category = self
+            .category_repo
+            .find_by_id(&dto.category_id.to_string())
+            .await?
+            .ok_or(TransactionServiceError::CategoryNotFound(
+                dto.category_id.to_string(),
+            ))?;
+
+        let money = Money::new(dto.amount, &account.currency_code)
+            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+        // 借：账户（资产增加）
+        let debit_entry = TransactionEntry::new(
+            account.id,
+            &category.chart_code,
+            Some(dto.category_id),
+            Some(money.clone()),
+            None,
+            &dto.description,
+        )
+        .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+        // 贷：收入科目
+        let credit_entry = TransactionEntry::new(
+            Uuid::nil(), // 收入科目不关联具体账户
+            &category.chart_code,
+            Some(dto.category_id),
+            None,
+            Some(money),
+            &dto.description,
+        )
+        .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+        let transaction = Transaction::new(
+            Uuid::new_v4(),
+            dto.date,
+            dto.description.clone(),
+            vec![debit_entry, credit_entry],
+            SyncMetadata::new(Uuid::new_v4()),
+        )
+        .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+        self.transaction_repo.create(&transaction).await?;
+
+        // 更新账户余额
+        let mut account = account;
+        let new_balance = account
+            .balance
+            .add(&Money::new(dto.amount, &account.currency_code).unwrap())
+            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+        account
+            .update_balance(new_balance)
+            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+        self.account_repo.update(&account).await?;
+
+        Ok(transaction.id)
+    }
+
+    /// 创建支出交易（简化版）
+    /// 自动生成复式记账条目：借记支出科目，贷记账户（资产减少）
+    pub async fn create_expense(
+        &self,
+        dto: SimpleExpenseDto,
+    ) -> Result<Uuid, TransactionServiceError> {
+        let account = self
+            .account_repo
+            .find_by_id(dto.account_id)
+            .await?
+            .ok_or(TransactionServiceError::AccountNotFound(dto.account_id))?;
+
+        let category = self
+            .category_repo
+            .find_by_id(&dto.category_id.to_string())
+            .await?
+            .ok_or(TransactionServiceError::CategoryNotFound(
+                dto.category_id.to_string(),
+            ))?;
+
+        let money = Money::new(dto.amount, &account.currency_code)
+            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+        // 借：支出科目
+        let debit_entry = TransactionEntry::new(
+            Uuid::nil(), // 支出科目不关联具体账户
+            &category.chart_code,
+            Some(dto.category_id),
+            Some(money.clone()),
+            None,
+            &dto.description,
+        )
+        .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+        // 贷：账户（资产减少）
+        let credit_entry = TransactionEntry::new(
+            account.id,
+            &category.chart_code,
+            Some(dto.category_id),
+            None,
+            Some(money),
+            &dto.description,
+        )
+        .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+        let transaction = Transaction::new(
+            Uuid::new_v4(),
+            dto.date,
+            dto.description.clone(),
+            vec![debit_entry, credit_entry],
+            SyncMetadata::new(Uuid::new_v4()),
+        )
+        .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+        self.transaction_repo.create(&transaction).await?;
+
+        // 更新账户余额
+        let mut account = account;
+        let new_balance = account
+            .balance
+            .subtract(&Money::new(dto.amount, &account.currency_code).unwrap())
+            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+        account
+            .update_balance(new_balance)
+            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+        self.account_repo.update(&account).await?;
+
+        Ok(transaction.id)
+    }
+
+    /// 创建转账交易（简化版）
+    /// 自动生成复式记账条目：借记目标账户，贷记源账户
+    pub async fn create_transfer(
+        &self,
+        dto: SimpleTransferDto,
+    ) -> Result<Uuid, TransactionServiceError> {
+        let from_account = self
+            .account_repo
+            .find_by_id(dto.from_account_id)
+            .await?
+            .ok_or(TransactionServiceError::AccountNotFound(dto.from_account_id))?;
+
+        let to_account = self
+            .account_repo
+            .find_by_id(dto.to_account_id)
+            .await?
+            .ok_or(TransactionServiceError::AccountNotFound(dto.to_account_id))?;
+
+        // 验证货币一致性
+        if from_account.currency_code != to_account.currency_code {
+            return Err(TransactionServiceError::ValidationError(
+                "transfer between accounts with different currencies is not supported".to_string(),
+            ));
+        }
+
+        let money = Money::new(dto.amount, &from_account.currency_code)
+            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+        // 借：目标账户（资产增加）
+        let debit_entry = TransactionEntry::new(
+            to_account.id,
+            "1002", // 银行存款科目代码
+            None,
+            Some(money.clone()),
+            None,
+            &dto.description,
+        )
+        .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+        // 贷：源账户（资产减少）
+        let credit_entry = TransactionEntry::new(
+            from_account.id,
+            "1002", // 银行存款科目代码
+            None,
+            None,
+            Some(money),
+            &dto.description,
+        )
+        .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+        let transaction = Transaction::new(
+            Uuid::new_v4(),
+            dto.date,
+            dto.description.clone(),
+            vec![debit_entry, credit_entry],
+            SyncMetadata::new(Uuid::new_v4()),
+        )
+        .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+        self.transaction_repo.create(&transaction).await?;
+
+        // 更新两个账户的余额
+        let mut from_account = from_account;
+        let from_new_balance = from_account
+            .balance
+            .subtract(&Money::new(dto.amount, &from_account.currency_code).unwrap())
+            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+        from_account
+            .update_balance(from_new_balance)
+            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+        self.account_repo.update(&from_account).await?;
+
+        let mut to_account = to_account;
+        let to_new_balance = to_account
+            .balance
+            .add(&Money::new(dto.amount, &to_account.currency_code).unwrap())
+            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+        to_account
+            .update_balance(to_new_balance)
+            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+        self.account_repo.update(&to_account).await?;
+
+        Ok(transaction.id)
+    }
 }
 
 #[cfg(test)]
@@ -221,7 +456,7 @@ mod tests {
         value_objects::Currency,
     };
     use crate::infrastructure::repositories::{
-        SqliteAccountRepository, SqliteTransactionRepository,
+        SqliteAccountRepository, SqliteCategoryRepository, SqliteTransactionRepository,
     };
     use chrono::NaiveDate;
     use rust_decimal::Decimal;
@@ -261,7 +496,9 @@ mod tests {
         let pool = setup_test_db().await;
         let account_repo = Arc::new(SqliteAccountRepository::new(pool.clone()));
         let transaction_repo = Arc::new(SqliteTransactionRepository::new(pool.clone()));
-        let service = TransactionService::new(transaction_repo, account_repo.clone());
+        let category_repo = Arc::new(SqliteCategoryRepository::new(pool.clone()));
+        let category_repo = Arc::new(SqliteCategoryRepository::new(pool.clone()));
+        let service = TransactionService::new(transaction_repo, account_repo.clone(), category_repo);
 
         let account1 = create_test_account("CNY");
         let account2 = create_test_account("CNY");
@@ -306,7 +543,8 @@ mod tests {
         let pool = setup_test_db().await;
         let account_repo = Arc::new(SqliteAccountRepository::new(pool.clone()));
         let transaction_repo = Arc::new(SqliteTransactionRepository::new(pool.clone()));
-        let service = TransactionService::new(transaction_repo, account_repo.clone());
+        let category_repo = Arc::new(SqliteCategoryRepository::new(pool.clone()));
+        let service = TransactionService::new(transaction_repo, account_repo.clone(), category_repo);
 
         let account1 = create_test_account("CNY");
         let account2 = create_test_account("CNY");
@@ -348,7 +586,8 @@ mod tests {
         let pool = setup_test_db().await;
         let account_repo = Arc::new(SqliteAccountRepository::new(pool.clone()));
         let transaction_repo = Arc::new(SqliteTransactionRepository::new(pool.clone()));
-        let service = TransactionService::new(transaction_repo, account_repo.clone());
+        let category_repo = Arc::new(SqliteCategoryRepository::new(pool.clone()));
+        let service = TransactionService::new(transaction_repo, account_repo.clone(), category_repo);
 
         let account1 = create_test_account("CNY");
         let account2 = create_test_account("CNY");
@@ -391,7 +630,8 @@ mod tests {
         let pool = setup_test_db().await;
         let account_repo = Arc::new(SqliteAccountRepository::new(pool.clone()));
         let transaction_repo = Arc::new(SqliteTransactionRepository::new(pool.clone()));
-        let service = TransactionService::new(transaction_repo, account_repo.clone());
+        let category_repo = Arc::new(SqliteCategoryRepository::new(pool.clone()));
+        let service = TransactionService::new(transaction_repo, account_repo.clone(), category_repo);
 
         let account1 = create_test_account("CNY");
         let account2 = create_test_account("CNY");
@@ -432,7 +672,8 @@ mod tests {
         let pool = setup_test_db().await;
         let account_repo = Arc::new(SqliteAccountRepository::new(pool.clone()));
         let transaction_repo = Arc::new(SqliteTransactionRepository::new(pool.clone()));
-        let service = TransactionService::new(transaction_repo, account_repo.clone());
+        let category_repo = Arc::new(SqliteCategoryRepository::new(pool.clone()));
+        let service = TransactionService::new(transaction_repo, account_repo.clone(), category_repo);
 
         let account1 = create_test_account("CNY");
         let account2 = create_test_account("CNY");
