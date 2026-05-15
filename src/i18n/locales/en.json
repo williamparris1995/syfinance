@@ -4,6 +4,7 @@
     "loading": "Loading...",
     "offline": "Offline",
     "save": "Save",
+    "saving": "Saving...",
     "cancel": "Cancel",
     "delete": "Delete",
     "edit": "Edit",
@@ -136,6 +137,22 @@
     "recorded": "Transaction recorded successfully",
     "dialogTitle": "Record Transaction",
     "dialogDesc": "Create a new transaction with balanced debits and credits."
+  },
+  "transaction": {
+    "expense": "Expense",
+    "income": "Income",
+    "transfer": "Transfer",
+    "amount": "Amount",
+    "account": "Account",
+    "selectAccount": "Select account",
+    "category": "Category",
+    "selectCategory": "Select category",
+    "fromAccount": "From Account",
+    "toAccount": "To Account",
+    "date": "Date",
+    "pickDate": "Pick a date",
+    "description": "Description",
+    "descriptionPlaceholder": "e.g., Lunch, Salary, etc."
   },
   "transactionForm": {
     "transactionDate": "Transaction Date",

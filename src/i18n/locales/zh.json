@@ -4,6 +4,7 @@
     "loading": "加载中...",
     "offline": "离线",
     "save": "保存",
+    "saving": "保存中...",
     "cancel": "取消",
     "delete": "删除",
     "edit": "编辑",
@@ -139,6 +140,22 @@
     "recorded": "交易记录成功",
     "dialogTitle": "记录交易",
     "dialogDesc": "创建借贷平衡的新交易"
+  },
+  "transaction": {
+    "expense": "支出",
+    "income": "收入",
+    "transfer": "转账",
+    "amount": "金额",
+    "account": "账户",
+    "selectAccount": "选择账户",
+    "category": "分类",
+    "selectCategory": "选择分类",
+    "fromAccount": "从账户",
+    "toAccount": "到账户",
+    "date": "日期",
+    "pickDate": "选择日期",
+    "description": "描述",
+    "descriptionPlaceholder": "例如：午餐、工资等"
   },
   "transactionForm": {
     "transactionDate": "交易日期",
