@@ -47,23 +47,33 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() {
-    // Initialize tracing
+    // Get app data directory for persistent storage
+    let app_data_dir = std::env::var("APPDATA")
+        .or_else(|_| std::env::var("HOME").map(|h| format!("{}/.local/share", h)))
+        .unwrap_or_else(|_| ".".to_string());
+
+    let app_dir = std::path::Path::new(&app_data_dir).join("finance-app");
+    std::fs::create_dir_all(&app_dir).expect("failed to create app data directory");
+
+    // Initialize logging with file output
+    let log_dir = app_dir.join("logs");
+    std::fs::create_dir_all(&log_dir).expect("failed to create logs directory");
+
+    let file_appender = tracing_appender::rolling::daily(log_dir, "finance-app.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| "info,finance_app=debug".into()),
         )
         .with(tracing_subscriber::fmt::layer())
+        .with(tracing_subscriber::fmt::layer().with_writer(non_blocking))
         .init();
 
-    // Get app data directory for persistent storage
-    let app_data_dir = std::env::var("APPDATA")
-        .or_else(|_| std::env::var("HOME").map(|h| format!("{}/.local/share", h)))
-        .unwrap_or_else(|_| ".".to_string());
+    info!("Finance app starting...");
 
-    let db_dir = std::path::Path::new(&app_data_dir).join("finance-app");
-    std::fs::create_dir_all(&db_dir).expect("failed to create app data directory");
-
+    let db_dir = &app_dir;
     let db_path = db_dir.join("finance.db");
     let db_url = format!("sqlite:{}", db_path.display());
 
