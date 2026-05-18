@@ -5,9 +5,27 @@ use crate::application::{
 use crate::infrastructure::repositories::{
     SqliteAccountRepository, SqliteCategoryRepository, SqliteTransactionRepository,
 };
+use rust_decimal::Decimal;
 use std::{str::FromStr, sync::Arc};
 use tauri::State;
 use uuid::Uuid;
+
+const DATE_FORMAT: &str = "%Y-%m-%d";
+
+fn parse_amount(amount: &str) -> Result<Decimal, String> {
+    Decimal::from_str(amount)
+        .map_err(|e| format!("invalid amount: {}", e))
+}
+
+fn parse_date(date: &str) -> Result<chrono::NaiveDate, String> {
+    chrono::NaiveDate::parse_from_str(date, DATE_FORMAT)
+        .map_err(|e| format!("invalid date format: {}", e))
+}
+
+fn parse_uuid(id: &str, field_name: &str) -> Result<uuid::Uuid, String> {
+    uuid::Uuid::parse_str(id)
+        .map_err(|e| format!("invalid {}: {}", field_name, e))
+}
 
 pub struct TransactionCommandState {
     service: Arc<TransactionService>,
@@ -154,26 +172,17 @@ pub async fn create_simple_income(
     description: String,
 ) -> Result<String, String> {
     use crate::application::dtos::SimpleIncomeDto;
-    use rust_decimal::Decimal;
-    use std::str::FromStr;
 
-    let amount_decimal = Decimal::from_str(&amount)
-        .map_err(|e| format!("invalid amount: {}", e))?;
-
-    let date_parsed = chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d")
-        .map_err(|e| format!("invalid date format: {}", e))?;
-
-    let account_uuid = uuid::Uuid::parse_str(&account_id)
-        .map_err(|e| format!("invalid account id: {}", e))?;
-
-    let category_uuid = uuid::Uuid::parse_str(&category_id)
-        .map_err(|e| format!("invalid category id: {}", e))?;
+    let amount = parse_amount(&amount)?;
+    let date = parse_date(&date)?;
+    let account_id = parse_uuid(&account_id, "account_id")?;
+    let category_id = parse_uuid(&category_id, "category_id")?;
 
     let dto = SimpleIncomeDto {
-        account_id: account_uuid,
-        category_id: category_uuid,
-        amount: amount_decimal,
-        date: date_parsed,
+        account_id,
+        category_id,
+        amount,
+        date,
         description,
     };
 
@@ -195,26 +204,17 @@ pub async fn create_simple_expense(
     description: String,
 ) -> Result<String, String> {
     use crate::application::dtos::SimpleExpenseDto;
-    use rust_decimal::Decimal;
-    use std::str::FromStr;
 
-    let amount_decimal = Decimal::from_str(&amount)
-        .map_err(|e| format!("invalid amount: {}", e))?;
-
-    let date_parsed = chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d")
-        .map_err(|e| format!("invalid date format: {}", e))?;
-
-    let account_uuid = uuid::Uuid::parse_str(&account_id)
-        .map_err(|e| format!("invalid account id: {}", e))?;
-
-    let category_uuid = uuid::Uuid::parse_str(&category_id)
-        .map_err(|e| format!("invalid category id: {}", e))?;
+    let amount = parse_amount(&amount)?;
+    let date = parse_date(&date)?;
+    let account_id = parse_uuid(&account_id, "account_id")?;
+    let category_id = parse_uuid(&category_id, "category_id")?;
 
     let dto = SimpleExpenseDto {
-        account_id: account_uuid,
-        category_id: category_uuid,
-        amount: amount_decimal,
-        date: date_parsed,
+        account_id,
+        category_id,
+        amount,
+        date,
         description,
     };
 
@@ -236,26 +236,17 @@ pub async fn create_simple_transfer(
     description: String,
 ) -> Result<String, String> {
     use crate::application::dtos::SimpleTransferDto;
-    use rust_decimal::Decimal;
-    use std::str::FromStr;
 
-    let amount_decimal = Decimal::from_str(&amount)
-        .map_err(|e| format!("invalid amount: {}", e))?;
-
-    let date_parsed = chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d")
-        .map_err(|e| format!("invalid date format: {}", e))?;
-
-    let from_uuid = uuid::Uuid::parse_str(&from_account_id)
-        .map_err(|e| format!("invalid from_account_id: {}", e))?;
-
-    let to_uuid = uuid::Uuid::parse_str(&to_account_id)
-        .map_err(|e| format!("invalid to_account_id: {}", e))?;
+    let amount = parse_amount(&amount)?;
+    let date = parse_date(&date)?;
+    let from_account_id = parse_uuid(&from_account_id, "from_account_id")?;
+    let to_account_id = parse_uuid(&to_account_id, "to_account_id")?;
 
     let dto = SimpleTransferDto {
-        from_account_id: from_uuid,
-        to_account_id: to_uuid,
-        amount: amount_decimal,
-        date: date_parsed,
+        from_account_id,
+        to_account_id,
+        amount,
+        date,
         description,
     };
 
