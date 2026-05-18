@@ -143,3 +143,126 @@ pub async fn get_transactions_by_date_range(
 ) -> Result<Vec<TransactionDto>, String> {
     get_transactions_by_date_range_with_service(state.service(), start_date, end_date).await
 }
+
+#[tauri::command]
+pub async fn create_simple_income(
+    state: State<'_, TransactionCommandState>,
+    account_id: String,
+    category_id: String,
+    amount: String,
+    date: String,
+    description: String,
+) -> Result<String, String> {
+    use crate::application::dtos::SimpleIncomeDto;
+    use rust_decimal::Decimal;
+    use std::str::FromStr;
+
+    let amount_decimal = Decimal::from_str(&amount)
+        .map_err(|e| format!("invalid amount: {}", e))?;
+
+    let date_parsed = chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d")
+        .map_err(|e| format!("invalid date format: {}", e))?;
+
+    let account_uuid = uuid::Uuid::parse_str(&account_id)
+        .map_err(|e| format!("invalid account id: {}", e))?;
+
+    let category_uuid = uuid::Uuid::parse_str(&category_id)
+        .map_err(|e| format!("invalid category id: {}", e))?;
+
+    let dto = SimpleIncomeDto {
+        account_id: account_uuid,
+        category_id: category_uuid,
+        amount: amount_decimal,
+        date: date_parsed,
+        description,
+    };
+
+    state
+        .service()
+        .create_income(dto)
+        .await
+        .map(|id| id.to_string())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn create_simple_expense(
+    state: State<'_, TransactionCommandState>,
+    account_id: String,
+    category_id: String,
+    amount: String,
+    date: String,
+    description: String,
+) -> Result<String, String> {
+    use crate::application::dtos::SimpleExpenseDto;
+    use rust_decimal::Decimal;
+    use std::str::FromStr;
+
+    let amount_decimal = Decimal::from_str(&amount)
+        .map_err(|e| format!("invalid amount: {}", e))?;
+
+    let date_parsed = chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d")
+        .map_err(|e| format!("invalid date format: {}", e))?;
+
+    let account_uuid = uuid::Uuid::parse_str(&account_id)
+        .map_err(|e| format!("invalid account id: {}", e))?;
+
+    let category_uuid = uuid::Uuid::parse_str(&category_id)
+        .map_err(|e| format!("invalid category id: {}", e))?;
+
+    let dto = SimpleExpenseDto {
+        account_id: account_uuid,
+        category_id: category_uuid,
+        amount: amount_decimal,
+        date: date_parsed,
+        description,
+    };
+
+    state
+        .service()
+        .create_expense(dto)
+        .await
+        .map(|id| id.to_string())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn create_simple_transfer(
+    state: State<'_, TransactionCommandState>,
+    from_account_id: String,
+    to_account_id: String,
+    amount: String,
+    date: String,
+    description: String,
+) -> Result<String, String> {
+    use crate::application::dtos::SimpleTransferDto;
+    use rust_decimal::Decimal;
+    use std::str::FromStr;
+
+    let amount_decimal = Decimal::from_str(&amount)
+        .map_err(|e| format!("invalid amount: {}", e))?;
+
+    let date_parsed = chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d")
+        .map_err(|e| format!("invalid date format: {}", e))?;
+
+    let from_uuid = uuid::Uuid::parse_str(&from_account_id)
+        .map_err(|e| format!("invalid from_account_id: {}", e))?;
+
+    let to_uuid = uuid::Uuid::parse_str(&to_account_id)
+        .map_err(|e| format!("invalid to_account_id: {}", e))?;
+
+    let dto = SimpleTransferDto {
+        from_account_id: from_uuid,
+        to_account_id: to_uuid,
+        amount: amount_decimal,
+        date: date_parsed,
+        description,
+    };
+
+    state
+        .service()
+        .create_transfer(dto)
+        .await
+        .map(|id| id.to_string())
+        .map_err(|e| e.to_string())
+}

@@ -34,7 +34,8 @@ use presentation::tauri_commands::{
         sync_from_server, sync_to_server, update_sync_settings,
     },
     transaction_commands::{
-        create_default_state_from_pool, create_transaction, get_transaction,
+        create_default_state_from_pool, create_simple_expense, create_simple_income,
+        create_simple_transfer, create_transaction, get_transaction,
         get_transactions_by_account, get_transactions_by_date_range, list_transactions,
     },
 };
@@ -161,6 +162,9 @@ async fn main() {
             list_transactions,
             get_transactions_by_account,
             get_transactions_by_date_range,
+            create_simple_income,
+            create_simple_expense,
+            create_simple_transfer,
             sync_to_server,
             sync_from_server,
             get_sync_status,
