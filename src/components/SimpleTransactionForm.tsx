@@ -11,16 +11,18 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
+import {
+  createSimpleIncome,
+  createSimpleExpense,
+  createSimpleTransfer,
+} from '@/lib/api/transactions';
 
 interface Account {
   id: string;
   name: string;
-  balance: string;
+  balance: number;
   currency_code: string;
 }
 
@@ -29,6 +31,7 @@ interface Category {
   name: string;
   icon: string;
   color: string;
+  category_type: 'Income' | 'Expense';
 }
 
 interface SimpleTransactionFormProps {
@@ -71,22 +74,52 @@ export function SimpleTransactionForm({
     setIsSubmitting(true);
 
     try {
-      const data: TransactionFormData = {
+      // Format date as YYYY-MM-DD
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+
+      if (type === 'income') {
+        await createSimpleIncome({
+          accountId,
+          categoryId,
+          amount,
+          date: dateStr,
+          description,
+        });
+      } else if (type === 'expense') {
+        await createSimpleExpense({
+          accountId,
+          categoryId,
+          amount,
+          date: dateStr,
+          description,
+        });
+      } else if (type === 'transfer') {
+        await createSimpleTransfer({
+          fromAccountId,
+          toAccountId,
+          amount,
+          date: dateStr,
+          description,
+        });
+      }
+
+      // Call parent onSubmit to close dialog and refresh
+      await onSubmit({
         type,
         date,
         amount,
+        accountId: type === 'transfer' ? undefined : accountId,
+        fromAccountId: type === 'transfer' ? fromAccountId : undefined,
+        toAccountId: type === 'transfer' ? toAccountId : undefined,
+        categoryId: type === 'transfer' ? undefined : categoryId,
         description,
-      };
-
-      if (type === 'transfer') {
-        data.fromAccountId = fromAccountId;
-        data.toAccountId = toAccountId;
-      } else {
-        data.accountId = accountId;
-        data.categoryId = categoryId;
-      }
-
-      await onSubmit(data);
+      });
+    } catch (error) {
+      console.error('Failed to create transaction:', error);
+      alert(`Failed to create transaction: ${error}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -117,7 +150,7 @@ export function SimpleTransactionForm({
 
           <div className="space-y-2">
             <Label htmlFor="account">{t('transaction.account')}</Label>
-            <Select value={accountId} onValueChange={setAccountId} required>
+            <Select value={accountId} onValueChange={(v) => v && setAccountId(v)} required>
               <SelectTrigger>
                 <SelectValue placeholder={t('transaction.selectAccount')} />
               </SelectTrigger>
@@ -133,13 +166,13 @@ export function SimpleTransactionForm({
 
           <div className="space-y-2">
             <Label htmlFor="category">{t('transaction.category')}</Label>
-            <Select value={categoryId} onValueChange={setCategoryId} required>
+            <Select value={categoryId} onValueChange={(v) => v && setCategoryId(v)} required>
               <SelectTrigger>
                 <SelectValue placeholder={t('transaction.selectCategory')} />
               </SelectTrigger>
               <SelectContent>
                 {categories
-                  .filter((c) => c.category_type === 'expense')
+                  .filter((c) => c.category_type === 'Expense')
                   .map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       <span className="flex items-center gap-2">
@@ -169,7 +202,7 @@ export function SimpleTransactionForm({
 
           <div className="space-y-2">
             <Label htmlFor="account">{t('transaction.account')}</Label>
-            <Select value={accountId} onValueChange={setAccountId} required>
+            <Select value={accountId} onValueChange={(v) => v && setAccountId(v)} required>
               <SelectTrigger>
                 <SelectValue placeholder={t('transaction.selectAccount')} />
               </SelectTrigger>
@@ -185,13 +218,13 @@ export function SimpleTransactionForm({
 
           <div className="space-y-2">
             <Label htmlFor="category">{t('transaction.category')}</Label>
-            <Select value={categoryId} onValueChange={setCategoryId} required>
+            <Select value={categoryId} onValueChange={(v) => v && setCategoryId(v)} required>
               <SelectTrigger>
                 <SelectValue placeholder={t('transaction.selectCategory')} />
               </SelectTrigger>
               <SelectContent>
                 {categories
-                  .filter((c) => c.category_type === 'income')
+                  .filter((c) => c.category_type === 'Income')
                   .map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       <span className="flex items-center gap-2">
@@ -221,7 +254,7 @@ export function SimpleTransactionForm({
 
           <div className="space-y-2">
             <Label htmlFor="fromAccount">{t('transaction.fromAccount')}</Label>
-            <Select value={fromAccountId} onValueChange={setFromAccountId} required>
+            <Select value={fromAccountId} onValueChange={(v) => v && setFromAccountId(v)} required>
               <SelectTrigger>
                 <SelectValue placeholder={t('transaction.selectAccount')} />
               </SelectTrigger>
@@ -237,7 +270,7 @@ export function SimpleTransactionForm({
 
           <div className="space-y-2">
             <Label htmlFor="toAccount">{t('transaction.toAccount')}</Label>
-            <Select value={toAccountId} onValueChange={setToAccountId} required>
+            <Select value={toAccountId} onValueChange={(v) => v && setToAccountId(v)} required>
               <SelectTrigger>
                 <SelectValue placeholder={t('transaction.selectAccount')} />
               </SelectTrigger>
@@ -257,24 +290,14 @@ export function SimpleTransactionForm({
 
       {/* Common fields for all types */}
       <div className="space-y-2">
-        <Label>{t('transaction.date')}</Label>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn(
-                'w-full justify-start text-left font-normal',
-                !date && 'text-muted-foreground'
-              )}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {date ? format(date, 'PPP') : <span>{t('transaction.pickDate')}</span>}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0">
-            <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} />
-          </PopoverContent>
-        </Popover>
+        <Label htmlFor="date">{t('transaction.date')}</Label>
+        <Input
+          id="date"
+          type="date"
+          value={date.toISOString().split('T')[0]}
+          onChange={(e) => setDate(new Date(e.target.value))}
+          required
+        />
       </div>
 
       <div className="space-y-2">

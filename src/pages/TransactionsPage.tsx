@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { TransactionForm } from '../components/TransactionForm';
+import { SimpleTransactionForm, TransactionFormData } from '../components/SimpleTransactionForm';
 import { Button } from '../components/ui/button';
 import {
   Dialog,
@@ -22,6 +23,7 @@ import {
 } from '../components/ui/table';
 import { getUserFriendlyError } from '../lib/error-handler';
 import { listAccounts } from '../lib/tauri/account';
+import { listCategories } from '../lib/tauri/category';
 import {
   createTransaction,
   getTransactionsByDateRange,
@@ -29,9 +31,11 @@ import {
   type CreateTransactionDto,
   type TransactionDto,
 } from '../lib/tauri/transaction';
+import { Plus } from 'lucide-react';
 
 export function TransactionsPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isQuickTransactionOpen, setIsQuickTransactionOpen] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const queryClient = useQueryClient();
@@ -40,6 +44,11 @@ export function TransactionsPage() {
   const { data: accounts = [] } = useQuery({
     queryKey: ['accounts'],
     queryFn: listAccounts,
+  });
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: listCategories,
   });
 
   const { data: transactions = [], isLoading } = useQuery({
@@ -98,7 +107,15 @@ export function TransactionsPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">{t('transactions.title')}</h1>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>{t('transactions.recordTransaction')}</Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setIsQuickTransactionOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t('transactions.recordTransaction')}
+          </Button>
+          <Button variant="outline" onClick={() => setIsCreateDialogOpen(true)}>
+            {t('transactions.advanced')}
+          </Button>
+        </div>
       </div>
 
       <div className="flex gap-4 mb-6">
@@ -194,6 +211,25 @@ export function TransactionsPage() {
             onSubmit={handleCreateTransaction}
             onCancel={() => setIsCreateDialogOpen(false)}
             isLoading={createMutation.isPending}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isQuickTransactionOpen} onOpenChange={setIsQuickTransactionOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t('transactions.recordTransaction')}</DialogTitle>
+          </DialogHeader>
+          <SimpleTransactionForm
+            accounts={accounts}
+            categories={categories}
+            onSubmit={async (data: TransactionFormData) => {
+              setIsQuickTransactionOpen(false);
+              queryClient.invalidateQueries({ queryKey: ['transactions'] });
+              queryClient.invalidateQueries({ queryKey: ['accounts'] });
+              toast.success(t('transactions.recorded'));
+            }}
+            onCancel={() => setIsQuickTransactionOpen(false)}
           />
         </DialogContent>
       </Dialog>
