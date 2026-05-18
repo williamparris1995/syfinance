@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +13,6 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { CalendarIcon } from 'lucide-react';
 import {
   createSimpleIncome,
   createSimpleExpense,
@@ -106,6 +106,14 @@ export function SimpleTransactionForm({
         });
       }
 
+      // Reset form fields
+      setAmount('');
+      setAccountId('');
+      setFromAccountId('');
+      setToAccountId('');
+      setCategoryId('');
+      setDescription('');
+
       // Call parent onSubmit to close dialog and refresh
       await onSubmit({
         type,
@@ -119,7 +127,8 @@ export function SimpleTransactionForm({
       });
     } catch (error) {
       console.error('Failed to create transaction:', error);
-      alert(`Failed to create transaction: ${error}`);
+      toast.error(`Failed to create transaction: ${error}`);
+      return; // Don't call onSubmit if API failed
     } finally {
       setIsSubmitting(false);
     }
@@ -127,7 +136,7 @@ export function SimpleTransactionForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <Tabs value={type} onValueChange={(v) => setType(v as any)}>
+      <Tabs value={type} onValueChange={(v) => setType(v as 'income' | 'expense' | 'transfer')}>
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="expense">{t('transaction.expense')}</TabsTrigger>
           <TabsTrigger value="income">{t('transaction.income')}</TabsTrigger>
