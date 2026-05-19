@@ -74,6 +74,46 @@ export function SimpleTransactionForm({
     setIsSubmitting(true);
 
     try {
+      // Validate required fields
+      if (type === 'expense' || type === 'income') {
+        if (!accountId) {
+          toast.error(t('transaction.pleaseSelectAccount'));
+          setIsSubmitting(false);
+          return;
+        }
+        if (!categoryId) {
+          toast.error(t('transaction.pleaseSelectCategory'));
+          setIsSubmitting(false);
+          return;
+        }
+        if (!amount || parseFloat(amount) <= 0) {
+          toast.error(t('transaction.pleaseEnterValidAmount'));
+          setIsSubmitting(false);
+          return;
+        }
+      } else if (type === 'transfer') {
+        if (!fromAccountId) {
+          toast.error(t('transaction.pleaseSelectFromAccount'));
+          setIsSubmitting(false);
+          return;
+        }
+        if (!toAccountId) {
+          toast.error(t('transaction.pleaseSelectToAccount'));
+          setIsSubmitting(false);
+          return;
+        }
+        if (fromAccountId === toAccountId) {
+          toast.error(t('transaction.accountsMustBeDifferent'));
+          setIsSubmitting(false);
+          return;
+        }
+        if (!amount || parseFloat(amount) <= 0) {
+          toast.error(t('transaction.pleaseEnterValidAmount'));
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       // Format date as YYYY-MM-DD
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
