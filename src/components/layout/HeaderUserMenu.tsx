@@ -7,7 +7,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { Button } from '../ui/button';
 
 interface HeaderUserMenuProps {
   userName?: string;
@@ -37,16 +36,14 @@ export function HeaderUserMenu({
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 rounded-md"
+        <button
+          className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           aria-label="User menu"
         >
-          <div className="flex h-full w-full items-center justify-center bg-muted text-xs font-medium">
+          <div className="flex h-full w-full items-center justify-center bg-muted text-xs font-medium rounded-md">
             {initials}
           </div>
-        </Button>
+        </button>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-56">
