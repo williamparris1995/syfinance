@@ -28,7 +28,7 @@ pub struct TransactionEntry {
     pub id: Uuid,
     pub account_id: Uuid,
     pub chart_of_account_code: String,
-    pub category_id: Option<Uuid>,
+    pub category_id: Option<String>,
     pub debit_amount: Option<Money>,
     pub credit_amount: Option<Money>,
     pub note: String,
@@ -38,7 +38,7 @@ impl TransactionEntry {
     pub fn new(
         account_id: Uuid,
         chart_of_account_code: impl Into<String>,
-        category_id: Option<Uuid>,
+        category_id: Option<String>,
         debit_amount: Option<Money>,
         credit_amount: Option<Money>,
         note: impl Into<String>,

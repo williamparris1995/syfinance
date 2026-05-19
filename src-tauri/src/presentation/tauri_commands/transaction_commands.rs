@@ -176,7 +176,6 @@ pub async fn create_simple_income(
     let amount = parse_amount(&amount)?;
     let date = parse_date(&date)?;
     let account_id = parse_uuid(&account_id, "account_id")?;
-    let category_id = parse_uuid(&category_id, "category_id")?;
 
     let dto = SimpleIncomeDto {
         account_id,
@@ -208,7 +207,6 @@ pub async fn create_simple_expense(
     let amount = parse_amount(&amount)?;
     let date = parse_date(&date)?;
     let account_id = parse_uuid(&account_id, "account_id")?;
-    let category_id = parse_uuid(&category_id, "category_id")?;
 
     let dto = SimpleExpenseDto {
         account_id,

@@ -93,7 +93,7 @@ impl TransactionService {
             let entry = TransactionEntry::new(
                 entry_dto.account_id,
                 &entry_dto.chart_of_account_code,
-                entry_dto.category_id,
+                entry_dto.category_id.clone(),
                 debit_amount,
                 credit_amount,
                 entry_dto.memo.as_deref().unwrap_or(""),
@@ -206,7 +206,7 @@ impl TransactionService {
                 .map(|e| TransactionEntryDto {
                     account_id: e.account_id,
                     chart_of_account_code: e.chart_of_account_code.clone(),
-                    category_id: e.category_id,
+                    category_id: e.category_id.clone(),
                     debit_amount: e.debit_amount.as_ref().map(|m| m.amount.to_string()),
                     credit_amount: e.credit_amount.as_ref().map(|m| m.amount.to_string()),
                     currency_code: e.currency_code().unwrap_or("UNKNOWN").to_string(),
@@ -236,10 +236,10 @@ impl TransactionService {
 
         let category = self
             .category_repo
-            .find_by_id(&dto.category_id.to_string())
+            .find_by_id(&dto.category_id)
             .await?
             .ok_or(TransactionServiceError::CategoryNotFound(
-                dto.category_id.to_string(),
+                dto.category_id.clone(),
             ))?;
 
         let money = Money::new(dto.amount, &account.currency_code)
@@ -249,7 +249,7 @@ impl TransactionService {
         let debit_entry = TransactionEntry::new(
             account.id,
             &category.chart_code,
-            Some(dto.category_id),
+            Some(dto.category_id.clone()),
             Some(money.clone()),
             None,
             &dto.description,
@@ -307,10 +307,10 @@ impl TransactionService {
 
         let category = self
             .category_repo
-            .find_by_id(&dto.category_id.to_string())
+            .find_by_id(&dto.category_id)
             .await?
             .ok_or(TransactionServiceError::CategoryNotFound(
-                dto.category_id.to_string(),
+                dto.category_id.clone(),
             ))?;
 
         let money = Money::new(dto.amount, &account.currency_code)
@@ -320,7 +320,7 @@ impl TransactionService {
         let debit_entry = TransactionEntry::new(
             Uuid::nil(), // 支出科目不关联具体账户
             &category.chart_code,
-            Some(dto.category_id),
+            Some(dto.category_id.clone()),
             Some(money.clone()),
             None,
             &dto.description,

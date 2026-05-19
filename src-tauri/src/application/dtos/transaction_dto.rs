@@ -7,7 +7,7 @@ use uuid::Uuid;
 pub struct CreateTransactionEntryDto {
     pub account_id: Uuid,
     pub chart_of_account_code: String,
-    pub category_id: Option<Uuid>,
+    pub category_id: Option<String>,
     pub debit_amount: Option<Decimal>,
     pub credit_amount: Option<Decimal>,
     pub memo: Option<String>,
@@ -59,7 +59,7 @@ pub struct SimpleTransferDto {
 pub struct TransactionEntryDto {
     pub account_id: Uuid,
     pub chart_of_account_code: String,
-    pub category_id: Option<Uuid>,
+    pub category_id: Option<String>,
     pub debit_amount: Option<String>,
     pub credit_amount: Option<String>,
     pub currency_code: String,

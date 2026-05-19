@@ -38,7 +38,23 @@
       "Bash(cargo clippy *)",
       "Bash(grep -E \"warning: used \\\\`\\(unwrap|expect\\)\")",
       "Bash(grep -A 3 \"warning: used \\\\`unwrap\\\\|warning: used \\\\`expect\")",
-      "Bash(grep \"src\\\\\\\\\")"
+      "Bash(grep \"src\\\\\\\\\")",
+      "Bash(git commit -m 'feat\\(ui\\): add simplified transaction form component *)",
+      "Skill(superpowers:subagent-driven-development)",
+      "Skill(superpowers:subagent-driven-development:*)",
+      "Bash(git commit -m ' *)",
+      "Bash(npm run *)",
+      "Bash(git commit -m 'feat\\(api\\): add simplified transaction API wrappers *)",
+      "Bash(npx tsc *)",
+      "Bash(npm list *)",
+      "Bash(npm install *)",
+      "Bash(xargs grep -l \"createSimple\")",
+      "Bash(git commit -m 'fix\\(ui\\): prevent nested button in HeaderUserMenu *)",
+      "Bash(git commit -m 'docs: add final implementation report for simplified transactions *)",
+      "Bash(git commit -m 'fix\\(ui\\): replace Button with native button in HeaderUserMenu *)",
+      "Bash(git commit -m 'docs: update test results with hydration error fix *)",
+      "Bash(git commit -m 'fix\\(ui\\): use div instead of button in HeaderUserMenu trigger *)",
+      "Bash(git commit -m 'fix\\(ui\\): remove asChild prop and simplify HeaderUserMenu trigger *)"
     ]
   }
 }

@@ -10,7 +10,7 @@ pub struct SimpleIncomeDto {
     pub date: NaiveDate,
     pub amount: Decimal,
     pub account_id: Uuid,
-    pub category_id: Uuid,
+    pub category_id: String,
     pub description: String,
 }
 
@@ -21,7 +21,7 @@ pub struct SimpleExpenseDto {
     pub date: NaiveDate,
     pub amount: Decimal,
     pub account_id: Uuid,
-    pub category_id: Uuid,
+    pub category_id: String,
     pub description: String,
 }
 
