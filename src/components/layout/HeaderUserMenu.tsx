@@ -35,22 +35,12 @@ export function HeaderUserMenu({
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-      <DropdownMenuTrigger asChild>
-        <div
-          role="button"
-          tabIndex={0}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
-          aria-label="User menu"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              setIsOpen(!isOpen);
-            }
-          }}
-        >
-          <div className="flex h-full w-full items-center justify-center bg-muted text-xs font-medium rounded-md">
-            {initials}
-          </div>
+      <DropdownMenuTrigger
+        className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+        aria-label="User menu"
+      >
+        <div className="flex h-full w-full items-center justify-center bg-muted text-xs font-medium rounded-md">
+          {initials}
         </div>
       </DropdownMenuTrigger>
 
