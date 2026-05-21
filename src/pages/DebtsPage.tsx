@@ -3,6 +3,7 @@ import { AlertCircle, Calendar } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { useNavigate } from '@tanstack/react-router';
 import { DebtForm } from '../components/DebtForm';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -13,6 +14,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '../components/ui/sheet';
 import {
   Table,
   TableBody,
@@ -33,16 +40,19 @@ import {
   type RecordPaymentDto,
   type UpcomingPaymentDto,
 } from '../lib/tauri/debt';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 
 export function DebtsPage() {
   const { t } = useTranslation();
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [selectedDebt, setSelectedDebt] = useState<DebtDto | null>(null);
   const [paymentToRecord, setPaymentToRecord] = useState<{
     debt: DebtDto;
     payment: PaymentScheduleDto;
   } | null>(null);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const isWide = useMediaQuery('(min-width: 1024px)');
 
   const { data: debts = [], isLoading } = useQuery({
     queryKey: ['debts'],
@@ -59,7 +69,7 @@ export function DebtsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['debts'] });
       queryClient.invalidateQueries({ queryKey: ['upcoming-payments'] });
-      setIsCreateDialogOpen(false);
+      setIsSheetOpen(false);
       toast.success(t('debts.debtCreated'));
     },
     onError: (error) => {
@@ -81,19 +91,25 @@ export function DebtsPage() {
     },
   });
 
+  const handleCreateClick = () => {
+    if (isWide) {
+      setIsSheetOpen(true);
+    } else {
+      navigate({ to: '/debts/new' });
+    }
+  };
+
   const handleCreateDebt = (data: CreateDebtDto) => {
     createMutation.mutate(data);
   };
 
   const handleRecordPayment = () => {
     if (!paymentToRecord) return;
-
     const dto: RecordPaymentDto = {
       debt_id: paymentToRecord.debt.id,
       payment_date: paymentToRecord.payment.payment_date,
       transaction_id: '00000000-0000-0000-0000-000000000000',
     };
-
     recordPaymentMutation.mutate(dto);
   };
 
@@ -101,15 +117,12 @@ export function DebtsPage() {
     const remainingBalance = parseFloat(debt.remaining_balance);
     const today = new Date();
     const dueDate = new Date(debt.due_date);
-
     if (remainingBalance === 0) {
       return { label: t('debts.paidOff'), variant: 'secondary' as const };
     }
-
     if (dueDate < today) {
       return { label: t('debts.overdue'), variant: 'destructive' as const };
     }
-
     return { label: t('debts.active'), variant: 'default' as const };
   };
 
@@ -126,13 +139,11 @@ export function DebtsPage() {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
-    
     const symbols: Record<string, string> = {
       CNY: '¥',
       USD: '$',
       EUR: '€',
     };
-
     return `${symbols[currencyCode] || currencyCode} ${formatted}`;
   };
 
@@ -140,7 +151,7 @@ export function DebtsPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">{t('debts.title')}</h1>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>{t('debts.createDebt')}</Button>
+        <Button onClick={handleCreateClick}>{t('debts.createDebt')}</Button>
       </div>
 
       {overdueDebts.length > 0 && (
@@ -225,7 +236,7 @@ export function DebtsPage() {
       ) : debts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <p className="text-neutral-500 mb-4">{t('debts.noDebts')}</p>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>{t('debts.createFirstDebt')}</Button>
+          <Button onClick={handleCreateClick}>{t('debts.createFirstDebt')}</Button>
         </div>
       ) : (
         <div className="border rounded-lg">
@@ -281,21 +292,20 @@ export function DebtsPage() {
         </div>
       )}
 
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t('debts.createDebt')}</DialogTitle>
-            <DialogDescription>
-              {t('debts.addDebtDesc')}
-            </DialogDescription>
-          </DialogHeader>
-          <DebtForm
-            onSubmit={handleCreateDebt}
-            onCancel={() => setIsCreateDialogOpen(false)}
-            isLoading={createMutation.isPending}
-          />
-        </DialogContent>
-      </Dialog>
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>{t('debts.createDebt')}</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto -mx-4 px-4">
+            <DebtForm
+              onSubmit={handleCreateDebt}
+              onCancel={() => setIsSheetOpen(false)}
+              isLoading={createMutation.isPending}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={!!selectedDebt} onOpenChange={() => setSelectedDebt(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">

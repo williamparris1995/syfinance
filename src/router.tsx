@@ -4,6 +4,9 @@ import { isRegistered } from './lib/auth';
 import { AccountsPage } from './pages/AccountsPage';
 import { DebtsPage } from './pages/DebtsPage';
 import { HomePage } from './pages/HomePage';
+import { NewAccountPage } from './pages/NewAccountPage';
+import { NewDebtPage } from './pages/NewDebtPage';
+import { NewTransactionPage } from './pages/NewTransactionPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -66,6 +69,24 @@ const settingsRoute = createRoute({
   component: SettingsPage,
 });
 
+const newTransactionRoute = createRoute({
+  getParentRoute: () => transactionsRoute,
+  path: 'new',
+  component: NewTransactionPage,
+});
+
+const newAccountRoute = createRoute({
+  getParentRoute: () => accountsRoute,
+  path: 'new',
+  component: NewAccountPage,
+});
+
+const newDebtRoute = createRoute({
+  getParentRoute: () => debtsRoute,
+  path: 'new',
+  component: NewDebtPage,
+});
+
 const onboardingRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'onboarding',
@@ -74,9 +95,9 @@ const onboardingRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   homeRoute,
-  accountsRoute,
-  transactionsRoute,
-  debtsRoute,
+  accountsRoute.addChildren([newAccountRoute]),
+  transactionsRoute.addChildren([newTransactionRoute]),
+  debtsRoute.addChildren([newDebtRoute]),
   reportsRoute,
   settingsRoute,
   onboardingRoute,

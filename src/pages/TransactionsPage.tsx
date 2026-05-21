@@ -1,18 +1,17 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
-import { TransactionForm } from '../components/TransactionForm';
+import { useNavigate } from '@tanstack/react-router';
 import { SimpleTransactionForm, TransactionFormData } from '../components/SimpleTransactionForm';
 import { Button } from '../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '../components/ui/dialog';
 import { Input } from '../components/ui/input';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '../components/ui/sheet';
 import {
   Table,
   TableBody,
@@ -21,25 +20,24 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
-import { getUserFriendlyError } from '../lib/error-handler';
+import { Plus } from 'lucide-react';
 import { listAccounts } from '../lib/tauri/account';
 import { listCategories } from '../lib/tauri/category';
 import {
-  createTransaction,
-  getTransactionsByDateRange,
   listTransactions,
-  type CreateTransactionDto,
+  getTransactionsByDateRange,
   type TransactionDto,
 } from '../lib/tauri/transaction';
-import { Plus } from 'lucide-react';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 
 export function TransactionsPage() {
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isQuickTransactionOpen, setIsQuickTransactionOpen] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const queryClient = useQueryClient();
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const isWide = useMediaQuery('(min-width: 1024px)');
 
   const { data: accounts = [] } = useQuery({
     queryKey: ['accounts'],
@@ -61,21 +59,19 @@ export function TransactionsPage() {
     },
   });
 
-  const createMutation = useMutation({
-    mutationFn: createTransaction,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['accounts'] });
-      setIsCreateDialogOpen(false);
-      toast.success(t('transactions.recorded'));
-    },
-    onError: (error) => {
-      toast.error(getUserFriendlyError(error));
-    },
-  });
+  const handleAddClick = () => {
+    if (isWide) {
+      setIsSheetOpen(true);
+    } else {
+      navigate({ to: '/transactions/new' });
+    }
+  };
 
-  const handleCreateTransaction = (data: CreateTransactionDto) => {
-    createMutation.mutate(data);
+  const handleFormSubmit = async (data: TransactionFormData) => {
+    setIsSheetOpen(false);
+    queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    queryClient.invalidateQueries({ queryKey: ['accounts'] });
+    toast.success(t('transactions.recorded'));
   };
 
   const getAccountName = (accountId: string) => {
@@ -107,15 +103,10 @@ export function TransactionsPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">{t('transactions.title')}</h1>
-        <div className="flex gap-2">
-          <Button onClick={() => setIsQuickTransactionOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            {t('transactions.recordTransaction')}
-          </Button>
-          <Button variant="outline" onClick={() => setIsCreateDialogOpen(true)}>
-            {t('transactions.advanced')}
-          </Button>
-        </div>
+        <Button onClick={handleAddClick}>
+          <Plus className="mr-2 h-4 w-4" />
+          {t('transactions.recordTransaction')}
+        </Button>
       </div>
 
       <div className="flex gap-4 mb-6">
@@ -159,7 +150,7 @@ export function TransactionsPage() {
           <p className="text-neutral-500 mb-4">
             {startDate || endDate ? t('transactions.noTransactionsInRange') : t('transactions.noTransactions')}
           </p>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>{t('transactions.recordFirst')}</Button>
+          <Button onClick={handleAddClick}>{t('transactions.recordFirst')}</Button>
         </div>
       ) : (
         <div className="border rounded-lg">
@@ -199,40 +190,21 @@ export function TransactionsPage() {
         </div>
       )}
 
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t('transactions.dialogTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('transactions.dialogDesc')}
-            </DialogDescription>
-          </DialogHeader>
-          <TransactionForm
-            onSubmit={handleCreateTransaction}
-            onCancel={() => setIsCreateDialogOpen(false)}
-            isLoading={createMutation.isPending}
-          />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isQuickTransactionOpen} onOpenChange={setIsQuickTransactionOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{t('transactions.recordTransaction')}</DialogTitle>
-          </DialogHeader>
-          <SimpleTransactionForm
-            accounts={accounts}
-            categories={categories}
-            onSubmit={async (data: TransactionFormData) => {
-              setIsQuickTransactionOpen(false);
-              queryClient.invalidateQueries({ queryKey: ['transactions'] });
-              queryClient.invalidateQueries({ queryKey: ['accounts'] });
-              toast.success(t('transactions.recorded'));
-            }}
-            onCancel={() => setIsQuickTransactionOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>{t('transactions.recordTransaction')}</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto -mx-4 px-4">
+            <SimpleTransactionForm
+              accounts={accounts}
+              categories={categories}
+              onSubmit={handleFormSubmit}
+              onCancel={() => setIsSheetOpen(false)}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

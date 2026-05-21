@@ -17,6 +17,12 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '../components/ui/sheet';
+import {
   Form,
   FormControl,
   FormField,
@@ -80,7 +86,7 @@ export function SettingsPage() {
 
   type LinkDeviceFormValues = z.infer<typeof linkDeviceSchema>;
 
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isCurrencySheetOpen, setIsCurrencySheetOpen] = useState(false);
   const [updateRateDialogData, setUpdateRateDialogData] = useState<CurrencyDto | null>(null);
   const [isLinkDeviceDialogOpen, setIsLinkDeviceDialogOpen] = useState(false);
   const [accountId, setAccountId] = useState<string | null>(null);
@@ -142,7 +148,7 @@ export function SettingsPage() {
     mutationFn: addCurrency,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['currencies'] });
-      setIsAddDialogOpen(false);
+      setIsCurrencySheetOpen(false);
     },
   });
 
@@ -360,7 +366,7 @@ export function SettingsPage() {
       {/* Currency Settings Section */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">{t('settings.currencySettings')}</h2>
-        <Button onClick={() => setIsAddDialogOpen(true)}>{t('settings.addCurrency')}</Button>
+        <Button onClick={() => setIsCurrencySheetOpen(true)}>{t('settings.addCurrency')}</Button>
       </div>
 
       {isLoading ? (
@@ -370,7 +376,7 @@ export function SettingsPage() {
       ) : currencies.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <p className="text-neutral-500 mb-4">{t('settings.noCurrencies')}</p>
-          <Button onClick={() => setIsAddDialogOpen(true)}>{t('settings.addFirstCurrency')}</Button>
+          <Button onClick={() => setIsCurrencySheetOpen(true)}>{t('settings.addFirstCurrency')}</Button>
         </div>
       ) : (
         <div className="border rounded-lg">
@@ -445,21 +451,20 @@ export function SettingsPage() {
         </div>
       )}
 
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('settings.addCurrency')}</DialogTitle>
-            <DialogDescription>
-              {t('settings.addCurrencyDesc')}
-            </DialogDescription>
-          </DialogHeader>
-          <CurrencyForm
-            onSubmit={handleAddCurrency}
-            onCancel={() => setIsAddDialogOpen(false)}
-            isLoading={addMutation.isPending}
-          />
-        </DialogContent>
-      </Dialog>
+      <Sheet open={isCurrencySheetOpen} onOpenChange={setIsCurrencySheetOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>{t('settings.addCurrency')}</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto -mx-4 px-4">
+            <CurrencyForm
+              onSubmit={handleAddCurrency}
+              onCancel={() => setIsCurrencySheetOpen(false)}
+              isLoading={addMutation.isPending}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <Dialog
         open={!!updateRateDialogData}

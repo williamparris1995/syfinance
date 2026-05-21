@@ -3,6 +3,7 @@ import { Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from '@tanstack/react-router';
 import { AccountForm } from '../components/AccountForm';
 import { Button } from '../components/ui/button';
 import {
@@ -12,6 +13,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '../components/ui/sheet';
 import {
   Table,
   TableBody,
@@ -28,12 +35,15 @@ import {
   type AccountDto,
   type CreateAccountDto,
 } from '../lib/tauri/account';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 
 export function AccountsPage() {
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const isWide = useMediaQuery('(min-width: 1024px)');
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['accounts'],
@@ -44,7 +54,7 @@ export function AccountsPage() {
     mutationFn: createAccount,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
-      setIsCreateDialogOpen(false);
+      setIsSheetOpen(false);
       toast.success(t('accounts.accountCreated'));
     },
     onError: (error) => {
@@ -55,20 +65,14 @@ export function AccountsPage() {
   const deleteMutation = useMutation({
     mutationFn: deleteAccount,
     onMutate: async (accountId) => {
-      // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['accounts'] });
-
-      // Snapshot previous value
       const previousAccounts = queryClient.getQueryData<AccountDto[]>(['accounts']);
-
-      // Optimistically update
       if (previousAccounts) {
         queryClient.setQueryData<AccountDto[]>(
           ['accounts'],
           previousAccounts.filter((account) => account.id !== accountId)
         );
       }
-
       return { previousAccounts };
     },
     onSuccess: () => {
@@ -76,7 +80,6 @@ export function AccountsPage() {
       toast.success(t('accounts.accountDeleted'));
     },
     onError: (error, _accountId, context) => {
-      // Rollback on error
       if (context?.previousAccounts) {
         queryClient.setQueryData(['accounts'], context.previousAccounts);
       }
@@ -86,6 +89,14 @@ export function AccountsPage() {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
     },
   });
+
+  const handleCreateClick = () => {
+    if (isWide) {
+      setIsSheetOpen(true);
+    } else {
+      navigate({ to: '/accounts/new' });
+    }
+  };
 
   const handleCreateAccount = (data: CreateAccountDto) => {
     createMutation.mutate(data);
@@ -99,7 +110,7 @@ export function AccountsPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">{t('accounts.title')}</h1>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>{t('accounts.createAccount')}</Button>
+        <Button onClick={handleCreateClick}>{t('accounts.createAccount')}</Button>
       </div>
 
       {isLoading ? (
@@ -109,7 +120,7 @@ export function AccountsPage() {
       ) : accounts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <p className="text-neutral-500 mb-4">{t('accounts.noAccounts')}</p>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>{t('accounts.noAccountsDesc')}</Button>
+          <Button onClick={handleCreateClick}>{t('accounts.noAccountsDesc')}</Button>
         </div>
       ) : (
         <div className="border rounded-lg">
@@ -151,21 +162,20 @@ export function AccountsPage() {
         </div>
       )}
 
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('accounts.createAccount')}</DialogTitle>
-            <DialogDescription>
-              {t('accounts.addAccount')}
-            </DialogDescription>
-          </DialogHeader>
-          <AccountForm
-            onSubmit={handleCreateAccount}
-            onCancel={() => setIsCreateDialogOpen(false)}
-            isLoading={createMutation.isPending}
-          />
-        </DialogContent>
-      </Dialog>
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>{t('accounts.createAccount')}</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto -mx-4 px-4">
+            <AccountForm
+              onSubmit={handleCreateAccount}
+              onCancel={() => setIsSheetOpen(false)}
+              isLoading={createMutation.isPending}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
         <DialogContent>
