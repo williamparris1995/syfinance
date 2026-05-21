@@ -77,10 +77,11 @@ export function CurrencyForm({ onSubmit, onCancel, isLoading }: CurrencyFormProp
               <FormLabel>{t('currencyForm.currencyCode')}</FormLabel>
               <FormControl>
                 <Input
-                  placeholder={t('currencyForm.currencyCodePlaceholder')}
+                  maxLength={3}
+                  placeholder="CNY"
+                  className="uppercase"
                   {...field}
                   onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                  maxLength={3}
                 />
               </FormControl>
               <FormMessage />
@@ -109,7 +110,13 @@ export function CurrencyForm({ onSubmit, onCancel, isLoading }: CurrencyFormProp
             <FormItem>
               <FormLabel>{t('currencyForm.exchangeRate')}</FormLabel>
               <FormControl>
-                <Input type="text" placeholder={t('currencyForm.exchangeRatePlaceholder')} {...field} />
+                <Input
+                  type="number"
+                  step="0.0001"
+                  min="0"
+                  placeholder={t('currencyForm.exchangeRatePlaceholder')}
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -120,7 +127,7 @@ export function CurrencyForm({ onSubmit, onCancel, isLoading }: CurrencyFormProp
           <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
             {t('common.cancel')}
           </Button>
-          <Button type="submit" disabled={isLoading}>
+          <Button type="submit" variant="default-gradient" disabled={isLoading}>
             {isLoading ? t('common.create') + '...' : t('settings.addCurrency')}
           </Button>
         </div>
