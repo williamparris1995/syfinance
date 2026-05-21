@@ -176,6 +176,30 @@ export function SimpleTransactionForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Amount — always visible, type-tinted background */}
+      <div className={cn(
+        "rounded-xl border p-4 text-center",
+        type === 'expense' && "bg-gradient-to-br from-red-50/50 to-card border-red-200/50 dark:from-red-950/20 dark:to-card dark:border-red-800/30",
+        type === 'income' && "bg-gradient-to-br from-emerald-50/50 to-card border-emerald-200/50 dark:from-emerald-950/20 dark:to-card dark:border-emerald-800/30",
+        type === 'transfer' && "bg-gradient-to-br from-blue-50/50 to-card border-blue-200/50 dark:from-blue-950/20 dark:to-card dark:border-blue-800/30",
+      )}>
+        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+          {t('transaction.amount')}
+        </div>
+        <div className="flex items-center justify-center gap-1">
+          <span className="text-3xl font-bold text-foreground/80">¥</span>
+          <input
+            type="number"
+            step="0.01"
+            min="0.01"
+            required
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="0.00"
+            className="w-40 bg-transparent text-center text-3xl font-bold outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          />
+        </div>
+      </div>
       <Tabs value={type} onValueChange={(v) => setType(v as 'income' | 'expense' | 'transfer')}>
         <TabsList variant="line" className="w-full">
           <TabsTrigger value="expense">{t('transaction.expense')}</TabsTrigger>
@@ -184,19 +208,6 @@ export function SimpleTransactionForm({
         </TabsList>
 
         <TabsContent value="expense" className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="amount">{t('transaction.amount')}</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              required
-            />
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="account">{t('transaction.account')}</Label>
             <Select value={accountId} onValueChange={(v) => v && setAccountId(v)} required>
@@ -237,19 +248,6 @@ export function SimpleTransactionForm({
 
         <TabsContent value="income" className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="amount">{t('transaction.amount')}</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
             <Label htmlFor="account">{t('transaction.account')}</Label>
             <Select value={accountId} onValueChange={(v) => v && setAccountId(v)} required>
               <SelectTrigger>
@@ -288,19 +286,6 @@ export function SimpleTransactionForm({
         </TabsContent>
 
         <TabsContent value="transfer" className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="amount">{t('transaction.amount')}</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              required
-            />
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="fromAccount">{t('transaction.fromAccount')}</Label>
             <Select value={fromAccountId} onValueChange={(v) => v && setFromAccountId(v)} required>
