@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
+import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
 import {
   Form,
@@ -50,8 +51,9 @@ const debtFormSchema = z.object({
     },
     { message: 'Interest rate must be 0 or greater' }
   ),
-  start_date: z.string().min(1, 'Start date is required'),
-  due_date: z.string().min(1, 'Due date is required'),
+  start_date: z.string().optional(),
+  due_date: z.string().optional(),
+  periods: z.number().optional(),
   amortization_method: z.enum(['EqualPrincipalInterest', 'EqualPrincipal']).nullable(),
 }).refine(
   (data) => {
@@ -84,7 +86,8 @@ interface DebtFormProps {
 export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
   const { t } = useTranslation();
   const [paymentPreview, setPaymentPreview] = useState<PaymentPreview[]>([]);
-  
+  const [repaymentMode, setRepaymentMode] = useState<'lump_sum' | 'installment'>('lump_sum');
+
   const debtFormSchema = z.object({
     debt_type: z.enum(['BorrowedOut', 'BorrowedIn', 'CreditCard', 'Loan'], {
       required_error: t('debtForm.debtTypeRequired'),
@@ -105,8 +108,9 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
       },
       { message: t('debtForm.interestRatePositive') }
     ),
-    start_date: z.string().min(1, t('debtForm.startDateRequired')),
-    due_date: z.string().min(1, t('debtForm.dueDateRequired')),
+    start_date: z.string().optional(),
+    due_date: z.string().optional(),
+    periods: z.number().optional(),
     amortization_method: z.enum(['EqualPrincipalInterest', 'EqualPrincipal']).nullable(),
   }).refine(
     (data) => {
@@ -120,7 +124,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
       path: ['due_date'],
     }
   );
-  
+
   const form = useForm<DebtFormValues>({
     resolver: zodResolver(debtFormSchema),
     defaultValues: {
@@ -131,57 +135,74 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
       interest_rate: '',
       start_date: '',
       due_date: '',
+      periods: undefined,
       amortization_method: 'EqualPrincipalInterest',
     },
   });
 
   const watchedValues = form.watch();
+  const { principal_amount, interest_rate, start_date, due_date, amortization_method, periods } = watchedValues;
 
   // Calculate payment schedule preview
   useEffect(() => {
     const timer = setTimeout(() => {
-      const { principal_amount, interest_rate, start_date, due_date, amortization_method } = watchedValues;
-      
-      if (!principal_amount || !interest_rate || !start_date || !due_date || !amortization_method) {
+      if (!principal_amount || !interest_rate || !amortization_method) {
         setPaymentPreview([]);
         return;
       }
 
       const principal = parseFloat(principal_amount);
       const rate = parseFloat(interest_rate) / 100 / 12; // Monthly rate
-      const startDate = new Date(start_date);
-      const dueDate = new Date(due_date);
+      const startDateStr = start_date;
 
-      if (isNaN(principal) || isNaN(rate) || principal <= 0 || rate < 0 || dueDate <= startDate) {
+      if (isNaN(principal) || isNaN(rate) || principal <= 0 || rate < 0) {
         setPaymentPreview([]);
         return;
       }
 
-      // Calculate number of months
-      const months = Math.round(
-        (dueDate.getFullYear() - startDate.getFullYear()) * 12 +
-        (dueDate.getMonth() - startDate.getMonth())
-      );
+      let months: number;
+
+      if (periods && periods > 0) {
+        // Installment mode: use periods directly
+        months = periods;
+      } else if (startDateStr && due_date) {
+        // Lump sum / legacy: calculate from date range
+        const startDate = new Date(startDateStr);
+        const dueDate = new Date(due_date);
+        if (dueDate <= startDate) {
+          setPaymentPreview([]);
+          return;
+        }
+        months = Math.round(
+          (dueDate.getFullYear() - startDate.getFullYear()) * 12 +
+          (dueDate.getMonth() - startDate.getMonth())
+        );
+      } else {
+        setPaymentPreview([]);
+        return;
+      }
 
       if (months <= 0) {
         setPaymentPreview([]);
         return;
       }
 
+      // Use start_date as schedule start, defaulting to today if empty
+      const scheduleStart = startDateStr ? new Date(startDateStr) : new Date();
       const schedule: PaymentPreview[] = [];
       let remainingPrincipal = principal;
 
       if (amortization_method === 'EqualPrincipalInterest') {
         // 等额本息: Equal total payment each period
-        const monthlyPayment = rate === 0 
-          ? principal / months 
+        const monthlyPayment = rate === 0
+          ? principal / months
           : (principal * rate * Math.pow(1 + rate, months)) / (Math.pow(1 + rate, months) - 1);
 
         for (let i = 1; i <= months; i++) {
           const interestPayment = remainingPrincipal * rate;
           const principalPayment = monthlyPayment - interestPayment;
-          
-          const paymentDate = new Date(startDate);
+
+          const paymentDate = new Date(scheduleStart);
           paymentDate.setMonth(paymentDate.getMonth() + i);
 
           schedule.push({
@@ -201,7 +222,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
           const interestPayment = remainingPrincipal * rate;
           const totalPayment = principalPayment + interestPayment;
 
-          const paymentDate = new Date(startDate);
+          const paymentDate = new Date(scheduleStart);
           paymentDate.setMonth(paymentDate.getMonth() + i);
 
           schedule.push({
@@ -226,14 +247,22 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
   }, [paymentPreview]);
 
   const handleSubmit = (values: DebtFormValues) => {
+    let resolvedDueDate = values.due_date || '';
+    // In installment mode, derive due_date from start_date + periods
+    if (repaymentMode === 'installment' && values.periods && values.start_date) {
+      const d = new Date(values.start_date);
+      d.setMonth(d.getMonth() + values.periods);
+      resolvedDueDate = d.toISOString().split('T')[0];
+    }
+
     onSubmit({
       debt_type: values.debt_type as DebtType,
       counterparty: values.counterparty,
       principal_amount: values.principal_amount,
       currency_code: values.currency_code,
       interest_rate: values.interest_rate,
-      start_date: values.start_date,
-      due_date: values.due_date,
+      start_date: values.start_date || '',
+      due_date: resolvedDueDate,
       amortization_method: values.amortization_method as AmortizationMethod | null,
     });
   };
@@ -242,224 +271,218 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
     <div className="space-y-6">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="debt_type"
-            render={({ field }) => (
+          {/* Repayment mode toggle */}
+          <div className="flex justify-center">
+            <div className="inline-flex gap-1 rounded-full bg-muted p-1">
+              <button
+                type="button"
+                onClick={() => setRepaymentMode('lump_sum')}
+                className={cn(
+                  "rounded-full px-4 py-1.5 text-xs font-medium transition-all",
+                  repaymentMode === 'lump_sum'
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {t('debtForm.lumpSum')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setRepaymentMode('installment')}
+                className={cn(
+                  "rounded-full px-4 py-1.5 text-xs font-medium transition-all",
+                  repaymentMode === 'installment'
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {t('debtForm.installment')}
+              </button>
+            </div>
+          </div>
+
+          {/* Hidden currency_code field - kept for schema validation */}
+          <input type="hidden" {...form.register('currency_code')} />
+
+          <div className="grid grid-cols-2 gap-3">
+            <FormField name="debt_type" render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('debtForm.debtType')}</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('debtForm.selectDebtType')} />
-                    </SelectTrigger>
-                  </FormControl>
+                <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('debtForm.type')} <span className="text-red-500">*</span>
+                </FormLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl>
                   <SelectContent>
-                    <SelectItem value="BorrowedOut">{t('debtForm.borrowedOut')}</SelectItem>
                     <SelectItem value="BorrowedIn">{t('debtForm.borrowedIn')}</SelectItem>
+                    <SelectItem value="BorrowedOut">{t('debtForm.borrowedOut')}</SelectItem>
                     <SelectItem value="CreditCard">{t('debtForm.creditCard')}</SelectItem>
                     <SelectItem value="Loan">{t('debtForm.loan')}</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
               </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="counterparty"
-            render={({ field }) => (
+            )} />
+            <FormField name="counterparty" render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('debtForm.counterparty')}</FormLabel>
+                <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('debtForm.counterparty')} <span className="text-red-500">*</span>
+                </FormLabel>
+                <FormControl><Input placeholder={t('debtForm.counterpartyPlaceholder')} className="h-9" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <FormField name="principal_amount" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('debtForm.principal')} <span className="text-red-500">*</span>
+                </FormLabel>
                 <FormControl>
-                  <Input placeholder={t('debtForm.counterpartyPlaceholder')} {...field} />
+                  <div className="flex items-center rounded-lg border overflow-hidden h-9">
+                    <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">¥</span>
+                    <input className="flex-1 border-0 bg-transparent px-2.5 text-sm outline-none" placeholder="100,000" {...field} />
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>
-            )}
-          />
+            )} />
+            <FormField name="interest_rate" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('debtForm.interestRate')}
+                </FormLabel>
+                <FormControl>
+                  <div className="flex items-center rounded-lg border overflow-hidden h-9">
+                    <input className="flex-1 border-0 bg-transparent px-2.5 text-sm outline-none" placeholder="5.5" {...field} />
+                    <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-l">%</span>
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
 
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="principal_amount"
-              render={({ field }) => (
+            {repaymentMode === 'lump_sum' ? (
+              <FormField name="due_date" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('debtForm.principalAmount')}</FormLabel>
-                  <FormControl>
-                    <Input type="text" placeholder="10000.00" {...field} />
-                  </FormControl>
+                  <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {t('debtForm.dueDate')} <span className="text-red-500">*</span>
+                  </FormLabel>
+                  <FormControl><Input type="date" className="h-9" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="currency_code"
-              render={({ field }) => (
+              )} />
+            ) : (
+              <FormField name="periods" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('debtForm.currency')}</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t('debtForm.selectCurrency')} />
-                      </SelectTrigger>
-                    </FormControl>
+                  <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {t('debtForm.periods')} <span className="text-red-500">*</span>
+                  </FormLabel>
+                  <Select value={field.value?.toString() || ''} onValueChange={(v) => field.onChange(parseInt(v))}>
+                    <FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl>
                     <SelectContent>
-                      <SelectItem value="CNY">CNY (¥)</SelectItem>
-                      <SelectItem value="USD">USD ($)</SelectItem>
-                      <SelectItem value="EUR">EUR (€)</SelectItem>
+                      {[3, 6, 12, 24, 36, 60].map((n) => (
+                        <SelectItem key={n} value={n.toString()}>{n} {t('debtForm.months')}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
-              )}
-            />
+              )} />
+            )}
           </div>
 
-          <FormField
-            control={form.control}
-            name="interest_rate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('debtForm.interestRate')}</FormLabel>
-                <FormControl>
-                  <Input type="text" placeholder="5.5" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="start_date"
-              render={({ field }) => (
+          {repaymentMode === 'installment' && (
+            <div className="grid grid-cols-2 gap-3">
+              <FormField name="start_date" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('debtForm.startDate')}</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
+                  <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {t('debtForm.startDate')}
+                  </FormLabel>
+                  <FormControl><Input type="date" className="h-9" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="due_date"
-              render={({ field }) => (
+              )} />
+              <FormField name="amortization_method" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('debtForm.dueDate')}</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
+                  <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {t('debtForm.amortizationMethod')}
+                  </FormLabel>
+                  <Select value={field.value || undefined} onValueChange={field.onChange}>
+                    <FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      <SelectItem value="EqualPrincipalInterest">{t('debtForm.equalPI')}</SelectItem>
+                      <SelectItem value="EqualPrincipal">{t('debtForm.equalPrincipal')}</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
-              )}
-            />
-          </div>
+              )} />
+            </div>
+          )}
 
-          <FormField
-            control={form.control}
-            name="amortization_method"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('debtForm.amortizationMethod')}</FormLabel>
-                <Select 
-                  onValueChange={field.onChange} 
-                  defaultValue={field.value || undefined}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('debtForm.selectAmortization')} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="EqualPrincipalInterest">
-                      {t('debtForm.equalPrincipalInterest')}
-                    </SelectItem>
-                    <SelectItem value="EqualPrincipal">
-                      {t('debtForm.equalPrincipal')}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {/* Lump sum summary */}
+          {repaymentMode === 'lump_sum' && principal_amount && interest_rate && (
+            <div className="rounded-xl border border-blue-200/50 bg-gradient-to-br from-blue-50/50 to-card p-4 flex items-center justify-between dark:from-blue-950/20 dark:to-card dark:border-blue-800/30">
+              <div>
+                <div className="text-xs text-muted-foreground">{t('debtForm.repaymentOnDueDate')}</div>
+                <div className="text-xl font-bold">¥{(parseFloat(principal_amount) * (1 + parseFloat(interest_rate || '0') / 100)).toLocaleString()}</div>
+              </div>
+              <div className="text-right text-xs space-y-1">
+                <div className="text-muted-foreground">{t('debtForm.principal')}: ¥{parseFloat(principal_amount).toLocaleString()}</div>
+                <div className="text-muted-foreground">{t('debtForm.interest')} ({interest_rate}%): +¥{(parseFloat(principal_amount) * parseFloat(interest_rate || '0') / 100).toLocaleString()}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Installment summary */}
+          {repaymentMode === 'installment' && paymentPreview.length > 0 && (
+            <div className="rounded-xl border border-emerald-200/50 bg-gradient-to-br from-emerald-50/50 to-card p-4 dark:from-emerald-950/20 dark:to-card dark:border-emerald-800/30">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">{t('debtForm.monthlyPayment')}</span>
+                <span className="text-xl font-bold text-emerald-700 dark:text-emerald-400">¥{paymentPreview[0]?.total_amount?.toLocaleString() || '0'}</span>
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{paymentPreview.length} {t('debtForm.payments')}</span>
+                <span>{t('debtForm.totalInterest')}: ¥{totalInterest.toLocaleString()}</span>
+              </div>
+              <details className="mt-3">
+                <summary className="text-xs text-primary cursor-pointer">{t('debtForm.viewSchedule')}</summary>
+                <div className="max-h-40 overflow-y-auto mt-2 rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>#</TableHead>
+                        <TableHead>{t('debtForm.date')}</TableHead>
+                        <TableHead className="text-right">{t('debtForm.payment')}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paymentPreview.map((payment, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="text-xs">{i + 1}</TableCell>
+                          <TableCell className="text-xs">{payment.payment_date}</TableCell>
+                          <TableCell className="text-xs text-right font-medium">¥{payment.total_amount?.toLocaleString() || '0'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </details>
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
               {t('common.cancel')}
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" variant="default-gradient" disabled={isLoading}>
               {isLoading ? t('debtForm.creating') : t('debtForm.createDebt')}
             </Button>
           </div>
         </form>
       </Form>
-
-      {paymentPreview.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">{t('debtForm.paymentSchedulePreview')}</h3>
-            <div className="text-sm text-neutral-600">
-              {t('debtForm.totalInterest')}: {totalInterest.toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </div>
-          </div>
-          
-          <div className="border rounded-lg max-h-[400px] overflow-y-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('debtForm.paymentDate')}</TableHead>
-                  <TableHead className="text-right">{t('debtForm.principal')}</TableHead>
-                  <TableHead className="text-right">{t('debtForm.interest')}</TableHead>
-                  <TableHead className="text-right">{t('debtForm.total')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paymentPreview.map((payment, index) => (
-                  <TableRow key={index}>
-                    <TableCell>
-                      {new Date(payment.payment_date).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                      })}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {payment.principal_amount.toLocaleString('en-US', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {payment.interest_amount.toLocaleString('en-US', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {payment.total_amount.toLocaleString('en-US', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

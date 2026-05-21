@@ -261,7 +261,19 @@
     "interestRatePositive": "Interest rate must be 0 or greater",
     "startDateRequired": "Start date is required",
     "dueDateRequired": "Due date is required",
-    "dueDateAfterStart": "Due date must be after start date"
+    "dueDateAfterStart": "Due date must be after start date",
+    "lumpSum": "Lump Sum",
+    "installment": "Installment",
+    "type": "Type",
+    "periods": "Periods",
+    "months": "months",
+    "equalPI": "Equal P&I",
+    "repaymentOnDueDate": "Repayment due on due date",
+    "monthlyPayment": "Monthly Payment",
+    "payments": "payments",
+    "viewSchedule": "View schedule",
+    "date": "Date",
+    "payment": "Payment"
   },
   "reports": {
     "title": "Reports",

@@ -382,7 +382,19 @@
     "interestRatePositive": "利率必须为0或更大",
     "startDateRequired": "开始日期为必填项",
     "dueDateRequired": "到期日期为必填项",
-    "dueDateAfterStart": "到期日期必须晚于开始日期"
+    "dueDateAfterStart": "到期日期必须晚于开始日期",
+    "lumpSum": "一次性还款",
+    "installment": "分期还款",
+    "type": "类型",
+    "periods": "期数",
+    "months": "个月",
+    "equalPI": "等额本息",
+    "repaymentOnDueDate": "到期日还款总额",
+    "monthlyPayment": "月供",
+    "payments": "期",
+    "viewSchedule": "查看还款计划",
+    "date": "日期",
+    "payment": "还款额"
   },
   "currencyForm": {
     "currencyCode": "货币代码",
