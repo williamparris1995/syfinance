@@ -95,7 +95,7 @@ export function HomePage() {
                       </span>
                     </div>
                     <div className="text-2xl font-bold tracking-tight">
-                      {totalBalance.toLocaleString('en-US', { style: 'currency', currency: 'CNY' })}
+                      {totalBalance.toLocaleString('en-US', { style: 'currency', currency: 'CNY', currencyDisplay: 'narrowSymbol' })}
                     </div>
                   </CardContent>
                 </Card>
@@ -112,7 +112,7 @@ export function HomePage() {
                       </span>
                     </div>
                     <div className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
-                      +{monthlyIncome.toLocaleString('en-US', { style: 'currency', currency: 'CNY' })}
+                      +{monthlyIncome.toLocaleString('en-US', { style: 'currency', currency: 'CNY', currencyDisplay: 'narrowSymbol' })}
                     </div>
                   </CardContent>
                 </Card>
@@ -129,7 +129,7 @@ export function HomePage() {
                       </span>
                     </div>
                     <div className="text-2xl font-bold tracking-tight text-red-600 dark:text-red-400">
-                      -{monthlyExpenses.toLocaleString('en-US', { style: 'currency', currency: 'CNY' })}
+                      -{monthlyExpenses.toLocaleString('en-US', { style: 'currency', currency: 'CNY', currencyDisplay: 'narrowSymbol' })}
                     </div>
                   </CardContent>
                 </Card>
@@ -146,7 +146,7 @@ export function HomePage() {
                       </span>
                     </div>
                     <div className={`text-2xl font-bold tracking-tight ${monthlySavings >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                      {monthlySavings >= 0 ? '+' : ''}{monthlySavings.toLocaleString('en-US', { style: 'currency', currency: 'CNY' })}
+                      {monthlySavings >= 0 ? '+' : ''}{monthlySavings.toLocaleString('en-US', { style: 'currency', currency: 'CNY', currencyDisplay: 'narrowSymbol' })}
                     </div>
                   </CardContent>
                 </Card>
