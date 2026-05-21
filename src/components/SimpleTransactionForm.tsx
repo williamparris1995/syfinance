@@ -177,13 +177,13 @@ export function SimpleTransactionForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <Tabs value={type} onValueChange={(v) => setType(v as 'income' | 'expense' | 'transfer')}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList variant="line" className="w-full">
           <TabsTrigger value="expense">{t('transaction.expense')}</TabsTrigger>
           <TabsTrigger value="income">{t('transaction.income')}</TabsTrigger>
           <TabsTrigger value="transfer">{t('transaction.transfer')}</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="expense" className="space-y-4 mt-4">
+        <TabsContent value="expense" className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="amount">{t('transaction.amount')}</Label>
             <Input
@@ -235,7 +235,7 @@ export function SimpleTransactionForm({
           </div>
         </TabsContent>
 
-        <TabsContent value="income" className="space-y-4 mt-4">
+        <TabsContent value="income" className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="amount">{t('transaction.amount')}</Label>
             <Input
@@ -287,7 +287,7 @@ export function SimpleTransactionForm({
           </div>
         </TabsContent>
 
-        <TabsContent value="transfer" className="space-y-4 mt-4">
+        <TabsContent value="transfer" className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="amount">{t('transaction.amount')}</Label>
             <Input
