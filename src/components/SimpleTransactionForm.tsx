@@ -11,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import {
   createSimpleIncome,
@@ -201,157 +200,115 @@ export function SimpleTransactionForm({
           />
         </div>
       </div>
-      <Tabs value={type} onValueChange={(v) => setType(v as 'income' | 'expense' | 'transfer')}>
-        <TabsList variant="line" className="w-full">
-          <TabsTrigger value="expense">{t('transaction.expense')}</TabsTrigger>
-          <TabsTrigger value="income">{t('transaction.income')}</TabsTrigger>
-          <TabsTrigger value="transfer">{t('transaction.transfer')}</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="expense" className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="account">{t('transaction.account')}</Label>
-            <Select value={accountId} onValueChange={(v) => v && setAccountId(v)} required>
-              <SelectTrigger>
-                <SelectValue placeholder={t('transaction.selectAccount')} />
-              </SelectTrigger>
-              <SelectContent>
-                {accounts.map((account) => (
-                  <SelectItem key={account.id} value={account.id}>
-                    {account.name} ({account.currency_code})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="category">{t('transaction.category')}</Label>
-            <Select value={categoryId} onValueChange={(v) => v && setCategoryId(v)} required>
-              <SelectTrigger>
-                <SelectValue placeholder={t('transaction.selectCategory')} />
-              </SelectTrigger>
-              <SelectContent>
-                {categories
-                  .filter((c) => c.category_type === 'Expense')
-                  .map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      <span className="flex items-center gap-2">
-                        <span>{category.icon}</span>
-                        <span>{category.name}</span>
-                      </span>
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="income" className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="account">{t('transaction.account')}</Label>
-            <Select value={accountId} onValueChange={(v) => v && setAccountId(v)} required>
-              <SelectTrigger>
-                <SelectValue placeholder={t('transaction.selectAccount')} />
-              </SelectTrigger>
-              <SelectContent>
-                {accounts.map((account) => (
-                  <SelectItem key={account.id} value={account.id}>
-                    {account.name} ({account.currency_code})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="category">{t('transaction.category')}</Label>
-            <Select value={categoryId} onValueChange={(v) => v && setCategoryId(v)} required>
-              <SelectTrigger>
-                <SelectValue placeholder={t('transaction.selectCategory')} />
-              </SelectTrigger>
-              <SelectContent>
-                {categories
-                  .filter((c) => c.category_type === 'Income')
-                  .map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      <span className="flex items-center gap-2">
-                        <span>{category.icon}</span>
-                        <span>{category.name}</span>
-                      </span>
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="transfer" className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="fromAccount">{t('transaction.fromAccount')}</Label>
-            <Select value={fromAccountId} onValueChange={(v) => v && setFromAccountId(v)} required>
-              <SelectTrigger>
-                <SelectValue placeholder={t('transaction.selectAccount')} />
-              </SelectTrigger>
-              <SelectContent>
-                {accounts.map((account) => (
-                  <SelectItem key={account.id} value={account.id}>
-                    {account.name} ({account.currency_code})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="toAccount">{t('transaction.toAccount')}</Label>
-            <Select value={toAccountId} onValueChange={(v) => v && setToAccountId(v)} required>
-              <SelectTrigger>
-                <SelectValue placeholder={t('transaction.selectAccount')} />
-              </SelectTrigger>
-              <SelectContent>
-                {accounts
-                  .filter((a) => a.id !== fromAccountId)
-                  .map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name} ({account.currency_code})
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {/* Common fields for all types */}
-      <div className="space-y-2">
-        <Label htmlFor="date">{t('transaction.date')}</Label>
-        <Input
-          id="date"
-          type="date"
-          value={date.toISOString().split('T')[0]}
-          onChange={(e) => setDate(new Date(e.target.value))}
-          required
-        />
+      {/* Type selector — compact pill toggle */}
+      <div className="flex justify-center">
+        <div className="inline-flex gap-1 rounded-full bg-muted p-1">
+          {(['expense', 'income', 'transfer'] as const).map((tabType) => (
+            <button
+              key={tabType}
+              type="button"
+              onClick={() => setType(tabType)}
+              className={cn(
+                "rounded-full px-4 py-1.5 text-xs font-medium transition-all",
+                type === tabType
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {tabType === 'expense'
+                ? t('transaction.expense')
+                : tabType === 'income'
+                  ? t('transaction.income')
+                  : t('transaction.transfer')}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="description">{t('transaction.description')}</Label>
-        <Input
-          id="description"
-          placeholder={t('transaction.descriptionPlaceholder')}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          required
-        />
+      {/* Conditional fields by type */}
+      {type !== 'transfer' ? (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t('transaction.account')}</Label>
+            <Select value={accountId!} onValueChange={(v) => v && setAccountId(v)}>
+              <SelectTrigger className="h-9"><SelectValue placeholder={t('transaction.selectAccount')} /></SelectTrigger>
+              <SelectContent>
+                {accounts.map((acct) => (
+                  <SelectItem key={acct.id} value={acct.id}>{acct.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t('transaction.category')}</Label>
+            <Select value={categoryId!} onValueChange={(v) => v && setCategoryId(v)}>
+              <SelectTrigger className="h-9"><SelectValue placeholder={t('transaction.selectCategory')} /></SelectTrigger>
+              <SelectContent>
+                {categories
+                  .filter((c) => c.category_type === (type === 'expense' ? 'Expense' : 'Income'))
+                  .map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t('transaction.fromAccount')}</Label>
+            <Select value={fromAccountId!} onValueChange={(v) => v && setFromAccountId(v)}>
+              <SelectTrigger className="h-9"><SelectValue placeholder={t('transaction.selectAccount')} /></SelectTrigger>
+              <SelectContent>
+                {accounts.map((acct) => (
+                  <SelectItem key={acct.id} value={acct.id}>{acct.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t('transaction.toAccount')}</Label>
+            <Select value={toAccountId!} onValueChange={(v) => v && setToAccountId(v)}>
+              <SelectTrigger className="h-9"><SelectValue placeholder={t('transaction.selectAccount')} /></SelectTrigger>
+              <SelectContent>
+                {accounts
+                  .filter((acct) => acct.id !== fromAccountId)
+                  .map((acct) => (
+                    <SelectItem key={acct.id} value={acct.id}>{acct.name}</SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-[120px_1fr] gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground" htmlFor="date">{t('transaction.date')}</Label>
+          <Input id="date" type="date" value={date.toISOString().split('T')[0]} onChange={(e) => setDate(new Date(e.target.value))} className="h-9" required />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground" htmlFor="description">
+            {t('transaction.description')}
+            <span className="text-muted-foreground/50 font-normal"> — optional</span>
+          </Label>
+          <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('transaction.descriptionPlaceholder')} className="h-9" />
+        </div>
       </div>
 
       <div className="flex gap-2 justify-end">
         <Button type="button" variant="outline" onClick={onCancel}>
           {t('common.cancel')}
         </Button>
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? t('common.saving') : t('common.save')}
+        <Button type="submit" variant="default-gradient" className="w-full" disabled={isSubmitting}>
+          {isSubmitting
+            ? t('common.saving')
+            : type === 'expense'
+              ? `${t('transaction.recordExpense')} — ¥${amount || '0'}`
+              : type === 'income'
+                ? `${t('transaction.recordIncome')} — ¥${amount || '0'}`
+                : `${t('transaction.recordTransfer')} — ¥${amount || '0'}`
+          }
         </Button>
       </div>
     </form>
