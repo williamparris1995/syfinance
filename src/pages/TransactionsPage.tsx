@@ -103,7 +103,7 @@ export function TransactionsPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">{t('transactions.title')}</h1>
-        <Button onClick={handleAddClick}>
+        <Button variant="default-gradient" onClick={handleAddClick}>
           <Plus className="mr-2 h-4 w-4" />
           {t('transactions.recordTransaction')}
         </Button>
@@ -150,7 +150,7 @@ export function TransactionsPage() {
           <p className="text-neutral-500 mb-4">
             {startDate || endDate ? t('transactions.noTransactionsInRange') : t('transactions.noTransactions')}
           </p>
-          <Button onClick={handleAddClick}>{t('transactions.recordFirst')}</Button>
+          <Button variant="default-gradient" onClick={handleAddClick}>{t('transactions.recordFirst')}</Button>
         </div>
       ) : (
         <div className="border rounded-lg">
