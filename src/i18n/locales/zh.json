@@ -366,6 +366,7 @@
     "dueDate": "到期日期",
     "amortizationMethod": "还款方式",
     "selectAmortization": "选择还款方式",
+    "selectPeriods": "选择期数",
     "equalPrincipalInterest": "等额本息 (每期总额相同)",
     "equalPrincipal": "等额本金 (每期本金相同)",
     "creating": "创建中...",

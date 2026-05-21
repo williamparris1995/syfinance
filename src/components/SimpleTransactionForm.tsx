@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -61,12 +61,24 @@ export function SimpleTransactionForm({
   const [type, setType] = useState<'income' | 'expense' | 'transfer'>('expense');
   const [date, setDate] = useState<Date>(new Date());
   const [amount, setAmount] = useState('');
-  const [accountId, setAccountId] = useState('');
-  const [fromAccountId, setFromAccountId] = useState('');
-  const [toAccountId, setToAccountId] = useState('');
-  const [categoryId, setCategoryId] = useState('');
+  const [accountId, setAccountId] = useState(accounts[0]?.id || '');
+  const [fromAccountId, setFromAccountId] = useState(accounts[0]?.id || '');
+  const [toAccountId, setToAccountId] = useState(accounts[1]?.id || '');
+  const [categoryId, setCategoryId] = useState(
+    () => categories.filter(c => c.category_type === 'Expense')[0]?.id || ''
+  );
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Reset category when type changes to ensure selected category matches type filter
+  useEffect(() => {
+    if (type !== 'transfer') {
+      const targetType = type === 'expense' ? 'Expense' : 'Income';
+      const firstInType = categories.filter(c => c.category_type === targetType)[0]?.id || '';
+      setCategoryId(firstInType);
+      setAccountId(accounts[0]?.id || '');
+    }
+  }, [type]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

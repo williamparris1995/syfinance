@@ -128,7 +128,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
   const form = useForm<DebtFormValues>({
     resolver: zodResolver(debtFormSchema),
     defaultValues: {
-      debt_type: undefined,
+      debt_type: 'BorrowedIn',
       counterparty: '',
       principal_amount: '',
       currency_code: 'CNY',
@@ -311,7 +311,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
                   {t('debtForm.type')} <span className="text-red-500">*</span>
                 </FormLabel>
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl>
+                  <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('debtForm.selectDebtType')} /></SelectTrigger></FormControl>
                   <SelectContent>
                     <SelectItem value="BorrowedIn">{t('debtForm.borrowedIn')}</SelectItem>
                     <SelectItem value="BorrowedOut">{t('debtForm.borrowedOut')}</SelectItem>
@@ -380,7 +380,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
                     {t('debtForm.periods')} <span className="text-red-500">*</span>
                   </FormLabel>
                   <Select value={field.value?.toString() || ''} onValueChange={(v) => field.onChange(parseInt(v))}>
-                    <FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl>
+                    <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('debtForm.selectPeriods')} /></SelectTrigger></FormControl>
                     <SelectContent>
                       {[3, 6, 12, 24, 36, 60].map((n) => (
                         <SelectItem key={n} value={n.toString()}>{n} {t('debtForm.months')}</SelectItem>
@@ -410,7 +410,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
                     {t('debtForm.amortizationMethod')}
                   </FormLabel>
                   <Select value={field.value || undefined} onValueChange={field.onChange}>
-                    <FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl>
+                    <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('debtForm.selectAmortization')} /></SelectTrigger></FormControl>
                     <SelectContent>
                       <SelectItem value="EqualPrincipalInterest">{t('debtForm.equalPI')}</SelectItem>
                       <SelectItem value="EqualPrincipal">{t('debtForm.equalPrincipal')}</SelectItem>

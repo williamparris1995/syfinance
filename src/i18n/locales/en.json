@@ -245,6 +245,7 @@
     "dueDate": "Due Date",
     "amortizationMethod": "Amortization Method",
     "selectAmortization": "Select amortization method",
+    "selectPeriods": "Select number of periods",
     "equalPrincipalInterest": "等额本息 (Equal Total Payment)",
     "equalPrincipal": "等额本金 (Equal Principal)",
     "creating": "Creating...",

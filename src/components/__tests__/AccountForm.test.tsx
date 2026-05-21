@@ -23,24 +23,20 @@ describe('AccountForm', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('shows validation error when account type is not selected', async () => {
+  it('shows validation error when name is empty', async () => {
     const onSubmit = vi.fn();
     const onCancel = vi.fn();
     const user = userEvent.setup();
 
     render(<AccountForm onSubmit={onSubmit} onCancel={onCancel} />);
 
-    // Fill only the name field
-    const nameInput = screen.getByPlaceholderText(/e.g., Checking Account/i);
-    await user.type(nameInput, 'Test Account');
-
-    // Try to submit
+    // Leave name empty and try to submit
     const submitButton = screen.getByRole('button', { name: /create account/i });
     await user.click(submitButton);
 
-    // Wait for validation error
+    // Wait for validation error on required name field
     await waitFor(() => {
-      expect(screen.getByText('Account type is required')).toBeInTheDocument();
+      expect(screen.getByText('Name is required')).toBeInTheDocument();
     });
 
     expect(onSubmit).not.toHaveBeenCalled();

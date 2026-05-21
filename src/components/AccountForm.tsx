@@ -66,7 +66,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
     resolver: zodResolver(accountFormSchema),
     defaultValues: {
       name: '',
-      account_type: undefined,
+      account_type: 'Bank',
       currency_code: 'CNY',
       initial_balance: '0.00',
       account_number: '',
@@ -141,7 +141,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
                   {t('accountForm.accountType')} <span className="text-red-500">*</span>
                 </FormLabel>
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl>
+                  <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('accountForm.selectAccountType')} /></SelectTrigger></FormControl>
                   <SelectContent>
                     {(['Cash', 'Bank', 'CreditCard', 'Investment', 'Loan', 'Other'] as const).map((type) => (
                       <SelectItem key={type} value={type}>{typeLabelMap[type]}</SelectItem>
@@ -195,7 +195,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
                   <span className="text-muted-foreground/50 font-normal"> — optional</span>
                 </FormLabel>
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl>
+                  <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('accountForm.selectCurrency')} /></SelectTrigger></FormControl>
                   <SelectContent>
                     <SelectItem value="CNY">CNY (¥)</SelectItem>
                     <SelectItem value="USD">USD ($)</SelectItem>
