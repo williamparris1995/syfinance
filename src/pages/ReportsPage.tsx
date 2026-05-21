@@ -296,7 +296,7 @@ export function ReportsPage() {
         </div>
       ) : (
         <Tabs defaultValue="balance-sheet" className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsList variant="line" className="w-full">
             <TabsTrigger value="balance-sheet">{t('reports.balanceSheet')}</TabsTrigger>
             <TabsTrigger value="income-statement">{t('reports.incomeStatement')}</TabsTrigger>
           </TabsList>
