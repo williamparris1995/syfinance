@@ -21,7 +21,7 @@ export function QuickActions({ actions, layout = "grid" }: QuickActionsProps) {
   return (
     <div
       className={cn(
-        "w-full gap-3",
+        "w-full gap-3 shadow-sm",
         layout === "grid" &&
           "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2",
         layout === "horizontal" && "flex flex-wrap"
