@@ -24,7 +24,7 @@ export function Sidebar({ onNavigate, collapsed }: SidebarProps) {
 
   return (
     <aside className={cn(
-      'flex h-full flex-col border-r bg-card transition-all duration-300',
+      'flex h-full flex-col border-r bg-gradient-to-b from-card via-card to-muted/20 transition-all duration-300',
       collapsed ? 'w-16' : 'w-64'
     )}>
       {/* Header */}
