@@ -80,67 +80,79 @@ export function HomePage() {
         </div>
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t('dashboard.totalBalance')}</CardTitle>
-                <Wallet className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  ¥{totalBalance.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t('dashboard.acrossAccounts', { count: accounts.length })}
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t('dashboard.monthlyIncome')}</CardTitle>
-                <ArrowUpRight className="h-4 w-4 text-green-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  +¥{monthlyIncome.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {now.toLocaleString('en-US', { month: 'long', year: 'numeric' })}
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t('dashboard.monthlyExpenses')}</CardTitle>
-                <ArrowDownRight className="h-4 w-4 text-red-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600">
-                  -¥{monthlyExpenses.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {now.toLocaleString('en-US', { month: 'long', year: 'numeric' })}
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t('dashboard.monthlySavings')}</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className={`text-2xl font-bold ${monthlySavings >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {monthlySavings >= 0 ? '+' : ''}¥{monthlySavings.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t('dashboard.incomeMinusExpenses')}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+          {accounts.length > 0 && (
+            <>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {/* Total Balance */}
+                <Card className="bg-gradient-to-br from-card to-muted/20 border-border/50 shadow-sm">
+                  <CardContent className="pt-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
+                        <Wallet className="h-4 w-4 text-primary" />
+                      </div>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {t('dashboard.totalBalance')}
+                      </span>
+                    </div>
+                    <div className="text-2xl font-bold tracking-tight">
+                      {totalBalance.toLocaleString('en-US', { style: 'currency', currency: 'CNY' })}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Monthly Income */}
+                <Card className="bg-gradient-to-br from-emerald-50/50 to-card border-emerald-200/50 shadow-sm dark:from-emerald-950/20 dark:to-card dark:border-emerald-800/30">
+                  <CardContent className="pt-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/30">
+                        <ArrowUpRight className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {t('dashboard.monthlyIncome')}
+                      </span>
+                    </div>
+                    <div className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+                      +{monthlyIncome.toLocaleString('en-US', { style: 'currency', currency: 'CNY' })}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Monthly Expenses */}
+                <Card className="bg-gradient-to-br from-red-50/50 to-card border-red-200/50 shadow-sm dark:from-red-950/20 dark:to-card dark:border-red-800/30">
+                  <CardContent className="pt-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-100 dark:bg-red-900/30">
+                        <ArrowDownRight className="h-4 w-4 text-red-600 dark:text-red-400" />
+                      </div>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {t('dashboard.monthlyExpenses')}
+                      </span>
+                    </div>
+                    <div className="text-2xl font-bold tracking-tight text-red-600 dark:text-red-400">
+                      -{monthlyExpenses.toLocaleString('en-US', { style: 'currency', currency: 'CNY' })}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Monthly Savings */}
+                <Card className="bg-gradient-to-br from-blue-50/50 to-card border-blue-200/50 shadow-sm dark:from-blue-950/20 dark:to-card dark:border-blue-800/30">
+                  <CardContent className="pt-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/30">
+                        <TrendingUp className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {t('dashboard.monthlySavings')}
+                      </span>
+                    </div>
+                    <div className={`text-2xl font-bold tracking-tight ${monthlySavings >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                      {monthlySavings >= 0 ? '+' : ''}{monthlySavings.toLocaleString('en-US', { style: 'currency', currency: 'CNY' })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          )}
 
           {/* Quick Actions */}
           <Card>
