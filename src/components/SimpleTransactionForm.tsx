@@ -193,6 +193,7 @@ export function SimpleTransactionForm({
             step="0.01"
             min="0.01"
             required
+            aria-label={t('transaction.amount')}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0.00"
