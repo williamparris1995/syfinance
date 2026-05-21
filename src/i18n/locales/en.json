@@ -114,7 +114,9 @@
     "creditLimitInvalid": "Credit limit must be a valid number",
     "billingDayInvalid": "Billing day must be between 1 and 31",
     "paymentDueDayInvalid": "Payment due day must be between 1 and 31",
-    "interestRateInvalid": "Interest rate must be a valid number"
+    "interestRateInvalid": "Interest rate must be a valid number",
+    "advancedOptions": "Advanced Options",
+    "creditCardDetails": "Credit Card Details"
   },
   "transactions": {
     "title": "Transactions",

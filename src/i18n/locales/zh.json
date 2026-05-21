@@ -117,7 +117,9 @@
     "creditLimitInvalid": "信用额度必须为有效数字",
     "billingDayInvalid": "账单日必须在1到31之间",
     "paymentDueDayInvalid": "还款日必须在1到31之间",
-    "interestRateInvalid": "利率必须为有效数字"
+    "interestRateInvalid": "利率必须为有效数字",
+    "advancedOptions": "高级选项",
+    "creditCardDetails": "信用卡详情"
   },
   "transactions": {
     "title": "交易记录",

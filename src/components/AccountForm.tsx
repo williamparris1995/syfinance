@@ -10,7 +10,6 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  FormDescription,
 } from './ui/form';
 import { Input } from './ui/input';
 import {
@@ -79,7 +78,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
     },
   });
 
-  const watchAccountType = form.watch('account_type');
+  const accountType = form.watch('account_type');
 
   const handleSubmit = (values: AccountFormValues) => {
     const dto: CreateAccountDto = {
@@ -100,187 +99,217 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
     onSubmit(dto);
   };
 
+  const typeLabelMap: Record<string, string> = {
+    Cash: t('accountForm.cashWithChinese'),
+    Bank: t('accountForm.bankWithChinese'),
+    CreditCard: t('accountForm.creditCardWithChinese'),
+    Investment: t('accountForm.investmentWithChinese'),
+    Loan: t('accountForm.loanWithChinese'),
+    Other: t('accountForm.otherWithChinese'),
+  };
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-          <FormItem>
-            <FormLabel>{t('accountForm.accountName')}</FormLabel>
-            <FormControl>
-              <Input placeholder={t('accountForm.accountNamePlaceholder')} {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="account_type"
-          render={({ field }) => (
-          <FormItem>
-            <FormLabel>{t('accountForm.accountType')}</FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value}>
-              <FormControl>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('accountForm.selectAccountType')} />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                <SelectItem value="Cash">{t('accountForm.cashWithChinese')}</SelectItem>
-                <SelectItem value="Bank">{t('accountForm.bankWithChinese')}</SelectItem>
-                <SelectItem value="CreditCard">{t('accountForm.creditCardWithChinese')}</SelectItem>
-                <SelectItem value="Investment">{t('accountForm.investmentWithChinese')}</SelectItem>
-                <SelectItem value="Loan">{t('accountForm.loanWithChinese')}</SelectItem>
-                <SelectItem value="Other">{t('accountForm.otherWithChinese')}</SelectItem>
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="currency_code"
-          render={({ field }) => (
-          <FormItem>
-            <FormLabel>{t('accountForm.currency')}</FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value}>
-              <FormControl>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('accountForm.selectCurrency')} />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                <SelectItem value="CNY">CNY (¥)</SelectItem>
-                <SelectItem value="USD">USD ($)</SelectItem>
-                <SelectItem value="EUR">EUR (€)</SelectItem>
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="initial_balance"
-          render={({ field }) => (
-          <FormItem>
-            <FormLabel>{t('accountForm.initialBalance')}</FormLabel>
-            <FormControl>
-              <Input type="text" placeholder="0.00" {...field} />
-            </FormControl>
-            <FormDescription>
-              {t('accountForm.creditCardNote')}
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="account_number"
-          render={({ field }) => (
-          <FormItem>
-            <FormLabel>{t('accountForm.accountNumber')}</FormLabel>
-            <FormControl>
-              <Input placeholder={t('accountForm.accountNumberPlaceholder')} {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="institution"
-          render={({ field }) => (
-          <FormItem>
-            <FormLabel>{t('accountForm.institution')}</FormLabel>
-            <FormControl>
-              <Input placeholder={t('accountForm.institutionPlaceholder')} {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-          )}
-        />
-
-        {watchAccountType === 'CreditCard' && (
-          <>
-            <FormField
-              control={form.control}
-              name="credit_limit"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('accountForm.creditLimit')}</FormLabel>
-                  <FormControl>
-                    <Input type="text" placeholder="0.00" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="billing_day"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('accountForm.billingDay')}</FormLabel>
-                  <FormControl>
-                    <Input type="text" placeholder="1-31" {...field} />
-                  </FormControl>
-                  <FormDescription>{t('accountForm.billingDayDesc')}</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="payment_due_day"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('accountForm.paymentDueDay')}</FormLabel>
-                  <FormControl>
-                    <Input type="text" placeholder="1-31" {...field} />
-                  </FormControl>
-                  <FormDescription>{t('accountForm.paymentDueDayDesc')}</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </>
-        )}
-
-        {watchAccountType === 'Loan' && (
+        {/* Core fields */}
+        <div className="space-y-4">
+          {/* Name */}
           <FormField
             control={form.control}
-            name="interest_rate"
+            name="name"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('accountForm.interestRate')}</FormLabel>
-                <FormControl>
-                  <Input type="text" placeholder="e.g., 5.5" {...field} />
-                </FormControl>
-                <FormDescription>{t('accountForm.interestRateDesc')}</FormDescription>
-                <FormMessage />
-              </FormItem>
+            <FormItem>
+              <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                {t('accountForm.accountName')} <span className="text-red-500">*</span>
+              </FormLabel>
+              <FormControl>
+                <Input placeholder={t('accountForm.accountNamePlaceholder')} className="h-9" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
             )}
           />
-        )}
+
+          {/* Type + Balance in 2-column grid */}
+          <div className="grid grid-cols-2 gap-3">
+            <FormField
+              control={form.control}
+              name="account_type"
+              render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('accountForm.accountType')} <span className="text-red-500">*</span>
+                </FormLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    {(['Cash', 'Bank', 'CreditCard', 'Investment', 'Loan', 'Other'] as const).map((type) => (
+                      <SelectItem key={type} value={type}>{typeLabelMap[type]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="initial_balance"
+              render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('accountForm.initialBalance')}
+                </FormLabel>
+                <FormControl>
+                  <div className="flex items-center rounded-lg border overflow-hidden h-9">
+                    <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">¥</span>
+                    <input
+                      className="flex-1 border-0 bg-transparent px-2.5 text-sm outline-none"
+                      placeholder="0.00"
+                      {...field}
+                    />
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        {/* Advanced fields — expandable */}
+        <details className="border-t pt-4">
+          <summary className="text-xs font-medium text-primary cursor-pointer hover:text-primary/80">
+            {t('accountForm.advancedOptions')}
+          </summary>
+          <div className="space-y-4 mt-4">
+            {/* Currency */}
+            <FormField
+              control={form.control}
+              name="currency_code"
+              render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('accountForm.currency')}
+                  <span className="text-muted-foreground/50 font-normal"> — optional</span>
+                </FormLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    <SelectItem value="CNY">CNY (¥)</SelectItem>
+                    <SelectItem value="USD">USD ($)</SelectItem>
+                    <SelectItem value="EUR">EUR (€)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+              )}
+            />
+
+            {/* Account Number + Institution in grid */}
+            <div className="grid grid-cols-2 gap-3">
+              <FormField
+                control={form.control}
+                name="account_number"
+                render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {t('accountForm.accountNumber')}
+                    <span className="text-muted-foreground/50 font-normal"> — optional</span>
+                  </FormLabel>
+                  <FormControl><Input placeholder={t('accountForm.accountNumberPlaceholder')} className="h-9" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="institution"
+                render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {t('accountForm.institution')}
+                    <span className="text-muted-foreground/50 font-normal"> — optional</span>
+                  </FormLabel>
+                  <FormControl><Input placeholder={t('accountForm.institutionPlaceholder')} className="h-9" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Conditional: Credit Card fields */}
+            {accountType === 'CreditCard' && (
+              <div className="rounded-lg border border-blue-200/50 bg-gradient-to-br from-blue-50/50 to-card p-4 dark:from-blue-950/20 dark:to-card dark:border-blue-800/30">
+                <div className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-3">
+                  {t('accountForm.creditCardDetails')}
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="credit_limit"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs text-muted-foreground">{t('accountForm.creditLimit')}</FormLabel>
+                        <FormControl><Input type="number" placeholder="50000" className="h-9" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="billing_day"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs text-muted-foreground">{t('accountForm.billingDay')}</FormLabel>
+                        <FormControl><Input type="number" min={1} max={31} placeholder="5" className="h-9" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="payment_due_day"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs text-muted-foreground">{t('accountForm.paymentDueDay')}</FormLabel>
+                        <FormControl><Input type="number" min={1} max={31} placeholder="25" className="h-9" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Conditional: Loan field */}
+            {accountType === 'Loan' && (
+              <FormField
+                control={form.control}
+                name="interest_rate"
+                render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">{t('accountForm.interestRate')}</FormLabel>
+                  <FormControl>
+                    <div className="flex items-center rounded-lg border overflow-hidden h-9">
+                      <input className="flex-1 border-0 bg-transparent px-2.5 text-sm outline-none" placeholder="5.5" {...field} />
+                      <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-l">%</span>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+                )}
+              />
+            )}
+          </div>
+        </details>
 
         <div className="flex justify-end gap-2 pt-4">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
             {t('common.cancel')}
           </Button>
-          <Button type="submit" disabled={isLoading}>
+          <Button type="submit" variant="default-gradient" disabled={isLoading}>
             {isLoading ? t('accountForm.creating') : t('accountForm.createAccount')}
           </Button>
         </div>
