@@ -46,39 +46,6 @@ describe('AccountForm', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('shows validation error when chart of account code is empty', async () => {
-    const onSubmit = vi.fn();
-    const onCancel = vi.fn();
-    const user = userEvent.setup();
-
-    render(<AccountForm onSubmit={onSubmit} onCancel={onCancel} />);
-
-    // Fill name
-    const nameInput = screen.getByPlaceholderText(/e.g., Checking Account/i);
-    await user.type(nameInput, 'Test Account');
-
-    // Select account type
-    const accountTypeCombobox = screen.getByRole('combobox', { name: /Account Type/i });
-    await user.click(accountTypeCombobox);
-    const bankOption = await screen.findByRole('option', { name: /Bank/i });
-    await user.click(bankOption);
-
-    // Clear chart of account code
-    const codeInput = screen.getByPlaceholderText(/e.g., 1002/i);
-    await user.clear(codeInput);
-
-    // Try to submit
-    const submitButton = screen.getByRole('button', { name: /create account/i });
-    await user.click(submitButton);
-
-    // Wait for validation error
-    await waitFor(() => {
-      expect(screen.getByText('Chart of account code is required')).toBeInTheDocument();
-    });
-
-    expect(onSubmit).not.toHaveBeenCalled();
-  });
-
   it('shows validation error for invalid initial balance', async () => {
     const onSubmit = vi.fn();
     const onCancel = vi.fn();
@@ -96,10 +63,6 @@ describe('AccountForm', () => {
     const bankOption = await screen.findByRole('option', { name: /Bank/i });
     await user.click(bankOption);
 
-    // Fill chart of account code
-    const codeInput = screen.getByPlaceholderText(/e.g., 1002/i);
-    await user.type(codeInput, '1002');
-
     // Enter invalid balance
     const balanceInput = screen.getByPlaceholderText('0.00');
     await user.clear(balanceInput);
@@ -111,7 +74,7 @@ describe('AccountForm', () => {
 
     // Wait for validation error
     await waitFor(() => {
-      expect(screen.getByText('Initial balance must be a valid positive number')).toBeInTheDocument();
+      expect(screen.getByText('Initial balance must be a valid number')).toBeInTheDocument();
     });
 
     expect(onSubmit).not.toHaveBeenCalled();
@@ -134,10 +97,6 @@ describe('AccountForm', () => {
     const bankOption = await screen.findByRole('option', { name: /Bank/i });
     await user.click(bankOption);
 
-    // Fill chart of account code
-    const codeInput = screen.getByPlaceholderText(/e.g., 1002/i);
-    await user.type(codeInput, '1002');
-
     // Currency is pre-filled with CNY, so we don't need to change it
 
     // Fill initial balance
@@ -154,7 +113,6 @@ describe('AccountForm', () => {
       expect(onSubmit).toHaveBeenCalledWith({
         name: 'Checking Account',
         account_type: 'Bank',
-        chart_of_account_code: '1002',
         currency_code: 'CNY',
         initial_balance: 1000.00,
       });

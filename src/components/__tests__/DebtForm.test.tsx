@@ -56,6 +56,12 @@ describe('DebtForm', () => {
 
     render(<DebtForm onSubmit={onSubmit} onCancel={onCancel} />);
 
+    // Select debt type (required field)
+    const debtTypeCombobox = screen.getByRole('combobox', { name: /debt type/i });
+    await user.click(debtTypeCombobox);
+    const loanOption = await screen.findByRole('option', { name: /Loan/i });
+    await user.click(loanOption);
+
     // Fill in required fields
     const counterpartyInput = screen.getByLabelText(/counterparty/i);
     await user.type(counterpartyInput, 'Bank of China');
@@ -108,6 +114,12 @@ describe('DebtForm', () => {
     const user = userEvent.setup();
 
     render(<DebtForm onSubmit={onSubmit} onCancel={onCancel} />);
+
+    // Select debt type (required field, needed before refinement validation runs)
+    const debtTypeCombobox = screen.getByRole('combobox', { name: /debt type/i });
+    await user.click(debtTypeCombobox);
+    const loanOption = await screen.findByRole('option', { name: /Loan/i });
+    await user.click(loanOption);
 
     const startDateInput = screen.getByLabelText(/start date/i);
     await user.type(startDateInput, '2025-01-01');

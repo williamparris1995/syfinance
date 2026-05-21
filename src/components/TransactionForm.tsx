@@ -381,7 +381,7 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
               isBalanced ? 'text-green-600' : 'text-red-600'
             }`}
           >
-            {isBalanced ? t('transactionForm.balanced') : `${t('transactionForm.unbalanced')}: ${balance.toFixed(2)} CNY`}
+            {isBalanced ? t('transactionForm.balanced') : t('transactionForm.unbalanced', { amount: balance.toFixed(2) })}
           </span>
         </div>
 

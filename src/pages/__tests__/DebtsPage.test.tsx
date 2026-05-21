@@ -6,6 +6,9 @@ import { DebtsPage } from '../DebtsPage';
 import * as debtApi from '@/lib/tauri/debt';
 
 vi.mock('@/lib/tauri/debt');
+vi.mock('@/hooks/useMediaQuery', () => ({
+  useMediaQuery: () => true,
+}));
 
 const createTestQueryClient = () =>
   new QueryClient({
@@ -89,11 +92,11 @@ describe('DebtsPage', () => {
 
     await waitFor(() => {
       expect(screen.getAllByText('Bank of China').length).toBeGreaterThan(0);
-      expect(screen.getByText('Loan')).toBeInTheDocument();
+      expect(screen.getAllByText('Loan').length).toBeGreaterThan(0);
     });
   });
 
-  it('opens create dialog when Create Debt button is clicked', async () => {
+  it('opens create sheet when Create Debt button is clicked', async () => {
     vi.mocked(debtApi.listDebts).mockResolvedValue([]);
     vi.mocked(debtApi.getUpcomingPayments).mockResolvedValue([]);
 
@@ -113,8 +116,9 @@ describe('DebtsPage', () => {
     const createButton = screen.getAllByText(/create debt/i)[0];
     await user.click(createButton);
 
+    // Sheet opens with DebtForm containing the counterparty field
     await waitFor(() => {
-      expect(screen.getByText(/add a new debt with payment schedule/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/e.g., Bank of China/i)).toBeInTheDocument();
     });
   });
 
