@@ -110,7 +110,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 px-5">
         {/* Core fields */}
         <div className="space-y-4">
           {/* Name */}
@@ -130,8 +130,8 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
             )}
           />
 
-          {/* Type + Balance in 2-column grid */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Type + Balance — single column */}
+          <div className="space-y-4">
             <FormField
               control={form.control}
               name="account_type"
@@ -207,8 +207,8 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
               )}
             />
 
-            {/* Account Number + Institution in grid */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Account Number + Institution — single column */}
+            <div className="space-y-4">
               <FormField
                 control={form.control}
                 name="account_number"
@@ -245,7 +245,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
                 <div className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-3">
                   {t('accountForm.creditCardDetails')}
                 </div>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-4">
                   <FormField
                     control={form.control}
                     name="credit_limit"

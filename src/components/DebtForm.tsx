@@ -270,7 +270,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
   return (
     <div className="space-y-6">
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 px-5">
           {/* Repayment mode toggle */}
           <div className="flex justify-center">
             <div className="inline-flex gap-1 rounded-full bg-muted p-1">
@@ -304,7 +304,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
           {/* Hidden currency_code field - kept for schema validation */}
           <input type="hidden" {...form.register('currency_code')} />
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-4">
             <FormField name="debt_type" render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
@@ -333,7 +333,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
             )} />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="space-y-4">
             <FormField name="principal_amount" render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
@@ -394,7 +394,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
           </div>
 
           {repaymentMode === 'installment' && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-4">
               <FormField name="start_date" render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">

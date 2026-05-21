@@ -174,7 +174,7 @@ export function SimpleTransactionForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-5 px-5">
       {/* Amount — always visible, type-tinted background */}
       <div className={cn(
         "rounded-xl border p-4 text-center",
@@ -226,12 +226,13 @@ export function SimpleTransactionForm({
       </div>
 
       {/* Conditional fields by type */}
+      {/* Conditional fields by type — single column */}
       {type !== 'transfer' ? (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-4">
           <div className="space-y-1.5">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t('transaction.account')}</Label>
             <Select value={accountId!} onValueChange={(v) => v && setAccountId(v)}>
-              <SelectTrigger className="h-9"><SelectValue placeholder={t('transaction.selectAccount')} /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full"><SelectValue placeholder={t('transaction.selectAccount')} /></SelectTrigger>
               <SelectContent>
                 {accounts.map((acct) => (
                   <SelectItem key={acct.id} value={acct.id}>{acct.name}</SelectItem>
@@ -242,7 +243,7 @@ export function SimpleTransactionForm({
           <div className="space-y-1.5">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t('transaction.category')}</Label>
             <Select value={categoryId!} onValueChange={(v) => v && setCategoryId(v)}>
-              <SelectTrigger className="h-9"><SelectValue placeholder={t('transaction.selectCategory')} /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full"><SelectValue placeholder={t('transaction.selectCategory')} /></SelectTrigger>
               <SelectContent>
                 {categories
                   .filter((c) => c.category_type === (type === 'expense' ? 'Expense' : 'Income'))
@@ -254,11 +255,11 @@ export function SimpleTransactionForm({
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-4">
           <div className="space-y-1.5">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t('transaction.fromAccount')}</Label>
             <Select value={fromAccountId!} onValueChange={(v) => v && setFromAccountId(v)}>
-              <SelectTrigger className="h-9"><SelectValue placeholder={t('transaction.selectAccount')} /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full"><SelectValue placeholder={t('transaction.selectAccount')} /></SelectTrigger>
               <SelectContent>
                 {accounts.map((acct) => (
                   <SelectItem key={acct.id} value={acct.id}>{acct.name}</SelectItem>
@@ -269,7 +270,7 @@ export function SimpleTransactionForm({
           <div className="space-y-1.5">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t('transaction.toAccount')}</Label>
             <Select value={toAccountId!} onValueChange={(v) => v && setToAccountId(v)}>
-              <SelectTrigger className="h-9"><SelectValue placeholder={t('transaction.selectAccount')} /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full"><SelectValue placeholder={t('transaction.selectAccount')} /></SelectTrigger>
               <SelectContent>
                 {accounts
                   .filter((acct) => acct.id !== fromAccountId)
@@ -282,7 +283,7 @@ export function SimpleTransactionForm({
         </div>
       )}
 
-      <div className="grid grid-cols-[120px_1fr] gap-3">
+      <div className="space-y-4">
         <div className="space-y-1.5">
           <Label className="text-xs uppercase tracking-wider text-muted-foreground" htmlFor="date">{t('transaction.date')}</Label>
           <Input id="date" type="date" value={date.toISOString().split('T')[0]} onChange={(e) => setDate(new Date(e.target.value))} className="h-9" required />
@@ -296,11 +297,11 @@ export function SimpleTransactionForm({
         </div>
       </div>
 
-      <div className="flex gap-2 justify-end">
+      <div className="flex gap-2 justify-end pt-2">
         <Button type="button" variant="outline" onClick={onCancel}>
           {t('common.cancel')}
         </Button>
-        <Button type="submit" variant="default-gradient" className="w-full" disabled={isSubmitting}>
+        <Button type="submit" variant="default-gradient" disabled={isSubmitting}>
           {isSubmitting
             ? t('common.saving')
             : type === 'expense'
