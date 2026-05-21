@@ -77,6 +77,7 @@
   "accountForm": {
     "accountName": "账户名称",
     "accountNamePlaceholder": "例如:活期账户",
+    "namePlaceholder": "例如:我的账户",
     "accountType": "账户类型",
     "selectAccountType": "选择账户类型",
     "cash": "现金",
@@ -157,7 +158,10 @@
     "date": "日期",
     "pickDate": "选择日期",
     "description": "描述",
-    "descriptionPlaceholder": "例如：午餐、工资等"
+    "descriptionPlaceholder": "例如：午餐、工资等",
+    "recordExpense": "记录支出",
+    "recordIncome": "记录收入",
+    "recordTransfer": "记录转账"
   },
   "transactionForm": {
     "transactionDate": "交易日期",

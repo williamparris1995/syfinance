@@ -74,6 +74,7 @@
   "accountForm": {
     "accountName": "Account Name",
     "accountNamePlaceholder": "e.g., Checking Account",
+    "namePlaceholder": "e.g., My Account",
     "accountType": "Account Type",
     "selectAccountType": "Select account type",
     "cash": "Cash",
@@ -154,7 +155,10 @@
     "date": "Date",
     "pickDate": "Pick a date",
     "description": "Description",
-    "descriptionPlaceholder": "e.g., Lunch, Salary, etc."
+    "descriptionPlaceholder": "e.g., Lunch, Salary, etc.",
+    "recordExpense": "Record Expense",
+    "recordIncome": "Record Income",
+    "recordTransfer": "Record Transfer"
   },
   "transactionForm": {
     "transactionDate": "Transaction Date",
