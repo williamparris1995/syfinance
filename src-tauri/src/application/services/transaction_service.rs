@@ -22,7 +22,6 @@ pub struct TransactionService {
 pub enum TransactionServiceError {
     TransactionNotFound(Uuid),
     AccountNotFound(Uuid),
-    CategoryNotFound(String),
     ValidationError(String),
     RepositoryError(String),
 }
@@ -32,7 +31,6 @@ impl std::fmt::Display for TransactionServiceError {
         match self {
             Self::TransactionNotFound(id) => write!(f, "transaction not found: {id}"),
             Self::AccountNotFound(id) => write!(f, "account not found: {id}"),
-            Self::CategoryNotFound(id) => write!(f, "category not found: {id}"),
             Self::ValidationError(msg) => write!(f, "validation error: {msg}"),
             Self::RepositoryError(msg) => write!(f, "repository error: {msg}"),
         }
@@ -218,25 +216,137 @@ impl TransactionService {
     }
 
     /// 创建收入交易（简化版）
-    /// 自动生成复式记账条目：借记账户（资产增加），贷记收入科目
-    /// TODO: Reimplement using account-based categories (Task 9/10)
-    #[allow(dead_code)]
+    /// 自动生成复式记账条目：借记自己账户（资产增加），贷记外部账户（收入来源）
     pub async fn create_income(
         &self,
-        _dto: SimpleIncomeDto,
+        dto: SimpleIncomeDto,
     ) -> Result<Uuid, TransactionServiceError> {
-        todo!("create_income will be refactored to use account-based categories")
+        let debit_account = self
+            .account_repo
+            .find_by_id(dto.debit_account_id)
+            .await?
+            .ok_or(TransactionServiceError::AccountNotFound(dto.debit_account_id))?;
+
+        let credit_account = self
+            .account_repo
+            .find_by_id(dto.credit_account_id)
+            .await?
+            .ok_or(TransactionServiceError::AccountNotFound(dto.credit_account_id))?;
+
+        let money = Money::new(dto.amount, &debit_account.currency_code)
+            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+        let chart_code = credit_account.chart_code.as_deref().unwrap_or("4001");
+
+        let debit_entry = TransactionEntry::new(
+            debit_account.id,
+            chart_code,
+            Some(money.clone()),
+            None,
+            &dto.description,
+        )
+        .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+        let credit_entry = TransactionEntry::new(
+            credit_account.id,
+            chart_code,
+            None,
+            Some(money),
+            &dto.description,
+        )
+        .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+        let transaction = Transaction::new(
+            Uuid::new_v4(),
+            dto.date,
+            dto.description.clone(),
+            vec![debit_entry, credit_entry],
+            SyncMetadata::new(Uuid::new_v4()),
+        )
+        .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+        self.transaction_repo.create(&transaction).await?;
+
+        // Update own account balance (debit side = asset increase)
+        let mut debit_account = debit_account;
+        let new_balance = debit_account
+            .balance
+            .add(&Money::new(dto.amount, &debit_account.currency_code)
+                .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?)
+            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+        debit_account
+            .update_balance(new_balance)
+            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+        self.account_repo.update(&debit_account).await?;
+
+        Ok(transaction.id)
     }
 
     /// 创建支出交易（简化版）
-    /// 自动生成复式记账条目：借记支出科目，贷记账户（资产减少）
-    /// TODO: Reimplement using account-based categories (Task 9/10)
-    #[allow(dead_code)]
+    /// 自动生成复式记账条目：借记外部账户（支出对象），贷记自己账户（资产减少）
     pub async fn create_expense(
         &self,
-        _dto: SimpleExpenseDto,
+        dto: SimpleExpenseDto,
     ) -> Result<Uuid, TransactionServiceError> {
-        todo!("create_expense will be refactored to use account-based categories")
+        let debit_account = self
+            .account_repo
+            .find_by_id(dto.debit_account_id)
+            .await?
+            .ok_or(TransactionServiceError::AccountNotFound(dto.debit_account_id))?;
+
+        let credit_account = self
+            .account_repo
+            .find_by_id(dto.credit_account_id)
+            .await?
+            .ok_or(TransactionServiceError::AccountNotFound(dto.credit_account_id))?;
+
+        let money = Money::new(dto.amount, &credit_account.currency_code)
+            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+        let chart_code = debit_account.chart_code.as_deref().unwrap_or("5401");
+
+        let debit_entry = TransactionEntry::new(
+            debit_account.id,
+            chart_code,
+            Some(money.clone()),
+            None,
+            &dto.description,
+        )
+        .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+        let credit_entry = TransactionEntry::new(
+            credit_account.id,
+            chart_code,
+            None,
+            Some(money),
+            &dto.description,
+        )
+        .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+        let transaction = Transaction::new(
+            Uuid::new_v4(),
+            dto.date,
+            dto.description.clone(),
+            vec![debit_entry, credit_entry],
+            SyncMetadata::new(Uuid::new_v4()),
+        )
+        .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+        self.transaction_repo.create(&transaction).await?;
+
+        // Update own account balance (credit side = asset decrease)
+        let mut credit_account = credit_account;
+        let new_balance = credit_account
+            .balance
+            .subtract(&Money::new(dto.amount, &credit_account.currency_code)
+                .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?)
+            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+        credit_account
+            .update_balance(new_balance)
+            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+        self.account_repo.update(&credit_account).await?;
+
+        Ok(transaction.id)
     }
 
     /// 创建转账交易（简化版）
