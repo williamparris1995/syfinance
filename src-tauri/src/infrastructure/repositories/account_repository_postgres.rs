@@ -30,6 +30,8 @@ impl PostgresAccountRepository {
             "investment" => AccountType::Investment,
             "loan" => AccountType::Loan,
             "other" => AccountType::Other,
+            "income" => AccountType::Income,
+            "expense" => AccountType::Expense,
             _ => {
                 return Err(sqlx::Error::Decode(
                     format!("Invalid account type: {}", account_type_str).into(),
