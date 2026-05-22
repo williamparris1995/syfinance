@@ -51,3 +51,9 @@ export const getTransactionsByDateRange = (startDate: string, endDate: string) =
     start_date: startDate,
     end_date: endDate,
   });
+
+export const updateTransaction = (id: string, dto: CreateTransactionDto) =>
+  invokeTauri<string>('update_transaction', { id, dto });
+
+export const deleteTransaction = (id: string) =>
+  invokeTauri<void>('delete_transaction', { id });
