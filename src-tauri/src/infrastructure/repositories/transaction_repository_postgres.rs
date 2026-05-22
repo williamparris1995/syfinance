@@ -157,6 +157,78 @@ impl TransactionRepository for PostgresTransactionRepository {
         Ok(())
     }
 
+    async fn update(&self, transaction: &Transaction) -> sqlx::Result<bool> {
+        let mut tx = self.pool.begin().await?;
+
+        let result = sqlx::query(
+            r#"
+            UPDATE transactions
+            SET transaction_date = $1,
+                description = $2,
+                updated_at = NOW()
+            WHERE id = $3 AND deleted_at IS NULL
+            RETURNING id
+            "#,
+        )
+        .bind(transaction.transaction_date)
+        .bind(&transaction.description)
+        .bind(transaction.id)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        if result.is_some() {
+            // Soft delete old entries
+            sqlx::query(
+                r#"
+                UPDATE transaction_entries
+                SET deleted_at = NOW()
+                WHERE transaction_id = $1 AND deleted_at IS NULL
+                "#,
+            )
+            .bind(transaction.id)
+            .execute(&mut *tx)
+            .await?;
+
+            // Insert new entries
+            for entry in &transaction.entries {
+                let (debit_amount, credit_amount) = match (&entry.debit_amount, &entry.credit_amount) {
+                    (Some(debit), None) => (Some(debit.amount), None),
+                    (None, Some(credit)) => (None, Some(credit.amount)),
+                    _ => (None, None),
+                };
+
+                sqlx::query(
+                    r#"
+                    INSERT INTO transaction_entries (
+                        id, transaction_id, account_id, chart_of_account_code,
+                        debit_amount, credit_amount, note,
+                        updated_at, deleted_at, device_id, synced_at
+                    )
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                    "#,
+                )
+                .bind(entry.id)
+                .bind(transaction.id)
+                .bind(entry.account_id)
+                .bind(&entry.chart_of_account_code)
+                .bind(debit_amount)
+                .bind(credit_amount)
+                .bind(&entry.note)
+                .bind(transaction.sync_metadata.updated_at)
+                .bind(transaction.sync_metadata.deleted_at)
+                .bind(transaction.sync_metadata.device_id)
+                .bind(transaction.sync_metadata.synced_at)
+                .execute(&mut *tx)
+                .await?;
+            }
+
+            tx.commit().await?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
     async fn find_by_id(&self, id: Uuid) -> sqlx::Result<Option<Transaction>> {
         let mut conn = self.pool.acquire().await?;
 
