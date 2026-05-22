@@ -56,7 +56,7 @@ const createAccountFormSchema = (t: (key: string) => string) => z.object({
   icon: z.string().default('💰'),
   color: z.string().default('#10B981'),
   chart_code: z.string().optional().nullable(),
-  parent_id: z.string().uuid().optional().nullable(),
+  parent_id: z.string().optional().nullable(),
 });
 
 interface AccountFormProps {
@@ -87,7 +87,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
       icon: '📁',
       color: '#6B7280',
       chart_code: '',
-      parent_id: '',
+      parent_id: undefined as string | undefined,
     },
   });
 
@@ -251,29 +251,68 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
         </div>
 
         {/* Icon & Color */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-4">
+          {/* Icon picker */}
           <FormField
             control={form.control}
             name="icon"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>图标</FormLabel>
-                <FormControl><Input placeholder="🍔" className="h-9" {...field} /></FormControl>
+                <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                  图标
+                </FormLabel>
+                <div className="flex flex-wrap gap-2">
+                  {['💰','💵','💳','🏦','💸','📊','🏠','🚗','🍔','🛍️','🎮','🏥','📚','💡','🎁','📈','🛒','✈️','🐷','💎','🎯','💊','📱','☕','🎓'].map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => field.onChange(emoji)}
+                      className={cn(
+                        "h-9 w-9 flex items-center justify-center rounded-lg border text-lg transition-all",
+                        field.value === emoji
+                          ? "border-primary bg-primary/10 scale-110"
+                          : "border-input hover:border-primary/50 hover:bg-muted"
+                      )}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+                <FormMessage />
               </FormItem>
             )}
           />
+
+          {/* Color picker */}
           <FormField
             control={form.control}
             name="color"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>颜色</FormLabel>
-                <FormControl>
-                  <div className="flex items-center gap-2">
-                    <Input placeholder="#EF4444" className="h-9" {...field} />
-                    <div className="h-8 w-8 rounded border" style={{backgroundColor: field.value || '#6B7280'}} />
-                  </div>
-                </FormControl>
+                <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                  颜色
+                </FormLabel>
+                <div className="flex flex-wrap gap-2">
+                  {['#EF4444','#F59E0B','#10B981','#3B82F6','#8B5CF6','#EC4899','#06B6D4','#84CC16','#F97316','#6366F1','#14B8A6','#E11D48','#D946EF','#0EA5E9','#64748B'].map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => field.onChange(c)}
+                      className={cn(
+                        "h-7 w-7 rounded-full border-2 transition-all",
+                        field.value === c
+                          ? "border-foreground scale-110"
+                          : "border-transparent hover:scale-105"
+                      )}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="h-7 w-7 rounded border" style={{ backgroundColor: field.value || '#6B7280' }} />
+                  <FormControl><Input placeholder="#EF4444" className="h-8 w-28 font-mono text-xs" {...field} /></FormControl>
+                </div>
+                <FormMessage />
               </FormItem>
             )}
           />
