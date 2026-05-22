@@ -72,21 +72,20 @@ export function TransactionsPage() {
 
   const dateRange = useMemo(() => {
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
     if (dateRangePreset === 'custom' && customStartDate && customEndDate) {
       return { start: customStartDate, end: customEndDate };
     }
 
     if (dateRangePreset === 'month') {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1)
-        .toISOString().split('T')[0];
+      const start = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
       return { start, end: today };
     }
 
     if (dateRangePreset === 'quarter') {
-      const quarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
-      return { start: quarterStart.toISOString().split('T')[0], end: today };
+      const quarterMonth = Math.floor(now.getMonth() / 3) * 3 + 1;
+      return { start: `${now.getFullYear()}-${String(quarterMonth).padStart(2, '0')}-01`, end: today };
     }
 
     if (dateRangePreset === 'year') {
@@ -184,6 +183,17 @@ export function TransactionsPage() {
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <div className="text-neutral-500">{t('transactions.loadingTransactions')}</div>
+        </div>
+      ) : filteredTransactions.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <p className="text-neutral-500 mb-4">
+            {dateRange.start || dateRange.end
+              ? t('transactions.noTransactionsInRange')
+              : t('transactions.noTransactions')}
+          </p>
+          <Button variant="default-gradient" onClick={() => setIsSheetOpen(true)}>
+            {t('transactions.recordFirst')}
+          </Button>
         </div>
       ) : (
         <div className="border rounded-lg">
