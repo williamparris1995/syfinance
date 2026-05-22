@@ -1,5 +1,5 @@
 use crate::domain::{
-    aggregates::{Account, AccountType},
+    aggregates::{Account, AccountType, Ownership},
     value_objects::Money,
 };
 use chrono::{DateTime, Utc};
@@ -11,8 +11,13 @@ use uuid::Uuid;
 pub struct CreateAccountDto {
     pub name: String,
     pub account_type: AccountType,
+    pub ownership: Ownership,
     pub currency_code: String,
     pub initial_balance: Decimal,
+    pub icon: String,
+    pub color: String,
+    pub chart_code: Option<String>,
+    pub parent_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,6 +31,11 @@ pub struct AccountDto {
     pub id: Uuid,
     pub name: String,
     pub account_type: AccountType,
+    pub ownership: Ownership,
+    pub icon: String,
+    pub color: String,
+    pub chart_code: Option<String>,
+    pub parent_id: Option<Uuid>,
     pub currency_code: String,
     pub balance: Decimal,
     pub account_number: Option<String>,
@@ -51,6 +61,11 @@ impl From<Account> for AccountDto {
             id: account.id,
             name: account.name,
             account_type: account.account_type,
+            ownership: account.ownership,
+            icon: account.icon,
+            color: account.color,
+            chart_code: account.chart_code,
+            parent_id: account.parent_id,
             currency_code: account.currency_code.clone(),
             balance: account.balance.amount,
             account_number: account.account_number,

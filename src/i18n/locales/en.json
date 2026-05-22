@@ -89,6 +89,10 @@
     "loanWithChinese": "Loan (借款)",
     "other": "Other",
     "otherWithChinese": "Other (其他)",
+    "income": "Income",
+    "incomeWithChinese": "Income (收入)",
+    "expense": "Expense",
+    "expenseWithChinese": "Expense (费用)",
     "currency": "Currency",
     "selectCurrency": "Select currency",
     "initialBalance": "Initial Balance",
@@ -116,6 +120,7 @@
     "billingDayInvalid": "Billing day must be between 1 and 31",
     "paymentDueDayInvalid": "Payment due day must be between 1 and 31",
     "interestRateInvalid": "Interest rate must be a valid number",
+    "ownershipRequired": "Ownership is required",
     "advancedOptions": "Advanced Options",
     "creditCardDetails": "Credit Card Details"
   },

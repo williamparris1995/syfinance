@@ -1,6 +1,6 @@
 use finance_app::{
     application::dtos::{CreateAccountDto, UpdateAccountDto},
-    domain::aggregates::AccountType,
+    domain::aggregates::{AccountType, Ownership},
     presentation::tauri_commands::account_commands::{
         create_account_with_state, delete_account_with_state, get_account_balance_with_state,
         get_account_with_state, list_accounts_with_state, update_account_with_state, AppState,
@@ -17,9 +17,13 @@ async fn account_command_lifecycle() {
         CreateAccountDto {
             name: "Checking Account".into(),
             account_type: AccountType::Bank,
-            chart_of_account_code: "1002".into(),
+            ownership: Ownership::Own,
             currency_code: "CNY".into(),
             initial_balance: Decimal::new(100_000, 2),
+            icon: "💰".into(),
+            color: "#10B981".into(),
+            chart_code: None,
+            parent_id: None,
         },
     )
     .await

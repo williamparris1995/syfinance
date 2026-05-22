@@ -36,13 +36,13 @@ impl<R: AccountRepository, U: CurrencyRepository> AccountService<R, U> {
             Uuid::new_v4(),
             dto.name,
             dto.account_type,
-            Ownership::Own,
+            dto.ownership,
             &currency,
             balance,
-            "💰",
-            "#10B981",
-            None,
-            None,
+            dto.icon,
+            dto.color,
+            dto.chart_code,
+            dto.parent_id,
             SyncMetadata::new(Uuid::new_v4()),
         )?;
 
@@ -282,8 +282,13 @@ mod tests {
         let dto = CreateAccountDto {
             name: "Checking Account".to_string(),
             account_type: AccountType::Bank,
+            ownership: Ownership::Own,
             currency_code: "CNY".to_string(),
             initial_balance: Decimal::new(10000, 2),
+            icon: "💰".to_string(),
+            color: "#10B981".to_string(),
+            chart_code: None,
+            parent_id: None,
         };
 
         let result = service.create_account((), dto).await;
@@ -304,8 +309,13 @@ mod tests {
         let dto = CreateAccountDto {
             name: "Invalid Account".to_string(),
             account_type: AccountType::Bank,
+            ownership: Ownership::Own,
             currency_code: "USD".to_string(),
             initial_balance: Decimal::new(10000, 2),
+            icon: "💰".to_string(),
+            color: "#10B981".to_string(),
+            chart_code: None,
+            parent_id: None,
         };
 
         let result = service.create_account((), dto).await;
@@ -327,8 +337,13 @@ mod tests {
         let create_dto = CreateAccountDto {
             name: "Old Name".to_string(),
             account_type: AccountType::Bank,
+            ownership: Ownership::Own,
             currency_code: "CNY".to_string(),
             initial_balance: Decimal::new(10000, 2),
+            icon: "💰".to_string(),
+            color: "#10B981".to_string(),
+            chart_code: None,
+            parent_id: None,
         };
 
         let created = service.create_account((), create_dto).await.unwrap();
@@ -355,8 +370,13 @@ mod tests {
         let create_dto = CreateAccountDto {
             name: "To Delete".to_string(),
             account_type: AccountType::Bank,
+            ownership: Ownership::Own,
             currency_code: "CNY".to_string(),
             initial_balance: Decimal::new(10000, 2),
+            icon: "💰".to_string(),
+            color: "#10B981".to_string(),
+            chart_code: None,
+            parent_id: None,
         };
 
         let created = service.create_account((), create_dto).await.unwrap();
@@ -379,8 +399,13 @@ mod tests {
         let create_dto = CreateAccountDto {
             name: "Balance Test".to_string(),
             account_type: AccountType::Bank,
+            ownership: Ownership::Own,
             currency_code: "CNY".to_string(),
             initial_balance: Decimal::new(50000, 2),
+            icon: "💰".to_string(),
+            color: "#10B981".to_string(),
+            chart_code: None,
+            parent_id: None,
         };
 
         let created = service.create_account((), create_dto).await.unwrap();

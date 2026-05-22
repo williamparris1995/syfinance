@@ -92,6 +92,10 @@
     "loanWithChinese": "贷款 (借款)",
     "other": "其他",
     "otherWithChinese": "其他 (其他)",
+    "income": "收入",
+    "incomeWithChinese": "收入 (收入)",
+    "expense": "费用",
+    "expenseWithChinese": "费用 (费用)",
     "currency": "货币",
     "selectCurrency": "选择货币",
     "initialBalance": "初始余额",
@@ -119,6 +123,7 @@
     "billingDayInvalid": "账单日必须在1到31之间",
     "paymentDueDayInvalid": "还款日必须在1到31之间",
     "interestRateInvalid": "利率必须为有效数字",
+    "ownershipRequired": "所有权为必填项",
     "advancedOptions": "高级选项",
     "creditCardDetails": "信用卡详情"
   },

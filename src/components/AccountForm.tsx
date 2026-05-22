@@ -19,12 +19,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import type { AccountType, CreateAccountDto } from '@/lib/tauri/account';
+import type { AccountType, CreateAccountDto, Ownership } from '@/lib/tauri/account';
 
 const createAccountFormSchema = (t: (key: string) => string) => z.object({
   name: z.string().min(1, t('accountForm.nameRequired')),
-  account_type: z.enum(['Cash', 'Bank', 'CreditCard', 'Investment', 'Loan', 'Other'], {
+  account_type: z.enum(['Cash', 'Bank', 'CreditCard', 'Investment', 'Loan', 'Other', 'Income', 'Expense'], {
     required_error: t('accountForm.accountTypeRequired'),
+  }),
+  ownership: z.enum(['own', 'external'], {
+    required_error: t('accountForm.ownershipRequired'),
   }),
   currency_code: z.string().min(3, t('accountForm.currencyRequired')).max(3, t('accountForm.currencyLength')),
   initial_balance: z.string().min(1, t('accountForm.balanceRequired')).refine(
@@ -49,6 +52,10 @@ const createAccountFormSchema = (t: (key: string) => string) => z.object({
     (val) => !val || !isNaN(parseFloat(val)),
     t('accountForm.interestRateInvalid')
   ),
+  icon: z.string().default('💰'),
+  color: z.string().default('#10B981'),
+  chart_code: z.string().optional().nullable(),
+  parent_id: z.string().uuid().optional().nullable(),
 });
 
 interface AccountFormProps {
@@ -67,6 +74,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
     defaultValues: {
       name: '',
       account_type: 'Bank',
+      ownership: 'own',
       currency_code: 'CNY',
       initial_balance: '0.00',
       account_number: '',
@@ -75,6 +83,10 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
       billing_day: '',
       payment_due_day: '',
       interest_rate: '',
+      icon: '💰',
+      color: '#10B981',
+      chart_code: '',
+      parent_id: '',
     },
   });
 
@@ -84,11 +96,16 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
     const dto: CreateAccountDto = {
       name: values.name,
       account_type: values.account_type as AccountType,
+      ownership: values.ownership as Ownership,
       currency_code: values.currency_code,
       initial_balance: parseFloat(values.initial_balance),
+      icon: values.icon || '💰',
+      color: values.color || '#10B981',
     };
 
     // Add optional fields if provided
+    if (values.chart_code) dto.chart_code = values.chart_code;
+    if (values.parent_id) dto.parent_id = values.parent_id;
     if (values.account_number) dto.account_number = values.account_number;
     if (values.institution) dto.institution = values.institution;
     if (values.credit_limit) dto.credit_limit = parseFloat(values.credit_limit);
@@ -106,6 +123,8 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
     Investment: t('accountForm.investmentWithChinese'),
     Loan: t('accountForm.loanWithChinese'),
     Other: t('accountForm.otherWithChinese'),
+    Income: t('accountForm.incomeWithChinese'),
+    Expense: t('accountForm.expenseWithChinese'),
   };
 
   const currencyLabelMap: Record<string, string> = {
@@ -149,7 +168,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
                 <Select value={field.value} onValueChange={field.onChange}>
                   <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('accountForm.selectAccountType')}>{field.value ? typeLabelMap[field.value] || field.value : null}</SelectValue></SelectTrigger></FormControl>
                   <SelectContent>
-                    {(['Cash', 'Bank', 'CreditCard', 'Investment', 'Loan', 'Other'] as const).map((type) => (
+                    {(['Cash', 'Bank', 'CreditCard', 'Investment', 'Loan', 'Other', 'Income', 'Expense'] as const).map((type) => (
                       <SelectItem key={type} value={type}>{typeLabelMap[type]}</SelectItem>
                     ))}
                   </SelectContent>

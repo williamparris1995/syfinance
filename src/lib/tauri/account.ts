@@ -1,12 +1,19 @@
 import { invokeTauri } from '../tauri';
 
-export type AccountType = 'Cash' | 'Bank' | 'CreditCard' | 'Investment' | 'Loan' | 'Other';
+export type AccountType = 'Cash' | 'Bank' | 'CreditCard' | 'Investment' | 'Loan' | 'Other' | 'Income' | 'Expense';
+
+export type Ownership = 'own' | 'external';
 
 export interface CreateAccountDto {
   name: string;
   account_type: AccountType;
+  ownership: Ownership;
   currency_code: string;
   initial_balance: number;
+  icon: string;
+  color: string;
+  chart_code?: string | null;
+  parent_id?: string | null;
   account_number?: string;
   institution?: string;
   credit_limit?: number;
@@ -24,7 +31,11 @@ export interface AccountDto {
   id: string;
   name: string;
   account_type: AccountType;
-  chart_of_account_code: string;
+  ownership: Ownership;
+  icon: string;
+  color: string;
+  chart_code?: string | null;
+  parent_id?: string | null;
   currency_code: string;
   balance: number;
   account_number?: string;
