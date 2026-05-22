@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -70,15 +70,22 @@ export function SimpleTransactionForm({
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Reset category when type changes to ensure selected category matches type filter
-  useEffect(() => {
-    if (type !== 'transfer') {
-      const targetType = type === 'expense' ? 'Expense' : 'Income';
-      const firstInType = categories.filter(c => c.category_type === targetType)[0]?.id || '';
-      setCategoryId(firstInType);
-      setAccountId(accounts[0]?.id || '');
-    }
-  }, [type]);
+  // Derive valid category/account IDs for the current type — prevents UUID flash
+  const filteredCategories = useMemo(
+    () => categories.filter(c => c.category_type === (type === 'expense' ? 'Expense' : 'Income')),
+    [categories, type]
+  );
+
+  const effectiveCategoryId = useMemo(() => {
+    if (type === 'transfer') return '';
+    const match = filteredCategories.find(c => c.id === categoryId);
+    return match ? categoryId : filteredCategories[0]?.id || '';
+  }, [categoryId, filteredCategories, type]);
+
+  const effectiveAccountId = useMemo(() => {
+    if (type === 'transfer') return accountId;
+    return accounts.some(a => a.id === accountId) ? accountId : accounts[0]?.id || '';
+  }, [accountId, accounts, type]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -243,7 +250,7 @@ export function SimpleTransactionForm({
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t('transaction.account')}</Label>
-            <Select value={accountId!} onValueChange={(v) => v && setAccountId(v)}>
+            <Select value={effectiveAccountId} onValueChange={(v) => v && setAccountId(v)}>
               <SelectTrigger className="h-9 w-full"><SelectValue placeholder={t('transaction.selectAccount')} /></SelectTrigger>
               <SelectContent>
                 {accounts.map((acct) => (
@@ -254,7 +261,7 @@ export function SimpleTransactionForm({
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t('transaction.category')}</Label>
-            <Select value={categoryId!} onValueChange={(v) => v && setCategoryId(v)}>
+            <Select value={effectiveCategoryId} onValueChange={(v) => v && setCategoryId(v)}>
               <SelectTrigger className="h-9 w-full"><SelectValue placeholder={t('transaction.selectCategory')} /></SelectTrigger>
               <SelectContent>
                 {categories
