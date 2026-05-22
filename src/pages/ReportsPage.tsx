@@ -149,6 +149,63 @@ export function ReportsPage() {
     return { income, expenses, totalIncome, totalExpenses, netIncome };
   }, [transactions, dateRange, accounts]);
 
+  const monthlyTrendData = useMemo(() => {
+    const months: Record<string, {
+      month: string;
+      income: number;
+      expenses: number;
+      [category: string]: number | string;
+    }> = {};
+
+    const filteredTransactions = transactions.filter((tx: TransactionDto) => {
+      const txDate = tx.transaction_date;
+      return txDate >= dateRange.start && txDate <= dateRange.end;
+    });
+
+    filteredTransactions.forEach((tx: TransactionDto) => {
+      const month = tx.transaction_date.substring(0, 7);
+      if (!months[month]) {
+        months[month] = { month, income: 0, expenses: 0 };
+      }
+
+      tx.entries.forEach((entry) => {
+        const account = accounts.find(a => a.id === entry.account_id);
+        if (!account || account.ownership !== 'external') return;
+
+        const amount = entry.debit_amount ? parseFloat(entry.debit_amount)
+          : entry.credit_amount ? parseFloat(entry.credit_amount) : 0;
+
+        if (account.account_type === 'Expense') {
+          months[month][account.name] = ((months[month][account.name] as number) || 0) + amount;
+          months[month].expenses += amount;
+        } else if (account.account_type === 'Income') {
+          months[month][account.name] = ((months[month][account.name] as number) || 0) + amount;
+          months[month].income += amount;
+        }
+      });
+    });
+
+    return Object.values(months).sort((a, b) => a.month.localeCompare(b.month));
+  }, [transactions, dateRange, accounts]);
+
+  const expenseCategories = useMemo(() => {
+    const cats = new Set<string>();
+    monthlyTrendData.forEach(m => {
+      accounts.filter(a => a.account_type === 'Expense' && a.ownership === 'external')
+        .forEach(a => { if (m[a.name] !== undefined) cats.add(a.name); });
+    });
+    return Array.from(cats);
+  }, [monthlyTrendData, accounts]);
+
+  const incomeCategories = useMemo(() => {
+    const cats = new Set<string>();
+    monthlyTrendData.forEach(m => {
+      accounts.filter(a => a.account_type === 'Income' && a.ownership === 'external')
+        .forEach(a => { if (m[a.name] !== undefined) cats.add(a.name); });
+    });
+    return Array.from(cats);
+  }, [monthlyTrendData, accounts]);
+
   const chartData = useMemo(() => {
     return [
       { name: t('reports.income'), amount: incomeStatementData.totalIncome },
