@@ -163,7 +163,6 @@
     "saveChanges": "保存更改",
     "descriptionUpdated": "描述已更新",
     "resultCount": "{{count}} 笔交易",
-    "resultCount_plural": "{{count}} 笔交易",
     "dialogTitle": "记录交易",
     "dialogDesc": "创建借贷平衡的新交易"
   },
