@@ -99,11 +99,6 @@ export function SimpleTransactionForm({
           setIsSubmitting(false);
           return;
         }
-        if (!categoryId) {
-          toast.error(t('transaction.pleaseSelectCategory'));
-          setIsSubmitting(false);
-          return;
-        }
         if (!amount || parseFloat(amount) <= 0) {
           toast.error(t('transaction.pleaseEnterValidAmount'));
           setIsSubmitting(false);
@@ -140,16 +135,16 @@ export function SimpleTransactionForm({
 
       if (type === 'income') {
         await createSimpleIncome({
-          accountId,
-          categoryId,
+          debitAccountId: accountId,
+          creditAccountId: accountId,
           amount,
           date: dateStr,
           description,
         });
       } else if (type === 'expense') {
         await createSimpleExpense({
-          accountId,
-          categoryId,
+          debitAccountId: accountId,
+          creditAccountId: accountId,
           amount,
           date: dateStr,
           description,

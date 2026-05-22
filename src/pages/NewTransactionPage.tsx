@@ -6,7 +6,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { SimpleTransactionForm, TransactionFormData } from '@/components/SimpleTransactionForm';
 import { Button } from '@/components/ui/button';
 import { listAccounts } from '@/lib/tauri/account';
-import { listCategories } from '@/lib/tauri/category';
 
 export function NewTransactionPage() {
   const navigate = useNavigate();
@@ -16,11 +15,6 @@ export function NewTransactionPage() {
   const { data: accounts = [] } = useQuery({
     queryKey: ['accounts'],
     queryFn: listAccounts,
-  });
-
-  const { data: categories = [] } = useQuery({
-    queryKey: ['categories'],
-    queryFn: listCategories,
   });
 
   return (
@@ -33,7 +27,7 @@ export function NewTransactionPage() {
       </div>
       <SimpleTransactionForm
         accounts={accounts}
-        categories={categories}
+        categories={[]}
         onSubmit={async (data: TransactionFormData) => {
           navigate({ to: '/transactions' });
           queryClient.invalidateQueries({ queryKey: ['transactions'] });

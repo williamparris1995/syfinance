@@ -66,5 +66,8 @@ export const getAccount = (id: string) => invokeTauri<AccountDto>('get_account',
 
 export const listAccounts = () => invokeTauri<AccountDto[]>('list_accounts');
 
+export const listAccountsByOwnership = (ownership: 'own' | 'external') =>
+  invokeTauri<AccountDto[]>('list_accounts_by_ownership', { ownership });
+
 export const getAccountBalance = (id: string) =>
   invokeTauri<AccountBalanceDto>('get_account_balance', { id });

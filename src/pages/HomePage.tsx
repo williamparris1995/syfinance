@@ -8,7 +8,6 @@ import { QuickActions } from '@/components/QuickActions';
 import { EmptyState } from '@/components/EmptyState';
 import { listAccounts } from '@/lib/tauri/account';
 import { listTransactions } from '@/lib/tauri/transaction';
-import { listCategories } from '@/lib/tauri/category';
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -24,11 +23,8 @@ export function HomePage() {
     queryFn: listTransactions,
   });
 
-  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
-    queryKey: ['categories'],
-    queryFn: listCategories,
-  });
-
+  // Stub: categories API removed, will be refactored in a follow-up task
+  const categories: any[] = [];
   // Calculate total balance from all accounts
   const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
 
@@ -66,7 +62,7 @@ export function HomePage() {
 
   const monthlySavings = monthlyIncome - monthlyExpenses;
 
-  const isLoading = accountsLoading || transactionsLoading || categoriesLoading;
+  const isLoading = accountsLoading || transactionsLoading;
 
   return (
     <div className="space-y-6 p-6">

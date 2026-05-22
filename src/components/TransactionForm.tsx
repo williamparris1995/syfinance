@@ -5,7 +5,6 @@ import { useFieldArray, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { listAccounts } from '@/lib/tauri/account';
-import { listCategoriesByType, type CategoryType } from '@/lib/tauri/category';
 import type { CreateTransactionDto } from '@/lib/tauri/transaction';
 import { Button } from './ui/button';
 import {
@@ -68,15 +67,9 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
     queryFn: listAccounts,
   });
 
-  const { data: incomeCategories = [] } = useQuery({
-    queryKey: ['categories', 'Income'],
-    queryFn: () => listCategoriesByType('Income'),
-  });
-
-  const { data: expenseCategories = [] } = useQuery({
-    queryKey: ['categories', 'Expense'],
-    queryFn: () => listCategoriesByType('Expense'),
-  });
+  // Stub: categories API removed, will be refactored in a follow-up task
+  const incomeCategories: any[] = [];
+  const expenseCategories: any[] = [];
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionFormSchema),

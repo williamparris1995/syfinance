@@ -10,7 +10,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { listAccounts, type AccountDto } from '../lib/tauri/account';
 import { listTransactions, type TransactionDto } from '../lib/tauri/transaction';
-import { listCategories, type CategoryDto } from '../lib/tauri/category';
 
 type DateRangePreset = 'month' | 'quarter' | 'year' | 'custom';
 
@@ -46,11 +45,8 @@ export function ReportsPage() {
     queryFn: listTransactions,
   });
 
-  const { data: categories = [], isLoading: isLoadingCategories } = useQuery({
-    queryKey: ['categories'],
-    queryFn: listCategories,
-  });
-
+  // Stub: categories API removed, will be refactored in a follow-up task
+  const categories: any[] = [];
   const dateRange = useMemo(() => {
     if (dateRangePreset === 'custom') {
       return { start: startDate, end: endDate };
@@ -216,7 +212,7 @@ export function ReportsPage() {
     downloadCSV(data, `income-statement-${dateRange.start}-to-${dateRange.end}.csv`);
   };
 
-  const isLoading = isLoadingAccounts || isLoadingTransactions || isLoadingCategories;
+  const isLoading = isLoadingAccounts || isLoadingTransactions;
 
   return (
     <div className="p-6">

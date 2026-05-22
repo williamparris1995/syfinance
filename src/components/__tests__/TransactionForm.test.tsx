@@ -10,11 +10,6 @@ vi.mock('@/lib/tauri/account', () => ({
   listAccounts: vi.fn(),
 }));
 
-// Mock the category module
-vi.mock('@/lib/tauri/category', () => ({
-  listCategoriesByType: vi.fn().mockResolvedValue([]),
-}));
-
 // Helper: find at least one element whose textContent includes the given substring
 const hasText = (substring: string) =>
   screen.queryAllByText(
