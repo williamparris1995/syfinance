@@ -115,7 +115,6 @@ impl SqliteTransactionRepository {
             let entry = TransactionEntry::new(
                 account_id,
                 &chart_of_account_code,
-                None,
                 debit_amount,
                 credit_amount,
                 note.as_deref().unwrap_or(""),

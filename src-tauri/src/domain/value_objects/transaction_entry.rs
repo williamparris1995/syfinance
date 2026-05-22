@@ -28,7 +28,6 @@ pub struct TransactionEntry {
     pub id: Uuid,
     pub account_id: Uuid,
     pub chart_of_account_code: String,
-    pub category_id: Option<String>,
     pub debit_amount: Option<Money>,
     pub credit_amount: Option<Money>,
     pub note: String,
@@ -38,7 +37,6 @@ impl TransactionEntry {
     pub fn new(
         account_id: Uuid,
         chart_of_account_code: impl Into<String>,
-        category_id: Option<String>,
         debit_amount: Option<Money>,
         credit_amount: Option<Money>,
         note: impl Into<String>,
@@ -47,7 +45,6 @@ impl TransactionEntry {
             id: Uuid::new_v4(),
             account_id,
             chart_of_account_code: chart_of_account_code.into().trim().to_string(),
-            category_id,
             debit_amount,
             credit_amount,
             note: note.into().trim().to_string(),
@@ -97,7 +94,6 @@ mod tests {
                 let entry = TransactionEntry::new(
                     Uuid::new_v4(),
                     "1002",
-                    None,
                     Some(money(5_000_00, "CNY")),
                     None,
                     "salary deposit",
@@ -113,7 +109,6 @@ mod tests {
                 let result = TransactionEntry::new(
                     Uuid::new_v4(),
                     "1002",
-                    None,
                     Some(money(5_000_00, "CNY")),
                     Some(money(5_000_00, "CNY")),
                     "invalid",
@@ -128,7 +123,7 @@ mod tests {
             #[test]
             fn rejects_entries_without_debit_or_credit() {
                 let result =
-                    TransactionEntry::new(Uuid::new_v4(), "1002", None, None, None, "invalid");
+                    TransactionEntry::new(Uuid::new_v4(), "1002", None, None, "invalid");
 
                 assert!(matches!(
                     result,

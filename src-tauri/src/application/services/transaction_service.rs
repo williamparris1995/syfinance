@@ -93,7 +93,6 @@ impl TransactionService {
             let entry = TransactionEntry::new(
                 entry_dto.account_id,
                 &entry_dto.chart_of_account_code,
-                entry_dto.category_id.clone(),
                 debit_amount,
                 credit_amount,
                 entry_dto.memo.as_deref().unwrap_or(""),
@@ -206,7 +205,7 @@ impl TransactionService {
                 .map(|e| TransactionEntryDto {
                     account_id: e.account_id,
                     chart_of_account_code: e.chart_of_account_code.clone(),
-                    category_id: e.category_id.clone(),
+                    category_id: None,
                     debit_amount: e.debit_amount.as_ref().map(|m| m.amount.to_string()),
                     credit_amount: e.credit_amount.as_ref().map(|m| m.amount.to_string()),
                     currency_code: e.currency_code().unwrap_or("UNKNOWN").to_string(),
@@ -249,7 +248,6 @@ impl TransactionService {
         let debit_entry = TransactionEntry::new(
             account.id,
             &category.chart_code,
-            Some(dto.category_id.clone()),
             Some(money.clone()),
             None,
             &dto.description,
@@ -260,7 +258,6 @@ impl TransactionService {
         let credit_entry = TransactionEntry::new(
             Uuid::nil(), // 收入科目不关联具体账户
             &category.chart_code,
-            Some(dto.category_id),
             None,
             Some(money),
             &dto.description,
@@ -320,7 +317,6 @@ impl TransactionService {
         let debit_entry = TransactionEntry::new(
             Uuid::nil(), // 支出科目不关联具体账户
             &category.chart_code,
-            Some(dto.category_id.clone()),
             Some(money.clone()),
             None,
             &dto.description,
@@ -331,7 +327,6 @@ impl TransactionService {
         let credit_entry = TransactionEntry::new(
             account.id,
             &category.chart_code,
-            Some(dto.category_id),
             None,
             Some(money),
             &dto.description,
@@ -396,7 +391,6 @@ impl TransactionService {
         let debit_entry = TransactionEntry::new(
             to_account.id,
             "1002", // 银行存款科目代码
-            None,
             Some(money.clone()),
             None,
             &dto.description,
@@ -407,7 +401,6 @@ impl TransactionService {
         let credit_entry = TransactionEntry::new(
             from_account.id,
             "1002", // 银行存款科目代码
-            None,
             None,
             Some(money),
             &dto.description,
