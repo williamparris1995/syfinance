@@ -21,7 +21,8 @@ impl SqliteAccountRepository {
 
     fn row_to_account(row: &sqlx::sqlite::SqliteRow) -> Result<Account, sqlx::Error> {
         let id: String = row.try_get("id")?;
-        let id = Uuid::from_str(&id).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+        let id = Uuid::from_str(&id)
+            .map_err(|e| sqlx::Error::Decode(format!("id='{id}': {e}").into()))?;
 
         let name: String = row.try_get("name")?;
 
@@ -46,7 +47,8 @@ impl SqliteAccountRepository {
 
         let balance_str: String = row.try_get("balance")?;
         let balance_amount =
-            Decimal::from_str(&balance_str).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+            Decimal::from_str(&balance_str)
+                .map_err(|e| sqlx::Error::Decode(format!("balance='{balance_str}': {e}").into()))?;
 
         let balance = Money::new(balance_amount, &currency_code)
             .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
@@ -69,7 +71,8 @@ impl SqliteAccountRepository {
 
         let parent_id_str: Option<String> = row.try_get("parent_id")?;
         let parent_id = parent_id_str
-            .map(|s| Uuid::from_str(&s).map_err(|e| sqlx::Error::Decode(Box::new(e))))
+            .map(|s| Uuid::from_str(&s)
+                .map_err(|e| sqlx::Error::Decode(format!("parent_id='{s}': {e}").into())))
             .transpose()?;
 
         // Read optional fields
@@ -79,7 +82,8 @@ impl SqliteAccountRepository {
         let credit_limit_str: Option<String> = row.try_get("credit_limit")?;
         let credit_limit = credit_limit_str
             .map(|s| {
-                let amount = Decimal::from_str(&s).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+                let amount = Decimal::from_str(&s)
+                    .map_err(|e| sqlx::Error::Decode(format!("credit_limit='{s}': {e}").into()))?;
                 Money::new(amount, &currency_code).map_err(|e| sqlx::Error::Decode(Box::new(e)))
             })
             .transpose()?;
@@ -92,7 +96,8 @@ impl SqliteAccountRepository {
 
         let interest_rate_str: Option<String> = row.try_get("interest_rate")?;
         let interest_rate = interest_rate_str
-            .map(|s| Decimal::from_str(&s).map_err(|e| sqlx::Error::Decode(Box::new(e))))
+            .map(|s| Decimal::from_str(&s)
+                .map_err(|e| sqlx::Error::Decode(format!("interest_rate='{s}': {e}").into())))
             .transpose()?;
 
         let updated_at: String = row.try_get("updated_at")?;
@@ -112,15 +117,17 @@ impl SqliteAccountRepository {
         };
 
         let updated_at_parsed =
-            parse_sqlite_datetime(&updated_at).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+            parse_sqlite_datetime(&updated_at)
+                .map_err(|e| sqlx::Error::Decode(format!("updated_at='{updated_at}': {e}").into()))?;
 
         let deleted_at_parsed = deleted_at
-            .map(|s| parse_sqlite_datetime(&s))
-            .transpose()
-            .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+            .map(|s| parse_sqlite_datetime(&s)
+                .map_err(|e| sqlx::Error::Decode(format!("deleted_at='{s}': {e}").into())))
+            .transpose()?;
 
         let device_id_parsed = device_id
-            .map(|s| Uuid::from_str(&s).map_err(|e| sqlx::Error::Decode(Box::new(e))))
+            .map(|s| Uuid::from_str(&s)
+                .map_err(|e| sqlx::Error::Decode(format!("device_id='{s}': {e}").into())))
             .transpose()?;
 
         let synced_at_parsed = synced_at
