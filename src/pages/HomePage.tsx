@@ -73,6 +73,48 @@ export function HomePage() {
 
   const monthlySavings = monthlyIncome - monthlyExpenses;
 
+  const monthlyTrendData = useMemo(() => {
+    const months: Record<string, any> = {};
+    const now = new Date();
+    // Last 6 months
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      months[month] = { month, income: 0, expenses: 0 };
+    }
+
+    transactions.forEach((tx: any) => {
+      const month = tx.transaction_date?.substring(0, 7);
+      if (!month || !months[month]) return;
+
+      tx.entries.forEach((entry: any) => {
+        const account = accounts.find((a: any) => a.id === entry.account_id);
+        if (!account || account.ownership !== 'external') return;
+
+        const amount = entry.debit_amount ? parseFloat(entry.debit_amount)
+          : entry.credit_amount ? parseFloat(entry.credit_amount) : 0;
+
+        if (account.account_type === 'Expense') {
+          months[month][account.name] = ((months[month][account.name] as number) || 0) + amount;
+          months[month].expenses += amount;
+        } else if (account.account_type === 'Income') {
+          months[month].income += amount;
+        }
+      });
+    });
+
+    return Object.values(months).sort((a: any, b: any) => a.month.localeCompare(b.month));
+  }, [transactions, accounts]);
+
+  const expenseCategories = useMemo(() => {
+    const cats = new Set<string>();
+    monthlyTrendData.forEach((m: any) => {
+      accounts.filter((a: any) => a.account_type === 'Expense' && a.ownership === 'external')
+        .forEach((a: any) => { if (m[a.name] !== undefined) cats.add(a.name); });
+    });
+    return Array.from(cats);
+  }, [monthlyTrendData, accounts]);
+
   const isLoading = accountsLoading || transactionsLoading;
 
   return (
@@ -173,8 +215,8 @@ export function HomePage() {
                   {expenseByCategory.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-8">{t('reports.noExpenses')}</p>
                   ) : (
-                    <div className="flex items-center gap-4">
-                      <ResponsiveContainer width={150} height={150}>
+                    <div className="flex flex-col items-center gap-3">
+                      <ResponsiveContainer width={180} height={180}>
                         <PieChart>
                           <Pie
                             data={expenseByCategory}
@@ -205,7 +247,7 @@ export function HomePage() {
                           />
                         </PieChart>
                       </ResponsiveContainer>
-                      <div className="flex-1 space-y-1.5 max-h-[150px] overflow-y-auto">
+                      <div className="w-full space-y-1.5">
                         {expenseByCategory
                           .sort((a, b) => b.amount - a.amount)
                           .slice(0, 6)
@@ -243,8 +285,8 @@ export function HomePage() {
                   {incomeByCategory.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-8">{t('reports.noIncome')}</p>
                   ) : (
-                    <div className="flex items-center gap-4">
-                      <ResponsiveContainer width={150} height={150}>
+                    <div className="flex flex-col items-center gap-3">
+                      <ResponsiveContainer width={180} height={180}>
                         <PieChart>
                           <Pie
                             data={incomeByCategory}
@@ -275,7 +317,7 @@ export function HomePage() {
                           />
                         </PieChart>
                       </ResponsiveContainer>
-                      <div className="flex-1 space-y-1.5 max-h-[150px] overflow-y-auto">
+                      <div className="w-full space-y-1.5">
                         {incomeByCategory
                           .sort((a, b) => b.amount - a.amount)
                           .slice(0, 6)
@@ -301,6 +343,75 @@ export function HomePage() {
                       </div>
                     </div>
                   )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Monthly Trend Charts */}
+          {accounts.length > 0 && monthlyTrendData.length > 0 && (
+            <div className="grid gap-4 md:grid-cols-2">
+              {/* Stacked Bar: Monthly Expense Trend */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">{t('reports.monthlyExpenseTrend')}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {expenseCategories.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">{t('reports.noData')}</p>
+                  ) : (
+                    <>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <BarChart data={monthlyTrendData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                          <XAxis dataKey="month" tick={{ fontSize: 11 }} tickFormatter={(v: string) => v.substring(5)} />
+                          <YAxis tick={{ fontSize: 11 }} />
+                          <Tooltip formatter={(value, name) => [
+                            `¥${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, name,
+                          ]} />
+                          {expenseCategories.map((catName) => {
+                            const account = accounts.find((a: any) => a.name === catName && a.account_type === 'Expense');
+                            return (
+                              <Bar key={catName} dataKey={catName} stackId="e" fill={account?.color || '#6B7280'} />
+                            );
+                          })}
+                        </BarChart>
+                      </ResponsiveContainer>
+                      <div className="flex flex-wrap gap-3 mt-2 text-xs">
+                        {expenseCategories.map((catName) => {
+                          const account = accounts.find((a: any) => a.name === catName && a.account_type === 'Expense');
+                          return (
+                            <span key={catName} className="flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: account?.color || '#6B7280' }} />
+                              {account?.icon || ''} {catName}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Income vs Expense Bar */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">{t('reports.monthlyIncomeVsExpense')}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={monthlyTrendData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                      <XAxis dataKey="month" tick={{ fontSize: 11 }} tickFormatter={(v: string) => v.substring(5)} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip formatter={(value) => [
+                        `¥${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                      ]} />
+                      <Bar dataKey="income" fill="#10B981" radius={[4, 4, 0, 0]} name={t('reports.income')} />
+                      <Bar dataKey="expenses" fill="#EF4444" radius={[4, 4, 0, 0]} name={t('reports.expenses')} />
+                      <Legend />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </CardContent>
               </Card>
             </div>
