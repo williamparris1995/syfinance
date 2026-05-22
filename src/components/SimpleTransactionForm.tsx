@@ -32,6 +32,7 @@ interface SimpleTransactionFormProps {
   externalAccounts: Account[];   // External accounts only (ownership=external)
   onSubmit: (data: TransactionFormData) => Promise<void>;
   onCancel: () => void;
+  initialData?: TransactionFormData;  // pre-fill for edit mode
 }
 
 export interface TransactionFormData {
@@ -51,20 +52,37 @@ export function SimpleTransactionForm({
   externalAccounts,
   onSubmit,
   onCancel,
+  initialData,
 }: SimpleTransactionFormProps) {
   const { t } = useTranslation();
-  const [type, setType] = useState<'income' | 'expense' | 'transfer'>('expense');
-  const [date, setDate] = useState<Date>(new Date());
-  const [amount, setAmount] = useState('');
-  const [fromAccountId, setFromAccountId] = useState(accounts[0]?.id || '');
-  const [toAccountId, setToAccountId] = useState(accounts[1]?.id || '');
+  const [type, setType] = useState<'income' | 'expense' | 'transfer'>(
+    initialData?.type || 'expense'
+  );
+  const [date, setDate] = useState<Date>(
+    initialData?.date || new Date()
+  );
+  const [amount, setAmount] = useState(initialData?.amount || '');
+  const [fromAccountId, setFromAccountId] = useState(
+    initialData?.fromAccountId || accounts[0]?.id || ''
+  );
+  const [toAccountId, setToAccountId] = useState(
+    initialData?.toAccountId || accounts[1]?.id || ''
+  );
   const [ownAccountId, setOwnAccountId] = useState(
-    () => accounts.filter(a => a.ownership === 'own')[0]?.id || ''
+    initialData
+      ? (initialData.type === 'expense'
+          ? initialData.creditAccountId
+          : initialData.debitAccountId) || ''
+      : accounts.filter(a => a.ownership === 'own')[0]?.id || ''
   );
   const [externalAccountId, setExternalAccountId] = useState(
-    () => externalAccounts.filter(a => a.account_type === 'Expense')[0]?.id || ''
+    initialData
+      ? (initialData.type === 'expense'
+          ? initialData.debitAccountId
+          : initialData.creditAccountId) || ''
+      : externalAccounts.filter(a => a.account_type === 'Expense')[0]?.id || ''
   );
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState(initialData?.description || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const filteredExternalAccounts = useMemo(
@@ -343,11 +361,13 @@ export function SimpleTransactionForm({
         <Button type="submit" variant="default-gradient" disabled={isSubmitting}>
           {isSubmitting
             ? t('common.saving')
-            : type === 'expense'
-              ? `${t('transaction.recordExpense')} — ¥${amount || '0'}`
-              : type === 'income'
-                ? `${t('transaction.recordIncome')} — ¥${amount || '0'}`
-                : `${t('transaction.recordTransfer')} — ¥${amount || '0'}`
+            : initialData
+              ? t('transactions.saveChanges')
+              : type === 'expense'
+                ? `${t('transaction.recordExpense')} — ¥${amount || '0'}`
+                : type === 'income'
+                  ? `${t('transaction.recordIncome')} — ¥${amount || '0'}`
+                  : `${t('transaction.recordTransfer')} — ¥${amount || '0'}`
           }
         </Button>
       </div>
