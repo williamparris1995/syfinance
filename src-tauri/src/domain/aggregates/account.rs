@@ -12,6 +12,8 @@ pub enum AccountType {
     Investment,
     Loan,
     Other,
+    Income,
+    Expense,
 }
 
 impl fmt::Display for AccountType {
@@ -23,6 +25,25 @@ impl fmt::Display for AccountType {
             Self::Investment => write!(f, "investment"),
             Self::Loan => write!(f, "loan"),
             Self::Other => write!(f, "other"),
+            Self::Income => write!(f, "income"),
+            Self::Expense => write!(f, "expense"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum Ownership {
+    #[serde(rename = "own")]
+    Own,
+    #[serde(rename = "external")]
+    External,
+}
+
+impl fmt::Display for Ownership {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Own => write!(f, "own"),
+            Self::External => write!(f, "external"),
         }
     }
 }
@@ -90,8 +111,13 @@ pub struct Account {
     pub id: Uuid,
     pub name: String,
     pub account_type: AccountType,
+    pub ownership: Ownership,
     pub currency_code: String,
     pub balance: Money,
+    pub icon: String,
+    pub color: String,
+    pub chart_code: Option<String>,
+    pub parent_id: Option<Uuid>,
     pub account_number: Option<String>,
     pub institution: Option<String>,
     pub credit_limit: Option<Money>,
@@ -103,15 +129,23 @@ pub struct Account {
 }
 
 impl Account {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: Uuid,
         name: impl Into<String>,
         account_type: AccountType,
+        ownership: Ownership,
         currency: &Currency,
         balance: Money,
+        icon: impl Into<String>,
+        color: impl Into<String>,
+        chart_code: Option<String>,
+        parent_id: Option<Uuid>,
         sync_metadata: SyncMetadata,
     ) -> Result<Self, AccountError> {
         let name = name.into().trim().to_string();
+        let icon = icon.into().trim().to_string();
+        let color = color.into().trim().to_string();
 
         if name.is_empty() {
             return Err(AccountError::EmptyName);
@@ -123,8 +157,13 @@ impl Account {
             id,
             name,
             account_type: account_type.clone(),
+            ownership,
             currency_code: currency.code.clone(),
             balance,
+            icon,
+            color,
+            chart_code,
+            parent_id,
             account_number: None,
             institution: None,
             credit_limit: None,
@@ -258,8 +297,13 @@ mod tests {
                     Uuid::new_v4(),
                     "Wallet",
                     AccountType::Cash,
+                    Ownership::Own,
                     &currency("CNY"),
                     money(-100, "CNY"),
+                    "💰",
+                    "#10B981",
+                    None,
+                    None,
                     metadata(),
                 );
 
@@ -278,8 +322,13 @@ mod tests {
                     Uuid::new_v4(),
                     "Visa",
                     AccountType::CreditCard,
+                    Ownership::Own,
                     &currency("CNY"),
                     money(-100, "CNY"),
+                    "💳",
+                    "#10B981",
+                    None,
+                    None,
                     metadata(),
                 );
 
@@ -293,8 +342,13 @@ mod tests {
                     Uuid::new_v4(),
                     "Savings",
                     AccountType::Bank,
+                    Ownership::Own,
                     &currency("CNY"),
                     money(100, "USD"),
+                    "💰",
+                    "#10B981",
+                    None,
+                    None,
                     metadata(),
                 );
 
@@ -307,8 +361,13 @@ mod tests {
                     Uuid::new_v4(),
                     "Brokerage",
                     AccountType::Investment,
+                    Ownership::Own,
                     &currency("USD"),
                     money(-1, "USD"),
+                    "💰",
+                    "#10B981",
+                    None,
+                    None,
                     metadata(),
                 );
 
@@ -327,8 +386,13 @@ mod tests {
                     Uuid::new_v4(),
                     "Checking",
                     AccountType::Bank,
+                    Ownership::Own,
                     &currency("CNY"),
                     money(100, "CNY"),
+                    "💰",
+                    "#10B981",
+                    None,
+                    None,
                     metadata(),
                 )
                 .unwrap();
@@ -344,8 +408,13 @@ mod tests {
                     Uuid::new_v4(),
                     "Visa",
                     AccountType::CreditCard,
+                    Ownership::Own,
                     &currency("CNY"),
                     money(0, "CNY"),
+                    "💳",
+                    "#10B981",
+                    None,
+                    None,
                     metadata(),
                 )
                 .unwrap();
@@ -361,8 +430,13 @@ mod tests {
                     Uuid::new_v4(),
                     "Savings",
                     AccountType::Bank,
+                    Ownership::Own,
                     &currency("CNY"),
                     money(100, "CNY"),
+                    "💰",
+                    "#10B981",
+                    None,
+                    None,
                     metadata(),
                 )
                 .unwrap();
@@ -383,8 +457,13 @@ mod tests {
                     account_id,
                     "Checking",
                     AccountType::Bank,
+                    Ownership::Own,
                     &currency("CNY"),
                     money(100, "CNY"),
+                    "💰",
+                    "#10B981",
+                    None,
+                    None,
                     metadata(),
                 )
                 .unwrap();
@@ -419,8 +498,13 @@ mod tests {
                     account_id,
                     "Loan",
                     AccountType::Loan,
+                    Ownership::Own,
                     &currency("CNY"),
                     money(-1000, "CNY"),
+                    "💰",
+                    "#10B981",
+                    None,
+                    None,
                     metadata(),
                 )
                 .unwrap();

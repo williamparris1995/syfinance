@@ -456,7 +456,7 @@ impl TransactionService {
 mod tests {
     use super::*;
     use crate::domain::{
-        aggregates::{Account, AccountType},
+        aggregates::{Account, AccountType, Ownership},
         value_objects::Currency,
     };
     use crate::infrastructure::repositories::{
@@ -488,8 +488,13 @@ mod tests {
             Uuid::new_v4(),
             "Test Account",
             AccountType::Bank,
+            Ownership::Own,
             &Currency::new(currency_code, currency_code, Decimal::ONE).unwrap(),
             Money::new(Decimal::new(1000_00, 2), currency_code).unwrap(),
+            "💰",
+            "#10B981",
+            None,
+            None,
             SyncMetadata::new(Uuid::new_v4()),
         )
         .unwrap()

@@ -1,5 +1,5 @@
 use crate::application::dtos::{AccountDto, CreateAccountDto, UpdateAccountDto};
-use crate::domain::aggregates::{Account, AccountError};
+use crate::domain::aggregates::{Account, AccountError, Ownership};
 use crate::domain::repositories::{AccountRepository, CurrencyRepository};
 use crate::domain::value_objects::{Money, SyncMetadata};
 use std::sync::Arc;
@@ -36,8 +36,13 @@ impl<R: AccountRepository, U: CurrencyRepository> AccountService<R, U> {
             Uuid::new_v4(),
             dto.name,
             dto.account_type,
+            Ownership::Own,
             &currency,
             balance,
+            "💰",
+            "#10B981",
+            None,
+            None,
             SyncMetadata::new(Uuid::new_v4()),
         )?;
 

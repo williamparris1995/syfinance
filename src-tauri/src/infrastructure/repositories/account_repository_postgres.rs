@@ -1,5 +1,5 @@
 use crate::domain::{
-    aggregates::{Account, AccountType},
+    aggregates::{Account, AccountType, Ownership},
     repositories::AccountRepository,
     value_objects::{Money, SyncMetadata},
 };
@@ -59,8 +59,13 @@ impl PostgresAccountRepository {
             id,
             name,
             account_type,
+            ownership: Ownership::Own,
             currency_code,
             balance,
+            icon: "💰".to_string(),
+            color: "#10B981".to_string(),
+            chart_code: None,
+            parent_id: None,
             account_number: None,
             institution: None,
             credit_limit: None,

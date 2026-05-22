@@ -1,5 +1,5 @@
 use crate::domain::{
-    aggregates::{Account, AccountType},
+    aggregates::{Account, AccountType, Ownership},
     repositories::AccountRepository,
     value_objects::{Money, SyncMetadata},
 };
@@ -117,8 +117,13 @@ impl SqliteAccountRepository {
             id,
             name,
             account_type,
+            ownership: Ownership::Own,
             currency_code,
             balance,
+            icon: "💰".to_string(),
+            color: "#10B981".to_string(),
+            chart_code: None,
+            parent_id: None,
             account_number,
             institution,
             credit_limit,
@@ -391,8 +396,13 @@ mod tests {
             Uuid::new_v4(),
             name,
             account_type,
+            Ownership::Own,
             &currency,
             money,
+            "💰",
+            "#10B981",
+            None,
+            None,
             sync_metadata,
         )
         .unwrap()
