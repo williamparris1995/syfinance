@@ -146,6 +146,166 @@ impl TransactionService {
         Ok(transaction_id)
     }
 
+    async fn reverse_balances(
+        &self,
+        entries: &[TransactionEntry],
+    ) -> Result<(), TransactionServiceError> {
+        for entry in entries {
+            let mut account = self
+                .account_repo
+                .find_by_id(entry.account_id)
+                .await?
+                .ok_or(TransactionServiceError::AccountNotFound(entry.account_id))?;
+
+            let new_balance = if let Some(debit) = &entry.debit_amount {
+                account.balance.subtract(debit).map_err(|e| {
+                    TransactionServiceError::ValidationError(format!(
+                        "failed to reverse debit: {}",
+                        e
+                    ))
+                })?
+            } else if let Some(credit) = &entry.credit_amount {
+                account.balance.add(credit).map_err(|e| {
+                    TransactionServiceError::ValidationError(format!(
+                        "failed to reverse credit: {}",
+                        e
+                    ))
+                })?
+            } else {
+                account.balance.clone()
+            };
+
+            account
+                .update_balance(new_balance)
+                .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+            self.account_repo.update(&account).await?;
+        }
+        Ok(())
+    }
+
+    pub async fn update_transaction(
+        &self,
+        id: Uuid,
+        dto: CreateTransactionDto,
+    ) -> Result<Uuid, TransactionServiceError> {
+        // 1. Find old transaction
+        let old = self
+            .transaction_repo
+            .find_by_id(id)
+            .await?
+            .ok_or(TransactionServiceError::TransactionNotFound(id))?;
+
+        // 2. Reverse old account balances
+        self.reverse_balances(&old.entries).await?;
+
+        // 3. Build new entries
+        let mut new_entries = Vec::new();
+        for entry_dto in &dto.entries {
+            let account = self
+                .account_repo
+                .find_by_id(entry_dto.account_id)
+                .await?
+                .ok_or(TransactionServiceError::AccountNotFound(entry_dto.account_id))?;
+
+            let debit_amount = entry_dto
+                .debit_amount
+                .map(|amt| Money::new(amt, &account.currency_code))
+                .transpose()
+                .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+            let credit_amount = entry_dto
+                .credit_amount
+                .map(|amt| Money::new(amt, &account.currency_code))
+                .transpose()
+                .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+            let entry = TransactionEntry::new(
+                entry_dto.account_id,
+                &entry_dto.chart_of_account_code,
+                debit_amount,
+                credit_amount,
+                entry_dto.memo.as_deref().unwrap_or(""),
+            )
+            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+            new_entries.push(entry);
+        }
+
+        // 4. Build updated transaction (reuse old ID, update sync metadata)
+        let updated_sync = SyncMetadata::new(old.sync_metadata.device_id);
+
+        let updated_transaction = Transaction::new(
+            id,
+            dto.transaction_date,
+            dto.description,
+            new_entries,
+            updated_sync,
+        )
+        .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+        if !updated_transaction.is_balanced() {
+            return Err(TransactionServiceError::ValidationError(
+                "updated transaction is not balanced".to_string(),
+            ));
+        }
+
+        // 5. Update in repository (soft-deletes old entries, inserts new ones)
+        self.transaction_repo.update(&updated_transaction).await?;
+
+        // 6. Apply new balances
+        for entry in &updated_transaction.entries {
+            let mut account = self
+                .account_repo
+                .find_by_id(entry.account_id)
+                .await?
+                .ok_or(TransactionServiceError::AccountNotFound(entry.account_id))?;
+
+            let new_balance = if let Some(debit) = &entry.debit_amount {
+                account.balance.add(debit).map_err(|e| {
+                    TransactionServiceError::ValidationError(format!("failed to add debit: {}", e))
+                })?
+            } else if let Some(credit) = &entry.credit_amount {
+                account.balance.subtract(credit).map_err(|e| {
+                    TransactionServiceError::ValidationError(format!(
+                        "failed to subtract credit: {}",
+                        e
+                    ))
+                })?
+            } else {
+                account.balance.clone()
+            };
+
+            account
+                .update_balance(new_balance)
+                .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
+
+            self.account_repo.update(&account).await?;
+        }
+
+        Ok(id)
+    }
+
+    pub async fn delete_transaction(
+        &self,
+        id: Uuid,
+    ) -> Result<(), TransactionServiceError> {
+        // Find transaction to reverse balances
+        let transaction = self
+            .transaction_repo
+            .find_by_id(id)
+            .await?
+            .ok_or(TransactionServiceError::TransactionNotFound(id))?;
+
+        // Reverse account balances before soft-deleting
+        self.reverse_balances(&transaction.entries).await?;
+
+        // Soft delete
+        self.transaction_repo.soft_delete(id).await?;
+
+        Ok(())
+    }
+
     pub async fn get_transaction(
         &self,
         id: Uuid,
