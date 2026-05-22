@@ -133,7 +133,7 @@ export function AccountsPage() {
                   <TableCell>{account.account_type}</TableCell>
                   <TableCell>{account.currency_code}</TableCell>
                   <TableCell className="text-right">
-                    {account.balance.toLocaleString('en-US', {
+                    {Number(account.balance).toLocaleString('en-US', {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })}

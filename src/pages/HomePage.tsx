@@ -24,7 +24,7 @@ export function HomePage() {
   });
 
   // Calculate total balance from all accounts
-  const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
+  const totalBalance = accounts.reduce((sum, account) => sum + Number(account.balance), 0);
 
   // Calculate income and expenses from transactions (current month)
   // Uses account-based lookup: Income/Expense are determined by the linked account's type
