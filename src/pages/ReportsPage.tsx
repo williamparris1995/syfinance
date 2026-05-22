@@ -670,6 +670,101 @@ export function ReportsPage() {
               </Card>
             </div>
 
+            {/* Trend Charts Row */}
+            <div className="grid gap-4 md:grid-cols-2 mb-6">
+              {/* Stacked Bar: Monthly Expense Trend */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">{t('reports.monthlyExpenseTrend')}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {monthlyTrendData.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">{t('reports.noData')}</p>
+                  ) : (
+                    <>
+                      <ResponsiveContainer width="100%" height={240}>
+                        <BarChart data={monthlyTrendData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                          <XAxis
+                            dataKey="month"
+                            tick={{ fontSize: 12 }}
+                            tickFormatter={(v: string) => v.substring(5)}
+                          />
+                          <YAxis tick={{ fontSize: 12 }} />
+                          <Tooltip
+                            formatter={(value, name) => [
+                              `¥${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                              name,
+                            ]}
+                          />
+                          {expenseCategories.map((catName) => {
+                            const account = accounts.find(a => a.name === catName && a.account_type === 'Expense');
+                            return (
+                              <Bar
+                                key={catName}
+                                dataKey={catName}
+                                stackId="expenses"
+                                fill={account?.color || '#6B7280'}
+                              />
+                            );
+                          })}
+                        </BarChart>
+                      </ResponsiveContainer>
+                      {/* Legend */}
+                      {expenseCategories.length > 0 && (
+                        <div className="flex flex-wrap gap-3 mt-3 text-xs">
+                          {expenseCategories.map((catName) => {
+                            const account = accounts.find(a => a.name === catName && a.account_type === 'Expense');
+                            return (
+                              <span key={catName} className="flex items-center gap-1">
+                                <span
+                                  className="w-2.5 h-2.5 rounded-sm"
+                                  style={{ backgroundColor: account?.color || '#6B7280' }}
+                                />
+                                {account?.icon || ''} {catName}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Income vs Expense Trend Bar */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">{t('reports.monthlyIncomeVsExpense')}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {monthlyTrendData.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">{t('reports.noData')}</p>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={240}>
+                      <BarChart data={monthlyTrendData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                        <XAxis
+                          dataKey="month"
+                          tick={{ fontSize: 12 }}
+                          tickFormatter={(v: string) => v.substring(5)}
+                        />
+                        <YAxis tick={{ fontSize: 12 }} />
+                        <Tooltip
+                          formatter={(value) => [
+                            `¥${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                          ]}
+                        />
+                        <Bar dataKey="income" fill="#10B981" radius={[4, 4, 0, 0]} name={t('reports.income')} />
+                        <Bar dataKey="expenses" fill="#EF4444" radius={[4, 4, 0, 0]} name={t('reports.expenses')} />
+                        <Legend />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -783,25 +878,6 @@ export function ReportsPage() {
                       </span>
                     </div>
                   </div>
-
-                  {incomeStatementData.income.length > 0 || incomeStatementData.expenses.length > 0 ? (
-                    <div className="mt-6">
-                      <h3 className="text-lg font-semibold mb-3">{t('reports.incomeVsExpenses')}</h3>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={[
-                          { name: t('reports.income'), amount: incomeStatementData.totalIncome },
-                          { name: t('reports.expenses'), amount: incomeStatementData.totalExpenses },
-                        ]}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="name" />
-                          <YAxis />
-                          <Tooltip />
-                          <Legend />
-                          <Bar dataKey="amount" fill="#3b82f6" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : null}
 
                   <div className="mt-4 p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground">
                     <strong>{t('common.note')}:</strong> {t('reports.multiCurrencyNote')}

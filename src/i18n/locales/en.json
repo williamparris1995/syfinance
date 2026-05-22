@@ -327,7 +327,10 @@
     "categories": "categories",
     "savingsRate": "Savings rate",
     "expenseBreakdown": "Expense Breakdown",
-    "incomeBreakdown": "Income Breakdown"
+    "incomeBreakdown": "Income Breakdown",
+    "monthlyExpenseTrend": "Monthly Expense Trend",
+    "monthlyIncomeVsExpense": "Monthly Income vs Expense",
+    "noData": "No data for selected period"
   },
   "sidebar": {
     "noOrganizations": "No organizations",

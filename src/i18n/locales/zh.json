@@ -257,7 +257,10 @@
     "totalExpenses": "总支出",
     "netIncome": "净收入 (收入 - 支出)",
     "categories": "个分类",
-    "savingsRate": "结余率"
+    "savingsRate": "结余率",
+    "monthlyExpenseTrend": "月度支出趋势",
+    "monthlyIncomeVsExpense": "月度收支对比",
+    "noData": "所选周期暂无数据"
   },
   "sidebar": {
     "noOrganizations": "暂无组织",
