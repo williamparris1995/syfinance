@@ -53,7 +53,17 @@ CREATE TABLE accounts (
     FOREIGN KEY (currency_code) REFERENCES currencies(code) ON DELETE RESTRICT
 );
 
-INSERT INTO accounts SELECT * FROM accounts_backup;
+INSERT INTO accounts (id, name, account_type, currency_code, balance,
+                      ownership, icon, color, chart_code, parent_id,
+                      account_number, institution, credit_limit,
+                      billing_day, payment_due_day, interest_rate,
+                      deleted_at, updated_at, device_id, synced_at, version)
+SELECT id, name, account_type, currency_code, balance,
+       ownership, icon, color, chart_code, parent_id,
+       account_number, institution, credit_limit,
+       billing_day, payment_due_day, interest_rate,
+       deleted_at, updated_at, device_id, synced_at, version
+FROM accounts_backup;
 
 DROP TABLE accounts_backup;
 
