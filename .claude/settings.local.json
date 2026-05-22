@@ -78,7 +78,10 @@
       "Bash(git -C \"c:/Users/BuHiYo-001/Desktop/projects/fiance\" add \"docs/superpowers/specs/2026-05-22-unified-account-model-design.md\")",
       "Bash(git -C c:/Users/BuHiYo-001/Desktop/projects/fiance commit -m ' *)",
       "Bash(rm \"C:\\\\Users\\\\BuHiYo-001\\\\AppData\\\\Roaming\\\\finance-app\\\\finance.db\" && echo \"Database deleted — will be recreated with fresh migrations\")",
-      "Bash(rm \"C:\\\\Users\\\\BuHiYo-001\\\\AppData\\\\Roaming\\\\finance-app\\\\finance.db\")"
+      "Bash(rm \"C:\\\\Users\\\\BuHiYo-001\\\\AppData\\\\Roaming\\\\finance-app\\\\finance.db\")",
+      "Bash(taskkill /F /IM finance-app.exe)",
+      "Bash(rm \"C:\\\\Users\\\\BuHiYo-001\\\\AppData\\\\Roaming\\\\finance-app\\\\finance.db-wal\")",
+      "Bash(rm \"C:\\\\Users\\\\BuHiYo-001\\\\AppData\\\\Roaming\\\\finance-app\\\\finance.db-shm\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\BuHiYo-001\\AppData\\Roaming\\finance-app"
