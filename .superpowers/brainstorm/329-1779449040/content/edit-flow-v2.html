@@ -1,0 +1,70 @@
+<h2>编辑交互 — 两种模式 (更新)</h2>
+<p class="subtitle">行内编辑描述 + Sheet 侧边栏编辑完整记录（含 label）</p>
+
+<div class="split">
+  <!-- Left: Inline Edit -->
+  <div class="mockup">
+    <div class="mockup-header">模式 1：行内编辑描述</div>
+    <div class="mockup-body">
+      <p style="font-size:12px;color:#888;margin-bottom:12px;">点击描述文字 → 切换为输入框 → 失焦或 Enter 自动保存</p>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <tr style="border-bottom:2px solid #e5e5e5;text-align:left;color:#888;">
+          <th style="padding:6px;">Date</th><th style="padding:6px;">Description</th><th style="padding:6px;text-align:right;">Amount</th>
+        </tr>
+        <tr style="border-bottom:1px solid #f0f0f0;">
+          <td style="padding:6px;">May 15</td>
+          <td style="padding:6px;">
+            <input value="Grocery shopping" style="border:2px solid #3b82f6;border-radius:4px;padding:4px 8px;font-size:12px;width:140px;outline:none;">
+          </td>
+          <td style="padding:6px;text-align:right;color:#dc2626;">-$156.80</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f0f0f0;">
+          <td style="padding:6px;">May 14</td>
+          <td style="padding:6px;color:#333;">Salary deposit</td>
+          <td style="padding:6px;text-align:right;color:#16a34a;">+$5,200.00</td>
+        </tr>
+      </table>
+      <div style="margin-top:12px;padding:8px;background:#f0fdf4;border-radius:6px;font-size:11px;color:#16a34a;">
+        ✓ Description updated — auto-saved
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Sheet Edit (with labels) -->
+  <div class="mockup">
+    <div class="mockup-header">模式 2：Sheet 编辑（含 label）</div>
+    <div class="mockup-body">
+      <p style="font-size:12px;color:#888;margin-bottom:12px;">点击 ✏️ 按钮 → 右侧 Sheet 滑入，每个字段有清晰的 label</p>
+      <div style="border:1px solid #ddd;border-radius:8px;padding:16px;">
+        <div style="font-size:14px;font-weight:700;margin-bottom:16px;">Edit Transaction</div>
+
+        <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Type</label>
+        <div style="display:flex;gap:6px;margin-bottom:12px;">
+          <button class="mock-button" style="font-size:11px;padding:4px 12px;background:#fef2f2;color:#dc2626;border:1px solid #dc2626;">Expense</button>
+          <button class="mock-button" style="font-size:11px;padding:4px 12px;">Income</button>
+          <button class="mock-button" style="font-size:11px;padding:4px 12px;">Transfer</button>
+        </div>
+
+        <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Amount</label>
+        <input class="mock-input" value="156.80" style="width:100%;margin-bottom:12px;">
+
+        <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Account</label>
+        <select style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;margin-bottom:12px;">
+          <option>Chase Checking</option>
+          <option>Amex Gold</option>
+        </select>
+
+        <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Description</label>
+        <input class="mock-input" value="Grocery shopping" style="width:100%;margin-bottom:12px;">
+
+        <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Date</label>
+        <input type="date" value="2026-05-15" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;margin-bottom:16px;">
+
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+          <button class="mock-button" style="font-size:12px;">Cancel</button>
+          <button class="mock-button" style="font-size:12px;background:#3b82f6;color:#fff;">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

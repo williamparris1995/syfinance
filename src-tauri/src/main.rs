@@ -33,6 +33,7 @@ use presentation::tauri_commands::{
         create_default_state_from_pool, create_simple_expense, create_simple_income,
         create_simple_transfer, create_transaction, get_transaction,
         get_transactions_by_account, get_transactions_by_date_range, list_transactions,
+        update_transaction, delete_transaction,
     },
 };
 use sqlx::sqlite::SqlitePool;
@@ -154,6 +155,8 @@ async fn main() {
             create_simple_income,
             create_simple_expense,
             create_simple_transfer,
+            update_transaction,
+            delete_transaction,
             sync_to_server,
             sync_from_server,
             get_sync_status,

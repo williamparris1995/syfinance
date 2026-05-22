@@ -22,5 +22,7 @@ pub use sync_commands::{
 };
 pub use transaction_commands::{
     create_transaction, get_transaction, get_transactions_by_account,
-    get_transactions_by_date_range, list_transactions, TransactionCommandState,
+    get_transactions_by_date_range, list_transactions,
+    update_transaction, delete_transaction,
+    TransactionCommandState,
 };

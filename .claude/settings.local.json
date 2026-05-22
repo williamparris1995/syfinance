@@ -81,7 +81,23 @@
       "Bash(rm \"C:\\\\Users\\\\BuHiYo-001\\\\AppData\\\\Roaming\\\\finance-app\\\\finance.db\")",
       "Bash(taskkill /F /IM finance-app.exe)",
       "Bash(rm \"C:\\\\Users\\\\BuHiYo-001\\\\AppData\\\\Roaming\\\\finance-app\\\\finance.db-wal\")",
-      "Bash(rm \"C:\\\\Users\\\\BuHiYo-001\\\\AppData\\\\Roaming\\\\finance-app\\\\finance.db-shm\")"
+      "Bash(rm \"C:\\\\Users\\\\BuHiYo-001\\\\AppData\\\\Roaming\\\\finance-app\\\\finance.db-shm\")",
+      "Bash(git -C \"c:\\\\Users\\\\BuHiYo-001\\\\Desktop\\\\projects\\\\fiance\" log --oneline -20)",
+      "Bash(git -C \"c:\\\\Users\\\\BuHiYo-001\\\\Desktop\\\\projects\\\\fiance\" diff --stat HEAD~8..HEAD)",
+      "Bash(git -C \"c:\\\\Users\\\\BuHiYo-001\\\\Desktop\\\\projects\\\\fiance\" log --oneline -30 --all -- src/pages/TransactionsPage.tsx src/lib/tauri/transaction.ts src/components/SimpleTransactionForm.tsx src/pages/HomePage.tsx)",
+      "Bash(git -C \"c:\\\\Users\\\\BuHiYo-001\\\\Desktop\\\\projects\\\\fiance\" show e9c52b7 --stat)",
+      "Bash(git -C \"c:\\\\Users\\\\BuHiYo-001\\\\Desktop\\\\projects\\\\fiance\" diff e9c52b7^..e9c52b7 -- src/pages/HomePage.tsx src/i18n/locales/en.json src/i18n/locales/zh.json)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('src/i18n/locales/en.json','utf8'\\)\\); console.log\\('en.json: valid'\\)\")",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('src/i18n/locales/zh.json','utf8'\\)\\); console.log\\('zh.json: valid'\\)\")",
+      "Bash(node -e \"const i18n = require\\('i18next'\\); console.log\\('version:', i18n.default ? 'checking...' : 'unexpected'\\);\")",
+      "Bash(node -e \"const pkg = require\\('./node_modules/i18next/package.json'\\); console.log\\(pkg.version\\);\")",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('C:/Users/BuHiYo-001/Desktop/projects/fiance/src/i18n/locales/en.json','utf8'\\)\\); console.log\\('en.json: valid'\\)\")",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('C:/Users/BuHiYo-001/Desktop/projects/fiance/src/i18n/locales/zh.json','utf8'\\)\\); console.log\\('zh.json: valid'\\)\")",
+      "Bash(git -C 'C:/Users/BuHiYo-001/Desktop/projects/fiance' diff)",
+      "Bash(git -C 'C:/Users/BuHiYo-001/Desktop/projects/fiance' add src/i18n/locales/en.json src/i18n/locales/zh.json)",
+      "Bash(git -C 'C:/Users/BuHiYo-001/Desktop/projects/fiance' diff --cached --stat)",
+      "Bash(git -C C:/Users/BuHiYo-001/Desktop/projects/fiance commit -m ' *)",
+      "Bash(git -C 'C:/Users/BuHiYo-001/Desktop/projects/fiance' log --oneline -3)"
     ],
     "additionalDirectories": [
       "C:\\Users\\BuHiYo-001\\AppData\\Roaming\\finance-app"

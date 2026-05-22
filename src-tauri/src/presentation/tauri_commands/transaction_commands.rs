@@ -120,6 +120,27 @@ pub async fn get_transactions_by_date_range_with_service(
         .map_err(|e| e.to_string())
 }
 
+pub async fn update_transaction_with_service(
+    service: &TransactionService,
+    id: Uuid,
+    dto: CreateTransactionDto,
+) -> Result<Uuid, String> {
+    service
+        .update_transaction(id, dto)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+pub async fn delete_transaction_with_service(
+    service: &TransactionService,
+    id: Uuid,
+) -> Result<(), String> {
+    service
+        .delete_transaction(id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub async fn create_transaction(
     state: State<'_, TransactionCommandState>,
@@ -254,4 +275,25 @@ pub async fn create_simple_transfer(
         .await
         .map(|id| id.to_string())
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn update_transaction(
+    state: State<'_, TransactionCommandState>,
+    id: String,
+    dto: CreateTransactionDto,
+) -> Result<String, String> {
+    let id = parse_uuid(&id, "id")?;
+    update_transaction_with_service(state.service(), id, dto)
+        .await
+        .map(|id| id.to_string())
+}
+
+#[tauri::command]
+pub async fn delete_transaction(
+    state: State<'_, TransactionCommandState>,
+    id: String,
+) -> Result<(), String> {
+    let id = parse_uuid(&id, "id")?;
+    delete_transaction_with_service(state.service(), id).await
 }

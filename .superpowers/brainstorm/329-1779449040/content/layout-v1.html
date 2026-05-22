@@ -1,0 +1,96 @@
+<h2>TransactionsPage — 整体布局</h2>
+<p class="subtitle">在现有基础上增加：周期选择器、筛选栏、行操作按钮</p>
+
+<div class="mockup">
+  <div class="mockup-header">新布局预览</div>
+  <div class="mockup-body">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <span style="font-size:18px;font-weight:700;">Transactions</span>
+      <button class="mock-button" style="background:#3b82f6;color:#fff;">+ Record Transaction</button>
+    </div>
+
+    <!-- Period Selector Row -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      <span style="font-size:12px;color:#888;">Period:</span>
+      <button class="mock-button" style="background:#3b82f6;color:#fff;font-size:12px;padding:4px 12px;">Month</button>
+      <button class="mock-button" style="font-size:12px;padding:4px 12px;">Quarter</button>
+      <button class="mock-button" style="font-size:12px;padding:4px 12px;">Year</button>
+      <button class="mock-button" style="font-size:12px;padding:4px 12px;">Custom</button>
+      <span style="color:#ccc;margin:0 8px;">|</span>
+      <span style="font-size:12px;color:#888;">2026-05-01 – 2026-05-31</span>
+    </div>
+
+    <!-- Filter Bar Row -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px 12px;background:#f5f5f5;border-radius:8px;">
+      <span style="font-size:12px;color:#888;">Filters:</span>
+      <button class="mock-button" style="font-size:12px;padding:4px 12px;background:#3b82f6;color:#fff;">All</button>
+      <button class="mock-button" style="font-size:12px;padding:4px 12px;">Expense</button>
+      <button class="mock-button" style="font-size:12px;padding:4px 12px;">Income</button>
+      <button class="mock-button" style="font-size:12px;padding:4px 12px;">Transfer</button>
+      <span style="color:#ccc;">|</span>
+      <select style="font-size:12px;padding:4px 8px;border:1px solid #ddd;border-radius:4px;">
+        <option>All Accounts</option>
+        <option>Chase Checking</option>
+        <option>Amex Gold</option>
+      </select>
+      <span style="color:#ccc;">|</span>
+      <input class="mock-input" placeholder="Search description..." style="font-size:12px;padding:4px 8px;width:180px;">
+      <span style="font-size:11px;color:#888;margin-left:auto;">42 transactions</span>
+    </div>
+
+    <!-- Table -->
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="border-bottom:2px solid #e5e5e5;text-align:left;color:#888;">
+          <th style="padding:8px;">Date</th>
+          <th style="padding:8px;">Type</th>
+          <th style="padding:8px;">Description</th>
+          <th style="padding:8px;text-align:right;">Amount</th>
+          <th style="padding:8px;">Accounts</th>
+          <th style="padding:8px;text-align:center;width:80px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid #f0f0f0;">
+          <td style="padding:8px;">May 15, 2026</td>
+          <td style="padding:8px;"><span style="background:#fef2f2;color:#dc2626;padding:2px 6px;border-radius:4px;font-size:11px;">Expense</span></td>
+          <td style="padding:8px;">Grocery shopping</td>
+          <td style="padding:8px;text-align:right;color:#dc2626;">-$156.80</td>
+          <td style="padding:8px;color:#888;">Chase Checking</td>
+          <td style="padding:8px;text-align:center;">
+            <span style="cursor:pointer;margin-right:4px;color:#3b82f6;font-size:12px;">✏️</span>
+            <span style="cursor:pointer;color:#ef4444;font-size:12px;">🗑️</span>
+          </td>
+        </tr>
+        <tr style="border-bottom:1px solid #f0f0f0;">
+          <td style="padding:8px;">May 14, 2026</td>
+          <td style="padding:8px;"><span style="background:#f0fdf4;color:#16a34a;padding:2px 6px;border-radius:4px;font-size:11px;">Income</span></td>
+          <td style="padding:8px;">Salary deposit</td>
+          <td style="padding:8px;text-align:right;color:#16a34a;">+$5,200.00</td>
+          <td style="padding:8px;color:#888;">Chase Checking</td>
+          <td style="padding:8px;text-align:center;">
+            <span style="cursor:pointer;margin-right:4px;color:#3b82f6;font-size:12px;">✏️</span>
+            <span style="cursor:pointer;color:#ef4444;font-size:12px;">🗑️</span>
+          </td>
+        </tr>
+        <tr style="border-bottom:1px solid #f0f0f0;">
+          <td style="padding:8px;">May 14, 2026</td>
+          <td style="padding:8px;"><span style="background:#f8f5ff;color:#7c3aed;padding:2px 6px;border-radius:4px;font-size:11px;">Transfer</span></td>
+          <td style="padding:8px;">Savings transfer</td>
+          <td style="padding:8px;text-align:right;color:#7c3aed;">$1,000.00</td>
+          <td style="padding:8px;color:#888;">Chase → Savings</td>
+          <td style="padding:8px;text-align:center;">
+            <span style="cursor:pointer;margin-right:4px;color:#3b82f6;font-size:12px;">✏️</span>
+            <span style="cursor:pointer;color:#ef4444;font-size:12px;">🗑️</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="section">
+  <h3>布局说明</h3>
+  <p>从上到下三个区域：<strong>周期选择器</strong>（复用 HomePage 按钮组模式）→ <strong>筛选栏</strong>（类型 + 账户 + 搜索）→ <strong>表格</strong>（新增 Type 列和 Actions 列）</p>
+  <p>筛选栏在激活筛选条件时高亮显示，未激活时为灰色背景以降低视觉权重。</p>
+</div>
