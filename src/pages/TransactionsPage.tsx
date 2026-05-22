@@ -20,7 +20,7 @@ import {
   TableRow,
 } from '../components/ui/table';
 import { Plus } from 'lucide-react';
-import { listAccounts } from '../lib/tauri/account';
+import { listAccounts, listAccountsByOwnership } from '../lib/tauri/account';
 import {
   listTransactions,
   getTransactionsByDateRange,
@@ -37,6 +37,11 @@ export function TransactionsPage() {
   const { data: accounts = [] } = useQuery({
     queryKey: ['accounts'],
     queryFn: listAccounts,
+  });
+
+  const { data: externalAccounts = [] } = useQuery({
+    queryKey: ['accounts', 'external'],
+    queryFn: () => listAccountsByOwnership('external'),
   });
 
   const { data: transactions = [], isLoading } = useQuery({
@@ -184,7 +189,7 @@ export function TransactionsPage() {
           <div className="flex-1 overflow-y-auto -mx-4 px-4">
             <SimpleTransactionForm
               accounts={accounts}
-              categories={[]}
+              externalAccounts={externalAccounts}
               onSubmit={handleFormSubmit}
               onCancel={() => setIsSheetOpen(false)}
             />

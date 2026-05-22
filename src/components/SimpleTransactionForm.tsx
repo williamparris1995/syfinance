@@ -23,19 +23,13 @@ interface Account {
   name: string;
   balance: number;
   currency_code: string;
-}
-
-interface Category {
-  id: string;
-  name: string;
-  icon: string;
-  color: string;
-  category_type: 'Income' | 'Expense';
+  ownership: 'own' | 'external';
+  account_type: string;
 }
 
 interface SimpleTransactionFormProps {
-  accounts: Account[];
-  categories: Category[];
+  accounts: Account[];           // All accounts
+  externalAccounts: Account[];   // External accounts only (ownership=external)
   onSubmit: (data: TransactionFormData) => Promise<void>;
   onCancel: () => void;
 }
@@ -47,13 +41,14 @@ export interface TransactionFormData {
   accountId?: string;
   fromAccountId?: string;
   toAccountId?: string;
-  categoryId?: string;
+  debitAccountId?: string;
+  creditAccountId?: string;
   description: string;
 }
 
 export function SimpleTransactionForm({
   accounts,
-  categories,
+  externalAccounts,
   onSubmit,
   onCancel,
 }: SimpleTransactionFormProps) {
@@ -61,31 +56,28 @@ export function SimpleTransactionForm({
   const [type, setType] = useState<'income' | 'expense' | 'transfer'>('expense');
   const [date, setDate] = useState<Date>(new Date());
   const [amount, setAmount] = useState('');
-  const [accountId, setAccountId] = useState(accounts[0]?.id || '');
   const [fromAccountId, setFromAccountId] = useState(accounts[0]?.id || '');
   const [toAccountId, setToAccountId] = useState(accounts[1]?.id || '');
-  const [categoryId, setCategoryId] = useState(
-    () => categories.filter(c => c.category_type === 'Expense')[0]?.id || ''
+  const [ownAccountId, setOwnAccountId] = useState(
+    () => accounts.filter(a => a.ownership === 'own')[0]?.id || ''
+  );
+  const [externalAccountId, setExternalAccountId] = useState(
+    () => externalAccounts.filter(a => a.account_type === 'Expense')[0]?.id || ''
   );
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Derive valid category/account IDs for the current type — prevents UUID flash
-  const filteredCategories = useMemo(
-    () => categories.filter(c => c.category_type === (type === 'expense' ? 'Expense' : 'Income')),
-    [categories, type]
+  const filteredExternalAccounts = useMemo(
+    () => externalAccounts.filter(a =>
+      type === 'expense' ? a.account_type === 'Expense' : a.account_type === 'Income'
+    ),
+    [externalAccounts, type]
   );
 
-  const effectiveCategoryId = useMemo(() => {
-    if (type === 'transfer') return '';
-    const match = filteredCategories.find(c => c.id === categoryId);
-    return match ? categoryId : filteredCategories[0]?.id || '';
-  }, [categoryId, filteredCategories, type]);
-
-  const effectiveAccountId = useMemo(() => {
-    if (type === 'transfer') return accountId;
-    return accounts.some(a => a.id === accountId) ? accountId : accounts[0]?.id || '';
-  }, [accountId, accounts, type]);
+  const filteredOwnAccounts = useMemo(
+    () => accounts.filter(a => a.ownership === 'own'),
+    [accounts]
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,8 +86,13 @@ export function SimpleTransactionForm({
     try {
       // Validate required fields
       if (type === 'expense' || type === 'income') {
-        if (!accountId) {
-          toast.error(t('transaction.pleaseSelectAccount'));
+        if (!ownAccountId) {
+          toast.error('请选择自己账户');
+          setIsSubmitting(false);
+          return;
+        }
+        if (!externalAccountId) {
+          toast.error('请选择外部账户');
           setIsSubmitting(false);
           return;
         }
@@ -135,16 +132,16 @@ export function SimpleTransactionForm({
 
       if (type === 'income') {
         await createSimpleIncome({
-          debitAccountId: accountId,
-          creditAccountId: accountId,
+          debitAccountId: ownAccountId,       // 自己账户 = 借方
+          creditAccountId: externalAccountId, // 外部账户 = 贷方
           amount,
           date: dateStr,
           description,
         });
       } else if (type === 'expense') {
         await createSimpleExpense({
-          debitAccountId: accountId,
-          creditAccountId: accountId,
+          debitAccountId: externalAccountId,  // 外部账户 = 借方
+          creditAccountId: ownAccountId,      // 自己账户 = 贷方
           amount,
           date: dateStr,
           description,
@@ -161,10 +158,10 @@ export function SimpleTransactionForm({
 
       // Reset form fields
       setAmount('');
-      setAccountId('');
       setFromAccountId('');
       setToAccountId('');
-      setCategoryId('');
+      setOwnAccountId('');
+      setExternalAccountId('');
       setDescription('');
 
       // Call parent onSubmit to close dialog and refresh
@@ -172,10 +169,11 @@ export function SimpleTransactionForm({
         type,
         date,
         amount,
-        accountId: type === 'transfer' ? undefined : accountId,
+        accountId: type === 'transfer' ? undefined : ownAccountId,
         fromAccountId: type === 'transfer' ? fromAccountId : undefined,
         toAccountId: type === 'transfer' ? toAccountId : undefined,
-        categoryId: type === 'transfer' ? undefined : categoryId,
+        debitAccountId: type !== 'transfer' ? (type === 'expense' ? externalAccountId : ownAccountId) : undefined,
+        creditAccountId: type !== 'transfer' ? (type === 'expense' ? ownAccountId : externalAccountId) : undefined,
         description,
       });
     } catch (error) {
@@ -239,40 +237,45 @@ export function SimpleTransactionForm({
         </div>
       </div>
 
-      {/* Conditional fields by type */}
       {/* Conditional fields by type — single column */}
       {type !== 'transfer' ? (
         <div className="space-y-4">
+          {/* Own account selector */}
           <div className="space-y-1.5">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t('transaction.account')}</Label>
-            <Select value={effectiveAccountId} onValueChange={(v) => v && setAccountId(v)}>
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              {type === 'expense' ? '贷方 (自己账户)' : '借方 (自己账户)'}
+            </Label>
+            <Select value={ownAccountId} onValueChange={(v) => v && setOwnAccountId(v)}>
               <SelectTrigger className="h-9 w-full">
                 <SelectValue>
-                  {effectiveAccountId
-                    ? accounts.find(a => a.id === effectiveAccountId)?.name || effectiveAccountId
-                    : t('transaction.selectAccount')}
+                  {ownAccountId
+                    ? accounts.find(a => a.id === ownAccountId)?.name || ownAccountId
+                    : '选择账户'}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {accounts.map((acct) => (
+                {filteredOwnAccounts.map((acct) => (
                   <SelectItem key={acct.id} value={acct.id}>{acct.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+          {/* External account selector */}
           <div className="space-y-1.5">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t('transaction.category')}</Label>
-            <Select value={effectiveCategoryId} onValueChange={(v) => v && setCategoryId(v)}>
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              {type === 'expense' ? '借方 (外部账户)' : '贷方 (外部账户)'}
+            </Label>
+            <Select value={externalAccountId} onValueChange={(v) => v && setExternalAccountId(v)}>
               <SelectTrigger className="h-9 w-full">
                 <SelectValue>
-                  {effectiveCategoryId
-                    ? filteredCategories.find(c => c.id === effectiveCategoryId)?.name || effectiveCategoryId
-                    : t('transaction.selectCategory')}
+                  {externalAccountId
+                    ? externalAccounts.find(a => a.id === externalAccountId)?.name || externalAccountId
+                    : '选择外部账户'}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {filteredCategories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                {filteredExternalAccounts.map((acct) => (
+                  <SelectItem key={acct.id} value={acct.id}>{acct.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -291,7 +294,7 @@ export function SimpleTransactionForm({
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {accounts.map((acct) => (
+                {filteredOwnAccounts.map((acct) => (
                   <SelectItem key={acct.id} value={acct.id}>{acct.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -308,7 +311,7 @@ export function SimpleTransactionForm({
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {accounts
+                {filteredOwnAccounts
                   .filter((acct) => acct.id !== fromAccountId)
                   .map((acct) => (
                     <SelectItem key={acct.id} value={acct.id}>{acct.name}</SelectItem>

@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { SimpleTransactionForm, TransactionFormData } from '@/components/SimpleTransactionForm';
 import { Button } from '@/components/ui/button';
-import { listAccounts } from '@/lib/tauri/account';
+import { listAccounts, listAccountsByOwnership } from '@/lib/tauri/account';
 
 export function NewTransactionPage() {
   const navigate = useNavigate();
@@ -15,6 +15,11 @@ export function NewTransactionPage() {
   const { data: accounts = [] } = useQuery({
     queryKey: ['accounts'],
     queryFn: listAccounts,
+  });
+
+  const { data: externalAccounts = [] } = useQuery({
+    queryKey: ['accounts', 'external'],
+    queryFn: () => listAccountsByOwnership('external'),
   });
 
   return (
@@ -27,7 +32,7 @@ export function NewTransactionPage() {
       </div>
       <SimpleTransactionForm
         accounts={accounts}
-        categories={[]}
+        externalAccounts={externalAccounts}
         onSubmit={async (data: TransactionFormData) => {
           navigate({ to: '/transactions' });
           queryClient.invalidateQueries({ queryKey: ['transactions'] });
