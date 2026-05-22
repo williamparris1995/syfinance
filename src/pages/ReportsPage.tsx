@@ -150,6 +150,25 @@ export function ReportsPage() {
     return { income, expenses, totalIncome, totalExpenses, netIncome };
   }, [transactions, dateRange, accounts]);
 
+  const categoryTransactionCount = useMemo(() => {
+    const counts: Record<string, number> = {};
+    const filteredTransactions = transactions.filter((tx: TransactionDto) => {
+      const txDate = tx.transaction_date;
+      return txDate >= dateRange.start && txDate <= dateRange.end;
+    });
+    filteredTransactions.forEach((tx: TransactionDto) => {
+      const seenAccounts = new Set<string>();
+      tx.entries.forEach(entry => {
+        const account = accounts.find(a => a.id === entry.account_id);
+        if (account && account.ownership === 'external' && !seenAccounts.has(account.name)) {
+          seenAccounts.add(account.name);
+          counts[account.name] = (counts[account.name] || 0) + 1;
+        }
+      });
+    });
+    return counts;
+  }, [transactions, dateRange, accounts]);
+
   const monthlyTrendData = useMemo(() => {
     const months: Record<string, {
       month: string;
@@ -793,6 +812,7 @@ export function ReportsPage() {
                             <TableRow>
                               <TableHead>{t('common.account')}</TableHead>
                               <TableHead className="text-right">{t('common.amount')}</TableHead>
+                              <TableHead className="text-right w-16">{t('reports.transactions')}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -804,6 +824,9 @@ export function ReportsPage() {
                                     minimumFractionDigits: 2,
                                     maximumFractionDigits: 2,
                                   })}
+                                </TableCell>
+                                <TableCell className="text-right text-muted-foreground">
+                                  {categoryTransactionCount[item.name] || 0}
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -833,6 +856,7 @@ export function ReportsPage() {
                             <TableRow>
                               <TableHead>{t('common.account')}</TableHead>
                               <TableHead className="text-right">{t('common.amount')}</TableHead>
+                              <TableHead className="text-right w-16">{t('reports.transactions')}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -845,6 +869,9 @@ export function ReportsPage() {
                                     maximumFractionDigits: 2,
                                   })}
                                 </TableCell>
+                                <TableCell className="text-right text-muted-foreground">
+                                  {categoryTransactionCount[item.name] || 0}
+                                </TableCell>
                               </TableRow>
                             ))}
                             <TableRow className="font-bold bg-muted/50">
@@ -855,6 +882,7 @@ export function ReportsPage() {
                                   maximumFractionDigits: 2,
                                 })}
                               </TableCell>
+                              <TableCell />
                             </TableRow>
                           </TableBody>
                         </Table>

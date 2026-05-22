@@ -260,7 +260,8 @@
     "savingsRate": "结余率",
     "monthlyExpenseTrend": "月度支出趋势",
     "monthlyIncomeVsExpense": "月度收支对比",
-    "noData": "所选周期暂无数据"
+    "noData": "所选周期暂无数据",
+    "transactions": "笔数"
   },
   "sidebar": {
     "noOrganizations": "暂无组织",

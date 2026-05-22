@@ -330,7 +330,8 @@
     "incomeBreakdown": "Income Breakdown",
     "monthlyExpenseTrend": "Monthly Expense Trend",
     "monthlyIncomeVsExpense": "Monthly Income vs Expense",
-    "noData": "No data for selected period"
+    "noData": "No data for selected period",
+    "transactions": "Txs"
   },
   "sidebar": {
     "noOrganizations": "No organizations",
