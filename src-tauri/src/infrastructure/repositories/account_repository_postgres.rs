@@ -43,6 +43,23 @@ impl PostgresAccountRepository {
         let balance = Money::new(balance_amount, &currency_code)
             .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
+        // Read new columns from unified accounts
+        let ownership_str: String = row.try_get("ownership")?;
+        let ownership = match ownership_str.as_str() {
+            "own" => Ownership::Own,
+            "external" => Ownership::External,
+            _ => {
+                return Err(sqlx::Error::Decode(
+                    format!("Invalid ownership: {}", ownership_str).into(),
+                ))
+            }
+        };
+
+        let icon: String = row.try_get("icon")?;
+        let color: String = row.try_get("color")?;
+        let chart_code: Option<String> = row.try_get("chart_code")?;
+        let parent_id: Option<Uuid> = row.try_get("parent_id")?;
+
         let updated_at: DateTime<Utc> = row.try_get("updated_at")?;
         let deleted_at: Option<DateTime<Utc>> = row.try_get("deleted_at")?;
         let device_id: Uuid = row.try_get("device_id")?;
@@ -59,13 +76,13 @@ impl PostgresAccountRepository {
             id,
             name,
             account_type,
-            ownership: Ownership::Own,
+            ownership,
             currency_code,
             balance,
-            icon: "💰".to_string(),
-            color: "#10B981".to_string(),
-            chart_code: None,
-            parent_id: None,
+            icon,
+            color,
+            chart_code,
+            parent_id,
             account_number: None,
             institution: None,
             credit_limit: None,
@@ -83,14 +100,22 @@ impl AccountRepository for PostgresAccountRepository {
         sqlx::query(
             r#"
             INSERT INTO accounts (
-                id, name, account_type, 
-                currency_code, balance, updated_at, deleted_at, 
+                id, name, account_type, ownership,
+                currency_code, balance,
+                icon, color, chart_code, parent_id,
+                updated_at, deleted_at,
                 device_id, synced_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             ON CONFLICT (id) DO UPDATE SET
                 name = EXCLUDED.name,
+                ownership = EXCLUDED.ownership,
+                currency_code = EXCLUDED.currency_code,
                 balance = EXCLUDED.balance,
+                icon = EXCLUDED.icon,
+                color = EXCLUDED.color,
+                chart_code = EXCLUDED.chart_code,
+                parent_id = EXCLUDED.parent_id,
                 updated_at = EXCLUDED.updated_at,
                 deleted_at = EXCLUDED.deleted_at,
                 device_id = EXCLUDED.device_id,
@@ -100,8 +125,13 @@ impl AccountRepository for PostgresAccountRepository {
         .bind(account.id)
         .bind(&account.name)
         .bind(account.account_type.to_string())
+        .bind(account.ownership.to_string())
         .bind(&account.currency_code)
         .bind(account.balance.amount)
+        .bind(&account.icon)
+        .bind(&account.color)
+        .bind(&account.chart_code)
+        .bind(account.parent_id)
         .bind(account.sync_metadata.updated_at)
         .bind(account.sync_metadata.deleted_at)
         .bind(account.sync_metadata.device_id)
@@ -115,9 +145,10 @@ impl AccountRepository for PostgresAccountRepository {
     async fn find_by_id(&self, id: Uuid) -> sqlx::Result<Option<Account>> {
         let row = sqlx::query(
             r#"
-            SELECT 
-                id, name, account_type,
+            SELECT
+                id, name, account_type, ownership,
                 currency_code, balance,
+                icon, color, chart_code, parent_id,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE id = $1 AND deleted_at IS NULL
@@ -133,9 +164,10 @@ impl AccountRepository for PostgresAccountRepository {
     async fn find_all(&self) -> sqlx::Result<Vec<Account>> {
         let rows = sqlx::query(
             r#"
-            SELECT 
-                id, name, account_type,
+            SELECT
+                id, name, account_type, ownership,
                 currency_code, balance,
+                icon, color, chart_code, parent_id,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE deleted_at IS NULL
@@ -151,9 +183,10 @@ impl AccountRepository for PostgresAccountRepository {
     async fn find_by_type(&self, account_type: AccountType) -> sqlx::Result<Vec<Account>> {
         let rows = sqlx::query(
             r#"
-            SELECT 
-                id, name, account_type,
+            SELECT
+                id, name, account_type, ownership,
                 currency_code, balance,
+                icon, color, chart_code, parent_id,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE account_type = $1 AND deleted_at IS NULL
@@ -167,11 +200,31 @@ impl AccountRepository for PostgresAccountRepository {
         rows.iter().map(Self::row_to_account).collect()
     }
 
+    async fn find_by_ownership(&self, ownership: &Ownership) -> sqlx::Result<Vec<Account>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                id, name, account_type, ownership,
+                currency_code, balance,
+                icon, color, chart_code, parent_id,
+                updated_at, deleted_at, device_id, synced_at
+            FROM accounts
+            WHERE ownership = $1 AND deleted_at IS NULL
+            ORDER BY name ASC
+            "#,
+        )
+        .bind(ownership.to_string())
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.iter().map(Self::row_to_account).collect()
+    }
+
     async fn update(&self, account: &Account) -> sqlx::Result<bool> {
         let result = sqlx::query(
             r#"
             UPDATE accounts
-            SET 
+            SET
                 name = $1,
                 balance = $2,
                 updated_at = $3,
@@ -214,9 +267,10 @@ impl AccountRepository for PostgresAccountRepository {
     async fn find_all_including_deleted(&self) -> sqlx::Result<Vec<Account>> {
         let rows = sqlx::query(
             r#"
-            SELECT 
-                id, name, account_type,
+            SELECT
+                id, name, account_type, ownership,
                 currency_code, balance,
+                icon, color, chart_code, parent_id,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
             ORDER BY name ASC
@@ -231,9 +285,10 @@ impl AccountRepository for PostgresAccountRepository {
     async fn get_changes_since(&self, timestamp: DateTime<Utc>) -> sqlx::Result<Vec<Account>> {
         let rows = sqlx::query(
             r#"
-            SELECT 
-                id, name, account_type,
+            SELECT
+                id, name, account_type, ownership,
                 currency_code, balance,
+                icon, color, chart_code, parent_id,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE updated_at > $1 AND (synced_at IS NULL OR synced_at < updated_at)

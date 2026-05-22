@@ -111,6 +111,14 @@ impl<R: AccountRepository, U: CurrencyRepository> AccountService<R, U> {
         Ok(accounts.into_iter().map(AccountDto::from).collect())
     }
 
+    pub async fn list_accounts_by_ownership(
+        &self,
+        ownership: Ownership,
+    ) -> Result<Vec<AccountDto>, AccountServiceError> {
+        let accounts = self.account_repo.find_by_ownership(&ownership).await?;
+        Ok(accounts.into_iter().map(AccountDto::from).collect())
+    }
+
     pub async fn get_account_balance(&self, id: Uuid) -> Result<Money, AccountServiceError> {
         let account = self
             .account_repo
@@ -185,6 +193,17 @@ mod tests {
                 .unwrap()
                 .values()
                 .filter(|a| a.account_type == account_type)
+                .cloned()
+                .collect())
+        }
+
+        async fn find_by_ownership(&self, ownership: &Ownership) -> sqlx::Result<Vec<Account>> {
+            Ok(self
+                .accounts
+                .lock()
+                .unwrap()
+                .values()
+                .filter(|a| a.ownership == *ownership)
                 .cloned()
                 .collect())
         }

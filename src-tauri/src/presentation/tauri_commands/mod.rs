@@ -6,7 +6,7 @@ pub mod transaction_commands;
 
 pub use account_commands::{
     create_account, delete_account, get_account, get_account_balance, list_accounts,
-    update_account, AppState,
+    list_accounts_by_ownership, update_account, AppState,
 };
 pub use currency_commands::{
     add_currency, create_default_state as create_currency_default_state, list_currencies,

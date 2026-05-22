@@ -2,7 +2,7 @@ mod debt_repository;
 mod reminder_repository;
 
 use crate::domain::aggregates::{
-    Account, AccountType, ChartOfAccounts, ChartOfAccountsType, Transaction,
+    Account, AccountType, ChartOfAccounts, ChartOfAccountsType, Ownership, Transaction,
 };
 use crate::domain::value_objects::Currency;
 use chrono::{DateTime, NaiveDate, Utc};
@@ -21,6 +21,8 @@ pub trait AccountRepository: Send + Sync {
     async fn find_all(&self) -> sqlx::Result<Vec<Account>>;
 
     async fn find_by_type(&self, account_type: AccountType) -> sqlx::Result<Vec<Account>>;
+
+    async fn find_by_ownership(&self, ownership: &Ownership) -> sqlx::Result<Vec<Account>>;
 
     async fn update(&self, account: &Account) -> sqlx::Result<bool>;
 

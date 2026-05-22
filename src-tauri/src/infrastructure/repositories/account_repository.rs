@@ -49,7 +49,28 @@ impl SqliteAccountRepository {
         let balance = Money::new(balance_amount, &currency_code)
             .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
-        // Read new optional fields
+        // Read new columns from unified accounts
+        let ownership_str: String = row.try_get("ownership")?;
+        let ownership = match ownership_str.as_str() {
+            "own" => Ownership::Own,
+            "external" => Ownership::External,
+            _ => {
+                return Err(sqlx::Error::Decode(
+                    format!("Invalid ownership: {}", ownership_str).into(),
+                ))
+            }
+        };
+
+        let icon: String = row.try_get("icon")?;
+        let color: String = row.try_get("color")?;
+        let chart_code: Option<String> = row.try_get("chart_code")?;
+
+        let parent_id_str: Option<String> = row.try_get("parent_id")?;
+        let parent_id = parent_id_str
+            .map(|s| Uuid::from_str(&s).map_err(|e| sqlx::Error::Decode(Box::new(e))))
+            .transpose()?;
+
+        // Read optional fields
         let account_number: Option<String> = row.try_get("account_number")?;
         let institution: Option<String> = row.try_get("institution")?;
 
@@ -117,13 +138,13 @@ impl SqliteAccountRepository {
             id,
             name,
             account_type,
-            ownership: Ownership::Own,
+            ownership,
             currency_code,
             balance,
-            icon: "💰".to_string(),
-            color: "#10B981".to_string(),
-            chart_code: None,
-            parent_id: None,
+            icon,
+            color,
+            chart_code,
+            parent_id,
             account_number,
             institution,
             credit_limit,
@@ -141,19 +162,25 @@ impl AccountRepository for SqliteAccountRepository {
         sqlx::query(
             r#"
             INSERT INTO accounts (
-                id, name, account_type, currency_code, balance,
-                account_number, institution, credit_limit, billing_day, 
+                id, name, account_type, ownership, currency_code, balance,
+                icon, color, chart_code, parent_id,
+                account_number, institution, credit_limit, billing_day,
                 payment_due_day, interest_rate,
                 updated_at, deleted_at, device_id, synced_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(account.id.to_string())
         .bind(&account.name)
         .bind(account.account_type.to_string())
+        .bind(account.ownership.to_string())
         .bind(&account.currency_code)
         .bind(account.balance.amount.to_string())
+        .bind(&account.icon)
+        .bind(&account.color)
+        .bind(&account.chart_code)
+        .bind(account.parent_id.map(|id| id.to_string()))
         .bind(&account.account_number)
         .bind(&account.institution)
         .bind(account.credit_limit.as_ref().map(|m| m.amount.to_string()))
@@ -174,11 +201,12 @@ impl AccountRepository for SqliteAccountRepository {
         let row = sqlx::query(
             r#"
             SELECT 
-                id, name, account_type, currency_code, 
+                id, name, account_type, ownership, currency_code,
                 CAST(balance AS TEXT) AS balance,
-                account_number, institution, 
+                icon, color, chart_code, parent_id,
+                account_number, institution,
                 CAST(credit_limit AS TEXT) AS credit_limit,
-                billing_day, payment_due_day, 
+                billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
@@ -196,11 +224,12 @@ impl AccountRepository for SqliteAccountRepository {
         let rows = sqlx::query(
             r#"
             SELECT 
-                id, name, account_type, currency_code, 
+                id, name, account_type, ownership, currency_code,
                 CAST(balance AS TEXT) AS balance,
-                account_number, institution, 
+                icon, color, chart_code, parent_id,
+                account_number, institution,
                 CAST(credit_limit AS TEXT) AS credit_limit,
-                billing_day, payment_due_day, 
+                billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
@@ -218,11 +247,12 @@ impl AccountRepository for SqliteAccountRepository {
         let rows = sqlx::query(
             r#"
             SELECT 
-                id, name, account_type, currency_code, 
+                id, name, account_type, ownership, currency_code,
                 CAST(balance AS TEXT) AS balance,
-                account_number, institution, 
+                icon, color, chart_code, parent_id,
+                account_number, institution,
                 CAST(credit_limit AS TEXT) AS credit_limit,
-                billing_day, payment_due_day, 
+                billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
@@ -231,6 +261,30 @@ impl AccountRepository for SqliteAccountRepository {
             "#,
         )
         .bind(account_type.to_string())
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.iter().map(Self::row_to_account).collect()
+    }
+
+    async fn find_by_ownership(&self, ownership: &Ownership) -> sqlx::Result<Vec<Account>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                id, name, account_type, ownership, currency_code,
+                CAST(balance AS TEXT) AS balance,
+                icon, color, chart_code, parent_id,
+                account_number, institution,
+                CAST(credit_limit AS TEXT) AS credit_limit,
+                billing_day, payment_due_day,
+                CAST(interest_rate AS TEXT) AS interest_rate,
+                updated_at, deleted_at, device_id, synced_at
+            FROM accounts
+            WHERE ownership = ? AND deleted_at IS NULL
+            ORDER BY name ASC
+            "#,
+        )
+        .bind(ownership.to_string())
         .fetch_all(&self.pool)
         .await?;
 
@@ -285,11 +339,12 @@ impl AccountRepository for SqliteAccountRepository {
         let rows = sqlx::query(
             r#"
             SELECT 
-                id, name, account_type, currency_code, 
+                id, name, account_type, ownership, currency_code,
                 CAST(balance AS TEXT) AS balance,
-                account_number, institution, 
+                icon, color, chart_code, parent_id,
+                account_number, institution,
                 CAST(credit_limit AS TEXT) AS credit_limit,
-                billing_day, payment_due_day, 
+                billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
@@ -306,11 +361,12 @@ impl AccountRepository for SqliteAccountRepository {
         let rows = sqlx::query(
             r#"
             SELECT 
-                id, name, account_type, currency_code, 
+                id, name, account_type, ownership, currency_code,
                 CAST(balance AS TEXT) AS balance,
-                account_number, institution, 
+                icon, color, chart_code, parent_id,
+                account_number, institution,
                 CAST(credit_limit AS TEXT) AS credit_limit,
-                billing_day, payment_due_day, 
+                billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
@@ -365,8 +421,13 @@ mod tests {
                 id TEXT PRIMARY KEY NOT NULL,
                 name VARCHAR(100) NOT NULL,
                 account_type VARCHAR(20) NOT NULL,
+                ownership VARCHAR(10) NOT NULL DEFAULT 'own',
                 currency_code VARCHAR(3) NOT NULL,
                 balance DECIMAL(20,2) NOT NULL,
+                icon VARCHAR(10) NOT NULL DEFAULT '📁',
+                color VARCHAR(7) NOT NULL DEFAULT '#6B7280',
+                chart_code VARCHAR(10),
+                parent_id TEXT REFERENCES accounts(id) ON DELETE SET NULL,
                 account_number VARCHAR(50),
                 institution VARCHAR(100),
                 credit_limit DECIMAL(20,2),

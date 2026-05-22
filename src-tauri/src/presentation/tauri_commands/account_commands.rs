@@ -2,6 +2,7 @@ use crate::application::{
     dtos::{AccountBalanceDto, AccountDto, CreateAccountDto, UpdateAccountDto},
     services::{AccountService, AccountServiceError},
 };
+use crate::domain::aggregates::Ownership;
 use crate::infrastructure::repositories::{SqliteAccountRepository, SqliteCurrencyRepository};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
 use std::{str::FromStr, sync::Arc};
@@ -106,6 +107,17 @@ pub async fn get_account_balance_with_state(
         .map_err(|error: AccountServiceError| error.to_string())
 }
 
+pub async fn list_accounts_by_ownership_with_state(
+    state: &AppState,
+    ownership: Ownership,
+) -> Result<Vec<AccountDto>, String> {
+    state
+        .service()
+        .list_accounts_by_ownership(ownership)
+        .await
+        .map_err(|error: AccountServiceError| error.to_string())
+}
+
 #[tauri::command]
 pub async fn create_account(
     state: State<'_, AppState>,
@@ -144,4 +156,12 @@ pub async fn get_account_balance(
     id: Uuid,
 ) -> Result<AccountBalanceDto, String> {
     get_account_balance_with_state(state.inner(), id).await
+}
+
+#[tauri::command]
+pub async fn list_accounts_by_ownership(
+    state: State<'_, AppState>,
+    ownership: Ownership,
+) -> Result<Vec<AccountDto>, String> {
+    list_accounts_by_ownership_with_state(state.inner(), ownership).await
 }
