@@ -566,7 +566,6 @@ export function TransactionsPage() {
                         size="icon"
                         className="h-7 w-7"
                         onClick={() => {
-                          // Will be wired in Task 6
                           setEditingTransaction(transaction);
                           setIsSheetOpen(true);
                         }}
@@ -612,7 +611,7 @@ export function TransactionsPage() {
         </SheetContent>
       </Sheet>
 
-      {/* Edit Sheet — shell only, handler will be added in Task 6 */}
+      {/* Edit Sheet */}
       <Sheet open={isSheetOpen && !!editingTransaction} onOpenChange={(open) => { setIsSheetOpen(open); if (!open) setEditingTransaction(null); }}>
         <SheetContent side="right" className="w-full sm:max-w-lg">
           <SheetHeader>
@@ -632,7 +631,7 @@ export function TransactionsPage() {
         </SheetContent>
       </Sheet>
 
-      {/* Delete Confirmation Dialog — shell only, handler will be added in Task 6 */}
+      {/* Delete Confirmation Dialog */}
       {deletingTransaction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-background rounded-lg shadow-lg p-6 max-w-sm w-full mx-4">
