@@ -161,44 +161,6 @@ export function HomePage() {
             </>
           )}
 
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('dashboard.quickActions')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <QuickActions
-                actions={[
-                  {
-                    id: 'new-transaction',
-                    label: t('dashboard.recordTransaction'),
-                    icon: Receipt,
-                    onClick: () => navigate({ to: '/transactions' }),
-                  },
-                  {
-                    id: 'new-account',
-                    label: t('dashboard.createAccount'),
-                    icon: Plus,
-                    onClick: () => navigate({ to: '/accounts' }),
-                  },
-                  {
-                    id: 'view-reports',
-                    label: t('dashboard.viewReports'),
-                    icon: BarChart3,
-                    onClick: () => navigate({ to: '/reports' }),
-                  },
-                  {
-                    id: 'manage-debts',
-                    label: t('dashboard.manageDebts'),
-                    icon: CreditCard,
-                    onClick: () => navigate({ to: '/debts' }),
-                  },
-                ]}
-                layout="grid"
-              />
-            </CardContent>
-          </Card>
-
           {/* Charts Section */}
           {accounts.length > 0 && (expenseByCategory.length > 0 || incomeByCategory.length > 0) && (
             <div className="grid gap-4 md:grid-cols-2">
