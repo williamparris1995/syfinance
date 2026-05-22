@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
-import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp, Receipt, CreditCard, BarChart3, Plus } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { QuickActions } from '@/components/QuickActions';
+
 import { EmptyState } from '@/components/EmptyState';
 import { listAccounts } from '@/lib/tauri/account';
 import { listTransactions } from '@/lib/tauri/transaction';
@@ -14,7 +15,13 @@ import { listTransactions } from '@/lib/tauri/transaction';
 export function HomePage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  
+
+  type DateRangePreset = 'month' | 'quarter' | 'year' | 'custom';
+
+  const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('month');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
   const { data: accounts = [], isLoading: accountsLoading } = useQuery({
     queryKey: ['accounts'],
     queryFn: listAccounts,
@@ -25,30 +32,53 @@ export function HomePage() {
     queryFn: listTransactions,
   });
 
+  const dateRange = useMemo(() => {
+    if (dateRangePreset === 'custom') {
+      return { start: startDate, end: endDate };
+    }
+    const now = new Date();
+    const start = new Date();
+    const end = new Date();
+    switch (dateRangePreset) {
+      case 'month':
+        start.setDate(1);
+        start.setHours(0, 0, 0, 0);
+        break;
+      case 'quarter':
+        start.setMonth(Math.floor(now.getMonth() / 3) * 3, 1);
+        start.setHours(0, 0, 0, 0);
+        break;
+      case 'year':
+        start.setMonth(0, 1);
+        start.setHours(0, 0, 0, 0);
+        break;
+    }
+    return {
+      start: start.toISOString().split('T')[0],
+      end: end.toISOString().split('T')[0],
+    };
+  }, [dateRangePreset, startDate, endDate]);
+
   // Calculate total balance from all accounts
   const totalBalance = accounts.reduce((sum, account) => sum + Number(account.balance), 0);
 
   const FALLBACK_COLORS = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
   const FALLBACK_COLORS_INCOME = ['#10B981', '#06B6D4', '#84CC16', '#3B82F6', '#14B8A6'];
 
-  // Calculate income and expenses from transactions (current month)
+  // Calculate income and expenses from transactions (filtered by date range)
   // Uses account-based lookup: Income/Expense are determined by the linked account's type
   const { monthlyIncome, monthlyExpenses, incomeByCategory, expenseByCategory } = useMemo(() => {
-    const now = new Date();
-    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
     let income = 0;
     let expenses = 0;
     const incomeMap = new Map<string, number>();
     const expenseMap = new Map<string, number>();
 
     transactions.forEach((transaction: any) => {
-      const transactionDate = new Date(transaction.transaction_date);
-      if (transactionDate >= currentMonthStart) {
+      const txDate = transaction.transaction_date;
+      if (txDate >= dateRange.start && txDate <= dateRange.end) {
         transaction.entries.forEach((entry: any) => {
           const account = entry.account_id ? accounts.find((a: any) => a.id === entry.account_id) : null;
           if (!account) return;
-
           if (entry.debit_amount && account.account_type === 'Expense') {
             const amount = parseFloat(entry.debit_amount);
             expenses += amount;
@@ -69,16 +99,19 @@ export function HomePage() {
       incomeByCategory: Array.from(incomeMap.entries()).map(([name, amount]) => ({ name, amount })),
       expenseByCategory: Array.from(expenseMap.entries()).map(([name, amount]) => ({ name, amount })),
     };
-  }, [transactions, accounts]);
+  }, [transactions, accounts, dateRange]);
 
   const monthlySavings = monthlyIncome - monthlyExpenses;
 
   const monthlyTrendData = useMemo(() => {
     const months: Record<string, any> = {};
-    const now = new Date();
-    // Last 6 months
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+
+    // Build month list from dateRange
+    const startDate2 = new Date(dateRange.start);
+    const endDate2 = new Date(dateRange.end);
+    for (let d = new Date(startDate2.getFullYear(), startDate2.getMonth(), 1);
+         d <= endDate2;
+         d.setMonth(d.getMonth() + 1)) {
       const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       months[month] = { month, income: 0, expenses: 0 };
     }
@@ -104,7 +137,7 @@ export function HomePage() {
     });
 
     return Object.values(months).sort((a: any, b: any) => a.month.localeCompare(b.month));
-  }, [transactions, accounts]);
+  }, [transactions, accounts, dateRange]);
 
   const expenseCategories = useMemo(() => {
     const cats = new Set<string>();
@@ -122,7 +155,53 @@ export function HomePage() {
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold">{t('dashboard.title')}</h2>
       </div>
-      
+
+      {/* Period Selector */}
+      <Card>
+        <CardContent className="pt-4">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant={dateRangePreset === 'month' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setDateRangePreset('month')}
+            >
+              {t('reports.thisMonth')}
+            </Button>
+            <Button
+              variant={dateRangePreset === 'quarter' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setDateRangePreset('quarter')}
+            >
+              {t('reports.thisQuarter')}
+            </Button>
+            <Button
+              variant={dateRangePreset === 'year' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setDateRangePreset('year')}
+            >
+              {t('reports.thisYear')}
+            </Button>
+            <Button
+              variant={dateRangePreset === 'custom' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setDateRangePreset('custom')}
+            >
+              {t('reports.custom')}
+            </Button>
+            {dateRangePreset === 'custom' && (
+              <div className="flex items-center gap-2 ml-2">
+                <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-36 h-8 text-xs" />
+                <span className="text-xs text-muted-foreground">—</span>
+                <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-36 h-8 text-xs" />
+              </div>
+            )}
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            {dateRange.start} — {dateRange.end}
+          </div>
+        </CardContent>
+      </Card>
+
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <div className="text-neutral-500">{t('dashboard.loadingDashboard')}</div>
