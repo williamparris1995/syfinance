@@ -39,6 +39,8 @@ pub trait AccountRepository: Send + Sync {
 pub trait TransactionRepository: Send + Sync {
     async fn create(&self, transaction: &Transaction) -> sqlx::Result<()>;
 
+    async fn update(&self, transaction: &Transaction) -> sqlx::Result<bool>;
+
     async fn find_by_id(&self, id: Uuid) -> sqlx::Result<Option<Transaction>>;
 
     async fn find_by_date_range(
