@@ -1,0 +1,121 @@
+<h2>SimpleTransactionForm Tabs 设计对比</h2>
+<p class="subtitle">当前实现 vs shadcn 官方规范 vs 优化方案</p>
+
+<div class="section">
+  <h3>方案对比</h3>
+</div>
+
+<div class="split">
+  <!-- 当前方案 -->
+  <div class="mockup">
+    <div class="mockup-header">当前实现（问题）</div>
+    <div class="mockup-body" style="padding:16px;background:#fff;border-radius:8px;">
+      <p style="color:#dc2626;font-size:13px;margin-bottom:12px;">
+        <strong>问题1:</strong> TabsList 使用 <code>grid w-full grid-cols-3</code> + <code>variant="default"</code><br>
+        三个选项被强制均分宽度，看起来像三个并排按钮，不是标签页
+      </p>
+      <p style="color:#dc2626;font-size:13px;margin-bottom:12px;">
+        <strong>问题2:</strong> TabsContent 使用 <code>mt-4</code> 手动间距，不符合 shadcn 规范
+      </p>
+      <!-- 模拟当前 -->
+      <div style="display:flex;background:#e5e7eb;border-radius:8px;padding:3px;gap:0;margin-bottom:16px;">
+        <button style="flex:1;padding:6px 12px;border-radius:6px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.1);border:none;font-size:14px;text-align:center;">支出</button>
+        <button style="flex:1;padding:6px 12px;border-radius:6px;background:transparent;border:none;font-size:14px;color:#6b7280;text-align:center;">收入</button>
+        <button style="flex:1;padding:6px 12px;border-radius:6px;background:transparent;border:none;font-size:14px;color:#6b7280;text-align:center;">转账</button>
+      </div>
+      <div style="border:1px dashed #d1d5db;border-radius:6px;padding:12px;text-align:center;color:#9ca3af;margin-top:16px;">表单内容区域</div>
+    </div>
+  </div>
+
+  <!-- 优化方案 -->
+  <div class="mockup">
+    <div class="mockup-header">优化方案（推荐）</div>
+    <div class="mockup-body" style="padding:16px;background:#fff;border-radius:8px;">
+      <p style="color:#16a34a;font-size:13px;margin-bottom:12px;">
+        <strong>改进1:</strong> TabsList 使用 <code>variant="line"</code> + 自然间距<br>
+        下划线指示器 + 不等分宽度，真正的标签页语义
+      </p>
+      <p style="color:#16a34a;font-size:13px;margin-bottom:12px;">
+        <strong>改进2:</strong> 移除 TabsContent 手动 margin，依靠 Tabs wrapper gap
+      </p>
+      <p style="color:#16a34a;font-size:13px;margin-bottom:12px;">
+        <strong>改进3:</strong> 上下布局 Tabs(上)→Content(下)
+      </p>
+      <!-- 模拟优化 -->
+      <div style="display:flex;gap:4px;border-bottom:1px solid #e5e7eb;margin-bottom:0;">
+        <button style="padding:8px 12px;border:none;background:transparent;font-size:14px;color:#111;border-bottom:2px solid #111;margin-bottom:-1px;">支出</button>
+        <button style="padding:8px 12px;border:none;background:transparent;font-size:14px;color:#6b7280;border-bottom:2px solid transparent;">收入</button>
+        <button style="padding:8px 12px;border:none;background:transparent;font-size:14px;color:#6b7280;border-bottom:2px solid transparent;">转账</button>
+      </div>
+      <div style="border:1px dashed #d1d5db;border-radius:6px;padding:12px;text-align:center;color:#9ca3af;">表单内容区域</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>shadcn 规范对照</h3>
+</div>
+
+<table style="width:100%;border-collapse:collapse;font-size:14px;">
+  <thead>
+    <tr style="border-bottom:2px solid #e5e7eb;">
+      <th style="text-align:left;padding:8px;">规范项</th>
+      <th style="text-align:left;padding:8px;">shadcn 官方</th>
+      <th style="text-align:left;padding:8px;">当前代码</th>
+      <th style="text-align:left;padding:8px;">状态</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom:1px solid #e5e7eb;">
+      <td style="padding:8px;">TabsList variant</td>
+      <td style="padding:8px;"><code>variant="line"</code></td>
+      <td style="padding:8px;"><code>variant="default"</code>（未指定）</td>
+      <td style="padding:8px;color:#dc2626;">需修改</td>
+    </tr>
+    <tr style="border-bottom:1px solid #e5e7eb;">
+      <td style="padding:8px;">TabsList layout</td>
+      <td style="padding:8px;">自然 <code>inline-flex</code></td>
+      <td style="padding:8px;"><code>grid w-full grid-cols-3</code></td>
+      <td style="padding:8px;color:#dc2626;">需修改</td>
+    </tr>
+    <tr style="border-bottom:1px solid #e5e7eb;">
+      <td style="padding:8px;">Tabs orientation</td>
+      <td style="padding:8px;"><code>horizontal</code>（上-下）</td>
+      <td style="padding:8px;"><code>horizontal</code>（上-下）</td>
+      <td style="padding:8px;color:#16a34a;">正确</td>
+    </tr>
+    <tr style="border-bottom:1px solid #e5e7eb;">
+      <td style="padding:8px;">Content spacing</td>
+      <td style="padding:8px;">由 Tabs wrapper gap 控制</td>
+      <td style="padding:8px;"><code>mt-4</code> 手动边距</td>
+      <td style="padding:8px;color:#dc2626;">需修改</td>
+    </tr>
+    <tr style="border-bottom:1px solid #e5e7eb;">
+      <td style="padding:8px;">重复的 TabsContent</td>
+      <td style="padding:8px;">每个 tab 独立 content</td>
+      <td style="padding:8px;">3 个 TabsContent 大量重复字段</td>
+      <td style="padding:8px;color:#f59e0b;">可优化</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="section">
+  <h3>选择你的偏好</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="recommended" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>方案 A：仅改 Tabs 样式（推荐）</h3>
+      <p>variant="line" + 移除 grid-cols-3 + 移除 mt-4。<strong>只改 SimpleTransactionForm</strong>，3 行代码变更，风险最低。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="extract-tabs" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>方案 B：提取共享字段 + 样式优化</h3>
+      <p>在 A 基础上，将 amount/date/description 等共享字段提取到 Tabs 外部，减少 TabsContent 重复代码。</p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,119 @@
+<h2>当前实际效果 vs 修正后效果</h2>
+<p class="subtitle">基于你的反馈：灰色按钮、无高亮、Tabs在左上方 → line variant + 全宽 + 下划线指示器</p>
+
+<div class="split">
+  <!-- 当前实际效果 -->
+  <div class="mockup">
+    <div class="mockup-header">当前实际看到的效果</div>
+    <div class="mockup-body" style="padding:20px;background:#fff;border-radius:8px;">
+      <p style="color:#dc2626;font-size:13px;margin-bottom:16px;">
+        <strong>问题1:</strong> 三个灰色均分按钮，选中的tab只是文字变深，缺乏明确的高亮<br>
+        <strong>问题2:</strong> TabsList 紧贴左侧，没有延伸到表单内容上方全宽<br>
+        <strong>问题3:</strong> 看起来像"按钮组"而非"标签页"
+      </p>
+      <!-- 模拟当前 -->
+      <div style="width:fit-content;background:#e5e7eb;border-radius:8px;padding:3px;display:flex;gap:0;margin-bottom:20px;">
+        <button style="padding:4px 20px;border-radius:6px;border:none;font-size:14px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,0.08);color:#111;cursor:pointer;">支出</button>
+        <button style="padding:4px 20px;border-radius:6px;border:none;font-size:14px;background:transparent;color:#9ca3af;cursor:pointer;">收入</button>
+        <button style="padding:4px 20px;border-radius:6px;border:none;font-size:14px;background:transparent;color:#9ca3af;cursor:pointer;">转账</button>
+      </div>
+      <div style="border:1px solid #e5e7eb;border-radius:8px;padding:20px;background:#fafafa;">
+        <div style="margin-bottom:12px;">
+          <div style="font-size:13px;color:#6b7280;margin-bottom:4px;">金额</div>
+          <div style="height:36px;border:1px solid #d1d5db;border-radius:6px;background:#fff;"></div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <div style="font-size:13px;color:#6b7280;margin-bottom:4px;">账户</div>
+          <div style="height:36px;border:1px solid #d1d5db;border-radius:6px;background:#fff;"></div>
+        </div>
+        <div>
+          <div style="font-size:13px;color:#6b7280;margin-bottom:4px;">分类</div>
+          <div style="height:36px;border:1px solid #d1d5db;border-radius:6px;background:#fff;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 修正后 -->
+  <div class="mockup">
+    <div class="mockup-header">修正后效果（line variant）</div>
+    <div class="mockup-body" style="padding:20px;background:#fff;border-radius:8px;">
+      <p style="color:#16a34a;font-size:13px;margin-bottom:16px;">
+        <strong>改进1:</strong> TabsList <code>variant="line"</code> + <code>w-full</code> — 全宽底边线<br>
+        <strong>改进2:</strong> 选中tab有黑色下划线指示器，未选中保持灰色文字<br>
+        <strong>改进3:</strong> Tabs 与 Content 形成清晰的上-下层级关系
+      </p>
+      <!-- 模拟修正后 -->
+      <div style="width:100%;border-bottom:1px solid #e5e7eb;display:flex;gap:4px;margin-bottom:20px;">
+        <button style="padding:6px 14px;border:none;background:transparent;font-size:14px;font-weight:500;color:#111;border-bottom:2px solid #111;margin-bottom:-1px;cursor:pointer;">支出</button>
+        <button style="padding:6px 14px;border:none;background:transparent;font-size:14px;font-weight:500;color:#9ca3af;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;">收入</button>
+        <button style="padding:6px 14px;border:none;background:transparent;font-size:14px;font-weight:500;color:#9ca3af;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;">转账</button>
+      </div>
+      <div style="border:1px solid #e5e7eb;border-radius:8px;padding:20px;background:#fafafa;">
+        <div style="margin-bottom:12px;">
+          <div style="font-size:13px;color:#6b7280;margin-bottom:4px;">金额</div>
+          <div style="height:36px;border:1px solid #d1d5db;border-radius:6px;background:#fff;"></div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <div style="font-size:13px;color:#6b7280;margin-bottom:4px;">账户</div>
+          <div style="height:36px;border:1px solid #d1d5db;border-radius:6px;background:#fff;"></div>
+        </div>
+        <div>
+          <div style="font-size:13px;color:#6b7280;margin-bottom:4px;">分类</div>
+          <div style="height:36px;border:1px solid #d1d5db;border-radius:6px;background:#fff;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>代码变更（仅 2 行改动）</h3>
+</div>
+
+<table style="width:100%;border-collapse:collapse;font-size:14px;">
+  <thead>
+    <tr style="border-bottom:2px solid #e5e7eb;">
+      <th style="text-align:left;padding:8px;">位置</th>
+      <th style="text-align:left;padding:8px;">当前</th>
+      <th style="text-align:left;padding:8px;">改为</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom:1px solid #e5e7eb;">
+      <td style="padding:8px;"><code>SimpleTransactionForm.tsx:180</code></td>
+      <td style="padding:8px;"><code>&lt;TabsList className="grid w-full grid-cols-3"&gt;</code></td>
+      <td style="padding:8px;"><code>&lt;TabsList variant="line" className="w-full"&gt;</code></td>
+    </tr>
+    <tr style="border-bottom:1px solid #e5e7eb;">
+      <td style="padding:8px;"><code>SimpleTransactionForm.tsx:186,238,290</code></td>
+      <td style="padding:8px;"><code>className="space-y-4 mt-4"</code>（3处）</td>
+      <td style="padding:8px;"><code>className="space-y-4"</code>（移除 mt-4）</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="section">
+  <h3>核心问题诊断</h3>
+</div>
+
+<div class="pros-cons">
+  <div class="cons">
+    <h4>当前问题根因</h4>
+    <ul>
+      <li><code>variant="default"</code> + <code>bg-muted</code> 背景 = 灰底药丸容器</li>
+      <li><code>grid-cols-3</code> 强制均分宽度 = 每个tab被拉伸成方块按钮</li>
+      <li><code>w-fit</code> 默认宽度 = TabsList 不撑满，靠左显示</li>
+      <li>选中态 <code>bg-background</code> 与灰底对比度不足</li>
+    </ul>
+  </div>
+  <div class="pros">
+    <h4>修正后的效果</h4>
+    <ul>
+      <li><code>variant="line"</code> = 透明背景 + 底部边框线容器</li>
+      <li>移除 <code>grid-cols-3</code> = tab 按内容自然宽度排列</li>
+      <li><code>w-full</code> = 底边线延伸到表单全宽</li>
+      <li>选中态 = 2px 黑色下划线，清晰明确</li>
+    </ul>
+  </div>
+</div>

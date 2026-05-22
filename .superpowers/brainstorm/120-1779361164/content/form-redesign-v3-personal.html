@@ -1,0 +1,190 @@
+<h2>Personal Finance Form Redesign — Revised for Individual Users</h2>
+<p class="subtitle">Design philosophy: record a transaction in under 5 seconds. Hide accounting complexity.</p>
+
+<div class="section">
+  <h3>1. Transaction Form — "Amount First" Pattern</h3>
+  <p style="color:#888;font-size:12px">Referencing: Monarch Money's quick-add, YNAB's single-screen entry, Stripe's visual silence</p>
+</div>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Current — 3-tab, duplicate amount field</div>
+    <div class="mockup-body">
+      <div style="font-family:system-ui;padding:8px;max-width:320px">
+        <div style="font-size:10px;color:#888;margin-bottom:4px">Step 1: Pick tab → Step 2: Enter amount → Step 3: Pick account → Step 4: Pick category → Step 5: Date → Step 6: Note</div>
+        <div style="display:flex;border-bottom:2px solid #eee;gap:6px;margin-bottom:8px">
+          <div style="padding:5px 8px;font-size:10px;font-weight:600;color:#635bff;border-bottom:2px solid #635bff;margin-bottom:-2px">Expense</div>
+          <div style="padding:5px 8px;font-size:10px;color:#888">Income</div>
+          <div style="padding:5px 8px;font-size:10px;color:#888">Transfer</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <input style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:11px;box-sizing:border-box" placeholder="Amount (no currency symbol)">
+          <select style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:11px;box-sizing:border-box;background:#fff"><option>Account</option></select>
+          <select style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:11px;box-sizing:border-box;background:#fff"><option>Category</option></select>
+        </div>
+        <div style="border-top:1px solid #eee;margin-top:6px;padding-top:6px;display:flex;flex-direction:column;gap:6px">
+          <input type="date" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:11px;box-sizing:border-box">
+          <input style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:11px;box-sizing:border-box" placeholder="Note (optional)">
+        </div>
+        <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:6px">
+          <button style="background:#fff;border:1px solid #ddd;padding:5px 12px;border-radius:6px;font-size:10px">Cancel</button>
+          <button style="background:#635bff;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:10px">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">Proposed — "Amount First" single flow, smart type switch</div>
+    <div class="mockup-body">
+      <div style="font-family:system-ui;padding:8px;max-width:320px">
+        <!-- Type selector as subtle toggle, not prominent tabs -->
+        <div style="display:flex;gap:4px;margin-bottom:10px;background:#f5f5f5;border-radius:20px;padding:2px;width:fit-content">
+          <div style="padding:5px 14px;border-radius:18px;font-size:10px;font-weight:600;background:#fff;color:#ef4444;box-shadow:0 1px 2px rgba(0,0,0,0.06)">Expense</div>
+          <div style="padding:5px 14px;border-radius:18px;font-size:10px;color:#888">Income</div>
+          <div style="padding:5px 14px;border-radius:18px;font-size:10px;color:#888">Transfer</div>
+        </div>
+        <!-- AMOUNT FIRST — the hero element -->
+        <div style="background:linear-gradient(135deg,#fef2f2,#fff5f5);border:1px solid #fecaca;border-radius:12px;padding:14px;margin-bottom:10px;text-align:center">
+          <div style="font-size:9px;color:#ef4444;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:6px">How much did you spend?</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:4px">
+            <span style="font-size:32px;font-weight:700;color:#1a1a1a">¥</span>
+            <input style="width:140px;padding:4px 0;border:none;font-size:32px;font-weight:700;background:transparent;outline:none;text-align:center;color:#1a1a1a" placeholder="0" value="156">
+            <span style="font-size:18px;color:#999">.30</span>
+          </div>
+        </div>
+        <!-- Category — icon grid, tap to select -->
+        <div style="margin-bottom:10px">
+          <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:6px">Category</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            <span style="background:#fef2f2;border:1px solid #fecaca;padding:5px 10px;border-radius:16px;font-size:10px;color:#dc2626">🍔 Food</span>
+            <span style="background:#f5f5f5;padding:5px 10px;border-radius:16px;font-size:10px;color:#888">🚗 Transport</span>
+            <span style="background:#f5f5f5;padding:5px 10px;border-radius:16px;font-size:10px;color:#888">🛒 Shopping</span>
+            <span style="background:#f5f5f5;padding:5px 10px;border-radius:16px;font-size:10px;color:#888">🏠 Housing</span>
+            <span style="background:#f5f5f5;padding:5px 10px;border-radius:16px;font-size:10px;color:#888;cursor:pointer">+ More</span>
+          </div>
+        </div>
+        <!-- Secondary fields — collapsed by default, expandable -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+          <div>
+            <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px">Account</div>
+            <select style="width:100%;padding:7px 6px;border:1px solid #e5e5e5;border-radius:8px;font-size:10px;box-sizing:border-box;background:#fff"><option>Cash</option></select>
+          </div>
+          <div>
+            <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px">Date</div>
+            <input type="date" style="width:100%;padding:7px 6px;border:1px solid #e5e5e5;border-radius:8px;font-size:10px;box-sizing:border-box" value="2026-05-21">
+          </div>
+        </div>
+        <!-- Smart defaults indicator -->
+        <div style="font-size:8px;color:#aaa;text-align:center;margin-bottom:8px">Defaults: today · Cash account · CNY</div>
+        <!-- One primary CTA -->
+        <button style="width:100%;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border:none;padding:10px;border-radius:10px;font-size:12px;font-weight:500;box-shadow:0 2px 8px rgba(239,68,68,0.2)">Record Expense — ¥156.30</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:16px">
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>Personal Finance Optimizations</h4>
+      <ul>
+        <li><strong>Amount First:</strong> The number is all that matters — make it the hero, not an afterthought</li>
+        <li><strong>Category chips:</strong> Tap to select, no dropdown scroll. Emoji + name for instant recognition</li>
+        <li><strong>Smart defaults:</strong> Today's date, last-used account, base currency — user rarely changes these</li>
+        <li><strong>Type as toggle:</strong> Expense/Income/Transfer as a compact pill toggle, not full-width tabs</li>
+        <li><strong>CTA shows context:</strong> "Record Expense — ¥156.30" rather than generic "Save"</li>
+        <li><strong>Visual silence:</strong> Only the amount field, category, and CTA are prominent — rest is muted</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>What we give up</h4>
+      <ul>
+        <li>Transfer tab needs special treatment (from-account → to-account, no category)</li>
+        <li>Category chips don't scale beyond ~8 items — need "More" expander or search</li>
+        <li>Double-entry balance validation is hidden — errors surface only on save</li>
+        <li>Less suitable for power users who want to batch-enter transactions</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:16px">
+  <h3>2. Account Form — "Just the essentials"</h3>
+  <div style="display:flex;gap:12px;align-items:flex-start">
+    <div class="mockup" style="flex:1">
+      <div class="mockup-header">Current — 7 fields stacked</div>
+      <div class="mockup-body" style="font-family:system-ui;padding:8px">
+        <div style="font-size:9px;color:#888">Name → Type → Currency → Balance → Account# → Institution → + conditional fields (credit limit, billing day, due day, interest rate)...</div>
+      </div>
+    </div>
+    <div class="mockup" style="flex:1">
+      <div class="mockup-header">Proposed — 3 core + expandable</div>
+      <div class="mockup-body" style="font-family:system-ui;padding:8px;display:flex;flex-direction:column;gap:8px">
+        <div>
+          <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px">Name <span style="color:#ef4444">*</span></div>
+          <input style="width:100%;padding:8px;border:1px solid #e5e5e5;border-radius:8px;font-size:11px;box-sizing:border-box" placeholder="e.g. Main Checking">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px">Type</div>
+            <select style="width:100%;padding:7px 6px;border:1px solid #e5e5e5;border-radius:8px;font-size:10px;box-sizing:border-box;background:#fff"><option>Bank</option><option>Cash</option><option>Credit Card</option></select>
+          </div>
+          <div>
+            <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px">Balance</div>
+            <div style="display:flex;align-items:center;border:1px solid #e5e5e5;border-radius:8px;overflow:hidden"><span style="padding:7px 6px;font-size:10px;color:#888;background:#fafafa">¥</span><input style="flex:1;padding:7px 6px;border:none;font-size:10px;outline:none" placeholder="0.00"></div>
+          </div>
+        </div>
+        <div style="text-align:center">
+          <button style="background:transparent;border:none;color:#635bff;font-size:10px;cursor:pointer;padding:4px">+ Advanced: currency, account number, credit limit...</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:16px">
+  <h3>3. Debt Form — "Who, how much, when"</h3>
+  <div style="display:flex;gap:12px;align-items:flex-start">
+    <div class="mockup" style="flex:1">
+      <div class="mockup-header">Current — 7 fields + huge payment preview</div>
+      <div class="mockup-body" style="font-family:system-ui;padding:8px">
+        <div style="font-size:9px;color:#888">Type → Counterparty → Principal + Currency → Interest Rate → Start Date + Due Date → Amortization Method → [Payment Preview Table] → Submit</div>
+      </div>
+    </div>
+    <div class="mockup" style="flex:1">
+      <div class="mockup-header">Proposed — 4 fields + compact summary</div>
+      <div class="mockup-body" style="font-family:system-ui;padding:8px;display:flex;flex-direction:column;gap:8px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px">Type</div>
+            <select style="width:100%;padding:7px 6px;border:1px solid #e5e5e5;border-radius:8px;font-size:10px;box-sizing:border-box;background:#fff"><option>I Owe (Borrowed)</option></select>
+          </div>
+          <div>
+            <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px">To Whom</div>
+            <input style="width:100%;padding:7px 6px;border:1px solid #e5e5e5;border-radius:8px;font-size:10px;box-sizing:border-box" placeholder="Bank or person">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px">
+          <div>
+            <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px">Amount</div>
+            <div style="display:flex;align-items:center;border:1px solid #e5e5e5;border-radius:8px;overflow:hidden"><span style="padding:7px 6px;font-size:10px;color:#888;background:#fafafa">¥</span><input style="flex:1;padding:7px 6px;border:none;font-size:10px;outline:none" placeholder="100,000"></div>
+          </div>
+          <div>
+            <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px">Rate</div>
+            <div style="display:flex;align-items:center;border:1px solid #e5e5e5;border-radius:8px;overflow:hidden"><input style="flex:1;padding:7px 6px;border:none;font-size:10px;outline:none" placeholder="5.5"><span style="padding:7px 6px;font-size:10px;color:#888;background:#fafafa">%</span></div>
+          </div>
+          <div>
+            <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px">Due</div>
+            <input type="date" style="width:100%;padding:7px 6px;border:1px solid #e5e5e5;border-radius:8px;font-size:10px;box-sizing:border-box">
+          </div>
+        </div>
+        <!-- Compact payment summary — only appears after amount+rate+date filled -->
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px;font-size:9px;display:flex;justify-content:space-between">
+          <span style="color:#166534">Monthly payment</span>
+          <span style="font-weight:700;color:#166534">¥8,800 × 12 months</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,213 @@
+<h2>Debt Form — Lump Sum vs Installment</h2>
+<p class="subtitle">Two distinct repayment modes with different field sets</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Mode A: Lump Sum (一次性还本付息)</div>
+    <div class="mockup-body">
+      <div style="font-family:system-ui;padding:8px;display:flex;flex-direction:column;gap:10px;max-width:340px">
+        <!-- Repayment mode toggle -->
+        <div style="display:flex;gap:4px;background:#f5f5f5;border-radius:20px;padding:2px;width:fit-content;margin-bottom:2px">
+          <div style="padding:5px 14px;border-radius:18px;font-size:10px;font-weight:600;background:#fff;color:#635bff;box-shadow:0 1px 2px rgba(0,0,0,0.06)">Lump Sum</div>
+          <div style="padding:5px 14px;border-radius:18px;font-size:10px;color:#888">Installment</div>
+        </div>
+
+        <!-- Common fields -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div>
+            <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px">Type</div>
+            <select style="width:100%;padding:7px 6px;border:1px solid #e5e5e5;border-radius:8px;font-size:10px;box-sizing:border-box;background:#fff">
+              <option>I Owe (借入)</option><option>Lent Out (借出)</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px">Counterparty</div>
+            <input style="width:100%;padding:7px 6px;border:1px solid #e5e5e5;border-radius:8px;font-size:10px;box-sizing:border-box" placeholder="Bank or person">
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:6px">
+          <div>
+            <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px">Principal</div>
+            <div style="display:flex;align-items:center;border:1px solid #e5e5e5;border-radius:8px;overflow:hidden">
+              <span style="padding:7px 6px;font-size:10px;color:#888;background:#fafafa;border-right:1px solid #eee">¥</span>
+              <input style="flex:1;padding:7px 6px;border:none;font-size:11px;outline:none;width:100%" placeholder="100,000">
+            </div>
+          </div>
+          <div>
+            <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px">Rate</div>
+            <div style="display:flex;align-items:center;border:1px solid #e5e5e5;border-radius:8px;overflow:hidden">
+              <input style="flex:1;padding:7px 6px;border:none;font-size:11px;outline:none;width:100%" placeholder="5.5">
+              <span style="padding:7px 6px;font-size:10px;color:#888;background:#fafafa;border-left:1px solid #eee">%</span>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px">Due Date</div>
+            <input type="date" style="width:100%;padding:7px 6px;border:1px solid #e5e5e5;border-radius:8px;font-size:10px;box-sizing:border-box">
+          </div>
+        </div>
+
+        <!-- LUMP SUM summary — simple: principal + interest = total -->
+        <div style="background:linear-gradient(135deg,#fafbff,#f5f6ff);border:1px solid #dde4ff;border-radius:10px;padding:10px;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:9px;color:#888">Repayment on due date</div>
+            <div style="font-size:18px;font-weight:700;color:#1a1a1a">¥105,500</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:9px;color:#888">Principal</div>
+            <div style="font-size:11px;color:#555">¥100,000</div>
+            <div style="font-size:9px;color:#888;margin-top:2px">Interest (5.5%)</div>
+            <div style="font-size:11px;color:#555">+ ¥5,500</div>
+          </div>
+        </div>
+
+        <button style="width:100%;background:linear-gradient(135deg,#635bff,#4f46e5);color:#fff;border:none;padding:10px;border-radius:10px;font-size:11px;font-weight:500;box-shadow:0 2px 8px rgba(99,91,255,0.2);margin-top:4px">Create Debt</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">Mode B: Installment (分期偿还)</div>
+    <div class="mockup-body">
+      <div style="font-family:system-ui;padding:8px;display:flex;flex-direction:column;gap:10px;max-width:340px">
+        <!-- Repayment mode toggle (installment active) -->
+        <div style="display:flex;gap:4px;background:#f5f5f5;border-radius:20px;padding:2px;width:fit-content;margin-bottom:2px">
+          <div style="padding:5px 14px;border-radius:18px;font-size:10px;color:#888">Lump Sum</div>
+          <div style="padding:5px 14px;border-radius:18px;font-size:10px;font-weight:600;background:#fff;color:#635bff;box-shadow:0 1px 2px rgba(0,0,0,0.06)">Installment</div>
+        </div>
+
+        <!-- Common fields (same as lump sum) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div>
+            <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px">Type</div>
+            <select style="width:100%;padding:7px 6px;border:1px solid #e5e5e5;border-radius:8px;font-size:10px;box-sizing:border-box;background:#fff">
+              <option>I Owe</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px">Counterparty</div>
+            <input style="width:100%;padding:7px 6px;border:1px solid #e5e5e5;border-radius:8px;font-size:10px;box-sizing:border-box" placeholder="Bank or person">
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:6px">
+          <div>
+            <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px">Principal</div>
+            <div style="display:flex;align-items:center;border:1px solid #e5e5e5;border-radius:8px;overflow:hidden">
+              <span style="padding:7px 6px;font-size:10px;color:#888;background:#fafafa;border-right:1px solid #eee">¥</span>
+              <input style="flex:1;padding:7px 6px;border:none;font-size:11px;outline:none;width:100%" placeholder="100,000">
+            </div>
+          </div>
+          <div>
+            <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px">Rate</div>
+            <div style="display:flex;align-items:center;border:1px solid #e5e5e5;border-radius:8px;overflow:hidden">
+              <input style="flex:1;padding:7px 6px;border:none;font-size:11px;outline:none;width:100%" placeholder="5.5">
+              <span style="padding:7px 6px;font-size:10px;color:#888;background:#fafafa;border-left:1px solid #eee">%</span>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px">Periods</div>
+            <select style="width:100%;padding:7px 6px;border:1px solid #e5e5e5;border-radius:8px;font-size:10px;box-sizing:border-box;background:#fff">
+              <option>12 mo</option><option>24 mo</option><option>36 mo</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Installment extra row: dates -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div>
+            <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px">Start Date</div>
+            <input type="date" style="width:100%;padding:7px 6px;border:1px solid #e5e5e5;border-radius:8px;font-size:10px;box-sizing:border-box">
+          </div>
+          <div>
+            <div style="font-size:9px;color:#888;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px">Method</div>
+            <select style="width:100%;padding:7px 6px;border:1px solid #e5e5e5;border-radius:8px;font-size:10px;box-sizing:border-box;background:#fff">
+              <option>Equal P+I</option><option>Equal Principal</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- INSTALLMENT summary — compact payment preview -->
+        <div style="background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border:1px solid #bbf7d0;border-radius:10px;padding:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:9px;color:#166534;font-weight:500">Monthly Payment</span>
+            <span style="font-size:18px;font-weight:700;color:#166534">¥8,800</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:9px">
+            <span style="color:#888">12 payments</span>
+            <span style="color:#888">Total interest: ¥5,600</span>
+            <span style="color:#888">Total: ¥105,600</span>
+          </div>
+        </div>
+
+        <!-- Compact schedule (collapsible) -->
+        <details style="font-size:9px;color:#888;cursor:pointer">
+          <summary style="color:#635bff">View payment schedule</summary>
+          <table style="width:100%;border-collapse:collapse;margin-top:4px">
+            <tr style="border-bottom:1px solid #eee"><td style="padding:2px 4px">1</td><td style="padding:2px 4px">2026-06</td><td style="text-align:right;padding:2px 4px">¥8,800</td></tr>
+            <tr style="border-bottom:1px solid #eee"><td style="padding:2px 4px">2</td><td style="padding:2px 4px">2026-07</td><td style="text-align:right;padding:2px 4px">¥8,800</td></tr>
+            <tr><td style="padding:2px 4px;color:#aaa">...</td><td style="padding:2px 4px;color:#aaa">...</td><td style="text-align:right;padding:2px 4px;color:#aaa">...</td></tr>
+          </table>
+        </details>
+
+        <button style="width:100%;background:linear-gradient(135deg,#635bff,#4f46e5);color:#fff;border:none;padding:10px;border-radius:10px;font-size:11px;font-weight:500;box-shadow:0 2px 8px rgba(99,91,255,0.2)">Create Debt</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:16px">
+  <h3>Payment Mode — Field Comparison</h3>
+  <table style="width:100%;font-size:12px;border-collapse:collapse">
+    <tr style="border-bottom:1px solid var(--border-color)">
+      <th style="text-align:left;padding:8px">Field</th>
+      <th style="text-align:center;padding:8px">Lump Sum</th>
+      <th style="text-align:center;padding:8px">Installment</th>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border-color)">
+      <td style="padding:8px">Type (Borrowed / Lent)</td>
+      <td style="text-align:center;padding:8px">✓</td>
+      <td style="text-align:center;padding:8px">✓</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border-color)">
+      <td style="padding:8px">Counterparty (who)</td>
+      <td style="text-align:center;padding:8px">✓</td>
+      <td style="text-align:center;padding:8px">✓</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border-color)">
+      <td style="padding:8px">Principal amount</td>
+      <td style="text-align:center;padding:8px">✓</td>
+      <td style="text-align:center;padding:8px">✓</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border-color)">
+      <td style="padding:8px">Interest rate</td>
+      <td style="text-align:center;padding:8px">✓</td>
+      <td style="text-align:center;padding:8px">✓</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border-color)">
+      <td style="padding:8px">Due date (single)</td>
+      <td style="text-align:center;padding:8px;color:#10b981;font-weight:700">✓</td>
+      <td style="text-align:center;padding:8px;color:#ef4444">✗</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border-color)">
+      <td style="padding:8px">Number of periods</td>
+      <td style="text-align:center;padding:8px;color:#ef4444">✗</td>
+      <td style="text-align:center;padding:8px;color:#10b981;font-weight:700">✓</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border-color)">
+      <td style="padding:8px">Start date</td>
+      <td style="text-align:center;padding:8px;color:#ef4444">✗</td>
+      <td style="text-align:center;padding:8px;color:#10b981;font-weight:700">✓</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border-color)">
+      <td style="padding:8px">Amortization method</td>
+      <td style="text-align:center;padding:8px;color:#ef4444">✗</td>
+      <td style="text-align:center;padding:8px;color:#10b981;font-weight:700">✓</td>
+    </tr>
+    <tr>
+      <td style="padding:8px">Summary display</td>
+      <td style="text-align:center;padding:8px;font-size:10px">Principal + Interest = Total due</td>
+      <td style="text-align:center;padding:8px;font-size:10px">Monthly payment + schedule (collapsible)</td>
+    </tr>
+  </table>
+</div>

@@ -1,0 +1,149 @@
+<h2>Choose a Visual Design Direction</h2>
+<p class="subtitle">The current UI uses basic shadcn/ui defaults. Let's elevate it to industry-leading quality. Pick a design language.</p>
+
+<div class="cards">
+  <div class="card" data-choice="linear" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0">
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <div class="mock-sidebar" style="width:56px;min-height:200px;background:#1a1a1a;color:#888;display:flex;flex-direction:column;gap:8px;padding:12px 8px;border-radius:8px;font-size:10px">
+            <span style="color:#5e6ad2">⬛</span>
+            <span>⬛</span>
+            <span>⬛</span>
+            <span>⬛</span>
+            <span>⬛</span>
+          </div>
+          <div class="mock-content" style="flex:1;background:#fafafa;border:1px solid #e5e5e5;border-radius:8px;padding:16px;font-family:system-ui">
+            <div style="font-size:11px;color:#999;margin-bottom:8px">Dashboard</div>
+            <div style="display:flex;gap:8px;margin-bottom:12px">
+              <div class="placeholder" style="flex:1;background:#fff;border:1px solid #e5e5e5;border-radius:6px;padding:10px;font-size:10px">
+                <span style="color:#999">Total Balance</span><br>
+                <span style="font-weight:700;font-size:16px;color:#1a1a1a">¥24,500</span>
+              </div>
+              <div class="placeholder" style="flex:1;background:#fff;border:1px solid #e5e5e5;border-radius:6px;padding:10px;font-size:10px">
+                <span style="color:#999">Income</span><br>
+                <span style="font-weight:700;font-size:16px;color:#10b981">+¥8,200</span>
+              </div>
+            </div>
+            <div class="placeholder" style="background:#fff;border:1px solid #e5e5e5;border-radius:4px;padding:8px;font-size:10px;color:#999">
+              Recent Transactions — 5 rows...
+            </div>
+          </div>
+        </div>
+        <div class="mockup-header">Linear-inspired: Minimal, monochrome, sharp</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A: Linear Style</h3>
+      <p>Minimalist. Dark sidebar. Monochromatic with subtle accent colors. Sharp corners. Focus on content density and keyboard efficiency. Typography-forward.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="stripe" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0">
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <div class="mock-sidebar" style="width:56px;min-height:200px;background:linear-gradient(180deg,#635bff 0%,#4f46e5 100%);color:#fff;display:flex;flex-direction:column;gap:8px;padding:12px 8px;border-radius:12px;font-size:10px">
+            <span>◻</span><span>◻</span><span>◻</span><span>◻</span><span>◻</span>
+          </div>
+          <div class="mock-content" style="flex:1;background:#fff;border-radius:12px;padding:20px;font-family:system-ui;box-shadow:0 2px 16px rgba(0,0,0,0.06)">
+            <div style="font-size:11px;color:#999;margin-bottom:8px">Dashboard</div>
+            <div style="display:flex;gap:10px;margin-bottom:12px">
+              <div style="flex:1;background:linear-gradient(135deg,#f8f9ff,#f0f2ff);border-radius:10px;padding:12px;font-size:10px;border:1px solid #e8ebff">
+                <span style="color:#666">Total Balance</span><br>
+                <span style="font-weight:700;font-size:18px;color:#1a1a1a">¥24,500</span>
+              </div>
+              <div style="flex:1;background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border-radius:10px;padding:12px;font-size:10px;border:1px solid #d1fae5">
+                <span style="color:#666">Income</span><br>
+                <span style="font-weight:700;font-size:18px;color:#059669">+¥8,200</span>
+              </div>
+            </div>
+            <div style="background:#fafafa;border-radius:8px;padding:8px;font-size:10px;color:#999">
+              Recent Transactions — 5 rows...
+            </div>
+          </div>
+        </div>
+        <div class="mockup-header">Stripe-inspired: Clean, gradient, rounded, friendly</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B: Stripe Style</h3>
+      <p>Clean & friendly. White surfaces with soft shadows. Gradient accents. Generous rounding. Colorful but disciplined. Spacious and approachable.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="vercel" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0">
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <div class="mock-sidebar" style="width:56px;min-height:200px;background:#0a0a0a;color:#666;display:flex;flex-direction:column;gap:8px;padding:12px 8px;border-radius:6px;border:1px solid #222;font-size:10px">
+            <span style="color:#fff">◻</span><span>◻</span><span>◻</span><span>◻</span><span>◻</span>
+          </div>
+          <div class="mock-content" style="flex:1;background:#0a0a0a;border:1px solid #222;border-radius:6px;padding:16px;font-family:system-ui">
+            <div style="font-size:10px;color:#666;margin-bottom:8px;letter-spacing:0.5px;text-transform:uppercase">Dashboard</div>
+            <div style="display:flex;gap:8px;margin-bottom:12px">
+              <div style="flex:1;background:#111;border:1px solid #222;border-radius:5px;padding:10px;font-size:10px">
+                <span style="color:#666">Total Balance</span><br>
+                <span style="font-weight:600;font-size:16px;color:#fafafa">¥24,500</span>
+              </div>
+              <div style="flex:1;background:#111;border:1px solid #222;border-radius:5px;padding:10px;font-size:10px">
+                <span style="color:#666">Income</span><br>
+                <span style="font-weight:600;font-size:16px;color:#10b981">+¥8,200</span>
+              </div>
+            </div>
+            <div style="background:#111;border:1px solid #222;border-radius:4px;padding:8px;font-size:10px;color:#555">
+              Recent Transactions — 5 rows...
+            </div>
+          </div>
+        </div>
+        <div class="mockup-header">Vercel-inspired: Dark, geometric, high contrast</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C: Vercel Style</h3>
+      <p>Dark & precise. Black backgrounds with subtle borders. Geometric precision. High contrast text. Modern and technical feel. Compact and data-dense.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px">
+  <h3>Key Differences</h3>
+  <table style="width:100%;font-size:13px;border-collapse:collapse">
+    <tr style="border-bottom:1px solid var(--border-color)">
+      <th style="text-align:left;padding:8px">Aspect</th>
+      <th style="text-align:left;padding:8px">A: Linear</th>
+      <th style="text-align:left;padding:8px">B: Stripe</th>
+      <th style="text-align:left;padding:8px">C: Vercel</th>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border-color)">
+      <td style="padding:8px">Border Radius</td>
+      <td style="padding:8px">4-6px</td>
+      <td style="padding:8px">8-12px</td>
+      <td style="padding:8px">4-6px</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border-color)">
+      <td style="padding:8px">Color Palette</td>
+      <td style="padding:8px">Gray + 1 accent</td>
+      <td style="padding:8px">White + Gradients</td>
+      <td style="padding:8px">Dark + Neutral</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border-color)">
+      <td style="padding:8px">Shadows</td>
+      <td style="padding:8px">Minimal/none</td>
+      <td style="padding:8px">Soft, layered</td>
+      <td style="padding:8px">Border-only</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border-color)">
+      <td style="padding:8px">Typography Feel</td>
+      <td style="padding:8px">Technical, precise</td>
+      <td style="padding:8px">Friendly, readable</td>
+      <td style="padding:8px">Modern, sleek</td>
+    </tr>
+    <tr>
+      <td style="padding:8px">Best For</td>
+      <td style="padding:8px">Power users, speed</td>
+      <td style="padding:8px">Consumer, trust</td>
+      <td style="padding:8px">Developers, data</td>
+    </tr>
+  </table>
+</div>

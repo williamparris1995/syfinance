@@ -1,0 +1,157 @@
+<h2>Account & Debt Form Redesign</h2>
+<p class="subtitle">Grid layouts, grouped sections, smart conditional fields</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">AccountForm — Proposed (Grid + Grouped sections)</div>
+    <div class="mockup-body">
+      <div style="font-family:system-ui;padding:8px;display:flex;flex-direction:column;gap:12px;max-width:360px">
+        <!-- Section: Basic Info -->
+        <div>
+          <div style="font-size:9px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Basic Information</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div>
+              <div style="font-size:10px;color:#666;margin-bottom:2px">Account Name <span style="color:#ef4444">*</span></div>
+              <input style="width:100%;padding:7px 8px;border:1px solid #e5e5e5;border-radius:8px;font-size:11px;box-sizing:border-box" placeholder="e.g. Main Checking">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div>
+                <div style="font-size:10px;color:#666;margin-bottom:2px">Type <span style="color:#ef4444">*</span></div>
+                <select style="width:100%;padding:7px 8px;border:1px solid #e5e5e5;border-radius:8px;font-size:11px;box-sizing:border-box;background:#fff">
+                  <option>Bank Account</option>
+                  <option>Credit Card</option>
+                  <option>Cash</option>
+                </select>
+              </div>
+              <div>
+                <div style="font-size:10px;color:#666;margin-bottom:2px">Currency <span style="color:#ef4444">*</span></div>
+                <select style="width:100%;padding:7px 8px;border:1px solid #e5e5e5;border-radius:8px;font-size:11px;box-sizing:border-box;background:#fff">
+                  <option>CNY (¥)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Section: Balance -->
+        <div>
+          <div style="font-size:9px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Balance & Details</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div>
+              <div style="font-size:10px;color:#666;margin-bottom:2px">Initial Balance</div>
+              <div style="display:flex;align-items:center;border:1px solid #e5e5e5;border-radius:8px;overflow:hidden">
+                <span style="padding:7px 6px;font-size:10px;color:#888;background:#fafafa;border-right:1px solid #eee">¥</span>
+                <input style="flex:1;padding:7px 8px;border:none;font-size:11px;outline:none;width:100%" placeholder="0.00" value="10,000">
+              </div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:#666;margin-bottom:2px">Account # <span style="color:#bbb;font-weight:400">— optional</span></div>
+              <input style="width:100%;padding:7px 8px;border:1px solid #e5e5e5;border-radius:8px;font-size:11px;box-sizing:border-box" placeholder="Last 4 digits">
+            </div>
+          </div>
+        </div>
+        <!-- Section: Credit Card (conditional, animated) -->
+        <div style="background:#fafbff;border:1px solid #e8ebff;border-radius:10px;padding:10px">
+          <div style="font-size:9px;color:#635bff;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Credit Card Details</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+            <div>
+              <div style="font-size:9px;color:#888;margin-bottom:2px">Credit Limit</div>
+              <input style="width:100%;padding:6px 6px;border:1px solid #e5e5e5;border-radius:7px;font-size:10px;box-sizing:border-box" placeholder="50,000">
+            </div>
+            <div>
+              <div style="font-size:9px;color:#888;margin-bottom:2px">Billing Day</div>
+              <select style="width:100%;padding:6px 6px;border:1px solid #e5e5e5;border-radius:7px;font-size:10px;box-sizing:border-box;background:#fff">
+                <option>5th</option><option>15th</option>
+              </select>
+            </div>
+            <div>
+              <div style="font-size:9px;color:#888;margin-bottom:2px">Due Day</div>
+              <select style="width:100%;padding:6px 6px;border:1px solid #e5e5e5;border-radius:7px;font-size:10px;box-sizing:border-box;background:#fff">
+                <option>25th</option><option>28th</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;justify-content:flex-end">
+          <button style="background:#fff;border:1px solid #e5e5e5;padding:7px 16px;border-radius:10px;font-size:11px;color:#666">Cancel</button>
+          <button style="background:linear-gradient(135deg,#635bff,#4f46e5);color:#fff;border:none;padding:7px 20px;border-radius:10px;font-size:11px;font-weight:500;box-shadow:0 2px 8px rgba(99,91,255,0.2)">Create Account</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">DebtForm — Proposed (Side-by-side fields, compact preview)</div>
+    <div class="mockup-body">
+      <div style="font-family:system-ui;padding:8px;display:flex;flex-direction:column;gap:12px;max-width:360px">
+        <div>
+          <div style="font-size:9px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Debt Details</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div>
+                <div style="font-size:10px;color:#666;margin-bottom:2px">Type <span style="color:#ef4444">*</span></div>
+                <select style="width:100%;padding:7px 8px;border:1px solid #e5e5e5;border-radius:8px;font-size:11px;box-sizing:border-box;background:#fff">
+                  <option>Borrowed (I owe)</option>
+                </select>
+              </div>
+              <div>
+                <div style="font-size:10px;color:#666;margin-bottom:2px">Counterparty <span style="color:#ef4444">*</span></div>
+                <input style="width:100%;padding:7px 8px;border:1px solid #e5e5e5;border-radius:8px;font-size:11px;box-sizing:border-box" placeholder="Bank or person name">
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px">
+              <div>
+                <div style="font-size:10px;color:#666;margin-bottom:2px">Principal <span style="color:#ef4444">*</span></div>
+                <div style="display:flex;align-items:center;border:1px solid #e5e5e5;border-radius:8px;overflow:hidden">
+                  <span style="padding:7px 6px;font-size:10px;color:#888;background:#fafafa;border-right:1px solid #eee">¥</span>
+                  <input style="flex:1;padding:7px 6px;border:none;font-size:11px;outline:none;width:100%" placeholder="100,000">
+                </div>
+              </div>
+              <div>
+                <div style="font-size:10px;color:#666;margin-bottom:2px">Rate</div>
+                <div style="display:flex;align-items:center;border:1px solid #e5e5e5;border-radius:8px;overflow:hidden">
+                  <input style="flex:1;padding:7px 6px;border:none;font-size:11px;outline:none;width:100%" placeholder="5.5">
+                  <span style="padding:7px 6px;font-size:10px;color:#888;background:#fafafa;border-left:1px solid #eee">%</span>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:10px;color:#666;margin-bottom:2px">Method</div>
+                <select style="width:100%;padding:7px 6px;border:1px solid #e5e5e5;border-radius:8px;font-size:10px;box-sizing:border-box;background:#fff">
+                  <option>Equal PI</option>
+                </select>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div>
+                <div style="font-size:10px;color:#666;margin-bottom:2px">Start Date</div>
+                <input type="date" style="width:100%;padding:7px 8px;border:1px solid #e5e5e5;border-radius:8px;font-size:11px;box-sizing:border-box">
+              </div>
+              <div>
+                <div style="font-size:10px;color:#666;margin-bottom:2px">Due Date</div>
+                <input type="date" style="width:100%;padding:7px 8px;border:1px solid #e5e5e5;border-radius:8px;font-size:11px;box-sizing:border-box">
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Compact payment preview -->
+        <div style="background:#fafbfc;border:1px solid #eee;border-radius:10px;padding:10px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <div style="font-size:10px;font-weight:600;color:#1a1a1a">Payment Preview</div>
+            <div style="font-size:9px;color:#888">12 payments · Total interest ¥2,340</div>
+          </div>
+          <div style="max-height:120px;overflow-y:auto">
+            <table style="width:100%;font-size:9px;border-collapse:collapse">
+              <tr style="border-bottom:1px solid #eee"><th style="text-align:left;padding:3px 4px;color:#888;font-weight:500">#</th><th style="text-align:left;padding:3px 4px;color:#888;font-weight:500">Date</th><th style="text-align:right;padding:3px 4px;color:#888;font-weight:500">Payment</th></tr>
+              <tr><td style="padding:2px 4px">1</td><td style="padding:2px 4px">2026-06</td><td style="text-align:right;padding:2px 4px;font-weight:500">¥8,800</td></tr>
+              <tr><td style="padding:2px 4px">2</td><td style="padding:2px 4px">2026-07</td><td style="text-align:right;padding:2px 4px;font-weight:500">¥8,800</td></tr>
+              <tr><td style="padding:2px 4px;color:#888">...</td><td style="padding:2px 4px;color:#888">...</td><td style="text-align:right;padding:2px 4px;color:#888">...</td></tr>
+            </table>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;justify-content:flex-end">
+          <button style="background:#fff;border:1px solid #e5e5e5;padding:7px 16px;border-radius:10px;font-size:11px;color:#666">Cancel</button>
+          <button style="background:linear-gradient(135deg,#635bff,#4f46e5);color:#fff;border:none;padding:7px 20px;border-radius:10px;font-size:11px;font-weight:500;box-shadow:0 2px 8px rgba(99,91,255,0.2)">Create Debt</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

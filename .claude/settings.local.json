@@ -54,7 +54,34 @@
       "Bash(git commit -m 'fix\\(ui\\): replace Button with native button in HeaderUserMenu *)",
       "Bash(git commit -m 'docs: update test results with hydration error fix *)",
       "Bash(git commit -m 'fix\\(ui\\): use div instead of button in HeaderUserMenu trigger *)",
-      "Bash(git commit -m 'fix\\(ui\\): remove asChild prop and simplify HeaderUserMenu trigger *)"
+      "Bash(git commit -m 'fix\\(ui\\): remove asChild prop and simplify HeaderUserMenu trigger *)",
+      "Bash(git stash *)",
+      "Bash(git checkout *)",
+      "Bash(npx vitest *)",
+      "Bash(node -e ' *)",
+      "Bash(bash \"C:/Users/BuHiYo-001/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/scripts/start-server.sh\" --project-dir \"c:/Users/BuHiYo-001/Desktop/projects/fiance\")",
+      "Bash(bash \"C:/Users/BuHiYo-001/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/brainstorming/scripts/start-server.sh\" --project-dir \"c:/Users/BuHiYo-001/Desktop/projects/fiance\")",
+      "Bash(git commit -m 'fix\\(ui\\): add dark mode shadow overrides for gradient button variant *)",
+      "Bash(git hash-object *)",
+      "Bash(git commit -m 'fix\\(ui\\): revert table wrapper border — consumers already wrap tables in bordered divs *)",
+      "Bash(git commit -m 'fix\\(ui\\): use currencyDisplay narrowSymbol for ¥ sign in stat cards *)",
+      "Bash(npx vite *)",
+      "WebSearch",
+      "Bash(git commit -m 'docs: add form UI redesign spec for personal finance UX *)",
+      "Bash(git commit -m 'fix\\(a11y\\): add aria-label to amount input in SimpleTransactionForm *)",
+      "Bash(git commit -m 'fix\\(ui\\): add horizontal margins and switch to single-column input layout in all forms *)",
+      "Bash(git commit -m 'fix\\(ui\\): add default values and placeholders to all dropdowns *)",
+      "Bash(git commit -m 'fix\\(ui\\): always open Sheet for create forms, remove narrow-screen navigation *)",
+      "Bash(git commit -m 'fix\\(ui\\): prevent dropdowns from showing raw UUID during type switch *)",
+      "Bash(git commit -m 'fix\\(ui\\): display human-readable labels in SelectValue instead of raw keys *)",
+      "Bash(bash scripts/start-server.sh --project-dir \"c:/Users/BuHiYo-001/Desktop/projects/fiance\")",
+      "Bash(git -C \"c:/Users/BuHiYo-001/Desktop/projects/fiance\" add \"docs/superpowers/specs/2026-05-22-unified-account-model-design.md\")",
+      "Bash(git -C c:/Users/BuHiYo-001/Desktop/projects/fiance commit -m ' *)",
+      "Bash(rm \"C:\\\\Users\\\\BuHiYo-001\\\\AppData\\\\Roaming\\\\finance-app\\\\finance.db\" && echo \"Database deleted — will be recreated with fresh migrations\")",
+      "Bash(rm \"C:\\\\Users\\\\BuHiYo-001\\\\AppData\\\\Roaming\\\\finance-app\\\\finance.db\")"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\BuHiYo-001\\AppData\\Roaming\\finance-app"
     ]
   }
 }
