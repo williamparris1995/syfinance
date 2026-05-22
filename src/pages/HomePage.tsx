@@ -23,15 +23,14 @@ export function HomePage() {
     queryFn: listTransactions,
   });
 
-  // Stub: categories API removed, will be refactored in a follow-up task
-  const categories: any[] = [];
   // Calculate total balance from all accounts
   const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
 
   // Calculate income and expenses from transactions (current month)
+  // Uses account-based lookup: Income/Expense are determined by the linked account's type
   const now = new Date();
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  
+
   let monthlyIncome = 0;
   let monthlyExpenses = 0;
 
@@ -39,22 +38,14 @@ export function HomePage() {
     const transactionDate = new Date(transaction.transaction_date);
     if (transactionDate >= currentMonthStart) {
       transaction.entries.forEach((entry) => {
-        // Find category for this entry
-        const category = entry.category_id ? categories.find(c => c.id === entry.category_id) : null;
-        
-        if (entry.debit_amount) {
-          const amount = parseFloat(entry.debit_amount);
-          // If category is Expense type, it's an expense
-          if (category && category.category_type === 'Expense') {
-            monthlyExpenses += amount;
-          }
+        const account = entry.account_id ? accounts.find(a => a.id === entry.account_id) : null;
+        if (!account) return;
+
+        if (entry.debit_amount && account.account_type === 'Expense') {
+          monthlyExpenses += parseFloat(entry.debit_amount);
         }
-        if (entry.credit_amount) {
-          const amount = parseFloat(entry.credit_amount);
-          // If category is Income type, it's income
-          if (category && category.category_type === 'Income') {
-            monthlyIncome += amount;
-          }
+        if (entry.credit_amount && account.account_type === 'Income') {
+          monthlyIncome += parseFloat(entry.credit_amount);
         }
       });
     }

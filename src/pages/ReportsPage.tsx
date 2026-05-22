@@ -45,8 +45,6 @@ export function ReportsPage() {
     queryFn: listTransactions,
   });
 
-  // Stub: categories API removed, will be refactored in a follow-up task
-  const categories: any[] = [];
   const dateRange = useMemo(() => {
     if (dateRangePreset === 'custom') {
       return { start: startDate, end: endDate };
@@ -123,21 +121,20 @@ export function ReportsPage() {
 
     filteredTransactions.forEach((transaction: TransactionDto) => {
       transaction.entries.forEach((entry) => {
-        // Find category for this entry
-        const category = entry.category_id ? categories.find(c => c.id === entry.category_id) : null;
-        
-        if (!category) return; // Skip entries without category
+        // Find account for this entry (replaces old category-based lookup)
+        const account = entry.account_id ? accounts.find(a => a.id === entry.account_id) : null;
+        if (!account) return;
 
-        // Income categories
-        if (category.category_type === 'Income') {
+        // Income accounts
+        if (account.account_type === 'Income') {
           const amount = entry.credit_amount ? parseFloat(entry.credit_amount) : 0;
-          incomeMap.set(category.name, (incomeMap.get(category.name) || 0) + amount);
+          incomeMap.set(account.name, (incomeMap.get(account.name) || 0) + amount);
         }
 
-        // Expense categories
-        if (category.category_type === 'Expense') {
+        // Expense accounts
+        if (account.account_type === 'Expense') {
           const amount = entry.debit_amount ? parseFloat(entry.debit_amount) : 0;
-          expenseMap.set(category.name, (expenseMap.get(category.name) || 0) + amount);
+          expenseMap.set(account.name, (expenseMap.get(account.name) || 0) + amount);
         }
       });
     });
@@ -150,7 +147,7 @@ export function ReportsPage() {
     const netIncome = totalIncome - totalExpenses;
 
     return { income, expenses, totalIncome, totalExpenses, netIncome };
-  }, [transactions, dateRange, categories]);
+  }, [transactions, dateRange, accounts]);
 
   const chartData = useMemo(() => {
     return [

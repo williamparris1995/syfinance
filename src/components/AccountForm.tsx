@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
+import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
 import {
   Form,
@@ -83,14 +84,15 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
       billing_day: '',
       payment_due_day: '',
       interest_rate: '',
-      icon: '💰',
-      color: '#10B981',
+      icon: '📁',
+      color: '#6B7280',
       chart_code: '',
       parent_id: '',
     },
   });
 
   const accountType = form.watch('account_type');
+  const ownership = form.watch('ownership');
 
   const handleSubmit = (values: AccountFormValues) => {
     const dto: CreateAccountDto = {
@@ -99,8 +101,8 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
       ownership: values.ownership as Ownership,
       currency_code: values.currency_code,
       initial_balance: parseFloat(values.initial_balance),
-      icon: values.icon || '💰',
-      color: values.color || '#10B981',
+      icon: values.icon || '📁',
+      color: values.color || '#6B7280',
     };
 
     // Add optional fields if provided
@@ -138,6 +140,46 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 px-5">
         {/* Core fields */}
         <div className="space-y-4">
+          {/* Ownership Toggle */}
+          <FormField
+            control={form.control}
+            name="ownership"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                  所有权 (OWNERSHIP) <span className="text-red-500">*</span>
+                </FormLabel>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => field.onChange('own')}
+                    className={cn(
+                      "flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all",
+                      field.value === 'own'
+                        ? "bg-emerald-50 border-emerald-300 text-emerald-700 dark:bg-emerald-950 dark:border-emerald-700 dark:text-emerald-400"
+                        : "bg-background border-input text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    🏠 自己账户
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => field.onChange('external')}
+                    className={cn(
+                      "flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all",
+                      field.value === 'external'
+                        ? "bg-amber-50 border-amber-300 text-amber-700 dark:bg-amber-950 dark:border-amber-700 dark:text-amber-400"
+                        : "bg-background border-input text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    🌐 外部账户
+                  </button>
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           {/* Name */}
           <FormField
             control={form.control}
@@ -168,9 +210,14 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
                 <Select value={field.value} onValueChange={field.onChange}>
                   <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('accountForm.selectAccountType')}>{field.value ? typeLabelMap[field.value] || field.value : null}</SelectValue></SelectTrigger></FormControl>
                   <SelectContent>
-                    {(['Cash', 'Bank', 'CreditCard', 'Investment', 'Loan', 'Other', 'Income', 'Expense'] as const).map((type) => (
-                      <SelectItem key={type} value={type}>{typeLabelMap[type]}</SelectItem>
-                    ))}
+                    {ownership === 'own'
+                      ? (['Cash', 'Bank', 'CreditCard', 'Investment', 'Loan', 'Other'] as const).map((type) => (
+                        <SelectItem key={type} value={type}>{typeLabelMap[type]}</SelectItem>
+                      ))
+                      : (['Income', 'Expense'] as const).map((type) => (
+                        <SelectItem key={type} value={type}>{typeLabelMap[type]}</SelectItem>
+                      ))
+                    }
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -201,6 +248,35 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
               )}
             />
           </div>
+        </div>
+
+        {/* Icon & Color */}
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="icon"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>图标</FormLabel>
+                <FormControl><Input placeholder="🍔" className="h-9" {...field} /></FormControl>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="color"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>颜色</FormLabel>
+                <FormControl>
+                  <div className="flex items-center gap-2">
+                    <Input placeholder="#EF4444" className="h-9" {...field} />
+                    <div className="h-8 w-8 rounded border" style={{backgroundColor: field.value || '#6B7280'}} />
+                  </div>
+                </FormControl>
+              </FormItem>
+            )}
+          />
         </div>
 
         {/* Advanced fields — expandable */}
