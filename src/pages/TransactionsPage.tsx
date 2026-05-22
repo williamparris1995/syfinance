@@ -1,10 +1,17 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
-import { SimpleTransactionForm, TransactionFormData } from '../components/SimpleTransactionForm';
+import { SimpleTransactionForm, type TransactionFormData } from '../components/SimpleTransactionForm';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
 import {
   Sheet,
   SheetContent,
@@ -19,18 +26,37 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
-import { Plus } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search } from 'lucide-react';
 import { listAccounts, listAccountsByOwnership } from '../lib/tauri/account';
 import {
   listTransactions,
   getTransactionsByDateRange,
+  updateTransaction,
+  deleteTransaction,
   type TransactionDto,
+  type CreateTransactionDto,
 } from '../lib/tauri/transaction';
+
+type DateRangePreset = 'month' | 'quarter' | 'year' | 'custom';
+type TransactionType_ = 'all' | 'expense' | 'income' | 'transfer';
 
 export function TransactionsPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [editingTransaction, setEditingTransaction] = useState<TransactionDto | null>(null);
+  const [deletingTransaction, setDeletingTransaction] = useState<TransactionDto | null>(null);
+  const [inlineEditId, setInlineEditId] = useState<string | null>(null);
+  const [inlineEditValue, setInlineEditValue] = useState('');
+
+  // Period selector state
+  const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('month');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+
+  // Filter state
+  const [typeFilter, setTypeFilter] = useState<TransactionType_>('all');
+  const [accountFilter, setAccountFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
   const queryClient = useQueryClient();
   const { t } = useTranslation();
 
@@ -44,26 +70,42 @@ export function TransactionsPage() {
     queryFn: () => listAccountsByOwnership('external'),
   });
 
+  const dateRange = useMemo(() => {
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+
+    if (dateRangePreset === 'custom' && customStartDate && customEndDate) {
+      return { start: customStartDate, end: customEndDate };
+    }
+
+    if (dateRangePreset === 'month') {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1)
+        .toISOString().split('T')[0];
+      return { start, end: today };
+    }
+
+    if (dateRangePreset === 'quarter') {
+      const quarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+      return { start: quarterStart.toISOString().split('T')[0], end: today };
+    }
+
+    if (dateRangePreset === 'year') {
+      const start = `${now.getFullYear()}-01-01`;
+      return { start, end: today };
+    }
+
+    return { start: '', end: '' };
+  }, [dateRangePreset, customStartDate, customEndDate]);
+
   const { data: transactions = [], isLoading } = useQuery({
-    queryKey: ['transactions', startDate, endDate],
+    queryKey: ['transactions', dateRange.start, dateRange.end],
     queryFn: async () => {
-      if (startDate && endDate) {
-        return getTransactionsByDateRange(startDate, endDate);
+      if (dateRange.start && dateRange.end) {
+        return getTransactionsByDateRange(dateRange.start, dateRange.end);
       }
       return listTransactions();
     },
   });
-
-  const handleAddClick = () => {
-    setIsSheetOpen(true);
-  };
-
-  const handleFormSubmit = async (data: TransactionFormData) => {
-    setIsSheetOpen(false);
-    queryClient.invalidateQueries({ queryKey: ['transactions'] });
-    queryClient.invalidateQueries({ queryKey: ['accounts'] });
-    toast.success(t('transactions.recorded'));
-  };
 
   const getAccountName = (accountId: string) => {
     const account = accounts.find((a) => a.id === accountId);
@@ -85,63 +127,63 @@ export function TransactionsPage() {
     return [...new Set(accountNames)].join(', ');
   };
 
-  const handleClearFilters = () => {
-    setStartDate('');
-    setEndDate('');
+  const getTransactionType = (transaction: TransactionDto): TransactionType_ => {
+    const externalAccountIds = externalAccounts.map(a => a.id);
+    const txExternalEntries = transaction.entries.filter(e => externalAccountIds.includes(e.account_id));
+    if (txExternalEntries.length === 0) return 'transfer';
+    const incomeCount = txExternalEntries.filter(e =>
+      externalAccounts.find(a => a.id === e.account_id && a.account_type === 'Income')
+    ).length;
+    const expenseCount = txExternalEntries.filter(e =>
+      externalAccounts.find(a => a.id === e.account_id && a.account_type === 'Expense')
+    ).length;
+    if (incomeCount > 0 && expenseCount === 0) return 'income';
+    if (expenseCount > 0 && incomeCount === 0) return 'expense';
+    return 'transfer';
   };
+
+  const getTypeBadgeClass = (type: TransactionType_) => {
+    switch (type) {
+      case 'expense': return 'bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400';
+      case 'income': return 'bg-green-50 text-green-600 dark:bg-green-950/30 dark:text-green-400';
+      case 'transfer': return 'bg-purple-50 text-purple-600 dark:bg-purple-950/30 dark:text-purple-400';
+      default: return '';
+    }
+  };
+
+  const filteredTransactions = useMemo(() => {
+    let result = transactions;
+    if (typeFilter !== 'all') {
+      result = result.filter(tx => getTransactionType(tx) === typeFilter);
+    }
+    if (accountFilter !== 'all') {
+      result = result.filter(tx =>
+        tx.entries.some(e => e.account_id === accountFilter)
+      );
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(tx =>
+        tx.description?.toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [transactions, typeFilter, accountFilter, searchQuery]);
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">{t('transactions.title')}</h1>
-        <Button variant="default-gradient" onClick={handleAddClick}>
+        <Button variant="default-gradient" onClick={() => setIsSheetOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           {t('transactions.recordTransaction')}
         </Button>
       </div>
 
-      <div className="flex gap-4 mb-6">
-        <div className="flex items-center gap-2">
-          <label htmlFor="start-date" className="text-sm font-medium">
-            {t('transactions.from')}
-          </label>
-          <Input
-            id="start-date"
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="w-40"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <label htmlFor="end-date" className="text-sm font-medium">
-            {t('transactions.to')}
-          </label>
-          <Input
-            id="end-date"
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="w-40"
-          />
-        </div>
-        {(startDate || endDate) && (
-          <Button variant="outline" onClick={handleClearFilters}>
-            {t('transactions.clearFilters')}
-          </Button>
-        )}
-      </div>
-
+      {/* Placeholder — full UI in Tasks 5 and 6 */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <div className="text-neutral-500">{t('transactions.loadingTransactions')}</div>
-        </div>
-      ) : transactions.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="text-neutral-500 mb-4">
-            {startDate || endDate ? t('transactions.noTransactionsInRange') : t('transactions.noTransactions')}
-          </p>
-          <Button variant="default-gradient" onClick={handleAddClick}>{t('transactions.recordFirst')}</Button>
         </div>
       ) : (
         <div className="border rounded-lg">
@@ -155,7 +197,7 @@ export function TransactionsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions.map((transaction: TransactionDto) => (
+              {filteredTransactions.map((transaction: TransactionDto) => (
                 <TableRow key={transaction.id}>
                   <TableCell className="font-medium">
                     {new Date(transaction.transaction_date).toLocaleDateString('en-US', {
@@ -181,6 +223,7 @@ export function TransactionsPage() {
         </div>
       )}
 
+      {/* Add Sheet — simplified for now, will be enhanced in Task 6 */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent side="right" className="w-full sm:max-w-lg">
           <SheetHeader>
@@ -190,7 +233,12 @@ export function TransactionsPage() {
             <SimpleTransactionForm
               accounts={accounts}
               externalAccounts={externalAccounts}
-              onSubmit={handleFormSubmit}
+              onSubmit={async () => {
+                setIsSheetOpen(false);
+                queryClient.invalidateQueries({ queryKey: ['transactions'] });
+                queryClient.invalidateQueries({ queryKey: ['accounts'] });
+                toast.success(t('transactions.recorded'));
+              }}
               onCancel={() => setIsSheetOpen(false)}
             />
           </div>
