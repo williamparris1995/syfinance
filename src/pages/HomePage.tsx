@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp, Receipt, CreditCard, BarChart3, Plus } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { useMemo } from 'react';
+import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { QuickActions } from '@/components/QuickActions';
@@ -26,30 +28,48 @@ export function HomePage() {
   // Calculate total balance from all accounts
   const totalBalance = accounts.reduce((sum, account) => sum + Number(account.balance), 0);
 
+  const FALLBACK_COLORS = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
+  const FALLBACK_COLORS_INCOME = ['#10B981', '#06B6D4', '#84CC16', '#3B82F6', '#14B8A6'];
+
   // Calculate income and expenses from transactions (current month)
   // Uses account-based lookup: Income/Expense are determined by the linked account's type
-  const now = new Date();
-  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const { monthlyIncome, monthlyExpenses, incomeByCategory, expenseByCategory } = useMemo(() => {
+    const now = new Date();
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  let monthlyIncome = 0;
-  let monthlyExpenses = 0;
+    let income = 0;
+    let expenses = 0;
+    const incomeMap = new Map<string, number>();
+    const expenseMap = new Map<string, number>();
 
-  transactions.forEach((transaction) => {
-    const transactionDate = new Date(transaction.transaction_date);
-    if (transactionDate >= currentMonthStart) {
-      transaction.entries.forEach((entry) => {
-        const account = entry.account_id ? accounts.find(a => a.id === entry.account_id) : null;
-        if (!account) return;
+    transactions.forEach((transaction: any) => {
+      const transactionDate = new Date(transaction.transaction_date);
+      if (transactionDate >= currentMonthStart) {
+        transaction.entries.forEach((entry: any) => {
+          const account = entry.account_id ? accounts.find((a: any) => a.id === entry.account_id) : null;
+          if (!account) return;
 
-        if (entry.debit_amount && account.account_type === 'Expense') {
-          monthlyExpenses += parseFloat(entry.debit_amount);
-        }
-        if (entry.credit_amount && account.account_type === 'Income') {
-          monthlyIncome += parseFloat(entry.credit_amount);
-        }
-      });
-    }
-  });
+          if (entry.debit_amount && account.account_type === 'Expense') {
+            const amount = parseFloat(entry.debit_amount);
+            expenses += amount;
+            expenseMap.set(account.name, (expenseMap.get(account.name) || 0) + amount);
+          }
+          if (entry.credit_amount && account.account_type === 'Income') {
+            const amount = parseFloat(entry.credit_amount);
+            income += amount;
+            incomeMap.set(account.name, (incomeMap.get(account.name) || 0) + amount);
+          }
+        });
+      }
+    });
+
+    return {
+      monthlyIncome: income,
+      monthlyExpenses: expenses,
+      incomeByCategory: Array.from(incomeMap.entries()).map(([name, amount]) => ({ name, amount })),
+      expenseByCategory: Array.from(expenseMap.entries()).map(([name, amount]) => ({ name, amount })),
+    };
+  }, [transactions, accounts]);
 
   const monthlySavings = monthlyIncome - monthlyExpenses;
 
@@ -178,6 +198,151 @@ export function HomePage() {
               />
             </CardContent>
           </Card>
+
+          {/* Charts Section */}
+          {accounts.length > 0 && (expenseByCategory.length > 0 || incomeByCategory.length > 0) && (
+            <div className="grid gap-4 md:grid-cols-2">
+              {/* Expense Donut */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">{t('reports.expenseBreakdown')}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {expenseByCategory.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">{t('reports.noExpenses')}</p>
+                  ) : (
+                    <div className="flex items-center gap-4">
+                      <ResponsiveContainer width={150} height={150}>
+                        <PieChart>
+                          <Pie
+                            data={expenseByCategory}
+                            dataKey="amount"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={45}
+                            outerRadius={70}
+                            paddingAngle={2}
+                          >
+                            {expenseByCategory.map((entry, index) => {
+                              const account = accounts.find(a => a.name === entry.name && a.account_type === 'Expense');
+                              return (
+                                <Cell
+                                  key={entry.name}
+                                  fill={account?.color || FALLBACK_COLORS[index % FALLBACK_COLORS.length]}
+                                  stroke="none"
+                                />
+                              );
+                            })}
+                          </Pie>
+                          <Tooltip
+                            formatter={(value, name) => [
+                              `¥${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                              name,
+                            ]}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="flex-1 space-y-1.5 max-h-[150px] overflow-y-auto">
+                        {expenseByCategory
+                          .sort((a, b) => b.amount - a.amount)
+                          .slice(0, 6)
+                          .map((item, index) => {
+                            const account = accounts.find(a => a.name === item.name && a.account_type === 'Expense');
+                            const pct = monthlyExpenses > 0
+                              ? ((item.amount / monthlyExpenses) * 100).toFixed(1)
+                              : '0';
+                            return (
+                              <div key={item.name} className="flex items-center gap-2 text-xs">
+                                <span
+                                  className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
+                                  style={{ backgroundColor: account?.color || FALLBACK_COLORS[index % FALLBACK_COLORS.length] }}
+                                />
+                                <span className="truncate flex-1">
+                                  {account?.icon || ''} {item.name}
+                                </span>
+                                <span className="text-muted-foreground tabular-nums">¥{item.amount.toFixed(0)}</span>
+                                <span className="text-muted-foreground/60 w-10 text-right tabular-nums">{pct}%</span>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Income Donut */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">{t('reports.incomeBreakdown')}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {incomeByCategory.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">{t('reports.noIncome')}</p>
+                  ) : (
+                    <div className="flex items-center gap-4">
+                      <ResponsiveContainer width={150} height={150}>
+                        <PieChart>
+                          <Pie
+                            data={incomeByCategory}
+                            dataKey="amount"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={45}
+                            outerRadius={70}
+                            paddingAngle={2}
+                          >
+                            {incomeByCategory.map((entry, index) => {
+                              const account = accounts.find(a => a.name === entry.name && a.account_type === 'Income');
+                              return (
+                                <Cell
+                                  key={entry.name}
+                                  fill={account?.color || FALLBACK_COLORS_INCOME[index % FALLBACK_COLORS_INCOME.length]}
+                                  stroke="none"
+                                />
+                              );
+                            })}
+                          </Pie>
+                          <Tooltip
+                            formatter={(value, name) => [
+                              `¥${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                              name,
+                            ]}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="flex-1 space-y-1.5 max-h-[150px] overflow-y-auto">
+                        {incomeByCategory
+                          .sort((a, b) => b.amount - a.amount)
+                          .slice(0, 6)
+                          .map((item, index) => {
+                            const account = accounts.find(a => a.name === item.name && a.account_type === 'Income');
+                            const pct = monthlyIncome > 0
+                              ? ((item.amount / monthlyIncome) * 100).toFixed(1)
+                              : '0';
+                            return (
+                              <div key={item.name} className="flex items-center gap-2 text-xs">
+                                <span
+                                  className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
+                                  style={{ backgroundColor: account?.color || FALLBACK_COLORS_INCOME[index % FALLBACK_COLORS_INCOME.length] }}
+                                />
+                                <span className="truncate flex-1">
+                                  {account?.icon || ''} {item.name}
+                                </span>
+                                <span className="text-muted-foreground tabular-nums">¥{item.amount.toFixed(0)}</span>
+                                <span className="text-muted-foreground/60 w-10 text-right tabular-nums">{pct}%</span>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           {/* Empty State for New Users */}
           {accounts.length === 0 && (
