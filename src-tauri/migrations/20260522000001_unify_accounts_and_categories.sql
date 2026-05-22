@@ -5,7 +5,7 @@
 PRAGMA foreign_keys = OFF;
 
 -- ============================================================================
--- STEP 1: Add new columns to accounts
+-- STEP 1: Add new columns to accounts (before CHECK change)
 -- ============================================================================
 
 ALTER TABLE accounts ADD COLUMN ownership VARCHAR(10) NOT NULL DEFAULT 'own';
@@ -15,7 +15,56 @@ ALTER TABLE accounts ADD COLUMN chart_code VARCHAR(10);
 ALTER TABLE accounts ADD COLUMN parent_id TEXT REFERENCES accounts(id) ON DELETE SET NULL;
 
 -- ============================================================================
--- STEP 2: Migrate categories → accounts (ownership = 'external')
+-- STEP 2: Recreate accounts with extended CHECK constraint FIRST
+--         (must happen before inserting categories with income/expense types)
+-- ============================================================================
+
+CREATE TABLE accounts_backup AS SELECT * FROM accounts;
+
+DROP TABLE accounts;
+
+CREATE TABLE accounts (
+    id TEXT PRIMARY KEY NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    account_type VARCHAR(20) NOT NULL,
+    currency_code VARCHAR(3) NOT NULL DEFAULT 'CNY',
+    balance DECIMAL(20,2) NOT NULL DEFAULT 0.00,
+    ownership VARCHAR(10) NOT NULL DEFAULT 'own',
+    icon VARCHAR(10) NOT NULL DEFAULT '📁',
+    color VARCHAR(7) NOT NULL DEFAULT '#6B7280',
+    chart_code VARCHAR(10),
+    parent_id TEXT REFERENCES accounts(id) ON DELETE SET NULL,
+    account_number VARCHAR(50),
+    institution VARCHAR(100),
+    credit_limit DECIMAL(20,2),
+    billing_day INTEGER,
+    payment_due_day INTEGER,
+    interest_rate DECIMAL(5,4),
+    deleted_at TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    device_id TEXT,
+    synced_at TIMESTAMP,
+    CHECK (account_type IN ('cash', 'bank', 'credit_card', 'investment', 'loan', 'other', 'income', 'expense')),
+    CHECK (ownership IN ('own', 'external')),
+    CHECK (billing_day IS NULL OR (billing_day >= 1 AND billing_day <= 31)),
+    CHECK (payment_due_day IS NULL OR (payment_due_day >= 1 AND payment_due_day <= 31)),
+    CHECK (interest_rate IS NULL OR interest_rate >= 0),
+    FOREIGN KEY (currency_code) REFERENCES currencies(code) ON DELETE RESTRICT
+);
+
+INSERT INTO accounts SELECT * FROM accounts_backup;
+
+DROP TABLE accounts_backup;
+
+-- Recreate indexes
+CREATE INDEX idx_accounts_type ON accounts(account_type);
+CREATE INDEX idx_accounts_ownership ON accounts(ownership);
+CREATE INDEX idx_accounts_currency ON accounts(currency_code);
+CREATE INDEX idx_accounts_deleted ON accounts(deleted_at);
+
+-- ============================================================================
+-- STEP 3: Migrate categories → accounts (ownership = 'external')
+--         CHECK constraint now allows income/expense types
 -- ============================================================================
 
 INSERT INTO accounts (id, name, account_type, currency_code, balance,
@@ -39,13 +88,13 @@ SELECT
 FROM categories;
 
 -- ============================================================================
--- STEP 3: Drop categories table
+-- STEP 4: Drop categories table
 -- ============================================================================
 
 DROP TABLE categories;
 
 -- ============================================================================
--- STEP 4: Recreate transaction_entries without category_id
+-- STEP 5: Recreate transaction_entries without category_id
 -- ============================================================================
 
 CREATE TABLE transaction_entries_backup AS SELECT * FROM transaction_entries;
@@ -130,54 +179,5 @@ BEGIN
           AND deleted_at IS NULL
     ) >= 1;
 END;
-
--- ============================================================================
--- STEP 5: Recreate accounts with extended CHECK constraint
--- ============================================================================
-
--- Update accounts CHECK constraint for new types
--- SQLite doesn't support ALTER CHECK, so recreate table
-CREATE TABLE accounts_backup AS SELECT * FROM accounts;
-
-DROP TABLE accounts;
-
-CREATE TABLE accounts (
-    id TEXT PRIMARY KEY NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    account_type VARCHAR(20) NOT NULL,
-    currency_code VARCHAR(3) NOT NULL DEFAULT 'CNY',
-    balance DECIMAL(20,2) NOT NULL DEFAULT 0.00,
-    ownership VARCHAR(10) NOT NULL DEFAULT 'own',
-    icon VARCHAR(10) NOT NULL DEFAULT '📁',
-    color VARCHAR(7) NOT NULL DEFAULT '#6B7280',
-    chart_code VARCHAR(10),
-    parent_id TEXT REFERENCES accounts(id) ON DELETE SET NULL,
-    account_number VARCHAR(50),
-    institution VARCHAR(100),
-    credit_limit DECIMAL(20,2),
-    billing_day INTEGER,
-    payment_due_day INTEGER,
-    interest_rate DECIMAL(5,4),
-    deleted_at TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    device_id TEXT,
-    synced_at TIMESTAMP,
-    CHECK (account_type IN ('cash', 'bank', 'credit_card', 'investment', 'loan', 'other', 'income', 'expense')),
-    CHECK (ownership IN ('own', 'external')),
-    CHECK (billing_day IS NULL OR (billing_day >= 1 AND billing_day <= 31)),
-    CHECK (payment_due_day IS NULL OR (payment_due_day >= 1 AND payment_due_day <= 31)),
-    CHECK (interest_rate IS NULL OR interest_rate >= 0),
-    FOREIGN KEY (currency_code) REFERENCES currencies(code) ON DELETE RESTRICT
-);
-
-INSERT INTO accounts SELECT * FROM accounts_backup;
-
-DROP TABLE accounts_backup;
-
--- Recreate indexes
-CREATE INDEX idx_accounts_type ON accounts(account_type);
-CREATE INDEX idx_accounts_ownership ON accounts(ownership);
-CREATE INDEX idx_accounts_currency ON accounts(currency_code);
-CREATE INDEX idx_accounts_deleted ON accounts(deleted_at);
 
 PRAGMA foreign_keys = ON;
