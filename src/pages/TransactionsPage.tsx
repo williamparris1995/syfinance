@@ -169,6 +169,199 @@ export function TransactionsPage() {
     return result;
   }, [transactions, typeFilter, accountFilter, searchQuery]);
 
+  const getEditInitialData = (tx: TransactionDto): TransactionFormData => {
+    const txType = getTransactionType(tx);
+    const amount = getTransactionAmount(tx).toFixed(2);
+    if (txType === 'transfer') {
+      const creditEntry = tx.entries.find(e => e.credit_amount);
+      const debitEntry = tx.entries.find(e => e.debit_amount);
+      return {
+        type: 'transfer',
+        date: new Date(tx.transaction_date),
+        amount,
+        fromAccountId: creditEntry?.account_id || '',
+        toAccountId: debitEntry?.account_id || '',
+        description: tx.description,
+      };
+    }
+    if (txType === 'expense') {
+      const debitEntry = tx.entries.find(e => e.debit_amount);
+      const creditEntry = tx.entries.find(e => e.credit_amount);
+      return {
+        type: 'expense',
+        date: new Date(tx.transaction_date),
+        amount,
+        debitAccountId: debitEntry?.account_id || '',
+        creditAccountId: creditEntry?.account_id || '',
+        description: tx.description,
+      };
+    }
+    // income
+    const debitEntry = tx.entries.find(e => e.debit_amount);
+    const creditEntry = tx.entries.find(e => e.credit_amount);
+    return {
+      type: 'income',
+      date: new Date(tx.transaction_date),
+      amount,
+      debitAccountId: debitEntry?.account_id || '',
+      creditAccountId: creditEntry?.account_id || '',
+      description: tx.description,
+    };
+  };
+
+  const buildEditEntries = (data: TransactionFormData) => {
+    if (data.type === 'transfer') {
+      return [
+        {
+          account_id: data.toAccountId!,
+          chart_of_account_code: '1002',
+          debit_amount: data.amount,
+          credit_amount: null,
+          memo: data.description || null,
+        },
+        {
+          account_id: data.fromAccountId!,
+          chart_of_account_code: '1002',
+          debit_amount: null,
+          credit_amount: data.amount,
+          memo: data.description || null,
+        },
+      ];
+    }
+    if (data.type === 'expense') {
+      return [
+        {
+          account_id: data.debitAccountId!,
+          chart_of_account_code: '5401',
+          debit_amount: data.amount,
+          credit_amount: null,
+          memo: data.description || null,
+        },
+        {
+          account_id: data.creditAccountId!,
+          chart_of_account_code: '5401',
+          debit_amount: null,
+          credit_amount: data.amount,
+          memo: data.description || null,
+        },
+      ];
+    }
+    // income
+    return [
+      {
+        account_id: data.debitAccountId!,
+        chart_of_account_code: '4001',
+        debit_amount: data.amount,
+        credit_amount: null,
+        memo: data.description || null,
+      },
+      {
+        account_id: data.creditAccountId!,
+        chart_of_account_code: '4001',
+        debit_amount: null,
+        credit_amount: data.amount,
+        memo: data.description || null,
+      },
+    ];
+  };
+
+  const handleInlineSave = async (transaction: TransactionDto) => {
+    if (inlineEditValue === transaction.description) {
+      setInlineEditId(null);
+      return;
+    }
+
+    // Optimistic update
+    const queryKey = ['transactions', dateRange.start, dateRange.end];
+    const previous = queryClient.getQueryData<TransactionDto[]>(queryKey);
+    queryClient.setQueryData<TransactionDto[]>(
+      queryKey,
+      (old) => old?.map(tx =>
+        tx.id === transaction.id ? { ...tx, description: inlineEditValue } : tx
+      ),
+    );
+
+    setInlineEditId(null);
+
+    try {
+      const dto: CreateTransactionDto = {
+        transaction_date: transaction.transaction_date,
+        description: inlineEditValue,
+        entries: transaction.entries.map(e => ({
+          account_id: e.account_id,
+          chart_of_account_code: e.chart_of_account_code,
+          debit_amount: e.debit_amount,
+          credit_amount: e.credit_amount,
+          memo: e.memo,
+          category_id: e.category_id,
+        })),
+      };
+      await updateTransaction(transaction.id, dto);
+      toast.success(t('transactions.descriptionUpdated'));
+    } catch (error) {
+      queryClient.setQueryData(queryKey, previous);
+      toast.error(String(error));
+    }
+  };
+
+  const handleEditSubmit = async (data: TransactionFormData) => {
+    if (!editingTransaction) return;
+
+    const year = data.date.getFullYear();
+    const month = String(data.date.getMonth() + 1).padStart(2, '0');
+    const day = String(data.date.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+
+    const dto: CreateTransactionDto = {
+      transaction_date: dateStr,
+      description: data.description,
+      entries: buildEditEntries(data),
+    };
+
+    try {
+      await updateTransaction(editingTransaction.id, dto);
+      setIsSheetOpen(false);
+      setEditingTransaction(null);
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      toast.success(t('transactions.descriptionUpdated'));
+    } catch (error) {
+      toast.error(String(error));
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingTransaction) return;
+
+    const txId = deletingTransaction.id;
+    const queryKey = ['transactions', dateRange.start, dateRange.end];
+
+    // Optimistic removal
+    const previous = queryClient.getQueryData<TransactionDto[]>(queryKey);
+    queryClient.setQueryData<TransactionDto[]>(
+      queryKey,
+      (old) => old?.filter(tx => tx.id !== txId),
+    );
+    setDeletingTransaction(null);
+
+    try {
+      await deleteTransaction(txId);
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      toast.success(t('transactions.deleteSuccess'), {
+        action: {
+          label: t('transactions.undo'),
+          onClick: () => {
+            queryClient.setQueryData(queryKey, previous);
+            queryClient.invalidateQueries({ queryKey: ['accounts'] });
+          },
+        },
+      });
+    } catch (error) {
+      queryClient.setQueryData(queryKey, previous);
+      toast.error(String(error));
+    }
+  };
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
@@ -330,7 +523,31 @@ export function TransactionsPage() {
                             : t('transaction.transfer')}
                       </span>
                     </TableCell>
-                    <TableCell>{transaction.description}</TableCell>
+                    <TableCell>
+                      {inlineEditId === transaction.id ? (
+                        <Input
+                          value={inlineEditValue}
+                          onChange={(e) => setInlineEditValue(e.target.value)}
+                          onBlur={() => handleInlineSave(transaction)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleInlineSave(transaction);
+                            if (e.key === 'Escape') setInlineEditId(null);
+                          }}
+                          className="h-7 text-sm border-2 border-blue-500"
+                          autoFocus
+                        />
+                      ) : (
+                        <span
+                          className="cursor-pointer hover:text-blue-600 hover:underline decoration-dotted"
+                          onClick={() => {
+                            setInlineEditId(transaction.id);
+                            setInlineEditValue(transaction.description);
+                          }}
+                        >
+                          {transaction.description}
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className={`text-right font-medium ${
                       txType === 'expense' ? 'text-red-600' : txType === 'income' ? 'text-green-600' : ''
                     }`}>
@@ -406,52 +623,8 @@ export function TransactionsPage() {
               <SimpleTransactionForm
                 accounts={accounts}
                 externalAccounts={externalAccounts}
-                initialData={(() => {
-                  const tx = editingTransaction;
-                  const txType = getTransactionType(tx);
-                  const amount = getTransactionAmount(tx).toFixed(2);
-                  if (txType === 'transfer') {
-                    const creditEntry = tx.entries.find(e => e.credit_amount);
-                    const debitEntry = tx.entries.find(e => e.debit_amount);
-                    return {
-                      type: 'transfer' as const,
-                      date: new Date(tx.transaction_date),
-                      amount,
-                      fromAccountId: creditEntry?.account_id || '',
-                      toAccountId: debitEntry?.account_id || '',
-                      description: tx.description,
-                    };
-                  }
-                  if (txType === 'expense') {
-                    const debitEntry = tx.entries.find(e => e.debit_amount);
-                    const creditEntry = tx.entries.find(e => e.credit_amount);
-                    return {
-                      type: 'expense' as const,
-                      date: new Date(tx.transaction_date),
-                      amount,
-                      debitAccountId: debitEntry?.account_id || '',
-                      creditAccountId: creditEntry?.account_id || '',
-                      description: tx.description,
-                    };
-                  }
-                  const debitEntry = tx.entries.find(e => e.debit_amount);
-                  const creditEntry = tx.entries.find(e => e.credit_amount);
-                  return {
-                    type: 'income' as const,
-                    date: new Date(tx.transaction_date),
-                    amount,
-                    debitAccountId: debitEntry?.account_id || '',
-                    creditAccountId: creditEntry?.account_id || '',
-                    description: tx.description,
-                  };
-                })()}
-                onSubmit={async () => {
-                  // Will be wired in Task 6
-                  setIsSheetOpen(false);
-                  setEditingTransaction(null);
-                  queryClient.invalidateQueries({ queryKey: ['transactions'] });
-                  queryClient.invalidateQueries({ queryKey: ['accounts'] });
-                }}
+                initialData={getEditInitialData(editingTransaction!)}
+                onSubmit={handleEditSubmit}
                 onCancel={() => { setIsSheetOpen(false); setEditingTransaction(null); }}
               />
             )}
@@ -469,7 +642,7 @@ export function TransactionsPage() {
               <Button variant="outline" size="sm" onClick={() => setDeletingTransaction(null)}>
                 {t('common.cancel')}
               </Button>
-              <Button variant="destructive" size="sm" onClick={() => setDeletingTransaction(null)}>
+              <Button variant="destructive" size="sm" onClick={handleDelete}>
                 {t('common.delete')}
               </Button>
             </div>
