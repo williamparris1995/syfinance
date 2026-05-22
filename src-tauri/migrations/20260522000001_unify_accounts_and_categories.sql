@@ -72,7 +72,7 @@ INSERT INTO accounts (id, name, account_type, currency_code, balance,
                       ownership, icon, color, chart_code, parent_id,
                       deleted_at, updated_at, device_id, synced_at)
 SELECT
-    id,
+    lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', (abs(random()) % 4) + 1, 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6))),
     name,
     CASE category_type WHEN 'income' THEN 'income' WHEN 'expense' THEN 'expense' END,
     'CNY',
