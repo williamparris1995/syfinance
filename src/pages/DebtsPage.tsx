@@ -3,7 +3,6 @@ import { AlertCircle, Calendar } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { useNavigate } from '@tanstack/react-router';
 import { DebtForm } from '../components/DebtForm';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -40,7 +39,6 @@ import {
   type RecordPaymentDto,
   type UpcomingPaymentDto,
 } from '../lib/tauri/debt';
-import { useMediaQuery } from '../hooks/useMediaQuery';
 
 export function DebtsPage() {
   const { t } = useTranslation();
@@ -51,8 +49,6 @@ export function DebtsPage() {
     payment: PaymentScheduleDto;
   } | null>(null);
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  const isWide = useMediaQuery('(min-width: 1024px)');
 
   const { data: debts = [], isLoading } = useQuery({
     queryKey: ['debts'],
@@ -92,11 +88,7 @@ export function DebtsPage() {
   });
 
   const handleCreateClick = () => {
-    if (isWide) {
-      setIsSheetOpen(true);
-    } else {
-      navigate({ to: '/debts/new' });
-    }
+    setIsSheetOpen(true);
   };
 
   const handleCreateDebt = (data: CreateDebtDto) => {

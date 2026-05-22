@@ -2,7 +2,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from '@tanstack/react-router';
 import { SimpleTransactionForm, TransactionFormData } from '../components/SimpleTransactionForm';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -28,7 +27,6 @@ import {
   getTransactionsByDateRange,
   type TransactionDto,
 } from '../lib/tauri/transaction';
-import { useMediaQuery } from '../hooks/useMediaQuery';
 
 export function TransactionsPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -36,8 +34,6 @@ export function TransactionsPage() {
   const [endDate, setEndDate] = useState('');
   const queryClient = useQueryClient();
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const isWide = useMediaQuery('(min-width: 1024px)');
 
   const { data: accounts = [] } = useQuery({
     queryKey: ['accounts'],
@@ -60,11 +56,7 @@ export function TransactionsPage() {
   });
 
   const handleAddClick = () => {
-    if (isWide) {
-      setIsSheetOpen(true);
-    } else {
-      navigate({ to: '/transactions/new' });
-    }
+    setIsSheetOpen(true);
   };
 
   const handleFormSubmit = async (data: TransactionFormData) => {

@@ -3,7 +3,6 @@ import { Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from '@tanstack/react-router';
 import { AccountForm } from '../components/AccountForm';
 import { Button } from '../components/ui/button';
 import {
@@ -35,15 +34,12 @@ import {
   type AccountDto,
   type CreateAccountDto,
 } from '../lib/tauri/account';
-import { useMediaQuery } from '../hooks/useMediaQuery';
 
 export function AccountsPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const isWide = useMediaQuery('(min-width: 1024px)');
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['accounts'],
@@ -91,11 +87,7 @@ export function AccountsPage() {
   });
 
   const handleCreateClick = () => {
-    if (isWide) {
-      setIsSheetOpen(true);
-    } else {
-      navigate({ to: '/accounts/new' });
-    }
+    setIsSheetOpen(true);
   };
 
   const handleCreateAccount = (data: CreateAccountDto) => {
