@@ -325,7 +325,9 @@
     "netIncome": "Net Income (Income - Expenses)",
     "incomeVsExpenses": "Income vs Expenses",
     "categories": "categories",
-    "savingsRate": "Savings rate"
+    "savingsRate": "Savings rate",
+    "expenseBreakdown": "Expense Breakdown",
+    "incomeBreakdown": "Income Breakdown"
   },
   "sidebar": {
     "noOrganizations": "No organizations",

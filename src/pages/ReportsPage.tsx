@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Download } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
@@ -206,6 +206,9 @@ export function ReportsPage() {
     });
     return Array.from(cats);
   }, [monthlyTrendData, accounts]);
+
+  const FALLBACK_COLORS = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
+  const FALLBACK_COLORS_INCOME = ['#10B981', '#06B6D4', '#84CC16', '#3B82F6', '#14B8A6'];
 
   const downloadCSV = (data: string[][], filename: string) => {
     const csvContent = data.map((row) => row.join(',')).join('\n');
@@ -522,6 +525,147 @@ export function ReportsPage() {
                       ? `${t('reports.savingsRate')} ${((incomeStatementData.netIncome / incomeStatementData.totalIncome) * 100).toFixed(1)}%`
                       : '—'}
                   </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Charts Row: Donuts */}
+            <div className="grid gap-4 md:grid-cols-2 mb-6">
+              {/* Expense Donut */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">{t('reports.expenseBreakdown')}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {incomeStatementData.expenses.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">{t('reports.noExpenses')}</p>
+                  ) : (
+                    <div className="flex items-center gap-4">
+                      <ResponsiveContainer width={160} height={160}>
+                        <PieChart>
+                          <Pie
+                            data={incomeStatementData.expenses}
+                            dataKey="amount"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={48}
+                            outerRadius={76}
+                            paddingAngle={2}
+                          >
+                            {incomeStatementData.expenses.map((entry, index) => {
+                              const account = accounts.find(a => a.name === entry.name && a.account_type === 'Expense');
+                              return (
+                                <Cell
+                                  key={entry.name}
+                                  fill={account?.color || FALLBACK_COLORS[index % FALLBACK_COLORS.length]}
+                                  stroke="none"
+                                />
+                              );
+                            })}
+                          </Pie>
+                          <Tooltip
+                            formatter={(value, name) => [
+                              `¥${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                              name,
+                            ]}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="flex-1 space-y-1.5 max-h-[160px] overflow-y-auto">
+                        {incomeStatementData.expenses
+                          .sort((a, b) => b.amount - a.amount)
+                          .map((item, index) => {
+                            const account = accounts.find(a => a.name === item.name && a.account_type === 'Expense');
+                            const pct = incomeStatementData.totalExpenses > 0
+                              ? ((item.amount / incomeStatementData.totalExpenses) * 100).toFixed(1)
+                              : '0';
+                            return (
+                              <div key={item.name} className="flex items-center gap-2 text-xs">
+                                <span
+                                  className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
+                                  style={{ backgroundColor: account?.color || FALLBACK_COLORS[index % FALLBACK_COLORS.length] }}
+                                />
+                                <span className="truncate flex-1">
+                                  {account?.icon || ''} {item.name}
+                                </span>
+                                <span className="text-muted-foreground tabular-nums">¥{item.amount.toFixed(0)}</span>
+                                <span className="text-muted-foreground/60 w-10 text-right tabular-nums">{pct}%</span>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Income Donut */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">{t('reports.incomeBreakdown')}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {incomeStatementData.income.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">{t('reports.noIncome')}</p>
+                  ) : (
+                    <div className="flex items-center gap-4">
+                      <ResponsiveContainer width={160} height={160}>
+                        <PieChart>
+                          <Pie
+                            data={incomeStatementData.income}
+                            dataKey="amount"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={48}
+                            outerRadius={76}
+                            paddingAngle={2}
+                          >
+                            {incomeStatementData.income.map((entry, index) => {
+                              const account = accounts.find(a => a.name === entry.name && a.account_type === 'Income');
+                              return (
+                                <Cell
+                                  key={entry.name}
+                                  fill={account?.color || FALLBACK_COLORS_INCOME[index % FALLBACK_COLORS_INCOME.length]}
+                                  stroke="none"
+                                />
+                              );
+                            })}
+                          </Pie>
+                          <Tooltip
+                            formatter={(value, name) => [
+                              `¥${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                              name,
+                            ]}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="flex-1 space-y-1.5 max-h-[160px] overflow-y-auto">
+                        {incomeStatementData.income
+                          .sort((a, b) => b.amount - a.amount)
+                          .map((item, index) => {
+                            const account = accounts.find(a => a.name === item.name && a.account_type === 'Income');
+                            const pct = incomeStatementData.totalIncome > 0
+                              ? ((item.amount / incomeStatementData.totalIncome) * 100).toFixed(1)
+                              : '0';
+                            return (
+                              <div key={item.name} className="flex items-center gap-2 text-xs">
+                                <span
+                                  className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
+                                  style={{ backgroundColor: account?.color || FALLBACK_COLORS_INCOME[index % FALLBACK_COLORS_INCOME.length] }}
+                                />
+                                <span className="truncate flex-1">
+                                  {account?.icon || ''} {item.name}
+                                </span>
+                                <span className="text-muted-foreground tabular-nums">¥{item.amount.toFixed(0)}</span>
+                                <span className="text-muted-foreground/60 w-10 text-right tabular-nums">{pct}%</span>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
