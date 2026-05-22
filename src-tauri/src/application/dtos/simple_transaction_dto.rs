@@ -9,8 +9,8 @@ use uuid::Uuid;
 pub struct SimpleIncomeDto {
     pub date: NaiveDate,
     pub amount: Decimal,
-    pub account_id: Uuid,
-    pub category_id: String,
+    pub debit_account_id: Uuid,
+    pub credit_account_id: Uuid,
     pub description: String,
 }
 
@@ -20,8 +20,8 @@ pub struct SimpleIncomeDto {
 pub struct SimpleExpenseDto {
     pub date: NaiveDate,
     pub amount: Decimal,
-    pub account_id: Uuid,
-    pub category_id: String,
+    pub debit_account_id: Uuid,
+    pub credit_account_id: Uuid,
     pub description: String,
 }
 

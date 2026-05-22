@@ -202,7 +202,6 @@ impl TransactionService {
                 .map(|e| TransactionEntryDto {
                     account_id: e.account_id,
                     chart_of_account_code: e.chart_of_account_code.clone(),
-                    category_id: None,
                     debit_amount: e.debit_amount.as_ref().map(|m| m.amount.to_string()),
                     credit_amount: e.credit_amount.as_ref().map(|m| m.amount.to_string()),
                     currency_code: e.currency_code().unwrap_or("UNKNOWN").to_string(),

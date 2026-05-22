@@ -163,8 +163,8 @@ pub async fn get_transactions_by_date_range(
 #[tauri::command]
 pub async fn create_simple_income(
     state: State<'_, TransactionCommandState>,
-    account_id: String,
-    category_id: String,
+    debit_account_id: String,
+    credit_account_id: String,
     amount: String,
     date: String,
     description: String,
@@ -173,11 +173,12 @@ pub async fn create_simple_income(
 
     let amount = parse_amount(&amount)?;
     let date = parse_date(&date)?;
-    let account_id = parse_uuid(&account_id, "account_id")?;
+    let debit_account_id = parse_uuid(&debit_account_id, "debit_account_id")?;
+    let credit_account_id = parse_uuid(&credit_account_id, "credit_account_id")?;
 
     let dto = SimpleIncomeDto {
-        account_id,
-        category_id,
+        debit_account_id,
+        credit_account_id,
         amount,
         date,
         description,
@@ -194,8 +195,8 @@ pub async fn create_simple_income(
 #[tauri::command]
 pub async fn create_simple_expense(
     state: State<'_, TransactionCommandState>,
-    account_id: String,
-    category_id: String,
+    debit_account_id: String,
+    credit_account_id: String,
     amount: String,
     date: String,
     description: String,
@@ -204,11 +205,12 @@ pub async fn create_simple_expense(
 
     let amount = parse_amount(&amount)?;
     let date = parse_date(&date)?;
-    let account_id = parse_uuid(&account_id, "account_id")?;
+    let debit_account_id = parse_uuid(&debit_account_id, "debit_account_id")?;
+    let credit_account_id = parse_uuid(&credit_account_id, "credit_account_id")?;
 
     let dto = SimpleExpenseDto {
-        account_id,
-        category_id,
+        debit_account_id,
+        credit_account_id,
         amount,
         date,
         description,
