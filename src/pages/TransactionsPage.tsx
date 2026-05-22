@@ -179,7 +179,107 @@ export function TransactionsPage() {
         </Button>
       </div>
 
-      {/* Placeholder — full UI in Tasks 5 and 6 */}
+      {/* Period Selector */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <Button
+          variant={dateRangePreset === 'month' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setDateRangePreset('month')}
+        >
+          {t('reports.thisMonth')}
+        </Button>
+        <Button
+          variant={dateRangePreset === 'quarter' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setDateRangePreset('quarter')}
+        >
+          {t('reports.thisQuarter')}
+        </Button>
+        <Button
+          variant={dateRangePreset === 'year' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setDateRangePreset('year')}
+        >
+          {t('reports.thisYear')}
+        </Button>
+        <Button
+          variant={dateRangePreset === 'custom' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setDateRangePreset('custom')}
+        >
+          {t('reports.custom')}
+        </Button>
+        {dateRangePreset === 'custom' && (
+          <div className="flex items-center gap-2 ml-2">
+            <Input
+              type="date"
+              value={customStartDate}
+              onChange={(e) => setCustomStartDate(e.target.value)}
+              className="w-36 h-8 text-xs"
+            />
+            <span className="text-xs text-muted-foreground">—</span>
+            <Input
+              type="date"
+              value={customEndDate}
+              onChange={(e) => setCustomEndDate(e.target.value)}
+              className="w-36 h-8 text-xs"
+            />
+          </div>
+        )}
+        <span className="text-xs text-muted-foreground ml-2">
+          {dateRange.start && dateRange.end ? `${dateRange.start} — ${dateRange.end}` : ''}
+        </span>
+      </div>
+
+      {/* Filter Bar */}
+      <div className="flex flex-wrap items-center gap-3 mb-4 p-3 bg-muted/50 rounded-lg">
+        <div className="flex items-center gap-1">
+          {(['all', 'expense', 'income', 'transfer'] as const).map((filterType) => (
+            <Button
+              key={filterType}
+              variant={typeFilter === filterType ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setTypeFilter(filterType)}
+              className="text-xs h-7 px-2.5"
+            >
+              {filterType === 'all'
+                ? t('transactions.allTypes')
+                : filterType === 'expense'
+                  ? t('transaction.expense')
+                  : filterType === 'income'
+                    ? t('transaction.income')
+                    : t('transaction.transfer')}
+            </Button>
+          ))}
+        </div>
+        <div className="w-px h-5 bg-border" />
+        <Select value={accountFilter} onValueChange={(v) => setAccountFilter(v ?? 'all')}>
+          <SelectTrigger className="w-40 h-7 text-xs">
+            <SelectValue placeholder={t('transactions.allAccounts')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('transactions.allAccounts')}</SelectItem>
+            {externalAccounts.map((acct) => (
+              <SelectItem key={acct.id} value={acct.id}>{acct.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="w-px h-5 bg-border" />
+        <div className="relative flex-1 min-w-[180px] max-w-xs">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t('transactions.searchDescription')}
+            className="pl-7 h-7 text-xs"
+          />
+        </div>
+        <span className="text-xs text-muted-foreground ml-auto">
+          {t('transactions.resultCount', { count: filteredTransactions.length })}
+        </span>
+      </div>
+
+      {/* Table */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <div className="text-neutral-500">{t('transactions.loadingTransactions')}</div>
@@ -201,40 +301,80 @@ export function TransactionsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>{t('common.date')}</TableHead>
+                <TableHead className="w-[90px]">{t('transactions.type')}</TableHead>
                 <TableHead>{t('common.description')}</TableHead>
-                <TableHead className="text-right">{t('common.amount')}</TableHead>
+                <TableHead className="text-right w-[120px]">{t('common.amount')}</TableHead>
                 <TableHead>{t('transactions.accounts')}</TableHead>
+                <TableHead className="text-center w-[80px]">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredTransactions.map((transaction: TransactionDto) => (
-                <TableRow key={transaction.id}>
-                  <TableCell className="font-medium">
-                    {new Date(transaction.transaction_date).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                  </TableCell>
-                  <TableCell>{transaction.description}</TableCell>
-                  <TableCell className="text-right">
-                    {getTransactionAmount(transaction).toLocaleString('en-US', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </TableCell>
-                  <TableCell className="text-neutral-600">
-                    {getTransactionAccounts(transaction)}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {filteredTransactions.map((transaction) => {
+                const txType = getTransactionType(transaction);
+                const amount = getTransactionAmount(transaction);
+                return (
+                  <TableRow key={transaction.id}>
+                    <TableCell className="font-medium">
+                      {new Date(transaction.transaction_date).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </TableCell>
+                    <TableCell>
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getTypeBadgeClass(txType)}`}>
+                        {txType === 'expense'
+                          ? t('transaction.expense')
+                          : txType === 'income'
+                            ? t('transaction.income')
+                            : t('transaction.transfer')}
+                      </span>
+                    </TableCell>
+                    <TableCell>{transaction.description}</TableCell>
+                    <TableCell className={`text-right font-medium ${
+                      txType === 'expense' ? 'text-red-600' : txType === 'income' ? 'text-green-600' : ''
+                    }`}>
+                      {txType === 'expense' ? '-' : txType === 'income' ? '+' : ''}
+                      {amount.toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </TableCell>
+                    <TableCell className="text-neutral-600">
+                      {getTransactionAccounts(transaction)}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => {
+                          // Will be wired in Task 6
+                          setEditingTransaction(transaction);
+                          setIsSheetOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5 text-blue-500" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => setDeletingTransaction(transaction)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
       )}
 
-      {/* Add Sheet — simplified for now, will be enhanced in Task 6 */}
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+      {/* Add Sheet */}
+      <Sheet open={isSheetOpen && !editingTransaction} onOpenChange={(open) => { setIsSheetOpen(open); if (!open) setEditingTransaction(null); }}>
         <SheetContent side="right" className="w-full sm:max-w-lg">
           <SheetHeader>
             <SheetTitle>{t('transactions.recordTransaction')}</SheetTitle>
@@ -254,6 +394,88 @@ export function TransactionsPage() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Edit Sheet — shell only, handler will be added in Task 6 */}
+      <Sheet open={isSheetOpen && !!editingTransaction} onOpenChange={(open) => { setIsSheetOpen(open); if (!open) setEditingTransaction(null); }}>
+        <SheetContent side="right" className="w-full sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>{t('transactions.editTransaction')}</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto -mx-4 px-4">
+            {editingTransaction && (
+              <SimpleTransactionForm
+                accounts={accounts}
+                externalAccounts={externalAccounts}
+                initialData={(() => {
+                  const tx = editingTransaction;
+                  const txType = getTransactionType(tx);
+                  const amount = getTransactionAmount(tx).toFixed(2);
+                  if (txType === 'transfer') {
+                    const creditEntry = tx.entries.find(e => e.credit_amount);
+                    const debitEntry = tx.entries.find(e => e.debit_amount);
+                    return {
+                      type: 'transfer' as const,
+                      date: new Date(tx.transaction_date),
+                      amount,
+                      fromAccountId: creditEntry?.account_id || '',
+                      toAccountId: debitEntry?.account_id || '',
+                      description: tx.description,
+                    };
+                  }
+                  if (txType === 'expense') {
+                    const debitEntry = tx.entries.find(e => e.debit_amount);
+                    const creditEntry = tx.entries.find(e => e.credit_amount);
+                    return {
+                      type: 'expense' as const,
+                      date: new Date(tx.transaction_date),
+                      amount,
+                      debitAccountId: debitEntry?.account_id || '',
+                      creditAccountId: creditEntry?.account_id || '',
+                      description: tx.description,
+                    };
+                  }
+                  const debitEntry = tx.entries.find(e => e.debit_amount);
+                  const creditEntry = tx.entries.find(e => e.credit_amount);
+                  return {
+                    type: 'income' as const,
+                    date: new Date(tx.transaction_date),
+                    amount,
+                    debitAccountId: debitEntry?.account_id || '',
+                    creditAccountId: creditEntry?.account_id || '',
+                    description: tx.description,
+                  };
+                })()}
+                onSubmit={async () => {
+                  // Will be wired in Task 6
+                  setIsSheetOpen(false);
+                  setEditingTransaction(null);
+                  queryClient.invalidateQueries({ queryKey: ['transactions'] });
+                  queryClient.invalidateQueries({ queryKey: ['accounts'] });
+                }}
+                onCancel={() => { setIsSheetOpen(false); setEditingTransaction(null); }}
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Delete Confirmation Dialog — shell only, handler will be added in Task 6 */}
+      {deletingTransaction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-lg shadow-lg p-6 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold mb-2">{t('transactions.deleteTransaction')}</h3>
+            <p className="text-sm text-muted-foreground mb-6">{t('transactions.deleteConfirmDesc')}</p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setDeletingTransaction(null)}>
+                {t('common.cancel')}
+              </Button>
+              <Button variant="destructive" size="sm" onClick={() => setDeletingTransaction(null)}>
+                {t('common.delete')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
