@@ -251,7 +251,13 @@ export function SimpleTransactionForm({
           <div className="space-y-1.5">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t('transaction.account')}</Label>
             <Select value={effectiveAccountId} onValueChange={(v) => v && setAccountId(v)}>
-              <SelectTrigger className="h-9 w-full"><SelectValue placeholder={t('transaction.selectAccount')} /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue>
+                  {effectiveAccountId
+                    ? accounts.find(a => a.id === effectiveAccountId)?.name || effectiveAccountId
+                    : t('transaction.selectAccount')}
+                </SelectValue>
+              </SelectTrigger>
               <SelectContent>
                 {accounts.map((acct) => (
                   <SelectItem key={acct.id} value={acct.id}>{acct.name}</SelectItem>
@@ -262,13 +268,17 @@ export function SimpleTransactionForm({
           <div className="space-y-1.5">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t('transaction.category')}</Label>
             <Select value={effectiveCategoryId} onValueChange={(v) => v && setCategoryId(v)}>
-              <SelectTrigger className="h-9 w-full"><SelectValue placeholder={t('transaction.selectCategory')} /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue>
+                  {effectiveCategoryId
+                    ? filteredCategories.find(c => c.id === effectiveCategoryId)?.name || effectiveCategoryId
+                    : t('transaction.selectCategory')}
+                </SelectValue>
+              </SelectTrigger>
               <SelectContent>
-                {categories
-                  .filter((c) => c.category_type === (type === 'expense' ? 'Expense' : 'Income'))
-                  .map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                  ))}
+                {filteredCategories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -277,8 +287,14 @@ export function SimpleTransactionForm({
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t('transaction.fromAccount')}</Label>
-            <Select value={fromAccountId!} onValueChange={(v) => v && setFromAccountId(v)}>
-              <SelectTrigger className="h-9 w-full"><SelectValue placeholder={t('transaction.selectAccount')} /></SelectTrigger>
+            <Select value={fromAccountId} onValueChange={(v) => v && setFromAccountId(v)}>
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue>
+                  {fromAccountId
+                    ? accounts.find(a => a.id === fromAccountId)?.name || fromAccountId
+                    : t('transaction.selectAccount')}
+                </SelectValue>
+              </SelectTrigger>
               <SelectContent>
                 {accounts.map((acct) => (
                   <SelectItem key={acct.id} value={acct.id}>{acct.name}</SelectItem>
@@ -288,8 +304,14 @@ export function SimpleTransactionForm({
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t('transaction.toAccount')}</Label>
-            <Select value={toAccountId!} onValueChange={(v) => v && setToAccountId(v)}>
-              <SelectTrigger className="h-9 w-full"><SelectValue placeholder={t('transaction.selectAccount')} /></SelectTrigger>
+            <Select value={toAccountId} onValueChange={(v) => v && setToAccountId(v)}>
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue>
+                  {toAccountId
+                    ? accounts.find(a => a.id === toAccountId)?.name || toAccountId
+                    : t('transaction.selectAccount')}
+                </SelectValue>
+              </SelectTrigger>
               <SelectContent>
                 {accounts
                   .filter((acct) => acct.id !== fromAccountId)

@@ -108,6 +108,12 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
     Other: t('accountForm.otherWithChinese'),
   };
 
+  const currencyLabelMap: Record<string, string> = {
+    CNY: 'CNY (¥)',
+    USD: 'USD ($)',
+    EUR: 'EUR (€)',
+  };
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 px-5">
@@ -141,7 +147,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
                   {t('accountForm.accountType')} <span className="text-red-500">*</span>
                 </FormLabel>
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('accountForm.selectAccountType')} /></SelectTrigger></FormControl>
+                  <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('accountForm.selectAccountType')}>{field.value ? typeLabelMap[field.value] || field.value : null}</SelectValue></SelectTrigger></FormControl>
                   <SelectContent>
                     {(['Cash', 'Bank', 'CreditCard', 'Investment', 'Loan', 'Other'] as const).map((type) => (
                       <SelectItem key={type} value={type}>{typeLabelMap[type]}</SelectItem>
@@ -195,7 +201,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
                   <span className="text-muted-foreground/50 font-normal"> — optional</span>
                 </FormLabel>
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('accountForm.selectCurrency')} /></SelectTrigger></FormControl>
+                  <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('accountForm.selectCurrency')}>{field.value ? currencyLabelMap[field.value] || field.value : null}</SelectValue></SelectTrigger></FormControl>
                   <SelectContent>
                     <SelectItem value="CNY">CNY (¥)</SelectItem>
                     <SelectItem value="USD">USD ($)</SelectItem>

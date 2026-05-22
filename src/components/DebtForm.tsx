@@ -88,6 +88,18 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
   const [paymentPreview, setPaymentPreview] = useState<PaymentPreview[]>([]);
   const [repaymentMode, setRepaymentMode] = useState<'lump_sum' | 'installment'>('lump_sum');
 
+  const debtTypeLabelMap: Record<string, string> = {
+    BorrowedIn: t('debtForm.borrowedIn'),
+    BorrowedOut: t('debtForm.borrowedOut'),
+    CreditCard: t('debtForm.creditCard'),
+    Loan: t('debtForm.loan'),
+  };
+
+  const amortizationLabelMap: Record<string, string> = {
+    EqualPrincipalInterest: t('debtForm.equalPI'),
+    EqualPrincipal: t('debtForm.equalPrincipal'),
+  };
+
   const debtFormSchema = z.object({
     debt_type: z.enum(['BorrowedOut', 'BorrowedIn', 'CreditCard', 'Loan'], {
       required_error: t('debtForm.debtTypeRequired'),
@@ -311,7 +323,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
                   {t('debtForm.type')} <span className="text-red-500">*</span>
                 </FormLabel>
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('debtForm.selectDebtType')} /></SelectTrigger></FormControl>
+                  <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('debtForm.selectDebtType')}>{field.value ? debtTypeLabelMap[field.value] || field.value : null}</SelectValue></SelectTrigger></FormControl>
                   <SelectContent>
                     <SelectItem value="BorrowedIn">{t('debtForm.borrowedIn')}</SelectItem>
                     <SelectItem value="BorrowedOut">{t('debtForm.borrowedOut')}</SelectItem>
@@ -380,7 +392,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
                     {t('debtForm.periods')} <span className="text-red-500">*</span>
                   </FormLabel>
                   <Select value={field.value?.toString() || ''} onValueChange={(v) => field.onChange(parseInt(v))}>
-                    <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('debtForm.selectPeriods')} /></SelectTrigger></FormControl>
+                    <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('debtForm.selectPeriods')}>{field.value ? `${field.value} ${t('debtForm.months')}` : null}</SelectValue></SelectTrigger></FormControl>
                     <SelectContent>
                       {[3, 6, 12, 24, 36, 60].map((n) => (
                         <SelectItem key={n} value={n.toString()}>{n} {t('debtForm.months')}</SelectItem>
@@ -410,7 +422,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
                     {t('debtForm.amortizationMethod')}
                   </FormLabel>
                   <Select value={field.value || undefined} onValueChange={field.onChange}>
-                    <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('debtForm.selectAmortization')} /></SelectTrigger></FormControl>
+                    <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('debtForm.selectAmortization')}>{field.value ? amortizationLabelMap[field.value] || field.value : null}</SelectValue></SelectTrigger></FormControl>
                     <SelectContent>
                       <SelectItem value="EqualPrincipalInterest">{t('debtForm.equalPI')}</SelectItem>
                       <SelectItem value="EqualPrincipal">{t('debtForm.equalPrincipal')}</SelectItem>
