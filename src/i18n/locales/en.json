@@ -323,7 +323,9 @@
     "noExpenses": "No expenses found for this period",
     "totalExpenses": "Total Expenses",
     "netIncome": "Net Income (Income - Expenses)",
-    "incomeVsExpenses": "Income vs Expenses"
+    "incomeVsExpenses": "Income vs Expenses",
+    "categories": "categories",
+    "savingsRate": "Savings rate"
   },
   "sidebar": {
     "noOrganizations": "No organizations",

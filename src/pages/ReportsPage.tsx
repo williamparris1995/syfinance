@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { Download } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -205,13 +206,6 @@ export function ReportsPage() {
     });
     return Array.from(cats);
   }, [monthlyTrendData, accounts]);
-
-  const chartData = useMemo(() => {
-    return [
-      { name: t('reports.income'), amount: incomeStatementData.totalIncome },
-      { name: t('reports.expenses'), amount: incomeStatementData.totalExpenses },
-    ];
-  }, [incomeStatementData, t]);
 
   const downloadCSV = (data: string[][], filename: string) => {
     const csvContent = data.map((row) => row.join(',')).join('\n');
@@ -475,6 +469,63 @@ export function ReportsPage() {
           </TabsContent>
 
           <TabsContent value="income-statement" className="space-y-4">
+            {/* Summary Cards */}
+            <div className="grid gap-4 md:grid-cols-3 mb-6">
+              <Card className="bg-gradient-to-br from-emerald-50/50 to-card border-emerald-200/50 dark:from-emerald-950/20 dark:to-card dark:border-emerald-800/30">
+                <CardContent className="pt-4">
+                  <div className="text-xs uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1">
+                    {t('reports.income')}
+                  </div>
+                  <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+                    ¥{incomeStatementData.totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-xs text-emerald-600/70 dark:text-emerald-400/70 mt-1">
+                    {incomeStatementData.income.length} {t('reports.categories')}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-red-50/50 to-card border-red-200/50 dark:from-red-950/20 dark:to-card dark:border-red-800/30">
+                <CardContent className="pt-4">
+                  <div className="text-xs uppercase tracking-wider text-red-600 dark:text-red-400 mb-1">
+                    {t('reports.expenses')}
+                  </div>
+                  <div className="text-2xl font-bold text-red-700 dark:text-red-300">
+                    ¥{incomeStatementData.totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-xs text-red-600/70 dark:text-red-400/70 mt-1">
+                    {incomeStatementData.expenses.length} {t('reports.categories')}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className={cn(
+                "bg-gradient-to-br border to-card",
+                incomeStatementData.netIncome >= 0
+                  ? "from-blue-50/50 border-blue-200/50 dark:from-blue-950/20 dark:border-blue-800/30"
+                  : "from-amber-50/50 border-amber-200/50 dark:from-amber-950/20 dark:border-amber-800/30"
+              )}>
+                <CardContent className="pt-4">
+                  <div className="text-xs uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1">
+                    {t('reports.netIncome')}
+                  </div>
+                  <div className={cn(
+                    "text-2xl font-bold",
+                    incomeStatementData.netIncome >= 0
+                      ? "text-blue-700 dark:text-blue-300"
+                      : "text-amber-700 dark:text-amber-300"
+                  )}>
+                    ¥{incomeStatementData.netIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-1">
+                    {incomeStatementData.totalIncome > 0
+                      ? `${t('reports.savingsRate')} ${((incomeStatementData.netIncome / incomeStatementData.totalIncome) * 100).toFixed(1)}%`
+                      : '—'}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -593,7 +644,10 @@ export function ReportsPage() {
                     <div className="mt-6">
                       <h3 className="text-lg font-semibold mb-3">{t('reports.incomeVsExpenses')}</h3>
                       <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={chartData}>
+                        <BarChart data={[
+                          { name: t('reports.income'), amount: incomeStatementData.totalIncome },
+                          { name: t('reports.expenses'), amount: incomeStatementData.totalExpenses },
+                        ]}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="name" />
                           <YAxis />

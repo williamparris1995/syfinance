@@ -254,7 +254,9 @@
     "expenses": "支出",
     "noExpenses": "此期间未找到支出",
     "totalExpenses": "总支出",
-    "netIncome": "净收入 (收入 - 支出)"
+    "netIncome": "净收入 (收入 - 支出)",
+    "categories": "个分类",
+    "savingsRate": "结余率"
   },
   "sidebar": {
     "noOrganizations": "暂无组织",
