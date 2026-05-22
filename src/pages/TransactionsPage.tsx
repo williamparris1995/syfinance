@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { SimpleTransactionForm, type TransactionFormData } from '../components/SimpleTransactionForm';
@@ -46,6 +46,7 @@ export function TransactionsPage() {
   const [deletingTransaction, setDeletingTransaction] = useState<TransactionDto | null>(null);
   const [inlineEditId, setInlineEditId] = useState<string | null>(null);
   const [inlineEditValue, setInlineEditValue] = useState('');
+  const inlineEditEscapeRef = useRef(false);
 
   // Period selector state
   const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('month');
@@ -324,7 +325,7 @@ export function TransactionsPage() {
       setEditingTransaction(null);
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
-      toast.success(t('transactions.descriptionUpdated'));
+      toast.success(t('transactions.recorded'));
     } catch (error) {
       toast.error(String(error));
     }
@@ -528,10 +529,19 @@ export function TransactionsPage() {
                         <Input
                           value={inlineEditValue}
                           onChange={(e) => setInlineEditValue(e.target.value)}
-                          onBlur={() => handleInlineSave(transaction)}
+                          onBlur={() => {
+                            if (inlineEditEscapeRef.current) {
+                              inlineEditEscapeRef.current = false;
+                              return;
+                            }
+                            handleInlineSave(transaction);
+                          }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') handleInlineSave(transaction);
-                            if (e.key === 'Escape') setInlineEditId(null);
+                            if (e.key === 'Escape') {
+                              inlineEditEscapeRef.current = true;
+                              setInlineEditId(null);
+                            }
                           }}
                           className="h-7 text-sm border-2 border-blue-500"
                           autoFocus
