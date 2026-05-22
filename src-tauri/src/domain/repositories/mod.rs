@@ -2,7 +2,7 @@ mod debt_repository;
 mod reminder_repository;
 
 use crate::domain::aggregates::{
-    Account, AccountType, Category, CategoryType, ChartOfAccounts, ChartOfAccountsType, Transaction,
+    Account, AccountType, ChartOfAccounts, ChartOfAccountsType, Transaction,
 };
 use crate::domain::value_objects::Currency;
 use chrono::{DateTime, NaiveDate, Utc};
@@ -85,19 +85,3 @@ pub trait ChartOfAccountsRepository: Send + Sync {
     async fn list_all(&self) -> sqlx::Result<Vec<ChartOfAccounts>>;
 }
 
-#[allow(async_fn_in_trait, dead_code)]
-pub trait CategoryRepository: Send + Sync {
-    async fn create(&self, category: &Category) -> sqlx::Result<()>;
-
-    async fn update(&self, category: &Category) -> sqlx::Result<bool>;
-
-    async fn find_by_id(&self, id: &str) -> sqlx::Result<Option<Category>>;
-
-    async fn find_all(&self) -> sqlx::Result<Vec<Category>>;
-
-    async fn find_by_type(&self, category_type: CategoryType) -> sqlx::Result<Vec<Category>>;
-
-    async fn find_by_parent(&self, parent_id: Option<&str>) -> sqlx::Result<Vec<Category>>;
-
-    async fn soft_delete(&self, id: &str) -> sqlx::Result<bool>;
-}

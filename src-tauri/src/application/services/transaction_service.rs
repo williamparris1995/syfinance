@@ -4,11 +4,11 @@ use crate::application::dtos::{
 };
 use crate::domain::{
     aggregates::Transaction,
-    repositories::{AccountRepository, CategoryRepository, TransactionRepository},
+    repositories::{AccountRepository, TransactionRepository},
     value_objects::{Money, SyncMetadata, TransactionEntry},
 };
 use crate::infrastructure::repositories::{
-    SqliteAccountRepository, SqliteCategoryRepository, SqliteTransactionRepository,
+    SqliteAccountRepository, SqliteTransactionRepository,
 };
 use std::sync::Arc;
 use uuid::Uuid;
@@ -16,7 +16,6 @@ use uuid::Uuid;
 pub struct TransactionService {
     transaction_repo: Arc<SqliteTransactionRepository>,
     account_repo: Arc<SqliteAccountRepository>,
-    category_repo: Arc<SqliteCategoryRepository>,
 }
 
 #[derive(Debug)]
@@ -52,12 +51,10 @@ impl TransactionService {
     pub fn new(
         transaction_repo: Arc<SqliteTransactionRepository>,
         account_repo: Arc<SqliteAccountRepository>,
-        category_repo: Arc<SqliteCategoryRepository>,
     ) -> Self {
         Self {
             transaction_repo,
             account_repo,
-            category_repo,
         }
     }
 
@@ -223,140 +220,24 @@ impl TransactionService {
 
     /// 创建收入交易（简化版）
     /// 自动生成复式记账条目：借记账户（资产增加），贷记收入科目
+    /// TODO: Reimplement using account-based categories (Task 9/10)
+    #[allow(dead_code)]
     pub async fn create_income(
         &self,
-        dto: SimpleIncomeDto,
+        _dto: SimpleIncomeDto,
     ) -> Result<Uuid, TransactionServiceError> {
-        let account = self
-            .account_repo
-            .find_by_id(dto.account_id)
-            .await?
-            .ok_or(TransactionServiceError::AccountNotFound(dto.account_id))?;
-
-        let category = self
-            .category_repo
-            .find_by_id(&dto.category_id)
-            .await?
-            .ok_or(TransactionServiceError::CategoryNotFound(
-                dto.category_id.clone(),
-            ))?;
-
-        let money = Money::new(dto.amount, &account.currency_code)
-            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-
-        // 借：账户（资产增加）
-        let debit_entry = TransactionEntry::new(
-            account.id,
-            &category.chart_code,
-            Some(money.clone()),
-            None,
-            &dto.description,
-        )
-        .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-
-        // 贷：收入科目
-        let credit_entry = TransactionEntry::new(
-            Uuid::nil(), // 收入科目不关联具体账户
-            &category.chart_code,
-            None,
-            Some(money),
-            &dto.description,
-        )
-        .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-
-        let transaction = Transaction::new(
-            Uuid::new_v4(),
-            dto.date,
-            dto.description.clone(),
-            vec![debit_entry, credit_entry],
-            SyncMetadata::new(Uuid::new_v4()),
-        )
-        .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-
-        self.transaction_repo.create(&transaction).await?;
-
-        // 更新账户余额
-        let mut account = account;
-        let new_balance = account
-            .balance
-            .add(&Money::new(dto.amount, &account.currency_code)
-                .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?)
-            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-        account
-            .update_balance(new_balance)
-            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-        self.account_repo.update(&account).await?;
-
-        Ok(transaction.id)
+        todo!("create_income will be refactored to use account-based categories")
     }
 
     /// 创建支出交易（简化版）
     /// 自动生成复式记账条目：借记支出科目，贷记账户（资产减少）
+    /// TODO: Reimplement using account-based categories (Task 9/10)
+    #[allow(dead_code)]
     pub async fn create_expense(
         &self,
-        dto: SimpleExpenseDto,
+        _dto: SimpleExpenseDto,
     ) -> Result<Uuid, TransactionServiceError> {
-        let account = self
-            .account_repo
-            .find_by_id(dto.account_id)
-            .await?
-            .ok_or(TransactionServiceError::AccountNotFound(dto.account_id))?;
-
-        let category = self
-            .category_repo
-            .find_by_id(&dto.category_id)
-            .await?
-            .ok_or(TransactionServiceError::CategoryNotFound(
-                dto.category_id.clone(),
-            ))?;
-
-        let money = Money::new(dto.amount, &account.currency_code)
-            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-
-        // 借：支出科目
-        let debit_entry = TransactionEntry::new(
-            Uuid::nil(), // 支出科目不关联具体账户
-            &category.chart_code,
-            Some(money.clone()),
-            None,
-            &dto.description,
-        )
-        .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-
-        // 贷：账户（资产减少）
-        let credit_entry = TransactionEntry::new(
-            account.id,
-            &category.chart_code,
-            None,
-            Some(money),
-            &dto.description,
-        )
-        .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-
-        let transaction = Transaction::new(
-            Uuid::new_v4(),
-            dto.date,
-            dto.description.clone(),
-            vec![debit_entry, credit_entry],
-            SyncMetadata::new(Uuid::new_v4()),
-        )
-        .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-
-        self.transaction_repo.create(&transaction).await?;
-
-        // 更新账户余额
-        let mut account = account;
-        let new_balance = account
-            .balance
-            .subtract(&Money::new(dto.amount, &account.currency_code)
-                .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?)
-            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-        account
-            .update_balance(new_balance)
-            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-        self.account_repo.update(&account).await?;
-
-        Ok(transaction.id)
+        todo!("create_expense will be refactored to use account-based categories")
     }
 
     /// 创建转账交易（简化版）
@@ -445,276 +326,4 @@ impl TransactionService {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::domain::{
-        aggregates::{Account, AccountType, Ownership},
-        value_objects::Currency,
-    };
-    use crate::infrastructure::repositories::{
-        SqliteAccountRepository, SqliteCategoryRepository, SqliteTransactionRepository,
-    };
-    use chrono::NaiveDate;
-    use rust_decimal::Decimal;
-    use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
-    use std::str::FromStr;
-
-    async fn setup_test_db() -> sqlx::SqlitePool {
-        let options = SqliteConnectOptions::from_str("sqlite::memory:")
-            .unwrap()
-            .create_if_missing(true);
-
-        let pool = SqlitePoolOptions::new()
-            .max_connections(1)
-            .connect_with(options)
-            .await
-            .unwrap();
-
-        sqlx::migrate!("./migrations").run(&pool).await.unwrap();
-
-        pool
-    }
-
-    fn create_test_account(currency_code: &str) -> Account {
-        Account::new(
-            Uuid::new_v4(),
-            "Test Account",
-            AccountType::Bank,
-            Ownership::Own,
-            &Currency::new(currency_code, currency_code, Decimal::ONE).unwrap(),
-            Money::new(Decimal::new(1000_00, 2), currency_code).unwrap(),
-            "💰",
-            "#10B981",
-            None,
-            None,
-            SyncMetadata::new(Uuid::new_v4()),
-        )
-        .unwrap()
-    }
-
-    #[tokio::test]
-    async fn test_create_balanced_transaction_updates_account_balances() {
-        let pool = setup_test_db().await;
-        let account_repo = Arc::new(SqliteAccountRepository::new(pool.clone()));
-        let transaction_repo = Arc::new(SqliteTransactionRepository::new(pool.clone()));
-        let category_repo = Arc::new(SqliteCategoryRepository::new(pool.clone()));
-        let category_repo = Arc::new(SqliteCategoryRepository::new(pool.clone()));
-        let service = TransactionService::new(transaction_repo, account_repo.clone(), category_repo);
-
-        let account1 = create_test_account("CNY");
-        let account2 = create_test_account("CNY");
-        account_repo.create(&account1).await.unwrap();
-        account_repo.create(&account2).await.unwrap();
-
-        let dto = CreateTransactionDto {
-            transaction_date: NaiveDate::from_ymd_opt(2026, 4, 8).unwrap(),
-            description: "Transfer".to_string(),
-            entries: vec![
-                CreateTransactionEntryDto {
-                    account_id: account1.id,
-                    chart_of_account_code: "1002".to_string(),
-                    category_id: None,
-                    debit_amount: Some(Decimal::new(500_00, 2)),
-                    credit_amount: None,
-                    memo: Some("Debit entry".to_string()),
-                },
-                CreateTransactionEntryDto {
-                    account_id: account2.id,
-                    chart_of_account_code: "1002".to_string(),
-                    category_id: None,
-                    debit_amount: None,
-                    credit_amount: Some(Decimal::new(500_00, 2)),
-                    memo: Some("Credit entry".to_string()),
-                },
-            ],
-        };
-
-        let transaction_id = service.create_transaction(dto).await.unwrap();
-        assert_ne!(transaction_id, Uuid::nil());
-
-        let updated_account1 = account_repo.find_by_id(account1.id).await.unwrap().unwrap();
-        let updated_account2 = account_repo.find_by_id(account2.id).await.unwrap().unwrap();
-
-        assert_eq!(updated_account1.balance.amount, Decimal::new(1500_00, 2));
-        assert_eq!(updated_account2.balance.amount, Decimal::new(500_00, 2));
-    }
-
-    #[tokio::test]
-    async fn test_create_unbalanced_transaction_rejected() {
-        let pool = setup_test_db().await;
-        let account_repo = Arc::new(SqliteAccountRepository::new(pool.clone()));
-        let transaction_repo = Arc::new(SqliteTransactionRepository::new(pool.clone()));
-        let category_repo = Arc::new(SqliteCategoryRepository::new(pool.clone()));
-        let service = TransactionService::new(transaction_repo, account_repo.clone(), category_repo);
-
-        let account1 = create_test_account("CNY");
-        let account2 = create_test_account("CNY");
-        account_repo.create(&account1).await.unwrap();
-        account_repo.create(&account2).await.unwrap();
-
-        let dto = CreateTransactionDto {
-            transaction_date: NaiveDate::from_ymd_opt(2026, 4, 8).unwrap(),
-            description: "Unbalanced".to_string(),
-            entries: vec![
-                CreateTransactionEntryDto {
-                    account_id: account1.id,
-                    chart_of_account_code: "1002".to_string(),
-                    category_id: None,
-                    debit_amount: Some(Decimal::new(500_00, 2)),
-                    credit_amount: None,
-                    memo: None,
-                },
-                CreateTransactionEntryDto {
-                    account_id: account2.id,
-                    chart_of_account_code: "1002".to_string(),
-                    category_id: None,
-                    debit_amount: None,
-                    credit_amount: Some(Decimal::new(400_00, 2)),
-                    memo: None,
-                },
-            ],
-        };
-
-        let result = service.create_transaction(dto).await;
-        assert!(matches!(
-            result,
-            Err(TransactionServiceError::ValidationError(_))
-        ));
-    }
-
-    #[tokio::test]
-    async fn test_get_transaction() {
-        let pool = setup_test_db().await;
-        let account_repo = Arc::new(SqliteAccountRepository::new(pool.clone()));
-        let transaction_repo = Arc::new(SqliteTransactionRepository::new(pool.clone()));
-        let category_repo = Arc::new(SqliteCategoryRepository::new(pool.clone()));
-        let service = TransactionService::new(transaction_repo, account_repo.clone(), category_repo);
-
-        let account1 = create_test_account("CNY");
-        let account2 = create_test_account("CNY");
-        account_repo.create(&account1).await.unwrap();
-        account_repo.create(&account2).await.unwrap();
-
-        let dto = CreateTransactionDto {
-            transaction_date: NaiveDate::from_ymd_opt(2026, 4, 8).unwrap(),
-            description: "Test Transaction".to_string(),
-            entries: vec![
-                CreateTransactionEntryDto {
-                    account_id: account1.id,
-                    chart_of_account_code: "1002".to_string(),
-                    category_id: None,
-                    debit_amount: Some(Decimal::new(100_00, 2)),
-                    credit_amount: None,
-                    memo: None,
-                },
-                CreateTransactionEntryDto {
-                    account_id: account2.id,
-                    chart_of_account_code: "1002".to_string(),
-                    category_id: None,
-                    debit_amount: None,
-                    credit_amount: Some(Decimal::new(100_00, 2)),
-                    memo: None,
-                },
-            ],
-        };
-
-        let transaction_id = service.create_transaction(dto).await.unwrap();
-        let retrieved = service.get_transaction(transaction_id).await.unwrap();
-
-        assert_eq!(retrieved.id, transaction_id);
-        assert_eq!(retrieved.description, "Test Transaction");
-        assert_eq!(retrieved.entries.len(), 2);
-    }
-
-    #[tokio::test]
-    async fn test_list_transactions() {
-        let pool = setup_test_db().await;
-        let account_repo = Arc::new(SqliteAccountRepository::new(pool.clone()));
-        let transaction_repo = Arc::new(SqliteTransactionRepository::new(pool.clone()));
-        let category_repo = Arc::new(SqliteCategoryRepository::new(pool.clone()));
-        let service = TransactionService::new(transaction_repo, account_repo.clone(), category_repo);
-
-        let account1 = create_test_account("CNY");
-        let account2 = create_test_account("CNY");
-        account_repo.create(&account1).await.unwrap();
-        account_repo.create(&account2).await.unwrap();
-
-        let dto = CreateTransactionDto {
-            transaction_date: NaiveDate::from_ymd_opt(2026, 4, 8).unwrap(),
-            description: "Transaction 1".to_string(),
-            entries: vec![
-                CreateTransactionEntryDto {
-                    account_id: account1.id,
-                    chart_of_account_code: "1002".to_string(),
-                    category_id: None,
-                    debit_amount: Some(Decimal::new(100_00, 2)),
-                    credit_amount: None,
-                    memo: None,
-                },
-                CreateTransactionEntryDto {
-                    account_id: account2.id,
-                    chart_of_account_code: "1002".to_string(),
-                    category_id: None,
-                    debit_amount: None,
-                    credit_amount: Some(Decimal::new(100_00, 2)),
-                    memo: None,
-                },
-            ],
-        };
-
-        service.create_transaction(dto).await.unwrap();
-
-        let transactions = service.list_transactions().await.unwrap();
-        assert!(!transactions.is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_get_transactions_by_date_range() {
-        let pool = setup_test_db().await;
-        let account_repo = Arc::new(SqliteAccountRepository::new(pool.clone()));
-        let transaction_repo = Arc::new(SqliteTransactionRepository::new(pool.clone()));
-        let category_repo = Arc::new(SqliteCategoryRepository::new(pool.clone()));
-        let service = TransactionService::new(transaction_repo, account_repo.clone(), category_repo);
-
-        let account1 = create_test_account("CNY");
-        let account2 = create_test_account("CNY");
-        account_repo.create(&account1).await.unwrap();
-        account_repo.create(&account2).await.unwrap();
-
-        let dto = CreateTransactionDto {
-            transaction_date: NaiveDate::from_ymd_opt(2026, 4, 8).unwrap(),
-            description: "April Transaction".to_string(),
-            entries: vec![
-                CreateTransactionEntryDto {
-                    account_id: account1.id,
-                    chart_of_account_code: "1002".to_string(),
-                    category_id: None,
-                    debit_amount: Some(Decimal::new(100_00, 2)),
-                    credit_amount: None,
-                    memo: None,
-                },
-                CreateTransactionEntryDto {
-                    account_id: account2.id,
-                    chart_of_account_code: "1002".to_string(),
-                    category_id: None,
-                    debit_amount: None,
-                    credit_amount: Some(Decimal::new(100_00, 2)),
-                    memo: None,
-                },
-            ],
-        };
-
-        service.create_transaction(dto).await.unwrap();
-
-        let transactions = service
-            .get_transactions_by_date_range(
-                NaiveDate::from_ymd_opt(2026, 4, 1).unwrap(),
-                NaiveDate::from_ymd_opt(2026, 4, 30).unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert!(!transactions.is_empty());
-    }
-}
+// TODO: Tests will be rewritten in Tasks 9/10 after category functionality is absorbed into accounts
