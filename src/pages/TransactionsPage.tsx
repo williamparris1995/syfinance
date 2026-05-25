@@ -8,7 +8,9 @@ import { Input } from '../components/ui/input';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
@@ -56,7 +58,8 @@ export function TransactionsPage() {
 
   // Filter state
   const [typeFilter, setTypeFilter] = useState<TransactionType_>('all');
-  const [accountFilter, setAccountFilter] = useState<string>('all');
+  const [ownAccountFilter, setOwnAccountFilter] = useState<string[]>([]);
+  const [externalAccountFilter, setExternalAccountFilter] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   const queryClient = useQueryClient();
@@ -71,6 +74,11 @@ export function TransactionsPage() {
     queryKey: ['accounts', 'external'],
     queryFn: () => listAccountsByOwnership('external'),
   });
+
+  const ownAccounts = useMemo(
+    () => accounts.filter((a) => a.ownership === 'own'),
+    [accounts],
+  );
 
   const dateRange = useMemo(() => {
     const now = new Date();
@@ -157,9 +165,13 @@ export function TransactionsPage() {
     if (typeFilter !== 'all') {
       result = result.filter(tx => getTransactionType(tx) === typeFilter);
     }
-    if (accountFilter !== 'all') {
-      result = result.filter(tx =>
-        tx.entries.some(e => e.account_id === accountFilter)
+    if (ownAccountFilter.length > 0 || externalAccountFilter.length > 0) {
+      result = result.filter((tx) =>
+        tx.entries.some(
+          (e) =>
+            (ownAccountFilter.length === 0 || ownAccountFilter.includes(e.account_id)) ||
+            (externalAccountFilter.length === 0 || externalAccountFilter.includes(e.account_id)),
+        ),
       );
     }
     if (searchQuery.trim()) {
@@ -169,7 +181,7 @@ export function TransactionsPage() {
       );
     }
     return result;
-  }, [transactions, typeFilter, accountFilter, searchQuery]);
+  }, [transactions, typeFilter, ownAccountFilter, externalAccountFilter, searchQuery]);
 
   const getEditInitialData = (tx: TransactionDto): TransactionFormData => {
     const txType = getTransactionType(tx);
@@ -454,15 +466,28 @@ export function TransactionsPage() {
           ))}
         </div>
         <div className="w-px h-5 bg-border" />
-        <Select value={accountFilter} onValueChange={(v) => setAccountFilter(v ?? 'all')}>
+        <Select value={ownAccountFilter[0] ?? externalAccountFilter[0] ?? 'all'} onValueChange={(v) => { const val = v ?? 'all'; if (val === 'all') { setOwnAccountFilter([]); setExternalAccountFilter([]); } else { setOwnAccountFilter([val]); setExternalAccountFilter([]); } }}>
           <SelectTrigger className="w-40 h-7 text-xs">
             <SelectValue placeholder={t('transactions.allAccounts')} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t('transactions.allAccounts')}</SelectItem>
-            {externalAccounts.map((acct) => (
-              <SelectItem key={acct.id} value={acct.id}>{acct.name}</SelectItem>
-            ))}
+            {accounts.length > 0 && (
+              <SelectGroup>
+                <SelectLabel>{t('transactions.ownAccounts')}</SelectLabel>
+                {accounts.map((acct) => (
+                  <SelectItem key={acct.id} value={acct.id}>{acct.name}</SelectItem>
+                ))}
+              </SelectGroup>
+            )}
+            {externalAccounts.length > 0 && (
+              <SelectGroup>
+                <SelectLabel>{t('transactions.externalAccounts')}</SelectLabel>
+                {externalAccounts.map((acct) => (
+                  <SelectItem key={acct.id} value={acct.id}>{acct.name}</SelectItem>
+                ))}
+              </SelectGroup>
+            )}
           </SelectContent>
         </Select>
         <div className="w-px h-5 bg-border" />
