@@ -232,6 +232,7 @@ export function AccountsPage() {
           <div className="flex-1 overflow-y-auto -mx-4 px-4">
             {editingAccount && (
               <AccountForm
+                mode="edit"
                 initialData={editingAccount}
                 onSubmit={handleEditSubmit}
                 onCancel={() => { setIsSheetOpen(false); setEditingAccount(null); }}
