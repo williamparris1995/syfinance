@@ -63,14 +63,45 @@ impl<R: AccountRepository, U: CurrencyRepository> AccountService<R, U> {
             .await?
             .ok_or(AccountServiceError::AccountNotFound(id))?;
 
-        if let Some(name) = dto.name {
-            account.change_name(name)?;
+        if !dto.name.is_empty() {
+            account.change_name(&dto.name)?;
         }
 
-        if let Some(balance_amount) = dto.balance {
-            let balance = Money::new(balance_amount, &account.currency_code)
+        {
+            let balance = Money::new(dto.balance, &account.currency_code)
                 .map_err(|e| AccountServiceError::InvalidMoney(e.to_string()))?;
             account.update_balance(balance)?;
+        }
+
+        if let Some(icon) = dto.icon {
+            account.update_icon(icon)?;
+        }
+        if let Some(color) = dto.color {
+            account.update_color(color)?;
+        }
+        if let Some(account_number) = dto.account_number {
+            account.update_account_number(Some(account_number))?;
+        }
+        if let Some(institution) = dto.institution {
+            account.update_institution(Some(institution))?;
+        }
+        if let Some(credit_limit) = dto.credit_limit {
+            account.update_credit_limit(Some(credit_limit))?;
+        }
+        if let Some(billing_day) = dto.billing_day {
+            account.update_billing_day(Some(billing_day))?;
+        }
+        if let Some(payment_due_day) = dto.payment_due_day {
+            account.update_payment_due_day(Some(payment_due_day))?;
+        }
+        if let Some(interest_rate) = dto.interest_rate {
+            account.update_interest_rate(Some(interest_rate))?;
+        }
+        if let Some(chart_code) = dto.chart_code {
+            account.update_chart_code(Some(chart_code))?;
+        }
+        if let Some(parent_id) = dto.parent_id {
+            account.update_parent_id(Some(parent_id))?;
         }
 
         self.account_repo.update(&account).await?;
@@ -368,8 +399,19 @@ mod tests {
         let created = service.create_account((), create_dto).await.unwrap();
 
         let update_dto = UpdateAccountDto {
-            name: Some("New Name".to_string()),
-            balance: None,
+            name: "New Name".to_string(),
+            balance: Decimal::new(10000, 2),
+            icon: None,
+            color: None,
+            currency_code: None,
+            account_number: None,
+            institution: None,
+            credit_limit: None,
+            billing_day: None,
+            payment_due_day: None,
+            interest_rate: None,
+            chart_code: None,
+            parent_id: None,
         };
 
         let result = service.update_account((), created.id, update_dto).await;

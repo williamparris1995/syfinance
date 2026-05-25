@@ -211,6 +211,126 @@ impl Account {
         Ok(())
     }
 
+    pub fn update_icon(&mut self, icon: impl Into<String>) -> Result<(), AccountError> {
+        self.ensure_not_deleted()?;
+        self.icon = icon.into().trim().to_string();
+        self.touch();
+        Ok(())
+    }
+
+    pub fn update_color(&mut self, color: impl Into<String>) -> Result<(), AccountError> {
+        self.ensure_not_deleted()?;
+        self.color = color.into().trim().to_string();
+        self.touch();
+        Ok(())
+    }
+
+    pub fn update_currency_code(&mut self, currency_code: String) -> Result<(), AccountError> {
+        self.ensure_not_deleted()?;
+        if currency_code != self.currency_code {
+            return Err(AccountError::CurrencyMismatch {
+                expected: self.currency_code.clone(),
+                actual: currency_code,
+            });
+        }
+        Ok(())
+    }
+
+    pub fn update_account_number(
+        &mut self,
+        account_number: Option<String>,
+    ) -> Result<(), AccountError> {
+        self.ensure_not_deleted()?;
+        self.account_number = account_number;
+        self.touch();
+        Ok(())
+    }
+
+    pub fn update_institution(&mut self, institution: Option<String>) -> Result<(), AccountError> {
+        self.ensure_not_deleted()?;
+        self.institution = institution;
+        self.touch();
+        Ok(())
+    }
+
+    pub fn update_credit_limit(
+        &mut self,
+        credit_limit: Option<Decimal>,
+    ) -> Result<(), AccountError> {
+        self.ensure_not_deleted()?;
+        self.credit_limit = credit_limit
+            .map(|amount| Money::new(amount, &self.currency_code))
+            .transpose()
+            .map_err(|e| AccountError::CurrencyMismatch {
+                expected: self.currency_code.clone(),
+                actual: e.to_string(),
+            })?;
+        self.touch();
+        Ok(())
+    }
+
+    pub fn update_billing_day(&mut self, billing_day: Option<i32>) -> Result<(), AccountError> {
+        self.ensure_not_deleted()?;
+        if let Some(day) = billing_day {
+            if !(1..=31).contains(&day) {
+                return Err(AccountError::InvalidBillingDay);
+            }
+            self.billing_day = Some(day as u8);
+        } else {
+            self.billing_day = None;
+        }
+        self.touch();
+        Ok(())
+    }
+
+    pub fn update_payment_due_day(
+        &mut self,
+        payment_due_day: Option<i32>,
+    ) -> Result<(), AccountError> {
+        self.ensure_not_deleted()?;
+        if let Some(day) = payment_due_day {
+            if !(1..=31).contains(&day) {
+                return Err(AccountError::InvalidPaymentDueDay);
+            }
+            self.payment_due_day = Some(day as u8);
+        } else {
+            self.payment_due_day = None;
+        }
+        self.touch();
+        Ok(())
+    }
+
+    pub fn update_interest_rate(
+        &mut self,
+        interest_rate: Option<Decimal>,
+    ) -> Result<(), AccountError> {
+        self.ensure_not_deleted()?;
+        if let Some(rate) = interest_rate {
+            if rate < Decimal::ZERO {
+                return Err(AccountError::InvalidInterestRate);
+            }
+            self.interest_rate = Some(rate);
+        } else {
+            self.interest_rate = None;
+        }
+        self.touch();
+        Ok(())
+    }
+
+    pub fn update_chart_code(&mut self, chart_code: Option<String>) -> Result<(), AccountError> {
+        self.ensure_not_deleted()?;
+        self.chart_code = chart_code;
+        self.touch();
+        Ok(())
+    }
+
+    pub fn update_parent_id(&mut self, parent_id: Option<Uuid>) -> Result<(), AccountError> {
+        self.ensure_not_deleted()?;
+        self.parent_id = parent_id;
+        self.touch();
+        Ok(())
+    }
+
     pub fn soft_delete(&mut self) -> Result<(), AccountError> {
         self.ensure_not_deleted()?;
         self.sync_metadata.mark_deleted();
@@ -444,6 +564,199 @@ mod tests {
                 account.soft_delete().unwrap();
 
                 assert!(account.sync_metadata.is_deleted());
+            }
+
+            #[test]
+            fn update_icon_changes_icon_and_touches_metadata() {
+                let mut account = Account::new(
+                    Uuid::new_v4(),
+                    "Wallet",
+                    AccountType::Bank,
+                    Ownership::Own,
+                    &currency("CNY"),
+                    money(100, "CNY"),
+                    "💰",
+                    "#10B981",
+                    None,
+                    None,
+                    metadata(),
+                )
+                .unwrap();
+
+                let before = account.sync_metadata.updated_at;
+                account.update_icon("💳").unwrap();
+
+                assert_eq!(account.icon, "💳");
+                assert!(account.sync_metadata.updated_at >= before);
+                assert!(account.sync_metadata.synced_at.is_none());
+            }
+
+            #[test]
+            fn update_color_changes_color() {
+                let mut account = Account::new(
+                    Uuid::new_v4(),
+                    "Wallet",
+                    AccountType::Bank,
+                    Ownership::Own,
+                    &currency("CNY"),
+                    money(100, "CNY"),
+                    "💰",
+                    "#10B981",
+                    None,
+                    None,
+                    metadata(),
+                )
+                .unwrap();
+
+                account.update_color("#EF4444").unwrap();
+                assert_eq!(account.color, "#EF4444");
+            }
+
+            #[test]
+            fn update_currency_code_rejects_mismatch() {
+                let mut account = Account::new(
+                    Uuid::new_v4(),
+                    "Wallet",
+                    AccountType::Bank,
+                    Ownership::Own,
+                    &currency("CNY"),
+                    money(100, "CNY"),
+                    "💰",
+                    "#10B981",
+                    None,
+                    None,
+                    metadata(),
+                )
+                .unwrap();
+
+                let result = account.update_currency_code("USD".to_string());
+                assert!(result.is_err());
+            }
+
+            #[test]
+            fn update_billing_day_rejects_out_of_range() {
+                let mut account = Account::new(
+                    Uuid::new_v4(),
+                    "Wallet",
+                    AccountType::Bank,
+                    Ownership::Own,
+                    &currency("CNY"),
+                    money(100, "CNY"),
+                    "💰",
+                    "#10B981",
+                    None,
+                    None,
+                    metadata(),
+                )
+                .unwrap();
+
+                assert!(account.update_billing_day(Some(32)).is_err());
+                assert!(account.update_billing_day(Some(0)).is_err());
+                assert!(account.update_billing_day(Some(15)).is_ok());
+                assert_eq!(account.billing_day, Some(15));
+            }
+
+            #[test]
+            fn update_payment_due_day_rejects_out_of_range() {
+                let mut account = Account::new(
+                    Uuid::new_v4(),
+                    "Wallet",
+                    AccountType::Bank,
+                    Ownership::Own,
+                    &currency("CNY"),
+                    money(100, "CNY"),
+                    "💰",
+                    "#10B981",
+                    None,
+                    None,
+                    metadata(),
+                )
+                .unwrap();
+
+                assert!(account.update_payment_due_day(Some(32)).is_err());
+                assert!(account.update_payment_due_day(Some(1)).is_ok());
+            }
+
+            #[test]
+            fn update_interest_rate_rejects_negative() {
+                let mut account = Account::new(
+                    Uuid::new_v4(),
+                    "Wallet",
+                    AccountType::Bank,
+                    Ownership::Own,
+                    &currency("CNY"),
+                    money(100, "CNY"),
+                    "💰",
+                    "#10B981",
+                    None,
+                    None,
+                    metadata(),
+                )
+                .unwrap();
+
+                assert!(
+                    account
+                        .update_interest_rate(Some(Decimal::new(-1, 2)))
+                        .is_err()
+                );
+                assert!(account.update_interest_rate(Some(Decimal::new(5, 1))).is_ok());
+                assert_eq!(account.interest_rate, Some(Decimal::new(5, 1)));
+            }
+
+            #[test]
+            fn update_credit_limit_stores_money_value() {
+                let mut account = Account::new(
+                    Uuid::new_v4(),
+                    "Visa",
+                    AccountType::CreditCard,
+                    Ownership::Own,
+                    &currency("CNY"),
+                    money(-100, "CNY"),
+                    "💳",
+                    "#10B981",
+                    None,
+                    None,
+                    metadata(),
+                )
+                .unwrap();
+
+                account
+                    .update_credit_limit(Some(Decimal::new(50000, 2)))
+                    .unwrap();
+                assert_eq!(
+                    account.credit_limit.as_ref().unwrap().amount,
+                    Decimal::new(50000, 2)
+                );
+                assert_eq!(
+                    account.credit_limit.as_ref().unwrap().currency_code,
+                    "CNY"
+                );
+            }
+
+            #[test]
+            fn setters_reject_on_deleted_account() {
+                let mut account = Account::new(
+                    Uuid::new_v4(),
+                    "Wallet",
+                    AccountType::Bank,
+                    Ownership::Own,
+                    &currency("CNY"),
+                    money(100, "CNY"),
+                    "💰",
+                    "#10B981",
+                    None,
+                    None,
+                    metadata(),
+                )
+                .unwrap();
+
+                account.soft_delete().unwrap();
+
+                assert!(account.update_icon("x").is_err());
+                assert!(account.update_color("x").is_err());
+                assert!(account.update_billing_day(Some(1)).is_err());
+                assert!(account.update_payment_due_day(Some(1)).is_err());
+                assert!(account.update_interest_rate(Some(Decimal::ONE)).is_err());
             }
         }
 

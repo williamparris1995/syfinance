@@ -1,7 +1,7 @@
 use crate::domain::value_objects::SyncMetadata;
 use chrono::{DateTime, Duration, Months, Timelike, Utc};
 use serde::{Deserialize, Serialize};
-use std::{error::Error, fmt};
+use std::{error::Error, fmt, str::FromStr};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -12,6 +12,29 @@ pub enum ReminderType {
     Custom,
 }
 
+impl ReminderType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::DebtPayment => "debt_payment",
+            Self::BillDue => "bill_due",
+            Self::Custom => "custom",
+        }
+    }
+}
+
+impl FromStr for ReminderType {
+    type Err = ReminderError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "debt_payment" => Ok(Self::DebtPayment),
+            "bill_due" => Ok(Self::BillDue),
+            "custom" => Ok(Self::Custom),
+            _ => Err(ReminderError::InvalidReminderType(s.to_string())),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RepeatPattern {
@@ -19,6 +42,31 @@ pub enum RepeatPattern {
     Weekly,
     Monthly,
     Yearly,
+}
+
+impl RepeatPattern {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Daily => "daily",
+            Self::Weekly => "weekly",
+            Self::Monthly => "monthly",
+            Self::Yearly => "yearly",
+        }
+    }
+}
+
+impl FromStr for RepeatPattern {
+    type Err = ReminderError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "daily" => Ok(Self::Daily),
+            "weekly" => Ok(Self::Weekly),
+            "monthly" => Ok(Self::Monthly),
+            "yearly" => Ok(Self::Yearly),
+            _ => Err(ReminderError::InvalidRepeatPattern(s.to_string())),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
