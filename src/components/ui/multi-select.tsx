@@ -24,6 +24,7 @@ export function MultiSelect({
   const [open, setOpen] = React.useState(false)
 
   const allSelected = options.length > 0 && value.length === options.length
+  const indeterminate = value.length > 0 && !allSelected
 
   const handleToggle = (id: string) => {
     if (id === "__all__") {
@@ -49,6 +50,7 @@ export function MultiSelect({
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger
+        aria-label={placeholder}
         className={cn(
           "flex h-7 w-fit items-center justify-between gap-1 rounded-lg border border-input bg-transparent py-1 pr-1.5 pl-2.5 text-xs whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 min-w-[120px] max-w-[180px]",
           className,
@@ -80,6 +82,7 @@ export function MultiSelect({
             <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent">
               <Checkbox.Root
                 checked={allSelected}
+                indeterminate={indeterminate}
                 onCheckedChange={() => handleToggle("__all__")}
                 className="flex size-4 shrink-0 items-center justify-center rounded border border-input data-[checked]:bg-primary data-[checked]:text-primary-foreground"
               >
