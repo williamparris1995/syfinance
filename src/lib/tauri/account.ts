@@ -48,7 +48,8 @@ export interface AccountDto {
   chart_code?: string | null;
   parent_id?: string | null;
   currency_code: string;
-  balance: number;
+  initial_balance: number;
+  current_balance: number;
   account_number?: string;
   institution?: string;
   credit_limit?: number;
@@ -82,3 +83,6 @@ export const listAccountsByOwnership = (ownership: 'own' | 'external') =>
 
 export const getAccountBalance = (id: string) =>
   invokeTauri<AccountBalanceDto>('get_account_balance', { id });
+
+export const listAccountsWithBalances = () =>
+  invokeTauri<AccountDto[]>('list_accounts_with_balances');
