@@ -64,13 +64,14 @@ interface AccountFormProps {
   onCancel: () => void;
   isLoading?: boolean;
   initialData?: AccountDto;
+  mode?: 'create' | 'edit';
 }
 
-export function AccountForm({ onSubmit, onCancel, isLoading, initialData }: AccountFormProps) {
+export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode = 'create' }: AccountFormProps) {
   const { t } = useTranslation();
   const accountFormSchema = createAccountFormSchema(t);
   type AccountFormValues = z.infer<typeof accountFormSchema>;
-  const isEditMode = !!initialData;
+  const isEditMode = mode === 'edit';
 
   const form = useForm<AccountFormValues>({
     resolver: zodResolver(accountFormSchema),
