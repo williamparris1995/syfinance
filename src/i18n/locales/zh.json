@@ -110,6 +110,7 @@
     "currency": "货币",
     "selectCurrency": "选择货币",
     "initialBalance": "初始余额",
+    "currentBalance": "当前余额",
     "creditCardNote": "信用卡:输入您欠的金额(正数)",
     "accountNumber": "账号(可选)",
     "accountNumberPlaceholder": "例如:1234567890",

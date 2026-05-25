@@ -108,6 +108,7 @@
     "currency": "Currency",
     "selectCurrency": "Select currency",
     "initialBalance": "Initial Balance",
+    "currentBalance": "Current Balance",
     "creditCardNote": "For credit cards: enter the amount you owe (positive number)",
     "accountNumber": "Account Number (Optional)",
     "accountNumberPlaceholder": "e.g., 1234567890",
