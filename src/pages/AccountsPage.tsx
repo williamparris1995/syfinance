@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Copy, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
@@ -41,6 +41,7 @@ export function AccountsPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editingAccount, setEditingAccount] = useState<AccountDto | null>(null);
+  const [copyingAccount, setCopyingAccount] = useState<AccountDto | null>(null);
   const queryClient = useQueryClient();
   const { t } = useTranslation();
 
@@ -104,6 +105,7 @@ export function AccountsPage() {
 
   const handleCreateClick = () => {
     setEditingAccount(null);
+    setCopyingAccount(null);
     setIsSheetOpen(true);
   };
 
@@ -115,6 +117,12 @@ export function AccountsPage() {
 
   const handleEditClick = (account: AccountDto) => {
     setEditingAccount(account);
+    setIsSheetOpen(true);
+  };
+
+  const handleCopyClick = (account: AccountDto) => {
+    setEditingAccount(null);
+    setCopyingAccount(account);
     setIsSheetOpen(true);
   };
 
@@ -172,6 +180,14 @@ export function AccountsPage() {
                     <Button
                       variant="ghost"
                       size="sm"
+                      onClick={() => handleCopyClick(account)}
+                      title={t('accounts.copyToCreate')}
+                    >
+                      <Copy className="h-4 w-4 text-gray-500" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleEditClick(account)}
                     >
                       <Pencil className="h-4 w-4 text-blue-500" />
@@ -191,15 +207,16 @@ export function AccountsPage() {
         </div>
       )}
 
-      <Sheet open={isSheetOpen && !editingAccount} onOpenChange={(open) => { setIsSheetOpen(open); if (!open) setEditingAccount(null); }}>
+      <Sheet open={isSheetOpen && !editingAccount} onOpenChange={(open) => { setIsSheetOpen(open); if (!open) { setEditingAccount(null); setCopyingAccount(null); } }}>
         <SheetContent side="right" className="w-full sm:max-w-lg">
           <SheetHeader>
-            <SheetTitle>{t('accounts.createAccount')}</SheetTitle>
+            <SheetTitle>{copyingAccount ? t('accounts.copyToCreate') : t('accounts.createAccount')}</SheetTitle>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto -mx-4 px-4">
             <AccountForm
+              initialData={copyingAccount ?? undefined}
               onSubmit={handleCreateAccount}
-              onCancel={() => { setIsSheetOpen(false); setEditingAccount(null); }}
+              onCancel={() => { setIsSheetOpen(false); setEditingAccount(null); setCopyingAccount(null); }}
               isLoading={createMutation.isPending}
             />
           </div>
