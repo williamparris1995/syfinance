@@ -304,9 +304,19 @@ impl AccountRepository for SqliteAccountRepository {
         let result = sqlx::query(
             r#"
             UPDATE accounts
-            SET 
+            SET
                 name = ?,
                 balance = ?,
+                icon = ?,
+                color = ?,
+                chart_code = ?,
+                parent_id = ?,
+                account_number = ?,
+                institution = ?,
+                credit_limit = ?,
+                billing_day = ?,
+                payment_due_day = ?,
+                interest_rate = ?,
                 updated_at = ?,
                 deleted_at = ?,
                 device_id = ?,
@@ -316,6 +326,16 @@ impl AccountRepository for SqliteAccountRepository {
         )
         .bind(&account.name)
         .bind(account.balance.amount.to_string())
+        .bind(&account.icon)
+        .bind(&account.color)
+        .bind(&account.chart_code)
+        .bind(account.parent_id.map(|id| id.to_string()))
+        .bind(&account.account_number)
+        .bind(&account.institution)
+        .bind(account.credit_limit.as_ref().map(|m| m.amount.to_string()))
+        .bind(account.billing_day.map(|d| d as i32))
+        .bind(account.payment_due_day.map(|d| d as i32))
+        .bind(account.interest_rate.map(|r| r.to_string()))
         .bind(account.sync_metadata.updated_at.to_rfc3339())
         .bind(account.sync_metadata.deleted_at.map(|dt| dt.to_rfc3339()))
         .bind(account.sync_metadata.device_id.to_string())

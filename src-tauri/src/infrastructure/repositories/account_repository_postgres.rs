@@ -229,25 +229,45 @@ impl AccountRepository for PostgresAccountRepository {
             SET
                 name = $1,
                 balance = $2,
-                updated_at = $3,
-                deleted_at = $4,
-                device_id = $5,
-                synced_at = $6
-            WHERE id = $7
+                icon = $3,
+                color = $4,
+                chart_code = $5,
+                parent_id = $6,
+                account_number = $7,
+                institution = $8,
+                credit_limit = $9,
+                billing_day = $10,
+                payment_due_day = $11,
+                interest_rate = $12,
+                updated_at = $13,
+                deleted_at = $14,
+                device_id = $15,
+                synced_at = $16
+            WHERE id = $17
             RETURNING id
             "#,
         )
         .bind(&account.name)
-        .bind(account.balance.amount)
-        .bind(account.sync_metadata.updated_at)
-        .bind(account.sync_metadata.deleted_at)
-        .bind(account.sync_metadata.device_id)
-        .bind(account.sync_metadata.synced_at)
-        .bind(account.id)
-        .fetch_optional(&self.pool)
+        .bind(account.balance.amount.to_string())
+        .bind(&account.icon)
+        .bind(&account.color)
+        .bind(&account.chart_code)
+        .bind(account.parent_id.map(|id| id.to_string()))
+        .bind(&account.account_number)
+        .bind(&account.institution)
+        .bind(account.credit_limit.as_ref().map(|m| m.amount.to_string()))
+        .bind(account.billing_day.map(|d| d as i32))
+        .bind(account.payment_due_day.map(|d| d as i32))
+        .bind(account.interest_rate.map(|r| r.to_string()))
+        .bind(account.sync_metadata.updated_at.to_rfc3339())
+        .bind(account.sync_metadata.deleted_at.map(|dt| dt.to_rfc3339()))
+        .bind(account.sync_metadata.device_id.to_string())
+        .bind(account.sync_metadata.synced_at.map(|dt| dt.to_rfc3339()))
+        .bind(account.id.to_string())
+        .execute(&self.pool)
         .await?;
 
-        Ok(result.is_some())
+        Ok(result.rows_affected() > 0)
     }
 
     async fn soft_delete(&self, id: Uuid) -> sqlx::Result<bool> {
