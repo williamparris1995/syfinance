@@ -23,8 +23,19 @@ export interface CreateAccountDto {
 }
 
 export interface UpdateAccountDto {
-  name?: string;
-  balance?: number;
+  name: string;
+  balance: number;
+  icon?: string;
+  color?: string;
+  currency_code?: string;
+  account_number?: string;
+  institution?: string;
+  credit_limit?: number;
+  billing_day?: number;
+  payment_due_day?: number;
+  interest_rate?: number;
+  chart_code?: string;
+  parent_id?: string;
 }
 
 export interface AccountDto {
