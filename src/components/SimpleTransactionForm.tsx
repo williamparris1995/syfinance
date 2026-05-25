@@ -33,6 +33,7 @@ interface SimpleTransactionFormProps {
   onSubmit: (data: TransactionFormData) => Promise<void>;
   onCancel: () => void;
   initialData?: TransactionFormData;  // pre-fill for edit mode
+  mode?: 'create' | 'edit';
 }
 
 export interface TransactionFormData {
@@ -53,6 +54,7 @@ export function SimpleTransactionForm({
   onSubmit,
   onCancel,
   initialData,
+  mode = 'create',
 }: SimpleTransactionFormProps) {
   const { t } = useTranslation();
   const [type, setType] = useState<'income' | 'expense' | 'transfer'>(
@@ -148,7 +150,7 @@ export function SimpleTransactionForm({
       const day = String(date.getDate()).padStart(2, '0');
       const dateStr = `${year}-${month}-${day}`;
 
-      if (!initialData) {
+      if (mode !== 'edit') {
         if (type === 'income') {
           await createSimpleIncome({
             debitAccountId: ownAccountId,
@@ -177,7 +179,7 @@ export function SimpleTransactionForm({
       }
 
       // Reset form fields (only in create mode)
-      if (!initialData) {
+      if (mode !== 'edit') {
         setAmount('');
         setFromAccountId('');
         setToAccountId('');
