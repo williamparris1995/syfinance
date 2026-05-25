@@ -71,7 +71,8 @@
     "accountCreated": "Account created successfully",
     "accountDeleted": "Account deleted successfully",
     "editAccount": "Edit Account",
-    "accountUpdated": "Account updated"
+    "accountUpdated": "Account updated",
+    "copyToCreate": "Copy to New Account"
   },
   "accountForm": {
     "accountName": "Account Name",
@@ -164,7 +165,8 @@
     "resultCount_one": "{{count}} transaction",
     "resultCount_other": "{{count}} transactions",
     "dialogTitle": "Record Transaction",
-    "dialogDesc": "Create a new transaction with balanced debits and credits."
+    "dialogDesc": "Create a new transaction with balanced debits and credits.",
+    "copyToCreate": "Copy to New Transaction"
   },
   "transaction": {
     "expense": "Expense",

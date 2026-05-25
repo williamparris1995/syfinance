@@ -74,7 +74,8 @@
     "accountCreated": "账户创建成功",
     "accountDeleted": "账户删除成功",
     "editAccount": "编辑账户",
-    "accountUpdated": "账户已更新"
+    "accountUpdated": "账户已更新",
+    "copyToCreate": "复制为新账户"
   },
   "accountForm": {
     "accountName": "账户名称",
@@ -166,7 +167,8 @@
     "descriptionUpdated": "描述已更新",
     "resultCount": "{{count}} 笔交易",
     "dialogTitle": "记录交易",
-    "dialogDesc": "创建借贷平衡的新交易"
+    "dialogDesc": "创建借贷平衡的新交易",
+    "copyToCreate": "复制为新交易"
   },
   "transaction": {
     "expense": "支出",
