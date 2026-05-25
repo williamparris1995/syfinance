@@ -113,7 +113,7 @@ pub struct Account {
     pub account_type: AccountType,
     pub ownership: Ownership,
     pub currency_code: String,
-    pub balance: Money,
+    pub initial_balance: Money,
     pub icon: String,
     pub color: String,
     pub chart_code: Option<String>,
@@ -136,7 +136,7 @@ impl Account {
         account_type: AccountType,
         ownership: Ownership,
         currency: &Currency,
-        balance: Money,
+        initial_balance: Money,
         icon: impl Into<String>,
         color: impl Into<String>,
         chart_code: Option<String>,
@@ -151,7 +151,7 @@ impl Account {
             return Err(AccountError::EmptyName);
         }
 
-        validate_balance(&account_type, &currency.code, &balance)?;
+        validate_balance(&account_type, &currency.code, &initial_balance)?;
 
         let mut account = Self {
             id,
@@ -159,7 +159,7 @@ impl Account {
             account_type: account_type.clone(),
             ownership,
             currency_code: currency.code.clone(),
-            balance,
+            initial_balance,
             icon,
             color,
             chart_code,
@@ -182,17 +182,17 @@ impl Account {
         Ok(account)
     }
 
-    pub fn update_balance(&mut self, balance: Money) -> Result<(), AccountError> {
+    pub fn update_initial_balance(&mut self, initial_balance: Money) -> Result<(), AccountError> {
         self.ensure_not_deleted()?;
-        validate_balance(&self.account_type, &self.currency_code, &balance)?;
+        validate_balance(&self.account_type, &self.currency_code, &initial_balance)?;
 
-        let previous_balance = self.balance.clone();
-        self.balance = balance.clone();
+        let previous_balance = self.initial_balance.clone();
+        self.initial_balance = initial_balance.clone();
         self.touch();
         self.pending_events.push(AccountEvent::BalanceUpdated {
             account_id: self.id,
             previous_balance,
-            new_balance: balance,
+            new_balance: initial_balance,
         });
 
         Ok(())
@@ -453,7 +453,7 @@ mod tests {
                 );
 
                 assert!(result.is_ok());
-                assert_eq!(result.unwrap().balance.amount, Decimal::new(-100, 2));
+                assert_eq!(result.unwrap().initial_balance.amount, Decimal::new(-100, 2));
             }
 
             #[test]
@@ -517,7 +517,7 @@ mod tests {
                 )
                 .unwrap();
 
-                let result = account.update_balance(money(100, "USD"));
+                let result = account.update_initial_balance(money(100, "USD"));
 
                 assert!(matches!(result, Err(AccountError::CurrencyMismatch { .. })));
             }
@@ -539,9 +539,9 @@ mod tests {
                 )
                 .unwrap();
 
-                account.update_balance(money(-500, "CNY")).unwrap();
+                account.update_initial_balance(money(-500, "CNY")).unwrap();
 
-                assert_eq!(account.balance.amount, Decimal::new(-500, 2));
+                assert_eq!(account.initial_balance.amount, Decimal::new(-500, 2));
             }
 
             #[test]
@@ -788,7 +788,7 @@ mod tests {
                     if *event_id == account_id
                 ));
 
-                account.update_balance(money(250, "CNY")).unwrap();
+                account.update_initial_balance(money(250, "CNY")).unwrap();
 
                 let balance_events = account.pull_events();
                 assert!(matches!(
