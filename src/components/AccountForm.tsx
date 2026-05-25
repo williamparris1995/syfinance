@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import type { AccountType, CreateAccountDto, Ownership } from '@/lib/tauri/account';
+import type { AccountType, AccountDto, CreateAccountDto, UpdateAccountDto, Ownership } from '@/lib/tauri/account';
 
 const createAccountFormSchema = (t: (key: string) => string) => z.object({
   name: z.string().min(1, t('accountForm.nameRequired')),
@@ -60,41 +60,81 @@ const createAccountFormSchema = (t: (key: string) => string) => z.object({
 });
 
 interface AccountFormProps {
-  onSubmit: (data: CreateAccountDto) => void;
+  onSubmit: (data: CreateAccountDto | { id: string; dto: UpdateAccountDto }) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  initialData?: AccountDto;
 }
 
-export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps) {
+export function AccountForm({ onSubmit, onCancel, isLoading, initialData }: AccountFormProps) {
   const { t } = useTranslation();
   const accountFormSchema = createAccountFormSchema(t);
   type AccountFormValues = z.infer<typeof accountFormSchema>;
-  
+  const isEditMode = !!initialData;
+
   const form = useForm<AccountFormValues>({
     resolver: zodResolver(accountFormSchema),
-    defaultValues: {
-      name: '',
-      account_type: 'Bank',
-      ownership: 'own',
-      currency_code: 'CNY',
-      initial_balance: '0.00',
-      account_number: '',
-      institution: '',
-      credit_limit: '',
-      billing_day: '',
-      payment_due_day: '',
-      interest_rate: '',
-      icon: '📁',
-      color: '#6B7280',
-      chart_code: '',
-      parent_id: undefined as string | undefined,
-    },
+    defaultValues: initialData
+      ? {
+          name: initialData.name,
+          account_type: initialData.account_type,
+          ownership: initialData.ownership,
+          currency_code: initialData.currency_code,
+          initial_balance: String(initialData.balance),
+          account_number: initialData.account_number ?? '',
+          institution: initialData.institution ?? '',
+          credit_limit: initialData.credit_limit != null ? String(initialData.credit_limit) : '',
+          billing_day: initialData.billing_day != null ? String(initialData.billing_day) : '',
+          payment_due_day: initialData.payment_due_day != null ? String(initialData.payment_due_day) : '',
+          interest_rate: initialData.interest_rate != null ? String(initialData.interest_rate) : '',
+          icon: initialData.icon || '📁',
+          color: initialData.color || '#6B7280',
+          chart_code: initialData.chart_code ?? '',
+          parent_id: initialData.parent_id ?? undefined as string | undefined,
+        }
+      : {
+          name: '',
+          account_type: 'Bank',
+          ownership: 'own',
+          currency_code: 'CNY',
+          initial_balance: '0.00',
+          account_number: '',
+          institution: '',
+          credit_limit: '',
+          billing_day: '',
+          payment_due_day: '',
+          interest_rate: '',
+          icon: '📁',
+          color: '#6B7280',
+          chart_code: '',
+          parent_id: undefined as string | undefined,
+        },
   });
 
   const accountType = form.watch('account_type');
   const ownership = form.watch('ownership');
 
   const handleSubmit = (values: AccountFormValues) => {
+    if (isEditMode && initialData) {
+      const dto: UpdateAccountDto = {
+        name: values.name,
+        balance: parseFloat(values.initial_balance),
+      };
+
+      if (values.icon) dto.icon = values.icon || '📁';
+      if (values.color) dto.color = values.color || '#6B7280';
+      if (values.account_number) dto.account_number = values.account_number;
+      if (values.institution) dto.institution = values.institution;
+      if (values.credit_limit) dto.credit_limit = parseFloat(values.credit_limit);
+      if (values.billing_day) dto.billing_day = parseInt(values.billing_day);
+      if (values.payment_due_day) dto.payment_due_day = parseInt(values.payment_due_day);
+      if (values.interest_rate) dto.interest_rate = parseFloat(values.interest_rate);
+      if (values.chart_code) dto.chart_code = values.chart_code;
+
+      onSubmit({ id: initialData.id, dto });
+      return;
+    }
+
     const dto: CreateAccountDto = {
       name: values.name,
       account_type: values.account_type as AccountType,
@@ -105,7 +145,6 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
       color: values.color || '#6B7280',
     };
 
-    // Add optional fields if provided
     if (values.chart_code) dto.chart_code = values.chart_code;
     if (values.parent_id) dto.parent_id = values.parent_id;
     if (values.account_number) dto.account_number = values.account_number;
@@ -152,24 +191,28 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => field.onChange('own')}
+                    onClick={() => !isEditMode && field.onChange('own')}
+                    disabled={isEditMode}
                     className={cn(
                       "flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all",
                       field.value === 'own'
                         ? "bg-emerald-50 border-emerald-300 text-emerald-700 dark:bg-emerald-950 dark:border-emerald-700 dark:text-emerald-400"
-                        : "bg-background border-input text-muted-foreground hover:text-foreground"
+                        : "bg-background border-input text-muted-foreground hover:text-foreground",
+                      isEditMode && "opacity-50 cursor-not-allowed"
                     )}
                   >
                     🏠 自己账户
                   </button>
                   <button
                     type="button"
-                    onClick={() => field.onChange('external')}
+                    onClick={() => !isEditMode && field.onChange('external')}
+                    disabled={isEditMode}
                     className={cn(
                       "flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all",
                       field.value === 'external'
                         ? "bg-amber-50 border-amber-300 text-amber-700 dark:bg-amber-950 dark:border-amber-700 dark:text-amber-400"
-                        : "bg-background border-input text-muted-foreground hover:text-foreground"
+                        : "bg-background border-input text-muted-foreground hover:text-foreground",
+                      isEditMode && "opacity-50 cursor-not-allowed"
                     )}
                   >
                     🌐 外部账户
@@ -207,7 +250,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
                 <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
                   {t('accountForm.accountType')} <span className="text-red-500">*</span>
                 </FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select value={field.value} onValueChange={field.onChange} disabled={isEditMode}>
                   <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('accountForm.selectAccountType')}>{field.value ? typeLabelMap[field.value] || field.value : null}</SelectValue></SelectTrigger></FormControl>
                   <SelectContent>
                     {ownership === 'own'
@@ -450,7 +493,11 @@ export function AccountForm({ onSubmit, onCancel, isLoading }: AccountFormProps)
             {t('common.cancel')}
           </Button>
           <Button type="submit" variant="default-gradient" disabled={isLoading}>
-            {isLoading ? t('accountForm.creating') : t('accountForm.createAccount')}
+            {isLoading
+              ? t('common.saving')
+              : isEditMode
+                ? t('common.save')
+                : t('accountForm.createAccount')}
           </Button>
         </div>
       </form>
