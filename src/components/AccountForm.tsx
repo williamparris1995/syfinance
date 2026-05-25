@@ -377,7 +377,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData }: Acco
                   {t('accountForm.currency')}
                   <span className="text-muted-foreground/50 font-normal"> — optional</span>
                 </FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select value={field.value} onValueChange={field.onChange} disabled={isEditMode}>
                   <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('accountForm.selectCurrency')}>{field.value ? currencyLabelMap[field.value] || field.value : null}</SelectValue></SelectTrigger></FormControl>
                   <SelectContent>
                     <SelectItem value="CNY">CNY (¥)</SelectItem>

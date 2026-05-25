@@ -63,9 +63,7 @@ impl<R: AccountRepository, U: CurrencyRepository> AccountService<R, U> {
             .await?
             .ok_or(AccountServiceError::AccountNotFound(id))?;
 
-        if !dto.name.is_empty() {
-            account.change_name(&dto.name)?;
-        }
+        account.change_name(&dto.name)?;
 
         {
             let balance = Money::new(dto.balance, &account.currency_code)
@@ -419,6 +417,57 @@ mod tests {
         assert!(result.is_ok());
         let updated = result.unwrap();
         assert_eq!(updated.name, "New Name");
+    }
+
+    #[tokio::test]
+    async fn test_update_account_all_fields() {
+        let account_repo = Arc::new(MockAccountRepository::new());
+        let currency_repo = Arc::new(MockCurrencyRepository::new());
+        let service = AccountService::new(account_repo.clone(), currency_repo);
+
+        let create_dto = CreateAccountDto {
+            name: "Visa Card".to_string(),
+            account_type: AccountType::CreditCard,
+            ownership: Ownership::Own,
+            currency_code: "CNY".to_string(),
+            initial_balance: Decimal::new(-100, 2),
+            icon: "💳".to_string(),
+            color: "#10B981".to_string(),
+            chart_code: None,
+            parent_id: None,
+        };
+
+        let created = service.create_account((), create_dto).await.unwrap();
+
+        let update_dto = UpdateAccountDto {
+            name: "Visa Platinum".to_string(),
+            balance: Decimal::new(-500, 2),
+            icon: Some("💰".to_string()),
+            color: Some("#EF4444".to_string()),
+            currency_code: None,
+            account_number: Some("****1234".to_string()),
+            institution: Some("ICBC".to_string()),
+            credit_limit: Some(Decimal::new(50000, 2)),
+            billing_day: Some(5),
+            payment_due_day: Some(25),
+            interest_rate: None,
+            chart_code: None,
+            parent_id: None,
+        };
+
+        let result = service.update_account((), created.id, update_dto).await;
+
+        assert!(result.is_ok());
+        let updated = result.unwrap();
+        assert_eq!(updated.name, "Visa Platinum");
+        assert_eq!(updated.balance, Decimal::new(-500, 2));
+        assert_eq!(updated.icon, "💰");
+        assert_eq!(updated.color, "#EF4444");
+        assert_eq!(updated.account_number, Some("****1234".to_string()));
+        assert_eq!(updated.institution, Some("ICBC".to_string()));
+        assert_eq!(updated.credit_limit, Some(Decimal::new(50000, 2)));
+        assert_eq!(updated.billing_day, Some(5));
+        assert_eq!(updated.payment_due_day, Some(25));
     }
 
     #[tokio::test]
