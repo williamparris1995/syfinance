@@ -81,7 +81,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
           account_type: initialData.account_type,
           ownership: initialData.ownership,
           currency_code: initialData.currency_code,
-          initial_balance: String(initialData.balance),
+          initial_balance: String(initialData.initial_balance),
           account_number: initialData.account_number ?? '',
           institution: initialData.institution ?? '',
           credit_limit: initialData.credit_limit != null ? String(initialData.credit_limit) : '',
@@ -269,28 +269,53 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="initial_balance"
-              render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
-                  {t('accountForm.initialBalance')}
-                </FormLabel>
-                <FormControl>
-                  <div className="flex items-center rounded-lg border overflow-hidden h-9">
-                    <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">¥</span>
-                    <input
-                      className="flex-1 border-0 bg-transparent px-2.5 text-sm outline-none"
-                      placeholder="0.00"
-                      {...field}
-                    />
+            {isEditMode && initialData ? (
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {t('accountForm.currentBalance')}
                   </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-              )}
-            />
+                  <div className="flex items-center rounded-lg border bg-muted/30 h-9 px-3">
+                    <span className="text-sm font-medium">
+                      ¥{initialData.current_balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {t('accountForm.initialBalance')}
+                  </div>
+                  <div className="flex items-center rounded-lg border bg-muted/30 h-9 px-3">
+                    <span className="text-sm font-medium">
+                      ¥{initialData.initial_balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <FormField
+                control={form.control}
+                name="initial_balance"
+                render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {t('accountForm.initialBalance')}
+                  </FormLabel>
+                  <FormControl>
+                    <div className="flex items-center rounded-lg border overflow-hidden h-9">
+                      <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">¥</span>
+                      <input
+                        className="flex-1 border-0 bg-transparent px-2.5 text-sm outline-none"
+                        placeholder="0.00"
+                        {...field}
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+                )}
+              />
+            )}
           </div>
         </div>
 

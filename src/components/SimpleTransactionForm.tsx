@@ -21,7 +21,8 @@ import {
 interface Account {
   id: string;
   name: string;
-  balance: number;
+  initial_balance: number;
+  current_balance: number;
   currency_code: string;
   ownership: 'own' | 'external';
   account_type: string;

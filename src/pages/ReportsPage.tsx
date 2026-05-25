@@ -83,7 +83,7 @@ export function ReportsPage() {
     const liabilities: { name: string; balance: number; currency: string }[] = [];
 
     accounts.forEach((account: AccountDto) => {
-      const balance = Number(account.balance);
+      const balance = Number(account.current_balance);
 
       if (['Cash', 'Bank', 'Investment'].includes(account.account_type)) {
         if (balance > 0) {

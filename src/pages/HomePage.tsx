@@ -60,7 +60,7 @@ export function HomePage() {
   }, [dateRangePreset, startDate, endDate]);
 
   // Calculate total balance from all accounts
-  const totalBalance = accounts.reduce((sum, account) => sum + Number(account.balance), 0);
+  const totalBalance = accounts.reduce((sum, account) => sum + Number(account.current_balance), 0);
 
   const FALLBACK_COLORS = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
   const FALLBACK_COLORS_INCOME = ['#10B981', '#06B6D4', '#84CC16', '#3B82F6', '#14B8A6'];
