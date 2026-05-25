@@ -58,7 +58,7 @@ export function AccountsPage() {
   const [ownershipTab, setOwnershipTab] = useState<'all' | 'own' | 'external'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [sortColumn, setSortColumn] = useState<'name' | 'type' | 'balance'>('name');
+  const [sortColumn, setSortColumn] = useState<'name' | 'type' | 'initialBalance' | 'balance'>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const { data: accounts = [], isLoading } = useQuery({
@@ -92,6 +92,8 @@ export function AccountsPage() {
         cmp = a.name.localeCompare(b.name);
       } else if (sortColumn === 'type') {
         cmp = a.account_type.localeCompare(b.account_type);
+      } else if (sortColumn === 'initialBalance') {
+        cmp = a.initial_balance - b.initial_balance;
       } else if (sortColumn === 'balance') {
         cmp = a.current_balance - b.current_balance;
       }
@@ -284,6 +286,24 @@ export function AccountsPage() {
                 <TableHead
                   className="cursor-pointer select-none text-right"
                   onClick={() => {
+                    if (sortColumn === 'initialBalance') {
+                      setSortDirection(d => d === 'asc' ? 'desc' : 'asc');
+                    } else {
+                      setSortColumn('initialBalance');
+                      setSortDirection('asc');
+                    }
+                  }}
+                >
+                  <span className="inline-flex items-center gap-1">
+                    {t('accounts.initialBalance')}
+                    {sortColumn === 'initialBalance' && (
+                      sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                    )}
+                  </span>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer select-none text-right"
+                  onClick={() => {
                     if (sortColumn === 'balance') {
                       setSortDirection(d => d === 'asc' ? 'desc' : 'asc');
                     } else {
@@ -293,7 +313,7 @@ export function AccountsPage() {
                   }}
                 >
                   <span className="inline-flex items-center gap-1">
-                    {t('common.balance')}
+                    {t('accounts.currentBalance')}
                     {sortColumn === 'balance' && (
                       sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
                     )}
@@ -308,6 +328,12 @@ export function AccountsPage() {
                   <TableCell className="font-medium">{account.name}</TableCell>
                   <TableCell>{account.account_type}</TableCell>
                   <TableCell>{account.currency_code}</TableCell>
+                  <TableCell className="text-right">
+                    {Number(account.initial_balance).toLocaleString('en-US', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </TableCell>
                   <TableCell className="text-right">
                     {Number(account.current_balance).toLocaleString('en-US', {
                       minimumFractionDigits: 2,
