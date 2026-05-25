@@ -44,12 +44,12 @@ export const listTransactions = () =>
   invokeTauri<TransactionDto[]>('list_transactions');
 
 export const getTransactionsByAccount = (accountId: string) =>
-  invokeTauri<TransactionDto[]>('get_transactions_by_account', { account_id: accountId });
+  invokeTauri<TransactionDto[]>('get_transactions_by_account', { accountId });
 
 export const getTransactionsByDateRange = (startDate: string, endDate: string) =>
   invokeTauri<TransactionDto[]>('get_transactions_by_date_range', {
-    start_date: startDate,
-    end_date: endDate,
+    startDate,
+    endDate,
   });
 
 export const updateTransaction = (id: string, dto: CreateTransactionDto) =>

@@ -651,6 +651,7 @@ export function TransactionsPage() {
                 accounts={accounts}
                 externalAccounts={externalAccounts}
                 initialData={getEditInitialData(editingTransaction!)}
+                mode="edit"
                 onSubmit={handleEditSubmit}
                 onCancel={() => { setIsSheetOpen(false); setEditingTransaction(null); }}
               />

@@ -60,4 +60,4 @@ export const recordPayment = (dto: RecordPaymentDto) =>
   invokeTauri<void>('record_payment', { dto });
 
 export const getUpcomingPayments = (daysAhead: number) =>
-  invokeTauri<UpcomingPaymentDto[]>('get_upcoming_payments', { days_ahead: daysAhead });
+  invokeTauri<UpcomingPaymentDto[]>('get_upcoming_payments', { daysAhead });
