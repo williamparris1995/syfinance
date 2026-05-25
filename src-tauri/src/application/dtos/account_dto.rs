@@ -23,7 +23,7 @@ pub struct CreateAccountDto {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateAccountDto {
     pub name: String,
-    pub balance: Decimal,
+    pub initial_balance: Decimal,
     pub icon: Option<String>,
     pub color: Option<String>,
     pub currency_code: Option<String>,
@@ -48,7 +48,8 @@ pub struct AccountDto {
     pub chart_code: Option<String>,
     pub parent_id: Option<Uuid>,
     pub currency_code: String,
-    pub balance: Decimal,
+    pub initial_balance: Decimal,
+    pub current_balance: Decimal,
     pub account_number: Option<String>,
     pub institution: Option<String>,
     pub credit_limit: Option<Decimal>,
@@ -78,7 +79,8 @@ impl From<Account> for AccountDto {
             chart_code: account.chart_code,
             parent_id: account.parent_id,
             currency_code: account.currency_code.clone(),
-            balance: account.balance.amount,
+            initial_balance: account.initial_balance.amount,
+            current_balance: account.initial_balance.amount, // default, overridden by service
             account_number: account.account_number,
             institution: account.institution,
             credit_limit: account.credit_limit.map(|m| m.amount),

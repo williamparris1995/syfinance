@@ -2,6 +2,8 @@ use crate::application::dtos::{AccountDto, CreateAccountDto, UpdateAccountDto};
 use crate::domain::aggregates::{Account, AccountError, Ownership};
 use crate::domain::repositories::{AccountRepository, CurrencyRepository};
 use crate::domain::value_objects::{Money, SyncMetadata};
+use rust_decimal::Decimal;
+use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -66,9 +68,9 @@ impl<R: AccountRepository, U: CurrencyRepository> AccountService<R, U> {
         account.change_name(&dto.name)?;
 
         {
-            let balance = Money::new(dto.balance, &account.currency_code)
+            let balance = Money::new(dto.initial_balance, &account.currency_code)
                 .map_err(|e| AccountServiceError::InvalidMoney(e.to_string()))?;
-            account.update_balance(balance)?;
+            account.update_initial_balance(balance)?;
         }
 
         if let Some(icon) = dto.icon {
@@ -148,6 +150,36 @@ impl<R: AccountRepository, U: CurrencyRepository> AccountService<R, U> {
         Ok(accounts.into_iter().map(AccountDto::from).collect())
     }
 
+    pub async fn list_accounts_with_balances(
+        &self,
+    ) -> Result<Vec<AccountDto>, AccountServiceError> {
+        let accounts = self.account_repo.find_all().await
+            .map_err(AccountServiceError::DatabaseError)?;
+
+        let balance_changes = self.account_repo
+            .compute_balances_for_all_accounts()
+            .await
+            .map_err(AccountServiceError::DatabaseError)?;
+
+        let dtos: Vec<AccountDto> = accounts
+            .into_iter()
+            .map(|account| {
+                let net_change = balance_changes
+                    .get(&account.id)
+                    .copied()
+                    .unwrap_or(Decimal::ZERO);
+                let current = account.initial_balance.amount + net_change;
+                AccountDto {
+                    initial_balance: account.initial_balance.amount,
+                    current_balance: current,
+                    ..account.into()
+                }
+            })
+            .collect();
+
+        Ok(dtos)
+    }
+
     pub async fn get_account_balance(&self, id: Uuid) -> Result<Money, AccountServiceError> {
         let account = self
             .account_repo
@@ -155,7 +187,7 @@ impl<R: AccountRepository, U: CurrencyRepository> AccountService<R, U> {
             .await?
             .ok_or(AccountServiceError::AccountNotFound(id))?;
 
-        Ok(account.balance)
+        Ok(account.initial_balance.clone())
     }
 }
 
@@ -273,6 +305,12 @@ mod tests {
         async fn mark_as_synced(&self, _id: Uuid) -> sqlx::Result<bool> {
             Ok(true)
         }
+
+        async fn compute_balances_for_all_accounts(
+            &self,
+        ) -> Result<HashMap<Uuid, Decimal>, sqlx::Error> {
+            Ok(HashMap::new())
+        }
     }
 
     struct MockCurrencyRepository {
@@ -344,7 +382,7 @@ mod tests {
         assert!(result.is_ok());
         let account_dto = result.unwrap();
         assert_eq!(account_dto.name, "Checking Account");
-        assert_eq!(account_dto.balance, Decimal::new(10000, 2));
+        assert_eq!(account_dto.initial_balance, Decimal::new(10000, 2));
     }
 
     #[tokio::test]
@@ -398,7 +436,7 @@ mod tests {
 
         let update_dto = UpdateAccountDto {
             name: "New Name".to_string(),
-            balance: Decimal::new(10000, 2),
+            initial_balance: Decimal::new(10000, 2),
             icon: None,
             color: None,
             currency_code: None,
@@ -441,7 +479,7 @@ mod tests {
 
         let update_dto = UpdateAccountDto {
             name: "Visa Platinum".to_string(),
-            balance: Decimal::new(-500, 2),
+            initial_balance: Decimal::new(-500, 2),
             icon: Some("💰".to_string()),
             color: Some("#EF4444".to_string()),
             currency_code: None,
@@ -460,7 +498,7 @@ mod tests {
         assert!(result.is_ok());
         let updated = result.unwrap();
         assert_eq!(updated.name, "Visa Platinum");
-        assert_eq!(updated.balance, Decimal::new(-500, 2));
+        assert_eq!(updated.initial_balance, Decimal::new(-500, 2));
         assert_eq!(updated.icon, "💰");
         assert_eq!(updated.color, "#EF4444");
         assert_eq!(updated.account_number, Some("****1234".to_string()));
