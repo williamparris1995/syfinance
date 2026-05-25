@@ -148,39 +148,43 @@ export function SimpleTransactionForm({
       const day = String(date.getDate()).padStart(2, '0');
       const dateStr = `${year}-${month}-${day}`;
 
-      if (type === 'income') {
-        await createSimpleIncome({
-          debitAccountId: ownAccountId,       // 自己账户 = 借方
-          creditAccountId: externalAccountId, // 外部账户 = 贷方
-          amount,
-          date: dateStr,
-          description,
-        });
-      } else if (type === 'expense') {
-        await createSimpleExpense({
-          debitAccountId: externalAccountId,  // 外部账户 = 借方
-          creditAccountId: ownAccountId,      // 自己账户 = 贷方
-          amount,
-          date: dateStr,
-          description,
-        });
-      } else if (type === 'transfer') {
-        await createSimpleTransfer({
-          fromAccountId,
-          toAccountId,
-          amount,
-          date: dateStr,
-          description,
-        });
+      if (!initialData) {
+        if (type === 'income') {
+          await createSimpleIncome({
+            debitAccountId: ownAccountId,
+            creditAccountId: externalAccountId,
+            amount,
+            date: dateStr,
+            description,
+          });
+        } else if (type === 'expense') {
+          await createSimpleExpense({
+            debitAccountId: externalAccountId,
+            creditAccountId: ownAccountId,
+            amount,
+            date: dateStr,
+            description,
+          });
+        } else if (type === 'transfer') {
+          await createSimpleTransfer({
+            fromAccountId,
+            toAccountId,
+            amount,
+            date: dateStr,
+            description,
+          });
+        }
       }
 
-      // Reset form fields
-      setAmount('');
-      setFromAccountId('');
-      setToAccountId('');
-      setOwnAccountId('');
-      setExternalAccountId('');
-      setDescription('');
+      // Reset form fields (only in create mode)
+      if (!initialData) {
+        setAmount('');
+        setFromAccountId('');
+        setToAccountId('');
+        setOwnAccountId('');
+        setExternalAccountId('');
+        setDescription('');
+      }
 
       // Call parent onSubmit to close dialog and refresh
       await onSubmit({
