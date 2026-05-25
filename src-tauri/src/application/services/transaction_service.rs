@@ -114,74 +114,7 @@ impl TransactionService {
 
         self.transaction_repo.create(&transaction).await?;
 
-        for entry in &transaction.entries {
-            let mut account = self
-                .account_repo
-                .find_by_id(entry.account_id)
-                .await?
-                .ok_or(TransactionServiceError::AccountNotFound(entry.account_id))?;
-
-            let new_balance = if let Some(debit) = &entry.debit_amount {
-                account.balance.add(debit).map_err(|e| {
-                    TransactionServiceError::ValidationError(format!("failed to add debit: {}", e))
-                })?
-            } else if let Some(credit) = &entry.credit_amount {
-                account.balance.subtract(credit).map_err(|e| {
-                    TransactionServiceError::ValidationError(format!(
-                        "failed to subtract credit: {}",
-                        e
-                    ))
-                })?
-            } else {
-                account.balance.clone()
-            };
-
-            account
-                .update_balance(new_balance)
-                .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-
-            self.account_repo.update(&account).await?;
-        }
-
         Ok(transaction_id)
-    }
-
-    async fn reverse_balances(
-        &self,
-        entries: &[TransactionEntry],
-    ) -> Result<(), TransactionServiceError> {
-        for entry in entries {
-            let mut account = self
-                .account_repo
-                .find_by_id(entry.account_id)
-                .await?
-                .ok_or(TransactionServiceError::AccountNotFound(entry.account_id))?;
-
-            let new_balance = if let Some(debit) = &entry.debit_amount {
-                account.balance.subtract(debit).map_err(|e| {
-                    TransactionServiceError::ValidationError(format!(
-                        "failed to reverse debit: {}",
-                        e
-                    ))
-                })?
-            } else if let Some(credit) = &entry.credit_amount {
-                account.balance.add(credit).map_err(|e| {
-                    TransactionServiceError::ValidationError(format!(
-                        "failed to reverse credit: {}",
-                        e
-                    ))
-                })?
-            } else {
-                account.balance.clone()
-            };
-
-            account
-                .update_balance(new_balance)
-                .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-
-            self.account_repo.update(&account).await?;
-        }
-        Ok(())
     }
 
     pub async fn update_transaction(
@@ -196,10 +129,7 @@ impl TransactionService {
             .await?
             .ok_or(TransactionServiceError::TransactionNotFound(id))?;
 
-        // 2. Reverse old account balances
-        self.reverse_balances(&old.entries).await?;
-
-        // 3. Build new entries
+        // 2. Build new entries
         let mut new_entries = Vec::new();
         for entry_dto in &dto.entries {
             let account = self
@@ -232,7 +162,7 @@ impl TransactionService {
             new_entries.push(entry);
         }
 
-        // 4. Build updated transaction (reuse old ID, update sync metadata)
+        // 3. Build updated transaction (reuse old ID, update sync metadata)
         let updated_sync = SyncMetadata::new(old.sync_metadata.device_id);
 
         let updated_transaction = Transaction::new(
@@ -250,38 +180,8 @@ impl TransactionService {
             ));
         }
 
-        // 5. Update in repository (soft-deletes old entries, inserts new ones)
+        // 4. Update in repository (soft-deletes old entries, inserts new ones)
         self.transaction_repo.update(&updated_transaction).await?;
-
-        // 6. Apply new balances
-        for entry in &updated_transaction.entries {
-            let mut account = self
-                .account_repo
-                .find_by_id(entry.account_id)
-                .await?
-                .ok_or(TransactionServiceError::AccountNotFound(entry.account_id))?;
-
-            let new_balance = if let Some(debit) = &entry.debit_amount {
-                account.balance.add(debit).map_err(|e| {
-                    TransactionServiceError::ValidationError(format!("failed to add debit: {}", e))
-                })?
-            } else if let Some(credit) = &entry.credit_amount {
-                account.balance.subtract(credit).map_err(|e| {
-                    TransactionServiceError::ValidationError(format!(
-                        "failed to subtract credit: {}",
-                        e
-                    ))
-                })?
-            } else {
-                account.balance.clone()
-            };
-
-            account
-                .update_balance(new_balance)
-                .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-
-            self.account_repo.update(&account).await?;
-        }
 
         Ok(id)
     }
@@ -290,15 +190,11 @@ impl TransactionService {
         &self,
         id: Uuid,
     ) -> Result<(), TransactionServiceError> {
-        // Find transaction to reverse balances
-        let transaction = self
-            .transaction_repo
+        // Verify transaction exists
+        self.transaction_repo
             .find_by_id(id)
             .await?
             .ok_or(TransactionServiceError::TransactionNotFound(id))?;
-
-        // Reverse account balances before soft-deleting
-        self.reverse_balances(&transaction.entries).await?;
 
         // Soft delete
         self.transaction_repo.soft_delete(id).await?;
@@ -427,18 +323,6 @@ impl TransactionService {
 
         self.transaction_repo.create(&transaction).await?;
 
-        // Update own account balance (debit side = asset increase)
-        let mut debit_account = debit_account;
-        let new_balance = debit_account
-            .balance
-            .add(&Money::new(dto.amount, &debit_account.currency_code)
-                .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?)
-            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-        debit_account
-            .update_balance(new_balance)
-            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-        self.account_repo.update(&debit_account).await?;
-
         Ok(transaction.id)
     }
 
@@ -493,18 +377,6 @@ impl TransactionService {
         .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
 
         self.transaction_repo.create(&transaction).await?;
-
-        // Update own account balance (credit side = asset decrease)
-        let mut credit_account = credit_account;
-        let new_balance = credit_account
-            .balance
-            .subtract(&Money::new(dto.amount, &credit_account.currency_code)
-                .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?)
-            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-        credit_account
-            .update_balance(new_balance)
-            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-        self.account_repo.update(&credit_account).await?;
 
         Ok(transaction.id)
     }
@@ -567,29 +439,6 @@ impl TransactionService {
         .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
 
         self.transaction_repo.create(&transaction).await?;
-
-        // 更新两个账户的余额
-        let mut from_account = from_account;
-        let from_new_balance = from_account
-            .balance
-            .subtract(&Money::new(dto.amount, &from_account.currency_code)
-                .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?)
-            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-        from_account
-            .update_balance(from_new_balance)
-            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-        self.account_repo.update(&from_account).await?;
-
-        let mut to_account = to_account;
-        let to_new_balance = to_account
-            .balance
-            .add(&Money::new(dto.amount, &to_account.currency_code)
-                .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?)
-            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-        to_account
-            .update_balance(to_new_balance)
-            .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
-        self.account_repo.update(&to_account).await?;
 
         Ok(transaction.id)
     }

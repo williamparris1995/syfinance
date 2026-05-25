@@ -40,9 +40,9 @@ impl PostgresAccountRepository {
         };
 
         let currency_code: String = row.try_get("currency_code")?;
-        let balance_amount: Decimal = row.try_get("balance")?;
+        let initial_balance_amount: Decimal = row.try_get("initial_balance")?;
 
-        let balance = Money::new(balance_amount, &currency_code)
+        let initial_balance = Money::new(initial_balance_amount, &currency_code)
             .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
         // Read new columns from unified accounts
@@ -80,7 +80,7 @@ impl PostgresAccountRepository {
             account_type,
             ownership,
             currency_code,
-            balance,
+            initial_balance,
             icon,
             color,
             chart_code,
@@ -95,6 +95,39 @@ impl PostgresAccountRepository {
             pending_events: Vec::new(),
         })
     }
+
+    pub async fn compute_balances_for_all_accounts(
+        &self,
+    ) -> Result<std::collections::HashMap<Uuid, Decimal>, sqlx::Error> {
+        use sqlx::FromRow;
+        #[derive(FromRow)]
+        struct BalanceRow {
+            account_id: Uuid,
+            net_change: Option<Decimal>,
+        }
+
+        let rows = sqlx::query_as::<_, BalanceRow>(
+            r#"
+            SELECT
+                e.account_id,
+                COALESCE(SUM(COALESCE(e.debit_amount, 0)), 0) -
+                COALESCE(SUM(COALESCE(e.credit_amount, 0)), 0) AS net_change
+            FROM transaction_entries e
+            JOIN transactions t ON e.transaction_id = t.id
+            WHERE e.deleted_at IS NULL AND t.deleted_at IS NULL
+            GROUP BY e.account_id
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut map = std::collections::HashMap::new();
+        for row in rows {
+            let change = row.net_change.unwrap_or(Decimal::ZERO);
+            map.insert(row.account_id, change);
+        }
+        Ok(map)
+    }
 }
 
 impl AccountRepository for PostgresAccountRepository {
@@ -103,7 +136,7 @@ impl AccountRepository for PostgresAccountRepository {
             r#"
             INSERT INTO accounts (
                 id, name, account_type, ownership,
-                currency_code, balance,
+                currency_code, initial_balance,
                 icon, color, chart_code, parent_id,
                 updated_at, deleted_at,
                 device_id, synced_at
@@ -113,7 +146,7 @@ impl AccountRepository for PostgresAccountRepository {
                 name = EXCLUDED.name,
                 ownership = EXCLUDED.ownership,
                 currency_code = EXCLUDED.currency_code,
-                balance = EXCLUDED.balance,
+                initial_balance = EXCLUDED.initial_balance,
                 icon = EXCLUDED.icon,
                 color = EXCLUDED.color,
                 chart_code = EXCLUDED.chart_code,
@@ -129,7 +162,7 @@ impl AccountRepository for PostgresAccountRepository {
         .bind(account.account_type.to_string())
         .bind(account.ownership.to_string())
         .bind(&account.currency_code)
-        .bind(account.balance.amount)
+        .bind(account.initial_balance.amount)
         .bind(&account.icon)
         .bind(&account.color)
         .bind(&account.chart_code)
@@ -149,7 +182,7 @@ impl AccountRepository for PostgresAccountRepository {
             r#"
             SELECT
                 id, name, account_type, ownership,
-                currency_code, balance,
+                currency_code, initial_balance,
                 icon, color, chart_code, parent_id,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
@@ -168,7 +201,7 @@ impl AccountRepository for PostgresAccountRepository {
             r#"
             SELECT
                 id, name, account_type, ownership,
-                currency_code, balance,
+                currency_code, initial_balance,
                 icon, color, chart_code, parent_id,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
@@ -187,7 +220,7 @@ impl AccountRepository for PostgresAccountRepository {
             r#"
             SELECT
                 id, name, account_type, ownership,
-                currency_code, balance,
+                currency_code, initial_balance,
                 icon, color, chart_code, parent_id,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
@@ -207,7 +240,7 @@ impl AccountRepository for PostgresAccountRepository {
             r#"
             SELECT
                 id, name, account_type, ownership,
-                currency_code, balance,
+                currency_code, initial_balance,
                 icon, color, chart_code, parent_id,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
@@ -228,7 +261,7 @@ impl AccountRepository for PostgresAccountRepository {
             UPDATE accounts
             SET
                 name = $1,
-                balance = $2,
+                initial_balance = $2,
                 icon = $3,
                 color = $4,
                 chart_code = $5,
@@ -248,7 +281,7 @@ impl AccountRepository for PostgresAccountRepository {
             "#,
         )
         .bind(&account.name)
-        .bind(account.balance.amount.to_string())
+        .bind(account.initial_balance.amount.to_string())
         .bind(&account.icon)
         .bind(&account.color)
         .bind(&account.chart_code)
@@ -291,7 +324,7 @@ impl AccountRepository for PostgresAccountRepository {
             r#"
             SELECT
                 id, name, account_type, ownership,
-                currency_code, balance,
+                currency_code, initial_balance,
                 icon, color, chart_code, parent_id,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
@@ -309,7 +342,7 @@ impl AccountRepository for PostgresAccountRepository {
             r#"
             SELECT
                 id, name, account_type, ownership,
-                currency_code, balance,
+                currency_code, initial_balance,
                 icon, color, chart_code, parent_id,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
@@ -338,5 +371,11 @@ impl AccountRepository for PostgresAccountRepository {
         .await?;
 
         Ok(result.is_some())
+    }
+
+    async fn compute_balances_for_all_accounts(
+        &self,
+    ) -> Result<std::collections::HashMap<Uuid, Decimal>, sqlx::Error> {
+        PostgresAccountRepository::compute_balances_for_all_accounts(self).await
     }
 }

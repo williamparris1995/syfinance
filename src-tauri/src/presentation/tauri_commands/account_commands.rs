@@ -118,6 +118,16 @@ pub async fn list_accounts_by_ownership_with_state(
         .map_err(|error: AccountServiceError| error.to_string())
 }
 
+pub async fn list_accounts_with_balances_with_state(
+    state: &AppState,
+) -> Result<Vec<AccountDto>, String> {
+    state
+        .service()
+        .list_accounts_with_balances()
+        .await
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub async fn create_account(
     state: State<'_, AppState>,
@@ -164,4 +174,11 @@ pub async fn list_accounts_by_ownership(
     ownership: Ownership,
 ) -> Result<Vec<AccountDto>, String> {
     list_accounts_by_ownership_with_state(state.inner(), ownership).await
+}
+
+#[tauri::command]
+pub async fn list_accounts_with_balances(
+    state: State<'_, AppState>,
+) -> Result<Vec<AccountDto>, String> {
+    list_accounts_with_balances_with_state(&state).await
 }

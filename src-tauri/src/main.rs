@@ -15,7 +15,7 @@ use presentation::api::create_sync_routes;
 use presentation::tauri_commands::{
     account_commands::{
         create_account, delete_account, get_account, get_account_balance, list_accounts,
-        list_accounts_by_ownership, update_account, AppState,
+        list_accounts_by_ownership, list_accounts_with_balances, update_account, AppState,
     },
     currency_commands::{
         add_currency, create_default_state_from_pool as create_currency_default_state_from_pool,
@@ -138,6 +138,7 @@ async fn main() {
             get_account,
             list_accounts,
             list_accounts_by_ownership,
+            list_accounts_with_balances,
             get_account_balance,
             list_currencies,
             add_currency,

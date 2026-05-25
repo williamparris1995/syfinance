@@ -461,6 +461,12 @@ impl AccountRepository for SqliteAccountRepository {
 
         Ok(result.rows_affected() > 0)
     }
+
+    async fn compute_balances_for_all_accounts(
+        &self,
+    ) -> Result<std::collections::HashMap<Uuid, Decimal>, sqlx::Error> {
+        SqliteAccountRepository::compute_balances_for_all_accounts(self).await
+    }
 }
 
 #[cfg(test)]
