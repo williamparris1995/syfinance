@@ -33,6 +33,10 @@ pub trait AccountRepository: Send + Sync {
     async fn get_changes_since(&self, timestamp: DateTime<Utc>) -> sqlx::Result<Vec<Account>>;
 
     async fn mark_as_synced(&self, id: Uuid) -> sqlx::Result<bool>;
+
+    async fn compute_balances_for_all_accounts(
+        &self,
+    ) -> Result<std::collections::HashMap<Uuid, Decimal>, sqlx::Error>;
 }
 
 #[allow(async_fn_in_trait, dead_code)]

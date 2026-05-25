@@ -45,12 +45,12 @@ impl SqliteAccountRepository {
 
         let currency_code: String = row.try_get("currency_code")?;
 
-        let balance_str: String = row.try_get("balance")?;
-        let balance_amount =
-            Decimal::from_str(&balance_str)
-                .map_err(|e| sqlx::Error::Decode(format!("balance='{balance_str}': {e}").into()))?;
+        let initial_balance_str: String = row.try_get("initial_balance")?;
+        let initial_balance_amount =
+            Decimal::from_str(&initial_balance_str)
+                .map_err(|e| sqlx::Error::Decode(format!("initial_balance='{initial_balance_str}': {e}").into()))?;
 
-        let balance = Money::new(balance_amount, &currency_code)
+        let initial_balance = Money::new(initial_balance_amount, &currency_code)
             .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
         // Read new columns from unified accounts
@@ -149,7 +149,7 @@ impl SqliteAccountRepository {
             account_type,
             ownership,
             currency_code,
-            balance,
+            initial_balance,
             icon,
             color,
             chart_code,
@@ -164,6 +164,42 @@ impl SqliteAccountRepository {
             pending_events: Vec::new(),
         })
     }
+    pub async fn compute_balances_for_all_accounts(
+        &self,
+    ) -> Result<std::collections::HashMap<Uuid, Decimal>, sqlx::Error> {
+        #[derive(sqlx::FromRow)]
+        struct BalanceRow {
+            account_id: String,
+            net_change: Option<String>,
+        }
+
+        let rows = sqlx::query_as::<_, BalanceRow>(
+            r#"
+            SELECT
+                e.account_id,
+                CAST(COALESCE(SUM(COALESCE(e.debit_amount, 0)), 0) -
+                     COALESCE(SUM(COALESCE(e.credit_amount, 0)), 0) AS TEXT) AS net_change
+            FROM transaction_entries e
+            JOIN transactions t ON e.transaction_id = t.id
+            WHERE e.deleted_at IS NULL AND t.deleted_at IS NULL
+            GROUP BY e.account_id
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut map = std::collections::HashMap::new();
+        for row in rows {
+            if let Ok(id) = Uuid::from_str(&row.account_id) {
+                let change = row
+                    .net_change
+                    .and_then(|s| Decimal::from_str(&s).ok())
+                    .unwrap_or(Decimal::ZERO);
+                map.insert(id, change);
+            }
+        }
+        Ok(map)
+    }
 }
 
 impl AccountRepository for SqliteAccountRepository {
@@ -171,7 +207,7 @@ impl AccountRepository for SqliteAccountRepository {
         sqlx::query(
             r#"
             INSERT INTO accounts (
-                id, name, account_type, ownership, currency_code, balance,
+                id, name, account_type, ownership, currency_code, initial_balance,
                 icon, color, chart_code, parent_id,
                 account_number, institution, credit_limit, billing_day,
                 payment_due_day, interest_rate,
@@ -185,7 +221,7 @@ impl AccountRepository for SqliteAccountRepository {
         .bind(account.account_type.to_string())
         .bind(account.ownership.to_string())
         .bind(&account.currency_code)
-        .bind(account.balance.amount.to_string())
+        .bind(account.initial_balance.amount.to_string())
         .bind(&account.icon)
         .bind(&account.color)
         .bind(&account.chart_code)
@@ -211,7 +247,7 @@ impl AccountRepository for SqliteAccountRepository {
             r#"
             SELECT 
                 id, name, account_type, ownership, currency_code,
-                CAST(balance AS TEXT) AS balance,
+                CAST(initial_balance AS TEXT) AS initial_balance,
                 icon, color, chart_code, parent_id,
                 account_number, institution,
                 CAST(credit_limit AS TEXT) AS credit_limit,
@@ -234,7 +270,7 @@ impl AccountRepository for SqliteAccountRepository {
             r#"
             SELECT 
                 id, name, account_type, ownership, currency_code,
-                CAST(balance AS TEXT) AS balance,
+                CAST(initial_balance AS TEXT) AS initial_balance,
                 icon, color, chart_code, parent_id,
                 account_number, institution,
                 CAST(credit_limit AS TEXT) AS credit_limit,
@@ -257,7 +293,7 @@ impl AccountRepository for SqliteAccountRepository {
             r#"
             SELECT 
                 id, name, account_type, ownership, currency_code,
-                CAST(balance AS TEXT) AS balance,
+                CAST(initial_balance AS TEXT) AS initial_balance,
                 icon, color, chart_code, parent_id,
                 account_number, institution,
                 CAST(credit_limit AS TEXT) AS credit_limit,
@@ -281,7 +317,7 @@ impl AccountRepository for SqliteAccountRepository {
             r#"
             SELECT
                 id, name, account_type, ownership, currency_code,
-                CAST(balance AS TEXT) AS balance,
+                CAST(initial_balance AS TEXT) AS initial_balance,
                 icon, color, chart_code, parent_id,
                 account_number, institution,
                 CAST(credit_limit AS TEXT) AS credit_limit,
@@ -306,7 +342,7 @@ impl AccountRepository for SqliteAccountRepository {
             UPDATE accounts
             SET
                 name = ?,
-                balance = ?,
+                initial_balance = ?,
                 icon = ?,
                 color = ?,
                 chart_code = ?,
@@ -325,7 +361,7 @@ impl AccountRepository for SqliteAccountRepository {
             "#,
         )
         .bind(&account.name)
-        .bind(account.balance.amount.to_string())
+        .bind(account.initial_balance.amount.to_string())
         .bind(&account.icon)
         .bind(&account.color)
         .bind(&account.chart_code)
@@ -369,7 +405,7 @@ impl AccountRepository for SqliteAccountRepository {
             r#"
             SELECT 
                 id, name, account_type, ownership, currency_code,
-                CAST(balance AS TEXT) AS balance,
+                CAST(initial_balance AS TEXT) AS initial_balance,
                 icon, color, chart_code, parent_id,
                 account_number, institution,
                 CAST(credit_limit AS TEXT) AS credit_limit,
@@ -391,7 +427,7 @@ impl AccountRepository for SqliteAccountRepository {
             r#"
             SELECT 
                 id, name, account_type, ownership, currency_code,
-                CAST(balance AS TEXT) AS balance,
+                CAST(initial_balance AS TEXT) AS initial_balance,
                 icon, color, chart_code, parent_id,
                 account_number, institution,
                 CAST(credit_limit AS TEXT) AS credit_limit,
@@ -452,7 +488,7 @@ mod tests {
                 account_type VARCHAR(20) NOT NULL,
                 ownership VARCHAR(10) NOT NULL DEFAULT 'own',
                 currency_code VARCHAR(3) NOT NULL,
-                balance DECIMAL(20,2) NOT NULL,
+                initial_balance DECIMAL(20,2) NOT NULL,
                 icon VARCHAR(10) NOT NULL DEFAULT '📁',
                 color VARCHAR(7) NOT NULL DEFAULT '#6B7280',
                 chart_code VARCHAR(10),
@@ -477,9 +513,9 @@ mod tests {
         pool
     }
 
-    fn create_test_account(name: &str, account_type: AccountType, balance: Decimal) -> Account {
+    fn create_test_account(name: &str, account_type: AccountType, initial_balance: Decimal) -> Account {
         let currency = Currency::new("USD", "$", Decimal::ONE).unwrap();
-        let money = Money::new(balance, "USD").unwrap();
+        let money = Money::new(initial_balance, "USD").unwrap();
         let sync_metadata = SyncMetadata::new(Uuid::new_v4());
 
         Account::new(
@@ -512,7 +548,7 @@ mod tests {
         assert!(found.is_some());
         let found = found.unwrap();
         assert_eq!(found.name, "Checking");
-        assert_eq!(found.balance.amount, Decimal::new(10000, 2));
+        assert_eq!(found.initial_balance.amount, Decimal::new(10000, 2));
     }
 
     #[tokio::test]
@@ -561,7 +597,7 @@ mod tests {
 
         account.change_name("Primary Checking").unwrap();
         account
-            .update_balance(Money::new(Decimal::new(15000, 2), "USD").unwrap())
+            .update_initial_balance(Money::new(Decimal::new(15000, 2), "USD").unwrap())
             .unwrap();
 
         let updated = repo.update(&account).await.unwrap();
@@ -569,7 +605,7 @@ mod tests {
 
         let found = repo.find_by_id(account.id).await.unwrap().unwrap();
         assert_eq!(found.name, "Primary Checking");
-        assert_eq!(found.balance.amount, Decimal::new(15000, 2));
+        assert_eq!(found.initial_balance.amount, Decimal::new(15000, 2));
     }
 
     #[tokio::test]
@@ -614,8 +650,8 @@ mod tests {
         repo.create(&account).await.unwrap();
 
         let found = repo.find_by_id(account_id).await.unwrap().unwrap();
-        assert_eq!(found.balance.amount, Decimal::new(123456, 2));
-        assert_eq!(found.balance.currency_code, "USD");
+        assert_eq!(found.initial_balance.amount, Decimal::new(123456, 2));
+        assert_eq!(found.initial_balance.currency_code, "USD");
     }
 
     #[tokio::test]
