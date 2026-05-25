@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Copy, Pencil, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowDown, ArrowUp, Copy, Pencil, Search, Trash2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { AccountForm } from '../components/AccountForm';
@@ -12,6 +12,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../components/ui/dialog';
+import { Input } from '../components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
 import {
   Sheet,
   SheetContent,
@@ -26,11 +34,13 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
+import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { getUserFriendlyError } from '../lib/error-handler';
 import {
   createAccount,
   deleteAccount,
   listAccounts,
+  listAccountsWithBalances,
   updateAccount,
   type AccountDto,
   type CreateAccountDto,
@@ -45,10 +55,51 @@ export function AccountsPage() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
 
+  const [ownershipTab, setOwnershipTab] = useState<'all' | 'own' | 'external'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [sortColumn, setSortColumn] = useState<'name' | 'type' | 'balance'>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['accounts'],
-    queryFn: listAccounts,
+    queryFn: listAccountsWithBalances,
   });
+
+  const filteredAndSortedAccounts = useMemo(() => {
+    let result = accounts;
+
+    // Tab filter (ownership)
+    if (ownershipTab !== 'all') {
+      result = result.filter((a) => a.ownership === ownershipTab);
+    }
+
+    // Search filter (name)
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter((a) => a.name.toLowerCase().includes(q));
+    }
+
+    // Type filter
+    if (typeFilter !== 'all') {
+      result = result.filter((a) => a.account_type === typeFilter);
+    }
+
+    // Sort
+    result = [...result].sort((a, b) => {
+      let cmp = 0;
+      if (sortColumn === 'name') {
+        cmp = a.name.localeCompare(b.name);
+      } else if (sortColumn === 'type') {
+        cmp = a.account_type.localeCompare(b.account_type);
+      } else if (sortColumn === 'balance') {
+        cmp = a.current_balance - b.current_balance;
+      }
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
+
+    return result;
+  }, [accounts, ownershipTab, searchQuery, typeFilter, sortColumn, sortDirection]);
 
   const createMutation = useMutation({
     mutationFn: createAccount,
@@ -143,6 +194,42 @@ export function AccountsPage() {
         <Button variant="default-gradient" onClick={handleCreateClick}>{t('accounts.createAccount')}</Button>
       </div>
 
+      <Tabs value={ownershipTab} onValueChange={(v) => setOwnershipTab(v as typeof ownershipTab)} className="mb-4">
+        <TabsList>
+          <TabsTrigger value="all">{t('common.all')}</TabsTrigger>
+          <TabsTrigger value="own">{t('accountForm.ownAccount')}</TabsTrigger>
+          <TabsTrigger value="external">{t('accountForm.externalAccount')}</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      <div className="flex items-center gap-3 mb-4">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t('accounts.searchPlaceholder')}
+            className="pl-7 h-8 text-sm"
+          />
+        </div>
+        <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v ?? 'all')}>
+          <SelectTrigger className="w-36 h-8 text-sm">
+            <SelectValue placeholder={t('accounts.filterByType')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('common.all')}</SelectItem>
+            <SelectItem value="Cash">{t('accountForm.cash')}</SelectItem>
+            <SelectItem value="Bank">{t('accountForm.bank')}</SelectItem>
+            <SelectItem value="CreditCard">{t('accountForm.creditCard')}</SelectItem>
+            <SelectItem value="Investment">{t('accountForm.investment')}</SelectItem>
+            <SelectItem value="Loan">{t('accountForm.loan')}</SelectItem>
+            <SelectItem value="Income">{t('accountForm.income')}</SelectItem>
+            <SelectItem value="Expense">{t('accountForm.expense')}</SelectItem>
+            <SelectItem value="Other">{t('accountForm.other')}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <div className="text-neutral-500">{t('accounts.loadingAccounts')}</div>
@@ -157,21 +244,72 @@ export function AccountsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{t('common.name')}</TableHead>
-                <TableHead>{t('common.type')}</TableHead>
+                <TableHead
+                  className="cursor-pointer select-none"
+                  onClick={() => {
+                    if (sortColumn === 'name') {
+                      setSortDirection(d => d === 'asc' ? 'desc' : 'asc');
+                    } else {
+                      setSortColumn('name');
+                      setSortDirection('asc');
+                    }
+                  }}
+                >
+                  <span className="inline-flex items-center gap-1">
+                    {t('common.name')}
+                    {sortColumn === 'name' && (
+                      sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                    )}
+                  </span>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer select-none"
+                  onClick={() => {
+                    if (sortColumn === 'type') {
+                      setSortDirection(d => d === 'asc' ? 'desc' : 'asc');
+                    } else {
+                      setSortColumn('type');
+                      setSortDirection('asc');
+                    }
+                  }}
+                >
+                  <span className="inline-flex items-center gap-1">
+                    {t('common.type')}
+                    {sortColumn === 'type' && (
+                      sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                    )}
+                  </span>
+                </TableHead>
                 <TableHead>{t('common.currency')}</TableHead>
-                <TableHead className="text-right">{t('common.balance')}</TableHead>
+                <TableHead
+                  className="cursor-pointer select-none text-right"
+                  onClick={() => {
+                    if (sortColumn === 'balance') {
+                      setSortDirection(d => d === 'asc' ? 'desc' : 'asc');
+                    } else {
+                      setSortColumn('balance');
+                      setSortDirection('asc');
+                    }
+                  }}
+                >
+                  <span className="inline-flex items-center gap-1">
+                    {t('common.balance')}
+                    {sortColumn === 'balance' && (
+                      sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                    )}
+                  </span>
+                </TableHead>
                 <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {accounts.map((account: AccountDto) => (
+              {filteredAndSortedAccounts.map((account: AccountDto) => (
                 <TableRow key={account.id}>
                   <TableCell className="font-medium">{account.name}</TableCell>
                   <TableCell>{account.account_type}</TableCell>
                   <TableCell>{account.currency_code}</TableCell>
                   <TableCell className="text-right">
-                    {Number(account.balance).toLocaleString('en-US', {
+                    {Number(account.current_balance).toLocaleString('en-US', {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })}
