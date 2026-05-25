@@ -23,6 +23,7 @@ pub struct CreateAccountDto {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateAccountDto {
     pub name: String,
+    #[serde(alias = "balance")]
     pub initial_balance: Decimal,
     pub icon: Option<String>,
     pub color: Option<String>,

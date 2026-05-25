@@ -30,7 +30,7 @@ async fn account_command_lifecycle() {
     .expect("create account");
 
     assert_eq!(created.name, "Checking Account");
-    assert_eq!(created.balance, Decimal::new(100_000, 2));
+    assert_eq!(created.initial_balance, Decimal::new(100_000, 2));
 
     let fetched = get_account_with_state(&state, created.id)
         .await
@@ -47,15 +47,26 @@ async fn account_command_lifecycle() {
         &state,
         created.id,
         UpdateAccountDto {
-            name: Some("Everyday Checking".into()),
-            balance: Some(Decimal::new(125_000, 2)),
+            name: "Everyday Checking".into(),
+            initial_balance: Decimal::new(125_000, 2),
+            icon: None,
+            color: None,
+            currency_code: None,
+            account_number: None,
+            institution: None,
+            credit_limit: None,
+            billing_day: None,
+            payment_due_day: None,
+            interest_rate: None,
+            chart_code: None,
+            parent_id: None,
         },
     )
     .await
     .expect("update account");
 
     assert_eq!(updated.name, "Everyday Checking");
-    assert_eq!(updated.balance, Decimal::new(125_000, 2));
+    assert_eq!(updated.initial_balance, Decimal::new(125_000, 2));
 
     let listed = list_accounts_with_state(&state)
         .await

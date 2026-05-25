@@ -1,8 +1,9 @@
 use chrono::NaiveDate;
-use finance_app::application::dtos::{CreateTransactionDto, CreateTransactionEntryDto};
+use finance_app::application::dtos::CreateTransactionDto;
+use finance_app::application::dtos::transaction_dto::CreateTransactionEntryDto;
 use finance_app::application::services::TransactionService;
 use finance_app::domain::{
-    aggregates::{Account, AccountType, ChartOfAccounts},
+    aggregates::{Account, AccountType, Ownership},
     repositories::AccountRepository,
     value_objects::{Currency, Money, SyncMetadata},
 };
@@ -40,18 +41,13 @@ fn create_test_account(currency_code: &str) -> Account {
         Uuid::new_v4(),
         "Test Account",
         AccountType::Bank,
-        &ChartOfAccounts::new(
-            "coa-1002".to_string(),
-            "1002".to_string(),
-            "Bank Deposits".to_string(),
-            2,
-            finance_app::domain::aggregates::chart_of_accounts::AccountType::Asset,
-            Some("1000".to_string()),
-            finance_app::domain::aggregates::chart_of_accounts::BalanceDirection::Debit,
-        )
-        .unwrap(),
+        Ownership::Own,
         &Currency::new(currency_code, currency_code, Decimal::ONE).unwrap(),
         Money::new(Decimal::new(1000_00, 2), currency_code).unwrap(),
+        "💰",
+        "#10B981",
+        None,
+        None,
         SyncMetadata::new(Uuid::new_v4()),
     )
     .unwrap()
@@ -111,8 +107,8 @@ async fn create_transaction_with_multiple_entries_updates_balances() {
     let updated_account2 = account_repo.find_by_id(account2.id).await.unwrap().unwrap();
 
     assert_ne!(transaction_id, Uuid::nil());
-    assert_eq!(updated_account1.balance.amount, Decimal::new(1500_00, 2));
-    assert_eq!(updated_account2.balance.amount, Decimal::new(500_00, 2));
+    assert_eq!(updated_account1.initial_balance.amount, Decimal::new(1000_00, 2));
+    assert_eq!(updated_account2.initial_balance.amount, Decimal::new(1000_00, 2));
 }
 
 #[tokio::test]

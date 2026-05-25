@@ -24,7 +24,7 @@ export interface CreateAccountDto {
 
 export interface UpdateAccountDto {
   name: string;
-  balance: number;
+  initial_balance: number;
   icon?: string;
   color?: string;
   currency_code?: string;
