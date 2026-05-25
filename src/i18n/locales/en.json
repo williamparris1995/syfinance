@@ -27,7 +27,10 @@
     "description": "Description",
     "optional": "Optional",
     "account": "Account",
-    "note": "Note"
+    "note": "Note",
+    "all": "All",
+    "sortAsc": "Sort ascending",
+    "sortDesc": "Sort descending"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -73,7 +76,12 @@
     "accountDeleted": "Account deleted successfully",
     "editAccount": "Edit Account",
     "accountUpdated": "Account updated",
-    "copyToCreate": "Copy to New Account"
+    "copyToCreate": "Copy to New Account",
+    "searchPlaceholder": "Search accounts...",
+    "filterByType": "Filter by type",
+    "initialBalance": "Initial Balance",
+    "currentBalance": "Current Balance",
+    "allAccounts": "All Accounts"
   },
   "accountForm": {
     "accountName": "Account Name",

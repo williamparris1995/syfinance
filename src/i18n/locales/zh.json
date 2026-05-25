@@ -27,7 +27,10 @@
     "description": "描述",
     "optional": "可选",
     "note": "注意",
-    "account": "账户"
+    "account": "账户",
+    "all": "全部",
+    "sortAsc": "升序排列",
+    "sortDesc": "降序排列"
   },
   "nav": {
     "dashboard": "仪表板",
@@ -76,7 +79,11 @@
     "accountDeleted": "账户删除成功",
     "editAccount": "编辑账户",
     "accountUpdated": "账户已更新",
-    "copyToCreate": "复制为新账户"
+    "copyToCreate": "复制为新账户",
+    "searchPlaceholder": "搜索账户...",
+    "filterByType": "按类型筛选",
+    "currentBalance": "当前余额",
+    "allAccounts": "全部账户"
   },
   "accountForm": {
     "accountName": "账户名称",
