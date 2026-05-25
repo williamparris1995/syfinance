@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AccountForm } from '@/components/AccountForm';
 import { Button } from '@/components/ui/button';
-import { createAccount, type CreateAccountDto } from '@/lib/tauri/account';
+import { createAccount } from '@/lib/tauri/account';
 import { getUserFriendlyError } from '@/lib/error-handler';
 
 export function NewAccountPage() {
@@ -34,7 +34,7 @@ export function NewAccountPage() {
         <h1 className="text-2xl font-bold">{t('accounts.createAccount')}</h1>
       </div>
       <AccountForm
-        onSubmit={(data: CreateAccountDto) => createMutation.mutate(data)}
+        onSubmit={(data) => { if ('account_type' in data) createMutation.mutate(data); }}
         onCancel={() => navigate({ to: '/accounts' })}
         isLoading={createMutation.isPending}
       />

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
@@ -31,13 +31,16 @@ import {
   createAccount,
   deleteAccount,
   listAccounts,
+  updateAccount,
   type AccountDto,
   type CreateAccountDto,
+  type UpdateAccountDto,
 } from '../lib/tauri/account';
 
 export function AccountsPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [editingAccount, setEditingAccount] = useState<AccountDto | null>(null);
   const queryClient = useQueryClient();
   const { t } = useTranslation();
 
@@ -52,6 +55,19 @@ export function AccountsPage() {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       setIsSheetOpen(false);
       toast.success(t('accounts.accountCreated'));
+    },
+    onError: (error) => {
+      toast.error(getUserFriendlyError(error));
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: UpdateAccountDto }) => updateAccount(id, dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      setIsSheetOpen(false);
+      setEditingAccount(null);
+      toast.success(t('accounts.accountUpdated'));
     },
     onError: (error) => {
       toast.error(getUserFriendlyError(error));
@@ -87,11 +103,25 @@ export function AccountsPage() {
   });
 
   const handleCreateClick = () => {
+    setEditingAccount(null);
     setIsSheetOpen(true);
   };
 
-  const handleCreateAccount = (data: CreateAccountDto) => {
-    createMutation.mutate(data);
+  const handleCreateAccount = (data: CreateAccountDto | { id: string; dto: UpdateAccountDto }) => {
+    if ('account_type' in data) {
+      createMutation.mutate(data);
+    }
+  };
+
+  const handleEditClick = (account: AccountDto) => {
+    setEditingAccount(account);
+    setIsSheetOpen(true);
+  };
+
+  const handleEditSubmit = (data: CreateAccountDto | { id: string; dto: UpdateAccountDto }) => {
+    if ('id' in data) {
+      updateMutation.mutate({ id: data.id, dto: data.dto });
+    }
   };
 
   const handleDeleteAccount = (id: string) => {
@@ -142,6 +172,13 @@ export function AccountsPage() {
                     <Button
                       variant="ghost"
                       size="sm"
+                      onClick={() => handleEditClick(account)}
+                    >
+                      <Pencil className="h-4 w-4 text-blue-500" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => setDeleteConfirmId(account.id)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -154,7 +191,7 @@ export function AccountsPage() {
         </div>
       )}
 
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+      <Sheet open={isSheetOpen && !editingAccount} onOpenChange={(open) => { setIsSheetOpen(open); if (!open) setEditingAccount(null); }}>
         <SheetContent side="right" className="w-full sm:max-w-lg">
           <SheetHeader>
             <SheetTitle>{t('accounts.createAccount')}</SheetTitle>
@@ -162,9 +199,28 @@ export function AccountsPage() {
           <div className="flex-1 overflow-y-auto -mx-4 px-4">
             <AccountForm
               onSubmit={handleCreateAccount}
-              onCancel={() => setIsSheetOpen(false)}
+              onCancel={() => { setIsSheetOpen(false); setEditingAccount(null); }}
               isLoading={createMutation.isPending}
             />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Edit Sheet */}
+      <Sheet open={isSheetOpen && !!editingAccount} onOpenChange={(open) => { setIsSheetOpen(open); if (!open) setEditingAccount(null); }}>
+        <SheetContent side="right" className="w-full sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>{t('accounts.editAccount')}</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto -mx-4 px-4">
+            {editingAccount && (
+              <AccountForm
+                initialData={editingAccount}
+                onSubmit={handleEditSubmit}
+                onCancel={() => { setIsSheetOpen(false); setEditingAccount(null); }}
+                isLoading={updateMutation.isPending}
+              />
+            )}
           </div>
         </SheetContent>
       </Sheet>
