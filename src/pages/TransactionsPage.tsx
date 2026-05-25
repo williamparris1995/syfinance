@@ -5,15 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { SimpleTransactionForm, type TransactionFormData } from '../components/SimpleTransactionForm';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '../components/ui/select';
+import { MultiSelect } from '../components/ui/multi-select';
 import {
   Sheet,
   SheetContent,
@@ -466,30 +458,31 @@ export function TransactionsPage() {
           ))}
         </div>
         <div className="w-px h-5 bg-border" />
-        <Select value={ownAccountFilter[0] ?? externalAccountFilter[0] ?? 'all'} onValueChange={(v) => { const val = v ?? 'all'; if (val === 'all') { setOwnAccountFilter([]); setExternalAccountFilter([]); } else { setOwnAccountFilter([val]); setExternalAccountFilter([]); } }}>
-          <SelectTrigger className="w-40 h-7 text-xs">
-            <SelectValue placeholder={t('transactions.allAccounts')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('transactions.allAccounts')}</SelectItem>
-            {accounts.length > 0 && (
-              <SelectGroup>
-                <SelectLabel>{t('transactions.ownAccounts')}</SelectLabel>
-                {accounts.map((acct) => (
-                  <SelectItem key={acct.id} value={acct.id}>{acct.name}</SelectItem>
-                ))}
-              </SelectGroup>
-            )}
-            {externalAccounts.length > 0 && (
-              <SelectGroup>
-                <SelectLabel>{t('transactions.externalAccounts')}</SelectLabel>
-                {externalAccounts.map((acct) => (
-                  <SelectItem key={acct.id} value={acct.id}>{acct.name}</SelectItem>
-                ))}
-              </SelectGroup>
-            )}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-muted-foreground hidden sm:inline">
+            {t('transactions.ownAccounts')}
+          </span>
+          <MultiSelect
+            options={ownAccounts.map((a) => ({ id: a.id, label: a.name }))}
+            value={ownAccountFilter}
+            onChange={setOwnAccountFilter}
+            placeholder={t('transactions.ownAccounts')}
+            selectAllLabel={t('common.selectAll')}
+          />
+        </div>
+        <div className="w-px h-5 bg-border" />
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-muted-foreground hidden sm:inline">
+            {t('transactions.externalAccounts')}
+          </span>
+          <MultiSelect
+            options={externalAccounts.map((a) => ({ id: a.id, label: a.name }))}
+            value={externalAccountFilter}
+            onChange={setExternalAccountFilter}
+            placeholder={t('transactions.externalAccounts')}
+            selectAllLabel={t('common.selectAll')}
+          />
+        </div>
         <div className="w-px h-5 bg-border" />
         <div className="relative flex-1 min-w-[180px] max-w-xs">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
