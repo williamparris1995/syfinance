@@ -72,7 +72,9 @@
     "deleteConfirm": "确定要删除此账户吗?此操作无法撤销。",
     "deleting": "删除中...",
     "accountCreated": "账户创建成功",
-    "accountDeleted": "账户删除成功"
+    "accountDeleted": "账户删除成功",
+    "editAccount": "编辑账户",
+    "accountUpdated": "账户已更新"
   },
   "accountForm": {
     "accountName": "账户名称",
