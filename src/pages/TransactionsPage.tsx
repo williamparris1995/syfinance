@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
-import { Copy, Plus, Pencil, Trash2, Search } from 'lucide-react';
+import { ArrowDown, ArrowUp, Copy, Plus, Pencil, Trash2, Search } from 'lucide-react';
 import { listAccounts, listAccountsByOwnership } from '../lib/tauri/account';
 import {
   listTransactions,
@@ -53,6 +53,11 @@ export function TransactionsPage() {
   const [ownAccountFilter, setOwnAccountFilter] = useState<string[]>([]);
   const [externalAccountFilter, setExternalAccountFilter] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Sort state
+  type SortColumn = 'date' | 'type' | 'description' | 'amount';
+  const [sortColumn, setSortColumn] = useState<SortColumn>('date');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   const queryClient = useQueryClient();
   const { t } = useTranslation();
@@ -181,8 +186,22 @@ export function TransactionsPage() {
         tx.description?.toLowerCase().includes(q)
       );
     }
+    // Sort
+    result = [...result].sort((a, b) => {
+      let cmp = 0;
+      if (sortColumn === 'date') {
+        cmp = a.transaction_date.localeCompare(b.transaction_date);
+      } else if (sortColumn === 'type') {
+        cmp = getTransactionType(a).localeCompare(getTransactionType(b));
+      } else if (sortColumn === 'description') {
+        cmp = (a.description || '').localeCompare(b.description || '');
+      } else if (sortColumn === 'amount') {
+        cmp = getTransactionAmount(a) - getTransactionAmount(b);
+      }
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
     return result;
-  }, [transactions, typeFilter, ownAccountFilter, externalAccountFilter, searchQuery, ownAccounts.length, externalAccounts.length]);
+  }, [transactions, typeFilter, ownAccountFilter, externalAccountFilter, searchQuery, ownAccounts.length, externalAccounts.length, sortColumn, sortDirection]);
 
   const getEditInitialData = (tx: TransactionDto): TransactionFormData => {
     const txType = getTransactionType(tx);
@@ -528,10 +547,37 @@ export function TransactionsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{t('common.date')}</TableHead>
-                <TableHead className="w-[90px]">{t('transactions.type')}</TableHead>
-                <TableHead>{t('common.description')}</TableHead>
-                <TableHead className="text-right w-[120px]">{t('common.amount')}</TableHead>
+                {(
+                  [
+                    { col: 'date' as const, label: t('common.date'), className: '' },
+                    { col: 'type' as const, label: t('transactions.type'), className: 'w-[90px]' },
+                    { col: 'description' as const, label: t('common.description'), className: '' },
+                    { col: 'amount' as const, label: t('common.amount'), className: 'text-right w-[120px]' },
+                  ] as const
+                ).map(({ col, label, className }) => (
+                  <TableHead
+                    key={col}
+                    className={`cursor-pointer select-none ${className}`}
+                    onClick={() => {
+                      if (sortColumn === col) {
+                        setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
+                      } else {
+                        setSortColumn(col);
+                        setSortDirection(col === 'date' ? 'desc' : 'asc');
+                      }
+                    }}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      {label}
+                      {sortColumn === col &&
+                        (sortDirection === 'asc' ? (
+                          <ArrowUp className="h-3 w-3" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3" />
+                        ))}
+                    </span>
+                  </TableHead>
+                ))}
                 <TableHead>{t('transactions.accounts')}</TableHead>
                 <TableHead className="text-center w-[80px]">{t('common.actions')}</TableHead>
               </TableRow>
