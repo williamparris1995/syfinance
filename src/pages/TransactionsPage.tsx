@@ -161,8 +161,8 @@ export function TransactionsPage() {
       result = result.filter((tx) =>
         tx.entries.some(
           (e) =>
-            (ownAccountFilter.length === 0 || ownAccountFilter.includes(e.account_id)) ||
-            (externalAccountFilter.length === 0 || externalAccountFilter.includes(e.account_id)),
+            ownAccountFilter.includes(e.account_id) ||
+            externalAccountFilter.includes(e.account_id),
         ),
       );
     }
