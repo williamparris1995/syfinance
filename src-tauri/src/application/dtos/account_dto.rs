@@ -22,8 +22,19 @@ pub struct CreateAccountDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateAccountDto {
-    pub name: Option<String>,
-    pub balance: Option<Decimal>,
+    pub name: String,
+    pub balance: Decimal,
+    pub icon: Option<String>,
+    pub color: Option<String>,
+    pub currency_code: Option<String>,
+    pub account_number: Option<String>,
+    pub institution: Option<String>,
+    pub credit_limit: Option<Decimal>,
+    pub billing_day: Option<i32>,
+    pub payment_due_day: Option<i32>,
+    pub interest_rate: Option<Decimal>,
+    pub chart_code: Option<String>,
+    pub parent_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
