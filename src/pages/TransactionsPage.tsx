@@ -26,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
-import { Plus, Pencil, Trash2, Search } from 'lucide-react';
+import { Copy, Plus, Pencil, Trash2, Search } from 'lucide-react';
 import { listAccounts, listAccountsByOwnership } from '../lib/tauri/account';
 import {
   listTransactions,
@@ -43,6 +43,7 @@ type TransactionType_ = 'all' | 'expense' | 'income' | 'transfer';
 export function TransactionsPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<TransactionDto | null>(null);
+  const [copyingTransaction, setCopyingTransaction] = useState<TransactionDto | null>(null);
   const [deletingTransaction, setDeletingTransaction] = useState<TransactionDto | null>(null);
   const [inlineEditId, setInlineEditId] = useState<string | null>(null);
   const [inlineEditValue, setInlineEditValue] = useState('');
@@ -303,6 +304,12 @@ export function TransactionsPage() {
       queryClient.setQueryData(queryKey, previous);
       toast.error(String(error));
     }
+  };
+
+  const handleCopyClick = (transaction: TransactionDto) => {
+    setEditingTransaction(null);
+    setCopyingTransaction(transaction);
+    setIsSheetOpen(true);
   };
 
   const handleEditSubmit = async (data: TransactionFormData) => {
@@ -575,6 +582,15 @@ export function TransactionsPage() {
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7"
+                        onClick={() => handleCopyClick(transaction)}
+                        title={t('transactions.copyToCreate')}
+                      >
+                        <Copy className="h-3.5 w-3.5 text-gray-500" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
                         onClick={() => {
                           setEditingTransaction(transaction);
                           setIsSheetOpen(true);
@@ -599,23 +615,25 @@ export function TransactionsPage() {
         </div>
       )}
 
-      {/* Add Sheet */}
-      <Sheet open={isSheetOpen && !editingTransaction} onOpenChange={(open) => { setIsSheetOpen(open); if (!open) setEditingTransaction(null); }}>
+      {/* Add Sheet (also used for copy) */}
+      <Sheet open={isSheetOpen && !editingTransaction} onOpenChange={(open) => { setIsSheetOpen(open); if (!open) { setEditingTransaction(null); setCopyingTransaction(null); } }}>
         <SheetContent side="right" className="w-full sm:max-w-lg">
           <SheetHeader>
-            <SheetTitle>{t('transactions.recordTransaction')}</SheetTitle>
+            <SheetTitle>{copyingTransaction ? t('transactions.copyToCreate') : t('transactions.recordTransaction')}</SheetTitle>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto -mx-4 px-4">
             <SimpleTransactionForm
               accounts={accounts}
               externalAccounts={externalAccounts}
+              initialData={copyingTransaction ? getEditInitialData(copyingTransaction) : undefined}
               onSubmit={async () => {
                 setIsSheetOpen(false);
+                setCopyingTransaction(null);
                 queryClient.invalidateQueries({ queryKey: ['transactions'] });
                 queryClient.invalidateQueries({ queryKey: ['accounts'] });
                 toast.success(t('transactions.recorded'));
               }}
-              onCancel={() => setIsSheetOpen(false)}
+              onCancel={() => { setIsSheetOpen(false); setCopyingTransaction(null); }}
             />
           </div>
         </SheetContent>
