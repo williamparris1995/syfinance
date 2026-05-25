@@ -157,14 +157,23 @@ export function TransactionsPage() {
     if (typeFilter !== 'all') {
       result = result.filter(tx => getTransactionType(tx) === typeFilter);
     }
-    if (ownAccountFilter.length > 0 || externalAccountFilter.length > 0) {
-      result = result.filter((tx) =>
-        tx.entries.some(
-          (e) =>
-            ownAccountFilter.includes(e.account_id) ||
-            externalAccountFilter.includes(e.account_id),
-        ),
-      );
+    const isAllOwnSelected =
+      ownAccountFilter.length === 0 ||
+      ownAccountFilter.length === ownAccounts.length;
+    const isAllExtSelected =
+      externalAccountFilter.length === 0 ||
+      externalAccountFilter.length === externalAccounts.length;
+
+    if (!isAllOwnSelected || !isAllExtSelected) {
+      result = result.filter((tx) => {
+        const matchesOwn =
+          isAllOwnSelected ||
+          tx.entries.some((e) => ownAccountFilter.includes(e.account_id));
+        const matchesExt =
+          isAllExtSelected ||
+          tx.entries.some((e) => externalAccountFilter.includes(e.account_id));
+        return matchesOwn && matchesExt;
+      });
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
@@ -173,7 +182,7 @@ export function TransactionsPage() {
       );
     }
     return result;
-  }, [transactions, typeFilter, ownAccountFilter, externalAccountFilter, searchQuery]);
+  }, [transactions, typeFilter, ownAccountFilter, externalAccountFilter, searchQuery, ownAccounts.length, externalAccounts.length]);
 
   const getEditInitialData = (tx: TransactionDto): TransactionFormData => {
     const txType = getTransactionType(tx);
