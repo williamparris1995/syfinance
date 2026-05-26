@@ -4,6 +4,8 @@ mod reminder_repository;
 use crate::domain::aggregates::{
     Account, AccountType, ChartOfAccounts, ChartOfAccountsType, Ownership, Transaction,
 };
+use crate::domain::aggregates::holding::{Holding, HoldingTransaction};
+use crate::domain::aggregates::security::{Security, SecurityType};
 use crate::domain::value_objects::Currency;
 use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
@@ -91,5 +93,29 @@ pub trait ChartOfAccountsRepository: Send + Sync {
     async fn get_children(&self, parent_code: &str) -> sqlx::Result<Vec<ChartOfAccounts>>;
 
     async fn list_all(&self) -> sqlx::Result<Vec<ChartOfAccounts>>;
+}
+
+#[allow(async_fn_in_trait, dead_code)]
+pub trait SecurityRepository: Send + Sync {
+    async fn create(&self, security: &Security) -> sqlx::Result<()>;
+    async fn find_by_id(&self, id: Uuid) -> sqlx::Result<Option<Security>>;
+    async fn find_by_symbol(&self, symbol: &str) -> sqlx::Result<Option<Security>>;
+    async fn find_all(&self) -> sqlx::Result<Vec<Security>>;
+    async fn find_by_type(&self, security_type: &SecurityType) -> sqlx::Result<Vec<Security>>;
+    async fn update(&self, security: &Security) -> sqlx::Result<bool>;
+    async fn update_price(&self, id: Uuid, price: Decimal) -> sqlx::Result<bool>;
+    async fn soft_delete(&self, id: Uuid) -> sqlx::Result<bool>;
+}
+
+#[allow(async_fn_in_trait, dead_code)]
+pub trait HoldingRepository: Send + Sync {
+    async fn find_by_account(&self, account_id: Uuid) -> sqlx::Result<Vec<Holding>>;
+    async fn find_all(&self) -> sqlx::Result<Vec<Holding>>;
+    async fn upsert(&self, holding: &Holding) -> sqlx::Result<()>;
+    async fn soft_delete(&self, id: Uuid) -> sqlx::Result<bool>;
+
+    async fn create_transaction(&self, txn: &HoldingTransaction) -> sqlx::Result<()>;
+    async fn find_transactions_by_account(&self, account_id: Uuid) -> sqlx::Result<Vec<HoldingTransaction>>;
+    async fn find_transactions_by_holding(&self, account_id: Uuid, security_id: Uuid) -> sqlx::Result<Vec<HoldingTransaction>>;
 }
 
