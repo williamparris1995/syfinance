@@ -8,7 +8,7 @@ CREATE TABLE accounts_new (
     name VARCHAR(100) NOT NULL,
     account_type VARCHAR(20) NOT NULL,
     currency_code VARCHAR(3) NOT NULL DEFAULT 'CNY',
-    balance DECIMAL(20,2) NOT NULL DEFAULT 0.00,
+    initial_balance DECIMAL(20,2) NOT NULL DEFAULT 0.00,
     ownership VARCHAR(10) NOT NULL DEFAULT 'own',
     icon VARCHAR(10) NOT NULL DEFAULT '📁',
     color VARCHAR(7) NOT NULL DEFAULT '#6B7280',

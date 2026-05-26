@@ -5,7 +5,7 @@
 -- SQLite doesn't support conditional DDL, so we use INSERT OR IGNORE patterns.
 
 -- Step 1: Create accounts from debts
-INSERT OR IGNORE INTO accounts (id, name, account_type, currency_code, balance, ownership, icon,
+INSERT OR IGNORE INTO accounts (id, name, account_type, currency_code, initial_balance, ownership, icon,
                                 color, chart_code, deleted_at, updated_at, device_id)
 SELECT
     lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' ||
