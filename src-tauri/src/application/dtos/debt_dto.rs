@@ -58,4 +58,5 @@ pub struct RecordPaymentDto {
     pub schedule_entry_id: Uuid,
     pub payment_source_account_id: Uuid,
     pub interest_account_id: Option<Uuid>,
+    pub payment_amount: Option<Decimal>,
 }

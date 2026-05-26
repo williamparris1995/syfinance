@@ -100,6 +100,7 @@ export function DebtsPage() {
   } | null>(null);
   const [paymentSourceId, setPaymentSourceId] = useState<string>('');
   const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [paymentAmount, setPaymentAmount] = useState<string>('');
   const [sortColumn, setSortColumn] = useState<SortColumn>('dueDate');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
@@ -184,7 +185,7 @@ export function DebtsPage() {
       queryClient.invalidateQueries({ queryKey: ['upcoming-payments'] });
       setPaymentToRecord(null);
       setViewingDebt(null);
-      setPaymentSourceId(''); setPaymentDate(new Date().toISOString().split('T')[0]);
+      setPaymentSourceId(''); setPaymentDate(new Date().toISOString().split('T')[0]); setPaymentAmount('');
       toast.success(t('debts.paymentRecorded'));
     },
     onError: (error) => {
@@ -216,6 +217,7 @@ export function DebtsPage() {
       schedule_entry_id: paymentToRecord.payment.id,
       payment_source_account_id: paymentSourceId,
       interest_account_id: null,
+      payment_amount: paymentAmount || null,
     });
   };
 
@@ -345,7 +347,7 @@ export function DebtsPage() {
                 </div>
                 <div className="text-right">
                   <div className="font-semibold text-blue-900">{formatCurrency(item.payment.total_amount, item.debt.currency_code)}</div>
-                  <Button size="sm" variant="outline" onClick={() => { setPaymentToRecord({ debt: item.debt, payment: item.payment }); setPaymentSourceId(''); setPaymentDate(new Date().toISOString().split('T')[0]); }} className="mt-1">
+                  <Button size="sm" variant="outline" onClick={() => { setPaymentToRecord({ debt: item.debt, payment: item.payment }); setPaymentSourceId(''); setPaymentDate(new Date().toISOString().split('T')[0]); setPaymentAmount(item.payment.total_amount); }} className="mt-1">
                     {t('debts.recordPayment')}
                   </Button>
                 </div>
@@ -456,7 +458,7 @@ export function DebtsPage() {
                         {debt.payment_schedule.some(p => !p.paid) && (
                           <Button variant="ghost" size="icon-sm" onClick={() => {
                             const firstUnpaid = debt.payment_schedule.find(p => !p.paid);
-                            if (firstUnpaid) { setPaymentToRecord({ debt, payment: firstUnpaid }); setPaymentSourceId(''); setPaymentDate(new Date().toISOString().split('T')[0]); }
+                            if (firstUnpaid) { setPaymentToRecord({ debt, payment: firstUnpaid }); setPaymentSourceId(''); setPaymentDate(new Date().toISOString().split('T')[0]); setPaymentAmount(firstUnpaid.total_amount); }
                           }} title={t('debts.recordPayment')}>
                             <Banknote className="h-3.5 w-3.5 text-emerald-600" />
                           </Button>
@@ -564,7 +566,7 @@ export function DebtsPage() {
           <SheetHeader>
             <SheetTitle>{t('debts.recordPayment')}</SheetTitle>
           </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-1 mt-6 space-y-5">
+          <div className="flex-1 overflow-y-auto -mx-4 px-4 mt-6 space-y-5">
             {paymentToRecord && (() => {
               const isBorrowedOut = paymentToRecord.debt.account_type === 'BorrowedOut';
               const payLabel = isBorrowedOut ? t('debts.receiveToAccount') : t('debts.payFromAccount');
@@ -607,7 +609,7 @@ export function DebtsPage() {
 
                 <div className="space-y-1.5">
                   <label className="text-xs uppercase tracking-wider text-muted-foreground">{t('debts.actualPaymentAmount')}</label>
-                  <Input type="number" defaultValue={paymentToRecord.payment.total_amount} className="h-9" />
+                  <Input type="number" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} className="h-9" />
                 </div>
 
                 <div className="space-y-1.5">

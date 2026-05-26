@@ -52,6 +52,7 @@ export interface RecordPaymentDto {
   schedule_entry_id: string;
   payment_source_account_id: string;
   interest_account_id?: string | null;
+  payment_amount?: string | null;
 }
 
 export const createDebt = (dto: CreateDebtDto) =>
