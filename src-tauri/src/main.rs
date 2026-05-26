@@ -25,6 +25,11 @@ use presentation::tauri_commands::{
         create_debt, create_default_state_from_pool as create_debt_default_state_from_pool,
         get_debt, get_upcoming_payments, list_debts, record_payment, AppState as DebtAppState,
     },
+    holding_commands::{
+        buy_holding, create_default_state_from_pool as create_holding_default_state,
+        create_security, list_holdings, list_securities, sell_holding, update_security_price,
+        AppState as HoldingCommandState,
+    },
     sync_commands::{
         create_default_state as create_sync_default_state, get_sync_settings, get_sync_status,
         sync_from_server, sync_to_server, update_sync_settings,
@@ -99,6 +104,9 @@ async fn main() {
     let debt_state: DebtAppState = create_debt_default_state_from_pool(pool.clone())
         .await
         .expect("failed to initialize debt command state");
+    let holding_state: HoldingCommandState = create_holding_default_state(pool.clone())
+        .await
+        .expect("failed to initialize holding command state");
 
     // Clone the pool before debt_state is moved
     let debt_pool = pool.clone();
@@ -131,6 +139,7 @@ async fn main() {
         .manage(debt_state)
         .manage(currency_state)
         .manage(transaction_state)
+        .manage(holding_state)
         .invoke_handler(tauri::generate_handler![
             create_account,
             update_account,
@@ -148,6 +157,12 @@ async fn main() {
             list_debts,
             record_payment,
             get_upcoming_payments,
+            create_security,
+            list_securities,
+            update_security_price,
+            buy_holding,
+            sell_holding,
+            list_holdings,
             create_transaction,
             get_transaction,
             list_transactions,
