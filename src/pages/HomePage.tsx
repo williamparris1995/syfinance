@@ -3,7 +3,7 @@ import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp, Landmark, CalendarDay
 import { useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useMemo, useState } from 'react';
-import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -336,27 +336,32 @@ export function HomePage() {
           {/* Account Balances + Upcoming Payments */}
           {accounts.length > 0 && (
             <div className="grid gap-4 md:grid-cols-2">
-              {/* Account Balances */}
+              {/* Account Balance Chart */}
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium">{t('dashboard.perAccountBalances')}</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
+                <CardContent>
                   {ownAccountBalances.length === 0 ? (
                     <p className="text-sm text-muted-foreground">{t('dashboard.noAccountsDesc')}</p>
                   ) : (
-                    ownAccountBalances.map((acc) => (
-                      <div key={acc.id} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span>{acc.icon}</span>
-                          <span className="text-sm font-medium">{acc.name}</span>
-                          <Badge variant="outline" className="text-xs">{acc.account_type}</Badge>
-                        </div>
-                        <span className={`text-sm font-semibold ${acc.current_balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                          {acc.current_balance.toLocaleString('en-US', { style: 'currency', currency: acc.currency_code || 'CNY', currencyDisplay: 'narrowSymbol' })}
-                        </span>
-                      </div>
-                    ))
+                    <ResponsiveContainer width="100%" height={250}>
+                      <LineChart data={ownAccountBalances.map(a => ({
+                        name: a.name,
+                        initial_balance: a.initial_balance,
+                        current_balance: a.current_balance,
+                        change: a.current_balance - a.initial_balance,
+                      }))} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                        <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `¥${(v / 1000).toFixed(0)}k`} />
+                        <Tooltip formatter={(v: any) => `¥${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
+                        <Legend />
+                        <Line type="monotone" dataKey="initial_balance" name={t('accounts.initialBalance')} stroke="#3B82F6" strokeWidth={2} dot={{ r: 4 }} />
+                        <Line type="monotone" dataKey="current_balance" name={t('accounts.currentBalance')} stroke="#10B981" strokeWidth={2} dot={{ r: 4 }} />
+                        <Line type="monotone" dataKey="change" name={t('dashboard.change')} stroke="#F59E0B" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 4 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
                   )}
                 </CardContent>
               </Card>
