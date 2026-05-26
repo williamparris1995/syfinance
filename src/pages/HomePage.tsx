@@ -3,7 +3,7 @@ import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp, Landmark, CalendarDay
 import { useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useMemo, useState } from 'react';
-import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -336,31 +336,54 @@ export function HomePage() {
           {/* Account Balances + Upcoming Payments */}
           {accounts.length > 0 && (
             <div className="grid gap-4 md:grid-cols-2">
-              {/* Account Balance Chart */}
+              {/* Current Balance Chart */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">{t('dashboard.perAccountBalances')}</CardTitle>
+                  <CardTitle className="text-sm font-medium">{t('accounts.currentBalance')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {ownAccountBalances.length === 0 ? (
                     <p className="text-sm text-muted-foreground">{t('dashboard.noAccountsDesc')}</p>
                   ) : (
-                    <ResponsiveContainer width="100%" height={250}>
-                      <LineChart data={ownAccountBalances.map(a => ({
-                        name: a.name,
-                        initial_balance: a.initial_balance,
-                        current_balance: a.current_balance,
-                        change: a.current_balance - a.initial_balance,
-                      }))} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={ownAccountBalances.map(a => ({ name: a.name, balance: a.current_balance }))} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                         <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `¥${(v / 1000).toFixed(0)}k`} />
                         <Tooltip formatter={(v: any) => `¥${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
-                        <Legend />
-                        <Line type="monotone" dataKey="initial_balance" name={t('accounts.initialBalance')} stroke="#3B82F6" strokeWidth={2} dot={{ r: 4 }} />
-                        <Line type="monotone" dataKey="current_balance" name={t('accounts.currentBalance')} stroke="#10B981" strokeWidth={2} dot={{ r: 4 }} />
-                        <Line type="monotone" dataKey="change" name={t('dashboard.change')} stroke="#F59E0B" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 4 }} />
-                      </LineChart>
+                        <Bar dataKey="balance" name={t('accounts.currentBalance')} radius={[4, 4, 0, 0]}>
+                          {ownAccountBalances.map((a, i) => (
+                            <Cell key={i} fill={a.current_balance >= 0 ? '#10B981' : '#EF4444'} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Balance Change Chart */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">{t('dashboard.change')}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {ownAccountBalances.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">{t('dashboard.noAccountsDesc')}</p>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={ownAccountBalances.map(a => ({ name: a.name, change: a.current_balance - a.initial_balance }))} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                        <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `¥${(v / 1000).toFixed(0)}k`} />
+                        <Tooltip formatter={(v: any) => `¥${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
+                        <Bar dataKey="change" name={t('dashboard.change')} radius={[4, 4, 0, 0]}>
+                          {ownAccountBalances.map((a, i) => {
+                            const change = a.current_balance - a.initial_balance;
+                            return <Cell key={i} fill={change >= 0 ? '#3B82F6' : '#F59E0B'} />;
+                          })}
+                        </Bar>
+                      </BarChart>
                     </ResponsiveContainer>
                   )}
                 </CardContent>
