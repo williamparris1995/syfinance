@@ -56,12 +56,8 @@
     "acrossAccounts": "Across {{count}} account",
     "acrossAccounts_plural": "Across {{count}} accounts",
     "incomeMinusExpenses": "Income - Expenses",
-    "totalDebt": "Total Debt",
-    "activeDebts": "Active Debts",
-    "perAccountBalances": "Account Balances",
-    "upcomingDebtPayments": "Upcoming Payments (30 Days)",
-    "noUpcomingPayments": "No upcoming payments in the next 30 days",
-    "change": "Change",
+    "portfolioValue": "Portfolio Value",
+    "unrealizedPnl": "Unrealized P&L",
     "loadingDashboard": "Loading dashboard..."
   },
   "accounts": {
@@ -521,5 +517,38 @@
     "symbolRequired": "Currency symbol is required",
     "exchangeRateRequired": "Exchange rate is required",
     "exchangeRatePositive": "Exchange rate must be greater than 0"
+  },
+  "holding": {
+    "title": "Portfolio",
+    "account": "Account",
+    "selectAccount": "Select investment account",
+    "security": "Security",
+    "selectSecurity": "Select security",
+    "direction": "Direction",
+    "buy": "Buy",
+    "sell": "Sell",
+    "quantity": "Quantity",
+    "price": "Price",
+    "fee": "Fee",
+    "tradeDate": "Trade Date",
+    "estimatedAmount": "Estimated Amount",
+    "submitting": "Submitting...",
+    "symbol": "Symbol",
+    "name": "Name",
+    "avgCost": "Avg Cost",
+    "currentPrice": "Current Price",
+    "marketValue": "Market Value",
+    "pnl": "P&L",
+    "pnlPct": "P&L %",
+    "positions": "positions",
+    "types": {
+      "stock": "Stocks",
+      "fund": "Funds",
+      "etf": "ETFs",
+      "bond": "Bonds",
+      "gold": "Gold",
+      "option": "Options",
+      "other": "Other"
+    }
   }
 }
