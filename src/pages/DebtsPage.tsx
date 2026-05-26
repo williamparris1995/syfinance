@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, ArrowDown, ArrowUp, Calendar, Pencil, Search, Trash2 } from 'lucide-react';
+import { AlertCircle, ArrowDown, ArrowUp, Calendar, Copy, Eye, Pencil, Search, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -91,8 +91,9 @@ export function DebtsPage() {
   const { t } = useTranslation();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingDebt, setEditingDebt] = useState<DebtDto | null>(null);
-  const [selectedDebt, setSelectedDebt] = useState<DebtDto | null>(null);
+  const [viewingDebt, setViewingDebt] = useState<DebtDto | null>(null);
   const [deletingDebt, setDeletingDebt] = useState<DebtDto | null>(null);
+  const [copyingDebt, setCopyingDebt] = useState<DebtDto | null>(null);
   const [paymentToRecord, setPaymentToRecord] = useState<{
     debt: DebtDto;
     payment: PaymentScheduleDto;
@@ -181,7 +182,7 @@ export function DebtsPage() {
       queryClient.invalidateQueries({ queryKey: ['debts'] });
       queryClient.invalidateQueries({ queryKey: ['upcoming-payments'] });
       setPaymentToRecord(null);
-      setSelectedDebt(null);
+      setViewingDebt(null);
       setPaymentSourceId('');
       toast.success(t('debts.paymentRecorded'));
     },
@@ -296,7 +297,7 @@ export function DebtsPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">{t('debts.title')}</h1>
-        <Button variant="default-gradient" onClick={() => setIsSheetOpen(true)}>
+        <Button variant="default-gradient" onClick={() => { setIsSheetOpen(true); setCopyingDebt(null); }}>
           {t('debts.createDebt')}
         </Button>
       </div>
@@ -406,7 +407,7 @@ export function DebtsPage() {
       ) : debts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <p className="text-neutral-500 mb-4">{t('debts.noDebts')}</p>
-          <Button onClick={() => setIsSheetOpen(true)}>{t('debts.createFirstDebt')}</Button>
+          <Button onClick={() => { setIsSheetOpen(true); setCopyingDebt(null); }}>{t('debts.createFirstDebt')}</Button>
         </div>
       ) : (
         <div className="border rounded-lg">
@@ -451,11 +452,14 @@ export function DebtsPage() {
                     <TableCell><Badge variant={status.variant}>{status.label}</Badge></TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon-sm" onClick={() => setSelectedDebt(debt)} title={t('debts.view')}>
-                          <Calendar className="h-3.5 w-3.5" />
+                        <Button variant="ghost" size="icon-sm" onClick={() => setViewingDebt(debt)} title={t('debts.view')}>
+                          <Eye className="h-3.5 w-3.5" />
                         </Button>
                         <Button variant="ghost" size="icon-sm" onClick={() => setEditingDebt(debt)} title={t('debts.editDebt')}>
                           <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon-sm" onClick={() => { setCopyingDebt(debt); setIsSheetOpen(true); }} title={t('debts.copyDebt')}>
+                          <Copy className="h-3.5 w-3.5" />
                         </Button>
                         <Button variant="ghost" size="icon-sm" onClick={() => setDeletingDebt(debt)} title={t('debts.deleteDebt')}>
                           <Trash2 className="h-3.5 w-3.5 text-destructive" />
@@ -470,14 +474,20 @@ export function DebtsPage() {
         </div>
       )}
 
-      {/* Create Sheet */}
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+      {/* Create Sheet (also used for copy) */}
+      <Sheet open={isSheetOpen && !editingDebt} onOpenChange={(open) => { setIsSheetOpen(open); if (!open) setCopyingDebt(null); }}>
         <SheetContent side="right" className="w-full sm:max-w-lg">
           <SheetHeader>
-            <SheetTitle>{t('debts.createDebt')}</SheetTitle>
+            <SheetTitle>{copyingDebt ? t('debts.copyDebt') : t('debts.createDebt')}</SheetTitle>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto -mx-4 px-4">
-            <DebtForm onSubmit={handleCreateDebt} onCancel={() => setIsSheetOpen(false)} isLoading={createMutation.isPending} />
+            <DebtForm
+              key={copyingDebt?.account_id || 'create'}
+              onSubmit={handleCreateDebt}
+              onCancel={() => { setIsSheetOpen(false); setCopyingDebt(null); }}
+              isLoading={createMutation.isPending}
+              initialData={copyingDebt}
+            />
           </div>
         </SheetContent>
       </Sheet>
@@ -520,72 +530,72 @@ export function DebtsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* View Details Dialog */}
-      <Dialog open={!!selectedDebt} onOpenChange={() => setSelectedDebt(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t('debts.debtDetails')}</DialogTitle>
-            <DialogDescription>{selectedDebt?.account_name} ({selectedDebt?.counterparty})</DialogDescription>
-          </DialogHeader>
-          {selectedDebt && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="text-sm text-neutral-500">{t('debts.principalAmount')}</div>
-                  <div className="text-lg font-semibold">{formatCurrency(selectedDebt.principal_amount, selectedDebt.currency_code)}</div>
+      {/* View Sheet (read-only) */}
+      <Sheet open={!!viewingDebt} onOpenChange={() => setViewingDebt(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>{viewingDebt?.account_name || t('debts.debtDetails')}</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto -mx-4 px-4 mt-4 space-y-4">
+            {viewingDebt && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-xs text-muted-foreground">{t('debts.type')}</div>
+                    <div className="text-sm font-medium">{debtTypeLabel(viewingDebt.account_type, t)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">{t('debts.counterparty')}</div>
+                    <div className="text-sm font-medium">{viewingDebt.counterparty}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">{t('debts.principalAmount')}</div>
+                    <div className="text-sm font-medium">{formatCurrency(viewingDebt.principal_amount, viewingDebt.currency_code)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">{t('debts.remainingBalance')}</div>
+                    <div className="text-sm font-medium">{formatCurrency(viewingDebt.remaining_principal, viewingDebt.currency_code)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">{t('debts.interestRate')}</div>
+                    <div className="text-sm font-medium">{viewingDebt.interest_rate}%</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">{t('debts.dueDate')}</div>
+                    <div className="text-sm font-medium">{new Date(viewingDebt.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</div>
+                  </div>
                 </div>
+
                 <div>
-                  <div className="text-sm text-neutral-500">{t('debts.remainingBalance')}</div>
-                  <div className="text-lg font-semibold">{formatCurrency(selectedDebt.remaining_principal, selectedDebt.currency_code)}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-neutral-500">{t('debts.interestRate')}</div>
-                  <div className="text-lg font-semibold">{selectedDebt.interest_rate}% {t('debts.perYear')}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-neutral-500">{t('debts.dueDate')}</div>
-                  <div className="text-lg font-semibold">{new Date(selectedDebt.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</div>
-                </div>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold mb-3">{t('debts.paymentSchedule')}</h3>
-                <div className="border rounded-lg max-h-[400px] overflow-y-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t('debts.paymentDate')}</TableHead>
-                        <TableHead className="text-right">{t('debts.principal')}</TableHead>
-                        <TableHead className="text-right">{t('debts.interest')}</TableHead>
-                        <TableHead className="text-right">{t('debts.total')}</TableHead>
-                        <TableHead>{t('debts.status')}</TableHead>
-                        <TableHead className="w-[120px]">{t('common.actions')}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {selectedDebt.payment_schedule.map((payment) => (
-                        <TableRow key={payment.id}>
-                          <TableCell>{new Date(payment.payment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(payment.principal_amount, selectedDebt.currency_code)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(payment.interest_amount, selectedDebt.currency_code)}</TableCell>
-                          <TableCell className="text-right font-medium">{formatCurrency(payment.total_amount, selectedDebt.currency_code)}</TableCell>
-                          <TableCell><Badge variant={payment.paid ? 'secondary' : 'outline'}>{payment.paid ? t('debts.paid') : t('debts.unpaid')}</Badge></TableCell>
-                          <TableCell>
-                            {!payment.paid && (
-                              <Button size="sm" variant="outline" onClick={() => { setPaymentToRecord({ debt: selectedDebt, payment }); setPaymentSourceId(''); }}>
-                                {t('debts.record')}
-                              </Button>
-                            )}
-                          </TableCell>
+                  <h4 className="text-sm font-semibold mb-2">{t('debts.paymentSchedule')}</h4>
+                  <div className="border rounded-lg max-h-[360px] overflow-y-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs">{t('debts.paymentDate')}</TableHead>
+                          <TableHead className="text-right text-xs">{t('debts.principal')}</TableHead>
+                          <TableHead className="text-right text-xs">{t('debts.total')}</TableHead>
+                          <TableHead className="text-xs">{t('debts.status')}</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {viewingDebt.payment_schedule.map((payment) => (
+                          <TableRow key={payment.id}>
+                            <TableCell className="text-xs">{new Date(payment.payment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</TableCell>
+                            <TableCell className="text-right text-xs">{formatCurrency(payment.principal_amount, viewingDebt.currency_code)}</TableCell>
+                            <TableCell className="text-right text-xs font-medium">{formatCurrency(payment.total_amount, viewingDebt.currency_code)}</TableCell>
+                            <TableCell><Badge variant={payment.paid ? 'secondary' : 'outline'} className="text-xs">{payment.paid ? t('debts.paid') : t('debts.unpaid')}</Badge></TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+              </>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Record Payment Dialog */}
       <Dialog open={!!paymentToRecord} onOpenChange={() => setPaymentToRecord(null)}>

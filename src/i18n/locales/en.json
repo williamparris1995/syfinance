@@ -278,6 +278,7 @@
     "confirmPaymentButton": "Confirm Payment",
     "addDebtDesc": "Add a new debt with payment schedule.",
     "editDebt": "Edit Debt",
+    "copyDebt": "Copy Debt",
     "deleteDebt": "Delete Debt",
     "deleteConfirm": "Are you sure you want to delete {{name}}?",
     "confirmDelete": "Delete",
