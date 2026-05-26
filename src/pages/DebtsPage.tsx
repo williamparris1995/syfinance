@@ -563,36 +563,52 @@ export function DebtsPage() {
           <SheetHeader>
             <SheetTitle>{t('debts.recordPayment')}</SheetTitle>
           </SheetHeader>
-          <div className="flex-1 overflow-y-auto -mx-4 px-4 mt-4 space-y-4">
-            {paymentToRecord && (
+          <div className="flex-1 overflow-y-auto -mx-4 px-4 mt-6 space-y-6">
+            {paymentToRecord && (() => {
+              const isBorrowedOut = paymentToRecord.debt.account_type === 'BorrowedOut';
+              const payLabel = isBorrowedOut ? t('debts.receiveToAccount') : t('debts.payFromAccount');
+              const payPlaceholder = isBorrowedOut ? t('debts.selectReceiveAccount') : t('debts.selectPayAccount');
+              return (
               <>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <div className="text-xs text-muted-foreground">{t('debts.counterparty')}</div>
-                    <div className="text-sm font-medium">{paymentToRecord.debt.counterparty}</div>
+                <div className="rounded-xl border bg-card p-4 space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground">{t('debts.counterparty')}</span>
+                    <span className="text-sm font-medium">{paymentToRecord.debt.counterparty}</span>
                   </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">{t('debts.paymentDate')}</div>
-                    <div className="text-sm font-medium">{new Date(paymentToRecord.payment.payment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</div>
+                  <div className="flex justify-between">
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground">{t('debts.paymentDate')}</span>
+                    <span className="text-sm font-medium">{new Date(paymentToRecord.payment.payment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
                   </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">{t('debts.scheduledAmount')}</div>
-                    <div className="text-sm font-medium">{formatCurrency(paymentToRecord.payment.total_amount, paymentToRecord.debt.currency_code)}</div>
+                  <div className="flex justify-between">
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground">{t('debts.scheduledAmount')}</span>
+                    <span className="text-sm font-medium">{formatCurrency(paymentToRecord.payment.total_amount, paymentToRecord.debt.currency_code)}</span>
                   </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">{t('debts.remainingBalance')}</div>
-                    <div className="text-sm font-medium">{formatCurrency(paymentToRecord.debt.remaining_principal, paymentToRecord.debt.currency_code)}</div>
+                  <div className="flex justify-between">
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground">{t('debts.remainingBalance')}</span>
+                    <span className="text-sm font-medium">{formatCurrency(paymentToRecord.debt.remaining_principal, paymentToRecord.debt.currency_code)}</span>
                   </div>
+                  {isBorrowedOut && (
+                    <div className="text-xs text-muted-foreground bg-blue-50 dark:bg-blue-950/30 rounded-lg p-2">
+                      {t('debts.borrowedOutPaymentHint')}
+                    </div>
+                  )}
+                  {!isBorrowedOut && (
+                    <div className="text-xs text-muted-foreground bg-amber-50 dark:bg-amber-950/30 rounded-lg p-2">
+                      {t('debts.borrowedInPaymentHint')}
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1">{t('debts.actualPaymentAmount')}</div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs uppercase tracking-wider text-muted-foreground">{t('debts.actualPaymentAmount')}</label>
                   <Input type="number" defaultValue={paymentToRecord.payment.total_amount} className="h-9" />
                 </div>
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1">{t('debts.paymentSource')}</div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs uppercase tracking-wider text-muted-foreground">{payLabel}</label>
                   <Select value={paymentSourceId} onValueChange={(v) => v && setPaymentSourceId(v)}>
                     <SelectTrigger className="h-9">
-                      <SelectValue placeholder={t('debts.selectPaymentSource')}>
+                      <SelectValue placeholder={payPlaceholder}>
                         {paymentSourceId ? (ownPaymentAccounts.find(a => a.id === paymentSourceId)?.name || '') : null}
                       </SelectValue>
                     </SelectTrigger>
@@ -601,14 +617,16 @@ export function DebtsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex justify-end gap-2 pt-4">
+
+                <div className="flex justify-end gap-2 pt-2">
                   <Button variant="outline" onClick={() => setPaymentToRecord(null)}>{t('common.cancel')}</Button>
                   <Button onClick={handleRecordPayment} disabled={recordPaymentMutation.isPending || !paymentSourceId}>
                     {recordPaymentMutation.isPending ? t('debts.recording') : t('debts.confirmPaymentButton')}
                   </Button>
                 </div>
               </>
-            )}
+              );
+            })()}
           </div>
         </SheetContent>
       </Sheet>
