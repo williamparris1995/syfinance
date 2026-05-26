@@ -1,6 +1,7 @@
 pub mod account;
 pub mod chart_of_accounts;
 pub mod debt;
+pub mod holding;
 pub mod reminder;
 pub mod security;
 pub mod transaction;
@@ -10,5 +11,6 @@ pub use chart_of_accounts::{
     AccountType as ChartOfAccountsType, BalanceDirection, ChartOfAccounts, ChartOfAccountsError,
 };
 pub use debt::{AmortizationMethod, Debt, DebtError, DebtType, PaymentSchedule};
+pub use holding::{Holding, HoldingTransaction, HoldingTransactionType};
 pub use reminder::{Reminder, ReminderError, ReminderType, RepeatPattern};
 pub use transaction::{Transaction, TransactionError, TransactionEvent};
