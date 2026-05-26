@@ -63,8 +63,6 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
       a.ownership === 'own' && DEBT_ACCOUNT_TYPES.includes(a.account_type as any)
   );
 
-  const allAccounts = accounts.filter((a: AccountDto) => a.ownership === 'own');
-
   const amortizationLabelMap: Record<string, string> = {
     EqualPrincipalInterest: t('debtForm.equalPI'),
     EqualPrincipal: t('debtForm.equalPrincipal'),
@@ -73,7 +71,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
 
   const debtFormSchema = z.object({
     account_id: z.string().min(1, t('debtForm.accountRequired')),
-    counterparty_account_id: z.string().min(1, t('debtForm.counterpartyRequired')),
+    counterparty: z.string().min(1, t('debtForm.counterpartyRequired')),
     principal_amount: z.string().min(1, t('debtForm.principalRequired')).refine(
       (val) => {
         const num = parseFloat(val);
@@ -112,7 +110,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
     resolver: zodResolver(debtFormSchema),
     defaultValues: {
       account_id: '',
-      counterparty_account_id: '',
+      counterparty: '',
       principal_amount: '',
       currency_code: 'CNY',
       interest_rate: '',
@@ -220,11 +218,9 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
       resolvedDueDate = d.toISOString().split('T')[0];
     }
 
-    const counterpartyAccount = accounts.find((a) => a.id === values.counterparty_account_id);
-
     onSubmit({
       account_id: values.account_id,
-      counterparty: counterpartyAccount?.name || '',
+      counterparty: values.counterparty,
       principal_amount: values.principal_amount,
       currency_code: values.currency_code,
       interest_rate: values.interest_rate,
@@ -298,31 +294,12 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
                 <FormMessage />
               </FormItem>
             )} />
-            <FormField name="counterparty_account_id" render={({ field }) => (
+            <FormField name="counterparty" render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
                   {t('debtForm.counterparty')} <span className="text-red-500">*</span>
                 </FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder={t('debtForm.selectCounterparty')} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {allAccounts.length === 0 ? (
-                      <div className="px-2 py-4 text-sm text-muted-foreground text-center">
-                        {t('debtForm.noAccounts')}
-                      </div>
-                    ) : (
-                      allAccounts.map((acc) => (
-                        <SelectItem key={acc.id} value={acc.id}>
-                          {acc.name} ({acc.account_type})
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                <FormControl><Input placeholder={t('debtForm.counterpartyPlaceholder')} className="h-9" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
