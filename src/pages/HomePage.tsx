@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/EmptyState';
 import { listAccounts } from '@/lib/tauri/account';
 import { listTransactions } from '@/lib/tauri/transaction';
+import { listHoldings } from '@/lib/tauri/holding';
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -31,6 +32,8 @@ export function HomePage() {
     queryKey: ['transactions'],
     queryFn: listTransactions,
   });
+
+  const { data: holdings = [] } = useQuery({ queryKey: ['holdings'], queryFn: listHoldings });
 
   const dateRange = useMemo(() => {
     if (dateRangePreset === 'custom') {
@@ -61,6 +64,12 @@ export function HomePage() {
 
   // Calculate total balance from all accounts
   const totalBalance = accounts.reduce((sum, account) => sum + Number(account.current_balance), 0);
+
+  const holdingsSummary = useMemo(() => {
+    const totalMv = holdings.reduce((s, h) => s + (h.market_value || 0), 0);
+    const totalPnl = holdings.reduce((s, h) => s + (h.unrealized_pnl || 0), 0);
+    return { totalMv, totalPnl, count: holdings.length };
+  }, [holdings]);
 
   const FALLBACK_COLORS = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
   const FALLBACK_COLORS_INCOME = ['#10B981', '#06B6D4', '#84CC16', '#3B82F6', '#14B8A6'];
@@ -210,7 +219,7 @@ export function HomePage() {
         <>
           {accounts.length > 0 && (
             <>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
                 {/* Total Balance */}
                 <Card className="bg-gradient-to-br from-card to-muted/20 border-border/50 shadow-sm">
                   <CardContent className="pt-4">
@@ -276,6 +285,28 @@ export function HomePage() {
                     <div className={`text-2xl font-bold tracking-tight ${monthlySavings >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                       {monthlySavings >= 0 ? '+' : ''}{monthlySavings.toLocaleString('en-US', { style: 'currency', currency: 'CNY', currencyDisplay: 'narrowSymbol' })}
                     </div>
+                  </CardContent>
+                </Card>
+
+                {/* Portfolio Value */}
+                <Card className="bg-gradient-to-br from-purple-50/50 to-card dark:from-purple-950/20 dark:to-card border-purple-200/50 dark:border-purple-800/30 shadow-sm">
+                  <CardContent className="pt-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-900/30">
+                        <TrendingUp className="h-4 w-4 text-purple-500" />
+                      </div>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {t('dashboard.portfolioValue')}
+                      </span>
+                    </div>
+                    <div className="text-2xl font-bold tracking-tight text-purple-600 dark:text-purple-400">
+                      {holdingsSummary.totalMv.toLocaleString('en-US', { style: 'currency', currency: 'CNY', currencyDisplay: 'narrowSymbol' })}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {holdingsSummary.count} {t('holding.positions')} · {t('dashboard.unrealizedPnl')}: <span className={holdingsSummary.totalPnl >= 0 ? 'text-emerald-600' : 'text-red-600'}>
+                        {holdingsSummary.totalPnl >= 0 ? '+' : ''}{holdingsSummary.totalPnl.toLocaleString('en-US', { style: 'currency', currency: 'CNY', currencyDisplay: 'narrowSymbol' })}
+                      </span>
+                    </p>
                   </CardContent>
                 </Card>
               </div>

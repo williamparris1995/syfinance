@@ -56,7 +56,9 @@
     "manageDebts": "管理债务",
     "noAccounts": "还没有账户",
     "noAccountsDesc": "创建您的第一个账户以开始跟踪财务",
-    "loadingDashboard": "加载仪表板..."
+    "loadingDashboard": "加载仪表板...",
+    "portfolioValue": "投资市值",
+    "unrealizedPnl": "未实现盈亏"
   },
   "accounts": {
     "title": "账户",
@@ -459,5 +461,38 @@
     "symbolRequired": "货币符号为必填项",
     "exchangeRateRequired": "汇率为必填项",
     "exchangeRatePositive": "汇率必须大于0"
+  },
+  "holding": {
+    "title": "投资组合",
+    "account": "账户",
+    "selectAccount": "选择投资账户",
+    "security": "证券",
+    "selectSecurity": "选择证券",
+    "direction": "方向",
+    "buy": "买入",
+    "sell": "卖出",
+    "quantity": "数量",
+    "price": "价格",
+    "fee": "手续费",
+    "tradeDate": "交易日期",
+    "estimatedAmount": "预估金额",
+    "submitting": "提交中...",
+    "symbol": "代码",
+    "name": "名称",
+    "avgCost": "平均成本",
+    "currentPrice": "当前价格",
+    "marketValue": "市值",
+    "pnl": "盈亏",
+    "pnlPct": "盈亏%",
+    "positions": "个持仓",
+    "types": {
+      "stock": "股票",
+      "fund": "基金",
+      "etf": "ETF",
+      "bond": "债券",
+      "gold": "黄金",
+      "option": "期权",
+      "other": "其他"
+    }
   }
 }
