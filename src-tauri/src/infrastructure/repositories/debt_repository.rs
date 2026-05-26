@@ -1,9 +1,9 @@
 use crate::domain::{
-    aggregates::{Debt, DebtType, PaymentSchedule},
+    aggregates::debt_details::{AmortizationMethod, DebtDetails, PaymentScheduleEntry},
     repositories::DebtRepository,
-    value_objects::{Money, SyncMetadata},
 };
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{NaiveDate, Utc};
+use rust_decimal::Decimal;
 use sqlx::{Row, SqlitePool};
 use std::str::FromStr;
 use uuid::Uuid;
@@ -17,69 +17,68 @@ impl SqliteDebtRepository {
         Self { pool }
     }
 
-    fn parse_debt_type(s: &str) -> Result<DebtType, sqlx::Error> {
+    fn parse_amortization_method(s: &str) -> Result<AmortizationMethod, sqlx::Error> {
         match s {
-            "borrowed_out" => Ok(DebtType::BorrowedOut),
-            "borrowed_in" => Ok(DebtType::BorrowedIn),
-            "credit_card" => Ok(DebtType::CreditCard),
-            "loan" => Ok(DebtType::Loan),
+            "EqualPrincipalInterest" => Ok(AmortizationMethod::EqualPrincipalInterest),
+            "EqualPrincipal" => Ok(AmortizationMethod::EqualPrincipal),
+            "LumpSum" => Ok(AmortizationMethod::LumpSum),
             _ => Err(sqlx::Error::Decode(
-                format!("invalid debt type: {}", s).into(),
+                format!("invalid amortization method: {}", s).into(),
             )),
         }
     }
 
-    fn debt_type_to_str(dt: &DebtType) -> &'static str {
-        match dt {
-            DebtType::BorrowedOut => "borrowed_out",
-            DebtType::BorrowedIn => "borrowed_in",
-            DebtType::CreditCard => "credit_card",
-            DebtType::Loan => "loan",
+    fn amortization_method_to_str(m: &AmortizationMethod) -> &'static str {
+        match m {
+            AmortizationMethod::EqualPrincipalInterest => "EqualPrincipalInterest",
+            AmortizationMethod::EqualPrincipal => "EqualPrincipal",
+            AmortizationMethod::LumpSum => "LumpSum",
         }
     }
 }
 
 impl DebtRepository for SqliteDebtRepository {
-    async fn create(&self, debt: &Debt) -> sqlx::Result<()> {
+    async fn create_debt_details(&self, debt: &DebtDetails) -> sqlx::Result<()> {
         let mut tx = self.pool.begin().await?;
 
         sqlx::query(
             r#"
-            INSERT INTO debts (
-                id, debt_type, counterparty, principal, currency_code,
-                interest_rate, start_date, due_date, updated_at, device_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO debt_details (
+                id, account_id, counterparty, interest_rate, amortization_method,
+                start_date, due_date, total_principal, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(debt.id.to_string())
-        .bind(Self::debt_type_to_str(&debt.debt_type))
+        .bind(debt.account_id.to_string())
         .bind(&debt.counterparty)
-        .bind(debt.principal.amount.to_string())
-        .bind(&debt.principal.currency_code)
         .bind(debt.interest_rate.to_string())
+        .bind(Self::amortization_method_to_str(&debt.amortization_method))
         .bind(debt.start_date.to_string())
         .bind(debt.due_date.to_string())
-        .bind(debt.sync_metadata.updated_at.to_rfc3339())
-        .bind(debt.sync_metadata.device_id.to_string())
+        .bind(debt.total_principal.to_string())
+        .bind(Utc::now().to_rfc3339())
         .execute(&mut *tx)
         .await?;
 
-        for payment in &debt.payment_schedule {
+        for entry in &debt.payment_schedule {
             sqlx::query(
                 r#"
-                INSERT INTO debt_payments (
+                INSERT INTO debt_payment_schedule (
                     id, debt_id, payment_date, principal_amount, interest_amount,
-                    total_amount, paid
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    total_amount, paid, transaction_id, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 "#,
             )
-            .bind(Uuid::new_v4().to_string())
+            .bind(entry.id.to_string())
             .bind(debt.id.to_string())
-            .bind(payment.payment_date.to_string())
-            .bind(payment.principal_amount.amount.to_string())
-            .bind(payment.interest_amount.amount.to_string())
-            .bind(payment.total_amount.amount.to_string())
-            .bind(payment.paid)
+            .bind(entry.payment_date.to_string())
+            .bind(entry.principal_amount.to_string())
+            .bind(entry.interest_amount.to_string())
+            .bind(entry.total_amount.to_string())
+            .bind(entry.paid)
+            .bind(entry.transaction_id.map(|id| id.to_string()))
+            .bind(Utc::now().to_rfc3339())
             .execute(&mut *tx)
             .await?;
         }
@@ -88,12 +87,12 @@ impl DebtRepository for SqliteDebtRepository {
         Ok(())
     }
 
-    async fn find_by_id(&self, id: Uuid) -> sqlx::Result<Option<Debt>> {
+    async fn find_debt_details_by_id(&self, id: Uuid) -> sqlx::Result<Option<DebtDetails>> {
         let row = sqlx::query(
             r#"
-            SELECT id, debt_type, counterparty, CAST(principal AS TEXT) as principal, currency_code,
-                   CAST(interest_rate AS TEXT) as interest_rate, start_date, due_date, updated_at, deleted_at, device_id, synced_at
-            FROM debts
+            SELECT id, account_id, counterparty, CAST(interest_rate AS TEXT) as interest_rate,
+                   amortization_method, start_date, due_date, CAST(total_principal AS TEXT) as total_principal
+            FROM debt_details
             WHERE id = ? AND deleted_at IS NULL
             "#,
         )
@@ -109,144 +108,40 @@ impl DebtRepository for SqliteDebtRepository {
         let debt_id = Uuid::parse_str(&debt_id)
             .map_err(|e| sqlx::Error::Decode(format!("invalid UUID: {}", e).into()))?;
 
-        let debt_type_str: String = row.get("debt_type");
-        let debt_type = Self::parse_debt_type(&debt_type_str)?;
-
-        let counterparty: String = row.get("counterparty");
-        let principal_val: String = row.get("principal");
-        let currency_code: String = row.get("currency_code");
-        let interest_rate_val: String = row.get("interest_rate");
-        let start_date: String = row.get("start_date");
-        let due_date: String = row.get("due_date");
-
-        let principal = Money::new(
-            rust_decimal::Decimal::from_str(&principal_val)
-                .map_err(|e| sqlx::Error::Decode(format!("invalid decimal: {}", e).into()))?,
-            &currency_code,
-        )
-        .map_err(|e| sqlx::Error::Decode(format!("invalid money: {}", e).into()))?;
-
-        let interest_rate = rust_decimal::Decimal::from_str(&interest_rate_val)
-            .map_err(|e| sqlx::Error::Decode(format!("invalid decimal: {}", e).into()))?;
-
-        let start_date = NaiveDate::parse_from_str(&start_date, "%Y-%m-%d")
-            .map_err(|e| sqlx::Error::Decode(format!("invalid date: {}", e).into()))?;
-
-        let due_date = NaiveDate::parse_from_str(&due_date, "%Y-%m-%d")
-            .map_err(|e| sqlx::Error::Decode(format!("invalid date: {}", e).into()))?;
-
-        let payment_rows = sqlx::query(
-            r#"
-            SELECT payment_date, CAST(principal_amount AS TEXT) as principal_amount, 
-                   CAST(interest_amount AS TEXT) as interest_amount, CAST(total_amount AS TEXT) as total_amount, paid
-            FROM debt_payments
-            WHERE debt_id = ?
-            ORDER BY payment_date ASC
-            "#,
-        )
-        .bind(debt_id.to_string())
-        .fetch_all(&self.pool)
-        .await?;
-
-        let mut payment_schedule = Vec::new();
-        for payment_row in payment_rows {
-            let payment_date: String = payment_row.get("payment_date");
-            let principal_amount: String = payment_row.get("principal_amount");
-            let interest_amount: String = payment_row.get("interest_amount");
-            let total_amount: String = payment_row.get("total_amount");
-            let paid: bool = payment_row.get("paid");
-
-            let payment_date = NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d")
-                .map_err(|e| sqlx::Error::Decode(format!("invalid date: {}", e).into()))?;
-
-            payment_schedule.push(PaymentSchedule {
-                payment_date,
-                principal_amount: Money::new(
-                    rust_decimal::Decimal::from_str(&principal_amount).map_err(|e| {
-                        sqlx::Error::Decode(format!("invalid decimal: {}", e).into())
-                    })?,
-                    &currency_code,
-                )
-                .map_err(|e| sqlx::Error::Decode(format!("invalid money: {}", e).into()))?,
-                interest_amount: Money::new(
-                    rust_decimal::Decimal::from_str(&interest_amount).map_err(|e| {
-                        sqlx::Error::Decode(format!("invalid decimal: {}", e).into())
-                    })?,
-                    &currency_code,
-                )
-                .map_err(|e| sqlx::Error::Decode(format!("invalid money: {}", e).into()))?,
-                total_amount: Money::new(
-                    rust_decimal::Decimal::from_str(&total_amount).map_err(|e| {
-                        sqlx::Error::Decode(format!("invalid decimal: {}", e).into())
-                    })?,
-                    &currency_code,
-                )
-                .map_err(|e| sqlx::Error::Decode(format!("invalid money: {}", e).into()))?,
-                paid,
-            });
-        }
-
-        let updated_at: String = row.get("updated_at");
-        let device_id: String = row.get("device_id");
-        let synced_at: Option<String> = row.get("synced_at");
-        let deleted_at: Option<String> = row.get("deleted_at");
-
-        let sync_metadata = SyncMetadata {
-            updated_at: chrono::DateTime::parse_from_rfc3339(&updated_at)
-                .or_else(|_| {
-                    chrono::NaiveDateTime::parse_from_str(&updated_at, "%Y-%m-%d %H:%M:%S")
-                        .map(|dt| dt.and_utc().into())
-                })
-                .map_err(|e| sqlx::Error::Decode(format!("invalid datetime: {}", e).into()))?
-                .with_timezone(&Utc),
-            deleted_at: deleted_at
-                .map(|s| {
-                    chrono::DateTime::parse_from_rfc3339(&s)
-                        .or_else(|_| {
-                            chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S")
-                                .map(|dt| dt.and_utc().into())
-                        })
-                        .map(|dt| dt.with_timezone(&Utc))
-                })
-                .transpose()
-                .map_err(|e: chrono::ParseError| {
-                    sqlx::Error::Decode(format!("invalid datetime: {}", e).into())
-                })?,
-            device_id: Uuid::parse_str(&device_id)
-                .map_err(|e| sqlx::Error::Decode(format!("invalid UUID: {}", e).into()))?,
-            synced_at: synced_at
-                .map(|s| {
-                    chrono::DateTime::parse_from_rfc3339(&s)
-                        .or_else(|_| {
-                            chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S")
-                                .map(|dt| dt.and_utc().into())
-                        })
-                        .map(|dt| dt.with_timezone(&Utc))
-                })
-                .transpose()
-                .map_err(|e: chrono::ParseError| {
-                    sqlx::Error::Decode(format!("invalid datetime: {}", e).into())
-                })?,
-        };
-
-        Ok(Some(Debt {
-            id: debt_id,
-            debt_type,
-            counterparty,
-            principal,
-            interest_rate,
-            start_date,
-            due_date,
-            payment_schedule,
-            sync_metadata,
-        }))
+        let details = self.row_to_debt_details(&row).await?;
+        Ok(Some(details))
     }
 
-    async fn find_all(&self) -> sqlx::Result<Vec<Debt>> {
+    async fn find_debt_details_by_account_id(
+        &self,
+        account_id: Uuid,
+    ) -> sqlx::Result<Option<DebtDetails>> {
+        let row = sqlx::query(
+            r#"
+            SELECT id, account_id, counterparty, CAST(interest_rate AS TEXT) as interest_rate,
+                   amortization_method, start_date, due_date, CAST(total_principal AS TEXT) as total_principal
+            FROM debt_details
+            WHERE account_id = ? AND deleted_at IS NULL
+            "#,
+        )
+        .bind(account_id.to_string())
+        .fetch_optional(&self.pool)
+        .await?;
+
+        let Some(row) = row else {
+            return Ok(None);
+        };
+
+        let details = self.row_to_debt_details(&row).await?;
+        Ok(Some(details))
+    }
+
+    async fn find_all_debt_details(&self) -> sqlx::Result<Vec<DebtDetails>> {
         let rows = sqlx::query(
             r#"
-            SELECT id
-            FROM debts
+            SELECT id, account_id, counterparty, CAST(interest_rate AS TEXT) as interest_rate,
+                   amortization_method, start_date, due_date, CAST(total_principal AS TEXT) as total_principal
+            FROM debt_details
             WHERE deleted_at IS NULL
             ORDER BY start_date DESC
             "#,
@@ -256,185 +151,271 @@ impl DebtRepository for SqliteDebtRepository {
 
         let mut debts = Vec::new();
         for row in rows {
-            let id: String = row.get("id");
-            let id = Uuid::parse_str(&id)
-                .map_err(|e| sqlx::Error::Decode(format!("invalid UUID: {}", e).into()))?;
-
-            if let Some(debt) = self.find_by_id(id).await? {
-                debts.push(debt);
-            }
+            debts.push(self.row_to_debt_details(&row).await?);
         }
-
         Ok(debts)
     }
 
-    async fn find_by_type(&self, debt_type: DebtType) -> sqlx::Result<Vec<Debt>> {
-        let rows = sqlx::query(
-            r#"
-            SELECT id
-            FROM debts
-            WHERE debt_type = ? AND deleted_at IS NULL
-            ORDER BY start_date DESC
-            "#,
-        )
-        .bind(Self::debt_type_to_str(&debt_type))
-        .fetch_all(&self.pool)
-        .await?;
-
-        let mut debts = Vec::new();
-        for row in rows {
-            let id: String = row.get("id");
-            let id = Uuid::parse_str(&id)
-                .map_err(|e| sqlx::Error::Decode(format!("invalid UUID: {}", e).into()))?;
-
-            if let Some(debt) = self.find_by_id(id).await? {
-                debts.push(debt);
-            }
-        }
-
-        Ok(debts)
-    }
-
-    async fn find_due_by_date(&self, due_date: NaiveDate) -> sqlx::Result<Vec<Debt>> {
-        let rows = sqlx::query(
-            r#"
-            SELECT id
-            FROM debts
-            WHERE due_date = ? AND deleted_at IS NULL
-            ORDER BY start_date DESC
-            "#,
-        )
-        .bind(due_date.to_string())
-        .fetch_all(&self.pool)
-        .await?;
-
-        let mut debts = Vec::new();
-        for row in rows {
-            let id: String = row.get("id");
-            let id = Uuid::parse_str(&id)
-                .map_err(|e| sqlx::Error::Decode(format!("invalid UUID: {}", e).into()))?;
-
-            if let Some(debt) = self.find_by_id(id).await? {
-                debts.push(debt);
-            }
-        }
-
-        Ok(debts)
-    }
-
-    async fn update(&self, debt: &Debt) -> sqlx::Result<bool> {
-        let mut tx = self.pool.begin().await?;
-
+    async fn update_debt_details(&self, debt: &DebtDetails) -> sqlx::Result<bool> {
         let result = sqlx::query(
             r#"
-            UPDATE debts
-            SET counterparty = ?, principal = ?, currency_code = ?,
-                interest_rate = ?, start_date = ?, due_date = ?,
-                updated_at = ?, synced_at = ?
+            UPDATE debt_details
+            SET counterparty = ?, interest_rate = ?, amortization_method = ?,
+                start_date = ?, due_date = ?, total_principal = ?, updated_at = ?
             WHERE id = ? AND deleted_at IS NULL
             "#,
         )
         .bind(&debt.counterparty)
-        .bind(debt.principal.amount.to_string())
-        .bind(&debt.principal.currency_code)
         .bind(debt.interest_rate.to_string())
+        .bind(Self::amortization_method_to_str(&debt.amortization_method))
         .bind(debt.start_date.to_string())
         .bind(debt.due_date.to_string())
-        .bind(debt.sync_metadata.updated_at.to_rfc3339())
-        .bind(debt.sync_metadata.synced_at.map(|dt| dt.to_rfc3339()))
+        .bind(debt.total_principal.to_string())
+        .bind(Utc::now().to_rfc3339())
         .bind(debt.id.to_string())
-        .execute(&mut *tx)
+        .execute(&self.pool)
         .await?;
 
-        if result.rows_affected() == 0 {
-            return Ok(false);
-        }
+        Ok(result.rows_affected() > 0)
+    }
 
-        sqlx::query("DELETE FROM debt_payments WHERE debt_id = ?")
-            .bind(debt.id.to_string())
-            .execute(&mut *tx)
-            .await?;
+    async fn soft_delete_debt_details(&self, id: Uuid) -> sqlx::Result<bool> {
+        let result = sqlx::query(
+            r#"
+            UPDATE debt_details
+            SET deleted_at = ?
+            WHERE id = ? AND deleted_at IS NULL
+            "#,
+        )
+        .bind(Utc::now().to_rfc3339())
+        .bind(id.to_string())
+        .execute(&self.pool)
+        .await?;
 
-        for payment in &debt.payment_schedule {
+        Ok(result.rows_affected() > 0)
+    }
+
+    async fn create_schedule_entries(&self, entries: &[PaymentScheduleEntry]) -> sqlx::Result<()> {
+        let mut tx = self.pool.begin().await?;
+
+        for entry in entries {
             sqlx::query(
                 r#"
-                INSERT INTO debt_payments (
+                INSERT INTO debt_payment_schedule (
                     id, debt_id, payment_date, principal_amount, interest_amount,
-                    total_amount, paid
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    total_amount, paid, transaction_id, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 "#,
             )
-            .bind(Uuid::new_v4().to_string())
-            .bind(debt.id.to_string())
-            .bind(payment.payment_date.to_string())
-            .bind(payment.principal_amount.amount.to_string())
-            .bind(payment.interest_amount.amount.to_string())
-            .bind(payment.total_amount.amount.to_string())
-            .bind(payment.paid)
+            .bind(entry.id.to_string())
+            .bind(entry.debt_id.to_string())
+            .bind(entry.payment_date.to_string())
+            .bind(entry.principal_amount.to_string())
+            .bind(entry.interest_amount.to_string())
+            .bind(entry.total_amount.to_string())
+            .bind(entry.paid)
+            .bind(entry.transaction_id.map(|id| id.to_string()))
+            .bind(Utc::now().to_rfc3339())
             .execute(&mut *tx)
             .await?;
         }
 
         tx.commit().await?;
-        Ok(true)
+        Ok(())
     }
 
-    async fn soft_delete(&self, id: Uuid) -> sqlx::Result<bool> {
-        let result = sqlx::query(
-            r#"
-            UPDATE debts
-            SET deleted_at = ?, synced_at = NULL
-            WHERE id = ? AND deleted_at IS NULL
-            "#,
-        )
-        .bind(Utc::now().to_rfc3339())
-        .bind(id.to_string())
-        .execute(&self.pool)
-        .await?;
-
-        Ok(result.rows_affected() > 0)
-    }
-
-    async fn get_changes_since(&self, timestamp: DateTime<Utc>) -> sqlx::Result<Vec<Debt>> {
+    async fn find_schedule_by_debt_id(
+        &self,
+        debt_id: Uuid,
+    ) -> sqlx::Result<Vec<PaymentScheduleEntry>> {
         let rows = sqlx::query(
             r#"
-            SELECT id
-            FROM debts
-            WHERE updated_at > ? AND (synced_at IS NULL OR synced_at < updated_at)
-            ORDER BY updated_at ASC
+            SELECT id, debt_id, payment_date,
+                   CAST(principal_amount AS TEXT) as principal_amount,
+                   CAST(interest_amount AS TEXT) as interest_amount,
+                   CAST(total_amount AS TEXT) as total_amount,
+                   paid, transaction_id
+            FROM debt_payment_schedule
+            WHERE debt_id = ? AND deleted_at IS NULL
+            ORDER BY payment_date ASC
             "#,
         )
-        .bind(timestamp.to_rfc3339())
+        .bind(debt_id.to_string())
         .fetch_all(&self.pool)
         .await?;
 
-        let mut debts = Vec::new();
+        let mut entries = Vec::new();
         for row in rows {
-            let id: String = row.get("id");
-            let id = Uuid::parse_str(&id)
-                .map_err(|e| sqlx::Error::Decode(format!("invalid UUID: {}", e).into()))?;
-
-            if let Some(debt) = self.find_by_id(id).await? {
-                debts.push(debt);
-            }
+            entries.push(row_to_schedule_entry(&row)?);
         }
-
-        Ok(debts)
+        Ok(entries)
     }
 
-    async fn mark_as_synced(&self, id: Uuid) -> sqlx::Result<bool> {
+    async fn update_schedule_entry(&self, entry: &PaymentScheduleEntry) -> sqlx::Result<bool> {
         let result = sqlx::query(
             r#"
-            UPDATE debts
-            SET synced_at = ?
-            WHERE id = ?
+            UPDATE debt_payment_schedule
+            SET paid = ?, transaction_id = ?, updated_at = ?
+            WHERE id = ? AND deleted_at IS NULL
             "#,
         )
+        .bind(entry.paid)
+        .bind(entry.transaction_id.map(|id| id.to_string()))
         .bind(Utc::now().to_rfc3339())
-        .bind(id.to_string())
+        .bind(entry.id.to_string())
         .execute(&self.pool)
         .await?;
 
         Ok(result.rows_affected() > 0)
     }
+
+    async fn get_upcoming_payments(
+        &self,
+        days_ahead: i32,
+    ) -> sqlx::Result<Vec<(DebtDetails, PaymentScheduleEntry)>> {
+        let today = Utc::now().date_naive();
+        let end_date = today + chrono::Duration::days(days_ahead as i64);
+
+        let rows = sqlx::query(
+            r#"
+            SELECT d.id as debt_id, d.account_id, d.counterparty,
+                   CAST(d.interest_rate AS TEXT) as interest_rate, d.amortization_method,
+                   d.start_date, d.due_date, CAST(d.total_principal AS TEXT) as total_principal,
+                   s.id as schedule_id, s.payment_date,
+                   CAST(s.principal_amount AS TEXT) as principal_amount,
+                   CAST(s.interest_amount AS TEXT) as interest_amount,
+                   CAST(s.total_amount AS TEXT) as total_amount,
+                   s.paid, s.transaction_id
+            FROM debt_payment_schedule s
+            JOIN debt_details d ON s.debt_id = d.id
+            WHERE s.payment_date BETWEEN ? AND ?
+              AND s.paid = 0
+              AND s.deleted_at IS NULL
+              AND d.deleted_at IS NULL
+            ORDER BY s.payment_date ASC
+            "#,
+        )
+        .bind(today.to_string())
+        .bind(end_date.to_string())
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut results = Vec::new();
+        for row in rows {
+            let debt = self.row_to_debt_details(&row).await?;
+            let entry = row_to_schedule_entry(&row)?;
+            results.push((debt, entry));
+        }
+        Ok(results)
+    }
+}
+
+impl SqliteDebtRepository {
+    async fn row_to_debt_details(
+        &self,
+        row: &sqlx::sqlite::SqliteRow,
+    ) -> Result<DebtDetails, sqlx::Error> {
+        let debt_id_str: String = row.try_get("debt_id").or_else(|_| {
+            let id: String = row.try_get("id")?;
+            Ok::<_, sqlx::Error>(id)
+        })?;
+        let debt_id = Uuid::parse_str(&debt_id_str)
+            .map_err(|e| sqlx::Error::Decode(format!("invalid UUID: {}", e).into()))?;
+
+        let account_id_str: String = row.try_get("account_id")?;
+        let account_id = Uuid::parse_str(&account_id_str)
+            .map_err(|e| sqlx::Error::Decode(format!("invalid UUID: {}", e).into()))?;
+
+        let counterparty: String = row.try_get("counterparty")?;
+
+        let interest_rate_str: String = row.try_get("interest_rate")?;
+        let interest_rate = Decimal::from_str(&interest_rate_str)
+            .map_err(|e| sqlx::Error::Decode(format!("invalid decimal: {}", e).into()))?;
+
+        let amortization_method_str: String = row.try_get("amortization_method")?;
+        let amortization_method = Self::parse_amortization_method(&amortization_method_str)?;
+
+        let start_date_str: String = row.try_get("start_date")?;
+        let start_date = NaiveDate::parse_from_str(&start_date_str, "%Y-%m-%d")
+            .map_err(|e| sqlx::Error::Decode(format!("invalid date: {}", e).into()))?;
+
+        let due_date_str: String = row.try_get("due_date")?;
+        let due_date = NaiveDate::parse_from_str(&due_date_str, "%Y-%m-%d")
+            .map_err(|e| sqlx::Error::Decode(format!("invalid date: {}", e).into()))?;
+
+        let total_principal_str: String = row.try_get("total_principal")?;
+        let total_principal = Decimal::from_str(&total_principal_str)
+            .map_err(|e| sqlx::Error::Decode(format!("invalid decimal: {}", e).into()))?;
+
+        let schedule = self.find_schedule_by_debt_id(debt_id).await?;
+
+        Ok(DebtDetails {
+            id: debt_id,
+            account_id,
+            counterparty,
+            interest_rate,
+            amortization_method,
+            start_date,
+            due_date,
+            total_principal,
+            payment_schedule: schedule,
+        })
+    }
+}
+
+fn row_to_schedule_entry(
+    row: &sqlx::sqlite::SqliteRow,
+) -> Result<PaymentScheduleEntry, sqlx::Error> {
+    let entry_id_str: String = row
+        .try_get("schedule_id")
+        .or_else(|_| {
+            let id: String = row.try_get("id")?;
+            Ok::<_, sqlx::Error>(id)
+        })?;
+    let entry_id = Uuid::parse_str(&entry_id_str)
+        .map_err(|e| sqlx::Error::Decode(format!("invalid UUID: {}", e).into()))?;
+
+    let debt_id_from_row: String = row
+        .try_get("debt_id")
+        .or_else(|_| {
+            let id: String = row.try_get("debt_id")?;
+            Ok::<_, sqlx::Error>(id)
+        })?;
+    let debt_id = Uuid::parse_str(&debt_id_from_row)
+        .map_err(|e| sqlx::Error::Decode(format!("invalid UUID: {}", e).into()))?;
+
+    let payment_date_str: String = row.try_get("payment_date")?;
+    let payment_date = NaiveDate::parse_from_str(&payment_date_str, "%Y-%m-%d")
+        .map_err(|e| sqlx::Error::Decode(format!("invalid date: {}", e).into()))?;
+
+    let principal_amount_str: String = row.try_get("principal_amount")?;
+    let principal_amount = Decimal::from_str(&principal_amount_str)
+        .map_err(|e| sqlx::Error::Decode(format!("invalid decimal: {}", e).into()))?;
+
+    let interest_amount_str: String = row.try_get("interest_amount")?;
+    let interest_amount = Decimal::from_str(&interest_amount_str)
+        .map_err(|e| sqlx::Error::Decode(format!("invalid decimal: {}", e).into()))?;
+
+    let total_amount_str: String = row.try_get("total_amount")?;
+    let total_amount = Decimal::from_str(&total_amount_str)
+        .map_err(|e| sqlx::Error::Decode(format!("invalid decimal: {}", e).into()))?;
+
+    let paid: bool = row.try_get("paid")?;
+
+    let transaction_id: Option<String> = row.try_get("transaction_id")?;
+    let transaction_id = transaction_id
+        .map(|s| Uuid::parse_str(&s))
+        .transpose()
+        .map_err(|e| sqlx::Error::Decode(format!("invalid UUID: {}", e).into()))?;
+
+    Ok(PaymentScheduleEntry {
+        id: entry_id,
+        debt_id,
+        payment_date,
+        principal_amount,
+        interest_amount,
+        total_amount,
+        paid,
+        transaction_id,
+    })
 }
