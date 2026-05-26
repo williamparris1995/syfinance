@@ -33,7 +33,7 @@ import {
 import type { CreateDebtDto, AmortizationMethod } from '@/lib/tauri/debt';
 import { listAccounts, type AccountDto } from '@/lib/tauri/account';
 
-const DEBT_ACCOUNT_TYPES = ['BorrowedOut', 'BorrowedIn', 'CreditCard', 'Loan'] as const;
+const DEBT_ACCOUNT_TYPES = ['BorrowedOut', 'BorrowedIn', 'CreditCard'] as const;
 
 interface PaymentPreview {
   payment_date: string;

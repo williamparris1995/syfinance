@@ -224,7 +224,8 @@ export function AccountsPage() {
             <SelectItem value="Bank">{t('accountForm.bank')}</SelectItem>
             <SelectItem value="CreditCard">{t('accountForm.creditCard')}</SelectItem>
             <SelectItem value="Investment">{t('accountForm.investment')}</SelectItem>
-            <SelectItem value="Loan">{t('accountForm.loan')}</SelectItem>
+            <SelectItem value="BorrowedOut">{t('accountForm.borrowedOut')}</SelectItem>
+            <SelectItem value="BorrowedIn">{t('accountForm.borrowedIn')}</SelectItem>
             <SelectItem value="Income">{t('accountForm.income')}</SelectItem>
             <SelectItem value="Expense">{t('accountForm.expense')}</SelectItem>
             <SelectItem value="Other">{t('accountForm.other')}</SelectItem>

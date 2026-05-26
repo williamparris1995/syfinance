@@ -279,7 +279,7 @@ impl DebtService {
 fn is_liability_type(account_type: &AccountType) -> bool {
     matches!(
         account_type,
-        AccountType::BorrowedIn | AccountType::Loan | AccountType::CreditCard
+        AccountType::BorrowedIn | AccountType::CreditCard
     )
 }
 
@@ -288,7 +288,6 @@ fn default_chart_code(account_type: &AccountType) -> &str {
         AccountType::BorrowedOut => "1221",
         AccountType::BorrowedIn => "2001",
         AccountType::CreditCard => "2202",
-        AccountType::Loan => "2501",
         AccountType::Investment => "1101",
         AccountType::Cash => "1001",
         AccountType::Bank => "1002",

@@ -17,7 +17,7 @@ SELECT
         WHEN 'borrowed_out' THEN 'borrowed_out'
         WHEN 'borrowed_in' THEN 'borrowed_in'
         WHEN 'credit_card' THEN 'credit_card'
-        WHEN 'loan' THEN 'loan'
+        WHEN 'loan' THEN 'borrowed_in'
         ELSE 'other'
     END,
     COALESCE(d.currency_code, 'CNY'),
@@ -29,7 +29,7 @@ SELECT
         WHEN 'borrowed_out' THEN '1221'
         WHEN 'borrowed_in' THEN '2001'
         WHEN 'credit_card' THEN '2202'
-        WHEN 'loan' THEN '2501'
+        WHEN 'loan' THEN '2001'
         ELSE '2001'
     END,
     d.deleted_at,

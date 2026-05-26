@@ -24,7 +24,7 @@ const mockDebts: debtApi.DebtDto[] = [
   {
     account_id: '1',
     account_name: 'Home Mortgage',
-    account_type: 'Loan',
+    account_type: 'BorrowedIn',
     counterparty: 'Bank of China',
     principal_amount: '100000.00',
     currency_code: 'CNY',

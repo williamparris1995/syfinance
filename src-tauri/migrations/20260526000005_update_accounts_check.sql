@@ -25,7 +25,7 @@ CREATE TABLE accounts_new (
     device_id TEXT,
     synced_at TIMESTAMP,
     version INTEGER NOT NULL DEFAULT 1,
-    CHECK (account_type IN ('cash', 'bank', 'credit_card', 'investment', 'loan',
+    CHECK (account_type IN ('cash', 'bank', 'credit_card', 'investment',
            'borrowed_out', 'borrowed_in', 'other', 'income', 'expense')),
     CHECK (ownership IN ('own', 'external')),
     CHECK (billing_day IS NULL OR (billing_day >= 1 AND billing_day <= 31)),

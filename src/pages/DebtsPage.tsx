@@ -52,7 +52,6 @@ function debtTypeLabel(type: string, t: (key: string) => string): string {
     BorrowedIn: t('debtForm.borrowedIn'),
     BorrowedOut: t('debtForm.borrowedOut'),
     CreditCard: t('debtForm.creditCard'),
-    Loan: t('debtForm.loan'),
   };
   return map[type] || type;
 }

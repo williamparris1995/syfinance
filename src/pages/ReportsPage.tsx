@@ -93,7 +93,7 @@ export function ReportsPage() {
             currency: account.currency_code,
           });
         }
-      } else if (['CreditCard', 'Loan'].includes(account.account_type)) {
+      } else if (['CreditCard', 'BorrowedIn'].includes(account.account_type)) {
         if (balance < 0) {
           liabilities.push({
             name: account.name,

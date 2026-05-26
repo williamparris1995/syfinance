@@ -28,7 +28,6 @@ impl PostgresAccountRepository {
             "bank" => AccountType::Bank,
             "credit_card" => AccountType::CreditCard,
             "investment" => AccountType::Investment,
-            "loan" => AccountType::Loan,
             "borrowed_out" => AccountType::BorrowedOut,
             "borrowed_in" => AccountType::BorrowedIn,
             "other" => AccountType::Other,
