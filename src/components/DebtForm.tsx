@@ -265,7 +265,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
       counterparty: values.counterparty,
       principal_amount: values.principal_amount,
       currency_code: values.currency_code,
-      interest_rate: values.interest_rate,
+      interest_rate: values.interest_rate ? (parseFloat(values.interest_rate) / 100).toString() : '0',
       start_date: values.start_date || null,
       due_date: resolvedDueDate || null,
       amortization_method: resolvedMethod as AmortizationMethod | null,
