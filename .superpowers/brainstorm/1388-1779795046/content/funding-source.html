@@ -1,0 +1,101 @@
+<h2>当前设计的问题：借入 = "自己转自己"？</h2>
+<p class="subtitle">从会计角度分录没错，但 UI 语义让用户困惑</p>
+
+<div class="section">
+  <h3>当前借入流程</h3>
+  <div class="mockup">
+    <div class="mockup-header">用户视角的困惑</div>
+    <div class="mockup-body" style="padding:16px;font-size:14px;line-height:1.8">
+      <div style="display:flex;gap:16px;align-items:flex-start">
+        <div style="flex:1;background:#FEF2F2;padding:12px;border-radius:8px;border:1px solid #FCA5A5">
+          <strong style="color:#DC2626">用户看到的</strong>
+          <p style="margin:4px 0;font-family:monospace;font-size:13px">
+            债务账户：张三借款 (BorrowedIn)<br/>
+            资金账户：微信钱包 (Bank) ← <strong style="color:#DC2626">自己的账户</strong>
+          </p>
+          <p style="color:#DC2626;font-size:13px;margin:8px 0 0 0">
+            "我借了张三的钱，为什么要从自己的微信钱包里扣？"
+          </p>
+        </div>
+        <div style="flex:1;background:#F0FDF4;padding:12px;border-radius:8px;border:1px solid #86EFAC">
+          <strong style="color:#059669">实际发生的会计事件</strong>
+          <p style="margin:4px 0;font-family:monospace;font-size:13px">
+            借：微信钱包 ¥50,000 (资产+）<br/>
+            &nbsp;&nbsp;&nbsp; 贷：张三借款 ¥50,000 (负债+)
+          </p>
+          <p style="color:#059669;font-size:13px;margin:8px 0 0 0">
+            "张三把钱打进了我的微信钱包，资产增加了，同时产生了负债"
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>问题本质</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="padding:16px;font-size:14px;line-height:1.8">
+      <p><strong>缺少"资金来源方"的概念。</strong></p>
+      <p>当前设计中，创建债务时只涉及 3 个账户：</p>
+      <table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:8px">
+        <tr style="background:#f9fafb">
+          <th style="padding:8px;text-align:left">账户</th>
+          <th style="padding:8px;text-align:left">ownership</th>
+          <th style="padding:8px;text-align:left">角色</th>
+        </tr>
+        <tr>
+          <td style="padding:8px">微信钱包</td>
+          <td style="padding:8px">own</td>
+          <td style="padding:8px">资金到账方（资产）</td>
+        </tr>
+        <tr>
+          <td style="padding:8px">张三借款</td>
+          <td style="padding:8px">own</td>
+          <td style="padding:8px">负债记录方（负债）</td>
+        </tr>
+        <tr style="background:#FEF2F2">
+          <td style="padding:8px;color:#DC2626"><strong>缺少→</strong></td>
+          <td style="padding:8px;color:#DC2626"><strong>external</strong></td>
+          <td style="padding:8px;color:#DC2626"><strong>资金来源方（张三本人）</strong></td>
+        </tr>
+      </table>
+      <p style="margin-top:12px">如果把"张三"当作一个 <strong>external 账户</strong>，用户的选择就是："我从【张三】那里借了钱，钱打进了【微信钱包】"——语义就对了。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>方案</h3>
+  <div class="options">
+    <div class="option" data-choice="a" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>资金账户 → 改成"对方账户"</h3>
+        <p>借入时选<strong>对方的 external 账户</strong>（代表张三），系统自动判断：</p>
+        <p>借入：从对方账户流入你的到账账户</p>
+        <p>借出：从你的付款账户流向对方账户</p>
+        <p style="color:#6B7280;font-size:13px">前提：需要先创建 external 账户代表对方</p>
+      </div>
+    </div>
+    <div class="option" data-choice="b" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>保留资金账户，增加对方选择</h3>
+        <p>债务账户 + 对方(external) + 你自己的到账账户</p>
+        <p>借入：选【张三(external)】→ 钱到【微信钱包(own)】</p>
+        <p>分录：借 微信钱包，贷 张三借款。对方字段用于 display</p>
+        <p style="color:#6B7280;font-size:13px">语义清晰，但需要的字段最多</p>
+      </div>
+    </div>
+    <div class="option" data-choice="c" onclick="toggleSelect(this)">
+      <div class="letter">C</div>
+      <div class="content">
+        <h3>简化：对方用文本，不要求账户</h3>
+        <p>债务账户 + 对方（文本输入）+ 你自己的到账账户</p>
+        <p>跟现在几乎一样，只是把"资金账户"改名为"到账账户"</p>
+        <p style="color:#6B7280;font-size:13px">改动最小，但对方无法参与复式记账</p>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,106 @@
+<h2>持仓系统设计 — 业务流程 + UI 布局</h2>
+<p class="subtitle">以股票买入为例，展示完整用户路径</p>
+
+<div class="section">
+  <h3>完整流程：买入股票 → 持仓更新 → Dashboard 反映</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="padding:16px;font-size:14px;line-height:1.8">
+
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
+      <span style="background:#2563EB;color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700">1</span>
+      <strong>创建证券品种（首次）</strong>
+      <span style="font-size:12px;color:#6B7280">只需做一次，后续复用</span>
+    </div>
+    <div class="mockup" style="margin-bottom:16px">
+      <div class="mockup-header">Securities Page / 证券管理</div>
+      <div class="mockup-body" style="padding:12px;font-size:13px">
+        <table style="width:100%;border-collapse:collapse">
+          <tr style="background:#f9fafb"><th style="padding:4px;text-align:left">代码</th><th style="padding:4px;text-align:left">名称</th><th style="padding:4px;text-align:left">类型</th><th style="padding:4px;text-align:left">交易所</th><th style="padding:4px;text-align:left">币种</th><th></th></tr>
+          <tr><td style="padding:4px">00700.HK</td><td style="padding:4px">腾讯控股</td><td style="padding:4px"><span class="badge" style="background:#3B82F6;color:#fff;padding:1px 8px;border-radius:12px;font-size:11px">股票</span></td><td style="padding:4px">HKEX</td><td style="padding:4px">HKD</td><td style="padding:4px"><span class="mock-button" style="font-size:11px">+ 添加</span></td></tr>
+          <tr><td style="padding:4px">600519.SH</td><td style="padding:4px">贵州茅台</td><td style="padding:4px"><span class="badge" style="background:#3B82F6;color:#fff;padding:1px 8px;border-radius:12px;font-size:11px">股票</span></td><td style="padding:4px">SSE</td><td style="padding:4px">CNY</td><td style="padding:4px"><span class="mock-button" style="font-size:11px">+ 添加</span></td></tr>
+        </table>
+        <div style="margin-top:8px">+ <span class="mock-button" style="font-size:12px">新建证券品种</span></div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
+      <span style="background:#2563EB;color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700">2</span>
+      <strong>记录买入交易</strong>
+    </div>
+    <div class="mockup" style="margin-bottom:16px">
+      <div class="mockup-header">HoldingTradeForm / 买入/卖出表单</div>
+      <div class="mockup-body" style="padding:12px;font-size:13px">
+        <table style="width:100%;border-collapse:collapse">
+          <tr><td style="padding:4px;width:100px">账户 *</td><td style="padding:4px"><span class="mock-input" style="width:200px">招商证券 ▼</span> <span style="font-size:11px;color:#6B7280">筛选 Investment 类型</span></td></tr>
+          <tr><td style="padding:4px">品种 *</td><td style="padding:4px"><span class="mock-input" style="width:200px">00700.HK 腾讯控股 ▼</span></td></tr>
+          <tr><td style="padding:4px">方向 *</td><td style="padding:4px"><span class="mock-button" style="background:#059669;color:#fff;font-size:12px">买入</span> <span class="mock-button" style="font-size:12px">卖出</span></td></tr>
+          <tr><td style="padding:4px">数量 *</td><td style="padding:4px"><span class="mock-input" style="width:120px">50</span> 股</td></tr>
+          <tr><td style="padding:4px">单价 *</td><td style="padding:4px"><span class="mock-input" style="width:120px">420</span> HKD</td></tr>
+          <tr><td style="padding:4px">手续费</td><td style="padding:4px"><span class="mock-input" style="width:120px">15</span> HKD</td></tr>
+          <tr><td style="padding:4px">交易日期</td><td style="padding:4px"><span class="mock-input" style="width:160px">2026-05-27</span></td></tr>
+        </table>
+        <div style="margin-top:8px;font-size:12px;color:#6B7280">
+          预估：总成本 = 50 × 420 + 15 = ¥21,015<br/>
+          成交后，该持仓 avg_cost 从 380 → 393.33
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
+      <span style="background:#2563EB;color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700">3</span>
+      <strong>系统自动更新持仓 + 创建复式分录</strong>
+    </div>
+    <div class="mockup" style="margin-bottom:16px">
+      <div class="mockup-body" style="padding:12px;font-size:13px;font-family:monospace">
+        分录：借 交易性金融资产(1101) ¥21,000<br/>
+        　　　借 手续费(5301) ¥15<br/>
+        　　　　　贷 招商证券(Bank) ¥21,015<br/><br/>
+        持仓：00700.HK quantity = 150, avg_cost = 393.33
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
+      <span style="background:#2563EB;color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700">4</span>
+      <strong>手动更新市价 → Dashboard 刷新</strong>
+    </div>
+    <div class="mockup">
+      <div class="mockup-header">Dashboard / Holdings 一览</div>
+      <div class="mockup-body" style="padding:12px;font-size:13px">
+        <table style="width:100%;border-collapse:collapse">
+          <tr style="background:#f9fafb"><th style="padding:4px;text-align:left">品种</th><th style="padding:4px;text-align:right">持仓</th><th style="padding:4px;text-align:right">成本</th><th style="padding:4px;text-align:right">现价</th><th style="padding:4px;text-align:right">市值</th><th style="padding:4px;text-align:right">盈亏</th><th style="padding:4px;text-align:right">盈亏%</th></tr>
+          <tr><td style="padding:4px">00700.HK 腾讯</td><td style="padding:4px;text-align:right">150</td><td style="padding:4px;text-align:right">393.33</td><td style="padding:4px;text-align:right">420.00</td><td style="padding:4px;text-align:right">63,000</td><td style="padding:4px;text-align:right;color:#059669">+4,000</td><td style="padding:4px;text-align:right;color:#059669">+6.8%</td></tr>
+          <tr><td style="padding:4px">600519 茅台</td><td style="padding:4px;text-align:right">100</td><td style="padding:4px;text-align:right">1,800</td><td style="padding:4px;text-align:right">1,750</td><td style="padding:4px;text-align:right">175,000</td><td style="padding:4px;text-align:right;color:#DC2626">-5,000</td><td style="padding:4px;text-align:right;color:#DC2626">-2.8%</td></tr>
+        </table>
+      </div>
+    </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>Dashboard 按资产类型分组</h3>
+  <div class="mockup">
+    <div class="mockup-header">分组展示：股票 / 基金 / 债券 / 黄金</div>
+    <div class="mockup-body" style="padding:16px;font-size:14px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="background:#EFF6FF;padding:12px;border-radius:8px;border-left:4px solid #3B82F6">
+          <strong>股票</strong> ｜ 2 只 ｜ 市值 ¥238,000<br/>
+          <span style="color:#059669">浮盈 +¥9,000 (+3.9%)</span>
+        </div>
+        <div style="background:#F0FDF4;padding:12px;border-radius:8px;border-left:4px solid #10B981">
+          <strong>基金/ETF</strong> ｜ 3 只 ｜ 市值 ¥50,000<br/>
+          <span style="color:#DC2626">浮亏 -¥1,200 (-2.4%)</span>
+        </div>
+        <div style="background:#FFFBEB;padding:12px;border-radius:8px;border-left:4px solid #F59E0B">
+          <strong>债券</strong> ｜ 2 只 ｜ 面值 ¥30,000<br/>
+          <span style="color:#6B7280">到期收益率 3.5%</span>
+        </div>
+        <div style="background:#FEF2F2;padding:12px;border-radius:8px;border-left:4px solid #EF4444">
+          <strong>黄金</strong> ｜ 1 只 ｜ 市值 ¥12,000<br/>
+          <span style="color:#059669">浮盈 +¥800 (+7.1%)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

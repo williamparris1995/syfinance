@@ -1,0 +1,112 @@
+<h2>持仓系统设计 — 数据模型（参考 FINOS / Quicken / GNUCash）</h2>
+<p class="subtitle">基于行业标准的交易驱动模型：Accounts ≠ Securities ≠ Holdings ≠ Prices</p>
+
+<div class="section">
+  <h3>ER 关系图</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="padding:16px;font-family:monospace;font-size:13px;line-height:2">
+<pre style="background:#f8f9fa;padding:16px;border-radius:8px;overflow-x:auto">
+┌──────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  securities   │     │    holdings       │     │     prices       │
+│  (品种主数据)  │←──┐ │   (持仓聚合)       │     │   (价格时间序列)   │
+│              │   │ │                  │     │                 │
+│ id           │   │ │ id               │     │ id              │
+│ symbol       │   ├─│ security_id FK   │     │ security_id FK  │
+│ name         │   │ │ account_id FK ───│──┐  │ price_date      │
+│ type ────────│───┘ │ quantity         │  │  │ close_price     │
+│  (stock/bond │     │ avg_cost         │  │  │ currency        │
+│   /fund/gold │     │ updated_at       │  │  └─────────────────┘
+│   /option..) │     └──────────────────┘  │
+│ currency     │                           │  ┌─────────────────┐
+│ exchange     │                           │  │    accounts      │
+└──────────────┘                           └──│   (容器层)       │
+                                              │                 │
+┌──────────────┐                              │ id              │
+│ transactions │                              │ name            │
+│  (交易记录)   │                              │ account_type ───│── Investment
+│              │                              │ institution     │
+│ id           │                              └─────────────────┘
+│ account_id ──│──→ 关联到账户（复式分录）
+│ holding_id ──│──→ 关联到持仓（可选）
+│ type ────────│── BUY / SELL / DIVIDEND / SPLIT
+│ quantity     │
+│ price        │
+│ amount       │
+│ fee          │
+│ trade_date   │
+└──────────────┘
+</pre>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>核心设计原则：交易驱动，不直接编辑持仓</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="padding:16px;font-size:14px;line-height:1.8">
+      <p><strong>错误做法（直接编辑）：</strong> 用户手动把腾讯股票从 100 股改成 150 股</p>
+      <p style="color:#DC2626">问题：没有审计轨迹，成本无法追溯，盈亏算不准</p>
+
+      <p style="margin-top:16px"><strong>正确做法（交易驱动）：</strong> 用户创建 BUY 交易：腾讯 50股 @ ¥420</p>
+      <p style="color:#059669">系统自动计算：quantity = 100+50 = 150, avg_cost = (100×380 + 50×420)/150 = ¥393.33</p>
+
+      <table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:12px">
+        <tr style="background:#f9fafb">
+          <th style="padding:8px;text-align:left">交易类型</th>
+          <th style="padding:8px;text-align:left">对持仓的影响</th>
+          <th style="padding:8px;text-align:left">说明</th>
+        </tr>
+        <tr>
+          <td style="padding:8px;font-weight:600;color:#059669">BUY</td>
+          <td style="padding:8px">quantity += n, avg_cost 重新计算</td>
+          <td style="padding:8px">买入增加持仓</td>
+        </tr>
+        <tr>
+          <td style="padding:8px;font-weight:600;color:#DC2626">SELL</td>
+          <td style="padding:8px">quantity -= n, 计算已实现盈亏</td>
+          <td style="padding:8px">卖出减少持仓</td>
+        </tr>
+        <tr>
+          <td style="padding:8px;font-weight:600;color:#2563EB">DIVIDEND</td>
+          <td style="padding:8px">quantity 不变, 产生现金收入</td>
+          <td style="padding:8px">分红/利息收入</td>
+        </tr>
+        <tr>
+          <td style="padding:8px;font-weight:600;color:#7C3AED">SPLIT</td>
+          <td style="padding:8px">quantity *= ratio, avg_cost /= ratio</td>
+          <td style="padding:8px">股票拆分（如 1拆2）</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>三张核心表</h3>
+  <div class="split">
+    <div class="mockup" style="flex:1">
+      <div class="mockup-header">securities（品种主数据）</div>
+      <div class="mockup-body" style="padding:12px;font-size:12px;font-family:monospace">
+        <strong>独立于账户，全局共享</strong><br/>
+        symbol: "00700.HK"<br/>
+        name: "腾讯控股"<br/>
+        type: stock<br/>
+        exchange: "HKEX"<br/>
+        currency: "HKD"<br/>
+      </div>
+    </div>
+    <div class="mockup" style="flex:1">
+      <div class="mockup-header">holdings（持仓聚合）</div>
+      <div class="mockup-body" style="padding:12px;font-size:12px;font-family:monospace">
+        <strong>由交易推导，不直接编辑</strong><br/>
+        quantity: 150 (股)<br/>
+        avg_cost: 393.33<br/>
+        <br/>
+        <span style="color:#6B7280">← 动态计算字段:<br/>
+        market_value: quantity × price<br/>
+        unrealized_pnl:<br/>
+        (price - avg_cost) × quantity</span>
+      </div>
+    </div>
+  </div>
+</div>

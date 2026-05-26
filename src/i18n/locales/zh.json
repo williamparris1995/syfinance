@@ -56,6 +56,12 @@
     "manageDebts": "管理债务",
     "noAccounts": "还没有账户",
     "noAccountsDesc": "创建您的第一个账户以开始跟踪财务",
+    "totalDebt": "总债务",
+    "activeDebts": "活跃债务",
+    "perAccountBalances": "账户余额",
+    "upcomingDebtPayments": "即将到期还款（30天）",
+    "noUpcomingPayments": "未来30天没有待还款项",
+    "change": "变动值",
     "loadingDashboard": "加载仪表板...",
     "portfolioValue": "投资市值",
     "unrealizedPnl": "未实现盈亏"

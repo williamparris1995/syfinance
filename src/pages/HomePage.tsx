@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/EmptyState';
 import { listAccountsWithBalances } from '@/lib/tauri/account';
 import { listTransactions } from '@/lib/tauri/transaction';
+import { listDebts, getUpcomingPayments } from '@/lib/tauri/debt';
 import { listHoldings } from '@/lib/tauri/holding';
 
 export function HomePage() {
@@ -35,6 +36,13 @@ export function HomePage() {
   });
 
   const { data: holdings = [] } = useQuery({ queryKey: ['holdings'], queryFn: listHoldings });
+
+  const { data: debts = [] } = useQuery({ queryKey: ['debts'], queryFn: listDebts });
+
+  const { data: upcomingDebts = [] } = useQuery({
+    queryKey: ['upcoming-payments'],
+    queryFn: () => getUpcomingPayments(30),
+  });
 
   const dateRange = useMemo(() => {
     if (dateRangePreset === 'custom') {

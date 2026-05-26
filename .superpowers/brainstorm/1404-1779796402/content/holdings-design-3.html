@@ -1,0 +1,116 @@
+<h2>持仓系统设计 — 实施范围 + SQL Schema</h2>
+<p class="subtitle">P0（数据模型 + 股票）的具体实施内容</p>
+
+<div class="section">
+  <h3>SQL DDL（三张核心表）</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="padding:16px;font-size:13px;font-family:monospace">
+<pre style="background:#1e293b;color:#e2e8f0;padding:16px;border-radius:8px;overflow-x:auto;line-height:1.6">
+<span style="color:#94a3b8">-- 品种主数据（独立于账户）</span>
+<span style="color:#38bdf8">CREATE TABLE</span> securities (
+    id            <span style="color:#38bdf8">TEXT PRIMARY KEY NOT NULL</span>,
+    symbol        <span style="color:#38bdf8">VARCHAR(50) NOT NULL</span>,
+    name          <span style="color:#38bdf8">VARCHAR(100) NOT NULL</span>,
+    type          <span style="color:#38bdf8">VARCHAR(20) NOT NULL</span>,   <span style="color:#94a3b8">-- stock/fund/etf/bond/gold/option/other</span>
+    exchange      <span style="color:#38bdf8">VARCHAR(30)</span>,
+    currency_code <span style="color:#38bdf8">VARCHAR(3) NOT NULL DEFAULT 'CNY'</span>,
+    deleted_at    <span style="color:#38bdf8">TIMESTAMP</span>,
+    updated_at    <span style="color:#38bdf8">TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP</span>,
+    <span style="color:#38bdf8">FOREIGN KEY</span> (currency_code) <span style="color:#38bdf8">REFERENCES</span> currencies(code)
+);
+
+<span style="color:#94a3b8">-- 持仓聚合（由交易推导，不直接编辑）</span>
+<span style="color:#38bdf8">CREATE TABLE</span> holdings (
+    id            <span style="color:#38bdf8">TEXT PRIMARY KEY NOT NULL</span>,
+    account_id    <span style="color:#38bdf8">TEXT NOT NULL REFERENCES</span> accounts(id) <span style="color:#38bdf8">ON DELETE CASCADE</span>,
+    security_id   <span style="color:#38bdf8">TEXT NOT NULL REFERENCES</span> securities(id),
+    quantity      <span style="color:#38bdf8">DECIMAL(20,8) NOT NULL</span>,
+    avg_cost      <span style="color:#38bdf8">DECIMAL(20,4) NOT NULL</span>,  <span style="color:#94a3b8">-- 加权平均成本</span>
+    deleted_at    <span style="color:#38bdf8">TIMESTAMP</span>,
+    updated_at    <span style="color:#38bdf8">TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP</span>,
+    <span style="color:#38bdf8">UNIQUE</span>(account_id, security_id)  <span style="color:#94a3b8">-- 同一账户同一品种只有一条持仓</span>
+);
+
+<span style="color:#94a3b8">-- 交易记录（append-only，驱动持仓更新）</span>
+<span style="color:#38bdf8">CREATE TABLE</span> holding_transactions (
+    id            <span style="color:#38bdf8">TEXT PRIMARY KEY NOT NULL</span>,
+    account_id    <span style="color:#38bdf8">TEXT NOT NULL REFERENCES</span> accounts(id),
+    security_id   <span style="color:#38bdf8">TEXT NOT NULL REFERENCES</span> securities(id),
+    type          <span style="color:#38bdf8">VARCHAR(10) NOT NULL</span>,   <span style="color:#94a3b8">-- BUY/SELL/DIVIDEND/SPLIT</span>
+    quantity      <span style="color:#38bdf8">DECIMAL(20,8) NOT NULL</span>,
+    price         <span style="color:#38bdf8">DECIMAL(20,4) NOT NULL</span>,
+    amount        <span style="color:#38bdf8">DECIMAL(20,2) NOT NULL</span>,  <span style="color:#94a3b8">-- quantity * price (for BUY/SELL)</span>
+    fee           <span style="color:#38bdf8">DECIMAL(20,2) DEFAULT 0</span>,
+    trade_date    <span style="color:#38bdf8">DATE NOT NULL</span>,
+    transaction_id <span style="color:#38bdf8">TEXT REFERENCES</span> transactions(id), <span style="color:#94a3b8">-- 关联复式分录</span>
+    notes         <span style="color:#38bdf8">TEXT</span>,
+    deleted_at    <span style="color:#38bdf8">TIMESTAMP</span>,
+    updated_at    <span style="color:#38bdf8">TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP</span>,
+    <span style="color:#38bdf8">CHECK</span> (type <span style="color:#38bdf8">IN</span> ('BUY','SELL','DIVIDEND','SPLIT'))
+);
+</pre>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>P0 实施范围</h3>
+  <table style="width:100%;font-size:13px;border-collapse:collapse;border:1px solid #e5e7eb">
+    <tr style="background:#f9fafb">
+      <th style="padding:8px;text-align:left">文件</th>
+      <th style="padding:8px;text-align:left">操作</th>
+      <th style="padding:8px;text-align:left">内容</th>
+    </tr>
+    <tr><td style="padding:8px">Migration: securities + holdings + holding_transactions</td><td style="padding:8px">Create</td><td style="padding:8px">三张表 DDL</td></tr>
+    <tr><td style="padding:8px">domain/security.rs</td><td style="padding:8px">Create</td><td style="padding:8px">Security domain model</td></tr>
+    <tr><td style="padding:8px">domain/holding.rs</td><td style="padding:8px">Create</td><td style="padding:8px">Holding + HoldingTransaction models</td></tr>
+    <tr><td style="padding:8px">repositories/security_repository.rs</td><td style="padding:8px">Create</td><td style="padding:8px">品种 CRUD</td></tr>
+    <tr><td style="padding:8px">repositories/holding_repository.rs</td><td style="padding:8px">Create</td><td style="padding:8px">持仓查询 + 交易追加</td></tr>
+    <tr><td style="padding:8px">dtos/holding_dto.rs</td><td style="padding:8px">Create</td><td style="padding:8px">DTO 定义</td></tr>
+    <tr><td style="padding:8px">services/holding_service.rs</td><td style="padding:8px">Create</td><td style="padding:8px">买入/卖出 + 持仓更新逻辑</td></tr>
+    <tr><td style="padding:8px">commands/holding_commands.rs</td><td style="padding:8px">Create</td><td style="padding:8px">Tauri commands</td></tr>
+    <tr><td style="padding:8px">lib/tauri/holding.ts</td><td style="padding:8px">Create</td><td style="padding:8px">前端 API 类型 + 函数</td></tr>
+    <tr><td style="padding:8px">components/HoldingTradeForm.tsx</td><td style="padding:8px">Create</td><td style="padding:8px">买入/卖出表单</td></tr>
+    <tr><td style="padding:8px">pages/HoldingsPage.tsx</td><td style="padding:8px">Create</td><td style="padding:8px">持仓列表页</td></tr>
+    <tr><td style="padding:8px">pages/HomePage.tsx</td><td style="padding:8px">Modify</td><td style="padding:8px">Dashboard 按类型分组展示</td></tr>
+  </table>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>P0 不做的（留给 P1-P4）</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="padding:12px;font-size:13px;color:#6B7280;line-height:1.8">
+      <ul style="margin-left:16px">
+        <li>自动获取市价（API 对接）</li>
+        <li>股息再投资自动计算</li>
+        <li>税务报告（资本利得税）</li>
+        <li>多币种自动换算</li>
+        <li>期权 Greeks 计算</li>
+        <li>图表：收益率曲线、资产配置饼图</li>
+        <li>CSV 批量导入</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>澄清问题</h3>
+  <div class="options">
+    <div class="option" data-choice="a" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>买入时创建复式分录（推荐）</h3>
+        <p>每次 BUY 自动生成：借 1101 交易性金融资产 / 贷 1002 银行存款</p>
+        <p>持仓变动和账户余额联动，保持一致性</p>
+      </div>
+    </div>
+    <div class="option" data-choice="b" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>买入时不创建分录，只更新持仓</h3>
+        <p>更简单，但账户余额和持仓市值可能不一致</p>
+        <p>适合快速迭代，后续再加分录</p>
+      </div>
+    </div>
+  </div>
+</div>

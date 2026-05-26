@@ -6,7 +6,7 @@ pub mod transaction_dto;
 
 pub use account_dto::{AccountBalanceDto, AccountDto, CreateAccountDto, UpdateAccountDto};
 pub use debt_dto::{
-    CreateDebtDto, DebtDto, PaymentScheduleDto, RecordPaymentDto, UpcomingPaymentDto,
+    CreateDebtDto, DebtDto, PaymentScheduleDto, RecordPaymentDto, UpdateDebtDto,
 };
 pub use holding_dto::{CreateSecurityDto, HoldingDto, HoldingTradeDto, SecurityDto};
 pub use simple_transaction_dto::{SimpleExpenseDto, SimpleIncomeDto, SimpleTransferDto};

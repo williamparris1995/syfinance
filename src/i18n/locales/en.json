@@ -56,6 +56,12 @@
     "acrossAccounts": "Across {{count}} account",
     "acrossAccounts_plural": "Across {{count}} accounts",
     "incomeMinusExpenses": "Income - Expenses",
+    "totalDebt": "Total Debt",
+    "activeDebts": "Active Debts",
+    "perAccountBalances": "Account Balances",
+    "upcomingDebtPayments": "Upcoming Payments (30 Days)",
+    "noUpcomingPayments": "No upcoming payments in the next 30 days",
+    "change": "Change",
     "portfolioValue": "Portfolio Value",
     "unrealizedPnl": "Unrealized P&L",
     "loadingDashboard": "Loading dashboard..."
