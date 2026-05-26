@@ -1,18 +1,18 @@
 use crate::application::{
-    dtos::{CreateDebtDto, DebtDto, RecordPaymentDto, UpcomingPaymentDto},
+    dtos::{CreateDebtDto, DebtDto, RecordPaymentDto},
     services::DebtService,
 };
-use crate::infrastructure::repositories::{SqliteDebtRepository, SqliteReminderRepository};
+use crate::infrastructure::repositories::{
+    SqliteAccountRepository, SqliteDebtRepository, SqliteTransactionRepository,
+};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
 use std::{str::FromStr, sync::Arc};
 use tauri::State;
 use uuid::Uuid;
 
-pub type DebtServiceType = DebtService<SqliteDebtRepository, SqliteReminderRepository>;
-
 pub struct AppState {
-    service: DebtServiceType,
-    pub pool: SqlitePool,
+    pool: SqlitePool,
+    debt_service: DebtService,
 }
 
 impl AppState {
@@ -30,16 +30,21 @@ impl AppState {
 
     pub fn from_pool(pool: SqlitePool) -> Self {
         let debt_repo = Arc::new(SqliteDebtRepository::new(pool.clone()));
-        let reminder_repo = Arc::new(SqliteReminderRepository::new(pool.clone()));
+        let account_repo = Arc::new(SqliteAccountRepository::new(pool.clone()));
+        let transaction_repo = Arc::new(SqliteTransactionRepository::new(pool.clone()));
 
         Self {
-            service: DebtService::new(debt_repo, reminder_repo),
+            debt_service: DebtService::new(debt_repo, account_repo, transaction_repo),
             pool,
         }
     }
 
-    pub fn service(&self) -> &DebtServiceType {
-        &self.service
+    pub fn service(&self) -> &DebtService {
+        &self.debt_service
+    }
+
+    pub fn pool(&self) -> &SqlitePool {
+        &self.pool
     }
 }
 
@@ -51,97 +56,63 @@ pub async fn create_default_state_from_pool(pool: SqlitePool) -> sqlx::Result<Ap
     Ok(AppState::from_pool(pool))
 }
 
-pub async fn create_debt_with_state(
-    state: &AppState,
-    dto: CreateDebtDto,
-) -> Result<DebtDto, String> {
-    let debt_id = state
-        .service()
-        .create_debt(dto)
-        .await
-        .map_err(|error| error.to_string())?;
-
-    state
-        .service()
-        .get_debt(debt_id)
-        .await
-        .map_err(|error| error.to_string())
-}
-
-pub async fn get_debt_with_state(state: &AppState, id: Uuid) -> Result<DebtDto, String> {
-    state
-        .service()
-        .get_debt(id)
-        .await
-        .map_err(|error| error.to_string())
-}
-
-pub async fn list_debts_with_state(state: &AppState) -> Result<Vec<DebtDto>, String> {
-    state
-        .service()
-        .list_debts()
-        .await
-        .map_err(|error| error.to_string())
-}
-
-pub async fn record_payment_with_state(
-    state: &AppState,
-    dto: RecordPaymentDto,
-) -> Result<(), String> {
-    state
-        .service()
-        .record_payment(dto)
-        .await
-        .map_err(|error| error.to_string())
-}
-
-pub async fn get_upcoming_payments_with_state(
-    state: &AppState,
-    days_ahead: i64,
-) -> Result<Vec<UpcomingPaymentDto>, String> {
-    state
-        .service()
-        .get_upcoming_payments(days_ahead)
-        .await
-        .map(|payments| {
-            payments
-                .into_iter()
-                .map(|(debt, payment)| UpcomingPaymentDto { debt, payment })
-                .collect()
-        })
-        .map_err(|error| error.to_string())
-}
-
 #[tauri::command]
 pub async fn create_debt(
     state: State<'_, AppState>,
     dto: CreateDebtDto,
 ) -> Result<DebtDto, String> {
-    create_debt_with_state(state.inner(), dto).await
+    let account_id = state
+        .service()
+        .create_debt(dto)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    state
+        .service()
+        .get_debt(account_id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn get_debt(state: State<'_, AppState>, id: Uuid) -> Result<DebtDto, String> {
-    get_debt_with_state(state.inner(), id).await
+    state
+        .service()
+        .get_debt(id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn list_debts(state: State<'_, AppState>) -> Result<Vec<DebtDto>, String> {
-    list_debts_with_state(state.inner()).await
+    state
+        .service()
+        .list_debts()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn record_payment(
     state: State<'_, AppState>,
     dto: RecordPaymentDto,
-) -> Result<(), String> {
-    record_payment_with_state(state.inner(), dto).await
+) -> Result<Uuid, String> {
+    state
+        .service()
+        .record_payment(dto)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn get_upcoming_payments(
     state: State<'_, AppState>,
-    days_ahead: i64,
-) -> Result<Vec<UpcomingPaymentDto>, String> {
-    get_upcoming_payments_with_state(state.inner(), days_ahead).await
+    days_ahead: i32,
+) -> Result<Vec<DebtDto>, String> {
+    state
+        .service()
+        .get_upcoming_payments(days_ahead)
+        .await
+        .map(|results| results.into_iter().map(|(debt, _)| debt).collect())
+        .map_err(|e| e.to_string())
 }

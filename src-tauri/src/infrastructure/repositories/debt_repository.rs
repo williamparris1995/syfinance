@@ -105,7 +105,7 @@ impl DebtRepository for SqliteDebtRepository {
         };
 
         let debt_id: String = row.get("id");
-        let debt_id = Uuid::parse_str(&debt_id)
+        let _debt_id = Uuid::parse_str(&debt_id)
             .map_err(|e| sqlx::Error::Decode(format!("invalid UUID: {}", e).into()))?;
 
         let details = self.row_to_debt_details(&row).await?;
