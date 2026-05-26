@@ -298,7 +298,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
             <FormField name="account_id" render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
-                  {t('debts.name')} <span className="text-red-500">*</span>
+                  {t('debtForm.debtAccount')} <span className="text-red-500">*</span>
                 </FormLabel>
                 <Select value={field.value} onValueChange={field.onChange} disabled={isEdit}>
                   <FormControl>
@@ -331,6 +331,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
                 <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
                   {t('debtForm.fundingAccount')} <span className="text-red-500">*</span>
                 </FormLabel>
+                <p className="text-[11px] text-muted-foreground -mt-1 mb-1">{t('debtForm.fundingAccountDesc')}</p>
                 <Select value={field.value} onValueChange={field.onChange}>
                   <FormControl>
                     <SelectTrigger className="h-9">

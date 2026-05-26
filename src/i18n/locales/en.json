@@ -294,8 +294,9 @@
     "selectPaymentSource": "Select payment source account",
     "interestAccount": "Interest Account",
     "selectInterestAccount": "Select interest account (optional)",
-    "name": "Account Name",
-    "namePlaceholder": "e.g., Mortgage, Car Loan"
+    "name": "Debt Account",
+    "namePlaceholder": "e.g., Mortgage, Car Loan",
+    "nameDesc": "The liability (BorrowedIn) or receivable (BorrowedOut) account for this debt"
   },
   "debtForm": {
     "debtType": "Debt Type",
@@ -328,6 +329,7 @@
     "nameRequired": "Account name is required",
     "debtTypeRequired": "Debt type is required",
     "accountRequired": "Account is required",
+    "debtAccount": "Debt Account",
     "selectAccount": "Select account",
     "selectCounterparty": "Select counterparty",
     "noDebtAccounts": "No debt accounts found. Create a BorrowedIn, BorrowedOut, or CreditCard account first.",
@@ -335,6 +337,7 @@
     "fundingAccount": "Funding Account",
     "selectFundingAccount": "Select funding account",
     "fundingAccountRequired": "Funding account is required",
+    "fundingAccountDesc": "For borrowing: the account that receives the money. For lending: the account the money comes from.",
     "saving": "Saving...",
     "saveChanges": "Save Changes",
     "counterpartyRequired": "Counterparty is required",
