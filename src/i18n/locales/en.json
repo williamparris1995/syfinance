@@ -99,6 +99,10 @@
     "investmentWithChinese": "Investment (投资)",
     "loan": "Loan",
     "loanWithChinese": "Loan (借款)",
+    "borrowedOut": "Borrowed Out",
+    "borrowedOutWithChinese": "Borrowed Out (借出)",
+    "borrowedIn": "Borrowed In",
+    "borrowedInWithChinese": "Borrowed In (借入)",
     "other": "Other",
     "otherWithChinese": "Other (其他)",
     "income": "Income",
@@ -267,7 +271,13 @@
     "amount": "Amount",
     "recording": "Recording...",
     "confirmPaymentButton": "Confirm Payment",
-    "addDebtDesc": "Add a new debt with payment schedule."
+    "addDebtDesc": "Add a new debt with payment schedule.",
+    "paymentSource": "Payment Source",
+    "selectPaymentSource": "Select payment source account",
+    "interestAccount": "Interest Account",
+    "selectInterestAccount": "Select interest account (optional)",
+    "name": "Account Name",
+    "namePlaceholder": "e.g., Mortgage, Car Loan"
   },
   "debtForm": {
     "debtType": "Debt Type",
