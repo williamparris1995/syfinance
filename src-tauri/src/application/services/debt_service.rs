@@ -367,6 +367,16 @@ impl DebtService {
         debt.due_date = dto.due_date;
         debt.amortization_method = parse_amortization_method(&dto.amortization_method)?;
 
+        // Update the initial transaction date and description to match
+        if let Some(txn_id) = debt.transaction_id {
+            if let Ok(Some(mut txn)) = self.transaction_repo.find_by_id(txn_id).await {
+                txn.transaction_date = dto.start_date;
+                txn.description = format!("{} - {}", debt.counterparty,
+                    self.account_repo.find_by_id(account_id).await?.map(|a| a.name).unwrap_or_default());
+                let _ = self.transaction_repo.update(&txn).await;
+            }
+        }
+
         self.debt_repo.update_debt_details(&debt).await?;
 
         let account = self
