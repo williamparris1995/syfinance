@@ -13,8 +13,8 @@ pub use currency_commands::{
     update_currency_rate, CurrencyCommandState,
 };
 pub use debt_commands::{
-    create_debt, create_default_state as create_debt_default_state, get_debt,
-    get_upcoming_payments, list_debts, record_payment, AppState as DebtCommandState,
+    create_debt, create_default_state as create_debt_default_state, delete_debt, get_debt,
+    get_upcoming_payments, list_debts, record_payment, update_debt, AppState as DebtCommandState,
 };
 pub use sync_commands::{
     create_default_state as create_sync_default_state, get_sync_settings, get_sync_status,

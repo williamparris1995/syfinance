@@ -1,4 +1,4 @@
-use crate::application::dtos::{CreateDebtDto, DebtDto, PaymentScheduleDto, RecordPaymentDto};
+use crate::application::dtos::{CreateDebtDto, DebtDto, PaymentScheduleDto, RecordPaymentDto, UpdateDebtDto};
 use crate::domain::{
     aggregates::{
         debt_details::{AmortizationMethod, DebtDetails, PaymentScheduleEntry},
@@ -66,11 +66,17 @@ impl DebtService {
     }
 
     pub async fn create_debt(&self, dto: CreateDebtDto) -> Result<Uuid, DebtServiceError> {
-        let _account = self
+        let debt_account = self
             .account_repo
             .find_by_id(dto.account_id)
             .await?
             .ok_or(DebtServiceError::AccountNotFound(dto.account_id))?;
+
+        let funding_account = self
+            .account_repo
+            .find_by_id(dto.funding_account_id)
+            .await?
+            .ok_or(DebtServiceError::AccountNotFound(dto.funding_account_id))?;
 
         let details_id = Uuid::new_v4();
 
@@ -99,9 +105,71 @@ impl DebtService {
         );
         debt_details.generate_schedule();
 
+        // Create initial disbursement transaction
+        let device_id = Uuid::new_v4();
+        let transaction_id = Uuid::new_v4();
+        let principal = Money::new(dto.principal_amount, &debt_account.currency_code)
+            .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
+
+        let debt_chart = debt_account
+            .chart_code
+            .as_deref()
+            .unwrap_or_else(|| default_chart_code(&debt_account.account_type));
+        let funding_chart = funding_account
+            .chart_code
+            .as_deref()
+            .unwrap_or("1002");
+
+        let entries = if is_liability_type(&debt_account.account_type) {
+            // Borrowing: Debit funding (asset+), Credit debt (liability+)
+            vec![
+                TransactionEntry::new(
+                    funding_account.id,
+                    funding_chart,
+                    Some(principal.clone()),
+                    None,
+                    "Initial borrowing disbursement",
+                ).map_err(|e| DebtServiceError::ValidationError(e.to_string()))?,
+                TransactionEntry::new(
+                    debt_account.id,
+                    debt_chart,
+                    None,
+                    Some(principal),
+                    "Loan principal received",
+                ).map_err(|e| DebtServiceError::ValidationError(e.to_string()))?,
+            ]
+        } else {
+            // Lending: Debit debt (receivable+), Credit funding (asset-)
+            vec![
+                TransactionEntry::new(
+                    debt_account.id,
+                    debt_chart,
+                    Some(principal.clone()),
+                    None,
+                    "Loan principal disbursed",
+                ).map_err(|e| DebtServiceError::ValidationError(e.to_string()))?,
+                TransactionEntry::new(
+                    funding_account.id,
+                    funding_chart,
+                    None,
+                    Some(principal),
+                    "Funds lent out",
+                ).map_err(|e| DebtServiceError::ValidationError(e.to_string()))?,
+            ]
+        };
+
+        let transaction = Transaction::new(
+            transaction_id,
+            today,
+            format!("Debt created: {}", debt_account.name),
+            entries,
+            SyncMetadata::new(device_id),
+        ).map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
+
+        self.transaction_repo.create(&transaction).await?;
         self.debt_repo.create_debt_details(&debt_details).await?;
 
-        Ok(dto.account_id)
+        Ok(transaction_id)
     }
 
     pub async fn get_debt(&self, account_id: Uuid) -> Result<DebtDto, DebtServiceError> {
@@ -279,6 +347,51 @@ impl DebtService {
             paid: entry.paid,
             transaction_id: entry.transaction_id,
         }
+    }
+
+    pub async fn update_debt(
+        &self,
+        account_id: Uuid,
+        dto: UpdateDebtDto,
+    ) -> Result<DebtDto, DebtServiceError> {
+        let mut debt = self
+            .debt_repo
+            .find_debt_details_by_account_id(account_id)
+            .await?
+            .ok_or(DebtServiceError::DebtNotFound(account_id))?;
+
+        debt.counterparty = dto.counterparty;
+        debt.interest_rate = dto.interest_rate;
+        debt.start_date = dto.start_date;
+        debt.due_date = dto.due_date;
+        debt.amortization_method = parse_amortization_method(&dto.amortization_method)?;
+
+        self.debt_repo.update_debt_details(&debt).await?;
+
+        let account = self
+            .account_repo
+            .find_by_id(account_id)
+            .await?
+            .ok_or(DebtServiceError::AccountNotFound(account_id))?;
+
+        Ok(self.to_dto(account, debt))
+    }
+
+    pub async fn delete_debt(&self, account_id: Uuid) -> Result<(), DebtServiceError> {
+        let debt = self
+            .debt_repo
+            .find_debt_details_by_account_id(account_id)
+            .await?
+            .ok_or(DebtServiceError::DebtNotFound(account_id))?;
+
+        let schedule = self.debt_repo.find_schedule_by_debt_id(debt.id).await?;
+        for mut entry in schedule {
+            entry.paid = true; // mark as resolved (won't show in upcoming)
+            let _ = self.debt_repo.update_schedule_entry(&entry).await;
+        }
+
+        self.debt_repo.soft_delete_debt_details(debt.id).await?;
+        Ok(())
     }
 }
 

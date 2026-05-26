@@ -7,6 +7,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateDebtDto {
     pub account_id: Uuid,
+    pub funding_account_id: Uuid,
     pub counterparty: String,
     pub principal_amount: Decimal,
     pub currency_code: String,
@@ -14,6 +15,15 @@ pub struct CreateDebtDto {
     pub start_date: Option<NaiveDate>,
     pub due_date: Option<NaiveDate>,
     pub amortization_method: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateDebtDto {
+    pub counterparty: String,
+    pub interest_rate: Decimal,
+    pub start_date: NaiveDate,
+    pub due_date: NaiveDate,
+    pub amortization_method: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

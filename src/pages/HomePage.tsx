@@ -1,16 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
-import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp, Landmark, CalendarDays } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 import { EmptyState } from '@/components/EmptyState';
 import { listAccounts } from '@/lib/tauri/account';
 import { listTransactions } from '@/lib/tauri/transaction';
+import { listDebts, getUpcomingPayments } from '@/lib/tauri/debt';
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -30,6 +32,16 @@ export function HomePage() {
   const { data: transactions = [], isLoading: transactionsLoading } = useQuery({
     queryKey: ['transactions'],
     queryFn: listTransactions,
+  });
+
+  const { data: debts = [] } = useQuery({
+    queryKey: ['debts'],
+    queryFn: listDebts,
+  });
+
+  const { data: upcomingDebts = [] } = useQuery({
+    queryKey: ['upcoming-payments'],
+    queryFn: () => getUpcomingPayments(30),
   });
 
   const dateRange = useMemo(() => {
@@ -102,6 +114,29 @@ export function HomePage() {
   }, [transactions, accounts, dateRange]);
 
   const monthlySavings = monthlyIncome - monthlyExpenses;
+
+  const debtSummary = useMemo(() => ({
+    totalRemaining: debts.reduce((s, d) => s + parseFloat(d.remaining_principal), 0),
+    activeCount: debts.filter(d => parseFloat(d.remaining_principal) > 0).length,
+  }), [debts]);
+
+  const ownAccountBalances = useMemo(() =>
+    accounts.filter(a => a.ownership === 'own' && a.current_balance !== 0)
+      .sort((a, b) => b.current_balance - a.current_balance),
+  [accounts]);
+
+  const upcomingPayments = useMemo(() =>
+    upcomingDebts.flatMap(d =>
+      d.payment_schedule.filter(p => !p.paid).map(p => ({
+        account_name: d.account_name,
+        counterparty: d.counterparty,
+        payment_date: p.payment_date,
+        amount: p.total_amount,
+        currency_code: d.currency_code,
+      }))
+    ).sort((a, b) => new Date(a.payment_date).getTime() - new Date(b.payment_date).getTime())
+    .slice(0, 5),
+  [upcomingDebts]);
 
   const monthlyTrendData = useMemo(() => {
     const months: Record<string, any> = {};
@@ -210,7 +245,7 @@ export function HomePage() {
         <>
           {accounts.length > 0 && (
             <>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
                 {/* Total Balance */}
                 <Card className="bg-gradient-to-br from-card to-muted/20 border-border/50 shadow-sm">
                   <CardContent className="pt-4">
@@ -278,8 +313,81 @@ export function HomePage() {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Total Debt */}
+                <Card className="bg-gradient-to-br from-red-50/50 to-card dark:from-red-950/20 dark:to-card border-red-200/50 dark:border-red-800/30">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">{t('dashboard.totalDebt')}</CardTitle>
+                    <Landmark className="h-4 w-4 text-red-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold tracking-tight text-red-600 dark:text-red-400">
+                      ¥{debtSummary.totalRemaining.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {t('dashboard.activeDebts')}: {debtSummary.activeCount}
+                    </p>
+                  </CardContent>
+                </Card>
               </div>
             </>
+          )}
+
+          {/* Account Balances + Upcoming Payments */}
+          {accounts.length > 0 && (
+            <div className="grid gap-4 md:grid-cols-2">
+              {/* Account Balances */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">{t('dashboard.perAccountBalances')}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {ownAccountBalances.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">{t('dashboard.noAccountsDesc')}</p>
+                  ) : (
+                    ownAccountBalances.map((acc) => (
+                      <div key={acc.id} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span>{acc.icon}</span>
+                          <span className="text-sm font-medium">{acc.name}</span>
+                          <Badge variant="outline" className="text-xs">{acc.account_type}</Badge>
+                        </div>
+                        <span className={`text-sm font-semibold ${acc.current_balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {acc.current_balance.toLocaleString('en-US', { style: 'currency', currency: acc.currency_code || 'CNY', currencyDisplay: 'narrowSymbol' })}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Upcoming Debt Payments */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">{t('dashboard.upcomingDebtPayments')}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {upcomingPayments.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">{t('dashboard.noUpcomingPayments')}</p>
+                  ) : (
+                    upcomingPayments.map((p, i) => (
+                      <div key={i} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <CalendarDays className="h-4 w-4 text-blue-500" />
+                          <div>
+                            <div className="text-sm font-medium">{p.account_name}</div>
+                            <div className="text-xs text-muted-foreground">{new Date(p.payment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                          </div>
+                        </div>
+                        <span className="text-sm font-semibold">
+                          ¥{parseFloat(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {/* Charts Section */}

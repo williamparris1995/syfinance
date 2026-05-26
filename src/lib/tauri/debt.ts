@@ -5,6 +5,7 @@ export type AmortizationMethod = 'EqualPrincipalInterest' | 'EqualPrincipal' | '
 
 export interface CreateDebtDto {
   account_id: string;
+  funding_account_id: string;
   counterparty: string;
   principal_amount: string;
   currency_code: string;
@@ -12,6 +13,14 @@ export interface CreateDebtDto {
   start_date: string | null;
   due_date: string | null;
   amortization_method: AmortizationMethod | null;
+}
+
+export interface UpdateDebtDto {
+  counterparty: string;
+  interest_rate: string;
+  start_date: string;
+  due_date: string;
+  amortization_method: string;
 }
 
 export interface PaymentScheduleDto {
@@ -51,6 +60,12 @@ export const createDebt = (dto: CreateDebtDto) =>
 export const getDebt = (id: string) => invokeTauri<DebtDto>('get_debt', { id });
 
 export const listDebts = () => invokeTauri<DebtDto[]>('list_debts');
+
+export const updateDebt = (accountId: string, dto: UpdateDebtDto) =>
+  invokeTauri<DebtDto>('update_debt', { accountId, dto });
+
+export const deleteDebt = (accountId: string) =>
+  invokeTauri<void>('delete_debt', { accountId });
 
 export const recordPayment = (dto: RecordPaymentDto) =>
   invokeTauri<string>('record_payment', { dto });

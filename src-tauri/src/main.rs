@@ -23,7 +23,8 @@ use presentation::tauri_commands::{
     },
     debt_commands::{
         create_debt, create_default_state_from_pool as create_debt_default_state_from_pool,
-        get_debt, get_upcoming_payments, list_debts, record_payment, AppState as DebtAppState,
+        delete_debt, get_debt, get_upcoming_payments, list_debts, record_payment,
+        update_debt, AppState as DebtAppState,
     },
     sync_commands::{
         create_default_state as create_sync_default_state, get_sync_settings, get_sync_status,
@@ -162,6 +163,8 @@ async fn main() {
             list_debts,
             record_payment,
             get_upcoming_payments,
+            update_debt,
+            delete_debt,
             create_transaction,
             get_transaction,
             list_transactions,

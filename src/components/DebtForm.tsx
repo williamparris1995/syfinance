@@ -30,7 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from './ui/table';
-import type { CreateDebtDto, AmortizationMethod } from '@/lib/tauri/debt';
+import type { CreateDebtDto, DebtDto, UpdateDebtDto, AmortizationMethod } from '@/lib/tauri/debt';
 import { listAccounts, type AccountDto } from '@/lib/tauri/account';
 
 const DEBT_ACCOUNT_TYPES = ['BorrowedOut', 'BorrowedIn', 'CreditCard'] as const;
@@ -46,12 +46,15 @@ interface DebtFormProps {
   onSubmit: (data: CreateDebtDto) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  initialData?: DebtDto | null;
+  mode?: 'create' | 'edit';
 }
 
-export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
+export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'create' }: DebtFormProps) {
   const { t } = useTranslation();
   const [paymentPreview, setPaymentPreview] = useState<PaymentPreview[]>([]);
   const [repaymentMode, setRepaymentMode] = useState<'lump_sum' | 'installment'>('lump_sum');
+  const isEdit = mode === 'edit';
 
   const { data: accounts = [] } = useQuery({
     queryKey: ['accounts'],
@@ -63,6 +66,11 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
       a.ownership === 'own' && DEBT_ACCOUNT_TYPES.includes(a.account_type as any)
   );
 
+  const fundingAccounts = accounts.filter(
+    (a: AccountDto) =>
+      a.ownership === 'own' && (a.account_type === 'Cash' || a.account_type === 'Bank')
+  );
+
   const amortizationLabelMap: Record<string, string> = {
     EqualPrincipalInterest: t('debtForm.equalPI'),
     EqualPrincipal: t('debtForm.equalPrincipal'),
@@ -71,6 +79,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
 
   const debtFormSchema = z.object({
     account_id: z.string().min(1, t('debtForm.accountRequired')),
+    funding_account_id: isEdit ? z.string().optional() : z.string().min(1, t('debtForm.fundingAccountRequired')),
     counterparty: z.string().min(1, t('debtForm.counterpartyRequired')),
     principal_amount: z.string().min(1, t('debtForm.principalRequired')).refine(
       (val) => {
@@ -109,8 +118,9 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
   const form = useForm<DebtFormValues>({
     resolver: zodResolver(debtFormSchema),
     defaultValues: {
-      account_id: '',
-      counterparty: '',
+      account_id: initialData?.account_id || '',
+      funding_account_id: '',
+      counterparty: initialData?.counterparty || '',
       principal_amount: '',
       currency_code: 'CNY',
       interest_rate: '',
@@ -237,6 +247,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
 
     onSubmit({
       account_id: values.account_id,
+      funding_account_id: values.funding_account_id || '',
       counterparty: values.counterparty,
       principal_amount: values.principal_amount,
       currency_code: values.currency_code,
@@ -288,7 +299,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
                 <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
                   {t('debts.name')} <span className="text-red-500">*</span>
                 </FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select value={field.value} onValueChange={field.onChange} disabled={isEdit}>
                   <FormControl>
                     <SelectTrigger className="h-9">
                       <SelectValue placeholder={t('debtForm.selectAccount')}>
@@ -313,6 +324,30 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
                 <FormMessage />
               </FormItem>
             )} />
+            {!isEdit && (
+            <FormField name="funding_account_id" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('debtForm.fundingAccount')} <span className="text-red-500">*</span>
+                </FormLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder={t('debtForm.selectFundingAccount')} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {fundingAccounts.map((acc) => (
+                      <SelectItem key={acc.id} value={acc.id}>
+                        {acc.name} ({acc.account_type})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+            )}
             <FormField name="counterparty" render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
@@ -474,7 +509,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
               {t('common.cancel')}
             </Button>
             <Button type="submit" variant="default-gradient" disabled={isLoading}>
-              {isLoading ? t('debtForm.creating') : t('debtForm.createDebt')}
+              {isLoading ? t('debtForm.saving') : isEdit ? t('debtForm.saveChanges') : t('debtForm.createDebt')}
             </Button>
           </div>
         </form>

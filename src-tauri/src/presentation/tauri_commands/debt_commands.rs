@@ -1,5 +1,5 @@
 use crate::application::{
-    dtos::{CreateDebtDto, DebtDto, RecordPaymentDto},
+    dtos::{CreateDebtDto, DebtDto, RecordPaymentDto, UpdateDebtDto},
     services::DebtService,
 };
 use crate::infrastructure::repositories::{
@@ -61,7 +61,8 @@ pub async fn create_debt(
     state: State<'_, AppState>,
     dto: CreateDebtDto,
 ) -> Result<DebtDto, String> {
-    let account_id = state
+    let account_id = dto.account_id;
+    let _txn_id = state
         .service()
         .create_debt(dto)
         .await
@@ -114,5 +115,30 @@ pub async fn get_upcoming_payments(
         .get_upcoming_payments(days_ahead)
         .await
         .map(|results| results.into_iter().map(|(debt, _)| debt).collect())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn update_debt(
+    state: State<'_, AppState>,
+    account_id: Uuid,
+    dto: UpdateDebtDto,
+) -> Result<DebtDto, String> {
+    state
+        .service()
+        .update_debt(account_id, dto)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn delete_debt(
+    state: State<'_, AppState>,
+    account_id: Uuid,
+) -> Result<(), String> {
+    state
+        .service()
+        .delete_debt(account_id)
+        .await
         .map_err(|e| e.to_string())
 }
