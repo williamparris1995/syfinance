@@ -218,6 +218,7 @@ export function DebtsPage() {
       payment_source_account_id: paymentSourceId,
       interest_account_id: null,
       payment_amount: paymentAmount || null,
+      payment_date: paymentDate || null,
     });
   };
 

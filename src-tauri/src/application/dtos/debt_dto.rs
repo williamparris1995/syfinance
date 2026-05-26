@@ -59,4 +59,5 @@ pub struct RecordPaymentDto {
     pub payment_source_account_id: Uuid,
     pub interest_account_id: Option<Uuid>,
     pub payment_amount: Option<Decimal>,
+    pub payment_date: Option<NaiveDate>,
 }

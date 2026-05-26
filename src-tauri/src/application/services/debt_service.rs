@@ -246,30 +246,40 @@ impl DebtService {
 
         let transaction_id = Uuid::new_v4();
         let device_id = Uuid::new_v4();
+        let payment_date = dto.payment_date.unwrap_or_else(|| chrono::Utc::now().date_naive());
+
+        // Use DTO payment_amount if provided, otherwise use scheduled amount
+        let actual_total = dto.payment_amount.unwrap_or(entry.total_amount);
+        // Proportionally split between principal and interest
+        let ratio = if entry.total_amount > Decimal::ZERO {
+            entry.principal_amount / entry.total_amount
+        } else {
+            Decimal::ONE
+        };
+        let actual_principal = (actual_total * ratio).round_dp(2);
+        let actual_interest = actual_total - actual_principal;
 
         let entries = if is_liability_type(&debt_account.account_type) {
-            build_liability_repayment_entries(
+            build_repayment_entries(
                 &debt_account,
                 &source_account,
-                &dto,
-                entry,
-                transaction_id,
+                actual_principal,
+                actual_interest,
             )
             .await?
         } else {
-            build_receivable_recovery_entries(
+            build_recovery_entries(
                 &debt_account,
                 &source_account,
-                &dto,
-                entry,
-                transaction_id,
+                actual_principal,
+                actual_interest,
             )
             .await?
         };
 
         let transaction = Transaction::new(
             transaction_id,
-            chrono::Utc::now().date_naive(),
+            payment_date,
             debt.counterparty.clone(),
             entries,
             SyncMetadata::new(device_id),
@@ -465,133 +475,70 @@ fn default_chart_code(account_type: &AccountType) -> &str {
     }
 }
 
-async fn build_liability_repayment_entries(
+async fn build_repayment_entries(
     debt_account: &Account,
     source_account: &Account,
-    _dto: &RecordPaymentDto,
-    entry: &PaymentScheduleEntry,
-    _transaction_id: Uuid,
+    actual_principal: Decimal,
+    actual_interest: Decimal,
 ) -> Result<Vec<TransactionEntry>, DebtServiceError> {
-    // 借: 长期借款(debt account) ¥principal  (liability decreases)
-    // 借: 利息支出(interest account) ¥interest  (expense)
-    //     贷: 银行存款(payment source)  ¥total  (asset decreases)
+    let total = actual_principal + actual_interest;
 
-    let principal = Money::new(entry.principal_amount, &debt_account.currency_code)
+    let principal_money = Money::new(actual_principal, &debt_account.currency_code)
         .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
-    let total = Money::new(entry.total_amount, &source_account.currency_code)
+    let total_money = Money::new(total, &debt_account.currency_code)
         .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
 
-    let debt_chart = debt_account
-        .chart_code
-        .as_deref()
+    let debt_chart = debt_account.chart_code.as_deref()
         .unwrap_or_else(|| default_chart_code(&debt_account.account_type));
+    let source_chart = source_account.chart_code.as_deref().unwrap_or("1002");
 
-    let source_chart = source_account
-        .chart_code
-        .as_deref()
-        .unwrap_or("1002");
-
-    let debit_debt = TransactionEntry::new(
-        debt_account.id,
-        debt_chart,
-        Some(principal.clone()),
-        None,
-        &debt_account.name,
-    )
-    .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
-
-    let credit_source = TransactionEntry::new(
-        source_account.id,
-        source_chart,
-        None,
-        Some(total.clone()),
-        &source_account.name,
-    )
-    .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
-
-    if entry.interest_amount > Decimal::ZERO {
-        let interest = Money::new(entry.interest_amount, &debt_account.currency_code)
-            .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
-
-        let interest_chart = "5101"; // 利息支出
-
-        let debit_interest = TransactionEntry::new(
-            debt_account.id,
-            interest_chart,
-            Some(interest),
-            None,
-            &debt_account.name,
-        )
+    let debit_debt = TransactionEntry::new(debt_account.id, debt_chart, Some(principal_money), None, &debt_account.name)
+        .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
+    let credit_source = TransactionEntry::new(source_account.id, source_chart, None, Some(total_money), &source_account.name)
         .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
 
-        Ok(vec![debit_debt, debit_interest, credit_source])
-    } else {
-        Ok(vec![debit_debt, credit_source])
+    let mut entries = vec![debit_debt, credit_source];
+
+    if actual_interest > Decimal::ZERO {
+        let interest_money = Money::new(actual_interest, &debt_account.currency_code)
+            .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
+        let debit_interest = TransactionEntry::new(debt_account.id, "5101", Some(interest_money), None, &debt_account.name)
+            .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
+        entries.insert(0, debit_interest); // insert before debit_debt
     }
+
+    Ok(entries)
 }
 
-async fn build_receivable_recovery_entries(
+async fn build_recovery_entries(
     debt_account: &Account,
     dest_account: &Account,
-    _dto: &RecordPaymentDto,
-    entry: &PaymentScheduleEntry,
-    _transaction_id: Uuid,
+    actual_principal: Decimal,
+    actual_interest: Decimal,
 ) -> Result<Vec<TransactionEntry>, DebtServiceError> {
-    // 借: 银行存款(receiving account)  ¥total  (asset increases)
-    //     贷: 其他应收款(debt account)  ¥principal  (receivable decreases)
-    //     贷: 利息收入(income account)  ¥interest (if any)  (income)
+    let total = actual_principal + actual_interest;
 
-    let total = Money::new(entry.total_amount, &debt_account.currency_code)
+    let total_money = Money::new(total, &debt_account.currency_code)
+        .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
+    let principal_money = Money::new(actual_principal, &debt_account.currency_code)
         .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
 
-    let principal = Money::new(entry.principal_amount, &debt_account.currency_code)
-        .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
-
-    let dest_chart = dest_account
-        .chart_code
-        .as_deref()
-        .unwrap_or("1002");
-
-    let debt_chart = debt_account
-        .chart_code
-        .as_deref()
+    let dest_chart = dest_account.chart_code.as_deref().unwrap_or("1002");
+    let debt_chart = debt_account.chart_code.as_deref()
         .unwrap_or_else(|| default_chart_code(&debt_account.account_type));
 
-    let debit_dest = TransactionEntry::new(
-        dest_account.id,
-        dest_chart,
-        Some(total.clone()),
-        None,
-        &dest_account.name,
-    )
-    .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
-
-    let credit_debt = TransactionEntry::new(
-        debt_account.id,
-        debt_chart,
-        None,
-        Some(principal),
-        &debt_account.name,
-    )
-    .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
+    let debit_dest = TransactionEntry::new(dest_account.id, dest_chart, Some(total_money), None, &dest_account.name)
+        .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
+    let credit_debt = TransactionEntry::new(debt_account.id, debt_chart, None, Some(principal_money), &debt_account.name)
+        .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
 
     let mut entries = vec![debit_dest, credit_debt];
 
-    if entry.interest_amount > Decimal::ZERO {
-        let interest = Money::new(entry.interest_amount, &debt_account.currency_code)
+    if actual_interest > Decimal::ZERO {
+        let interest_money = Money::new(actual_interest, &debt_account.currency_code)
             .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
-
-        let income_chart = "4201"; // 利息收入
-
-        let credit_interest = TransactionEntry::new(
-            debt_account.id,
-            income_chart,
-            None,
-            Some(interest),
-            &debt_account.name,
-        )
-        .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
-
+        let credit_interest = TransactionEntry::new(debt_account.id, "4201", None, Some(interest_money), &debt_account.name)
+            .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
         entries.push(credit_interest);
     }
 
