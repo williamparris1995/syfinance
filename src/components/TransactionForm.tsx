@@ -143,7 +143,8 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
                          account.account_type === 'Bank' ? '1002' :
                          account.account_type === 'CreditCard' ? '2202' :
                          account.account_type === 'Investment' ? '1012' :
-                         account.account_type === 'Loan' ? '2001' : '1012';
+                         account.account_type === 'BorrowedIn' ? '2001' :
+                         account.account_type === 'BorrowedOut' ? '1221' : '1012';
       form.setValue(`entries.${index}.chart_of_account_code`, defaultCode);
     }
   };

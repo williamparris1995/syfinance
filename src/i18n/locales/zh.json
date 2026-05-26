@@ -101,6 +101,10 @@
     "investmentWithChinese": "投资 (投资)",
     "loan": "贷款",
     "loanWithChinese": "贷款 (借款)",
+    "borrowedOut": "借出款",
+    "borrowedOutWithChinese": "借出款 (其他应收款)",
+    "borrowedIn": "借入款",
+    "borrowedInWithChinese": "借入款 (借款)",
     "other": "其他",
     "otherWithChinese": "其他 (其他)",
     "income": "收入",
@@ -241,7 +245,13 @@
     "startDate": "开始日期",
     "dueDate": "到期日期",
     "noDebts": "没有债务",
-    "noDebtsDescription": "您没有需要管理的债务"
+    "noDebtsDescription": "您没有需要管理的债务",
+    "paymentSource": "还款来源",
+    "selectPaymentSource": "选择还款账户",
+    "interestAccount": "利息科目",
+    "selectInterestAccount": "选择利息科目（可选）",
+    "name": "账户名称",
+    "namePlaceholder": "例如：房贷、车贷"
   },
   "reports": {
     "title": "报表",

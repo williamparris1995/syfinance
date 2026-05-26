@@ -1,6 +1,7 @@
 pub mod account;
 pub mod chart_of_accounts;
 pub mod debt;
+pub mod debt_details;
 pub mod reminder;
 pub mod transaction;
 

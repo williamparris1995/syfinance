@@ -20,6 +20,13 @@ import {
   SheetTitle,
 } from '../components/ui/sheet';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
+import {
   Table,
   TableBody,
   TableCell,
@@ -37,8 +44,27 @@ import {
   type DebtDto,
   type PaymentScheduleDto,
   type RecordPaymentDto,
-  type UpcomingPaymentDto,
 } from '../lib/tauri/debt';
+import { listAccounts, type AccountDto } from '../lib/tauri/account';
+
+function debtTypeLabel(type: string, t: (key: string) => string): string {
+  const map: Record<string, string> = {
+    BorrowedIn: t('debtForm.borrowedIn'),
+    BorrowedOut: t('debtForm.borrowedOut'),
+    CreditCard: t('debtForm.creditCard'),
+  };
+  return map[type] || type;
+}
+
+function formatCurrency(amount: string, currencyCode: string) {
+  const num = parseFloat(amount);
+  const formatted = num.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const symbols: Record<string, string> = { CNY: '¥', USD: '$', EUR: '€' };
+  return `${symbols[currencyCode] || currencyCode} ${formatted}`;
+}
 
 export function DebtsPage() {
   const { t } = useTranslation();
@@ -48,6 +74,7 @@ export function DebtsPage() {
     debt: DebtDto;
     payment: PaymentScheduleDto;
   } | null>(null);
+  const [paymentSourceId, setPaymentSourceId] = useState<string>('');
   const queryClient = useQueryClient();
 
   const { data: debts = [], isLoading } = useQuery({
@@ -55,7 +82,18 @@ export function DebtsPage() {
     queryFn: listDebts,
   });
 
-  const { data: upcomingPayments = [] } = useQuery({
+  const { data: accounts = [] } = useQuery({
+    queryKey: ['accounts'],
+    queryFn: listAccounts,
+  });
+
+  const ownPaymentAccounts = accounts.filter(
+    (a: AccountDto) =>
+      a.ownership === 'own' &&
+      (a.account_type === 'Cash' || a.account_type === 'Bank')
+  );
+
+  const { data: upcomingDebts = [] } = useQuery({
     queryKey: ['upcoming-payments'],
     queryFn: () => getUpcomingPayments(7),
   });
@@ -80,6 +118,7 @@ export function DebtsPage() {
       queryClient.invalidateQueries({ queryKey: ['upcoming-payments'] });
       setPaymentToRecord(null);
       setSelectedDebt(null);
+      setPaymentSourceId('');
       toast.success(t('debts.paymentRecorded'));
     },
     onError: (error) => {
@@ -87,29 +126,25 @@ export function DebtsPage() {
     },
   });
 
-  const handleCreateClick = () => {
-    setIsSheetOpen(true);
-  };
-
   const handleCreateDebt = (data: CreateDebtDto) => {
     createMutation.mutate(data);
   };
 
   const handleRecordPayment = () => {
-    if (!paymentToRecord) return;
+    if (!paymentToRecord || !paymentSourceId) return;
     const dto: RecordPaymentDto = {
-      debt_id: paymentToRecord.debt.id,
-      payment_date: paymentToRecord.payment.payment_date,
-      transaction_id: '00000000-0000-0000-0000-000000000000',
+      schedule_entry_id: paymentToRecord.payment.id,
+      payment_source_account_id: paymentSourceId,
+      interest_account_id: null,
     };
     recordPaymentMutation.mutate(dto);
   };
 
   const getDebtStatus = (debt: DebtDto) => {
-    const remainingBalance = parseFloat(debt.remaining_balance);
+    const remaining = parseFloat(debt.remaining_principal);
     const today = new Date();
     const dueDate = new Date(debt.due_date);
-    if (remainingBalance === 0) {
+    if (remaining === 0) {
       return { label: t('debts.paidOff'), variant: 'secondary' as const };
     }
     if (dueDate < today) {
@@ -119,31 +154,27 @@ export function DebtsPage() {
   };
 
   const overdueDebts = debts.filter((debt) => {
-    const remainingBalance = parseFloat(debt.remaining_balance);
+    const remaining = parseFloat(debt.remaining_principal);
     const today = new Date();
     const dueDate = new Date(debt.due_date);
-    return remainingBalance > 0 && dueDate < today;
+    return remaining > 0 && dueDate < today;
   });
 
-  const formatCurrency = (amount: string, currencyCode: string) => {
-    const num = parseFloat(amount);
-    const formatted = num.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-    const symbols: Record<string, string> = {
-      CNY: '¥',
-      USD: '$',
-      EUR: '€',
-    };
-    return `${symbols[currencyCode] || currencyCode} ${formatted}`;
-  };
+  const upcomingPayments = upcomingDebts
+    .flatMap((debt) =>
+      debt.payment_schedule
+        .filter((p) => !p.paid)
+        .map((p) => ({ debt, payment: p }))
+    )
+    .slice(0, 10);
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">{t('debts.title')}</h1>
-        <Button variant="default-gradient" onClick={handleCreateClick}>{t('debts.createDebt')}</Button>
+        <Button variant="default-gradient" onClick={() => setIsSheetOpen(true)}>
+          {t('debts.createDebt')}
+        </Button>
       </div>
 
       {overdueDebts.length > 0 && (
@@ -155,24 +186,24 @@ export function DebtsPage() {
           <div className="space-y-2">
             {overdueDebts.map((debt) => (
               <div
-                key={debt.id}
+                key={debt.account_id}
                 className="flex items-center justify-between p-3 bg-white rounded border border-red-200"
               >
                 <div>
-                  <div className="font-medium text-red-900">{debt.counterparty}</div>
+                  <div className="font-medium text-red-900">
+                    {debt.account_name} ({debt.counterparty})
+                  </div>
                   <div className="text-sm text-red-700">
                     {t('debts.due')}: {new Date(debt.due_date).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
+                      year: 'numeric', month: 'short', day: 'numeric',
                     })}
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="font-semibold text-red-900">
-                    {formatCurrency(debt.remaining_balance, debt.currency_code)}
+                    {formatCurrency(debt.remaining_principal, debt.currency_code)}
                   </div>
-                  <div className="text-sm text-red-700">{debt.debt_type}</div>
+                  <div className="text-sm text-red-700">{debtTypeLabel(debt.account_type, t)}</div>
                 </div>
               </div>
             ))}
@@ -187,29 +218,32 @@ export function DebtsPage() {
             <h2 className="text-lg font-semibold text-blue-900">{t('debts.upcomingPayments')}</h2>
           </div>
           <div className="space-y-2">
-            {upcomingPayments.map((item: UpcomingPaymentDto, index: number) => (
+            {upcomingPayments.map((item, i) => (
               <div
-                key={index}
+                key={`${item.debt.account_id}-${i}`}
                 className="flex items-center justify-between p-3 bg-white rounded border border-blue-200"
               >
                 <div>
-                  <div className="font-medium text-blue-900">{item.debt.counterparty}</div>
+                  <div className="font-medium text-blue-900">
+                    {item.debt.account_name} ({item.debt.counterparty})
+                  </div>
                   <div className="text-sm text-blue-700">
                     {t('debts.paymentDate')}: {new Date(item.payment.payment_date).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
+                      year: 'numeric', month: 'short', day: 'numeric',
                     })}
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="font-semibold text-blue-900">
-                    {formatCurrency(item.payment.total_amount, item.payment.currency_code)}
+                    {formatCurrency(item.payment.total_amount, item.debt.currency_code)}
                   </div>
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setPaymentToRecord({ debt: item.debt, payment: item.payment })}
+                    onClick={() => {
+                      setPaymentToRecord({ debt: item.debt, payment: item.payment });
+                      setPaymentSourceId('');
+                    }}
                     className="mt-1"
                   >
                     {t('debts.recordPayment')}
@@ -228,14 +262,15 @@ export function DebtsPage() {
       ) : debts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <p className="text-neutral-500 mb-4">{t('debts.noDebts')}</p>
-          <Button onClick={handleCreateClick}>{t('debts.createFirstDebt')}</Button>
+          <Button onClick={() => setIsSheetOpen(true)}>{t('debts.createFirstDebt')}</Button>
         </div>
       ) : (
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{t('debts.type')}</TableHead>
+                <TableHead>{t('debts.name')}</TableHead>
+                <TableHead>{t('debtForm.type')}</TableHead>
                 <TableHead>{t('debts.counterparty')}</TableHead>
                 <TableHead className="text-right">{t('debts.principal')}</TableHead>
                 <TableHead className="text-right">{t('debts.remainingBalance')}</TableHead>
@@ -245,23 +280,22 @@ export function DebtsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {debts.map((debt: DebtDto) => {
+              {debts.map((debt) => {
                 const status = getDebtStatus(debt);
                 return (
-                  <TableRow key={debt.id}>
-                    <TableCell className="font-medium">{debt.debt_type}</TableCell>
+                  <TableRow key={debt.account_id}>
+                    <TableCell className="font-medium">{debt.account_name}</TableCell>
+                    <TableCell>{debtTypeLabel(debt.account_type, t)}</TableCell>
                     <TableCell>{debt.counterparty}</TableCell>
                     <TableCell className="text-right">
                       {formatCurrency(debt.principal_amount, debt.currency_code)}
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatCurrency(debt.remaining_balance, debt.currency_code)}
+                      {formatCurrency(debt.remaining_principal, debt.currency_code)}
                     </TableCell>
                     <TableCell>
                       {new Date(debt.due_date).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
+                        year: 'numeric', month: 'short', day: 'numeric',
                       })}
                     </TableCell>
                     <TableCell>
@@ -304,7 +338,7 @@ export function DebtsPage() {
           <DialogHeader>
             <DialogTitle>{t('debts.debtDetails')}</DialogTitle>
             <DialogDescription>
-              {selectedDebt?.counterparty} - {selectedDebt?.debt_type}
+              {selectedDebt?.account_name} ({selectedDebt?.counterparty})
             </DialogDescription>
           </DialogHeader>
           {selectedDebt && (
@@ -319,20 +353,20 @@ export function DebtsPage() {
                 <div>
                   <div className="text-sm text-neutral-500">{t('debts.remainingBalance')}</div>
                   <div className="text-lg font-semibold">
-                    {formatCurrency(selectedDebt.remaining_balance, selectedDebt.currency_code)}
+                    {formatCurrency(selectedDebt.remaining_principal, selectedDebt.currency_code)}
                   </div>
                 </div>
                 <div>
                   <div className="text-sm text-neutral-500">{t('debts.interestRate')}</div>
-                  <div className="text-lg font-semibold">{selectedDebt.interest_rate}% {t('debts.perYear')}</div>
+                  <div className="text-lg font-semibold">
+                    {selectedDebt.interest_rate}% {t('debts.perYear')}
+                  </div>
                 </div>
                 <div>
                   <div className="text-sm text-neutral-500">{t('debts.dueDate')}</div>
                   <div className="text-lg font-semibold">
                     {new Date(selectedDebt.due_date).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
+                      year: 'numeric', month: 'short', day: 'numeric',
                     })}
                   </div>
                 </div>
@@ -353,23 +387,21 @@ export function DebtsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selectedDebt.payment_schedule.map((payment: PaymentScheduleDto, index: number) => (
-                        <TableRow key={index}>
+                      {selectedDebt.payment_schedule.map((payment) => (
+                        <TableRow key={payment.id}>
                           <TableCell>
                             {new Date(payment.payment_date).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
+                              year: 'numeric', month: 'short', day: 'numeric',
                             })}
                           </TableCell>
                           <TableCell className="text-right">
-                            {formatCurrency(payment.principal_amount, payment.currency_code)}
+                            {formatCurrency(payment.principal_amount, selectedDebt.currency_code)}
                           </TableCell>
                           <TableCell className="text-right">
-                            {formatCurrency(payment.interest_amount, payment.currency_code)}
+                            {formatCurrency(payment.interest_amount, selectedDebt.currency_code)}
                           </TableCell>
                           <TableCell className="text-right font-medium">
-                            {formatCurrency(payment.total_amount, payment.currency_code)}
+                            {formatCurrency(payment.total_amount, selectedDebt.currency_code)}
                           </TableCell>
                           <TableCell>
                             <Badge variant={payment.paid ? 'secondary' : 'outline'}>
@@ -381,7 +413,10 @@ export function DebtsPage() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => setPaymentToRecord({ debt: selectedDebt, payment })}
+                                onClick={() => {
+                                  setPaymentToRecord({ debt: selectedDebt, payment });
+                                  setPaymentSourceId('');
+                                }}
                               >
                                 {t('debts.record')}
                               </Button>
@@ -412,17 +447,30 @@ export function DebtsPage() {
                 <div className="text-sm text-neutral-500">{t('debts.paymentDate')}</div>
                 <div className="text-lg font-semibold">
                   {new Date(paymentToRecord.payment.payment_date).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
+                    year: 'numeric', month: 'long', day: 'numeric',
                   })}
                 </div>
               </div>
               <div>
                 <div className="text-sm text-neutral-500">{t('debts.amount')}</div>
                 <div className="text-lg font-semibold">
-                  {formatCurrency(paymentToRecord.payment.total_amount, paymentToRecord.payment.currency_code)}
+                  {formatCurrency(paymentToRecord.payment.total_amount, paymentToRecord.debt.currency_code)}
                 </div>
+              </div>
+              <div>
+                <div className="text-sm text-neutral-500 mb-1">{t('debts.paymentSource')}</div>
+                <Select value={paymentSourceId} onValueChange={(v) => v && setPaymentSourceId(v)}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder={t('debts.selectPaymentSource')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ownPaymentAccounts.map((acc) => (
+                      <SelectItem key={acc.id} value={acc.id}>
+                        {acc.name} ({acc.account_type})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="flex justify-end gap-2 pt-4">
                 <Button variant="outline" onClick={() => setPaymentToRecord(null)}>
@@ -430,9 +478,11 @@ export function DebtsPage() {
                 </Button>
                 <Button
                   onClick={handleRecordPayment}
-                  disabled={recordPaymentMutation.isPending}
+                  disabled={recordPaymentMutation.isPending || !paymentSourceId}
                 >
-                  {recordPaymentMutation.isPending ? t('debts.recording') : t('debts.confirmPaymentButton')}
+                  {recordPaymentMutation.isPending
+                    ? t('debts.recording')
+                    : t('debts.confirmPaymentButton')}
                 </Button>
               </div>
             </div>

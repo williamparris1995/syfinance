@@ -1,6 +1,6 @@
 import { invokeTauri } from '../tauri';
 
-export type AccountType = 'Cash' | 'Bank' | 'CreditCard' | 'Investment' | 'Loan' | 'Other' | 'Income' | 'Expense';
+export type AccountType = 'Cash' | 'Bank' | 'CreditCard' | 'Investment' | 'BorrowedOut' | 'BorrowedIn' | 'Other' | 'Income' | 'Expense';
 
 export type Ownership = 'own' | 'external';
 

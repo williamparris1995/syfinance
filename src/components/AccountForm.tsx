@@ -24,7 +24,7 @@ import type { AccountType, AccountDto, CreateAccountDto, UpdateAccountDto, Owner
 
 const createAccountFormSchema = (t: (key: string) => string) => z.object({
   name: z.string().min(1, t('accountForm.nameRequired')),
-  account_type: z.enum(['Cash', 'Bank', 'CreditCard', 'Investment', 'Loan', 'Other', 'Income', 'Expense'], {
+  account_type: z.enum(['Cash', 'Bank', 'CreditCard', 'Investment', 'BorrowedOut', 'BorrowedIn', 'Other', 'Income', 'Expense'], {
     required_error: t('accountForm.accountTypeRequired'),
   }),
   ownership: z.enum(['own', 'external'], {
@@ -163,7 +163,8 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
     Bank: t('accountForm.bankWithChinese'),
     CreditCard: t('accountForm.creditCardWithChinese'),
     Investment: t('accountForm.investmentWithChinese'),
-    Loan: t('accountForm.loanWithChinese'),
+    BorrowedOut: t('accountForm.borrowedOutWithChinese'),
+    BorrowedIn: t('accountForm.borrowedInWithChinese'),
     Other: t('accountForm.otherWithChinese'),
     Income: t('accountForm.incomeWithChinese'),
     Expense: t('accountForm.expenseWithChinese'),
@@ -255,7 +256,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
                   <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('accountForm.selectAccountType')}>{field.value ? typeLabelMap[field.value] || field.value : null}</SelectValue></SelectTrigger></FormControl>
                   <SelectContent>
                     {ownership === 'own'
-                      ? (['Cash', 'Bank', 'CreditCard', 'Investment', 'Loan', 'Other'] as const).map((type) => (
+                      ? (['Cash', 'Bank', 'CreditCard', 'Investment', 'BorrowedOut', 'BorrowedIn', 'Other'] as const).map((type) => (
                         <SelectItem key={type} value={type}>{typeLabelMap[type]}</SelectItem>
                       ))
                       : (['Income', 'Expense'] as const).map((type) => (
@@ -504,8 +505,8 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
               </div>
             )}
 
-            {/* Conditional: Loan field */}
-            {accountType === 'Loan' && (
+            {/* Conditional: debt-related fields */}
+            {(accountType === 'BorrowedIn' || accountType === 'BorrowedOut') && (
               <FormField
                 control={form.control}
                 name="interest_rate"

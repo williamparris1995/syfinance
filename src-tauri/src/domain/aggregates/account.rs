@@ -10,7 +10,8 @@ pub enum AccountType {
     Bank,
     CreditCard,
     Investment,
-    Loan,
+    BorrowedOut,
+    BorrowedIn,
     Other,
     Income,
     Expense,
@@ -23,7 +24,8 @@ impl fmt::Display for AccountType {
             Self::Bank => write!(f, "bank"),
             Self::CreditCard => write!(f, "credit_card"),
             Self::Investment => write!(f, "investment"),
-            Self::Loan => write!(f, "loan"),
+            Self::BorrowedOut => write!(f, "borrowed_out"),
+            Self::BorrowedIn => write!(f, "borrowed_in"),
             Self::Other => write!(f, "other"),
             Self::Income => write!(f, "income"),
             Self::Expense => write!(f, "expense"),
@@ -377,7 +379,7 @@ fn validate_balance(
 
     if matches!(
         account_type,
-        AccountType::Cash | AccountType::Bank | AccountType::Investment
+        AccountType::Cash | AccountType::Bank | AccountType::Investment | AccountType::BorrowedOut
     ) && balance.amount < Decimal::ZERO
     {
         return Err(AccountError::NegativeBalanceNotAllowed {
@@ -810,7 +812,7 @@ mod tests {
                 let mut account = Account::new(
                     account_id,
                     "Loan",
-                    AccountType::Loan,
+                    AccountType::BorrowedIn,
                     Ownership::Own,
                     &currency("CNY"),
                     money(-1000, "CNY"),
