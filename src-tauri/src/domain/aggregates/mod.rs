@@ -2,6 +2,7 @@ pub mod account;
 pub mod chart_of_accounts;
 pub mod debt;
 pub mod reminder;
+pub mod security;
 pub mod transaction;
 
 pub use account::{Account, AccountError, AccountType, Ownership};
