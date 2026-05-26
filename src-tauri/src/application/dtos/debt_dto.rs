@@ -11,8 +11,8 @@ pub struct CreateDebtDto {
     pub principal_amount: Decimal,
     pub currency_code: String,
     pub interest_rate: Decimal,
-    pub start_date: NaiveDate,
-    pub due_date: NaiveDate,
+    pub start_date: Option<NaiveDate>,
+    pub due_date: Option<NaiveDate>,
     pub amortization_method: Option<String>,
 }
 

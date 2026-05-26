@@ -241,8 +241,8 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
       principal_amount: values.principal_amount,
       currency_code: values.currency_code,
       interest_rate: values.interest_rate,
-      start_date: values.start_date || '',
-      due_date: resolvedDueDate,
+      start_date: values.start_date || null,
+      due_date: resolvedDueDate || null,
       amortization_method: resolvedMethod as AmortizationMethod | null,
     });
   };

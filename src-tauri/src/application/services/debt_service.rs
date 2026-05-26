@@ -81,14 +81,20 @@ impl DebtService {
             .transpose()?
             .unwrap_or(AmortizationMethod::LumpSum);
 
+        let today = chrono::Utc::now().date_naive();
+        let start_date = dto.start_date.unwrap_or(today);
+        let due_date = dto.due_date.unwrap_or_else(|| {
+            today + chrono::Duration::days(365)
+        });
+
         let mut debt_details = DebtDetails::new(
             details_id,
             dto.account_id,
             dto.counterparty,
             dto.interest_rate,
             amortization_method,
-            dto.start_date,
-            dto.due_date,
+            start_date,
+            due_date,
             dto.principal_amount,
         );
         debt_details.generate_schedule();

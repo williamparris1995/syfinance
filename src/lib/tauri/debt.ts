@@ -9,8 +9,8 @@ export interface CreateDebtDto {
   principal_amount: string;
   currency_code: string;
   interest_rate: string;
-  start_date: string;
-  due_date: string;
+  start_date: string | null;
+  due_date: string | null;
   amortization_method: AmortizationMethod | null;
 }
 
