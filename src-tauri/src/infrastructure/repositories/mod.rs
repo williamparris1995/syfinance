@@ -6,6 +6,7 @@ pub mod debt_repository;
 pub mod debt_repository_postgres;
 pub mod reminder_repository;
 pub mod reminder_repository_postgres;
+pub mod security_repository;
 pub mod transaction_repository;
 pub mod transaction_repository_postgres;
 
@@ -17,5 +18,6 @@ pub use debt_repository::SqliteDebtRepository;
 pub use debt_repository_postgres::PostgresDebtRepository;
 pub use reminder_repository::SqliteReminderRepository;
 pub use reminder_repository_postgres::PostgresReminderRepository;
+pub use security_repository::SqliteSecurityRepository;
 pub use transaction_repository::SqliteTransactionRepository;
 pub use transaction_repository_postgres::PostgresTransactionRepository;
