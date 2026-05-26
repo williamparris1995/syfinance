@@ -121,7 +121,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
   const form = useForm<DebtFormValues>({
     resolver: zodResolver(debtFormSchema),
     defaultValues: {
-      account_id: initialData?.account_id || '',
+      account_id: mode === 'edit' || mode === 'view' ? (initialData?.account_id || '') : '',
       funding_account_id: '',
       counterparty: initialData?.counterparty || '',
       principal_amount: initialData?.principal_amount || '',
