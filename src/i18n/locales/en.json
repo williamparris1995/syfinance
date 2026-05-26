@@ -307,6 +307,7 @@
     "principal": "Principal",
     "interest": "Interest",
     "total": "Total",
+    "nameRequired": "Account name is required",
     "debtTypeRequired": "Debt type is required",
     "counterpartyRequired": "Counterparty is required",
     "principalRequired": "Principal amount is required",

@@ -29,46 +29,8 @@ import {
   TableHeader,
   TableRow,
 } from './ui/table';
-import type { AmortizationMethod, CreateDebtDto, DebtType } from '@/lib/tauri/debt';
-
-const debtFormSchema = z.object({
-  debt_type: z.enum(['BorrowedOut', 'BorrowedIn', 'CreditCard', 'Loan'], {
-    required_error: 'Debt type is required',
-  }),
-  counterparty: z.string().min(1, 'Counterparty is required'),
-  principal_amount: z.string().min(1, 'Principal amount is required').refine(
-    (val) => {
-      const num = parseFloat(val);
-      return !isNaN(num) && num > 0;
-    },
-    { message: 'Principal amount must be greater than 0' }
-  ),
-  currency_code: z.string().min(3, 'Currency code is required').max(3, 'Currency code must be 3 characters'),
-  interest_rate: z.string().min(1, 'Interest rate is required').refine(
-    (val) => {
-      const num = parseFloat(val);
-      return !isNaN(num) && num >= 0;
-    },
-    { message: 'Interest rate must be 0 or greater' }
-  ),
-  start_date: z.string().optional(),
-  due_date: z.string().optional(),
-  periods: z.number().optional(),
-  amortization_method: z.enum(['EqualPrincipalInterest', 'EqualPrincipal']).nullable(),
-}).refine(
-  (data) => {
-    if (data.start_date && data.due_date) {
-      return new Date(data.due_date) > new Date(data.start_date);
-    }
-    return true;
-  },
-  {
-    message: 'Due date must be after start date',
-    path: ['due_date'],
-  }
-);
-
-type DebtFormValues = z.infer<typeof debtFormSchema>;
+import type { CreateDebtDto, AmortizationMethod } from '@/lib/tauri/debt';
+import type { AccountType } from '@/lib/tauri/account';
 
 interface PaymentPreview {
   payment_date: string;
@@ -98,10 +60,12 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
   const amortizationLabelMap: Record<string, string> = {
     EqualPrincipalInterest: t('debtForm.equalPI'),
     EqualPrincipal: t('debtForm.equalPrincipal'),
+    LumpSum: t('debtForm.lumpSum'),
   };
 
   const debtFormSchema = z.object({
-    debt_type: z.enum(['BorrowedOut', 'BorrowedIn', 'CreditCard', 'Loan'], {
+    name: z.string().min(1, t('debtForm.nameRequired')),
+    account_type: z.enum(['BorrowedOut', 'BorrowedIn', 'CreditCard', 'Loan'], {
       required_error: t('debtForm.debtTypeRequired'),
     }),
     counterparty: z.string().min(1, t('debtForm.counterpartyRequired')),
@@ -123,7 +87,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
     start_date: z.string().optional(),
     due_date: z.string().optional(),
     periods: z.number().optional(),
-    amortization_method: z.enum(['EqualPrincipalInterest', 'EqualPrincipal']).nullable(),
+    amortization_method: z.enum(['EqualPrincipalInterest', 'EqualPrincipal', 'LumpSum']).nullable(),
   }).refine(
     (data) => {
       if (data.start_date && data.due_date) {
@@ -137,10 +101,13 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
     }
   );
 
+  type DebtFormValues = z.infer<typeof debtFormSchema>;
+
   const form = useForm<DebtFormValues>({
     resolver: zodResolver(debtFormSchema),
     defaultValues: {
-      debt_type: 'BorrowedIn',
+      name: '',
+      account_type: 'BorrowedIn',
       counterparty: '',
       principal_amount: '',
       currency_code: 'CNY',
@@ -155,16 +122,15 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
   const watchedValues = form.watch();
   const { principal_amount, interest_rate, start_date, due_date, amortization_method, periods } = watchedValues;
 
-  // Calculate payment schedule preview
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (!principal_amount || !interest_rate || !amortization_method) {
+      if (!principal_amount || !interest_rate || !amortization_method || amortization_method === 'LumpSum') {
         setPaymentPreview([]);
         return;
       }
 
       const principal = parseFloat(principal_amount);
-      const rate = parseFloat(interest_rate) / 100 / 12; // Monthly rate
+      const rate = parseFloat(interest_rate) / 100 / 12;
       const startDateStr = start_date;
 
       if (isNaN(principal) || isNaN(rate) || principal <= 0 || rate < 0) {
@@ -173,94 +139,77 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
       }
 
       let months: number;
-
       if (periods && periods > 0) {
-        // Installment mode: use periods directly
         months = periods;
       } else if (startDateStr && due_date) {
-        // Lump sum / legacy: calculate from date range
-        const startDate = new Date(startDateStr);
-        const dueDate = new Date(due_date);
-        if (dueDate <= startDate) {
-          setPaymentPreview([]);
-          return;
-        }
-        months = Math.round(
-          (dueDate.getFullYear() - startDate.getFullYear()) * 12 +
-          (dueDate.getMonth() - startDate.getMonth())
-        );
+        const sd = new Date(startDateStr);
+        const dd = new Date(due_date);
+        if (dd <= sd) { setPaymentPreview([]); return; }
+        months = Math.round((dd.getFullYear() - sd.getFullYear()) * 12 + (dd.getMonth() - sd.getMonth()));
       } else {
         setPaymentPreview([]);
         return;
       }
 
-      if (months <= 0) {
-        setPaymentPreview([]);
-        return;
-      }
+      if (months <= 0) { setPaymentPreview([]); return; }
 
-      // Use start_date as schedule start, defaulting to today if empty
       const scheduleStart = startDateStr ? new Date(startDateStr) : new Date();
       const schedule: PaymentPreview[] = [];
-      let remainingPrincipal = principal;
+      let remaining = principal;
 
       if (amortization_method === 'EqualPrincipalInterest') {
-        // 等额本息: Equal total payment each period
-        const monthlyPayment = rate === 0
+        const pmt = rate === 0
           ? principal / months
           : (principal * rate * Math.pow(1 + rate, months)) / (Math.pow(1 + rate, months) - 1);
 
         for (let i = 1; i <= months; i++) {
-          const interestPayment = remainingPrincipal * rate;
-          const principalPayment = monthlyPayment - interestPayment;
-
-          const paymentDate = new Date(scheduleStart);
-          paymentDate.setMonth(paymentDate.getMonth() + i);
-
+          const interest = remaining * rate;
+          const principalPmt = pmt - interest;
+          const d = new Date(scheduleStart);
+          d.setMonth(d.getMonth() + i);
           schedule.push({
-            payment_date: paymentDate.toISOString().split('T')[0],
-            principal_amount: principalPayment,
-            interest_amount: interestPayment,
-            total_amount: monthlyPayment,
+            payment_date: d.toISOString().split('T')[0],
+            principal_amount: principalPmt,
+            interest_amount: interest,
+            total_amount: pmt,
           });
-
-          remainingPrincipal -= principalPayment;
+          remaining -= principalPmt;
         }
       } else {
-        // 等额本金: Equal principal each period
-        const principalPayment = principal / months;
-
+        const principalPmt = principal / months;
         for (let i = 1; i <= months; i++) {
-          const interestPayment = remainingPrincipal * rate;
-          const totalPayment = principalPayment + interestPayment;
-
-          const paymentDate = new Date(scheduleStart);
-          paymentDate.setMonth(paymentDate.getMonth() + i);
-
+          const interest = remaining * rate;
+          const d = new Date(scheduleStart);
+          d.setMonth(d.getMonth() + i);
           schedule.push({
-            payment_date: paymentDate.toISOString().split('T')[0],
-            principal_amount: principalPayment,
-            interest_amount: interestPayment,
-            total_amount: totalPayment,
+            payment_date: d.toISOString().split('T')[0],
+            principal_amount: principalPmt,
+            interest_amount: interest,
+            total_amount: principalPmt + interest,
           });
-
-          remainingPrincipal -= principalPayment;
+          remaining -= principalPmt;
         }
       }
 
       setPaymentPreview(schedule);
-    }, 500); // Debounce 500ms
+    }, 500);
 
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchedValues]);
 
   const totalInterest = useMemo(() => {
-    return paymentPreview.reduce((sum, payment) => sum + payment.interest_amount, 0);
+    return paymentPreview.reduce((sum, p) => sum + p.interest_amount, 0);
   }, [paymentPreview]);
 
   const handleSubmit = (values: DebtFormValues) => {
     let resolvedDueDate = values.due_date || '';
-    // In installment mode, derive due_date from start_date + periods
+    let resolvedMethod = values.amortization_method;
+
+    if (repaymentMode === 'lump_sum') {
+      resolvedMethod = 'LumpSum';
+    }
+
     if (repaymentMode === 'installment' && values.periods && values.start_date) {
       const d = new Date(values.start_date);
       d.setMonth(d.getMonth() + values.periods);
@@ -268,14 +217,15 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
     }
 
     onSubmit({
-      debt_type: values.debt_type as DebtType,
+      name: values.name,
+      account_type: values.account_type as AccountType,
       counterparty: values.counterparty,
       principal_amount: values.principal_amount,
       currency_code: values.currency_code,
       interest_rate: values.interest_rate,
       start_date: values.start_date || '',
       due_date: resolvedDueDate,
-      amortization_method: values.amortization_method as AmortizationMethod | null,
+      amortization_method: resolvedMethod as AmortizationMethod | null,
     });
   };
 
@@ -283,7 +233,6 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
     <div className="space-y-6">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 px-5">
-          {/* Repayment mode toggle */}
           <div className="flex justify-center">
             <div className="inline-flex gap-1 rounded-full bg-muted p-1">
               <button
@@ -313,11 +262,19 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
             </div>
           </div>
 
-          {/* Hidden currency_code field - kept for schema validation */}
           <input type="hidden" {...form.register('currency_code')} />
 
           <div className="space-y-4">
-            <FormField name="debt_type" render={({ field }) => (
+            <FormField name="name" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('debts.name')} <span className="text-red-500">*</span>
+                </FormLabel>
+                <FormControl><Input placeholder={t('debts.namePlaceholder')} className="h-9" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField name="account_type" render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
                   {t('debtForm.type')} <span className="text-red-500">*</span>
@@ -434,7 +391,6 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
             </div>
           )}
 
-          {/* Lump sum summary */}
           {repaymentMode === 'lump_sum' && principal_amount && interest_rate && (
             <div className="rounded-xl border border-blue-200/50 bg-gradient-to-br from-blue-50/50 to-card p-4 flex items-center justify-between dark:from-blue-950/20 dark:to-card dark:border-blue-800/30">
               <div>
@@ -448,7 +404,6 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
             </div>
           )}
 
-          {/* Installment summary */}
           {repaymentMode === 'installment' && paymentPreview.length > 0 && (
             <div className="rounded-xl border border-emerald-200/50 bg-gradient-to-br from-emerald-50/50 to-card p-4 dark:from-emerald-950/20 dark:to-card dark:border-emerald-800/30">
               <div className="flex items-center justify-between mb-2">
