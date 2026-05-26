@@ -312,6 +312,8 @@
     "accountRequired": "Account is required",
     "selectAccount": "Select account",
     "selectCounterparty": "Select counterparty",
+    "noDebtAccounts": "No debt accounts found. Create a BorrowedIn, BorrowedOut, or CreditCard account first.",
+    "noAccounts": "No accounts found. Create an account first.",
     "counterpartyRequired": "Counterparty is required",
     "principalRequired": "Principal amount is required",
     "principalPositive": "Principal amount must be greater than 0",

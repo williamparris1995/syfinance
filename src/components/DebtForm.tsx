@@ -278,22 +278,21 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
                 <Select value={field.value} onValueChange={field.onChange}>
                   <FormControl>
                     <SelectTrigger className="h-9">
-                      <SelectValue placeholder={t('debtForm.selectAccount')}>
-                        {field.value
-                          ? (() => {
-                              const a = debtAccounts.find((acc) => acc.id === field.value);
-                              return a ? `${a.name} (${a.account_type})` : field.value;
-                            })()
-                          : null}
-                      </SelectValue>
+                      <SelectValue placeholder={t('debtForm.selectAccount')} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {debtAccounts.map((acc) => (
-                      <SelectItem key={acc.id} value={acc.id}>
-                        {acc.name} ({acc.account_type})
-                      </SelectItem>
-                    ))}
+                    {debtAccounts.length === 0 ? (
+                      <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                        {t('debtForm.noDebtAccounts')}
+                      </div>
+                    ) : (
+                      debtAccounts.map((acc) => (
+                        <SelectItem key={acc.id} value={acc.id}>
+                          {acc.name} ({acc.account_type})
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -307,22 +306,21 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
                 <Select value={field.value} onValueChange={field.onChange}>
                   <FormControl>
                     <SelectTrigger className="h-9">
-                      <SelectValue placeholder={t('debtForm.selectCounterparty')}>
-                        {field.value
-                          ? (() => {
-                              const a = allAccounts.find((acc) => acc.id === field.value);
-                              return a ? `${a.name} (${a.account_type})` : field.value;
-                            })()
-                          : null}
-                      </SelectValue>
+                      <SelectValue placeholder={t('debtForm.selectCounterparty')} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {allAccounts.map((acc) => (
-                      <SelectItem key={acc.id} value={acc.id}>
-                        {acc.name} ({acc.account_type})
-                      </SelectItem>
-                    ))}
+                    {allAccounts.length === 0 ? (
+                      <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                        {t('debtForm.noAccounts')}
+                      </div>
+                    ) : (
+                      allAccounts.map((acc) => (
+                        <SelectItem key={acc.id} value={acc.id}>
+                          {acc.name} ({acc.account_type})
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />
