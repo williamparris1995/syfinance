@@ -249,15 +249,16 @@ impl DebtService {
         let payment_date = dto.payment_date.unwrap_or_else(|| chrono::Utc::now().date_naive());
 
         // Use DTO payment_amount if provided, otherwise use scheduled amount
-        let actual_total = dto.payment_amount.unwrap_or(entry.total_amount);
-        // Proportionally split between principal and interest
+        let actual_total = dto.payment_amount
+            .map(|a| a.round_dp(2))
+            .unwrap_or(entry.total_amount.round_dp(2));
         let ratio = if entry.total_amount > Decimal::ZERO {
-            entry.principal_amount / entry.total_amount
+            (entry.principal_amount / entry.total_amount).round_dp(4)
         } else {
             Decimal::ONE
         };
         let actual_principal = (actual_total * ratio).round_dp(2);
-        let actual_interest = actual_total - actual_principal;
+        let actual_interest = (actual_total - actual_principal).max(Decimal::ZERO);
 
         let entries = if is_liability_type(&debt_account.account_type) {
             build_repayment_entries(
@@ -289,7 +290,9 @@ impl DebtService {
         self.transaction_repo.create(&transaction).await?;
 
         let mut updated_entry = entry.clone();
-        updated_entry.paid = true;
+        updated_entry.paid = dto.payment_amount
+            .map(|amt| amt.round_dp(2) >= entry.total_amount.round_dp(2))
+            .unwrap_or(true);
         updated_entry.transaction_id = Some(transaction_id);
         self.debt_repo.update_schedule_entry(&updated_entry).await?;
 
