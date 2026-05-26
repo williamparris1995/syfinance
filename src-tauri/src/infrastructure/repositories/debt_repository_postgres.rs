@@ -389,6 +389,7 @@ fn row_to_schedule_entry(
     let interest_amount: Decimal = row.try_get("interest_amount")?;
     let total_amount: Decimal = row.try_get("total_amount")?;
     let paid: bool = row.try_get("paid")?;
+    let paid_amount: Decimal = row.try_get("paid_amount")?;
     let transaction_id: Option<Uuid> = row.try_get("transaction_id")?;
 
     Ok(PaymentScheduleEntry {
@@ -399,6 +400,7 @@ fn row_to_schedule_entry(
         interest_amount,
         total_amount,
         paid,
+        paid_amount,
         transaction_id,
     })
 }

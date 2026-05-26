@@ -290,9 +290,9 @@ impl DebtService {
         self.transaction_repo.create(&transaction).await?;
 
         let mut updated_entry = entry.clone();
-        updated_entry.paid = dto.payment_amount
-            .map(|amt| amt >= entry.total_amount)
-            .unwrap_or(true);
+        let paid_now = dto.payment_amount.unwrap_or(entry.total_amount);
+        updated_entry.paid_amount = (entry.paid_amount + paid_now).min(entry.total_amount);
+        updated_entry.paid = updated_entry.paid_amount >= entry.total_amount;
         updated_entry.transaction_id = Some(transaction_id);
         self.debt_repo.update_schedule_entry(&updated_entry).await?;
 

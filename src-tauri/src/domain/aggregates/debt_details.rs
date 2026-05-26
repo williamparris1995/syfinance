@@ -28,6 +28,7 @@ pub struct PaymentScheduleEntry {
     pub interest_amount: Decimal,
     pub total_amount: Decimal,
     pub paid: bool,
+    pub paid_amount: Decimal,
     pub transaction_id: Option<Uuid>,
 }
 
@@ -91,6 +92,7 @@ impl DebtDetails {
             interest_amount: interest,
             total_amount: (self.total_principal + interest).round_dp(2),
             paid: false,
+            paid_amount: Decimal::ZERO,
             transaction_id: None,
         });
     }
@@ -126,6 +128,7 @@ impl DebtDetails {
                 interest_amount: interest,
                 total_amount: total,
                 paid: false,
+                paid_amount: Decimal::ZERO,
                 transaction_id: None,
             });
         }
@@ -156,6 +159,7 @@ impl DebtDetails {
                 interest_amount: interest,
                 total_amount: total,
                 paid: false,
+                paid_amount: Decimal::ZERO,
                 transaction_id: None,
             });
         }
@@ -185,13 +189,22 @@ impl DebtDetails {
     }
 
     pub fn remaining_principal(&self) -> Decimal {
-        let paid: Decimal = self
+        let paid_principal: Decimal = self
             .payment_schedule
             .iter()
-            .filter(|e| e.paid)
-            .map(|e| e.principal_amount)
+            .map(|e| {
+                if e.paid {
+                    e.principal_amount
+                } else if e.paid_amount > Decimal::ZERO {
+                    // Proportionally deduct partial payment from principal
+                    let ratio = e.principal_amount / e.total_amount;
+                    (e.paid_amount * ratio).round_dp(2)
+                } else {
+                    Decimal::ZERO
+                }
+            })
             .sum();
-        self.total_principal - paid
+        (self.total_principal - paid_principal).max(Decimal::ZERO)
     }
 }
 

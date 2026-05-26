@@ -77,8 +77,8 @@ impl DebtRepository for SqliteDebtRepository {
                 r#"
                 INSERT INTO debt_payment_schedule (
                     id, debt_id, payment_date, principal_amount, interest_amount,
-                    total_amount, paid, transaction_id, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    total_amount, paid, paid_amount, transaction_id, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 "#,
             )
             .bind(entry.id.to_string())
@@ -88,6 +88,7 @@ impl DebtRepository for SqliteDebtRepository {
             .bind(entry.interest_amount.to_string())
             .bind(entry.total_amount.to_string())
             .bind(entry.paid)
+            .bind(entry.paid_amount.to_string())
             .bind(entry.transaction_id.map(|id| id.to_string()))
             .bind(Utc::now().to_rfc3339())
             .execute(&mut *tx)
@@ -217,8 +218,8 @@ impl DebtRepository for SqliteDebtRepository {
                 r#"
                 INSERT INTO debt_payment_schedule (
                     id, debt_id, payment_date, principal_amount, interest_amount,
-                    total_amount, paid, transaction_id, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    total_amount, paid, paid_amount, transaction_id, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 "#,
             )
             .bind(entry.id.to_string())
@@ -228,6 +229,7 @@ impl DebtRepository for SqliteDebtRepository {
             .bind(entry.interest_amount.to_string())
             .bind(entry.total_amount.to_string())
             .bind(entry.paid)
+            .bind(entry.paid_amount.to_string())
             .bind(entry.transaction_id.map(|id| id.to_string()))
             .bind(Utc::now().to_rfc3339())
             .execute(&mut *tx)
@@ -248,6 +250,7 @@ impl DebtRepository for SqliteDebtRepository {
                    CAST(principal_amount AS TEXT) as principal_amount,
                    CAST(interest_amount AS TEXT) as interest_amount,
                    CAST(total_amount AS TEXT) as total_amount,
+                   CAST(paid_amount AS TEXT) as paid_amount,
                    paid, transaction_id
             FROM debt_payment_schedule
             WHERE debt_id = ? AND deleted_at IS NULL
@@ -270,7 +273,7 @@ impl DebtRepository for SqliteDebtRepository {
             r#"
             UPDATE debt_payment_schedule
             SET payment_date = ?, principal_amount = ?, interest_amount = ?,
-                total_amount = ?, paid = ?, transaction_id = ?, updated_at = ?
+                total_amount = ?, paid = ?, paid_amount = ?, transaction_id = ?, updated_at = ?
             WHERE id = ? AND deleted_at IS NULL
             "#,
         )
@@ -279,6 +282,7 @@ impl DebtRepository for SqliteDebtRepository {
         .bind(entry.interest_amount.to_string())
         .bind(entry.total_amount.to_string())
         .bind(entry.paid)
+        .bind(entry.paid_amount.to_string())
         .bind(entry.transaction_id.map(|id| id.to_string()))
         .bind(Utc::now().to_rfc3339())
         .bind(entry.id.to_string())
@@ -429,6 +433,10 @@ fn row_to_schedule_entry(
 
     let paid: bool = row.try_get("paid")?;
 
+    let paid_amount_str: String = row.try_get("paid_amount")?;
+    let paid_amount = Decimal::from_str(&paid_amount_str)
+        .map_err(|e| sqlx::Error::Decode(format!("invalid decimal: {}", e).into()))?;
+
     let transaction_id: Option<String> = row.try_get("transaction_id")?;
     let transaction_id = transaction_id
         .map(|s| Uuid::parse_str(&s))
@@ -443,6 +451,7 @@ fn row_to_schedule_entry(
         interest_amount,
         total_amount,
         paid,
+        paid_amount,
         transaction_id,
     })
 }
