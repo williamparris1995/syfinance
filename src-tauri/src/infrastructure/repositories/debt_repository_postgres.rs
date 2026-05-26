@@ -41,6 +41,16 @@ impl DebtRepository for PostgresDebtRepository {
     async fn create_debt_details(&self, debt: &DebtDetails) -> sqlx::Result<()> {
         let mut tx = self.pool.begin().await?;
 
+        // Remove any soft-deleted row with the same account_id to free UNIQUE constraint
+        sqlx::query("DELETE FROM debt_payment_schedule WHERE debt_id IN (SELECT id FROM debt_details WHERE account_id = $1 AND deleted_at IS NOT NULL)")
+            .bind(debt.account_id)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM debt_details WHERE account_id = $1 AND deleted_at IS NOT NULL")
+            .bind(debt.account_id)
+            .execute(&mut *tx)
+            .await?;
+
         sqlx::query(
             r#"
             INSERT INTO debt_details (
