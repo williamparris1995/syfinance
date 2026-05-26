@@ -1,8 +1,12 @@
--- Update accounts CHECK constraint to allow new debt account types
--- SQLite doesn't support ALTER CHECK, must recreate the table
+-- Update accounts CHECK constraint to allow new debt account types.
+-- SQLite doesn't support ALTER CHECK, must recreate the table.
 
 PRAGMA foreign_keys = OFF;
 
+-- Step 0: Convert any legacy 'loan' accounts to 'borrowed_in' before recreation
+UPDATE accounts SET account_type = 'borrowed_in' WHERE account_type = 'loan';
+
+-- Step 1: Create new table with updated CHECK (no 'loan', add 'borrowed_out'/'borrowed_in')
 CREATE TABLE accounts_new (
     id TEXT PRIMARY KEY NOT NULL,
     name VARCHAR(100) NOT NULL,
@@ -13,7 +17,7 @@ CREATE TABLE accounts_new (
     icon VARCHAR(10) NOT NULL DEFAULT '📁',
     color VARCHAR(7) NOT NULL DEFAULT '#6B7280',
     chart_code VARCHAR(10),
-    parent_id TEXT REFERENCES accounts(id) ON DELETE SET NULL,
+    parent_id TEXT REFERENCES accounts_new(id) ON DELETE SET NULL,
     account_number VARCHAR(50),
     institution VARCHAR(100),
     credit_limit DECIMAL(20,2),
@@ -34,12 +38,14 @@ CREATE TABLE accounts_new (
     FOREIGN KEY (currency_code) REFERENCES currencies(code) ON DELETE RESTRICT
 );
 
+-- Step 2: Copy data (all rows pass the new CHECK after Step 0 conversion)
 INSERT INTO accounts_new SELECT * FROM accounts;
 
+-- Step 3: Swap tables
 DROP TABLE accounts;
 ALTER TABLE accounts_new RENAME TO accounts;
 
--- Recreate indexes
+-- Step 4: Recreate indexes
 CREATE INDEX idx_accounts_type ON accounts(account_type);
 CREATE INDEX idx_accounts_ownership ON accounts(ownership);
 CREATE INDEX idx_accounts_currency ON accounts(currency_code);
