@@ -1,13 +1,17 @@
 -- Update accounts CHECK constraint to allow new debt account types.
--- SQLite doesn't support ALTER CHECK, must recreate the table.
+-- Same pattern as 20260522000001_unify_accounts_and_categories.sql
 
 PRAGMA foreign_keys = OFF;
 
--- Step 0: Convert any legacy 'loan' accounts to 'borrowed_in' before recreation
+-- Convert legacy 'loan' accounts to 'borrowed_in' before recreation
 UPDATE accounts SET account_type = 'borrowed_in' WHERE account_type = 'loan';
 
--- Step 1: Create new table with updated CHECK (no 'loan', add 'borrowed_out'/'borrowed_in')
-CREATE TABLE accounts_new (
+-- Backup and drop
+CREATE TABLE accounts_backup AS SELECT * FROM accounts;
+DROP TABLE accounts;
+
+-- Recreate with updated CHECK
+CREATE TABLE accounts (
     id TEXT PRIMARY KEY NOT NULL,
     name VARCHAR(100) NOT NULL,
     account_type VARCHAR(20) NOT NULL,
@@ -17,7 +21,7 @@ CREATE TABLE accounts_new (
     icon VARCHAR(10) NOT NULL DEFAULT '📁',
     color VARCHAR(7) NOT NULL DEFAULT '#6B7280',
     chart_code VARCHAR(10),
-    parent_id TEXT REFERENCES accounts_new(id) ON DELETE SET NULL,
+    parent_id TEXT REFERENCES accounts(id) ON DELETE SET NULL,
     account_number VARCHAR(50),
     institution VARCHAR(100),
     credit_limit DECIMAL(20,2),
@@ -29,7 +33,7 @@ CREATE TABLE accounts_new (
     device_id TEXT,
     synced_at TIMESTAMP,
     version INTEGER NOT NULL DEFAULT 1,
-    CHECK (account_type IN ('cash', 'bank', 'credit_card', 'investment',
+    CHECK (account_type IN ('cash', 'bank', 'credit_card', 'investment', 'loan',
            'borrowed_out', 'borrowed_in', 'other', 'income', 'expense')),
     CHECK (ownership IN ('own', 'external')),
     CHECK (billing_day IS NULL OR (billing_day >= 1 AND billing_day <= 31)),
@@ -38,14 +42,11 @@ CREATE TABLE accounts_new (
     FOREIGN KEY (currency_code) REFERENCES currencies(code) ON DELETE RESTRICT
 );
 
--- Step 2: Copy data (all rows pass the new CHECK after Step 0 conversion)
-INSERT INTO accounts_new SELECT * FROM accounts;
+-- Restore data
+INSERT INTO accounts SELECT * FROM accounts_backup;
+DROP TABLE accounts_backup;
 
--- Step 3: Swap tables
-DROP TABLE accounts;
-ALTER TABLE accounts_new RENAME TO accounts;
-
--- Step 4: Recreate indexes
+-- Recreate indexes
 CREATE INDEX idx_accounts_type ON accounts(account_type);
 CREATE INDEX idx_accounts_ownership ON accounts(ownership);
 CREATE INDEX idx_accounts_currency ON accounts(currency_code);
