@@ -269,10 +269,15 @@ impl DebtRepository for SqliteDebtRepository {
         let result = sqlx::query(
             r#"
             UPDATE debt_payment_schedule
-            SET paid = ?, transaction_id = ?, updated_at = ?
+            SET payment_date = ?, principal_amount = ?, interest_amount = ?,
+                total_amount = ?, paid = ?, transaction_id = ?, updated_at = ?
             WHERE id = ? AND deleted_at IS NULL
             "#,
         )
+        .bind(entry.payment_date.to_string())
+        .bind(entry.principal_amount.to_string())
+        .bind(entry.interest_amount.to_string())
+        .bind(entry.total_amount.to_string())
         .bind(entry.paid)
         .bind(entry.transaction_id.map(|id| id.to_string()))
         .bind(Utc::now().to_rfc3339())
