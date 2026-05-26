@@ -4,7 +4,7 @@
 
 **Goal:** Unify the independent Debt system into the Account system so debts are specialized accounts with automatic double-entry transaction creation on repayment.
 
-**Architecture:** Extend `AccountType` enum with `BorrowedOut`/`BorrowedIn`. Add `debt_details` (1:1 with accounts) and `debt_payment_schedule` (1:N with debt_details) tables. Debt operations go through a facade that creates/modifies accounts and generates balanced transactions. On repayment: mark schedule entry paid, create Transaction linking debt account + payment source account + interest expense account.
+**Architecture:** Extend `AccountType` enum with `BorrowedOut`/`BorrowedIn`, remove `Loan` (merged into `BorrowedIn` per IFRS/CAS classification). Add `debt_details` (1:1 with accounts) and `debt_payment_schedule` (1:N with debt_details) tables. Account-first flow: user creates accounts in Accounts page, then selects them in DebtForm via dropdowns. On repayment: mark schedule entry paid, create Transaction linking debt account + payment source account + interest account.
 
 **Tech Stack:** Rust/Tauri (sqlx, SQLite/Postgres), React 19/TypeScript, @base-ui/react, react-i18next
 
@@ -15,7 +15,7 @@
 | File | Action | Responsibility |
 |------|--------|----------------|
 | `src-tauri/migrations/20260526000002_create_debt_tables.sql` | Create | debt_details + debt_payment_schedule DDL |
-| `src-tauri/src/domain/aggregates/account.rs` | Modify | Add BorrowedOut, BorrowedIn to AccountType |
+| `src-tauri/src/domain/aggregates/account.rs` | Modify | Add BorrowedOut/BorrowedIn, remove Loan |
 | `src-tauri/src/domain/aggregates/debt_details.rs` | Create | DebtDetails aggregate + amortization |
 | `src-tauri/src/domain/aggregates/mod.rs` | Modify | Register debt_details module |
 | `src-tauri/src/application/dtos/account_dto.rs` | Modify | Add debt-related fields |
@@ -30,7 +30,7 @@
 | `src/i18n/locales/en.json` | Modify | Debt-related keys |
 | `src/i18n/locales/zh.json` | Modify | Debt-related keys |
 | `src/pages/DebtsPage.tsx` | Rewrite | Account-based debt listing |
-| `src/components/DebtForm.tsx` | Rewrite | Account + debt_details creation |
+| `src/components/DebtForm.tsx` | Rewrite | Account-first: dropdown selectors instead of text inputs |
 
 ---
 
@@ -78,12 +78,12 @@ git commit -m "feat: add debt_details and debt_payment_schedule tables"
 
 ---
 
-### Task 2: Backend — AccountType Expansion
+### Task 2: Backend — AccountType Update
 
 **Files:**
 - Modify: `src-tauri/src/domain/aggregates/account.rs`
 
-- [ ] **Step 1: Add BorrowedOut and BorrowedIn to AccountType enum**
+- [ ] **Step 1: Add BorrowedOut/BorrowedIn, remove Loan from AccountType enum**
 
 In the `AccountType` enum (around line 7-17), add two new variants:
 

@@ -9,23 +9,29 @@ Unify the independent Debt system into the Account system, making debts a specia
 - Debt and Account are currently two independent systems with no data relationship
 - Recording a debt payment does not create accounting transactions — it only marks a schedule entry as paid
 - Users must manually record both a debt payment AND an account transaction, leading to inconsistency
-- The Account system already supports liability types (CreditCard, Loan); extending it avoids duplication
+- The Account system already supports liability types; extending it avoids duplication
 
 ## Design
 
 ### Section 1: Data Model
 
-**New AccountType variants:**
+**AccountType variants (updated):**
 
 ```rust
 pub enum AccountType {
-    // Existing
-    Cash, Bank, CreditCard, Investment, Loan, Other, Income, Expense,
-    // New
-    BorrowedOut,   // Lending out (receivable)
-    BorrowedIn,    // Borrowing in (payable)
+    Cash,
+    Bank,
+    CreditCard,
+    Investment,
+    BorrowedOut,   // Lending out (receivable / 借出)
+    BorrowedIn,    // Borrowing in (payable / 借入)
+    Other,
+    Income,
+    Expense,
 }
 ```
+
+Note: `Loan` was merged into `BorrowedIn`. Accounting standards (IFRS/CAS) classify borrowings by term (short/long), not by lender type (bank vs individual). The distinction is captured by `chart_code` (2001 for short-term, 2501 for long-term) and `due_date`, not by account type.
 
 **Chart of accounts mapping for debt types:**
 
@@ -34,7 +40,6 @@ pub enum AccountType {
 | BorrowedOut | 1221 | 其他应收款 | Debit |
 | BorrowedIn | 2001/2501 | 短期/长期借款 | Credit |
 | CreditCard | 2202 | 应付信用卡款 | Credit |
-| Loan | 2501 | 长期借款 | Credit |
 | Investment | 1101 | 交易性金融资产 | Debit |
 
 **New table: `debt_details` (1:1 with accounts)**
@@ -81,95 +86,62 @@ accounts (1) ─── (0..1) debt_details ─── (1..N) debt_payment_schedul
                                            transaction_id ──→ transactions
 ```
 
-### Section 2: Repayment Creates Transactions
+### Section 2: Creation and Repayment Flow
+
+**Debt creation flow (account-first):**
+1. User creates an Account of type `BorrowedIn`, `BorrowedOut`, or `CreditCard` in the Accounts page
+2. In the Debts page, user clicks "Create Debt" and selects:
+   - **Account** — an existing account of debt type (BorrowedIn, BorrowedOut, CreditCard) via dropdown
+   - **Counterparty** — another existing account via dropdown (its name is stored as counterparty text)
+   - Loan terms (principal, interest rate, dates, amortization method)
+3. System creates `debt_details` + `debt_payment_schedule` linked to the selected account
+
+**Repayment creates transactions:**
 
 When a user records a payment against a debt schedule entry:
 
-**Expense repayment (e.g., mortgage):**
+**Liability repayment (BorrowedIn/CreditCard):**
 
 ```
-借: 长期借款(debt account)  ¥principal  (liability decreases)
-借: 利息支出(expense ext account) ¥interest  (expense)
-    贷: 银行存款(payment source account)  ¥total  (asset decreases)
+借: 借款账户(debt account)  ¥principal  (liability decreases)
+借: 利息支出(interest account) ¥interest  (expense)
+    贷: 还款来源账户(payment source)  ¥total  (asset decreases)
 ```
 
-**Lending recovery (e.g., friend repays):**
+**Receivable recovery (BorrowedOut):**
 
 ```
-借: 银行存款(receiving account)  ¥principal  (asset increases)
-    贷: 其他应收款(debt account)  ¥principal  (receivable decreases)
-    贷: 利息收入(income ext account)  ¥interest (if any)  (income)
-```
-
-**New borrowing (creating a debt):**
-
-```
-借: 银行存款(receiving account)  ¥principal  (asset increases)
-    贷: 长期借款(debt account)  ¥principal  (liability increases)
-```
-
-**New lending (lending to someone):**
-
-```
-借: 其他应收款(debt account)  ¥principal  (receivable increases)
-    贷: 银行存款(source account)  ¥principal  (asset decreases)
+借: 收款账户(receiving account)  ¥total  (asset increases)
+    贷: 借出账户(debt account)  ¥principal  (receivable decreases)
+    贷: 利息收入(income account)  ¥interest (if any)  (income)
 ```
 
 **Processing flow:**
-1. User clicks "Record Payment" on a schedule entry
+1. User clicks "Record Payment" on a schedule entry, selects payment source account
 2. System creates a `Transaction` with balanced debit/credit entries
 3. System marks the schedule entry as `paid` and sets `transaction_id`
 4. Account `current_balance` for the debt account reflects: `initial_balance - SUM(paid_principal)`
-5. Credit card payment day mapping: `billing_day` → statement generation, `payment_due_day` → payment deadline
 
 ### Section 3: Migration
 
 **Phase 1: Schema migration**
 - Create `debt_details` and `debt_payment_schedule` tables
-- Extend `AccountType` enum with `BorrowedOut`, `BorrowedIn`
+- Extend `AccountType` enum with `BorrowedOut`, `BorrowedIn`, remove `Loan`
+- Update `accounts` CHECK constraint
 
 **Phase 2: Data migration**
 - For each row in `debts` table:
-  - Create an `Account` with mapped `account_type`, `ownership = 'own'`, `chart_code` from the type mapping
-  - Set `initial_balance = principal` for borrowing, `initial_balance = 0` for lending
+  - Create an `Account` with mapped `account_type` (`loan` → `borrowed_in`)
   - Insert into `debt_details` with counterparty, interest_rate, dates
   - Migrate each payment schedule entry to `debt_payment_schedule`
-  - For already-paid entries: create a corresponding `Transaction` (or mark as historical)
+  - For already-paid entries: no transaction backfill (historical)
 
 **Phase 3: Drop old tables**
 - Verify migration data integrity
 - Drop `debts` and `debt_payments` tables
 
-**Phase 4: Frontend migration**
-- Update `DebtsPage` to use Account-based queries
-- Update `DebtForm` to create debt-type Accounts + debt_details
-- Update repayment flow to create transactions
-- Remove old debt API calls
-
-### Files Changed
-
-| File | Action | Description |
-|------|--------|-------------|
-| Migrations (new) | Create | Schema: debt_details, debt_payment_schedule, AccountType expansion, data migration |
-| Migrations (new) | Create | Drop old debts/debt_payments tables |
-| `src-tauri/src/domain/aggregates/account.rs` | Modify | Add `BorrowedOut`, `BorrowedIn` to `AccountType` |
-| `src-tauri/src/domain/aggregates/debt_details.rs` | Create | DebtDetails aggregate with amortization logic |
-| `src-tauri/src/application/dtos/account_dto.rs` | Modify | Add debt-specific fields to DTO |
-| `src-tauri/src/application/dtos/debt_dto.rs` | Rewrite | New DTOs for debt_details facade |
-| `src-tauri/src/application/services/account_service.rs` | Modify | Add debt-related methods |
-| `src-tauri/src/application/services/debt_service.rs` | Rewrite | Thin facade over account_service for debt operations |
-| `src-tauri/src/infrastructure/repositories/account_repository.rs` | Modify | Add account type filter for debt types |
-| `src-tauri/src/infrastructure/repositories/debt_repository.rs` | Rewrite | debt_details + payment_schedule CRUD |
-| `src-tauri/src/presentation/tauri_commands/debt_commands.rs` | Rewrite | Updated commands using unified model |
-| `src/lib/tauri/account.ts` | Modify | Add debt-related fields to AccountDto |
-| `src/lib/tauri/debt.ts` | Rewrite | Updated types and API functions |
-| `src/pages/DebtsPage.tsx` | Rewrite | Use Account queries, show debt accounts |
-| `src/components/DebtForm.tsx` | Rewrite | Create Account + debt_details |
-| `src/i18n/locales/en.json` | Modify | New debt-related keys |
-| `src/i18n/locales/zh.json` | Modify | New debt-related keys |
-
 ### Out of Scope
 
-- Investment/fund/stock tracking (separate feature using `Investment` AccountType + investment_details table)
-- Integration with existing `Reminder` system (debt reminders should be re-evaluated after migration)
-- Historical payment-to-transaction backfill for already-paid entries (marked as historical, no transaction created)
+- Investment/fund/stock tracking (separate feature using `Investment` AccountType)
+- Integration with existing `Reminder` system
+- Historical payment-to-transaction backfill for already-paid entries
