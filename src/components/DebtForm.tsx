@@ -3,9 +3,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
+import { Info } from 'lucide-react';
 import { z } from 'zod';
 import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import {
   Form,
   FormControl,
@@ -330,12 +332,21 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
               <FormItem>
                 <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
                   {t('debtForm.fundingAccount')} <span className="text-red-500">*</span>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="inline ml-1 h-3 w-3 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{t('debtForm.fundingAccountDesc')}</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </FormLabel>
-                <p className="text-[11px] text-muted-foreground -mt-1 mb-1">{t('debtForm.fundingAccountDesc')}</p>
                 <Select value={field.value} onValueChange={field.onChange}>
                   <FormControl>
                     <SelectTrigger className="h-9">
-                      <SelectValue placeholder={t('debtForm.selectFundingAccount')} />
+                      <SelectValue placeholder={t('debtForm.selectFundingAccount')}>
+                        {field.value ? (fundingAccounts.find(a => a.id === field.value)?.name || field.value) : null}
+                      </SelectValue>
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
