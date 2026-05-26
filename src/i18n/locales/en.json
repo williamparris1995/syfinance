@@ -273,6 +273,8 @@
     "paid": "Paid",
     "unpaid": "Unpaid",
     "record": "Record",
+    "scheduledAmount": "Scheduled",
+    "actualPaymentAmount": "Payment Amount",
     "confirmPayment": "Confirm payment for",
     "amount": "Amount",
     "recording": "Recording...",
