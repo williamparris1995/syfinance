@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, ArrowDown, ArrowUp, Calendar, Copy, Eye, Pencil, Search, Trash2 } from 'lucide-react';
+import { AlertCircle, ArrowDown, ArrowUp, Banknote, Calendar, Copy, Eye, Pencil, Search, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -452,6 +452,14 @@ export function DebtsPage() {
                     <TableCell><Badge variant={status.variant}>{status.label}</Badge></TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        {debt.payment_schedule.some(p => !p.paid) && (
+                          <Button variant="ghost" size="icon-sm" onClick={() => {
+                            const firstUnpaid = debt.payment_schedule.find(p => !p.paid);
+                            if (firstUnpaid) { setPaymentToRecord({ debt, payment: firstUnpaid }); setPaymentSourceId(''); }
+                          }} title={t('debts.recordPayment')}>
+                            <Banknote className="h-3.5 w-3.5 text-emerald-600" />
+                          </Button>
+                        )}
                         <Button variant="ghost" size="icon-sm" onClick={() => setViewingDebt(debt)} title={t('debts.view')}>
                           <Eye className="h-3.5 w-3.5" />
                         </Button>
