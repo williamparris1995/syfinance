@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 import { EmptyState } from '@/components/EmptyState';
-import { listAccounts } from '@/lib/tauri/account';
+import { listAccountsWithBalances } from '@/lib/tauri/account';
 import { listTransactions } from '@/lib/tauri/transaction';
 import { listDebts, getUpcomingPayments } from '@/lib/tauri/debt';
 
@@ -26,7 +26,7 @@ export function HomePage() {
 
   const { data: accounts = [], isLoading: accountsLoading } = useQuery({
     queryKey: ['accounts'],
-    queryFn: listAccounts,
+    queryFn: listAccountsWithBalances,
   });
 
   const { data: transactions = [], isLoading: transactionsLoading } = useQuery({

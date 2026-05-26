@@ -49,7 +49,7 @@ import {
   type RecordPaymentDto,
   type UpdateDebtDto,
 } from '../lib/tauri/debt';
-import { listAccounts, type AccountDto } from '../lib/tauri/account';
+import { listAccountsWithBalances, type AccountDto } from '../lib/tauri/account';
 
 type SortColumn = 'name' | 'type' | 'counterparty' | 'principal' | 'remaining' | 'dueDate' | 'status';
 type TypeFilter = 'all' | 'BorrowedIn' | 'BorrowedOut' | 'CreditCard';
@@ -113,7 +113,7 @@ export function DebtsPage() {
 
   const { data: accounts = [] } = useQuery({
     queryKey: ['accounts'],
-    queryFn: listAccounts,
+    queryFn: listAccountsWithBalances,
   });
 
   const ownPaymentAccounts = accounts.filter(
