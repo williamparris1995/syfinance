@@ -289,11 +289,7 @@ impl DebtService {
         self.transaction_repo.create(&transaction).await?;
 
         let mut updated_entry = entry.clone();
-        // Only mark as fully paid if payment amount >= scheduled total
-        let fully_paid = dto.payment_amount
-            .map(|amt| amt >= entry.total_amount)
-            .unwrap_or(true);
-        updated_entry.paid = fully_paid;
+        updated_entry.paid = true;
         updated_entry.transaction_id = Some(transaction_id);
         self.debt_repo.update_schedule_entry(&updated_entry).await?;
 
