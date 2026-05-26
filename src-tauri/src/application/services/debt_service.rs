@@ -159,7 +159,7 @@ impl DebtService {
 
         let transaction = Transaction::new(
             transaction_id,
-            today,
+            start_date,
             format!("{} - {}", debt_details.counterparty, debt_account.name),
             entries,
             SyncMetadata::new(device_id),
