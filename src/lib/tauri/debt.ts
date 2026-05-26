@@ -4,8 +4,7 @@ import type { AccountType } from './account';
 export type AmortizationMethod = 'EqualPrincipalInterest' | 'EqualPrincipal' | 'LumpSum';
 
 export interface CreateDebtDto {
-  name: string;
-  account_type: AccountType;
+  account_id: string;
   counterparty: string;
   principal_amount: string;
   currency_code: string;

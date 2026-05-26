@@ -6,8 +6,7 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateDebtDto {
-    pub name: String,
-    pub account_type: AccountType,
+    pub account_id: Uuid,
     pub counterparty: String,
     pub principal_amount: Decimal,
     pub currency_code: String,

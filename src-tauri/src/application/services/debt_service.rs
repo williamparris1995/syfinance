@@ -66,9 +66,13 @@ impl DebtService {
     }
 
     pub async fn create_debt(&self, dto: CreateDebtDto) -> Result<Uuid, DebtServiceError> {
-        let account_id = Uuid::new_v4();
+        let _account = self
+            .account_repo
+            .find_by_id(dto.account_id)
+            .await?
+            .ok_or(DebtServiceError::AccountNotFound(dto.account_id))?;
+
         let details_id = Uuid::new_v4();
-        let device_id = Uuid::new_v4();
 
         let amortization_method = dto
             .amortization_method
@@ -77,32 +81,9 @@ impl DebtService {
             .transpose()?
             .unwrap_or(AmortizationMethod::LumpSum);
 
-        let chart_code = default_chart_code(&dto.account_type);
-
-        let currency = Currency::new(&dto.currency_code, &dto.currency_code, Decimal::ONE)
-            .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
-
-        let initial_balance = Money::new(dto.principal_amount, &dto.currency_code)
-            .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
-
-        let account = Account::new(
-            account_id,
-            dto.name,
-            dto.account_type.clone(),
-            Ownership::Own,
-            &currency,
-            initial_balance,
-            "💰",
-            "#6B7280",
-            Some(chart_code.to_string()),
-            None,
-            SyncMetadata::new(device_id),
-        )
-        .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
-
         let mut debt_details = DebtDetails::new(
             details_id,
-            account_id,
+            dto.account_id,
             dto.counterparty,
             dto.interest_rate,
             amortization_method,
@@ -112,10 +93,9 @@ impl DebtService {
         );
         debt_details.generate_schedule();
 
-        self.account_repo.create(&account).await?;
         self.debt_repo.create_debt_details(&debt_details).await?;
 
-        Ok(account_id)
+        Ok(dto.account_id)
     }
 
     pub async fn get_debt(&self, account_id: Uuid) -> Result<DebtDto, DebtServiceError> {
