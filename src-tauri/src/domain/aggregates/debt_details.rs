@@ -41,6 +41,7 @@ pub struct DebtDetails {
     pub start_date: NaiveDate,
     pub due_date: NaiveDate,
     pub total_principal: Decimal,
+    pub transaction_id: Option<Uuid>,
     pub payment_schedule: Vec<PaymentScheduleEntry>,
 }
 
@@ -64,6 +65,7 @@ impl DebtDetails {
             start_date,
             due_date,
             total_principal,
+            transaction_id: None,
             payment_schedule: Vec::new(),
         }
     }

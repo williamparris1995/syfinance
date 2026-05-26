@@ -55,8 +55,8 @@ impl DebtRepository for SqliteDebtRepository {
             r#"
             INSERT INTO debt_details (
                 id, account_id, counterparty, interest_rate, amortization_method,
-                start_date, due_date, total_principal, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                start_date, due_date, total_principal, transaction_id, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(debt.id.to_string())
@@ -67,6 +67,7 @@ impl DebtRepository for SqliteDebtRepository {
         .bind(debt.start_date.to_string())
         .bind(debt.due_date.to_string())
         .bind(debt.total_principal.to_string())
+        .bind(debt.transaction_id.map(|id| id.to_string()))
         .bind(Utc::now().to_rfc3339())
         .execute(&mut *tx)
         .await?;
@@ -101,7 +102,8 @@ impl DebtRepository for SqliteDebtRepository {
         let row = sqlx::query(
             r#"
             SELECT id, account_id, counterparty, CAST(interest_rate AS TEXT) as interest_rate,
-                   amortization_method, start_date, due_date, CAST(total_principal AS TEXT) as total_principal
+                   amortization_method, start_date, due_date, CAST(total_principal AS TEXT) as total_principal,
+                   transaction_id
             FROM debt_details
             WHERE id = ? AND deleted_at IS NULL
             "#,
@@ -129,7 +131,8 @@ impl DebtRepository for SqliteDebtRepository {
         let row = sqlx::query(
             r#"
             SELECT id, account_id, counterparty, CAST(interest_rate AS TEXT) as interest_rate,
-                   amortization_method, start_date, due_date, CAST(total_principal AS TEXT) as total_principal
+                   amortization_method, start_date, due_date, CAST(total_principal AS TEXT) as total_principal,
+                   transaction_id
             FROM debt_details
             WHERE account_id = ? AND deleted_at IS NULL
             "#,
@@ -150,7 +153,8 @@ impl DebtRepository for SqliteDebtRepository {
         let rows = sqlx::query(
             r#"
             SELECT id, account_id, counterparty, CAST(interest_rate AS TEXT) as interest_rate,
-                   amortization_method, start_date, due_date, CAST(total_principal AS TEXT) as total_principal
+                   amortization_method, start_date, due_date, CAST(total_principal AS TEXT) as total_principal,
+                   transaction_id
             FROM debt_details
             WHERE deleted_at IS NULL
             ORDER BY start_date DESC
@@ -291,6 +295,7 @@ impl DebtRepository for SqliteDebtRepository {
             SELECT d.id as debt_id, d.account_id, d.counterparty,
                    CAST(d.interest_rate AS TEXT) as interest_rate, d.amortization_method,
                    d.start_date, d.due_date, CAST(d.total_principal AS TEXT) as total_principal,
+                   d.transaction_id,
                    s.id as schedule_id, s.payment_date,
                    CAST(s.principal_amount AS TEXT) as principal_amount,
                    CAST(s.interest_amount AS TEXT) as interest_amount,
@@ -357,6 +362,12 @@ impl SqliteDebtRepository {
         let total_principal = Decimal::from_str(&total_principal_str)
             .map_err(|e| sqlx::Error::Decode(format!("invalid decimal: {}", e).into()))?;
 
+        let transaction_id: Option<String> = row.try_get("transaction_id")?;
+        let transaction_id = transaction_id
+            .map(|s| Uuid::parse_str(&s))
+            .transpose()
+            .map_err(|e| sqlx::Error::Decode(format!("invalid UUID: {}", e).into()))?;
+
         let schedule = self.find_schedule_by_debt_id(debt_id).await?;
 
         Ok(DebtDetails {
@@ -368,6 +379,7 @@ impl SqliteDebtRepository {
             start_date,
             due_date,
             total_principal,
+            transaction_id,
             payment_schedule: schedule,
         })
     }

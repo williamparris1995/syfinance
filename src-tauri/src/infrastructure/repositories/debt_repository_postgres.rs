@@ -55,8 +55,8 @@ impl DebtRepository for PostgresDebtRepository {
             r#"
             INSERT INTO debt_details (
                 id, account_id, counterparty, interest_rate, amortization_method,
-                start_date, due_date, total_principal, updated_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                start_date, due_date, total_principal, transaction_id, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             ON CONFLICT (id) DO NOTHING
             "#,
         )
@@ -68,6 +68,7 @@ impl DebtRepository for PostgresDebtRepository {
         .bind(debt.start_date)
         .bind(debt.due_date)
         .bind(debt.total_principal)
+        .bind(debt.transaction_id)
         .bind(Utc::now())
         .execute(&mut *tx)
         .await?;
@@ -103,7 +104,7 @@ impl DebtRepository for PostgresDebtRepository {
         let row = sqlx::query(
             r#"
             SELECT id, account_id, counterparty, interest_rate,
-                   amortization_method, start_date, due_date, total_principal
+                   amortization_method, start_date, due_date, total_principal, transaction_id
             FROM debt_details
             WHERE id = $1 AND deleted_at IS NULL
             "#,
@@ -129,7 +130,7 @@ impl DebtRepository for PostgresDebtRepository {
         let row = sqlx::query(
             r#"
             SELECT id, account_id, counterparty, interest_rate,
-                   amortization_method, start_date, due_date, total_principal
+                   amortization_method, start_date, due_date, total_principal, transaction_id
             FROM debt_details
             WHERE account_id = $1 AND deleted_at IS NULL
             "#,
@@ -152,7 +153,7 @@ impl DebtRepository for PostgresDebtRepository {
         let rows = sqlx::query(
             r#"
             SELECT id, account_id, counterparty, interest_rate,
-                   amortization_method, start_date, due_date, total_principal
+                   amortization_method, start_date, due_date, total_principal, transaction_id
             FROM debt_details
             WHERE deleted_at IS NULL
             ORDER BY start_date DESC
@@ -324,6 +325,7 @@ impl DebtRepository for PostgresDebtRepository {
             let due_date: NaiveDate = row.try_get("due_date")?;
             let total_principal: Decimal = row.try_get("total_principal")?;
 
+            let transaction_id: Option<Uuid> = row.try_get("transaction_id")?;
             let debt = DebtDetails {
                 id: debt_id,
                 account_id,
@@ -333,6 +335,7 @@ impl DebtRepository for PostgresDebtRepository {
                 start_date,
                 due_date,
                 total_principal,
+                transaction_id,
                 payment_schedule: schedule,
             };
 
@@ -358,6 +361,7 @@ fn row_to_debt_details(
     let start_date: NaiveDate = row.try_get("start_date")?;
     let due_date: NaiveDate = row.try_get("due_date")?;
     let total_principal: Decimal = row.try_get("total_principal")?;
+    let transaction_id: Option<Uuid> = row.try_get("transaction_id")?;
 
     Ok(DebtDetails {
         id: debt_id,
@@ -368,6 +372,7 @@ fn row_to_debt_details(
         start_date,
         due_date,
         total_principal,
+        transaction_id,
         payment_schedule: schedule,
     })
 }

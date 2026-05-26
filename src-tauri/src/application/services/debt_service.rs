@@ -166,6 +166,8 @@ impl DebtService {
         ).map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
 
         self.transaction_repo.create(&transaction).await?;
+
+        debt_details.transaction_id = Some(transaction_id);
         self.debt_repo.create_debt_details(&debt_details).await?;
 
         Ok(transaction_id)
@@ -387,6 +389,11 @@ impl DebtService {
         for mut entry in schedule {
             entry.paid = true; // mark as resolved (won't show in upcoming)
             let _ = self.debt_repo.update_schedule_entry(&entry).await;
+        }
+
+        // Also soft-delete the initial disbursement transaction
+        if let Some(txn_id) = debt.transaction_id {
+            let _ = self.transaction_repo.soft_delete(txn_id).await;
         }
 
         self.debt_repo.soft_delete_debt_details(debt.id).await?;
