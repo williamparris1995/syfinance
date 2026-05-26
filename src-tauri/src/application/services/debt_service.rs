@@ -422,12 +422,21 @@ impl DebtService {
             .ok_or(DebtServiceError::DebtNotFound(account_id))?;
 
         let schedule = self.debt_repo.find_schedule_by_debt_id(debt.id).await?;
+
+        // Soft-delete repayment transactions first
+        for entry in &schedule {
+            if let Some(txn_id) = entry.transaction_id {
+                let _ = self.transaction_repo.soft_delete(txn_id).await;
+            }
+        }
+
+        // Soft-delete schedule entries
         for mut entry in schedule {
-            entry.paid = true; // mark as resolved (won't show in upcoming)
+            entry.paid = true;
             let _ = self.debt_repo.update_schedule_entry(&entry).await;
         }
 
-        // Also soft-delete the initial disbursement transaction
+        // Soft-delete the initial disbursement transaction
         if let Some(txn_id) = debt.transaction_id {
             let _ = self.transaction_repo.soft_delete(txn_id).await;
         }
