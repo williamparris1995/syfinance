@@ -383,6 +383,22 @@ impl DebtService {
             }
         }
 
+        // Regenerate and update schedule entry dates/amounts
+        debt.generate_schedule();
+        let old_schedule = self.debt_repo.find_schedule_by_debt_id(debt.id).await?;
+        for (i, new_entry) in debt.payment_schedule.iter().enumerate() {
+            if let Some(old_entry) = old_schedule.get(i) {
+                if !old_entry.paid {
+                    let mut updated = old_entry.clone();
+                    updated.payment_date = new_entry.payment_date;
+                    updated.principal_amount = new_entry.principal_amount;
+                    updated.interest_amount = new_entry.interest_amount;
+                    updated.total_amount = new_entry.total_amount;
+                    self.debt_repo.update_schedule_entry(&updated).await?;
+                }
+            }
+        }
+
         self.debt_repo.update_debt_details(&debt).await?;
 
         let account = self
