@@ -500,7 +500,7 @@ async fn build_liability_repayment_entries(
         let interest = Money::new(entry.interest_amount, &debt_account.currency_code)
             .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
 
-        let interest_chart = "5201";
+        let interest_chart = "5101"; // 利息支出
 
         let debit_interest = TransactionEntry::new(
             debt_account.id,
@@ -568,7 +568,7 @@ async fn build_receivable_recovery_entries(
         let interest = Money::new(entry.interest_amount, &debt_account.currency_code)
             .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
 
-        let income_chart = "4001";
+        let income_chart = "4201"; // 利息收入
 
         let credit_interest = TransactionEntry::new(
             debt_account.id,
