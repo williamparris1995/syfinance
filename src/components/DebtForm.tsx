@@ -137,15 +137,16 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
   const watchedValues = form.watch();
   const { account_id, principal_amount, interest_rate, start_date, due_date, amortization_method, periods } = watchedValues;
 
-  // Auto-fill counterparty from selected account name
+  // Auto-fill counterparty from selected account name (only on account change)
   useEffect(() => {
     if (!isEdit && !readOnly && account_id) {
-      const selected = debtAccounts.find(a => a.id === account_id);
+      const selected = accounts.find(a => a.id === account_id);
       if (selected) {
         form.setValue('counterparty', selected.name);
       }
     }
-  }, [account_id, debtAccounts, isEdit, readOnly, form]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account_id]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
