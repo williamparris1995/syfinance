@@ -120,40 +120,39 @@ impl DebtService {
             .as_deref()
             .unwrap_or("1002");
 
+        let txn_note = format!("{} - {}", debt_account.name, debt_details.counterparty);
         let entries = if is_liability_type(&debt_account.account_type) {
-            // Borrowing: Debit funding (asset+), Credit debt (liability+)
             vec![
                 TransactionEntry::new(
                     funding_account.id,
                     funding_chart,
                     Some(principal.clone()),
                     None,
-                    "Initial borrowing disbursement",
+                    &format!("{}: {}", debt_details.counterparty, funding_account.name),
                 ).map_err(|e| DebtServiceError::ValidationError(e.to_string()))?,
                 TransactionEntry::new(
                     debt_account.id,
                     debt_chart,
                     None,
                     Some(principal),
-                    "Loan principal received",
+                    &format!("{}: {}", debt_details.counterparty, debt_account.name),
                 ).map_err(|e| DebtServiceError::ValidationError(e.to_string()))?,
             ]
         } else {
-            // Lending: Debit debt (receivable+), Credit funding (asset-)
             vec![
                 TransactionEntry::new(
                     debt_account.id,
                     debt_chart,
                     Some(principal.clone()),
                     None,
-                    "Loan principal disbursed",
+                    &format!("{}: {}", debt_details.counterparty, debt_account.name),
                 ).map_err(|e| DebtServiceError::ValidationError(e.to_string()))?,
                 TransactionEntry::new(
                     funding_account.id,
                     funding_chart,
                     None,
                     Some(principal),
-                    "Funds lent out",
+                    &format!("{}: {}", debt_details.counterparty, funding_account.name),
                 ).map_err(|e| DebtServiceError::ValidationError(e.to_string()))?,
             ]
         };
@@ -161,7 +160,7 @@ impl DebtService {
         let transaction = Transaction::new(
             transaction_id,
             today,
-            format!("Debt created: {}", debt_account.name),
+            format!("{} - {}", debt_details.counterparty, debt_account.name),
             entries,
             SyncMetadata::new(device_id),
         ).map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
@@ -269,7 +268,7 @@ impl DebtService {
         let transaction = Transaction::new(
             transaction_id,
             chrono::Utc::now().date_naive(),
-            format!("Debt payment: {}", debt.counterparty),
+            debt.counterparty.clone(),
             entries,
             SyncMetadata::new(device_id),
         )
@@ -445,7 +444,7 @@ async fn build_liability_repayment_entries(
         debt_chart,
         Some(principal.clone()),
         None,
-        &format!("Principal payment: {}", entry.id),
+        &debt_account.name,
     )
     .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
 
@@ -454,7 +453,7 @@ async fn build_liability_repayment_entries(
         source_chart,
         None,
         Some(total.clone()),
-        &format!("Debt payment: {}", entry.id),
+        &source_account.name,
     )
     .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
 
@@ -462,14 +461,14 @@ async fn build_liability_repayment_entries(
         let interest = Money::new(entry.interest_amount, &debt_account.currency_code)
             .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
 
-        let interest_chart = "5201"; // 财务费用
+        let interest_chart = "5201";
 
         let debit_interest = TransactionEntry::new(
             debt_account.id,
             interest_chart,
             Some(interest),
             None,
-            &format!("Interest payment: {}", entry.id),
+            &debt_account.name,
         )
         .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
 
@@ -511,7 +510,7 @@ async fn build_receivable_recovery_entries(
         dest_chart,
         Some(total.clone()),
         None,
-        &format!("Debt recovery: {}", entry.id),
+        &dest_account.name,
     )
     .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
 
@@ -520,7 +519,7 @@ async fn build_receivable_recovery_entries(
         debt_chart,
         None,
         Some(principal),
-        &format!("Principal recovery: {}", entry.id),
+        &debt_account.name,
     )
     .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
 
@@ -530,14 +529,14 @@ async fn build_receivable_recovery_entries(
         let interest = Money::new(entry.interest_amount, &debt_account.currency_code)
             .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
 
-        let income_chart = "4001"; // 主营业务收入
+        let income_chart = "4001";
 
         let credit_interest = TransactionEntry::new(
             debt_account.id,
             income_chart,
             None,
             Some(interest),
-            &format!("Interest income: {}", entry.id),
+            &debt_account.name,
         )
         .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
 

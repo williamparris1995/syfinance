@@ -530,68 +530,20 @@ export function DebtsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* View Sheet (read-only) */}
+      {/* View Sheet (read-only, reuses DebtForm layout) */}
       <Sheet open={!!viewingDebt} onOpenChange={() => setViewingDebt(null)}>
         <SheetContent side="right" className="w-full sm:max-w-lg">
           <SheetHeader>
-            <SheetTitle>{viewingDebt?.account_name || t('debts.debtDetails')}</SheetTitle>
+            <SheetTitle>{t('debts.debtDetails')}</SheetTitle>
           </SheetHeader>
-          <div className="flex-1 overflow-y-auto -mx-4 px-4 mt-4 space-y-4">
+          <div className="flex-1 overflow-y-auto -mx-4 px-4">
             {viewingDebt && (
-              <>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <div className="text-xs text-muted-foreground">{t('debts.type')}</div>
-                    <div className="text-sm font-medium">{debtTypeLabel(viewingDebt.account_type, t)}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">{t('debts.counterparty')}</div>
-                    <div className="text-sm font-medium">{viewingDebt.counterparty}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">{t('debts.principalAmount')}</div>
-                    <div className="text-sm font-medium">{formatCurrency(viewingDebt.principal_amount, viewingDebt.currency_code)}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">{t('debts.remainingBalance')}</div>
-                    <div className="text-sm font-medium">{formatCurrency(viewingDebt.remaining_principal, viewingDebt.currency_code)}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">{t('debts.interestRate')}</div>
-                    <div className="text-sm font-medium">{viewingDebt.interest_rate}%</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">{t('debts.dueDate')}</div>
-                    <div className="text-sm font-medium">{new Date(viewingDebt.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</div>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="text-sm font-semibold mb-2">{t('debts.paymentSchedule')}</h4>
-                  <div className="border rounded-lg max-h-[360px] overflow-y-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-xs">{t('debts.paymentDate')}</TableHead>
-                          <TableHead className="text-right text-xs">{t('debts.principal')}</TableHead>
-                          <TableHead className="text-right text-xs">{t('debts.total')}</TableHead>
-                          <TableHead className="text-xs">{t('debts.status')}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {viewingDebt.payment_schedule.map((payment) => (
-                          <TableRow key={payment.id}>
-                            <TableCell className="text-xs">{new Date(payment.payment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</TableCell>
-                            <TableCell className="text-right text-xs">{formatCurrency(payment.principal_amount, viewingDebt.currency_code)}</TableCell>
-                            <TableCell className="text-right text-xs font-medium">{formatCurrency(payment.total_amount, viewingDebt.currency_code)}</TableCell>
-                            <TableCell><Badge variant={payment.paid ? 'secondary' : 'outline'} className="text-xs">{payment.paid ? t('debts.paid') : t('debts.unpaid')}</Badge></TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-              </>
+              <DebtForm
+                onSubmit={() => {}}
+                onCancel={() => setViewingDebt(null)}
+                initialData={viewingDebt}
+                mode="view"
+              />
             )}
           </div>
         </SheetContent>

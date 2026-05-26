@@ -47,13 +47,14 @@ interface DebtFormProps {
   onCancel: () => void;
   isLoading?: boolean;
   initialData?: DebtDto | null;
-  mode?: 'create' | 'edit';
+  mode?: 'create' | 'edit' | 'view';
 }
 
 export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'create' }: DebtFormProps) {
   const { t } = useTranslation();
   const [paymentPreview, setPaymentPreview] = useState<PaymentPreview[]>([]);
   const [repaymentMode, setRepaymentMode] = useState<'lump_sum' | 'installment'>('lump_sum');
+  const readOnly = mode === 'view';
   const isEdit = mode === 'edit';
 
   const { data: accounts = [] } = useQuery({
@@ -353,7 +354,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
                 <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
                   {t('debtForm.counterparty')} <span className="text-red-500">*</span>
                 </FormLabel>
-                <FormControl><Input placeholder={t('debtForm.counterpartyPlaceholder')} className="h-9" {...field} /></FormControl>
+                <FormControl><Input placeholder={t('debtForm.counterpartyPlaceholder')} className="h-9" disabled={readOnly} {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
@@ -368,7 +369,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
                 <FormControl>
                   <div className="flex items-center rounded-lg border overflow-hidden h-9">
                     <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">¥</span>
-                    <input className="flex-1 border-0 bg-transparent px-2.5 text-sm outline-none" placeholder="100,000" {...field} />
+                    <input className="flex-1 border-0 bg-transparent px-2.5 text-sm outline-none" placeholder="100,000" disabled={readOnly} {...field} />
                   </div>
                 </FormControl>
                 <FormMessage />
@@ -381,7 +382,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
                 </FormLabel>
                 <FormControl>
                   <div className="flex items-center rounded-lg border overflow-hidden h-9">
-                    <input className="flex-1 border-0 bg-transparent px-2.5 text-sm outline-none" placeholder="5.5" {...field} />
+                    <input className="flex-1 border-0 bg-transparent px-2.5 text-sm outline-none" placeholder="5.5" disabled={readOnly} {...field} />
                     <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-l">%</span>
                   </div>
                 </FormControl>
@@ -389,64 +390,62 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
               </FormItem>
             )} />
 
-            {repaymentMode === 'lump_sum' ? (
+            <FormField name="start_date" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('debtForm.startDate')} <span className="text-red-500">*</span>
+                </FormLabel>
+                <FormControl><Input type="date" className="h-9" disabled={readOnly} {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            {repaymentMode === 'installment' ? (
+              <>
+                <FormField name="periods" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                      {t('debtForm.periods')} <span className="text-red-500">*</span>
+                    </FormLabel>
+                    <Select value={field.value?.toString() || ''} onValueChange={(v) => field.onChange(parseInt(v))} disabled={readOnly}>
+                      <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('debtForm.selectPeriods')}>{field.value ? `${field.value} ${t('debtForm.months')}` : null}</SelectValue></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {[3, 6, 12, 24, 36, 60].map((n) => (
+                          <SelectItem key={n} value={n.toString()}>{n} {t('debtForm.months')}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField name="amortization_method" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                      {t('debtForm.amortizationMethod')}
+                    </FormLabel>
+                    <Select value={field.value || undefined} onValueChange={field.onChange} disabled={readOnly}>
+                      <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('debtForm.selectAmortization')}>{field.value ? amortizationLabelMap[field.value] || field.value : null}</SelectValue></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="EqualPrincipalInterest">{t('debtForm.equalPI')}</SelectItem>
+                        <SelectItem value="EqualPrincipal">{t('debtForm.equalPrincipal')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </>
+            ) : (
               <FormField name="due_date" render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
                     {t('debtForm.dueDate')} <span className="text-red-500">*</span>
                   </FormLabel>
-                  <FormControl><Input type="date" className="h-9" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-            ) : (
-              <FormField name="periods" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
-                    {t('debtForm.periods')} <span className="text-red-500">*</span>
-                  </FormLabel>
-                  <Select value={field.value?.toString() || ''} onValueChange={(v) => field.onChange(parseInt(v))}>
-                    <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('debtForm.selectPeriods')}>{field.value ? `${field.value} ${t('debtForm.months')}` : null}</SelectValue></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {[3, 6, 12, 24, 36, 60].map((n) => (
-                        <SelectItem key={n} value={n.toString()}>{n} {t('debtForm.months')}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl><Input type="date" className="h-9" disabled={readOnly} {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
             )}
           </div>
-
-          {repaymentMode === 'installment' && (
-            <div className="space-y-4">
-              <FormField name="start_date" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
-                    {t('debtForm.startDate')}
-                  </FormLabel>
-                  <FormControl><Input type="date" className="h-9" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField name="amortization_method" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
-                    {t('debtForm.amortizationMethod')}
-                  </FormLabel>
-                  <Select value={field.value || undefined} onValueChange={field.onChange}>
-                    <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('debtForm.selectAmortization')}>{field.value ? amortizationLabelMap[field.value] || field.value : null}</SelectValue></SelectTrigger></FormControl>
-                    <SelectContent>
-                      <SelectItem value="EqualPrincipalInterest">{t('debtForm.equalPI')}</SelectItem>
-                      <SelectItem value="EqualPrincipal">{t('debtForm.equalPrincipal')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )} />
-            </div>
-          )}
 
           {repaymentMode === 'lump_sum' && principal_amount && interest_rate && (() => {
             const p = parseFloat(principal_amount);
@@ -506,11 +505,13 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
 
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
-              {t('common.cancel')}
+              {readOnly ? t('common.close') : t('common.cancel')}
             </Button>
-            <Button type="submit" variant="default-gradient" disabled={isLoading}>
-              {isLoading ? t('debtForm.saving') : isEdit ? t('debtForm.saveChanges') : t('debtForm.createDebt')}
-            </Button>
+            {!readOnly && (
+              <Button type="submit" variant="default-gradient" disabled={isLoading}>
+                {isLoading ? t('debtForm.saving') : isEdit ? t('debtForm.saveChanges') : t('debtForm.createDebt')}
+              </Button>
+            )}
           </div>
         </form>
       </Form>
