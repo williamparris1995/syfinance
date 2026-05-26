@@ -291,7 +291,7 @@ impl DebtService {
 
         let mut updated_entry = entry.clone();
         updated_entry.paid = dto.payment_amount
-            .map(|amt| amt.round_dp(2) >= entry.total_amount.round_dp(2))
+            .map(|amt| amt >= entry.total_amount)
             .unwrap_or(true);
         updated_entry.transaction_id = Some(transaction_id);
         self.debt_repo.update_schedule_entry(&updated_entry).await?;
