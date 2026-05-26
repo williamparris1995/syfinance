@@ -204,6 +204,23 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
     return paymentPreview.reduce((sum, p) => sum + p.interest_amount, 0);
   }, [paymentPreview]);
 
+  const lumpSumYears = useMemo(() => {
+    // Calculate term in years for lump sum simple interest
+    let months = 0;
+    if (repaymentMode === 'lump_sum') {
+      const startStr = start_date;
+      const dueStr = due_date;
+      if (startStr && dueStr) {
+        const sd = new Date(startStr);
+        const dd = new Date(dueStr);
+        if (dd > sd) {
+          months = Math.round((dd.getFullYear() - sd.getFullYear()) * 12 + (dd.getMonth() - sd.getMonth()));
+        }
+      }
+    }
+    return months > 0 ? months / 12 : 0;
+  }, [repaymentMode, start_date, due_date]);
+
   const handleSubmit = (values: DebtFormValues) => {
     let resolvedDueDate = values.due_date || '';
     let resolvedMethod = values.amortization_method;
@@ -274,7 +291,9 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
                 <Select value={field.value} onValueChange={field.onChange}>
                   <FormControl>
                     <SelectTrigger className="h-9">
-                      <SelectValue placeholder={t('debtForm.selectAccount')} />
+                      <SelectValue placeholder={t('debtForm.selectAccount')}>
+                        {field.value ? (debtAccounts.find(a => a.id === field.value)?.name || field.value) : null}
+                      </SelectValue>
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -394,18 +413,25 @@ export function DebtForm({ onSubmit, onCancel, isLoading }: DebtFormProps) {
             </div>
           )}
 
-          {repaymentMode === 'lump_sum' && principal_amount && interest_rate && (
+          {repaymentMode === 'lump_sum' && principal_amount && interest_rate && (() => {
+            const p = parseFloat(principal_amount);
+            const r = parseFloat(interest_rate || '0') / 100;
+            const years = lumpSumYears || 1;
+            const interest = p * r * years;
+            const total = p + interest;
+            return (
             <div className="rounded-xl border border-blue-200/50 bg-gradient-to-br from-blue-50/50 to-card p-4 flex items-center justify-between dark:from-blue-950/20 dark:to-card dark:border-blue-800/30">
               <div>
-                <div className="text-xs text-muted-foreground">{t('debtForm.repaymentOnDueDate')}</div>
-                <div className="text-xl font-bold">¥{(parseFloat(principal_amount) * (1 + parseFloat(interest_rate || '0') / 100)).toLocaleString()}</div>
+                <div className="text-xs text-muted-foreground">{t('debtForm.repaymentOnDueDate')} ({years} {t('debts.perYear')})</div>
+                <div className="text-xl font-bold">¥{total.toLocaleString()}</div>
               </div>
               <div className="text-right text-xs space-y-1">
-                <div className="text-muted-foreground">{t('debtForm.principal')}: ¥{parseFloat(principal_amount).toLocaleString()}</div>
-                <div className="text-muted-foreground">{t('debtForm.interest')} ({interest_rate}%): +¥{(parseFloat(principal_amount) * parseFloat(interest_rate || '0') / 100).toLocaleString()}</div>
+                <div className="text-muted-foreground">{t('debtForm.principal')}: ¥{p.toLocaleString()}</div>
+                <div className="text-muted-foreground">{t('debtForm.interest')} ({interest_rate}% × {years}y): +¥{interest.toLocaleString()}</div>
               </div>
             </div>
-          )}
+            );
+          })()}
 
           {repaymentMode === 'installment' && paymentPreview.length > 0 && (
             <div className="rounded-xl border border-emerald-200/50 bg-gradient-to-br from-emerald-50/50 to-card p-4 dark:from-emerald-950/20 dark:to-card dark:border-emerald-800/30">

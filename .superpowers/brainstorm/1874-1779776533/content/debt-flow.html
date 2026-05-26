@@ -1,0 +1,136 @@
+<h2>债务模块 — 当前流程 vs 问题分析</h2>
+<p class="subtitle">评估业务流程是否合理</p>
+
+<div class="section">
+  <h3>当前实现的流程</h3>
+  <div class="mockup">
+    <div class="mockup-header">Step 1: Accounts 页面创建账户</div>
+    <div class="mockup-body" style="font-size:14px;padding:16px">
+      <div style="margin-bottom:8px">用户在 Accounts 页面创建账户，选择类型：</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <span class="mock-button" style="background:#059669;color:#fff">Bank · 银行存款</span>
+        <span class="mock-button" style="background:#DC2626;color:#fff">CreditCard · 信用卡</span>
+        <span class="mock-button" style="background:#2563EB;color:#fff">BorrowedIn · 借入款</span>
+        <span class="mock-button" style="background:#7C3AED;color:#fff">BorrowedOut · 借出款</span>
+      </div>
+      <div class="placeholder" style="font-size:12px">⚠ BorrowedIn/BorrowedOut 类型的账户不知道自己"欠谁的"或"借给谁"</div>
+    </div>
+  </div>
+
+  <div style="text-align:center;padding:8px;font-size:24px;color:#6B7280">↓</div>
+
+  <div class="mockup">
+    <div class="mockup-header">Step 2: Debts 页面 → Create Debt</div>
+    <div class="mockup-body" style="font-size:14px;padding:16px">
+      <div style="margin-bottom:12px">DebtForm 两个下拉框：</div>
+      <table style="width:100%;font-size:13px;border-collapse:collapse">
+        <tr style="border-bottom:1px solid #e5e7eb">
+          <td style="padding:8px;font-weight:600">账户 (account_id)</td>
+          <td style="padding:8px">→</td>
+          <td style="padding:8px">筛选 <code>ownership='own'</code> 且类型 ∈ {BorrowedOut, BorrowedIn, CreditCard}</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e5e7eb">
+          <td style="padding:8px;font-weight:600">对方 (counterparty_account_id)</td>
+          <td style="padding:8px">→</td>
+          <td style="padding:8px">筛选 <code>ownership='own'</code> 的全部账户</td>
+        </tr>
+      </table>
+      <div class="placeholder" style="margin-top:12px;font-size:12px;background:#FEF3C7;border:1px solid #FCD34D">
+        ⚠ 用户反馈：账户选择只显示 3 个信用卡账户<br/>
+        ⚠ 对方选择只显示自己的账户（Bank、Cash 等），不合理
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:center;padding:8px;font-size:24px;color:#6B7280">↓</div>
+
+  <div class="mockup">
+    <div class="mockup-header">Step 3: 系统创建 debt_details + payment_schedule</div>
+    <div class="mockup-body" style="font-size:14px;padding:16px">
+      <code>counterparty</code> 字段存入的是被选中账户的 <code>name</code> 属性
+    </div>
+  </div>
+
+  <div style="text-align:center;padding:8px;font-size:24px;color:#6B7280">↓</div>
+
+  <div class="mockup">
+    <div class="mockup-header">Step 4: 还款 (Record Payment)</div>
+    <div class="mockup-body" style="font-size:14px;padding:16px">
+      <div>选择还款来源账户 → 系统生成复式分录：</div>
+      <div style="background:#f0f9ff;padding:8px;margin-top:8px;border-radius:6px;font-family:monospace;font-size:13px">
+        借：借入账户 ¥本金 (负债减少)<br/>
+        借：利息科目 ¥利息 (费用)<br/>
+        　　贷：还款来源账户 ¥合计 (资产减少)
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:32px">
+  <h3>问题分析</h3>
+
+  <table style="width:100%;font-size:14px;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
+    <tr style="background:#FEF2F2">
+      <td style="padding:12px;font-weight:700;width:30px">1</td>
+      <td style="padding:12px">
+        <strong>BorrowedIn 账户不知道"欠谁的"</strong><br/>
+        <span style="color:#6B7280">在 Accounts 页面创建"房贷"账户时，没有字段指定 lender/counterparty。这个信息只在创建 debt_details 时才填写，导致账户本身不完整。</span>
+      </td>
+    </tr>
+    <tr style="background:#FEF2F2">
+      <td style="padding:12px;font-weight:700">2</td>
+      <td style="padding:12px">
+        <strong>对方账户选择显示自己的账户</strong><br/>
+        <span style="color:#6B7280">counterparty 应该选"对方的账户"（如银行、朋友），但这些外部实体不存在于自己的账户列表中。当前设计把"对方"当成自己的账户来选，语义错误。</span>
+      </td>
+    </tr>
+    <tr style="background:#FEF2F2">
+      <td style="padding:12px;font-weight:700">3</td>
+      <td style="padding:12px">
+        <strong>债务账户和对方账户的创建时机不清晰</strong><br/>
+        <span style="color:#6B7280">借入款账户应该在 Accounts 页面创建时就知道对方是谁。还是应该在 DebtForm 中一并创建？</span>
+      </td>
+    </tr>
+    <tr style="background:#FFF7ED">
+      <td style="padding:12px;font-weight:700">4</td>
+      <td style="padding:12px">
+        <strong>还款时需要利息账户</strong><br/>
+        <span style="color:#6B7280">RecordPaymentDto 有 interest_account_id 字段但 UI 还没做。用户需要选择一个 Expense 类型的外部账户来记录利息支出。</span>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div class="section" style="margin-top:32px">
+  <h3>需要确认的方向</h3>
+  <div class="options" data-multiselect>
+    <div class="option" data-choice="a" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>在 Accounts 页面创建时就指定对方</h3>
+        <p>BorrowedIn/BorrowedOut 创建时增加 counterparty 字段。DebtForm 只选择已存在的债务账户，对方从账户属性中自动填入。</p>
+      </div>
+    </div>
+    <div class="option" data-choice="b" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>对方作为独立的外部账户体系</h3>
+        <p>创建 "counterparty" 类型账户（银行、个人），ownership=external。DebtForm 的对方选择从 external 账户中选取。</p>
+      </div>
+    </div>
+    <div class="option" data-choice="c" onclick="toggleSelect(this)">
+      <div class="letter">C</div>
+      <div class="content">
+        <h3>对方保持自由文本</h3>
+        <p>counterparty 就是文本标签（如"招商银行"），不强制关联账户。简单但不参与复式记账。</p>
+      </div>
+    </div>
+    <div class="option" data-choice="d" onclick="toggleSelect(this)">
+      <div class="letter">D</div>
+      <div class="content">
+        <h3>取消 DebtForm，债务信息并入 AccountForm</h3>
+        <p>创建 BorrowedIn/Out 账户时一并填写贷款条款（本金、利率、期限），自动生成 debt_details。债务列表就是按类型过滤的账户列表。</p>
+      </div>
+    </div>
+  </div>
+</div>

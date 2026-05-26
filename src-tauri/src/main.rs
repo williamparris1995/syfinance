@@ -77,22 +77,36 @@ async fn main() {
 
     info!("Using database at: {}", db_path.display());
 
-    // Create a single shared database pool for all services
+    // Run migrations with FK checks disabled (PRAGMA is no-op inside transactions)
+    let migrate_options = sqlx::sqlite::SqliteConnectOptions::from_str(&db_url)
+        .expect("failed to create sqlite options")
+        .create_if_missing(true)
+        .foreign_keys(false);
+
+    let migrate_pool = sqlx::sqlite::SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect_with(migrate_options)
+        .await
+        .expect("failed to connect to migration database");
+
+    sqlx::migrate!("./migrations")
+        .run(&migrate_pool)
+        .await
+        .expect("failed to run migrations");
+
+    drop(migrate_pool);
+
+    // Create the real pool with FK enforcement enabled
     let options = sqlx::sqlite::SqliteConnectOptions::from_str(&db_url)
         .expect("failed to create sqlite options")
-        .create_if_missing(true);
+        .create_if_missing(true)
+        .foreign_keys(true);
 
     let pool = sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(5)
         .connect_with(options)
         .await
         .expect("failed to connect to database");
-
-    // Run migrations once
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await
-        .expect("failed to run migrations");
 
     // Create all states from the same pool
     let account_state = AppState::from_pool(pool.clone());

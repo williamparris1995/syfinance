@@ -1,0 +1,213 @@
+<h2>方案 B 详解：对方作为独立的外部账户体系</h2>
+<p class="subtitle">让 counterparty 成为真正的账户，参与复式记账</p>
+
+<div class="section">
+  <h3>核心理念</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="padding:16px;font-size:14px">
+      <p style="margin-bottom:8px">对方 = 外部账户（ownership = <code>external</code>），代表银行、个人、机构。</p>
+      <p style="margin-bottom:8px">债务 = 两个账户之间的借贷关系 + 还款计划。</p>
+      <p>复式记账时，counterparty 账户直接出现在交易分录中。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px">
+  <h3>完整流程 (5 步)</h3>
+
+  <div style="font-size:14px;line-height:1.6">
+
+    <!-- Step 1 -->
+    <div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:12px;background:#fafafa">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="background:#2563EB;color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">1</span>
+        <strong>Accounts 页面：创建两个账户</strong>
+      </div>
+      <div class="split" style="gap:12px">
+        <div class="mockup" style="flex:1">
+          <div class="mockup-header">债务账户 (ownership=own)</div>
+          <div class="mockup-body" style="padding:12px;font-size:13px">
+            <div><strong>名称：</strong>招商银行房贷</div>
+            <div><strong>类型：</strong><span class="mock-button" style="background:#2563EB;color:#fff;font-size:12px">BorrowedIn</span></div>
+            <div><strong>科目：</strong>2001 短期借款</div>
+            <div style="margin-top:8px;color:#6B7280">← 我欠的钱（负债）</div>
+          </div>
+        </div>
+        <div class="mockup" style="flex:1">
+          <div class="mockup-header">对方账户 (ownership=external)</div>
+          <div class="mockup-body" style="padding:12px;font-size:13px">
+            <div><strong>名称：</strong>招商银行</div>
+            <div><strong>类型：</strong><span class="mock-button" style="background:#059669;color:#fff;font-size:12px">Expense</span></div>
+            <div><strong>科目：</strong>2202 应付信用卡款</div>
+            <div style="margin-top:8px;color:#6B7280">← 债权人（外部实体）</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align:center;padding:4px;font-size:20px;color:#9CA3AF">↓</div>
+
+    <!-- Step 2 -->
+    <div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:12px;background:#fafafa">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="background:#2563EB;color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">2</span>
+        <strong>Debts 页面：选择两个账户，填写贷款条款</strong>
+      </div>
+      <div class="mockup">
+        <div class="mockup-header">DebtForm UI</div>
+        <div class="mockup-body" style="padding:16px;font-size:13px">
+          <table style="width:100%;border-collapse:collapse">
+            <tr>
+              <td style="padding:6px;font-weight:600;width:120px">债务账户 *</td>
+              <td style="padding:6px">
+                <span class="mock-input" style="display:inline-block;width:100%">招商银行房贷 (BorrowedIn)</span>
+                <div style="font-size:11px;color:#6B7280">筛选：ownership=own, type∈{BorrowedIn, BorrowedOut, CreditCard}</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:6px;font-weight:600">对方账户 *</td>
+              <td style="padding:6px">
+                <span class="mock-input" style="display:inline-block;width:100%">招商银行 (Expense)</span>
+                <div style="font-size:11px;color:#6B7280">筛选：ownership=external（所有外部账户）</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:6px;font-weight:600">本金 *</td>
+              <td style="padding:6px"><span class="mock-input" style="display:inline-block;width:120px">¥ 500,000</span></td>
+            </tr>
+            <tr>
+              <td style="padding:6px;font-weight:600">年利率</td>
+              <td style="padding:6px"><span class="mock-input" style="display:inline-block;width:80px">4.5%</span></td>
+            </tr>
+            <tr>
+              <td style="padding:6px;font-weight:600">还款方式</td>
+              <td style="padding:6px"><span class="mock-button" style="font-size:12px">等额本息 240 期</span></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align:center;padding:4px;font-size:20px;color:#9CA3AF">↓</div>
+
+    <!-- Step 3 -->
+    <div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:12px;background:#fafafa">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="background:#2563EB;color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">3</span>
+        <strong>系统自动生成 debt_details + 还款计划</strong>
+      </div>
+      <div class="mockup-body" style="font-size:13px;padding:12px;font-family:monospace;background:#fff">
+        debt_details: {<br/>
+        &nbsp;&nbsp;account_id: "房贷账户的UUID",<br/>
+        &nbsp;&nbsp;counterparty: "招商银行",  ← 从对方账户的 name 自动填入<br/>
+        &nbsp;&nbsp;counterparty_account_id: "招商银行账户的UUID",  ← <span style="color:#2563EB">新增字段</span><br/>
+        &nbsp;&nbsp;total_principal: 500000,<br/>
+        &nbsp;&nbsp;interest_rate: 0.045,<br/>
+        &nbsp;&nbsp;amortization_method: EqualPrincipalInterest,<br/>
+        &nbsp;&nbsp;...<br/>
+        }<br/><br/>
+        payment_schedule: [240 期还款计划]
+      </div>
+    </div>
+
+    <div style="text-align:center;padding:4px;font-size:20px;color:#9CA3AF">↓</div>
+
+    <!-- Step 4 -->
+    <div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:12px;background:#fafafa">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="background:#2563EB;color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">4</span>
+        <strong>还款：选择还款来源 → 自动生成分录</strong>
+      </div>
+      <div class="mockup">
+        <div class="mockup-header">Record Payment Dialog</div>
+        <div class="mockup-body" style="padding:12px;font-size:13px">
+          <div style="margin-bottom:8px">
+            <span style="font-weight:600">还款来源 *</span>
+            <span class="mock-input" style="display:inline-block;width:200px;margin-left:8px">招商银行储蓄卡 (Bank)</span>
+            <div style="font-size:11px;color:#6B7280">筛选自己的 Bank/Cash 账户</div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:12px;background:#f0f9ff;padding:12px;border-radius:6px;font-family:monospace;font-size:13px">
+        <strong>自动分录：</strong><br/>
+        借：招商银行房贷 (BorrowedIn)　¥5,000 (负债减少)<br/>
+        借：利息支出 (对方账户·Expense)　¥1,875 (利息费用)<br/>
+        　贷：招商银行储蓄卡 (Bank)　¥6,875 (资产减少)
+      </div>
+    </div>
+
+    <div style="text-align:center;padding:4px;font-size:20px;color:#9CA3AF">↓</div>
+
+    <!-- Step 5 -->
+    <div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:12px;background:#f0fdf4">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="background:#059669;color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">5</span>
+        <strong>债务列表和账户余额自动更新</strong>
+      </div>
+      <div style="font-size:13px;color:#6B7280">
+        房贷账户 current_balance = initial_balance - 已还本金<br/>
+        储蓄卡余额减少 ¥6,875<br/>
+        对方账户余额不变（外部账户不追踪余额）
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px">
+  <h3>需要改什么</h3>
+  <table style="width:100%;font-size:13px;border-collapse:collapse;border:1px solid #e5e7eb">
+    <tr style="background:#f9fafb">
+      <th style="padding:8px;text-align:left;border-bottom:1px solid #e5e7eb">层级</th>
+      <th style="padding:8px;text-align:left;border-bottom:1px solid #e5e7eb">改动</th>
+      <th style="padding:8px;text-align:left;border-bottom:1px solid #e5e7eb">说明</th>
+    </tr>
+    <tr>
+      <td style="padding:8px;font-weight:600">Schema</td>
+      <td style="padding:8px">新增 migration</td>
+      <td style="padding:8px"><code>debt_details</code> 加 <code>counterparty_account_id TEXT REFERENCES accounts(id)</code></td>
+    </tr>
+    <tr>
+      <td style="padding:8px;font-weight:600">Domain</td>
+      <td style="padding:8px">debt_details.rs</td>
+      <td style="padding:8px">DebtDetails 加 <code>counterparty_account_id: Uuid</code></td>
+    </tr>
+    <tr>
+      <td style="padding:8px;font-weight:600">DTOs</td>
+      <td style="padding:8px">CreateDebtDto</td>
+      <td style="padding:8px">加 <code>counterparty_account_id: Uuid</code></td>
+    </tr>
+    <tr>
+      <td style="padding:8px;font-weight:600">Service</td>
+      <td style="padding:8px">debt_service.rs</td>
+      <td style="padding:8px">还款分录用 counterparty_account 作为利息科目</td>
+    </tr>
+    <tr>
+      <td style="padding:8px;font-weight:600">前端</td>
+      <td style="padding:8px">DebtForm.tsx</td>
+      <td style="padding:8px">对方选择改为筛选 ownership=external 的账户</td>
+    </tr>
+  </table>
+</div>
+
+<div class="section" style="margin-top:24px">
+  <h3>方案 B 的优势</h3>
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>优点</h4>
+      <ul>
+        <li>对方是一个真实账户，可以参与复式记账</li>
+        <li>利息支出自动归入对方账户的科目</li>
+        <li>Accounts 页面就能看到所有借贷关系</li>
+        <li>符合会计原则：每个实体都是一个账户</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>代价</h4>
+      <ul>
+        <li>需要先创建对方账户（多一步操作）</li>
+        <li>Schema 需要加 counterparty_account_id 字段</li>
+        <li>对方账户通常是 external 类型，不追踪余额</li>
+      </ul>
+    </div>
+  </div>
+</div>

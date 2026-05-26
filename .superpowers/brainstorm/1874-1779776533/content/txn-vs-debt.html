@@ -1,0 +1,173 @@
+<h2>交易记录 vs 债务对方 — 它们是两个不同的东西</h2>
+<p class="subtitle">交易分录的两个账户是 G/L 科目；债务的对方是 Business Partner。不冲突。</p>
+
+<div class="section">
+  <h3>先看一张真实的银行还款，SAP 里怎么记</h3>
+  <div class="mockup">
+    <div class="mockup-header">银行房贷月供 ¥6,875（本金 ¥5,000 + 利息 ¥1,875）</div>
+    <div class="mockup-body" style="padding:16px;font-size:14px">
+      <table style="width:100%;font-size:13px;border-collapse:collapse">
+        <tr style="background:#f9fafb">
+          <th style="padding:6px;text-align:left">行</th>
+          <th style="padding:6px;text-align:left">G/L 科目</th>
+          <th style="padding:6px;text-align:left">科目名</th>
+          <th style="padding:6px;text-align:right">借方</th>
+          <th style="padding:6px;text-align:right">贷方</th>
+          <th style="padding:6px;text-align:left">Business Partner</th>
+        </tr>
+        <tr>
+          <td style="padding:6px">1</td>
+          <td style="padding:6px"><code>2501</code></td>
+          <td style="padding:6px">长期借款</td>
+          <td style="padding:6px;text-align:right">5,000</td>
+          <td style="padding:6px;text-align:right"></td>
+          <td style="padding:6px;color:#6B7280">招商银行</td>
+        </tr>
+        <tr>
+          <td style="padding:6px">2</td>
+          <td style="padding:6px"><code>5201</code></td>
+          <td style="padding:6px">财务费用</td>
+          <td style="padding:6px;text-align:right">1,875</td>
+          <td style="padding:6px;text-align:right"></td>
+          <td style="padding:6px;color:#6B7280">—</td>
+        </tr>
+        <tr>
+          <td style="padding:6px">3</td>
+          <td style="padding:6px"><code>1002</code></td>
+          <td style="padding:6px">银行存款</td>
+          <td style="padding:6px;text-align:right"></td>
+          <td style="padding:6px;text-align:right">6,875</td>
+          <td style="padding:6px;color:#6B7280">—</td>
+        </tr>
+      </table>
+      <p style="margin-top:12px;font-size:13px;color:#2563EB">
+        ← 3 行分录，每行引用 G/L 科目。<strong>对方（招商银行）只出现在第 1 行的元数据中</strong>，它本身不是一行分录。
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>两个概念的区别</h3>
+  <div class="split">
+    <div class="mockup" style="flex:1">
+      <div class="mockup-header" style="background:#059669;color:#fff">交易分录的账户</div>
+      <div class="mockup-body" style="padding:12px;font-size:13px;line-height:1.6">
+        <p><strong>这是什么：</strong>G/L 科目 (Chart of Accounts)</p>
+        <p><strong>作用：</strong>分类每一分钱的会计归属</p>
+        <p><strong>例子：</strong></p>
+        <ul style="margin-left:16px">
+          <li>银行存款 (1002)</li>
+          <li>长期借款 (2501)</li>
+          <li>财务费用 (5201)</li>
+          <li>主营业务收入 (4001)</li>
+        </ul>
+        <p style="margin-top:8px"><strong>是会计实体 ✓</strong></p>
+      </div>
+    </div>
+    <div class="mockup" style="flex:1">
+      <div class="mockup-header" style="background:#2563EB;color:#fff">债务的对方</div>
+      <div class="mockup-body" style="padding:12px;font-size:13px;line-height:1.6">
+        <p><strong>这是什么：</strong>Business Partner / Contact</p>
+        <p><strong>作用：</strong>标记"跟谁发生的"这笔业务</p>
+        <p><strong>例子：</strong></p>
+        <ul style="margin-left:16px">
+          <li>招商银行</li>
+          <li>张三（朋友）</li>
+          <li>中国工商银行</li>
+        </ul>
+        <p style="margin-top:8px"><strong>是业务元数据 ✗</strong></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>为什么行业标准要把它们分开</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="padding:16px;font-size:14px;line-height:1.8">
+      <p><strong>1. 科目表是稳定的，Business Partner 是变化的</strong></p>
+      <p style="color:#6B7280;margin-left:16px">
+        科目表由国家会计准则定义，几年不变。但你的贷款银行可能今年是招商银行、明年 refinance 到工商银行。科目 "2501 长期借款" 不变，但对方变了。
+      </p>
+      <p style="margin-top:12px"><strong>2. 一个科目可以对应多个对方</strong></p>
+      <p style="color:#6B7280;margin-left:16px">
+        "短期借款 2001" 这一个科目下，可能欠招商银行 ¥500,000，又欠朋友张三 ¥50,000。科目是聚合的，对方是明细的。
+      </p>
+      <p style="margin-top:12px"><strong>3. 分录需要科目，不需要对方</strong></p>
+      <p style="color:#6B7280;margin-left:16px">
+        会计等式 "资产 = 负债 + 权益" 只需要科目级别就能平。对方信息属于 subledger（明细账），辅助管理但不影响总账平衡。
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>回到我们的 App</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="padding:16px;font-size:14px;line-height:1.7">
+      <table style="width:100%;font-size:13px;border-collapse:collapse">
+        <tr style="background:#f0fdf4">
+          <td style="padding:10px;font-weight:600">✓ 交易分录的两个账户</td>
+          <td style="padding:10px"><strong>设计正确。</strong>借方和贷方各引用一个 G/L 账户，符合复式记账标准。</td>
+        </tr>
+        <tr style="background:#f0fdf4">
+          <td style="padding:10px;font-weight:600">✓ 还款分录中的账户</td>
+          <td style="padding:10px"><strong>设计正确。</strong>借：债务账户(BorrowedIn) + 利息科目(Expense)，贷：付款来源(Bank)。全是 G/L 科目。</td>
+        </tr>
+        <tr style="background:#FEF2F2">
+          <td style="padding:10px;font-weight:600">✗ 债务对方 = Account</td>
+          <td style="padding:10px"><strong>设计有问题。</strong>对方应该是一个轻量标签（名称字符串），不需要是一个 Account。强制要求先创建对方账户增加了不必要的步骤。</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>推荐的修正方案</h3>
+  <div class="mockup">
+    <div class="mockup-header">DebtForm · 修正后的设计</div>
+    <div class="mockup-body" style="padding:16px;font-size:13px">
+      <table style="width:100%;border-collapse:collapse">
+        <tr>
+          <td style="padding:6px;font-weight:600;width:140px">债务账户 *</td>
+          <td style="padding:6px">
+            <span class="mock-input" style="display:inline-block;width:100%">招商银行房贷 (BorrowedIn) ▼</span>
+            <div style="font-size:11px;color:#6B7280">下拉选择 G/L 账户（own + debt 类型）← 这是会计实体</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:6px;font-weight:600">对方 *</td>
+          <td style="padding:6px">
+            <span class="mock-input" style="display:inline-block;width:100%">招商银行</span>
+            <div style="font-size:11px;color:#6B7280">自由文本输入 ← 这是业务标签，不是会计实体</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:6px;font-weight:600">对方类型</td>
+          <td style="padding:6px">
+            <span class="mock-button" style="font-size:12px;background:#E5E7EB;color:#374151">银行</span>
+            <span class="mock-button" style="font-size:12px;background:#E5E7EB;color:#374151">个人</span>
+            <span class="mock-button" style="font-size:12px;background:#E5E7EB;color:#374151">其他</span>
+            <div style="font-size:11px;color:#6B7280">可选枚举，帮助分类展示</div>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>总结</h3>
+  <div style="display:flex;gap:12px">
+    <div style="flex:1;background:#f0fdf4;padding:16px;border-radius:8px;border-left:4px solid #059669">
+      <strong style="color:#059669">交易分录的两个账户</strong>
+      <p style="font-size:13px;margin-top:4px;color:#374151">是 G/L 科目之间的借贷关系。这是 <strong>会计层面</strong> 的必需设计，符合行业标准。</p>
+    </div>
+    <div style="flex:1;background:#fef3c7;padding:16px;border-radius:8px;border-left:4px solid #F59E0B">
+      <strong style="color:#D97706">债务的对方</strong>
+      <p style="font-size:13px;margin-top:4px;color:#374151">是业务元数据（谁欠谁）。应该是 <strong>文本标签</strong>，不需要是一个 G/L 账户。两者不矛盾，是两个维度。</p>
+    </div>
+  </div>
+</div>

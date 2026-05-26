@@ -78,13 +78,16 @@ impl DebtDetails {
     }
 
     fn generate_lump_sum(&mut self) {
+        let months = self.term_in_months();
+        let years = Decimal::from(months) / Decimal::from(12);
+        let interest = (self.total_principal * self.interest_rate * years).round_dp(2);
         self.payment_schedule.push(PaymentScheduleEntry {
             id: Uuid::new_v4(),
             debt_id: self.id,
             payment_date: self.due_date,
             principal_amount: self.total_principal,
-            interest_amount: Decimal::ZERO,
-            total_amount: self.total_principal,
+            interest_amount: interest,
+            total_amount: (self.total_principal + interest).round_dp(2),
             paid: false,
             transaction_id: None,
         });

@@ -1,10 +1,5 @@
 -- Update accounts CHECK constraint to allow new debt account types.
--- Same pattern as 20260522000001_unify_accounts_and_categories.sql
-
-PRAGMA foreign_keys = OFF;
-
--- Convert legacy 'loan' accounts to 'borrowed_in' before recreation
-UPDATE accounts SET account_type = 'borrowed_in' WHERE account_type = 'loan';
+-- FK checks are disabled at the connection level during migration.
 
 -- Backup and drop
 CREATE TABLE accounts_backup AS SELECT * FROM accounts;
@@ -51,5 +46,3 @@ CREATE INDEX idx_accounts_type ON accounts(account_type);
 CREATE INDEX idx_accounts_ownership ON accounts(ownership);
 CREATE INDEX idx_accounts_currency ON accounts(currency_code);
 CREATE INDEX idx_accounts_deleted ON accounts(deleted_at);
-
-PRAGMA foreign_keys = ON;

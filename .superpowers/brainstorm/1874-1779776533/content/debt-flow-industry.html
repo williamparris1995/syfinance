@@ -1,0 +1,137 @@
+<h2>行业标准对比：对方 (Counterparty) 应该是什么</h2>
+<p class="subtitle">SAP / Oracle / QuickBooks 怎么处理借贷关系中的对方</p>
+
+<div class="section">
+  <h3>SAP：Business Partner (BP) ≠ G/L Account</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="padding:16px;font-size:14px;line-height:1.7">
+      <p>SAP S/4HANA 的架构中，<strong>对方是 Business Partner</strong>，不是总账科目：</p>
+      <div style="display:flex;gap:16px;margin-top:12px">
+        <div style="flex:1;background:#f0f9ff;padding:12px;border-radius:8px">
+          <strong style="color:#2563EB">Business Partner (BP)</strong>
+          <ul style="margin:8px 0 0 16px;font-size:13px">
+            <li>供应商 (Supplier)</li>
+            <li>客户 (Customer)</li>
+            <li>银行 (Bank)</li>
+            <li>员工 (Employee)</li>
+          </ul>
+          <div style="font-size:12px;color:#6B7280;margin-top:4px">← 独立的 Master Data</div>
+        </div>
+        <div style="flex:1;background:#f0fdf4;padding:12px;border-radius:8px">
+          <strong style="color:#059669">G/L Account (科目)</strong>
+          <ul style="margin:8px 0 0 16px;font-size:13px">
+            <li>短期借款 2001</li>
+            <li>长期借款 2501</li>
+            <li>银行存款 1002</li>
+            <li>财务费用 5201</li>
+          </ul>
+          <div style="font-size:12px;color:#6B7280;margin-top:4px">← Chart of Accounts</div>
+        </div>
+      </div>
+      <p style="margin-top:12px;font-size:13px;color:#6B7280">
+        一笔贷款 = 负债科目(BorrowedIn) + 业务伙伴(Bank of China)。两者是不同维度的数据，不互相替代。
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>Oracle：Party Model</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="padding:16px;font-size:14px;line-height:1.7">
+      所有外部实体（供应商、客户、银行）都是 "Party"。Party 和 Account 是两个完全独立的域。
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>QuickBooks / Xero（SMB）：Contact List</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="padding:16px;font-size:14px;line-height:1.7">
+      <p>中小型财务软件的简化做法：</p>
+      <table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:8px">
+        <tr style="border-bottom:1px solid #e5e7eb">
+          <td style="padding:8px;font-weight:600">Contacts</td>
+          <td style="padding:8px">供应商、客户、银行 — 独立列表，不混入 Chart of Accounts</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e5e7eb">
+          <td style="padding:8px;font-weight:600">Chart of Accounts</td>
+          <td style="padding:8px">资产、负债、收入、费用科目</td>
+        </tr>
+        <tr>
+          <td style="padding:8px;font-weight:600">Transaction</td>
+          <td style="padding:8px">分录引用 Account，元数据引用 Contact</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>行业标准 vs 我们的方案</h3>
+  <table style="width:100%;font-size:13px;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
+    <tr style="background:#f9fafb">
+      <th style="padding:8px;text-align:left;border-bottom:1px solid #e5e7eb">维度</th>
+      <th style="padding:8px;text-align:left;border-bottom:1px solid #e5e7eb">行业标准</th>
+      <th style="padding:8px;text-align:left;border-bottom:1px solid #e5e7eb;background:#FEF2F2">方案 B（当前提议）</th>
+      <th style="padding:8px;text-align:left;border-bottom:1px solid #e5e7eb">推荐调整</th>
+    </tr>
+    <tr>
+      <td style="padding:8px;font-weight:600">对方是什么</td>
+      <td style="padding:8px">Business Partner / Contact（独立实体）</td>
+      <td style="padding:8px;background:#FEF2F2">External Account（G/L 科目）</td>
+      <td style="padding:8px">轻量级 Contact 或自由文本</td>
+    </tr>
+    <tr>
+      <td style="padding:8px;font-weight:600">对方有余额吗</td>
+      <td style="padding:8px">有（应收/应付余额）</td>
+      <td style="padding:8px;background:#FEF2F2">作为 external 账户不追踪余额</td>
+      <td style="padding:8px">不需要余额追踪</td>
+    </tr>
+    <tr>
+      <td style="padding:8px;font-weight:600">对方参与分录吗</td>
+      <td style="padding:8px">不直接参与，分录只用 G/L 科目</td>
+      <td style="padding:8px;background:#FEF2F2">利息支出写到对方账户</td>
+      <td style="padding:8px">利息支出用专门的 Expense 科目</td>
+    </tr>
+    <tr>
+      <td style="padding:8px;font-weight:600">创建成本</td>
+      <td style="padding:8px">高（需要完整 BP 模块）</td>
+      <td style="padding:8px;background:#FEF2F2">中（利用现有 accounts 表）</td>
+      <td style="padding:8px;font-weight:600">低（文本字段或可选关联）</td>
+    </tr>
+  </table>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>结论：方案 B 的方向对，但实现需要调整</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="padding:16px;font-size:14px;line-height:1.7">
+      <p style="margin-bottom:8px">方案 B 把 <code>counterparty</code> 映射为 <strong>external account</strong> 是不符合行业标准的：</p>
+      <ul style="margin-left:16px">
+        <li>G/L 科目表（Chart of Accounts）和业务伙伴（Business Partner）是两个独立域</li>
+        <li>不能为了省事把对方塞进科目表</li>
+      </ul>
+
+      <p style="margin-top:12px;margin-bottom:8px"><strong>推荐折中方案：</strong></p>
+      <table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:8px">
+        <tr style="border-bottom:1px solid #e5e7eb">
+          <td style="padding:8px;font-weight:600;width:140px">debt_details.counterparty</td>
+          <td style="padding:8px"><strong>保持 VARCHAR 文本</strong> — 自由填写对方名称（如"招商银行"）</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e5e7eb">
+          <td style="padding:8px;font-weight:600">DebtForm UI</td>
+          <td style="padding:8px">文本输入 + <strong>可选</strong>的账户关联（从 external 账户中选择）</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e5e7eb">
+          <td style="padding:8px;font-weight:600">利息分录</td>
+          <td style="padding:8px"><strong>不写入对方账户</strong>，写入专门的 <code>interest_account_id</code> 绑定的 Expense 科目（如 5201 财务费用）</td>
+        </tr>
+        <tr>
+          <td style="padding:8px;font-weight:600">未来扩展</td>
+          <td style="padding:8px">如果以后需要，可以加独立的 <code>contacts</code> 表，而不是用 accounts 替代</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,111 @@
+<h2>账户筛选布局方案</h2>
+<p class="subtitle">将单一下拉框拆分为自己账户 + 外部账户独立筛选，支持多选</p>
+
+<div class="section">
+  <h3>方案 A：两个下拉框并排（推荐）</h3>
+  <div class="mockup">
+    <div class="mockup-header">筛选栏预览</div>
+    <div class="mockup-body">
+      <div style="display:flex;align-items:center;gap:12px;padding:12px;background:#f5f5f5;border-radius:8px;flex-wrap:wrap;">
+        <div style="display:flex;gap:4px;">
+          <span class="mock-button" style="background:#000;color:#fff;border-radius:4px;padding:4px 10px;font-size:12px;">全部</span>
+          <span class="mock-button" style="background:transparent;border:1px solid #ddd;border-radius:4px;padding:4px 10px;font-size:12px;">支出</span>
+          <span class="mock-button" style="background:transparent;border:1px solid #ddd;border-radius:4px;padding:4px 10px;font-size:12px;">收入</span>
+          <span class="mock-button" style="background:transparent;border:1px solid #ddd;border-radius:4px;padding:4px 10px;font-size:12px;">转账</span>
+        </div>
+        <div style="width:1px;height:20px;background:#d4d4d8;"></div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:11px;color:#71717a;white-space:nowrap;">自己:</span>
+          <div style="border:1px solid #d4d4d8;border-radius:6px;padding:4px 10px;font-size:12px;background:#fff;display:flex;align-items:center;gap:8px;min-width:120px;">
+            <span style="color:#a1a1aa;">现金, 银行卡</span>
+            <span style="background:#e4e4e7;padding:1px 5px;border-radius:3px;font-size:10px;">2</span>
+            <span style="color:#a1a1aa;margin-left:auto;">▾</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:11px;color:#71717a;white-space:nowrap;">外部:</span>
+          <div style="border:1px solid #d4d4d8;border-radius:6px;padding:4px 10px;font-size:12px;background:#fff;display:flex;align-items:center;gap:8px;min-width:120px;">
+            <span style="color:#a1a1aa;">全部外部账户</span>
+            <span style="color:#a1a1aa;margin-left:auto;">▾</span>
+          </div>
+        </div>
+        <div style="width:1px;height:20px;background:#d4d4d8;"></div>
+        <input class="mock-input" placeholder="搜索描述..." style="flex:1;min-width:150px;max-width:260px;font-size:12px;padding:4px 8px;">
+        <span style="font-size:12px;color:#71717a;white-space:nowrap;">共 42 条记录</span>
+      </div>
+    </div>
+  </div>
+  <div class="pros-cons">
+    <div class="pros"><h4>优点</h4><ul><li>布局紧凑，不额外占用垂直空间</li><li>每个下拉框独立触发，标签清晰</li><li>选中账户数量以 badge 显示</li></ul></div>
+    <div class="cons"><h4>缺点</h4><ul><li>筛选栏可能在小屏幕上换行较多</li></ul></div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>方案 B：两个下拉框上下排列</h3>
+  <div class="mockup">
+    <div class="mockup-header">筛选栏预览</div>
+    <div class="mockup-body">
+      <div style="display:flex;flex-direction:column;gap:8px;padding:12px;background:#f5f5f5;border-radius:8px;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div style="display:flex;gap:4px;">
+            <span class="mock-button" style="background:#000;color:#fff;border-radius:4px;padding:4px 10px;font-size:12px;">全部</span>
+            <span class="mock-button" style="background:transparent;border:1px solid #ddd;border-radius:4px;padding:4px 10px;font-size:12px;">支出</span>
+            <span class="mock-button" style="background:transparent;border:1px solid #ddd;border-radius:4px;padding:4px 10px;font-size:12px;">收入</span>
+            <span class="mock-button" style="background:transparent;border:1px solid #ddd;border-radius:4px;padding:4px 10px;font-size:12px;">转账</span>
+          </div>
+          <div style="width:1px;height:20px;background:#d4d4d8;"></div>
+          <input class="mock-input" placeholder="搜索描述..." style="flex:1;min-width:150px;max-width:260px;font-size:12px;padding:4px 8px;">
+          <span style="font-size:12px;color:#71717a;white-space:nowrap;">共 42 条记录</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span style="font-size:11px;color:#71717a;white-space:nowrap;">自己账户:</span>
+          <div style="border:1px solid #d4d4d8;border-radius:6px;padding:4px 10px;font-size:12px;background:#fff;display:flex;align-items:center;gap:8px;min-width:160px;">
+            <span style="color:#a1a1aa;">全部</span>
+            <span style="color:#a1a1aa;margin-left:auto;">▾</span>
+          </div>
+          <span style="font-size:11px;color:#71717a;white-space:nowrap;">外部账户:</span>
+          <div style="border:1px solid #d4d4d8;border-radius:6px;padding:4px 10px;font-size:12px;background:#fff;display:flex;align-items:center;gap:8px;min-width:160px;">
+            <span style="color:#a1a1aa;">全部</span>
+            <span style="color:#a1a1aa;margin-left:auto;">▾</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="pros-cons">
+    <div class="pros"><h4>优点</h4><ul><li>独立一行，标签可以更长更清晰</li><li>下拉框宽度充足</li></ul></div>
+    <div class="cons"><h4>缺点</h4><ul><li>占用双倍垂直空间</li><li>筛选栏整体变高，挤压表格空间</li></ul></div>
+  </div>
+</div>
+
+<hr style="margin:24px 0;border-color:#e4e4e7;">
+
+<h3>下拉框展开后的多选交互（两个方案通用）</h3>
+<div class="mockup">
+  <div class="mockup-header">点击"自己账户"下拉框展开</div>
+  <div class="mockup-body">
+    <div style="border:1px solid #d4d4d8;border-radius:8px;background:#fff;padding:6px;max-width:240px;box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid #f4f4f5;">
+        <input type="checkbox" checked style="accent-color:#000;">
+        <span style="font-size:13px;">全部</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;">
+        <input type="checkbox" checked style="accent-color:#000;">
+        <span style="font-size:13px;">现金</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;">
+        <input type="checkbox" style="accent-color:#000;">
+        <span style="font-size:13px;">银行卡</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;">
+        <input type="checkbox" checked style="accent-color:#000;">
+        <span style="font-size:13px;">投资账户</span>
+      </div>
+      <div style="border-top:1px solid #f4f4f5;padding:6px 8px;margin-top:4px;display:flex;gap:8px;">
+        <span style="font-size:11px;color:#2563eb;cursor:pointer;">确认</span>
+        <span style="font-size:11px;color:#71717a;cursor:pointer;">清除</span>
+      </div>
+    </div>
+  </div>
+</div>
