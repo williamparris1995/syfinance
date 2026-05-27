@@ -93,7 +93,10 @@
     "filterByType": "Filter by type",
     "initialBalance": "Initial Balance",
     "currentBalance": "Current Balance",
-    "allAccounts": "All Accounts"
+    "allAccounts": "All Accounts",
+    "noTransactions": "No transactions yet",
+    "detailTitle": "Account Details",
+    "accountTransactions": "Transactions"
   },
   "accountForm": {
     "accountName": "Account Name",
@@ -319,7 +322,9 @@
     "selectInterestAccount": "Select interest account (optional)",
     "name": "Debt Account",
     "namePlaceholder": "e.g., Mortgage, Car Loan",
-    "nameDesc": "The liability (BorrowedIn) or receivable (BorrowedOut) account for this debt"
+    "nameDesc": "The liability (BorrowedIn) or receivable (BorrowedOut) account for this debt",
+    "transactionHistory": "Transaction History",
+    "noTransactions": "No transactions yet"
   },
   "debtForm": {
     "debtType": "Debt Type",

@@ -95,7 +95,10 @@
     "searchPlaceholder": "搜索账户...",
     "filterByType": "按类型筛选",
     "currentBalance": "当前余额",
-    "allAccounts": "全部账户"
+    "allAccounts": "全部账户",
+    "noTransactions": "暂无交易记录",
+    "detailTitle": "账户详情",
+    "accountTransactions": "交易记录"
   },
   "accountForm": {
     "accountName": "账户名称",
@@ -319,7 +322,9 @@
     "interestAccount": "利息科目",
     "selectInterestAccount": "选择利息科目（可选）",
     "name": "账户名称",
-    "namePlaceholder": "例如：房贷、车贷"
+    "namePlaceholder": "例如：房贷、车贷",
+    "transactionHistory": "交易记录",
+    "noTransactions": "暂无交易记录"
   },
   "reports": {
     "title": "报表",
