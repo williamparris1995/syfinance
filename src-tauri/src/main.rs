@@ -29,8 +29,8 @@ use presentation::tauri_commands::{
     },
     holding_commands::{
         buy_holding, create_default_state_from_pool as create_holding_default_state,
-        create_security, list_holdings, list_securities, sell_holding, update_security_price,
-        AppState as HoldingCommandState,
+        create_security, list_holdings, list_securities, search_securities, sell_holding,
+        update_security_price, AppState as HoldingCommandState,
     },
     sync_commands::{
         create_default_state as create_sync_default_state, get_sync_settings, get_sync_status,
@@ -180,6 +180,7 @@ async fn main() {
             buy_holding,
             sell_holding,
             list_holdings,
+            search_securities,
             create_transaction,
             get_transaction,
             list_transactions,

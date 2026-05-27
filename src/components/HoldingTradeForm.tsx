@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { Plus } from 'lucide-react';
+import { Plus, Search, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
@@ -12,11 +12,13 @@ import { Input } from './ui/input';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from './ui/select';
-import { listAccounts, type AccountDto } from '@/lib/tauri/account';
+import { listAccounts } from '@/lib/tauri/account';
 import {
-  listSecurities, createSecurity, type SecurityDto, type HoldingTradeDto, type SecurityType,
+  listSecurities, createSecurity, searchSecurities,
+  type SecurityDto, type HoldingTradeDto, type SecurityType, type SecuritySearchResult,
 } from '@/lib/tauri/holding';
 import { useState } from 'react';
+import { cn } from '@/lib/utils';
 
 interface Props {
   onSubmit: (data: HoldingTradeDto) => void;
@@ -51,6 +53,13 @@ export function HoldingTradeForm({ onSubmit, onCancel, isLoading }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [showAddSecurity, setShowAddSecurity] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SecuritySearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [newSymbol, setNewSymbol] = useState('');
+  const [newName, setNewName] = useState('');
+  const [newType, setNewType] = useState<SecurityType>('stock');
+  const [newExchange, setNewExchange] = useState('');
 
   const { data: accounts = [] } = useQuery({ queryKey: ['accounts'], queryFn: listAccounts });
   const { data: securities = [] } = useQuery({ queryKey: ['securities'], queryFn: listSecurities });
@@ -82,26 +91,46 @@ export function HoldingTradeForm({ onSubmit, onCancel, isLoading }: Props) {
   const watched = form.watch();
   const estimatedAmount = parseFloat(watched.quantity || '0') * parseFloat(watched.price || '0');
 
-  const handleCreateSecurity = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formEl = e.currentTarget;
-    const formData = new FormData(formEl);
-    const symbol = (formData.get('new_symbol') as string)?.trim();
-    const name = (formData.get('new_name') as string)?.trim();
-    const type = formData.get('new_type') as SecurityType;
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    setIsSearching(true);
+    try {
+      const results = await searchSecurities(searchQuery.trim());
+      setSearchResults(results);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
-    if (!symbol || !name || !type) return;
+  const handleSelectSearchResult = (result: SecuritySearchResult) => {
+    setNewSymbol(result.symbol);
+    setNewName(result.name);
+    setNewType(result.security_type);
+    setNewExchange(result.exchange_display);
+    setSearchResults([]);
+  };
 
+  const handleCreateSecurity = async () => {
+    if (!newSymbol.trim() || !newName.trim()) return;
     try {
       const newSecurity = await createSecurity({
-        symbol,
-        name,
-        security_type: type,
+        symbol: newSymbol.trim(),
+        name: newName.trim(),
+        security_type: newType,
+        exchange: newExchange || null,
         currency_code: 'CNY',
       });
       await queryClient.invalidateQueries({ queryKey: ['securities'] });
       form.setValue('security_id', newSecurity.id);
       setShowAddSecurity(false);
+      setSearchQuery('');
+      setSearchResults([]);
+      setNewSymbol('');
+      setNewName('');
+      setNewType('stock');
+      setNewExchange('');
     } catch {
       // ignore — user can retry
     }
@@ -131,7 +160,7 @@ export function HoldingTradeForm({ onSubmit, onCancel, isLoading }: Props) {
                   <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">{t('holding.security')} <span className="text-red-500">*</span></FormLabel>
                   <button
                     type="button"
-                    onClick={() => setShowAddSecurity(!showAddSecurity)}
+                    onClick={() => { setShowAddSecurity(!showAddSecurity); setSearchResults([]); }}
                     className="text-xs text-primary hover:text-primary/80 flex items-center gap-1"
                   >
                     <Plus className="h-3 w-3" />
@@ -149,20 +178,91 @@ export function HoldingTradeForm({ onSubmit, onCancel, isLoading }: Props) {
             )} />
 
             {showAddSecurity && (
-              <form onSubmit={handleCreateSecurity} className="mt-2 rounded-lg border bg-muted/30 p-3 space-y-2">
-                <div className="text-xs font-medium text-muted-foreground">{t('holding.newSecurity')}</div>
-                <div className="grid grid-cols-3 gap-2">
-                  <Input name="new_symbol" placeholder={t('holding.symbol')} className="h-8 text-xs" required />
-                  <Input name="new_name" placeholder={t('holding.name')} className="h-8 text-xs" required />
-                  <select name="new_type" className="h-8 rounded-md border bg-background px-2 text-xs" required defaultValue="stock">
-                    {SECURITY_TYPES.map(st => <option key={st.value} value={st.value}>{st.label}</option>)}
-                  </select>
+              <div className="mt-2 rounded-lg border bg-muted/30 p-3 space-y-3">
+                {/* Search bar */}
+                <div className="flex gap-2">
+                  <Input
+                    placeholder={t('holding.searchPlaceholder')}
+                    className="h-8 text-xs flex-1"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleSearch())}
+                  />
+                  <Button type="button" size="sm" variant="outline" className="h-8 px-2" onClick={handleSearch} disabled={isSearching}>
+                    {isSearching ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
+                  </Button>
                 </div>
+
+                {/* Search results */}
+                {searchResults.length > 0 && (
+                  <div className="max-h-40 overflow-y-auto rounded-md border bg-background divide-y">
+                    {searchResults.map(r => (
+                      <button
+                        key={`${r.symbol}-${r.exchange}`}
+                        type="button"
+                        onClick={() => handleSelectSearchResult(r)}
+                        className="w-full text-left px-3 py-2 hover:bg-muted/50 text-xs"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">{r.symbol}</span>
+                          <span className="text-muted-foreground">{r.exchange_display}</span>
+                        </div>
+                        <div className="text-muted-foreground truncate">{r.name}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Editable fields (auto-filled from search or manual) */}
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-muted-foreground">{t('holding.symbol')}</label>
+                      <Input
+                        className="h-8 text-xs"
+                        value={newSymbol}
+                        onChange={e => setNewSymbol(e.target.value)}
+                        placeholder="AAPL"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-muted-foreground">{t('holding.exchange')}</label>
+                      <Input
+                        className="h-8 text-xs"
+                        value={newExchange}
+                        onChange={e => setNewExchange(e.target.value)}
+                        placeholder="NASDAQ"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground">{t('holding.name')}</label>
+                    <Input
+                      className="h-8 text-xs"
+                      value={newName}
+                      onChange={e => setNewName(e.target.value)}
+                      placeholder={t('holding.name')}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground">{t('holding.type')}</label>
+                    <select
+                      className="h-8 w-full rounded-md border bg-background px-2 text-xs"
+                      value={newType}
+                      onChange={e => setNewType(e.target.value as SecurityType)}
+                    >
+                      {SECURITY_TYPES.map(st => <option key={st.value} value={st.value}>{st.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="ghost" size="sm" onClick={() => setShowAddSecurity(false)}>{t('common.cancel')}</Button>
-                  <Button type="submit" size="sm">{t('holding.addSecurity')}</Button>
+                  <Button type="button" size="sm" onClick={handleCreateSecurity} disabled={!newSymbol.trim() || !newName.trim()}>
+                    {t('holding.confirmCreate')}
+                  </Button>
                 </div>
-              </form>
+              </div>
             )}
           </div>
 

@@ -64,3 +64,14 @@ export const sellHolding = (dto: HoldingTradeDto) =>
 
 export const listHoldings = () =>
   invokeTauri<HoldingDto[]>('list_holdings');
+
+export interface SecuritySearchResult {
+  symbol: string;
+  name: string;
+  exchange: string;
+  exchange_display: string;
+  security_type: SecurityType;
+}
+
+export const searchSecurities = (query: string) =>
+  invokeTauri<SecuritySearchResult[]>('search_securities', { query });
