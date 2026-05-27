@@ -1,6 +1,7 @@
 mod debt_repository;
 mod prepaid_repository;
 mod reminder_repository;
+mod subscription_repository;
 
 use crate::domain::aggregates::{
     Account, AccountType, ChartOfAccounts, ChartOfAccountsType, Ownership, Transaction,
@@ -15,6 +16,7 @@ use uuid::Uuid;
 pub use debt_repository::DebtRepository;
 pub use prepaid_repository::PrepaidRepository;
 pub use reminder_repository::ReminderRepository;
+pub use subscription_repository::SubscriptionRepository;
 
 #[allow(async_fn_in_trait, dead_code)]
 pub trait AccountRepository: Send + Sync {
