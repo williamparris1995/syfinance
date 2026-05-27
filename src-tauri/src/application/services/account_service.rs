@@ -1,5 +1,5 @@
 use crate::application::dtos::{AccountDto, CreateAccountDto, UpdateAccountDto};
-use crate::domain::aggregates::{Account, AccountError, Ownership};
+use crate::domain::aggregates::{Account, AccountError, AccountType, Ownership};
 use crate::domain::repositories::{AccountRepository, CurrencyRepository};
 use crate::domain::value_objects::{Money, SyncMetadata};
 use rust_decimal::Decimal;
@@ -11,6 +11,23 @@ pub struct AccountService<R: AccountRepository, U: CurrencyRepository> {
     account_repo: Arc<R>,
     currency_repo: Arc<U>,
 }
+
+struct InvestmentTemplate {
+    name: &'static str,
+    chart_code: &'static str,
+    icon: &'static str,
+    color: &'static str,
+}
+
+const INVESTMENT_TEMPLATES: [InvestmentTemplate; 7] = [
+    InvestmentTemplate { name: "股票账户", chart_code: "1101", icon: "TrendingUp", color: "#EF4444" },
+    InvestmentTemplate { name: "基金账户", chart_code: "1101", icon: "BarChart3", color: "#3B82F6" },
+    InvestmentTemplate { name: "ETF账户", chart_code: "1101", icon: "Layers", color: "#8B5CF6" },
+    InvestmentTemplate { name: "债券账户", chart_code: "1501", icon: "Landmark", color: "#10B981" },
+    InvestmentTemplate { name: "黄金账户", chart_code: "1101", icon: "Coins", color: "#F59E0B" },
+    InvestmentTemplate { name: "期权账户", chart_code: "1101", icon: "GitBranch", color: "#F97316" },
+    InvestmentTemplate { name: "其他投资", chart_code: "1012", icon: "Wallet", color: "#6B7280" },
+];
 
 impl<R: AccountRepository, U: CurrencyRepository> AccountService<R, U> {
     pub fn new(account_repo: Arc<R>, currency_repo: Arc<U>) -> Self {
@@ -188,6 +205,48 @@ impl<R: AccountRepository, U: CurrencyRepository> AccountService<R, U> {
             .ok_or(AccountServiceError::AccountNotFound(id))?;
 
         Ok(account.initial_balance.clone())
+    }
+
+    pub async fn create_preset_investment_accounts<E>(
+        &self,
+        _executor: E,
+        currency_code: &str,
+    ) -> Result<Vec<AccountDto>, AccountServiceError> {
+        let currency = self
+            .currency_repo
+            .find_by_code(currency_code)
+            .await?
+            .ok_or_else(|| AccountServiceError::CurrencyNotFound(currency_code.to_string()))?;
+
+        let mut results = Vec::new();
+
+        for template in &INVESTMENT_TEMPLATES {
+            let balance = Money::new(Decimal::ZERO, currency_code)
+                .map_err(|e| AccountServiceError::InvalidMoney(e.to_string()))?;
+
+            match Account::new(
+                Uuid::new_v4(),
+                template.name,
+                AccountType::Investment,
+                Ownership::Own,
+                &currency,
+                balance,
+                template.icon,
+                template.color,
+                Some(template.chart_code.to_string()),
+                None,
+                SyncMetadata::new(Uuid::new_v4()),
+            ) {
+                Ok(account) => {
+                    if self.account_repo.create(&account).await.is_ok() {
+                        results.push(AccountDto::from(account));
+                    }
+                }
+                Err(_) => continue,
+            }
+        }
+
+        Ok(results)
     }
 }
 
@@ -562,5 +621,36 @@ mod tests {
 
         assert_eq!(balance.amount, Decimal::new(50000, 2));
         assert_eq!(balance.currency_code, "CNY");
+    }
+
+    #[tokio::test]
+    async fn test_create_preset_investment_accounts() {
+        let account_repo = Arc::new(MockAccountRepository::new());
+        let currency_repo = Arc::new(MockCurrencyRepository::new());
+
+        let service = AccountService::new(account_repo.clone(), currency_repo);
+
+        let result = service
+            .create_preset_investment_accounts((), "CNY")
+            .await;
+
+        assert!(result.is_ok());
+        let accounts = result.unwrap();
+        assert_eq!(accounts.len(), 7);
+
+        let names: Vec<&str> = accounts.iter().map(|a| a.name.as_str()).collect();
+        assert!(names.contains(&"股票账户"));
+        assert!(names.contains(&"基金账户"));
+        assert!(names.contains(&"ETF账户"));
+        assert!(names.contains(&"债券账户"));
+        assert!(names.contains(&"黄金账户"));
+        assert!(names.contains(&"期权账户"));
+        assert!(names.contains(&"其他投资"));
+
+        for account in &accounts {
+            assert_eq!(account.account_type, AccountType::Investment);
+            assert_eq!(account.ownership, Ownership::Own);
+            assert_eq!(account.currency_code, "CNY");
+        }
     }
 }
