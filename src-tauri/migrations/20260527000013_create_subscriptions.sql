@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    amount TEXT NOT NULL,
+    direction TEXT NOT NULL CHECK (direction IN ('expense', 'income')),
+    cycle TEXT NOT NULL CHECK (cycle IN ('weekly', 'monthly', 'yearly', 'custom')),
+    cycle_days INTEGER,
+    billing_day INTEGER,
+    next_billing_date TEXT NOT NULL,
+    start_date TEXT NOT NULL,
+    end_date TEXT,
+    auto_record INTEGER NOT NULL DEFAULT 1,
+    paused INTEGER NOT NULL DEFAULT 0,
+    source_account_id TEXT NOT NULL,
+    category TEXT,
+    description TEXT,
+    last_transaction_id TEXT,
+    deleted_at TEXT,
+    updated_at TEXT NOT NULL,
+    device_id TEXT,
+    synced_at TEXT,
+    FOREIGN KEY (source_account_id) REFERENCES accounts(id)
+);
