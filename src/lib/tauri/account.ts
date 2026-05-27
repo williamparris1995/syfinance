@@ -86,3 +86,25 @@ export const getAccountBalance = (id: string) =>
 
 export const listAccountsWithBalances = () =>
   invokeTauri<AccountDto[]>('list_accounts_with_balances');
+
+export interface InvestmentTemplate {
+  name: string;
+  chart_code: string;
+  icon: string;
+  color: string;
+}
+
+export const INVESTMENT_TEMPLATES: InvestmentTemplate[] = [
+  { name: '股票账户', chart_code: '1101', icon: 'TrendingUp', color: '#EF4444' },
+  { name: '基金账户', chart_code: '1101', icon: 'BarChart3', color: '#3B82F6' },
+  { name: 'ETF账户', chart_code: '1101', icon: 'Layers', color: '#8B5CF6' },
+  { name: '债券账户', chart_code: '1501', icon: 'Landmark', color: '#10B981' },
+  { name: '黄金账户', chart_code: '1101', icon: 'Coins', color: '#F59E0B' },
+  { name: '期权账户', chart_code: '1101', icon: 'GitBranch', color: '#F97316' },
+  { name: '其他投资', chart_code: '1012', icon: 'Wallet', color: '#6B7280' },
+];
+
+export const setupPresetInvestmentAccounts = (currencyCode?: string) =>
+  invokeTauri<AccountDto[]>('setup_preset_investment_accounts', {
+    currencyCode: currencyCode ?? 'CNY',
+  });
