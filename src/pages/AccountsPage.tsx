@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { AccountForm } from '../components/AccountForm';
 import { TopUpDialog } from '../components/TopUpDialog';
 import { PrepaidDetailPanel } from '../components/PrepaidDetailPanel';
+import { AccountDetailPanel } from '../components/AccountDetailPanel';
 import { Button } from '../components/ui/button';
 import {
   Dialog,
@@ -66,6 +67,7 @@ export function AccountsPage() {
   // Prepaid-specific state
   const [topUpAccountId, setTopUpAccountId] = useState<string | null>(null);
   const [detailAccountId, setDetailAccountId] = useState<string | null>(null);
+  const [detailAccount, setDetailAccount] = useState<AccountDto | null>(null);
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['accounts'],
@@ -376,6 +378,16 @@ export function AccountsPage() {
                         </Button>
                       </>
                     )}
+                    {account.account_type !== 'Prepaid' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDetailAccount(account)}
+                        title={t('debts.view')}
+                      >
+                        <Eye className="h-4 w-4 text-purple-500" />
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
@@ -481,6 +493,15 @@ export function AccountsPage() {
           accountId={detailAccountId}
           open={!!detailAccountId}
           onOpenChange={(open) => { if (!open) setDetailAccountId(null); }}
+        />
+      )}
+
+      {/* Account Detail Panel */}
+      {detailAccount && (
+        <AccountDetailPanel
+          account={detailAccount}
+          open={!!detailAccount}
+          onOpenChange={(open) => { if (!open) setDetailAccount(null); }}
         />
       )}
     </div>
