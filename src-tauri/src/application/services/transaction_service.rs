@@ -3,13 +3,14 @@ use crate::application::dtos::{
     TransactionEntryDto,
 };
 use crate::domain::{
-    aggregates::Transaction,
+    aggregates::{AccountType, Transaction},
     repositories::{AccountRepository, TransactionRepository},
     value_objects::{Money, SyncMetadata, TransactionEntry},
 };
 use crate::infrastructure::repositories::{
     SqliteAccountRepository, SqliteTransactionRepository,
 };
+use rust_decimal::Decimal;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -344,6 +345,18 @@ impl TransactionService {
             .await?
             .ok_or(TransactionServiceError::AccountNotFound(dto.credit_account_id))?;
 
+        // Check prepaid account balance
+        if credit_account.account_type == AccountType::Prepaid {
+            let balances = self.account_repo.compute_balances_for_all_accounts().await?;
+            let net_change = balances.get(&credit_account.id).copied().unwrap_or(Decimal::ZERO);
+            let balance = credit_account.initial_balance.amount + net_change;
+            if balance < dto.amount {
+                return Err(TransactionServiceError::ValidationError(
+                    format!("insufficient prepaid balance: {} < {}", balance, dto.amount),
+                ));
+            }
+        }
+
         let money = Money::new(dto.amount, &credit_account.currency_code)
             .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
 
@@ -377,6 +390,21 @@ impl TransactionService {
         .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
 
         self.transaction_repo.create(&transaction).await?;
+
+        // Check low balance for prepaid accounts
+        if credit_account.account_type == AccountType::Prepaid {
+            if let Some(threshold) = credit_account.low_balance_threshold {
+                let balances = self.account_repo.compute_balances_for_all_accounts().await?;
+                let net_change = balances.get(&credit_account.id).copied().unwrap_or(Decimal::ZERO);
+                let balance = credit_account.initial_balance.amount + net_change;
+                if balance < threshold {
+                    tracing::warn!(
+                        "Prepaid account '{}' balance {} is below threshold {}",
+                        credit_account.name, balance, threshold
+                    );
+                }
+            }
+        }
 
         Ok(transaction.id)
     }
