@@ -5,6 +5,7 @@ import { AccountsPage } from './pages/AccountsPage';
 import { DebtsPage } from './pages/DebtsPage';
 import { HoldingsPage } from './pages/HoldingsPage';
 import { HomePage } from './pages/HomePage';
+import { SubscriptionsPage } from './pages/SubscriptionsPage';
 import { NewAccountPage } from './pages/NewAccountPage';
 import { NewDebtPage } from './pages/NewDebtPage';
 import { NewTransactionPage } from './pages/NewTransactionPage';
@@ -64,6 +65,12 @@ const holdingsRoute = createRoute({
   component: HoldingsPage,
 });
 
+const subscriptionsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'subscriptions',
+  component: SubscriptionsPage,
+});
+
 const reportsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'reports',
@@ -106,6 +113,7 @@ const routeTree = rootRoute.addChildren([
   transactionsRoute.addChildren([newTransactionRoute]),
   debtsRoute.addChildren([newDebtRoute]),
   holdingsRoute,
+  subscriptionsRoute,
   reportsRoute,
   settingsRoute,
   onboardingRoute,
