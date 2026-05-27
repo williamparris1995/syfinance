@@ -15,7 +15,7 @@ import {
 import { listAccounts } from '@/lib/tauri/account';
 import {
   listSecurities, createSecurity, searchSecurities,
-  type SecurityDto, type HoldingTradeDto, type SecurityType, type SecuritySearchResult,
+  type SecurityDto, type HoldingTradeDto, type HoldingDto, type SecurityType, type SecuritySearchResult,
 } from '@/lib/tauri/holding';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -24,6 +24,8 @@ interface Props {
   onSubmit: (data: HoldingTradeDto) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  initialDirection?: 'BUY' | 'SELL';
+  initialHolding?: HoldingDto | null;
 }
 
 const tradeSchema = z.object({
@@ -49,7 +51,7 @@ const SECURITY_TYPES: { value: SecurityType; label: string }[] = [
   { value: 'other', label: '其他' },
 ];
 
-export function HoldingTradeForm({ onSubmit, onCancel, isLoading }: Props) {
+export function HoldingTradeForm({ onSubmit, onCancel, isLoading, initialDirection, initialHolding }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [showAddSecurity, setShowAddSecurity] = useState(false);
@@ -72,7 +74,16 @@ export function HoldingTradeForm({ onSubmit, onCancel, isLoading }: Props) {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(tradeSchema),
-    defaultValues: { account_id: '', security_id: '', direction: 'BUY', quantity: '', price: '', fee: '0', trade_date: today, notes: '' },
+    defaultValues: {
+      account_id: initialHolding?.account_id || '',
+      security_id: initialHolding?.security_id || '',
+      direction: initialDirection || 'BUY',
+      quantity: '',
+      price: '',
+      fee: '0',
+      trade_date: today,
+      notes: '',
+    },
   });
 
   const handleSubmit = (values: FormValues) => {
