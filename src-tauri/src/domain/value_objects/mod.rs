@@ -1,6 +1,7 @@
 pub mod currency;
 pub mod money;
 pub mod sync_metadata;
+pub mod top_up_record;
 pub mod transaction_entry;
 pub mod transaction_operation;
 pub mod version_vector;
@@ -11,6 +12,8 @@ pub use currency::{Currency, CurrencyValidationError};
 pub use money::{Money, MoneyValidationError};
 #[allow(unused_imports)]
 pub use sync_metadata::SyncMetadata;
+#[allow(unused_imports)]
+pub use top_up_record::TopUpRecord;
 #[allow(unused_imports)]
 pub use transaction_entry::{TransactionEntry, TransactionEntryError};
 #[allow(unused_imports)]

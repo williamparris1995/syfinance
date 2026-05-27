@@ -29,8 +29,12 @@ use presentation::tauri_commands::{
     },
     holding_commands::{
         buy_holding, create_default_state_from_pool as create_holding_default_state,
-        create_security, list_holdings, list_securities, search_securities, sell_holding,
+        create_security, fetch_security_price, list_holdings, list_securities, search_securities, sell_holding,
         update_security_price, AppState as HoldingCommandState,
+    },
+    prepaid_commands::{
+        create_default_state_from_pool as create_prepaid_default_state,
+        get_prepaid_detail, get_top_up_records, top_up, PrepaidCommandState,
     },
     sync_commands::{
         create_default_state as create_sync_default_state, get_sync_settings, get_sync_status,
@@ -123,6 +127,9 @@ async fn main() {
     let holding_state: HoldingCommandState = create_holding_default_state(pool.clone())
         .await
         .expect("failed to initialize holding command state");
+    let prepaid_state: PrepaidCommandState = create_prepaid_default_state(pool.clone())
+        .await
+        .expect("failed to initialize prepaid command state");
 
     // Clone the pool before debt_state is moved
     let debt_pool = pool.clone();
@@ -156,6 +163,7 @@ async fn main() {
         .manage(currency_state)
         .manage(transaction_state)
         .manage(holding_state)
+        .manage(prepaid_state)
         .invoke_handler(tauri::generate_handler![
             create_account,
             update_account,
@@ -181,6 +189,10 @@ async fn main() {
             sell_holding,
             list_holdings,
             search_securities,
+            fetch_security_price,
+            top_up,
+            get_prepaid_detail,
+            get_top_up_records,
             create_transaction,
             get_transaction,
             list_transactions,

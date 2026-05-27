@@ -1,9 +1,11 @@
 pub mod account_service;
 pub mod debt_service;
 pub mod holding_service;
+pub mod prepaid_service;
 pub mod transaction_service;
 
 pub use account_service::{AccountService, AccountServiceError};
 pub use debt_service::DebtService;
 pub use holding_service::{HoldingService, HoldingServiceError};
+pub use prepaid_service::PrepaidService;
 pub use transaction_service::TransactionService;

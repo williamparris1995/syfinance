@@ -2,6 +2,7 @@ pub mod account_commands;
 pub mod currency_commands;
 pub mod debt_commands;
 pub mod holding_commands;
+pub mod prepaid_commands;
 pub mod sync_commands;
 pub mod transaction_commands;
 
@@ -20,6 +21,9 @@ pub use debt_commands::{
 pub use holding_commands::{
     buy_holding, create_security, list_holdings, list_securities, sell_holding,
     update_security_price, AppState as HoldingCommandState,
+};
+pub use prepaid_commands::{
+    get_prepaid_detail, get_top_up_records, top_up, PrepaidCommandState,
 };
 pub use sync_commands::{
     create_default_state as create_sync_default_state, get_sync_settings, get_sync_status,

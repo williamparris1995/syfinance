@@ -10,6 +10,7 @@ pub enum ReminderType {
     DebtPayment,
     BillDue,
     Custom,
+    PrepaidLowBalance,
 }
 
 impl ReminderType {
@@ -18,6 +19,7 @@ impl ReminderType {
             Self::DebtPayment => "debt_payment",
             Self::BillDue => "bill_due",
             Self::Custom => "custom",
+            Self::PrepaidLowBalance => "prepaid_low_balance",
         }
     }
 }
@@ -30,6 +32,7 @@ impl FromStr for ReminderType {
             "debt_payment" => Ok(Self::DebtPayment),
             "bill_due" => Ok(Self::BillDue),
             "custom" => Ok(Self::Custom),
+            "prepaid_low_balance" => Ok(Self::PrepaidLowBalance),
             _ => Err(ReminderError::InvalidReminderType(s.to_string())),
         }
     }

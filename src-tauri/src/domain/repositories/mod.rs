@@ -1,4 +1,5 @@
 mod debt_repository;
+mod prepaid_repository;
 mod reminder_repository;
 
 use crate::domain::aggregates::{
@@ -12,6 +13,7 @@ use rust_decimal::Decimal;
 use uuid::Uuid;
 
 pub use debt_repository::DebtRepository;
+pub use prepaid_repository::PrepaidRepository;
 pub use reminder_repository::ReminderRepository;
 
 #[allow(async_fn_in_trait, dead_code)]

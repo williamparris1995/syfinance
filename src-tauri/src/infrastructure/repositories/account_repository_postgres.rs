@@ -92,6 +92,7 @@ impl PostgresAccountRepository {
             billing_day: None,
             payment_due_day: None,
             interest_rate: None,
+            low_balance_threshold: None,
             sync_metadata,
             pending_events: Vec::new(),
         })

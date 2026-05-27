@@ -12,6 +12,7 @@ pub enum AccountType {
     Investment,
     BorrowedOut,
     BorrowedIn,
+    Prepaid,
     Other,
     Income,
     Expense,
@@ -26,6 +27,7 @@ impl fmt::Display for AccountType {
             Self::Investment => write!(f, "investment"),
             Self::BorrowedOut => write!(f, "borrowed_out"),
             Self::BorrowedIn => write!(f, "borrowed_in"),
+            Self::Prepaid => write!(f, "prepaid"),
             Self::Other => write!(f, "other"),
             Self::Income => write!(f, "income"),
             Self::Expense => write!(f, "expense"),
@@ -126,6 +128,7 @@ pub struct Account {
     pub billing_day: Option<u8>,
     pub payment_due_day: Option<u8>,
     pub interest_rate: Option<Decimal>,
+    pub low_balance_threshold: Option<Decimal>,
     pub sync_metadata: SyncMetadata,
     pub(crate) pending_events: Vec<AccountEvent>,
 }
@@ -172,6 +175,7 @@ impl Account {
             billing_day: None,
             payment_due_day: None,
             interest_rate: None,
+            low_balance_threshold: None,
             sync_metadata,
             pending_events: Vec::new(),
         };
@@ -379,7 +383,7 @@ fn validate_balance(
 
     if matches!(
         account_type,
-        AccountType::Cash | AccountType::Bank | AccountType::Investment | AccountType::BorrowedOut
+        AccountType::Cash | AccountType::Bank | AccountType::Investment | AccountType::BorrowedOut | AccountType::Prepaid
     ) && balance.amount < Decimal::ZERO
     {
         return Err(AccountError::NegativeBalanceNotAllowed {
