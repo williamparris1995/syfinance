@@ -1,7 +1,7 @@
 -- Migration: Update reminders CHECK constraint to include prepaid_low_balance
 -- SQLite doesn't support ALTER TABLE ... ALTER CONSTRAINT, so we recreate the reminders table
 
--- Create new table with updated constraint
+-- Create new table with updated constraint (16 columns matching current schema)
 CREATE TABLE reminders_new (
     id TEXT PRIMARY KEY NOT NULL,
     reminder_type VARCHAR(20) NOT NULL,
@@ -15,6 +15,10 @@ CREATE TABLE reminders_new (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     device_id TEXT,
     synced_at TIMESTAMP,
+    last_notified_at TIMESTAMP,
+    notification_count INTEGER NOT NULL DEFAULT 0,
+    os_task_id TEXT,
+    priority VARCHAR(20) NOT NULL DEFAULT 'NORMAL',
     CHECK (reminder_type IN ('debt_payment', 'bill_due', 'custom', 'prepaid_low_balance'))
 );
 
