@@ -83,14 +83,14 @@ impl DebtDetails {
     fn generate_lump_sum(&mut self) {
         let months = self.term_in_months();
         let years = Decimal::from(months) / Decimal::from(12);
-        let interest = (self.total_principal * self.interest_rate * years).round_dp(2);
+        let interest = self.total_principal * self.interest_rate * years;
         self.payment_schedule.push(PaymentScheduleEntry {
             id: Uuid::new_v4(),
             debt_id: self.id,
             payment_date: self.due_date,
             principal_amount: self.total_principal,
             interest_amount: interest,
-            total_amount: (self.total_principal + interest).round_dp(2),
+            total_amount: self.total_principal + interest,
             paid: false,
             paid_amount: Decimal::ZERO,
             transaction_id: None,
@@ -105,19 +105,17 @@ impl DebtDetails {
         } else {
             let factor = compound_factor(monthly_rate, months);
             self.total_principal * monthly_rate * factor / (factor - Decimal::ONE)
-        }
-        .round_dp(2);
+        };
 
         let mut remaining = self.total_principal;
         for installment in 1..=months {
-            let interest = (remaining * monthly_rate).round_dp(2);
+            let interest = remaining * monthly_rate;
             let principal = if installment == months {
                 remaining
             } else {
                 (monthly_payment - interest).max(Decimal::ZERO)
-            }
-            .round_dp(2);
-            let total = (principal + interest).round_dp(2);
+            };
+            let total = principal + interest;
             remaining -= principal;
 
             self.payment_schedule.push(PaymentScheduleEntry {
@@ -137,18 +135,17 @@ impl DebtDetails {
     fn generate_equal_principal(&mut self) {
         let months = self.term_in_months();
         let monthly_rate = self.interest_rate / Decimal::from(12u32);
-        let monthly_principal = (self.total_principal / Decimal::from(months)).round_dp(2);
+        let monthly_principal = self.total_principal / Decimal::from(months);
         let mut remaining = self.total_principal;
 
         for installment in 1..=months {
-            let interest = (remaining * monthly_rate).round_dp(2);
+            let interest = remaining * monthly_rate;
             let principal = if installment == months {
                 remaining
             } else {
                 monthly_principal
-            }
-            .round_dp(2);
-            let total = (principal + interest).round_dp(2);
+            };
+            let total = principal + interest;
             remaining -= principal;
 
             self.payment_schedule.push(PaymentScheduleEntry {
@@ -198,7 +195,7 @@ impl DebtDetails {
                 } else if e.paid_amount > Decimal::ZERO {
                     // Proportionally deduct partial payment from principal
                     let ratio = e.principal_amount / e.total_amount;
-                    (e.paid_amount * ratio).round_dp(2)
+                    e.paid_amount * ratio
                 } else {
                     Decimal::ZERO
                 }
@@ -282,7 +279,8 @@ mod tests {
         let debt = amortized_debt(AmortizationMethod::EqualPrincipalInterest);
         assert_eq!(debt.payment_schedule.len(), 12);
         // First payment should be ~8,560.75 (principal + interest)
-        assert_eq!(debt.payment_schedule[0].total_amount, dec(856075));
+        let diff = (debt.payment_schedule[0].total_amount - dec(856075)).abs();
+        assert!(diff <= dec(1), "total_amount={}", debt.payment_schedule[0].total_amount);
     }
 
     #[test]

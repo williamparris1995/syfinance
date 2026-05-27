@@ -156,7 +156,7 @@ impl Debt {
             let factor = compound_factor(monthly_rate, months);
             self.principal.amount * monthly_rate * factor / (factor - Decimal::ONE)
         };
-        let payment = round_money(raw_payment);
+        let payment = (raw_payment);
 
         let mut remaining_principal = self.principal.amount;
         let mut schedule = Vec::with_capacity(months as usize);
@@ -168,14 +168,14 @@ impl Debt {
             } else {
                 raw_payment - raw_interest_amount
             };
-            let interest_amount = round_money(raw_interest_amount);
+            let interest_amount = (raw_interest_amount);
             let principal_amount = if installment == months {
-                round_money(remaining_principal)
+                (remaining_principal)
             } else {
-                round_money(raw_principal_amount)
+                (raw_principal_amount)
             };
             let total_amount = if installment == months {
-                round_money(principal_amount + interest_amount)
+                (principal_amount + interest_amount)
             } else {
                 payment
             };
@@ -211,13 +211,13 @@ impl Debt {
                 regular_principal
             };
             let principal_amount = if installment == months {
-                round_money(remaining_principal)
+                (remaining_principal)
             } else {
-                round_money(raw_principal_amount)
+                (raw_principal_amount)
             };
             let raw_interest_amount = remaining_principal * monthly_rate;
-            let interest_amount = round_money(raw_interest_amount);
-            let total_amount = round_money(raw_principal_amount + raw_interest_amount);
+            let interest_amount = (raw_interest_amount);
+            let total_amount = (raw_principal_amount + raw_interest_amount);
 
             schedule.push(PaymentSchedule {
                 payment_date: payment_date_for_installment(self.start_date, installment as u32),
@@ -303,12 +303,8 @@ fn compound_factor(monthly_rate: Decimal, months: i64) -> Decimal {
     factor
 }
 
-fn round_money(value: Decimal) -> Decimal {
-    value.round_dp(2)
-}
-
 fn money_from_decimal(amount: Decimal, currency_code: &str) -> Money {
-    Money::new(round_money(amount), currency_code).unwrap()
+    Money::new(amount, currency_code).unwrap()
 }
 
 #[cfg(test)]
@@ -317,7 +313,7 @@ mod tests {
     use rust_decimal::Decimal;
 
     fn cny(amount: Decimal) -> Money {
-        Money::new(amount.round_dp(2), "CNY").unwrap()
+        Money::new(amount, "CNY").unwrap()
     }
 
     fn metadata() -> SyncMetadata {
@@ -440,10 +436,8 @@ mod tests {
                 let debt = loan(AmortizationMethod::EqualPrincipalInterest);
 
                 assert_eq!(debt.payment_schedule.len(), 12);
-                assert_eq!(
-                    debt.payment_schedule[0].total_amount,
-                    cny(Decimal::new(856_075, 2))
-                );
+                let diff = (debt.payment_schedule[0].total_amount.amount - Decimal::new(856_075, 2)).abs();
+                assert!(diff <= Decimal::new(1, 2), "total_amount={}", debt.payment_schedule[0].total_amount);
             }
 
             #[test]
@@ -456,12 +450,10 @@ mod tests {
                     .sum::<Decimal>();
                 let expected_total_interest = Decimal::new(272_896, 2);
 
-                assert_eq!(
-                    debt.payment_schedule[0].total_amount,
-                    cny(Decimal::new(856_075, 2))
-                );
+                let diff = (debt.payment_schedule[0].total_amount.amount - Decimal::new(856_075, 2)).abs();
+                assert!(diff <= Decimal::new(1, 2));
                 assert!(
-                    (total_interest.round_dp(2) - expected_total_interest).abs()
+                    (total_interest - expected_total_interest).abs()
                         <= Decimal::new(2, 2)
                 );
             }
@@ -471,14 +463,10 @@ mod tests {
                 let debt = loan(AmortizationMethod::EqualPrincipal);
 
                 assert_eq!(debt.payment_schedule.len(), 12);
-                assert_eq!(
-                    debt.payment_schedule[0].total_amount,
-                    cny(Decimal::new(875_000, 2))
-                );
-                assert_eq!(
-                    debt.payment_schedule[11].total_amount,
-                    cny(Decimal::new(836_806, 2))
-                );
+                let diff0 = (debt.payment_schedule[0].total_amount.amount - Decimal::new(875_000, 2)).abs();
+                assert!(diff0 <= Decimal::new(1, 2), "first total={}", debt.payment_schedule[0].total_amount);
+                let diff11 = (debt.payment_schedule[11].total_amount.amount - Decimal::new(836_806, 2)).abs();
+                assert!(diff11 <= Decimal::new(1, 2), "last total={}", debt.payment_schedule[11].total_amount);
             }
         }
 

@@ -52,13 +52,6 @@ export function Sidebar({ onNavigate, collapsed }: SidebarProps) {
               collapsed={collapsed}
             />
             <SidebarMenuItem
-              to="/transactions"
-              label={t('nav.transactions')}
-              icon={Receipt}
-              onClick={onNavigate}
-              collapsed={collapsed}
-            />
-            <SidebarMenuItem
               to="/accounts"
               label={t('nav.accounts')}
               icon={Wallet}
@@ -76,6 +69,13 @@ export function Sidebar({ onNavigate, collapsed }: SidebarProps) {
               to="/holdings"
               label={t('nav.holdings')}
               icon={TrendingUp}
+              onClick={onNavigate}
+              collapsed={collapsed}
+            />
+            <SidebarMenuItem
+              to="/transactions"
+              label={t('nav.transactions')}
+              icon={Receipt}
               onClick={onNavigate}
               collapsed={collapsed}
             />

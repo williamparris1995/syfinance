@@ -122,7 +122,7 @@ export function TopUpDialog({ accountId, accountName, open, onOpenChange }: TopU
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="w-full sm:max-w-lg mx-auto max-h-[85vh] overflow-y-auto">
+      <SheetContent side="right" className="w-full sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>{t('prepaid.topUpTitle')} - {accountName}</SheetTitle>
         </SheetHeader>

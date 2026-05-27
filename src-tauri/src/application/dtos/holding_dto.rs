@@ -51,3 +51,27 @@ pub struct HoldingDto {
     pub unrealized_pnl: Option<Decimal>,
     pub currency_code: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HoldingTransactionDto {
+    pub id: Uuid,
+    pub holding_id: Uuid,
+    pub transaction_id: Option<Uuid>,
+    pub trade_type: String,
+    pub quantity: Decimal,
+    pub price: Decimal,
+    pub fee: Decimal,
+    pub amount: Decimal,
+    pub trade_date: NaiveDate,
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateHoldingTradeRequest {
+    pub holding_transaction_id: Uuid,
+    pub quantity: Decimal,
+    pub price: Decimal,
+    pub fee: Decimal,
+    pub trade_date: NaiveDate,
+    pub notes: Option<String>,
+}

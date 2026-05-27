@@ -40,5 +40,6 @@ pub struct PrepaidDetailDto {
     pub total_paid: String,
     pub total_bonus: String,
     pub total_credited: String,
+    pub total_consumption: String,
     pub records: Vec<TopUpRecordDto>,
 }

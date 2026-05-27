@@ -30,7 +30,9 @@
     "account": "账户",
     "all": "全部",
     "sortAsc": "升序排列",
-    "sortDesc": "降序排列"
+    "sortDesc": "降序排列",
+    "confirm": "确认",
+    "confirmDelete": "确认删除？"
   },
   "nav": {
     "dashboard": "仪表板",
@@ -509,7 +511,10 @@
     "pnl": "盈亏",
     "pnlPct": "盈亏%",
     "positions": "个持仓",
-    "types": { "stock": "股票", "fund": "基金", "etf": "ETF", "bond": "债券", "gold": "黄金", "option": "期权", "other": "其他" }
+    "types": { "stock": "股票", "fund": "基金", "etf": "ETF", "bond": "债券", "gold": "黄金", "option": "期权", "other": "其他" },
+    "noTradeHistory": "暂无交易记录",
+    "tradeDeleted": "交易已删除",
+    "tradeUpdated": "交易已更新"
   },
   "emptyState": {
     "noData": "暂无数据",

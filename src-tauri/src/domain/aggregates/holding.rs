@@ -55,7 +55,7 @@ impl Holding {
         let total_cost = self.avg_cost * self.quantity + trade.amount + trade.fee;
         self.quantity += trade.quantity;
         self.avg_cost = if self.quantity > Decimal::ZERO {
-            (total_cost / self.quantity).round_dp(4)
+            total_cost / self.quantity
         } else {
             Decimal::ZERO
         };
@@ -69,16 +69,16 @@ impl Holding {
             self.quantity = Decimal::ZERO;
             self.avg_cost = Decimal::ZERO;
         }
-        realized_pnl.round_dp(2)
+        realized_pnl
     }
 
     /// Market value at given price
     pub fn market_value(&self, current_price: Decimal) -> Decimal {
-        (self.quantity * current_price).round_dp(2)
+        self.quantity * current_price
     }
 
     /// Unrealized P&L at given price
     pub fn unrealized_pnl(&self, current_price: Decimal) -> Decimal {
-        ((current_price - self.avg_cost) * self.quantity).round_dp(2)
+        (current_price - self.avg_cost) * self.quantity
     }
 }

@@ -250,14 +250,13 @@ impl DebtService {
 
         // Use DTO payment_amount if provided, otherwise use scheduled amount
         let actual_total = dto.payment_amount
-            .map(|a| a.round_dp(2))
-            .unwrap_or(entry.total_amount.round_dp(2));
+            .unwrap_or(entry.total_amount);
         let ratio = if entry.total_amount > Decimal::ZERO {
-            (entry.principal_amount / entry.total_amount).round_dp(4)
+            entry.principal_amount / entry.total_amount
         } else {
             Decimal::ONE
         };
-        let actual_principal = (actual_total * ratio).round_dp(2);
+        let actual_principal = actual_total * ratio;
         let actual_interest = (actual_total - actual_principal).max(Decimal::ZERO);
 
         let entries = if is_liability_type(&debt_account.account_type) {

@@ -222,6 +222,7 @@ where
                 updated_at: r.updated_at.to_rfc3339(),
             })
             .collect();
+        let total_consumption = (account.initial_balance.amount + total_credited) - balance;
 
         Ok(PrepaidDetailDto {
             account_id: account.id,
@@ -232,6 +233,7 @@ where
             total_paid: total_paid.to_string(),
             total_bonus: total_bonus.to_string(),
             total_credited: total_credited.to_string(),
+            total_consumption: total_consumption.to_string(),
             records: record_dtos,
         })
     }

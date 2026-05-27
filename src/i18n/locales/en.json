@@ -30,7 +30,9 @@
     "note": "Note",
     "all": "All",
     "sortAsc": "Sort ascending",
-    "sortDesc": "Sort descending"
+    "sortDesc": "Sort descending",
+    "confirm": "Confirm",
+    "confirmDelete": "Confirm delete?"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -583,7 +585,10 @@
       "gold": "Gold",
       "option": "Options",
       "other": "Other"
-    }
+    },
+    "noTradeHistory": "No trade history",
+    "tradeDeleted": "Trade deleted",
+    "tradeUpdated": "Trade updated"
   },
   "prepaid": {
     "topUpTitle": "Top Up",

@@ -40,19 +40,19 @@ export function PrepaidDetailPanel({ accountId, open, onOpenChange }: PrepaidDet
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'topup' | 'consumption'>('topup');
 
-  const { data: detail, isLoading: isLoadingDetail } = useQuery({
+  const { data: detail, isLoading: isLoadingDetail, error: detailError } = useQuery({
     queryKey: ['prepaid-detail', accountId],
     queryFn: () => getPrepaidDetail(accountId),
     enabled: open && !!accountId,
   });
 
-  const { data: topUpRecords = [] } = useQuery({
+  const { data: topUpRecords = [], error: topUpError } = useQuery({
     queryKey: ['top-up-records', accountId],
     queryFn: () => getTopUpRecords(accountId),
     enabled: open && !!accountId,
   });
 
-  const { data: transactions = [] } = useQuery({
+  const { data: transactions = [], error: txError } = useQuery({
     queryKey: ['account-transactions', accountId],
     queryFn: () => getTransactionsByAccount(accountId),
     enabled: open && !!accountId,
@@ -86,7 +86,7 @@ export function PrepaidDetailPanel({ accountId, open, onOpenChange }: PrepaidDet
 
   const isLowBalance = useMemo(() => {
     if (!detail?.low_balance_threshold) return false;
-    return parseFloat(detail.current_balance) < parseFloat(detail.low_balance_threshold);
+    return parseFloat(detail.balance) < parseFloat(detail.low_balance_threshold);
   }, [detail]);
 
   return (
@@ -100,6 +100,12 @@ export function PrepaidDetailPanel({ accountId, open, onOpenChange }: PrepaidDet
             <div className="flex items-center justify-center py-12">
               <div className="text-neutral-500">{t('common.loading')}</div>
             </div>
+          ) : detailError || topUpError || txError ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center space-y-2">
+              {detailError && <p className="text-sm text-red-500">Detail: {String(detailError)}</p>}
+              {topUpError && <p className="text-sm text-red-500">TopUp: {String(topUpError)}</p>}
+              {txError && <p className="text-sm text-red-500">Transactions: {String(txError)}</p>}
+            </div>
           ) : detail ? (
             <div className="space-y-4 px-5 pt-4">
               {/* Stat cards */}
@@ -110,7 +116,7 @@ export function PrepaidDetailPanel({ accountId, open, onOpenChange }: PrepaidDet
                       {t('prepaid.currentBalance')}
                     </div>
                     <div className={`text-lg font-bold ${isLowBalance ? 'text-red-600' : 'text-blue-700 dark:text-blue-300'}`}>
-                      {formatCurrency(detail.current_balance, detail.currency_code)}
+                      {formatCurrency(detail.balance, detail.currency_code)}
                     </div>
                     {isLowBalance && (
                       <div className="text-xs text-red-500 mt-1">{t('prepaid.lowBalanceWarning')}</div>
@@ -124,7 +130,7 @@ export function PrepaidDetailPanel({ accountId, open, onOpenChange }: PrepaidDet
                       {t('prepaid.totalTopUps')}
                     </div>
                     <div className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
-                      {formatCurrency(detail.total_top_ups, detail.currency_code)}
+                      {formatCurrency(detail.total_credited, detail.currency_code)}
                     </div>
                   </CardContent>
                 </Card>

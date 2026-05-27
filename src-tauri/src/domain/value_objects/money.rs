@@ -11,7 +11,6 @@ pub struct Money {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MoneyValidationError {
-    InvalidAmountPrecision(Decimal),
     InvalidCurrencyCode(String),
     CurrencyMismatch { left: String, right: String },
 }
@@ -19,9 +18,6 @@ pub enum MoneyValidationError {
 impl fmt::Display for MoneyValidationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InvalidAmountPrecision(amount) => {
-                write!(f, "amount must have at most 2 decimal places: {amount}")
-            }
             Self::InvalidCurrencyCode(code) => write!(f, "invalid currency code: {code}"),
             Self::CurrencyMismatch { left, right } => {
                 write!(f, "currency mismatch: {left} != {right}")
@@ -43,12 +39,8 @@ impl Money {
             return Err(MoneyValidationError::InvalidCurrencyCode(currency_code));
         }
 
-        if !has_at_most_two_decimal_places(amount) {
-            return Err(MoneyValidationError::InvalidAmountPrecision(amount));
-        }
-
         Ok(Self {
-            amount: amount.round_dp(2),
+            amount,
             currency_code,
         })
     }
@@ -76,7 +68,7 @@ impl Money {
             return Err(MoneyValidationError::InvalidCurrencyCode(target_currency));
         }
 
-        Self::new((self.amount * exchange_rate).round_dp(2), target_currency)
+        Self::new(self.amount * exchange_rate, target_currency)
     }
 
     pub fn eq(&self, other: &Self) -> Result<bool, MoneyValidationError> {
@@ -116,10 +108,6 @@ impl fmt::Display for Money {
 
 fn is_valid_currency_code(code: &str) -> bool {
     code.len() == 3 && code.chars().all(|character| character.is_ascii_uppercase())
-}
-
-fn has_at_most_two_decimal_places(amount: Decimal) -> bool {
-    amount.round_dp(2) == amount
 }
 
 fn currency_symbol(code: &str) -> &'static str {
@@ -190,13 +178,10 @@ mod tests {
             }
 
             #[test]
-            fn rejects_invalid_precision() {
-                let error = Money::new(Decimal::new(12345, 3), "CNY").unwrap_err();
+            fn accepts_high_precision_amount() {
+                let money = Money::new(Decimal::new(12345, 3), "CNY").unwrap();
 
-                assert!(matches!(
-                    error,
-                    MoneyValidationError::InvalidAmountPrecision(_)
-                ));
+                assert_eq!(money.amount, Decimal::new(12345, 3));
             }
 
             #[test]

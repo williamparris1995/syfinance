@@ -75,3 +75,42 @@ export interface SecuritySearchResult {
 
 export const searchSecurities = (query: string) =>
   invokeTauri<SecuritySearchResult[]>('search_securities', { query });
+
+export interface PriceResult {
+  symbol: string;
+  price: number;
+}
+
+export const fetchSecurityPrice = (symbol: string, exchange?: string | null) =>
+  invokeTauri<PriceResult | null>('fetch_security_price', { symbol, exchange: exchange || null });
+
+export interface HoldingTransactionDto {
+  id: string;
+  holding_id: string;
+  transaction_id: string | null;
+  trade_type: string;
+  quantity: number;
+  price: number;
+  fee: number;
+  amount: number;
+  trade_date: string;
+  notes: string | null;
+}
+
+export interface UpdateHoldingTradeRequest {
+  holding_transaction_id: string;
+  quantity: number;
+  price: number;
+  fee: number;
+  trade_date: string;
+  notes?: string | null;
+}
+
+export const listHoldingTransactions = (holdingId: string) =>
+  invokeTauri<HoldingTransactionDto[]>('list_holding_transactions', { holdingId });
+
+export const deleteHoldingTrade = (holdingTransactionId: string) =>
+  invokeTauri<void>('delete_holding_trade', { holdingTransactionId });
+
+export const updateHoldingTrade = (request: UpdateHoldingTradeRequest) =>
+  invokeTauri<void>('update_holding_trade', { request });

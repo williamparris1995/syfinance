@@ -119,5 +119,14 @@ pub trait HoldingRepository: Send + Sync {
     async fn create_transaction(&self, txn: &HoldingTransaction) -> sqlx::Result<()>;
     async fn find_transactions_by_account(&self, account_id: Uuid) -> sqlx::Result<Vec<HoldingTransaction>>;
     async fn find_transactions_by_holding(&self, account_id: Uuid, security_id: Uuid) -> sqlx::Result<Vec<HoldingTransaction>>;
+
+    async fn find_transactions_by_holding_id(&self, holding_id: Uuid) -> sqlx::Result<Vec<HoldingTransaction>>;
+    async fn find_holding_transaction_by_id(&self, id: Uuid) -> sqlx::Result<Option<HoldingTransaction>>;
+    async fn soft_delete_holding_transaction(&self, id: Uuid) -> sqlx::Result<bool>;
+    async fn soft_delete_transaction_cascade(&self, transaction_id: Uuid) -> sqlx::Result<bool>;
+    async fn update_holding_transaction(&self, id: Uuid, quantity: Decimal, price: Decimal, fee: Decimal, trade_date: NaiveDate) -> sqlx::Result<()>;
+    async fn update_holding_quantities(&self, holding_id: Uuid, quantity: Decimal, avg_cost: Decimal) -> sqlx::Result<()>;
+    async fn soft_delete_holding_by_id(&self, holding_id: Uuid) -> sqlx::Result<bool>;
+    async fn find_holding_by_id(&self, id: Uuid) -> sqlx::Result<Option<Holding>>;
 }
 

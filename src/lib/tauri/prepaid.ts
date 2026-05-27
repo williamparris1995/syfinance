@@ -27,11 +27,13 @@ export interface PrepaidDetailDto {
   account_id: string;
   account_name: string;
   currency_code: string;
-  current_balance: string;
-  total_top_ups: string;
-  total_consumption: string;
+  balance: string;
   low_balance_threshold: string | null;
-  top_up_records: TopUpRecordDto[];
+  total_paid: string;
+  total_bonus: string;
+  total_credited: string;
+  total_consumption: string;
+  records: TopUpRecordDto[];
 }
 
 export async function topUp(request: TopUpRequest): Promise<string> {

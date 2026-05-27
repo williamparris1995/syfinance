@@ -1,5 +1,6 @@
 use crate::application::dtos::{
-    CreateSecurityDto, HoldingDto, HoldingTradeDto, SecurityDto,
+    CreateSecurityDto, HoldingDto, HoldingTradeDto, HoldingTransactionDto, SecurityDto,
+    UpdateHoldingTradeRequest,
 };
 use crate::domain::{
     aggregates::{
@@ -93,7 +94,7 @@ impl HoldingService {
         let security = self.security_repo.find_by_id(dto.security_id).await?
             .ok_or(HoldingServiceError::SecurityNotFound(dto.security_id))?;
 
-        let amount = (dto.quantity * dto.price).round_dp(2);
+        let amount = dto.quantity * dto.price;
         let device_id = Uuid::new_v4();
         let txn_id = Uuid::new_v4();
 
@@ -162,7 +163,7 @@ impl HoldingService {
             });
         }
 
-        let amount = (dto.quantity * dto.price).round_dp(2);
+        let amount = dto.quantity * dto.price;
         let device_id = Uuid::new_v4();
         let txn_id = Uuid::new_v4();
 
@@ -178,9 +179,13 @@ impl HoldingService {
         let realized_pnl = holding.apply_sell(&ht);
 
         // Double-entry using OLD avg_cost for cost_basis
-        let net_proceeds = Money::new(amount - dto.fee, &account.currency_code)
+        let net_proceeds_amount = amount - dto.fee;
+        let cost_basis_amount = old_avg_cost * dto.quantity;
+        let realized_amount = net_proceeds_amount - cost_basis_amount;
+
+        let net_proceeds = Money::new(net_proceeds_amount, &account.currency_code)
             .map_err(|e| HoldingServiceError::ValidationError(e.to_string()))?;
-        let cost_basis = Money::new(old_avg_cost * dto.quantity, &account.currency_code)
+        let cost_basis = Money::new(cost_basis_amount, &account.currency_code)
             .map_err(|e| HoldingServiceError::ValidationError(e.to_string()))?;
 
         let mut entries = vec![
@@ -190,13 +195,13 @@ impl HoldingService {
                 .map_err(|e| HoldingServiceError::ValidationError(e.to_string()))?,
         ];
 
-        if realized_pnl > Decimal::ZERO {
-            let gain = Money::new(realized_pnl, &account.currency_code)
+        if realized_amount > Decimal::ZERO {
+            let gain = Money::new(realized_amount, &account.currency_code)
                 .map_err(|e| HoldingServiceError::ValidationError(e.to_string()))?;
             entries.push(TransactionEntry::new(dto.account_id, "4201", None, Some(gain), "Realized gain")
                 .map_err(|e| HoldingServiceError::ValidationError(e.to_string()))?);
-        } else if realized_pnl < Decimal::ZERO {
-            let loss = Money::new(-realized_pnl, &account.currency_code)
+        } else if realized_amount < Decimal::ZERO {
+            let loss = Money::new(-realized_amount, &account.currency_code)
                 .map_err(|e| HoldingServiceError::ValidationError(e.to_string()))?;
             entries.push(TransactionEntry::new(dto.account_id, "5101", Some(loss), None, "Realized loss")
                 .map_err(|e| HoldingServiceError::ValidationError(e.to_string()))?);
@@ -251,6 +256,184 @@ impl HoldingService {
             security_type: s.security_type.to_string(), exchange: s.exchange.clone(),
             currency_code: s.currency_code.clone(), current_price: s.current_price,
         }
+    }
+
+    // --- List trade history for a holding ---
+
+    pub async fn list_holding_transactions(&self, holding_id: Uuid) -> Result<Vec<HoldingTransactionDto>, HoldingServiceError> {
+        let trades = self.holding_repo.find_transactions_by_holding_id(holding_id).await?;
+        Ok(trades.into_iter().map(|t| HoldingTransactionDto {
+            id: t.id,
+            holding_id,
+            transaction_id: t.transaction_id,
+            trade_type: t.trade_type.to_string(),
+            quantity: t.quantity,
+            price: t.price,
+            fee: t.fee,
+            amount: t.amount,
+            trade_date: t.trade_date,
+            notes: t.notes,
+        }).collect())
+    }
+
+    // --- Recalculate holding after trade changes ---
+
+    async fn recalculate_holding(&self, holding_id: Uuid) -> Result<(), HoldingServiceError> {
+        let trades = self.holding_repo.find_transactions_by_holding_id(holding_id).await?;
+
+        let mut quantity = Decimal::ZERO;
+        let mut total_cost = Decimal::ZERO;
+
+        for trade in &trades {
+            match trade.trade_type {
+                HoldingTransactionType::Buy => {
+                    total_cost += trade.quantity * trade.price + trade.fee;
+                    quantity += trade.quantity;
+                }
+                HoldingTransactionType::Sell => {
+                    let avg = if quantity > Decimal::ZERO { total_cost / quantity } else { Decimal::ZERO };
+                    let sold_cost = trade.quantity * avg;
+                    total_cost -= sold_cost;
+                    quantity -= trade.quantity;
+                }
+                _ => {}
+            }
+        }
+
+        if quantity <= Decimal::ZERO {
+            self.holding_repo.soft_delete_holding_by_id(holding_id).await?;
+        } else {
+            let avg_cost = total_cost / quantity;
+            self.holding_repo.update_holding_quantities(holding_id, quantity, avg_cost).await?;
+        }
+        Ok(())
+    }
+
+    // --- Delete trade with cascade to transaction ---
+
+    pub async fn delete_holding_trade(&self, holding_transaction_id: Uuid) -> Result<(), HoldingServiceError> {
+        let ht = self.holding_repo.find_holding_transaction_by_id(holding_transaction_id).await?
+            .ok_or(HoldingServiceError::ValidationError("holding transaction not found".into()))?;
+
+        // Find the holding for this trade to get holding_id for recalculation
+        let holdings = self.holding_repo.find_by_account(ht.account_id).await?;
+        let holding = holdings.into_iter().find(|h| h.security_id == ht.security_id);
+
+        // Soft-delete the holding_transaction
+        self.holding_repo.soft_delete_holding_transaction(holding_transaction_id).await?;
+
+        // Soft-delete the associated transaction (and its entries)
+        if let Some(tx_id) = ht.transaction_id {
+            self.holding_repo.soft_delete_transaction_cascade(tx_id).await?;
+        }
+
+        // Recalculate the holding
+        if let Some(h) = holding {
+            self.recalculate_holding(h.id).await?;
+        }
+
+        Ok(())
+    }
+
+    // --- Update trade with transaction sync ---
+
+    pub async fn update_holding_trade(&self, req: UpdateHoldingTradeRequest) -> Result<(), HoldingServiceError> {
+        let ht = self.holding_repo.find_holding_transaction_by_id(req.holding_transaction_id).await?
+            .ok_or(HoldingServiceError::ValidationError("holding transaction not found".into()))?;
+
+        // Find the holding for recalculation
+        let holdings = self.holding_repo.find_by_account(ht.account_id).await?;
+        let holding = holdings.into_iter().find(|h| h.security_id == ht.security_id);
+
+        // Update the holding_transaction row
+        self.holding_repo.update_holding_transaction(
+            req.holding_transaction_id, req.quantity, req.price, req.fee, req.trade_date
+        ).await?;
+
+        // Update the associated transaction entries
+        if let Some(tx_id) = ht.transaction_id {
+            let account = self.account_repo.find_by_id(ht.account_id).await?
+                .ok_or(HoldingServiceError::AccountNotFound(ht.account_id))?;
+            let security = self.security_repo.find_by_id(ht.security_id).await?
+                .ok_or(HoldingServiceError::SecurityNotFound(ht.security_id))?;
+
+            let new_amount = req.quantity * req.price;
+            let total = new_amount + req.fee;
+
+            // Update transaction date and description
+            let desc = match ht.trade_type {
+                HoldingTransactionType::Buy => format!("Buy {} {} @ {}", security.symbol, req.quantity, req.price),
+                HoldingTransactionType::Sell => format!("Sell {} {} @ {}", security.symbol, req.quantity, req.price),
+                _ => format!("Trade {} {}", security.symbol, req.quantity),
+            };
+            sqlx::query("UPDATE transactions SET transaction_date=?, description=?, updated_at=? WHERE id=? AND deleted_at IS NULL")
+                .bind(req.trade_date.to_string()).bind(&desc).bind(chrono::Utc::now().to_rfc3339())
+                .bind(tx_id.to_string())
+                .execute(self.holding_repo.pool()).await.map_err(|e| HoldingServiceError::RepositoryError(e.to_string()))?;
+
+            // Soft-delete old entries and create new ones
+            sqlx::query("UPDATE transaction_entries SET deleted_at=? WHERE transaction_id=? AND deleted_at IS NULL")
+                .bind(chrono::Utc::now().to_rfc3339()).bind(tx_id.to_string())
+                .execute(self.holding_repo.pool()).await.map_err(|e| HoldingServiceError::RepositoryError(e.to_string()))?;
+
+            match ht.trade_type {
+                HoldingTransactionType::Buy => {
+                    // Debit 1101 (asset = qty*price), Debit 5301 (fee), Credit 1002 (bank = total)
+                    let entries = vec![
+                        (ht.account_id.to_string(), "1101", new_amount.to_string(), String::new(), security.name.clone()),
+                        (ht.account_id.to_string(), "5301", req.fee.to_string(), String::new(), "Trade fee".to_string()),
+                        (ht.account_id.to_string(), "1002", String::new(), total.to_string(), format!("Buy {}", security.symbol)),
+                    ];
+                    for (acc_id, code, debit, credit, note) in entries {
+                        let entry_id = uuid::Uuid::new_v4().to_string();
+                        sqlx::query(
+                            "INSERT INTO transaction_entries (id, transaction_id, account_id, chart_of_account_code, debit_amount, credit_amount, note, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+                        )
+                        .bind(&entry_id).bind(tx_id.to_string()).bind(&acc_id).bind(code)
+                        .bind(if debit.is_empty() { "0" } else { &debit })
+                        .bind(if credit.is_empty() { "0" } else { &credit })
+                        .bind(&note).bind(chrono::Utc::now().to_rfc3339())
+                        .execute(self.holding_repo.pool()).await.map_err(|e| HoldingServiceError::RepositoryError(e.to_string()))?;
+                    }
+                }
+                HoldingTransactionType::Sell => {
+                    let net_proceeds = new_amount - req.fee;
+                    let cost_basis = if let Some(h) = &holding { h.avg_cost * req.quantity } else { Decimal::ZERO };
+
+                    let mut entries = vec![
+                        (ht.account_id.to_string(), "1002", net_proceeds.to_string(), String::new(), format!("Sell {}", security.symbol)),
+                        (ht.account_id.to_string(), "1101", String::new(), cost_basis.to_string(), format!("Sell {}", security.symbol)),
+                    ];
+
+                    let pnl = net_proceeds - cost_basis;
+                    if pnl > Decimal::ZERO {
+                        entries.push((ht.account_id.to_string(), "4201", String::new(), pnl.to_string(), "Realized gain".to_string()));
+                    } else if pnl < Decimal::ZERO {
+                        entries.push((ht.account_id.to_string(), "5101", (-pnl).to_string(), String::new(), "Realized loss".to_string()));
+                    }
+
+                    for (acc_id, code, debit, credit, note) in entries {
+                        let entry_id = uuid::Uuid::new_v4().to_string();
+                        sqlx::query(
+                            "INSERT INTO transaction_entries (id, transaction_id, account_id, chart_of_account_code, debit_amount, credit_amount, note, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+                        )
+                        .bind(&entry_id).bind(tx_id.to_string()).bind(&acc_id).bind(code)
+                        .bind(if debit.is_empty() { "0" } else { &debit })
+                        .bind(if credit.is_empty() { "0" } else { &credit })
+                        .bind(&note).bind(chrono::Utc::now().to_rfc3339())
+                        .execute(self.holding_repo.pool()).await.map_err(|e| HoldingServiceError::RepositoryError(e.to_string()))?;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // Recalculate holding
+        if let Some(h) = holding {
+            self.recalculate_holding(h.id).await?;
+        }
+
+        Ok(())
     }
 }
 

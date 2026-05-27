@@ -9,7 +9,7 @@ pub use account_dto::{AccountBalanceDto, AccountDto, CreateAccountDto, UpdateAcc
 pub use debt_dto::{
     CreateDebtDto, DebtDto, PaymentScheduleDto, RecordPaymentDto, UpdateDebtDto,
 };
-pub use holding_dto::{CreateSecurityDto, HoldingDto, HoldingTradeDto, SecurityDto};
+pub use holding_dto::{CreateSecurityDto, HoldingDto, HoldingTradeDto, HoldingTransactionDto, SecurityDto, UpdateHoldingTradeRequest};
 pub use prepaid_dto::*;
 pub use simple_transaction_dto::{SimpleExpenseDto, SimpleIncomeDto, SimpleTransferDto};
 pub use transaction_dto::{CreateTransactionDto, TransactionDto, TransactionEntryDto};

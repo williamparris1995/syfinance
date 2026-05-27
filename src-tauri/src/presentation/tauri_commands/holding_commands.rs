@@ -1,5 +1,5 @@
 use crate::application::{
-    dtos::{CreateSecurityDto, HoldingDto, HoldingTradeDto, SecurityDto},
+    dtos::{CreateSecurityDto, HoldingDto, HoldingTradeDto, HoldingTransactionDto, SecurityDto, UpdateHoldingTradeRequest},
     services::HoldingService,
 };
 use crate::infrastructure::repositories::{
@@ -68,6 +68,21 @@ pub async fn list_holdings(state: State<'_, AppState>) -> Result<Vec<HoldingDto>
     state.service().list_holdings().await.map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+pub async fn list_holding_transactions(state: State<'_, AppState>, holding_id: Uuid) -> Result<Vec<HoldingTransactionDto>, String> {
+    state.service().list_holding_transactions(holding_id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn delete_holding_trade(state: State<'_, AppState>, holding_transaction_id: Uuid) -> Result<(), String> {
+    state.service().delete_holding_trade(holding_transaction_id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn update_holding_trade(state: State<'_, AppState>, request: UpdateHoldingTradeRequest) -> Result<(), String> {
+    state.service().update_holding_trade(request).await.map_err(|e| e.to_string())
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchResult {
     pub symbol: String,
@@ -127,4 +142,50 @@ pub async fn search_securities(query: String) -> Result<Vec<SearchResult>, Strin
         .collect();
 
     Ok(results)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PriceResult {
+    pub symbol: String,
+    pub price: f64,
+}
+
+#[tauri::command]
+pub async fn fetch_security_price(symbol: String, exchange: Option<String>) -> Result<Option<PriceResult>, String> {
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0")
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    // Use exchange suffix for more accurate lookup (e.g., 600519.SS for Shanghai)
+    let yahoo_symbol = match exchange.as_deref() {
+        Some("SHA" | "SHH") => format!("{}.SS", symbol),
+        Some("SHE" | "SHZ") => format!("{}.SZ", symbol),
+        Some("HKG") => format!("{}.HK", symbol),
+        _ => symbol.clone(),
+    };
+
+    let url = format!(
+        "https://query1.finance.yahoo.com/v8/finance/chart/{}?range=1d&interval=1d",
+        urlencoding::encode(&yahoo_symbol)
+    );
+
+    let resp = client.get(&url).send().await.map_err(|e| e.to_string())?;
+    let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+
+    let result = body["chart"]["result"][0].as_object();
+    match result {
+        Some(chart) => {
+            let meta = &chart["meta"];
+            let price = meta["regularMarketPrice"].as_f64();
+            match price {
+                Some(p) => Ok(Some(PriceResult {
+                    symbol: yahoo_symbol,
+                    price: p,
+                })),
+                None => Ok(None),
+            }
+        }
+        None => Ok(None),
+    }
 }
