@@ -3,6 +3,7 @@ import { AlertCircle, ArrowDown, ArrowUp, Banknote, Calendar, Copy, Eye, Pencil,
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { DebtDetailPanel } from '../components/DebtDetailPanel';
 import { DebtForm } from '../components/DebtForm';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -542,24 +543,14 @@ export function DebtsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* View Sheet (read-only, reuses DebtForm layout) */}
-      <Sheet open={!!viewingDebt} onOpenChange={() => setViewingDebt(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle>{t('debts.debtDetails')}</SheetTitle>
-          </SheetHeader>
-          <div className="flex-1 overflow-y-auto -mx-4 px-4">
-            {viewingDebt && (
-              <DebtForm
-                onSubmit={() => {}}
-                onCancel={() => setViewingDebt(null)}
-                initialData={viewingDebt}
-                mode="view"
-              />
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
+      {/* View Sheet (DebtDetailPanel with schedule + transactions) */}
+      {viewingDebt && (
+        <DebtDetailPanel
+          debt={viewingDebt}
+          open={!!viewingDebt}
+          onOpenChange={(open) => { if (!open) setViewingDebt(null); }}
+        />
+      )}
 
       {/* Record Payment Sheet */}
       <Sheet open={!!paymentToRecord} onOpenChange={() => setPaymentToRecord(null)}>
