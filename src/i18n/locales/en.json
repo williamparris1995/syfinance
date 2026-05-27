@@ -546,6 +546,8 @@
     "tradeDate": "Trade Date",
     "estimatedAmount": "Estimated Amount",
     "submitting": "Submitting...",
+    "addSecurity": "Add Security",
+    "newSecurity": "New Security",
     "symbol": "Symbol",
     "name": "Name",
     "avgCost": "Avg Cost",

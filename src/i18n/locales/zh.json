@@ -480,6 +480,8 @@
     "tradeDate": "交易日期",
     "estimatedAmount": "预估金额",
     "submitting": "提交中...",
+    "addSecurity": "新建品种",
+    "newSecurity": "新建品种",
     "symbol": "代码",
     "name": "名称",
     "avgCost": "成本价",
