@@ -3,6 +3,7 @@ import { AppLayout } from './components/layout/AppLayout';
 import { isRegistered } from './lib/auth';
 import { AccountsPage } from './pages/AccountsPage';
 import { DebtsPage } from './pages/DebtsPage';
+import { HoldingsPage } from './pages/HoldingsPage';
 import { HomePage } from './pages/HomePage';
 import { NewAccountPage } from './pages/NewAccountPage';
 import { NewDebtPage } from './pages/NewDebtPage';
@@ -57,6 +58,12 @@ const debtsRoute = createRoute({
   component: DebtsPage,
 });
 
+const holdingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'holdings',
+  component: HoldingsPage,
+});
+
 const reportsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'reports',
@@ -98,6 +105,7 @@ const routeTree = rootRoute.addChildren([
   accountsRoute.addChildren([newAccountRoute]),
   transactionsRoute.addChildren([newTransactionRoute]),
   debtsRoute.addChildren([newDebtRoute]),
+  holdingsRoute,
   reportsRoute,
   settingsRoute,
   onboardingRoute,

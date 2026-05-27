@@ -1,11 +1,12 @@
-import { 
-  Home, 
-  Receipt, 
-  Wallet, 
-  CreditCard, 
-  BarChart3, 
-  Settings, 
-  HelpCircle 
+import {
+  Home,
+  Receipt,
+  Wallet,
+  CreditCard,
+  BarChart3,
+  Settings,
+  HelpCircle,
+  TrendingUp,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SidebarHeader } from './SidebarHeader';
@@ -68,6 +69,13 @@ export function Sidebar({ onNavigate, collapsed }: SidebarProps) {
               to="/debts"
               label={t('nav.debts')}
               icon={CreditCard}
+              onClick={onNavigate}
+              collapsed={collapsed}
+            />
+            <SidebarMenuItem
+              to="/holdings"
+              label={t('nav.holdings')}
+              icon={TrendingUp}
               onClick={onNavigate}
               collapsed={collapsed}
             />

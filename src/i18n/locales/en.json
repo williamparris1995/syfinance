@@ -37,6 +37,7 @@
     "transactions": "Transactions",
     "accounts": "Accounts",
     "debts": "Debts",
+    "holdings": "Portfolio",
     "reports": "Reports",
     "settings": "Settings"
   },
@@ -526,6 +527,11 @@
   },
   "holding": {
     "title": "Portfolio",
+    "newTrade": "New Trade",
+    "firstTrade": "Record your first trade",
+    "noHoldings": "No holdings yet",
+    "buySuccess": "Buy order recorded",
+    "sellSuccess": "Sell order recorded",
     "account": "Account",
     "selectAccount": "Select investment account",
     "security": "Security",
