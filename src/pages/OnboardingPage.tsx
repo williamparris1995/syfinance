@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { linkDevice, registerDevice, type RegisterResponse } from '../lib/auth';
+import { setupPresetInvestmentAccounts } from '../lib/tauri/account';
 
 export function OnboardingPage() {
   const [mode, setMode] = useState<'choice' | 'register' | 'link'>('choice');
@@ -24,7 +25,12 @@ export function OnboardingPage() {
 
   const linkMutation = useMutation({
     mutationFn: (accountId: string) => linkDevice(accountId),
-    onSuccess: () => {
+    onSuccess: async () => {
+      try {
+        await setupPresetInvestmentAccounts('CNY');
+      } catch {
+        // Preset creation failure should not block navigation
+      }
       navigate({ to: '/' });
     },
   });
@@ -48,7 +54,12 @@ export function OnboardingPage() {
     }
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
+    try {
+      await setupPresetInvestmentAccounts('CNY');
+    } catch {
+      // Preset creation failure should not block navigation
+    }
     navigate({ to: '/' });
   };
 
