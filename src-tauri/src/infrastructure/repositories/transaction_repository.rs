@@ -367,8 +367,7 @@ impl TransactionRepository for SqliteTransactionRepository {
 
             // Reconstruct Transaction
             let transaction =
-                Transaction::new(id, transaction_date, description, entries, sync_metadata)
-                    .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+                Transaction::reconstitute(id, transaction_date, description, entries, sync_metadata);
 
             Ok(Some(transaction))
         } else {
@@ -442,8 +441,7 @@ impl TransactionRepository for SqliteTransactionRepository {
 
             // Reconstruct Transaction
             let transaction =
-                Transaction::new(id, transaction_date, description, entries, sync_metadata)
-                    .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+                Transaction::reconstitute(id, transaction_date, description, entries, sync_metadata);
 
             transactions.push(transaction);
         }
@@ -511,8 +509,7 @@ impl TransactionRepository for SqliteTransactionRepository {
 
             // Reconstruct Transaction
             let transaction =
-                Transaction::new(id, transaction_date, description, entries, sync_metadata)
-                    .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+                Transaction::reconstitute(id, transaction_date, description, entries, sync_metadata);
 
             transactions.push(transaction);
         }
@@ -616,8 +613,7 @@ impl TransactionRepository for SqliteTransactionRepository {
 
             // Reconstruct Transaction
             let transaction =
-                Transaction::new(id, transaction_date, description, entries, sync_metadata)
-                    .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+                Transaction::reconstitute(id, transaction_date, description, entries, sync_metadata);
 
             transactions.push(transaction);
         }

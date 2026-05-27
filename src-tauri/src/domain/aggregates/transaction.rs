@@ -99,8 +99,27 @@ impl Transaction {
                 transaction_id: transaction.id,
                 entry_count: transaction.entries.len(),
             });
-
         Ok(transaction)
+    }
+
+    /// Reconstruct a Transaction from persistence without validation.
+    /// Used by repository read paths — transactions were validated on write.
+    pub fn reconstitute(
+        id: Uuid,
+        transaction_date: NaiveDate,
+        description: impl Into<String>,
+        entries: Vec<TransactionEntry>,
+        sync_metadata: SyncMetadata,
+    ) -> Self {
+        Self {
+            id,
+            transaction_date,
+            description: description.into().trim().to_string(),
+            entries,
+            sync_metadata,
+            pending_events: Vec::new(),
+            operations: Vec::new(),
+        }
     }
 
     pub fn add_entry(&mut self, entry: TransactionEntry) -> Result<(), TransactionError> {
