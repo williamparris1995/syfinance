@@ -7,9 +7,10 @@ mod domain;
 mod infrastructure;
 mod presentation;
 
+use application::services::subscription_service::SubscriptionService;
 use infrastructure::notifications::{NotificationService, TauriNotificationSender};
 use infrastructure::reminders::ReminderScheduler;
-use infrastructure::repositories::SqliteReminderRepository;
+use infrastructure::repositories::{SqliteAccountRepository, SqliteReminderRepository, SqliteSubscriptionRepository, SqliteTransactionRepository};
 use infrastructure::sync::SyncScheduler;
 use presentation::api::create_sync_routes;
 use presentation::tauri_commands::{
@@ -36,6 +37,12 @@ use presentation::tauri_commands::{
     prepaid_commands::{
         create_default_state_from_pool as create_prepaid_default_state,
         get_prepaid_detail, get_top_up_records, top_up, PrepaidCommandState,
+    },
+    subscription_commands::{
+        create_default_state_from_pool as create_subscription_default_state,
+        create_subscription, delete_subscription, get_subscription,
+        list_subscription_transactions, list_subscriptions, pause_subscription,
+        resume_subscription, update_subscription, SubscriptionCommandState,
     },
     sync_commands::{
         create_default_state as create_sync_default_state, get_sync_settings, get_sync_status,
@@ -131,6 +138,9 @@ async fn main() {
     let prepaid_state: PrepaidCommandState = create_prepaid_default_state(pool.clone())
         .await
         .expect("failed to initialize prepaid command state");
+    let subscription_state: SubscriptionCommandState = create_subscription_default_state(pool.clone())
+        .await
+        .expect("failed to initialize subscription command state");
 
     // Clone the pool before debt_state is moved
     let debt_pool = pool.clone();
@@ -165,6 +175,7 @@ async fn main() {
         .manage(transaction_state)
         .manage(holding_state)
         .manage(prepaid_state)
+        .manage(subscription_state)
         .invoke_handler(tauri::generate_handler![
             create_account,
             update_account,
@@ -199,6 +210,14 @@ async fn main() {
             top_up,
             get_prepaid_detail,
             get_top_up_records,
+            create_subscription,
+            list_subscriptions,
+            get_subscription,
+            update_subscription,
+            delete_subscription,
+            pause_subscription,
+            resume_subscription,
+            list_subscription_transactions,
             create_transaction,
             get_transaction,
             list_transactions,
@@ -247,6 +266,24 @@ async fn main() {
             });
 
             info!("Reminder scheduler started (checking every 5 minutes)");
+
+            // Start subscription auto-record scheduler
+            let sub_pool = pool.clone();
+            tokio::spawn(async move {
+                let sub_repo = Arc::new(SqliteSubscriptionRepository::new(sub_pool.clone()));
+                let sub_acc_repo = Arc::new(SqliteAccountRepository::new(sub_pool.clone()));
+                let sub_tx_repo = Arc::new(SqliteTransactionRepository::new(sub_pool.clone()));
+                let sub_svc = SubscriptionService::new(sub_repo, sub_acc_repo, sub_tx_repo);
+                let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(300));
+                loop {
+                    interval.tick().await;
+                    let today = chrono::Utc::now().date_naive();
+                    if let Err(e) = sub_svc.process_due_subscriptions(today).await {
+                        error!("Failed to process subscriptions: {}", e);
+                    }
+                }
+            });
+            info!("Subscription scheduler started (checking every 5 minutes)");
 
             Ok(())
         })

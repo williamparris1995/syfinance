@@ -3,6 +3,7 @@ pub mod currency_commands;
 pub mod debt_commands;
 pub mod holding_commands;
 pub mod prepaid_commands;
+pub mod subscription_commands;
 pub mod sync_commands;
 pub mod transaction_commands;
 
@@ -24,6 +25,11 @@ pub use holding_commands::{
 };
 pub use prepaid_commands::{
     get_prepaid_detail, get_top_up_records, top_up, PrepaidCommandState,
+};
+pub use subscription_commands::{
+    create_default_state_from_pool as create_subscription_default_state, create_subscription,
+    delete_subscription, get_subscription, list_subscription_transactions, list_subscriptions,
+    pause_subscription, resume_subscription, update_subscription, SubscriptionCommandState,
 };
 pub use sync_commands::{
     create_default_state as create_sync_default_state, get_sync_settings, get_sync_status,
