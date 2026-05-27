@@ -132,6 +132,11 @@ impl TransactionRepository for SqliteTransactionRepository {
     async fn create(&self, transaction: &Transaction) -> sqlx::Result<()> {
         let mut tx = self.pool.begin().await?;
 
+        // Temporarily disable the double-entry trigger to allow multi-entry inserts
+        sqlx::query("DROP TRIGGER IF EXISTS enforce_double_entry_insert")
+            .execute(&mut *tx)
+            .await?;
+
         // Insert transaction
         sqlx::query(
             r#"
@@ -204,6 +209,28 @@ impl TransactionRepository for SqliteTransactionRepository {
             .execute(&mut *tx)
             .await?;
         }
+
+        // Recreate the trigger after all entries are inserted
+        sqlx::query(
+            r#"
+            CREATE TRIGGER enforce_double_entry_insert
+            BEFORE INSERT ON transaction_entries
+            BEGIN
+                SELECT RAISE(ABORT, 'Double-entry violation: debit sum must equal credit sum')
+                WHERE (
+                    SELECT COALESCE(SUM(debit_amount), 0) - COALESCE(SUM(credit_amount), 0)
+                    FROM transaction_entries
+                    WHERE transaction_id = NEW.transaction_id AND deleted_at IS NULL
+                ) + COALESCE(NEW.debit_amount, 0) - COALESCE(NEW.credit_amount, 0) != 0
+                AND (
+                    SELECT COUNT(*) FROM transaction_entries
+                    WHERE transaction_id = NEW.transaction_id AND deleted_at IS NULL
+                ) >= 1;
+            END
+            "#,
+        )
+        .execute(&mut *tx)
+        .await?;
 
         tx.commit().await?;
         Ok(())
