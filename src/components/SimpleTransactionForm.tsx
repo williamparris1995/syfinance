@@ -100,6 +100,13 @@ export function SimpleTransactionForm({
     [accounts]
   );
 
+  // Check if selected own account is a prepaid account in expense mode
+  const selectedOwnAccount = useMemo(
+    () => accounts.find(a => a.id === ownAccountId),
+    [accounts, ownAccountId]
+  );
+  const isPrepaidExpense = type === 'expense' && selectedOwnAccount?.account_type === 'Prepaid';
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -284,6 +291,11 @@ export function SimpleTransactionForm({
                 ))}
               </SelectContent>
             </Select>
+            {isPrepaidExpense && (
+              <div className={`text-xs mt-1 ${Number(selectedOwnAccount?.current_balance || 0) < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                {t('transaction.prepaidBalance')}: ¥{Number(selectedOwnAccount?.current_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+            )}
           </div>
           {/* External account selector */}
           <div className="space-y-1.5">

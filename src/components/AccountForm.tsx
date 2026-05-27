@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -27,7 +27,7 @@ import type { AccountType, AccountDto, CreateAccountDto, UpdateAccountDto, Owner
 
 const createAccountFormSchema = (t: (key: string) => string) => z.object({
   name: z.string().min(1, t('accountForm.nameRequired')),
-  account_type: z.enum(['Cash', 'Bank', 'CreditCard', 'Investment', 'BorrowedOut', 'BorrowedIn', 'Other', 'Income', 'Expense'], {
+  account_type: z.enum(['Cash', 'Bank', 'CreditCard', 'Investment', 'BorrowedOut', 'BorrowedIn', 'Prepaid', 'Other', 'Income', 'Expense'], {
     required_error: t('accountForm.accountTypeRequired'),
   }),
   ownership: z.enum(['own', 'external'], {
@@ -55,6 +55,10 @@ const createAccountFormSchema = (t: (key: string) => string) => z.object({
   interest_rate: z.string().optional().refine(
     (val) => !val || !isNaN(parseFloat(val)),
     t('accountForm.interestRateInvalid')
+  ),
+  low_balance_threshold: z.string().optional().refine(
+    (val) => !val || !isNaN(parseFloat(val)),
+    t('accountForm.lowBalanceThresholdInvalid')
   ),
   icon: z.string().default('💰'),
   color: z.string().default('#10B981'),
@@ -92,6 +96,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
           billing_day: initialData.billing_day != null ? String(initialData.billing_day) : '',
           payment_due_day: initialData.payment_due_day != null ? String(initialData.payment_due_day) : '',
           interest_rate: initialData.interest_rate != null ? String(initialData.interest_rate) : '',
+          low_balance_threshold: initialData.low_balance_threshold != null ? String(initialData.low_balance_threshold) : '',
           icon: initialData.icon || '📁',
           color: initialData.color || '#6B7280',
           chart_code: initialData.chart_code ?? '',
@@ -109,6 +114,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
           billing_day: '',
           payment_due_day: '',
           interest_rate: '',
+          low_balance_threshold: '',
           icon: '📁',
           color: '#6B7280',
           chart_code: '',
@@ -118,6 +124,13 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
 
   const accountType = form.watch('account_type');
   const ownership = form.watch('ownership');
+
+  // Auto-set chart_code for Prepaid accounts
+  React.useEffect(() => {
+    if (accountType === 'Prepaid' && !form.getValues('chart_code')) {
+      form.setValue('chart_code', '1123');
+    }
+  }, [accountType, form]);
 
   const handleSubmit = (values: AccountFormValues) => {
     if (isEditMode && initialData) {
@@ -135,6 +148,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
       if (values.payment_due_day) dto.payment_due_day = parseInt(values.payment_due_day);
       if (values.interest_rate) dto.interest_rate = parseFloat(values.interest_rate);
       if (values.chart_code) dto.chart_code = values.chart_code;
+      if (values.low_balance_threshold) dto.low_balance_threshold = parseFloat(values.low_balance_threshold);
 
       onSubmit({ id: initialData.id, dto });
       return;
@@ -158,6 +172,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
     if (values.billing_day) dto.billing_day = parseInt(values.billing_day);
     if (values.payment_due_day) dto.payment_due_day = parseInt(values.payment_due_day);
     if (values.interest_rate) dto.interest_rate = parseFloat(values.interest_rate);
+    if (values.low_balance_threshold) dto.low_balance_threshold = parseFloat(values.low_balance_threshold);
 
     onSubmit(dto);
   };
@@ -169,6 +184,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
     Investment: t('accountForm.investmentWithChinese'),
     BorrowedOut: t('accountForm.borrowedOutWithChinese'),
     BorrowedIn: t('accountForm.borrowedInWithChinese'),
+    Prepaid: t('accountForm.prepaidWithChinese'),
     Other: t('accountForm.otherWithChinese'),
     Income: t('accountForm.incomeWithChinese'),
     Expense: t('accountForm.expenseWithChinese'),
@@ -300,7 +316,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
                   <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('accountForm.selectAccountType')}>{field.value ? typeLabelMap[field.value] || field.value : null}</SelectValue></SelectTrigger></FormControl>
                   <SelectContent>
                     {ownership === 'own'
-                      ? (['Cash', 'Bank', 'CreditCard', 'Investment', 'BorrowedOut', 'BorrowedIn', 'Other'] as const).map((type) => (
+                      ? (['Cash', 'Bank', 'CreditCard', 'Investment', 'BorrowedOut', 'BorrowedIn', 'Prepaid', 'Other'] as const).map((type) => (
                         <SelectItem key={type} value={type}>{typeLabelMap[type]}</SelectItem>
                       ))
                       : (['Income', 'Expense'] as const).map((type) => (
@@ -567,6 +583,36 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
                 </FormItem>
                 )}
               />
+            )}
+
+            {/* Conditional: Prepaid fields */}
+            {accountType === 'Prepaid' && (
+              <div className="rounded-lg border border-purple-200/50 bg-gradient-to-br from-purple-50/50 to-card p-4 dark:from-purple-950/20 dark:to-card dark:border-purple-800/30">
+                <div className="text-xs font-medium text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-3">
+                  {t('accountForm.prepaidDetails')}
+                </div>
+                <FormField
+                  control={form.control}
+                  name="low_balance_threshold"
+                  render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs text-muted-foreground">{t('accountForm.lowBalanceThreshold')}</FormLabel>
+                    <FormControl>
+                      <div className="flex items-center rounded-lg border overflow-hidden h-9">
+                        <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">¥</span>
+                        <input
+                          type="number"
+                          className="flex-1 border-0 bg-transparent px-2.5 text-sm outline-none"
+                          placeholder="100"
+                          {...field}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                  )}
+                />
+              </div>
             )}
           </div>
         </details>

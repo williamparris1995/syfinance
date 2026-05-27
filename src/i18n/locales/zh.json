@@ -114,6 +114,8 @@
     "borrowedOutWithChinese": "借出款 (其他应收款)",
     "borrowedIn": "借入款",
     "borrowedInWithChinese": "借入款 (借款)",
+    "prepaid": "储值卡",
+    "prepaidWithChinese": "储值卡 (预付账款)",
     "other": "其他",
     "otherWithChinese": "其他 (其他)",
     "income": "收入",
@@ -156,7 +158,10 @@
     "externalAccount": "外部账户",
     "icon": "图标",
     "color": "颜色",
-    "selectTemplate": "选择投资模板"
+    "selectTemplate": "选择投资模板",
+    "prepaidDetails": "储值卡详情",
+    "lowBalanceThreshold": "低余额阈值",
+    "lowBalanceThresholdInvalid": "低余额阈值必须为有效数字"
   },
   "transactions": {
     "title": "交易记录",
@@ -216,7 +221,8 @@
     "descriptionPlaceholder": "例如：午餐、工资等",
     "recordExpense": "记录支出",
     "recordIncome": "记录收入",
-    "recordTransfer": "记录转账"
+    "recordTransfer": "记录转账",
+    "prepaidBalance": "储值余额"
   },
   "transactionForm": {
     "transactionDate": "交易日期",
@@ -620,5 +626,36 @@
       "option": "期权",
       "other": "其他"
     }
+  },
+  "prepaid": {
+    "topUpTitle": "充值",
+    "sourceAccount": "付款账户",
+    "selectSourceAccount": "选择付款账户",
+    "paidAmount": "实付金额",
+    "bonusAmount": "赠送金额",
+    "totalCredited": "到账总额",
+    "topUpDate": "充值日期",
+    "expiryDate": "有效期",
+    "description": "备注",
+    "descriptionPlaceholder": "例如：月度充值",
+    "confirmTopUp": "确认充值",
+    "topUpSuccess": "充值成功",
+    "amountRequired": "金额为必填项",
+    "amountPositive": "金额必须大于0",
+    "bonusInvalid": "赠送金额必须为有效数字",
+    "dateRequired": "日期为必填项",
+    "detailTitle": "储值账户明细",
+    "currentBalance": "当前余额",
+    "totalTopUps": "累计充值",
+    "totalConsumption": "累计消费",
+    "lowBalanceThreshold": "低余额阈值",
+    "lowBalanceWarning": "余额不足",
+    "normalBalance": "正常",
+    "topUpRecords": "充值记录",
+    "consumptionRecords": "消费记录",
+    "noTopUpRecords": "暂无充值记录",
+    "noConsumptionRecords": "暂无消费记录",
+    "summaryTitle": "储值账户汇总",
+    "summaryDesc": "所有储值账户概览"
   }
 }

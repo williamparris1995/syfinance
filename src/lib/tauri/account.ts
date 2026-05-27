@@ -1,6 +1,6 @@
 import { invokeTauri } from '../tauri';
 
-export type AccountType = 'Cash' | 'Bank' | 'CreditCard' | 'Investment' | 'BorrowedOut' | 'BorrowedIn' | 'Other' | 'Income' | 'Expense';
+export type AccountType = 'Cash' | 'Bank' | 'CreditCard' | 'Investment' | 'BorrowedOut' | 'BorrowedIn' | 'Prepaid' | 'Other' | 'Income' | 'Expense';
 
 export type Ownership = 'own' | 'external';
 
@@ -20,6 +20,7 @@ export interface CreateAccountDto {
   billing_day?: number;
   payment_due_day?: number;
   interest_rate?: number;
+  low_balance_threshold?: number;
 }
 
 export interface UpdateAccountDto {
@@ -34,6 +35,7 @@ export interface UpdateAccountDto {
   billing_day?: number;
   payment_due_day?: number;
   interest_rate?: number;
+  low_balance_threshold?: number;
   chart_code?: string;
   parent_id?: string;
 }
@@ -56,6 +58,7 @@ export interface AccountDto {
   billing_day?: number;
   payment_due_day?: number;
   interest_rate?: number;
+  low_balance_threshold?: number;
   created_at: string;
   updated_at: string;
   deleted_at?: string;

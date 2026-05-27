@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { listAccounts, type AccountDto } from '../lib/tauri/account';
 import { listTransactions, type TransactionDto } from '../lib/tauri/transaction';
+import { AlertCircle } from 'lucide-react';
 
 type DateRangePreset = 'month' | 'quarter' | 'year' | 'custom';
 
@@ -85,7 +86,7 @@ export function ReportsPage() {
     accounts.forEach((account: AccountDto) => {
       const balance = Number(account.current_balance);
 
-      if (['Cash', 'Bank', 'Investment'].includes(account.account_type)) {
+      if (['Cash', 'Bank', 'Investment', 'Prepaid'].includes(account.account_type)) {
         if (balance > 0) {
           assets.push({
             name: account.name,
@@ -916,6 +917,64 @@ export function ReportsPage() {
           </TabsContent>
         </Tabs>
       )}
+
+      {/* Prepaid Account Summary */}
+      {(() => {
+        const prepaidAccounts = accounts.filter((a: AccountDto) => a.account_type === 'Prepaid');
+        if (prepaidAccounts.length === 0) return null;
+        return (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>{t('prepaid.summaryTitle')}</CardTitle>
+              <CardDescription>{t('prepaid.summaryDesc')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t('common.name')}</TableHead>
+                      <TableHead className="text-right">{t('accounts.currentBalance')}</TableHead>
+                      <TableHead className="text-right">{t('prepaid.lowBalanceThreshold')}</TableHead>
+                      <TableHead>{t('debts.status')}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {prepaidAccounts.map((account: AccountDto) => {
+                      const balance = Number(account.current_balance);
+                      const threshold = account.low_balance_threshold != null ? Number(account.low_balance_threshold) : null;
+                      const isLow = threshold != null && balance < threshold;
+                      return (
+                        <TableRow key={account.id}>
+                          <TableCell className="font-medium">{account.name}</TableCell>
+                          <TableCell className="text-right">
+                            {balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {threshold != null
+                              ? threshold.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                              : '-'}
+                          </TableCell>
+                          <TableCell>
+                            {isLow ? (
+                              <span className="inline-flex items-center gap-1 text-xs text-red-600 font-medium">
+                                <AlertCircle className="h-3 w-3" />
+                                {t('prepaid.lowBalanceWarning')}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-emerald-600 font-medium">{t('prepaid.normalBalance')}</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
     </div>
   );
 }

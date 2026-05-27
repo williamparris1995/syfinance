@@ -112,6 +112,8 @@
     "borrowedOutWithChinese": "Borrowed Out (借出)",
     "borrowedIn": "Borrowed In",
     "borrowedInWithChinese": "Borrowed In (借入)",
+    "prepaid": "Prepaid",
+    "prepaidWithChinese": "Prepaid (储值卡)",
     "other": "Other",
     "otherWithChinese": "Other (其他)",
     "income": "Income",
@@ -154,7 +156,10 @@
     "externalAccount": "External Account",
     "icon": "Icon",
     "color": "Color",
-    "selectTemplate": "Select Investment Template"
+    "selectTemplate": "Select Investment Template",
+    "prepaidDetails": "Prepaid Details",
+    "lowBalanceThreshold": "Low Balance Threshold",
+    "lowBalanceThresholdInvalid": "Low balance threshold must be a valid number"
   },
   "transactions": {
     "title": "Transactions",
@@ -215,7 +220,8 @@
     "descriptionPlaceholder": "e.g., Lunch, Salary, etc.",
     "recordExpense": "Record Expense",
     "recordIncome": "Record Income",
-    "recordTransfer": "Record Transfer"
+    "recordTransfer": "Record Transfer",
+    "prepaidBalance": "Prepaid balance"
   },
   "transactionForm": {
     "transactionDate": "Transaction Date",
@@ -578,5 +584,36 @@
       "option": "Options",
       "other": "Other"
     }
+  },
+  "prepaid": {
+    "topUpTitle": "Top Up",
+    "sourceAccount": "Source Account",
+    "selectSourceAccount": "Select source account",
+    "paidAmount": "Paid Amount",
+    "bonusAmount": "Bonus Amount",
+    "totalCredited": "Total Credited",
+    "topUpDate": "Top Up Date",
+    "expiryDate": "Expiry Date",
+    "description": "Description",
+    "descriptionPlaceholder": "e.g., Monthly top-up",
+    "confirmTopUp": "Confirm Top Up",
+    "topUpSuccess": "Top up successful",
+    "amountRequired": "Amount is required",
+    "amountPositive": "Amount must be greater than 0",
+    "bonusInvalid": "Bonus amount must be a valid number",
+    "dateRequired": "Date is required",
+    "detailTitle": "Prepaid Detail",
+    "currentBalance": "Current Balance",
+    "totalTopUps": "Total Top-ups",
+    "totalConsumption": "Total Consumption",
+    "lowBalanceThreshold": "Low Balance Threshold",
+    "lowBalanceWarning": "Low balance",
+    "normalBalance": "Normal",
+    "topUpRecords": "Top-up Records",
+    "consumptionRecords": "Consumption Records",
+    "noTopUpRecords": "No top-up records yet",
+    "noConsumptionRecords": "No consumption records yet",
+    "summaryTitle": "Prepaid Account Summary",
+    "summaryDesc": "Overview of all prepaid accounts"
   }
 }

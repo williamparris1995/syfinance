@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowDown, ArrowUp, Copy, Pencil, Search, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Copy, Pencil, Search, Trash2, Wallet, Eye } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { AccountForm } from '../components/AccountForm';
+import { TopUpDialog } from '../components/TopUpDialog';
+import { PrepaidDetailPanel } from '../components/PrepaidDetailPanel';
 import { Button } from '../components/ui/button';
 import {
   Dialog,
@@ -60,6 +62,10 @@ export function AccountsPage() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [sortColumn, setSortColumn] = useState<'name' | 'type' | 'initialBalance' | 'balance'>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  // Prepaid-specific state
+  const [topUpAccountId, setTopUpAccountId] = useState<string | null>(null);
+  const [detailAccountId, setDetailAccountId] = useState<string | null>(null);
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['accounts'],
@@ -226,6 +232,7 @@ export function AccountsPage() {
             <SelectItem value="Investment">{t('accountForm.investment')}</SelectItem>
             <SelectItem value="BorrowedOut">{t('accountForm.borrowedOut')}</SelectItem>
             <SelectItem value="BorrowedIn">{t('accountForm.borrowedIn')}</SelectItem>
+            <SelectItem value="Prepaid">{t('accountForm.prepaid')}</SelectItem>
             <SelectItem value="Income">{t('accountForm.income')}</SelectItem>
             <SelectItem value="Expense">{t('accountForm.expense')}</SelectItem>
             <SelectItem value="Other">{t('accountForm.other')}</SelectItem>
@@ -326,7 +333,14 @@ export function AccountsPage() {
             <TableBody>
               {filteredAndSortedAccounts.map((account: AccountDto) => (
                 <TableRow key={account.id}>
-                  <TableCell className="font-medium">{account.name}</TableCell>
+                  <TableCell className="font-medium">
+                    {account.name}
+                    {account.account_type === 'Prepaid' && account.low_balance_threshold != null && Number(account.current_balance) < Number(account.low_balance_threshold) && (
+                      <span className="ml-2 text-xs text-red-500 font-normal">
+                        {t('prepaid.lowBalanceWarning')}
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell>{account.account_type}</TableCell>
                   <TableCell>{account.currency_code}</TableCell>
                   <TableCell className="text-right">
@@ -342,6 +356,26 @@ export function AccountsPage() {
                     })}
                   </TableCell>
                   <TableCell>
+                    {account.account_type === 'Prepaid' && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setTopUpAccountId(account.id)}
+                          title={t('prepaid.topUpTitle')}
+                        >
+                          <Wallet className="h-4 w-4 text-emerald-500" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDetailAccountId(account.id)}
+                          title={t('prepaid.detailTitle')}
+                        >
+                          <Eye className="h-4 w-4 text-purple-500" />
+                        </Button>
+                      </>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
@@ -430,6 +464,25 @@ export function AccountsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Prepaid: Top Up Dialog */}
+      {topUpAccountId && (
+        <TopUpDialog
+          accountId={topUpAccountId}
+          accountName={accounts.find(a => a.id === topUpAccountId)?.name || ''}
+          open={!!topUpAccountId}
+          onOpenChange={(open) => { if (!open) setTopUpAccountId(null); }}
+        />
+      )}
+
+      {/* Prepaid: Detail Panel */}
+      {detailAccountId && (
+        <PrepaidDetailPanel
+          accountId={detailAccountId}
+          open={!!detailAccountId}
+          onOpenChange={(open) => { if (!open) setDetailAccountId(null); }}
+        />
+      )}
     </div>
   );
 }
