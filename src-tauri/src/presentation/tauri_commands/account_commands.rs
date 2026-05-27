@@ -182,3 +182,23 @@ pub async fn list_accounts_with_balances(
 ) -> Result<Vec<AccountDto>, String> {
     list_accounts_with_balances_with_state(&state).await
 }
+
+pub async fn setup_preset_investment_accounts_with_state(
+    state: &AppState,
+    currency_code: Option<String>,
+) -> Result<Vec<AccountDto>, String> {
+    let code = currency_code.as_deref().unwrap_or("CNY");
+    state
+        .service()
+        .create_preset_investment_accounts(state.pool(), code)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn setup_preset_investment_accounts(
+    state: State<'_, AppState>,
+    currency_code: Option<String>,
+) -> Result<Vec<AccountDto>, String> {
+    setup_preset_investment_accounts_with_state(state.inner(), currency_code).await
+}
