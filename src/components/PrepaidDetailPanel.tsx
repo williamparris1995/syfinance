@@ -18,7 +18,8 @@ import {
 } from './ui/table';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { getPrepaidDetail, getTopUpRecords } from '@/lib/tauri/prepaid';
-import { getTransactionsByAccount, type TransactionDto } from '@/lib/tauri/transaction';
+import { getTransactionsByAccount } from '@/lib/tauri/transaction';
+import { TransactionList } from './TransactionList';
 
 interface PrepaidDetailPanelProps {
   accountId: string;
@@ -57,32 +58,6 @@ export function PrepaidDetailPanel({ accountId, open, onOpenChange }: PrepaidDet
     queryFn: () => getTransactionsByAccount(accountId),
     enabled: open && !!accountId,
   });
-
-  const consumptionRecords = useMemo(() => {
-    // Filter transactions to show credit entries (consumption from the prepaid account)
-    const records: {
-      id: string;
-      date: string;
-      description: string;
-      amount: string;
-    }[] = [];
-
-    transactions.forEach((tx: TransactionDto) => {
-      tx.entries.forEach((entry) => {
-        // Consumption = credit from prepaid account (balance decreases)
-        if (entry.account_id === accountId && entry.credit_amount && parseFloat(entry.credit_amount) > 0) {
-          records.push({
-            id: tx.id,
-            date: tx.transaction_date,
-            description: tx.description,
-            amount: entry.credit_amount,
-          });
-        }
-      });
-    });
-
-    return records.sort((a, b) => b.date.localeCompare(a.date));
-  }, [transactions, accountId]);
 
   const isLowBalance = useMemo(() => {
     if (!detail?.low_balance_threshold) return false;
@@ -206,32 +181,12 @@ export function PrepaidDetailPanel({ accountId, open, onOpenChange }: PrepaidDet
 
                 {activeTab === 'consumption' && (
                   <div className="mt-4">
-                    {consumptionRecords.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-8">{t('prepaid.noConsumptionRecords')}</p>
-                    ) : (
-                      <div className="border rounded-lg">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>{t('common.date')}</TableHead>
-                              <TableHead>{t('common.description')}</TableHead>
-                              <TableHead className="text-right">{t('common.amount')}</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {consumptionRecords.map((record) => (
-                              <TableRow key={record.id}>
-                                <TableCell className="text-xs">{record.date}</TableCell>
-                                <TableCell className="text-xs">{record.description}</TableCell>
-                                <TableCell className="text-xs text-right font-medium text-red-600">
-                                  -{formatCurrency(record.amount, detail.currency_code)}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
+                    <TransactionList
+                      transactions={transactions}
+                      accountId={accountId}
+                      currencyCode={detail?.currency_code}
+                      isLoading={false}
+                    />
                   </div>
                 )}
               </Tabs>
