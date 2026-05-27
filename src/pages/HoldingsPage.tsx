@@ -86,16 +86,20 @@ export function HoldingsPage() {
                 </TableHeader>
                 <TableBody>
                   {items.map(h => {
-                    const pnl = h.unrealized_pnl ?? 0;
-                    const pnlPct = h.current_price && h.avg_cost > 0 ? ((h.current_price - h.avg_cost) / h.avg_cost * 100) : 0;
+                    const avgCost = Number(h.avg_cost) || 0;
+                    const quantity = Number(h.quantity) || 0;
+                    const currentPrice = h.current_price != null ? Number(h.current_price) : null;
+                    const marketValue = h.market_value != null ? Number(h.market_value) : null;
+                    const pnl = h.unrealized_pnl != null ? Number(h.unrealized_pnl) : 0;
+                    const pnlPct = currentPrice && avgCost > 0 ? ((currentPrice - avgCost) / avgCost * 100) : 0;
                     return (
                       <TableRow key={h.id}>
                         <TableCell className="font-medium">{h.symbol}</TableCell>
                         <TableCell>{h.security_name}</TableCell>
-                        <TableCell className="text-right">{h.quantity}</TableCell>
-                        <TableCell className="text-right">{h.avg_cost.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">{h.current_price?.toFixed(2) || '-'}</TableCell>
-                        <TableCell className="text-right">{h.market_value?.toLocaleString() || '-'}</TableCell>
+                        <TableCell className="text-right">{quantity}</TableCell>
+                        <TableCell className="text-right">{avgCost.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">{currentPrice?.toFixed(2) || '-'}</TableCell>
+                        <TableCell className="text-right">{marketValue?.toLocaleString() || '-'}</TableCell>
                         <TableCell className={`text-right ${pnl >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                           {pnl !== 0 ? (pnl >= 0 ? '+' : '') + pnl.toLocaleString() : '-'}
                         </TableCell>
