@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -20,6 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
+import { TrendingUp, BarChart3, Layers, Landmark, Coins, GitBranch, Wallet } from 'lucide-react';
+import { INVESTMENT_TEMPLATES } from '@/lib/tauri/account';
 import type { AccountType, AccountDto, CreateAccountDto, UpdateAccountDto, Ownership } from '@/lib/tauri/account';
 
 const createAccountFormSchema = (t: (key: string) => string) => z.object({
@@ -72,6 +75,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
   const accountFormSchema = createAccountFormSchema(t);
   type AccountFormValues = z.infer<typeof accountFormSchema>;
   const isEditMode = mode === 'edit';
+  const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null);
 
   const form = useForm<AccountFormValues>({
     resolver: zodResolver(accountFormSchema),
@@ -224,6 +228,46 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
               </FormItem>
             )}
           />
+
+          {/* Investment Template Picker */}
+          {!isEditMode && accountType === 'Investment' && (
+            <FormItem>
+              <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                {t('accountForm.selectTemplate')}
+                <span className="text-muted-foreground/50 font-normal"> — optional</span>
+              </FormLabel>
+              <div className="grid grid-cols-4 gap-2">
+                {INVESTMENT_TEMPLATES.map((template, index) => {
+                  const IconComponent = [TrendingUp, BarChart3, Layers, Landmark, Coins, GitBranch, Wallet][index];
+                  return (
+                    <button
+                      key={template.name}
+                      type="button"
+                      onClick={() => {
+                        setSelectedTemplate(index);
+                        form.setValue('name', template.name);
+                        form.setValue('icon', template.icon);
+                        form.setValue('color', template.color);
+                        form.setValue('chart_code', template.chart_code);
+                      }}
+                      className={cn(
+                        "flex flex-col items-center gap-1 rounded-lg border p-2 text-xs transition-all",
+                        selectedTemplate === index
+                          ? "border-primary bg-primary/10 ring-1 ring-primary"
+                          : "border-input hover:border-primary/50 hover:bg-muted"
+                      )}
+                    >
+                      <IconComponent
+                        className="h-4 w-4"
+                        style={{ color: template.color }}
+                      />
+                      <span className="truncate w-full text-center">{template.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </FormItem>
+          )}
 
           {/* Name */}
           <FormField
