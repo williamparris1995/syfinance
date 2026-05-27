@@ -155,7 +155,8 @@
     "ownAccount": "自己账户",
     "externalAccount": "外部账户",
     "icon": "图标",
-    "color": "颜色"
+    "color": "颜色",
+    "selectTemplate": "选择投资模板"
   },
   "transactions": {
     "title": "交易记录",
