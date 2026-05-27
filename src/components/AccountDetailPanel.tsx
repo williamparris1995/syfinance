@@ -41,6 +41,19 @@ const typeColors: Record<string, string> = {
   Other: 'bg-gray-100 text-gray-800',
 };
 
+const typeLabels: Record<string, string> = {
+  Cash: 'accountForm.cash',
+  Bank: 'accountForm.bank',
+  CreditCard: 'accountForm.creditCard',
+  Investment: 'accountForm.investment',
+  BorrowedOut: 'accountForm.borrowedOut',
+  BorrowedIn: 'accountForm.borrowedIn',
+  Prepaid: 'accountForm.prepaid',
+  Income: 'accountForm.income',
+  Expense: 'accountForm.expense',
+  Other: 'accountForm.other',
+};
+
 export function AccountDetailPanel({ account, open, onOpenChange }: AccountDetailPanelProps) {
   const { t } = useTranslation();
 
@@ -57,7 +70,7 @@ export function AccountDetailPanel({ account, open, onOpenChange }: AccountDetai
           <SheetTitle className="flex items-center gap-2">
             {account.name}
             <Badge className={typeColors[account.account_type] || typeColors.Other}>
-              {account.account_type}
+              {t(typeLabels[account.account_type] || typeLabels.Other)}
             </Badge>
           </SheetTitle>
         </SheetHeader>

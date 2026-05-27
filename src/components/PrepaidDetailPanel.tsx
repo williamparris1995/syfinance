@@ -53,7 +53,7 @@ export function PrepaidDetailPanel({ accountId, open, onOpenChange }: PrepaidDet
     enabled: open && !!accountId,
   });
 
-  const { data: transactions = [], error: txError } = useQuery({
+  const { data: transactions = [], isLoading: isLoadingTx, error: txError } = useQuery({
     queryKey: ['account-transactions', accountId],
     queryFn: () => getTransactionsByAccount(accountId),
     enabled: open && !!accountId,
@@ -185,7 +185,7 @@ export function PrepaidDetailPanel({ accountId, open, onOpenChange }: PrepaidDet
                       transactions={transactions}
                       accountId={accountId}
                       currencyCode={detail?.currency_code}
-                      isLoading={false}
+                      isLoading={isLoadingTx}
                     />
                   </div>
                 )}

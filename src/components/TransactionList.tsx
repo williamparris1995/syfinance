@@ -43,7 +43,7 @@ export function TransactionList({ transactions, accountId, currencyCode, isLoadi
     return (
       <div className="flex flex-col items-center justify-center py-8 text-center">
         <Receipt className="h-8 w-8 text-muted-foreground/50 mb-2" />
-        <p className="text-sm text-muted-foreground">{t('accounts.noTransactions') || '暂无交易记录'}</p>
+        <p className="text-sm text-muted-foreground">{t('accounts.noTransactions')}</p>
       </div>
     );
   }

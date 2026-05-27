@@ -95,7 +95,7 @@ export function DebtDetailPanel({ debt, open, onOpenChange }: DebtDetailPanelPro
               </div>
               <div>
                 <div className="text-xs uppercase tracking-wider text-muted-foreground">{t('debts.interestRate')}</div>
-                <div className="text-sm font-medium">{debt.interest_rate}%{t('debts.perYear')}</div>
+                <div className="text-sm font-medium">{debt.interest_rate}% {t('debts.perYear')}</div>
               </div>
               <div>
                 <div className="text-xs uppercase tracking-wider text-muted-foreground">{t('debts.startDate')}</div>
@@ -132,7 +132,7 @@ export function DebtDetailPanel({ debt, open, onOpenChange }: DebtDetailPanelPro
                       </TableHeader>
                       <TableBody>
                         {debt.payment_schedule.map((p, i) => (
-                          <TableRow key={i} className={p.paid ? 'opacity-50' : ''}>
+                          <TableRow key={p.id} className={p.paid ? 'opacity-50' : ''}>
                             <TableCell className="text-xs text-muted-foreground">{i + 1}</TableCell>
                             <TableCell className="text-xs">{p.payment_date}</TableCell>
                             <TableCell className="text-xs text-right">{formatCurrency(p.principal_amount, debt.currency_code)}</TableCell>
