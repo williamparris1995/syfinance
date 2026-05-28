@@ -24,6 +24,7 @@ import {
 import { TrendingUp, BarChart3, Layers, Landmark, Coins, GitBranch, Wallet } from 'lucide-react';
 import { INVESTMENT_TEMPLATES } from '@/lib/tauri/account';
 import type { AccountType, AccountDto, CreateAccountDto, UpdateAccountDto, Ownership } from '@/lib/tauri/account';
+import { useNewCurrencies } from '@/hooks/useNewCurrency';
 
 const createAccountFormSchema = (t: (key: string) => string) => z.object({
   name: z.string().min(1, t('accountForm.nameRequired')),
@@ -80,6 +81,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
   type AccountFormValues = z.infer<typeof accountFormSchema>;
   const isEditMode = mode === 'edit';
   const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null);
+  const { data: currencies = [] } = useNewCurrencies();
 
   const form = useForm<AccountFormValues>({
     resolver: zodResolver(accountFormSchema),
@@ -190,11 +192,9 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
     Expense: t('accountForm.expenseWithChinese'),
   };
 
-  const currencyLabelMap: Record<string, string> = {
-    CNY: 'CNY (¥)',
-    USD: 'USD ($)',
-    EUR: 'EUR (€)',
-  };
+  const currencyLabelMap: Record<string, string> = Object.fromEntries(
+    currencies.map((c) => [c.code, `${c.symbol} ${c.name} (${c.code})`])
+  );
 
   return (
     <Form {...form}>
@@ -479,9 +479,11 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
                 <Select value={field.value} onValueChange={field.onChange} disabled={isEditMode}>
                   <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('accountForm.selectCurrency')}>{field.value ? currencyLabelMap[field.value] || field.value : null}</SelectValue></SelectTrigger></FormControl>
                   <SelectContent>
-                    <SelectItem value="CNY">CNY (¥)</SelectItem>
-                    <SelectItem value="USD">USD ($)</SelectItem>
-                    <SelectItem value="EUR">EUR (€)</SelectItem>
+                    {currencies.map((currency) => (
+                      <SelectItem key={currency.code} value={currency.code}>
+                        {currency.symbol} {currency.name} ({currency.code})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />
