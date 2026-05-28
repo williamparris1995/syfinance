@@ -1,8 +1,8 @@
 pub mod account_commands;
+pub mod budget_commands;
 pub mod currency_commands;
 pub mod debt_commands;
 pub mod holding_commands;
-pub mod new_currency_commands;
 pub mod prepaid_commands;
 pub mod subscription_commands;
 pub mod sync_commands;
@@ -11,6 +11,10 @@ pub mod transaction_commands;
 pub use account_commands::{
     create_account, delete_account, get_account, get_account_balance, list_accounts,
     list_accounts_by_ownership, list_accounts_with_balances, update_account, AppState,
+};
+pub use budget_commands::{
+    add_budget_item, create_budget, delete_budget, get_budget, get_budget_by_month, list_budgets,
+    remove_budget_item, BudgetCommandState,
 };
 pub use currency_commands::{
     add_currency, create_default_state as create_currency_default_state, list_currencies,
