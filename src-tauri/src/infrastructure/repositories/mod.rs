@@ -2,6 +2,7 @@ pub mod account_repository;
 pub mod account_repository_postgres;
 pub mod chart_of_accounts_repository;
 pub mod currency_repository;
+pub mod new_currency_repository;
 pub mod debt_repository;
 pub mod debt_repository_postgres;
 pub mod holding_repository;
