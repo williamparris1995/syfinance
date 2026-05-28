@@ -1,3 +1,4 @@
+mod budget_repository;
 mod debt_repository;
 mod prepaid_repository;
 mod reminder_repository;
@@ -13,6 +14,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
+pub use budget_repository::BudgetRepository;
 pub use debt_repository::DebtRepository;
 pub use prepaid_repository::PrepaidRepository;
 pub use reminder_repository::ReminderRepository;
@@ -74,9 +76,15 @@ pub trait CurrencyRepository: Send + Sync {
 
     async fn find_by_code(&self, code: &str) -> sqlx::Result<Option<Currency>>;
 
+    async fn find_active(&self) -> sqlx::Result<Vec<Currency>>;
+
     async fn list_all(&self) -> sqlx::Result<Vec<Currency>>;
 
+    async fn save(&self, currency: &Currency) -> sqlx::Result<()>;
+
     async fn update_rate(&self, code: &str, exchange_rate: Decimal) -> sqlx::Result<bool>;
+
+    async fn delete(&self, code: &str) -> sqlx::Result<bool>;
 }
 
 #[allow(async_fn_in_trait, dead_code)]
