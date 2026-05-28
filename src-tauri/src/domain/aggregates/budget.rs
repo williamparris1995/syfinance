@@ -144,4 +144,30 @@ mod tests {
         assert!(budget.is_over_budget());
         assert_eq!(budget.total_remaining(), Decimal::new(-500, 0));
     }
+
+    #[test]
+    fn test_remove_item() {
+        let mut budget = Budget::new(
+            "test-id".to_string(),
+            "5月预算".to_string(),
+            "2026-05".to_string(),
+            "CNY".to_string(),
+        );
+
+        let item = BudgetItem::new(
+            "item-1".to_string(),
+            "test-id".to_string(),
+            "food-account".to_string(),
+            Decimal::new(3000, 0),
+            None,
+        );
+
+        budget.add_item(item);
+        assert_eq!(budget.items.len(), 1);
+        assert_eq!(budget.total_amount, Decimal::new(3000, 0));
+
+        budget.remove_item("item-1");
+        assert!(budget.items.is_empty());
+        assert_eq!(budget.total_amount, Decimal::ZERO);
+    }
 }
