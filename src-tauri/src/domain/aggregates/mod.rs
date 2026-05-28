@@ -1,6 +1,6 @@
 pub mod account;
+pub mod budget;
 pub mod chart_of_accounts;
-pub mod currency;
 pub mod debt;
 pub mod debt_details;
 pub mod holding;
