@@ -1,24 +1,27 @@
-import { useQuery } from '@tanstack/react-query';
-import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp, Landmark, CalendarDays } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp, Landmark, CalendarDays, Plus } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useMemo, useState } from 'react';
-import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { EmptyState } from '@/components/EmptyState';
-import { listAccountsWithBalances } from '@/lib/tauri/account';
+import { SimpleTransactionForm, type TransactionFormData } from '@/components/SimpleTransactionForm';
+import { listAccountsWithBalances, listAccountsByOwnership } from '@/lib/tauri/account';
 import { listTransactions } from '@/lib/tauri/transaction';
 import { listDebts, getUpcomingPayments } from '@/lib/tauri/debt';
 import { listHoldings } from '@/lib/tauri/holding';
-
+import { calculateNewTotalBalanceInCNY, formatNewCurrency } from '@/lib/new_currency';
+import { useNewCurrencies } from '@/hooks/useNewCurrency';
 export function HomePage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-
+  const queryClient = useQueryClient();
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   type DateRangePreset = 'month' | 'quarter' | 'year' | 'custom';
 
   const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('month');
@@ -30,6 +33,12 @@ export function HomePage() {
     queryFn: listAccountsWithBalances,
   });
 
+  const { data: currencies = [] } = useNewCurrencies();
+
+  const { data: externalAccounts = [] } = useQuery({
+    queryKey: ['accounts', 'external'],
+    queryFn: () => listAccountsByOwnership('external'),
+  });
   const { data: transactions = [], isLoading: transactionsLoading } = useQuery({
     queryKey: ['transactions'],
     queryFn: listTransactions,
@@ -71,8 +80,14 @@ export function HomePage() {
     };
   }, [dateRangePreset, startDate, endDate]);
 
-  // Calculate total balance from all accounts
-  const totalBalance = accounts.reduce((sum, account) => sum + Number(account.current_balance), 0);
+  // Calculate total balance from all accounts (converted to CNY)
+  const totalBalance = calculateNewTotalBalanceInCNY(
+    accounts.map(a => ({
+      balance: Number(a.current_balance),
+      currency_code: a.currency_code,
+    })),
+    currencies
+  );
 
   const holdingsSummary = useMemo(() => {
     const totalMv = holdings.reduce((s, h) => s + (h.market_value || 0), 0);
@@ -264,7 +279,14 @@ export function HomePage() {
                       </span>
                     </div>
                     <div className="text-2xl font-bold tracking-tight">
-                      {totalBalance.toLocaleString('en-US', { style: 'currency', currency: 'CNY', currencyDisplay: 'narrowSymbol' })}
+                      {formatNewCurrency(totalBalance, {
+                        id: '',
+                        code: 'CNY',
+                        symbol: '¥',
+                        name: '人民币',
+                        exchange_rate: 1,
+                        is_active: true,
+                      })}
                     </div>
                   </CardContent>
                 </Card>
@@ -659,5 +681,37 @@ export function HomePage() {
         </>
       )}
     </div>
+
+      {/* Quick Add Transaction FAB */}
+      <Button
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50"
+        size="icon"
+        onClick={() => setIsSheetOpen(true)}
+      >
+        <Plus className="h-6 w-6" />
+      </Button>
+
+      {/* Quick Add Transaction Sheet */}
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>{t('transactions.recordTransaction')}</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto -mx-4 px-4">
+            <SimpleTransactionForm
+              accounts={accounts}
+              externalAccounts={externalAccounts}
+              onSubmit={async () => {
+                setIsSheetOpen(false);
+                queryClient.invalidateQueries({ queryKey: ['transactions'] });
+                queryClient.invalidateQueries({ queryKey: ['accounts'] });
+                toast.success(t('transactions.recorded'));
+              }}
+              onCancel={() => setIsSheetOpen(false)}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }

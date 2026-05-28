@@ -39,6 +39,8 @@ import {
 } from '../components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { getUserFriendlyError } from '../lib/error-handler';
+import { formatNewCurrency } from '../lib/new_currency';
+import { useNewCurrencies } from '../hooks/useNewCurrency';
 import {
   createAccount,
   deleteAccount,
@@ -73,6 +75,8 @@ export function AccountsPage() {
     queryKey: ['accounts'],
     queryFn: listAccountsWithBalances,
   });
+
+  const { data: currencies = [] } = useNewCurrencies();
 
   const filteredAndSortedAccounts = useMemo(() => {
     let result = accounts;
@@ -346,16 +350,30 @@ export function AccountsPage() {
                   <TableCell>{account.account_type}</TableCell>
                   <TableCell>{account.currency_code}</TableCell>
                   <TableCell className="text-right">
-                    {Number(account.initial_balance).toLocaleString('en-US', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
+                    {formatNewCurrency(
+                      Number(account.initial_balance),
+                      currencies.find(c => c.code === account.currency_code) || {
+                        id: '',
+                        code: account.currency_code,
+                        name: account.currency_code,
+                        symbol: account.currency_code,
+                        exchange_rate: 1,
+                        is_active: true,
+                      }
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
-                    {Number(account.current_balance).toLocaleString('en-US', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
+                    {formatNewCurrency(
+                      Number(account.current_balance),
+                      currencies.find(c => c.code === account.currency_code) || {
+                        id: '',
+                        code: account.currency_code,
+                        name: account.currency_code,
+                        symbol: account.currency_code,
+                        exchange_rate: 1,
+                        is_active: true,
+                      }
+                    )}
                   </TableCell>
                   <TableCell>
                     {account.account_type === 'Prepaid' && (
