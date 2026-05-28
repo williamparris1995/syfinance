@@ -2,6 +2,7 @@ pub mod account_commands;
 pub mod currency_commands;
 pub mod debt_commands;
 pub mod holding_commands;
+pub mod new_currency_commands;
 pub mod prepaid_commands;
 pub mod subscription_commands;
 pub mod sync_commands;
