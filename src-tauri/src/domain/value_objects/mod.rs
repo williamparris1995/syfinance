@@ -1,4 +1,5 @@
 pub mod currency;
+pub mod exchange_rate;
 pub mod money;
 pub mod sync_metadata;
 pub mod top_up_record;
