@@ -6,12 +6,12 @@ export interface BackupInfo {
   created_at: string;
   metadata: {
     device_id: string;
-    accounts: number;
-    transactions: number;
-    debts: number;
-    budgets: number;
-    goals: number;
-    tags: number;
+    account_count: number;
+    transaction_count: number;
+    debt_count: number;
+    goal_count: number;
+    budget_count: number;
+    tag_count: number;
   } | null;
   on_cloud: boolean;
 }
@@ -28,11 +28,15 @@ export interface BackupFile {
 }
 
 export interface DiffSummary {
-  table_diffs: TableDiff[];
+  accounts: TableDiff;
+  transactions: TableDiff;
+  debts: TableDiff;
+  goals: TableDiff;
+  budgets: TableDiff;
+  tags: TableDiff;
 }
 
 export interface TableDiff {
-  table_name: string;
   local_count: number;
   backup_count: number;
   added: number;

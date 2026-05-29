@@ -3,6 +3,7 @@ import { HardDrive, Cloud, Lock, Plus, Trash2, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { CloudConfigDialog } from '../components/CloudConfigDialog';
+import { RestoreDialog } from '../components/RestoreDialog';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -39,6 +40,8 @@ export function BackupPage() {
   } = useBackup();
   const { enabled: encryptionEnabled } = useEncryption();
   const [isCloudDialogOpen, setIsCloudDialogOpen] = useState(false);
+  const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false);
+  const [restoreFilename, setRestoreFilename] = useState('');
 
   const handleCreateBackup = async () => {
     try {
@@ -62,9 +65,9 @@ export function BackupPage() {
     }
   };
 
-  const handleRestore = (_filename: string) => {
-    // Restore will be implemented in a future task
-    toast.info(t('backup.restoreNotImplemented'));
+  const handleRestore = (filename: string) => {
+    setRestoreFilename(filename);
+    setIsRestoreDialogOpen(true);
   };
 
   const handleConfigureCloud = () => {
@@ -275,6 +278,13 @@ export function BackupPage() {
 
       {/* Cloud Configuration Dialog */}
       <CloudConfigDialog open={isCloudDialogOpen} onOpenChange={setIsCloudDialogOpen} />
+
+      {/* Restore Dialog */}
+      <RestoreDialog
+        open={isRestoreDialogOpen}
+        onOpenChange={setIsRestoreDialogOpen}
+        filename={restoreFilename}
+      />
     </div>
   );
 }
