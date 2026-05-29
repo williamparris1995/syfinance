@@ -186,7 +186,6 @@ export function RestoreDialog({ open, onOpenChange, filename }: RestoreDialogPro
                 <TableBody>
                   {TABLE_KEYS.map(({ key, labelKey }) => {
                     const td: TableDiff = diff[key];
-                    const hasChanges = td.added > 0 || td.removed > 0 || td.modified > 0;
                     return (
                       <TableRow key={key}>
                         <TableCell className="font-medium">{t(labelKey)}</TableCell>
