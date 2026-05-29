@@ -269,7 +269,7 @@ mod tests {
         let pool = setup_test_db().await;
         let repo = SqliteGoalRepository::new(pool);
 
-        let mut goal1 = Goal::new(
+        let goal1 = Goal::new(
             "id-1".to_string(),
             "Active Goal".to_string(),
             GoalType::Savings,

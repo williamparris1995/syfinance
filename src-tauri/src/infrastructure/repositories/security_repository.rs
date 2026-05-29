@@ -91,7 +91,7 @@ impl SecurityRepository for SqliteSecurityRepository {
             "SELECT id, symbol, name, type, exchange, currency_code, CAST(current_price AS TEXT) as current_price
              FROM securities WHERE deleted_at IS NULL ORDER BY symbol"
         ).fetch_all(&self.pool).await?;
-        rows.iter().map(|r| Self::row_to_security(r)).collect()
+        rows.iter().map(Self::row_to_security).collect()
     }
 
     async fn find_by_type(&self, st: &SecurityType) -> sqlx::Result<Vec<Security>> {
@@ -99,7 +99,7 @@ impl SecurityRepository for SqliteSecurityRepository {
             "SELECT id, symbol, name, type, exchange, currency_code, CAST(current_price AS TEXT) as current_price
              FROM securities WHERE type = ? AND deleted_at IS NULL ORDER BY symbol"
         ).bind(st.to_string()).fetch_all(&self.pool).await?;
-        rows.iter().map(|r| Self::row_to_security(r)).collect()
+        rows.iter().map(Self::row_to_security).collect()
     }
 
     async fn update(&self, s: &Security) -> sqlx::Result<bool> {

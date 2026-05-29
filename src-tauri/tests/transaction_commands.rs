@@ -42,8 +42,15 @@ fn create_test_account(currency_code: &str) -> Account {
         "Test Account",
         AccountType::Bank,
         Ownership::Own,
-        &Currency::new(currency_code, currency_code, Decimal::ONE).unwrap(),
-        Money::new(Decimal::new(1000_00, 2), currency_code).unwrap(),
+        &Currency::new(
+            currency_code,
+            currency_code,
+            currency_code,
+            currency_code,
+            Decimal::ONE,
+        )
+        .unwrap(),
+        Money::new(Decimal::new(10_0000, 2), currency_code).unwrap(),
         "💰",
         "#10B981",
         None,
@@ -85,7 +92,7 @@ async fn create_transaction_with_multiple_entries_updates_balances() {
             CreateTransactionEntryDto {
                 account_id: account1.id,
                 chart_of_account_code: "1002".to_string(),
-                debit_amount: Some(Decimal::new(500_00, 2)),
+                debit_amount: Some(Decimal::new(50_000, 2)),
                 credit_amount: None,
                 memo: Some("Debit entry".to_string()),
             },
@@ -93,7 +100,7 @@ async fn create_transaction_with_multiple_entries_updates_balances() {
                 account_id: account2.id,
                 chart_of_account_code: "1002".to_string(),
                 debit_amount: None,
-                credit_amount: Some(Decimal::new(500_00, 2)),
+                credit_amount: Some(Decimal::new(50_000, 2)),
                 memo: Some("Credit entry".to_string()),
             },
         ],
@@ -109,11 +116,11 @@ async fn create_transaction_with_multiple_entries_updates_balances() {
     assert_ne!(transaction_id, Uuid::nil());
     assert_eq!(
         updated_account1.initial_balance.amount,
-        Decimal::new(1000_00, 2)
+        Decimal::new(10_0000, 2)
     );
     assert_eq!(
         updated_account2.initial_balance.amount,
-        Decimal::new(1000_00, 2)
+        Decimal::new(10_0000, 2)
     );
 }
 
@@ -129,7 +136,7 @@ async fn get_transaction_returns_created_transaction() {
             CreateTransactionEntryDto {
                 account_id: account1.id,
                 chart_of_account_code: "1002".to_string(),
-                debit_amount: Some(Decimal::new(100_00, 2)),
+                debit_amount: Some(Decimal::new(10_000, 2)),
                 credit_amount: None,
                 memo: None,
             },
@@ -137,7 +144,7 @@ async fn get_transaction_returns_created_transaction() {
                 account_id: account2.id,
                 chart_of_account_code: "1002".to_string(),
                 debit_amount: None,
-                credit_amount: Some(Decimal::new(100_00, 2)),
+                credit_amount: Some(Decimal::new(10_000, 2)),
                 memo: None,
             },
         ],
@@ -167,7 +174,7 @@ async fn list_transactions_returns_saved_transactions() {
             CreateTransactionEntryDto {
                 account_id: account1.id,
                 chart_of_account_code: "1002".to_string(),
-                debit_amount: Some(Decimal::new(100_00, 2)),
+                debit_amount: Some(Decimal::new(10_000, 2)),
                 credit_amount: None,
                 memo: None,
             },
@@ -175,7 +182,7 @@ async fn list_transactions_returns_saved_transactions() {
                 account_id: account2.id,
                 chart_of_account_code: "1002".to_string(),
                 debit_amount: None,
-                credit_amount: Some(Decimal::new(100_00, 2)),
+                credit_amount: Some(Decimal::new(10_000, 2)),
                 memo: None,
             },
         ],
@@ -203,7 +210,7 @@ async fn get_transactions_by_account_filters_results() {
             CreateTransactionEntryDto {
                 account_id: account1.id,
                 chart_of_account_code: "1002".to_string(),
-                debit_amount: Some(Decimal::new(200_00, 2)),
+                debit_amount: Some(Decimal::new(20_000, 2)),
                 credit_amount: None,
                 memo: None,
             },
@@ -211,7 +218,7 @@ async fn get_transactions_by_account_filters_results() {
                 account_id: account2.id,
                 chart_of_account_code: "1002".to_string(),
                 debit_amount: None,
-                credit_amount: Some(Decimal::new(200_00, 2)),
+                credit_amount: Some(Decimal::new(20_000, 2)),
                 memo: None,
             },
         ],
@@ -241,7 +248,7 @@ async fn get_transactions_by_date_range_filters_results() {
             CreateTransactionEntryDto {
                 account_id: account1.id,
                 chart_of_account_code: "1002".to_string(),
-                debit_amount: Some(Decimal::new(300_00, 2)),
+                debit_amount: Some(Decimal::new(30_000, 2)),
                 credit_amount: None,
                 memo: None,
             },
@@ -249,7 +256,7 @@ async fn get_transactions_by_date_range_filters_results() {
                 account_id: account2.id,
                 chart_of_account_code: "1002".to_string(),
                 debit_amount: None,
-                credit_amount: Some(Decimal::new(300_00, 2)),
+                credit_amount: Some(Decimal::new(30_000, 2)),
                 memo: None,
             },
         ],

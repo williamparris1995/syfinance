@@ -18,21 +18,9 @@ impl SqliteHoldingRepository {
         &self.pool
     }
 
-    const TRADE_TYPE_BUY: &str = "BUY";
-    const TRADE_TYPE_SELL: &str = "SELL";
-    const TRADE_TYPE_DIVIDEND: &str = "DIVIDEND";
-    const TRADE_TYPE_SPLIT: &str = "SPLIT";
-
     fn parse_trade_type(s: &str) -> Result<HoldingTransactionType, sqlx::Error> {
-        match s {
-            TRADE_TYPE_BUY => Ok(HoldingTransactionType::Buy),
-            TRADE_TYPE_SELL => Ok(HoldingTransactionType::Sell),
-            TRADE_TYPE_DIVIDEND => Ok(HoldingTransactionType::Dividend),
-            TRADE_TYPE_SPLIT => Ok(HoldingTransactionType::Split),
-            _ => Err(sqlx::Error::Decode(
-                format!("invalid trade type: {}", s).into(),
-            )),
-        }
+        serde_json::from_value(serde_json::Value::String(s.to_string()))
+            .map_err(|_| sqlx::Error::Decode(format!("invalid trade type: {}", s).into()))
     }
 
     fn row_to_holding(row: &sqlx::sqlite::SqliteRow) -> Result<Holding, sqlx::Error> {
@@ -101,7 +89,7 @@ impl HoldingRepository for SqliteHoldingRepository {
         .bind(account_id.to_string())
         .fetch_all(&self.pool)
         .await?;
-        rows.iter().map(|r| Self::row_to_holding(r)).collect()
+        rows.iter().map(Self::row_to_holding).collect()
     }
 
     async fn find_all(&self) -> sqlx::Result<Vec<Holding>> {
@@ -112,7 +100,7 @@ impl HoldingRepository for SqliteHoldingRepository {
         )
         .fetch_all(&self.pool)
         .await?;
-        rows.iter().map(|r| Self::row_to_holding(r)).collect()
+        rows.iter().map(Self::row_to_holding).collect()
     }
 
     async fn upsert(&self, h: &Holding) -> sqlx::Result<()> {
@@ -166,7 +154,7 @@ impl HoldingRepository for SqliteHoldingRepository {
                     CAST(fee AS TEXT) as fee, trade_date, transaction_id, notes
              FROM holding_transactions WHERE account_id = ? AND deleted_at IS NULL ORDER BY trade_date DESC"
         ).bind(account_id.to_string()).fetch_all(&self.pool).await?;
-        rows.iter().map(|r| Self::row_to_ht(r)).collect()
+        rows.iter().map(Self::row_to_ht).collect()
     }
 
     async fn find_transactions_by_holding(
@@ -180,7 +168,7 @@ impl HoldingRepository for SqliteHoldingRepository {
                     CAST(fee AS TEXT) as fee, trade_date, transaction_id, notes
              FROM holding_transactions WHERE account_id = ? AND security_id = ? AND deleted_at IS NULL ORDER BY trade_date DESC"
         ).bind(account_id.to_string()).bind(security_id.to_string()).fetch_all(&self.pool).await?;
-        rows.iter().map(|r| Self::row_to_ht(r)).collect()
+        rows.iter().map(Self::row_to_ht).collect()
     }
 
     async fn find_transactions_by_holding_id(
@@ -210,7 +198,7 @@ impl HoldingRepository for SqliteHoldingRepository {
         .bind(&security_id)
         .fetch_all(&self.pool)
         .await?;
-        rows.iter().map(|r| Self::row_to_ht(r)).collect()
+        rows.iter().map(Self::row_to_ht).collect()
     }
 
     async fn find_holding_transaction_by_id(

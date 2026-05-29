@@ -37,7 +37,14 @@ async fn setup_repository() -> (SqliteCurrencyRepository, PathBuf) {
 async fn currency_repository_crud() {
     let (repository, _db_path) = setup_repository().await;
 
-    let currency = Currency::new("CNY", "RMB", Decimal::from_str("7.1000").unwrap()).unwrap();
+    let currency = Currency::new(
+        "CNY",
+        "CNY",
+        "RMB",
+        "RMB",
+        Decimal::from_str("7.1000").unwrap(),
+    )
+    .unwrap();
 
     repository.create(&currency).await.unwrap();
 

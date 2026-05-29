@@ -139,7 +139,7 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
         )
         .fetch_all(&self.pool)
         .await?;
-        rows.iter().map(|r| Self::row_to_subscription(r)).collect()
+        rows.iter().map(Self::row_to_subscription).collect()
     }
 
     async fn find_due(&self, today: NaiveDate) -> sqlx::Result<Vec<Subscription>> {
@@ -150,7 +150,7 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
         .bind(today.to_string())
         .fetch_all(&self.pool)
         .await?;
-        rows.iter().map(|r| Self::row_to_subscription(r)).collect()
+        rows.iter().map(Self::row_to_subscription).collect()
     }
 
     async fn update(&self, s: &Subscription) -> sqlx::Result<bool> {

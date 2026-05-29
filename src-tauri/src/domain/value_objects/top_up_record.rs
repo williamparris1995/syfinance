@@ -20,6 +20,7 @@ pub struct TopUpRecord {
 }
 
 impl TopUpRecord {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: Uuid,
         account_id: Uuid,

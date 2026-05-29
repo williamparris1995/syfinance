@@ -102,7 +102,7 @@ where
                 prepaid_chart,
                 Some(total_money),
                 None,
-                &format!("Top up: {}", prepaid_account.name),
+                format!("Top up: {}", prepaid_account.name),
             )
             .map_err(|e| PrepaidServiceError::TransactionError(e.to_string()))?,
             TransactionEntry::new(
@@ -110,7 +110,7 @@ where
                 source_chart,
                 None,
                 Some(paid_money),
-                &format!("Top up from: {}", source_account.name),
+                format!("Top up from: {}", source_account.name),
             )
             .map_err(|e| PrepaidServiceError::TransactionError(e.to_string()))?,
         ];
@@ -126,7 +126,7 @@ where
                 bonus_chart,
                 None,
                 Some(bonus_money),
-                &format!("Top up bonus: {}", prepaid_account.name),
+                format!("Top up bonus: {}", prepaid_account.name),
             )
             .map_err(|e| PrepaidServiceError::TransactionError(e.to_string()))?;
             entries.push(bonus_entry);

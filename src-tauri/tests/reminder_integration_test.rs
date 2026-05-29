@@ -1,10 +1,11 @@
 use async_trait::async_trait;
 use chrono::{Duration, Utc};
-use fiance::domain::aggregates::{Reminder, ReminderType, RepeatPattern};
-use fiance::domain::repositories::ReminderRepository;
-use fiance::domain::value_objects::SyncMetadata;
-use fiance::infrastructure::notifications::{NotificationSender, NotificationService};
-use fiance::infrastructure::reminders::ReminderScheduler;
+use finance_app::domain::aggregates::reminder::Priority;
+use finance_app::domain::aggregates::{Reminder, ReminderType, RepeatPattern};
+use finance_app::domain::repositories::ReminderRepository;
+use finance_app::domain::value_objects::SyncMetadata;
+use finance_app::infrastructure::notifications::{NotificationSender, NotificationService};
+use finance_app::infrastructure::reminders::ReminderScheduler;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
@@ -160,7 +161,7 @@ impl NotificationSender for TestNotificationSender {
     async fn send(
         &self,
         reminder: &Reminder,
-    ) -> Result<(), fiance::infrastructure::notifications::NotificationError> {
+    ) -> Result<(), finance_app::infrastructure::notifications::NotificationError> {
         self.sent.lock().unwrap().push(reminder.id);
         Ok(())
     }
@@ -183,6 +184,7 @@ fn reminder(
         "Test description",
         remind_at,
         repeat_pattern,
+        Priority::Normal,
         metadata(),
     )
     .unwrap()

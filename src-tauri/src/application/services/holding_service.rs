@@ -163,7 +163,7 @@ impl HoldingService {
                 "1002",
                 None,
                 Some(total_money),
-                &format!("Buy {}", security.symbol),
+                format!("Buy {}", security.symbol),
             )
             .map_err(|e| HoldingServiceError::ValidationError(e.to_string()))?,
         ];
@@ -283,7 +283,7 @@ impl HoldingService {
                 "1002",
                 Some(net_proceeds),
                 None,
-                &format!("Sell {}", security.symbol),
+                format!("Sell {}", security.symbol),
             )
             .map_err(|e| HoldingServiceError::ValidationError(e.to_string()))?,
             TransactionEntry::new(
@@ -291,7 +291,7 @@ impl HoldingService {
                 "1101",
                 None,
                 Some(cost_basis),
-                &format!("Sell {}", security.symbol),
+                format!("Sell {}", security.symbol),
             )
             .map_err(|e| HoldingServiceError::ValidationError(e.to_string()))?,
         ];

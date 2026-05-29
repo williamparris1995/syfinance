@@ -94,7 +94,7 @@ mod tests {
                 let entry = TransactionEntry::new(
                     Uuid::new_v4(),
                     "1002",
-                    Some(money(5_000_00, "CNY")),
+                    Some(money(500_000, "CNY")),
                     None,
                     "salary deposit",
                 )
@@ -109,8 +109,8 @@ mod tests {
                 let result = TransactionEntry::new(
                     Uuid::new_v4(),
                     "1002",
-                    Some(money(5_000_00, "CNY")),
-                    Some(money(5_000_00, "CNY")),
+                    Some(money(500_000, "CNY")),
+                    Some(money(500_000, "CNY")),
                     "invalid",
                 );
 

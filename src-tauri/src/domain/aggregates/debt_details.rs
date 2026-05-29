@@ -2,7 +2,7 @@ use chrono::{Datelike, Months, NaiveDate};
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum AmortizationMethod {
     EqualPrincipalInterest,
     EqualPrincipal,
@@ -47,6 +47,7 @@ pub struct DebtDetails {
 }
 
 impl DebtDetails {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: Uuid,
         account_id: Uuid,

@@ -25,6 +25,7 @@ pub struct TransactionOperation {
 }
 
 impl TransactionOperation {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         transaction_id: Uuid,
         operation_type: OperationType,
@@ -190,7 +191,7 @@ mod tests {
         let device_id = Uuid::new_v4();
         let payload = json!({});
 
-        let types = vec![
+        let types = [
             OperationType::Create,
             OperationType::AddEntry,
             OperationType::UpdateEntry,

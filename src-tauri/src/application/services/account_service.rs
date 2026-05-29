@@ -369,8 +369,8 @@ mod tests {
 
         async fn update(&self, account: &Account) -> sqlx::Result<bool> {
             let mut accounts = self.accounts.lock().unwrap();
-            if accounts.contains_key(&account.id) {
-                accounts.insert(account.id, account.clone());
+            if let std::collections::hash_map::Entry::Occupied(mut e) = accounts.entry(account.id) {
+                e.insert(account.clone());
                 Ok(true)
             } else {
                 Ok(false)
@@ -448,8 +448,16 @@ mod tests {
             Ok(self.currencies.lock().unwrap().get(code).cloned())
         }
 
+        async fn find_active(&self) -> sqlx::Result<Vec<Currency>> {
+            Ok(vec![])
+        }
+
         async fn list_all(&self) -> sqlx::Result<Vec<Currency>> {
             Ok(self.currencies.lock().unwrap().values().cloned().collect())
+        }
+
+        async fn save(&self, _currency: &Currency) -> sqlx::Result<()> {
+            Ok(())
         }
 
         async fn update_rate(&self, code: &str, exchange_rate: Decimal) -> sqlx::Result<bool> {
@@ -467,6 +475,10 @@ mod tests {
             } else {
                 Ok(false)
             }
+        }
+
+        async fn delete(&self, _code: &str) -> sqlx::Result<bool> {
+            Ok(false)
         }
     }
 

@@ -175,6 +175,7 @@ pub async fn get_transactions_by_date_range(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn create_simple_income(
     state: State<'_, TransactionCommandState>,
     debit_account_id: String,
@@ -207,6 +208,7 @@ pub async fn create_simple_income(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn create_simple_expense(
     state: State<'_, TransactionCommandState>,
     debit_account_id: String,
@@ -239,6 +241,7 @@ pub async fn create_simple_expense(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn create_simple_transfer(
     state: State<'_, TransactionCommandState>,
     from_account_id: String,

@@ -169,6 +169,7 @@ impl Transaction {
         std::mem::take(&mut self.pending_events)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn record_operation(
         &mut self,
         operation_type: OperationType,
@@ -292,7 +293,7 @@ mod tests {
                     Uuid::new_v4(),
                     NaiveDate::from_ymd_opt(2026, 4, 7).unwrap(),
                     "Salary received",
-                    vec![debit_entry(5_000_00, "CNY"), credit_entry(5_000_00, "CNY")],
+                    vec![debit_entry(500_000, "CNY"), credit_entry(500_000, "CNY")],
                     metadata(),
                 )
                 .unwrap();
@@ -307,7 +308,7 @@ mod tests {
                     Uuid::new_v4(),
                     NaiveDate::from_ymd_opt(2026, 4, 7).unwrap(),
                     "Unbalanced",
-                    vec![debit_entry(5_000_00, "CNY"), credit_entry(4_999_00, "CNY")],
+                    vec![debit_entry(500_000, "CNY"), credit_entry(499_900, "CNY")],
                     metadata(),
                 );
 
@@ -323,7 +324,7 @@ mod tests {
                     Uuid::new_v4(),
                     NaiveDate::from_ymd_opt(2026, 4, 7).unwrap(),
                     "Single entry",
-                    vec![debit_entry(5_000_00, "CNY")],
+                    vec![debit_entry(500_000, "CNY")],
                     metadata(),
                 );
 
@@ -339,7 +340,7 @@ mod tests {
                     Uuid::new_v4(),
                     NaiveDate::from_ymd_opt(2026, 4, 7).unwrap(),
                     "FX mismatch",
-                    vec![debit_entry(5_000_00, "CNY"), credit_entry(5_000_00, "USD")],
+                    vec![debit_entry(500_000, "CNY"), credit_entry(500_000, "USD")],
                     metadata(),
                 );
 
@@ -355,7 +356,7 @@ mod tests {
                     Uuid::new_v4(),
                     NaiveDate::from_ymd_opt(2026, 4, 7).unwrap(),
                     "Salary received",
-                    vec![debit_entry(5_000_00, "CNY"), credit_entry(5_000_00, "CNY")],
+                    vec![debit_entry(500_000, "CNY"), credit_entry(500_000, "CNY")],
                     metadata(),
                 )
                 .unwrap();
@@ -380,7 +381,7 @@ mod tests {
                     transaction_id,
                     NaiveDate::from_ymd_opt(2026, 4, 7).unwrap(),
                     "Salary received",
-                    vec![debit_entry(5_000_00, "CNY"), credit_entry(5_000_00, "CNY")],
+                    vec![debit_entry(500_000, "CNY"), credit_entry(500_000, "CNY")],
                     metadata(),
                 )
                 .unwrap();
@@ -403,9 +404,9 @@ mod tests {
                     NaiveDate::from_ymd_opt(2026, 4, 7).unwrap(),
                     "Expense split",
                     vec![
-                        debit_entry(5_000_00, "CNY"),
-                        credit_entry(2_500_00, "CNY"),
-                        credit_entry(2_500_00, "CNY"),
+                        debit_entry(500_000, "CNY"),
+                        credit_entry(250_000, "CNY"),
+                        credit_entry(250_000, "CNY"),
                     ],
                     metadata(),
                 )
@@ -431,9 +432,9 @@ mod tests {
                     NaiveDate::from_ymd_opt(2026, 4, 7).unwrap(),
                     "Expense split",
                     vec![
-                        debit_entry(5_000_00, "CNY"),
-                        credit_entry(2_500_00, "CNY"),
-                        credit_entry(2_500_00, "CNY"),
+                        debit_entry(500_000, "CNY"),
+                        credit_entry(250_000, "CNY"),
+                        credit_entry(250_000, "CNY"),
                     ],
                     metadata(),
                 )
@@ -456,7 +457,7 @@ mod tests {
                     Uuid::new_v4(),
                     NaiveDate::from_ymd_opt(2026, 4, 7).unwrap(),
                     "Test transaction",
-                    vec![debit_entry(5_000_00, "CNY"), credit_entry(5_000_00, "CNY")],
+                    vec![debit_entry(500_000, "CNY"), credit_entry(500_000, "CNY")],
                     metadata(),
                 )
                 .unwrap();
@@ -486,7 +487,7 @@ mod tests {
                     Uuid::new_v4(),
                     NaiveDate::from_ymd_opt(2026, 4, 7).unwrap(),
                     "Test transaction",
-                    vec![debit_entry(5_000_00, "CNY"), credit_entry(5_000_00, "CNY")],
+                    vec![debit_entry(500_000, "CNY"), credit_entry(500_000, "CNY")],
                     metadata(),
                 )
                 .unwrap();
@@ -537,7 +538,7 @@ mod tests {
                     Uuid::new_v4(),
                     NaiveDate::from_ymd_opt(2026, 4, 7).unwrap(),
                     "Test transaction",
-                    vec![debit_entry(5_000_00, "CNY"), credit_entry(5_000_00, "CNY")],
+                    vec![debit_entry(500_000, "CNY"), credit_entry(500_000, "CNY")],
                     metadata(),
                 )
                 .unwrap();

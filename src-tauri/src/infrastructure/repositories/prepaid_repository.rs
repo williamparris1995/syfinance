@@ -141,7 +141,7 @@ impl PrepaidRepository for SqlitePrepaidRepository {
         .fetch_all(&self.pool)
         .await?;
 
-        rows.iter().map(|r| row_to_top_up_record(r)).collect()
+        rows.iter().map(row_to_top_up_record).collect()
     }
 
     async fn find_top_up_record_by_id(&self, id: Uuid) -> sqlx::Result<Option<TopUpRecord>> {
@@ -161,7 +161,7 @@ impl PrepaidRepository for SqlitePrepaidRepository {
         .fetch_optional(&self.pool)
         .await?;
 
-        row.as_ref().map(|r| row_to_top_up_record(r)).transpose()
+        row.as_ref().map(row_to_top_up_record).transpose()
     }
 
     async fn find_top_up_record_by_transaction(
@@ -184,6 +184,6 @@ impl PrepaidRepository for SqlitePrepaidRepository {
         .fetch_optional(&self.pool)
         .await?;
 
-        row.as_ref().map(|r| row_to_top_up_record(r)).transpose()
+        row.as_ref().map(row_to_top_up_record).transpose()
     }
 }

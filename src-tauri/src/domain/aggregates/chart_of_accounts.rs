@@ -124,6 +124,7 @@ pub struct ChartOfAccounts {
 }
 
 impl ChartOfAccounts {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: String,
         code: String,

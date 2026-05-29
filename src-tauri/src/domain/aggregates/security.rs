@@ -39,6 +39,7 @@ pub struct Security {
 }
 
 impl Security {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: Uuid,
         symbol: String,

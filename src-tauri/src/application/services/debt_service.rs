@@ -127,7 +127,7 @@ impl DebtService {
                     funding_chart,
                     Some(principal.clone()),
                     None,
-                    &format!("{}: {}", debt_details.counterparty, funding_account.name),
+                    format!("{}: {}", debt_details.counterparty, funding_account.name),
                 )
                 .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?,
                 TransactionEntry::new(
@@ -135,7 +135,7 @@ impl DebtService {
                     debt_chart,
                     None,
                     Some(principal),
-                    &format!("{}: {}", debt_details.counterparty, debt_account.name),
+                    format!("{}: {}", debt_details.counterparty, debt_account.name),
                 )
                 .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?,
             ]
@@ -146,7 +146,7 @@ impl DebtService {
                     debt_chart,
                     Some(principal.clone()),
                     None,
-                    &format!("{}: {}", debt_details.counterparty, debt_account.name),
+                    format!("{}: {}", debt_details.counterparty, debt_account.name),
                 )
                 .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?,
                 TransactionEntry::new(
@@ -154,7 +154,7 @@ impl DebtService {
                     funding_chart,
                     None,
                     Some(principal),
-                    &format!("{}: {}", debt_details.counterparty, funding_account.name),
+                    format!("{}: {}", debt_details.counterparty, funding_account.name),
                 )
                 .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?,
             ]

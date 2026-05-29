@@ -145,8 +145,8 @@ async fn test_atomic_transaction_save() {
         NaiveDate::from_ymd_opt(2026, 4, 7).unwrap(),
         "Salary payment",
         vec![
-            debit_entry(account1, 5_000_00, "USD"),
-            credit_entry(account2, 5_000_00, "USD"),
+            debit_entry(account1, 500_000, "USD"),
+            credit_entry(account2, 500_000, "USD"),
         ],
         SyncMetadata::new(Uuid::new_v4()),
     )
@@ -181,8 +181,8 @@ async fn test_find_by_id_with_entries() {
         NaiveDate::from_ymd_opt(2026, 4, 7).unwrap(),
         "Test transaction",
         vec![
-            debit_entry(account1, 1_000_00, "USD"),
-            credit_entry(account2, 1_000_00, "USD"),
+            debit_entry(account1, 10_0000, "USD"),
+            credit_entry(account2, 10_0000, "USD"),
         ],
         SyncMetadata::new(Uuid::new_v4()),
     )
@@ -212,8 +212,8 @@ async fn test_find_by_date_range() {
         NaiveDate::from_ymd_opt(2026, 4, 1).unwrap(),
         "April 1",
         vec![
-            debit_entry(account1, 100_00, "USD"),
-            credit_entry(account2, 100_00, "USD"),
+            debit_entry(account1, 10_000, "USD"),
+            credit_entry(account2, 10_000, "USD"),
         ],
         SyncMetadata::new(Uuid::new_v4()),
     )
@@ -224,8 +224,8 @@ async fn test_find_by_date_range() {
         NaiveDate::from_ymd_opt(2026, 4, 15).unwrap(),
         "April 15",
         vec![
-            debit_entry(account1, 200_00, "USD"),
-            credit_entry(account2, 200_00, "USD"),
+            debit_entry(account1, 20_000, "USD"),
+            credit_entry(account2, 20_000, "USD"),
         ],
         SyncMetadata::new(Uuid::new_v4()),
     )
@@ -236,8 +236,8 @@ async fn test_find_by_date_range() {
         NaiveDate::from_ymd_opt(2026, 5, 1).unwrap(),
         "May 1",
         vec![
-            debit_entry(account1, 300_00, "USD"),
-            credit_entry(account2, 300_00, "USD"),
+            debit_entry(account1, 30_000, "USD"),
+            credit_entry(account2, 30_000, "USD"),
         ],
         SyncMetadata::new(Uuid::new_v4()),
     )
@@ -274,8 +274,8 @@ async fn test_find_all() {
         NaiveDate::from_ymd_opt(2026, 4, 1).unwrap(),
         "Transaction 1",
         vec![
-            debit_entry(account1, 100_00, "USD"),
-            credit_entry(account2, 100_00, "USD"),
+            debit_entry(account1, 10_000, "USD"),
+            credit_entry(account2, 10_000, "USD"),
         ],
         SyncMetadata::new(Uuid::new_v4()),
     )
@@ -286,8 +286,8 @@ async fn test_find_all() {
         NaiveDate::from_ymd_opt(2026, 4, 2).unwrap(),
         "Transaction 2",
         vec![
-            debit_entry(account1, 200_00, "USD"),
-            credit_entry(account2, 200_00, "USD"),
+            debit_entry(account1, 20_000, "USD"),
+            credit_entry(account2, 20_000, "USD"),
         ],
         SyncMetadata::new(Uuid::new_v4()),
     )
@@ -313,8 +313,8 @@ async fn test_soft_delete() {
         NaiveDate::from_ymd_opt(2026, 4, 7).unwrap(),
         "To be deleted",
         vec![
-            debit_entry(account1, 100_00, "USD"),
-            credit_entry(account2, 100_00, "USD"),
+            debit_entry(account1, 10_000, "USD"),
+            credit_entry(account2, 10_000, "USD"),
         ],
         SyncMetadata::new(Uuid::new_v4()),
     )

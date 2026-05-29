@@ -1,3 +1,5 @@
+#![allow(clippy::disallowed_methods)]
+
 use chrono::Utc;
 use sqlx::{sqlite::SqlitePool, Row};
 use uuid::Uuid;

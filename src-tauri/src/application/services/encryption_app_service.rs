@@ -68,7 +68,7 @@ impl EncryptionAppService {
         .map_err(|e| EncryptionAppError::DatabaseError(e.to_string()))?;
 
         // Store master key in OS keychain
-        let key_hex = hex::encode(&service.master_key());
+        let key_hex = hex::encode(service.master_key());
         let entry = Entry::new(KEYRING_SERVICE, KEYRING_USERNAME)
             .map_err(|e| EncryptionAppError::KeychainError(e.to_string()))?;
         entry

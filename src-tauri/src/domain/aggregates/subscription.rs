@@ -41,7 +41,7 @@ impl Subscription {
     pub fn is_due(&self, today: NaiveDate) -> bool {
         !self.paused
             && self.next_billing_date <= today
-            && self.end_date.map_or(true, |end| today <= end)
+            && self.end_date.is_none_or(|end| today <= end)
     }
 
     pub fn calculate_next_billing_date(&self) -> Option<NaiveDate> {

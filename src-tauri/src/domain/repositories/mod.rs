@@ -151,6 +151,7 @@ pub trait HoldingRepository: Send + Sync {
     ) -> sqlx::Result<Option<HoldingTransaction>>;
     async fn soft_delete_holding_transaction(&self, id: Uuid) -> sqlx::Result<bool>;
     async fn soft_delete_transaction_cascade(&self, transaction_id: Uuid) -> sqlx::Result<bool>;
+    #[allow(clippy::too_many_arguments)]
     async fn update_holding_transaction(
         &self,
         id: Uuid,

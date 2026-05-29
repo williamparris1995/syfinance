@@ -1,3 +1,5 @@
+#![allow(clippy::disallowed_methods)]
+
 use sqlx::sqlite::SqlitePool;
 use sqlx::Row;
 

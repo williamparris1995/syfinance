@@ -160,7 +160,7 @@ mod tests {
     }
 
     fn money_strategy(currency: &'static str) -> impl Strategy<Value = Money> {
-        (-1_000_000i64..=1_000_000i64).prop_map(move |cents| money(cents, currency))
+        (-100_0000i64..=100_0000i64).prop_map(move |cents| money(cents, currency))
     }
 
     mod money {
@@ -196,14 +196,14 @@ mod tests {
 
             #[test]
             fn adds_and_subtracts_same_currency() {
-                let left = money(1_234_56, "CNY");
-                let right = money(100_44, "CNY");
+                let left = money(123_456, "CNY");
+                let right = money(10_044, "CNY");
 
                 let sum = left.add(&right).unwrap();
                 let difference = left.subtract(&right).unwrap();
 
-                assert_eq!(sum.amount, Decimal::new(1_335_00, 2));
-                assert_eq!(difference.amount, Decimal::new(1_134_12, 2));
+                assert_eq!(sum.amount, Decimal::new(133_500, 2));
+                assert_eq!(difference.amount, Decimal::new(113_412, 2));
             }
 
             #[test]
@@ -223,7 +223,7 @@ mod tests {
 
             #[test]
             fn converts_currency_with_exchange_rate() {
-                let money = money(1_000_00, "USD");
+                let money = money(100_000, "USD");
 
                 let converted = money.convert_to("CNY", Decimal::new(725, 2)).unwrap();
 
@@ -243,9 +243,9 @@ mod tests {
                 let left = money(500, "CNY");
                 let right = money(700, "CNY");
 
-                assert_eq!(left.eq(&right).unwrap(), false);
-                assert_eq!(left.lt(&right).unwrap(), true);
-                assert_eq!(right.gt(&left).unwrap(), true);
+                assert!(!left.eq(&right).unwrap());
+                assert!(left.lt(&right).unwrap());
+                assert!(right.gt(&left).unwrap());
             }
 
             #[test]

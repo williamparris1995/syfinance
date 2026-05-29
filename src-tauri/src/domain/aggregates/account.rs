@@ -404,7 +404,7 @@ mod tests {
     use super::*;
 
     fn currency(code: &str) -> Currency {
-        Currency::new(code, code, Decimal::ONE).unwrap()
+        Currency::new(code, code, code, code, Decimal::ONE).unwrap()
     }
 
     fn money(amount: i64, currency_code: &str) -> Money {
