@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { HardDrive, Cloud, Lock, Plus, Trash2, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { CloudConfigDialog } from '../components/CloudConfigDialog';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -36,6 +38,7 @@ export function BackupPage() {
     deleteBackup,
   } = useBackup();
   const { enabled: encryptionEnabled } = useEncryption();
+  const [isCloudDialogOpen, setIsCloudDialogOpen] = useState(false);
 
   const handleCreateBackup = async () => {
     try {
@@ -65,8 +68,7 @@ export function BackupPage() {
   };
 
   const handleConfigureCloud = () => {
-    // CloudConfigDialog will be built in Task 8
-    toast.info(t('backup.cloudConfigNotImplemented'));
+    setIsCloudDialogOpen(true);
   };
 
   const totalSize = backups.reduce((sum, b) => sum + b.file_size, 0);
@@ -270,6 +272,9 @@ export function BackupPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Cloud Configuration Dialog */}
+      <CloudConfigDialog open={isCloudDialogOpen} onOpenChange={setIsCloudDialogOpen} />
     </div>
   );
 }
