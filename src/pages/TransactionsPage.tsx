@@ -403,9 +403,9 @@ export function TransactionsPage() {
   };
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">{t('transactions.title')}</h1>
+    <div className="p-4 sm:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
+        <h1 className="text-2xl font-bold sm:text-3xl">{t('transactions.title')}</h1>
         <Button variant="default-gradient" onClick={() => setIsSheetOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           {t('transactions.recordTransaction')}
@@ -485,7 +485,7 @@ export function TransactionsPage() {
             </Button>
           ))}
         </div>
-        <div className="w-px h-5 bg-border" />
+        <div className="hidden sm:block w-px h-5 bg-border" />
         <div className="flex items-center gap-2">
           <span className="text-[11px] text-muted-foreground hidden sm:inline">
             {t('transactions.ownAccounts')}
@@ -498,7 +498,7 @@ export function TransactionsPage() {
             selectAllLabel={t('common.selectAll')}
           />
         </div>
-        <div className="w-px h-5 bg-border" />
+        <div className="hidden sm:block w-px h-5 bg-border" />
         <div className="flex items-center gap-2">
           <span className="text-[11px] text-muted-foreground hidden sm:inline">
             {t('transactions.externalAccounts')}
@@ -511,7 +511,7 @@ export function TransactionsPage() {
             selectAllLabel={t('common.selectAll')}
           />
         </div>
-        <div className="w-px h-5 bg-border" />
+        <div className="hidden sm:block w-px h-5 bg-border" />
         <div className="relative flex-1 min-w-[180px] max-w-xs">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
@@ -543,7 +543,7 @@ export function TransactionsPage() {
           </Button>
         </div>
       ) : (
-        <div className="border rounded-lg">
+        <div className="border rounded-lg overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>

@@ -78,8 +78,44 @@ body {
   * {
     border-color: hsl(var(--border));
   }
-  
+
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Theme transition animations */
+* {
+  @apply transition-colors duration-200;
+}
+
+/* Disable transitions for elements that should not animate */
+.no-transition {
+  transition: none !important;
+}
+
+/* Touch screen optimizations */
+@media (pointer: coarse) {
+  button,
+  a,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  input,
+  select,
+  textarea {
+    min-height: 44px;
+  }
+}
+
+/* Touch feedback */
+@media (hover: none) {
+  button:active,
+  a:active,
+  [role="button"]:active {
+    transform: scale(0.98);
+    opacity: 0.9;
   }
 }

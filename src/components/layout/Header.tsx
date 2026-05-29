@@ -1,7 +1,8 @@
 import { ReactNode } from 'react';
 import { SidebarToggle } from './SidebarToggle';
 import { SearchBar } from './SearchBar';
-import { ThemeToggle } from './ThemeToggle';
+import { GlobalSearch } from '@/components/GlobalSearch';
+import { ThemeToggle } from '../theme/ThemeToggle';
 import { SettingsButton } from './SettingsButton';
 import { HeaderUserMenu } from './HeaderUserMenu';
 import { cn } from '@/lib/utils';
@@ -64,7 +65,7 @@ export function Header({
       {/* Left Section */}
       <div className="flex items-center gap-3">
         {showSidebarToggle && <SidebarToggle onClick={onSidebarToggle} />}
-        {showSearch && <SearchBar onSearch={onSearch} className="w-64" />}
+        {showSearch && <GlobalSearch className="w-64" />}
         {leftContent}
       </div>
 

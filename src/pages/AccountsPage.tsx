@@ -39,8 +39,8 @@ import {
 } from '../components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { getUserFriendlyError } from '../lib/error-handler';
-import { formatNewCurrency } from '../lib/new_currency';
-import { useNewCurrencies } from '../hooks/useNewCurrency';
+import { formatCurrencyWithDto } from '../lib/currency';
+import { useCurrencies } from '../hooks/useCurrency';
 import {
   createAccount,
   deleteAccount,
@@ -76,7 +76,7 @@ export function AccountsPage() {
     queryFn: listAccountsWithBalances,
   });
 
-  const { data: currencies = [] } = useNewCurrencies();
+  const { data: currencies = [] } = useCurrencies();
 
   const filteredAndSortedAccounts = useMemo(() => {
     let result = accounts;
@@ -202,9 +202,9 @@ export function AccountsPage() {
   };
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">{t('accounts.title')}</h1>
+    <div className="p-4 sm:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
+        <h1 className="text-2xl font-bold sm:text-3xl">{t('accounts.title')}</h1>
         <Button variant="default-gradient" onClick={handleCreateClick}>{t('accounts.createAccount')}</Button>
       </div>
 
@@ -216,8 +216,8 @@ export function AccountsPage() {
         </TabsList>
       </Tabs>
 
-      <div className="flex items-center gap-3 mb-4">
-        <div className="relative flex-1 max-w-xs">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
+        <div className="relative flex-1 max-w-xs w-full sm:w-auto">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             value={searchQuery}
@@ -256,7 +256,7 @@ export function AccountsPage() {
           <Button onClick={handleCreateClick}>{t('accounts.noAccountsDesc')}</Button>
         </div>
       ) : (
-        <div className="border rounded-lg">
+        <div className="border rounded-lg overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -350,7 +350,7 @@ export function AccountsPage() {
                   <TableCell>{account.account_type}</TableCell>
                   <TableCell>{account.currency_code}</TableCell>
                   <TableCell className="text-right">
-                    {formatNewCurrency(
+                    {formatCurrencyWithDto(
                       Number(account.initial_balance),
                       currencies.find(c => c.code === account.currency_code) || {
                         id: '',
@@ -363,7 +363,7 @@ export function AccountsPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    {formatNewCurrency(
+                    {formatCurrencyWithDto(
                       Number(account.current_balance),
                       currencies.find(c => c.code === account.currency_code) || {
                         id: '',
