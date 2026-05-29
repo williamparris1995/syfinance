@@ -20,13 +20,17 @@ impl SqliteCurrencyRepository {
     }
 
     fn row_to_currency(row: &sqlx::sqlite::SqliteRow) -> Result<Currency, sqlx::Error> {
+        let id: String = row.try_get("id")?;
         let code: String = row.try_get("code")?;
+        let name: String = row.try_get("name").unwrap_or_default();
         let symbol: String = row.try_get("symbol")?;
         let exchange_rate_raw: String = row.try_get("exchange_rate")?;
         let exchange_rate = Decimal::from_str(&exchange_rate_raw)
             .map_err(|error| sqlx::Error::Decode(Box::new(error)))?;
+        let is_active: bool = row.try_get("is_active").unwrap_or(true);
 
-        Currency::new(code, symbol, exchange_rate)
+        Currency::new(id, code, name, symbol, exchange_rate)
+            .map(|mut c| { c.is_active = is_active; c })
             .map_err(|error: CurrencyValidationError| sqlx::Error::Decode(Box::new(error)))
     }
 
@@ -36,7 +40,7 @@ impl SqliteCurrencyRepository {
     ) -> sqlx::Result<Option<(Currency, String)>> {
         let row = sqlx::query(
             r#"
-            SELECT code, symbol, CAST(exchange_rate AS TEXT) AS exchange_rate, updated_at
+            SELECT id, code, name, symbol, CAST(exchange_rate AS TEXT) AS exchange_rate, updated_at, is_active
             FROM currencies
             WHERE code = ?
             "#,
@@ -58,7 +62,7 @@ impl SqliteCurrencyRepository {
     pub async fn list_all_with_timestamps(&self) -> sqlx::Result<Vec<(Currency, String)>> {
         let rows = sqlx::query(
             r#"
-            SELECT code, symbol, CAST(exchange_rate AS TEXT) AS exchange_rate, updated_at
+            SELECT id, code, name, symbol, CAST(exchange_rate AS TEXT) AS exchange_rate, updated_at, is_active
             FROM currencies
             ORDER BY code ASC
             "#,
@@ -80,14 +84,16 @@ impl CurrencyRepository for SqliteCurrencyRepository {
     async fn create(&self, currency: &Currency) -> sqlx::Result<()> {
         sqlx::query(
             r#"
-            INSERT INTO currencies (id, code, symbol, exchange_rate)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO currencies (id, code, name, symbol, exchange_rate, is_active)
+            VALUES (?, ?, ?, ?, ?, ?)
             "#,
         )
-        .bind(Uuid::new_v4().to_string())
+        .bind(&currency.id)
         .bind(&currency.code)
+        .bind(&currency.name)
         .bind(&currency.symbol)
         .bind(currency.exchange_rate.to_string())
+        .bind(currency.is_active)
         .execute(&self.pool)
         .await?;
 
@@ -97,7 +103,7 @@ impl CurrencyRepository for SqliteCurrencyRepository {
     async fn find_by_code(&self, code: &str) -> sqlx::Result<Option<Currency>> {
         let row = sqlx::query(
             r#"
-            SELECT code, symbol, CAST(exchange_rate AS TEXT) AS exchange_rate
+            SELECT id, code, name, symbol, CAST(exchange_rate AS TEXT) AS exchange_rate, is_active
             FROM currencies
             WHERE code = ?
             "#,
@@ -109,10 +115,25 @@ impl CurrencyRepository for SqliteCurrencyRepository {
         row.map(|row| Self::row_to_currency(&row)).transpose()
     }
 
+    async fn find_active(&self) -> sqlx::Result<Vec<Currency>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT id, code, name, symbol, CAST(exchange_rate AS TEXT) AS exchange_rate, is_active
+            FROM currencies
+            WHERE is_active = TRUE
+            ORDER BY code ASC
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.iter().map(Self::row_to_currency).collect()
+    }
+
     async fn list_all(&self) -> sqlx::Result<Vec<Currency>> {
         let rows = sqlx::query(
             r#"
-            SELECT code, symbol, CAST(exchange_rate AS TEXT) AS exchange_rate
+            SELECT id, code, name, symbol, CAST(exchange_rate AS TEXT) AS exchange_rate, is_active
             FROM currencies
             ORDER BY code ASC
             "#,
@@ -121,6 +142,31 @@ impl CurrencyRepository for SqliteCurrencyRepository {
         .await?;
 
         rows.iter().map(Self::row_to_currency).collect()
+    }
+
+    async fn save(&self, currency: &Currency) -> sqlx::Result<()> {
+        sqlx::query(
+            r#"
+            INSERT INTO currencies (id, code, name, symbol, exchange_rate, is_active)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT (code) DO UPDATE SET
+                name = excluded.name,
+                symbol = excluded.symbol,
+                exchange_rate = excluded.exchange_rate,
+                is_active = excluded.is_active,
+                updated_at = CURRENT_TIMESTAMP
+            "#,
+        )
+        .bind(&currency.id)
+        .bind(&currency.code)
+        .bind(&currency.name)
+        .bind(&currency.symbol)
+        .bind(currency.exchange_rate.to_string())
+        .bind(currency.is_active)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
     }
 
     async fn update_rate(&self, code: &str, exchange_rate: Decimal) -> sqlx::Result<bool> {
@@ -137,6 +183,15 @@ impl CurrencyRepository for SqliteCurrencyRepository {
         .bind(code)
         .execute(&self.pool)
         .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    async fn delete(&self, code: &str) -> sqlx::Result<bool> {
+        let result = sqlx::query("DELETE FROM currencies WHERE code = ?")
+            .bind(code)
+            .execute(&self.pool)
+            .await?;
 
         Ok(result.rows_affected() > 0)
     }

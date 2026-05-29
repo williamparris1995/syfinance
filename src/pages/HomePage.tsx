@@ -4,6 +4,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useMemo, useState } from 'react';
+import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -15,8 +16,8 @@ import { listAccountsWithBalances, listAccountsByOwnership } from '@/lib/tauri/a
 import { listTransactions } from '@/lib/tauri/transaction';
 import { listDebts, getUpcomingPayments } from '@/lib/tauri/debt';
 import { listHoldings } from '@/lib/tauri/holding';
-import { calculateNewTotalBalanceInCNY, formatNewCurrency } from '@/lib/new_currency';
-import { useNewCurrencies } from '@/hooks/useNewCurrency';
+import { calculateTotalBalanceInCNY, formatCurrencyWithDto } from '@/lib/currency';
+import { useCurrencies } from '@/hooks/useCurrency';
 export function HomePage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -33,7 +34,7 @@ export function HomePage() {
     queryFn: listAccountsWithBalances,
   });
 
-  const { data: currencies = [] } = useNewCurrencies();
+  const { data: currencies = [] } = useCurrencies();
 
   const { data: externalAccounts = [] } = useQuery({
     queryKey: ['accounts', 'external'],
@@ -81,7 +82,7 @@ export function HomePage() {
   }, [dateRangePreset, startDate, endDate]);
 
   // Calculate total balance from all accounts (converted to CNY)
-  const totalBalance = calculateNewTotalBalanceInCNY(
+  const totalBalance = calculateTotalBalanceInCNY(
     accounts.map(a => ({
       balance: Number(a.current_balance),
       currency_code: a.currency_code,
@@ -207,9 +208,9 @@ export function HomePage() {
   const isLoading = accountsLoading || transactionsLoading;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-4 p-4 sm:space-y-6 sm:p-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold">{t('dashboard.title')}</h2>
+        <h2 className="text-2xl font-bold sm:text-3xl">{t('dashboard.title')}</h2>
       </div>
 
       {/* Period Selector */}
@@ -279,13 +280,14 @@ export function HomePage() {
                       </span>
                     </div>
                     <div className="text-2xl font-bold tracking-tight">
-                      {formatNewCurrency(totalBalance, {
+                      {formatCurrencyWithDto(totalBalance, {
                         id: '',
                         code: 'CNY',
                         symbol: '¥',
                         name: '人民币',
-                        exchange_rate: 1,
+                        exchange_rate: '1',
                         is_active: true,
+                        updated_at: '',
                       })}
                     </div>
                   </CardContent>
@@ -680,7 +682,6 @@ export function HomePage() {
           )}
         </>
       )}
-    </div>
 
       {/* Quick Add Transaction FAB */}
       <Button
@@ -712,6 +713,6 @@ export function HomePage() {
           </div>
         </SheetContent>
       </Sheet>
-    </>
+    </div>
   );
 }

@@ -156,7 +156,7 @@ impl Debt {
             let factor = compound_factor(monthly_rate, months);
             self.principal.amount * monthly_rate * factor / (factor - Decimal::ONE)
         };
-        let payment = (raw_payment);
+        let payment = raw_payment;
 
         let mut remaining_principal = self.principal.amount;
         let mut schedule = Vec::with_capacity(months as usize);
@@ -168,14 +168,14 @@ impl Debt {
             } else {
                 raw_payment - raw_interest_amount
             };
-            let interest_amount = (raw_interest_amount);
+            let interest_amount = raw_interest_amount;
             let principal_amount = if installment == months {
-                (remaining_principal)
+                remaining_principal
             } else {
-                (raw_principal_amount)
+                raw_principal_amount
             };
             let total_amount = if installment == months {
-                (principal_amount + interest_amount)
+                principal_amount + interest_amount
             } else {
                 payment
             };
@@ -211,13 +211,13 @@ impl Debt {
                 regular_principal
             };
             let principal_amount = if installment == months {
-                (remaining_principal)
+                remaining_principal
             } else {
-                (raw_principal_amount)
+                raw_principal_amount
             };
             let raw_interest_amount = remaining_principal * monthly_rate;
-            let interest_amount = (raw_interest_amount);
-            let total_amount = (raw_principal_amount + raw_interest_amount);
+            let interest_amount = raw_interest_amount;
+            let total_amount = raw_principal_amount + raw_interest_amount;
 
             schedule.push(PaymentSchedule {
                 payment_date: payment_date_for_installment(self.start_date, installment as u32),

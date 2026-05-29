@@ -538,7 +538,7 @@ mod tests {
     }
 
     fn create_test_account(name: &str, account_type: AccountType, initial_balance: Decimal) -> Account {
-        let currency = Currency::new("USD", "$", Decimal::ONE).unwrap();
+        let currency = Currency::new(uuid::Uuid::new_v4().to_string(), "USD", "USD", "$", Decimal::ONE).unwrap();
         let money = Money::new(initial_balance, "USD").unwrap();
         let sync_metadata = SyncMetadata::new(Uuid::new_v4());
 

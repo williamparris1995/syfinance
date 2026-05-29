@@ -24,7 +24,7 @@ import {
 import { TrendingUp, BarChart3, Layers, Landmark, Coins, GitBranch, Wallet } from 'lucide-react';
 import { INVESTMENT_TEMPLATES } from '@/lib/tauri/account';
 import type { AccountType, AccountDto, CreateAccountDto, UpdateAccountDto, Ownership } from '@/lib/tauri/account';
-import { useNewCurrencies } from '@/hooks/useNewCurrency';
+import { useCurrencies } from '@/hooks/useCurrency';
 
 const createAccountFormSchema = (t: (key: string) => string) => z.object({
   name: z.string().min(1, t('accountForm.nameRequired')),
@@ -81,7 +81,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
   type AccountFormValues = z.infer<typeof accountFormSchema>;
   const isEditMode = mode === 'edit';
   const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null);
-  const { data: currencies = [] } = useNewCurrencies();
+  const { data: currencies = [] } = useCurrencies();
 
   const form = useForm<AccountFormValues>({
     resolver: zodResolver(accountFormSchema),

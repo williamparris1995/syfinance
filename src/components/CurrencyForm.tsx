@@ -12,13 +12,14 @@ import {
   FormMessage,
 } from './ui/form';
 import { Input } from './ui/input';
-import type { AddCurrencyDto } from '@/lib/tauri/currency';
+import type { CreateCurrencyDto } from '@/lib/tauri/currency';
 
 const currencyFormSchema = z.object({
   code: z
     .string()
     .length(3, 'Currency code must be exactly 3 characters')
     .regex(/^[A-Z]{3}$/, 'Currency code must be 3 uppercase letters (ISO 4217)'),
+  name: z.string().min(1, 'Currency name is required'),
   symbol: z.string().min(1, 'Currency symbol is required'),
   exchange_rate: z
     .string()
@@ -31,7 +32,7 @@ const currencyFormSchema = z.object({
 type CurrencyFormValues = z.infer<typeof currencyFormSchema>;
 
 interface CurrencyFormProps {
-  onSubmit: (data: AddCurrencyDto) => void;
+  onSubmit: (data: CreateCurrencyDto) => void;
   onCancel: () => void;
   isLoading?: boolean;
 }
@@ -57,6 +58,7 @@ export function CurrencyForm({ onSubmit, onCancel, isLoading }: CurrencyFormProp
     resolver: zodResolver(currencyFormSchema),
     defaultValues: {
       code: '',
+      name: '',
       symbol: '',
       exchange_rate: '',
     },

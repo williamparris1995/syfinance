@@ -23,6 +23,14 @@ use presentation::tauri_commands::{
         add_currency, create_default_state_from_pool as create_currency_default_state_from_pool,
         list_currencies, update_currency_rate, CurrencyCommandState,
     },
+    export_commands::{
+        create_export_default_state, export_all_data, ExportCommandState,
+    },
+    goal_commands::{
+        complete_goal, create_default_state_from_pool as create_goal_default_state_from_pool,
+        create_goal, delete_goal, get_goal, list_goals, update_goal, update_goal_progress,
+        GoalCommandState,
+    },
     debt_commands::{
         create_debt, create_default_state_from_pool as create_debt_default_state_from_pool,
         delete_debt, get_debt, get_upcoming_payments, list_debts, record_payment,
@@ -38,11 +46,19 @@ use presentation::tauri_commands::{
         create_default_state_from_pool as create_prepaid_default_state,
         get_prepaid_detail, get_top_up_records, top_up, PrepaidCommandState,
     },
+    search_commands::{
+        create_search_default_state, global_search, SearchCommandState,
+    },
     subscription_commands::{
         create_default_state_from_pool as create_subscription_default_state,
         create_subscription, delete_subscription, get_subscription,
         list_subscription_transactions, list_subscriptions, pause_subscription,
         resume_subscription, update_subscription, SubscriptionCommandState,
+    },
+    tag_commands::{
+        add_tag_to_transaction, create_default_state_from_pool as create_tag_default_state_from_pool,
+        create_tag, delete_tag, get_transaction_tags, list_tags, remove_tag_from_transaction,
+        TagCommandState,
     },
     sync_commands::{
         create_default_state as create_sync_default_state, get_sync_settings, get_sync_status,
@@ -149,9 +165,17 @@ async fn main() {
         create_currency_default_state_from_pool(pool.clone())
             .await
             .expect("failed to initialize currency command state");
+    let goal_state: GoalCommandState = create_goal_default_state_from_pool(pool.clone())
+        .await
+        .expect("failed to initialize goal command state");
     let transaction_state = create_default_state_from_pool(pool.clone())
         .await
         .expect("failed to initialize transaction command state");
+    let tag_state: TagCommandState = create_tag_default_state_from_pool(pool.clone())
+        .await
+        .expect("failed to initialize tag command state");
+    let search_state = create_search_default_state(pool.clone());
+    let export_state = create_export_default_state(pool.clone());
     let sync_state = create_sync_default_state();
 
     // Start Axum REST API server in background
@@ -172,10 +196,14 @@ async fn main() {
         .manage(account_state)
         .manage(debt_state)
         .manage(currency_state)
+        .manage(goal_state)
         .manage(transaction_state)
         .manage(holding_state)
         .manage(prepaid_state)
         .manage(subscription_state)
+        .manage(tag_state)
+        .manage(search_state)
+        .manage(export_state)
         .invoke_handler(tauri::generate_handler![
             create_account,
             update_account,
@@ -201,6 +229,13 @@ async fn main() {
             update_security_price,
             buy_holding,
             sell_holding,
+            list_goals,
+            get_goal,
+            create_goal,
+            update_goal,
+            update_goal_progress,
+            complete_goal,
+            delete_goal,
             list_holdings,
             list_holding_transactions,
             delete_holding_trade,
@@ -228,6 +263,14 @@ async fn main() {
             create_simple_transfer,
             update_transaction,
             delete_transaction,
+            list_tags,
+            create_tag,
+            delete_tag,
+            add_tag_to_transaction,
+            remove_tag_from_transaction,
+            get_transaction_tags,
+            global_search,
+            export_all_data,
             sync_to_server,
             sync_from_server,
             get_sync_status,

@@ -53,9 +53,8 @@ import {
   addCurrency,
   listCurrencies,
   updateCurrencyRate,
-  type AddCurrencyDto,
+  type CreateCurrencyDto,
   type CurrencyDto,
-  type UpdateCurrencyRateDto,
 } from '../lib/tauri/currency';
 import { getAccountId, linkDevice } from '../lib/auth';
 import { updateSyncSettings, getSyncSettings, type SyncSettings } from '../lib/tauri/sync';
@@ -153,15 +152,15 @@ export function SettingsPage() {
   });
 
   const updateRateMutation = useMutation({
-    mutationFn: ({ code, dto }: { code: string; dto: UpdateCurrencyRateDto }) =>
-      updateCurrencyRate(code, dto),
+    mutationFn: ({ code, exchangeRate }: { code: string; exchangeRate: string }) =>
+      updateCurrencyRate(code, exchangeRate),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['currencies'] });
       setUpdateRateDialogData(null);
     },
   });
 
-  const handleAddCurrency = (data: AddCurrencyDto) => {
+  const handleAddCurrency = (data: CreateCurrencyDto) => {
     addMutation.mutate(data);
   };
 
@@ -193,7 +192,7 @@ export function SettingsPage() {
     if (updateRateDialogData) {
       updateRateMutation.mutate({
         code: updateRateDialogData.code,
-        dto: { exchange_rate: values.exchange_rate },
+        exchangeRate: values.exchange_rate,
       });
     }
   };
@@ -216,9 +215,9 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">{t('settings.title')}</h1>
+    <div className="p-4 sm:p-6">
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <h1 className="text-2xl font-bold sm:text-3xl">{t('settings.title')}</h1>
       </div>
 
       {/* Language Settings */}

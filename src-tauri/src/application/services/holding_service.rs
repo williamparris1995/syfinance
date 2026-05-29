@@ -176,7 +176,7 @@ impl HoldingService {
 
         // Capture old avg_cost before apply_sell mutates it (needed when sell empties holding)
         let old_avg_cost = holding.avg_cost;
-        let realized_pnl = holding.apply_sell(&ht);
+        let _realized_pnl = holding.apply_sell(&ht);
 
         // Double-entry using OLD avg_cost for cost_basis
         let net_proceeds_amount = amount - dto.fee;
@@ -352,7 +352,7 @@ impl HoldingService {
 
         // Update the associated transaction entries
         if let Some(tx_id) = ht.transaction_id {
-            let account = self.account_repo.find_by_id(ht.account_id).await?
+            let _account = self.account_repo.find_by_id(ht.account_id).await?
                 .ok_or(HoldingServiceError::AccountNotFound(ht.account_id))?;
             let security = self.security_repo.find_by_id(ht.security_id).await?
                 .ok_or(HoldingServiceError::SecurityNotFound(ht.security_id))?;

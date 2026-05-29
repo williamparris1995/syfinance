@@ -120,7 +120,7 @@ impl DebtService {
             .as_deref()
             .unwrap_or("1002");
 
-        let txn_note = format!("{} - {}", debt_account.name, debt_details.counterparty);
+        let _txn_note = format!("{} - {}", debt_account.name, debt_details.counterparty);
         let entries = if is_liability_type(&debt_account.account_type) {
             vec![
                 TransactionEntry::new(

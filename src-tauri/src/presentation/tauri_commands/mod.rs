@@ -2,10 +2,14 @@ pub mod account_commands;
 pub mod budget_commands;
 pub mod currency_commands;
 pub mod debt_commands;
+pub mod export_commands;
+pub mod goal_commands;
 pub mod holding_commands;
 pub mod prepaid_commands;
+pub mod search_commands;
 pub mod subscription_commands;
 pub mod sync_commands;
+pub mod tag_commands;
 pub mod transaction_commands;
 
 pub use account_commands::{
@@ -24,6 +28,14 @@ pub use debt_commands::{
     create_debt, create_default_state as create_debt_default_state, delete_debt, get_debt,
     get_upcoming_payments, list_debts, record_payment, update_debt, AppState as DebtCommandState,
 };
+pub use export_commands::{
+    create_export_default_state, export_all_data, ExportCommandState,
+};
+pub use goal_commands::{
+    complete_goal, create_default_state_from_pool as create_goal_default_state_from_pool,
+    create_goal, delete_goal, get_goal, list_goals, update_goal, update_goal_progress,
+    GoalCommandState,
+};
 pub use holding_commands::{
     buy_holding, create_security, list_holdings, list_securities, sell_holding,
     update_security_price, AppState as HoldingCommandState,
@@ -31,10 +43,18 @@ pub use holding_commands::{
 pub use prepaid_commands::{
     get_prepaid_detail, get_top_up_records, top_up, PrepaidCommandState,
 };
+pub use search_commands::{
+    create_search_default_state, global_search, SearchCommandState,
+};
 pub use subscription_commands::{
     create_default_state_from_pool as create_subscription_default_state, create_subscription,
     delete_subscription, get_subscription, list_subscription_transactions, list_subscriptions,
     pause_subscription, resume_subscription, update_subscription, SubscriptionCommandState,
+};
+pub use tag_commands::{
+    add_tag_to_transaction, create_default_state_from_pool as create_tag_default_state_from_pool,
+    create_tag, delete_tag, get_transaction_tags, list_tags, remove_tag_from_transaction,
+    TagCommandState,
 };
 pub use sync_commands::{
     create_default_state as create_sync_default_state, get_sync_settings, get_sync_status,

@@ -11,21 +11,35 @@ use tauri::State;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CurrencyDto {
+    pub id: String,
     pub code: String,
+    pub name: String,
     pub symbol: String,
     pub exchange_rate: String,
+    pub is_active: bool,
     pub updated_at: String,
 }
 
 impl CurrencyDto {
     pub fn from_currency_with_timestamp(currency: Currency, updated_at: String) -> Self {
         Self {
+            id: currency.id,
             code: currency.code,
+            name: currency.name,
             symbol: currency.symbol,
             exchange_rate: currency.exchange_rate.to_string(),
+            is_active: currency.is_active,
             updated_at,
         }
     }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateCurrencyDto {
+    pub code: String,
+    pub name: String,
+    pub symbol: String,
+    pub exchange_rate: String,
 }
 
 pub struct CurrencyCommandState {
@@ -116,12 +130,14 @@ pub async fn list_currencies_with_service(
 pub async fn add_currency_with_service(
     state: &CurrencyCommandState,
     code: String,
+    name: String,
     symbol: String,
     exchange_rate: String,
 ) -> Result<(), String> {
     let exchange_rate = parse_exchange_rate(&exchange_rate)?;
+    let id = uuid::Uuid::new_v4().to_string();
     let currency =
-        Currency::new(code, symbol, exchange_rate).map_err(currency_validation_error_message)?;
+        Currency::new(id, code, name, symbol, exchange_rate).map_err(currency_validation_error_message)?;
 
     if state
         .repository()
@@ -136,6 +152,17 @@ pub async fn add_currency_with_service(
     state
         .repository()
         .create(&currency)
+        .await
+        .map_err(database_error_message)
+}
+
+pub async fn save_currency_with_service(
+    state: &CurrencyCommandState,
+    currency: &Currency,
+) -> Result<(), String> {
+    state
+        .repository()
+        .save(currency)
         .await
         .map_err(database_error_message)
 }
@@ -168,13 +195,27 @@ pub async fn list_currencies(
 }
 
 #[tauri::command]
+pub async fn get_currency(
+    state: State<'_, CurrencyCommandState>,
+    code: String,
+) -> Result<Option<CurrencyDto>, String> {
+    state
+        .repository()
+        .find_by_code_with_timestamp(&code)
+        .await
+        .map(|opt| opt.map(|(currency, updated_at)| CurrencyDto::from_currency_with_timestamp(currency, updated_at)))
+        .map_err(database_error_message)
+}
+
+#[tauri::command]
 pub async fn add_currency(
     state: State<'_, CurrencyCommandState>,
     code: String,
+    name: String,
     symbol: String,
     exchange_rate: String,
 ) -> Result<(), String> {
-    add_currency_with_service(state.inner(), code, symbol, exchange_rate).await
+    add_currency_with_service(state.inner(), code, name, symbol, exchange_rate).await
 }
 
 #[tauri::command]
@@ -184,4 +225,49 @@ pub async fn update_currency_rate(
     exchange_rate: String,
 ) -> Result<(), String> {
     update_currency_rate_with_service(state.inner(), code, exchange_rate).await
+}
+
+#[tauri::command]
+pub async fn delete_currency(
+    state: State<'_, CurrencyCommandState>,
+    code: String,
+) -> Result<bool, String> {
+    state
+        .repository()
+        .delete(&code)
+        .await
+        .map_err(database_error_message)
+}
+
+#[tauri::command]
+pub async fn convert_currency(
+    state: State<'_, CurrencyCommandState>,
+    amount: f64,
+    from_code: String,
+    to_code: String,
+) -> Result<f64, String> {
+    let from_currency = state
+        .repository()
+        .find_by_code(&from_code)
+        .await
+        .map_err(database_error_message)?
+        .ok_or_else(|| format!("Currency not found: {}", from_code))?;
+
+    let to_currency = state
+        .repository()
+        .find_by_code(&to_code)
+        .await
+        .map_err(database_error_message)?
+        .ok_or_else(|| format!("Currency not found: {}", to_code))?;
+
+    // 转换逻辑：先转换为 CNY，再转换为目标货币
+    let from_rate = from_currency.exchange_rate.to_string().parse::<f64>().unwrap_or(1.0);
+    let to_rate = to_currency.exchange_rate.to_string().parse::<f64>().unwrap_or(1.0);
+
+    if from_code == to_code {
+        Ok(amount)
+    } else {
+        let amount_in_cny = amount * from_rate;
+        Ok(amount_in_cny / to_rate)
+    }
 }

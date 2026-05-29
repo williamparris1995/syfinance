@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { CurrencyForm } from '../CurrencyForm';
-import type { AddCurrencyDto } from '@/lib/tauri/currency';
+import type { CreateCurrencyDto } from '@/lib/tauri/currency';
 
 describe('CurrencyForm', () => {
   it('validates ISO 4217 currency code - must be 3 uppercase letters', async () => {

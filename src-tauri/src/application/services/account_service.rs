@@ -381,7 +381,7 @@ mod tests {
             let mut currencies = HashMap::new();
             currencies.insert(
                 "CNY".to_string(),
-                Currency::new("CNY", "Chinese Yuan", Decimal::ONE).unwrap(),
+                Currency::new(uuid::Uuid::new_v4().to_string(), "CNY", "CNY", "Chinese Yuan", Decimal::ONE).unwrap(),
             );
             Self {
                 currencies: Mutex::new(currencies),
@@ -409,7 +409,7 @@ mod tests {
         async fn update_rate(&self, code: &str, exchange_rate: Decimal) -> sqlx::Result<bool> {
             let mut currencies = self.currencies.lock().unwrap();
             if let Some(currency) = currencies.get_mut(code) {
-                *currency = Currency::new(&currency.code, &currency.symbol, exchange_rate).unwrap();
+                *currency = Currency::new(currency.id.clone(), &currency.code, &currency.code, &currency.symbol, exchange_rate).unwrap();
                 Ok(true)
             } else {
                 Ok(false)
