@@ -4,6 +4,7 @@ import { isRegistered } from './lib/auth';
 import { AccountsPage } from './pages/AccountsPage';
 import { BudgetPage } from './pages/BudgetPage';
 import { DebtsPage } from './pages/DebtsPage';
+import { GoalsPage } from './pages/GoalsPage';
 import { HoldingsPage } from './pages/HoldingsPage';
 import { HomePage } from './pages/HomePage';
 import { SubscriptionsPage } from './pages/SubscriptionsPage';
@@ -78,6 +79,12 @@ const budgetRoute = createRoute({
   component: BudgetPage,
 });
 
+const goalsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'goals',
+  component: GoalsPage,
+});
+
 const reportsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'reports',
@@ -122,6 +129,7 @@ const routeTree = rootRoute.addChildren([
   holdingsRoute,
   subscriptionsRoute,
   budgetRoute,
+  goalsRoute,
   reportsRoute,
   settingsRoute,
   onboardingRoute,

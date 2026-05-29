@@ -406,12 +406,12 @@ export function HoldingsPage() {
     });
   };
 
-  if (isLoading) return <div className="p-6 text-center text-muted-foreground">{t('common.loading')}</div>;
+  if (isLoading) return <div className="p-4 sm:p-6 text-center text-muted-foreground">{t('common.loading')}</div>;
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">{t('holding.title')}</h1>
+    <div className="p-4 sm:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
+        <h1 className="text-2xl font-bold sm:text-3xl">{t('holding.title')}</h1>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleRefreshPrices} disabled={isRefreshing}>
             <RefreshCw className={`h-4 w-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />

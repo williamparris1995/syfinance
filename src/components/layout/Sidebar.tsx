@@ -8,6 +8,8 @@ import {
   HelpCircle,
   TrendingUp,
   CalendarClock,
+  PiggyBank,
+  Target,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SidebarHeader } from './SidebarHeader';
@@ -84,6 +86,20 @@ export function Sidebar({ onNavigate, collapsed }: SidebarProps) {
               to="/transactions"
               label={t('nav.transactions')}
               icon={Receipt}
+              onClick={onNavigate}
+              collapsed={collapsed}
+            />
+            <SidebarMenuItem
+              to="/budget"
+              label={t('nav.budget')}
+              icon={PiggyBank}
+              onClick={onNavigate}
+              collapsed={collapsed}
+            />
+            <SidebarMenuItem
+              to="/goals"
+              label={t('nav.goals')}
+              icon={Target}
               onClick={onNavigate}
               collapsed={collapsed}
             />

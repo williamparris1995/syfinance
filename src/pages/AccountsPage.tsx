@@ -357,8 +357,9 @@ export function AccountsPage() {
                         code: account.currency_code,
                         name: account.currency_code,
                         symbol: account.currency_code,
-                        exchange_rate: 1,
+                        exchange_rate: '1',
                         is_active: true,
+                        updated_at: '',
                       }
                     )}
                   </TableCell>
@@ -370,8 +371,9 @@ export function AccountsPage() {
                         code: account.currency_code,
                         name: account.currency_code,
                         symbol: account.currency_code,
-                        exchange_rate: 1,
+                        exchange_rate: '1',
                         is_active: true,
+                        updated_at: '',
                       }
                     )}
                   </TableCell>

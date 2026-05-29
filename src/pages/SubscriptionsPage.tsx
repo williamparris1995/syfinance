@@ -307,10 +307,10 @@ export function SubscriptionsPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">{t('subscription.title')}</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
+        <h1 className="text-2xl font-bold sm:text-3xl">{t('subscription.title')}</h1>
         <Button variant="default-gradient" onClick={handleNew}>
           <Plus className="h-4 w-4 mr-1" />
           {t('subscription.newSubscription')}
