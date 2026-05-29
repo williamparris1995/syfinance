@@ -50,17 +50,21 @@ class RustValidator(BaseValidator):
                     )
 
     def _check_hardcoded_string_match(self, file_path: Path, content: str, lines: list):
-        """Ban hardcoded string matching in match arms — use serde rename_all."""
+        """Ban hardcoded string matching in match arms for enum construction — use serde rename_all."""
         in_match = False
         for i, line in enumerate(lines, 1):
             if re.search(r"match\s+\w+\s*\{", line):
                 in_match = True
             if in_match and re.search(r'^\s*"[A-Z_]+"?\s*=>', line):
+                # Skip string-to-string mappings (display symbols, external API parsing)
+                # Only flag string-to-enum conversions where serde should be used
+                if re.search(r'=>\s*"', line):
+                    continue
                 if "#[cfg(test)]" not in content[: content.find(line)]:
                     self.add_error(
                         str(file_path),
                         i,
-                        "Forbidden: hardcoded string match. Use serde rename_all.",
+                        "Forbidden: hardcoded string match for enum. Use serde rename_all.",
                     )
             if in_match and line.strip() == "}":
                 in_match = False
