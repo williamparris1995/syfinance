@@ -10,6 +10,10 @@ JSX_STRING_ATTRS = {
     "variant", "size", "side", "as", "role", "dir", "lang",
     "slot", "action", "method", "target", "rel", "href",
     "src", "alt", "placeholder",
+    # SVG / chart attributes
+    "d", "fill", "stroke", "viewBox", "xmlns",
+    "cx", "cy", "r", "x", "y", "width", "height",
+    "points", "offset", "data", "format", "ticks", "domain",
 }
 
 # Pattern matching string literals: "..." or '...'
@@ -82,12 +86,44 @@ class ConstValidator(BaseValidator):
             if len(value) <= 1:
                 continue
 
+            # Skip hex color codes (e.g. #6B7280, #EF4444, #10B981)
+            if re.match(r"^#[0-9A-Fa-f]{3,8}$", value):
+                continue
+
+            # Skip percentage/numeric values (e.g. 100%, 3.5, 42)
+            if re.match(r"^\d+\.?\d*%?$", value):
+                continue
+
+            # Skip Tailwind/CSS class strings (contain CSS-like tokens)
+            if re.search(
+                r"(text|bg|border|p-|m-|w-|h-|flex|grid|rounded|shadow|font|gap|space|opacity|hover:|dark:|focus:)",
+                value,
+            ):
+                continue
+
+            # Skip SVG data strings (short strings of numbers, dots, spaces, commas)
+            if re.match(r"^[\d.\s,]+$", value):
+                continue
+
+            # Skip code fragments from inline handlers (contain ); or function-call patterns)
+            if re.search(r"\)\s*;\s*\w+", value):
+                continue
+
+            # Skip developer-facing error messages (throw new Error / console.error etc.)
+            if re.search(r"\b(throw\s+new\s+Error|console\.(error|warn))\s*\(", line):
+                continue
+
             # Skip strings that look like codes/keys (all caps, dots, slashes, hyphens)
             if re.match(r"^[A-Z_a-z0-9./:_-]+$", value):
                 continue
 
             # Check if this string is inside a known JSX attribute
             prefix = line[: match.start()]
+
+            # If className appears anywhere in the prefix, skip (multi-expression classes)
+            if "className" in prefix:
+                continue
+
             attr_match = re.search(r"(\w+)\s*=\s*$", prefix)
             if attr_match:
                 attr_name = attr_match.group(1)
