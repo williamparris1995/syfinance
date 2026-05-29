@@ -12,12 +12,17 @@ impl SqliteHoldingRepository {
     pub fn new(pool: SqlitePool) -> Self { Self { pool } }
     pub fn pool(&self) -> &SqlitePool { &self.pool }
 
+    const TRADE_TYPE_BUY: &str = "BUY";
+    const TRADE_TYPE_SELL: &str = "SELL";
+    const TRADE_TYPE_DIVIDEND: &str = "DIVIDEND";
+    const TRADE_TYPE_SPLIT: &str = "SPLIT";
+
     fn parse_trade_type(s: &str) -> Result<HoldingTransactionType, sqlx::Error> {
         match s {
-            "BUY" => Ok(HoldingTransactionType::Buy),
-            "SELL" => Ok(HoldingTransactionType::Sell),
-            "DIVIDEND" => Ok(HoldingTransactionType::Dividend),
-            "SPLIT" => Ok(HoldingTransactionType::Split),
+            TRADE_TYPE_BUY => Ok(HoldingTransactionType::Buy),
+            TRADE_TYPE_SELL => Ok(HoldingTransactionType::Sell),
+            TRADE_TYPE_DIVIDEND => Ok(HoldingTransactionType::Dividend),
+            TRADE_TYPE_SPLIT => Ok(HoldingTransactionType::Split),
             _ => Err(sqlx::Error::Decode(format!("invalid trade type: {}", s).into())),
         }
     }
