@@ -6,7 +6,6 @@ import {
   updateCurrencyRate,
   deleteCurrency,
   convertCurrency,
-  CurrencyDto,
   CreateCurrencyDto,
 } from '../lib/tauri/currency';
 import { toast } from 'sonner';

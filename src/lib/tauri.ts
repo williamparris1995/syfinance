@@ -16,7 +16,7 @@ export function isTauri(): boolean {
   // Check if we can access Tauri APIs
   try {
     // In Tauri, window.__TAURI_INTERNALS__ should exist
-    return !!(window as any).__TAURI_INTERNALS__;
+    return !!(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
   } catch {
     return false;
   }

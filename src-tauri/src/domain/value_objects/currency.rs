@@ -102,7 +102,8 @@ mod tests {
 
     #[test]
     fn test_deactivate_and_activate() {
-        let mut currency = Currency::new("test-id", "USD", "美元", "$", Decimal::new(725, 2)).unwrap();
+        let mut currency =
+            Currency::new("test-id", "USD", "美元", "$", Decimal::new(725, 2)).unwrap();
         assert!(currency.is_active);
 
         currency.deactivate();
@@ -114,7 +115,8 @@ mod tests {
 
     #[test]
     fn test_update_exchange_rate() {
-        let mut currency = Currency::new("test-id", "USD", "美元", "$", Decimal::new(725, 2)).unwrap();
+        let mut currency =
+            Currency::new("test-id", "USD", "美元", "$", Decimal::new(725, 2)).unwrap();
         assert_eq!(currency.exchange_rate, Decimal::new(725, 2));
 
         currency.update_exchange_rate(Decimal::new(730, 2));

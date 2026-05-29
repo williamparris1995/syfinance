@@ -171,7 +171,11 @@ impl DebtDetails {
         months.max(1)
     }
 
-    pub fn mark_paid(&mut self, schedule_id: Uuid, transaction_id: Uuid) -> Result<(), &'static str> {
+    pub fn mark_paid(
+        &mut self,
+        schedule_id: Uuid,
+        transaction_id: Uuid,
+    ) -> Result<(), &'static str> {
         let entry = self
             .payment_schedule
             .iter_mut()
@@ -206,8 +210,7 @@ impl DebtDetails {
 }
 
 fn add_months(date: NaiveDate, months: u32) -> NaiveDate {
-    date.checked_add_months(Months::new(months))
-        .unwrap_or(date)
+    date.checked_add_months(Months::new(months)).unwrap_or(date)
 }
 
 fn compound_factor(monthly_rate: Decimal, months: i64) -> Decimal {
@@ -280,7 +283,11 @@ mod tests {
         assert_eq!(debt.payment_schedule.len(), 12);
         // First payment should be ~8,560.75 (principal + interest)
         let diff = (debt.payment_schedule[0].total_amount - dec(856075)).abs();
-        assert!(diff <= dec(1), "total_amount={}", debt.payment_schedule[0].total_amount);
+        assert!(
+            diff <= dec(1),
+            "total_amount={}",
+            debt.payment_schedule[0].total_amount
+        );
     }
 
     #[test]

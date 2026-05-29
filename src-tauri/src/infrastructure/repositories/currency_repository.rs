@@ -30,7 +30,10 @@ impl SqliteCurrencyRepository {
         let is_active: bool = row.try_get("is_active").unwrap_or(true);
 
         Currency::new(id, code, name, symbol, exchange_rate)
-            .map(|mut c| { c.is_active = is_active; c })
+            .map(|mut c| {
+                c.is_active = is_active;
+                c
+            })
             .map_err(|error: CurrencyValidationError| sqlx::Error::Decode(Box::new(error)))
     }
 

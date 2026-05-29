@@ -132,7 +132,7 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
         <Search className="h-4 w-4" />
         <span className="flex-1 text-left">{t('common.search')}</span>
         <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium sm:flex">
-          <span className="text-xs">&#8984;</span>K
+          <span className="text-xs">{'⌘'}</span>{'K'}
         </kbd>
       </button>
 

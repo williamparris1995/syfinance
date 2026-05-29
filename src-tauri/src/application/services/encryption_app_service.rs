@@ -1,7 +1,7 @@
 use crate::infrastructure::encryption::{EncryptionError, EncryptionService};
+use keyring::Entry;
 use sqlx::SqlitePool;
 use std::sync::Mutex;
-use keyring::Entry;
 
 const KEYRING_SERVICE: &str = "finance-app";
 const KEYRING_USERNAME: &str = "encryption-key";
@@ -38,12 +38,10 @@ impl EncryptionAppService {
     }
 
     pub async fn is_enabled(&self) -> Result<bool, EncryptionAppError> {
-        let result = sqlx::query_as::<_, (String,)>(
-            "SELECT salt FROM encryption_settings LIMIT 1"
-        )
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| EncryptionAppError::DatabaseError(e.to_string()))?;
+        let result = sqlx::query_as::<_, (String,)>("SELECT salt FROM encryption_settings LIMIT 1")
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| EncryptionAppError::DatabaseError(e.to_string()))?;
 
         Ok(result.is_some())
     }
@@ -61,17 +59,20 @@ impl EncryptionAppService {
         let service = EncryptionService::from_password(password, &salt)?;
 
         let salt_hex = hex::encode(salt);
-        sqlx::query("INSERT INTO encryption_settings (salt, created_at) VALUES (?, datetime('now'))")
-            .bind(&salt_hex)
-            .execute(&self.pool)
-            .await
-            .map_err(|e| EncryptionAppError::DatabaseError(e.to_string()))?;
+        sqlx::query(
+            "INSERT INTO encryption_settings (salt, created_at) VALUES (?, datetime('now'))",
+        )
+        .bind(&salt_hex)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| EncryptionAppError::DatabaseError(e.to_string()))?;
 
         // Store master key in OS keychain
         let key_hex = hex::encode(&service.master_key());
         let entry = Entry::new(KEYRING_SERVICE, KEYRING_USERNAME)
             .map_err(|e| EncryptionAppError::KeychainError(e.to_string()))?;
-        entry.set_password(&key_hex)
+        entry
+            .set_password(&key_hex)
             .map_err(|e| EncryptionAppError::KeychainError(e.to_string()))?;
 
         *self.service.lock().unwrap() = Some(service);
@@ -79,13 +80,11 @@ impl EncryptionAppService {
     }
 
     pub async fn unlock(&self, password: &str) -> Result<(), EncryptionAppError> {
-        let row = sqlx::query_as::<_, (String,)>(
-            "SELECT salt FROM encryption_settings LIMIT 1"
-        )
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| EncryptionAppError::DatabaseError(e.to_string()))?
-        .ok_or(EncryptionAppError::NotEnabled)?;
+        let row = sqlx::query_as::<_, (String,)>("SELECT salt FROM encryption_settings LIMIT 1")
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| EncryptionAppError::DatabaseError(e.to_string()))?
+            .ok_or(EncryptionAppError::NotEnabled)?;
 
         let salt = hex::decode(&row.0)
             .map_err(|e| EncryptionAppError::DatabaseError(format!("invalid salt: {}", e)))?;
@@ -104,13 +103,15 @@ impl EncryptionAppService {
 
         let entry = Entry::new(KEYRING_SERVICE, KEYRING_USERNAME)
             .map_err(|e| EncryptionAppError::KeychainError(e.to_string()))?;
-        let key_hex = entry.get_password()
+        let key_hex = entry
+            .get_password()
             .map_err(|e| EncryptionAppError::KeychainError(e.to_string()))?;
 
         let key_bytes = hex::decode(&key_hex)
             .map_err(|e| EncryptionAppError::KeychainError(format!("invalid key: {}", e)))?;
 
-        let key: [u8; 32] = key_bytes.try_into()
+        let key: [u8; 32] = key_bytes
+            .try_into()
             .map_err(|_| EncryptionAppError::KeychainError("invalid key length".to_string()))?;
 
         let service = EncryptionService::from_key(key);
@@ -156,6 +157,8 @@ impl EncryptionAppService {
     /// Return a cloned `EncryptionService` if encryption is unlocked, or `None`.
     pub fn get_encryption_service(&self) -> Option<EncryptionService> {
         let guard = self.service.lock().unwrap();
-        guard.as_ref().map(|svc| EncryptionService::from_key(*svc.master_key()))
+        guard
+            .as_ref()
+            .map(|svc| EncryptionService::from_key(*svc.master_key()))
     }
 }

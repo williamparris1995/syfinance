@@ -1,6 +1,5 @@
 import { ReactNode } from 'react';
 import { SidebarToggle } from './SidebarToggle';
-import { SearchBar } from './SearchBar';
 import { GlobalSearch } from '@/components/GlobalSearch';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { SettingsButton } from './SettingsButton';
@@ -26,8 +25,6 @@ interface HeaderProps {
   showUserMenu?: boolean;
   /** Callback when sidebar toggle is clicked */
   onSidebarToggle?: () => void;
-  /** Callback when search is submitted */
-  onSearch?: (query: string) => void;
   /** User information for user menu */
   user?: {
     name: string;
@@ -55,7 +52,6 @@ export function Header({
   showSettings = true,
   showUserMenu = true,
   onSidebarToggle,
-  onSearch,
   user,
   userMenuActions,
   className,

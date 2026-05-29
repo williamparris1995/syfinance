@@ -144,10 +144,7 @@ impl PrepaidRepository for SqlitePrepaidRepository {
         rows.iter().map(|r| row_to_top_up_record(r)).collect()
     }
 
-    async fn find_top_up_record_by_id(
-        &self,
-        id: Uuid,
-    ) -> sqlx::Result<Option<TopUpRecord>> {
+    async fn find_top_up_record_by_id(&self, id: Uuid) -> sqlx::Result<Option<TopUpRecord>> {
         let row = sqlx::query(
             r#"
             SELECT id, account_id, transaction_id,

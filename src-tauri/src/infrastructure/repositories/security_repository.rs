@@ -6,10 +6,14 @@ use sqlx::{Row, SqlitePool};
 use std::str::FromStr;
 use uuid::Uuid;
 
-pub struct SqliteSecurityRepository { pool: SqlitePool }
+pub struct SqliteSecurityRepository {
+    pool: SqlitePool,
+}
 
 impl SqliteSecurityRepository {
-    pub fn new(pool: SqlitePool) -> Self { Self { pool } }
+    pub fn new(pool: SqlitePool) -> Self {
+        Self { pool }
+    }
 
     fn parse_type(s: &str) -> Result<SecurityType, sqlx::Error> {
         match s {
@@ -20,7 +24,9 @@ impl SqliteSecurityRepository {
             "gold" => Ok(SecurityType::Gold),
             "option" => Ok(SecurityType::Option),
             "other" => Ok(SecurityType::Other),
-            _ => Err(sqlx::Error::Decode(format!("invalid security type: {}", s).into())),
+            _ => Err(sqlx::Error::Decode(
+                format!("invalid security type: {}", s).into(),
+            )),
         }
     }
 
@@ -39,7 +45,15 @@ impl SqliteSecurityRepository {
             .map(|s| Decimal::from_str(&s))
             .transpose()
             .map_err(|e| sqlx::Error::Decode(format!("invalid decimal: {}", e).into()))?;
-        Ok(Security::new(id, symbol, name, security_type, exchange, currency_code, current_price))
+        Ok(Security::new(
+            id,
+            symbol,
+            name,
+            security_type,
+            exchange,
+            currency_code,
+            current_price,
+        ))
     }
 }
 
@@ -102,16 +116,23 @@ impl SecurityRepository for SqliteSecurityRepository {
 
     async fn update_price(&self, id: Uuid, price: Decimal) -> sqlx::Result<bool> {
         let result = sqlx::query(
-            "UPDATE securities SET current_price=?, updated_at=? WHERE id=? AND deleted_at IS NULL"
-        ).bind(price.to_string()).bind(Utc::now().to_rfc3339()).bind(id.to_string())
-        .execute(&self.pool).await?;
+            "UPDATE securities SET current_price=?, updated_at=? WHERE id=? AND deleted_at IS NULL",
+        )
+        .bind(price.to_string())
+        .bind(Utc::now().to_rfc3339())
+        .bind(id.to_string())
+        .execute(&self.pool)
+        .await?;
         Ok(result.rows_affected() > 0)
     }
 
     async fn soft_delete(&self, id: Uuid) -> sqlx::Result<bool> {
-        let result = sqlx::query(
-            "UPDATE securities SET deleted_at=? WHERE id=? AND deleted_at IS NULL"
-        ).bind(Utc::now().to_rfc3339()).bind(id.to_string()).execute(&self.pool).await?;
+        let result =
+            sqlx::query("UPDATE securities SET deleted_at=? WHERE id=? AND deleted_at IS NULL")
+                .bind(Utc::now().to_rfc3339())
+                .bind(id.to_string())
+                .execute(&self.pool)
+                .await?;
         Ok(result.rows_affected() > 0)
     }
 }

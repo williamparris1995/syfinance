@@ -7,7 +7,6 @@ import {
   addBudgetItem,
   deleteBudget,
   removeBudgetItem,
-  BudgetDto,
   CreateBudgetDto,
   AddBudgetItemDto,
 } from '../lib/tauri/budget';

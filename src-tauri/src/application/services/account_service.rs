@@ -20,13 +20,48 @@ struct InvestmentTemplate {
 }
 
 const INVESTMENT_TEMPLATES: [InvestmentTemplate; 7] = [
-    InvestmentTemplate { name: "股票账户", chart_code: "1101", icon: "TrendingUp", color: "#EF4444" },
-    InvestmentTemplate { name: "基金账户", chart_code: "1101", icon: "BarChart3", color: "#3B82F6" },
-    InvestmentTemplate { name: "ETF账户", chart_code: "1101", icon: "Layers", color: "#8B5CF6" },
-    InvestmentTemplate { name: "债券账户", chart_code: "1501", icon: "Landmark", color: "#10B981" },
-    InvestmentTemplate { name: "黄金账户", chart_code: "1101", icon: "Coins", color: "#F59E0B" },
-    InvestmentTemplate { name: "期权账户", chart_code: "1101", icon: "GitBranch", color: "#F97316" },
-    InvestmentTemplate { name: "其他投资", chart_code: "1012", icon: "Wallet", color: "#6B7280" },
+    InvestmentTemplate {
+        name: "股票账户",
+        chart_code: "1101",
+        icon: "TrendingUp",
+        color: "#EF4444",
+    },
+    InvestmentTemplate {
+        name: "基金账户",
+        chart_code: "1101",
+        icon: "BarChart3",
+        color: "#3B82F6",
+    },
+    InvestmentTemplate {
+        name: "ETF账户",
+        chart_code: "1101",
+        icon: "Layers",
+        color: "#8B5CF6",
+    },
+    InvestmentTemplate {
+        name: "债券账户",
+        chart_code: "1501",
+        icon: "Landmark",
+        color: "#10B981",
+    },
+    InvestmentTemplate {
+        name: "黄金账户",
+        chart_code: "1101",
+        icon: "Coins",
+        color: "#F59E0B",
+    },
+    InvestmentTemplate {
+        name: "期权账户",
+        chart_code: "1101",
+        icon: "GitBranch",
+        color: "#F97316",
+    },
+    InvestmentTemplate {
+        name: "其他投资",
+        chart_code: "1012",
+        icon: "Wallet",
+        color: "#6B7280",
+    },
 ];
 
 impl<R: AccountRepository, U: CurrencyRepository> AccountService<R, U> {
@@ -170,10 +205,14 @@ impl<R: AccountRepository, U: CurrencyRepository> AccountService<R, U> {
     pub async fn list_accounts_with_balances(
         &self,
     ) -> Result<Vec<AccountDto>, AccountServiceError> {
-        let accounts = self.account_repo.find_all().await
+        let accounts = self
+            .account_repo
+            .find_all()
+            .await
             .map_err(AccountServiceError::DatabaseError)?;
 
-        let balance_changes = self.account_repo
+        let balance_changes = self
+            .account_repo
             .compute_balances_for_all_accounts()
             .await
             .map_err(AccountServiceError::DatabaseError)?;
@@ -381,7 +420,14 @@ mod tests {
             let mut currencies = HashMap::new();
             currencies.insert(
                 "CNY".to_string(),
-                Currency::new(uuid::Uuid::new_v4().to_string(), "CNY", "CNY", "Chinese Yuan", Decimal::ONE).unwrap(),
+                Currency::new(
+                    uuid::Uuid::new_v4().to_string(),
+                    "CNY",
+                    "CNY",
+                    "Chinese Yuan",
+                    Decimal::ONE,
+                )
+                .unwrap(),
             );
             Self {
                 currencies: Mutex::new(currencies),
@@ -409,7 +455,14 @@ mod tests {
         async fn update_rate(&self, code: &str, exchange_rate: Decimal) -> sqlx::Result<bool> {
             let mut currencies = self.currencies.lock().unwrap();
             if let Some(currency) = currencies.get_mut(code) {
-                *currency = Currency::new(currency.id.clone(), &currency.code, &currency.code, &currency.symbol, exchange_rate).unwrap();
+                *currency = Currency::new(
+                    currency.id.clone(),
+                    &currency.code,
+                    &currency.code,
+                    &currency.symbol,
+                    exchange_rate,
+                )
+                .unwrap();
                 Ok(true)
             } else {
                 Ok(false)
@@ -630,9 +683,7 @@ mod tests {
 
         let service = AccountService::new(account_repo.clone(), currency_repo);
 
-        let result = service
-            .create_preset_investment_accounts((), "CNY")
-            .await;
+        let result = service.create_preset_investment_accounts((), "CNY").await;
 
         assert!(result.is_ok());
         let accounts = result.unwrap();

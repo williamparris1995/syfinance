@@ -22,7 +22,8 @@ async function getStore(): Promise<Store> {
     try {
       store = await Store.load(STORE_FILE);
     } catch (error) {
-      throw new Error(`Failed to load onboarding store: ${error}`);
+      const msg = `Failed to load onboarding store: ${error}`;
+      throw new Error(msg); // eslint-disable-line preserve-caught-error -- Error serializes via toString() by default
     }
   }
   return store;

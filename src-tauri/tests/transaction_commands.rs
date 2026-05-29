@@ -1,6 +1,6 @@
 use chrono::NaiveDate;
-use finance_app::application::dtos::CreateTransactionDto;
 use finance_app::application::dtos::transaction_dto::CreateTransactionEntryDto;
+use finance_app::application::dtos::CreateTransactionDto;
 use finance_app::application::services::TransactionService;
 use finance_app::domain::{
     aggregates::{Account, AccountType, Ownership},
@@ -107,8 +107,14 @@ async fn create_transaction_with_multiple_entries_updates_balances() {
     let updated_account2 = account_repo.find_by_id(account2.id).await.unwrap().unwrap();
 
     assert_ne!(transaction_id, Uuid::nil());
-    assert_eq!(updated_account1.initial_balance.amount, Decimal::new(1000_00, 2));
-    assert_eq!(updated_account2.initial_balance.amount, Decimal::new(1000_00, 2));
+    assert_eq!(
+        updated_account1.initial_balance.amount,
+        Decimal::new(1000_00, 2)
+    );
+    assert_eq!(
+        updated_account2.initial_balance.amount,
+        Decimal::new(1000_00, 2)
+    );
 }
 
 #[tokio::test]

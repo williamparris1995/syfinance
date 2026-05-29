@@ -14,22 +14,12 @@ import {
 import { Input } from './ui/input';
 import type { CreateCurrencyDto } from '@/lib/tauri/currency';
 
-const currencyFormSchema = z.object({
-  code: z
-    .string()
-    .length(3, 'Currency code must be exactly 3 characters')
-    .regex(/^[A-Z]{3}$/, 'Currency code must be 3 uppercase letters (ISO 4217)'),
-  name: z.string().min(1, 'Currency name is required'),
-  symbol: z.string().min(1, 'Currency symbol is required'),
-  exchange_rate: z
-    .string()
-    .min(1, 'Exchange rate is required')
-    .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
-      message: 'Exchange rate must be greater than 0',
-    }),
-});
-
-type CurrencyFormValues = z.infer<typeof currencyFormSchema>;
+type CurrencyFormValues = {
+  code: string;
+  name: string;
+  symbol: string;
+  exchange_rate: string;
+};
 
 interface CurrencyFormProps {
   onSubmit: (data: CreateCurrencyDto) => void;

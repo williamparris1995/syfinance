@@ -47,7 +47,6 @@ import {
   type CreateDebtDto,
   type DebtDto,
   type PaymentScheduleDto,
-  type RecordPaymentDto,
   type UpdateDebtDto,
 } from '../lib/tauri/debt';
 import { listAccountsWithBalances, type AccountDto } from '../lib/tauri/account';
@@ -514,7 +513,7 @@ export function DebtsPage() {
           <div className="flex-1 overflow-y-auto -mx-4 px-4">
             {editingDebt && (
               <DebtForm
-                onSubmit={handleUpdateDebt as any}
+                onSubmit={handleUpdateDebt as (data: CreateDebtDto) => void}
                 onCancel={() => setEditingDebt(null)}
                 isLoading={updateMutation.isPending}
                 initialData={editingDebt}

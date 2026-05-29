@@ -48,9 +48,9 @@ impl SqliteAccountRepository {
         let currency_code: String = row.try_get("currency_code")?;
 
         let initial_balance_str: String = row.try_get("initial_balance")?;
-        let initial_balance_amount =
-            Decimal::from_str(&initial_balance_str)
-                .map_err(|e| sqlx::Error::Decode(format!("initial_balance='{initial_balance_str}': {e}").into()))?;
+        let initial_balance_amount = Decimal::from_str(&initial_balance_str).map_err(|e| {
+            sqlx::Error::Decode(format!("initial_balance='{initial_balance_str}': {e}").into())
+        })?;
 
         let initial_balance = Money::new(initial_balance_amount, &currency_code)
             .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
@@ -73,8 +73,10 @@ impl SqliteAccountRepository {
 
         let parent_id_str: Option<String> = row.try_get("parent_id")?;
         let parent_id = parent_id_str
-            .map(|s| Uuid::from_str(&s)
-                .map_err(|e| sqlx::Error::Decode(format!("parent_id='{s}': {e}").into())))
+            .map(|s| {
+                Uuid::from_str(&s)
+                    .map_err(|e| sqlx::Error::Decode(format!("parent_id='{s}': {e}").into()))
+            })
             .transpose()?;
 
         // Read optional fields
@@ -98,14 +100,19 @@ impl SqliteAccountRepository {
 
         let interest_rate_str: Option<String> = row.try_get("interest_rate")?;
         let interest_rate = interest_rate_str
-            .map(|s| Decimal::from_str(&s)
-                .map_err(|e| sqlx::Error::Decode(format!("interest_rate='{s}': {e}").into())))
+            .map(|s| {
+                Decimal::from_str(&s)
+                    .map_err(|e| sqlx::Error::Decode(format!("interest_rate='{s}': {e}").into()))
+            })
             .transpose()?;
 
         let low_balance_threshold_str: Option<String> = row.try_get("low_balance_threshold")?;
         let low_balance_threshold = low_balance_threshold_str
-            .map(|s| Decimal::from_str(&s)
-                .map_err(|e| sqlx::Error::Decode(format!("low_balance_threshold='{s}': {e}").into())))
+            .map(|s| {
+                Decimal::from_str(&s).map_err(|e| {
+                    sqlx::Error::Decode(format!("low_balance_threshold='{s}': {e}").into())
+                })
+            })
             .transpose()?;
 
         let updated_at: String = row.try_get("updated_at")?;
@@ -124,18 +131,21 @@ impl SqliteAccountRepository {
                 .map(|ndt| DateTime::<Utc>::from_naive_utc_and_offset(ndt, Utc))
         };
 
-        let updated_at_parsed =
-            parse_sqlite_datetime(&updated_at)
-                .map_err(|e| sqlx::Error::Decode(format!("updated_at='{updated_at}': {e}").into()))?;
+        let updated_at_parsed = parse_sqlite_datetime(&updated_at)
+            .map_err(|e| sqlx::Error::Decode(format!("updated_at='{updated_at}': {e}").into()))?;
 
         let deleted_at_parsed = deleted_at
-            .map(|s| parse_sqlite_datetime(&s)
-                .map_err(|e| sqlx::Error::Decode(format!("deleted_at='{s}': {e}").into())))
+            .map(|s| {
+                parse_sqlite_datetime(&s)
+                    .map_err(|e| sqlx::Error::Decode(format!("deleted_at='{s}': {e}").into()))
+            })
             .transpose()?;
 
         let device_id_parsed = device_id
-            .map(|s| Uuid::from_str(&s)
-                .map_err(|e| sqlx::Error::Decode(format!("device_id='{s}': {e}").into())))
+            .map(|s| {
+                Uuid::from_str(&s)
+                    .map_err(|e| sqlx::Error::Decode(format!("device_id='{s}': {e}").into()))
+            })
             .transpose()?;
 
         let synced_at_parsed = synced_at
@@ -537,8 +547,19 @@ mod tests {
         pool
     }
 
-    fn create_test_account(name: &str, account_type: AccountType, initial_balance: Decimal) -> Account {
-        let currency = Currency::new(uuid::Uuid::new_v4().to_string(), "USD", "USD", "$", Decimal::ONE).unwrap();
+    fn create_test_account(
+        name: &str,
+        account_type: AccountType,
+        initial_balance: Decimal,
+    ) -> Account {
+        let currency = Currency::new(
+            uuid::Uuid::new_v4().to_string(),
+            "USD",
+            "USD",
+            "$",
+            Decimal::ONE,
+        )
+        .unwrap();
         let money = Money::new(initial_balance, "USD").unwrap();
         let sync_metadata = SyncMetadata::new(Uuid::new_v4());
 

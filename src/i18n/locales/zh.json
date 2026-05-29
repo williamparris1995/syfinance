@@ -33,9 +33,18 @@
     "sortDesc": "降序排列",
     "confirm": "确认",
     "confirmDelete": "确认删除？",
-    "noResults": "无结果"
+    "noResults": "无结果",
+    "routeShell": "路由壳",
+    "optionalSuffix": "— 可选"
+  },
+  "error": {
+    "title": "出了点问题",
+    "description": "发生了意外错误，请尝试刷新页面。",
+    "tryAgain": "再试一次",
+    "reloadPage": "重新加载"
   },
   "nav": {
+    "appTitle": "Finance App",
     "dashboard": "仪表板",
     "transactions": "交易记录",
     "accounts": "账户",
@@ -163,10 +172,14 @@
     "advancedOptions": "高级选项",
     "creditCardDetails": "信用卡详情",
     "ownershipLabel": "所有权",
+    "ownershipLabelText": "所有权 (OWNERSHIP)",
     "ownAccount": "自己账户",
-    "externalAccount": "外部账户",
+    "ownAccountEmoji": "自己账户",
+    "externalAccountEmoji": "外部账户",
     "icon": "图标",
+    "iconLabel": "图标",
     "color": "颜色",
+    "colorLabel": "颜色",
     "selectTemplate": "选择投资模板",
     "prepaidDetails": "储值卡详情",
     "lowBalanceThreshold": "低余额阈值",
@@ -231,7 +244,14 @@
     "recordExpense": "记录支出",
     "recordIncome": "记录收入",
     "recordTransfer": "记录转账",
-    "prepaidBalance": "储值余额"
+    "prepaidBalance": "储值余额",
+    "creditOwnAccount": "贷方 (自己账户)",
+    "debitOwnAccount": "借方 (自己账户)",
+    "creditExternalAccount": "贷方 (外部账户)",
+    "debitExternalAccount": "借方 (外部账户)",
+    "selectAccountPlaceholder": "选择账户",
+    "selectExternalAccountPlaceholder": "选择外部账户",
+    "recordWithAmount": "{{label}} — ¥{{amount}}"
   },
   "transactionForm": {
     "transactionDate": "交易日期",
@@ -374,6 +394,7 @@
     "monthlyExpenseTrend": "月度支出趋势",
     "monthlyIncomeVsExpense": "月度收支对比",
     "noData": "所选周期暂无数据",
+    "dateRangeDisplay": "{{start}} 至 {{end}}",
     "transactions": "笔数"
   },
   "sidebar": {
@@ -514,6 +535,7 @@
     "fee": "手续费",
     "tradeDate": "交易日期",
     "estimatedAmount": "预估金额",
+    "estimatedAmountDisplay": "预计金额：¥{{value}}",
     "submitting": "提交中...",
     "addSecurity": "新建品种",
     "newSecurity": "新建品种",
@@ -611,7 +633,10 @@
     "fundingAccountDesc": "借入时钱打进哪个账户，借出时钱从哪个账户扣",
     "saving": "保存中...",
     "saveChanges": "保存修改",
-    "startDate": "借款日期"
+    "startDate": "借款日期",
+    "principalDisplay": "{{label}}: ¥{{value}}",
+    "interestDisplay": "{{label}} ({{rate}}% × {{years}}年): +¥{{value}}",
+    "totalInterestDisplay": "{{label}}: ¥{{value}}"
   },
   "currencyForm": {
     "currencyCode": "货币代码",
@@ -640,6 +665,7 @@
     "fee": "手续费",
     "tradeDate": "交易日期",
     "estimatedAmount": "预估金额",
+    "estimatedAmountDisplay": "预计金额：¥{{value}}",
     "submitting": "提交中...",
     "symbol": "代码",
     "name": "名称",
@@ -688,7 +714,10 @@
     "noTopUpRecords": "暂无充值记录",
     "noConsumptionRecords": "暂无消费记录",
     "summaryTitle": "储值账户汇总",
-    "summaryDesc": "所有储值账户概览"
+    "summaryDesc": "所有储值账户概览",
+    "detailError": "详情: {{error}}",
+    "topUpError": "充值: {{error}}",
+    "txError": "交易: {{error}}"
   },
   "subscription": {
     "title": "周期账单",
@@ -732,7 +761,8 @@
     "nextBilling": "最近扣款",
     "transactionHistory": "交易记录",
     "noTransactions": "暂无交易记录",
-    "pausedLabel": "暂停中"
+    "pausedLabel": "暂停中",
+    "noAccounts": "暂无可用账户"
   },
   "budget": {
     "title": "预算管理",
@@ -834,6 +864,11 @@
     "filterCompleted": "已完成"
   },
   "sync": {
+    "syncing": "同步中...",
+    "failed": "失败",
+    "synced": "已同步",
+    "notSynced": "未同步",
+    "syncNow": "立即同步",
     "justNow": "刚刚",
     "minuteAgo": "{{count}}分钟前",
     "minutesAgo": "{{count}}分钟前",

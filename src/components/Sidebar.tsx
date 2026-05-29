@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import { Home, Wallet, Receipt, CreditCard, BarChart3, Settings } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 type NavItem = {
   to: '/' | '/accounts' | '/transactions' | '/debts' | '/reports' | '/settings';
@@ -8,20 +9,22 @@ type NavItem = {
   exact?: boolean;
 };
 
-const navItems: NavItem[] = [
-  { to: '/', label: 'Overview', icon: Home, exact: true },
-  { to: '/accounts', label: 'Accounts', icon: Wallet },
-  { to: '/transactions', label: 'Transactions', icon: Receipt },
-  { to: '/debts', label: 'Debts', icon: CreditCard },
-  { to: '/reports', label: 'Reports', icon: BarChart3 },
-  { to: '/settings', label: 'Settings', icon: Settings },
-] as const;
-
 export function Sidebar() {
+  const { t } = useTranslation();
+
+  const navItems: NavItem[] = [
+    { to: '/', label: t('nav.dashboard'), icon: Home, exact: true },
+    { to: '/accounts', label: t('nav.accounts'), icon: Wallet },
+    { to: '/transactions', label: t('nav.transactions'), icon: Receipt },
+    { to: '/debts', label: t('nav.debts'), icon: CreditCard },
+    { to: '/reports', label: t('nav.reports'), icon: BarChart3 },
+    { to: '/settings', label: t('nav.settings'), icon: Settings },
+  ];
+
   return (
     <aside className="flex h-full w-64 flex-col border-r bg-sidebar">
       <div className="border-b px-6 py-4">
-        <h1 className="text-lg font-semibold text-sidebar-foreground">Finance App</h1>
+        <h1 className="text-lg font-semibold text-sidebar-foreground">{t('nav.appTitle')}</h1>
       </div>
       <nav className="flex-1 space-y-1 p-4">
         {navItems.map((item) => {

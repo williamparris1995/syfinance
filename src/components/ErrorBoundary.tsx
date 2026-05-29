@@ -1,5 +1,5 @@
 import { Component, ReactNode } from 'react';
-import { Button } from './ui/button';
+import { ErrorFallbackDisplay } from './ErrorFallbackDisplay';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -36,27 +36,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       }
 
       return (
-        <div className="flex min-h-screen items-center justify-center p-6">
-          <div className="max-w-md w-full space-y-4 text-center">
-            <div className="space-y-2">
-              <h1 className="text-2xl font-bold text-red-600">Something went wrong</h1>
-              <p className="text-neutral-600">
-                An unexpected error occurred. Please try refreshing the page.
-              </p>
-            </div>
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-left">
-              <p className="text-sm text-red-800 font-mono break-words">
-                {this.state.error.message}
-              </p>
-            </div>
-            <div className="flex gap-2 justify-center">
-              <Button onClick={this.resetError}>Try Again</Button>
-              <Button variant="outline" onClick={() => window.location.reload()}>
-                Reload Page
-              </Button>
-            </div>
-          </div>
-        </div>
+        <ErrorFallbackDisplay
+          errorMessage={this.state.error.message}
+          onRetry={this.resetError}
+        />
       );
     }
 

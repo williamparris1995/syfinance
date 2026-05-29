@@ -436,8 +436,13 @@ mod tests {
                 let debt = loan(AmortizationMethod::EqualPrincipalInterest);
 
                 assert_eq!(debt.payment_schedule.len(), 12);
-                let diff = (debt.payment_schedule[0].total_amount.amount - Decimal::new(856_075, 2)).abs();
-                assert!(diff <= Decimal::new(1, 2), "total_amount={}", debt.payment_schedule[0].total_amount);
+                let diff =
+                    (debt.payment_schedule[0].total_amount.amount - Decimal::new(856_075, 2)).abs();
+                assert!(
+                    diff <= Decimal::new(1, 2),
+                    "total_amount={}",
+                    debt.payment_schedule[0].total_amount
+                );
             }
 
             #[test]
@@ -450,12 +455,10 @@ mod tests {
                     .sum::<Decimal>();
                 let expected_total_interest = Decimal::new(272_896, 2);
 
-                let diff = (debt.payment_schedule[0].total_amount.amount - Decimal::new(856_075, 2)).abs();
+                let diff =
+                    (debt.payment_schedule[0].total_amount.amount - Decimal::new(856_075, 2)).abs();
                 assert!(diff <= Decimal::new(1, 2));
-                assert!(
-                    (total_interest - expected_total_interest).abs()
-                        <= Decimal::new(2, 2)
-                );
+                assert!((total_interest - expected_total_interest).abs() <= Decimal::new(2, 2));
             }
 
             #[test]
@@ -463,10 +466,21 @@ mod tests {
                 let debt = loan(AmortizationMethod::EqualPrincipal);
 
                 assert_eq!(debt.payment_schedule.len(), 12);
-                let diff0 = (debt.payment_schedule[0].total_amount.amount - Decimal::new(875_000, 2)).abs();
-                assert!(diff0 <= Decimal::new(1, 2), "first total={}", debt.payment_schedule[0].total_amount);
-                let diff11 = (debt.payment_schedule[11].total_amount.amount - Decimal::new(836_806, 2)).abs();
-                assert!(diff11 <= Decimal::new(1, 2), "last total={}", debt.payment_schedule[11].total_amount);
+                let diff0 =
+                    (debt.payment_schedule[0].total_amount.amount - Decimal::new(875_000, 2)).abs();
+                assert!(
+                    diff0 <= Decimal::new(1, 2),
+                    "first total={}",
+                    debt.payment_schedule[0].total_amount
+                );
+                let diff11 = (debt.payment_schedule[11].total_amount.amount
+                    - Decimal::new(836_806, 2))
+                .abs();
+                assert!(
+                    diff11 <= Decimal::new(1, 2),
+                    "last total={}",
+                    debt.payment_schedule[11].total_amount
+                );
             }
         }
 

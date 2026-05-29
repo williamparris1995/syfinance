@@ -319,8 +319,7 @@ impl DebtRepository for PostgresDebtRepository {
             let counterparty: String = row.try_get("counterparty")?;
             let interest_rate: Decimal = row.try_get("interest_rate")?;
             let amortization_method_str: String = row.try_get("amortization_method")?;
-            let amortization_method =
-                Self::parse_amortization_method(&amortization_method_str)?;
+            let amortization_method = Self::parse_amortization_method(&amortization_method_str)?;
             let start_date: NaiveDate = row.try_get("start_date")?;
             let due_date: NaiveDate = row.try_get("due_date")?;
             let total_principal: Decimal = row.try_get("total_principal")?;
@@ -355,9 +354,8 @@ fn row_to_debt_details(
     let counterparty: String = row.try_get("counterparty")?;
     let interest_rate: Decimal = row.try_get("interest_rate")?;
     let amortization_method_str: String = row.try_get("amortization_method")?;
-    let amortization_method = PostgresDebtRepository::parse_amortization_method(
-        &amortization_method_str,
-    )?;
+    let amortization_method =
+        PostgresDebtRepository::parse_amortization_method(&amortization_method_str)?;
     let start_date: NaiveDate = row.try_get("start_date")?;
     let due_date: NaiveDate = row.try_get("due_date")?;
     let total_principal: Decimal = row.try_get("total_principal")?;
@@ -377,12 +375,8 @@ fn row_to_debt_details(
     })
 }
 
-fn row_to_schedule_entry(
-    row: &sqlx::postgres::PgRow,
-) -> Result<PaymentScheduleEntry, sqlx::Error> {
-    let entry_id: Uuid = row
-        .try_get("schedule_id")
-        .or_else(|_| row.try_get("id"))?;
+fn row_to_schedule_entry(row: &sqlx::postgres::PgRow) -> Result<PaymentScheduleEntry, sqlx::Error> {
+    let entry_id: Uuid = row.try_get("schedule_id").or_else(|_| row.try_get("id"))?;
     let debt_id: Uuid = row.try_get("debt_id")?;
     let payment_date: NaiveDate = row.try_get("payment_date")?;
     let principal_amount: Decimal = row.try_get("principal_amount")?;

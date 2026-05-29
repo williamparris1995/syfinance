@@ -24,10 +24,12 @@ impl SqliteBudgetRepository {
         let actual_amount_raw: String = row.try_get("actual_amount")?;
         let notes: Option<String> = row.try_get("notes")?;
 
-        let planned_amount = Decimal::from_str(&planned_amount_raw)
-            .map_err(|e| sqlx::Error::Decode(format!("planned_amount='{planned_amount_raw}': {e}").into()))?;
-        let actual_amount = Decimal::from_str(&actual_amount_raw)
-            .map_err(|e| sqlx::Error::Decode(format!("actual_amount='{actual_amount_raw}': {e}").into()))?;
+        let planned_amount = Decimal::from_str(&planned_amount_raw).map_err(|e| {
+            sqlx::Error::Decode(format!("planned_amount='{planned_amount_raw}': {e}").into())
+        })?;
+        let actual_amount = Decimal::from_str(&actual_amount_raw).map_err(|e| {
+            sqlx::Error::Decode(format!("actual_amount='{actual_amount_raw}': {e}").into())
+        })?;
 
         Ok(BudgetItem {
             id,
@@ -102,8 +104,9 @@ impl BudgetRepository for SqliteBudgetRepository {
                 let currency_code: String = row.try_get("currency_code")?;
                 let is_active: bool = row.try_get("is_active")?;
 
-                let total_amount = Decimal::from_str(&total_amount_raw)
-                    .map_err(|e| sqlx::Error::Decode(format!("total_amount='{total_amount_raw}': {e}").into()))?;
+                let total_amount = Decimal::from_str(&total_amount_raw).map_err(|e| {
+                    sqlx::Error::Decode(format!("total_amount='{total_amount_raw}': {e}").into())
+                })?;
 
                 let items = self.find_items_by_budget_id(&id).await?;
 
@@ -142,8 +145,9 @@ impl BudgetRepository for SqliteBudgetRepository {
                 let currency_code: String = row.try_get("currency_code")?;
                 let is_active: bool = row.try_get("is_active")?;
 
-                let total_amount = Decimal::from_str(&total_amount_raw)
-                    .map_err(|e| sqlx::Error::Decode(format!("total_amount='{total_amount_raw}': {e}").into()))?;
+                let total_amount = Decimal::from_str(&total_amount_raw).map_err(|e| {
+                    sqlx::Error::Decode(format!("total_amount='{total_amount_raw}': {e}").into())
+                })?;
 
                 let items = self.find_items_by_budget_id(&id).await?;
 
@@ -181,8 +185,9 @@ impl BudgetRepository for SqliteBudgetRepository {
             let currency_code: String = row.try_get("currency_code")?;
             let is_active: bool = row.try_get("is_active")?;
 
-            let total_amount = Decimal::from_str(&total_amount_raw)
-                .map_err(|e| sqlx::Error::Decode(format!("total_amount='{total_amount_raw}': {e}").into()))?;
+            let total_amount = Decimal::from_str(&total_amount_raw).map_err(|e| {
+                sqlx::Error::Decode(format!("total_amount='{total_amount_raw}': {e}").into())
+            })?;
 
             let items = self.find_items_by_budget_id(&id).await?;
 

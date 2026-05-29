@@ -14,12 +14,7 @@ pub struct Budget {
 }
 
 impl Budget {
-    pub fn new(
-        id: String,
-        name: String,
-        month: String,
-        currency_code: String,
-    ) -> Self {
+    pub fn new(id: String, name: String, month: String, currency_code: String) -> Self {
         Self {
             id,
             name,

@@ -32,7 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from './ui/table';
-import type { CreateDebtDto, DebtDto, UpdateDebtDto, AmortizationMethod } from '@/lib/tauri/debt';
+import type { CreateDebtDto, DebtDto, AmortizationMethod } from '@/lib/tauri/debt';
 import { listAccounts, type AccountDto } from '@/lib/tauri/account';
 
 const DEBT_ACCOUNT_TYPES = ['BorrowedOut', 'BorrowedIn', 'CreditCard'] as const;
@@ -66,7 +66,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
 
   const debtAccounts = accounts.filter(
     (a: AccountDto) =>
-      a.ownership === 'own' && DEBT_ACCOUNT_TYPES.includes(a.account_type as any)
+      a.ownership === 'own' && DEBT_ACCOUNT_TYPES.includes(a.account_type as typeof DEBT_ACCOUNT_TYPES[number])
   );
 
   const fundingAccounts = accounts.filter(
@@ -130,7 +130,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
       start_date: initialData?.start_date || '',
       due_date: initialData?.due_date || '',
       periods: undefined,
-      amortization_method: (initialData?.amortization_method as any) || 'EqualPrincipalInterest',
+      amortization_method: (initialData?.amortization_method as 'EqualPrincipalInterest' | 'EqualPrincipal' | 'LumpSum' | null) || 'EqualPrincipalInterest',
     },
   });
 
@@ -483,8 +483,8 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
                 <div className="text-xl font-bold">¥{total.toLocaleString()}</div>
               </div>
               <div className="text-right text-xs space-y-1">
-                <div className="text-muted-foreground">{t('debtForm.principal')}: ¥{p.toLocaleString()}</div>
-                <div className="text-muted-foreground">{t('debtForm.interest')} ({interest_rate}% × {years}y): +¥{interest.toLocaleString()}</div>
+                <div className="text-muted-foreground">{t('debtForm.principalDisplay', { label: t('debtForm.principal'), value: p.toLocaleString() })}</div>
+                <div className="text-muted-foreground">{t('debtForm.interestDisplay', { label: t('debtForm.interest'), rate: interest_rate, years, value: interest.toLocaleString() })}</div>
               </div>
             </div>
             );
@@ -498,7 +498,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
               </div>
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>{paymentPreview.length} {t('debtForm.payments')}</span>
-                <span>{t('debtForm.totalInterest')}: ¥{totalInterest.toLocaleString()}</span>
+                <span>{t('debtForm.totalInterestDisplay', { label: t('debtForm.totalInterest'), value: totalInterest.toLocaleString() })}</span>
               </div>
               <details className="mt-3">
                 <summary className="text-xs text-primary cursor-pointer">{t('debtForm.viewSchedule')}</summary>

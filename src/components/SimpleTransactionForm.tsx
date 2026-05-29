@@ -293,7 +293,7 @@ export function SimpleTransactionForm({
             </Select>
             {isPrepaidExpense && (
               <div className={`text-xs mt-1 ${Number(selectedOwnAccount?.current_balance || 0) < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
-                {t('transaction.prepaidBalance')}: ¥{Number(selectedOwnAccount?.current_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {t('transaction.recordWithAmount', { label: t('transaction.prepaidBalance'), amount: Number(selectedOwnAccount?.current_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) })}
               </div>
             )}
           </div>
@@ -367,7 +367,7 @@ export function SimpleTransactionForm({
         <div className="space-y-1.5">
           <Label className="text-xs uppercase tracking-wider text-muted-foreground" htmlFor="description">
             {t('transaction.description')}
-            <span className="text-muted-foreground/50 font-normal"> — optional</span>
+            <span className="text-muted-foreground/50 font-normal"> {t('common.optionalSuffix')}</span>
           </Label>
           <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('transaction.descriptionPlaceholder')} className="h-9" />
         </div>

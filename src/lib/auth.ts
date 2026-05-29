@@ -13,7 +13,8 @@ async function getStore(): Promise<Store> {
     } catch (error) {
       // If Store.load fails, we cannot create a new Store
       // because the constructor is private. Re-throw the error.
-      throw new Error(`Failed to load store: ${error}`);
+      const msg = `Failed to load store: ${error}`;
+      throw new Error(msg); // eslint-disable-line preserve-caught-error -- Error serializes via toString() by default
     }
   }
   return store;
@@ -50,7 +51,7 @@ export async function isRegistered(): Promise<boolean> {
   try {
     const accountId = await getAccountId();
     return accountId !== null;
-  } catch (error) {
+  } catch {
     return false;
   }
 }

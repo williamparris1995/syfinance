@@ -77,9 +77,9 @@ export function PrepaidDetailPanel({ accountId, open, onOpenChange }: PrepaidDet
             </div>
           ) : detailError || topUpError || txError ? (
             <div className="flex flex-col items-center justify-center py-12 text-center space-y-2">
-              {detailError && <p className="text-sm text-red-500">Detail: {String(detailError)}</p>}
-              {topUpError && <p className="text-sm text-red-500">TopUp: {String(topUpError)}</p>}
-              {txError && <p className="text-sm text-red-500">Transactions: {String(txError)}</p>}
+              {detailError && <p className="text-sm text-red-500">{t('prepaid.detailError', { error: String(detailError) })}</p>}
+              {topUpError && <p className="text-sm text-red-500">{t('prepaid.topUpError', { error: String(topUpError) })}</p>}
+              {txError && <p className="text-sm text-red-500">{t('prepaid.txError', { error: String(txError) })}</p>}
             </div>
           ) : detail ? (
             <div className="space-y-4 px-5 pt-4">

@@ -1,12 +1,14 @@
 use crate::application::dtos::{
-    CreateSubscriptionDto, SubscriptionDto, SubscriptionFilters, TransactionDto, TransactionEntryDto,
-    UpdateSubscriptionDto,
+    CreateSubscriptionDto, SubscriptionDto, SubscriptionFilters, TransactionDto,
+    TransactionEntryDto, UpdateSubscriptionDto,
 };
 use crate::domain::aggregates::subscription::{
     Subscription, SubscriptionCycle, SubscriptionDirection,
 };
 use crate::domain::aggregates::Transaction;
-use crate::domain::repositories::{AccountRepository, SubscriptionRepository, TransactionRepository};
+use crate::domain::repositories::{
+    AccountRepository, SubscriptionRepository, TransactionRepository,
+};
 use crate::domain::value_objects::{Money, SyncMetadata, TransactionEntry};
 use crate::infrastructure::repositories::{
     SqliteAccountRepository, SqliteSubscriptionRepository, SqliteTransactionRepository,
@@ -69,7 +71,9 @@ impl SubscriptionService {
             .account_repo
             .find_by_id(dto.source_account_id)
             .await?
-            .ok_or(SubscriptionServiceError::AccountNotFound(dto.source_account_id))?;
+            .ok_or(SubscriptionServiceError::AccountNotFound(
+                dto.source_account_id,
+            ))?;
 
         let cycle = parse_cycle(&dto.cycle, dto.cycle_days)?;
         let direction = parse_direction(&dto.direction)?;
@@ -137,10 +141,7 @@ impl SubscriptionService {
                 auto_record: s.auto_record,
                 paused: s.paused,
                 source_account_id: s.source_account_id,
-                source_account_name: account
-                    .as_ref()
-                    .map(|a| a.name.clone())
-                    .unwrap_or_default(),
+                source_account_name: account.as_ref().map(|a| a.name.clone()).unwrap_or_default(),
                 currency_code: account
                     .as_ref()
                     .map(|a| a.currency_code.clone())
@@ -177,10 +178,7 @@ impl SubscriptionService {
             auto_record: s.auto_record,
             paused: s.paused,
             source_account_id: s.source_account_id,
-            source_account_name: account
-                .as_ref()
-                .map(|a| a.name.clone())
-                .unwrap_or_default(),
+            source_account_name: account.as_ref().map(|a| a.name.clone()).unwrap_or_default(),
             currency_code: account
                 .as_ref()
                 .map(|a| a.currency_code.clone())
@@ -298,7 +296,9 @@ impl SubscriptionService {
             .account_repo
             .find_by_id(s.source_account_id)
             .await?
-            .ok_or(SubscriptionServiceError::AccountNotFound(s.source_account_id))?;
+            .ok_or(SubscriptionServiceError::AccountNotFound(
+                s.source_account_id,
+            ))?;
 
         let txn_id = Uuid::new_v4();
         let desc = format!("{} - {}", s.name, s.next_billing_date);
@@ -414,10 +414,7 @@ fn transaction_to_dto(transaction: Transaction) -> TransactionDto {
     }
 }
 
-fn parse_cycle(
-    s: &str,
-    days: Option<u32>,
-) -> Result<SubscriptionCycle, SubscriptionServiceError> {
+fn parse_cycle(s: &str, days: Option<u32>) -> Result<SubscriptionCycle, SubscriptionServiceError> {
     match s {
         "weekly" => Ok(SubscriptionCycle::Weekly),
         "monthly" => Ok(SubscriptionCycle::Monthly),

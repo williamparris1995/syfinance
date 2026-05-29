@@ -67,7 +67,11 @@ impl TagRepository for SqliteTagRepository {
         Ok(())
     }
 
-    async fn remove_from_transaction(&self, transaction_id: &str, tag_id: &str) -> sqlx::Result<()> {
+    async fn remove_from_transaction(
+        &self,
+        transaction_id: &str,
+        tag_id: &str,
+    ) -> sqlx::Result<()> {
         sqlx::query("DELETE FROM transaction_tags WHERE transaction_id = ? AND tag_id = ?")
             .bind(transaction_id)
             .bind(tag_id)

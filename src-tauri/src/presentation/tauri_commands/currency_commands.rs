@@ -136,8 +136,8 @@ pub async fn add_currency_with_service(
 ) -> Result<(), String> {
     let exchange_rate = parse_exchange_rate(&exchange_rate)?;
     let id = uuid::Uuid::new_v4().to_string();
-    let currency =
-        Currency::new(id, code, name, symbol, exchange_rate).map_err(currency_validation_error_message)?;
+    let currency = Currency::new(id, code, name, symbol, exchange_rate)
+        .map_err(currency_validation_error_message)?;
 
     if state
         .repository()
@@ -203,7 +203,11 @@ pub async fn get_currency(
         .repository()
         .find_by_code_with_timestamp(&code)
         .await
-        .map(|opt| opt.map(|(currency, updated_at)| CurrencyDto::from_currency_with_timestamp(currency, updated_at)))
+        .map(|opt| {
+            opt.map(|(currency, updated_at)| {
+                CurrencyDto::from_currency_with_timestamp(currency, updated_at)
+            })
+        })
         .map_err(database_error_message)
 }
 
@@ -261,8 +265,16 @@ pub async fn convert_currency(
         .ok_or_else(|| format!("Currency not found: {}", to_code))?;
 
     // 转换逻辑：先转换为 CNY，再转换为目标货币
-    let from_rate = from_currency.exchange_rate.to_string().parse::<f64>().unwrap_or(1.0);
-    let to_rate = to_currency.exchange_rate.to_string().parse::<f64>().unwrap_or(1.0);
+    let from_rate = from_currency
+        .exchange_rate
+        .to_string()
+        .parse::<f64>()
+        .unwrap_or(1.0);
+    let to_rate = to_currency
+        .exchange_rate
+        .to_string()
+        .parse::<f64>()
+        .unwrap_or(1.0);
 
     if from_code == to_code {
         Ok(amount)

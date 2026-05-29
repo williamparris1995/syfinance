@@ -94,11 +94,7 @@ pub async fn update_subscription(
     state: State<'_, SubscriptionCommandState>,
     dto: UpdateSubscriptionDto,
 ) -> Result<(), String> {
-    state
-        .service()
-        .update(dto)
-        .await
-        .map_err(|e| e.to_string())
+    state.service().update(dto).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -107,11 +103,7 @@ pub async fn delete_subscription(
     id: String,
 ) -> Result<(), String> {
     let id = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
-    state
-        .service()
-        .delete(id)
-        .await
-        .map_err(|e| e.to_string())
+    state.service().delete(id).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -120,11 +112,7 @@ pub async fn pause_subscription(
     id: String,
 ) -> Result<(), String> {
     let id = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
-    state
-        .service()
-        .pause(id)
-        .await
-        .map_err(|e| e.to_string())
+    state.service().pause(id).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -133,11 +121,7 @@ pub async fn resume_subscription(
     id: String,
 ) -> Result<(), String> {
     let id = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
-    state
-        .service()
-        .resume(id)
-        .await
-        .map_err(|e| e.to_string())
+    state.service().resume(id).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]

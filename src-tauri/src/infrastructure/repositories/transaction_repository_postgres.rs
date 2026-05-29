@@ -191,11 +191,12 @@ impl TransactionRepository for PostgresTransactionRepository {
 
             // Insert new entries
             for entry in &transaction.entries {
-                let (debit_amount, credit_amount) = match (&entry.debit_amount, &entry.credit_amount) {
-                    (Some(debit), None) => (Some(debit.amount), None),
-                    (None, Some(credit)) => (None, Some(credit.amount)),
-                    _ => (None, None),
-                };
+                let (debit_amount, credit_amount) =
+                    match (&entry.debit_amount, &entry.credit_amount) {
+                        (Some(debit), None) => (Some(debit.amount), None),
+                        (None, Some(credit)) => (None, Some(credit.amount)),
+                        _ => (None, None),
+                    };
 
                 sqlx::query(
                     r#"

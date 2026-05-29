@@ -46,8 +46,20 @@ pub struct HoldingTransaction {
 }
 
 impl Holding {
-    pub fn new(id: Uuid, account_id: Uuid, security_id: Uuid, quantity: Decimal, avg_cost: Decimal) -> Self {
-        Self { id, account_id, security_id, quantity, avg_cost }
+    pub fn new(
+        id: Uuid,
+        account_id: Uuid,
+        security_id: Uuid,
+        quantity: Decimal,
+        avg_cost: Decimal,
+    ) -> Self {
+        Self {
+            id,
+            account_id,
+            security_id,
+            quantity,
+            avg_cost,
+        }
     }
 
     /// Apply a BUY transaction to this holding

@@ -7,9 +7,7 @@ use crate::domain::{
     repositories::{AccountRepository, TransactionRepository},
     value_objects::{Money, SyncMetadata, TransactionEntry},
 };
-use crate::infrastructure::repositories::{
-    SqliteAccountRepository, SqliteTransactionRepository,
-};
+use crate::infrastructure::repositories::{SqliteAccountRepository, SqliteTransactionRepository};
 use rust_decimal::Decimal;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -137,7 +135,9 @@ impl TransactionService {
                 .account_repo
                 .find_by_id(entry_dto.account_id)
                 .await?
-                .ok_or(TransactionServiceError::AccountNotFound(entry_dto.account_id))?;
+                .ok_or(TransactionServiceError::AccountNotFound(
+                    entry_dto.account_id,
+                ))?;
 
             let debit_amount = entry_dto
                 .debit_amount
@@ -187,10 +187,7 @@ impl TransactionService {
         Ok(id)
     }
 
-    pub async fn delete_transaction(
-        &self,
-        id: Uuid,
-    ) -> Result<(), TransactionServiceError> {
+    pub async fn delete_transaction(&self, id: Uuid) -> Result<(), TransactionServiceError> {
         // Verify transaction exists
         self.transaction_repo
             .find_by_id(id)
@@ -282,13 +279,17 @@ impl TransactionService {
             .account_repo
             .find_by_id(dto.debit_account_id)
             .await?
-            .ok_or(TransactionServiceError::AccountNotFound(dto.debit_account_id))?;
+            .ok_or(TransactionServiceError::AccountNotFound(
+                dto.debit_account_id,
+            ))?;
 
         let credit_account = self
             .account_repo
             .find_by_id(dto.credit_account_id)
             .await?
-            .ok_or(TransactionServiceError::AccountNotFound(dto.credit_account_id))?;
+            .ok_or(TransactionServiceError::AccountNotFound(
+                dto.credit_account_id,
+            ))?;
 
         let money = Money::new(dto.amount, &debit_account.currency_code)
             .map_err(|e| TransactionServiceError::ValidationError(e.to_string()))?;
@@ -337,23 +338,34 @@ impl TransactionService {
             .account_repo
             .find_by_id(dto.debit_account_id)
             .await?
-            .ok_or(TransactionServiceError::AccountNotFound(dto.debit_account_id))?;
+            .ok_or(TransactionServiceError::AccountNotFound(
+                dto.debit_account_id,
+            ))?;
 
         let credit_account = self
             .account_repo
             .find_by_id(dto.credit_account_id)
             .await?
-            .ok_or(TransactionServiceError::AccountNotFound(dto.credit_account_id))?;
+            .ok_or(TransactionServiceError::AccountNotFound(
+                dto.credit_account_id,
+            ))?;
 
         // Check prepaid account balance
         if credit_account.account_type == AccountType::Prepaid {
-            let balances = self.account_repo.compute_balances_for_all_accounts().await?;
-            let net_change = balances.get(&credit_account.id).copied().unwrap_or(Decimal::ZERO);
+            let balances = self
+                .account_repo
+                .compute_balances_for_all_accounts()
+                .await?;
+            let net_change = balances
+                .get(&credit_account.id)
+                .copied()
+                .unwrap_or(Decimal::ZERO);
             let balance = credit_account.initial_balance.amount + net_change;
             if balance < dto.amount {
-                return Err(TransactionServiceError::ValidationError(
-                    format!("insufficient prepaid balance: {} < {}", balance, dto.amount),
-                ));
+                return Err(TransactionServiceError::ValidationError(format!(
+                    "insufficient prepaid balance: {} < {}",
+                    balance, dto.amount
+                )));
             }
         }
 
@@ -394,13 +406,21 @@ impl TransactionService {
         // Check low balance for prepaid accounts
         if credit_account.account_type == AccountType::Prepaid {
             if let Some(threshold) = credit_account.low_balance_threshold {
-                let balances = self.account_repo.compute_balances_for_all_accounts().await?;
-                let net_change = balances.get(&credit_account.id).copied().unwrap_or(Decimal::ZERO);
+                let balances = self
+                    .account_repo
+                    .compute_balances_for_all_accounts()
+                    .await?;
+                let net_change = balances
+                    .get(&credit_account.id)
+                    .copied()
+                    .unwrap_or(Decimal::ZERO);
                 let balance = credit_account.initial_balance.amount + net_change;
                 if balance < threshold {
                     tracing::warn!(
                         "Prepaid account '{}' balance {} is below threshold {}",
-                        credit_account.name, balance, threshold
+                        credit_account.name,
+                        balance,
+                        threshold
                     );
                 }
             }
@@ -419,7 +439,9 @@ impl TransactionService {
             .account_repo
             .find_by_id(dto.from_account_id)
             .await?
-            .ok_or(TransactionServiceError::AccountNotFound(dto.from_account_id))?;
+            .ok_or(TransactionServiceError::AccountNotFound(
+                dto.from_account_id,
+            ))?;
 
         let to_account = self
             .account_repo

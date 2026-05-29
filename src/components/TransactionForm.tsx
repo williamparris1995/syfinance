@@ -68,8 +68,8 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
   });
 
   // Stub: categories API removed, will be refactored in a follow-up task
-  const incomeCategories: any[] = [];
-  const expenseCategories: any[] = [];
+  const incomeCategories: { id: string; name: string }[] = [];
+  const expenseCategories: { id: string; name: string }[] = [];
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionFormSchema),

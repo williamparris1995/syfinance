@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   createBackup, listBackups, getCloudPresets, getCloudSettings,
   saveCloudSettings, testCloudConnection, uploadToCloud, deleteBackup,
-  type BackupInfo, type CloudPreset, type CloudSettings, type CloudBackupInfo,
+  type BackupInfo, type CloudPreset, type CloudSettings,
 } from '../lib/tauri/backup';
 
 export function useBackup() {

@@ -383,7 +383,11 @@ fn validate_balance(
 
     if matches!(
         account_type,
-        AccountType::Cash | AccountType::Bank | AccountType::Investment | AccountType::BorrowedOut | AccountType::Prepaid
+        AccountType::Cash
+            | AccountType::Bank
+            | AccountType::Investment
+            | AccountType::BorrowedOut
+            | AccountType::Prepaid
     ) && balance.amount < Decimal::ZERO
     {
         return Err(AccountError::NegativeBalanceNotAllowed {
@@ -459,7 +463,10 @@ mod tests {
                 );
 
                 assert!(result.is_ok());
-                assert_eq!(result.unwrap().initial_balance.amount, Decimal::new(-100, 2));
+                assert_eq!(
+                    result.unwrap().initial_balance.amount,
+                    Decimal::new(-100, 2)
+                );
             }
 
             #[test]
@@ -700,12 +707,12 @@ mod tests {
                 )
                 .unwrap();
 
-                assert!(
-                    account
-                        .update_interest_rate(Some(Decimal::new(-1, 2)))
-                        .is_err()
-                );
-                assert!(account.update_interest_rate(Some(Decimal::new(5, 1))).is_ok());
+                assert!(account
+                    .update_interest_rate(Some(Decimal::new(-1, 2)))
+                    .is_err());
+                assert!(account
+                    .update_interest_rate(Some(Decimal::new(5, 1)))
+                    .is_ok());
                 assert_eq!(account.interest_rate, Some(Decimal::new(5, 1)));
             }
 
@@ -733,10 +740,7 @@ mod tests {
                     account.credit_limit.as_ref().unwrap().amount,
                     Decimal::new(50000, 2)
                 );
-                assert_eq!(
-                    account.credit_limit.as_ref().unwrap().currency_code,
-                    "CNY"
-                );
+                assert_eq!(account.credit_limit.as_ref().unwrap().currency_code, "CNY");
             }
 
             #[test]

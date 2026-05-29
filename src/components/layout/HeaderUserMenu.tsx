@@ -54,17 +54,17 @@ export function HeaderUserMenu({
 
         <DropdownMenuItem onClick={onProfileClick}>
           <span>{t('header.profile')}</span>
-          <span className="ml-auto text-xs text-muted-foreground">⌘P</span>
+          <span className="ml-auto text-xs text-muted-foreground">{'⌘P'}</span>
         </DropdownMenuItem>
 
         <DropdownMenuItem onClick={onBillingClick}>
           <span>{t('header.billing')}</span>
-          <span className="ml-auto text-xs text-muted-foreground">⌘B</span>
+          <span className="ml-auto text-xs text-muted-foreground">{'⌘B'}</span>
         </DropdownMenuItem>
 
         <DropdownMenuItem onClick={onSettingsClick}>
           <span>{t('header.settings')}</span>
-          <span className="ml-auto text-xs text-muted-foreground">⌘S</span>
+          <span className="ml-auto text-xs text-muted-foreground">{'⌘S'}</span>
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />
@@ -80,7 +80,7 @@ export function HeaderUserMenu({
           className="text-destructive focus:text-destructive"
         >
           <span>{t('header.signOut')}</span>
-          <span className="ml-auto text-xs text-muted-foreground">⌘Q</span>
+          <span className="ml-auto text-xs text-muted-foreground">{'⌘Q'}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

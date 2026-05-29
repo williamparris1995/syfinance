@@ -10,14 +10,17 @@ mod presentation;
 use application::services::subscription_service::SubscriptionService;
 use infrastructure::notifications::{NotificationService, TauriNotificationSender};
 use infrastructure::reminders::ReminderScheduler;
-use infrastructure::repositories::{SqliteAccountRepository, SqliteReminderRepository, SqliteSubscriptionRepository, SqliteTransactionRepository};
+use infrastructure::repositories::{
+    SqliteAccountRepository, SqliteReminderRepository, SqliteSubscriptionRepository,
+    SqliteTransactionRepository,
+};
 use infrastructure::sync::SyncScheduler;
 use presentation::api::create_sync_routes;
 use presentation::tauri_commands::{
     account_commands::{
         create_account, delete_account, get_account, get_account_balance, list_accounts,
-        list_accounts_by_ownership, list_accounts_with_balances,
-        setup_preset_investment_accounts, update_account, AppState,
+        list_accounts_by_ownership, list_accounts_with_balances, setup_preset_investment_accounts,
+        update_account, AppState,
     },
     backup_commands::{
         create_backup, create_backup_state, delete_backup, get_backup_diff, get_backup_metadata,
@@ -28,56 +31,52 @@ use presentation::tauri_commands::{
         add_currency, create_default_state_from_pool as create_currency_default_state_from_pool,
         list_currencies, update_currency_rate, CurrencyCommandState,
     },
-    export_commands::{
-        create_export_default_state, export_all_data, ExportCommandState,
+    debt_commands::{
+        create_debt, create_default_state_from_pool as create_debt_default_state_from_pool,
+        delete_debt, get_debt, get_upcoming_payments, list_debts, record_payment, update_debt,
+        AppState as DebtAppState,
     },
+    encryption_commands::{
+        create_encryption_default_state, disable_encryption, get_encryption_status,
+        lock_encryption, setup_encryption, unlock_encryption, unlock_encryption_keychain,
+        EncryptionCommandState,
+    },
+    export_commands::{create_export_default_state, export_all_data, ExportCommandState},
     goal_commands::{
         complete_goal, create_default_state_from_pool as create_goal_default_state_from_pool,
         create_goal, delete_goal, get_goal, list_goals, update_goal, update_goal_progress,
         GoalCommandState,
     },
-    encryption_commands::{
-        create_encryption_default_state, disable_encryption, get_encryption_status, lock_encryption,
-        setup_encryption, unlock_encryption, unlock_encryption_keychain, EncryptionCommandState,
-    },
-    debt_commands::{
-        create_debt, create_default_state_from_pool as create_debt_default_state_from_pool,
-        delete_debt, get_debt, get_upcoming_payments, list_debts, record_payment,
-        update_debt, AppState as DebtAppState,
-    },
     holding_commands::{
         buy_holding, create_default_state_from_pool as create_holding_default_state,
         create_security, delete_holding_trade, fetch_security_price, list_holding_transactions,
-        list_holdings, list_securities, search_securities, sell_holding,
-        update_security_price, update_holding_trade, AppState as HoldingCommandState,
+        list_holdings, list_securities, search_securities, sell_holding, update_holding_trade,
+        update_security_price, AppState as HoldingCommandState,
     },
     prepaid_commands::{
-        create_default_state_from_pool as create_prepaid_default_state,
-        get_prepaid_detail, get_top_up_records, top_up, PrepaidCommandState,
+        create_default_state_from_pool as create_prepaid_default_state, get_prepaid_detail,
+        get_top_up_records, top_up, PrepaidCommandState,
     },
-    search_commands::{
-        create_search_default_state, global_search, SearchCommandState,
-    },
+    search_commands::{create_search_default_state, global_search, SearchCommandState},
     subscription_commands::{
-        create_default_state_from_pool as create_subscription_default_state,
-        create_subscription, delete_subscription, get_subscription,
-        list_subscription_transactions, list_subscriptions, pause_subscription,
-        resume_subscription, update_subscription, SubscriptionCommandState,
-    },
-    tag_commands::{
-        add_tag_to_transaction, create_default_state_from_pool as create_tag_default_state_from_pool,
-        create_tag, delete_tag, get_transaction_tags, list_tags, remove_tag_from_transaction,
-        TagCommandState,
+        create_default_state_from_pool as create_subscription_default_state, create_subscription,
+        delete_subscription, get_subscription, list_subscription_transactions, list_subscriptions,
+        pause_subscription, resume_subscription, update_subscription, SubscriptionCommandState,
     },
     sync_commands::{
         create_default_state as create_sync_default_state, get_sync_settings, get_sync_status,
         sync_from_server, sync_to_server, update_sync_settings,
     },
+    tag_commands::{
+        add_tag_to_transaction,
+        create_default_state_from_pool as create_tag_default_state_from_pool, create_tag,
+        delete_tag, get_transaction_tags, list_tags, remove_tag_from_transaction, TagCommandState,
+    },
     transaction_commands::{
         create_default_state_from_pool, create_simple_expense, create_simple_income,
-        create_simple_transfer, create_transaction, get_transaction,
+        create_simple_transfer, create_transaction, delete_transaction, get_transaction,
         get_transactions_by_account, get_transactions_by_date_range, list_transactions,
-        update_transaction, delete_transaction,
+        update_transaction,
     },
 };
 use sqlx::sqlite::SqlitePool;
@@ -163,9 +162,10 @@ async fn main() {
     let prepaid_state: PrepaidCommandState = create_prepaid_default_state(pool.clone())
         .await
         .expect("failed to initialize prepaid command state");
-    let subscription_state: SubscriptionCommandState = create_subscription_default_state(pool.clone())
-        .await
-        .expect("failed to initialize subscription command state");
+    let subscription_state: SubscriptionCommandState =
+        create_subscription_default_state(pool.clone())
+            .await
+            .expect("failed to initialize subscription command state");
 
     // Clone the pool before debt_state is moved
     let debt_pool = pool.clone();

@@ -6,11 +6,17 @@ use sqlx::{Row, SqlitePool};
 use std::str::FromStr;
 use uuid::Uuid;
 
-pub struct SqliteHoldingRepository { pool: SqlitePool }
+pub struct SqliteHoldingRepository {
+    pool: SqlitePool,
+}
 
 impl SqliteHoldingRepository {
-    pub fn new(pool: SqlitePool) -> Self { Self { pool } }
-    pub fn pool(&self) -> &SqlitePool { &self.pool }
+    pub fn new(pool: SqlitePool) -> Self {
+        Self { pool }
+    }
+    pub fn pool(&self) -> &SqlitePool {
+        &self.pool
+    }
 
     const TRADE_TYPE_BUY: &str = "BUY";
     const TRADE_TYPE_SELL: &str = "SELL";
@@ -23,7 +29,9 @@ impl SqliteHoldingRepository {
             TRADE_TYPE_SELL => Ok(HoldingTransactionType::Sell),
             TRADE_TYPE_DIVIDEND => Ok(HoldingTransactionType::Dividend),
             TRADE_TYPE_SPLIT => Ok(HoldingTransactionType::Split),
-            _ => Err(sqlx::Error::Decode(format!("invalid trade type: {}", s).into())),
+            _ => Err(sqlx::Error::Decode(
+                format!("invalid trade type: {}", s).into(),
+            )),
         }
     }
 
@@ -37,8 +45,10 @@ impl SqliteHoldingRepository {
             Uuid::parse_str(&id_str).map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
             Uuid::parse_str(&acc_str).map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
             Uuid::parse_str(&sec_str).map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
-            Decimal::from_str(&qty_str).map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
-            Decimal::from_str(&cost_str).map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
+            Decimal::from_str(&qty_str)
+                .map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
+            Decimal::from_str(&cost_str)
+                .map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
         ))
     }
 
@@ -55,17 +65,26 @@ impl SqliteHoldingRepository {
         let txn_id: Option<String> = row.try_get("transaction_id")?;
         let notes: Option<String> = row.try_get("notes")?;
         Ok(HoldingTransaction {
-            id: Uuid::parse_str(&id_str).map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
-            account_id: Uuid::parse_str(&acc_str).map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
-            security_id: Uuid::parse_str(&sec_str).map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
+            id: Uuid::parse_str(&id_str)
+                .map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
+            account_id: Uuid::parse_str(&acc_str)
+                .map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
+            security_id: Uuid::parse_str(&sec_str)
+                .map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
             trade_type: Self::parse_trade_type(&type_str)?,
-            quantity: Decimal::from_str(&qty_str).map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
-            price: Decimal::from_str(&price_str).map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
-            amount: Decimal::from_str(&amt_str).map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
-            fee: Decimal::from_str(&fee_str).map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
+            quantity: Decimal::from_str(&qty_str)
+                .map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
+            price: Decimal::from_str(&price_str)
+                .map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
+            amount: Decimal::from_str(&amt_str)
+                .map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
+            fee: Decimal::from_str(&fee_str)
+                .map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
             trade_date: NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
                 .map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
-            transaction_id: txn_id.map(|s| Uuid::parse_str(&s)).transpose()
+            transaction_id: txn_id
+                .map(|s| Uuid::parse_str(&s))
+                .transpose()
                 .map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
             notes,
         })
@@ -77,8 +96,11 @@ impl HoldingRepository for SqliteHoldingRepository {
         let rows = sqlx::query(
             "SELECT id, account_id, security_id, CAST(quantity AS TEXT) as quantity,
                     CAST(avg_cost AS TEXT) as avg_cost
-             FROM holdings WHERE account_id = ? AND deleted_at IS NULL"
-        ).bind(account_id.to_string()).fetch_all(&self.pool).await?;
+             FROM holdings WHERE account_id = ? AND deleted_at IS NULL",
+        )
+        .bind(account_id.to_string())
+        .fetch_all(&self.pool)
+        .await?;
         rows.iter().map(|r| Self::row_to_holding(r)).collect()
     }
 
@@ -86,8 +108,10 @@ impl HoldingRepository for SqliteHoldingRepository {
         let rows = sqlx::query(
             "SELECT id, account_id, security_id, CAST(quantity AS TEXT) as quantity,
                     CAST(avg_cost AS TEXT) as avg_cost
-             FROM holdings WHERE deleted_at IS NULL"
-        ).fetch_all(&self.pool).await?;
+             FROM holdings WHERE deleted_at IS NULL",
+        )
+        .fetch_all(&self.pool)
+        .await?;
         rows.iter().map(|r| Self::row_to_holding(r)).collect()
     }
 
@@ -97,17 +121,25 @@ impl HoldingRepository for SqliteHoldingRepository {
              VALUES (?, ?, ?, ?, ?, ?)
              ON CONFLICT(account_id, security_id) DO UPDATE SET
              quantity=excluded.quantity, avg_cost=excluded.avg_cost, updated_at=excluded.updated_at,
-             deleted_at=NULL"
+             deleted_at=NULL",
         )
-        .bind(h.id.to_string()).bind(h.account_id.to_string()).bind(h.security_id.to_string())
-        .bind(h.quantity.to_string()).bind(h.avg_cost.to_string()).bind(Utc::now().to_rfc3339())
-        .execute(&self.pool).await?;
+        .bind(h.id.to_string())
+        .bind(h.account_id.to_string())
+        .bind(h.security_id.to_string())
+        .bind(h.quantity.to_string())
+        .bind(h.avg_cost.to_string())
+        .bind(Utc::now().to_rfc3339())
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 
     async fn soft_delete(&self, id: Uuid) -> sqlx::Result<bool> {
         let r = sqlx::query("UPDATE holdings SET deleted_at=? WHERE id=? AND deleted_at IS NULL")
-            .bind(Utc::now().to_rfc3339()).bind(id.to_string()).execute(&self.pool).await?;
+            .bind(Utc::now().to_rfc3339())
+            .bind(id.to_string())
+            .execute(&self.pool)
+            .await?;
         Ok(r.rows_affected() > 0)
     }
 
@@ -124,7 +156,10 @@ impl HoldingRepository for SqliteHoldingRepository {
         Ok(())
     }
 
-    async fn find_transactions_by_account(&self, account_id: Uuid) -> sqlx::Result<Vec<HoldingTransaction>> {
+    async fn find_transactions_by_account(
+        &self,
+        account_id: Uuid,
+    ) -> sqlx::Result<Vec<HoldingTransaction>> {
         let rows = sqlx::query(
             "SELECT id, account_id, security_id, type, CAST(quantity AS TEXT) as quantity,
                     CAST(price AS TEXT) as price, CAST(amount AS TEXT) as amount,
@@ -134,7 +169,11 @@ impl HoldingRepository for SqliteHoldingRepository {
         rows.iter().map(|r| Self::row_to_ht(r)).collect()
     }
 
-    async fn find_transactions_by_holding(&self, account_id: Uuid, security_id: Uuid) -> sqlx::Result<Vec<HoldingTransaction>> {
+    async fn find_transactions_by_holding(
+        &self,
+        account_id: Uuid,
+        security_id: Uuid,
+    ) -> sqlx::Result<Vec<HoldingTransaction>> {
         let rows = sqlx::query(
             "SELECT id, account_id, security_id, type, CAST(quantity AS TEXT) as quantity,
                     CAST(price AS TEXT) as price, CAST(amount AS TEXT) as amount,
@@ -144,11 +183,17 @@ impl HoldingRepository for SqliteHoldingRepository {
         rows.iter().map(|r| Self::row_to_ht(r)).collect()
     }
 
-    async fn find_transactions_by_holding_id(&self, holding_id: Uuid) -> sqlx::Result<Vec<HoldingTransaction>> {
+    async fn find_transactions_by_holding_id(
+        &self,
+        holding_id: Uuid,
+    ) -> sqlx::Result<Vec<HoldingTransaction>> {
         // First get the holding to find account_id and security_id
         let holding_row = sqlx::query(
-            "SELECT account_id, security_id FROM holdings WHERE id = ? AND deleted_at IS NULL"
-        ).bind(holding_id.to_string()).fetch_one(&self.pool).await?;
+            "SELECT account_id, security_id FROM holdings WHERE id = ? AND deleted_at IS NULL",
+        )
+        .bind(holding_id.to_string())
+        .fetch_one(&self.pool)
+        .await?;
 
         let account_id: String = holding_row.try_get("account_id")?;
         let security_id: String = holding_row.try_get("security_id")?;
@@ -159,25 +204,39 @@ impl HoldingRepository for SqliteHoldingRepository {
                     CAST(fee AS TEXT) as fee, trade_date, transaction_id, notes
              FROM holding_transactions
              WHERE account_id = ? AND security_id = ? AND deleted_at IS NULL
-             ORDER BY trade_date ASC"
-        ).bind(&account_id).bind(&security_id).fetch_all(&self.pool).await?;
+             ORDER BY trade_date ASC",
+        )
+        .bind(&account_id)
+        .bind(&security_id)
+        .fetch_all(&self.pool)
+        .await?;
         rows.iter().map(|r| Self::row_to_ht(r)).collect()
     }
 
-    async fn find_holding_transaction_by_id(&self, id: Uuid) -> sqlx::Result<Option<HoldingTransaction>> {
+    async fn find_holding_transaction_by_id(
+        &self,
+        id: Uuid,
+    ) -> sqlx::Result<Option<HoldingTransaction>> {
         let row = sqlx::query(
             "SELECT id, account_id, security_id, type, CAST(quantity AS TEXT) as quantity,
                     CAST(price AS TEXT) as price, CAST(amount AS TEXT) as amount,
                     CAST(fee AS TEXT) as fee, trade_date, transaction_id, notes
-             FROM holding_transactions WHERE id = ? AND deleted_at IS NULL"
-        ).bind(id.to_string()).fetch_optional(&self.pool).await?;
+             FROM holding_transactions WHERE id = ? AND deleted_at IS NULL",
+        )
+        .bind(id.to_string())
+        .fetch_optional(&self.pool)
+        .await?;
         row.map(|r| Self::row_to_ht(&r)).transpose()
     }
 
     async fn soft_delete_holding_transaction(&self, id: Uuid) -> sqlx::Result<bool> {
-        let r = sqlx::query("UPDATE holding_transactions SET deleted_at=? WHERE id=? AND deleted_at IS NULL")
-            .bind(chrono::Utc::now().to_rfc3339()).bind(id.to_string())
-            .execute(&self.pool).await?;
+        let r = sqlx::query(
+            "UPDATE holding_transactions SET deleted_at=? WHERE id=? AND deleted_at IS NULL",
+        )
+        .bind(chrono::Utc::now().to_rfc3339())
+        .bind(id.to_string())
+        .execute(&self.pool)
+        .await?;
         Ok(r.rows_affected() > 0)
     }
 
@@ -187,13 +246,23 @@ impl HoldingRepository for SqliteHoldingRepository {
             .bind(chrono::Utc::now().to_rfc3339()).bind(transaction_id.to_string())
             .execute(&self.pool).await?;
         // Soft-delete transaction
-        let r = sqlx::query("UPDATE transactions SET deleted_at=? WHERE id=? AND deleted_at IS NULL")
-            .bind(chrono::Utc::now().to_rfc3339()).bind(transaction_id.to_string())
-            .execute(&self.pool).await?;
+        let r =
+            sqlx::query("UPDATE transactions SET deleted_at=? WHERE id=? AND deleted_at IS NULL")
+                .bind(chrono::Utc::now().to_rfc3339())
+                .bind(transaction_id.to_string())
+                .execute(&self.pool)
+                .await?;
         Ok(r.rows_affected() > 0)
     }
 
-    async fn update_holding_transaction(&self, id: Uuid, quantity: Decimal, price: Decimal, fee: Decimal, trade_date: NaiveDate) -> sqlx::Result<()> {
+    async fn update_holding_transaction(
+        &self,
+        id: Uuid,
+        quantity: Decimal,
+        price: Decimal,
+        fee: Decimal,
+        trade_date: NaiveDate,
+    ) -> sqlx::Result<()> {
         let amount = quantity * price;
         sqlx::query(
             "UPDATE holding_transactions SET quantity=?, price=?, amount=?, fee=?, trade_date=?, updated_at=? WHERE id=? AND deleted_at IS NULL"
@@ -205,7 +274,12 @@ impl HoldingRepository for SqliteHoldingRepository {
         Ok(())
     }
 
-    async fn update_holding_quantities(&self, holding_id: Uuid, quantity: Decimal, avg_cost: Decimal) -> sqlx::Result<()> {
+    async fn update_holding_quantities(
+        &self,
+        holding_id: Uuid,
+        quantity: Decimal,
+        avg_cost: Decimal,
+    ) -> sqlx::Result<()> {
         sqlx::query(
             "UPDATE holdings SET quantity=?, avg_cost=?, updated_at=? WHERE id=? AND deleted_at IS NULL"
         )
@@ -217,8 +291,10 @@ impl HoldingRepository for SqliteHoldingRepository {
 
     async fn soft_delete_holding_by_id(&self, holding_id: Uuid) -> sqlx::Result<bool> {
         let r = sqlx::query("UPDATE holdings SET deleted_at=? WHERE id=? AND deleted_at IS NULL")
-            .bind(chrono::Utc::now().to_rfc3339()).bind(holding_id.to_string())
-            .execute(&self.pool).await?;
+            .bind(chrono::Utc::now().to_rfc3339())
+            .bind(holding_id.to_string())
+            .execute(&self.pool)
+            .await?;
         Ok(r.rows_affected() > 0)
     }
 
@@ -226,8 +302,11 @@ impl HoldingRepository for SqliteHoldingRepository {
         let row = sqlx::query(
             "SELECT id, account_id, security_id, CAST(quantity AS TEXT) as quantity,
                     CAST(avg_cost AS TEXT) as avg_cost
-             FROM holdings WHERE id = ? AND deleted_at IS NULL"
-        ).bind(id.to_string()).fetch_optional(&self.pool).await?;
+             FROM holdings WHERE id = ? AND deleted_at IS NULL",
+        )
+        .bind(id.to_string())
+        .fetch_optional(&self.pool)
+        .await?;
         row.map(|r| Self::row_to_holding(&r)).transpose()
     }
 }

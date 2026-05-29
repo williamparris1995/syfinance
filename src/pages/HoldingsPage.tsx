@@ -209,26 +209,6 @@ export function HoldingsPage() {
     return Array.from(types);
   }, [holdings]);
 
-  const dateRange = useMemo(() => {
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    if (dateRangePreset === 'all') return { start: '', end: '' };
-    if (dateRangePreset === 'custom' && customStartDate && customEndDate) {
-      return { start: customStartDate, end: customEndDate };
-    }
-    if (dateRangePreset === 'month') {
-      return { start: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`, end: today };
-    }
-    if (dateRangePreset === 'quarter') {
-      const qm = Math.floor(now.getMonth() / 3) * 3 + 1;
-      return { start: `${now.getFullYear()}-${String(qm).padStart(2, '0')}-01`, end: today };
-    }
-    if (dateRangePreset === 'year') {
-      return { start: `${now.getFullYear()}-01-01`, end: today };
-    }
-    return { start: '', end: '' };
-  }, [dateRangePreset, customStartDate, customEndDate]);
-
   const filteredHoldings = useMemo(() => {
     let list = filterType === 'all' ? holdings : holdings.filter(h => h.security_type === filterType);
     return list.map(h => {

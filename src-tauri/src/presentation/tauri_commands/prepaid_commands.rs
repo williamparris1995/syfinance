@@ -10,11 +10,8 @@ use std::sync::Arc;
 use tauri::State;
 use uuid::Uuid;
 
-type ConcretePrepaidService = PrepaidService<
-    SqlitePrepaidRepository,
-    SqliteAccountRepository,
-    SqliteTransactionRepository,
->;
+type ConcretePrepaidService =
+    PrepaidService<SqlitePrepaidRepository, SqliteAccountRepository, SqliteTransactionRepository>;
 
 pub struct PrepaidCommandState {
     pool: SqlitePool,

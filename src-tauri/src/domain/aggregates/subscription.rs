@@ -49,9 +49,9 @@ impl Subscription {
             SubscriptionCycle::Weekly => self.next_billing_date.checked_add_days(Days::new(7)),
             SubscriptionCycle::Monthly => self.next_billing_date.checked_add_months(Months::new(1)),
             SubscriptionCycle::Yearly => self.next_billing_date.checked_add_months(Months::new(12)),
-            SubscriptionCycle::Custom { days } => {
-                self.next_billing_date.checked_add_days(Days::new(*days as u64))
-            }
+            SubscriptionCycle::Custom { days } => self
+                .next_billing_date
+                .checked_add_days(Days::new(*days as u64)),
         }
     }
 

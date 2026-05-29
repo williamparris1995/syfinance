@@ -51,9 +51,7 @@ impl TagCommandState {
     }
 }
 
-pub async fn create_default_state_from_pool(
-    pool: SqlitePool,
-) -> sqlx::Result<TagCommandState> {
+pub async fn create_default_state_from_pool(pool: SqlitePool) -> sqlx::Result<TagCommandState> {
     Ok(TagCommandState::from_pool(pool))
 }
 

@@ -397,21 +397,17 @@ impl SqliteDebtRepository {
 fn row_to_schedule_entry(
     row: &sqlx::sqlite::SqliteRow,
 ) -> Result<PaymentScheduleEntry, sqlx::Error> {
-    let entry_id_str: String = row
-        .try_get("schedule_id")
-        .or_else(|_| {
-            let id: String = row.try_get("id")?;
-            Ok::<_, sqlx::Error>(id)
-        })?;
+    let entry_id_str: String = row.try_get("schedule_id").or_else(|_| {
+        let id: String = row.try_get("id")?;
+        Ok::<_, sqlx::Error>(id)
+    })?;
     let entry_id = Uuid::parse_str(&entry_id_str)
         .map_err(|e| sqlx::Error::Decode(format!("invalid UUID: {}", e).into()))?;
 
-    let debt_id_from_row: String = row
-        .try_get("debt_id")
-        .or_else(|_| {
-            let id: String = row.try_get("debt_id")?;
-            Ok::<_, sqlx::Error>(id)
-        })?;
+    let debt_id_from_row: String = row.try_get("debt_id").or_else(|_| {
+        let id: String = row.try_get("debt_id")?;
+        Ok::<_, sqlx::Error>(id)
+    })?;
     let debt_id = Uuid::parse_str(&debt_id_from_row)
         .map_err(|e| sqlx::Error::Decode(format!("invalid UUID: {}", e).into()))?;
 

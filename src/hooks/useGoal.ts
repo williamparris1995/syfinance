@@ -7,7 +7,6 @@ import {
   updateGoalProgress,
   completeGoal,
   deleteGoal,
-  GoalDto,
   CreateGoalDto,
   UpdateGoalDto,
 } from '../lib/tauri/goal';

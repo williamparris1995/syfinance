@@ -67,7 +67,7 @@ function getDaysUntil(dateStr: string): number {
   return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function formatDaysUntil(days: number, t: (key: string) => string): string {
+function formatDaysUntil(days: number): string {
   if (days < 0) return `${Math.abs(days)}d overdue`;
   if (days === 0) return 'Today';
   if (days === 1) return 'Tomorrow';
@@ -520,7 +520,7 @@ export function SubscriptionsPage() {
                                       : 'text-muted-foreground'
                                 }`}
                               >
-                                {formatDaysUntil(daysUntil, t)}
+                                {formatDaysUntil(daysUntil)}
                               </span>
                             </div>
                           </TableCell>
@@ -642,7 +642,7 @@ export function SubscriptionsPage() {
                                 ) : (
                                   <div className="space-y-1">
                                     {transactionHistory.map(
-                                      (txn: any, idx: number) => (
+                                      (txn: { id?: string; date?: string; transaction_date?: string; amount?: string; credit_amount?: string; debit_amount?: string; [key: string]: unknown }, idx: number) => (
                                         <div
                                           key={txn.id || idx}
                                           className="flex items-center justify-between text-xs py-1 px-2 rounded hover:bg-muted/50"

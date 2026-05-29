@@ -46,7 +46,7 @@ import {
   useRemoveBudgetItem,
 } from '../hooks/useBudget';
 import { useCurrencies } from '../hooks/useCurrency';
-import { listAccounts, type AccountDto } from '../lib/tauri/account';
+import { listAccounts } from '../lib/tauri/account';
 import {
   formatBudgetAmount,
   getBudgetStatusColor,

@@ -208,7 +208,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
             render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
-                  所有权 (OWNERSHIP) <span className="text-red-500">*</span>
+                  {t('accountForm.ownershipLabelText')} <span className="text-red-500">*</span>
                 </FormLabel>
                 <div className="flex gap-2">
                   <button
@@ -223,7 +223,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
                       isEditMode && "opacity-50 cursor-not-allowed"
                     )}
                   >
-                    🏠 自己账户
+                    {t('accountForm.ownAccountEmoji')}
                   </button>
                   <button
                     type="button"
@@ -237,7 +237,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
                       isEditMode && "opacity-50 cursor-not-allowed"
                     )}
                   >
-                    🌐 外部账户
+                    {t('accountForm.externalAccountEmoji')}
                   </button>
                 </div>
                 <FormMessage />
@@ -250,7 +250,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
             <FormItem>
               <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
                 {t('accountForm.selectTemplate')}
-                <span className="text-muted-foreground/50 font-normal"> — optional</span>
+                <span className="text-muted-foreground/50 font-normal"> {t('common.optionalSuffix')}</span>
               </FormLabel>
               <div className="grid grid-cols-4 gap-2">
                 {INVESTMENT_TEMPLATES.map((template, index) => {
@@ -401,7 +401,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
             render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
-                  图标
+                  {t('accountForm.iconLabel')}
                 </FormLabel>
                 <div className="flex flex-wrap gap-2">
                   {['💰','💵','💳','🏦','💸','📊','🏠','🚗','🍔','🛍️','🎮','🏥','📚','💡','🎁','📈','🛒','✈️','🐷','💎','🎯','💊','📱','☕','🎓'].map((emoji) => (
@@ -432,7 +432,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
             render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
-                  颜色
+                  {t('accountForm.colorLabel')}
                 </FormLabel>
                 <div className="flex flex-wrap gap-2">
                   {['#EF4444','#F59E0B','#10B981','#3B82F6','#8B5CF6','#EC4899','#06B6D4','#84CC16','#F97316','#6366F1','#14B8A6','#E11D48','#D946EF','#0EA5E9','#64748B'].map((c) => (
@@ -474,7 +474,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
               <FormItem>
                 <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
                   {t('accountForm.currency')}
-                  <span className="text-muted-foreground/50 font-normal"> — optional</span>
+                  <span className="text-muted-foreground/50 font-normal"> {t('common.optionalSuffix')}</span>
                 </FormLabel>
                 <Select value={field.value} onValueChange={field.onChange} disabled={isEditMode}>
                   <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('accountForm.selectCurrency')}>{field.value ? currencyLabelMap[field.value] || field.value : null}</SelectValue></SelectTrigger></FormControl>
@@ -500,7 +500,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
                 <FormItem>
                   <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
                     {t('accountForm.accountNumber')}
-                    <span className="text-muted-foreground/50 font-normal"> — optional</span>
+                    <span className="text-muted-foreground/50 font-normal"> {t('common.optionalSuffix')}</span>
                   </FormLabel>
                   <FormControl><Input placeholder={t('accountForm.accountNumberPlaceholder')} className="h-9" {...field} /></FormControl>
                   <FormMessage />
@@ -514,7 +514,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
                 <FormItem>
                   <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
                     {t('accountForm.institution')}
-                    <span className="text-muted-foreground/50 font-normal"> — optional</span>
+                    <span className="text-muted-foreground/50 font-normal"> {t('common.optionalSuffix')}</span>
                   </FormLabel>
                   <FormControl><Input placeholder={t('accountForm.institutionPlaceholder')} className="h-9" {...field} /></FormControl>
                   <FormMessage />

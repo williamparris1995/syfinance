@@ -193,7 +193,7 @@ export function TopUpDialog({ accountId, accountName, open, onOpenChange }: TopU
                     <FormItem>
                       <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
                         {t('prepaid.bonusAmount')}
-                        <span className="text-muted-foreground/50 font-normal"> — optional</span>
+                        <span className="text-muted-foreground/50 font-normal"> {t('common.optionalSuffix')}</span>
                       </FormLabel>
                       <FormControl>
                         <div className="flex items-center rounded-lg border overflow-hidden h-9">
@@ -248,7 +248,7 @@ export function TopUpDialog({ accountId, accountName, open, onOpenChange }: TopU
                     <FormItem>
                       <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
                         {t('prepaid.expiryDate')}
-                        <span className="text-muted-foreground/50 font-normal"> — optional</span>
+                        <span className="text-muted-foreground/50 font-normal"> {t('common.optionalSuffix')}</span>
                       </FormLabel>
                       <FormControl>
                         <Input type="date" className="h-9" {...field} />
@@ -267,7 +267,7 @@ export function TopUpDialog({ accountId, accountName, open, onOpenChange }: TopU
                   <FormItem>
                     <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
                       {t('prepaid.description')}
-                      <span className="text-muted-foreground/50 font-normal"> — optional</span>
+                      <span className="text-muted-foreground/50 font-normal"> {t('common.optionalSuffix')}</span>
                     </FormLabel>
                     <FormControl>
                       <Input

@@ -31,7 +31,7 @@ export function SearchBar({
         className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-16 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
       />
       <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
-        <span className="text-xs">⌘</span>K
+        <span className="text-xs">{'⌘'}</span>{'K'}
       </kbd>
     </form>
   );

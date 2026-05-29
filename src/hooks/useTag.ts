@@ -6,7 +6,6 @@ import {
   addTagToTransaction,
   removeTagFromTransaction,
   getTransactionTags,
-  TagDto,
   CreateTagDto,
 } from '../lib/tauri/tag';
 import { toast } from 'sonner';

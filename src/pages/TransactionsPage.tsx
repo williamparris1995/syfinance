@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { SimpleTransactionForm, type TransactionFormData } from '../components/SimpleTransactionForm';
@@ -133,7 +133,7 @@ export function TransactionsPage() {
     return [...new Set(accountNames)].join(', ');
   };
 
-  const getTransactionType = (transaction: TransactionDto): TransactionType_ => {
+  const getTransactionType = useCallback((transaction: TransactionDto): TransactionType_ => {
     const externalAccountIds = externalAccounts.map(a => a.id);
     const txExternalEntries = transaction.entries.filter(e => externalAccountIds.includes(e.account_id));
     if (txExternalEntries.length === 0) return 'transfer';
@@ -146,7 +146,7 @@ export function TransactionsPage() {
     if (incomeCount > 0 && expenseCount === 0) return 'income';
     if (expenseCount > 0 && incomeCount === 0) return 'expense';
     return 'transfer';
-  };
+  }, [externalAccounts]);
 
   const getTypeBadgeClass = (type: TransactionType_) => {
     switch (type) {
@@ -201,7 +201,7 @@ export function TransactionsPage() {
       return sortDirection === 'asc' ? cmp : -cmp;
     });
     return result;
-  }, [transactions, typeFilter, ownAccountFilter, externalAccountFilter, searchQuery, ownAccounts.length, externalAccounts.length, sortColumn, sortDirection]);
+  }, [transactions, typeFilter, ownAccountFilter, externalAccountFilter, searchQuery, ownAccounts.length, externalAccounts.length, sortColumn, sortDirection, getTransactionType]);
 
   const getEditInitialData = (tx: TransactionDto): TransactionFormData => {
     const txType = getTransactionType(tx);

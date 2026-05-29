@@ -12,7 +12,6 @@ import {
   PiggyBank,
   CreditCard,
   BarChart3,
-  Edit,
   DollarSign,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -48,7 +47,7 @@ import {
   useDeleteGoal,
 } from '../hooks/useGoal';
 import { useCurrencies } from '../hooks/useCurrency';
-import { listAccounts, type AccountDto } from '../lib/tauri/account';
+import { listAccounts } from '../lib/tauri/account';
 import type { GoalDto, CreateGoalDto } from '../lib/tauri/goal';
 import {
   formatGoalAmount,

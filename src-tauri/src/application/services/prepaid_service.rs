@@ -54,11 +54,7 @@ where
     AR: AccountRepository,
     TR: TransactionRepository,
 {
-    pub fn new(
-        prepaid_repo: Arc<PR>,
-        account_repo: Arc<AR>,
-        transaction_repo: Arc<TR>,
-    ) -> Self {
+    pub fn new(prepaid_repo: Arc<PR>, account_repo: Arc<AR>, transaction_repo: Arc<TR>) -> Self {
         Self {
             prepaid_repo,
             account_repo,
@@ -91,14 +87,8 @@ where
         let transaction_id = Uuid::new_v4();
         let device_id = Uuid::new_v4();
 
-        let prepaid_chart = prepaid_account
-            .chart_code
-            .as_deref()
-            .unwrap_or("1021");
-        let source_chart = source_account
-            .chart_code
-            .as_deref()
-            .unwrap_or("1002");
+        let prepaid_chart = prepaid_account.chart_code.as_deref().unwrap_or("1021");
+        let source_chart = source_account.chart_code.as_deref().unwrap_or("1002");
 
         let total_money = Money::new(total_credited, &prepaid_account.currency_code)
             .map_err(|e| PrepaidServiceError::TransactionError(e.to_string()))?;
@@ -130,10 +120,7 @@ where
             let bonus_income_account = self.find_bonus_income_account().await?;
             let bonus_money = Money::new(bonus_amount, &prepaid_account.currency_code)
                 .map_err(|e| PrepaidServiceError::TransactionError(e.to_string()))?;
-            let bonus_chart = bonus_income_account
-                .chart_code
-                .as_deref()
-                .unwrap_or("4901");
+            let bonus_chart = bonus_income_account.chart_code.as_deref().unwrap_or("4901");
             let bonus_entry = TransactionEntry::new(
                 bonus_income_account.id,
                 bonus_chart,
@@ -145,18 +132,14 @@ where
             entries.push(bonus_entry);
         }
 
-        let transaction =
-            crate::domain::aggregates::Transaction::new(
-                transaction_id,
-                request.top_up_date,
-                format!(
-                    "Top up {} - {}",
-                    request.paid_amount, prepaid_account.name
-                ),
-                entries,
-                SyncMetadata::new(device_id),
-            )
-            .map_err(|e| PrepaidServiceError::TransactionError(e.to_string()))?;
+        let transaction = crate::domain::aggregates::Transaction::new(
+            transaction_id,
+            request.top_up_date,
+            format!("Top up {} - {}", request.paid_amount, prepaid_account.name),
+            entries,
+            SyncMetadata::new(device_id),
+        )
+        .map_err(|e| PrepaidServiceError::TransactionError(e.to_string()))?;
 
         self.transaction_repo.create(&transaction).await?;
 
@@ -192,7 +175,10 @@ where
             return Err(PrepaidServiceError::NotPrepaidAccount(account_id));
         }
 
-        let balances = self.account_repo.compute_balances_for_all_accounts().await?;
+        let balances = self
+            .account_repo
+            .compute_balances_for_all_accounts()
+            .await?;
         let net_change = balances.get(&account_id).copied().unwrap_or(Decimal::ZERO);
         let balance = account.initial_balance.amount + net_change;
 
@@ -281,7 +267,10 @@ where
             return Err(PrepaidServiceError::NotPrepaidAccount(account_id));
         }
 
-        let balances = self.account_repo.compute_balances_for_all_accounts().await?;
+        let balances = self
+            .account_repo
+            .compute_balances_for_all_accounts()
+            .await?;
         let net_change = balances.get(&account_id).copied().unwrap_or(Decimal::ZERO);
         let balance = account.initial_balance.amount + net_change;
 
@@ -313,7 +302,10 @@ where
             None => return Ok(None),
         };
 
-        let balances = self.account_repo.compute_balances_for_all_accounts().await?;
+        let balances = self
+            .account_repo
+            .compute_balances_for_all_accounts()
+            .await?;
         let net_change = balances.get(&account_id).copied().unwrap_or(Decimal::ZERO);
         let balance = account.initial_balance.amount + net_change;
 

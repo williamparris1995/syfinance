@@ -509,10 +509,7 @@ fn file_created_at(path: &PathBuf) -> String {
 /// Rows are matched by their `id` field (string comparison). A row present in
 /// local but not backup counts as "added"; present in backup but not local
 /// counts as "removed"; present in both but with different JSON is "modified".
-fn diff_table(
-    local: &[serde_json::Value],
-    backup: &[serde_json::Value],
-) -> TableDiff {
+fn diff_table(local: &[serde_json::Value], backup: &[serde_json::Value]) -> TableDiff {
     let get_id = |v: &serde_json::Value| -> String {
         v.get("id")
             .and_then(|id| id.as_str())
@@ -520,15 +517,11 @@ fn diff_table(
             .to_string()
     };
 
-    let local_map: std::collections::HashMap<String, &serde_json::Value> = local
-        .iter()
-        .map(|v| (get_id(v), v))
-        .collect();
+    let local_map: std::collections::HashMap<String, &serde_json::Value> =
+        local.iter().map(|v| (get_id(v), v)).collect();
 
-    let backup_map: std::collections::HashMap<String, &serde_json::Value> = backup
-        .iter()
-        .map(|v| (get_id(v), v))
-        .collect();
+    let backup_map: std::collections::HashMap<String, &serde_json::Value> =
+        backup.iter().map(|v| (get_id(v), v)).collect();
 
     let mut added = 0usize;
     let mut removed = 0usize;

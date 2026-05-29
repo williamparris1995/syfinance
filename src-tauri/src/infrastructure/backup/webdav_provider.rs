@@ -12,12 +12,7 @@ pub struct WebDavProvider {
 }
 
 impl WebDavProvider {
-    pub fn new(
-        base_url: String,
-        username: String,
-        password: String,
-        remote_path: String,
-    ) -> Self {
+    pub fn new(base_url: String, username: String, password: String, remote_path: String) -> Self {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(30))
             .build()
@@ -78,9 +73,7 @@ impl CloudProvider for WebDavProvider {
 
             match response.status().as_u16() {
                 207 => Ok(()),
-                401 | 403 => Err(CloudError::AuthFailed(
-                    "invalid credentials".to_string(),
-                )),
+                401 | 403 => Err(CloudError::AuthFailed("invalid credentials".to_string())),
                 status => Err(CloudError::ConnectionFailed(format!(
                     "unexpected status {status}"
                 ))),
@@ -130,9 +123,8 @@ impl CloudProvider for WebDavProvider {
         let password = self.password.clone();
         let local_path = local_path.to_path_buf();
 
-        let rt = tokio::runtime::Runtime::new().map_err(|e| {
-            CloudError::DownloadFailed(format!("failed to create runtime: {e}"))
-        })?;
+        let rt = tokio::runtime::Runtime::new()
+            .map_err(|e| CloudError::DownloadFailed(format!("failed to create runtime: {e}")))?;
 
         rt.block_on(async {
             let response = client
@@ -148,9 +140,9 @@ impl CloudProvider for WebDavProvider {
                     .await
                     .map_err(|e| CloudError::DownloadFailed(format!("failed to read body: {e}")))?;
 
-                tokio::fs::write(&local_path, &data)
-                    .await
-                    .map_err(|e| CloudError::DownloadFailed(format!("failed to write file: {e}")))?;
+                tokio::fs::write(&local_path, &data).await.map_err(|e| {
+                    CloudError::DownloadFailed(format!("failed to write file: {e}"))
+                })?;
 
                 Ok(())
             } else {

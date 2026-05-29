@@ -1,4 +1,6 @@
-use crate::application::dtos::{CreateDebtDto, DebtDto, PaymentScheduleDto, RecordPaymentDto, UpdateDebtDto};
+use crate::application::dtos::{
+    CreateDebtDto, DebtDto, PaymentScheduleDto, RecordPaymentDto, UpdateDebtDto,
+};
 use crate::domain::{
     aggregates::{
         debt_details::{AmortizationMethod, DebtDetails, PaymentScheduleEntry},
@@ -89,9 +91,9 @@ impl DebtService {
 
         let today = chrono::Utc::now().date_naive();
         let start_date = dto.start_date.unwrap_or(today);
-        let due_date = dto.due_date.unwrap_or_else(|| {
-            today + chrono::Duration::days(365)
-        });
+        let due_date = dto
+            .due_date
+            .unwrap_or_else(|| today + chrono::Duration::days(365));
 
         let mut debt_details = DebtDetails::new(
             details_id,
@@ -115,10 +117,7 @@ impl DebtService {
             .chart_code
             .as_deref()
             .unwrap_or_else(|| default_chart_code(&debt_account.account_type));
-        let funding_chart = funding_account
-            .chart_code
-            .as_deref()
-            .unwrap_or("1002");
+        let funding_chart = funding_account.chart_code.as_deref().unwrap_or("1002");
 
         let _txn_note = format!("{} - {}", debt_account.name, debt_details.counterparty);
         let entries = if is_liability_type(&debt_account.account_type) {
@@ -129,14 +128,16 @@ impl DebtService {
                     Some(principal.clone()),
                     None,
                     &format!("{}: {}", debt_details.counterparty, funding_account.name),
-                ).map_err(|e| DebtServiceError::ValidationError(e.to_string()))?,
+                )
+                .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?,
                 TransactionEntry::new(
                     debt_account.id,
                     debt_chart,
                     None,
                     Some(principal),
                     &format!("{}: {}", debt_details.counterparty, debt_account.name),
-                ).map_err(|e| DebtServiceError::ValidationError(e.to_string()))?,
+                )
+                .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?,
             ]
         } else {
             vec![
@@ -146,14 +147,16 @@ impl DebtService {
                     Some(principal.clone()),
                     None,
                     &format!("{}: {}", debt_details.counterparty, debt_account.name),
-                ).map_err(|e| DebtServiceError::ValidationError(e.to_string()))?,
+                )
+                .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?,
                 TransactionEntry::new(
                     funding_account.id,
                     funding_chart,
                     None,
                     Some(principal),
                     &format!("{}: {}", debt_details.counterparty, funding_account.name),
-                ).map_err(|e| DebtServiceError::ValidationError(e.to_string()))?,
+                )
+                .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?,
             ]
         };
 
@@ -163,7 +166,8 @@ impl DebtService {
             format!("{} - {}", debt_details.counterparty, debt_account.name),
             entries,
             SyncMetadata::new(device_id),
-        ).map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
+        )
+        .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
 
         self.transaction_repo.create(&transaction).await?;
 
@@ -202,21 +206,18 @@ impl DebtService {
         Ok(dtos)
     }
 
-    pub async fn record_payment(
-        &self,
-        dto: RecordPaymentDto,
-    ) -> Result<Uuid, DebtServiceError> {
+    pub async fn record_payment(&self, dto: RecordPaymentDto) -> Result<Uuid, DebtServiceError> {
         let schedule = self
             .debt_repo
-            .find_schedule_by_debt_id(
-                self.find_schedule_debt_id(dto.schedule_entry_id).await?,
-            )
+            .find_schedule_by_debt_id(self.find_schedule_debt_id(dto.schedule_entry_id).await?)
             .await?;
 
         let entry = schedule
             .iter()
             .find(|e| e.id == dto.schedule_entry_id)
-            .ok_or(DebtServiceError::ScheduleEntryNotFound(dto.schedule_entry_id))?;
+            .ok_or(DebtServiceError::ScheduleEntryNotFound(
+                dto.schedule_entry_id,
+            ))?;
 
         if entry.paid {
             return Err(DebtServiceError::ScheduleEntryAlreadyPaid(
@@ -246,11 +247,12 @@ impl DebtService {
 
         let transaction_id = Uuid::new_v4();
         let device_id = Uuid::new_v4();
-        let payment_date = dto.payment_date.unwrap_or_else(|| chrono::Utc::now().date_naive());
+        let payment_date = dto
+            .payment_date
+            .unwrap_or_else(|| chrono::Utc::now().date_naive());
 
         // Use DTO payment_amount if provided, otherwise use scheduled amount
-        let actual_total = dto.payment_amount
-            .unwrap_or(entry.total_amount);
+        let actual_total = dto.payment_amount.unwrap_or(entry.total_amount);
         let ratio = if entry.total_amount > Decimal::ZERO {
             entry.principal_amount / entry.total_amount
         } else {
@@ -486,22 +488,42 @@ async fn build_repayment_entries(
     let total_money = Money::new(total, &debt_account.currency_code)
         .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
 
-    let debt_chart = debt_account.chart_code.as_deref()
+    let debt_chart = debt_account
+        .chart_code
+        .as_deref()
         .unwrap_or_else(|| default_chart_code(&debt_account.account_type));
     let source_chart = source_account.chart_code.as_deref().unwrap_or("1002");
 
-    let debit_debt = TransactionEntry::new(debt_account.id, debt_chart, Some(principal_money), None, &debt_account.name)
-        .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
-    let credit_source = TransactionEntry::new(source_account.id, source_chart, None, Some(total_money), &source_account.name)
-        .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
+    let debit_debt = TransactionEntry::new(
+        debt_account.id,
+        debt_chart,
+        Some(principal_money),
+        None,
+        &debt_account.name,
+    )
+    .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
+    let credit_source = TransactionEntry::new(
+        source_account.id,
+        source_chart,
+        None,
+        Some(total_money),
+        &source_account.name,
+    )
+    .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
 
     let mut entries = vec![debit_debt, credit_source];
 
     if actual_interest > Decimal::ZERO {
         let interest_money = Money::new(actual_interest, &debt_account.currency_code)
             .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
-        let debit_interest = TransactionEntry::new(debt_account.id, "5101", Some(interest_money), None, &debt_account.name)
-            .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
+        let debit_interest = TransactionEntry::new(
+            debt_account.id,
+            "5101",
+            Some(interest_money),
+            None,
+            &debt_account.name,
+        )
+        .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
         entries.insert(0, debit_interest); // insert before debit_debt
     }
 
@@ -522,21 +544,41 @@ async fn build_recovery_entries(
         .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
 
     let dest_chart = dest_account.chart_code.as_deref().unwrap_or("1002");
-    let debt_chart = debt_account.chart_code.as_deref()
+    let debt_chart = debt_account
+        .chart_code
+        .as_deref()
         .unwrap_or_else(|| default_chart_code(&debt_account.account_type));
 
-    let debit_dest = TransactionEntry::new(dest_account.id, dest_chart, Some(total_money), None, &dest_account.name)
-        .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
-    let credit_debt = TransactionEntry::new(debt_account.id, debt_chart, None, Some(principal_money), &debt_account.name)
-        .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
+    let debit_dest = TransactionEntry::new(
+        dest_account.id,
+        dest_chart,
+        Some(total_money),
+        None,
+        &dest_account.name,
+    )
+    .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
+    let credit_debt = TransactionEntry::new(
+        debt_account.id,
+        debt_chart,
+        None,
+        Some(principal_money),
+        &debt_account.name,
+    )
+    .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
 
     let mut entries = vec![debit_dest, credit_debt];
 
     if actual_interest > Decimal::ZERO {
         let interest_money = Money::new(actual_interest, &debt_account.currency_code)
             .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
-        let credit_interest = TransactionEntry::new(debt_account.id, "4201", None, Some(interest_money), &debt_account.name)
-            .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
+        let credit_interest = TransactionEntry::new(
+            debt_account.id,
+            "4201",
+            None,
+            Some(interest_money),
+            &debt_account.name,
+        )
+        .map_err(|e| DebtServiceError::ValidationError(e.to_string()))?;
         entries.push(credit_interest);
     }
 

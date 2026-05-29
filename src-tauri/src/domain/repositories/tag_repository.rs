@@ -7,6 +7,7 @@ pub trait TagRepository: Send + Sync {
     async fn find_by_id(&self, id: &str) -> sqlx::Result<Option<Tag>>;
     async fn delete(&self, id: &str) -> sqlx::Result<()>;
     async fn add_to_transaction(&self, transaction_id: &str, tag_id: &str) -> sqlx::Result<()>;
-    async fn remove_from_transaction(&self, transaction_id: &str, tag_id: &str) -> sqlx::Result<()>;
+    async fn remove_from_transaction(&self, transaction_id: &str, tag_id: &str)
+        -> sqlx::Result<()>;
     async fn find_by_transaction(&self, transaction_id: &str) -> sqlx::Result<Vec<Tag>>;
 }

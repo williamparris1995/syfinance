@@ -132,10 +132,7 @@ pub async fn update_debt(
 }
 
 #[tauri::command]
-pub async fn delete_debt(
-    state: State<'_, AppState>,
-    account_id: Uuid,
-) -> Result<(), String> {
+pub async fn delete_debt(state: State<'_, AppState>, account_id: Uuid) -> Result<(), String> {
     state
         .service()
         .delete_debt(account_id)

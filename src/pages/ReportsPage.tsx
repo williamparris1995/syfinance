@@ -61,12 +61,13 @@ export function ReportsPage() {
         start.setDate(1);
         start.setHours(0, 0, 0, 0);
         break;
-      case 'quarter':
+      case 'quarter': {
         const currentMonth = now.getMonth();
         const quarterStartMonth = Math.floor(currentMonth / 3) * 3;
         start.setMonth(quarterStartMonth, 1);
         start.setHours(0, 0, 0, 0);
         break;
+      }
       case 'year':
         start.setMonth(0, 1);
         start.setHours(0, 0, 0, 0);
@@ -218,14 +219,6 @@ export function ReportsPage() {
     return Array.from(cats);
   }, [monthlyTrendData, accounts]);
 
-  const incomeCategories = useMemo(() => {
-    const cats = new Set<string>();
-    monthlyTrendData.forEach(m => {
-      accounts.filter(a => a.account_type === 'Income' && a.ownership === 'external')
-        .forEach(a => { if (m[a.name] !== undefined) cats.add(a.name); });
-    });
-    return Array.from(cats);
-  }, [monthlyTrendData, accounts]);
 
   const FALLBACK_COLORS = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
   const FALLBACK_COLORS_INCOME = ['#10B981', '#06B6D4', '#84CC16', '#3B82F6', '#14B8A6'];
@@ -352,7 +345,7 @@ export function ReportsPage() {
           </div>
 
           <div className="mt-4 text-sm text-muted-foreground">
-            {t('reports.selectedRange')}: {dateRange.start} to {dateRange.end}
+            {t('reports.dateRangeDisplay', { start: dateRange.start, end: dateRange.end })}
           </div>
         </CardContent>
       </Card>
@@ -791,7 +784,7 @@ export function ReportsPage() {
                   <div>
                     <CardTitle>{t('reports.incomeStatement')}</CardTitle>
                     <CardDescription>
-                      {dateRange.start} to {dateRange.end}
+                      {t('reports.dateRangeDisplay', { start: dateRange.start, end: dateRange.end })}
                     </CardDescription>
                   </div>
                   <Button onClick={exportIncomeStatement} variant="outline" size="sm">

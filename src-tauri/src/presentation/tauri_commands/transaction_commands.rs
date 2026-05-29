@@ -2,9 +2,7 @@ use crate::application::{
     dtos::{CreateTransactionDto, TransactionDto},
     services::TransactionService,
 };
-use crate::infrastructure::repositories::{
-    SqliteAccountRepository, SqliteTransactionRepository,
-};
+use crate::infrastructure::repositories::{SqliteAccountRepository, SqliteTransactionRepository};
 use rust_decimal::Decimal;
 use std::{str::FromStr, sync::Arc};
 use tauri::State;
@@ -13,8 +11,7 @@ use uuid::Uuid;
 const DATE_FORMAT: &str = "%Y-%m-%d";
 
 fn parse_amount(amount: &str) -> Result<Decimal, String> {
-    Decimal::from_str(amount)
-        .map_err(|e| format!("invalid amount: {}", e))
+    Decimal::from_str(amount).map_err(|e| format!("invalid amount: {}", e))
 }
 
 fn parse_date(date: &str) -> Result<chrono::NaiveDate, String> {
@@ -23,8 +20,7 @@ fn parse_date(date: &str) -> Result<chrono::NaiveDate, String> {
 }
 
 fn parse_uuid(id: &str, field_name: &str) -> Result<uuid::Uuid, String> {
-    uuid::Uuid::parse_str(id)
-        .map_err(|e| format!("invalid {}: {}", field_name, e))
+    uuid::Uuid::parse_str(id).map_err(|e| format!("invalid {}: {}", field_name, e))
 }
 
 pub struct TransactionCommandState {
@@ -59,10 +55,7 @@ impl TransactionCommandState {
     pub fn from_pool(pool: sqlx::SqlitePool) -> Self {
         let account_repo = Arc::new(SqliteAccountRepository::new(pool.clone()));
         let transaction_repo = Arc::new(SqliteTransactionRepository::new(pool));
-        Self::from_service(TransactionService::new(
-            transaction_repo,
-            account_repo,
-        ))
+        Self::from_service(TransactionService::new(transaction_repo, account_repo))
     }
 }
 

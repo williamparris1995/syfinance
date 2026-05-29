@@ -3,7 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { SimpleTransactionForm, TransactionFormData } from '@/components/SimpleTransactionForm';
+import { SimpleTransactionForm } from '@/components/SimpleTransactionForm';
 import { Button } from '@/components/ui/button';
 import { listAccounts, listAccountsByOwnership } from '@/lib/tauri/account';
 
@@ -33,7 +33,7 @@ export function NewTransactionPage() {
       <SimpleTransactionForm
         accounts={accounts}
         externalAccounts={externalAccounts}
-        onSubmit={async (data: TransactionFormData) => {
+        onSubmit={async () => {
           navigate({ to: '/transactions' });
           queryClient.invalidateQueries({ queryKey: ['transactions'] });
           queryClient.invalidateQueries({ queryKey: ['accounts'] });

@@ -28,10 +28,12 @@ impl SqliteGoalRepository {
         let is_completed: bool = row.try_get("is_completed")?;
         let completed_at: Option<String> = row.try_get("completed_at")?;
 
-        let target_amount = Decimal::from_str(&target_amount_raw)
-            .map_err(|e| sqlx::Error::Decode(format!("target_amount='{target_amount_raw}': {e}").into()))?;
-        let current_amount = Decimal::from_str(&current_amount_raw)
-            .map_err(|e| sqlx::Error::Decode(format!("current_amount='{current_amount_raw}': {e}").into()))?;
+        let target_amount = Decimal::from_str(&target_amount_raw).map_err(|e| {
+            sqlx::Error::Decode(format!("target_amount='{target_amount_raw}': {e}").into())
+        })?;
+        let current_amount = Decimal::from_str(&current_amount_raw).map_err(|e| {
+            sqlx::Error::Decode(format!("current_amount='{current_amount_raw}': {e}").into())
+        })?;
 
         Ok(Goal {
             id,
@@ -81,10 +83,7 @@ impl GoalRepository for SqliteGoalRepository {
     }
 
     async fn find_by_id(&self, id: &str) -> sqlx::Result<Option<Goal>> {
-        let sql = format!(
-            "SELECT {} FROM goals WHERE id = ?",
-            Self::SELECT_COLUMNS
-        );
+        let sql = format!("SELECT {} FROM goals WHERE id = ?", Self::SELECT_COLUMNS);
         let row = sqlx::query(&sql)
             .bind(id)
             .fetch_optional(&self.pool)
@@ -98,9 +97,7 @@ impl GoalRepository for SqliteGoalRepository {
             "SELECT {} FROM goals ORDER BY created_at DESC",
             Self::SELECT_COLUMNS
         );
-        let rows = sqlx::query(&sql)
-            .fetch_all(&self.pool)
-            .await?;
+        let rows = sqlx::query(&sql).fetch_all(&self.pool).await?;
 
         rows.iter().map(Self::row_to_goal).collect()
     }
@@ -110,9 +107,7 @@ impl GoalRepository for SqliteGoalRepository {
             "SELECT {} FROM goals WHERE is_completed = FALSE ORDER BY deadline ASC",
             Self::SELECT_COLUMNS
         );
-        let rows = sqlx::query(&sql)
-            .fetch_all(&self.pool)
-            .await?;
+        let rows = sqlx::query(&sql).fetch_all(&self.pool).await?;
 
         rows.iter().map(Self::row_to_goal).collect()
     }
@@ -122,9 +117,7 @@ impl GoalRepository for SqliteGoalRepository {
             "SELECT {} FROM goals WHERE is_completed = TRUE ORDER BY completed_at DESC",
             Self::SELECT_COLUMNS
         );
-        let rows = sqlx::query(&sql)
-            .fetch_all(&self.pool)
-            .await?;
+        let rows = sqlx::query(&sql).fetch_all(&self.pool).await?;
 
         rows.iter().map(Self::row_to_goal).collect()
     }
@@ -358,7 +351,9 @@ mod tests {
         );
 
         repo.create(&goal).await.unwrap();
-        repo.add_progress("test-id", Decimal::new(50000, 0)).await.unwrap();
+        repo.add_progress("test-id", Decimal::new(50000, 0))
+            .await
+            .unwrap();
 
         let found = repo.find_by_id("test-id").await.unwrap().unwrap();
         assert_eq!(found.current_amount, Decimal::new(50000, 0));

@@ -1,4 +1,6 @@
-use crate::domain::aggregates::subscription::{Subscription, SubscriptionCycle, SubscriptionDirection};
+use crate::domain::aggregates::subscription::{
+    Subscription, SubscriptionCycle, SubscriptionDirection,
+};
 use crate::domain::repositories::SubscriptionRepository;
 use chrono::{NaiveDate, Utc};
 use rust_decimal::Decimal;
@@ -53,7 +55,9 @@ impl SqliteSubscriptionRepository {
                 .map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
             direction,
             cycle,
-            billing_day: row.try_get::<Option<i32>, _>("billing_day")?.map(|d| d as u8),
+            billing_day: row
+                .try_get::<Option<i32>, _>("billing_day")?
+                .map(|d| d as u8),
             next_billing_date: NaiveDate::parse_from_str(
                 &row.try_get::<String, _>("next_billing_date")?,
                 "%Y-%m-%d",
@@ -122,12 +126,10 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
     }
 
     async fn find_by_id(&self, id: Uuid) -> sqlx::Result<Option<Subscription>> {
-        let row = sqlx::query(
-            "SELECT * FROM subscriptions WHERE id = ? AND deleted_at IS NULL",
-        )
-        .bind(id.to_string())
-        .fetch_optional(&self.pool)
-        .await?;
+        let row = sqlx::query("SELECT * FROM subscriptions WHERE id = ? AND deleted_at IS NULL")
+            .bind(id.to_string())
+            .fetch_optional(&self.pool)
+            .await?;
         row.map(|r| Self::row_to_subscription(&r)).transpose()
     }
 
@@ -185,13 +187,12 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
     }
 
     async fn soft_delete(&self, id: Uuid) -> sqlx::Result<bool> {
-        let r = sqlx::query(
-            "UPDATE subscriptions SET deleted_at=? WHERE id=? AND deleted_at IS NULL",
-        )
-        .bind(Utc::now().to_rfc3339())
-        .bind(id.to_string())
-        .execute(&self.pool)
-        .await?;
+        let r =
+            sqlx::query("UPDATE subscriptions SET deleted_at=? WHERE id=? AND deleted_at IS NULL")
+                .bind(Utc::now().to_rfc3339())
+                .bind(id.to_string())
+                .execute(&self.pool)
+                .await?;
         Ok(r.rows_affected() > 0)
     }
 

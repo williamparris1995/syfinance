@@ -197,4 +197,3 @@ mod tests {
         assert!(service.decrypt_from_hex("invalid_hex").is_err());
     }
 }
-

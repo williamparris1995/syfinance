@@ -81,4 +81,4 @@ export const resumeSubscription = (id: string) =>
   invokeTauri<void>('resume_subscription', { id });
 
 export const listSubscriptionTransactions = (subscriptionId: string) =>
-  invokeTauri<any[]>('list_subscription_transactions', { subscriptionId });
+  invokeTauri<Record<string, unknown>[]>('list_subscription_transactions', { subscriptionId });

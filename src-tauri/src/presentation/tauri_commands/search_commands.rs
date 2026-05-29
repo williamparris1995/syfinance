@@ -33,13 +33,12 @@ pub async fn global_search(
     let mut results = Vec::new();
 
     // Search accounts
-    let accounts = sqlx::query(
-        "SELECT id, name, account_type FROM accounts WHERE name LIKE ? LIMIT 5",
-    )
-    .bind(&search_pattern)
-    .fetch_all(&state.pool)
-    .await
-    .map_err(|e| format!("Search failed: {}", e))?;
+    let accounts =
+        sqlx::query("SELECT id, name, account_type FROM accounts WHERE name LIKE ? LIMIT 5")
+            .bind(&search_pattern)
+            .fetch_all(&state.pool)
+            .await
+            .map_err(|e| format!("Search failed: {}", e))?;
 
     for row in accounts {
         let id: String = row.try_get("id").unwrap_or_default();
@@ -75,13 +74,11 @@ pub async fn global_search(
     }
 
     // Search goals
-    let goals = sqlx::query(
-        "SELECT id, name, goal_type FROM goals WHERE name LIKE ? LIMIT 5",
-    )
-    .bind(&search_pattern)
-    .fetch_all(&state.pool)
-    .await
-    .map_err(|e| format!("Search failed: {}", e))?;
+    let goals = sqlx::query("SELECT id, name, goal_type FROM goals WHERE name LIKE ? LIMIT 5")
+        .bind(&search_pattern)
+        .fetch_all(&state.pool)
+        .await
+        .map_err(|e| format!("Search failed: {}", e))?;
 
     for row in goals {
         let id: String = row.try_get("id").unwrap_or_default();

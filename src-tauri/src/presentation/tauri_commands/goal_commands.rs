@@ -97,16 +97,12 @@ impl GoalCommandState {
     }
 }
 
-pub async fn create_default_state_from_pool(
-    pool: SqlitePool,
-) -> sqlx::Result<GoalCommandState> {
+pub async fn create_default_state_from_pool(pool: SqlitePool) -> sqlx::Result<GoalCommandState> {
     Ok(GoalCommandState::from_pool(pool))
 }
 
 #[tauri::command]
-pub async fn list_goals(
-    state: State<'_, GoalCommandState>,
-) -> Result<Vec<GoalDto>, String> {
+pub async fn list_goals(state: State<'_, GoalCommandState>) -> Result<Vec<GoalDto>, String> {
     state
         .repository()
         .find_all()
@@ -134,8 +130,8 @@ pub async fn create_goal(
     dto: CreateGoalDto,
 ) -> Result<GoalDto, String> {
     let id = uuid::Uuid::new_v4().to_string();
-    let target_amount = Decimal::from_str(&dto.target_amount)
-        .map_err(|_| "Invalid target amount".to_string())?;
+    let target_amount =
+        Decimal::from_str(&dto.target_amount).map_err(|_| "Invalid target amount".to_string())?;
     let goal_type = GoalType::from_str(&dto.goal_type);
 
     let mut goal = Goal::new(id, dto.name, goal_type, target_amount, dto.currency_code);
@@ -222,8 +218,7 @@ pub async fn update_goal_progress(
     id: String,
     amount: String,
 ) -> Result<GoalDto, String> {
-    let amount = Decimal::from_str(&amount)
-        .map_err(|_| "Invalid amount".to_string())?;
+    let amount = Decimal::from_str(&amount).map_err(|_| "Invalid amount".to_string())?;
 
     state
         .repository()
@@ -277,10 +272,7 @@ pub async fn complete_goal(
 }
 
 #[tauri::command]
-pub async fn delete_goal(
-    state: State<'_, GoalCommandState>,
-    id: String,
-) -> Result<(), String> {
+pub async fn delete_goal(state: State<'_, GoalCommandState>, id: String) -> Result<(), String> {
     state
         .repository()
         .delete(&id)

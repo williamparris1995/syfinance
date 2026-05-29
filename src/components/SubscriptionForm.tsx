@@ -346,7 +346,7 @@ export function SubscriptionForm({
                   <SelectContent>
                     {ownAccounts.length === 0 ? (
                       <div className="px-2 py-4 text-sm text-muted-foreground text-center">
-                        No accounts available
+                        {t('subscription.noAccounts')}
                       </div>
                     ) : (
                       ownAccounts.map((acc) => (

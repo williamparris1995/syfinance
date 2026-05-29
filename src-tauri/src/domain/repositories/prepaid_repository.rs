@@ -8,10 +8,7 @@ pub trait PrepaidRepository: Send + Sync {
         &self,
         account_id: Uuid,
     ) -> sqlx::Result<Vec<TopUpRecord>>;
-    async fn find_top_up_record_by_id(
-        &self,
-        id: Uuid,
-    ) -> sqlx::Result<Option<TopUpRecord>>;
+    async fn find_top_up_record_by_id(&self, id: Uuid) -> sqlx::Result<Option<TopUpRecord>>;
     async fn find_top_up_record_by_transaction(
         &self,
         transaction_id: Uuid,

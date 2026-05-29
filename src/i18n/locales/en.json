@@ -33,9 +33,18 @@
     "sortDesc": "Sort descending",
     "confirm": "Confirm",
     "confirmDelete": "Confirm delete?",
-    "noResults": "No results"
+    "noResults": "No results",
+    "routeShell": "Route shell.",
+    "optionalSuffix": "— optional"
+  },
+  "error": {
+    "title": "Something went wrong",
+    "description": "An unexpected error occurred. Please try refreshing the page.",
+    "tryAgain": "Try Again",
+    "reloadPage": "Reload Page"
   },
   "nav": {
+    "appTitle": "Finance App",
     "dashboard": "Dashboard",
     "transactions": "Transactions",
     "accounts": "Accounts",
@@ -161,10 +170,15 @@
     "advancedOptions": "Advanced Options",
     "creditCardDetails": "Credit Card Details",
     "ownershipLabel": "Ownership",
+    "ownershipLabelText": "Ownership (OWNERSHIP)",
     "ownAccount": "Own Account",
+    "ownAccountEmoji": "Own Account",
+    "externalAccountEmoji": "External Account",
     "externalAccount": "External Account",
     "icon": "Icon",
+    "iconLabel": "Icon",
     "color": "Color",
+    "colorLabel": "Color",
     "selectTemplate": "Select Investment Template",
     "prepaidDetails": "Prepaid Details",
     "lowBalanceThreshold": "Low Balance Threshold",
@@ -230,7 +244,14 @@
     "recordExpense": "Record Expense",
     "recordIncome": "Record Income",
     "recordTransfer": "Record Transfer",
-    "prepaidBalance": "Prepaid balance"
+    "prepaidBalance": "Prepaid balance",
+    "creditOwnAccount": "Credit (Own Account)",
+    "debitOwnAccount": "Debit (Own Account)",
+    "creditExternalAccount": "Credit (External Account)",
+    "debitExternalAccount": "Debit (External Account)",
+    "selectAccountPlaceholder": "Select account",
+    "selectExternalAccountPlaceholder": "Select external account",
+    "recordWithAmount": "{{label}} — ¥{{amount}}"
   },
   "transactionForm": {
     "transactionDate": "Transaction Date",
@@ -392,7 +413,10 @@
     "payments": "payments",
     "viewSchedule": "View schedule",
     "date": "Date",
-    "payment": "Payment"
+    "payment": "Payment",
+    "principalDisplay": "{{label}}: ¥{{value}}",
+    "interestDisplay": "{{label}} ({{rate}}% × {{years}}y): +¥{{value}}",
+    "totalInterestDisplay": "{{label}}: ¥{{value}}"
   },
   "reports": {
     "title": "Reports",
@@ -433,6 +457,7 @@
     "monthlyExpenseTrend": "Monthly Expense Trend",
     "monthlyIncomeVsExpense": "Monthly Income vs Expense",
     "noData": "No data for selected period",
+    "dateRangeDisplay": "{{start}} to {{end}}",
     "transactions": "Txs"
   },
   "sidebar": {
@@ -580,6 +605,7 @@
     "fee": "Fee",
     "tradeDate": "Trade Date",
     "estimatedAmount": "Estimated Amount",
+    "estimatedAmountDisplay": "Estimated Amount: ¥{{value}}",
     "submitting": "Submitting...",
     "addSecurity": "Add Security",
     "newSecurity": "New Security",
@@ -646,7 +672,10 @@
     "noTopUpRecords": "No top-up records yet",
     "noConsumptionRecords": "No consumption records yet",
     "summaryTitle": "Prepaid Account Summary",
-    "summaryDesc": "Overview of all prepaid accounts"
+    "summaryDesc": "Overview of all prepaid accounts",
+    "detailError": "Detail: {{error}}",
+    "topUpError": "TopUp: {{error}}",
+    "txError": "Transactions: {{error}}"
   },
   "subscription": {
     "title": "Recurring Bills",
@@ -690,7 +719,8 @@
     "nextBilling": "Next Billing",
     "transactionHistory": "Transaction History",
     "noTransactions": "No transactions yet",
-    "pausedLabel": "Paused"
+    "pausedLabel": "Paused",
+    "noAccounts": "No accounts available"
   },
   "budget": {
     "title": "Budget Management",
@@ -792,6 +822,11 @@
     "filterCompleted": "Completed"
   },
   "sync": {
+    "syncing": "Syncing...",
+    "failed": "Failed",
+    "synced": "Synced",
+    "notSynced": "Not synced",
+    "syncNow": "Sync Now",
     "justNow": "just now",
     "minuteAgo": "{{count}} minute ago",
     "minutesAgo": "{{count}} minutes ago",

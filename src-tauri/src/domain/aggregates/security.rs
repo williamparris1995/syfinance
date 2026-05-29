@@ -48,6 +48,14 @@ impl Security {
         currency_code: String,
         current_price: Option<rust_decimal::Decimal>,
     ) -> Self {
-        Self { id, symbol, name, security_type, exchange, currency_code, current_price }
+        Self {
+            id,
+            symbol,
+            name,
+            security_type,
+            exchange,
+            currency_code,
+            current_price,
+        }
     }
 }

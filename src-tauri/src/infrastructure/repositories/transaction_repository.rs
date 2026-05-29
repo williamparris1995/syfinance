@@ -270,11 +270,12 @@ impl TransactionRepository for SqliteTransactionRepository {
 
             // Insert new entries
             for entry in &transaction.entries {
-                let (debit_amount, credit_amount) = match (&entry.debit_amount, &entry.credit_amount) {
-                    (Some(debit), None) => (Some(debit.amount.to_string()), None),
-                    (None, Some(credit)) => (None, Some(credit.amount.to_string())),
-                    _ => (None, None),
-                };
+                let (debit_amount, credit_amount) =
+                    match (&entry.debit_amount, &entry.credit_amount) {
+                        (Some(debit), None) => (Some(debit.amount.to_string()), None),
+                        (None, Some(credit)) => (None, Some(credit.amount.to_string())),
+                        _ => (None, None),
+                    };
 
                 sqlx::query(
                     r#"
@@ -294,9 +295,19 @@ impl TransactionRepository for SqliteTransactionRepository {
                 .bind(credit_amount)
                 .bind(&entry.note)
                 .bind(transaction.sync_metadata.updated_at.to_rfc3339())
-                .bind(transaction.sync_metadata.deleted_at.map(|dt| dt.to_rfc3339()))
+                .bind(
+                    transaction
+                        .sync_metadata
+                        .deleted_at
+                        .map(|dt| dt.to_rfc3339()),
+                )
                 .bind(transaction.sync_metadata.device_id.to_string())
-                .bind(transaction.sync_metadata.synced_at.map(|dt| dt.to_rfc3339()))
+                .bind(
+                    transaction
+                        .sync_metadata
+                        .synced_at
+                        .map(|dt| dt.to_rfc3339()),
+                )
                 .execute(&mut *tx)
                 .await?;
             }
@@ -366,8 +377,13 @@ impl TransactionRepository for SqliteTransactionRepository {
             let entries = self.load_entries(id, &mut conn).await?;
 
             // Reconstruct Transaction
-            let transaction =
-                Transaction::reconstitute(id, transaction_date, description, entries, sync_metadata);
+            let transaction = Transaction::reconstitute(
+                id,
+                transaction_date,
+                description,
+                entries,
+                sync_metadata,
+            );
 
             Ok(Some(transaction))
         } else {
@@ -440,8 +456,13 @@ impl TransactionRepository for SqliteTransactionRepository {
             let entries = self.load_entries(id, &mut conn).await?;
 
             // Reconstruct Transaction
-            let transaction =
-                Transaction::reconstitute(id, transaction_date, description, entries, sync_metadata);
+            let transaction = Transaction::reconstitute(
+                id,
+                transaction_date,
+                description,
+                entries,
+                sync_metadata,
+            );
 
             transactions.push(transaction);
         }
@@ -508,8 +529,13 @@ impl TransactionRepository for SqliteTransactionRepository {
             let entries = self.load_entries(id, &mut conn).await?;
 
             // Reconstruct Transaction
-            let transaction =
-                Transaction::reconstitute(id, transaction_date, description, entries, sync_metadata);
+            let transaction = Transaction::reconstitute(
+                id,
+                transaction_date,
+                description,
+                entries,
+                sync_metadata,
+            );
 
             transactions.push(transaction);
         }
@@ -612,8 +638,13 @@ impl TransactionRepository for SqliteTransactionRepository {
             let entries = self.load_entries(id, &mut conn).await?;
 
             // Reconstruct Transaction
-            let transaction =
-                Transaction::reconstitute(id, transaction_date, description, entries, sync_metadata);
+            let transaction = Transaction::reconstitute(
+                id,
+                transaction_date,
+                description,
+                entries,
+                sync_metadata,
+            );
 
             transactions.push(transaction);
         }

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp, Landmark, CalendarDays, Plus } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp, CalendarDays, Plus } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -7,14 +7,13 @@ import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { EmptyState } from '@/components/EmptyState';
-import { SimpleTransactionForm, type TransactionFormData } from '@/components/SimpleTransactionForm';
+import { SimpleTransactionForm } from '@/components/SimpleTransactionForm';
 import { listAccountsWithBalances, listAccountsByOwnership } from '@/lib/tauri/account';
 import { listTransactions } from '@/lib/tauri/transaction';
-import { listDebts, getUpcomingPayments } from '@/lib/tauri/debt';
+import { getUpcomingPayments } from '@/lib/tauri/debt';
 import { listHoldings } from '@/lib/tauri/holding';
 import { calculateTotalBalanceInCNY, formatCurrencyWithDto } from '@/lib/currency';
 import { useCurrencies } from '@/hooks/useCurrency';
@@ -46,8 +45,6 @@ export function HomePage() {
   });
 
   const { data: holdings = [] } = useQuery({ queryKey: ['holdings'], queryFn: listHoldings });
-
-  const { data: debts = [] } = useQuery({ queryKey: ['debts'], queryFn: listDebts });
 
   const { data: upcomingDebts = [] } = useQuery({
     queryKey: ['upcoming-payments'],
@@ -107,11 +104,11 @@ export function HomePage() {
     const incomeMap = new Map<string, number>();
     const expenseMap = new Map<string, number>();
 
-    transactions.forEach((transaction: any) => {
+    transactions.forEach((transaction) => {
       const txDate = transaction.transaction_date;
       if (txDate >= dateRange.start && txDate <= dateRange.end) {
-        transaction.entries.forEach((entry: any) => {
-          const account = entry.account_id ? accounts.find((a: any) => a.id === entry.account_id) : null;
+        transaction.entries.forEach((entry) => {
+          const account = entry.account_id ? accounts.find((a) => a.id === entry.account_id) : null;
           if (!account) return;
           if (entry.debit_amount && account.account_type === 'Expense') {
             const amount = parseFloat(entry.debit_amount);
@@ -137,11 +134,6 @@ export function HomePage() {
 
   const monthlySavings = monthlyIncome - monthlyExpenses;
 
-  const debtSummary = useMemo(() => ({
-    totalRemaining: debts.reduce((s, d) => s + parseFloat(d.remaining_principal), 0),
-    activeCount: debts.filter(d => parseFloat(d.remaining_principal) > 0).length,
-  }), [debts]);
-
   const ownAccountBalances = useMemo(() =>
     accounts.filter(a => a.ownership === 'own' && a.current_balance !== 0)
       .sort((a, b) => b.current_balance - a.current_balance),
@@ -161,7 +153,7 @@ export function HomePage() {
   [upcomingDebts]);
 
   const monthlyTrendData = useMemo(() => {
-    const months: Record<string, any> = {};
+    const months: Record<string, { month: string; income: number; expenses: number; [key: string]: number | string }> = {};
 
     // Build month list from dateRange
     const startDate2 = new Date(dateRange.start);
@@ -173,12 +165,12 @@ export function HomePage() {
       months[month] = { month, income: 0, expenses: 0 };
     }
 
-    transactions.forEach((tx: any) => {
+    transactions.forEach((tx) => {
       const month = tx.transaction_date?.substring(0, 7);
       if (!month || !months[month]) return;
 
-      tx.entries.forEach((entry: any) => {
-        const account = accounts.find((a: any) => a.id === entry.account_id);
+      tx.entries.forEach((entry) => {
+        const account = accounts.find((a) => a.id === entry.account_id);
         if (!account || account.ownership !== 'external') return;
 
         const amount = entry.debit_amount ? parseFloat(entry.debit_amount)
@@ -193,14 +185,14 @@ export function HomePage() {
       });
     });
 
-    return Object.values(months).sort((a: any, b: any) => a.month.localeCompare(b.month));
+    return Object.values(months).sort((a, b) => a.month.localeCompare(b.month));
   }, [transactions, accounts, dateRange]);
 
   const expenseCategories = useMemo(() => {
     const cats = new Set<string>();
-    monthlyTrendData.forEach((m: any) => {
-      accounts.filter((a: any) => a.account_type === 'Expense' && a.ownership === 'external')
-        .forEach((a: any) => { if (m[a.name] !== undefined) cats.add(a.name); });
+    monthlyTrendData.forEach((m) => {
+      accounts.filter((a) => a.account_type === 'Expense' && a.ownership === 'external')
+        .forEach((a) => { if (m[a.name] !== undefined) cats.add(a.name); });
     });
     return Array.from(cats);
   }, [monthlyTrendData, accounts]);
@@ -386,7 +378,7 @@ export function HomePage() {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                         <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `¥${(v / 1000).toFixed(0)}k`} />
-                        <Tooltip formatter={(v: any) => `¥${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
+                        <Tooltip formatter={(v) => `¥${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
                         <Bar dataKey="balance" name={t('accounts.currentBalance')} radius={[4, 4, 0, 0]}>
                           {ownAccountBalances.map((a, i) => (
                             <Cell key={i} fill={a.current_balance >= 0 ? '#10B981' : '#EF4444'} />
@@ -412,7 +404,7 @@ export function HomePage() {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                         <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `¥${(v / 1000).toFixed(0)}k`} />
-                        <Tooltip formatter={(v: any) => `¥${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
+                        <Tooltip formatter={(v) => `¥${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
                         <Bar dataKey="change" name={t('dashboard.change')} radius={[4, 4, 0, 0]}>
                           {ownAccountBalances.map((a, i) => {
                             const change = a.current_balance - a.initial_balance;
@@ -621,7 +613,7 @@ export function HomePage() {
                             `¥${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, name,
                           ]} />
                           {expenseCategories.map((catName) => {
-                            const account = accounts.find((a: any) => a.name === catName && a.account_type === 'Expense');
+                            const account = accounts.find((a) => a.name === catName && a.account_type === 'Expense');
                             return (
                               <Bar key={catName} dataKey={catName} stackId="e" fill={account?.color || '#6B7280'} />
                             );
@@ -630,7 +622,7 @@ export function HomePage() {
                       </ResponsiveContainer>
                       <div className="flex flex-wrap gap-3 mt-2 text-xs">
                         {expenseCategories.map((catName) => {
-                          const account = accounts.find((a: any) => a.name === catName && a.account_type === 'Expense');
+                          const account = accounts.find((a) => a.name === catName && a.account_type === 'Expense');
                           return (
                             <span key={catName} className="flex items-center gap-1">
                               <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: account?.color || '#6B7280' }} />

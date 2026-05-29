@@ -107,16 +107,12 @@ impl BudgetCommandState {
     }
 }
 
-pub async fn create_default_state_from_pool(
-    pool: SqlitePool,
-) -> sqlx::Result<BudgetCommandState> {
+pub async fn create_default_state_from_pool(pool: SqlitePool) -> sqlx::Result<BudgetCommandState> {
     Ok(BudgetCommandState::from_pool(pool))
 }
 
 #[tauri::command]
-pub async fn list_budgets(
-    state: State<'_, BudgetCommandState>,
-) -> Result<Vec<BudgetDto>, String> {
+pub async fn list_budgets(state: State<'_, BudgetCommandState>) -> Result<Vec<BudgetDto>, String> {
     state
         .repository()
         .find_all()

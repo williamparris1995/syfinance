@@ -79,19 +79,19 @@ export function SyncStatus() {
         {isSyncing ? (
           <Badge variant="secondary" className="gap-1.5">
             <RefreshCw className="h-3 w-3 animate-spin" />
-            Syncing...
+            {t('sync.syncing')}
           </Badge>
         ) : error ? (
           <Badge variant="destructive" className="gap-1.5">
-            Failed
+            {t('sync.failed')}
           </Badge>
         ) : lastSync ? (
           <Badge variant="outline" className="gap-1.5">
             <span className="h-2 w-2 rounded-full bg-green-500" />
-            Synced
+            {t('sync.synced')}
           </Badge>
         ) : (
-          <Badge variant="outline">Not synced</Badge>
+          <Badge variant="outline">{t('sync.notSynced')}</Badge>
         )}
 
         {lastSync && !isSyncing && (
@@ -109,7 +109,7 @@ export function SyncStatus() {
         className="gap-1.5"
       >
         <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-        Sync Now
+        {t('sync.syncNow')}
       </Button>
 
       {error && !isSyncing && (

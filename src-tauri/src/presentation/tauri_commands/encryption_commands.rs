@@ -26,7 +26,10 @@ pub struct EncryptionStatus {
 pub async fn get_encryption_status(
     state: tauri::State<'_, EncryptionCommandState>,
 ) -> Result<EncryptionStatus, String> {
-    let enabled = state.service.is_enabled().await
+    let enabled = state
+        .service
+        .is_enabled()
+        .await
         .map_err(|e: crate::application::services::EncryptionAppError| e.to_string())?;
     let unlocked = state.service.is_unlocked();
     Ok(EncryptionStatus { enabled, unlocked })
@@ -45,7 +48,10 @@ pub async fn setup_encryption(
     if payload.password.len() < 8 {
         return Err("Password must be at least 8 characters".to_string());
     }
-    state.service.setup(&payload.password).await
+    state
+        .service
+        .setup(&payload.password)
+        .await
         .map_err(|e: crate::application::services::EncryptionAppError| e.to_string())
 }
 
@@ -59,7 +65,10 @@ pub async fn unlock_encryption(
     state: tauri::State<'_, EncryptionCommandState>,
     payload: UnlockEncryptionPayload,
 ) -> Result<(), String> {
-    state.service.unlock(&payload.password).await
+    state
+        .service
+        .unlock(&payload.password)
+        .await
         .map_err(|e: crate::application::services::EncryptionAppError| e.to_string())
 }
 
@@ -67,7 +76,10 @@ pub async fn unlock_encryption(
 pub async fn unlock_encryption_keychain(
     state: tauri::State<'_, EncryptionCommandState>,
 ) -> Result<(), String> {
-    state.service.unlock_with_keychain().await
+    state
+        .service
+        .unlock_with_keychain()
+        .await
         .map_err(|e: crate::application::services::EncryptionAppError| e.to_string())
 }
 
@@ -75,7 +87,9 @@ pub async fn unlock_encryption_keychain(
 pub async fn lock_encryption(
     state: tauri::State<'_, EncryptionCommandState>,
 ) -> Result<(), String> {
-    state.service.lock()
+    state
+        .service
+        .lock()
         .map_err(|e: crate::application::services::EncryptionAppError| e.to_string())
 }
 
@@ -89,7 +103,10 @@ pub async fn disable_encryption(
     state: tauri::State<'_, EncryptionCommandState>,
     payload: DisableEncryptionPayload,
 ) -> Result<(), String> {
-    state.service.disable(&payload.password).await
+    state
+        .service
+        .disable(&payload.password)
+        .await
         .map_err(|e: crate::application::services::EncryptionAppError| e.to_string())
 }
 

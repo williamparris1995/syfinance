@@ -122,8 +122,7 @@ mod tests {
 
             #[test]
             fn rejects_entries_without_debit_or_credit() {
-                let result =
-                    TransactionEntry::new(Uuid::new_v4(), "1002", None, None, "invalid");
+                let result = TransactionEntry::new(Uuid::new_v4(), "1002", None, None, "invalid");
 
                 assert!(matches!(
                     result,

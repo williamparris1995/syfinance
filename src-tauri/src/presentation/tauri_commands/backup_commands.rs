@@ -1,6 +1,10 @@
 use crate::application::services::EncryptionAppService;
-use crate::infrastructure::backup::backup_service::{BackupFile, BackupInfo, BackupService, DiffSummary};
-use crate::infrastructure::backup::cloud_provider::{CloudBackupInfo, CloudPreset, CloudProvider, get_presets};
+use crate::infrastructure::backup::backup_service::{
+    BackupFile, BackupInfo, BackupService, DiffSummary,
+};
+use crate::infrastructure::backup::cloud_provider::{
+    get_presets, CloudBackupInfo, CloudPreset, CloudProvider,
+};
 use crate::infrastructure::backup::webdav_provider::WebDavProvider;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
@@ -92,10 +96,10 @@ pub fn get_backup_metadata(
     filename: String,
 ) -> Result<BackupFile, String> {
     let path = state.backup_dir.join(&filename);
-    let contents = std::fs::read_to_string(&path)
-        .map_err(|e| format!("failed to read backup file: {e}"))?;
-    let backup: BackupFile = serde_json::from_str(&contents)
-        .map_err(|e| format!("failed to parse backup file: {e}"))?;
+    let contents =
+        std::fs::read_to_string(&path).map_err(|e| format!("failed to read backup file: {e}"))?;
+    let backup: BackupFile =
+        serde_json::from_str(&contents).map_err(|e| format!("failed to parse backup file: {e}"))?;
     Ok(backup)
 }
 
@@ -109,10 +113,10 @@ pub async fn get_backup_diff(
 
     // Read and parse the backup file
     let path = state.backup_dir.join(&filename);
-    let contents = std::fs::read_to_string(&path)
-        .map_err(|e| format!("failed to read backup file: {e}"))?;
-    let backup: BackupFile = serde_json::from_str(&contents)
-        .map_err(|e| format!("failed to parse backup file: {e}"))?;
+    let contents =
+        std::fs::read_to_string(&path).map_err(|e| format!("failed to read backup file: {e}"))?;
+    let backup: BackupFile =
+        serde_json::from_str(&contents).map_err(|e| format!("failed to parse backup file: {e}"))?;
 
     // Decrypt if needed
     let backup_data = if backup.encrypted {
@@ -120,15 +124,16 @@ pub async fn get_backup_diff(
             .encryption_state
             .get_encryption_service()
             .ok_or_else(|| "encryption is locked - unlock to compute diff".to_string())?;
-        BackupService::decrypt_backup_data(&backup, &encryption)
-            .map_err(|e| e.to_string())?
+        BackupService::decrypt_backup_data(&backup, &encryption).map_err(|e| e.to_string())?
     } else {
         // Not encrypted - still need to decompress
-        BackupService::decrypt_backup_data_no_encryption(&backup)
-            .map_err(|e| e.to_string())?
+        BackupService::decrypt_backup_data_no_encryption(&backup).map_err(|e| e.to_string())?
     };
 
-    service.compute_diff(&backup_data).await.map_err(|e| e.to_string())
+    service
+        .compute_diff(&backup_data)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -151,18 +156,21 @@ pub fn get_cloud_presets() -> Vec<CloudPreset> {
 pub async fn get_cloud_settings(
     state: tauri::State<'_, BackupCommandState>,
 ) -> Result<Option<CloudSettings>, String> {
-    let row = sqlx::query_as::<_, (
-        String,
-        Option<String>,
-        Option<i64>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<bool>,
-    )>(
+    let row = sqlx::query_as::<
+        _,
+        (
+            String,
+            Option<String>,
+            Option<i64>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Option<bool>,
+        ),
+    >(
         "SELECT provider, server_url, port, username, password, remote_path, \
          access_token, refresh_token, auto_upload, enabled \
          FROM cloud_settings LIMIT 1",
@@ -288,22 +296,30 @@ fn build_webdav_provider(settings: &CloudSettings) -> Result<WebDavProvider, Str
         .clone()
         .unwrap_or_else(|| "backups".to_string());
 
-    Ok(WebDavProvider::new(base_url, username, password, remote_path))
+    Ok(WebDavProvider::new(
+        base_url,
+        username,
+        password,
+        remote_path,
+    ))
 }
 
 async fn get_cloud_settings_inner(pool: &SqlitePool) -> Result<Option<CloudSettings>, String> {
-    let row = sqlx::query_as::<_, (
-        String,
-        Option<String>,
-        Option<i64>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<bool>,
-    )>(
+    let row = sqlx::query_as::<
+        _,
+        (
+            String,
+            Option<String>,
+            Option<i64>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Option<bool>,
+        ),
+    >(
         "SELECT provider, server_url, port, username, password, remote_path, \
          access_token, refresh_token, auto_upload, enabled \
          FROM cloud_settings LIMIT 1",

@@ -44,7 +44,6 @@ import { useCurrencies } from '../hooks/useCurrency';
 import {
   createAccount,
   deleteAccount,
-  listAccounts,
   listAccountsWithBalances,
   updateAccount,
   type AccountDto,

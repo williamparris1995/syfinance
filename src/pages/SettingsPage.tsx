@@ -57,7 +57,7 @@ import {
   type CurrencyDto,
 } from '../lib/tauri/currency';
 import { getAccountId, linkDevice } from '../lib/auth';
-import { updateSyncSettings, getSyncSettings, type SyncSettings } from '../lib/tauri/sync';
+import { updateSyncSettings, getSyncSettings } from '../lib/tauri/sync';
 import { useEncryption } from '../hooks/useEncryption';
 
 interface SyncEvent {
@@ -638,13 +638,13 @@ function EncryptionSection() {
                 <div className="flex gap-2">
                   <Button size="sm" onClick={async () => {
                     try { setError(''); await handleUnlock(); setSetupMode('idle');
-                    } catch (e: any) { setError(e?.toString() || 'Failed'); }
+                    } catch (e: unknown) { setError(e instanceof Error ? e.message : String(e) || 'Failed'); }
                   }}>
                     {t('settings.unlockEncryption')}
                   </Button>
                   <Button size="sm" variant="outline" onClick={async () => {
                     try { setError(''); await handleUnlockKeychain(); setSetupMode('idle');
-                    } catch (e: any) { setError(e?.toString() || 'Failed'); }
+                    } catch (e: unknown) { setError(e instanceof Error ? e.message : String(e) || 'Failed'); }
                   }}>
                     {t('settings.unlockWithKeychain')}
                   </Button>
@@ -679,7 +679,7 @@ function EncryptionSection() {
                 <div className="flex gap-2">
                   <Button size="sm" onClick={async () => {
                     try { setError(''); await handleSetup(); setSetupMode('idle');
-                    } catch (e: any) { setError(e?.toString() || 'Failed'); }
+                    } catch (e: unknown) { setError(e instanceof Error ? e.message : String(e) || 'Failed'); }
                   }}>
                     {t('settings.setupEncryption')}
                   </Button>
@@ -707,7 +707,7 @@ function EncryptionSection() {
             <div className="flex gap-2">
               <Button size="sm" variant="destructive" onClick={async () => {
                 try { setError(''); await handleDisable(); setSetupMode('idle');
-                } catch (e: any) { setError(e?.toString() || 'Failed'); }
+                } catch (e: unknown) { setError(e instanceof Error ? e.message : String(e) || 'Failed'); }
               }}>
                 {t('settings.disableEncryption')}
               </Button>

@@ -15,10 +15,9 @@ import {
 import { listAccounts } from '@/lib/tauri/account';
 import {
   listSecurities, createSecurity, searchSecurities,
-  type SecurityDto, type HoldingTradeDto, type HoldingDto, type SecurityType, type SecuritySearchResult,
+  type HoldingTradeDto, type HoldingDto, type SecurityType, type SecuritySearchResult,
 } from '@/lib/tauri/holding';
 import { useState } from 'react';
-import { cn } from '@/lib/utils';
 
 interface Props {
   onSubmit: (data: HoldingTradeDto) => void;
@@ -321,7 +320,7 @@ export function HoldingTradeForm({ onSubmit, onCancel, isLoading, initialDirecti
           )} />
 
           {estimatedAmount > 0 && (
-            <div className="text-xs text-muted-foreground">{t('holding.estimatedAmount')}: ¥{estimatedAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+            <div className="text-xs text-muted-foreground">{t('holding.estimatedAmountDisplay', { value: estimatedAmount.toLocaleString('en-US', { minimumFractionDigits: 2 }) })}</div>
           )}
 
           <div className="flex justify-end gap-2 pt-4">

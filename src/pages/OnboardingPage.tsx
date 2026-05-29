@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { AlertCircle, CheckCircle2, Copy } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from '@tanstack/react-router';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -10,6 +11,7 @@ import { linkDevice, registerDevice, type RegisterResponse } from '../lib/auth';
 import { setupPresetInvestmentAccounts } from '../lib/tauri/account';
 
 export function OnboardingPage() {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<'choice' | 'register' | 'link'>('choice');
   const [registrationData, setRegistrationData] = useState<RegisterResponse | null>(null);
   const [linkAccountId, setLinkAccountId] = useState('');
@@ -68,9 +70,9 @@ export function OnboardingPage() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-neutral-50 to-neutral-100 p-6">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-bold">Welcome to Finance App</CardTitle>
+            <CardTitle className="text-3xl font-bold">{t('onboarding.welcome')}</CardTitle>
             <CardDescription className="text-base mt-2">
-              Get started by creating a new account or linking an existing device
+              {t('onboarding.getStarted')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -79,14 +81,14 @@ export function OnboardingPage() {
               className="w-full h-12 text-base"
               disabled={registerMutation.isPending}
             >
-              {registerMutation.isPending ? 'Creating Account...' : 'Create New Account'}
+              {registerMutation.isPending ? t('onboarding.creatingAccount') : t('onboarding.createNewAccount')}
             </Button>
             <Button
               onClick={() => setMode('link')}
               variant="outline"
               className="w-full h-12 text-base"
             >
-              Link Existing Account
+              {t('onboarding.linkExistingAccount')}
             </Button>
           </CardContent>
         </Card>
@@ -99,25 +101,24 @@ export function OnboardingPage() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-neutral-50 to-neutral-100 p-6">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold">Account Created!</CardTitle>
+            <CardTitle className="text-2xl font-bold">{t('onboarding.accountCreated')}</CardTitle>
             <CardDescription>
-              Save your Account ID - you'll need it to link other devices
+              {t('onboarding.saveAccountId')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
               <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
               <div className="text-sm text-amber-800">
-                <p className="font-semibold mb-1">Important: Save this ID!</p>
+                <p className="font-semibold mb-1">{t('onboarding.importantSaveId')}</p>
                 <p>
-                  You'll need this Account ID to sync data across devices. There's no way to
-                  recover it if you lose it.
+                  {t('onboarding.accountIdWarning')}
                 </p>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="account-id">Your Account ID</Label>
+              <Label htmlFor="account-id">{t('onboarding.yourAccountId')}</Label>
               <div className="flex gap-2">
                 <Input
                   id="account-id"
@@ -139,19 +140,19 @@ export function OnboardingPage() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Copy this ID and save it somewhere safe (password manager, notes app, etc.)
+                {t('onboarding.copyId')}
               </p>
             </div>
 
             <div className="bg-neutral-100 rounded-lg p-4 space-y-2">
-              <p className="text-sm font-medium">Device ID (for reference)</p>
+              <p className="text-sm font-medium">{t('onboarding.deviceIdReference')}</p>
               <p className="text-xs font-mono text-muted-foreground break-all">
                 {registrationData.device_id}
               </p>
             </div>
 
             <Button onClick={handleComplete} className="w-full h-12 text-base">
-              I've Saved My Account ID
+              {t('onboarding.savedAccountId')}
             </Button>
           </CardContent>
         </Card>
@@ -164,29 +165,29 @@ export function OnboardingPage() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-neutral-50 to-neutral-100 p-6">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold">Link Existing Account</CardTitle>
+            <CardTitle className="text-2xl font-bold">{t('onboarding.linkDevice')}</CardTitle>
             <CardDescription>
-              Enter your Account ID from another device to sync your data
+              {t('onboarding.enterAccountId')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="link-account-id">Account ID</Label>
+              <Label htmlFor="link-account-id">{t('onboarding.yourAccountId')}</Label>
               <Input
                 id="link-account-id"
-                placeholder="Enter your Account ID"
+                placeholder={t('onboarding.accountIdPlaceholder')}
                 value={linkAccountId}
                 onChange={(e) => setLinkAccountId(e.target.value)}
                 className="font-mono text-sm"
               />
               <p className="text-xs text-muted-foreground">
-                This is the Account ID you saved when you first created your account
+                {t('onboarding.accountIdHelp')}
               </p>
             </div>
 
             {linkMutation.isError && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
-                Error linking device: {(linkMutation.error as Error).message}
+                {t('onboarding.errorLinking')}: {(linkMutation.error as Error).message}
               </div>
             )}
 
@@ -197,14 +198,14 @@ export function OnboardingPage() {
                 className="flex-1"
                 disabled={linkMutation.isPending}
               >
-                Back
+                {t('onboarding.back')}
               </Button>
               <Button
                 onClick={handleLinkDevice}
                 className="flex-1"
                 disabled={!linkAccountId.trim() || linkMutation.isPending}
               >
-                {linkMutation.isPending ? 'Linking...' : 'Link Device'}
+                {linkMutation.isPending ? t('onboarding.linking') : t('onboarding.linkDeviceButton')}
               </Button>
             </div>
           </CardContent>
