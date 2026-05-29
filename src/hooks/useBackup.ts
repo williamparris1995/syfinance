@@ -1,0 +1,67 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  createBackup, listBackups, getCloudPresets, getCloudSettings,
+  saveCloudSettings, testCloudConnection, uploadToCloud, deleteBackup,
+  type BackupInfo, type CloudPreset, type CloudSettings, type CloudBackupInfo,
+} from '../lib/tauri/backup';
+
+export function useBackup() {
+  const queryClient = useQueryClient();
+
+  const backupsQuery = useQuery<BackupInfo[]>({
+    queryKey: ['backups'],
+    queryFn: listBackups,
+  });
+
+  const cloudPresetsQuery = useQuery<CloudPreset[]>({
+    queryKey: ['cloud-presets'],
+    queryFn: getCloudPresets,
+  });
+
+  const cloudSettingsQuery = useQuery<CloudSettings | null>({
+    queryKey: ['cloud-settings'],
+    queryFn: getCloudSettings,
+  });
+
+  const createBackupMutation = useMutation({
+    mutationFn: createBackup,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['backups'] }),
+  });
+
+  const deleteBackupMutation = useMutation({
+    mutationFn: (filename: string) => deleteBackup(filename),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['backups'] }),
+  });
+
+  const saveCloudSettingsMutation = useMutation({
+    mutationFn: (settings: CloudSettings) => saveCloudSettings(settings),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cloud-settings'] }),
+  });
+
+  const testConnectionMutation = useMutation({
+    mutationFn: (settings: CloudSettings) => testCloudConnection(settings),
+  });
+
+  const uploadToCloudMutation = useMutation({
+    mutationFn: (filename: string) => uploadToCloud(filename),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['backups'] }),
+  });
+
+  return {
+    backups: backupsQuery.data ?? [],
+    isLoadingBackups: backupsQuery.isLoading,
+    cloudPresets: cloudPresetsQuery.data ?? [],
+    cloudSettings: cloudSettingsQuery.data,
+    isLoadingCloudSettings: cloudSettingsQuery.isLoading,
+    createBackup: createBackupMutation.mutateAsync,
+    isCreatingBackup: createBackupMutation.isPending,
+    deleteBackup: deleteBackupMutation.mutateAsync,
+    isDeletingBackup: deleteBackupMutation.isPending,
+    saveCloudSettings: saveCloudSettingsMutation.mutateAsync,
+    isSavingCloudSettings: saveCloudSettingsMutation.isPending,
+    testConnection: testConnectionMutation.mutateAsync,
+    isTestingConnection: testConnectionMutation.isPending,
+    uploadToCloud: uploadToCloudMutation.mutateAsync,
+    isUploading: uploadToCloudMutation.isPending,
+  };
+}
