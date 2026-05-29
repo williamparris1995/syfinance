@@ -832,5 +832,14 @@
     "filterAll": "全部",
     "filterActive": "进行中",
     "filterCompleted": "已完成"
+  },
+  "sync": {
+    "justNow": "刚刚",
+    "minuteAgo": "{{count}}分钟前",
+    "minutesAgo": "{{count}}分钟前",
+    "hourAgo": "{{count}}小时前",
+    "hoursAgo": "{{count}}小时前",
+    "dayAgo": "{{count}}天前",
+    "daysAgo": "{{count}}天前"
   }
 }

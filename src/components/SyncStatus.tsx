@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { invokeTauri } from '@/lib/tauri';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface SyncStatusDto {
   last_sync_at: string | null;
@@ -13,7 +14,7 @@ interface SyncStatusDto {
 
 const LAST_SYNC_KEY = 'finance_app_last_sync';
 
-function getRelativeTime(timestamp: string): string {
+function getRelativeTime(timestamp: string, t: (key: string, options?: Record<string, unknown>) => string): string {
   const now = new Date();
   const syncTime = new Date(timestamp);
   const diffMs = now.getTime() - syncTime.getTime();
@@ -21,16 +22,17 @@ function getRelativeTime(timestamp: string): string {
   const diffHours = Math.floor(diffMinutes / 60);
   const diffDays = Math.floor(diffHours / 24);
 
-  if (diffMinutes < 1) return 'just now';
-  if (diffMinutes === 1) return '1 minute ago';
-  if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
-  if (diffHours === 1) return '1 hour ago';
-  if (diffHours < 24) return `${diffHours} hours ago`;
-  if (diffDays === 1) return '1 day ago';
-  return `${diffDays} days ago`;
+  if (diffMinutes < 1) return t('sync.justNow');
+  if (diffMinutes === 1) return t('sync.minuteAgo', { count: 1 });
+  if (diffMinutes < 60) return t('sync.minutesAgo', { count: diffMinutes });
+  if (diffHours === 1) return t('sync.hourAgo', { count: 1 });
+  if (diffHours < 24) return t('sync.hoursAgo', { count: diffHours });
+  if (diffDays === 1) return t('sync.dayAgo', { count: 1 });
+  return t('sync.daysAgo', { count: diffDays });
 }
 
 export function SyncStatus() {
+  const { t } = useTranslation();
   const [lastSyncLocal, setLastSyncLocal] = useState<string | null>(() => {
     return localStorage.getItem(LAST_SYNC_KEY);
   });
@@ -94,7 +96,7 @@ export function SyncStatus() {
 
         {lastSync && !isSyncing && (
           <span className="text-xs text-muted-foreground">
-            {getRelativeTime(lastSync)}
+            {getRelativeTime(lastSync, t)}
           </span>
         )}
       </div>
