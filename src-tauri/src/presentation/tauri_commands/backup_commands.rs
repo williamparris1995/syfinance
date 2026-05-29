@@ -1,0 +1,336 @@
+use crate::application::services::EncryptionAppService;
+use crate::infrastructure::backup::backup_service::{BackupFile, BackupInfo, BackupService, DiffSummary};
+use crate::infrastructure::backup::cloud_provider::{CloudBackupInfo, CloudPreset, CloudProvider, get_presets};
+use crate::infrastructure::backup::webdav_provider::WebDavProvider;
+use serde::{Deserialize, Serialize};
+use sqlx::SqlitePool;
+use std::path::PathBuf;
+use std::sync::Arc;
+use tracing::{error, info};
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+
+#[derive(Clone)]
+pub struct BackupCommandState {
+    pool: SqlitePool,
+    backup_dir: PathBuf,
+    encryption_state: Arc<EncryptionAppService>,
+}
+
+impl BackupCommandState {
+    pub fn new(
+        pool: SqlitePool,
+        backup_dir: PathBuf,
+        encryption_state: Arc<EncryptionAppService>,
+    ) -> Self {
+        Self {
+            pool,
+            backup_dir,
+            encryption_state,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// CloudSettings (persisted in DB)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CloudSettings {
+    pub provider: String,
+    pub server_url: Option<String>,
+    pub port: Option<i64>,
+    pub username: Option<String>,
+    pub password: Option<String>,
+    pub remote_path: Option<String>,
+    pub access_token: Option<String>,
+    pub refresh_token: Option<String>,
+    pub auto_upload: Option<String>,
+    pub enabled: Option<bool>,
+}
+
+// ---------------------------------------------------------------------------
+// Commands
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub async fn create_backup(
+    state: tauri::State<'_, BackupCommandState>,
+) -> Result<BackupInfo, String> {
+    info!("Creating backup via Tauri command");
+
+    let service = BackupService::new(state.pool.clone(), state.backup_dir.clone())
+        .map_err(|e| e.to_string())?;
+
+    let encryption = if state.encryption_state.is_unlocked() {
+        state.encryption_state.get_encryption_service()
+    } else {
+        None
+    };
+
+    service
+        .create_backup(encryption.as_ref())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_backups(
+    state: tauri::State<'_, BackupCommandState>,
+) -> Result<Vec<BackupInfo>, String> {
+    let service = BackupService::new(state.pool.clone(), state.backup_dir.clone())
+        .map_err(|e| e.to_string())?;
+
+    service.list_backups().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_backup_metadata(
+    state: tauri::State<'_, BackupCommandState>,
+    filename: String,
+) -> Result<BackupFile, String> {
+    let path = state.backup_dir.join(&filename);
+    let contents = std::fs::read_to_string(&path)
+        .map_err(|e| format!("failed to read backup file: {e}"))?;
+    let backup: BackupFile = serde_json::from_str(&contents)
+        .map_err(|e| format!("failed to parse backup file: {e}"))?;
+    Ok(backup)
+}
+
+#[tauri::command]
+pub async fn get_backup_diff(
+    state: tauri::State<'_, BackupCommandState>,
+    filename: String,
+) -> Result<DiffSummary, String> {
+    let service = BackupService::new(state.pool.clone(), state.backup_dir.clone())
+        .map_err(|e| e.to_string())?;
+
+    // Read and parse the backup file
+    let path = state.backup_dir.join(&filename);
+    let contents = std::fs::read_to_string(&path)
+        .map_err(|e| format!("failed to read backup file: {e}"))?;
+    let backup: BackupFile = serde_json::from_str(&contents)
+        .map_err(|e| format!("failed to parse backup file: {e}"))?;
+
+    // Decrypt if needed
+    let backup_data = if backup.encrypted {
+        let encryption = state
+            .encryption_state
+            .get_encryption_service()
+            .ok_or_else(|| "encryption is locked - unlock to compute diff".to_string())?;
+        BackupService::decrypt_backup_data(&backup, &encryption)
+            .map_err(|e| e.to_string())?
+    } else {
+        // Not encrypted - still need to decompress
+        BackupService::decrypt_backup_data_no_encryption(&backup)
+            .map_err(|e| e.to_string())?
+    };
+
+    service.compute_diff(&backup_data).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_backup(
+    state: tauri::State<'_, BackupCommandState>,
+    filename: String,
+) -> Result<(), String> {
+    let service = BackupService::new(state.pool.clone(), state.backup_dir.clone())
+        .map_err(|e| e.to_string())?;
+
+    service.delete_backup(&filename).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_cloud_presets() -> Vec<CloudPreset> {
+    get_presets()
+}
+
+#[tauri::command]
+pub async fn get_cloud_settings(
+    state: tauri::State<'_, BackupCommandState>,
+) -> Result<Option<CloudSettings>, String> {
+    let row = sqlx::query_as::<_, (
+        String,
+        Option<String>,
+        Option<i64>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<bool>,
+    )>(
+        "SELECT provider, server_url, port, username, password, remote_path, \
+         access_token, refresh_token, auto_upload, enabled \
+         FROM cloud_settings LIMIT 1",
+    )
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(|e| format!("failed to read cloud settings: {e}"))?;
+
+    Ok(row.map(|r| CloudSettings {
+        provider: r.0,
+        server_url: r.1,
+        port: r.2,
+        username: r.3,
+        password: r.4,
+        remote_path: r.5,
+        access_token: r.6,
+        refresh_token: r.7,
+        auto_upload: r.8,
+        enabled: r.9,
+    }))
+}
+
+#[tauri::command]
+pub async fn save_cloud_settings(
+    state: tauri::State<'_, BackupCommandState>,
+    settings: CloudSettings,
+) -> Result<(), String> {
+    // Delete existing row then insert new one (upsert)
+    sqlx::query("DELETE FROM cloud_settings")
+        .execute(&state.pool)
+        .await
+        .map_err(|e| format!("failed to clear cloud settings: {e}"))?;
+
+    sqlx::query(
+        "INSERT INTO cloud_settings \
+         (provider, server_url, port, username, password, remote_path, \
+          access_token, refresh_token, auto_upload, enabled) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(&settings.provider)
+    .bind(&settings.server_url)
+    .bind(settings.port)
+    .bind(&settings.username)
+    .bind(&settings.password)
+    .bind(&settings.remote_path)
+    .bind(&settings.access_token)
+    .bind(&settings.refresh_token)
+    .bind(&settings.auto_upload)
+    .bind(settings.enabled)
+    .execute(&state.pool)
+    .await
+    .map_err(|e| format!("failed to save cloud settings: {e}"))?;
+
+    info!("Cloud settings saved");
+    Ok(())
+}
+
+#[tauri::command]
+pub fn test_cloud_connection(settings: CloudSettings) -> Result<(), String> {
+    let provider = build_webdav_provider(&settings)?;
+    provider
+        .test_connection()
+        .map_err(|e| format!("cloud connection test failed: {e}"))
+}
+
+#[tauri::command]
+pub async fn upload_to_cloud(
+    state: tauri::State<'_, BackupCommandState>,
+    filename: String,
+) -> Result<(), String> {
+    let cloud_settings = get_cloud_settings_inner(&state.pool)
+        .await?
+        .ok_or_else(|| "cloud not configured".to_string())?;
+
+    let provider = build_webdav_provider(&cloud_settings)?;
+    let local_path = state.backup_dir.join(&filename);
+
+    if !local_path.exists() {
+        return Err(format!("backup file not found: {filename}"));
+    }
+
+    provider
+        .upload(&local_path, &filename)
+        .map_err(|e| format!("upload failed: {e}"))?;
+
+    info!(filename = %filename, "Backup uploaded to cloud");
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn list_cloud_backups(
+    state: tauri::State<'_, BackupCommandState>,
+) -> Result<Vec<CloudBackupInfo>, String> {
+    let cloud_settings = get_cloud_settings_inner(&state.pool)
+        .await?
+        .ok_or_else(|| "cloud not configured".to_string())?;
+
+    let provider = build_webdav_provider(&cloud_settings)?;
+    provider
+        .list_backups()
+        .map_err(|e| format!("failed to list cloud backups: {e}"))
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+fn build_webdav_provider(settings: &CloudSettings) -> Result<WebDavProvider, String> {
+    let base_url = settings
+        .server_url
+        .clone()
+        .ok_or_else(|| "server_url is required".to_string())?;
+    let username = settings
+        .username
+        .clone()
+        .ok_or_else(|| "username is required".to_string())?;
+    let password = settings
+        .password
+        .clone()
+        .ok_or_else(|| "password is required".to_string())?;
+    let remote_path = settings
+        .remote_path
+        .clone()
+        .unwrap_or_else(|| "backups".to_string());
+
+    Ok(WebDavProvider::new(base_url, username, password, remote_path))
+}
+
+async fn get_cloud_settings_inner(pool: &SqlitePool) -> Result<Option<CloudSettings>, String> {
+    let row = sqlx::query_as::<_, (
+        String,
+        Option<String>,
+        Option<i64>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<bool>,
+    )>(
+        "SELECT provider, server_url, port, username, password, remote_path, \
+         access_token, refresh_token, auto_upload, enabled \
+         FROM cloud_settings LIMIT 1",
+    )
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| format!("failed to read cloud settings: {e}"))?;
+
+    Ok(row.map(|r| CloudSettings {
+        provider: r.0,
+        server_url: r.1,
+        port: r.2,
+        username: r.3,
+        password: r.4,
+        remote_path: r.5,
+        access_token: r.6,
+        refresh_token: r.7,
+        auto_upload: r.8,
+        enabled: r.9,
+    }))
+}
+
+/// Factory helper for main.rs state creation.
+pub fn create_backup_state(
+    pool: SqlitePool,
+    backup_dir: PathBuf,
+    encryption_state: Arc<EncryptionAppService>,
+) -> BackupCommandState {
+    BackupCommandState::new(pool, backup_dir, encryption_state)
+}

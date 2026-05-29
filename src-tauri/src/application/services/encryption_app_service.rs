@@ -152,4 +152,10 @@ impl EncryptionAppService {
         let service = guard.as_ref().ok_or(EncryptionAppError::Locked)?;
         Ok(service.decrypt_from_hex(hex_ciphertext)?)
     }
+
+    /// Return a cloned `EncryptionService` if encryption is unlocked, or `None`.
+    pub fn get_encryption_service(&self) -> Option<EncryptionService> {
+        let guard = self.service.lock().unwrap();
+        guard.as_ref().map(|svc| EncryptionService::from_key(*svc.master_key()))
+    }
 }

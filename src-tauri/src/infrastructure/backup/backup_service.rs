@@ -366,6 +366,38 @@ impl BackupService {
         Ok(data)
     }
 
+    /// Decompress and deserialize an unencrypted backup payload.
+    #[allow(dead_code)]
+    pub fn decrypt_backup_data_no_encryption(
+        backup: &BackupFile,
+    ) -> Result<BackupData, BackupError> {
+        if backup.encrypted {
+            return Err(BackupError::Decryption(
+                "backup is encrypted - use decrypt_backup_data with encryption service".to_string(),
+            ));
+        }
+
+        let raw = STANDARD
+            .decode(&backup.data)
+            .map_err(|e| BackupError::Decryption(format!("base64 decode failed: {}", e)))?;
+
+        let json_bytes = if backup.compressed {
+            gzip_decompress(&raw)?
+        } else {
+            raw
+        };
+
+        let actual_checksum = sha256_hex(&json_bytes);
+        if actual_checksum != backup.checksum {
+            return Err(BackupError::Decryption(
+                "checksum mismatch - data may be corrupted".to_string(),
+            ));
+        }
+
+        let data: BackupData = serde_json::from_slice(&json_bytes)?;
+        Ok(data)
+    }
+
     // ----- compute_diff -----------------------------------------------------
 
     /// Compare backup data with the current local database and produce a diff.

@@ -19,6 +19,11 @@ use presentation::tauri_commands::{
         list_accounts_by_ownership, list_accounts_with_balances,
         setup_preset_investment_accounts, update_account, AppState,
     },
+    backup_commands::{
+        create_backup, create_backup_state, delete_backup, get_backup_diff, get_backup_metadata,
+        get_cloud_presets, get_cloud_settings, list_backups, list_cloud_backups,
+        save_cloud_settings, test_cloud_connection, upload_to_cloud, BackupCommandState,
+    },
     currency_commands::{
         add_currency, create_default_state_from_pool as create_currency_default_state_from_pool,
         list_currencies, update_currency_rate, CurrencyCommandState,
@@ -182,6 +187,11 @@ async fn main() {
     let export_state = create_export_default_state(pool.clone());
     let encryption_state = create_encryption_default_state(pool.clone());
     let sync_state = create_sync_default_state();
+    let backup_state = create_backup_state(
+        pool.clone(),
+        app_dir.join("backups"),
+        encryption_state.service.clone(),
+    );
 
     // Start Axum REST API server in background
     let app = create_sync_routes();
@@ -210,6 +220,7 @@ async fn main() {
         .manage(search_state)
         .manage(export_state)
         .manage(encryption_state)
+        .manage(backup_state)
         .invoke_handler(tauri::generate_handler![
             create_account,
             update_account,
@@ -283,6 +294,17 @@ async fn main() {
             unlock_encryption_keychain,
             lock_encryption,
             disable_encryption,
+            create_backup,
+            list_backups,
+            get_backup_metadata,
+            get_backup_diff,
+            delete_backup,
+            get_cloud_presets,
+            get_cloud_settings,
+            save_cloud_settings,
+            test_cloud_connection,
+            upload_to_cloud,
+            list_cloud_backups,
             sync_to_server,
             sync_from_server,
             get_sync_status,

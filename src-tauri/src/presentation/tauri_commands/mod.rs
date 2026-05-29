@@ -1,4 +1,5 @@
 pub mod account_commands;
+pub mod backup_commands;
 pub mod budget_commands;
 pub mod currency_commands;
 pub mod debt_commands;
@@ -16,6 +17,11 @@ pub mod transaction_commands;
 pub use account_commands::{
     create_account, delete_account, get_account, get_account_balance, list_accounts,
     list_accounts_by_ownership, list_accounts_with_balances, update_account, AppState,
+};
+pub use backup_commands::{
+    create_backup, create_backup_state, delete_backup, get_backup_diff, get_backup_metadata,
+    get_cloud_presets, get_cloud_settings, list_backups, list_cloud_backups,
+    save_cloud_settings, test_cloud_connection, upload_to_cloud, BackupCommandState,
 };
 pub use encryption_commands::{
     create_encryption_default_state, disable_encryption, get_encryption_status, lock_encryption,
