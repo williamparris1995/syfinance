@@ -2,6 +2,7 @@ import { Outlet, createRootRoute, createRoute, createRouter, redirect } from '@t
 import { AppLayout } from './components/layout/AppLayout';
 import { isRegistered } from './lib/auth';
 import { AccountsPage } from './pages/AccountsPage';
+import { BackupPage } from './pages/BackupPage';
 import { BudgetPage } from './pages/BudgetPage';
 import { DebtsPage } from './pages/DebtsPage';
 import { GoalsPage } from './pages/GoalsPage';
@@ -91,6 +92,12 @@ const reportsRoute = createRoute({
   component: ReportsPage,
 });
 
+const backupRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'backup',
+  component: BackupPage,
+});
+
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'settings',
@@ -131,6 +138,7 @@ const routeTree = rootRoute.addChildren([
   budgetRoute,
   goalsRoute,
   reportsRoute,
+  backupRoute,
   settingsRoute,
   onboardingRoute,
 ]);

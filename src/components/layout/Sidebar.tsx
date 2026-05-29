@@ -5,6 +5,7 @@ import {
   CreditCard,
   BarChart3,
   Settings,
+  HardDrive,
   HelpCircle,
   TrendingUp,
   CalendarClock,
@@ -115,6 +116,13 @@ export function Sidebar({ onNavigate, collapsed }: SidebarProps) {
           {/* Other Section */}
           {!collapsed && <SidebarMenuGroup label="Other" />}
           <div className="space-y-0.5">
+            <SidebarMenuItem
+              to="/backup"
+              label={t('nav.backup')}
+              icon={HardDrive}
+              onClick={onNavigate}
+              collapsed={collapsed}
+            />
             <SidebarMenuItem
               to="/settings"
               label={t('nav.settings')}
