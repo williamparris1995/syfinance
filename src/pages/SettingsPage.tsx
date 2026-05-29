@@ -58,6 +58,7 @@ import {
 } from '../lib/tauri/currency';
 import { getAccountId, linkDevice } from '../lib/auth';
 import { updateSyncSettings, getSyncSettings, type SyncSettings } from '../lib/tauri/sync';
+import { useEncryption } from '../hooks/useEncryption';
 
 interface SyncEvent {
   status: 'started' | 'completed' | 'failed';
@@ -362,6 +363,9 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Encryption Settings Section */}
+      <EncryptionSection />
+
       {/* Currency Settings Section */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">{t('settings.currencySettings')}</h2>
@@ -572,5 +576,146 @@ export function SettingsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function EncryptionSection() {
+  const { t } = useTranslation();
+  const {
+    enabled, unlocked, isLoading,
+    password, setPassword,
+    confirmPassword, setConfirmPassword,
+    disablePassword, setDisablePassword,
+    handleSetup, handleUnlock, handleUnlockKeychain,
+    handleLock, handleDisable,
+  } = useEncryption();
+  const [setupMode, setSetupMode] = useState<'idle' | 'setup' | 'unlock' | 'disable'>('idle');
+  const [error, setError] = useState('');
+
+  if (isLoading) return null;
+
+  return (
+    <Card className="mb-6">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <span>🔒</span>
+          {t('settings.encryption')}
+        </CardTitle>
+        <CardDescription>{t('settings.encryptionDesc')}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {enabled && unlocked && (
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium text-green-600">{t('settings.encryptionEnabled')}</p>
+              <p className="text-xs text-muted-foreground">{t('settings.encryptionUnlocked')}</p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleLock}>
+                {t('settings.lockEncryption')}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => { setSetupMode('disable'); setError(''); }}>
+                {t('settings.disableEncryption')}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {enabled && !unlocked && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium text-yellow-600">{t('settings.encryptionLocked')}</p>
+            </div>
+            {setupMode === 'unlock' ? (
+              <div className="space-y-3">
+                <Input
+                  type="password"
+                  placeholder={t('settings.enterPassword')}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                {error && <p className="text-xs text-destructive">{error}</p>}
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={async () => {
+                    try { setError(''); await handleUnlock(); setSetupMode('idle');
+                    } catch (e: any) { setError(e?.toString() || 'Failed'); }
+                  }}>
+                    {t('settings.unlockEncryption')}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={async () => {
+                    try { setError(''); await handleUnlockKeychain(); setSetupMode('idle');
+                    } catch (e: any) { setError(e?.toString() || 'Failed'); }
+                  }}>
+                    {t('settings.unlockWithKeychain')}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setSetupMode('idle')}>{t('common.cancel')}</Button>
+                </div>
+              </div>
+            ) : (
+              <Button size="sm" onClick={() => { setSetupMode('unlock'); setPassword(''); setError(''); }}>
+                {t('settings.unlockEncryption')}
+              </Button>
+            )}
+          </div>
+        )}
+
+        {!enabled && (
+          <div className="space-y-3">
+            {setupMode === 'setup' ? (
+              <div className="space-y-3">
+                <Input
+                  type="password"
+                  placeholder={t('settings.enterPassword')}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <Input
+                  type="password"
+                  placeholder={t('settings.confirmPassword')}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+                {error && <p className="text-xs text-destructive">{error}</p>}
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={async () => {
+                    try { setError(''); await handleSetup(); setSetupMode('idle');
+                    } catch (e: any) { setError(e?.toString() || 'Failed'); }
+                  }}>
+                    {t('settings.setupEncryption')}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setSetupMode('idle')}>{t('common.cancel')}</Button>
+                </div>
+              </div>
+            ) : (
+              <Button size="sm" onClick={() => { setSetupMode('setup'); setPassword(''); setConfirmPassword(''); setError(''); }}>
+                {t('settings.setupEncryption')}
+              </Button>
+            )}
+          </div>
+        )}
+
+        {setupMode === 'disable' && (
+          <div className="space-y-3 pt-2 border-t">
+            <p className="text-sm text-destructive">{t('settings.disableEncryptionWarning')}</p>
+            <Input
+              type="password"
+              placeholder={t('settings.enterPassword')}
+              value={disablePassword}
+              onChange={(e) => setDisablePassword(e.target.value)}
+            />
+            {error && <p className="text-xs text-destructive">{error}</p>}
+            <div className="flex gap-2">
+              <Button size="sm" variant="destructive" onClick={async () => {
+                try { setError(''); await handleDisable(); setSetupMode('idle');
+                } catch (e: any) { setError(e?.toString() || 'Failed'); }
+              }}>
+                {t('settings.disableEncryption')}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setSetupMode('idle')}>{t('common.cancel')}</Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

@@ -2,6 +2,7 @@ pub mod account_commands;
 pub mod budget_commands;
 pub mod currency_commands;
 pub mod debt_commands;
+pub mod encryption_commands;
 pub mod export_commands;
 pub mod goal_commands;
 pub mod holding_commands;
@@ -15,6 +16,10 @@ pub mod transaction_commands;
 pub use account_commands::{
     create_account, delete_account, get_account, get_account_balance, list_accounts,
     list_accounts_by_ownership, list_accounts_with_balances, update_account, AppState,
+};
+pub use encryption_commands::{
+    create_encryption_default_state, disable_encryption, get_encryption_status, lock_encryption,
+    setup_encryption, unlock_encryption, unlock_encryption_keychain, EncryptionCommandState,
 };
 pub use budget_commands::{
     add_budget_item, create_budget, delete_budget, get_budget, get_budget_by_month, list_budgets,

@@ -31,6 +31,10 @@ use presentation::tauri_commands::{
         create_goal, delete_goal, get_goal, list_goals, update_goal, update_goal_progress,
         GoalCommandState,
     },
+    encryption_commands::{
+        create_encryption_default_state, disable_encryption, get_encryption_status, lock_encryption,
+        setup_encryption, unlock_encryption, unlock_encryption_keychain, EncryptionCommandState,
+    },
     debt_commands::{
         create_debt, create_default_state_from_pool as create_debt_default_state_from_pool,
         delete_debt, get_debt, get_upcoming_payments, list_debts, record_payment,
@@ -176,6 +180,7 @@ async fn main() {
         .expect("failed to initialize tag command state");
     let search_state = create_search_default_state(pool.clone());
     let export_state = create_export_default_state(pool.clone());
+    let encryption_state = create_encryption_default_state(pool.clone());
     let sync_state = create_sync_default_state();
 
     // Start Axum REST API server in background
@@ -204,6 +209,7 @@ async fn main() {
         .manage(tag_state)
         .manage(search_state)
         .manage(export_state)
+        .manage(encryption_state)
         .invoke_handler(tauri::generate_handler![
             create_account,
             update_account,
@@ -271,6 +277,12 @@ async fn main() {
             get_transaction_tags,
             global_search,
             export_all_data,
+            get_encryption_status,
+            setup_encryption,
+            unlock_encryption,
+            unlock_encryption_keychain,
+            lock_encryption,
+            disable_encryption,
             sync_to_server,
             sync_from_server,
             get_sync_status,

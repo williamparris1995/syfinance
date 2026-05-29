@@ -510,7 +510,20 @@
     "currencyAdded": "Currency added successfully",
     "fillAllFields": "Please fill in all required fields",
     "currencies": "Currencies",
-    "currencyNamePlaceholder": "e.g., US Dollar"
+    "currencyNamePlaceholder": "e.g., US Dollar",
+    "encryption": "Encryption",
+    "encryptionDesc": "Protect your financial data with AES-256 encryption",
+    "encryptionEnabled": "Encryption enabled",
+    "encryptionUnlocked": "Data is unlocked and accessible",
+    "encryptionLocked": "Data is locked",
+    "setupEncryption": "Set Up Encryption",
+    "unlockEncryption": "Unlock",
+    "unlockWithKeychain": "Use Keychain",
+    "lockEncryption": "Lock",
+    "disableEncryption": "Disable Encryption",
+    "disableEncryptionWarning": "This will remove encryption. Your data will be stored in plain text.",
+    "enterPassword": "Enter password",
+    "confirmPassword": "Confirm password"
   },
   "onboarding": {
     "welcome": "Welcome to Finance App",

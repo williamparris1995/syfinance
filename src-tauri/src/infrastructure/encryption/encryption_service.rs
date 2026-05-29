@@ -39,6 +39,16 @@ pub struct EncryptionService {
 }
 
 impl EncryptionService {
+    /// 从原始密钥创建
+    pub fn from_key(key: [u8; KEY_SIZE]) -> Self {
+        Self { master_key: key }
+    }
+
+    /// 获取主密钥引用
+    pub fn master_key(&self) -> &[u8; KEY_SIZE] {
+        &self.master_key
+    }
+
     /// 从密码派生主密钥
     pub fn from_password(password: &str, salt: &[u8]) -> Result<Self, EncryptionError> {
         if salt.len() != SALT_SIZE {
