@@ -55,3 +55,6 @@ export const deleteBudget = (id: string) =>
 
 export const removeBudgetItem = (budgetId: string, itemId: string) =>
   invokeTauri<BudgetDto>('remove_budget_item', { budgetId, itemId });
+
+export const computeBudgetActuals = (budgetId: string) =>
+  invokeTauri<void>('compute_budget_actuals', { budgetId });

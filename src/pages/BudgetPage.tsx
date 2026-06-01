@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -44,6 +44,7 @@ import {
   useAddBudgetItem,
   useDeleteBudget,
   useRemoveBudgetItem,
+  useComputeBudgetActuals,
 } from '../hooks/useBudget';
 import { useCurrencies } from '../hooks/useCurrency';
 import { listAccounts } from '../lib/tauri/account';
@@ -92,6 +93,15 @@ export function BudgetPage() {
   const addBudgetItemMutation = useAddBudgetItem();
   const deleteBudgetMutation = useDeleteBudget();
   const removeBudgetItemMutation = useRemoveBudgetItem();
+  const computeActuals = useComputeBudgetActuals();
+
+  // Compute actuals when budget changes
+  useEffect(() => {
+    if (budget?.id) {
+      computeActuals.mutate(budget.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [budget?.id]);
 
   // Month navigation
   const handlePrevMonth = () => {

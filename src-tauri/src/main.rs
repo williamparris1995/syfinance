@@ -27,6 +27,10 @@ use presentation::tauri_commands::{
         get_cloud_presets, get_cloud_settings, list_backups, list_cloud_backups, restore_backup,
         save_cloud_settings, test_cloud_connection, upload_to_cloud, BackupCommandState,
     },
+    budget_commands::{
+        add_budget_item, compute_budget_actuals, create_budget, delete_budget, get_budget,
+        get_budget_by_month, list_budgets, remove_budget_item, BudgetCommandState,
+    },
     cloud_sync_commands::{
         cloud_sync_now, create_cloud_sync_state, get_cloud_sync_settings, get_cloud_sync_status,
         update_cloud_sync_settings, CloudSyncCommandState,
@@ -157,6 +161,7 @@ async fn main() {
 
     // Create all states from the same pool
     let account_state = AppState::from_pool(pool.clone());
+    let budget_state = BudgetCommandState::from_pool(pool.clone());
     let debt_state: DebtAppState = create_debt_default_state_from_pool(pool.clone())
         .await
         .expect("failed to initialize debt command state");
@@ -219,6 +224,7 @@ async fn main() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .manage(account_state)
+        .manage(budget_state)
         .manage(debt_state)
         .manage(currency_state)
         .manage(goal_state)
@@ -242,6 +248,14 @@ async fn main() {
             list_accounts_with_balances,
             get_account_balance,
             setup_preset_investment_accounts,
+            list_budgets,
+            get_budget,
+            get_budget_by_month,
+            create_budget,
+            add_budget_item,
+            delete_budget,
+            remove_budget_item,
+            compute_budget_actuals,
             list_currencies,
             add_currency,
             update_currency_rate,

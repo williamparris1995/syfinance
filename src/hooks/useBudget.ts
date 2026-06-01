@@ -7,6 +7,7 @@ import {
   addBudgetItem,
   deleteBudget,
   removeBudgetItem,
+  computeBudgetActuals,
   CreateBudgetDto,
   AddBudgetItemDto,
 } from '../lib/tauri/budget';
@@ -95,6 +96,18 @@ export function useRemoveBudgetItem() {
     },
     onError: (error) => {
       toast.error(`删除预算项失败: ${error}`);
+    },
+  });
+}
+
+export function useComputeBudgetActuals() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (budgetId: string) => computeBudgetActuals(budgetId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      queryClient.invalidateQueries({ queryKey: ['budget'] });
     },
   });
 }

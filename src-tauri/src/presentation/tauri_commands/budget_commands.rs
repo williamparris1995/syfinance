@@ -1,3 +1,4 @@
+use crate::application::services::budget_service::BudgetService;
 use crate::domain::aggregates::budget::Budget;
 use crate::domain::repositories::BudgetRepository;
 use crate::domain::value_objects::budget_item::BudgetItem;
@@ -227,4 +228,13 @@ pub async fn remove_budget_item(
         .ok_or_else(|| "Budget not found".to_string())?;
 
     Ok(BudgetDto::from(budget))
+}
+
+#[tauri::command]
+pub async fn compute_budget_actuals(
+    state: State<'_, BudgetCommandState>,
+    budget_id: String,
+) -> Result<(), String> {
+    let service = BudgetService::new(state.pool().clone());
+    service.compute_budget_actuals(&budget_id).await
 }

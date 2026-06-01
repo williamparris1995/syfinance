@@ -25,8 +25,8 @@ pub use backup_commands::{
     test_cloud_connection, upload_to_cloud, BackupCommandState,
 };
 pub use budget_commands::{
-    add_budget_item, create_budget, delete_budget, get_budget, get_budget_by_month, list_budgets,
-    remove_budget_item, BudgetCommandState,
+    add_budget_item, compute_budget_actuals, create_budget, delete_budget, get_budget,
+    get_budget_by_month, list_budgets, remove_budget_item, BudgetCommandState,
 };
 pub use cloud_sync_commands::{
     cloud_sync_now, create_cloud_sync_state, get_cloud_sync_settings, get_cloud_sync_status,
