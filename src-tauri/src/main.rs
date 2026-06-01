@@ -24,9 +24,8 @@ use presentation::tauri_commands::{
     },
     backup_commands::{
         create_backup, create_backup_state, delete_backup, get_backup_diff, get_backup_metadata,
-        get_cloud_presets, get_cloud_settings, list_backups, list_cloud_backups,
-        restore_backup, save_cloud_settings, test_cloud_connection, upload_to_cloud,
-        BackupCommandState,
+        get_cloud_presets, get_cloud_settings, list_backups, list_cloud_backups, restore_backup,
+        save_cloud_settings, test_cloud_connection, upload_to_cloud, BackupCommandState,
     },
     currency_commands::{
         add_currency, create_default_state_from_pool as create_currency_default_state_from_pool,

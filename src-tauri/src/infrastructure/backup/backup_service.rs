@@ -568,9 +568,7 @@ impl BackupService {
         info!(safety_backup = %safety_info.filename, "Safety backup created");
 
         // 2. Execute restore in a transaction
-        let result = self
-            .restore_in_transaction(backup_data, strategy)
-            .await?;
+        let result = self.restore_in_transaction(backup_data, strategy).await?;
 
         info!(
             safety_backup = %safety_info.filename,
@@ -596,11 +594,15 @@ impl BackupService {
             .map_err(|e| BackupError::Database(format!("failed to begin transaction: {e}")))?;
 
         // Tables in foreign key dependency order
-        let accounts =
-            restore_table(&mut tx, "accounts", &backup_data.accounts, strategy, Some("id"))
-                .await?;
-        let tags =
-            restore_table(&mut tx, "tags", &backup_data.tags, strategy, Some("id")).await?;
+        let accounts = restore_table(
+            &mut tx,
+            "accounts",
+            &backup_data.accounts,
+            strategy,
+            Some("id"),
+        )
+        .await?;
+        let tags = restore_table(&mut tx, "tags", &backup_data.tags, strategy, Some("id")).await?;
         let transactions = restore_table(
             &mut tx,
             "transactions",
@@ -625,9 +627,14 @@ impl BackupService {
             Some("id"),
         )
         .await?;
-        let budgets =
-            restore_table(&mut tx, "budgets", &backup_data.budgets, strategy, Some("id"))
-                .await?;
+        let budgets = restore_table(
+            &mut tx,
+            "budgets",
+            &backup_data.budgets,
+            strategy,
+            Some("id"),
+        )
+        .await?;
         let budget_items = restore_table(
             &mut tx,
             "budget_items",
@@ -758,7 +765,7 @@ async fn restore_table(
                     Some(o) => o,
                     None => continue,
                 };
-                insert_or_ignore_row(&mut **tx, table_name, obj).await?;
+                insert_or_ignore_row(tx, table_name, obj).await?;
                 inserted += 1;
             }
             return Ok(TableRestoreStats {
@@ -803,7 +810,7 @@ async fn restore_table(
 
         match strategy {
             "use_backup" => {
-                upsert_row(&mut **tx, table_name, obj).await?;
+                upsert_row(tx, table_name, obj).await?;
                 if exists {
                     updated += 1;
                 } else {
@@ -814,14 +821,14 @@ async fn restore_table(
                 if exists {
                     skipped += 1;
                 } else {
-                    insert_row(&mut **tx, table_name, obj).await?;
+                    insert_row(tx, table_name, obj).await?;
                     inserted += 1;
                 }
             }
             _ => {
                 // keep_newer (default)
                 if !exists {
-                    insert_row(&mut **tx, table_name, obj).await?;
+                    insert_row(tx, table_name, obj).await?;
                     inserted += 1;
                 } else if no_updated_at {
                     skipped += 1;
@@ -833,7 +840,7 @@ async fn restore_table(
                         _ => false,
                     };
                     if backup_is_newer {
-                        update_row(&mut **tx, table_name, obj, id_col, &row_id).await?;
+                        update_row(tx, table_name, obj, id_col, &row_id).await?;
                         updated += 1;
                     } else {
                         skipped += 1;
@@ -898,10 +905,9 @@ async fn insert_or_ignore_row(
         query = bind_json_value(query, val);
     }
 
-    query
-        .execute(executor)
-        .await
-        .map_err(|e| BackupError::Database(format!("insert or ignore into {table_name} failed: {e}")))?;
+    query.execute(executor).await.map_err(|e| {
+        BackupError::Database(format!("insert or ignore into {table_name} failed: {e}"))
+    })?;
 
     Ok(())
 }

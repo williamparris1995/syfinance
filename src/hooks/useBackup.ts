@@ -4,7 +4,6 @@ import {
   saveCloudSettings, testCloudConnection, uploadToCloud, deleteBackup,
   restoreBackup,
   type BackupInfo, type CloudPreset, type CloudSettings,
-  type RestoreResult,
 } from '../lib/tauri/backup';
 
 export function useBackup() {
