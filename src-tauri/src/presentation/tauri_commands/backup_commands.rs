@@ -269,10 +269,19 @@ pub async fn save_cloud_settings(
 }
 
 #[tauri::command]
-pub fn test_cloud_connection(settings: CloudSettings) -> Result<(), String> {
+pub async fn test_cloud_connection(settings: CloudSettings) -> Result<(), String> {
+    // Check if this is an OAuth provider (not yet supported)
+    let oauth_providers = ["dropbox", "google_drive", "onedrive"];
+    if oauth_providers.contains(&settings.provider.as_str()) {
+        return Err(
+            "OAuth providers are not yet supported. Please use a WebDAV provider.".to_string()
+        );
+    }
+
     let provider = build_webdav_provider(&settings)?;
     provider
         .test_connection()
+        .await
         .map_err(|e| format!("cloud connection test failed: {e}"))
 }
 
@@ -285,6 +294,14 @@ pub async fn upload_to_cloud(
         .await?
         .ok_or_else(|| "cloud not configured".to_string())?;
 
+    // Check if this is an OAuth provider (not yet supported)
+    let oauth_providers = ["dropbox", "google_drive", "onedrive"];
+    if oauth_providers.contains(&cloud_settings.provider.as_str()) {
+        return Err(
+            "OAuth providers are not yet supported. Please use a WebDAV provider.".to_string()
+        );
+    }
+
     let provider = build_webdav_provider(&cloud_settings)?;
     let local_path = state.backup_dir.join(&filename);
 
@@ -294,6 +311,7 @@ pub async fn upload_to_cloud(
 
     provider
         .upload(&local_path, &filename)
+        .await
         .map_err(|e| format!("upload failed: {e}"))?;
 
     info!(filename = %filename, "Backup uploaded to cloud");
@@ -308,9 +326,18 @@ pub async fn list_cloud_backups(
         .await?
         .ok_or_else(|| "cloud not configured".to_string())?;
 
+    // Check if this is an OAuth provider (not yet supported)
+    let oauth_providers = ["dropbox", "google_drive", "onedrive"];
+    if oauth_providers.contains(&cloud_settings.provider.as_str()) {
+        return Err(
+            "OAuth providers are not yet supported. Please use a WebDAV provider.".to_string()
+        );
+    }
+
     let provider = build_webdav_provider(&cloud_settings)?;
     provider
         .list_backups()
+        .await
         .map_err(|e| format!("failed to list cloud backups: {e}"))
 }
 

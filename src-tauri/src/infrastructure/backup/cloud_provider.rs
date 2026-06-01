@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
@@ -24,13 +25,14 @@ pub struct CloudBackupInfo {
     pub last_modified: Option<String>,
 }
 
+#[async_trait]
 pub trait CloudProvider: Send + Sync {
     fn name(&self) -> &str;
-    fn test_connection(&self) -> Result<(), CloudError>;
-    fn upload(&self, local_path: &Path, remote_name: &str) -> Result<(), CloudError>;
-    fn download(&self, remote_name: &str, local_path: &Path) -> Result<(), CloudError>;
-    fn list_backups(&self) -> Result<Vec<CloudBackupInfo>, CloudError>;
-    fn delete(&self, remote_name: &str) -> Result<(), CloudError>;
+    async fn test_connection(&self) -> Result<(), CloudError>;
+    async fn upload(&self, local_path: &Path, remote_name: &str) -> Result<(), CloudError>;
+    async fn download(&self, remote_name: &str, local_path: &Path) -> Result<(), CloudError>;
+    async fn list_backups(&self) -> Result<Vec<CloudBackupInfo>, CloudError>;
+    async fn delete(&self, remote_name: &str) -> Result<(), CloudError>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

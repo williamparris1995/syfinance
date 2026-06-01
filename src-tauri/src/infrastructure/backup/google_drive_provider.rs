@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use async_trait::async_trait;
+
 use super::cloud_provider::{CloudBackupInfo, CloudError, CloudProvider};
 
 pub struct GoogleDriveProvider {
@@ -18,28 +20,29 @@ impl GoogleDriveProvider {
     }
 }
 
+#[async_trait]
 impl CloudProvider for GoogleDriveProvider {
     fn name(&self) -> &str {
         "Google Drive"
     }
 
-    fn test_connection(&self) -> Result<(), CloudError> {
+    async fn test_connection(&self) -> Result<(), CloudError> {
         Err(CloudError::NotConfigured)
     }
 
-    fn upload(&self, _local_path: &Path, _remote_name: &str) -> Result<(), CloudError> {
+    async fn upload(&self, _local_path: &Path, _remote_name: &str) -> Result<(), CloudError> {
         Err(CloudError::NotConfigured)
     }
 
-    fn download(&self, _remote_name: &str, _local_path: &Path) -> Result<(), CloudError> {
+    async fn download(&self, _remote_name: &str, _local_path: &Path) -> Result<(), CloudError> {
         Err(CloudError::NotConfigured)
     }
 
-    fn list_backups(&self) -> Result<Vec<CloudBackupInfo>, CloudError> {
+    async fn list_backups(&self) -> Result<Vec<CloudBackupInfo>, CloudError> {
         Err(CloudError::NotConfigured)
     }
 
-    fn delete(&self, _remote_name: &str) -> Result<(), CloudError> {
+    async fn delete(&self, _remote_name: &str) -> Result<(), CloudError> {
         Err(CloudError::NotConfigured)
     }
 }

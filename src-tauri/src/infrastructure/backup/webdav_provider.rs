@@ -1,6 +1,8 @@
 use std::path::Path;
 use std::time::Duration;
 
+use async_trait::async_trait;
+
 use super::cloud_provider::{CloudBackupInfo, CloudError, CloudProvider};
 
 pub struct WebDavProvider {
@@ -48,172 +50,131 @@ impl WebDavProvider {
     }
 }
 
+#[async_trait]
 impl CloudProvider for WebDavProvider {
     fn name(&self) -> &str {
         "WebDAV"
     }
 
-    fn test_connection(&self) -> Result<(), CloudError> {
+    async fn test_connection(&self) -> Result<(), CloudError> {
         let url = self.collection_url();
-        let client = self.client.clone();
-        let username = self.username.clone();
-        let password = self.password.clone();
+        let response = self
+            .client
+            .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), &url)
+            .header("Depth", "0")
+            .basic_auth(&self.username, Some(&self.password))
+            .send()
+            .await
+            .map_err(|e| CloudError::NetworkError(e.to_string()))?;
 
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| CloudError::ConnectionFailed(format!("failed to create runtime: {e}")))?;
-
-        rt.block_on(async {
-            let response = client
-                .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), &url)
-                .header("Depth", "0")
-                .basic_auth(&username, Some(&password))
-                .send()
-                .await
-                .map_err(|e| CloudError::NetworkError(e.to_string()))?;
-
-            match response.status().as_u16() {
-                207 => Ok(()),
-                401 | 403 => Err(CloudError::AuthFailed("invalid credentials".to_string())),
-                status => Err(CloudError::ConnectionFailed(format!(
-                    "unexpected status {status}"
-                ))),
-            }
-        })
+        match response.status().as_u16() {
+            207 => Ok(()),
+            401 | 403 => Err(CloudError::AuthFailed("invalid credentials".to_string())),
+            status => Err(CloudError::ConnectionFailed(format!(
+                "unexpected status {status}"
+            ))),
+        }
     }
 
-    fn upload(&self, local_path: &Path, remote_name: &str) -> Result<(), CloudError> {
+    async fn upload(&self, local_path: &Path, remote_name: &str) -> Result<(), CloudError> {
         let url = self.remote_url(remote_name);
-        let client = self.client.clone();
-        let username = self.username.clone();
-        let password = self.password.clone();
-        let local_path = local_path.to_path_buf();
+        let data = tokio::fs::read(local_path)
+            .await
+            .map_err(|e| CloudError::UploadFailed(format!("failed to read file: {e}")))?;
 
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| CloudError::UploadFailed(format!("failed to create runtime: {e}")))?;
+        let response = self
+            .client
+            .put(&url)
+            .basic_auth(&self.username, Some(&self.password))
+            .body(data)
+            .send()
+            .await
+            .map_err(|e| CloudError::NetworkError(e.to_string()))?;
 
-        rt.block_on(async {
-            let data = tokio::fs::read(&local_path)
-                .await
-                .map_err(|e| CloudError::UploadFailed(format!("failed to read file: {e}")))?;
-
-            let response = client
-                .put(&url)
-                .basic_auth(&username, Some(&password))
-                .body(data)
-                .send()
-                .await
-                .map_err(|e| CloudError::NetworkError(e.to_string()))?;
-
-            if response.status().is_success() || response.status().as_u16() == 201 {
-                Ok(())
-            } else {
-                let status = response.status();
-                let body = response.text().await.unwrap_or_default();
-                Err(CloudError::UploadFailed(format!(
-                    "upload failed with status {status}: {body}"
-                )))
-            }
-        })
+        if response.status().is_success() || response.status().as_u16() == 201 {
+            Ok(())
+        } else {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            Err(CloudError::UploadFailed(format!(
+                "upload failed with status {status}: {body}"
+            )))
+        }
     }
 
-    fn download(&self, remote_name: &str, local_path: &Path) -> Result<(), CloudError> {
+    async fn download(&self, remote_name: &str, local_path: &Path) -> Result<(), CloudError> {
         let url = self.remote_url(remote_name);
-        let client = self.client.clone();
-        let username = self.username.clone();
-        let password = self.password.clone();
-        let local_path = local_path.to_path_buf();
+        let response = self
+            .client
+            .get(&url)
+            .basic_auth(&self.username, Some(&self.password))
+            .send()
+            .await
+            .map_err(|e| CloudError::NetworkError(e.to_string()))?;
 
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| CloudError::DownloadFailed(format!("failed to create runtime: {e}")))?;
-
-        rt.block_on(async {
-            let response = client
-                .get(&url)
-                .basic_auth(&username, Some(&password))
-                .send()
+        if response.status().is_success() {
+            let data = response
+                .bytes()
                 .await
-                .map_err(|e| CloudError::NetworkError(e.to_string()))?;
+                .map_err(|e| CloudError::DownloadFailed(format!("failed to read body: {e}")))?;
 
-            if response.status().is_success() {
-                let data = response
-                    .bytes()
-                    .await
-                    .map_err(|e| CloudError::DownloadFailed(format!("failed to read body: {e}")))?;
+            tokio::fs::write(local_path, &data)
+                .await
+                .map_err(|e| CloudError::DownloadFailed(format!("failed to write file: {e}")))?;
 
-                tokio::fs::write(&local_path, &data).await.map_err(|e| {
-                    CloudError::DownloadFailed(format!("failed to write file: {e}"))
-                })?;
-
-                Ok(())
-            } else {
-                let status = response.status();
-                Err(CloudError::DownloadFailed(format!(
-                    "download failed with status {status}"
-                )))
-            }
-        })
+            Ok(())
+        } else {
+            let status = response.status();
+            Err(CloudError::DownloadFailed(format!(
+                "download failed with status {status}"
+            )))
+        }
     }
 
-    fn list_backups(&self) -> Result<Vec<CloudBackupInfo>, CloudError> {
+    async fn list_backups(&self) -> Result<Vec<CloudBackupInfo>, CloudError> {
         let url = self.collection_url();
-        let client = self.client.clone();
-        let username = self.username.clone();
-        let password = self.password.clone();
+        let response = self
+            .client
+            .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), &url)
+            .header("Depth", "1")
+            .basic_auth(&self.username, Some(&self.password))
+            .send()
+            .await
+            .map_err(|e| CloudError::NetworkError(e.to_string()))?;
 
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| CloudError::ConnectionFailed(format!("failed to create runtime: {e}")))?;
+        if response.status().as_u16() != 207 {
+            let status = response.status();
+            return Err(CloudError::ConnectionFailed(format!(
+                "PROPFIND failed with status {status}"
+            )));
+        }
 
-        rt.block_on(async {
-            let response = client
-                .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), &url)
-                .header("Depth", "1")
-                .basic_auth(&username, Some(&password))
-                .send()
-                .await
-                .map_err(|e| CloudError::NetworkError(e.to_string()))?;
+        let body = response
+            .text()
+            .await
+            .map_err(|e| CloudError::ConnectionFailed(format!("failed to read body: {e}")))?;
 
-            if response.status().as_u16() != 207 {
-                let status = response.status();
-                return Err(CloudError::ConnectionFailed(format!(
-                    "PROPFIND failed with status {status}"
-                )));
-            }
-
-            let body = response
-                .text()
-                .await
-                .map_err(|e| CloudError::ConnectionFailed(format!("failed to read body: {e}")))?;
-
-            Ok(parse_propfind_response(&body))
-        })
+        Ok(parse_propfind_response(&body))
     }
 
-    fn delete(&self, remote_name: &str) -> Result<(), CloudError> {
+    async fn delete(&self, remote_name: &str) -> Result<(), CloudError> {
         let url = self.remote_url(remote_name);
-        let client = self.client.clone();
-        let username = self.username.clone();
-        let password = self.password.clone();
+        let response = self
+            .client
+            .delete(&url)
+            .basic_auth(&self.username, Some(&self.password))
+            .send()
+            .await
+            .map_err(|e| CloudError::NetworkError(e.to_string()))?;
 
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| CloudError::UploadFailed(format!("failed to create runtime: {e}")))?;
-
-        rt.block_on(async {
-            let response = client
-                .delete(&url)
-                .basic_auth(&username, Some(&password))
-                .send()
-                .await
-                .map_err(|e| CloudError::NetworkError(e.to_string()))?;
-
-            if response.status().is_success() || response.status().as_u16() == 204 {
-                Ok(())
-            } else {
-                let status = response.status();
-                Err(CloudError::UploadFailed(format!(
-                    "delete failed with status {status}"
-                )))
-            }
-        })
+        if response.status().is_success() || response.status().as_u16() == 204 {
+            Ok(())
+        } else {
+            let status = response.status();
+            Err(CloudError::UploadFailed(format!(
+                "delete failed with status {status}"
+            )))
+        }
     }
 }
 
