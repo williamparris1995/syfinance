@@ -549,6 +549,121 @@ impl BackupService {
         let _ = fs::write(&id_path, &new_id);
         new_id
     }
+
+    // ----- restore_backup --------------------------------------------------
+
+    /// Restore data from a backup into the current database.
+    ///
+    /// Creates a safety backup first, then applies changes in a transaction.
+    #[allow(dead_code)]
+    pub async fn restore_backup(
+        &self,
+        backup_data: &BackupData,
+        strategy: &str,
+    ) -> Result<RestoreResult, BackupError> {
+        info!(strategy = strategy, "Starting restore");
+
+        // 1. Create safety backup of current state (unencrypted)
+        let safety_info = self.create_backup(None).await?;
+        info!(safety_backup = %safety_info.filename, "Safety backup created");
+
+        // 2. Execute restore in a transaction
+        let result = self
+            .restore_in_transaction(backup_data, strategy)
+            .await?;
+
+        info!(
+            safety_backup = %safety_info.filename,
+            "Restore completed"
+        );
+
+        Ok(RestoreResult {
+            safety_backup: safety_info.filename,
+            tables: result,
+        })
+    }
+
+    /// Execute the restore within a database transaction.
+    async fn restore_in_transaction(
+        &self,
+        backup_data: &BackupData,
+        strategy: &str,
+    ) -> Result<RestoreTableResult, BackupError> {
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| BackupError::Database(format!("failed to begin transaction: {e}")))?;
+
+        // Tables in foreign key dependency order
+        let accounts =
+            restore_table(&mut tx, "accounts", &backup_data.accounts, strategy, Some("id"))
+                .await?;
+        let tags =
+            restore_table(&mut tx, "tags", &backup_data.tags, strategy, Some("id")).await?;
+        let transactions = restore_table(
+            &mut tx,
+            "transactions",
+            &backup_data.transactions,
+            strategy,
+            Some("id"),
+        )
+        .await?;
+        let debt_details = restore_table(
+            &mut tx,
+            "debt_details",
+            &backup_data.debt_details,
+            strategy,
+            Some("id"),
+        )
+        .await?;
+        let debt_payment_schedule = restore_table(
+            &mut tx,
+            "debt_payment_schedule",
+            &backup_data.debt_payment_schedule,
+            strategy,
+            Some("id"),
+        )
+        .await?;
+        let budgets =
+            restore_table(&mut tx, "budgets", &backup_data.budgets, strategy, Some("id"))
+                .await?;
+        let budget_items = restore_table(
+            &mut tx,
+            "budget_items",
+            &backup_data.budget_items,
+            strategy,
+            Some("id"),
+        )
+        .await?;
+        let goals =
+            restore_table(&mut tx, "goals", &backup_data.goals, strategy, Some("id")).await?;
+        // transaction_tags has a composite PK (transaction_id, tag_id) — use INSERT OR IGNORE
+        let transaction_tags = restore_table(
+            &mut tx,
+            "transaction_tags",
+            &backup_data.transaction_tags,
+            strategy,
+            None,
+        )
+        .await?;
+
+        tx.commit()
+            .await
+            .map_err(|e| BackupError::Database(format!("failed to commit transaction: {e}")))?;
+
+        Ok(RestoreTableResult {
+            accounts,
+            transactions,
+            debt_details,
+            debt_payment_schedule,
+            budgets,
+            budget_items,
+            goals,
+            tags,
+            transaction_tags,
+        })
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -612,5 +727,270 @@ fn diff_table(local: &[serde_json::Value], backup: &[serde_json::Value]) -> Tabl
         added,
         removed,
         modified,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Restore helpers
+// ---------------------------------------------------------------------------
+
+/// Restore a single table from backup data using parameterized SQL.
+///
+/// When `id_column` is `None` (e.g. composite-PK tables like `transaction_tags`),
+/// all rows are inserted with `INSERT OR IGNORE` and no existence check is performed.
+async fn restore_table(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    table_name: &str,
+    backup_rows: &[serde_json::Value],
+    strategy: &str,
+    id_column: Option<&str>,
+) -> Result<TableRestoreStats, BackupError> {
+    let no_updated_at = matches!(table_name, "tags" | "transaction_tags");
+
+    // When id_column is None (composite PK), skip existence check and use INSERT OR IGNORE
+    let id_col = match id_column {
+        Some(col) => col,
+        None => {
+            let mut inserted = 0usize;
+            let skipped = 0usize;
+            for row in backup_rows {
+                let obj = match row.as_object() {
+                    Some(o) => o,
+                    None => continue,
+                };
+                insert_or_ignore_row(&mut **tx, table_name, obj).await?;
+                inserted += 1;
+            }
+            return Ok(TableRestoreStats {
+                inserted,
+                updated: 0,
+                skipped,
+            });
+        }
+    };
+
+    // Build map of existing IDs with their updated_at timestamps
+    let query = format!("SELECT {id_col}, updated_at FROM {table_name}");
+    let rows = sqlx::query(&query)
+        .fetch_all(&mut **tx)
+        .await
+        .map_err(|e| BackupError::Database(format!("failed to query {table_name}: {e}")))?;
+
+    let mut local_map: std::collections::HashMap<String, Option<String>> =
+        std::collections::HashMap::new();
+    for row in &rows {
+        let id: String = row.try_get::<String, _>(0).unwrap_or_default();
+        let updated_at: Option<String> = row.try_get::<String, _>(1).ok();
+        local_map.insert(id, updated_at);
+    }
+
+    let mut inserted = 0usize;
+    let mut updated = 0usize;
+    let mut skipped = 0usize;
+
+    for row in backup_rows {
+        let obj = match row.as_object() {
+            Some(o) => o,
+            None => continue,
+        };
+
+        let row_id = match obj.get(id_col).and_then(|v| v.as_str()) {
+            Some(id) => id.to_string(),
+            None => continue,
+        };
+
+        let exists = local_map.contains_key(&row_id);
+
+        match strategy {
+            "use_backup" => {
+                upsert_row(&mut **tx, table_name, obj).await?;
+                if exists {
+                    updated += 1;
+                } else {
+                    inserted += 1;
+                }
+            }
+            "keep_local" => {
+                if exists {
+                    skipped += 1;
+                } else {
+                    insert_row(&mut **tx, table_name, obj).await?;
+                    inserted += 1;
+                }
+            }
+            _ => {
+                // keep_newer (default)
+                if !exists {
+                    insert_row(&mut **tx, table_name, obj).await?;
+                    inserted += 1;
+                } else if no_updated_at {
+                    skipped += 1;
+                } else {
+                    let local_updated = local_map.get(&row_id).and_then(|u| u.as_deref());
+                    let backup_updated = obj.get("updated_at").and_then(|v| v.as_str());
+                    let backup_is_newer = match (local_updated, backup_updated) {
+                        (Some(local), Some(backup)) => backup > local,
+                        _ => false,
+                    };
+                    if backup_is_newer {
+                        update_row(&mut **tx, table_name, obj, id_col, &row_id).await?;
+                        updated += 1;
+                    } else {
+                        skipped += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(TableRestoreStats {
+        inserted,
+        updated,
+        skipped,
+    })
+}
+
+/// Insert a new row using parameterized SQL.
+async fn insert_row(
+    executor: &mut sqlx::SqliteConnection,
+    table_name: &str,
+    obj: &serde_json::Map<String, serde_json::Value>,
+) -> Result<(), BackupError> {
+    let columns: Vec<&str> = obj.keys().map(|s| s.as_str()).collect();
+    let placeholders: Vec<&str> = columns.iter().map(|_| "?").collect();
+    let sql = format!(
+        "INSERT INTO {} ({}) VALUES ({})",
+        table_name,
+        columns.join(", "),
+        placeholders.join(", ")
+    );
+
+    let mut query = sqlx::query(&sql);
+    for val in obj.values() {
+        query = bind_json_value(query, val);
+    }
+
+    query
+        .execute(executor)
+        .await
+        .map_err(|e| BackupError::Database(format!("insert into {table_name} failed: {e}")))?;
+
+    Ok(())
+}
+
+/// Insert a row using INSERT OR IGNORE (for composite-PK tables).
+async fn insert_or_ignore_row(
+    executor: &mut sqlx::SqliteConnection,
+    table_name: &str,
+    obj: &serde_json::Map<String, serde_json::Value>,
+) -> Result<(), BackupError> {
+    let columns: Vec<&str> = obj.keys().map(|s| s.as_str()).collect();
+    let placeholders: Vec<&str> = columns.iter().map(|_| "?").collect();
+    let sql = format!(
+        "INSERT OR IGNORE INTO {} ({}) VALUES ({})",
+        table_name,
+        columns.join(", "),
+        placeholders.join(", ")
+    );
+
+    let mut query = sqlx::query(&sql);
+    for val in obj.values() {
+        query = bind_json_value(query, val);
+    }
+
+    query
+        .execute(executor)
+        .await
+        .map_err(|e| BackupError::Database(format!("insert or ignore into {table_name} failed: {e}")))?;
+
+    Ok(())
+}
+
+/// Update an existing row using parameterized SQL.
+async fn update_row(
+    executor: &mut sqlx::SqliteConnection,
+    table_name: &str,
+    obj: &serde_json::Map<String, serde_json::Value>,
+    id_column: &str,
+    id_value: &str,
+) -> Result<(), BackupError> {
+    let set_columns: Vec<&str> = obj
+        .keys()
+        .filter(|k| k.as_str() != id_column)
+        .map(|s| s.as_str())
+        .collect();
+    let set_clause: String = set_columns
+        .iter()
+        .map(|c| format!("{c} = ?"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let sql = format!(
+        "UPDATE {} SET {} WHERE {} = ?",
+        table_name, set_clause, id_column
+    );
+
+    let mut query = sqlx::query(&sql);
+    for key in &set_columns {
+        if let Some(val) = obj.get(*key) {
+            query = bind_json_value(query, val);
+        }
+    }
+    query = query.bind(id_value);
+
+    query
+        .execute(executor)
+        .await
+        .map_err(|e| BackupError::Database(format!("update {table_name} failed: {e}")))?;
+
+    Ok(())
+}
+
+/// Upsert a row using INSERT OR REPLACE.
+async fn upsert_row(
+    executor: &mut sqlx::SqliteConnection,
+    table_name: &str,
+    obj: &serde_json::Map<String, serde_json::Value>,
+) -> Result<(), BackupError> {
+    let columns: Vec<&str> = obj.keys().map(|s| s.as_str()).collect();
+    let placeholders: Vec<&str> = columns.iter().map(|_| "?").collect();
+    let sql = format!(
+        "INSERT OR REPLACE INTO {} ({}) VALUES ({})",
+        table_name,
+        columns.join(", "),
+        placeholders.join(", ")
+    );
+
+    let mut query = sqlx::query(&sql);
+    for val in obj.values() {
+        query = bind_json_value(query, val);
+    }
+
+    query
+        .execute(executor)
+        .await
+        .map_err(|e| BackupError::Database(format!("upsert into {table_name} failed: {e}")))?;
+
+    Ok(())
+}
+
+/// Bind a serde_json::Value to a sqlx query parameter.
+fn bind_json_value<'q>(
+    query: sqlx::query::Query<'q, sqlx::Sqlite, sqlx::sqlite::SqliteArguments<'q>>,
+    val: &serde_json::Value,
+) -> sqlx::query::Query<'q, sqlx::Sqlite, sqlx::sqlite::SqliteArguments<'q>> {
+    match val {
+        serde_json::Value::String(s) => query.bind(s.clone()),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                query.bind(i)
+            } else if let Some(f) = n.as_f64() {
+                query.bind(f)
+            } else {
+                query.bind(serde_json::to_string(val).unwrap_or_default())
+            }
+        }
+        serde_json::Value::Bool(b) => query.bind(*b),
+        serde_json::Value::Null => query.bind(Option::<String>::None),
+        _ => query.bind(serde_json::to_string(val).unwrap_or_default()),
     }
 }
