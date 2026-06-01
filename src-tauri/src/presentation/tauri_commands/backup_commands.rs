@@ -274,7 +274,7 @@ pub async fn test_cloud_connection(settings: CloudSettings) -> Result<(), String
     let oauth_providers = ["dropbox", "google_drive", "onedrive"];
     if oauth_providers.contains(&settings.provider.as_str()) {
         return Err(
-            "OAuth providers are not yet supported. Please use a WebDAV provider.".to_string()
+            "OAuth providers are not yet supported. Please use a WebDAV provider.".to_string(),
         );
     }
 
@@ -298,7 +298,7 @@ pub async fn upload_to_cloud(
     let oauth_providers = ["dropbox", "google_drive", "onedrive"];
     if oauth_providers.contains(&cloud_settings.provider.as_str()) {
         return Err(
-            "OAuth providers are not yet supported. Please use a WebDAV provider.".to_string()
+            "OAuth providers are not yet supported. Please use a WebDAV provider.".to_string(),
         );
     }
 
@@ -330,7 +330,7 @@ pub async fn list_cloud_backups(
     let oauth_providers = ["dropbox", "google_drive", "onedrive"];
     if oauth_providers.contains(&cloud_settings.provider.as_str()) {
         return Err(
-            "OAuth providers are not yet supported. Please use a WebDAV provider.".to_string()
+            "OAuth providers are not yet supported. Please use a WebDAV provider.".to_string(),
         );
     }
 
