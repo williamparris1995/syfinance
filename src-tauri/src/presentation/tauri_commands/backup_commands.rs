@@ -1,6 +1,6 @@
 use crate::application::services::EncryptionAppService;
 use crate::infrastructure::backup::backup_service::{
-    BackupFile, BackupInfo, BackupService, DiffSummary,
+    BackupFile, BackupInfo, BackupService, DiffSummary, RestoreResult,
 };
 use crate::infrastructure::backup::cloud_provider::{
     get_presets, CloudBackupInfo, CloudPreset, CloudProvider,
@@ -145,6 +145,46 @@ pub fn delete_backup(
         .map_err(|e| e.to_string())?;
 
     service.delete_backup(&filename).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn restore_backup(
+    state: tauri::State<'_, BackupCommandState>,
+    filename: String,
+    strategy: String,
+) -> Result<RestoreResult, String> {
+    info!(filename = %filename, strategy = %strategy, "Restoring backup via Tauri command");
+
+    // Validate strategy
+    if !["keep_newer", "use_backup", "keep_local"].contains(&strategy.as_str()) {
+        return Err(format!("invalid strategy: {strategy}"));
+    }
+
+    let service = BackupService::new(state.pool.clone(), state.backup_dir.clone())
+        .map_err(|e| e.to_string())?;
+
+    // Read and parse the backup file
+    let path = state.backup_dir.join(&filename);
+    let contents =
+        std::fs::read_to_string(&path).map_err(|e| format!("failed to read backup file: {e}"))?;
+    let backup: BackupFile =
+        serde_json::from_str(&contents).map_err(|e| format!("failed to parse backup file: {e}"))?;
+
+    // Decrypt if needed
+    let backup_data = if backup.encrypted {
+        let encryption = state
+            .encryption_state
+            .get_encryption_service()
+            .ok_or_else(|| "encryption is locked - unlock to restore".to_string())?;
+        BackupService::decrypt_backup_data(&backup, &encryption).map_err(|e| e.to_string())?
+    } else {
+        BackupService::decrypt_backup_data_no_encryption(&backup).map_err(|e| e.to_string())?
+    };
+
+    service
+        .restore_backup(&backup_data, &strategy)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

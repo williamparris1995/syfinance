@@ -25,7 +25,8 @@ use presentation::tauri_commands::{
     backup_commands::{
         create_backup, create_backup_state, delete_backup, get_backup_diff, get_backup_metadata,
         get_cloud_presets, get_cloud_settings, list_backups, list_cloud_backups,
-        save_cloud_settings, test_cloud_connection, upload_to_cloud, BackupCommandState,
+        restore_backup, save_cloud_settings, test_cloud_connection, upload_to_cloud,
+        BackupCommandState,
     },
     currency_commands::{
         add_currency, create_default_state_from_pool as create_currency_default_state_from_pool,
@@ -299,6 +300,7 @@ async fn main() {
             get_backup_metadata,
             get_backup_diff,
             delete_backup,
+            restore_backup,
             get_cloud_presets,
             get_cloud_settings,
             save_cloud_settings,
