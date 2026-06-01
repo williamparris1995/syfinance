@@ -59,6 +59,7 @@ import {
 import { getAccountId, linkDevice } from '../lib/auth';
 import { updateSyncSettings, getSyncSettings } from '../lib/tauri/sync';
 import { useEncryption } from '../hooks/useEncryption';
+import { useCloudSyncStatus, useCloudSyncNow, useUpdateCloudSyncSettings, useCloudSyncSettings } from '@/hooks/useCloudSync';
 
 interface SyncEvent {
   status: 'started' | 'completed' | 'failed';
@@ -95,6 +96,64 @@ export function SettingsPage() {
   const [syncInterval, setSyncInterval] = useState('15');
   const [lastSyncEvent, setLastSyncEvent] = useState<SyncEvent | null>(null);
   const queryClient = useQueryClient();
+
+  // Cloud sync
+  const { data: cloudSyncStatus } = useCloudSyncStatus();
+  const { data: cloudSyncSettings } = useCloudSyncSettings();
+  const cloudSyncNowMutation = useCloudSyncNow();
+  const updateCloudSyncSettingsMutation = useUpdateCloudSyncSettings();
+  const [cloudSyncInterval, setCloudSyncInterval] = useState('30');
+
+  const [lastCloudSyncEvent, setLastCloudSyncEvent] = useState<{
+    status: string;
+    message: string;
+    error?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const unlisten = listen<{
+      status: string;
+      message: string;
+      error?: string;
+    }>('sync:cloud-status', (event) => {
+      setLastCloudSyncEvent(event.payload);
+      if (event.payload.status === 'completed' || event.payload.status === 'failed') {
+        queryClient.invalidateQueries({ queryKey: ['cloudSyncStatus'] });
+      }
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [queryClient]);
+
+  useEffect(() => {
+    if (cloudSyncSettings?.interval_minutes) {
+      setCloudSyncInterval(String(cloudSyncSettings.interval_minutes));
+    }
+  }, [cloudSyncSettings?.interval_minutes]);
+
+  const handleCloudSyncEnabledChange = (enabled: boolean) => {
+    updateCloudSyncSettingsMutation.mutate({
+      auto_sync_enabled: enabled,
+      interval_minutes: parseInt(cloudSyncInterval, 10),
+      last_sync_at: null,
+      last_sync_status: null,
+      last_error: null,
+    });
+  };
+
+  const handleCloudSyncIntervalChange = (interval: string | null) => {
+    if (interval) {
+      setCloudSyncInterval(interval);
+      updateCloudSyncSettingsMutation.mutate({
+        auto_sync_enabled: cloudSyncSettings?.auto_sync_enabled ?? false,
+        interval_minutes: parseInt(interval, 10),
+        last_sync_at: null,
+        last_sync_status: null,
+        last_error: null,
+      });
+    }
+  };
 
   useEffect(() => {
     getAccountId().then(setAccountId);
@@ -359,6 +418,101 @@ export function SettingsPage() {
                 </p>
               )}
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Cloud Sync Section */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>{t('cloudSync.title')}</CardTitle>
+          <CardDescription>
+            {t('cloudSync.description')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!cloudSyncStatus?.cloud_configured ? (
+            <p className="text-sm text-muted-foreground">
+              {t('cloudSync.notConfigured')}
+            </p>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>{t('cloudSync.enableAutoSync')}</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {t('cloudSync.autoSyncDesc')}
+                  </p>
+                </div>
+                <Switch
+                  checked={cloudSyncSettings?.auto_sync_enabled ?? false}
+                  onCheckedChange={handleCloudSyncEnabledChange}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>{t('cloudSync.interval')}</Label>
+                <Select
+                  value={cloudSyncInterval}
+                  onValueChange={handleCloudSyncIntervalChange}
+                  disabled={!(cloudSyncSettings?.auto_sync_enabled ?? false)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="30">{t('cloudSync.every30Minutes')}</SelectItem>
+                    <SelectItem value="60">{t('cloudSync.everyHour')}</SelectItem>
+                    <SelectItem value="120">{t('cloudSync.every2Hours')}</SelectItem>
+                    <SelectItem value="360">{t('cloudSync.every6Hours')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={() => cloudSyncNowMutation.mutate()}
+                  disabled={cloudSyncStatus?.is_syncing}
+                >
+                  {cloudSyncStatus?.is_syncing
+                    ? t('cloudSync.syncing')
+                    : t('cloudSync.syncNow')}
+                </Button>
+                {cloudSyncStatus?.last_sync_at && (
+                  <span className="text-xs text-muted-foreground">
+                    {t('cloudSync.lastSynced')}: {cloudSyncStatus.last_sync_at}
+                  </span>
+                )}
+              </div>
+
+              {lastCloudSyncEvent && (
+                <div className="pt-2 border-t">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{t('cloudSync.statusLabel')}</span>
+                    {lastCloudSyncEvent.status === 'started' && (
+                      <Badge variant="secondary">{t('cloudSync.syncing')}</Badge>
+                    )}
+                    {lastCloudSyncEvent.status === 'completed' && (
+                      <Badge variant="outline" className="gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-green-500" />
+                        {t('cloudSync.success')}
+                      </Badge>
+                    )}
+                    {lastCloudSyncEvent.status === 'failed' && (
+                      <Badge variant="destructive">{t('cloudSync.failed')}</Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {lastCloudSyncEvent.message}
+                  </p>
+                  {lastCloudSyncEvent.error && (
+                    <p className="text-xs text-destructive mt-1">
+                      {lastCloudSyncEvent.error}
+                    </p>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
