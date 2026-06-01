@@ -1,0 +1,139 @@
+<h2>备份模块交互设计细节</h2>
+<p class="subtitle">WebDAV 配置对话框 + 恢复差异对比流程</p>
+
+<div class="section">
+  <h3>1. WebDAV 配置对话框</h3>
+  <div class="mockup">
+    <div class="mockup-header">配置 WebDAV 云备份</div>
+    <div class="mockup-body">
+      <div style="padding: 16px; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; gap: 14px;">
+        <div>
+          <div style="font-size: 12px; font-weight: 500; margin-bottom: 4px;">服务器地址</div>
+          <input class="mock-input" style="width: 100%;" value="https://cloud.example.com/remote.php/dav/">
+        </div>
+        <div>
+          <div style="font-size: 12px; font-weight: 500; margin-bottom: 4px;">用户名</div>
+          <input class="mock-input" style="width: 100%;" value="user@example.com">
+        </div>
+        <div>
+          <div style="font-size: 12px; font-weight: 500; margin-bottom: 4px;">密码 / 应用密码</div>
+          <input class="mock-input" style="width: 100%;" type="password" value="••••••••••••">
+        </div>
+        <div>
+          <div style="font-size: 12px; font-weight: 500; margin-bottom: 4px;">备份目录</div>
+          <input class="mock-input" style="width: 100%;" value="/finance-app/backups/">
+        </div>
+        <div>
+          <div style="font-size: 12px; font-weight: 500; margin-bottom: 4px;">自动上传频率</div>
+          <div style="display: flex; gap: 6px;">
+            <button style="padding: 4px 10px; border: 1px solid #e5e7eb; border-radius: 4px; font-size: 11px; background: white; cursor: pointer;">每次备份后</button>
+            <button style="padding: 4px 10px; border: 1px solid #3b82f6; border-radius: 4px; font-size: 11px; background: #eff6ff; color: #3b82f6; cursor: pointer;">每天一次</button>
+            <button style="padding: 4px 10px; border: 1px solid #e5e7eb; border-radius: 4px; font-size: 11px; background: white; cursor: pointer;">仅手动</button>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; justify-content: flex-end; padding-top: 8px; border-top: 1px solid #f3f4f6;">
+          <button style="padding: 6px 16px; border: 1px solid #e5e7eb; border-radius: 4px; font-size: 12px; background: white; cursor: pointer;">取消</button>
+          <button style="padding: 6px 16px; border: none; border-radius: 4px; font-size: 12px; background: #3b82f6; color: white; cursor: pointer;">测试连接</button>
+          <button style="padding: 6px 16px; border: none; border-radius: 4px; font-size: 12px; background: #22c55e; color: white; cursor: pointer;">保存</button>
+        </div>
+        <div style="background: #f0fdf4; padding: 8px 12px; border-radius: 6px; font-size: 11px; color: #166534;">
+          ✓ 连接成功 — 检测到 5 个已有备份文件，占用 12.3 MB
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>2. 恢复流程 — 差异对比</h3>
+  <div class="mockup">
+    <div class="mockup-header">恢复备份 — 差异对比</div>
+    <div class="mockup-body">
+      <div style="padding: 16px; font-family: -apple-system, sans-serif;">
+        <!-- 备份信息 -->
+        <div style="background: #f9fafb; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-size: 13px; font-weight: 600;">🔒 backup_20260529_0800.enc</div>
+            <div style="font-size: 11px; color: #666; margin-top: 2px;">2026-05-29 08:00 · 2.4 MB · 包含 6 个数据表</div>
+          </div>
+          <div style="font-size: 11px; color: #22c55e;">✓ 解密成功</div>
+        </div>
+
+        <!-- 差异摘要 -->
+        <div style="margin-bottom: 12px;">
+          <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">📊 差异摘要</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+            <div style="text-align: center; padding: 10px; background: #f0fdf4; border-radius: 8px;">
+              <div style="font-size: 20px; font-weight: 700; color: #22c55e;">+12</div>
+              <div style="font-size: 11px; color: #666; margin-top: 2px;">备份中有，本地没有</div>
+            </div>
+            <div style="text-align: center; padding: 10px; background: #fef2f2; border-radius: 8px;">
+              <div style="font-size: 20px; font-weight: 700; color: #ef4444;">-3</div>
+              <div style="font-size: 11px; color: #666; margin-top: 2px;">本地有，备份中没有</div>
+            </div>
+            <div style="text-align: center; padding: 10px; background: #fefce8; border-radius: 8px;">
+              <div style="font-size: 20px; font-weight: 700; color: #eab308;">~5</div>
+              <div style="font-size: 11px; color: #666; margin-top: 2px;">两边都有但不同</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 分类明细 -->
+        <div style="margin-bottom: 12px;">
+          <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">📋 分类明细</div>
+          <div style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; font-size: 11px;">
+            <div style="display: grid; grid-template-columns: 1fr 60px 60px 60px; padding: 6px 12px; background: #f9fafb; font-weight: 600;">
+              <div>数据类型</div><div style="text-align: center;">本地</div><div style="text-align: center;">备份</div><div style="text-align: center;">差异</div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 60px 60px 60px; padding: 6px 12px; border-top: 1px solid #f3f4f6;">
+              <div>账户</div><div style="text-align: center;">8</div><div style="text-align: center;">10</div><div style="text-align: center; color: #22c55e;">+2</div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 60px 60px 60px; padding: 6px 12px; border-top: 1px solid #f3f4f6;">
+              <div>交易</div><div style="text-align: center;">156</div><div style="text-align: center;">163</div><div style="text-align: center; color: #22c55e;">+7</div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 60px 60px 60px; padding: 6px 12px; border-top: 1px solid #f3f4f6;">
+              <div>债务</div><div style="text-align: center;">3</div><div style="text-align: center;">3</div><div style="text-align: center; color: #eab308;">~1</div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 60px 60px 60px; padding: 6px 12px; border-top: 1px solid #f3f4f6;">
+              <div>预算</div><div style="text-align: center;">2</div><div style="text-align: center;">2</div><div style="text-align: center; color: #999;">0</div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 60px 60px 60px; padding: 6px 12px; border-top: 1px solid #f3f4f6;">
+              <div>目标</div><div style="text-align: center;">4</div><div style="text-align: center;">5</div><div style="text-align: center; color: #22c55e;">+1</div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 60px 60px 60px; padding: 6px 12px; border-top: 1px solid #f3f4f6;">
+              <div>标签</div><div style="text-align: center;">6</div><div style="text-align: center;">7</div><div style="text-align: center; color: #22c55e;">+1</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 冲突处理选项 -->
+        <div style="margin-bottom: 12px;">
+          <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">⚡ 冲突处理（5条记录两边都有修改）</div>
+          <div style="display: flex; gap: 8px;">
+            <div style="flex: 1; padding: 8px; border: 1px solid #3b82f6; border-radius: 6px; background: #eff6ff; cursor: pointer;">
+              <div style="font-size: 11px; font-weight: 600; color: #3b82f6;">保留较新的</div>
+              <div style="font-size: 10px; color: #666; margin-top: 2px;">按更新时间自动选择</div>
+            </div>
+            <div style="flex: 1; padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px; cursor: pointer;">
+              <div style="font-size: 11px; font-weight: 600;">使用备份</div>
+              <div style="font-size: 10px; color: #666; margin-top: 2px;">备份版本覆盖本地</div>
+            </div>
+            <div style="flex: 1; padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px; cursor: pointer;">
+              <div style="font-size: 11px; font-weight: 600;">保留本地</div>
+              <div style="font-size: 10px; color: #666; margin-top: 2px;">不修改本地数据</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div style="display: flex; gap: 8px; justify-content: flex-end; padding-top: 12px; border-top: 1px solid #f3f4f6;">
+          <button style="padding: 6px 16px; border: 1px solid #e5e7eb; border-radius: 4px; font-size: 12px; background: white; cursor: pointer;">取消</button>
+          <button style="padding: 6px 16px; border: none; border-radius: 4px; font-size: 12px; background: #3b82f6; color: white; cursor: pointer; font-weight: 600;">开始恢复</button>
+        </div>
+        <div style="background: #fefce8; padding: 8px 12px; border-radius: 6px; font-size: 11px; color: #854d0e; margin-top: 8px;">
+          ⚠️ 恢复前已自动创建当前数据的备份，可随时回退
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,133 @@
+<h2>UI/UX 设计风格方向</h2>
+<p class="subtitle">选择你喜欢的设计风格，我们将以此为基础进行优化</p>
+
+<div class="cards">
+  <div class="card" data-choice="modern-minimal" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div style="color: white; font-size: 14px; font-weight: 600;">Dashboard</div>
+          <div style="display: flex; gap: 8px;">
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.5);"></div>
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.3);"></div>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
+          <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 6px;">
+            <div style="color: rgba(255,255,255,0.7); font-size: 10px;">Total Balance</div>
+            <div style="color: white; font-size: 18px; font-weight: 700;">¥128,450</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 6px;">
+            <div style="color: rgba(255,255,255,0.7); font-size: 10px;">Monthly Income</div>
+            <div style="color: #4ade80; font-size: 18px; font-weight: 700;">+¥25,800</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 6px;">
+            <div style="color: rgba(255,255,255,0.7); font-size: 10px;">Monthly Expenses</div>
+            <div style="color: #f87171; font-size: 18px; font-weight: 700;">-¥18,200</div>
+          </div>
+        </div>
+        <div style="background: rgba(255,255,255,0.1); border-radius: 6px; height: 80px;"></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>现代极简风格</h3>
+      <p>渐变背景、毛玻璃效果、简洁卡片布局。类似 Copilot、Linear 的设计语言。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="clean-professional" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div style="color: #1e293b; font-size: 14px; font-weight: 600;">Dashboard</div>
+          <div style="display: flex; gap: 8px;">
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: #e2e8f0;"></div>
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: #e2e8f0;"></div>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
+          <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+            <div style="color: #64748b; font-size: 10px;">Total Balance</div>
+            <div style="color: #1e293b; font-size: 18px; font-weight: 700;">¥128,450</div>
+          </div>
+          <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+            <div style="color: #64748b; font-size: 10px;">Monthly Income</div>
+            <div style="color: #16a34a; font-size: 18px; font-weight: 700;">+¥25,800</div>
+          </div>
+          <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+            <div style="color: #64748b; font-size: 10px;">Monthly Expenses</div>
+            <div style="color: #dc2626; font-size: 18px; font-weight: 700;">-¥18,200</div>
+          </div>
+        </div>
+        <div style="background: white; border-radius: 6px; height: 80px; border: 1px solid #e2e8f0;"></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>简洁专业风格</h3>
+      <p>白色背景、清晰边框、专业配色。类似 YNAB、QuickBooks 的设计语言。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="dark-finance" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background: #0f172a; padding: 20px; border-radius: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div style="color: #f1f5f9; font-size: 14px; font-weight: 600;">Dashboard</div>
+          <div style="display: flex; gap: 8px;">
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: #334155;"></div>
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: #334155;"></div>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
+          <div style="background: #1e293b; padding: 12px; border-radius: 6px;">
+            <div style="color: #94a3b8; font-size: 10px;">Total Balance</div>
+            <div style="color: #f1f5f9; font-size: 18px; font-weight: 700;">¥128,450</div>
+          </div>
+          <div style="background: #1e293b; padding: 12px; border-radius: 6px;">
+            <div style="color: #94a3b8; font-size: 10px;">Monthly Income</div>
+            <div style="color: #4ade80; font-size: 18px; font-weight: 700;">+¥25,800</div>
+          </div>
+          <div style="background: #1e293b; padding: 12px; border-radius: 6px;">
+            <div style="color: #94a3b8; font-size: 10px;">Monthly Expenses</div>
+            <div style="color: #f87171; font-size: 18px; font-weight: 700;">-¥18,200</div>
+          </div>
+        </div>
+        <div style="background: #1e293b; border-radius: 6px; height: 80px;"></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>深色金融风格</h3>
+      <p>深色背景、霓虹点缀、科技感十足。类似 Robinhood、Coinbase 的设计语言。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 32px;">
+  <h3>设计风格对比</h3>
+  <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
+    <thead>
+      <tr style="background: var(--muted);">
+        <th style="padding: 12px; text-align: left; border-bottom: 1px solid var(--border);">风格</th>
+        <th style="padding: 12px; text-align: left; border-bottom: 1px solid var(--border);">特点</th>
+        <th style="padding: 12px; text-align: left; border-bottom: 1px solid var(--border);">适合场景</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">现代极简</td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">视觉冲击力强，科技感</td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">年轻用户、科技爱好者</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">简洁专业</td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">清晰易读，专业感</td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">商务用户、财务专业人士</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">深色金融</td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">护眼、高端感</td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">长时间使用、投资用户</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

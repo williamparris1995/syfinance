@@ -1,0 +1,68 @@
+<h2>第一部分：数据模型</h2>
+<p class="subtitle">储值消费的数据库设计 — 复用现有账户体系 + 扩展表</p>
+
+<div class="section">
+  <h3>1. accounts 表变更</h3>
+  <p>在现有 <code>account_type</code> 中新增 <code>prepaid</code> 类型：</p>
+  <div class="mockup">
+    <div class="mockup-header">account_type 枚举扩展</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 0.9em; padding: 1rem;">
+      <p>现有类型：cash | bank | credit_card | investment | loan | borrowed_out | borrowed_in | other | income | expense</p>
+      <p style="color: #6366f1; font-weight: bold;">+ 新增：prepaid（储值账户）</p>
+      <hr style="border-color: rgba(255,255,255,0.1); margin: 0.5rem 0;">
+      <p>储值账户示例数据：</p>
+      <pre style="color: #a5b4fc;">
+{
+  name: "健身卡",
+  account_type: "prepaid",
+  ownership: "own",
+  currency_code: "CNY",
+  initial_balance: 0,
+  icon: "💪",
+  chart_code: "1003"  // 1003 预付款项（新增L2科目）
+}</pre>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 1.5rem;">
+  <h3>2. top_up_records 扩展表</h3>
+  <p>类似 <code>debt_details</code>，1:1 关联充值交易，记录充值明细：</p>
+  <div class="mockup">
+    <div class="mockup-header">top_up_records 表结构</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 0.85em; padding: 1rem;">
+      <pre style="color: #a5b4fc;">
+top_up_records
+├── id                  TEXT PK
+├── account_id          TEXT FK → accounts.id   -- 储值账户
+├── transaction_id      TEXT FK → transactions.id -- 关联的转账交易
+├── paid_amount         DECIMAL(20,2)           -- 实际支付金额
+├── bonus_amount        DECIMAL(20,2) DEFAULT 0 -- 赠送金额
+├── total_credited      DECIMAL(20,2)           -- 实际入账 = paid + bonus
+├── top_up_date         DATE                    -- 充值日期
+├── expiry_date         DATE NULL               -- 有效期（可选）
+├── source_account_id   TEXT FK → accounts.id   -- 从哪个账户充的
+├── description         TEXT                    -- 备注（如"充1000送200"）
+├── created_at          DATETIME
+└── updated_at          DATETIME</pre>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 1.5rem;">
+  <h3>3. chart_of_accounts 新增科目</h3>
+  <div class="mockup">
+    <div class="mockup-header">新增L2科目：预付款项</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 0.9em; padding: 1rem;">
+      <pre style="color: #a5b4fc;">
+1003  预付款项  L2  资产  借方
+  └── 100301  储值卡  L3  资产  借方
+  └── 100302  平台余额  L3  资产  借方
+  └── 100303  话费  L3  资产  借方
+
+（同时需要新增赠送收入科目）
+4901  其他收入  L2  收入  贷方
+  └── 490101  赠送/优惠收入  L3  收入  贷方</pre>
+    </div>
+  </div>
+</div>

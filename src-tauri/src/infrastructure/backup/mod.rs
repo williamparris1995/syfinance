@@ -14,21 +14,17 @@ use webdav_provider::WebDavProvider;
 ///
 /// Currently supports WebDAV-based providers only (webdav, nextcloud, synology, jianguoyun, box).
 /// Returns `Err(CloudError::NotConfigured)` for unsupported or unconfigured provider types.
-pub fn build_cloud_provider(settings: &CloudSettings) -> Result<Box<dyn CloudProvider>, CloudError> {
+pub fn build_cloud_provider(
+    settings: &CloudSettings,
+) -> Result<Box<dyn CloudProvider>, CloudError> {
     match settings.provider.as_str() {
         "webdav" | "nextcloud" | "synology" | "jianguoyun" | "box" => {
             let base_url = settings
                 .server_url
                 .clone()
                 .ok_or(CloudError::NotConfigured)?;
-            let username = settings
-                .username
-                .clone()
-                .ok_or(CloudError::NotConfigured)?;
-            let password = settings
-                .password
-                .clone()
-                .ok_or(CloudError::NotConfigured)?;
+            let username = settings.username.clone().ok_or(CloudError::NotConfigured)?;
+            let password = settings.password.clone().ok_or(CloudError::NotConfigured)?;
             let remote_path = settings
                 .remote_path
                 .clone()

@@ -1,0 +1,97 @@
+<h2>第三部分：后端架构</h2>
+<p class="subtitle">遵循现有 DDD 分层结构，对齐 debt_details 模式</p>
+
+<div class="section">
+  <h3>新增/修改的文件清单</h3>
+  <div class="mockup">
+    <div class="mockup-header">DDD 分层架构 — 按层列出变更</div>
+    <div class="mockup-body" style="padding: 1rem; font-family: monospace; font-size: 0.82em;">
+      <pre style="color: #a5b4fc;">
+domain/
+├── aggregates/
+│   └── account.rs          ← 新增 Prepaid 到 AccountType 枚举
+├── value_objects/
+│   └── top_up_record.rs    ← 新增 充值记录值对象
+│
+application/
+├── dtos/
+│   └── prepaid_dto.rs      ← 新增 TopUpRequest/TopUpResponse DTO
+├── services/
+│   ├── prepaid_service.rs  ← 新增 充值/低余额检查/超额校验
+│   └── transaction_service.rs ← 修改 消费时校验 prepaid 余额
+│
+infrastructure/
+├── repositories/
+│   └── prepaid_repository.rs ← 新增 top_up_records CRUD
+│
+presentation/
+├── tauri_commands/
+│   └── prepaid_commands.rs ← 新增 Tauri 命令入口
+│
+migrations/
+└── 20260527XXXXXX_add_prepaid_support.sql ← 新增</pre>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 1.5rem;">
+  <h3>prepaid_service 核心方法</h3>
+  <div class="mockup">
+    <div class="mockup-header">服务层 API</div>
+    <div class="mockup-body" style="padding: 1rem; font-family: monospace; font-size: 0.85em;">
+      <pre style="color: #a5b4fc;">
+impl PrepaidService {
+    // 充值（创建交易 + top_up_record）
+    async fn top_up(
+        account_id, source_account_id,
+        paid_amount, bonus_amount,
+        expiry_date, description
+    ) → Result&lt;(Transaction, TopUpRecord)&gt;
+
+    // 检查余额是否充足（消费前调用）
+    async fn check_balance_sufficient(
+        account_id, amount
+    ) → Result&lt;bool&gt;
+
+    // 检查并创建低余额提醒（消费后调用）
+    async fn check_low_balance_alert(
+        account_id
+    ) → Result&lt;Option&lt;Reminder&gt;&gt;
+
+    // 获取充值记录列表
+    async fn get_top_up_records(
+        account_id
+    ) → Result&lt;Vec&lt;TopUpRecord&gt;&gt;
+
+    // 获取储值账户明细（余额+充值记录+消费记录）
+    async fn get_prepaid_detail(
+        account_id
+    ) → Result&lt;PrepaidDetail&gt;
+}</pre>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 1.5rem;">
+  <h3>transaction_service 修改点</h3>
+  <div class="mockup">
+    <div class="mockup-header">最小改动 — 仅增加 prepaid 校验分支</div>
+    <div class="mockup-body" style="padding: 1rem; font-family: monospace; font-size: 0.85em;">
+      <pre style="color: #a5b4fc;">
+// create_simple_expense 中新增逻辑：
+if source_account.account_type == AccountType::Prepaid {
+    let balance = compute_balance(source_account.id)?;
+    if balance < amount {
+        return Err("储值余额不足");
+    }
+}
+
+// 消费创建成功后：
+if source_account.account_type == AccountType::Prepaid {
+    prepaid_service.check_low_balance_alert(
+        source_account.id
+    ).await?;
+}</pre>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,279 @@
+<h2>业务功能差距分析</h2>
+<p class="subtitle">对比行业顶尖产品，识别当前缺失的核心功能</p>
+
+<div class="section">
+  <h3>当前已实现的功能</h3>
+  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 12px;">
+    <div style="background: var(--muted); padding: 12px; border-radius: 6px; text-align: center;">
+      <div style="font-size: 24px; margin-bottom: 4px;">✅</div>
+      <div style="font-size: 12px; font-weight: 600;">账户管理</div>
+      <div style="font-size: 10px; color: var(--muted-foreground);">多种账户类型</div>
+    </div>
+    <div style="background: var(--muted); padding: 12px; border-radius: 6px; text-align: center;">
+      <div style="font-size: 24px; margin-bottom: 4px;">✅</div>
+      <div style="font-size: 12px; font-weight: 600;">交易记录</div>
+      <div style="font-size: 10px; color: var(--muted-foreground);">收入/支出/转账</div>
+    </div>
+    <div style="background: var(--muted); padding: 12px; border-radius: 6px; text-align: center;">
+      <div style="font-size: 24px; margin-bottom: 4px;">✅</div>
+      <div style="font-size: 12px; font-weight: 600;">债务管理</div>
+      <div style="font-size: 10px; color: var(--muted-foreground);">借入/借出/还款</div>
+    </div>
+    <div style="background: var(--muted); padding: 12px; border-radius: 6px; text-align: center;">
+      <div style="font-size: 24px; margin-bottom: 4px;">✅</div>
+      <div style="font-size: 12px; font-weight: 600;">投资组合</div>
+      <div style="font-size: 10px; color: var(--muted-foreground);">股票/基金/ETF</div>
+    </div>
+    <div style="background: var(--muted); padding: 12px; border-radius: 6px; text-align: center;">
+      <div style="font-size: 24px; margin-bottom: 4px;">✅</div>
+      <div style="font-size: 12px; font-weight: 600;">订阅管理</div>
+      <div style="font-size: 10px; color: var(--muted-foreground);">定期账单</div>
+    </div>
+    <div style="background: var(--muted); padding: 12px; border-radius: 6px; text-align: center;">
+      <div style="font-size: 24px; margin-bottom: 4px;">✅</div>
+      <div style="font-size: 12px; font-weight: 600;">财务报告</div>
+      <div style="font-size: 10px; color: var(--muted-foreground);">资产负债表/利润表</div>
+    </div>
+    <div style="background: var(--muted); padding: 12px; border-radius: 6px; text-align: center;">
+      <div style="font-size: 24px; margin-bottom: 4px;">✅</div>
+      <div style="font-size: 12px; font-weight: 600;">多语言</div>
+      <div style="font-size: 10px; color: var(--muted-foreground);">中/英文</div>
+    </div>
+    <div style="background: var(--muted); padding: 12px; border-radius: 6px; text-align: center;">
+      <div style="font-size: 24px; margin-bottom: 4px;">✅</div>
+      <div style="font-size: 12px; font-weight: 600;">设备同步</div>
+      <div style="font-size: 10px; color: var(--muted-foreground);">基础同步功能</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>缺失的核心功能模块</h3>
+  <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
+    <thead>
+      <tr style="background: var(--muted);">
+        <th style="padding: 12px; text-align: left; border-bottom: 1px solid var(--border);">功能模块</th>
+        <th style="padding: 12px; text-align: left; border-bottom: 1px solid var(--border);">优先级</th>
+        <th style="padding: 12px; text-align: left; border-bottom: 1px solid var(--border);">对标产品</th>
+        <th style="padding: 12px; text-align: left; border-bottom: 1px solid var(--border);">当前状态</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <strong>多币种转换</strong><br>
+          <span style="font-size: 12px; color: var(--muted-foreground);">实时汇率、自动转换、多币种报告</span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <span style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 12px;">高</span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border); font-size: 12px;">Wise, Revolut, MoneyWiz</td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <span style="color: #dc2626; font-size: 12px;">⚠️ 基础存在，未实现转换</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <strong>预算管理</strong><br>
+          <span style="font-size: 12px; color: var(--muted-foreground);">零基预算、分类预算、预算追踪</span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <span style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 12px;">高</span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border); font-size: 12px;">YNAB, Mint, PocketGuard</td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <span style="color: #dc2626; font-size: 12px;">❌ 完全缺失</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <strong>目标设定</strong><br>
+          <span style="font-size: 12px; color: var(--muted-foreground);">储蓄目标、财务目标、进度追踪</span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 12px;">中</span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border); font-size: 12px;">Qapital, Digit, YNAB</td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <span style="color: #dc2626; font-size: 12px;">❌ 完全缺失</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <strong>账单提醒</strong><br>
+          <span style="font-size: 12px; color: var(--muted-foreground);">到期提醒、逾期警告、日历集成</span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 12px;">中</span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border); font-size: 12px;">BillTracker, Mint</td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <span style="color: #f59e0b; font-size: 12px;">⚠️ 部分实现（债务提醒）</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <strong>数据导入/导出</strong><br>
+          <span style="font-size: 12px; color: var(--muted-foreground);">CSV, OFX, QIF, PDF 报告</span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 12px;">中</span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border); font-size: 12px;">GnuCash, MoneyWiz</td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <span style="color: #f59e0b; font-size: 12px;">⚠️ 仅CSV导出</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <strong>标签系统</strong><br>
+          <span style="font-size: 12px; color: var(--muted-foreground);">灵活标签、多标签、标签统计</span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 12px;">中</span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border); font-size: 12px;">YNAB, Copilot</td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <span style="color: #dc2626; font-size: 12px;">❌ 完全缺失</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <strong>附件管理</strong><br>
+          <span style="font-size: 12px; color: var(--muted-foreground);">发票、收据、凭证存储</span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <span style="background: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 4px; font-size: 12px;">低</span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border); font-size: 12px;">FreshBooks, QuickBooks</td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <span style="color: #dc2626; font-size: 12px;">❌ 完全缺失</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <strong>税务支持</strong><br>
+          <span style="font-size: 12px; color: var(--muted-foreground);">税务分类、税务报告、扣除追踪</span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <span style="background: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 4px; font-size: 12px;">低</span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border); font-size: 12px;">TurboTax, H&R Block</td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <span style="color: #dc2626; font-size: 12px;">❌ 完全缺失</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <strong>投资分析</strong><br>
+          <span style="font-size: 12px; color: var(--muted-foreground);">绩效分析、风险评估、再平衡建议</span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 12px;">中</span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border); font-size: 12px;">Personal Capital, Wealthfront</td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <span style="color: #f59e0b; font-size: 12px;">⚠️ 基础盈亏</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <strong>现金流预测</strong><br>
+          <span style="font-size: 12px; color: var(--muted-foreground);">未来收支预测、余额预测</span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 12px;">中</span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border); font-size: 12px;">Copilot, Monarch</td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <span style="color: #dc2626; font-size: 12px;">❌ 完全缺失</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <strong>全局搜索</strong><br>
+          <span style="font-size: 12px; color: var(--muted-foreground);">跨模块搜索、智能筛选</span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 12px;">中</span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border); font-size: 12px;">Copilot, Linear</td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);">
+          <span style="color: #dc2626; font-size: 12px;">❌ 完全缺失</span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h3>功能差距总结</h3>
+  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 12px;">
+    <div style="background: #fef2f2; padding: 16px; border-radius: 8px; border: 1px solid #fecaca;">
+      <h4 style="color: #dc2626; margin-bottom: 8px;">高优先级缺失</h4>
+      <ul style="margin: 0; padding-left: 20px; font-size: 14px;">
+        <li>多币种转换</li>
+        <li>预算管理</li>
+      </ul>
+    </div>
+    <div style="background: #fffbeb; padding: 16px; border-radius: 8px; border: 1px solid #fde68a;">
+      <h4 style="color: #d97706; margin-bottom: 8px;">中优先级缺失</h4>
+      <ul style="margin: 0; padding-left: 20px; font-size: 14px;">
+        <li>目标设定</li>
+        <li>账单提醒</li>
+        <li>数据导入/导出</li>
+        <li>标签系统</li>
+        <li>投资分析</li>
+        <li>现金流预测</li>
+        <li>全局搜索</li>
+      </ul>
+    </div>
+    <div style="background: #f0fdf4; padding: 16px; border-radius: 8px; border: 1px solid #bbf7d0;">
+      <h4 style="color: #16a34a; margin-bottom: 8px;">低优先级缺失</h4>
+      <ul style="margin: 0; padding-left: 20px; font-size: 14px;">
+        <li>附件管理</li>
+        <li>税务支持</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>与顶尖产品功能对比</h3>
+  <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
+    <thead>
+      <tr style="background: var(--muted);">
+        <th style="padding: 12px; text-align: left; border-bottom: 1px solid var(--border);">产品</th>
+        <th style="padding: 12px; text-align: left; border-bottom: 1px solid var(--border);">核心优势</th>
+        <th style="padding: 12px; text-align: left; border-bottom: 1px solid var(--border);">我们可借鉴</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);"><strong>YNAB</strong></td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border); font-size: 12px;">零基预算、规则引擎、教育内容</td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border); font-size: 12px;">预算管理模块</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);"><strong>Copilot</strong></td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border); font-size: 12px;">AI 驱动、自动分类、现金流预测</td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border); font-size: 12px;">AI 助手系统</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);"><strong>Mint</strong></td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border); font-size: 12px;">免费、银行对接、信用评分</td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border); font-size: 12px;">数据导入/导出</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);"><strong>MoneyWiz</strong></td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border); font-size: 12px;">多币种、多平台、详细报告</td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border); font-size: 12px;">多币种转换系统</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border);"><strong>Personal Capital</strong></td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border); font-size: 12px;">投资分析、退休规划、净值追踪</td>
+        <td style="padding: 12px; border-bottom: 1px solid var(--border); font-size: 12px;">投资分析模块</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,63 @@
+<h2>第二部分：交易流程（双记账）</h2>
+<p class="subtitle">充值和消费的完整资金流向</p>
+
+<div class="section">
+  <h3>场景1：普通充值（充1000，无赠送）</h3>
+  <div class="mockup">
+    <div class="mockup-header">一笔交易，两条分录</div>
+    <div class="mockup-body" style="padding: 1rem; font-family: monospace; font-size: 0.85em;">
+      <p style="color: #a5b4fc;">Transaction: { date: "2026-05-27", description: "健身卡充值1000" }</p>
+      <table style="width:100%; color: #e2e8f0; margin-top: 0.5rem;">
+        <tr style="color: #94a3b8;"><td>账户</td><td>科目</td><td>借方</td><td>贷方</td></tr>
+        <tr><td>健身卡 (prepaid)</td><td>1123 预付账款</td><td style="color:#4ade80;">1000</td><td></td></tr>
+        <tr><td>招商银行 (bank)</td><td>1002 银行存款</td><td></td><td style="color:#f87171;">1000</td></tr>
+      </table>
+      <p style="color: #64748b; margin-top: 0.5rem;">同时创建 top_up_record: paid=1000, bonus=0, total=1000</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 1.5rem;">
+  <h3>场景2：充值送优惠（充1000送200）</h3>
+  <div class="mockup">
+    <div class="mockup-header">一笔交易，三条分录</div>
+    <div class="mockup-body" style="padding: 1rem; font-family: monospace; font-size: 0.85em;">
+      <p style="color: #a5b4fc;">Transaction: { date: "2026-05-27", description: "健身卡充值1000送200" }</p>
+      <table style="width:100%; color: #e2e8f0; margin-top: 0.5rem;">
+        <tr style="color: #94a3b8;"><td>账户</td><td>科目</td><td>借方</td><td>贷方</td></tr>
+        <tr><td>健身卡 (prepaid)</td><td>1123 预付账款</td><td style="color:#4ade80;">1200</td><td></td></tr>
+        <tr><td>招商银行 (bank)</td><td>1002 银行存款</td><td></td><td style="color:#f87171;">1000</td></tr>
+        <tr><td>赠送收入 (income)</td><td>4901 其他收入</td><td></td><td style="color:#f87171;">200</td></tr>
+      </table>
+      <p style="color: #64748b; margin-top: 0.5rem;">top_up_record: paid=1000, bonus=200, total=1200</p>
+      <p style="color: #64748b;">健身卡余额 = 0 + 1200 = 1200 ✓</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 1.5rem;">
+  <h3>场景3：储值消费（健身卡消费50）</h3>
+  <div class="mockup">
+    <div class="mockup-header">一笔交易，两条分录（复用现有支出逻辑）</div>
+    <div class="mockup-body" style="padding: 1rem; font-family: monospace; font-size: 0.85em;">
+      <p style="color: #a5b4fc;">Transaction: { date: "2026-05-28", description: "健身房月卡" }</p>
+      <table style="width:100%; color: #e2e8f0; margin-top: 0.5rem;">
+        <tr style="color: #94a3b8;"><td>账户</td><td>科目</td><td>借方</td><td>贷方</td></tr>
+        <tr><td>健身运动 (expense)</td><td>5404 娱乐费用</td><td style="color:#4ade80;">50</td><td></td></tr>
+        <tr><td>健身卡 (prepaid)</td><td>1123 预付账款</td><td></td><td style="color:#f87171;">50</td></tr>
+      </table>
+      <p style="color: #64748b; margin-top: 0.5rem;">健身卡余额 = 1200 - 50 = 1150 ✓</p>
+      <p style="color: #64748b;">月度支出报表中 "娱乐费用" 显示 50元 ✓</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 1.5rem; padding: 1rem; background: rgba(99,102,241,0.1); border-radius: 8px;">
+  <h3 style="margin-top: 0;">关键设计点</h3>
+  <ul>
+    <li><strong>充值</strong> = 现有 <code>create_simple_transfer</code> 的扩展版，额外创建 <code>top_up_record</code></li>
+    <li><strong>有赠送的充值</strong> = 三条分录的交易（新增一条贷方赠送收入分录）</li>
+    <li><strong>消费</strong> = 现有 <code>create_simple_expense</code>，只是付款账户选储值账户而非现金/银行</li>
+    <li><strong>余额计算</strong> = 复用现有 <code>compute_balances_for_all_accounts</code>，无需额外逻辑</li>
+  </ul>
+</div>

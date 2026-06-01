@@ -155,6 +155,7 @@ impl<R: AccountRepository, U: CurrencyRepository> AccountService<R, U> {
         if let Some(parent_id) = dto.parent_id {
             account.update_parent_id(Some(parent_id))?;
         }
+        account.low_balance_threshold = dto.low_balance_threshold;
 
         self.account_repo.update(&account).await?;
 
@@ -587,6 +588,7 @@ mod tests {
             interest_rate: None,
             chart_code: None,
             parent_id: None,
+            low_balance_threshold: None,
         };
 
         let result = service.update_account((), created.id, update_dto).await;
@@ -630,6 +632,7 @@ mod tests {
             interest_rate: None,
             chart_code: None,
             parent_id: None,
+            low_balance_threshold: None,
         };
 
         let result = service.update_account((), created.id, update_dto).await;

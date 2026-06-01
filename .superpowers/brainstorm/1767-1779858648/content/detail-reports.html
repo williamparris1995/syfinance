@@ -1,0 +1,109 @@
+<h2>第五部分：储值明细 + 报表集成</h2>
+<p class="subtitle">储值账户明细面板和支出报表展示方式</p>
+
+<div class="section">
+  <h3>储值明细面板 (PrepaidDetailPanel)</h3>
+  <p class="subtitle">点击账户卡片上的"明细"按钮弹出</p>
+  <div class="mockup">
+    <div class="mockup-header">💪 健身卡 — 储值明细</div>
+    <div class="mockup-body" style="padding: 1rem; background: #1e293b;">
+      <!-- 余额概览 -->
+      <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+        <div style="flex: 1; background: #334155; border-radius: 8px; padding: 12px; text-align: center;">
+          <div style="color: #94a3b8; font-size: 0.8em;">当前余额</div>
+          <div style="color: #4ade80; font-size: 1.4em; font-weight: 700;">¥ 1,150.00</div>
+        </div>
+        <div style="flex: 1; background: #334155; border-radius: 8px; padding: 12px; text-align: center;">
+          <div style="color: #94a3b8; font-size: 0.8em;">累计充值</div>
+          <div style="color: #60a5fa; font-size: 1.4em; font-weight: 700;">¥ 3,200.00</div>
+        </div>
+        <div style="flex: 1; background: #334155; border-radius: 8px; padding: 12px; text-align: center;">
+          <div style="color: #94a3b8; font-size: 0.8em;">累计消费</div>
+          <div style="color: #f87171; font-size: 1.4em; font-weight: 700;">¥ 2,050.00</div>
+        </div>
+      </div>
+
+      <!-- Tab 切换 -->
+      <div style="display: flex; gap: 0; border-bottom: 1px solid #475569; margin-bottom: 12px;">
+        <div style="padding: 8px 16px; color: #6366f1; border-bottom: 2px solid #6366f1; font-weight: 600; font-size: 0.9em;">充值记录</div>
+        <div style="padding: 8px 16px; color: #94a3b8; font-size: 0.9em;">消费记录</div>
+      </div>
+
+      <!-- 充值记录列表 -->
+      <div style="font-size: 0.85em;">
+        <div style="display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #1e293b;">
+          <div>
+            <div style="color: #e2e8f0;">充1000送200</div>
+            <div style="color: #64748b; font-size: 0.85em;">2026-05-27 · 招商银行</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="color: #4ade80;">+¥1,200.00</div>
+            <div style="color: #64748b; font-size: 0.85em;">实付 ¥1,000 · 赠送 ¥200</div>
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #1e293b;">
+          <div>
+            <div style="color: #e2e8f0;">常规充值</div>
+            <div style="color: #64748b; font-size: 0.85em;">2026-04-15 · 招商银行</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="color: #4ade80;">+¥1,000.00</div>
+            <div style="color: #64748b; font-size: 0.85em;">实付 ¥1,000 · 有效期至 2026-07-15</div>
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding: 8px;">
+          <div>
+            <div style="color: #e2e8f0;">开业充值</div>
+            <div style="color: #64748b; font-size: 0.85em;">2026-03-01 · 微信</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="color: #4ade80;">+¥1,000.00</div>
+            <div style="color: #64748b; font-size: 0.85em;">实付 ¥1,000</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 1.5rem;">
+  <h3>报表集成方式</h3>
+  <div class="mockup">
+    <div class="mockup-header">现有 ReportsPage 中储值消费的展示</div>
+    <div class="mockup-body" style="padding: 1rem; background: #1e293b;">
+      <h4 style="color: #e2e8f0; margin-top: 0;">月度支出报表（已有）</h4>
+      <p style="color: #94a3b8; font-size: 0.85em;">储值消费按消费类别正常计入，无需改动报表逻辑：</p>
+      <table style="width: 100%; font-size: 0.85em; margin-top: 8px; color: #e2e8f0;">
+        <tr style="color: #94a3b8; border-bottom: 1px solid #475569;">
+          <td>类别</td><td>金额</td><td>来源</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #1e293b;">
+          <td>🏋️ 娱乐费用</td><td>¥ 350</td><td style="color: #94a3b8;">健身卡(储值)</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #1e293b;">
+          <td>🍜 餐饮费用</td><td>¥ 1,200</td><td style="color: #94a3b8;">招商银行</td>
+        </tr>
+        <tr>
+          <td>🚇 交通费用</td><td>¥ 200</td><td style="color: #94a3b8;">公交卡(储值)</td>
+        </tr>
+      </table>
+
+      <h4 style="color: #e2e8f0; margin-top: 1.5rem;">新增：储值账户汇总表</h4>
+      <p style="color: #94a3b8; font-size: 0.85em;">在报表页面新增一个 Tab 或折叠面板：</p>
+      <table style="width: 100%; font-size: 0.85em; margin-top: 8px; color: #e2e8f0;">
+        <tr style="color: #94a3b8; border-bottom: 1px solid #475569;">
+          <td>储值账户</td><td>当前余额</td><td>本月消费</td><td>本月充值</td><td>状态</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #1e293b;">
+          <td>💪 健身卡</td><td style="color: #4ade80;">¥1,150</td><td style="color: #f87171;">¥350</td><td style="color: #60a5fa;">¥1,200</td><td style="color: #4ade80;">正常</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #1e293b;">
+          <td>📱 话费</td><td style="color: #f87171;">¥15.30</td><td style="color: #f87171;">¥35</td><td>—</td><td style="color: #f87171;">⚠ 低余额</td>
+        </tr>
+        <tr>
+          <td>🚌 公交卡</td><td style="color: #4ade80;">¥85</td><td style="color: #f87171;">¥40</td><td>—</td><td style="color: #4ade80;">正常</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>

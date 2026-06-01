@@ -60,6 +60,7 @@ async fn account_command_lifecycle() {
             interest_rate: None,
             chart_code: None,
             parent_id: None,
+            low_balance_threshold: None,
         },
     )
     .await

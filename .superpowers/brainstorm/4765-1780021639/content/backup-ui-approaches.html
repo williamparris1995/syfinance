@@ -1,0 +1,185 @@
+<h2>备份模块 UI 方案选择</h2>
+<p class="subtitle">请在浏览器中点击选择你偏好的方案</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background: white; padding: 16px; font-family: -apple-system, sans-serif;">
+        <!-- 方案A: 集成到设置页 -->
+        <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 12px;">
+          <div style="font-size: 14px; font-weight: 600;">⚙️ 设置</div>
+        </div>
+
+        <!-- 备份卡片 -->
+        <div style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin-bottom: 8px;">
+          <div style="padding: 12px; border-bottom: 1px solid #f3f4f6;">
+            <div style="font-weight: 600; font-size: 13px;">💾 数据备份</div>
+            <div style="font-size: 11px; color: #666;">保护您的财务数据安全</div>
+          </div>
+          <div style="padding: 12px; background: #f0fdf4;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 12px; font-weight: 500;">🔒 AES-256 加密备份</span>
+              <span style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 10px; font-size: 10px;">已启用</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 12px;">自动备份</span>
+              <div style="display: flex; align-items: center; gap: 4px;">
+                <span style="font-size: 11px; color: #666;">每天 08:00</span>
+                <div style="width: 32px; height: 18px; background: #22c55e; border-radius: 9px; position: relative;">
+                  <div style="width: 14px; height: 14px; background: white; border-radius: 50%; position: absolute; right: 2px; top: 2px;"></div>
+                </div>
+              </div>
+            </div>
+            <div style="font-size: 11px; color: #666; margin-bottom: 4px;">最近备份: 今天 08:00 · 2.4 MB</div>
+          </div>
+          <div style="padding: 12px;">
+            <div style="font-size: 12px; font-weight: 500; margin-bottom: 6px;">☁️ WebDAV 云备份</div>
+            <div style="background: #f9fafb; padding: 8px; border-radius: 6px; margin-bottom: 6px;">
+              <div style="font-size: 11px; color: #666;">https://cloud.example.com/dav/finance/</div>
+              <div style="font-size: 10px; color: #22c55e; margin-top: 2px;">✓ 已连接 · 上次同步: 10分钟前</div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button style="flex:1; padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px; font-size: 11px; background: white; cursor: pointer;">配置</button>
+              <button style="flex:1; padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px; font-size: 11px; background: white; cursor: pointer;">立即备份</button>
+            </div>
+          </div>
+          <div style="padding: 12px; border-top: 1px solid #f3f4f6;">
+            <div style="font-size: 12px; font-weight: 500; margin-bottom: 6px;">📥 恢复数据</div>
+            <button style="width: 100%; padding: 6px; border: 1px solid #e5e7eb; border-radius: 4px; font-size: 11px; background: white; cursor: pointer;">选择备份文件恢复...</button>
+          </div>
+        </div>
+
+        <!-- 备份历史列表 -->
+        <div style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+          <div style="padding: 10px 12px; border-bottom: 1px solid #f3f4f6; font-size: 12px; font-weight: 600;">备份历史</div>
+          <div style="padding: 8px 12px; border-bottom: 1px solid #f9fafb; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="font-size: 11px; font-weight: 500;">2026-05-29 08:00</div>
+              <div style="font-size: 10px; color: #666;">2.4 MB · 本地 + 云端</div>
+            </div>
+            <div style="display: flex; gap: 4px;">
+              <span style="font-size: 10px; color: #3b82f6; cursor: pointer;">恢复</span>
+              <span style="font-size: 10px; color: #ef4444; cursor: pointer;">删除</span>
+            </div>
+          </div>
+          <div style="padding: 8px 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="font-size: 11px; font-weight: 500;">2026-05-28 08:00</div>
+              <div style="font-size: 10px; color: #666;">2.3 MB · 仅本地</div>
+            </div>
+            <div style="display: flex; gap: 4px;">
+              <span style="font-size: 10px; color: #3b82f6; cursor: pointer;">恢复</span>
+              <span style="font-size: 10px; color: #ef4444; cursor: pointer;">删除</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>方案 A：集成到设置页</h3>
+      <p>所有备份功能集中在 SettingsPage 的一个卡片中。和现有的同步、加密设置并列展示。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>实现简单，复用现有设置页结构</li><li>所有配置项一目了然</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>设置页会变长</li><li>备份历史列表空间有限</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background: white; padding: 16px; font-family: -apple-system, sans-serif;">
+        <!-- 方案B: 独立备份页面 -->
+        <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-size: 14px; font-weight: 600;">💾 数据备份与恢复</div>
+          <button style="background: #3b82f6; color: white; border: none; padding: 4px 12px; border-radius: 4px; font-size: 11px; cursor: pointer;">立即备份</button>
+        </div>
+
+        <!-- 状态概览卡片 -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+          <div style="background: #f0fdf4; padding: 10px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 18px; font-weight: 700; color: #22c55e;">🔒</div>
+            <div style="font-size: 11px; font-weight: 500; margin-top: 4px;">加密备份</div>
+            <div style="font-size: 10px; color: #666;">AES-256</div>
+          </div>
+          <div style="background: #eff6ff; padding: 10px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 18px; font-weight: 700; color: #3b82f6;">☁️</div>
+            <div style="font-size: 11px; font-weight: 500; margin-top: 4px;">云端同步</div>
+            <div style="font-size: 10px; color: #22c55e;">已连接</div>
+          </div>
+          <div style="background: #fefce8; padding: 10px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 18px; font-weight: 700; color: #eab308;">📦</div>
+            <div style="font-size: 11px; font-weight: 500; margin-top: 4px;">3 个备份</div>
+            <div style="font-size: 10px; color: #666;">共 7.1 MB</div>
+          </div>
+        </div>
+
+        <!-- WebDAV 配置 -->
+        <div style="border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 10px; overflow: hidden;">
+          <div style="padding: 8px 12px; background: #f9fafb; font-size: 12px; font-weight: 600;">☁️ WebDAV 云备份</div>
+          <div style="padding: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <div style="flex: 1; background: #f9fafb; padding: 6px 8px; border-radius: 4px; font-size: 11px; color: #333;">https://cloud.example.com/dav/finance/</div>
+              <span style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 10px; font-size: 10px;">已连接</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 11px; color: #666;">自动上传: <b>每天 08:00</b></span>
+              <button style="border: 1px solid #e5e7eb; padding: 3px 10px; border-radius: 4px; font-size: 10px; background: white; cursor: pointer;">配置</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 备份列表 -->
+        <div style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+          <div style="padding: 8px 12px; background: #f9fafb; font-size: 12px; font-weight: 600;">📦 备份历史</div>
+          <div style="padding: 10px 12px; border-bottom: 1px solid #f3f4f6;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-size: 12px; font-weight: 500;">🔒 backup_20260529_0800.enc</div>
+                <div style="font-size: 10px; color: #666; margin-top: 2px;">2.4 MB · 今天 08:00 · 自动</div>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <span style="font-size: 10px; color: #22c55e;">☁️</span>
+                <button style="border: 1px solid #3b82f6; color: #3b82f6; padding: 2px 8px; border-radius: 4px; font-size: 10px; background: white; cursor: pointer;">恢复</button>
+                <span style="font-size: 10px; color: #ef4444; cursor: pointer;">删除</span>
+              </div>
+            </div>
+          </div>
+          <div style="padding: 10px 12px; border-bottom: 1px solid #f3f4f6;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-size: 12px; font-weight: 500;">🔒 backup_20260528_0800.enc</div>
+                <div style="font-size: 10px; color: #666; margin-top: 2px;">2.3 MB · 昨天 08:00 · 自动</div>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <span style="font-size: 10px; color: #999;">本地</span>
+                <button style="border: 1px solid #3b82f6; color: #3b82f6; padding: 2px 8px; border-radius: 4px; font-size: 10px; background: white; cursor: pointer;">恢复</button>
+                <span style="font-size: 10px; color: #ef4444; cursor: pointer;">删除</span>
+              </div>
+            </div>
+          </div>
+          <div style="padding: 10px 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-size: 12px; font-weight: 500;">🔒 backup_20260527_0800.enc</div>
+                <div style="font-size: 10px; color: #666; margin-top: 2px;">2.4 MB · 5月27日 08:00 · 手动</div>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <span style="font-size: 10px; color: #22c55e;">☁️</span>
+                <button style="border: 1px solid #3b82f6; color: #3b82f6; padding: 2px 8px; border-radius: 4px; font-size: 10px; background: white; cursor: pointer;">恢复</button>
+                <span style="font-size: 10px; color: #ef4444; cursor: pointer;">删除</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>方案 B：独立备份页面</h3>
+      <p>在侧边栏添加独立的「备份」页面，有充足空间展示状态概览、WebDAV 配置、备份历史列表。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>空间充裕，可展示完整备份历史</li><li>状态概览直观（加密/云端/数量）</li><li>独立入口，用户容易找到</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>新增一个导航项，侧边栏变长</li><li>功能少的用户可能觉得占位过多</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

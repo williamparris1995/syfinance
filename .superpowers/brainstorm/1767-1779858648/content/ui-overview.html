@@ -1,0 +1,130 @@
+<h2>第四部分：前端 UI 设计</h2>
+<p class="subtitle">储值功能的页面和组件规划</p>
+
+<div class="section">
+  <h3>UI 变更总览</h3>
+  <div class="mockup">
+    <div class="mockup-header">新增页面 vs 修改现有页面</div>
+    <div class="mockup-body" style="padding: 1rem;">
+      <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 200px;">
+          <h4 style="color: #4ade80;">修改现有页面</h4>
+          <ul style="font-size: 0.9em; color: #e2e8f0;">
+            <li><strong>AccountForm</strong> — 新增 prepaid 类型选项 + low_balance_threshold 字段</li>
+            <li><strong>SimpleTransactionForm</strong> — 支出类型中付款账户可选中 prepaid 账户</li>
+            <li><strong>AccountsPage</strong> — 储值账户显示余额和低余额警告</li>
+            <li><strong>Sidebar</strong> — 可选：新增"储值"入口</li>
+          </ul>
+        </div>
+        <div style="flex: 1; min-width: 200px;">
+          <h4 style="color: #60a5fa;">新增组件</h4>
+          <ul style="font-size: 0.9em; color: #e2e8f0;">
+            <li><strong>TopUpDialog</strong> — 充值对话框（金额、赠送、有效期）</li>
+            <li><strong>PrepaidDetailPanel</strong> — 储值明细面板（余额 + 充值记录 + 消费记录）</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 1.5rem;">
+  <h3>页面1：账户列表中的储值账户</h3>
+  <div class="mockup">
+    <div class="mockup-header">AccountsPage — 储值账户卡片</div>
+    <div class="mockup-body" style="padding: 1rem; background: #1e293b;">
+      <div style="border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="font-size: 1.5em;">💪</span>
+          <div>
+            <div style="color: #e2e8f0; font-weight: 600;">健身卡</div>
+            <div style="color: #94a3b8; font-size: 0.85em;">1123 预付账款</div>
+          </div>
+        </div>
+        <div style="text-align: right;">
+          <div style="color: #4ade80; font-size: 1.2em; font-weight: 600;">¥ 1,150.00</div>
+          <div style="color: #94a3b8; font-size: 0.8em;">低余额阈值: ¥200</div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="mock-button" style="background: #6366f1; font-size: 0.85em;">充值</button>
+          <button class="mock-button" style="background: #334155; font-size: 0.85em;">明细</button>
+        </div>
+      </div>
+
+      <div style="border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="font-size: 1.5em;">📱</span>
+          <div>
+            <div style="color: #e2e8f0; font-weight: 600;">话费</div>
+            <div style="color: #94a3b8; font-size: 0.85em;">1123 预付账款</div>
+          </div>
+        </div>
+        <div style="text-align: right;">
+          <div style="color: #f87171; font-size: 1.2em; font-weight: 600;">¥ 15.30</div>
+          <div style="color: #f87171; font-size: 0.8em;">⚠ 低于阈值 ¥20</div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="mock-button" style="background: #6366f1; font-size: 0.85em;">充值</button>
+          <button class="mock-button" style="background: #334155; font-size: 0.85em;">明细</button>
+        </div>
+      </div>
+
+      <div style="border: 1px solid #334155; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="font-size: 1.5em;">🤖</span>
+          <div>
+            <div style="color: #e2e8f0; font-weight: 600;">API Token</div>
+            <div style="color: #94a3b8; font-size: 0.85em;">1123 预付账款</div>
+          </div>
+        </div>
+        <div style="text-align: right;">
+          <div style="color: #4ade80; font-size: 1.2em; font-weight: 600;">$ 45.80</div>
+          <div style="color: #94a3b8; font-size: 0.8em;">低余额阈值: $10</div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="mock-button" style="background: #6366f1; font-size: 0.85em;">充值</button>
+          <button class="mock-button" style="background: #334155; font-size: 0.85em;">明细</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 1.5rem;">
+  <h3>页面2：充值对话框 (TopUpDialog)</h3>
+  <div class="mockup">
+    <div class="mockup-header">点击"充值"按钮后弹出</div>
+    <div class="mockup-body" style="padding: 1rem; background: #1e293b; max-width: 400px;">
+      <h3 style="color: #e2e8f0; margin-top: 0;">💪 健身卡充值</h3>
+      <div style="margin: 12px 0;">
+        <label style="color: #94a3b8; font-size: 0.85em;">付款账户</label>
+        <select class="mock-input" style="width: 100%; margin-top: 4px; display: block;">
+          <option>招商银行 (¥ 12,345.00)</option>
+          <option>微信钱包 (¥ 890.00)</option>
+        </select>
+      </div>
+      <div style="margin: 12px 0;">
+        <label style="color: #94a3b8; font-size: 0.85em;">充值金额</label>
+        <input class="mock-input" style="width: 100%; margin-top: 4px;" placeholder="¥ 1000.00">
+      </div>
+      <div style="margin: 12px 0;">
+        <label style="color: #94a3b8; font-size: 0.85em;">赠送金额（可选）</label>
+        <input class="mock-input" style="width: 100%; margin-top: 4px;" placeholder="¥ 200.00">
+      </div>
+      <div style="margin: 12px 0;">
+        <label style="color: #94a3b8; font-size: 0.85em;">有效期（可选）</label>
+        <input class="mock-input" type="date" style="width: 100%; margin-top: 4px;">
+      </div>
+      <div style="margin: 12px 0;">
+        <label style="color: #94a3b8; font-size: 0.85em;">备注</label>
+        <input class="mock-input" style="width: 100%; margin-top: 4px;" placeholder="充1000送200">
+      </div>
+      <div style="background: #334155; border-radius: 6px; padding: 10px; margin: 12px 0; font-size: 0.9em;">
+        <span style="color: #94a3b8;">实际入账：</span>
+        <span style="color: #4ade80; font-weight: 600;">¥ 1,200.00</span>
+        <span style="color: #64748b; font-size: 0.85em;">（充值 1000 + 赠送 200）</span>
+      </div>
+      <button class="mock-button" style="width: 100%; background: #6366f1; padding: 10px; font-weight: 600;">确认充值</button>
+    </div>
+  </div>
+</div>

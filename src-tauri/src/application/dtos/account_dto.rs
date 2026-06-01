@@ -36,6 +36,7 @@ pub struct UpdateAccountDto {
     pub interest_rate: Option<Decimal>,
     pub chart_code: Option<String>,
     pub parent_id: Option<Uuid>,
+    pub low_balance_threshold: Option<Decimal>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

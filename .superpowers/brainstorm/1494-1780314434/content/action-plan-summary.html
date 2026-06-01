@@ -1,0 +1,144 @@
+<h2>Gap Analysis — Action Plan Summary</h2>
+<p class="subtitle">25 prioritized improvements across 4 priority levels</p>
+
+<style>
+  .priority-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-top:0.75rem; }
+  .priority-card { border-radius:8px; padding:1rem; text-align:center; color:white; }
+  .priority-card .count { font-size:2.5rem; font-weight:800; }
+  .priority-card .label { font-size:0.85rem; opacity:0.9; }
+  .priority-card .effort { font-size:0.8rem; opacity:0.8; margin-top:0.25rem; }
+  .quick-win { display:flex; align-items:center; gap:0.75rem; padding:0.75rem 1rem; background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:0.5rem; }
+  .quick-win .badge { font-size:0.75rem; font-weight:700; padding:0.2rem 0.5rem; border-radius:4px; color:white; white-space:nowrap; }
+  .quick-win .title { font-weight:600; font-size:0.9rem; }
+  .quick-win .meta { font-size:0.8rem; color:var(--muted); }
+  .roadmap { display:grid; grid-template-columns:repeat(4,1fr); gap:0.5rem; margin-top:0.75rem; }
+  .roadmap-phase { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:0.75rem; }
+  .roadmap-phase h4 { margin:0 0 0.5rem; font-size:0.85rem; }
+  .roadmap-phase ul { margin:0; padding-left:1rem; font-size:0.8rem; }
+  .roadmap-phase li { margin-bottom:0.25rem; }
+</style>
+
+<div class="priority-grid">
+  <div class="priority-card" style="background:#dc2626">
+    <div class="count">5</div>
+    <div class="label">P0 Critical</div>
+    <div class="effort">~12 days</div>
+  </div>
+  <div class="priority-card" style="background:#ea580c">
+    <div class="count">7</div>
+    <div class="label">P1 High</div>
+    <div class="effort">~25 days</div>
+  </div>
+  <div class="priority-card" style="background:#ca8a04">
+    <div class="count">8</div>
+    <div class="label">P2 Medium</div>
+    <div class="effort">~22 days</div>
+  </div>
+  <div class="priority-card" style="background:#65a30d">
+    <div class="count">5</div>
+    <div class="label">P3 Low</div>
+    <div class="effort">~10 days</div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:2rem">
+  <h3>🚀 Quick Wins (High Impact, Low Effort)</h3>
+  <div style="margin-top:0.75rem">
+    <div class="quick-win">
+      <div class="badge" style="background:#dc2626">P0</div>
+      <div>
+        <div class="title">Fix get_account_balance</div>
+        <div class="meta">Accounts · Business Logic · S effort</div>
+      </div>
+    </div>
+    <div class="quick-win">
+      <div class="badge" style="background:#dc2626">P0</div>
+      <div>
+        <div class="title">Persist low_balance_threshold on update</div>
+        <div class="meta">Accounts · Business Logic · S effort</div>
+      </div>
+    </div>
+    <div class="quick-win">
+      <div class="badge" style="background:#65a30d">P3</div>
+      <div>
+        <div class="title">i18n: Replace Chinese toasts with translation keys</div>
+        <div class="meta">Cross-cutting · UI/UX · S effort</div>
+      </div>
+    </div>
+    <div class="quick-win">
+      <div class="badge" style="background:#65a30d">P3</div>
+      <div>
+        <div class="title">Clean up dead code (legacy debt.rs, stubs)</div>
+        <div class="meta">Debts · Business Logic · S effort</div>
+      </div>
+    </div>
+    <div class="quick-win">
+      <div class="badge" style="background:#ca8a04">P2</div>
+      <div>
+        <div class="title">Add scheduled automatic backup</div>
+        <div class="meta">Backup · Efficiency · S effort</div>
+      </div>
+    </div>
+    <div class="quick-win">
+      <div class="badge" style="background:#ca8a04">P2</div>
+      <div>
+        <div class="title">Tags management page + update + soft delete</div>
+        <div class="meta">Tags · UI/UX · S effort</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:1.5rem">
+  <h3>📋 Recommended Roadmap</h3>
+  <div class="roadmap">
+    <div class="roadmap-phase">
+      <h4 style="color:#dc2626">Phase 1: Fixes (1-2 weeks)</h4>
+      <ul>
+        <li>Fix account balance bug</li>
+        <li>Persist threshold on update</li>
+        <li>Fix encryption unlock verify</li>
+        <li>Wire Budget actuals</li>
+        <li>Make Export download CSV</li>
+      </ul>
+    </div>
+    <div class="roadmap-phase">
+      <h4 style="color:#ea580c">Phase 2: Core Features (3-5 weeks)</h4>
+      <ul>
+        <li>Recurring transactions</li>
+        <li>Reports drill-down</li>
+        <li>Balance history charts</li>
+        <li>Reminders frontend</li>
+        <li>Holdings dividend/split</li>
+        <li>Dynamic currency symbols</li>
+        <li>Auto-fetch exchange rates</li>
+      </ul>
+    </div>
+    <div class="roadmap-phase">
+      <h4 style="color:#ca8a04">Phase 3: Polish (2-3 weeks)</h4>
+      <ul>
+        <li>Budget templates</li>
+        <li>Goals auto-sync</li>
+        <li>Bulk operations</li>
+        <li>OAuth cloud providers</li>
+        <li>Full-text search</li>
+        <li>Sync conflict UI</li>
+      </ul>
+    </div>
+    <div class="roadmap-phase">
+      <h4 style="color:#65a30d">Phase 4: Quality (1-2 weeks)</h4>
+      <ul>
+        <li>i18n cleanup</li>
+        <li>Dead code removal</li>
+        <li>Service layer gaps</li>
+        <li>Pagination</li>
+        <li>YoY comparison</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:1.5rem;text-align:center;color:var(--muted);font-size:0.85rem">
+  <strong>25 improvements</strong> across 18 modules · ~69 days estimated total effort · 6 quick wins to start immediately<br>
+  <span style="font-size:0.8rem">Full details in <code>docs/superpowers/specs/2026-06-01-gap-analysis-action-plan.md</code></span>
+</div>

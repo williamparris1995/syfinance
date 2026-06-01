@@ -1,0 +1,142 @@
+<h2>行业备份功能分析</h2>
+<p class="subtitle">主流个人财务应用的备份策略对比</p>
+
+<div class="section">
+  <h3>1Password — 端到端加密备份</h3>
+  <div class="mockup">
+    <div class="mockup-header">1Password Backup</div>
+    <div class="mockup-body">
+      <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f0f4ff; border-radius: 8px;">
+          <div>
+            <div style="font-weight: 600; font-size: 14px;">☁️ 云同步</div>
+            <div style="font-size: 12px; color: #666;">自动同步到 1Password 服务器</div>
+          </div>
+          <div style="background: #22c55e; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px;">已启用</div>
+        </div>
+        <div style="padding: 12px; background: #fafafa; border-radius: 8px;">
+          <div style="font-size: 13px; font-weight: 600;">本地备份</div>
+          <div style="font-size: 12px; color: #666; margin-top: 4px;">自动备份保留最近 30 天</div>
+          <div style="margin-top: 8px; display: flex; gap: 8px;">
+            <div style="flex: 1; padding: 8px; background: white; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 11px;">
+              <div style="font-weight: 500;">backup_2026-05-29.enc</div>
+              <div style="color: #999;">2.4 MB · 今天 14:30</div>
+            </div>
+            <div style="flex: 1; padding: 8px; background: white; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 11px;">
+              <div style="font-weight: 500;">backup_2026-05-28.enc</div>
+              <div style="color: #999;">2.3 MB · 昨天 14:30</div>
+            </div>
+          </div>
+        </div>
+        <div style="padding: 12px; background: #fafafa; border-radius: 8px;">
+          <div style="font-size: 13px; font-weight: 600;">导出</div>
+          <div style="font-size: 12px; color: #666; margin-top: 4px;">支持 .1pux / .zip 格式导出</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>YNAB — 简化云端 + 手动导出</h3>
+  <div class="mockup">
+    <div class="mockup-header">YNAB Budget</div>
+    <div class="mockup-body">
+      <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+        <div style="padding: 12px; background: #f0fdf4; border-radius: 8px;">
+          <div style="font-weight: 600; font-size: 14px;">✅ 自动云同步</div>
+          <div style="font-size: 12px; color: #666; margin-top: 4px;">数据实时保存到 YNAB 服务器</div>
+          <div style="font-size: 11px; color: #999; margin-top: 4px;">上次同步: 2 分钟前</div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="mock-button" style="flex: 1;">📥 导出为 CSV</button>
+          <button class="mock-button" style="flex: 1;">📊 导出为 PDF</button>
+        </div>
+        <div style="font-size: 12px; color: #999; padding: 8px;">YNAB 无本地备份概念 — 完全依赖云端</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>MoneyWiz — 多渠道混合备份</h3>
+  <div class="mockup">
+    <div class="mockup-header">MoneyWiz Backup</div>
+    <div class="mockup-body">
+      <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+        <div style="padding: 12px; background: #fef3c7; border-radius: 8px;">
+          <div style="font-weight: 600; font-size: 14px;">SYNCbits™ 云同步</div>
+          <div style="font-size: 12px; color: #666; margin-top: 4px;">MoneyWiz 自有同步服务</div>
+        </div>
+        <div style="padding: 12px; background: #fafafa; border-radius: 8px;">
+          <div style="font-weight: 600; font-size: 14px;">本地备份</div>
+          <div style="font-size: 12px; color: #666; margin-top: 4px;">自动每日备份到设备存储</div>
+          <div style="display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap;">
+            <span style="background: #e5e7eb; padding: 3px 8px; border-radius: 4px; font-size: 11px;">5月29日 · 08:00</span>
+            <span style="background: #e5e7eb; padding: 3px 8px; border-radius: 4px; font-size: 11px;">5月28日 · 08:00</span>
+            <span style="background: #e5e7eb; padding: 3px 8px; border-radius: 4px; font-size: 11px;">5月27日 · 08:00</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="mock-button" style="flex: 1;">📤 备份到 WebDAV</button>
+          <button class="mock-button" style="flex: 1;">📤 备份到 Dropbox</button>
+          <button class="mock-button" style="flex: 1;">📥 从备份恢复</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>总结对比</h3>
+  <div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+      <thead>
+        <tr style="background: #f9fafb; border-bottom: 2px solid #e5e7eb;">
+          <th style="padding: 8px; text-align: left;">功能</th>
+          <th style="padding: 8px; text-align: center;">1Password</th>
+          <th style="padding: 8px; text-align: center;">YNAB</th>
+          <th style="padding: 8px; text-align: center;">MoneyWiz</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom: 1px solid #f3f4f6;">
+          <td style="padding: 8px;">自动云同步</td>
+          <td style="padding: 8px; text-align: center; color: #22c55e;">✅</td>
+          <td style="padding: 8px; text-align: center; color: #22c55e;">✅</td>
+          <td style="padding: 8px; text-align: center; color: #22c55e;">✅</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f3f4f6;">
+          <td style="padding: 8px;">本地自动备份</td>
+          <td style="padding: 8px; text-align: center; color: #22c55e;">✅</td>
+          <td style="padding: 8px; text-align: center; color: #ef4444;">❌</td>
+          <td style="padding: 8px; text-align: center; color: #22c55e;">✅</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f3f4f6;">
+          <td style="padding: 8px;">第三方云盘</td>
+          <td style="padding: 8px; text-align: center; color: #ef4444;">❌</td>
+          <td style="padding: 8px; text-align: center; color: #ef4444;">❌</td>
+          <td style="padding: 8px; text-align: center; color: #22c55e;">✅ WebDAV/Dropbox</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f3f4f6;">
+          <td style="padding: 8px;">手动导出</td>
+          <td style="padding: 8px; text-align: center; color: #22c55e;">✅ .1pux</td>
+          <td style="padding: 8px; text-align: center; color: #22c55e;">✅ CSV/PDF</td>
+          <td style="padding: 8px; text-align: center; color: #22c55e;">✅ CSV</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f3f4f6;">
+          <td style="padding: 8px;">从备份恢复</td>
+          <td style="padding: 8px; text-align: center; color: #22c55e;">✅</td>
+          <td style="padding: 8px; text-align: center; color: #ef4444;">❌</td>
+          <td style="padding: 8px; text-align: center; color: #22c55e;">✅</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px;">端到端加密</td>
+          <td style="padding: 8px; text-align: center; color: #22c55e;">✅</td>
+          <td style="padding: 8px; text-align: center; color: #ef4444;">❌</td>
+          <td style="padding: 8px; text-align: center; color: #f59e0b;">⚠️ 传输加密</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
