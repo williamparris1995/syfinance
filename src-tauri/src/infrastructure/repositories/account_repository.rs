@@ -219,6 +219,25 @@ impl SqliteAccountRepository {
         }
         Ok(map)
     }
+
+    pub async fn compute_balance_for_account_sqlite(
+        &self,
+        id: Uuid,
+    ) -> Result<Decimal, sqlx::Error> {
+        let row: (String,) = sqlx::query_as(
+            "SELECT CAST(COALESCE(SUM(COALESCE(e.debit_amount, 0)), 0) - \
+             COALESCE(SUM(COALESCE(e.credit_amount, 0)), 0) AS TEXT) \
+             FROM transaction_entries e \
+             JOIN transactions t ON e.transaction_id = t.id \
+             WHERE e.deleted_at IS NULL AND t.deleted_at IS NULL \
+             AND e.account_id = ?",
+        )
+        .bind(id.to_string())
+        .fetch_one(&self.pool)
+        .await?;
+
+        Decimal::from_str(&row.0).map_err(|e| sqlx::Error::Decode(Box::new(e)))
+    }
 }
 
 impl AccountRepository for SqliteAccountRepository {
@@ -494,6 +513,10 @@ impl AccountRepository for SqliteAccountRepository {
         &self,
     ) -> Result<std::collections::HashMap<Uuid, Decimal>, sqlx::Error> {
         SqliteAccountRepository::compute_balances_for_all_accounts(self).await
+    }
+
+    async fn compute_balance_for_account(&self, id: Uuid) -> Result<Decimal, sqlx::Error> {
+        self.compute_balance_for_account_sqlite(id).await
     }
 }
 

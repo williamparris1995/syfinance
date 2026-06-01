@@ -130,6 +130,25 @@ impl PostgresAccountRepository {
         }
         Ok(map)
     }
+
+    pub async fn compute_balance_for_account_pg(
+        &self,
+        id: Uuid,
+    ) -> Result<Decimal, sqlx::Error> {
+        let row: (Decimal,) = sqlx::query_as(
+            "SELECT COALESCE(SUM(COALESCE(e.debit_amount, 0)), 0) - \
+             COALESCE(SUM(COALESCE(e.credit_amount, 0)), 0) \
+             FROM transaction_entries e \
+             JOIN transactions t ON e.transaction_id = t.id \
+             WHERE e.deleted_at IS NULL AND t.deleted_at IS NULL \
+             AND e.account_id = $1",
+        )
+        .bind(id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(row.0)
+    }
 }
 
 impl AccountRepository for PostgresAccountRepository {
@@ -379,5 +398,9 @@ impl AccountRepository for PostgresAccountRepository {
         &self,
     ) -> Result<std::collections::HashMap<Uuid, Decimal>, sqlx::Error> {
         PostgresAccountRepository::compute_balances_for_all_accounts(self).await
+    }
+
+    async fn compute_balance_for_account(&self, id: Uuid) -> Result<Decimal, sqlx::Error> {
+        self.compute_balance_for_account_pg(id).await
     }
 }

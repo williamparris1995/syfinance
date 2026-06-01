@@ -49,6 +49,8 @@ pub trait AccountRepository: Send + Sync {
     async fn compute_balances_for_all_accounts(
         &self,
     ) -> Result<std::collections::HashMap<Uuid, Decimal>, sqlx::Error>;
+
+    async fn compute_balance_for_account(&self, id: Uuid) -> Result<Decimal, sqlx::Error>;
 }
 
 #[allow(async_fn_in_trait, dead_code)]

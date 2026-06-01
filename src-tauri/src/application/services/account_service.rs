@@ -243,7 +243,15 @@ impl<R: AccountRepository, U: CurrencyRepository> AccountService<R, U> {
             .await?
             .ok_or(AccountServiceError::AccountNotFound(id))?;
 
-        Ok(account.initial_balance.clone())
+        let net_change = self
+            .account_repo
+            .compute_balance_for_account(id)
+            .await
+            .map_err(AccountServiceError::DatabaseError)?;
+
+        let current = account.initial_balance.amount + net_change;
+        Ok(Money::new(current, &account.initial_balance.currency_code)
+            .map_err(|e| AccountServiceError::InvalidMoney(e.to_string()))?)
     }
 
     pub async fn create_preset_investment_accounts<E>(
@@ -408,6 +416,13 @@ mod tests {
             &self,
         ) -> Result<HashMap<Uuid, Decimal>, sqlx::Error> {
             Ok(HashMap::new())
+        }
+
+        async fn compute_balance_for_account(
+            &self,
+            _id: Uuid,
+        ) -> Result<Decimal, sqlx::Error> {
+            Ok(Decimal::ZERO)
         }
     }
 
