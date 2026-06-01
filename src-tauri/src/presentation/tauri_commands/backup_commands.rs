@@ -3,10 +3,9 @@ use crate::infrastructure::backup::backup_service::{
     BackupFile, BackupInfo, BackupService, DiffSummary, RestoreResult,
 };
 use crate::infrastructure::backup::cloud_provider::{
-    get_presets, CloudBackupInfo, CloudPreset, CloudProvider,
+    get_presets, CloudBackupInfo, CloudPreset, CloudProvider, CloudSettings,
 };
 use crate::infrastructure::backup::webdav_provider::WebDavProvider;
-use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -35,24 +34,6 @@ impl BackupCommandState {
             encryption_state,
         }
     }
-}
-
-// ---------------------------------------------------------------------------
-// CloudSettings (persisted in DB)
-// ---------------------------------------------------------------------------
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CloudSettings {
-    pub provider: String,
-    pub server_url: Option<String>,
-    pub port: Option<i64>,
-    pub username: Option<String>,
-    pub password: Option<String>,
-    pub remote_path: Option<String>,
-    pub access_token: Option<String>,
-    pub refresh_token: Option<String>,
-    pub auto_upload: Option<String>,
-    pub enabled: Option<bool>,
 }
 
 // ---------------------------------------------------------------------------

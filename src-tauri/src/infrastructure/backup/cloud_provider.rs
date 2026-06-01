@@ -46,6 +46,21 @@ pub struct CloudPreset {
     pub auth_type: &'static str,
 }
 
+/// Persisted cloud storage configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CloudSettings {
+    pub provider: String,
+    pub server_url: Option<String>,
+    pub port: Option<i64>,
+    pub username: Option<String>,
+    pub password: Option<String>,
+    pub remote_path: Option<String>,
+    pub access_token: Option<String>,
+    pub refresh_token: Option<String>,
+    pub auto_upload: Option<String>,
+    pub enabled: Option<bool>,
+}
+
 pub fn get_presets() -> Vec<CloudPreset> {
     vec![
         CloudPreset {
