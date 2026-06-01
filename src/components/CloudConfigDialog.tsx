@@ -255,7 +255,14 @@ export function CloudConfigDialog({ open, onOpenChange }: CloudConfigDialogProps
               {isOAuth && (
                 <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
                   <p className="text-sm text-muted-foreground">{t('backup.oauthInfo')}</p>
-                  <Button type="button" variant="outline" className="w-full">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      toast.info(t('backup.cloudConfigNotImplemented'));
+                    }}
+                  >
                     {t('backup.authorize')}
                   </Button>
                   <p className="text-xs text-muted-foreground">{t('backup.authorizeDesc')}</p>
