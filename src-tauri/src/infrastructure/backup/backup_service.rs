@@ -745,6 +745,31 @@ fn diff_table(local: &[serde_json::Value], backup: &[serde_json::Value]) -> Tabl
 ///
 /// When `id_column` is `None` (e.g. composite-PK tables like `transaction_tags`),
 /// all rows are inserted with `INSERT OR IGNORE` and no existence check is performed.
+/// Sanitize row data to fix known data integrity issues before restore.
+///
+/// Handles cases where the backup contains values that violate CHECK constraints,
+/// e.g., `billing_day = 0` instead of `NULL`.
+fn sanitize_row(table_name: &str, obj: &mut serde_json::Map<String, serde_json::Value>) {
+    if table_name == "accounts" {
+        // billing_day: must be NULL or 1-31
+        if let Some(val) = obj.get("billing_day") {
+            if let Some(n) = val.as_i64() {
+                if !(1..=31).contains(&n) {
+                    obj.insert("billing_day".to_string(), serde_json::Value::Null);
+                }
+            }
+        }
+        // payment_due_day: must be NULL or 1-31
+        if let Some(val) = obj.get("payment_due_day") {
+            if let Some(n) = val.as_i64() {
+                if !(1..=31).contains(&n) {
+                    obj.insert("payment_due_day".to_string(), serde_json::Value::Null);
+                }
+            }
+        }
+    }
+}
+
 async fn restore_table(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     table_name: &str,
@@ -796,12 +821,13 @@ async fn restore_table(
     let mut skipped = 0usize;
 
     for row in backup_rows {
-        let obj = match row.as_object() {
-            Some(o) => o,
+        let mut row_obj = match row.as_object() {
+            Some(o) => o.clone(),
             None => continue,
         };
+        sanitize_row(table_name, &mut row_obj);
 
-        let row_id = match obj.get(id_col).and_then(|v| v.as_str()) {
+        let row_id = match row_obj.get(id_col).and_then(|v| v.as_str()) {
             Some(id) => id.to_string(),
             None => continue,
         };
@@ -810,7 +836,7 @@ async fn restore_table(
 
         match strategy {
             "use_backup" => {
-                upsert_row(tx, table_name, obj).await?;
+                upsert_row(tx, table_name, &row_obj).await?;
                 if exists {
                     updated += 1;
                 } else {
@@ -821,26 +847,26 @@ async fn restore_table(
                 if exists {
                     skipped += 1;
                 } else {
-                    insert_row(tx, table_name, obj).await?;
+                    insert_row(tx, table_name, &row_obj).await?;
                     inserted += 1;
                 }
             }
             _ => {
                 // keep_newer (default)
                 if !exists {
-                    insert_row(tx, table_name, obj).await?;
+                    insert_row(tx, table_name, &row_obj).await?;
                     inserted += 1;
                 } else if no_updated_at {
                     skipped += 1;
                 } else {
                     let local_updated = local_map.get(&row_id).and_then(|u| u.as_deref());
-                    let backup_updated = obj.get("updated_at").and_then(|v| v.as_str());
+                    let backup_updated = row_obj.get("updated_at").and_then(|v| v.as_str());
                     let backup_is_newer = match (local_updated, backup_updated) {
                         (Some(local), Some(backup)) => backup > local,
                         _ => false,
                     };
                     if backup_is_newer {
-                        update_row(tx, table_name, obj, id_col, &row_id).await?;
+                        update_row(tx, table_name, &row_obj, id_col, &row_id).await?;
                         updated += 1;
                     } else {
                         skipped += 1;
