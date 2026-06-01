@@ -83,6 +83,37 @@ pub struct BackupInfo {
     pub on_cloud: bool,
 }
 
+/// Per-table statistics after a restore operation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TableRestoreStats {
+    pub inserted: usize,
+    pub updated: usize,
+    pub skipped: usize,
+}
+
+/// Statistics for all tables after restore.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RestoreTableResult {
+    pub accounts: TableRestoreStats,
+    pub transactions: TableRestoreStats,
+    pub debt_details: TableRestoreStats,
+    pub debt_payment_schedule: TableRestoreStats,
+    pub goals: TableRestoreStats,
+    pub budgets: TableRestoreStats,
+    pub budget_items: TableRestoreStats,
+    pub tags: TableRestoreStats,
+    pub transaction_tags: TableRestoreStats,
+}
+
+/// Result of a restore operation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RestoreResult {
+    /// Filename of the automatic safety backup created before restore.
+    pub safety_backup: String,
+    /// Per-table restore statistics.
+    pub tables: RestoreTableResult,
+}
+
 /// Per-table diff between backup data and current local data.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TableDiff {
