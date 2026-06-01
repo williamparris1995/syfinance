@@ -43,10 +43,17 @@ pub struct BackupFile {
 pub struct BackupData {
     pub accounts: Vec<serde_json::Value>,
     pub transactions: Vec<serde_json::Value>,
-    pub debts: Vec<serde_json::Value>,
+    #[serde(alias = "debts")]
+    pub debt_details: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub debt_payment_schedule: Vec<serde_json::Value>,
     pub goals: Vec<serde_json::Value>,
     pub budgets: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub budget_items: Vec<serde_json::Value>,
     pub tags: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub transaction_tags: Vec<serde_json::Value>,
 }
 
 /// Counts per table + device identifier. Stored unencrypted in the envelope.
@@ -54,10 +61,15 @@ pub struct BackupData {
 pub struct BackupMetadata {
     pub account_count: usize,
     pub transaction_count: usize,
-    pub debt_count: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub debt_count: Option<usize>,
+    pub debt_detail_count: usize,
+    pub debt_payment_count: usize,
     pub goal_count: usize,
     pub budget_count: usize,
+    pub budget_item_count: usize,
     pub tag_count: usize,
+    pub transaction_tag_count: usize,
     pub device_id: String,
 }
 
@@ -81,15 +93,18 @@ pub struct TableDiff {
     pub modified: usize,
 }
 
-/// Aggregate diff across all six tables.
+/// Aggregate diff across all nine tables.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiffSummary {
     pub accounts: TableDiff,
     pub transactions: TableDiff,
-    pub debts: TableDiff,
+    pub debt_details: TableDiff,
+    pub debt_payment_schedule: TableDiff,
     pub goals: TableDiff,
     pub budgets: TableDiff,
+    pub budget_items: TableDiff,
     pub tags: TableDiff,
+    pub transaction_tags: TableDiff,
 }
 
 // ---------------------------------------------------------------------------
@@ -222,10 +237,14 @@ impl BackupService {
         let metadata = BackupMetadata {
             account_count: data.accounts.len(),
             transaction_count: data.transactions.len(),
-            debt_count: data.debts.len(),
+            debt_count: None,
+            debt_detail_count: data.debt_details.len(),
+            debt_payment_count: data.debt_payment_schedule.len(),
             goal_count: data.goals.len(),
             budget_count: data.budgets.len(),
+            budget_item_count: data.budget_items.len(),
             tag_count: data.tags.len(),
+            transaction_tag_count: data.transaction_tags.len(),
             device_id: self.get_device_id(),
         };
 
@@ -407,10 +426,16 @@ impl BackupService {
         Ok(DiffSummary {
             accounts: diff_table(&local.accounts, &backup_data.accounts),
             transactions: diff_table(&local.transactions, &backup_data.transactions),
-            debts: diff_table(&local.debts, &backup_data.debts),
+            debt_details: diff_table(&local.debt_details, &backup_data.debt_details),
+            debt_payment_schedule: diff_table(
+                &local.debt_payment_schedule,
+                &backup_data.debt_payment_schedule,
+            ),
             goals: diff_table(&local.goals, &backup_data.goals),
             budgets: diff_table(&local.budgets, &backup_data.budgets),
+            budget_items: diff_table(&local.budget_items, &backup_data.budget_items),
             tags: diff_table(&local.tags, &backup_data.tags),
+            transaction_tags: diff_table(&local.transaction_tags, &backup_data.transaction_tags),
         })
     }
 
@@ -430,22 +455,28 @@ impl BackupService {
 
     // ----- internal helpers -------------------------------------------------
 
-    /// Query all 6 tables and return rows as JSON values.
+    /// Query all 9 tables and return rows as JSON values.
     async fn query_all_tables(&self) -> Result<BackupData, BackupError> {
         let accounts = self.query_table("accounts").await?;
         let transactions = self.query_table("transactions").await?;
-        let debts = self.query_table("debts").await?;
+        let debt_details = self.query_table("debt_details").await?;
+        let debt_payment_schedule = self.query_table("debt_payment_schedule").await?;
         let goals = self.query_table("goals").await?;
         let budgets = self.query_table("budgets").await?;
+        let budget_items = self.query_table("budget_items").await?;
         let tags = self.query_table("tags").await?;
+        let transaction_tags = self.query_table("transaction_tags").await?;
 
         Ok(BackupData {
             accounts,
             transactions,
-            debts,
+            debt_details,
+            debt_payment_schedule,
             goals,
             budgets,
+            budget_items,
             tags,
+            transaction_tags,
         })
     }
 
