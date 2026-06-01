@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { HardDrive, Cloud, Lock, Plus, Trash2, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { CloudConfigDialog } from '../components/CloudConfigDialog';
 import { RestoreDialog } from '../components/RestoreDialog';
@@ -29,6 +30,7 @@ function formatFileSize(bytes: number): string {
 
 export function BackupPage() {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const {
     backups,
     isLoadingBackups,
@@ -284,6 +286,9 @@ export function BackupPage() {
         open={isRestoreDialogOpen}
         onOpenChange={setIsRestoreDialogOpen}
         filename={restoreFilename}
+        onRestoreComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ['backups'] });
+        }}
       />
     </div>
   );

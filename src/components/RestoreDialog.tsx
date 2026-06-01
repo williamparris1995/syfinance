@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from './ui/table';
-import { getBackupDiff } from '@/lib/tauri/backup';
+import { getBackupDiff, restoreBackup } from '@/lib/tauri/backup';
 import type { DiffSummary, TableDiff } from '@/lib/tauri/backup';
 import { Separator } from './ui/separator';
 
@@ -29,19 +29,23 @@ type ConflictStrategy = 'keep_newer' | 'use_backup' | 'keep_local';
 const TABLE_KEYS = [
   { key: 'accounts', labelKey: 'backup.tableAccounts' },
   { key: 'transactions', labelKey: 'backup.tableTransactions' },
-  { key: 'debts', labelKey: 'backup.tableDebts' },
+  { key: 'debt_details', labelKey: 'backup.tableDebtDetails' },
+  { key: 'debt_payment_schedule', labelKey: 'backup.tableDebtPaymentSchedule' },
   { key: 'goals', labelKey: 'backup.tableGoals' },
   { key: 'budgets', labelKey: 'backup.tableBudgets' },
+  { key: 'budget_items', labelKey: 'backup.tableBudgetItems' },
   { key: 'tags', labelKey: 'backup.tableTags' },
+  { key: 'transaction_tags', labelKey: 'backup.tableTransactionTags' },
 ] as const;
 
 interface RestoreDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   filename: string;
+  onRestoreComplete?: () => void;
 }
 
-export function RestoreDialog({ open, onOpenChange, filename }: RestoreDialogProps) {
+export function RestoreDialog({ open, onOpenChange, filename, onRestoreComplete }: RestoreDialogProps) {
   const { t } = useTranslation();
   const [diff, setDiff] = useState<DiffSummary | null>(null);
   const [isLoadingDiff, setIsLoadingDiff] = useState(false);
@@ -74,11 +78,30 @@ export function RestoreDialog({ open, onOpenChange, filename }: RestoreDialogPro
   const handleRestore = async () => {
     setIsRestoring(true);
     try {
-      // Restore not yet implemented on backend — placeholder
-      toast.info(t('backup.restoreNotImplemented'));
+      const result = await restoreBackup(filename, strategy);
+
+      const totalInserted = Object.values(result.tables).reduce((sum, t) => sum + t.inserted, 0);
+      const totalUpdated = Object.values(result.tables).reduce((sum, t) => sum + t.updated, 0);
+      const totalSkipped = Object.values(result.tables).reduce((sum, t) => sum + t.skipped, 0);
+
+      toast.success(t('backup.restoreSuccess'), {
+        description: t('backup.restoreStats', {
+          inserted: totalInserted,
+          updated: totalUpdated,
+          skipped: totalSkipped,
+          safety: result.safety_backup,
+        }),
+        duration: 8000,
+      });
+
+      onRestoreComplete?.();
+      handleOpenChange(false);
+    } catch (error) {
+      toast.error(t('backup.restoreFailed'), {
+        description: error instanceof Error ? error.message : undefined,
+      });
     } finally {
       setIsRestoring(false);
-      handleOpenChange(false);
     }
   };
 

@@ -2,7 +2,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   createBackup, listBackups, getCloudPresets, getCloudSettings,
   saveCloudSettings, testCloudConnection, uploadToCloud, deleteBackup,
+  restoreBackup,
   type BackupInfo, type CloudPreset, type CloudSettings,
+  type RestoreResult,
 } from '../lib/tauri/backup';
 
 export function useBackup() {
@@ -47,6 +49,12 @@ export function useBackup() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['backups'] }),
   });
 
+  const restoreBackupMutation = useMutation({
+    mutationFn: ({ filename, strategy }: { filename: string; strategy: 'keep_newer' | 'use_backup' | 'keep_local' }) =>
+      restoreBackup(filename, strategy),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['backups'] }),
+  });
+
   return {
     backups: backupsQuery.data ?? [],
     isLoadingBackups: backupsQuery.isLoading,
@@ -63,5 +71,7 @@ export function useBackup() {
     isTestingConnection: testConnectionMutation.isPending,
     uploadToCloud: uploadToCloudMutation.mutateAsync,
     isUploading: uploadToCloudMutation.isPending,
+    restoreBackup: restoreBackupMutation.mutateAsync,
+    isRestoringBackup: restoreBackupMutation.isPending,
   };
 }
