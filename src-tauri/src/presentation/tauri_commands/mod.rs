@@ -1,6 +1,7 @@
 pub mod account_commands;
 pub mod backup_commands;
 pub mod budget_commands;
+pub mod cloud_sync_commands;
 pub mod currency_commands;
 pub mod debt_commands;
 pub mod encryption_commands;
@@ -26,6 +27,10 @@ pub use backup_commands::{
 pub use budget_commands::{
     add_budget_item, create_budget, delete_budget, get_budget, get_budget_by_month, list_budgets,
     remove_budget_item, BudgetCommandState,
+};
+pub use cloud_sync_commands::{
+    cloud_sync_now, create_cloud_sync_state, get_cloud_sync_settings, get_cloud_sync_status,
+    update_cloud_sync_settings, CloudSyncCommandState,
 };
 pub use currency_commands::{
     add_currency, create_default_state as create_currency_default_state, list_currencies,

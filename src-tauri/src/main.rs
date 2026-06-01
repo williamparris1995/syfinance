@@ -27,6 +27,10 @@ use presentation::tauri_commands::{
         get_cloud_presets, get_cloud_settings, list_backups, list_cloud_backups, restore_backup,
         save_cloud_settings, test_cloud_connection, upload_to_cloud, BackupCommandState,
     },
+    cloud_sync_commands::{
+        cloud_sync_now, create_cloud_sync_state, get_cloud_sync_settings, get_cloud_sync_status,
+        update_cloud_sync_settings, CloudSyncCommandState,
+    },
     currency_commands::{
         add_currency, create_default_state_from_pool as create_currency_default_state_from_pool,
         list_currencies, update_currency_rate, CurrencyCommandState,
@@ -186,8 +190,14 @@ async fn main() {
     let search_state = create_search_default_state(pool.clone());
     let export_state = create_export_default_state(pool.clone());
     let encryption_state = create_encryption_default_state(pool.clone());
+    let encryption_service = encryption_state.service.clone();
     let sync_state = create_sync_default_state();
     let backup_state = create_backup_state(
+        pool.clone(),
+        app_dir.join("backups"),
+        encryption_state.service.clone(),
+    );
+    let cloud_sync_state = create_cloud_sync_state(
         pool.clone(),
         app_dir.join("backups"),
         encryption_state.service.clone(),
@@ -221,6 +231,7 @@ async fn main() {
         .manage(export_state)
         .manage(encryption_state)
         .manage(backup_state)
+        .manage(cloud_sync_state)
         .invoke_handler(tauri::generate_handler![
             create_account,
             update_account,
@@ -310,7 +321,11 @@ async fn main() {
             sync_from_server,
             get_sync_status,
             update_sync_settings,
-            get_sync_settings
+            get_sync_settings,
+            cloud_sync_now,
+            get_cloud_sync_status,
+            update_cloud_sync_settings,
+            get_cloud_sync_settings
         ])
         .setup(move |app| {
             // Start background sync scheduler
@@ -362,6 +377,26 @@ async fn main() {
                 }
             });
             info!("Subscription scheduler started (checking every 5 minutes)");
+
+            // Start cloud sync scheduler
+            {
+                let cloud_pool = pool.clone();
+                let cloud_backup_dir = app_dir.join("backups");
+                let svc = Arc::new(
+                    crate::infrastructure::sync::cloud_sync_service::CloudSyncService::new(
+                        cloud_pool,
+                        cloud_backup_dir,
+                        encryption_service.clone(),
+                    ),
+                );
+                let scheduler = Arc::new(
+                    crate::infrastructure::sync::cloud_sync_scheduler::CloudSyncScheduler::new(
+                        app.handle().clone(),
+                        svc,
+                    ),
+                );
+                scheduler.start();
+            }
 
             Ok(())
         })
