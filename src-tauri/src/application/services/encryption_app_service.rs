@@ -30,6 +30,8 @@ pub struct EncryptionAppService {
 }
 
 impl EncryptionAppService {
+    const VERIFICATION_PAYLOAD: &str = "finance-app-encryption-verified-2026";
+
     pub fn new(pool: SqlitePool) -> Self {
         Self {
             pool,
@@ -76,21 +78,46 @@ impl EncryptionAppService {
             .map_err(|e| EncryptionAppError::KeychainError(e.to_string()))?;
 
         *self.service.lock().unwrap() = Some(service);
+
+        // Store verification token for password verification on unlock
+        let verification_token = self
+            .service
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .encrypt_to_hex(Self::VERIFICATION_PAYLOAD)
+            .map_err(EncryptionAppError::EncryptionError)?;
+
+        sqlx::query("UPDATE encryption_settings SET verification_token = ?")
+            .bind(&verification_token)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| EncryptionAppError::DatabaseError(e.to_string()))?;
+
         Ok(())
     }
 
     pub async fn unlock(&self, password: &str) -> Result<(), EncryptionAppError> {
-        let row = sqlx::query_as::<_, (String,)>("SELECT salt FROM encryption_settings LIMIT 1")
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(|e| EncryptionAppError::DatabaseError(e.to_string()))?
-            .ok_or(EncryptionAppError::NotEnabled)?;
+        let row = sqlx::query_as::<_, (String, Option<String>)>(
+            "SELECT salt, verification_token FROM encryption_settings LIMIT 1",
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| EncryptionAppError::DatabaseError(e.to_string()))?
+        .ok_or(EncryptionAppError::NotEnabled)?;
 
         let salt = hex::decode(&row.0)
             .map_err(|e| EncryptionAppError::DatabaseError(format!("invalid salt: {}", e)))?;
         let service = EncryptionService::from_password(password, &salt)?;
 
-        // Verify by checking keychain or trying to encrypt/decrypt
+        // Verify password by decrypting the verification token
+        if let Some(token) = row.1 {
+            service
+                .decrypt_from_hex(&token)
+                .map_err(|_| EncryptionAppError::InvalidPassword)?;
+        }
+
         *self.service.lock().unwrap() = Some(service);
         Ok(())
     }
