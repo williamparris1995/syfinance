@@ -924,6 +924,13 @@
     "restoreWarning": "This action will modify your data",
     "restoreWarningDesc": "It is recommended to create a backup before restoring. This operation cannot be undone.",
     "startRestore": "Start Restore",
-    "restoring": "Restoring..."
+    "restoring": "Restoring...",
+      "restoreSuccess": "Backup restored successfully",
+      "restoreFailed": "Failed to restore backup",
+      "restoreStats": "Inserted: {{inserted}}, Updated: {{updated}}, Skipped: {{skipped}}. Safety backup: {{safety}}",
+      "tableDebtDetails": "Debt Details",
+      "tableDebtPaymentSchedule": "Debt Payments",
+      "tableBudgetItems": "Budget Items",
+      "tableTransactionTags": "Transaction Tags"
   }
 }
