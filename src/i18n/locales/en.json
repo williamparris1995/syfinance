@@ -932,5 +932,30 @@
       "tableDebtPaymentSchedule": "Debt Payments",
       "tableBudgetItems": "Budget Items",
       "tableTransactionTags": "Transaction Tags"
+  },
+  "cloudSync": {
+    "title": "Cloud Sync",
+    "description": "Automatically backup and sync to your cloud storage",
+    "enableAutoSync": "Enable Auto Sync",
+    "autoSyncDesc": "Periodically create a backup and upload to cloud",
+    "interval": "Sync Interval",
+    "every30Minutes": "Every 30 minutes",
+    "everyHour": "Every hour",
+    "every2Hours": "Every 2 hours",
+    "every6Hours": "Every 6 hours",
+    "syncNow": "Sync Now",
+    "syncing": "Syncing...",
+    "lastSynced": "Last synced",
+    "notSynced": "Never synced",
+    "notConfigured": "Cloud storage not configured. Configure it in Backup settings above.",
+    "syncComplete": "Backup uploaded to cloud",
+    "syncCompleteWithRestore": "Backup uploaded and cloud data restored",
+    "syncFailed": "Sync failed",
+    "success": "Success",
+    "failed": "Failed",
+    "never": "Never",
+    "ago": "ago",
+    "statusLabel": "Status",
+    "lastSync": "Last Sync"
   }
 }

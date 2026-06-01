@@ -974,5 +974,30 @@
       "tableDebtPaymentSchedule": "还款计划",
       "tableBudgetItems": "预算项目",
       "tableTransactionTags": "交易标签"
+  },
+  "cloudSync": {
+    "title": "云端同步",
+    "description": "自动备份并同步到您的云端存储",
+    "enableAutoSync": "启用自动同步",
+    "autoSyncDesc": "定期创建备份并上传到云端",
+    "interval": "同步间隔",
+    "every30Minutes": "每30分钟",
+    "everyHour": "每小时",
+    "every2Hours": "每2小时",
+    "every6Hours": "每6小时",
+    "syncNow": "立即同步",
+    "syncing": "同步中...",
+    "lastSynced": "上次同步",
+    "notSynced": "从未同步",
+    "notConfigured": "未配置云存储。请先在上方备份设置中配置。",
+    "syncComplete": "备份已上传到云端",
+    "syncCompleteWithRestore": "备份已上传，云端数据已恢复",
+    "syncFailed": "同步失败",
+    "success": "成功",
+    "failed": "失败",
+    "never": "从未",
+    "ago": "前",
+    "statusLabel": "状态",
+    "lastSync": "上次同步"
   }
 }
