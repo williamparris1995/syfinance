@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sqlx::{Column, Row, SqlitePool};
 use tauri::State;
 
@@ -112,5 +112,105 @@ pub async fn export_all_data(
         budgets,
         tags,
         exported_at: chrono::Utc::now().to_rfc3339(),
+    })
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExportCsvResult {
+    pub file_path: String,
+    pub rows_exported: usize,
+}
+
+#[tauri::command]
+pub async fn export_csv(
+    state: State<'_, ExportCommandState>,
+    app: tauri::AppHandle,
+) -> Result<ExportCsvResult, String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let (tx, rx) = tokio::sync::oneshot::channel::<Option<String>>();
+
+    app.dialog()
+        .file()
+        .set_title("Export CSV")
+        .set_file_name("finance-export.csv")
+        .add_filter("CSV", &["csv"])
+        .save_file(move |path: Option<tauri_plugin_dialog::FilePath>| {
+            let _ = tx.send(path.map(|p| {
+                match p {
+                    tauri_plugin_dialog::FilePath::Path(p) => p.to_string_lossy().to_string(),
+                    tauri_plugin_dialog::FilePath::Url(u) => u.to_string(),
+                }
+            }));
+        });
+
+    let file_path = rx
+        .await
+        .map_err(|e| format!("Dialog error: {}", e))?
+        .ok_or_else(|| "Export cancelled".to_string())?;
+
+    tracing::info!(file_path = %file_path, "Exporting CSV");
+
+    let mut wtr = csv::Writer::from_path(&file_path)
+        .map_err(|e| format!("Failed to create CSV: {}", e))?;
+
+    wtr.write_record(&["table", "id", "field", "value"])
+        .map_err(|e| format!("CSV write error: {}", e))?;
+
+    let tables = [
+        "accounts",
+        "transactions",
+        "transaction_entries",
+        "debt_details",
+        "debt_payment_schedule",
+        "goals",
+        "budgets",
+        "budget_items",
+        "tags",
+        "transaction_tags",
+    ];
+
+    let mut total_rows = 0usize;
+
+    for table in &tables {
+        let rows: Vec<serde_json::Value> =
+            sqlx::query(&format!("SELECT * FROM {}", table))
+                .fetch_all(&state.pool)
+                .await
+                .map_err(|e| format!("Query {} failed: {}", table, e))?
+                .into_iter()
+                .map(|row| row_to_json(&row))
+                .collect();
+
+        for row in &rows {
+            if let Some(obj) = row.as_object() {
+                let id = obj
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown");
+                for (key, value) in obj {
+                    if key == "id" {
+                        continue;
+                    }
+                    let val_str = match value {
+                        serde_json::Value::Null => String::new(),
+                        serde_json::Value::String(s) => s.clone(),
+                        other => other.to_string(),
+                    };
+                    wtr.write_record(&[table, id, key, &val_str])
+                        .map_err(|e| format!("CSV write error: {}", e))?;
+                    total_rows += 1;
+                }
+            }
+        }
+    }
+
+    wtr.flush().map_err(|e| format!("CSV flush error: {}", e))?;
+
+    tracing::info!(file_path = %file_path, rows = total_rows, "CSV export complete");
+
+    Ok(ExportCsvResult {
+        file_path,
+        rows_exported: total_rows,
     })
 }

@@ -548,7 +548,12 @@
     "disableEncryption": "Disable Encryption",
     "disableEncryptionWarning": "This will remove encryption. Your data will be stored in plain text.",
     "enterPassword": "Enter password",
-    "confirmPassword": "Confirm password"
+    "confirmPassword": "Confirm password",
+    "dataExport": "Data Export",
+    "dataExportDesc": "Export your financial data to CSV format",
+    "exportCsv": "Export to CSV",
+    "exportSuccess": "Exported {{rows}} rows successfully",
+    "exportError": "Export failed"
   },
   "onboarding": {
     "welcome": "Welcome to Finance App",

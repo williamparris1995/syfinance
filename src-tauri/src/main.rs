@@ -49,7 +49,7 @@ use presentation::tauri_commands::{
         lock_encryption, setup_encryption, unlock_encryption, unlock_encryption_keychain,
         EncryptionCommandState,
     },
-    export_commands::{create_export_default_state, export_all_data, ExportCommandState},
+    export_commands::{create_export_default_state, export_all_data, export_csv, ExportCommandState},
     goal_commands::{
         complete_goal, create_default_state_from_pool as create_goal_default_state_from_pool,
         create_goal, delete_goal, get_goal, list_goals, update_goal, update_goal_progress,
@@ -223,6 +223,7 @@ async fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_store::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init())
         .manage(account_state)
         .manage(budget_state)
         .manage(debt_state)
@@ -313,6 +314,7 @@ async fn main() {
             get_transaction_tags,
             global_search,
             export_all_data,
+            export_csv,
             get_encryption_status,
             setup_encryption,
             unlock_encryption,

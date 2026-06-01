@@ -4,6 +4,7 @@ import { Copy, CheckCircle2, Link as LinkIcon } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { z } from 'zod';
 import { listen } from '@tauri-apps/api/event';
 import { CurrencyForm } from '../components/CurrencyForm';
@@ -60,6 +61,7 @@ import { getAccountId, linkDevice } from '../lib/auth';
 import { updateSyncSettings, getSyncSettings } from '../lib/tauri/sync';
 import { useEncryption } from '../hooks/useEncryption';
 import { useCloudSyncStatus, useCloudSyncNow, useUpdateCloudSyncSettings, useCloudSyncSettings } from '@/hooks/useCloudSync';
+import { exportCsv } from '@/lib/tauri/export';
 
 interface SyncEvent {
   status: 'started' | 'completed' | 'failed';
@@ -271,6 +273,16 @@ export function SettingsPage() {
       await navigator.clipboard.writeText(accountId);
       setCopiedAccountId(true);
       setTimeout(() => setCopiedAccountId(false), 2000);
+    }
+  };
+
+  const handleExportCsv = async () => {
+    try {
+      const result = await exportCsv();
+      toast.success(t('settings.exportSuccess', { rows: result.rows_exported }));
+    } catch (err) {
+      if (String(err).includes('cancelled')) return;
+      toast.error(t('settings.exportError'));
     }
   };
 
@@ -519,6 +531,21 @@ export function SettingsPage() {
 
       {/* Encryption Settings Section */}
       <EncryptionSection />
+
+      {/* Data Export Section */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>{t('settings.dataExport')}</CardTitle>
+          <CardDescription>
+            {t('settings.dataExportDesc')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={handleExportCsv} variant="outline">
+            {t('settings.exportCsv')}
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Currency Settings Section */}
       <div className="flex items-center justify-between mb-4">

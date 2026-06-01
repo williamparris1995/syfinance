@@ -10,4 +10,11 @@ export interface ExportDataDto {
   exported_at: string;
 }
 
+export interface ExportCsvResult {
+  file_path: string;
+  rows_exported: number;
+}
+
 export const exportAllData = () => invokeTauri<ExportDataDto>('export_all_data');
+
+export const exportCsv = () => invokeTauri<ExportCsvResult>('export_csv');
