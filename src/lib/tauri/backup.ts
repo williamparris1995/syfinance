@@ -1,18 +1,24 @@
 import { invokeTauri } from '../tauri';
 
+export interface BackupMetadata {
+  device_id: string;
+  account_count: number;
+  transaction_count: number;
+  debt_count?: number;
+  debt_detail_count: number;
+  debt_payment_count: number;
+  goal_count: number;
+  budget_count: number;
+  budget_item_count: number;
+  tag_count: number;
+  transaction_tag_count: number;
+}
+
 export interface BackupInfo {
   filename: string;
   file_size: number;
   created_at: string;
-  metadata: {
-    device_id: string;
-    account_count: number;
-    transaction_count: number;
-    debt_count: number;
-    goal_count: number;
-    budget_count: number;
-    tag_count: number;
-  } | null;
+  metadata: BackupMetadata | null;
   on_cloud: boolean;
 }
 
@@ -22,18 +28,20 @@ export interface BackupFile {
   compressed: boolean;
   salt: string;
   data: string;
-  created_at: string;
   checksum: string;
-  metadata: BackupInfo['metadata'];
+  metadata: BackupMetadata | null;
 }
 
 export interface DiffSummary {
   accounts: TableDiff;
   transactions: TableDiff;
-  debts: TableDiff;
+  debt_details: TableDiff;
+  debt_payment_schedule: TableDiff;
   goals: TableDiff;
   budgets: TableDiff;
+  budget_items: TableDiff;
   tags: TableDiff;
+  transaction_tags: TableDiff;
 }
 
 export interface TableDiff {
@@ -105,3 +113,19 @@ export const uploadToCloud = (filename: string) =>
 
 export const listCloudBackups = () =>
   invokeTauri<CloudBackupInfo[]>('list_cloud_backups');
+
+export interface TableRestoreStats {
+  inserted: number;
+  updated: number;
+  skipped: number;
+}
+
+export interface RestoreResult {
+  safety_backup: string;
+  tables: Record<string, TableRestoreStats>;
+}
+
+export const restoreBackup = (
+  filename: string,
+  strategy: 'keep_newer' | 'use_backup' | 'keep_local',
+) => invokeTauri<RestoreResult>('restore_backup', { filename, strategy });
