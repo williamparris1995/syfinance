@@ -24,9 +24,10 @@ use presentation::tauri_commands::{
         list_accounts_with_balances, setup_preset_investment_accounts, update_account, AppState,
     },
     backup_commands::{
-        create_backup, create_backup_state, delete_backup, get_backup_diff, get_backup_metadata,
-        get_cloud_presets, get_cloud_settings, list_backups, list_cloud_backups, restore_backup,
-        save_cloud_settings, test_cloud_connection, upload_to_cloud, BackupCommandState,
+        authorize_cloud_provider, create_backup, create_backup_state, delete_backup,
+        get_backup_diff, get_backup_metadata, get_cloud_presets, get_cloud_settings, list_backups,
+        list_cloud_backups, restore_backup, save_cloud_settings, test_cloud_connection,
+        upload_to_cloud, BackupCommandState,
     },
     budget_commands::{
         add_budget_item, clone_budget_to_month, compute_budget_actuals, create_budget,
@@ -374,6 +375,7 @@ async fn main() {
             test_cloud_connection,
             upload_to_cloud,
             list_cloud_backups,
+            authorize_cloud_provider,
             sync_to_server,
             sync_from_server,
             get_sync_status,

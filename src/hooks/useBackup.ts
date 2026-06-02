@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   createBackup, listBackups, getCloudPresets, getCloudSettings,
   saveCloudSettings, testCloudConnection, uploadToCloud, deleteBackup,
-  restoreBackup,
+  restoreBackup, authorizeCloudProvider,
   type BackupInfo, type CloudPreset, type CloudSettings,
 } from '../lib/tauri/backup';
 
@@ -54,6 +54,14 @@ export function useBackup() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['backups'] }),
   });
 
+  const authorizeCloudProviderMutation = useMutation({
+    mutationFn: ({ provider, clientId }: { provider: string; clientId: string }) =>
+      authorizeCloudProvider(provider, clientId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cloud-settings'] });
+    },
+  });
+
   return {
     backups: backupsQuery.data ?? [],
     isLoadingBackups: backupsQuery.isLoading,
@@ -72,5 +80,7 @@ export function useBackup() {
     isUploading: uploadToCloudMutation.isPending,
     restoreBackup: restoreBackupMutation.mutateAsync,
     isRestoringBackup: restoreBackupMutation.isPending,
+    authorizeCloudProvider: authorizeCloudProviderMutation.mutateAsync,
+    isAuthorizing: authorizeCloudProviderMutation.isPending,
   };
 }

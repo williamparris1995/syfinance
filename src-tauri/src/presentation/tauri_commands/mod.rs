@@ -22,9 +22,9 @@ pub use account_commands::{
     list_accounts_by_ownership, list_accounts_with_balances, update_account, AppState,
 };
 pub use backup_commands::{
-    create_backup, create_backup_state, delete_backup, get_backup_diff, get_backup_metadata,
-    get_cloud_presets, get_cloud_settings, list_backups, list_cloud_backups, save_cloud_settings,
-    test_cloud_connection, upload_to_cloud, BackupCommandState,
+    authorize_cloud_provider, create_backup, create_backup_state, delete_backup, get_backup_diff,
+    get_backup_metadata, get_cloud_presets, get_cloud_settings, list_backups, list_cloud_backups,
+    save_cloud_settings, test_cloud_connection, upload_to_cloud, BackupCommandState,
 };
 pub use budget_commands::{
     add_budget_item, compute_budget_actuals, create_budget, delete_budget, get_budget,

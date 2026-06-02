@@ -30,6 +30,12 @@ const PROVIDER_ICONS: Record<string, string> = {
 const WEBDAV_PROVIDERS = new Set(['webdav', 'nextcloud', 'synology', 'jianguoyun', 'box']);
 const OAUTH_PROVIDERS = new Set(['dropbox', 'google_drive', 'onedrive']);
 
+const OAUTH_CLIENT_IDS: Record<string, string> = {
+  dropbox: '',
+  google_drive: '',
+  onedrive: '',
+};
+
 interface CloudConfigDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -44,6 +50,8 @@ export function CloudConfigDialog({ open, onOpenChange }: CloudConfigDialogProps
     isSavingCloudSettings,
     testConnection,
     isTestingConnection,
+    authorizeCloudProvider,
+    isAuthorizing,
   } = useBackup();
 
   const [selectedProvider, setSelectedProvider] = useState('');
@@ -55,6 +63,8 @@ export function CloudConfigDialog({ open, onOpenChange }: CloudConfigDialogProps
   const [remotePath, setRemotePath] = useState('/finance-app/backups/');
   const [autoUpload, setAutoUpload] = useState('after_each');
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [clientId, setClientId] = useState('');
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
   const isWebDav = WEBDAV_PROVIDERS.has(selectedProvider);
   const isOAuth = OAUTH_PROVIDERS.has(selectedProvider);
@@ -69,6 +79,8 @@ export function CloudConfigDialog({ open, onOpenChange }: CloudConfigDialogProps
     setRemotePath('/finance-app/backups/');
     setAutoUpload('after_each');
     setConnectionStatus('idle');
+    setClientId('');
+    setIsAuthorized(false);
   }, []);
 
   // Populate form from existing cloud settings when dialog opens
@@ -83,6 +95,16 @@ export function CloudConfigDialog({ open, onOpenChange }: CloudConfigDialogProps
       setRemotePath(cloudSettings.remote_path || '/finance-app/backups/');
       setAutoUpload(cloudSettings.auto_upload || 'after_each');
       setConnectionStatus('idle');
+
+      // Check OAuth authorization status
+      const oauthProvider = OAUTH_PROVIDERS.has(cloudSettings.provider);
+      if (oauthProvider) {
+        setIsAuthorized(!!cloudSettings.access_token);
+        setClientId(cloudSettings.username || OAUTH_CLIENT_IDS[cloudSettings.provider] || '');
+      } else {
+        setIsAuthorized(false);
+        setClientId('');
+      }
     } else if (open && !cloudSettings) {
       resetForm();
     }
@@ -97,13 +119,18 @@ export function CloudConfigDialog({ open, onOpenChange }: CloudConfigDialogProps
       setPort(preset.default_port?.toString() || '');
       setUseHttps(preset.use_https);
     }
+    // Reset OAuth state when provider changes
+    if (OAUTH_PROVIDERS.has(selectedProvider)) {
+      setIsAuthorized(false);
+      setClientId(OAUTH_CLIENT_IDS[selectedProvider] || '');
+    }
   }, [selectedProvider, cloudPresets]);
 
   const buildSettings = (): CloudSettings => ({
     provider: selectedProvider,
     server_url: serverUrl,
     port: port ? parseInt(port, 10) : undefined,
-    username,
+    username: isOAuth ? clientId : username,
     password,
     remote_path: remotePath,
     auto_upload: autoUpload,
@@ -119,6 +146,23 @@ export function CloudConfigDialog({ open, onOpenChange }: CloudConfigDialogProps
     } catch (error) {
       setConnectionStatus('error');
       toast.error(t('backup.connectionError'), {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    }
+  };
+
+  const handleAuthorize = async () => {
+    if (!clientId.trim()) {
+      toast.error(t('backup.clientIdRequired'));
+      return;
+    }
+    try {
+      await authorizeCloudProvider({ provider: selectedProvider, clientId: clientId.trim() });
+      setIsAuthorized(true);
+      toast.success(t('backup.authorizationSuccess'));
+    } catch (error) {
+      setIsAuthorized(false);
+      toast.error(t('backup.authorizationFailed'), {
         description: error instanceof Error ? error.message : undefined,
       });
     }
@@ -255,16 +299,37 @@ export function CloudConfigDialog({ open, onOpenChange }: CloudConfigDialogProps
               {isOAuth && (
                 <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
                   <p className="text-sm text-muted-foreground">{t('backup.oauthInfo')}</p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => {
-                      toast.info(t('backup.cloudConfigNotImplemented'));
-                    }}
-                  >
-                    {t('backup.authorize')}
-                  </Button>
+
+                  {/* Client ID input */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                      {t('backup.clientId')}
+                    </Label>
+                    <Input
+                      value={clientId}
+                      onChange={(e) => setClientId(e.target.value)}
+                      placeholder={t('backup.clientIdPlaceholder')}
+                      disabled={isAuthorizing}
+                    />
+                    <p className="text-xs text-muted-foreground">{t('backup.clientIdHelp')}</p>
+                  </div>
+
+                  {/* Authorization status + button */}
+                  <div className="flex items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={handleAuthorize}
+                      disabled={isAuthorizing || !clientId.trim()}
+                    >
+                      {isAuthorizing ? t('backup.authorizing') : t('backup.authorize')}
+                    </Button>
+                    <Badge variant={isAuthorized ? 'default' : 'secondary'}>
+                      {isAuthorized ? t('backup.connected') : t('backup.disconnected')}
+                    </Badge>
+                  </div>
+
                   <p className="text-xs text-muted-foreground">{t('backup.authorizeDesc')}</p>
                 </div>
               )}
@@ -321,7 +386,7 @@ export function CloudConfigDialog({ open, onOpenChange }: CloudConfigDialogProps
               type="button"
               variant="outline"
               onClick={handleTestConnection}
-              disabled={isTestingConnection}
+              disabled={isTestingConnection || (isOAuth && !isAuthorized)}
             >
               {isTestingConnection ? t('backup.testing') : t('backup.testConnection')}
             </Button>
@@ -336,7 +401,7 @@ export function CloudConfigDialog({ open, onOpenChange }: CloudConfigDialogProps
           <Button
             type="button"
             onClick={handleSave}
-            disabled={!selectedProvider || isSavingCloudSettings}
+            disabled={!selectedProvider || isSavingCloudSettings || (isOAuth && !isAuthorized)}
           >
             {isSavingCloudSettings ? t('backup.saving') : t('common.save')}
           </Button>

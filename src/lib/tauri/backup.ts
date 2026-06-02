@@ -114,6 +114,9 @@ export const uploadToCloud = (filename: string) =>
 export const listCloudBackups = () =>
   invokeTauri<CloudBackupInfo[]>('list_cloud_backups');
 
+export const authorizeCloudProvider = (provider: string, clientId: string) =>
+  invokeTauri<CloudSettings>('authorize_cloud_provider', { provider, clientId });
+
 export interface TableRestoreStats {
   inserted: number;
   updated: number;

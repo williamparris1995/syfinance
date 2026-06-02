@@ -5,7 +5,7 @@ use crate::infrastructure::backup::backup_service::{
 use crate::infrastructure::backup::cloud_provider::{
     get_presets, CloudBackupInfo, CloudPreset, CloudProvider, CloudSettings,
 };
-use crate::infrastructure::backup::webdav_provider::WebDavProvider;
+use crate::infrastructure::backup::oauth;
 use sqlx::SqlitePool;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -251,15 +251,8 @@ pub async fn save_cloud_settings(
 
 #[tauri::command]
 pub async fn test_cloud_connection(settings: CloudSettings) -> Result<(), String> {
-    // Check if this is an OAuth provider (not yet supported)
-    let oauth_providers = ["dropbox", "google_drive", "onedrive"];
-    if oauth_providers.contains(&settings.provider.as_str()) {
-        return Err(
-            "OAuth providers are not yet supported. Please use a WebDAV provider.".to_string(),
-        );
-    }
-
-    let provider = build_webdav_provider(&settings)?;
+    let provider = crate::infrastructure::backup::build_cloud_provider(&settings)
+        .map_err(|e| format!("cloud provider not configured: {e}"))?;
     provider
         .test_connection()
         .await
@@ -275,15 +268,8 @@ pub async fn upload_to_cloud(
         .await?
         .ok_or_else(|| "cloud not configured".to_string())?;
 
-    // Check if this is an OAuth provider (not yet supported)
-    let oauth_providers = ["dropbox", "google_drive", "onedrive"];
-    if oauth_providers.contains(&cloud_settings.provider.as_str()) {
-        return Err(
-            "OAuth providers are not yet supported. Please use a WebDAV provider.".to_string(),
-        );
-    }
-
-    let provider = build_webdav_provider(&cloud_settings)?;
+    let provider = crate::infrastructure::backup::build_cloud_provider(&cloud_settings)
+        .map_err(|e| format!("cloud provider not configured: {e}"))?;
     let local_path = state.backup_dir.join(&filename);
 
     if !local_path.exists() {
@@ -307,15 +293,8 @@ pub async fn list_cloud_backups(
         .await?
         .ok_or_else(|| "cloud not configured".to_string())?;
 
-    // Check if this is an OAuth provider (not yet supported)
-    let oauth_providers = ["dropbox", "google_drive", "onedrive"];
-    if oauth_providers.contains(&cloud_settings.provider.as_str()) {
-        return Err(
-            "OAuth providers are not yet supported. Please use a WebDAV provider.".to_string(),
-        );
-    }
-
-    let provider = build_webdav_provider(&cloud_settings)?;
+    let provider = crate::infrastructure::backup::build_cloud_provider(&cloud_settings)
+        .map_err(|e| format!("cloud provider not configured: {e}"))?;
     provider
         .list_backups()
         .await
@@ -326,30 +305,72 @@ pub async fn list_cloud_backups(
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn build_webdav_provider(settings: &CloudSettings) -> Result<WebDavProvider, String> {
-    let base_url = settings
-        .server_url
-        .clone()
-        .ok_or_else(|| "server_url is required".to_string())?;
-    let username = settings
-        .username
-        .clone()
-        .ok_or_else(|| "username is required".to_string())?;
-    let password = settings
-        .password
-        .clone()
-        .ok_or_else(|| "password is required".to_string())?;
-    let remote_path = settings
-        .remote_path
-        .clone()
-        .unwrap_or_else(|| "backups".to_string());
+#[tauri::command]
+pub async fn authorize_cloud_provider(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, BackupCommandState>,
+    provider: String,
+    client_id: String,
+) -> Result<CloudSettings, String> {
+    let oauth_providers = ["dropbox", "google_drive", "onedrive"];
+    if !oauth_providers.contains(&provider.as_str()) {
+        return Err(format!("provider '{provider}' does not support OAuth"));
+    }
 
-    Ok(WebDavProvider::new(
-        base_url,
-        username,
-        password,
-        remote_path,
-    ))
+    if client_id.trim().is_empty() {
+        return Err("client_id is required for OAuth authorization".to_string());
+    }
+
+    info!(provider = %provider, "starting OAuth authorization flow");
+
+    let config = oauth::get_oauth_config(&provider, &client_id, None);
+
+    let tokens = oauth::authorize_with_pkce(&config, &app_handle).await?;
+
+    info!(provider = %provider, "OAuth authorization successful, saving tokens");
+
+    // Save tokens to cloud_settings
+    let settings = CloudSettings {
+        provider: provider.clone(),
+        server_url: None,
+        port: None,
+        username: Some(client_id),
+        password: None,
+        remote_path: None,
+        access_token: Some(tokens.access_token),
+        refresh_token: tokens.refresh_token,
+        auto_upload: None,
+        enabled: Some(true),
+    };
+
+    // Persist tokens
+    sqlx::query("DELETE FROM cloud_settings")
+        .execute(&state.pool)
+        .await
+        .map_err(|e| format!("failed to clear cloud settings: {e}"))?;
+
+    sqlx::query(
+        "INSERT INTO cloud_settings \
+         (provider, server_url, port, username, password, remote_path, \
+          access_token, refresh_token, auto_upload, enabled) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(&settings.provider)
+    .bind(&settings.server_url)
+    .bind(settings.port)
+    .bind(&settings.username)
+    .bind(&settings.password)
+    .bind(&settings.remote_path)
+    .bind(&settings.access_token)
+    .bind(&settings.refresh_token)
+    .bind(&settings.auto_upload)
+    .bind(settings.enabled)
+    .execute(&state.pool)
+    .await
+    .map_err(|e| format!("failed to save OAuth tokens: {e}"))?;
+
+    info!(provider = %provider, "OAuth tokens saved");
+    Ok(settings)
 }
 
 async fn get_cloud_settings_inner(pool: &SqlitePool) -> Result<Option<CloudSettings>, String> {
