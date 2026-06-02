@@ -3,7 +3,9 @@ import {
   createBackup, listBackups, getCloudPresets, getCloudSettings,
   saveCloudSettings, testCloudConnection, uploadToCloud, deleteBackup,
   restoreBackup, authorizeCloudProvider,
+  getAutoBackupSettings, updateAutoBackupSettings,
   type BackupInfo, type CloudPreset, type CloudSettings,
+  type AutoBackupSettings,
 } from '../lib/tauri/backup';
 
 export function useBackup() {
@@ -62,6 +64,17 @@ export function useBackup() {
     },
   });
 
+  const autoBackupSettingsQuery = useQuery<AutoBackupSettings>({
+    queryKey: ['auto-backup-settings'],
+    queryFn: getAutoBackupSettings,
+  });
+
+  const updateAutoBackupSettingsMutation = useMutation({
+    mutationFn: ({ enabled, intervalHours }: { enabled: boolean; intervalHours: number }) =>
+      updateAutoBackupSettings(enabled, intervalHours),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['auto-backup-settings'] }),
+  });
+
   return {
     backups: backupsQuery.data ?? [],
     isLoadingBackups: backupsQuery.isLoading,
@@ -82,5 +95,9 @@ export function useBackup() {
     isRestoringBackup: restoreBackupMutation.isPending,
     authorizeCloudProvider: authorizeCloudProviderMutation.mutateAsync,
     isAuthorizing: authorizeCloudProviderMutation.isPending,
+    autoBackupSettings: autoBackupSettingsQuery.data,
+    isLoadingAutoBackupSettings: autoBackupSettingsQuery.isLoading,
+    updateAutoBackupSettings: updateAutoBackupSettingsMutation.mutateAsync,
+    isUpdatingAutoBackupSettings: updateAutoBackupSettingsMutation.isPending,
   };
 }

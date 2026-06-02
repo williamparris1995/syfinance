@@ -90,6 +90,45 @@ pub async fn delete_tag(state: State<'_, TagCommandState>, id: String) -> Result
 }
 
 #[tauri::command]
+pub async fn update_tag(
+    state: State<'_, TagCommandState>,
+    id: String,
+    name: Option<String>,
+    color: Option<String>,
+) -> Result<TagDto, String> {
+    let existing = state
+        .repository()
+        .find_by_id(&id)
+        .await
+        .map_err(|e| format!("Failed to find tag: {}", e))?
+        .ok_or_else(|| format!("Tag not found: {}", id))?;
+
+    let updated_tag = Tag::new(
+        id,
+        name.unwrap_or(existing.name),
+        color.unwrap_or(existing.color),
+    );
+    state
+        .repository()
+        .update(&updated_tag)
+        .await
+        .map_err(|e| format!("Failed to update tag: {}", e))?;
+    Ok(TagDto::from(updated_tag))
+}
+
+#[tauri::command]
+pub async fn soft_delete_tag(
+    state: State<'_, TagCommandState>,
+    id: String,
+) -> Result<(), String> {
+    state
+        .repository()
+        .soft_delete(&id)
+        .await
+        .map_err(|e| format!("Failed to soft delete tag: {}", e))
+}
+
+#[tauri::command]
 pub async fn add_tag_to_transaction(
     state: State<'_, TagCommandState>,
     transaction_id: String,

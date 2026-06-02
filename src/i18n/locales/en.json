@@ -854,7 +854,9 @@
     "createFirstTag": "Create your first tag",
     "tagCreated": "Tag created",
     "tagDeleted": "Tag deleted",
-    "deleteConfirm": "Delete this tag?"
+    "tagUpdated": "Tag updated",
+    "deleteConfirm": "Delete this tag?",
+    "managementDesc": "Manage your transaction tags for better organization"
   },
   "export": {
     "title": "Export Data",
@@ -1030,7 +1032,18 @@
       "tableDebtDetails": "Debt Details",
       "tableDebtPaymentSchedule": "Debt Payments",
       "tableBudgetItems": "Budget Items",
-      "tableTransactionTags": "Transaction Tags"
+      "tableTransactionTags": "Transaction Tags",
+      "autoBackup": "Automatic Backup",
+      "autoBackupDesc": "Configure scheduled automatic backups to protect your data",
+      "autoBackupEnable": "Enable Auto Backup",
+      "autoBackupEnableDesc": "Automatically create backups on a schedule",
+      "autoBackupInterval": "Backup Interval",
+      "interval6h": "Every 6 hours",
+      "interval12h": "Every 12 hours",
+      "interval24h": "Every 24 hours",
+      "intervalWeekly": "Weekly",
+      "lastAutoBackup": "Last auto backup",
+      "autoBackupSaveError": "Failed to save auto backup settings"
   },
   "cloudSync": {
     "title": "Cloud Sync",

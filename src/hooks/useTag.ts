@@ -3,6 +3,8 @@ import {
   listTags,
   createTag,
   deleteTag,
+  updateTag,
+  softDeleteTag,
   addTagToTransaction,
   removeTagFromTransaction,
   getTransactionTags,
@@ -32,6 +34,35 @@ export function useDeleteTag() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteTag(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tags'] });
+      toast.success('Tag deleted');
+    },
+    onError: (error) => {
+      toast.error(`Failed to delete tag: ${error}`);
+    },
+  });
+}
+
+export function useUpdateTag() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, name, color }: { id: string; name?: string; color?: string }) =>
+      updateTag(id, name, color),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tags'] });
+      toast.success('Tag updated');
+    },
+    onError: (error) => {
+      toast.error(`Failed to update tag: ${error}`);
+    },
+  });
+}
+
+export function useSoftDeleteTag() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => softDeleteTag(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tags'] });
       toast.success('Tag deleted');

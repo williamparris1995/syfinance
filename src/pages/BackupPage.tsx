@@ -8,6 +8,15 @@ import { RestoreDialog } from '../components/RestoreDialog';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Label } from '../components/ui/label';
+import { Switch } from '../components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
 import {
   Table,
   TableBody,
@@ -39,11 +48,44 @@ export function BackupPage() {
     createBackup,
     isCreatingBackup,
     deleteBackup,
+    autoBackupSettings,
+    isLoadingAutoBackupSettings,
+    updateAutoBackupSettings,
+    isUpdatingAutoBackupSettings,
   } = useBackup();
   const { enabled: encryptionEnabled } = useEncryption();
   const [isCloudDialogOpen, setIsCloudDialogOpen] = useState(false);
   const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false);
   const [restoreFilename, setRestoreFilename] = useState('');
+  const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
+  const [autoBackupInterval, setAutoBackupInterval] = useState('24');
+
+  // Sync local state from server data
+  const prevAutoBackupSettings = useState(autoBackupSettings);
+  if (autoBackupSettings && autoBackupSettings !== prevAutoBackupSettings[0]) {
+    setAutoBackupEnabled(autoBackupSettings.enabled);
+    setAutoBackupInterval(String(autoBackupSettings.interval_hours));
+  }
+
+  const handleAutoBackupToggle = async (enabled: boolean) => {
+    setAutoBackupEnabled(enabled);
+    try {
+      await updateAutoBackupSettings({ enabled, intervalHours: parseInt(autoBackupInterval, 10) });
+    } catch (error) {
+      setAutoBackupEnabled(!enabled);
+      toast.error(t('backup.autoBackupSaveError'));
+    }
+  };
+
+  const handleAutoBackupIntervalChange = async (interval: string | null) => {
+    if (!interval) return;
+    setAutoBackupInterval(interval);
+    try {
+      await updateAutoBackupSettings({ enabled: autoBackupEnabled, intervalHours: parseInt(interval, 10) });
+    } catch {
+      toast.error(t('backup.autoBackupSaveError'));
+    }
+  };
 
   const handleCreateBackup = async () => {
     try {
@@ -185,6 +227,61 @@ export function BackupPage() {
                 {t('backup.configure')}
               </Button>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Auto Backup Settings Section */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>{t('backup.autoBackup')}</CardTitle>
+          <CardDescription>{t('backup.autoBackupDesc')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isLoadingAutoBackupSettings ? (
+            <div className="flex items-center justify-center py-4">
+              <span className="text-muted-foreground">{t('backup.loading')}</span>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="auto-backup-enabled">{t('backup.autoBackupEnable')}</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {t('backup.autoBackupEnableDesc')}
+                  </p>
+                </div>
+                <Switch
+                  id="auto-backup-enabled"
+                  checked={autoBackupEnabled}
+                  onCheckedChange={handleAutoBackupToggle}
+                  disabled={isUpdatingAutoBackupSettings}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="auto-backup-interval">{t('backup.autoBackupInterval')}</Label>
+                <Select
+                  value={autoBackupInterval}
+                  onValueChange={handleAutoBackupIntervalChange}
+                  disabled={!autoBackupEnabled || isUpdatingAutoBackupSettings}
+                >
+                  <SelectTrigger id="auto-backup-interval">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="6">{t('backup.interval6h')}</SelectItem>
+                    <SelectItem value="12">{t('backup.interval12h')}</SelectItem>
+                    <SelectItem value="24">{t('backup.interval24h')}</SelectItem>
+                    <SelectItem value="168">{t('backup.intervalWeekly')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {autoBackupSettings?.last_backup_at && (
+                <p className="text-xs text-muted-foreground">
+                  {t('backup.lastAutoBackup')}: {new Date(autoBackupSettings.last_backup_at).toLocaleString()}
+                </p>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

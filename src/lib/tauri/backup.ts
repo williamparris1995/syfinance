@@ -132,3 +132,16 @@ export const restoreBackup = (
   filename: string,
   strategy: 'keep_newer' | 'use_backup' | 'keep_local',
 ) => invokeTauri<RestoreResult>('restore_backup', { filename, strategy });
+
+export interface AutoBackupSettings {
+  enabled: boolean;
+  interval_hours: number;
+  max_backups: number;
+  last_backup_at: string | null;
+}
+
+export const getAutoBackupSettings = () =>
+  invokeTauri<AutoBackupSettings>('get_auto_backup_settings');
+
+export const updateAutoBackupSettings = (enabled: boolean, intervalHours: number) =>
+  invokeTauri<void>('update_auto_backup_settings', { enabled, intervalHours: intervalHours });

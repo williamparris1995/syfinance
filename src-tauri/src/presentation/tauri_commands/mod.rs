@@ -22,9 +22,11 @@ pub use account_commands::{
     list_accounts_by_ownership, list_accounts_with_balances, update_account, AppState,
 };
 pub use backup_commands::{
-    authorize_cloud_provider, create_backup, create_backup_state, delete_backup, get_backup_diff,
-    get_backup_metadata, get_cloud_presets, get_cloud_settings, list_backups, list_cloud_backups,
-    save_cloud_settings, test_cloud_connection, upload_to_cloud, BackupCommandState,
+    authorize_cloud_provider, create_backup, create_backup_state, delete_backup, get_auto_backup_settings,
+    get_backup_diff, get_backup_metadata, get_cloud_presets, get_cloud_settings, list_backups,
+    list_cloud_backups, read_auto_backup_settings, save_cloud_settings, test_cloud_connection,
+    update_auto_backup_last_run, update_auto_backup_settings, upload_to_cloud, AutoBackupSettings,
+    BackupCommandState,
 };
 pub use budget_commands::{
     add_budget_item, compute_budget_actuals, create_budget, delete_budget, get_budget,
@@ -74,7 +76,7 @@ pub use sync_commands::{
 pub use tag_commands::{
     add_tag_to_transaction, create_default_state_from_pool as create_tag_default_state_from_pool,
     create_tag, delete_tag, get_transaction_tags, list_tags, remove_tag_from_transaction,
-    TagCommandState,
+    soft_delete_tag, update_tag, TagCommandState,
 };
 pub use transaction_commands::{
     create_transaction, delete_transaction, get_transaction, get_transactions_by_account,

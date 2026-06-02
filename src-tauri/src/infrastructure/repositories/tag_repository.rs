@@ -34,18 +34,40 @@ impl TagRepository for SqliteTagRepository {
     }
 
     async fn find_all(&self) -> sqlx::Result<Vec<Tag>> {
-        let rows = sqlx::query("SELECT id, name, color FROM tags ORDER BY name")
+        let rows = sqlx::query("SELECT id, name, color FROM tags WHERE deleted_at IS NULL ORDER BY name")
             .fetch_all(&self.pool)
             .await?;
         rows.iter().map(Self::row_to_tag).collect()
     }
 
     async fn find_by_id(&self, id: &str) -> sqlx::Result<Option<Tag>> {
-        let row = sqlx::query("SELECT id, name, color FROM tags WHERE id = ?")
+        let row = sqlx::query("SELECT id, name, color FROM tags WHERE id = ? AND deleted_at IS NULL")
             .bind(id)
             .fetch_optional(&self.pool)
             .await?;
         row.map(|r| Self::row_to_tag(&r)).transpose()
+    }
+
+    async fn update(&self, tag: &Tag) -> sqlx::Result<()> {
+        let now = chrono::Utc::now().to_rfc3339();
+        sqlx::query("UPDATE tags SET name = ?, color = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL")
+            .bind(&tag.name)
+            .bind(&tag.color)
+            .bind(&now)
+            .bind(&tag.id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    async fn soft_delete(&self, id: &str) -> sqlx::Result<()> {
+        let now = chrono::Utc::now().to_rfc3339();
+        sqlx::query("UPDATE tags SET deleted_at = ? WHERE id = ?")
+            .bind(&now)
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
 
     async fn delete(&self, id: &str) -> sqlx::Result<()> {

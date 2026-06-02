@@ -896,7 +896,9 @@
     "createFirstTag": "创建第一个标签",
     "tagCreated": "标签创建成功",
     "tagDeleted": "标签已删除",
-    "deleteConfirm": "确定删除此标签？"
+    "tagUpdated": "标签已更新",
+    "deleteConfirm": "确定删除此标签？",
+    "managementDesc": "管理交易标签以便更好地分类整理"
   },
   "export": {
     "title": "导出数据",
@@ -1072,7 +1074,18 @@
       "tableDebtDetails": "债务明细",
       "tableDebtPaymentSchedule": "还款计划",
       "tableBudgetItems": "预算项目",
-      "tableTransactionTags": "交易标签"
+      "tableTransactionTags": "交易标签",
+      "autoBackup": "自动备份",
+      "autoBackupDesc": "配置定时自动备份以保护您的数据",
+      "autoBackupEnable": "启用自动备份",
+      "autoBackupEnableDesc": "按计划自动创建备份",
+      "autoBackupInterval": "备份间隔",
+      "interval6h": "每6小时",
+      "interval12h": "每12小时",
+      "interval24h": "每24小时",
+      "intervalWeekly": "每周",
+      "lastAutoBackup": "上次自动备份",
+      "autoBackupSaveError": "保存自动备份设置失败"
   },
   "cloudSync": {
     "title": "云端同步",

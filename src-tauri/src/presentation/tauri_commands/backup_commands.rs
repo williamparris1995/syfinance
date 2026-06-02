@@ -411,6 +411,92 @@ async fn get_cloud_settings_inner(pool: &SqlitePool) -> Result<Option<CloudSetti
     }))
 }
 
+// ---------------------------------------------------------------------------
+// Auto Backup Settings
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AutoBackupSettings {
+    pub enabled: bool,
+    pub interval_hours: i64,
+    pub max_backups: i64,
+    pub last_backup_at: Option<String>,
+}
+
+#[tauri::command]
+pub async fn get_auto_backup_settings(
+    state: tauri::State<'_, BackupCommandState>,
+) -> Result<AutoBackupSettings, String> {
+    let row = sqlx::query_as::<_, (bool, i64, i64, Option<String>)>(
+        "SELECT enabled, interval_hours, max_backups, last_backup_at FROM auto_backup_settings WHERE id = 1",
+    )
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(|e| format!("failed to read auto backup settings: {e}"))?;
+
+    let row = row.unwrap_or((false, 24, 5, None));
+    Ok(AutoBackupSettings {
+        enabled: row.0,
+        interval_hours: row.1,
+        max_backups: row.2,
+        last_backup_at: row.3,
+    })
+}
+
+#[tauri::command]
+pub async fn update_auto_backup_settings(
+    state: tauri::State<'_, BackupCommandState>,
+    enabled: bool,
+    interval_hours: i64,
+) -> Result<(), String> {
+    if ![6, 12, 24, 168].contains(&interval_hours) {
+        return Err("interval_hours must be one of: 6, 12, 24, 168".to_string());
+    }
+
+    sqlx::query(
+        "UPDATE auto_backup_settings SET enabled = ?, interval_hours = ?, updated_at = datetime('now') WHERE id = 1",
+    )
+    .bind(enabled)
+    .bind(interval_hours)
+    .execute(&state.pool)
+    .await
+    .map_err(|e| format!("failed to update auto backup settings: {e}"))?;
+
+    info!(enabled = enabled, interval_hours = interval_hours, "Auto backup settings updated");
+    Ok(())
+}
+
+/// Read auto backup settings directly from pool (for background scheduler).
+pub async fn read_auto_backup_settings(
+    pool: &SqlitePool,
+) -> Result<AutoBackupSettings, String> {
+    let row = sqlx::query_as::<_, (bool, i64, i64, Option<String>)>(
+        "SELECT enabled, interval_hours, max_backups, last_backup_at FROM auto_backup_settings WHERE id = 1",
+    )
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| format!("failed to read auto backup settings: {e}"))?;
+
+    let row = row.unwrap_or((false, 24, 5, None));
+    Ok(AutoBackupSettings {
+        enabled: row.0,
+        interval_hours: row.1,
+        max_backups: row.2,
+        last_backup_at: row.3,
+    })
+}
+
+/// Update last_backup_at timestamp after a successful auto backup.
+pub async fn update_auto_backup_last_run(pool: &SqlitePool) -> Result<(), String> {
+    sqlx::query(
+        "UPDATE auto_backup_settings SET last_backup_at = datetime('now'), updated_at = datetime('now') WHERE id = 1",
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| format!("failed to update auto backup last run: {e}"))?;
+    Ok(())
+}
+
 /// Factory helper for main.rs state creation.
 pub fn create_backup_state(
     pool: SqlitePool,

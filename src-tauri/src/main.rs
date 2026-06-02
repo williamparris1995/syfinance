@@ -25,9 +25,10 @@ use presentation::tauri_commands::{
     },
     backup_commands::{
         authorize_cloud_provider, create_backup, create_backup_state, delete_backup,
-        get_backup_diff, get_backup_metadata, get_cloud_presets, get_cloud_settings, list_backups,
-        list_cloud_backups, restore_backup, save_cloud_settings, test_cloud_connection,
-        upload_to_cloud, BackupCommandState,
+        get_auto_backup_settings, get_backup_diff, get_backup_metadata, get_cloud_presets,
+        get_cloud_settings, list_backups, list_cloud_backups, read_auto_backup_settings,
+        restore_backup, save_cloud_settings, test_cloud_connection, update_auto_backup_last_run,
+        update_auto_backup_settings, upload_to_cloud, BackupCommandState,
     },
     budget_commands::{
         add_budget_item, clone_budget_to_month, compute_budget_actuals, create_budget,
@@ -91,7 +92,8 @@ use presentation::tauri_commands::{
     tag_commands::{
         add_tag_to_transaction,
         create_default_state_from_pool as create_tag_default_state_from_pool, create_tag,
-        delete_tag, get_transaction_tags, list_tags, remove_tag_from_transaction, TagCommandState,
+        delete_tag, get_transaction_tags, list_tags, remove_tag_from_transaction,
+        soft_delete_tag, update_tag, TagCommandState,
     },
     transaction_commands::{
         batch_delete_transactions, create_default_state_from_pool, create_simple_expense,
@@ -258,7 +260,7 @@ async fn main() {
         .manage(search_state)
         .manage(reminder_state)
         .manage(export_state)
-        .manage(encryption_state)
+        .manage(encryption_state.clone())
         .manage(backup_state)
         .manage(cloud_sync_state)
         .invoke_handler(tauri::generate_handler![
@@ -345,6 +347,8 @@ async fn main() {
             list_tags,
             create_tag,
             delete_tag,
+            update_tag,
+            soft_delete_tag,
             add_tag_to_transaction,
             remove_tag_from_transaction,
             get_transaction_tags,
@@ -376,6 +380,8 @@ async fn main() {
             upload_to_cloud,
             list_cloud_backups,
             authorize_cloud_provider,
+            get_auto_backup_settings,
+            update_auto_backup_settings,
             sync_to_server,
             sync_from_server,
             get_sync_status,
@@ -454,6 +460,86 @@ async fn main() {
                 }
             });
             info!("Transaction template scheduler started (checking every 5 minutes)");
+
+            // Start auto backup scheduler
+            {
+                let ab_pool = pool.clone();
+                let ab_backup_dir = app_dir.join("backups");
+                let ab_encryption = encryption_state.clone();
+                tokio::spawn(async move {
+                    // Check every 30 minutes whether an auto backup is due
+                    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(1800));
+                    loop {
+                        interval.tick().await;
+                        let settings = match read_auto_backup_settings(&ab_pool).await {
+                            Ok(s) => s,
+                            Err(e) => {
+                                error!("Auto backup: failed to read settings: {}", e);
+                                continue;
+                            }
+                        };
+                        if !settings.enabled {
+                            continue;
+                        }
+                        // Check if enough time has elapsed since last backup
+                        let should_run = match &settings.last_backup_at {
+                            None => true,
+                            Some(last) => {
+                                match chrono::DateTime::parse_from_rfc3339(last) {
+                                    Ok(dt) => {
+                                        let now: chrono::DateTime<chrono::Utc> = chrono::Utc::now();
+                                        let elapsed = now - dt.to_utc();
+                                        elapsed.num_hours() >= settings.interval_hours
+                                    }
+                                    Err(_) => true,
+                                }
+                            }
+                        };
+                        if !should_run {
+                            continue;
+                        }
+                        info!("Auto backup: creating scheduled backup");
+                        let service = match crate::infrastructure::backup::backup_service::BackupService::new(
+                            ab_pool.clone(),
+                            ab_backup_dir.clone(),
+                        ) {
+                            Ok(s) => s,
+                            Err(e) => {
+                                error!("Auto backup: failed to create service: {}", e);
+                                continue;
+                            }
+                        };
+                        let encryption = if ab_encryption.service.is_unlocked() {
+                            ab_encryption.service.get_encryption_service()
+                        } else {
+                            None
+                        };
+                        match service.create_backup(encryption.as_ref()).await {
+                            Ok(info) => {
+                                info!(filename = %info.filename, "Auto backup created");
+                                // Cleanup old backups, keep last N
+                                let max = settings.max_backups.max(1) as usize;
+                                if let Ok(all) = service.list_backups() {
+                                    if all.len() > max {
+                                        for old in all.iter().skip(max) {
+                                            if let Err(e) = service.delete_backup(&old.filename) {
+                                                error!(filename = %old.filename, error = %e, "Auto backup: failed to delete old backup");
+                                            }
+                                        }
+                                    }
+                                }
+                                if let Err(e) = update_auto_backup_last_run(&ab_pool).await {
+                                    error!("Auto backup: failed to update last run: {}", e);
+                                }
+                            }
+                            Err(e) => {
+                                error!("Auto backup: failed to create backup: {}", e);
+                            }
+                        }
+                    }
+                });
+            }
+            info!("Auto backup scheduler started (checking every 30 minutes)");
 
             // Start cloud sync scheduler
             {

@@ -63,6 +63,7 @@ import { useEncryption } from '../hooks/useEncryption';
 import { useFetchExchangeRates } from '../hooks/useCurrency';
 import { useCloudSyncStatus, useCloudSyncNow, useUpdateCloudSyncSettings, useCloudSyncSettings } from '@/hooks/useCloudSync';
 import { exportCsv } from '@/lib/tauri/export';
+import { TagsSection } from '@/components/TagsSection';
 
 interface SyncEvent {
   status: 'started' | 'completed' | 'failed';
@@ -534,6 +535,9 @@ export function SettingsPage() {
 
       {/* Encryption Settings Section */}
       <EncryptionSection />
+
+      {/* Tags Management Section */}
+      <TagsSection />
 
       {/* Data Export Section */}
       <Card className="mb-6">

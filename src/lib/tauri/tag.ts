@@ -14,6 +14,9 @@ export interface CreateTagDto {
 export const listTags = () => invokeTauri<TagDto[]>('list_tags');
 export const createTag = (dto: CreateTagDto) => invokeTauri<TagDto>('create_tag', { dto });
 export const deleteTag = (id: string) => invokeTauri<void>('delete_tag', { id });
+export const updateTag = (id: string, name?: string, color?: string) =>
+  invokeTauri<TagDto>('update_tag', { id, name, color });
+export const softDeleteTag = (id: string) => invokeTauri<void>('soft_delete_tag', { id });
 export const addTagToTransaction = (transactionId: string, tagId: string) =>
   invokeTauri<void>('add_tag_to_transaction', { transactionId, tagId });
 export const removeTagFromTransaction = (transactionId: string, tagId: string) =>
