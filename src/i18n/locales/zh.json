@@ -111,7 +111,8 @@
     "allAccounts": "全部账户",
     "noTransactions": "暂无交易记录",
     "detailTitle": "账户详情",
-    "accountTransactions": "交易记录"
+    "accountTransactions": "交易记录",
+    "trend": "趋势"
   },
   "accountForm": {
     "accountName": "账户名称",

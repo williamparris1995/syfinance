@@ -10,6 +10,8 @@ import {
 } from './ui/sheet';
 import { TransactionList } from './TransactionList';
 import { getTransactionsByAccount } from '@/lib/tauri/transaction';
+import { useAccountBalanceHistory } from '@/hooks/useAccountBalanceHistory';
+import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
 import type { AccountDto } from '@/lib/tauri/account';
 
 interface AccountDetailPanelProps {
@@ -54,6 +56,40 @@ const typeLabels: Record<string, string> = {
   Other: 'accountForm.other',
 };
 
+function DetailBalanceChart({ accountId }: { accountId: string }) {
+  const { data } = useAccountBalanceHistory(accountId, 30);
+  if (!data || data.length < 2) return null;
+
+  const chartData = data.map(d => ({ ...d, balance: Number(d.balance) }));
+  const first = chartData[0]?.balance ?? 0;
+  const last = chartData[chartData.length - 1]?.balance ?? 0;
+  const isPositive = last >= first;
+  const strokeColor = isPositive ? '#10B981' : '#EF4444';
+  const fillColor = isPositive ? '#10B981' : '#EF4444';
+
+  return (
+    <ResponsiveContainer width={200} height={60}>
+      <AreaChart data={chartData}>
+        <defs>
+          <linearGradient id={`gradient-${accountId}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={fillColor} stopOpacity={0.3} />
+            <stop offset="95%" stopColor={fillColor} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <YAxis domain={['dataMin', 'dataMax']} hide />
+        <Area
+          type="monotone"
+          dataKey="balance"
+          stroke={strokeColor}
+          strokeWidth={1.5}
+          fill={`url(#gradient-${accountId})`}
+          dot={false}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
 export function AccountDetailPanel({ account, open, onOpenChange }: AccountDetailPanelProps) {
   const { t } = useTranslation();
 
@@ -76,6 +112,11 @@ export function AccountDetailPanel({ account, open, onOpenChange }: AccountDetai
         </SheetHeader>
         <div className="flex-1 overflow-y-auto -mx-4 px-4">
           <div className="space-y-4 px-5 pt-4">
+            {/* Balance Trend Chart */}
+            <div className="flex justify-center">
+              <DetailBalanceChart accountId={account.id} />
+            </div>
+
             {/* Summary */}
             <div className="grid grid-cols-2 gap-3">
               <div>

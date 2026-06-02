@@ -19,9 +19,9 @@ use infrastructure::sync::SyncScheduler;
 use presentation::api::create_sync_routes;
 use presentation::tauri_commands::{
     account_commands::{
-        create_account, delete_account, get_account, get_account_balance, list_accounts,
-        list_accounts_by_ownership, list_accounts_with_balances, setup_preset_investment_accounts,
-        update_account, AppState,
+        create_account, delete_account, get_account, get_account_balance,
+        get_account_balance_history, list_accounts, list_accounts_by_ownership,
+        list_accounts_with_balances, setup_preset_investment_accounts, update_account, AppState,
     },
     backup_commands::{
         create_backup, create_backup_state, delete_backup, get_backup_diff, get_backup_metadata,
@@ -260,6 +260,7 @@ async fn main() {
             list_accounts_by_ownership,
             list_accounts_with_balances,
             get_account_balance,
+            get_account_balance_history,
             setup_preset_investment_accounts,
             list_budgets,
             get_budget,

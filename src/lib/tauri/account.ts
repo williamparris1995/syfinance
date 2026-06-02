@@ -90,6 +90,14 @@ export const getAccountBalance = (id: string) =>
 export const listAccountsWithBalances = () =>
   invokeTauri<AccountDto[]>('list_accounts_with_balances');
 
+export interface BalanceHistoryPoint {
+  date: string;
+  balance: string;
+}
+
+export const getAccountBalanceHistory = (accountId: string, days?: number) =>
+  invokeTauri<BalanceHistoryPoint[]>('get_account_balance_history', { accountId, days });
+
 export interface InvestmentTemplate {
   name: string;
   chart_code: string;

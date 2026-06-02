@@ -8,6 +8,8 @@ import { TopUpDialog } from '../components/TopUpDialog';
 import { PrepaidDetailPanel } from '../components/PrepaidDetailPanel';
 import { AccountDetailPanel } from '../components/AccountDetailPanel';
 import { Button } from '../components/ui/button';
+import { LineChart, Line, ResponsiveContainer } from 'recharts';
+import { useAccountBalanceHistory } from '../hooks/useAccountBalanceHistory';
 import {
   Dialog,
   DialogContent,
@@ -50,6 +52,24 @@ import {
   type CreateAccountDto,
   type UpdateAccountDto,
 } from '../lib/tauri/account';
+
+function BalanceSparkline({ accountId }: { accountId: string }) {
+  const { data } = useAccountBalanceHistory(accountId, 30);
+  if (!data || data.length < 2) return null;
+
+  const chartData = data.map(d => ({ ...d, balance: Number(d.balance) }));
+  const first = chartData[0]?.balance ?? 0;
+  const last = chartData[chartData.length - 1]?.balance ?? 0;
+  const color = last >= first ? '#10B981' : '#EF4444';
+
+  return (
+    <ResponsiveContainer width={80} height={30}>
+      <LineChart data={chartData}>
+        <Line type="monotone" dataKey="balance" stroke={color} dot={false} strokeWidth={1.5} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
 
 export function AccountsPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -332,6 +352,7 @@ export function AccountsPage() {
                     )}
                   </span>
                 </TableHead>
+                <TableHead>{t('accounts.trend')}</TableHead>
                 <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
@@ -375,6 +396,9 @@ export function AccountsPage() {
                         updated_at: '',
                       }
                     )}
+                  </TableCell>
+                  <TableCell>
+                    <BalanceSparkline accountId={account.id} />
                   </TableCell>
                   <TableCell>
                     {account.account_type === 'Prepaid' && (

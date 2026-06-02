@@ -3,7 +3,9 @@ use crate::application::{
     services::{AccountService, AccountServiceError},
 };
 use crate::domain::aggregates::Ownership;
+use crate::domain::repositories::AccountRepository;
 use crate::infrastructure::repositories::{SqliteAccountRepository, SqliteCurrencyRepository};
+use serde::{Deserialize, Serialize};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
 use std::{str::FromStr, sync::Arc};
 use tauri::State;
@@ -45,6 +47,10 @@ impl AppState {
 
     pub fn pool(&self) -> &SqlitePool {
         &self.pool
+    }
+
+    pub fn repository(&self) -> SqliteAccountRepository {
+        SqliteAccountRepository::new(self.pool.clone())
     }
 }
 
@@ -201,4 +207,35 @@ pub async fn setup_preset_investment_accounts(
     currency_code: Option<String>,
 ) -> Result<Vec<AccountDto>, String> {
     setup_preset_investment_accounts_with_state(state.inner(), currency_code).await
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BalanceHistoryPoint {
+    pub date: String,
+    pub balance: String,
+}
+
+#[tauri::command]
+pub async fn get_account_balance_history(
+    state: State<'_, AppState>,
+    account_id: String,
+    days: Option<i32>,
+) -> Result<Vec<BalanceHistoryPoint>, String> {
+    let id = Uuid::parse_str(&account_id)
+        .map_err(|e| format!("Invalid account ID: {}", e))?;
+    let days = days.unwrap_or(30);
+
+    let repo = state.inner().repository();
+    let history = repo
+        .get_balance_history(id, days)
+        .await
+        .map_err(|e| format!("Failed to get balance history: {}", e))?;
+
+    Ok(history
+        .into_iter()
+        .map(|(date, balance)| BalanceHistoryPoint {
+            date,
+            balance: balance.to_string(),
+        })
+        .collect())
 }

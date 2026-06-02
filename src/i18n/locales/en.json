@@ -109,7 +109,8 @@
     "allAccounts": "All Accounts",
     "noTransactions": "No transactions yet",
     "detailTitle": "Account Details",
-    "accountTransactions": "Transactions"
+    "accountTransactions": "Transactions",
+    "trend": "Trend"
   },
   "accountForm": {
     "accountName": "Account Name",

@@ -238,6 +238,47 @@ impl SqliteAccountRepository {
 
         Decimal::from_str(&row.0).map_err(|e| sqlx::Error::Decode(Box::new(e)))
     }
+
+    pub async fn get_balance_history_sqlite(
+        &self,
+        account_id: Uuid,
+        days: i32,
+    ) -> Result<Vec<(String, Decimal)>, sqlx::Error> {
+        let rows: Vec<(String, String)> = sqlx::query_as(
+            "WITH RECURSIVE dates(date) AS ( \
+                SELECT DATE('now', ? || ' days') \
+                UNION ALL \
+                SELECT DATE(date, '+1 day') FROM dates WHERE date < DATE('now') \
+            ) \
+            SELECT d.date, \
+                   CAST(COALESCE(( \
+                       SELECT a.initial_balance + SUM(CAST(COALESCE(e.debit_amount, 0) AS REAL) - CAST(COALESCE(e.credit_amount, 0) AS REAL)) \
+                       FROM transaction_entries e \
+                       JOIN transactions t ON e.transaction_id = t.id \
+                       CROSS JOIN accounts a \
+                       WHERE a.id = ? \
+                       AND e.account_id = ? \
+                       AND e.deleted_at IS NULL AND t.deleted_at IS NULL \
+                       AND t.transaction_date <= d.date \
+                   ), a.initial_balance) AS TEXT) as balance \
+            FROM dates d, accounts a \
+            WHERE a.id = ? \
+            ORDER BY d.date",
+        )
+        .bind(format!("-{}", days))
+        .bind(account_id.to_string())
+        .bind(account_id.to_string())
+        .bind(account_id.to_string())
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter()
+            .map(|(date, balance_str)| {
+                let balance = balance_str.parse::<Decimal>().unwrap_or(Decimal::ZERO);
+                Ok((date, balance))
+            })
+            .collect()
+    }
 }
 
 impl AccountRepository for SqliteAccountRepository {
@@ -517,6 +558,14 @@ impl AccountRepository for SqliteAccountRepository {
 
     async fn compute_balance_for_account(&self, id: Uuid) -> Result<Decimal, sqlx::Error> {
         self.compute_balance_for_account_sqlite(id).await
+    }
+
+    async fn get_balance_history(
+        &self,
+        account_id: Uuid,
+        days: i32,
+    ) -> Result<Vec<(String, Decimal)>, sqlx::Error> {
+        self.get_balance_history_sqlite(account_id, days).await
     }
 }
 

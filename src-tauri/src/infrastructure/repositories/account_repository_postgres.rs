@@ -403,4 +403,13 @@ impl AccountRepository for PostgresAccountRepository {
     async fn compute_balance_for_account(&self, id: Uuid) -> Result<Decimal, sqlx::Error> {
         self.compute_balance_for_account_pg(id).await
     }
+
+    async fn get_balance_history(
+        &self,
+        _account_id: Uuid,
+        _days: i32,
+    ) -> Result<Vec<(String, Decimal)>, sqlx::Error> {
+        // PostgreSQL implementation not yet available
+        Ok(Vec::new())
+    }
 }
