@@ -7,6 +7,8 @@ use tracing::{error, info, warn};
 
 use super::cloud_sync_service::CloudSyncService;
 
+// TODO: will be used when scheduler interval is configurable
+#[allow(dead_code)]
 const DEFAULT_INTERVAL_MINUTES: u64 = 30;
 const MIN_INTERVAL_MINUTES: u64 = 5;
 const DISABLED_CHECK_INTERVAL: Duration = Duration::from_secs(60);

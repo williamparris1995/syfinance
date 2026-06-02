@@ -6,7 +6,10 @@ pub mod oauth;
 pub mod onedrive_provider;
 pub mod webdav_provider;
 
+// Re-exports form the library's public API surface, used by tests and external consumers.
+#[allow(unused_imports)]
 pub use backup_service::{BackupService, RestoreResult, RestoreTableResult, TableRestoreStats};
+#[allow(unused_imports)]
 pub use cloud_provider::{CloudBackupInfo, CloudError, CloudProvider, CloudSettings};
 
 use dropbox_provider::DropboxProvider;

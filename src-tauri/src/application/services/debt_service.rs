@@ -4,15 +4,14 @@ use crate::application::dtos::{
 use crate::domain::{
     aggregates::{
         debt_details::{AmortizationMethod, DebtDetails, PaymentScheduleEntry},
-        Account, AccountType, Ownership, Transaction,
+        Account, AccountType, Transaction,
     },
     repositories::{AccountRepository, DebtRepository, TransactionRepository},
-    value_objects::{Currency, Money, SyncMetadata, TransactionEntry},
+    value_objects::{Money, SyncMetadata, TransactionEntry},
 };
 use crate::infrastructure::repositories::{
     SqliteAccountRepository, SqliteDebtRepository, SqliteTransactionRepository,
 };
-use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use std::sync::Arc;
 use uuid::Uuid;

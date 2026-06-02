@@ -14,6 +14,7 @@ type ConcretePrepaidService =
     PrepaidService<SqlitePrepaidRepository, SqliteAccountRepository, SqliteTransactionRepository>;
 
 pub struct PrepaidCommandState {
+    #[allow(dead_code)]
     pool: SqlitePool,
     prepaid_service: ConcretePrepaidService,
 }
@@ -34,6 +35,8 @@ impl PrepaidCommandState {
         &self.prepaid_service
     }
 
+    // TODO: will be used when prepaid commands need direct pool access
+    #[allow(dead_code)]
     pub fn pool(&self) -> &SqlitePool {
         &self.pool
     }

@@ -3,7 +3,6 @@ use crate::domain::aggregates::{Account, AccountError, AccountType, Ownership};
 use crate::domain::repositories::{AccountRepository, CurrencyRepository};
 use crate::domain::value_objects::{Money, SyncMetadata};
 use rust_decimal::Decimal;
-use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -424,6 +423,14 @@ mod tests {
             _id: Uuid,
         ) -> Result<Decimal, sqlx::Error> {
             Ok(Decimal::ZERO)
+        }
+
+        async fn get_balance_history(
+            &self,
+            _account_id: Uuid,
+            _days: i32,
+        ) -> Result<Vec<(String, Decimal)>, sqlx::Error> {
+            Ok(Vec::new())
         }
     }
 

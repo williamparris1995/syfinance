@@ -8,11 +8,15 @@ use tracing::{error, info};
 use super::cloud_provider::{CloudBackupInfo, CloudError, CloudProvider};
 use super::oauth::{self, OAuthConfig};
 
+// TODO: will be used when OAuth token refresh is implemented
+#[allow(dead_code)]
 pub struct GoogleDriveProvider {
     client: Client,
     access_token: String,
+    #[allow(dead_code)]
     refresh_token: Option<String>,
     remote_path: String,
+    #[allow(dead_code)]
     oauth_config: OAuthConfig,
 }
 
@@ -39,6 +43,8 @@ impl GoogleDriveProvider {
     }
 
     /// Ensure the access token is valid, refreshing if necessary.
+    // TODO: will be used when OAuth token refresh is implemented
+    #[allow(dead_code)]
     async fn ensure_valid_token(&mut self) -> Result<(), CloudError> {
         if let Some(refresh) = self.refresh_token.clone() {
             if oauth::is_token_expired(None) {

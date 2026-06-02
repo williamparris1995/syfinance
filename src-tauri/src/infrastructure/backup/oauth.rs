@@ -128,6 +128,8 @@ pub async fn authorize_with_pkce(
 }
 
 /// Refresh an expired access token using the stored refresh token.
+// TODO: will be used when OAuth token refresh is implemented
+#[allow(dead_code)]
 pub async fn refresh_access_token(
     config: &OAuthConfig,
     refresh_token: &str,
@@ -353,6 +355,8 @@ pub fn get_oauth_config(provider: &str, client_id: &str, client_secret: Option<&
 }
 
 /// Check if an access token has expired and needs refresh.
+// TODO: will be used when OAuth token refresh is implemented
+#[allow(dead_code)]
 pub fn is_token_expired(expires_at: Option<i64>) -> bool {
     match expires_at {
         Some(exp) => Utc::now().timestamp() >= exp - 60, // 60-second buffer

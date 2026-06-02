@@ -18,20 +18,26 @@ pub mod transaction_template_repository;
 pub mod transaction_repository_postgres;
 
 pub use account_repository::SqliteAccountRepository;
+// Re-exports form the library's public API surface, used by tests and external consumers.
+#[allow(unused_imports)]
 pub use account_repository_postgres::PostgresAccountRepository;
 pub use budget_repository::SqliteBudgetRepository;
+#[allow(unused_imports)]
 pub use chart_of_accounts_repository::SqliteChartOfAccountsRepository;
 pub use currency_repository::SqliteCurrencyRepository;
 pub use debt_repository::SqliteDebtRepository;
+#[allow(unused_imports)]
 pub use debt_repository_postgres::PostgresDebtRepository;
 pub use goal_repository::SqliteGoalRepository;
 pub use holding_repository::SqliteHoldingRepository;
 pub use prepaid_repository::SqlitePrepaidRepository;
 pub use reminder_repository::SqliteReminderRepository;
+#[allow(unused_imports)]
 pub use reminder_repository_postgres::PostgresReminderRepository;
 pub use security_repository::SqliteSecurityRepository;
 pub use subscription_repository::SqliteSubscriptionRepository;
 pub use tag_repository::SqliteTagRepository;
 pub use transaction_repository::SqliteTransactionRepository;
 pub use transaction_template_repository::SqliteTransactionTemplateRepository;
+#[allow(unused_imports)]
 pub use transaction_repository_postgres::PostgresTransactionRepository;

@@ -1,3 +1,6 @@
+// TODO: will be used when PostgreSQL bidirectional sync is implemented
+#![allow(dead_code)]
+
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use std::{future::Future, sync::Arc, time::Duration};

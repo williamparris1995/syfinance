@@ -38,6 +38,8 @@ impl TransactionCommandState {
         self.service.as_ref()
     }
 
+    // TODO: will be used when transaction integration tests are added
+    #[allow(dead_code)]
     pub async fn create_default_state() -> sqlx::Result<Self> {
         let options = sqlx::sqlite::SqliteConnectOptions::from_str("sqlite::memory:")?
             .create_if_missing(true);
@@ -59,6 +61,8 @@ impl TransactionCommandState {
     }
 }
 
+// TODO: will be used when transaction integration tests are added
+#[allow(dead_code)]
 pub async fn create_default_state() -> sqlx::Result<TransactionCommandState> {
     TransactionCommandState::create_default_state().await
 }

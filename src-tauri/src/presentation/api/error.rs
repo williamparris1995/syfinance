@@ -8,7 +8,11 @@ use serde::Serialize;
 #[derive(Debug)]
 pub enum ApiError {
     BadRequest(String),
+    // TODO: will be used when API authentication is implemented
+    #[allow(dead_code)]
     Unauthorized(String),
+    // TODO: will be used when API error handling is expanded
+    #[allow(dead_code)]
     InternalServerError(String),
 }
 

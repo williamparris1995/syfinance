@@ -11,6 +11,8 @@ pub enum PrepaidServiceError {
     AccountNotFound(Uuid),
     NotPrepaidAccount(Uuid),
     SourceAccountNotFound(Uuid),
+    // TODO: will be used when balance validation is added to top_up
+    #[allow(dead_code)]
     InsufficientBalance,
     RepositoryError(String),
     TransactionError(String),
@@ -252,6 +254,8 @@ where
             .collect())
     }
 
+    // TODO: will be used when low-balance protection is added to top_up
+    #[allow(dead_code)]
     pub async fn check_balance_sufficient(
         &self,
         account_id: Uuid,
@@ -283,6 +287,8 @@ where
     /// Note: This method constructs but does NOT persist the reminder. The caller is
     /// responsible for persisting it via a ReminderRepository. Full reminder persistence
     /// integration will be added when the ReminderRepository is wired into PrepaidService.
+    // TODO: will be used when low-balance notifications are implemented
+    #[allow(dead_code)]
     pub async fn check_low_balance_alert(
         &self,
         account_id: Uuid,

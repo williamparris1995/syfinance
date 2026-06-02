@@ -1,3 +1,6 @@
+// TODO: will be used when Chart of Accounts feature is wired
+#![allow(dead_code)]
+
 use crate::domain::{
     aggregates::{BalanceDirection, ChartOfAccounts, ChartOfAccountsError, ChartOfAccountsType},
     repositories::ChartOfAccountsRepository,

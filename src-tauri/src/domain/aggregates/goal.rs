@@ -88,6 +88,8 @@ impl Goal {
         }
     }
 
+    // TODO: will be used when goal progress is tracked via service layer
+    #[allow(dead_code)]
     pub fn add_progress(&mut self, amount: Decimal) {
         self.current_amount += amount;
         if self.current_amount >= self.target_amount {

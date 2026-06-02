@@ -9,7 +9,7 @@ use tracing::{error, info, warn};
 
 use crate::application::services::EncryptionAppService;
 use crate::infrastructure::backup::backup_service::{
-    bind_json_value, row_to_json, BackupData, BackupFile, BackupInfo, BackupService,
+    bind_json_value, row_to_json, BackupData, BackupFile, BackupService,
 };
 use crate::infrastructure::backup::cloud_provider::CloudError;
 use crate::infrastructure::backup::{build_cloud_provider, CloudSettings};
@@ -216,6 +216,8 @@ impl CloudSyncService {
     }
 
     /// Check if a sync is currently in progress.
+    // TODO: will be used when sync status polling is implemented
+    #[allow(dead_code)]
     pub fn is_syncing(&self) -> bool {
         self.is_syncing.load(Ordering::SeqCst)
     }

@@ -26,11 +26,15 @@ impl Budget {
         }
     }
 
+    // TODO: will be used when budget item editing is implemented in service layer
+    #[allow(dead_code)]
     pub fn add_item(&mut self, item: BudgetItem) {
         self.total_amount += item.planned_amount;
         self.items.push(item);
     }
 
+    // TODO: will be used when budget item removal is implemented in service layer
+    #[allow(dead_code)]
     pub fn remove_item(&mut self, item_id: &str) {
         if let Some(pos) = self.items.iter().position(|i| i.id == item_id) {
             let item = self.items.remove(pos);
@@ -38,6 +42,8 @@ impl Budget {
         }
     }
 
+    // TODO: will be used when budget item amount editing is implemented in service layer
+    #[allow(dead_code)]
     pub fn update_item_amount(&mut self, item_id: &str, new_amount: Decimal) {
         if let Some(item) = self.items.iter_mut().find(|i| i.id == item_id) {
             self.total_amount -= item.planned_amount;
@@ -62,14 +68,20 @@ impl Budget {
         ratio.to_string().parse::<f64>().unwrap_or(0.0) * 100.0
     }
 
+    // TODO: will be used when budget overspend alerts are implemented
+    #[allow(dead_code)]
     pub fn is_over_budget(&self) -> bool {
         self.total_actual() > self.total_amount
     }
 
+    // TODO: will be used when budget activation toggling is implemented
+    #[allow(dead_code)]
     pub fn deactivate(&mut self) {
         self.is_active = false;
     }
 
+    // TODO: will be used when budget activation toggling is implemented
+    #[allow(dead_code)]
     pub fn activate(&mut self) {
         self.is_active = true;
     }

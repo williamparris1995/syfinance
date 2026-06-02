@@ -86,7 +86,11 @@ pub enum ReminderError {
     EmptyTitle,
     InvalidReminderType(String),
     InvalidRepeatPattern(String),
+    // TODO: will be used when priority validation is added
+    #[allow(dead_code)]
     InvalidPriority(String),
+    // TODO: will be used when past-time validation is added
+    #[allow(dead_code)]
     RemindAtInPast(DateTime<Utc>),
 }
 
@@ -174,10 +178,14 @@ impl Reminder {
         self.touch();
     }
 
+    // TODO: will be used when OS-level notification scheduling is implemented
+    #[allow(dead_code)]
     pub fn set_os_task_id(&mut self, task_id: String) {
         self.os_task_id = Some(task_id);
     }
 
+    // TODO: will be used when notification throttling is implemented
+    #[allow(dead_code)]
     pub fn should_notify(&self) -> bool {
         // Check if 24 hours have passed since last notification
         match self.last_notified_at {

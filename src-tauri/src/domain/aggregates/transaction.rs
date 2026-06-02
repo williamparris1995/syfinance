@@ -12,6 +12,8 @@ pub enum TransactionEvent {
         transaction_id: Uuid,
         entry_count: usize,
     },
+    // TODO: will be used when event sourcing is implemented
+    #[allow(dead_code)]
     TransactionUpdated {
         transaction_id: Uuid,
         entry_count: usize,
@@ -71,6 +73,8 @@ pub struct Transaction {
     pub entries: Vec<TransactionEntry>,
     pub sync_metadata: SyncMetadata,
     pub(crate) pending_events: Vec<TransactionEvent>,
+    // TODO: will be used when operation tracking is implemented
+    #[allow(dead_code)]
     pub operations: Vec<TransactionOperation>,
 }
 
@@ -122,6 +126,8 @@ impl Transaction {
         }
     }
 
+    // TODO: will be used when transaction entry editing is implemented
+    #[allow(dead_code)]
     pub fn add_entry(&mut self, entry: TransactionEntry) -> Result<(), TransactionError> {
         let original_len = self.entries.len();
         self.entries.push(entry);
@@ -165,10 +171,14 @@ impl Transaction {
         Ok(())
     }
 
+    // TODO: will be used when event sourcing is implemented
+    #[allow(dead_code)]
     pub fn pull_events(&mut self) -> Vec<TransactionEvent> {
         std::mem::take(&mut self.pending_events)
     }
 
+    // TODO: will be used when operation tracking is implemented
+    #[allow(dead_code)]
     #[allow(clippy::too_many_arguments)]
     pub fn record_operation(
         &mut self,
@@ -189,10 +199,14 @@ impl Transaction {
         self.operations.push(operation);
     }
 
+    // TODO: will be used when operation tracking is implemented
+    #[allow(dead_code)]
     pub fn get_operations(&self) -> &[TransactionOperation] {
         &self.operations
     }
 
+    // TODO: will be used when operation tracking is implemented
+    #[allow(dead_code)]
     pub fn clear_operations(&mut self) {
         self.operations.clear();
     }
@@ -240,6 +254,8 @@ impl Transaction {
         Ok((debit_total.unwrap(), credit_total.unwrap()))
     }
 
+    // TODO: will be used when domain event tracking is implemented
+    #[allow(dead_code)]
     fn touch(&mut self) {
         self.sync_metadata.updated_at = Utc::now();
         self.sync_metadata.synced_at = None;

@@ -1,7 +1,3 @@
-// Allow unused code during development - many components are not yet integrated
-#![allow(dead_code)]
-#![allow(unused_imports)]
-
 mod application;
 mod domain;
 mod infrastructure;
@@ -28,7 +24,7 @@ use presentation::tauri_commands::{
         get_auto_backup_settings, get_backup_diff, get_backup_metadata, get_cloud_presets,
         get_cloud_settings, list_backups, list_cloud_backups, read_auto_backup_settings,
         restore_backup, save_cloud_settings, test_cloud_connection, update_auto_backup_last_run,
-        update_auto_backup_settings, upload_to_cloud, BackupCommandState,
+        update_auto_backup_settings, upload_to_cloud,
     },
     budget_commands::{
         add_budget_item, clone_budget_to_month, compute_budget_actuals, create_budget,
@@ -38,7 +34,6 @@ use presentation::tauri_commands::{
     cloud_sync_commands::{
         cloud_sync_now, create_cloud_sync_state, get_cloud_sync_settings, get_cloud_sync_status,
         get_sync_status_with_conflicts, resolve_sync_conflict, update_cloud_sync_settings,
-        CloudSyncCommandState,
     },
     currency_commands::{
         add_currency, create_default_state_from_pool as create_currency_default_state_from_pool,
@@ -52,10 +47,9 @@ use presentation::tauri_commands::{
     encryption_commands::{
         create_encryption_default_state, disable_encryption, get_encryption_status,
         lock_encryption, setup_encryption, unlock_encryption, unlock_encryption_keychain,
-        EncryptionCommandState,
     },
     export_commands::{
-        create_export_default_state, export_all_data, export_csv, ExportCommandState,
+        create_export_default_state, export_all_data, export_csv,
     },
     goal_commands::{
         complete_goal, create_default_state_from_pool as create_goal_default_state_from_pool,
@@ -77,7 +71,7 @@ use presentation::tauri_commands::{
         delete_reminder, get_reminder, list_reminders, update_reminder, ReminderCommandState,
     },
     search_commands::{
-        create_search_default_state, global_search, rebuild_search_index, SearchCommandState,
+        create_search_default_state, global_search, rebuild_search_index,
     },
     subscription_commands::{
         create_default_state_from_pool as create_subscription_default_state, create_subscription,
@@ -107,7 +101,6 @@ use presentation::tauri_commands::{
         TransactionTemplateCommandState,
     },
 };
-use sqlx::sqlite::SqlitePool;
 use sqlx::Row;
 use std::str::FromStr;
 use std::sync::Arc;

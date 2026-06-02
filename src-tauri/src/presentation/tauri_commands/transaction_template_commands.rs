@@ -11,6 +11,7 @@ use tauri::State;
 use uuid::Uuid;
 
 pub struct TransactionTemplateCommandState {
+    #[allow(dead_code)]
     pool: SqlitePool,
     template_service: TransactionTemplateService,
 }
@@ -34,6 +35,8 @@ impl TransactionTemplateCommandState {
         &self.template_service
     }
 
+    // TODO: will be used when template commands need direct pool access
+    #[allow(dead_code)]
     pub fn pool(&self) -> &SqlitePool {
         &self.pool
     }

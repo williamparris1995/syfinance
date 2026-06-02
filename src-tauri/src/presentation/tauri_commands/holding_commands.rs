@@ -17,6 +17,8 @@ use tauri::State;
 use uuid::Uuid;
 
 pub struct AppState {
+    // TODO: will be used when holding commands need direct pool access
+    #[allow(dead_code)]
     pub pool: SqlitePool,
     holding_service: HoldingService,
 }
@@ -41,6 +43,8 @@ impl AppState {
     pub fn service(&self) -> &HoldingService {
         &self.holding_service
     }
+    // TODO: will be used when holding commands need direct pool access
+    #[allow(dead_code)]
     pub fn pool(&self) -> &SqlitePool {
         &self.pool
     }

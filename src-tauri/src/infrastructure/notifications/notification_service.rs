@@ -1,3 +1,6 @@
+// TODO: will be used when notification scheduling is implemented
+#![allow(dead_code)]
+
 use crate::domain::{aggregates::Reminder, repositories::ReminderRepository};
 use async_trait::async_trait;
 use chrono::Utc;

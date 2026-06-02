@@ -30,6 +30,7 @@ pub struct CreateTagDto {
 }
 
 pub struct TagCommandState {
+    #[allow(dead_code)]
     pool: SqlitePool,
     tag_repository: Arc<SqliteTagRepository>,
 }
@@ -46,6 +47,8 @@ impl TagCommandState {
         self.tag_repository.as_ref()
     }
 
+    // TODO: will be used when tag commands need direct pool access
+    #[allow(dead_code)]
     pub fn pool(&self) -> &SqlitePool {
         &self.pool
     }

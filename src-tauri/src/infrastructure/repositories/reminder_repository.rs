@@ -1,5 +1,5 @@
 use crate::domain::{
-    aggregates::{Reminder, ReminderType, RepeatPattern},
+    aggregates::Reminder,
     repositories::ReminderRepository,
     value_objects::SyncMetadata,
 };

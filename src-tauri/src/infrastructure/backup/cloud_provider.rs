@@ -27,11 +27,15 @@ pub struct CloudBackupInfo {
 
 #[async_trait]
 pub trait CloudProvider: Send + Sync {
+    // TODO: will be used when provider name display is implemented
+    #[allow(dead_code)]
     fn name(&self) -> &str;
     async fn test_connection(&self) -> Result<(), CloudError>;
     async fn upload(&self, local_path: &Path, remote_name: &str) -> Result<(), CloudError>;
     async fn download(&self, remote_name: &str, local_path: &Path) -> Result<(), CloudError>;
     async fn list_backups(&self) -> Result<Vec<CloudBackupInfo>, CloudError>;
+    // TODO: will be used when remote backup deletion is implemented
+    #[allow(dead_code)]
     async fn delete(&self, remote_name: &str) -> Result<(), CloudError>;
 }
 

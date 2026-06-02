@@ -3,13 +3,13 @@ use crate::infrastructure::backup::backup_service::{
     BackupFile, BackupInfo, BackupService, DiffSummary, RestoreResult,
 };
 use crate::infrastructure::backup::cloud_provider::{
-    get_presets, CloudBackupInfo, CloudPreset, CloudProvider, CloudSettings,
+    get_presets, CloudBackupInfo, CloudPreset, CloudSettings,
 };
 use crate::infrastructure::backup::oauth;
 use sqlx::SqlitePool;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tracing::{error, info};
+use tracing::info;
 
 // ---------------------------------------------------------------------------
 // State

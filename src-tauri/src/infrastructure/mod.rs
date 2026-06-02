@@ -1,6 +1,5 @@
 pub mod backup;
 pub mod currency_rate_fetcher;
-pub mod database;
 pub mod encryption;
 pub mod notifications;
 pub mod reminders;

@@ -108,6 +108,8 @@ impl BudgetCommandState {
     }
 }
 
+// TODO: will be used when budget integration tests are added
+#[allow(dead_code)]
 pub async fn create_default_state_from_pool(pool: SqlitePool) -> sqlx::Result<BudgetCommandState> {
     Ok(BudgetCommandState::from_pool(pool))
 }

@@ -67,6 +67,7 @@ pub struct UpdateReminderDto {
 }
 
 pub struct ReminderCommandState {
+    #[allow(dead_code)]
     pool: SqlitePool,
     reminder_repository: Arc<SqliteReminderRepository>,
 }
@@ -83,6 +84,8 @@ impl ReminderCommandState {
         self.reminder_repository.as_ref()
     }
 
+    // TODO: will be used when reminder commands need direct pool access
+    #[allow(dead_code)]
     pub fn pool(&self) -> &SqlitePool {
         &self.pool
     }

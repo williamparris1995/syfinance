@@ -19,6 +19,8 @@ pub struct AppState {
 }
 
 impl AppState {
+    // TODO: will be used when integration tests need account command state
+    #[allow(dead_code)]
     pub async fn create_default() -> sqlx::Result<Self> {
         let options = SqliteConnectOptions::from_str("sqlite::memory:")?.create_if_missing(true);
         let pool = SqlitePoolOptions::new()

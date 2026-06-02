@@ -35,6 +35,8 @@ impl CurrencyDto {
     }
 }
 
+// TODO: will be used when currency CRUD commands are registered
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct CreateCurrencyDto {
     pub code: String,
@@ -49,6 +51,8 @@ pub struct CurrencyCommandState {
 }
 
 impl CurrencyCommandState {
+    // TODO: will be used when currency integration tests are added
+    #[allow(dead_code)]
     pub async fn create_default_state() -> sqlx::Result<Self> {
         let options = SqliteConnectOptions::from_str("sqlite::memory:")?.create_if_missing(true);
         let pool = SqlitePoolOptions::new()
@@ -77,6 +81,8 @@ impl CurrencyCommandState {
     }
 }
 
+// TODO: will be used when currency integration tests are added
+#[allow(dead_code)]
 pub async fn create_default_state() -> sqlx::Result<CurrencyCommandState> {
     CurrencyCommandState::create_default_state().await
 }
@@ -157,6 +163,8 @@ pub async fn add_currency_with_service(
         .map_err(database_error_message)
 }
 
+// TODO: will be used when currency save is needed outside tauri commands
+#[allow(dead_code)]
 pub async fn save_currency_with_service(
     state: &CurrencyCommandState,
     currency: &Currency,
@@ -196,6 +204,8 @@ pub async fn list_currencies(
 }
 
 #[tauri::command]
+// TODO: will be used when get_currency command is registered
+#[allow(dead_code)]
 pub async fn get_currency(
     state: State<'_, CurrencyCommandState>,
     code: String,
@@ -233,6 +243,8 @@ pub async fn update_currency_rate(
 }
 
 #[tauri::command]
+// TODO: will be used when delete_currency command is registered
+#[allow(dead_code)]
 pub async fn delete_currency(
     state: State<'_, CurrencyCommandState>,
     code: String,
@@ -245,6 +257,8 @@ pub async fn delete_currency(
 }
 
 #[tauri::command]
+// TODO: will be used when convert_currency command is registered
+#[allow(dead_code)]
 pub async fn convert_currency(
     state: State<'_, CurrencyCommandState>,
     amount: f64,

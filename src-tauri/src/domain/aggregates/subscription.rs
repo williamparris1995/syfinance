@@ -38,6 +38,8 @@ pub struct Subscription {
 }
 
 impl Subscription {
+    // TODO: will be used when subscription service uses domain methods directly
+    #[allow(dead_code)]
     pub fn is_due(&self, today: NaiveDate) -> bool {
         !self.paused
             && self.next_billing_date <= today
@@ -61,10 +63,14 @@ impl Subscription {
         }
     }
 
+    // TODO: will be used when pause is routed through domain method
+    #[allow(dead_code)]
     pub fn pause(&mut self) {
         self.paused = true;
     }
 
+    // TODO: will be used when resume is routed through domain method
+    #[allow(dead_code)]
     pub fn resume(&mut self) {
         self.paused = false;
     }

@@ -1,3 +1,6 @@
+// TODO: will be used when PostgreSQL sync is implemented
+#![allow(dead_code)]
+
 use crate::domain::{
     aggregates::{Account, AccountType, Ownership},
     repositories::AccountRepository,

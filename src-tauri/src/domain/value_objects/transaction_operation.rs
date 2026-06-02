@@ -25,6 +25,8 @@ pub struct TransactionOperation {
 }
 
 impl TransactionOperation {
+    // TODO: will be used when operation tracking is implemented
+    #[allow(dead_code)]
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         transaction_id: Uuid,

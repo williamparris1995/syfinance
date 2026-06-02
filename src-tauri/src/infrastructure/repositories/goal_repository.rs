@@ -102,26 +102,6 @@ impl GoalRepository for SqliteGoalRepository {
         rows.iter().map(Self::row_to_goal).collect()
     }
 
-    async fn find_active(&self) -> sqlx::Result<Vec<Goal>> {
-        let sql = format!(
-            "SELECT {} FROM goals WHERE is_completed = FALSE ORDER BY deadline ASC",
-            Self::SELECT_COLUMNS
-        );
-        let rows = sqlx::query(&sql).fetch_all(&self.pool).await?;
-
-        rows.iter().map(Self::row_to_goal).collect()
-    }
-
-    async fn find_completed(&self) -> sqlx::Result<Vec<Goal>> {
-        let sql = format!(
-            "SELECT {} FROM goals WHERE is_completed = TRUE ORDER BY completed_at DESC",
-            Self::SELECT_COLUMNS
-        );
-        let rows = sqlx::query(&sql).fetch_all(&self.pool).await?;
-
-        rows.iter().map(Self::row_to_goal).collect()
-    }
-
     async fn update(&self, goal: &Goal) -> sqlx::Result<()> {
         let now = chrono::Utc::now().to_rfc3339();
         sqlx::query(
@@ -262,35 +242,6 @@ mod tests {
 
         let all = repo.find_all().await.unwrap();
         assert_eq!(all.len(), 2);
-    }
-
-    #[tokio::test]
-    async fn test_find_active() {
-        let pool = setup_test_db().await;
-        let repo = SqliteGoalRepository::new(pool);
-
-        let goal1 = Goal::new(
-            "id-1".to_string(),
-            "Active Goal".to_string(),
-            GoalType::Savings,
-            Decimal::new(10000, 0),
-            "CNY".to_string(),
-        );
-        let mut goal2 = Goal::new(
-            "id-2".to_string(),
-            "Completed Goal".to_string(),
-            GoalType::Savings,
-            Decimal::new(10000, 0),
-            "CNY".to_string(),
-        );
-        goal2.mark_completed();
-
-        repo.create(&goal1).await.unwrap();
-        repo.create(&goal2).await.unwrap();
-
-        let active = repo.find_active().await.unwrap();
-        assert_eq!(active.len(), 1);
-        assert_eq!(active[0].name, "Active Goal");
     }
 
     #[tokio::test]

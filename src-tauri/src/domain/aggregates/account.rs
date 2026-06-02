@@ -231,6 +231,8 @@ impl Account {
         Ok(())
     }
 
+    // TODO: will be used when multi-currency account editing is implemented
+    #[allow(dead_code)]
     pub fn update_currency_code(&mut self, currency_code: String) -> Result<(), AccountError> {
         self.ensure_not_deleted()?;
         if currency_code != self.currency_code {
@@ -351,6 +353,8 @@ impl Account {
         Ok(())
     }
 
+    // TODO: will be used when event sourcing is implemented
+    #[allow(dead_code)]
     pub fn pull_events(&mut self) -> Vec<AccountEvent> {
         std::mem::take(&mut self.pending_events)
     }

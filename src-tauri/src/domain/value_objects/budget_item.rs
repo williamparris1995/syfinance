@@ -45,6 +45,8 @@ impl BudgetItem {
         self.actual_amount > self.planned_amount
     }
 
+    // TODO: will be used when actual budget tracking is implemented
+    #[allow(dead_code)]
     pub fn record_actual(&mut self, amount: Decimal) {
         self.actual_amount = amount;
     }

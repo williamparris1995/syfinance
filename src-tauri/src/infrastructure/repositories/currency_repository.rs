@@ -6,7 +6,6 @@ use chrono::Utc;
 use rust_decimal::Decimal;
 use sqlx::{sqlite::SqlitePool, Row};
 use std::str::FromStr;
-use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct SqliteCurrencyRepository {
@@ -37,6 +36,8 @@ impl SqliteCurrencyRepository {
             .map_err(|error: CurrencyValidationError| sqlx::Error::Decode(Box::new(error)))
     }
 
+    // TODO: will be used when currency rate caching is implemented
+    #[allow(dead_code)]
     pub async fn find_by_code_with_timestamp(
         &self,
         code: &str,

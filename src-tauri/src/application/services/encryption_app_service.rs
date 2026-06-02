@@ -13,6 +13,8 @@ pub enum EncryptionAppError {
     #[error("encryption already enabled")]
     AlreadyEnabled,
     #[error("encryption locked")]
+    // TODO: will be used when field-level encryption guard is added
+    #[allow(dead_code)]
     Locked,
     #[error("invalid password")]
     InvalidPassword,
@@ -169,12 +171,16 @@ impl EncryptionAppService {
         Ok(())
     }
 
+    // TODO: will be used when field-level encryption is implemented
+    #[allow(dead_code)]
     pub fn encrypt_field(&self, plaintext: &str) -> Result<String, EncryptionAppError> {
         let guard = self.service.lock().unwrap();
         let service = guard.as_ref().ok_or(EncryptionAppError::Locked)?;
         Ok(service.encrypt_to_hex(plaintext)?)
     }
 
+    // TODO: will be used when field-level encryption is implemented
+    #[allow(dead_code)]
     pub fn decrypt_field(&self, hex_ciphertext: &str) -> Result<String, EncryptionAppError> {
         let guard = self.service.lock().unwrap();
         let service = guard.as_ref().ok_or(EncryptionAppError::Locked)?;

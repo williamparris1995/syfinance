@@ -11,11 +11,14 @@ use tauri::State;
 use uuid::Uuid;
 
 pub struct AppState {
+    #[allow(dead_code)]
     pool: SqlitePool,
     debt_service: DebtService,
 }
 
 impl AppState {
+    // TODO: will be used when debt integration tests are added
+    #[allow(dead_code)]
     pub async fn create_default() -> sqlx::Result<Self> {
         let options = SqliteConnectOptions::from_str("sqlite::memory:")?.create_if_missing(true);
         let pool = SqlitePoolOptions::new()
@@ -43,11 +46,15 @@ impl AppState {
         &self.debt_service
     }
 
+    // TODO: will be used when debt commands need direct pool access
+    #[allow(dead_code)]
     pub fn pool(&self) -> &SqlitePool {
         &self.pool
     }
 }
 
+// TODO: will be used when debt integration tests are added
+#[allow(dead_code)]
 pub async fn create_default_state() -> sqlx::Result<AppState> {
     AppState::create_default().await
 }

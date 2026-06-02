@@ -172,6 +172,8 @@ impl DebtDetails {
         months.max(1)
     }
 
+    // TODO: will be used when payment marking is implemented in service layer
+    #[allow(dead_code)]
     pub fn mark_paid(
         &mut self,
         schedule_id: Uuid,

@@ -1,5 +1,8 @@
+// TODO: will be used when PostgreSQL sync is implemented
+#![allow(dead_code)]
+
 use crate::domain::{
-    aggregates::{Reminder, ReminderType, RepeatPattern},
+    aggregates::Reminder,
     repositories::ReminderRepository,
     value_objects::SyncMetadata,
 };

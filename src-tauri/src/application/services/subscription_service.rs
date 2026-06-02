@@ -14,7 +14,6 @@ use crate::infrastructure::repositories::{
     SqliteAccountRepository, SqliteSubscriptionRepository, SqliteTransactionRepository,
 };
 use chrono::NaiveDate;
-use rust_decimal::Decimal;
 use std::sync::Arc;
 use uuid::Uuid;
 
