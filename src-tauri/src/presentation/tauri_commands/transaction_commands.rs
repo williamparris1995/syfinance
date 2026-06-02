@@ -293,3 +293,22 @@ pub async fn delete_transaction(
     let id = parse_uuid(&id, "id")?;
     delete_transaction_with_service(state.service(), id).await
 }
+
+#[tauri::command]
+pub async fn batch_delete_transactions(
+    state: State<'_, TransactionCommandState>,
+    ids: Vec<String>,
+) -> Result<usize, String> {
+    let mut deleted = 0;
+    for id_str in &ids {
+        let id = Uuid::parse_str(id_str).map_err(|e| format!("Invalid ID: {}", e))?;
+        match state.service().delete_transaction(id).await {
+            Ok(_) => deleted += 1,
+            Err(e) => {
+                tracing::warn!(id = id_str, error = %e, "Failed to delete transaction in batch");
+            }
+        }
+    }
+    tracing::info!(requested = ids.len(), deleted = deleted, "Batch delete complete");
+    Ok(deleted)
+}

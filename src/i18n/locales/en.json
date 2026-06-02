@@ -270,7 +270,13 @@
     "resultCount_other": "{{count}} transactions",
     "dialogTitle": "Record Transaction",
     "dialogDesc": "Create a new transaction with balanced debits and credits.",
-    "copyToCreate": "Copy to New Transaction"
+    "copyToCreate": "Copy to New Transaction",
+    "selectAll": "Select All",
+    "selected": "{{count}} selected",
+    "batchDeleteSuccess": "Deleted {{count}} transactions",
+    "batchDelete": "Delete Selected",
+    "clearSelection": "Clear Selection",
+    "confirmBatchDelete": "Are you sure you want to delete {{count}} transactions?"
   },
   "transaction": {
     "expense": "Expense",

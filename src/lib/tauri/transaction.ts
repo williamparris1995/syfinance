@@ -57,3 +57,6 @@ export const updateTransaction = (id: string, dto: CreateTransactionDto) =>
 
 export const deleteTransaction = (id: string) =>
   invokeTauri<void>('delete_transaction', { id });
+
+export const batchDeleteTransactions = (ids: string[]) =>
+  invokeTauri<number>('batch_delete_transactions', { ids });

@@ -93,10 +93,10 @@ use presentation::tauri_commands::{
         delete_tag, get_transaction_tags, list_tags, remove_tag_from_transaction, TagCommandState,
     },
     transaction_commands::{
-        create_default_state_from_pool, create_simple_expense, create_simple_income,
-        create_simple_transfer, create_transaction, delete_transaction, get_transaction,
-        get_transactions_by_account, get_transactions_by_date_range, list_transactions,
-        update_transaction,
+        batch_delete_transactions, create_default_state_from_pool, create_simple_expense,
+        create_simple_income, create_simple_transfer, create_transaction, delete_transaction,
+        get_transaction, get_transactions_by_account, get_transactions_by_date_range,
+        list_transactions, update_transaction,
     },
 };
 use sqlx::sqlite::SqlitePool;
@@ -340,6 +340,7 @@ async fn main() {
             create_simple_transfer,
             update_transaction,
             delete_transaction,
+            batch_delete_transactions,
             list_tags,
             create_tag,
             delete_tag,

@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
@@ -21,13 +21,14 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
-import { ArrowDown, ArrowUp, Copy, Plus, Pencil, Trash2, Search } from 'lucide-react';
+import { ArrowDown, ArrowUp, Copy, Plus, Pencil, Trash2, Search, X } from 'lucide-react';
 import { listAccounts, listAccountsByOwnership } from '../lib/tauri/account';
 import {
   listTransactions,
   getTransactionsByDateRange,
   updateTransaction,
   deleteTransaction,
+  batchDeleteTransactions,
   type TransactionDto,
   type CreateTransactionDto,
 } from '../lib/tauri/transaction';
@@ -70,8 +71,46 @@ export function TransactionsPage() {
   const [sortColumn, setSortColumn] = useState<SortColumn>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmBatchDelete, setConfirmBatchDelete] = useState(false);
+
   const queryClient = useQueryClient();
   const { t } = useTranslation();
+
+  const batchDeleteMutation = useMutation({
+    mutationFn: batchDeleteTransactions,
+    onSuccess: (deleted) => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      toast.success(t('transactions.batchDeleteSuccess', { count: deleted }));
+      setSelectedIds(new Set());
+      setConfirmBatchDelete(false);
+    },
+    onError: (error) => {
+      toast.error(String(error));
+    },
+  });
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredTransactions.length && filteredTransactions.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredTransactions.map((tx) => tx.id)));
+    }
+  };
 
   const { data: accounts = [] } = useQuery({
     queryKey: ['accounts'],
@@ -555,9 +594,46 @@ export function TransactionsPage() {
         </div>
       ) : (
         <div className="border rounded-lg overflow-x-auto">
+          {/* Batch Action Bar */}
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-3 px-4 py-2 bg-muted/70 border-b">
+              <span className="text-sm font-medium">
+                {t('transactions.selected', { count: selectedIds.size })}
+              </span>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setConfirmBatchDelete(true)}
+              >
+                <Trash2 className="mr-1 h-3.5 w-3.5" />
+                {t('transactions.batchDelete')}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedIds(new Set())}
+              >
+                <X className="mr-1 h-3.5 w-3.5" />
+                {t('transactions.clearSelection')}
+              </Button>
+            </div>
+          )}
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[40px] px-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.size === filteredTransactions.length && filteredTransactions.length > 0}
+                    ref={(el) => {
+                      if (el) {
+                        el.indeterminate = selectedIds.size > 0 && selectedIds.size < filteredTransactions.length;
+                      }
+                    }}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                </TableHead>
                 {(
                   [
                     { col: 'date' as const, label: t('common.date'), className: '' },
@@ -599,6 +675,14 @@ export function TransactionsPage() {
                 const amount = getTransactionAmount(transaction);
                 return (
                   <TableRow key={transaction.id}>
+                    <TableCell className="w-[40px] px-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(transaction.id)}
+                        onChange={() => toggleSelect(transaction.id)}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">
                       {new Date(transaction.transaction_date).toLocaleDateString('en-US', {
                         year: 'numeric',
@@ -755,6 +839,31 @@ export function TransactionsPage() {
                 {t('common.cancel')}
               </Button>
               <Button variant="destructive" size="sm" onClick={handleDelete}>
+                {t('common.delete')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Batch Delete Confirmation Dialog */}
+      {confirmBatchDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-lg shadow-lg p-6 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold mb-2">{t('transactions.batchDelete')}</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              {t('transactions.confirmBatchDelete', { count: selectedIds.size })}
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setConfirmBatchDelete(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={batchDeleteMutation.isPending}
+                onClick={() => batchDeleteMutation.mutate(Array.from(selectedIds))}
+              >
                 {t('common.delete')}
               </Button>
             </div>

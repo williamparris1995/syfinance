@@ -270,7 +270,13 @@
     "resultCount": "{{count}} 笔交易",
     "dialogTitle": "记录交易",
     "dialogDesc": "创建借贷平衡的新交易",
-    "copyToCreate": "复制为新交易"
+    "copyToCreate": "复制为新交易",
+    "selectAll": "全选",
+    "selected": "已选 {{count}} 项",
+    "batchDeleteSuccess": "已删除 {{count}} 笔交易",
+    "batchDelete": "删除所选",
+    "clearSelection": "取消选择",
+    "confirmBatchDelete": "确定要删除 {{count}} 笔交易吗？"
   },
   "transaction": {
     "expense": "支出",
