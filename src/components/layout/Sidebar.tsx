@@ -11,6 +11,7 @@ import {
   CalendarClock,
   PiggyBank,
   Target,
+  Repeat,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SidebarHeader } from './SidebarHeader';
@@ -87,6 +88,13 @@ export function Sidebar({ onNavigate, collapsed }: SidebarProps) {
               to="/transactions"
               label={t('nav.transactions')}
               icon={Receipt}
+              onClick={onNavigate}
+              collapsed={collapsed}
+            />
+            <SidebarMenuItem
+              to="/transaction-templates"
+              label={t('nav.recurring')}
+              icon={Repeat}
               onClick={onNavigate}
               collapsed={collapsed}
             />

@@ -14,6 +14,7 @@ pub mod subscription_commands;
 pub mod sync_commands;
 pub mod tag_commands;
 pub mod transaction_commands;
+pub mod transaction_template_commands;
 
 pub use account_commands::{
     create_account, delete_account, get_account, get_account_balance, list_accounts,
@@ -73,4 +74,10 @@ pub use tag_commands::{
 pub use transaction_commands::{
     create_transaction, delete_transaction, get_transaction, get_transactions_by_account,
     get_transactions_by_date_range, list_transactions, update_transaction, TransactionCommandState,
+};
+pub use transaction_template_commands::{
+    create_template_default_state_from_pool,
+    create_transaction_template, delete_transaction_template, get_transaction_template,
+    list_transaction_templates, pause_transaction_template, resume_transaction_template,
+    update_transaction_template, TransactionTemplateCommandState,
 };

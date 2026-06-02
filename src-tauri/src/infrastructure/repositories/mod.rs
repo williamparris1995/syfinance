@@ -14,6 +14,7 @@ pub mod security_repository;
 pub mod subscription_repository;
 pub mod tag_repository;
 pub mod transaction_repository;
+pub mod transaction_template_repository;
 pub mod transaction_repository_postgres;
 
 pub use account_repository::SqliteAccountRepository;
@@ -32,4 +33,5 @@ pub use security_repository::SqliteSecurityRepository;
 pub use subscription_repository::SqliteSubscriptionRepository;
 pub use tag_repository::SqliteTagRepository;
 pub use transaction_repository::SqliteTransactionRepository;
+pub use transaction_template_repository::SqliteTransactionTemplateRepository;
 pub use transaction_repository_postgres::PostgresTransactionRepository;

@@ -5,6 +5,7 @@ pub mod prepaid_dto;
 pub mod simple_transaction_dto;
 pub mod subscription_dto;
 pub mod transaction_dto;
+pub mod transaction_template_dto;
 
 pub use account_dto::{AccountBalanceDto, AccountDto, CreateAccountDto, UpdateAccountDto};
 pub use debt_dto::{CreateDebtDto, DebtDto, PaymentScheduleDto, RecordPaymentDto, UpdateDebtDto};
@@ -18,3 +19,6 @@ pub use subscription_dto::{
     CreateSubscriptionDto, SubscriptionDto, SubscriptionFilters, UpdateSubscriptionDto,
 };
 pub use transaction_dto::{CreateTransactionDto, TransactionDto, TransactionEntryDto};
+pub use transaction_template_dto::{
+    CreateTransactionTemplateDto, TransactionTemplateDto, UpdateTransactionTemplateDto,
+};

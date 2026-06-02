@@ -10,6 +10,7 @@ pub mod security;
 pub mod subscription;
 pub mod tag;
 pub mod transaction;
+pub mod transaction_template;
 
 pub use account::{Account, AccountError, AccountType, Ownership};
 pub use chart_of_accounts::{
@@ -20,4 +21,5 @@ pub use holding::{Holding, HoldingTransaction, HoldingTransactionType};
 pub use reminder::{Reminder, ReminderError, ReminderType, RepeatPattern};
 pub use subscription::{Subscription, SubscriptionCycle, SubscriptionDirection};
 pub use tag::Tag;
+pub use transaction_template::{TemplateCycle, TemplateDirection, TransactionTemplate};
 pub use transaction::{Transaction, TransactionError, TransactionEvent};

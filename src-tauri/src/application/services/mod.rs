@@ -6,6 +6,7 @@ pub mod holding_service;
 pub mod prepaid_service;
 pub mod subscription_service;
 pub mod transaction_service;
+pub mod transaction_template_service;
 
 pub use account_service::{AccountService, AccountServiceError};
 pub use budget_service::BudgetService;
@@ -15,3 +16,6 @@ pub use holding_service::{HoldingService, HoldingServiceError};
 pub use prepaid_service::PrepaidService;
 pub use subscription_service::{SubscriptionService, SubscriptionServiceError};
 pub use transaction_service::TransactionService;
+pub use transaction_template_service::{
+    TransactionTemplateService, TransactionTemplateServiceError,
+};

@@ -8,11 +8,12 @@ mod infrastructure;
 mod presentation;
 
 use application::services::subscription_service::SubscriptionService;
+use application::services::transaction_template_service::TransactionTemplateService;
 use infrastructure::notifications::{NotificationService, TauriNotificationSender};
 use infrastructure::reminders::ReminderScheduler;
 use infrastructure::repositories::{
     SqliteAccountRepository, SqliteReminderRepository, SqliteSubscriptionRepository,
-    SqliteTransactionRepository,
+    SqliteTransactionRepository, SqliteTransactionTemplateRepository,
 };
 use infrastructure::sync::SyncScheduler;
 use presentation::api::create_sync_routes;
@@ -70,6 +71,12 @@ use presentation::tauri_commands::{
         create_default_state_from_pool as create_subscription_default_state, create_subscription,
         delete_subscription, get_subscription, list_subscription_transactions, list_subscriptions,
         pause_subscription, resume_subscription, update_subscription, SubscriptionCommandState,
+    },
+    transaction_template_commands::{
+        create_template_default_state_from_pool,
+        create_transaction_template, delete_transaction_template, get_transaction_template,
+        list_transaction_templates, pause_transaction_template, resume_transaction_template,
+        update_transaction_template, TransactionTemplateCommandState,
     },
     sync_commands::{
         create_default_state as create_sync_default_state, get_sync_settings, get_sync_status,
@@ -175,6 +182,10 @@ async fn main() {
         create_subscription_default_state(pool.clone())
             .await
             .expect("failed to initialize subscription command state");
+    let template_state: TransactionTemplateCommandState =
+        create_template_default_state_from_pool(pool.clone())
+            .await
+            .expect("failed to initialize transaction template command state");
 
     // Clone the pool before debt_state is moved
     let debt_pool = pool.clone();
@@ -233,6 +244,7 @@ async fn main() {
         .manage(holding_state)
         .manage(prepaid_state)
         .manage(subscription_state)
+        .manage(template_state)
         .manage(tag_state)
         .manage(search_state)
         .manage(export_state)
@@ -296,6 +308,13 @@ async fn main() {
             pause_subscription,
             resume_subscription,
             list_subscription_transactions,
+            create_transaction_template,
+            list_transaction_templates,
+            get_transaction_template,
+            update_transaction_template,
+            delete_transaction_template,
+            pause_transaction_template,
+            resume_transaction_template,
             create_transaction,
             get_transaction,
             list_transactions,
@@ -393,6 +412,24 @@ async fn main() {
                 }
             });
             info!("Subscription scheduler started (checking every 5 minutes)");
+
+            // Start transaction template auto-record scheduler
+            let tpl_pool = pool.clone();
+            tokio::spawn(async move {
+                let tpl_repo = Arc::new(SqliteTransactionTemplateRepository::new(tpl_pool.clone()));
+                let tpl_acc_repo = Arc::new(SqliteAccountRepository::new(tpl_pool.clone()));
+                let tpl_tx_repo = Arc::new(SqliteTransactionRepository::new(tpl_pool.clone()));
+                let tpl_svc = TransactionTemplateService::new(tpl_repo, tpl_acc_repo, tpl_tx_repo);
+                let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(300));
+                loop {
+                    interval.tick().await;
+                    let today = chrono::Utc::now().date_naive();
+                    if let Err(e) = tpl_svc.process_due_templates(today).await {
+                        error!("Failed to process transaction templates: {}", e);
+                    }
+                }
+            });
+            info!("Transaction template scheduler started (checking every 5 minutes)");
 
             // Start cloud sync scheduler
             {

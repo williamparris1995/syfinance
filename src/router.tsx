@@ -9,6 +9,7 @@ import { GoalsPage } from './pages/GoalsPage';
 import { HoldingsPage } from './pages/HoldingsPage';
 import { HomePage } from './pages/HomePage';
 import { SubscriptionsPage } from './pages/SubscriptionsPage';
+import { TransactionTemplatesPage } from './pages/TransactionTemplatesPage';
 import { NewAccountPage } from './pages/NewAccountPage';
 import { NewDebtPage } from './pages/NewDebtPage';
 import { NewTransactionPage } from './pages/NewTransactionPage';
@@ -74,6 +75,12 @@ const subscriptionsRoute = createRoute({
   component: SubscriptionsPage,
 });
 
+const transactionTemplatesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'transaction-templates',
+  component: TransactionTemplatesPage,
+});
+
 const budgetRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'budget',
@@ -135,6 +142,7 @@ const routeTree = rootRoute.addChildren([
   debtsRoute.addChildren([newDebtRoute]),
   holdingsRoute,
   subscriptionsRoute,
+  transactionTemplatesRoute,
   budgetRoute,
   goalsRoute,
   reportsRoute,
