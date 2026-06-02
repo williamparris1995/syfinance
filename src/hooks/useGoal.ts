@@ -7,6 +7,7 @@ import {
   updateGoalProgress,
   completeGoal,
   deleteGoal,
+  syncGoalProgress,
   CreateGoalDto,
   UpdateGoalDto,
 } from '../lib/tauri/goal';
@@ -92,6 +93,20 @@ export function useDeleteGoal() {
     },
     onError: (error) => {
       toast.error(`删除目标失败: ${error}`);
+    },
+  });
+}
+
+export function useSyncGoalProgress() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (goalId: string) => syncGoalProgress(goalId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['goals'] });
+      toast.success('进度同步成功');
+    },
+    onError: (error) => {
+      toast.error(`同步进度失败: ${error}`);
     },
   });
 }

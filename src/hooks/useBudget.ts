@@ -8,6 +8,7 @@ import {
   deleteBudget,
   removeBudgetItem,
   computeBudgetActuals,
+  cloneBudgetToMonth,
   CreateBudgetDto,
   AddBudgetItemDto,
 } from '../lib/tauri/budget';
@@ -108,6 +109,23 @@ export function useComputeBudgetActuals() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['budget'] });
+    },
+  });
+}
+
+export function useCloneBudgetToMonth() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ sourceBudgetId, targetMonth }: { sourceBudgetId: string; targetMonth: string }) =>
+      cloneBudgetToMonth(sourceBudgetId, targetMonth),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      queryClient.invalidateQueries({ queryKey: ['budget'] });
+      toast.success('预算复制成功');
+    },
+    onError: (error) => {
+      toast.error(`复制预算失败: ${error}`);
     },
   });
 }

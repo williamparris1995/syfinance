@@ -58,3 +58,6 @@ export const removeBudgetItem = (budgetId: string, itemId: string) =>
 
 export const computeBudgetActuals = (budgetId: string) =>
   invokeTauri<void>('compute_budget_actuals', { budgetId });
+
+export const cloneBudgetToMonth = (sourceBudgetId: string, targetMonth: string) =>
+  invokeTauri<string>('clone_budget_to_month', { sourceBudgetId, targetMonth });

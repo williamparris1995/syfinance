@@ -13,6 +13,8 @@ import {
   CreditCard,
   BarChart3,
   DollarSign,
+  Pencil,
+  RefreshCw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/button';
@@ -42,13 +44,15 @@ import { Progress } from '../components/ui/progress';
 import {
   useGoals,
   useCreateGoal,
+  useUpdateGoal,
   useUpdateGoalProgress,
   useCompleteGoal,
   useDeleteGoal,
+  useSyncGoalProgress,
 } from '../hooks/useGoal';
 import { useCurrencies } from '../hooks/useCurrency';
 import { listAccounts } from '../lib/tauri/account';
-import type { GoalDto, CreateGoalDto } from '../lib/tauri/goal';
+import type { GoalDto, CreateGoalDto, UpdateGoalDto } from '../lib/tauri/goal';
 import {
   formatGoalAmount,
   getGoalTypeLabel,
@@ -63,6 +67,7 @@ export function GoalsPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [showProgressDialog, setShowProgressDialog] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [selectedGoal, setSelectedGoal] = useState<GoalDto | null>(null);
@@ -88,9 +93,11 @@ export function GoalsPage() {
 
   // Mutations
   const createGoalMutation = useCreateGoal();
+  const updateGoalMutation = useUpdateGoal();
   const updateProgressMutation = useUpdateGoalProgress();
   const completeGoalMutation = useCompleteGoal();
   const deleteGoalMutation = useDeleteGoal();
+  const syncProgressMutation = useSyncGoalProgress();
 
   // Filter goals
   const filteredGoals = goals.filter((goal) => {
@@ -207,6 +214,40 @@ export function GoalsPage() {
         queryClient.invalidateQueries({ queryKey: ['goals'] });
       },
     });
+  };
+
+  // Edit goal
+  const handleEditGoal = () => {
+    if (!selectedGoal) return;
+    if (!goalName.trim()) {
+      toast.error(t('goals.nameRequired'));
+      return;
+    }
+    if (!targetAmount || parseFloat(targetAmount) <= 0) {
+      toast.error(t('goals.amountRequired'));
+      return;
+    }
+
+    const dto: UpdateGoalDto = {
+      name: goalName,
+      goal_type: goalType,
+      target_amount: targetAmount,
+      deadline: goalDeadline,
+      linked_account_id: goalLinkedAccount === 'none' ? '' : goalLinkedAccount,
+      notes: goalNotes,
+    };
+
+    updateGoalMutation.mutate(
+      { id: selectedGoal.id, dto },
+      {
+        onSuccess: () => {
+          setShowEditDialog(false);
+          setSelectedGoal(null);
+          resetForm();
+          queryClient.invalidateQueries({ queryKey: ['goals'] });
+        },
+      }
+    );
   };
 
   if (isLoading) {
@@ -409,12 +450,41 @@ export function GoalsPage() {
                           size="sm"
                           onClick={() => {
                             setSelectedGoal(goal);
+                            setGoalName(goal.name);
+                            setGoalType(goal.goal_type);
+                            setTargetAmount(goal.target_amount);
+                            setGoalCurrency(goal.currency_code);
+                            setGoalDeadline(goal.deadline || '');
+                            setGoalLinkedAccount(goal.linked_account_id || '');
+                            setGoalNotes(goal.notes || '');
+                            setShowEditDialog(true);
+                          }}
+                          title={t('goals.editGoal')}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedGoal(goal);
                             setShowProgressDialog(true);
                           }}
                           title={t('goals.addProgress')}
                         >
                           <TrendingUp className="h-4 w-4" />
                         </Button>
+                        {goal.linked_account_id && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => syncProgressMutation.mutate(goal.id)}
+                            disabled={syncProgressMutation.isPending}
+                            title={t('goals.syncProgress')}
+                          >
+                            <RefreshCw className={`h-4 w-4 ${syncProgressMutation.isPending ? 'animate-spin' : ''}`} />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -643,6 +713,152 @@ export function GoalsPage() {
               {createGoalMutation.isPending
                 ? t('common.saving')
                 : t('common.create')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Goal Dialog */}
+      <Dialog
+        open={showEditDialog}
+        onOpenChange={(open) => {
+          setShowEditDialog(open);
+          if (!open) {
+            setSelectedGoal(null);
+            resetForm();
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('goals.editGoal')}</DialogTitle>
+            <DialogDescription>{t('goals.editGoalDesc')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="editGoalName">{t('goals.goalName')}</Label>
+              <Input
+                id="editGoalName"
+                value={goalName}
+                onChange={(e) => setGoalName(e.target.value)}
+                placeholder={t('goals.goalNamePlaceholder')}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editGoalType">{t('goals.goalType')}</Label>
+              <Select value={goalType} onValueChange={(v) => setGoalType(v ?? '')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="savings">
+                    {t('goals.typeSavings')}
+                  </SelectItem>
+                  <SelectItem value="debt_payoff">
+                    {t('goals.typeDebtPayoff')}
+                  </SelectItem>
+                  <SelectItem value="investment">
+                    {t('goals.typeInvestment')}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="editTargetAmount">{t('goals.targetAmount')}</Label>
+                <Input
+                  id="editTargetAmount"
+                  type="number"
+                  value={targetAmount}
+                  onChange={(e) => setTargetAmount(e.target.value)}
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editGoalCurrency">{t('common.currency')}</Label>
+                <Select
+                  value={goalCurrency}
+                  onValueChange={(v) => setGoalCurrency(v ?? '')}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {currencies.map((currency) => (
+                      <SelectItem key={currency.code} value={currency.code}>
+                        {currency.code} ({currency.symbol})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editGoalDeadline">
+                {t('goals.deadline')} ({t('common.optional')})
+              </Label>
+              <Input
+                id="editGoalDeadline"
+                type="date"
+                value={goalDeadline}
+                onChange={(e) => setGoalDeadline(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editGoalLinkedAccount">
+                {t('goals.linkedAccount')} ({t('common.optional')})
+              </Label>
+              <Select
+                value={goalLinkedAccount}
+                onValueChange={(v) => setGoalLinkedAccount(v ?? '')}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t('goals.selectAccount')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">
+                    {t('goals.noAccount')}
+                  </SelectItem>
+                  {accounts.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      {account.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editGoalNotes">
+                {t('common.note')} ({t('common.optional')})
+              </Label>
+              <Input
+                id="editGoalNotes"
+                value={goalNotes}
+                onChange={(e) => setGoalNotes(e.target.value)}
+                placeholder={t('goals.notesPlaceholder')}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowEditDialog(false);
+                setSelectedGoal(null);
+                resetForm();
+              }}
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={handleEditGoal}
+              disabled={updateGoalMutation.isPending}
+            >
+              {updateGoalMutation.isPending
+                ? t('common.saving')
+                : t('common.save')}
             </Button>
           </div>
         </DialogContent>

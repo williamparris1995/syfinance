@@ -238,3 +238,13 @@ pub async fn compute_budget_actuals(
     let service = BudgetService::new(state.pool().clone());
     service.compute_budget_actuals(&budget_id).await
 }
+
+#[tauri::command]
+pub async fn clone_budget_to_month(
+    state: State<'_, BudgetCommandState>,
+    source_budget_id: String,
+    target_month: String,
+) -> Result<String, String> {
+    let service = BudgetService::new(state.pool().clone());
+    service.clone_budget_to_month(&source_budget_id, &target_month).await
+}

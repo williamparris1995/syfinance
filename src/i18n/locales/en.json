@@ -833,7 +833,10 @@
     "notesPlaceholder": "Add notes...",
     "nameRequired": "Budget name is required",
     "categoryRequired": "Category is required",
-    "amountRequired": "Planned amount must be greater than 0"
+    "amountRequired": "Planned amount must be greater than 0",
+    "copyToNextMonth": "Copy to Next Month",
+    "cloneSuccess": "Budget copied to next month",
+    "cloneError": "Failed to copy budget"
   },
   "tags": {
     "title": "Tags",
@@ -894,7 +897,13 @@
     "avgProgress": "Avg Progress",
     "filterAll": "All",
     "filterActive": "Active",
-    "filterCompleted": "Completed"
+    "filterCompleted": "Completed",
+    "editGoal": "Edit Goal",
+    "editGoalDesc": "Update your financial goal details",
+    "syncProgress": "Sync Progress",
+    "syncSuccess": "Progress synced from account balance",
+    "nameRequired": "Goal name is required",
+    "amountRequired": "Target amount must be greater than 0"
   },
   "sync": {
     "syncing": "Syncing...",

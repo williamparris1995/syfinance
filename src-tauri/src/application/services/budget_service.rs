@@ -80,6 +80,66 @@ impl BudgetService {
 
         Ok(())
     }
+
+    /// Clone a budget to another month, copying items with planned amounts and resetting actuals.
+    pub async fn clone_budget_to_month(
+        &self,
+        source_budget_id: &str,
+        target_month: &str,
+    ) -> Result<String, String> {
+        info!(source_id = source_budget_id, target_month = target_month, "Cloning budget");
+
+        // 1. Verify source budget exists
+        let _source: (String, String) = sqlx::query_as(
+            "SELECT name, currency_code FROM budgets WHERE id = ?",
+        )
+        .bind(source_budget_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| format!("Source budget not found: {}", e))?;
+
+        // 2. Check target month doesn't already have a budget
+        let exists: Option<(String,)> = sqlx::query_as(
+            "SELECT id FROM budgets WHERE month = ?",
+        )
+        .bind(target_month)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| format!("Check failed: {}", e))?;
+
+        if exists.is_some() {
+            return Err(format!("Budget already exists for {}", target_month));
+        }
+
+        // 3. Create new budget from source
+        let new_id = uuid::Uuid::new_v4().to_string();
+        sqlx::query(
+            "INSERT INTO budgets (id, name, month, total_amount, currency_code, is_active, created_at, updated_at) \
+             SELECT ?, name, ?, total_amount, currency_code, 1, datetime('now'), datetime('now') \
+             FROM budgets WHERE id = ?",
+        )
+        .bind(&new_id)
+        .bind(target_month)
+        .bind(source_budget_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| format!("Failed to clone budget: {}", e))?;
+
+        // 4. Copy items with planned amounts, reset actual to 0
+        sqlx::query(
+            "INSERT INTO budget_items (id, budget_id, category_account_id, planned_amount, actual_amount, notes, created_at, updated_at) \
+             SELECT LOWER(HEX(RANDOMBLOB(16))), ?, category_account_id, planned_amount, '0', notes, datetime('now'), datetime('now') \
+             FROM budget_items WHERE budget_id = ?",
+        )
+        .bind(&new_id)
+        .bind(source_budget_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| format!("Failed to clone budget items: {}", e))?;
+
+        info!(new_id = new_id, "Budget cloned successfully");
+        Ok(new_id)
+    }
 }
 
 fn last_day_of_month(month: &str) -> String {

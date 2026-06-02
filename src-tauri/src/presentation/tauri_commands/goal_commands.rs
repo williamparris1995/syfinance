@@ -8,6 +8,7 @@ use sqlx::sqlite::SqlitePool;
 use std::str::FromStr;
 use std::sync::Arc;
 use tauri::State;
+use tracing::info;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GoalDto {
@@ -278,4 +279,78 @@ pub async fn delete_goal(state: State<'_, GoalCommandState>, id: String) -> Resu
         .delete(&id)
         .await
         .map_err(|e| format!("Failed to delete goal: {}", e))
+}
+
+#[tauri::command]
+pub async fn sync_goal_progress(
+    state: State<'_, GoalCommandState>,
+    goal_id: String,
+) -> Result<GoalDto, String> {
+    info!(goal_id = goal_id, "Syncing goal progress from linked account");
+
+    // 1. Get goal with linked_account_id
+    let goal = state
+        .repository()
+        .find_by_id(&goal_id)
+        .await
+        .map_err(|e| format!("Failed to get goal: {}", e))?
+        .ok_or_else(|| "Goal not found".to_string())?;
+
+    let account_id = goal
+        .linked_account_id
+        .ok_or_else(|| "Goal has no linked account".to_string())?;
+
+    // 2. Get account initial balance
+    let initial_balance: (String,) = sqlx::query_as(
+        "SELECT CAST(initial_balance AS TEXT) FROM accounts WHERE id = ?",
+    )
+    .bind(&account_id)
+    .fetch_one(state.pool())
+    .await
+    .map_err(|e| format!("Linked account not found: {}", e))?;
+
+    let initial = initial_balance
+        .0
+        .parse::<Decimal>()
+        .unwrap_or(Decimal::ZERO);
+
+    // 3. Compute net change from transactions
+    let net_change: (String,) = sqlx::query_as(
+        "SELECT CAST(COALESCE(SUM(CASE WHEN e.debit_amount IS NOT NULL THEN e.debit_amount ELSE 0 END \
+         - CASE WHEN e.credit_amount IS NOT NULL THEN e.credit_amount ELSE 0 END), 0) AS TEXT) \
+         FROM transaction_entries e \
+         JOIN transactions t ON e.transaction_id = t.id \
+         WHERE e.deleted_at IS NULL AND t.deleted_at IS NULL AND e.account_id = ?",
+    )
+    .bind(&account_id)
+    .fetch_one(state.pool())
+    .await
+    .map_err(|e| format!("Failed to compute balance: {}", e))?;
+
+    let change = net_change.0.parse::<Decimal>().unwrap_or(Decimal::ZERO);
+    let current_balance = initial + change;
+
+    // 4. Update goal progress
+    state
+        .repository()
+        .add_progress(&goal_id, current_balance)
+        .await
+        .map_err(|e| format!("Failed to update progress: {}", e))?;
+
+    // 5. Return updated goal
+    let updated = state
+        .repository()
+        .find_by_id(&goal_id)
+        .await
+        .map_err(|e| format!("Failed to get updated goal: {}", e))?
+        .ok_or_else(|| "Goal not found after update".to_string())?;
+
+    info!(
+        goal_id = goal_id,
+        account_id = account_id,
+        balance = %current_balance,
+        "Goal progress synced from account balance"
+    );
+
+    Ok(GoalDto::from(updated))
 }

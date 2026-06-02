@@ -29,8 +29,9 @@ use presentation::tauri_commands::{
         save_cloud_settings, test_cloud_connection, upload_to_cloud, BackupCommandState,
     },
     budget_commands::{
-        add_budget_item, compute_budget_actuals, create_budget, delete_budget, get_budget,
-        get_budget_by_month, list_budgets, remove_budget_item, BudgetCommandState,
+        add_budget_item, clone_budget_to_month, compute_budget_actuals, create_budget,
+        delete_budget, get_budget, get_budget_by_month, list_budgets, remove_budget_item,
+        BudgetCommandState,
     },
     cloud_sync_commands::{
         cloud_sync_now, create_cloud_sync_state, get_cloud_sync_settings, get_cloud_sync_status,
@@ -53,8 +54,8 @@ use presentation::tauri_commands::{
     export_commands::{create_export_default_state, export_all_data, export_csv, ExportCommandState},
     goal_commands::{
         complete_goal, create_default_state_from_pool as create_goal_default_state_from_pool,
-        create_goal, delete_goal, get_goal, list_goals, update_goal, update_goal_progress,
-        GoalCommandState,
+        create_goal, delete_goal, get_goal, list_goals, sync_goal_progress, update_goal,
+        update_goal_progress, GoalCommandState,
     },
     holding_commands::{
         buy_holding, create_default_state_from_pool as create_holding_default_state,
@@ -278,6 +279,7 @@ async fn main() {
             delete_budget,
             remove_budget_item,
             compute_budget_actuals,
+            clone_budget_to_month,
             list_currencies,
             add_currency,
             update_currency_rate,
@@ -301,6 +303,7 @@ async fn main() {
             update_goal_progress,
             complete_goal,
             delete_goal,
+            sync_goal_progress,
             list_holdings,
             list_holding_transactions,
             delete_holding_trade,

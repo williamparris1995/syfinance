@@ -50,3 +50,6 @@ export const completeGoal = (id: string) =>
   invokeTauri<GoalDto>('complete_goal', { id });
 export const deleteGoal = (id: string) =>
   invokeTauri<void>('delete_goal', { id });
+
+export const syncGoalProgress = (goalId: string) =>
+  invokeTauri<GoalDto>('sync_goal_progress', { goalId });

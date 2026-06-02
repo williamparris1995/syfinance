@@ -12,6 +12,7 @@ import {
   ChevronRight,
   PiggyBank,
   AlertTriangle,
+  Copy,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/button';
@@ -45,6 +46,7 @@ import {
   useDeleteBudget,
   useRemoveBudgetItem,
   useComputeBudgetActuals,
+  useCloneBudgetToMonth,
 } from '../hooks/useBudget';
 import { useCurrencies } from '../hooks/useCurrency';
 import { listAccounts } from '../lib/tauri/account';
@@ -94,6 +96,7 @@ export function BudgetPage() {
   const deleteBudgetMutation = useDeleteBudget();
   const removeBudgetItemMutation = useRemoveBudgetItem();
   const computeActuals = useComputeBudgetActuals();
+  const cloneBudgetMutation = useCloneBudgetToMonth();
 
   // Compute actuals when budget changes
   useEffect(() => {
@@ -195,6 +198,24 @@ export function BudgetPage() {
     });
   };
 
+  // Copy budget to next month
+  const handleCopyToNextMonth = () => {
+    if (!budget?.id) return;
+    const [year, month] = currentMonth.split('-').map(Number);
+    const nextMonth = month === 12 ? 1 : month + 1;
+    const nextYear = month === 12 ? year + 1 : year;
+    const targetMonth = `${nextYear}-${String(nextMonth).padStart(2, '0')}`;
+    cloneBudgetMutation.mutate(
+      { sourceBudgetId: budget.id, targetMonth },
+      {
+        onSuccess: () => {
+          setCurrentMonth(targetMonth);
+          queryClient.invalidateQueries({ queryKey: ['budget'] });
+        },
+      }
+    );
+  };
+
   // Get account name by ID
   const getAccountName = (accountId: string) => {
     const account = accounts.find((a) => a.id === accountId);
@@ -222,6 +243,14 @@ export function BudgetPage() {
         <h1 className="text-2xl font-bold sm:text-3xl">{t('budget.title')}</h1>
         {budget && (
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleCopyToNextMonth}
+              disabled={cloneBudgetMutation.isPending}
+            >
+              <Copy className="h-4 w-4 mr-1" />
+              {t('budget.copyToNextMonth')}
+            </Button>
             <Button
               variant="outline"
               onClick={() => setShowAddItemDialog(true)}

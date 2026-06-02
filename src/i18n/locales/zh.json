@@ -875,7 +875,10 @@
     "notesPlaceholder": "添加备注...",
     "nameRequired": "预算名称为必填项",
     "categoryRequired": "类别为必填项",
-    "amountRequired": "计划金额必须大于0"
+    "amountRequired": "计划金额必须大于0",
+    "copyToNextMonth": "复制到下月",
+    "cloneSuccess": "预算已复制到下月",
+    "cloneError": "复制预算失败"
   },
   "tags": {
     "title": "标签",
@@ -936,7 +939,13 @@
     "avgProgress": "平均进度",
     "filterAll": "全部",
     "filterActive": "进行中",
-    "filterCompleted": "已完成"
+    "filterCompleted": "已完成",
+    "editGoal": "编辑目标",
+    "editGoalDesc": "更新财务目标详情",
+    "syncProgress": "同步进度",
+    "syncSuccess": "已从账户余额同步进度",
+    "nameRequired": "目标名称为必填项",
+    "amountRequired": "目标金额必须大于0"
   },
   "sync": {
     "syncing": "同步中...",
