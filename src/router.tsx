@@ -1,4 +1,5 @@
 import { Outlet, createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router';
+import { z } from 'zod';
 import { AppLayout } from './components/layout/AppLayout';
 import { isRegistered } from './lib/auth';
 import { AccountsPage } from './pages/AccountsPage';
@@ -55,6 +56,11 @@ const transactionsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'transactions',
   component: TransactionsPage,
+  validateSearch: z.object({
+    accountId: z.string().optional(),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+  }),
 });
 
 const debtsRoute = createRoute({

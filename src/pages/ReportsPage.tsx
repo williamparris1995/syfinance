@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Download } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from '@tanstack/react-router';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -80,12 +81,46 @@ export function ReportsPage() {
     };
   }, [dateRangePreset, startDate, endDate]);
 
+  const navigate = useNavigate();
+
+  const handleDrillDown = (accountName: string) => {
+    const account = accounts.find((a) => a.name === accountName);
+    if (account) {
+      navigate({
+        to: '/transactions',
+        search: {
+          accountId: account.id,
+          startDate: dateRange.start,
+          endDate: dateRange.end,
+        },
+      });
+    }
+  };
+
+  // Compute account balances as of dateRange.end using transactions
   const balanceSheetData = useMemo((): BalanceSheetData => {
     const assets: { name: string; balance: number; currency: string }[] = [];
     const liabilities: { name: string; balance: number; currency: string }[] = [];
 
+    // Filter transactions up to dateRange.end (point-in-time balance sheet)
+    const txUpToEnd = transactions.filter((tx: TransactionDto) => {
+      return tx.transaction_date <= dateRange.end;
+    });
+
+    // Build a map of account_id -> computed balance
+    const balanceMap = new Map<string, number>();
+    txUpToEnd.forEach((tx: TransactionDto) => {
+      tx.entries.forEach((entry) => {
+        const prev = balanceMap.get(entry.account_id) || 0;
+        const delta =
+          Number(entry.debit_amount || 0) - Number(entry.credit_amount || 0);
+        balanceMap.set(entry.account_id, prev + delta);
+      });
+    });
+
     accounts.forEach((account: AccountDto) => {
-      const balance = Number(account.current_balance);
+      const computedFromTx = balanceMap.get(account.id) || 0;
+      const balance = Number(account.initial_balance) + computedFromTx;
 
       if (['Cash', 'Bank', 'Investment', 'Prepaid'].includes(account.account_type)) {
         if (balance > 0) {
@@ -111,7 +146,7 @@ export function ReportsPage() {
     const equity = totalAssets - totalLiabilities;
 
     return { assets, liabilities, totalAssets, totalLiabilities, equity };
-  }, [accounts]);
+  }, [accounts, transactions, dateRange.end]);
 
   const incomeStatementData = useMemo((): IncomeStatementData => {
     const incomeMap = new Map<string, number>();
@@ -565,6 +600,11 @@ export function ReportsPage() {
                             innerRadius={48}
                             outerRadius={76}
                             paddingAngle={2}
+                            onClick={(_, index) => {
+                              const item = incomeStatementData.expenses[index];
+                              if (item) handleDrillDown(item.name);
+                            }}
+                            style={{ cursor: 'pointer' }}
                           >
                             {incomeStatementData.expenses.map((entry, index) => {
                               const account = accounts.find(a => a.name === entry.name && a.account_type === 'Expense');
@@ -634,6 +674,11 @@ export function ReportsPage() {
                             innerRadius={48}
                             outerRadius={76}
                             paddingAngle={2}
+                            onClick={(_, index) => {
+                              const item = incomeStatementData.income[index];
+                              if (item) handleDrillDown(item.name);
+                            }}
+                            style={{ cursor: 'pointer' }}
                           >
                             {incomeStatementData.income.map((entry, index) => {
                               const account = accounts.find(a => a.name === entry.name && a.account_type === 'Income');
@@ -718,6 +763,8 @@ export function ReportsPage() {
                                 dataKey={catName}
                                 stackId="expenses"
                                 fill={account?.color || '#6B7280'}
+                                onClick={() => handleDrillDown(catName)}
+                                style={{ cursor: 'pointer' }}
                               />
                             );
                           })}
@@ -768,8 +815,8 @@ export function ReportsPage() {
                             `¥${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
                           ]}
                         />
-                        <Bar dataKey="income" fill="#10B981" radius={[4, 4, 0, 0]} name={t('reports.income')} />
-                        <Bar dataKey="expenses" fill="#EF4444" radius={[4, 4, 0, 0]} name={t('reports.expenses')} />
+                        <Bar dataKey="income" fill="#10B981" radius={[4, 4, 0, 0]} name={t('reports.income')} style={{ cursor: 'pointer' }} />
+                        <Bar dataKey="expenses" fill="#EF4444" radius={[4, 4, 0, 0]} name={t('reports.expenses')} style={{ cursor: 'pointer' }} />
                         <Legend />
                       </BarChart>
                     </ResponsiveContainer>

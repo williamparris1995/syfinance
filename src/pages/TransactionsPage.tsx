@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
+import { useSearch } from '@tanstack/react-router';
 import { SimpleTransactionForm, type TransactionFormData } from '../components/SimpleTransactionForm';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -35,6 +36,12 @@ type DateRangePreset = 'month' | 'quarter' | 'year' | 'custom';
 type TransactionType_ = 'all' | 'expense' | 'income' | 'transfer';
 
 export function TransactionsPage() {
+  const search = useSearch({ strict: false }) as {
+    accountId?: string;
+    startDate?: string;
+    endDate?: string;
+  };
+
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<TransactionDto | null>(null);
   const [copyingTransaction, setCopyingTransaction] = useState<TransactionDto | null>(null);
@@ -43,15 +50,19 @@ export function TransactionsPage() {
   const [inlineEditValue, setInlineEditValue] = useState('');
   const inlineEditEscapeRef = useRef(false);
 
-  // Period selector state
-  const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('month');
-  const [customStartDate, setCustomStartDate] = useState('');
-  const [customEndDate, setCustomEndDate] = useState('');
+  // Period selector state — use search params as defaults when drilling down
+  const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>(
+    search.startDate && search.endDate ? 'custom' : 'month',
+  );
+  const [customStartDate, setCustomStartDate] = useState(search.startDate || '');
+  const [customEndDate, setCustomEndDate] = useState(search.endDate || '');
 
-  // Filter state
+  // Filter state — pre-set account filter when drilling down
   const [typeFilter, setTypeFilter] = useState<TransactionType_>('all');
   const [ownAccountFilter, setOwnAccountFilter] = useState<string[]>([]);
-  const [externalAccountFilter, setExternalAccountFilter] = useState<string[]>([]);
+  const [externalAccountFilter, setExternalAccountFilter] = useState<string[]>(
+    search.accountId ? [search.accountId] : [],
+  );
   const [searchQuery, setSearchQuery] = useState('');
 
   // Sort state
