@@ -10,8 +10,8 @@ pub mod transaction_template_dto;
 pub use account_dto::{AccountBalanceDto, AccountDto, CreateAccountDto, UpdateAccountDto};
 pub use debt_dto::{CreateDebtDto, DebtDto, PaymentScheduleDto, RecordPaymentDto, UpdateDebtDto};
 pub use holding_dto::{
-    CreateSecurityDto, HoldingDto, HoldingTradeDto, HoldingTransactionDto, SecurityDto,
-    UpdateHoldingTradeRequest,
+    CreateSecurityDto, DividendDto, HoldingDto, HoldingTradeDto, HoldingTransactionDto,
+    SecurityDto, SplitDto, UpdateHoldingTradeRequest,
 };
 pub use prepaid_dto::*;
 pub use simple_transaction_dto::{SimpleExpenseDto, SimpleIncomeDto, SimpleTransferDto};

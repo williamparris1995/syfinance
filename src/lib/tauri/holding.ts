@@ -114,3 +114,27 @@ export const deleteHoldingTrade = (holdingTransactionId: string) =>
 
 export const updateHoldingTrade = (request: UpdateHoldingTradeRequest) =>
   invokeTauri<void>('update_holding_trade', { request });
+
+export interface DividendDto {
+  account_id: string;
+  security_id: string;
+  cash_per_share: string;
+  quantity: string;
+  total_amount: string;
+  fee?: string | null;
+  trade_date: string;
+  notes?: string | null;
+}
+
+export interface SplitDto {
+  holding_id: string;
+  ratio: string;
+  trade_date: string;
+  notes?: string | null;
+}
+
+export const recordDividend = (dto: DividendDto) =>
+  invokeTauri<string>('record_dividend', { dto });
+
+export const recordSplit = (dto: SplitDto) =>
+  invokeTauri<void>('record_split', { dto });

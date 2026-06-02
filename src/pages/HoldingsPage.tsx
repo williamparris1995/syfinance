@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import React, { useState, useMemo } from 'react';
 import { toast } from 'sonner';
-import { ArrowUpDown, RefreshCw, TrendingDown, ChevronRight, ChevronDown, Pencil, Trash2 } from 'lucide-react';
+import { ArrowUpDown, RefreshCw, TrendingDown, ChevronRight, ChevronDown, Pencil, Trash2, DollarSign, Split } from 'lucide-react';
+import { Pie, PieChart, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { Button } from '../components/ui/button';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
@@ -15,13 +16,16 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '../components/ui/table';
 import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 import { HoldingTradeForm } from '../components/HoldingTradeForm';
 import { getUserFriendlyError } from '../lib/error-handler';
 import {
   buyHolding, sellHolding, listHoldings, updateSecurityPrice,
   listSecurities, fetchSecurityPrice,
   listHoldingTransactions, deleteHoldingTrade, updateHoldingTrade,
+  recordDividend, recordSplit,
   type HoldingDto, type HoldingTradeDto, type HoldingTransactionDto, type UpdateHoldingTradeRequest,
+  type DividendDto, type SplitDto,
 } from '../lib/tauri/holding';
 
 const typeColors: Record<string, string> = {
@@ -31,6 +35,16 @@ const typeColors: Record<string, string> = {
   bond: 'bg-amber-100 text-amber-800',
   gold: 'bg-yellow-100 text-yellow-800',
   option: 'bg-purple-100 text-purple-800',
+};
+
+const pieColors: Record<string, string> = {
+  stock: '#3b82f6',
+  fund: '#22c55e',
+  etf: '#10b981',
+  bond: '#f59e0b',
+  gold: '#eab308',
+  option: '#a855f7',
+  other: '#6b7280',
 };
 
 type SortKey = 'symbol' | 'name' | 'quantity' | 'avgCost' | 'currentPrice' | 'marketValue' | 'pnl' | 'pnlPct';
@@ -67,6 +81,15 @@ export function HoldingsPage() {
   const [editingTradeId, setEditingTradeId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ quantity: '', price: '', fee: '', trade_date: '', notes: '' });
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Dividend / Split sheets
+  const [showDividendSheet, setShowDividendSheet] = useState(false);
+  const [dividendTarget, setDividendTarget] = useState<HoldingDto | null>(null);
+  const [dividendForm, setDividendForm] = useState({ cashPerShare: '', quantity: '', totalAmount: '', fee: '', tradeDate: new Date().toISOString().split('T')[0], notes: '' });
+
+  const [showSplitSheet, setShowSplitSheet] = useState(false);
+  const [splitTarget, setSplitTarget] = useState<HoldingDto | null>(null);
+  const [splitForm, setSplitForm] = useState({ ratio: '', tradeDate: new Date().toISOString().split('T')[0], notes: '' });
 
   const { data: holdings = [], isLoading } = useQuery({ queryKey: ['holdings'], queryFn: listHoldings });
 
@@ -116,6 +139,32 @@ export function HoldingsPage() {
     onError: (error) => toast.error(getUserFriendlyError(error)),
   });
 
+  const dividendMutation = useMutation({
+    mutationFn: (dto: DividendDto) => recordDividend(dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['holdings'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      setShowDividendSheet(false);
+      setDividendTarget(null);
+      setDividendForm({ cashPerShare: '', quantity: '', totalAmount: '', fee: '', tradeDate: new Date().toISOString().split('T')[0], notes: '' });
+      toast.success(t('holding.dividendSuccess'));
+    },
+    onError: (error) => toast.error(getUserFriendlyError(error)),
+  });
+
+  const splitMutation = useMutation({
+    mutationFn: (dto: SplitDto) => recordSplit(dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['holdings'] });
+      setShowSplitSheet(false);
+      setSplitTarget(null);
+      setSplitForm({ ratio: '', tradeDate: new Date().toISOString().split('T')[0], notes: '' });
+      toast.success(t('holding.splitSuccess'));
+    },
+    onError: (error) => toast.error(getUserFriendlyError(error)),
+  });
+
   const handleRefreshPrices = async () => {
     setIsRefreshing(true);
     setRefreshProgress('');
@@ -154,6 +203,25 @@ export function HoldingsPage() {
     setSelectedHolding(null);
     setTradeDirection('BUY');
     setShowTradeSheet(true);
+  };
+
+  const handleDividend = (h: HoldingDto) => {
+    setDividendTarget(h);
+    setDividendForm({
+      cashPerShare: '',
+      quantity: String(h.quantity),
+      totalAmount: '',
+      fee: '',
+      tradeDate: new Date().toISOString().split('T')[0],
+      notes: '',
+    });
+    setShowDividendSheet(true);
+  };
+
+  const handleSplit = (h: HoldingDto) => {
+    setSplitTarget(h);
+    setSplitForm({ ratio: '', tradeDate: new Date().toISOString().split('T')[0], notes: '' });
+    setShowSplitSheet(true);
   };
 
   const toggleSort = (key: SortKey) => {
@@ -258,6 +326,17 @@ export function HoldingsPage() {
     return groups;
   }, [sortedHoldings]);
 
+  const allocationData = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const h of filteredHoldings) {
+      const val = h._marketValue || h._avgCost * h._quantity;
+      map[h.security_type] = (map[h.security_type] || 0) + val;
+    }
+    return Object.entries(map)
+      .map(([type, value]) => ({ type, value: Math.round(value * 100) / 100 }))
+      .sort((a, b) => b.value - a.value);
+  }, [filteredHoldings]);
+
   const totalMarketValue = filteredHoldings.reduce((s, h) => s + (h._marketValue || h._avgCost * h._quantity), 0);
   const totalCost = filteredHoldings.reduce((s, h) => s + h._avgCost * h._quantity, 0);
   const totalPnl = totalMarketValue - totalCost;
@@ -279,6 +358,8 @@ export function HoldingsPage() {
         h={h}
         isExpanded={isExpanded}
         onSell={handleSell}
+        onDividend={handleDividend}
+        onSplit={handleSplit}
         onToggle={toggleExpand}
         t={t}
       />
@@ -411,21 +492,50 @@ export function HoldingsPage() {
       ) : (
         <>
           {/* Portfolio summary */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="rounded-lg border p-4">
-              <div className="text-xs text-muted-foreground">{t('holding.totalMarketValue')}</div>
-              <div className="text-xl font-bold">¥{totalMarketValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            </div>
-            <div className="rounded-lg border p-4">
-              <div className="text-xs text-muted-foreground">{t('holding.totalCost')}</div>
-              <div className="text-xl font-bold">¥{totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            </div>
-            <div className={`rounded-lg border p-4 ${totalPnl >= 0 ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/50'}`}>
-              <div className="text-xs text-muted-foreground">{t('holding.totalPnl')}</div>
-              <div className={`text-xl font-bold ${totalPnl >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                {totalPnl >= 0 ? '+' : ''}¥{totalPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-6 mb-6">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="rounded-lg border p-4">
+                <div className="text-xs text-muted-foreground">{t('holding.totalMarketValue')}</div>
+                <div className="text-xl font-bold">¥{totalMarketValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              </div>
+              <div className="rounded-lg border p-4">
+                <div className="text-xs text-muted-foreground">{t('holding.totalCost')}</div>
+                <div className="text-xl font-bold">¥{totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              </div>
+              <div className={`rounded-lg border p-4 ${totalPnl >= 0 ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/50'}`}>
+                <div className="text-xs text-muted-foreground">{t('holding.totalPnl')}</div>
+                <div className={`text-xl font-bold ${totalPnl >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {totalPnl >= 0 ? '+' : ''}¥{totalPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
               </div>
             </div>
+            {/* Allocation pie chart */}
+            {allocationData.length > 0 && (
+              <div className="rounded-lg border p-4 min-w-[220px]">
+                <div className="text-xs text-muted-foreground mb-2">{t('holding.allocationChart')}</div>
+                <div className="flex items-center gap-3">
+                  <ResponsiveContainer width={100} height={100}>
+                    <PieChart>
+                      <Pie data={allocationData} dataKey="value" nameKey="type" cx="50%" cy="50%" innerRadius={24} outerRadius={44} paddingAngle={2}>
+                        {allocationData.map((entry) => (
+                          <Cell key={entry.type} fill={pieColors[entry.type] || '#6b7280'} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => `¥${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} labelFormatter={(label) => t(`holding.types.${label}`)} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="space-y-1">
+                    {allocationData.map((d) => (
+                      <div key={d.type} className="flex items-center gap-1.5 text-xs">
+                        <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: pieColors[d.type] || '#6b7280' }} />
+                        <span className="text-muted-foreground">{t(`holding.types.${d.type}`)}</span>
+                        <span className="font-medium ml-auto">{totalMarketValue > 0 ? (d.value / totalMarketValue * 100).toFixed(1) : 0}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Filter bar */}
@@ -553,14 +663,115 @@ export function HoldingsPage() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Dividend Sheet */}
+      <Sheet open={showDividendSheet} onOpenChange={setShowDividendSheet}>
+        <SheetContent side="right" className="w-full sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>{t('holding.recordDividend')} — {dividendTarget?.symbol}</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+            <div>
+              <Label>{t('holding.cashPerShare')}</Label>
+              <Input type="number" step="any" placeholder="0.00" value={dividendForm.cashPerShare} onChange={(e) => {
+                const cps = e.target.value;
+                const qty = Number(dividendForm.quantity) || 0;
+                setDividendForm(f => ({ ...f, cashPerShare: cps, totalAmount: cps && qty ? String(Number(cps) * qty) : '' }));
+              }} />
+            </div>
+            <div>
+              <Label>{t('holding.quantity')}</Label>
+              <Input type="number" step="any" value={dividendForm.quantity} onChange={(e) => {
+                const qty = e.target.value;
+                const cps = Number(dividendForm.cashPerShare) || 0;
+                setDividendForm(f => ({ ...f, quantity: qty, totalAmount: qty && cps ? String(Number(qty) * cps) : '' }));
+              }} />
+            </div>
+            <div>
+              <Label>{t('holding.totalAmount')}</Label>
+              <Input type="number" step="any" placeholder="0.00" value={dividendForm.totalAmount} onChange={(e) => setDividendForm(f => ({ ...f, totalAmount: e.target.value }))} />
+            </div>
+            <div>
+              <Label>{t('holding.fee')}</Label>
+              <Input type="number" step="any" placeholder="0.00" value={dividendForm.fee} onChange={(e) => setDividendForm(f => ({ ...f, fee: e.target.value }))} />
+            </div>
+            <div>
+              <Label>{t('common.date')}</Label>
+              <Input type="date" value={dividendForm.tradeDate} onChange={(e) => setDividendForm(f => ({ ...f, tradeDate: e.target.value }))} />
+            </div>
+            <div>
+              <Label>{t('holding.notes')}</Label>
+              <Input value={dividendForm.notes} onChange={(e) => setDividendForm(f => ({ ...f, notes: e.target.value }))} />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button onClick={() => {
+                if (!dividendTarget) return;
+                dividendMutation.mutate({
+                  account_id: dividendTarget.account_id,
+                  security_id: dividendTarget.security_id,
+                  cash_per_share: dividendForm.cashPerShare,
+                  quantity: dividendForm.quantity,
+                  total_amount: dividendForm.totalAmount,
+                  fee: dividendForm.fee || null,
+                  trade_date: dividendForm.tradeDate,
+                  notes: dividendForm.notes || null,
+                });
+              }} disabled={dividendMutation.isPending || !dividendForm.cashPerShare || !dividendForm.totalAmount} className="flex-1">
+                {dividendMutation.isPending ? t('holding.submitting') : t('holding.recordDividend')}
+              </Button>
+              <Button variant="outline" onClick={() => { setShowDividendSheet(false); setDividendTarget(null); }}>{t('common.cancel')}</Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Split Sheet */}
+      <Sheet open={showSplitSheet} onOpenChange={setShowSplitSheet}>
+        <SheetContent side="right" className="w-full sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>{t('holding.recordSplit')} — {splitTarget?.symbol}</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+            <div>
+              <Label>{t('holding.ratio')}</Label>
+              <Input type="number" step="any" placeholder={t('holding.ratioHint')} value={splitForm.ratio} onChange={(e) => setSplitForm(f => ({ ...f, ratio: e.target.value }))} />
+              <p className="text-xs text-muted-foreground mt-1">{t('holding.ratioHint')}</p>
+            </div>
+            <div>
+              <Label>{t('common.date')}</Label>
+              <Input type="date" value={splitForm.tradeDate} onChange={(e) => setSplitForm(f => ({ ...f, tradeDate: e.target.value }))} />
+            </div>
+            <div>
+              <Label>{t('holding.notes')}</Label>
+              <Input value={splitForm.notes} onChange={(e) => setSplitForm(f => ({ ...f, notes: e.target.value }))} />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button onClick={() => {
+                if (!splitTarget) return;
+                splitMutation.mutate({
+                  holding_id: splitTarget.id,
+                  ratio: splitForm.ratio,
+                  trade_date: splitForm.tradeDate,
+                  notes: splitForm.notes || null,
+                });
+              }} disabled={splitMutation.isPending || !splitForm.ratio} className="flex-1">
+                {splitMutation.isPending ? t('holding.submitting') : t('holding.recordSplit')}
+              </Button>
+              <Button variant="outline" onClick={() => { setShowSplitSheet(false); setSplitTarget(null); }}>{t('common.cancel')}</Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
 
-function HoldingRow({ h, isExpanded, onSell, onToggle, t }: {
+function HoldingRow({ h, isExpanded, onSell, onDividend, onSplit, onToggle, t }: {
   h: EnrichedHolding;
   isExpanded: boolean;
   onSell: (h: HoldingDto) => void;
+  onDividend: (h: HoldingDto) => void;
+  onSplit: (h: HoldingDto) => void;
   onToggle: (h: EnrichedHolding) => void;
   t: (key: string) => string;
 }) {
@@ -584,10 +795,20 @@ function HoldingRow({ h, isExpanded, onSell, onToggle, t }: {
         {h._pnlPct !== 0 ? (h._pnlPct >= 0 ? '+' : '') + h._pnlPct.toFixed(2) + '%' : '-'}
       </TableCell>
       <TableCell className="text-right">
-        <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50 h-7 text-xs" onClick={() => onSell(h)}>
-          <TrendingDown className="h-3 w-3 mr-1" />
-          {t('holding.sell')}
-        </Button>
+        <div className="flex justify-end gap-1">
+          <Button variant="ghost" size="sm" className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 h-7 text-xs" onClick={() => onDividend(h)}>
+            <DollarSign className="h-3 w-3 mr-1" />
+            {t('holding.dividend')}
+          </Button>
+          <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-7 text-xs" onClick={() => onSplit(h)}>
+            <Split className="h-3 w-3 mr-1" />
+            {t('holding.split')}
+          </Button>
+          <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50 h-7 text-xs" onClick={() => onSell(h)}>
+            <TrendingDown className="h-3 w-3 mr-1" />
+            {t('holding.sell')}
+          </Button>
+        </div>
       </TableCell>
     </TableRow>
   );

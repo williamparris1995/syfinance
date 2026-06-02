@@ -59,12 +59,16 @@ use presentation::tauri_commands::{
     holding_commands::{
         buy_holding, create_default_state_from_pool as create_holding_default_state,
         create_security, delete_holding_trade, fetch_security_price, list_holding_transactions,
-        list_holdings, list_securities, search_securities, sell_holding, update_holding_trade,
-        update_security_price, AppState as HoldingCommandState,
+        list_holdings, list_securities, record_dividend, record_split, search_securities,
+        sell_holding, update_holding_trade, update_security_price, AppState as HoldingCommandState,
     },
     prepaid_commands::{
         create_default_state_from_pool as create_prepaid_default_state, get_prepaid_detail,
         get_top_up_records, top_up, PrepaidCommandState,
+    },
+    reminder_commands::{
+        complete_reminder, create_reminder, create_reminder_default_state_from_pool,
+        delete_reminder, get_reminder, list_reminders, update_reminder, ReminderCommandState,
     },
     search_commands::{create_search_default_state, global_search, SearchCommandState},
     subscription_commands::{
@@ -204,6 +208,9 @@ async fn main() {
         .await
         .expect("failed to initialize tag command state");
     let search_state = create_search_default_state(pool.clone());
+    let reminder_state: ReminderCommandState = create_reminder_default_state_from_pool(pool.clone())
+        .await
+        .expect("failed to initialize reminder command state");
     let export_state = create_export_default_state(pool.clone());
     let encryption_state = create_encryption_default_state(pool.clone());
     let encryption_service = encryption_state.service.clone();
@@ -247,6 +254,7 @@ async fn main() {
         .manage(template_state)
         .manage(tag_state)
         .manage(search_state)
+        .manage(reminder_state)
         .manage(export_state)
         .manage(encryption_state)
         .manage(backup_state)
@@ -296,6 +304,8 @@ async fn main() {
             list_holding_transactions,
             delete_holding_trade,
             update_holding_trade,
+            record_dividend,
+            record_split,
             search_securities,
             fetch_security_price,
             top_up,
@@ -333,6 +343,12 @@ async fn main() {
             remove_tag_from_transaction,
             get_transaction_tags,
             global_search,
+            list_reminders,
+            get_reminder,
+            create_reminder,
+            update_reminder,
+            delete_reminder,
+            complete_reminder,
             export_all_data,
             export_csv,
             get_encryption_status,

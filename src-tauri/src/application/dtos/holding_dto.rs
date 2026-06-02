@@ -75,3 +75,23 @@ pub struct UpdateHoldingTradeRequest {
     pub trade_date: NaiveDate,
     pub notes: Option<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DividendDto {
+    pub account_id: String,
+    pub security_id: String,
+    pub cash_per_share: String,
+    pub quantity: String,
+    pub total_amount: String,
+    pub fee: Option<String>,
+    pub trade_date: String,
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SplitDto {
+    pub holding_id: String,
+    pub ratio: String,
+    pub trade_date: String,
+    pub notes: Option<String>,
+}

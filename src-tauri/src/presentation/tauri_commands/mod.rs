@@ -9,6 +9,7 @@ pub mod export_commands;
 pub mod goal_commands;
 pub mod holding_commands;
 pub mod prepaid_commands;
+pub mod reminder_commands;
 pub mod search_commands;
 pub mod subscription_commands;
 pub mod sync_commands;
@@ -52,8 +53,8 @@ pub use goal_commands::{
     GoalCommandState,
 };
 pub use holding_commands::{
-    buy_holding, create_security, list_holdings, list_securities, sell_holding,
-    update_security_price, AppState as HoldingCommandState,
+    buy_holding, create_security, list_holdings, list_securities, record_dividend, record_split,
+    sell_holding, update_security_price, AppState as HoldingCommandState,
 };
 pub use prepaid_commands::{get_prepaid_detail, get_top_up_records, top_up, PrepaidCommandState};
 pub use search_commands::{create_search_default_state, global_search, SearchCommandState};
@@ -61,6 +62,10 @@ pub use subscription_commands::{
     create_default_state_from_pool as create_subscription_default_state, create_subscription,
     delete_subscription, get_subscription, list_subscription_transactions, list_subscriptions,
     pause_subscription, resume_subscription, update_subscription, SubscriptionCommandState,
+};
+pub use reminder_commands::{
+    complete_reminder, create_reminder, create_reminder_default_state_from_pool, delete_reminder,
+    get_reminder, list_reminders, update_reminder, ReminderCommandState,
 };
 pub use sync_commands::{
     create_default_state as create_sync_default_state, get_sync_settings, get_sync_status,

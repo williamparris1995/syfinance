@@ -1,6 +1,6 @@
 use crate::application::dtos::{
-    CreateSecurityDto, HoldingDto, HoldingTradeDto, HoldingTransactionDto, SecurityDto,
-    UpdateHoldingTradeRequest,
+    CreateSecurityDto, DividendDto, HoldingDto, HoldingTradeDto, HoldingTransactionDto,
+    SecurityDto, SplitDto, UpdateHoldingTradeRequest,
 };
 use crate::domain::{
     aggregates::{
@@ -18,6 +18,7 @@ use crate::infrastructure::repositories::{
     SqliteTransactionRepository,
 };
 use rust_decimal::Decimal;
+use std::str::FromStr;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -330,6 +331,186 @@ impl HoldingService {
         }
 
         Ok(txn_id)
+    }
+
+    // --- DIVIDEND ---
+
+    pub async fn record_dividend(&self, dto: DividendDto) -> Result<Uuid, HoldingServiceError> {
+        let account_id = Uuid::parse_str(&dto.account_id)
+            .map_err(|e| HoldingServiceError::ValidationError(format!("invalid account_id: {e}")))?;
+        let security_id = Uuid::parse_str(&dto.security_id)
+            .map_err(|e| HoldingServiceError::ValidationError(format!("invalid security_id: {e}")))?;
+
+        let account = self
+            .account_repo
+            .find_by_id(account_id)
+            .await?
+            .ok_or(HoldingServiceError::AccountNotFound(account_id))?;
+        let security = self
+            .security_repo
+            .find_by_id(security_id)
+            .await?
+            .ok_or(HoldingServiceError::SecurityNotFound(security_id))?;
+
+        let cash_per_share = Decimal::from_str_exact(&dto.cash_per_share)
+            .map_err(|e| HoldingServiceError::ValidationError(format!("invalid cash_per_share: {e}")))?;
+        let quantity = Decimal::from_str_exact(&dto.quantity)
+            .map_err(|e| HoldingServiceError::ValidationError(format!("invalid quantity: {e}")))?;
+        let total_amount = Decimal::from_str_exact(&dto.total_amount)
+            .map_err(|e| HoldingServiceError::ValidationError(format!("invalid total_amount: {e}")))?;
+        let fee = dto
+            .fee
+            .as_deref()
+            .map(|s| Decimal::from_str_exact(s))
+            .transpose()
+            .map_err(|e| HoldingServiceError::ValidationError(format!("invalid fee: {e}")))?
+            .unwrap_or(Decimal::ZERO);
+        let trade_date = chrono::NaiveDate::parse_from_str(&dto.trade_date, "%Y-%m-%d")
+            .map_err(|e| HoldingServiceError::ValidationError(format!("invalid trade_date: {e}")))?;
+
+        if total_amount <= Decimal::ZERO {
+            return Err(HoldingServiceError::ValidationError(
+                "total_amount must be positive".into(),
+            ));
+        }
+
+        // Find the holding
+        let holdings = self.holding_repo.find_by_account(account_id).await?;
+        let mut holding = holdings
+            .into_iter()
+            .find(|h| h.security_id == security_id)
+            .ok_or(HoldingServiceError::HoldingNotFound(security_id))?;
+
+        let device_id = Uuid::new_v4();
+        let txn_id = Uuid::new_v4();
+
+        // Double-entry: Debit bank (1002) = total - fee, Debit fee expense (5301) = fee, Credit dividend income (420101) = total
+        let net_cash = total_amount - fee;
+        let net_cash_money = Money::new(net_cash, &account.currency_code)
+            .map_err(|e| HoldingServiceError::ValidationError(e.to_string()))?;
+        let fee_money = Money::new(fee, &account.currency_code)
+            .map_err(|e| HoldingServiceError::ValidationError(e.to_string()))?;
+        let total_money = Money::new(total_amount, &account.currency_code)
+            .map_err(|e| HoldingServiceError::ValidationError(e.to_string()))?;
+
+        let mut entries = vec![
+            TransactionEntry::new(
+                account_id,
+                "1002",
+                Some(net_cash_money),
+                None,
+                format!("Dividend {}", security.symbol),
+            )
+            .map_err(|e| HoldingServiceError::ValidationError(e.to_string()))?,
+            TransactionEntry::new(
+                account_id,
+                "420101",
+                None,
+                Some(total_money),
+                format!("Dividend income {}", security.symbol),
+            )
+            .map_err(|e| HoldingServiceError::ValidationError(e.to_string()))?,
+        ];
+
+        if fee > Decimal::ZERO {
+            entries.push(
+                TransactionEntry::new(account_id, "5301", Some(fee_money), None, "Dividend fee")
+                    .map_err(|e| HoldingServiceError::ValidationError(e.to_string()))?,
+            );
+        }
+
+        let transaction = Transaction::new(
+            txn_id,
+            trade_date,
+            format!(
+                "Dividend {} {} @ {}",
+                security.symbol, quantity, cash_per_share
+            ),
+            entries,
+            SyncMetadata::new(device_id),
+        )
+        .map_err(|e| HoldingServiceError::ValidationError(e.to_string()))?;
+        self.transaction_repo.create(&transaction).await?;
+
+        // Create holding_transaction record
+        let ht = HoldingTransaction {
+            id: Uuid::new_v4(),
+            account_id,
+            security_id,
+            trade_type: HoldingTransactionType::Dividend,
+            quantity,
+            price: cash_per_share,
+            amount: total_amount,
+            fee,
+            trade_date,
+            transaction_id: Some(txn_id),
+            notes: dto.notes,
+        };
+        self.holding_repo.create_transaction(&ht).await?;
+
+        // Apply dividend on holding (validates, no state change to qty/cost)
+        holding.apply_dividend(cash_per_share, total_amount);
+
+        tracing::info!(
+            holding_id = %holding.id,
+            total_amount = %total_amount,
+            "Recorded dividend for holding"
+        );
+
+        Ok(txn_id)
+    }
+
+    // --- SPLIT ---
+
+    pub async fn record_split(&self, dto: SplitDto) -> Result<(), HoldingServiceError> {
+        let holding_id = Uuid::parse_str(&dto.holding_id)
+            .map_err(|e| HoldingServiceError::ValidationError(format!("invalid holding_id: {e}")))?;
+        let ratio = Decimal::from_str_exact(&dto.ratio)
+            .map_err(|e| HoldingServiceError::ValidationError(format!("invalid ratio: {e}")))?;
+        let trade_date = chrono::NaiveDate::parse_from_str(&dto.trade_date, "%Y-%m-%d")
+            .map_err(|e| HoldingServiceError::ValidationError(format!("invalid trade_date: {e}")))?;
+
+        if ratio <= Decimal::ZERO {
+            return Err(HoldingServiceError::ValidationError(
+                "ratio must be positive".into(),
+            ));
+        }
+
+        let mut holding = self
+            .holding_repo
+            .find_holding_by_id(holding_id)
+            .await?
+            .ok_or(HoldingServiceError::HoldingNotFound(holding_id))?;
+
+        // Create holding_transaction record
+        let ht = HoldingTransaction {
+            id: Uuid::new_v4(),
+            account_id: holding.account_id,
+            security_id: holding.security_id,
+            trade_type: HoldingTransactionType::Split,
+            quantity: holding.quantity,
+            price: ratio,
+            amount: Decimal::ZERO,
+            fee: Decimal::ZERO,
+            trade_date,
+            transaction_id: None,
+            notes: dto.notes,
+        };
+        self.holding_repo.create_transaction(&ht).await?;
+
+        // Apply split
+        holding.apply_split(ratio);
+        self.holding_repo.upsert(&holding).await?;
+
+        tracing::info!(
+            holding_id = %holding.id,
+            ratio = %ratio,
+            new_quantity = %holding.quantity,
+            new_avg_cost = %holding.avg_cost,
+            "Recorded split for holding"
+        );
+
+        Ok(())
     }
 
     // --- List holdings ---

@@ -12,6 +12,7 @@ import {
   PiggyBank,
   Target,
   Repeat,
+  Bell,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SidebarHeader } from './SidebarHeader';
@@ -74,6 +75,13 @@ export function Sidebar({ onNavigate, collapsed }: SidebarProps) {
               to="/holdings"
               label={t('nav.holdings')}
               icon={TrendingUp}
+              onClick={onNavigate}
+              collapsed={collapsed}
+            />
+            <SidebarMenuItem
+              to="/reminders"
+              label={t('nav.reminders')}
+              icon={Bell}
               onClick={onNavigate}
               collapsed={collapsed}
             />

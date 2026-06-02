@@ -1,7 +1,7 @@
 use crate::application::{
     dtos::{
-        CreateSecurityDto, HoldingDto, HoldingTradeDto, HoldingTransactionDto, SecurityDto,
-        UpdateHoldingTradeRequest,
+        CreateSecurityDto, DividendDto, HoldingDto, HoldingTradeDto, HoldingTransactionDto,
+        SecurityDto, SplitDto, UpdateHoldingTradeRequest,
     },
     services::HoldingService,
 };
@@ -138,6 +138,31 @@ pub async fn update_holding_trade(
     state
         .service()
         .update_holding_trade(request)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn record_dividend(
+    state: State<'_, AppState>,
+    dto: DividendDto,
+) -> Result<String, String> {
+    state
+        .service()
+        .record_dividend(dto)
+        .await
+        .map(|id| id.to_string())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn record_split(
+    state: State<'_, AppState>,
+    dto: SplitDto,
+) -> Result<(), String> {
+    state
+        .service()
+        .record_split(dto)
         .await
         .map_err(|e| e.to_string())
 }

@@ -94,4 +94,20 @@ impl Holding {
     pub fn unrealized_pnl(&self, current_price: Decimal) -> Decimal {
         (current_price - self.avg_cost) * self.quantity
     }
+
+    /// Apply a DIVIDEND — cash distribution, does not change quantity or avg_cost
+    pub fn apply_dividend(&mut self, _cash_per_share: Decimal, total_amount: Decimal) {
+        assert!(
+            total_amount > Decimal::ZERO,
+            "dividend total_amount must be positive"
+        );
+        // Dividends are cash distributions; quantity and avg_cost remain unchanged
+    }
+
+    /// Apply a SPLIT — multiply quantity by ratio, divide avg_cost by ratio
+    pub fn apply_split(&mut self, ratio: Decimal) {
+        assert!(ratio > Decimal::ZERO, "split ratio must be positive");
+        self.quantity = self.quantity * ratio;
+        self.avg_cost = self.avg_cost / ratio;
+    }
 }
