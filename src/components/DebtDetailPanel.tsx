@@ -20,6 +20,7 @@ import {
 import { TransactionList } from './TransactionList';
 import { getTransactionsByAccount } from '@/lib/tauri/transaction';
 import type { DebtDto } from '@/lib/tauri/debt';
+import { formatCurrency as formatCurrencyUtil } from '@/lib/currency';
 
 interface DebtDetailPanelProps {
   debt: DebtDto;
@@ -29,12 +30,7 @@ interface DebtDetailPanelProps {
 
 function formatCurrency(amount: string, currencyCode: string) {
   const num = parseFloat(amount);
-  const symbols: Record<string, string> = { CNY: '¥', USD: '$', EUR: '€' };
-  const symbol = symbols[currencyCode] || currencyCode;
-  return `${symbol}${num.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  return formatCurrencyUtil(num, currencyCode);
 }
 
 function debtTypeBadge(type: string) {

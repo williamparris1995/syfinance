@@ -25,6 +25,7 @@ import { TrendingUp, BarChart3, Layers, Landmark, Coins, GitBranch, Wallet } fro
 import { INVESTMENT_TEMPLATES } from '@/lib/tauri/account';
 import type { AccountType, AccountDto, CreateAccountDto, UpdateAccountDto, Ownership } from '@/lib/tauri/account';
 import { useCurrencies } from '@/hooks/useCurrency';
+import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
 
 const createAccountFormSchema = (t: (key: string) => string) => z.object({
   name: z.string().min(1, t('accountForm.nameRequired')),
@@ -126,6 +127,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
 
   const accountType = form.watch('account_type');
   const ownership = form.watch('ownership');
+  const selectedCurrencyCode = form.watch('currency_code');
 
   // Auto-set chart_code for Prepaid accounts
   React.useEffect(() => {
@@ -338,7 +340,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
                   </div>
                   <div className="flex items-center rounded-lg border bg-muted/30 h-9 px-3">
                     <span className="text-sm font-medium">
-                      ¥{initialData.current_balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatCurrency(initialData.current_balance, selectedCurrencyCode || 'CNY')}
                     </span>
                   </div>
                 </div>
@@ -352,7 +354,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
                     </FormLabel>
                     <FormControl>
                       <div className="flex items-center rounded-lg border overflow-hidden h-9">
-                        <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">¥</span>
+                        <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">{getCurrencySymbol(selectedCurrencyCode || 'CNY')}</span>
                         <input
                           className="flex-1 border-0 bg-transparent px-2.5 text-sm outline-none"
                           placeholder="0.00"
@@ -376,7 +378,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
                   </FormLabel>
                   <FormControl>
                     <div className="flex items-center rounded-lg border overflow-hidden h-9">
-                      <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">¥</span>
+                      <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">{getCurrencySymbol(selectedCurrencyCode || 'CNY')}</span>
                       <input
                         className="flex-1 border-0 bg-transparent px-2.5 text-sm outline-none"
                         placeholder="0.00"
@@ -601,7 +603,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
                     <FormLabel className="text-xs text-muted-foreground">{t('accountForm.lowBalanceThreshold')}</FormLabel>
                     <FormControl>
                       <div className="flex items-center rounded-lg border overflow-hidden h-9">
-                        <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">¥</span>
+                        <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">{getCurrencySymbol(selectedCurrencyCode || 'CNY')}</span>
                         <input
                           type="number"
                           className="flex-1 border-0 bg-transparent px-2.5 text-sm outline-none"

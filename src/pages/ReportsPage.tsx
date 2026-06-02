@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { listAccounts, type AccountDto } from '../lib/tauri/account';
 import { listTransactions, type TransactionDto } from '../lib/tauri/transaction';
 import { AlertCircle } from 'lucide-react';
+import { formatCurrency, getCurrencySymbol } from '../lib/currency';
 
 type DateRangePreset = 'month' | 'quarter' | 'year' | 'custom';
 
@@ -528,7 +529,7 @@ export function ReportsPage() {
                     {t('reports.income')}
                   </div>
                   <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
-                    ¥{incomeStatementData.totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatCurrency(incomeStatementData.totalIncome, 'CNY')}
                   </div>
                   <div className="text-xs text-emerald-600/70 dark:text-emerald-400/70 mt-1">
                     {incomeStatementData.income.length} {t('reports.categories')}
@@ -542,7 +543,7 @@ export function ReportsPage() {
                     {t('reports.expenses')}
                   </div>
                   <div className="text-2xl font-bold text-red-700 dark:text-red-300">
-                    ¥{incomeStatementData.totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatCurrency(incomeStatementData.totalExpenses, 'CNY')}
                   </div>
                   <div className="text-xs text-red-600/70 dark:text-red-400/70 mt-1">
                     {incomeStatementData.expenses.length} {t('reports.categories')}
@@ -566,7 +567,7 @@ export function ReportsPage() {
                       ? "text-blue-700 dark:text-blue-300"
                       : "text-amber-700 dark:text-amber-300"
                   )}>
-                    ¥{incomeStatementData.netIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatCurrency(incomeStatementData.netIncome, 'CNY')}
                   </div>
                   <div className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-1">
                     {incomeStatementData.totalIncome > 0
@@ -619,7 +620,7 @@ export function ReportsPage() {
                           </Pie>
                           <Tooltip
                             formatter={(value, name) => [
-                              `¥${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                              `${getCurrencySymbol('CNY')}${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
                               name,
                             ]}
                           />
@@ -642,7 +643,7 @@ export function ReportsPage() {
                                 <span className="truncate flex-1">
                                   {account?.icon || ''} {item.name}
                                 </span>
-                                <span className="text-muted-foreground tabular-nums">¥{item.amount.toFixed(0)}</span>
+                                <span className="text-muted-foreground tabular-nums">{getCurrencySymbol('CNY')}{item.amount.toFixed(0)}</span>
                                 <span className="text-muted-foreground/60 w-10 text-right tabular-nums">{pct}%</span>
                               </div>
                             );
@@ -693,7 +694,7 @@ export function ReportsPage() {
                           </Pie>
                           <Tooltip
                             formatter={(value, name) => [
-                              `¥${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                              `${getCurrencySymbol('CNY')}${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
                               name,
                             ]}
                           />
@@ -716,7 +717,7 @@ export function ReportsPage() {
                                 <span className="truncate flex-1">
                                   {account?.icon || ''} {item.name}
                                 </span>
-                                <span className="text-muted-foreground tabular-nums">¥{item.amount.toFixed(0)}</span>
+                                <span className="text-muted-foreground tabular-nums">{getCurrencySymbol('CNY')}{item.amount.toFixed(0)}</span>
                                 <span className="text-muted-foreground/60 w-10 text-right tabular-nums">{pct}%</span>
                               </div>
                             );
@@ -751,7 +752,7 @@ export function ReportsPage() {
                           <YAxis tick={{ fontSize: 12 }} />
                           <Tooltip
                             formatter={(value, name) => [
-                              `¥${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                              `${getCurrencySymbol('CNY')}${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
                               name,
                             ]}
                           />
@@ -812,7 +813,7 @@ export function ReportsPage() {
                         <YAxis tick={{ fontSize: 12 }} />
                         <Tooltip
                           formatter={(value) => [
-                            `¥${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                            `${getCurrencySymbol('CNY')}${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
                           ]}
                         />
                         <Bar dataKey="income" fill="#10B981" radius={[4, 4, 0, 0]} name={t('reports.income')} style={{ cursor: 'pointer' }} />

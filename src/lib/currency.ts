@@ -77,12 +77,11 @@ export function getMissingRates(
 }
 
 /**
- * Format currency amount with symbol and thousands separator
- * @param amount - Amount to format
+ * Get currency symbol for a currency code
  * @param currencyCode - Currency code (CNY, USD, EUR, etc.)
- * @returns Formatted string (e.g., "¥1,234.56")
+ * @returns Currency symbol string
  */
-export function formatCurrency(amount: number, currencyCode: string): string {
+export function getCurrencySymbol(currencyCode: string): string {
   const symbols: Record<string, string> = {
     CNY: '¥',
     USD: '$',
@@ -91,7 +90,17 @@ export function formatCurrency(amount: number, currencyCode: string): string {
     JPY: '¥',
   };
 
-  const symbol = symbols[currencyCode] || currencyCode;
+  return symbols[currencyCode] || currencyCode;
+}
+
+/**
+ * Format currency amount with symbol and thousands separator
+ * @param amount - Amount to format
+ * @param currencyCode - Currency code (CNY, USD, EUR, etc.)
+ * @returns Formatted string (e.g., "¥1,234.56")
+ */
+export function formatCurrency(amount: number, currencyCode: string): string {
+  const symbol = getCurrencySymbol(currencyCode);
   const formatted = amount.toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,

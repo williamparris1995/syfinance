@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 import { cn } from '@/lib/utils';
+import { getCurrencySymbol } from '@/lib/currency';
 import { Button } from './ui/button';
 import {
   Form,
@@ -227,7 +228,7 @@ export function TransactionTemplateForm({
                 <FormControl>
                   <div className="flex items-center rounded-md border bg-background overflow-hidden h-9">
                     <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">
-                      ¥
+                      {getCurrencySymbol('CNY')}
                     </span>
                     <input
                       type="number"

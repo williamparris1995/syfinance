@@ -34,6 +34,7 @@ import {
 } from './ui/table';
 import type { CreateDebtDto, DebtDto, AmortizationMethod } from '@/lib/tauri/debt';
 import { listAccounts, type AccountDto } from '@/lib/tauri/account';
+import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
 
 const DEBT_ACCOUNT_TYPES = ['BorrowedOut', 'BorrowedIn', 'CreditCard'] as const;
 
@@ -135,7 +136,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
   });
 
   const watchedValues = form.watch();
-  const { account_id, principal_amount, interest_rate, start_date, due_date, amortization_method, periods } = watchedValues;
+  const { account_id, principal_amount, interest_rate, start_date, due_date, amortization_method, periods, currency_code: selectedCurrencyCode } = watchedValues;
 
   // Auto-fill counterparty from selected account name (only on account change)
   useEffect(() => {
@@ -391,7 +392,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
                 </FormLabel>
                 <FormControl>
                   <div className="flex items-center rounded-lg border overflow-hidden h-9">
-                    <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">¥</span>
+                    <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">{getCurrencySymbol(selectedCurrencyCode || 'CNY')}</span>
                     <input className="flex-1 border-0 bg-transparent px-2.5 text-sm outline-none" placeholder="100,000" disabled={readOnly} {...field} />
                   </div>
                 </FormControl>
@@ -480,7 +481,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
             <div className="rounded-xl border border-blue-200/50 bg-gradient-to-br from-blue-50/50 to-card p-4 flex items-center justify-between dark:from-blue-950/20 dark:to-card dark:border-blue-800/30">
               <div>
                 <div className="text-xs text-muted-foreground">{t('debtForm.repaymentOnDueDate')} ({years} {t('debts.perYear')})</div>
-                <div className="text-xl font-bold">¥{total.toLocaleString()}</div>
+                <div className="text-xl font-bold">{formatCurrency(total, selectedCurrencyCode || 'CNY')}</div>
               </div>
               <div className="text-right text-xs space-y-1">
                 <div className="text-muted-foreground">{t('debtForm.principalDisplay', { label: t('debtForm.principal'), value: p.toLocaleString() })}</div>
@@ -494,7 +495,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
             <div className="rounded-xl border border-emerald-200/50 bg-gradient-to-br from-emerald-50/50 to-card p-4 dark:from-emerald-950/20 dark:to-card dark:border-emerald-800/30">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">{t('debtForm.monthlyPayment')}</span>
-                <span className="text-xl font-bold text-emerald-700 dark:text-emerald-400">¥{paymentPreview[0]?.total_amount?.toLocaleString() || '0'}</span>
+                <span className="text-xl font-bold text-emerald-700 dark:text-emerald-400">{formatCurrency(paymentPreview[0]?.total_amount || 0, selectedCurrencyCode || 'CNY')}</span>
               </div>
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>{paymentPreview.length} {t('debtForm.payments')}</span>
@@ -516,7 +517,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
                         <TableRow key={i}>
                           <TableCell className="text-xs">{i + 1}</TableCell>
                           <TableCell className="text-xs">{payment.payment_date}</TableCell>
-                          <TableCell className="text-xs text-right font-medium">¥{payment.total_amount?.toLocaleString() || '0'}</TableCell>
+                          <TableCell className="text-xs text-right font-medium">{formatCurrency(payment.total_amount || 0, selectedCurrencyCode || 'CNY')}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

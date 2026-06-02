@@ -20,6 +20,7 @@ import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { getPrepaidDetail, getTopUpRecords } from '@/lib/tauri/prepaid';
 import { getTransactionsByAccount } from '@/lib/tauri/transaction';
 import { TransactionList } from './TransactionList';
+import { formatCurrency as formatCurrencyUtil } from '@/lib/currency';
 
 interface PrepaidDetailPanelProps {
   accountId: string;
@@ -29,12 +30,7 @@ interface PrepaidDetailPanelProps {
 
 function formatCurrency(amount: string | number, currencyCode: string) {
   const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-  const symbols: Record<string, string> = { CNY: '¥', USD: '$', EUR: '€' };
-  const symbol = symbols[currencyCode] || currencyCode;
-  return `${symbol}${num.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  return formatCurrencyUtil(num, currencyCode);
 }
 
 export function PrepaidDetailPanel({ accountId, open, onOpenChange }: PrepaidDetailPanelProps) {

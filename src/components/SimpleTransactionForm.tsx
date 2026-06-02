@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { getCurrencySymbol } from '@/lib/currency';
 import {
   createSimpleIncome,
   createSimpleExpense,
@@ -230,7 +231,7 @@ export function SimpleTransactionForm({
           {t('transaction.amount')}
         </div>
         <div className="flex items-center justify-center gap-1">
-          <span className="text-3xl font-bold text-foreground/80">¥</span>
+          <span className="text-3xl font-bold text-foreground/80">{getCurrencySymbol('CNY')}</span>
           <input
             type="number"
             step="0.01"
@@ -383,10 +384,10 @@ export function SimpleTransactionForm({
             : initialData
               ? t('transactions.saveChanges')
               : type === 'expense'
-                ? `${t('transaction.recordExpense')} — ¥${amount || '0'}`
+                ? `${t('transaction.recordExpense')} — ${getCurrencySymbol('CNY')}${amount || '0'}`
                 : type === 'income'
-                  ? `${t('transaction.recordIncome')} — ¥${amount || '0'}`
-                  : `${t('transaction.recordTransfer')} — ¥${amount || '0'}`
+                  ? `${t('transaction.recordIncome')} — ${getCurrencySymbol('CNY')}${amount || '0'}`
+                  : `${t('transaction.recordTransfer')} — ${getCurrencySymbol('CNY')}${amount || '0'}`
           }
         </Button>
       </div>

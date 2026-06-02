@@ -42,6 +42,7 @@ import {
 import { Input } from '../components/ui/input';
 import { SubscriptionForm } from '../components/SubscriptionForm';
 import { getUserFriendlyError } from '../lib/error-handler';
+import { formatCurrency, getCurrencySymbol } from '../lib/currency';
 import {
   createSubscription,
   listSubscriptions,
@@ -333,7 +334,7 @@ export function SubscriptionsPage() {
                 {t('subscription.monthlyExpense')}
               </div>
               <div className="text-xl font-bold text-red-600">
-                ¥{Number(monthlyExpense).toFixed(2)}
+                {formatCurrency(Number(monthlyExpense), 'CNY')}
               </div>
             </div>
             <div className="rounded-lg border p-4">
@@ -342,7 +343,7 @@ export function SubscriptionsPage() {
                 {t('subscription.monthlyIncome')}
               </div>
               <div className="text-xl font-bold text-emerald-600">
-                ¥{Number(monthlyIncome).toFixed(2)}
+                {formatCurrency(Number(monthlyIncome), 'CNY')}
               </div>
             </div>
             <div className="rounded-lg border p-4">
@@ -479,7 +480,7 @@ export function SubscriptionsPage() {
 
                           {/* Amount */}
                           <TableCell className="text-right">
-                            ¥{Number(sub.amount).toFixed(2)}
+                            {formatCurrency(Number(sub.amount), 'CNY')}
                           </TableCell>
 
                           {/* Cycle */}
@@ -662,7 +663,7 @@ export function SubscriptionsPage() {
                                                 : 'text-red-600'
                                             }
                                           >
-                                            ¥
+                                            {getCurrencySymbol('CNY')}
                                             {Number(
                                               txn.amount ||
                                                 txn.credit_amount ||

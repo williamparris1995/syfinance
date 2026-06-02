@@ -15,7 +15,7 @@ import { listAccountsWithBalances, listAccountsByOwnership } from '@/lib/tauri/a
 import { listTransactions } from '@/lib/tauri/transaction';
 import { getUpcomingPayments } from '@/lib/tauri/debt';
 import { listHoldings } from '@/lib/tauri/holding';
-import { calculateTotalBalanceInCNY, formatCurrencyWithDto } from '@/lib/currency';
+import { calculateTotalBalanceInCNY, formatCurrencyWithDto, formatCurrency, getCurrencySymbol } from '@/lib/currency';
 import { useCurrencies } from '@/hooks/useCurrency';
 export function HomePage() {
   const navigate = useNavigate();
@@ -275,7 +275,7 @@ export function HomePage() {
                       {formatCurrencyWithDto(totalBalance, {
                         id: '',
                         code: 'CNY',
-                        symbol: '¥',
+                        symbol: getCurrencySymbol('CNY'),
                         name: '人民币',
                         exchange_rate: '1',
                         is_active: true,
@@ -377,8 +377,8 @@ export function HomePage() {
                       <BarChart data={ownAccountBalances.map(a => ({ name: a.name, balance: a.current_balance }))} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                        <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `¥${(v / 1000).toFixed(0)}k`} />
-                        <Tooltip formatter={(v) => `¥${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
+                        <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${getCurrencySymbol('CNY')}${(v / 1000).toFixed(0)}k`} />
+                        <Tooltip formatter={(v) => `${getCurrencySymbol('CNY')}${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
                         <Bar dataKey="balance" name={t('accounts.currentBalance')} radius={[4, 4, 0, 0]}>
                           {ownAccountBalances.map((a, i) => (
                             <Cell key={i} fill={a.current_balance >= 0 ? '#10B981' : '#EF4444'} />
@@ -403,8 +403,8 @@ export function HomePage() {
                       <BarChart data={ownAccountBalances.map(a => ({ name: a.name, change: a.current_balance - a.initial_balance }))} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                        <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `¥${(v / 1000).toFixed(0)}k`} />
-                        <Tooltip formatter={(v) => `¥${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
+                        <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${getCurrencySymbol('CNY')}${(v / 1000).toFixed(0)}k`} />
+                        <Tooltip formatter={(v) => `${getCurrencySymbol('CNY')}${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
                         <Bar dataKey="change" name={t('dashboard.change')} radius={[4, 4, 0, 0]}>
                           {ownAccountBalances.map((a, i) => {
                             const change = a.current_balance - a.initial_balance;
@@ -436,7 +436,7 @@ export function HomePage() {
                           </div>
                         </div>
                         <span className="text-sm font-semibold">
-                          ¥{parseFloat(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          {formatCurrency(parseFloat(p.amount), 'CNY')}
                         </span>
                       </div>
                     ))
@@ -484,7 +484,7 @@ export function HomePage() {
                           </Pie>
                           <Tooltip
                             formatter={(value, name) => [
-                              `¥${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                              `${getCurrencySymbol('CNY')}${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
                               name,
                             ]}
                           />
@@ -508,7 +508,7 @@ export function HomePage() {
                                 <span className="truncate flex-1">
                                   {account?.icon || ''} {item.name}
                                 </span>
-                                <span className="text-muted-foreground tabular-nums">¥{item.amount.toFixed(0)}</span>
+                                <span className="text-muted-foreground tabular-nums">{getCurrencySymbol('CNY')}{item.amount.toFixed(0)}</span>
                                 <span className="text-muted-foreground/60 w-10 text-right tabular-nums">{pct}%</span>
                               </div>
                             );
@@ -554,7 +554,7 @@ export function HomePage() {
                           </Pie>
                           <Tooltip
                             formatter={(value, name) => [
-                              `¥${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                              `${getCurrencySymbol('CNY')}${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
                               name,
                             ]}
                           />
@@ -578,7 +578,7 @@ export function HomePage() {
                                 <span className="truncate flex-1">
                                   {account?.icon || ''} {item.name}
                                 </span>
-                                <span className="text-muted-foreground tabular-nums">¥{item.amount.toFixed(0)}</span>
+                                <span className="text-muted-foreground tabular-nums">{getCurrencySymbol('CNY')}{item.amount.toFixed(0)}</span>
                                 <span className="text-muted-foreground/60 w-10 text-right tabular-nums">{pct}%</span>
                               </div>
                             );
@@ -610,7 +610,7 @@ export function HomePage() {
                           <XAxis dataKey="month" tick={{ fontSize: 11 }} tickFormatter={(v: string) => v.substring(5)} />
                           <YAxis tick={{ fontSize: 11 }} />
                           <Tooltip formatter={(value, name) => [
-                            `¥${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, name,
+                            `${getCurrencySymbol('CNY')}${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, name,
                           ]} />
                           {expenseCategories.map((catName) => {
                             const account = accounts.find((a) => a.name === catName && a.account_type === 'Expense');
@@ -648,7 +648,7 @@ export function HomePage() {
                       <XAxis dataKey="month" tick={{ fontSize: 11 }} tickFormatter={(v: string) => v.substring(5)} />
                       <YAxis tick={{ fontSize: 11 }} />
                       <Tooltip formatter={(value) => [
-                        `¥${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                        `${getCurrencySymbol('CNY')}${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
                       ]} />
                       <Bar dataKey="income" fill="#10B981" radius={[4, 4, 0, 0]} name={t('reports.income')} />
                       <Bar dataKey="expenses" fill="#EF4444" radius={[4, 4, 0, 0]} name={t('reports.expenses')} />

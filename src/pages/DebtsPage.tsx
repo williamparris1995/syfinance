@@ -37,6 +37,7 @@ import {
   TableRow,
 } from '../components/ui/table';
 import { getUserFriendlyError } from '../lib/error-handler';
+import { formatCurrency as formatCurrencyUtil } from '../lib/currency';
 import {
   createDebt,
   deleteDebt,
@@ -66,12 +67,7 @@ function debtTypeLabel(type: string, t: (key: string) => string): string {
 
 function formatCurrency(amount: string, currencyCode: string) {
   const num = parseFloat(amount);
-  const formatted = num.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  const symbols: Record<string, string> = { CNY: '¥', USD: '$', EUR: '€' };
-  return `${symbols[currencyCode] || currencyCode} ${formatted}`;
+  return formatCurrencyUtil(num, currencyCode);
 }
 
 function getDebtStatus(debt: DebtDto, t: (key: string) => string) {

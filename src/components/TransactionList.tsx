@@ -9,6 +9,7 @@ import {
   TableRow,
 } from './ui/table';
 import type { TransactionDto } from '@/lib/tauri/transaction';
+import { getCurrencySymbol } from '@/lib/currency';
 
 interface TransactionListProps {
   transactions: TransactionDto[];
@@ -20,8 +21,7 @@ interface TransactionListProps {
 function formatAmount(amount: string | number, currencyCode?: string) {
   const num = typeof amount === 'string' ? parseFloat(amount) : amount;
   if (isNaN(num)) return '-';
-  const symbols: Record<string, string> = { CNY: '¥', USD: '$', EUR: '€' };
-  const symbol = currencyCode ? (symbols[currencyCode] || currencyCode) : '';
+  const symbol = currencyCode ? getCurrencySymbol(currencyCode) : '';
   return `${symbol}${num.toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,

@@ -19,6 +19,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { HoldingTradeForm } from '../components/HoldingTradeForm';
 import { getUserFriendlyError } from '../lib/error-handler';
+import { formatCurrency, getCurrencySymbol } from '../lib/currency';
 import {
   buyHolding, sellHolding, listHoldings, updateSecurityPrice,
   listSecurities, fetchSecurityPrice,
@@ -496,16 +497,16 @@ export function HoldingsPage() {
             <div className="grid grid-cols-3 gap-4">
               <div className="rounded-lg border p-4">
                 <div className="text-xs text-muted-foreground">{t('holding.totalMarketValue')}</div>
-                <div className="text-xl font-bold">¥{totalMarketValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                <div className="text-xl font-bold">{formatCurrency(totalMarketValue, 'CNY')}</div>
               </div>
               <div className="rounded-lg border p-4">
                 <div className="text-xs text-muted-foreground">{t('holding.totalCost')}</div>
-                <div className="text-xl font-bold">¥{totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                <div className="text-xl font-bold">{formatCurrency(totalCost, 'CNY')}</div>
               </div>
               <div className={`rounded-lg border p-4 ${totalPnl >= 0 ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/50'}`}>
                 <div className="text-xs text-muted-foreground">{t('holding.totalPnl')}</div>
                 <div className={`text-xl font-bold ${totalPnl >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                  {totalPnl >= 0 ? '+' : ''}¥{totalPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {totalPnl >= 0 ? '+' : ''}{formatCurrency(totalPnl, 'CNY')}
                 </div>
               </div>
             </div>
@@ -521,7 +522,7 @@ export function HoldingsPage() {
                           <Cell key={entry.type} fill={pieColors[entry.type] || '#6b7280'} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value) => `¥${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} labelFormatter={(label) => t(`holding.types.${label}`)} />
+                      <Tooltip formatter={(value) => `${getCurrencySymbol('CNY')}${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} labelFormatter={(label) => t(`holding.types.${label}`)} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="space-y-1">
@@ -789,7 +790,7 @@ function HoldingRow({ h, isExpanded, onSell, onDividend, onSplit, onToggle, t }:
       <TableCell className="text-right">{h._currentPrice?.toFixed(2) || '-'}</TableCell>
       <TableCell className="text-right">{h._marketValue?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '-'}</TableCell>
       <TableCell className={`text-right ${h._pnl >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-        {h._pnl !== 0 ? (h._pnl >= 0 ? '+' : '') + '¥' + Math.abs(h._pnl).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '-'}
+        {h._pnl !== 0 ? (h._pnl >= 0 ? '+' : '') + getCurrencySymbol('CNY') + Math.abs(h._pnl).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '-'}
       </TableCell>
       <TableCell className={`text-right ${h._pnlPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
         {h._pnlPct !== 0 ? (h._pnlPct >= 0 ? '+' : '') + h._pnlPct.toFixed(2) + '%' : '-'}

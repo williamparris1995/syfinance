@@ -43,6 +43,7 @@ import {
   type CreateTransactionTemplateDto,
   type UpdateTransactionTemplateDto,
 } from '../lib/tauri/transactionTemplate';
+import { formatCurrency } from '../lib/currency';
 
 type SortKey = 'next_date' | 'amount' | 'name';
 type SortDir = 'asc' | 'desc';
@@ -301,7 +302,7 @@ export function TransactionTemplatesPage() {
                 {t('transactionTemplate.monthlyExpense')}
               </div>
               <div className="text-xl font-bold text-red-600">
-                ¥{Number(monthlyExpense).toFixed(2)}
+                {formatCurrency(Number(monthlyExpense), 'CNY')}
               </div>
             </div>
             <div className="rounded-lg border p-4">
@@ -310,7 +311,7 @@ export function TransactionTemplatesPage() {
                 {t('transactionTemplate.monthlyIncome')}
               </div>
               <div className="text-xl font-bold text-emerald-600">
-                ¥{Number(monthlyIncome).toFixed(2)}
+                {formatCurrency(Number(monthlyIncome), 'CNY')}
               </div>
             </div>
             <div className="rounded-lg border p-4">
@@ -428,7 +429,7 @@ export function TransactionTemplatesPage() {
 
                         {/* Amount */}
                         <TableCell className="text-right">
-                          ¥{Number(tpl.amount).toFixed(2)}
+                          {formatCurrency(Number(tpl.amount), 'CNY')}
                         </TableCell>
 
                         {/* Cycle */}

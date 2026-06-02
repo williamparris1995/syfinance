@@ -13,6 +13,7 @@ import { getTransactionsByAccount } from '@/lib/tauri/transaction';
 import { useAccountBalanceHistory } from '@/hooks/useAccountBalanceHistory';
 import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
 import type { AccountDto } from '@/lib/tauri/account';
+import { formatCurrency } from '@/lib/currency';
 
 interface AccountDetailPanelProps {
   account: AccountDto;
@@ -22,12 +23,7 @@ interface AccountDetailPanelProps {
 
 function formatBalance(amount: number | string, currencyCode: string) {
   const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-  const symbols: Record<string, string> = { CNY: '¥', USD: '$', EUR: '€' };
-  const symbol = symbols[currencyCode] || currencyCode;
-  return `${symbol}${num.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  return formatCurrency(num, currencyCode);
 }
 
 const typeColors: Record<string, string> = {

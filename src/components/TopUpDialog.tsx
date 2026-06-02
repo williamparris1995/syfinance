@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
 import { Button } from './ui/button';
 import {
   Form,
@@ -171,7 +172,7 @@ export function TopUpDialog({ accountId, accountName, open, onOpenChange }: TopU
                       </FormLabel>
                       <FormControl>
                         <div className="flex items-center rounded-lg border overflow-hidden h-9">
-                          <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">¥</span>
+                          <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">{getCurrencySymbol('CNY')}</span>
                           <input
                             type="number"
                             step="0.01"
@@ -197,7 +198,7 @@ export function TopUpDialog({ accountId, accountName, open, onOpenChange }: TopU
                       </FormLabel>
                       <FormControl>
                         <div className="flex items-center rounded-lg border overflow-hidden h-9">
-                          <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">¥</span>
+                          <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">{getCurrencySymbol('CNY')}</span>
                           <input
                             type="number"
                             step="0.01"
@@ -219,7 +220,7 @@ export function TopUpDialog({ accountId, accountName, open, onOpenChange }: TopU
                 <div className="rounded-lg border border-emerald-200/50 bg-gradient-to-br from-emerald-50/50 to-card p-3 flex items-center justify-between dark:from-emerald-950/20 dark:to-card dark:border-emerald-800/30">
                   <span className="text-xs text-muted-foreground">{t('prepaid.totalCredited')}</span>
                   <span className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
-                    ¥{totalCredited.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatCurrency(totalCredited, 'CNY')}
                   </span>
                 </div>
               )}
