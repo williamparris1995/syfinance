@@ -103,7 +103,11 @@
     "repeatMonthly": "Monthly",
     "repeatYearly": "Yearly",
     "titleRequired": "Title is required",
-    "remindAtRequired": "Remind at is required"
+    "remindAtRequired": "Remind at is required",
+    "createFailed": "Failed to create reminder: {{error}}",
+    "updateFailed": "Failed to update reminder: {{error}}",
+    "deleteFailed": "Failed to delete reminder: {{error}}",
+    "completeFailed": "Failed to complete reminder: {{error}}"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -289,8 +293,8 @@
     "toAccount": "To Account",
     "creditAccount": "Credit Account (Income)",
     "debitAccount": "Debit Account (Expense)",
-    "selectOwnAccount": "Select own account",
-    "selectExternalAccount": "Select external account",
+    "selectOwnAccount": "Please select an own account",
+    "selectExternalAccount": "Please select an external account",
     "ownAccountLabel": "Own Accounts",
     "externalAccountLabel": "External Accounts",
     "date": "Date",
@@ -307,7 +311,8 @@
     "debitExternalAccount": "Debit (External Account)",
     "selectAccountPlaceholder": "Select account",
     "selectExternalAccountPlaceholder": "Select external account",
-    "recordWithAmount": "{{label}} — ¥{{amount}}"
+    "recordWithAmount": "{{label}} — ¥{{amount}}",
+    "createFailed": "Failed to create transaction: {{error}}"
   },
   "transactionForm": {
     "transactionDate": "Transaction Date",
@@ -612,7 +617,13 @@
     "exportError": "Export failed",
     "fetchRates": "Refresh Rates",
     "fetchSuccess": "Updated {{count}} currency rates",
-    "fetchError": "Failed to fetch exchange rates"
+    "fetchError": "Failed to fetch exchange rates",
+    "currencyAdded": "Currency added",
+    "rateUpdated": "Exchange rate updated",
+    "currencyDeleted": "Currency deleted",
+    "currencyAddFailed": "Failed to add currency: {{error}}",
+    "rateUpdateFailed": "Failed to update rate: {{error}}",
+    "currencyDeleteFailed": "Failed to delete currency: {{error}}"
   },
   "onboarding": {
     "welcome": "Welcome to Finance App",
@@ -842,7 +853,17 @@
     "amountRequired": "Planned amount must be greater than 0",
     "copyToNextMonth": "Copy to Next Month",
     "cloneSuccess": "Budget copied to next month",
-    "cloneError": "Failed to copy budget"
+    "cloneError": "Failed to copy budget",
+    "budgetCreated": "Budget created",
+    "budgetItemAdded": "Budget item added",
+    "budgetDeleted": "Budget deleted",
+    "budgetItemRemoved": "Budget item removed",
+    "budgetCloned": "Budget copied",
+    "budgetCreateFailed": "Failed to create budget: {{error}}",
+    "budgetItemAddFailed": "Failed to add budget item: {{error}}",
+    "budgetDeleteFailed": "Failed to delete budget: {{error}}",
+    "budgetItemRemoveFailed": "Failed to remove budget item: {{error}}",
+    "budgetCloneFailed": "Failed to copy budget: {{error}}"
   },
   "tags": {
     "title": "Tags",
@@ -856,7 +877,16 @@
     "tagDeleted": "Tag deleted",
     "tagUpdated": "Tag updated",
     "deleteConfirm": "Delete this tag?",
-    "managementDesc": "Manage your transaction tags for better organization"
+    "managementDesc": "Manage your transaction tags for better organization",
+    "tagSoftDeleted": "Tag deleted",
+    "tagAdded": "Tag added",
+    "tagRemoved": "Tag removed",
+    "tagCreateFailed": "Failed to create tag: {{error}}",
+    "tagDeleteFailed": "Failed to delete tag: {{error}}",
+    "tagUpdateFailed": "Failed to update tag: {{error}}",
+    "tagSoftDeleteFailed": "Failed to delete tag: {{error}}",
+    "tagAddFailed": "Failed to add tag: {{error}}",
+    "tagRemoveFailed": "Failed to remove tag: {{error}}"
   },
   "export": {
     "title": "Export Data",
@@ -911,7 +941,20 @@
     "syncProgress": "Sync Progress",
     "syncSuccess": "Progress synced from account balance",
     "nameRequired": "Goal name is required",
-    "amountRequired": "Target amount must be greater than 0"
+    "amountRequired": "Target amount must be greater than 0",
+    "goalCreated": "Goal created",
+    "goalUpdated": "Goal updated",
+    "goalProgressUpdated": "Progress updated",
+    "goalCompleted": "Goal completed!",
+    "goalDeleted": "Goal deleted",
+    "goalProgressSynced": "Progress synced",
+    "goalCreateFailed": "Failed to create goal: {{error}}",
+    "goalUpdateFailed": "Failed to update goal: {{error}}",
+    "goalProgressFailed": "Failed to update progress: {{error}}",
+    "goalCompleteFailed": "Failed to complete goal: {{error}}",
+    "goalDeleteFailed": "Failed to delete goal: {{error}}",
+    "goalProgressSyncFailed": "Failed to sync progress: {{error}}",
+    "validAmountRequired": "Please enter a valid amount"
   },
   "sync": {
     "syncing": "Syncing...",
@@ -1147,6 +1190,8 @@
     "activeTemplates": "Active Templates",
     "monthlyExpense": "Monthly Expense",
     "monthlyIncome": "Monthly Income",
-    "noAccounts": "No accounts available"
+    "noAccounts": "No accounts available",
+    "templatePaused": "Template paused",
+    "templateResumed": "Template resumed"
   }
 }

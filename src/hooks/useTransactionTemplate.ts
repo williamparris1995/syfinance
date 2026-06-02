@@ -10,6 +10,7 @@ import {
   resumeTransactionTemplate,
 } from '../lib/tauri/transactionTemplate';
 import { getUserFriendlyError } from '../lib/error-handler';
+import { useTranslation } from 'react-i18next';
 
 export function useTransactionTemplates() {
   return useQuery({
@@ -28,6 +29,7 @@ export function useTransactionTemplate(id: string) {
 
 export function useCreateTransactionTemplate() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: createTransactionTemplate,
@@ -35,7 +37,7 @@ export function useCreateTransactionTemplate() {
       queryClient.invalidateQueries({ queryKey: ['transactionTemplates'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      toast.success('Template created');
+      toast.success(t('transactionTemplate.createSuccess'));
     },
     onError: (error) => {
       toast.error(getUserFriendlyError(error));
@@ -45,6 +47,7 @@ export function useCreateTransactionTemplate() {
 
 export function useUpdateTransactionTemplate() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: updateTransactionTemplate,
@@ -52,7 +55,7 @@ export function useUpdateTransactionTemplate() {
       queryClient.invalidateQueries({ queryKey: ['transactionTemplates'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      toast.success('Template updated');
+      toast.success(t('transactionTemplate.updateSuccess'));
     },
     onError: (error) => {
       toast.error(getUserFriendlyError(error));
@@ -62,6 +65,7 @@ export function useUpdateTransactionTemplate() {
 
 export function useDeleteTransactionTemplate() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: deleteTransactionTemplate,
@@ -69,7 +73,7 @@ export function useDeleteTransactionTemplate() {
       queryClient.invalidateQueries({ queryKey: ['transactionTemplates'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      toast.success('Template deleted');
+      toast.success(t('transactionTemplate.deleteSuccess'));
     },
     onError: (error) => {
       toast.error(getUserFriendlyError(error));
@@ -79,12 +83,13 @@ export function useDeleteTransactionTemplate() {
 
 export function usePauseTransactionTemplate() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: pauseTransactionTemplate,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactionTemplates'] });
-      toast.success('Template paused');
+      toast.success(t('transactionTemplate.templatePaused'));
     },
     onError: (error) => {
       toast.error(getUserFriendlyError(error));
@@ -94,12 +99,13 @@ export function usePauseTransactionTemplate() {
 
 export function useResumeTransactionTemplate() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: resumeTransactionTemplate,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactionTemplates'] });
-      toast.success('Template resumed');
+      toast.success(t('transactionTemplate.templateResumed'));
     },
     onError: (error) => {
       toast.error(getUserFriendlyError(error));

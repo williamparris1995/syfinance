@@ -10,6 +10,7 @@ import {
   type UpdateReminderDto,
 } from '../lib/tauri/reminder';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 export function useReminders() {
   return useQuery({
@@ -29,57 +30,61 @@ export function useReminder(id: string) {
 
 export function useCreateReminder() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   return useMutation({
     mutationFn: (dto: CreateReminderDto) => createReminder(dto),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reminders'] });
-      toast.success('reminder created');
+      toast.success(t('reminders.createSuccess'));
     },
     onError: (error) => {
-      toast.error(`Failed to create reminder: ${error}`);
+      toast.error(t('reminders.createFailed', { error: String(error) }));
     },
   });
 }
 
 export function useUpdateReminder() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   return useMutation({
     mutationFn: ({ id, dto }: { id: string; dto: UpdateReminderDto }) =>
       updateReminder(id, dto),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reminders'] });
-      toast.success('reminder updated');
+      toast.success(t('reminders.updateSuccess'));
     },
     onError: (error) => {
-      toast.error(`Failed to update reminder: ${error}`);
+      toast.error(t('reminders.updateFailed', { error: String(error) }));
     },
   });
 }
 
 export function useDeleteReminder() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   return useMutation({
     mutationFn: (id: string) => deleteReminder(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reminders'] });
-      toast.success('reminder deleted');
+      toast.success(t('reminders.deleteSuccess'));
     },
     onError: (error) => {
-      toast.error(`Failed to delete reminder: ${error}`);
+      toast.error(t('reminders.deleteFailed', { error: String(error) }));
     },
   });
 }
 
 export function useCompleteReminder() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   return useMutation({
     mutationFn: (id: string) => completeReminder(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reminders'] });
-      toast.success('reminder completed');
+      toast.success(t('reminders.completeSuccess'));
     },
     onError: (error) => {
-      toast.error(`Failed to complete reminder: ${error}`);
+      toast.error(t('reminders.completeFailed', { error: String(error) }));
     },
   });
 }

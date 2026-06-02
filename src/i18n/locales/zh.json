@@ -103,7 +103,11 @@
     "repeatMonthly": "每月",
     "repeatYearly": "每年",
     "titleRequired": "标题为必填项",
-    "remindAtRequired": "提醒时间为必填项"
+    "remindAtRequired": "提醒时间为必填项",
+    "createFailed": "创建提醒失败: {{error}}",
+    "updateFailed": "更新提醒失败: {{error}}",
+    "deleteFailed": "删除提醒失败: {{error}}",
+    "completeFailed": "完成提醒失败: {{error}}"
   },
   "dashboard": {
     "title": "仪表板",
@@ -289,8 +293,8 @@
     "toAccount": "到账户",
     "creditAccount": "贷方账户 (收入)",
     "debitAccount": "借方账户 (支出)",
-    "selectOwnAccount": "选择自有账户",
-    "selectExternalAccount": "选择外部账户",
+    "selectOwnAccount": "请选择自己账户",
+    "selectExternalAccount": "请选择外部账户",
     "ownAccountLabel": "自有账户",
     "externalAccountLabel": "外部账户",
     "date": "日期",
@@ -307,7 +311,8 @@
     "debitExternalAccount": "借方 (外部账户)",
     "selectAccountPlaceholder": "选择账户",
     "selectExternalAccountPlaceholder": "选择外部账户",
-    "recordWithAmount": "{{label}} — ¥{{amount}}"
+    "recordWithAmount": "{{label}} — ¥{{amount}}",
+    "createFailed": "创建交易失败: {{error}}"
   },
   "transactionForm": {
     "transactionDate": "交易日期",
@@ -550,6 +555,12 @@
     "fetchRates": "刷新汇率",
     "fetchSuccess": "已更新 {{count}} 个货币汇率",
     "fetchError": "获取汇率失败",
+    "currencyAdded": "货币添加成功",
+    "rateUpdated": "汇率更新成功",
+    "currencyDeleted": "货币删除成功",
+    "currencyAddFailed": "添加货币失败: {{error}}",
+    "rateUpdateFailed": "更新汇率失败: {{error}}",
+    "currencyDeleteFailed": "删除货币失败: {{error}}",
     "languageDescription": "选择您的首选语言",
     "defaultCurrency": "默认货币",
     "theme": "主题",
@@ -884,7 +895,17 @@
     "amountRequired": "计划金额必须大于0",
     "copyToNextMonth": "复制到下月",
     "cloneSuccess": "预算已复制到下月",
-    "cloneError": "复制预算失败"
+    "cloneError": "复制预算失败",
+    "budgetCreated": "预算创建成功",
+    "budgetItemAdded": "预算项添加成功",
+    "budgetDeleted": "预算删除成功",
+    "budgetItemRemoved": "预算项删除成功",
+    "budgetCloned": "预算复制成功",
+    "budgetCreateFailed": "创建预算失败: {{error}}",
+    "budgetItemAddFailed": "添加预算项失败: {{error}}",
+    "budgetDeleteFailed": "删除预算失败: {{error}}",
+    "budgetItemRemoveFailed": "删除预算项失败: {{error}}",
+    "budgetCloneFailed": "复制预算失败: {{error}}"
   },
   "tags": {
     "title": "标签",
@@ -898,7 +919,16 @@
     "tagDeleted": "标签已删除",
     "tagUpdated": "标签已更新",
     "deleteConfirm": "确定删除此标签？",
-    "managementDesc": "管理交易标签以便更好地分类整理"
+    "managementDesc": "管理交易标签以便更好地分类整理",
+    "tagSoftDeleted": "标签已删除",
+    "tagAdded": "标签已添加",
+    "tagRemoved": "标签已移除",
+    "tagCreateFailed": "创建标签失败: {{error}}",
+    "tagDeleteFailed": "删除标签失败: {{error}}",
+    "tagUpdateFailed": "更新标签失败: {{error}}",
+    "tagSoftDeleteFailed": "删除标签失败: {{error}}",
+    "tagAddFailed": "添加标签失败: {{error}}",
+    "tagRemoveFailed": "移除标签失败: {{error}}"
   },
   "export": {
     "title": "导出数据",
@@ -953,7 +983,20 @@
     "syncProgress": "同步进度",
     "syncSuccess": "已从账户余额同步进度",
     "nameRequired": "目标名称为必填项",
-    "amountRequired": "目标金额必须大于0"
+    "amountRequired": "目标金额必须大于0",
+    "goalCreated": "目标创建成功",
+    "goalUpdated": "目标更新成功",
+    "goalProgressUpdated": "进度更新成功",
+    "goalCompleted": "目标已完成！",
+    "goalDeleted": "目标删除成功",
+    "goalProgressSynced": "进度同步成功",
+    "goalCreateFailed": "创建目标失败: {{error}}",
+    "goalUpdateFailed": "更新目标失败: {{error}}",
+    "goalProgressFailed": "更新进度失败: {{error}}",
+    "goalCompleteFailed": "完成目标失败: {{error}}",
+    "goalDeleteFailed": "删除目标失败: {{error}}",
+    "goalProgressSyncFailed": "同步进度失败: {{error}}",
+    "validAmountRequired": "请输入有效的金额"
   },
   "sync": {
     "syncing": "同步中...",
@@ -1189,6 +1232,8 @@
     "activeTemplates": "活跃模板",
     "monthlyExpense": "本月循环支出",
     "monthlyIncome": "本月循环收入",
-    "noAccounts": "暂无可用账户"
+    "noAccounts": "暂无可用账户",
+    "templatePaused": "模板已暂停",
+    "templateResumed": "模板已恢复"
   }
 }

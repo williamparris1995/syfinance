@@ -13,6 +13,7 @@ import {
   AddBudgetItemDto,
 } from '../lib/tauri/budget';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 export function useBudgets() {
   return useQuery({
@@ -39,21 +40,23 @@ export function useBudgetByMonth(month: string) {
 
 export function useCreateBudget() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: (dto: CreateBudgetDto) => createBudget(dto),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
-      toast.success('预算创建成功');
+      toast.success(t('budget.budgetCreated'));
     },
     onError: (error) => {
-      toast.error(`创建预算失败: ${error}`);
+      toast.error(t('budget.budgetCreateFailed', { error: String(error) }));
     },
   });
 }
 
 export function useAddBudgetItem() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: ({ budgetId, dto }: { budgetId: string; dto: AddBudgetItemDto }) =>
@@ -61,31 +64,33 @@ export function useAddBudgetItem() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['budget'] });
-      toast.success('预算项添加成功');
+      toast.success(t('budget.budgetItemAdded'));
     },
     onError: (error) => {
-      toast.error(`添加预算项失败: ${error}`);
+      toast.error(t('budget.budgetItemAddFailed', { error: String(error) }));
     },
   });
 }
 
 export function useDeleteBudget() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: (id: string) => deleteBudget(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
-      toast.success('预算删除成功');
+      toast.success(t('budget.budgetDeleted'));
     },
     onError: (error) => {
-      toast.error(`删除预算失败: ${error}`);
+      toast.error(t('budget.budgetDeleteFailed', { error: String(error) }));
     },
   });
 }
 
 export function useRemoveBudgetItem() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: ({ budgetId, itemId }: { budgetId: string; itemId: string }) =>
@@ -93,10 +98,10 @@ export function useRemoveBudgetItem() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['budget'] });
-      toast.success('预算项删除成功');
+      toast.success(t('budget.budgetItemRemoved'));
     },
     onError: (error) => {
-      toast.error(`删除预算项失败: ${error}`);
+      toast.error(t('budget.budgetItemRemoveFailed', { error: String(error) }));
     },
   });
 }
@@ -115,6 +120,7 @@ export function useComputeBudgetActuals() {
 
 export function useCloneBudgetToMonth() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: ({ sourceBudgetId, targetMonth }: { sourceBudgetId: string; targetMonth: string }) =>
@@ -122,10 +128,10 @@ export function useCloneBudgetToMonth() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['budget'] });
-      toast.success('预算复制成功');
+      toast.success(t('budget.budgetCloned'));
     },
     onError: (error) => {
-      toast.error(`复制预算失败: ${error}`);
+      toast.error(t('budget.budgetCloneFailed', { error: String(error) }));
     },
   });
 }

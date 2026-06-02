@@ -116,12 +116,12 @@ export function SimpleTransactionForm({
       // Validate required fields
       if (type === 'expense' || type === 'income') {
         if (!ownAccountId) {
-          toast.error('请选择自己账户');
+          toast.error(t('transaction.selectOwnAccount'));
           setIsSubmitting(false);
           return;
         }
         if (!externalAccountId) {
-          toast.error('请选择外部账户');
+          toast.error(t('transaction.selectExternalAccount'));
           setIsSubmitting(false);
           return;
         }
@@ -211,7 +211,7 @@ export function SimpleTransactionForm({
       });
     } catch (error) {
       console.error('Failed to create transaction:', error);
-      toast.error(`Failed to create transaction: ${error}`);
+      toast.error(t('transaction.createFailed', { error: String(error) }));
       return; // Don't call onSubmit if API failed
     } finally {
       setIsSubmitting(false);
@@ -276,14 +276,14 @@ export function SimpleTransactionForm({
           {/* Own account selector */}
           <div className="space-y-1.5">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-              {type === 'expense' ? '贷方 (自己账户)' : '借方 (自己账户)'}
+              {type === 'expense' ? t('transaction.creditOwnAccount') : t('transaction.debitOwnAccount')}
             </Label>
             <Select value={ownAccountId} onValueChange={(v) => v && setOwnAccountId(v)}>
               <SelectTrigger className="h-9 w-full">
                 <SelectValue>
                   {ownAccountId
                     ? accounts.find(a => a.id === ownAccountId)?.name || ownAccountId
-                    : '选择账户'}
+                    : t('transaction.selectAccount')}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -301,14 +301,14 @@ export function SimpleTransactionForm({
           {/* External account selector */}
           <div className="space-y-1.5">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-              {type === 'expense' ? '借方 (外部账户)' : '贷方 (外部账户)'}
+              {type === 'expense' ? t('transaction.debitExternalAccount') : t('transaction.creditExternalAccount')}
             </Label>
             <Select value={externalAccountId} onValueChange={(v) => v && setExternalAccountId(v)}>
               <SelectTrigger className="h-9 w-full">
                 <SelectValue>
                   {externalAccountId
                     ? externalAccounts.find(a => a.id === externalAccountId)?.name || externalAccountId
-                    : '选择外部账户'}
+                    : t('transaction.selectExternalAccount')}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>

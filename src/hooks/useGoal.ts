@@ -12,6 +12,7 @@ import {
   UpdateGoalDto,
 } from '../lib/tauri/goal';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 export function useGoals() {
   return useQuery({ queryKey: ['goals'], queryFn: listGoals });
@@ -27,86 +28,92 @@ export function useGoal(id: string) {
 
 export function useCreateGoal() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   return useMutation({
     mutationFn: (dto: CreateGoalDto) => createGoal(dto),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
-      toast.success('目标创建成功');
+      toast.success(t('goals.goalCreated'));
     },
     onError: (error) => {
-      toast.error(`创建目标失败: ${error}`);
+      toast.error(t('goals.goalCreateFailed', { error: String(error) }));
     },
   });
 }
 
 export function useUpdateGoal() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   return useMutation({
     mutationFn: ({ id, dto }: { id: string; dto: UpdateGoalDto }) =>
       updateGoal(id, dto),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
-      toast.success('目标更新成功');
+      toast.success(t('goals.goalUpdated'));
     },
     onError: (error) => {
-      toast.error(`更新目标失败: ${error}`);
+      toast.error(t('goals.goalUpdateFailed', { error: String(error) }));
     },
   });
 }
 
 export function useUpdateGoalProgress() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   return useMutation({
     mutationFn: ({ id, amount }: { id: string; amount: string }) =>
       updateGoalProgress(id, amount),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
-      toast.success('进度更新成功');
+      toast.success(t('goals.goalProgressUpdated'));
     },
     onError: (error) => {
-      toast.error(`更新进度失败: ${error}`);
+      toast.error(t('goals.goalProgressFailed', { error: String(error) }));
     },
   });
 }
 
 export function useCompleteGoal() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   return useMutation({
     mutationFn: (id: string) => completeGoal(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
-      toast.success('目标已完成！');
+      toast.success(t('goals.goalCompleted'));
     },
     onError: (error) => {
-      toast.error(`完成目标失败: ${error}`);
+      toast.error(t('goals.goalCompleteFailed', { error: String(error) }));
     },
   });
 }
 
 export function useDeleteGoal() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   return useMutation({
     mutationFn: (id: string) => deleteGoal(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
-      toast.success('目标删除成功');
+      toast.success(t('goals.goalDeleted'));
     },
     onError: (error) => {
-      toast.error(`删除目标失败: ${error}`);
+      toast.error(t('goals.goalDeleteFailed', { error: String(error) }));
     },
   });
 }
 
 export function useSyncGoalProgress() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   return useMutation({
     mutationFn: (goalId: string) => syncGoalProgress(goalId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
-      toast.success('进度同步成功');
+      toast.success(t('goals.goalProgressSynced'));
     },
     onError: (error) => {
-      toast.error(`同步进度失败: ${error}`);
+      toast.error(t('goals.goalProgressSyncFailed', { error: String(error) }));
     },
   });
 }

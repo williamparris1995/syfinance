@@ -152,11 +152,11 @@ export function GoalsPage() {
   // Create goal
   const handleCreateGoal = () => {
     if (!goalName.trim()) {
-      toast.error('请输入目标名称');
+      toast.error(t('goals.nameRequired'));
       return;
     }
     if (!targetAmount || parseFloat(targetAmount) <= 0) {
-      toast.error('请输入有效的目标金额');
+      toast.error(t('goals.amountRequired'));
       return;
     }
 
@@ -183,7 +183,7 @@ export function GoalsPage() {
   const handleUpdateProgress = () => {
     if (!selectedGoal) return;
     if (!progressAmount || parseFloat(progressAmount) <= 0) {
-      toast.error('请输入有效的金额');
+      toast.error(t('goals.validAmountRequired'));
       return;
     }
 

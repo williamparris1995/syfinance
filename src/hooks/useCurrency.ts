@@ -16,7 +16,7 @@ export function useCurrencies() {
   return useQuery({
     queryKey: ['currencies'],
     queryFn: listCurrencies,
-    staleTime: 1000 * 60 * 60, // 1 小时
+    staleTime: 1000 * 60 * 60,
   });
 }
 
@@ -30,46 +30,49 @@ export function useCurrency(code: string) {
 
 export function useAddCurrency() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: (dto: CreateCurrencyDto) => addCurrency(dto),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['currencies'] });
-      toast.success('货币添加成功');
+      toast.success(t('settings.currencyAdded'));
     },
     onError: (error) => {
-      toast.error(`添加货币失败: ${error}`);
+      toast.error(t('settings.currencyAddFailed', { error: String(error) }));
     },
   });
 }
 
 export function useUpdateCurrencyRate() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: ({ code, exchangeRate }: { code: string; exchangeRate: string }) =>
       updateCurrencyRate(code, exchangeRate),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['currencies'] });
-      toast.success('汇率更新成功');
+      toast.success(t('settings.rateUpdated'));
     },
     onError: (error) => {
-      toast.error(`更新汇率失败: ${error}`);
+      toast.error(t('settings.rateUpdateFailed', { error: String(error) }));
     },
   });
 }
 
 export function useDeleteCurrency() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: (code: string) => deleteCurrency(code),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['currencies'] });
-      toast.success('货币删除成功');
+      toast.success(t('settings.currencyDeleted'));
     },
     onError: (error) => {
-      toast.error(`删除货币失败: ${error}`);
+      toast.error(t('settings.currencyDeleteFailed', { error: String(error) }));
     },
   });
 }
