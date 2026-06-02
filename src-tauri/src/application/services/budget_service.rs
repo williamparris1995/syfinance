@@ -1,14 +1,138 @@
+use crate::domain::aggregates::budget::Budget;
+use crate::domain::repositories::BudgetRepository;
+use crate::domain::value_objects::budget_item::BudgetItem;
+use crate::infrastructure::repositories::SqliteBudgetRepository;
 use rust_decimal::Decimal;
 use sqlx::SqlitePool;
+use std::str::FromStr;
+use std::sync::Arc;
 use tracing::info;
 
 pub struct BudgetService {
+    repo: Arc<SqliteBudgetRepository>,
     pool: SqlitePool,
 }
 
 impl BudgetService {
-    pub fn new(pool: SqlitePool) -> Self {
-        Self { pool }
+    pub fn new(repo: Arc<SqliteBudgetRepository>, pool: SqlitePool) -> Self {
+        Self { repo, pool }
+    }
+
+    pub async fn list_budgets(&self) -> Result<Vec<Budget>, String> {
+        info!("Listing all budgets");
+        self.repo
+            .find_all()
+            .await
+            .map_err(|e| format!("Failed to list budgets: {}", e))
+    }
+
+    pub async fn get_budget(&self, id: &str) -> Result<Option<Budget>, String> {
+        info!(budget_id = id, "Getting budget");
+        self.repo
+            .find_by_id(id)
+            .await
+            .map_err(|e| format!("Failed to get budget: {}", e))
+    }
+
+    pub async fn get_budget_by_month(&self, month: &str) -> Result<Option<Budget>, String> {
+        info!(month = month, "Getting budget by month");
+        self.repo
+            .find_by_month(month)
+            .await
+            .map_err(|e| format!("Failed to get budget: {}", e))
+    }
+
+    pub async fn create_budget(
+        &self,
+        name: String,
+        month: String,
+        currency_code: String,
+    ) -> Result<Budget, String> {
+        info!(name = name, month = month, "Creating budget");
+        let id = uuid::Uuid::new_v4().to_string();
+        let budget = Budget::new(id, name, month, currency_code);
+
+        self.repo
+            .create(&budget)
+            .await
+            .map_err(|e| format!("Failed to create budget: {}", e))?;
+
+        info!(budget_id = budget.id, "Budget created successfully");
+        Ok(budget)
+    }
+
+    pub async fn add_budget_item(
+        &self,
+        budget_id: String,
+        category_account_id: String,
+        planned_amount_str: String,
+        notes: Option<String>,
+    ) -> Result<Budget, String> {
+        info!(budget_id = budget_id, "Adding budget item");
+
+        let planned_amount = Decimal::from_str(&planned_amount_str)
+            .map_err(|_| "Invalid planned amount".to_string())?;
+
+        let item_id = uuid::Uuid::new_v4().to_string();
+        let item = BudgetItem::new(
+            item_id,
+            budget_id.clone(),
+            category_account_id,
+            planned_amount,
+            notes,
+        );
+
+        self.repo
+            .add_item(&budget_id, &item)
+            .await
+            .map_err(|e| format!("Failed to add budget item: {}", e))?;
+
+        let budget = self
+            .repo
+            .find_by_id(&budget_id)
+            .await
+            .map_err(|e| format!("Failed to get budget: {}", e))?
+            .ok_or_else(|| "Budget not found".to_string())?;
+
+        info!(budget_id = budget_id, "Budget item added successfully");
+        Ok(budget)
+    }
+
+    pub async fn delete_budget(&self, id: &str) -> Result<(), String> {
+        info!(budget_id = id, "Deleting budget");
+        self.repo
+            .delete(id)
+            .await
+            .map_err(|e| format!("Failed to delete budget: {}", e))?;
+        info!(budget_id = id, "Budget deleted");
+        Ok(())
+    }
+
+    pub async fn remove_budget_item(
+        &self,
+        budget_id: &str,
+        item_id: &str,
+    ) -> Result<Budget, String> {
+        info!(
+            budget_id = budget_id,
+            item_id = item_id,
+            "Removing budget item"
+        );
+
+        self.repo
+            .remove_item(item_id)
+            .await
+            .map_err(|e| format!("Failed to remove budget item: {}", e))?;
+
+        let budget = self
+            .repo
+            .find_by_id(budget_id)
+            .await
+            .map_err(|e| format!("Failed to get budget: {}", e))?
+            .ok_or_else(|| "Budget not found".to_string())?;
+
+        info!(budget_id = budget_id, "Budget item removed successfully");
+        Ok(budget)
     }
 
     /// Compute actual spending for each budget item from transaction entries.
@@ -16,23 +140,21 @@ impl BudgetService {
         info!(budget_id = budget_id, "Computing budget actuals");
 
         // 1. Get the budget month
-        let budget_month: (String,) =
-            sqlx::query_as("SELECT month FROM budgets WHERE id = ?")
-                .bind(budget_id)
-                .fetch_one(&self.pool)
-                .await
-                .map_err(|e| format!("Budget not found: {}", e))?;
+        let budget_month: (String,) = sqlx::query_as("SELECT month FROM budgets WHERE id = ?")
+            .bind(budget_id)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| format!("Budget not found: {}", e))?;
 
         let month = &budget_month.0; // e.g. "2026-06"
 
         // 2. Get all budget items
-        let items: Vec<(String, String)> = sqlx::query_as(
-            "SELECT id, category_account_id FROM budget_items WHERE budget_id = ?",
-        )
-        .bind(budget_id)
-        .fetch_all(&self.pool)
-        .await
-        .map_err(|e| format!("Failed to fetch budget items: {}", e))?;
+        let items: Vec<(String, String)> =
+            sqlx::query_as("SELECT id, category_account_id FROM budget_items WHERE budget_id = ?")
+                .bind(budget_id)
+                .fetch_all(&self.pool)
+                .await
+                .map_err(|e| format!("Failed to fetch budget items: {}", e))?;
 
         if items.is_empty() {
             return Ok(());
@@ -87,25 +209,26 @@ impl BudgetService {
         source_budget_id: &str,
         target_month: &str,
     ) -> Result<String, String> {
-        info!(source_id = source_budget_id, target_month = target_month, "Cloning budget");
+        info!(
+            source_id = source_budget_id,
+            target_month = target_month,
+            "Cloning budget"
+        );
 
         // 1. Verify source budget exists
-        let _source: (String, String) = sqlx::query_as(
-            "SELECT name, currency_code FROM budgets WHERE id = ?",
-        )
-        .bind(source_budget_id)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| format!("Source budget not found: {}", e))?;
+        let _source: (String, String) =
+            sqlx::query_as("SELECT name, currency_code FROM budgets WHERE id = ?")
+                .bind(source_budget_id)
+                .fetch_one(&self.pool)
+                .await
+                .map_err(|e| format!("Source budget not found: {}", e))?;
 
         // 2. Check target month doesn't already have a budget
-        let exists: Option<(String,)> = sqlx::query_as(
-            "SELECT id FROM budgets WHERE month = ?",
-        )
-        .bind(target_month)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| format!("Check failed: {}", e))?;
+        let exists: Option<(String,)> = sqlx::query_as("SELECT id FROM budgets WHERE month = ?")
+            .bind(target_month)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| format!("Check failed: {}", e))?;
 
         if exists.is_some() {
             return Err(format!("Budget already exists for {}", target_month));

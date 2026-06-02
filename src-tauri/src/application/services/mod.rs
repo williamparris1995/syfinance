@@ -2,6 +2,7 @@ pub mod account_service;
 pub mod budget_service;
 pub mod debt_service;
 pub mod encryption_app_service;
+pub mod goal_service;
 pub mod holding_service;
 pub mod prepaid_service;
 pub mod subscription_service;
@@ -16,6 +17,8 @@ pub use account_service::{AccountService, AccountServiceError};
 pub use budget_service::BudgetService;
 pub use debt_service::DebtService;
 pub use encryption_app_service::{EncryptionAppError, EncryptionAppService};
+#[allow(unused_imports)]
+pub use goal_service::{GoalService, GoalServiceError};
 #[allow(unused_imports)]
 pub use holding_service::{HoldingService, HoldingServiceError};
 pub use prepaid_service::PrepaidService;

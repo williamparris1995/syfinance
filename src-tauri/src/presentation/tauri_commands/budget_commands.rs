@@ -1,12 +1,8 @@
 use crate::application::services::budget_service::BudgetService;
 use crate::domain::aggregates::budget::Budget;
-use crate::domain::repositories::BudgetRepository;
-use crate::domain::value_objects::budget_item::BudgetItem;
 use crate::infrastructure::repositories::SqliteBudgetRepository;
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::sqlite::SqlitePool;
-use std::str::FromStr;
 use std::sync::Arc;
 use tauri::State;
 
@@ -87,24 +83,18 @@ pub struct AddBudgetItemDto {
 }
 
 pub struct BudgetCommandState {
-    pool: SqlitePool,
-    budget_repository: Arc<SqliteBudgetRepository>,
+    service: Arc<BudgetService>,
 }
 
 impl BudgetCommandState {
     pub fn from_pool(pool: SqlitePool) -> Self {
-        Self {
-            budget_repository: Arc::new(SqliteBudgetRepository::new(pool.clone())),
-            pool,
-        }
+        let repo = Arc::new(SqliteBudgetRepository::new(pool.clone()));
+        let service = Arc::new(BudgetService::new(repo, pool));
+        Self { service }
     }
 
-    pub fn repository(&self) -> &SqliteBudgetRepository {
-        self.budget_repository.as_ref()
-    }
-
-    pub fn pool(&self) -> &SqlitePool {
-        &self.pool
+    pub fn service(&self) -> &BudgetService {
+        self.service.as_ref()
     }
 }
 
@@ -117,11 +107,10 @@ pub async fn create_default_state_from_pool(pool: SqlitePool) -> sqlx::Result<Bu
 #[tauri::command]
 pub async fn list_budgets(state: State<'_, BudgetCommandState>) -> Result<Vec<BudgetDto>, String> {
     state
-        .repository()
-        .find_all()
+        .service()
+        .list_budgets()
         .await
         .map(|budgets| budgets.into_iter().map(BudgetDto::from).collect())
-        .map_err(|e| format!("Failed to list budgets: {}", e))
 }
 
 #[tauri::command]
@@ -130,11 +119,10 @@ pub async fn get_budget(
     id: String,
 ) -> Result<Option<BudgetDto>, String> {
     state
-        .repository()
-        .find_by_id(&id)
+        .service()
+        .get_budget(&id)
         .await
         .map(|opt| opt.map(BudgetDto::from))
-        .map_err(|e| format!("Failed to get budget: {}", e))
 }
 
 #[tauri::command]
@@ -143,11 +131,10 @@ pub async fn get_budget_by_month(
     month: String,
 ) -> Result<Option<BudgetDto>, String> {
     state
-        .repository()
-        .find_by_month(&month)
+        .service()
+        .get_budget_by_month(&month)
         .await
         .map(|opt| opt.map(BudgetDto::from))
-        .map_err(|e| format!("Failed to get budget: {}", e))
 }
 
 #[tauri::command]
@@ -155,16 +142,11 @@ pub async fn create_budget(
     state: State<'_, BudgetCommandState>,
     dto: CreateBudgetDto,
 ) -> Result<BudgetDto, String> {
-    let id = uuid::Uuid::new_v4().to_string();
-    let budget = Budget::new(id, dto.name, dto.month, dto.currency_code);
-
     state
-        .repository()
-        .create(&budget)
+        .service()
+        .create_budget(dto.name, dto.month, dto.currency_code)
         .await
-        .map_err(|e| format!("Failed to create budget: {}", e))?;
-
-    Ok(BudgetDto::from(budget))
+        .map(BudgetDto::from)
 }
 
 #[tauri::command]
@@ -173,41 +155,21 @@ pub async fn add_budget_item(
     budget_id: String,
     dto: AddBudgetItemDto,
 ) -> Result<BudgetDto, String> {
-    let planned_amount =
-        Decimal::from_str(&dto.planned_amount).map_err(|_| "Invalid planned amount".to_string())?;
-
-    let item_id = uuid::Uuid::new_v4().to_string();
-    let item = BudgetItem::new(
-        item_id,
-        budget_id.clone(),
-        dto.category_account_id,
-        planned_amount,
-        dto.notes,
-    );
-
     state
-        .repository()
-        .add_item(&budget_id, &item)
+        .service()
+        .add_budget_item(
+            budget_id,
+            dto.category_account_id,
+            dto.planned_amount,
+            dto.notes,
+        )
         .await
-        .map_err(|e| format!("Failed to add budget item: {}", e))?;
-
-    let budget = state
-        .repository()
-        .find_by_id(&budget_id)
-        .await
-        .map_err(|e| format!("Failed to get budget: {}", e))?
-        .ok_or_else(|| "Budget not found".to_string())?;
-
-    Ok(BudgetDto::from(budget))
+        .map(BudgetDto::from)
 }
 
 #[tauri::command]
 pub async fn delete_budget(state: State<'_, BudgetCommandState>, id: String) -> Result<(), String> {
-    state
-        .repository()
-        .delete(&id)
-        .await
-        .map_err(|e| format!("Failed to delete budget: {}", e))
+    state.service().delete_budget(&id).await
 }
 
 #[tauri::command]
@@ -217,19 +179,10 @@ pub async fn remove_budget_item(
     item_id: String,
 ) -> Result<BudgetDto, String> {
     state
-        .repository()
-        .remove_item(&item_id)
+        .service()
+        .remove_budget_item(&budget_id, &item_id)
         .await
-        .map_err(|e| format!("Failed to remove budget item: {}", e))?;
-
-    let budget = state
-        .repository()
-        .find_by_id(&budget_id)
-        .await
-        .map_err(|e| format!("Failed to get budget: {}", e))?
-        .ok_or_else(|| "Budget not found".to_string())?;
-
-    Ok(BudgetDto::from(budget))
+        .map(BudgetDto::from)
 }
 
 #[tauri::command]
@@ -237,8 +190,7 @@ pub async fn compute_budget_actuals(
     state: State<'_, BudgetCommandState>,
     budget_id: String,
 ) -> Result<(), String> {
-    let service = BudgetService::new(state.pool().clone());
-    service.compute_budget_actuals(&budget_id).await
+    state.service().compute_budget_actuals(&budget_id).await
 }
 
 #[tauri::command]
@@ -247,6 +199,8 @@ pub async fn clone_budget_to_month(
     source_budget_id: String,
     target_month: String,
 ) -> Result<String, String> {
-    let service = BudgetService::new(state.pool().clone());
-    service.clone_budget_to_month(&source_budget_id, &target_month).await
+    state
+        .service()
+        .clone_budget_to_month(&source_budget_id, &target_month)
+        .await
 }

@@ -1,14 +1,10 @@
-use crate::domain::aggregates::goal::{Goal, GoalType};
-use crate::domain::repositories::GoalRepository;
-use crate::infrastructure::repositories::SqliteGoalRepository;
-use chrono::NaiveDate;
-use rust_decimal::Decimal;
+use crate::application::services::goal_service::GoalService;
+use crate::domain::aggregates::goal::Goal;
+use crate::infrastructure::repositories::{SqliteAccountRepository, SqliteGoalRepository};
 use serde::{Deserialize, Serialize};
 use sqlx::sqlite::SqlitePool;
-use std::str::FromStr;
 use std::sync::Arc;
 use tauri::State;
-use tracing::info;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GoalDto {
@@ -77,24 +73,19 @@ pub struct UpdateGoalDto {
 }
 
 pub struct GoalCommandState {
-    pool: SqlitePool,
-    goal_repository: Arc<SqliteGoalRepository>,
+    service: Arc<GoalService>,
 }
 
 impl GoalCommandState {
     pub fn from_pool(pool: SqlitePool) -> Self {
-        Self {
-            goal_repository: Arc::new(SqliteGoalRepository::new(pool.clone())),
-            pool,
-        }
+        let goal_repo = Arc::new(SqliteGoalRepository::new(pool.clone()));
+        let account_repo = Arc::new(SqliteAccountRepository::new(pool.clone()));
+        let service = Arc::new(GoalService::new(goal_repo, account_repo, pool));
+        Self { service }
     }
 
-    pub fn repository(&self) -> &SqliteGoalRepository {
-        self.goal_repository.as_ref()
-    }
-
-    pub fn pool(&self) -> &SqlitePool {
-        &self.pool
+    pub fn service(&self) -> &GoalService {
+        self.service.as_ref()
     }
 }
 
@@ -105,11 +96,11 @@ pub async fn create_default_state_from_pool(pool: SqlitePool) -> sqlx::Result<Go
 #[tauri::command]
 pub async fn list_goals(state: State<'_, GoalCommandState>) -> Result<Vec<GoalDto>, String> {
     state
-        .repository()
-        .find_all()
+        .service()
+        .list_goals()
         .await
         .map(|goals| goals.into_iter().map(GoalDto::from).collect())
-        .map_err(|e| format!("Failed to list goals: {}", e))
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -118,11 +109,11 @@ pub async fn get_goal(
     id: String,
 ) -> Result<Option<GoalDto>, String> {
     state
-        .repository()
-        .find_by_id(&id)
+        .service()
+        .get_goal(&id)
         .await
         .map(|opt| opt.map(GoalDto::from))
-        .map_err(|e| format!("Failed to get goal: {}", e))
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -130,32 +121,20 @@ pub async fn create_goal(
     state: State<'_, GoalCommandState>,
     dto: CreateGoalDto,
 ) -> Result<GoalDto, String> {
-    let id = uuid::Uuid::new_v4().to_string();
-    let target_amount =
-        Decimal::from_str(&dto.target_amount).map_err(|_| "Invalid target amount".to_string())?;
-    let goal_type = GoalType::from_str(&dto.goal_type);
-
-    let mut goal = Goal::new(id, dto.name, goal_type, target_amount, dto.currency_code);
-
-    if let Some(deadline_str) = dto.deadline {
-        let deadline = NaiveDate::parse_from_str(&deadline_str, "%Y-%m-%d")
-            .map_err(|_| "Invalid deadline date".to_string())?;
-        goal.set_deadline(deadline);
-    }
-
-    if let Some(account_id) = dto.linked_account_id {
-        goal.link_account(account_id);
-    }
-
-    goal.notes = dto.notes;
-
     state
-        .repository()
-        .create(&goal)
+        .service()
+        .create_goal(
+            dto.name,
+            dto.goal_type,
+            dto.target_amount,
+            dto.currency_code,
+            dto.deadline,
+            dto.linked_account_id,
+            dto.notes,
+        )
         .await
-        .map_err(|e| format!("Failed to create goal: {}", e))?;
-
-    Ok(GoalDto::from(goal))
+        .map(GoalDto::from)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -164,53 +143,21 @@ pub async fn update_goal(
     id: String,
     dto: UpdateGoalDto,
 ) -> Result<GoalDto, String> {
-    let mut goal = state
-        .repository()
-        .find_by_id(&id)
-        .await
-        .map_err(|e| format!("Failed to get goal: {}", e))?
-        .ok_or_else(|| "Goal not found".to_string())?;
-
-    if let Some(name) = dto.name {
-        goal.name = name;
-    }
-    if let Some(goal_type_str) = dto.goal_type {
-        goal.goal_type = GoalType::from_str(&goal_type_str);
-    }
-    if let Some(target_amount_str) = dto.target_amount {
-        goal.target_amount = Decimal::from_str(&target_amount_str)
-            .map_err(|_| "Invalid target amount".to_string())?;
-    }
-    if let Some(currency_code) = dto.currency_code {
-        goal.currency_code = currency_code;
-    }
-    if let Some(deadline_str) = dto.deadline {
-        if deadline_str.is_empty() {
-            goal.deadline = None;
-        } else {
-            let deadline = NaiveDate::parse_from_str(&deadline_str, "%Y-%m-%d")
-                .map_err(|_| "Invalid deadline date".to_string())?;
-            goal.deadline = Some(deadline);
-        }
-    }
-    if let Some(account_id) = dto.linked_account_id {
-        if account_id.is_empty() {
-            goal.linked_account_id = None;
-        } else {
-            goal.linked_account_id = Some(account_id);
-        }
-    }
-    if let Some(notes) = dto.notes {
-        goal.notes = if notes.is_empty() { None } else { Some(notes) };
-    }
-
     state
-        .repository()
-        .update(&goal)
+        .service()
+        .update_goal(
+            &id,
+            dto.name,
+            dto.goal_type,
+            dto.target_amount,
+            dto.currency_code,
+            dto.deadline,
+            dto.linked_account_id,
+            dto.notes,
+        )
         .await
-        .map_err(|e| format!("Failed to update goal: {}", e))?;
-
-    Ok(GoalDto::from(goal))
+        .map(GoalDto::from)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -219,34 +166,12 @@ pub async fn update_goal_progress(
     id: String,
     amount: String,
 ) -> Result<GoalDto, String> {
-    let amount = Decimal::from_str(&amount).map_err(|_| "Invalid amount".to_string())?;
-
     state
-        .repository()
-        .add_progress(&id, amount)
+        .service()
+        .update_goal_progress(&id, amount)
         .await
-        .map_err(|e| format!("Failed to update progress: {}", e))?;
-
-    let goal = state
-        .repository()
-        .find_by_id(&id)
-        .await
-        .map_err(|e| format!("Failed to get goal: {}", e))?
-        .ok_or_else(|| "Goal not found".to_string())?;
-
-    // Auto-complete if target reached
-    if !goal.is_completed && goal.current_amount >= goal.target_amount {
-        let mut goal = goal;
-        goal.mark_completed();
-        state
-            .repository()
-            .update(&goal)
-            .await
-            .map_err(|e| format!("Failed to complete goal: {}", e))?;
-        return Ok(GoalDto::from(goal));
-    }
-
-    Ok(GoalDto::from(goal))
+        .map(GoalDto::from)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -254,31 +179,21 @@ pub async fn complete_goal(
     state: State<'_, GoalCommandState>,
     id: String,
 ) -> Result<GoalDto, String> {
-    let mut goal = state
-        .repository()
-        .find_by_id(&id)
-        .await
-        .map_err(|e| format!("Failed to get goal: {}", e))?
-        .ok_or_else(|| "Goal not found".to_string())?;
-
-    goal.mark_completed();
-
     state
-        .repository()
-        .update(&goal)
+        .service()
+        .complete_goal(&id)
         .await
-        .map_err(|e| format!("Failed to complete goal: {}", e))?;
-
-    Ok(GoalDto::from(goal))
+        .map(GoalDto::from)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn delete_goal(state: State<'_, GoalCommandState>, id: String) -> Result<(), String> {
     state
-        .repository()
-        .delete(&id)
+        .service()
+        .delete_goal(&id)
         .await
-        .map_err(|e| format!("Failed to delete goal: {}", e))
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -286,71 +201,10 @@ pub async fn sync_goal_progress(
     state: State<'_, GoalCommandState>,
     goal_id: String,
 ) -> Result<GoalDto, String> {
-    info!(goal_id = goal_id, "Syncing goal progress from linked account");
-
-    // 1. Get goal with linked_account_id
-    let goal = state
-        .repository()
-        .find_by_id(&goal_id)
-        .await
-        .map_err(|e| format!("Failed to get goal: {}", e))?
-        .ok_or_else(|| "Goal not found".to_string())?;
-
-    let account_id = goal
-        .linked_account_id
-        .ok_or_else(|| "Goal has no linked account".to_string())?;
-
-    // 2. Get account initial balance
-    let initial_balance: (String,) = sqlx::query_as(
-        "SELECT CAST(initial_balance AS TEXT) FROM accounts WHERE id = ?",
-    )
-    .bind(&account_id)
-    .fetch_one(state.pool())
-    .await
-    .map_err(|e| format!("Linked account not found: {}", e))?;
-
-    let initial = initial_balance
-        .0
-        .parse::<Decimal>()
-        .unwrap_or(Decimal::ZERO);
-
-    // 3. Compute net change from transactions
-    let net_change: (String,) = sqlx::query_as(
-        "SELECT CAST(COALESCE(SUM(CASE WHEN e.debit_amount IS NOT NULL THEN e.debit_amount ELSE 0 END \
-         - CASE WHEN e.credit_amount IS NOT NULL THEN e.credit_amount ELSE 0 END), 0) AS TEXT) \
-         FROM transaction_entries e \
-         JOIN transactions t ON e.transaction_id = t.id \
-         WHERE e.deleted_at IS NULL AND t.deleted_at IS NULL AND e.account_id = ?",
-    )
-    .bind(&account_id)
-    .fetch_one(state.pool())
-    .await
-    .map_err(|e| format!("Failed to compute balance: {}", e))?;
-
-    let change = net_change.0.parse::<Decimal>().unwrap_or(Decimal::ZERO);
-    let current_balance = initial + change;
-
-    // 4. Update goal progress
     state
-        .repository()
-        .add_progress(&goal_id, current_balance)
+        .service()
+        .sync_goal_progress(&goal_id)
         .await
-        .map_err(|e| format!("Failed to update progress: {}", e))?;
-
-    // 5. Return updated goal
-    let updated = state
-        .repository()
-        .find_by_id(&goal_id)
-        .await
-        .map_err(|e| format!("Failed to get updated goal: {}", e))?
-        .ok_or_else(|| "Goal not found after update".to_string())?;
-
-    info!(
-        goal_id = goal_id,
-        account_id = account_id,
-        balance = %current_balance,
-        "Goal progress synced from account balance"
-    );
-
-    Ok(GoalDto::from(updated))
+        .map(GoalDto::from)
+        .map_err(|e| e.to_string())
 }
