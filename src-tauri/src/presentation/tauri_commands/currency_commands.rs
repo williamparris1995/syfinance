@@ -2,6 +2,7 @@ use crate::domain::{
     repositories::CurrencyRepository,
     value_objects::{Currency, CurrencyValidationError},
 };
+use crate::infrastructure::currency_rate_fetcher::CurrencyRateFetcher;
 use crate::infrastructure::repositories::SqliteCurrencyRepository;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -282,4 +283,12 @@ pub async fn convert_currency(
         let amount_in_cny = amount * from_rate;
         Ok(amount_in_cny / to_rate)
     }
+}
+
+#[tauri::command]
+pub async fn fetch_exchange_rates(
+    state: State<'_, CurrencyCommandState>,
+) -> Result<usize, String> {
+    let rates = CurrencyRateFetcher::fetch_rates().await?;
+    CurrencyRateFetcher::update_rates_in_db(state.pool(), &rates).await
 }

@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Copy, CheckCircle2, Link as LinkIcon } from 'lucide-react';
+import { Copy, CheckCircle2, Link as LinkIcon, RefreshCw } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -60,6 +60,7 @@ import {
 import { getAccountId, linkDevice } from '../lib/auth';
 import { updateSyncSettings, getSyncSettings } from '../lib/tauri/sync';
 import { useEncryption } from '../hooks/useEncryption';
+import { useFetchExchangeRates } from '../hooks/useCurrency';
 import { useCloudSyncStatus, useCloudSyncNow, useUpdateCloudSyncSettings, useCloudSyncSettings } from '@/hooks/useCloudSync';
 import { exportCsv } from '@/lib/tauri/export';
 
@@ -204,6 +205,8 @@ export function SettingsPage() {
     queryKey: ['currencies'],
     queryFn: listCurrencies,
   });
+
+  const fetchRatesMutation = useFetchExchangeRates();
 
   const addMutation = useMutation({
     mutationFn: addCurrency,
@@ -550,7 +553,17 @@ export function SettingsPage() {
       {/* Currency Settings Section */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">{t('settings.currencySettings')}</h2>
-        <Button onClick={() => setIsCurrencySheetOpen(true)}>{t('settings.addCurrency')}</Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => fetchRatesMutation.mutate()}
+            disabled={fetchRatesMutation.isPending}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${fetchRatesMutation.isPending ? 'animate-spin' : ''}`} />
+            {t('settings.fetchRates')}
+          </Button>
+          <Button onClick={() => setIsCurrencySheetOpen(true)}>{t('settings.addCurrency')}</Button>
+        </div>
       </div>
 
       {isLoading ? (

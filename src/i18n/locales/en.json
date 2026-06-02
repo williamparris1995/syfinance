@@ -603,7 +603,10 @@
     "dataExportDesc": "Export your financial data to CSV format",
     "exportCsv": "Export to CSV",
     "exportSuccess": "Exported {{rows}} rows successfully",
-    "exportError": "Export failed"
+    "exportError": "Export failed",
+    "fetchRates": "Refresh Rates",
+    "fetchSuccess": "Updated {{count}} currency rates",
+    "fetchError": "Failed to fetch exchange rates"
   },
   "onboarding": {
     "welcome": "Welcome to Finance App",

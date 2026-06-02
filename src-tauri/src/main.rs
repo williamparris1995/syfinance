@@ -38,7 +38,7 @@ use presentation::tauri_commands::{
     },
     currency_commands::{
         add_currency, create_default_state_from_pool as create_currency_default_state_from_pool,
-        list_currencies, update_currency_rate, CurrencyCommandState,
+        fetch_exchange_rates, list_currencies, update_currency_rate, CurrencyCommandState,
     },
     debt_commands::{
         create_debt, create_default_state_from_pool as create_debt_default_state_from_pool,
@@ -281,6 +281,7 @@ async fn main() {
             list_currencies,
             add_currency,
             update_currency_rate,
+            fetch_exchange_rates,
             create_debt,
             update_debt,
             delete_debt,

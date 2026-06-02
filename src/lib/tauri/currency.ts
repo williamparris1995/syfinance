@@ -37,3 +37,5 @@ export const deleteCurrency = (code: string) =>
 
 export const convertCurrency = (amount: number, fromCode: string, toCode: string) =>
   invokeTauri<number>('convert_currency', { amount, fromCode, toCode });
+
+export const fetchExchangeRates = () => invokeTauri<number>('fetch_exchange_rates');

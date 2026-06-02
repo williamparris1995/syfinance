@@ -6,9 +6,11 @@ import {
   updateCurrencyRate,
   deleteCurrency,
   convertCurrency,
+  fetchExchangeRates,
   CreateCurrencyDto,
 } from '../lib/tauri/currency';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 export function useCurrencies() {
   return useQuery({
@@ -83,5 +85,21 @@ export function useConvertCurrency() {
       fromCode: string;
       toCode: string;
     }) => convertCurrency(amount, fromCode, toCode),
+  });
+}
+
+export function useFetchExchangeRates() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  return useMutation({
+    mutationFn: fetchExchangeRates,
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ['currencies'] });
+      toast.success(t('settings.fetchSuccess', { count: updated }));
+    },
+    onError: () => {
+      toast.error(t('settings.fetchError'));
+    },
   });
 }
