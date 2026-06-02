@@ -969,6 +969,15 @@
     "dayAgo": "{{count}}天前",
     "daysAgo": "{{count}}天前"
   },
+  "search": {
+    "types": {
+      "account": "账户",
+      "transaction": "交易",
+      "debt": "债务",
+      "goal": "目标",
+      "tag": "标签"
+    }
+  },
   "backup": {
     "title": "备份与恢复",
     "createBackup": "创建备份",

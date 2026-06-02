@@ -73,7 +73,9 @@ use presentation::tauri_commands::{
         complete_reminder, create_reminder, create_reminder_default_state_from_pool,
         delete_reminder, get_reminder, list_reminders, update_reminder, ReminderCommandState,
     },
-    search_commands::{create_search_default_state, global_search, SearchCommandState},
+    search_commands::{
+        create_search_default_state, global_search, rebuild_search_index, SearchCommandState,
+    },
     subscription_commands::{
         create_default_state_from_pool as create_subscription_default_state, create_subscription,
         delete_subscription, get_subscription, list_subscription_transactions, list_subscriptions,
@@ -103,6 +105,7 @@ use presentation::tauri_commands::{
     },
 };
 use sqlx::sqlite::SqlitePool;
+use sqlx::Row;
 use std::str::FromStr;
 use std::sync::Arc;
 use tauri::Manager;
@@ -212,6 +215,61 @@ async fn main() {
         .await
         .expect("failed to initialize tag command state");
     let search_state = create_search_default_state(pool.clone());
+
+    // Rebuild FTS5 search index on startup to ensure existing data is indexed
+    {
+        let rebuild_pool = pool.clone();
+        tokio::spawn(async move {
+            // Check if FTS tables exist and rebuild
+            match sqlx::query("SELECT count(*) FROM fts_accounts")
+                .fetch_one(&rebuild_pool)
+                .await
+            {
+                Ok(row) => {
+                    let count: i64 = row.try_get("count(*)").unwrap_or(0);
+                    if count == 0 {
+                        info!("FTS5 index is empty, rebuilding from existing data");
+                        if let Err(e) = sqlx::query("INSERT INTO fts_accounts(fts_accounts) VALUES('rebuild')")
+                            .execute(&rebuild_pool)
+                            .await
+                        {
+                            error!(error = %e, "Failed to rebuild accounts FTS index");
+                        }
+                        if let Err(e) = sqlx::query("INSERT INTO fts_transactions(fts_transactions) VALUES('rebuild')")
+                            .execute(&rebuild_pool)
+                            .await
+                        {
+                            error!(error = %e, "Failed to rebuild transactions FTS index");
+                        }
+                        if let Err(e) = sqlx::query("INSERT INTO fts_debts(fts_debts) VALUES('rebuild')")
+                            .execute(&rebuild_pool)
+                            .await
+                        {
+                            error!(error = %e, "Failed to rebuild debts FTS index");
+                        }
+                        if let Err(e) = sqlx::query("INSERT INTO fts_goals(fts_goals) VALUES('rebuild')")
+                            .execute(&rebuild_pool)
+                            .await
+                        {
+                            error!(error = %e, "Failed to rebuild goals FTS index");
+                        }
+                        if let Err(e) = sqlx::query("INSERT INTO fts_tags(fts_tags) VALUES('rebuild')")
+                            .execute(&rebuild_pool)
+                            .await
+                        {
+                            error!(error = %e, "Failed to rebuild tags FTS index");
+                        }
+                        info!("FTS5 search index rebuilt successfully");
+                    } else {
+                        info!("FTS5 index already populated ({} accounts), skipping rebuild", count);
+                    }
+                }
+                Err(e) => {
+                    error!(error = %e, "Failed to check FTS index status, skipping rebuild");
+                }
+            }
+        });
+    }
     let reminder_state: ReminderCommandState = create_reminder_default_state_from_pool(pool.clone())
         .await
         .expect("failed to initialize reminder command state");
@@ -353,6 +411,7 @@ async fn main() {
             remove_tag_from_transaction,
             get_transaction_tags,
             global_search,
+            rebuild_search_index,
             list_reminders,
             get_reminder,
             create_reminder,

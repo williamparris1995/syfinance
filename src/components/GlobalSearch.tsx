@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Wallet, CreditCard, Target, X } from 'lucide-react';
+import { Search, Wallet, CreditCard, Target, X, HandCoins, Tag } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
@@ -13,12 +13,16 @@ const resultTypeIcons: Record<string, React.ReactNode> = {
   account: <Wallet className="h-4 w-4 text-blue-500" />,
   transaction: <CreditCard className="h-4 w-4 text-green-500" />,
   goal: <Target className="h-4 w-4 text-purple-500" />,
+  debt: <HandCoins className="h-4 w-4 text-orange-500" />,
+  tag: <Tag className="h-4 w-4 text-pink-500" />,
 };
 
 const resultTypeRoutes: Record<string, (id: string) => string> = {
   account: (id) => `/accounts/${id}`,
   transaction: () => '/transactions',
-  goal: () => '/goals',
+  goal: () => `/goals`,
+  debt: () => '/debts',
+  tag: () => '/settings',
 };
 
 export function GlobalSearch({ className }: GlobalSearchProps) {
@@ -119,6 +123,13 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
     setResults([]);
   };
 
+  const getResultTypeLabel = (type: string): string => {
+    const key = `search.types.${type}`;
+    const translated = t(key);
+    // If i18n returns the key back (not found), fall back to capitalized type
+    return translated === key ? type.charAt(0).toUpperCase() + type.slice(1) : translated;
+  };
+
   return (
     <div ref={containerRef} className={cn('relative', className)}>
       {/* Search trigger */}
@@ -176,7 +187,7 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
 
             {!isLoading && query.trim().length >= 2 && results.length === 0 && (
               <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                {t('common.search')} - {t('common.noResults', 'No results')}
+                {t('common.noResults')}
               </div>
             )}
 
@@ -205,8 +216,8 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
                         {result.subtitle}
                       </div>
                     </div>
-                    <span className="shrink-0 text-xs text-muted-foreground capitalize">
-                      {result.result_type}
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {getResultTypeLabel(result.result_type)}
                     </span>
                   </button>
                 ))}

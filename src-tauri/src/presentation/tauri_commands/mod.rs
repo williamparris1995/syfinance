@@ -59,7 +59,9 @@ pub use holding_commands::{
     sell_holding, update_security_price, AppState as HoldingCommandState,
 };
 pub use prepaid_commands::{get_prepaid_detail, get_top_up_records, top_up, PrepaidCommandState};
-pub use search_commands::{create_search_default_state, global_search, SearchCommandState};
+pub use search_commands::{
+    create_search_default_state, global_search, rebuild_search_index, SearchCommandState,
+};
 pub use subscription_commands::{
     create_default_state_from_pool as create_subscription_default_state, create_subscription,
     delete_subscription, get_subscription, list_subscription_transactions, list_subscriptions,

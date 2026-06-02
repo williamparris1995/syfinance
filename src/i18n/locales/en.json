@@ -927,6 +927,15 @@
     "dayAgo": "{{count}} day ago",
     "daysAgo": "{{count}} days ago"
   },
+  "search": {
+    "types": {
+      "account": "Account",
+      "transaction": "Transaction",
+      "debt": "Debt",
+      "goal": "Goal",
+      "tag": "Tag"
+    }
+  },
   "backup": {
     "title": "Backup & Restore",
     "createBackup": "Create Backup",
