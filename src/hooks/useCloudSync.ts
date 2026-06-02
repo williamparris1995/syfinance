@@ -6,6 +6,8 @@ import {
   getCloudSyncStatus,
   updateCloudSyncSettings,
   getCloudSyncSettings,
+  getSyncStatusWithConflicts,
+  resolveSyncConflict,
   type CloudSyncSettings,
 } from '@/lib/tauri/cloudSync';
 
@@ -32,6 +34,7 @@ export function useCloudSyncNow() {
     mutationFn: cloudSyncNow,
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['cloudSyncStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['syncConflicts'] });
       toast.success(
         result.restored
           ? t('cloudSync.syncCompleteWithRestore')
@@ -55,6 +58,41 @@ export function useUpdateCloudSyncSettings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cloudSyncSettings'] });
       queryClient.invalidateQueries({ queryKey: ['cloudSyncStatus'] });
+    },
+  });
+}
+
+export function useSyncConflicts() {
+  return useQuery({
+    queryKey: ['syncConflicts'],
+    queryFn: getSyncStatusWithConflicts,
+    staleTime: 30_000,
+    enabled: false, // Only fetch on demand, not automatically
+  });
+}
+
+export function useResolveSyncConflict() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  return useMutation({
+    mutationFn: ({
+      tableName,
+      recordId,
+      resolution,
+    }: {
+      tableName: string;
+      recordId: string;
+      resolution: string;
+    }) => resolveSyncConflict(tableName, recordId, resolution),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['syncConflicts'] });
+      queryClient.invalidateQueries({ queryKey: ['cloudSyncStatus'] });
+    },
+    onError: (error) => {
+      toast.error(t('cloudSync.conflictResolveFailed'), {
+        description: String(error),
+      });
     },
   });
 }

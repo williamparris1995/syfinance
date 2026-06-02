@@ -37,7 +37,8 @@ use presentation::tauri_commands::{
     },
     cloud_sync_commands::{
         cloud_sync_now, create_cloud_sync_state, get_cloud_sync_settings, get_cloud_sync_status,
-        update_cloud_sync_settings, CloudSyncCommandState,
+        get_sync_status_with_conflicts, resolve_sync_conflict, update_cloud_sync_settings,
+        CloudSyncCommandState,
     },
     currency_commands::{
         add_currency, create_default_state_from_pool as create_currency_default_state_from_pool,
@@ -53,7 +54,9 @@ use presentation::tauri_commands::{
         lock_encryption, setup_encryption, unlock_encryption, unlock_encryption_keychain,
         EncryptionCommandState,
     },
-    export_commands::{create_export_default_state, export_all_data, export_csv, ExportCommandState},
+    export_commands::{
+        create_export_default_state, export_all_data, export_csv, ExportCommandState,
+    },
     goal_commands::{
         complete_goal, create_default_state_from_pool as create_goal_default_state_from_pool,
         create_goal, delete_goal, get_goal, list_goals, sync_goal_progress, update_goal,
@@ -81,12 +84,6 @@ use presentation::tauri_commands::{
         delete_subscription, get_subscription, list_subscription_transactions, list_subscriptions,
         pause_subscription, resume_subscription, update_subscription, SubscriptionCommandState,
     },
-    transaction_template_commands::{
-        create_template_default_state_from_pool,
-        create_transaction_template, delete_transaction_template, get_transaction_template,
-        list_transaction_templates, pause_transaction_template, resume_transaction_template,
-        update_transaction_template, TransactionTemplateCommandState,
-    },
     sync_commands::{
         create_default_state as create_sync_default_state, get_sync_settings, get_sync_status,
         sync_from_server, sync_to_server, update_sync_settings,
@@ -94,14 +91,20 @@ use presentation::tauri_commands::{
     tag_commands::{
         add_tag_to_transaction,
         create_default_state_from_pool as create_tag_default_state_from_pool, create_tag,
-        delete_tag, get_transaction_tags, list_tags, remove_tag_from_transaction,
-        soft_delete_tag, update_tag, TagCommandState,
+        delete_tag, get_transaction_tags, list_tags, remove_tag_from_transaction, soft_delete_tag,
+        update_tag, TagCommandState,
     },
     transaction_commands::{
         batch_delete_transactions, create_default_state_from_pool, create_simple_expense,
         create_simple_income, create_simple_transfer, create_transaction, delete_transaction,
         get_transaction, get_transactions_by_account, get_transactions_by_date_range,
         list_transactions, update_transaction,
+    },
+    transaction_template_commands::{
+        create_template_default_state_from_pool, create_transaction_template,
+        delete_transaction_template, get_transaction_template, list_transaction_templates,
+        pause_transaction_template, resume_transaction_template, update_transaction_template,
+        TransactionTemplateCommandState,
     },
 };
 use sqlx::sqlite::SqlitePool;
@@ -229,39 +232,48 @@ async fn main() {
                     let count: i64 = row.try_get("count(*)").unwrap_or(0);
                     if count == 0 {
                         info!("FTS5 index is empty, rebuilding from existing data");
-                        if let Err(e) = sqlx::query("INSERT INTO fts_accounts(fts_accounts) VALUES('rebuild')")
-                            .execute(&rebuild_pool)
-                            .await
+                        if let Err(e) =
+                            sqlx::query("INSERT INTO fts_accounts(fts_accounts) VALUES('rebuild')")
+                                .execute(&rebuild_pool)
+                                .await
                         {
                             error!(error = %e, "Failed to rebuild accounts FTS index");
                         }
-                        if let Err(e) = sqlx::query("INSERT INTO fts_transactions(fts_transactions) VALUES('rebuild')")
-                            .execute(&rebuild_pool)
-                            .await
+                        if let Err(e) = sqlx::query(
+                            "INSERT INTO fts_transactions(fts_transactions) VALUES('rebuild')",
+                        )
+                        .execute(&rebuild_pool)
+                        .await
                         {
                             error!(error = %e, "Failed to rebuild transactions FTS index");
                         }
-                        if let Err(e) = sqlx::query("INSERT INTO fts_debts(fts_debts) VALUES('rebuild')")
-                            .execute(&rebuild_pool)
-                            .await
+                        if let Err(e) =
+                            sqlx::query("INSERT INTO fts_debts(fts_debts) VALUES('rebuild')")
+                                .execute(&rebuild_pool)
+                                .await
                         {
                             error!(error = %e, "Failed to rebuild debts FTS index");
                         }
-                        if let Err(e) = sqlx::query("INSERT INTO fts_goals(fts_goals) VALUES('rebuild')")
-                            .execute(&rebuild_pool)
-                            .await
+                        if let Err(e) =
+                            sqlx::query("INSERT INTO fts_goals(fts_goals) VALUES('rebuild')")
+                                .execute(&rebuild_pool)
+                                .await
                         {
                             error!(error = %e, "Failed to rebuild goals FTS index");
                         }
-                        if let Err(e) = sqlx::query("INSERT INTO fts_tags(fts_tags) VALUES('rebuild')")
-                            .execute(&rebuild_pool)
-                            .await
+                        if let Err(e) =
+                            sqlx::query("INSERT INTO fts_tags(fts_tags) VALUES('rebuild')")
+                                .execute(&rebuild_pool)
+                                .await
                         {
                             error!(error = %e, "Failed to rebuild tags FTS index");
                         }
                         info!("FTS5 search index rebuilt successfully");
                     } else {
-                        info!("FTS5 index already populated ({} accounts), skipping rebuild", count);
+                        info!(
+                            "FTS5 index already populated ({} accounts), skipping rebuild",
+                            count
+                        );
                     }
                 }
                 Err(e) => {
@@ -270,9 +282,10 @@ async fn main() {
             }
         });
     }
-    let reminder_state: ReminderCommandState = create_reminder_default_state_from_pool(pool.clone())
-        .await
-        .expect("failed to initialize reminder command state");
+    let reminder_state: ReminderCommandState =
+        create_reminder_default_state_from_pool(pool.clone())
+            .await
+            .expect("failed to initialize reminder command state");
     let export_state = create_export_default_state(pool.clone());
     let encryption_state = create_encryption_default_state(pool.clone());
     let encryption_service = encryption_state.service.clone();
@@ -449,7 +462,9 @@ async fn main() {
             cloud_sync_now,
             get_cloud_sync_status,
             update_cloud_sync_settings,
-            get_cloud_sync_settings
+            get_cloud_sync_settings,
+            get_sync_status_with_conflicts,
+            resolve_sync_conflict
         ])
         .setup(move |app| {
             // Start background sync scheduler

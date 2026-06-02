@@ -61,9 +61,11 @@ import { getAccountId, linkDevice } from '../lib/auth';
 import { updateSyncSettings, getSyncSettings } from '../lib/tauri/sync';
 import { useEncryption } from '../hooks/useEncryption';
 import { useFetchExchangeRates } from '../hooks/useCurrency';
-import { useCloudSyncStatus, useCloudSyncNow, useUpdateCloudSyncSettings, useCloudSyncSettings } from '@/hooks/useCloudSync';
+import { useCloudSyncStatus, useCloudSyncNow, useUpdateCloudSyncSettings, useCloudSyncSettings, useResolveSyncConflict } from '@/hooks/useCloudSync';
 import { exportCsv } from '@/lib/tauri/export';
 import { TagsSection } from '@/components/TagsSection';
+import { SyncConflictDialog } from '@/components/SyncConflictDialog';
+import { getSyncStatusWithConflicts, type SyncConflictItem } from '@/lib/tauri/cloudSync';
 
 interface SyncEvent {
   status: 'started' | 'completed' | 'failed';
@@ -108,6 +110,11 @@ export function SettingsPage() {
   const updateCloudSyncSettingsMutation = useUpdateCloudSyncSettings();
   const [cloudSyncInterval, setCloudSyncInterval] = useState('30');
 
+  // Conflict resolution
+  const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
+  const [conflicts, setConflicts] = useState<SyncConflictItem[]>([]);
+  const resolveConflictMutation = useResolveSyncConflict();
+
   const [lastCloudSyncEvent, setLastCloudSyncEvent] = useState<{
     status: string;
     message: string;
@@ -123,6 +130,18 @@ export function SettingsPage() {
       setLastCloudSyncEvent(event.payload);
       if (event.payload.status === 'completed' || event.payload.status === 'failed') {
         queryClient.invalidateQueries({ queryKey: ['cloudSyncStatus'] });
+        // Check for conflicts after sync completes
+        if (event.payload.status === 'completed') {
+          queryClient.invalidateQueries({ queryKey: ['syncConflicts'] });
+          getSyncStatusWithConflicts().then((result) => {
+            if (result.conflicts && result.conflicts.length > 0) {
+              setConflicts(result.conflicts);
+              setIsConflictDialogOpen(true);
+            }
+          }).catch(() => {
+            // Silently ignore conflict detection errors
+          });
+        }
       }
     });
     return () => {
@@ -494,6 +513,16 @@ export function SettingsPage() {
                     ? t('cloudSync.syncing')
                     : t('cloudSync.syncNow')}
                 </Button>
+                {conflicts.length > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsConflictDialogOpen(true)}
+                    className="gap-1.5"
+                  >
+                    {t('cloudSync.resolveConflicts')}
+                    <Badge variant="destructive" className="ml-1">{conflicts.length}</Badge>
+                  </Button>
+                )}
                 {cloudSyncStatus?.last_sync_at && (
                   <span className="text-xs text-muted-foreground">
                     {t('cloudSync.lastSynced')}: {cloudSyncStatus.last_sync_at}
@@ -532,6 +561,40 @@ export function SettingsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Sync Conflict Resolution Dialog */}
+      <SyncConflictDialog
+        open={isConflictDialogOpen}
+        onOpenChange={(open) => {
+          setIsConflictDialogOpen(open);
+          if (!open) {
+            getSyncStatusWithConflicts().then((result) => {
+              setConflicts(result.conflicts ?? []);
+            }).catch(() => {
+              setConflicts([]);
+            });
+          }
+        }}
+        conflicts={conflicts}
+        onResolve={(tableName, recordId, resolution) => {
+          resolveConflictMutation.mutate(
+            { tableName, recordId, resolution },
+            {
+              onSuccess: () => {
+                setConflicts((prev) =>
+                  prev.filter(
+                    (c) => !(c.table_name === tableName && c.record_id === recordId),
+                  ),
+                );
+                if (conflicts.length <= 1) {
+                  setIsConflictDialogOpen(false);
+                }
+              },
+            },
+          );
+        }}
+        isResolving={resolveConflictMutation.isPending}
+      />
 
       {/* Encryption Settings Section */}
       <EncryptionSection />

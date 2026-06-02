@@ -165,7 +165,7 @@ pub enum BackupError {
 // ---------------------------------------------------------------------------
 
 /// Convert a SQLx row into a JSON value by dynamically extracting every column.
-fn row_to_json(row: &sqlx::sqlite::SqliteRow) -> serde_json::Value {
+pub fn row_to_json(row: &sqlx::sqlite::SqliteRow) -> serde_json::Value {
     let mut map = serde_json::Map::new();
     for i in 0..row.columns().len() {
         let col_name = row.columns()[i].name().to_string();
@@ -1006,7 +1006,7 @@ async fn upsert_row(
 }
 
 /// Bind a serde_json::Value to a sqlx query parameter.
-fn bind_json_value<'q>(
+pub fn bind_json_value<'q>(
     query: sqlx::query::Query<'q, sqlx::Sqlite, sqlx::sqlite::SqliteArguments<'q>>,
     val: &serde_json::Value,
 ) -> sqlx::query::Query<'q, sqlx::Sqlite, sqlx::sqlite::SqliteArguments<'q>> {

@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use crate::application::services::EncryptionAppService;
 use crate::infrastructure::sync::cloud_sync_service::{
-    CloudSyncResult, CloudSyncService, CloudSyncSettings, CloudSyncStatus,
+    CloudSyncResult, CloudSyncService, CloudSyncSettings, CloudSyncStatus, SyncStatusWithConflicts,
 };
 
 // ---------------------------------------------------------------------------
@@ -68,6 +68,27 @@ pub async fn get_cloud_sync_settings(
     state: tauri::State<'_, CloudSyncCommandState>,
 ) -> Result<CloudSyncSettings, String> {
     Ok(state.service.read_sync_settings().await)
+}
+
+#[tauri::command]
+pub async fn get_sync_status_with_conflicts(
+    state: tauri::State<'_, CloudSyncCommandState>,
+) -> Result<SyncStatusWithConflicts, String> {
+    Ok(state.service.get_status_with_conflicts().await)
+}
+
+#[tauri::command]
+pub async fn resolve_sync_conflict(
+    state: tauri::State<'_, CloudSyncCommandState>,
+    table_name: String,
+    record_id: String,
+    resolution: String,
+) -> Result<(), String> {
+    state
+        .service
+        .resolve_conflict(&table_name, &record_id, &resolution)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Factory for main.rs state creation.
