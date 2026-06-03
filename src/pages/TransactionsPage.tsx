@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { useSearch } from '@tanstack/react-router';
@@ -24,14 +24,14 @@ import {
 import { ArrowDown, ArrowUp, Copy, Plus, Pencil, Trash2, Search, X } from 'lucide-react';
 import { listAccounts, listAccountsByOwnership } from '../lib/tauri/account';
 import {
-  listTransactions,
-  getTransactionsByDateRange,
   updateTransaction,
   deleteTransaction,
   batchDeleteTransactions,
+  listTransactionsPaginated,
   type TransactionDto,
   type CreateTransactionDto,
 } from '../lib/tauri/transaction';
+import { useCursorPagination } from '../hooks/useCursorPagination';
 
 type DateRangePreset = 'month' | 'quarter' | 'year' | 'custom';
 type TransactionType_ = 'all' | 'expense' | 'income' | 'transfer';
@@ -153,15 +153,32 @@ export function TransactionsPage() {
     return { start: '', end: '' };
   }, [dateRangePreset, customStartDate, customEndDate]);
 
-  const { data: transactions = [], isLoading } = useQuery({
-    queryKey: ['transactions', dateRange.start, dateRange.end],
-    queryFn: async () => {
-      if (dateRange.start && dateRange.end) {
-        return getTransactionsByDateRange(dateRange.start, dateRange.end);
-      }
-      return listTransactions();
+  const {
+    items: transactions,
+    isLoading,
+    currentPage,
+    totalPages,
+    hasNextPage,
+    hasPrevPage,
+    goNext,
+    goPrev,
+    goToPage,
+    reset: resetPagination,
+  } = useCursorPagination(
+    ['transactions-paginated', dateRange.start, dateRange.end],
+    async (cursor) => {
+      return listTransactionsPaginated({
+        first: 50,
+        after: cursor,
+        startDate: dateRange.start || undefined,
+        endDate: dateRange.end || undefined,
+      });
     },
-  });
+  );
+
+  useEffect(() => {
+    resetPagination();
+  }, [dateRange.start, dateRange.end, resetPagination]);
 
   const getAccountName = (accountId: string) => {
     const account = accounts.find((a) => a.id === accountId);
@@ -780,6 +797,40 @@ export function TransactionsPage() {
               })}
             </TableBody>
           </Table>
+          <div className="flex items-center justify-between px-2 py-3 border-t">
+            <div className="text-sm text-muted-foreground">
+              {t('transactions.pageInfo', { page: currentPage + 1, total: totalPages })}
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goPrev}
+                disabled={!hasPrevPage}
+              >
+                {t('common.previous')}
+              </Button>
+              {Array.from({ length: totalPages }, (_, i) => (
+                <Button
+                  key={i}
+                  variant={i === currentPage ? 'default' : 'outline'}
+                  size="sm"
+                  className="w-8 h-8 p-0"
+                  onClick={() => goToPage(i)}
+                >
+                  {i + 1}
+                </Button>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goNext}
+                disabled={!hasNextPage}
+              >
+                {t('common.next')}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 

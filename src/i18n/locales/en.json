@@ -14,6 +14,9 @@
     "filter": "Filter",
     "back": "Back",
     "next": "Next",
+    "previous": "Previous",
+    "loadMore": "Load More",
+    "pageInfo": "Page {{page}} of {{total}}",
     "skip": "Skip",
     "complete": "Complete",
     "close": "Close",
@@ -280,7 +283,8 @@
     "batchDeleteSuccess": "Deleted {{count}} transactions",
     "batchDelete": "Delete Selected",
     "clearSelection": "Clear Selection",
-    "confirmBatchDelete": "Are you sure you want to delete {{count}} transactions?"
+    "confirmBatchDelete": "Are you sure you want to delete {{count}} transactions?",
+    "pageInfo": "Page {{page}} of {{total}}"
   },
   "transaction": {
     "expense": "Expense",

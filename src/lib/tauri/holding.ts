@@ -138,3 +138,17 @@ export const recordDividend = (dto: DividendDto) =>
 
 export const recordSplit = (dto: SplitDto) =>
   invokeTauri<void>('record_split', { dto });
+
+// Re-export PaginatedResult from transaction types for consistency
+import type { PaginatedResult } from './transaction';
+
+export const listHoldingTransactionsPaginated = (
+  holdingId: string,
+  first?: number,
+  after?: string,
+  before?: string,
+) =>
+  invokeTauri<PaginatedResult<HoldingTransactionDto>>(
+    'list_holding_transactions_paginated',
+    { holdingId, first, after, before },
+  );

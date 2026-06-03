@@ -60,3 +60,27 @@ export const deleteTransaction = (id: string) =>
 
 export const batchDeleteTransactions = (ids: string[]) =>
   invokeTauri<number>('batch_delete_transactions', { ids });
+
+export interface PageInfo {
+  has_next_page: boolean;
+  has_prev_page: boolean;
+  next_cursor: string | null;
+  prev_cursor: string | null;
+}
+
+export interface PaginatedResult<T> {
+  items: T[];
+  page_info: PageInfo;
+}
+
+export interface PaginatedTransactionQuery {
+  first?: number;
+  after?: string;
+  before?: string;
+  accountId?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export const listTransactionsPaginated = (query: PaginatedTransactionQuery) =>
+  invokeTauri<PaginatedResult<TransactionDto>>('list_transactions_paginated', { query });

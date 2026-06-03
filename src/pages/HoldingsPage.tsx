@@ -23,11 +23,13 @@ import { formatCurrency, getCurrencySymbol } from '../lib/currency';
 import {
   buyHolding, sellHolding, listHoldings, updateSecurityPrice,
   listSecurities, fetchSecurityPrice,
-  listHoldingTransactions, deleteHoldingTrade, updateHoldingTrade,
+  deleteHoldingTrade, updateHoldingTrade,
   recordDividend, recordSplit,
+  listHoldingTransactionsPaginated,
   type HoldingDto, type HoldingTradeDto, type HoldingTransactionDto, type UpdateHoldingTradeRequest,
   type DividendDto, type SplitDto,
 } from '../lib/tauri/holding';
+import { useCursorPagination } from '../hooks/useCursorPagination';
 
 const typeColors: Record<string, string> = {
   stock: 'bg-blue-100 text-blue-800',
@@ -94,12 +96,19 @@ export function HoldingsPage() {
 
   const { data: holdings = [], isLoading } = useQuery({ queryKey: ['holdings'], queryFn: listHoldings });
 
-  // Fetch trade history for expanded holding
-  const { data: tradeHistory = [], isLoading: isLoadingTrades } = useQuery({
-    queryKey: ['holding-trades', expandedHoldingId],
-    queryFn: () => listHoldingTransactions(expandedHoldingId!),
-    enabled: !!expandedHoldingId,
-  });
+  // Fetch trade history for expanded holding (paginated)
+  const {
+    items: tradeHistory,
+    isLoading: isLoadingTrades,
+    hasNextPage: hasMoreTrades,
+    goNext: loadMoreTrades,
+  } = useCursorPagination(
+    ['holding-trades-paginated', expandedHoldingId],
+    async (cursor) => {
+      return listHoldingTransactionsPaginated(expandedHoldingId!, 20, cursor ?? undefined);
+    },
+    { enabled: !!expandedHoldingId },
+  );
 
   const tradeMutation = useMutation({
     mutationFn: (dto: HoldingTradeDto) => dto.direction === 'BUY' ? buyHolding(dto) : sellHolding(dto),
@@ -387,7 +396,7 @@ export function HoldingsPage() {
         </TableRow>
       );
     }
-    return tradeHistory.map(trade => {
+    const rows = tradeHistory.map(trade => {
       const isEditing = editingTradeId === trade.id;
       const isDeleteConfirm = deleteConfirmId === trade.id;
 
@@ -466,6 +475,26 @@ export function HoldingsPage() {
         </TableRow>
       );
     });
+
+    return (
+      <>
+        {rows}
+        {hasMoreTrades && (
+          <TableRow>
+            <TableCell colSpan={9} className="py-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={loadMoreTrades}
+              >
+                {t('common.loadMore')}
+              </Button>
+            </TableCell>
+          </TableRow>
+        )}
+      </>
+    );
   };
 
   if (isLoading) return <div className="p-4 sm:p-6 text-center text-muted-foreground">{t('common.loading')}</div>;
