@@ -32,6 +32,45 @@ impl SqliteTransactionRepository {
             .map(|ndt| DateTime::<Utc>::from_naive_utc_and_offset(ndt, Utc))
     }
 
+    /// Parse a single SQL row into Transaction parts (everything except entries).
+    fn parse_transaction_row(row: &sqlx::sqlite::SqliteRow) -> sqlx::Result<(Uuid, NaiveDate, String, SyncMetadata)> {
+        let id: String = row.try_get("id")?;
+        let id = Uuid::from_str(&id).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+
+        let transaction_date: String = row.try_get("transaction_date")?;
+        let transaction_date = NaiveDate::parse_from_str(&transaction_date, "%Y-%m-%d")
+            .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+
+        let description: String = row.try_get("description")?;
+
+        let updated_at: String = row.try_get("updated_at")?;
+        let deleted_at: Option<String> = row.try_get("deleted_at")?;
+        let device_id: String = row.try_get("device_id")?;
+        let synced_at: Option<String> = row.try_get("synced_at")?;
+
+        let updated_at_parsed = Self::parse_sqlite_datetime(&updated_at)
+            .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+        let deleted_at_parsed = deleted_at
+            .map(|s| Self::parse_sqlite_datetime(&s))
+            .transpose()
+            .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+        let device_id_parsed =
+            Uuid::from_str(&device_id).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+        let synced_at_parsed = synced_at
+            .map(|s| Self::parse_sqlite_datetime(&s))
+            .transpose()
+            .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+
+        let sync_metadata = SyncMetadata {
+            updated_at: updated_at_parsed,
+            deleted_at: deleted_at_parsed,
+            device_id: device_id_parsed,
+            synced_at: synced_at_parsed,
+        };
+
+        Ok((id, transaction_date, description, sync_metadata))
+    }
+
     async fn load_entries(
         &self,
         transaction_id: Uuid,
@@ -715,86 +754,45 @@ impl TransactionRepository for SqliteTransactionRepository {
         start_date: NaiveDate,
         end_date: NaiveDate,
     ) -> sqlx::Result<Vec<Transaction>> {
-        let mut conn = self.pool.acquire().await?;
-
         let rows = sqlx::query(
             r#"
-            SELECT 
+            SELECT
                 id, transaction_date, description,
                 updated_at, deleted_at, device_id, synced_at
             FROM transactions
-            WHERE transaction_date BETWEEN ? AND ? AND deleted_at IS NULL
+            WHERE deleted_at IS NULL
+              AND transaction_date >= ? AND transaction_date <= ?
             ORDER BY transaction_date DESC, id DESC
             "#,
         )
         .bind(start_date.to_string())
         .bind(end_date.to_string())
-        .fetch_all(&mut *conn)
+        .fetch_all(&self.pool)
         .await?;
 
-        let mut transactions = Vec::new();
-        for row in rows {
-            let id: String = row.try_get("id")?;
-            let id = Uuid::from_str(&id).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+        let parsed: Vec<(Uuid, NaiveDate, String, SyncMetadata)> = rows
+            .iter()
+            .map(|row| Self::parse_transaction_row(row))
+            .collect::<sqlx::Result<Vec<_>>>()?;
 
-            let transaction_date: String = row.try_get("transaction_date")?;
-            let transaction_date = NaiveDate::parse_from_str(&transaction_date, "%Y-%m-%d")
-                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+        let txn_ids: Vec<String> = parsed.iter().map(|(id, _, _, _)| id.to_string()).collect();
+        let entries_map = self.batch_load_entries(&txn_ids).await?;
 
-            let description: String = row.try_get("description")?;
-
-            let updated_at: String = row.try_get("updated_at")?;
-            let deleted_at: Option<String> = row.try_get("deleted_at")?;
-            let device_id: String = row.try_get("device_id")?;
-            let synced_at: Option<String> = row.try_get("synced_at")?;
-
-            let updated_at_parsed = Self::parse_sqlite_datetime(&updated_at)
-                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
-
-            let deleted_at_parsed = deleted_at
-                .map(|s| Self::parse_sqlite_datetime(&s))
-                .transpose()
-                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
-
-            let device_id_parsed =
-                Uuid::from_str(&device_id).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
-
-            let synced_at_parsed = synced_at
-                .map(|s| Self::parse_sqlite_datetime(&s))
-                .transpose()
-                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
-
-            let sync_metadata = SyncMetadata {
-                updated_at: updated_at_parsed,
-                deleted_at: deleted_at_parsed,
-                device_id: device_id_parsed,
-                synced_at: synced_at_parsed,
-            };
-
-            // Load entries
-            let entries = self.load_entries(id, &mut conn).await?;
-
-            // Reconstruct Transaction
-            let transaction = Transaction::reconstitute(
-                id,
-                transaction_date,
-                description,
-                entries,
-                sync_metadata,
-            );
-
-            transactions.push(transaction);
-        }
+        let transactions = parsed
+            .into_iter()
+            .map(|(id, transaction_date, description, sync_metadata)| {
+                let entries = entries_map.get(&id).cloned().unwrap_or_default();
+                Transaction::reconstitute(id, transaction_date, description, entries, sync_metadata)
+            })
+            .collect();
 
         Ok(transactions)
     }
 
     async fn find_all(&self) -> sqlx::Result<Vec<Transaction>> {
-        let mut conn = self.pool.acquire().await?;
-
         let rows = sqlx::query(
             r#"
-            SELECT 
+            SELECT
                 id, transaction_date, description,
                 updated_at, deleted_at, device_id, synced_at
             FROM transactions
@@ -802,62 +800,24 @@ impl TransactionRepository for SqliteTransactionRepository {
             ORDER BY transaction_date DESC, id DESC
             "#,
         )
-        .fetch_all(&mut *conn)
+        .fetch_all(&self.pool)
         .await?;
 
-        let mut transactions = Vec::new();
-        for row in rows {
-            let id: String = row.try_get("id")?;
-            let id = Uuid::from_str(&id).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+        let parsed: Vec<(Uuid, NaiveDate, String, SyncMetadata)> = rows
+            .iter()
+            .map(|row| Self::parse_transaction_row(row))
+            .collect::<sqlx::Result<Vec<_>>>()?;
 
-            let transaction_date: String = row.try_get("transaction_date")?;
-            let transaction_date = NaiveDate::parse_from_str(&transaction_date, "%Y-%m-%d")
-                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+        let txn_ids: Vec<String> = parsed.iter().map(|(id, _, _, _)| id.to_string()).collect();
+        let entries_map = self.batch_load_entries(&txn_ids).await?;
 
-            let description: String = row.try_get("description")?;
-
-            let updated_at: String = row.try_get("updated_at")?;
-            let deleted_at: Option<String> = row.try_get("deleted_at")?;
-            let device_id: String = row.try_get("device_id")?;
-            let synced_at: Option<String> = row.try_get("synced_at")?;
-
-            let updated_at_parsed = Self::parse_sqlite_datetime(&updated_at)
-                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
-
-            let deleted_at_parsed = deleted_at
-                .map(|s| Self::parse_sqlite_datetime(&s))
-                .transpose()
-                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
-
-            let device_id_parsed =
-                Uuid::from_str(&device_id).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
-
-            let synced_at_parsed = synced_at
-                .map(|s| Self::parse_sqlite_datetime(&s))
-                .transpose()
-                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
-
-            let sync_metadata = SyncMetadata {
-                updated_at: updated_at_parsed,
-                deleted_at: deleted_at_parsed,
-                device_id: device_id_parsed,
-                synced_at: synced_at_parsed,
-            };
-
-            // Load entries
-            let entries = self.load_entries(id, &mut conn).await?;
-
-            // Reconstruct Transaction
-            let transaction = Transaction::reconstitute(
-                id,
-                transaction_date,
-                description,
-                entries,
-                sync_metadata,
-            );
-
-            transactions.push(transaction);
-        }
+        let transactions = parsed
+            .into_iter()
+            .map(|(id, transaction_date, description, sync_metadata)| {
+                let entries = entries_map.get(&id).cloned().unwrap_or_default();
+                Transaction::reconstitute(id, transaction_date, description, entries, sync_metadata)
+            })
+            .collect();
 
         Ok(transactions)
     }
@@ -898,11 +858,9 @@ impl TransactionRepository for SqliteTransactionRepository {
     }
 
     async fn get_changes_since(&self, timestamp: DateTime<Utc>) -> sqlx::Result<Vec<Transaction>> {
-        let mut conn = self.pool.acquire().await?;
-
         let rows = sqlx::query(
             r#"
-            SELECT 
+            SELECT
                 id, transaction_date, description,
                 updated_at, deleted_at, device_id, synced_at
             FROM transactions
@@ -911,62 +869,24 @@ impl TransactionRepository for SqliteTransactionRepository {
             "#,
         )
         .bind(timestamp.to_rfc3339())
-        .fetch_all(&mut *conn)
+        .fetch_all(&self.pool)
         .await?;
 
-        let mut transactions = Vec::new();
-        for row in rows {
-            let id: String = row.try_get("id")?;
-            let id = Uuid::from_str(&id).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+        let parsed: Vec<(Uuid, NaiveDate, String, SyncMetadata)> = rows
+            .iter()
+            .map(|row| Self::parse_transaction_row(row))
+            .collect::<sqlx::Result<Vec<_>>>()?;
 
-            let transaction_date: String = row.try_get("transaction_date")?;
-            let transaction_date = NaiveDate::parse_from_str(&transaction_date, "%Y-%m-%d")
-                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+        let txn_ids: Vec<String> = parsed.iter().map(|(id, _, _, _)| id.to_string()).collect();
+        let entries_map = self.batch_load_entries(&txn_ids).await?;
 
-            let description: String = row.try_get("description")?;
-
-            let updated_at: String = row.try_get("updated_at")?;
-            let deleted_at: Option<String> = row.try_get("deleted_at")?;
-            let device_id: String = row.try_get("device_id")?;
-            let synced_at: Option<String> = row.try_get("synced_at")?;
-
-            let updated_at_parsed = Self::parse_sqlite_datetime(&updated_at)
-                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
-
-            let deleted_at_parsed = deleted_at
-                .map(|s| Self::parse_sqlite_datetime(&s))
-                .transpose()
-                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
-
-            let device_id_parsed =
-                Uuid::from_str(&device_id).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
-
-            let synced_at_parsed = synced_at
-                .map(|s| Self::parse_sqlite_datetime(&s))
-                .transpose()
-                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
-
-            let sync_metadata = SyncMetadata {
-                updated_at: updated_at_parsed,
-                deleted_at: deleted_at_parsed,
-                device_id: device_id_parsed,
-                synced_at: synced_at_parsed,
-            };
-
-            // Load entries
-            let entries = self.load_entries(id, &mut conn).await?;
-
-            // Reconstruct Transaction
-            let transaction = Transaction::reconstitute(
-                id,
-                transaction_date,
-                description,
-                entries,
-                sync_metadata,
-            );
-
-            transactions.push(transaction);
-        }
+        let transactions = parsed
+            .into_iter()
+            .map(|(id, transaction_date, description, sync_metadata)| {
+                let entries = entries_map.get(&id).cloned().unwrap_or_default();
+                Transaction::reconstitute(id, transaction_date, description, entries, sync_metadata)
+            })
+            .collect();
 
         Ok(transactions)
     }
