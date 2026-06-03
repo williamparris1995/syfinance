@@ -71,7 +71,7 @@ export function BackupPage() {
     setAutoBackupEnabled(enabled);
     try {
       await updateAutoBackupSettings({ enabled, intervalHours: parseInt(autoBackupInterval, 10) });
-    } catch (error) {
+    } catch {
       setAutoBackupEnabled(!enabled);
       toast.error(t('backup.autoBackupSaveError'));
     }
