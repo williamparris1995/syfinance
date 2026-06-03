@@ -12,6 +12,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { EmptyState } from '@/components/EmptyState';
 import { SimpleTransactionForm } from '@/components/SimpleTransactionForm';
 import { listAccountsWithBalances, listAccountsByOwnership } from '@/lib/tauri/account';
+import { getDashboardSummary } from '@/lib/tauri/report';
+// listTransactions still needed for monthly trend charts (known limitation)
 import { listTransactions } from '@/lib/tauri/transaction';
 import { getUpcomingPayments } from '@/lib/tauri/debt';
 import { listHoldings } from '@/lib/tauri/holding';
@@ -39,7 +41,9 @@ export function HomePage() {
     queryKey: ['accounts', 'external'],
     queryFn: () => listAccountsByOwnership('external'),
   });
-  const { data: transactions = [], isLoading: transactionsLoading } = useQuery({
+
+  // listTransactions kept only for monthly trend charts (known limitation)
+  const { data: transactions = [] } = useQuery({
     queryKey: ['transactions'],
     queryFn: listTransactions,
   });
@@ -78,6 +82,12 @@ export function HomePage() {
     };
   }, [dateRangePreset, startDate, endDate]);
 
+  // Dashboard summary from server-side aggregation
+  const { data: dashboardSummary, isLoading: isDashboardLoading } = useQuery({
+    queryKey: ['dashboard-summary', dateRange.start, dateRange.end],
+    queryFn: () => getDashboardSummary(dateRange.start, dateRange.end),
+  });
+
   // Calculate total balance from all accounts (converted to CNY)
   const totalBalance = calculateTotalBalanceInCNY(
     accounts.map(a => ({
@@ -96,43 +106,20 @@ export function HomePage() {
   const FALLBACK_COLORS = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
   const FALLBACK_COLORS_INCOME = ['#10B981', '#06B6D4', '#84CC16', '#3B82F6', '#14B8A6'];
 
-  // Calculate income and expenses from transactions (filtered by date range)
-  // Uses account-based lookup: Income/Expense are determined by the linked account's type
-  const { monthlyIncome, monthlyExpenses, incomeByCategory, expenseByCategory } = useMemo(() => {
-    let income = 0;
-    let expenses = 0;
-    const incomeMap = new Map<string, number>();
-    const expenseMap = new Map<string, number>();
-
-    transactions.forEach((transaction) => {
-      const txDate = transaction.transaction_date;
-      if (txDate >= dateRange.start && txDate <= dateRange.end) {
-        transaction.entries.forEach((entry) => {
-          const account = entry.account_id ? accounts.find((a) => a.id === entry.account_id) : null;
-          if (!account) return;
-          if (entry.debit_amount && account.account_type === 'Expense') {
-            const amount = parseFloat(entry.debit_amount);
-            expenses += amount;
-            expenseMap.set(account.name, (expenseMap.get(account.name) || 0) + amount);
-          }
-          if (entry.credit_amount && account.account_type === 'Income') {
-            const amount = parseFloat(entry.credit_amount);
-            income += amount;
-            incomeMap.set(account.name, (incomeMap.get(account.name) || 0) + amount);
-          }
-        });
-      }
-    });
-
-    return {
-      monthlyIncome: income,
-      monthlyExpenses: expenses,
-      incomeByCategory: Array.from(incomeMap.entries()).map(([name, amount]) => ({ name, amount })),
-      expenseByCategory: Array.from(expenseMap.entries()).map(([name, amount]) => ({ name, amount })),
-    };
-  }, [transactions, accounts, dateRange]);
-
+  // Use server-side aggregated summary data
+  const monthlyIncome = parseFloat(dashboardSummary?.total_income ?? '0');
+  const monthlyExpenses = parseFloat(dashboardSummary?.total_expenses ?? '0');
   const monthlySavings = monthlyIncome - monthlyExpenses;
+
+  const incomeByCategory = (dashboardSummary?.income_by_category ?? []).map(item => ({
+    name: item.account_name,
+    amount: parseFloat(item.amount),
+  }));
+
+  const expenseByCategory = (dashboardSummary?.expense_by_category ?? []).map(item => ({
+    name: item.account_name,
+    amount: parseFloat(item.amount),
+  }));
 
   const ownAccountBalances = useMemo(() =>
     accounts.filter(a => a.ownership === 'own' && a.current_balance !== 0)
@@ -152,6 +139,7 @@ export function HomePage() {
     .slice(0, 5),
   [upcomingDebts]);
 
+  // Monthly trend data still uses listTransactions (known limitation)
   const monthlyTrendData = useMemo(() => {
     const months: Record<string, { month: string; income: number; expenses: number; [key: string]: number | string }> = {};
 
@@ -197,7 +185,7 @@ export function HomePage() {
     return Array.from(cats);
   }, [monthlyTrendData, accounts]);
 
-  const isLoading = accountsLoading || transactionsLoading;
+  const isLoading = accountsLoading || isDashboardLoading;
 
   return (
     <div className="space-y-4 p-4 sm:space-y-6 sm:p-6">

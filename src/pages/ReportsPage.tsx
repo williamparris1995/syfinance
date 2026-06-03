@@ -13,28 +13,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { listAccounts, type AccountDto } from '../lib/tauri/account';
-import { getYoyComparison } from '../lib/tauri/report';
+import {
+  getYoyComparison,
+  getBalanceSheet,
+  getIncomeStatement,
+} from '../lib/tauri/report';
+// listTransactions is still needed for monthly trend charts (known limitation)
 import { listTransactions, type TransactionDto } from '../lib/tauri/transaction';
 import { AlertCircle } from 'lucide-react';
 import { formatCurrency, getCurrencySymbol } from '../lib/currency';
 
 type DateRangePreset = 'month' | 'quarter' | 'year' | 'custom';
-
-interface BalanceSheetData {
-  assets: { name: string; balance: number; currency: string }[];
-  liabilities: { name: string; balance: number; currency: string }[];
-  totalAssets: number;
-  totalLiabilities: number;
-  equity: number;
-}
-
-interface IncomeStatementData {
-  income: { name: string; amount: number }[];
-  expenses: { name: string; amount: number }[];
-  totalIncome: number;
-  totalExpenses: number;
-  netIncome: number;
-}
 
 export function ReportsPage() {
   const { t } = useTranslation();
@@ -48,16 +37,6 @@ export function ReportsPage() {
   const { data: accounts = [], isLoading: isLoadingAccounts } = useQuery({
     queryKey: ['accounts'],
     queryFn: listAccounts,
-  });
-
-  const { data: transactions = [], isLoading: isLoadingTransactions } = useQuery({
-    queryKey: ['transactions'],
-    queryFn: listTransactions,
-  });
-
-  const { data: yoyData, isLoading: isLoadingYoy } = useQuery({
-    queryKey: ['yoy-comparison', yoyYear1, yoyYear2],
-    queryFn: () => getYoyComparison(yoyYear1, yoyYear2),
   });
 
   const dateRange = useMemo(() => {
@@ -93,6 +72,27 @@ export function ReportsPage() {
     };
   }, [dateRangePreset, startDate, endDate]);
 
+  // listTransactions kept only for monthly trend charts (known limitation)
+  const { data: transactions = [] } = useQuery({
+    queryKey: ['transactions'],
+    queryFn: listTransactions,
+  });
+
+  const { data: balanceSheet, isLoading: isLoadingBalanceSheet } = useQuery({
+    queryKey: ['balance-sheet', dateRange.end],
+    queryFn: () => getBalanceSheet(dateRange.end),
+  });
+
+  const { data: incomeStatement, isLoading: isLoadingIncomeStatement } = useQuery({
+    queryKey: ['income-statement', dateRange.start, dateRange.end],
+    queryFn: () => getIncomeStatement(dateRange.start, dateRange.end),
+  });
+
+  const { data: yoyData, isLoading: isLoadingYoy } = useQuery({
+    queryKey: ['yoy-comparison', yoyYear1, yoyYear2],
+    queryFn: () => getYoyComparison(yoyYear1, yoyYear2),
+  });
+
   const navigate = useNavigate();
 
   const handleDrillDown = (accountName: string) => {
@@ -108,115 +108,6 @@ export function ReportsPage() {
       });
     }
   };
-
-  // Compute account balances as of dateRange.end using transactions
-  const balanceSheetData = useMemo((): BalanceSheetData => {
-    const assets: { name: string; balance: number; currency: string }[] = [];
-    const liabilities: { name: string; balance: number; currency: string }[] = [];
-
-    // Filter transactions up to dateRange.end (point-in-time balance sheet)
-    const txUpToEnd = transactions.filter((tx: TransactionDto) => {
-      return tx.transaction_date <= dateRange.end;
-    });
-
-    // Build a map of account_id -> computed balance
-    const balanceMap = new Map<string, number>();
-    txUpToEnd.forEach((tx: TransactionDto) => {
-      tx.entries.forEach((entry) => {
-        const prev = balanceMap.get(entry.account_id) || 0;
-        const delta =
-          Number(entry.debit_amount || 0) - Number(entry.credit_amount || 0);
-        balanceMap.set(entry.account_id, prev + delta);
-      });
-    });
-
-    accounts.forEach((account: AccountDto) => {
-      const computedFromTx = balanceMap.get(account.id) || 0;
-      const balance = Number(account.initial_balance) + computedFromTx;
-
-      if (['Cash', 'Bank', 'Investment', 'Prepaid'].includes(account.account_type)) {
-        if (balance > 0) {
-          assets.push({
-            name: account.name,
-            balance,
-            currency: account.currency_code,
-          });
-        }
-      } else if (['CreditCard', 'BorrowedIn'].includes(account.account_type)) {
-        if (balance < 0) {
-          liabilities.push({
-            name: account.name,
-            balance: Math.abs(balance),
-            currency: account.currency_code,
-          });
-        }
-      }
-    });
-
-    const totalAssets = assets.reduce((sum, item) => sum + item.balance, 0);
-    const totalLiabilities = liabilities.reduce((sum, item) => sum + item.balance, 0);
-    const equity = totalAssets - totalLiabilities;
-
-    return { assets, liabilities, totalAssets, totalLiabilities, equity };
-  }, [accounts, transactions, dateRange.end]);
-
-  const incomeStatementData = useMemo((): IncomeStatementData => {
-    const incomeMap = new Map<string, number>();
-    const expenseMap = new Map<string, number>();
-
-    const filteredTransactions = transactions.filter((transaction: TransactionDto) => {
-      const txDate = transaction.transaction_date;
-      return txDate >= dateRange.start && txDate <= dateRange.end;
-    });
-
-    filteredTransactions.forEach((transaction: TransactionDto) => {
-      transaction.entries.forEach((entry) => {
-        // Find account for this entry (replaces old category-based lookup)
-        const account = entry.account_id ? accounts.find(a => a.id === entry.account_id) : null;
-        if (!account) return;
-
-        // Income accounts
-        if (account.account_type === 'Income') {
-          const amount = entry.credit_amount ? parseFloat(entry.credit_amount) : 0;
-          incomeMap.set(account.name, (incomeMap.get(account.name) || 0) + amount);
-        }
-
-        // Expense accounts
-        if (account.account_type === 'Expense') {
-          const amount = entry.debit_amount ? parseFloat(entry.debit_amount) : 0;
-          expenseMap.set(account.name, (expenseMap.get(account.name) || 0) + amount);
-        }
-      });
-    });
-
-    const income = Array.from(incomeMap.entries()).map(([name, amount]) => ({ name, amount }));
-    const expenses = Array.from(expenseMap.entries()).map(([name, amount]) => ({ name, amount }));
-
-    const totalIncome = income.reduce((sum, item) => sum + item.amount, 0);
-    const totalExpenses = expenses.reduce((sum, item) => sum + item.amount, 0);
-    const netIncome = totalIncome - totalExpenses;
-
-    return { income, expenses, totalIncome, totalExpenses, netIncome };
-  }, [transactions, dateRange, accounts]);
-
-  const categoryTransactionCount = useMemo(() => {
-    const counts: Record<string, number> = {};
-    const filteredTransactions = transactions.filter((tx: TransactionDto) => {
-      const txDate = tx.transaction_date;
-      return txDate >= dateRange.start && txDate <= dateRange.end;
-    });
-    filteredTransactions.forEach((tx: TransactionDto) => {
-      const seenAccounts = new Set<string>();
-      tx.entries.forEach(entry => {
-        const account = accounts.find(a => a.id === entry.account_id);
-        if (account && account.ownership === 'external' && !seenAccounts.has(account.name)) {
-          seenAccounts.add(account.name);
-          counts[account.name] = (counts[account.name] || 0) + 1;
-        }
-      });
-    });
-    return counts;
-  }, [transactions, dateRange, accounts]);
 
   const monthlyTrendData = useMemo(() => {
     const months: Record<string, {
@@ -272,7 +163,7 @@ export function ReportsPage() {
 
   const downloadCSV = (data: string[][], filename: string) => {
     const csvContent = data.map((row) => row.join(',')).join('\n');
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
@@ -289,15 +180,15 @@ export function ReportsPage() {
       [],
       [t('reports.assets')],
       [t('common.account'), t('common.balance'), t('common.currency')],
-      ...balanceSheetData.assets.map((item) => [item.name, item.balance.toFixed(2), item.currency]),
-      [t('reports.totalAssets'), balanceSheetData.totalAssets.toFixed(2), ''],
+      ...(balanceSheet?.assets ?? []).map((item) => [item.account_name, parseFloat(item.balance).toFixed(2), item.currency_code]),
+      [t('reports.totalAssets'), parseFloat(balanceSheet?.total_assets ?? '0').toFixed(2), ''],
       [],
       [t('reports.liabilities')],
       [t('common.account'), t('common.balance'), t('common.currency')],
-      ...balanceSheetData.liabilities.map((item) => [item.name, item.balance.toFixed(2), item.currency]),
-      [t('reports.totalLiabilities'), balanceSheetData.totalLiabilities.toFixed(2), ''],
+      ...(balanceSheet?.liabilities ?? []).map((item) => [item.account_name, parseFloat(item.balance).toFixed(2), item.currency_code]),
+      [t('reports.totalLiabilities'), parseFloat(balanceSheet?.total_liabilities ?? '0').toFixed(2), ''],
       [],
-      [t('reports.equity'), balanceSheetData.equity.toFixed(2), ''],
+      [t('reports.equity'), parseFloat(balanceSheet?.equity ?? '0').toFixed(2), ''],
     ];
 
     downloadCSV(data, `balance-sheet-${dateRange.end}.csv`);
@@ -309,21 +200,21 @@ export function ReportsPage() {
       [],
       [t('reports.income')],
       [t('common.account'), t('common.amount')],
-      ...incomeStatementData.income.map((item) => [item.name, item.amount.toFixed(2)]),
-      [t('reports.totalIncome'), incomeStatementData.totalIncome.toFixed(2)],
+      ...(incomeStatement?.income ?? []).map((item) => [item.account_name, parseFloat(item.amount).toFixed(2)]),
+      [t('reports.totalIncome'), parseFloat(incomeStatement?.total_income ?? '0').toFixed(2)],
       [],
       [t('reports.expenses')],
       [t('common.account'), t('common.amount')],
-      ...incomeStatementData.expenses.map((item) => [item.name, item.amount.toFixed(2)]),
-      [t('reports.totalExpenses'), incomeStatementData.totalExpenses.toFixed(2)],
+      ...(incomeStatement?.expenses ?? []).map((item) => [item.account_name, parseFloat(item.amount).toFixed(2)]),
+      [t('reports.totalExpenses'), parseFloat(incomeStatement?.total_expenses ?? '0').toFixed(2)],
       [],
-      [t('reports.netIncome'), incomeStatementData.netIncome.toFixed(2)],
+      [t('reports.netIncome'), parseFloat(incomeStatement?.net_income ?? '0').toFixed(2)],
     ];
 
     downloadCSV(data, `income-statement-${dateRange.start}-to-${dateRange.end}.csv`);
   };
 
-  const isLoading = isLoadingAccounts || isLoadingTransactions;
+  const isLoading = isLoadingAccounts || isLoadingBalanceSheet || isLoadingIncomeStatement;
 
   return (
     <div className="p-4 sm:p-6">
@@ -427,7 +318,7 @@ export function ReportsPage() {
                 <div className="space-y-6">
                   <div>
                     <h3 className="text-lg font-semibold mb-3">{t('reports.assets')}</h3>
-                    {balanceSheetData.assets.length === 0 ? (
+                    {(balanceSheet?.assets ?? []).length === 0 ? (
                       <p className="text-sm text-muted-foreground">{t('reports.noAssets')}</p>
                     ) : (
                       <div className="border rounded-lg">
@@ -440,22 +331,22 @@ export function ReportsPage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {balanceSheetData.assets.map((item, index) => (
+                            {(balanceSheet?.assets ?? []).map((item, index) => (
                               <TableRow key={index}>
-                                <TableCell className="font-medium">{item.name}</TableCell>
+                                <TableCell className="font-medium">{item.account_name}</TableCell>
                                 <TableCell className="text-right">
-                                  {item.balance.toLocaleString('en-US', {
+                                  {parseFloat(item.balance).toLocaleString('en-US', {
                                     minimumFractionDigits: 2,
                                     maximumFractionDigits: 2,
                                   })}
                                 </TableCell>
-                                <TableCell>{item.currency}</TableCell>
+                                <TableCell>{item.currency_code}</TableCell>
                               </TableRow>
                             ))}
                             <TableRow className="font-bold bg-muted/50">
                               <TableCell>{t('reports.totalAssets')}</TableCell>
                               <TableCell className="text-right">
-                                {balanceSheetData.totalAssets.toLocaleString('en-US', {
+                                {parseFloat(balanceSheet?.total_assets ?? '0').toLocaleString('en-US', {
                                   minimumFractionDigits: 2,
                                   maximumFractionDigits: 2,
                                 })}
@@ -470,7 +361,7 @@ export function ReportsPage() {
 
                   <div>
                     <h3 className="text-lg font-semibold mb-3">{t('reports.liabilities')}</h3>
-                    {balanceSheetData.liabilities.length === 0 ? (
+                    {(balanceSheet?.liabilities ?? []).length === 0 ? (
                       <p className="text-sm text-muted-foreground">{t('reports.noLiabilities')}</p>
                     ) : (
                       <div className="border rounded-lg">
@@ -483,22 +374,22 @@ export function ReportsPage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {balanceSheetData.liabilities.map((item, index) => (
+                            {(balanceSheet?.liabilities ?? []).map((item, index) => (
                               <TableRow key={index}>
-                                <TableCell className="font-medium">{item.name}</TableCell>
+                                <TableCell className="font-medium">{item.account_name}</TableCell>
                                 <TableCell className="text-right">
-                                  {item.balance.toLocaleString('en-US', {
+                                  {parseFloat(item.balance).toLocaleString('en-US', {
                                     minimumFractionDigits: 2,
                                     maximumFractionDigits: 2,
                                   })}
                                 </TableCell>
-                                <TableCell>{item.currency}</TableCell>
+                                <TableCell>{item.currency_code}</TableCell>
                               </TableRow>
                             ))}
                             <TableRow className="font-bold bg-muted/50">
                               <TableCell>{t('reports.totalLiabilities')}</TableCell>
                               <TableCell className="text-right">
-                                {balanceSheetData.totalLiabilities.toLocaleString('en-US', {
+                                {parseFloat(balanceSheet?.total_liabilities ?? '0').toLocaleString('en-US', {
                                   minimumFractionDigits: 2,
                                   maximumFractionDigits: 2,
                                 })}
@@ -515,7 +406,7 @@ export function ReportsPage() {
                     <div className="flex justify-between items-center text-lg font-bold">
                       <span>{t('reports.equity')}</span>
                       <span>
-                        {balanceSheetData.equity.toLocaleString('en-US', {
+                        {parseFloat(balanceSheet?.equity ?? '0').toLocaleString('en-US', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}{' '}
@@ -541,10 +432,10 @@ export function ReportsPage() {
                     {t('reports.income')}
                   </div>
                   <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
-                    {formatCurrency(incomeStatementData.totalIncome, 'CNY')}
+                    {formatCurrency(parseFloat(incomeStatement?.total_income ?? '0'), 'CNY')}
                   </div>
                   <div className="text-xs text-emerald-600/70 dark:text-emerald-400/70 mt-1">
-                    {incomeStatementData.income.length} {t('reports.categories')}
+                    {(incomeStatement?.income ?? []).length} {t('reports.categories')}
                   </div>
                 </CardContent>
               </Card>
@@ -555,17 +446,17 @@ export function ReportsPage() {
                     {t('reports.expenses')}
                   </div>
                   <div className="text-2xl font-bold text-red-700 dark:text-red-300">
-                    {formatCurrency(incomeStatementData.totalExpenses, 'CNY')}
+                    {formatCurrency(parseFloat(incomeStatement?.total_expenses ?? '0'), 'CNY')}
                   </div>
                   <div className="text-xs text-red-600/70 dark:text-red-400/70 mt-1">
-                    {incomeStatementData.expenses.length} {t('reports.categories')}
+                    {(incomeStatement?.expenses ?? []).length} {t('reports.categories')}
                   </div>
                 </CardContent>
               </Card>
 
               <Card className={cn(
                 "bg-gradient-to-br border to-card",
-                incomeStatementData.netIncome >= 0
+                parseFloat(incomeStatement?.net_income ?? '0') >= 0
                   ? "from-blue-50/50 border-blue-200/50 dark:from-blue-950/20 dark:border-blue-800/30"
                   : "from-amber-50/50 border-amber-200/50 dark:from-amber-950/20 dark:border-amber-800/30"
               )}>
@@ -575,15 +466,15 @@ export function ReportsPage() {
                   </div>
                   <div className={cn(
                     "text-2xl font-bold",
-                    incomeStatementData.netIncome >= 0
+                    parseFloat(incomeStatement?.net_income ?? '0') >= 0
                       ? "text-blue-700 dark:text-blue-300"
                       : "text-amber-700 dark:text-amber-300"
                   )}>
-                    {formatCurrency(incomeStatementData.netIncome, 'CNY')}
+                    {formatCurrency(parseFloat(incomeStatement?.net_income ?? '0'), 'CNY')}
                   </div>
                   <div className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-1">
-                    {incomeStatementData.totalIncome > 0
-                      ? `${t('reports.savingsRate')} ${((incomeStatementData.netIncome / incomeStatementData.totalIncome) * 100).toFixed(1)}%`
+                    {parseFloat(incomeStatement?.total_income ?? '0') > 0
+                      ? `${t('reports.savingsRate')} ${((parseFloat(incomeStatement?.net_income ?? '0') / parseFloat(incomeStatement?.total_income ?? '0')) * 100).toFixed(1)}%`
                       : '—'}
                   </div>
                 </CardContent>
@@ -598,14 +489,14 @@ export function ReportsPage() {
                   <CardTitle className="text-sm">{t('reports.expenseBreakdown')}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {incomeStatementData.expenses.length === 0 ? (
+                  {(incomeStatement?.expenses ?? []).length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-8">{t('reports.noExpenses')}</p>
                   ) : (
                     <div className="flex items-center gap-4">
                       <ResponsiveContainer width={160} height={160}>
                         <PieChart>
                           <Pie
-                            data={incomeStatementData.expenses}
+                            data={(incomeStatement?.expenses ?? []).map(e => ({ name: e.account_name, amount: parseFloat(e.amount) }))}
                             dataKey="amount"
                             nameKey="name"
                             cx="50%"
@@ -614,16 +505,16 @@ export function ReportsPage() {
                             outerRadius={76}
                             paddingAngle={2}
                             onClick={(_, index) => {
-                              const item = incomeStatementData.expenses[index];
-                              if (item) handleDrillDown(item.name);
+                              const item = (incomeStatement?.expenses ?? [])[index];
+                              if (item) handleDrillDown(item.account_name);
                             }}
                             style={{ cursor: 'pointer' }}
                           >
-                            {incomeStatementData.expenses.map((entry, index) => {
-                              const account = accounts.find(a => a.name === entry.name && a.account_type === 'Expense');
+                            {(incomeStatement?.expenses ?? []).map((entry, index) => {
+                              const account = accounts.find(a => a.name === entry.account_name && a.account_type === 'Expense');
                               return (
                                 <Cell
-                                  key={entry.name}
+                                  key={entry.account_name}
                                   fill={account?.color || FALLBACK_COLORS[index % FALLBACK_COLORS.length]}
                                   stroke="none"
                                 />
@@ -639,23 +530,25 @@ export function ReportsPage() {
                         </PieChart>
                       </ResponsiveContainer>
                       <div className="flex-1 space-y-1.5 max-h-[160px] overflow-y-auto">
-                        {incomeStatementData.expenses
-                          .sort((a, b) => b.amount - a.amount)
+                        {(incomeStatement?.expenses ?? [])
+                          .map(e => ({ ...e, parsedAmount: parseFloat(e.amount) }))
+                          .sort((a, b) => b.parsedAmount - a.parsedAmount)
                           .map((item, index) => {
-                            const account = accounts.find(a => a.name === item.name && a.account_type === 'Expense');
-                            const pct = incomeStatementData.totalExpenses > 0
-                              ? ((item.amount / incomeStatementData.totalExpenses) * 100).toFixed(1)
+                            const account = accounts.find(a => a.name === item.account_name && a.account_type === 'Expense');
+                            const totalExpenses = parseFloat(incomeStatement?.total_expenses ?? '0');
+                            const pct = totalExpenses > 0
+                              ? ((item.parsedAmount / totalExpenses) * 100).toFixed(1)
                               : '0';
                             return (
-                              <div key={item.name} className="flex items-center gap-2 text-xs">
+                              <div key={item.account_name} className="flex items-center gap-2 text-xs">
                                 <span
                                   className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
                                   style={{ backgroundColor: account?.color || FALLBACK_COLORS[index % FALLBACK_COLORS.length] }}
                                 />
                                 <span className="truncate flex-1">
-                                  {account?.icon || ''} {item.name}
+                                  {account?.icon || ''} {item.account_name}
                                 </span>
-                                <span className="text-muted-foreground tabular-nums">{getCurrencySymbol('CNY')}{item.amount.toFixed(0)}</span>
+                                <span className="text-muted-foreground tabular-nums">{getCurrencySymbol('CNY')}{item.parsedAmount.toFixed(0)}</span>
                                 <span className="text-muted-foreground/60 w-10 text-right tabular-nums">{pct}%</span>
                               </div>
                             );
@@ -672,14 +565,14 @@ export function ReportsPage() {
                   <CardTitle className="text-sm">{t('reports.incomeBreakdown')}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {incomeStatementData.income.length === 0 ? (
+                  {(incomeStatement?.income ?? []).length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-8">{t('reports.noIncome')}</p>
                   ) : (
                     <div className="flex items-center gap-4">
                       <ResponsiveContainer width={160} height={160}>
                         <PieChart>
                           <Pie
-                            data={incomeStatementData.income}
+                            data={(incomeStatement?.income ?? []).map(e => ({ name: e.account_name, amount: parseFloat(e.amount) }))}
                             dataKey="amount"
                             nameKey="name"
                             cx="50%"
@@ -688,16 +581,16 @@ export function ReportsPage() {
                             outerRadius={76}
                             paddingAngle={2}
                             onClick={(_, index) => {
-                              const item = incomeStatementData.income[index];
-                              if (item) handleDrillDown(item.name);
+                              const item = (incomeStatement?.income ?? [])[index];
+                              if (item) handleDrillDown(item.account_name);
                             }}
                             style={{ cursor: 'pointer' }}
                           >
-                            {incomeStatementData.income.map((entry, index) => {
-                              const account = accounts.find(a => a.name === entry.name && a.account_type === 'Income');
+                            {(incomeStatement?.income ?? []).map((entry, index) => {
+                              const account = accounts.find(a => a.name === entry.account_name && a.account_type === 'Income');
                               return (
                                 <Cell
-                                  key={entry.name}
+                                  key={entry.account_name}
                                   fill={account?.color || FALLBACK_COLORS_INCOME[index % FALLBACK_COLORS_INCOME.length]}
                                   stroke="none"
                                 />
@@ -713,23 +606,25 @@ export function ReportsPage() {
                         </PieChart>
                       </ResponsiveContainer>
                       <div className="flex-1 space-y-1.5 max-h-[160px] overflow-y-auto">
-                        {incomeStatementData.income
-                          .sort((a, b) => b.amount - a.amount)
+                        {(incomeStatement?.income ?? [])
+                          .map(e => ({ ...e, parsedAmount: parseFloat(e.amount) }))
+                          .sort((a, b) => b.parsedAmount - a.parsedAmount)
                           .map((item, index) => {
-                            const account = accounts.find(a => a.name === item.name && a.account_type === 'Income');
-                            const pct = incomeStatementData.totalIncome > 0
-                              ? ((item.amount / incomeStatementData.totalIncome) * 100).toFixed(1)
+                            const account = accounts.find(a => a.name === item.account_name && a.account_type === 'Income');
+                            const totalIncome = parseFloat(incomeStatement?.total_income ?? '0');
+                            const pct = totalIncome > 0
+                              ? ((item.parsedAmount / totalIncome) * 100).toFixed(1)
                               : '0';
                             return (
-                              <div key={item.name} className="flex items-center gap-2 text-xs">
+                              <div key={item.account_name} className="flex items-center gap-2 text-xs">
                                 <span
                                   className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
                                   style={{ backgroundColor: account?.color || FALLBACK_COLORS_INCOME[index % FALLBACK_COLORS_INCOME.length] }}
                                 />
                                 <span className="truncate flex-1">
-                                  {account?.icon || ''} {item.name}
+                                  {account?.icon || ''} {item.account_name}
                                 </span>
-                                <span className="text-muted-foreground tabular-nums">{getCurrencySymbol('CNY')}{item.amount.toFixed(0)}</span>
+                                <span className="text-muted-foreground tabular-nums">{getCurrencySymbol('CNY')}{item.parsedAmount.toFixed(0)}</span>
                                 <span className="text-muted-foreground/60 w-10 text-right tabular-nums">{pct}%</span>
                               </div>
                             );
@@ -857,7 +752,7 @@ export function ReportsPage() {
                 <div className="space-y-6">
                   <div>
                     <h3 className="text-lg font-semibold mb-3">{t('reports.income')}</h3>
-                    {incomeStatementData.income.length === 0 ? (
+                    {(incomeStatement?.income ?? []).length === 0 ? (
                       <p className="text-sm text-muted-foreground">{t('reports.noIncome')}</p>
                     ) : (
                       <div className="border rounded-lg">
@@ -870,24 +765,24 @@ export function ReportsPage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {incomeStatementData.income.map((item, index) => (
+                            {(incomeStatement?.income ?? []).map((item, index) => (
                               <TableRow key={index}>
-                                <TableCell className="font-medium">{item.name}</TableCell>
+                                <TableCell className="font-medium">{item.account_name}</TableCell>
                                 <TableCell className="text-right">
-                                  {item.amount.toLocaleString('en-US', {
+                                  {parseFloat(item.amount).toLocaleString('en-US', {
                                     minimumFractionDigits: 2,
                                     maximumFractionDigits: 2,
                                   })}
                                 </TableCell>
                                 <TableCell className="text-right text-muted-foreground">
-                                  {categoryTransactionCount[item.name] || 0}
+                                  {item.transaction_count}
                                 </TableCell>
                               </TableRow>
                             ))}
                             <TableRow className="font-bold bg-muted/50">
                               <TableCell>{t('reports.totalIncome')}</TableCell>
                               <TableCell className="text-right">
-                                {incomeStatementData.totalIncome.toLocaleString('en-US', {
+                                {parseFloat(incomeStatement?.total_income ?? '0').toLocaleString('en-US', {
                                   minimumFractionDigits: 2,
                                   maximumFractionDigits: 2,
                                 })}
@@ -901,7 +796,7 @@ export function ReportsPage() {
 
                   <div>
                     <h3 className="text-lg font-semibold mb-3">{t('reports.expenses')}</h3>
-                    {incomeStatementData.expenses.length === 0 ? (
+                    {(incomeStatement?.expenses ?? []).length === 0 ? (
                       <p className="text-sm text-muted-foreground">{t('reports.noExpenses')}</p>
                     ) : (
                       <div className="border rounded-lg">
@@ -914,24 +809,24 @@ export function ReportsPage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {incomeStatementData.expenses.map((item, index) => (
+                            {(incomeStatement?.expenses ?? []).map((item, index) => (
                               <TableRow key={index}>
-                                <TableCell className="font-medium">{item.name}</TableCell>
+                                <TableCell className="font-medium">{item.account_name}</TableCell>
                                 <TableCell className="text-right">
-                                  {item.amount.toLocaleString('en-US', {
+                                  {parseFloat(item.amount).toLocaleString('en-US', {
                                     minimumFractionDigits: 2,
                                     maximumFractionDigits: 2,
                                   })}
                                 </TableCell>
                                 <TableCell className="text-right text-muted-foreground">
-                                  {categoryTransactionCount[item.name] || 0}
+                                  {item.transaction_count}
                                 </TableCell>
                               </TableRow>
                             ))}
                             <TableRow className="font-bold bg-muted/50">
                               <TableCell>{t('reports.totalExpenses')}</TableCell>
                               <TableCell className="text-right">
-                                {incomeStatementData.totalExpenses.toLocaleString('en-US', {
+                                {parseFloat(incomeStatement?.total_expenses ?? '0').toLocaleString('en-US', {
                                   minimumFractionDigits: 2,
                                   maximumFractionDigits: 2,
                                 })}
@@ -949,10 +844,10 @@ export function ReportsPage() {
                       <span>{t('reports.netIncome')}</span>
                       <span
                         className={
-                          incomeStatementData.netIncome >= 0 ? 'text-green-600' : 'text-red-600'
+                          parseFloat(incomeStatement?.net_income ?? '0') >= 0 ? 'text-green-600' : 'text-red-600'
                         }
                       >
-                        {incomeStatementData.netIncome.toLocaleString('en-US', {
+                        {parseFloat(incomeStatement?.net_income ?? '0').toLocaleString('en-US', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}{' '}
