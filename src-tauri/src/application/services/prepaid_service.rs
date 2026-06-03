@@ -284,10 +284,9 @@ where
     /// Checks if a prepaid account's balance has fallen below its low balance threshold.
     /// Returns a Reminder if the balance is below threshold, or None otherwise.
     ///
-    /// Note: This method constructs but does NOT persist the reminder. The caller is
-    /// responsible for persisting it via a ReminderRepository. Full reminder persistence
-    /// integration will be added when the ReminderRepository is wired into PrepaidService.
-    // TODO: will be used when low-balance notifications are implemented
+    /// Note: Low-balance checking is handled by the PrepaidAlertScheduler which
+    /// runs periodically. This method remains available for ad-hoc checks.
+    // Kept for ad-hoc use; periodic checks are handled by PrepaidAlertScheduler
     #[allow(dead_code)]
     pub async fn check_low_balance_alert(
         &self,

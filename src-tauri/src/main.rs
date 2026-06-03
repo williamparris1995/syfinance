@@ -7,6 +7,7 @@ use application::services::subscription_service::SubscriptionService;
 use application::services::transaction_template_service::TransactionTemplateService;
 use infrastructure::notifications::{NotificationService, TauriNotificationSender};
 use infrastructure::reminders::ReminderScheduler;
+use infrastructure::schedulers::PrepaidAlertScheduler;
 use infrastructure::repositories::{
     SqliteAccountRepository, SqliteReminderRepository, SqliteSubscriptionRepository,
     SqliteTransactionRepository, SqliteTransactionTemplateRepository,
@@ -536,6 +537,27 @@ async fn main() {
                 }
             });
             info!("Transaction template scheduler started (checking every 5 minutes)");
+
+            // Start prepaid alert scheduler (expiry + low-balance checks)
+            {
+                let pa_pool = pool.clone();
+                tokio::spawn(async move {
+                    let scheduler = PrepaidAlertScheduler::new(pa_pool);
+                    // Run immediately on startup
+                    if let Err(e) = scheduler.run_all_checks().await {
+                        error!(error = %e, "Initial prepaid alert check failed");
+                    }
+                    // Then check every 24 hours
+                    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(86400));
+                    loop {
+                        interval.tick().await;
+                        if let Err(e) = scheduler.run_all_checks().await {
+                            error!(error = %e, "Scheduled prepaid alert check failed");
+                        }
+                    }
+                });
+            }
+            info!("Prepaid alert scheduler started (checking every 24 hours)");
 
             // Start auto backup scheduler
             {
