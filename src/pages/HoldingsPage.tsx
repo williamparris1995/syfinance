@@ -20,6 +20,7 @@ import { Label } from '../components/ui/label';
 import { HoldingTradeForm } from '../components/HoldingTradeForm';
 import { getUserFriendlyError } from '../lib/error-handler';
 import { formatCurrency, getCurrencySymbol } from '../lib/currency';
+import { addDecimals, multiplyDecimal, multiplyDecimals, subtractDecimals } from '@/lib/decimal';
 import {
   buyHolding, sellHolding, listHoldings, updateSecurityPrice,
   listSecurities, fetchSecurityPrice,
@@ -293,8 +294,13 @@ export function HoldingsPage() {
       const avgCost = Number(h.avg_cost) || 0;
       const quantity = Number(h.quantity) || 0;
       const currentPrice = h.current_price != null ? Number(h.current_price) : null;
-      const marketValue = currentPrice != null ? currentPrice * quantity : null;
-      const pnl = marketValue != null ? marketValue - avgCost * quantity : 0;
+      const marketValue = currentPrice != null
+        ? parseFloat(multiplyDecimal(String(currentPrice), quantity))
+        : null;
+      const totalCost = parseFloat(multiplyDecimal(String(avgCost), quantity));
+      const pnl = marketValue != null
+        ? parseFloat(subtractDecimals(String(marketValue), String(totalCost)))
+        : 0;
       const pnlPct = currentPrice != null && avgCost > 0
         ? ((currentPrice - avgCost) / avgCost * 100) : 0;
       return {
@@ -429,7 +435,10 @@ export function HoldingsPage() {
         );
       }
 
-      const totalAmount = Number(trade.quantity) * Number(trade.price) + Number(trade.fee);
+      const totalAmount = parseFloat(addDecimals(
+        multiplyDecimals(String(trade.quantity), String(trade.price)),
+        String(trade.fee),
+      ));
 
       return (
         <TableRow key={trade.id} className="bg-muted/30">
@@ -706,7 +715,7 @@ export function HoldingsPage() {
               <Input type="number" step="any" placeholder="0.00" value={dividendForm.cashPerShare} onChange={(e) => {
                 const cps = e.target.value;
                 const qty = Number(dividendForm.quantity) || 0;
-                setDividendForm(f => ({ ...f, cashPerShare: cps, totalAmount: cps && qty ? String(Number(cps) * qty) : '' }));
+                setDividendForm(f => ({ ...f, cashPerShare: cps, totalAmount: cps && qty ? multiplyDecimal(cps, qty) : '' }));
               }} />
             </div>
             <div>
@@ -714,7 +723,7 @@ export function HoldingsPage() {
               <Input type="number" step="any" value={dividendForm.quantity} onChange={(e) => {
                 const qty = e.target.value;
                 const cps = Number(dividendForm.cashPerShare) || 0;
-                setDividendForm(f => ({ ...f, quantity: qty, totalAmount: qty && cps ? String(Number(qty) * cps) : '' }));
+                setDividendForm(f => ({ ...f, quantity: qty, totalAmount: qty && cps ? multiplyDecimal(qty, cps) : '' }));
               }} />
             </div>
             <div>

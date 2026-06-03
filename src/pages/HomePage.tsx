@@ -18,6 +18,7 @@ import { listTransactions } from '@/lib/tauri/transaction';
 import { getUpcomingPayments } from '@/lib/tauri/debt';
 import { listHoldings } from '@/lib/tauri/holding';
 import { calculateTotalBalanceInCNY, formatCurrencyWithDto, formatCurrency, getCurrencySymbol } from '@/lib/currency';
+import { addDecimals, subtractDecimals, safeParseDecimal } from '@/lib/decimal';
 import { useCurrencies } from '@/hooks/useCurrency';
 export function HomePage() {
   const navigate = useNavigate();
@@ -109,7 +110,10 @@ export function HomePage() {
   // Use server-side aggregated summary data
   const monthlyIncome = parseFloat(dashboardSummary?.total_income ?? '0');
   const monthlyExpenses = parseFloat(dashboardSummary?.total_expenses ?? '0');
-  const monthlySavings = monthlyIncome - monthlyExpenses;
+  const monthlySavings = parseFloat(subtractDecimals(
+    safeParseDecimal(dashboardSummary?.total_income),
+    safeParseDecimal(dashboardSummary?.total_expenses),
+  ));
 
   const incomeByCategory = (dashboardSummary?.income_by_category ?? []).map(item => ({
     name: item.account_name,
@@ -161,14 +165,17 @@ export function HomePage() {
         const account = accounts.find((a) => a.id === entry.account_id);
         if (!account || account.ownership !== 'external') return;
 
-        const amount = entry.debit_amount ? parseFloat(entry.debit_amount)
-          : entry.credit_amount ? parseFloat(entry.credit_amount) : 0;
+        const amount = parseFloat(addDecimals(
+          safeParseDecimal(entry.debit_amount),
+          safeParseDecimal(entry.credit_amount),
+        ));
 
         if (account.account_type === 'Expense') {
-          months[month][account.name] = ((months[month][account.name] as number) || 0) + amount;
-          months[month].expenses += amount;
+          const currentVal = ((months[month][account.name] as number) || 0);
+          months[month][account.name] = parseFloat(addDecimals(String(currentVal), String(amount)));
+          months[month].expenses = parseFloat(addDecimals(String(months[month].expenses), String(amount)));
         } else if (account.account_type === 'Income') {
-          months[month].income += amount;
+          months[month].income = parseFloat(addDecimals(String(months[month].income), String(amount)));
         }
       });
     });

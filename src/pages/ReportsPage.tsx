@@ -22,6 +22,7 @@ import {
 import { listTransactions, type TransactionDto } from '../lib/tauri/transaction';
 import { AlertCircle } from 'lucide-react';
 import { formatCurrency, getCurrencySymbol } from '../lib/currency';
+import { addDecimals, safeParseDecimal } from '@/lib/decimal';
 
 type DateRangePreset = 'month' | 'quarter' | 'year' | 'custom';
 
@@ -132,15 +133,19 @@ export function ReportsPage() {
         const account = accounts.find(a => a.id === entry.account_id);
         if (!account || account.ownership !== 'external') return;
 
-        const amount = entry.debit_amount ? parseFloat(entry.debit_amount)
-          : entry.credit_amount ? parseFloat(entry.credit_amount) : 0;
+        const amount = parseFloat(addDecimals(
+          safeParseDecimal(entry.debit_amount),
+          safeParseDecimal(entry.credit_amount),
+        ));
 
         if (account.account_type === 'Expense') {
-          months[month][account.name] = ((months[month][account.name] as number) || 0) + amount;
-          months[month].expenses += amount;
+          const currentVal = ((months[month][account.name] as number) || 0);
+          months[month][account.name] = parseFloat(addDecimals(String(currentVal), String(amount)));
+          months[month].expenses = parseFloat(addDecimals(String(months[month].expenses), String(amount)));
         } else if (account.account_type === 'Income') {
-          months[month][account.name] = ((months[month][account.name] as number) || 0) + amount;
-          months[month].income += amount;
+          const currentVal = ((months[month][account.name] as number) || 0);
+          months[month][account.name] = parseFloat(addDecimals(String(currentVal), String(amount)));
+          months[month].income = parseFloat(addDecimals(String(months[month].income), String(amount)));
         }
       });
     });

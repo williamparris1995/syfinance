@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
+import { addDecimals, safeParseDecimal } from '@/lib/decimal';
 import { Button } from './ui/button';
 import {
   Form,
@@ -90,9 +91,7 @@ export function TopUpDialog({ accountId, accountName, open, onOpenChange }: TopU
   const paidAmount = form.watch('paid_amount');
   const bonusAmount = form.watch('bonus_amount');
   const totalCredited = useMemo(() => {
-    const paid = parseFloat(paidAmount) || 0;
-    const bonus = parseFloat(bonusAmount ?? '') || 0;
-    return paid + bonus;
+    return parseFloat(addDecimals(safeParseDecimal(paidAmount), safeParseDecimal(bonusAmount ?? '')));
   }, [paidAmount, bonusAmount]);
 
   const topUpMutation = useMutation({

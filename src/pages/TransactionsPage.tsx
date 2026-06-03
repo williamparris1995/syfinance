@@ -32,6 +32,7 @@ import {
   type CreateTransactionDto,
 } from '../lib/tauri/transaction';
 import { useCursorPagination } from '../hooks/useCursorPagination';
+import { addDecimals, safeParseDecimal } from '@/lib/decimal';
 
 type DateRangePreset = 'month' | 'quarter' | 'year' | 'custom';
 type TransactionType_ = 'all' | 'expense' | 'income' | 'transfer';
@@ -186,13 +187,13 @@ export function TransactionsPage() {
   };
 
   const getTransactionAmount = (transaction: TransactionDto) => {
-    let total = 0;
+    let total = '0.00';
     transaction.entries.forEach((entry) => {
       if (entry.debit_amount) {
-        total += parseFloat(entry.debit_amount);
+        total = addDecimals(total, safeParseDecimal(entry.debit_amount));
       }
     });
-    return total;
+    return parseFloat(total);
   };
 
   const getTransactionAccounts = (transaction: TransactionDto) => {

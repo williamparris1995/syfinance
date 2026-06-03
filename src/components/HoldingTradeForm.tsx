@@ -17,6 +17,7 @@ import {
   listSecurities, createSecurity, searchSecurities,
   type HoldingTradeDto, type HoldingDto, type SecurityType, type SecuritySearchResult,
 } from '@/lib/tauri/holding';
+import { multiplyDecimal } from '@/lib/decimal';
 import { useState } from 'react';
 
 interface Props {
@@ -99,7 +100,7 @@ export function HoldingTradeForm({ onSubmit, onCancel, isLoading, initialDirecti
   };
 
   const watched = form.watch();
-  const estimatedAmount = parseFloat(watched.quantity || '0') * parseFloat(watched.price || '0');
+  const estimatedAmount = parseFloat(multiplyDecimal(watched.quantity || '0', parseFloat(watched.price || '0')));
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;

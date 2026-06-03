@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { listAccounts } from '@/lib/tauri/account';
 import type { CreateTransactionDto } from '@/lib/tauri/transaction';
+import { addDecimals, subtractDecimals, safeParseDecimal } from '@/lib/decimal';
 import { Button } from './ui/button';
 import {
   Form,
@@ -91,21 +92,21 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
   const watchEntries = form.watch('entries');
 
   const calculateBalance = () => {
-    let totalDebit = 0;
-    let totalCredit = 0;
+    let totalDebit = '0.00';
+    let totalCredit = '0.00';
 
     watchEntries.forEach((entry) => {
       if (entry.debit_amount) {
-        const debit = parseFloat(entry.debit_amount);
-        if (!isNaN(debit)) totalDebit += debit;
+        const debit = safeParseDecimal(entry.debit_amount);
+        if (debit !== '0.00') totalDebit = addDecimals(totalDebit, debit);
       }
       if (entry.credit_amount) {
-        const credit = parseFloat(entry.credit_amount);
-        if (!isNaN(credit)) totalCredit += credit;
+        const credit = safeParseDecimal(entry.credit_amount);
+        if (credit !== '0.00') totalCredit = addDecimals(totalCredit, credit);
       }
     });
 
-    return totalDebit - totalCredit;
+    return parseFloat(subtractDecimals(totalDebit, totalCredit));
   };
 
   const balance = calculateBalance();

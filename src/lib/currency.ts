@@ -3,6 +3,7 @@
  */
 
 import { CurrencyDto } from './tauri/currency';
+import { addDecimals, safeParseDecimal } from './decimal';
 
 export interface ExchangeRate {
   code: string;
@@ -164,11 +165,11 @@ export function calculateTotalBalanceInCNY(
     const currency = currencies.find(c => c.code === account.currency_code);
     if (!currency) return total;
 
-    // 转换为 CNY
+    // Convert to CNY
     const fromRate = parseFloat(currency.exchange_rate) || 1;
     const toRate = parseFloat(cny.exchange_rate) || 1;
     const balanceInCNY = account.balance * fromRate / toRate;
-    return total + balanceInCNY;
+    return parseFloat(addDecimals(safeParseDecimal(String(total)), safeParseDecimal(String(balanceInCNY))));
   }, 0);
 }
 
