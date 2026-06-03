@@ -8,9 +8,12 @@ import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveCo
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { listAccounts, type AccountDto } from '../lib/tauri/account';
+import { getYoyComparison } from '../lib/tauri/report';
 import { listTransactions, type TransactionDto } from '../lib/tauri/transaction';
 import { AlertCircle } from 'lucide-react';
 import { formatCurrency, getCurrencySymbol } from '../lib/currency';
@@ -38,6 +41,9 @@ export function ReportsPage() {
   const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('month');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [yoyYear1, setYoyYear1] = useState(new Date().getFullYear() - 1);
+  const [yoyYear2, setYoyYear2] = useState(new Date().getFullYear());
+  const [yoyMode, setYoyMode] = useState<'expense' | 'income'>('expense');
 
   const { data: accounts = [], isLoading: isLoadingAccounts } = useQuery({
     queryKey: ['accounts'],
@@ -47,6 +53,11 @@ export function ReportsPage() {
   const { data: transactions = [], isLoading: isLoadingTransactions } = useQuery({
     queryKey: ['transactions'],
     queryFn: listTransactions,
+  });
+
+  const { data: yoyData, isLoading: isLoadingYoy } = useQuery({
+    queryKey: ['yoy-comparison', yoyYear1, yoyYear2],
+    queryFn: () => getYoyComparison(yoyYear1, yoyYear2),
   });
 
   const dateRange = useMemo(() => {
@@ -395,6 +406,7 @@ export function ReportsPage() {
           <TabsList variant="line" className="w-full">
             <TabsTrigger value="balance-sheet">{t('reports.balanceSheet')}</TabsTrigger>
             <TabsTrigger value="income-statement">{t('reports.incomeStatement')}</TabsTrigger>
+            <TabsTrigger value="year-over-year">{t('reports.yoyTitle')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="balance-sheet" className="space-y-4">
@@ -953,6 +965,87 @@ export function ReportsPage() {
                     <strong>{t('common.note')}:</strong> {t('reports.multiCurrencyNote')}
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="year-over-year" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('reports.yoyTitle')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {/* Year selectors */}
+                <div className="flex flex-wrap items-center gap-4 mb-6">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm">{t('reports.year')}</Label>
+                    <Select value={String(yoyYear1)} onValueChange={(v) => setYoyYear1(Number(v))}>
+                      <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                          <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <span className="text-muted-foreground">{t('reports.vs')}</span>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm">{t('reports.year')}</Label>
+                    <Select value={String(yoyYear2)} onValueChange={(v) => setYoyYear2(Number(v))}>
+                      <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                          <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Toggle income/expense */}
+                  <div className="flex gap-1 ml-auto">
+                    <Button
+                      variant={yoyMode === 'expense' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setYoyMode('expense')}
+                    >
+                      {t('reports.expenses')}
+                    </Button>
+                    <Button
+                      variant={yoyMode === 'income' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setYoyMode('income')}
+                    >
+                      {t('reports.income')}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Chart */}
+                {isLoadingYoy ? (
+                  <div className="text-center py-8 text-muted-foreground">{t('common.loading')}</div>
+                ) : yoyData ? (
+                  <ResponsiveContainer width="100%" height={400}>
+                    <BarChart data={yoyData.months}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" tickFormatter={(m: number) => `${m}${t('reports.monthSuffix')}`} />
+                      <YAxis tickFormatter={(v: number) => `${v}`} />
+                      <Tooltip
+                        formatter={(value) => [value, '']}
+                        labelFormatter={(m) => `${m}${t('reports.monthSuffix')}`}
+                      />
+                      <Legend />
+                      <Bar
+                        dataKey={yoyMode === 'expense' ? 'year1_expense' : 'year1_income'}
+                        name={String(yoyYear1)}
+                        fill="#94a3b8"
+                      />
+                      <Bar
+                        dataKey={yoyMode === 'expense' ? 'year2_expense' : 'year2_income'}
+                        name={String(yoyYear2)}
+                        fill="#3b82f6"
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : null}
               </CardContent>
             </Card>
           </TabsContent>

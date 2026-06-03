@@ -69,6 +69,7 @@ use presentation::tauri_commands::{
         complete_reminder, create_reminder, create_reminder_default_state_from_pool,
         delete_reminder, get_reminder, list_reminders, update_reminder, ReminderCommandState,
     },
+    report_commands::{get_yoy_comparison, ReportCommandState},
     search_commands::{create_search_default_state, global_search, rebuild_search_index},
     subscription_commands::{
         create_default_state_from_pool as create_subscription_default_state, create_subscription,
@@ -208,6 +209,7 @@ async fn main() {
         .await
         .expect("failed to initialize tag command state");
     let search_state = create_search_default_state(pool.clone());
+    let report_state = ReportCommandState::from_pool(pool.clone());
 
     // Rebuild FTS5 search index on startup to ensure existing data is indexed
     {
@@ -319,6 +321,7 @@ async fn main() {
         .manage(template_state)
         .manage(tag_state)
         .manage(search_state)
+        .manage(report_state)
         .manage(reminder_state)
         .manage(export_state)
         .manage(encryption_state.clone())
@@ -417,6 +420,7 @@ async fn main() {
             get_transaction_tags,
             global_search,
             rebuild_search_index,
+            get_yoy_comparison,
             list_reminders,
             get_reminder,
             create_reminder,

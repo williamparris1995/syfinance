@@ -10,6 +10,7 @@ pub mod goal_commands;
 pub mod holding_commands;
 pub mod prepaid_commands;
 pub mod reminder_commands;
+pub mod report_commands;
 pub mod search_commands;
 pub mod subscription_commands;
 pub mod sync_commands;
@@ -110,3 +111,5 @@ pub use transaction_template_commands::{
     pause_transaction_template, resume_transaction_template, update_transaction_template,
     TransactionTemplateCommandState,
 };
+#[allow(unused_imports)]
+pub use report_commands::{get_yoy_comparison, ReportCommandState};

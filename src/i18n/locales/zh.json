@@ -460,7 +460,11 @@
     "monthlyIncomeVsExpense": "月度收支对比",
     "noData": "所选周期暂无数据",
     "dateRangeDisplay": "{{start}} 至 {{end}}",
-    "transactions": "笔数"
+    "transactions": "笔数",
+    "yoyTitle": "年度对比",
+    "year": "年份",
+    "monthSuffix": "月",
+    "vs": "对比"
   },
   "sidebar": {
     "noOrganizations": "暂无组织",

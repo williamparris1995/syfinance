@@ -523,7 +523,11 @@
     "monthlyIncomeVsExpense": "Monthly Income vs Expense",
     "noData": "No data for selected period",
     "dateRangeDisplay": "{{start}} to {{end}}",
-    "transactions": "Txs"
+    "transactions": "Txs",
+    "yoyTitle": "Year-over-Year Comparison",
+    "year": "Year",
+    "monthSuffix": "",
+    "vs": "vs"
   },
   "sidebar": {
     "noOrganizations": "No organizations",

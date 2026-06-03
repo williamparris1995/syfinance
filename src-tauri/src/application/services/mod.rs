@@ -5,6 +5,7 @@ pub mod encryption_app_service;
 pub mod goal_service;
 pub mod holding_service;
 pub mod prepaid_service;
+pub mod report_service;
 pub mod subscription_service;
 pub mod transaction_service;
 pub mod transaction_template_service;
@@ -29,3 +30,5 @@ pub use transaction_service::TransactionService;
 pub use transaction_template_service::{
     TransactionTemplateService, TransactionTemplateServiceError,
 };
+#[allow(unused_imports)]
+pub use report_service::{ReportService, YoyComparison, YoyMonthData};
