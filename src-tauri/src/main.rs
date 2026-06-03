@@ -487,8 +487,18 @@ async fn main() {
                 reminder_repo.clone(),
                 notification_sender,
             ));
+            let notification_service_for_reschedule = notification_service.clone();
             let reminder_scheduler =
                 Arc::new(ReminderScheduler::new(reminder_repo, notification_service));
+
+            // Reschedule pending reminders from previous sessions
+            let reschedule_handle = notification_service_for_reschedule;
+            tokio::spawn(async move {
+                match reschedule_handle.reschedule_all().await {
+                    Ok(count) => info!(count = count, "Rescheduled pending reminders"),
+                    Err(e) => error!(error = %e, "Failed to reschedule pending reminders"),
+                }
+            });
 
             // Spawn background task to check reminders every 5 minutes
             tokio::spawn(async move {
