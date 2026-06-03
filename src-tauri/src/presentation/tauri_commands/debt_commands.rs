@@ -11,6 +11,7 @@ use tauri::State;
 use uuid::Uuid;
 
 pub struct AppState {
+    // TODO: will be used when debt commands need direct pool access
     #[allow(dead_code)]
     pool: SqlitePool,
     debt_service: DebtService,

@@ -371,6 +371,7 @@ impl BackupService {
     // ----- read_backup_metadata ---------------------------------------------
 
     /// Read only the metadata portion of a backup file (no decryption needed).
+    // TODO: will be used when cloud backup browsing shows metadata before restore
     #[allow(dead_code)]
     pub fn read_backup_metadata(&self, filename: &str) -> Result<BackupMetadata, BackupError> {
         let path = self.backup_dir.join(filename);
@@ -380,6 +381,7 @@ impl BackupService {
     // ----- decrypt_backup_data ----------------------------------------------
 
     /// Decrypt, decompress, and deserialize the data payload of a `BackupFile`.
+    // TODO: will be used when cloud backup restore is implemented
     #[allow(dead_code)]
     pub fn decrypt_backup_data(
         backup: &BackupFile,
@@ -417,6 +419,7 @@ impl BackupService {
     }
 
     /// Decompress and deserialize an unencrypted backup payload.
+    // TODO: will be used when unencrypted backup restore is implemented
     #[allow(dead_code)]
     pub fn decrypt_backup_data_no_encryption(
         backup: &BackupFile,
@@ -451,6 +454,7 @@ impl BackupService {
     // ----- compute_diff -----------------------------------------------------
 
     /// Compare backup data with the current local database and produce a diff.
+    // TODO: will be used when selective cloud restore is implemented
     #[allow(dead_code)]
     pub async fn compute_diff(&self, backup_data: &BackupData) -> Result<DiffSummary, BackupError> {
         let local = self.query_all_tables().await?;
@@ -473,6 +477,7 @@ impl BackupService {
     // ----- delete_backup ----------------------------------------------------
 
     /// Delete a backup file from disk.
+    // TODO: will be used when backup file management is exposed to frontend
     #[allow(dead_code)]
     pub fn delete_backup(&self, filename: &str) -> Result<(), BackupError> {
         let path = self.backup_dir.join(filename);
@@ -555,6 +560,7 @@ impl BackupService {
     /// Restore data from a backup into the current database.
     ///
     /// Creates a safety backup first, then applies changes in a transaction.
+    // TODO: will be used when local backup restore is implemented
     #[allow(dead_code)]
     pub async fn restore_backup(
         &self,

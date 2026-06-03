@@ -13,9 +13,11 @@ use super::oauth::{self, OAuthConfig};
 pub struct OneDriveProvider {
     client: Client,
     access_token: String,
+    // TODO: will be used when OAuth token refresh is implemented
     #[allow(dead_code)]
     refresh_token: Option<String>,
     remote_path: String,
+    // TODO: will be used when OAuth token refresh is implemented
     #[allow(dead_code)]
     oauth_config: OAuthConfig,
 }

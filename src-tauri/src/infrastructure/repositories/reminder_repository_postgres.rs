@@ -1,3 +1,9 @@
+//! PostgreSQL repository for Reminder aggregate.
+//!
+//! Planned for future multi-device sync. Currently only the SQLite
+//! repository is wired into the application; these implementations will be
+//! activated when the PostgreSQL sync layer is built out.
+
 // TODO: will be used when PostgreSQL sync is implemented
 #![allow(dead_code)]
 

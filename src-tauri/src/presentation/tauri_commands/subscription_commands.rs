@@ -12,6 +12,7 @@ use tauri::State;
 use uuid::Uuid;
 
 pub struct SubscriptionCommandState {
+    // TODO: will be used when subscription commands need direct pool access
     #[allow(dead_code)]
     pool: SqlitePool,
     subscription_service: SubscriptionService,

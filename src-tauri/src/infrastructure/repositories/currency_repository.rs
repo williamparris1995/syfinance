@@ -13,6 +13,7 @@ pub struct SqliteCurrencyRepository {
 }
 
 impl SqliteCurrencyRepository {
+    // TODO: will be used when currency repo is constructed outside of DI context
     #[allow(dead_code)]
     pub fn new(pool: SqlitePool) -> Self {
         Self { pool }

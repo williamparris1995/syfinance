@@ -67,6 +67,7 @@ pub struct UpdateReminderDto {
 }
 
 pub struct ReminderCommandState {
+    // TODO: will be used when reminder commands need direct pool access
     #[allow(dead_code)]
     pool: SqlitePool,
     reminder_repository: Arc<SqliteReminderRepository>,

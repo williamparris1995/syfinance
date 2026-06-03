@@ -14,6 +14,7 @@ type ConcretePrepaidService =
     PrepaidService<SqlitePrepaidRepository, SqliteAccountRepository, SqliteTransactionRepository>;
 
 pub struct PrepaidCommandState {
+    // TODO: will be used when prepaid commands need direct pool access
     #[allow(dead_code)]
     pool: SqlitePool,
     prepaid_service: ConcretePrepaidService,
