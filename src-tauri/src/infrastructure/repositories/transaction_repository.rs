@@ -891,6 +891,43 @@ impl TransactionRepository for SqliteTransactionRepository {
         Ok(transactions)
     }
 
+    async fn find_by_account(
+        &self,
+        account_id: Uuid,
+    ) -> sqlx::Result<Vec<Transaction>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT DISTINCT t.id, t.transaction_date, t.description,
+                t.updated_at, t.deleted_at, t.device_id, t.synced_at
+            FROM transactions t
+            JOIN transaction_entries e ON e.transaction_id = t.id AND e.deleted_at IS NULL
+            WHERE e.account_id = ? AND t.deleted_at IS NULL
+            ORDER BY t.transaction_date DESC, t.id DESC
+            "#,
+        )
+        .bind(account_id.to_string())
+        .fetch_all(&self.pool)
+        .await?;
+
+        let parsed: Vec<(Uuid, NaiveDate, String, SyncMetadata)> = rows
+            .iter()
+            .map(|row| Self::parse_transaction_row(row))
+            .collect::<sqlx::Result<Vec<_>>>()?;
+
+        let txn_ids: Vec<String> = parsed.iter().map(|(id, _, _, _)| id.to_string()).collect();
+        let entries_map = self.batch_load_entries(&txn_ids).await?;
+
+        let transactions = parsed
+            .into_iter()
+            .map(|(id, transaction_date, description, sync_metadata)| {
+                let entries = entries_map.get(&id).cloned().unwrap_or_default();
+                Transaction::reconstitute(id, transaction_date, description, entries, sync_metadata)
+            })
+            .collect();
+
+        Ok(transactions)
+    }
+
     async fn mark_as_synced(&self, id: Uuid) -> sqlx::Result<bool> {
         let mut tx = self.pool.begin().await?;
 

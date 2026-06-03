@@ -225,13 +225,9 @@ impl TransactionService {
         &self,
         account_id: Uuid,
     ) -> Result<Vec<TransactionDto>, TransactionServiceError> {
-        let transactions = self.transaction_repo.find_all().await?;
-        let filtered: Vec<TransactionDto> = transactions
-            .into_iter()
-            .filter(|t| t.entries.iter().any(|e| e.account_id == account_id))
-            .map(|t| self.to_dto(t))
-            .collect();
-        Ok(filtered)
+        let transactions = self.transaction_repo.find_by_account(account_id).await?;
+        let dtos = transactions.into_iter().map(|t| self.to_dto(t)).collect();
+        Ok(dtos)
     }
 
     pub async fn get_transactions_by_date_range(

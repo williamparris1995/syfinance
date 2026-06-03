@@ -504,4 +504,14 @@ impl TransactionRepository for PostgresTransactionRepository {
             "PostgreSQL pagination not yet implemented".into(),
         ))
     }
+
+    async fn find_by_account(
+        &self,
+        _account_id: Uuid,
+    ) -> sqlx::Result<Vec<Transaction>> {
+        // TODO: implement account filtering for PostgreSQL
+        Err(sqlx::Error::Configuration(
+            "PostgreSQL account filtering not yet implemented".into(),
+        ))
+    }
 }

@@ -93,6 +93,11 @@ pub trait TransactionRepository: Send + Sync {
         start_date: Option<NaiveDate>,
         end_date: Option<NaiveDate>,
     ) -> sqlx::Result<PaginatedResult<Transaction>>;
+
+    async fn find_by_account(
+        &self,
+        account_id: Uuid,
+    ) -> sqlx::Result<Vec<Transaction>>;
 }
 
 #[allow(async_fn_in_trait, dead_code)]
