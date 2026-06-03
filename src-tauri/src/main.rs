@@ -69,7 +69,10 @@ use presentation::tauri_commands::{
         complete_reminder, create_reminder, create_reminder_default_state_from_pool,
         delete_reminder, get_reminder, list_reminders, update_reminder, ReminderCommandState,
     },
-    report_commands::{get_yoy_comparison, ReportCommandState},
+    report_commands::{
+        get_balance_sheet, get_dashboard_summary, get_income_statement, get_yoy_comparison,
+        ReportCommandState,
+    },
     search_commands::{create_search_default_state, global_search, rebuild_search_index},
     subscription_commands::{
         create_default_state_from_pool as create_subscription_default_state, create_subscription,
@@ -421,6 +424,9 @@ async fn main() {
             global_search,
             rebuild_search_index,
             get_yoy_comparison,
+            get_balance_sheet,
+            get_income_statement,
+            get_dashboard_summary,
             list_reminders,
             get_reminder,
             create_reminder,
