@@ -2,8 +2,10 @@ use crate::application::{
     dtos::{CreateTransactionDto, TransactionDto},
     services::TransactionService,
 };
+use crate::domain::value_objects::pagination::{PaginatedResult, PaginationParams};
 use crate::infrastructure::repositories::{SqliteAccountRepository, SqliteTransactionRepository};
 use rust_decimal::Decimal;
+use serde::Deserialize;
 use std::{str::FromStr, sync::Arc};
 use tauri::State;
 use uuid::Uuid;
@@ -319,4 +321,47 @@ pub async fn batch_delete_transactions(
         "Batch delete complete"
     );
     Ok(deleted)
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PaginatedTransactionQuery {
+    pub first: Option<u32>,
+    pub after: Option<String>,
+    pub before: Option<String>,
+    pub account_id: Option<String>,
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+}
+
+#[tauri::command]
+pub async fn list_transactions_paginated(
+    state: State<'_, TransactionCommandState>,
+    query: PaginatedTransactionQuery,
+) -> Result<PaginatedResult<TransactionDto>, String> {
+    let params = PaginationParams {
+        first: query.first.unwrap_or(50),
+        after: query.after,
+        before: query.before,
+    };
+    let account_id = query
+        .account_id
+        .map(|s| Uuid::parse_str(&s))
+        .transpose()
+        .map_err(|e| format!("Invalid account_id: {}", e))?;
+    let start_date = query
+        .start_date
+        .map(|s| chrono::NaiveDate::parse_from_str(&s, "%Y-%m-%d"))
+        .transpose()
+        .map_err(|e| format!("Invalid start_date: {}", e))?;
+    let end_date = query
+        .end_date
+        .map(|s| chrono::NaiveDate::parse_from_str(&s, "%Y-%m-%d"))
+        .transpose()
+        .map_err(|e| format!("Invalid end_date: {}", e))?;
+
+    state
+        .service()
+        .list_transactions_paginated(params, account_id, start_date, end_date)
+        .await
+        .map_err(|e| e.to_string())
 }

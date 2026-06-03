@@ -57,8 +57,9 @@ use presentation::tauri_commands::{
     holding_commands::{
         buy_holding, create_default_state_from_pool as create_holding_default_state,
         create_security, delete_holding_trade, fetch_security_price, list_holding_transactions,
-        list_holdings, list_securities, record_dividend, record_split, search_securities,
-        sell_holding, update_holding_trade, update_security_price, AppState as HoldingCommandState,
+        list_holding_transactions_paginated, list_holdings, list_securities, record_dividend,
+        record_split, search_securities, sell_holding, update_holding_trade,
+        update_security_price, AppState as HoldingCommandState,
     },
     prepaid_commands::{
         create_default_state_from_pool as create_prepaid_default_state, get_prepaid_detail,
@@ -88,7 +89,7 @@ use presentation::tauri_commands::{
         batch_delete_transactions, create_default_state_from_pool, create_simple_expense,
         create_simple_income, create_simple_transfer, create_transaction, delete_transaction,
         get_transaction, get_transactions_by_account, get_transactions_by_date_range,
-        list_transactions, update_transaction,
+        list_transactions, list_transactions_paginated, update_transaction,
     },
     transaction_template_commands::{
         create_template_default_state_from_pool, create_transaction_template,
@@ -369,6 +370,7 @@ async fn main() {
             sync_goal_progress,
             list_holdings,
             list_holding_transactions,
+            list_holding_transactions_paginated,
             delete_holding_trade,
             update_holding_trade,
             record_dividend,
@@ -396,6 +398,7 @@ async fn main() {
             create_transaction,
             get_transaction,
             list_transactions,
+            list_transactions_paginated,
             get_transactions_by_account,
             get_transactions_by_date_range,
             create_simple_income,

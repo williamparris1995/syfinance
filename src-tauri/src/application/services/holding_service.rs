@@ -11,7 +11,10 @@ use crate::domain::{
     repositories::{
         AccountRepository, HoldingRepository, SecurityRepository, TransactionRepository,
     },
-    value_objects::{Money, SyncMetadata, TransactionEntry},
+    value_objects::{
+        pagination::{PaginatedResult, PaginationParams},
+        Money, SyncMetadata, TransactionEntry,
+    },
 };
 use crate::infrastructure::repositories::{
     SqliteAccountRepository, SqliteHoldingRepository, SqliteSecurityRepository,
@@ -590,6 +593,41 @@ impl HoldingService {
                 notes: t.notes,
             })
             .collect())
+    }
+
+    pub async fn list_holding_transactions_paginated(
+        &self,
+        holding_id: Uuid,
+        params: PaginationParams,
+    ) -> Result<PaginatedResult<HoldingTransactionDto>, HoldingServiceError> {
+        let result = self
+            .holding_repo
+            .find_transactions_paginated(
+                holding_id,
+                params.capped_first(),
+                params.after.as_deref(),
+                params.before.as_deref(),
+            )
+            .await?;
+        Ok(PaginatedResult {
+            items: result
+                .items
+                .into_iter()
+                .map(|t| HoldingTransactionDto {
+                    id: t.id,
+                    holding_id,
+                    transaction_id: t.transaction_id,
+                    trade_type: t.trade_type.to_string(),
+                    quantity: t.quantity,
+                    price: t.price,
+                    fee: t.fee,
+                    amount: t.amount,
+                    trade_date: t.trade_date,
+                    notes: t.notes,
+                })
+                .collect(),
+            page_info: result.page_info,
+        })
     }
 
     // --- Recalculate holding after trade changes ---

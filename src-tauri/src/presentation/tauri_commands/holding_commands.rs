@@ -5,6 +5,7 @@ use crate::application::{
     },
     services::HoldingService,
 };
+use crate::domain::value_objects::pagination::{PaginatedResult, PaginationParams};
 use crate::infrastructure::repositories::{
     SqliteAccountRepository, SqliteHoldingRepository, SqliteSecurityRepository,
     SqliteTransactionRepository,
@@ -118,6 +119,26 @@ pub async fn list_holding_transactions(
     state
         .service()
         .list_holding_transactions(holding_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn list_holding_transactions_paginated(
+    state: State<'_, AppState>,
+    holding_id: Uuid,
+    first: Option<u32>,
+    after: Option<String>,
+    before: Option<String>,
+) -> Result<PaginatedResult<HoldingTransactionDto>, String> {
+    let params = PaginationParams {
+        first: first.unwrap_or(50),
+        after,
+        before,
+    };
+    state
+        .service()
+        .list_holding_transactions_paginated(holding_id, params)
         .await
         .map_err(|e| e.to_string())
 }

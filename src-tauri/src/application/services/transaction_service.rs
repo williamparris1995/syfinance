@@ -5,7 +5,10 @@ use crate::application::dtos::{
 use crate::domain::{
     aggregates::{AccountType, Transaction},
     repositories::{AccountRepository, TransactionRepository},
-    value_objects::{Money, SyncMetadata, TransactionEntry},
+    value_objects::{
+        pagination::{PaginatedResult, PaginationParams},
+        Money, SyncMetadata, TransactionEntry,
+    },
 };
 use crate::infrastructure::repositories::{SqliteAccountRepository, SqliteTransactionRepository};
 use rust_decimal::Decimal;
@@ -241,6 +244,30 @@ impl TransactionService {
             .find_by_date_range(start_date, end_date)
             .await?;
         Ok(transactions.into_iter().map(|t| self.to_dto(t)).collect())
+    }
+
+    pub async fn list_transactions_paginated(
+        &self,
+        params: PaginationParams,
+        account_id: Option<Uuid>,
+        start_date: Option<chrono::NaiveDate>,
+        end_date: Option<chrono::NaiveDate>,
+    ) -> Result<PaginatedResult<TransactionDto>, TransactionServiceError> {
+        let result = self
+            .transaction_repo
+            .find_paginated(
+                params.capped_first(),
+                params.after.as_deref(),
+                params.before.as_deref(),
+                account_id,
+                start_date,
+                end_date,
+            )
+            .await?;
+        Ok(PaginatedResult {
+            items: result.items.into_iter().map(|t| self.to_dto(t)).collect(),
+            page_info: result.page_info,
+        })
     }
 
     fn to_dto(&self, transaction: Transaction) -> TransactionDto {
