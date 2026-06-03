@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 interface PageInfo {
@@ -33,6 +33,16 @@ export function useCursorPagination<T>(
   });
 
   const enabled = options?.enabled !== false;
+
+  // Reset state when queryKey changes (e.g., different holdingId)
+  const queryKeyRef = useRef<string>('');
+  const queryKeyStr = JSON.stringify(queryKey);
+  useEffect(() => {
+    if (queryKeyRef.current && queryKeyRef.current !== queryKeyStr) {
+      setState({ pages: [], pageInfos: [], currentPage: 0 });
+    }
+    queryKeyRef.current = queryKeyStr;
+  }, [queryKeyStr]);
 
   // Determine cursor for current page
   const currentCursor =

@@ -42,11 +42,11 @@ impl ReportService {
                 CAST(strftime('%Y', t.transaction_date) AS INTEGER) as yr,
                 CAST(strftime('%m', t.transaction_date) AS INTEGER) as mo,
                 CAST(COALESCE(SUM(CASE
-                    WHEN e.credit_amount IS NOT NULL AND a.account_type = 'Income' THEN e.credit_amount
+                    WHEN e.credit_amount IS NOT NULL AND a.account_type = 'income' THEN e.credit_amount
                     ELSE 0
                 END), 0) AS TEXT) as income,
                 CAST(COALESCE(SUM(CASE
-                    WHEN e.debit_amount IS NOT NULL AND a.account_type = 'Expense' THEN e.debit_amount
+                    WHEN e.debit_amount IS NOT NULL AND a.account_type = 'expense' THEN e.debit_amount
                     ELSE 0
                 END), 0) AS TEXT) as expense
             FROM transactions t
