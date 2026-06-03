@@ -17,12 +17,10 @@ import {
   getYoyComparison,
   getBalanceSheet,
   getIncomeStatement,
+  getMonthlyTrend,
 } from '../lib/tauri/report';
-// listTransactions is still needed for monthly trend charts (known limitation)
-import { listTransactions, type TransactionDto } from '../lib/tauri/transaction';
 import { AlertCircle } from 'lucide-react';
 import { formatCurrency, getCurrencySymbol } from '../lib/currency';
-import { addDecimals, safeParseDecimal } from '@/lib/decimal';
 
 type DateRangePreset = 'month' | 'quarter' | 'year' | 'custom';
 
@@ -73,12 +71,6 @@ export function ReportsPage() {
     };
   }, [dateRangePreset, startDate, endDate]);
 
-  // listTransactions kept only for monthly trend charts (known limitation)
-  const { data: transactions = [] } = useQuery({
-    queryKey: ['transactions'],
-    queryFn: listTransactions,
-  });
-
   const { data: balanceSheet, isLoading: isLoadingBalanceSheet } = useQuery({
     queryKey: ['balance-sheet', dateRange.end],
     queryFn: () => getBalanceSheet(dateRange.end),
@@ -110,57 +102,30 @@ export function ReportsPage() {
     }
   };
 
-  const monthlyTrendData = useMemo(() => {
-    const months: Record<string, {
-      month: string;
-      income: number;
-      expenses: number;
-      [category: string]: number | string;
-    }> = {};
+  // Monthly trend data from server-side aggregation
+  const { data: monthlyTrendRaw = [] } = useQuery({
+    queryKey: ['monthly-trend', dateRange.start, dateRange.end],
+    queryFn: () => getMonthlyTrend(dateRange.start, dateRange.end),
+  });
 
-    const filteredTransactions = transactions.filter((tx: TransactionDto) => {
-      const txDate = tx.transaction_date;
-      return txDate >= dateRange.start && txDate <= dateRange.end;
-    });
-
-    filteredTransactions.forEach((tx: TransactionDto) => {
-      const month = tx.transaction_date.substring(0, 7);
-      if (!months[month]) {
-        months[month] = { month, income: 0, expenses: 0 };
-      }
-
-      tx.entries.forEach((entry) => {
-        const account = accounts.find(a => a.id === entry.account_id);
-        if (!account || account.ownership !== 'external') return;
-
-        const amount = parseFloat(addDecimals(
-          safeParseDecimal(entry.debit_amount),
-          safeParseDecimal(entry.credit_amount),
-        ));
-
-        if (account.account_type === 'Expense') {
-          const currentVal = ((months[month][account.name] as number) || 0);
-          months[month][account.name] = parseFloat(addDecimals(String(currentVal), String(amount)));
-          months[month].expenses = parseFloat(addDecimals(String(months[month].expenses), String(amount)));
-        } else if (account.account_type === 'Income') {
-          const currentVal = ((months[month][account.name] as number) || 0);
-          months[month][account.name] = parseFloat(addDecimals(String(currentVal), String(amount)));
-          months[month].income = parseFloat(addDecimals(String(months[month].income), String(amount)));
-        }
-      });
-    });
-
-    return Object.values(months).sort((a, b) => a.month.localeCompare(b.month));
-  }, [transactions, dateRange, accounts]);
+  const monthlyTrendData = useMemo(() =>
+    monthlyTrendRaw.map(m => ({
+      month: m.month,
+      income: parseFloat(m.income),
+      expenses: parseFloat(m.expenses),
+      ...Object.fromEntries(
+        Object.entries(m.expense_categories).map(([k, v]) => [k, parseFloat(v)])
+      ),
+    })),
+  [monthlyTrendRaw]);
 
   const expenseCategories = useMemo(() => {
     const cats = new Set<string>();
-    monthlyTrendData.forEach(m => {
-      accounts.filter(a => a.account_type === 'Expense' && a.ownership === 'external')
-        .forEach(a => { if (m[a.name] !== undefined) cats.add(a.name); });
+    monthlyTrendRaw.forEach((m) => {
+      Object.keys(m.expense_categories).forEach(c => cats.add(c));
     });
     return Array.from(cats);
-  }, [monthlyTrendData, accounts]);
+  }, [monthlyTrendRaw]);
 
 
   const FALLBACK_COLORS = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];

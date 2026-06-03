@@ -12,13 +12,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { EmptyState } from '@/components/EmptyState';
 import { SimpleTransactionForm } from '@/components/SimpleTransactionForm';
 import { listAccountsWithBalances, listAccountsByOwnership } from '@/lib/tauri/account';
-import { getDashboardSummary } from '@/lib/tauri/report';
-// listTransactions still needed for monthly trend charts (known limitation)
-import { listTransactions } from '@/lib/tauri/transaction';
+import { getDashboardSummary, getMonthlyTrend } from '@/lib/tauri/report';
 import { getUpcomingPayments } from '@/lib/tauri/debt';
 import { listHoldings } from '@/lib/tauri/holding';
 import { calculateTotalBalanceInCNY, formatCurrencyWithDto, formatCurrency, getCurrencySymbol } from '@/lib/currency';
-import { addDecimals, subtractDecimals, safeParseDecimal } from '@/lib/decimal';
+import { subtractDecimals, safeParseDecimal } from '@/lib/decimal';
 import { useCurrencies } from '@/hooks/useCurrency';
 export function HomePage() {
   const navigate = useNavigate();
@@ -41,12 +39,6 @@ export function HomePage() {
   const { data: externalAccounts = [] } = useQuery({
     queryKey: ['accounts', 'external'],
     queryFn: () => listAccountsByOwnership('external'),
-  });
-
-  // listTransactions kept only for monthly trend charts (known limitation)
-  const { data: transactions = [] } = useQuery({
-    queryKey: ['transactions'],
-    queryFn: listTransactions,
   });
 
   const { data: holdings = [] } = useQuery({ queryKey: ['holdings'], queryFn: listHoldings });
@@ -143,54 +135,30 @@ export function HomePage() {
     .slice(0, 5),
   [upcomingDebts]);
 
-  // Monthly trend data still uses listTransactions (known limitation)
-  const monthlyTrendData = useMemo(() => {
-    const months: Record<string, { month: string; income: number; expenses: number; [key: string]: number | string }> = {};
+  // Monthly trend data from server-side aggregation
+  const { data: monthlyTrendRaw = [] } = useQuery({
+    queryKey: ['monthly-trend', dateRange.start, dateRange.end],
+    queryFn: () => getMonthlyTrend(dateRange.start, dateRange.end),
+  });
 
-    // Build month list from dateRange
-    const startDate2 = new Date(dateRange.start);
-    const endDate2 = new Date(dateRange.end);
-    for (let d = new Date(startDate2.getFullYear(), startDate2.getMonth(), 1);
-         d <= endDate2;
-         d.setMonth(d.getMonth() + 1)) {
-      const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      months[month] = { month, income: 0, expenses: 0 };
-    }
-
-    transactions.forEach((tx) => {
-      const month = tx.transaction_date?.substring(0, 7);
-      if (!month || !months[month]) return;
-
-      tx.entries.forEach((entry) => {
-        const account = accounts.find((a) => a.id === entry.account_id);
-        if (!account || account.ownership !== 'external') return;
-
-        const amount = parseFloat(addDecimals(
-          safeParseDecimal(entry.debit_amount),
-          safeParseDecimal(entry.credit_amount),
-        ));
-
-        if (account.account_type === 'Expense') {
-          const currentVal = ((months[month][account.name] as number) || 0);
-          months[month][account.name] = parseFloat(addDecimals(String(currentVal), String(amount)));
-          months[month].expenses = parseFloat(addDecimals(String(months[month].expenses), String(amount)));
-        } else if (account.account_type === 'Income') {
-          months[month].income = parseFloat(addDecimals(String(months[month].income), String(amount)));
-        }
-      });
-    });
-
-    return Object.values(months).sort((a, b) => a.month.localeCompare(b.month));
-  }, [transactions, accounts, dateRange]);
+  const chartData = useMemo(() =>
+    monthlyTrendRaw.map(m => ({
+      month: m.month,
+      income: parseFloat(m.income),
+      expenses: parseFloat(m.expenses),
+      ...Object.fromEntries(
+        Object.entries(m.expense_categories).map(([k, v]) => [k, parseFloat(v)])
+      ),
+    })),
+  [monthlyTrendRaw]);
 
   const expenseCategories = useMemo(() => {
     const cats = new Set<string>();
-    monthlyTrendData.forEach((m) => {
-      accounts.filter((a) => a.account_type === 'Expense' && a.ownership === 'external')
-        .forEach((a) => { if (m[a.name] !== undefined) cats.add(a.name); });
+    monthlyTrendRaw.forEach((m) => {
+      Object.keys(m.expense_categories).forEach(c => cats.add(c));
     });
     return Array.from(cats);
-  }, [monthlyTrendData, accounts]);
+  }, [monthlyTrendRaw]);
 
   const isLoading = accountsLoading || isDashboardLoading;
 
@@ -587,7 +555,7 @@ export function HomePage() {
           )}
 
           {/* Monthly Trend Charts */}
-          {accounts.length > 0 && monthlyTrendData.length > 0 && (
+          {accounts.length > 0 && chartData.length > 0 && (
             <div className="grid gap-4 md:grid-cols-2">
               {/* Stacked Bar: Monthly Expense Trend */}
               <Card>
@@ -600,7 +568,7 @@ export function HomePage() {
                   ) : (
                     <>
                       <ResponsiveContainer width="100%" height={220}>
-                        <BarChart data={monthlyTrendData}>
+                        <BarChart data={chartData}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                           <XAxis dataKey="month" tick={{ fontSize: 11 }} tickFormatter={(v: string) => v.substring(5)} />
                           <YAxis tick={{ fontSize: 11 }} />
@@ -638,7 +606,7 @@ export function HomePage() {
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={monthlyTrendData}>
+                    <BarChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                       <XAxis dataKey="month" tick={{ fontSize: 11 }} tickFormatter={(v: string) => v.substring(5)} />
                       <YAxis tick={{ fontSize: 11 }} />

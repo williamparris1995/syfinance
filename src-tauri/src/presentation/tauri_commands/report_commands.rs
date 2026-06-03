@@ -1,5 +1,5 @@
 use crate::application::services::report_service::{
-    BalanceSheet, DashboardSummary, IncomeStatement, ReportService, YoyComparison,
+    BalanceSheet, DashboardSummary, IncomeStatement, MonthlyTrendItem, ReportService, YoyComparison,
 };
 use serde::Deserialize;
 use sqlx::SqlitePool;
@@ -55,4 +55,12 @@ pub async fn get_dashboard_summary(
     query: ReportDateQuery,
 ) -> Result<DashboardSummary, String> {
     state.service.get_dashboard_summary(&query.start_date, &query.end_date).await
+}
+
+#[tauri::command]
+pub async fn get_monthly_trend(
+    state: State<'_, ReportCommandState>,
+    query: ReportDateQuery,
+) -> Result<Vec<MonthlyTrendItem>, String> {
+    state.service.get_monthly_trend(&query.start_date, &query.end_date).await
 }

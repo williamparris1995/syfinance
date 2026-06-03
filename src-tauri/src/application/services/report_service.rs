@@ -74,6 +74,15 @@ pub struct DashboardSummary {
     pub expense_by_category: Vec<IncomeStatementItem>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MonthlyTrendItem {
+    pub month: String,
+    pub income: String,
+    pub expenses: String,
+    pub expense_categories: serde_json::Value,
+    pub income_categories: serde_json::Value,
+}
+
 impl ReportService {
     pub fn new(pool: Arc<SqlitePool>) -> Self {
         Self { pool }
@@ -384,5 +393,75 @@ impl ReportService {
             income_by_category,
             expense_by_category,
         })
+    }
+
+    pub async fn get_monthly_trend(
+        &self,
+        start_date: &str,
+        end_date: &str,
+    ) -> Result<Vec<MonthlyTrendItem>, String> {
+        info!(start_date = start_date, end_date = end_date, "Computing monthly trend");
+
+        let rows: Vec<(String, String, String, String)> = sqlx::query_as(
+            "SELECT
+                strftime('%Y-%m', t.transaction_date) as month,
+                a.name as account_name,
+                a.account_type,
+                CAST(COALESCE(SUM(
+                    CASE
+                        WHEN a.account_type = 'expense' AND e.debit_amount IS NOT NULL THEN e.debit_amount
+                        WHEN a.account_type = 'income' AND e.credit_amount IS NOT NULL THEN e.credit_amount
+                        ELSE 0
+                    END
+                ), 0) AS TEXT) as amount
+            FROM transactions t
+            JOIN transaction_entries e ON e.transaction_id = t.id AND e.deleted_at IS NULL
+            JOIN accounts a ON e.account_id = a.id
+            WHERE t.deleted_at IS NULL
+              AND t.transaction_date >= ?1 AND t.transaction_date <= ?2
+              AND a.deleted_at IS NULL AND a.ownership = 'external'
+              AND a.account_type IN ('income', 'expense')
+            GROUP BY month, a.id
+            ORDER BY month, a.name",
+        )
+        .bind(start_date)
+        .bind(end_date)
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(|e| format!("Failed to compute monthly trend: {}", e))?;
+
+        // Pivot into per-month structure
+        let mut month_map: std::collections::BTreeMap<String, (rust_decimal::Decimal, rust_decimal::Decimal, serde_json::Map<String, serde_json::Value>, serde_json::Map<String, serde_json::Value>)> = std::collections::BTreeMap::new();
+
+        for (month, account_name, account_type, amount_str) in &rows {
+            let amount: rust_decimal::Decimal = amount_str.parse().unwrap_or(rust_decimal::Decimal::ZERO);
+            let entry = month_map.entry(month.clone()).or_insert((
+                rust_decimal::Decimal::ZERO,
+                rust_decimal::Decimal::ZERO,
+                serde_json::Map::new(),
+                serde_json::Map::new(),
+            ));
+
+            if account_type == "income" {
+                entry.0 += amount;
+                entry.3.insert(account_name.clone(), serde_json::Value::String(amount.to_string()));
+            } else if account_type == "expense" {
+                entry.1 += amount;
+                entry.2.insert(account_name.clone(), serde_json::Value::String(amount.to_string()));
+            }
+        }
+
+        let result: Vec<MonthlyTrendItem> = month_map
+            .into_iter()
+            .map(|(month, (income, expenses, exp_cats, inc_cats))| MonthlyTrendItem {
+                month,
+                income: income.to_string(),
+                expenses: expenses.to_string(),
+                expense_categories: serde_json::Value::Object(exp_cats),
+                income_categories: serde_json::Value::Object(inc_cats),
+            })
+            .collect();
+
+        Ok(result)
     }
 }

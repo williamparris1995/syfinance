@@ -75,3 +75,16 @@ export const getDashboardSummary = (startDate: string, endDate: string) =>
   invokeTauri<DashboardSummary>('get_dashboard_summary', {
     query: { start_date: startDate, end_date: endDate },
   });
+
+export interface MonthlyTrendItem {
+  month: string;
+  income: string;
+  expenses: string;
+  expense_categories: Record<string, string>;
+  income_categories: Record<string, string>;
+}
+
+export const getMonthlyTrend = (startDate: string, endDate: string) =>
+  invokeTauri<MonthlyTrendItem[]>('get_monthly_trend', {
+    query: { start_date: startDate, end_date: endDate },
+  });
