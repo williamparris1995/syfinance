@@ -100,6 +100,7 @@ use presentation::tauri_commands::{
         create_template_default_state_from_pool, create_transaction_template,
         delete_transaction_template, get_transaction_template, list_transaction_templates,
         pause_transaction_template, resume_transaction_template, update_transaction_template,
+        list_template_transactions,
         TransactionTemplateCommandState,
     },
 };
@@ -402,6 +403,7 @@ async fn main() {
             delete_transaction_template,
             pause_transaction_template,
             resume_transaction_template,
+            list_template_transactions,
             create_transaction,
             get_transaction,
             list_transactions,

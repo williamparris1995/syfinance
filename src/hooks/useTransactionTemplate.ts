@@ -8,6 +8,7 @@ import {
   deleteTransactionTemplate,
   pauseTransactionTemplate,
   resumeTransactionTemplate,
+  listTemplateTransactions,
 } from '../lib/tauri/transactionTemplate';
 import { getUserFriendlyError } from '../lib/error-handler';
 import { useTranslation } from 'react-i18next';
@@ -110,5 +111,13 @@ export function useResumeTransactionTemplate() {
     onError: (error) => {
       toast.error(getUserFriendlyError(error));
     },
+  });
+}
+
+export function useListTemplateTransactions(templateId: string | null) {
+  return useQuery({
+    queryKey: ['templateTransactions', templateId],
+    queryFn: () => listTemplateTransactions(templateId!),
+    enabled: !!templateId,
   });
 }

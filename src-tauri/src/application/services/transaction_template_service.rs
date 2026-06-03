@@ -1,5 +1,6 @@
 use crate::application::dtos::{
-    CreateTransactionTemplateDto, TransactionTemplateDto, UpdateTransactionTemplateDto,
+    CreateTransactionTemplateDto, TransactionDto, TransactionEntryDto,
+    TransactionTemplateDto, UpdateTransactionTemplateDto,
 };
 use crate::domain::aggregates::transaction_template::{
     TemplateCycle, TemplateDirection, TransactionTemplate,
@@ -102,6 +103,7 @@ impl TransactionTemplateService {
             auto_record: dto.auto_record.unwrap_or(true),
             paused: false,
             last_transaction_id: None,
+            category: dto.category,
         };
 
         self.template_repo.create(&template).await?;
@@ -145,6 +147,7 @@ impl TransactionTemplateService {
                 auto_record: t.auto_record,
                 paused: t.paused,
                 last_transaction_id: t.last_transaction_id,
+                category: t.category.clone(),
             });
         }
         Ok(dtos)
@@ -190,6 +193,7 @@ impl TransactionTemplateService {
             auto_record: t.auto_record,
             paused: t.paused,
             last_transaction_id: t.last_transaction_id,
+            category: t.category.clone(),
         })
     }
 
@@ -242,6 +246,9 @@ impl TransactionTemplateService {
         }
         if let Some(ar) = dto.auto_record {
             t.auto_record = ar;
+        }
+        if dto.category.is_some() {
+            t.category = dto.category;
         }
 
         self.template_repo.update(&t).await?;
@@ -403,6 +410,54 @@ impl TransactionTemplateService {
         .map_err(|e| TransactionTemplateServiceError::ValidationError(e.to_string()))?;
         self.transaction_repo.create(&transaction).await?;
         Ok(txn_id)
+    }
+    pub async fn list_transactions(
+        &self,
+        template_id: Uuid,
+    ) -> Result<Vec<TransactionDto>, TransactionTemplateServiceError> {
+        let tpl = self
+            .template_repo
+            .find_by_id(template_id)
+            .await?
+            .ok_or(TransactionTemplateServiceError::NotFound(template_id))?;
+        let all_txns = self.transaction_repo.find_all().await?;
+        let prefix = format!("{} - ", tpl.name);
+        let matching: Vec<_> = all_txns
+            .into_iter()
+            .filter(|t| t.description.starts_with(&prefix))
+            .collect();
+
+        let mut dtos = Vec::new();
+        for txn in matching {
+            dtos.push(transaction_to_dto(txn));
+        }
+        Ok(dtos)
+    }
+}
+
+fn transaction_to_dto(transaction: Transaction) -> TransactionDto {
+    TransactionDto {
+        id: transaction.id,
+        transaction_date: transaction.transaction_date,
+        description: transaction.description,
+        entries: transaction
+            .entries
+            .iter()
+            .map(|e| TransactionEntryDto {
+                account_id: e.account_id,
+                chart_of_account_code: e.chart_of_account_code.clone(),
+                debit_amount: e.debit_amount.as_ref().map(|m| m.amount.to_string()),
+                credit_amount: e.credit_amount.as_ref().map(|m| m.amount.to_string()),
+                currency_code: e.currency_code().unwrap_or("UNKNOWN").to_string(),
+                memo: if e.note.is_empty() {
+                    None
+                } else {
+                    Some(e.note.clone())
+                },
+            })
+            .collect(),
+        created_at: transaction.sync_metadata.updated_at.to_rfc3339(),
+        updated_at: transaction.sync_metadata.updated_at.to_rfc3339(),
     }
 }
 

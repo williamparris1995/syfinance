@@ -79,6 +79,7 @@ export function TransactionTemplateForm({
       start_date: z.string().min(1, 'Start date is required'),
       end_date: z.string().optional(),
       description: z.string().optional(),
+      category: z.string().optional(),
     })
     .refine(
       (data) => {
@@ -130,6 +131,7 @@ export function TransactionTemplateForm({
         new Date().toISOString().split('T')[0],
       end_date: initialValues?.end_date || '',
       description: initialValues?.description || '',
+      category: initialValues?.category || '',
     },
   });
 
@@ -165,6 +167,7 @@ export function TransactionTemplateForm({
       start_date: values.start_date,
       end_date: values.end_date || null,
       auto_record: values.auto_record,
+      category: values.category || null,
     };
 
     if (isEdit && initialValues) {
@@ -503,6 +506,31 @@ export function TransactionTemplateForm({
                   <Textarea
                     placeholder={t('transactionTemplate.descriptionPlaceholder')}
                     className="resize-none h-20"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Category */}
+          <FormField
+            control={form.control}
+            name="category"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('transactionTemplate.category')}
+                  <span className="text-muted-foreground/50 font-normal">
+                    {' '}
+                    — {t('common.optional')}
+                  </span>
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder={t('transactionTemplate.categoryPlaceholder')}
+                    className="h-9"
                     {...field}
                   />
                 </FormControl>

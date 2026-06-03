@@ -36,6 +36,7 @@ pub struct TransactionTemplate {
     pub auto_record: bool,
     pub paused: bool,
     pub last_transaction_id: Option<uuid::Uuid>,
+    pub category: Option<String>,
 }
 
 impl TransactionTemplate {

@@ -107,9 +107,9 @@ pub use transaction_commands::{
 #[allow(unused_imports)]
 pub use transaction_template_commands::{
     create_template_default_state_from_pool, create_transaction_template,
-    delete_transaction_template, get_transaction_template, list_transaction_templates,
-    pause_transaction_template, resume_transaction_template, update_transaction_template,
-    TransactionTemplateCommandState,
+    delete_transaction_template, get_transaction_template, list_template_transactions,
+    list_transaction_templates, pause_transaction_template, resume_transaction_template,
+    update_transaction_template, TransactionTemplateCommandState,
 };
 #[allow(unused_imports)]
 pub use report_commands::{get_yoy_comparison, ReportCommandState};

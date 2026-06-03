@@ -18,6 +18,7 @@ pub struct CreateTransactionTemplateDto {
     pub start_date: NaiveDate,
     pub end_date: Option<NaiveDate>,
     pub auto_record: Option<bool>,
+    pub category: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -35,6 +36,7 @@ pub struct UpdateTransactionTemplateDto {
     pub next_date: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,
     pub auto_record: Option<bool>,
+    pub category: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,4 +60,5 @@ pub struct TransactionTemplateDto {
     pub auto_record: bool,
     pub paused: bool,
     pub last_transaction_id: Option<Uuid>,
+    pub category: Option<String>,
 }

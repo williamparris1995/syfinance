@@ -14,6 +14,7 @@ export interface CreateTransactionTemplateDto {
   start_date: string;
   end_date?: string | null;
   auto_record?: boolean;
+  category?: string | null;
 }
 
 export interface UpdateTransactionTemplateDto {
@@ -30,6 +31,7 @@ export interface UpdateTransactionTemplateDto {
   next_date?: string;
   end_date?: string | null;
   auto_record?: boolean;
+  category?: string | null;
 }
 
 export interface TransactionTemplateDto {
@@ -52,6 +54,7 @@ export interface TransactionTemplateDto {
   auto_record: boolean;
   paused: boolean;
   last_transaction_id: string | null;
+  category: string | null;
 }
 
 export const listTransactionTemplates = () =>
@@ -74,3 +77,6 @@ export const pauseTransactionTemplate = (id: string) =>
 
 export const resumeTransactionTemplate = (id: string) =>
   invokeTauri<void>('resume_transaction_template', { id });
+
+export const listTemplateTransactions = (templateId: string) =>
+  invokeTauri<import('./transaction').TransactionDto[]>('list_template_transactions', { templateId });

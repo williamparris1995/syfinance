@@ -1212,6 +1212,10 @@
     "monthlyIncome": "Monthly Income",
     "noAccounts": "No accounts available",
     "templatePaused": "Template paused",
-    "templateResumed": "Template resumed"
+    "templateResumed": "Template resumed",
+    "category": "Category",
+    "categoryPlaceholder": "e.g. Subscription, Rent, Salary",
+    "transactionHistory": "Transaction History",
+    "noTransactions": "No transactions recorded yet"
   }
 }

@@ -1,5 +1,6 @@
 use crate::application::dtos::{
-    CreateTransactionTemplateDto, TransactionTemplateDto, UpdateTransactionTemplateDto,
+    CreateTransactionTemplateDto, TransactionDto, TransactionTemplateDto,
+    UpdateTransactionTemplateDto,
 };
 use crate::application::services::transaction_template_service::TransactionTemplateService;
 use crate::infrastructure::repositories::{
@@ -115,4 +116,17 @@ pub async fn resume_transaction_template(
 ) -> Result<(), String> {
     let id = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
     state.service().resume(id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn list_template_transactions(
+    state: State<'_, TransactionTemplateCommandState>,
+    template_id: String,
+) -> Result<Vec<TransactionDto>, String> {
+    let id = Uuid::parse_str(&template_id).map_err(|e| e.to_string())?;
+    state
+        .service()
+        .list_transactions(id)
+        .await
+        .map_err(|e| e.to_string())
 }

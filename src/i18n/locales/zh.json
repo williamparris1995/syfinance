@@ -1254,6 +1254,10 @@
     "monthlyIncome": "本月循环收入",
     "noAccounts": "暂无可用账户",
     "templatePaused": "模板已暂停",
-    "templateResumed": "模板已恢复"
+    "templateResumed": "模板已恢复",
+    "category": "分类",
+    "categoryPlaceholder": "例如：订阅、房租、工资",
+    "transactionHistory": "交易记录",
+    "noTransactions": "暂无关联交易记录"
   }
 }

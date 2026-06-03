@@ -89,6 +89,7 @@ impl SqliteTransactionTemplateRepository {
                 .map(|s| Uuid::parse_str(&s))
                 .transpose()
                 .map_err(|e| sqlx::Error::Decode(format!("{}", e).into()))?,
+            category: row.try_get("category")?,
         })
     }
 }
@@ -102,8 +103,8 @@ impl TransactionTemplateRepository for SqliteTransactionTemplateRepository {
             TemplateCycle::Custom { days } => ("custom", Some(*days as i32)),
         };
         sqlx::query(
-            "INSERT INTO transaction_templates (id, name, description, amount, direction, source_account_id, destination_account_id, cycle, cycle_days, billing_day, next_date, start_date, end_date, auto_record, paused, last_transaction_id, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO transaction_templates (id, name, description, amount, direction, source_account_id, destination_account_id, cycle, cycle_days, billing_day, next_date, start_date, end_date, auto_record, paused, last_transaction_id, category, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(t.id.to_string())
         .bind(&t.name)
@@ -125,6 +126,7 @@ impl TransactionTemplateRepository for SqliteTransactionTemplateRepository {
         .bind(t.auto_record as i32)
         .bind(t.paused as i32)
         .bind(t.last_transaction_id.map(|id| id.to_string()))
+        .bind(&t.category)
         .bind(Utc::now().to_rfc3339())
         .execute(&self.pool)
         .await?;
@@ -168,7 +170,7 @@ impl TransactionTemplateRepository for SqliteTransactionTemplateRepository {
             TemplateCycle::Custom { days } => ("custom", Some(*days as i32)),
         };
         let r = sqlx::query(
-            "UPDATE transaction_templates SET name=?, description=?, amount=?, direction=?, source_account_id=?, destination_account_id=?, cycle=?, cycle_days=?, billing_day=?, next_date=?, start_date=?, end_date=?, auto_record=?, updated_at=?
+            "UPDATE transaction_templates SET name=?, description=?, amount=?, direction=?, source_account_id=?, destination_account_id=?, cycle=?, cycle_days=?, billing_day=?, next_date=?, start_date=?, end_date=?, auto_record=?, category=?, updated_at=?
              WHERE id=? AND deleted_at IS NULL",
         )
         .bind(&t.name)
@@ -188,6 +190,7 @@ impl TransactionTemplateRepository for SqliteTransactionTemplateRepository {
         .bind(t.start_date.to_string())
         .bind(t.end_date.map(|d| d.to_string()))
         .bind(t.auto_record as i32)
+        .bind(&t.category)
         .bind(Utc::now().to_rfc3339())
         .bind(t.id.to_string())
         .execute(&self.pool)

@@ -11,6 +11,8 @@ import {
   Play,
   Repeat,
   Calendar,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import {
@@ -32,6 +34,7 @@ import {
 import { Input } from '../components/ui/input';
 import { TransactionTemplateForm } from '../components/TransactionTemplateForm';
 import { getUserFriendlyError } from '../lib/error-handler';
+import { useListTemplateTransactions } from '../hooks/useTransactionTemplate';
 import {
   createTransactionTemplate,
   listTransactionTemplates,
@@ -78,6 +81,9 @@ export function TransactionTemplatesPage() {
   const [filterDirection, setFilterDirection] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const { data: expandedTransactions = [] } = useListTemplateTransactions(expandedId);
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['transactionTemplates'],
@@ -389,6 +395,7 @@ export function TransactionTemplatesPage() {
                   />
                   <TableHead>{t('transactionTemplate.cycle')}</TableHead>
                   <TableHead>{t('transactionTemplate.direction')}</TableHead>
+                  <TableHead>{t('transactionTemplate.category')}</TableHead>
                   <SortHeader
                     label={t('transactionTemplate.nextDate')}
                     sortKeyName="next_date"
@@ -403,7 +410,7 @@ export function TransactionTemplatesPage() {
                 {sortedTemplates.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="text-center py-8 text-muted-foreground text-xs"
                     >
                       {t('transactionTemplate.noTemplates')}
@@ -414,16 +421,30 @@ export function TransactionTemplatesPage() {
                     const daysUntil = getDaysUntil(tpl.next_date);
 
                     return (
-                      <TableRow key={tpl.id}>
+                      <React.Fragment key={tpl.id}>
+                      <TableRow>
                         {/* Name */}
                         <TableCell className="font-medium">
-                          <div>
-                            {tpl.name}
-                            {tpl.description && (
-                              <div className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-48">
-                                {tpl.description}
-                              </div>
-                            )}
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              className="p-0.5 hover:bg-muted rounded"
+                              onClick={() => setExpandedId(expandedId === tpl.id ? null : tpl.id)}
+                            >
+                              {expandedId === tpl.id ? (
+                                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                              )}
+                            </button>
+                            <div>
+                              {tpl.name}
+                              {tpl.description && (
+                                <div className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-48">
+                                  {tpl.description}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </TableCell>
 
@@ -455,6 +476,11 @@ export function TransactionTemplatesPage() {
                           >
                             {t(`transactionTemplate.${tpl.direction}`)}
                           </Badge>
+                        </TableCell>
+
+                        {/* Category */}
+                        <TableCell className="text-xs text-muted-foreground">
+                          {tpl.category || '-'}
                         </TableCell>
 
                         {/* Next date */}
@@ -573,6 +599,56 @@ export function TransactionTemplatesPage() {
                           )}
                         </TableCell>
                       </TableRow>
+                      {/* Expanded transaction history */}
+                      {expandedId === tpl.id && (
+                        <TableRow>
+                          <TableCell colSpan={8} className="bg-muted/30 px-8 py-3">
+                            <div className="text-xs">
+                              <div className="font-medium mb-2 text-muted-foreground uppercase tracking-wider">
+                                {t('transactionTemplate.transactionHistory')}
+                              </div>
+                              {expandedTransactions.length === 0 ? (
+                                <div className="text-muted-foreground py-2">
+                                  {t('transactionTemplate.noTransactions')}
+                                </div>
+                              ) : (
+                                <div className="space-y-1">
+                                  {expandedTransactions.map((txn) => (
+                                    <div
+                                      key={txn.id}
+                                      className="flex items-center justify-between py-1 border-b border-border/50 last:border-0"
+                                    >
+                                      <div className="flex-1">
+                                        <span className="text-muted-foreground mr-2">
+                                          {txn.transaction_date}
+                                        </span>
+                                        <span>{txn.description}</span>
+                                      </div>
+                                      <div className="flex gap-2">
+                                        {txn.entries.map((entry, idx) => (
+                                          <span key={idx} className="text-muted-foreground">
+                                            {entry.debit_amount && (
+                                              <span className="text-red-600">
+                                                -{entry.debit_amount}
+                                              </span>
+                                            )}
+                                            {entry.credit_amount && (
+                                              <span className="text-emerald-600">
+                                                +{entry.credit_amount}
+                                              </span>
+                                            )}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      </React.Fragment>
                     );
                   })
                 )}
