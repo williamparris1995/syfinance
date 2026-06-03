@@ -6,7 +6,6 @@ pub mod goal;
 pub mod holding;
 pub mod reminder;
 pub mod security;
-pub mod subscription;
 pub mod tag;
 pub mod transaction;
 pub mod transaction_template;
@@ -23,8 +22,6 @@ pub use chart_of_accounts::{
 pub use holding::{Holding, HoldingTransaction, HoldingTransactionType};
 #[allow(unused_imports)]
 pub use reminder::{Reminder, ReminderError, ReminderType, RepeatPattern};
-#[allow(unused_imports)]
-pub use subscription::{Subscription, SubscriptionCycle, SubscriptionDirection};
 #[allow(unused_imports)]
 pub use tag::Tag;
 #[allow(unused_imports)]

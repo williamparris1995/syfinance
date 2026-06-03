@@ -8,7 +8,6 @@ import {
   HardDrive,
   HelpCircle,
   TrendingUp,
-  CalendarClock,
   PiggyBank,
   Target,
   Repeat,
@@ -82,13 +81,6 @@ export function Sidebar({ onNavigate, collapsed }: SidebarProps) {
               to="/reminders"
               label={t('nav.reminders')}
               icon={Bell}
-              onClick={onNavigate}
-              collapsed={collapsed}
-            />
-            <SidebarMenuItem
-              to="/subscriptions"
-              label={t('nav.subscriptions')}
-              icon={CalendarClock}
               onClick={onNavigate}
               collapsed={collapsed}
             />

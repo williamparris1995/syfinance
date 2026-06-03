@@ -10,7 +10,6 @@ import { GoalsPage } from './pages/GoalsPage';
 import { HoldingsPage } from './pages/HoldingsPage';
 import { HomePage } from './pages/HomePage';
 import { RemindersPage } from './pages/RemindersPage';
-import { SubscriptionsPage } from './pages/SubscriptionsPage';
 import { TransactionTemplatesPage } from './pages/TransactionTemplatesPage';
 import { NewAccountPage } from './pages/NewAccountPage';
 import { NewDebtPage } from './pages/NewDebtPage';
@@ -82,12 +81,6 @@ const remindersRoute = createRoute({
   component: RemindersPage,
 });
 
-const subscriptionsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: 'subscriptions',
-  component: SubscriptionsPage,
-});
-
 const transactionTemplatesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'transaction-templates',
@@ -155,7 +148,6 @@ const routeTree = rootRoute.addChildren([
   debtsRoute.addChildren([newDebtRoute]),
   holdingsRoute,
   remindersRoute,
-  subscriptionsRoute,
   transactionTemplatesRoute,
   budgetRoute,
   goalsRoute,

@@ -6,7 +6,6 @@ pub mod goal_service;
 pub mod holding_service;
 pub mod prepaid_service;
 pub mod report_service;
-pub mod subscription_service;
 pub mod transaction_service;
 pub mod transaction_template_service;
 
@@ -23,8 +22,6 @@ pub use goal_service::{GoalService, GoalServiceError};
 #[allow(unused_imports)]
 pub use holding_service::{HoldingService, HoldingServiceError};
 pub use prepaid_service::PrepaidService;
-#[allow(unused_imports)]
-pub use subscription_service::{SubscriptionService, SubscriptionServiceError};
 pub use transaction_service::TransactionService;
 #[allow(unused_imports)]
 pub use transaction_template_service::{

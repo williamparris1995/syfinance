@@ -3,7 +3,6 @@ mod debt_repository;
 mod goal_repository;
 mod prepaid_repository;
 mod reminder_repository;
-mod subscription_repository;
 mod tag_repository;
 mod transaction_template_repository;
 
@@ -23,7 +22,6 @@ pub use debt_repository::DebtRepository;
 pub use goal_repository::GoalRepository;
 pub use prepaid_repository::PrepaidRepository;
 pub use reminder_repository::ReminderRepository;
-pub use subscription_repository::SubscriptionRepository;
 pub use tag_repository::TagRepository;
 pub use transaction_template_repository::TransactionTemplateRepository;
 

@@ -11,7 +11,6 @@ pub mod prepaid_repository;
 pub mod reminder_repository;
 pub mod reminder_repository_postgres;
 pub mod security_repository;
-pub mod subscription_repository;
 pub mod tag_repository;
 pub mod transaction_repository;
 pub mod transaction_repository_postgres;
@@ -35,7 +34,6 @@ pub use reminder_repository::SqliteReminderRepository;
 #[allow(unused_imports)]
 pub use reminder_repository_postgres::PostgresReminderRepository;
 pub use security_repository::SqliteSecurityRepository;
-pub use subscription_repository::SqliteSubscriptionRepository;
 pub use tag_repository::SqliteTagRepository;
 pub use transaction_repository::SqliteTransactionRepository;
 #[allow(unused_imports)]

@@ -12,7 +12,6 @@ pub mod prepaid_commands;
 pub mod reminder_commands;
 pub mod report_commands;
 pub mod search_commands;
-pub mod subscription_commands;
 pub mod sync_commands;
 pub mod tag_commands;
 pub mod transaction_commands;
@@ -81,12 +80,6 @@ pub use reminder_commands::{
 #[allow(unused_imports)]
 pub use search_commands::{
     create_search_default_state, global_search, rebuild_search_index, SearchCommandState,
-};
-#[allow(unused_imports)]
-pub use subscription_commands::{
-    create_default_state_from_pool as create_subscription_default_state, create_subscription,
-    delete_subscription, get_subscription, list_subscription_transactions, list_subscriptions,
-    pause_subscription, resume_subscription, update_subscription, SubscriptionCommandState,
 };
 #[allow(unused_imports)]
 pub use sync_commands::{
