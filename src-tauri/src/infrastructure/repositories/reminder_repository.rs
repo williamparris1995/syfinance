@@ -1,7 +1,5 @@
 use crate::domain::{
-    aggregates::Reminder,
-    repositories::ReminderRepository,
-    value_objects::SyncMetadata,
+    aggregates::Reminder, repositories::ReminderRepository, value_objects::SyncMetadata,
 };
 use chrono::{DateTime, Utc};
 use sqlx::{Row, SqlitePool};

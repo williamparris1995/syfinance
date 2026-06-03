@@ -300,9 +300,7 @@ pub async fn convert_currency(
 }
 
 #[tauri::command]
-pub async fn fetch_exchange_rates(
-    state: State<'_, CurrencyCommandState>,
-) -> Result<usize, String> {
+pub async fn fetch_exchange_rates(state: State<'_, CurrencyCommandState>) -> Result<usize, String> {
     let rates = CurrencyRateFetcher::fetch_rates().await?;
     CurrencyRateFetcher::update_rates_in_db(state.pool(), &rates).await
 }

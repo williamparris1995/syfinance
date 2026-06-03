@@ -14,8 +14,8 @@ pub mod security_repository;
 pub mod subscription_repository;
 pub mod tag_repository;
 pub mod transaction_repository;
-pub mod transaction_template_repository;
 pub mod transaction_repository_postgres;
+pub mod transaction_template_repository;
 
 pub use account_repository::SqliteAccountRepository;
 // Re-exports form the library's public API surface, used by tests and external consumers.
@@ -38,6 +38,6 @@ pub use security_repository::SqliteSecurityRepository;
 pub use subscription_repository::SqliteSubscriptionRepository;
 pub use tag_repository::SqliteTagRepository;
 pub use transaction_repository::SqliteTransactionRepository;
-pub use transaction_template_repository::SqliteTransactionTemplateRepository;
 #[allow(unused_imports)]
 pub use transaction_repository_postgres::PostgresTransactionRepository;
+pub use transaction_template_repository::SqliteTransactionTemplateRepository;

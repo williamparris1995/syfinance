@@ -120,10 +120,7 @@ pub async fn update_tag(
 }
 
 #[tauri::command]
-pub async fn soft_delete_tag(
-    state: State<'_, TagCommandState>,
-    id: String,
-) -> Result<(), String> {
+pub async fn soft_delete_tag(state: State<'_, TagCommandState>, id: String) -> Result<(), String> {
     state
         .repository()
         .soft_delete(&id)

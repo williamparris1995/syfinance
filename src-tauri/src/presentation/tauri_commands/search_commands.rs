@@ -35,7 +35,13 @@ pub async fn global_search(
     let escaped_query: String = query
         .chars()
         .filter(|c| !['*', '^', '#'].contains(c))
-        .map(|c| if c == '"' { "\"\"".to_string() } else { c.to_string() })
+        .map(|c| {
+            if c == '"' {
+                "\"\"".to_string()
+            } else {
+                c.to_string()
+            }
+        })
         .collect();
 
     let fts_query = format!("\"{}\"*", escaped_query);
@@ -198,15 +204,17 @@ pub async fn global_search(
     }
 
     // Sort all results by rank (lower is better relevance)
-    results.sort_by(|a, b| a.rank.partial_cmp(&b.rank).unwrap_or(std::cmp::Ordering::Equal));
+    results.sort_by(|a, b| {
+        a.rank
+            .partial_cmp(&b.rank)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     Ok(results)
 }
 
 #[tauri::command]
-pub async fn rebuild_search_index(
-    state: State<'_, SearchCommandState>,
-) -> Result<(), String> {
+pub async fn rebuild_search_index(state: State<'_, SearchCommandState>) -> Result<(), String> {
     info!("Rebuilding FTS5 search index");
 
     sqlx::query("INSERT INTO fts_accounts(fts_accounts) VALUES('rebuild')")

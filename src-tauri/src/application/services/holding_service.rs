@@ -335,10 +335,12 @@ impl HoldingService {
     // --- DIVIDEND ---
 
     pub async fn record_dividend(&self, dto: DividendDto) -> Result<Uuid, HoldingServiceError> {
-        let account_id = Uuid::parse_str(&dto.account_id)
-            .map_err(|e| HoldingServiceError::ValidationError(format!("invalid account_id: {e}")))?;
-        let security_id = Uuid::parse_str(&dto.security_id)
-            .map_err(|e| HoldingServiceError::ValidationError(format!("invalid security_id: {e}")))?;
+        let account_id = Uuid::parse_str(&dto.account_id).map_err(|e| {
+            HoldingServiceError::ValidationError(format!("invalid account_id: {e}"))
+        })?;
+        let security_id = Uuid::parse_str(&dto.security_id).map_err(|e| {
+            HoldingServiceError::ValidationError(format!("invalid security_id: {e}"))
+        })?;
 
         let account = self
             .account_repo
@@ -351,12 +353,14 @@ impl HoldingService {
             .await?
             .ok_or(HoldingServiceError::SecurityNotFound(security_id))?;
 
-        let cash_per_share = Decimal::from_str_exact(&dto.cash_per_share)
-            .map_err(|e| HoldingServiceError::ValidationError(format!("invalid cash_per_share: {e}")))?;
+        let cash_per_share = Decimal::from_str_exact(&dto.cash_per_share).map_err(|e| {
+            HoldingServiceError::ValidationError(format!("invalid cash_per_share: {e}"))
+        })?;
         let quantity = Decimal::from_str_exact(&dto.quantity)
             .map_err(|e| HoldingServiceError::ValidationError(format!("invalid quantity: {e}")))?;
-        let total_amount = Decimal::from_str_exact(&dto.total_amount)
-            .map_err(|e| HoldingServiceError::ValidationError(format!("invalid total_amount: {e}")))?;
+        let total_amount = Decimal::from_str_exact(&dto.total_amount).map_err(|e| {
+            HoldingServiceError::ValidationError(format!("invalid total_amount: {e}"))
+        })?;
         let fee = dto
             .fee
             .as_deref()
@@ -364,8 +368,10 @@ impl HoldingService {
             .transpose()
             .map_err(|e| HoldingServiceError::ValidationError(format!("invalid fee: {e}")))?
             .unwrap_or(Decimal::ZERO);
-        let trade_date = chrono::NaiveDate::parse_from_str(&dto.trade_date, "%Y-%m-%d")
-            .map_err(|e| HoldingServiceError::ValidationError(format!("invalid trade_date: {e}")))?;
+        let trade_date =
+            chrono::NaiveDate::parse_from_str(&dto.trade_date, "%Y-%m-%d").map_err(|e| {
+                HoldingServiceError::ValidationError(format!("invalid trade_date: {e}"))
+            })?;
 
         if total_amount <= Decimal::ZERO {
             return Err(HoldingServiceError::ValidationError(
@@ -462,12 +468,15 @@ impl HoldingService {
     // --- SPLIT ---
 
     pub async fn record_split(&self, dto: SplitDto) -> Result<(), HoldingServiceError> {
-        let holding_id = Uuid::parse_str(&dto.holding_id)
-            .map_err(|e| HoldingServiceError::ValidationError(format!("invalid holding_id: {e}")))?;
+        let holding_id = Uuid::parse_str(&dto.holding_id).map_err(|e| {
+            HoldingServiceError::ValidationError(format!("invalid holding_id: {e}"))
+        })?;
         let ratio = Decimal::from_str_exact(&dto.ratio)
             .map_err(|e| HoldingServiceError::ValidationError(format!("invalid ratio: {e}")))?;
-        let trade_date = chrono::NaiveDate::parse_from_str(&dto.trade_date, "%Y-%m-%d")
-            .map_err(|e| HoldingServiceError::ValidationError(format!("invalid trade_date: {e}")))?;
+        let trade_date =
+            chrono::NaiveDate::parse_from_str(&dto.trade_date, "%Y-%m-%d").map_err(|e| {
+                HoldingServiceError::ValidationError(format!("invalid trade_date: {e}"))
+            })?;
 
         if ratio <= Decimal::ZERO {
             return Err(HoldingServiceError::ValidationError(

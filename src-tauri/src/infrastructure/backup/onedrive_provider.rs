@@ -207,9 +207,7 @@ impl CloudProvider for OneDriveProvider {
         let mut backups = Vec::new();
         for entry in entries {
             // Skip folders
-            let is_folder = entry
-                .get("folder")
-                .is_some();
+            let is_folder = entry.get("folder").is_some();
             if is_folder {
                 continue;
             }
@@ -223,10 +221,7 @@ impl CloudProvider for OneDriveProvider {
                 continue;
             }
 
-            let size = entry
-                .get("size")
-                .and_then(|s| s.as_u64())
-                .unwrap_or(0);
+            let size = entry.get("size").and_then(|s| s.as_u64()).unwrap_or(0);
 
             let last_modified = entry
                 .get("lastModifiedDateTime")

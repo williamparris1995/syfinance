@@ -68,7 +68,12 @@ pub async fn authorize_with_pkce(
 
     // 3. Start local TCP server to receive callback
     let listener = std::net::TcpListener::bind(format!("127.0.0.1:{}", config.redirect_port))
-        .map_err(|e| format!("failed to bind callback port {}: {}", config.redirect_port, e))?;
+        .map_err(|e| {
+            format!(
+                "failed to bind callback port {}: {}",
+                config.redirect_port, e
+            )
+        })?;
 
     listener
         .set_nonblocking(true)
@@ -204,7 +209,9 @@ async fn exchange_code_for_tokens(
         let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
         error!(status = %status, body = %body, "Token exchange failed");
-        return Err(format!("token exchange failed with status {status}: {body}"));
+        return Err(format!(
+            "token exchange failed with status {status}: {body}"
+        ));
     }
 
     let tokens: serde_json::Value = resp
@@ -317,7 +324,11 @@ fn open_url(url: &str, app_handle: &tauri::AppHandle) -> Result<(), String> {
 ///
 /// Client IDs are stored in the `cloud_settings` table.
 /// For now, returns a default config with empty client_id that must be configured by the user.
-pub fn get_oauth_config(provider: &str, client_id: &str, client_secret: Option<&str>) -> OAuthConfig {
+pub fn get_oauth_config(
+    provider: &str,
+    client_id: &str,
+    client_secret: Option<&str>,
+) -> OAuthConfig {
     match provider {
         "dropbox" => OAuthConfig {
             client_id: client_id.to_string(),
@@ -360,6 +371,6 @@ pub fn get_oauth_config(provider: &str, client_id: &str, client_secret: Option<&
 pub fn is_token_expired(expires_at: Option<i64>) -> bool {
     match expires_at {
         Some(exp) => Utc::now().timestamp() >= exp - 60, // 60-second buffer
-        None => false, // No expiry info, assume still valid
+        None => false,                                   // No expiry info, assume still valid
     }
 }

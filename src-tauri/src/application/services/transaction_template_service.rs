@@ -6,11 +6,11 @@ use crate::domain::aggregates::transaction_template::{
 };
 use crate::domain::aggregates::Transaction;
 use crate::domain::repositories::{
-    AccountRepository, TransactionTemplateRepository, TransactionRepository,
+    AccountRepository, TransactionRepository, TransactionTemplateRepository,
 };
 use crate::domain::value_objects::{Money, SyncMetadata, TransactionEntry};
 use crate::infrastructure::repositories::{
-    SqliteAccountRepository, SqliteTransactionTemplateRepository, SqliteTransactionRepository,
+    SqliteAccountRepository, SqliteTransactionRepository, SqliteTransactionTemplateRepository,
 };
 use chrono::NaiveDate;
 use std::sync::Arc;
@@ -78,10 +78,9 @@ impl TransactionTemplateService {
             ))?;
 
         if let Some(dest_id) = dto.destination_account_id {
-            self.account_repo
-                .find_by_id(dest_id)
-                .await?
-                .ok_or(TransactionTemplateServiceError::DestinationAccountNotFound(dest_id))?;
+            self.account_repo.find_by_id(dest_id).await?.ok_or(
+                TransactionTemplateServiceError::DestinationAccountNotFound(dest_id),
+            )?;
         }
 
         let cycle = parse_cycle(&dto.cycle, dto.cycle_days)?;
@@ -127,14 +126,9 @@ impl TransactionTemplateService {
                 amount: t.amount,
                 direction: direction_to_str(&t.direction),
                 source_account_id: t.source_account_id,
-                source_account_name: account
-                    .as_ref()
-                    .map(|a| a.name.clone())
-                    .unwrap_or_default(),
+                source_account_name: account.as_ref().map(|a| a.name.clone()).unwrap_or_default(),
                 destination_account_id: t.destination_account_id,
-                destination_account_name: dest_account
-                    .as_ref()
-                    .map(|a| a.name.clone()),
+                destination_account_name: dest_account.as_ref().map(|a| a.name.clone()),
                 currency_code: account
                     .as_ref()
                     .map(|a| a.currency_code.clone())
@@ -177,10 +171,7 @@ impl TransactionTemplateService {
             amount: t.amount,
             direction: direction_to_str(&t.direction),
             source_account_id: t.source_account_id,
-            source_account_name: account
-                .as_ref()
-                .map(|a| a.name.clone())
-                .unwrap_or_default(),
+            source_account_name: account.as_ref().map(|a| a.name.clone()).unwrap_or_default(),
             destination_account_id: t.destination_account_id,
             destination_account_name: dest_account.as_ref().map(|a| a.name.clone()),
             currency_code: account
@@ -232,10 +223,9 @@ impl TransactionTemplateService {
             t.source_account_id = aid;
         }
         if let Some(ref dest_id) = dto.destination_account_id {
-            self.account_repo
-                .find_by_id(*dest_id)
-                .await?
-                .ok_or(TransactionTemplateServiceError::DestinationAccountNotFound(*dest_id))?;
+            self.account_repo.find_by_id(*dest_id).await?.ok_or(
+                TransactionTemplateServiceError::DestinationAccountNotFound(*dest_id),
+            )?;
             t.destination_account_id = Some(*dest_id);
         }
         if let Some(ref cyc) = dto.cycle {
@@ -287,14 +277,14 @@ impl TransactionTemplateService {
                     updated.advance_to_next();
                     if let Err(e) = self
                         .template_repo
-                        .update_next_date(updated.id, updated.next_date, updated.last_transaction_id)
+                        .update_next_date(
+                            updated.id,
+                            updated.next_date,
+                            updated.last_transaction_id,
+                        )
                         .await
                     {
-                        tracing::error!(
-                            "Failed to update next date for template {}: {}",
-                            t.id,
-                            e
-                        );
+                        tracing::error!("Failed to update next date for template {}: {}", t.id, e);
                         continue;
                     }
                     processed += 1;
@@ -371,18 +361,14 @@ impl TransactionTemplateService {
                 ]
             }
             TemplateDirection::Transfer => {
-                let dest_id = t
-                    .destination_account_id
-                    .ok_or(TransactionTemplateServiceError::ValidationError(
+                let dest_id = t.destination_account_id.ok_or(
+                    TransactionTemplateServiceError::ValidationError(
                         "destination account required for transfer".into(),
-                    ))?;
-                let dest_account = self
-                    .account_repo
-                    .find_by_id(dest_id)
-                    .await?
-                    .ok_or(TransactionTemplateServiceError::DestinationAccountNotFound(
-                        dest_id,
-                    ))?;
+                    ),
+                )?;
+                let dest_account = self.account_repo.find_by_id(dest_id).await?.ok_or(
+                    TransactionTemplateServiceError::DestinationAccountNotFound(dest_id),
+                )?;
                 let dest_chart = dest_account.chart_code.as_deref().unwrap_or("1002");
                 let amount_money = Money::new(t.amount, &source_account.currency_code)
                     .map_err(|e| TransactionTemplateServiceError::ValidationError(e.to_string()))?;
@@ -437,9 +423,7 @@ fn parse_cycle(
     }
 }
 
-fn parse_direction(
-    s: &str,
-) -> Result<TemplateDirection, TransactionTemplateServiceError> {
+fn parse_direction(s: &str) -> Result<TemplateDirection, TransactionTemplateServiceError> {
     match s {
         "expense" => Ok(TemplateDirection::Expense),
         "income" => Ok(TemplateDirection::Income),

@@ -13,6 +13,7 @@ use crate::domain::aggregates::{
     Account, AccountType, ChartOfAccounts, ChartOfAccountsType, Ownership, Transaction,
 };
 use crate::domain::value_objects::Currency;
+use crate::domain::value_objects::PaginatedResult;
 use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use uuid::Uuid;
@@ -82,6 +83,16 @@ pub trait TransactionRepository: Send + Sync {
     async fn get_changes_since(&self, timestamp: DateTime<Utc>) -> sqlx::Result<Vec<Transaction>>;
 
     async fn mark_as_synced(&self, id: Uuid) -> sqlx::Result<bool>;
+
+    async fn find_paginated(
+        &self,
+        first: i64,
+        after: Option<&str>,
+        before: Option<&str>,
+        account_id: Option<Uuid>,
+        start_date: Option<NaiveDate>,
+        end_date: Option<NaiveDate>,
+    ) -> sqlx::Result<PaginatedResult<Transaction>>;
 }
 
 #[allow(async_fn_in_trait, dead_code)]
@@ -178,4 +189,12 @@ pub trait HoldingRepository: Send + Sync {
     ) -> sqlx::Result<()>;
     async fn soft_delete_holding_by_id(&self, holding_id: Uuid) -> sqlx::Result<bool>;
     async fn find_holding_by_id(&self, id: Uuid) -> sqlx::Result<Option<Holding>>;
+
+    async fn find_transactions_paginated(
+        &self,
+        holding_id: Uuid,
+        first: i64,
+        after: Option<&str>,
+        before: Option<&str>,
+    ) -> sqlx::Result<PaginatedResult<HoldingTransaction>>;
 }

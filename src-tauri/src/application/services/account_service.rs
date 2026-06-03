@@ -418,10 +418,7 @@ mod tests {
             Ok(HashMap::new())
         }
 
-        async fn compute_balance_for_account(
-            &self,
-            _id: Uuid,
-        ) -> Result<Decimal, sqlx::Error> {
+        async fn compute_balance_for_account(&self, _id: Uuid) -> Result<Decimal, sqlx::Error> {
             Ok(Decimal::ZERO)
         }
 

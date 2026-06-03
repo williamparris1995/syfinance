@@ -42,9 +42,7 @@ impl TransactionTemplate {
     // TODO: will be used when template service uses domain methods directly
     #[allow(dead_code)]
     pub fn is_due(&self, today: NaiveDate) -> bool {
-        !self.paused
-            && self.next_date <= today
-            && self.end_date.is_none_or(|end| today <= end)
+        !self.paused && self.next_date <= today && self.end_date.is_none_or(|end| today <= end)
     }
 
     pub fn calculate_next_date(&self) -> Option<NaiveDate> {

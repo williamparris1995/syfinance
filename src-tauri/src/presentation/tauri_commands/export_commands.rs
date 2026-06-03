@@ -136,11 +136,9 @@ pub async fn export_csv(
         .set_file_name("finance-export.csv")
         .add_filter("CSV", &["csv"])
         .save_file(move |path: Option<tauri_plugin_dialog::FilePath>| {
-            let _ = tx.send(path.map(|p| {
-                match p {
-                    tauri_plugin_dialog::FilePath::Path(p) => p.to_string_lossy().to_string(),
-                    tauri_plugin_dialog::FilePath::Url(u) => u.to_string(),
-                }
+            let _ = tx.send(path.map(|p| match p {
+                tauri_plugin_dialog::FilePath::Path(p) => p.to_string_lossy().to_string(),
+                tauri_plugin_dialog::FilePath::Url(u) => u.to_string(),
             }));
         });
 
@@ -151,8 +149,8 @@ pub async fn export_csv(
 
     tracing::info!(file_path = %file_path, "Exporting CSV");
 
-    let mut wtr = csv::Writer::from_path(&file_path)
-        .map_err(|e| format!("Failed to create CSV: {}", e))?;
+    let mut wtr =
+        csv::Writer::from_path(&file_path).map_err(|e| format!("Failed to create CSV: {}", e))?;
 
     wtr.write_record(&["table", "id", "field", "value"])
         .map_err(|e| format!("CSV write error: {}", e))?;
@@ -173,21 +171,17 @@ pub async fn export_csv(
     let mut total_rows = 0usize;
 
     for table in &tables {
-        let rows: Vec<serde_json::Value> =
-            sqlx::query(&format!("SELECT * FROM {}", table))
-                .fetch_all(&state.pool)
-                .await
-                .map_err(|e| format!("Query {} failed: {}", table, e))?
-                .into_iter()
-                .map(|row| row_to_json(&row))
-                .collect();
+        let rows: Vec<serde_json::Value> = sqlx::query(&format!("SELECT * FROM {}", table))
+            .fetch_all(&state.pool)
+            .await
+            .map_err(|e| format!("Query {} failed: {}", table, e))?
+            .into_iter()
+            .map(|row| row_to_json(&row))
+            .collect();
 
         for row in &rows {
             if let Some(obj) = row.as_object() {
-                let id = obj
-                    .get("id")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("unknown");
+                let id = obj.get("id").and_then(|v| v.as_str()).unwrap_or("unknown");
                 for (key, value) in obj {
                     if key == "id" {
                         continue;

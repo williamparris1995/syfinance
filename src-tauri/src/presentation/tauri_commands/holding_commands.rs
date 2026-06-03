@@ -160,10 +160,7 @@ pub async fn record_dividend(
 }
 
 #[tauri::command]
-pub async fn record_split(
-    state: State<'_, AppState>,
-    dto: SplitDto,
-) -> Result<(), String> {
+pub async fn record_split(state: State<'_, AppState>, dto: SplitDto) -> Result<(), String> {
     state
         .service()
         .record_split(dto)

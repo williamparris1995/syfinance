@@ -223,8 +223,7 @@ pub async fn get_account_balance_history(
     account_id: String,
     days: Option<i32>,
 ) -> Result<Vec<BalanceHistoryPoint>, String> {
-    let id = Uuid::parse_str(&account_id)
-        .map_err(|e| format!("Invalid account ID: {}", e))?;
+    let id = Uuid::parse_str(&account_id).map_err(|e| format!("Invalid account ID: {}", e))?;
     let days = days.unwrap_or(30);
 
     let repo = state.inner().repository();

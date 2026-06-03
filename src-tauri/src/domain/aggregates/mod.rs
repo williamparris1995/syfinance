@@ -28,6 +28,6 @@ pub use subscription::{Subscription, SubscriptionCycle, SubscriptionDirection};
 #[allow(unused_imports)]
 pub use tag::Tag;
 #[allow(unused_imports)]
-pub use transaction_template::{TemplateCycle, TemplateDirection, TransactionTemplate};
-#[allow(unused_imports)]
 pub use transaction::{Transaction, TransactionError, TransactionEvent};
+#[allow(unused_imports)]
+pub use transaction_template::{TemplateCycle, TemplateDirection, TransactionTemplate};

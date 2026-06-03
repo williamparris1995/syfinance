@@ -462,14 +462,16 @@ pub async fn update_auto_backup_settings(
     .await
     .map_err(|e| format!("failed to update auto backup settings: {e}"))?;
 
-    info!(enabled = enabled, interval_hours = interval_hours, "Auto backup settings updated");
+    info!(
+        enabled = enabled,
+        interval_hours = interval_hours,
+        "Auto backup settings updated"
+    );
     Ok(())
 }
 
 /// Read auto backup settings directly from pool (for background scheduler).
-pub async fn read_auto_backup_settings(
-    pool: &SqlitePool,
-) -> Result<AutoBackupSettings, String> {
+pub async fn read_auto_backup_settings(pool: &SqlitePool) -> Result<AutoBackupSettings, String> {
     let row = sqlx::query_as::<_, (bool, i64, i64, Option<String>)>(
         "SELECT enabled, interval_hours, max_backups, last_backup_at FROM auto_backup_settings WHERE id = 1",
     )

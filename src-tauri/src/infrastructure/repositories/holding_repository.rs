@@ -1,5 +1,6 @@
 use crate::domain::aggregates::holding::{Holding, HoldingTransaction, HoldingTransactionType};
 use crate::domain::repositories::HoldingRepository;
+use crate::domain::value_objects::{build_cursor, PaginatedResult, PageInfo, SortCursor};
 use chrono::{NaiveDate, Utc};
 use rust_decimal::Decimal;
 use sqlx::{Row, SqlitePool};
@@ -296,5 +297,211 @@ impl HoldingRepository for SqliteHoldingRepository {
         .fetch_optional(&self.pool)
         .await?;
         row.map(|r| Self::row_to_holding(&r)).transpose()
+    }
+
+    async fn find_transactions_paginated(
+        &self,
+        holding_id: Uuid,
+        first: i64,
+        after: Option<&str>,
+        before: Option<&str>,
+    ) -> sqlx::Result<PaginatedResult<HoldingTransaction>> {
+        let limit = first.min(200) + 1;
+
+        // Resolve holding_id -> (account_id, security_id)
+        let holding_row = sqlx::query(
+            "SELECT account_id, security_id FROM holdings WHERE id = ? AND deleted_at IS NULL",
+        )
+        .bind(holding_id.to_string())
+        .fetch_optional(&self.pool)
+        .await?;
+
+        let holding_row = holding_row.ok_or_else(|| {
+            sqlx::Error::RowNotFound
+        })?;
+        let account_id: String = holding_row.try_get("account_id")?;
+        let security_id: String = holding_row.try_get("security_id")?;
+
+        // Handle backward paging
+        if let Some(before_cursor) = before {
+            return self
+                .fetch_ht_page_backward(
+                    &account_id,
+                    &security_id,
+                    before_cursor,
+                    first,
+                    limit,
+                )
+                .await;
+        }
+
+        // Decode forward cursor
+        let (cursor_date, cursor_id) = if let Some(after_str) = after {
+            let cursor = SortCursor::decode(after_str)
+                .map_err(|e| sqlx::Error::Decode(e.into()))?;
+            let date = cursor
+                .get("trade_date")
+                .ok_or_else(|| {
+                    sqlx::Error::Decode("Missing trade_date in cursor".into())
+                })?
+                .to_string();
+            let id = cursor
+                .get("id")
+                .ok_or_else(|| sqlx::Error::Decode("Missing id in cursor".into()))?
+                .to_string();
+            (Some(date), Some(id))
+        } else {
+            (None, None)
+        };
+
+        // Build dynamic SQL
+        let mut sql = String::from(
+            "SELECT id, account_id, security_id, type, CAST(quantity AS TEXT) as quantity, \
+             CAST(price AS TEXT) as price, CAST(amount AS TEXT) as amount, \
+             CAST(fee AS TEXT) as fee, trade_date, transaction_id, notes \
+             FROM holding_transactions WHERE account_id = ? AND security_id = ? AND deleted_at IS NULL",
+        );
+
+        if cursor_date.is_some() {
+            sql.push_str(" AND (trade_date, id) < (?, ?)");
+        }
+
+        sql.push_str(" ORDER BY trade_date DESC, id DESC LIMIT ?");
+
+        let mut query = sqlx::query(&sql);
+        query = query.bind(&account_id).bind(&security_id);
+
+        if cursor_date.is_some() {
+            query = query.bind(cursor_date.as_deref().unwrap());
+            query = query.bind(cursor_id.as_deref().unwrap());
+        }
+        query = query.bind(limit);
+
+        let rows = query.fetch_all(&self.pool).await?;
+
+        let has_next_page = rows.len() > first as usize;
+        let page_rows = if has_next_page {
+            &rows[..first as usize]
+        } else {
+            &rows
+        };
+
+        let items: Vec<HoldingTransaction> = page_rows
+            .iter()
+            .map(Self::row_to_ht)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        // Build cursors
+        let next_cursor = if has_next_page && !page_rows.is_empty() {
+            let last = &page_rows[page_rows.len() - 1];
+            let last_date: String = last.try_get("trade_date")?;
+            let last_id: String = last.try_get("id")?;
+            build_cursor(vec![("trade_date", last_date), ("id", last_id)])
+        } else {
+            None
+        };
+
+        let prev_cursor = if after.is_some() && !page_rows.is_empty() {
+            let first_row = &page_rows[0];
+            let first_date: String = first_row.try_get("trade_date")?;
+            let first_id: String = first_row.try_get("id")?;
+            build_cursor(vec![("trade_date", first_date), ("id", first_id)])
+        } else {
+            None
+        };
+
+        Ok(PaginatedResult {
+            items,
+            page_info: PageInfo {
+                has_next_page,
+                has_prev_page: after.is_some(),
+                next_cursor,
+                prev_cursor,
+            },
+        })
+    }
+}
+
+impl SqliteHoldingRepository {
+    /// Backward paging for holding transactions.
+    async fn fetch_ht_page_backward(
+        &self,
+        account_id: &str,
+        security_id: &str,
+        before_cursor: &str,
+        first: i64,
+        limit: i64,
+    ) -> sqlx::Result<PaginatedResult<HoldingTransaction>> {
+        let cursor = SortCursor::decode(before_cursor)
+            .map_err(|e| sqlx::Error::Decode(e.into()))?;
+        let cursor_date = cursor
+            .get("trade_date")
+            .ok_or_else(|| sqlx::Error::Decode("Missing trade_date in cursor".into()))?;
+        let cursor_id = cursor
+            .get("id")
+            .ok_or_else(|| sqlx::Error::Decode("Missing id in cursor".into()))?;
+
+        let sql = format!(
+            "SELECT id, account_id, security_id, type, CAST(quantity AS TEXT) as quantity, \
+             CAST(price AS TEXT) as price, CAST(amount AS TEXT) as amount, \
+             CAST(fee AS TEXT) as fee, trade_date, transaction_id, notes \
+             FROM holding_transactions \
+             WHERE account_id = ? AND security_id = ? AND deleted_at IS NULL \
+             AND (trade_date, id) > (?, ?) \
+             ORDER BY trade_date ASC, id ASC LIMIT ?"
+        );
+
+        let rows = sqlx::query(&sql)
+            .bind(account_id)
+            .bind(security_id)
+            .bind(cursor_date)
+            .bind(cursor_id)
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await?;
+
+        let has_prev_page = rows.len() > first as usize;
+        let page_rows = if has_prev_page {
+            &rows[..first as usize]
+        } else {
+            &rows
+        };
+
+        // Reverse to maintain descending order
+        let mut items: Vec<HoldingTransaction> = page_rows
+            .iter()
+            .map(Self::row_to_ht)
+            .collect::<Result<Vec<_>, _>>()?;
+        items.reverse();
+
+        let next_cursor = if !items.is_empty() {
+            // After reversal, "last" is the oldest
+            // Use original page_rows in ascending order for cursor extraction
+            let last = &page_rows[page_rows.len() - 1];
+            let last_date: String = last.try_get("trade_date")?;
+            let last_id: String = last.try_get("id")?;
+            build_cursor(vec![("trade_date", last_date), ("id", last_id)])
+        } else {
+            None
+        };
+
+        let prev_cursor = if !items.is_empty() {
+            let first_row = &page_rows[0];
+            let first_date: String = first_row.try_get("trade_date")?;
+            let first_id: String = first_row.try_get("id")?;
+            build_cursor(vec![("trade_date", first_date), ("id", first_id)])
+        } else {
+            None
+        };
+
+        Ok(PaginatedResult {
+            items,
+            page_info: PageInfo {
+                has_next_page: true,
+                has_prev_page,
+                next_cursor,
+                prev_cursor,
+            },
+        })
     }
 }

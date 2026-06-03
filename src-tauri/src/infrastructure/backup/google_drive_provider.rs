@@ -91,10 +91,9 @@ impl GoogleDriveProvider {
             .map_err(|e| CloudError::NetworkError(e.to_string()))?;
 
         if response.status().is_success() {
-            let result: serde_json::Value = response
-                .json()
-                .await
-                .map_err(|e| CloudError::ConnectionFailed(format!("failed to parse response: {e}")))?;
+            let result: serde_json::Value = response.json().await.map_err(|e| {
+                CloudError::ConnectionFailed(format!("failed to parse response: {e}"))
+            })?;
 
             if let Some(files) = result.get("files").and_then(|f| f.as_array()) {
                 if let Some(first) = files.first() {
@@ -122,16 +121,19 @@ impl GoogleDriveProvider {
             .map_err(|e| CloudError::NetworkError(e.to_string()))?;
 
         if response.status().is_success() {
-            let result: serde_json::Value = response
-                .json()
-                .await
-                .map_err(|e| CloudError::ConnectionFailed(format!("failed to parse folder creation response: {e}")))?;
+            let result: serde_json::Value = response.json().await.map_err(|e| {
+                CloudError::ConnectionFailed(format!(
+                    "failed to parse folder creation response: {e}"
+                ))
+            })?;
 
             result
                 .get("id")
                 .and_then(|i| i.as_str())
                 .map(|id| id.to_string())
-                .ok_or_else(|| CloudError::UploadFailed("failed to create backup folder".to_string()))
+                .ok_or_else(|| {
+                    CloudError::UploadFailed("failed to create backup folder".to_string())
+                })
         } else {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
@@ -252,9 +254,15 @@ impl CloudProvider for GoogleDriveProvider {
 
         let boundary = "finance_app_boundary";
         let mut body = Vec::new();
-        body.extend_from_slice(format!("--{boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n").as_bytes());
+        body.extend_from_slice(
+            format!("--{boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n")
+                .as_bytes(),
+        );
         body.extend_from_slice(metadata.to_string().as_bytes());
-        body.extend_from_slice(format!("\r\n--{boundary}\r\nContent-Type: application/octet-stream\r\n\r\n").as_bytes());
+        body.extend_from_slice(
+            format!("\r\n--{boundary}\r\nContent-Type: application/octet-stream\r\n\r\n")
+                .as_bytes(),
+        );
         body.extend_from_slice(&data);
         body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
 
@@ -289,9 +297,7 @@ impl CloudProvider for GoogleDriveProvider {
         let file_id = self
             .find_file_by_name(&folder_id, remote_name)
             .await
-            .ok_or_else(|| {
-                CloudError::DownloadFailed(format!("file not found: {remote_name}"))
-            })?;
+            .ok_or_else(|| CloudError::DownloadFailed(format!("file not found: {remote_name}")))?;
 
         let response = self
             .client
@@ -327,10 +333,7 @@ impl CloudProvider for GoogleDriveProvider {
     async fn list_backups(&self) -> Result<Vec<CloudBackupInfo>, CloudError> {
         let folder_id = self.ensure_folder().await?;
 
-        let query = format!(
-            "'{}' in parents and trashed=false",
-            folder_id
-        );
+        let query = format!("'{}' in parents and trashed=false", folder_id);
 
         let response = self
             .client
@@ -400,9 +403,7 @@ impl CloudProvider for GoogleDriveProvider {
         let file_id = self
             .find_file_by_name(&folder_id, remote_name)
             .await
-            .ok_or_else(|| {
-                CloudError::UploadFailed(format!("file not found: {remote_name}"))
-            })?;
+            .ok_or_else(|| CloudError::UploadFailed(format!("file not found: {remote_name}")))?;
 
         let response = self
             .client

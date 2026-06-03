@@ -73,11 +73,7 @@ impl DropboxProvider {
     }
 
     fn remote_path_for(&self, name: &str) -> String {
-        format!(
-            "/{}/{}",
-            self.remote_path.trim_matches('/'),
-            name
-        )
+        format!("/{}/{}", self.remote_path.trim_matches('/'), name)
     }
 
     fn remote_folder_path(&self) -> String {
@@ -224,10 +220,7 @@ impl CloudProvider for DropboxProvider {
 
         let mut backups = Vec::new();
         for entry in entries {
-            let tag = entry
-                .get(".tag")
-                .and_then(|t| t.as_str())
-                .unwrap_or("");
+            let tag = entry.get(".tag").and_then(|t| t.as_str()).unwrap_or("");
             if tag != "file" {
                 continue;
             }
@@ -242,10 +235,7 @@ impl CloudProvider for DropboxProvider {
                 continue;
             }
 
-            let size = entry
-                .get("size")
-                .and_then(|s| s.as_u64())
-                .unwrap_or(0);
+            let size = entry.get("size").and_then(|s| s.as_u64()).unwrap_or(0);
 
             let last_modified = entry
                 .get("server_modified")

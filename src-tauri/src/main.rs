@@ -48,9 +48,7 @@ use presentation::tauri_commands::{
         create_encryption_default_state, disable_encryption, get_encryption_status,
         lock_encryption, setup_encryption, unlock_encryption, unlock_encryption_keychain,
     },
-    export_commands::{
-        create_export_default_state, export_all_data, export_csv,
-    },
+    export_commands::{create_export_default_state, export_all_data, export_csv},
     goal_commands::{
         complete_goal, create_default_state_from_pool as create_goal_default_state_from_pool,
         create_goal, delete_goal, get_goal, list_goals, sync_goal_progress, update_goal,
@@ -70,9 +68,7 @@ use presentation::tauri_commands::{
         complete_reminder, create_reminder, create_reminder_default_state_from_pool,
         delete_reminder, get_reminder, list_reminders, update_reminder, ReminderCommandState,
     },
-    search_commands::{
-        create_search_default_state, global_search, rebuild_search_index,
-    },
+    search_commands::{create_search_default_state, global_search, rebuild_search_index},
     subscription_commands::{
         create_default_state_from_pool as create_subscription_default_state, create_subscription,
         delete_subscription, get_subscription, list_subscription_transactions, list_subscriptions,

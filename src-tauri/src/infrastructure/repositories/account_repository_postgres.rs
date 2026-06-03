@@ -134,10 +134,7 @@ impl PostgresAccountRepository {
         Ok(map)
     }
 
-    pub async fn compute_balance_for_account_pg(
-        &self,
-        id: Uuid,
-    ) -> Result<Decimal, sqlx::Error> {
+    pub async fn compute_balance_for_account_pg(&self, id: Uuid) -> Result<Decimal, sqlx::Error> {
         let row: (Decimal,) = sqlx::query_as(
             "SELECT COALESCE(SUM(COALESCE(e.debit_amount, 0)), 0) - \
              COALESCE(SUM(COALESCE(e.credit_amount, 0)), 0) \

@@ -1,6 +1,7 @@
 pub mod budget_item;
 pub mod currency;
 pub mod money;
+pub mod pagination;
 pub mod sync_metadata;
 pub mod top_up_record;
 pub mod transaction_entry;
@@ -19,5 +20,7 @@ pub use top_up_record::TopUpRecord;
 pub use transaction_entry::{TransactionEntry, TransactionEntryError};
 #[allow(unused_imports)]
 pub use transaction_operation::{OperationType, TransactionOperation};
+#[allow(unused_imports)]
+pub use pagination::{build_cursor, PaginatedResult, PageInfo, PaginationParams, SortCursor};
 #[allow(unused_imports)]
 pub use version_vector::VersionVector;

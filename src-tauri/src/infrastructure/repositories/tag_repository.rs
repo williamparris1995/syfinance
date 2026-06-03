@@ -34,17 +34,19 @@ impl TagRepository for SqliteTagRepository {
     }
 
     async fn find_all(&self) -> sqlx::Result<Vec<Tag>> {
-        let rows = sqlx::query("SELECT id, name, color FROM tags WHERE deleted_at IS NULL ORDER BY name")
-            .fetch_all(&self.pool)
-            .await?;
+        let rows =
+            sqlx::query("SELECT id, name, color FROM tags WHERE deleted_at IS NULL ORDER BY name")
+                .fetch_all(&self.pool)
+                .await?;
         rows.iter().map(Self::row_to_tag).collect()
     }
 
     async fn find_by_id(&self, id: &str) -> sqlx::Result<Option<Tag>> {
-        let row = sqlx::query("SELECT id, name, color FROM tags WHERE id = ? AND deleted_at IS NULL")
-            .bind(id)
-            .fetch_optional(&self.pool)
-            .await?;
+        let row =
+            sqlx::query("SELECT id, name, color FROM tags WHERE id = ? AND deleted_at IS NULL")
+                .bind(id)
+                .fetch_optional(&self.pool)
+                .await?;
         row.map(|r| Self::row_to_tag(&r)).transpose()
     }
 

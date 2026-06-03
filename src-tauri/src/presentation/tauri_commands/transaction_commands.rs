@@ -313,6 +313,10 @@ pub async fn batch_delete_transactions(
             }
         }
     }
-    tracing::info!(requested = ids.len(), deleted = deleted, "Batch delete complete");
+    tracing::info!(
+        requested = ids.len(),
+        deleted = deleted,
+        "Batch delete complete"
+    );
     Ok(deleted)
 }

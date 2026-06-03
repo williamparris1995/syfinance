@@ -4,7 +4,7 @@
 use crate::domain::{
     aggregates::Transaction,
     repositories::TransactionRepository,
-    value_objects::{Money, SyncMetadata, TransactionEntry},
+    value_objects::{Money, PaginatedResult, SyncMetadata, TransactionEntry},
 };
 use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
@@ -488,5 +488,20 @@ impl TransactionRepository for PostgresTransactionRepository {
         } else {
             Ok(false)
         }
+    }
+
+    async fn find_paginated(
+        &self,
+        _first: i64,
+        _after: Option<&str>,
+        _before: Option<&str>,
+        _account_id: Option<Uuid>,
+        _start_date: Option<NaiveDate>,
+        _end_date: Option<NaiveDate>,
+    ) -> sqlx::Result<PaginatedResult<Transaction>> {
+        // TODO: implement cursor-based pagination for PostgreSQL
+        Err(sqlx::Error::Configuration(
+            "PostgreSQL pagination not yet implemented".into(),
+        ))
     }
 }

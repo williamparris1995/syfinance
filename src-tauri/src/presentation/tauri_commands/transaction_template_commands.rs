@@ -65,11 +65,7 @@ pub async fn create_transaction_template(
 pub async fn list_transaction_templates(
     state: State<'_, TransactionTemplateCommandState>,
 ) -> Result<Vec<TransactionTemplateDto>, String> {
-    state
-        .service()
-        .list()
-        .await
-        .map_err(|e| e.to_string())
+    state.service().list().await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -90,11 +86,7 @@ pub async fn update_transaction_template(
     state: State<'_, TransactionTemplateCommandState>,
     dto: UpdateTransactionTemplateDto,
 ) -> Result<(), String> {
-    state
-        .service()
-        .update(dto)
-        .await
-        .map_err(|e| e.to_string())
+    state.service().update(dto).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -103,11 +95,7 @@ pub async fn delete_transaction_template(
     id: String,
 ) -> Result<(), String> {
     let id = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
-    state
-        .service()
-        .delete(id)
-        .await
-        .map_err(|e| e.to_string())
+    state.service().delete(id).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -116,11 +104,7 @@ pub async fn pause_transaction_template(
     id: String,
 ) -> Result<(), String> {
     let id = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
-    state
-        .service()
-        .pause(id)
-        .await
-        .map_err(|e| e.to_string())
+    state.service().pause(id).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -129,9 +113,5 @@ pub async fn resume_transaction_template(
     id: String,
 ) -> Result<(), String> {
     let id = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
-    state
-        .service()
-        .resume(id)
-        .await
-        .map_err(|e| e.to_string())
+    state.service().resume(id).await.map_err(|e| e.to_string())
 }
