@@ -264,7 +264,7 @@ export function HomePage() {
                         id: '',
                         code: 'CNY',
                         symbol: getCurrencySymbol('CNY'),
-                        name: '人民币',
+                        name: t('common.cny'),
                         exchange_rate: '1',
                         is_active: true,
                         updated_at: '',

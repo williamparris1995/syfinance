@@ -38,7 +38,9 @@
     "confirmDelete": "Confirm delete?",
     "noResults": "No results",
     "routeShell": "Route shell.",
-    "optionalSuffix": "— optional"
+    "optionalSuffix": "— optional",
+    "cny": "Chinese Yuan",
+    "errorGeneric": "An error occurred. Please try again."
   },
   "error": {
     "title": "Something went wrong",
@@ -165,7 +167,16 @@
     "noTransactions": "No transactions yet",
     "detailTitle": "Account Details",
     "accountTransactions": "Transactions",
-    "trend": "Trend"
+    "trend": "Trend",
+    "templates": {
+      "stockAccount": "Stock Account",
+      "fundAccount": "Fund Account",
+      "etfAccount": "ETF Account",
+      "bondAccount": "Bond Account",
+      "goldAccount": "Gold Account",
+      "optionAccount": "Option Account",
+      "otherInvestment": "Other Investment"
+    }
   },
   "accountForm": {
     "accountName": "Account Name",
@@ -871,7 +882,8 @@
     "budgetItemAddFailed": "Failed to add budget item: {{error}}",
     "budgetDeleteFailed": "Failed to delete budget: {{error}}",
     "budgetItemRemoveFailed": "Failed to remove budget item: {{error}}",
-    "budgetCloneFailed": "Failed to copy budget: {{error}}"
+    "budgetCloneFailed": "Failed to copy budget: {{error}}",
+    "monthFormat": "{{year}}-{{month}}"
   },
   "tags": {
     "title": "Tags",

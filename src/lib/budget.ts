@@ -8,7 +8,7 @@
 export function formatBudgetAmount(amount: string): string {
   const num = parseFloat(amount);
   if (isNaN(num)) return '0.00';
-  return num.toLocaleString('zh-CN', {
+  return num.toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -43,7 +43,7 @@ export function getCurrentMonth(): string {
 /**
  * Format month string for display
  */
-export function formatMonth(month: string): string {
+export function formatMonth(month: string, t: (key: string, options?: Record<string, unknown>) => string): string {
   const [year, monthNum] = month.split('-');
-  return `${year}年${parseInt(monthNum)}月`;
+  return t('budget.monthFormat', { year, month: parseInt(monthNum) });
 }

@@ -279,7 +279,7 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
                         className="h-4 w-4"
                         style={{ color: template.color }}
                       />
-                      <span className="truncate w-full text-center">{template.name}</span>
+                      <span className="truncate w-full text-center">{t(`accounts.templates.${template.name}`)}</span>
                     </button>
                   );
                 })}

@@ -38,7 +38,9 @@
     "confirmDelete": "确认删除？",
     "noResults": "无结果",
     "routeShell": "路由壳",
-    "optionalSuffix": "— 可选"
+    "optionalSuffix": "— 可选",
+    "cny": "人民币",
+    "errorGeneric": "操作失败，请重试。"
   },
   "error": {
     "title": "出了点问题",
@@ -167,7 +169,16 @@
     "noTransactions": "暂无交易记录",
     "detailTitle": "账户详情",
     "accountTransactions": "交易记录",
-    "trend": "趋势"
+    "trend": "趋势",
+    "templates": {
+      "stockAccount": "股票账户",
+      "fundAccount": "基金账户",
+      "etfAccount": "ETF账户",
+      "bondAccount": "债券账户",
+      "goldAccount": "黄金账户",
+      "optionAccount": "期权账户",
+      "otherInvestment": "其他投资"
+    }
   },
   "accountForm": {
     "accountName": "账户名称",
@@ -913,7 +924,8 @@
     "budgetItemAddFailed": "添加预算项失败: {{error}}",
     "budgetDeleteFailed": "删除预算失败: {{error}}",
     "budgetItemRemoveFailed": "删除预算项失败: {{error}}",
-    "budgetCloneFailed": "复制预算失败: {{error}}"
+    "budgetCloneFailed": "复制预算失败: {{error}}",
+    "monthFormat": "{{year}}年{{month}}月"
   },
   "tags": {
     "title": "标签",

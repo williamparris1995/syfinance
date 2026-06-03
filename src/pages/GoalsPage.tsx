@@ -419,7 +419,7 @@ export function GoalsPage() {
                             goal.goal_type
                           )}`}
                         >
-                          {getGoalTypeLabel(goal.goal_type)}
+                          {getGoalTypeLabel(goal.goal_type, t)}
                         </span>
                         {goal.deadline && (
                           <span className="flex items-center gap-1">

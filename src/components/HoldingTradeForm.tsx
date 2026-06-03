@@ -40,14 +40,14 @@ const tradeSchema = z.object({
 
 type FormValues = z.infer<typeof tradeSchema>;
 
-const SECURITY_TYPES: { value: SecurityType; label: string }[] = [
-  { value: 'stock', label: '股票' },
-  { value: 'fund', label: '基金' },
-  { value: 'etf', label: 'ETF' },
-  { value: 'bond', label: '债券' },
-  { value: 'gold', label: '黄金' },
-  { value: 'option', label: '期权' },
-  { value: 'other', label: '其他' },
+const SECURITY_TYPES: { value: SecurityType; labelKey: string }[] = [
+  { value: 'stock', labelKey: 'holding.types.stock' },
+  { value: 'fund', labelKey: 'holding.types.fund' },
+  { value: 'etf', labelKey: 'holding.types.etf' },
+  { value: 'bond', labelKey: 'holding.types.bond' },
+  { value: 'gold', labelKey: 'holding.types.gold' },
+  { value: 'option', labelKey: 'holding.types.option' },
+  { value: 'other', labelKey: 'holding.types.other' },
 ];
 
 export function HoldingTradeForm({ onSubmit, onCancel, isLoading, initialDirection, initialHolding }: Props) {
@@ -261,7 +261,7 @@ export function HoldingTradeForm({ onSubmit, onCancel, isLoading, initialDirecti
                       value={newType}
                       onChange={e => setNewType(e.target.value as SecurityType)}
                     >
-                      {SECURITY_TYPES.map(st => <option key={st.value} value={st.value}>{st.label}</option>)}
+                      {SECURITY_TYPES.map(st => <option key={st.value} value={st.value}>{t(st.labelKey)}</option>)}
                     </select>
                   </div>
                 </div>

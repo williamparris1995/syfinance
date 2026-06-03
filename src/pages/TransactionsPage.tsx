@@ -87,8 +87,8 @@ export function TransactionsPage() {
       setSelectedIds(new Set());
       setConfirmBatchDelete(false);
     },
-    onError: (error) => {
-      toast.error(String(error));
+    onError: () => {
+      toast.error(t('common.errorGeneric'));
     },
   });
 
@@ -399,9 +399,9 @@ export function TransactionsPage() {
       };
       await updateTransaction(transaction.id, dto);
       toast.success(t('transactions.descriptionUpdated'));
-    } catch (error) {
+    } catch {
       queryClient.setQueryData(queryKey, previous);
-      toast.error(String(error));
+      toast.error(t('common.errorGeneric'));
     }
   };
 
@@ -432,8 +432,8 @@ export function TransactionsPage() {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       toast.success(t('transactions.recorded'));
-    } catch (error) {
-      toast.error(String(error));
+    } catch {
+      toast.error(t('common.errorGeneric'));
     }
   };
 
@@ -463,9 +463,9 @@ export function TransactionsPage() {
           },
         },
       });
-    } catch (error) {
+    } catch {
       queryClient.setQueryData(queryKey, previous);
-      toast.error(String(error));
+      toast.error(t('common.errorGeneric'));
     }
   };
 

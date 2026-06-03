@@ -275,7 +275,7 @@ export function BudgetPage() {
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <div className="text-lg font-semibold min-w-[140px] text-center">
-          {formatMonth(currentMonth)}
+          {formatMonth(currentMonth, t)}
         </div>
         <Button variant="outline" size="icon" onClick={handleNextMonth}>
           <ChevronRight className="h-4 w-4" />
@@ -522,7 +522,7 @@ export function BudgetPage() {
               </Select>
             </div>
             <div className="text-sm text-muted-foreground">
-              {t('budget.month')}: {formatMonth(currentMonth)}
+              {t('budget.month')}: {formatMonth(currentMonth, t)}
             </div>
           </div>
           <div className="flex justify-end gap-2">

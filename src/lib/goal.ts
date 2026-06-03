@@ -8,7 +8,7 @@
 export function formatGoalAmount(amount: string): string {
   const num = parseFloat(amount);
   if (isNaN(num)) return '0.00';
-  return num.toLocaleString('zh-CN', {
+  return num.toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -17,11 +17,11 @@ export function formatGoalAmount(amount: string): string {
 /**
  * Get goal type label
  */
-export function getGoalTypeLabel(type: string): string {
+export function getGoalTypeLabel(type: string, t: (key: string) => string): string {
   const labels: Record<string, string> = {
-    savings: '储蓄目标',
-    debt_payoff: '还债目标',
-    investment: '投资目标',
+    savings: t('goals.typeSavings'),
+    debt_payoff: t('goals.typeDebtPayoff'),
+    investment: t('goals.typeInvestment'),
   };
   return labels[type] || type;
 }
