@@ -61,7 +61,14 @@
     "goals": "Goals",
     "reports": "Reports",
     "reminders": "Reminders",
-    "settings": "Settings"
+    "settings": "Settings",
+    "overview": "Overview",
+    "assetManagement": "Assets",
+    "transactionsGroup": "Transactions",
+    "planning": "Planning",
+    "analysis": "Analysis",
+    "system": "System",
+    "backup": "Backup"
   },
   "reminders": {
     "title": "Reminders",

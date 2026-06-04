@@ -61,7 +61,14 @@
     "goals": "目标",
     "reports": "报表",
     "reminders": "提醒",
-    "settings": "设置"
+    "settings": "设置",
+    "overview": "概览",
+    "assetManagement": "资产管理",
+    "transactionsGroup": "交易操作",
+    "planning": "规划",
+    "analysis": "分析",
+    "system": "系统",
+    "backup": "备份"
   },
   "reminders": {
     "title": "提醒",
