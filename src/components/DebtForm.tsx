@@ -149,6 +149,16 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account_id]);
 
+  // Auto-sync currency_code from selected debt account
+  useEffect(() => {
+    if (!isEdit && !readOnly && account_id) {
+      const selectedAccount = debtAccounts.find(a => a.id === account_id);
+      if (selectedAccount?.currency_code) {
+        form.setValue('currency_code', selectedAccount.currency_code);
+      }
+    }
+  }, [account_id, debtAccounts, form, isEdit, readOnly]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!principal_amount || !interest_rate || !amortization_method || amortization_method === 'LumpSum') {
@@ -306,8 +316,6 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
             </div>
           </div>
 
-          <input type="hidden" {...form.register('currency_code')} />
-
           <div className="space-y-4">
             <FormField name="account_id" render={({ field }) => (
               <FormItem>
@@ -382,6 +390,15 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
                 <FormMessage />
               </FormItem>
             )} />
+            <FormItem>
+              <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                {t('common.currency')}
+              </FormLabel>
+              <div className="flex items-center rounded-lg border overflow-hidden h-9 bg-muted/30">
+                <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">{getCurrencySymbol(selectedCurrencyCode || 'CNY')}</span>
+                <span className="flex-1 px-2.5 text-sm text-muted-foreground">{selectedCurrencyCode || 'CNY'}</span>
+              </div>
+            </FormItem>
           </div>
 
           <div className="space-y-4">
