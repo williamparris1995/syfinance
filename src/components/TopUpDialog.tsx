@@ -50,6 +50,12 @@ export function TopUpDialog({ accountId, accountName, open, onOpenChange }: TopU
     queryFn: listAccountsWithBalances,
   });
 
+  const targetAccount = useMemo(() => {
+    return accounts.find(a => a.id === accountId);
+  }, [accounts, accountId]);
+
+  const topUpCurrency = targetAccount?.currency_code || 'CNY';
+
   const sourceAccounts = useMemo(
     () => accounts.filter(
       (a: AccountDto) =>
@@ -171,7 +177,7 @@ export function TopUpDialog({ accountId, accountName, open, onOpenChange }: TopU
                       </FormLabel>
                       <FormControl>
                         <div className="flex items-center rounded-lg border overflow-hidden h-9">
-                          <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">{getCurrencySymbol('CNY')}</span>
+                          <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">{getCurrencySymbol(topUpCurrency)}</span>
                           <input
                             type="number"
                             step="0.01"
@@ -197,7 +203,7 @@ export function TopUpDialog({ accountId, accountName, open, onOpenChange }: TopU
                       </FormLabel>
                       <FormControl>
                         <div className="flex items-center rounded-lg border overflow-hidden h-9">
-                          <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">{getCurrencySymbol('CNY')}</span>
+                          <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">{getCurrencySymbol(topUpCurrency)}</span>
                           <input
                             type="number"
                             step="0.01"
@@ -219,7 +225,7 @@ export function TopUpDialog({ accountId, accountName, open, onOpenChange }: TopU
                 <div className="rounded-lg border border-emerald-200/50 bg-gradient-to-br from-emerald-50/50 to-card p-3 flex items-center justify-between dark:from-emerald-950/20 dark:to-card dark:border-emerald-800/30">
                   <span className="text-xs text-muted-foreground">{t('prepaid.totalCredited')}</span>
                   <span className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
-                    {formatCurrency(totalCredited, 'CNY')}
+                    {formatCurrency(totalCredited, topUpCurrency)}
                   </span>
                 </div>
               )}
