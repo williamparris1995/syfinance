@@ -328,7 +328,8 @@ async fn get_accounting_standards() -> Result<Vec<String>, Error>;
 // 修改后的账户命令
 #[tauri::command]
 async fn create_account(dto: CreateAccountDto) -> Result<AccountDto, Error>;
-// CreateAccountDto 移除 Income/Expense 作为可选（前端控制）
+// CreateAccountDto 保持不变，仍支持所有 AccountType
+// 前端通过向导界面引导用户区分"资产账户"和"损益科目"的创建流程
 
 #[tauri::command]
 async fn update_account_status(
