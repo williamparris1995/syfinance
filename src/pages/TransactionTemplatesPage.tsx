@@ -46,7 +46,8 @@ import {
   type CreateTransactionTemplateDto,
   type UpdateTransactionTemplateDto,
 } from '../lib/tauri/transactionTemplate';
-import { formatCurrency } from '../lib/currency';
+import { formatCurrency, getCurrencySymbol } from '../lib/currency';
+import { listAccounts, type AccountDto } from '../lib/tauri/account';
 
 type SortKey = 'next_date' | 'amount' | 'name';
 type SortDir = 'asc' | 'desc';
@@ -89,6 +90,21 @@ export function TransactionTemplatesPage() {
     queryKey: ['transactionTemplates'],
     queryFn: listTransactionTemplates,
   });
+
+  const { data: accounts = [] } = useQuery({
+    queryKey: ['accounts'],
+    queryFn: listAccounts,
+  });
+
+  const accountCurrencyMap = useMemo(() => {
+    const map = new Map<string, string>();
+    accounts.forEach((a: AccountDto) => map.set(a.id, a.currency_code || 'CNY'));
+    return map;
+  }, [accounts]);
+
+  const getTemplateCurrency = (sourceAccountId: string | null | undefined) => {
+    return accountCurrencyMap.get(sourceAccountId || '') || 'CNY';
+  };
 
   // Mutations
   const createMutation = useMutation({
@@ -248,6 +264,12 @@ export function TransactionTemplatesPage() {
     [templates]
   );
 
+  // Default currency for summary cards (use first template's currency, fallback to CNY)
+  const summaryCurrency = useMemo(() => {
+    const firstTpl = templates.find((tpl) => tpl.source_account_id);
+    return getTemplateCurrency(firstTpl?.source_account_id);
+  }, [templates, accountCurrencyMap]);
+
   const activeCount = templates.filter((tpl) => !tpl.paused).length;
 
   // Sort header helper
@@ -308,7 +330,7 @@ export function TransactionTemplatesPage() {
                 {t('transactionTemplate.monthlyExpense')}
               </div>
               <div className="text-xl font-bold text-red-600">
-                {formatCurrency(Number(monthlyExpense), 'CNY')}
+                {formatCurrency(Number(monthlyExpense), summaryCurrency)}
               </div>
             </div>
             <div className="rounded-lg border p-4">
@@ -317,7 +339,7 @@ export function TransactionTemplatesPage() {
                 {t('transactionTemplate.monthlyIncome')}
               </div>
               <div className="text-xl font-bold text-emerald-600">
-                {formatCurrency(Number(monthlyIncome), 'CNY')}
+                {formatCurrency(Number(monthlyIncome), summaryCurrency)}
               </div>
             </div>
             <div className="rounded-lg border p-4">
@@ -450,7 +472,7 @@ export function TransactionTemplatesPage() {
 
                         {/* Amount */}
                         <TableCell className="text-right">
-                          {formatCurrency(Number(tpl.amount), 'CNY')}
+                          {formatCurrency(Number(tpl.amount), getTemplateCurrency(tpl.source_account_id))}
                         </TableCell>
 
                         {/* Cycle */}
