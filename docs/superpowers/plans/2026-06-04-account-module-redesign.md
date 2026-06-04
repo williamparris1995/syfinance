@@ -1,6 +1,6 @@
 # Account Module Redesign Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Introduce Category and ChartOfAccounts concepts, extend Account with status and hierarchy, and redesign UI with a wizard-based account creation flow — all while preserving double-entry bookkeeping principles.
 
@@ -55,7 +55,7 @@
 - Create: `src-tauri/migrations/20260604000001_category_and_chart_of_accounts.sql`
 - Test: Run `cargo sqlx migrate run` and verify
 
-- [ ] **Step 1: Create migration file**
+- [x] **Step 1: Create migration file**
 
 Write `src-tauri/migrations/20260604000001_category_and_chart_of_accounts.sql`:
 
@@ -126,19 +126,19 @@ ALTER TABLE accounts ADD COLUMN opened_at TIMESTAMP;
 ALTER TABLE transactions ADD COLUMN category_id BLOB REFERENCES categories(id);
 ```
 
-- [ ] **Step 2: Run migration**
+- [x] **Step 2: Run migration**
 
 Run: `cd src-tauri && cargo sqlx migrate run`
 
 Expected: Migration completes successfully
 
-- [ ] **Step 3: Verify schema**
+- [x] **Step 3: Verify schema**
 
 Run: `cd src-tauri && cargo sqlx migrate info`
 
 Expected: Shows new migration as applied
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src-tauri/migrations/20260604000001_category_and_chart_of_accounts.sql
@@ -162,7 +162,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Create: `src-tauri/src/domain/aggregates/mod.rs` (modify to export)
 - Test: `src-tauri/src/domain/aggregates/category.rs` (unit tests inline)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src-tauri/src/domain/aggregates/category.rs` with tests first:
 
@@ -203,13 +203,13 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd src-tauri && cargo test category::tests --lib`
 
 Expected: FAIL - module not found
 
-- [ ] **Step 3: Implement Category domain model**
+- [x] **Step 3: Implement Category domain model**
 
 Create `src-tauri/src/domain/aggregates/category.rs`:
 
@@ -368,7 +368,7 @@ mod tests {
 }
 ```
 
-- [ ] **Step 4: Add to domain module exports**
+- [x] **Step 4: Add to domain module exports**
 
 Modify `src-tauri/src/domain/aggregates/mod.rs` to add:
 
@@ -377,13 +377,13 @@ pub mod category;
 pub use category::{Category, CategoryType, CategoryError};
 ```
 
-- [ ] **Step 5: Run tests**
+- [x] **Step 5: Run tests**
 
 Run: `cd src-tauri && cargo test category::tests --lib`
 
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src-tauri/src/domain/aggregates/category.rs src-tauri/src/domain/aggregates/mod.rs
@@ -404,7 +404,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Create: `src-tauri/src/domain/aggregates/chart_of_accounts.rs`
 - Modify: `src-tauri/src/domain/aggregates/mod.rs`
 
-- [ ] **Step 1: Implement ChartOfAccounts**
+- [x] **Step 1: Implement ChartOfAccounts**
 
 Create `src-tauri/src/domain/aggregates/chart_of_accounts.rs`:
 
@@ -469,7 +469,7 @@ impl ChartOfAccountsEntry {
 }
 ```
 
-- [ ] **Step 2: Add to domain module exports**
+- [x] **Step 2: Add to domain module exports**
 
 Modify `src-tauri/src/domain/aggregates/mod.rs`:
 
@@ -478,13 +478,13 @@ pub mod chart_of_accounts;
 pub use chart_of_accounts::{ChartOfAccountsEntry, AccountingStandard};
 ```
 
-- [ ] **Step 3: Run type check**
+- [x] **Step 3: Run type check**
 
 Run: `cd src-tauri && cargo check`
 
 Expected: PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src-tauri/src/domain/aggregates/chart_of_accounts.rs src-tauri/src/domain/aggregates/mod.rs
@@ -510,7 +510,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Modify: `src-tauri/src/application/services/mod.rs`
 - Modify: `src-tauri/src/application/dtos/mod.rs`
 
-- [ ] **Step 1: Create repository trait**
+- [x] **Step 1: Create repository trait**
 
 Create `src-tauri/src/domain/repositories/category_repository.rs`:
 
@@ -528,7 +528,7 @@ pub trait CategoryRepository {
 }
 ```
 
-- [ ] **Step 2: Create DTOs**
+- [x] **Step 2: Create DTOs**
 
 Create `src-tauri/src/application/dtos/category_dto.rs`:
 
@@ -567,7 +567,7 @@ pub struct UpdateCategoryDto {
 }
 ```
 
-- [ ] **Step 3: Create SQLite repository**
+- [x] **Step 3: Create SQLite repository**
 
 Create `src-tauri/src/infrastructure/repositories/category_repository.rs`:
 
@@ -612,7 +612,7 @@ impl CategoryRepository for SqliteCategoryRepository {
 }
 ```
 
-- [ ] **Step 4: Create service**
+- [x] **Step 4: Create service**
 
 Create `src-tauri/src/application/services/category_service.rs`:
 
@@ -680,7 +680,7 @@ pub enum CategoryServiceError {
 }
 ```
 
-- [ ] **Step 5: Update module exports**
+- [x] **Step 5: Update module exports**
 
 Modify `src-tauri/src/domain/repositories/mod.rs`:
 ```rust
@@ -706,7 +706,7 @@ pub mod category_dto;
 pub use category_dto::{CategoryDto, CreateCategoryDto, UpdateCategoryDto};
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A
@@ -728,7 +728,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Modify: `src-tauri/src/presentation/tauri_commands/mod.rs`
 - Modify: `src-tauri/src/main.rs`
 
-- [ ] **Step 1: Create commands**
+- [x] **Step 1: Create commands**
 
 Create `src-tauri/src/presentation/tauri_commands/category_commands.rs`:
 
@@ -756,11 +756,11 @@ pub async fn create_category(
 }
 ```
 
-- [ ] **Step 2: Register commands**
+- [x] **Step 2: Register commands**
 
 Modify `src-tauri/src/main.rs` to register new commands.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add -A
@@ -780,7 +780,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Create: `src/lib/tauri/category.ts`
 - Create: `src/hooks/useCategory.ts`
 
-- [ ] **Step 1: Create frontend API**
+- [x] **Step 1: Create frontend API**
 
 Create `src/lib/tauri/category.ts`:
 
@@ -813,7 +813,7 @@ export const createCategory = (dto: CreateCategoryDto) =>
   invokeTauri<CategoryDto>('create_category', { dto });
 ```
 
-- [ ] **Step 2: Create hooks**
+- [x] **Step 2: Create hooks**
 
 Create `src/hooks/useCategory.ts`:
 
@@ -839,7 +839,7 @@ export function useCreateCategory() {
 }
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/lib/tauri/category.ts src/hooks/useCategory.ts
@@ -860,7 +860,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Modify: `src/i18n/locales/en.json`
 - Modify: `src/i18n/locales/zh.json`
 
-- [ ] **Step 1: Add English keys**
+- [x] **Step 1: Add English keys**
 
 Add to `src/i18n/locales/en.json`:
 
@@ -920,11 +920,11 @@ Add to `src/i18n/locales/en.json`:
 }
 ```
 
-- [ ] **Step 2: Add Chinese keys**
+- [x] **Step 2: Add Chinese keys**
 
 Add corresponding keys to `src/i18n/locales/zh.json`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/i18n/locales/en.json src/i18n/locales/zh.json
@@ -941,7 +941,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Create: `src/components/CategoryManager.tsx`
 - Create: `src/components/__tests__/CategoryManager.test.tsx`
 
-- [ ] **Step 1: Create component**
+- [x] **Step 1: Create component**
 
 Create `src/components/CategoryManager.tsx`:
 
@@ -970,9 +970,9 @@ export function CategoryManager() {
 }
 ```
 
-- [ ] **Step 2: Create test**
+- [x] **Step 2: Create test**
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add -A
@@ -991,7 +991,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Modify: `src-tauri/src/infrastructure/repositories/account_repository.rs`
 - Modify: `src/lib/tauri/account.ts`
 
-- [ ] **Step 1: Add AccountStatus to domain model**
+- [x] **Step 1: Add AccountStatus to domain model**
 
 ```rust
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -1002,19 +1002,19 @@ pub enum AccountStatus {
 }
 ```
 
-- [ ] **Step 2: Update Account struct**
+- [x] **Step 2: Update Account struct**
 
 Add `status` and `opened_at` fields to `Account` struct.
 
-- [ ] **Step 3: Update DTOs**
+- [x] **Step 3: Update DTOs**
 
 Add fields to `AccountDto`, `CreateAccountDto`, `UpdateAccountDto`.
 
-- [ ] **Step 4: Update repository queries**
+- [x] **Step 4: Update repository queries**
 
-- [ ] **Step 5: Update frontend types**
+- [x] **Step 5: Update frontend types**
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A
@@ -1031,25 +1031,25 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ## Task 10: Full Validation
 
-- [ ] **Step 1: Run all tests**
+- [x] **Step 1: Run all tests**
 
 ```bash
 npx vitest run
 ```
 
-- [ ] **Step 2: Run TypeScript check**
+- [x] **Step 2: Run TypeScript check**
 
 ```bash
 pnpm type-check
 ```
 
-- [ ] **Step 3: Run ESLint**
+- [x] **Step 3: Run ESLint**
 
 ```bash
 pnpm lint
 ```
 
-- [ ] **Step 4: Commit final changes**
+- [x] **Step 4: Commit final changes**
 
 ```bash
 git add -A

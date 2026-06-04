@@ -1,7 +1,7 @@
 # 账户模块重构与优化设计文档
 
 **日期:** 2026-06-04  
-**状态:** 已批准  
+**状态:** 已完成 ✅  
 **作者:** Claude Code (brainstorming skill)  
 **范围:** 数据结构修正、Category 引入、ChartOfAccounts、UI/UX 优化
 

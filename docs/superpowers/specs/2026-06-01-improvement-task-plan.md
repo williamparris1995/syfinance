@@ -303,9 +303,9 @@
 
 - **Module:** Debts
 - **Dimension:** Business Logic
-- **Current state:** Two co-existing domain models: `debt.rs` (legacy, unused) and `debt_details.rs` (active). Category system is stubbed throughout DTOs and forms with "will be refactored" comments. `find_active`/`find_completed` repo methods on goals are dead code.
-- **Target state:** Remove `debt.rs` aggregate. Remove or properly implement category fields. Remove unused repository methods.
-- **Approach:** Delete `src-tauri/src/domain/aggregates/debt.rs`. Remove `category_id` from transaction DTOs and the category dropdown from TransactionForm. Remove dead repository methods on GoalRepository.
+- **Current state:** Two co-existing domain models: `debt.rs` (legacy, unused) and `debt_details.rs` (active). Category system has been fully implemented in the account-module-redesign sprint. `find_active`/`find_completed` repo methods on goals are dead code.
+- **Target state:** Remove `debt.rs` aggregate. Remove any remaining legacy category stub references. Remove unused repository methods.
+- **Approach:** Delete `src-tauri/src/domain/aggregates/debt.rs`. Verify category implementation is complete (see account-module-redesign spec). Remove dead repository methods on GoalRepository.
 - **Effort:** S (<1 day)
 - **Files:** Delete `src-tauri/src/domain/aggregates/debt.rs`, clean `src-tauri/src/application/dtos/`, `src/components/TransactionForm.tsx`
 

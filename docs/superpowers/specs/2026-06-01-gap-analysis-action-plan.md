@@ -203,9 +203,9 @@
 ### P3-2: Clean up dead code (legacy debt.rs, stub category system)
 - **Module**: Debts
 - **Dimension**: Business Logic
-- **Current state**: A legacy `debt.rs` module and a stub category system remain in the codebase, adding confusion and dead maintenance burden.
-- **Target state**: Dead code removed. Active debt functionality lives in the proper DDD structure. Category system either fully implemented or cleanly removed.
-- **Approach**: Identify all references to legacy debt types and stub category code. Migrate any active logic to the current DDD modules. Remove unreferenced dead code. Run full test suite to confirm no regressions.
+- **Current state**: A legacy `debt.rs` module remains in the codebase. Category system has been fully implemented in the account-module-redesign sprint (see `docs/superpowers/specs/2026-06-04-account-module-redesign-design.md`).
+- **Target state**: Dead code removed. Active debt functionality lives in the proper DDD structure. Legacy category stubs replaced by full implementation.
+- **Approach**: Delete `src-tauri/src/domain/aggregates/debt.rs`. Verify category implementation is complete and remove any remaining stub code. Run full test suite to confirm no regressions.
 - **Effort**: S
 
 ### P3-3: Add application service layer to Budget and Goals modules
