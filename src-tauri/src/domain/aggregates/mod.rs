@@ -1,5 +1,6 @@
 pub mod account;
 pub mod budget;
+pub mod category;
 pub mod chart_of_accounts;
 pub mod debt_details;
 pub mod goal;
@@ -13,7 +14,9 @@ pub mod transaction_template;
 // Re-exports form the library's public API surface, used by tests and external consumers.
 // main.rs imports directly from submodules, so these appear unused to the binary target.
 #[allow(unused_imports)]
-pub use account::{Account, AccountError, AccountType, Ownership};
+pub use account::{Account, AccountError, AccountStatus, AccountType, Ownership};
+#[allow(unused_imports)]
+pub use category::{Category, CategoryError, CategoryType};
 #[allow(unused_imports)]
 pub use chart_of_accounts::{
     AccountType as ChartOfAccountsType, BalanceDirection, ChartOfAccounts, ChartOfAccountsError,

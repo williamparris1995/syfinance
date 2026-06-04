@@ -110,6 +110,13 @@ impl fmt::Display for AccountError {
 
 impl Error for AccountError {}
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum AccountStatus {
+    Active,
+    Archived,
+    Hidden,
+}
+
 #[derive(Debug, Clone)]
 pub struct Account {
     pub id: Uuid,
@@ -129,6 +136,8 @@ pub struct Account {
     pub payment_due_day: Option<u8>,
     pub interest_rate: Option<Decimal>,
     pub low_balance_threshold: Option<Decimal>,
+    pub status: AccountStatus,
+    pub opened_at: Option<DateTime<Utc>>,
     pub sync_metadata: SyncMetadata,
     pub(crate) pending_events: Vec<AccountEvent>,
 }
@@ -176,6 +185,8 @@ impl Account {
             payment_due_day: None,
             interest_rate: None,
             low_balance_threshold: None,
+            status: AccountStatus::Active,
+            opened_at: None,
             sync_metadata,
             pending_events: Vec::new(),
         };
