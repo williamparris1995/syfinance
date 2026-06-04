@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -137,6 +137,11 @@ export function TransactionTemplateForm({
 
   const watchedCycle = form.watch('cycle');
   const watchedDirection = form.watch('direction');
+  const watchedSourceAccount = form.watch('source_account_id');
+
+  const templateCurrency = useMemo(() => {
+    return accounts.find(a => a.id === watchedSourceAccount)?.currency_code || 'CNY';
+  }, [accounts, watchedSourceAccount]);
 
   // Reset conditional fields when cycle changes
   useEffect(() => {
@@ -231,7 +236,7 @@ export function TransactionTemplateForm({
                 <FormControl>
                   <div className="flex items-center rounded-md border bg-background overflow-hidden h-9">
                     <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">
-                      {getCurrencySymbol('CNY')}
+                      {getCurrencySymbol(templateCurrency)}
                     </span>
                     <input
                       type="number"
