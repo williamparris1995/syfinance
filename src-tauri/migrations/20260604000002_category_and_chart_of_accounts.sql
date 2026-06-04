@@ -21,7 +21,7 @@ DROP TABLE IF EXISTS chart_of_accounts;
 CREATE TABLE chart_of_accounts (
     id BLOB PRIMARY KEY,
     standard TEXT CHECK(standard IN ('china_cas', 'international', 'us_gaap', 'custom')) NOT NULL,
-    code TEXT NOT NULL,
+    code TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL,
     name_en TEXT,
     account_type TEXT NOT NULL,
