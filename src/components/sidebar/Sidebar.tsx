@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useRouterState } from '@tanstack/react-router';
+import { cn } from '@/lib/utils';
 import { useSidebarState, type GroupId } from '@/hooks/useSidebarState';
 import { SidebarGroup } from './SidebarGroup';
 import { SidebarNavItem } from './SidebarNavItem';
@@ -94,9 +95,10 @@ function findActiveGroupId(pathname: string): GroupId | undefined {
 
 interface SidebarProps {
   onNavigate?: () => void;
+  collapsed?: boolean;
 }
 
-export function Sidebar({ onNavigate }: SidebarProps) {
+export function Sidebar({ onNavigate, collapsed }: SidebarProps) {
   const { t } = useTranslation();
   const router = useRouterState();
   const pathname = router.location.pathname;
@@ -104,30 +106,48 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   const { isGroupOpen, toggleGroup } = useSidebarState(activeGroupId);
 
   return (
-    <aside className="flex h-full w-64 flex-col border-r bg-sidebar">
-      <div className="border-b px-6 py-4">
-        <h1 className="text-lg font-semibold text-sidebar-foreground">
-          {t('nav.appTitle')}
-        </h1>
-      </div>
-      <nav className="flex-1 space-y-1 p-4">
+    <aside
+      className={cn(
+        'flex h-full flex-col border-r bg-sidebar transition-all duration-300',
+        collapsed ? 'w-16' : 'w-64'
+      )}
+    >
+      {!collapsed ? (
+        <div className="border-b px-6 py-4">
+          <h1 className="text-lg font-semibold text-sidebar-foreground">
+            {t('nav.appTitle')}
+          </h1>
+        </div>
+      ) : (
+        <div className="border-b px-2 py-4 text-center">
+          <span className="text-lg">📊</span>
+        </div>
+      )}
+      <nav className={cn('flex-1 space-y-1', collapsed ? 'p-2' : 'p-4')}>
         {navGroups.map((group) => (
           <SidebarGroup
             key={group.id}
-            label={t(group.labelKey)}
-            isOpen={isGroupOpen(group.id)}
+            label={collapsed ? '' : t(group.labelKey)}
+            isOpen={collapsed ? false : isGroupOpen(group.id)}
             onToggle={() => toggleGroup(group.id)}
-            toggleDisabled={group.id === activeGroupId}
+            toggleDisabled={group.id === activeGroupId || collapsed}
           >
-            <div className="mt-1 space-y-px">
+            <div
+              className={cn(
+                'mt-1 space-y-px',
+                collapsed && 'flex flex-col items-center'
+              )}
+            >
               {group.items.map((item) => (
                 <SidebarNavItem
                   key={item.to}
                   to={item.to}
-                  label={t(item.labelKey)}
+                  label={collapsed ? '' : t(item.labelKey)}
                   icon={item.icon}
                   exact={item.exact}
                   onNavigate={onNavigate}
+                  title={t(item.labelKey)}
+                  collapsed={collapsed}
                 />
               ))}
             </div>

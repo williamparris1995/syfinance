@@ -1,5 +1,5 @@
 import { ReactNode, useState } from 'react';
-import { Sidebar } from './Sidebar';
+import { Sidebar } from '@/components/sidebar';
 import { Header } from './Header';
 import { cn } from '@/lib/utils';
 
