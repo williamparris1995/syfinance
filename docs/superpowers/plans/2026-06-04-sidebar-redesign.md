@@ -446,17 +446,18 @@ import { SidebarGroup } from '../SidebarGroup';
 
 describe('SidebarGroup', () => {
   it('renders group label', () => {
+    // label is user-visible text passed from parent via t()
     render(
-      <SidebarGroup label="资产管理" isOpen={true} onToggle={() => {}}>
+      <SidebarGroup label="Assets" isOpen={true} onToggle={() => {}}>
         <div>Child content</div>
       </SidebarGroup>
     );
-    expect(screen.getByText('资产管理')).toBeInTheDocument();
+    expect(screen.getByText('Assets')).toBeInTheDocument();
   });
 
   it('renders children when open', () => {
     render(
-      <SidebarGroup label="资产管理" isOpen={true} onToggle={() => {}}>
+      <SidebarGroup label="Assets" isOpen={true} onToggle={() => {}}>
         <div data-testid="child">Child</div>
       </SidebarGroup>
     );
@@ -465,7 +466,7 @@ describe('SidebarGroup', () => {
 
   it('hides children when closed', () => {
     render(
-      <SidebarGroup label="资产管理" isOpen={false} onToggle={() => {}}>
+      <SidebarGroup label="Assets" isOpen={false} onToggle={() => {}}>
         <div data-testid="child">Child</div>
       </SidebarGroup>
     );
@@ -477,12 +478,12 @@ describe('SidebarGroup', () => {
     const onToggle = vi.fn();
 
     render(
-      <SidebarGroup label="资产管理" isOpen={true} onToggle={onToggle}>
+      <SidebarGroup label="Assets" isOpen={true} onToggle={onToggle}>
         <div>Child</div>
       </SidebarGroup>
     );
 
-    await user.click(screen.getByText('资产管理'));
+    await user.click(screen.getByText('Assets'));
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
@@ -492,7 +493,7 @@ describe('SidebarGroup', () => {
 
     render(
       <SidebarGroup
-        label="资产管理"
+        label="Assets"
         isOpen={true}
         onToggle={onToggle}
         toggleDisabled={true}
@@ -501,13 +502,13 @@ describe('SidebarGroup', () => {
       </SidebarGroup>
     );
 
-    await user.click(screen.getByText('资产管理'));
+    await user.click(screen.getByText('Assets'));
     expect(onToggle).not.toHaveBeenCalled();
   });
 
   it('has aria-expanded attribute', () => {
     render(
-      <SidebarGroup label="资产管理" isOpen={true} onToggle={() => {}}>
+      <SidebarGroup label="Assets" isOpen={true} onToggle={() => {}}>
         <div>Child</div>
       </SidebarGroup>
     );
