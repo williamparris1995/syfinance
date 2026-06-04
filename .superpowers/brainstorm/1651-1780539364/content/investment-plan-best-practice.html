@@ -1,0 +1,149 @@
+<h2>定投功能的行业最佳实践分析</h2>
+<p class="subtitle">对比主流金融/理财 App 的导航设计，找到最合适的归属</p>
+
+<div class="section">
+  <div class="label">主流产品对比</div>
+
+  <div class="cards">
+    <div class="card" data-choice="robo" onclick="toggleSelect(this)">
+      <div class="card-body">
+        <h3>🤖 智能投顾类</h3>
+        <p><strong>Betterment / Wealthfront / 蚂蚁财富的「帮你投」</strong></p>
+        <ul>
+          <li>定投不是独立导航项</li>
+          <li>作为<strong>投资账户的设置项</strong>存在</li>
+          <li>用户进入投资组合 → 选择标的 → 开启「自动定投」</li>
+          <li>与「再平衡策略」「风险等级」并列</li>
+        </ul>
+        <p class="label">设计逻辑：定投是投资工具，不是导航分类</p>
+      </div>
+    </div>
+
+    <div class="card" data-choice="fund" onclick="toggleSelect(this)">
+      <div class="card-body">
+        <h3>📈 基金平台类</h3>
+        <p><strong>天天基金 / 支付宝基金 / 且慢</strong></p>
+        <ul>
+          <li>有「<strong>定投专区</strong>」或「我的定投」入口</li>
+          <li>但放在<strong>理财/基金 Tab 下</strong>，不是顶级导航</li>
+          <li>与「基金排行」「自选基金」同级</li>
+          <li>强调：定投是一种<strong>选基+交易策略</strong></li>
+        </ul>
+        <p class="label">设计逻辑：定投是基金投资的子功能</p>
+      </div>
+    </div>
+
+    <div class="card" data-choice="bank" onclick="toggleSelect(this)">
+      <div class="card-body">
+        <h3>🏦 银行 App 类</h3>
+        <p><strong>招商银行 / 平安银行 / 工商银行</strong></p>
+        <ul>
+          <li>在「理财」或「基金」频道内</li>
+          <li>常以「<strong>定投计划</strong>」或「<strong>自动理财</strong>」命名</li>
+          <li>与「零钱理财」「大额存单」并列</li>
+          <li>偶尔在「我的」页面展示定投概览卡片</li>
+        </ul>
+        <p class="label">设计逻辑：定投是理财工具的一种</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">核心洞察</div>
+
+  <div class="mockup">
+    <div class="mockup-header">行业共识：定投的导航层级</div>
+    <div class="mockup-body" style="padding: 20px;">
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+        <div style="background: #e9ecef; padding: 8px 16px; border-radius: 4px; font-size: 13px;">顶级导航<br><small style="color: #6c757d;">5-8 个</small></div>
+        <div style="color: #adb5bd;">❌ 不包含定投</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+        <div style="background: #e7f3ff; padding: 8px 16px; border-radius: 4px; font-size: 13px;">二级页面<br><small style="color: #6c757d;">投资/理财模块内</small></div>
+        <div style="color: #198754;">✅ 定投计划、定投管理</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="background: #fff3cd; padding: 8px 16px; border-radius: 4px; font-size: 13px;">功能入口<br><small style="color: #6c757d;">标的详情页</small></div>
+        <div style="color: #198754;">✅ 「开启定投」按钮</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">推荐方案</div>
+
+  <div class="options">
+    <div class="option" data-choice="contextual" onclick="toggleSelect(this)">
+      <div class="letter">1</div>
+      <div class="content">
+        <h3>上下文嵌入（推荐 ⭐）</h3>
+        <p>定投不作为侧边栏独立项，而是作为<strong>投资组合内的功能</strong>。用户在「投资组合」页面中管理定投计划，类似循环记账在「交易记录」中的逻辑。</p>
+        <ul>
+          <li>✅ 保持导航简洁（避免侧边栏膨胀）</li>
+          <li>✅ 上下文最自然（投资相关的操作在投资模块内）</li>
+          <li>✅ 与循环记账形成对称（都是自动化交易）</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="option" data-choice="planning" onclick="toggleSelect(this)">
+      <div class="letter">2</div>
+      <div class="content">
+        <h3>规划组（备选）</h3>
+        <p>如果必须出现在侧边栏，放在「规划」组下，与「财务目标」「预算」并列。强调定投作为<strong>长期理财策略</strong>的属性。</p>
+        <ul>
+          <li>✅ 突出策略性、目标导向</li>
+          <li>❌ 与交易执行有点脱节</li>
+          <li>❌ 侧边栏项目增加</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">最终建议的结构</div>
+
+  <div class="mockup">
+    <div class="mockup-header">更新后的方案 A — 功能领域分组</div>
+    <div class="mockup-body" style="display:flex; min-height:380px;">
+      <div class="mock-sidebar" style="width:220px; background:#f8f9fa; padding:12px; font-size:13px; line-height:1.6;">
+        <div style="font-weight:600; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #dee2e6;">📊 Finance App</div>
+
+        <div style="color:#6c757d; font-size:11px; text-transform:uppercase; margin-top:12px; margin-bottom:4px;">概览</div>
+        <div style="padding:4px 8px; border-radius:4px; background:#e9ecef; margin-bottom:2px;">🏠 仪表板</div>
+
+        <div style="color:#6c757d; font-size:11px; text-transform:uppercase; margin-top:12px; margin-bottom:4px;">资产管理</div>
+        <div style="padding:4px 8px; margin-bottom:2px;">💰 账户</div>
+        <div style="padding:4px 8px; margin-bottom:2px;">📈 投资组合</div>
+        <div style="padding:4px 8px; margin-bottom:2px; color:#6c757d; font-size:12px; padding-left:20px;">└ 定投计划</div>
+        <div style="padding:4px 8px; margin-bottom:2px;">💳 债务</div>
+        <div style="padding:4px 8px; margin-bottom:2px;">🎫 储值卡</div>
+
+        <div style="color:#6c757d; font-size:11px; text-transform:uppercase; margin-top:12px; margin-bottom:4px;">交易操作</div>
+        <div style="padding:4px 8px; margin-bottom:2px;">📝 交易记录</div>
+        <div style="padding:4px 8px; margin-bottom:2px;">🔄 循环记账</div>
+
+        <div style="color:#6c757d; font-size:11px; text-transform:uppercase; margin-top:12px; margin-bottom:4px;">规划</div>
+        <div style="padding:4px 8px; margin-bottom:2px;">🎯 财务目标</div>
+        <div style="padding:4px 8px; margin-bottom:2px;">📋 预算</div>
+        <div style="padding:4px 8px; margin-bottom:2px;">🔔 提醒</div>
+
+        <div style="color:#6c757d; font-size:11px; text-transform:uppercase; margin-top:12px; margin-bottom:4px;">分析</div>
+        <div style="padding:4px 8px; margin-bottom:2px;">📉 报表</div>
+
+        <div style="color:#6c757d; font-size:11px; text-transform:uppercase; margin-top:12px; margin-bottom:4px;">系统</div>
+        <div style="padding:4px 8px; margin-bottom:2px;">⚙️ 设置</div>
+        <div style="padding:4px 8px; margin-bottom:2px;">💾 备份</div>
+      </div>
+      <div class="mock-content" style="flex:1; padding:20px; background:#fff;">
+        <div style="color:#adb5bd; text-align:center; margin-top:100px;">
+          投资组合页面内的「定投计划」Tab<br>
+          <small>与「持仓列表」「交易记录」并列</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

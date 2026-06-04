@@ -1,0 +1,200 @@
+<h2>修订版设计（v2）</h2>
+<p class="subtitle">基于代码审查后的修正：移除储值卡、添加折叠功能、补充缺失模块分析</p>
+
+<div class="section">
+  <div class="label">📋 问题澄清</div>
+
+  <div class="mockup">
+    <div class="mockup-header">代码审查结果</div>
+    <div class="mockup-body" style="padding: 20px;">
+      <table style="width:100%; border-collapse:collapse; font-size:13px;">
+        <thead>
+          <tr style="background:#f8f9fa; text-align:left;">
+            <th style="padding:8px; border:1px solid #dee2e6;">原设计项</th>
+            <th style="padding:8px; border:1px solid #dee2e6;">代码实际情况</th>
+            <th style="padding:8px; border:1px solid #dee2e6;">修正</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:8px; border:1px solid #dee2e6;">🎫 储值卡</td>
+            <td style="padding:8px; border:1px solid #dee2e6;">不是独立页面，是<b>账户类型</b>的一种（prepaid）。在「账户」页面内点击 prepaid 账户时显示专用详情面板（充值记录、消费记录）</td>
+            <td style="padding:8px; border:1px solid #dee2e6; color: #dc3545;"><b>❌ 移除</b>（已在「账户」模块内管理）</td>
+          </tr>
+          <tr>
+            <td style="padding:8px; border:1px solid #dee2e6;">🏷️ 标签</td>
+            <td style="padding:8px; border:1px solid #dee2e6;">不是独立页面，<b>TagsSection 组件嵌入在 SettingsPage 中</b>。在设置页面管理标签，交易表单中使用</td>
+            <td style="padding:8px; border:1px solid #dee2e6; color: #198754;"><b>✅ 正确</b>（已在「设置」模块内管理）</td>
+          </tr>
+          <tr>
+            <td style="padding:8px; border:1px solid #dee2e6;">📤 导出</td>
+            <td style="padding:8px; border:1px solid #dee2e6;">不是独立页面，<b>exportCsv 功能在 SettingsPage 中</b>作为「数据导出」卡片</td>
+            <td style="padding:8px; border:1px solid #dee2e6; color: #198754;"><b>✅ 正确</b>（已在「设置」模块内管理）</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">🔍 缺失模块分析</div>
+
+  <div class="cards">
+    <div class="card" data-choice="no-missing" onclick="toggleSelect(this)">
+      <div class="card-body">
+        <h3>✅ 当前功能覆盖完整</h3>
+        <p>审查了所有页面组件和路由后，现有功能已覆盖核心财务场景：</p>
+        <ul>
+          <li>账户管理（含储值卡、投资账户等类型）</li>
+          <li>交易记录（含标签、分类）</li>
+          <li>债务跟踪（含还款计划）</li>
+          <li>投资组合（含多种投资品种）</li>
+          <li>预算与目标规划</li>
+          <li>提醒与循环记账</li>
+          <li>报表分析</li>
+          <li>备份与同步</li>
+        </ul>
+        <p class="label">没有发现必须新增的独立页面模块</p>
+      </div>
+    </div>
+
+    <div class="card" data-choice="future" onclick="toggleSelect(this)">
+      <div class="card-body">
+        <h3>💡 未来可扩展（非必须）</h3>
+        <p>以下功能可作为后续迭代，不影响当前设计：</p>
+        <ul>
+          <li><b>导入功能</b>：目前只有导出CSV，没有导入（可考虑加入设置页）</li>
+          <li><b>分类管理</b>：交易有category字段，但没有独立分类管理页（可在设置中增加）</li>
+          <li><b>日历视图</b>：交易记录目前只有列表，可增加日历视图（作为交易页Tab）</li>
+          <li><b>多账本</b>：当前是单账本设计，未来可支持多账本切换</li>
+        </ul>
+        <p class="label">建议：这些都不需要现在就加入侧边栏</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">📐 最终侧边栏结构（含折叠功能）</div>
+
+  <div class="mockup">
+    <div class="mockup-header">Finance App — 最终设计（支持折叠/展开）</div>
+    <div class="mockup-body" style="display:flex; min-height:420px;">
+      <div class="mock-sidebar" style="width:240px; background:#f8f9fa; padding:12px; font-size:13px; line-height:1.6;">
+        <div style="font-weight:600; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #dee2e6;">
+          📊 Finance App
+        </div>
+
+        <div style="padding:6px 10px; border-radius:4px; background:#e9ecef; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>🏠</span> <span>仪表板</span>
+        </div>
+
+        <div style="color:#6c757d; font-size:11px; text-transform:uppercase; margin-top:14px; margin-bottom:4px; display:flex; align-items:center; justify-content:space-between;">
+          <span>资产管理</span>
+          <span style="font-size:10px; cursor:pointer;">▼</span>
+        </div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>💰</span> <span>账户</span>
+        </div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>📈</span> <span>投资组合</span>
+          <span style="margin-left:auto; font-size:10px; color:#6c757d; background:#e9ecef; padding:1px 5px; border-radius:3px;">含定投</span>
+        </div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>💳</span> <span>债务</span>
+        </div>
+
+        <div style="color:#6c757d; font-size:11px; text-transform:uppercase; margin-top:14px; margin-bottom:4px; display:flex; align-items:center; justify-content:space-between;">
+          <span>交易操作</span>
+          <span style="font-size:10px; cursor:pointer;">▼</span>
+        </div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>📝</span> <span>交易记录</span>
+        </div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>🔄</span> <span>循环记账</span>
+        </div>
+
+        <div style="color:#6c757d; font-size:11px; text-transform:uppercase; margin-top:14px; margin-bottom:4px; display:flex; align-items:center; justify-content:space-between;">
+          <span>规划</span>
+          <span style="font-size:10px; cursor:pointer;">▼</span>
+        </div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>🎯</span> <span>财务目标</span>
+        </div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>📋</span> <span>预算</span>
+        </div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>🔔</span> <span>提醒</span>
+        </div>
+
+        <div style="color:#6c757d; font-size:11px; text-transform:uppercase; margin-top:14px; margin-bottom:4px; display:flex; align-items:center; justify-content:space-between;">
+          <span>分析</span>
+          <span style="font-size:10px; cursor:pointer;">▼</span>
+        </div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>📉</span> <span>报表</span>
+        </div>
+
+        <div style="color:#6c757d; font-size:11px; text-transform:uppercase; margin-top:14px; margin-bottom:4px; display:flex; align-items:center; justify-content:space-between;">
+          <span>系统</span>
+          <span style="font-size:10px; cursor:pointer;">▼</span>
+        </div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>⚙️</span> <span>设置</span>
+        </div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>💾</span> <span>备份</span>
+        </div>
+      </div>
+      <div class="mock-content" style="flex:1; padding:20px; background:#fff;">
+        <div style="color:#adb5bd; text-align:center; margin-top:100px;">
+          主内容区域<br>
+          <small>侧边栏共 6 个分组，11 个导航项</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">折叠功能规格</div>
+
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>默认展开规则</h4>
+      <ul>
+        <li>当前选中项所在的分组<b>自动展开</b></li>
+        <li>其他分组保持上次用户操作的状态（localStorage 记忆）</li>
+        <li>首次访问：所有分组默认<b>展开</b></li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>折叠交互</h4>
+      <ul>
+        <li>点击分组标题栏 → 切换展开/折叠</li>
+        <li>hover 时标题栏显示 subtle 背景色变化</li>
+        <li>展开/折叠有 150ms 的平滑过渡动画</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="approve-v2" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content">
+      <h3>确认此设计</h3>
+      <p>11 个导航项 + 6 分组 + 折叠功能，可以继续编写设计文档</p>
+    </div>
+  </div>
+  <div class="option" data-choice="revise-v2" onclick="toggleSelect(this)">
+    <div class="letter">✎</div>
+    <div class="content">
+      <h3>需要调整</h3>
+      <p>在终端告诉我需要修改的地方</p>
+    </div>
+  </div>
+</div>

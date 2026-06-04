@@ -1,0 +1,145 @@
+<h2>最终设计方案：侧边栏功能领域分组</h2>
+<p class="subtitle">基于您的选择（方案A + 上下文嵌入定投）的最终设计</p>
+
+<div class="section">
+  <div class="label">侧边栏结构</div>
+
+  <div class="mockup">
+    <div class="mockup-header">Finance App — 最终侧边栏设计</div>
+    <div class="mockup-body" style="display:flex; min-height:420px;">
+      <div class="mock-sidebar" style="width:240px; background:#f8f9fa; padding:12px; font-size:13px; line-height:1.6;">
+        <div style="font-weight:600; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #dee2e6;">
+          📊 Finance App
+        </div>
+
+        <div style="color:#6c757d; font-size:11px; text-transform:uppercase; margin-top:12px; margin-bottom:4px;">概览</div>
+        <div style="padding:6px 10px; border-radius:4px; background:#e9ecef; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>🏠</span> <span>仪表板</span>
+        </div>
+
+        <div style="color:#6c757d; font-size:11px; text-transform:uppercase; margin-top:14px; margin-bottom:4px;">资产管理</div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>💰</span> <span>账户</span>
+        </div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>📈</span> <span>投资组合</span>
+          <span style="margin-left:auto; font-size:10px; color:#6c757d; background:#e9ecef; padding:1px 5px; border-radius:3px;">含定投</span>
+        </div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>💳</span> <span>债务</span>
+        </div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>🎫</span> <span>储值卡</span>
+        </div>
+
+        <div style="color:#6c757d; font-size:11px; text-transform:uppercase; margin-top:14px; margin-bottom:4px;">交易操作</div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>📝</span> <span>交易记录</span>
+        </div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>🔄</span> <span>循环记账</span>
+        </div>
+
+        <div style="color:#6c757d; font-size:11px; text-transform:uppercase; margin-top:14px; margin-bottom:4px;">规划</div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>🎯</span> <span>财务目标</span>
+        </div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>📋</span> <span>预算</span>
+        </div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>🔔</span> <span>提醒</span>
+        </div>
+
+        <div style="color:#6c757d; font-size:11px; text-transform:uppercase; margin-top:14px; margin-bottom:4px;">分析</div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>📉</span> <span>报表</span>
+        </div>
+
+        <div style="color:#6c757d; font-size:11px; text-transform:uppercase; margin-top:14px; margin-bottom:4px;">系统</div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>⚙️</span> <span>设置</span>
+        </div>
+        <div style="padding:6px 10px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          <span>💾</span> <span>备份</span>
+        </div>
+      </div>
+      <div class="mock-content" style="flex:1; padding:20px; background:#fff;">
+        <div style="color:#adb5bd; text-align:center; margin-top:100px;">
+          投资组合页面<br>
+          <small>持仓列表 | 交易记录 | 定投计划</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">设计要点</div>
+
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>✅ 核心原则</h4>
+      <ul>
+        <li><strong>5 个分组</strong>：概览/资产管理/交易操作/规划/分析/系统</li>
+        <li><strong>13 个导航项</strong>：比当前 6 个更清晰，但不会过载</li>
+        <li><strong>分组标题</strong>：使用 11px 大写标签，清晰分隔</li>
+        <li><strong>当前项高亮</strong>：灰色背景（保持现有样式）</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>📋 待确认细节</h4>
+      <ul>
+        <li>分组顺序是否符合您的使用频率？</li>
+        <li>是否需要分组折叠/展开功能？</li>
+        <li>「储值卡」是否保留？（当前代码中有 prepaid 模块）</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">路由映射</div>
+
+  <table style="width:100%; border-collapse:collapse; font-size:13px; margin-top:8px;">
+    <thead>
+      <tr style="background:#f8f9fa; text-align:left;">
+        <th style="padding:8px; border:1px solid #dee2e6;">侧边栏项</th>
+        <th style="padding:8px; border:1px solid #dee2e6;">路由路径</th>
+        <th style="padding:8px; border:1px solid #dee2e6;">备注</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td style="padding:8px; border:1px solid #dee2e6;">仪表板</td><td style="padding:8px; border:1px solid #dee2e6;"><code>/</code></td><td style="padding:8px; border:1px solid #dee2e6;">现有</td></tr>
+      <tr><td style="padding:8px; border:1px solid #dee2e6;">账户</td><td style="padding:8px; border:1px solid #dee2e6;"><code>/accounts</code></td><td style="padding:8px; border:1px solid #dee2e6;">现有</td></tr>
+      <tr><td style="padding:8px; border:1px solid #dee2e6;">投资组合</td><td style="padding:8px; border:1px solid #dee2e6;"><code>/holdings</code></td><td style="padding:8px; border:1px solid #dee2e6;">现有，内含定投 Tab</td></tr>
+      <tr><td style="padding:8px; border:1px solid #dee2e6;">债务</td><td style="padding:8px; border:1px solid #dee2e6;"><code>/debts</code></td><td style="padding:8px; border:1px solid #dee2e6;">现有</td></tr>
+      <tr><td style="padding:8px; border:1px solid #dee2e6;">储值卡</td><td style="padding:8px; border:1px solid #dee2e6;"><code>/prepaid</code></td><td style="padding:8px; border:1px solid #dee2e6;">需新增路由</td></tr>
+      <tr><td style="padding:8px; border:1px solid #dee2e6;">交易记录</td><td style="padding:8px; border:1px solid #dee2e6;"><code>/transactions</code></td><td style="padding:8px; border:1px solid #dee2e6;">现有</td></tr>
+      <tr><td style="padding:8px; border:1px solid #dee2e6;">循环记账</td><td style="padding:8px; border:1px solid #dee2e6;"><code>/transaction-templates</code></td><td style="padding:8px; border:1px solid #dee2e6;">现有</td></tr>
+      <tr><td style="padding:8px; border:1px solid #dee2e6;">财务目标</td><td style="padding:8px; border:1px solid #dee2e6;"><code>/goals</code></td><td style="padding:8px; border:1px solid #dee2e6;">现有</td></tr>
+      <tr><td style="padding:8px; border:1px solid #dee2e6;">预算</td><td style="padding:8px; border:1px solid #dee2e6;"><code>/budget</code></td><td style="padding:8px; border:1px solid #dee2e6;">现有</td></tr>
+      <tr><td style="padding:8px; border:1px solid #dee2e6;">提醒</td><td style="padding:8px; border:1px solid #dee2e6;"><code>/reminders</code></td><td style="padding:8px; border:1px solid #dee2e6;">现有</td></tr>
+      <tr><td style="padding:8px; border:1px solid #dee2e6;">报表</td><td style="padding:8px; border:1px solid #dee2e6;"><code>/reports</code></td><td style="padding:8px; border:1px solid #dee2e6;">现有</td></tr>
+      <tr><td style="padding:8px; border:1px solid #dee2e6;">设置</td><td style="padding:8px; border:1px solid #dee2e6;"><code>/settings</code></td><td style="padding:8px; border:1px solid #dee2e6;">现有</td></tr>
+      <tr><td style="padding:8px; border:1px solid #dee2e6;">备份</td><td style="padding:8px; border:1px solid #dee2e6;"><code>/backup</code></td><td style="padding:8px; border:1px solid #dee2e6;">现有</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="approve" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content">
+      <h3>确认此设计</h3>
+      <p>侧边栏结构符合预期，可以继续编写设计文档</p>
+    </div>
+  </div>
+  <div class="option" data-choice="revise" onclick="toggleSelect(this)">
+    <div class="letter">✎</div>
+    <div class="content">
+      <h3>需要调整</h3>
+      <p>在终端告诉我需要修改的地方</p>
+    </div>
+  </div>
+</div>
