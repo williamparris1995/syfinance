@@ -18,7 +18,8 @@ import {
   type HoldingTradeDto, type HoldingDto, type SecurityType, type SecuritySearchResult,
 } from '@/lib/tauri/holding';
 import { multiplyDecimal } from '@/lib/decimal';
-import { useState } from 'react';
+import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
+import { useState, useMemo } from 'react';
 
 interface Props {
   onSubmit: (data: HoldingTradeDto) => void;
@@ -102,6 +103,10 @@ export function HoldingTradeForm({ onSubmit, onCancel, isLoading, initialDirecti
   const watched = form.watch();
   const estimatedAmount = parseFloat(multiplyDecimal(watched.quantity || '0', parseFloat(watched.price || '0')));
 
+  const tradeCurrency = useMemo(() => {
+    return investmentAccounts.find(a => a.id === watched.account_id)?.currency_code || 'CNY';
+  }, [investmentAccounts, watched.account_id]);
+
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     setIsSearching(true);
@@ -131,7 +136,7 @@ export function HoldingTradeForm({ onSubmit, onCancel, isLoading, initialDirecti
         name: newName.trim(),
         security_type: newType,
         exchange: newExchange || null,
-        currency_code: 'CNY',
+        currency_code: tradeCurrency,
       });
       await queryClient.invalidateQueries({ queryKey: ['securities'] });
       form.setValue('security_id', newSecurity.id);
@@ -298,7 +303,12 @@ export function HoldingTradeForm({ onSubmit, onCancel, isLoading, initialDirecti
             <FormField name="price" render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">{t('holding.price')} <span className="text-red-500">*</span></FormLabel>
-                <FormControl><Input type="number" step="any" className="h-9" {...field} /></FormControl>
+                <FormControl>
+                  <div className="flex items-center rounded-lg border overflow-hidden h-9">
+                    <span className="px-2.5 text-sm text-muted-foreground bg-muted/50 border-r">{getCurrencySymbol(tradeCurrency)}</span>
+                    <input type="number" step="any" className="flex-1 border-0 bg-transparent px-2.5 text-sm outline-none" {...field} />
+                  </div>
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )} />
@@ -321,7 +331,7 @@ export function HoldingTradeForm({ onSubmit, onCancel, isLoading, initialDirecti
           )} />
 
           {estimatedAmount > 0 && (
-            <div className="text-xs text-muted-foreground">{t('holding.estimatedAmountDisplay', { value: estimatedAmount.toLocaleString('en-US', { minimumFractionDigits: 2 }) })}</div>
+            <div className="text-xs text-muted-foreground">{formatCurrency(estimatedAmount, tradeCurrency)}</div>
           )}
 
           <div className="flex justify-end gap-2 pt-4">
