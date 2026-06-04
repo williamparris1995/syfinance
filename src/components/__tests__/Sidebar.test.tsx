@@ -10,7 +10,9 @@ vi.mock('@tanstack/react-router', () => ({
   Link: ({
     children,
     to,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     activeOptions: _activeOptions,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     activeProps: _activeProps,
     ...props
   }: {
