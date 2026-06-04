@@ -108,6 +108,14 @@ export function SimpleTransactionForm({
   );
   const isPrepaidExpense = type === 'expense' && selectedOwnAccount?.account_type === 'Prepaid';
 
+  // Dynamic currency based on selected account
+  const transactionCurrency = useMemo(() => {
+    if (type === 'transfer') {
+      return accounts.find(a => a.id === fromAccountId)?.currency_code || 'CNY';
+    }
+    return accounts.find(a => a.id === ownAccountId)?.currency_code || 'CNY';
+  }, [accounts, type, fromAccountId, ownAccountId]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -231,7 +239,7 @@ export function SimpleTransactionForm({
           {t('transaction.amount')}
         </div>
         <div className="flex items-center justify-center gap-1">
-          <span className="text-3xl font-bold text-foreground/80">{getCurrencySymbol('CNY')}</span>
+          <span className="text-3xl font-bold text-foreground/80">{getCurrencySymbol(transactionCurrency)}</span>
           <input
             type="number"
             step="0.01"
@@ -384,10 +392,10 @@ export function SimpleTransactionForm({
             : initialData
               ? t('transactions.saveChanges')
               : type === 'expense'
-                ? `${t('transaction.recordExpense')} — ${getCurrencySymbol('CNY')}${amount || '0'}`
+                ? `${t('transaction.recordExpense')} — ${getCurrencySymbol(transactionCurrency)}${amount || '0'}`
                 : type === 'income'
-                  ? `${t('transaction.recordIncome')} — ${getCurrencySymbol('CNY')}${amount || '0'}`
-                  : `${t('transaction.recordTransfer')} — ${getCurrencySymbol('CNY')}${amount || '0'}`
+                  ? `${t('transaction.recordIncome')} — ${getCurrencySymbol(transactionCurrency)}${amount || '0'}`
+                  : `${t('transaction.recordTransfer')} — ${getCurrencySymbol(transactionCurrency)}${amount || '0'}`
           }
         </Button>
       </div>
