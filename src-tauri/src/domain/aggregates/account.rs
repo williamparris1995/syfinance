@@ -136,7 +136,9 @@ pub struct Account {
     pub payment_due_day: Option<u8>,
     pub interest_rate: Option<Decimal>,
     pub low_balance_threshold: Option<Decimal>,
+    #[allow(dead_code)]
     pub status: AccountStatus,
+    #[allow(dead_code)]
     pub opened_at: Option<DateTime<Utc>>,
     pub sync_metadata: SyncMetadata,
     pub(crate) pending_events: Vec<AccountEvent>,

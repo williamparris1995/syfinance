@@ -241,7 +241,10 @@ async fn test_sell_all_empties_holding() {
         .find_by_account(account.id)
         .await
         .expect("find holdings");
-    assert!(holdings.is_empty(), "holding should be deleted after full sell");
+    assert!(
+        holdings.is_empty(),
+        "holding should be deleted after full sell"
+    );
 }
 
 #[tokio::test]
@@ -320,7 +323,10 @@ async fn test_record_dividend() {
         notes: Some("Annual dividend".to_string()),
     };
 
-    let txn_id = service.record_dividend(dividend).await.expect("record dividend");
+    let txn_id = service
+        .record_dividend(dividend)
+        .await
+        .expect("record dividend");
     assert_ne!(txn_id, Uuid::nil());
 
     // Verify holding transaction was created
@@ -378,10 +384,7 @@ async fn test_unrealized_pnl_calculation() {
 
     let holding_dto = &holdings[0];
     // market_value = 100 * 1900 = 190000
-    assert_eq!(
-        holding_dto.market_value,
-        Some(Decimal::new(190000, 0))
-    );
+    assert_eq!(holding_dto.market_value, Some(Decimal::new(190000, 0)));
 
     // unrealized_pnl = (1900 - avg_cost) * 100
     // avg_cost = (100 * 1800 + 100) / 100 = 1801

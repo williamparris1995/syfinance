@@ -139,14 +139,8 @@ export function TransactionForm({ onSubmit, onCancel, isLoading }: TransactionFo
     const account = accounts.find((a) => a.id === accountId);
     if (account) {
       form.setValue(`entries.${index}.account_id`, accountId);
-      // Set a default chart_of_account_code based on account type
-      const defaultCode = account.account_type === 'Cash' ? '1001' : 
-                         account.account_type === 'Bank' ? '1002' :
-                         account.account_type === 'CreditCard' ? '2202' :
-                         account.account_type === 'Investment' ? '1012' :
-                         account.account_type === 'BorrowedIn' ? '2001' :
-                         account.account_type === 'BorrowedOut' ? '1221' : '1012';
-      form.setValue(`entries.${index}.chart_of_account_code`, defaultCode);
+      // Use account's chart_code if available, otherwise empty string
+      form.setValue(`entries.${index}.chart_of_account_code`, account.chart_code || '');
     }
   };
 

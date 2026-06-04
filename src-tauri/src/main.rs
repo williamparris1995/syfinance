@@ -6,11 +6,11 @@ mod presentation;
 use application::services::transaction_template_service::TransactionTemplateService;
 use infrastructure::notifications::{NotificationService, TauriNotificationSender};
 use infrastructure::reminders::ReminderScheduler;
-use infrastructure::schedulers::PrepaidAlertScheduler;
 use infrastructure::repositories::{
-    SqliteAccountRepository, SqliteReminderRepository,
-    SqliteTransactionRepository, SqliteTransactionTemplateRepository,
+    SqliteAccountRepository, SqliteReminderRepository, SqliteTransactionRepository,
+    SqliteTransactionTemplateRepository,
 };
+use infrastructure::schedulers::PrepaidAlertScheduler;
 use infrastructure::sync::SyncScheduler;
 use presentation::api::create_sync_routes;
 use presentation::tauri_commands::{
@@ -30,6 +30,10 @@ use presentation::tauri_commands::{
         add_budget_item, clone_budget_to_month, compute_budget_actuals, create_budget,
         delete_budget, get_budget, get_budget_by_month, list_budgets, remove_budget_item,
         BudgetCommandState,
+    },
+    category_commands::{
+        create_category, create_default_state_from_pool as create_category_default_state_from_pool,
+        delete_category, list_categories, update_category, CategoryCommandState,
     },
     cloud_sync_commands::{
         cloud_sync_now, create_cloud_sync_state, get_cloud_sync_settings, get_cloud_sync_status,
@@ -58,8 +62,8 @@ use presentation::tauri_commands::{
         buy_holding, create_default_state_from_pool as create_holding_default_state,
         create_security, delete_holding_trade, fetch_security_price, list_holding_transactions,
         list_holding_transactions_paginated, list_holdings, list_securities, record_dividend,
-        record_split, search_securities, sell_holding, update_holding_trade,
-        update_security_price, AppState as HoldingCommandState,
+        record_split, search_securities, sell_holding, update_holding_trade, update_security_price,
+        AppState as HoldingCommandState,
     },
     prepaid_commands::{
         create_default_state_from_pool as create_prepaid_default_state, get_prepaid_detail,
@@ -92,10 +96,9 @@ use presentation::tauri_commands::{
     },
     transaction_template_commands::{
         create_template_default_state_from_pool, create_transaction_template,
-        delete_transaction_template, get_transaction_template, list_transaction_templates,
-        pause_transaction_template, resume_transaction_template, update_transaction_template,
-        list_template_transactions,
-        TransactionTemplateCommandState,
+        delete_transaction_template, get_transaction_template, list_template_transactions,
+        list_transaction_templates, pause_transaction_template, resume_transaction_template,
+        update_transaction_template, TransactionTemplateCommandState,
     },
 };
 use sqlx::Row;
@@ -173,6 +176,10 @@ async fn main() {
     // Create all states from the same pool
     let account_state = AppState::from_pool(pool.clone());
     let budget_state = BudgetCommandState::from_pool(pool.clone());
+    let category_state: CategoryCommandState =
+        create_category_default_state_from_pool(pool.clone())
+            .await
+            .expect("failed to initialize category command state");
     let debt_state: DebtAppState = create_debt_default_state_from_pool(pool.clone())
         .await
         .expect("failed to initialize debt command state");
@@ -306,6 +313,7 @@ async fn main() {
         .plugin(tauri_plugin_dialog::init())
         .manage(account_state)
         .manage(budget_state)
+        .manage(category_state)
         .manage(debt_state)
         .manage(currency_state)
         .manage(goal_state)
@@ -341,6 +349,10 @@ async fn main() {
             remove_budget_item,
             compute_budget_actuals,
             clone_budget_to_month,
+            list_categories,
+            create_category,
+            update_category,
+            delete_category,
             list_currencies,
             add_currency,
             update_currency_rate,

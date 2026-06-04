@@ -161,7 +161,10 @@ impl PrepaidAlertScheduler {
             }
         }
 
-        info!(candidates = rows.len(), "Prepaid low-balance check complete");
+        info!(
+            candidates = rows.len(),
+            "Prepaid low-balance check complete"
+        );
         Ok(())
     }
 

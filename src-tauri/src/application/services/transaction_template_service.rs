@@ -1,6 +1,6 @@
 use crate::application::dtos::{
-    CreateTransactionTemplateDto, TransactionDto, TransactionEntryDto,
-    TransactionTemplateDto, UpdateTransactionTemplateDto,
+    CreateTransactionTemplateDto, TransactionDto, TransactionEntryDto, TransactionTemplateDto,
+    UpdateTransactionTemplateDto,
 };
 use crate::domain::aggregates::transaction_template::{
     TemplateCycle, TemplateDirection, TransactionTemplate,

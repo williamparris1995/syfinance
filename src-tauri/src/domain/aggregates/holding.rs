@@ -107,7 +107,7 @@ impl Holding {
     /// Apply a SPLIT — multiply quantity by ratio, divide avg_cost by ratio
     pub fn apply_split(&mut self, ratio: Decimal) {
         assert!(ratio > Decimal::ZERO, "split ratio must be positive");
-        self.quantity = self.quantity * ratio;
-        self.avg_cost = self.avg_cost / ratio;
+        self.quantity *= ratio;
+        self.avg_cost /= ratio;
     }
 }

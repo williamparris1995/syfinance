@@ -1,5 +1,5 @@
 use crate::domain::value_objects::SyncMetadata;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use uuid::Uuid;
@@ -63,6 +63,7 @@ impl fmt::Display for CategoryError {
 impl std::error::Error for CategoryError {}
 
 impl Category {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: Uuid,
         name: impl Into<String>,
@@ -116,6 +117,7 @@ impl Category {
         self.touch();
     }
 
+    #[allow(dead_code)]
     pub fn soft_delete(&mut self) {
         self.sync_metadata.mark_deleted();
     }
@@ -128,7 +130,7 @@ impl Category {
         }
     }
 
-    fn touch(&mut self) {
+    pub(crate) fn touch(&mut self) {
         self.sync_metadata.updated_at = Utc::now();
         self.sync_metadata.synced_at = None;
     }

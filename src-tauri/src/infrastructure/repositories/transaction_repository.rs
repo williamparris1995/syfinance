@@ -2,7 +2,7 @@ use crate::domain::{
     aggregates::Transaction,
     repositories::TransactionRepository,
     value_objects::{
-        build_cursor, Money, PaginatedResult, PageInfo, SortCursor, SyncMetadata, TransactionEntry,
+        build_cursor, Money, PageInfo, PaginatedResult, SortCursor, SyncMetadata, TransactionEntry,
     },
 };
 use chrono::{DateTime, NaiveDate, Utc};
@@ -33,7 +33,9 @@ impl SqliteTransactionRepository {
     }
 
     /// Parse a single SQL row into Transaction parts (everything except entries).
-    fn parse_transaction_row(row: &sqlx::sqlite::SqliteRow) -> sqlx::Result<(Uuid, NaiveDate, String, SyncMetadata)> {
+    fn parse_transaction_row(
+        row: &sqlx::sqlite::SqliteRow,
+    ) -> sqlx::Result<(Uuid, NaiveDate, String, SyncMetadata)> {
         let id: String = row.try_get("id")?;
         let id = Uuid::from_str(&id).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
@@ -100,7 +102,8 @@ impl SqliteTransactionRepository {
             let account_id =
                 Uuid::from_str(&account_id).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
-            let chart_of_account_code: String = row.try_get("chart_of_account_code")?;
+            let chart_of_account_code: Option<String> = row.try_get("chart_of_account_code")?;
+            let chart_of_account_code = chart_of_account_code.unwrap_or_default();
 
             let debit_amount_str: Option<String> = row.try_get("debit_amount")?;
             let credit_amount_str: Option<String> = row.try_get("credit_amount")?;
@@ -221,7 +224,8 @@ impl SqliteTransactionRepository {
             let account_id =
                 Uuid::from_str(&account_id_str).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
-            let chart_of_account_code: String = row.try_get("chart_of_account_code")?;
+            let chart_of_account_code: Option<String> = row.try_get("chart_of_account_code")?;
+            let chart_of_account_code = chart_of_account_code.unwrap_or_default();
 
             let debit_amount_str: Option<String> = row.try_get("debit_amount")?;
             let credit_amount_str: Option<String> = row.try_get("credit_amount")?;
@@ -230,9 +234,7 @@ impl SqliteTransactionRepository {
             let currency_code = currency_map
                 .get(&account_id)
                 .ok_or_else(|| {
-                    sqlx::Error::Decode(
-                        format!("Missing currency for account {account_id}").into(),
-                    )
+                    sqlx::Error::Decode(format!("Missing currency for account {account_id}").into())
                 })?
                 .clone();
 
@@ -287,9 +289,8 @@ impl SqliteTransactionRepository {
         let placeholders: Vec<&str> = account_ids.iter().map(|_| "?").collect();
         let placeholders_str = placeholders.join(",");
 
-        let sql = format!(
-            "SELECT id, currency_code FROM accounts WHERE id IN ({placeholders_str})"
-        );
+        let sql =
+            format!("SELECT id, currency_code FROM accounts WHERE id IN ({placeholders_str})");
 
         let mut query = sqlx::query(&sql);
         for id in account_ids {
@@ -300,8 +301,7 @@ impl SqliteTransactionRepository {
         let mut map = HashMap::new();
         for row in rows {
             let id_str: String = row.try_get("id")?;
-            let id =
-                Uuid::from_str(&id_str).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+            let id = Uuid::from_str(&id_str).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
             let currency_code: String = row.try_get("currency_code")?;
             map.insert(id, currency_code);
         }
@@ -311,6 +311,7 @@ impl SqliteTransactionRepository {
 
     /// Backward paging: fetch in ascending order (after the before cursor),
     /// then reverse results to maintain descending sort.
+    #[allow(clippy::too_many_arguments)]
     async fn fetch_page_backward(
         &self,
         before_cursor: &str,
@@ -321,8 +322,8 @@ impl SqliteTransactionRepository {
     ) -> sqlx::Result<PaginatedResult<Transaction>> {
         let limit = first.min(200) + 1;
 
-        let cursor = SortCursor::decode(before_cursor)
-            .map_err(|e| sqlx::Error::Decode(e.into()))?;
+        let cursor =
+            SortCursor::decode(before_cursor).map_err(|e| sqlx::Error::Decode(e.into()))?;
         let cursor_date = cursor
             .get("transaction_date")
             .ok_or_else(|| sqlx::Error::Decode("Missing transaction_date in cursor".into()))?;
@@ -388,8 +389,7 @@ impl SqliteTransactionRepository {
         let mut headers = Vec::with_capacity(reversed_rows.len());
         for row in &reversed_rows {
             let id_str: String = row.try_get("id")?;
-            let id =
-                Uuid::from_str(&id_str).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+            let id = Uuid::from_str(&id_str).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
             let date_str: String = row.try_get("transaction_date")?;
             let transaction_date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
@@ -453,10 +453,7 @@ impl SqliteTransactionRepository {
             let last = &reversed_rows[reversed_rows.len() - 1];
             let last_date: String = last.try_get("transaction_date")?;
             let last_id: String = last.try_get("id")?;
-            build_cursor(vec![
-                ("transaction_date", last_date),
-                ("id", last_id),
-            ])
+            build_cursor(vec![("transaction_date", last_date), ("id", last_id)])
         } else {
             None
         };
@@ -466,10 +463,7 @@ impl SqliteTransactionRepository {
             let first_row = &reversed_rows[0];
             let first_date: String = first_row.try_get("transaction_date")?;
             let first_id: String = first_row.try_get("id")?;
-            build_cursor(vec![
-                ("transaction_date", first_date),
-                ("id", first_id),
-            ])
+            build_cursor(vec![("transaction_date", first_date), ("id", first_id)])
         } else {
             None
         };
@@ -546,7 +540,13 @@ impl TransactionRepository for SqliteTransactionRepository {
             .bind(entry.id.to_string())
             .bind(transaction.id.to_string())
             .bind(entry.account_id.to_string())
-            .bind(&entry.chart_of_account_code)
+            .bind(
+                if entry.chart_of_account_code.is_empty() {
+                    None::<&str>
+                } else {
+                    Some(entry.chart_of_account_code.as_str())
+                }
+            )
             .bind(debit_amount)
             .bind(credit_amount)
             .bind(&entry.note)
@@ -648,7 +648,13 @@ impl TransactionRepository for SqliteTransactionRepository {
                 .bind(entry.id.to_string())
                 .bind(transaction.id.to_string())
                 .bind(entry.account_id.to_string())
-                .bind(&entry.chart_of_account_code)
+                .bind(
+                    if entry.chart_of_account_code.is_empty() {
+                        None::<&str>
+                    } else {
+                        Some(entry.chart_of_account_code.as_str())
+                    }
+                )
                 .bind(debit_amount)
                 .bind(credit_amount)
                 .bind(&entry.note)
@@ -772,7 +778,7 @@ impl TransactionRepository for SqliteTransactionRepository {
 
         let parsed: Vec<(Uuid, NaiveDate, String, SyncMetadata)> = rows
             .iter()
-            .map(|row| Self::parse_transaction_row(row))
+            .map(Self::parse_transaction_row)
             .collect::<sqlx::Result<Vec<_>>>()?;
 
         let txn_ids: Vec<String> = parsed.iter().map(|(id, _, _, _)| id.to_string()).collect();
@@ -805,7 +811,7 @@ impl TransactionRepository for SqliteTransactionRepository {
 
         let parsed: Vec<(Uuid, NaiveDate, String, SyncMetadata)> = rows
             .iter()
-            .map(|row| Self::parse_transaction_row(row))
+            .map(Self::parse_transaction_row)
             .collect::<sqlx::Result<Vec<_>>>()?;
 
         let txn_ids: Vec<String> = parsed.iter().map(|(id, _, _, _)| id.to_string()).collect();
@@ -874,7 +880,7 @@ impl TransactionRepository for SqliteTransactionRepository {
 
         let parsed: Vec<(Uuid, NaiveDate, String, SyncMetadata)> = rows
             .iter()
-            .map(|row| Self::parse_transaction_row(row))
+            .map(Self::parse_transaction_row)
             .collect::<sqlx::Result<Vec<_>>>()?;
 
         let txn_ids: Vec<String> = parsed.iter().map(|(id, _, _, _)| id.to_string()).collect();
@@ -891,10 +897,7 @@ impl TransactionRepository for SqliteTransactionRepository {
         Ok(transactions)
     }
 
-    async fn find_by_account(
-        &self,
-        account_id: Uuid,
-    ) -> sqlx::Result<Vec<Transaction>> {
+    async fn find_by_account(&self, account_id: Uuid) -> sqlx::Result<Vec<Transaction>> {
         let rows = sqlx::query(
             r#"
             SELECT DISTINCT t.id, t.transaction_date, t.description,
@@ -911,7 +914,7 @@ impl TransactionRepository for SqliteTransactionRepository {
 
         let parsed: Vec<(Uuid, NaiveDate, String, SyncMetadata)> = rows
             .iter()
-            .map(|row| Self::parse_transaction_row(row))
+            .map(Self::parse_transaction_row)
             .collect::<sqlx::Result<Vec<_>>>()?;
 
         let txn_ids: Vec<String> = parsed.iter().map(|(id, _, _, _)| id.to_string()).collect();
@@ -978,20 +981,14 @@ impl TransactionRepository for SqliteTransactionRepository {
         // Handle backward paging: fetch in reverse then flip
         if let Some(before_cursor) = before {
             return self
-                .fetch_page_backward(
-                    before_cursor,
-                    first,
-                    account_id,
-                    start_date,
-                    end_date,
-                )
+                .fetch_page_backward(before_cursor, first, account_id, start_date, end_date)
                 .await;
         }
 
         // Decode forward cursor
         let (cursor_date, cursor_id) = if let Some(after_str) = after {
-            let cursor = SortCursor::decode(after_str)
-                .map_err(|e| sqlx::Error::Decode(e.into()))?;
+            let cursor =
+                SortCursor::decode(after_str).map_err(|e| sqlx::Error::Decode(e.into()))?;
             let date = cursor
                 .get("transaction_date")
                 .ok_or_else(|| sqlx::Error::Decode("Missing transaction_date in cursor".into()))?
@@ -1067,8 +1064,7 @@ impl TransactionRepository for SqliteTransactionRepository {
         let mut headers = Vec::with_capacity(page_rows.len());
         for row in page_rows {
             let id_str: String = row.try_get("id")?;
-            let id =
-                Uuid::from_str(&id_str).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+            let id = Uuid::from_str(&id_str).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
 
             let date_str: String = row.try_get("transaction_date")?;
             let transaction_date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
@@ -1132,10 +1128,7 @@ impl TransactionRepository for SqliteTransactionRepository {
             let last = &page_rows[page_rows.len() - 1];
             let last_date: String = last.try_get("transaction_date")?;
             let last_id: String = last.try_get("id")?;
-            build_cursor(vec![
-                ("transaction_date", last_date),
-                ("id", last_id),
-            ])
+            build_cursor(vec![("transaction_date", last_date), ("id", last_id)])
         } else {
             None
         };
@@ -1144,10 +1137,7 @@ impl TransactionRepository for SqliteTransactionRepository {
             let first_row = &page_rows[0];
             let first_date: String = first_row.try_get("transaction_date")?;
             let first_id: String = first_row.try_get("id")?;
-            build_cursor(vec![
-                ("transaction_date", first_date),
-                ("id", first_id),
-            ])
+            build_cursor(vec![("transaction_date", first_date), ("id", first_id)])
         } else {
             None
         };

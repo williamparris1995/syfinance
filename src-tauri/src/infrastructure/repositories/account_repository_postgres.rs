@@ -102,6 +102,8 @@ impl PostgresAccountRepository {
             payment_due_day: None,
             interest_rate: None,
             low_balance_threshold: None,
+            status: crate::domain::aggregates::account::AccountStatus::Active,
+            opened_at: None,
             sync_metadata,
             pending_events: Vec::new(),
         })
@@ -217,6 +219,25 @@ impl AccountRepository for PostgresAccountRepository {
             "#,
         )
         .bind(id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        row.map(|row| Self::row_to_account(&row)).transpose()
+    }
+
+    async fn find_by_name(&self, name: &str) -> sqlx::Result<Option<Account>> {
+        let row = sqlx::query(
+            r#"
+            SELECT
+                id, name, account_type, ownership,
+                currency_code, initial_balance,
+                icon, color, chart_code, parent_id,
+                updated_at, deleted_at, device_id, synced_at
+            FROM accounts
+            WHERE name = $1 AND deleted_at IS NULL
+            "#,
+        )
+        .bind(name)
         .fetch_optional(&self.pool)
         .await?;
 

@@ -1,6 +1,6 @@
 use crate::domain::aggregates::holding::{Holding, HoldingTransaction, HoldingTransactionType};
 use crate::domain::repositories::HoldingRepository;
-use crate::domain::value_objects::{build_cursor, PaginatedResult, PageInfo, SortCursor};
+use crate::domain::value_objects::{build_cursor, PageInfo, PaginatedResult, SortCursor};
 use chrono::{NaiveDate, Utc};
 use rust_decimal::Decimal;
 use sqlx::{Row, SqlitePool};
@@ -316,34 +316,24 @@ impl HoldingRepository for SqliteHoldingRepository {
         .fetch_optional(&self.pool)
         .await?;
 
-        let holding_row = holding_row.ok_or_else(|| {
-            sqlx::Error::RowNotFound
-        })?;
+        let holding_row = holding_row.ok_or_else(|| sqlx::Error::RowNotFound)?;
         let account_id: String = holding_row.try_get("account_id")?;
         let security_id: String = holding_row.try_get("security_id")?;
 
         // Handle backward paging
         if let Some(before_cursor) = before {
             return self
-                .fetch_ht_page_backward(
-                    &account_id,
-                    &security_id,
-                    before_cursor,
-                    first,
-                    limit,
-                )
+                .fetch_ht_page_backward(&account_id, &security_id, before_cursor, first, limit)
                 .await;
         }
 
         // Decode forward cursor
         let (cursor_date, cursor_id) = if let Some(after_str) = after {
-            let cursor = SortCursor::decode(after_str)
-                .map_err(|e| sqlx::Error::Decode(e.into()))?;
+            let cursor =
+                SortCursor::decode(after_str).map_err(|e| sqlx::Error::Decode(e.into()))?;
             let date = cursor
                 .get("trade_date")
-                .ok_or_else(|| {
-                    sqlx::Error::Decode("Missing trade_date in cursor".into())
-                })?
+                .ok_or_else(|| sqlx::Error::Decode("Missing trade_date in cursor".into()))?
                 .to_string();
             let id = cursor
                 .get("id")
@@ -424,6 +414,7 @@ impl HoldingRepository for SqliteHoldingRepository {
 
 impl SqliteHoldingRepository {
     /// Backward paging for holding transactions.
+    #[allow(clippy::too_many_arguments)]
     async fn fetch_ht_page_backward(
         &self,
         account_id: &str,
@@ -432,8 +423,8 @@ impl SqliteHoldingRepository {
         first: i64,
         limit: i64,
     ) -> sqlx::Result<PaginatedResult<HoldingTransaction>> {
-        let cursor = SortCursor::decode(before_cursor)
-            .map_err(|e| sqlx::Error::Decode(e.into()))?;
+        let cursor =
+            SortCursor::decode(before_cursor).map_err(|e| sqlx::Error::Decode(e.into()))?;
         let cursor_date = cursor
             .get("trade_date")
             .ok_or_else(|| sqlx::Error::Decode("Missing trade_date in cursor".into()))?;
@@ -441,15 +432,14 @@ impl SqliteHoldingRepository {
             .get("id")
             .ok_or_else(|| sqlx::Error::Decode("Missing id in cursor".into()))?;
 
-        let sql = format!(
-            "SELECT id, account_id, security_id, type, CAST(quantity AS TEXT) as quantity, \
+        let sql = "SELECT id, account_id, security_id, type, CAST(quantity AS TEXT) as quantity, \
              CAST(price AS TEXT) as price, CAST(amount AS TEXT) as amount, \
              CAST(fee AS TEXT) as fee, trade_date, transaction_id, notes \
              FROM holding_transactions \
              WHERE account_id = ? AND security_id = ? AND deleted_at IS NULL \
              AND (trade_date, id) > (?, ?) \
              ORDER BY trade_date ASC, id ASC LIMIT ?"
-        );
+            .to_string();
 
         let rows = sqlx::query(&sql)
             .bind(account_id)

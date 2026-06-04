@@ -76,6 +76,12 @@ impl<R: AccountRepository, U: CurrencyRepository> AccountService<R, U> {
         _executor: E,
         dto: CreateAccountDto,
     ) -> Result<AccountDto, AccountServiceError> {
+        // Check for duplicate name
+        let existing = self.account_repo.find_by_name(&dto.name).await?;
+        if existing.is_some() {
+            return Err(AccountServiceError::DuplicateAccountName(dto.name));
+        }
+
         let currency = self
             .currency_repo
             .find_by_code(&dto.currency_code)
@@ -250,8 +256,8 @@ impl<R: AccountRepository, U: CurrencyRepository> AccountService<R, U> {
             .map_err(AccountServiceError::DatabaseError)?;
 
         let current = account.initial_balance.amount + net_change;
-        Ok(Money::new(current, &account.initial_balance.currency_code)
-            .map_err(|e| AccountServiceError::InvalidMoney(e.to_string()))?)
+        Money::new(current, &account.initial_balance.currency_code)
+            .map_err(|e| AccountServiceError::InvalidMoney(e.to_string()))
     }
 
     pub async fn create_preset_investment_accounts<E>(
@@ -308,6 +314,9 @@ pub enum AccountServiceError {
     #[error("Invalid money: {0}")]
     InvalidMoney(String),
 
+    #[error("Account with name '{0}' already exists")]
+    DuplicateAccountName(String),
+
     #[error("Account domain error: {0}")]
     AccountError(#[from] AccountError),
 
@@ -347,6 +356,16 @@ mod tests {
 
         async fn find_by_id(&self, id: Uuid) -> sqlx::Result<Option<Account>> {
             Ok(self.accounts.lock().unwrap().get(&id).cloned())
+        }
+
+        async fn find_by_name(&self, name: &str) -> sqlx::Result<Option<Account>> {
+            Ok(self
+                .accounts
+                .lock()
+                .unwrap()
+                .values()
+                .find(|a| a.name == name)
+                .cloned())
         }
 
         async fn find_all(&self) -> sqlx::Result<Vec<Account>> {

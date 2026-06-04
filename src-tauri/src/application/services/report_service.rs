@@ -172,10 +172,7 @@ impl ReportService {
         })
     }
 
-    pub async fn get_balance_sheet(
-        &self,
-        as_of_date: &str,
-    ) -> Result<BalanceSheet, String> {
+    pub async fn get_balance_sheet(&self, as_of_date: &str) -> Result<BalanceSheet, String> {
         info!(as_of_date = as_of_date, "Computing balance sheet");
 
         let rows: Vec<(String, String, String, String, String)> = sqlx::query_as(
@@ -210,15 +207,13 @@ impl ReportService {
         let mut total_liabilities = rust_decimal::Decimal::ZERO;
 
         for (id, name, account_type, currency, balance_str) in &rows {
-            let balance: rust_decimal::Decimal = balance_str.parse().unwrap_or(rust_decimal::Decimal::ZERO);
+            let balance: rust_decimal::Decimal =
+                balance_str.parse().unwrap_or(rust_decimal::Decimal::ZERO);
             let is_asset = matches!(
                 account_type.as_str(),
                 "cash" | "bank" | "investment" | "prepaid"
             );
-            let is_liability = matches!(
-                account_type.as_str(),
-                "creditcard" | "borrowedin"
-            );
+            let is_liability = matches!(account_type.as_str(), "creditcard" | "borrowedin");
 
             if is_asset && balance > rust_decimal::Decimal::ZERO {
                 total_assets += balance;
@@ -259,7 +254,11 @@ impl ReportService {
         start_date: &str,
         end_date: &str,
     ) -> Result<IncomeStatement, String> {
-        info!(start_date = start_date, end_date = end_date, "Computing income statement");
+        info!(
+            start_date = start_date,
+            end_date = end_date,
+            "Computing income statement"
+        );
 
         let rows: Vec<(String, String, String, String, i64)> = sqlx::query_as(
             "SELECT
@@ -296,7 +295,8 @@ impl ReportService {
         let mut total_expenses = rust_decimal::Decimal::ZERO;
 
         for (id, name, account_type, amount_str, tx_count) in &rows {
-            let amount: rust_decimal::Decimal = amount_str.parse().unwrap_or(rust_decimal::Decimal::ZERO);
+            let amount: rust_decimal::Decimal =
+                amount_str.parse().unwrap_or(rust_decimal::Decimal::ZERO);
             let item = IncomeStatementItem {
                 account_id: id.clone(),
                 account_name: name.clone(),
@@ -330,7 +330,11 @@ impl ReportService {
         start_date: &str,
         end_date: &str,
     ) -> Result<DashboardSummary, String> {
-        info!(start_date = start_date, end_date = end_date, "Computing dashboard summary");
+        info!(
+            start_date = start_date,
+            end_date = end_date,
+            "Computing dashboard summary"
+        );
 
         let rows: Vec<(String, String, String, String)> = sqlx::query_as(
             "SELECT
@@ -366,7 +370,8 @@ impl ReportService {
         let mut expense_by_category = Vec::new();
 
         for (id, name, account_type, amount_str) in &rows {
-            let amount: rust_decimal::Decimal = amount_str.parse().unwrap_or(rust_decimal::Decimal::ZERO);
+            let amount: rust_decimal::Decimal =
+                amount_str.parse().unwrap_or(rust_decimal::Decimal::ZERO);
             let item = IncomeStatementItem {
                 account_id: id.clone(),
                 account_name: name.clone(),
@@ -400,7 +405,11 @@ impl ReportService {
         start_date: &str,
         end_date: &str,
     ) -> Result<Vec<MonthlyTrendItem>, String> {
-        info!(start_date = start_date, end_date = end_date, "Computing monthly trend");
+        info!(
+            start_date = start_date,
+            end_date = end_date,
+            "Computing monthly trend"
+        );
 
         let rows: Vec<(String, String, String, String)> = sqlx::query_as(
             "SELECT
@@ -431,10 +440,20 @@ impl ReportService {
         .map_err(|e| format!("Failed to compute monthly trend: {}", e))?;
 
         // Pivot into per-month structure
-        let mut month_map: std::collections::BTreeMap<String, (rust_decimal::Decimal, rust_decimal::Decimal, serde_json::Map<String, serde_json::Value>, serde_json::Map<String, serde_json::Value>)> = std::collections::BTreeMap::new();
+        #[allow(clippy::type_complexity)]
+        let mut month_map: std::collections::BTreeMap<
+            String,
+            (
+                rust_decimal::Decimal,
+                rust_decimal::Decimal,
+                serde_json::Map<String, serde_json::Value>,
+                serde_json::Map<String, serde_json::Value>,
+            ),
+        > = std::collections::BTreeMap::new();
 
         for (month, account_name, account_type, amount_str) in &rows {
-            let amount: rust_decimal::Decimal = amount_str.parse().unwrap_or(rust_decimal::Decimal::ZERO);
+            let amount: rust_decimal::Decimal =
+                amount_str.parse().unwrap_or(rust_decimal::Decimal::ZERO);
             let entry = month_map.entry(month.clone()).or_insert((
                 rust_decimal::Decimal::ZERO,
                 rust_decimal::Decimal::ZERO,
@@ -444,22 +463,30 @@ impl ReportService {
 
             if account_type == "income" {
                 entry.0 += amount;
-                entry.3.insert(account_name.clone(), serde_json::Value::String(amount.to_string()));
+                entry.3.insert(
+                    account_name.clone(),
+                    serde_json::Value::String(amount.to_string()),
+                );
             } else if account_type == "expense" {
                 entry.1 += amount;
-                entry.2.insert(account_name.clone(), serde_json::Value::String(amount.to_string()));
+                entry.2.insert(
+                    account_name.clone(),
+                    serde_json::Value::String(amount.to_string()),
+                );
             }
         }
 
         let result: Vec<MonthlyTrendItem> = month_map
             .into_iter()
-            .map(|(month, (income, expenses, exp_cats, inc_cats))| MonthlyTrendItem {
-                month,
-                income: income.to_string(),
-                expenses: expenses.to_string(),
-                expense_categories: serde_json::Value::Object(exp_cats),
-                income_categories: serde_json::Value::Object(inc_cats),
-            })
+            .map(
+                |(month, (income, expenses, exp_cats, inc_cats))| MonthlyTrendItem {
+                    month,
+                    income: income.to_string(),
+                    expenses: expenses.to_string(),
+                    expense_categories: serde_json::Value::Object(exp_cats),
+                    income_categories: serde_json::Value::Object(inc_cats),
+                },
+            )
             .collect();
 
         Ok(result)

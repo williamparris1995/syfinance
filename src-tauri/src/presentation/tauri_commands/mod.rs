@@ -1,6 +1,7 @@
 pub mod account_commands;
 pub mod backup_commands;
 pub mod budget_commands;
+pub mod category_commands;
 pub mod cloud_sync_commands;
 pub mod currency_commands;
 pub mod debt_commands;
@@ -36,6 +37,10 @@ pub use backup_commands::{
 pub use budget_commands::{
     add_budget_item, compute_budget_actuals, create_budget, delete_budget, get_budget,
     get_budget_by_month, list_budgets, remove_budget_item, BudgetCommandState,
+};
+#[allow(unused_imports)]
+pub use category_commands::{
+    create_category, delete_category, list_categories, update_category, CategoryCommandState,
 };
 #[allow(unused_imports)]
 pub use cloud_sync_commands::{
@@ -78,6 +83,8 @@ pub use reminder_commands::{
     get_reminder, list_reminders, update_reminder, ReminderCommandState,
 };
 #[allow(unused_imports)]
+pub use report_commands::{get_yoy_comparison, ReportCommandState};
+#[allow(unused_imports)]
 pub use search_commands::{
     create_search_default_state, global_search, rebuild_search_index, SearchCommandState,
 };
@@ -104,5 +111,3 @@ pub use transaction_template_commands::{
     list_transaction_templates, pause_transaction_template, resume_transaction_template,
     update_transaction_template, TransactionTemplateCommandState,
 };
-#[allow(unused_imports)]
-pub use report_commands::{get_yoy_comparison, ReportCommandState};

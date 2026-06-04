@@ -56,6 +56,7 @@
     "debts": "Debts",
     "holdings": "Portfolio",
     "subscriptions": "Subscriptions",
+    "categories": "Categories",
     "recurring": "Recurring",
     "budget": "Budget",
     "goals": "Goals",
@@ -69,6 +70,58 @@
     "analysis": "Analysis",
     "system": "System",
     "backup": "Backup"
+  },
+  "category": {
+    "title": "Categories",
+    "incomeCategories": "Income Categories",
+    "expenseCategories": "Expense Categories",
+    "system": "System",
+    "custom": "Custom",
+    "addCategory": "Add Category",
+    "editCategory": "Edit Category",
+    "deleteCategory": "Delete Category",
+    "deleteConfirm": "Are you sure you want to delete this category? Related transactions will keep their records but will no longer be linked to this category.",
+    "noCategories": "No categories yet",
+    "name": "Name",
+    "icon": "Icon",
+    "color": "Color",
+    "type": "Type",
+    "income": "Income",
+    "expense": "Expense",
+    "nameRequired": "Category name is required"
+  },
+  "chartOfAccounts": {
+    "title": "Chart of Accounts",
+    "standard": "Accounting Standard",
+    "chinaCAS": "China CAS",
+    "international": "IFRS",
+    "usGAAP": "US GAAP",
+    "custom": "Custom",
+    "code": "Code",
+    "name": "Name"
+  },
+  "account": {
+    "status": {
+      "active": "Active",
+      "archived": "Archived",
+      "hidden": "Hidden"
+    },
+    "createWizard": {
+      "title": "Create Account",
+      "step1Title": "Choose Account Nature",
+      "assetAccount": "Asset/Liability Account",
+      "assetAccountDesc": "Where you keep money, e.g., bank cards, cash, investments",
+      "incomeExpenseAccount": "Income/Expense Account",
+      "incomeExpenseAccountDesc": "For bookkeeping, e.g., salary, dining expenses",
+      "step2Title": "Choose Account Type",
+      "step3Title": "Fill in Details"
+    },
+    "balanceDisplay": {
+      "balance": "Balance",
+      "cumulative": "Cumulative",
+      "thisMonth": "This Month",
+      "thisYear": "This Year"
+    }
   },
   "reminders": {
     "title": "Reminders",

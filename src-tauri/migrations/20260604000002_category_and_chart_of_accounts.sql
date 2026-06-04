@@ -15,7 +15,9 @@ CREATE TABLE categories (
     sync_vector INTEGER DEFAULT 0
 );
 
--- Create chart_of_accounts table
+-- Recreate chart_of_accounts table with new schema
+DROP TABLE IF EXISTS chart_of_accounts;
+
 CREATE TABLE chart_of_accounts (
     id BLOB PRIMARY KEY,
     standard TEXT CHECK(standard IN ('china_cas', 'international', 'us_gaap', 'custom')) NOT NULL,

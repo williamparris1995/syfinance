@@ -13,6 +13,8 @@ pub use currency::{Currency, CurrencyValidationError};
 #[allow(unused_imports)]
 pub use money::{Money, MoneyValidationError};
 #[allow(unused_imports)]
+pub use pagination::{build_cursor, PageInfo, PaginatedResult, PaginationParams, SortCursor};
+#[allow(unused_imports)]
 pub use sync_metadata::SyncMetadata;
 #[allow(unused_imports)]
 pub use top_up_record::TopUpRecord;
@@ -20,7 +22,5 @@ pub use top_up_record::TopUpRecord;
 pub use transaction_entry::{TransactionEntry, TransactionEntryError};
 #[allow(unused_imports)]
 pub use transaction_operation::{OperationType, TransactionOperation};
-#[allow(unused_imports)]
-pub use pagination::{build_cursor, PaginatedResult, PageInfo, PaginationParams, SortCursor};
 #[allow(unused_imports)]
 pub use version_vector::VersionVector;

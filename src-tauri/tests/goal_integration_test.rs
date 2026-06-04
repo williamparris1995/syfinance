@@ -107,10 +107,7 @@ async fn test_create_investment_goal() {
         .expect("create investment goal");
 
     assert_eq!(goal.goal_type, GoalType::Investment);
-    assert_eq!(
-        goal.linked_account_id,
-        Some("account-123".to_string())
-    );
+    assert_eq!(goal.linked_account_id, Some("account-123".to_string()));
 }
 
 #[tokio::test]
@@ -211,7 +208,10 @@ async fn test_goal_auto_complete_on_target_reached() {
         .await
         .expect("update progress to target");
 
-    assert!(updated.is_completed, "goal should auto-complete when target reached");
+    assert!(
+        updated.is_completed,
+        "goal should auto-complete when target reached"
+    );
     assert!(updated.completed_at.is_some());
 }
 
@@ -331,7 +331,10 @@ async fn test_goal_progress_calculation() {
 
     goal.add_progress(Decimal::new(25000, 0));
     let pct = goal.progress_percentage();
-    assert!((pct - 25.0).abs() < 0.01, "progress should be 25%, got {pct}");
+    assert!(
+        (pct - 25.0).abs() < 0.01,
+        "progress should be 25%, got {pct}"
+    );
     assert_eq!(goal.remaining_amount(), Decimal::new(75000, 0));
 
     // Add enough to complete

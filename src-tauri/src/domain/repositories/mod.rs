@@ -1,4 +1,5 @@
 mod budget_repository;
+mod category_repository;
 mod debt_repository;
 mod goal_repository;
 mod prepaid_repository;
@@ -18,6 +19,7 @@ use rust_decimal::Decimal;
 use uuid::Uuid;
 
 pub use budget_repository::BudgetRepository;
+pub use category_repository::CategoryRepository;
 pub use debt_repository::DebtRepository;
 pub use goal_repository::GoalRepository;
 pub use prepaid_repository::PrepaidRepository;
@@ -30,6 +32,8 @@ pub trait AccountRepository: Send + Sync {
     async fn create(&self, account: &Account) -> sqlx::Result<()>;
 
     async fn find_by_id(&self, id: Uuid) -> sqlx::Result<Option<Account>>;
+
+    async fn find_by_name(&self, name: &str) -> sqlx::Result<Option<Account>>;
 
     async fn find_all(&self) -> sqlx::Result<Vec<Account>>;
 
@@ -82,6 +86,7 @@ pub trait TransactionRepository: Send + Sync {
 
     async fn mark_as_synced(&self, id: Uuid) -> sqlx::Result<bool>;
 
+    #[allow(clippy::too_many_arguments)]
     async fn find_paginated(
         &self,
         first: i64,
@@ -92,10 +97,7 @@ pub trait TransactionRepository: Send + Sync {
         end_date: Option<NaiveDate>,
     ) -> sqlx::Result<PaginatedResult<Transaction>>;
 
-    async fn find_by_account(
-        &self,
-        account_id: Uuid,
-    ) -> sqlx::Result<Vec<Transaction>>;
+    async fn find_by_account(&self, account_id: Uuid) -> sqlx::Result<Vec<Transaction>>;
 }
 
 #[allow(async_fn_in_trait, dead_code)]

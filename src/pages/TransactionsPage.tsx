@@ -311,19 +311,23 @@ export function TransactionsPage() {
     };
   };
 
+  const getAccountChartCode = (accountId: string) => {
+    return accounts.find((a) => a.id === accountId)?.chart_code || '';
+  };
+
   const buildEditEntries = (data: TransactionFormData) => {
     if (data.type === 'transfer') {
       return [
         {
           account_id: data.toAccountId!,
-          chart_of_account_code: '1002',
+          chart_of_account_code: getAccountChartCode(data.toAccountId!),
           debit_amount: data.amount,
           credit_amount: null,
           memo: data.description || null,
         },
         {
           account_id: data.fromAccountId!,
-          chart_of_account_code: '1002',
+          chart_of_account_code: getAccountChartCode(data.fromAccountId!),
           debit_amount: null,
           credit_amount: data.amount,
           memo: data.description || null,
@@ -334,14 +338,14 @@ export function TransactionsPage() {
       return [
         {
           account_id: data.debitAccountId!,
-          chart_of_account_code: '5401',
+          chart_of_account_code: getAccountChartCode(data.debitAccountId!),
           debit_amount: data.amount,
           credit_amount: null,
           memo: data.description || null,
         },
         {
           account_id: data.creditAccountId!,
-          chart_of_account_code: '5401',
+          chart_of_account_code: getAccountChartCode(data.creditAccountId!),
           debit_amount: null,
           credit_amount: data.amount,
           memo: data.description || null,
@@ -352,14 +356,14 @@ export function TransactionsPage() {
     return [
       {
         account_id: data.debitAccountId!,
-        chart_of_account_code: '4001',
+        chart_of_account_code: getAccountChartCode(data.debitAccountId!),
         debit_amount: data.amount,
         credit_amount: null,
         memo: data.description || null,
       },
       {
         account_id: data.creditAccountId!,
-        chart_of_account_code: '4001',
+        chart_of_account_code: getAccountChartCode(data.creditAccountId!),
         debit_amount: null,
         credit_amount: data.amount,
         memo: data.description || null,

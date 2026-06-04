@@ -1,5 +1,6 @@
 pub mod account_service;
 pub mod budget_service;
+pub mod category_service;
 pub mod debt_service;
 pub mod encryption_app_service;
 pub mod goal_service;
@@ -15,6 +16,8 @@ pub mod transaction_template_service;
 pub use account_service::{AccountService, AccountServiceError};
 #[allow(unused_imports)]
 pub use budget_service::BudgetService;
+#[allow(unused_imports)]
+pub use category_service::{CategoryService, CategoryServiceError};
 pub use debt_service::DebtService;
 pub use encryption_app_service::{EncryptionAppError, EncryptionAppService};
 #[allow(unused_imports)]
@@ -22,10 +25,10 @@ pub use goal_service::{GoalService, GoalServiceError};
 #[allow(unused_imports)]
 pub use holding_service::{HoldingService, HoldingServiceError};
 pub use prepaid_service::PrepaidService;
+#[allow(unused_imports)]
+pub use report_service::{ReportService, YoyComparison, YoyMonthData};
 pub use transaction_service::TransactionService;
 #[allow(unused_imports)]
 pub use transaction_template_service::{
     TransactionTemplateService, TransactionTemplateServiceError,
 };
-#[allow(unused_imports)]
-pub use report_service::{ReportService, YoyComparison, YoyMonthData};

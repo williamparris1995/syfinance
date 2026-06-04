@@ -152,7 +152,7 @@ pub async fn export_csv(
     let mut wtr =
         csv::Writer::from_path(&file_path).map_err(|e| format!("Failed to create CSV: {}", e))?;
 
-    wtr.write_record(&["table", "id", "field", "value"])
+    wtr.write_record(["table", "id", "field", "value"])
         .map_err(|e| format!("CSV write error: {}", e))?;
 
     let tables = [
@@ -191,7 +191,7 @@ pub async fn export_csv(
                         serde_json::Value::String(s) => s.clone(),
                         other => other.to_string(),
                     };
-                    wtr.write_record(&[table, id, key, &val_str])
+                    wtr.write_record([table, id, key, &val_str])
                         .map_err(|e| format!("CSV write error: {}", e))?;
                     total_rows += 1;
                 }

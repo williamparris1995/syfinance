@@ -56,6 +56,7 @@
     "debts": "债务",
     "holdings": "投资组合",
     "subscriptions": "订阅",
+    "categories": "分类",
     "recurring": "循环记账",
     "budget": "预算",
     "goals": "目标",
@@ -69,6 +70,25 @@
     "analysis": "分析",
     "system": "系统",
     "backup": "备份"
+  },
+  "category": {
+    "title": "分类管理",
+    "incomeCategories": "收入分类",
+    "expenseCategories": "支出分类",
+    "system": "系统",
+    "custom": "自定义",
+    "addCategory": "添加分类",
+    "editCategory": "编辑分类",
+    "deleteCategory": "删除分类",
+    "deleteConfirm": "确定要删除此分类吗？相关交易记录将保留，但不再与此分类关联。",
+    "noCategories": "还没有分类",
+    "name": "名称",
+    "icon": "图标",
+    "color": "颜色",
+    "type": "类型",
+    "income": "收入",
+    "expense": "支出",
+    "nameRequired": "分类名称为必填项"
   },
   "reminders": {
     "title": "提醒",

@@ -54,8 +54,8 @@ impl SortCursor {
         let bytes = BASE64
             .decode(encoded)
             .map_err(|e| format!("Invalid cursor encoding: {}", e))?;
-        let keys: Vec<(String, String)> = serde_json::from_slice(&bytes)
-            .map_err(|e| format!("Invalid cursor format: {}", e))?;
+        let keys: Vec<(String, String)> =
+            serde_json::from_slice(&bytes).map_err(|e| format!("Invalid cursor format: {}", e))?;
         Ok(Self { keys })
     }
 
@@ -69,10 +69,7 @@ impl SortCursor {
 
 pub fn build_cursor(pairs: Vec<(&str, String)>) -> Option<String> {
     let cursor = SortCursor {
-        keys: pairs
-            .into_iter()
-            .map(|(k, v)| (k.to_string(), v))
-            .collect(),
+        keys: pairs.into_iter().map(|(k, v)| (k.to_string(), v)).collect(),
     };
     cursor.encode().ok()
 }

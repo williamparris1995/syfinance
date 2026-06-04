@@ -46,7 +46,10 @@ pub async fn get_income_statement(
     state: State<'_, ReportCommandState>,
     query: ReportDateQuery,
 ) -> Result<IncomeStatement, String> {
-    state.service.get_income_statement(&query.start_date, &query.end_date).await
+    state
+        .service
+        .get_income_statement(&query.start_date, &query.end_date)
+        .await
 }
 
 #[tauri::command]
@@ -54,7 +57,10 @@ pub async fn get_dashboard_summary(
     state: State<'_, ReportCommandState>,
     query: ReportDateQuery,
 ) -> Result<DashboardSummary, String> {
-    state.service.get_dashboard_summary(&query.start_date, &query.end_date).await
+    state
+        .service
+        .get_dashboard_summary(&query.start_date, &query.end_date)
+        .await
 }
 
 #[tauri::command]
@@ -62,5 +68,8 @@ pub async fn get_monthly_trend(
     state: State<'_, ReportCommandState>,
     query: ReportDateQuery,
 ) -> Result<Vec<MonthlyTrendItem>, String> {
-    state.service.get_monthly_trend(&query.start_date, &query.end_date).await
+    state
+        .service
+        .get_monthly_trend(&query.start_date, &query.end_date)
+        .await
 }

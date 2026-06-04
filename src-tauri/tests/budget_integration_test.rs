@@ -50,7 +50,11 @@ async fn test_create_budget_with_items() {
     let service = setup_service(pool.clone());
 
     let budget = service
-        .create_budget("June Budget".to_string(), "2026-06".to_string(), "CNY".to_string())
+        .create_budget(
+            "June Budget".to_string(),
+            "2026-06".to_string(),
+            "CNY".to_string(),
+        )
         .await
         .expect("create budget");
 
@@ -100,11 +104,19 @@ async fn test_list_budgets() {
     let service = setup_service(pool);
 
     service
-        .create_budget("April Budget".to_string(), "2026-04".to_string(), "CNY".to_string())
+        .create_budget(
+            "April Budget".to_string(),
+            "2026-04".to_string(),
+            "CNY".to_string(),
+        )
         .await
         .expect("create budget 1");
     service
-        .create_budget("May Budget".to_string(), "2026-05".to_string(), "CNY".to_string())
+        .create_budget(
+            "May Budget".to_string(),
+            "2026-05".to_string(),
+            "CNY".to_string(),
+        )
         .await
         .expect("create budget 2");
 
@@ -121,7 +133,11 @@ async fn test_get_budget_by_month() {
     let service = setup_service(pool);
 
     service
-        .create_budget("June Budget".to_string(), "2026-06".to_string(), "CNY".to_string())
+        .create_budget(
+            "June Budget".to_string(),
+            "2026-06".to_string(),
+            "CNY".to_string(),
+        )
         .await
         .expect("create budget");
 
@@ -147,7 +163,11 @@ async fn test_update_budget_item_planned_amount() {
     seed_account(&pool, "cat-food").await;
 
     let budget = service
-        .create_budget("Budget".to_string(), "2026-06".to_string(), "CNY".to_string())
+        .create_budget(
+            "Budget".to_string(),
+            "2026-06".to_string(),
+            "CNY".to_string(),
+        )
         .await
         .expect("create budget");
 
@@ -191,7 +211,11 @@ async fn test_compute_budget_actuals() {
 
     // Create a budget
     let budget = service
-        .create_budget("June Budget".to_string(), "2026-06".to_string(), "CNY".to_string())
+        .create_budget(
+            "June Budget".to_string(),
+            "2026-06".to_string(),
+            "CNY".to_string(),
+        )
         .await
         .expect("create budget");
 
@@ -257,7 +281,11 @@ async fn test_clone_budget_to_next_month() {
 
     // Create a budget with items
     let budget = service
-        .create_budget("June Budget".to_string(), "2026-06".to_string(), "CNY".to_string())
+        .create_budget(
+            "June Budget".to_string(),
+            "2026-06".to_string(),
+            "CNY".to_string(),
+        )
         .await
         .expect("create budget");
 
@@ -304,9 +332,7 @@ async fn test_clone_budget_to_next_month() {
     }
 
     // Cloning to same month again should fail
-    let result = service
-        .clone_budget_to_month(&budget.id, "2026-07")
-        .await;
+    let result = service.clone_budget_to_month(&budget.id, "2026-07").await;
     assert!(result.is_err());
 }
 
@@ -318,7 +344,11 @@ async fn test_remove_budget_item() {
     seed_account(&pool, "cat-food").await;
 
     let budget = service
-        .create_budget("Budget".to_string(), "2026-06".to_string(), "CNY".to_string())
+        .create_budget(
+            "Budget".to_string(),
+            "2026-06".to_string(),
+            "CNY".to_string(),
+        )
         .await
         .expect("create budget");
 
@@ -351,7 +381,11 @@ async fn test_delete_budget() {
     seed_account(&pool, "cat-food").await;
 
     let budget = service
-        .create_budget("Budget".to_string(), "2026-06".to_string(), "CNY".to_string())
+        .create_budget(
+            "Budget".to_string(),
+            "2026-06".to_string(),
+            "CNY".to_string(),
+        )
         .await
         .expect("create budget");
 

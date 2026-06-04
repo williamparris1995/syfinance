@@ -367,7 +367,7 @@ impl HoldingService {
         let fee = dto
             .fee
             .as_deref()
-            .map(|s| Decimal::from_str_exact(s))
+            .map(Decimal::from_str_exact)
             .transpose()
             .map_err(|e| HoldingServiceError::ValidationError(format!("invalid fee: {e}")))?
             .unwrap_or(Decimal::ZERO);

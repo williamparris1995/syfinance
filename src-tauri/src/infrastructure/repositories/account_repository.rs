@@ -179,6 +179,8 @@ impl SqliteAccountRepository {
             payment_due_day,
             interest_rate,
             low_balance_threshold,
+            status: crate::domain::aggregates::account::AccountStatus::Active,
+            opened_at: None,
             sync_metadata,
             pending_events: Vec::new(),
         })
@@ -320,6 +322,30 @@ impl AccountRepository for SqliteAccountRepository {
         .await?;
 
         Ok(())
+    }
+
+    async fn find_by_name(&self, name: &str) -> sqlx::Result<Option<Account>> {
+        let row = sqlx::query(
+            r#"
+            SELECT
+                id, name, account_type, ownership, currency_code,
+                CAST(initial_balance AS TEXT) AS initial_balance,
+                icon, color, chart_code, parent_id,
+                account_number, institution,
+                CAST(credit_limit AS TEXT) AS credit_limit,
+                billing_day, payment_due_day,
+                CAST(interest_rate AS TEXT) AS interest_rate,
+                CAST(low_balance_threshold AS TEXT) AS low_balance_threshold,
+                updated_at, deleted_at, device_id, synced_at
+            FROM accounts
+            WHERE name = ? AND deleted_at IS NULL
+            "#,
+        )
+        .bind(name)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        row.map(|row| Self::row_to_account(&row)).transpose()
     }
 
     async fn find_by_id(&self, id: Uuid) -> sqlx::Result<Option<Account>> {

@@ -1,13 +1,20 @@
 #![allow(clippy::disallowed_methods)]
 
 use chrono::Utc;
-use sqlx::{sqlite::SqlitePool, Row};
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+use sqlx::Row;
 use uuid::Uuid;
 
 #[tokio::test]
 async fn test_category_datetime_format() -> Result<(), Box<dyn std::error::Error>> {
-    // Create in-memory database
-    let pool = SqlitePool::connect("sqlite::memory:").await?;
+    // Create in-memory database with a single connection so all queries share it
+    let options = SqliteConnectOptions::new()
+        .in_memory(true)
+        .foreign_keys(false);
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect_with(options)
+        .await?;
 
     // Run migrations
     sqlx::migrate!("./migrations").run(&pool).await?;
@@ -18,27 +25,25 @@ async fn test_category_datetime_format() -> Result<(), Box<dyn std::error::Error
 
     sqlx::query(
         r#"
-        INSERT INTO categories (id, name, icon, color, category_type, chart_code, parent_id, updated_at, deleted_at, device_id, synced_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        "#
+        INSERT INTO categories (id, name, icon, color, category_type, parent_id, updated_at, deleted_at, device_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        "#,
     )
-    .bind(id.to_string())
+    .bind(id.as_bytes().to_vec())
     .bind("测试分类")
     .bind("🍔")
     .bind("#FF5733")
     .bind("expense")
-    .bind("5401")
-    .bind(None::<String>)
+    .bind(None::<Vec<u8>>)
     .bind(&now)
     .bind(None::<String>)
     .bind(Uuid::new_v4().to_string())
-    .bind(None::<String>)
     .execute(&pool)
     .await?;
 
     // Try to read it back
     let row = sqlx::query("SELECT * FROM categories WHERE id = ?")
-        .bind(id.to_string())
+        .bind(id.as_bytes().to_vec())
         .fetch_one(&pool)
         .await?;
 

@@ -11,6 +11,7 @@ import {
   PieChart,
   Settings,
   Database,
+  Tag,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useRouterState } from '@tanstack/react-router';
@@ -54,6 +55,7 @@ const navGroups: NavGroupConfig[] = [
     labelKey: 'nav.transactionsGroup',
     items: [
       { to: '/transactions', labelKey: 'nav.transactions', icon: Receipt },
+      { to: '/categories', labelKey: 'nav.categories', icon: Tag },
       { to: '/transaction-templates', labelKey: 'nav.recurring', icon: Repeat },
     ],
   },

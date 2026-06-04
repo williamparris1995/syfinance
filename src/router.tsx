@@ -17,6 +17,7 @@ import { NewTransactionPage } from './pages/NewTransactionPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { CategoriesPage } from './pages/CategoriesPage';
 import { TransactionsPage } from './pages/TransactionsPage';
 
 function RootLayout() {
@@ -79,6 +80,12 @@ const remindersRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'reminders',
   component: RemindersPage,
+});
+
+const categoriesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'categories',
+  component: CategoriesPage,
 });
 
 const transactionTemplatesRoute = createRoute({
@@ -148,6 +155,7 @@ const routeTree = rootRoute.addChildren([
   debtsRoute.addChildren([newDebtRoute]),
   holdingsRoute,
   remindersRoute,
+  categoriesRoute,
   transactionTemplatesRoute,
   budgetRoute,
   goalsRoute,
