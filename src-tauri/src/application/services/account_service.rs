@@ -122,6 +122,15 @@ impl<R: AccountRepository, U: CurrencyRepository> AccountService<R, U> {
             .await?
             .ok_or(AccountServiceError::AccountNotFound(id))?;
 
+        // Check for duplicate name (only if name changed)
+        if dto.name != account.name {
+            if let Some(existing) = self.account_repo.find_by_name(&dto.name).await? {
+                if existing.id != id {
+                    return Err(AccountServiceError::DuplicateAccountName(dto.name));
+                }
+            }
+        }
+
         account.change_name(&dto.name)?;
 
         {
@@ -783,5 +792,108 @@ mod tests {
         let account = result.unwrap();
         assert_eq!(account.ownership, Ownership::Liability);
         assert_eq!(account.initial_balance, Decimal::new(-5000, 2));
+    }
+
+    #[tokio::test]
+    async fn test_update_account_rejects_duplicate_name() {
+        let account_repo = Arc::new(MockAccountRepository::new());
+        let currency_repo = Arc::new(MockCurrencyRepository::new());
+
+        let service = AccountService::new(account_repo.clone(), currency_repo);
+
+        // Create two accounts
+        let dto1 = CreateAccountDto {
+            name: "Account One".to_string(),
+            account_type: AccountType::Bank,
+            ownership: Ownership::Own,
+            currency_code: "CNY".to_string(),
+            initial_balance: Decimal::new(10000, 2),
+            icon: "💰".to_string(),
+            color: "#10B981".to_string(),
+            chart_code: None,
+            parent_id: None,
+        };
+
+        let dto2 = CreateAccountDto {
+            name: "Account Two".to_string(),
+            account_type: AccountType::Bank,
+            ownership: Ownership::Own,
+            currency_code: "CNY".to_string(),
+            initial_balance: Decimal::ZERO,
+            icon: "💰".to_string(),
+            color: "#10B981".to_string(),
+            chart_code: None,
+            parent_id: None,
+        };
+
+        let created1 = service.create_account((), dto1).await.unwrap();
+        let created2 = service.create_account((), dto2).await.unwrap();
+
+        // Try to rename second account to first account's name
+        let update_dto = PatchAccountDto {
+            name: "Account One".to_string(),
+            initial_balance: Decimal::ZERO,
+            icon: None,
+            color: None,
+            account_number: None,
+            institution: None,
+            credit_limit: None,
+            billing_day: None,
+            payment_due_day: None,
+            interest_rate: None,
+            chart_code: None,
+            parent_id: None,
+            low_balance_threshold: None,
+        };
+
+        let result = service.update_account((), created2.id, update_dto).await;
+
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            AccountServiceError::DuplicateAccountName(name) if name == "Account One"
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_update_account_allows_same_name() {
+        let account_repo = Arc::new(MockAccountRepository::new());
+        let currency_repo = Arc::new(MockCurrencyRepository::new());
+
+        let service = AccountService::new(account_repo.clone(), currency_repo);
+
+        let dto = CreateAccountDto {
+            name: "My Account".to_string(),
+            account_type: AccountType::Bank,
+            ownership: Ownership::Own,
+            currency_code: "CNY".to_string(),
+            initial_balance: Decimal::new(10000, 2),
+            icon: "💰".to_string(),
+            color: "#10B981".to_string(),
+            chart_code: None,
+            parent_id: None,
+        };
+
+        let created = service.create_account((), dto).await.unwrap();
+
+        // Update with same name should succeed
+        let update_dto = PatchAccountDto {
+            name: "My Account".to_string(),
+            initial_balance: Decimal::new(20000, 2),
+            icon: None,
+            color: None,
+            account_number: None,
+            institution: None,
+            credit_limit: None,
+            billing_day: None,
+            payment_due_day: None,
+            interest_rate: None,
+            chart_code: None,
+            parent_id: None,
+            low_balance_threshold: None,
+        };
+
+        let result = service.update_account((), created.id, update_dto).await;
+        assert!(result.is_ok());
     }
 }
