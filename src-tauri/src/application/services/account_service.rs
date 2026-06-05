@@ -1,4 +1,4 @@
-use crate::application::dtos::{AccountDto, CreateAccountDto, UpdateAccountDto};
+use crate::application::dtos::{AccountDto, CreateAccountDto, PatchAccountDto};
 use crate::domain::aggregates::{Account, AccountError, AccountType, Ownership};
 use crate::domain::repositories::{AccountRepository, CurrencyRepository};
 use crate::domain::value_objects::{Money, SyncMetadata};
@@ -114,7 +114,7 @@ impl<R: AccountRepository, U: CurrencyRepository> AccountService<R, U> {
         &self,
         _executor: E,
         id: Uuid,
-        dto: UpdateAccountDto,
+        dto: PatchAccountDto,
     ) -> Result<AccountDto, AccountServiceError> {
         let mut account = self
             .account_repo
@@ -137,30 +137,32 @@ impl<R: AccountRepository, U: CurrencyRepository> AccountService<R, U> {
             account.update_color(color)?;
         }
         if let Some(account_number) = dto.account_number {
-            account.update_account_number(Some(account_number))?;
+            account.update_account_number(account_number)?;
         }
         if let Some(institution) = dto.institution {
-            account.update_institution(Some(institution))?;
+            account.update_institution(institution)?;
         }
         if let Some(credit_limit) = dto.credit_limit {
-            account.update_credit_limit(Some(credit_limit))?;
+            account.update_credit_limit(credit_limit)?;
         }
         if let Some(billing_day) = dto.billing_day {
-            account.update_billing_day(Some(billing_day))?;
+            account.update_billing_day(billing_day)?;
         }
         if let Some(payment_due_day) = dto.payment_due_day {
-            account.update_payment_due_day(Some(payment_due_day))?;
+            account.update_payment_due_day(payment_due_day)?;
         }
         if let Some(interest_rate) = dto.interest_rate {
-            account.update_interest_rate(Some(interest_rate))?;
+            account.update_interest_rate(interest_rate)?;
         }
         if let Some(chart_code) = dto.chart_code {
-            account.update_chart_code(Some(chart_code))?;
+            account.update_chart_code(chart_code)?;
         }
         if let Some(parent_id) = dto.parent_id {
-            account.update_parent_id(Some(parent_id))?;
+            account.update_parent_id(parent_id)?;
         }
-        account.low_balance_threshold = dto.low_balance_threshold;
+        if let Some(low_balance_threshold) = dto.low_balance_threshold {
+            account.update_low_balance_threshold(low_balance_threshold)?;
+        }
 
         self.account_repo.update(&account).await?;
 
@@ -597,12 +599,11 @@ mod tests {
 
         let created = service.create_account((), create_dto).await.unwrap();
 
-        let update_dto = UpdateAccountDto {
+        let update_dto = PatchAccountDto {
             name: "New Name".to_string(),
             initial_balance: Decimal::new(10000, 2),
             icon: None,
             color: None,
-            currency_code: None,
             account_number: None,
             institution: None,
             credit_limit: None,
@@ -641,17 +642,16 @@ mod tests {
 
         let created = service.create_account((), create_dto).await.unwrap();
 
-        let update_dto = UpdateAccountDto {
+        let update_dto = PatchAccountDto {
             name: "Visa Platinum".to_string(),
             initial_balance: Decimal::new(-500, 2),
             icon: Some("💰".to_string()),
             color: Some("#EF4444".to_string()),
-            currency_code: None,
-            account_number: Some("****1234".to_string()),
-            institution: Some("ICBC".to_string()),
-            credit_limit: Some(Decimal::new(50000, 2)),
-            billing_day: Some(5),
-            payment_due_day: Some(25),
+            account_number: Some(Some("****1234".to_string())),
+            institution: Some(Some("ICBC".to_string())),
+            credit_limit: Some(Some(Decimal::new(50000, 2))),
+            billing_day: Some(Some(5)),
+            payment_due_day: Some(Some(25)),
             interest_rate: None,
             chart_code: None,
             parent_id: None,

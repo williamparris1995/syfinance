@@ -1,5 +1,5 @@
 use finance_app::{
-    application::dtos::{CreateAccountDto, UpdateAccountDto},
+    application::dtos::{CreateAccountDto, PatchAccountDto},
     domain::aggregates::{AccountType, Ownership},
     presentation::tauri_commands::account_commands::{
         create_account_with_state, delete_account_with_state, get_account_balance_with_state,
@@ -46,12 +46,11 @@ async fn account_command_lifecycle() {
     let updated = update_account_with_state(
         &state,
         created.id,
-        UpdateAccountDto {
+        PatchAccountDto {
             name: "Everyday Checking".into(),
             initial_balance: Decimal::new(125_000, 2),
             icon: None,
             color: None,
-            currency_code: None,
             account_number: None,
             institution: None,
             credit_limit: None,

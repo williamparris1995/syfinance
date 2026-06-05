@@ -23,22 +23,33 @@ export interface CreateAccountDto {
   low_balance_threshold?: number;
 }
 
-export interface UpdateAccountDto {
+/**
+ * Patch semantics: omitted field = no change, null = clear field, value = set field.
+ * For clearable fields (account_number, institution, etc.):
+ *   - omitted / undefined = no change
+ *   - null = clear the field
+ *   - value = set the field
+ */
+export interface PatchAccountDto {
   name: string;
   initial_balance: number;
+  /** @deprecated Use PatchAccountDto instead. Kept for backward compat. */
+  balance?: number;
   icon?: string;
   color?: string;
-  currency_code?: string;
-  account_number?: string;
-  institution?: string;
-  credit_limit?: number;
-  billing_day?: number;
-  payment_due_day?: number;
-  interest_rate?: number;
-  low_balance_threshold?: number;
-  chart_code?: string;
-  parent_id?: string;
+  account_number?: string | null;
+  institution?: string | null;
+  credit_limit?: number | null;
+  billing_day?: number | null;
+  payment_due_day?: number | null;
+  interest_rate?: number | null;
+  chart_code?: string | null;
+  parent_id?: string | null;
+  low_balance_threshold?: number | null;
 }
+
+/** @deprecated Use PatchAccountDto instead. */
+export type UpdateAccountDto = PatchAccountDto;
 
 export interface AccountDto {
   id: string;
@@ -74,7 +85,7 @@ export interface AccountBalanceDto {
 export const createAccount = (dto: CreateAccountDto) =>
   invokeTauri<AccountDto>('create_account', { dto });
 
-export const updateAccount = (id: string, dto: UpdateAccountDto) =>
+export const updateAccount = (id: string, dto: PatchAccountDto) =>
   invokeTauri<AccountDto>('update_account', { id, dto });
 
 export const deleteAccount = (id: string) => invokeTauri<void>('delete_account', { id });

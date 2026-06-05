@@ -48,7 +48,7 @@ import {
   updateAccount,
   type AccountDto,
   type CreateAccountDto,
-  type UpdateAccountDto,
+  type PatchAccountDto,
 } from '../lib/tauri/account';
 import type { CurrencyDto } from '../lib/tauri/currency';
 
@@ -318,7 +318,7 @@ export function AccountsPage() {
   ];
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, dto }: { id: string; dto: UpdateAccountDto }) => updateAccount(id, dto),
+    mutationFn: ({ id, dto }: { id: string; dto: PatchAccountDto }) => updateAccount(id, dto),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       setIsSheetOpen(false);
@@ -386,13 +386,13 @@ export function AccountsPage() {
     setIsSheetOpen(true);
   };
 
-  const handleEditSubmit = (data: { id: string; dto: UpdateAccountDto } | CreateAccountDto) => {
+  const handleEditSubmit = (data: { id: string; dto: PatchAccountDto } | CreateAccountDto) => {
     if ('id' in data) {
       updateMutation.mutate({ id: data.id, dto: data.dto });
     }
   };
 
-  const handleCopySubmit = (data: CreateAccountDto | { id: string; dto: UpdateAccountDto }) => {
+  const handleCopySubmit = (data: CreateAccountDto | { id: string; dto: PatchAccountDto }) => {
     if (!('id' in data)) {
       createMutation.mutate(data);
     }

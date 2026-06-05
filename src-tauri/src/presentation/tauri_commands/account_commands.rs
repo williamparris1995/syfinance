@@ -1,5 +1,5 @@
 use crate::application::{
-    dtos::{AccountBalanceDto, AccountDto, CreateAccountDto, UpdateAccountDto},
+    dtos::{AccountBalanceDto, AccountDto, CreateAccountDto, PatchAccountDto},
     services::{AccountService, AccountServiceError},
 };
 use crate::domain::aggregates::Ownership;
@@ -70,7 +70,7 @@ pub async fn create_account_with_state(
 pub async fn update_account_with_state(
     state: &AppState,
     id: Uuid,
-    dto: UpdateAccountDto,
+    dto: PatchAccountDto,
 ) -> Result<AccountDto, String> {
     state
         .service()
@@ -148,7 +148,7 @@ pub async fn create_account(
 pub async fn update_account(
     state: State<'_, AppState>,
     id: Uuid,
-    dto: UpdateAccountDto,
+    dto: PatchAccountDto,
 ) -> Result<AccountDto, String> {
     update_account_with_state(state.inner(), id, dto).await
 }

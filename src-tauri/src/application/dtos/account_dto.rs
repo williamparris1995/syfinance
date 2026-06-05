@@ -39,6 +39,45 @@ pub struct UpdateAccountDto {
     pub low_balance_threshold: Option<Decimal>,
 }
 
+/// Patch semantics: `Some(Some(value))` = set to value, `Some(None)` = clear, `None` = no change
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PatchAccountDto {
+    pub name: String,
+    #[serde(alias = "balance")]
+    pub initial_balance: Decimal,
+    pub icon: Option<String>,
+    pub color: Option<String>,
+    pub account_number: Option<Option<String>>,
+    pub institution: Option<Option<String>>,
+    pub credit_limit: Option<Option<Decimal>>,
+    pub billing_day: Option<Option<i32>>,
+    pub payment_due_day: Option<Option<i32>>,
+    pub interest_rate: Option<Option<Decimal>>,
+    pub chart_code: Option<Option<String>>,
+    pub parent_id: Option<Option<Uuid>>,
+    pub low_balance_threshold: Option<Option<Decimal>>,
+}
+
+impl From<UpdateAccountDto> for PatchAccountDto {
+    fn from(dto: UpdateAccountDto) -> Self {
+        Self {
+            name: dto.name,
+            initial_balance: dto.initial_balance,
+            icon: dto.icon,
+            color: dto.color,
+            account_number: dto.account_number.map(Some),
+            institution: dto.institution.map(Some),
+            credit_limit: dto.credit_limit.map(Some),
+            billing_day: dto.billing_day.map(Some),
+            payment_due_day: dto.payment_due_day.map(Some),
+            interest_rate: dto.interest_rate.map(Some),
+            chart_code: dto.chart_code.map(Some),
+            parent_id: dto.parent_id.map(Some),
+            low_balance_threshold: dto.low_balance_threshold.map(Some),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccountDto {
     pub id: Uuid,

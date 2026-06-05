@@ -23,7 +23,7 @@ import {
 } from './ui/select';
 import { TrendingUp, BarChart3, Layers, Landmark, Coins, GitBranch, Wallet } from 'lucide-react';
 import { INVESTMENT_TEMPLATES } from '@/lib/tauri/account';
-import type { AccountType, AccountDto, CreateAccountDto, UpdateAccountDto, Ownership } from '@/lib/tauri/account';
+import type { AccountType, AccountDto, CreateAccountDto, PatchAccountDto, Ownership } from '@/lib/tauri/account';
 import { useCurrencies } from '@/hooks/useCurrency';
 import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
 
@@ -69,7 +69,7 @@ const createAccountFormSchema = (t: (key: string) => string) => z.object({
 });
 
 interface AccountFormProps {
-  onSubmit: (data: CreateAccountDto | { id: string; dto: UpdateAccountDto }) => void;
+  onSubmit: (data: CreateAccountDto | { id: string; dto: PatchAccountDto }) => void;
   onCancel: () => void;
   isLoading?: boolean;
   initialData?: AccountDto;
@@ -138,21 +138,27 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
 
   const handleSubmit = (values: AccountFormValues) => {
     if (isEditMode && initialData) {
-      const dto: UpdateAccountDto = {
+      const dto: PatchAccountDto = {
         name: values.name,
         initial_balance: parseFloat(values.initial_balance),
       };
 
       if (values.icon) dto.icon = values.icon || '📁';
       if (values.color) dto.color = values.color || '#6B7280';
-      if (values.account_number) dto.account_number = values.account_number;
-      if (values.institution) dto.institution = values.institution;
+      // PatchAccountDto: null = clear, value = set, omitted = no change
+      dto.account_number = values.account_number || null;
+      dto.institution = values.institution || null;
+      dto.chart_code = values.chart_code || null;
       if (values.credit_limit) dto.credit_limit = parseFloat(values.credit_limit);
+      else dto.credit_limit = null;
       if (values.billing_day) dto.billing_day = parseInt(values.billing_day);
+      else dto.billing_day = null;
       if (values.payment_due_day) dto.payment_due_day = parseInt(values.payment_due_day);
+      else dto.payment_due_day = null;
       if (values.interest_rate) dto.interest_rate = parseFloat(values.interest_rate);
-      if (values.chart_code) dto.chart_code = values.chart_code;
+      else dto.interest_rate = null;
       if (values.low_balance_threshold) dto.low_balance_threshold = parseFloat(values.low_balance_threshold);
+      else dto.low_balance_threshold = null;
 
       onSubmit({ id: initialData.id, dto });
       return;

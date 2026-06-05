@@ -360,6 +360,16 @@ impl Account {
         Ok(())
     }
 
+    pub fn update_low_balance_threshold(
+        &mut self,
+        threshold: Option<Decimal>,
+    ) -> Result<(), AccountError> {
+        self.ensure_not_deleted()?;
+        self.low_balance_threshold = threshold;
+        self.touch();
+        Ok(())
+    }
+
     pub fn soft_delete(&mut self) -> Result<(), AccountError> {
         self.ensure_not_deleted()?;
         self.sync_metadata.mark_deleted();
