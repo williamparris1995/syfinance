@@ -1,0 +1,241 @@
+# 账户修改功能全面审计设计文档
+
+**日期**: 2026-06-05
+**参照标准**: YNAB / GNU Cash / Wallet 等消费级记账应用
+**审计范围**: UI/UX、功能逻辑、数据结构、账户分类与布局
+
+---
+
+## 1. 维度 1：UI/UX 审计
+
+### 1.1 🔴 严重问题
+
+**P1: 复制功能实际不工作**
+- 位置: `AccountsPage.tsx:375-379`
+- `handleEditSubmit` 检查 `'id' in data`，Copy Sheet 提交时不带 `id`，导致 mutation 不执行
+- 用户点击复制 → 填写 → 提交 → 静默失败，无任何反馈
+- 行业标准: YNAB 复制时自动添加 "(Copy)" 后缀，允许用户修改后创建新账户
+
+**P2: 无法清除已填写的可选字段**
+- 前端空字符串 → `undefined` → 后端 `None` → 跳过更新
+- 5-6 个可选字段（account_number, institution, credit_limit, billing_day, payment_due_day, interest_rate）永远无法清除
+- 行业标准: JSON Merge Patch (RFC 7396) — `null` 表示清除，`undefined` 表示不修改
+- 修复: DTO 使用 `Option<Option<T>>` 或前端显式发送 `null` 表示清除
+
+**P3: 编辑模式不可变字段缺少解释**
+- type/ownership/currency 在编辑模式被禁用且视觉变灰，但没有 tooltip 说明原因
+- 行业标准: 不可编辑字段旁加 info icon，提示"货币一旦设定不可更改，因为影响已有交易记录"
+
+### 1.2 🟡 设计缺陷
+
+**P4: 两个创建入口不一致**
+- `AccountWizard`（3步向导）和 `NewAccountPage`+`AccountForm`（单页）各自维护状态
+- 向导手动 useState（无 Zod 验证），表单用 react-hook-form + Zod
+- 验证规则、默认值、字段分组完全不同
+
+**P5: 编辑入口不够直观**
+- 列表页小铅笔图标触发 Sheet 编辑
+- 行业标准: 点击账户名称进入详情页，编辑按钮在详情页顶部（YNAB 5.0 的模式）
+
+**P6: 缺少变更确认**
+- 编辑保存直接提交，不展示"你修改了什么"
+- 金融应用应在保存前展示变更差异
+
+### 1.3 🟢 做得好的
+
+- 类型驱动的条件字段（CreditCard/Borrowed/Prepaid）展开逻辑正确
+- Ownership（资产/收支）分类符合中国会计准则大体方向
+- 编辑时只读展示当前余额，可改动的是初始余额
+- 删除使用乐观更新+回滚
+
+---
+
+## 2. 维度 2：功能逻辑审计
+
+### 2.1 🔴 严重问题
+
+**P7: UpdateAccountDto "None = 不修改"设计**
+- 所有可选字段使用 `if let Some(x) = dto.x` 模式
+- 结合前端空字符串→undefined，导致无法清除可选字段
+- 与 P2 是同一问题的前后端两面
+- 修复: 区分 `null`（清除）和 `undefined`（不修改）语义
+
+**P8: 修改初始余额无确认**
+- `update_initial_balance` 直接修改字段并发出 `BalanceUpdated` 事件
+- 当前余额 = initial_balance + net_change，改初始余额会立即改变显示余额
+- 没有任何确认提示或警告
+- 行业标准: YNAB 在修改开户余额时会说明"这将改变你的账户余额"
+
+**P9: 更新时不检查名称唯一性**
+- `create_account` 检查 `find_by_name` 防止重名
+- `update_account` 的 `change_name` 不做任何名称冲突检查
+- 可导致多个账户同名
+
+### 2.2 🟡 设计缺陷
+
+**P10: 负余额校验逻辑有限**
+- 禁止 Cash/Bank/Investment/BorrowedOut/Prepaid 的初始余额为负
+- 但交易可以让余额变负，校验只限制了创建时
+- 初始余额的限制是否合理取决于用户场景（如表示欠款），需要重新审视
+
+**P11: low_balance_threshold 绕过领域模型**
+- `account_service.rs:163` 直接赋值 `account.low_balance_threshold = dto.low_balance_threshold`
+- 其他所有字段通过 `update_*` 方法设置，违反 DDD 聚合根原则
+- 应增加 `update_low_balance_threshold()` 方法
+
+**P12: AccountStatus/OpenedAt 僵尸字段**
+- 数据库有列，域模型有枚举，但无任何功能操作它们
+- 前端无归档/隐藏入口，PostgreSQL 仓库不读取这些字段
+
+**P13: 复制功能逻辑断裂**
+- 与 P1 同一问题：Copy Sheet 的 `onSubmit` 走 `handleEditSubmit`，但缺少 `id`，实际丢掉了创建 mutation
+
+**P14: 预设模板名称硬编码中文**
+- `account_service.rs:21-64` 中模板名 `"股票账户"` 等硬编码
+- 前端使用 `t('accounts.templates.xxx')` i18n key
+- 前后端名称不一致：前端翻译后创建的账户名 != 后端批量创建的名称
+
+### 2.3 🟢 做得好的
+
+- `ensure_not_deleted()` 在所有 setter 方法中被调用，防止修改已删除账户
+- 三层验证架构（Zod → Domain → DB CHECK）层次清晰
+- `touch()` 自动更新 `updated_at` 并清除 `synced_at`
+- 删除使用乐观更新+回滚，用户体验好
+
+---
+
+## 3. 维度 3：数据结构审计
+
+### 3.1 🔴 严重问题
+
+**P15: DB "loan" 类型值是幽灵数据**
+- 数据库 CHECK 约束允许 `'loan'`，但 Rust 枚举已移除 `Loan` 变体
+- 如果数据库中存在旧 `loan` 行，`row_to_account` 返回 Decode Error，导致列表页崩溃
+- 需要: 数据迁移将 `loan` → `borrowed_in`，并更新 CHECK 约束
+
+**P16: Decimal 字段全用 TEXT 存储**
+- `initial_balance`、`credit_limit`、`interest_rate`、`low_balance_threshold` 都是 TEXT
+- 无法在 DB 层做数值比较/排序/聚合
+- 每次读写需 Decimal ↔ String 互转
+- 行业标准: SQLite 用整数分（如 YNAB 存储所有金额为整数分）
+
+**P17: AccountDto 缺少 low_balance_threshold/status/opened_at**
+- 前端 `AccountsPage:154` 引用 `account.low_balance_threshold`
+- 但 `AccountDto` 的 `From<Account>` 实现没有序列化该字段
+- 低余额警告可能从不工作
+- status/opened_at 同样缺失
+
+### 3.2 🟡 设计缺陷
+
+**P18: created_at 是假的**
+- `AccountDto::created_at = account.sync_metadata.updated_at`
+- 没有真正的 `created_at` 列
+- 行业标准: 所有金融产品区分创建时间和修改时间
+
+**P19: billing_day/payment_due_day 类型链过长**
+- string (前端) → i32 (DTO) → u8 (领域) → i64 (DB) → u8 (读回)
+- Zod 验证字符串范围，领域验证整数范围，DB CHECK 验证整数范围
+- 应统一为一层验证
+
+**P20: UpdateAccountDto 中 currency_code 是多余的**
+- 存在但服务层完全忽略
+- `update_currency_code()` 永远返回 `CurrencyMismatch`
+- 误导性字段，应该删除
+
+**P21: PostgreSQL 仓库严重不完整**
+- 8 个字段（account_number, institution, credit_limit, billing_day, payment_due_day, interest_rate, low_balance_threshold, chart_code）不被读取
+- 未来启用 PG 同步会丢失数据
+
+**P22: parent_id 无循环引用保护**
+- DB 有 `parent_id REFERENCES accounts(id)` 但无环路检测
+- 前端完全不使用层级展示
+- "写了但没用"的字段
+
+### 3.3 🟢 做得好的
+
+- 软删除 `deleted_at` 时间戳模式，查询时 `WHERE deleted_at IS NULL` 过滤
+- `SyncMetadata` 值对象封装元数据字段
+- 余额计算 `compute_balances_for_all_accounts` 批量查询效率好
+- `Money` 值对象保证金额和币种不分离
+
+---
+
+## 4. 维度 4：账户分类与 UI 布局
+
+### 4.1 核心问题
+
+**Ownership 两分法无法表达中国会计准则五大类**
+- 当前: `Own` / `External` 两个值
+- 会计准则: 资产 / 负债 / 所有者权益 / 成本 / 损益 五大类
+- CreditCard（负债）和BorrowedIn（负债）被错误归入 `Own`
+- 缺少"所有者权益"类别
+
+**AccountWizard Step 1 预览硬编码不全**
+- 代码第263行 `['Cash','Bank','CreditCard','Investment','Prepaid']` 只列5种
+- Step 2 实际有8种（缺 BorrowedOut、BorrowedIn、Other）
+- 预览与实际选择不一致
+
+**AccountForm 扁平选择器无分组**
+- 一个 Select 下拉10种类型，没有层级
+- 用户无法直观区分资产/负债/收支
+
+### 4.2 选择方案: 方案 B — Ownership 扩展为三类
+
+**数据模型变更:**
+```
+Ownership::Own        → 资产类 (Cash, Bank, Investment, BorrowedOut, Prepaid, Other)
+Ownership::Liability  → 负债类 (CreditCard, BorrowedIn)    [新增]
+Ownership::External   → 收支类 (Income, Expense)
+```
+
+**UI 布局变更:**
+
+向导 Step 1 改为三选一卡片:
+1. 🏦 资产账户 — 现金、银行、投资、预付卡、借出款项
+2. 💳 负债账户 — 信用卡、借入款项
+3. 📊 收支账户 — 收入、支出
+
+向导 Step 2 和编辑模式 Select 使用分组下拉（Radix SelectGroup）:
+- 资产类 → Cash, Bank, Investment, Prepaid, BorrowedOut, Other
+- 负债类 → CreditCard, BorrowedIn
+- 收支类 → Income, Expense
+
+**净资产 = 资产 - 负债**，不需要单独的"所有者权益"账户类型。由应用自动计算并展示。
+
+**DB 迁移:**
+- 新增 `ownership` 值 `'liability'`
+- 将现有 `CreditCard`/`BorrowedIn` 账户的 `ownership` 从 `'own'` 改为 `'liability'`
+- 更新 CHECK 约束
+
+**余额验证调整:**
+- `Liability` 类型的初始余额允许为负（信用卡透支、借款）
+- `Own` 类型的初始余额仍不允许为负（除了调整后的规则）
+
+---
+
+## 5. 优先级排序
+
+| 优先级 | 编号 | 问题 | 影响面 |
+|--------|------|------|--------|
+| P0 | P1 | 复制功能不工作 | 功能完全不可用 |
+| P0 | P17 | AccountDto 缺字段导致低余额警告失效 | 功能完全不可用 |
+| P0 | P15 | DB "loan" 幽灵数据导致潜在崩溃 | 数据完整性 |
+| P1 | P2/P7 | 无法清除可选字段 | 用户无法删除已填信息 |
+| P1 | P8 | 修改初始余额无确认 | 金融安全 |
+| P1 | 维度4 | Ownership 三类扩展 | 会计概念正确性 |
+| P2 | P3 | 不可变字段无解释 | UX |
+| P2 | P4 | 两个创建入口不一致 | 代码维护性 |
+| P2 | P9 | 更新时不检查名称唯一性 | 数据一致性 |
+| P2 | P11 | low_balance_threshold 绕过领域模型 | DDD 原则 |
+| P2 | P14 | 后端模板名称硬编码中文 | i18n |
+| P2 | P18 | created_at 是假的 | 数据完整性 |
+| P3 | P5 | 编辑入口不够直观 | UX 改进 |
+| P3 | P6 | 缺少变更确认 | UX 改进 |
+| P3 | P10 | 负余额校验逻辑需重新审视 | 业务规则 |
+| P3 | P13 | 复制功能同 P1 | 同一问题 |
+| P3 | P19 | 类型链过长 | 代码质量 |
+| P3 | P20 | currency_code 多余字段 | 代码清洁 |
+| P3 | P21 | PG 仓库不完整 | 未来风险 |
+| P3 | P22 | parent_id 无保护 | 未来风险 |
+| P3 | P12 | AccountStatus/OpenedAt 僵尸 | 未来功能 |
+| P3 | P16 | Decimal TEXT 存储 | 性能优化 |
