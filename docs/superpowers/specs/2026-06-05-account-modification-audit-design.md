@@ -200,7 +200,13 @@ Ownership::External   → 收支类 (Income, Expense)
 - 负债类 → CreditCard, BorrowedIn
 - 收支类 → Income, Expense
 
-**净资产 = 资产 - 负债**，不需要单独的"所有者权益"账户类型。由应用自动计算并展示。
+**净资产 = 资产 - 负债**，不需要单独的"所有者权益"账户类型。由应用自动计算并展示在首页总览区域（如总资产、总负债、净资产三行摘要卡片）。
+
+**前端 ownership 筛选逻辑同步更新:**
+- `AccountsPage` 中 `list_accounts_by_ownership` 需要处理新的 `Liability` 类型
+- 类型过滤按钮组从 `资产/收支` 变为 `资产/负债/收支`
+- AccountWizard Step 1 从两卡片变为三卡片
+- AccountForm 的 ownership toggle 从双按钮变为三按钮（或编辑模式下只读展示现有分类）
 
 **DB 迁移:**
 - 新增 `ownership` 值 `'liability'`
@@ -238,4 +244,4 @@ Ownership::External   → 收支类 (Income, Expense)
 | P3 | P21 | PG 仓库不完整 | 未来风险 |
 | P3 | P22 | parent_id 无保护 | 未来风险 |
 | P3 | P12 | AccountStatus/OpenedAt 僵尸 | 未来功能 |
-| P3 | P16 | Decimal TEXT 存储 | 性能优化 |
+| P2 | P16 | Decimal TEXT 存储 | 数据完整性，无法做数值查询 |
