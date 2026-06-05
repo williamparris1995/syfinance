@@ -272,6 +272,17 @@ export function AccountsPage() {
 
   const { data: currencies = [] } = useCurrencies();
 
+  const summary = useMemo(() => {
+    const ownAccounts = accounts.filter((a) => a.ownership === 'own');
+    const liabilityAccounts = accounts.filter((a) => a.ownership === 'liability');
+    const totalAssets = ownAccounts.reduce((sum, a) => sum + Number(a.current_balance), 0);
+    const totalLiabilities = liabilityAccounts.reduce((sum, a) => sum + Number(a.current_balance), 0);
+    const netWorth = totalAssets + totalLiabilities;
+    return { totalAssets, totalLiabilities, netWorth };
+  }, [accounts]);
+
+  const primaryCurrency = currencies[0] || { id: '', code: 'CNY', name: 'CNY', symbol: '¥', exchange_rate: '1', is_active: true, updated_at: '' };
+
   const typeGroups = useMemo(() => {
     let filtered = accounts;
 
@@ -422,6 +433,30 @@ export function AccountsPage() {
         <h1 className="text-2xl font-bold sm:text-3xl">{t('accounts.title')}</h1>
         <Button variant="default-gradient" onClick={handleCreateClick}>{t('accounts.createAccount')}</Button>
       </div>
+
+      {/* Summary Cards */}
+      {accounts.length > 0 && (
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className="rounded-lg border bg-emerald-50 dark:bg-emerald-950/20 p-3">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">{t('accounts.totalAssets')}</div>
+            <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+              {formatCurrencyWithDto(summary.totalAssets, primaryCurrency)}
+            </div>
+          </div>
+          <div className="rounded-lg border bg-red-50 dark:bg-red-950/20 p-3">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">{t('accounts.totalLiabilities')}</div>
+            <div className="text-xl font-bold text-red-600 dark:text-red-400">
+              {formatCurrencyWithDto(summary.totalLiabilities, primaryCurrency)}
+            </div>
+          </div>
+          <div className="rounded-lg border bg-blue-50 dark:bg-blue-950/20 p-3">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">{t('accounts.netWorth')}</div>
+            <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
+              {formatCurrencyWithDto(summary.netWorth, primaryCurrency)}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative max-w-xs w-full mb-4">
