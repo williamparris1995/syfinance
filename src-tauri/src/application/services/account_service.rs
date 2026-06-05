@@ -631,7 +631,7 @@ mod tests {
         let create_dto = CreateAccountDto {
             name: "Visa Card".to_string(),
             account_type: AccountType::CreditCard,
-            ownership: Ownership::Own,
+            ownership: Ownership::Liability,
             currency_code: "CNY".to_string(),
             initial_balance: Decimal::new(-100, 2),
             icon: "💳".to_string(),
@@ -756,5 +756,32 @@ mod tests {
             assert_eq!(account.ownership, Ownership::Own);
             assert_eq!(account.currency_code, "CNY");
         }
+    }
+
+    #[tokio::test]
+    async fn test_liability_account_allows_negative_balance() {
+        let account_repo = Arc::new(MockAccountRepository::new());
+        let currency_repo = Arc::new(MockCurrencyRepository::new());
+
+        let service = AccountService::new(account_repo.clone(), currency_repo);
+
+        let dto = CreateAccountDto {
+            name: "Visa Credit Card".to_string(),
+            account_type: AccountType::CreditCard,
+            ownership: Ownership::Liability,
+            currency_code: "CNY".to_string(),
+            initial_balance: Decimal::new(-5000, 2),
+            icon: "💳".to_string(),
+            color: "#EF4444".to_string(),
+            chart_code: None,
+            parent_id: None,
+        };
+
+        let result = service.create_account((), dto).await;
+
+        assert!(result.is_ok());
+        let account = result.unwrap();
+        assert_eq!(account.ownership, Ownership::Liability);
+        assert_eq!(account.initial_balance, Decimal::new(-5000, 2));
     }
 }

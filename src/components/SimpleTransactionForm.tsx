@@ -25,7 +25,7 @@ interface Account {
   initial_balance: number;
   current_balance: number;
   currency_code: string;
-  ownership: 'own' | 'external';
+  ownership: 'own' | 'liability' | 'external';
   account_type: string;
 }
 
@@ -77,7 +77,7 @@ export function SimpleTransactionForm({
       ? (initialData.type === 'expense'
           ? initialData.creditAccountId
           : initialData.debitAccountId) || ''
-      : accounts.filter(a => a.ownership === 'own')[0]?.id || ''
+      : accounts.filter(a => a.ownership === 'own' || a.ownership === 'liability')[0]?.id || ''
   );
   const [externalAccountId, setExternalAccountId] = useState(
     initialData
@@ -97,7 +97,7 @@ export function SimpleTransactionForm({
   );
 
   const filteredOwnAccounts = useMemo(
-    () => accounts.filter(a => a.ownership === 'own'),
+    () => accounts.filter(a => a.ownership === 'own' || a.ownership === 'liability'),
     [accounts]
   );
 

@@ -29,7 +29,7 @@ import { getUserFriendlyError } from '../lib/error-handler';
 import { useCurrencies } from '../hooks/useCurrency';
 import { createAccount } from '../lib/tauri/account';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { AccountType } from '../lib/tauri/account';
+import type { AccountType, Ownership } from '../lib/tauri/account';
 
 type WizardStep = 1 | 2 | 3;
 type AccountNature = 'asset' | 'income-expense';
@@ -151,8 +151,10 @@ export function AccountWizard({ open, onOpenChange }: AccountWizardProps) {
     }
     if (!accountType) return;
 
-    const ownership: 'own' | 'external' =
-      accountType === 'Income' || accountType === 'Expense' ? 'external' : 'own';
+    const ownership: Ownership =
+      accountType === 'Income' || accountType === 'Expense' ? 'external'
+        : accountType === 'CreditCard' || accountType === 'BorrowedIn' ? 'liability'
+        : 'own';
 
     const dto = {
       name: name.trim(),

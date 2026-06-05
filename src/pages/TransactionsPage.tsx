@@ -124,7 +124,7 @@ export function TransactionsPage() {
   });
 
   const ownAccounts = useMemo(
-    () => accounts.filter((a) => a.ownership === 'own'),
+    () => accounts.filter((a) => a.ownership === 'own' || a.ownership === 'liability'),
     [accounts],
   );
 

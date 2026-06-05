@@ -271,6 +271,8 @@
     "ownershipLabelText": "所有权 (OWNERSHIP)",
     "ownAccount": "自己账户",
     "ownAccountEmoji": "自己账户",
+    "liabilityAccount": "负债账户",
+    "liabilityAccountEmoji": "负债账户",
     "externalAccountEmoji": "外部账户",
     "icon": "图标",
     "iconLabel": "图标",

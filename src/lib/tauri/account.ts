@@ -2,7 +2,7 @@ import { invokeTauri } from '../tauri';
 
 export type AccountType = 'Cash' | 'Bank' | 'CreditCard' | 'Investment' | 'BorrowedOut' | 'BorrowedIn' | 'Prepaid' | 'Other' | 'Income' | 'Expense';
 
-export type Ownership = 'own' | 'external';
+export type Ownership = 'own' | 'liability' | 'external';
 
 export interface CreateAccountDto {
   name: string;
@@ -94,7 +94,7 @@ export const getAccount = (id: string) => invokeTauri<AccountDto>('get_account',
 
 export const listAccounts = () => invokeTauri<AccountDto[]>('list_accounts');
 
-export const listAccountsByOwnership = (ownership: 'own' | 'external') =>
+export const listAccountsByOwnership = (ownership: Ownership) =>
   invokeTauri<AccountDto[]>('list_accounts_by_ownership', { ownership });
 
 export const getAccountBalance = (id: string) =>

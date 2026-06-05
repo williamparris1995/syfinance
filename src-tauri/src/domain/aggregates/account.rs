@@ -39,6 +39,8 @@ impl fmt::Display for AccountType {
 pub enum Ownership {
     #[serde(rename = "own")]
     Own,
+    #[serde(rename = "liability")]
+    Liability,
     #[serde(rename = "external")]
     External,
 }
@@ -47,6 +49,7 @@ impl fmt::Display for Ownership {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Own => write!(f, "own"),
+            Self::Liability => write!(f, "liability"),
             Self::External => write!(f, "external"),
         }
     }
@@ -487,7 +490,7 @@ mod tests {
                     Uuid::new_v4(),
                     "Visa",
                     AccountType::CreditCard,
-                    Ownership::Own,
+                    Ownership::Liability,
                     &currency("CNY"),
                     money(-100, "CNY"),
                     "💳",
@@ -576,7 +579,7 @@ mod tests {
                     Uuid::new_v4(),
                     "Visa",
                     AccountType::CreditCard,
-                    Ownership::Own,
+                    Ownership::Liability,
                     &currency("CNY"),
                     money(0, "CNY"),
                     "💳",
@@ -757,7 +760,7 @@ mod tests {
                     Uuid::new_v4(),
                     "Visa",
                     AccountType::CreditCard,
-                    Ownership::Own,
+                    Ownership::Liability,
                     &currency("CNY"),
                     money(-100, "CNY"),
                     "💳",
@@ -776,6 +779,28 @@ mod tests {
                     Decimal::new(50000, 2)
                 );
                 assert_eq!(account.credit_limit.as_ref().unwrap().currency_code, "CNY");
+            }
+
+            #[test]
+            fn liability_account_allows_negative_balance() {
+                let account = Account::new(
+                    Uuid::new_v4(),
+                    "Credit Card",
+                    AccountType::CreditCard,
+                    Ownership::Liability,
+                    &currency("CNY"),
+                    money(-5000, "CNY"),
+                    "💳",
+                    "#EF4444",
+                    None,
+                    None,
+                    metadata(),
+                );
+
+                assert!(account.is_ok());
+                let acc = account.unwrap();
+                assert_eq!(acc.ownership, Ownership::Liability);
+                assert_eq!(acc.initial_balance.amount, Decimal::new(-5000, 2));
             }
 
             #[test]
@@ -856,7 +881,7 @@ mod tests {
                     account_id,
                     "Loan",
                     AccountType::BorrowedIn,
-                    Ownership::Own,
+                    Ownership::Liability,
                     &currency("CNY"),
                     money(-1000, "CNY"),
                     "💰",

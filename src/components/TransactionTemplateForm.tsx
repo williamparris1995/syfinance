@@ -55,7 +55,7 @@ export function TransactionTemplateForm({
   });
 
   const ownAccounts = accounts.filter(
-    (a: AccountDto) => a.ownership === 'own'
+    (a: AccountDto) => a.ownership === 'own' || a.ownership === 'liability'
   );
 
   const templateFormSchema = z

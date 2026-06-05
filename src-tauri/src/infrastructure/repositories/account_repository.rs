@@ -59,6 +59,7 @@ impl SqliteAccountRepository {
         let ownership_str: String = row.try_get("ownership")?;
         let ownership = match ownership_str.as_str() {
             "own" => Ownership::Own,
+            "liability" => Ownership::Liability,
             "external" => Ownership::External,
             _ => {
                 return Err(sqlx::Error::Decode(

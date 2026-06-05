@@ -32,7 +32,7 @@ const createAccountFormSchema = (t: (key: string) => string) => z.object({
   account_type: z.enum(['Cash', 'Bank', 'CreditCard', 'Investment', 'BorrowedOut', 'BorrowedIn', 'Prepaid', 'Other', 'Income', 'Expense'], {
     required_error: t('accountForm.accountTypeRequired'),
   }),
-  ownership: z.enum(['own', 'external'], {
+  ownership: z.enum(['own', 'liability', 'external'], {
     required_error: t('accountForm.ownershipRequired'),
   }),
   currency_code: z.string().min(3, t('accountForm.currencyRequired')).max(3, t('accountForm.currencyLength')),
@@ -235,6 +235,20 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
                   </button>
                   <button
                     type="button"
+                    onClick={() => !isEditMode && field.onChange('liability')}
+                    disabled={isEditMode}
+                    className={cn(
+                      "flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all",
+                      field.value === 'liability'
+                        ? "bg-red-50 border-red-300 text-red-700 dark:bg-red-950 dark:border-red-700 dark:text-red-400"
+                        : "bg-background border-input text-muted-foreground hover:text-foreground",
+                      isEditMode && "opacity-50 cursor-not-allowed"
+                    )}
+                  >
+                    {t('accountForm.liabilityAccountEmoji')}
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => !isEditMode && field.onChange('external')}
                     disabled={isEditMode}
                     className={cn(
@@ -324,12 +338,16 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
                   <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('accountForm.selectAccountType')}>{field.value ? typeLabelMap[field.value] || field.value : null}</SelectValue></SelectTrigger></FormControl>
                   <SelectContent>
                     {ownership === 'own'
-                      ? (['Cash', 'Bank', 'CreditCard', 'Investment', 'BorrowedOut', 'BorrowedIn', 'Prepaid', 'Other'] as const).map((type) => (
+                      ? (['Cash', 'Bank', 'Investment', 'BorrowedOut', 'Prepaid', 'Other'] as const).map((type) => (
                         <SelectItem key={type} value={type}>{typeLabelMap[type]}</SelectItem>
                       ))
-                      : (['Income', 'Expense'] as const).map((type) => (
-                        <SelectItem key={type} value={type}>{typeLabelMap[type]}</SelectItem>
-                      ))
+                      : ownership === 'liability'
+                        ? (['CreditCard', 'BorrowedIn'] as const).map((type) => (
+                          <SelectItem key={type} value={type}>{typeLabelMap[type]}</SelectItem>
+                        ))
+                        : (['Income', 'Expense'] as const).map((type) => (
+                          <SelectItem key={type} value={type}>{typeLabelMap[type]}</SelectItem>
+                        ))
                     }
                   </SelectContent>
                 </Select>

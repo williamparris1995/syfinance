@@ -67,7 +67,7 @@ export function DebtForm({ onSubmit, onCancel, isLoading, initialData, mode = 'c
 
   const debtAccounts = accounts.filter(
     (a: AccountDto) =>
-      a.ownership === 'own' && DEBT_ACCOUNT_TYPES.includes(a.account_type as typeof DEBT_ACCOUNT_TYPES[number])
+      (a.ownership === 'own' || a.ownership === 'liability') && DEBT_ACCOUNT_TYPES.includes(a.account_type as typeof DEBT_ACCOUNT_TYPES[number])
   );
 
   const fundingAccounts = accounts.filter(

@@ -118,7 +118,7 @@ export function HomePage() {
   }));
 
   const ownAccountBalances = useMemo(() =>
-    accounts.filter(a => a.ownership === 'own' && a.current_balance !== 0)
+    accounts.filter(a => (a.ownership === 'own' || a.ownership === 'liability') && a.current_balance !== 0)
       .sort((a, b) => b.current_balance - a.current_balance),
   [accounts]);
 

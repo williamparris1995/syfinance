@@ -12,7 +12,7 @@ const mockAccounts: accountApi.AccountDto[] = [
     id: 'acc-1',
     name: 'Mortgage',
     account_type: 'BorrowedIn',
-    ownership: 'own',
+    ownership: 'liability' as accountApi.Ownership,
     icon: '💰',
     color: '#10B981',
     currency_code: 'CNY',

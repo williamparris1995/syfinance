@@ -302,6 +302,8 @@
     "ownershipLabelText": "Ownership (OWNERSHIP)",
     "ownAccount": "Own Account",
     "ownAccountEmoji": "Own Account",
+    "liabilityAccount": "Liability",
+    "liabilityAccountEmoji": "Liability",
     "externalAccountEmoji": "External Account",
     "externalAccount": "External Account",
     "icon": "Icon",
