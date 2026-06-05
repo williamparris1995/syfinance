@@ -42,6 +42,7 @@ import { getUserFriendlyError } from '../lib/error-handler';
 import { formatCurrencyWithDto } from '../lib/currency';
 import { useCurrencies } from '../hooks/useCurrency';
 import {
+  createAccount,
   deleteAccount,
   listAccountsWithBalances,
   updateAccount,
@@ -329,6 +330,19 @@ export function AccountsPage() {
     },
   });
 
+  const createMutation = useMutation({
+    mutationFn: createAccount,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      setIsSheetOpen(false);
+      setCopyingAccount(null);
+      toast.success(t('accounts.accountCreated'));
+    },
+    onError: (error) => {
+      toast.error(getUserFriendlyError(error));
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: deleteAccount,
     onMutate: async (accountId) => {
@@ -368,13 +382,19 @@ export function AccountsPage() {
 
   const handleCopyClick = (account: AccountDto) => {
     setEditingAccount(null);
-    setCopyingAccount(account);
+    setCopyingAccount({ ...account, name: `${account.name} (${t('accounts.copy')})` });
     setIsSheetOpen(true);
   };
 
   const handleEditSubmit = (data: { id: string; dto: UpdateAccountDto } | CreateAccountDto) => {
     if ('id' in data) {
       updateMutation.mutate({ id: data.id, dto: data.dto });
+    }
+  };
+
+  const handleCopySubmit = (data: CreateAccountDto | { id: string; dto: UpdateAccountDto }) => {
+    if (!('id' in data)) {
+      createMutation.mutate(data);
     }
   };
 
@@ -515,9 +535,9 @@ export function AccountsPage() {
             {copyingAccount && (
               <AccountForm
                 initialData={copyingAccount}
-                onSubmit={handleEditSubmit}
+                onSubmit={handleCopySubmit}
                 onCancel={() => { setIsSheetOpen(false); setEditingAccount(null); setCopyingAccount(null); }}
-                isLoading={updateMutation.isPending}
+                isLoading={createMutation.isPending}
               />
             )}
           </div>

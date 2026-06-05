@@ -189,6 +189,7 @@
     "editAccount": "编辑账户",
     "accountUpdated": "账户已更新",
     "copyToCreate": "复制为新账户",
+    "copy": "副本",
     "searchPlaceholder": "搜索账户...",
     "filterByType": "按类型筛选",
     "currentBalance": "当前余额",

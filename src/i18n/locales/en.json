@@ -219,6 +219,7 @@
     "editAccount": "Edit Account",
     "accountUpdated": "Account updated",
     "copyToCreate": "Copy to New Account",
+    "copy": "Copy",
     "searchPlaceholder": "Search accounts...",
     "filterByType": "Filter by type",
     "initialBalance": "Initial Balance",
