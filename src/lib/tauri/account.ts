@@ -119,13 +119,13 @@ export interface InvestmentTemplate {
 }
 
 export const INVESTMENT_TEMPLATES: InvestmentTemplate[] = [
-  { name: 'stockAccount', chart_code: '1101', icon: 'TrendingUp', color: '#EF4444' },
-  { name: 'fundAccount', chart_code: '1101', icon: 'BarChart3', color: '#3B82F6' },
-  { name: 'etfAccount', chart_code: '1101', icon: 'Layers', color: '#8B5CF6' },
-  { name: 'bondAccount', chart_code: '1501', icon: 'Landmark', color: '#10B981' },
-  { name: 'goldAccount', chart_code: '1101', icon: 'Coins', color: '#F59E0B' },
-  { name: 'optionAccount', chart_code: '1101', icon: 'GitBranch', color: '#F97316' },
-  { name: 'otherInvestment', chart_code: '1012', icon: 'Wallet', color: '#6B7280' },
+  { name: 'stock_account', chart_code: '1101', icon: 'TrendingUp', color: '#EF4444' },
+  { name: 'fund_account', chart_code: '1101', icon: 'BarChart3', color: '#3B82F6' },
+  { name: 'etf_account', chart_code: '1101', icon: 'Layers', color: '#8B5CF6' },
+  { name: 'bond_account', chart_code: '1501', icon: 'Landmark', color: '#10B981' },
+  { name: 'gold_account', chart_code: '1101', icon: 'Coins', color: '#F59E0B' },
+  { name: 'option_account', chart_code: '1101', icon: 'GitBranch', color: '#F97316' },
+  { name: 'other_investment', chart_code: '1012', icon: 'Wallet', color: '#6B7280' },
 ];
 
 export const setupPresetInvestmentAccounts = (currencyCode?: string) =>

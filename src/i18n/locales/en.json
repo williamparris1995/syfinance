@@ -238,13 +238,13 @@
     "accountTransactions": "Transactions",
     "trend": "Trend",
     "templates": {
-      "stockAccount": "Stock Account",
-      "fundAccount": "Fund Account",
-      "etfAccount": "ETF Account",
-      "bondAccount": "Bond Account",
-      "goldAccount": "Gold Account",
-      "optionAccount": "Option Account",
-      "otherInvestment": "Other Investment"
+      "stock_account": "Stock Account",
+      "fund_account": "Fund Account",
+      "etf_account": "ETF Account",
+      "bond_account": "Bond Account",
+      "gold_account": "Gold Account",
+      "option_account": "Option Account",
+      "other_investment": "Other Investment"
     }
   },
   "accountForm": {

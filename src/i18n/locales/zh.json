@@ -205,13 +205,13 @@
     "accountTransactions": "交易记录",
     "trend": "趋势",
     "templates": {
-      "stockAccount": "股票账户",
-      "fundAccount": "基金账户",
-      "etfAccount": "ETF账户",
-      "bondAccount": "债券账户",
-      "goldAccount": "黄金账户",
-      "optionAccount": "期权账户",
-      "otherInvestment": "其他投资"
+      "stock_account": "股票账户",
+      "fund_account": "基金账户",
+      "etf_account": "ETF账户",
+      "bond_account": "债券账户",
+      "gold_account": "黄金账户",
+      "option_account": "期权账户",
+      "other_investment": "其他投资"
     },
     "createWizard": {
       "title": "创建账户",

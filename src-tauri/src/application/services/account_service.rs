@@ -20,43 +20,43 @@ struct InvestmentTemplate {
 
 const INVESTMENT_TEMPLATES: [InvestmentTemplate; 7] = [
     InvestmentTemplate {
-        name: "股票账户",
+        name: "stock_account",
         chart_code: "1101",
         icon: "TrendingUp",
         color: "#EF4444",
     },
     InvestmentTemplate {
-        name: "基金账户",
+        name: "fund_account",
         chart_code: "1101",
         icon: "BarChart3",
         color: "#3B82F6",
     },
     InvestmentTemplate {
-        name: "ETF账户",
+        name: "etf_account",
         chart_code: "1101",
         icon: "Layers",
         color: "#8B5CF6",
     },
     InvestmentTemplate {
-        name: "债券账户",
+        name: "bond_account",
         chart_code: "1501",
         icon: "Landmark",
         color: "#10B981",
     },
     InvestmentTemplate {
-        name: "黄金账户",
+        name: "gold_account",
         chart_code: "1101",
         icon: "Coins",
         color: "#F59E0B",
     },
     InvestmentTemplate {
-        name: "期权账户",
+        name: "option_account",
         chart_code: "1101",
         icon: "GitBranch",
         color: "#F97316",
     },
     InvestmentTemplate {
-        name: "其他投资",
+        name: "other_investment",
         chart_code: "1012",
         icon: "Wallet",
         color: "#6B7280",
@@ -752,13 +752,13 @@ mod tests {
         assert_eq!(accounts.len(), 7);
 
         let names: Vec<&str> = accounts.iter().map(|a| a.name.as_str()).collect();
-        assert!(names.contains(&"股票账户"));
-        assert!(names.contains(&"基金账户"));
-        assert!(names.contains(&"ETF账户"));
-        assert!(names.contains(&"债券账户"));
-        assert!(names.contains(&"黄金账户"));
-        assert!(names.contains(&"期权账户"));
-        assert!(names.contains(&"其他投资"));
+        assert!(names.contains(&"stock_account"));
+        assert!(names.contains(&"fund_account"));
+        assert!(names.contains(&"etf_account"));
+        assert!(names.contains(&"bond_account"));
+        assert!(names.contains(&"gold_account"));
+        assert!(names.contains(&"option_account"));
+        assert!(names.contains(&"other_investment"));
 
         for account in &accounts {
             assert_eq!(account.account_type, AccountType::Investment);
