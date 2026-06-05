@@ -117,6 +117,16 @@ pub enum AccountStatus {
     Hidden,
 }
 
+impl fmt::Display for AccountStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Active => write!(f, "active"),
+            Self::Archived => write!(f, "archived"),
+            Self::Hidden => write!(f, "hidden"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Account {
     pub id: Uuid,
@@ -136,9 +146,7 @@ pub struct Account {
     pub payment_due_day: Option<u8>,
     pub interest_rate: Option<Decimal>,
     pub low_balance_threshold: Option<Decimal>,
-    #[allow(dead_code)]
     pub status: AccountStatus,
-    #[allow(dead_code)]
     pub opened_at: Option<DateTime<Utc>>,
     pub sync_metadata: SyncMetadata,
     pub(crate) pending_events: Vec<AccountEvent>,

@@ -631,6 +631,7 @@ mod tests {
                 billing_day INTEGER,
                 payment_due_day INTEGER,
                 interest_rate DECIMAL(10,6),
+                low_balance_threshold DECIMAL(20,2),
                 deleted_at TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 device_id TEXT,

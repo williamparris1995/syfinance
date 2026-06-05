@@ -58,7 +58,9 @@ export interface AccountDto {
   billing_day?: number;
   payment_due_day?: number;
   interest_rate?: number;
-  low_balance_threshold?: number;
+  low_balance_threshold?: number | null;
+  status: string;
+  opened_at?: string | null;
   created_at: string;
   updated_at: string;
   deleted_at?: string;

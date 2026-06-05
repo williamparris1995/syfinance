@@ -58,6 +58,7 @@ const mockAccounts: accountApi.AccountDto[] = [
     currency_code: 'CNY',
     initial_balance: 10000,
     current_balance: 10000,
+    status: 'active',
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z',
   },
