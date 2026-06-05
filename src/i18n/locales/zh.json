@@ -212,6 +212,18 @@
       "goldAccount": "黄金账户",
       "optionAccount": "期权账户",
       "otherInvestment": "其他投资"
+    },
+    "createWizard": {
+      "title": "创建账户",
+      "step1Title": "选择账户性质",
+      "assetAccount": "资产账户",
+      "assetAccountDesc": "您存放资金的地方，如现金、银行存款、投资",
+      "liabilityAccount": "负债账户",
+      "liabilityAccountDesc": "您欠的钱，如信用卡、借入款",
+      "incomeExpenseAccount": "收入/支出账户",
+      "incomeExpenseAccountDesc": "用于记账，如工资、餐饮支出",
+      "step2Title": "选择账户类型",
+      "step3Title": "填写详细信息"
     }
   },
   "accountForm": {

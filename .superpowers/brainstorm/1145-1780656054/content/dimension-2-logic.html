@@ -1,0 +1,120 @@
+<h2>维度 2：功能逻辑审计</h2>
+<p class="subtitle">深入分析更新流程、验证规则、边界情况与行业标准对照</p>
+
+<div class="section">
+<h3>🔴 严重问题</h3>
+
+<div class="cards">
+  <div class="card">
+    <div class="card-body">
+      <h3>1. UpdateAccountDto 的 "None = 不修改" 设计缺陷</h3>
+      <p><strong>位置：</strong>account_service.rs:113-168</p>
+      <p>所有可选字段使用 <code>if let Some(x) = dto.x</code> 模式，意味着 <code>None</code> = "不修改"。但前端把空字符串当 <code>undefined</code> 处理，导致 <strong>无法清除已填写的可选字段</strong>。</p>
+      <p><strong>行业标准：</strong>YNAB/GNU Cash 使用 <code>null</code> = "清除"，<code>undefined</code> = "不修改"。这是一种被广泛采用的 PATCH 语义模式（JSON Merge Patch RFC 7396）。</p>
+      <p><strong>影响：</strong>用户填了卡号后无法删除；设了利率后无法清零。5个可选字段 <code>account_number, institution, credit_limit, billing_day, payment_due_day, interest_rate</code> 全部受影响。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>2. 初始余额修改不触发余额重新计算</h3>
+      <p><strong>位置：</strong>account.rs:204-218</p>
+      <p><code>update_initial_balance</code> 只修改 <code>initial_balance</code> 字段并发出 <code>BalanceUpdated</code> 事件。但前端显示的 "当前余额" = <code>initial_balance + net_change</code>（来自 <code>transaction_entries</code>）。</p>
+      <p>已有交易不受影响，但用户改初始余额后看到的余额会立即变化。没有任何确认或警告。<strong>这是一个金融安全问题</strong>——修改初始余额应该至少有一个确认提示，说明"这会改变你的账户余额"。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>3. 更新时不检查名称唯一性</h3>
+      <p><strong>位置：</strong>account_service.rs:125</p>
+      <p><code>create_account</code> 检查 <code>find_by_name</code> 防止重名，但 <code>update_account</code> 的 <code>change_name</code> <strong>不做唯一性检查</strong>。用户可以把两个账户改成同名，造成混淆。</p>
+      <p><strong>行业标准：</strong>大部分记账应用允许同名账户（因为不同类型下同名是合理的），但 YNAB 会警告。至少应提示。</p>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h3>🟡 设计缺陷</h3>
+
+<div class="cards">
+  <div class="card">
+    <div class="card-body">
+      <h3>4. balance 校验逻辑有遗漏</h3>
+      <p><code>validate_balance</code> 禁止 Cash/Bank/Investment/BorrowedOut/Prepaid 初始余额为负。但用户后来通过交易让余额变成负数是完全可能的（已验证的 API <code>get_account_balance</code> 返回 initial_balance + net_change，不做范围检查）。</p>
+      <p><strong>问题：</strong>初始余额的负数限制只降低了用户体验（新建现金账户不能输入为 -100 来表示已支出），但并不阻止最终余额为负。这个规则是否有意义需要重新思考。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>5. low_balance_threshold 绕过了领域模型</h3>
+      <p><strong>位置：</strong>account_service.rs:163</p>
+      <p><code>account.low_balance_threshold = dto.low_balance_threshold</code> 直接赋值字段，绕过了领域模型 setter 方法。对比其他所有字段都通过 <code>update_*</code> 方法设置。这违反了 DDD 原则——聚合根的所有状态变更应该通过方法。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>6. AccountStatus/OpenedAt 未使用但有数据库迁移</h3>
+      <p>schema 有 <code>status</code> 和 <code>opened_at</code> 列，域模型有 <code>AccountStatus::Active/Archived/Hidden</code> 枚举，但没有任何服务代码或 UI 操作它们。PostgreSQL 仓库更是完全忽略这些字段。DB CHECK 约束强制 <code>status IN ('active','archived','hidden')</code>，但代码始终硬编码 <code>Active</code>。</p>
+      <p><strong>风险：</strong>用户无法归档或隐藏账户。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>7. 复制功能逻辑缺陷</h3>
+      <p>AccountsPage 中 <code>handleEditSubmit</code> 检查 <code>'id' in data</code> 来区分编辑与创建。但 Copy Sheet 使用同一 handler，而复制创建不会带 <code>id</code>，导致：</p>
+      <ul>
+        <li>复制操作永远不会调用任何 mutation</li>
+        <li>没有新的 <code>createMutation</code> 被绑定到 Copy Sheet</li>
+        <li>updateMutation 被复用（但 copy 创建应该用 createAccount）</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>8. 预设模板名称硬编码中文</h3>
+      <p><strong>位置：</strong>account_service.rs:21-64</p>
+      <p>投资模板名称硬编码中文字符串 <code>"股票账户"</code>，与项目 i18n 规范冲突（CLAUDE.md 规定使用 i18n key）。前端 <code>INVESTMENT_TEMPLATES</code> 使用 <code>t('accounts.templates.xxx')</code>，但后端返回的是中文硬编码名。</p>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h3>🟢 做得好的部分</h3>
+
+<div class="cards">
+  <div class="card">
+    <div class="card-body">
+      <h3>✓ 软删除保护</h3>
+      <p><code>ensure_not_deleted()</code> 在所有 setter 方法中被调用，防止修改已删除的账户。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>✓ 三层验证架构</h3>
+      <p>Zod（前端）→ Domain（后端聚合根）→ DB CHECK 约束。层次清晰，各有职责。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>✓ touch() 自动更新元数据</h3>
+      <p>每次字段修改都调用 <code>touch()</code> 更新 <code>updated_at</code> 并清除 <code>synced_at</code>，保证同步正确性。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>✓ 删除使用乐观更新 + 回滚</h3>
+      <p>deleteMutation 的 <code>onMutate</code> 先从缓存中移除，失败时回滚。用户体验更好。</p>
+    </div>
+  </div>
+</div>
+</div>

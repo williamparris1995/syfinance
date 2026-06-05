@@ -1,0 +1,101 @@
+<h2>维度 1：UI/UX 审计</h2>
+<p class="subtitle">对比消费级记账应用行业标准，分析账户修改功能的设计质量</p>
+
+<div class="section">
+<h3>🔴 严重问题</h3>
+
+<div class="cards">
+  <div class="card">
+    <div class="card-body">
+      <h3>1. 复制功能实际上是坏的</h3>
+      <p><strong>代码位置：</strong>AccountsPage.tsx:375-379</p>
+      <p><code>handleEditSubmit</code> 检查 <code>'id' in data</code>，但 Copy Sheet 提交时没有 <code>id</code>，所以 <code>onSubmit</code> 被调用但不执行任何 mutation — 用户以为提交了但其实什么都没发生。</p>
+      <div class="mockup">
+        <div class="mockup-header">对比 YNAB / Wallet</div>
+        <div class="mockup-body" style="display:flex;gap:16px;">
+          <div style="flex:1;padding:12px;border:1px solid #10B981;border-radius:8px;">
+            <p style="margin:0 0 8px;font-weight:600;color:#10B981;">✓ YNAB 复制账户</p>
+            <p style="margin:0;font-size:13px;">新建一个与原账户设定相同的账户，名称自动加 "(Copy)" 后缀。用户可修改后保存。</p>
+          </div>
+          <div style="flex:1;padding:12px;border:1px solid #EF4444;border-radius:8px;">
+            <p style="margin:0 0 8px;font-weight:600;color:#EF4444;">✗ 当前实现</p>
+            <p style="margin:0;font-size:13px;">复制按钮打开表单但提交无响应，静默失败。用户完全不知道发生了什么。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>2. 无法清除已填写的可选字段</h3>
+      <p><strong>问题：</strong>编辑账户时，如果用户想清空 <code>account_number</code> 或 <code>institution</code>，表单会将空字符串转为 <code>undefined</code>，后端收到 <code>None</code> 后跳过更新 — 原来的值永远无法清除。</p>
+      <p><strong>行业标准：</strong>YNAB / GNU Cash 都支持清空可选字段。正确的做法是使用 <code>null</code> 表示"清除"，<code>undefined</code> 表示"不修改"。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>3. 编辑模式下隐藏了关键信息</h3>
+      <p><strong>问题：</strong>编辑时 currency、type、ownership 都被锁定且视觉上变灰，但没有解释为什么不能修改。用户可能不理解为什么货币不能改。</p>
+      <p><strong>行业做法：</strong>在不可编辑字段旁加一个 info icon 或 tooltip："货币一旦设定不可更改，因为会影响已有交易记录"。</p>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h3>🟡 设计缺陷</h3>
+
+<div class="cards">
+  <div class="card">
+    <div class="card-body">
+      <h3>4. 两个创建入口不一致</h3>
+      <p><code>AccountWizard</code>（3步向导）vs <code>NewAccountPage</code> + <code>AccountForm</code>（单页表单）。</p>
+      <p>向导没有复用 <code>AccountForm</code>，而是自己维护了一堆 <code>useState</code>。两者的验证逻辑、默认值、字段分组完全不同。用户从不同入口进入会得到不同体验。</p>
+      <p><strong>行业标准：</strong>通常只有一个创建入口，或两个入口共用核心表单组件。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>5. 编辑表单位置不够直观</h3>
+      <p>编辑通过右侧 Sheet 打开，但用户在列表页点击的是一个小铅笔图标。对比 Wallet / YNAB，点击账户名称直接进入详情页，编辑按钮在详情页顶部更显著的位置。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>6. 缺少变更确认和差异视图</h3>
+      <p>编辑保存时直接提交，不展示"你修改了什么"。对金融类应用来说，确认变更内容是重要的安全网。</p>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h3>🟢 做得好的部分</h3>
+
+<div class="cards">
+  <div class="card">
+    <div class="card-body">
+      <h3>✓ 类型驱动的条件字段</h3>
+      <p>CreditCard 显示信用额度/账单日/还款日，BorrowedIn/Out 显示利率，Prepaid 显示低余额阈值。条件字段展开逻辑正确。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>✓ Ownership 分类合理</h3>
+      <p>资产类 vs 收支类账户的分类方式符合中国会计准则中资产负债表和利润表的区分。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>✓ 编辑时只读展示当前余额</h3>
+      <p>在编辑模式中将当前余额设为只读展示，用户明确知道可改的是初始余额，不影响已有交易。</p>
+    </div>
+  </div>
+</div>
+</div>

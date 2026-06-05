@@ -1,0 +1,40 @@
+<h2>账户修改功能 — 分析方法选择</h2>
+<p class="subtitle">选择最适合你需求的分析深度和结构</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>维度审计法（推荐）</h3>
+      <p>按 UI/UX → 功能逻辑 → 数据结构 逐维度审计。每个维度：当前做法 → 行业标准 → 差距 → 改进建议。系统化、结构清晰，适合全面审计。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>优势</h4><ul><li>结构化清晰，不会遗漏维度</li><li>每个维度独立可审阅</li><li>可直接转化为改进计划</li></ul></div>
+        <div class="cons"><h4>不足</h4><ul><li>跨维度联动问题可能被分散到多处</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>问题驱动法</h3>
+      <p>先列出所有发现的问题（Bug、设计缺陷、体验问题），再按优先级排序。适合"只需修东西"的场景。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>优势</h4><ul><li>直接指向可操作的改变</li><li>优先级排序方便排期</li></ul></div>
+        <div class="cons"><h4>不足</h4><ul><li>丢失"为什么这样做"的结构化理解</li><li>没有明确的正面评价</li><li>可能忽略隐性设计问题</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>对比基准法</h3>
+      <p>以 YNAB/GNU Cash/Wallet 的账户管理为基准，逐功能点对比。先刻画行业最佳实践，再评估当前实现的差距。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>优势</h4><ul><li>行业对标有说服力</li><li>改进方向明确（追赶基准）</li></ul></div>
+        <div class="cons"><h4>不足</h4><ul><li>过度聚焦"别人怎么做"</li><li>可能忽略你产品的独特设计需求</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

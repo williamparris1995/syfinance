@@ -109,8 +109,10 @@
     "createWizard": {
       "title": "Create Account",
       "step1Title": "Choose Account Nature",
-      "assetAccount": "Asset/Liability Account",
-      "assetAccountDesc": "Where you keep money, e.g., bank cards, cash, investments",
+      "assetAccount": "Asset Account",
+      "assetAccountDesc": "Where you keep money, e.g., cash, bank deposits, investments",
+      "liabilityAccount": "Liability Account",
+      "liabilityAccountDesc": "What you owe, e.g., credit cards, borrowed money",
       "incomeExpenseAccount": "Income/Expense Account",
       "incomeExpenseAccountDesc": "For bookkeeping, e.g., salary, dining expenses",
       "step2Title": "Choose Account Type",

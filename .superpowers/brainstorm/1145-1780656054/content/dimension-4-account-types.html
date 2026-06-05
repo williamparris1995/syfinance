@@ -1,0 +1,145 @@
+<h2>账户类型选择问题 — 三层面深度分析</h2>
+<p class="subtitle">为什么"五类账户"在当前设计中无法正确呈现</p>
+
+<div class="section">
+<h3>问题 1：Ownership 两分法 vs 会计五类</h3>
+
+<div class="mockup">
+  <div class="mockup-header">当前设计：own/external 两类</div>
+  <div class="mockup-body" style="display:flex;gap:16px;">
+    <div style="flex:1;padding:12px;border:2px solid #10B981;border-radius:8px;">
+      <p style="margin:0 0 8px;font-weight:600;color:#10B981;">own（资产类）</p>
+      <ul style="margin:0;padding-left:16px;font-size:13px;">
+        <li>Cash 现金</li>
+        <li>Bank 银行</li>
+        <li>CreditCard 信用卡</li>
+        <li>Investment 投资</li>
+        <li>BorrowedOut 借出</li>
+        <li>BorrowedIn 借入</li>
+        <li>Prepaid 预付</li>
+        <li>Other 其他</li>
+      </ul>
+    </div>
+    <div style="flex:1;padding:12px;border:2px solid #F59E0B;border-radius:8px;">
+      <p style="margin:0 0 8px;font-weight:600;color:#F59E0B;">external（收支类）</p>
+      <ul style="margin:0;padding-left:16px;font-size:13px;">
+        <li>Income 收入</li>
+        <li>Expense 支出</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="mockup" style="margin-top:16px;">
+  <div class="mockup-header">中国会计准则五类</div>
+  <div class="mockup-body" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:8px;">
+    <div style="padding:8px;border:1px solid #3B82F6;border-radius:6px;text-align:center;">
+      <p style="margin:0;font-size:12px;font-weight:600;color:#3B82F6;">资产类</p>
+      <p style="margin:2px 0 0;font-size:11px;">Cash/Bank/Prepaid/Investment/BorrowedOut</p>
+    </div>
+    <div style="padding:8px;border:1px solid #EF4444;border-radius:6px;text-align:center;">
+      <p style="margin:0;font-size:12px;font-weight:600;color:#EF4444;">负债类</p>
+      <p style="margin:2px 0 0;font-size:11px;">CreditCard/BorrowedIn</p>
+    </div>
+    <div style="padding:8px;border:1px solid #8B5CF6;border-radius:6px;text-align:center;">
+      <p style="margin:0;font-size:12px;font-weight:600;color:#8B5CF6;">所有者权益</p>
+      <p style="margin:2px 0 0;font-size:11px;">（缺失）</p>
+    </div>
+    <div style="padding:8px;border:1px solid #F59E0B;border-radius:6px;text-align:center;">
+      <p style="margin:0;font-size:12px;font-weight:600;color:#F59E0B;">成本类</p>
+      <p style="margin:2px 0 0;font-size:11px;">（缺失，归入资产）</p>
+    </div>
+    <div style="padding:8px;border:1px solid #10B981;border-radius:6px;text-align:center;">
+      <p style="margin:0;font-size:12px;font-weight:600;color:#10B981;">损益类</p>
+      <p style="margin:2px 0 0;font-size:11px;">Income/Expense</p>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:12px;font-size:14px;"><strong>核心矛盾：</strong>当前 <code>Ownership::Own/External</code> 只区分"我的钱"和"收支"，但中国会计准则有五类。BorrowedIn（负债）被归入"Own"，CreditCard（信用卡=负债）也被归入"Own" — 这是不符合会计准则的。</p>
+</div>
+
+<div class="section">
+<h3>问题 2：AccountWizard 预览卡片显示不全</h3>
+
+<div class="mockup">
+  <div class="mockup-header">Step 1 预览 — 只列了5种</div>
+  <div class="mockup-body" style="font-size:13px;">
+    <p style="margin:0 0 8px;"><strong>资产类预览标签：</strong></p>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;">
+      <span style="background:#10B98122;color:#10B981;padding:2px 8px;border-radius:12px;font-size:12px;">💵 Cash</span>
+      <span style="background:#10B98122;color:#10B981;padding:2px 8px;border-radius:12px;font-size:12px;">🏦 Bank</span>
+      <span style="background:#10B98122;color:#10B981;padding:2px 8px;border-radius:12px;font-size:12px;">💳 CreditCard</span>
+      <span style="background:#10B98122;color:#10B981;padding:2px 8px;border-radius:12px;font-size:12px;">📈 Investment</span>
+      <span style="background:#10B98122;color:#10B981;padding:2px 8px;border-radius:12px;font-size:12px;">💳 Prepaid</span>
+    </div>
+    <p style="margin:8px 0 0;color:#EF4444;"><strong>缺失：</strong>BorrowedOut 🤝、BorrowedIn 📝、Other 📁 — 但 Step 2 有8个选项。</p>
+    <p style="margin:4px 0 0;color:#6B7280;">代码位置：AccountWizard.tsx 第263行，hardcoded 数组 <code>['Cash','Bank','CreditCard','Investment','Prepaid']</code></p>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h3>问题 3：中国会计准则五类映射分析</h3>
+
+<div class="mockup">
+  <div class="mockup-header">当前 → 标准映射</div>
+  <div class="mockup-body" style="font-size:13px;">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="border-bottom:2px solid #e5e7eb;">
+          <th style="text-align:left;padding:4px 8px;">会计准则类别</th>
+          <th style="text-align:left;padding:4px 8px;">当前 AccountType</th>
+          <th style="text-align:left;padding:4px 8px;">Ownership</th>
+          <th style="text-align:left;padding:4px 8px;">是否正确</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid #e5e7eb;">
+          <td style="padding:4px 8px;color:#3B82F6;">资产类</td>
+          <td style="padding:4px 8px;">Cash, Bank, Investment, BorrowedOut, Prepaid</td>
+          <td style="padding:4px 8px;">Own</td>
+          <td style="padding:4px 8px;color:#10B981;">✓</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e5e7eb;">
+          <td style="padding:4px 8px;color:#EF4444;">负债类</td>
+          <td style="padding:4px 8px;">CreditCard, BorrowedIn</td>
+          <td style="padding:4px 8px;">Own ⚠️</td>
+          <td style="padding:4px 8px;color:#EF4444;">✗ 负债不是"自己的资产"</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e5e7eb;">
+          <td style="padding:4px 8px;color:#8B5CF6;">所有者权益</td>
+          <td style="padding:4px 8px;">（无对应类型）</td>
+          <td style="padding:4px 8px;">—</td>
+          <td style="padding:4px 8px;color:#EF4444;">✗ 缺失</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e5e7eb;">
+          <td style="padding:4px 8px;color:#F59E0B;">成本类</td>
+          <td style="padding:4px 8px;">（无对应类型，可能归入Expense）</td>
+          <td style="padding:4px 8px;">—</td>
+          <td style="padding:4px 8px;color:#6B7280;">— 个人记账可无</td>
+        </tr>
+        <tr>
+          <td style="padding:4px 8px;color:#10B981;">损益类</td>
+          <td style="padding:4px 8px;">Income, Expense</td>
+          <td style="padding:4px 8px;">External</td>
+          <td style="padding:4px 8px;color:#10B981;">✓</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h3>结论</h3>
+
+<p><strong>三层问题的根源：</strong><code>Ownership</code> 枚举设计无法表达中国会计准则的五大类。own/external 二分法把"负债"（CreditCard/BorrowedIn）错误归入"Own"，且缺少"所有者权益"类。</p>
+
+<p><strong>实际影响：</strong></p>
+<ul>
+  <li>向导 Step 1 预览只显示5种子类型（代码硬编码），但 Step 2 实际有8种 — 不一致</li>
+  <li>AccountForm 的 Select 下拉有8+2=10种类型 — 选择器过于扁平</li>
+  <li>对于个人记账应用，五大会计类可以简化，但"资产"和"负债"不应混为一谈</li>
+</ul>
+</div>

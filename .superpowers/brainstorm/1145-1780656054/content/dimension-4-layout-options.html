@@ -1,0 +1,145 @@
+<h2>维度 4：账户分类与 UI 布局优化</h2>
+<p class="subtitle">解决 Ownership 两分法问题 + 优化账户类型选择 UI</p>
+
+<div class="section">
+<h3>方案 A：保持 Own/External 二分，优化展示层级</h3>
+<p>不改动后端数据模型，仅在 UI 层面对类型重新分组展示。</p>
+
+<div class="mockup">
+  <div class="mockup-header">向导 Step 2 — 分组展示</div>
+  <div class="mockup-body" style="background:#fafafa;padding:16px;border-radius:8px;">
+    <p style="margin:0 0 12px;font-size:13px;color:#6B7280;">选择账户类型</p>
+
+    <div style="margin-bottom:12px;">
+      <p style="margin:0 0 6px;font-size:11px;text-transform:uppercase;color:#3B82F6;font-weight:600;letter-spacing:0.05em;">💰 资产类</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        <div style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;">💵 现金</div>
+        <div style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;">🏦 银行</div>
+        <div style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;">📈 投资</div>
+        <div style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;">💳 预付</div>
+        <div style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;">🤝 借出</div>
+        <div style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;">📁 其他</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <p style="margin:0 0 6px;font-size:11px;text-transform:uppercase;color:#EF4444;font-weight:600;letter-spacing:0.05em;">💳 负债类</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        <div style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;">💳 信用卡</div>
+        <div style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;">📝 借入</div>
+      </div>
+    </div>
+
+    <div>
+      <p style="margin:0 0 6px;font-size:11px;text-transform:uppercase;color:#F59E0B;font-weight:600;letter-spacing:0.05em;">📊 收支类</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        <div style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;">💰 收入</div>
+        <div style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;">💸 支出</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="pros-cons" style="margin-top:12px;">
+  <div class="pros"><h4>优势</h4><ul>
+    <li>后端零改动，Step 1 不需要变</li>
+    <li>分类展示让用户理解负债≠资产</li>
+    <li>预览卡片的分类标签可以与分组联动</li>
+  </ul></div>
+  <div class="cons"><h4>劣势</h4><ul>
+    <li>Ownership 模型仍为 Own/External，负债在数据上仍归 Own</li>
+    <li>分类是纯 UI 分组，后端无法按负债类查询</li>
+  </ul></div>
+</div>
+</div>
+
+<div class="section" style="margin-top:24px;">
+<h3>方案 B：Ownership 扩展为三类，UI 分组展示</h3>
+<p>将 Ownership 从 <code>own/external</code> 扩展为 <code>own/liability/external</code>，对应资产/负债/收支。</p>
+
+<div class="mockup">
+  <div class="mockup-header">向导 Step 1 — 三类选择</div>
+  <div class="mockup-body" style="display:flex;flex-direction:column;gap:10px;padding:16px;">
+    <div style="padding:16px;border:2px solid #10B981;border-radius:12px;background:#f0fdf4;">
+      <p style="margin:0 0 4px;font-weight:600;color:#10B981;">🏦 资产账户</p>
+      <p style="margin:0;font-size:12px;color:#6B7280;">现金、银行、投资、预付卡、借出款项</p>
+      <div style="display:flex;gap:4px;margin-top:8px;">
+        <span style="background:#10B98122;padding:2px 6px;border-radius:8px;font-size:11px;">💵</span>
+        <span style="background:#10B98122;padding:2px 6px;border-radius:8px;font-size:11px;">🏦</span>
+        <span style="background:#10B98122;padding:2px 6px;border-radius:8px;font-size:11px;">📈</span>
+        <span style="background:#10B98122;padding:2px 6px;border-radius:8px;font-size:11px;">💳</span>
+        <span style="background:#10B98122;padding:2px 6px;border-radius:8px;font-size:11px;">🤝</span>
+      </div>
+    </div>
+    <div style="padding:16px;border:2px solid #EF4444;border-radius:12px;background:#fef2f2;">
+      <p style="margin:0 0 4px;font-weight:600;color:#EF4444;">💳 负债账户</p>
+      <p style="margin:0;font-size:12px;color:#6B7280;">信用卡、借入款项</p>
+      <div style="display:flex;gap:4px;margin-top:8px;">
+        <span style="background:#EF444422;padding:2px 6px;border-radius:8px;font-size:11px;">💳</span>
+        <span style="background:#EF444422;padding:2px 6px;border-radius:8px;font-size:11px;">📝</span>
+      </div>
+    </div>
+    <div style="padding:16px;border:2px solid #F59E0B;border-radius:12px;background:#fffbeb;">
+      <p style="margin:0 0 4px;font-weight:600;color:#F59E0B;">📊 收支账户</p>
+      <p style="margin:0;font-size:12px;color:#6B7280;">收入、支出分类</p>
+      <div style="display:flex;gap:4px;margin-top:8px;">
+        <span style="background:#F59E0B22;padding:2px 6px;border-radius:8px;font-size:11px;">💰</span>
+        <span style="background:#F59E0B22;padding:2px 6px;border-radius:8px;font-size:11px;">💸</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="pros-cons" style="margin-top:12px;">
+  <div class="pros"><h4>优势</h4><ul>
+    <li>数据模型正确区分资产和负债</li>
+    <li>负债初始余额允许为负（符合会计概念）</li>
+    <li>后端可按 Ownership 查询负债类账户</li>
+    <li>余额验证规则可按类区分</li>
+  </ul></div>
+  <div class="cons"><h4>劣势</h4><ul>
+    <li>DB 迁移：需要把现有 CreditCard/BorrowedIn 的 ownership 从 'own' 改为 'liability'</li>
+    <li>需要更新前端所有 ownership 判断逻辑</li>
+    <li>Rust enum 需要加 <code>Liability</code> 变体</li>
+  </ul></div>
+</div>
+</div>
+
+<div class="section" style="margin-top:24px;">
+<h3>方案 C：保持两分法，但 Step 2 用分组卡片代替扁平列表</h3>
+<p>不改数据模型，纯 UI 优化：Step 2 把 8 个类型按会计含义分组展示。</p>
+
+<div class="mockup">
+  <div class="mockup-header">AccountForm Edit 模式 — 分组下拉</div>
+  <div class="mockup-body" style="padding:16px;">
+    <p style="margin:0 0 8px;font-size:12px;color:#6B7280;">账户类型</p>
+    <div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+      <div style="padding:6px 12px;background:#f0fdf4;font-size:11px;color:#10B981;font-weight:600;">资产类</div>
+      <div style="padding:8px 12px;border-top:1px solid #e5e7eb;font-size:13px;cursor:pointer;">💵 现金 (Cash)</div>
+      <div style="padding:8px 12px;border-top:1px solid #f0f0f0;font-size:13px;cursor:pointer;">🏦 银行 (Bank)</div>
+      <div style="padding:8px 12px;border-top:1px solid #f0f0f0;font-size:13px;cursor:pointer;">📈 投资 (Investment)</div>
+      <div style="padding:8px 12px;border-top:1px solid #f0f0f0;font-size:13px;cursor:pointer;">💳 预付 (Prepaid)</div>
+      <div style="padding:8px 12px;border-top:1px solid #f0f0f0;font-size:13px;cursor:pointer;">🤝 借出 (BorrowedOut)</div>
+      <div style="padding:8px 12px;border-top:1px solid #f0f0f0;font-size:13px;cursor:pointer;">📁 其他 (Other)</div>
+      <div style="padding:6px 12px;background:#fef2f2;font-size:11px;color:#EF4444;font-weight:600;border-top:1px solid #e5e7eb;">负债类</div>
+      <div style="padding:8px 12px;border-top:1px solid #e5e7eb;font-size:13px;cursor:pointer;">💳 信用卡 (CreditCard)</div>
+      <div style="padding:8px 12px;border-top:1px solid #f0f0f0;font-size:13px;cursor:pointer;">📝 借入 (BorrowedIn)</div>
+      <div style="padding:6px 12px;background:#fffbeb;font-size:11px;color:#F59E0B;font-weight:600;border-top:1px solid #e5e7eb;">收支类</div>
+      <div style="padding:8px 12px;border-top:1px solid #e5e7eb;font-size:13px;cursor:pointer;">💰 收入 (Income)</div>
+      <div style="padding:8px 12px;border-top:1px solid #f0f0f0;font-size:13px;cursor:pointer;">💸 支出 (Expense)</div>
+    </div>
+  </div>
+</div>
+
+<div class="pros-cons" style="margin-top:12px;">
+  <div class="pros"><h4>优势</h4><ul>
+    <li>最小改动量，不改后端</li>
+    <li>用户直观看到资产/负债/收支的分类</li>
+    <li>编辑模式的 Select 也有分组（Radix SelectGroup）</li>
+  </ul></div>
+  <div class="cons"><h4>劣势</h4><ul>
+    <li>CreditCard 数据上仍归 Own，语义不完全正确</li>
+    <li>不改余额验证规则（负债初始余额能否为负？）</li>
+  </ul></div>
+</div>
+</div>

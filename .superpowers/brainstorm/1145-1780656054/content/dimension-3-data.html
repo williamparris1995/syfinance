@@ -1,0 +1,130 @@
+<h2>维度 3：数据结构审计</h2>
+<p class="subtitle">分析 Schema、领域模型、DTO 层与行业标准对照</p>
+
+<div class="section">
+<h3>🔴 严重问题</h3>
+
+<div class="cards">
+  <div class="card">
+    <div class="card-body">
+      <h3>1. DB 的 "loan" 类型值是幽灵数据</h3>
+      <p>数据库 CHECK 约束允许 <code>'loan'</code> 作为 <code>account_type</code> 的值（历史遗留），但 Rust 枚举已经移除了 <code>Loan</code> 变体，只保留 <code>BorrowedOut</code> 和 <code>BorrowedIn</code>。</p>
+      <p><strong>风险：</strong>如果数据库中存在旧的 <code>'loan'</code> 行，<code>row_to_account</code> 会返回 <code>Decode error</code>，导致整个列表页崩溃。</p>
+      <p><strong>行业标准：</strong>数据库枚举应与代码枚举严格一致。要么在 DB 中把 <code>'loan'</code> 迁移为 <code>'borrowed_in'</code>，要么在 Rust 中做 fallback 映射。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>2. Decimal 字段全用 TEXT 存储</h3>
+      <p><code>initial_balance</code>、<code>credit_limit</code>、<code>interest_rate</code>、<code>low_balance_threshold</code> 在 DB 中都是 <code>TEXT</code> 或 <code>CAST(...AS TEXT)</code>。SQL 查询中用 <code>CAST(initial_balance AS TEXT)</code> 来保持精度。</p>
+      <p><strong>问题：</strong></p>
+      <ul>
+        <li>无法在 DB 层做数值比较/排序/聚合（如 "找余额 > 10000 的账户"）</li>
+        <li>每次读写都需要 Decimal ↔ String 互转，增加出错面</li>
+        <li>无法在 DB 层约束负数（靠代码约束）</li>
+      </ul>
+      <p><strong>行业标准：</strong>SQLite 支持 <code>DECIMAL</code>（实际存储为整数分），或使用整数分值（如 YNAB 存储所有金额为整数分）。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>3. AccountDto 缺少低余额阈值和状态字段</h3>
+      <p><code>AccountDto</code>（返回给前端的主要数据结构）缺少：</p>
+      <ul>
+        <li><code>low_balance_threshold</code> — 前端在列表中用到了 Low Balance 警告！</li>
+        <li><code>status</code> — 无法区分 Active/Archived/Hidden</li>
+        <li><code>opened_at</code> — 无法显示开户日期</li>
+      </ul>
+      <p>但前端 <code>AccountsPage</code> 代码中有 <code>account.low_balance_threshold</code> 的引用（第154行），说明前端和后端的 DTO 不同步 — 前端期望的字段后端没有序列化。</p>
+      <p><strong>这可能是一个实际 bug：</strong>低余额警告可能从不工作，因为 DTO 没有包含这个字段。</p>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h3>🟡 设计缺陷</h3>
+
+<div class="cards">
+  <div class="card">
+    <div class="card-body">
+      <h3>4. created_at 是假的</h3>
+      <p><strong>位置：</strong>account_dto.rs:84-93</p>
+      <p><code>AccountDto::created_at = account.sync_metadata.updated_at</code> — 没有单独的 <code>created_at</code> 字段。</p>
+      <p>每次更新账户后，<code>created_at</code> 和 <code>updated_at</code> 值相同。数据库 schema 也只有 <code>updated_at</code>，没有 <code>created_at</code>。</p>
+      <p><strong>行业标准：</strong>几乎所有金融产品都区分创建时间和最后修改时间。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>5. billing_day/payment_due_day 类型不一致</h3>
+      <p>整条链路的类型转换：</p>
+      <p>DB <code>INTEGER</code> → Repository <code>i64 → u8</code> → Aggregate <code>u8</code> → DTO <code>u8</code> → 后端 Update <code>i32</code> → 前端 <code>string</code></p>
+      <p>前端发送 <code>"5"</code>（字符串），后端接收 <code>i32</code>，领域模型用 <code>u8</code>，数据库是 <code>INTEGER</code>。类型链过长，每层都要转换。</p>
+      <p><strong>风险：</strong>前端发送 <code>billing_day: "0"</code> 或 <code>"32"</code>，Zod 验证会通过（字符串非空+合法），但领域模型会拒绝。validation 位置不一致。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>6. UpdateAccountDto 中 currency_code 是多余的</h3>
+      <p><strong>位置：</strong>account_dto.rs:30</p>
+      <p><code>UpdateAccountDto</code> 包含 <code>currency_code: Option&lt;String&gt;</code>，但服务层完全忽略它（<code>update_account</code> 使用 <code>account.currency_code</code> 重建余额）。领域模型 <code>update_currency_code()</code> 永远返回 <code>CurrencyMismatch</code> 错误，是不可变字段。</p>
+      <p>这个字段的存在是误导性的 — 如果前端误发了它，没有效果也没有错误提示。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>7. PostgreSQL 仓库严重不完整</h3>
+      <p><code>account_repository_postgres.rs</code> 是 <code>#![allow(dead_code)]</code>，不解析 <code>account_number, institution, credit_limit, billing_day, payment_due_day, interest_rate, low_balance_threshold</code> 等字段。</p>
+      <p>如果将来启用 PostgreSQL 同步，所有这些字段会丢失。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>8. parent_id 自引用没有循环引用保护</h3>
+      <p>数据库有 <code>parent_id REFERENCES accounts(id)</code>，但没有任何代码阻止 A→B→A 循环引用或自引用。也没有递归查询来构建账户层级。</p>
+      <p>实际上前端也完全没有使用 parent_id 来展示层级关系 — 它是一个"写了但没用"的字段。</p>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h3>🟢 做得好的部分</h3>
+
+<div class="cards">
+  <div class="card">
+    <div class="card-body">
+      <h3>✓ 软删除设计正确</h3>
+      <p><code>deleted_at</code> 时间戳模式，查询时 <code>WHERE deleted_at IS NULL</code> 过滤。<code>find_all_including_deleted</code> 为同步保留能力。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>✓ SyncMetadata 内聚</h3>
+      <p><code>updated_at, deleted_at, device_id, synced_at</code> 封装为 <code>SyncMetadata</code> 值对象，而非散落在字段中。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>✓ 余额计算分离</h3>
+      <p><code>compute_balances_for_all_accounts</code> 集中查 <code>transaction_entries</code>，而非逐账户查询，效率好。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>✓ Money 值对象保证币种一致性</h3>
+      <p><code>Money { amount: Decimal, currency_code: String }</code> 保证金额和币种不分离，避免"1000 是什么货币"的歧义。</p>
+    </div>
+  </div>
+</div>
+</div>

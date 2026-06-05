@@ -1,0 +1,277 @@
+<h2>补充页面设计审计</h2>
+<p class="subtitle">账户列表页、创建页、编辑页、删除流程 — 当前问题与改进方案</p>
+
+<div class="section">
+<h3>一、账户列表页 — 当前问题</h3>
+
+<div class="mockup">
+  <div class="mockup-header">当前布局问题</div>
+  <div class="mockup-body" style="font-size:13px;">
+    <p style="margin:0 0 8px;"><strong>❌ 缺少总览摘要</strong> — 没有总资产/总负债/净资产汇总卡片</p>
+    <p style="margin:0 0 8px;"><strong>❌ 分组按类型扁平排列</strong> — 10 种类型全部一级排列，没有按「资产/负债/收支」大组分类</p>
+    <p style="margin:0 0 8px;"><strong>❌ 操作按钮过多且密集</strong> — 每行最多5个小图标按钮，可读性差</p>
+    <p style="margin:0 0 8px;"><strong>❌ 删除没有独立确认弹窗</strong> — 只是行内出现 确认/取消 按钮，容易误触</p>
+    <p style="margin:0 0 8px;"><strong>❌ 搜索和过滤区域拥挤</strong> — 搜索框和类型按钮条挤在一起，没有空间层次</p>
+    <p style="margin:0 0 8px;"><strong>❌ 空状态只有一句话</strong> — 没有引导用户创建第一个账户的视觉</p>
+  </div>
+</div>
+</div>
+
+<div class="section" style="margin-top:24px;">
+<h3>二、列表页 — 改进设计</h3>
+
+<div class="mockup">
+  <div class="mockup-header">目标布局（三层结构）</div>
+  <div class="mockup-body" style="font-size:12px;">
+    <div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;background:#fff;">
+      <div style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <h2 style="margin:0;font-size:18px;font-weight:700;">账户</h2>
+          <button style="background:linear-gradient(135deg,#10B981,#3B82F6);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;">+ 新建账户</button>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+          <div style="background:#f0fdf4;border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:11px;color:#6B7280;text-transform:uppercase;">总资产</div>
+            <div style="font-size:18px;font-weight:700;color:#10B981;">¥ 125,300.00</div>
+          </div>
+          <div style="background:#fef2f2;border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:11px;color:#6B7280;text-transform:uppercase;">总负债</div>
+            <div style="font-size:18px;font-weight:700;color:#EF4444;">¥ -15,800.00</div>
+          </div>
+          <div style="background:#eff6ff;border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:11px;color:#6B7280;text-transform:uppercase;">净资产</div>
+            <div style="font-size:18px;font-weight:700;color:#3B82F6;">¥ 109,500.00</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <input placeholder="搜索账户..." style="flex:1;border:1px solid #e5e7eb;border-radius:6px;padding:6px 10px;font-size:13px;">
+          <select style="border:1px solid #e5e7eb;border-radius:6px;padding:6px 10px;font-size:13px;">
+            <option>全部</option><option>资产类</option><option>负债类</option><option>收支类</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <p style="margin:0 0 6px;font-size:11px;color:#10B981;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">🏦 资产类</p>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead><tr style="border-bottom:2px solid #e5e7eb;">
+            <th style="text-align:left;padding:6px;">名称</th>
+            <th style="text-align:right;padding:6px;">余额</th>
+            <th style="text-align:right;padding:6px;">操作</th>
+          </tr></thead>
+          <tbody>
+            <tr style="border-bottom:1px solid #f0f0f0;">
+              <td style="padding:8px 6px;">🏦 工商银行</td>
+              <td style="text-align:right;padding:8px 6px;color:#10B981;">¥ 52,300.00</td>
+              <td style="text-align:right;padding:8px 6px;">
+                <button style="color:#3B82F6;border:none;background:none;cursor:pointer;font-size:12px;">编辑</button>
+              </td>
+            </tr>
+            <tr style="border-bottom:1px solid #f0f0f0;">
+              <td style="padding:8px 6px;">💵 现金</td>
+              <td style="text-align:right;padding:8px 6px;color:#10B981;">¥ 500.00</td>
+              <td style="text-align:right;padding:8px 6px;">
+                <button style="color:#3B82F6;border:none;background:none;cursor:pointer;font-size:12px;">编辑</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <p style="margin:0 0 6px;font-size:11px;color:#EF4444;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">💳 负债类</p>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead><tr style="border-bottom:2px solid #e5e7eb;">
+            <th style="text-align:left;padding:6px;">名称</th>
+            <th style="text-align:right;padding:6px;">余额</th>
+            <th style="text-align:right;padding:6px;">操作</th>
+          </tr></thead>
+          <tbody>
+            <tr style="border-bottom:1px solid #f0f0f0;">
+              <td style="padding:8px 6px;">💳 招商信用卡</td>
+              <td style="text-align:right;padding:8px 6px;color:#EF4444;">¥ -8,200.00</td>
+              <td style="text-align:right;padding:8px 6px;">
+                <button style="color:#3B82F6;border:none;background:none;cursor:pointer;font-size:12px;">编辑</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <p style="margin:0 0 6px;font-size:11px;color:#F59E0B;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">📊 收支类</p>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tr style="border-bottom:1px solid #f0f0f0;">
+            <td style="padding:8px 6px;">💰 工资收入</td>
+            <td style="text-align:right;padding:8px 6px;color:#10B981;">¥ 15,000.00</td>
+            <td style="text-align:right;padding:8px 6px;">
+              <button style="color:#3B82F6;border:none;background:none;cursor:pointer;font-size:12px;">编辑</button>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:12px;font-size:14px;"><strong>改动要点：</strong></p>
+<ul style="font-size:13px;">
+  <li>顶部增加 总资产/总负债/净资产 三张摘要卡片</li>
+  <li>搜索+分类过滤 改为 Ownership 三类下拉（全部/资产/负债/收支）</li>
+  <li>表格按「资产/负债/收支」三层分组，每组有小标题</li>
+  <li>操作列只有文字按钮「编辑」，点击进入编辑页（非 Sheet）</li>
+  <li>删除从行内确认改为正式 Dialog</li>
+</ul>
+</div>
+
+<div class="section" style="margin-top:24px;">
+<h3>三、创建账户页 — 改进设计</h3>
+
+<div class="mockup">
+  <div class="mockup-header">目标：统一创建入口，一个 AccountWizard</div>
+  <div class="mockup-body" style="font-size:12px;">
+    <div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;background:#fff;">
+      <h3 style="margin:0 0 12px;font-size:16px;">Step 1: 选择账户性质</h3>
+      <div style="display:flex;gap:10px;margin-bottom:20px;">
+        <div style="flex:1;border:2px solid #10B981;border-radius:12px;padding:16px;background:#f0fdf4;">
+          <div style="font-size:24px;text-align:center;">🏦</div>
+          <div style="font-size:14px;font-weight:600;text-align:center;margin-top:4px;color:#10B981;">资产账户</div>
+          <div style="font-size:11px;text-align:center;color:#6B7280;margin-top:2px;">现金 · 银行 · 投资 · 预付 · 借出 · 其他</div>
+        </div>
+        <div style="flex:1;border:2px solid #EF4444;border-radius:12px;padding:16px;background:#fef2f2;">
+          <div style="font-size:24px;text-align:center;">💳</div>
+          <div style="font-size:14px;font-weight:600;text-align:center;margin-top:4px;color:#EF4444;">负债账户</div>
+          <div style="font-size:11px;text-align:center;color:#6B7280;margin-top:2px;">信用卡 · 借入款项</div>
+        </div>
+        <div style="flex:1;border:2px solid #F59E0B;border-radius:12px;padding:16px;background:#fffbeb;">
+          <div style="font-size:24px;text-align:center;">📊</div>
+          <div style="font-size:14px;font-weight:600;text-align:center;margin-top:4px;color:#F59E0B;">收支账户</div>
+          <div style="font-size:11px;text-align:center;color:#6B7280;margin-top:2px;">收入 · 支出</div>
+        </div>
+      </div>
+
+      <p style="font-size:11px;color:#9CA3AF;margin-top:8px;">✓ 预览标签与 Step 2 选项完全一致，不会遗漏</p>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:12px;font-size:14px;"><strong>改动要点：</strong></p>
+<ul style="font-size:13px;">
+  <li><strong>统一入口</strong>：删除 <code>NewAccountPage</code>，只保留 AccountWizard</li>
+  <li><strong>三卡片 Step 1</strong>：资产（绿）/ 负债（红）/ 收支（黄）</li>
+  <li><strong>预览标签与 Step 2 一致</strong>：显示所有子类型，不再硬编码截断</li>
+  <li><strong>Step 3 表单</strong>：复用 <code>AccountForm</code> 组件，而非独立 useState</li>
+  <li><strong>货币选择器前置</strong>：从「高级选项」移到 Step 3 核心区域</li>
+</ul>
+</div>
+
+<div class="section" style="margin-top:24px;">
+<h3>四、编辑账户页 — 改进设计</h3>
+
+<div class="mockup">
+  <div class="mockup-header">目标：Sheet → 全页面，增加不可变字段说明</div>
+  <div class="mockup-body" style="font-size:12px;">
+    <div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;background:#fff;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="margin:0;font-size:16px;">编辑账户 — 工商银行</h3>
+        <button style="border:1px solid #e5e7eb;border-radius:6px;padding:6px 12px;font-size:13px;cursor:pointer;">✕ 关闭</button>
+      </div>
+
+      <div style="background:#f8fafc;border-radius:8px;padding:12px;margin-bottom:16px;border:1px solid #e2e8f0;">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:12px;">
+          <div>
+            <span style="color:#6B7280;">类型</span>
+            <div style="font-weight:600;">🏦 银行</div>
+          </div>
+          <div>
+            <span style="color:#6B7280;">所有权</span>
+            <div style="font-weight:600;">自有资产</div>
+          </div>
+          <div>
+            <span style="color:#6B7280;">币种</span>
+            <div style="font-weight:600;">¥ CNY</div>
+            <span style="font-size:10px;color:#9CA3AF;">ℹ 设定后不可修改</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px;color:#6B7280;text-transform:uppercase;">账户名称 *</label>
+        <input value="工商银行" style="width:100%;border:1px solid #e5e7eb;border-radius:6px;padding:8px;margin-top:4px;font-size:14px;">
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px;color:#6B7280;text-transform:uppercase;">当前余额</label>
+        <div style="background:#f1f5f9;border-radius:6px;padding:8px;font-size:16px;font-weight:700;color:#10B981;">¥ 52,300.00</div>
+        <span style="font-size:10px;color:#9CA3AF;">只读 — 由初始余额和交易记录自动计算</span>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px;color:#6B7280;text-transform:uppercase;">初始余额</label>
+        <div style="display:flex;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;">
+          <span style="background:#f1f5f9;padding:8px;font-size:14px;border-right:1px solid #e5e7eb;">¥</span>
+          <input value="50000" style="flex:1;border:none;padding:8px;font-size:14px;">
+        </div>
+        <span style="font-size:10px;color:#F59E0B;">⚠ 修改初始余额将影响当前余额</span>
+      </div>
+
+      <details style="border-top:1px solid #e5e7eb;padding-top:12px;">
+        <summary style="font-size:13px;cursor:pointer;color:#3B82F6;">高级选项</summary>
+        <div style="padding-top:8px;">
+          <label style="font-size:11px;color:#6B7280;">卡号</label>
+          <input placeholder="尾号四位" style="width:100%;border:1px solid #e5e7eb;border-radius:6px;padding:6px;font-size:13px;margin-top:2px;">
+          <label style="font-size:11px;color:#6B7280;margin-top:8px;display:block;">开户行</label>
+          <input placeholder="例：招商银行望京支行" style="width:100%;border:1px solid #e5e7eb;border-radius:6px;padding:6px;font-size:13px;margin-top:2px;">
+        </div>
+      </details>
+
+      <div style="display:flex;gap:8px;margin-top:16px;">
+        <button style="flex:1;border:1px solid #e5e7eb;border-radius:6px;padding:8px;font-size:13px;cursor:pointer;">取消</button>
+        <button style="flex:1;background:linear-gradient(135deg,#10B981,#3B82F6);color:#fff;border:none;border-radius:6px;padding:8px;font-size:13px;cursor:pointer;">保存修改</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:12px;font-size:14px;"><strong>改动要点：</strong></p>
+<ul style="font-size:13px;">
+  <li><strong>Sheet → 全页面</strong>：从侧边 Sheet 改为路由页面，空间更充分</li>
+  <li><strong>不可变字段信息卡</strong>：顶部展示类型/所有权/币种，币种旁有 ℹ 提示</li>
+  <li><strong>当前余额只读展示</strong>：大字体 + 绿色/红色 + 计算说明</li>
+  <li><strong>初始余额修改警告</strong>：「⚠ 修改初始余额将影响当前余额」</li>
+  <li><strong>可选字段可清除</strong>：增加清除按钮（×），发送 null 清除值</li>
+</ul>
+</div>
+
+<div class="section" style="margin-top:24px;">
+<h3>五、删除流程 — 改进设计</h3>
+
+<div class="mockup">
+  <div class="mockup-header">当前 vs 目标</div>
+  <div class="mockup-body" style="display:flex;gap:16px;">
+    <div style="flex:1;border:2px solid #EF4444;border-radius:8px;padding:12px;">
+      <p style="margin:0 0 8px;font-weight:600;color:#EF4444;">✗ 当前：行内确认</p>
+      <p style="margin:0 0 4px;font-size:12px;">删除图标 → 行内出现[确认][取消]</p>
+      <p style="margin:0 0 4px;font-size:12px;">问题：无账户名确认、无后果说明、易误触</p>
+      <p style="margin:0;font-size:12px;color:#EF4444;">用户可能不知道删的是哪个账户</p>
+    </div>
+    <div style="flex:1;border:2px solid #10B981;border-radius:8px;padding:12px;">
+      <p style="margin:0 0 8px;font-weight:600;color:#10B981;">✓ 目标：Dialog 确认弹窗</p>
+      <p style="margin:0 0 4px;font-size:12px;"><strong>标题：</strong>「删除账户」</p>
+      <p style="margin:0 0 4px;font-size:12px;"><strong>内容：</strong>「确定要删除"工商银行"吗？该账户的 <strong>{N}</strong> 笔交易记录将保留，但账户将被标记为已删除。」</p>
+      <p style="margin:0 0 4px;font-size:12px;"><strong>按钮：</strong>[取消] [确认删除（红色）]</p>
+      <p style="margin:0;font-size:12px;color:#10B981;">包含账户名 + 交易数量 + 级联影响说明</p>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:12px;font-size:14px;"><strong>改动要点：</strong></p>
+<ul style="font-size:13px;">
+  <li><strong>正式 Dialog</strong>取代行内确认，包含账户名</li>
+  <li><strong>级联影响说明</strong>：告知用户相关交易不会被删除</li>
+  <li><strong>主按钮为红色 destructive variant</strong>，明确表示不可逆操作</li>
+  <li><strong>加载状态</strong>：删除进行中按钮显示 spinner 并禁用</li>
+</ul>
+</div>

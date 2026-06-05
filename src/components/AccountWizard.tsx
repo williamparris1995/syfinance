@@ -32,17 +32,20 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { AccountType, Ownership } from '../lib/tauri/account';
 
 type WizardStep = 1 | 2 | 3;
-type AccountNature = 'asset' | 'income-expense';
+type AccountNature = 'asset' | 'liability' | 'income-expense';
 
 const ASSET_TYPES: { type: AccountType; labelKey: string; icon: React.ReactNode }[] = [
   { type: 'Cash', labelKey: 'accountForm.cashWithChinese', icon: <Wallet className="h-5 w-5" /> },
   { type: 'Bank', labelKey: 'accountForm.bankWithChinese', icon: <Landmark className="h-5 w-5" /> },
-  { type: 'CreditCard', labelKey: 'accountForm.creditCardWithChinese', icon: <CreditCard className="h-5 w-5" /> },
   { type: 'Investment', labelKey: 'accountForm.investmentWithChinese', icon: <TrendingUp className="h-5 w-5" /> },
   { type: 'BorrowedOut', labelKey: 'accountForm.borrowedOutWithChinese', icon: <HandCoins className="h-5 w-5" /> },
-  { type: 'BorrowedIn', labelKey: 'accountForm.borrowedInWithChinese', icon: <ArrowRightLeft className="h-5 w-5" /> },
   { type: 'Prepaid', labelKey: 'accountForm.prepaidWithChinese', icon: <PiggyBank className="h-5 w-5" /> },
   { type: 'Other', labelKey: 'accountForm.otherWithChinese', icon: <Layers className="h-5 w-5" /> },
+];
+
+const LIABILITY_TYPES: { type: AccountType; labelKey: string; icon: React.ReactNode }[] = [
+  { type: 'CreditCard', labelKey: 'accountForm.creditCardWithChinese', icon: <CreditCard className="h-5 w-5" /> },
+  { type: 'BorrowedIn', labelKey: 'accountForm.borrowedInWithChinese', icon: <ArrowRightLeft className="h-5 w-5" /> },
 ];
 
 const INCOME_EXPENSE_TYPES: { type: AccountType; labelKey: string; icon: React.ReactNode }[] = [
@@ -185,6 +188,7 @@ export function AccountWizard({ open, onOpenChange }: AccountWizardProps) {
 
   const getAvailableTypes = () => {
     if (nature === 'asset') return ASSET_TYPES;
+    if (nature === 'liability') return LIABILITY_TYPES;
     if (nature === 'income-expense') return INCOME_EXPENSE_TYPES;
     return [];
   };
@@ -262,15 +266,50 @@ export function AccountWizard({ open, onOpenChange }: AccountWizardProps) {
                       {t('account.createWizard.assetAccountDesc')}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {['Cash', 'Bank', 'CreditCard', 'Investment', 'Prepaid'].map((t) => (
+                      {ASSET_TYPES.map(({ type, icon }) => (
                         <span
-                          key={t}
-                          className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700 dark:bg-emerald-900 dark:text-emerald-400"
+                          key={type}
+                          className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700 dark:bg-emerald-900 dark:text-emerald-400"
                         >
-                          {TYPE_ICONS[t as AccountType]} {t}
+                          <span className="h-3 w-3 [&>svg]:h-3 [&>svg]:w-3">{icon}</span> {t(`accountForm.${type.toLowerCase()}WithChinese`)}
                         </span>
                       ))}
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className={`cursor-pointer rounded-xl border-2 p-5 transition-all hover:shadow-md ${
+                  nature === 'liability'
+                    ? 'border-red-500 bg-red-50/50 dark:bg-red-950/20'
+                    : 'border-border hover:border-red-300'
+                }`}
+                onClick={() => {
+                  setNature('liability');
+                  setAccountType(null);
+                  setStep(2);
+                }}
+              >
+                <div className="flex items-start gap-4">
+                  <div className="rounded-lg bg-red-100 p-3 text-red-700 dark:bg-red-900 dark:text-red-400">
+                    <CreditCard className="h-6 w-6" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold">{t('account.createWizard.liabilityAccount')}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {t('account.createWizard.liabilityAccountDesc')}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {LIABILITY_TYPES.map(({ type, icon }) => (
+                        <span
+                          key={type}
+                          className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700 dark:bg-red-900 dark:text-red-400"
+                        >
+                          <span className="h-3 w-3 [&>svg]:h-3 [&>svg]:w-3">{icon}</span> {t(`accountForm.${type.toLowerCase()}WithChinese`)}
+                        </span>
+                      ))}
+                      </div>
                   </div>
                 </div>
               </div>
@@ -297,12 +336,12 @@ export function AccountWizard({ open, onOpenChange }: AccountWizardProps) {
                       {t('account.createWizard.incomeExpenseAccountDesc')}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {['Income', 'Expense'].map((t) => (
+                      {INCOME_EXPENSE_TYPES.map(({ type, icon }) => (
                         <span
-                          key={t}
-                          className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-900 dark:text-amber-400"
+                          key={type}
+                          className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-900 dark:text-amber-400"
                         >
-                          {TYPE_ICONS[t as AccountType]} {t}
+                          <span className="h-3 w-3 [&>svg]:h-3 [&>svg]:w-3">{icon}</span> {t(`accountForm.${type.toLowerCase()}WithChinese`)}
                         </span>
                       ))}
                     </div>
@@ -354,7 +393,9 @@ export function AccountWizard({ open, onOpenChange }: AccountWizardProps) {
                   <div className="text-xs text-muted-foreground">
                     {nature === 'asset'
                       ? t('account.createWizard.assetAccount')
-                      : t('account.createWizard.incomeExpenseAccount')}
+                      : nature === 'liability'
+                        ? t('account.createWizard.liabilityAccount')
+                        : t('account.createWizard.incomeExpenseAccount')}
                   </div>
                 </div>
               </div>
