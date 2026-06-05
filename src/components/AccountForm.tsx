@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import { TrendingUp, BarChart3, Layers, Landmark, Coins, GitBranch, Wallet } from 'lucide-react';
+import { AlertTriangle, TrendingUp, BarChart3, Layers, Landmark, Coins, GitBranch, Wallet } from 'lucide-react';
 import { INVESTMENT_TEMPLATES } from '@/lib/tauri/account';
 import type { AccountType, AccountDto, CreateAccountDto, PatchAccountDto, Ownership } from '@/lib/tauri/account';
 import { useCurrencies } from '@/hooks/useCurrency';
@@ -390,6 +390,12 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
                   </FormItem>
                   )}
                 />
+                {isEditMode && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    {t('accountForm.balanceChangeWarning')}
+                  </p>
+                )}
               </div>
             ) : (
               <FormField
@@ -499,8 +505,15 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
               render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">
-                  {t('accountForm.currency')}
-                  <span className="text-muted-foreground/50 font-normal"> {t('common.optionalSuffix')}</span>
+                  <div className="flex items-center gap-1">
+                    <span>{t('accountForm.currency')}</span>
+                    {isEditMode && (
+                      <span className="text-xs text-muted-foreground/50" title={t('accountForm.currencyImmutableHint')}>
+                        ⓘ
+                      </span>
+                    )}
+                    <span className="text-muted-foreground/50 font-normal"> {t('common.optionalSuffix')}</span>
+                  </div>
                 </FormLabel>
                 <Select value={field.value} onValueChange={field.onChange} disabled={isEditMode}>
                   <FormControl><SelectTrigger className="h-9"><SelectValue placeholder={t('accountForm.selectCurrency')}>{field.value ? currencyLabelMap[field.value] || field.value : null}</SelectValue></SelectTrigger></FormControl>

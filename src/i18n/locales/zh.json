@@ -287,7 +287,9 @@
     "selectTemplate": "选择投资模板",
     "prepaidDetails": "储值卡详情",
     "lowBalanceThreshold": "低余额阈值",
-    "lowBalanceThresholdInvalid": "低余额阈值必须为有效数字"
+    "lowBalanceThresholdInvalid": "低余额阈值必须为有效数字",
+    "balanceChangeWarning": "修改初始余额将影响当前余额显示",
+    "currencyImmutableHint": "币种创建后不可更改，因为它会影响交易记录"
   },
   "transactions": {
     "title": "交易记录",

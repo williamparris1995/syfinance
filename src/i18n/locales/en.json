@@ -319,7 +319,9 @@
     "selectTemplate": "Select Investment Template",
     "prepaidDetails": "Prepaid Details",
     "lowBalanceThreshold": "Low Balance Threshold",
-    "lowBalanceThresholdInvalid": "Low balance threshold must be a valid number"
+    "lowBalanceThresholdInvalid": "Low balance threshold must be a valid number",
+    "balanceChangeWarning": "Changing the initial balance will affect the current balance display",
+    "currencyImmutableHint": "Currency cannot be changed after creation because it affects transaction records"
   },
   "transactions": {
     "title": "Transactions",
