@@ -74,6 +74,7 @@ impl PostgresAccountRepository {
         let parent_id: Option<Uuid> = row.try_get("parent_id")?;
 
         let updated_at: DateTime<Utc> = row.try_get("updated_at")?;
+        let created_at: DateTime<Utc> = row.try_get("created_at")?;
         let deleted_at: Option<DateTime<Utc>> = row.try_get("deleted_at")?;
         let device_id: Uuid = row.try_get("device_id")?;
         let synced_at: Option<DateTime<Utc>> = row.try_get("synced_at")?;
@@ -105,6 +106,7 @@ impl PostgresAccountRepository {
             low_balance_threshold: None,
             status: crate::domain::aggregates::account::AccountStatus::Active,
             opened_at: None,
+            created_at,
             sync_metadata,
             pending_events: Vec::new(),
         })

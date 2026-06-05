@@ -134,7 +134,7 @@ impl From<Account> for AccountDto {
             low_balance_threshold: account.low_balance_threshold,
             status: account.status.to_string(),
             opened_at: account.opened_at,
-            created_at: account.sync_metadata.updated_at,
+            created_at: account.created_at,
             updated_at: account.sync_metadata.updated_at,
             deleted_at: account.sync_metadata.deleted_at,
         }

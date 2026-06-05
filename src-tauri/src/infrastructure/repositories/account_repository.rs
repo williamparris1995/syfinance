@@ -117,6 +117,7 @@ impl SqliteAccountRepository {
             .transpose()?;
 
         let updated_at: String = row.try_get("updated_at")?;
+        let created_at: String = row.try_get("created_at")?;
         let deleted_at: Option<String> = row.try_get("deleted_at")?;
         let device_id: Option<String> = row.try_get("device_id")?;
         let synced_at: Option<String> = row.try_get("synced_at")?;
@@ -134,6 +135,9 @@ impl SqliteAccountRepository {
 
         let updated_at_parsed = parse_sqlite_datetime(&updated_at)
             .map_err(|e| sqlx::Error::Decode(format!("updated_at='{updated_at}': {e}").into()))?;
+
+        let created_at_parsed = parse_sqlite_datetime(&created_at)
+            .map_err(|e| sqlx::Error::Decode(format!("created_at='{created_at}': {e}").into()))?;
 
         let deleted_at_parsed = deleted_at
             .map(|s| {
@@ -182,6 +186,7 @@ impl SqliteAccountRepository {
             low_balance_threshold,
             status: crate::domain::aggregates::account::AccountStatus::Active,
             opened_at: None,
+            created_at: created_at_parsed,
             sync_metadata,
             pending_events: Vec::new(),
         })
@@ -293,9 +298,9 @@ impl AccountRepository for SqliteAccountRepository {
                 icon, color, chart_code, parent_id,
                 account_number, institution, credit_limit, billing_day,
                 payment_due_day, interest_rate, low_balance_threshold,
-                updated_at, deleted_at, device_id, synced_at
+                created_at, updated_at, deleted_at, device_id, synced_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(account.id.to_string())
@@ -315,6 +320,7 @@ impl AccountRepository for SqliteAccountRepository {
         .bind(account.payment_due_day.map(|d| d as i64))
         .bind(account.interest_rate.map(|r| r.to_string()))
         .bind(account.low_balance_threshold.map(|t| t.to_string()))
+        .bind(account.created_at.to_rfc3339())
         .bind(account.sync_metadata.updated_at.to_rfc3339())
         .bind(account.sync_metadata.deleted_at.map(|dt| dt.to_rfc3339()))
         .bind(account.sync_metadata.device_id.to_string())
@@ -337,7 +343,7 @@ impl AccountRepository for SqliteAccountRepository {
                 billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
                 CAST(low_balance_threshold AS TEXT) AS low_balance_threshold,
-                updated_at, deleted_at, device_id, synced_at
+                created_at, updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE name = ? AND deleted_at IS NULL
             "#,
@@ -352,7 +358,7 @@ impl AccountRepository for SqliteAccountRepository {
     async fn find_by_id(&self, id: Uuid) -> sqlx::Result<Option<Account>> {
         let row = sqlx::query(
             r#"
-            SELECT 
+            SELECT
                 id, name, account_type, ownership, currency_code,
                 CAST(initial_balance AS TEXT) AS initial_balance,
                 icon, color, chart_code, parent_id,
@@ -361,7 +367,7 @@ impl AccountRepository for SqliteAccountRepository {
                 billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
                 CAST(low_balance_threshold AS TEXT) AS low_balance_threshold,
-                updated_at, deleted_at, device_id, synced_at
+                created_at, updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE id = ? AND deleted_at IS NULL
             "#,
@@ -376,7 +382,7 @@ impl AccountRepository for SqliteAccountRepository {
     async fn find_all(&self) -> sqlx::Result<Vec<Account>> {
         let rows = sqlx::query(
             r#"
-            SELECT 
+            SELECT
                 id, name, account_type, ownership, currency_code,
                 CAST(initial_balance AS TEXT) AS initial_balance,
                 icon, color, chart_code, parent_id,
@@ -385,7 +391,7 @@ impl AccountRepository for SqliteAccountRepository {
                 billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
                 CAST(low_balance_threshold AS TEXT) AS low_balance_threshold,
-                updated_at, deleted_at, device_id, synced_at
+                created_at, updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE deleted_at IS NULL
             ORDER BY name ASC
@@ -400,7 +406,7 @@ impl AccountRepository for SqliteAccountRepository {
     async fn find_by_type(&self, account_type: AccountType) -> sqlx::Result<Vec<Account>> {
         let rows = sqlx::query(
             r#"
-            SELECT 
+            SELECT
                 id, name, account_type, ownership, currency_code,
                 CAST(initial_balance AS TEXT) AS initial_balance,
                 icon, color, chart_code, parent_id,
@@ -409,7 +415,7 @@ impl AccountRepository for SqliteAccountRepository {
                 billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
                 CAST(low_balance_threshold AS TEXT) AS low_balance_threshold,
-                updated_at, deleted_at, device_id, synced_at
+                created_at, updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE account_type = ? AND deleted_at IS NULL
             ORDER BY name ASC
@@ -434,7 +440,7 @@ impl AccountRepository for SqliteAccountRepository {
                 billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
                 CAST(low_balance_threshold AS TEXT) AS low_balance_threshold,
-                updated_at, deleted_at, device_id, synced_at
+                created_at, updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE ownership = ? AND deleted_at IS NULL
             ORDER BY name ASC
@@ -516,7 +522,7 @@ impl AccountRepository for SqliteAccountRepository {
     async fn find_all_including_deleted(&self) -> sqlx::Result<Vec<Account>> {
         let rows = sqlx::query(
             r#"
-            SELECT 
+            SELECT
                 id, name, account_type, ownership, currency_code,
                 CAST(initial_balance AS TEXT) AS initial_balance,
                 icon, color, chart_code, parent_id,
@@ -525,7 +531,7 @@ impl AccountRepository for SqliteAccountRepository {
                 billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
                 CAST(low_balance_threshold AS TEXT) AS low_balance_threshold,
-                updated_at, deleted_at, device_id, synced_at
+                created_at, updated_at, deleted_at, device_id, synced_at
             FROM accounts
             ORDER BY name ASC
             "#,
@@ -539,7 +545,7 @@ impl AccountRepository for SqliteAccountRepository {
     async fn get_changes_since(&self, timestamp: DateTime<Utc>) -> sqlx::Result<Vec<Account>> {
         let rows = sqlx::query(
             r#"
-            SELECT 
+            SELECT
                 id, name, account_type, ownership, currency_code,
                 CAST(initial_balance AS TEXT) AS initial_balance,
                 icon, color, chart_code, parent_id,
@@ -548,7 +554,7 @@ impl AccountRepository for SqliteAccountRepository {
                 billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
                 CAST(low_balance_threshold AS TEXT) AS low_balance_threshold,
-                updated_at, deleted_at, device_id, synced_at
+                created_at, updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE updated_at > ? AND (synced_at IS NULL OR synced_at < updated_at)
             ORDER BY updated_at ASC
@@ -633,6 +639,7 @@ mod tests {
                 payment_due_day INTEGER,
                 interest_rate DECIMAL(10,6),
                 low_balance_threshold DECIMAL(20,2),
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 deleted_at TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 device_id TEXT,

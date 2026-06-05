@@ -151,6 +151,7 @@ pub struct Account {
     pub low_balance_threshold: Option<Decimal>,
     pub status: AccountStatus,
     pub opened_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
     pub sync_metadata: SyncMetadata,
     pub(crate) pending_events: Vec<AccountEvent>,
 }
@@ -200,6 +201,7 @@ impl Account {
             low_balance_threshold: None,
             status: AccountStatus::Active,
             opened_at: None,
+            created_at: Utc::now(),
             sync_metadata,
             pending_events: Vec::new(),
         };
