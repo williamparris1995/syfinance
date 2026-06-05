@@ -10,19 +10,13 @@ import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { AccountForm } from '../components/AccountForm';
 import { AccountWizard } from '../components/AccountWizard';
+import { DeleteAccountDialog } from '../components/DeleteAccountDialog';
 import { TopUpDialog } from '../components/TopUpDialog';
 import { PrepaidDetailPanel } from '../components/PrepaidDetailPanel';
 import { AccountDetailPanel } from '../components/AccountDetailPanel';
 import { Button } from '../components/ui/button';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import { useAccountBalanceHistory } from '../hooks/useAccountBalanceHistory';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '../components/ui/dialog';
 import { Input } from '../components/ui/input';
 import {
   Sheet,
@@ -43,7 +37,6 @@ import { formatCurrencyWithDto } from '../lib/currency';
 import { useCurrencies } from '../hooks/useCurrency';
 import {
   createAccount,
-  deleteAccount,
   listAccountsWithBalances,
   updateAccount,
   type AccountDto,
@@ -94,7 +87,7 @@ function AccountGroupTable({
   currencies: CurrencyDto[];
   onEdit: (a: AccountDto) => void;
   onCopy: (a: AccountDto) => void;
-  onDelete: (id: string) => void;
+  onDelete: (a: AccountDto) => void;
   onView: (a: AccountDto) => void;
   onTopUp: (id: string) => void;
   onDetail: (id: string) => void;
@@ -105,8 +98,6 @@ function AccountGroupTable({
   setSortDirection: React.Dispatch<React.SetStateAction<'asc' | 'desc'>>;
   t: (k: string) => string;
 }) {
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-
   if (accounts.length === 0) return null;
 
   return (
@@ -179,62 +170,41 @@ function AccountGroupTable({
                   <BalanceSparkline accountId={account.id} />
                 </TableCell>
                 <TableCell>
-                  {deleteConfirmId === account.id ? (
-                    <div className="flex items-center gap-1">
+                  <div className="flex gap-1">
+                    {onRecordTransaction && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-6 text-xs text-red-600"
-                        onClick={() => { onDelete(account.id); setDeleteConfirmId(null); }}
+                        onClick={() => onRecordTransaction(account.id)}
+                        title={t('transactions.recordTransaction')}
                       >
-                        {t('common.confirm')}
+                        <PlusCircle className="h-4 w-4 text-emerald-600" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 text-xs"
-                        onClick={() => setDeleteConfirmId(null)}
-                      >
-                        {t('common.cancel')}
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex gap-1">
-                      {onRecordTransaction && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onRecordTransaction(account.id)}
-                          title={t('transactions.recordTransaction')}
-                        >
-                          <PlusCircle className="h-4 w-4 text-emerald-600" />
+                    )}
+                    {account.account_type === 'Prepaid' ? (
+                      <>
+                        <Button variant="ghost" size="sm" onClick={() => onTopUp(account.id)} title={t('prepaid.topUpTitle')}>
+                          <Wallet className="h-4 w-4 text-emerald-500" />
                         </Button>
-                      )}
-                      {account.account_type === 'Prepaid' ? (
-                        <>
-                          <Button variant="ghost" size="sm" onClick={() => onTopUp(account.id)} title={t('prepaid.topUpTitle')}>
-                            <Wallet className="h-4 w-4 text-emerald-500" />
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => onDetail(account.id)} title={t('prepaid.detailTitle')}>
-                            <Eye className="h-4 w-4 text-purple-500" />
-                          </Button>
-                        </>
-                      ) : (
-                        <Button variant="ghost" size="sm" onClick={() => onView(account)} title={t('debts.view')}>
+                        <Button variant="ghost" size="sm" onClick={() => onDetail(account.id)} title={t('prepaid.detailTitle')}>
                           <Eye className="h-4 w-4 text-purple-500" />
                         </Button>
-                      )}
-                      <Button variant="ghost" size="sm" onClick={() => onCopy(account)} title={t('accounts.copyToCreate')}>
-                        <Copy className="h-4 w-4 text-gray-500" />
+                      </>
+                    ) : (
+                      <Button variant="ghost" size="sm" onClick={() => onView(account)} title={t('debts.view')}>
+                        <Eye className="h-4 w-4 text-purple-500" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => onEdit(account)}>
-                        <Pencil className="h-4 w-4 text-blue-500" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setDeleteConfirmId(account.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
+                    )}
+                    <Button variant="ghost" size="sm" onClick={() => onCopy(account)} title={t('accounts.copyToCreate')}>
+                      <Copy className="h-4 w-4 text-gray-500" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => onEdit(account)}>
+                      <Pencil className="h-4 w-4 text-blue-500" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => onDelete(account)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -249,7 +219,7 @@ export function AccountsPage() {
   const navigate = useNavigate();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deletingAccount, setDeletingAccount] = useState<AccountDto | null>(null);
   const [editingAccount, setEditingAccount] = useState<AccountDto | null>(null);
   const [copyingAccount, setCopyingAccount] = useState<AccountDto | null>(null);
   const queryClient = useQueryClient();
@@ -354,34 +324,6 @@ export function AccountsPage() {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: deleteAccount,
-    onMutate: async (accountId) => {
-      await queryClient.cancelQueries({ queryKey: ['accounts'] });
-      const previousAccounts = queryClient.getQueryData<AccountDto[]>(['accounts']);
-      if (previousAccounts) {
-        queryClient.setQueryData<AccountDto[]>(
-          ['accounts'],
-          previousAccounts.filter((account) => account.id !== accountId)
-        );
-      }
-      return { previousAccounts };
-    },
-    onSuccess: () => {
-      setDeleteConfirmId(null);
-      toast.success(t('accounts.accountDeleted'));
-    },
-    onError: (error, _accountId, context) => {
-      if (context?.previousAccounts) {
-        queryClient.setQueryData(['accounts'], context.previousAccounts);
-      }
-      toast.error(getUserFriendlyError(error));
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['accounts'] });
-    },
-  });
-
   const handleCreateClick = () => {
     setShowWizard(true);
   };
@@ -407,10 +349,6 @@ export function AccountsPage() {
     if (!('id' in data)) {
       createMutation.mutate(data);
     }
-  };
-
-  const handleDeleteAccount = (id: string) => {
-    deleteMutation.mutate(id);
   };
 
   if (isLoading) {
@@ -521,7 +459,7 @@ export function AccountsPage() {
                 currencies={currencies}
                 onEdit={handleEditClick}
                 onCopy={handleCopyClick}
-                onDelete={handleDeleteAccount}
+                onDelete={setDeletingAccount}
                 onView={setDetailAccount}
                 onTopUp={setTopUpAccountId}
                 onDetail={setDetailAccountId}
@@ -579,28 +517,12 @@ export function AccountsPage() {
         </SheetContent>
       </Sheet>
 
-      <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('accounts.deleteAccount')}</DialogTitle>
-            <DialogDescription>
-              {t('accounts.deleteConfirm')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>
-              {t('common.cancel')}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => deleteConfirmId && handleDeleteAccount(deleteConfirmId)}
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? t('accounts.deleting') : t('common.delete')}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Delete Account Dialog */}
+      <DeleteAccountDialog
+        account={deletingAccount}
+        open={!!deletingAccount}
+        onOpenChange={(open) => { if (!open) setDeletingAccount(null); }}
+      />
 
       {/* Prepaid: Top Up Dialog */}
       {topUpAccountId && (
