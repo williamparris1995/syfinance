@@ -245,9 +245,9 @@ Ownership::External   → 收支类 (Income, Expense)
 | P3 | P6 | 缺少变更确认 | UX 改进 | ✅ Sprint 4 |
 | P3 | P10 | 负余额校验逻辑需重新审视 | 业务规则 | ✅ Sprint 4 |
 | P3 | P13 | 复制功能同 P1 | 同一问题 | ✅ Sprint 1 |
-| P3 | P16 | Decimal TEXT 存储 | 数据完整性 | 🔜 延期 |
+| P3 | P16 | Decimal TEXT 存储 | 数据完整性 | ✅ Sprint 5 |
 | P3 | P19 | 类型链过长 | 代码质量 | ✅ Sprint 4 |
-| P3 | P21 | PG 仓库不完整 | 未来风险 | 🔜 延期 |
+| P3 | P21 | PG 仓库不完整 | 未来风险 | ✅ Sprint 5 |
 
 ---
 
