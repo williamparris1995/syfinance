@@ -5,11 +5,10 @@ import { useSidebarState, type GroupId } from '../useSidebarState';
 const STORAGE_KEY = 'sidebar-group-state';
 const ALL_GROUP_IDS: GroupId[] = [
   'overview',
-  'assetManagement',
-  'transactions',
-  'planning',
-  'analysis',
-  'system',
+  'investment',
+  'finance',
+  'borrowing',
+  'tools',
 ];
 
 beforeEach(() => {
@@ -33,7 +32,7 @@ describe('useSidebarState', () => {
     });
 
     expect(result.current.isGroupOpen('overview')).toBe(false);
-    expect(result.current.isGroupOpen('transactions')).toBe(true);
+    expect(result.current.isGroupOpen('finance')).toBe(true);
   });
 
   it('toggling a closed group opens it', () => {
@@ -59,7 +58,7 @@ describe('useSidebarState', () => {
 
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
     expect(stored.overview).toBe(false);
-    expect(stored.transactions).toBe(true);
+    expect(stored.finance).toBe(true);
   });
 
   it('state reads from localStorage on mount', () => {
@@ -67,19 +66,18 @@ describe('useSidebarState', () => {
       STORAGE_KEY,
       JSON.stringify({
         overview: false,
-        assetManagement: true,
-        transactions: false,
-        planning: true,
-        analysis: true,
-        system: true,
+        investment: true,
+        finance: false,
+        borrowing: true,
+        tools: true,
       })
     );
 
     const { result } = renderHook(() => useSidebarState());
 
     expect(result.current.isGroupOpen('overview')).toBe(false);
-    expect(result.current.isGroupOpen('transactions')).toBe(false);
-    expect(result.current.isGroupOpen('assetManagement')).toBe(true);
+    expect(result.current.isGroupOpen('finance')).toBe(false);
+    expect(result.current.isGroupOpen('investment')).toBe(true);
   });
 
   it('corrupted localStorage falls back gracefully', () => {
@@ -97,11 +95,10 @@ describe('useSidebarState', () => {
       STORAGE_KEY,
       JSON.stringify({
         overview: false,
-        assetManagement: true,
-        transactions: true,
-        planning: true,
-        analysis: true,
-        system: true,
+        investment: true,
+        finance: true,
+        borrowing: true,
+        tools: true,
       })
     );
 
@@ -142,10 +139,10 @@ describe('useSidebarState', () => {
     const { result } = renderHook(() => useSidebarState('overview'));
 
     act(() => {
-      result.current.toggleGroup('transactions');
+      result.current.toggleGroup('finance');
     });
 
-    expect(result.current.isGroupOpen('transactions')).toBe(false);
+    expect(result.current.isGroupOpen('finance')).toBe(false);
     expect(result.current.isGroupOpen('overview')).toBe(true);
   });
 });

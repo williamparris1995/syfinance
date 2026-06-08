@@ -2,21 +2,19 @@ import { useCallback, useEffect, useState } from 'react';
 
 export type GroupId =
   | 'overview'
-  | 'assetManagement'
-  | 'transactions'
-  | 'planning'
-  | 'analysis'
-  | 'system';
+  | 'investment'
+  | 'finance'
+  | 'borrowing'
+  | 'tools';
 
 const STORAGE_KEY = 'sidebar-group-state';
 
 const ALL_GROUP_IDS: GroupId[] = [
   'overview',
-  'assetManagement',
-  'transactions',
-  'planning',
-  'analysis',
-  'system',
+  'investment',
+  'finance',
+  'borrowing',
+  'tools',
 ];
 
 function getDefaultState(): Record<GroupId, boolean> {
