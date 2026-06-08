@@ -1,6 +1,6 @@
 # Sidebar Redesign — Functional Domain Grouping Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Refactor the sidebar from a flat 6-item list into 6 collapsible functional domain groups with 11 nav items, using localStorage persistence for collapse state.
 
@@ -32,7 +32,7 @@
 - Modify: `src/i18n/locales/en.json`
 - Modify: `src/i18n/locales/zh.json`
 
-- [ ] **Step 1: Add English nav group labels**
+- [x] **Step 1: Add English nav group labels**
 
 In `src/i18n/locales/en.json`, add the following keys inside the existing `"nav"` object (after `"settings"`):
 
@@ -73,7 +73,7 @@ The full `nav` section should look like:
   },
 ```
 
-- [ ] **Step 2: Add Chinese nav group labels**
+- [x] **Step 2: Add Chinese nav group labels**
 
 In `src/i18n/locales/zh.json`, add the same keys with Chinese translations:
 
@@ -87,13 +87,13 @@ In `src/i18n/locales/zh.json`, add the same keys with Chinese translations:
     "backup": "备份"
 ```
 
-- [ ] **Step 3: Verify tests can read new keys**
+- [x] **Step 3: Verify tests can read new keys**
 
 Run: `npx vitest run src/__tests__/App.test.tsx`
 
 Expected: PASS (tests load en.json at startup via vitest.setup.ts)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/i18n/locales/en.json src/i18n/locales/zh.json
@@ -110,7 +110,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Create: `src/hooks/useSidebarState.ts`
 - Test: `src/hooks/__tests__/useSidebarState.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/hooks/__tests__/useSidebarState.test.ts`:
 
@@ -178,13 +178,13 @@ describe('useSidebarState', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/hooks/__tests__/useSidebarState.test.ts`
 
 Expected: FAIL — "useSidebarState" module not found
 
-- [ ] **Step 3: Implement useSidebarState**
+- [x] **Step 3: Implement useSidebarState**
 
 Create `src/hooks/useSidebarState.ts`:
 
@@ -277,13 +277,13 @@ export function useSidebarState(activeGroupId?: GroupId) {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run src/hooks/__tests__/useSidebarState.test.ts`
 
 Expected: All 6 tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/hooks/useSidebarState.ts src/hooks/__tests__/useSidebarState.test.ts
@@ -304,7 +304,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Create: `src/components/sidebar/SidebarNavItem.tsx`
 - Test: `src/components/sidebar/__tests__/SidebarNavItem.test.tsx`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/components/sidebar/__tests__/SidebarNavItem.test.tsx`:
 
@@ -362,13 +362,13 @@ describe('SidebarNavItem', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/components/sidebar/__tests__/SidebarNavItem.test.tsx`
 
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement SidebarNavItem**
+- [x] **Step 3: Implement SidebarNavItem**
 
 Create `src/components/sidebar/SidebarNavItem.tsx`:
 
@@ -408,13 +408,13 @@ export function SidebarNavItem({
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run src/components/sidebar/__tests__/SidebarNavItem.test.tsx`
 
 Expected: All 4 tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/components/sidebar/SidebarNavItem.tsx src/components/sidebar/__tests__/SidebarNavItem.test.tsx
@@ -434,7 +434,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Create: `src/components/sidebar/SidebarGroup.tsx`
 - Test: `src/components/sidebar/__tests__/SidebarGroup.test.tsx`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/components/sidebar/__tests__/SidebarGroup.test.tsx`:
 
@@ -518,13 +518,13 @@ describe('SidebarGroup', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/components/sidebar/__tests__/SidebarGroup.test.tsx`
 
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement SidebarGroup**
+- [x] **Step 3: Implement SidebarGroup**
 
 Create `src/components/sidebar/SidebarGroup.tsx`:
 
@@ -576,13 +576,13 @@ export function SidebarGroup({
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run src/components/sidebar/__tests__/SidebarGroup.test.tsx`
 
 Expected: All 6 tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/components/sidebar/SidebarGroup.tsx src/components/sidebar/__tests__/SidebarGroup.test.tsx
@@ -602,7 +602,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 **Files:**
 - Create: `src/components/sidebar/index.ts`
 
-- [ ] **Step 1: Create barrel export**
+- [x] **Step 1: Create barrel export**
 
 Create `src/components/sidebar/index.ts`:
 
@@ -612,7 +612,7 @@ export { SidebarGroup } from './SidebarGroup';
 export { SidebarNavItem } from './SidebarNavItem';
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/components/sidebar/index.ts
@@ -629,7 +629,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Modify: `src/components/sidebar/Sidebar.tsx` (move from `src/components/Sidebar.tsx`)
 - Test: `src/components/__tests__/Sidebar.test.tsx`
 
-- [ ] **Step 1: Delete old Sidebar.tsx and write new one**
+- [x] **Step 1: Delete old Sidebar.tsx and write new one**
 
 First, delete `src/components/Sidebar.tsx`:
 
@@ -781,7 +781,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
 }
 ```
 
-- [ ] **Step 2: Write integration test**
+- [x] **Step 2: Write integration test**
 
 Create `src/components/__tests__/Sidebar.test.tsx`:
 
@@ -875,19 +875,19 @@ describe('Sidebar', () => {
 });
 ```
 
-- [ ] **Step 3: Run tests to verify they pass**
+- [x] **Step 3: Run tests to verify they pass**
 
 Run: `npx vitest run src/components/__tests__/Sidebar.test.tsx`
 
 Expected: All 5 tests PASS
 
-- [ ] **Step 4: Run full test suite to check for regressions**
+- [x] **Step 4: Run full test suite to check for regressions**
 
 Run: `npx vitest run`
 
 Expected: All existing tests still PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A
@@ -908,7 +908,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 **Files:**
 - Modify: `src/components/layout/MobileSidebar.tsx`
 
-- [ ] **Step 1: Update import path**
+- [x] **Step 1: Update import path**
 
 Modify `src/components/layout/MobileSidebar.tsx`:
 
@@ -945,13 +945,13 @@ Key changes:
 - Import from `@/components/sidebar/Sidebar` instead of `@/components/Sidebar`
 - Added `asChild` to `SheetTrigger` (best practice for shadcn/ui)
 
-- [ ] **Step 2: Verify no tests break**
+- [x] **Step 2: Verify no tests break**
 
 Run: `npx vitest run`
 
 Expected: All tests PASS
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/components/layout/MobileSidebar.tsx
@@ -967,7 +967,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 **Files:**
 - Check: `src/App.tsx`
 
-- [ ] **Step 1: Check if App.tsx imports Sidebar**
+- [x] **Step 1: Check if App.tsx imports Sidebar**
 
 Run: `grep -n "Sidebar" src/App.tsx`
 
@@ -982,7 +982,7 @@ import { Sidebar } from '@/components/sidebar';
 
 If App.tsx does NOT import Sidebar directly, skip this task.
 
-- [ ] **Step 2: Commit if changed**
+- [x] **Step 2: Commit if changed**
 
 ```bash
 git add src/App.tsx
@@ -995,37 +995,37 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ## Task 9: Run Full Validation
 
-- [ ] **Step 1: Run all frontend tests**
+- [x] **Step 1: Run all frontend tests**
 
 Run: `npx vitest run`
 
 Expected: All tests PASS
 
-- [ ] **Step 2: Run TypeScript check**
+- [x] **Step 2: Run TypeScript check**
 
 Run: `pnpm type-check`
 
 Expected: No errors
 
-- [ ] **Step 3: Run ESLint**
+- [x] **Step 3: Run ESLint**
 
 Run: `pnpm lint`
 
 Expected: No errors (or only pre-existing warnings)
 
-- [ ] **Step 4: Visual verification (manual)**
+- [x] **Step 4: Visual verification (manual)**
 
 Run: `pnpm tauri dev`
 
 Verify:
-- [ ] Sidebar shows 6 groups with 11 nav items
-- [ ] Groups can be collapsed/expanded
-- [ ] Active group stays open
-- [ ] Active item is highlighted
-- [ ] Mobile sidebar works via hamburger menu
-- [ ] i18n works for both English and Chinese
+- [x] Sidebar shows 6 groups with 11 nav items
+- [x] Groups can be collapsed/expanded
+- [x] Active group stays open
+- [x] Active item is highlighted
+- [x] Mobile sidebar works via hamburger menu
+- [x] i18n works for both English and Chinese
 
-- [ ] **Step 5: Final commit**
+- [x] **Step 5: Final commit**
 
 ```bash
 git commit --allow-empty -m "feat(sidebar): complete sidebar redesign with functional domain grouping
