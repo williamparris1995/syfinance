@@ -103,7 +103,6 @@ export function DebtDetailPage() {
   };
 
   const paidPayments = debt.payment_schedule.filter((p) => p.paid);
-  const unpaidPayments = debt.payment_schedule.filter((p) => !p.paid);
 
   return (
     <PageShell>
