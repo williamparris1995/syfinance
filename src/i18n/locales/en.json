@@ -556,7 +556,9 @@
     "totalDebts": "Active Debts",
     "totalRemaining": "Total Remaining",
     "overdueCount": "Overdue",
-    "needsAttention": "Needs attention"
+    "needsAttention": "Needs attention",
+    "startDate": "Start Date",
+    "amortizationMethod": "Method"
   },
   "debtForm": {
     "debtType": "Debt Type",

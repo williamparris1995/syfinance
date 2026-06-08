@@ -519,7 +519,9 @@
     "totalDebts": "活跃债务",
     "totalRemaining": "剩余总额",
     "overdueCount": "逾期数",
-    "needsAttention": "需关注"
+    "needsAttention": "需关注",
+    "startDate": "开始日期",
+    "amortizationMethod": "还款方式"
   },
   "reports": {
     "title": "报表",
