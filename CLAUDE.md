@@ -23,6 +23,9 @@ Personal finance desktop app (double-entry bookkeeping, Chinese accounting stand
 - `make fix` — Auto-fix with `cargo fmt` + `cargo clippy --fix`
 - `make ci` — Full CI: check + test + build
 
+### Full Validation
+- `pnpm validate` — Runs **everything**: type-check + lint + cargo fmt + cargo clippy + python quality validators. Use this as the single pre-push check.
+
 ### Full app
 - `pnpm tauri dev` — Run Tauri in development mode (launches both Vite and Rust)
 - `pnpm tauri build` — Production build (MSI installer in `src-tauri/target/release/bundle/`)
@@ -34,17 +37,17 @@ Personal finance desktop app (double-entry bookkeeping, Chinese accounting stand
 ```
 src/
   domain/          # Aggregates, Value Objects, Repository traits
-    aggregates/    # Account, Transaction, Debt, Budget, Goal, Tag, Holding, Subscription, Reminder
-    repositories/  # Trait definitions
-    value_objects/ # Money, Currency, TransactionEntry, VersionVector, etc.
+    aggregates/    # Account, Transaction, Debt, Budget, Goal, Tag, Holding, TransactionTemplate, Reminder
+    repositories/  # Trait definitions (AccountRepository, TransactionRepository, etc.)
+    value_objects/ # Money, Currency, TransactionEntry, VersionVector, BudgetItem, etc.
   application/     # Business logic services + DTOs
-  infrastructure/  # SQLite repos, encryption, notifications, reminders, sync
+  infrastructure/  # SQLite repos, encryption, notifications, reminders, sync, backup
   presentation/
     api/           # Axum REST routes (sync endpoints, port 3000)
     tauri_commands/# Tauri IPC handlers (primary frontend↔backend channel)
 ```
 
-Frontend communicates with Rust exclusively through **Tauri IPC** (`invoke()` calls). Axum REST API exists for sync operations only.
+Frontend communicates with Rust primarily through **Tauri IPC** (`invoke()` calls). Axum REST API on port 3000 handles device registration and sync operations.
 
 ### React Frontend (src/)
 
@@ -52,23 +55,25 @@ Frontend communicates with Rust exclusively through **Tauri IPC** (`invoke()` ca
 - **Data fetching**: TanStack React Query (5min stale time, 30min GC)
 - **Forms**: react-hook-form + Zod validation
 - **UI**: shadcn/ui (base-nova) + Radix primitives + Tailwind CSS
-- **i18n**: i18next (English + Chinese), ESLint enforces `i18next/no-literal-string` — all user-visible text must use `t()`
+- **i18n**: i18next (English + Chinese), ESLint enforces `i18next/no-literal-string` — all user-visible text must use `t()`. Exempt paths: `src/components/ui/**` (shadcn) and test files.
 - **State**: No global client store. Server state via React Query, auth via Tauri Store plugin
 
 ### Key Patterns
 
 - **Path alias**: `@/*` maps to `./src/*` in both TS and Vite
-- **Tauri IPC wrapper**: `src/lib/tauri.ts` provides `invokeTauri()` with type-safe command wrappers in `src/lib/tauri/`
-- **Database**: SQLite via SQLx with 39 migrations in `src-tauri/migrations/`. Foreign keys enabled on production pool, disabled during migrations.
+- **Tauri IPC wrapper**: `src/lib/tauri.ts` provides `invokeTauri()` with type-safe command wrappers in `src/lib/tauri/` (20 domain modules; only `account` and `prepaid` re-exported from index — others imported directly)
+- **Database**: SQLite via SQLx with migrations in `src-tauri/migrations/` (dated SQL files, e.g. `20260407_initial_schema.sql`). Foreign keys enabled on production pool, disabled during migrations. Monetary amounts stored as INTEGER cents.
 - **Soft delete**: `deleted_at` timestamp (tombstone pattern)
-- **Background schedulers**: Sync, reminders, subscriptions — all run as Tokio tasks every 5 min
+- **Background schedulers**: Sync, reminders, prepaid alerts — all run as Tokio tasks every 5 min
 - **Encryption**: AES-GCM + PBKDF2 + OS keychain for sensitive data
+- **Full-text search**: SQLite FTS5 indexes for accounts, transactions, debts, goals, tags — rebuilt on startup
+- **Cloud backup**: WebDAV, Dropbox, Google Drive, OneDrive providers (in `infrastructure/backup/`)
 
 ## Rust Coding Standards (Mandatory)
 
 See `docs/CODING_STANDARDS.md` for full details. Violations fail CI.
 
-1. **Use ORM** — no hardcoded SQL field names in queries
+1. **Use ORM** — no hardcoded SQL field names in queries (note: project uses SQLx directly, not SeaORM; `docs/CODING_STANDARDS.md` references SeaORM but the codebase uses `sqlx::query_as!`)
 2. **Use `tracing`** — `println!` is banned (enforced by clippy.toml)
 3. **Use `serde`** for enums — no hardcoded string matching
 4. **Log errors with context** — always include operation name and error details
@@ -78,8 +83,8 @@ Validate: `make check` or `python3 scripts/validate_code_quality.py`
 
 ## Testing
 
-- **Frontend**: Vitest + jsdom + Testing Library. Setup mocks `react-i18next` and loads real `en.json`. Tests in `src/__tests__/` and `src/components/__tests__/`.
-- **Backend**: Rust integration tests in `src-tauri/tests/`. Uses proptest for property-based testing.
+- **Frontend**: Vitest + jsdom + Testing Library. Setup (`vitest.setup.ts`) mocks `react-i18next` with real `en.json` translations and mocks `window.matchMedia`. Tests in `src/__tests__/`, `src/components/__tests__/`, `src/hooks/__tests__/`, `src/pages/__tests__/`.
+- **Backend**: Rust integration tests in `src-tauri/tests/` (14 test files). Uses proptest for property-based testing.
 
 ## i18n
 
@@ -90,8 +95,9 @@ Validate: `make check` or `python3 scripts/validate_code_quality.py`
 ## Database
 
 - Location: `%APPDATA%/finance-app/finance.db` (Windows)
+- Logs: `%APPDATA%/finance-app/logs/` (daily rolling files via `tracing_appender`)
 - Migrations run automatically on first launch
-- Add new migrations as numbered SQL files in `src-tauri/migrations/`
+- Add new migrations as dated SQL files in `src-tauri/migrations/` (format: `YYYYMMDD_description.sql`)
 
 ## Incomplete Features (as of Phase 1)
 
@@ -132,3 +138,13 @@ console.error("[AccountService] Failed to create account", error);
 - **Avoid circular references**: const strings must not create reference loops with i18n keys
 
 Validation: `pnpm lint` (ESLint) + `make check-quality` (Python validators)
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
