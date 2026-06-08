@@ -450,6 +450,7 @@
   "debts": {
     "title": "债务",
     "createDebt": "创建债务",
+    "createDebtDesc": "添加新的贷款、信用卡债务或借出资金",
     "debtName": "债务名称",
     "debtType": "债务类型",
     "principal": "本金",

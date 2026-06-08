@@ -486,6 +486,7 @@
   "debts": {
     "title": "Debts",
     "createDebt": "Create Debt",
+    "createDebtDesc": "Add a new loan, credit card debt, or money lent to others",
     "loadingDebts": "Loading debts...",
     "noDebts": "No debts yet",
     "createFirstDebt": "Create your first debt",
