@@ -880,7 +880,15 @@
     "ratioRequired": "Ratio is required",
     "ratioPositive": "Ratio must be positive",
     "fee": "Fee",
-    "notes": "Notes"
+    "notes": "Notes",
+    "securityType": "Security Type",
+    "tradeHistory": "Trade History",
+    "tradeTotal": "Total",
+    "createdAt": "Created",
+    "updatedAt": "Updated",
+    "currency": "Currency",
+    "accountName": "Account",
+    "detailTitle": "Holding Detail"
   },
   "prepaid": {
     "topUpTitle": "Top Up",

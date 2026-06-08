@@ -886,7 +886,18 @@
       "gold": "黄金",
       "option": "期权",
       "other": "其他"
-    }
+    },
+    "securityType": "证券类型",
+    "tradeHistory": "交易记录",
+    "tradeTotal": "合计",
+    "createdAt": "创建时间",
+    "updatedAt": "更新时间",
+    "currency": "币种",
+    "accountName": "账户",
+    "detailTitle": "持仓详情",
+    "noTradeHistory": "暂无交易记录",
+    "fee": "手续费",
+    "notes": "备注"
   },
   "prepaid": {
     "topUpTitle": "充值",
