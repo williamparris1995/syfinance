@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 import {
   Plus,
   Trash2,
@@ -21,8 +22,6 @@ import { Button } from '../components/ui/button';
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from '../components/ui/card';
 import {
   Dialog,
@@ -41,6 +40,10 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { Progress } from '../components/ui/progress';
+import { PageShell } from '@/components/patterns/layout/PageShell';
+import { PageHeader } from '@/components/patterns/layout/PageHeader';
+import { StatCard } from '@/components/patterns/cards/StatCard';
+import { FilterBar } from '@/components/patterns/layout/FilterBar';
 import {
   useGoals,
   useCreateGoal,
@@ -66,6 +69,7 @@ type FilterType = 'all' | 'active' | 'completed';
 export function GoalsPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showProgressDialog, setShowProgressDialog] = useState(false);
@@ -110,6 +114,17 @@ export function GoalsPage() {
   const activeGoals = goals.filter((g) => !g.is_completed);
   const completedGoals = goals.filter((g) => g.is_completed);
   const overdueGoals = goals.filter((g) => g.is_overdue);
+
+  // Average progress
+  const avgProgress = activeGoals.length > 0
+    ? activeGoals.reduce((sum, g) => sum + g.progress_percentage, 0) / activeGoals.length
+    : 0;
+
+  // Total target amount across active goals
+  const totalTargetAmount = activeGoals.reduce(
+    (sum, g) => sum + parseFloat(g.target_amount),
+    0
+  );
 
   // Get currency symbol
   const getCurrencySymbol = (code: string) => {
@@ -250,117 +265,65 @@ export function GoalsPage() {
     );
   };
 
+  // Filter bar options
+  const filterOptions = [
+    { label: `${t('goals.filterAll')} (${goals.length})`, value: 'all' },
+    { label: `${t('goals.filterActive')} (${activeGoals.length})`, value: 'active' },
+    { label: `${t('goals.filterCompleted')} (${completedGoals.length})`, value: 'completed' },
+  ];
+
   if (isLoading) {
     return (
-      <div className="p-6 flex items-center justify-center">
-        <div className="text-muted-foreground">{t('common.loading')}</div>
-      </div>
+      <PageShell>
+        <div className="flex items-center justify-center">
+          <div className="text-muted-foreground">{t('common.loading')}</div>
+        </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="p-4 sm:p-6">
+    <PageShell>
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
-        <h1 className="text-2xl font-bold sm:text-3xl">{t('goals.title')}</h1>
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="h-4 w-4 mr-1" />
-          {t('goals.createGoal')}
-        </Button>
-      </div>
+      <PageHeader
+        title={t('goals.title')}
+        subtitle={t('goals.activeCount', { count: activeGoals.length })}
+        actions={
+          <Button onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-4 w-4 mr-1" />
+            {t('goals.createGoal')}
+          </Button>
+        }
+      />
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {t('goals.totalGoals')}
-            </CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{goals.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {t('goals.activeCount', { count: activeGoals.length })}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {t('goals.completed')}
-            </CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-emerald-600">
-              {completedGoals.length}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {t('goals.overdue')}
-            </CardTitle>
-            <AlertTriangle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {overdueGoals.length}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {t('goals.avgProgress')}
-            </CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {activeGoals.length > 0
-                ? (
-                    activeGoals.reduce(
-                      (sum, g) => sum + g.progress_percentage,
-                      0
-                    ) / activeGoals.length
-                  ).toFixed(1)
-                : '0.0'}
-              %
-            </div>
-          </CardContent>
-        </Card>
+      {/* Summary StatCards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 mb-7">
+        <StatCard
+          label={t('goals.filterActive')}
+          value={String(activeGoals.length)}
+          tag={overdueGoals.length > 0 ? t('goals.overdue') : undefined}
+          tagVariant={overdueGoals.length > 0 ? 'negative' : 'positive'}
+        />
+        <StatCard
+          label={t('goals.targetAmount')}
+          value={formatGoalAmount(String(totalTargetAmount))}
+          tag={t('goals.filterAll')}
+          tagVariant="neutral"
+        />
+        <StatCard
+          label={t('goals.avgProgress')}
+          value={`${avgProgress.toFixed(1)}%`}
+          tag={avgProgress >= 50 ? 'positive' : 'negative'}
+          tagVariant={avgProgress >= 50 ? 'positive' : 'negative'}
+        />
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 mb-6">
-        <Button
-          variant={filter === 'all' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilter('all')}
-        >
-          {t('goals.filterAll')} ({goals.length})
-        </Button>
-        <Button
-          variant={filter === 'active' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilter('active')}
-        >
-          {t('goals.filterActive')} ({activeGoals.length})
-        </Button>
-        <Button
-          variant={filter === 'completed' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilter('completed')}
-        >
-          {t('goals.filterCompleted')} ({completedGoals.length})
-        </Button>
-      </div>
+      <FilterBar
+        options={filterOptions}
+        value={filter}
+        onChange={(v) => setFilter(v as FilterType)}
+      />
 
       {/* Goals List */}
       {filteredGoals.length === 0 ? (
@@ -385,7 +348,8 @@ export function GoalsPage() {
           {filteredGoals.map((goal) => (
             <Card
               key={goal.id}
-              className={goal.is_completed ? 'opacity-75' : ''}
+              className={`rounded-[14px] border border-border cursor-pointer transition-colors hover:border-primary/30 ${goal.is_completed ? 'opacity-75' : ''}`}
+              onClick={() => navigate({ to: '/goals/$goalId', params: { goalId: goal.id } })}
             >
               <CardContent className="pt-4">
                 <div className="flex items-start justify-between mb-4">
@@ -442,7 +406,7 @@ export function GoalsPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                     {!goal.is_completed && (
                       <>
                         <Button
@@ -957,6 +921,6 @@ export function GoalsPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }
