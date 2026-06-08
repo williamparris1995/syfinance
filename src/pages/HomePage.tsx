@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp, CalendarDays, Plus } from 'lucide-react';
+import { Wallet, CalendarDays, Plus } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -7,10 +7,12 @@ import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { EmptyState } from '@/components/EmptyState';
 import { SimpleTransactionForm } from '@/components/SimpleTransactionForm';
+import { PageShell } from '@/components/patterns/layout/PageShell';
+import { PageHeader } from '@/components/patterns/layout/PageHeader';
+import { StatCard } from '@/components/patterns/cards/StatCard';
 import { listAccountsWithBalances, listAccountsByOwnership } from '@/lib/tauri/account';
 import { getDashboardSummary, getMonthlyTrend } from '@/lib/tauri/report';
 import { getUpcomingPayments } from '@/lib/tauri/debt';
@@ -162,57 +164,64 @@ export function HomePage() {
 
   const isLoading = accountsLoading || isDashboardLoading;
 
+  const cnyDto = { id: '', code: 'CNY' as const, symbol: getCurrencySymbol('CNY'), name: t('common.cny'), exchange_rate: '1', is_active: true, updated_at: '' };
+
   return (
-    <div className="space-y-4 p-4 sm:space-y-6 sm:p-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold sm:text-3xl">{t('dashboard.title')}</h2>
-      </div>
+    <PageShell>
+      <PageHeader
+        title={t('dashboard.title')}
+        subtitle={new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
+        actions={
+          <Button onClick={() => setIsSheetOpen(true)}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            {t('transactions.recordTransaction')}
+          </Button>
+        }
+      />
 
       {/* Period Selector */}
-      <Card>
-        <CardContent className="pt-4">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant={dateRangePreset === 'month' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setDateRangePreset('month')}
-            >
-              {t('reports.thisMonth')}
-            </Button>
-            <Button
-              variant={dateRangePreset === 'quarter' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setDateRangePreset('quarter')}
-            >
-              {t('reports.thisQuarter')}
-            </Button>
-            <Button
-              variant={dateRangePreset === 'year' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setDateRangePreset('year')}
-            >
-              {t('reports.thisYear')}
-            </Button>
-            <Button
-              variant={dateRangePreset === 'custom' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setDateRangePreset('custom')}
-            >
-              {t('reports.custom')}
-            </Button>
-            {dateRangePreset === 'custom' && (
-              <div className="flex items-center gap-2 ml-2">
-                <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-36 h-8 text-xs" />
-                <span className="text-xs text-muted-foreground">—</span>
-                <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-36 h-8 text-xs" />
-              </div>
-            )}
-          </div>
-          <div className="mt-2 text-xs text-muted-foreground">
-            {dateRange.start} — {dateRange.end}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="rounded-[14px] border border-border bg-card p-5 mb-7">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant={dateRangePreset === 'month' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setDateRangePreset('month')}
+          >
+            {t('reports.thisMonth')}
+          </Button>
+          <Button
+            variant={dateRangePreset === 'quarter' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setDateRangePreset('quarter')}
+          >
+            {t('reports.thisQuarter')}
+          </Button>
+          <Button
+            variant={dateRangePreset === 'year' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setDateRangePreset('year')}
+          >
+            {t('reports.thisYear')}
+          </Button>
+          <Button
+            variant={dateRangePreset === 'custom' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setDateRangePreset('custom')}
+          >
+            {t('reports.custom')}
+          </Button>
+          {dateRangePreset === 'custom' && (
+            <div className="flex items-center gap-2 ml-2">
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-36 h-8 text-xs" />
+              <span className="text-xs text-muted-foreground">—</span>
+              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-36 h-8 text-xs" />
+            </div>
+          )}
+        </div>
+        <div className="mt-2 text-xs text-muted-foreground">
+          {dateRange.start} — {dateRange.end}
+        </div>
+      </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
@@ -222,170 +231,68 @@ export function HomePage() {
         <>
           {accounts.length > 0 && (
             <>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                {/* Total Balance */}
-                <Card className="bg-gradient-to-br from-card to-muted/20 border-border/50 shadow-sm">
-                  <CardContent className="pt-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
-                        <Wallet className="h-4 w-4 text-primary" />
-                      </div>
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {t('dashboard.totalBalance')}
-                      </span>
-                    </div>
-                    <div className="text-2xl font-bold tracking-tight">
-                      {formatCurrencyWithDto(totalBalance, {
-                        id: '',
-                        code: 'CNY',
-                        symbol: getCurrencySymbol('CNY'),
-                        name: t('common.cny'),
-                        exchange_rate: '1',
-                        is_active: true,
-                        updated_at: '',
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Monthly Income */}
-                <Card className="bg-gradient-to-br from-emerald-50/50 to-card border-emerald-200/50 shadow-sm dark:from-emerald-950/20 dark:to-card dark:border-emerald-800/30">
-                  <CardContent className="pt-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/30">
-                        <ArrowUpRight className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {t('dashboard.monthlyIncome')}
-                      </span>
-                    </div>
-                    <div className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
-                      +{monthlyIncome.toLocaleString('en-US', { style: 'currency', currency: 'CNY', currencyDisplay: 'narrowSymbol' })}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Monthly Expenses */}
-                <Card className="bg-gradient-to-br from-red-50/50 to-card border-red-200/50 shadow-sm dark:from-red-950/20 dark:to-card dark:border-red-800/30">
-                  <CardContent className="pt-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-100 dark:bg-red-900/30">
-                        <ArrowDownRight className="h-4 w-4 text-red-600 dark:text-red-400" />
-                      </div>
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {t('dashboard.monthlyExpenses')}
-                      </span>
-                    </div>
-                    <div className="text-2xl font-bold tracking-tight text-red-600 dark:text-red-400">
-                      -{monthlyExpenses.toLocaleString('en-US', { style: 'currency', currency: 'CNY', currencyDisplay: 'narrowSymbol' })}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Monthly Savings */}
-                <Card className="bg-gradient-to-br from-blue-50/50 to-card border-blue-200/50 shadow-sm dark:from-blue-950/20 dark:to-card dark:border-blue-800/30">
-                  <CardContent className="pt-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/30">
-                        <TrendingUp className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {t('dashboard.monthlySavings')}
-                      </span>
-                    </div>
-                    <div className={`text-2xl font-bold tracking-tight ${monthlySavings >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                      {monthlySavings >= 0 ? '+' : ''}{monthlySavings.toLocaleString('en-US', { style: 'currency', currency: 'CNY', currencyDisplay: 'narrowSymbol' })}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Portfolio Value */}
-                <Card className="bg-gradient-to-br from-purple-50/50 to-card dark:from-purple-950/20 dark:to-card border-purple-200/50 dark:border-purple-800/30 shadow-sm">
-                  <CardContent className="pt-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-900/30">
-                        <TrendingUp className="h-4 w-4 text-purple-500" />
-                      </div>
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {t('dashboard.portfolioValue')}
-                      </span>
-                    </div>
-                    <div className="text-2xl font-bold tracking-tight text-purple-600 dark:text-purple-400">
-                      {holdingsSummary.totalMv.toLocaleString('en-US', { style: 'currency', currency: 'CNY', currencyDisplay: 'narrowSymbol' })}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {holdingsSummary.count} {t('holding.positions')} · {t('dashboard.unrealizedPnl')}: <span className={holdingsSummary.totalPnl >= 0 ? 'text-emerald-600' : 'text-red-600'}>
-                        {holdingsSummary.totalPnl >= 0 ? '+' : ''}{holdingsSummary.totalPnl.toLocaleString('en-US', { style: 'currency', currency: 'CNY', currencyDisplay: 'narrowSymbol' })}
-                      </span>
-                    </p>
-                  </CardContent>
-                </Card>
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 mb-7">
+                <StatCard label={t('dashboard.totalBalance')} value={formatCurrencyWithDto(totalBalance, cnyDto)} tagVariant="positive" />
+                <StatCard label={t('dashboard.monthlyIncome')} value={`+${monthlyIncome.toLocaleString('en-US', { style: 'currency', currency: 'CNY', currencyDisplay: 'narrowSymbol' })}`} tagVariant="positive" />
+                <StatCard label={t('dashboard.monthlyExpenses')} value={`-${monthlyExpenses.toLocaleString('en-US', { style: 'currency', currency: 'CNY', currencyDisplay: 'narrowSymbol' })}`} tagVariant="negative" />
+                <StatCard label={t('dashboard.monthlySavings')} value={`${monthlySavings >= 0 ? '+' : ''}${monthlySavings.toLocaleString('en-US', { style: 'currency', currency: 'CNY', currencyDisplay: 'narrowSymbol' })}`} tagVariant={monthlySavings >= 0 ? 'positive' : 'negative'} />
+                <StatCard label={t('dashboard.portfolioValue')} value={holdingsSummary.totalMv.toLocaleString('en-US', { style: 'currency', currency: 'CNY', currencyDisplay: 'narrowSymbol' })} tag={`${holdingsSummary.count} ${t('holding.positions')}`} />
               </div>
             </>
           )}
 
           {/* Account Balances + Upcoming Payments */}
           {accounts.length > 0 && (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2 mb-7">
               {/* Current Balance Chart */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">{t('accounts.currentBalance')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {ownAccountBalances.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">{t('dashboard.noAccountsDesc')}</p>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={220}>
-                      <BarChart data={ownAccountBalances.map(a => ({ name: a.name, balance: a.current_balance }))} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                        <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${getCurrencySymbol('CNY')}${(v / 1000).toFixed(0)}k`} />
-                        <Tooltip formatter={(v) => `${getCurrencySymbol('CNY')}${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
-                        <Bar dataKey="balance" name={t('accounts.currentBalance')} radius={[4, 4, 0, 0]}>
-                          {ownAccountBalances.map((a, i) => (
-                            <Cell key={i} fill={a.current_balance >= 0 ? '#10B981' : '#EF4444'} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </CardContent>
-              </Card>
+              <div className="rounded-[14px] border border-border bg-card p-5">
+                <h3 className="text-sm font-medium mb-3">{t('accounts.currentBalance')}</h3>
+                {ownAccountBalances.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">{t('dashboard.noAccountsDesc')}</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={ownAccountBalances.map(a => ({ name: a.name, balance: a.current_balance }))} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${getCurrencySymbol('CNY')}${(v / 1000).toFixed(0)}k`} />
+                      <Tooltip formatter={(v) => `${getCurrencySymbol('CNY')}${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
+                      <Bar dataKey="balance" name={t('accounts.currentBalance')} radius={[4, 4, 0, 0]}>
+                        {ownAccountBalances.map((a, i) => (
+                          <Cell key={i} fill={a.current_balance >= 0 ? '#10B981' : '#EF4444'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
 
               {/* Balance Change Chart */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">{t('dashboard.change')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {ownAccountBalances.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">{t('dashboard.noAccountsDesc')}</p>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={220}>
-                      <BarChart data={ownAccountBalances.map(a => ({ name: a.name, change: a.current_balance - a.initial_balance }))} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                        <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${getCurrencySymbol('CNY')}${(v / 1000).toFixed(0)}k`} />
-                        <Tooltip formatter={(v) => `${getCurrencySymbol('CNY')}${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
-                        <Bar dataKey="change" name={t('dashboard.change')} radius={[4, 4, 0, 0]}>
-                          {ownAccountBalances.map((a, i) => {
-                            const change = a.current_balance - a.initial_balance;
-                            return <Cell key={i} fill={change >= 0 ? '#3B82F6' : '#F59E0B'} />;
-                          })}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </CardContent>
-              </Card>
+              <div className="rounded-[14px] border border-border bg-card p-5">
+                <h3 className="text-sm font-medium mb-3">{t('dashboard.change')}</h3>
+                {ownAccountBalances.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">{t('dashboard.noAccountsDesc')}</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={ownAccountBalances.map(a => ({ name: a.name, change: a.current_balance - a.initial_balance }))} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${getCurrencySymbol('CNY')}${(v / 1000).toFixed(0)}k`} />
+                      <Tooltip formatter={(v) => `${getCurrencySymbol('CNY')}${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
+                      <Bar dataKey="change" name={t('dashboard.change')} radius={[4, 4, 0, 0]}>
+                        {ownAccountBalances.map((a, i) => {
+                          const change = a.current_balance - a.initial_balance;
+                          return <Cell key={i} fill={change >= 0 ? '#3B82F6' : '#F59E0B'} />;
+                        })}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
 
               {/* Upcoming Debt Payments */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">{t('dashboard.upcomingDebtPayments')}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
+              <div className="rounded-[14px] border border-border bg-card p-5">
+                <h3 className="text-sm font-medium mb-3">{t('dashboard.upcomingDebtPayments')}</h3>
+                <div className="space-y-2">
                   {upcomingPayments.length === 0 ? (
                     <p className="text-sm text-muted-foreground">{t('dashboard.noUpcomingPayments')}</p>
                   ) : (
@@ -404,222 +311,206 @@ export function HomePage() {
                       </div>
                     ))
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </div>
           )}
 
           {/* Charts Section */}
           {accounts.length > 0 && (expenseByCategory.length > 0 || incomeByCategory.length > 0) && (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2 mb-7">
               {/* Expense Donut */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">{t('reports.expenseBreakdown')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {expenseByCategory.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">{t('reports.noExpenses')}</p>
-                  ) : (
-                    <div className="flex flex-col items-center gap-3">
-                      <ResponsiveContainer width={180} height={180}>
-                        <PieChart>
-                          <Pie
-                            data={expenseByCategory}
-                            dataKey="amount"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={45}
-                            outerRadius={70}
-                            paddingAngle={2}
-                          >
-                            {expenseByCategory.map((entry, index) => {
-                              const account = accounts.find(a => a.name === entry.name && a.account_type === 'Expense');
-                              return (
-                                <Cell
-                                  key={entry.name}
-                                  fill={account?.color || FALLBACK_COLORS[index % FALLBACK_COLORS.length]}
-                                  stroke="none"
-                                />
-                              );
-                            })}
-                          </Pie>
-                          <Tooltip
-                            formatter={(value, name) => [
-                              `${getCurrencySymbol('CNY')}${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
-                              name,
-                            ]}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                      <div className="w-full space-y-1.5">
-                        {expenseByCategory
-                          .sort((a, b) => b.amount - a.amount)
-                          .slice(0, 6)
-                          .map((item, index) => {
-                            const account = accounts.find(a => a.name === item.name && a.account_type === 'Expense');
-                            const pct = monthlyExpenses > 0
-                              ? ((item.amount / monthlyExpenses) * 100).toFixed(1)
-                              : '0';
+              <div className="rounded-[14px] border border-border bg-card p-5">
+                <h3 className="text-sm font-medium mb-3">{t('reports.expenseBreakdown')}</h3>
+                {expenseByCategory.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">{t('reports.noExpenses')}</p>
+                ) : (
+                  <div className="flex flex-col items-center gap-3">
+                    <ResponsiveContainer width={180} height={180}>
+                      <PieChart>
+                        <Pie
+                          data={expenseByCategory}
+                          dataKey="amount"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={45}
+                          outerRadius={70}
+                          paddingAngle={2}
+                        >
+                          {expenseByCategory.map((entry, index) => {
+                            const account = accounts.find(a => a.name === entry.name && a.account_type === 'Expense');
                             return (
-                              <div key={item.name} className="flex items-center gap-2 text-xs">
-                                <span
-                                  className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
-                                  style={{ backgroundColor: account?.color || FALLBACK_COLORS[index % FALLBACK_COLORS.length] }}
-                                />
-                                <span className="truncate flex-1">
-                                  {account?.icon || ''} {item.name}
-                                </span>
-                                <span className="text-muted-foreground tabular-nums">{getCurrencySymbol('CNY')}{item.amount.toFixed(0)}</span>
-                                <span className="text-muted-foreground/60 w-10 text-right tabular-nums">{pct}%</span>
-                              </div>
+                              <Cell
+                                key={entry.name}
+                                fill={account?.color || FALLBACK_COLORS[index % FALLBACK_COLORS.length]}
+                                stroke="none"
+                              />
                             );
                           })}
-                      </div>
+                        </Pie>
+                        <Tooltip
+                          formatter={(value, name) => [
+                            `${getCurrencySymbol('CNY')}${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                            name,
+                          ]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="w-full space-y-1.5">
+                      {expenseByCategory
+                        .sort((a, b) => b.amount - a.amount)
+                        .slice(0, 6)
+                        .map((item, index) => {
+                          const account = accounts.find(a => a.name === item.name && a.account_type === 'Expense');
+                          const pct = monthlyExpenses > 0
+                            ? ((item.amount / monthlyExpenses) * 100).toFixed(1)
+                            : '0';
+                          return (
+                            <div key={item.name} className="flex items-center gap-2 text-xs">
+                              <span
+                                className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
+                                style={{ backgroundColor: account?.color || FALLBACK_COLORS[index % FALLBACK_COLORS.length] }}
+                              />
+                              <span className="truncate flex-1">
+                                {account?.icon || ''} {item.name}
+                              </span>
+                              <span className="text-muted-foreground tabular-nums">{getCurrencySymbol('CNY')}{item.amount.toFixed(0)}</span>
+                              <span className="text-muted-foreground/60 w-10 text-right tabular-nums">{pct}%</span>
+                            </div>
+                          );
+                        })}
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                  </div>
+                )}
+              </div>
 
               {/* Income Donut */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">{t('reports.incomeBreakdown')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {incomeByCategory.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">{t('reports.noIncome')}</p>
-                  ) : (
-                    <div className="flex flex-col items-center gap-3">
-                      <ResponsiveContainer width={180} height={180}>
-                        <PieChart>
-                          <Pie
-                            data={incomeByCategory}
-                            dataKey="amount"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={45}
-                            outerRadius={70}
-                            paddingAngle={2}
-                          >
-                            {incomeByCategory.map((entry, index) => {
-                              const account = accounts.find(a => a.name === entry.name && a.account_type === 'Income');
-                              return (
-                                <Cell
-                                  key={entry.name}
-                                  fill={account?.color || FALLBACK_COLORS_INCOME[index % FALLBACK_COLORS_INCOME.length]}
-                                  stroke="none"
-                                />
-                              );
-                            })}
-                          </Pie>
-                          <Tooltip
-                            formatter={(value, name) => [
-                              `${getCurrencySymbol('CNY')}${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
-                              name,
-                            ]}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                      <div className="w-full space-y-1.5">
-                        {incomeByCategory
-                          .sort((a, b) => b.amount - a.amount)
-                          .slice(0, 6)
-                          .map((item, index) => {
-                            const account = accounts.find(a => a.name === item.name && a.account_type === 'Income');
-                            const pct = monthlyIncome > 0
-                              ? ((item.amount / monthlyIncome) * 100).toFixed(1)
-                              : '0';
+              <div className="rounded-[14px] border border-border bg-card p-5">
+                <h3 className="text-sm font-medium mb-3">{t('reports.incomeBreakdown')}</h3>
+                {incomeByCategory.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">{t('reports.noIncome')}</p>
+                ) : (
+                  <div className="flex flex-col items-center gap-3">
+                    <ResponsiveContainer width={180} height={180}>
+                      <PieChart>
+                        <Pie
+                          data={incomeByCategory}
+                          dataKey="amount"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={45}
+                          outerRadius={70}
+                          paddingAngle={2}
+                        >
+                          {incomeByCategory.map((entry, index) => {
+                            const account = accounts.find(a => a.name === entry.name && a.account_type === 'Income');
                             return (
-                              <div key={item.name} className="flex items-center gap-2 text-xs">
-                                <span
-                                  className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
-                                  style={{ backgroundColor: account?.color || FALLBACK_COLORS_INCOME[index % FALLBACK_COLORS_INCOME.length] }}
-                                />
-                                <span className="truncate flex-1">
-                                  {account?.icon || ''} {item.name}
-                                </span>
-                                <span className="text-muted-foreground tabular-nums">{getCurrencySymbol('CNY')}{item.amount.toFixed(0)}</span>
-                                <span className="text-muted-foreground/60 w-10 text-right tabular-nums">{pct}%</span>
-                              </div>
+                              <Cell
+                                key={entry.name}
+                                fill={account?.color || FALLBACK_COLORS_INCOME[index % FALLBACK_COLORS_INCOME.length]}
+                                stroke="none"
+                              />
                             );
                           })}
-                      </div>
+                        </Pie>
+                        <Tooltip
+                          formatter={(value, name) => [
+                            `${getCurrencySymbol('CNY')}${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                            name,
+                          ]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="w-full space-y-1.5">
+                      {incomeByCategory
+                        .sort((a, b) => b.amount - a.amount)
+                        .slice(0, 6)
+                        .map((item, index) => {
+                          const account = accounts.find(a => a.name === item.name && a.account_type === 'Income');
+                          const pct = monthlyIncome > 0
+                            ? ((item.amount / monthlyIncome) * 100).toFixed(1)
+                            : '0';
+                          return (
+                            <div key={item.name} className="flex items-center gap-2 text-xs">
+                              <span
+                                className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
+                                style={{ backgroundColor: account?.color || FALLBACK_COLORS_INCOME[index % FALLBACK_COLORS_INCOME.length] }}
+                              />
+                              <span className="truncate flex-1">
+                                {account?.icon || ''} {item.name}
+                              </span>
+                              <span className="text-muted-foreground tabular-nums">{getCurrencySymbol('CNY')}{item.amount.toFixed(0)}</span>
+                              <span className="text-muted-foreground/60 w-10 text-right tabular-nums">{pct}%</span>
+                            </div>
+                          );
+                        })}
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
           {/* Monthly Trend Charts */}
           {accounts.length > 0 && chartData.length > 0 && (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2 mb-7">
               {/* Stacked Bar: Monthly Expense Trend */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">{t('reports.monthlyExpenseTrend')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {expenseCategories.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">{t('reports.noData')}</p>
-                  ) : (
-                    <>
-                      <ResponsiveContainer width="100%" height={220}>
-                        <BarChart data={chartData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                          <XAxis dataKey="month" tick={{ fontSize: 11 }} tickFormatter={(v: string) => v.substring(5)} />
-                          <YAxis tick={{ fontSize: 11 }} />
-                          <Tooltip formatter={(value, name) => [
-                            `${getCurrencySymbol('CNY')}${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, name,
-                          ]} />
-                          {expenseCategories.map((catName) => {
-                            const account = accounts.find((a) => a.name === catName && a.account_type === 'Expense');
-                            return (
-                              <Bar key={catName} dataKey={catName} stackId="e" fill={account?.color || '#6B7280'} />
-                            );
-                          })}
-                        </BarChart>
-                      </ResponsiveContainer>
-                      <div className="flex flex-wrap gap-3 mt-2 text-xs">
+              <div className="rounded-[14px] border border-border bg-card p-5">
+                <h3 className="text-sm font-medium mb-3">{t('reports.monthlyExpenseTrend')}</h3>
+                {expenseCategories.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">{t('reports.noData')}</p>
+                ) : (
+                  <>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                        <XAxis dataKey="month" tick={{ fontSize: 11 }} tickFormatter={(v: string) => v.substring(5)} />
+                        <YAxis tick={{ fontSize: 11 }} />
+                        <Tooltip formatter={(value, name) => [
+                          `${getCurrencySymbol('CNY')}${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, name,
+                        ]} />
                         {expenseCategories.map((catName) => {
                           const account = accounts.find((a) => a.name === catName && a.account_type === 'Expense');
                           return (
-                            <span key={catName} className="flex items-center gap-1">
-                              <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: account?.color || '#6B7280' }} />
-                              {account?.icon || ''} {catName}
-                            </span>
+                            <Bar key={catName} dataKey={catName} stackId="e" fill={account?.color || '#6B7280'} />
                           );
                         })}
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
+                      </BarChart>
+                    </ResponsiveContainer>
+                    <div className="flex flex-wrap gap-3 mt-2 text-xs">
+                      {expenseCategories.map((catName) => {
+                        const account = accounts.find((a) => a.name === catName && a.account_type === 'Expense');
+                        return (
+                          <span key={catName} className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: account?.color || '#6B7280' }} />
+                            {account?.icon || ''} {catName}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
 
               {/* Income vs Expense Bar */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">{t('reports.monthlyIncomeVsExpense')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                      <XAxis dataKey="month" tick={{ fontSize: 11 }} tickFormatter={(v: string) => v.substring(5)} />
-                      <YAxis tick={{ fontSize: 11 }} />
-                      <Tooltip formatter={(value) => [
-                        `${getCurrencySymbol('CNY')}${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
-                      ]} />
-                      <Bar dataKey="income" fill="#10B981" radius={[4, 4, 0, 0]} name={t('reports.income')} />
-                      <Bar dataKey="expenses" fill="#EF4444" radius={[4, 4, 0, 0]} name={t('reports.expenses')} />
-                      <Legend />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+              <div className="rounded-[14px] border border-border bg-card p-5">
+                <h3 className="text-sm font-medium mb-3">{t('reports.monthlyIncomeVsExpense')}</h3>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} tickFormatter={(v: string) => v.substring(5)} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip formatter={(value) => [
+                      `${getCurrencySymbol('CNY')}${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                    ]} />
+                    <Bar dataKey="income" fill="#10B981" radius={[4, 4, 0, 0]} name={t('reports.income')} />
+                    <Bar dataKey="expenses" fill="#EF4444" radius={[4, 4, 0, 0]} name={t('reports.expenses')} />
+                    <Legend />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           )}
 
@@ -668,6 +559,6 @@ export function HomePage() {
           </div>
         </SheetContent>
       </Sheet>
-    </div>
+    </PageShell>
   );
 }
