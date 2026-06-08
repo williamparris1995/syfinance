@@ -12,7 +12,8 @@ async fn setup_repository() -> (SqliteCurrencyRepository, PathBuf) {
 
     let options = SqliteConnectOptions::new()
         .filename(&db_path)
-        .create_if_missing(true);
+        .create_if_missing(true)
+        .foreign_keys(false);
 
     let pool = SqlitePoolOptions::new()
         .max_connections(1)

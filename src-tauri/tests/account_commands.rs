@@ -58,7 +58,6 @@ async fn account_command_lifecycle() {
             payment_due_day: None,
             interest_rate: None,
             chart_code: None,
-            parent_id: None,
             low_balance_threshold: None,
         },
     )
@@ -71,12 +70,18 @@ async fn account_command_lifecycle() {
     let listed = list_accounts_with_state(&state)
         .await
         .expect("list accounts");
-    assert_eq!(listed.len(), 1);
+    let owned = listed.iter().filter(|a| a.ownership == Ownership::Own).count();
+    assert_eq!(owned, 1);
+    assert!(listed.iter().any(|a| a.id == created.id));
 
     delete_account_with_state(&state, created.id)
         .await
         .expect("delete account");
 
     assert!(get_account_with_state(&state, created.id).await.is_err());
-    assert!(list_accounts_with_state(&state).await.unwrap().is_empty());
+    let remaining = list_accounts_with_state(&state)
+        .await
+        .expect("list accounts");
+    // Only seed accounts (ownership=external) should remain after deleting our own account
+    assert!(remaining.iter().all(|a| a.ownership != Ownership::Own));
 }

@@ -9,7 +9,8 @@ use std::sync::Arc;
 async fn setup_test_db() -> sqlx::SqlitePool {
     let options = SqliteConnectOptions::from_str("sqlite::memory:")
         .unwrap()
-        .create_if_missing(true);
+        .create_if_missing(true)
+        .foreign_keys(false);
 
     let pool = SqlitePoolOptions::new()
         .max_connections(1)

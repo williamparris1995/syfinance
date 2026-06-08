@@ -1,6 +1,9 @@
 -- Make chart_of_account_code nullable in transaction_entries
 -- Not all transactions need to reference chart_of_accounts
 
+-- Disable FK checks during table recreation
+PRAGMA foreign_keys = OFF;
+
 -- SQLite: recreate table to change column nullability
 CREATE TABLE transaction_entries_new (
     id TEXT PRIMARY KEY NOT NULL,
@@ -75,3 +78,6 @@ BEGIN
           AND deleted_at IS NULL
     ) >= 1;
 END;
+
+-- Re-enable FK checks
+PRAGMA foreign_keys = ON;

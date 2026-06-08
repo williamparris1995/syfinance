@@ -1,3 +1,7 @@
+-- Disable FK checks during migration (DROP TABLE and ADD COLUMN with REFERENCES
+-- would otherwise violate FK constraints on transaction_entries and transactions)
+PRAGMA foreign_keys = OFF;
+
 -- Create categories table
 CREATE TABLE categories (
     id BLOB PRIMARY KEY,
@@ -63,4 +67,7 @@ ALTER TABLE accounts ADD COLUMN status TEXT DEFAULT 'active'
 ALTER TABLE accounts ADD COLUMN opened_at TIMESTAMP;
 
 -- Alter transactions table
-ALTER TABLE transactions ADD COLUMN category_id BLOB REFERENCES categories(id);
+ALTER TABLE transactions ADD COLUMN category_id BLOB REFERENCES categories(id) ON DELETE SET NULL;
+
+-- Re-enable FK checks
+PRAGMA foreign_keys = ON;

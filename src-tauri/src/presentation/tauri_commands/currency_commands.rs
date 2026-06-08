@@ -54,10 +54,13 @@ impl CurrencyCommandState {
     // TODO: will be used when currency integration tests are added
     #[allow(dead_code)]
     pub async fn create_default_state() -> sqlx::Result<Self> {
-        let options = SqliteConnectOptions::from_str("sqlite::memory:")?.create_if_missing(true);
+        // Run migrations with FK checks disabled (same pattern as main.rs)
+        let migrate_options = SqliteConnectOptions::from_str("sqlite::memory:")?
+            .create_if_missing(true)
+            .foreign_keys(false);
         let pool = SqlitePoolOptions::new()
             .max_connections(1)
-            .connect_with(options)
+            .connect_with(migrate_options)
             .await?;
 
         sqlx::migrate!("./migrations").run(&pool).await?;
