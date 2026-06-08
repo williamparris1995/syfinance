@@ -237,6 +237,22 @@
       "goldAccount": "Gold Account",
       "optionAccount": "Option Account",
       "otherInvestment": "Other Investment"
+    },
+    "confirmChanges": "Confirm Changes",
+    "confirmChangesDesc": "Review the changes below before saving.",
+    "noChanges": "No changes",
+    "fields": {
+      "name": "Account Name",
+      "initialBalance": "Initial Balance",
+      "icon": "Icon",
+      "color": "Color",
+      "accountNumber": "Account Number",
+      "institution": "Institution",
+      "creditLimit": "Credit Limit",
+      "billingDay": "Billing Day",
+      "paymentDueDay": "Payment Due Day",
+      "interestRate": "Interest Rate",
+      "lowBalanceThreshold": "Low Balance Threshold"
     }
   },
   "accountForm": {

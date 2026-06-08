@@ -206,6 +206,22 @@
       "goldAccount": "黄金账户",
       "optionAccount": "期权账户",
       "otherInvestment": "其他投资"
+    },
+    "confirmChanges": "确认修改",
+    "confirmChangesDesc": "保存前请查看以下更改。",
+    "noChanges": "没有修改",
+    "fields": {
+      "name": "账户名称",
+      "initialBalance": "初始余额",
+      "icon": "图标",
+      "color": "颜色",
+      "accountNumber": "账号",
+      "institution": "机构",
+      "creditLimit": "信用额度",
+      "billingDay": "账单日",
+      "paymentDueDay": "还款日",
+      "interestRate": "利率",
+      "lowBalanceThreshold": "低余额阈值"
     }
   },
   "accountForm": {
