@@ -1,0 +1,1 @@
+{"nodes": [{"id": "fix_transaction_form", "label": "fix_transaction_form.py", "file_type": "code", "source_file": "fix_transaction_form.py", "source_location": "L1"}], "edges": [{"source": "fix_transaction_form", "target": "re", "relation": "imports", "confidence": "EXTRACTED", "source_file": "fix_transaction_form.py", "source_location": "L4", "weight": 1.0}]}
