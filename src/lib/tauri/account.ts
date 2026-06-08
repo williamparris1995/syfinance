@@ -44,12 +44,8 @@ export interface PatchAccountDto {
   payment_due_day?: number | null;
   interest_rate?: number | null;
   chart_code?: string | null;
-  parent_id?: string | null;
   low_balance_threshold?: number | null;
 }
-
-/** @deprecated Use PatchAccountDto instead. */
-export type UpdateAccountDto = PatchAccountDto;
 
 export interface AccountDto {
   id: string;
