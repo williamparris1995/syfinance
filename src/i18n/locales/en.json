@@ -414,7 +414,15 @@
     "detailTitle": "Transaction Details",
     "totalIncome": "Total Income",
     "totalExpense": "Total Expense",
-    "netAmount": "Net Amount"
+    "netAmount": "Net Amount",
+    "untitled": "Untitled Transaction",
+    "entryDetails": "Entry Details",
+    "debit": "Debit",
+    "credit": "Credit",
+    "entries": "Entries",
+    "createdAt": "Created",
+    "updatedAt": "Updated",
+    "recordTransactionDesc": "Record a new income, expense, or transfer"
   },
   "transaction": {
     "expense": "Expense",

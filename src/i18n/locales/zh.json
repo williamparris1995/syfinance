@@ -378,7 +378,15 @@
     "detailTitle": "交易详情",
     "totalIncome": "总收入",
     "totalExpense": "总支出",
-    "netAmount": "净额"
+    "netAmount": "净额",
+    "untitled": "未命名交易",
+    "entryDetails": "分录详情",
+    "debit": "借方",
+    "credit": "贷方",
+    "entries": "分录数",
+    "createdAt": "创建时间",
+    "updatedAt": "更新时间",
+    "recordTransactionDesc": "记录新的收入、支出或转账"
   },
   "transaction": {
     "expense": "支出",
