@@ -70,7 +70,10 @@ async fn account_command_lifecycle() {
     let listed = list_accounts_with_state(&state)
         .await
         .expect("list accounts");
-    let owned = listed.iter().filter(|a| a.ownership == Ownership::Own).count();
+    let owned = listed
+        .iter()
+        .filter(|a| a.ownership == Ownership::Own)
+        .count();
     assert_eq!(owned, 1);
     assert!(listed.iter().any(|a| a.id == created.id));
 

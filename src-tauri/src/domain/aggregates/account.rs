@@ -561,10 +561,7 @@ mod tests {
                 );
 
                 assert!(result.is_ok());
-                assert_eq!(
-                    result.unwrap().initial_balance.amount,
-                    Decimal::new(-1, 2)
-                );
+                assert_eq!(result.unwrap().initial_balance.amount, Decimal::new(-1, 2));
             }
 
             #[test]

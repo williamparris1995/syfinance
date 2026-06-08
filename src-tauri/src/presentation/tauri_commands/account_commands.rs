@@ -242,18 +242,12 @@ pub async fn setup_preset_investment_accounts(
 }
 
 #[tauri::command]
-pub async fn archive_account(
-    state: State<'_, AppState>,
-    id: Uuid,
-) -> Result<AccountDto, String> {
+pub async fn archive_account(state: State<'_, AppState>, id: Uuid) -> Result<AccountDto, String> {
     archive_account_with_state(state.inner(), id).await
 }
 
 #[tauri::command]
-pub async fn hide_account(
-    state: State<'_, AppState>,
-    id: Uuid,
-) -> Result<AccountDto, String> {
+pub async fn hide_account(state: State<'_, AppState>, id: Uuid) -> Result<AccountDto, String> {
     hide_account_with_state(state.inner(), id).await
 }
 

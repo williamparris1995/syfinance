@@ -1,9 +1,9 @@
+use crate::domain::value_objects::money::{cents_to_decimal, decimal_to_cents};
 use crate::domain::{
     aggregates::{Account, AccountType, Ownership},
     repositories::AccountRepository,
     value_objects::{Money, SyncMetadata},
 };
-use crate::domain::value_objects::money::{decimal_to_cents, cents_to_decimal};
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use sqlx::{sqlite::SqlitePool, Row};
@@ -81,8 +81,8 @@ impl SqliteAccountRepository {
         let institution: Option<String> = row.try_get("institution")?;
 
         let credit_limit_cents: Option<i64> = row.try_get("credit_limit")?;
-        let credit_limit = credit_limit_cents
-            .map(|cents| Money::from_cents(cents, currency_code.clone()));
+        let credit_limit =
+            credit_limit_cents.map(|cents| Money::from_cents(cents, currency_code.clone()));
 
         let billing_day: Option<i32> = row.try_get("billing_day")?;
 
@@ -108,17 +108,16 @@ impl SqliteAccountRepository {
         };
 
         let opened_at_str: Option<String> = row.try_get("opened_at").ok();
-        let opened_at = opened_at_str
-            .and_then(|s| {
-                let parse_sqlite_datetime = |s: &str| -> Result<DateTime<Utc>, chrono::ParseError> {
-                    if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
-                        return Ok(dt.with_timezone(&Utc));
-                    }
-                    chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S")
-                        .map(|ndt| DateTime::<Utc>::from_naive_utc_and_offset(ndt, Utc))
-                };
-                parse_sqlite_datetime(&s).ok()
-            });
+        let opened_at = opened_at_str.and_then(|s| {
+            let parse_sqlite_datetime = |s: &str| -> Result<DateTime<Utc>, chrono::ParseError> {
+                if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
+                    return Ok(dt.with_timezone(&Utc));
+                }
+                chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S")
+                    .map(|ndt| DateTime::<Utc>::from_naive_utc_and_offset(ndt, Utc))
+            };
+            parse_sqlite_datetime(&s).ok()
+        });
 
         let updated_at: String = row.try_get("updated_at")?;
         let created_at: String = row.try_get("created_at")?;

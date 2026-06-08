@@ -8,13 +8,20 @@
 #![allow(dead_code)]
 
 use crate::domain::{
-    aggregates::{Account, AccountType, Ownership},
+    aggregates::{
+        account::AccountStatus,
+        {Account, AccountType, Ownership},
+    },
     repositories::AccountRepository,
-    value_objects::{Money, SyncMetadata},
+    value_objects::{
+        money::{cents_to_decimal, decimal_to_cents},
+        Money, SyncMetadata,
+    },
 };
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use sqlx::{postgres::PgPool, Row};
+use std::str::FromStr;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -50,10 +57,8 @@ impl PostgresAccountRepository {
         };
 
         let currency_code: String = row.try_get("currency_code")?;
-        let initial_balance_amount: Decimal = row.try_get("initial_balance")?;
-
-        let initial_balance = Money::new(initial_balance_amount, &currency_code)
-            .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+        let initial_balance_cents: i64 = row.try_get("initial_balance")?;
+        let initial_balance = Money::from_cents(initial_balance_cents, currency_code.clone());
 
         // Read new columns from unified accounts
         let ownership_str: String = row.try_get("ownership")?;
@@ -73,8 +78,39 @@ impl PostgresAccountRepository {
         let chart_code: Option<String> = row.try_get("chart_code")?;
         let parent_id: Option<Uuid> = row.try_get("parent_id")?;
 
-        let updated_at: DateTime<Utc> = row.try_get("updated_at")?;
+        // Read optional fields
+        let account_number: Option<String> = row.try_get("account_number")?;
+        let institution: Option<String> = row.try_get("institution")?;
+
+        let credit_limit_cents: Option<i64> = row.try_get("credit_limit")?;
+        let credit_limit =
+            credit_limit_cents.map(|cents| Money::from_cents(cents, currency_code.clone()));
+
+        let billing_day: Option<i32> = row.try_get("billing_day")?;
+        let payment_due_day: Option<i32> = row.try_get("payment_due_day")?;
+
+        let interest_rate_str: Option<String> = row.try_get("interest_rate")?;
+        let interest_rate = interest_rate_str
+            .map(|s| {
+                Decimal::from_str(&s)
+                    .map_err(|e| sqlx::Error::Decode(format!("interest_rate='{s}': {e}").into()))
+            })
+            .transpose()?;
+
+        let low_balance_threshold_cents: Option<i64> = row.try_get("low_balance_threshold")?;
+        let low_balance_threshold = low_balance_threshold_cents.map(cents_to_decimal);
+
+        let status_str: String = row.try_get("status")?;
+        let status = match status_str.as_str() {
+            "archived" => AccountStatus::Archived,
+            "hidden" => AccountStatus::Hidden,
+            _ => AccountStatus::Active,
+        };
+
+        let opened_at: Option<DateTime<Utc>> = row.try_get("opened_at")?;
+
         let created_at: DateTime<Utc> = row.try_get("created_at")?;
+        let updated_at: DateTime<Utc> = row.try_get("updated_at")?;
         let deleted_at: Option<DateTime<Utc>> = row.try_get("deleted_at")?;
         let device_id: Uuid = row.try_get("device_id")?;
         let synced_at: Option<DateTime<Utc>> = row.try_get("synced_at")?;
@@ -97,15 +133,15 @@ impl PostgresAccountRepository {
             color,
             chart_code,
             parent_id,
-            account_number: None,
-            institution: None,
-            credit_limit: None,
-            billing_day: None,
-            payment_due_day: None,
-            interest_rate: None,
-            low_balance_threshold: None,
-            status: crate::domain::aggregates::account::AccountStatus::Active,
-            opened_at: None,
+            account_number,
+            institution,
+            credit_limit,
+            billing_day,
+            payment_due_day,
+            interest_rate,
+            low_balance_threshold,
+            status,
+            opened_at,
             created_at,
             sync_metadata,
             pending_events: Vec::new(),
@@ -170,10 +206,15 @@ impl AccountRepository for PostgresAccountRepository {
                 id, name, account_type, ownership,
                 currency_code, initial_balance,
                 icon, color, chart_code, parent_id,
-                updated_at, deleted_at,
+                account_number, institution, credit_limit,
+                billing_day, payment_due_day, interest_rate,
+                low_balance_threshold, status, opened_at,
+                created_at, updated_at, deleted_at,
                 device_id, synced_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                    $11, $12, $13, $14, $15, $16, $17, $18, $19,
+                    $20, $21, $22, $23, $24)
             ON CONFLICT (id) DO UPDATE SET
                 name = EXCLUDED.name,
                 ownership = EXCLUDED.ownership,
@@ -183,6 +224,15 @@ impl AccountRepository for PostgresAccountRepository {
                 color = EXCLUDED.color,
                 chart_code = EXCLUDED.chart_code,
                 parent_id = EXCLUDED.parent_id,
+                account_number = EXCLUDED.account_number,
+                institution = EXCLUDED.institution,
+                credit_limit = EXCLUDED.credit_limit,
+                billing_day = EXCLUDED.billing_day,
+                payment_due_day = EXCLUDED.payment_due_day,
+                interest_rate = EXCLUDED.interest_rate,
+                low_balance_threshold = EXCLUDED.low_balance_threshold,
+                status = EXCLUDED.status,
+                opened_at = EXCLUDED.opened_at,
                 updated_at = EXCLUDED.updated_at,
                 deleted_at = EXCLUDED.deleted_at,
                 device_id = EXCLUDED.device_id,
@@ -194,11 +244,21 @@ impl AccountRepository for PostgresAccountRepository {
         .bind(account.account_type.to_string())
         .bind(account.ownership.to_string())
         .bind(&account.currency_code)
-        .bind(account.initial_balance.amount)
+        .bind(account.initial_balance.to_cents())
         .bind(&account.icon)
         .bind(&account.color)
         .bind(&account.chart_code)
         .bind(account.parent_id)
+        .bind(&account.account_number)
+        .bind(&account.institution)
+        .bind(account.credit_limit.as_ref().map(|m| m.to_cents()))
+        .bind(account.billing_day)
+        .bind(account.payment_due_day)
+        .bind(account.interest_rate.map(|r| r.to_string()))
+        .bind(account.low_balance_threshold.map(decimal_to_cents))
+        .bind(account.status.to_string())
+        .bind(account.opened_at)
+        .bind(account.created_at)
         .bind(account.sync_metadata.updated_at)
         .bind(account.sync_metadata.deleted_at)
         .bind(account.sync_metadata.device_id)
@@ -213,9 +273,11 @@ impl AccountRepository for PostgresAccountRepository {
         let row = sqlx::query(
             r#"
             SELECT
-                id, name, account_type, ownership,
-                currency_code, initial_balance,
+                id, name, account_type, ownership, currency_code, initial_balance,
                 icon, color, chart_code, parent_id,
+                account_number, institution, credit_limit,
+                billing_day, payment_due_day, interest_rate,
+                low_balance_threshold, status, created_at, opened_at,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE id = $1 AND deleted_at IS NULL
@@ -232,9 +294,11 @@ impl AccountRepository for PostgresAccountRepository {
         let row = sqlx::query(
             r#"
             SELECT
-                id, name, account_type, ownership,
-                currency_code, initial_balance,
+                id, name, account_type, ownership, currency_code, initial_balance,
                 icon, color, chart_code, parent_id,
+                account_number, institution, credit_limit,
+                billing_day, payment_due_day, interest_rate,
+                low_balance_threshold, status, created_at, opened_at,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE name = $1 AND deleted_at IS NULL
@@ -251,9 +315,11 @@ impl AccountRepository for PostgresAccountRepository {
         let rows = sqlx::query(
             r#"
             SELECT
-                id, name, account_type, ownership,
-                currency_code, initial_balance,
+                id, name, account_type, ownership, currency_code, initial_balance,
                 icon, color, chart_code, parent_id,
+                account_number, institution, credit_limit,
+                billing_day, payment_due_day, interest_rate,
+                low_balance_threshold, status, created_at, opened_at,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE deleted_at IS NULL
@@ -270,9 +336,11 @@ impl AccountRepository for PostgresAccountRepository {
         let rows = sqlx::query(
             r#"
             SELECT
-                id, name, account_type, ownership,
-                currency_code, initial_balance,
+                id, name, account_type, ownership, currency_code, initial_balance,
                 icon, color, chart_code, parent_id,
+                account_number, institution, credit_limit,
+                billing_day, payment_due_day, interest_rate,
+                low_balance_threshold, status, created_at, opened_at,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE account_type = $1 AND deleted_at IS NULL
@@ -290,9 +358,11 @@ impl AccountRepository for PostgresAccountRepository {
         let rows = sqlx::query(
             r#"
             SELECT
-                id, name, account_type, ownership,
-                currency_code, initial_balance,
+                id, name, account_type, ownership, currency_code, initial_balance,
                 icon, color, chart_code, parent_id,
+                account_number, institution, credit_limit,
+                billing_day, payment_due_day, interest_rate,
+                low_balance_threshold, status, created_at, opened_at,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE ownership = $1 AND deleted_at IS NULL
@@ -323,31 +393,37 @@ impl AccountRepository for PostgresAccountRepository {
                 billing_day = $10,
                 payment_due_day = $11,
                 interest_rate = $12,
-                updated_at = $13,
-                deleted_at = $14,
-                device_id = $15,
-                synced_at = $16
-            WHERE id = $17
+                low_balance_threshold = $13,
+                status = $14,
+                opened_at = $15,
+                updated_at = $16,
+                deleted_at = $17,
+                device_id = $18,
+                synced_at = $19
+            WHERE id = $20
             RETURNING id
             "#,
         )
         .bind(&account.name)
-        .bind(account.initial_balance.amount.to_string())
+        .bind(account.initial_balance.to_cents())
         .bind(&account.icon)
         .bind(&account.color)
         .bind(&account.chart_code)
-        .bind(account.parent_id.map(|id| id.to_string()))
+        .bind(account.parent_id)
         .bind(&account.account_number)
         .bind(&account.institution)
-        .bind(account.credit_limit.as_ref().map(|m| m.amount.to_string()))
+        .bind(account.credit_limit.as_ref().map(|m| m.to_cents()))
         .bind(account.billing_day)
         .bind(account.payment_due_day)
         .bind(account.interest_rate.map(|r| r.to_string()))
-        .bind(account.sync_metadata.updated_at.to_rfc3339())
-        .bind(account.sync_metadata.deleted_at.map(|dt| dt.to_rfc3339()))
-        .bind(account.sync_metadata.device_id.to_string())
-        .bind(account.sync_metadata.synced_at.map(|dt| dt.to_rfc3339()))
-        .bind(account.id.to_string())
+        .bind(account.low_balance_threshold.map(decimal_to_cents))
+        .bind(account.status.to_string())
+        .bind(account.opened_at)
+        .bind(account.sync_metadata.updated_at)
+        .bind(account.sync_metadata.deleted_at)
+        .bind(account.sync_metadata.device_id)
+        .bind(account.sync_metadata.synced_at)
+        .bind(account.id)
         .execute(&self.pool)
         .await?;
 
@@ -374,9 +450,11 @@ impl AccountRepository for PostgresAccountRepository {
         let rows = sqlx::query(
             r#"
             SELECT
-                id, name, account_type, ownership,
-                currency_code, initial_balance,
+                id, name, account_type, ownership, currency_code, initial_balance,
                 icon, color, chart_code, parent_id,
+                account_number, institution, credit_limit,
+                billing_day, payment_due_day, interest_rate,
+                low_balance_threshold, status, created_at, opened_at,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
             ORDER BY name ASC
@@ -392,9 +470,11 @@ impl AccountRepository for PostgresAccountRepository {
         let rows = sqlx::query(
             r#"
             SELECT
-                id, name, account_type, ownership,
-                currency_code, initial_balance,
+                id, name, account_type, ownership, currency_code, initial_balance,
                 icon, color, chart_code, parent_id,
+                account_number, institution, credit_limit,
+                billing_day, payment_due_day, interest_rate,
+                low_balance_threshold, status, created_at, opened_at,
                 updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE updated_at > $1 AND (synced_at IS NULL OR synced_at < updated_at)

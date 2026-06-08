@@ -22,9 +22,9 @@ pub mod transaction_template_commands;
 // main.rs imports directly from submodules, so these appear unused to the binary target.
 #[allow(unused_imports)]
 pub use account_commands::{
-    create_account, delete_account, get_account, get_account_balance, list_accounts,
-    list_accounts_by_ownership, list_accounts_with_balances, update_account, archive_account,
-    hide_account, reactivate_account, AppState,
+    archive_account, create_account, delete_account, get_account, get_account_balance,
+    hide_account, list_accounts, list_accounts_by_ownership, list_accounts_with_balances,
+    reactivate_account, update_account, AppState,
 };
 #[allow(unused_imports)]
 pub use backup_commands::{

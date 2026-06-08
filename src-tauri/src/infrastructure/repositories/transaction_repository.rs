@@ -540,13 +540,11 @@ impl TransactionRepository for SqliteTransactionRepository {
             .bind(entry.id.to_string())
             .bind(transaction.id.to_string())
             .bind(entry.account_id.to_string())
-            .bind(
-                if entry.chart_of_account_code.is_empty() {
-                    None::<&str>
-                } else {
-                    Some(entry.chart_of_account_code.as_str())
-                }
-            )
+            .bind(if entry.chart_of_account_code.is_empty() {
+                None::<&str>
+            } else {
+                Some(entry.chart_of_account_code.as_str())
+            })
             .bind(debit_amount)
             .bind(credit_amount)
             .bind(&entry.note)
@@ -648,13 +646,11 @@ impl TransactionRepository for SqliteTransactionRepository {
                 .bind(entry.id.to_string())
                 .bind(transaction.id.to_string())
                 .bind(entry.account_id.to_string())
-                .bind(
-                    if entry.chart_of_account_code.is_empty() {
-                        None::<&str>
-                    } else {
-                        Some(entry.chart_of_account_code.as_str())
-                    }
-                )
+                .bind(if entry.chart_of_account_code.is_empty() {
+                    None::<&str>
+                } else {
+                    Some(entry.chart_of_account_code.as_str())
+                })
                 .bind(debit_amount)
                 .bind(credit_amount)
                 .bind(&entry.note)
