@@ -4,10 +4,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Plus,
   Trash2,
-  Wallet,
-  TrendingUp,
-  TrendingDown,
-  Target,
   ChevronLeft,
   ChevronRight,
   PiggyBank,
@@ -19,8 +15,6 @@ import { Button } from '../components/ui/button';
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from '../components/ui/card';
 import {
   Dialog,
@@ -39,6 +33,9 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { Progress } from '../components/ui/progress';
+import { PageShell } from '@/components/patterns/layout/PageShell';
+import { PageHeader } from '@/components/patterns/layout/PageHeader';
+import { StatCard } from '@/components/patterns/cards/StatCard';
 import {
   useBudgetByMonth,
   useCreateBudget,
@@ -230,44 +227,49 @@ export function BudgetPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 flex items-center justify-center">
-        <div className="text-muted-foreground">{t('common.loading')}</div>
-      </div>
+      <PageShell>
+        <div className="flex items-center justify-center">
+          <div className="text-muted-foreground">{t('common.loading')}</div>
+        </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="p-4 sm:p-6">
+    <PageShell>
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
-        <h1 className="text-2xl font-bold sm:text-3xl">{t('budget.title')}</h1>
-        {budget && (
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={handleCopyToNextMonth}
-              disabled={cloneBudgetMutation.isPending}
-            >
-              <Copy className="h-4 w-4 mr-1" />
-              {t('budget.copyToNextMonth')}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setShowAddItemDialog(true)}
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              {t('budget.addItem')}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => setDeleteConfirmId(budget.id)}
-            >
-              <Trash2 className="h-4 w-4 mr-1" />
-              {t('budget.deleteBudget')}
-            </Button>
-          </div>
-        )}
-      </div>
+      <PageHeader
+        title={t('budget.title')}
+        subtitle={formatMonth(currentMonth, t)}
+        actions={
+          budget ? (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={handleCopyToNextMonth}
+                disabled={cloneBudgetMutation.isPending}
+              >
+                <Copy className="h-4 w-4 mr-1" />
+                {t('budget.copyToNextMonth')}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowAddItemDialog(true)}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                {t('budget.addItem')}
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => setDeleteConfirmId(budget.id)}
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                {t('budget.deleteBudget')}
+              </Button>
+            </div>
+          ) : undefined
+        }
+      />
 
       {/* Month Selector */}
       <div className="flex items-center justify-center gap-4 mb-6">
@@ -294,89 +296,29 @@ export function BudgetPage() {
         </div>
       ) : (
         <>
-          {/* Budget Overview Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {t('budget.totalBudget')}
-                </CardTitle>
-                <Wallet className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {getCurrencySymbol(budget.currency_code)}
-                  {formatBudgetAmount(budget.total_amount)}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {t('budget.used')}
-                </CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-amber-600">
-                  {getCurrencySymbol(budget.currency_code)}
-                  {formatBudgetAmount(budget.total_actual)}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {t('budget.remaining')}
-                </CardTitle>
-                <TrendingDown className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div
-                  className={`text-2xl font-bold ${
-                    parseFloat(budget.total_remaining) >= 0
-                      ? 'text-emerald-600'
-                      : 'text-red-600'
-                  }`}
-                >
-                  {getCurrencySymbol(budget.currency_code)}
-                  {formatBudgetAmount(budget.total_remaining)}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {t('budget.usageRate')}
-                </CardTitle>
-                <Target className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div
-                  className={`text-2xl font-bold ${getBudgetStatusColor(
-                    budget.usage_percentage
-                  )}`}
-                >
-                  {budget.usage_percentage.toFixed(1)}%
-                </div>
-                <Progress
-                  value={Math.min(budget.usage_percentage, 100)}
-                  className="mt-2"
-                >
-                  <div
-                    className={`h-full rounded-full ${getBudgetProgressColor(
-                      budget.usage_percentage
-                    )}`}
-                    style={{
-                      width: `${Math.min(budget.usage_percentage, 100)}%`,
-                    }}
-                  />
-                </Progress>
-              </CardContent>
-            </Card>
+          {/* Summary StatCards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5 mb-7">
+            <StatCard
+              label={t('budget.totalBudget')}
+              value={`${getCurrencySymbol(budget.currency_code)}${formatBudgetAmount(budget.total_amount)}`}
+            />
+            <StatCard
+              label={t('budget.used')}
+              value={`${getCurrencySymbol(budget.currency_code)}${formatBudgetAmount(budget.total_actual)}`}
+              tag={t('budget.usageRate')}
+              tagVariant="neutral"
+            />
+            <StatCard
+              label={t('budget.remaining')}
+              value={`${getCurrencySymbol(budget.currency_code)}${formatBudgetAmount(budget.total_remaining)}`}
+              tag={parseFloat(budget.total_remaining) >= 0 ? t('budget.remaining') : ''}
+              tagVariant={parseFloat(budget.total_remaining) >= 0 ? 'positive' : 'negative'}
+            />
+            <StatCard
+              label={t('budget.usageRate')}
+              value={`${budget.usage_percentage.toFixed(1)}%`}
+              tagVariant={budget.usage_percentage > 90 ? 'negative' : 'positive'}
+            />
           </div>
 
           {/* Budget Items */}
@@ -390,7 +332,7 @@ export function BudgetPage() {
             ) : (
               <div className="grid gap-4">
                 {budget.items.map((item) => (
-                  <Card key={item.id}>
+                  <Card key={item.id} className="rounded-[14px] border border-border">
                     <CardContent className="pt-4">
                       <div className="flex items-center justify-between mb-4">
                         <div>
@@ -666,6 +608,6 @@ export function BudgetPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }
