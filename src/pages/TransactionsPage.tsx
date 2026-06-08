@@ -2,7 +2,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
-import { useSearch } from '@tanstack/react-router';
+import { useSearch, useNavigate } from '@tanstack/react-router';
+import { PageShell } from '@/components/patterns/layout/PageShell';
+import { PageHeader } from '@/components/patterns/layout/PageHeader';
+import { StatCard } from '@/components/patterns/cards/StatCard';
+import { FilterBar } from '@/components/patterns/layout/FilterBar';
 import { SimpleTransactionForm, type TransactionFormData } from '../components/SimpleTransactionForm';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -78,6 +82,7 @@ export function TransactionsPage() {
 
   const queryClient = useQueryClient();
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   const batchDeleteMutation = useMutation({
     mutationFn: batchDeleteTransactions,
@@ -270,6 +275,18 @@ export function TransactionsPage() {
     });
     return result;
   }, [transactions, typeFilter, ownAccountFilter, externalAccountFilter, searchQuery, ownAccounts.length, externalAccounts.length, sortColumn, sortDirection, getTransactionType]);
+
+  const periodSummary = useMemo(() => {
+    let totalIncome = 0;
+    let totalExpense = 0;
+    filteredTransactions.forEach(tx => {
+      const type = getTransactionType(tx);
+      const amount = getTransactionAmount(tx);
+      if (type === 'income') totalIncome += amount;
+      else if (type === 'expense') totalExpense += amount;
+    });
+    return { totalIncome, totalExpense, net: totalIncome - totalExpense };
+  }, [filteredTransactions, getTransactionType]);
 
   const getEditInitialData = (tx: TransactionDto): TransactionFormData => {
     const txType = getTransactionType(tx);
@@ -475,45 +492,49 @@ export function TransactionsPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
-        <h1 className="text-2xl font-bold sm:text-3xl">{t('transactions.title')}</h1>
-        <Button variant="default-gradient" onClick={() => setIsSheetOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          {t('transactions.recordTransaction')}
-        </Button>
+    <PageShell>
+      <PageHeader
+        title={t('transactions.title')}
+        actions={
+          <Button onClick={() => navigate({ to: '/transactions/new' })}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            {t('transactions.recordTransaction')}
+          </Button>
+        }
+      />
+
+      {/* Summary StatCards */}
+      <div className="grid grid-cols-3 gap-3.5 mb-7">
+        <StatCard label={t('transactions.totalIncome')} value={`¥${periodSummary.totalIncome.toFixed(2)}`} tagVariant="positive" />
+        <StatCard label={t('transactions.totalExpense')} value={`¥${periodSummary.totalExpense.toFixed(2)}`} tagVariant="negative" />
+        <StatCard label={t('transactions.netAmount')} value={`¥${periodSummary.net.toFixed(2)}`} tagVariant={periodSummary.net >= 0 ? 'positive' : 'negative'} />
       </div>
 
       {/* Period Selector */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        <Button
-          variant={dateRangePreset === 'month' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setDateRangePreset('month')}
-        >
-          {t('reports.thisMonth')}
-        </Button>
-        <Button
-          variant={dateRangePreset === 'quarter' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setDateRangePreset('quarter')}
-        >
-          {t('reports.thisQuarter')}
-        </Button>
-        <Button
-          variant={dateRangePreset === 'year' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setDateRangePreset('year')}
-        >
-          {t('reports.thisYear')}
-        </Button>
-        <Button
-          variant={dateRangePreset === 'custom' ? 'default' : 'outline'}
-          size="sm"
+        {(['month', 'quarter', 'year'] as DateRangePreset[]).map(preset => (
+          <button
+            key={preset}
+            onClick={() => setDateRangePreset(preset)}
+            className={`rounded-full border px-3 py-1.5 text-[13px] transition-colors ${
+              dateRangePreset === preset
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-border text-muted-foreground hover:border-primary hover:text-foreground'
+            }`}
+          >
+            {t(`reports.${preset === 'month' ? 'thisMonth' : preset === 'quarter' ? 'thisQuarter' : 'thisYear'}`)}
+          </button>
+        ))}
+        <button
           onClick={() => setDateRangePreset('custom')}
+          className={`rounded-full border px-3 py-1.5 text-[13px] transition-colors ${
+            dateRangePreset === 'custom'
+              ? 'border-primary bg-primary text-primary-foreground'
+              : 'border-border text-muted-foreground hover:border-primary hover:text-foreground'
+          }`}
         >
           {t('reports.custom')}
-        </Button>
+        </button>
         {dateRangePreset === 'custom' && (
           <div className="flex items-center gap-2 ml-2">
             <Input
@@ -538,25 +559,17 @@ export function TransactionsPage() {
 
       {/* Filter Bar */}
       <div className="flex flex-wrap items-center gap-3 mb-4 p-3 bg-muted/50 rounded-lg">
-        <div className="flex items-center gap-1">
-          {(['all', 'expense', 'income', 'transfer'] as const).map((filterType) => (
-            <Button
-              key={filterType}
-              variant={typeFilter === filterType ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setTypeFilter(filterType)}
-              className="text-xs h-7 px-2.5"
-            >
-              {filterType === 'all'
-                ? t('transactions.allTypes')
-                : filterType === 'expense'
-                  ? t('transaction.expense')
-                  : filterType === 'income'
-                    ? t('transaction.income')
-                    : t('transaction.transfer')}
-            </Button>
-          ))}
-        </div>
+        <FilterBar
+          options={[
+            { label: t('transactions.allTypes'), value: 'all' },
+            { label: t('transaction.expense'), value: 'expense' },
+            { label: t('transaction.income'), value: 'income' },
+            { label: t('transaction.transfer'), value: 'transfer' },
+          ]}
+          value={typeFilter}
+          onChange={(v) => setTypeFilter(v as TransactionType_)}
+          className="mb-0"
+        />
         <div className="hidden sm:block w-px h-5 bg-border" />
         <div className="flex items-center gap-2">
           <span className="text-[11px] text-muted-foreground hidden sm:inline">
@@ -610,12 +623,12 @@ export function TransactionsPage() {
               ? t('transactions.noTransactionsInRange')
               : t('transactions.noTransactions')}
           </p>
-          <Button variant="default-gradient" onClick={() => setIsSheetOpen(true)}>
+          <Button onClick={() => navigate({ to: '/transactions/new' })}>
             {t('transactions.recordFirst')}
           </Button>
         </div>
       ) : (
-        <div className="border rounded-lg overflow-x-auto">
+        <div className="rounded-[14px] border border-border bg-card overflow-hidden overflow-x-auto">
           {/* Batch Action Bar */}
           {selectedIds.size > 0 && (
             <div className="flex items-center gap-3 px-4 py-2 bg-muted/70 border-b">
@@ -642,7 +655,7 @@ export function TransactionsPage() {
           )}
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="bg-muted/50">
                 <TableHead className="w-[40px] px-2">
                   <input
                     type="checkbox"
@@ -696,8 +709,12 @@ export function TransactionsPage() {
                 const txType = getTransactionType(transaction);
                 const amount = getTransactionAmount(transaction);
                 return (
-                  <TableRow key={transaction.id}>
-                    <TableCell className="w-[40px] px-2">
+                  <TableRow
+                    key={transaction.id}
+                    className="cursor-pointer hover:bg-muted/30"
+                    onClick={() => navigate({ to: '/transactions/$transactionId', params: { transactionId: transaction.id } })}
+                  >
+                    <TableCell className="w-[40px] px-2" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={selectedIds.has(transaction.id)}
@@ -723,30 +740,33 @@ export function TransactionsPage() {
                     </TableCell>
                     <TableCell>
                       {inlineEditId === transaction.id ? (
-                        <Input
-                          value={inlineEditValue}
-                          onChange={(e) => setInlineEditValue(e.target.value)}
-                          onBlur={() => {
-                            if (inlineEditEscapeRef.current) {
-                              inlineEditEscapeRef.current = false;
-                              return;
-                            }
-                            handleInlineSave(transaction);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleInlineSave(transaction);
-                            if (e.key === 'Escape') {
-                              inlineEditEscapeRef.current = true;
-                              setInlineEditId(null);
-                            }
-                          }}
-                          className="h-7 text-sm border-2 border-blue-500"
-                          autoFocus
-                        />
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <Input
+                            value={inlineEditValue}
+                            onChange={(e) => setInlineEditValue(e.target.value)}
+                            onBlur={() => {
+                              if (inlineEditEscapeRef.current) {
+                                inlineEditEscapeRef.current = false;
+                                return;
+                              }
+                              handleInlineSave(transaction);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleInlineSave(transaction);
+                              if (e.key === 'Escape') {
+                                inlineEditEscapeRef.current = true;
+                                setInlineEditId(null);
+                              }
+                            }}
+                            className="h-7 text-sm border-2 border-blue-500"
+                            autoFocus
+                          />
+                        </div>
                       ) : (
                         <span
                           className="cursor-pointer hover:text-blue-600 hover:underline decoration-dotted"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setInlineEditId(transaction.id);
                             setInlineEditValue(transaction.description);
                           }}
@@ -767,7 +787,7 @@ export function TransactionsPage() {
                     <TableCell className="text-neutral-600">
                       {getTransactionAccounts(transaction)}
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -926,6 +946,6 @@ export function TransactionsPage() {
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

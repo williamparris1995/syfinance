@@ -411,7 +411,10 @@
     "clearSelection": "Clear Selection",
     "confirmBatchDelete": "Are you sure you want to delete {{count}} transactions?",
     "pageInfo": "Page {{page}} of {{total}}",
-    "detailTitle": "Transaction Details"
+    "detailTitle": "Transaction Details",
+    "totalIncome": "Total Income",
+    "totalExpense": "Total Expense",
+    "netAmount": "Net Amount"
   },
   "transaction": {
     "expense": "Expense",

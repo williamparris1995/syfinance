@@ -375,7 +375,10 @@
     "clearSelection": "取消选择",
     "confirmBatchDelete": "确定要删除 {{count}} 笔交易吗？",
     "pageInfo": "第 {{page}} 页 / 共 {{total}} 页",
-    "detailTitle": "交易详情"
+    "detailTitle": "交易详情",
+    "totalIncome": "总收入",
+    "totalExpense": "总支出",
+    "netAmount": "净额"
   },
   "transaction": {
     "expense": "支出",
