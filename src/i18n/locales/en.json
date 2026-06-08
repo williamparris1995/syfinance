@@ -334,6 +334,7 @@
     "interestRateDesc": "Annual interest rate as percentage",
     "creating": "Creating...",
     "createAccount": "Create Account",
+    "createAccountDesc": "Add a new account to track your finances.",
     "nameRequired": "Name is required",
     "accountTypeRequired": "Account type is required",
     "currencyRequired": "Currency code is required",

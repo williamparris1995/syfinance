@@ -300,6 +300,7 @@
     "interestRateDesc": "年利率百分比",
     "creating": "创建中...",
     "createAccount": "创建账户",
+    "createAccountDesc": "添加新账户以管理您的财务。",
     "nameRequired": "名称为必填项",
     "accountTypeRequired": "账户类型为必填项",
     "currencyRequired": "货币代码为必填项",
