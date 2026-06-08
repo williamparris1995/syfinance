@@ -552,7 +552,11 @@
     "nameDesc": "The liability (BorrowedIn) or receivable (BorrowedOut) account for this debt",
     "transactionHistory": "Transaction History",
     "noTransactions": "No transactions yet",
-    "detailTitle": "Debt Details"
+    "detailTitle": "Debt Details",
+    "totalDebts": "Active Debts",
+    "totalRemaining": "Total Remaining",
+    "overdueCount": "Overdue",
+    "needsAttention": "Needs attention"
   },
   "debtForm": {
     "debtType": "Debt Type",

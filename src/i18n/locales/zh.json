@@ -515,7 +515,11 @@
     "namePlaceholder": "例如：房贷、车贷",
     "transactionHistory": "交易记录",
     "noTransactions": "暂无交易记录",
-    "detailTitle": "债务详情"
+    "detailTitle": "债务详情",
+    "totalDebts": "活跃债务",
+    "totalRemaining": "剩余总额",
+    "overdueCount": "逾期数",
+    "needsAttention": "需关注"
   },
   "reports": {
     "title": "报表",

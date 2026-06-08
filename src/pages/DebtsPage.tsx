@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 import { AlertCircle, ArrowDown, ArrowUp, Banknote, Calendar, Copy, Eye, Pencil, Search, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { DebtDetailPanel } from '../components/DebtDetailPanel';
 import { DebtForm } from '../components/DebtForm';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -51,6 +51,10 @@ import {
   type UpdateDebtDto,
 } from '../lib/tauri/debt';
 import { listAccountsWithBalances, type AccountDto } from '../lib/tauri/account';
+import { PageShell } from '@/components/patterns/layout/PageShell';
+import { PageHeader } from '@/components/patterns/layout/PageHeader';
+import { StatCard } from '@/components/patterns/cards/StatCard';
+import { FilterBar } from '@/components/patterns/layout/FilterBar';
 
 type SortColumn = 'name' | 'type' | 'counterparty' | 'principal' | 'remaining' | 'dueDate' | 'status';
 type TypeFilter = 'all' | 'BorrowedIn' | 'BorrowedOut' | 'CreditCard';
@@ -85,9 +89,9 @@ function getDebtStatus(debt: DebtDto, t: (key: string) => string) {
 
 export function DebtsPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingDebt, setEditingDebt] = useState<DebtDto | null>(null);
-  const [viewingDebt, setViewingDebt] = useState<DebtDto | null>(null);
   const [deletingDebt, setDeletingDebt] = useState<DebtDto | null>(null);
   const [copyingDebt, setCopyingDebt] = useState<DebtDto | null>(null);
   const [paymentToRecord, setPaymentToRecord] = useState<{
@@ -163,7 +167,7 @@ export function DebtsPage() {
     },
     onError: (_err, _id, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(['debts'], ctx.prev);
-      toast.error(t('common.error'));
+      toast.error(t('common.errorGeneric'));
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['debts'] });
@@ -180,7 +184,6 @@ export function DebtsPage() {
       queryClient.invalidateQueries({ queryKey: ['debts'] });
       queryClient.invalidateQueries({ queryKey: ['upcoming-payments'] });
       setPaymentToRecord(null);
-      setViewingDebt(null);
       setPaymentSourceId(''); setPaymentDate(new Date().toISOString().split('T')[0]); setPaymentAmount('');
       toast.success(t('debts.paymentRecorded'));
     },
@@ -294,32 +297,45 @@ export function DebtsPage() {
   ];
 
   return (
-    <div className="p-4 sm:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
-        <h1 className="text-2xl font-bold sm:text-3xl">{t('debts.title')}</h1>
-        <Button variant="default-gradient" onClick={() => { setIsSheetOpen(true); setCopyingDebt(null); }}>
-          {t('debts.createDebt')}
-        </Button>
+    <PageShell>
+      <PageHeader
+        title={t('debts.title')}
+        actions={
+          <Button onClick={() => { setIsSheetOpen(true); setCopyingDebt(null); }}>
+            {t('debts.createDebt')}
+          </Button>
+        }
+      />
+
+      {/* Summary StatCards */}
+      <div className="grid grid-cols-3 gap-3.5 mb-7">
+        <StatCard label={t('debts.totalDebts')} value={String(debts.filter(d => parseFloat(d.remaining_principal) > 0).length)} />
+        <StatCard label={t('debts.totalRemaining')} value={formatCurrency(
+          debts.reduce((sum, d) => sum + parseFloat(d.remaining_principal), 0).toString(), 'CNY'
+        )} tagVariant="negative" />
+        <StatCard label={t('debts.overdueCount')} value={String(overdueDebts.length)}
+          tag={overdueDebts.length > 0 ? t('debts.needsAttention') : undefined}
+          tagVariant={overdueDebts.length > 0 ? 'negative' : 'positive'} />
       </div>
 
       {overdueDebts.length > 0 && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+        <div className="mb-4 p-4 bg-expense/5 border border-expense/20 rounded-[14px]">
           <div className="flex items-center gap-2 mb-3">
-            <AlertCircle className="h-5 w-5 text-red-600" />
-            <h2 className="text-lg font-semibold text-red-900">{t('debts.overdueDebts')}</h2>
+            <AlertCircle className="h-5 w-5 text-expense" />
+            <h2 className="text-lg font-semibold text-expense">{t('debts.overdueDebts')}</h2>
           </div>
           <div className="space-y-2">
             {overdueDebts.map((debt) => (
-              <div key={debt.account_id} className="flex items-center justify-between p-3 bg-white rounded border border-red-200">
+              <div key={debt.account_id} className="flex items-center justify-between p-3 bg-card rounded-lg border border-expense/20">
                 <div>
-                  <div className="font-medium text-red-900">{debt.account_name} ({debt.counterparty})</div>
-                  <div className="text-sm text-red-700">
+                  <div className="font-medium text-expense">{debt.account_name} ({debt.counterparty})</div>
+                  <div className="text-sm text-muted-foreground">
                     {t('debts.due')}: {new Date(debt.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-semibold text-red-900">{formatCurrency(debt.remaining_principal, debt.currency_code)}</div>
-                  <div className="text-sm text-red-700">{debtTypeLabel(debt.account_type, t)}</div>
+                  <div className="font-semibold text-expense">{formatCurrency(debt.remaining_principal, debt.currency_code)}</div>
+                  <div className="text-sm text-muted-foreground">{debtTypeLabel(debt.account_type, t)}</div>
                 </div>
               </div>
             ))}
@@ -328,22 +344,22 @@ export function DebtsPage() {
       )}
 
       {upcomingPayments.length > 0 && (
-        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="mb-4 p-4 bg-primary/5 border border-primary/20 rounded-[14px]">
           <div className="flex items-center gap-2 mb-3">
-            <Calendar className="h-5 w-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-blue-900">{t('debts.upcomingPayments')}</h2>
+            <Calendar className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold text-primary">{t('debts.upcomingPayments')}</h2>
           </div>
           <div className="space-y-2">
             {upcomingPayments.map((item, i) => (
-              <div key={`${item.debt.account_id}-${i}`} className="flex items-center justify-between p-3 bg-white rounded border border-blue-200">
+              <div key={`${item.debt.account_id}-${i}`} className="flex items-center justify-between p-3 bg-card rounded-lg border border-primary/20">
                 <div>
-                  <div className="font-medium text-blue-900">{item.debt.account_name} ({item.debt.counterparty})</div>
-                  <div className="text-sm text-blue-700">
+                  <div className="font-medium text-primary">{item.debt.account_name} ({item.debt.counterparty})</div>
+                  <div className="text-sm text-muted-foreground">
                     {t('debts.paymentDate')}: {new Date(item.payment.payment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-semibold text-blue-900">{formatCurrency(item.payment.total_amount, item.debt.currency_code)}</div>
+                  <div className="font-semibold text-primary">{formatCurrency(item.payment.total_amount, item.debt.currency_code)}</div>
                   <Button size="sm" variant="outline" onClick={() => { setPaymentToRecord({ debt: item.debt, payment: item.payment }); setPaymentSourceId(''); setPaymentDate(new Date().toISOString().split('T')[0]); setPaymentAmount(item.payment.total_amount); }} className="mt-1">
                     {t('debts.recordPayment')}
                   </Button>
@@ -354,66 +370,44 @@ export function DebtsPage() {
         </div>
       )}
 
-      {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <div className="flex gap-1">
-          {typeFilterButtons.map((btn) => (
-            <Button
-              key={btn.value}
-              size="sm"
-              variant={typeFilter === btn.value ? 'default' : 'outline'}
-              onClick={() => setTypeFilter(btn.value)}
-              className="h-7 text-xs"
-            >
-              {btn.label}
-            </Button>
-          ))}
-        </div>
-        <div className="flex gap-1 ml-2">
-          {statusFilterButtons.map((btn) => (
-            <Button
-              key={btn.value}
-              size="sm"
-              variant={statusFilter === btn.value ? 'default' : 'outline'}
-              onClick={() => setStatusFilter(btn.value)}
-              className="h-7 text-xs"
-            >
-              {btn.label}
-            </Button>
-          ))}
-        </div>
+      {/* Filter bars */}
+      <div className="flex flex-wrap items-center gap-3 mb-6">
+        <FilterBar
+          options={typeFilterButtons.map(b => ({ label: b.label, value: b.value }))}
+          value={typeFilter}
+          onChange={(v) => setTypeFilter(v as TypeFilter)}
+        />
+        <FilterBar
+          options={statusFilterButtons.map(b => ({ label: b.label, value: b.value }))}
+          value={statusFilter}
+          onChange={(v) => setStatusFilter(v as StatusFilter)}
+        />
         <div className="relative ml-auto">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            placeholder={t('debts.searchDebts')}
-            value={searchQuery}
+          <Input placeholder={t('debts.searchDebts')} value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-7 pl-7 w-48 text-xs"
-          />
+            className="h-8 pl-7 w-48 text-xs" />
         </div>
-        <span className="text-xs text-muted-foreground ml-2">
-          {filteredAndSortedDebts.length} {t('debts.results')}
-        </span>
       </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="text-neutral-500">{t('debts.loadingDebts')}</div>
+          <div className="text-muted-foreground">{t('debts.loadingDebts')}</div>
         </div>
       ) : filteredAndSortedDebts.length === 0 && debts.length > 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="text-neutral-500">{t('debts.noResults')}</p>
+          <p className="text-muted-foreground">{t('debts.noResults')}</p>
         </div>
       ) : debts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="text-neutral-500 mb-4">{t('debts.noDebts')}</p>
+          <p className="text-muted-foreground mb-4">{t('debts.noDebts')}</p>
           <Button onClick={() => { setIsSheetOpen(true); setCopyingDebt(null); }}>{t('debts.createFirstDebt')}</Button>
         </div>
       ) : (
-        <div className="border rounded-lg">
+        <div className="rounded-[14px] border border-border bg-card overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="bg-muted/50">
                 <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('name')}>
                   {t('debts.name')} {sortIcon('name')}
                 </TableHead>
@@ -442,7 +436,11 @@ export function DebtsPage() {
               {filteredAndSortedDebts.map((debt) => {
                 const status = getDebtStatus(debt, t);
                 return (
-                  <TableRow key={debt.account_id}>
+                  <TableRow
+                    key={debt.account_id}
+                    className="cursor-pointer hover:bg-muted/30"
+                    onClick={() => navigate({ to: '/debts/$debtId', params: { debtId: debt.account_id } })}
+                  >
                     <TableCell className="font-medium">{debt.account_name}</TableCell>
                     <TableCell>{debtTypeLabel(debt.account_type, t)}</TableCell>
                     <TableCell>{debt.counterparty}</TableCell>
@@ -453,23 +451,26 @@ export function DebtsPage() {
                     <TableCell>
                       <div className="flex gap-1">
                         {debt.payment_schedule.some(p => !p.paid) && (
-                          <Button variant="ghost" size="icon-sm" onClick={() => {
+                          <Button variant="ghost" size="icon-sm" onClick={(e) => {
+                            e.stopPropagation();
                             const firstUnpaid = debt.payment_schedule.find(p => !p.paid);
                             if (firstUnpaid) { setPaymentToRecord({ debt, payment: firstUnpaid }); setPaymentSourceId(''); setPaymentDate(new Date().toISOString().split('T')[0]); setPaymentAmount(firstUnpaid.total_amount); }
                           }} title={t('debts.recordPayment')}>
                             <Banknote className="h-3.5 w-3.5 text-emerald-600" />
                           </Button>
                         )}
-                        <Button variant="ghost" size="icon-sm" onClick={() => setViewingDebt(debt)} title={t('debts.view')}>
+                        <Button variant="ghost" size="icon-sm"
+                          onClick={(e) => { e.stopPropagation(); navigate({ to: '/debts/$debtId', params: { debtId: debt.account_id } }); }}
+                          title={t('debts.view')}>
                           <Eye className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon-sm" onClick={() => setEditingDebt(debt)} title={t('debts.editDebt')}>
+                        <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); setEditingDebt(debt); }} title={t('debts.editDebt')}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon-sm" onClick={() => { setCopyingDebt(debt); setIsSheetOpen(true); }} title={t('debts.copyDebt')}>
+                        <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); setCopyingDebt(debt); setIsSheetOpen(true); }} title={t('debts.copyDebt')}>
                           <Copy className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon-sm" onClick={() => setDeletingDebt(debt)} title={t('debts.deleteDebt')}>
+                        <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); setDeletingDebt(debt); }} title={t('debts.deleteDebt')}>
                           <Trash2 className="h-3.5 w-3.5 text-destructive" />
                         </Button>
                       </div>
@@ -537,15 +538,6 @@ export function DebtsPage() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* View Sheet (DebtDetailPanel with schedule + transactions) */}
-      {viewingDebt && (
-        <DebtDetailPanel
-          debt={viewingDebt}
-          open={!!viewingDebt}
-          onOpenChange={(open) => { if (!open) setViewingDebt(null); }}
-        />
-      )}
 
       {/* Record Payment Sheet */}
       <Sheet open={!!paymentToRecord} onOpenChange={() => setPaymentToRecord(null)}>
@@ -618,6 +610,6 @@ export function DebtsPage() {
           </div>
         </SheetContent>
       </Sheet>
-    </div>
+    </PageShell>
   );
 }
