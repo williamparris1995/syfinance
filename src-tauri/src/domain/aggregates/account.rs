@@ -398,15 +398,10 @@ fn validate_balance(
         });
     }
 
-    if matches!(
-        account_type,
-        AccountType::Cash
-            | AccountType::Bank
-            | AccountType::Investment
-            | AccountType::BorrowedOut
-            | AccountType::Prepaid
-    ) && balance.amount < Decimal::ZERO
-    {
+    // Only Cash accounts cannot start with a negative balance.
+    // All other types (Bank, CreditCard, Investment, etc.) allow it —
+    // bank overdrafts, investment losses, etc. are valid use cases.
+    if matches!(account_type, AccountType::Cash) && balance.amount < Decimal::ZERO {
         return Err(AccountError::NegativeBalanceNotAllowed {
             account_type: account_type.clone(),
             balance: balance.amount,
@@ -506,7 +501,7 @@ mod tests {
             }
 
             #[test]
-            fn investment_account_with_negative_balance_fails() {
+            fn investment_account_with_negative_balance_succeeds() {
                 let result = Account::new(
                     Uuid::new_v4(),
                     "Brokerage",
@@ -521,10 +516,56 @@ mod tests {
                     metadata(),
                 );
 
+                assert!(result.is_ok());
+                assert_eq!(
+                    result.unwrap().initial_balance.amount,
+                    Decimal::new(-1, 2)
+                );
+            }
+
+            #[test]
+            fn bank_account_with_negative_balance_succeeds() {
+                let result = Account::new(
+                    Uuid::new_v4(),
+                    "Overdraft Account",
+                    AccountType::Bank,
+                    Ownership::Own,
+                    &currency("CNY"),
+                    money(-500, "CNY"),
+                    "🏦",
+                    "#10B981",
+                    None,
+                    None,
+                    metadata(),
+                );
+
+                assert!(result.is_ok());
+                assert_eq!(
+                    result.unwrap().initial_balance.amount,
+                    Decimal::new(-500, 2)
+                );
+            }
+
+            #[test]
+            fn cash_account_with_negative_balance_still_fails() {
+                let result = Account::new(
+                    Uuid::new_v4(),
+                    "Wallet",
+                    AccountType::Cash,
+                    Ownership::Own,
+                    &currency("CNY"),
+                    money(-50, "CNY"),
+                    "💵",
+                    "#10B981",
+                    None,
+                    None,
+                    metadata(),
+                );
+
                 assert!(matches!(
                     result,
                     Err(AccountError::NegativeBalanceNotAllowed {
-                        account_type: AccountType::Investment,
+                        account_type: AccountType::Cash,
                         ..
                     })
                 ));
