@@ -1082,7 +1082,9 @@
     "goalDeleteFailed": "删除目标失败: {{error}}",
     "goalProgressSyncFailed": "同步进度失败: {{error}}",
     "validAmountRequired": "请输入有效的金额",
-    "detailTitle": "目标详情"
+    "detailTitle": "目标详情",
+    "of": "/",
+    "completedDate": "完成日期"
   },
   "holdings": {
     "detailTitle": "持仓详情"

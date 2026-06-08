@@ -1073,7 +1073,9 @@
     "goalDeleteFailed": "Failed to delete goal: {{error}}",
     "goalProgressSyncFailed": "Failed to sync progress: {{error}}",
     "validAmountRequired": "Please enter a valid amount",
-    "detailTitle": "Goal Details"
+    "detailTitle": "Goal Details",
+    "of": "of",
+    "completedDate": "Completed Date"
   },
   "holdings": {
     "detailTitle": "Holding Details"
