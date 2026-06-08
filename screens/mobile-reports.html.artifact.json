@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "screens/mobile-reports.html",
+  "entry": "screens/mobile-reports.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-06-08T08:40:16.911Z",
+  "updatedAt": "2026-06-08T08:40:16.911Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}

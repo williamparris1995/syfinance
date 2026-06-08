@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "screens/mobile-settings.html",
+  "entry": "screens/mobile-settings.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-06-08T08:40:18.800Z",
+  "updatedAt": "2026-06-08T08:40:18.800Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}

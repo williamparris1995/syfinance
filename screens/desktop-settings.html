@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>御财 · 设置</title>
+  <style>
+    :root {
+      --bg: #f7f6f2; --surface: #ffffff; --fg: #1a1916; --muted: #7a7770; --border: #e6e3dc; --accent: #b08d57;
+      --sidebar-bg: #1c1e21; --sidebar-fg: #c5c3be; --sidebar-hover: #2a2c30; --sidebar-active: #323539;
+      --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent);
+      --positive: #2d8a6e; --negative: #c4544d;
+      --font-display: 'Iowan Old Style', 'Charter', Georgia, 'Noto Serif SC', serif;
+      --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', system-ui, sans-serif;
+      --font-mono: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+      --fs-h1: 28px; --fs-h2: 22px; --fs-h3: 17px; --fs-body: 14px; --fs-meta: 12px;
+      --gap-sm: 12px; --gap-md: 20px; --gap-lg: 28px;
+      --radius: 10px; --radius-lg: 14px; --sidebar-w: 240px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: var(--fs-body); line-height: 1.55; -webkit-font-smoothing: antialiased; display: flex; min-height: 100vh; }
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; cursor: pointer; background: none; border: none; }
+
+    .sidebar { width: var(--sidebar-w); min-height: 100vh; background: var(--sidebar-bg); color: var(--sidebar-fg); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 20; }
+    .sidebar-brand { padding: 24px 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .sidebar-brand h2 { font-family: var(--font-display); font-size: 20px; color: #fff; }
+    .sidebar-brand span { font-size: var(--fs-meta); color: var(--muted); display: block; margin-top: 2px; }
+    .sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+    .sidebar-group-label { padding: 16px 20px 6px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.25); font-family: var(--font-mono); }
+    .sidebar-item { display: flex; align-items: center; gap: 10px; padding: 9px 20px; font-size: 13px; color: var(--sidebar-fg); transition: background 0.12s, color 0.12s; }
+    .sidebar-item:hover { background: var(--sidebar-hover); color: #fff; }
+    .sidebar-item.active { background: var(--sidebar-active); color: #fff; }
+    .sidebar-item svg { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.6; }
+    .sidebar-item.active svg { opacity: 1; }
+    .sidebar-item .badge { margin-left: auto; background: var(--accent); color: #fff; font-size: 10px; padding: 2px 7px; border-radius: 99px; font-family: var(--font-mono); }
+    .sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; gap: 10px; }
+    .sidebar-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--sidebar-hover); display: grid; place-items: center; font-size: 14px; color: #fff; }
+    .sidebar-user-info { font-size: 13px; }
+    .sidebar-user-info span { display: block; color: rgba(255,255,255,0.4); font-size: 11px; }
+
+    .main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+    .topbar { position: sticky; top: 0; z-index: 10; background: color-mix(in oklch, var(--bg) 90%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 14px 32px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar-title { font-size: 15px; font-weight: 600; }
+
+    .content { padding: 28px 32px 48px; flex: 1; max-width: 800px; }
+    .content-header { margin-bottom: 28px; }
+    .content-header h1 { font-family: var(--font-display); font-size: var(--fs-h1); line-height: 1.2; }
+    .content-header .sub { font-size: var(--fs-meta); color: var(--muted); margin-top: 4px; }
+
+    /* Settings sections */
+    .settings-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: var(--gap-md); overflow: hidden; }
+    .section-title { padding: 16px 20px; border-bottom: 1px solid var(--border); font-size: var(--fs-h3); font-weight: 600; }
+    .setting-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); gap: 16px; }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-info { flex: 1; }
+    .setting-label { font-size: 14px; font-weight: 500; }
+    .setting-desc { font-size: var(--fs-meta); color: var(--muted); margin-top: 2px; }
+    .setting-action { flex-shrink: 0; }
+
+    /* Toggle switch */
+    .toggle { width: 44px; height: 24px; background: var(--border); border-radius: 12px; position: relative; cursor: pointer; transition: background 0.2s; }
+    .toggle.on { background: var(--accent); }
+    .toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+    .toggle.on::after { transform: translateX(20px); }
+
+    /* Select */
+    .setting-select { padding: 6px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); font-size: 13px; color: var(--fg); cursor: pointer; font-family: var(--font-body); }
+
+    /* Profile card */
+    .profile-card { display: flex; align-items: center; gap: 20px; padding: 24px; }
+    .profile-avatar { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), color-mix(in oklch, var(--accent) 70%, #1c1e21)); display: grid; place-items: center; font-size: 24px; color: #fff; font-family: var(--font-display); }
+    .profile-info h3 { font-size: 18px; font-weight: 600; }
+    .profile-info .email { font-size: var(--fs-meta); color: var(--muted); margin-top: 2px; }
+    .profile-info .plan { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; padding: 3px 10px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 500; }
+    .btn-outline { padding: 7px 14px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; color: var(--fg); background: var(--surface); transition: border-color 0.15s; }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Security items */
+    .security-item { display: flex; align-items: center; gap: 12px; }
+    .security-icon { width: 36px; height: 36px; border-radius: var(--radius); display: grid; place-items: center; flex-shrink: 0; }
+    .si-lock { background: var(--accent-soft); color: var(--accent); }
+    .si-finger { background: var(--positive-bg); color: var(--positive); }
+    .si-key { background: color-mix(in oklch, #6b8cce 12%, transparent); color: #6b8cce; }
+    .security-icon svg { width: 18px; height: 18px; }
+    .security-status { font-size: var(--fs-meta); display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; }
+    .security-status.enabled { color: var(--positive); }
+    .security-status.disabled { color: var(--muted); }
+
+    /* Data management */
+    .data-btn { padding: 8px 16px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; color: var(--fg); background: var(--surface); transition: all 0.12s; }
+    .data-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .data-btn.danger { border-color: var(--negative); color: var(--negative); }
+    .data-btn.danger:hover { background: var(--negative-bg); }
+
+    /* Version info */
+    .version-info { padding: 20px; text-align: center; font-size: var(--fs-meta); color: var(--muted); font-family: var(--font-mono); border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <aside class="sidebar" data-od-id="sidebar">
+    <div class="sidebar-brand"><h2>御财</h2><span>私人财富管理</span></div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-group-label">概览</div>
+      <a class="sidebar-item" href="desktop-dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>仪表盘</a>
+      <a class="sidebar-item" href="desktop-accounts.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 7H4a1 1 0 0 1 0-2h16a1 1 0 0 1 0 2ZM20 12H4a1 1 0 0 1 0-2h16a1 1 0 0 1 0 2ZM20 17H4a1 1 0 0 1 0-2h16a1 1 0 0 1 0 2Z"/></svg>账户管理</a>
+      <div class="sidebar-group-label">投资</div>
+      <a class="sidebar-item" href="desktop-investments.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><polyline points="22,7 13.5,15.5 8.5,10.5 2,17"/></svg>投资组合</a>
+      <div class="sidebar-group-label">财务</div>
+      <a class="sidebar-item" href="desktop-transactions.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>交易记录</a>
+      <a class="sidebar-item" href="desktop-budget.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2v10l4.5 4.5"/><circle cx="12" cy="12" r="10"/></svg>预算管理</a>
+      <a class="sidebar-item" href="desktop-goals.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.27 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>目标追踪</a>
+      <div class="sidebar-group-label">借贷</div>
+      <a class="sidebar-item" href="desktop-debts.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16 16v3a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3"/><rect x="8" y="2" width="14" height="12" rx="2"/></svg>债务管理</a>
+      <div class="sidebar-group-label">工具</div>
+      <a class="sidebar-item" href="desktop-reports.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>报表分析</a>
+      <a class="sidebar-item active" href="desktop-settings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25"/></svg>设置</a>
+    </nav>
+    <div class="sidebar-footer"><div class="sidebar-avatar">李</div><div class="sidebar-user-info">李明远<span>高级会员</span></div></div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar" data-od-id="topbar">
+      <span class="topbar-title">设置</span>
+    </header>
+
+    <div class="content" data-od-id="settings-content">
+      <div class="content-header">
+        <h1>设置</h1>
+        <p class="sub">管理你的账户、安全和应用偏好</p>
+      </div>
+
+      <!-- Profile -->
+      <div class="settings-section" data-od-id="profile">
+        <div class="profile-card">
+          <div class="profile-avatar">李</div>
+          <div class="profile-info">
+            <h3>李明远</h3>
+            <div class="email">limingyuan@mingyuan-inv.com</div>
+            <div class="plan">高级会员 · 有效期至 2027.06</div>
+          </div>
+          <button class="btn-outline">编辑资料</button>
+        </div>
+      </div>
+
+      <!-- Security -->
+      <div class="settings-section" data-od-id="security">
+        <div class="section-title">安全设置</div>
+        <div class="setting-row">
+          <div class="security-item">
+            <div class="security-icon si-lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+            <div class="setting-info">
+              <div class="setting-label">应用密码锁</div>
+              <div class="security-status enabled">已启用</div>
+            </div>
+          </div>
+          <div class="setting-action"><div class="toggle on"></div></div>
+        </div>
+        <div class="setting-row">
+          <div class="security-item">
+            <div class="security-icon si-finger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+            <div class="setting-info">
+              <div class="setting-label">生物识别解锁</div>
+              <div class="security-status enabled">Windows Hello 已配置</div>
+            </div>
+          </div>
+          <div class="setting-action"><div class="toggle on"></div></div>
+        </div>
+        <div class="setting-row">
+          <div class="security-item">
+            <div class="security-icon si-key"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></div>
+            <div class="setting-info">
+              <div class="setting-label">数据加密</div>
+              <div class="security-status enabled">AES-256-GCM · 密钥存储于系统钥匙串</div>
+            </div>
+          </div>
+          <div class="setting-action"><button class="btn-outline">管理密钥</button></div>
+        </div>
+      </div>
+
+      <!-- Preferences -->
+      <div class="settings-section" data-od-id="preferences">
+        <div class="section-title">偏好设置</div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">默认货币</div>
+            <div class="setting-desc">新增账户和交易的默认币种</div>
+          </div>
+          <div class="setting-action">
+            <select class="setting-select">
+              <option selected>CNY (¥)</option>
+              <option>USD ($)</option>
+              <option>EUR (€)</option>
+              <option>GBP (£)</option>
+              <option>JPY (¥)</option>
+            </select>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">语言</div>
+            <div class="setting-desc">应用界面语言</div>
+          </div>
+          <div class="setting-action">
+            <select class="setting-select">
+              <option selected>简体中文</option>
+              <option>English</option>
+            </select>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">主题</div>
+            <div class="setting-desc">选择浅色或深色外观</div>
+          </div>
+          <div class="setting-action">
+            <select class="setting-select">
+              <option selected>浅色</option>
+              <option>深色</option>
+              <option>跟随系统</option>
+            </select>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">交易提醒</div>
+            <div class="setting-desc">信用卡还款日、账单到期提醒</div>
+          </div>
+          <div class="setting-action"><div class="toggle on"></div></div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">投资市场提醒</div>
+            <div class="setting-desc">持仓涨跌幅超 5% 时通知</div>
+          </div>
+          <div class="setting-action"><div class="toggle on"></div></div>
+        </div>
+      </div>
+
+      <!-- Data management -->
+      <div class="settings-section" data-od-id="data">
+        <div class="section-title">数据管理</div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">云同步</div>
+            <div class="setting-desc">通过 WebDAV 自动同步数据到云端</div>
+          </div>
+          <div class="setting-action"><div class="toggle"></div></div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">自动备份</div>
+            <div class="setting-desc">每日自动备份到本地，保留最近 30 份</div>
+          </div>
+          <div class="setting-action"><div class="toggle on"></div></div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">导出数据</div>
+            <div class="setting-desc">导出 CSV、Excel 或 JSON 格式</div>
+          </div>
+          <div class="setting-action"><button class="data-btn">导出</button></div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">导入数据</div>
+            <div class="setting-desc">从 CSV 或其他财务应用导入</div>
+          </div>
+          <div class="setting-action"><button class="data-btn">导入</button></div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label" style="color:var(--negative);">清除所有数据</div>
+            <div class="setting-desc">删除所有账户、交易和设置数据，不可恢复</div>
+          </div>
+          <div class="setting-action"><button class="data-btn danger">清除</button></div>
+        </div>
+      </div>
+
+      <!-- About -->
+      <div class="settings-section" data-od-id="about">
+        <div class="section-title">关于</div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">版本</div></div>
+          <div style="font-family:var(--font-mono);font-size:13px;color:var(--muted);">v1.0.0 (Build 2026.06.08)</div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">数据库</div></div>
+          <div style="font-size:13px;color:var(--muted);">SQLite 3.42 · 39 个迁移 · 2.4 MB</div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">许可协议</div></div>
+          <button class="btn-outline" style="font-size:13px;">查看</button>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">开源许可</div></div>
+          <button class="btn-outline" style="font-size:13px;">查看</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

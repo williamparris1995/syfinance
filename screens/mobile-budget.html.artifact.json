@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "screens/mobile-budget.html",
+  "entry": "screens/mobile-budget.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-06-08T08:40:11.662Z",
+  "updatedAt": "2026-06-08T08:40:11.662Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}

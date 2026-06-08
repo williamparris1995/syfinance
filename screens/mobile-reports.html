@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>御财 · 移动端报表分析</title>
+  <style>
+    :root {
+      --bg: #f7f6f2; --surface: #ffffff; --fg: #1a1916; --muted: #7a7770; --border: #e6e3dc; --accent: #b08d57;
+      --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent);
+      --positive: #2d8a6e; --negative: #c4544d;
+      --positive-bg: color-mix(in oklch, var(--positive) 10%, transparent);
+      --negative-bg: color-mix(in oklch, var(--negative) 10%, transparent);
+      --font-display: 'Iowan Old Style', 'Charter', Georgia, 'Noto Serif SC', serif;
+      --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', system-ui, sans-serif;
+      --font-mono: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+      --radius: 12px; --radius-lg: 16px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #000; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+
+    .phone-frame { width: 390px; min-height: 844px; background: var(--bg); color: var(--fg); position: relative; overflow: hidden; border-radius: 44px; box-shadow: 0 0 0 3px #1a1a1a, 0 0 0 6px #333, 0 20px 60px rgba(0,0,0,0.4); }
+    .dynamic-island { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: 126px; height: 36px; background: #000; border-radius: 20px; z-index: 30; }
+    .status-bar { height: 54px; padding: 14px 28px 0; display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600; }
+    .status-bar .time { font-family: var(--font-mono); }
+    .status-icons { display: flex; gap: 6px; align-items: center; }
+    .status-icons svg { width: 16px; height: 16px; }
+
+    .screen-content { height: 790px; overflow-y: auto; padding-bottom: 90px; -webkit-overflow-scrolling: touch; }
+    .screen-content::-webkit-scrollbar { display: none; }
+
+    .mobile-header { padding: 8px 20px 16px; display: flex; align-items: center; justify-content: space-between; }
+    .mobile-header h1 { font-family: var(--font-display); font-size: 24px; }
+    .header-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); display: grid; place-items: center; color: var(--fg); }
+    .header-btn svg { width: 18px; height: 18px; }
+
+    /* Period pills */
+    .period-pills {
+      display: flex; gap: 8px; padding: 0 20px; margin-bottom: 16px;
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+    }
+    .period-pills::-webkit-scrollbar { display: none; }
+    .ppill {
+      padding: 7px 14px; font-size: 13px; border-radius: 99px;
+      border: 1px solid var(--border); background: transparent;
+      color: var(--muted); white-space: nowrap; flex-shrink: 0;
+    }
+    .ppill.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 500; }
+
+    /* Chart card */
+    .chart-card {
+      margin: 0 20px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+    }
+    .chart-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 14px; }
+    .chart-area { height: 140px; position: relative; margin-bottom: 12px; }
+    .chart-svg { width: 100%; height: 140px; }
+    .chart-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); font-family: var(--font-mono); }
+    .chart-summary { display: flex; gap: 16px; margin-top: 12px; }
+    .chart-summary .item .label { font-size: 11px; color: var(--muted); }
+    .chart-summary .item .value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 600; }
+    .chart-summary .item .value.up { color: var(--positive); }
+
+    /* Income vs expense mini bars */
+    .mini-bars { display: flex; align-items: flex-end; gap: 10px; height: 120px; padding-top: 16px; }
+    .mini-bar-group { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .mini-bar-pair { display: flex; gap: 3px; align-items: flex-end; height: 90px; }
+    .mini-bar { width: 16px; border-radius: 3px 3px 0 0; }
+    .mini-bar-label { font-size: 10px; color: var(--muted); font-family: var(--font-mono); }
+
+    /* Category breakdown */
+    .cat-list { padding: 0 20px; }
+    .cat-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 0; border-bottom: 1px solid var(--border);
+    }
+    .cat-item:last-child { border-bottom: none; }
+    .cat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .cat-info { flex: 1; }
+    .cat-name { font-size: 14px; font-weight: 500; }
+    .cat-pct { font-size: 11px; color: var(--muted); }
+    .cat-bar-track { height: 4px; background: var(--border); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+    .cat-bar-fill { height: 100%; border-radius: 2px; }
+    .cat-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600; text-align: right; }
+
+    .tab-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 84px; background: color-mix(in oklch, var(--surface) 95%, transparent); backdrop-filter: blur(20px); border-top: 1px solid var(--border); display: flex; align-items: flex-start; justify-content: space-around; padding-top: 8px; z-index: 20; }
+    .tab-item { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; color: var(--muted); cursor: pointer; }
+    .tab-item.active { color: var(--accent); }
+    .tab-item svg { width: 22px; height: 22px; }
+    .home-indicator { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 134px; height: 5px; background: var(--fg); border-radius: 3px; opacity: 0.2; }
+  </style>
+</head>
+<body>
+  <div class="phone-frame">
+    <div class="dynamic-island"></div>
+    <div class="status-bar">
+      <span class="time">9:41</span>
+      <div class="status-icons">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="17" y="4" width="4" height="16" rx="1"/><rect x="11" y="8" width="4" height="12" rx="1"/><rect x="5" y="12" width="4" height="8" rx="1"/></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="6" width="18" height="12" rx="2"/><rect x="20" y="10" width="2" height="4" rx="1"/><rect x="4" y="8" width="8" height="2" rx="1" fill="var(--positive)"/></svg>
+      </div>
+    </div>
+
+    <div class="screen-content" data-od-id="mobile-reports">
+      <div class="mobile-header">
+        <h1>报表分析</h1>
+        <div class="header-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        </div>
+      </div>
+
+      <div class="period-pills">
+        <div class="ppill">周</div>
+        <div class="ppill active">月</div>
+        <div class="ppill">季度</div>
+        <div class="ppill">年</div>
+        <div class="ppill">自定义</div>
+      </div>
+
+      <div class="chart-card" data-od-id="net-worth-trend">
+        <h3>净资产趋势</h3>
+        <div class="chart-area">
+          <svg class="chart-svg" viewBox="0 0 340 140" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.2"/>
+                <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path d="M0,100 L57,85 L114,70 L170,75 L227,50 L283,40 L340,25" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M0,100 L57,85 L114,70 L170,75 L227,50 L283,40 L340,25 L340,140 L0,140Z" fill="url(#trendFill)"/>
+            <circle cx="340" cy="25" r="4" fill="var(--accent)"/>
+          </svg>
+        </div>
+        <div class="chart-labels">
+          <span>1月</span><span>2月</span><span>3月</span><span>4月</span><span>5月</span><span>6月</span>
+        </div>
+        <div class="chart-summary">
+          <div class="item"><div class="label">当前</div><div class="value">¥12,847,630</div></div>
+          <div class="item"><div class="label">半年增长</div><div class="value up">+¥1,642,180</div></div>
+        </div>
+      </div>
+
+      <div class="chart-card" data-od-id="income-expense">
+        <h3>收入 vs 支出</h3>
+        <div class="mini-bars">
+          <div class="mini-bar-group">
+            <div class="mini-bar-pair">
+              <div class="mini-bar" style="height:60px;background:var(--positive)"></div>
+              <div class="mini-bar" style="height:40px;background:var(--negative)"></div>
+            </div>
+            <span class="mini-bar-label">1月</span>
+          </div>
+          <div class="mini-bar-group">
+            <div class="mini-bar-pair">
+              <div class="mini-bar" style="height:55px;background:var(--positive)"></div>
+              <div class="mini-bar" style="height:45px;background:var(--negative)"></div>
+            </div>
+            <span class="mini-bar-label">2月</span>
+          </div>
+          <div class="mini-bar-group">
+            <div class="mini-bar-pair">
+              <div class="mini-bar" style="height:65px;background:var(--positive)"></div>
+              <div class="mini-bar" style="height:38px;background:var(--negative)"></div>
+            </div>
+            <span class="mini-bar-label">3月</span>
+          </div>
+          <div class="mini-bar-group">
+            <div class="mini-bar-pair">
+              <div class="mini-bar" style="height:70px;background:var(--positive)"></div>
+              <div class="mini-bar" style="height:50px;background:var(--negative)"></div>
+            </div>
+            <span class="mini-bar-label">4月</span>
+          </div>
+          <div class="mini-bar-group">
+            <div class="mini-bar-pair">
+              <div class="mini-bar" style="height:72px;background:var(--positive)"></div>
+              <div class="mini-bar" style="height:42px;background:var(--negative)"></div>
+            </div>
+            <span class="mini-bar-label">5月</span>
+          </div>
+          <div class="mini-bar-group">
+            <div class="mini-bar-pair">
+              <div class="mini-bar" style="height:80px;background:var(--positive)"></div>
+              <div class="mini-bar" style="height:45px;background:var(--negative)"></div>
+            </div>
+            <span class="mini-bar-label">6月</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card" data-od-id="asset-allocation">
+        <h3>资产配置</h3>
+        <div class="cat-list" style="padding:0">
+          <div class="cat-item">
+            <div class="cat-dot" style="background:var(--accent)"></div>
+            <div class="cat-info">
+              <div class="cat-name">基金投资</div>
+              <div class="cat-bar-track"><div class="cat-bar-fill" style="width:35%;background:var(--accent)"></div></div>
+            </div>
+            <span class="cat-value">35%</span>
+          </div>
+          <div class="cat-item">
+            <div class="cat-dot" style="background:#6b7db3"></div>
+            <div class="cat-info">
+              <div class="cat-name">股票持仓</div>
+              <div class="cat-bar-track"><div class="cat-bar-fill" style="width:19%;background:#6b7db3"></div></div>
+            </div>
+            <span class="cat-value">19%</span>
+          </div>
+          <div class="cat-item">
+            <div class="cat-dot" style="background:var(--positive)"></div>
+            <div class="cat-info">
+              <div class="cat-name">房产净值</div>
+              <div class="cat-bar-track"><div class="cat-bar-fill" style="width:22%;background:var(--positive)"></div></div>
+            </div>
+            <span class="cat-value">22%</span>
+          </div>
+          <div class="cat-item">
+            <div class="cat-dot" style="background:#c97d4f"></div>
+            <div class="cat-info">
+              <div class="cat-name">黄金</div>
+              <div class="cat-bar-track"><div class="cat-bar-fill" style="width:5%;background:#c97d4f"></div></div>
+            </div>
+            <span class="cat-value">5%</span>
+          </div>
+          <div class="cat-item">
+            <div class="cat-dot" style="background:#5ba3a3"></div>
+            <div class="cat-info">
+              <div class="cat-name">现金储蓄</div>
+              <div class="cat-bar-track"><div class="cat-bar-fill" style="width:12%;background:#5ba3a3"></div></div>
+            </div>
+            <span class="cat-value">12%</span>
+          </div>
+          <div class="cat-item">
+            <div class="cat-dot" style="background:#8b7ec8"></div>
+            <div class="cat-info">
+              <div class="cat-name">外汇</div>
+              <div class="cat-bar-track"><div class="cat-bar-fill" style="width:4%;background:#8b7ec8"></div></div>
+            </div>
+            <span class="cat-value">4%</span>
+          </div>
+          <div class="cat-item">
+            <div class="cat-dot" style="background:#d4a76a"></div>
+            <div class="cat-info">
+              <div class="cat-name">其他</div>
+              <div class="cat-bar-track"><div class="cat-bar-fill" style="width:3%;background:#d4a76a"></div></div>
+            </div>
+            <span class="cat-value">3%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-bar" data-od-id="tab-bar">
+      <a class="tab-item" href="mobile-dashboard.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        <span>概览</span>
+      </a>
+      <a class="tab-item" href="mobile-accounts.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 7H4a1 1 0 0 1 0-2h16a1 1 0 0 1 0 2ZM20 12H4a1 1 0 0 1 0-2h16a1 1 0 0 1 0 2ZM20 17H4a1 1 0 0 1 0-2h16a1 1 0 0 1 0 2Z"/></svg>
+        <span>账户</span>
+      </a>
+      <a class="tab-item active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22,7 13.5,15.5 8.5,10.5 2,17"/></svg>
+        <span>报表</span>
+      </a>
+      <a class="tab-item" href="mobile-transactions.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+        <span>交易</span>
+      </a>
+      <a class="tab-item" href="mobile-settings.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09"/></svg>
+        <span>更多</span>
+      </a>
+    </div>
+    <div class="home-indicator"></div>
+  </div>
+</body>
+</html>

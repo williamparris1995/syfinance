@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>御财 · 交易记录</title>
+  <style>
+    :root {
+      --bg:      #f7f6f2;
+      --surface: #ffffff;
+      --fg:      #1a1916;
+      --muted:   #7a7770;
+      --border:  #e6e3dc;
+      --accent:  #b08d57;
+      --sidebar-bg:    #1c1e21;
+      --sidebar-fg:    #c5c3be;
+      --sidebar-hover: #2a2c30;
+      --sidebar-active: #323539;
+      --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent);
+      --positive:    #2d8a6e;
+      --negative:    #c4544d;
+      --positive-bg: color-mix(in oklch, var(--positive) 10%, transparent);
+      --negative-bg: color-mix(in oklch, var(--negative) 10%, transparent);
+      --font-display: 'Iowan Old Style', 'Charter', Georgia, 'Noto Serif SC', serif;
+      --font-body:    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', system-ui, sans-serif;
+      --font-mono:    ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+      --fs-h1: 28px; --fs-h2: 22px; --fs-h3: 17px; --fs-body: 14px; --fs-meta: 12px;
+      --gap-xs: 6px; --gap-sm: 12px; --gap-md: 20px; --gap-lg: 28px; --gap-xl: 40px;
+      --radius: 10px; --radius-lg: 14px; --sidebar-w: 240px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: var(--fs-body); line-height: 1.55; -webkit-font-smoothing: antialiased; display: flex; min-height: 100vh; }
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; cursor: pointer; background: none; border: none; }
+
+    /* Sidebar */
+    .sidebar { width: var(--sidebar-w); min-height: 100vh; background: var(--sidebar-bg); color: var(--sidebar-fg); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 20; }
+    .sidebar-brand { padding: 24px 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .sidebar-brand h2 { font-family: var(--font-display); font-size: 20px; color: #fff; }
+    .sidebar-brand span { font-size: var(--fs-meta); color: var(--muted); display: block; margin-top: 2px; }
+    .sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+    .sidebar-group-label { padding: 16px 20px 6px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.25); font-family: var(--font-mono); }
+    .sidebar-item { display: flex; align-items: center; gap: 10px; padding: 9px 20px; font-size: 13px; color: var(--sidebar-fg); transition: background 0.12s, color 0.12s; cursor: pointer; }
+    .sidebar-item:hover { background: var(--sidebar-hover); color: #fff; }
+    .sidebar-item.active { background: var(--sidebar-active); color: #fff; }
+    .sidebar-item svg { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.6; }
+    .sidebar-item.active svg { opacity: 1; }
+    .sidebar-item .badge { margin-left: auto; background: var(--accent); color: #fff; font-size: 10px; padding: 2px 7px; border-radius: 99px; font-family: var(--font-mono); }
+    .sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; gap: 10px; }
+    .sidebar-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--sidebar-hover); display: grid; place-items: center; font-size: 14px; color: #fff; }
+    .sidebar-user-info { font-size: 13px; }
+    .sidebar-user-info span { display: block; color: rgba(255,255,255,0.4); font-size: 11px; }
+
+    /* Main */
+    .main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+    .topbar { position: sticky; top: 0; z-index: 10; background: color-mix(in oklch, var(--bg) 90%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 14px 32px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar-title { font-size: 15px; font-weight: 600; }
+    .topbar-actions { display: flex; align-items: center; gap: 12px; }
+    .topbar-actions .search-box { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); font-size: 13px; color: var(--muted); cursor: pointer; transition: border-color 0.15s; }
+    .topbar-actions .search-box:hover { border-color: var(--accent); }
+    .topbar-actions .search-box svg { width: 14px; height: 14px; }
+    .topbar-actions .icon-btn { width: 34px; height: 34px; display: grid; place-items: center; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); color: var(--muted); transition: border-color 0.15s, color 0.15s; }
+    .topbar-actions .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .topbar-actions .icon-btn svg { width: 16px; height: 16px; }
+
+    .content { padding: 28px 32px 48px; flex: 1; }
+    .content-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; }
+    .content-header h1 { font-family: var(--font-display); font-size: var(--fs-h1); line-height: 1.2; }
+    .content-header .sub { font-size: var(--fs-meta); color: var(--muted); margin-top: 4px; }
+
+    /* Filter bar */
+    .filter-bar { display: flex; gap: var(--gap-sm); margin-bottom: var(--gap-md); flex-wrap: wrap; align-items: center; }
+    .filter-group { display: flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+    .filter-btn { padding: 7px 14px; font-size: 13px; color: var(--muted); transition: all 0.12s; border-right: 1px solid var(--border); }
+    .filter-btn:last-child { border-right: none; }
+    .filter-btn:hover { color: var(--fg); background: color-mix(in oklch, var(--accent) 6%, transparent); }
+    .filter-btn.active { color: var(--accent); background: var(--accent-soft); font-weight: 500; }
+    .filter-select { padding: 7px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); font-size: 13px; color: var(--fg); cursor: pointer; }
+    .filter-spacer { flex: 1; }
+    .btn-primary { padding: 8px 18px; background: var(--accent); color: #fff; border-radius: var(--radius); font-size: 13px; font-weight: 500; transition: opacity 0.15s; }
+    .btn-primary:hover { opacity: 0.9; }
+
+    /* Summary strip */
+    .summary-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--gap-sm); margin-bottom: var(--gap-md); }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 20px; }
+    .stat-card .label { font-size: var(--fs-meta); color: var(--muted); margin-bottom: 6px; }
+    .stat-card .value { font-family: var(--font-display); font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+    .stat-card .value.positive { color: var(--positive); }
+    .stat-card .value.negative { color: var(--negative); }
+
+    /* Transaction table */
+    .table-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+    .table-header { display: grid; grid-template-columns: 40px 2fr 1.2fr 1fr 1fr 80px; gap: var(--gap-sm); padding: 12px 20px; border-bottom: 2px solid var(--border); font-size: var(--fs-meta); font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .table-row { display: grid; grid-template-columns: 40px 2fr 1.2fr 1fr 1fr 80px; gap: var(--gap-sm); padding: 14px 20px; border-bottom: 1px solid var(--border); align-items: center; transition: background 0.1s; cursor: pointer; }
+    .table-row:last-child { border-bottom: none; }
+    .table-row:hover { background: color-mix(in oklch, var(--accent) 4%, transparent); }
+    .row-icon { width: 34px; height: 34px; border-radius: var(--radius); display: grid; place-items: center; }
+    .row-icon.income { background: var(--positive-bg); color: var(--positive); }
+    .row-icon.expense { background: var(--negative-bg); color: var(--negative); }
+    .row-icon.transfer { background: var(--accent-soft); color: var(--accent); }
+    .row-icon svg { width: 16px; height: 16px; }
+    .row-desc .name { font-size: 14px; font-weight: 500; }
+    .row-desc .meta { font-size: var(--fs-meta); color: var(--muted); }
+    .row-account { font-size: 13px; color: var(--muted); }
+    .row-category { display: inline-flex; padding: 3px 10px; border-radius: 99px; font-size: 11px; border: 1px solid var(--border); color: var(--muted); }
+    .row-amount { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 500; text-align: right; }
+    .row-amount.positive { color: var(--positive); }
+    .row-amount.negative { color: var(--negative); }
+    .row-actions { text-align: center; }
+    .row-actions button { width: 28px; height: 28px; border-radius: var(--radius); color: var(--muted); transition: color 0.12s, background 0.12s; display: inline-grid; place-items: center; }
+    .row-actions button:hover { color: var(--fg); background: var(--accent-soft); }
+
+    /* Date separator */
+    .date-sep { padding: 10px 20px; background: color-mix(in oklch, var(--bg) 60%, var(--surface)); font-size: var(--fs-meta); font-weight: 600; color: var(--muted); font-family: var(--font-mono); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; }
+    .date-sep .day-total { font-weight: 400; color: var(--muted); }
+
+    /* Pagination */
+    .pagination { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-top: 1px solid var(--border); }
+    .pagination .info { font-size: var(--fs-meta); color: var(--muted); }
+    .pagination .pages { display: flex; gap: 4px; }
+    .pagination .page-btn { width: 32px; height: 32px; border-radius: var(--radius); display: grid; place-items: center; font-size: 13px; color: var(--muted); border: 1px solid transparent; transition: all 0.12s; }
+    .pagination .page-btn:hover { border-color: var(--border); }
+    .pagination .page-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  </style>
+</head>
+<body>
+  <aside class="sidebar" data-od-id="sidebar">
+    <div class="sidebar-brand"><h2>御财</h2><span>私人财富管理</span></div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-group-label">概览</div>
+      <a class="sidebar-item" href="desktop-dashboard.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        仪表盘
+      </a>
+      <a class="sidebar-item" href="desktop-accounts.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 7H4a1 1 0 0 1 0-2h16a1 1 0 0 1 0 2ZM20 12H4a1 1 0 0 1 0-2h16a1 1 0 0 1 0 2ZM20 17H4a1 1 0 0 1 0-2h16a1 1 0 0 1 0 2Z"/></svg>
+        账户管理
+      </a>
+      <div class="sidebar-group-label">投资</div>
+      <a class="sidebar-item" href="desktop-investments.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><polyline points="22,7 13.5,15.5 8.5,10.5 2,17"/><polyline points="16,7 22,7 22,13"/></svg>
+        投资组合
+        <span class="badge">5</span>
+      </a>
+      <div class="sidebar-group-label">财务</div>
+      <a class="sidebar-item active" href="desktop-transactions.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+        交易记录
+      </a>
+      <a class="sidebar-item" href="desktop-budget.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2v10l4.5 4.5"/><circle cx="12" cy="12" r="10"/></svg>
+        预算管理
+      </a>
+      <a class="sidebar-item" href="desktop-goals.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.27 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>
+        目标追踪
+      </a>
+      <div class="sidebar-group-label">借贷</div>
+      <a class="sidebar-item" href="desktop-debts.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16 16v3a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3"/><rect x="8" y="2" width="14" height="12" rx="2"/><path d="M15 8h.01"/></svg>
+        债务管理
+      </a>
+      <div class="sidebar-group-label">工具</div>
+      <a class="sidebar-item" href="desktop-reports.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        报表分析
+      </a>
+      <a class="sidebar-item" href="desktop-settings.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        设置
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-avatar">李</div>
+      <div class="sidebar-user-info">李明远<span>高级会员</span></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar" data-od-id="topbar">
+      <span class="topbar-title">交易记录</span>
+      <div class="topbar-actions">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          搜索交易…
+        </div>
+        <button class="icon-btn" title="导出">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </button>
+        <button class="icon-btn" title="通知">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="content" data-od-id="transactions-content">
+      <div class="content-header">
+        <div>
+          <h1>交易记录</h1>
+          <p class="sub">2026 年 6 月 · 共 47 笔交易</p>
+        </div>
+        <button class="btn-primary">+ 新增交易</button>
+      </div>
+
+      <!-- Summary strip -->
+      <div class="summary-strip" data-od-id="summary">
+        <div class="stat-card">
+          <div class="label">本月收入</div>
+          <div class="value positive">¥ 142,450</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">本月支出</div>
+          <div class="value negative">¥ 89,320</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">本月净额</div>
+          <div class="value" style="color:var(--positive);">¥ 53,130</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">日均支出</div>
+          <div class="value">¥ 2,977</div>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="filter-bar" data-od-id="filters">
+        <div class="filter-group">
+          <button class="filter-btn active">全部</button>
+          <button class="filter-btn">收入</button>
+          <button class="filter-btn">支出</button>
+          <button class="filter-btn">转账</button>
+        </div>
+        <select class="filter-select">
+          <option>全部账户</option>
+          <option>招商银行储蓄</option>
+          <option>工商银行储蓄</option>
+          <option>招行信用卡</option>
+        </select>
+        <select class="filter-select">
+          <option>全部类别</option>
+          <option>餐饮</option>
+          <option>购物</option>
+          <option>投资</option>
+          <option>住房</option>
+        </select>
+        <select class="filter-select">
+          <option>2026 年 6 月</option>
+          <option>2026 年 5 月</option>
+          <option>2026 年 4 月</option>
+          <option>自定义范围</option>
+        </select>
+        <div class="filter-spacer"></div>
+      </div>
+
+      <!-- Transaction table -->
+      <div class="table-panel" data-od-id="transaction-table">
+        <div class="table-header">
+          <div></div>
+          <div>交易详情</div>
+          <div>账户</div>
+          <div>类别</div>
+          <div style="text-align:right;">金额</div>
+          <div></div>
+        </div>
+
+        <div class="date-sep">
+          <span>6 月 5 日 · 星期四</span>
+          <span class="day-total">收入 ¥ 128,000 · 支出 ¥ 15,200</span>
+        </div>
+        <div class="table-row">
+          <div class="row-icon income"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 7l-5-5-5 5"/></svg></div>
+          <div class="row-desc"><div class="name">工资收入 — 明远投资咨询</div><div class="meta">工资 · 代发</div></div>
+          <div class="row-account">招商银行储蓄</div>
+          <div class="row-category">薪资收入</div>
+          <div class="row-amount positive">+¥ 128,000</div>
+          <div class="row-actions"><button>⋅⋅⋅</button></div>
+        </div>
+        <div class="table-row">
+          <div class="row-icon expense"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M7 17l5 5 5-5"/></svg></div>
+          <div class="row-desc"><div class="name">房贷还款 — 仁恒河滨花园</div><div class="meta">等额本息 · 第 67 期</div></div>
+          <div class="row-account">工商银行储蓄</div>
+          <div class="row-category">住房贷款</div>
+          <div class="row-amount negative">-¥ 15,200</div>
+          <div class="row-actions"><button>⋅⋅⋅</button></div>
+        </div>
+
+        <div class="date-sep">
+          <span>6 月 4 日 · 星期三</span>
+          <span class="day-total">支出 ¥ 8,360</span>
+        </div>
+        <div class="table-row">
+          <div class="row-icon expense"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M7 17l5 5 5-5"/></svg></div>
+          <div class="row-desc"><div class="name">望江楼私宴</div><div class="meta">商务宴请 · 8 人</div></div>
+          <div class="row-account">招行信用卡</div>
+          <div class="row-category">餐饮</div>
+          <div class="row-amount negative">-¥ 3,680</div>
+          <div class="row-actions"><button>⋅⋅⋅</button></div>
+        </div>
+        <div class="table-row">
+          <div class="row-icon expense"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M7 17l5 5 5-5"/></svg></div>
+          <div class="row-desc"><div class="name">爱马仕 — 丝巾礼盒</div><div class="meta">母亲节礼物</div></div>
+          <div class="row-account">工行信用卡</div>
+          <div class="row-category">购物</div>
+          <div class="row-amount negative">-¥ 4,680</div>
+          <div class="row-actions"><button>⋅⋅⋅</button></div>
+        </div>
+
+        <div class="date-sep">
+          <span>6 月 3 日 · 星期二</span>
+          <span class="day-total">转账 ¥ 50,000</span>
+        </div>
+        <div class="table-row">
+          <div class="row-icon transfer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/></svg></div>
+          <div class="row-desc"><div class="name">基金定投入金</div><div class="meta">易方达蓝筹精选 · 月度定投</div></div>
+          <div class="row-account">招商银行 → 证券</div>
+          <div class="row-category">投资转账</div>
+          <div class="row-amount">-¥ 50,000</div>
+          <div class="row-actions"><button>⋅⋅⋅</button></div>
+        </div>
+
+        <div class="date-sep">
+          <span>6 月 1 日 · 星期日</span>
+          <span class="day-total">收入 ¥ 14,450</span>
+        </div>
+        <div class="table-row">
+          <div class="row-icon income"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 7l-5-5-5 5"/></svg></div>
+          <div class="row-desc"><div class="name">基金分红 — 易方达蓝筹精选</div><div class="meta">每份分红 ¥ 0.0248</div></div>
+          <div class="row-account">证券账户</div>
+          <div class="row-category">投资收益</div>
+          <div class="row-amount positive">+¥ 12,450</div>
+          <div class="row-actions"><button>⋅⋅⋅</button></div>
+        </div>
+        <div class="table-row">
+          <div class="row-icon income"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 7l-5-5-5 5"/></svg></div>
+          <div class="row-desc"><div class="name">余额宝收益</div><div class="meta">万份收益 ¥ 0.4821</div></div>
+          <div class="row-account">支付宝</div>
+          <div class="row-category">利息收入</div>
+          <div class="row-amount positive">+¥ 2,000</div>
+          <div class="row-actions"><button>⋅⋅⋅</button></div>
+        </div>
+
+        <div class="pagination">
+          <div class="info">显示 1–8 条，共 47 条交易</div>
+          <div class="pages">
+            <button class="page-btn active">1</button>
+            <button class="page-btn">2</button>
+            <button class="page-btn">3</button>
+            <button class="page-btn">4</button>
+            <button class="page-btn">→</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

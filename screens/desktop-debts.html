@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>御财 · 债务管理</title>
+  <style>
+    :root {
+      --bg: #f7f6f2; --surface: #ffffff; --fg: #1a1916; --muted: #7a7770; --border: #e6e3dc; --accent: #b08d57;
+      --sidebar-bg: #1c1e21; --sidebar-fg: #c5c3be; --sidebar-hover: #2a2c30; --sidebar-active: #323539;
+      --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent);
+      --positive: #2d8a6e; --negative: #c4544d;
+      --positive-bg: color-mix(in oklch, var(--positive) 10%, transparent);
+      --negative-bg: color-mix(in oklch, var(--negative) 10%, transparent);
+      --font-display: 'Iowan Old Style', 'Charter', Georgia, 'Noto Serif SC', serif;
+      --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', system-ui, sans-serif;
+      --font-mono: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+      --fs-h1: 28px; --fs-h2: 22px; --fs-h3: 17px; --fs-body: 14px; --fs-meta: 12px;
+      --gap-sm: 12px; --gap-md: 20px; --gap-lg: 28px;
+      --radius: 10px; --radius-lg: 14px; --sidebar-w: 240px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: var(--fs-body); line-height: 1.55; -webkit-font-smoothing: antialiased; display: flex; min-height: 100vh; }
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; cursor: pointer; background: none; border: none; }
+
+    .sidebar { width: var(--sidebar-w); min-height: 100vh; background: var(--sidebar-bg); color: var(--sidebar-fg); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 20; }
+    .sidebar-brand { padding: 24px 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .sidebar-brand h2 { font-family: var(--font-display); font-size: 20px; color: #fff; }
+    .sidebar-brand span { font-size: var(--fs-meta); color: var(--muted); display: block; margin-top: 2px; }
+    .sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+    .sidebar-group-label { padding: 16px 20px 6px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.25); font-family: var(--font-mono); }
+    .sidebar-item { display: flex; align-items: center; gap: 10px; padding: 9px 20px; font-size: 13px; color: var(--sidebar-fg); transition: background 0.12s, color 0.12s; }
+    .sidebar-item:hover { background: var(--sidebar-hover); color: #fff; }
+    .sidebar-item.active { background: var(--sidebar-active); color: #fff; }
+    .sidebar-item svg { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.6; }
+    .sidebar-item.active svg { opacity: 1; }
+    .sidebar-item .badge { margin-left: auto; background: var(--accent); color: #fff; font-size: 10px; padding: 2px 7px; border-radius: 99px; font-family: var(--font-mono); }
+    .sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; gap: 10px; }
+    .sidebar-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--sidebar-hover); display: grid; place-items: center; font-size: 14px; color: #fff; }
+    .sidebar-user-info { font-size: 13px; }
+    .sidebar-user-info span { display: block; color: rgba(255,255,255,0.4); font-size: 11px; }
+
+    .main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+    .topbar { position: sticky; top: 0; z-index: 10; background: color-mix(in oklch, var(--bg) 90%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 14px 32px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar-title { font-size: 15px; font-weight: 600; }
+    .topbar-actions { display: flex; align-items: center; gap: 12px; }
+    .topbar-actions .icon-btn { width: 34px; height: 34px; display: grid; place-items: center; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); color: var(--muted); }
+    .topbar-actions .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .topbar-actions .icon-btn svg { width: 16px; height: 16px; }
+
+    .content { padding: 28px 32px 48px; flex: 1; }
+    .content-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; }
+    .content-header h1 { font-family: var(--font-display); font-size: var(--fs-h1); line-height: 1.2; }
+    .content-header .sub { font-size: var(--fs-meta); color: var(--muted); margin-top: 4px; }
+    .btn-primary { padding: 8px 18px; background: var(--accent); color: #fff; border-radius: var(--radius); font-size: 13px; font-weight: 500; }
+
+    /* Debt summary */
+    .debt-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--gap-sm); margin-bottom: var(--gap-lg); }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; }
+    .stat-card .label { font-size: var(--fs-meta); color: var(--muted); margin-bottom: 6px; }
+    .stat-card .value { font-family: var(--font-display); font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+    .stat-card .sub { font-size: var(--fs-meta); color: var(--muted); margin-top: 4px; }
+
+    /* Debt cards */
+    .debt-list { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap-md); margin-bottom: var(--gap-lg); }
+    .debt-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; }
+    .debt-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+    .debt-card-title { font-size: 16px; font-weight: 600; }
+    .debt-card-sub { font-size: var(--fs-meta); color: var(--muted); margin-top: 2px; }
+    .debt-badge { padding: 4px 10px; border-radius: 99px; font-size: 11px; font-weight: 500; }
+    .debt-badge.active { background: var(--negative-bg); color: var(--negative); }
+    .debt-badge.on-track { background: var(--positive-bg); color: var(--positive); }
+    .debt-amounts { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+    .debt-remaining { font-family: var(--font-display); font-size: 24px; font-weight: 600; }
+    .debt-total { font-size: var(--fs-meta); color: var(--muted); }
+    .debt-bar-track { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-bottom: 16px; }
+    .debt-bar-fill { height: 100%; border-radius: 3px; background: var(--accent); }
+    .debt-details { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .debt-detail-item .label { font-size: var(--fs-meta); color: var(--muted); }
+    .debt-detail-item .val { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 500; margin-top: 2px; }
+
+    /* Payment schedule */
+    .schedule-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+    .schedule-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+    .schedule-header h3 { font-size: var(--fs-h3); font-weight: 600; }
+    .schedule-row { display: grid; grid-template-columns: 100px 2fr 1fr 1fr 1fr; gap: var(--gap-sm); padding: 14px 20px; border-bottom: 1px solid var(--border); align-items: center; }
+    .schedule-row:last-child { border-bottom: none; }
+    .schedule-row:hover { background: color-mix(in oklch, var(--accent) 3%, transparent); }
+    .schedule-row .date { font-family: var(--font-mono); font-size: 13px; font-weight: 500; }
+    .schedule-row .debt-name { font-size: 14px; font-weight: 500; }
+    .schedule-row .debt-name .meta { font-size: var(--fs-meta); color: var(--muted); font-weight: 400; }
+    .schedule-row .amount { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 14px; text-align: right; }
+    .schedule-row .principal { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); text-align: right; }
+    .schedule-row .status { text-align: center; }
+    .status-pill { padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 500; }
+    .status-pill.upcoming { border: 1px solid var(--border); color: var(--muted); }
+    .status-pill.soon { background: color-mix(in oklch, var(--accent) 12%, transparent); color: var(--accent); }
+    .status-pill.overdue { background: var(--negative-bg); color: var(--negative); }
+  </style>
+</head>
+<body>
+  <aside class="sidebar" data-od-id="sidebar">
+    <div class="sidebar-brand"><h2>御财</h2><span>私人财富管理</span></div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-group-label">概览</div>
+      <a class="sidebar-item" href="desktop-dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>仪表盘</a>
+      <a class="sidebar-item" href="desktop-accounts.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 7H4a1 1 0 0 1 0-2h16a1 1 0 0 1 0 2ZM20 12H4a1 1 0 0 1 0-2h16a1 1 0 0 1 0 2ZM20 17H4a1 1 0 0 1 0-2h16a1 1 0 0 1 0 2Z"/></svg>账户管理</a>
+      <div class="sidebar-group-label">投资</div>
+      <a class="sidebar-item" href="desktop-investments.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><polyline points="22,7 13.5,15.5 8.5,10.5 2,17"/></svg>投资组合</a>
+      <div class="sidebar-group-label">财务</div>
+      <a class="sidebar-item" href="desktop-transactions.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>交易记录</a>
+      <a class="sidebar-item" href="desktop-budget.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2v10l4.5 4.5"/><circle cx="12" cy="12" r="10"/></svg>预算管理</a>
+      <a class="sidebar-item" href="desktop-goals.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.27 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>目标追踪</a>
+      <div class="sidebar-group-label">借贷</div>
+      <a class="sidebar-item active" href="desktop-debts.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16 16v3a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3"/><rect x="8" y="2" width="14" height="12" rx="2"/></svg>债务管理</a>
+      <div class="sidebar-group-label">工具</div>
+      <a class="sidebar-item" href="desktop-reports.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>报表分析</a>
+      <a class="sidebar-item" href="desktop-settings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25"/></svg>设置</a>
+    </nav>
+    <div class="sidebar-footer"><div class="sidebar-avatar">李</div><div class="sidebar-user-info">李明远<span>高级会员</span></div></div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar" data-od-id="topbar">
+      <span class="topbar-title">债务管理</span>
+      <div class="topbar-actions">
+        <button class="icon-btn" title="通知"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
+      </div>
+    </header>
+
+    <div class="content" data-od-id="debts-content">
+      <div class="content-header">
+        <div>
+          <h1>债务管理</h1>
+          <p class="sub">管理房贷、信用贷、信用卡等所有负债</p>
+        </div>
+        <button class="btn-primary">+ 新增债务</button>
+      </div>
+
+      <!-- Summary -->
+      <div class="debt-summary" data-od-id="summary">
+        <div class="stat-card">
+          <div class="label">总负债余额</div>
+          <div class="value" style="color:var(--negative);">¥ 6,180,000</div>
+          <div class="sub">较上月 -¥ 42,600</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">本月应还</div>
+          <div class="value">¥ 63,450</div>
+          <div class="sub">含本金 ¥ 42,600 + 利息 ¥ 20,850</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">月供占收入比</div>
+          <div class="value">45%</div>
+          <div class="sub">健康范围 < 50%</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">最早还清</div>
+          <div class="value">2027.03</div>
+          <div class="sub">信用贷 · 剩余 9 期</div>
+        </div>
+      </div>
+
+      <!-- Debt cards -->
+      <div class="debt-list" data-od-id="debt-cards">
+        <div class="debt-card">
+          <div class="debt-card-header">
+            <div>
+              <div class="debt-card-title">住房按揭贷款</div>
+              <div class="debt-card-sub">工商银行 · 浦东仁恒河滨花园</div>
+            </div>
+            <span class="debt-badge on-track">正常还款</span>
+          </div>
+          <div class="debt-amounts">
+            <span class="debt-remaining">¥ 4,800,000</span>
+            <span class="debt-total">原贷 ¥ 5,800,000</span>
+          </div>
+          <div class="debt-bar-track"><div class="debt-bar-fill" style="width:17%;"></div></div>
+          <div class="debt-details">
+            <div class="debt-detail-item"><div class="label">月供金额</div><div class="val">¥ 35,200</div></div>
+            <div class="debt-detail-item"><div class="label">利率</div><div class="val">3.85% (LPR-0.1%)</div></div>
+            <div class="debt-detail-item"><div class="label">还款方式</div><div class="val">等额本息</div></div>
+            <div class="debt-detail-item"><div class="label">剩余期数</div><div class="val">216 期 (18 年)</div></div>
+          </div>
+        </div>
+
+        <div class="debt-card">
+          <div class="debt-card-header">
+            <div>
+              <div class="debt-card-title">个人信用贷</div>
+              <div class="debt-card-sub">招商银行 · 装修周转金</div>
+            </div>
+            <span class="debt-badge on-track">正常还款</span>
+          </div>
+          <div class="debt-amounts">
+            <span class="debt-remaining">¥ 860,000</span>
+            <span class="debt-total">原贷 ¥ 1,000,000</span>
+          </div>
+          <div class="debt-bar-track"><div class="debt-bar-fill" style="width:14%;"></div></div>
+          <div class="debt-details">
+            <div class="debt-detail-item"><div class="label">月供金额</div><div class="val">¥ 18,650</div></div>
+            <div class="debt-detail-item"><div class="label">利率</div><div class="val">4.35%</div></div>
+            <div class="debt-detail-item"><div class="label">还款方式</div><div class="val">等额本息</div></div>
+            <div class="debt-detail-item"><div class="label">剩余期数</div><div class="val">9 期</div></div>
+          </div>
+        </div>
+
+        <div class="debt-card">
+          <div class="debt-card-header">
+            <div>
+              <div class="debt-card-title">招行信用卡</div>
+              <div class="debt-card-sub">百夫长黑金卡 · 账单周期 5 号</div>
+            </div>
+            <span class="debt-badge active">待还款</span>
+          </div>
+          <div class="debt-amounts">
+            <span class="debt-remaining">¥ 42,680</span>
+            <span class="debt-total">额度 ¥ 800,000</span>
+          </div>
+          <div class="debt-bar-track"><div class="debt-bar-fill" style="width:5%;"></div></div>
+          <div class="debt-details">
+            <div class="debt-detail-item"><div class="label">本期账单</div><div class="val">¥ 42,680</div></div>
+            <div class="debt-detail-item"><div class="label">还款日</div><div class="val">6 月 25 日</div></div>
+            <div class="debt-detail-item"><div class="label">最低还款</div><div class="val">¥ 4,268</div></div>
+            <div class="debt-detail-item"><div class="label">已用额度</div><div class="val">5.3%</div></div>
+          </div>
+        </div>
+
+        <div class="debt-card">
+          <div class="debt-card-header">
+            <div>
+              <div class="debt-card-title">工行信用卡</div>
+              <div class="debt-card-sub">环球旅行白金卡 · 账单周期 10 号</div>
+            </div>
+            <span class="debt-badge active">待还款</span>
+          </div>
+          <div class="debt-amounts">
+            <span class="debt-remaining">¥ 15,840</span>
+            <span class="debt-total">额度 ¥ 300,000</span>
+          </div>
+          <div class="debt-bar-track"><div class="debt-bar-fill" style="width:5%;"></div></div>
+          <div class="debt-details">
+            <div class="debt-detail-item"><div class="label">本期账单</div><div class="val">¥ 15,840</div></div>
+            <div class="debt-detail-item"><div class="label">还款日</div><div class="val">6 月 30 日</div></div>
+            <div class="debt-detail-item"><div class="label">最低还款</div><div class="val">¥ 1,584</div></div>
+            <div class="debt-detail-item"><div class="label">已用额度</div><div class="val">5.3%</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment schedule -->
+      <div class="schedule-section" data-od-id="payment-schedule">
+        <div class="schedule-header">
+          <h3>还款日历</h3>
+          <span style="font-size:13px; color:var(--muted);">近期 6 笔待还</span>
+        </div>
+        <div class="schedule-row" style="font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em;">
+          <div>日期</div><div>债务名称</div><div style="text-align:right;">应还金额</div><div style="text-align:right;">其中本金</div><div style="text-align:center;">状态</div>
+        </div>
+        <div class="schedule-row">
+          <div class="date">6/10</div>
+          <div class="debt-name">招行信用卡 <span class="meta">· 百夫长黑金</span></div>
+          <div class="amount" style="color:var(--negative);">¥ 42,680</div>
+          <div class="principal">¥ 42,680</div>
+          <div class="status"><span class="status-pill soon">3 天后</span></div>
+        </div>
+        <div class="schedule-row">
+          <div class="date">6/15</div>
+          <div class="debt-name">信用贷 <span class="meta">· 招商银行</span></div>
+          <div class="amount" style="color:var(--negative);">¥ 18,650</div>
+          <div class="principal">¥ 15,340</div>
+          <div class="status"><span class="status-pill soon">8 天后</span></div>
+        </div>
+        <div class="schedule-row">
+          <div class="date">6/20</div>
+          <div class="debt-name">房贷 <span class="meta">· 工商银行</span></div>
+          <div class="amount" style="color:var(--negative);">¥ 35,200</div>
+          <div class="principal">¥ 20,800</div>
+          <div class="status"><span class="status-pill upcoming">13 天后</span></div>
+        </div>
+        <div class="schedule-row">
+          <div class="date">6/30</div>
+          <div class="debt-name">工行信用卡 <span class="meta">· 环球旅行白金</span></div>
+          <div class="amount" style="color:var(--negative);">¥ 15,840</div>
+          <div class="principal">¥ 15,840</div>
+          <div class="status"><span class="status-pill upcoming">23 天后</span></div>
+        </div>
+        <div class="schedule-row">
+          <div class="date">7/10</div>
+          <div class="debt-name">招行信用卡 <span class="meta">· 百夫长黑金</span></div>
+          <div class="amount">—</div>
+          <div class="principal">—</div>
+          <div class="status"><span class="status-pill upcoming">待出账</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
