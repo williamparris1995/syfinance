@@ -154,7 +154,7 @@
     └── 操作栏（[取消]  [确认创建]）
 ```
 
-新增路由：`/accounts/new`, `/accounts/:id/edit`, `/transactions/new`, `/goals/new` 等约 12 条
+新增路由：`/accounts/new`, `/accounts/:id/edit`, `/transactions/new`, `/goals/new` 等 10-12 条（部分模块仅需新建路由）
 
 金额输入框：左侧币种标签 + 右侧数字输入（`AmountInput` 组件）
 
