@@ -180,6 +180,7 @@
     "noAccounts": "还没有账户",
     "noAccountsDesc": "创建您的第一个账户以开始使用",
     "loadingAccounts": "加载账户...",
+    "loadError": "加载账户失败",
     "addAccount": "添加新账户以跟踪您的财务",
     "deleteAccount": "删除账户",
     "deleteConfirm": "确定要删除此账户吗?此操作无法撤销。",
@@ -221,17 +222,21 @@
       "option_account": "期权账户",
       "other_investment": "其他投资"
     },
-    "createWizard": {
-      "title": "创建账户",
-      "step1Title": "选择账户性质",
-      "assetAccount": "资产账户",
-      "assetAccountDesc": "您存放资金的地方，如现金、银行存款、投资",
-      "liabilityAccount": "负债账户",
-      "liabilityAccountDesc": "您欠的钱，如信用卡、借入款",
-      "incomeExpenseAccount": "收入/支出账户",
-      "incomeExpenseAccountDesc": "用于记账，如工资、餐饮支出",
-      "step2Title": "选择账户类型",
-      "step3Title": "填写详细信息"
+    "confirmChanges": "确认修改",
+    "confirmChangesDesc": "保存前请查看以下更改。",
+    "noChanges": "没有修改",
+    "fields": {
+      "name": "账户名称",
+      "initialBalance": "初始余额",
+      "icon": "图标",
+      "color": "颜色",
+      "accountNumber": "账号",
+      "institution": "机构",
+      "creditLimit": "信用额度",
+      "billingDay": "账单日",
+      "paymentDueDay": "还款日",
+      "interestRate": "利率",
+      "lowBalanceThreshold": "低余额阈值"
     }
   },
   "accountForm": {

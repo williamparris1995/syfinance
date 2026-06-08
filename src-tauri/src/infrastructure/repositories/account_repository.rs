@@ -93,11 +93,9 @@ impl SqliteAccountRepository {
             })
             .transpose()?;
 
-        let billing_day: Option<i64> = row.try_get("billing_day")?;
-        let billing_day = billing_day.map(|d| d as u8);
+        let billing_day: Option<i32> = row.try_get("billing_day")?;
 
-        let payment_due_day: Option<i64> = row.try_get("payment_due_day")?;
-        let payment_due_day = payment_due_day.map(|d| d as u8);
+        let payment_due_day: Option<i32> = row.try_get("payment_due_day")?;
 
         let interest_rate_str: Option<String> = row.try_get("interest_rate")?;
         let interest_rate = interest_rate_str
@@ -338,8 +336,8 @@ impl AccountRepository for SqliteAccountRepository {
         .bind(&account.account_number)
         .bind(&account.institution)
         .bind(account.credit_limit.as_ref().map(|m| m.amount.to_string()))
-        .bind(account.billing_day.map(|d| d as i64))
-        .bind(account.payment_due_day.map(|d| d as i64))
+        .bind(account.billing_day)
+        .bind(account.payment_due_day)
         .bind(account.interest_rate.map(|r| r.to_string()))
         .bind(account.low_balance_threshold.map(|t| t.to_string()))
         .bind(account.status.to_string())
@@ -518,8 +516,8 @@ impl AccountRepository for SqliteAccountRepository {
         .bind(&account.account_number)
         .bind(&account.institution)
         .bind(account.credit_limit.as_ref().map(|m| m.amount.to_string()))
-        .bind(account.billing_day.map(|d| d as i32))
-        .bind(account.payment_due_day.map(|d| d as i32))
+        .bind(account.billing_day)
+        .bind(account.payment_due_day)
         .bind(account.interest_rate.map(|r| r.to_string()))
         .bind(account.low_balance_threshold.map(|t| t.to_string()))
         .bind(account.status.to_string())
