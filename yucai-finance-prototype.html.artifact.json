@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "御财 · 产品原型总览",
+  "entry": "yucai-finance-prototype.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "primary": true,
+  "createdAt": "2026-06-08T07:46:51.419Z",
+  "updatedAt": "2026-06-08T07:46:51.434Z",
+  "sourceSkillId": "agent-browser",
+  "metadata": {
+    "identifier": "yucai-finance-prototype",
+    "artifactType": "text/html",
+    "inferred": false
+  }
+}
