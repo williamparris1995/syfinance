@@ -8,6 +8,7 @@
     "selectAll": "全选",
     "cancel": "取消",
     "delete": "删除",
+    "new": "新建",
     "edit": "编辑",
     "create": "创建",
     "search": "搜索",
@@ -37,7 +38,7 @@
     "confirm": "确认",
     "confirmDelete": "确认删除？",
     "noResults": "无结果",
-    "routeShell": "路由壳",
+    "routeShell": "页面建设中",
     "optionalSuffix": "— 可选",
     "cny": "人民币",
     "errorGeneric": "操作失败，请重试。"
@@ -69,7 +70,21 @@
     "planning": "规划",
     "analysis": "分析",
     "system": "系统",
-    "backup": "备份"
+    "backup": "备份",
+    "brandTitle": "御财",
+    "brandSubtitle": "私人财富管理",
+    "userInitial": "U",
+    "userName": "用户",
+    "userTier": "高级会员",
+    "collapseSidebar": "收起侧边栏",
+    "expandSidebar": "展开侧边栏",
+    "groups": {
+      "overview": "概览",
+      "investment": "投资",
+      "finance": "财务",
+      "borrowing": "借贷",
+      "tools": "工具"
+    }
   },
   "category": {
     "title": "分类管理",

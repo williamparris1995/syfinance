@@ -37,7 +37,9 @@
     "confirm": "Confirm",
     "confirmDelete": "Confirm delete?",
     "noResults": "No results",
-    "routeShell": "Route shell.",
+    "new": "New",
+    "edit": "Edit",
+    "routeShell": "Page under construction",
     "optionalSuffix": "— optional",
     "cny": "Chinese Yuan",
     "errorGeneric": "An error occurred. Please try again."
@@ -69,7 +71,21 @@
     "planning": "Planning",
     "analysis": "Analysis",
     "system": "System",
-    "backup": "Backup"
+    "backup": "Backup",
+    "brandTitle": "YuCai",
+    "brandSubtitle": "Private Wealth Management",
+    "userInitial": "U",
+    "userName": "User",
+    "userTier": "Premium",
+    "collapseSidebar": "Collapse sidebar",
+    "expandSidebar": "Expand sidebar",
+    "groups": {
+      "overview": "Overview",
+      "investment": "Investment",
+      "finance": "Finance",
+      "borrowing": "Borrowing",
+      "tools": "Tools"
+    }
   },
   "category": {
     "title": "Categories",
