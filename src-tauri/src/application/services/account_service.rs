@@ -250,6 +250,51 @@ impl<R: AccountRepository, U: CurrencyRepository> AccountService<R, U> {
         Ok(dtos)
     }
 
+    pub async fn archive_account<E>(
+        &self,
+        _executor: E,
+        id: Uuid,
+    ) -> Result<AccountDto, AccountServiceError> {
+        let mut account = self
+            .account_repo
+            .find_by_id(id)
+            .await?
+            .ok_or(AccountServiceError::AccountNotFound(id))?;
+        account.archive()?;
+        self.account_repo.update(&account).await?;
+        Ok(AccountDto::from(account))
+    }
+
+    pub async fn hide_account<E>(
+        &self,
+        _executor: E,
+        id: Uuid,
+    ) -> Result<AccountDto, AccountServiceError> {
+        let mut account = self
+            .account_repo
+            .find_by_id(id)
+            .await?
+            .ok_or(AccountServiceError::AccountNotFound(id))?;
+        account.hide()?;
+        self.account_repo.update(&account).await?;
+        Ok(AccountDto::from(account))
+    }
+
+    pub async fn reactivate_account<E>(
+        &self,
+        _executor: E,
+        id: Uuid,
+    ) -> Result<AccountDto, AccountServiceError> {
+        let mut account = self
+            .account_repo
+            .find_by_id(id)
+            .await?
+            .ok_or(AccountServiceError::AccountNotFound(id))?;
+        account.reactivate()?;
+        self.account_repo.update(&account).await?;
+        Ok(AccountDto::from(account))
+    }
+
     pub async fn get_account_balance(&self, id: Uuid) -> Result<Money, AccountServiceError> {
         let account = self
             .account_repo

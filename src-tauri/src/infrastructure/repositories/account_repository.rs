@@ -116,6 +116,27 @@ impl SqliteAccountRepository {
             })
             .transpose()?;
 
+        let status_str: Option<String> = row.try_get("status").ok();
+        let status = match status_str.as_deref() {
+            Some("active") => crate::domain::aggregates::account::AccountStatus::Active,
+            Some("archived") => crate::domain::aggregates::account::AccountStatus::Archived,
+            Some("hidden") => crate::domain::aggregates::account::AccountStatus::Hidden,
+            _ => crate::domain::aggregates::account::AccountStatus::Active,
+        };
+
+        let opened_at_str: Option<String> = row.try_get("opened_at").ok();
+        let opened_at = opened_at_str
+            .and_then(|s| {
+                let parse_sqlite_datetime = |s: &str| -> Result<DateTime<Utc>, chrono::ParseError> {
+                    if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
+                        return Ok(dt.with_timezone(&Utc));
+                    }
+                    chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S")
+                        .map(|ndt| DateTime::<Utc>::from_naive_utc_and_offset(ndt, Utc))
+                };
+                parse_sqlite_datetime(&s).ok()
+            });
+
         let updated_at: String = row.try_get("updated_at")?;
         let created_at: String = row.try_get("created_at")?;
         let deleted_at: Option<String> = row.try_get("deleted_at")?;
@@ -184,8 +205,8 @@ impl SqliteAccountRepository {
             payment_due_day,
             interest_rate,
             low_balance_threshold,
-            status: crate::domain::aggregates::account::AccountStatus::Active,
-            opened_at: None,
+            status,
+            opened_at,
             created_at: created_at_parsed,
             sync_metadata,
             pending_events: Vec::new(),
@@ -298,9 +319,10 @@ impl AccountRepository for SqliteAccountRepository {
                 icon, color, chart_code, parent_id,
                 account_number, institution, credit_limit, billing_day,
                 payment_due_day, interest_rate, low_balance_threshold,
+                status, opened_at,
                 created_at, updated_at, deleted_at, device_id, synced_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(account.id.to_string())
@@ -320,6 +342,8 @@ impl AccountRepository for SqliteAccountRepository {
         .bind(account.payment_due_day.map(|d| d as i64))
         .bind(account.interest_rate.map(|r| r.to_string()))
         .bind(account.low_balance_threshold.map(|t| t.to_string()))
+        .bind(account.status.to_string())
+        .bind(account.opened_at.map(|dt| dt.to_rfc3339()))
         .bind(account.created_at.to_rfc3339())
         .bind(account.sync_metadata.updated_at.to_rfc3339())
         .bind(account.sync_metadata.deleted_at.map(|dt| dt.to_rfc3339()))
@@ -343,6 +367,7 @@ impl AccountRepository for SqliteAccountRepository {
                 billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
                 CAST(low_balance_threshold AS TEXT) AS low_balance_threshold,
+                status, opened_at,
                 created_at, updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE name = ? AND deleted_at IS NULL
@@ -367,6 +392,7 @@ impl AccountRepository for SqliteAccountRepository {
                 billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
                 CAST(low_balance_threshold AS TEXT) AS low_balance_threshold,
+                status, opened_at,
                 created_at, updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE id = ? AND deleted_at IS NULL
@@ -391,6 +417,7 @@ impl AccountRepository for SqliteAccountRepository {
                 billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
                 CAST(low_balance_threshold AS TEXT) AS low_balance_threshold,
+                status, opened_at,
                 created_at, updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE deleted_at IS NULL
@@ -415,6 +442,7 @@ impl AccountRepository for SqliteAccountRepository {
                 billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
                 CAST(low_balance_threshold AS TEXT) AS low_balance_threshold,
+                status, opened_at,
                 created_at, updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE account_type = ? AND deleted_at IS NULL
@@ -440,6 +468,7 @@ impl AccountRepository for SqliteAccountRepository {
                 billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
                 CAST(low_balance_threshold AS TEXT) AS low_balance_threshold,
+                status, opened_at,
                 created_at, updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE ownership = ? AND deleted_at IS NULL
@@ -471,6 +500,8 @@ impl AccountRepository for SqliteAccountRepository {
                 payment_due_day = ?,
                 interest_rate = ?,
                 low_balance_threshold = ?,
+                status = ?,
+                opened_at = ?,
                 updated_at = ?,
                 deleted_at = ?,
                 device_id = ?,
@@ -491,6 +522,8 @@ impl AccountRepository for SqliteAccountRepository {
         .bind(account.payment_due_day.map(|d| d as i32))
         .bind(account.interest_rate.map(|r| r.to_string()))
         .bind(account.low_balance_threshold.map(|t| t.to_string()))
+        .bind(account.status.to_string())
+        .bind(account.opened_at.map(|dt| dt.to_rfc3339()))
         .bind(account.sync_metadata.updated_at.to_rfc3339())
         .bind(account.sync_metadata.deleted_at.map(|dt| dt.to_rfc3339()))
         .bind(account.sync_metadata.device_id.to_string())
@@ -531,6 +564,7 @@ impl AccountRepository for SqliteAccountRepository {
                 billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
                 CAST(low_balance_threshold AS TEXT) AS low_balance_threshold,
+                status, opened_at,
                 created_at, updated_at, deleted_at, device_id, synced_at
             FROM accounts
             ORDER BY name ASC
@@ -554,6 +588,7 @@ impl AccountRepository for SqliteAccountRepository {
                 billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
                 CAST(low_balance_threshold AS TEXT) AS low_balance_threshold,
+                status, opened_at,
                 created_at, updated_at, deleted_at, device_id, synced_at
             FROM accounts
             WHERE updated_at > ? AND (synced_at IS NULL OR synced_at < updated_at)
@@ -639,6 +674,8 @@ mod tests {
                 payment_due_day INTEGER,
                 interest_rate DECIMAL(10,6),
                 low_balance_threshold DECIMAL(20,2),
+                status TEXT DEFAULT 'active' CHECK(status IN ('active', 'archived', 'hidden')),
+                opened_at TIMESTAMP,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 deleted_at TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

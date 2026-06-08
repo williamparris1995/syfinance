@@ -4,6 +4,7 @@ import {
   ArrowDown, ArrowUp, Copy, Pencil, Search, Trash2, Wallet, Eye,
   Landmark, HandCoins, ArrowRightLeft, PiggyBank,
   Layers, Banknote, Receipt, CreditCard, TrendingUp, PlusCircle,
+  Archive, EyeOff, RotateCcw,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -39,6 +40,9 @@ import {
   createAccount,
   listAccountsWithBalances,
   updateAccount,
+  archiveAccount,
+  hideAccount,
+  reactivateAccount,
   type AccountDto,
   type CreateAccountDto,
   type PatchAccountDto,
@@ -75,6 +79,9 @@ function AccountGroupTable({
   onTopUp,
   onDetail,
   onRecordTransaction,
+  onArchive,
+  onHide,
+  onReactivate,
   sortColumn,
   sortDirection,
   setSortColumn,
@@ -92,6 +99,9 @@ function AccountGroupTable({
   onTopUp: (id: string) => void;
   onDetail: (id: string) => void;
   onRecordTransaction?: (accountId: string) => void;
+  onArchive: (id: string) => void;
+  onHide: (id: string) => void;
+  onReactivate: (id: string) => void;
   sortColumn: string;
   sortDirection: 'asc' | 'desc';
   setSortColumn: (c: 'name' | 'type' | 'initialBalance' | 'balance') => void;
@@ -143,6 +153,16 @@ function AccountGroupTable({
                   <div className="flex items-center gap-2">
                     <span className="text-lg">{account.icon}</span>
                     <span>{account.name}</span>
+                    {account.status === 'archived' && (
+                      <span className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/20 px-1.5 py-0.5 rounded">
+                        {t('accounts.archived')}
+                      </span>
+                    )}
+                    {account.status === 'hidden' && (
+                      <span className="text-xs text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
+                        {t('accounts.hidden')}
+                      </span>
+                    )}
                     {account.account_type === 'Prepaid' && account.low_balance_threshold != null && Number(account.current_balance) < Number(account.low_balance_threshold) && (
                       <span className="text-xs text-red-500 font-normal">
                         {t('prepaid.lowBalanceWarning')}
@@ -198,6 +218,21 @@ function AccountGroupTable({
                     <Button variant="ghost" size="sm" onClick={() => onCopy(account)} title={t('accounts.copyToCreate')}>
                       <Copy className="h-4 w-4 text-gray-500" />
                     </Button>
+                    {account.status === 'active' && (
+                      <>
+                        <Button variant="ghost" size="sm" onClick={() => onArchive(account.id)} title={t('accounts.archiveAccount')}>
+                          <Archive className="h-4 w-4 text-amber-600" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => onHide(account.id)} title={t('accounts.hideAccount')}>
+                          <EyeOff className="h-4 w-4 text-gray-400" />
+                        </Button>
+                      </>
+                    )}
+                    {(account.status === 'archived' || account.status === 'hidden') && (
+                      <Button variant="ghost" size="sm" onClick={() => onReactivate(account.id)} title={t('accounts.reactivateAccount')}>
+                        <RotateCcw className="h-4 w-4 text-emerald-500" />
+                      </Button>
+                    )}
                     <Button variant="ghost" size="sm" onClick={() => onEdit(account)}>
                       <Pencil className="h-4 w-4 text-blue-500" />
                     </Button>
@@ -229,6 +264,7 @@ export function AccountsPage() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [sortColumn, setSortColumn] = useState<'name' | 'type' | 'initialBalance' | 'balance'>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [showArchivedHidden, setShowArchivedHidden] = useState(false);
 
   // Prepaid-specific state
   const [topUpAccountId, setTopUpAccountId] = useState<string | null>(null);
@@ -255,6 +291,10 @@ export function AccountsPage() {
 
   const typeGroups = useMemo(() => {
     let filtered = accounts;
+
+    if (!showArchivedHidden) {
+      filtered = filtered.filter((a) => a.status === 'active');
+    }
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
@@ -283,7 +323,7 @@ export function AccountsPage() {
     }
 
     return groups;
-  }, [accounts, searchQuery, typeFilter, sortColumn, sortDirection]);
+  }, [accounts, searchQuery, typeFilter, sortColumn, sortDirection, showArchivedHidden]);
 
   const TYPE_ORDER: { key: string; labelKey: string; icon: React.ReactNode }[] = [
     { key: 'Cash', labelKey: 'accountForm.cashWithChinese', icon: <Wallet className="h-4 w-4" /> },
@@ -318,6 +358,39 @@ export function AccountsPage() {
       setIsSheetOpen(false);
       setCopyingAccount(null);
       toast.success(t('accounts.accountCreated'));
+    },
+    onError: (error) => {
+      toast.error(getUserFriendlyError(error));
+    },
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: archiveAccount,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      toast.success(t('accounts.archived'));
+    },
+    onError: (error) => {
+      toast.error(getUserFriendlyError(error));
+    },
+  });
+
+  const hideMutation = useMutation({
+    mutationFn: hideAccount,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      toast.success(t('accounts.hidden'));
+    },
+    onError: (error) => {
+      toast.error(getUserFriendlyError(error));
+    },
+  });
+
+  const reactivateMutation = useMutation({
+    mutationFn: reactivateAccount,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      toast.success(t('accounts.reactivated'));
     },
     onError: (error) => {
       toast.error(getUserFriendlyError(error));
@@ -434,6 +507,15 @@ export function AccountsPage() {
             </Button>
           );
         })}
+        <Button
+          variant={showArchivedHidden ? 'default' : 'outline'}
+          size="sm"
+          className="h-7 text-xs ml-auto"
+          onClick={() => setShowArchivedHidden(!showArchivedHidden)}
+        >
+          <Archive className="h-3.5 w-3.5 mr-1" />
+          {showArchivedHidden ? t('accounts.hideArchived') : t('accounts.showArchived')}
+        </Button>
       </div>
 
       {accounts.length === 0 ? (
@@ -464,6 +546,9 @@ export function AccountsPage() {
                 onTopUp={setTopUpAccountId}
                 onDetail={setDetailAccountId}
                 onRecordTransaction={(accountId) => navigate({ to: '/transactions/new', search: { accountId } })}
+                onArchive={(id) => archiveMutation.mutate(id)}
+                onHide={(id) => hideMutation.mutate(id)}
+                onReactivate={(id) => reactivateMutation.mutate(id)}
                 sortColumn={sortColumn}
                 sortDirection={sortDirection}
                 setSortColumn={setSortColumn}

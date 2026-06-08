@@ -375,6 +375,27 @@ impl Account {
         Ok(())
     }
 
+    pub fn archive(&mut self) -> Result<(), AccountError> {
+        self.ensure_not_deleted()?;
+        self.status = AccountStatus::Archived;
+        self.touch();
+        Ok(())
+    }
+
+    pub fn hide(&mut self) -> Result<(), AccountError> {
+        self.ensure_not_deleted()?;
+        self.status = AccountStatus::Hidden;
+        self.touch();
+        Ok(())
+    }
+
+    pub fn reactivate(&mut self) -> Result<(), AccountError> {
+        self.ensure_not_deleted()?;
+        self.status = AccountStatus::Active;
+        self.touch();
+        Ok(())
+    }
+
     pub fn soft_delete(&mut self) -> Result<(), AccountError> {
         self.ensure_not_deleted()?;
         self.sync_metadata.mark_deleted();

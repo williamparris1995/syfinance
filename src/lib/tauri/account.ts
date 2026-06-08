@@ -99,6 +99,15 @@ export const getAccountBalance = (id: string) =>
 export const listAccountsWithBalances = () =>
   invokeTauri<AccountDto[]>('list_accounts_with_balances');
 
+export const archiveAccount = (id: string) =>
+  invokeTauri<AccountDto>('archive_account', { id });
+
+export const hideAccount = (id: string) =>
+  invokeTauri<AccountDto>('hide_account', { id });
+
+export const reactivateAccount = (id: string) =>
+  invokeTauri<AccountDto>('reactivate_account', { id });
+
 export interface BalanceHistoryPoint {
   date: string;
   balance: string;
