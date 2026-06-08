@@ -1,0 +1,17 @@
+# .graphifyignore
+node_modules/
+dist/
+*.generated.py
+build/
+.git/
+.claude/
+.omx/
+.runtime-probe/
+.runtime-tmp/
+.superpowers/
+graphify-out/
+*.g.dart
+*.freezed.dart
+*.lock
+package-lock.json
+pnpm-lock.yaml
