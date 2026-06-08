@@ -1,34 +1,34 @@
 import { ReactNode, useState } from 'react';
 import { Sidebar } from '@/components/sidebar';
 import { Header } from './Header';
-import { cn } from '@/lib/utils';
+import { Menu } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface AppLayoutProps {
   children: ReactNode;
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false); // Mobile: show/hide
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // Desktop: expand/collapse
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {/* Sidebar - Desktop: always visible (can be collapsed), Mobile: overlay */}
+    <div className="flex h-screen overflow-hidden">
+      {/* Sidebar */}
       <div
-        className={cn(
-          "fixed inset-y-0 left-0 z-50 transform transition-all duration-300 ease-in-out lg:relative lg:translate-x-0",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full",
-          sidebarCollapsed ? "lg:w-16" : "lg:w-64",
-          "w-64" // Mobile always full width when open
-        )}
+        className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}
+        style={{ width: sidebarCollapsed ? '64px' : '240px', flexShrink: 0 }}
       >
-        <Sidebar 
+        <Sidebar
           collapsed={sidebarCollapsed}
-          onNavigate={() => setSidebarOpen(false)} 
+          onNavigate={() => setSidebarOpen(false)}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
       </div>
 
-      {/* Overlay for mobile */}
+      {/* Mobile overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 lg:hidden"
@@ -36,27 +36,21 @@ export function AppLayout({ children }: AppLayoutProps) {
         />
       )}
 
-      {/* Main content area */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Header with configurable components */}
-        <Header
-          onSidebarToggle={() => {
-            // Mobile: toggle open/close
-            // Desktop: toggle collapse/expand
-            if (window.innerWidth < 1024) {
-              setSidebarOpen(!sidebarOpen);
-            } else {
-              setSidebarCollapsed(!sidebarCollapsed);
-            }
-          }}
-          user={{
-            name: 'User',
-            email: 'user@example.com',
-            initials: 'U',
-          }}
-        />
+      {/* Mobile sidebar toggle - only visible when sidebar is closed on mobile */}
+      {!sidebarOpen && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="fixed left-4 top-4 z-30 lg:hidden"
+          onClick={() => setSidebarOpen(true)}
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+      )}
 
-        {/* Content area */}
+      {/* Main content */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <Header />
         <main className="flex-1 overflow-y-auto">
           {children}
         </main>
