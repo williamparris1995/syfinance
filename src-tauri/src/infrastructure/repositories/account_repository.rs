@@ -3,6 +3,7 @@ use crate::domain::{
     repositories::AccountRepository,
     value_objects::{Money, SyncMetadata},
 };
+use crate::domain::value_objects::money::{decimal_to_cents, cents_to_decimal};
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use sqlx::{sqlite::SqlitePool, Row};
@@ -47,13 +48,8 @@ impl SqliteAccountRepository {
 
         let currency_code: String = row.try_get("currency_code")?;
 
-        let initial_balance_str: String = row.try_get("initial_balance")?;
-        let initial_balance_amount = Decimal::from_str(&initial_balance_str).map_err(|e| {
-            sqlx::Error::Decode(format!("initial_balance='{initial_balance_str}': {e}").into())
-        })?;
-
-        let initial_balance = Money::new(initial_balance_amount, &currency_code)
-            .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+        let initial_balance_cents: i64 = row.try_get("initial_balance")?;
+        let initial_balance = Money::from_cents(initial_balance_cents, currency_code.clone());
 
         // Read new columns from unified accounts
         let ownership_str: String = row.try_get("ownership")?;
@@ -84,14 +80,9 @@ impl SqliteAccountRepository {
         let account_number: Option<String> = row.try_get("account_number")?;
         let institution: Option<String> = row.try_get("institution")?;
 
-        let credit_limit_str: Option<String> = row.try_get("credit_limit")?;
-        let credit_limit = credit_limit_str
-            .map(|s| {
-                let amount = Decimal::from_str(&s)
-                    .map_err(|e| sqlx::Error::Decode(format!("credit_limit='{s}': {e}").into()))?;
-                Money::new(amount, &currency_code).map_err(|e| sqlx::Error::Decode(Box::new(e)))
-            })
-            .transpose()?;
+        let credit_limit_cents: Option<i64> = row.try_get("credit_limit")?;
+        let credit_limit = credit_limit_cents
+            .map(|cents| Money::from_cents(cents, currency_code.clone()));
 
         let billing_day: Option<i32> = row.try_get("billing_day")?;
 
@@ -105,14 +96,8 @@ impl SqliteAccountRepository {
             })
             .transpose()?;
 
-        let low_balance_threshold_str: Option<String> = row.try_get("low_balance_threshold")?;
-        let low_balance_threshold = low_balance_threshold_str
-            .map(|s| {
-                Decimal::from_str(&s).map_err(|e| {
-                    sqlx::Error::Decode(format!("low_balance_threshold='{s}': {e}").into())
-                })
-            })
-            .transpose()?;
+        let low_balance_threshold_cents: Option<i64> = row.try_get("low_balance_threshold")?;
+        let low_balance_threshold = low_balance_threshold_cents.map(cents_to_decimal);
 
         let status_str: Option<String> = row.try_get("status").ok();
         let status = match status_str.as_deref() {
@@ -216,15 +201,15 @@ impl SqliteAccountRepository {
         #[derive(sqlx::FromRow)]
         struct BalanceRow {
             account_id: String,
-            net_change: Option<String>,
+            net_change: Option<i64>,
         }
 
         let rows = sqlx::query_as::<_, BalanceRow>(
             r#"
             SELECT
                 e.account_id,
-                CAST(COALESCE(SUM(COALESCE(e.debit_amount, 0)), 0) -
-                     COALESCE(SUM(COALESCE(e.credit_amount, 0)), 0) AS TEXT) AS net_change
+                COALESCE(SUM(COALESCE(e.debit_amount, 0)), 0) -
+                     COALESCE(SUM(COALESCE(e.credit_amount, 0)), 0) AS net_change
             FROM transaction_entries e
             JOIN transactions t ON e.transaction_id = t.id
             WHERE e.deleted_at IS NULL AND t.deleted_at IS NULL
@@ -239,7 +224,7 @@ impl SqliteAccountRepository {
             if let Ok(id) = Uuid::from_str(&row.account_id) {
                 let change = row
                     .net_change
-                    .and_then(|s| Decimal::from_str(&s).ok())
+                    .map(cents_to_decimal)
                     .unwrap_or(Decimal::ZERO);
                 map.insert(id, change);
             }
@@ -251,9 +236,9 @@ impl SqliteAccountRepository {
         &self,
         id: Uuid,
     ) -> Result<Decimal, sqlx::Error> {
-        let row: (String,) = sqlx::query_as(
-            "SELECT CAST(COALESCE(SUM(COALESCE(e.debit_amount, 0)), 0) - \
-             COALESCE(SUM(COALESCE(e.credit_amount, 0)), 0) AS TEXT) \
+        let row: (i64,) = sqlx::query_as(
+            "SELECT COALESCE(SUM(COALESCE(e.debit_amount, 0)), 0) - \
+             COALESCE(SUM(COALESCE(e.credit_amount, 0)), 0) \
              FROM transaction_entries e \
              JOIN transactions t ON e.transaction_id = t.id \
              WHERE e.deleted_at IS NULL AND t.deleted_at IS NULL \
@@ -263,7 +248,7 @@ impl SqliteAccountRepository {
         .fetch_one(&self.pool)
         .await?;
 
-        Decimal::from_str(&row.0).map_err(|e| sqlx::Error::Decode(Box::new(e)))
+        Ok(cents_to_decimal(row.0))
     }
 
     pub async fn get_balance_history_sqlite(
@@ -271,15 +256,15 @@ impl SqliteAccountRepository {
         account_id: Uuid,
         days: i32,
     ) -> Result<Vec<(String, Decimal)>, sqlx::Error> {
-        let rows: Vec<(String, String)> = sqlx::query_as(
+        let rows: Vec<(String, i64)> = sqlx::query_as(
             "WITH RECURSIVE dates(date) AS ( \
                 SELECT DATE('now', ? || ' days') \
                 UNION ALL \
                 SELECT DATE(date, '+1 day') FROM dates WHERE date < DATE('now') \
             ) \
             SELECT d.date, \
-                   CAST(COALESCE(( \
-                       SELECT a.initial_balance + SUM(CAST(COALESCE(e.debit_amount, 0) AS REAL) - CAST(COALESCE(e.credit_amount, 0) AS REAL)) \
+                   COALESCE(( \
+                       SELECT a.initial_balance + SUM(COALESCE(e.debit_amount, 0) - COALESCE(e.credit_amount, 0)) \
                        FROM transaction_entries e \
                        JOIN transactions t ON e.transaction_id = t.id \
                        CROSS JOIN accounts a \
@@ -287,7 +272,7 @@ impl SqliteAccountRepository {
                        AND e.account_id = ? \
                        AND e.deleted_at IS NULL AND t.deleted_at IS NULL \
                        AND t.transaction_date <= d.date \
-                   ), a.initial_balance) AS TEXT) as balance \
+                   ), a.initial_balance) as balance \
             FROM dates d, accounts a \
             WHERE a.id = ? \
             ORDER BY d.date",
@@ -300,8 +285,8 @@ impl SqliteAccountRepository {
         .await?;
 
         rows.into_iter()
-            .map(|(date, balance_str)| {
-                let balance = balance_str.parse::<Decimal>().unwrap_or(Decimal::ZERO);
+            .map(|(date, balance_cents)| {
+                let balance = cents_to_decimal(balance_cents);
                 Ok((date, balance))
             })
             .collect()
@@ -328,18 +313,18 @@ impl AccountRepository for SqliteAccountRepository {
         .bind(account.account_type.to_string())
         .bind(account.ownership.to_string())
         .bind(&account.currency_code)
-        .bind(account.initial_balance.amount.to_string())
+        .bind(account.initial_balance.to_cents())
         .bind(&account.icon)
         .bind(&account.color)
         .bind(&account.chart_code)
         .bind(account.parent_id.map(|id| id.to_string()))
         .bind(&account.account_number)
         .bind(&account.institution)
-        .bind(account.credit_limit.as_ref().map(|m| m.amount.to_string()))
+        .bind(account.credit_limit.as_ref().map(|m| m.to_cents()))
         .bind(account.billing_day)
         .bind(account.payment_due_day)
         .bind(account.interest_rate.map(|r| r.to_string()))
-        .bind(account.low_balance_threshold.map(|t| t.to_string()))
+        .bind(account.low_balance_threshold.map(decimal_to_cents))
         .bind(account.status.to_string())
         .bind(account.opened_at.map(|dt| dt.to_rfc3339()))
         .bind(account.created_at.to_rfc3339())
@@ -358,13 +343,13 @@ impl AccountRepository for SqliteAccountRepository {
             r#"
             SELECT
                 id, name, account_type, ownership, currency_code,
-                CAST(initial_balance AS TEXT) AS initial_balance,
+                initial_balance,
                 icon, color, chart_code, parent_id,
                 account_number, institution,
-                CAST(credit_limit AS TEXT) AS credit_limit,
+                credit_limit,
                 billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
-                CAST(low_balance_threshold AS TEXT) AS low_balance_threshold,
+                low_balance_threshold,
                 status, opened_at,
                 created_at, updated_at, deleted_at, device_id, synced_at
             FROM accounts
@@ -383,13 +368,13 @@ impl AccountRepository for SqliteAccountRepository {
             r#"
             SELECT
                 id, name, account_type, ownership, currency_code,
-                CAST(initial_balance AS TEXT) AS initial_balance,
+                initial_balance,
                 icon, color, chart_code, parent_id,
                 account_number, institution,
-                CAST(credit_limit AS TEXT) AS credit_limit,
+                credit_limit,
                 billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
-                CAST(low_balance_threshold AS TEXT) AS low_balance_threshold,
+                low_balance_threshold,
                 status, opened_at,
                 created_at, updated_at, deleted_at, device_id, synced_at
             FROM accounts
@@ -408,13 +393,13 @@ impl AccountRepository for SqliteAccountRepository {
             r#"
             SELECT
                 id, name, account_type, ownership, currency_code,
-                CAST(initial_balance AS TEXT) AS initial_balance,
+                initial_balance,
                 icon, color, chart_code, parent_id,
                 account_number, institution,
-                CAST(credit_limit AS TEXT) AS credit_limit,
+                credit_limit,
                 billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
-                CAST(low_balance_threshold AS TEXT) AS low_balance_threshold,
+                low_balance_threshold,
                 status, opened_at,
                 created_at, updated_at, deleted_at, device_id, synced_at
             FROM accounts
@@ -433,13 +418,13 @@ impl AccountRepository for SqliteAccountRepository {
             r#"
             SELECT
                 id, name, account_type, ownership, currency_code,
-                CAST(initial_balance AS TEXT) AS initial_balance,
+                initial_balance,
                 icon, color, chart_code, parent_id,
                 account_number, institution,
-                CAST(credit_limit AS TEXT) AS credit_limit,
+                credit_limit,
                 billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
-                CAST(low_balance_threshold AS TEXT) AS low_balance_threshold,
+                low_balance_threshold,
                 status, opened_at,
                 created_at, updated_at, deleted_at, device_id, synced_at
             FROM accounts
@@ -459,13 +444,13 @@ impl AccountRepository for SqliteAccountRepository {
             r#"
             SELECT
                 id, name, account_type, ownership, currency_code,
-                CAST(initial_balance AS TEXT) AS initial_balance,
+                initial_balance,
                 icon, color, chart_code, parent_id,
                 account_number, institution,
-                CAST(credit_limit AS TEXT) AS credit_limit,
+                credit_limit,
                 billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
-                CAST(low_balance_threshold AS TEXT) AS low_balance_threshold,
+                low_balance_threshold,
                 status, opened_at,
                 created_at, updated_at, deleted_at, device_id, synced_at
             FROM accounts
@@ -508,18 +493,18 @@ impl AccountRepository for SqliteAccountRepository {
             "#,
         )
         .bind(&account.name)
-        .bind(account.initial_balance.amount.to_string())
+        .bind(account.initial_balance.to_cents())
         .bind(&account.icon)
         .bind(&account.color)
         .bind(&account.chart_code)
         .bind(account.parent_id.map(|id| id.to_string()))
         .bind(&account.account_number)
         .bind(&account.institution)
-        .bind(account.credit_limit.as_ref().map(|m| m.amount.to_string()))
+        .bind(account.credit_limit.as_ref().map(|m| m.to_cents()))
         .bind(account.billing_day)
         .bind(account.payment_due_day)
         .bind(account.interest_rate.map(|r| r.to_string()))
-        .bind(account.low_balance_threshold.map(|t| t.to_string()))
+        .bind(account.low_balance_threshold.map(decimal_to_cents))
         .bind(account.status.to_string())
         .bind(account.opened_at.map(|dt| dt.to_rfc3339()))
         .bind(account.sync_metadata.updated_at.to_rfc3339())
@@ -555,13 +540,13 @@ impl AccountRepository for SqliteAccountRepository {
             r#"
             SELECT
                 id, name, account_type, ownership, currency_code,
-                CAST(initial_balance AS TEXT) AS initial_balance,
+                initial_balance,
                 icon, color, chart_code, parent_id,
                 account_number, institution,
-                CAST(credit_limit AS TEXT) AS credit_limit,
+                credit_limit,
                 billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
-                CAST(low_balance_threshold AS TEXT) AS low_balance_threshold,
+                low_balance_threshold,
                 status, opened_at,
                 created_at, updated_at, deleted_at, device_id, synced_at
             FROM accounts
@@ -579,13 +564,13 @@ impl AccountRepository for SqliteAccountRepository {
             r#"
             SELECT
                 id, name, account_type, ownership, currency_code,
-                CAST(initial_balance AS TEXT) AS initial_balance,
+                initial_balance,
                 icon, color, chart_code, parent_id,
                 account_number, institution,
-                CAST(credit_limit AS TEXT) AS credit_limit,
+                credit_limit,
                 billing_day, payment_due_day,
                 CAST(interest_rate AS TEXT) AS interest_rate,
-                CAST(low_balance_threshold AS TEXT) AS low_balance_threshold,
+                low_balance_threshold,
                 status, opened_at,
                 created_at, updated_at, deleted_at, device_id, synced_at
             FROM accounts
