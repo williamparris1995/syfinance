@@ -1,17 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from '@tanstack/react-router';
 import React, { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { ArrowUpDown, RefreshCw, TrendingDown, ChevronRight, ChevronDown, Pencil, Trash2, DollarSign, Split } from 'lucide-react';
 import { Pie, PieChart, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { PageShell } from '@/components/patterns/layout/PageShell';
+import { PageHeader } from '@/components/patterns/layout/PageHeader';
+import { StatCard } from '@/components/patterns/cards/StatCard';
+import { FilterBar } from '@/components/patterns/layout/FilterBar';
 import { Button } from '../components/ui/button';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from '../components/ui/sheet';
 import { Badge } from '../components/ui/badge';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '../components/ui/select';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '../components/ui/table';
@@ -67,6 +69,7 @@ interface EnrichedHolding extends HoldingDto {
 
 export function HoldingsPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showTradeSheet, setShowTradeSheet] = useState(false);
   const [tradeDirection, setTradeDirection] = useState<'BUY' | 'SELL'>('BUY');
@@ -377,6 +380,7 @@ export function HoldingsPage() {
         onDividend={handleDividend}
         onSplit={handleSplit}
         onToggle={toggleExpand}
+        onNavigateToDetail={(id: string) => navigate({ to: '/holdings/$holdingId', params: { holdingId: id } })}
         t={t}
       />
     );
@@ -506,22 +510,22 @@ export function HoldingsPage() {
     );
   };
 
-  if (isLoading) return <div className="p-4 sm:p-6 text-center text-muted-foreground">{t('common.loading')}</div>;
+  if (isLoading) return <PageShell><div className="text-center text-muted-foreground">{t('common.loading')}</div></PageShell>;
 
   return (
-    <div className="p-4 sm:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
-        <h1 className="text-2xl font-bold sm:text-3xl">{t('holding.title')}</h1>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleRefreshPrices} disabled={isRefreshing}>
-            <RefreshCw className={`h-4 w-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {isRefreshing ? refreshProgress || t('holding.refreshPrices') : t('holding.refreshPrices')}
-          </Button>
-          <Button variant="default-gradient" onClick={handleNewTrade}>
-            {t('holding.newTrade')}
-          </Button>
-        </div>
-      </div>
+    <PageShell>
+      <PageHeader
+        title={t('holding.title')}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleRefreshPrices} disabled={isRefreshing}>
+              <RefreshCw className={`h-4 w-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? refreshProgress || t('holding.refreshPrices') : t('holding.refreshPrices')}
+            </Button>
+            <Button onClick={handleNewTrade}>{t('holding.newTrade')}</Button>
+          </div>
+        }
+      />
 
       {holdings.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -531,26 +535,20 @@ export function HoldingsPage() {
       ) : (
         <>
           {/* Portfolio summary */}
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-6 mb-6">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="rounded-lg border p-4">
-                <div className="text-xs text-muted-foreground">{t('holding.totalMarketValue')}</div>
-                <div className="text-xl font-bold">{formatCurrency(totalMarketValue, 'CNY')}</div>
-              </div>
-              <div className="rounded-lg border p-4">
-                <div className="text-xs text-muted-foreground">{t('holding.totalCost')}</div>
-                <div className="text-xl font-bold">{formatCurrency(totalCost, 'CNY')}</div>
-              </div>
-              <div className={`rounded-lg border p-4 ${totalPnl >= 0 ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/50'}`}>
-                <div className="text-xs text-muted-foreground">{t('holding.totalPnl')}</div>
-                <div className={`text-xl font-bold ${totalPnl >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                  {totalPnl >= 0 ? '+' : ''}{formatCurrency(totalPnl, 'CNY')}
-                </div>
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-6 mb-7">
+            <div className="grid grid-cols-3 gap-3.5">
+              <StatCard label={t('holding.totalMarketValue')} value={formatCurrency(totalMarketValue, 'CNY')} />
+              <StatCard label={t('holding.totalCost')} value={formatCurrency(totalCost, 'CNY')} />
+              <StatCard
+                label={t('holding.totalPnl')}
+                value={`${totalPnl >= 0 ? '+' : ''}${formatCurrency(totalPnl, 'CNY')}`}
+                tag={`${((totalPnl / totalCost) * 100).toFixed(2)}%`}
+                tagVariant={totalPnl >= 0 ? 'positive' : 'negative'}
+              />
             </div>
             {/* Allocation pie chart */}
             {allocationData.length > 0 && (
-              <div className="rounded-lg border p-4 min-w-[220px]">
+              <div className="rounded-[14px] border border-border bg-card p-5 min-w-[220px]">
                 <div className="text-xs text-muted-foreground mb-2">{t('holding.allocationChart')}</div>
                 <div className="flex items-center gap-3">
                   <ResponsiveContainer width={100} height={100}>
@@ -578,35 +576,41 @@ export function HoldingsPage() {
           </div>
 
           {/* Filter bar */}
-          <div className="flex flex-wrap items-center gap-3 mb-4">
-            <Select value={filterType} onValueChange={v => setFilterType(v as FilterType)}>
-              <SelectTrigger className="w-40 h-8 text-xs">
-                <SelectValue placeholder={t('holding.allTypes')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('holding.allTypes')}</SelectItem>
-                {securityTypes.map(type => (
-                  <SelectItem key={type} value={type}>{t(`holding.types.${type}`)}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex flex-wrap items-center gap-3 mb-6">
+            <FilterBar
+              options={[
+                { label: t('holding.allTypes'), value: 'all' },
+                ...securityTypes.map(type => ({ label: t(`holding.types.${type}`), value: type })),
+              ]}
+              value={filterType}
+              onChange={(v) => setFilterType(v)}
+            />
 
-            <div className="flex items-center gap-1">
-              <Button variant={dateRangePreset === 'all' ? 'default' : 'outline'} size="sm" className="h-7 text-xs" onClick={() => setDateRangePreset('all')}>
-                {t('common.all')}
-              </Button>
-              <Button variant={dateRangePreset === 'month' ? 'default' : 'outline'} size="sm" className="h-7 text-xs" onClick={() => setDateRangePreset('month')}>
-                {t('reports.thisMonth')}
-              </Button>
-              <Button variant={dateRangePreset === 'quarter' ? 'default' : 'outline'} size="sm" className="h-7 text-xs" onClick={() => setDateRangePreset('quarter')}>
-                {t('reports.thisQuarter')}
-              </Button>
-              <Button variant={dateRangePreset === 'year' ? 'default' : 'outline'} size="sm" className="h-7 text-xs" onClick={() => setDateRangePreset('year')}>
-                {t('reports.thisYear')}
-              </Button>
-              <Button variant={dateRangePreset === 'custom' ? 'default' : 'outline'} size="sm" className="h-7 text-xs" onClick={() => setDateRangePreset('custom')}>
+            {/* Date range pills */}
+            <div className="flex gap-1.5">
+              {(['all', 'month', 'quarter', 'year'] as DateRangePreset[]).map(preset => (
+                <button
+                  key={preset}
+                  onClick={() => setDateRangePreset(preset)}
+                  className={`rounded-full border px-3 py-1.5 text-[13px] transition-colors ${
+                    dateRangePreset === preset
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'border-border text-muted-foreground hover:border-primary hover:text-foreground'
+                  }`}
+                >
+                  {preset === 'all' ? t('common.all') : t(`reports.this${preset.charAt(0).toUpperCase() + preset.slice(1)}`)}
+                </button>
+              ))}
+              <button
+                onClick={() => setDateRangePreset('custom')}
+                className={`rounded-full border px-3 py-1.5 text-[13px] transition-colors ${
+                  dateRangePreset === 'custom'
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border text-muted-foreground hover:border-primary hover:text-foreground'
+                }`}
+              >
                 {t('reports.custom')}
-              </Button>
+              </button>
               {dateRangePreset === 'custom' && (
                 <div className="flex items-center gap-1 ml-1">
                   <Input type="date" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} className="w-32 h-7 text-xs" />
@@ -616,7 +620,7 @@ export function HoldingsPage() {
               )}
             </div>
 
-            <span className="text-xs text-muted-foreground">{sortedHoldings.length} {t('holding.positions')}</span>
+            <span className="text-xs text-muted-foreground ml-auto">{sortedHoldings.length} {t('holding.positions')}</span>
           </div>
 
           {/* Holdings table */}
@@ -627,10 +631,10 @@ export function HoldingsPage() {
                   <Badge className={`mr-2 ${typeColors[type] || ''}`}>{t(`holding.types.${type}`)}</Badge>
                   {items.length} {t('holding.positions')}
                 </h2>
-                <div className="border rounded-lg">
+                <div className="rounded-[14px] border border-border bg-card overflow-hidden">
                   <Table>
                     <TableHeader>
-                      <TableRow>
+                      <TableRow className="bg-muted/50">
                         <TableHead className="w-8" />
                         <SortHeader label={t('holding.symbol')} sortKeyName="symbol" align="left" />
                         <SortHeader label={t('holding.name')} sortKeyName="name" align="left" />
@@ -656,10 +660,10 @@ export function HoldingsPage() {
               </div>
             ))
           ) : (
-            <div className="border rounded-lg">
+            <div className="rounded-[14px] border border-border bg-card overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="bg-muted/50">
                     <TableHead className="w-8" />
                     <SortHeader label={t('holding.symbol')} sortKeyName="symbol" align="left" />
                     <SortHeader label={t('holding.name')} sortKeyName="name" align="left" />
@@ -801,23 +805,25 @@ export function HoldingsPage() {
           </div>
         </SheetContent>
       </Sheet>
-    </div>
+    </PageShell>
   );
 }
 
-function HoldingRow({ h, isExpanded, onSell, onDividend, onSplit, onToggle, t }: {
+function HoldingRow({ h, isExpanded, onSell, onDividend, onSplit, onToggle, onNavigateToDetail, t }: {
   h: EnrichedHolding;
   isExpanded: boolean;
   onSell: (h: HoldingDto) => void;
   onDividend: (h: HoldingDto) => void;
   onSplit: (h: HoldingDto) => void;
   onToggle: (h: EnrichedHolding) => void;
+  onNavigateToDetail?: (id: string) => void;
   t: (key: string) => string;
 }) {
   return (
-    <TableRow className={isExpanded ? 'bg-muted/20' : ''}>
+    <TableRow className={`cursor-pointer hover:bg-muted/30 ${isExpanded ? 'bg-muted/20' : ''}`}
+      onClick={() => onNavigateToDetail?.(h.id)}>
       <TableCell className="w-8">
-        <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => onToggle(h)}>
+        <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => { e.stopPropagation(); onToggle(h); }}>
           {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </Button>
       </TableCell>
@@ -835,15 +841,15 @@ function HoldingRow({ h, isExpanded, onSell, onDividend, onSplit, onToggle, t }:
       </TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end gap-1">
-          <Button variant="ghost" size="sm" className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 h-7 text-xs" onClick={() => onDividend(h)}>
+          <Button variant="ghost" size="sm" className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 h-7 text-xs" onClick={(e) => { e.stopPropagation(); onDividend(h); }}>
             <DollarSign className="h-3 w-3 mr-1" />
             {t('holding.dividend')}
           </Button>
-          <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-7 text-xs" onClick={() => onSplit(h)}>
+          <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-7 text-xs" onClick={(e) => { e.stopPropagation(); onSplit(h); }}>
             <Split className="h-3 w-3 mr-1" />
             {t('holding.split')}
           </Button>
-          <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50 h-7 text-xs" onClick={() => onSell(h)}>
+          <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50 h-7 text-xs" onClick={(e) => { e.stopPropagation(); onSell(h); }}>
             <TrendingDown className="h-3 w-3 mr-1" />
             {t('holding.sell')}
           </Button>
