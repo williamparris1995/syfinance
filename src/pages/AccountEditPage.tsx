@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from '@tanstack/react-router';
-import { ArrowLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
 import { AccountChangesDialog, type ChangeItem } from '@/components/AccountChangesDialog';
 import { AccountForm } from '@/components/AccountForm';
-import { Button } from '@/components/ui/button';
+import { PageShell } from '@/components/patterns/layout/PageShell';
+import { PageHeader } from '@/components/patterns/layout/PageHeader';
+import { FormCard } from '@/components/patterns/forms/FormCard';
 import { getUserFriendlyError } from '@/lib/error-handler';
 import {
   type CreateAccountDto,
@@ -123,58 +124,51 @@ export function AccountEditPage() {
     }
   };
 
-  const header = (
-    <div className="flex items-center gap-4 mb-6">
-      <Button variant="ghost" size="icon" onClick={() => navigate({ to: '/accounts' })}>
-        <ArrowLeft className="h-5 w-5" />
-      </Button>
-      <h1 className="text-2xl font-bold">{t('accounts.editAccount')}</h1>
-    </div>
-  );
-
   if (isLoading) {
     return (
-      <div className="p-6 max-w-2xl mx-auto">
-        {header}
+      <PageShell narrow>
+        <PageHeader title={t('accounts.editAccount')} />
         <div className="flex items-center justify-center py-12">
-          <div className="text-neutral-500">{t('accounts.loadingAccounts')}</div>
+          <div className="text-muted-foreground">{t('accounts.loadingAccounts')}</div>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   if (isError) {
     return (
-      <div className="p-6 max-w-2xl mx-auto">
-        {header}
+      <PageShell narrow>
+        <PageHeader title={t('accounts.editAccount')} />
         <div className="flex items-center justify-center py-12">
           <div className="text-red-500">{t('accounts.loadError')}</div>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   if (!account) {
     return (
-      <div className="p-6 max-w-2xl mx-auto">
-        {header}
+      <PageShell narrow>
+        <PageHeader title={t('accounts.editAccount')} />
         <div className="flex items-center justify-center py-12">
-          <div className="text-neutral-500">{t('accounts.noAccounts')}</div>
+          <div className="text-muted-foreground">{t('accounts.noAccounts')}</div>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
-      {header}
-      <AccountForm
-        mode="edit"
-        initialData={account}
-        onSubmit={handleSubmit}
-        onCancel={() => navigate({ to: '/accounts' })}
-        isLoading={updateMutation.isPending}
-      />
+    <PageShell narrow>
+      <PageHeader title={t('accounts.editAccount')} />
+      <FormCard>
+        <AccountForm
+          mode="edit"
+          initialData={account}
+          onSubmit={handleSubmit}
+          onCancel={() => navigate({ to: '/accounts' })}
+          isLoading={updateMutation.isPending}
+        />
+      </FormCard>
       <AccountChangesDialog
         open={dialogOpen}
         onOpenChange={(open) => {
@@ -185,6 +179,6 @@ export function AccountEditPage() {
         onConfirm={handleConfirmSave}
         isLoading={updateMutation.isPending}
       />
-    </div>
+    </PageShell>
   );
 }
