@@ -40,7 +40,6 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Label } from '../components/ui/label';
 import { Switch } from '../components/ui/switch';
 import {
@@ -50,6 +49,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
+import { PageShell } from '@/components/patterns/layout/PageShell';
+import { PageHeader } from '@/components/patterns/layout/PageHeader';
 import {
   addCurrency,
   listCurrencies,
@@ -310,39 +311,31 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6">
-      <div className="flex items-center justify-between mb-4 sm:mb-6">
-        <h1 className="text-2xl font-bold sm:text-3xl">{t('settings.title')}</h1>
-      </div>
+    <PageShell>
+      <PageHeader title={t('settings.title')} />
 
       {/* Language Settings */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>{t('settings.language')}</CardTitle>
-          <CardDescription>{t('settings.languageDesc')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Select value={i18n.language || 'en'} onValueChange={(value) => value && i18n.changeLanguage(value)}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="en">{t('settings.english')}</SelectItem>
-              <SelectItem value="zh">{t('settings.chinese')}</SelectItem>
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
+      <div className="rounded-[14px] border border-border bg-card p-5 mb-6">
+        <h2 className="text-lg font-semibold mb-1">{t('settings.language')}</h2>
+        <p className="text-xs text-muted-foreground mb-4">{t('settings.languageDesc')}</p>
+        <Select value={i18n.language || 'en'} onValueChange={(value) => value && i18n.changeLanguage(value)}>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="en">{t('settings.english')}</SelectItem>
+            <SelectItem value="zh">{t('settings.chinese')}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
       {/* Account & Device Section */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>{t('settings.accountDevice')}</CardTitle>
-          <CardDescription>
-            {t('settings.accountDeviceDesc')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <div className="rounded-[14px] border border-border bg-card p-5 mb-6">
+        <h2 className="text-lg font-semibold mb-1">{t('settings.accountDevice')}</h2>
+        <p className="text-xs text-muted-foreground mb-4">
+          {t('settings.accountDeviceDesc')}
+        </p>
+        <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="current-account-id">{t('settings.yourAccountId')}</Label>
             <div className="flex gap-2">
@@ -379,18 +372,16 @@ export function SettingsPage() {
             <LinkIcon className="h-4 w-4" />
             {t('settings.linkAnotherDevice')}
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Sync Settings Section */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>{t('settings.autoSync')}</CardTitle>
-          <CardDescription>
-            {t('settings.autoSyncDesc')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <div className="rounded-[14px] border border-border bg-card p-5 mb-6">
+        <h2 className="text-lg font-semibold mb-1">{t('settings.autoSync')}</h2>
+        <p className="text-xs text-muted-foreground mb-4">
+          {t('settings.autoSyncDesc')}
+        </p>
+        <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="sync-enabled">{t('settings.enableAutoSync')}</Label>
@@ -454,18 +445,16 @@ export function SettingsPage() {
               )}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Cloud Sync Section */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>{t('cloudSync.title')}</CardTitle>
-          <CardDescription>
-            {t('cloudSync.description')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <div className="rounded-[14px] border border-border bg-card p-5 mb-6">
+        <h2 className="text-lg font-semibold mb-1">{t('cloudSync.title')}</h2>
+        <p className="text-xs text-muted-foreground mb-4">
+          {t('cloudSync.description')}
+        </p>
+        <div className="space-y-4">
           {!cloudSyncStatus?.cloud_configured ? (
             <p className="text-sm text-muted-foreground">
               {t('cloudSync.notConfigured')}
@@ -559,8 +548,8 @@ export function SettingsPage() {
               )}
             </>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Sync Conflict Resolution Dialog */}
       <SyncConflictDialog
@@ -603,23 +592,19 @@ export function SettingsPage() {
       <TagsSection />
 
       {/* Data Export Section */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>{t('settings.dataExport')}</CardTitle>
-          <CardDescription>
-            {t('settings.dataExportDesc')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={handleExportCsv} variant="outline">
-            {t('settings.exportCsv')}
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="rounded-[14px] border border-border bg-card p-5 mb-6">
+        <h2 className="text-lg font-semibold mb-1">{t('settings.dataExport')}</h2>
+        <p className="text-xs text-muted-foreground mb-4">
+          {t('settings.dataExportDesc')}
+        </p>
+        <Button onClick={handleExportCsv} variant="outline">
+          {t('settings.exportCsv')}
+        </Button>
+      </div>
 
       {/* Currency Settings Section */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold">{t('settings.currencySettings')}</h2>
+        <h2 className="text-lg font-semibold">{t('settings.currencySettings')}</h2>
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -643,10 +628,10 @@ export function SettingsPage() {
           <Button onClick={() => setIsCurrencySheetOpen(true)}>{t('settings.addFirstCurrency')}</Button>
         </div>
       ) : (
-        <div className="border rounded-lg">
+        <div className="rounded-[14px] border border-border overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="bg-muted/50">
                 <TableHead>{t('settings.code')}</TableHead>
                 <TableHead>{t('settings.symbol')}</TableHead>
                 <TableHead className="text-right">{t('settings.exchangeRate')}</TableHead>
@@ -836,7 +821,7 @@ export function SettingsPage() {
           </Form>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }
 
@@ -856,15 +841,13 @@ function EncryptionSection() {
   if (isLoading) return null;
 
   return (
-    <Card className="mb-6">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <span>🔒</span>
-          {t('settings.encryption')}
-        </CardTitle>
-        <CardDescription>{t('settings.encryptionDesc')}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <div className="rounded-[14px] border border-border bg-card p-5 mb-6">
+      <h2 className="text-lg font-semibold mb-1 flex items-center gap-2">
+        <span>🔒</span>
+        {t('settings.encryption')}
+      </h2>
+      <p className="text-xs text-muted-foreground mb-4">{t('settings.encryptionDesc')}</p>
+      <div className="space-y-4">
         {enabled && unlocked && (
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
@@ -976,7 +959,7 @@ function EncryptionSection() {
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
