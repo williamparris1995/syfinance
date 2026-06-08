@@ -96,6 +96,23 @@ impl Money {
             })
         }
     }
+
+    /// Convert the monetary amount to integer cents.
+    /// e.g., Decimal("1234.56") → 123456i64
+    pub fn to_cents(&self) -> i64 {
+        use rust_decimal::prelude::ToPrimitive;
+        let cents = self.amount * Decimal::ONE_HUNDRED;
+        cents.round_dp(0).to_i64().unwrap_or(0)
+    }
+
+    /// Create a Money from integer cents.
+    /// e.g., 123456i64 → Money { amount: Decimal("1234.56"), currency_code }
+    pub fn from_cents(cents: i64, currency_code: String) -> Self {
+        Self {
+            amount: Decimal::new(cents, 2),
+            currency_code,
+        }
+    }
 }
 
 impl fmt::Display for Money {
@@ -104,6 +121,18 @@ impl fmt::Display for Money {
         let formatted = format_amount(self.amount.round_dp(2));
         write!(f, "{symbol}{formatted}")
     }
+}
+
+/// Convert a Decimal amount to integer cents.
+pub fn decimal_to_cents(amount: Decimal) -> i64 {
+    use rust_decimal::prelude::ToPrimitive;
+    let cents = amount * Decimal::ONE_HUNDRED;
+    cents.round_dp(0).to_i64().unwrap_or(0)
+}
+
+/// Convert integer cents back to Decimal.
+pub fn cents_to_decimal(cents: i64) -> Decimal {
+    Decimal::new(cents, 2)
 }
 
 fn is_valid_currency_code(code: &str) -> bool {
