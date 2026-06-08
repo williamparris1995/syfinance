@@ -409,7 +409,8 @@
     "batchDelete": "Delete Selected",
     "clearSelection": "Clear Selection",
     "confirmBatchDelete": "Are you sure you want to delete {{count}} transactions?",
-    "pageInfo": "Page {{page}} of {{total}}"
+    "pageInfo": "Page {{page}} of {{total}}",
+    "detailTitle": "Transaction Details"
   },
   "transaction": {
     "expense": "Expense",
@@ -538,7 +539,8 @@
     "namePlaceholder": "e.g., Mortgage, Car Loan",
     "nameDesc": "The liability (BorrowedIn) or receivable (BorrowedOut) account for this debt",
     "transactionHistory": "Transaction History",
-    "noTransactions": "No transactions yet"
+    "noTransactions": "No transactions yet",
+    "detailTitle": "Debt Details"
   },
   "debtForm": {
     "debtType": "Debt Type",
@@ -1043,7 +1045,11 @@
     "goalCompleteFailed": "Failed to complete goal: {{error}}",
     "goalDeleteFailed": "Failed to delete goal: {{error}}",
     "goalProgressSyncFailed": "Failed to sync progress: {{error}}",
-    "validAmountRequired": "Please enter a valid amount"
+    "validAmountRequired": "Please enter a valid amount",
+    "detailTitle": "Goal Details"
+  },
+  "holdings": {
+    "detailTitle": "Holding Details"
   },
   "sync": {
     "syncing": "Syncing...",

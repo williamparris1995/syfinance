@@ -373,7 +373,8 @@
     "batchDelete": "删除所选",
     "clearSelection": "取消选择",
     "confirmBatchDelete": "确定要删除 {{count}} 笔交易吗？",
-    "pageInfo": "第 {{page}} 页 / 共 {{total}} 页"
+    "pageInfo": "第 {{page}} 页 / 共 {{total}} 页",
+    "detailTitle": "交易详情"
   },
   "transaction": {
     "expense": "支出",
@@ -501,7 +502,8 @@
     "name": "账户名称",
     "namePlaceholder": "例如：房贷、车贷",
     "transactionHistory": "交易记录",
-    "noTransactions": "暂无交易记录"
+    "noTransactions": "暂无交易记录",
+    "detailTitle": "债务详情"
   },
   "reports": {
     "title": "报表",
@@ -1049,7 +1051,11 @@
     "goalCompleteFailed": "完成目标失败: {{error}}",
     "goalDeleteFailed": "删除目标失败: {{error}}",
     "goalProgressSyncFailed": "同步进度失败: {{error}}",
-    "validAmountRequired": "请输入有效的金额"
+    "validAmountRequired": "请输入有效的金额",
+    "detailTitle": "目标详情"
+  },
+  "holdings": {
+    "detailTitle": "持仓详情"
   },
   "sync": {
     "syncing": "同步中...",

@@ -20,6 +20,11 @@ import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { TransactionsPage } from './pages/TransactionsPage';
+import { AccountDetailPage } from './pages/AccountDetailPage';
+import { TransactionDetailPage } from './pages/TransactionDetailPage';
+import { GoalDetailPage } from './pages/GoalDetailPage';
+import { DebtDetailPage } from './pages/DebtDetailPage';
+import { HoldingDetailPage } from './pages/HoldingDetailPage';
 
 function RootLayout() {
   return (
@@ -155,17 +160,47 @@ const onboardingRoute = createRoute({
   component: OnboardingPage,
 });
 
+const accountDetailRoute = createRoute({
+  getParentRoute: () => accountsRoute,
+  path: '$accountId',
+  component: AccountDetailPage,
+});
+
+const transactionDetailRoute = createRoute({
+  getParentRoute: () => transactionsRoute,
+  path: '$transactionId',
+  component: TransactionDetailPage,
+});
+
+const goalDetailRoute = createRoute({
+  getParentRoute: () => goalsRoute,
+  path: '$goalId',
+  component: GoalDetailPage,
+});
+
+const debtDetailRoute = createRoute({
+  getParentRoute: () => debtsRoute,
+  path: '$debtId',
+  component: DebtDetailPage,
+});
+
+const holdingDetailRoute = createRoute({
+  getParentRoute: () => holdingsRoute,
+  path: '$holdingId',
+  component: HoldingDetailPage,
+});
+
 const routeTree = rootRoute.addChildren([
   homeRoute,
-  accountsRoute.addChildren([newAccountRoute, accountEditRoute]),
-  transactionsRoute.addChildren([newTransactionRoute]),
-  debtsRoute.addChildren([newDebtRoute]),
-  holdingsRoute,
+  accountsRoute.addChildren([newAccountRoute, accountEditRoute, accountDetailRoute]),
+  transactionsRoute.addChildren([newTransactionRoute, transactionDetailRoute]),
+  debtsRoute.addChildren([newDebtRoute, debtDetailRoute]),
+  holdingsRoute.addChildren([holdingDetailRoute]),
+  goalsRoute.addChildren([goalDetailRoute]),
   remindersRoute,
   categoriesRoute,
   transactionTemplatesRoute,
   budgetRoute,
-  goalsRoute,
   reportsRoute,
   backupRoute,
   settingsRoute,
