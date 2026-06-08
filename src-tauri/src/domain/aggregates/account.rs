@@ -132,8 +132,8 @@ pub struct Account {
     pub account_number: Option<String>,
     pub institution: Option<String>,
     pub credit_limit: Option<Money>,
-    pub billing_day: Option<u8>,
-    pub payment_due_day: Option<u8>,
+    pub billing_day: Option<i32>,
+    pub payment_due_day: Option<i32>,
     pub interest_rate: Option<Decimal>,
     pub low_balance_threshold: Option<Decimal>,
     #[allow(dead_code)]
@@ -296,7 +296,7 @@ impl Account {
             if !(1..=31).contains(&day) {
                 return Err(AccountError::InvalidBillingDay);
             }
-            self.billing_day = Some(day as u8);
+            self.billing_day = Some(day);
         } else {
             self.billing_day = None;
         }
@@ -313,7 +313,7 @@ impl Account {
             if !(1..=31).contains(&day) {
                 return Err(AccountError::InvalidPaymentDueDay);
             }
-            self.payment_due_day = Some(day as u8);
+            self.payment_due_day = Some(day);
         } else {
             self.payment_due_day = None;
         }
