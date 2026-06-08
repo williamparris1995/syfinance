@@ -42,12 +42,11 @@ import { getUserFriendlyError } from '../lib/error-handler';
 import { formatCurrencyWithDto } from '../lib/currency';
 import { useCurrencies } from '../hooks/useCurrency';
 import {
+  createAccount,
   deleteAccount,
   listAccountsWithBalances,
-  updateAccount,
   type AccountDto,
   type CreateAccountDto,
-  type UpdateAccountDto,
 } from '../lib/tauri/account';
 import type { CurrencyDto } from '../lib/tauri/currency';
 
@@ -249,7 +248,6 @@ export function AccountsPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [editingAccount, setEditingAccount] = useState<AccountDto | null>(null);
   const [copyingAccount, setCopyingAccount] = useState<AccountDto | null>(null);
   const queryClient = useQueryClient();
   const { t } = useTranslation();
@@ -316,19 +314,6 @@ export function AccountsPage() {
     { key: 'Expense', labelKey: 'accountForm.expenseWithChinese', icon: <Receipt className="h-4 w-4" /> },
   ];
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, dto }: { id: string; dto: UpdateAccountDto }) => updateAccount(id, dto),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accounts'] });
-      setIsSheetOpen(false);
-      setEditingAccount(null);
-      toast.success(t('accounts.accountUpdated'));
-    },
-    onError: (error) => {
-      toast.error(getUserFriendlyError(error));
-    },
-  });
-
   const deleteMutation = useMutation({
     mutationFn: deleteAccount,
     onMutate: async (accountId) => {
@@ -357,25 +342,30 @@ export function AccountsPage() {
     },
   });
 
+  const copyCreateMutation = useMutation({
+    mutationFn: createAccount,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      setIsSheetOpen(false);
+      setCopyingAccount(null);
+      toast.success(t('accounts.accountCreated'));
+    },
+    onError: (error) => {
+      toast.error(getUserFriendlyError(error));
+    },
+  });
+
   const handleCreateClick = () => {
     setShowWizard(true);
   };
 
   const handleEditClick = (account: AccountDto) => {
-    setEditingAccount(account);
-    setIsSheetOpen(true);
+    navigate({ to: '/accounts/$accountId/edit', params: { accountId: account.id } });
   };
 
   const handleCopyClick = (account: AccountDto) => {
-    setEditingAccount(null);
     setCopyingAccount(account);
     setIsSheetOpen(true);
-  };
-
-  const handleEditSubmit = (data: { id: string; dto: UpdateAccountDto } | CreateAccountDto) => {
-    if ('id' in data) {
-      updateMutation.mutate({ id: data.id, dto: data.dto });
-    }
   };
 
   const handleDeleteAccount = (id: string) => {
@@ -485,28 +475,8 @@ export function AccountsPage() {
       {/* Create Wizard */}
       <AccountWizard open={showWizard} onOpenChange={setShowWizard} />
 
-      {/* Edit Sheet */}
-      <Sheet open={isSheetOpen && !!editingAccount} onOpenChange={(open) => { setIsSheetOpen(open); if (!open) setEditingAccount(null); }}>
-        <SheetContent side="right" className="w-full sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle>{t('accounts.editAccount')}</SheetTitle>
-          </SheetHeader>
-          <div className="flex-1 overflow-y-auto -mx-4 px-4">
-            {editingAccount && (
-              <AccountForm
-                mode="edit"
-                initialData={editingAccount}
-                onSubmit={handleEditSubmit}
-                onCancel={() => { setIsSheetOpen(false); setEditingAccount(null); }}
-                isLoading={updateMutation.isPending}
-              />
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
-
       {/* Copy Sheet */}
-      <Sheet open={isSheetOpen && !editingAccount && !!copyingAccount} onOpenChange={(open) => { setIsSheetOpen(open); if (!open) { setEditingAccount(null); setCopyingAccount(null); } }}>
+      <Sheet open={isSheetOpen && !!copyingAccount} onOpenChange={(open) => { setIsSheetOpen(open); if (!open) { setCopyingAccount(null); } }}>
         <SheetContent side="right" className="w-full sm:max-w-lg">
           <SheetHeader>
             <SheetTitle>{t('accounts.copyToCreate')}</SheetTitle>
@@ -515,9 +485,13 @@ export function AccountsPage() {
             {copyingAccount && (
               <AccountForm
                 initialData={copyingAccount}
-                onSubmit={handleEditSubmit}
-                onCancel={() => { setIsSheetOpen(false); setEditingAccount(null); setCopyingAccount(null); }}
-                isLoading={updateMutation.isPending}
+                onSubmit={(data) => {
+                  if ('account_type' in data) {
+                    copyCreateMutation.mutate(data as CreateAccountDto);
+                  }
+                }}
+                onCancel={() => { setIsSheetOpen(false); setCopyingAccount(null); }}
+                isLoading={copyCreateMutation.isPending}
               />
             )}
           </div>

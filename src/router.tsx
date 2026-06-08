@@ -11,6 +11,7 @@ import { HoldingsPage } from './pages/HoldingsPage';
 import { HomePage } from './pages/HomePage';
 import { RemindersPage } from './pages/RemindersPage';
 import { TransactionTemplatesPage } from './pages/TransactionTemplatesPage';
+import { AccountEditPage } from './pages/AccountEditPage';
 import { NewAccountPage } from './pages/NewAccountPage';
 import { NewDebtPage } from './pages/NewDebtPage';
 import { NewTransactionPage } from './pages/NewTransactionPage';
@@ -136,6 +137,12 @@ const newAccountRoute = createRoute({
   component: NewAccountPage,
 });
 
+const accountEditRoute = createRoute({
+  getParentRoute: () => accountsRoute,
+  path: '$accountId/edit',
+  component: AccountEditPage,
+});
+
 const newDebtRoute = createRoute({
   getParentRoute: () => debtsRoute,
   path: 'new',
@@ -150,7 +157,7 @@ const onboardingRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   homeRoute,
-  accountsRoute.addChildren([newAccountRoute]),
+  accountsRoute.addChildren([newAccountRoute, accountEditRoute]),
   transactionsRoute.addChildren([newTransactionRoute]),
   debtsRoute.addChildren([newDebtRoute]),
   holdingsRoute,

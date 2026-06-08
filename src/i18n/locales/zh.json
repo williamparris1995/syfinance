@@ -180,6 +180,7 @@
     "noAccounts": "还没有账户",
     "noAccountsDesc": "创建您的第一个账户以开始使用",
     "loadingAccounts": "加载账户...",
+    "loadError": "加载账户失败",
     "addAccount": "添加新账户以跟踪您的财务",
     "deleteAccount": "删除账户",
     "deleteConfirm": "确定要删除此账户吗?此操作无法撤销。",

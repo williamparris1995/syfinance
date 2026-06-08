@@ -210,6 +210,7 @@
     "noAccounts": "No accounts yet",
     "noAccountsDesc": "Create your first account to get started",
     "loadingAccounts": "Loading accounts...",
+    "loadError": "Failed to load account",
     "addAccount": "Add a new account to track your finances.",
     "deleteAccount": "Delete Account",
     "deleteConfirm": "Are you sure you want to delete this account? This action cannot be undone.",
