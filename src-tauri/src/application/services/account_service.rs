@@ -166,9 +166,6 @@ impl<R: AccountRepository, U: CurrencyRepository> AccountService<R, U> {
         if let Some(chart_code) = dto.chart_code {
             account.update_chart_code(chart_code)?;
         }
-        if let Some(parent_id) = dto.parent_id {
-            account.update_parent_id(parent_id)?;
-        }
         if let Some(low_balance_threshold) = dto.low_balance_threshold {
             account.update_low_balance_threshold(low_balance_threshold)?;
         }
@@ -620,7 +617,6 @@ mod tests {
             payment_due_day: None,
             interest_rate: None,
             chart_code: None,
-            parent_id: None,
             low_balance_threshold: None,
         };
 
@@ -663,7 +659,6 @@ mod tests {
             payment_due_day: Some(Some(25)),
             interest_rate: None,
             chart_code: None,
-            parent_id: None,
             low_balance_threshold: None,
         };
 
@@ -842,7 +837,6 @@ mod tests {
             payment_due_day: None,
             interest_rate: None,
             chart_code: None,
-            parent_id: None,
             low_balance_threshold: None,
         };
 
@@ -889,7 +883,6 @@ mod tests {
             payment_due_day: None,
             interest_rate: None,
             chart_code: None,
-            parent_id: None,
             low_balance_threshold: None,
         };
 

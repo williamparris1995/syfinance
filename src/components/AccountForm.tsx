@@ -65,7 +65,6 @@ const createAccountFormSchema = (t: (key: string) => string) => z.object({
   icon: z.string().default('💰'),
   color: z.string().default('#10B981'),
   chart_code: z.string().optional().nullable(),
-  parent_id: z.string().optional().nullable(),
 });
 
 interface AccountFormProps {
@@ -103,7 +102,6 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
           icon: initialData.icon || '📁',
           color: initialData.color || '#6B7280',
           chart_code: initialData.chart_code ?? '',
-          parent_id: initialData.parent_id ?? undefined as string | undefined,
         }
       : {
           name: '',
@@ -121,7 +119,6 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
           icon: '📁',
           color: '#6B7280',
           chart_code: '',
-          parent_id: undefined as string | undefined,
         },
   });
 
@@ -175,7 +172,6 @@ export function AccountForm({ onSubmit, onCancel, isLoading, initialData, mode =
     };
 
     if (values.chart_code) dto.chart_code = values.chart_code;
-    if (values.parent_id) dto.parent_id = values.parent_id;
     if (values.account_number) dto.account_number = values.account_number;
     if (values.institution) dto.institution = values.institution;
     if (values.credit_limit) dto.credit_limit = parseFloat(values.credit_limit);
