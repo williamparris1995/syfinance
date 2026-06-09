@@ -1,11 +1,11 @@
-# Development overrides
+# Development overrides — designed for remote Docker over SSH
 services:
   api:
     build:
       context: ../server
       dockerfile: Dockerfile.dev
-    volumes:
-      - ../server:/app
+      # No bind mount — code is COPY'd into image via Dockerfile.dev
+      # Rebuild with: docker compose -f docker-compose.yml -f docker-compose.dev.yml build api
     environment:
       - DATABASE_URL=postgresql://yucai:yucai_dev@postgres:5432/yucai?sslmode=disable
       - REDIS_URL=redis://redis:6379/0
