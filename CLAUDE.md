@@ -148,3 +148,25 @@ Rules:
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+
+---
+
+# Open Design Project Skills
+
+## System Architecture
+- This project leverages the Open Design system connected via the `open-design` MCP server.
+- Locally managed assets are stored in `./design-output/`.
+
+## Reusable Workflow Skills
+When triggered by specific instructions, execute these precise steps:
+
+### Skill: /generate-ui [brief]
+1. Read the user's layout requirement from the [brief].
+2. Invoke the `open-design` MCP tool to create a new design context.
+3. Generate the UI components inside the design canvas using Tailwind CSS / React standards.
+4. Output the compiled artifacts into the local workspace.
+
+### Skill: /export-ppt [topic]
+1. Fetch design themes from `DESIGN.md`.
+2. Call the Open Design daemon to compile slide layouts.
+3. Save the resulting file as a `.pptx` in the project root.

@@ -24,7 +24,7 @@ func TestCommandBusDispatch(t *testing.T) {
 	Register(bus, handler)
 
 	cmd := testCommand{Name: "create_account"}
-	err := Dispatch(context.Background(), bus, cmd)
+	err := Dispatch(bus, context.Background(), cmd)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

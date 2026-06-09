@@ -24,7 +24,7 @@ func TestQueryBusDispatch(t *testing.T) {
 	handler := &testQueryHandler{}
 	Register(bus, handler)
 
-	result, err := Dispatch(context.Background(), bus, testQuery{ID: "abc"})
+	result, err := Dispatch[testQuery, testResult](bus, context.Background(), testQuery{ID: "abc"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

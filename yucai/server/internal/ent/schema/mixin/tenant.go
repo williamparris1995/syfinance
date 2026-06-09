@@ -3,7 +3,8 @@ package mixin
 import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/entsql"
-	"entgo.io/ent/schema"
+	entmixin "entgo.io/ent/schema/mixin"
+	entschema "entgo.io/ent/schema"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
@@ -12,11 +13,11 @@ import (
 // TenantMixin adds tenant_id to any schema for multi-tenancy isolation.
 // Embed in any schema that needs tenant-scoped data.
 type TenantMixin struct {
-	mixin.Schema
+	entmixin.Schema
 }
 
-func (TenantMixin) Annotations() []schema.Annotation {
-	return []schema.Annotation{
+func (TenantMixin) Annotations() []entschema.Annotation {
+	return []entschema.Annotation{
 		entsql.WithComments(true),
 	}
 }
@@ -31,6 +32,6 @@ func (TenantMixin) Fields() []ent.Field {
 
 func (TenantMixin) Indexes() []ent.Index {
 	return []ent.Index{
-		index.On("tenant_id"),
+		index.Fields("tenant_id"),
 	}
 }
