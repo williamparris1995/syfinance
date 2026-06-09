@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package yucai.common.v1;
+
+option go_package = "github.com/yucai/server/internal/proto/common/v1";
+
+// Cursor-based pagination request.
+message PageRequest {
+  int32 page_size = 1;
+  string page_token = 2; // Opaque cursor
+}
+
+// Pagination response metadata.
+message PageResponse {
+  string next_page_token = 1;
+  int32 total_count = 2;
+}

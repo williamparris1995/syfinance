@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package yucai.common.v1;
+
+option go_package = "github.com/yucai/server/internal/proto/common/v1";
+
+import "google/protobuf/any.proto";
+
+// Error detail for gRPC Status details.
+message ErrorDetail {
+  string code = 1;                    // ACCOUNT_NOT_FOUND, BALANCE_VIOLATION, etc.
+  string message = 2;
+  map<string, string> metadata = 3;
+}
+
+// Sync payload for bidirectional streaming sync.
+message SyncPayload {
+  string entity_type = 1;             // "account" | "transaction"
+  string operation = 2;               // "create" | "update" | "delete"
+  bytes payload = 3;                  // Serialized entity data
+  int64 version = 4;
+  string device_id = 5;
+}

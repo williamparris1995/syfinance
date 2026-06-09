@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package yucai.common.v1;
+
+option go_package = "github.com/yucai/server/internal/proto/common/v1";
+
+// Money represents a monetary amount in integer cents.
+// No floating point — avoids precision issues.
+message Money {
+  int64 cents = 1;
+  string currency_code = 2; // ISO 4217: CNY, USD, EUR, etc.
+}
