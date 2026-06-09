@@ -6,6 +6,7 @@ build/
 .git/
 .claude/
 .omx/
+.sisyphus/
 .runtime-probe/
 .runtime-tmp/
 .superpowers/
