@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "screens/mobile-detail-debt.html",
+  "entry": "screens/mobile-detail-debt.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-06-08T09:45:45.082Z",
+  "updatedAt": "2026-06-08T09:45:45.082Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}

@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>御财 · 目标详情</title>
+  <style>
+    :root {
+      --bg:      #f7f6f2;
+      --surface: #ffffff;
+      --fg:      #1a1916;
+      --muted:   #7a7770;
+      --border:  #e6e3dc;
+      --accent:  #b08d57;
+      --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent);
+      --positive:    #2d8a6e;
+      --negative:    #c4544d;
+      --positive-bg: color-mix(in oklch, var(--positive) 10%, transparent);
+      --negative-bg: color-mix(in oklch, var(--negative) 10%, transparent);
+      --font-display: 'Iowan Old Style', 'Charter', Georgia, 'Noto Serif SC', serif;
+      --font-body:    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', system-ui, sans-serif;
+      --font-mono:    ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+      --radius: 12px;
+      --radius-lg: 16px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #000; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+
+    .phone-frame { width: 390px; min-height: 844px; background: var(--bg); color: var(--fg); position: relative; overflow: hidden; border-radius: 44px; box-shadow: 0 0 0 3px #1a1a1a, 0 0 0 6px #333, 0 20px 60px rgba(0,0,0,0.4); }
+    .dynamic-island { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: 126px; height: 36px; background: #000; border-radius: 20px; z-index: 30; }
+    .status-bar { height: 54px; padding: 14px 28px 0; display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600; }
+    .status-bar .time { font-family: var(--font-mono); }
+    .status-icons { display: flex; gap: 6px; align-items: center; }
+    .status-icons svg { width: 16px; height: 16px; }
+
+    .screen-content { height: 790px; overflow-y: auto; padding-bottom: 100px; -webkit-overflow-scrolling: touch; }
+    .screen-content::-webkit-scrollbar { display: none; }
+
+    .form-header { padding: 8px 20px 16px; display: flex; align-items: center; justify-content: space-between; }
+    .form-header h1 { font-family: var(--font-display); font-size: 22px; flex: 1; text-align: center; }
+    .header-btn {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: grid; place-items: center;
+      color: var(--fg);
+      cursor: pointer;
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+    .header-btn svg { width: 18px; height: 18px; }
+
+    /* Hero card */
+    .hero-card {
+      margin: 0 20px 16px;
+      padding: 24px 20px 20px;
+      border-radius: var(--radius-lg);
+      background: linear-gradient(145deg, #1a1916 0%, #2a2820 50%, #1a1916 100%);
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-card::before {
+      content: '';
+      position: absolute;
+      top: -40px;
+      right: -40px;
+      width: 160px;
+      height: 160px;
+      background: radial-gradient(circle, rgba(176,141,87,0.15) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .hero-card::after {
+      content: '';
+      position: absolute;
+      bottom: -30px;
+      left: -30px;
+      width: 120px;
+      height: 120px;
+      background: radial-gradient(circle, rgba(176,141,87,0.08) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .hero-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+      position: relative;
+      z-index: 1;
+    }
+    .hero-card-title {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+    .hero-card-badge {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 2px 8px;
+      font-size: 11px;
+      color: var(--accent);
+      background: rgba(176,141,87,0.15);
+      border-radius: 6px;
+    }
+    .hero-progress { position: relative; z-index: 1; margin-bottom: 16px; }
+    .hero-progress-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 11px;
+      color: rgba(255,255,255,0.45);
+      margin-bottom: 8px;
+    }
+    .hero-progress-label span:last-child { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+    .hero-progress-bar {
+      height: 8px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .hero-progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 4px;
+      width: 62%;
+      transition: width 0.6s ease;
+    }
+    .hero-amounts {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .hero-saved {
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.5px;
+    }
+    .hero-remaining {
+      font-size: 13px;
+      color: rgba(255,255,255,0.5);
+    }
+    .hero-remaining span {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Stats row */
+    .stats-row {
+      display: flex;
+      gap: 10px;
+      padding: 0 20px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      flex: 1;
+      padding: 14px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .stat-card .sc-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .stat-card .sc-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 600; }
+    .stat-card .sc-value.gold { color: var(--accent); }
+    .stat-card .sc-value.positive { color: var(--positive); }
+
+    /* Section title */
+    .section-title {
+      font-size: 15px;
+      font-weight: 600;
+      padding: 0 20px;
+      margin-bottom: 10px;
+    }
+
+    /* Milestones card */
+    .milestones-card {
+      margin: 0 20px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 4px;
+    }
+    .milestone-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+    }
+    .milestone-marker {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      display: grid; place-items: center;
+      flex-shrink: 0;
+      font-size: 13px;
+    }
+    .milestone-marker.done {
+      background: var(--positive-bg);
+      color: var(--positive);
+    }
+    .milestone-marker.pending {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      color: var(--muted);
+    }
+    .milestone-info { flex: 1; }
+    .milestone-info .ms-label { font-size: 14px; font-weight: 500; }
+    .milestone-info .ms-amount { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+    .milestone-info .ms-date { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .milestone-item + .milestone-item { position: relative; }
+    .milestone-item + .milestone-item::before {
+      content: '';
+      position: absolute;
+      top: -6px;
+      left: 27px;
+      width: 1.5px;
+      height: 12px;
+      background: var(--border);
+    }
+    .milestone-item + .milestone-item.ms-done::before {
+      background: var(--positive);
+    }
+
+    /* Contribution items */
+    .contrib-list {
+      margin: 0 20px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .contrib-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .contrib-item:last-of-type { border-bottom: none; }
+    .contrib-icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      display: grid; place-items: center;
+      flex-shrink: 0;
+    }
+    .contrib-icon svg { width: 16px; height: 16px; }
+    .contrib-info { flex: 1; min-width: 0; }
+    .contrib-info .ci-label { font-size: 14px; font-weight: 500; }
+    .contrib-info .ci-date { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .contrib-amount {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--positive);
+    }
+    .view-all {
+      display: block;
+      text-align: center;
+      padding: 14px 20px;
+      font-size: 13px;
+      color: var(--accent);
+      font-weight: 500;
+      text-decoration: none;
+      border-top: 1px solid var(--border);
+      cursor: pointer;
+    }
+
+    /* Info card */
+    .info-card {
+      margin: 0 20px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 4px 0;
+    }
+    .info-card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      padding: 12px 16px 8px;
+    }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 11px 16px;
+    }
+    .info-row + .info-row { border-top: 1px solid var(--border); }
+    .info-row .ir-label { font-size: 13px; color: var(--muted); }
+    .info-row .ir-value { font-size: 13px; font-weight: 500; }
+    .info-row .ir-value .ir-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+    /* Bottom bar */
+    .bottom-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 16px 20px 32px;
+      background: color-mix(in oklch, var(--surface) 95%, transparent);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 12px;
+      z-index: 20;
+    }
+    .btn-save {
+      flex: 1;
+      padding: 14px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: var(--radius);
+      font-size: 15px;
+      font-weight: 500;
+      font-family: var(--font-body);
+      text-align: center;
+      cursor: pointer;
+      border: none;
+    }
+    .btn-cancel {
+      padding: 14px 20px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 15px;
+      color: var(--muted);
+      background: transparent;
+      font-family: var(--font-body);
+      cursor: pointer;
+    }
+
+    .home-indicator { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 134px; height: 5px; background: var(--fg); border-radius: 3px; opacity: 0.2; z-index: 25; }
+  </style>
+</head>
+<body>
+  <div class="phone-frame">
+    <div class="dynamic-island"></div>
+    <div class="status-bar">
+      <span class="time">9:41</span>
+      <div class="status-icons">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="17" y="4" width="4" height="16" rx="1"/><rect x="11" y="8" width="4" height="12" rx="1"/><rect x="5" y="12" width="4" height="8" rx="1"/></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="6" width="18" height="12" rx="2"/><rect x="20" y="10" width="2" height="4" rx="1"/><rect x="4" y="8" width="8" height="2" rx="1" fill="var(--positive)"/></svg>
+      </div>
+    </div>
+
+    <div class="screen-content" data-od-id="mobile-detail-goal">
+      <!-- Header -->
+      <div class="form-header">
+        <a class="header-btn" href="mobile-goals.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </a>
+        <h1>目标详情</h1>
+        <div style="width: 36px;"></div>
+      </div>
+
+      <!-- Hero card -->
+      <div class="hero-card" data-od-id="hero-card">
+        <div class="hero-card-top">
+          <div>
+            <div class="hero-card-title">&#x1F3E0; 上海二套房首付</div>
+            <div class="hero-card-badge">购房置业</div>
+          </div>
+        </div>
+        <div class="hero-progress">
+          <div class="hero-progress-label">
+            <span>已储蓄</span>
+            <span>62%</span>
+          </div>
+          <div class="hero-progress-bar">
+            <div class="hero-progress-fill"></div>
+          </div>
+        </div>
+        <div class="hero-amounts">
+          <div class="hero-saved">&#165;1,550,000</div>
+          <div class="hero-remaining">剩余 <span>&#165;950,000</span></div>
+        </div>
+      </div>
+
+      <!-- Stats 3-col -->
+      <div class="stats-row" data-od-id="stats-row">
+        <div class="stat-card">
+          <div class="sc-label">月均储蓄</div>
+          <div class="sc-value gold">&#165;38,200</div>
+        </div>
+        <div class="stat-card">
+          <div class="sc-label">目标日期</div>
+          <div class="sc-value">2028.12</div>
+        </div>
+        <div class="stat-card">
+          <div class="sc-label">预计达成</div>
+          <div class="sc-value positive">2028.09</div>
+        </div>
+      </div>
+
+      <!-- Milestones -->
+      <div class="section-title">里程碑</div>
+      <div class="milestones-card" data-od-id="milestones">
+        <div class="milestone-item ms-done">
+          <div class="milestone-marker done">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>
+          </div>
+          <div class="milestone-info">
+            <div class="ms-label"><span class="ms-amount">50万</span></div>
+            <div class="ms-date">2024-08 达成</div>
+          </div>
+        </div>
+        <div class="milestone-item ms-done">
+          <div class="milestone-marker done">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>
+          </div>
+          <div class="milestone-info">
+            <div class="ms-label"><span class="ms-amount">100万</span></div>
+            <div class="ms-date">2025-03 达成</div>
+          </div>
+        </div>
+        <div class="milestone-item ms-done">
+          <div class="milestone-marker done">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>
+          </div>
+          <div class="milestone-info">
+            <div class="ms-label"><span class="ms-amount">150万</span></div>
+            <div class="ms-date">2026-05 达成</div>
+          </div>
+        </div>
+        <div class="milestone-item">
+          <div class="milestone-marker pending"></div>
+          <div class="milestone-info">
+            <div class="ms-label"><span class="ms-amount">200万</span></div>
+            <div class="ms-date">预计 2027-03</div>
+          </div>
+        </div>
+        <div class="milestone-item">
+          <div class="milestone-marker pending"></div>
+          <div class="milestone-info">
+            <div class="ms-label"><span class="ms-amount">250万</span></div>
+            <div class="ms-date">预计 2028-09</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Savings history -->
+      <div class="section-title">储蓄记录</div>
+      <div class="contrib-list" data-od-id="savings-history">
+        <div class="contrib-item">
+          <div class="contrib-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          </div>
+          <div class="contrib-info">
+            <div class="ci-label">月度转入</div>
+            <div class="ci-date">06/01</div>
+          </div>
+          <div class="contrib-amount">+&#165;35,000</div>
+        </div>
+        <div class="contrib-item">
+          <div class="contrib-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          </div>
+          <div class="contrib-info">
+            <div class="ci-label">月度转入</div>
+            <div class="ci-date">05/01</div>
+          </div>
+          <div class="contrib-amount">+&#165;35,000</div>
+        </div>
+        <div class="contrib-item">
+          <div class="contrib-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22,7 13.5,15.5 8.5,10.5 2,17"/></svg>
+          </div>
+          <div class="contrib-info">
+            <div class="ci-label">基金分红</div>
+            <div class="ci-date">04/15</div>
+          </div>
+          <div class="contrib-amount">+&#165;52,000</div>
+        </div>
+        <div class="contrib-item">
+          <div class="contrib-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          </div>
+          <div class="contrib-info">
+            <div class="ci-label">月度转入</div>
+            <div class="ci-date">04/01</div>
+          </div>
+          <div class="contrib-amount">+&#165;35,000</div>
+        </div>
+        <a class="view-all" href="#">查看全部</a>
+      </div>
+
+      <!-- Info card -->
+      <div class="info-card" data-od-id="goal-info">
+        <div class="info-card-title">目标信息</div>
+        <div class="info-row">
+          <span class="ir-label">扣款账户</span>
+          <span class="ir-value">工商银行 &middot;&middot;&middot;7751</span>
+        </div>
+        <div class="info-row">
+          <span class="ir-label">每月储蓄</span>
+          <span class="ir-value"><span class="ir-mono">&#165;35,000</span></span>
+        </div>
+        <div class="info-row">
+          <span class="ir-label">起始日期</span>
+          <span class="ir-value"><span class="ir-mono">2024-01-15</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom bar -->
+    <div class="bottom-bar">
+      <button class="btn-save">追加储蓄</button>
+      <button class="btn-cancel">编辑</button>
+    </div>
+    <div class="home-indicator"></div>
+  </div>
+</body>
+</html>

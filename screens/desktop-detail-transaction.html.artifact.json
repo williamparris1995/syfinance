@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "screens/desktop-detail-transaction.html",
+  "entry": "screens/desktop-detail-transaction.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-06-08T09:30:27.596Z",
+  "updatedAt": "2026-06-08T09:30:27.596Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}

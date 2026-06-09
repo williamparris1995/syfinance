@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "screens/desktop-detail-holding.html",
+  "entry": "screens/desktop-detail-holding.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-06-08T09:34:19.485Z",
+  "updatedAt": "2026-06-08T09:34:19.485Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}

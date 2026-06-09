@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>御财 · 上海二套房首付</title>
+  <style>
+    :root {
+      --bg: #f7f6f2; --surface: #ffffff; --fg: #1a1916; --muted: #7a7770; --border: #e6e3dc; --accent: #b08d57;
+      --sidebar-bg: #1c1e21; --sidebar-fg: #c5c3be; --sidebar-hover: #2a2c30; --sidebar-active: #323539;
+      --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent);
+      --positive: #2d8a6e; --negative: #c4544d;
+      --positive-bg: color-mix(in oklch, var(--positive) 10%, transparent);
+      --negative-bg: color-mix(in oklch, var(--negative) 10%, transparent);
+      --font-display: 'Iowan Old Style', 'Charter', Georgia, 'Noto Serif SC', serif;
+      --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', system-ui, sans-serif;
+      --font-mono: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+      --fs-h1: 28px; --fs-h2: 22px; --fs-h3: 17px; --fs-body: 14px; --fs-meta: 12px;
+      --gap-sm: 12px; --gap-md: 20px; --gap-lg: 28px;
+      --radius: 10px; --radius-lg: 14px; --sidebar-w: 240px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: var(--fs-body); line-height: 1.55; -webkit-font-smoothing: antialiased; display: flex; min-height: 100vh; }
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; cursor: pointer; background: none; border: none; }
+
+    /* Sidebar */
+    .sidebar { width: var(--sidebar-w); min-height: 100vh; background: var(--sidebar-bg); color: var(--sidebar-fg); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 20; }
+    .sidebar-brand { padding: 24px 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .sidebar-brand h2 { font-family: var(--font-display); font-size: 20px; color: #fff; }
+    .sidebar-brand span { font-size: var(--fs-meta); color: var(--muted); display: block; margin-top: 2px; }
+    .sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+    .sidebar-group-label { padding: 16px 20px 6px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.25); font-family: var(--font-mono); }
+    .sidebar-item { display: flex; align-items: center; gap: 10px; padding: 9px 20px; font-size: 13px; color: var(--sidebar-fg); transition: background 0.12s, color 0.12s; }
+    .sidebar-item:hover { background: var(--sidebar-hover); color: #fff; }
+    .sidebar-item.active { background: var(--sidebar-active); color: #fff; }
+    .sidebar-item svg { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.6; }
+    .sidebar-item.active svg { opacity: 1; }
+    .sidebar-item .badge { margin-left: auto; background: var(--accent); color: #fff; font-size: 10px; padding: 2px 7px; border-radius: 99px; font-family: var(--font-mono); }
+    .sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; gap: 10px; }
+    .sidebar-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--sidebar-hover); display: grid; place-items: center; font-size: 14px; color: #fff; }
+    .sidebar-user-info { font-size: 13px; }
+    .sidebar-user-info span { display: block; color: rgba(255,255,255,0.4); font-size: 11px; }
+
+    /* Main layout */
+    .main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+    .topbar { position: sticky; top: 0; z-index: 10; background: color-mix(in oklch, var(--bg) 90%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 14px 32px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar-title { font-size: 15px; font-weight: 600; }
+    .topbar-title a { color: var(--muted); }
+    .topbar-title a:hover { color: var(--fg); }
+    .topbar-actions { display: flex; align-items: center; gap: 12px; }
+    .topbar-actions .icon-btn { width: 34px; height: 34px; display: grid; place-items: center; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); color: var(--muted); }
+    .topbar-actions .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .topbar-actions .icon-btn svg { width: 16px; height: 16px; }
+
+    .content { padding: 28px 32px 48px; flex: 1; }
+
+    /* Hero card */
+    .hero-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 32px; display: flex; align-items: center; gap: 40px; margin-bottom: var(--gap-lg); }
+    .hero-info { flex: 1; }
+    .hero-top { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+    .hero-title { font-family: var(--font-display); font-size: var(--fs-h2); font-weight: 600; }
+    .hero-badge { font-size: 11px; padding: 3px 10px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+    .hero-amounts { display: flex; align-items: baseline; gap: 8px; margin-bottom: 16px; }
+    .hero-current { font-family: var(--font-display); font-size: 32px; font-weight: 600; letter-spacing: -0.02em; }
+    .hero-target { font-size: var(--fs-body); color: var(--muted); }
+    .hero-bar-track { height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; margin-bottom: 16px; }
+    .hero-bar-fill { height: 100%; border-radius: 5px; background: var(--accent); transition: width 0.5s ease; }
+    .hero-meta { display: flex; gap: 24px; font-size: var(--fs-meta); color: var(--muted); }
+    .hero-meta span { color: var(--fg); font-weight: 500; }
+    .hero-meta .positive { color: var(--positive); }
+
+    /* Progress ring */
+    .hero-ring { flex-shrink: 0; position: relative; width: 160px; height: 160px; }
+    .hero-ring svg { transform: rotate(-90deg); }
+    .hero-ring-bg { fill: none; stroke: var(--border); stroke-width: 10; }
+    .hero-ring-fill { fill: none; stroke: var(--accent); stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset 0.6s ease; }
+    .hero-ring-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .hero-ring-pct { font-family: var(--font-display); font-size: 28px; font-weight: 600; color: var(--accent); }
+    .hero-ring-sub { font-size: var(--fs-meta); color: var(--muted); }
+
+    /* Stats row */
+    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap-sm); margin-bottom: var(--gap-lg); }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; }
+    .stat-card .label { font-size: var(--fs-meta); color: var(--muted); margin-bottom: 6px; }
+    .stat-card .value { font-family: var(--font-display); font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+    .stat-card .value.gold { color: var(--accent); }
+    .stat-card .value.green { color: var(--positive); }
+
+    /* Two-column layout */
+    .two-col { display: grid; grid-template-columns: 1fr 380px; gap: var(--gap-lg); }
+
+    /* Cards */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; }
+    .card + .card { margin-top: var(--gap-md); }
+    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .card-title { font-size: var(--fs-h3); font-weight: 600; }
+
+    /* Table */
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th { font-size: var(--fs-meta); font-weight: 500; color: var(--muted); text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    .data-table td { padding: 12px 12px; font-size: var(--fs-body); border-bottom: 1px solid var(--border); }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: color-mix(in oklch, var(--bg) 50%, transparent); }
+    .data-table .amount { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 500; color: var(--positive); }
+    .data-table .date { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--fs-meta); color: var(--muted); }
+    .data-table .note { font-size: var(--fs-meta); color: var(--muted); }
+    .pagination { display: flex; justify-content: center; align-items: center; gap: 12px; padding-top: 16px; font-size: var(--fs-meta); color: var(--muted); }
+    .pagination .page-btn { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 6px; border: 1px solid var(--border); font-size: 12px; color: var(--fg); }
+    .pagination .page-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Bar chart */
+    .chart-area { display: flex; align-items: flex-end; gap: 12px; height: 160px; padding-top: 20px; }
+    .chart-bar-group { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; height: 100%; justify-content: flex-end; }
+    .chart-bar { width: 100%; max-width: 48px; border-radius: 6px 6px 2px 2px; background: var(--accent); min-height: 4px; transition: opacity 0.15s; position: relative; }
+    .chart-bar:hover { opacity: 0.8; }
+    .chart-bar.highlight { background: var(--positive); }
+    .chart-bar-label { font-size: 10px; color: var(--muted); font-family: var(--font-mono); white-space: nowrap; }
+    .chart-bar-value { font-size: 10px; color: var(--fg); font-family: var(--font-mono); font-weight: 500; white-space: nowrap; }
+
+    /* Settings list */
+    .settings-list { display: flex; flex-direction: column; gap: 14px; }
+    .setting-row { display: flex; justify-content: space-between; align-items: center; }
+    .setting-label { font-size: 13px; color: var(--muted); }
+    .setting-value { font-size: var(--fs-body); font-weight: 500; }
+    .setting-value.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+    /* Buttons */
+    .btn-primary { padding: 10px 20px; background: var(--accent); color: #fff; border-radius: var(--radius); font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; width: 100%; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-secondary { padding: 10px 20px; background: var(--surface); color: var(--fg); border-radius: var(--radius); font-size: 13px; font-weight: 500; border: 1px solid var(--border); display: inline-flex; align-items: center; justify-content: center; width: 100%; }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-muted { padding: 10px 20px; background: var(--bg); color: var(--muted); border-radius: var(--radius); font-size: 13px; font-weight: 500; border: 1px solid var(--border); display: inline-flex; align-items: center; justify-content: center; width: 100%; }
+    .btn-muted:hover { border-color: var(--muted); color: var(--fg); }
+    .btn-danger { padding: 10px 20px; background: var(--negative-bg); color: var(--negative); border-radius: var(--radius); font-size: 13px; font-weight: 500; border: 1px solid color-mix(in oklch, var(--negative) 20%, transparent); display: inline-flex; align-items: center; justify-content: center; width: 100%; }
+    .btn-danger:hover { background: color-mix(in oklch, var(--negative) 16%, transparent); }
+
+    .actions-stack { display: flex; flex-direction: column; gap: 8px; }
+
+    /* Milestones */
+    .milestones-list { display: flex; flex-direction: column; gap: 12px; }
+    .milestone-item { display: flex; align-items: flex-start; gap: 12px; position: relative; }
+    .milestone-item:not(:last-child)::after { content: ''; position: absolute; left: 11px; top: 28px; bottom: -12px; width: 1px; background: var(--border); }
+    .milestone-item.done:not(:last-child)::after { background: var(--positive); }
+    .milestone-dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border); display: grid; place-items: center; flex-shrink: 0; margin-top: 1px; }
+    .milestone-item.done .milestone-dot { border-color: var(--positive); background: var(--positive); }
+    .milestone-item.done .milestone-dot svg { width: 12px; height: 12px; color: #fff; }
+    .milestone-info { flex: 1; }
+    .milestone-name { font-size: var(--fs-body); font-weight: 500; }
+    .milestone-item.done .milestone-name { color: var(--positive); }
+    .milestone-date { font-size: var(--fs-meta); color: var(--muted); }
+    .milestone-status { font-size: var(--fs-meta); }
+    .milestone-item.done .milestone-status { color: var(--positive); }
+    .milestone-item.pending .milestone-status { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <aside class="sidebar" data-od-id="sidebar">
+    <div class="sidebar-brand"><h2>御财</h2><span>私人财富管理</span></div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-group-label">概览</div>
+      <a class="sidebar-item" href="desktop-dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>仪表盘</a>
+      <a class="sidebar-item" href="desktop-accounts.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 7H4a1 1 0 0 1 0-2h16a1 1 0 0 1 0 2ZM20 12H4a1 1 0 0 1 0-2h16a1 1 0 0 1 0 2ZM20 17H4a1 1 0 0 1 0-2h16a1 1 0 0 1 0 2Z"/></svg>账户管理</a>
+      <div class="sidebar-group-label">投资</div>
+      <a class="sidebar-item" href="desktop-investments.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><polyline points="22,7 13.5,15.5 8.5,10.5 2,17"/><polyline points="16,7 22,7 22,13"/></svg>投资组合<span class="badge">5</span></a>
+      <div class="sidebar-group-label">财务</div>
+      <a class="sidebar-item" href="desktop-transactions.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>交易记录</a>
+      <a class="sidebar-item" href="desktop-budget.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2v10l4.5 4.5"/><circle cx="12" cy="12" r="10"/></svg>预算管理</a>
+      <a class="sidebar-item active" href="desktop-goals.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.27 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>目标追踪</a>
+      <div class="sidebar-group-label">借贷</div>
+      <a class="sidebar-item" href="desktop-debts.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16 16v3a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3"/><rect x="8" y="2" width="14" height="12" rx="2"/></svg>债务管理</a>
+      <div class="sidebar-group-label">工具</div>
+      <a class="sidebar-item" href="desktop-reports.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>报表分析</a>
+      <a class="sidebar-item" href="desktop-settings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/></svg>设置</a>
+    </nav>
+    <div class="sidebar-footer"><div class="sidebar-avatar">李</div><div class="sidebar-user-info">李明远<span>高级会员</span></div></div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar" data-od-id="topbar">
+      <span class="topbar-title"><a href="desktop-goals.html">目标追踪</a> / 上海二套房首付</span>
+      <div class="topbar-actions">
+        <button class="icon-btn" title="通知"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
+      </div>
+    </header>
+
+    <div class="content" data-od-id="goal-detail-content">
+
+      <!-- Hero card -->
+      <div class="hero-card" data-od-id="hero-card">
+        <div class="hero-info">
+          <div class="hero-top">
+            <span class="hero-title">🏠 上海二套房首付</span>
+            <span class="hero-badge">购房置业</span>
+          </div>
+          <div class="hero-amounts">
+            <span class="hero-current">¥1,550,000</span>
+            <span class="hero-target">/ ¥2,500,000</span>
+          </div>
+          <div class="hero-bar-track"><div class="hero-bar-fill" style="width:62%;"></div></div>
+          <div class="hero-meta">
+            <div>剩余 <span>¥950,000</span></div>
+            <div>目标日期 <span>2028年12月</span></div>
+            <div>月储蓄 <span>¥35,000</span></div>
+            <div>预计达成 <span class="positive">2028-09（提前3个月）</span></div>
+          </div>
+        </div>
+        <div class="hero-ring" data-od-id="progress-ring">
+          <svg width="160" height="160" viewBox="0 0 160 160">
+            <circle class="hero-ring-bg" cx="80" cy="80" r="65"/>
+            <circle class="hero-ring-fill" cx="80" cy="80" r="65"
+              stroke-dasharray="408.4"
+              stroke-dashoffset="155.2"/>
+          </svg>
+          <div class="hero-ring-label">
+            <span class="hero-ring-pct">62%</span>
+            <span class="hero-ring-sub">已完成</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats row -->
+      <div class="stats-row" data-od-id="stats-row">
+        <div class="stat-card">
+          <div class="label">月均储蓄</div>
+          <div class="value gold">¥38,200</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">储蓄率</div>
+          <div class="value">18.7%</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">预计达成</div>
+          <div class="value green">2028年9月</div>
+        </div>
+      </div>
+
+      <!-- Two-column layout -->
+      <div class="two-col">
+
+        <!-- LEFT COLUMN -->
+        <div class="left-col">
+
+          <!-- Contribution history -->
+          <div class="card" data-od-id="contribution-history">
+            <div class="card-header">
+              <span class="card-title">储蓄记录</span>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>日期</th>
+                  <th>来源</th>
+                  <th>金额</th>
+                  <th>备注</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="date">2026-06-01</td>
+                  <td>工商银行理财金</td>
+                  <td class="amount">+¥35,000</td>
+                  <td class="note">月度自动转入</td>
+                </tr>
+                <tr>
+                  <td class="date">2026-05-01</td>
+                  <td>工商银行理财金</td>
+                  <td class="amount">+¥35,000</td>
+                  <td class="note">月度自动转入</td>
+                </tr>
+                <tr>
+                  <td class="date">2026-04-15</td>
+                  <td>投资收益转入</td>
+                  <td class="amount">+¥52,000</td>
+                  <td class="note">基金分红</td>
+                </tr>
+                <tr>
+                  <td class="date">2026-04-01</td>
+                  <td>工商银行理财金</td>
+                  <td class="amount">+¥35,000</td>
+                  <td class="note">月度自动转入</td>
+                </tr>
+                <tr>
+                  <td class="date">2026-03-01</td>
+                  <td>工商银行理财金</td>
+                  <td class="amount">+¥38,000</td>
+                  <td class="note">月度自动转入</td>
+                </tr>
+                <tr>
+                  <td class="date">2026-02-28</td>
+                  <td>年终奖转入</td>
+                  <td class="amount">+¥200,000</td>
+                  <td class="note">年终奖一次性</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="pagination">
+              <span>显示 1-6 / 共 28 笔</span>
+              <button class="page-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
+              <button class="page-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 6 15 12 9 18"/></svg></button>
+            </div>
+          </div>
+
+          <!-- Savings trend chart -->
+          <div class="card" data-od-id="savings-trend">
+            <div class="card-header">
+              <span class="card-title">储蓄趋势</span>
+              <span style="font-size:var(--fs-meta);color:var(--muted);">近 6 个月</span>
+            </div>
+            <div class="chart-area">
+              <div class="chart-bar-group">
+                <div class="chart-bar-value">35k</div>
+                <div class="chart-bar" style="height:50%;"></div>
+                <div class="chart-bar-label">1月</div>
+              </div>
+              <div class="chart-bar-group">
+                <div class="chart-bar-value">35k</div>
+                <div class="chart-bar" style="height:50%;"></div>
+                <div class="chart-bar-label">2月</div>
+              </div>
+              <div class="chart-bar-group">
+                <div class="chart-bar-value">38k</div>
+                <div class="chart-bar" style="height:54%;"></div>
+                <div class="chart-bar-label">3月</div>
+              </div>
+              <div class="chart-bar-group">
+                <div class="chart-bar-value">35k</div>
+                <div class="chart-bar" style="height:50%;"></div>
+                <div class="chart-bar-label">4月</div>
+              </div>
+              <div class="chart-bar-group">
+                <div class="chart-bar-value">87k</div>
+                <div class="chart-bar highlight" style="height:100%;"></div>
+                <div class="chart-bar-label">5月</div>
+              </div>
+              <div class="chart-bar-group">
+                <div class="chart-bar-value">35k</div>
+                <div class="chart-bar" style="height:50%;"></div>
+                <div class="chart-bar-label">6月</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="right-col">
+
+          <!-- Goal settings -->
+          <div class="card" data-od-id="goal-settings">
+            <div class="card-header">
+              <span class="card-title">目标设置</span>
+            </div>
+            <div class="settings-list">
+              <div class="setting-row">
+                <span class="setting-label">目标金额</span>
+                <span class="setting-value mono">¥2,500,000</span>
+              </div>
+              <div class="setting-row">
+                <span class="setting-label">已储蓄</span>
+                <span class="setting-value mono" style="color:var(--positive);">¥1,550,000</span>
+              </div>
+              <div class="setting-row">
+                <span class="setting-label">起始日期</span>
+                <span class="setting-value">2024-01-15</span>
+              </div>
+              <div class="setting-row">
+                <span class="setting-label">目标日期</span>
+                <span class="setting-value">2028-12-31</span>
+              </div>
+              <div class="setting-row">
+                <span class="setting-label">扣款账户</span>
+                <span class="setting-value">工商银行理财金账户 ···7751</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="card" data-od-id="goal-actions">
+            <div class="card-header">
+              <span class="card-title">操作</span>
+            </div>
+            <div class="actions-stack">
+              <button class="btn-primary">调整月储蓄额</button>
+              <button class="btn-secondary">手动追加储蓄</button>
+              <button class="btn-secondary">编辑目标</button>
+              <button class="btn-muted">暂停自动储蓄</button>
+              <button class="btn-danger">删除目标</button>
+            </div>
+          </div>
+
+          <!-- Milestones -->
+          <div class="card" data-od-id="milestones">
+            <div class="card-header">
+              <span class="card-title">里程碑</span>
+            </div>
+            <div class="milestones-list">
+              <div class="milestone-item done" data-od-id="milestone-1">
+                <div class="milestone-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+                <div class="milestone-info">
+                  <div class="milestone-name">首次 50 万</div>
+                  <div class="milestone-date">2024-08</div>
+                </div>
+                <span class="milestone-status">已达成</span>
+              </div>
+              <div class="milestone-item done" data-od-id="milestone-2">
+                <div class="milestone-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+                <div class="milestone-info">
+                  <div class="milestone-name">100 万</div>
+                  <div class="milestone-date">2025-03</div>
+                </div>
+                <span class="milestone-status">已达成</span>
+              </div>
+              <div class="milestone-item done" data-od-id="milestone-3">
+                <div class="milestone-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+                <div class="milestone-info">
+                  <div class="milestone-name">150 万</div>
+                  <div class="milestone-date">2026-05</div>
+                </div>
+                <span class="milestone-status">已达成</span>
+              </div>
+              <div class="milestone-item pending" data-od-id="milestone-4">
+                <div class="milestone-dot"></div>
+                <div class="milestone-info">
+                  <div class="milestone-name">200 万</div>
+                </div>
+                <span class="milestone-status">预计 2027-03</span>
+              </div>
+              <div class="milestone-item pending" data-od-id="milestone-5">
+                <div class="milestone-dot"></div>
+                <div class="milestone-info">
+                  <div class="milestone-name">250 万</div>
+                </div>
+                <span class="milestone-status">预计 2028-09</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>

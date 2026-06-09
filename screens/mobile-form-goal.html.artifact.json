@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "screens/mobile-form-goal.html",
+  "entry": "screens/mobile-form-goal.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-06-08T09:30:36.666Z",
+  "updatedAt": "2026-06-08T09:30:36.666Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}

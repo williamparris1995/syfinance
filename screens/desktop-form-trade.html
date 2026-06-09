@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>御财 · 投资交易</title>
+  <style>
+    :root { --bg: #f7f6f2; --surface: #ffffff; --fg: #1a1916; --muted: #7a7770; --border: #e6e3dc; --accent: #b08d57; --sidebar-bg: #1c1e21; --sidebar-fg: #c5c3be; --sidebar-hover: #2a2c30; --sidebar-active: #323539; --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent); --positive: #2d8a6e; --negative: #c4544d; --positive-bg: color-mix(in oklch, var(--positive) 10%, transparent); --negative-bg: color-mix(in oklch, var(--negative) 10%, transparent); --font-display: 'Iowan Old Style', 'Charter', Georgia, 'Noto Serif SC', serif; --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', system-ui, sans-serif; --font-mono: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, monospace; --fs-h1: 28px; --fs-body: 14px; --fs-meta: 12px; --radius: 10px; --radius-lg: 14px; --sidebar-w: 240px; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: var(--fs-body); line-height: 1.55; -webkit-font-smoothing: antialiased; display: flex; min-height: 100vh; }
+    a { color: inherit; text-decoration: none; } button { font: inherit; cursor: pointer; background: none; border: none; }
+    .sidebar { width: var(--sidebar-w); min-height: 100vh; background: var(--sidebar-bg); color: var(--sidebar-fg); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 20; }
+    .sidebar-brand { padding: 24px 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .sidebar-brand h2 { font-family: var(--font-display); font-size: 20px; color: #fff; } .sidebar-brand span { font-size: var(--fs-meta); color: var(--muted); display: block; margin-top: 2px; }
+    .sidebar-nav { flex: 1; padding: 12px 0; } .sidebar-group-label { padding: 16px 20px 6px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.25); font-family: var(--font-mono); }
+    .sidebar-item { display: flex; align-items: center; gap: 10px; padding: 9px 20px; font-size: 13px; color: var(--sidebar-fg); cursor: pointer; } .sidebar-item:hover { background: var(--sidebar-hover); color: #fff; } .sidebar-item.active { background: var(--sidebar-active); color: #fff; } .sidebar-item svg { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.6; } .sidebar-item.active svg { opacity: 1; } .sidebar-item .badge { margin-left: auto; background: var(--accent); color: #fff; font-size: 10px; padding: 2px 7px; border-radius: 99px; font-family: var(--font-mono); }
+    .sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; gap: 10px; } .sidebar-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--sidebar-hover); display: grid; place-items: center; font-size: 14px; color: #fff; } .sidebar-user-info { font-size: 13px; } .sidebar-user-info span { display: block; color: rgba(255,255,255,0.4); font-size: 11px; }
+    .main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+    .topbar { position: sticky; top: 0; z-index: 10; background: color-mix(in oklch, var(--bg) 90%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 14px 32px; } .topbar-title { font-size: 15px; font-weight: 600; }
+    .content { padding: 28px 32px 48px; flex: 1; max-width: 760px; }
+    .content-header { margin-bottom: 28px; } .content-header h1 { font-family: var(--font-display); font-size: var(--fs-h1); line-height: 1.2; } .content-header .sub { font-size: var(--fs-meta); color: var(--muted); margin-top: 4px; }
+    .form-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px; }
+    .form-section { margin-bottom: 24px; }
+    .form-section-title { font-size: var(--fs-meta); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; } .form-row.single { grid-template-columns: 1fr; } .form-row.triple { grid-template-columns: 1fr 1fr 1fr; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; } .form-label { font-size: 13px; font-weight: 500; } .form-label .required { color: var(--negative); }
+    .form-input { padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius); font-size: var(--fs-body); font-family: var(--font-body); color: var(--fg); outline: none; } .form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .form-select { padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius); font-size: var(--fs-body); color: var(--fg); outline: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%237a7770'%3E%3Cpath d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; } .form-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .form-textarea { padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius); font-size: var(--fs-body); font-family: var(--font-body); color: var(--fg); resize: vertical; min-height: 80px; outline: none; } .form-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .amount-input-wrap { display: flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; } .amount-input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); } .amount-input-wrap .currency-tag { padding: 10px 12px; background: var(--bg); font-size: 13px; color: var(--muted); border-right: 1px solid var(--border); font-family: var(--font-mono); } .amount-input-wrap input { flex: 1; border: none; padding: 10px 14px; font-size: 18px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; outline: none; background: transparent; }
+    .type-tabs { display: flex; gap: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; background: var(--surface); } .type-tab { flex: 1; padding: 12px 16px; font-size: 14px; font-weight: 500; text-align: center; color: var(--muted); border-right: 1px solid var(--border); } .type-tab:last-child { border-right: none; } .type-tab:hover { color: var(--fg); } .type-tab.active.buy { color: var(--positive); background: var(--positive-bg); } .type-tab.active.sell { color: var(--negative); background: var(--negative-bg); }
+    .asset-type-tabs { display: flex; gap: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 16px; background: var(--surface); } .asset-tab { flex: 1; padding: 10px 12px; font-size: 12px; font-weight: 500; text-align: center; color: var(--muted); border-right: 1px solid var(--border); } .asset-tab:last-child { border-right: none; } .asset-tab:hover { color: var(--fg); } .asset-tab.active { color: var(--accent); background: var(--accent-soft); }
+    .fee-summary { background: var(--bg); border-radius: var(--radius); padding: 16px; margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    .fee-item .fee-label { font-size: var(--fs-meta); color: var(--muted); margin-bottom: 4px; }
+    .fee-item .fee-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 16px; font-weight: 600; }
+    .form-actions { display: flex; justify-content: flex-end; gap: 12px; padding-top: 24px; border-top: 1px solid var(--border); }
+    .btn-cancel { padding: 10px 20px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; color: var(--muted); }
+    .btn-primary { padding: 10px 24px; background: var(--accent); color: #fff; border-radius: var(--radius); font-size: 13px; font-weight: 500; }
+  </style>
+</head>
+<body>
+  <aside class="sidebar" data-od-id="sidebar">
+    <div class="sidebar-brand"><h2>御财</h2><span>私人财富管理</span></div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-group-label">概览</div>
+      <a class="sidebar-item" href="desktop-dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>仪表盘</a>
+      <a class="sidebar-item" href="desktop-accounts.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 7H4a1 1 0 0 1 0-2h16a1 1 0 0 1 0 2ZM20 12H4a1 1 0 0 1 0-2h16a1 1 0 0 1 0 2ZM20 17H4a1 1 0 0 1 0-2h16a1 1 0 0 1 0 2Z"/></svg>账户管理</a>
+      <div class="sidebar-group-label">投资</div>
+      <a class="sidebar-item active" href="desktop-investments.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><polyline points="22,7 13.5,15.5 8.5,10.5 2,17"/><polyline points="16,7 22,7 22,13"/></svg>投资组合<span class="badge">5</span></a>
+      <div class="sidebar-group-label">财务</div>
+      <a class="sidebar-item" href="desktop-transactions.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>交易记录</a>
+      <a class="sidebar-item" href="desktop-budget.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2v10l4.5 4.5"/><circle cx="12" cy="12" r="10"/></svg>预算管理</a>
+      <a class="sidebar-item" href="desktop-goals.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.27 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>目标追踪</a>
+      <div class="sidebar-group-label">借贷</div>
+      <a class="sidebar-item" href="desktop-debts.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16 16v3a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3"/><rect x="8" y="2" width="14" height="12" rx="2"/><path d="M15 8h.01"/></svg>债务管理</a>
+      <div class="sidebar-group-label">工具</div>
+      <a class="sidebar-item" href="desktop-reports.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>报表分析</a>
+      <a class="sidebar-item" href="desktop-settings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>设置</a>
+    </nav>
+    <div class="sidebar-footer"><div class="sidebar-avatar">李</div><div class="sidebar-user-info">李明远<span>高级会员</span></div></div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar"><span class="topbar-title"><a href="desktop-investments.html" style="color:var(--muted);">投资组合</a> / 新建交易</span></header>
+    <div class="content" data-od-id="trade-form">
+      <div class="content-header">
+        <h1>投资交易</h1>
+        <p class="sub">买入或卖出基金、股票、黄金、外汇</p>
+      </div>
+      <div class="form-card">
+        <!-- Buy/Sell -->
+        <div class="type-tabs">
+          <button class="type-tab buy active">买入</button>
+          <button class="type-tab sell">卖出</button>
+        </div>
+
+        <!-- Asset type -->
+        <div class="form-section">
+          <div class="form-section-title">资产类型</div>
+          <div class="asset-type-tabs">
+            <button class="asset-tab active">基金</button>
+            <button class="asset-tab">股票</button>
+            <button class="asset-tab">黄金</button>
+            <button class="asset-tab">外汇</button>
+            <button class="asset-tab">债券</button>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">交易信息</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">基金名称 / 代码 <span class="required">*</span></label>
+              <input class="form-input" type="text" placeholder="搜索基金名称或代码" value="易方达蓝筹精选混合 (005827)" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">投资账户 <span class="required">*</span></label>
+              <select class="form-select">
+                <option>招商银行基金账户 ···4892</option>
+                <option>天天基金网</option>
+                <option>蚂蚁财富</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">买入金额 <span class="required">*</span></label>
+              <div class="amount-input-wrap">
+                <span class="currency-tag">¥</span>
+                <input type="text" placeholder="0.00" value="50,000" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">买入份额</label>
+              <input class="form-input" type="text" value="4,252.36 份" disabled style="opacity:0.6;" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">交易日期</label>
+              <input class="form-input" type="date" value="2026-06-08" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">费率</label>
+              <input class="form-input" type="text" value="0.15%（申购费）" disabled style="opacity:0.6;" />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">费用明细</div>
+          <div class="fee-summary">
+            <div class="fee-item">
+              <div class="fee-label">申购金额</div>
+              <div class="fee-value">¥50,000</div>
+            </div>
+            <div class="fee-item">
+              <div class="fee-label">手续费</div>
+              <div class="fee-value" style="color:var(--negative);">-¥75.00</div>
+            </div>
+            <div class="fee-item">
+              <div class="fee-label">实际扣款</div>
+              <div class="fee-value" style="color:var(--accent);">¥50,075</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">备注</div>
+          <div class="form-row single">
+            <div class="form-group">
+              <textarea class="form-textarea" placeholder="交易备注…">定投加仓 — 看好消费板块反弹</textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn-cancel"><a href="desktop-investments.html">取消</a></button>
+          <button class="btn-primary"><a href="desktop-investments.html" style="color:#fff;">确认买入</a></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

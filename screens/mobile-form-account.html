@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>御财 · 移动端新增账户</title>
+  <style>
+    :root { --bg: #f7f6f2; --surface: #ffffff; --fg: #1a1916; --muted: #7a7770; --border: #e6e3dc; --accent: #b08d57; --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent); --positive: #2d8a6e; --negative: #c4544d; --font-display: 'Iowan Old Style', 'Charter', Georgia, 'Noto Serif SC', serif; --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', system-ui, sans-serif; --font-mono: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, monospace; --radius: 12px; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #000; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+    .phone-frame { width: 390px; min-height: 844px; background: var(--bg); color: var(--fg); position: relative; overflow: hidden; border-radius: 44px; box-shadow: 0 0 0 3px #1a1a1a, 0 0 0 6px #333, 0 20px 60px rgba(0,0,0,0.4); }
+    .dynamic-island { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: 126px; height: 36px; background: #000; border-radius: 20px; z-index: 30; }
+    .status-bar { height: 54px; padding: 14px 28px 0; display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600; }
+    .status-bar .time { font-family: var(--font-mono); }
+    .screen-content { height: 790px; overflow-y: auto; padding-bottom: 40px; }
+    .screen-content::-webkit-scrollbar { display: none; }
+    .form-header { padding: 8px 20px 16px; display: flex; align-items: center; justify-content: space-between; }
+    .form-header h1 { font-family: var(--font-display); font-size: 22px; }
+    .header-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); display: grid; place-items: center; color: var(--fg); text-decoration: none; }
+    .type-chips { display: flex; gap: 8px; padding: 0 20px; margin-bottom: 20px; overflow-x: auto; }
+    .type-chips::-webkit-scrollbar { display: none; }
+    .chip { padding: 8px 14px; border-radius: 99px; font-size: 13px; border: 1px solid var(--border); color: var(--muted); white-space: nowrap; flex-shrink: 0; background: none; }
+    .chip.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 500; }
+    .form-section { padding: 0 20px; }
+    .form-group { margin-bottom: 16px; }
+    .form-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+    .form-input { width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 15px; font-family: var(--font-body); color: var(--fg); background: var(--surface); outline: none; }
+    .form-input:focus { border-color: var(--accent); }
+    .form-select { width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 15px; color: var(--fg); background: var(--surface); outline: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%237a7770'%3E%3Cpath d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+    .form-divider { height: 1px; background: var(--border); margin: 20px 20px; }
+    .bottom-bar { position: absolute; bottom: 0; left: 0; right: 0; padding: 16px 20px 32px; background: color-mix(in oklch, var(--surface) 95%, transparent); backdrop-filter: blur(20px); border-top: 1px solid var(--border); display: flex; gap: 12px; }
+    .btn-save { flex: 1; padding: 14px; background: var(--accent); color: #fff; border-radius: var(--radius); font-size: 15px; font-weight: 500; text-align: center; border: none; }
+    .btn-cancel { padding: 14px 20px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 15px; color: var(--muted); background: none; }
+    .home-indicator { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 134px; height: 5px; background: var(--fg); border-radius: 3px; opacity: 0.2; }
+  </style>
+</head>
+<body>
+  <div class="phone-frame">
+    <div class="dynamic-island"></div>
+    <div class="status-bar">
+      <span class="time">9:41</span>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="17" y="4" width="4" height="16" rx="1"/><rect x="11" y="8" width="4" height="12" rx="1"/><rect x="5" y="12" width="4" height="8" rx="1"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="6" width="18" height="12" rx="2"/><rect x="20" y="10" width="2" height="4" rx="1"/><rect x="4" y="8" width="8" height="2" rx="1" fill="var(--positive)"/></svg>
+      </div>
+    </div>
+    <div class="screen-content">
+      <div class="form-header">
+        <a class="header-btn" href="mobile-accounts.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></a>
+        <h1>新建账户</h1>
+        <div style="width:36px;"></div>
+      </div>
+      <div class="type-chips">
+        <button class="chip active">储蓄账户</button>
+        <button class="chip">信用卡</button>
+        <button class="chip">投资账户</button>
+        <button class="chip">定期存款</button>
+        <button class="chip">黄金外汇</button>
+        <button class="chip">固定资产</button>
+        <button class="chip">贷款账户</button>
+      </div>
+      <div class="form-section">
+        <div class="form-group">
+          <div class="form-label">账户名称 *</div>
+          <input class="form-input" type="text" placeholder="例如：招商银行储蓄卡" />
+        </div>
+        <div class="form-group">
+          <div class="form-label">开户银行</div>
+          <select class="form-select"><option value="">请选择</option><option>招商银行</option><option>工商银行</option><option>建设银行</option><option>中国银行</option><option>交通银行</option><option>其他</option></select>
+        </div>
+        <div class="form-group">
+          <div class="form-label">币种</div>
+          <select class="form-select"><option>CNY - 人民币</option><option>USD - 美元</option><option>EUR - 欧元</option><option>GBP - 英镑</option><option>HKD - 港币</option></select>
+        </div>
+        <div class="form-group">
+          <div class="form-label">初始余额 *</div>
+          <input class="form-input" type="text" placeholder="¥ 0.00" style="font-family:var(--font-mono);font-size:20px;" />
+        </div>
+      </div>
+      <div class="form-divider"></div>
+      <div class="form-section">
+        <div class="form-group">
+          <div class="form-label">卡号后四位</div>
+          <input class="form-input" type="text" placeholder="4892" maxlength="4" />
+        </div>
+        <div class="form-group">
+          <div class="form-label">开户日期</div>
+          <input class="form-input" type="date" />
+        </div>
+        <div class="form-group">
+          <div class="form-label">备注</div>
+          <input class="form-input" type="text" placeholder="账户备注…" />
+        </div>
+      </div>
+    </div>
+    <div class="bottom-bar">
+      <a class="btn-cancel" href="mobile-accounts.html">取消</a>
+      <a class="btn-save" href="mobile-accounts.html">创建账户</a>
+    </div>
+    <div class="home-indicator"></div>
+  </div>
+</body>
+</html>
