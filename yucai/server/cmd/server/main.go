@@ -10,6 +10,7 @@ import (
 
 	authpb "github.com/yucai/server/internal/proto/auth/v1"
 	accountpb "github.com/yucai/server/internal/proto/account/v1"
+	transactionpb "github.com/yucai/server/internal/proto/transaction/v1"
 	"github.com/yucai/server/pkg/config"
 	"github.com/yucai/server/wire"
 )
@@ -30,6 +31,7 @@ func main() {
 	// Register gRPC services
 	authpb.RegisterAuthServiceServer(app.GRPCServer, app.AuthHandler)
 	accountpb.RegisterAccountServiceServer(app.GRPCServer, app.AccountHandler)
+	transactionpb.RegisterTransactionServiceServer(app.GRPCServer, app.TransactionHandler)
 
 	// Start gRPC server
 	addr := fmt.Sprintf(":%s", cfg.GRPCPort)

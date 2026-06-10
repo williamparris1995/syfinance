@@ -21,7 +21,13 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	txnClient, err := provideTransactionEntClient(cfg)
+	if err != nil {
+		return nil, err
+	}
 	ts := provideTokenService(cfg)
+
+	// Auth module
 	tenantRepo := provideTenantRepo(authClient)
 	userRepo := provideUserRepo(authClient)
 	sessionStore := provideSessionStore(rdb)
@@ -31,11 +37,22 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	profileHandler := provideProfileHandler(userRepo)
 	authService := provideAuthService(tenantRepo, userRepo, ts, registerHandler, loginHandler, refreshHandler, profileHandler)
 	authHandler := provideAuthHandler(authService)
+
+	// Account module
 	accountRepo := provideAccountRepo(accountClient)
 	chartRepo := provideChartRepo(accountClient)
 	accountService := provideAccountService(accountRepo, chartRepo)
 	accountHandler := provideAccountHandler(accountService)
+
+	// Transaction module
+	txnRepo := provideTransactionRepo(txnClient)
+	balanceUpdater := provideBalanceUpdater(accountRepo)
+	txnService := provideTransactionService(txnRepo, balanceUpdater)
+	txnHandler := provideTransactionHandler(txnService)
+
+	// gRPC server
 	grpcSrv := provideGRPCServer(ts)
-	app := NewApp(cfg, log, grpcSrv, authHandler, accountHandler)
+
+	app := NewApp(cfg, log, grpcSrv, authHandler, accountHandler, txnHandler)
 	return app, nil
 }

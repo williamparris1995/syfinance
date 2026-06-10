@@ -3,17 +3,19 @@ package wire
 import (
 	accountgrpc "github.com/yucai/server/internal/account/adapter/driving/grpc"
 	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
+	txngrpc "github.com/yucai/server/internal/transaction/adapter/driving/grpc"
 	"github.com/yucai/server/pkg/config"
 	"github.com/yucai/server/pkg/logger"
 )
 
 // App holds the wired application dependencies.
 type App struct {
-	Config        *config.Config
-	Logger        *logger.Logger
-	GRPCServer    *GRPCServer
-	AuthHandler   *authgrpc.AuthHandler
-	AccountHandler *accountgrpc.AccountHandler
+	Config             *config.Config
+	Logger             *logger.Logger
+	GRPCServer         *GRPCServer
+	AuthHandler        *authgrpc.AuthHandler
+	AccountHandler     *accountgrpc.AccountHandler
+	TransactionHandler *txngrpc.TransactionHandler
 }
 
 // NewApp creates the application with wired dependencies.
@@ -23,12 +25,14 @@ func NewApp(
 	srv *GRPCServer,
 	authHandler *authgrpc.AuthHandler,
 	accountHandler *accountgrpc.AccountHandler,
+	transactionHandler *txngrpc.TransactionHandler,
 ) *App {
 	return &App{
-		Config:         cfg,
-		Logger:         log,
-		GRPCServer:     srv,
-		AuthHandler:    authHandler,
-		AccountHandler: accountHandler,
+		Config:             cfg,
+		Logger:             log,
+		GRPCServer:         srv,
+		AuthHandler:        authHandler,
+		AccountHandler:     accountHandler,
+		TransactionHandler: transactionHandler,
 	}
 }

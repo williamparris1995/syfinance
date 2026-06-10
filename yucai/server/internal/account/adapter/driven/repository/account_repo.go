@@ -131,6 +131,7 @@ func (r *AccountRepository) Update(ctx context.Context, a *domain.Account) error
 	n, err := r.client.Account.UpdateOneID(a.ID).
 		Where(accountent.Version(a.Version - 1)).
 		SetName(a.Name).
+		SetCurrentBalanceCents(a.CurrentBalanceCents).
 		SetIcon(a.Icon).
 		SetColor(a.Color).
 		SetChartCode(a.ChartCode).

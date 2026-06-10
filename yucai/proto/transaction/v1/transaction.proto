@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package yucai.transaction.v1;
+
+option go_package = "github.com/yucai/server/internal/proto/transaction/v1";
+
+import "common/v1/pagination.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+// TransactionService manages double-entry bookkeeping transactions.
+service TransactionService {
+  rpc RecordTransaction(RecordTransactionRequest) returns (TransactionResponse);
+  rpc GetTransaction(GetTransactionRequest) returns (TransactionResponse);
+  rpc ListTransactions(ListTransactionsRequest) returns (ListTransactionsResponse);
+  rpc UpdateTransaction(UpdateTransactionRequest) returns (TransactionResponse);
+  rpc DeleteTransaction(DeleteTransactionRequest) returns (google.protobuf.Empty);
+  rpc SimpleIncome(SimpleIncomeRequest) returns (TransactionResponse);
+  rpc SimpleExpense(SimpleExpenseRequest) returns (TransactionResponse);
+  rpc SimpleTransfer(SimpleTransferRequest) returns (TransactionResponse);
+}
+
+message TransactionDTO {
+  string id = 1;
+  string transaction_date = 2;
+  string description = 3;
+  repeated EntryDTO entries = 4;
+  int64 version = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+message EntryDTO {
+  string id = 1;
+  string account_id = 2;
+  string chart_of_account_code = 3;
+  int64 debit_cents = 4;
+  int64 credit_cents = 5;
+  string note = 6;
+}
+
+message RecordTransactionRequest {
+  string transaction_date = 1;
+  string description = 2;
+  repeated EntryDTO entries = 3;
+}
+
+message GetTransactionRequest {
+  string id = 1;
+}
+
+message ListTransactionsRequest {
+  yucai.common.v1.PageRequest page = 1;
+  string account_id = 2;
+  string date_from = 3;
+  string date_to = 4;
+}
+
+message ListTransactionsResponse {
+  repeated TransactionDTO transactions = 1;
+  yucai.common.v1.PageResponse page = 2;
+}
+
+message UpdateTransactionRequest {
+  string id = 1;
+  string transaction_date = 2;
+  string description = 3;
+  repeated EntryDTO entries = 4;
+  int64 version = 5;
+}
+
+message DeleteTransactionRequest {
+  string id = 1;
+}
+
+// Convenience RPCs — server creates the correct entries
+message SimpleIncomeRequest {
+  string transaction_date = 1;
+  string description = 2;
+  string asset_account_id = 3;
+  string income_account_id = 4;
+  int64 amount_cents = 5;
+  string note = 6;
+}
+
+message SimpleExpenseRequest {
+  string transaction_date = 1;
+  string description = 2;
+  string expense_account_id = 3;
+  string asset_account_id = 4;
+  int64 amount_cents = 5;
+  string note = 6;
+}
+
+message SimpleTransferRequest {
+  string transaction_date = 1;
+  string description = 2;
+  string from_account_id = 3;
+  string to_account_id = 4;
+  int64 amount_cents = 5;
+  string note = 6;
+}
+
+message TransactionResponse {
+  TransactionDTO transaction = 1;
+}
