@@ -1,0 +1,282 @@
+package grpc
+
+import (
+	"context"
+
+	pb "github.com/yucai/server/internal/proto/account/v1"
+	commonpb "github.com/yucai/server/internal/proto/common/v1"
+	"github.com/google/uuid"
+	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
+	"github.com/yucai/server/internal/account/application"
+	"github.com/yucai/server/internal/account/domain"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
+)
+
+// AccountHandler implements the generated AccountServiceServer interface.
+type AccountHandler struct {
+	pb.UnimplementedAccountServiceServer
+	service *application.Service
+}
+
+// NewAccountHandler creates a new AccountHandler.
+func NewAccountHandler(service *application.Service) *AccountHandler {
+	return &AccountHandler{service: service}
+}
+
+// CreateAccount handles account creation.
+func (h *AccountHandler) CreateAccount(ctx context.Context, req *pb.CreateAccountRequest) (*pb.AccountResponse, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	if req.Name == "" {
+		return nil, status.Error(codes.InvalidArgument, "name is required")
+	}
+
+	resp, err := h.service.CreateAccount(ctx, application.CreateAccountRequest{
+		TenantID:            tenantID,
+		Name:                req.Name,
+		AccountType:         protoToAccountType(req.AccountType),
+		CurrencyCode:        req.CurrencyCode,
+		InitialBalanceCents: req.InitialBalanceCents,
+		Ownership:           protoToOwnership(req.Ownership),
+		Icon:                req.Icon,
+		Color:               req.Color,
+		ChartCode:           req.ChartCode,
+		Institution:         req.Institution,
+		CreditLimitCents:    req.CreditLimitCents,
+	})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.AccountResponse{Account: dtoToProto(*resp)}, nil
+}
+
+// GetAccount retrieves a single account.
+func (h *AccountHandler) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb.AccountResponse, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	accountID, err := uuid.Parse(req.Id)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid account id")
+	}
+
+	resp, err := h.service.GetAccount(ctx, tenantID, accountID)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.AccountResponse{Account: dtoToProto(*resp)}, nil
+}
+
+// ListAccounts returns a paginated list of accounts.
+func (h *AccountHandler) ListAccounts(ctx context.Context, req *pb.ListAccountsRequest) (*pb.ListAccountsResponse, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+
+	filter := domain.AccountFilter{}
+	if req.AccountType != pb.AccountType_ACCOUNT_TYPE_UNSPECIFIED {
+		at := protoToAccountType(req.AccountType)
+		filter.AccountType = &at
+	}
+	if req.Status != pb.AccountStatus_ACCOUNT_STATUS_UNSPECIFIED {
+		s := protoToAccountStatus(req.Status)
+		filter.Status = &s
+	}
+
+	pageReq := domain.PageRequest{PageSize: 20}
+	if req.Page != nil {
+		pageReq.PageSize = req.Page.PageSize
+		pageReq.PageToken = req.Page.PageToken
+	}
+
+	result, err := h.service.ListAccounts(ctx, application.ListAccountsRequest{
+		TenantID:    tenantID,
+		Filter:      filter,
+		PageRequest: pageReq,
+	})
+	if err != nil {
+		return nil, mapError(err)
+	}
+
+	accounts := make([]*pb.AccountDTO, len(result.Accounts))
+	for i, a := range result.Accounts {
+		accounts[i] = dtoToProto(a)
+	}
+
+	return &pb.ListAccountsResponse{
+		Accounts: accounts,
+		Page: &commonpb.PageResponse{
+			NextPageToken: result.NextPageToken,
+			TotalCount:    result.TotalCount,
+		},
+	}, nil
+}
+
+// UpdateAccount updates an existing account.
+func (h *AccountHandler) UpdateAccount(ctx context.Context, req *pb.UpdateAccountRequest) (*pb.AccountResponse, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	accountID, err := uuid.Parse(req.Id)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid account id")
+	}
+
+	resp, err := h.service.UpdateAccount(ctx, application.UpdateAccountRequest{
+		TenantID:         tenantID,
+		AccountID:        accountID,
+		Name:             req.Name,
+		Icon:             req.Icon,
+		Color:            req.Color,
+		ChartCode:        req.ChartCode,
+		Institution:      req.Institution,
+		CreditLimitCents: req.CreditLimitCents,
+		Version:          req.Version,
+	})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.AccountResponse{Account: dtoToProto(*resp)}, nil
+}
+
+// DeleteAccount soft-deletes an account.
+func (h *AccountHandler) DeleteAccount(ctx context.Context, req *pb.DeleteAccountRequest) (*emptypb.Empty, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	accountID, err := uuid.Parse(req.Id)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid account id")
+	}
+
+	if err := h.service.DeleteAccount(ctx, tenantID, accountID); err != nil {
+		return nil, mapError(err)
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func dtoToProto(a application.AccountDTO) *pb.AccountDTO {
+	dto := &pb.AccountDTO{
+		Id:                  a.ID.String(),
+		Name:                a.Name,
+		AccountType:         accountTypeToProto(a.AccountType),
+		CurrencyCode:        a.CurrencyCode,
+		InitialBalanceCents: a.InitialBalanceCents,
+		CurrentBalanceCents: a.CurrentBalanceCents,
+		Ownership:           ownershipToProto(a.Ownership),
+		Icon:                a.Icon,
+		Color:               a.Color,
+		ChartCode:           a.ChartCode,
+		Institution:         a.Institution,
+		CreditLimitCents:    a.CreditLimitCents,
+		Status:              accountStatusToProto(a.Status),
+		Version:             a.Version,
+		CreatedAt:           timestamppb.New(a.CreatedAt),
+		UpdatedAt:           timestamppb.New(a.UpdatedAt),
+	}
+	if a.ParentID != nil {
+		dto.ParentId = a.ParentID.String()
+	}
+	return dto
+}
+
+func protoToAccountType(t pb.AccountType) domain.AccountType {
+	switch t {
+	case pb.AccountType_ACCOUNT_TYPE_ASSET:
+		return domain.AccountTypeAsset
+	case pb.AccountType_ACCOUNT_TYPE_LIABILITY:
+		return domain.AccountTypeLiability
+	case pb.AccountType_ACCOUNT_TYPE_EQUITY:
+		return domain.AccountTypeEquity
+	case pb.AccountType_ACCOUNT_TYPE_INCOME:
+		return domain.AccountTypeIncome
+	case pb.AccountType_ACCOUNT_TYPE_EXPENSE:
+		return domain.AccountTypeExpense
+	default:
+		return domain.AccountTypeAsset
+	}
+}
+
+func accountTypeToProto(t domain.AccountType) pb.AccountType {
+	switch t {
+	case domain.AccountTypeAsset:
+		return pb.AccountType_ACCOUNT_TYPE_ASSET
+	case domain.AccountTypeLiability:
+		return pb.AccountType_ACCOUNT_TYPE_LIABILITY
+	case domain.AccountTypeEquity:
+		return pb.AccountType_ACCOUNT_TYPE_EQUITY
+	case domain.AccountTypeIncome:
+		return pb.AccountType_ACCOUNT_TYPE_INCOME
+	case domain.AccountTypeExpense:
+		return pb.AccountType_ACCOUNT_TYPE_EXPENSE
+	default:
+		return pb.AccountType_ACCOUNT_TYPE_UNSPECIFIED
+	}
+}
+
+func protoToOwnership(o pb.Ownership) domain.Ownership {
+	if o == pb.Ownership_OWNERSHIP_JOINT {
+		return domain.OwnershipJoint
+	}
+	return domain.OwnershipPersonal
+}
+
+func ownershipToProto(o domain.Ownership) pb.Ownership {
+	if o == domain.OwnershipJoint {
+		return pb.Ownership_OWNERSHIP_JOINT
+	}
+	return pb.Ownership_OWNERSHIP_PERSONAL
+}
+
+func protoToAccountStatus(s pb.AccountStatus) domain.AccountStatus {
+	if s == pb.AccountStatus_ACCOUNT_STATUS_ARCHIVED {
+		return domain.AccountStatusArchived
+	}
+	return domain.AccountStatusActive
+}
+
+func accountStatusToProto(s domain.AccountStatus) pb.AccountStatus {
+	if s == domain.AccountStatusArchived {
+		return pb.AccountStatus_ACCOUNT_STATUS_ARCHIVED
+	}
+	return pb.AccountStatus_ACCOUNT_STATUS_ACTIVE
+}
+
+func getTenantID(ctx context.Context) (uuid.UUID, error) {
+	_, tenantID, err := authgrpc.GetUserAndTenantIDFromContext(ctx)
+	return tenantID, err
+}
+
+func mapError(err error) error {
+	msg := err.Error()
+	switch {
+	case contains(msg, "not found"):
+		return status.Error(codes.NotFound, msg)
+	case contains(msg, "must not be empty"), contains(msg, "invalid"):
+		return status.Error(codes.InvalidArgument, msg)
+	case contains(msg, "optimistic lock"):
+		return status.Error(codes.Aborted, msg)
+	case contains(msg, "non-zero balance"):
+		return status.Error(codes.FailedPrecondition, msg)
+	default:
+		return status.Error(codes.Internal, msg)
+	}
+}
+
+func contains(s, sub string) bool {
+	for i := 0; i <= len(s)-len(sub); i++ {
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
+	}
+	return false
+}

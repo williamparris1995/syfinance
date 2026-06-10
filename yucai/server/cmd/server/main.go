@@ -8,7 +8,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	pb "github.com/yucai/server/internal/proto/auth/v1"
+	authpb "github.com/yucai/server/internal/proto/auth/v1"
+	accountpb "github.com/yucai/server/internal/proto/account/v1"
 	"github.com/yucai/server/pkg/config"
 	"github.com/yucai/server/wire"
 )
@@ -26,8 +27,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Register AuthService with gRPC server
-	pb.RegisterAuthServiceServer(app.GRPCServer, app.AuthHandler)
+	// Register gRPC services
+	authpb.RegisterAuthServiceServer(app.GRPCServer, app.AuthHandler)
+	accountpb.RegisterAccountServiceServer(app.GRPCServer, app.AccountHandler)
 
 	// Start gRPC server
 	addr := fmt.Sprintf(":%s", cfg.GRPCPort)

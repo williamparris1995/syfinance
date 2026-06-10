@@ -6,19 +6,22 @@ import (
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/yucai/server/internal/auth/adapter/driven/repository"
+	"github.com/yucai/server/internal/account/adapter/driven/repository"
+	accountgrpc "github.com/yucai/server/internal/account/adapter/driving/grpc"
+	accountapp "github.com/yucai/server/internal/account/application"
+	accountent "github.com/yucai/server/internal/account/ent"
+	authrepo "github.com/yucai/server/internal/auth/adapter/driven/repository"
 	"github.com/yucai/server/internal/auth/adapter/driven/session"
 	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
-	"github.com/yucai/server/internal/auth/application"
-	"github.com/yucai/server/internal/auth/application/command"
-	"github.com/yucai/server/internal/auth/application/query"
+	authapp "github.com/yucai/server/internal/auth/application"
+	authcmd "github.com/yucai/server/internal/auth/application/command"
+	authquery "github.com/yucai/server/internal/auth/application/query"
 	authent "github.com/yucai/server/internal/auth/ent"
 	authjwt "github.com/yucai/server/internal/auth/infrastructure/jwt"
 	"github.com/yucai/server/pkg/config"
 	"github.com/yucai/server/pkg/logger"
 	"github.com/yucai/server/pkg/middleware"
 
-	"entgo.io/ent/dialect/sql"
 	entsql "entgo.io/ent/dialect/sql"
 	"google.golang.org/grpc"
 )
@@ -41,7 +44,7 @@ func provideRedisClient(cfg *config.Config) *redis.Client {
 	})
 }
 
-func provideEntClient(cfg *config.Config) (*authent.Client, error) {
+func provideAuthEntClient(cfg *config.Config) (*authent.Client, error) {
 	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
 	if err != nil {
 		return nil, err
@@ -49,16 +52,25 @@ func provideEntClient(cfg *config.Config) (*authent.Client, error) {
 	return authent.NewClient(authent.Driver(drv)), nil
 }
 
+func provideAccountEntClient(cfg *config.Config) (*accountent.Client, error) {
+	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
+	if err != nil {
+		return nil, err
+	}
+	return accountent.NewClient(accountent.Driver(drv)), nil
+}
+
 func provideTokenService(cfg *config.Config) *authjwt.TokenService {
 	return authjwt.NewTokenService(cfg.JWTSecret)
 }
 
-func provideTenantRepo(client *authent.Client) *repository.TenantRepository {
-	return repository.NewTenantRepository(client)
+// Auth providers
+func provideTenantRepo(client *authent.Client) *authrepo.TenantRepository {
+	return authrepo.NewTenantRepository(client)
 }
 
-func provideUserRepo(client *authent.Client) *repository.UserRepository {
-	return repository.NewUserRepository(client)
+func provideUserRepo(client *authent.Client) *authrepo.UserRepository {
+	return authrepo.NewUserRepository(client)
 }
 
 func provideSessionStore(rdb *redis.Client) *session.RedisSessionStore {
@@ -66,46 +78,66 @@ func provideSessionStore(rdb *redis.Client) *session.RedisSessionStore {
 }
 
 func provideRegisterHandler(
-	tenantRepo *repository.TenantRepository,
-	userRepo *repository.UserRepository,
+	tenantRepo *authrepo.TenantRepository,
+	userRepo *authrepo.UserRepository,
 	ts *authjwt.TokenService,
-) *command.RegisterHandler {
-	return command.NewRegisterHandler(tenantRepo, userRepo, ts)
+) *authcmd.RegisterHandler {
+	return authcmd.NewRegisterHandler(tenantRepo, userRepo, ts)
 }
 
 func provideLoginHandler(
-	userRepo *repository.UserRepository,
+	userRepo *authrepo.UserRepository,
 	ts *authjwt.TokenService,
-) *command.LoginHandler {
-	return command.NewLoginHandler(userRepo, ts)
+) *authcmd.LoginHandler {
+	return authcmd.NewLoginHandler(userRepo, ts)
 }
 
 func provideRefreshHandler(
-	userRepo *repository.UserRepository,
+	userRepo *authrepo.UserRepository,
 	ts *authjwt.TokenService,
 	ss *session.RedisSessionStore,
-) *command.RefreshHandler {
-	return command.NewRefreshHandler(userRepo, ts, ss)
+) *authcmd.RefreshHandler {
+	return authcmd.NewRefreshHandler(userRepo, ts, ss)
 }
 
-func provideProfileHandler(userRepo *repository.UserRepository) *query.GetProfileHandler {
-	return query.NewGetProfileHandler(userRepo)
+func provideProfileHandler(userRepo *authrepo.UserRepository) *authquery.GetProfileHandler {
+	return authquery.NewGetProfileHandler(userRepo)
 }
 
 func provideAuthService(
-	tenantRepo *repository.TenantRepository,
-	userRepo *repository.UserRepository,
+	tenantRepo *authrepo.TenantRepository,
+	userRepo *authrepo.UserRepository,
 	ts *authjwt.TokenService,
-	rh *command.RegisterHandler,
-	lh *command.LoginHandler,
-	fh *command.RefreshHandler,
-	ph *query.GetProfileHandler,
-) *application.Service {
-	return application.NewService(tenantRepo, userRepo, ts, rh, lh, fh, ph)
+	rh *authcmd.RegisterHandler,
+	lh *authcmd.LoginHandler,
+	fh *authcmd.RefreshHandler,
+	ph *authquery.GetProfileHandler,
+) *authapp.Service {
+	return authapp.NewService(tenantRepo, userRepo, ts, rh, lh, fh, ph)
 }
 
-func provideAuthHandler(svc *application.Service) *authgrpc.AuthHandler {
+func provideAuthHandler(svc *authapp.Service) *authgrpc.AuthHandler {
 	return authgrpc.NewAuthHandler(svc)
+}
+
+// Account providers
+func provideAccountRepo(client *accountent.Client) *repository.AccountRepository {
+	return repository.NewAccountRepository(client)
+}
+
+func provideChartRepo(client *accountent.Client) *repository.ChartRepository {
+	return repository.NewChartRepository(client)
+}
+
+func provideAccountService(
+	accountRepo *repository.AccountRepository,
+	chartRepo *repository.ChartRepository,
+) *accountapp.Service {
+	return accountapp.NewService(accountRepo, chartRepo)
+}
+
+func provideAccountHandler(svc *accountapp.Service) *accountgrpc.AccountHandler {
+	return accountgrpc.NewAccountHandler(svc)
 }
 
 func provideGRPCServer(ts *authjwt.TokenService) *GRPCServer {
@@ -116,9 +148,8 @@ func provideGRPCServer(ts *authjwt.TokenService) *GRPCServer {
 	return &GRPCServer{Server: srv}
 }
 
-// Unused imports guard (these are used by wire.go providers).
+// Unused imports guard.
 var (
 	_ = uuid.New
-	_ = (*sql.Driver)(nil)
 	_ = context.Background
 )

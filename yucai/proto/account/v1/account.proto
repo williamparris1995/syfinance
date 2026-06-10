@@ -1,0 +1,108 @@
+syntax = "proto3";
+
+package yucai.account.v1;
+
+option go_package = "github.com/yucai/server/internal/proto/account/v1";
+
+import "common/v1/money.proto";
+import "common/v1/pagination.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+// AccountService manages chart of accounts and account CRUD operations.
+service AccountService {
+  rpc CreateAccount(CreateAccountRequest) returns (AccountResponse);
+  rpc GetAccount(GetAccountRequest) returns (AccountResponse);
+  rpc ListAccounts(ListAccountsRequest) returns (ListAccountsResponse);
+  rpc UpdateAccount(UpdateAccountRequest) returns (AccountResponse);
+  rpc DeleteAccount(DeleteAccountRequest) returns (google.protobuf.Empty);
+}
+
+enum AccountType {
+  ACCOUNT_TYPE_UNSPECIFIED = 0;
+  ACCOUNT_TYPE_ASSET = 1;
+  ACCOUNT_TYPE_LIABILITY = 2;
+  ACCOUNT_TYPE_EQUITY = 3;
+  ACCOUNT_TYPE_INCOME = 4;
+  ACCOUNT_TYPE_EXPENSE = 5;
+}
+
+enum Ownership {
+  OWNERSHIP_UNSPECIFIED = 0;
+  OWNERSHIP_PERSONAL = 1;
+  OWNERSHIP_JOINT = 2;
+}
+
+enum AccountStatus {
+  ACCOUNT_STATUS_UNSPECIFIED = 0;
+  ACCOUNT_STATUS_ACTIVE = 1;
+  ACCOUNT_STATUS_ARCHIVED = 2;
+}
+
+message AccountDTO {
+  string id = 1;
+  string name = 2;
+  AccountType account_type = 3;
+  string currency_code = 4;
+  int64 initial_balance_cents = 5;
+  int64 current_balance_cents = 6;
+  Ownership ownership = 7;
+  string icon = 8;
+  string color = 9;
+  string chart_code = 10;
+  string parent_id = 11;
+  string institution = 12;
+  int64 credit_limit_cents = 13;
+  AccountStatus status = 14;
+  int64 version = 15;
+  google.protobuf.Timestamp created_at = 16;
+  google.protobuf.Timestamp updated_at = 17;
+}
+
+message CreateAccountRequest {
+  string name = 1;
+  AccountType account_type = 2;
+  string currency_code = 3;
+  int64 initial_balance_cents = 4;
+  Ownership ownership = 5;
+  string icon = 6;
+  string color = 7;
+  string chart_code = 8;
+  string parent_id = 9;
+  string institution = 10;
+  int64 credit_limit_cents = 11;
+}
+
+message GetAccountRequest {
+  string id = 1;
+}
+
+message ListAccountsRequest {
+  yucai.common.v1.PageRequest page = 1;
+  AccountType account_type = 2;
+  AccountStatus status = 3;
+}
+
+message ListAccountsResponse {
+  repeated AccountDTO accounts = 1;
+  yucai.common.v1.PageResponse page = 2;
+}
+
+message UpdateAccountRequest {
+  string id = 1;
+  string name = 2;
+  string icon = 3;
+  string color = 4;
+  string chart_code = 5;
+  string institution = 6;
+  int64 credit_limit_cents = 7;
+  int64 version = 8;
+}
+
+message DeleteAccountRequest {
+  string id = 1;
+}
+
+message AccountResponse {
+  AccountDTO account = 1;
+}
