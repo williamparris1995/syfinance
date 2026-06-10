@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package yucai.auth.v1;
+
+option go_package = "github.com/yucai/server/internal/proto/auth/v1";
+
+import "google/protobuf/empty.proto";
+
+// AuthService handles authentication, registration, and profile management.
+service AuthService {
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
+}
+
+message RegisterRequest {
+  string email = 1;
+  string password = 2;
+  string display_name = 3;
+}
+
+message RegisterResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  UserDTO user = 3;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  UserDTO user = 3;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message RefreshTokenResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+}
+
+message GetProfileRequest {}
+
+message GetProfileResponse {
+  UserDTO user = 1;
+}
+
+message UpdateProfileRequest {
+  string display_name = 2;
+  string avatar_url = 3;
+}
+
+message UpdateProfileResponse {
+  UserDTO user = 1;
+}
+
+message UserDTO {
+  string id = 1;
+  string tenant_id = 2;
+  string email = 3;
+  string display_name = 4;
+  string avatar_url = 5;
+  string created_at = 6;
+}

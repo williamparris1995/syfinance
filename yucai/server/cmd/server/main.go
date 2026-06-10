@@ -1,11 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
 
+	pb "github.com/yucai/server/internal/proto/auth/v1"
 	"github.com/yucai/server/pkg/config"
 	"github.com/yucai/server/wire"
 )
@@ -23,14 +26,29 @@ func main() {
 		os.Exit(1)
 	}
 
-	slog.Info("YuCai server initialized",
-		"grpc_port", app.Config.GRPCPort,
-		"log_level", app.Config.LogLevel,
-	)
+	// Register AuthService with gRPC server
+	pb.RegisterAuthServiceServer(app.GRPCServer, app.AuthHandler)
+
+	// Start gRPC server
+	addr := fmt.Sprintf(":%s", cfg.GRPCPort)
+	lis, err := net.Listen("tcp", addr)
+	if err != nil {
+		slog.Error("failed to listen", "error", err, "addr", addr)
+		os.Exit(1)
+	}
+
+	go func() {
+		slog.Info("YuCai gRPC server starting", "addr", addr, "log_level", cfg.LogLevel)
+		if err := app.GRPCServer.Serve(lis); err != nil {
+			slog.Error("gRPC server error", "error", err)
+			os.Exit(1)
+		}
+	}()
 
 	// Wait for shutdown signal
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	sig := <-sigCh
 	slog.Info("shutting down", "signal", sig)
+	app.GRPCServer.GracefulStop()
 }

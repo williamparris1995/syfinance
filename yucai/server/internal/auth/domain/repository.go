@@ -1,0 +1,24 @@
+package domain
+
+import (
+	"context"
+
+	"github.com/google/uuid"
+)
+
+// TenantRepository defines the port for Tenant persistence.
+type TenantRepository interface {
+	Save(ctx context.Context, tenant *Tenant) error
+	FindByID(ctx context.Context, id uuid.UUID) (*Tenant, error)
+}
+
+// UserRepository defines the port for User persistence.
+type UserRepository interface {
+	Save(ctx context.Context, user *User) error
+	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
+	// FindByEmail finds a user by email within a specific tenant.
+	FindByEmail(ctx context.Context, tenantID uuid.UUID, email string) (*User, error)
+	// FindByEmailGlobal finds a user by email across all tenants (for login).
+	FindByEmailGlobal(ctx context.Context, email string) (*User, error)
+	Update(ctx context.Context, user *User) error
+}
