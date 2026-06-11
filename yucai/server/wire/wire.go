@@ -60,6 +60,12 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 		provideGoalService,
 		provideGoalHandler,
 
+		// Tag module
+		provideTagEntClient,
+		provideTagRepo,
+		provideTagService,
+		provideTagHandler,
+
 		// gRPC server (must come after all handlers)
 		provideGRPCServer,
 

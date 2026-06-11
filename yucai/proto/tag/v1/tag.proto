@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package yucai.tag.v1;
+
+option go_package = "github.com/yucai/server/internal/proto/tag/v1";
+
+import "common/v1/pagination.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+service TagService {
+  rpc CreateTag(CreateTagRequest) returns (TagResponse);
+  rpc UpdateTag(UpdateTagRequest) returns (TagResponse);
+  rpc DeleteTag(DeleteTagRequest) returns (google.protobuf.Empty);
+  rpc ListTags(ListTagsRequest) returns (ListTagsResponse);
+  rpc AddTagToTransaction(TagTransactionRequest) returns (google.protobuf.Empty);
+  rpc RemoveTagFromTransaction(TagTransactionRequest) returns (google.protobuf.Empty);
+  rpc GetTransactionTags(GetTransactionTagsRequest) returns (ListTagsResponse);
+}
+
+message TagDTO {
+  string id = 1;
+  string name = 2;
+  string color = 3;
+  int64 version = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+message CreateTagRequest {
+  string name = 1;
+  string color = 2;
+}
+
+message UpdateTagRequest {
+  string id = 1;
+  string name = 2;
+  string color = 3;
+  int64 version = 4;
+}
+
+message DeleteTagRequest { string id = 1; }
+
+message ListTagsRequest {
+  yucai.common.v1.PageRequest page = 1;
+  string search = 2;
+}
+
+message ListTagsResponse {
+  repeated TagDTO tags = 1;
+  yucai.common.v1.PageResponse page = 2;
+}
+
+message TagTransactionRequest {
+  string tag_id = 1;
+  string transaction_id = 2;
+}
+
+message GetTransactionTagsRequest {
+  string transaction_id = 1;
+}
+
+message TagResponse { TagDTO tag = 1; }

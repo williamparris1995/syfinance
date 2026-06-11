@@ -22,6 +22,10 @@ import (
 	goalgrpc "github.com/yucai/server/internal/goal/adapter/driving/grpc"
 	goalapp "github.com/yucai/server/internal/goal/application"
 	goalent "github.com/yucai/server/internal/goal/ent"
+	tagrepo "github.com/yucai/server/internal/tag/adapter/driven/repository"
+	taggrpc "github.com/yucai/server/internal/tag/adapter/driving/grpc"
+	tagapp "github.com/yucai/server/internal/tag/application"
+	tagent "github.com/yucai/server/internal/tag/ent"
 	txnrepo "github.com/yucai/server/internal/transaction/adapter/driven/repository"
 	txnbalance "github.com/yucai/server/internal/transaction/adapter/driven/balance"
 	txngrpc "github.com/yucai/server/internal/transaction/adapter/driving/grpc"
@@ -196,6 +200,24 @@ func provideGoalService(repo *goalrepo.GoalRepository) *goalapp.Service {
 }
 func provideGoalHandler(svc *goalapp.Service) *goalgrpc.GoalHandler {
 	return goalgrpc.NewGoalHandler(svc)
+}
+
+// Tag providers
+func provideTagEntClient(cfg *config.Config) (*tagent.Client, error) {
+	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
+	if err != nil {
+		return nil, err
+	}
+	return tagent.NewClient(tagent.Driver(drv)), nil
+}
+func provideTagRepo(client *tagent.Client) *tagrepo.TagRepository {
+	return tagrepo.NewTagRepository(client)
+}
+func provideTagService(repo *tagrepo.TagRepository) *tagapp.Service {
+	return tagapp.NewService(repo)
+}
+func provideTagHandler(svc *tagapp.Service) *taggrpc.TagHandler {
+	return taggrpc.NewTagHandler(svc)
 }
 
 func provideGRPCServer(ts *authjwt.TokenService) *GRPCServer {

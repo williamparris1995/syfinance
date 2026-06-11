@@ -37,6 +37,10 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	tagClient, err := provideTagEntClient(cfg)
+	if err != nil {
+		return nil, err
+	}
 	ts := provideTokenService(cfg)
 
 	// Auth module
@@ -77,9 +81,14 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	goalService := provideGoalService(goalRepo)
 	goalHandler := provideGoalHandler(goalService)
 
+	// Tag module
+	tagRepo := provideTagRepo(tagClient)
+	tagService := provideTagService(tagRepo)
+	tagHandler := provideTagHandler(tagService)
+
 	// gRPC server
 	grpcSrv := provideGRPCServer(ts)
 
-	app := NewApp(cfg, log, grpcSrv, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler)
+	app := NewApp(cfg, log, grpcSrv, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler)
 	return app, nil
 }
