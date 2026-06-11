@@ -41,6 +41,10 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	templateClient, err := provideTemplateEntClient(cfg)
+	if err != nil {
+		return nil, err
+	}
 	ts := provideTokenService(cfg)
 
 	// Auth module
@@ -86,9 +90,14 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	tagService := provideTagService(tagRepo)
 	tagHandler := provideTagHandler(tagService)
 
+	// Template module
+	templateRepo := provideTemplateRepo(templateClient)
+	templateService := provideTemplateService(templateRepo)
+	templateHandler := provideTemplateHandler(templateService)
+
 	// gRPC server
 	grpcSrv := provideGRPCServer(ts)
 
-	app := NewApp(cfg, log, grpcSrv, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler)
+	app := NewApp(cfg, log, grpcSrv, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler)
 	return app, nil
 }

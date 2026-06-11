@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package yucai.template.v1;
+
+option go_package = "github.com/yucai/server/internal/proto/template/v1";
+
+import "common/v1/pagination.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+service TransactionTemplateService {
+  rpc CreateTransactionTemplate(CreateTemplateRequest) returns (TemplateResponse);
+  rpc UpdateTransactionTemplate(UpdateTemplateRequest) returns (TemplateResponse);
+  rpc DeleteTransactionTemplate(DeleteTemplateRequest) returns (google.protobuf.Empty);
+  rpc PauseTransactionTemplate(PauseTemplateRequest) returns (TemplateResponse);
+  rpc ResumeTransactionTemplate(ResumeTemplateRequest) returns (TemplateResponse);
+  rpc GetTransactionTemplate(GetTemplateRequest) returns (TemplateResponse);
+  rpc ListTransactionTemplates(ListTemplatesRequest) returns (ListTemplatesResponse);
+}
+
+enum TemplateDirection {
+  DIRECTION_UNSPECIFIED = 0;
+  DIRECTION_EXPENSE = 1;
+  DIRECTION_INCOME = 2;
+  DIRECTION_TRANSFER = 3;
+}
+
+enum TemplateCycle {
+  CYCLE_UNSPECIFIED = 0;
+  CYCLE_WEEKLY = 1;
+  CYCLE_MONTHLY = 2;
+  CYCLE_YEARLY = 3;
+  CYCLE_CUSTOM = 4;
+}
+
+message TemplateDTO {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  int64 amount_cents = 4;
+  TemplateDirection direction = 5;
+  string source_account_id = 6;
+  string destination_account_id = 7;
+  TemplateCycle cycle = 8;
+  int32 cycle_days = 9;
+  int32 billing_day = 10;
+  string next_date = 11;
+  string start_date = 12;
+  string end_date = 13;
+  bool auto_record = 14;
+  bool paused = 15;
+  string last_transaction_id = 16;
+  string category = 17;
+  int64 version = 18;
+  google.protobuf.Timestamp created_at = 19;
+  google.protobuf.Timestamp updated_at = 20;
+}
+
+message CreateTemplateRequest {
+  string name = 1;
+  string description = 2;
+  int64 amount_cents = 3;
+  TemplateDirection direction = 4;
+  string source_account_id = 5;
+  string destination_account_id = 6;
+  TemplateCycle cycle = 7;
+  int32 cycle_days = 8;
+  int32 billing_day = 9;
+  string start_date = 10;
+  string end_date = 11;
+  bool auto_record = 12;
+  string category = 13;
+}
+
+message UpdateTemplateRequest {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  int64 amount_cents = 4;
+  TemplateCycle cycle = 5;
+  int32 cycle_days = 6;
+  string end_date = 7;
+  bool auto_record = 8;
+  int64 version = 9;
+}
+
+message DeleteTemplateRequest { string id = 1; }
+message PauseTemplateRequest { string id = 1; }
+message ResumeTemplateRequest { string id = 1; }
+message GetTemplateRequest { string id = 1; }
+
+message ListTemplatesRequest {
+  yucai.common.v1.PageRequest page = 1;
+  bool paused = 2;
+}
+
+message ListTemplatesResponse {
+  repeated TemplateDTO templates = 1;
+  yucai.common.v1.PageResponse page = 2;
+}
+
+message TemplateResponse { TemplateDTO template = 1; }

@@ -15,6 +15,7 @@ import (
 	debtpb "github.com/yucai/server/internal/proto/debt/v1"
 	goalpb "github.com/yucai/server/internal/proto/goal/v1"
 	tagpb "github.com/yucai/server/internal/proto/tag/v1"
+	templatepb "github.com/yucai/server/internal/proto/template/v1"
 	"github.com/yucai/server/pkg/config"
 	"github.com/yucai/server/wire"
 )
@@ -40,6 +41,7 @@ func main() {
 	debtpb.RegisterDebtServiceServer(app.GRPCServer, app.DebtHandler)
 	goalpb.RegisterGoalServiceServer(app.GRPCServer, app.GoalHandler)
 	tagpb.RegisterTagServiceServer(app.GRPCServer, app.TagHandler)
+	templatepb.RegisterTransactionTemplateServiceServer(app.GRPCServer, app.TemplateHandler)
 
 	// Start gRPC server
 	addr := fmt.Sprintf(":%s", cfg.GRPCPort)

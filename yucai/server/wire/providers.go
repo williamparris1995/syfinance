@@ -26,6 +26,10 @@ import (
 	taggrpc "github.com/yucai/server/internal/tag/adapter/driving/grpc"
 	tagapp "github.com/yucai/server/internal/tag/application"
 	tagent "github.com/yucai/server/internal/tag/ent"
+	tmplrepo "github.com/yucai/server/internal/template/adapter/driven/repository"
+	tmplgrpc "github.com/yucai/server/internal/template/adapter/driving/grpc"
+	tmplapp "github.com/yucai/server/internal/template/application"
+	tmplent "github.com/yucai/server/internal/template/ent"
 	txnrepo "github.com/yucai/server/internal/transaction/adapter/driven/repository"
 	txnbalance "github.com/yucai/server/internal/transaction/adapter/driven/balance"
 	txngrpc "github.com/yucai/server/internal/transaction/adapter/driving/grpc"
@@ -218,6 +222,24 @@ func provideTagService(repo *tagrepo.TagRepository) *tagapp.Service {
 }
 func provideTagHandler(svc *tagapp.Service) *taggrpc.TagHandler {
 	return taggrpc.NewTagHandler(svc)
+}
+
+// Template providers
+func provideTemplateEntClient(cfg *config.Config) (*tmplent.Client, error) {
+	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
+	if err != nil {
+		return nil, err
+	}
+	return tmplent.NewClient(tmplent.Driver(drv)), nil
+}
+func provideTemplateRepo(client *tmplent.Client) *tmplrepo.TemplateRepository {
+	return tmplrepo.NewTemplateRepository(client)
+}
+func provideTemplateService(repo *tmplrepo.TemplateRepository) *tmplapp.Service {
+	return tmplapp.NewService(repo)
+}
+func provideTemplateHandler(svc *tmplapp.Service) *tmplgrpc.TemplateHandler {
+	return tmplgrpc.NewTemplateHandler(svc)
 }
 
 func provideGRPCServer(ts *authjwt.TokenService) *GRPCServer {

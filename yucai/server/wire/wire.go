@@ -66,6 +66,12 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 		provideTagService,
 		provideTagHandler,
 
+		// Template module
+		provideTemplateEntClient,
+		provideTemplateRepo,
+		provideTemplateService,
+		provideTemplateHandler,
+
 		// gRPC server (must come after all handlers)
 		provideGRPCServer,
 
