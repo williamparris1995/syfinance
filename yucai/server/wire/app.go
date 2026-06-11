@@ -8,6 +8,7 @@ import (
 	goalgrpc "github.com/yucai/server/internal/goal/adapter/driving/grpc"
 	taggrpc "github.com/yucai/server/internal/tag/adapter/driving/grpc"
 	tmplgrpc "github.com/yucai/server/internal/template/adapter/driving/grpc"
+	holdinggrpc "github.com/yucai/server/internal/holding/adapter/driving/grpc"
 	txngrpc "github.com/yucai/server/internal/transaction/adapter/driving/grpc"
 	"github.com/yucai/server/pkg/config"
 	"github.com/yucai/server/pkg/logger"
@@ -26,6 +27,7 @@ type App struct {
 	GoalHandler        *goalgrpc.GoalHandler
 	TagHandler         *taggrpc.TagHandler
 	TemplateHandler    *tmplgrpc.TemplateHandler
+	HoldingHandler     *holdinggrpc.HoldingHandler
 }
 
 // NewApp creates the application with wired dependencies.
@@ -41,6 +43,7 @@ func NewApp(
 	goalHandler *goalgrpc.GoalHandler,
 	tagHandler *taggrpc.TagHandler,
 	templateHandler *tmplgrpc.TemplateHandler,
+	holdingHandler *holdinggrpc.HoldingHandler,
 ) *App {
 	return &App{
 		Config:             cfg,
@@ -54,5 +57,6 @@ func NewApp(
 		GoalHandler:        goalHandler,
 		TagHandler:         tagHandler,
 		TemplateHandler:    templateHandler,
+		HoldingHandler:     holdingHandler,
 	}
 }

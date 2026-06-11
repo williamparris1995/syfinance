@@ -16,6 +16,7 @@ import (
 	goalpb "github.com/yucai/server/internal/proto/goal/v1"
 	tagpb "github.com/yucai/server/internal/proto/tag/v1"
 	templatepb "github.com/yucai/server/internal/proto/template/v1"
+	holdingpb "github.com/yucai/server/internal/proto/holding/v1"
 	"github.com/yucai/server/pkg/config"
 	"github.com/yucai/server/wire"
 )
@@ -42,6 +43,7 @@ func main() {
 	goalpb.RegisterGoalServiceServer(app.GRPCServer, app.GoalHandler)
 	tagpb.RegisterTagServiceServer(app.GRPCServer, app.TagHandler)
 	templatepb.RegisterTransactionTemplateServiceServer(app.GRPCServer, app.TemplateHandler)
+	holdingpb.RegisterHoldingServiceServer(app.GRPCServer, app.HoldingHandler)
 
 	// Start gRPC server
 	addr := fmt.Sprintf(":%s", cfg.GRPCPort)

@@ -1,0 +1,303 @@
+package grpc
+
+import (
+	"context"
+	"time"
+
+	pb "github.com/yucai/server/internal/proto/holding/v1"
+	commonpb "github.com/yucai/server/internal/proto/common/v1"
+	"github.com/google/uuid"
+	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
+	"github.com/yucai/server/internal/holding/application"
+	"github.com/yucai/server/internal/holding/domain"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
+)
+
+type HoldingHandler struct {
+	pb.UnimplementedHoldingServiceServer
+	service *application.Service
+}
+
+func NewHoldingHandler(service *application.Service) *HoldingHandler {
+	return &HoldingHandler{service: service}
+}
+
+func (h *HoldingHandler) CreateSecurity(ctx context.Context, req *pb.CreateSecurityRequest) (*pb.SecurityResponse, error) {
+	resp, err := h.service.CreateSecurity(ctx, application.CreateSecurityRequest{
+		Symbol: req.Symbol, Name: req.Name,
+		SecurityType: protoToSecType(req.SecurityType),
+		Exchange: req.Exchange, CurrencyCode: req.CurrencyCode,
+	})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.SecurityResponse{Security: secToProto(*resp)}, nil
+}
+
+func (h *HoldingHandler) ListSecurities(ctx context.Context, req *pb.ListSecuritiesRequest) (*pb.ListSecuritiesResponse, error) {
+	var st *domain.SecurityType
+	if req.SecurityType != pb.SecurityType_SECURITY_TYPE_UNSPECIFIED {
+		t := protoToSecType(req.SecurityType)
+		st = &t
+	}
+	page := domain.PageRequest{PageSize: 20}
+	if req.Page != nil {
+		page.PageSize = req.Page.PageSize
+		page.PageToken = req.Page.PageToken
+	}
+	result, err := h.service.ListSecurities(ctx, st, page)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	securities := make([]*pb.SecurityDTO, len(result.Securities))
+	for i, s := range result.Securities {
+		securities[i] = secToProto(s)
+	}
+	return &pb.ListSecuritiesResponse{Securities: securities, Page: &commonpb.PageResponse{NextPageToken: result.NextPageToken, TotalCount: result.TotalCount}}, nil
+}
+
+func (h *HoldingHandler) UpdateSecurityPrice(ctx context.Context, req *pb.UpdatePriceRequest) (*emptypb.Empty, error) {
+	id, _ := uuid.Parse(req.SecurityId)
+	if err := h.service.UpdateSecurityPrice(ctx, id, req.PriceCents); err != nil {
+		return nil, mapError(err)
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func (h *HoldingHandler) SearchSecurities(ctx context.Context, req *pb.SearchSecuritiesRequest) (*pb.SearchSecuritiesResponse, error) {
+	limit := int(req.Limit)
+	if limit <= 0 {
+		limit = 20
+	}
+	dtos, err := h.service.SearchSecurities(ctx, req.Query, limit)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	securities := make([]*pb.SecurityDTO, len(dtos))
+	for i, s := range dtos {
+		securities[i] = secToProto(s)
+	}
+	return &pb.SearchSecuritiesResponse{Securities: securities}, nil
+}
+
+func (h *HoldingHandler) BuyHolding(ctx context.Context, req *pb.HoldingTradeRequest) (*pb.HoldingTransactionResponse, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	td, _ := parseDate(req.TradeDate)
+	resp, err := h.service.BuyHolding(ctx, application.HoldingTradeRequest{
+		TenantID: tenantID, AccountID: parseUUID(req.AccountId),
+		SecurityID: parseUUID(req.SecurityId), Quantity: req.Quantity,
+		PriceCents: req.PriceCents, FeeCents: req.FeeCents,
+		TradeDate: td, Notes: req.Notes,
+	})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.HoldingTransactionResponse{Transaction: tradeToProto(*resp)}, nil
+}
+
+func (h *HoldingHandler) SellHolding(ctx context.Context, req *pb.HoldingTradeRequest) (*pb.HoldingTransactionResponse, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	td, _ := parseDate(req.TradeDate)
+	resp, err := h.service.SellHolding(ctx, application.HoldingTradeRequest{
+		TenantID: tenantID, AccountID: parseUUID(req.AccountId),
+		SecurityID: parseUUID(req.SecurityId), Quantity: req.Quantity,
+		PriceCents: req.PriceCents, FeeCents: req.FeeCents,
+		TradeDate: td, Notes: req.Notes,
+	})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.HoldingTransactionResponse{Transaction: tradeToProto(*resp)}, nil
+}
+
+func (h *HoldingHandler) RecordDividend(ctx context.Context, req *pb.RecordDividendRequest) (*pb.HoldingTransactionResponse, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	td, _ := parseDate(req.TradeDate)
+	resp, err := h.service.RecordDividend(ctx, application.RecordDividendRequest{
+		TenantID: tenantID, AccountID: parseUUID(req.AccountId),
+		SecurityID: parseUUID(req.SecurityId), Quantity: req.Quantity,
+		CashPerShareCents: req.CashPerShareCents, TotalAmountCents: req.TotalAmountCents,
+		TradeDate: td, Notes: req.Notes,
+	})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.HoldingTransactionResponse{Transaction: tradeToProto(*resp)}, nil
+}
+
+func (h *HoldingHandler) RecordSplit(ctx context.Context, req *pb.RecordSplitRequest) (*pb.HoldingTransactionResponse, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	sd, _ := parseDate(req.SplitDate)
+	resp, err := h.service.RecordSplit(ctx, application.RecordSplitRequest{
+		TenantID: tenantID, AccountID: parseUUID(req.AccountId),
+		SecurityID: parseUUID(req.SecurityId), Ratio: req.Ratio,
+		SplitDate: sd, Notes: req.Notes,
+	})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.HoldingTransactionResponse{Transaction: tradeToProto(*resp)}, nil
+}
+
+func (h *HoldingHandler) ListHoldings(ctx context.Context, req *pb.ListHoldingsRequest) (*pb.ListHoldingsResponse, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	var acctID *uuid.UUID
+	if req.AccountId != "" {
+		id := parseUUID(req.AccountId)
+		acctID = &id
+	}
+	page := domain.PageRequest{PageSize: 20}
+	if req.Page != nil {
+		page.PageSize = req.Page.PageSize
+		page.PageToken = req.Page.PageToken
+	}
+	result, err := h.service.ListHoldings(ctx, tenantID, acctID, page)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	holdings := make([]*pb.HoldingDTO, len(result.Holdings))
+	for i, h := range result.Holdings {
+		holdings[i] = holdingToProto(h)
+	}
+	return &pb.ListHoldingsResponse{Holdings: holdings, Page: &commonpb.PageResponse{NextPageToken: result.NextPageToken, TotalCount: result.TotalCount}}, nil
+}
+
+func (h *HoldingHandler) ListHoldingTransactions(ctx context.Context, req *pb.ListTradesRequest) (*pb.ListTradesResponse, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	var acctID, secID *uuid.UUID
+	if req.AccountId != "" {
+		id := parseUUID(req.AccountId); acctID = &id
+	}
+	if req.SecurityId != "" {
+		id := parseUUID(req.SecurityId); secID = &id
+	}
+	page := domain.PageRequest{PageSize: 20}
+	if req.Page != nil {
+		page.PageSize = req.Page.PageSize
+		page.PageToken = req.Page.PageToken
+	}
+	result, err := h.service.ListHoldingTransactions(ctx, tenantID, acctID, secID, page)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	trades := make([]*pb.HoldingTransactionDTO, len(result.Trades))
+	for i, tr := range result.Trades {
+		trades[i] = tradeToProto(tr)
+	}
+	return &pb.ListTradesResponse{Trades: trades, Page: &commonpb.PageResponse{NextPageToken: result.NextPageToken, TotalCount: result.TotalCount}}, nil
+}
+
+func secToProto(s application.SecurityDTO) *pb.SecurityDTO {
+	return &pb.SecurityDTO{
+		Id: s.ID.String(), Symbol: s.Symbol, Name: s.Name,
+		SecurityType: secTypeToProto(s.SecurityType), Exchange: s.Exchange,
+		CurrencyCode: s.CurrencyCode, CurrentPriceCents: s.CurrentPriceCents,
+		CreatedAt: timestamppb.New(s.CreatedAt),
+	}
+}
+
+func holdingToProto(h application.HoldingDTO) *pb.HoldingDTO {
+	return &pb.HoldingDTO{
+		Id: h.ID.String(), AccountId: h.AccountID.String(),
+		SecurityId: h.SecurityID.String(), SecurityName: h.SecurityName,
+		SecuritySymbol: h.SecuritySymbol, Quantity: h.Quantity,
+		AvgCostCents: h.AvgCostCents, MarketValueCents: h.MarketValueCents,
+		UnrealizedPnlCents: h.UnrealizedPnL, Version: h.Version,
+	}
+}
+
+func tradeToProto(tr application.HoldingTransactionDTO) *pb.HoldingTransactionDTO {
+	return &pb.HoldingTransactionDTO{
+		Id: tr.ID.String(), AccountId: tr.AccountID.String(),
+		SecurityId: tr.SecurityID.String(), TradeType: tradeTypeToProto(tr.TradeType),
+		Quantity: tr.Quantity, PriceCents: tr.PriceCents,
+		AmountCents: tr.AmountCents, FeeCents: tr.FeeCents,
+		TradeDate: tr.TradeDate.Format("2006-01-02"), Notes: tr.Notes,
+		CreatedAt: timestamppb.New(tr.CreatedAt),
+	}
+}
+
+func protoToSecType(t pb.SecurityType) domain.SecurityType {
+	m := map[pb.SecurityType]domain.SecurityType{
+		pb.SecurityType_SECURITY_TYPE_STOCK: domain.SecurityTypeStock,
+		pb.SecurityType_SECURITY_TYPE_FUND:  domain.SecurityTypeFund,
+		pb.SecurityType_SECURITY_TYPE_ETF:   domain.SecurityTypeETF,
+		pb.SecurityType_SECURITY_TYPE_BOND:  domain.SecurityTypeBond,
+		pb.SecurityType_SECURITY_TYPE_GOLD:  domain.SecurityTypeGold,
+		pb.SecurityType_SECURITY_TYPE_OPTION: domain.SecurityTypeOption,
+		pb.SecurityType_SECURITY_TYPE_OTHER: domain.SecurityTypeOther,
+	}
+	if v, ok := m[t]; ok { return v }
+	return domain.SecurityTypeStock
+}
+
+func secTypeToProto(t domain.SecurityType) pb.SecurityType {
+	m := map[domain.SecurityType]pb.SecurityType{
+		domain.SecurityTypeStock: pb.SecurityType_SECURITY_TYPE_STOCK,
+		domain.SecurityTypeFund:  pb.SecurityType_SECURITY_TYPE_FUND,
+		domain.SecurityTypeETF:   pb.SecurityType_SECURITY_TYPE_ETF,
+		domain.SecurityTypeBond:  pb.SecurityType_SECURITY_TYPE_BOND,
+		domain.SecurityTypeGold:  pb.SecurityType_SECURITY_TYPE_GOLD,
+		domain.SecurityTypeOption: pb.SecurityType_SECURITY_TYPE_OPTION,
+		domain.SecurityTypeOther: pb.SecurityType_SECURITY_TYPE_OTHER,
+	}
+	if v, ok := m[t]; ok { return v }
+	return pb.SecurityType_SECURITY_TYPE_UNSPECIFIED
+}
+
+func tradeTypeToProto(t domain.TradeType) pb.TradeType {
+	m := map[domain.TradeType]pb.TradeType{
+		domain.TradeTypeBuy: pb.TradeType_TRADE_TYPE_BUY,
+		domain.TradeTypeSell: pb.TradeType_TRADE_TYPE_SELL,
+		domain.TradeTypeDividend: pb.TradeType_TRADE_TYPE_DIVIDEND,
+		domain.TradeTypeSplit: pb.TradeType_TRADE_TYPE_SPLIT,
+	}
+	if v, ok := m[t]; ok { return v }
+	return pb.TradeType_TRADE_TYPE_UNSPECIFIED
+}
+
+func parseDate(s string) (time.Time, error) { return time.Parse("2006-01-02", s) }
+func parseUUID(s string) uuid.UUID { id, _ := uuid.Parse(s); return id }
+
+func getTenantID(ctx context.Context) (uuid.UUID, error) {
+	_, tenantID, err := authgrpc.GetUserAndTenantIDFromContext(ctx)
+	return tenantID, err
+}
+
+func mapError(err error) error {
+	msg := err.Error()
+	if contains(msg, "not found") { return status.Error(codes.NotFound, msg) }
+	if contains(msg, "invalid") || contains(msg, "must") { return status.Error(codes.InvalidArgument, msg) }
+	if contains(msg, "cannot sell") { return status.Error(codes.FailedPrecondition, msg) }
+	return status.Error(codes.Internal, msg)
+}
+
+func contains(s, sub string) bool {
+	for i := 0; i <= len(s)-len(sub); i++ {
+		if s[i:i+len(sub)] == sub { return true }
+	}
+	return false
+}
+
+var _ = time.Time{}

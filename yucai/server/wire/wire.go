@@ -72,6 +72,14 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 		provideTemplateService,
 		provideTemplateHandler,
 
+		// Holding module
+		provideHoldingEntClient,
+		provideSecurityRepo,
+		provideHoldingRepo,
+		provideTradeRepo,
+		provideHoldingService,
+		provideHoldingHandler,
+
 		// gRPC server (must come after all handlers)
 		provideGRPCServer,
 

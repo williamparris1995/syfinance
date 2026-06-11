@@ -1,0 +1,148 @@
+syntax = "proto3";
+
+package yucai.holding.v1;
+
+option go_package = "github.com/yucai/server/internal/proto/holding/v1";
+
+import "common/v1/pagination.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+service HoldingService {
+  rpc CreateSecurity(CreateSecurityRequest) returns (SecurityResponse);
+  rpc ListSecurities(ListSecuritiesRequest) returns (ListSecuritiesResponse);
+  rpc UpdateSecurityPrice(UpdatePriceRequest) returns (google.protobuf.Empty);
+  rpc SearchSecurities(SearchSecuritiesRequest) returns (SearchSecuritiesResponse);
+  rpc BuyHolding(HoldingTradeRequest) returns (HoldingTransactionResponse);
+  rpc SellHolding(HoldingTradeRequest) returns (HoldingTransactionResponse);
+  rpc RecordDividend(RecordDividendRequest) returns (HoldingTransactionResponse);
+  rpc RecordSplit(RecordSplitRequest) returns (HoldingTransactionResponse);
+  rpc ListHoldings(ListHoldingsRequest) returns (ListHoldingsResponse);
+  rpc ListHoldingTransactions(ListTradesRequest) returns (ListTradesResponse);
+}
+
+enum SecurityType {
+  SECURITY_TYPE_UNSPECIFIED = 0;
+  SECURITY_TYPE_STOCK = 1;
+  SECURITY_TYPE_FUND = 2;
+  SECURITY_TYPE_ETF = 3;
+  SECURITY_TYPE_BOND = 4;
+  SECURITY_TYPE_GOLD = 5;
+  SECURITY_TYPE_OPTION = 6;
+  SECURITY_TYPE_OTHER = 7;
+}
+
+enum TradeType {
+  TRADE_TYPE_UNSPECIFIED = 0;
+  TRADE_TYPE_BUY = 1;
+  TRADE_TYPE_SELL = 2;
+  TRADE_TYPE_DIVIDEND = 3;
+  TRADE_TYPE_SPLIT = 4;
+}
+
+message SecurityDTO {
+  string id = 1;
+  string symbol = 2;
+  string name = 3;
+  SecurityType security_type = 4;
+  string exchange = 5;
+  string currency_code = 6;
+  int64 current_price_cents = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message HoldingDTO {
+  string id = 1;
+  string account_id = 2;
+  string security_id = 3;
+  string security_name = 4;
+  string security_symbol = 5;
+  double quantity = 6;
+  int64 avg_cost_cents = 7;
+  int64 market_value_cents = 8;
+  int64 unrealized_pnl_cents = 9;
+  int64 version = 10;
+}
+
+message HoldingTransactionDTO {
+  string id = 1;
+  string account_id = 2;
+  string security_id = 3;
+  TradeType trade_type = 4;
+  double quantity = 5;
+  int64 price_cents = 6;
+  int64 amount_cents = 7;
+  int64 fee_cents = 8;
+  string trade_date = 9;
+  string notes = 10;
+  google.protobuf.Timestamp created_at = 11;
+}
+
+message CreateSecurityRequest {
+  string symbol = 1;
+  string name = 2;
+  SecurityType security_type = 3;
+  string exchange = 4;
+  string currency_code = 5;
+}
+
+message ListSecuritiesRequest {
+  yucai.common.v1.PageRequest page = 1;
+  SecurityType security_type = 2;
+}
+
+message UpdatePriceRequest {
+  string security_id = 1;
+  int64 price_cents = 2;
+}
+
+message SearchSecuritiesRequest {
+  string query = 1;
+  int32 limit = 2;
+}
+
+message HoldingTradeRequest {
+  string account_id = 1;
+  string security_id = 2;
+  double quantity = 3;
+  int64 price_cents = 4;
+  int64 fee_cents = 5;
+  string trade_date = 6;
+  string notes = 7;
+}
+
+message RecordDividendRequest {
+  string account_id = 1;
+  string security_id = 2;
+  double quantity = 3;
+  int64 cash_per_share_cents = 4;
+  int64 total_amount_cents = 5;
+  string trade_date = 6;
+  string notes = 7;
+}
+
+message RecordSplitRequest {
+  string account_id = 1;
+  string security_id = 2;
+  double ratio = 3;
+  string split_date = 4;
+  string notes = 5;
+}
+
+message ListHoldingsRequest {
+  string account_id = 1;
+  yucai.common.v1.PageRequest page = 2;
+}
+
+message ListTradesRequest {
+  string account_id = 1;
+  string security_id = 2;
+  yucai.common.v1.PageRequest page = 3;
+}
+
+message SecurityResponse { SecurityDTO security = 1; }
+message ListSecuritiesResponse { repeated SecurityDTO securities = 1; yucai.common.v1.PageResponse page = 2; }
+message SearchSecuritiesResponse { repeated SecurityDTO securities = 1; }
+message HoldingTransactionResponse { HoldingTransactionDTO transaction = 1; }
+message ListHoldingsResponse { repeated HoldingDTO holdings = 1; yucai.common.v1.PageResponse page = 2; }
+message ListTradesResponse { repeated HoldingTransactionDTO trades = 1; yucai.common.v1.PageResponse page = 2; }

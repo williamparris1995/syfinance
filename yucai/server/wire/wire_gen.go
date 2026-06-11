@@ -45,6 +45,10 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	holdingClient, err := provideHoldingEntClient(cfg)
+	if err != nil {
+		return nil, err
+	}
 	ts := provideTokenService(cfg)
 
 	// Auth module
@@ -95,9 +99,16 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	templateService := provideTemplateService(templateRepo)
 	templateHandler := provideTemplateHandler(templateService)
 
+	// Holding module
+	securityRepo := provideSecurityRepo(holdingClient)
+	holdingRepo := provideHoldingRepo(holdingClient)
+	tradeRepo := provideTradeRepo(holdingClient)
+	holdingService := provideHoldingService(securityRepo, holdingRepo, tradeRepo)
+	holdingHandler := provideHoldingHandler(holdingService)
+
 	// gRPC server
 	grpcSrv := provideGRPCServer(ts)
 
-	app := NewApp(cfg, log, grpcSrv, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler)
+	app := NewApp(cfg, log, grpcSrv, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler, holdingHandler)
 	return app, nil
 }

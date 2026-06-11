@@ -30,6 +30,10 @@ import (
 	tmplgrpc "github.com/yucai/server/internal/template/adapter/driving/grpc"
 	tmplapp "github.com/yucai/server/internal/template/application"
 	tmplent "github.com/yucai/server/internal/template/ent"
+	holdingsec "github.com/yucai/server/internal/holding/adapter/driven/repository"
+	holdinggrpc "github.com/yucai/server/internal/holding/adapter/driving/grpc"
+	holdingapp "github.com/yucai/server/internal/holding/application"
+	holdingent "github.com/yucai/server/internal/holding/ent"
 	txnrepo "github.com/yucai/server/internal/transaction/adapter/driven/repository"
 	txnbalance "github.com/yucai/server/internal/transaction/adapter/driven/balance"
 	txngrpc "github.com/yucai/server/internal/transaction/adapter/driving/grpc"
@@ -240,6 +244,30 @@ func provideTemplateService(repo *tmplrepo.TemplateRepository) *tmplapp.Service 
 }
 func provideTemplateHandler(svc *tmplapp.Service) *tmplgrpc.TemplateHandler {
 	return tmplgrpc.NewTemplateHandler(svc)
+}
+
+// Holding providers
+func provideHoldingEntClient(cfg *config.Config) (*holdingent.Client, error) {
+	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
+	if err != nil {
+		return nil, err
+	}
+	return holdingent.NewClient(holdingent.Driver(drv)), nil
+}
+func provideSecurityRepo(client *holdingent.Client) *holdingsec.SecurityRepository {
+	return holdingsec.NewSecurityRepository(client)
+}
+func provideHoldingRepo(client *holdingent.Client) *holdingsec.HoldingRepository {
+	return holdingsec.NewHoldingRepository(client)
+}
+func provideTradeRepo(client *holdingent.Client) *holdingsec.TradeRepository {
+	return holdingsec.NewTradeRepository(client)
+}
+func provideHoldingService(secRepo *holdingsec.SecurityRepository, hRepo *holdingsec.HoldingRepository, tRepo *holdingsec.TradeRepository) *holdingapp.Service {
+	return holdingapp.NewService(secRepo, hRepo, tRepo)
+}
+func provideHoldingHandler(svc *holdingapp.Service) *holdinggrpc.HoldingHandler {
+	return holdinggrpc.NewHoldingHandler(svc)
 }
 
 func provideGRPCServer(ts *authjwt.TokenService) *GRPCServer {
