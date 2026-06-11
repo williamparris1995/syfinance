@@ -10,6 +10,10 @@ import (
 	accountgrpc "github.com/yucai/server/internal/account/adapter/driving/grpc"
 	accountapp "github.com/yucai/server/internal/account/application"
 	accountent "github.com/yucai/server/internal/account/ent"
+	budgetrepo "github.com/yucai/server/internal/budget/adapter/driven/repository"
+	budgetgrpc "github.com/yucai/server/internal/budget/adapter/driving/grpc"
+	budgetapp "github.com/yucai/server/internal/budget/application"
+	budgetent "github.com/yucai/server/internal/budget/ent"
 	txnrepo "github.com/yucai/server/internal/transaction/adapter/driven/repository"
 	txnbalance "github.com/yucai/server/internal/transaction/adapter/driven/balance"
 	txngrpc "github.com/yucai/server/internal/transaction/adapter/driving/grpc"
@@ -130,6 +134,24 @@ func provideTransactionService(tr *txnrepo.TransactionRepository, bu *txnbalance
 }
 func provideTransactionHandler(svc *txnapp.Service) *txngrpc.TransactionHandler {
 	return txngrpc.NewTransactionHandler(svc)
+}
+
+// Budget providers
+func provideBudgetEntClient(cfg *config.Config) (*budgetent.Client, error) {
+	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
+	if err != nil {
+		return nil, err
+	}
+	return budgetent.NewClient(budgetent.Driver(drv)), nil
+}
+func provideBudgetRepo(client *budgetent.Client) *budgetrepo.BudgetRepository {
+	return budgetrepo.NewBudgetRepository(client)
+}
+func provideBudgetService(repo *budgetrepo.BudgetRepository) *budgetapp.Service {
+	return budgetapp.NewService(repo, nil) // entryFunc nil for now, actuals computed via integration
+}
+func provideBudgetHandler(svc *budgetapp.Service) *budgetgrpc.BudgetHandler {
+	return budgetgrpc.NewBudgetHandler(svc)
 }
 
 func provideGRPCServer(ts *authjwt.TokenService) *GRPCServer {

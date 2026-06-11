@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package yucai.budget.v1;
+
+option go_package = "github.com/yucai/server/internal/proto/budget/v1";
+
+import "common/v1/pagination.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+service BudgetService {
+  rpc CreateBudget(CreateBudgetRequest) returns (BudgetResponse);
+  rpc GetBudget(GetBudgetRequest) returns (BudgetDetailResponse);
+  rpc GetBudgetByMonth(GetBudgetByMonthRequest) returns (BudgetDetailResponse);
+  rpc ListBudgets(ListBudgetsRequest) returns (ListBudgetsResponse);
+  rpc DeleteBudget(DeleteBudgetRequest) returns (google.protobuf.Empty);
+  rpc AddBudgetItem(AddBudgetItemRequest) returns (BudgetResponse);
+  rpc RemoveBudgetItem(RemoveBudgetItemRequest) returns (BudgetResponse);
+  rpc ComputeBudgetActuals(ComputeActualsRequest) returns (BudgetResponse);
+  rpc CloneBudgetToMonth(CloneBudgetRequest) returns (BudgetResponse);
+}
+
+message BudgetDTO {
+  string id = 1;
+  string name = 2;
+  string month = 3;
+  int64 total_amount_cents = 4;
+  string currency_code = 5;
+  bool is_active = 6;
+  int64 version = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message BudgetItemDTO {
+  string id = 1;
+  string budget_id = 2;
+  string account_id = 3;
+  int64 planned_amount_cents = 4;
+  int64 actual_amount_cents = 5;
+  string notes = 6;
+}
+
+message BudgetDetailDTO {
+  BudgetDTO budget = 1;
+  repeated BudgetItemDTO items = 2;
+  int64 total_actual_cents = 3;
+  int64 total_remaining_cents = 4;
+  double usage_pct = 5;
+}
+
+message CreateBudgetRequest {
+  string name = 1;
+  string month = 2;
+  string currency_code = 3;
+  repeated BudgetItemInput items = 4;
+}
+
+message BudgetItemInput {
+  string account_id = 1;
+  int64 planned_amount_cents = 2;
+  string notes = 3;
+}
+
+message GetBudgetRequest { string id = 1; }
+message GetBudgetByMonthRequest { string month = 1; }
+
+message ListBudgetsRequest {
+  yucai.common.v1.PageRequest page = 1;
+  bool active_only = 2;
+}
+
+message ListBudgetsResponse {
+  repeated BudgetDTO budgets = 1;
+  yucai.common.v1.PageResponse page = 2;
+}
+
+message DeleteBudgetRequest { string id = 1; }
+
+message AddBudgetItemRequest {
+  string budget_id = 1;
+  string account_id = 2;
+  int64 planned_amount_cents = 3;
+  string notes = 4;
+}
+
+message RemoveBudgetItemRequest {
+  string budget_id = 1;
+  string item_id = 2;
+}
+
+message ComputeActualsRequest { string budget_id = 1; }
+
+message CloneBudgetRequest {
+  string source_budget_id = 1;
+  string target_month = 2;
+  string name = 3;
+}
+
+message BudgetResponse { BudgetDTO budget = 1; }
+message BudgetDetailResponse { BudgetDetailDTO budget = 1; }

@@ -25,6 +25,10 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	budgetClient, err := provideBudgetEntClient(cfg)
+	if err != nil {
+		return nil, err
+	}
 	ts := provideTokenService(cfg)
 
 	// Auth module
@@ -50,9 +54,14 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	txnService := provideTransactionService(txnRepo, balanceUpdater)
 	txnHandler := provideTransactionHandler(txnService)
 
+	// Budget module
+	budgetRepo := provideBudgetRepo(budgetClient)
+	budgetService := provideBudgetService(budgetRepo)
+	budgetHandler := provideBudgetHandler(budgetService)
+
 	// gRPC server
 	grpcSrv := provideGRPCServer(ts)
 
-	app := NewApp(cfg, log, grpcSrv, authHandler, accountHandler, txnHandler)
+	app := NewApp(cfg, log, grpcSrv, authHandler, accountHandler, txnHandler, budgetHandler)
 	return app, nil
 }

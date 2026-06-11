@@ -42,6 +42,12 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 		provideTransactionService,
 		provideTransactionHandler,
 
+		// Budget module
+		provideBudgetEntClient,
+		provideBudgetRepo,
+		provideBudgetService,
+		provideBudgetHandler,
+
 		// gRPC server (must come after all handlers)
 		provideGRPCServer,
 
