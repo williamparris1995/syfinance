@@ -48,6 +48,12 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 		provideBudgetService,
 		provideBudgetHandler,
 
+		// Debt module
+		provideDebtEntClient,
+		provideDebtRepo,
+		provideDebtService,
+		provideDebtHandler,
+
 		// gRPC server (must come after all handlers)
 		provideGRPCServer,
 

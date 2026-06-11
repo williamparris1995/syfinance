@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+package yucai.debt.v1;
+
+option go_package = "github.com/yucai/server/internal/proto/debt/v1";
+
+import "common/v1/pagination.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+service DebtService {
+  rpc CreateDebt(CreateDebtRequest) returns (DebtResponse);
+  rpc UpdateDebt(UpdateDebtRequest) returns (DebtResponse);
+  rpc DeleteDebt(DeleteDebtRequest) returns (google.protobuf.Empty);
+  rpc RecordPayment(RecordPaymentRequest) returns (RecordPaymentResponse);
+  rpc GetDebt(GetDebtRequest) returns (DebtDetailResponse);
+  rpc ListDebts(ListDebtsRequest) returns (ListDebtsResponse);
+  rpc GetUpcomingPayments(GetUpcomingPaymentsRequest) returns (ListDebtsResponse);
+}
+
+enum AmortizationMethod {
+  AMORTIZATION_UNSPECIFIED = 0;
+  AMORTIZATION_EQUAL_PRINCIPAL_INTEREST = 1;
+  AMORTIZATION_EQUAL_PRINCIPAL = 2;
+  AMORTIZATION_LUMP_SUM = 3;
+}
+
+message DebtDTO {
+  string id = 1;
+  string account_id = 2;
+  string counterparty = 3;
+  double interest_rate = 4;
+  AmortizationMethod amortization_method = 5;
+  string start_date = 6;
+  string due_date = 7;
+  int64 total_principal_cents = 8;
+  int64 remaining_principal_cents = 9;
+  int64 version = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+message PaymentEntryDTO {
+  string id = 1;
+  string payment_date = 2;
+  int64 principal_cents = 3;
+  int64 interest_cents = 4;
+  int64 total_cents = 5;
+  bool paid = 6;
+  int64 paid_cents = 7;
+  string transaction_id = 8;
+}
+
+message DebtDetailDTO {
+  DebtDTO debt = 1;
+  repeated PaymentEntryDTO schedule = 2;
+}
+
+message CreateDebtRequest {
+  string account_id = 1;
+  string counterparty = 2;
+  double interest_rate = 3;
+  AmortizationMethod amortization_method = 4;
+  string start_date = 5;
+  string due_date = 6;
+  int64 total_principal_cents = 7;
+}
+
+message UpdateDebtRequest {
+  string id = 1;
+  string counterparty = 2;
+  double interest_rate = 3;
+  int64 version = 4;
+}
+
+message DeleteDebtRequest { string id = 1; }
+
+message RecordPaymentRequest {
+  string debt_id = 1;
+  string schedule_entry_id = 2;
+  string from_account_id = 3;
+}
+
+message RecordPaymentResponse {
+  string transaction_id = 1;
+  PaymentEntryDTO entry = 2;
+}
+
+message GetDebtRequest { string id = 1; }
+
+message ListDebtsRequest {
+  yucai.common.v1.PageRequest page = 1;
+}
+
+message ListDebtsResponse {
+  repeated DebtDTO debts = 1;
+  yucai.common.v1.PageResponse page = 2;
+}
+
+message GetUpcomingPaymentsRequest {
+  int32 days_ahead = 1;
+}
+
+message DebtResponse { DebtDTO debt = 1; }
+message DebtDetailResponse { DebtDetailDTO debt = 1; }

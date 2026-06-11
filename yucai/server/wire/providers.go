@@ -14,6 +14,10 @@ import (
 	budgetgrpc "github.com/yucai/server/internal/budget/adapter/driving/grpc"
 	budgetapp "github.com/yucai/server/internal/budget/application"
 	budgetent "github.com/yucai/server/internal/budget/ent"
+	debtrepo "github.com/yucai/server/internal/debt/adapter/driven/repository"
+	debtgrpc "github.com/yucai/server/internal/debt/adapter/driving/grpc"
+	debtapp "github.com/yucai/server/internal/debt/application"
+	debtent "github.com/yucai/server/internal/debt/ent"
 	txnrepo "github.com/yucai/server/internal/transaction/adapter/driven/repository"
 	txnbalance "github.com/yucai/server/internal/transaction/adapter/driven/balance"
 	txngrpc "github.com/yucai/server/internal/transaction/adapter/driving/grpc"
@@ -152,6 +156,24 @@ func provideBudgetService(repo *budgetrepo.BudgetRepository) *budgetapp.Service 
 }
 func provideBudgetHandler(svc *budgetapp.Service) *budgetgrpc.BudgetHandler {
 	return budgetgrpc.NewBudgetHandler(svc)
+}
+
+// Debt providers
+func provideDebtEntClient(cfg *config.Config) (*debtent.Client, error) {
+	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
+	if err != nil {
+		return nil, err
+	}
+	return debtent.NewClient(debtent.Driver(drv)), nil
+}
+func provideDebtRepo(client *debtent.Client) *debtrepo.DebtRepository {
+	return debtrepo.NewDebtRepository(client)
+}
+func provideDebtService(repo *debtrepo.DebtRepository) *debtapp.Service {
+	return debtapp.NewService(repo)
+}
+func provideDebtHandler(svc *debtapp.Service) *debtgrpc.DebtHandler {
+	return debtgrpc.NewDebtHandler(svc)
 }
 
 func provideGRPCServer(ts *authjwt.TokenService) *GRPCServer {

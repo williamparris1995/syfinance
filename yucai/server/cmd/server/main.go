@@ -12,6 +12,7 @@ import (
 	accountpb "github.com/yucai/server/internal/proto/account/v1"
 	transactionpb "github.com/yucai/server/internal/proto/transaction/v1"
 	budgetpb "github.com/yucai/server/internal/proto/budget/v1"
+	debtpb "github.com/yucai/server/internal/proto/debt/v1"
 	"github.com/yucai/server/pkg/config"
 	"github.com/yucai/server/wire"
 )
@@ -34,6 +35,7 @@ func main() {
 	accountpb.RegisterAccountServiceServer(app.GRPCServer, app.AccountHandler)
 	transactionpb.RegisterTransactionServiceServer(app.GRPCServer, app.TransactionHandler)
 	budgetpb.RegisterBudgetServiceServer(app.GRPCServer, app.BudgetHandler)
+	debtpb.RegisterDebtServiceServer(app.GRPCServer, app.DebtHandler)
 
 	// Start gRPC server
 	addr := fmt.Sprintf(":%s", cfg.GRPCPort)
