@@ -54,6 +54,12 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 		provideDebtService,
 		provideDebtHandler,
 
+		// Goal module
+		provideGoalEntClient,
+		provideGoalRepo,
+		provideGoalService,
+		provideGoalHandler,
+
 		// gRPC server (must come after all handlers)
 		provideGRPCServer,
 

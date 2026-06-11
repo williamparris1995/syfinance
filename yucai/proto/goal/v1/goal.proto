@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package yucai.goal.v1;
+
+option go_package = "github.com/yucai/server/internal/proto/goal/v1";
+
+import "common/v1/pagination.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+service GoalService {
+  rpc CreateGoal(CreateGoalRequest) returns (GoalResponse);
+  rpc UpdateGoal(UpdateGoalRequest) returns (GoalResponse);
+  rpc UpdateGoalProgress(UpdateProgressRequest) returns (GoalResponse);
+  rpc CompleteGoal(CompleteGoalRequest) returns (google.protobuf.Empty);
+  rpc DeleteGoal(DeleteGoalRequest) returns (google.protobuf.Empty);
+  rpc SyncGoalProgress(SyncGoalProgressRequest) returns (GoalResponse);
+  rpc GetGoal(GetGoalRequest) returns (GoalDetailResponse);
+  rpc ListGoals(ListGoalsRequest) returns (ListGoalsResponse);
+}
+
+enum GoalType {
+  GOAL_TYPE_UNSPECIFIED = 0;
+  GOAL_TYPE_SAVINGS = 1;
+  GOAL_TYPE_DEBT_PAYOFF = 2;
+  GOAL_TYPE_INVESTMENT = 3;
+}
+
+message GoalDTO {
+  string id = 1;
+  string name = 2;
+  GoalType goal_type = 3;
+  int64 target_amount_cents = 4;
+  int64 current_amount_cents = 5;
+  string currency_code = 6;
+  google.protobuf.Timestamp deadline = 7;
+  string linked_account_id = 8;
+  string notes = 9;
+  bool is_completed = 10;
+  google.protobuf.Timestamp completed_at = 11;
+  double progress_pct = 12;
+  int64 remaining_cents = 13;
+  int64 version = 14;
+  google.protobuf.Timestamp created_at = 15;
+  google.protobuf.Timestamp updated_at = 16;
+}
+
+message CreateGoalRequest {
+  string name = 1;
+  GoalType goal_type = 2;
+  int64 target_amount_cents = 3;
+  string currency_code = 4;
+  string deadline = 5;
+  string linked_account_id = 6;
+  string notes = 7;
+}
+
+message UpdateGoalRequest {
+  string id = 1;
+  string name = 2;
+  int64 target_amount_cents = 3;
+  string deadline = 4;
+  string notes = 5;
+  int64 version = 6;
+}
+
+message UpdateProgressRequest {
+  string id = 1;
+  int64 amount_cents = 2;
+}
+
+message CompleteGoalRequest { string id = 1; }
+message DeleteGoalRequest { string id = 1; }
+message SyncGoalProgressRequest { string id = 1; }
+message GetGoalRequest { string id = 1; }
+
+message ListGoalsRequest {
+  yucai.common.v1.PageRequest page = 1;
+  bool completed = 2;
+}
+
+message ListGoalsResponse {
+  repeated GoalDTO goals = 1;
+  yucai.common.v1.PageResponse page = 2;
+}
+
+message GoalResponse { GoalDTO goal = 1; }
+message GoalDetailResponse { GoalDTO goal = 1; }

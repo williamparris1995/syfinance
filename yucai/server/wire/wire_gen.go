@@ -33,6 +33,10 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	goalClient, err := provideGoalEntClient(cfg)
+	if err != nil {
+		return nil, err
+	}
 	ts := provideTokenService(cfg)
 
 	// Auth module
@@ -68,9 +72,14 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	debtService := provideDebtService(debtRepo)
 	debtHandler := provideDebtHandler(debtService)
 
+	// Goal module
+	goalRepo := provideGoalRepo(goalClient)
+	goalService := provideGoalService(goalRepo)
+	goalHandler := provideGoalHandler(goalService)
+
 	// gRPC server
 	grpcSrv := provideGRPCServer(ts)
 
-	app := NewApp(cfg, log, grpcSrv, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler)
+	app := NewApp(cfg, log, grpcSrv, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler)
 	return app, nil
 }

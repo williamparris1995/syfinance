@@ -5,6 +5,7 @@ import (
 	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
 	budgetgrpc "github.com/yucai/server/internal/budget/adapter/driving/grpc"
 	debtgrpc "github.com/yucai/server/internal/debt/adapter/driving/grpc"
+	goalgrpc "github.com/yucai/server/internal/goal/adapter/driving/grpc"
 	txngrpc "github.com/yucai/server/internal/transaction/adapter/driving/grpc"
 	"github.com/yucai/server/pkg/config"
 	"github.com/yucai/server/pkg/logger"
@@ -20,6 +21,7 @@ type App struct {
 	TransactionHandler *txngrpc.TransactionHandler
 	BudgetHandler      *budgetgrpc.BudgetHandler
 	DebtHandler        *debtgrpc.DebtHandler
+	GoalHandler        *goalgrpc.GoalHandler
 }
 
 // NewApp creates the application with wired dependencies.
@@ -32,6 +34,7 @@ func NewApp(
 	transactionHandler *txngrpc.TransactionHandler,
 	budgetHandler *budgetgrpc.BudgetHandler,
 	debtHandler *debtgrpc.DebtHandler,
+	goalHandler *goalgrpc.GoalHandler,
 ) *App {
 	return &App{
 		Config:             cfg,
@@ -42,5 +45,6 @@ func NewApp(
 		TransactionHandler: transactionHandler,
 		BudgetHandler:      budgetHandler,
 		DebtHandler:        debtHandler,
+		GoalHandler:        goalHandler,
 	}
 }

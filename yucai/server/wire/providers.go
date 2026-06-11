@@ -18,6 +18,10 @@ import (
 	debtgrpc "github.com/yucai/server/internal/debt/adapter/driving/grpc"
 	debtapp "github.com/yucai/server/internal/debt/application"
 	debtent "github.com/yucai/server/internal/debt/ent"
+	goalrepo "github.com/yucai/server/internal/goal/adapter/driven/repository"
+	goalgrpc "github.com/yucai/server/internal/goal/adapter/driving/grpc"
+	goalapp "github.com/yucai/server/internal/goal/application"
+	goalent "github.com/yucai/server/internal/goal/ent"
 	txnrepo "github.com/yucai/server/internal/transaction/adapter/driven/repository"
 	txnbalance "github.com/yucai/server/internal/transaction/adapter/driven/balance"
 	txngrpc "github.com/yucai/server/internal/transaction/adapter/driving/grpc"
@@ -174,6 +178,24 @@ func provideDebtService(repo *debtrepo.DebtRepository) *debtapp.Service {
 }
 func provideDebtHandler(svc *debtapp.Service) *debtgrpc.DebtHandler {
 	return debtgrpc.NewDebtHandler(svc)
+}
+
+// Goal providers
+func provideGoalEntClient(cfg *config.Config) (*goalent.Client, error) {
+	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
+	if err != nil {
+		return nil, err
+	}
+	return goalent.NewClient(goalent.Driver(drv)), nil
+}
+func provideGoalRepo(client *goalent.Client) *goalrepo.GoalRepository {
+	return goalrepo.NewGoalRepository(client)
+}
+func provideGoalService(repo *goalrepo.GoalRepository) *goalapp.Service {
+	return goalapp.NewService(repo)
+}
+func provideGoalHandler(svc *goalapp.Service) *goalgrpc.GoalHandler {
+	return goalgrpc.NewGoalHandler(svc)
 }
 
 func provideGRPCServer(ts *authjwt.TokenService) *GRPCServer {
