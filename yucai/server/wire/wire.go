@@ -80,6 +80,22 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 		provideHoldingService,
 		provideHoldingHandler,
 
+		// Backup module
+		provideBackupEntClient,
+		provideBackupRepo,
+		provideLocalCloudProvider,
+		provideBackupService,
+		provideBackupHandler,
+
+		// Sync module
+		provideSyncEntClient,
+		provideSyncLogRepo,
+		provideSyncDeviceRepo,
+		provideSyncConflictRepo,
+		provideConflictResolver,
+		provideSyncService,
+		provideSyncHandler,
+
 		// gRPC server (must come after all handlers)
 		provideGRPCServer,
 

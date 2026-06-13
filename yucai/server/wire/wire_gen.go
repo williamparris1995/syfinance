@@ -49,6 +49,14 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	backupClient, err := provideBackupEntClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+	syncClient, err := provideSyncEntClient(cfg)
+	if err != nil {
+		return nil, err
+	}
 	ts := provideTokenService(cfg)
 
 	// Auth module
@@ -106,9 +114,23 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	holdingService := provideHoldingService(securityRepo, holdingRepo, tradeRepo)
 	holdingHandler := provideHoldingHandler(holdingService)
 
+	// Backup module
+	backupRepo := provideBackupRepo(backupClient)
+	localCloudProvider := provideLocalCloudProvider(cfg)
+	backupService := provideBackupService(backupRepo, localCloudProvider)
+	backupHandler := provideBackupHandler(backupService)
+
+	// Sync module
+	syncLogRepo := provideSyncLogRepo(syncClient)
+	syncDeviceRepo := provideSyncDeviceRepo(syncClient)
+	syncConflictRepo := provideSyncConflictRepo(syncClient)
+	conflictResolver := provideConflictResolver()
+	syncService := provideSyncService(syncLogRepo, syncDeviceRepo, syncConflictRepo, conflictResolver)
+	syncHandler := provideSyncHandler(syncService)
+
 	// gRPC server
 	grpcSrv := provideGRPCServer(ts)
 
-	app := NewApp(cfg, log, grpcSrv, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler, holdingHandler)
+	app := NewApp(cfg, log, grpcSrv, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler, holdingHandler, backupHandler, syncHandler)
 	return app, nil
 }

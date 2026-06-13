@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package yucai.backup.v1;
+
+option go_package = "github.com/yucai/server/internal/proto/backup/v1";
+
+import "common/v1/pagination.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+service BackupService {
+  rpc CreateBackup(CreateBackupRequest) returns (BackupResponse);
+  rpc RestoreBackup(RestoreBackupRequest) returns (google.protobuf.Empty);
+  rpc ListBackups(ListBackupsRequest) returns (ListBackupsResponse);
+  rpc DeleteBackup(DeleteBackupRequest) returns (google.protobuf.Empty);
+  rpc SaveCloudSettings(SaveCloudSettingsRequest) returns (google.protobuf.Empty);
+  rpc GetCloudSettings(google.protobuf.Empty) returns (CloudSettingsResponse);
+  rpc TestCloudConnection(TestConnectionRequest) returns (TestConnectionResponse);
+  rpc UploadToCloud(UploadRequest) returns (BackupResponse);
+}
+
+enum BackupProvider {
+  BACKUP_PROVIDER_UNSPECIFIED = 0;
+  BACKUP_PROVIDER_LOCAL = 1;
+  BACKUP_PROVIDER_WEBDAV = 2;
+  BACKUP_PROVIDER_DROPBOX = 3;
+  BACKUP_PROVIDER_GOOGLE_DRIVE = 4;
+  BACKUP_PROVIDER_ONE_DRIVE = 5;
+}
+
+message BackupDTO {
+  string id = 1;
+  BackupProvider provider = 2;
+  string filename = 3;
+  int64 size_bytes = 4;
+  string checksum = 5;
+  bool encrypted = 6;
+  bool auto = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message CreateBackupRequest { bool encrypted = 1; }
+
+message RestoreBackupRequest {
+  string backup_id = 1;
+  string password = 2;
+}
+
+message ListBackupsRequest {
+  yucai.common.v1.PageRequest page = 1;
+  BackupProvider provider = 2;
+}
+
+message ListBackupsResponse {
+  repeated BackupDTO backups = 1;
+  yucai.common.v1.PageResponse page = 2;
+}
+
+message DeleteBackupRequest { string id = 1; }
+
+message CloudSettingsDTO {
+  BackupProvider provider = 1;
+  string webdav_url = 2;
+  string webdav_username = 3;
+  string oauth_token = 4;
+  bool auto_backup = 5;
+  int32 auto_backup_interval_hours = 6;
+}
+
+message SaveCloudSettingsRequest { CloudSettingsDTO settings = 1; }
+message CloudSettingsResponse { CloudSettingsDTO settings = 1; }
+message TestConnectionRequest { BackupProvider provider = 1; }
+message TestConnectionResponse { bool success = 1; string message = 2; }
+message UploadRequest { string backup_id = 1; BackupProvider provider = 2; }
+message BackupResponse { BackupDTO backup = 1; }

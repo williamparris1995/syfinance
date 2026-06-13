@@ -9,6 +9,8 @@ import (
 	taggrpc "github.com/yucai/server/internal/tag/adapter/driving/grpc"
 	tmplgrpc "github.com/yucai/server/internal/template/adapter/driving/grpc"
 	holdinggrpc "github.com/yucai/server/internal/holding/adapter/driving/grpc"
+	backupgrpc "github.com/yucai/server/internal/backup/adapter/driving/grpc"
+	syncgrpc "github.com/yucai/server/internal/sync/adapter/driving/grpc"
 	txngrpc "github.com/yucai/server/internal/transaction/adapter/driving/grpc"
 	"github.com/yucai/server/pkg/config"
 	"github.com/yucai/server/pkg/logger"
@@ -28,6 +30,8 @@ type App struct {
 	TagHandler         *taggrpc.TagHandler
 	TemplateHandler    *tmplgrpc.TemplateHandler
 	HoldingHandler     *holdinggrpc.HoldingHandler
+	BackupHandler      *backupgrpc.BackupHandler
+	SyncHandler        *syncgrpc.SyncHandler
 }
 
 // NewApp creates the application with wired dependencies.
@@ -44,6 +48,8 @@ func NewApp(
 	tagHandler *taggrpc.TagHandler,
 	templateHandler *tmplgrpc.TemplateHandler,
 	holdingHandler *holdinggrpc.HoldingHandler,
+	backupHandler *backupgrpc.BackupHandler,
+	syncHandler *syncgrpc.SyncHandler,
 ) *App {
 	return &App{
 		Config:             cfg,
@@ -58,5 +64,7 @@ func NewApp(
 		TagHandler:         tagHandler,
 		TemplateHandler:    templateHandler,
 		HoldingHandler:     holdingHandler,
+		BackupHandler:      backupHandler,
+		SyncHandler:        syncHandler,
 	}
 }

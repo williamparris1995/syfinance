@@ -34,6 +34,16 @@ import (
 	holdinggrpc "github.com/yucai/server/internal/holding/adapter/driving/grpc"
 	holdingapp "github.com/yucai/server/internal/holding/application"
 	holdingent "github.com/yucai/server/internal/holding/ent"
+	backuprepo "github.com/yucai/server/internal/backup/adapter/driven/repository"
+	backupcloud "github.com/yucai/server/internal/backup/adapter/driven/cloud"
+	backupgrpc "github.com/yucai/server/internal/backup/adapter/driving/grpc"
+	backupapp "github.com/yucai/server/internal/backup/application"
+	backupent "github.com/yucai/server/internal/backup/ent"
+	"github.com/yucai/server/internal/backup/domain"
+	syncrepo "github.com/yucai/server/internal/sync/adapter/driven/repository"
+	syncgrpc "github.com/yucai/server/internal/sync/adapter/driving/grpc"
+	syncapp "github.com/yucai/server/internal/sync/application"
+	syncent "github.com/yucai/server/internal/sync/ent"
 	txnrepo "github.com/yucai/server/internal/transaction/adapter/driven/repository"
 	txnbalance "github.com/yucai/server/internal/transaction/adapter/driven/balance"
 	txngrpc "github.com/yucai/server/internal/transaction/adapter/driving/grpc"
@@ -268,6 +278,62 @@ func provideHoldingService(secRepo *holdingsec.SecurityRepository, hRepo *holdin
 }
 func provideHoldingHandler(svc *holdingapp.Service) *holdinggrpc.HoldingHandler {
 	return holdinggrpc.NewHoldingHandler(svc)
+}
+
+// Backup providers
+func provideBackupEntClient(cfg *config.Config) (*backupent.Client, error) {
+	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
+	if err != nil {
+		return nil, err
+	}
+	return backupent.NewClient(backupent.Driver(drv)), nil
+}
+func provideBackupRepo(client *backupent.Client) *backuprepo.BackupRepository {
+	return backuprepo.NewBackupRepository(client)
+}
+func provideLocalCloudProvider(cfg *config.Config) *backupcloud.LocalProvider {
+	return backupcloud.NewLocalProvider(cfg.BackupDir)
+}
+func provideBackupService(repo *backuprepo.BackupRepository, localProvider *backupcloud.LocalProvider) *backupapp.Service {
+	cloudProviders := map[domain.BackupProvider]backupapp.CloudProvider{
+		domain.BackupProviderLocal: localProvider,
+	}
+	return backupapp.NewService(repo, cloudProviders)
+}
+func provideBackupHandler(svc *backupapp.Service) *backupgrpc.BackupHandler {
+	return backupgrpc.NewBackupHandler(svc)
+}
+
+// Sync providers
+func provideSyncEntClient(cfg *config.Config) (*syncent.Client, error) {
+	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
+	if err != nil {
+		return nil, err
+	}
+	return syncent.NewClient(syncent.Driver(drv)), nil
+}
+func provideSyncLogRepo(client *syncent.Client) *syncrepo.SyncLogRepository {
+	return syncrepo.NewSyncLogRepository(client)
+}
+func provideSyncDeviceRepo(client *syncent.Client) *syncrepo.SyncDeviceRepository {
+	return syncrepo.NewSyncDeviceRepository(client)
+}
+func provideSyncConflictRepo(client *syncent.Client) *syncrepo.SyncConflictRepository {
+	return syncrepo.NewSyncConflictRepository(client)
+}
+func provideConflictResolver() *syncapp.ConflictResolver {
+	return syncapp.NewConflictResolver()
+}
+func provideSyncService(
+	logRepo *syncrepo.SyncLogRepository,
+	deviceRepo *syncrepo.SyncDeviceRepository,
+	conflictRepo *syncrepo.SyncConflictRepository,
+	resolver *syncapp.ConflictResolver,
+) *syncapp.Service {
+	return syncapp.NewService(logRepo, deviceRepo, conflictRepo, resolver)
+}
+func provideSyncHandler(svc *syncapp.Service) *syncgrpc.SyncHandler {
+	return syncgrpc.NewSyncHandler(svc)
 }
 
 func provideGRPCServer(ts *authjwt.TokenService) *GRPCServer {

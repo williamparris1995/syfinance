@@ -17,6 +17,8 @@ import (
 	tagpb "github.com/yucai/server/internal/proto/tag/v1"
 	templatepb "github.com/yucai/server/internal/proto/template/v1"
 	holdingpb "github.com/yucai/server/internal/proto/holding/v1"
+	backuppb "github.com/yucai/server/internal/proto/backup/v1"
+	syncpb "github.com/yucai/server/internal/proto/sync/v1"
 	"github.com/yucai/server/pkg/config"
 	"github.com/yucai/server/wire"
 )
@@ -44,6 +46,8 @@ func main() {
 	tagpb.RegisterTagServiceServer(app.GRPCServer, app.TagHandler)
 	templatepb.RegisterTransactionTemplateServiceServer(app.GRPCServer, app.TemplateHandler)
 	holdingpb.RegisterHoldingServiceServer(app.GRPCServer, app.HoldingHandler)
+	backuppb.RegisterBackupServiceServer(app.GRPCServer, app.BackupHandler)
+	syncpb.RegisterSyncServiceServer(app.GRPCServer, app.SyncHandler)
 
 	// Start gRPC server
 	addr := fmt.Sprintf(":%s", cfg.GRPCPort)

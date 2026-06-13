@@ -13,6 +13,7 @@ type Config struct {
 	RedisURL    string `env:"REDIS_URL,default=redis://localhost:6379/0"`
 	JWTSecret   string `env:"JWT_SECRET,required"`
 	LogLevel    string `env:"LOG_LEVEL,default=info"`
+	BackupDir   string `env:"BACKUP_DIR,default=./backups"`
 }
 
 // Load reads configuration from environment variables.
