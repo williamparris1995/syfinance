@@ -2,6 +2,7 @@ package wire
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
@@ -71,12 +72,25 @@ import (
 	"github.com/yucai/server/pkg/middleware"
 
 	entsql "entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect"
+	"database/sql"
 	"google.golang.org/grpc"
 )
 
 // GRPCServer wraps *grpc.Server for Wire typing.
 type GRPCServer struct {
 	*grpc.Server
+}
+
+// openEntDriver opens a pgx-backed *sql.DB and wraps it as an ent driver with
+// the "postgres" dialect (ent migrate needs the postgres dialect; the underlying
+// database/sql driver name is "pgx" via github.com/jackc/pgx/v5/stdlib).
+func openEntDriver(cfg *config.Config) (*entsql.Driver, error) {
+	db, err := sql.Open("pgx", cfg.DatabaseURL)
+	if err != nil {
+		return nil, err
+	}
+	return entsql.OpenDB(dialect.Postgres, db), nil
 }
 
 // ---- Provider Functions ----
@@ -91,27 +105,39 @@ func provideRedisClient(cfg *config.Config) *redis.Client {
 }
 
 func provideAuthEntClient(cfg *config.Config) (*authent.Client, error) {
-	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
+	drv, err := openEntDriver(cfg)
 	if err != nil {
 		return nil, err
 	}
-	return authent.NewClient(authent.Driver(drv)), nil
+	client := authent.NewClient(authent.Driver(drv))
+	if err := client.Schema.Create(context.Background()); err != nil {
+		return nil, fmt.Errorf("migrate auth schema: %w", err)
+	}
+	return client, nil
 }
 
 func provideAccountEntClient(cfg *config.Config) (*accountent.Client, error) {
-	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
+	drv, err := openEntDriver(cfg)
 	if err != nil {
 		return nil, err
 	}
-	return accountent.NewClient(accountent.Driver(drv)), nil
+	client := accountent.NewClient(accountent.Driver(drv))
+	if err := client.Schema.Create(context.Background()); err != nil {
+		return nil, fmt.Errorf("migrate account schema: %w", err)
+	}
+	return client, nil
 }
 
 func provideTransactionEntClient(cfg *config.Config) (*txnent.Client, error) {
-	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
+	drv, err := openEntDriver(cfg)
 	if err != nil {
 		return nil, err
 	}
-	return txnent.NewClient(txnent.Driver(drv)), nil
+	client := txnent.NewClient(txnent.Driver(drv))
+	if err := client.Schema.Create(context.Background()); err != nil {
+		return nil, fmt.Errorf("migrate transaction schema: %w", err)
+	}
+	return client, nil
 }
 
 func provideTokenService(cfg *config.Config) *authjwt.TokenService {
@@ -177,11 +203,15 @@ func provideTransactionHandler(svc *txnapp.Service) *txngrpc.TransactionHandler 
 
 // Budget providers
 func provideBudgetEntClient(cfg *config.Config) (*budgetent.Client, error) {
-	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
+	drv, err := openEntDriver(cfg)
 	if err != nil {
 		return nil, err
 	}
-	return budgetent.NewClient(budgetent.Driver(drv)), nil
+	client := budgetent.NewClient(budgetent.Driver(drv))
+	if err := client.Schema.Create(context.Background()); err != nil {
+		return nil, fmt.Errorf("migrate budget schema: %w", err)
+	}
+	return client, nil
 }
 func provideBudgetRepo(client *budgetent.Client) *budgetrepo.BudgetRepository {
 	return budgetrepo.NewBudgetRepository(client)
@@ -195,11 +225,15 @@ func provideBudgetHandler(svc *budgetapp.Service) *budgetgrpc.BudgetHandler {
 
 // Debt providers
 func provideDebtEntClient(cfg *config.Config) (*debtent.Client, error) {
-	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
+	drv, err := openEntDriver(cfg)
 	if err != nil {
 		return nil, err
 	}
-	return debtent.NewClient(debtent.Driver(drv)), nil
+	client := debtent.NewClient(debtent.Driver(drv))
+	if err := client.Schema.Create(context.Background()); err != nil {
+		return nil, fmt.Errorf("migrate debt schema: %w", err)
+	}
+	return client, nil
 }
 func provideDebtRepo(client *debtent.Client) *debtrepo.DebtRepository {
 	return debtrepo.NewDebtRepository(client)
@@ -213,11 +247,15 @@ func provideDebtHandler(svc *debtapp.Service) *debtgrpc.DebtHandler {
 
 // Goal providers
 func provideGoalEntClient(cfg *config.Config) (*goalent.Client, error) {
-	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
+	drv, err := openEntDriver(cfg)
 	if err != nil {
 		return nil, err
 	}
-	return goalent.NewClient(goalent.Driver(drv)), nil
+	client := goalent.NewClient(goalent.Driver(drv))
+	if err := client.Schema.Create(context.Background()); err != nil {
+		return nil, fmt.Errorf("migrate goal schema: %w", err)
+	}
+	return client, nil
 }
 func provideGoalRepo(client *goalent.Client) *goalrepo.GoalRepository {
 	return goalrepo.NewGoalRepository(client)
@@ -231,11 +269,15 @@ func provideGoalHandler(svc *goalapp.Service) *goalgrpc.GoalHandler {
 
 // Tag providers
 func provideTagEntClient(cfg *config.Config) (*tagent.Client, error) {
-	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
+	drv, err := openEntDriver(cfg)
 	if err != nil {
 		return nil, err
 	}
-	return tagent.NewClient(tagent.Driver(drv)), nil
+	client := tagent.NewClient(tagent.Driver(drv))
+	if err := client.Schema.Create(context.Background()); err != nil {
+		return nil, fmt.Errorf("migrate tag schema: %w", err)
+	}
+	return client, nil
 }
 func provideTagRepo(client *tagent.Client) *tagrepo.TagRepository {
 	return tagrepo.NewTagRepository(client)
@@ -249,11 +291,15 @@ func provideTagHandler(svc *tagapp.Service) *taggrpc.TagHandler {
 
 // Template providers
 func provideTemplateEntClient(cfg *config.Config) (*tmplent.Client, error) {
-	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
+	drv, err := openEntDriver(cfg)
 	if err != nil {
 		return nil, err
 	}
-	return tmplent.NewClient(tmplent.Driver(drv)), nil
+	client := tmplent.NewClient(tmplent.Driver(drv))
+	if err := client.Schema.Create(context.Background()); err != nil {
+		return nil, fmt.Errorf("migrate template schema: %w", err)
+	}
+	return client, nil
 }
 func provideTemplateRepo(client *tmplent.Client) *tmplrepo.TemplateRepository {
 	return tmplrepo.NewTemplateRepository(client)
@@ -267,11 +313,15 @@ func provideTemplateHandler(svc *tmplapp.Service) *tmplgrpc.TemplateHandler {
 
 // Holding providers
 func provideHoldingEntClient(cfg *config.Config) (*holdingent.Client, error) {
-	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
+	drv, err := openEntDriver(cfg)
 	if err != nil {
 		return nil, err
 	}
-	return holdingent.NewClient(holdingent.Driver(drv)), nil
+	client := holdingent.NewClient(holdingent.Driver(drv))
+	if err := client.Schema.Create(context.Background()); err != nil {
+		return nil, fmt.Errorf("migrate holding schema: %w", err)
+	}
+	return client, nil
 }
 func provideSecurityRepo(client *holdingent.Client) *holdingsec.SecurityRepository {
 	return holdingsec.NewSecurityRepository(client)
@@ -291,11 +341,15 @@ func provideHoldingHandler(svc *holdingapp.Service) *holdinggrpc.HoldingHandler 
 
 // Backup providers
 func provideBackupEntClient(cfg *config.Config) (*backupent.Client, error) {
-	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
+	drv, err := openEntDriver(cfg)
 	if err != nil {
 		return nil, err
 	}
-	return backupent.NewClient(backupent.Driver(drv)), nil
+	client := backupent.NewClient(backupent.Driver(drv))
+	if err := client.Schema.Create(context.Background()); err != nil {
+		return nil, fmt.Errorf("migrate backup schema: %w", err)
+	}
+	return client, nil
 }
 func provideBackupRepo(client *backupent.Client) *backuprepo.BackupRepository {
 	return backuprepo.NewBackupRepository(client)
@@ -315,11 +369,15 @@ func provideBackupHandler(svc *backupapp.Service) *backupgrpc.BackupHandler {
 
 // Sync providers
 func provideSyncEntClient(cfg *config.Config) (*syncent.Client, error) {
-	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
+	drv, err := openEntDriver(cfg)
 	if err != nil {
 		return nil, err
 	}
-	return syncent.NewClient(syncent.Driver(drv)), nil
+	client := syncent.NewClient(syncent.Driver(drv))
+	if err := client.Schema.Create(context.Background()); err != nil {
+		return nil, fmt.Errorf("migrate sync schema: %w", err)
+	}
+	return client, nil
 }
 func provideSyncLogRepo(client *syncent.Client) *syncrepo.SyncLogRepository {
 	return syncrepo.NewSyncLogRepository(client)
@@ -347,11 +405,15 @@ func provideSyncHandler(svc *syncapp.Service) *syncgrpc.SyncHandler {
 
 // Category providers
 func provideCategoryEntClient(cfg *config.Config) (*categoryent.Client, error) {
-	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
+	drv, err := openEntDriver(cfg)
 	if err != nil {
 		return nil, err
 	}
-	return categoryent.NewClient(categoryent.Driver(drv)), nil
+	client := categoryent.NewClient(categoryent.Driver(drv))
+	if err := client.Schema.Create(context.Background()); err != nil {
+		return nil, fmt.Errorf("migrate category schema: %w", err)
+	}
+	return client, nil
 }
 func provideCategoryRepo(client *categoryent.Client) *categoryrepo.CategoryRepository {
 	return categoryrepo.NewCategoryRepository(client)
@@ -365,11 +427,15 @@ func provideCategoryHandler(svc *categoryapp.Service) *categorygrpc.CategoryHand
 
 // Currency providers
 func provideCurrencyEntClient(cfg *config.Config) (*currencyent.Client, error) {
-	drv, err := entsql.Open("pgx", cfg.DatabaseURL)
+	drv, err := openEntDriver(cfg)
 	if err != nil {
 		return nil, err
 	}
-	return currencyent.NewClient(currencyent.Driver(drv)), nil
+	client := currencyent.NewClient(currencyent.Driver(drv))
+	if err := client.Schema.Create(context.Background()); err != nil {
+		return nil, fmt.Errorf("migrate currency schema: %w", err)
+	}
+	return client, nil
 }
 func provideCurrencyRepo(client *currencyent.Client) *currencyrepo.CurrencyRepository {
 	return currencyrepo.NewCurrencyRepository(client)

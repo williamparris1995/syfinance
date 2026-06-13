@@ -40,11 +40,6 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{CategoriesColumns[1], CategoriesColumns[3]},
 			},
-			{
-				Name:    "category_tenant_id",
-				Unique:  false,
-				Columns: []*schema.Column{CategoriesColumns[1]},
-			},
 		},
 	}
 	// Tables holds all the tables in the schema.

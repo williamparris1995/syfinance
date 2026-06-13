@@ -8,6 +8,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	_ "github.com/jackc/pgx/v5/stdlib" // register "pgx" database/sql driver
+
 	authpb "github.com/yucai/server/internal/proto/auth/v1"
 	accountpb "github.com/yucai/server/internal/proto/account/v1"
 	transactionpb "github.com/yucai/server/internal/proto/transaction/v1"

@@ -5,7 +5,6 @@ import (
 	"entgo.io/ent/dialect/entsql"
 	entschema "entgo.io/ent/schema"
 	"entgo.io/ent/schema/field"
-	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
 	"time"
 
@@ -42,5 +41,5 @@ func (Backup) Fields() []ent.Field {
 func (Backup) Edges() []ent.Edge { return nil }
 
 func (Backup) Indexes() []ent.Index {
-	return []ent.Index{index.Fields("tenant_id")}
+	return nil
 }

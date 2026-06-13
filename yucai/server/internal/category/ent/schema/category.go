@@ -47,6 +47,5 @@ func (Category) Edges() []ent.Edge { return nil }
 func (Category) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("tenant_id", "category_type"),
-		index.Fields("tenant_id"),
 	}
 }

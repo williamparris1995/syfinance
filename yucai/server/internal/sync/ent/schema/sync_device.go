@@ -5,7 +5,6 @@ import (
 	"entgo.io/ent/dialect/entsql"
 	entschema "entgo.io/ent/schema"
 	"entgo.io/ent/schema/field"
-	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
 	"time"
 
@@ -39,7 +38,5 @@ func (SyncDevice) Fields() []ent.Field {
 func (SyncDevice) Edges() []ent.Edge { return nil }
 
 func (SyncDevice) Indexes() []ent.Index {
-	return []ent.Index{
-		index.Fields("tenant_id"),
-	}
+	return nil
 }

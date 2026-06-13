@@ -66,11 +66,6 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{SyncDevicesColumns[1]},
 			},
-			{
-				Name:    "syncdevice_tenant_id",
-				Unique:  false,
-				Columns: []*schema.Column{SyncDevicesColumns[1]},
-			},
 		},
 	}
 	// SyncLogsColumns holds the columns for the "sync_logs" table.
