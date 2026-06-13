@@ -19,6 +19,8 @@ import (
 	holdingpb "github.com/yucai/server/internal/proto/holding/v1"
 	backuppb "github.com/yucai/server/internal/proto/backup/v1"
 	syncpb "github.com/yucai/server/internal/proto/sync/v1"
+	categorypb "github.com/yucai/server/internal/proto/category/v1"
+	currencypb "github.com/yucai/server/internal/proto/currency/v1"
 	"github.com/yucai/server/pkg/config"
 	"github.com/yucai/server/wire"
 )
@@ -48,6 +50,8 @@ func main() {
 	holdingpb.RegisterHoldingServiceServer(app.GRPCServer, app.HoldingHandler)
 	backuppb.RegisterBackupServiceServer(app.GRPCServer, app.BackupHandler)
 	syncpb.RegisterSyncServiceServer(app.GRPCServer, app.SyncHandler)
+	categorypb.RegisterCategoryServiceServer(app.GRPCServer, app.CategoryHandler)
+	currencypb.RegisterCurrencyServiceServer(app.GRPCServer, app.CurrencyHandler)
 
 	// Start gRPC server
 	addr := fmt.Sprintf(":%s", cfg.GRPCPort)

@@ -57,6 +57,14 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	categoryClient, err := provideCategoryEntClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+	currencyClient, err := provideCurrencyEntClient(cfg)
+	if err != nil {
+		return nil, err
+	}
 	ts := provideTokenService(cfg)
 
 	// Auth module
@@ -128,9 +136,20 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	syncService := provideSyncService(syncLogRepo, syncDeviceRepo, syncConflictRepo, conflictResolver)
 	syncHandler := provideSyncHandler(syncService)
 
+	// Category module
+	categoryRepo := provideCategoryRepo(categoryClient)
+	categoryService := provideCategoryService(categoryRepo)
+	categoryHandler := provideCategoryHandler(categoryService)
+
+	// Currency module
+	currencyRepo := provideCurrencyRepo(currencyClient)
+	exchangeRateProvider := provideExchangeRateProvider()
+	currencyService := provideCurrencyService(currencyRepo, exchangeRateProvider)
+	currencyHandler := provideCurrencyHandler(currencyService)
+
 	// gRPC server
 	grpcSrv := provideGRPCServer(ts)
 
-	app := NewApp(cfg, log, grpcSrv, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler, holdingHandler, backupHandler, syncHandler)
+	app := NewApp(cfg, log, grpcSrv, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler, holdingHandler, backupHandler, syncHandler, categoryHandler, currencyHandler)
 	return app, nil
 }

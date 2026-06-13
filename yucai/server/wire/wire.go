@@ -96,6 +96,19 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 		provideSyncService,
 		provideSyncHandler,
 
+		// Category module
+		provideCategoryEntClient,
+		provideCategoryRepo,
+		provideCategoryService,
+		provideCategoryHandler,
+
+		// Currency module
+		provideCurrencyEntClient,
+		provideCurrencyRepo,
+		provideExchangeRateProvider,
+		provideCurrencyService,
+		provideCurrencyHandler,
+
 		// gRPC server (must come after all handlers)
 		provideGRPCServer,
 

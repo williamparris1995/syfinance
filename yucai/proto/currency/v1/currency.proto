@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package yucai.currency.v1;
+
+option go_package = "github.com/yucai/server/internal/proto/currency/v1";
+
+import "common/v1/pagination.proto";
+import "google/protobuf/empty.proto";
+
+service CurrencyService {
+  rpc ListCurrencies(ListCurrenciesRequest) returns (ListCurrenciesResponse);
+  rpc AddCurrency(AddCurrencyRequest) returns (CurrencyResponse);
+  rpc UpdateExchangeRate(UpdateRateRequest) returns (CurrencyResponse);
+  rpc FetchExchangeRate(FetchRateRequest) returns (FetchRateResponse);
+}
+
+message CurrencyDTO {
+  string id = 1;
+  string code = 2;
+  string name = 3;
+  string symbol = 4;
+  double exchange_rate = 5;
+  bool is_active = 6;
+}
+
+message AddCurrencyRequest {
+  string code = 1;
+  string name = 2;
+  string symbol = 3;
+  double exchange_rate = 4;
+}
+
+message UpdateRateRequest {
+  string id = 1;
+  double exchange_rate = 2;
+}
+
+message FetchRateRequest { string code = 1; }
+
+message FetchRateResponse {
+  string code = 1;
+  double exchange_rate = 2;
+}
+
+message ListCurrenciesRequest {
+  yucai.common.v1.PageRequest page = 1;
+  bool active_only = 2;
+}
+
+message ListCurrenciesResponse {
+  repeated CurrencyDTO currencies = 1;
+  yucai.common.v1.PageResponse page = 2;
+}
+
+message CurrencyResponse { CurrencyDTO currency = 1; }
