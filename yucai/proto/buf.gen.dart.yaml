@@ -2,3 +2,5 @@ version: v2
 plugins:
   - remote: buf.build/protocolbuffers/dart
     out: ../client/lib/proto
+  - remote: buf.build/grpc/grpc-dart
+    out: ../client/lib/proto
