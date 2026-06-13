@@ -2,15 +2,10 @@ import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/data/token_storage.dart';
-import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/core/config/app_config.dart';
 import 'package:yucai_client/core/di/injection.config.dart';
 import 'package:yucai_client/core/network/auth_interceptor.dart';
 import 'package:yucai_client/core/network/grpc_client.dart';
-import 'package:yucai_client/auth/domain/usecases/get_profile_usecase.dart';
-import 'package:yucai_client/auth/domain/usecases/login_usecase.dart';
-import 'package:yucai_client/auth/domain/usecases/logout_usecase.dart';
-import 'package:yucai_client/auth/domain/usecases/register_usecase.dart';
 
 final getIt = GetIt.instance;
 
@@ -45,11 +40,6 @@ Future<void> configureDependencies() async {
       }
     ..tokenSaver = tokenStorage.saveTokens;
 
-  // 4. AuthBloc — manual (lifecycle managed by the widget tree via BlocProvider).
-  getIt.registerSingleton<AuthBloc>(AuthBloc(
-    getIt<LoginUseCase>(),
-    getIt<RegisterUseCase>(),
-    getIt<GetProfileUseCase>(),
-    getIt<LogoutUseCase>(),
-  ));
+  // 4. AuthBloc is @injectable-registered (factory) with constructor-injected
+  //    use cases. No manual registration needed.
 }

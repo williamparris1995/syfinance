@@ -21,19 +21,26 @@ class AuthRemoteDataSource {
   final UserMapper _mapper;
   late final grpc.AuthServiceClient _client;
 
-  Future<User> register(String email, String password, String displayName) async {
+  Future<({User user, AuthTokens tokens})> register(
+      String email, String password, String displayName) async {
     final res = await _client.register(pb.RegisterRequest()
       ..email = email
       ..password = password
       ..displayName = displayName);
-    return _mapper.toDomain(res.user);
+    return (
+      user: _mapper.toDomain(res.user),
+      tokens: AuthTokens(accessToken: res.accessToken, refreshToken: res.refreshToken),
+    );
   }
 
-  Future<User> login(String email, String password) async {
+  Future<({User user, AuthTokens tokens})> login(String email, String password) async {
     final res = await _client.login(pb.LoginRequest()
       ..email = email
       ..password = password);
-    return _mapper.toDomain(res.user);
+    return (
+      user: _mapper.toDomain(res.user),
+      tokens: AuthTokens(accessToken: res.accessToken, refreshToken: res.refreshToken),
+    );
   }
 
   /// Raw refresh call used by AuthInterceptor (bypasses the Either layer).

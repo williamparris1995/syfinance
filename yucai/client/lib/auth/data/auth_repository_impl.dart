@@ -18,8 +18,9 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, User>> register(String email, String password, String displayName) async {
     try {
-      final user = await _remote.register(email, password, displayName);
-      return Right(user);
+      final result = await _remote.register(email, password, displayName);
+      await _storage.saveTokens(result.tokens);
+      return Right(result.user);
     } on GrpcError catch (e) {
       return Left(_mapGrpcError(e));
     } catch (e) {
@@ -30,8 +31,9 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, User>> login(String email, String password) async {
     try {
-      final user = await _remote.login(email, password);
-      return Right(user);
+      final result = await _remote.login(email, password);
+      await _storage.saveTokens(result.tokens);
+      return Right(result.user);
     } on GrpcError catch (e) {
       return Left(_mapGrpcError(e));
     } catch (e) {

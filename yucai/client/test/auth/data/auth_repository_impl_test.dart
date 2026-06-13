@@ -27,12 +27,16 @@ void main() {
   final user = User(
       id: 'u1', tenantId: 't1', email: 'a@b.com', displayName: 'A', avatarUrl: '', createdAt: DateTime(2026));
 
-  test('login success returns Right(user)', () async {
-    when(() => remote.login('a@b.com', 'pw')).thenAnswer((_) async => user);
+  test('login success returns Right(user) and saves tokens', () async {
+    const tokens = AuthTokens(accessToken: 'a', refreshToken: 'r');
+    when(() => remote.login('a@b.com', 'pw'))
+        .thenAnswer((_) async => (user: user, tokens: tokens));
+    when(() => storage.saveTokens(any())).thenAnswer((_) async {});
 
     final result = await repo.login('a@b.com', 'pw');
 
     expect(result, Right<Failure, User>(user));
+    verify(() => storage.saveTokens(tokens)).called(1);
   });
 
   test('login GrpcError unauthenticated maps to AuthFailure', () async {
