@@ -42,6 +42,13 @@ class AccountRepositoryImpl implements AccountRepository {
         return NetworkFailure(e.message ?? '无法连接服务器');
       case StatusCode.invalidArgument:
         return ValidationFailure(e.message ?? '参数错误');
+      case StatusCode.failedPrecondition:
+        final msg = e.message ?? '';
+        if (msg.contains('non-zero balance')) {
+          return const ServerFailure(
+              '账户余额非零，无法删除，请先清空余额或转账后再试');
+        }
+        return ServerFailure(msg.isNotEmpty ? msg : '操作无法完成');
       default:
         return ServerFailure(e.message ?? e.codeName);
     }
