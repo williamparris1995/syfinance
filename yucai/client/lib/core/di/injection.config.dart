@@ -23,6 +23,7 @@ import '../../auth/domain/usecases/logout_usecase.dart' as _i231;
 import '../../auth/domain/usecases/refresh_token_usecase.dart' as _i752;
 import '../../auth/domain/usecases/register_usecase.dart' as _i246;
 import '../../auth/presentation/bloc/auth_bloc.dart' as _i946;
+import '../network/auth_retry.dart' as _i763;
 import '../network/grpc_client.dart' as _i160;
 
 extension GetItInjectableX on _i174.GetIt {
@@ -36,6 +37,7 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i832.AuthRemoteDataSource>(
       () => _i832.AuthRemoteDataSource(
         gh<_i160.GrpcClient>(),
+        gh<_i763.AuthRetryCaller>(),
         gh<_i102.UserMapper>(),
       ),
     );

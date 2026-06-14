@@ -3,9 +3,11 @@ import 'package:injectable/injectable.dart';
 import 'package:uuid/uuid.dart';
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/data/token_storage.dart';
+import 'package:yucai_client/auth/domain/usecases/refresh_token_usecase.dart';
 import 'package:yucai_client/core/config/app_config.dart';
 import 'package:yucai_client/core/di/injection.config.dart';
 import 'package:yucai_client/core/network/auth_interceptor.dart';
+import 'package:yucai_client/core/network/auth_retry.dart';
 import 'package:yucai_client/core/network/grpc_client.dart';
 
 final getIt = GetIt.instance;
@@ -22,11 +24,20 @@ Future<void> configureDependencies() async {
   final grpcClient = GrpcClient(getIt<AppConfig>(), authInterceptor);
   getIt.registerSingleton<GrpcClient>(grpcClient);
 
+  // 1b. AuthRetryCaller is registered manually (its refresher callback is set
+  //     after init) so injectable's graph has no cycle.
+  final authRetry = AuthRetryCaller();
+  getIt.registerSingleton<AuthRetryCaller>(authRetry);
+
   // 2. Injectable resolves the leaf services (UserMapper, AuthRemoteDataSource,
   //    AuthRepositoryImpl, use cases) via constructor injection.
   getIt.init();
 
-  // 3. Wire interceptor callbacks AFTER remote DS exists (breaks the cycle).
+  // 3. Wire the retry refresher: performs RefreshToken, returns success bool.
+  final refreshTokenUseCase = getIt<RefreshTokenUseCase>();
+  authRetry.refresher = () async => (await refreshTokenUseCase.call()).isRight();
+
+  // 4. Wire interceptor callbacks AFTER remote DS exists (breaks the cycle).
   final remoteDS = getIt<AuthRemoteDataSource>();
 
   // 3a. Per-install client identity — generate once, persist, reuse. Lets the

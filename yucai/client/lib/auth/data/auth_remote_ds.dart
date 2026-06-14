@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 import 'package:yucai_client/auth/data/mappers/user_mapper.dart';
 import 'package:yucai_client/auth/domain/entities/auth_tokens.dart';
 import 'package:yucai_client/auth/domain/entities/user_entity.dart';
+import 'package:yucai_client/core/network/auth_retry.dart';
 import 'package:yucai_client/core/network/grpc_client.dart';
 import 'package:yucai_client/proto/auth/v1/auth.pb.dart' as pb;
 import 'package:yucai_client/proto/auth/v1/auth.pbgrpc.dart' as grpc;
@@ -10,7 +11,8 @@ import 'package:yucai_client/proto/auth/v1/auth.pbgrpc.dart' as grpc;
 /// (caught and mapped by AuthRepositoryImpl).
 @LazySingleton()
 class AuthRemoteDataSource {
-  AuthRemoteDataSource(this._grpcClient, UserMapper mapper) : _mapper = mapper {
+  AuthRemoteDataSource(this._grpcClient, this._retry, UserMapper mapper)
+      : _mapper = mapper {
     _client = grpc.AuthServiceClient(
       _grpcClient.channel,
       interceptors: [_grpcClient.authInterceptor],
@@ -18,6 +20,7 @@ class AuthRemoteDataSource {
   }
 
   final GrpcClient _grpcClient;
+  final AuthRetryCaller _retry;
   final UserMapper _mapper;
   late final grpc.AuthServiceClient _client;
 
@@ -52,7 +55,12 @@ class AuthRemoteDataSource {
   }
 
   Future<User> getProfile() async {
-    final res = await _client.getProfile(pb.GetProfileRequest());
-    return _mapper.toDomain(res.user);
+    // Wrapped in AuthRetryCaller: a 401 (expired access token) triggers a
+    // refresh + single retry, transparent to callers. The fresh token is
+    // injected by AuthInterceptor on the retry via the metadata provider.
+    return _retry.call(() async {
+      final res = await _client.getProfile(pb.GetProfileRequest());
+      return _mapper.toDomain(res.user);
+    });
   }
 }
