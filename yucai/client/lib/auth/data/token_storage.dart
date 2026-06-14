@@ -11,6 +11,14 @@ class TokenStorage {
 
   static const _keyAccess = 'yucai.access_token';
   static const _keyRefresh = 'yucai.refresh_token';
+  static const _keyClientId = 'yucai.client_id';
+
+  /// Per-install client identifier. Used to distinguish this Flutter instance
+  /// from others in the server log. Generated once, persisted, reused.
+  Future<String?> readClientId() => _backend.read(key: _keyClientId);
+
+  Future<void> saveClientId(String clientId) =>
+      _backend.write(key: _keyClientId, value: clientId);
 
   Future<AuthTokens?> readTokens() async {
     final access = await _backend.read(key: _keyAccess);

@@ -1,5 +1,6 @@
 import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
+import 'package:uuid/uuid.dart';
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/data/token_storage.dart';
 import 'package:yucai_client/core/config/app_config.dart';
@@ -27,7 +28,19 @@ Future<void> configureDependencies() async {
 
   // 3. Wire interceptor callbacks AFTER remote DS exists (breaks the cycle).
   final remoteDS = getIt<AuthRemoteDataSource>();
+
+  // 3a. Per-install client identity — generate once, persist, reuse. Lets the
+  //     server log distinguish this client from other Flutter apps/instances.
+  var clientId = await tokenStorage.readClientId();
+  if (clientId == null || clientId.isEmpty) {
+    clientId = const Uuid().v4();
+    await tokenStorage.saveClientId(clientId);
+  }
+
   authInterceptor
+    ..clientId = clientId
+    ..appName = 'yucai_client'
+    ..appVersion = '1.0.0'
     ..tokenReader = tokenStorage.readTokens
     ..refresher = () async {
         try {

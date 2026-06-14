@@ -19,6 +19,18 @@ class AuthInterceptor extends ClientInterceptor {
   Future<AuthTokens?> Function()? refresher;
   Future<void> Function(AuthTokens)? tokenSaver;
 
+  // Client identity — sent on EVERY call so the server log can distinguish
+  // between different Flutter clients / instances.
+  String? clientId;
+  String? appName;
+  String? appVersion;
+
+  void applyIdentity(Map<String, String> metadata) {
+    if (clientId != null) metadata['x-client-id'] = clientId!;
+    if (appName != null) metadata['x-app-name'] = appName!;
+    if (appVersion != null) metadata['x-app-version'] = appVersion!;
+  }
+
   /// These auth methods carry credentials in the request body, not the header.
   /// gRPC method paths look like "/yucai.auth.v1.AuthService/Register".
   static bool isAuthBypassed(String method) {
@@ -37,12 +49,10 @@ class AuthInterceptor extends ClientInterceptor {
     CallOptions options,
     ClientUnaryInvoker<Q, R> invoker,
   ) {
-    final uri = method.path;
-    if (isAuthBypassed(uri)) {
-      return invoker(method, request, options);
-    }
-    // Attach a metadata provider that injects the Bearer token at call time.
     final provider = (Map<String, String> metadata, String _) async {
+      // Client identity is attached on EVERY call (incl. Register/Login).
+      applyIdentity(metadata);
+      if (isAuthBypassed(method.path)) return;
       final tokens = await (tokenReader?.call() ?? Future.value(null));
       if (tokens != null) {
         metadata['authorization'] = 'Bearer ${tokens.accessToken}';
@@ -59,11 +69,9 @@ class AuthInterceptor extends ClientInterceptor {
     CallOptions options,
     ClientStreamingInvoker<Q, R> invoker,
   ) {
-    final uri = method.path;
-    if (isAuthBypassed(uri)) {
-      return invoker(method, requests, options);
-    }
     final provider = (Map<String, String> metadata, String _) async {
+      applyIdentity(metadata);
+      if (isAuthBypassed(method.path)) return;
       final tokens = await (tokenReader?.call() ?? Future.value(null));
       if (tokens != null) {
         metadata['authorization'] = 'Bearer ${tokens.accessToken}';

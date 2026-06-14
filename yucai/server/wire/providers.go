@@ -452,7 +452,11 @@ func provideCurrencyHandler(svc *currencyapp.Service) *currencygrpc.CurrencyHand
 
 func provideGRPCServer(ts *authjwt.TokenService) *GRPCServer {
 	middleware.TokenService = ts
-	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.AuthInterceptor))
+	// Logging is OUTERMOST (logs even auth-rejected calls), auth is inner.
+	srv := grpc.NewServer(grpc.ChainUnaryInterceptor(
+		middleware.UnaryLoggingInterceptor,
+		middleware.AuthInterceptor,
+	))
 	return &GRPCServer{Server: srv}
 }
 
