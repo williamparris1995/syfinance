@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_event.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
@@ -7,20 +8,30 @@ import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
-  Widget _content() => const Center(
+  Widget _content(BuildContext context) => Center(
         child: Padding(
-          padding: EdgeInsets.all(32),
+          padding: const EdgeInsets.all(32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.check_circle_outline, size: 64),
-              SizedBox(height: 16),
-              Text('功能开发中', style: TextStyle(fontSize: 20)),
-              SizedBox(height: 8),
-              Text('已登录 — 后续功能模块将在此展示', textAlign: TextAlign.center),
+              const Icon(Icons.account_balance_wallet_outlined, size: 64),
+              const SizedBox(height: 16),
+              Text('欢迎回来', style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: () => context.push('/accounts'),
+                icon: const Icon(Icons.list_alt),
+                label: const Text('管理账户'),
+              ),
             ],
           ),
         ),
+      );
+
+  Widget _navItem(IconData icon, String label, VoidCallback onTap) => ListTile(
+        leading: Icon(icon),
+        title: Text(label),
+        onTap: onTap,
       );
 
   @override
@@ -43,32 +54,33 @@ class HomePage extends StatelessWidget {
                       Text('御财', style: Theme.of(context).textTheme.headlineSmall),
                       const SizedBox(height: 24),
                       Text(userName, style: Theme.of(context).textTheme.bodyMedium),
+                      const SizedBox(height: 24),
+                      _navItem(Icons.account_balance_wallet, '账户', () => context.push('/accounts')),
                       const Spacer(),
-                      ListTile(
-                        leading: const Icon(Icons.logout),
-                        title: const Text('退出登录'),
-                        onTap: () => context.read<AuthBloc>().add(LogoutRequested()),
-                      ),
+                      _navItem(Icons.logout, '退出登录',
+                          () => context.read<AuthBloc>().add(LogoutRequested())),
                       const SizedBox(height: 16),
                     ],
                   ),
                 ),
-                Expanded(child: _content()),
+                Expanded(child: _content(context)),
               ],
             ),
           );
         }
         return Scaffold(
           appBar: AppBar(title: const Text('御财')),
-          body: _content(),
+          body: _content(context),
           bottomNavigationBar: NavigationBar(
             selectedIndex: 0,
             destinations: const [
               NavigationDestination(icon: Icon(Icons.home), label: '首页'),
-              NavigationDestination(icon: Icon(Icons.account_circle), label: '我的'),
+              NavigationDestination(icon: Icon(Icons.account_balance_wallet), label: '账户'),
+              NavigationDestination(icon: Icon(Icons.logout), label: '退出'),
             ],
             onDestinationSelected: (i) {
-              if (i == 1) context.read<AuthBloc>().add(LogoutRequested());
+              if (i == 1) context.push('/accounts');
+              if (i == 2) context.read<AuthBloc>().add(LogoutRequested());
             },
           ),
         );

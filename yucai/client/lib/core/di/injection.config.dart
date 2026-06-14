@@ -12,6 +12,14 @@
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
 
+import '../../account/data/account_remote_ds.dart' as _i414;
+import '../../account/data/account_repository_impl.dart' as _i725;
+import '../../account/data/mappers/account_mapper.dart' as _i994;
+import '../../account/domain/repositories/account_repository.dart' as _i270;
+import '../../account/domain/usecases/create_account_usecase.dart' as _i82;
+import '../../account/domain/usecases/delete_account_usecase.dart' as _i1051;
+import '../../account/domain/usecases/list_accounts_usecase.dart' as _i106;
+import '../../account/presentation/bloc/account_bloc.dart' as _i803;
 import '../../auth/data/auth_remote_ds.dart' as _i832;
 import '../../auth/data/auth_repository_impl.dart' as _i648;
 import '../../auth/data/mappers/user_mapper.dart' as _i102;
@@ -33,6 +41,7 @@ extension GetItInjectableX on _i174.GetIt {
     _i526.EnvironmentFilter? environmentFilter,
   }) {
     final gh = _i526.GetItHelper(this, environment, environmentFilter);
+    gh.factory<_i994.AccountMapper>(() => const _i994.AccountMapper());
     gh.factory<_i102.UserMapper>(() => const _i102.UserMapper());
     gh.lazySingleton<_i832.AuthRemoteDataSource>(
       () => _i832.AuthRemoteDataSource(
@@ -41,11 +50,21 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i102.UserMapper>(),
       ),
     );
+    gh.lazySingleton<_i414.AccountRemoteDataSource>(
+      () => _i414.AccountRemoteDataSource(
+        gh<_i160.GrpcClient>(),
+        gh<_i763.AuthRetryCaller>(),
+        gh<_i994.AccountMapper>(),
+      ),
+    );
     gh.lazySingleton<_i937.AuthRepository>(
       () => _i648.AuthRepositoryImpl(
         gh<_i832.AuthRemoteDataSource>(),
         gh<_i382.TokenStorage>(),
       ),
+    );
+    gh.lazySingleton<_i270.AccountRepository>(
+      () => _i725.AccountRepositoryImpl(gh<_i414.AccountRemoteDataSource>()),
     );
     gh.factory<_i922.GetProfileUseCase>(
       () => _i922.GetProfileUseCase(gh<_i937.AuthRepository>()),
@@ -68,6 +87,22 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i246.RegisterUseCase>(),
         gh<_i922.GetProfileUseCase>(),
         gh<_i231.LogoutUseCase>(),
+      ),
+    );
+    gh.factory<_i82.CreateAccountUseCase>(
+      () => _i82.CreateAccountUseCase(gh<_i270.AccountRepository>()),
+    );
+    gh.factory<_i1051.DeleteAccountUseCase>(
+      () => _i1051.DeleteAccountUseCase(gh<_i270.AccountRepository>()),
+    );
+    gh.factory<_i106.ListAccountsUseCase>(
+      () => _i106.ListAccountsUseCase(gh<_i270.AccountRepository>()),
+    );
+    gh.factory<_i803.AccountBloc>(
+      () => _i803.AccountBloc(
+        gh<_i106.ListAccountsUseCase>(),
+        gh<_i82.CreateAccountUseCase>(),
+        gh<_i1051.DeleteAccountUseCase>(),
       ),
     );
     return this;
