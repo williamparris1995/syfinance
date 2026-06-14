@@ -33,6 +33,7 @@ dependencies:
   sqlite3_flutter_libs: ^0.5.28
   grpc: ^5.1.0
   protobuf: ^6.0.0
+  fixnum: ^1.1.0
   connectivity_plus: ^6.1.2
   flutter_secure_storage: ^9.2.4
   dartz: ^0.10.1
