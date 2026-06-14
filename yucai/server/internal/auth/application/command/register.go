@@ -32,6 +32,13 @@ func NewRegisterHandler(
 
 // Handle implements command.Handler[RegisterCommand].
 func (h *RegisterHandler) Handle(ctx context.Context, cmd RegisterCommand) error {
+	// Global email-uniqueness check FIRST. Email is the login key, so it must be
+	// unique across ALL tenants (not just the new one — a new tenant is always
+	// empty, so a per-tenant check would never block a re-registration).
+	if existing, _ := h.userRepo.FindByEmailGlobal(ctx, cmd.Email); existing != nil {
+		return fmt.Errorf("email already registered")
+	}
+
 	// Hash password
 	hash, err := password.HashPassword(cmd.Password)
 	if err != nil {
@@ -51,12 +58,6 @@ func (h *RegisterHandler) Handle(ctx context.Context, cmd RegisterCommand) error
 	user, err := domain.NewUser(tenant.ID, cmd.Email, hash, cmd.DisplayName)
 	if err != nil {
 		return fmt.Errorf("create user: %w", err)
-	}
-
-	// Check email not taken
-	existing, _ := h.userRepo.FindByEmail(ctx, tenant.ID, cmd.Email)
-	if existing != nil {
-		return fmt.Errorf("email already registered")
 	}
 
 	if err := h.userRepo.Save(ctx, user); err != nil {
