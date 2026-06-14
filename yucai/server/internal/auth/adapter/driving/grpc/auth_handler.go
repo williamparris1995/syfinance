@@ -2,10 +2,12 @@ package grpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	pb "github.com/yucai/server/internal/proto/auth/v1"
 	"github.com/yucai/server/internal/auth/application"
+	"github.com/yucai/server/internal/auth/application/command"
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -61,18 +63,18 @@ func (h *AuthHandler) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Logi
 	}, nil
 }
 
-// RefreshToken handles token refresh.
+// RefreshToken rotates a refresh token. The user identity is resolved from the
+// opaque refresh token server-side, so this RPC is auth-bypassed (no Bearer).
 func (h *AuthHandler) RefreshToken(ctx context.Context, req *pb.RefreshTokenRequest) (*pb.RefreshTokenResponse, error) {
 	if req.RefreshToken == "" {
 		return nil, status.Error(codes.InvalidArgument, "refresh_token is required")
 	}
-	// For now, we need userID from context. This will be set by auth middleware.
-	userID, err := getUserID(ctx)
+	resp, err := h.service.RefreshToken(ctx, req.RefreshToken)
 	if err != nil {
-		return nil, status.Error(codes.Unauthenticated, err.Error())
-	}
-	resp, err := h.service.RefreshToken(ctx, userID, req.RefreshToken)
-	if err != nil {
+		// Invalid/expired or reuse-detected → 401 (forces client re-login).
+		if errors.Is(err, command.ErrInvalidRefreshToken) || errors.Is(err, command.ErrRefreshTokenReuse) {
+			return nil, status.Error(codes.Unauthenticated, err.Error())
+		}
 		return nil, mapError(err)
 	}
 	return &pb.RefreshTokenResponse{

@@ -12,7 +12,10 @@ import (
 // InitializeApp creates the application with all dependencies wired.
 func InitializeApp(cfg *config.Config) (*App, error) {
 	log := provideLogger(cfg)
-	rdb := provideRedisClient(cfg)
+	rdb, err := provideRedisClient(cfg)
+	if err != nil {
+		return nil, err
+	}
 	authClient, err := provideAuthEntClient(cfg)
 	if err != nil {
 		return nil, err
@@ -73,9 +76,9 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	sessionStore := provideSessionStore(rdb)
 	registerHandler := provideRegisterHandler(tenantRepo, userRepo, ts)
 	loginHandler := provideLoginHandler(userRepo, ts)
-	refreshHandler := provideRefreshHandler(userRepo, ts, sessionStore)
+	refreshHandler := provideRefreshHandler(sessionStore)
 	profileHandler := provideProfileHandler(userRepo)
-	authService := provideAuthService(tenantRepo, userRepo, ts, registerHandler, loginHandler, refreshHandler, profileHandler)
+	authService := provideAuthService(tenantRepo, userRepo, ts, sessionStore, registerHandler, loginHandler, refreshHandler, profileHandler)
 	authHandler := provideAuthHandler(authService)
 
 	// Account module

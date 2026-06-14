@@ -82,3 +82,8 @@ func (s *TokenService) GenerateRefreshToken() string {
 func (s *TokenService) AccessTokenTTL() time.Duration {
 	return s.accessTokenTTL
 }
+
+// RefreshTokenTTL returns the configured refresh token duration (7 days).
+func (s *TokenService) RefreshTokenTTL() time.Duration {
+	return s.refreshTokenTTL
+}

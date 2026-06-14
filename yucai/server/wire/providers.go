@@ -100,8 +100,12 @@ func provideLogger(cfg *config.Config) *logger.Logger {
 	return &logger.Logger{}
 }
 
-func provideRedisClient(cfg *config.Config) *redis.Client {
-	return redis.NewClient(&redis.Options{Addr: cfg.RedisURL})
+func provideRedisClient(cfg *config.Config) (*redis.Client, error) {
+	opts, err := redis.ParseURL(cfg.RedisURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse redis url: %w", err)
+	}
+	return redis.NewClient(opts), nil
 }
 
 func provideAuthEntClient(cfg *config.Config) (*authent.Client, error) {
@@ -160,14 +164,14 @@ func provideRegisterHandler(tr *authrepo.TenantRepository, ur *authrepo.UserRepo
 func provideLoginHandler(ur *authrepo.UserRepository, ts *authjwt.TokenService) *authcmd.LoginHandler {
 	return authcmd.NewLoginHandler(ur, ts)
 }
-func provideRefreshHandler(ur *authrepo.UserRepository, ts *authjwt.TokenService, ss *session.RedisSessionStore) *authcmd.RefreshHandler {
-	return authcmd.NewRefreshHandler(ur, ts, ss)
+func provideRefreshHandler(ss *session.RedisSessionStore) *authcmd.RefreshHandler {
+	return authcmd.NewRefreshHandler(ss)
 }
 func provideProfileHandler(ur *authrepo.UserRepository) *authquery.GetProfileHandler {
 	return authquery.NewGetProfileHandler(ur)
 }
-func provideAuthService(tr *authrepo.TenantRepository, ur *authrepo.UserRepository, ts *authjwt.TokenService, rh *authcmd.RegisterHandler, lh *authcmd.LoginHandler, fh *authcmd.RefreshHandler, ph *authquery.GetProfileHandler) *authapp.Service {
-	return authapp.NewService(tr, ur, ts, rh, lh, fh, ph)
+func provideAuthService(tr *authrepo.TenantRepository, ur *authrepo.UserRepository, ts *authjwt.TokenService, ss *session.RedisSessionStore, rh *authcmd.RegisterHandler, lh *authcmd.LoginHandler, fh *authcmd.RefreshHandler, ph *authquery.GetProfileHandler) *authapp.Service {
+	return authapp.NewService(tr, ur, ts, ss, rh, lh, fh, ph)
 }
 func provideAuthHandler(svc *authapp.Service) *authgrpc.AuthHandler {
 	return authgrpc.NewAuthHandler(svc)
