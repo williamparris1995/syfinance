@@ -25,7 +25,7 @@ class AccountFormPage extends StatefulWidget {
 class _AccountFormPageState extends State<AccountFormPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
-  final _currencyCtrl = TextEditingController(text: 'CNY');
+  String _currency = 'CNY';
   final _balanceCtrl = TextEditingController(text: '0');
   AccountCategory _category = AccountCategory.savings;
   Ownership _ownership = Ownership.personal;
@@ -34,7 +34,6 @@ class _AccountFormPageState extends State<AccountFormPage> {
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _currencyCtrl.dispose();
     _balanceCtrl.dispose();
     super.dispose();
   }
@@ -61,7 +60,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
               name: _nameCtrl.text.trim(),
               accountType: _category.accountType,
               category: _category,
-              currencyCode: _currencyCtrl.text.trim().toUpperCase(),
+              currencyCode: _currency,
               initialBalanceCents: (balanceYuan * 100).round(),
               ownership: _ownership,
             ),
@@ -133,17 +132,19 @@ class _AccountFormPageState extends State<AccountFormPage> {
                                   : null,
                             ),
                             FormRow(children: [
-                              TextFormField(
-                                controller: _currencyCtrl,
-                                decoration: const InputDecoration(
-                                  labelText: '币种',
-                                  hintText: 'CNY',
-                                ),
-                                textCapitalization:
-                                    TextCapitalization.characters,
-                                validator: (v) => (v == null || v.trim().isEmpty)
-                                    ? '请输入币种'
-                                    : null,
+                              DropdownButtonFormField<String>(
+                                decoration:
+                                    const InputDecoration(labelText: '币种'),
+                                value: _currency,
+                                items: const [
+                                  'CNY', 'USD', 'HKD', 'EUR',
+                                  'JPY', 'GBP', 'AUD', 'SGD'
+                                ]
+                                    .map((c) => DropdownMenuItem(
+                                        value: c, child: Text(c)))
+                                    .toList(),
+                                onChanged: (v) =>
+                                    setState(() => _currency = v ?? 'CNY'),
                               ),
                               DropdownButtonFormField<Ownership>(
                                 decoration: const InputDecoration(

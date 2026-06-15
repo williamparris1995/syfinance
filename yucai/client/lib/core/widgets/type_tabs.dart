@@ -27,20 +27,17 @@ class TypeTabs<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (var i = 0; i < options.length; i++) ...[
-            if (i > 0) const SizedBox(width: AppSpacing.xs),
-            _TypeChip(
-              option: options[i],
-              selected: options[i].value == selected,
-              onTap: () => onChanged(options[i].value),
-            ),
-          ],
-        ],
-      ),
+    return Wrap(
+      spacing: AppSpacing.xs,
+      runSpacing: AppSpacing.xs,
+      children: [
+        for (final opt in options)
+          _TypeChip(
+            option: opt,
+            selected: opt.value == selected,
+            onTap: () => onChanged(opt.value),
+          ),
+      ],
     );
   }
 }
