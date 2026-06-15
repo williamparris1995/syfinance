@@ -40,6 +40,7 @@ func (h *AccountHandler) CreateAccount(ctx context.Context, req *pb.CreateAccoun
 		TenantID:            tenantID,
 		Name:                req.Name,
 		AccountType:         protoToAccountType(req.AccountType),
+		Category:            protoToAccountCategory(req.Category),
 		CurrencyCode:        req.CurrencyCode,
 		InitialBalanceCents: req.InitialBalanceCents,
 		Ownership:           protoToOwnership(req.Ownership),
@@ -169,6 +170,7 @@ func dtoToProto(a application.AccountDTO) *pb.AccountDTO {
 		Id:                  a.ID.String(),
 		Name:                a.Name,
 		AccountType:         accountTypeToProto(a.AccountType),
+		Category:            accountCategoryToProto(a.Category),
 		CurrencyCode:        a.CurrencyCode,
 		InitialBalanceCents: a.InitialBalanceCents,
 		CurrentBalanceCents: a.CurrentBalanceCents,
@@ -220,6 +222,52 @@ func accountTypeToProto(t domain.AccountType) pb.AccountType {
 		return pb.AccountType_ACCOUNT_TYPE_EXPENSE
 	default:
 		return pb.AccountType_ACCOUNT_TYPE_UNSPECIFIED
+	}
+}
+
+func protoToAccountCategory(c pb.AccountCategory) domain.AccountCategory {
+	switch c {
+	case pb.AccountCategory_ACCOUNT_CATEGORY_CREDIT_CARD:
+		return domain.AccountCategoryCreditCard
+	case pb.AccountCategory_ACCOUNT_CATEGORY_INVESTMENT:
+		return domain.AccountCategoryInvestment
+	case pb.AccountCategory_ACCOUNT_CATEGORY_FIXED_DEPOSIT:
+		return domain.AccountCategoryFixedDeposit
+	case pb.AccountCategory_ACCOUNT_CATEGORY_GOLD_FX:
+		return domain.AccountCategoryGoldFx
+	case pb.AccountCategory_ACCOUNT_CATEGORY_REAL_ESTATE:
+		return domain.AccountCategoryRealEstate
+	case pb.AccountCategory_ACCOUNT_CATEGORY_LOAN:
+		return domain.AccountCategoryLoan
+	case pb.AccountCategory_ACCOUNT_CATEGORY_OTHER_ASSET:
+		return domain.AccountCategoryOtherAsset
+	case pb.AccountCategory_ACCOUNT_CATEGORY_OTHER_LIABILITY:
+		return domain.AccountCategoryOtherLiability
+	default:
+		return domain.AccountCategorySavings
+	}
+}
+
+func accountCategoryToProto(c domain.AccountCategory) pb.AccountCategory {
+	switch c {
+	case domain.AccountCategoryCreditCard:
+		return pb.AccountCategory_ACCOUNT_CATEGORY_CREDIT_CARD
+	case domain.AccountCategoryInvestment:
+		return pb.AccountCategory_ACCOUNT_CATEGORY_INVESTMENT
+	case domain.AccountCategoryFixedDeposit:
+		return pb.AccountCategory_ACCOUNT_CATEGORY_FIXED_DEPOSIT
+	case domain.AccountCategoryGoldFx:
+		return pb.AccountCategory_ACCOUNT_CATEGORY_GOLD_FX
+	case domain.AccountCategoryRealEstate:
+		return pb.AccountCategory_ACCOUNT_CATEGORY_REAL_ESTATE
+	case domain.AccountCategoryLoan:
+		return pb.AccountCategory_ACCOUNT_CATEGORY_LOAN
+	case domain.AccountCategoryOtherAsset:
+		return pb.AccountCategory_ACCOUNT_CATEGORY_OTHER_ASSET
+	case domain.AccountCategoryOtherLiability:
+		return pb.AccountCategory_ACCOUNT_CATEGORY_OTHER_LIABILITY
+	default:
+		return pb.AccountCategory_ACCOUNT_CATEGORY_SAVINGS
 	}
 }
 

@@ -28,6 +28,7 @@ func (r *AccountRepository) Save(ctx context.Context, a *domain.Account) error {
 		SetTenantID(a.TenantID).
 		SetName(a.Name).
 		SetAccountType(accountent.AccountType(a.AccountType.String())).
+		SetCategory(accountent.Category(a.Category.String())).
 		SetCurrencyCode(a.CurrencyCode).
 		SetInitialBalanceCents(a.InitialBalanceCents).
 		SetCurrentBalanceCents(a.CurrentBalanceCents).
@@ -169,6 +170,7 @@ func toDomainAccount(a *ent.Account) *domain.Account {
 		TenantID:            a.TenantID,
 		Name:                a.Name,
 		AccountType:         domain.ParseAccountType(string(a.AccountType)),
+		Category:            domain.ParseAccountCategory(string(a.Category)),
 		CurrencyCode:        a.CurrencyCode,
 		InitialBalanceCents: a.InitialBalanceCents,
 		CurrentBalanceCents: a.CurrentBalanceCents,
