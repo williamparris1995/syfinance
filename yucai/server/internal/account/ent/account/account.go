@@ -21,6 +21,8 @@ const (
 	FieldName = "name"
 	// FieldAccountType holds the string denoting the account_type field in the database.
 	FieldAccountType = "account_type"
+	// FieldCategory holds the string denoting the category field in the database.
+	FieldCategory = "category"
 	// FieldCurrencyCode holds the string denoting the currency_code field in the database.
 	FieldCurrencyCode = "currency_code"
 	// FieldInitialBalanceCents holds the string denoting the initial_balance_cents field in the database.
@@ -61,6 +63,7 @@ var Columns = []string{
 	FieldTenantID,
 	FieldName,
 	FieldAccountType,
+	FieldCategory,
 	FieldCurrencyCode,
 	FieldInitialBalanceCents,
 	FieldCurrentBalanceCents,
@@ -145,6 +148,39 @@ func AccountTypeValidator(at AccountType) error {
 	}
 }
 
+// Category defines the type for the "category" enum field.
+type Category string
+
+// CategorySavings is the default value of the Category enum.
+const DefaultCategory = CategorySavings
+
+// Category values.
+const (
+	CategorySavings        Category = "savings"
+	CategoryCreditCard     Category = "credit_card"
+	CategoryInvestment     Category = "investment"
+	CategoryFixedDeposit   Category = "fixed_deposit"
+	CategoryGoldFx         Category = "gold_fx"
+	CategoryRealEstate     Category = "real_estate"
+	CategoryLoan           Category = "loan"
+	CategoryOtherAsset     Category = "other_asset"
+	CategoryOtherLiability Category = "other_liability"
+)
+
+func (c Category) String() string {
+	return string(c)
+}
+
+// CategoryValidator is a validator for the "category" field enum values. It is called by the builders before save.
+func CategoryValidator(c Category) error {
+	switch c {
+	case CategorySavings, CategoryCreditCard, CategoryInvestment, CategoryFixedDeposit, CategoryGoldFx, CategoryRealEstate, CategoryLoan, CategoryOtherAsset, CategoryOtherLiability:
+		return nil
+	default:
+		return fmt.Errorf("account: invalid enum value for category field: %q", c)
+	}
+}
+
 // Ownership defines the type for the "ownership" enum field.
 type Ownership string
 
@@ -218,6 +254,11 @@ func ByName(opts ...sql.OrderTermOption) OrderOption {
 // ByAccountType orders the results by the account_type field.
 func ByAccountType(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAccountType, opts...).ToFunc()
+}
+
+// ByCategory orders the results by the category field.
+func ByCategory(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCategory, opts...).ToFunc()
 }
 
 // ByCurrencyCode orders the results by the currency_code field.

@@ -25,6 +25,8 @@ type Account struct {
 	Name string `json:"name,omitempty"`
 	// Account type per Chinese accounting standards
 	AccountType account.AccountType `json:"account_type,omitempty"`
+	// User-facing account category; drives account_type
+	Category account.Category `json:"category,omitempty"`
 	// ISO 4217 currency code
 	CurrencyCode string `json:"currency_code,omitempty"`
 	// Initial balance in integer cents
@@ -67,7 +69,7 @@ func (*Account) scanValues(columns []string) ([]any, error) {
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case account.FieldInitialBalanceCents, account.FieldCurrentBalanceCents, account.FieldCreditLimitCents, account.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case account.FieldName, account.FieldAccountType, account.FieldCurrencyCode, account.FieldOwnership, account.FieldIcon, account.FieldColor, account.FieldChartCode, account.FieldInstitution, account.FieldStatus:
+		case account.FieldName, account.FieldAccountType, account.FieldCategory, account.FieldCurrencyCode, account.FieldOwnership, account.FieldIcon, account.FieldColor, account.FieldChartCode, account.FieldInstitution, account.FieldStatus:
 			values[i] = new(sql.NullString)
 		case account.FieldDeletedAt, account.FieldCreatedAt, account.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -111,6 +113,12 @@ func (a *Account) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field account_type", values[i])
 			} else if value.Valid {
 				a.AccountType = account.AccountType(value.String)
+			}
+		case account.FieldCategory:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field category", values[i])
+			} else if value.Valid {
+				a.Category = account.Category(value.String)
 			}
 		case account.FieldCurrencyCode:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -248,6 +256,9 @@ func (a *Account) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("account_type=")
 	builder.WriteString(fmt.Sprintf("%v", a.AccountType))
+	builder.WriteString(", ")
+	builder.WriteString("category=")
+	builder.WriteString(fmt.Sprintf("%v", a.Category))
 	builder.WriteString(", ")
 	builder.WriteString("currency_code=")
 	builder.WriteString(a.CurrencyCode)

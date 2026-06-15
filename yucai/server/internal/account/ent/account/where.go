@@ -255,6 +255,26 @@ func AccountTypeNotIn(vs ...AccountType) predicate.Account {
 	return predicate.Account(sql.FieldNotIn(FieldAccountType, vs...))
 }
 
+// CategoryEQ applies the EQ predicate on the "category" field.
+func CategoryEQ(v Category) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldCategory, v))
+}
+
+// CategoryNEQ applies the NEQ predicate on the "category" field.
+func CategoryNEQ(v Category) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldCategory, v))
+}
+
+// CategoryIn applies the In predicate on the "category" field.
+func CategoryIn(vs ...Category) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldCategory, vs...))
+}
+
+// CategoryNotIn applies the NotIn predicate on the "category" field.
+func CategoryNotIn(vs ...Category) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldCategory, vs...))
+}
+
 // CurrencyCodeEQ applies the EQ predicate on the "currency_code" field.
 func CurrencyCodeEQ(v string) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldCurrencyCode, v))

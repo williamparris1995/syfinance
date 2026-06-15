@@ -14,6 +14,7 @@ var (
 		{Name: "tenant_id", Type: field.TypeUUID, Comment: "FK to tenants table — data isolation boundary"},
 		{Name: "name", Type: field.TypeString, Comment: "Account display name"},
 		{Name: "account_type", Type: field.TypeEnum, Comment: "Account type per Chinese accounting standards", Enums: []string{"asset", "liability", "equity", "income", "expense"}},
+		{Name: "category", Type: field.TypeEnum, Comment: "User-facing account category; drives account_type", Enums: []string{"savings", "credit_card", "investment", "fixed_deposit", "gold_fx", "real_estate", "loan", "other_asset", "other_liability"}, Default: "savings"},
 		{Name: "currency_code", Type: field.TypeString, Comment: "ISO 4217 currency code", Default: "CNY"},
 		{Name: "initial_balance_cents", Type: field.TypeInt64, Comment: "Initial balance in integer cents", Default: 0},
 		{Name: "current_balance_cents", Type: field.TypeInt64, Comment: "Current calculated balance in integer cents", Default: 0},
@@ -49,12 +50,12 @@ var (
 			{
 				Name:    "account_tenant_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{AccountsColumns[1], AccountsColumns[14]},
+				Columns: []*schema.Column{AccountsColumns[1], AccountsColumns[15]},
 			},
 			{
 				Name:    "account_tenant_id_chart_code",
 				Unique:  false,
-				Columns: []*schema.Column{AccountsColumns[1], AccountsColumns[10]},
+				Columns: []*schema.Column{AccountsColumns[1], AccountsColumns[11]},
 			},
 		},
 	}

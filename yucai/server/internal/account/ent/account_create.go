@@ -39,6 +39,20 @@ func (ac *AccountCreate) SetAccountType(at account.AccountType) *AccountCreate {
 	return ac
 }
 
+// SetCategory sets the "category" field.
+func (ac *AccountCreate) SetCategory(a account.Category) *AccountCreate {
+	ac.mutation.SetCategory(a)
+	return ac
+}
+
+// SetNillableCategory sets the "category" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableCategory(a *account.Category) *AccountCreate {
+	if a != nil {
+		ac.SetCategory(*a)
+	}
+	return ac
+}
+
 // SetCurrencyCode sets the "currency_code" field.
 func (ac *AccountCreate) SetCurrencyCode(s string) *AccountCreate {
 	ac.mutation.SetCurrencyCode(s)
@@ -298,6 +312,10 @@ func (ac *AccountCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (ac *AccountCreate) defaults() {
+	if _, ok := ac.mutation.Category(); !ok {
+		v := account.DefaultCategory
+		ac.mutation.SetCategory(v)
+	}
 	if _, ok := ac.mutation.CurrencyCode(); !ok {
 		v := account.DefaultCurrencyCode
 		ac.mutation.SetCurrencyCode(v)
@@ -375,6 +393,14 @@ func (ac *AccountCreate) check() error {
 	if v, ok := ac.mutation.AccountType(); ok {
 		if err := account.AccountTypeValidator(v); err != nil {
 			return &ValidationError{Name: "account_type", err: fmt.Errorf(`ent: validator failed for field "Account.account_type": %w`, err)}
+		}
+	}
+	if _, ok := ac.mutation.Category(); !ok {
+		return &ValidationError{Name: "category", err: errors.New(`ent: missing required field "Account.category"`)}
+	}
+	if v, ok := ac.mutation.Category(); ok {
+		if err := account.CategoryValidator(v); err != nil {
+			return &ValidationError{Name: "category", err: fmt.Errorf(`ent: validator failed for field "Account.category": %w`, err)}
 		}
 	}
 	if _, ok := ac.mutation.CurrencyCode(); !ok {
@@ -460,6 +486,10 @@ func (ac *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
 	if value, ok := ac.mutation.AccountType(); ok {
 		_spec.SetField(account.FieldAccountType, field.TypeEnum, value)
 		_node.AccountType = value
+	}
+	if value, ok := ac.mutation.Category(); ok {
+		_spec.SetField(account.FieldCategory, field.TypeEnum, value)
+		_node.Category = value
 	}
 	if value, ok := ac.mutation.CurrencyCode(); ok {
 		_spec.SetField(account.FieldCurrencyCode, field.TypeString, value)

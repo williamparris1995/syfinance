@@ -40,6 +40,11 @@ func (Account) Fields() []ent.Field {
 		field.Enum("account_type").
 			Values("asset", "liability", "equity", "income", "expense").
 			Comment("Account type per Chinese accounting standards"),
+		field.Enum("category").
+			Values("savings", "credit_card", "investment", "fixed_deposit",
+				"gold_fx", "real_estate", "loan", "other_asset", "other_liability").
+			Default("savings").
+			Comment("User-facing account category; drives account_type"),
 		field.String("currency_code").
 			Default("CNY").
 			Comment("ISO 4217 currency code"),

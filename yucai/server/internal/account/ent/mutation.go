@@ -39,6 +39,7 @@ type AccountMutation struct {
 	tenant_id                *uuid.UUID
 	name                     *string
 	account_type             *account.AccountType
+	category                 *account.Category
 	currency_code            *string
 	initial_balance_cents    *int64
 	addinitial_balance_cents *int64
@@ -274,6 +275,42 @@ func (m *AccountMutation) OldAccountType(ctx context.Context) (v account.Account
 // ResetAccountType resets all changes to the "account_type" field.
 func (m *AccountMutation) ResetAccountType() {
 	m.account_type = nil
+}
+
+// SetCategory sets the "category" field.
+func (m *AccountMutation) SetCategory(a account.Category) {
+	m.category = &a
+}
+
+// Category returns the value of the "category" field in the mutation.
+func (m *AccountMutation) Category() (r account.Category, exists bool) {
+	v := m.category
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCategory returns the old "category" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldCategory(ctx context.Context) (v account.Category, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCategory is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCategory requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCategory: %w", err)
+	}
+	return oldValue.Category, nil
+}
+
+// ResetCategory resets all changes to the "category" field.
+func (m *AccountMutation) ResetCategory() {
+	m.category = nil
 }
 
 // SetCurrencyCode sets the "currency_code" field.
@@ -1008,7 +1045,7 @@ func (m *AccountMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AccountMutation) Fields() []string {
-	fields := make([]string, 0, 18)
+	fields := make([]string, 0, 19)
 	if m.tenant_id != nil {
 		fields = append(fields, account.FieldTenantID)
 	}
@@ -1017,6 +1054,9 @@ func (m *AccountMutation) Fields() []string {
 	}
 	if m.account_type != nil {
 		fields = append(fields, account.FieldAccountType)
+	}
+	if m.category != nil {
+		fields = append(fields, account.FieldCategory)
 	}
 	if m.currency_code != nil {
 		fields = append(fields, account.FieldCurrencyCode)
@@ -1077,6 +1117,8 @@ func (m *AccountMutation) Field(name string) (ent.Value, bool) {
 		return m.Name()
 	case account.FieldAccountType:
 		return m.AccountType()
+	case account.FieldCategory:
+		return m.Category()
 	case account.FieldCurrencyCode:
 		return m.CurrencyCode()
 	case account.FieldInitialBalanceCents:
@@ -1122,6 +1164,8 @@ func (m *AccountMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldName(ctx)
 	case account.FieldAccountType:
 		return m.OldAccountType(ctx)
+	case account.FieldCategory:
+		return m.OldCategory(ctx)
 	case account.FieldCurrencyCode:
 		return m.OldCurrencyCode(ctx)
 	case account.FieldInitialBalanceCents:
@@ -1181,6 +1225,13 @@ func (m *AccountMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAccountType(v)
+		return nil
+	case account.FieldCategory:
+		v, ok := value.(account.Category)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCategory(v)
 		return nil
 	case account.FieldCurrencyCode:
 		v, ok := value.(string)
@@ -1434,6 +1485,9 @@ func (m *AccountMutation) ResetField(name string) error {
 		return nil
 	case account.FieldAccountType:
 		m.ResetAccountType()
+		return nil
+	case account.FieldCategory:
+		m.ResetCategory()
 		return nil
 	case account.FieldCurrencyCode:
 		m.ResetCurrencyCode()

@@ -57,6 +57,20 @@ func (au *AccountUpdate) SetNillableAccountType(at *account.AccountType) *Accoun
 	return au
 }
 
+// SetCategory sets the "category" field.
+func (au *AccountUpdate) SetCategory(a account.Category) *AccountUpdate {
+	au.mutation.SetCategory(a)
+	return au
+}
+
+// SetNillableCategory sets the "category" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableCategory(a *account.Category) *AccountUpdate {
+	if a != nil {
+		au.SetCategory(*a)
+	}
+	return au
+}
+
 // SetCurrencyCode sets the "currency_code" field.
 func (au *AccountUpdate) SetCurrencyCode(s string) *AccountUpdate {
 	au.mutation.SetCurrencyCode(s)
@@ -362,6 +376,11 @@ func (au *AccountUpdate) check() error {
 			return &ValidationError{Name: "account_type", err: fmt.Errorf(`ent: validator failed for field "Account.account_type": %w`, err)}
 		}
 	}
+	if v, ok := au.mutation.Category(); ok {
+		if err := account.CategoryValidator(v); err != nil {
+			return &ValidationError{Name: "category", err: fmt.Errorf(`ent: validator failed for field "Account.category": %w`, err)}
+		}
+	}
 	if v, ok := au.mutation.Ownership(); ok {
 		if err := account.OwnershipValidator(v); err != nil {
 			return &ValidationError{Name: "ownership", err: fmt.Errorf(`ent: validator failed for field "Account.ownership": %w`, err)}
@@ -392,6 +411,9 @@ func (au *AccountUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := au.mutation.AccountType(); ok {
 		_spec.SetField(account.FieldAccountType, field.TypeEnum, value)
+	}
+	if value, ok := au.mutation.Category(); ok {
+		_spec.SetField(account.FieldCategory, field.TypeEnum, value)
 	}
 	if value, ok := au.mutation.CurrencyCode(); ok {
 		_spec.SetField(account.FieldCurrencyCode, field.TypeString, value)
@@ -509,6 +531,20 @@ func (auo *AccountUpdateOne) SetAccountType(at account.AccountType) *AccountUpda
 func (auo *AccountUpdateOne) SetNillableAccountType(at *account.AccountType) *AccountUpdateOne {
 	if at != nil {
 		auo.SetAccountType(*at)
+	}
+	return auo
+}
+
+// SetCategory sets the "category" field.
+func (auo *AccountUpdateOne) SetCategory(a account.Category) *AccountUpdateOne {
+	auo.mutation.SetCategory(a)
+	return auo
+}
+
+// SetNillableCategory sets the "category" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableCategory(a *account.Category) *AccountUpdateOne {
+	if a != nil {
+		auo.SetCategory(*a)
 	}
 	return auo
 }
@@ -831,6 +867,11 @@ func (auo *AccountUpdateOne) check() error {
 			return &ValidationError{Name: "account_type", err: fmt.Errorf(`ent: validator failed for field "Account.account_type": %w`, err)}
 		}
 	}
+	if v, ok := auo.mutation.Category(); ok {
+		if err := account.CategoryValidator(v); err != nil {
+			return &ValidationError{Name: "category", err: fmt.Errorf(`ent: validator failed for field "Account.category": %w`, err)}
+		}
+	}
 	if v, ok := auo.mutation.Ownership(); ok {
 		if err := account.OwnershipValidator(v); err != nil {
 			return &ValidationError{Name: "ownership", err: fmt.Errorf(`ent: validator failed for field "Account.ownership": %w`, err)}
@@ -878,6 +919,9 @@ func (auo *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err e
 	}
 	if value, ok := auo.mutation.AccountType(); ok {
 		_spec.SetField(account.FieldAccountType, field.TypeEnum, value)
+	}
+	if value, ok := auo.mutation.Category(); ok {
+		_spec.SetField(account.FieldCategory, field.TypeEnum, value)
 	}
 	if value, ok := auo.mutation.CurrencyCode(); ok {
 		_spec.SetField(account.FieldCurrencyCode, field.TypeString, value)
