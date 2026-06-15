@@ -13,6 +13,7 @@ type CreateAccountRequest struct {
 	TenantID            uuid.UUID
 	Name                string
 	AccountType         domain.AccountType
+	Category            domain.AccountCategory
 	CurrencyCode        string
 	InitialBalanceCents int64
 	Ownership           domain.Ownership
@@ -56,6 +57,7 @@ type AccountDTO struct {
 	TenantID            uuid.UUID
 	Name                string
 	AccountType         domain.AccountType
+	Category            domain.AccountCategory
 	CurrencyCode        string
 	InitialBalanceCents int64
 	CurrentBalanceCents int64
@@ -86,6 +88,7 @@ func AccountToDTO(a *domain.Account) AccountDTO {
 		TenantID:            a.TenantID,
 		Name:                a.Name,
 		AccountType:         a.AccountType,
+		Category:            a.Category,
 		CurrencyCode:        a.CurrencyCode,
 		InitialBalanceCents: a.InitialBalanceCents,
 		CurrentBalanceCents: a.CurrentBalanceCents,

@@ -23,7 +23,7 @@ func NewService(accountRepo domain.AccountRepository, chartRepo domain.ChartRepo
 
 // CreateAccount creates a new account and returns its DTO.
 func (s *Service) CreateAccount(ctx context.Context, req CreateAccountRequest) (*AccountDTO, error) {
-	account, err := domain.NewAccount(req.TenantID, req.Name, req.AccountType, req.CurrencyCode)
+	account, err := domain.NewAccountWithCategory(req.TenantID, req.Name, req.Category, req.CurrencyCode)
 	if err != nil {
 		return nil, fmt.Errorf("create account: %w", err)
 	}

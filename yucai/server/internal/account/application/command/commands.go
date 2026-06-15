@@ -10,6 +10,7 @@ type CreateAccountCommand struct {
 	TenantID            uuid.UUID
 	Name                string
 	AccountType         domain.AccountType
+	Category            domain.AccountCategory
 	CurrencyCode        string
 	InitialBalanceCents int64
 	Ownership           domain.Ownership
