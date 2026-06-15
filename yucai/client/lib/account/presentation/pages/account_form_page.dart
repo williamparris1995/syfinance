@@ -27,7 +27,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
   final _nameCtrl = TextEditingController();
   final _currencyCtrl = TextEditingController(text: 'CNY');
   final _balanceCtrl = TextEditingController(text: '0');
-  AccountType _type = AccountType.asset;
+  AccountCategory _category = AccountCategory.savings;
   Ownership _ownership = Ownership.personal;
   bool _submitted = false;
 
@@ -39,12 +39,16 @@ class _AccountFormPageState extends State<AccountFormPage> {
     super.dispose();
   }
 
-  static const _typeOptions = <TypeOption<AccountType>>[
-    TypeOption(AccountType.asset, '资产', Icons.savings_outlined),
-    TypeOption(AccountType.liability, '负债', Icons.credit_card_outlined),
-    TypeOption(AccountType.equity, '权益', Icons.account_balance_outlined),
-    TypeOption(AccountType.income, '收入', Icons.trending_up),
-    TypeOption(AccountType.expense, '支出', Icons.trending_down),
+  static const _categoryOptions = <TypeOption<AccountCategory>>[
+    TypeOption(AccountCategory.savings, '储蓄', Icons.account_balance_wallet_outlined),
+    TypeOption(AccountCategory.creditCard, '信用卡', Icons.credit_card_outlined),
+    TypeOption(AccountCategory.investment, '投资', Icons.trending_up),
+    TypeOption(AccountCategory.fixedDeposit, '定期', Icons.hourglass_bottom),
+    TypeOption(AccountCategory.goldFx, '黄金外汇', Icons.diamond_outlined),
+    TypeOption(AccountCategory.realEstate, '固定资产', Icons.home_outlined),
+    TypeOption(AccountCategory.loan, '贷款', Icons.request_quote_outlined),
+    TypeOption(AccountCategory.otherAsset, '其他资产', Icons.inventory_2_outlined),
+    TypeOption(AccountCategory.otherLiability, '其他负债', Icons.pending_actions),
   ];
 
   void _submit() {
@@ -55,8 +59,8 @@ class _AccountFormPageState extends State<AccountFormPage> {
           CreateAccountRequested(
             CreateAccountParams(
               name: _nameCtrl.text.trim(),
-              accountType: _type,
-              category: AccountCategory.savings,
+              accountType: _category.accountType,
+              category: _category,
               currencyCode: _currencyCtrl.text.trim().toUpperCase(),
               initialBalanceCents: (balanceYuan * 100).round(),
               ownership: _ownership,
@@ -104,11 +108,14 @@ class _AccountFormPageState extends State<AccountFormPage> {
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.8)),
                         const SizedBox(height: AppSpacing.sm),
-                        TypeTabs<AccountType>(
-                          options: _typeOptions,
-                          selected: _type,
-                          onChanged: (v) => setState(() => _type = v),
+                        TypeTabs<AccountCategory>(
+                          options: _categoryOptions,
+                          selected: _category,
+                          onChanged: (v) => setState(() => _category = v),
                         ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(_category.description,
+                            style: const TextStyle(color: AppColors.muted, fontSize: 12)),
                         const SizedBox(height: AppSpacing.lg),
                         const Divider(height: 1, color: AppColors.border),
                         const SizedBox(height: AppSpacing.lg),
