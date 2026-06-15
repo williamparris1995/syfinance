@@ -128,3 +128,40 @@ func TestNewChartOfAccount(t *testing.T) {
 		t.Error("empty code should fail")
 	}
 }
+
+func TestAccountCategoryToAccountType(t *testing.T) {
+	cases := []struct {
+		cat  AccountCategory
+		want AccountType
+	}{
+		{AccountCategorySavings, AccountTypeAsset},
+		{AccountCategoryInvestment, AccountTypeAsset},
+		{AccountCategoryFixedDeposit, AccountTypeAsset},
+		{AccountCategoryGoldFx, AccountTypeAsset},
+		{AccountCategoryRealEstate, AccountTypeAsset},
+		{AccountCategoryOtherAsset, AccountTypeAsset},
+		{AccountCategoryCreditCard, AccountTypeLiability},
+		{AccountCategoryLoan, AccountTypeLiability},
+		{AccountCategoryOtherLiability, AccountTypeLiability},
+	}
+	for _, c := range cases {
+		if got := c.cat.ToAccountType(); got != c.want {
+			t.Errorf("%s.ToAccountType()=%s, want %s", c.cat, got, c.want)
+		}
+	}
+}
+
+func TestAccountCategoryStringRoundTrip(t *testing.T) {
+	for _, c := range []AccountCategory{
+		AccountCategorySavings, AccountCategoryCreditCard, AccountCategoryInvestment,
+		AccountCategoryFixedDeposit, AccountCategoryGoldFx, AccountCategoryRealEstate,
+		AccountCategoryLoan, AccountCategoryOtherAsset, AccountCategoryOtherLiability,
+	} {
+		if ParseAccountCategory(c.String()) != c {
+			t.Errorf("round-trip failed for %s", c.String())
+		}
+	}
+	if ParseAccountCategory("nonsense") != AccountCategorySavings {
+		t.Error("unknown category should default to Savings")
+	}
+}
