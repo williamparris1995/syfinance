@@ -39,6 +39,19 @@ enum AccountStatus {
   ACCOUNT_STATUS_ARCHIVED = 2;
 }
 
+enum AccountCategory {
+  ACCOUNT_CATEGORY_UNSPECIFIED = 0;
+  ACCOUNT_CATEGORY_SAVINGS = 1;
+  ACCOUNT_CATEGORY_CREDIT_CARD = 2;
+  ACCOUNT_CATEGORY_INVESTMENT = 3;
+  ACCOUNT_CATEGORY_FIXED_DEPOSIT = 4;
+  ACCOUNT_CATEGORY_GOLD_FX = 5;
+  ACCOUNT_CATEGORY_REAL_ESTATE = 6;
+  ACCOUNT_CATEGORY_LOAN = 7;
+  ACCOUNT_CATEGORY_OTHER_ASSET = 8;
+  ACCOUNT_CATEGORY_OTHER_LIABILITY = 9;
+}
+
 message AccountDTO {
   string id = 1;
   string name = 2;
@@ -57,6 +70,7 @@ message AccountDTO {
   int64 version = 15;
   google.protobuf.Timestamp created_at = 16;
   google.protobuf.Timestamp updated_at = 17;
+  AccountCategory category = 18;
 }
 
 message CreateAccountRequest {
@@ -71,6 +85,7 @@ message CreateAccountRequest {
   string parent_id = 9;
   string institution = 10;
   int64 credit_limit_cents = 11;
+  AccountCategory category = 12;
 }
 
 message GetAccountRequest {

@@ -65,6 +65,33 @@ final $typed_data.Uint8List accountStatusDescriptor = $convert.base64Decode(
     'Cg1BY2NvdW50U3RhdHVzEh4KGkFDQ09VTlRfU1RBVFVTX1VOU1BFQ0lGSUVEEAASGQoVQUNDT1'
     'VOVF9TVEFUVVNfQUNUSVZFEAESGwoXQUNDT1VOVF9TVEFUVVNfQVJDSElWRUQQAg==');
 
+@$core.Deprecated('Use accountCategoryDescriptor instead')
+const AccountCategory$json = {
+  '1': 'AccountCategory',
+  '2': [
+    {'1': 'ACCOUNT_CATEGORY_UNSPECIFIED', '2': 0},
+    {'1': 'ACCOUNT_CATEGORY_SAVINGS', '2': 1},
+    {'1': 'ACCOUNT_CATEGORY_CREDIT_CARD', '2': 2},
+    {'1': 'ACCOUNT_CATEGORY_INVESTMENT', '2': 3},
+    {'1': 'ACCOUNT_CATEGORY_FIXED_DEPOSIT', '2': 4},
+    {'1': 'ACCOUNT_CATEGORY_GOLD_FX', '2': 5},
+    {'1': 'ACCOUNT_CATEGORY_REAL_ESTATE', '2': 6},
+    {'1': 'ACCOUNT_CATEGORY_LOAN', '2': 7},
+    {'1': 'ACCOUNT_CATEGORY_OTHER_ASSET', '2': 8},
+    {'1': 'ACCOUNT_CATEGORY_OTHER_LIABILITY', '2': 9},
+  ],
+};
+
+/// Descriptor for `AccountCategory`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List accountCategoryDescriptor = $convert.base64Decode(
+    'Cg9BY2NvdW50Q2F0ZWdvcnkSIAocQUNDT1VOVF9DQVRFR09SWV9VTlNQRUNJRklFRBAAEhwKGE'
+    'FDQ09VTlRfQ0FURUdPUllfU0FWSU5HUxABEiAKHEFDQ09VTlRfQ0FURUdPUllfQ1JFRElUX0NB'
+    'UkQQAhIfChtBQ0NPVU5UX0NBVEVHT1JZX0lOVkVTVE1FTlQQAxIiCh5BQ0NPVU5UX0NBVEVHT1'
+    'JZX0ZJWEVEX0RFUE9TSVQQBBIcChhBQ0NPVU5UX0NBVEVHT1JZX0dPTERfRlgQBRIgChxBQ0NP'
+    'VU5UX0NBVEVHT1JZX1JFQUxfRVNUQVRFEAYSGQoVQUNDT1VOVF9DQVRFR09SWV9MT0FOEAcSIA'
+    'ocQUNDT1VOVF9DQVRFR09SWV9PVEhFUl9BU1NFVBAIEiQKIEFDQ09VTlRfQ0FURUdPUllfT1RI'
+    'RVJfTElBQklMSVRZEAk=');
+
 @$core.Deprecated('Use accountDTODescriptor instead')
 const AccountDTO$json = {
   '1': 'AccountDTO',
@@ -139,6 +166,14 @@ const AccountDTO$json = {
       '6': '.google.protobuf.Timestamp',
       '10': 'updatedAt'
     },
+    {
+      '1': 'category',
+      '3': 18,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.account.v1.AccountCategory',
+      '10': 'category'
+    },
   ],
 };
 
@@ -156,7 +191,8 @@ final $typed_data.Uint8List accountDTODescriptor = $convert.base64Decode(
     'ZzdGF0dXMYDiABKA4yHy55dWNhaS5hY2NvdW50LnYxLkFjY291bnRTdGF0dXNSBnN0YXR1cxIY'
     'Cgd2ZXJzaW9uGA8gASgDUgd2ZXJzaW9uEjkKCmNyZWF0ZWRfYXQYECABKAsyGi5nb29nbGUucH'
     'JvdG9idWYuVGltZXN0YW1wUgljcmVhdGVkQXQSOQoKdXBkYXRlZF9hdBgRIAEoCzIaLmdvb2ds'
-    'ZS5wcm90b2J1Zi5UaW1lc3RhbXBSCXVwZGF0ZWRBdA==');
+    'ZS5wcm90b2J1Zi5UaW1lc3RhbXBSCXVwZGF0ZWRBdBI9CghjYXRlZ29yeRgSIAEoDjIhLnl1Y2'
+    'FpLmFjY291bnQudjEuQWNjb3VudENhdGVnb3J5UghjYXRlZ29yeQ==');
 
 @$core.Deprecated('Use createAccountRequestDescriptor instead')
 const CreateAccountRequest$json = {
@@ -199,6 +235,14 @@ const CreateAccountRequest$json = {
       '5': 3,
       '10': 'creditLimitCents'
     },
+    {
+      '1': 'category',
+      '3': 12,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.account.v1.AccountCategory',
+      '10': 'category'
+    },
   ],
 };
 
@@ -211,7 +255,9 @@ final $typed_data.Uint8List createAccountRequestDescriptor = $convert.base64Deco
     'YWkuYWNjb3VudC52MS5Pd25lcnNoaXBSCW93bmVyc2hpcBISCgRpY29uGAYgASgJUgRpY29uEh'
     'QKBWNvbG9yGAcgASgJUgVjb2xvchIdCgpjaGFydF9jb2RlGAggASgJUgljaGFydENvZGUSGwoJ'
     'cGFyZW50X2lkGAkgASgJUghwYXJlbnRJZBIgCgtpbnN0aXR1dGlvbhgKIAEoCVILaW5zdGl0dX'
-    'Rpb24SLAoSY3JlZGl0X2xpbWl0X2NlbnRzGAsgASgDUhBjcmVkaXRMaW1pdENlbnRz');
+    'Rpb24SLAoSY3JlZGl0X2xpbWl0X2NlbnRzGAsgASgDUhBjcmVkaXRMaW1pdENlbnRzEj0KCGNh'
+    'dGVnb3J5GAwgASgOMiEueXVjYWkuYWNjb3VudC52MS5BY2NvdW50Q2F0ZWdvcnlSCGNhdGVnb3'
+    'J5');
 
 @$core.Deprecated('Use getAccountRequestDescriptor instead')
 const GetAccountRequest$json = {

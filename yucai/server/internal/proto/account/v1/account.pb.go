@@ -180,6 +180,76 @@ func (AccountStatus) EnumDescriptor() ([]byte, []int) {
 	return file_account_v1_account_proto_rawDescGZIP(), []int{2}
 }
 
+type AccountCategory int32
+
+const (
+	AccountCategory_ACCOUNT_CATEGORY_UNSPECIFIED     AccountCategory = 0
+	AccountCategory_ACCOUNT_CATEGORY_SAVINGS         AccountCategory = 1
+	AccountCategory_ACCOUNT_CATEGORY_CREDIT_CARD     AccountCategory = 2
+	AccountCategory_ACCOUNT_CATEGORY_INVESTMENT      AccountCategory = 3
+	AccountCategory_ACCOUNT_CATEGORY_FIXED_DEPOSIT   AccountCategory = 4
+	AccountCategory_ACCOUNT_CATEGORY_GOLD_FX         AccountCategory = 5
+	AccountCategory_ACCOUNT_CATEGORY_REAL_ESTATE     AccountCategory = 6
+	AccountCategory_ACCOUNT_CATEGORY_LOAN            AccountCategory = 7
+	AccountCategory_ACCOUNT_CATEGORY_OTHER_ASSET     AccountCategory = 8
+	AccountCategory_ACCOUNT_CATEGORY_OTHER_LIABILITY AccountCategory = 9
+)
+
+// Enum value maps for AccountCategory.
+var (
+	AccountCategory_name = map[int32]string{
+		0: "ACCOUNT_CATEGORY_UNSPECIFIED",
+		1: "ACCOUNT_CATEGORY_SAVINGS",
+		2: "ACCOUNT_CATEGORY_CREDIT_CARD",
+		3: "ACCOUNT_CATEGORY_INVESTMENT",
+		4: "ACCOUNT_CATEGORY_FIXED_DEPOSIT",
+		5: "ACCOUNT_CATEGORY_GOLD_FX",
+		6: "ACCOUNT_CATEGORY_REAL_ESTATE",
+		7: "ACCOUNT_CATEGORY_LOAN",
+		8: "ACCOUNT_CATEGORY_OTHER_ASSET",
+		9: "ACCOUNT_CATEGORY_OTHER_LIABILITY",
+	}
+	AccountCategory_value = map[string]int32{
+		"ACCOUNT_CATEGORY_UNSPECIFIED":     0,
+		"ACCOUNT_CATEGORY_SAVINGS":         1,
+		"ACCOUNT_CATEGORY_CREDIT_CARD":     2,
+		"ACCOUNT_CATEGORY_INVESTMENT":      3,
+		"ACCOUNT_CATEGORY_FIXED_DEPOSIT":   4,
+		"ACCOUNT_CATEGORY_GOLD_FX":         5,
+		"ACCOUNT_CATEGORY_REAL_ESTATE":     6,
+		"ACCOUNT_CATEGORY_LOAN":            7,
+		"ACCOUNT_CATEGORY_OTHER_ASSET":     8,
+		"ACCOUNT_CATEGORY_OTHER_LIABILITY": 9,
+	}
+)
+
+func (x AccountCategory) Enum() *AccountCategory {
+	p := new(AccountCategory)
+	*p = x
+	return p
+}
+
+func (x AccountCategory) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AccountCategory) Descriptor() protoreflect.EnumDescriptor {
+	return file_account_v1_account_proto_enumTypes[3].Descriptor()
+}
+
+func (AccountCategory) Type() protoreflect.EnumType {
+	return &file_account_v1_account_proto_enumTypes[3]
+}
+
+func (x AccountCategory) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AccountCategory.Descriptor instead.
+func (AccountCategory) EnumDescriptor() ([]byte, []int) {
+	return file_account_v1_account_proto_rawDescGZIP(), []int{3}
+}
+
 type AccountDTO struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	Id                  string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -199,6 +269,7 @@ type AccountDTO struct {
 	Version             int64                  `protobuf:"varint,15,opt,name=version,proto3" json:"version,omitempty"`
 	CreatedAt           *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt           *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Category            AccountCategory        `protobuf:"varint,18,opt,name=category,proto3,enum=yucai.account.v1.AccountCategory" json:"category,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -352,6 +423,13 @@ func (x *AccountDTO) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *AccountDTO) GetCategory() AccountCategory {
+	if x != nil {
+		return x.Category
+	}
+	return AccountCategory_ACCOUNT_CATEGORY_UNSPECIFIED
+}
+
 type CreateAccountRequest struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	Name                string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -365,6 +443,7 @@ type CreateAccountRequest struct {
 	ParentId            string                 `protobuf:"bytes,9,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"`
 	Institution         string                 `protobuf:"bytes,10,opt,name=institution,proto3" json:"institution,omitempty"`
 	CreditLimitCents    int64                  `protobuf:"varint,11,opt,name=credit_limit_cents,json=creditLimitCents,proto3" json:"credit_limit_cents,omitempty"`
+	Category            AccountCategory        `protobuf:"varint,12,opt,name=category,proto3,enum=yucai.account.v1.AccountCategory" json:"category,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -474,6 +553,13 @@ func (x *CreateAccountRequest) GetCreditLimitCents() int64 {
 		return x.CreditLimitCents
 	}
 	return 0
+}
+
+func (x *CreateAccountRequest) GetCategory() AccountCategory {
+	if x != nil {
+		return x.Category
+	}
+	return AccountCategory_ACCOUNT_CATEGORY_UNSPECIFIED
 }
 
 type GetAccountRequest struct {
@@ -824,7 +910,7 @@ var File_account_v1_account_proto protoreflect.FileDescriptor
 
 const file_account_v1_account_proto_rawDesc = "" +
 	"\n" +
-	"\x18account/v1/account.proto\x12\x10yucai.account.v1\x1a\x15common/v1/money.proto\x1a\x1acommon/v1/pagination.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb9\x05\n" +
+	"\x18account/v1/account.proto\x12\x10yucai.account.v1\x1a\x15common/v1/money.proto\x1a\x1acommon/v1/pagination.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf8\x05\n" +
 	"\n" +
 	"AccountDTO\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
@@ -847,7 +933,8 @@ const file_account_v1_account_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xb6\x03\n" +
+	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12=\n" +
+	"\bcategory\x18\x12 \x01(\x0e2!.yucai.account.v1.AccountCategoryR\bcategory\"\xf5\x03\n" +
 	"\x14CreateAccountRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12@\n" +
 	"\faccount_type\x18\x02 \x01(\x0e2\x1d.yucai.account.v1.AccountTypeR\vaccountType\x12#\n" +
@@ -861,7 +948,8 @@ const file_account_v1_account_proto_rawDesc = "" +
 	"\tparent_id\x18\t \x01(\tR\bparentId\x12 \n" +
 	"\vinstitution\x18\n" +
 	" \x01(\tR\vinstitution\x12,\n" +
-	"\x12credit_limit_cents\x18\v \x01(\x03R\x10creditLimitCents\"#\n" +
+	"\x12credit_limit_cents\x18\v \x01(\x03R\x10creditLimitCents\x12=\n" +
+	"\bcategory\x18\f \x01(\x0e2!.yucai.account.v1.AccountCategoryR\bcategory\"#\n" +
 	"\x11GetAccountRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\xc2\x01\n" +
 	"\x13ListAccountsRequest\x120\n" +
@@ -899,7 +987,18 @@ const file_account_v1_account_proto_rawDesc = "" +
 	"\rAccountStatus\x12\x1e\n" +
 	"\x1aACCOUNT_STATUS_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15ACCOUNT_STATUS_ACTIVE\x10\x01\x12\x1b\n" +
-	"\x17ACCOUNT_STATUS_ARCHIVED\x10\x022\xce\x03\n" +
+	"\x17ACCOUNT_STATUS_ARCHIVED\x10\x02*\xdb\x02\n" +
+	"\x0fAccountCategory\x12 \n" +
+	"\x1cACCOUNT_CATEGORY_UNSPECIFIED\x10\x00\x12\x1c\n" +
+	"\x18ACCOUNT_CATEGORY_SAVINGS\x10\x01\x12 \n" +
+	"\x1cACCOUNT_CATEGORY_CREDIT_CARD\x10\x02\x12\x1f\n" +
+	"\x1bACCOUNT_CATEGORY_INVESTMENT\x10\x03\x12\"\n" +
+	"\x1eACCOUNT_CATEGORY_FIXED_DEPOSIT\x10\x04\x12\x1c\n" +
+	"\x18ACCOUNT_CATEGORY_GOLD_FX\x10\x05\x12 \n" +
+	"\x1cACCOUNT_CATEGORY_REAL_ESTATE\x10\x06\x12\x19\n" +
+	"\x15ACCOUNT_CATEGORY_LOAN\x10\a\x12 \n" +
+	"\x1cACCOUNT_CATEGORY_OTHER_ASSET\x10\b\x12$\n" +
+	" ACCOUNT_CATEGORY_OTHER_LIABILITY\x10\t2\xce\x03\n" +
 	"\x0eAccountService\x12Z\n" +
 	"\rCreateAccount\x12&.yucai.account.v1.CreateAccountRequest\x1a!.yucai.account.v1.AccountResponse\x12T\n" +
 	"\n" +
@@ -921,54 +1020,57 @@ func file_account_v1_account_proto_rawDescGZIP() []byte {
 	return file_account_v1_account_proto_rawDescData
 }
 
-var file_account_v1_account_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_account_v1_account_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
 var file_account_v1_account_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_account_v1_account_proto_goTypes = []any{
 	(AccountType)(0),              // 0: yucai.account.v1.AccountType
 	(Ownership)(0),                // 1: yucai.account.v1.Ownership
 	(AccountStatus)(0),            // 2: yucai.account.v1.AccountStatus
-	(*AccountDTO)(nil),            // 3: yucai.account.v1.AccountDTO
-	(*CreateAccountRequest)(nil),  // 4: yucai.account.v1.CreateAccountRequest
-	(*GetAccountRequest)(nil),     // 5: yucai.account.v1.GetAccountRequest
-	(*ListAccountsRequest)(nil),   // 6: yucai.account.v1.ListAccountsRequest
-	(*ListAccountsResponse)(nil),  // 7: yucai.account.v1.ListAccountsResponse
-	(*UpdateAccountRequest)(nil),  // 8: yucai.account.v1.UpdateAccountRequest
-	(*DeleteAccountRequest)(nil),  // 9: yucai.account.v1.DeleteAccountRequest
-	(*AccountResponse)(nil),       // 10: yucai.account.v1.AccountResponse
-	(*timestamppb.Timestamp)(nil), // 11: google.protobuf.Timestamp
-	(*v1.PageRequest)(nil),        // 12: yucai.common.v1.PageRequest
-	(*v1.PageResponse)(nil),       // 13: yucai.common.v1.PageResponse
-	(*emptypb.Empty)(nil),         // 14: google.protobuf.Empty
+	(AccountCategory)(0),          // 3: yucai.account.v1.AccountCategory
+	(*AccountDTO)(nil),            // 4: yucai.account.v1.AccountDTO
+	(*CreateAccountRequest)(nil),  // 5: yucai.account.v1.CreateAccountRequest
+	(*GetAccountRequest)(nil),     // 6: yucai.account.v1.GetAccountRequest
+	(*ListAccountsRequest)(nil),   // 7: yucai.account.v1.ListAccountsRequest
+	(*ListAccountsResponse)(nil),  // 8: yucai.account.v1.ListAccountsResponse
+	(*UpdateAccountRequest)(nil),  // 9: yucai.account.v1.UpdateAccountRequest
+	(*DeleteAccountRequest)(nil),  // 10: yucai.account.v1.DeleteAccountRequest
+	(*AccountResponse)(nil),       // 11: yucai.account.v1.AccountResponse
+	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
+	(*v1.PageRequest)(nil),        // 13: yucai.common.v1.PageRequest
+	(*v1.PageResponse)(nil),       // 14: yucai.common.v1.PageResponse
+	(*emptypb.Empty)(nil),         // 15: google.protobuf.Empty
 }
 var file_account_v1_account_proto_depIdxs = []int32{
 	0,  // 0: yucai.account.v1.AccountDTO.account_type:type_name -> yucai.account.v1.AccountType
 	1,  // 1: yucai.account.v1.AccountDTO.ownership:type_name -> yucai.account.v1.Ownership
 	2,  // 2: yucai.account.v1.AccountDTO.status:type_name -> yucai.account.v1.AccountStatus
-	11, // 3: yucai.account.v1.AccountDTO.created_at:type_name -> google.protobuf.Timestamp
-	11, // 4: yucai.account.v1.AccountDTO.updated_at:type_name -> google.protobuf.Timestamp
-	0,  // 5: yucai.account.v1.CreateAccountRequest.account_type:type_name -> yucai.account.v1.AccountType
-	1,  // 6: yucai.account.v1.CreateAccountRequest.ownership:type_name -> yucai.account.v1.Ownership
-	12, // 7: yucai.account.v1.ListAccountsRequest.page:type_name -> yucai.common.v1.PageRequest
-	0,  // 8: yucai.account.v1.ListAccountsRequest.account_type:type_name -> yucai.account.v1.AccountType
-	2,  // 9: yucai.account.v1.ListAccountsRequest.status:type_name -> yucai.account.v1.AccountStatus
-	3,  // 10: yucai.account.v1.ListAccountsResponse.accounts:type_name -> yucai.account.v1.AccountDTO
-	13, // 11: yucai.account.v1.ListAccountsResponse.page:type_name -> yucai.common.v1.PageResponse
-	3,  // 12: yucai.account.v1.AccountResponse.account:type_name -> yucai.account.v1.AccountDTO
-	4,  // 13: yucai.account.v1.AccountService.CreateAccount:input_type -> yucai.account.v1.CreateAccountRequest
-	5,  // 14: yucai.account.v1.AccountService.GetAccount:input_type -> yucai.account.v1.GetAccountRequest
-	6,  // 15: yucai.account.v1.AccountService.ListAccounts:input_type -> yucai.account.v1.ListAccountsRequest
-	8,  // 16: yucai.account.v1.AccountService.UpdateAccount:input_type -> yucai.account.v1.UpdateAccountRequest
-	9,  // 17: yucai.account.v1.AccountService.DeleteAccount:input_type -> yucai.account.v1.DeleteAccountRequest
-	10, // 18: yucai.account.v1.AccountService.CreateAccount:output_type -> yucai.account.v1.AccountResponse
-	10, // 19: yucai.account.v1.AccountService.GetAccount:output_type -> yucai.account.v1.AccountResponse
-	7,  // 20: yucai.account.v1.AccountService.ListAccounts:output_type -> yucai.account.v1.ListAccountsResponse
-	10, // 21: yucai.account.v1.AccountService.UpdateAccount:output_type -> yucai.account.v1.AccountResponse
-	14, // 22: yucai.account.v1.AccountService.DeleteAccount:output_type -> google.protobuf.Empty
-	18, // [18:23] is the sub-list for method output_type
-	13, // [13:18] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	12, // 3: yucai.account.v1.AccountDTO.created_at:type_name -> google.protobuf.Timestamp
+	12, // 4: yucai.account.v1.AccountDTO.updated_at:type_name -> google.protobuf.Timestamp
+	3,  // 5: yucai.account.v1.AccountDTO.category:type_name -> yucai.account.v1.AccountCategory
+	0,  // 6: yucai.account.v1.CreateAccountRequest.account_type:type_name -> yucai.account.v1.AccountType
+	1,  // 7: yucai.account.v1.CreateAccountRequest.ownership:type_name -> yucai.account.v1.Ownership
+	3,  // 8: yucai.account.v1.CreateAccountRequest.category:type_name -> yucai.account.v1.AccountCategory
+	13, // 9: yucai.account.v1.ListAccountsRequest.page:type_name -> yucai.common.v1.PageRequest
+	0,  // 10: yucai.account.v1.ListAccountsRequest.account_type:type_name -> yucai.account.v1.AccountType
+	2,  // 11: yucai.account.v1.ListAccountsRequest.status:type_name -> yucai.account.v1.AccountStatus
+	4,  // 12: yucai.account.v1.ListAccountsResponse.accounts:type_name -> yucai.account.v1.AccountDTO
+	14, // 13: yucai.account.v1.ListAccountsResponse.page:type_name -> yucai.common.v1.PageResponse
+	4,  // 14: yucai.account.v1.AccountResponse.account:type_name -> yucai.account.v1.AccountDTO
+	5,  // 15: yucai.account.v1.AccountService.CreateAccount:input_type -> yucai.account.v1.CreateAccountRequest
+	6,  // 16: yucai.account.v1.AccountService.GetAccount:input_type -> yucai.account.v1.GetAccountRequest
+	7,  // 17: yucai.account.v1.AccountService.ListAccounts:input_type -> yucai.account.v1.ListAccountsRequest
+	9,  // 18: yucai.account.v1.AccountService.UpdateAccount:input_type -> yucai.account.v1.UpdateAccountRequest
+	10, // 19: yucai.account.v1.AccountService.DeleteAccount:input_type -> yucai.account.v1.DeleteAccountRequest
+	11, // 20: yucai.account.v1.AccountService.CreateAccount:output_type -> yucai.account.v1.AccountResponse
+	11, // 21: yucai.account.v1.AccountService.GetAccount:output_type -> yucai.account.v1.AccountResponse
+	8,  // 22: yucai.account.v1.AccountService.ListAccounts:output_type -> yucai.account.v1.ListAccountsResponse
+	11, // 23: yucai.account.v1.AccountService.UpdateAccount:output_type -> yucai.account.v1.AccountResponse
+	15, // 24: yucai.account.v1.AccountService.DeleteAccount:output_type -> google.protobuf.Empty
+	20, // [20:25] is the sub-list for method output_type
+	15, // [15:20] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_account_v1_account_proto_init() }
@@ -981,7 +1083,7 @@ func file_account_v1_account_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_account_v1_account_proto_rawDesc), len(file_account_v1_account_proto_rawDesc)),
-			NumEnums:      3,
+			NumEnums:      4,
 			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,

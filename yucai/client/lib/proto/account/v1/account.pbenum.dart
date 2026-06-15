@@ -89,5 +89,50 @@ class AccountStatus extends $pb.ProtobufEnum {
   const AccountStatus._(super.value, super.name);
 }
 
+class AccountCategory extends $pb.ProtobufEnum {
+  static const AccountCategory ACCOUNT_CATEGORY_UNSPECIFIED = AccountCategory._(
+      0, _omitEnumNames ? '' : 'ACCOUNT_CATEGORY_UNSPECIFIED');
+  static const AccountCategory ACCOUNT_CATEGORY_SAVINGS =
+      AccountCategory._(1, _omitEnumNames ? '' : 'ACCOUNT_CATEGORY_SAVINGS');
+  static const AccountCategory ACCOUNT_CATEGORY_CREDIT_CARD = AccountCategory._(
+      2, _omitEnumNames ? '' : 'ACCOUNT_CATEGORY_CREDIT_CARD');
+  static const AccountCategory ACCOUNT_CATEGORY_INVESTMENT =
+      AccountCategory._(3, _omitEnumNames ? '' : 'ACCOUNT_CATEGORY_INVESTMENT');
+  static const AccountCategory ACCOUNT_CATEGORY_FIXED_DEPOSIT =
+      AccountCategory._(
+          4, _omitEnumNames ? '' : 'ACCOUNT_CATEGORY_FIXED_DEPOSIT');
+  static const AccountCategory ACCOUNT_CATEGORY_GOLD_FX =
+      AccountCategory._(5, _omitEnumNames ? '' : 'ACCOUNT_CATEGORY_GOLD_FX');
+  static const AccountCategory ACCOUNT_CATEGORY_REAL_ESTATE = AccountCategory._(
+      6, _omitEnumNames ? '' : 'ACCOUNT_CATEGORY_REAL_ESTATE');
+  static const AccountCategory ACCOUNT_CATEGORY_LOAN =
+      AccountCategory._(7, _omitEnumNames ? '' : 'ACCOUNT_CATEGORY_LOAN');
+  static const AccountCategory ACCOUNT_CATEGORY_OTHER_ASSET = AccountCategory._(
+      8, _omitEnumNames ? '' : 'ACCOUNT_CATEGORY_OTHER_ASSET');
+  static const AccountCategory ACCOUNT_CATEGORY_OTHER_LIABILITY =
+      AccountCategory._(
+          9, _omitEnumNames ? '' : 'ACCOUNT_CATEGORY_OTHER_LIABILITY');
+
+  static const $core.List<AccountCategory> values = <AccountCategory>[
+    ACCOUNT_CATEGORY_UNSPECIFIED,
+    ACCOUNT_CATEGORY_SAVINGS,
+    ACCOUNT_CATEGORY_CREDIT_CARD,
+    ACCOUNT_CATEGORY_INVESTMENT,
+    ACCOUNT_CATEGORY_FIXED_DEPOSIT,
+    ACCOUNT_CATEGORY_GOLD_FX,
+    ACCOUNT_CATEGORY_REAL_ESTATE,
+    ACCOUNT_CATEGORY_LOAN,
+    ACCOUNT_CATEGORY_OTHER_ASSET,
+    ACCOUNT_CATEGORY_OTHER_LIABILITY,
+  ];
+
+  static final $core.List<AccountCategory?> _byValue =
+      $pb.ProtobufEnum.$_initByValueList(values, 9);
+  static AccountCategory? valueOf($core.int value) =>
+      value < 0 || value >= _byValue.length ? null : _byValue[value];
+
+  const AccountCategory._(super.value, super.name);
+}
+
 const $core.bool _omitEnumNames =
     $core.bool.fromEnvironment('protobuf.omit_enum_names');

@@ -43,6 +43,7 @@ class AccountDTO extends $pb.GeneratedMessage {
     $fixnum.Int64? version,
     $2.Timestamp? createdAt,
     $2.Timestamp? updatedAt,
+    AccountCategory? category,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -64,6 +65,7 @@ class AccountDTO extends $pb.GeneratedMessage {
     if (version != null) result.version = version;
     if (createdAt != null) result.createdAt = createdAt;
     if (updatedAt != null) result.updatedAt = updatedAt;
+    if (category != null) result.category = category;
     return result;
   }
 
@@ -103,6 +105,8 @@ class AccountDTO extends $pb.GeneratedMessage {
         subBuilder: $2.Timestamp.create)
     ..aOM<$2.Timestamp>(17, _omitFieldNames ? '' : 'updatedAt',
         subBuilder: $2.Timestamp.create)
+    ..aE<AccountCategory>(18, _omitFieldNames ? '' : 'category',
+        enumValues: AccountCategory.values)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -279,6 +283,15 @@ class AccountDTO extends $pb.GeneratedMessage {
   void clearUpdatedAt() => $_clearField(17);
   @$pb.TagNumber(17)
   $2.Timestamp ensureUpdatedAt() => $_ensure(16);
+
+  @$pb.TagNumber(18)
+  AccountCategory get category => $_getN(17);
+  @$pb.TagNumber(18)
+  set category(AccountCategory value) => $_setField(18, value);
+  @$pb.TagNumber(18)
+  $core.bool hasCategory() => $_has(17);
+  @$pb.TagNumber(18)
+  void clearCategory() => $_clearField(18);
 }
 
 class CreateAccountRequest extends $pb.GeneratedMessage {
@@ -294,6 +307,7 @@ class CreateAccountRequest extends $pb.GeneratedMessage {
     $core.String? parentId,
     $core.String? institution,
     $fixnum.Int64? creditLimitCents,
+    AccountCategory? category,
   }) {
     final result = create();
     if (name != null) result.name = name;
@@ -308,6 +322,7 @@ class CreateAccountRequest extends $pb.GeneratedMessage {
     if (parentId != null) result.parentId = parentId;
     if (institution != null) result.institution = institution;
     if (creditLimitCents != null) result.creditLimitCents = creditLimitCents;
+    if (category != null) result.category = category;
     return result;
   }
 
@@ -338,6 +353,8 @@ class CreateAccountRequest extends $pb.GeneratedMessage {
     ..aOS(9, _omitFieldNames ? '' : 'parentId')
     ..aOS(10, _omitFieldNames ? '' : 'institution')
     ..aInt64(11, _omitFieldNames ? '' : 'creditLimitCents')
+    ..aE<AccountCategory>(12, _omitFieldNames ? '' : 'category',
+        enumValues: AccountCategory.values)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -457,6 +474,15 @@ class CreateAccountRequest extends $pb.GeneratedMessage {
   $core.bool hasCreditLimitCents() => $_has(10);
   @$pb.TagNumber(11)
   void clearCreditLimitCents() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  AccountCategory get category => $_getN(11);
+  @$pb.TagNumber(12)
+  set category(AccountCategory value) => $_setField(12, value);
+  @$pb.TagNumber(12)
+  $core.bool hasCategory() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearCategory() => $_clearField(12);
 }
 
 class GetAccountRequest extends $pb.GeneratedMessage {
