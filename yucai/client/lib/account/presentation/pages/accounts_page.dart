@@ -24,7 +24,7 @@ class AccountsPage extends StatefulWidget {
 
 class _AccountsPageState extends State<AccountsPage> {
   /// null = 全部。
-  AccountType? _filter;
+  AccountCategory? _filter;
   bool _deleting = false;
 
   @override
@@ -167,12 +167,12 @@ class _AccountsPageState extends State<AccountsPage> {
         accounts.fold<int>(0, (s, a) => s + a.currentBalanceCents);
     final filtered = _filter == null
         ? accounts
-        : accounts.where((a) => a.accountType == _filter).toList();
-    final groups = _groupByType(filtered);
+        : accounts.where((a) => a.category == _filter).toList();
+    final groups = _groupByCategory(filtered);
 
-    final tabs = <FilterTab<AccountType?>>[
+    final tabs = <FilterTab<AccountCategory?>>[
       const FilterTab(null, '全部'),
-      for (final t in AccountType.values) FilterTab(t, t.label),
+      for (final t in AccountCategory.values) FilterTab(t, t.label),
     ];
 
     return RefreshIndicator(
@@ -193,7 +193,7 @@ class _AccountsPageState extends State<AccountsPage> {
                   onAdd: _openCreateForm,
                 ),
                 const SizedBox(height: AppSpacing.md),
-                FilterBar<AccountType?>(
+                FilterBar<AccountCategory?>(
                   tabs: tabs,
                   active: _filter,
                   onChanged: (v) => setState(() => _filter = v),
@@ -224,10 +224,10 @@ class _AccountsPageState extends State<AccountsPage> {
     );
   }
 
-  Map<AccountType, List<Account>> _groupByType(List<Account> accounts) {
-    final groups = <AccountType, List<Account>>{};
+  Map<AccountCategory, List<Account>> _groupByCategory(List<Account> accounts) {
+    final groups = <AccountCategory, List<Account>>{};
     for (final a in accounts) {
-      groups.putIfAbsent(a.accountType, () => []).add(a);
+      groups.putIfAbsent(a.category, () => []).add(a);
     }
     return groups;
   }
@@ -363,7 +363,7 @@ class _GroupBlock extends StatelessWidget {
     required this.onDelete,
   });
 
-  final AccountType type;
+  final AccountCategory type;
   final List<Account> accounts;
   final String Function(int) formatCents;
   final Future<void> Function(Account) onDelete;
@@ -381,7 +381,7 @@ class _GroupBlock extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 10),
           child: Row(
             children: [
-              Icon(_typeIcon(type), size: 20, color: AppColors.accent),
+              Icon(_categoryIcon(type), size: 20, color: AppColors.accent),
               const SizedBox(width: 8),
               Text(type.label,
                   style: const TextStyle(
@@ -451,7 +451,7 @@ class _AccountCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final negative = account.currentBalanceCents < 0;
-    final typeColor = _typeColor(account.accountType);
+    final typeColor = _categoryColor(account.category);
     return DataCard(
       onLongPress: onLongPress,
       child: Column(
@@ -474,7 +474,7 @@ class _AccountCard extends StatelessWidget {
                     Text(
                       account.institution.isNotEmpty
                           ? '${account.institution} · ${account.currencyCode}'
-                          : '${account.accountType.label} · ${account.currencyCode}',
+                          : '${account.category.label} · ${account.currencyCode}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -491,7 +491,7 @@ class _AccountCard extends StatelessWidget {
                   color: typeColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
-                child: Icon(_typeIcon(account.accountType),
+                child: Icon(_categoryIcon(account.category),
                     size: 18, color: typeColor),
               ),
             ],
@@ -543,32 +543,48 @@ class _AccountCard extends StatelessWidget {
 
 // ───────────────────────── 类型色 / 图标 ─────────────────────────
 
-Color _typeColor(AccountType t) {
-  switch (t) {
-    case AccountType.asset:
+Color _categoryColor(AccountCategory c) {
+  switch (c) {
+    case AccountCategory.savings:
       return AppColors.positive;
-    case AccountType.liability:
-      return AppColors.negative;
-    case AccountType.equity:
+    case AccountCategory.creditCard:
+      return const Color(0xFF6B8CCE);
+    case AccountCategory.investment:
       return AppColors.accent;
-    case AccountType.income:
-      return AppColors.positive;
-    case AccountType.expense:
+    case AccountCategory.fixedDeposit:
+      return const Color(0xFF8A8A6B);
+    case AccountCategory.goldFx:
+      return const Color(0xFFC9A03D);
+    case AccountCategory.realEstate:
+      return const Color(0xFF8C7BB5);
+    case AccountCategory.loan:
+      return AppColors.negative;
+    case AccountCategory.otherAsset:
+      return AppColors.muted;
+    case AccountCategory.otherLiability:
       return AppColors.negative;
   }
 }
 
-IconData _typeIcon(AccountType t) {
-  switch (t) {
-    case AccountType.asset:
+IconData _categoryIcon(AccountCategory c) {
+  switch (c) {
+    case AccountCategory.savings:
       return Icons.account_balance_wallet_outlined;
-    case AccountType.liability:
+    case AccountCategory.creditCard:
       return Icons.credit_card_outlined;
-    case AccountType.equity:
-      return Icons.account_balance_outlined;
-    case AccountType.income:
+    case AccountCategory.investment:
       return Icons.trending_up;
-    case AccountType.expense:
-      return Icons.trending_down;
+    case AccountCategory.fixedDeposit:
+      return Icons.hourglass_bottom;
+    case AccountCategory.goldFx:
+      return Icons.diamond_outlined;
+    case AccountCategory.realEstate:
+      return Icons.home_outlined;
+    case AccountCategory.loan:
+      return Icons.request_quote_outlined;
+    case AccountCategory.otherAsset:
+      return Icons.inventory_2_outlined;
+    case AccountCategory.otherLiability:
+      return Icons.pending_actions;
   }
 }
