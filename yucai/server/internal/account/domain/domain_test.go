@@ -165,3 +165,28 @@ func TestAccountCategoryStringRoundTrip(t *testing.T) {
 		t.Error("unknown category should default to Savings")
 	}
 }
+
+func TestNewAccountDerivesTypeFromCategory(t *testing.T) {
+	a, err := NewAccountWithCategory(uuid.New(), "测试信用卡", AccountCategoryCreditCard, "CNY")
+	if err != nil {
+		t.Fatalf("NewAccountWithCategory failed: %v", err)
+	}
+	if a.AccountType != AccountTypeLiability {
+		t.Errorf("credit_card category should derive liability, got %s", a.AccountType)
+	}
+	if a.Category != AccountCategoryCreditCard {
+		t.Error("category not stored")
+	}
+
+	b, err := NewAccountWithCategory(uuid.New(), "储蓄卡", AccountCategorySavings, "CNY")
+	if err != nil {
+		t.Fatalf("savings failed: %v", err)
+	}
+	if b.AccountType != AccountTypeAsset {
+		t.Errorf("savings should derive asset, got %s", b.AccountType)
+	}
+
+	if _, err := NewAccountWithCategory(uuid.New(), "", AccountCategorySavings, "CNY"); err == nil {
+		t.Error("empty name should fail")
+	}
+}

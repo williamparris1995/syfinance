@@ -14,6 +14,7 @@ type Account struct {
 	TenantID            uuid.UUID
 	Name                string
 	AccountType         AccountType
+	Category            AccountCategory
 	CurrencyCode        string
 	InitialBalanceCents int64
 	CurrentBalanceCents int64
@@ -49,6 +50,34 @@ func NewAccount(tenantID uuid.UUID, name string, accountType AccountType, curren
 		TenantID:     tenantID,
 		Name:         name,
 		AccountType:  accountType,
+		CurrencyCode: currencyCode,
+		Status:       AccountStatusActive,
+		Version:      1,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	}, nil
+}
+
+// NewAccountWithCategory 按 category 创建账户，account_type 由 category 派生。
+// 用户创建的账户走此构造函数；系统/科目表账户仍用 NewAccount（直接指定 account_type）。
+func NewAccountWithCategory(tenantID uuid.UUID, name string, category AccountCategory, currencyCode string) (*Account, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, fmt.Errorf("account name must not be empty")
+	}
+	if category < AccountCategorySavings || category > AccountCategoryOtherLiability {
+		return nil, fmt.Errorf("invalid account category")
+	}
+	currencyCode = strings.TrimSpace(strings.ToUpper(currencyCode))
+	if currencyCode == "" {
+		currencyCode = "CNY"
+	}
+	return &Account{
+		ID:           uuid.New(),
+		TenantID:     tenantID,
+		Name:         name,
+		AccountType:  category.ToAccountType(),
+		Category:     category,
 		CurrencyCode: currencyCode,
 		Status:       AccountStatusActive,
 		Version:      1,
