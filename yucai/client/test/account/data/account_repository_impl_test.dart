@@ -17,7 +17,7 @@ void main() {
   late AccountRepositoryImpl repo;
 
   final sample = Account(
-    id: 'a1', name: '现金', accountType: AccountType.asset, currencyCode: 'CNY',
+    id: 'a1', name: '现金', accountType: AccountType.asset, category: AccountCategory.savings, currencyCode: 'CNY',
     initialBalanceCents: 1000, currentBalanceCents: 2000,
     ownership: Ownership.personal, status: AccountStatus.active,
   );
@@ -26,7 +26,7 @@ void main() {
     remote = _MockRemote();
     repo = AccountRepositoryImpl(remote);
     registerFallbackValue(CreateAccountParams(
-      name: '', accountType: AccountType.asset,
+      name: '', accountType: AccountType.asset, category: AccountCategory.savings,
       currencyCode: 'CNY', initialBalanceCents: 0, ownership: Ownership.personal,
     ));
   });
@@ -52,7 +52,7 @@ void main() {
 
   test('create success returns the created account', () async {
     final params = CreateAccountParams(
-      name: '现金', accountType: AccountType.asset,
+      name: '现金', accountType: AccountType.asset, category: AccountCategory.savings,
       currencyCode: 'CNY', initialBalanceCents: 1000, ownership: Ownership.personal,
     );
     when(() => remote.create(any())).thenAnswer((_) async => sample);

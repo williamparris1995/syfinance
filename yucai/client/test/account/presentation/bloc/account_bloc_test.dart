@@ -19,13 +19,13 @@ class _MockCreate extends Mock implements CreateAccountUseCase {}
 class _MockDelete extends Mock implements DeleteAccountUseCase {}
 
 final sample = Account(
-  id: 'a1', name: '现金', accountType: AccountType.asset, currencyCode: 'CNY',
+  id: 'a1', name: '现金', accountType: AccountType.asset, category: AccountCategory.savings, currencyCode: 'CNY',
   initialBalanceCents: 0, currentBalanceCents: 0,
   ownership: Ownership.personal, status: AccountStatus.active,
 );
 
 final params = CreateAccountParams(
-  name: '现金', accountType: AccountType.asset,
+  name: '现金', accountType: AccountType.asset, category: AccountCategory.savings,
   currencyCode: 'CNY', initialBalanceCents: 0, ownership: Ownership.personal,
 );
 

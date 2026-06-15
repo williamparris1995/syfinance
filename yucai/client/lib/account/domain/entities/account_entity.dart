@@ -9,6 +9,7 @@ class Account extends Equatable {
     required this.id,
     required this.name,
     required this.accountType,
+    required this.category,
     required this.currencyCode,
     required this.initialBalanceCents,
     required this.currentBalanceCents,
@@ -25,6 +26,7 @@ class Account extends Equatable {
   final String id;
   final String name;
   final AccountType accountType;
+  final AccountCategory category;
   final String currencyCode;
   final int initialBalanceCents;
   final int currentBalanceCents;
@@ -39,7 +41,7 @@ class Account extends Equatable {
 
   @override
   List<Object?> get props => [
-        id, name, accountType, currencyCode, initialBalanceCents,
+        id, name, accountType, category, currencyCode, initialBalanceCents,
         currentBalanceCents, ownership, status, icon, color, institution,
         creditLimitCents, version, createdAt,
       ];

@@ -17,6 +17,7 @@ class CreateAccountParams {
   const CreateAccountParams({
     required this.name,
     required this.accountType,
+    required this.category,
     required this.currencyCode,
     required this.initialBalanceCents,
     required this.ownership,
@@ -26,6 +27,7 @@ class CreateAccountParams {
 
   final String name;
   final AccountType accountType;
+  final AccountCategory category;
   final String currencyCode;
   final int initialBalanceCents;
   final Ownership ownership;

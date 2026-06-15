@@ -16,7 +16,7 @@ void main() {
   late _MockRepo repo;
 
   final sample = Account(
-    id: 'a1', name: '现金', accountType: AccountType.asset, currencyCode: 'CNY',
+    id: 'a1', name: '现金', accountType: AccountType.asset, category: AccountCategory.savings, currencyCode: 'CNY',
     initialBalanceCents: 0, currentBalanceCents: 0,
     ownership: Ownership.personal, status: AccountStatus.active,
   );
@@ -24,7 +24,7 @@ void main() {
   setUp(() {
     repo = _MockRepo();
     registerFallbackValue(CreateAccountParams(
-      name: '', accountType: AccountType.asset,
+      name: '', accountType: AccountType.asset, category: AccountCategory.savings,
       currencyCode: 'CNY', initialBalanceCents: 0, ownership: Ownership.personal,
     ));
   });
@@ -38,7 +38,7 @@ void main() {
   test('CreateAccountUseCase delegates to repo', () async {
     when(() => repo.create(any())).thenAnswer((_) async => Right(sample));
     final params = CreateAccountParams(
-      name: '现金', accountType: AccountType.asset,
+      name: '现金', accountType: AccountType.asset, category: AccountCategory.savings,
       currencyCode: 'CNY', initialBalanceCents: 0, ownership: Ownership.personal,
     );
     final result = await CreateAccountUseCase(repo).call(params);
@@ -55,7 +55,7 @@ void main() {
   test('CreateAccountUseCase propagates failure', () async {
     when(() => repo.create(any())).thenAnswer((_) async => const Left(ServerFailure('bad')));
     final result = await CreateAccountUseCase(repo).call(CreateAccountParams(
-      name: 'x', accountType: AccountType.asset,
+      name: 'x', accountType: AccountType.asset, category: AccountCategory.savings,
       currencyCode: 'CNY', initialBalanceCents: 0, ownership: Ownership.personal,
     ));
     expect(result.isLeft(), isTrue);

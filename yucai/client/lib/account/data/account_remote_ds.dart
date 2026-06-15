@@ -45,6 +45,7 @@ class AccountRemoteDataSource {
       final res = await _client.createAccount(pb.CreateAccountRequest(
         name: params.name,
         accountType: params.accountType.toProto(),
+        category: accountCategoryToProto(params.category),
         currencyCode: params.currencyCode,
         initialBalanceCents: Int64(params.initialBalanceCents),
         ownership: params.ownership.toProto(),

@@ -56,6 +56,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
             CreateAccountParams(
               name: _nameCtrl.text.trim(),
               accountType: _type,
+              category: AccountCategory.savings,
               currencyCode: _currencyCtrl.text.trim().toUpperCase(),
               initialBalanceCents: (balanceYuan * 100).round(),
               ownership: _ownership,
