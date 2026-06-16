@@ -119,6 +119,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
           const SizedBox(height: AppSpacing.lg),
           _statsRow(),
           const SizedBox(height: AppSpacing.lg),
+          _quickActions(a),
+          const SizedBox(height: AppSpacing.lg),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -270,29 +272,39 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         .toList();
   }
 
-  Widget _statsRow() => Row(
-        children: ['本月收入', '本月支出', '净值变动', '交易数']
-            .map((t) => Expanded(
-                  child: DataCard(
-                    child: Column(
-                      children: [
-                        const Text('—',
-                            style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 4),
-                        Text(t,
-                            style: const TextStyle(
-                                color: AppColors.muted, fontSize: 11)),
-                        const Text('待交易模块',
-                            style: TextStyle(
-                                color: AppColors.muted, fontSize: 10)),
-                      ],
-                    ),
-                  ),
-                ))
-            .toList(),
-      );
+  Widget _statsRow() {
+    const labels = ['本月收入', '本月支出', '净值变动', '交易数'];
+    // 卡片间 14px 间距（原型 .quick-stats gap:14px）；首尾无边缘缩进。
+    return Row(
+      children: [
+        for (var i = 0; i < labels.length; i++)
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: i == 0 ? 0 : 7,
+                right: i == labels.length - 1 ? 0 : 7,
+              ),
+              child: DataCard(
+                child: Column(
+                  children: [
+                    const Text('—',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 4),
+                    Text(labels[i],
+                        style: const TextStyle(
+                            color: AppColors.muted, fontSize: 11)),
+                    const Text('待交易模块',
+                        style:
+                            TextStyle(color: AppColors.muted, fontSize: 10)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 
   Widget _panel(String title, String hint) => DataCard(
         child: Column(
@@ -311,6 +323,48 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
           ],
         ),
       );
+
+  /// 快捷操作 card（对照原型 desktop-detail-account.html .actions-card）。
+  /// 编辑真实；记一笔/转账/查看账单/隐藏账户 🔒 占位（待 transaction/账单模块）。
+  Widget _quickActions(Account a) => DataCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('快捷操作',
+                style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: AppSpacing.md),
+            _actionBtn('编辑账户', Icons.edit_outlined, () => _edit(a)),
+            _actionBtn('记一笔（待交易模块）', Icons.add, null),
+            _actionBtn('转账（待交易模块）', Icons.swap_horiz, null),
+            _actionBtn('查看账单（待交易模块）', Icons.receipt_long_outlined, null),
+            _actionBtn('隐藏账户（待功能）', Icons.visibility_off_outlined, null),
+          ],
+        ),
+      );
+
+  Widget _actionBtn(String label, IconData icon, VoidCallback? onTap) {
+    final disabled = onTap == null;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: SizedBox(
+        width: double.infinity,
+        child: TextButton.icon(
+          onPressed: onTap,
+          icon: Icon(icon, size: 16),
+          label: Text(label),
+          style: TextButton.styleFrom(
+            foregroundColor: disabled ? AppColors.muted : AppColors.fg,
+            backgroundColor: AppColors.bg,
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: AppRadius.smBorder,
+              side: BorderSide(color: AppColors.border),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   // ───────────────────────── 操作 ─────────────────────────
 
