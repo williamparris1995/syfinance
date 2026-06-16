@@ -168,6 +168,46 @@ class _AccountsPageState extends State<AccountsPage> {
     });
   }
 
+  /// 重新激活：把归档账户恢复为 active（与 _confirmClose 对称）。
+  void _reactivate(Account a) {
+    showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: const Text('重新激活账户'),
+        content: Text('重新激活「${a.name}」？账户恢复活跃状态。'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dctx, false),
+              child: const Text('取消')),
+          TextButton(
+              onPressed: () => Navigator.pop(dctx, true),
+              child: const Text('激活')),
+        ],
+      ),
+    ).then((ok) {
+      if (ok == true && mounted) {
+        setState(() => _pendingIds.add(a.id));
+        context.read<AccountBloc>().add(UpdateAccountRequested(
+              UpdateAccountParams(
+                id: a.id,
+                version: a.version,
+                status: AccountStatus.active,
+                // 保留现有值字段（同 _confirmClose）：remote_ds 对非 optional
+                // 标量无条件覆盖，不传会用默认值清空字段。
+                name: a.name,
+                icon: a.icon,
+                color: a.color,
+                institution: a.institution,
+                creditLimitCents: a.creditLimitCents,
+                cardNumberTail: a.cardNumberTail,
+                notes: a.notes,
+                goldProductType: a.goldProductType,
+              ),
+            ));
+      }
+    });
+  }
+
   Future<void> _openCreateForm() async {
     final created = await Navigator.of(context).push<bool>(
           MaterialPageRoute(
@@ -324,6 +364,7 @@ class _AccountsPageState extends State<AccountsPage> {
                       onEdit: _openEditForm,
                       onDuplicate: _openCopyForm,
                       onClose: _confirmClose,
+                      onReactivate: _reactivate,
                     ),
                     const SizedBox(height: AppSpacing.xl),
                   ],
@@ -475,6 +516,7 @@ class _GroupBlock extends StatelessWidget {
     required this.onEdit,
     required this.onDuplicate,
     required this.onClose,
+    required this.onReactivate,
   });
 
   final AccountCategory type;
@@ -484,6 +526,7 @@ class _GroupBlock extends StatelessWidget {
   final void Function(Account) onEdit;
   final void Function(Account) onDuplicate;
   final void Function(Account) onClose;
+  final void Function(Account) onReactivate;
 
   @override
   Widget build(BuildContext context) {
@@ -544,6 +587,7 @@ class _GroupBlock extends StatelessWidget {
                 onEdit: () => onEdit(accounts[i]),
                 onDuplicate: () => onDuplicate(accounts[i]),
                 onClose: () => onClose(accounts[i]),
+                onReactivate: () => onReactivate(accounts[i]),
                 onDelete: () => onDelete(accounts[i]),
               ),
             );
@@ -565,6 +609,7 @@ class _AccountCard extends StatelessWidget {
     this.onEdit,
     this.onDuplicate,
     this.onClose,
+    this.onReactivate,
     this.onDelete,
   });
 
@@ -575,20 +620,22 @@ class _AccountCard extends StatelessWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onDuplicate;
   final VoidCallback? onClose;
+  final VoidCallback? onReactivate;
   final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
     final negative = account.currentBalanceCents < 0;
     final typeColor = categoryColor(account.category);
-    return DataCard(
+    final archived = account.status == AccountStatus.archived;
+    Widget card = DataCard(
       // 点击卡片直接进详情（⋯ 菜单另有点击/长按入口）。
       onTap: () => context.go('/accounts/${account.id}'),
       onLongPress: onLongPress,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ac-top：左 name+机构，中 类型图标，右 操作菜单
+          // ac-top：左 name+角标+机构，中 类型图标，右 操作菜单
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -596,11 +643,32 @@ class _AccountCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(account.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w500)),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(account.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500)),
+                        ),
+                        if (archived) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AppColors.muted.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text('已归档',
+                                style: TextStyle(
+                                    color: AppColors.muted, fontSize: 10)),
+                          ),
+                        ],
+                      ],
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       account.institution.isNotEmpty
@@ -629,21 +697,26 @@ class _AccountCard extends StatelessWidget {
                 icon: const Icon(Icons.more_horiz,
                     size: 18, color: AppColors.muted),
                 tooltip: '账户操作',
-                itemBuilder: (_) => const [
-                  PopupMenuItem(
+                itemBuilder: (_) => [
+                  const PopupMenuItem(
                       value: 'detail', child: Text('查看详情')),
-                  PopupMenuItem(value: 'edit', child: Text('编辑')),
-                  PopupMenuItem(value: 'copy', child: Text('复制')),
-                  PopupMenuItem(
+                  const PopupMenuItem(value: 'edit', child: Text('编辑')),
+                  const PopupMenuItem(value: 'copy', child: Text('复制')),
+                  const PopupMenuItem(
                       value: 'record',
                       enabled: false,
                       child: Text('记一笔（待交易模块）')),
-                  PopupMenuItem(
+                  const PopupMenuItem(
                       value: 'transfer',
                       enabled: false,
                       child: Text('转账（待交易模块）')),
-                  PopupMenuItem(value: 'close', child: Text('关闭账户')),
-                  PopupMenuItem(value: 'delete', child: Text('删除账户')),
+                  if (archived)
+                    const PopupMenuItem(
+                        value: 'reactivate', child: Text('重新激活'))
+                  else
+                    const PopupMenuItem(
+                        value: 'close', child: Text('关闭账户')),
+                  const PopupMenuItem(value: 'delete', child: Text('删除账户')),
                 ],
                 onSelected: (v) {
                   switch (v) {
@@ -655,6 +728,8 @@ class _AccountCard extends StatelessWidget {
                       onDuplicate?.call();
                     case 'close':
                       onClose?.call();
+                    case 'reactivate':
+                      onReactivate?.call();
                     case 'delete':
                       onDelete?.call();
                   }
@@ -697,6 +772,11 @@ class _AccountCard extends StatelessWidget {
         ],
       ),
     );
+    // 归档账户整体灰显，强化「非活跃」视觉信号。
+    if (archived) {
+      card = Opacity(opacity: 0.55, child: card);
+    }
+    return card;
   }
 
   String _subline(Account a) {
