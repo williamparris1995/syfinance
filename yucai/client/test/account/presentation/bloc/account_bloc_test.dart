@@ -47,6 +47,9 @@ void main() {
     getUc = _MockGet();
     updateUc = _MockUpdate();
     registerFallbackValue(params);
+    registerFallbackValue(
+      const UpdateAccountParams(id: 'a1', version: 1),
+    );
   });
 
   blocTest<AccountBloc, AccountState>(
@@ -97,5 +100,34 @@ void main() {
     act: (b) => b.add(DeleteAccountRequested('a1')),
     wait: const Duration(milliseconds: 150),
     expect: () => [AccountLoading(), isA<AccountsLoaded>()],
+  );
+
+  blocTest<AccountBloc, AccountState>(
+    'Get success emits [Loading, DetailLoaded]',
+    build: () {
+      when(() => getUc.call('a1')).thenAnswer((_) async => Right(sample));
+      return AccountBloc(listUc, createUc, deleteUc, getUc, updateUc);
+    },
+    act: (b) => b.add(const GetAccountRequested('a1')),
+    wait: const Duration(milliseconds: 100),
+    expect: () => [AccountLoading(), AccountDetailLoaded(sample)],
+  );
+
+  blocTest<AccountBloc, AccountState>(
+    'Update success refreshes the list',
+    build: () {
+      when(() => updateUc.call(any()))
+          .thenAnswer((_) async => Right(sample));
+      when(() => listUc.call()).thenAnswer((_) async => Right([sample]));
+      return AccountBloc(listUc, createUc, deleteUc, getUc, updateUc);
+    },
+    act: (b) =>
+        b.add(const UpdateAccountRequested(UpdateAccountParams(id: 'a1', version: 1))),
+    wait: const Duration(milliseconds: 150),
+    expect: () => [
+      isA<AccountFormSubmitting>(),
+      AccountLoading(),
+      isA<AccountsLoaded>(),
+    ],
   );
 }
