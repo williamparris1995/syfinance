@@ -24,6 +24,57 @@ class AccountMapper {
       color: dto.color,
       institution: dto.institution,
       creditLimitCents: dto.creditLimitCents.toInt(),
+      cardNumberTail: dto.hasCardNumberTail() ? dto.cardNumberTail : '',
+      notes: dto.hasNotes() ? dto.notes : '',
+      openingDate: dto.hasOpeningDate() ? dto.openingDate.toDateTime() : null,
+      interestRate: dto.hasInterestRate() ? dto.interestRate : null,
+      creditBillingDay: dto.hasCreditBillingDay() ? dto.creditBillingDay : null,
+      creditRepaymentDay:
+          dto.hasCreditRepaymentDay() ? dto.creditRepaymentDay : null,
+      creditAnnualFeeCents: dto.hasCreditAnnualFeeCents()
+          ? dto.creditAnnualFeeCents.toInt()
+          : null,
+      investCostCents:
+          dto.hasInvestCostCents() ? dto.investCostCents.toInt() : null,
+      investMarketValueCents: dto.hasInvestMarketValueCents()
+          ? dto.investMarketValueCents.toInt()
+          : null,
+      investReturnYtd: dto.hasInvestReturnYtd() ? dto.investReturnYtd : null,
+      fixedPrincipalCents: dto.hasFixedPrincipalCents()
+          ? dto.fixedPrincipalCents.toInt()
+          : null,
+      fixedStartDate:
+          dto.hasFixedStartDate() ? dto.fixedStartDate.toDateTime() : null,
+      fixedMaturityDate:
+          dto.hasFixedMaturityDate() ? dto.fixedMaturityDate.toDateTime() : null,
+      fixedTermMonths: dto.hasFixedTermMonths() ? dto.fixedTermMonths : null,
+      goldProductType: dto.hasGoldProductType() ? dto.goldProductType : '',
+      goldQuantity: dto.hasGoldQuantity() ? dto.goldQuantity : null,
+      goldBuyPriceCents:
+          dto.hasGoldBuyPriceCents() ? dto.goldBuyPriceCents.toInt() : null,
+      goldCurrentPriceCents: dto.hasGoldCurrentPriceCents()
+          ? dto.goldCurrentPriceCents.toInt()
+          : null,
+      estatePurchasePriceCents: dto.hasEstatePurchasePriceCents()
+          ? dto.estatePurchasePriceCents.toInt()
+          : null,
+      estateCurrentValueCents: dto.hasEstateCurrentValueCents()
+          ? dto.estateCurrentValueCents.toInt()
+          : null,
+      estatePurchaseDate: dto.hasEstatePurchaseDate()
+          ? dto.estatePurchaseDate.toDateTime()
+          : null,
+      estateDepreciationRate:
+          dto.hasEstateDepreciationRate() ? dto.estateDepreciationRate : null,
+      loanOriginalCents:
+          dto.hasLoanOriginalCents() ? dto.loanOriginalCents.toInt() : null,
+      loanRemainingCents:
+          dto.hasLoanRemainingCents() ? dto.loanRemainingCents.toInt() : null,
+      loanMonthlyCents:
+          dto.hasLoanMonthlyCents() ? dto.loanMonthlyCents.toInt() : null,
+      loanNextPaymentDate: dto.hasLoanNextPaymentDate()
+          ? dto.loanNextPaymentDate.toDateTime()
+          : null,
       version: dto.version.toInt(),
       createdAt: dto.hasCreatedAt() ? dto.createdAt.toDateTime() : null,
     );
