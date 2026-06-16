@@ -23,3 +23,17 @@ class DeleteAccountRequested extends AccountEvent {
   @override
   List<Object?> get props => [id];
 }
+
+class UpdateAccountRequested extends AccountEvent {
+  const UpdateAccountRequested(this.params);
+  final UpdateAccountParams params;
+  @override
+  List<Object?> get props => [params];
+}
+
+class GetAccountRequested extends AccountEvent {
+  const GetAccountRequested(this.id);
+  final String id;
+  @override
+  List<Object?> get props => [id];
+}

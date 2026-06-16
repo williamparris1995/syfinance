@@ -26,6 +26,13 @@ class AccountFormSubmitting extends AccountState {
   List<Object?> get props => [accounts];
 }
 
+class AccountDetailLoaded extends AccountState {
+  const AccountDetailLoaded(this.account);
+  final Account account;
+  @override
+  List<Object?> get props => [account];
+}
+
 class AccountError extends AccountState {
   const AccountError(this.message, {this.accounts = const []});
   final String message;

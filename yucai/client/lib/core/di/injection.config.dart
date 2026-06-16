@@ -18,7 +18,9 @@ import '../../account/data/mappers/account_mapper.dart' as _i994;
 import '../../account/domain/repositories/account_repository.dart' as _i270;
 import '../../account/domain/usecases/create_account_usecase.dart' as _i82;
 import '../../account/domain/usecases/delete_account_usecase.dart' as _i1051;
+import '../../account/domain/usecases/get_account_usecase.dart' as _i500;
 import '../../account/domain/usecases/list_accounts_usecase.dart' as _i106;
+import '../../account/domain/usecases/update_account_usecase.dart' as _i726;
 import '../../account/presentation/bloc/account_bloc.dart' as _i803;
 import '../../auth/data/auth_remote_ds.dart' as _i832;
 import '../../auth/data/auth_repository_impl.dart' as _i648;
@@ -95,14 +97,22 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i1051.DeleteAccountUseCase>(
       () => _i1051.DeleteAccountUseCase(gh<_i270.AccountRepository>()),
     );
+    gh.factory<_i500.GetAccountUseCase>(
+      () => _i500.GetAccountUseCase(gh<_i270.AccountRepository>()),
+    );
     gh.factory<_i106.ListAccountsUseCase>(
       () => _i106.ListAccountsUseCase(gh<_i270.AccountRepository>()),
+    );
+    gh.factory<_i726.UpdateAccountUseCase>(
+      () => _i726.UpdateAccountUseCase(gh<_i270.AccountRepository>()),
     );
     gh.factory<_i803.AccountBloc>(
       () => _i803.AccountBloc(
         gh<_i106.ListAccountsUseCase>(),
         gh<_i82.CreateAccountUseCase>(),
         gh<_i1051.DeleteAccountUseCase>(),
+        gh<_i500.GetAccountUseCase>(),
+        gh<_i726.UpdateAccountUseCase>(),
       ),
     );
     return this;

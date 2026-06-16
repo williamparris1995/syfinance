@@ -6,7 +6,9 @@ import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/usecases/create_account_usecase.dart';
 import 'package:yucai_client/account/domain/usecases/delete_account_usecase.dart';
+import 'package:yucai_client/account/domain/usecases/get_account_usecase.dart';
 import 'package:yucai_client/account/domain/usecases/list_accounts_usecase.dart';
+import 'package:yucai_client/account/domain/usecases/update_account_usecase.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/error/failures.dart';
 
@@ -27,6 +29,7 @@ void main() {
       name: '', accountType: AccountType.asset, category: AccountCategory.savings,
       currencyCode: 'CNY', initialBalanceCents: 0, ownership: Ownership.personal,
     ));
+    registerFallbackValue(UpdateAccountParams(id: '', version: 0));
   });
 
   test('ListAccountsUseCase delegates to repo', () async {
@@ -59,5 +62,20 @@ void main() {
       currencyCode: 'CNY', initialBalanceCents: 0, ownership: Ownership.personal,
     ));
     expect(result.isLeft(), isTrue);
+  });
+
+  test('GetAccountUseCase delegates to repo', () async {
+    when(() => repo.getById('a1')).thenAnswer((_) async => Right(sample));
+    final result = await GetAccountUseCase(repo).call('a1');
+    expect(result, Right(sample));
+    verify(() => repo.getById('a1')).called(1);
+  });
+
+  test('UpdateAccountUseCase delegates to repo', () async {
+    final params = UpdateAccountParams(id: 'a1', version: 1, name: '现金2');
+    when(() => repo.update(any())).thenAnswer((_) async => Right(sample));
+    final result = await UpdateAccountUseCase(repo).call(params);
+    expect(result, Right(sample));
+    verify(() => repo.update(params)).called(1);
   });
 }
