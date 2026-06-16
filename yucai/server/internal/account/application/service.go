@@ -27,7 +27,8 @@ func (s *Service) CreateAccount(ctx context.Context, req CreateAccountRequest) (
 	if err != nil {
 		return nil, fmt.Errorf("create account: %w", err)
 	}
-	ApplyCreateDefaults(account, req)
+	account.ApplyProfile(CreateRequestToProfile(req))
+	ApplyCreateDefaults(account, req) // InitialBalance/Ownership 兜底（字段集与 ApplyProfile 不冲突）
 
 	if err := s.accountRepo.Save(ctx, account); err != nil {
 		return nil, fmt.Errorf("save account: %w", err)
@@ -75,7 +76,10 @@ func (s *Service) UpdateAccount(ctx context.Context, req UpdateAccountRequest) (
 		return nil, err
 	}
 
-	account.UpdateDetails(req.Name, req.Icon, req.Color, req.ChartCode, req.Institution, req.CreditLimitCents)
+	account.ApplyProfile(UpdateRequestToProfile(req))
+	if req.Status != nil && *req.Status == domain.AccountStatusArchived {
+		account.Archive()
+	}
 	account.IncrementVersion()
 
 	if err := s.accountRepo.Update(ctx, account); err != nil {
