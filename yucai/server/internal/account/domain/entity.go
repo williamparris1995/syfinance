@@ -124,6 +124,10 @@ func (a *Account) UpdateName(name string) error {
 }
 
 // UpdateDetails updates mutable display fields.
+//
+// Deprecated: Use ApplyProfile with an *AccountProfile instead. UpdateAccount 已迁移到
+// ApplyProfile（支持全部可编辑字段 + 类型专属字段），UpdateDetails 仅覆盖 6 个显示字段，
+// 留作旧调用方兼容，新代码请用 ApplyProfile。
 func (a *Account) UpdateDetails(name, icon, color, chartCode, institution string, creditLimitCents int64) {
 	if name = strings.TrimSpace(name); name != "" {
 		a.Name = name

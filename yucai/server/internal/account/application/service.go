@@ -28,7 +28,10 @@ func (s *Service) CreateAccount(ctx context.Context, req CreateAccountRequest) (
 		return nil, fmt.Errorf("create account: %w", err)
 	}
 	account.ApplyProfile(CreateRequestToProfile(req))
-	ApplyCreateDefaults(account, req) // InitialBalance/Ownership 兜底（字段集与 ApplyProfile 不冲突）
+	// ApplyCreateDefaults 处理 create-only 字段（InitialBalance/CurrentBalance/Ownership/
+	// CurrencyCode/ParentID 兜底默认值）；Icon/Color/ChartCode/Institution/CreditLimit 与
+	// ApplyProfile 重叠但同源幂等（都读 req），安全。
+	ApplyCreateDefaults(account, req)
 
 	if err := s.accountRepo.Save(ctx, account); err != nil {
 		return nil, fmt.Errorf("save account: %w", err)
