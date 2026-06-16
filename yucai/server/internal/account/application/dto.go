@@ -10,32 +10,85 @@ import (
 
 // CreateAccountRequest holds input for creating an account.
 type CreateAccountRequest struct {
-	TenantID            uuid.UUID
-	Name                string
-	AccountType         domain.AccountType
-	Category            domain.AccountCategory
-	CurrencyCode        string
-	InitialBalanceCents int64
-	Ownership           domain.Ownership
-	Icon                string
-	Color               string
-	ChartCode           string
-	ParentID            *uuid.UUID
-	Institution         string
-	CreditLimitCents    int64
+	TenantID                 uuid.UUID
+	Name                     string
+	AccountType              domain.AccountType
+	Category                 domain.AccountCategory
+	CurrencyCode             string
+	InitialBalanceCents      int64
+	Ownership                domain.Ownership
+	Icon                     string
+	Color                    string
+	ChartCode                string
+	ParentID                 *uuid.UUID
+	Institution              string
+	CreditLimitCents         int64
+	CardNumberTail           *string
+	Notes                    *string
+	OpeningDate              *time.Time
+	InterestRate             *float64
+	CreditBillingDay         *int
+	CreditRepaymentDay       *int
+	CreditAnnualFeeCents     *int64
+	InvestCostCents          *int64
+	InvestMarketValueCents   *int64
+	InvestReturnYtd          *float64
+	FixedPrincipalCents      *int64
+	FixedStartDate           *time.Time
+	FixedMaturityDate        *time.Time
+	FixedTermMonths          *int
+	GoldProductType          *string
+	GoldQuantity             *float64
+	GoldBuyPriceCents        *int64
+	GoldCurrentPriceCents    *int64
+	EstatePurchasePriceCents *int64
+	EstateCurrentValueCents  *int64
+	EstatePurchaseDate       *time.Time
+	EstateDepreciationRate   *float64
+	LoanOriginalCents        *int64
+	LoanRemainingCents       *int64
+	LoanMonthlyCents         *int64
+	LoanNextPaymentDate      *time.Time
 }
 
 // UpdateAccountRequest holds input for updating an account.
 type UpdateAccountRequest struct {
-	TenantID         uuid.UUID
-	AccountID        uuid.UUID
-	Name             string
-	Icon             string
-	Color            string
-	ChartCode        string
-	Institution      string
-	CreditLimitCents int64
-	Version          int64
+	TenantID                 uuid.UUID
+	AccountID                uuid.UUID
+	Name                     string
+	Icon                     string
+	Color                    string
+	ChartCode                string
+	Institution              string
+	CreditLimitCents         int64
+	Status                   *domain.AccountStatus
+	CardNumberTail           *string
+	Notes                    *string
+	OpeningDate              *time.Time
+	InterestRate             *float64
+	CreditBillingDay         *int
+	CreditRepaymentDay       *int
+	CreditAnnualFeeCents     *int64
+	InvestCostCents          *int64
+	InvestMarketValueCents   *int64
+	InvestReturnYtd          *float64
+	FixedPrincipalCents      *int64
+	FixedStartDate           *time.Time
+	FixedMaturityDate        *time.Time
+	FixedTermMonths          *int
+	GoldProductType          *string
+	GoldQuantity             *float64
+	GoldBuyPriceCents        *int64
+	GoldCurrentPriceCents    *int64
+	EstatePurchasePriceCents *int64
+	EstateCurrentValueCents  *int64
+	EstatePurchaseDate       *time.Time
+	EstateDepreciationRate   *float64
+	LoanOriginalCents        *int64
+	LoanRemainingCents       *int64
+	LoanMonthlyCents         *int64
+	LoanNextPaymentDate      *time.Time
+	Version                  int64
 }
 
 // DeleteAccountRequest holds input for soft-deleting an account.
@@ -53,25 +106,51 @@ type ListAccountsRequest struct {
 
 // AccountDTO is the data transfer object for accounts.
 type AccountDTO struct {
-	ID                  uuid.UUID
-	TenantID            uuid.UUID
-	Name                string
-	AccountType         domain.AccountType
-	Category            domain.AccountCategory
-	CurrencyCode        string
-	InitialBalanceCents int64
-	CurrentBalanceCents int64
-	Ownership           domain.Ownership
-	Icon                string
-	Color               string
-	ChartCode           string
-	ParentID            *uuid.UUID
-	Institution         string
-	CreditLimitCents    int64
-	Status              domain.AccountStatus
-	Version             int64
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
+	ID                       uuid.UUID
+	TenantID                 uuid.UUID
+	Name                     string
+	AccountType              domain.AccountType
+	Category                 domain.AccountCategory
+	CurrencyCode             string
+	InitialBalanceCents      int64
+	CurrentBalanceCents      int64
+	Ownership                domain.Ownership
+	Icon                     string
+	Color                    string
+	ChartCode                string
+	ParentID                 *uuid.UUID
+	Institution              string
+	CreditLimitCents         int64
+	CardNumberTail           string
+	Notes                    string
+	OpeningDate              *time.Time
+	InterestRate             *float64
+	CreditBillingDay         *int
+	CreditRepaymentDay       *int
+	CreditAnnualFeeCents     *int64
+	InvestCostCents          *int64
+	InvestMarketValueCents   *int64
+	InvestReturnYtd          *float64
+	FixedPrincipalCents      *int64
+	FixedStartDate           *time.Time
+	FixedMaturityDate        *time.Time
+	FixedTermMonths          *int
+	GoldProductType          string
+	GoldQuantity             *float64
+	GoldBuyPriceCents        *int64
+	GoldCurrentPriceCents    *int64
+	EstatePurchasePriceCents *int64
+	EstateCurrentValueCents  *int64
+	EstatePurchaseDate       *time.Time
+	EstateDepreciationRate   *float64
+	LoanOriginalCents        *int64
+	LoanRemainingCents       *int64
+	LoanMonthlyCents         *int64
+	LoanNextPaymentDate      *time.Time
+	Status                   domain.AccountStatus
+	Version                  int64
+	CreatedAt                time.Time
+	UpdatedAt                time.Time
 }
 
 // ListAccountsResult wraps paginated account DTOs.
@@ -84,27 +163,101 @@ type ListAccountsResult struct {
 // AccountToDTO converts a domain Account to AccountDTO.
 func AccountToDTO(a *domain.Account) AccountDTO {
 	return AccountDTO{
-		ID:                  a.ID,
-		TenantID:            a.TenantID,
-		Name:                a.Name,
-		AccountType:         a.AccountType,
-		Category:            a.Category,
-		CurrencyCode:        a.CurrencyCode,
-		InitialBalanceCents: a.InitialBalanceCents,
-		CurrentBalanceCents: a.CurrentBalanceCents,
-		Ownership:           a.Ownership,
-		Icon:                a.Icon,
-		Color:               a.Color,
-		ChartCode:           a.ChartCode,
-		ParentID:            a.ParentID,
-		Institution:         a.Institution,
-		CreditLimitCents:    a.CreditLimitCents,
-		Status:              a.Status,
-		Version:             a.Version,
-		CreatedAt:           a.CreatedAt,
-		UpdatedAt:           a.UpdatedAt,
+		ID:                       a.ID,
+		TenantID:                 a.TenantID,
+		Name:                     a.Name,
+		AccountType:              a.AccountType,
+		Category:                 a.Category,
+		CurrencyCode:             a.CurrencyCode,
+		InitialBalanceCents:      a.InitialBalanceCents,
+		CurrentBalanceCents:      a.CurrentBalanceCents,
+		Ownership:                a.Ownership,
+		Icon:                     a.Icon,
+		Color:                    a.Color,
+		ChartCode:                a.ChartCode,
+		ParentID:                 a.ParentID,
+		Institution:              a.Institution,
+		CreditLimitCents:         a.CreditLimitCents,
+		CardNumberTail:           a.CardNumberTail,
+		Notes:                    a.Notes,
+		OpeningDate:              a.OpeningDate,
+		InterestRate:             a.InterestRate,
+		CreditBillingDay:         a.CreditBillingDay,
+		CreditRepaymentDay:       a.CreditRepaymentDay,
+		CreditAnnualFeeCents:     a.CreditAnnualFeeCents,
+		InvestCostCents:          a.InvestCostCents,
+		InvestMarketValueCents:   a.InvestMarketValueCents,
+		InvestReturnYtd:          a.InvestReturnYtd,
+		FixedPrincipalCents:      a.FixedPrincipalCents,
+		FixedStartDate:           a.FixedStartDate,
+		FixedMaturityDate:        a.FixedMaturityDate,
+		FixedTermMonths:          a.FixedTermMonths,
+		GoldProductType:          a.GoldProductType,
+		GoldQuantity:             a.GoldQuantity,
+		GoldBuyPriceCents:        a.GoldBuyPriceCents,
+		GoldCurrentPriceCents:    a.GoldCurrentPriceCents,
+		EstatePurchasePriceCents: a.EstatePurchasePriceCents,
+		EstateCurrentValueCents:  a.EstateCurrentValueCents,
+		EstatePurchaseDate:       a.EstatePurchaseDate,
+		EstateDepreciationRate:   a.EstateDepreciationRate,
+		LoanOriginalCents:        a.LoanOriginalCents,
+		LoanRemainingCents:       a.LoanRemainingCents,
+		LoanMonthlyCents:         a.LoanMonthlyCents,
+		LoanNextPaymentDate:      a.LoanNextPaymentDate,
+		Status:                   a.Status,
+		Version:                  a.Version,
+		CreatedAt:                a.CreatedAt,
+		UpdatedAt:                a.UpdatedAt,
 	}
 }
+
+// CreateRequestToProfile 把 CreateAccountRequest 的可编辑字段映射到 domain AccountProfile。
+func CreateRequestToProfile(req CreateAccountRequest) *domain.AccountProfile {
+	return &domain.AccountProfile{
+		Name: strPtr(req.Name), Icon: strPtr(req.Icon), Color: strPtr(req.Color),
+		ChartCode: strPtr(req.ChartCode), Institution: strPtr(req.Institution),
+		CreditLimitCents: &req.CreditLimitCents,
+		CardNumberTail:   req.CardNumberTail, Notes: req.Notes, OpeningDate: req.OpeningDate,
+		InterestRate: req.InterestRate, CreditBillingDay: req.CreditBillingDay,
+		CreditRepaymentDay: req.CreditRepaymentDay, CreditAnnualFeeCents: req.CreditAnnualFeeCents,
+		InvestCostCents: req.InvestCostCents, InvestMarketValueCents: req.InvestMarketValueCents,
+		InvestReturnYtd: req.InvestReturnYtd, FixedPrincipalCents: req.FixedPrincipalCents,
+		FixedStartDate: req.FixedStartDate, FixedMaturityDate: req.FixedMaturityDate,
+		FixedTermMonths: req.FixedTermMonths, GoldProductType: req.GoldProductType,
+		GoldQuantity: req.GoldQuantity, GoldBuyPriceCents: req.GoldBuyPriceCents,
+		GoldCurrentPriceCents:    req.GoldCurrentPriceCents,
+		EstatePurchasePriceCents: req.EstatePurchasePriceCents,
+		EstateCurrentValueCents:  req.EstateCurrentValueCents,
+		EstatePurchaseDate:       req.EstatePurchaseDate, EstateDepreciationRate: req.EstateDepreciationRate,
+		LoanOriginalCents: req.LoanOriginalCents, LoanRemainingCents: req.LoanRemainingCents,
+		LoanMonthlyCents: req.LoanMonthlyCents, LoanNextPaymentDate: req.LoanNextPaymentDate,
+	}
+}
+
+// UpdateRequestToProfile 把 UpdateAccountRequest 映射到 domain AccountProfile。
+func UpdateRequestToProfile(req UpdateAccountRequest) *domain.AccountProfile {
+	return &domain.AccountProfile{
+		Name: strPtr(req.Name), Icon: strPtr(req.Icon), Color: strPtr(req.Color),
+		ChartCode: strPtr(req.ChartCode), Institution: strPtr(req.Institution),
+		CreditLimitCents: &req.CreditLimitCents, Status: req.Status,
+		CardNumberTail: req.CardNumberTail, Notes: req.Notes, OpeningDate: req.OpeningDate,
+		InterestRate: req.InterestRate, CreditBillingDay: req.CreditBillingDay,
+		CreditRepaymentDay: req.CreditRepaymentDay, CreditAnnualFeeCents: req.CreditAnnualFeeCents,
+		InvestCostCents: req.InvestCostCents, InvestMarketValueCents: req.InvestMarketValueCents,
+		InvestReturnYtd: req.InvestReturnYtd, FixedPrincipalCents: req.FixedPrincipalCents,
+		FixedStartDate: req.FixedStartDate, FixedMaturityDate: req.FixedMaturityDate,
+		FixedTermMonths: req.FixedTermMonths, GoldProductType: req.GoldProductType,
+		GoldQuantity: req.GoldQuantity, GoldBuyPriceCents: req.GoldBuyPriceCents,
+		GoldCurrentPriceCents:    req.GoldCurrentPriceCents,
+		EstatePurchasePriceCents: req.EstatePurchasePriceCents,
+		EstateCurrentValueCents:  req.EstateCurrentValueCents,
+		EstatePurchaseDate:       req.EstatePurchaseDate, EstateDepreciationRate: req.EstateDepreciationRate,
+		LoanOriginalCents: req.LoanOriginalCents, LoanRemainingCents: req.LoanRemainingCents,
+		LoanMonthlyCents: req.LoanMonthlyCents, LoanNextPaymentDate: req.LoanNextPaymentDate,
+	}
+}
+
+func strPtr(s string) *string { return &s }
 
 // ApplyCreateDefaults applies optional fields from the request to the account entity.
 func ApplyCreateDefaults(a *domain.Account, req CreateAccountRequest) {
