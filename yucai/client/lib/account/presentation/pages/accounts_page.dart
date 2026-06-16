@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
+import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/bloc/account_event.dart';
@@ -25,7 +27,8 @@ class AccountsPage extends StatefulWidget {
 class _AccountsPageState extends State<AccountsPage> {
   /// null = 全部。
   AccountCategory? _filter;
-  bool _deleting = false;
+  /// 正在执行写操作的账户 id 集合（删除 / 关闭等），支持多操作并发追踪。
+  final _pendingIds = <String>{};
 
   @override
   void initState() {
@@ -75,9 +78,77 @@ class _AccountsPageState extends State<AccountsPage> {
       ),
     );
     if (ok == true && mounted) {
-      _deleting = true;
+      setState(() => _pendingIds.add(account.id));
       context.read<AccountBloc>().add(DeleteAccountRequested(account.id));
     }
+  }
+
+  /// 编辑：预填现有账户，提交后触发更新。
+  void _openEditForm(Account a) {
+    Navigator.of(context)
+        .push<bool>(
+      MaterialPageRoute(
+        builder: (_) => BlocProvider.value(
+          value: context.read<AccountBloc>(),
+          child: AccountFormPage(existing: a),
+        ),
+      ),
+    )
+        .then((ok) {
+      if (ok == true && mounted) {
+        AppToast.show(context, '账户已更新');
+      }
+    });
+  }
+
+  /// 复制：清空 id/version，以原账户为 seed 走创建流程。
+  void _openCopyForm(Account a) {
+    Navigator.of(context)
+        .push<bool>(
+      MaterialPageRoute(
+        builder: (_) => BlocProvider.value(
+          value: context.read<AccountBloc>(),
+          child: AccountFormPage(
+            existing: a.copyWith(id: '', version: 0),
+          ),
+        ),
+      ),
+    )
+        .then((ok) {
+      if (ok == true && mounted) {
+        AppToast.show(context, '账户已复制');
+      }
+    });
+  }
+
+  /// 关闭账户：归档（status=archived），账户仍可见但停止参与活跃统计。
+  void _confirmClose(Account a) {
+    showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: const Text('关闭账户'),
+        content: Text('关闭「${a.name}」？关闭后账户归档，详情仍可查看。'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dctx, false),
+              child: const Text('取消')),
+          TextButton(
+              onPressed: () => Navigator.pop(dctx, true),
+              child: const Text('关闭')),
+        ],
+      ),
+    ).then((ok) {
+      if (ok == true && mounted) {
+        setState(() => _pendingIds.add(a.id));
+        context.read<AccountBloc>().add(UpdateAccountRequested(
+              UpdateAccountParams(
+                id: a.id,
+                version: a.version,
+                status: AccountStatus.archived,
+              ),
+            ));
+      }
+    });
   }
 
   Future<void> _openCreateForm() async {
@@ -101,12 +172,12 @@ class _AccountsPageState extends State<AccountsPage> {
       backgroundColor: AppColors.bg,
       body: BlocConsumer<AccountBloc, AccountState>(
         listener: (context, state) {
-          if (state is AccountError) {
+          if (state is AccountError && _pendingIds.isNotEmpty) {
             AppToast.show(context, state.message, type: ToastType.error);
-            _deleting = false;
-          } else if (state is AccountsLoaded && _deleting) {
-            _deleting = false;
-            AppToast.show(context, '账户已删除');
+            setState(_pendingIds.clear);
+          } else if (state is AccountsLoaded && _pendingIds.isNotEmpty) {
+            setState(_pendingIds.clear);
+            AppToast.show(context, '操作完成');
           }
         },
         builder: (context, state) {
@@ -213,6 +284,9 @@ class _AccountsPageState extends State<AccountsPage> {
                       accounts: entry.value,
                       formatCents: _formatCents,
                       onDelete: _confirmDelete,
+                      onEdit: _openEditForm,
+                      onDuplicate: _openCopyForm,
+                      onClose: _confirmClose,
                     ),
                     const SizedBox(height: AppSpacing.xl),
                   ],
@@ -361,12 +435,18 @@ class _GroupBlock extends StatelessWidget {
     required this.accounts,
     required this.formatCents,
     required this.onDelete,
+    required this.onEdit,
+    required this.onDuplicate,
+    required this.onClose,
   });
 
   final AccountCategory type;
   final List<Account> accounts;
   final String Function(int) formatCents;
   final Future<void> Function(Account) onDelete;
+  final void Function(Account) onEdit;
+  final void Function(Account) onDuplicate;
+  final void Function(Account) onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -424,6 +504,10 @@ class _GroupBlock extends StatelessWidget {
                     : (accounts[i].currentBalanceCents.abs() / absSubtotal)
                         .clamp(0.06, 1.0),
                 onLongPress: () => onDelete(accounts[i]),
+                onEdit: () => onEdit(accounts[i]),
+                onDuplicate: () => onDuplicate(accounts[i]),
+                onClose: () => onClose(accounts[i]),
+                onDelete: () => onDelete(accounts[i]),
               ),
             );
           },
@@ -441,12 +525,20 @@ class _AccountCard extends StatelessWidget {
     required this.formatCents,
     required this.barFraction,
     required this.onLongPress,
+    this.onEdit,
+    this.onDuplicate,
+    this.onClose,
+    this.onDelete,
   });
 
   final Account account;
   final String Function(int) formatCents;
   final double barFraction;
   final VoidCallback onLongPress;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDuplicate;
+  final VoidCallback? onClose;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -457,7 +549,7 @@ class _AccountCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ac-top：左 name+机构，右 类型图标
+          // ac-top：左 name+机构，中 类型图标，右 操作菜单
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -493,6 +585,41 @@ class _AccountCard extends StatelessWidget {
                 ),
                 child: Icon(_categoryIcon(account.category),
                     size: 18, color: typeColor),
+              ),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_horiz,
+                    size: 18, color: AppColors.muted),
+                tooltip: '账户操作',
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                      value: 'detail', child: Text('查看详情')),
+                  PopupMenuItem(value: 'edit', child: Text('编辑')),
+                  PopupMenuItem(value: 'copy', child: Text('复制')),
+                  PopupMenuItem(
+                      value: 'record',
+                      enabled: false,
+                      child: Text('记一笔（待交易模块）')),
+                  PopupMenuItem(
+                      value: 'transfer',
+                      enabled: false,
+                      child: Text('转账（待交易模块）')),
+                  PopupMenuItem(value: 'close', child: Text('关闭账户')),
+                  PopupMenuItem(value: 'delete', child: Text('删除账户')),
+                ],
+                onSelected: (v) {
+                  switch (v) {
+                    case 'detail':
+                      context.go('/accounts/${account.id}');
+                    case 'edit':
+                      onEdit?.call();
+                    case 'copy':
+                      onDuplicate?.call();
+                    case 'close':
+                      onClose?.call();
+                    case 'delete':
+                      onDelete?.call();
+                  }
+                },
               ),
             ],
           ),
