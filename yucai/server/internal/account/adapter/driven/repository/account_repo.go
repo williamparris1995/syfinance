@@ -38,6 +38,32 @@ func (r *AccountRepository) Save(ctx context.Context, a *domain.Account) error {
 		SetChartCode(a.ChartCode).
 		SetInstitution(a.Institution).
 		SetCreditLimitCents(a.CreditLimitCents).
+		SetCardNumberTail(a.CardNumberTail).
+		SetNotes(a.Notes).
+		SetNillableOpeningDate(a.OpeningDate).
+		SetNillableInterestRate(a.InterestRate).
+		SetNillableCreditBillingDay(a.CreditBillingDay).
+		SetNillableCreditRepaymentDay(a.CreditRepaymentDay).
+		SetNillableCreditAnnualFeeCents(a.CreditAnnualFeeCents).
+		SetNillableInvestCostCents(a.InvestCostCents).
+		SetNillableInvestMarketValueCents(a.InvestMarketValueCents).
+		SetNillableInvestReturnYtd(a.InvestReturnYtd).
+		SetNillableFixedPrincipalCents(a.FixedPrincipalCents).
+		SetNillableFixedStartDate(a.FixedStartDate).
+		SetNillableFixedMaturityDate(a.FixedMaturityDate).
+		SetNillableFixedTermMonths(a.FixedTermMonths).
+		SetGoldProductType(a.GoldProductType).
+		SetNillableGoldQuantity(a.GoldQuantity).
+		SetNillableGoldBuyPriceCents(a.GoldBuyPriceCents).
+		SetNillableGoldCurrentPriceCents(a.GoldCurrentPriceCents).
+		SetNillableEstatePurchasePriceCents(a.EstatePurchasePriceCents).
+		SetNillableEstateCurrentValueCents(a.EstateCurrentValueCents).
+		SetNillableEstatePurchaseDate(a.EstatePurchaseDate).
+		SetNillableEstateDepreciationRate(a.EstateDepreciationRate).
+		SetNillableLoanOriginalCents(a.LoanOriginalCents).
+		SetNillableLoanRemainingCents(a.LoanRemainingCents).
+		SetNillableLoanMonthlyCents(a.LoanMonthlyCents).
+		SetNillableLoanNextPaymentDate(a.LoanNextPaymentDate).
 		SetStatus(accountent.Status(a.Status.String())).
 		SetVersion(a.Version).
 		SetCreatedAt(a.CreatedAt).
@@ -138,6 +164,32 @@ func (r *AccountRepository) Update(ctx context.Context, a *domain.Account) error
 		SetChartCode(a.ChartCode).
 		SetInstitution(a.Institution).
 		SetCreditLimitCents(a.CreditLimitCents).
+		SetCardNumberTail(a.CardNumberTail).
+		SetNotes(a.Notes).
+		SetNillableOpeningDate(a.OpeningDate).
+		SetNillableInterestRate(a.InterestRate).
+		SetNillableCreditBillingDay(a.CreditBillingDay).
+		SetNillableCreditRepaymentDay(a.CreditRepaymentDay).
+		SetNillableCreditAnnualFeeCents(a.CreditAnnualFeeCents).
+		SetNillableInvestCostCents(a.InvestCostCents).
+		SetNillableInvestMarketValueCents(a.InvestMarketValueCents).
+		SetNillableInvestReturnYtd(a.InvestReturnYtd).
+		SetNillableFixedPrincipalCents(a.FixedPrincipalCents).
+		SetNillableFixedStartDate(a.FixedStartDate).
+		SetNillableFixedMaturityDate(a.FixedMaturityDate).
+		SetNillableFixedTermMonths(a.FixedTermMonths).
+		SetGoldProductType(a.GoldProductType).
+		SetNillableGoldQuantity(a.GoldQuantity).
+		SetNillableGoldBuyPriceCents(a.GoldBuyPriceCents).
+		SetNillableGoldCurrentPriceCents(a.GoldCurrentPriceCents).
+		SetNillableEstatePurchasePriceCents(a.EstatePurchasePriceCents).
+		SetNillableEstateCurrentValueCents(a.EstateCurrentValueCents).
+		SetNillableEstatePurchaseDate(a.EstatePurchaseDate).
+		SetNillableEstateDepreciationRate(a.EstateDepreciationRate).
+		SetNillableLoanOriginalCents(a.LoanOriginalCents).
+		SetNillableLoanRemainingCents(a.LoanRemainingCents).
+		SetNillableLoanMonthlyCents(a.LoanMonthlyCents).
+		SetNillableLoanNextPaymentDate(a.LoanNextPaymentDate).
 		SetVersion(a.Version).
 		SetUpdatedAt(a.UpdatedAt).
 		Save(ctx)
@@ -180,6 +232,32 @@ func toDomainAccount(a *ent.Account) *domain.Account {
 		ChartCode:           a.ChartCode,
 		Institution:         a.Institution,
 		CreditLimitCents:    a.CreditLimitCents,
+		CardNumberTail:         a.CardNumberTail,
+		Notes:                  a.Notes,
+		OpeningDate:            a.OpeningDate,
+		InterestRate:           a.InterestRate,
+		CreditBillingDay:       a.CreditBillingDay,
+		CreditRepaymentDay:     a.CreditRepaymentDay,
+		CreditAnnualFeeCents:   a.CreditAnnualFeeCents,
+		InvestCostCents:        a.InvestCostCents,
+		InvestMarketValueCents: a.InvestMarketValueCents,
+		InvestReturnYtd:        a.InvestReturnYtd,
+		FixedPrincipalCents:    a.FixedPrincipalCents,
+		FixedStartDate:         a.FixedStartDate,
+		FixedMaturityDate:      a.FixedMaturityDate,
+		FixedTermMonths:        a.FixedTermMonths,
+		GoldProductType:        a.GoldProductType,
+		GoldQuantity:           a.GoldQuantity,
+		GoldBuyPriceCents:      a.GoldBuyPriceCents,
+		GoldCurrentPriceCents:  a.GoldCurrentPriceCents,
+		EstatePurchasePriceCents: a.EstatePurchasePriceCents,
+		EstateCurrentValueCents: a.EstateCurrentValueCents,
+		EstatePurchaseDate:     a.EstatePurchaseDate,
+		EstateDepreciationRate: a.EstateDepreciationRate,
+		LoanOriginalCents:      a.LoanOriginalCents,
+		LoanRemainingCents:     a.LoanRemainingCents,
+		LoanMonthlyCents:       a.LoanMonthlyCents,
+		LoanNextPaymentDate:    a.LoanNextPaymentDate,
 		Status:              domain.ParseAccountStatus(string(a.Status)),
 		Version:             a.Version,
 		DeletedAt:           a.DeletedAt,
