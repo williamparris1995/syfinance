@@ -1,5 +1,6 @@
 import 'package:fixnum/fixnum.dart';
 import 'package:injectable/injectable.dart';
+import 'package:protobuf/well_known_types/google/protobuf/timestamp.pb.dart' as tspb;
 
 import 'package:yucai_client/account/data/mappers/account_mapper.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
@@ -14,8 +15,8 @@ import 'package:yucai_client/proto/common/v1/pagination.pb.dart' as common;
 /// Wraps the generated AccountServiceClient. Throws GrpcError on failure
 /// (caught and mapped by AccountRepositoryImpl).
 ///
-/// List/Create are wrapped in AuthRetryCaller: a 401 (expired access token)
-/// triggers a transparent refresh + single retry.
+/// List/Create/Update/Get are wrapped in AuthRetryCaller: a 401 (expired access
+/// token) triggers a transparent refresh + single retry.
 @LazySingleton()
 class AccountRemoteDataSource {
   AccountRemoteDataSource(this._grpcClient, this._retry, AccountMapper mapper)
@@ -42,7 +43,7 @@ class AccountRemoteDataSource {
 
   Future<Account> create(CreateAccountParams params) async {
     return _retry.call(() async {
-      final res = await _client.createAccount(pb.CreateAccountRequest(
+      final req = pb.CreateAccountRequest(
         name: params.name,
         accountType: params.accountType.toProto(),
         category: accountCategoryToProto(params.category),
@@ -51,7 +52,36 @@ class AccountRemoteDataSource {
         ownership: params.ownership.toProto(),
         icon: params.icon,
         color: params.color,
-      ));
+        institution: params.institution,
+        creditLimitCents: Int64(params.creditLimitCents),
+      );
+      _applyCreateFields(req, params);
+      final res = await _client.createAccount(req);
+      return _mapper.toDomain(res.account);
+    });
+  }
+
+  Future<Account> getById(String id) async {
+    return _retry.call(() async {
+      final res = await _client.getAccount(pb.GetAccountRequest(id: id));
+      return _mapper.toDomain(res.account);
+    });
+  }
+
+  Future<Account> update(UpdateAccountParams params) async {
+    return _retry.call(() async {
+      final req = pb.UpdateAccountRequest(
+        id: params.id,
+        version: Int64(params.version),
+        name: params.name,
+        icon: params.icon,
+        color: params.color,
+        institution: params.institution,
+        creditLimitCents: Int64(params.creditLimitCents),
+      );
+      if (params.status != null) req.status = params.status!.toProto();
+      _applyUpdateFields(req, params);
+      final res = await _client.updateAccount(req);
       return _mapper.toDomain(res.account);
     });
   }
@@ -61,4 +91,134 @@ class AccountRemoteDataSource {
       await _client.deleteAccount(pb.DeleteAccountRequest(id: id));
     });
   }
+
+  /// Copies the 25 nullable category-specific fields from [p] onto [req] when
+  /// present. Strings are set only when non-empty (proto3 optional string);
+  /// scalars and timestamps only when non-null.
+  ///
+  /// Two near-identical overloads exist because [pb.CreateAccountRequest] and
+  /// [pb.UpdateAccountRequest] are independent generated classes with no shared
+  /// setter interface; keeping the field list in one file (vs. duplicated across
+  /// create/update bodies) limits drift.
+  static void _applyCreateFields(
+      pb.CreateAccountRequest req, CreateAccountParams p) {
+    if (p.cardNumberTail.isNotEmpty) req.cardNumberTail = p.cardNumberTail;
+    if (p.notes.isNotEmpty) req.notes = p.notes;
+    if (p.openingDate != null) req.openingDate = _ts(p.openingDate!);
+    if (p.interestRate != null) req.interestRate = p.interestRate!;
+    if (p.creditBillingDay != null) req.creditBillingDay = p.creditBillingDay!;
+    if (p.creditRepaymentDay != null) {
+      req.creditRepaymentDay = p.creditRepaymentDay!;
+    }
+    if (p.creditAnnualFeeCents != null) {
+      req.creditAnnualFeeCents = Int64(p.creditAnnualFeeCents!);
+    }
+    if (p.investCostCents != null) req.investCostCents = Int64(p.investCostCents!);
+    if (p.investMarketValueCents != null) {
+      req.investMarketValueCents = Int64(p.investMarketValueCents!);
+    }
+    if (p.investReturnYtd != null) req.investReturnYtd = p.investReturnYtd!;
+    if (p.fixedPrincipalCents != null) {
+      req.fixedPrincipalCents = Int64(p.fixedPrincipalCents!);
+    }
+    if (p.fixedStartDate != null) req.fixedStartDate = _ts(p.fixedStartDate!);
+    if (p.fixedMaturityDate != null) {
+      req.fixedMaturityDate = _ts(p.fixedMaturityDate!);
+    }
+    if (p.fixedTermMonths != null) req.fixedTermMonths = p.fixedTermMonths!;
+    if (p.goldProductType.isNotEmpty) req.goldProductType = p.goldProductType;
+    if (p.goldQuantity != null) req.goldQuantity = p.goldQuantity!;
+    if (p.goldBuyPriceCents != null) {
+      req.goldBuyPriceCents = Int64(p.goldBuyPriceCents!);
+    }
+    if (p.goldCurrentPriceCents != null) {
+      req.goldCurrentPriceCents = Int64(p.goldCurrentPriceCents!);
+    }
+    if (p.estatePurchasePriceCents != null) {
+      req.estatePurchasePriceCents = Int64(p.estatePurchasePriceCents!);
+    }
+    if (p.estateCurrentValueCents != null) {
+      req.estateCurrentValueCents = Int64(p.estateCurrentValueCents!);
+    }
+    if (p.estatePurchaseDate != null) {
+      req.estatePurchaseDate = _ts(p.estatePurchaseDate!);
+    }
+    if (p.estateDepreciationRate != null) {
+      req.estateDepreciationRate = p.estateDepreciationRate!;
+    }
+    if (p.loanOriginalCents != null) {
+      req.loanOriginalCents = Int64(p.loanOriginalCents!);
+    }
+    if (p.loanRemainingCents != null) {
+      req.loanRemainingCents = Int64(p.loanRemainingCents!);
+    }
+    if (p.loanMonthlyCents != null) {
+      req.loanMonthlyCents = Int64(p.loanMonthlyCents!);
+    }
+    if (p.loanNextPaymentDate != null) {
+      req.loanNextPaymentDate = _ts(p.loanNextPaymentDate!);
+    }
+  }
+
+  static void _applyUpdateFields(
+      pb.UpdateAccountRequest req, UpdateAccountParams p) {
+    if (p.cardNumberTail.isNotEmpty) req.cardNumberTail = p.cardNumberTail;
+    if (p.notes.isNotEmpty) req.notes = p.notes;
+    if (p.openingDate != null) req.openingDate = _ts(p.openingDate!);
+    if (p.interestRate != null) req.interestRate = p.interestRate!;
+    if (p.creditBillingDay != null) req.creditBillingDay = p.creditBillingDay!;
+    if (p.creditRepaymentDay != null) {
+      req.creditRepaymentDay = p.creditRepaymentDay!;
+    }
+    if (p.creditAnnualFeeCents != null) {
+      req.creditAnnualFeeCents = Int64(p.creditAnnualFeeCents!);
+    }
+    if (p.investCostCents != null) req.investCostCents = Int64(p.investCostCents!);
+    if (p.investMarketValueCents != null) {
+      req.investMarketValueCents = Int64(p.investMarketValueCents!);
+    }
+    if (p.investReturnYtd != null) req.investReturnYtd = p.investReturnYtd!;
+    if (p.fixedPrincipalCents != null) {
+      req.fixedPrincipalCents = Int64(p.fixedPrincipalCents!);
+    }
+    if (p.fixedStartDate != null) req.fixedStartDate = _ts(p.fixedStartDate!);
+    if (p.fixedMaturityDate != null) {
+      req.fixedMaturityDate = _ts(p.fixedMaturityDate!);
+    }
+    if (p.fixedTermMonths != null) req.fixedTermMonths = p.fixedTermMonths!;
+    if (p.goldProductType.isNotEmpty) req.goldProductType = p.goldProductType;
+    if (p.goldQuantity != null) req.goldQuantity = p.goldQuantity!;
+    if (p.goldBuyPriceCents != null) {
+      req.goldBuyPriceCents = Int64(p.goldBuyPriceCents!);
+    }
+    if (p.goldCurrentPriceCents != null) {
+      req.goldCurrentPriceCents = Int64(p.goldCurrentPriceCents!);
+    }
+    if (p.estatePurchasePriceCents != null) {
+      req.estatePurchasePriceCents = Int64(p.estatePurchasePriceCents!);
+    }
+    if (p.estateCurrentValueCents != null) {
+      req.estateCurrentValueCents = Int64(p.estateCurrentValueCents!);
+    }
+    if (p.estatePurchaseDate != null) {
+      req.estatePurchaseDate = _ts(p.estatePurchaseDate!);
+    }
+    if (p.estateDepreciationRate != null) {
+      req.estateDepreciationRate = p.estateDepreciationRate!;
+    }
+    if (p.loanOriginalCents != null) {
+      req.loanOriginalCents = Int64(p.loanOriginalCents!);
+    }
+    if (p.loanRemainingCents != null) {
+      req.loanRemainingCents = Int64(p.loanRemainingCents!);
+    }
+    if (p.loanMonthlyCents != null) {
+      req.loanMonthlyCents = Int64(p.loanMonthlyCents!);
+    }
+    if (p.loanNextPaymentDate != null) {
+      req.loanNextPaymentDate = _ts(p.loanNextPaymentDate!);
+    }
+  }
 }
+
+tspb.Timestamp _ts(DateTime d) => tspb.Timestamp.fromDateTime(d);

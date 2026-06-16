@@ -23,6 +23,14 @@ class AccountRepositoryImpl implements AccountRepository {
   @override
   Future<Either<Failure, void>> delete(String id) => _guard(() => _remote.delete(id));
 
+  @override
+  Future<Either<Failure, Account>> getById(String id) =>
+      _guard(() => _remote.getById(id));
+
+  @override
+  Future<Either<Failure, Account>> update(UpdateAccountParams params) =>
+      _guard(() => _remote.update(params));
+
   // Maps thrown GrpcError/exceptions to Failure, wrapping the op in Either.
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {
     try {
