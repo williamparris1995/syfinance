@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
+import 'package:yucai_client/account/presentation/pages/account_detail_page.dart';
 import 'package:yucai_client/account/presentation/pages/accounts_page.dart';
 import 'package:yucai_client/app/widgets/app_shell.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
@@ -64,6 +65,18 @@ GoRouter buildRouter(AuthBloc authBloc) {
                   create: (_) => getIt<AccountBloc>(),
                   child: const AccountsPage(),
                 ),
+                routes: [
+                  GoRoute(
+                    path: ':id',
+                    builder: (context, state) => BlocProvider<AccountBloc>(
+                      // 详情页用独立 bloc 实例：列表页 bloc 在跳转时被释放，
+                      // 详情页需要自己的实例来发起 GetAccountRequested。
+                      create: (_) => getIt<AccountBloc>(),
+                      child: AccountDetailPage(
+                          id: state.pathParameters['id']!),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
