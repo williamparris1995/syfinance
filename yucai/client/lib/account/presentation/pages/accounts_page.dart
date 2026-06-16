@@ -145,6 +145,21 @@ class _AccountsPageState extends State<AccountsPage> {
                 id: a.id,
                 version: a.version,
                 status: AccountStatus.archived,
+                // 保留现有值字段：account_remote_ds.update 对非 optional 标量
+                // （name/icon/color/institution/creditLimitCents）无条件覆盖，
+                // 不传会用默认值（''/0）→ 关闭账户会清空这些字段。补传当前值
+                // 确保关闭只改 status，不破坏其他字段。string 字段（cardNumberTail
+                // /notes/goldProductType）虽 remote_ds 对非空才设，但保留值更安全。
+                // nullable 字段（26 个 type-specific）保持默认 null：remote_ds 对
+                // null 不设，不会清空。
+                name: a.name,
+                icon: a.icon,
+                color: a.color,
+                institution: a.institution,
+                creditLimitCents: a.creditLimitCents,
+                cardNumberTail: a.cardNumberTail,
+                notes: a.notes,
+                goldProductType: a.goldProductType,
               ),
             ));
       }
