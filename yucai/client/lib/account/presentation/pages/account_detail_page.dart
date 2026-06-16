@@ -9,6 +9,7 @@ import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/bloc/account_state.dart';
 import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
+import 'package:yucai_client/account/presentation/widgets/account_category_style.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
@@ -29,6 +30,13 @@ class AccountDetailPage extends StatefulWidget {
 }
 
 class _AccountDetailPageState extends State<AccountDetailPage> {
+  /// 关闭账户写操作进行中。_close dispatch 后置 true，BlocListener 收到
+  /// AccountsLoaded（成功）/AccountError（失败）后清零 + toast + pop。
+  /// 仿 accounts_page._pendingIds 的 listener 模式，避免 dispatch 即 toast
+  /// 的过早提示，以及 UpdateAccountRequested → LoadAccountsRequested →
+  /// AccountsLoaded 导致本页 BlocBuilder 渲染 SizedBox.shrink（页面空白）。
+  bool _closePending = false;
+
   @override
   void initState() {
     super.initState();
@@ -95,19 +103,34 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
           ),
         ],
       ),
-      body: BlocBuilder<AccountBloc, AccountState>(
-        builder: (context, state) {
-          if (state is AccountLoading) {
-            return const Center(child: CircularProgressIndicator());
+      body: BlocListener<AccountBloc, AccountState>(
+        // 仅在关闭写操作进行中时，对终态（成功 AccountsLoaded / 失败 AccountError）反应。
+        listenWhen: (p, c) =>
+            _closePending && (c is AccountsLoaded || c is AccountError),
+        listener: (context, state) {
+          if (state is AccountsLoaded) {
+            setState(() => _closePending = false);
+            AppToast.show(context, '账户已关闭', type: ToastType.success);
+            context.pop(); // 回列表
+          } else if (state is AccountError) {
+            setState(() => _closePending = false);
+            AppToast.show(context, state.message, type: ToastType.error);
           }
-          if (state is AccountError) {
-            return Center(child: Text(state.message));
-          }
-          if (state is AccountDetailLoaded) {
-            return _body(state.account);
-          }
-          return const SizedBox.shrink();
         },
+        child: BlocBuilder<AccountBloc, AccountState>(
+          builder: (context, state) {
+            if (state is AccountLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (state is AccountError) {
+              return Center(child: Text(state.message));
+            }
+            if (state is AccountDetailLoaded) {
+              return _body(state.account);
+            }
+            return const SizedBox.shrink();
+          },
+        ),
       ),
     );
   }
@@ -157,11 +180,11 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: _categoryColor(a.category).withValues(alpha: 0.12),
+                    color: categoryColor(a.category).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
-                  child: Icon(_categoryIcon(a.category),
-                      size: 22, color: _categoryColor(a.category)),
+                  child: Icon(categoryIcon(a.category),
+                      size: 22, color: categoryColor(a.category)),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -224,7 +247,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     }
 
     void addRate(String label, double? r) {
-      if (r != null) chips.add(_Chip(label, '$r%'));
+      // 利率/收益率/折旧率统一 2 位小数（避免 3.8571428% 这种长尾）。
+      if (r != null) chips.add(_Chip(label, '${r.toStringAsFixed(2)}%'));
     }
 
     void addDay(String label, int? d) {
@@ -257,7 +281,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     // 黄金
     add('品种', a.goldProductType.isEmpty ? null : a.goldProductType);
     if (a.goldQuantity != null) {
-      chips.add(_Chip('数量', a.goldQuantity.toString()));
+      // 黄金/外汇数量精度 3 位（克/盎司通常 2-3 位小数）。
+      chips.add(_Chip('数量', a.goldQuantity!.toStringAsFixed(3)));
     }
     addNum('买入价', a.goldBuyPriceCents);
     addNum('现价', a.goldCurrentPriceCents);
@@ -431,6 +456,10 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
       ),
     ).then((ok) {
       if (ok == true && mounted) {
+        // 不直接 toast：dispatch 后 bloc 成功会发 LoadAccountsRequested →
+        // AccountsLoaded（本页 BlocBuilder 不认此 state，会渲染空白）。
+        // 改由下方 BlocListener 在 AccountsLoaded 时 toast + pop。
+        setState(() => _closePending = true);
         context.read<AccountBloc>().add(
               UpdateAccountRequested(
                 UpdateAccountParams(
@@ -449,7 +478,6 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                 ),
               ),
             );
-        AppToast.show(context, '账户已关闭', type: ToastType.success);
       }
     });
   }
@@ -489,54 +517,6 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
 
   String _fmtDate(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
-  // 与 accounts_page._categoryColor 保持一致（复制，避免跨文件私有引用）。
-  Color _categoryColor(AccountCategory c) {
-    switch (c) {
-      case AccountCategory.savings:
-        return AppColors.positive;
-      case AccountCategory.creditCard:
-        return const Color(0xFF6B8CCE);
-      case AccountCategory.investment:
-        return AppColors.accent;
-      case AccountCategory.fixedDeposit:
-        return const Color(0xFF8A8A6B);
-      case AccountCategory.goldFx:
-        return const Color(0xFFC9A03D);
-      case AccountCategory.realEstate:
-        return const Color(0xFF8C7BB5);
-      case AccountCategory.loan:
-        return AppColors.negative;
-      case AccountCategory.otherAsset:
-        return AppColors.muted;
-      case AccountCategory.otherLiability:
-        return AppColors.negative;
-    }
-  }
-
-  // 与 accounts_page._categoryIcon 保持一致（复制）。
-  IconData _categoryIcon(AccountCategory c) {
-    switch (c) {
-      case AccountCategory.savings:
-        return Icons.account_balance_wallet_outlined;
-      case AccountCategory.creditCard:
-        return Icons.credit_card_outlined;
-      case AccountCategory.investment:
-        return Icons.trending_up;
-      case AccountCategory.fixedDeposit:
-        return Icons.hourglass_bottom;
-      case AccountCategory.goldFx:
-        return Icons.diamond_outlined;
-      case AccountCategory.realEstate:
-        return Icons.home_outlined;
-      case AccountCategory.loan:
-        return Icons.request_quote_outlined;
-      case AccountCategory.otherAsset:
-        return Icons.inventory_2_outlined;
-      case AccountCategory.otherLiability:
-        return Icons.pending_actions;
-    }
-  }
 }
 
 class _Chip {

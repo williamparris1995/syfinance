@@ -178,6 +178,15 @@ DropdownButtonFormField<int> _dayPicker(
   );
 }
 
+/// 数值 TextFormField（利率/期限/数量等）的可选校验器：
+/// 空值允许（不填）；非空需可解析为 double，否则提示。
+/// 防止格式错误输入静默 → _optDouble/_optInt 返回 null → 字段被丢弃。
+String? optionalNumberValidator(String? v) {
+  final t = v?.trim() ?? '';
+  if (t.isEmpty) return null; // 空允许
+  return double.tryParse(t) == null ? '请输入有效数字' : null;
+}
+
 /// 按 category 渲染专属字段 widget 列表。
 /// [currencySymbol] 透传给所有 AmountInput（随币种变化，由 FormPage 传
 /// currencySymbolOf(_currency)）。切币种 → setState → 重渲染 → 符号更新。
@@ -202,6 +211,7 @@ List<Widget> categoryFieldsWidget(
           controller: b.interestRateCtrl,
           decoration: InputDecoration(labelText: rateLabel(c)),
           keyboardType: TextInputType.number,
+          validator: optionalNumberValidator,
         ),
         DatePickerInput(
           label: '开户日期',
@@ -230,6 +240,7 @@ List<Widget> categoryFieldsWidget(
           controller: b.interestRateCtrl,
           decoration: InputDecoration(labelText: rateLabel(c)),
           keyboardType: TextInputType.number,
+          validator: optionalNumberValidator,
         ),
       ];
     case AccountCategory.investment:
@@ -249,6 +260,7 @@ List<Widget> categoryFieldsWidget(
           controller: b.interestRateCtrl,
           decoration: InputDecoration(labelText: rateLabel(c)),
           keyboardType: TextInputType.number,
+          validator: optionalNumberValidator,
         ),
       ];
     case AccountCategory.fixedDeposit:
@@ -266,6 +278,7 @@ List<Widget> categoryFieldsWidget(
           controller: b.interestRateCtrl,
           decoration: InputDecoration(labelText: rateLabel(c)),
           keyboardType: TextInputType.number,
+          validator: optionalNumberValidator,
         ),
         DatePickerInput(
           label: '起息日',
@@ -281,6 +294,7 @@ List<Widget> categoryFieldsWidget(
           controller: b.fixedTermMonthsCtrl,
           decoration: const InputDecoration(labelText: '期限（月）'),
           keyboardType: TextInputType.number,
+          validator: optionalNumberValidator,
         ),
       ];
     case AccountCategory.goldFx:
@@ -294,6 +308,7 @@ List<Widget> categoryFieldsWidget(
           controller: b.goldQuantityCtrl,
           decoration: const InputDecoration(labelText: '数量'),
           keyboardType: TextInputType.number,
+          validator: optionalNumberValidator,
         ),
         AmountInput(controller: b.primaryCentsCtrl, label: primaryAmountLabel(c), currencySymbol: currencySymbol),
         AmountInput(controller: b.goldCurrentPriceCtrl, label: '现价', currencySymbol: currencySymbol),
@@ -311,6 +326,7 @@ List<Widget> categoryFieldsWidget(
           controller: b.interestRateCtrl,
           decoration: InputDecoration(labelText: rateLabel(c)),
           keyboardType: TextInputType.number,
+          validator: optionalNumberValidator,
         ),
       ];
     case AccountCategory.loan:
@@ -325,11 +341,13 @@ List<Widget> categoryFieldsWidget(
           controller: b.interestRateCtrl,
           decoration: InputDecoration(labelText: rateLabel(c)),
           keyboardType: TextInputType.number,
+          validator: optionalNumberValidator,
         ),
         TextFormField(
           controller: b.fixedTermMonthsCtrl,
           decoration: const InputDecoration(labelText: '期限（月）'),
           keyboardType: TextInputType.number,
+          validator: optionalNumberValidator,
         ),
         AmountInput(controller: b.loanMonthlyCtrl, label: '月供', currencySymbol: currencySymbol),
         DatePickerInput(

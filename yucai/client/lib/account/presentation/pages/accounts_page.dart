@@ -9,6 +9,7 @@ import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/bloc/account_state.dart';
 import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
+import 'package:yucai_client/account/presentation/widgets/account_category_style.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
@@ -476,7 +477,7 @@ class _GroupBlock extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 10),
           child: Row(
             children: [
-              Icon(_categoryIcon(type), size: 20, color: AppColors.accent),
+              Icon(categoryIcon(type), size: 20, color: AppColors.accent),
               const SizedBox(width: 8),
               Text(type.label,
                   style: const TextStyle(
@@ -558,7 +559,7 @@ class _AccountCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final negative = account.currentBalanceCents < 0;
-    final typeColor = _categoryColor(account.category);
+    final typeColor = categoryColor(account.category);
     return DataCard(
       // 点击卡片直接进详情（⋯ 菜单另有点击/长按入口）。
       onTap: () => context.go('/accounts/${account.id}'),
@@ -600,7 +601,7 @@ class _AccountCard extends StatelessWidget {
                   color: typeColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
-                child: Icon(_categoryIcon(account.category),
+                child: Icon(categoryIcon(account.category),
                     size: 18, color: typeColor),
               ),
               PopupMenuButton<String>(
@@ -682,53 +683,5 @@ class _AccountCard extends StatelessWidget {
       return '额度 ${formatCents(a.creditLimitCents)} · ${a.ownership.label}';
     }
     return '可用余额 · ${a.ownership.label}';
-  }
-}
-
-// ───────────────────────── 类型色 / 图标 ─────────────────────────
-
-Color _categoryColor(AccountCategory c) {
-  switch (c) {
-    case AccountCategory.savings:
-      return AppColors.positive;
-    case AccountCategory.creditCard:
-      return const Color(0xFF6B8CCE);
-    case AccountCategory.investment:
-      return AppColors.accent;
-    case AccountCategory.fixedDeposit:
-      return const Color(0xFF8A8A6B);
-    case AccountCategory.goldFx:
-      return const Color(0xFFC9A03D);
-    case AccountCategory.realEstate:
-      return const Color(0xFF8C7BB5);
-    case AccountCategory.loan:
-      return AppColors.negative;
-    case AccountCategory.otherAsset:
-      return AppColors.muted;
-    case AccountCategory.otherLiability:
-      return AppColors.negative;
-  }
-}
-
-IconData _categoryIcon(AccountCategory c) {
-  switch (c) {
-    case AccountCategory.savings:
-      return Icons.account_balance_wallet_outlined;
-    case AccountCategory.creditCard:
-      return Icons.credit_card_outlined;
-    case AccountCategory.investment:
-      return Icons.trending_up;
-    case AccountCategory.fixedDeposit:
-      return Icons.hourglass_bottom;
-    case AccountCategory.goldFx:
-      return Icons.diamond_outlined;
-    case AccountCategory.realEstate:
-      return Icons.home_outlined;
-    case AccountCategory.loan:
-      return Icons.request_quote_outlined;
-    case AccountCategory.otherAsset:
-      return Icons.inventory_2_outlined;
-    case AccountCategory.otherLiability:
-      return Icons.pending_actions;
   }
 }
