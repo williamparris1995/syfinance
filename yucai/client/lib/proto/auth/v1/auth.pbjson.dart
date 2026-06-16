@@ -199,3 +199,61 @@ final $typed_data.Uint8List userDTODescriptor = $convert.base64Decode(
     'QKBWVtYWlsGAMgASgJUgVlbWFpbBIhCgxkaXNwbGF5X25hbWUYBCABKAlSC2Rpc3BsYXlOYW1l'
     'Eh0KCmF2YXRhcl91cmwYBSABKAlSCWF2YXRhclVybBIdCgpjcmVhdGVkX2F0GAYgASgJUgljcm'
     'VhdGVkQXQ=');
+
+const $core.Map<$core.String, $core.dynamic> AuthServiceBase$json = {
+  '1': 'AuthService',
+  '2': [
+    {
+      '1': 'Register',
+      '2': '.yucai.auth.v1.RegisterRequest',
+      '3': '.yucai.auth.v1.RegisterResponse'
+    },
+    {
+      '1': 'Login',
+      '2': '.yucai.auth.v1.LoginRequest',
+      '3': '.yucai.auth.v1.LoginResponse'
+    },
+    {
+      '1': 'RefreshToken',
+      '2': '.yucai.auth.v1.RefreshTokenRequest',
+      '3': '.yucai.auth.v1.RefreshTokenResponse'
+    },
+    {
+      '1': 'GetProfile',
+      '2': '.yucai.auth.v1.GetProfileRequest',
+      '3': '.yucai.auth.v1.GetProfileResponse'
+    },
+    {
+      '1': 'UpdateProfile',
+      '2': '.yucai.auth.v1.UpdateProfileRequest',
+      '3': '.yucai.auth.v1.UpdateProfileResponse'
+    },
+  ],
+};
+
+@$core.Deprecated('Use authServiceDescriptor instead')
+const $core.Map<$core.String, $core.Map<$core.String, $core.dynamic>>
+    AuthServiceBase$messageJson = {
+  '.yucai.auth.v1.RegisterRequest': RegisterRequest$json,
+  '.yucai.auth.v1.RegisterResponse': RegisterResponse$json,
+  '.yucai.auth.v1.UserDTO': UserDTO$json,
+  '.yucai.auth.v1.LoginRequest': LoginRequest$json,
+  '.yucai.auth.v1.LoginResponse': LoginResponse$json,
+  '.yucai.auth.v1.RefreshTokenRequest': RefreshTokenRequest$json,
+  '.yucai.auth.v1.RefreshTokenResponse': RefreshTokenResponse$json,
+  '.yucai.auth.v1.GetProfileRequest': GetProfileRequest$json,
+  '.yucai.auth.v1.GetProfileResponse': GetProfileResponse$json,
+  '.yucai.auth.v1.UpdateProfileRequest': UpdateProfileRequest$json,
+  '.yucai.auth.v1.UpdateProfileResponse': UpdateProfileResponse$json,
+};
+
+/// Descriptor for `AuthService`. Decode as a `google.protobuf.ServiceDescriptorProto`.
+final $typed_data.Uint8List authServiceDescriptor = $convert.base64Decode(
+    'CgtBdXRoU2VydmljZRJLCghSZWdpc3RlchIeLnl1Y2FpLmF1dGgudjEuUmVnaXN0ZXJSZXF1ZX'
+    'N0Gh8ueXVjYWkuYXV0aC52MS5SZWdpc3RlclJlc3BvbnNlEkIKBUxvZ2luEhsueXVjYWkuYXV0'
+    'aC52MS5Mb2dpblJlcXVlc3QaHC55dWNhaS5hdXRoLnYxLkxvZ2luUmVzcG9uc2USVwoMUmVmcm'
+    'VzaFRva2VuEiIueXVjYWkuYXV0aC52MS5SZWZyZXNoVG9rZW5SZXF1ZXN0GiMueXVjYWkuYXV0'
+    'aC52MS5SZWZyZXNoVG9rZW5SZXNwb25zZRJRCgpHZXRQcm9maWxlEiAueXVjYWkuYXV0aC52MS'
+    '5HZXRQcm9maWxlUmVxdWVzdBohLnl1Y2FpLmF1dGgudjEuR2V0UHJvZmlsZVJlc3BvbnNlEloK'
+    'DVVwZGF0ZVByb2ZpbGUSIy55dWNhaS5hdXRoLnYxLlVwZGF0ZVByb2ZpbGVSZXF1ZXN0GiQueX'
+    'VjYWkuYXV0aC52MS5VcGRhdGVQcm9maWxlUmVzcG9uc2U=');

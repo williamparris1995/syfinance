@@ -12,3 +12,10 @@ pnpm-lock.yaml
 .DS_Store
 Thumbs.db
 graphify-out/cache/
+
+# yucai build 产物（不提交 binary）
+yucai/server/*.exe
+yucai/server/bin/
+
+# 调试输出
+accounts-list

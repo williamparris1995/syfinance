@@ -10,6 +10,7 @@
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
 // ignore_for_file: non_constant_identifier_names, prefer_relative_imports
 
+import 'dart:async' as $async;
 import 'dart:core' as $core;
 
 import 'package:protobuf/protobuf.dart' as $pb;
@@ -768,6 +769,34 @@ class UserDTO extends $pb.GeneratedMessage {
   $core.bool hasCreatedAt() => $_has(5);
   @$pb.TagNumber(6)
   void clearCreatedAt() => $_clearField(6);
+}
+
+/// AuthService handles authentication, registration, and profile management.
+class AuthServiceApi {
+  final $pb.RpcClient _client;
+
+  AuthServiceApi(this._client);
+
+  $async.Future<RegisterResponse> register(
+          $pb.ClientContext? ctx, RegisterRequest request) =>
+      _client.invoke<RegisterResponse>(
+          ctx, 'AuthService', 'Register', request, RegisterResponse());
+  $async.Future<LoginResponse> login(
+          $pb.ClientContext? ctx, LoginRequest request) =>
+      _client.invoke<LoginResponse>(
+          ctx, 'AuthService', 'Login', request, LoginResponse());
+  $async.Future<RefreshTokenResponse> refreshToken(
+          $pb.ClientContext? ctx, RefreshTokenRequest request) =>
+      _client.invoke<RefreshTokenResponse>(
+          ctx, 'AuthService', 'RefreshToken', request, RefreshTokenResponse());
+  $async.Future<GetProfileResponse> getProfile(
+          $pb.ClientContext? ctx, GetProfileRequest request) =>
+      _client.invoke<GetProfileResponse>(
+          ctx, 'AuthService', 'GetProfile', request, GetProfileResponse());
+  $async.Future<UpdateProfileResponse> updateProfile(
+          $pb.ClientContext? ctx, UpdateProfileRequest request) =>
+      _client.invoke<UpdateProfileResponse>(ctx, 'AuthService', 'UpdateProfile',
+          request, UpdateProfileResponse());
 }
 
 const $core.bool _omitFieldNames =
