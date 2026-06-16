@@ -425,7 +425,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
       MaterialPageRoute(
         builder: (_) => BlocProvider.value(
           value: context.read<AccountBloc>(),
-          child: AccountFormPage(existing: a.copyWith(id: '', version: 0)),
+          child: AccountFormPage(existing: a.copyWith(id: '', version: 0, name: '${a.name}（副本）')),
         ),
       ),
     )

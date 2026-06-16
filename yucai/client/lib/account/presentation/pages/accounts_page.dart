@@ -28,6 +28,7 @@ class AccountsPage extends StatefulWidget {
 class _AccountsPageState extends State<AccountsPage> {
   /// null = 全部。
   AccountCategory? _filter;
+  bool _showArchived = false; // 归档账户默认隐藏，勾选「含已归档」时显示
   /// 正在执行写操作的账户 id 集合（删除 / 关闭等），支持多操作并发追踪。
   final _pendingIds = <String>{};
 
@@ -110,7 +111,7 @@ class _AccountsPageState extends State<AccountsPage> {
         builder: (_) => BlocProvider.value(
           value: context.read<AccountBloc>(),
           child: AccountFormPage(
-            existing: a.copyWith(id: '', version: 0),
+            existing: a.copyWith(id: '', version: 0, name: '${a.name}（副本）'),
           ),
         ),
       ),
@@ -250,11 +251,16 @@ class _AccountsPageState extends State<AccountsPage> {
   }
 
   Widget _content(List<Account> accounts) {
+    // 归档账户不参与活跃统计（合计/默认列表）；_showArchived 时才显示。
+    final active = accounts
+        .where((a) => a.status == AccountStatus.active)
+        .toList();
     final totalCents =
-        accounts.fold<int>(0, (s, a) => s + a.currentBalanceCents);
+        active.fold<int>(0, (s, a) => s + a.currentBalanceCents);
+    final scoped = _showArchived ? accounts : active;
     final filtered = _filter == null
-        ? accounts
-        : accounts.where((a) => a.category == _filter).toList();
+        ? scoped
+        : scoped.where((a) => a.category == _filter).toList();
     final groups = _groupByCategory(filtered);
 
     final tabs = <FilterTab<AccountCategory?>>[
@@ -276,7 +282,7 @@ class _AccountsPageState extends State<AccountsPage> {
               children: [
                 _AccountsHeader(
                   totalCents: totalCents,
-                  count: accounts.length,
+                  count: scoped.length,
                   onAdd: _openCreateForm,
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -284,6 +290,21 @@ class _AccountsPageState extends State<AccountsPage> {
                   tabs: tabs,
                   active: _filter,
                   onChanged: (v) => setState(() => _filter = v),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                  child: Row(
+                    children: [
+                      Checkbox(
+                        value: _showArchived,
+                        onChanged: (v) =>
+                            setState(() => _showArchived = v ?? false),
+                      ),
+                      const Text('含已归档账户',
+                          style: TextStyle(
+                              color: AppColors.muted, fontSize: 13)),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 if (groups.isEmpty)
