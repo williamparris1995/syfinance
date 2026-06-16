@@ -1,8 +1,8 @@
 # 账户类型专属字段 + 完整 UI 原型设计
 
-**日期**: 2026-06-15
+**日期**: 2026-06-15（2026-06-16 修订字段命名）
 **状态**: 已确认
-**范围**: Account 模块类型专属字段（25 字段）+ 表单/卡片/详情页完整 UI 原型；account 功能真实，transaction/holding 功能占位（待其他模块对接）
+**范围**: Account 模块类型专属字段（26 字段，category 前缀命名）+ 表单/卡片/详情页完整 UI 原型；account 功能真实，transaction/holding 功能占位（待其他模块对接）
 **前置**: [账户 category 设计](2026-06-15-account-category-design.md)（已完成，9 类 category）
 
 ## 目标
@@ -31,77 +31,77 @@
 
 ## 设计决策
 
-1. **固定列 nullable**（非 JSON/子实体）：25 字段加到 Account，nullable 用指针。类型安全 + 查询方便 + proto 强类型 + 符合 Mint/Quicken 主流。
-2. **表单按 category 完全动态**：每类一套完整字段（非"基本信息+专属"两层）。金额/卡号/日期语义随 category。
-3. **完整 UI 原型 + 占位策略**：account 相关功能真实（编辑/删除/复制/关闭 + 专属字段），transaction/holding 相关 UI 完整但数据占位（"待模块"提示）。
+1. **固定列 nullable**（非 JSON/子实体）：26 字段加到 Account，nullable 用指针。类型安全 + 查询方便 + proto 强类型 + 符合 Mint/Quicken 主流。
+2. **category 前缀命名 + 注释（2026-06-16 修订）**：独占字段加 category 前缀（`credit_`/`invest_`/`fixed_`/`gold_`/`estate_`/`loan_`），看名即知归属与用途，避免 `BuyPriceCents`(黄金) vs `PurchasePriceCents`(固定资产) 这类同名混淆；跨 category 共享字段（利率/卡号尾号/备注/开户日）保持通用名。原 `PrincipalCents`（投资成本/定期本金/贷款本金三义）拆为 `InvestCostCents`/`FixedPrincipalCents`/`LoanOriginalCents`。每字段附中文注释。
+3. **表单按 category 完全动态**：每类一套完整字段（非"基本信息+专属"两层）。金额/卡号/日期语义随 category。
+4. **完整 UI 原型 + 占位策略**：account 相关功能真实（编辑/删除/复制/关闭 + 专属字段），transaction/holding 相关 UI 完整但数据占位（"待模块"提示）。
 
-## Section 1: domain 字段（25 字段，固定列 nullable）
+## Section 1: domain 字段（26 字段，固定列 nullable，category 前缀命名）
 
-字段合并去重：`AprRate`→`InterestRate`、`Broker`→`Institution`(已有)、`CostBasisCents`→`PrincipalCents`。
+> 26 = 新增字段数（`CreditLimitCents` 已存在于 domain/ent/proto，不重复计）。命名：domain PascalCase / proto snake_case（见各表 proto 列）。
 
-### 通用字段
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `LastFourDigits` | string | 卡号/账号尾号 |
-| `OpeningDate` | *time.Time | 开户日期 |
-| `Notes` | string | 备注 |
+### 共享字段（跨 category）
+| 字段(domain) | proto | Go 类型 | 说明 |
+|------|------|------|------|
+| `CardNumberTail` | `card_number_tail` | string | 卡号/账号尾号（金融类：储蓄/信用卡/投资/定期/贷款） |
+| `Notes` | `notes` | string | 备注（全部 category） |
+| `OpeningDate` | `opening_date` | *time.Time | 开户日期（金融类） |
+| `InterestRate` | `interest_rate` | *float64 | 年化利率(%)：储蓄=存款利率、定期=存期利率、贷款=贷款利率、信用卡=APR |
 
-### 金融通用（跨 category 共享）
-| 字段 | 类型 | category |
-|------|------|----------|
-| `InterestRate` | *float64 | 储蓄/定期/贷款/信用卡(APR) |
-| `PrincipalCents` | int64 | 投资(成本)/定期/贷款(本金) |
+### 信用卡专属（`credit_`）
+| 字段(domain) | proto | Go 类型 | 说明 |
+|------|------|------|------|
+| `CreditLimitCents` | `credit_limit_cents` | int64 ✅已有 | 信用额度 |
+| `CreditBillingDay` | `credit_billing_day` | *int(1-31) | 账单日 |
+| `CreditRepaymentDay` | `credit_repayment_day` | *int(1-31) | 还款日 |
+| `CreditAnnualFeeCents` | `credit_annual_fee_cents` | *int64 | 年费 |
 
-### 信用卡专属
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `CreditLimitCents` | int64 ✅已有 | 信用额度 |
-| `BillingDay` | *int(1-31) | 账单日 |
-| `RepaymentDay` | *int(1-31) | 还款日 |
-| `AnnualFeeCents` | int64 | 年费 |
+### 投资专属（`invest_`）
+| 字段(domain) | proto | Go 类型 | 说明 |
+|------|------|------|------|
+| `InvestCostCents` | `invest_cost_cents` | *int64 | 投入成本（买入总成本） |
+| `InvestMarketValueCents` | `invest_market_value_cents` | *int64 | 当前市值 |
+| `InvestReturnYtd` | `invest_return_ytd` | *float64 | 今年收益率(%) |
 
-### 投资专属
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `MarketValueCents` | int64 | 当前市值 |
-| `ReturnRateYtd` | *float64 | 今年收益率(%) |
+### 定期专属（`fixed_`）
+| 字段(domain) | proto | Go 类型 | 说明 |
+|------|------|------|------|
+| `FixedPrincipalCents` | `fixed_principal_cents` | *int64 | 本金 |
+| `FixedStartDate` | `fixed_start_date` | *time.Time | 起息日 |
+| `FixedMaturityDate` | `fixed_maturity_date` | *time.Time | 到期日 |
+| `FixedTermMonths` | `fixed_term_months` | *int | 期限(月) |
 
-### 定期专属
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `StartDate` | *time.Time | 起息日 |
-| `MaturityDate` | *time.Time | 到期日 |
-| `TermMonths` | *int | 期限(月) |
+### 黄金外汇专属（`gold_`）
+| 字段(domain) | proto | Go 类型 | 说明 |
+|------|------|------|------|
+| `GoldProductType` | `gold_product_type` | string | 品种（如实物黄金/美元 USD） |
+| `GoldQuantity` | `gold_quantity` | *float64 | 持有数量 |
+| `GoldBuyPriceCents` | `gold_buy_price_cents` | *int64 | 买入价 |
+| `GoldCurrentPriceCents` | `gold_current_price_cents` | *int64 | 现价 |
 
-### 黄金外汇专属
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `ProductType` | string | 品种(gold/usd/...) |
-| `Quantity` | *float64 | 数量 |
-| `BuyPriceCents` | int64 | 买入价 |
-| `CurrentPriceCents` | int64 | 现价 |
+### 固定资产专属（`estate_`）
+| 字段(domain) | proto | Go 类型 | 说明 |
+|------|------|------|------|
+| `EstatePurchasePriceCents` | `estate_purchase_price_cents` | *int64 | 买入价 |
+| `EstateCurrentValueCents` | `estate_current_value_cents` | *int64 | 现估值 |
+| `EstatePurchaseDate` | `estate_purchase_date` | *time.Time | 买入日期 |
+| `EstateDepreciationRate` | `estate_depreciation_rate` | *float64 | 折旧率(%) |
 
-### 固定资产专属
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `PurchasePriceCents` | int64 | 买入价 |
-| `CurrentValueCents` | int64 | 现估值 |
-| `PurchaseDate` | *time.Time | 买入日期 |
-| `DepreciationRate` | *float64 | 折旧率(%) |
-
-### 贷款专属
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `RemainingCents` | int64 | 剩余本金 |
-| `MonthlyPaymentCents` | int64 | 月供 |
-| `NextPaymentDate` | *time.Time | 下次还款 |
+### 贷款专属（`loan_`）
+| 字段(domain) | proto | Go 类型 | 说明 |
+|------|------|------|------|
+| `LoanOriginalCents` | `loan_original_cents` | *int64 | 原始贷款本金 |
+| `LoanRemainingCents` | `loan_remaining_cents` | *int64 | 剩余本金 |
+| `LoanMonthlyCents` | `loan_monthly_cents` | *int64 | 月供 |
+| `LoanNextPaymentDate` | `loan_next_payment_date` | *time.Time | 下次还款日 |
 
 ### 类型约定
-- nullable 字段用指针（`*int`/`*float64`/`*time.Time`），区分"未填"和"零值"
-- 金额统一 int64 cents
+- nullable 字段用指针（`*int`/`*float64`/`*time.Time`/`*int64`），区分"未填"和"零值"
+- string 字段非指针（`""`=未填）：`CardNumberTail`/`Notes`/`GoldProductType`
+- 金额统一 *int64 cents（`CreditLimitCents` 已有的 int64 保留不动）
 - 利率/收益率/折旧率用 `*float64`（百分比，3.85 = 3.85%）
-- proto3 用 `optional` 关键字映射 nullable
-- ent schema 加 nullable 列
+- proto3 用 `optional` 关键字映射 nullable scalar；日期用 `google.protobuf.Timestamp`
+- ent schema：指针字段 `Optional().Nillable()`，string 字段 `Optional().Default("")`
 
 ## Section 2: 表单按 category 完全动态字段集
 
@@ -117,11 +117,20 @@
 | 定期 | 机构 / 账号尾号 / **本金** / 利率(%) / 起息日 / 到期日 / 期限(月) |
 | 黄金外汇 | 品种 / 数量 / **买入价** / 现价 |
 | 固定资产 | **买入价** / 现估值 / 买入日期 / 折旧率(%) |
-| 贷款 | 机构 / **剩余** / 本金 / 利率(%) / 期限(月) / 月供 / 下次还款 |
+| 贷款 | 机构 / **剩余** / 原始本金 / 利率(%) / 期限(月) / 月供 / 下次还款 |
 | 其他资产/负债 | **金额** / 备注 |
 
-**关键**：
-- 金额字段语义随 category（AmountInput label 动态：初始余额/当前欠款/剩余/成本/买入价…），都存 `InitialBalanceCents`
+**关键 — 主金额语义随 category，存到对应字段（非统一存 InitialBalanceCents）**：
+| category | AmountInput label | 存到字段 |
+|----------|------------------|---------|
+| 储蓄 / 其他资产 / 其他负债 | 初始余额 / 金额 | `InitialBalanceCents`（已有） |
+| 信用卡 | 当前欠款 | `InitialBalanceCents`（currentBalance 初始为负） |
+| 投资 | 成本 | `InvestCostCents` |
+| 定期 | 本金 | `FixedPrincipalCents` |
+| 黄金外汇 | 买入价 | `GoldBuyPriceCents` |
+| 固定资产 | 买入价 | `EstatePurchasePriceCents` |
+| 贷款 | 剩余本金 | `LoanRemainingCents`（原始本金另填 `LoanOriginalCents`） |
+
 - 卡号/开户日期按 category 显示（金融类有，实物类无）
 - 机构按 category（金融类有，实物类无）
 
@@ -136,7 +145,7 @@
 
 ## Section 3: 卡片操作按钮
 
-卡片 hover 底部浮现操作图标行（或长按/右键菜单）：
+卡片右上角操作菜单（`⋯` PopupMenu）：
 
 | 操作 | 功能状态 |
 |------|---------|
@@ -144,9 +153,9 @@
 | 编辑 | ✅ account 真实（编辑表单预填）|
 | 记一笔 | 🔒 transaction 占位 |
 | 转入/转出 | 🔒 transaction 占位 |
-| 复制 | ✅ account 真实（创建表单预填）|
-| 关闭/归档 | ✅ account 真实（状态切换）|
-| 删除 | ✅ account 已有 |
+| 复制 | ✅ account 真实（创建表单预填，seed 模式）|
+| 关闭/归档 | ✅ account 真实（status=archived）|
+| 删除 | ✅ account 已有（软删 deleted_at）|
 
 🔒 项禁用 + tooltip「待 Transaction 模块」。
 
@@ -172,7 +181,7 @@
 
 | 功能 | 本次 | 依赖 |
 |------|------|------|
-| 25 专属字段（domain/proto/ent/表单/卡片/详情）| ✅ 真实 | account |
+| 26 专属字段（domain/proto/ent/表单/卡片/详情）| ✅ 真实 | account |
 | 编辑/复制/关闭/删除 | ✅ 真实 | account |
 | 详情页 Hero + 路由 | ✅ 真实 | account |
 | 记一笔/转账/交易流水/收支统计 | 🔒 UI 占位 | transaction 模块（后续）|
@@ -190,6 +199,6 @@
 ## 约束
 
 - 不改动 category 设计（已完成）
-- 25 字段固定列（非 JSON/子实体）
+- 26 字段固定列（非 JSON/子实体），category 前缀命名
 - transaction/holding 功能占位，不实现真实数据
 - 渐进式：本次 account 真实 + 占位，后续模块对接
