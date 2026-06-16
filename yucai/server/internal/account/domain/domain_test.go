@@ -190,3 +190,49 @@ func TestNewAccountDerivesTypeFromCategory(t *testing.T) {
 		t.Error("empty name should fail")
 	}
 }
+
+func TestApplyProfileSetsNullableFields(t *testing.T) {
+	a, _ := NewAccountWithCategory(uuid.New(), "信用卡测试", AccountCategoryCreditCard, "CNY")
+	rate := 18.25
+	day := 9
+	limit := int64(800000)
+	tail := "2840"
+	p := &AccountProfile{
+		CardNumberTail:   &tail,
+		InterestRate:     &rate,
+		CreditBillingDay: &day,
+		CreditLimitCents: &limit,
+	}
+	a.ApplyProfile(p)
+	if a.CardNumberTail != "2840" {
+		t.Errorf("CardNumberTail not set, got %q", a.CardNumberTail)
+	}
+	if a.InterestRate == nil || *a.InterestRate != 18.25 {
+		t.Error("InterestRate not set")
+	}
+	if a.CreditBillingDay == nil || *a.CreditBillingDay != 9 {
+		t.Error("CreditBillingDay not set")
+	}
+	if a.CreditLimitCents != 800000 {
+		t.Errorf("CreditLimitCents not set, got %d", a.CreditLimitCents)
+	}
+}
+
+func TestApplyProfileNilFieldsSkipped(t *testing.T) {
+	a, _ := NewAccountWithCategory(uuid.New(), "贷款", AccountCategoryLoan, "CNY")
+	a.ApplyProfile(&AccountProfile{}) // 全 nil，无 panic
+	if a.InterestRate != nil || a.LoanRemainingCents != nil || a.CreditBillingDay != nil {
+		t.Error("nil profile fields should leave account fields untouched")
+	}
+}
+
+func TestArchiveSetsStatusWithoutDelete(t *testing.T) {
+	a, _ := NewAccountWithCategory(uuid.New(), "x", AccountCategorySavings, "CNY")
+	a.Archive()
+	if a.Status != AccountStatusArchived {
+		t.Error("Archive should set status to archived")
+	}
+	if a.DeletedAt != nil {
+		t.Error("Archive must NOT set DeletedAt (that's SoftDelete)")
+	}
+}
