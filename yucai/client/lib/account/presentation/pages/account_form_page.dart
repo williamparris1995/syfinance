@@ -399,7 +399,8 @@ class _AccountFormPageState extends State<AccountFormPage> {
                         const SizedBox(height: AppSpacing.lg),
                         FormSection(
                           title: '${_category.label}信息',
-                          children: categoryFieldsWidget(_category, _bundle),
+                          children: categoryFieldsWidget(_category, _bundle,
+                              currencySymbol: currencySymbolOf(_currency)),
                         ),
                         const SizedBox(height: AppSpacing.xl),
                         FormActions(

@@ -109,6 +109,30 @@ class CategoryFieldBundle {
   }
 }
 
+/// 货币代码 → 符号（AmountInput 前缀用）。未知代码兜底 ¥（同 CNY）。
+/// 切币种时 FormPage 传 currencySymbolOf(_currency) 给 categoryFieldsWidget，
+/// 驱动 AmountInput 前缀随币种变化。
+String currencySymbolOf(String code) {
+  switch (code) {
+    case 'USD':
+      return '\$';
+    case 'EUR':
+      return '€';
+    case 'GBP':
+      return '£';
+    case 'JPY':
+      return '¥';
+    case 'HKD':
+      return 'HK\$';
+    case 'AUD':
+      return 'A\$';
+    case 'SGD':
+      return 'S\$';
+    default:
+      return '¥'; // CNY + 未知
+  }
+}
+
 /// 主金额 label 按 category（spec §2 + 设计决策 4）。
 String primaryAmountLabel(AccountCategory c) {
   switch (c) {
@@ -155,7 +179,13 @@ DropdownButtonFormField<int> _dayPicker(
 }
 
 /// 按 category 渲染专属字段 widget 列表。
-List<Widget> categoryFieldsWidget(AccountCategory c, CategoryFieldBundle b) {
+/// [currencySymbol] 透传给所有 AmountInput（随币种变化，由 FormPage 传
+/// currencySymbolOf(_currency)）。切币种 → setState → 重渲染 → 符号更新。
+List<Widget> categoryFieldsWidget(
+  AccountCategory c,
+  CategoryFieldBundle b, {
+  String currencySymbol = '¥',
+}) {
   switch (c) {
     case AccountCategory.savings:
       return [
@@ -167,7 +197,7 @@ List<Widget> categoryFieldsWidget(AccountCategory c, CategoryFieldBundle b) {
           controller: b.cardNumberTailCtrl,
           decoration: const InputDecoration(labelText: '卡号后四位'),
         ),
-        AmountInput(controller: b.primaryCentsCtrl, label: primaryAmountLabel(c)),
+        AmountInput(controller: b.primaryCentsCtrl, label: primaryAmountLabel(c), currencySymbol: currencySymbol),
         TextFormField(
           controller: b.interestRateCtrl,
           decoration: InputDecoration(labelText: rateLabel(c)),
@@ -189,13 +219,13 @@ List<Widget> categoryFieldsWidget(AccountCategory c, CategoryFieldBundle b) {
           controller: b.cardNumberTailCtrl,
           decoration: const InputDecoration(labelText: '卡号尾号'),
         ),
-        AmountInput(controller: b.primaryCentsCtrl, label: primaryAmountLabel(c)),
-        AmountInput(controller: b.creditLimitCtrl, label: '信用额度'),
+        AmountInput(controller: b.primaryCentsCtrl, label: primaryAmountLabel(c), currencySymbol: currencySymbol),
+        AmountInput(controller: b.creditLimitCtrl, label: '信用额度', currencySymbol: currencySymbol),
         FormRow(children: [
           _dayPicker(b.creditBillingDayCtrl, '账单日'),
           _dayPicker(b.creditRepaymentDayCtrl, '还款日'),
         ]),
-        AmountInput(controller: b.creditAnnualFeeCtrl, label: '年费'),
+        AmountInput(controller: b.creditAnnualFeeCtrl, label: '年费', currencySymbol: currencySymbol),
         TextFormField(
           controller: b.interestRateCtrl,
           decoration: InputDecoration(labelText: rateLabel(c)),
@@ -213,8 +243,8 @@ List<Widget> categoryFieldsWidget(AccountCategory c, CategoryFieldBundle b) {
           controller: b.cardNumberTailCtrl,
           decoration: const InputDecoration(labelText: '账号尾号'),
         ),
-        AmountInput(controller: b.primaryCentsCtrl, label: primaryAmountLabel(c)),
-        AmountInput(controller: b.investMarketValueCtrl, label: '当前市值'),
+        AmountInput(controller: b.primaryCentsCtrl, label: primaryAmountLabel(c), currencySymbol: currencySymbol),
+        AmountInput(controller: b.investMarketValueCtrl, label: '当前市值', currencySymbol: currencySymbol),
         TextFormField(
           controller: b.interestRateCtrl,
           decoration: InputDecoration(labelText: rateLabel(c)),
@@ -231,7 +261,7 @@ List<Widget> categoryFieldsWidget(AccountCategory c, CategoryFieldBundle b) {
           controller: b.cardNumberTailCtrl,
           decoration: const InputDecoration(labelText: '账号尾号'),
         ),
-        AmountInput(controller: b.primaryCentsCtrl, label: primaryAmountLabel(c)),
+        AmountInput(controller: b.primaryCentsCtrl, label: primaryAmountLabel(c), currencySymbol: currencySymbol),
         TextFormField(
           controller: b.interestRateCtrl,
           decoration: InputDecoration(labelText: rateLabel(c)),
@@ -265,13 +295,13 @@ List<Widget> categoryFieldsWidget(AccountCategory c, CategoryFieldBundle b) {
           decoration: const InputDecoration(labelText: '数量'),
           keyboardType: TextInputType.number,
         ),
-        AmountInput(controller: b.primaryCentsCtrl, label: primaryAmountLabel(c)),
-        AmountInput(controller: b.goldCurrentPriceCtrl, label: '现价'),
+        AmountInput(controller: b.primaryCentsCtrl, label: primaryAmountLabel(c), currencySymbol: currencySymbol),
+        AmountInput(controller: b.goldCurrentPriceCtrl, label: '现价', currencySymbol: currencySymbol),
       ];
     case AccountCategory.realEstate:
       return [
-        AmountInput(controller: b.primaryCentsCtrl, label: primaryAmountLabel(c)),
-        AmountInput(controller: b.estateCurrentValueCtrl, label: '现估值'),
+        AmountInput(controller: b.primaryCentsCtrl, label: primaryAmountLabel(c), currencySymbol: currencySymbol),
+        AmountInput(controller: b.estateCurrentValueCtrl, label: '现估值', currencySymbol: currencySymbol),
         DatePickerInput(
           label: '买入日期',
           initialValue: b.estatePurchaseDate,
@@ -289,8 +319,8 @@ List<Widget> categoryFieldsWidget(AccountCategory c, CategoryFieldBundle b) {
           controller: b.institutionCtrl,
           decoration: const InputDecoration(labelText: '贷款机构'),
         ),
-        AmountInput(controller: b.primaryCentsCtrl, label: primaryAmountLabel(c)),
-        AmountInput(controller: b.loanOriginalCtrl, label: '原始本金'),
+        AmountInput(controller: b.primaryCentsCtrl, label: primaryAmountLabel(c), currencySymbol: currencySymbol),
+        AmountInput(controller: b.loanOriginalCtrl, label: '原始本金', currencySymbol: currencySymbol),
         TextFormField(
           controller: b.interestRateCtrl,
           decoration: InputDecoration(labelText: rateLabel(c)),
@@ -301,7 +331,7 @@ List<Widget> categoryFieldsWidget(AccountCategory c, CategoryFieldBundle b) {
           decoration: const InputDecoration(labelText: '期限（月）'),
           keyboardType: TextInputType.number,
         ),
-        AmountInput(controller: b.loanMonthlyCtrl, label: '月供'),
+        AmountInput(controller: b.loanMonthlyCtrl, label: '月供', currencySymbol: currencySymbol),
         DatePickerInput(
           label: '下次还款日',
           initialValue: b.loanNextPaymentDate,
@@ -310,6 +340,6 @@ List<Widget> categoryFieldsWidget(AccountCategory c, CategoryFieldBundle b) {
       ];
     case AccountCategory.otherAsset:
     case AccountCategory.otherLiability:
-      return [AmountInput(controller: b.primaryCentsCtrl, label: '金额')];
+      return [AmountInput(controller: b.primaryCentsCtrl, label: '金额', currencySymbol: currencySymbol)];
   }
 }
