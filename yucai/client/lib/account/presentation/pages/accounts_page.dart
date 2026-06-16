@@ -700,16 +700,19 @@ class _AccountCard extends StatelessWidget {
                 itemBuilder: (_) => [
                   const PopupMenuItem(
                       value: 'detail', child: Text('查看详情')),
-                  const PopupMenuItem(value: 'edit', child: Text('编辑')),
+                  // 归档账户：移除编辑/记一笔/转账（不可再产生交易）。
+                  if (!archived) ...[
+                    const PopupMenuItem(value: 'edit', child: Text('编辑')),
+                    const PopupMenuItem(
+                        value: 'record',
+                        enabled: false,
+                        child: Text('记一笔（待交易模块）')),
+                    const PopupMenuItem(
+                        value: 'transfer',
+                        enabled: false,
+                        child: Text('转账（待交易模块）')),
+                  ],
                   const PopupMenuItem(value: 'copy', child: Text('复制')),
-                  const PopupMenuItem(
-                      value: 'record',
-                      enabled: false,
-                      child: Text('记一笔（待交易模块）')),
-                  const PopupMenuItem(
-                      value: 'transfer',
-                      enabled: false,
-                      child: Text('转账（待交易模块）')),
                   if (archived)
                     const PopupMenuItem(
                         value: 'reactivate', child: Text('重新激活'))

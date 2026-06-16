@@ -36,6 +36,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   /// 的过早提示，以及 UpdateAccountRequested → LoadAccountsRequested →
   /// AccountsLoaded 导致本页 BlocBuilder 渲染 SizedBox.shrink（页面空白）。
   bool _closePending = false;
+  /// 写操作成功后的 toast 文案（关闭/激活共用同一套 pending → BlocListener 流程）。
+  String? _pendingSuccessMsg;
 
   @override
   void initState() {
@@ -59,30 +61,39 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                 c is AccountDetailLoaded || c is AccountLoading,
             builder: (context, state) {
               final a = state is AccountDetailLoaded ? state.account : null;
+              final archived = a?.status == AccountStatus.archived;
               return Row(
                 children: [
-                  TextButton(
-                    onPressed: a == null ? null : () => _edit(a),
-                    child: const Text('编辑'),
-                  ),
-                  const TextButton(
-                    onPressed: null,
-                    child: Text('记一笔🔒'),
-                  ),
-                  const TextButton(
-                    onPressed: null,
-                    child: Text('转账🔒'),
-                  ),
+                  // 归档账户：移除编辑/记一笔/转账（不可再产生交易），
+                  // 只留更多菜单（复制/重新激活/删除）。
+                  if (!archived) ...[
+                    TextButton(
+                      onPressed: a == null ? null : () => _edit(a),
+                      child: const Text('编辑'),
+                    ),
+                    const TextButton(
+                      onPressed: null,
+                      child: Text('记一笔🔒'),
+                    ),
+                    const TextButton(
+                      onPressed: null,
+                      child: Text('转账🔒'),
+                    ),
+                  ],
                   PopupMenuButton<String>(
                     tooltip: '更多操作',
                     icon: const Icon(Icons.more_horiz,
                         size: 18, color: AppColors.muted),
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(
                           value: 'copy', child: Text('复制账户')),
-                      PopupMenuItem(
-                          value: 'close', child: Text('关闭账户')),
-                      PopupMenuItem(
+                      if (archived)
+                        const PopupMenuItem(
+                            value: 'reactivate', child: Text('重新激活账户'))
+                      else
+                        const PopupMenuItem(
+                            value: 'close', child: Text('关闭账户')),
+                      const PopupMenuItem(
                           value: 'delete', child: Text('删除账户')),
                     ],
                     onSelected: (v) {
@@ -92,6 +103,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                           _copy(a);
                         case 'close':
                           _close(a);
+                        case 'reactivate':
+                          _reactivate(a);
                         case 'delete':
                           _delete(a);
                       }
@@ -109,11 +122,18 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
             _closePending && (c is AccountsLoaded || c is AccountError),
         listener: (context, state) {
           if (state is AccountsLoaded) {
-            setState(() => _closePending = false);
-            AppToast.show(context, '账户已关闭', type: ToastType.success);
+            final msg = _pendingSuccessMsg ?? '操作完成';
+            setState(() {
+              _closePending = false;
+              _pendingSuccessMsg = null;
+            });
+            AppToast.show(context, msg, type: ToastType.success);
             context.pop(); // 回列表
           } else if (state is AccountError) {
-            setState(() => _closePending = false);
+            setState(() {
+              _closePending = false;
+              _pendingSuccessMsg = null;
+            });
             AppToast.show(context, state.message, type: ToastType.error);
           }
         },
@@ -459,13 +479,62 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         // 不直接 toast：dispatch 后 bloc 成功会发 LoadAccountsRequested →
         // AccountsLoaded（本页 BlocBuilder 不认此 state，会渲染空白）。
         // 改由下方 BlocListener 在 AccountsLoaded 时 toast + pop。
-        setState(() => _closePending = true);
+        setState(() {
+          _closePending = true;
+          _pendingSuccessMsg = '账户已关闭';
+        });
         context.read<AccountBloc>().add(
               UpdateAccountRequested(
                 UpdateAccountParams(
                   id: a.id,
                   version: a.version,
                   status: AccountStatus.archived,
+                  // 保留现有值字段（防 remote_ds 无条件覆盖清空）。
+                  name: a.name,
+                  icon: a.icon,
+                  color: a.color,
+                  institution: a.institution,
+                  creditLimitCents: a.creditLimitCents,
+                  cardNumberTail: a.cardNumberTail,
+                  notes: a.notes,
+                  goldProductType: a.goldProductType,
+                ),
+              ),
+            );
+      }
+    });
+  }
+
+  /// 重新激活账户：把归档账户恢复为 active（与 _close 对称）。
+  /// 同 _close：补传值字段，防 remote_ds 对非可选标量无条件覆盖清空。
+  void _reactivate(Account a) {
+    showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: const Text('重新激活账户'),
+        content: Text('重新激活「${a.name}」？账户恢复活跃状态。'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dctx, false),
+              child: const Text('取消')),
+          TextButton(
+              onPressed: () => Navigator.pop(dctx, true),
+              child: const Text('激活')),
+        ],
+      ),
+    ).then((ok) {
+      if (ok == true && mounted) {
+        // 同 _close：由 BlocListener 在 AccountsLoaded 时 toast + pop。
+        setState(() {
+          _closePending = true;
+          _pendingSuccessMsg = '账户已激活';
+        });
+        context.read<AccountBloc>().add(
+              UpdateAccountRequested(
+                UpdateAccountParams(
+                  id: a.id,
+                  version: a.version,
+                  status: AccountStatus.active,
                   // 保留现有值字段（防 remote_ds 无条件覆盖清空）。
                   name: a.name,
                   icon: a.icon,
