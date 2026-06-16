@@ -378,22 +378,29 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
       );
 
   /// 快捷操作 card（对照原型 desktop-detail-account.html .actions-card）。
-  /// 编辑真实；记一笔/转账/查看账单/隐藏账户 🔒 占位（待 transaction/账单模块）。
-  Widget _quickActions(Account a) => DataCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('快捷操作',
-                style: TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: AppSpacing.md),
+  /// 激活：编辑真实 + 记一笔/转账/查看账单/隐藏账户 🔒 占位。
+  /// 归档：移除编辑/记一笔/转账（只读，需先重新激活）。
+  Widget _quickActions(Account a) {
+    final archived = a.status == AccountStatus.archived;
+    return DataCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('快捷操作',
+              style: TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: AppSpacing.md),
+          if (!archived) ...[
             _actionBtn('编辑账户', Icons.edit_outlined, () => _edit(a)),
             _actionBtn('记一笔（待交易模块）', Icons.add, null),
             _actionBtn('转账（待交易模块）', Icons.swap_horiz, null),
-            _actionBtn('查看账单（待交易模块）', Icons.receipt_long_outlined, null),
-            _actionBtn('隐藏账户（待功能）', Icons.visibility_off_outlined, null),
           ],
-        ),
-      );
+          _actionBtn(
+              '查看账单（待交易模块）', Icons.receipt_long_outlined, null),
+          _actionBtn('隐藏账户（待功能）', Icons.visibility_off_outlined, null),
+        ],
+      ),
+    );
+  }
 
   Widget _actionBtn(String label, IconData icon, VoidCallback? onTap) {
     final disabled = onTap == null;
