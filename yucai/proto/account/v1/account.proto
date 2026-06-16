@@ -71,6 +71,32 @@ message AccountDTO {
   google.protobuf.Timestamp created_at = 16;
   google.protobuf.Timestamp updated_at = 17;
   AccountCategory category = 18;
+  optional string card_number_tail = 19;
+  optional string notes = 20;
+  google.protobuf.Timestamp opening_date = 21;
+  optional double interest_rate = 22;
+  optional int32 credit_billing_day = 23;
+  optional int32 credit_repayment_day = 24;
+  optional int64 credit_annual_fee_cents = 25;
+  optional int64 invest_cost_cents = 26;
+  optional int64 invest_market_value_cents = 27;
+  optional double invest_return_ytd = 28;
+  optional int64 fixed_principal_cents = 29;
+  google.protobuf.Timestamp fixed_start_date = 30;
+  google.protobuf.Timestamp fixed_maturity_date = 31;
+  optional int32 fixed_term_months = 32;
+  optional string gold_product_type = 33;
+  optional double gold_quantity = 34;
+  optional int64 gold_buy_price_cents = 35;
+  optional int64 gold_current_price_cents = 36;
+  optional int64 estate_purchase_price_cents = 37;
+  optional int64 estate_current_value_cents = 38;
+  google.protobuf.Timestamp estate_purchase_date = 39;
+  optional double estate_depreciation_rate = 40;
+  optional int64 loan_original_cents = 41;
+  optional int64 loan_remaining_cents = 42;
+  optional int64 loan_monthly_cents = 43;
+  google.protobuf.Timestamp loan_next_payment_date = 44;
 }
 
 message CreateAccountRequest {
@@ -86,6 +112,32 @@ message CreateAccountRequest {
   string institution = 10;
   int64 credit_limit_cents = 11;
   AccountCategory category = 12;
+  optional string card_number_tail = 13;
+  optional string notes = 14;
+  google.protobuf.Timestamp opening_date = 15;
+  optional double interest_rate = 16;
+  optional int32 credit_billing_day = 17;
+  optional int32 credit_repayment_day = 18;
+  optional int64 credit_annual_fee_cents = 19;
+  optional int64 invest_cost_cents = 20;
+  optional int64 invest_market_value_cents = 21;
+  optional double invest_return_ytd = 22;
+  optional int64 fixed_principal_cents = 23;
+  google.protobuf.Timestamp fixed_start_date = 24;
+  google.protobuf.Timestamp fixed_maturity_date = 25;
+  optional int32 fixed_term_months = 26;
+  optional string gold_product_type = 27;
+  optional double gold_quantity = 28;
+  optional int64 gold_buy_price_cents = 29;
+  optional int64 gold_current_price_cents = 30;
+  optional int64 estate_purchase_price_cents = 31;
+  optional int64 estate_current_value_cents = 32;
+  google.protobuf.Timestamp estate_purchase_date = 33;
+  optional double estate_depreciation_rate = 34;
+  optional int64 loan_original_cents = 35;
+  optional int64 loan_remaining_cents = 36;
+  optional int64 loan_monthly_cents = 37;
+  google.protobuf.Timestamp loan_next_payment_date = 38;
 }
 
 message GetAccountRequest {
@@ -112,6 +164,33 @@ message UpdateAccountRequest {
   string institution = 6;
   int64 credit_limit_cents = 7;
   int64 version = 8;
+  optional AccountStatus status = 9;
+  optional string card_number_tail = 10;
+  optional string notes = 11;
+  google.protobuf.Timestamp opening_date = 12;
+  optional double interest_rate = 13;
+  optional int32 credit_billing_day = 14;
+  optional int32 credit_repayment_day = 15;
+  optional int64 credit_annual_fee_cents = 16;
+  optional int64 invest_cost_cents = 17;
+  optional int64 invest_market_value_cents = 18;
+  optional double invest_return_ytd = 19;
+  optional int64 fixed_principal_cents = 20;
+  google.protobuf.Timestamp fixed_start_date = 21;
+  google.protobuf.Timestamp fixed_maturity_date = 22;
+  optional int32 fixed_term_months = 23;
+  optional string gold_product_type = 24;
+  optional double gold_quantity = 25;
+  optional int64 gold_buy_price_cents = 26;
+  optional int64 gold_current_price_cents = 27;
+  optional int64 estate_purchase_price_cents = 28;
+  optional int64 estate_current_value_cents = 29;
+  google.protobuf.Timestamp estate_purchase_date = 30;
+  optional double estate_depreciation_rate = 31;
+  optional int64 loan_original_cents = 32;
+  optional int64 loan_remaining_cents = 33;
+  optional int64 loan_monthly_cents = 34;
+  google.protobuf.Timestamp loan_next_payment_date = 35;
 }
 
 message DeleteAccountRequest {

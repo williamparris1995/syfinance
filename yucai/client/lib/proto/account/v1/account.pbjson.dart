@@ -15,6 +15,13 @@ import 'dart:convert' as $convert;
 import 'dart:core' as $core;
 import 'dart:typed_data' as $typed_data;
 
+import 'package:protobuf/well_known_types/google/protobuf/empty.pbjson.dart'
+    as $2;
+import 'package:protobuf/well_known_types/google/protobuf/timestamp.pbjson.dart'
+    as $0;
+
+import '../../common/v1/pagination.pbjson.dart' as $1;
+
 @$core.Deprecated('Use accountTypeDescriptor instead')
 const AccountType$json = {
   '1': 'AccountType',
@@ -174,6 +181,250 @@ const AccountDTO$json = {
       '6': '.yucai.account.v1.AccountCategory',
       '10': 'category'
     },
+    {
+      '1': 'card_number_tail',
+      '3': 19,
+      '4': 1,
+      '5': 9,
+      '9': 0,
+      '10': 'cardNumberTail',
+      '17': true
+    },
+    {'1': 'notes', '3': 20, '4': 1, '5': 9, '9': 1, '10': 'notes', '17': true},
+    {
+      '1': 'opening_date',
+      '3': 21,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'openingDate'
+    },
+    {
+      '1': 'interest_rate',
+      '3': 22,
+      '4': 1,
+      '5': 1,
+      '9': 2,
+      '10': 'interestRate',
+      '17': true
+    },
+    {
+      '1': 'credit_billing_day',
+      '3': 23,
+      '4': 1,
+      '5': 5,
+      '9': 3,
+      '10': 'creditBillingDay',
+      '17': true
+    },
+    {
+      '1': 'credit_repayment_day',
+      '3': 24,
+      '4': 1,
+      '5': 5,
+      '9': 4,
+      '10': 'creditRepaymentDay',
+      '17': true
+    },
+    {
+      '1': 'credit_annual_fee_cents',
+      '3': 25,
+      '4': 1,
+      '5': 3,
+      '9': 5,
+      '10': 'creditAnnualFeeCents',
+      '17': true
+    },
+    {
+      '1': 'invest_cost_cents',
+      '3': 26,
+      '4': 1,
+      '5': 3,
+      '9': 6,
+      '10': 'investCostCents',
+      '17': true
+    },
+    {
+      '1': 'invest_market_value_cents',
+      '3': 27,
+      '4': 1,
+      '5': 3,
+      '9': 7,
+      '10': 'investMarketValueCents',
+      '17': true
+    },
+    {
+      '1': 'invest_return_ytd',
+      '3': 28,
+      '4': 1,
+      '5': 1,
+      '9': 8,
+      '10': 'investReturnYtd',
+      '17': true
+    },
+    {
+      '1': 'fixed_principal_cents',
+      '3': 29,
+      '4': 1,
+      '5': 3,
+      '9': 9,
+      '10': 'fixedPrincipalCents',
+      '17': true
+    },
+    {
+      '1': 'fixed_start_date',
+      '3': 30,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'fixedStartDate'
+    },
+    {
+      '1': 'fixed_maturity_date',
+      '3': 31,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'fixedMaturityDate'
+    },
+    {
+      '1': 'fixed_term_months',
+      '3': 32,
+      '4': 1,
+      '5': 5,
+      '9': 10,
+      '10': 'fixedTermMonths',
+      '17': true
+    },
+    {
+      '1': 'gold_product_type',
+      '3': 33,
+      '4': 1,
+      '5': 9,
+      '9': 11,
+      '10': 'goldProductType',
+      '17': true
+    },
+    {
+      '1': 'gold_quantity',
+      '3': 34,
+      '4': 1,
+      '5': 1,
+      '9': 12,
+      '10': 'goldQuantity',
+      '17': true
+    },
+    {
+      '1': 'gold_buy_price_cents',
+      '3': 35,
+      '4': 1,
+      '5': 3,
+      '9': 13,
+      '10': 'goldBuyPriceCents',
+      '17': true
+    },
+    {
+      '1': 'gold_current_price_cents',
+      '3': 36,
+      '4': 1,
+      '5': 3,
+      '9': 14,
+      '10': 'goldCurrentPriceCents',
+      '17': true
+    },
+    {
+      '1': 'estate_purchase_price_cents',
+      '3': 37,
+      '4': 1,
+      '5': 3,
+      '9': 15,
+      '10': 'estatePurchasePriceCents',
+      '17': true
+    },
+    {
+      '1': 'estate_current_value_cents',
+      '3': 38,
+      '4': 1,
+      '5': 3,
+      '9': 16,
+      '10': 'estateCurrentValueCents',
+      '17': true
+    },
+    {
+      '1': 'estate_purchase_date',
+      '3': 39,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'estatePurchaseDate'
+    },
+    {
+      '1': 'estate_depreciation_rate',
+      '3': 40,
+      '4': 1,
+      '5': 1,
+      '9': 17,
+      '10': 'estateDepreciationRate',
+      '17': true
+    },
+    {
+      '1': 'loan_original_cents',
+      '3': 41,
+      '4': 1,
+      '5': 3,
+      '9': 18,
+      '10': 'loanOriginalCents',
+      '17': true
+    },
+    {
+      '1': 'loan_remaining_cents',
+      '3': 42,
+      '4': 1,
+      '5': 3,
+      '9': 19,
+      '10': 'loanRemainingCents',
+      '17': true
+    },
+    {
+      '1': 'loan_monthly_cents',
+      '3': 43,
+      '4': 1,
+      '5': 3,
+      '9': 20,
+      '10': 'loanMonthlyCents',
+      '17': true
+    },
+    {
+      '1': 'loan_next_payment_date',
+      '3': 44,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'loanNextPaymentDate'
+    },
+  ],
+  '8': [
+    {'1': '_card_number_tail'},
+    {'1': '_notes'},
+    {'1': '_interest_rate'},
+    {'1': '_credit_billing_day'},
+    {'1': '_credit_repayment_day'},
+    {'1': '_credit_annual_fee_cents'},
+    {'1': '_invest_cost_cents'},
+    {'1': '_invest_market_value_cents'},
+    {'1': '_invest_return_ytd'},
+    {'1': '_fixed_principal_cents'},
+    {'1': '_fixed_term_months'},
+    {'1': '_gold_product_type'},
+    {'1': '_gold_quantity'},
+    {'1': '_gold_buy_price_cents'},
+    {'1': '_gold_current_price_cents'},
+    {'1': '_estate_purchase_price_cents'},
+    {'1': '_estate_current_value_cents'},
+    {'1': '_estate_depreciation_rate'},
+    {'1': '_loan_original_cents'},
+    {'1': '_loan_remaining_cents'},
+    {'1': '_loan_monthly_cents'},
   ],
 };
 
@@ -192,7 +443,43 @@ final $typed_data.Uint8List accountDTODescriptor = $convert.base64Decode(
     'Cgd2ZXJzaW9uGA8gASgDUgd2ZXJzaW9uEjkKCmNyZWF0ZWRfYXQYECABKAsyGi5nb29nbGUucH'
     'JvdG9idWYuVGltZXN0YW1wUgljcmVhdGVkQXQSOQoKdXBkYXRlZF9hdBgRIAEoCzIaLmdvb2ds'
     'ZS5wcm90b2J1Zi5UaW1lc3RhbXBSCXVwZGF0ZWRBdBI9CghjYXRlZ29yeRgSIAEoDjIhLnl1Y2'
-    'FpLmFjY291bnQudjEuQWNjb3VudENhdGVnb3J5UghjYXRlZ29yeQ==');
+    'FpLmFjY291bnQudjEuQWNjb3VudENhdGVnb3J5UghjYXRlZ29yeRItChBjYXJkX251bWJlcl90'
+    'YWlsGBMgASgJSABSDmNhcmROdW1iZXJUYWlsiAEBEhkKBW5vdGVzGBQgASgJSAFSBW5vdGVziA'
+    'EBEj0KDG9wZW5pbmdfZGF0ZRgVIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBSC29w'
+    'ZW5pbmdEYXRlEigKDWludGVyZXN0X3JhdGUYFiABKAFIAlIMaW50ZXJlc3RSYXRliAEBEjEKEm'
+    'NyZWRpdF9iaWxsaW5nX2RheRgXIAEoBUgDUhBjcmVkaXRCaWxsaW5nRGF5iAEBEjUKFGNyZWRp'
+    'dF9yZXBheW1lbnRfZGF5GBggASgFSARSEmNyZWRpdFJlcGF5bWVudERheYgBARI6ChdjcmVkaX'
+    'RfYW5udWFsX2ZlZV9jZW50cxgZIAEoA0gFUhRjcmVkaXRBbm51YWxGZWVDZW50c4gBARIvChFp'
+    'bnZlc3RfY29zdF9jZW50cxgaIAEoA0gGUg9pbnZlc3RDb3N0Q2VudHOIAQESPgoZaW52ZXN0X2'
+    '1hcmtldF92YWx1ZV9jZW50cxgbIAEoA0gHUhZpbnZlc3RNYXJrZXRWYWx1ZUNlbnRziAEBEi8K'
+    'EWludmVzdF9yZXR1cm5feXRkGBwgASgBSAhSD2ludmVzdFJldHVybll0ZIgBARI3ChVmaXhlZF'
+    '9wcmluY2lwYWxfY2VudHMYHSABKANICVITZml4ZWRQcmluY2lwYWxDZW50c4gBARJEChBmaXhl'
+    'ZF9zdGFydF9kYXRlGB4gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFIOZml4ZWRTdG'
+    'FydERhdGUSSgoTZml4ZWRfbWF0dXJpdHlfZGF0ZRgfIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5U'
+    'aW1lc3RhbXBSEWZpeGVkTWF0dXJpdHlEYXRlEi8KEWZpeGVkX3Rlcm1fbW9udGhzGCAgASgFSA'
+    'pSD2ZpeGVkVGVybU1vbnRoc4gBARIvChFnb2xkX3Byb2R1Y3RfdHlwZRghIAEoCUgLUg9nb2xk'
+    'UHJvZHVjdFR5cGWIAQESKAoNZ29sZF9xdWFudGl0eRgiIAEoAUgMUgxnb2xkUXVhbnRpdHmIAQ'
+    'ESNAoUZ29sZF9idXlfcHJpY2VfY2VudHMYIyABKANIDVIRZ29sZEJ1eVByaWNlQ2VudHOIAQES'
+    'PAoYZ29sZF9jdXJyZW50X3ByaWNlX2NlbnRzGCQgASgDSA5SFWdvbGRDdXJyZW50UHJpY2VDZW'
+    '50c4gBARJCChtlc3RhdGVfcHVyY2hhc2VfcHJpY2VfY2VudHMYJSABKANID1IYZXN0YXRlUHVy'
+    'Y2hhc2VQcmljZUNlbnRziAEBEkAKGmVzdGF0ZV9jdXJyZW50X3ZhbHVlX2NlbnRzGCYgASgDSB'
+    'BSF2VzdGF0ZUN1cnJlbnRWYWx1ZUNlbnRziAEBEkwKFGVzdGF0ZV9wdXJjaGFzZV9kYXRlGCcg'
+    'ASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFISZXN0YXRlUHVyY2hhc2VEYXRlEj0KGG'
+    'VzdGF0ZV9kZXByZWNpYXRpb25fcmF0ZRgoIAEoAUgRUhZlc3RhdGVEZXByZWNpYXRpb25SYXRl'
+    'iAEBEjMKE2xvYW5fb3JpZ2luYWxfY2VudHMYKSABKANIElIRbG9hbk9yaWdpbmFsQ2VudHOIAQ'
+    'ESNQoUbG9hbl9yZW1haW5pbmdfY2VudHMYKiABKANIE1ISbG9hblJlbWFpbmluZ0NlbnRziAEB'
+    'EjEKEmxvYW5fbW9udGhseV9jZW50cxgrIAEoA0gUUhBsb2FuTW9udGhseUNlbnRziAEBEk8KFm'
+    'xvYW5fbmV4dF9wYXltZW50X2RhdGUYLCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1w'
+    'UhNsb2FuTmV4dFBheW1lbnREYXRlQhMKEV9jYXJkX251bWJlcl90YWlsQggKBl9ub3Rlc0IQCg'
+    '5faW50ZXJlc3RfcmF0ZUIVChNfY3JlZGl0X2JpbGxpbmdfZGF5QhcKFV9jcmVkaXRfcmVwYXlt'
+    'ZW50X2RheUIaChhfY3JlZGl0X2FubnVhbF9mZWVfY2VudHNCFAoSX2ludmVzdF9jb3N0X2Nlbn'
+    'RzQhwKGl9pbnZlc3RfbWFya2V0X3ZhbHVlX2NlbnRzQhQKEl9pbnZlc3RfcmV0dXJuX3l0ZEIY'
+    'ChZfZml4ZWRfcHJpbmNpcGFsX2NlbnRzQhQKEl9maXhlZF90ZXJtX21vbnRoc0IUChJfZ29sZF'
+    '9wcm9kdWN0X3R5cGVCEAoOX2dvbGRfcXVhbnRpdHlCFwoVX2dvbGRfYnV5X3ByaWNlX2NlbnRz'
+    'QhsKGV9nb2xkX2N1cnJlbnRfcHJpY2VfY2VudHNCHgocX2VzdGF0ZV9wdXJjaGFzZV9wcmljZV'
+    '9jZW50c0IdChtfZXN0YXRlX2N1cnJlbnRfdmFsdWVfY2VudHNCGwoZX2VzdGF0ZV9kZXByZWNp'
+    'YXRpb25fcmF0ZUIWChRfbG9hbl9vcmlnaW5hbF9jZW50c0IXChVfbG9hbl9yZW1haW5pbmdfY2'
+    'VudHNCFQoTX2xvYW5fbW9udGhseV9jZW50cw==');
 
 @$core.Deprecated('Use createAccountRequestDescriptor instead')
 const CreateAccountRequest$json = {
@@ -243,6 +530,250 @@ const CreateAccountRequest$json = {
       '6': '.yucai.account.v1.AccountCategory',
       '10': 'category'
     },
+    {
+      '1': 'card_number_tail',
+      '3': 13,
+      '4': 1,
+      '5': 9,
+      '9': 0,
+      '10': 'cardNumberTail',
+      '17': true
+    },
+    {'1': 'notes', '3': 14, '4': 1, '5': 9, '9': 1, '10': 'notes', '17': true},
+    {
+      '1': 'opening_date',
+      '3': 15,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'openingDate'
+    },
+    {
+      '1': 'interest_rate',
+      '3': 16,
+      '4': 1,
+      '5': 1,
+      '9': 2,
+      '10': 'interestRate',
+      '17': true
+    },
+    {
+      '1': 'credit_billing_day',
+      '3': 17,
+      '4': 1,
+      '5': 5,
+      '9': 3,
+      '10': 'creditBillingDay',
+      '17': true
+    },
+    {
+      '1': 'credit_repayment_day',
+      '3': 18,
+      '4': 1,
+      '5': 5,
+      '9': 4,
+      '10': 'creditRepaymentDay',
+      '17': true
+    },
+    {
+      '1': 'credit_annual_fee_cents',
+      '3': 19,
+      '4': 1,
+      '5': 3,
+      '9': 5,
+      '10': 'creditAnnualFeeCents',
+      '17': true
+    },
+    {
+      '1': 'invest_cost_cents',
+      '3': 20,
+      '4': 1,
+      '5': 3,
+      '9': 6,
+      '10': 'investCostCents',
+      '17': true
+    },
+    {
+      '1': 'invest_market_value_cents',
+      '3': 21,
+      '4': 1,
+      '5': 3,
+      '9': 7,
+      '10': 'investMarketValueCents',
+      '17': true
+    },
+    {
+      '1': 'invest_return_ytd',
+      '3': 22,
+      '4': 1,
+      '5': 1,
+      '9': 8,
+      '10': 'investReturnYtd',
+      '17': true
+    },
+    {
+      '1': 'fixed_principal_cents',
+      '3': 23,
+      '4': 1,
+      '5': 3,
+      '9': 9,
+      '10': 'fixedPrincipalCents',
+      '17': true
+    },
+    {
+      '1': 'fixed_start_date',
+      '3': 24,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'fixedStartDate'
+    },
+    {
+      '1': 'fixed_maturity_date',
+      '3': 25,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'fixedMaturityDate'
+    },
+    {
+      '1': 'fixed_term_months',
+      '3': 26,
+      '4': 1,
+      '5': 5,
+      '9': 10,
+      '10': 'fixedTermMonths',
+      '17': true
+    },
+    {
+      '1': 'gold_product_type',
+      '3': 27,
+      '4': 1,
+      '5': 9,
+      '9': 11,
+      '10': 'goldProductType',
+      '17': true
+    },
+    {
+      '1': 'gold_quantity',
+      '3': 28,
+      '4': 1,
+      '5': 1,
+      '9': 12,
+      '10': 'goldQuantity',
+      '17': true
+    },
+    {
+      '1': 'gold_buy_price_cents',
+      '3': 29,
+      '4': 1,
+      '5': 3,
+      '9': 13,
+      '10': 'goldBuyPriceCents',
+      '17': true
+    },
+    {
+      '1': 'gold_current_price_cents',
+      '3': 30,
+      '4': 1,
+      '5': 3,
+      '9': 14,
+      '10': 'goldCurrentPriceCents',
+      '17': true
+    },
+    {
+      '1': 'estate_purchase_price_cents',
+      '3': 31,
+      '4': 1,
+      '5': 3,
+      '9': 15,
+      '10': 'estatePurchasePriceCents',
+      '17': true
+    },
+    {
+      '1': 'estate_current_value_cents',
+      '3': 32,
+      '4': 1,
+      '5': 3,
+      '9': 16,
+      '10': 'estateCurrentValueCents',
+      '17': true
+    },
+    {
+      '1': 'estate_purchase_date',
+      '3': 33,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'estatePurchaseDate'
+    },
+    {
+      '1': 'estate_depreciation_rate',
+      '3': 34,
+      '4': 1,
+      '5': 1,
+      '9': 17,
+      '10': 'estateDepreciationRate',
+      '17': true
+    },
+    {
+      '1': 'loan_original_cents',
+      '3': 35,
+      '4': 1,
+      '5': 3,
+      '9': 18,
+      '10': 'loanOriginalCents',
+      '17': true
+    },
+    {
+      '1': 'loan_remaining_cents',
+      '3': 36,
+      '4': 1,
+      '5': 3,
+      '9': 19,
+      '10': 'loanRemainingCents',
+      '17': true
+    },
+    {
+      '1': 'loan_monthly_cents',
+      '3': 37,
+      '4': 1,
+      '5': 3,
+      '9': 20,
+      '10': 'loanMonthlyCents',
+      '17': true
+    },
+    {
+      '1': 'loan_next_payment_date',
+      '3': 38,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'loanNextPaymentDate'
+    },
+  ],
+  '8': [
+    {'1': '_card_number_tail'},
+    {'1': '_notes'},
+    {'1': '_interest_rate'},
+    {'1': '_credit_billing_day'},
+    {'1': '_credit_repayment_day'},
+    {'1': '_credit_annual_fee_cents'},
+    {'1': '_invest_cost_cents'},
+    {'1': '_invest_market_value_cents'},
+    {'1': '_invest_return_ytd'},
+    {'1': '_fixed_principal_cents'},
+    {'1': '_fixed_term_months'},
+    {'1': '_gold_product_type'},
+    {'1': '_gold_quantity'},
+    {'1': '_gold_buy_price_cents'},
+    {'1': '_gold_current_price_cents'},
+    {'1': '_estate_purchase_price_cents'},
+    {'1': '_estate_current_value_cents'},
+    {'1': '_estate_depreciation_rate'},
+    {'1': '_loan_original_cents'},
+    {'1': '_loan_remaining_cents'},
+    {'1': '_loan_monthly_cents'},
   ],
 };
 
@@ -257,7 +788,42 @@ final $typed_data.Uint8List createAccountRequestDescriptor = $convert.base64Deco
     'cGFyZW50X2lkGAkgASgJUghwYXJlbnRJZBIgCgtpbnN0aXR1dGlvbhgKIAEoCVILaW5zdGl0dX'
     'Rpb24SLAoSY3JlZGl0X2xpbWl0X2NlbnRzGAsgASgDUhBjcmVkaXRMaW1pdENlbnRzEj0KCGNh'
     'dGVnb3J5GAwgASgOMiEueXVjYWkuYWNjb3VudC52MS5BY2NvdW50Q2F0ZWdvcnlSCGNhdGVnb3'
-    'J5');
+    'J5Ei0KEGNhcmRfbnVtYmVyX3RhaWwYDSABKAlIAFIOY2FyZE51bWJlclRhaWyIAQESGQoFbm90'
+    'ZXMYDiABKAlIAVIFbm90ZXOIAQESPQoMb3BlbmluZ19kYXRlGA8gASgLMhouZ29vZ2xlLnByb3'
+    'RvYnVmLlRpbWVzdGFtcFILb3BlbmluZ0RhdGUSKAoNaW50ZXJlc3RfcmF0ZRgQIAEoAUgCUgxp'
+    'bnRlcmVzdFJhdGWIAQESMQoSY3JlZGl0X2JpbGxpbmdfZGF5GBEgASgFSANSEGNyZWRpdEJpbG'
+    'xpbmdEYXmIAQESNQoUY3JlZGl0X3JlcGF5bWVudF9kYXkYEiABKAVIBFISY3JlZGl0UmVwYXlt'
+    'ZW50RGF5iAEBEjoKF2NyZWRpdF9hbm51YWxfZmVlX2NlbnRzGBMgASgDSAVSFGNyZWRpdEFubn'
+    'VhbEZlZUNlbnRziAEBEi8KEWludmVzdF9jb3N0X2NlbnRzGBQgASgDSAZSD2ludmVzdENvc3RD'
+    'ZW50c4gBARI+ChlpbnZlc3RfbWFya2V0X3ZhbHVlX2NlbnRzGBUgASgDSAdSFmludmVzdE1hcm'
+    'tldFZhbHVlQ2VudHOIAQESLwoRaW52ZXN0X3JldHVybl95dGQYFiABKAFICFIPaW52ZXN0UmV0'
+    'dXJuWXRkiAEBEjcKFWZpeGVkX3ByaW5jaXBhbF9jZW50cxgXIAEoA0gJUhNmaXhlZFByaW5jaX'
+    'BhbENlbnRziAEBEkQKEGZpeGVkX3N0YXJ0X2RhdGUYGCABKAsyGi5nb29nbGUucHJvdG9idWYu'
+    'VGltZXN0YW1wUg5maXhlZFN0YXJ0RGF0ZRJKChNmaXhlZF9tYXR1cml0eV9kYXRlGBkgASgLMh'
+    'ouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFIRZml4ZWRNYXR1cml0eURhdGUSLwoRZml4ZWRf'
+    'dGVybV9tb250aHMYGiABKAVIClIPZml4ZWRUZXJtTW9udGhziAEBEi8KEWdvbGRfcHJvZHVjdF'
+    '90eXBlGBsgASgJSAtSD2dvbGRQcm9kdWN0VHlwZYgBARIoCg1nb2xkX3F1YW50aXR5GBwgASgB'
+    'SAxSDGdvbGRRdWFudGl0eYgBARI0ChRnb2xkX2J1eV9wcmljZV9jZW50cxgdIAEoA0gNUhFnb2'
+    'xkQnV5UHJpY2VDZW50c4gBARI8Chhnb2xkX2N1cnJlbnRfcHJpY2VfY2VudHMYHiABKANIDlIV'
+    'Z29sZEN1cnJlbnRQcmljZUNlbnRziAEBEkIKG2VzdGF0ZV9wdXJjaGFzZV9wcmljZV9jZW50cx'
+    'gfIAEoA0gPUhhlc3RhdGVQdXJjaGFzZVByaWNlQ2VudHOIAQESQAoaZXN0YXRlX2N1cnJlbnRf'
+    'dmFsdWVfY2VudHMYICABKANIEFIXZXN0YXRlQ3VycmVudFZhbHVlQ2VudHOIAQESTAoUZXN0YX'
+    'RlX3B1cmNoYXNlX2RhdGUYISABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wUhJlc3Rh'
+    'dGVQdXJjaGFzZURhdGUSPQoYZXN0YXRlX2RlcHJlY2lhdGlvbl9yYXRlGCIgASgBSBFSFmVzdG'
+    'F0ZURlcHJlY2lhdGlvblJhdGWIAQESMwoTbG9hbl9vcmlnaW5hbF9jZW50cxgjIAEoA0gSUhFs'
+    'b2FuT3JpZ2luYWxDZW50c4gBARI1ChRsb2FuX3JlbWFpbmluZ19jZW50cxgkIAEoA0gTUhJsb2'
+    'FuUmVtYWluaW5nQ2VudHOIAQESMQoSbG9hbl9tb250aGx5X2NlbnRzGCUgASgDSBRSEGxvYW5N'
+    'b250aGx5Q2VudHOIAQESTwoWbG9hbl9uZXh0X3BheW1lbnRfZGF0ZRgmIAEoCzIaLmdvb2dsZS'
+    '5wcm90b2J1Zi5UaW1lc3RhbXBSE2xvYW5OZXh0UGF5bWVudERhdGVCEwoRX2NhcmRfbnVtYmVy'
+    'X3RhaWxCCAoGX25vdGVzQhAKDl9pbnRlcmVzdF9yYXRlQhUKE19jcmVkaXRfYmlsbGluZ19kYX'
+    'lCFwoVX2NyZWRpdF9yZXBheW1lbnRfZGF5QhoKGF9jcmVkaXRfYW5udWFsX2ZlZV9jZW50c0IU'
+    'ChJfaW52ZXN0X2Nvc3RfY2VudHNCHAoaX2ludmVzdF9tYXJrZXRfdmFsdWVfY2VudHNCFAoSX2'
+    'ludmVzdF9yZXR1cm5feXRkQhgKFl9maXhlZF9wcmluY2lwYWxfY2VudHNCFAoSX2ZpeGVkX3Rl'
+    'cm1fbW9udGhzQhQKEl9nb2xkX3Byb2R1Y3RfdHlwZUIQCg5fZ29sZF9xdWFudGl0eUIXChVfZ2'
+    '9sZF9idXlfcHJpY2VfY2VudHNCGwoZX2dvbGRfY3VycmVudF9wcmljZV9jZW50c0IeChxfZXN0'
+    'YXRlX3B1cmNoYXNlX3ByaWNlX2NlbnRzQh0KG19lc3RhdGVfY3VycmVudF92YWx1ZV9jZW50c0'
+    'IbChlfZXN0YXRlX2RlcHJlY2lhdGlvbl9yYXRlQhYKFF9sb2FuX29yaWdpbmFsX2NlbnRzQhcK'
+    'FV9sb2FuX3JlbWFpbmluZ19jZW50c0IVChNfbG9hbl9tb250aGx5X2NlbnRz');
 
 @$core.Deprecated('Use getAccountRequestDescriptor instead')
 const GetAccountRequest$json = {
@@ -356,6 +922,261 @@ const UpdateAccountRequest$json = {
       '10': 'creditLimitCents'
     },
     {'1': 'version', '3': 8, '4': 1, '5': 3, '10': 'version'},
+    {
+      '1': 'status',
+      '3': 9,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.account.v1.AccountStatus',
+      '9': 0,
+      '10': 'status',
+      '17': true
+    },
+    {
+      '1': 'card_number_tail',
+      '3': 10,
+      '4': 1,
+      '5': 9,
+      '9': 1,
+      '10': 'cardNumberTail',
+      '17': true
+    },
+    {'1': 'notes', '3': 11, '4': 1, '5': 9, '9': 2, '10': 'notes', '17': true},
+    {
+      '1': 'opening_date',
+      '3': 12,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'openingDate'
+    },
+    {
+      '1': 'interest_rate',
+      '3': 13,
+      '4': 1,
+      '5': 1,
+      '9': 3,
+      '10': 'interestRate',
+      '17': true
+    },
+    {
+      '1': 'credit_billing_day',
+      '3': 14,
+      '4': 1,
+      '5': 5,
+      '9': 4,
+      '10': 'creditBillingDay',
+      '17': true
+    },
+    {
+      '1': 'credit_repayment_day',
+      '3': 15,
+      '4': 1,
+      '5': 5,
+      '9': 5,
+      '10': 'creditRepaymentDay',
+      '17': true
+    },
+    {
+      '1': 'credit_annual_fee_cents',
+      '3': 16,
+      '4': 1,
+      '5': 3,
+      '9': 6,
+      '10': 'creditAnnualFeeCents',
+      '17': true
+    },
+    {
+      '1': 'invest_cost_cents',
+      '3': 17,
+      '4': 1,
+      '5': 3,
+      '9': 7,
+      '10': 'investCostCents',
+      '17': true
+    },
+    {
+      '1': 'invest_market_value_cents',
+      '3': 18,
+      '4': 1,
+      '5': 3,
+      '9': 8,
+      '10': 'investMarketValueCents',
+      '17': true
+    },
+    {
+      '1': 'invest_return_ytd',
+      '3': 19,
+      '4': 1,
+      '5': 1,
+      '9': 9,
+      '10': 'investReturnYtd',
+      '17': true
+    },
+    {
+      '1': 'fixed_principal_cents',
+      '3': 20,
+      '4': 1,
+      '5': 3,
+      '9': 10,
+      '10': 'fixedPrincipalCents',
+      '17': true
+    },
+    {
+      '1': 'fixed_start_date',
+      '3': 21,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'fixedStartDate'
+    },
+    {
+      '1': 'fixed_maturity_date',
+      '3': 22,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'fixedMaturityDate'
+    },
+    {
+      '1': 'fixed_term_months',
+      '3': 23,
+      '4': 1,
+      '5': 5,
+      '9': 11,
+      '10': 'fixedTermMonths',
+      '17': true
+    },
+    {
+      '1': 'gold_product_type',
+      '3': 24,
+      '4': 1,
+      '5': 9,
+      '9': 12,
+      '10': 'goldProductType',
+      '17': true
+    },
+    {
+      '1': 'gold_quantity',
+      '3': 25,
+      '4': 1,
+      '5': 1,
+      '9': 13,
+      '10': 'goldQuantity',
+      '17': true
+    },
+    {
+      '1': 'gold_buy_price_cents',
+      '3': 26,
+      '4': 1,
+      '5': 3,
+      '9': 14,
+      '10': 'goldBuyPriceCents',
+      '17': true
+    },
+    {
+      '1': 'gold_current_price_cents',
+      '3': 27,
+      '4': 1,
+      '5': 3,
+      '9': 15,
+      '10': 'goldCurrentPriceCents',
+      '17': true
+    },
+    {
+      '1': 'estate_purchase_price_cents',
+      '3': 28,
+      '4': 1,
+      '5': 3,
+      '9': 16,
+      '10': 'estatePurchasePriceCents',
+      '17': true
+    },
+    {
+      '1': 'estate_current_value_cents',
+      '3': 29,
+      '4': 1,
+      '5': 3,
+      '9': 17,
+      '10': 'estateCurrentValueCents',
+      '17': true
+    },
+    {
+      '1': 'estate_purchase_date',
+      '3': 30,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'estatePurchaseDate'
+    },
+    {
+      '1': 'estate_depreciation_rate',
+      '3': 31,
+      '4': 1,
+      '5': 1,
+      '9': 18,
+      '10': 'estateDepreciationRate',
+      '17': true
+    },
+    {
+      '1': 'loan_original_cents',
+      '3': 32,
+      '4': 1,
+      '5': 3,
+      '9': 19,
+      '10': 'loanOriginalCents',
+      '17': true
+    },
+    {
+      '1': 'loan_remaining_cents',
+      '3': 33,
+      '4': 1,
+      '5': 3,
+      '9': 20,
+      '10': 'loanRemainingCents',
+      '17': true
+    },
+    {
+      '1': 'loan_monthly_cents',
+      '3': 34,
+      '4': 1,
+      '5': 3,
+      '9': 21,
+      '10': 'loanMonthlyCents',
+      '17': true
+    },
+    {
+      '1': 'loan_next_payment_date',
+      '3': 35,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'loanNextPaymentDate'
+    },
+  ],
+  '8': [
+    {'1': '_status'},
+    {'1': '_card_number_tail'},
+    {'1': '_notes'},
+    {'1': '_interest_rate'},
+    {'1': '_credit_billing_day'},
+    {'1': '_credit_repayment_day'},
+    {'1': '_credit_annual_fee_cents'},
+    {'1': '_invest_cost_cents'},
+    {'1': '_invest_market_value_cents'},
+    {'1': '_invest_return_ytd'},
+    {'1': '_fixed_principal_cents'},
+    {'1': '_fixed_term_months'},
+    {'1': '_gold_product_type'},
+    {'1': '_gold_quantity'},
+    {'1': '_gold_buy_price_cents'},
+    {'1': '_gold_current_price_cents'},
+    {'1': '_estate_purchase_price_cents'},
+    {'1': '_estate_current_value_cents'},
+    {'1': '_estate_depreciation_rate'},
+    {'1': '_loan_original_cents'},
+    {'1': '_loan_remaining_cents'},
+    {'1': '_loan_monthly_cents'},
   ],
 };
 
@@ -365,7 +1186,44 @@ final $typed_data.Uint8List updateAccountRequestDescriptor = $convert.base64Deco
     'FtZRISCgRpY29uGAMgASgJUgRpY29uEhQKBWNvbG9yGAQgASgJUgVjb2xvchIdCgpjaGFydF9j'
     'b2RlGAUgASgJUgljaGFydENvZGUSIAoLaW5zdGl0dXRpb24YBiABKAlSC2luc3RpdHV0aW9uEi'
     'wKEmNyZWRpdF9saW1pdF9jZW50cxgHIAEoA1IQY3JlZGl0TGltaXRDZW50cxIYCgd2ZXJzaW9u'
-    'GAggASgDUgd2ZXJzaW9u');
+    'GAggASgDUgd2ZXJzaW9uEjwKBnN0YXR1cxgJIAEoDjIfLnl1Y2FpLmFjY291bnQudjEuQWNjb3'
+    'VudFN0YXR1c0gAUgZzdGF0dXOIAQESLQoQY2FyZF9udW1iZXJfdGFpbBgKIAEoCUgBUg5jYXJk'
+    'TnVtYmVyVGFpbIgBARIZCgVub3RlcxgLIAEoCUgCUgVub3Rlc4gBARI9CgxvcGVuaW5nX2RhdG'
+    'UYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wUgtvcGVuaW5nRGF0ZRIoCg1pbnRl'
+    'cmVzdF9yYXRlGA0gASgBSANSDGludGVyZXN0UmF0ZYgBARIxChJjcmVkaXRfYmlsbGluZ19kYX'
+    'kYDiABKAVIBFIQY3JlZGl0QmlsbGluZ0RheYgBARI1ChRjcmVkaXRfcmVwYXltZW50X2RheRgP'
+    'IAEoBUgFUhJjcmVkaXRSZXBheW1lbnREYXmIAQESOgoXY3JlZGl0X2FubnVhbF9mZWVfY2VudH'
+    'MYECABKANIBlIUY3JlZGl0QW5udWFsRmVlQ2VudHOIAQESLwoRaW52ZXN0X2Nvc3RfY2VudHMY'
+    'ESABKANIB1IPaW52ZXN0Q29zdENlbnRziAEBEj4KGWludmVzdF9tYXJrZXRfdmFsdWVfY2VudH'
+    'MYEiABKANICFIWaW52ZXN0TWFya2V0VmFsdWVDZW50c4gBARIvChFpbnZlc3RfcmV0dXJuX3l0'
+    'ZBgTIAEoAUgJUg9pbnZlc3RSZXR1cm5ZdGSIAQESNwoVZml4ZWRfcHJpbmNpcGFsX2NlbnRzGB'
+    'QgASgDSApSE2ZpeGVkUHJpbmNpcGFsQ2VudHOIAQESRAoQZml4ZWRfc3RhcnRfZGF0ZRgVIAEo'
+    'CzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBSDmZpeGVkU3RhcnREYXRlEkoKE2ZpeGVkX2'
+    '1hdHVyaXR5X2RhdGUYFiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wUhFmaXhlZE1h'
+    'dHVyaXR5RGF0ZRIvChFmaXhlZF90ZXJtX21vbnRocxgXIAEoBUgLUg9maXhlZFRlcm1Nb250aH'
+    'OIAQESLwoRZ29sZF9wcm9kdWN0X3R5cGUYGCABKAlIDFIPZ29sZFByb2R1Y3RUeXBliAEBEigK'
+    'DWdvbGRfcXVhbnRpdHkYGSABKAFIDVIMZ29sZFF1YW50aXR5iAEBEjQKFGdvbGRfYnV5X3ByaW'
+    'NlX2NlbnRzGBogASgDSA5SEWdvbGRCdXlQcmljZUNlbnRziAEBEjwKGGdvbGRfY3VycmVudF9w'
+    'cmljZV9jZW50cxgbIAEoA0gPUhVnb2xkQ3VycmVudFByaWNlQ2VudHOIAQESQgobZXN0YXRlX3'
+    'B1cmNoYXNlX3ByaWNlX2NlbnRzGBwgASgDSBBSGGVzdGF0ZVB1cmNoYXNlUHJpY2VDZW50c4gB'
+    'ARJAChplc3RhdGVfY3VycmVudF92YWx1ZV9jZW50cxgdIAEoA0gRUhdlc3RhdGVDdXJyZW50Vm'
+    'FsdWVDZW50c4gBARJMChRlc3RhdGVfcHVyY2hhc2VfZGF0ZRgeIAEoCzIaLmdvb2dsZS5wcm90'
+    'b2J1Zi5UaW1lc3RhbXBSEmVzdGF0ZVB1cmNoYXNlRGF0ZRI9Chhlc3RhdGVfZGVwcmVjaWF0aW'
+    '9uX3JhdGUYHyABKAFIElIWZXN0YXRlRGVwcmVjaWF0aW9uUmF0ZYgBARIzChNsb2FuX29yaWdp'
+    'bmFsX2NlbnRzGCAgASgDSBNSEWxvYW5PcmlnaW5hbENlbnRziAEBEjUKFGxvYW5fcmVtYWluaW'
+    '5nX2NlbnRzGCEgASgDSBRSEmxvYW5SZW1haW5pbmdDZW50c4gBARIxChJsb2FuX21vbnRobHlf'
+    'Y2VudHMYIiABKANIFVIQbG9hbk1vbnRobHlDZW50c4gBARJPChZsb2FuX25leHRfcGF5bWVudF'
+    '9kYXRlGCMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFITbG9hbk5leHRQYXltZW50'
+    'RGF0ZUIJCgdfc3RhdHVzQhMKEV9jYXJkX251bWJlcl90YWlsQggKBl9ub3Rlc0IQCg5faW50ZX'
+    'Jlc3RfcmF0ZUIVChNfY3JlZGl0X2JpbGxpbmdfZGF5QhcKFV9jcmVkaXRfcmVwYXltZW50X2Rh'
+    'eUIaChhfY3JlZGl0X2FubnVhbF9mZWVfY2VudHNCFAoSX2ludmVzdF9jb3N0X2NlbnRzQhwKGl'
+    '9pbnZlc3RfbWFya2V0X3ZhbHVlX2NlbnRzQhQKEl9pbnZlc3RfcmV0dXJuX3l0ZEIYChZfZml4'
+    'ZWRfcHJpbmNpcGFsX2NlbnRzQhQKEl9maXhlZF90ZXJtX21vbnRoc0IUChJfZ29sZF9wcm9kdW'
+    'N0X3R5cGVCEAoOX2dvbGRfcXVhbnRpdHlCFwoVX2dvbGRfYnV5X3ByaWNlX2NlbnRzQhsKGV9n'
+    'b2xkX2N1cnJlbnRfcHJpY2VfY2VudHNCHgocX2VzdGF0ZV9wdXJjaGFzZV9wcmljZV9jZW50c0'
+    'IdChtfZXN0YXRlX2N1cnJlbnRfdmFsdWVfY2VudHNCGwoZX2VzdGF0ZV9kZXByZWNpYXRpb25f'
+    'cmF0ZUIWChRfbG9hbl9vcmlnaW5hbF9jZW50c0IXChVfbG9hbl9yZW1haW5pbmdfY2VudHNCFQ'
+    'oTX2xvYW5fbW9udGhseV9jZW50cw==');
 
 @$core.Deprecated('Use deleteAccountRequestDescriptor instead')
 const DeleteAccountRequest$json = {
@@ -398,3 +1256,63 @@ const AccountResponse$json = {
 final $typed_data.Uint8List accountResponseDescriptor = $convert.base64Decode(
     'Cg9BY2NvdW50UmVzcG9uc2USNgoHYWNjb3VudBgBIAEoCzIcLnl1Y2FpLmFjY291bnQudjEuQW'
     'Njb3VudERUT1IHYWNjb3VudA==');
+
+const $core.Map<$core.String, $core.dynamic> AccountServiceBase$json = {
+  '1': 'AccountService',
+  '2': [
+    {
+      '1': 'CreateAccount',
+      '2': '.yucai.account.v1.CreateAccountRequest',
+      '3': '.yucai.account.v1.AccountResponse'
+    },
+    {
+      '1': 'GetAccount',
+      '2': '.yucai.account.v1.GetAccountRequest',
+      '3': '.yucai.account.v1.AccountResponse'
+    },
+    {
+      '1': 'ListAccounts',
+      '2': '.yucai.account.v1.ListAccountsRequest',
+      '3': '.yucai.account.v1.ListAccountsResponse'
+    },
+    {
+      '1': 'UpdateAccount',
+      '2': '.yucai.account.v1.UpdateAccountRequest',
+      '3': '.yucai.account.v1.AccountResponse'
+    },
+    {
+      '1': 'DeleteAccount',
+      '2': '.yucai.account.v1.DeleteAccountRequest',
+      '3': '.google.protobuf.Empty'
+    },
+  ],
+};
+
+@$core.Deprecated('Use accountServiceDescriptor instead')
+const $core.Map<$core.String, $core.Map<$core.String, $core.dynamic>>
+    AccountServiceBase$messageJson = {
+  '.yucai.account.v1.CreateAccountRequest': CreateAccountRequest$json,
+  '.google.protobuf.Timestamp': $0.Timestamp$json,
+  '.yucai.account.v1.AccountResponse': AccountResponse$json,
+  '.yucai.account.v1.AccountDTO': AccountDTO$json,
+  '.yucai.account.v1.GetAccountRequest': GetAccountRequest$json,
+  '.yucai.account.v1.ListAccountsRequest': ListAccountsRequest$json,
+  '.yucai.common.v1.PageRequest': $1.PageRequest$json,
+  '.yucai.account.v1.ListAccountsResponse': ListAccountsResponse$json,
+  '.yucai.common.v1.PageResponse': $1.PageResponse$json,
+  '.yucai.account.v1.UpdateAccountRequest': UpdateAccountRequest$json,
+  '.yucai.account.v1.DeleteAccountRequest': DeleteAccountRequest$json,
+  '.google.protobuf.Empty': $2.Empty$json,
+};
+
+/// Descriptor for `AccountService`. Decode as a `google.protobuf.ServiceDescriptorProto`.
+final $typed_data.Uint8List accountServiceDescriptor = $convert.base64Decode(
+    'Cg5BY2NvdW50U2VydmljZRJaCg1DcmVhdGVBY2NvdW50EiYueXVjYWkuYWNjb3VudC52MS5Dcm'
+    'VhdGVBY2NvdW50UmVxdWVzdBohLnl1Y2FpLmFjY291bnQudjEuQWNjb3VudFJlc3BvbnNlElQK'
+    'CkdldEFjY291bnQSIy55dWNhaS5hY2NvdW50LnYxLkdldEFjY291bnRSZXF1ZXN0GiEueXVjYW'
+    'kuYWNjb3VudC52MS5BY2NvdW50UmVzcG9uc2USXQoMTGlzdEFjY291bnRzEiUueXVjYWkuYWNj'
+    'b3VudC52MS5MaXN0QWNjb3VudHNSZXF1ZXN0GiYueXVjYWkuYWNjb3VudC52MS5MaXN0QWNjb3'
+    'VudHNSZXNwb25zZRJaCg1VcGRhdGVBY2NvdW50EiYueXVjYWkuYWNjb3VudC52MS5VcGRhdGVB'
+    'Y2NvdW50UmVxdWVzdBohLnl1Y2FpLmFjY291bnQudjEuQWNjb3VudFJlc3BvbnNlEk8KDURlbG'
+    'V0ZUFjY291bnQSJi55dWNhaS5hY2NvdW50LnYxLkRlbGV0ZUFjY291bnRSZXF1ZXN0GhYuZ29v'
+    'Z2xlLnByb3RvYnVmLkVtcHR5');
