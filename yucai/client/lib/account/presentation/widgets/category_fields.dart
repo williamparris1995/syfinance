@@ -22,17 +22,13 @@ class CategoryFieldBundle {
         creditLimitCtrl = TextEditingController(),
         creditAnnualFeeCtrl = TextEditingController(),
         investMarketValueCtrl = TextEditingController(),
-        fixedStartDateCtrl = TextEditingController(),
-        fixedMaturityDateCtrl = TextEditingController(),
         fixedTermMonthsCtrl = TextEditingController(),
         goldProductTypeCtrl = TextEditingController(),
         goldQuantityCtrl = TextEditingController(),
         goldCurrentPriceCtrl = TextEditingController(),
         estateCurrentValueCtrl = TextEditingController(),
-        estatePurchaseDateCtrl = TextEditingController(),
         loanOriginalCtrl = TextEditingController(),
-        loanMonthlyCtrl = TextEditingController(),
-        loanNextPaymentDateCtrl = TextEditingController();
+        loanMonthlyCtrl = TextEditingController();
 
   final TextEditingController primaryCentsCtrl;
   final TextEditingController institutionCtrl;
@@ -43,17 +39,22 @@ class CategoryFieldBundle {
   final TextEditingController creditLimitCtrl;
   final TextEditingController creditAnnualFeeCtrl;
   final TextEditingController investMarketValueCtrl;
-  final TextEditingController fixedStartDateCtrl;
-  final TextEditingController fixedMaturityDateCtrl;
   final TextEditingController fixedTermMonthsCtrl;
   final TextEditingController goldProductTypeCtrl;
   final TextEditingController goldQuantityCtrl;
   final TextEditingController goldCurrentPriceCtrl;
   final TextEditingController estateCurrentValueCtrl;
-  final TextEditingController estatePurchaseDateCtrl;
   final TextEditingController loanOriginalCtrl;
   final TextEditingController loanMonthlyCtrl;
-  final TextEditingController loanNextPaymentDateCtrl;
+
+  // 日期值由 DatePickerInput（FormField<DateTime>）的 onSaved 收集到这里，
+  // _submit 时读 bundle.<dateField>。编辑预填由 categoryFieldsWidget 的
+  // initialValue 注入。
+  DateTime? openingDate; // 储蓄开户日期
+  DateTime? fixedStartDate; // 定期起息日
+  DateTime? fixedMaturityDate; // 定期到期日
+  DateTime? estatePurchaseDate; // 固定资产买入日期
+  DateTime? loanNextPaymentDate; // 贷款下次还款日
 
   void dispose() {
     for (final c in [
@@ -66,20 +67,45 @@ class CategoryFieldBundle {
       creditLimitCtrl,
       creditAnnualFeeCtrl,
       investMarketValueCtrl,
-      fixedStartDateCtrl,
-      fixedMaturityDateCtrl,
       fixedTermMonthsCtrl,
       goldProductTypeCtrl,
       goldQuantityCtrl,
       goldCurrentPriceCtrl,
       estateCurrentValueCtrl,
-      estatePurchaseDateCtrl,
       loanOriginalCtrl,
       loanMonthlyCtrl,
-      loanNextPaymentDateCtrl,
     ]) {
       c.dispose();
     }
+  }
+
+  /// 清空所有 controller + 日期字段（切 category 时调用）。
+  void clearAll() {
+    primaryCentsCtrl.text = '0';
+    for (final c in [
+      institutionCtrl,
+      cardNumberTailCtrl,
+      interestRateCtrl,
+      creditBillingDayCtrl,
+      creditRepaymentDayCtrl,
+      creditLimitCtrl,
+      creditAnnualFeeCtrl,
+      investMarketValueCtrl,
+      fixedTermMonthsCtrl,
+      goldProductTypeCtrl,
+      goldQuantityCtrl,
+      goldCurrentPriceCtrl,
+      estateCurrentValueCtrl,
+      loanOriginalCtrl,
+      loanMonthlyCtrl,
+    ]) {
+      c.clear();
+    }
+    openingDate = null;
+    fixedStartDate = null;
+    fixedMaturityDate = null;
+    estatePurchaseDate = null;
+    loanNextPaymentDate = null;
   }
 }
 
@@ -147,7 +173,11 @@ List<Widget> categoryFieldsWidget(AccountCategory c, CategoryFieldBundle b) {
           decoration: InputDecoration(labelText: rateLabel(c)),
           keyboardType: TextInputType.number,
         ),
-        DatePickerInput(label: '开户日期'),
+        DatePickerInput(
+          label: '开户日期',
+          initialValue: b.openingDate,
+          onSaved: (v) => b.openingDate = v,
+        ),
       ];
     case AccountCategory.creditCard:
       return [
@@ -207,8 +237,16 @@ List<Widget> categoryFieldsWidget(AccountCategory c, CategoryFieldBundle b) {
           decoration: InputDecoration(labelText: rateLabel(c)),
           keyboardType: TextInputType.number,
         ),
-        DatePickerInput(label: '起息日'),
-        DatePickerInput(label: '到期日'),
+        DatePickerInput(
+          label: '起息日',
+          initialValue: b.fixedStartDate,
+          onSaved: (v) => b.fixedStartDate = v,
+        ),
+        DatePickerInput(
+          label: '到期日',
+          initialValue: b.fixedMaturityDate,
+          onSaved: (v) => b.fixedMaturityDate = v,
+        ),
         TextFormField(
           controller: b.fixedTermMonthsCtrl,
           decoration: const InputDecoration(labelText: '期限（月）'),
@@ -234,7 +272,11 @@ List<Widget> categoryFieldsWidget(AccountCategory c, CategoryFieldBundle b) {
       return [
         AmountInput(controller: b.primaryCentsCtrl, label: primaryAmountLabel(c)),
         AmountInput(controller: b.estateCurrentValueCtrl, label: '现估值'),
-        DatePickerInput(label: '买入日期'),
+        DatePickerInput(
+          label: '买入日期',
+          initialValue: b.estatePurchaseDate,
+          onSaved: (v) => b.estatePurchaseDate = v,
+        ),
         TextFormField(
           controller: b.interestRateCtrl,
           decoration: InputDecoration(labelText: rateLabel(c)),
@@ -260,7 +302,11 @@ List<Widget> categoryFieldsWidget(AccountCategory c, CategoryFieldBundle b) {
           keyboardType: TextInputType.number,
         ),
         AmountInput(controller: b.loanMonthlyCtrl, label: '月供'),
-        DatePickerInput(label: '下次还款日'),
+        DatePickerInput(
+          label: '下次还款日',
+          initialValue: b.loanNextPaymentDate,
+          onSaved: (v) => b.loanNextPaymentDate = v,
+        ),
       ];
     case AccountCategory.otherAsset:
     case AccountCategory.otherLiability:

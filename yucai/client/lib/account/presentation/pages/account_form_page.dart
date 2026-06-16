@@ -1,22 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/bloc/account_state.dart';
+import 'package:yucai_client/account/presentation/widgets/category_fields.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
-import 'package:yucai_client/core/widgets/amount_input.dart';
 import 'package:yucai_client/core/widgets/form_section.dart';
 import 'package:yucai_client/core/widgets/type_tabs.dart';
 
-/// 新建账户表单（独立全屏页面，push 自账户列表）。
+/// 账户表单页（创建 + 编辑 + 复制 seed）。
+/// - [existing] == null：创建模式。
+/// - [existing] != null 且 id 非空：编辑模式（预填字段，调 UpdateAccount）。
+/// - [existing] != null 但 id == ''（复制 seed）：走创建，字段已 seed。
+///
 /// 布局对应原型 desktop-form-account.html：TypeTabs 顶部类型选择 +
-/// 分区表单 + 金额输入 + 底部操作栏。
-/// 共享列表页的 [AccountBloc]，创建成功后列表自动刷新。
+/// 分区表单 + 按 category 动态字段（[categoryFieldsWidget]）+ 底部操作栏。
 class AccountFormPage extends StatefulWidget {
-  const AccountFormPage({super.key});
+  final Account? existing;
+
+  const AccountFormPage({super.key, this.existing});
 
   @override
   State<AccountFormPage> createState() => _AccountFormPageState();
@@ -25,17 +31,256 @@ class AccountFormPage extends StatefulWidget {
 class _AccountFormPageState extends State<AccountFormPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
+  final _bundle = CategoryFieldBundle();
   String _currency = 'CNY';
-  final _balanceCtrl = TextEditingController(text: '0');
   AccountCategory _category = AccountCategory.savings;
   Ownership _ownership = Ownership.personal;
   bool _submitted = false;
 
+  Account? get _existing => widget.existing;
+  bool get _isEdit => _existing != null && _existing!.id.isNotEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = _existing;
+    if (e == null) return;
+    // 编辑或复制 seed：预填所有共享字段 + 该 category 专属字段。
+    _nameCtrl.text = e.name;
+    _currency = e.currencyCode;
+    _category = e.category;
+    _ownership = e.ownership;
+    _bundle.primaryCentsCtrl.text =
+        (_primaryCentsOf(e) / 100).toStringAsFixed(2);
+    _bundle.institutionCtrl.text = e.institution;
+    _bundle.cardNumberTailCtrl.text = e.cardNumberTail;
+    _bundle.interestRateCtrl.text = _rateOf(e)?.toString() ?? '';
+    _bundle.creditBillingDayCtrl.text = e.creditBillingDay?.toString() ?? '';
+    _bundle.creditRepaymentDayCtrl.text =
+        e.creditRepaymentDay?.toString() ?? '';
+    // M1: 编辑必须预填 creditLimitCents，否则 Update 无条件覆盖会清零额度。
+    _bundle.creditLimitCtrl.text =
+        (e.creditLimitCents / 100).toStringAsFixed(2);
+    _bundle.creditAnnualFeeCtrl.text = e.creditAnnualFeeCents == null
+        ? ''
+        : (e.creditAnnualFeeCents! / 100).toStringAsFixed(2);
+    _bundle.investMarketValueCtrl.text = e.investMarketValueCents == null
+        ? ''
+        : (e.investMarketValueCents! / 100).toStringAsFixed(2);
+    _bundle.fixedTermMonthsCtrl.text = e.fixedTermMonths?.toString() ?? '';
+    _bundle.goldProductTypeCtrl.text = e.goldProductType;
+    _bundle.goldQuantityCtrl.text = e.goldQuantity?.toString() ?? '';
+    _bundle.goldCurrentPriceCtrl.text = e.goldCurrentPriceCents == null
+        ? ''
+        : (e.goldCurrentPriceCents! / 100).toStringAsFixed(2);
+    _bundle.estateCurrentValueCtrl.text = e.estateCurrentValueCents == null
+        ? ''
+        : (e.estateCurrentValueCents! / 100).toStringAsFixed(2);
+    _bundle.loanOriginalCtrl.text = e.loanOriginalCents == null
+        ? ''
+        : (e.loanOriginalCents! / 100).toStringAsFixed(2);
+    _bundle.loanMonthlyCtrl.text = e.loanMonthlyCents == null
+        ? ''
+        : (e.loanMonthlyCents! / 100).toStringAsFixed(2);
+    // 日期预填（DatePickerInput 通过 initialValue 注入，onSaved 回写 bundle）。
+    _bundle.openingDate = e.openingDate;
+    _bundle.fixedStartDate = e.fixedStartDate;
+    _bundle.fixedMaturityDate = e.fixedMaturityDate;
+    _bundle.estatePurchaseDate = e.estatePurchaseDate;
+    _bundle.loanNextPaymentDate = e.loanNextPaymentDate;
+  }
+
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _balanceCtrl.dispose();
+    _bundle.dispose();
     super.dispose();
+  }
+
+  /// 主金额按 category 反查：投资→InvestCost，定期→FixedPrincipal，
+  /// 黄金→GoldBuyPrice，固定资产→EstatePurchasePrice，贷款→LoanRemaining，
+  /// 其余→InitialBalance。
+  int _primaryCentsOf(Account e) {
+    switch (e.category) {
+      case AccountCategory.investment:
+        return e.investCostCents ?? 0;
+      case AccountCategory.fixedDeposit:
+        return e.fixedPrincipalCents ?? 0;
+      case AccountCategory.goldFx:
+        return e.goldBuyPriceCents ?? 0;
+      case AccountCategory.realEstate:
+        return e.estatePurchasePriceCents ?? 0;
+      case AccountCategory.loan:
+        return e.loanRemainingCents ?? 0;
+      default:
+        return e.initialBalanceCents;
+    }
+  }
+
+  /// 利率字段反查：投资→InvestReturnYtd，固定资产→EstateDepreciationRate，
+  /// 其余→InterestRate。
+  double? _rateOf(Account e) {
+    switch (e.category) {
+      case AccountCategory.investment:
+        return e.investReturnYtd;
+      case AccountCategory.realEstate:
+        return e.estateDepreciationRate;
+      default:
+        return e.interestRate;
+    }
+  }
+
+  int? _optInt(TextEditingController c) =>
+      c.text.trim().isEmpty ? null : int.tryParse(c.text);
+  double? _optDouble(TextEditingController c) =>
+      c.text.trim().isEmpty ? null : double.tryParse(c.text);
+
+  /// 元（double）→ 分（int）。空串 → null（不修改）。
+  int? _yuanToCents(TextEditingController c) {
+    final v = double.tryParse(c.text);
+    return v == null ? null : (v * 100).round();
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+    // 触发 DatePickerInput（FormField<DateTime>）的 onSaved，回写 bundle 日期字段。
+    _formKey.currentState!.save();
+    _submitted = true;
+
+    final primaryCents =
+        ((double.tryParse(_bundle.primaryCentsCtrl.text) ?? 0) * 100).round();
+    final rate = _optDouble(_bundle.interestRateCtrl);
+    final interestRate = (_category == AccountCategory.investment ||
+            _category == AccountCategory.realEstate)
+        ? null
+        : rate;
+    final investReturnYtd =
+        _category == AccountCategory.investment ? rate : null;
+    final estateDepreciationRate =
+        _category == AccountCategory.realEstate ? rate : null;
+
+    if (_isEdit) {
+      context.read<AccountBloc>().add(UpdateAccountRequested(_buildUpdate(
+            primaryCents,
+            interestRate,
+            investReturnYtd,
+            estateDepreciationRate,
+          )));
+    } else {
+      context.read<AccountBloc>().add(CreateAccountRequested(_buildCreate(
+            primaryCents,
+            interestRate,
+            investReturnYtd,
+            estateDepreciationRate,
+          )));
+    }
+  }
+
+  UpdateAccountParams _buildUpdate(
+    int primary,
+    double? rate,
+    double? retYtd,
+    double? dep,
+  ) {
+    return UpdateAccountParams(
+      id: _existing!.id,
+      version: _existing!.version,
+      name: _nameCtrl.text.trim(),
+      institution: _bundle.institutionCtrl.text.trim(),
+      cardNumberTail: _bundle.cardNumberTailCtrl.text.trim(),
+      // M1: creditLimitCents 非 optional 标量，必须无条件回传（预填防清零）。
+      creditLimitCents: _yuanToCents(_bundle.creditLimitCtrl) ?? 0,
+      interestRate: rate,
+      investReturnYtd: retYtd,
+      estateDepreciationRate: dep,
+      investCostCents:
+          _category == AccountCategory.investment ? primary : null,
+      fixedPrincipalCents:
+          _category == AccountCategory.fixedDeposit ? primary : null,
+      goldBuyPriceCents: _category == AccountCategory.goldFx ? primary : null,
+      estatePurchasePriceCents:
+          _category == AccountCategory.realEstate ? primary : null,
+      loanRemainingCents:
+          _category == AccountCategory.loan ? primary : null,
+      creditBillingDay: _optInt(_bundle.creditBillingDayCtrl),
+      creditRepaymentDay: _optInt(_bundle.creditRepaymentDayCtrl),
+      creditAnnualFeeCents: _yuanToCents(_bundle.creditAnnualFeeCtrl),
+      investMarketValueCents: _yuanToCents(_bundle.investMarketValueCtrl),
+      fixedTermMonths: _optInt(_bundle.fixedTermMonthsCtrl),
+      goldProductType: _bundle.goldProductTypeCtrl.text.trim(),
+      goldQuantity: _optDouble(_bundle.goldQuantityCtrl),
+      goldCurrentPriceCents: _yuanToCents(_bundle.goldCurrentPriceCtrl),
+      estateCurrentValueCents: _yuanToCents(_bundle.estateCurrentValueCtrl),
+      loanOriginalCents: _yuanToCents(_bundle.loanOriginalCtrl),
+      loanMonthlyCents: _yuanToCents(_bundle.loanMonthlyCtrl),
+      openingDate: _bundle.openingDate,
+      fixedStartDate: _bundle.fixedStartDate,
+      fixedMaturityDate: _bundle.fixedMaturityDate,
+      estatePurchaseDate: _bundle.estatePurchaseDate,
+      loanNextPaymentDate: _bundle.loanNextPaymentDate,
+    );
+  }
+
+  CreateAccountParams _buildCreate(
+    int primary,
+    double? rate,
+    double? retYtd,
+    double? dep,
+  ) {
+    return CreateAccountParams(
+      name: _nameCtrl.text.trim(),
+      accountType: _category.accountType,
+      category: _category,
+      currencyCode: _currency,
+      initialBalanceCents: _initialCentsForCreate(_category, primary),
+      ownership: _ownership,
+      institution: _bundle.institutionCtrl.text.trim(),
+      cardNumberTail: _bundle.cardNumberTailCtrl.text.trim(),
+      creditLimitCents: _yuanToCents(_bundle.creditLimitCtrl) ?? 0,
+      interestRate: rate,
+      investReturnYtd: retYtd,
+      estateDepreciationRate: dep,
+      investCostCents:
+          _category == AccountCategory.investment ? primary : null,
+      fixedPrincipalCents:
+          _category == AccountCategory.fixedDeposit ? primary : null,
+      goldBuyPriceCents: _category == AccountCategory.goldFx ? primary : null,
+      estatePurchasePriceCents:
+          _category == AccountCategory.realEstate ? primary : null,
+      loanRemainingCents:
+          _category == AccountCategory.loan ? primary : null,
+      creditBillingDay: _optInt(_bundle.creditBillingDayCtrl),
+      creditRepaymentDay: _optInt(_bundle.creditRepaymentDayCtrl),
+      creditAnnualFeeCents: _yuanToCents(_bundle.creditAnnualFeeCtrl),
+      investMarketValueCents: _yuanToCents(_bundle.investMarketValueCtrl),
+      fixedTermMonths: _optInt(_bundle.fixedTermMonthsCtrl),
+      goldProductType: _bundle.goldProductTypeCtrl.text.trim(),
+      goldQuantity: _optDouble(_bundle.goldQuantityCtrl),
+      goldCurrentPriceCents: _yuanToCents(_bundle.goldCurrentPriceCtrl),
+      estateCurrentValueCents: _yuanToCents(_bundle.estateCurrentValueCtrl),
+      loanOriginalCents: _yuanToCents(_bundle.loanOriginalCtrl),
+      loanMonthlyCents: _yuanToCents(_bundle.loanMonthlyCtrl),
+      openingDate: _bundle.openingDate,
+      fixedStartDate: _bundle.fixedStartDate,
+      fixedMaturityDate: _bundle.fixedMaturityDate,
+      estatePurchaseDate: _bundle.estatePurchaseDate,
+      loanNextPaymentDate: _bundle.loanNextPaymentDate,
+    );
+  }
+
+  /// 创建模式主金额映射：投资/定期/黄金/固定资产/贷款 走专属字段（initial=0），
+  /// 其余走 InitialBalance。
+  int _initialCentsForCreate(AccountCategory c, int primary) {
+    switch (c) {
+      case AccountCategory.investment:
+      case AccountCategory.fixedDeposit:
+      case AccountCategory.goldFx:
+      case AccountCategory.realEstate:
+      case AccountCategory.loan:
+        return 0;
+      default:
+        return primary;
+    }
   }
 
   static const _categoryOptions = <TypeOption<AccountCategory>>[
@@ -50,34 +295,16 @@ class _AccountFormPageState extends State<AccountFormPage> {
     TypeOption(AccountCategory.otherLiability, '其他负债', Icons.pending_actions),
   ];
 
-  void _submit() {
-    if (!_formKey.currentState!.validate()) return;
-    _submitted = true;
-    final balanceYuan = double.tryParse(_balanceCtrl.text) ?? 0;
-    context.read<AccountBloc>().add(
-          CreateAccountRequested(
-            CreateAccountParams(
-              name: _nameCtrl.text.trim(),
-              accountType: _category.accountType,
-              category: _category,
-              currencyCode: _currency,
-              initialBalanceCents: (balanceYuan * 100).round(),
-              ownership: _ownership,
-            ),
-          ),
-        );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
         leading: BackButton(onPressed: () => Navigator.of(context).pop()),
-        title: const Text('新建账户'),
+        title: Text(_isEdit ? '编辑账户' : '新建账户'),
       ),
       body: BlocListener<AccountBloc, AccountState>(
-        // 创建成功 → bloc 经内部 reload 转为 AccountsLoaded；返回列表。
+        // 创建/更新成功 → bloc 经内部 reload 转为 AccountsLoaded；返回列表。
         // 用 _submitted 标志排除首次进入时的 AccountsLoaded；状态流含中间态
         // AccountLoading，不能直接用 prev is AccountFormSubmitting 判断。
         listenWhen: (prev, curr) =>
@@ -110,11 +337,20 @@ class _AccountFormPageState extends State<AccountFormPage> {
                         TypeTabs<AccountCategory>(
                           options: _categoryOptions,
                           selected: _category,
-                          onChanged: (v) => setState(() => _category = v),
+                          // 编辑模式切 category 会错乱主金额映射（如投资↔贷款），
+                          // 因此不更新 state；创建/复制清空 bundle 后切。
+                          onChanged: (v) {
+                            if (_isEdit) return;
+                            setState(() {
+                              _category = v;
+                              _bundle.clearAll();
+                            });
+                          },
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         Text(_category.description,
-                            style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                            style: const TextStyle(
+                                color: AppColors.muted, fontSize: 12)),
                         const SizedBox(height: AppSpacing.lg),
                         const Divider(height: 1, color: AppColors.border),
                         const SizedBox(height: AppSpacing.lg),
@@ -158,19 +394,16 @@ class _AccountFormPageState extends State<AccountFormPage> {
                                     _ownership = v ?? Ownership.personal),
                               ),
                             ]),
-                            AmountInput(
-                              controller: _balanceCtrl,
-                              label: '初始余额',
-                              validator: (v) =>
-                                  double.tryParse(v ?? '') == null
-                                      ? '请输入有效金额'
-                                      : null,
-                            ),
                           ],
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        FormSection(
+                          title: '${_category.label}信息',
+                          children: categoryFieldsWidget(_category, _bundle),
                         ),
                         const SizedBox(height: AppSpacing.xl),
                         FormActions(
-                          submitLabel: '确认创建',
+                          submitLabel: _isEdit ? '保存修改' : '确认创建',
                           submitting: submitting,
                           onSubmit: _submit,
                           onCancel: () => Navigator.of(context).pop(),
