@@ -119,14 +119,22 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
           const SizedBox(height: AppSpacing.lg),
           _statsRow(),
           const SizedBox(height: AppSpacing.lg),
-          _quickActions(a),
-          const SizedBox(height: AppSpacing.lg),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(child: _panel('近期交易', '待 Transaction 模块接入')),
               const SizedBox(width: AppSpacing.lg),
-              Expanded(child: _panel('收支统计', '待 Transaction 模块接入')),
+              // 右栏：收支统计 + 快捷操作（对照原型 right-col：信息+快捷操作）
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _panel('收支统计', '待 Transaction 模块接入'),
+                    const SizedBox(height: AppSpacing.lg),
+                    _quickActions(a),
+                  ],
+                ),
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),

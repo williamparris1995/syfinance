@@ -560,6 +560,8 @@ class _AccountCard extends StatelessWidget {
     final negative = account.currentBalanceCents < 0;
     final typeColor = _categoryColor(account.category);
     return DataCard(
+      // 点击卡片直接进详情（⋯ 菜单另有点击/长按入口）。
+      onTap: () => context.go('/accounts/${account.id}'),
       onLongPress: onLongPress,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
