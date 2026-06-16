@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"time"
 
 	pb "github.com/yucai/server/internal/proto/account/v1"
 	commonpb "github.com/yucai/server/internal/proto/common/v1"
@@ -14,6 +15,54 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+// Conversion helpers between proto optional scalars and application/domain pointers.
+
+func ts(t *timestamppb.Timestamp) *time.Time {
+	if t == nil {
+		return nil
+	}
+	v := t.AsTime()
+	return &v
+}
+
+func optTs(t *time.Time) *timestamppb.Timestamp {
+	if t == nil {
+		return nil
+	}
+	return timestamppb.New(*t)
+}
+
+func optStr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+func i32ToInt(p *int32) *int {
+	if p == nil {
+		return nil
+	}
+	v := int(*p)
+	return &v
+}
+
+func intToI32(p *int) *int32 {
+	if p == nil {
+		return nil
+	}
+	v := int32(*p)
+	return &v
+}
+
+func statusPtr(p *pb.AccountStatus) *domain.AccountStatus {
+	if p == nil {
+		return nil
+	}
+	v := protoToAccountStatus(*p)
+	return &v
+}
 
 // AccountHandler implements the generated AccountServiceServer interface.
 type AccountHandler struct {
@@ -49,6 +98,32 @@ func (h *AccountHandler) CreateAccount(ctx context.Context, req *pb.CreateAccoun
 		ChartCode:           req.ChartCode,
 		Institution:         req.Institution,
 		CreditLimitCents:    req.CreditLimitCents,
+		CardNumberTail:           req.CardNumberTail,
+		Notes:                    req.Notes,
+		OpeningDate:              ts(req.OpeningDate),
+		InterestRate:             req.InterestRate,
+		CreditBillingDay:         i32ToInt(req.CreditBillingDay),
+		CreditRepaymentDay:       i32ToInt(req.CreditRepaymentDay),
+		CreditAnnualFeeCents:     req.CreditAnnualFeeCents,
+		InvestCostCents:          req.InvestCostCents,
+		InvestMarketValueCents:   req.InvestMarketValueCents,
+		InvestReturnYtd:          req.InvestReturnYtd,
+		FixedPrincipalCents:      req.FixedPrincipalCents,
+		FixedStartDate:           ts(req.FixedStartDate),
+		FixedMaturityDate:        ts(req.FixedMaturityDate),
+		FixedTermMonths:          i32ToInt(req.FixedTermMonths),
+		GoldProductType:          req.GoldProductType,
+		GoldQuantity:             req.GoldQuantity,
+		GoldBuyPriceCents:        req.GoldBuyPriceCents,
+		GoldCurrentPriceCents:    req.GoldCurrentPriceCents,
+		EstatePurchasePriceCents: req.EstatePurchasePriceCents,
+		EstateCurrentValueCents:  req.EstateCurrentValueCents,
+		EstatePurchaseDate:       ts(req.EstatePurchaseDate),
+		EstateDepreciationRate:   req.EstateDepreciationRate,
+		LoanOriginalCents:        req.LoanOriginalCents,
+		LoanRemainingCents:       req.LoanRemainingCents,
+		LoanMonthlyCents:         req.LoanMonthlyCents,
+		LoanNextPaymentDate:      ts(req.LoanNextPaymentDate),
 	})
 	if err != nil {
 		return nil, mapError(err)
@@ -140,6 +215,33 @@ func (h *AccountHandler) UpdateAccount(ctx context.Context, req *pb.UpdateAccoun
 		ChartCode:        req.ChartCode,
 		Institution:      req.Institution,
 		CreditLimitCents: req.CreditLimitCents,
+		Status:                   statusPtr(req.Status),
+		CardNumberTail:           req.CardNumberTail,
+		Notes:                    req.Notes,
+		OpeningDate:              ts(req.OpeningDate),
+		InterestRate:             req.InterestRate,
+		CreditBillingDay:         i32ToInt(req.CreditBillingDay),
+		CreditRepaymentDay:       i32ToInt(req.CreditRepaymentDay),
+		CreditAnnualFeeCents:     req.CreditAnnualFeeCents,
+		InvestCostCents:          req.InvestCostCents,
+		InvestMarketValueCents:   req.InvestMarketValueCents,
+		InvestReturnYtd:          req.InvestReturnYtd,
+		FixedPrincipalCents:      req.FixedPrincipalCents,
+		FixedStartDate:           ts(req.FixedStartDate),
+		FixedMaturityDate:        ts(req.FixedMaturityDate),
+		FixedTermMonths:          i32ToInt(req.FixedTermMonths),
+		GoldProductType:          req.GoldProductType,
+		GoldQuantity:             req.GoldQuantity,
+		GoldBuyPriceCents:        req.GoldBuyPriceCents,
+		GoldCurrentPriceCents:    req.GoldCurrentPriceCents,
+		EstatePurchasePriceCents: req.EstatePurchasePriceCents,
+		EstateCurrentValueCents:  req.EstateCurrentValueCents,
+		EstatePurchaseDate:       ts(req.EstatePurchaseDate),
+		EstateDepreciationRate:   req.EstateDepreciationRate,
+		LoanOriginalCents:        req.LoanOriginalCents,
+		LoanRemainingCents:       req.LoanRemainingCents,
+		LoanMonthlyCents:         req.LoanMonthlyCents,
+		LoanNextPaymentDate:      ts(req.LoanNextPaymentDate),
 		Version:          req.Version,
 	})
 	if err != nil {
@@ -180,6 +282,32 @@ func dtoToProto(a application.AccountDTO) *pb.AccountDTO {
 		ChartCode:           a.ChartCode,
 		Institution:         a.Institution,
 		CreditLimitCents:    a.CreditLimitCents,
+		CardNumberTail:           optStr(a.CardNumberTail),
+		Notes:                    optStr(a.Notes),
+		OpeningDate:              optTs(a.OpeningDate),
+		InterestRate:             a.InterestRate,
+		CreditBillingDay:         intToI32(a.CreditBillingDay),
+		CreditRepaymentDay:       intToI32(a.CreditRepaymentDay),
+		CreditAnnualFeeCents:     a.CreditAnnualFeeCents,
+		InvestCostCents:          a.InvestCostCents,
+		InvestMarketValueCents:   a.InvestMarketValueCents,
+		InvestReturnYtd:          a.InvestReturnYtd,
+		FixedPrincipalCents:      a.FixedPrincipalCents,
+		FixedStartDate:           optTs(a.FixedStartDate),
+		FixedMaturityDate:        optTs(a.FixedMaturityDate),
+		FixedTermMonths:          intToI32(a.FixedTermMonths),
+		GoldProductType:          optStr(a.GoldProductType),
+		GoldQuantity:             a.GoldQuantity,
+		GoldBuyPriceCents:        a.GoldBuyPriceCents,
+		GoldCurrentPriceCents:    a.GoldCurrentPriceCents,
+		EstatePurchasePriceCents: a.EstatePurchasePriceCents,
+		EstateCurrentValueCents:  a.EstateCurrentValueCents,
+		EstatePurchaseDate:       optTs(a.EstatePurchaseDate),
+		EstateDepreciationRate:   a.EstateDepreciationRate,
+		LoanOriginalCents:        a.LoanOriginalCents,
+		LoanRemainingCents:       a.LoanRemainingCents,
+		LoanMonthlyCents:         a.LoanMonthlyCents,
+		LoanNextPaymentDate:      optTs(a.LoanNextPaymentDate),
 		Status:              accountStatusToProto(a.Status),
 		Version:             a.Version,
 		CreatedAt:           timestamppb.New(a.CreatedAt),
