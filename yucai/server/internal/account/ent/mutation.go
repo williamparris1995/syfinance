@@ -33,36 +33,80 @@ const (
 // AccountMutation represents an operation that mutates the Account nodes in the graph.
 type AccountMutation struct {
 	config
-	op                       Op
-	typ                      string
-	id                       *uuid.UUID
-	tenant_id                *uuid.UUID
-	name                     *string
-	account_type             *account.AccountType
-	category                 *account.Category
-	currency_code            *string
-	initial_balance_cents    *int64
-	addinitial_balance_cents *int64
-	current_balance_cents    *int64
-	addcurrent_balance_cents *int64
-	ownership                *account.Ownership
-	icon                     *string
-	color                    *string
-	chart_code               *string
-	parent_id                *uuid.UUID
-	institution              *string
-	credit_limit_cents       *int64
-	addcredit_limit_cents    *int64
-	status                   *account.Status
-	version                  *int64
-	addversion               *int64
-	deleted_at               *time.Time
-	created_at               *time.Time
-	updated_at               *time.Time
-	clearedFields            map[string]struct{}
-	done                     bool
-	oldValue                 func(context.Context) (*Account, error)
-	predicates               []predicate.Account
+	op                             Op
+	typ                            string
+	id                             *uuid.UUID
+	tenant_id                      *uuid.UUID
+	name                           *string
+	account_type                   *account.AccountType
+	category                       *account.Category
+	currency_code                  *string
+	initial_balance_cents          *int64
+	addinitial_balance_cents       *int64
+	current_balance_cents          *int64
+	addcurrent_balance_cents       *int64
+	ownership                      *account.Ownership
+	icon                           *string
+	color                          *string
+	chart_code                     *string
+	parent_id                      *uuid.UUID
+	institution                    *string
+	credit_limit_cents             *int64
+	addcredit_limit_cents          *int64
+	card_number_tail               *string
+	notes                          *string
+	opening_date                   *time.Time
+	interest_rate                  *float64
+	addinterest_rate               *float64
+	credit_billing_day             *int
+	addcredit_billing_day          *int
+	credit_repayment_day           *int
+	addcredit_repayment_day        *int
+	credit_annual_fee_cents        *int64
+	addcredit_annual_fee_cents     *int64
+	invest_cost_cents              *int64
+	addinvest_cost_cents           *int64
+	invest_market_value_cents      *int64
+	addinvest_market_value_cents   *int64
+	invest_return_ytd              *float64
+	addinvest_return_ytd           *float64
+	fixed_principal_cents          *int64
+	addfixed_principal_cents       *int64
+	fixed_start_date               *time.Time
+	fixed_maturity_date            *time.Time
+	fixed_term_months              *int
+	addfixed_term_months           *int
+	gold_product_type              *string
+	gold_quantity                  *float64
+	addgold_quantity               *float64
+	gold_buy_price_cents           *int64
+	addgold_buy_price_cents        *int64
+	gold_current_price_cents       *int64
+	addgold_current_price_cents    *int64
+	estate_purchase_price_cents    *int64
+	addestate_purchase_price_cents *int64
+	estate_current_value_cents     *int64
+	addestate_current_value_cents  *int64
+	estate_purchase_date           *time.Time
+	estate_depreciation_rate       *float64
+	addestate_depreciation_rate    *float64
+	loan_original_cents            *int64
+	addloan_original_cents         *int64
+	loan_remaining_cents           *int64
+	addloan_remaining_cents        *int64
+	loan_monthly_cents             *int64
+	addloan_monthly_cents          *int64
+	loan_next_payment_date         *time.Time
+	status                         *account.Status
+	version                        *int64
+	addversion                     *int64
+	deleted_at                     *time.Time
+	created_at                     *time.Time
+	updated_at                     *time.Time
+	clearedFields                  map[string]struct{}
+	done                           bool
+	oldValue                       func(context.Context) (*Account, error)
+	predicates                     []predicate.Account
 }
 
 var _ ent.Mutation = (*AccountMutation)(nil)
@@ -798,6 +842,1658 @@ func (m *AccountMutation) ResetCreditLimitCents() {
 	m.addcredit_limit_cents = nil
 }
 
+// SetCardNumberTail sets the "card_number_tail" field.
+func (m *AccountMutation) SetCardNumberTail(s string) {
+	m.card_number_tail = &s
+}
+
+// CardNumberTail returns the value of the "card_number_tail" field in the mutation.
+func (m *AccountMutation) CardNumberTail() (r string, exists bool) {
+	v := m.card_number_tail
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCardNumberTail returns the old "card_number_tail" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldCardNumberTail(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCardNumberTail is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCardNumberTail requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCardNumberTail: %w", err)
+	}
+	return oldValue.CardNumberTail, nil
+}
+
+// ClearCardNumberTail clears the value of the "card_number_tail" field.
+func (m *AccountMutation) ClearCardNumberTail() {
+	m.card_number_tail = nil
+	m.clearedFields[account.FieldCardNumberTail] = struct{}{}
+}
+
+// CardNumberTailCleared returns if the "card_number_tail" field was cleared in this mutation.
+func (m *AccountMutation) CardNumberTailCleared() bool {
+	_, ok := m.clearedFields[account.FieldCardNumberTail]
+	return ok
+}
+
+// ResetCardNumberTail resets all changes to the "card_number_tail" field.
+func (m *AccountMutation) ResetCardNumberTail() {
+	m.card_number_tail = nil
+	delete(m.clearedFields, account.FieldCardNumberTail)
+}
+
+// SetNotes sets the "notes" field.
+func (m *AccountMutation) SetNotes(s string) {
+	m.notes = &s
+}
+
+// Notes returns the value of the "notes" field in the mutation.
+func (m *AccountMutation) Notes() (r string, exists bool) {
+	v := m.notes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNotes returns the old "notes" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldNotes(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNotes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNotes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNotes: %w", err)
+	}
+	return oldValue.Notes, nil
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (m *AccountMutation) ClearNotes() {
+	m.notes = nil
+	m.clearedFields[account.FieldNotes] = struct{}{}
+}
+
+// NotesCleared returns if the "notes" field was cleared in this mutation.
+func (m *AccountMutation) NotesCleared() bool {
+	_, ok := m.clearedFields[account.FieldNotes]
+	return ok
+}
+
+// ResetNotes resets all changes to the "notes" field.
+func (m *AccountMutation) ResetNotes() {
+	m.notes = nil
+	delete(m.clearedFields, account.FieldNotes)
+}
+
+// SetOpeningDate sets the "opening_date" field.
+func (m *AccountMutation) SetOpeningDate(t time.Time) {
+	m.opening_date = &t
+}
+
+// OpeningDate returns the value of the "opening_date" field in the mutation.
+func (m *AccountMutation) OpeningDate() (r time.Time, exists bool) {
+	v := m.opening_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOpeningDate returns the old "opening_date" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldOpeningDate(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOpeningDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOpeningDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOpeningDate: %w", err)
+	}
+	return oldValue.OpeningDate, nil
+}
+
+// ClearOpeningDate clears the value of the "opening_date" field.
+func (m *AccountMutation) ClearOpeningDate() {
+	m.opening_date = nil
+	m.clearedFields[account.FieldOpeningDate] = struct{}{}
+}
+
+// OpeningDateCleared returns if the "opening_date" field was cleared in this mutation.
+func (m *AccountMutation) OpeningDateCleared() bool {
+	_, ok := m.clearedFields[account.FieldOpeningDate]
+	return ok
+}
+
+// ResetOpeningDate resets all changes to the "opening_date" field.
+func (m *AccountMutation) ResetOpeningDate() {
+	m.opening_date = nil
+	delete(m.clearedFields, account.FieldOpeningDate)
+}
+
+// SetInterestRate sets the "interest_rate" field.
+func (m *AccountMutation) SetInterestRate(f float64) {
+	m.interest_rate = &f
+	m.addinterest_rate = nil
+}
+
+// InterestRate returns the value of the "interest_rate" field in the mutation.
+func (m *AccountMutation) InterestRate() (r float64, exists bool) {
+	v := m.interest_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInterestRate returns the old "interest_rate" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldInterestRate(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInterestRate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInterestRate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInterestRate: %w", err)
+	}
+	return oldValue.InterestRate, nil
+}
+
+// AddInterestRate adds f to the "interest_rate" field.
+func (m *AccountMutation) AddInterestRate(f float64) {
+	if m.addinterest_rate != nil {
+		*m.addinterest_rate += f
+	} else {
+		m.addinterest_rate = &f
+	}
+}
+
+// AddedInterestRate returns the value that was added to the "interest_rate" field in this mutation.
+func (m *AccountMutation) AddedInterestRate() (r float64, exists bool) {
+	v := m.addinterest_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearInterestRate clears the value of the "interest_rate" field.
+func (m *AccountMutation) ClearInterestRate() {
+	m.interest_rate = nil
+	m.addinterest_rate = nil
+	m.clearedFields[account.FieldInterestRate] = struct{}{}
+}
+
+// InterestRateCleared returns if the "interest_rate" field was cleared in this mutation.
+func (m *AccountMutation) InterestRateCleared() bool {
+	_, ok := m.clearedFields[account.FieldInterestRate]
+	return ok
+}
+
+// ResetInterestRate resets all changes to the "interest_rate" field.
+func (m *AccountMutation) ResetInterestRate() {
+	m.interest_rate = nil
+	m.addinterest_rate = nil
+	delete(m.clearedFields, account.FieldInterestRate)
+}
+
+// SetCreditBillingDay sets the "credit_billing_day" field.
+func (m *AccountMutation) SetCreditBillingDay(i int) {
+	m.credit_billing_day = &i
+	m.addcredit_billing_day = nil
+}
+
+// CreditBillingDay returns the value of the "credit_billing_day" field in the mutation.
+func (m *AccountMutation) CreditBillingDay() (r int, exists bool) {
+	v := m.credit_billing_day
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreditBillingDay returns the old "credit_billing_day" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldCreditBillingDay(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreditBillingDay is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreditBillingDay requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreditBillingDay: %w", err)
+	}
+	return oldValue.CreditBillingDay, nil
+}
+
+// AddCreditBillingDay adds i to the "credit_billing_day" field.
+func (m *AccountMutation) AddCreditBillingDay(i int) {
+	if m.addcredit_billing_day != nil {
+		*m.addcredit_billing_day += i
+	} else {
+		m.addcredit_billing_day = &i
+	}
+}
+
+// AddedCreditBillingDay returns the value that was added to the "credit_billing_day" field in this mutation.
+func (m *AccountMutation) AddedCreditBillingDay() (r int, exists bool) {
+	v := m.addcredit_billing_day
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCreditBillingDay clears the value of the "credit_billing_day" field.
+func (m *AccountMutation) ClearCreditBillingDay() {
+	m.credit_billing_day = nil
+	m.addcredit_billing_day = nil
+	m.clearedFields[account.FieldCreditBillingDay] = struct{}{}
+}
+
+// CreditBillingDayCleared returns if the "credit_billing_day" field was cleared in this mutation.
+func (m *AccountMutation) CreditBillingDayCleared() bool {
+	_, ok := m.clearedFields[account.FieldCreditBillingDay]
+	return ok
+}
+
+// ResetCreditBillingDay resets all changes to the "credit_billing_day" field.
+func (m *AccountMutation) ResetCreditBillingDay() {
+	m.credit_billing_day = nil
+	m.addcredit_billing_day = nil
+	delete(m.clearedFields, account.FieldCreditBillingDay)
+}
+
+// SetCreditRepaymentDay sets the "credit_repayment_day" field.
+func (m *AccountMutation) SetCreditRepaymentDay(i int) {
+	m.credit_repayment_day = &i
+	m.addcredit_repayment_day = nil
+}
+
+// CreditRepaymentDay returns the value of the "credit_repayment_day" field in the mutation.
+func (m *AccountMutation) CreditRepaymentDay() (r int, exists bool) {
+	v := m.credit_repayment_day
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreditRepaymentDay returns the old "credit_repayment_day" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldCreditRepaymentDay(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreditRepaymentDay is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreditRepaymentDay requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreditRepaymentDay: %w", err)
+	}
+	return oldValue.CreditRepaymentDay, nil
+}
+
+// AddCreditRepaymentDay adds i to the "credit_repayment_day" field.
+func (m *AccountMutation) AddCreditRepaymentDay(i int) {
+	if m.addcredit_repayment_day != nil {
+		*m.addcredit_repayment_day += i
+	} else {
+		m.addcredit_repayment_day = &i
+	}
+}
+
+// AddedCreditRepaymentDay returns the value that was added to the "credit_repayment_day" field in this mutation.
+func (m *AccountMutation) AddedCreditRepaymentDay() (r int, exists bool) {
+	v := m.addcredit_repayment_day
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCreditRepaymentDay clears the value of the "credit_repayment_day" field.
+func (m *AccountMutation) ClearCreditRepaymentDay() {
+	m.credit_repayment_day = nil
+	m.addcredit_repayment_day = nil
+	m.clearedFields[account.FieldCreditRepaymentDay] = struct{}{}
+}
+
+// CreditRepaymentDayCleared returns if the "credit_repayment_day" field was cleared in this mutation.
+func (m *AccountMutation) CreditRepaymentDayCleared() bool {
+	_, ok := m.clearedFields[account.FieldCreditRepaymentDay]
+	return ok
+}
+
+// ResetCreditRepaymentDay resets all changes to the "credit_repayment_day" field.
+func (m *AccountMutation) ResetCreditRepaymentDay() {
+	m.credit_repayment_day = nil
+	m.addcredit_repayment_day = nil
+	delete(m.clearedFields, account.FieldCreditRepaymentDay)
+}
+
+// SetCreditAnnualFeeCents sets the "credit_annual_fee_cents" field.
+func (m *AccountMutation) SetCreditAnnualFeeCents(i int64) {
+	m.credit_annual_fee_cents = &i
+	m.addcredit_annual_fee_cents = nil
+}
+
+// CreditAnnualFeeCents returns the value of the "credit_annual_fee_cents" field in the mutation.
+func (m *AccountMutation) CreditAnnualFeeCents() (r int64, exists bool) {
+	v := m.credit_annual_fee_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreditAnnualFeeCents returns the old "credit_annual_fee_cents" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldCreditAnnualFeeCents(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreditAnnualFeeCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreditAnnualFeeCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreditAnnualFeeCents: %w", err)
+	}
+	return oldValue.CreditAnnualFeeCents, nil
+}
+
+// AddCreditAnnualFeeCents adds i to the "credit_annual_fee_cents" field.
+func (m *AccountMutation) AddCreditAnnualFeeCents(i int64) {
+	if m.addcredit_annual_fee_cents != nil {
+		*m.addcredit_annual_fee_cents += i
+	} else {
+		m.addcredit_annual_fee_cents = &i
+	}
+}
+
+// AddedCreditAnnualFeeCents returns the value that was added to the "credit_annual_fee_cents" field in this mutation.
+func (m *AccountMutation) AddedCreditAnnualFeeCents() (r int64, exists bool) {
+	v := m.addcredit_annual_fee_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCreditAnnualFeeCents clears the value of the "credit_annual_fee_cents" field.
+func (m *AccountMutation) ClearCreditAnnualFeeCents() {
+	m.credit_annual_fee_cents = nil
+	m.addcredit_annual_fee_cents = nil
+	m.clearedFields[account.FieldCreditAnnualFeeCents] = struct{}{}
+}
+
+// CreditAnnualFeeCentsCleared returns if the "credit_annual_fee_cents" field was cleared in this mutation.
+func (m *AccountMutation) CreditAnnualFeeCentsCleared() bool {
+	_, ok := m.clearedFields[account.FieldCreditAnnualFeeCents]
+	return ok
+}
+
+// ResetCreditAnnualFeeCents resets all changes to the "credit_annual_fee_cents" field.
+func (m *AccountMutation) ResetCreditAnnualFeeCents() {
+	m.credit_annual_fee_cents = nil
+	m.addcredit_annual_fee_cents = nil
+	delete(m.clearedFields, account.FieldCreditAnnualFeeCents)
+}
+
+// SetInvestCostCents sets the "invest_cost_cents" field.
+func (m *AccountMutation) SetInvestCostCents(i int64) {
+	m.invest_cost_cents = &i
+	m.addinvest_cost_cents = nil
+}
+
+// InvestCostCents returns the value of the "invest_cost_cents" field in the mutation.
+func (m *AccountMutation) InvestCostCents() (r int64, exists bool) {
+	v := m.invest_cost_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInvestCostCents returns the old "invest_cost_cents" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldInvestCostCents(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInvestCostCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInvestCostCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInvestCostCents: %w", err)
+	}
+	return oldValue.InvestCostCents, nil
+}
+
+// AddInvestCostCents adds i to the "invest_cost_cents" field.
+func (m *AccountMutation) AddInvestCostCents(i int64) {
+	if m.addinvest_cost_cents != nil {
+		*m.addinvest_cost_cents += i
+	} else {
+		m.addinvest_cost_cents = &i
+	}
+}
+
+// AddedInvestCostCents returns the value that was added to the "invest_cost_cents" field in this mutation.
+func (m *AccountMutation) AddedInvestCostCents() (r int64, exists bool) {
+	v := m.addinvest_cost_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearInvestCostCents clears the value of the "invest_cost_cents" field.
+func (m *AccountMutation) ClearInvestCostCents() {
+	m.invest_cost_cents = nil
+	m.addinvest_cost_cents = nil
+	m.clearedFields[account.FieldInvestCostCents] = struct{}{}
+}
+
+// InvestCostCentsCleared returns if the "invest_cost_cents" field was cleared in this mutation.
+func (m *AccountMutation) InvestCostCentsCleared() bool {
+	_, ok := m.clearedFields[account.FieldInvestCostCents]
+	return ok
+}
+
+// ResetInvestCostCents resets all changes to the "invest_cost_cents" field.
+func (m *AccountMutation) ResetInvestCostCents() {
+	m.invest_cost_cents = nil
+	m.addinvest_cost_cents = nil
+	delete(m.clearedFields, account.FieldInvestCostCents)
+}
+
+// SetInvestMarketValueCents sets the "invest_market_value_cents" field.
+func (m *AccountMutation) SetInvestMarketValueCents(i int64) {
+	m.invest_market_value_cents = &i
+	m.addinvest_market_value_cents = nil
+}
+
+// InvestMarketValueCents returns the value of the "invest_market_value_cents" field in the mutation.
+func (m *AccountMutation) InvestMarketValueCents() (r int64, exists bool) {
+	v := m.invest_market_value_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInvestMarketValueCents returns the old "invest_market_value_cents" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldInvestMarketValueCents(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInvestMarketValueCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInvestMarketValueCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInvestMarketValueCents: %w", err)
+	}
+	return oldValue.InvestMarketValueCents, nil
+}
+
+// AddInvestMarketValueCents adds i to the "invest_market_value_cents" field.
+func (m *AccountMutation) AddInvestMarketValueCents(i int64) {
+	if m.addinvest_market_value_cents != nil {
+		*m.addinvest_market_value_cents += i
+	} else {
+		m.addinvest_market_value_cents = &i
+	}
+}
+
+// AddedInvestMarketValueCents returns the value that was added to the "invest_market_value_cents" field in this mutation.
+func (m *AccountMutation) AddedInvestMarketValueCents() (r int64, exists bool) {
+	v := m.addinvest_market_value_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearInvestMarketValueCents clears the value of the "invest_market_value_cents" field.
+func (m *AccountMutation) ClearInvestMarketValueCents() {
+	m.invest_market_value_cents = nil
+	m.addinvest_market_value_cents = nil
+	m.clearedFields[account.FieldInvestMarketValueCents] = struct{}{}
+}
+
+// InvestMarketValueCentsCleared returns if the "invest_market_value_cents" field was cleared in this mutation.
+func (m *AccountMutation) InvestMarketValueCentsCleared() bool {
+	_, ok := m.clearedFields[account.FieldInvestMarketValueCents]
+	return ok
+}
+
+// ResetInvestMarketValueCents resets all changes to the "invest_market_value_cents" field.
+func (m *AccountMutation) ResetInvestMarketValueCents() {
+	m.invest_market_value_cents = nil
+	m.addinvest_market_value_cents = nil
+	delete(m.clearedFields, account.FieldInvestMarketValueCents)
+}
+
+// SetInvestReturnYtd sets the "invest_return_ytd" field.
+func (m *AccountMutation) SetInvestReturnYtd(f float64) {
+	m.invest_return_ytd = &f
+	m.addinvest_return_ytd = nil
+}
+
+// InvestReturnYtd returns the value of the "invest_return_ytd" field in the mutation.
+func (m *AccountMutation) InvestReturnYtd() (r float64, exists bool) {
+	v := m.invest_return_ytd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInvestReturnYtd returns the old "invest_return_ytd" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldInvestReturnYtd(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInvestReturnYtd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInvestReturnYtd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInvestReturnYtd: %w", err)
+	}
+	return oldValue.InvestReturnYtd, nil
+}
+
+// AddInvestReturnYtd adds f to the "invest_return_ytd" field.
+func (m *AccountMutation) AddInvestReturnYtd(f float64) {
+	if m.addinvest_return_ytd != nil {
+		*m.addinvest_return_ytd += f
+	} else {
+		m.addinvest_return_ytd = &f
+	}
+}
+
+// AddedInvestReturnYtd returns the value that was added to the "invest_return_ytd" field in this mutation.
+func (m *AccountMutation) AddedInvestReturnYtd() (r float64, exists bool) {
+	v := m.addinvest_return_ytd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearInvestReturnYtd clears the value of the "invest_return_ytd" field.
+func (m *AccountMutation) ClearInvestReturnYtd() {
+	m.invest_return_ytd = nil
+	m.addinvest_return_ytd = nil
+	m.clearedFields[account.FieldInvestReturnYtd] = struct{}{}
+}
+
+// InvestReturnYtdCleared returns if the "invest_return_ytd" field was cleared in this mutation.
+func (m *AccountMutation) InvestReturnYtdCleared() bool {
+	_, ok := m.clearedFields[account.FieldInvestReturnYtd]
+	return ok
+}
+
+// ResetInvestReturnYtd resets all changes to the "invest_return_ytd" field.
+func (m *AccountMutation) ResetInvestReturnYtd() {
+	m.invest_return_ytd = nil
+	m.addinvest_return_ytd = nil
+	delete(m.clearedFields, account.FieldInvestReturnYtd)
+}
+
+// SetFixedPrincipalCents sets the "fixed_principal_cents" field.
+func (m *AccountMutation) SetFixedPrincipalCents(i int64) {
+	m.fixed_principal_cents = &i
+	m.addfixed_principal_cents = nil
+}
+
+// FixedPrincipalCents returns the value of the "fixed_principal_cents" field in the mutation.
+func (m *AccountMutation) FixedPrincipalCents() (r int64, exists bool) {
+	v := m.fixed_principal_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFixedPrincipalCents returns the old "fixed_principal_cents" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldFixedPrincipalCents(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFixedPrincipalCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFixedPrincipalCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFixedPrincipalCents: %w", err)
+	}
+	return oldValue.FixedPrincipalCents, nil
+}
+
+// AddFixedPrincipalCents adds i to the "fixed_principal_cents" field.
+func (m *AccountMutation) AddFixedPrincipalCents(i int64) {
+	if m.addfixed_principal_cents != nil {
+		*m.addfixed_principal_cents += i
+	} else {
+		m.addfixed_principal_cents = &i
+	}
+}
+
+// AddedFixedPrincipalCents returns the value that was added to the "fixed_principal_cents" field in this mutation.
+func (m *AccountMutation) AddedFixedPrincipalCents() (r int64, exists bool) {
+	v := m.addfixed_principal_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearFixedPrincipalCents clears the value of the "fixed_principal_cents" field.
+func (m *AccountMutation) ClearFixedPrincipalCents() {
+	m.fixed_principal_cents = nil
+	m.addfixed_principal_cents = nil
+	m.clearedFields[account.FieldFixedPrincipalCents] = struct{}{}
+}
+
+// FixedPrincipalCentsCleared returns if the "fixed_principal_cents" field was cleared in this mutation.
+func (m *AccountMutation) FixedPrincipalCentsCleared() bool {
+	_, ok := m.clearedFields[account.FieldFixedPrincipalCents]
+	return ok
+}
+
+// ResetFixedPrincipalCents resets all changes to the "fixed_principal_cents" field.
+func (m *AccountMutation) ResetFixedPrincipalCents() {
+	m.fixed_principal_cents = nil
+	m.addfixed_principal_cents = nil
+	delete(m.clearedFields, account.FieldFixedPrincipalCents)
+}
+
+// SetFixedStartDate sets the "fixed_start_date" field.
+func (m *AccountMutation) SetFixedStartDate(t time.Time) {
+	m.fixed_start_date = &t
+}
+
+// FixedStartDate returns the value of the "fixed_start_date" field in the mutation.
+func (m *AccountMutation) FixedStartDate() (r time.Time, exists bool) {
+	v := m.fixed_start_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFixedStartDate returns the old "fixed_start_date" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldFixedStartDate(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFixedStartDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFixedStartDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFixedStartDate: %w", err)
+	}
+	return oldValue.FixedStartDate, nil
+}
+
+// ClearFixedStartDate clears the value of the "fixed_start_date" field.
+func (m *AccountMutation) ClearFixedStartDate() {
+	m.fixed_start_date = nil
+	m.clearedFields[account.FieldFixedStartDate] = struct{}{}
+}
+
+// FixedStartDateCleared returns if the "fixed_start_date" field was cleared in this mutation.
+func (m *AccountMutation) FixedStartDateCleared() bool {
+	_, ok := m.clearedFields[account.FieldFixedStartDate]
+	return ok
+}
+
+// ResetFixedStartDate resets all changes to the "fixed_start_date" field.
+func (m *AccountMutation) ResetFixedStartDate() {
+	m.fixed_start_date = nil
+	delete(m.clearedFields, account.FieldFixedStartDate)
+}
+
+// SetFixedMaturityDate sets the "fixed_maturity_date" field.
+func (m *AccountMutation) SetFixedMaturityDate(t time.Time) {
+	m.fixed_maturity_date = &t
+}
+
+// FixedMaturityDate returns the value of the "fixed_maturity_date" field in the mutation.
+func (m *AccountMutation) FixedMaturityDate() (r time.Time, exists bool) {
+	v := m.fixed_maturity_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFixedMaturityDate returns the old "fixed_maturity_date" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldFixedMaturityDate(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFixedMaturityDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFixedMaturityDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFixedMaturityDate: %w", err)
+	}
+	return oldValue.FixedMaturityDate, nil
+}
+
+// ClearFixedMaturityDate clears the value of the "fixed_maturity_date" field.
+func (m *AccountMutation) ClearFixedMaturityDate() {
+	m.fixed_maturity_date = nil
+	m.clearedFields[account.FieldFixedMaturityDate] = struct{}{}
+}
+
+// FixedMaturityDateCleared returns if the "fixed_maturity_date" field was cleared in this mutation.
+func (m *AccountMutation) FixedMaturityDateCleared() bool {
+	_, ok := m.clearedFields[account.FieldFixedMaturityDate]
+	return ok
+}
+
+// ResetFixedMaturityDate resets all changes to the "fixed_maturity_date" field.
+func (m *AccountMutation) ResetFixedMaturityDate() {
+	m.fixed_maturity_date = nil
+	delete(m.clearedFields, account.FieldFixedMaturityDate)
+}
+
+// SetFixedTermMonths sets the "fixed_term_months" field.
+func (m *AccountMutation) SetFixedTermMonths(i int) {
+	m.fixed_term_months = &i
+	m.addfixed_term_months = nil
+}
+
+// FixedTermMonths returns the value of the "fixed_term_months" field in the mutation.
+func (m *AccountMutation) FixedTermMonths() (r int, exists bool) {
+	v := m.fixed_term_months
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFixedTermMonths returns the old "fixed_term_months" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldFixedTermMonths(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFixedTermMonths is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFixedTermMonths requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFixedTermMonths: %w", err)
+	}
+	return oldValue.FixedTermMonths, nil
+}
+
+// AddFixedTermMonths adds i to the "fixed_term_months" field.
+func (m *AccountMutation) AddFixedTermMonths(i int) {
+	if m.addfixed_term_months != nil {
+		*m.addfixed_term_months += i
+	} else {
+		m.addfixed_term_months = &i
+	}
+}
+
+// AddedFixedTermMonths returns the value that was added to the "fixed_term_months" field in this mutation.
+func (m *AccountMutation) AddedFixedTermMonths() (r int, exists bool) {
+	v := m.addfixed_term_months
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearFixedTermMonths clears the value of the "fixed_term_months" field.
+func (m *AccountMutation) ClearFixedTermMonths() {
+	m.fixed_term_months = nil
+	m.addfixed_term_months = nil
+	m.clearedFields[account.FieldFixedTermMonths] = struct{}{}
+}
+
+// FixedTermMonthsCleared returns if the "fixed_term_months" field was cleared in this mutation.
+func (m *AccountMutation) FixedTermMonthsCleared() bool {
+	_, ok := m.clearedFields[account.FieldFixedTermMonths]
+	return ok
+}
+
+// ResetFixedTermMonths resets all changes to the "fixed_term_months" field.
+func (m *AccountMutation) ResetFixedTermMonths() {
+	m.fixed_term_months = nil
+	m.addfixed_term_months = nil
+	delete(m.clearedFields, account.FieldFixedTermMonths)
+}
+
+// SetGoldProductType sets the "gold_product_type" field.
+func (m *AccountMutation) SetGoldProductType(s string) {
+	m.gold_product_type = &s
+}
+
+// GoldProductType returns the value of the "gold_product_type" field in the mutation.
+func (m *AccountMutation) GoldProductType() (r string, exists bool) {
+	v := m.gold_product_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGoldProductType returns the old "gold_product_type" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldGoldProductType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGoldProductType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGoldProductType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGoldProductType: %w", err)
+	}
+	return oldValue.GoldProductType, nil
+}
+
+// ClearGoldProductType clears the value of the "gold_product_type" field.
+func (m *AccountMutation) ClearGoldProductType() {
+	m.gold_product_type = nil
+	m.clearedFields[account.FieldGoldProductType] = struct{}{}
+}
+
+// GoldProductTypeCleared returns if the "gold_product_type" field was cleared in this mutation.
+func (m *AccountMutation) GoldProductTypeCleared() bool {
+	_, ok := m.clearedFields[account.FieldGoldProductType]
+	return ok
+}
+
+// ResetGoldProductType resets all changes to the "gold_product_type" field.
+func (m *AccountMutation) ResetGoldProductType() {
+	m.gold_product_type = nil
+	delete(m.clearedFields, account.FieldGoldProductType)
+}
+
+// SetGoldQuantity sets the "gold_quantity" field.
+func (m *AccountMutation) SetGoldQuantity(f float64) {
+	m.gold_quantity = &f
+	m.addgold_quantity = nil
+}
+
+// GoldQuantity returns the value of the "gold_quantity" field in the mutation.
+func (m *AccountMutation) GoldQuantity() (r float64, exists bool) {
+	v := m.gold_quantity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGoldQuantity returns the old "gold_quantity" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldGoldQuantity(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGoldQuantity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGoldQuantity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGoldQuantity: %w", err)
+	}
+	return oldValue.GoldQuantity, nil
+}
+
+// AddGoldQuantity adds f to the "gold_quantity" field.
+func (m *AccountMutation) AddGoldQuantity(f float64) {
+	if m.addgold_quantity != nil {
+		*m.addgold_quantity += f
+	} else {
+		m.addgold_quantity = &f
+	}
+}
+
+// AddedGoldQuantity returns the value that was added to the "gold_quantity" field in this mutation.
+func (m *AccountMutation) AddedGoldQuantity() (r float64, exists bool) {
+	v := m.addgold_quantity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearGoldQuantity clears the value of the "gold_quantity" field.
+func (m *AccountMutation) ClearGoldQuantity() {
+	m.gold_quantity = nil
+	m.addgold_quantity = nil
+	m.clearedFields[account.FieldGoldQuantity] = struct{}{}
+}
+
+// GoldQuantityCleared returns if the "gold_quantity" field was cleared in this mutation.
+func (m *AccountMutation) GoldQuantityCleared() bool {
+	_, ok := m.clearedFields[account.FieldGoldQuantity]
+	return ok
+}
+
+// ResetGoldQuantity resets all changes to the "gold_quantity" field.
+func (m *AccountMutation) ResetGoldQuantity() {
+	m.gold_quantity = nil
+	m.addgold_quantity = nil
+	delete(m.clearedFields, account.FieldGoldQuantity)
+}
+
+// SetGoldBuyPriceCents sets the "gold_buy_price_cents" field.
+func (m *AccountMutation) SetGoldBuyPriceCents(i int64) {
+	m.gold_buy_price_cents = &i
+	m.addgold_buy_price_cents = nil
+}
+
+// GoldBuyPriceCents returns the value of the "gold_buy_price_cents" field in the mutation.
+func (m *AccountMutation) GoldBuyPriceCents() (r int64, exists bool) {
+	v := m.gold_buy_price_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGoldBuyPriceCents returns the old "gold_buy_price_cents" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldGoldBuyPriceCents(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGoldBuyPriceCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGoldBuyPriceCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGoldBuyPriceCents: %w", err)
+	}
+	return oldValue.GoldBuyPriceCents, nil
+}
+
+// AddGoldBuyPriceCents adds i to the "gold_buy_price_cents" field.
+func (m *AccountMutation) AddGoldBuyPriceCents(i int64) {
+	if m.addgold_buy_price_cents != nil {
+		*m.addgold_buy_price_cents += i
+	} else {
+		m.addgold_buy_price_cents = &i
+	}
+}
+
+// AddedGoldBuyPriceCents returns the value that was added to the "gold_buy_price_cents" field in this mutation.
+func (m *AccountMutation) AddedGoldBuyPriceCents() (r int64, exists bool) {
+	v := m.addgold_buy_price_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearGoldBuyPriceCents clears the value of the "gold_buy_price_cents" field.
+func (m *AccountMutation) ClearGoldBuyPriceCents() {
+	m.gold_buy_price_cents = nil
+	m.addgold_buy_price_cents = nil
+	m.clearedFields[account.FieldGoldBuyPriceCents] = struct{}{}
+}
+
+// GoldBuyPriceCentsCleared returns if the "gold_buy_price_cents" field was cleared in this mutation.
+func (m *AccountMutation) GoldBuyPriceCentsCleared() bool {
+	_, ok := m.clearedFields[account.FieldGoldBuyPriceCents]
+	return ok
+}
+
+// ResetGoldBuyPriceCents resets all changes to the "gold_buy_price_cents" field.
+func (m *AccountMutation) ResetGoldBuyPriceCents() {
+	m.gold_buy_price_cents = nil
+	m.addgold_buy_price_cents = nil
+	delete(m.clearedFields, account.FieldGoldBuyPriceCents)
+}
+
+// SetGoldCurrentPriceCents sets the "gold_current_price_cents" field.
+func (m *AccountMutation) SetGoldCurrentPriceCents(i int64) {
+	m.gold_current_price_cents = &i
+	m.addgold_current_price_cents = nil
+}
+
+// GoldCurrentPriceCents returns the value of the "gold_current_price_cents" field in the mutation.
+func (m *AccountMutation) GoldCurrentPriceCents() (r int64, exists bool) {
+	v := m.gold_current_price_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGoldCurrentPriceCents returns the old "gold_current_price_cents" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldGoldCurrentPriceCents(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGoldCurrentPriceCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGoldCurrentPriceCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGoldCurrentPriceCents: %w", err)
+	}
+	return oldValue.GoldCurrentPriceCents, nil
+}
+
+// AddGoldCurrentPriceCents adds i to the "gold_current_price_cents" field.
+func (m *AccountMutation) AddGoldCurrentPriceCents(i int64) {
+	if m.addgold_current_price_cents != nil {
+		*m.addgold_current_price_cents += i
+	} else {
+		m.addgold_current_price_cents = &i
+	}
+}
+
+// AddedGoldCurrentPriceCents returns the value that was added to the "gold_current_price_cents" field in this mutation.
+func (m *AccountMutation) AddedGoldCurrentPriceCents() (r int64, exists bool) {
+	v := m.addgold_current_price_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearGoldCurrentPriceCents clears the value of the "gold_current_price_cents" field.
+func (m *AccountMutation) ClearGoldCurrentPriceCents() {
+	m.gold_current_price_cents = nil
+	m.addgold_current_price_cents = nil
+	m.clearedFields[account.FieldGoldCurrentPriceCents] = struct{}{}
+}
+
+// GoldCurrentPriceCentsCleared returns if the "gold_current_price_cents" field was cleared in this mutation.
+func (m *AccountMutation) GoldCurrentPriceCentsCleared() bool {
+	_, ok := m.clearedFields[account.FieldGoldCurrentPriceCents]
+	return ok
+}
+
+// ResetGoldCurrentPriceCents resets all changes to the "gold_current_price_cents" field.
+func (m *AccountMutation) ResetGoldCurrentPriceCents() {
+	m.gold_current_price_cents = nil
+	m.addgold_current_price_cents = nil
+	delete(m.clearedFields, account.FieldGoldCurrentPriceCents)
+}
+
+// SetEstatePurchasePriceCents sets the "estate_purchase_price_cents" field.
+func (m *AccountMutation) SetEstatePurchasePriceCents(i int64) {
+	m.estate_purchase_price_cents = &i
+	m.addestate_purchase_price_cents = nil
+}
+
+// EstatePurchasePriceCents returns the value of the "estate_purchase_price_cents" field in the mutation.
+func (m *AccountMutation) EstatePurchasePriceCents() (r int64, exists bool) {
+	v := m.estate_purchase_price_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEstatePurchasePriceCents returns the old "estate_purchase_price_cents" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldEstatePurchasePriceCents(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEstatePurchasePriceCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEstatePurchasePriceCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEstatePurchasePriceCents: %w", err)
+	}
+	return oldValue.EstatePurchasePriceCents, nil
+}
+
+// AddEstatePurchasePriceCents adds i to the "estate_purchase_price_cents" field.
+func (m *AccountMutation) AddEstatePurchasePriceCents(i int64) {
+	if m.addestate_purchase_price_cents != nil {
+		*m.addestate_purchase_price_cents += i
+	} else {
+		m.addestate_purchase_price_cents = &i
+	}
+}
+
+// AddedEstatePurchasePriceCents returns the value that was added to the "estate_purchase_price_cents" field in this mutation.
+func (m *AccountMutation) AddedEstatePurchasePriceCents() (r int64, exists bool) {
+	v := m.addestate_purchase_price_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearEstatePurchasePriceCents clears the value of the "estate_purchase_price_cents" field.
+func (m *AccountMutation) ClearEstatePurchasePriceCents() {
+	m.estate_purchase_price_cents = nil
+	m.addestate_purchase_price_cents = nil
+	m.clearedFields[account.FieldEstatePurchasePriceCents] = struct{}{}
+}
+
+// EstatePurchasePriceCentsCleared returns if the "estate_purchase_price_cents" field was cleared in this mutation.
+func (m *AccountMutation) EstatePurchasePriceCentsCleared() bool {
+	_, ok := m.clearedFields[account.FieldEstatePurchasePriceCents]
+	return ok
+}
+
+// ResetEstatePurchasePriceCents resets all changes to the "estate_purchase_price_cents" field.
+func (m *AccountMutation) ResetEstatePurchasePriceCents() {
+	m.estate_purchase_price_cents = nil
+	m.addestate_purchase_price_cents = nil
+	delete(m.clearedFields, account.FieldEstatePurchasePriceCents)
+}
+
+// SetEstateCurrentValueCents sets the "estate_current_value_cents" field.
+func (m *AccountMutation) SetEstateCurrentValueCents(i int64) {
+	m.estate_current_value_cents = &i
+	m.addestate_current_value_cents = nil
+}
+
+// EstateCurrentValueCents returns the value of the "estate_current_value_cents" field in the mutation.
+func (m *AccountMutation) EstateCurrentValueCents() (r int64, exists bool) {
+	v := m.estate_current_value_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEstateCurrentValueCents returns the old "estate_current_value_cents" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldEstateCurrentValueCents(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEstateCurrentValueCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEstateCurrentValueCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEstateCurrentValueCents: %w", err)
+	}
+	return oldValue.EstateCurrentValueCents, nil
+}
+
+// AddEstateCurrentValueCents adds i to the "estate_current_value_cents" field.
+func (m *AccountMutation) AddEstateCurrentValueCents(i int64) {
+	if m.addestate_current_value_cents != nil {
+		*m.addestate_current_value_cents += i
+	} else {
+		m.addestate_current_value_cents = &i
+	}
+}
+
+// AddedEstateCurrentValueCents returns the value that was added to the "estate_current_value_cents" field in this mutation.
+func (m *AccountMutation) AddedEstateCurrentValueCents() (r int64, exists bool) {
+	v := m.addestate_current_value_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearEstateCurrentValueCents clears the value of the "estate_current_value_cents" field.
+func (m *AccountMutation) ClearEstateCurrentValueCents() {
+	m.estate_current_value_cents = nil
+	m.addestate_current_value_cents = nil
+	m.clearedFields[account.FieldEstateCurrentValueCents] = struct{}{}
+}
+
+// EstateCurrentValueCentsCleared returns if the "estate_current_value_cents" field was cleared in this mutation.
+func (m *AccountMutation) EstateCurrentValueCentsCleared() bool {
+	_, ok := m.clearedFields[account.FieldEstateCurrentValueCents]
+	return ok
+}
+
+// ResetEstateCurrentValueCents resets all changes to the "estate_current_value_cents" field.
+func (m *AccountMutation) ResetEstateCurrentValueCents() {
+	m.estate_current_value_cents = nil
+	m.addestate_current_value_cents = nil
+	delete(m.clearedFields, account.FieldEstateCurrentValueCents)
+}
+
+// SetEstatePurchaseDate sets the "estate_purchase_date" field.
+func (m *AccountMutation) SetEstatePurchaseDate(t time.Time) {
+	m.estate_purchase_date = &t
+}
+
+// EstatePurchaseDate returns the value of the "estate_purchase_date" field in the mutation.
+func (m *AccountMutation) EstatePurchaseDate() (r time.Time, exists bool) {
+	v := m.estate_purchase_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEstatePurchaseDate returns the old "estate_purchase_date" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldEstatePurchaseDate(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEstatePurchaseDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEstatePurchaseDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEstatePurchaseDate: %w", err)
+	}
+	return oldValue.EstatePurchaseDate, nil
+}
+
+// ClearEstatePurchaseDate clears the value of the "estate_purchase_date" field.
+func (m *AccountMutation) ClearEstatePurchaseDate() {
+	m.estate_purchase_date = nil
+	m.clearedFields[account.FieldEstatePurchaseDate] = struct{}{}
+}
+
+// EstatePurchaseDateCleared returns if the "estate_purchase_date" field was cleared in this mutation.
+func (m *AccountMutation) EstatePurchaseDateCleared() bool {
+	_, ok := m.clearedFields[account.FieldEstatePurchaseDate]
+	return ok
+}
+
+// ResetEstatePurchaseDate resets all changes to the "estate_purchase_date" field.
+func (m *AccountMutation) ResetEstatePurchaseDate() {
+	m.estate_purchase_date = nil
+	delete(m.clearedFields, account.FieldEstatePurchaseDate)
+}
+
+// SetEstateDepreciationRate sets the "estate_depreciation_rate" field.
+func (m *AccountMutation) SetEstateDepreciationRate(f float64) {
+	m.estate_depreciation_rate = &f
+	m.addestate_depreciation_rate = nil
+}
+
+// EstateDepreciationRate returns the value of the "estate_depreciation_rate" field in the mutation.
+func (m *AccountMutation) EstateDepreciationRate() (r float64, exists bool) {
+	v := m.estate_depreciation_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEstateDepreciationRate returns the old "estate_depreciation_rate" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldEstateDepreciationRate(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEstateDepreciationRate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEstateDepreciationRate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEstateDepreciationRate: %w", err)
+	}
+	return oldValue.EstateDepreciationRate, nil
+}
+
+// AddEstateDepreciationRate adds f to the "estate_depreciation_rate" field.
+func (m *AccountMutation) AddEstateDepreciationRate(f float64) {
+	if m.addestate_depreciation_rate != nil {
+		*m.addestate_depreciation_rate += f
+	} else {
+		m.addestate_depreciation_rate = &f
+	}
+}
+
+// AddedEstateDepreciationRate returns the value that was added to the "estate_depreciation_rate" field in this mutation.
+func (m *AccountMutation) AddedEstateDepreciationRate() (r float64, exists bool) {
+	v := m.addestate_depreciation_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearEstateDepreciationRate clears the value of the "estate_depreciation_rate" field.
+func (m *AccountMutation) ClearEstateDepreciationRate() {
+	m.estate_depreciation_rate = nil
+	m.addestate_depreciation_rate = nil
+	m.clearedFields[account.FieldEstateDepreciationRate] = struct{}{}
+}
+
+// EstateDepreciationRateCleared returns if the "estate_depreciation_rate" field was cleared in this mutation.
+func (m *AccountMutation) EstateDepreciationRateCleared() bool {
+	_, ok := m.clearedFields[account.FieldEstateDepreciationRate]
+	return ok
+}
+
+// ResetEstateDepreciationRate resets all changes to the "estate_depreciation_rate" field.
+func (m *AccountMutation) ResetEstateDepreciationRate() {
+	m.estate_depreciation_rate = nil
+	m.addestate_depreciation_rate = nil
+	delete(m.clearedFields, account.FieldEstateDepreciationRate)
+}
+
+// SetLoanOriginalCents sets the "loan_original_cents" field.
+func (m *AccountMutation) SetLoanOriginalCents(i int64) {
+	m.loan_original_cents = &i
+	m.addloan_original_cents = nil
+}
+
+// LoanOriginalCents returns the value of the "loan_original_cents" field in the mutation.
+func (m *AccountMutation) LoanOriginalCents() (r int64, exists bool) {
+	v := m.loan_original_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLoanOriginalCents returns the old "loan_original_cents" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldLoanOriginalCents(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLoanOriginalCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLoanOriginalCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLoanOriginalCents: %w", err)
+	}
+	return oldValue.LoanOriginalCents, nil
+}
+
+// AddLoanOriginalCents adds i to the "loan_original_cents" field.
+func (m *AccountMutation) AddLoanOriginalCents(i int64) {
+	if m.addloan_original_cents != nil {
+		*m.addloan_original_cents += i
+	} else {
+		m.addloan_original_cents = &i
+	}
+}
+
+// AddedLoanOriginalCents returns the value that was added to the "loan_original_cents" field in this mutation.
+func (m *AccountMutation) AddedLoanOriginalCents() (r int64, exists bool) {
+	v := m.addloan_original_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearLoanOriginalCents clears the value of the "loan_original_cents" field.
+func (m *AccountMutation) ClearLoanOriginalCents() {
+	m.loan_original_cents = nil
+	m.addloan_original_cents = nil
+	m.clearedFields[account.FieldLoanOriginalCents] = struct{}{}
+}
+
+// LoanOriginalCentsCleared returns if the "loan_original_cents" field was cleared in this mutation.
+func (m *AccountMutation) LoanOriginalCentsCleared() bool {
+	_, ok := m.clearedFields[account.FieldLoanOriginalCents]
+	return ok
+}
+
+// ResetLoanOriginalCents resets all changes to the "loan_original_cents" field.
+func (m *AccountMutation) ResetLoanOriginalCents() {
+	m.loan_original_cents = nil
+	m.addloan_original_cents = nil
+	delete(m.clearedFields, account.FieldLoanOriginalCents)
+}
+
+// SetLoanRemainingCents sets the "loan_remaining_cents" field.
+func (m *AccountMutation) SetLoanRemainingCents(i int64) {
+	m.loan_remaining_cents = &i
+	m.addloan_remaining_cents = nil
+}
+
+// LoanRemainingCents returns the value of the "loan_remaining_cents" field in the mutation.
+func (m *AccountMutation) LoanRemainingCents() (r int64, exists bool) {
+	v := m.loan_remaining_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLoanRemainingCents returns the old "loan_remaining_cents" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldLoanRemainingCents(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLoanRemainingCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLoanRemainingCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLoanRemainingCents: %w", err)
+	}
+	return oldValue.LoanRemainingCents, nil
+}
+
+// AddLoanRemainingCents adds i to the "loan_remaining_cents" field.
+func (m *AccountMutation) AddLoanRemainingCents(i int64) {
+	if m.addloan_remaining_cents != nil {
+		*m.addloan_remaining_cents += i
+	} else {
+		m.addloan_remaining_cents = &i
+	}
+}
+
+// AddedLoanRemainingCents returns the value that was added to the "loan_remaining_cents" field in this mutation.
+func (m *AccountMutation) AddedLoanRemainingCents() (r int64, exists bool) {
+	v := m.addloan_remaining_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearLoanRemainingCents clears the value of the "loan_remaining_cents" field.
+func (m *AccountMutation) ClearLoanRemainingCents() {
+	m.loan_remaining_cents = nil
+	m.addloan_remaining_cents = nil
+	m.clearedFields[account.FieldLoanRemainingCents] = struct{}{}
+}
+
+// LoanRemainingCentsCleared returns if the "loan_remaining_cents" field was cleared in this mutation.
+func (m *AccountMutation) LoanRemainingCentsCleared() bool {
+	_, ok := m.clearedFields[account.FieldLoanRemainingCents]
+	return ok
+}
+
+// ResetLoanRemainingCents resets all changes to the "loan_remaining_cents" field.
+func (m *AccountMutation) ResetLoanRemainingCents() {
+	m.loan_remaining_cents = nil
+	m.addloan_remaining_cents = nil
+	delete(m.clearedFields, account.FieldLoanRemainingCents)
+}
+
+// SetLoanMonthlyCents sets the "loan_monthly_cents" field.
+func (m *AccountMutation) SetLoanMonthlyCents(i int64) {
+	m.loan_monthly_cents = &i
+	m.addloan_monthly_cents = nil
+}
+
+// LoanMonthlyCents returns the value of the "loan_monthly_cents" field in the mutation.
+func (m *AccountMutation) LoanMonthlyCents() (r int64, exists bool) {
+	v := m.loan_monthly_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLoanMonthlyCents returns the old "loan_monthly_cents" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldLoanMonthlyCents(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLoanMonthlyCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLoanMonthlyCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLoanMonthlyCents: %w", err)
+	}
+	return oldValue.LoanMonthlyCents, nil
+}
+
+// AddLoanMonthlyCents adds i to the "loan_monthly_cents" field.
+func (m *AccountMutation) AddLoanMonthlyCents(i int64) {
+	if m.addloan_monthly_cents != nil {
+		*m.addloan_monthly_cents += i
+	} else {
+		m.addloan_monthly_cents = &i
+	}
+}
+
+// AddedLoanMonthlyCents returns the value that was added to the "loan_monthly_cents" field in this mutation.
+func (m *AccountMutation) AddedLoanMonthlyCents() (r int64, exists bool) {
+	v := m.addloan_monthly_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearLoanMonthlyCents clears the value of the "loan_monthly_cents" field.
+func (m *AccountMutation) ClearLoanMonthlyCents() {
+	m.loan_monthly_cents = nil
+	m.addloan_monthly_cents = nil
+	m.clearedFields[account.FieldLoanMonthlyCents] = struct{}{}
+}
+
+// LoanMonthlyCentsCleared returns if the "loan_monthly_cents" field was cleared in this mutation.
+func (m *AccountMutation) LoanMonthlyCentsCleared() bool {
+	_, ok := m.clearedFields[account.FieldLoanMonthlyCents]
+	return ok
+}
+
+// ResetLoanMonthlyCents resets all changes to the "loan_monthly_cents" field.
+func (m *AccountMutation) ResetLoanMonthlyCents() {
+	m.loan_monthly_cents = nil
+	m.addloan_monthly_cents = nil
+	delete(m.clearedFields, account.FieldLoanMonthlyCents)
+}
+
+// SetLoanNextPaymentDate sets the "loan_next_payment_date" field.
+func (m *AccountMutation) SetLoanNextPaymentDate(t time.Time) {
+	m.loan_next_payment_date = &t
+}
+
+// LoanNextPaymentDate returns the value of the "loan_next_payment_date" field in the mutation.
+func (m *AccountMutation) LoanNextPaymentDate() (r time.Time, exists bool) {
+	v := m.loan_next_payment_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLoanNextPaymentDate returns the old "loan_next_payment_date" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldLoanNextPaymentDate(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLoanNextPaymentDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLoanNextPaymentDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLoanNextPaymentDate: %w", err)
+	}
+	return oldValue.LoanNextPaymentDate, nil
+}
+
+// ClearLoanNextPaymentDate clears the value of the "loan_next_payment_date" field.
+func (m *AccountMutation) ClearLoanNextPaymentDate() {
+	m.loan_next_payment_date = nil
+	m.clearedFields[account.FieldLoanNextPaymentDate] = struct{}{}
+}
+
+// LoanNextPaymentDateCleared returns if the "loan_next_payment_date" field was cleared in this mutation.
+func (m *AccountMutation) LoanNextPaymentDateCleared() bool {
+	_, ok := m.clearedFields[account.FieldLoanNextPaymentDate]
+	return ok
+}
+
+// ResetLoanNextPaymentDate resets all changes to the "loan_next_payment_date" field.
+func (m *AccountMutation) ResetLoanNextPaymentDate() {
+	m.loan_next_payment_date = nil
+	delete(m.clearedFields, account.FieldLoanNextPaymentDate)
+}
+
 // SetStatus sets the "status" field.
 func (m *AccountMutation) SetStatus(a account.Status) {
 	m.status = &a
@@ -1045,7 +2741,7 @@ func (m *AccountMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AccountMutation) Fields() []string {
-	fields := make([]string, 0, 19)
+	fields := make([]string, 0, 45)
 	if m.tenant_id != nil {
 		fields = append(fields, account.FieldTenantID)
 	}
@@ -1087,6 +2783,84 @@ func (m *AccountMutation) Fields() []string {
 	}
 	if m.credit_limit_cents != nil {
 		fields = append(fields, account.FieldCreditLimitCents)
+	}
+	if m.card_number_tail != nil {
+		fields = append(fields, account.FieldCardNumberTail)
+	}
+	if m.notes != nil {
+		fields = append(fields, account.FieldNotes)
+	}
+	if m.opening_date != nil {
+		fields = append(fields, account.FieldOpeningDate)
+	}
+	if m.interest_rate != nil {
+		fields = append(fields, account.FieldInterestRate)
+	}
+	if m.credit_billing_day != nil {
+		fields = append(fields, account.FieldCreditBillingDay)
+	}
+	if m.credit_repayment_day != nil {
+		fields = append(fields, account.FieldCreditRepaymentDay)
+	}
+	if m.credit_annual_fee_cents != nil {
+		fields = append(fields, account.FieldCreditAnnualFeeCents)
+	}
+	if m.invest_cost_cents != nil {
+		fields = append(fields, account.FieldInvestCostCents)
+	}
+	if m.invest_market_value_cents != nil {
+		fields = append(fields, account.FieldInvestMarketValueCents)
+	}
+	if m.invest_return_ytd != nil {
+		fields = append(fields, account.FieldInvestReturnYtd)
+	}
+	if m.fixed_principal_cents != nil {
+		fields = append(fields, account.FieldFixedPrincipalCents)
+	}
+	if m.fixed_start_date != nil {
+		fields = append(fields, account.FieldFixedStartDate)
+	}
+	if m.fixed_maturity_date != nil {
+		fields = append(fields, account.FieldFixedMaturityDate)
+	}
+	if m.fixed_term_months != nil {
+		fields = append(fields, account.FieldFixedTermMonths)
+	}
+	if m.gold_product_type != nil {
+		fields = append(fields, account.FieldGoldProductType)
+	}
+	if m.gold_quantity != nil {
+		fields = append(fields, account.FieldGoldQuantity)
+	}
+	if m.gold_buy_price_cents != nil {
+		fields = append(fields, account.FieldGoldBuyPriceCents)
+	}
+	if m.gold_current_price_cents != nil {
+		fields = append(fields, account.FieldGoldCurrentPriceCents)
+	}
+	if m.estate_purchase_price_cents != nil {
+		fields = append(fields, account.FieldEstatePurchasePriceCents)
+	}
+	if m.estate_current_value_cents != nil {
+		fields = append(fields, account.FieldEstateCurrentValueCents)
+	}
+	if m.estate_purchase_date != nil {
+		fields = append(fields, account.FieldEstatePurchaseDate)
+	}
+	if m.estate_depreciation_rate != nil {
+		fields = append(fields, account.FieldEstateDepreciationRate)
+	}
+	if m.loan_original_cents != nil {
+		fields = append(fields, account.FieldLoanOriginalCents)
+	}
+	if m.loan_remaining_cents != nil {
+		fields = append(fields, account.FieldLoanRemainingCents)
+	}
+	if m.loan_monthly_cents != nil {
+		fields = append(fields, account.FieldLoanMonthlyCents)
+	}
+	if m.loan_next_payment_date != nil {
+		fields = append(fields, account.FieldLoanNextPaymentDate)
 	}
 	if m.status != nil {
 		fields = append(fields, account.FieldStatus)
@@ -1139,6 +2913,58 @@ func (m *AccountMutation) Field(name string) (ent.Value, bool) {
 		return m.Institution()
 	case account.FieldCreditLimitCents:
 		return m.CreditLimitCents()
+	case account.FieldCardNumberTail:
+		return m.CardNumberTail()
+	case account.FieldNotes:
+		return m.Notes()
+	case account.FieldOpeningDate:
+		return m.OpeningDate()
+	case account.FieldInterestRate:
+		return m.InterestRate()
+	case account.FieldCreditBillingDay:
+		return m.CreditBillingDay()
+	case account.FieldCreditRepaymentDay:
+		return m.CreditRepaymentDay()
+	case account.FieldCreditAnnualFeeCents:
+		return m.CreditAnnualFeeCents()
+	case account.FieldInvestCostCents:
+		return m.InvestCostCents()
+	case account.FieldInvestMarketValueCents:
+		return m.InvestMarketValueCents()
+	case account.FieldInvestReturnYtd:
+		return m.InvestReturnYtd()
+	case account.FieldFixedPrincipalCents:
+		return m.FixedPrincipalCents()
+	case account.FieldFixedStartDate:
+		return m.FixedStartDate()
+	case account.FieldFixedMaturityDate:
+		return m.FixedMaturityDate()
+	case account.FieldFixedTermMonths:
+		return m.FixedTermMonths()
+	case account.FieldGoldProductType:
+		return m.GoldProductType()
+	case account.FieldGoldQuantity:
+		return m.GoldQuantity()
+	case account.FieldGoldBuyPriceCents:
+		return m.GoldBuyPriceCents()
+	case account.FieldGoldCurrentPriceCents:
+		return m.GoldCurrentPriceCents()
+	case account.FieldEstatePurchasePriceCents:
+		return m.EstatePurchasePriceCents()
+	case account.FieldEstateCurrentValueCents:
+		return m.EstateCurrentValueCents()
+	case account.FieldEstatePurchaseDate:
+		return m.EstatePurchaseDate()
+	case account.FieldEstateDepreciationRate:
+		return m.EstateDepreciationRate()
+	case account.FieldLoanOriginalCents:
+		return m.LoanOriginalCents()
+	case account.FieldLoanRemainingCents:
+		return m.LoanRemainingCents()
+	case account.FieldLoanMonthlyCents:
+		return m.LoanMonthlyCents()
+	case account.FieldLoanNextPaymentDate:
+		return m.LoanNextPaymentDate()
 	case account.FieldStatus:
 		return m.Status()
 	case account.FieldVersion:
@@ -1186,6 +3012,58 @@ func (m *AccountMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldInstitution(ctx)
 	case account.FieldCreditLimitCents:
 		return m.OldCreditLimitCents(ctx)
+	case account.FieldCardNumberTail:
+		return m.OldCardNumberTail(ctx)
+	case account.FieldNotes:
+		return m.OldNotes(ctx)
+	case account.FieldOpeningDate:
+		return m.OldOpeningDate(ctx)
+	case account.FieldInterestRate:
+		return m.OldInterestRate(ctx)
+	case account.FieldCreditBillingDay:
+		return m.OldCreditBillingDay(ctx)
+	case account.FieldCreditRepaymentDay:
+		return m.OldCreditRepaymentDay(ctx)
+	case account.FieldCreditAnnualFeeCents:
+		return m.OldCreditAnnualFeeCents(ctx)
+	case account.FieldInvestCostCents:
+		return m.OldInvestCostCents(ctx)
+	case account.FieldInvestMarketValueCents:
+		return m.OldInvestMarketValueCents(ctx)
+	case account.FieldInvestReturnYtd:
+		return m.OldInvestReturnYtd(ctx)
+	case account.FieldFixedPrincipalCents:
+		return m.OldFixedPrincipalCents(ctx)
+	case account.FieldFixedStartDate:
+		return m.OldFixedStartDate(ctx)
+	case account.FieldFixedMaturityDate:
+		return m.OldFixedMaturityDate(ctx)
+	case account.FieldFixedTermMonths:
+		return m.OldFixedTermMonths(ctx)
+	case account.FieldGoldProductType:
+		return m.OldGoldProductType(ctx)
+	case account.FieldGoldQuantity:
+		return m.OldGoldQuantity(ctx)
+	case account.FieldGoldBuyPriceCents:
+		return m.OldGoldBuyPriceCents(ctx)
+	case account.FieldGoldCurrentPriceCents:
+		return m.OldGoldCurrentPriceCents(ctx)
+	case account.FieldEstatePurchasePriceCents:
+		return m.OldEstatePurchasePriceCents(ctx)
+	case account.FieldEstateCurrentValueCents:
+		return m.OldEstateCurrentValueCents(ctx)
+	case account.FieldEstatePurchaseDate:
+		return m.OldEstatePurchaseDate(ctx)
+	case account.FieldEstateDepreciationRate:
+		return m.OldEstateDepreciationRate(ctx)
+	case account.FieldLoanOriginalCents:
+		return m.OldLoanOriginalCents(ctx)
+	case account.FieldLoanRemainingCents:
+		return m.OldLoanRemainingCents(ctx)
+	case account.FieldLoanMonthlyCents:
+		return m.OldLoanMonthlyCents(ctx)
+	case account.FieldLoanNextPaymentDate:
+		return m.OldLoanNextPaymentDate(ctx)
 	case account.FieldStatus:
 		return m.OldStatus(ctx)
 	case account.FieldVersion:
@@ -1303,6 +3181,188 @@ func (m *AccountMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetCreditLimitCents(v)
 		return nil
+	case account.FieldCardNumberTail:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCardNumberTail(v)
+		return nil
+	case account.FieldNotes:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNotes(v)
+		return nil
+	case account.FieldOpeningDate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOpeningDate(v)
+		return nil
+	case account.FieldInterestRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInterestRate(v)
+		return nil
+	case account.FieldCreditBillingDay:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreditBillingDay(v)
+		return nil
+	case account.FieldCreditRepaymentDay:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreditRepaymentDay(v)
+		return nil
+	case account.FieldCreditAnnualFeeCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreditAnnualFeeCents(v)
+		return nil
+	case account.FieldInvestCostCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInvestCostCents(v)
+		return nil
+	case account.FieldInvestMarketValueCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInvestMarketValueCents(v)
+		return nil
+	case account.FieldInvestReturnYtd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInvestReturnYtd(v)
+		return nil
+	case account.FieldFixedPrincipalCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFixedPrincipalCents(v)
+		return nil
+	case account.FieldFixedStartDate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFixedStartDate(v)
+		return nil
+	case account.FieldFixedMaturityDate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFixedMaturityDate(v)
+		return nil
+	case account.FieldFixedTermMonths:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFixedTermMonths(v)
+		return nil
+	case account.FieldGoldProductType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGoldProductType(v)
+		return nil
+	case account.FieldGoldQuantity:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGoldQuantity(v)
+		return nil
+	case account.FieldGoldBuyPriceCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGoldBuyPriceCents(v)
+		return nil
+	case account.FieldGoldCurrentPriceCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGoldCurrentPriceCents(v)
+		return nil
+	case account.FieldEstatePurchasePriceCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEstatePurchasePriceCents(v)
+		return nil
+	case account.FieldEstateCurrentValueCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEstateCurrentValueCents(v)
+		return nil
+	case account.FieldEstatePurchaseDate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEstatePurchaseDate(v)
+		return nil
+	case account.FieldEstateDepreciationRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEstateDepreciationRate(v)
+		return nil
+	case account.FieldLoanOriginalCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLoanOriginalCents(v)
+		return nil
+	case account.FieldLoanRemainingCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLoanRemainingCents(v)
+		return nil
+	case account.FieldLoanMonthlyCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLoanMonthlyCents(v)
+		return nil
+	case account.FieldLoanNextPaymentDate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLoanNextPaymentDate(v)
+		return nil
 	case account.FieldStatus:
 		v, ok := value.(account.Status)
 		if !ok {
@@ -1355,6 +3415,60 @@ func (m *AccountMutation) AddedFields() []string {
 	if m.addcredit_limit_cents != nil {
 		fields = append(fields, account.FieldCreditLimitCents)
 	}
+	if m.addinterest_rate != nil {
+		fields = append(fields, account.FieldInterestRate)
+	}
+	if m.addcredit_billing_day != nil {
+		fields = append(fields, account.FieldCreditBillingDay)
+	}
+	if m.addcredit_repayment_day != nil {
+		fields = append(fields, account.FieldCreditRepaymentDay)
+	}
+	if m.addcredit_annual_fee_cents != nil {
+		fields = append(fields, account.FieldCreditAnnualFeeCents)
+	}
+	if m.addinvest_cost_cents != nil {
+		fields = append(fields, account.FieldInvestCostCents)
+	}
+	if m.addinvest_market_value_cents != nil {
+		fields = append(fields, account.FieldInvestMarketValueCents)
+	}
+	if m.addinvest_return_ytd != nil {
+		fields = append(fields, account.FieldInvestReturnYtd)
+	}
+	if m.addfixed_principal_cents != nil {
+		fields = append(fields, account.FieldFixedPrincipalCents)
+	}
+	if m.addfixed_term_months != nil {
+		fields = append(fields, account.FieldFixedTermMonths)
+	}
+	if m.addgold_quantity != nil {
+		fields = append(fields, account.FieldGoldQuantity)
+	}
+	if m.addgold_buy_price_cents != nil {
+		fields = append(fields, account.FieldGoldBuyPriceCents)
+	}
+	if m.addgold_current_price_cents != nil {
+		fields = append(fields, account.FieldGoldCurrentPriceCents)
+	}
+	if m.addestate_purchase_price_cents != nil {
+		fields = append(fields, account.FieldEstatePurchasePriceCents)
+	}
+	if m.addestate_current_value_cents != nil {
+		fields = append(fields, account.FieldEstateCurrentValueCents)
+	}
+	if m.addestate_depreciation_rate != nil {
+		fields = append(fields, account.FieldEstateDepreciationRate)
+	}
+	if m.addloan_original_cents != nil {
+		fields = append(fields, account.FieldLoanOriginalCents)
+	}
+	if m.addloan_remaining_cents != nil {
+		fields = append(fields, account.FieldLoanRemainingCents)
+	}
+	if m.addloan_monthly_cents != nil {
+		fields = append(fields, account.FieldLoanMonthlyCents)
+	}
 	if m.addversion != nil {
 		fields = append(fields, account.FieldVersion)
 	}
@@ -1372,6 +3486,42 @@ func (m *AccountMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedCurrentBalanceCents()
 	case account.FieldCreditLimitCents:
 		return m.AddedCreditLimitCents()
+	case account.FieldInterestRate:
+		return m.AddedInterestRate()
+	case account.FieldCreditBillingDay:
+		return m.AddedCreditBillingDay()
+	case account.FieldCreditRepaymentDay:
+		return m.AddedCreditRepaymentDay()
+	case account.FieldCreditAnnualFeeCents:
+		return m.AddedCreditAnnualFeeCents()
+	case account.FieldInvestCostCents:
+		return m.AddedInvestCostCents()
+	case account.FieldInvestMarketValueCents:
+		return m.AddedInvestMarketValueCents()
+	case account.FieldInvestReturnYtd:
+		return m.AddedInvestReturnYtd()
+	case account.FieldFixedPrincipalCents:
+		return m.AddedFixedPrincipalCents()
+	case account.FieldFixedTermMonths:
+		return m.AddedFixedTermMonths()
+	case account.FieldGoldQuantity:
+		return m.AddedGoldQuantity()
+	case account.FieldGoldBuyPriceCents:
+		return m.AddedGoldBuyPriceCents()
+	case account.FieldGoldCurrentPriceCents:
+		return m.AddedGoldCurrentPriceCents()
+	case account.FieldEstatePurchasePriceCents:
+		return m.AddedEstatePurchasePriceCents()
+	case account.FieldEstateCurrentValueCents:
+		return m.AddedEstateCurrentValueCents()
+	case account.FieldEstateDepreciationRate:
+		return m.AddedEstateDepreciationRate()
+	case account.FieldLoanOriginalCents:
+		return m.AddedLoanOriginalCents()
+	case account.FieldLoanRemainingCents:
+		return m.AddedLoanRemainingCents()
+	case account.FieldLoanMonthlyCents:
+		return m.AddedLoanMonthlyCents()
 	case account.FieldVersion:
 		return m.AddedVersion()
 	}
@@ -1404,6 +3554,132 @@ func (m *AccountMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddCreditLimitCents(v)
 		return nil
+	case account.FieldInterestRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddInterestRate(v)
+		return nil
+	case account.FieldCreditBillingDay:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCreditBillingDay(v)
+		return nil
+	case account.FieldCreditRepaymentDay:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCreditRepaymentDay(v)
+		return nil
+	case account.FieldCreditAnnualFeeCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCreditAnnualFeeCents(v)
+		return nil
+	case account.FieldInvestCostCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddInvestCostCents(v)
+		return nil
+	case account.FieldInvestMarketValueCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddInvestMarketValueCents(v)
+		return nil
+	case account.FieldInvestReturnYtd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddInvestReturnYtd(v)
+		return nil
+	case account.FieldFixedPrincipalCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFixedPrincipalCents(v)
+		return nil
+	case account.FieldFixedTermMonths:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFixedTermMonths(v)
+		return nil
+	case account.FieldGoldQuantity:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGoldQuantity(v)
+		return nil
+	case account.FieldGoldBuyPriceCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGoldBuyPriceCents(v)
+		return nil
+	case account.FieldGoldCurrentPriceCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGoldCurrentPriceCents(v)
+		return nil
+	case account.FieldEstatePurchasePriceCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddEstatePurchasePriceCents(v)
+		return nil
+	case account.FieldEstateCurrentValueCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddEstateCurrentValueCents(v)
+		return nil
+	case account.FieldEstateDepreciationRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddEstateDepreciationRate(v)
+		return nil
+	case account.FieldLoanOriginalCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLoanOriginalCents(v)
+		return nil
+	case account.FieldLoanRemainingCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLoanRemainingCents(v)
+		return nil
+	case account.FieldLoanMonthlyCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLoanMonthlyCents(v)
+		return nil
 	case account.FieldVersion:
 		v, ok := value.(int64)
 		if !ok {
@@ -1433,6 +3709,84 @@ func (m *AccountMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(account.FieldInstitution) {
 		fields = append(fields, account.FieldInstitution)
+	}
+	if m.FieldCleared(account.FieldCardNumberTail) {
+		fields = append(fields, account.FieldCardNumberTail)
+	}
+	if m.FieldCleared(account.FieldNotes) {
+		fields = append(fields, account.FieldNotes)
+	}
+	if m.FieldCleared(account.FieldOpeningDate) {
+		fields = append(fields, account.FieldOpeningDate)
+	}
+	if m.FieldCleared(account.FieldInterestRate) {
+		fields = append(fields, account.FieldInterestRate)
+	}
+	if m.FieldCleared(account.FieldCreditBillingDay) {
+		fields = append(fields, account.FieldCreditBillingDay)
+	}
+	if m.FieldCleared(account.FieldCreditRepaymentDay) {
+		fields = append(fields, account.FieldCreditRepaymentDay)
+	}
+	if m.FieldCleared(account.FieldCreditAnnualFeeCents) {
+		fields = append(fields, account.FieldCreditAnnualFeeCents)
+	}
+	if m.FieldCleared(account.FieldInvestCostCents) {
+		fields = append(fields, account.FieldInvestCostCents)
+	}
+	if m.FieldCleared(account.FieldInvestMarketValueCents) {
+		fields = append(fields, account.FieldInvestMarketValueCents)
+	}
+	if m.FieldCleared(account.FieldInvestReturnYtd) {
+		fields = append(fields, account.FieldInvestReturnYtd)
+	}
+	if m.FieldCleared(account.FieldFixedPrincipalCents) {
+		fields = append(fields, account.FieldFixedPrincipalCents)
+	}
+	if m.FieldCleared(account.FieldFixedStartDate) {
+		fields = append(fields, account.FieldFixedStartDate)
+	}
+	if m.FieldCleared(account.FieldFixedMaturityDate) {
+		fields = append(fields, account.FieldFixedMaturityDate)
+	}
+	if m.FieldCleared(account.FieldFixedTermMonths) {
+		fields = append(fields, account.FieldFixedTermMonths)
+	}
+	if m.FieldCleared(account.FieldGoldProductType) {
+		fields = append(fields, account.FieldGoldProductType)
+	}
+	if m.FieldCleared(account.FieldGoldQuantity) {
+		fields = append(fields, account.FieldGoldQuantity)
+	}
+	if m.FieldCleared(account.FieldGoldBuyPriceCents) {
+		fields = append(fields, account.FieldGoldBuyPriceCents)
+	}
+	if m.FieldCleared(account.FieldGoldCurrentPriceCents) {
+		fields = append(fields, account.FieldGoldCurrentPriceCents)
+	}
+	if m.FieldCleared(account.FieldEstatePurchasePriceCents) {
+		fields = append(fields, account.FieldEstatePurchasePriceCents)
+	}
+	if m.FieldCleared(account.FieldEstateCurrentValueCents) {
+		fields = append(fields, account.FieldEstateCurrentValueCents)
+	}
+	if m.FieldCleared(account.FieldEstatePurchaseDate) {
+		fields = append(fields, account.FieldEstatePurchaseDate)
+	}
+	if m.FieldCleared(account.FieldEstateDepreciationRate) {
+		fields = append(fields, account.FieldEstateDepreciationRate)
+	}
+	if m.FieldCleared(account.FieldLoanOriginalCents) {
+		fields = append(fields, account.FieldLoanOriginalCents)
+	}
+	if m.FieldCleared(account.FieldLoanRemainingCents) {
+		fields = append(fields, account.FieldLoanRemainingCents)
+	}
+	if m.FieldCleared(account.FieldLoanMonthlyCents) {
+		fields = append(fields, account.FieldLoanMonthlyCents)
+	}
+	if m.FieldCleared(account.FieldLoanNextPaymentDate) {
+		fields = append(fields, account.FieldLoanNextPaymentDate)
 	}
 	if m.FieldCleared(account.FieldDeletedAt) {
 		fields = append(fields, account.FieldDeletedAt)
@@ -1465,6 +3819,84 @@ func (m *AccountMutation) ClearField(name string) error {
 		return nil
 	case account.FieldInstitution:
 		m.ClearInstitution()
+		return nil
+	case account.FieldCardNumberTail:
+		m.ClearCardNumberTail()
+		return nil
+	case account.FieldNotes:
+		m.ClearNotes()
+		return nil
+	case account.FieldOpeningDate:
+		m.ClearOpeningDate()
+		return nil
+	case account.FieldInterestRate:
+		m.ClearInterestRate()
+		return nil
+	case account.FieldCreditBillingDay:
+		m.ClearCreditBillingDay()
+		return nil
+	case account.FieldCreditRepaymentDay:
+		m.ClearCreditRepaymentDay()
+		return nil
+	case account.FieldCreditAnnualFeeCents:
+		m.ClearCreditAnnualFeeCents()
+		return nil
+	case account.FieldInvestCostCents:
+		m.ClearInvestCostCents()
+		return nil
+	case account.FieldInvestMarketValueCents:
+		m.ClearInvestMarketValueCents()
+		return nil
+	case account.FieldInvestReturnYtd:
+		m.ClearInvestReturnYtd()
+		return nil
+	case account.FieldFixedPrincipalCents:
+		m.ClearFixedPrincipalCents()
+		return nil
+	case account.FieldFixedStartDate:
+		m.ClearFixedStartDate()
+		return nil
+	case account.FieldFixedMaturityDate:
+		m.ClearFixedMaturityDate()
+		return nil
+	case account.FieldFixedTermMonths:
+		m.ClearFixedTermMonths()
+		return nil
+	case account.FieldGoldProductType:
+		m.ClearGoldProductType()
+		return nil
+	case account.FieldGoldQuantity:
+		m.ClearGoldQuantity()
+		return nil
+	case account.FieldGoldBuyPriceCents:
+		m.ClearGoldBuyPriceCents()
+		return nil
+	case account.FieldGoldCurrentPriceCents:
+		m.ClearGoldCurrentPriceCents()
+		return nil
+	case account.FieldEstatePurchasePriceCents:
+		m.ClearEstatePurchasePriceCents()
+		return nil
+	case account.FieldEstateCurrentValueCents:
+		m.ClearEstateCurrentValueCents()
+		return nil
+	case account.FieldEstatePurchaseDate:
+		m.ClearEstatePurchaseDate()
+		return nil
+	case account.FieldEstateDepreciationRate:
+		m.ClearEstateDepreciationRate()
+		return nil
+	case account.FieldLoanOriginalCents:
+		m.ClearLoanOriginalCents()
+		return nil
+	case account.FieldLoanRemainingCents:
+		m.ClearLoanRemainingCents()
+		return nil
+	case account.FieldLoanMonthlyCents:
+		m.ClearLoanMonthlyCents()
+		return nil
+	case account.FieldLoanNextPaymentDate:
+		m.ClearLoanNextPaymentDate()
 		return nil
 	case account.FieldDeletedAt:
 		m.ClearDeletedAt()
@@ -1518,6 +3950,84 @@ func (m *AccountMutation) ResetField(name string) error {
 		return nil
 	case account.FieldCreditLimitCents:
 		m.ResetCreditLimitCents()
+		return nil
+	case account.FieldCardNumberTail:
+		m.ResetCardNumberTail()
+		return nil
+	case account.FieldNotes:
+		m.ResetNotes()
+		return nil
+	case account.FieldOpeningDate:
+		m.ResetOpeningDate()
+		return nil
+	case account.FieldInterestRate:
+		m.ResetInterestRate()
+		return nil
+	case account.FieldCreditBillingDay:
+		m.ResetCreditBillingDay()
+		return nil
+	case account.FieldCreditRepaymentDay:
+		m.ResetCreditRepaymentDay()
+		return nil
+	case account.FieldCreditAnnualFeeCents:
+		m.ResetCreditAnnualFeeCents()
+		return nil
+	case account.FieldInvestCostCents:
+		m.ResetInvestCostCents()
+		return nil
+	case account.FieldInvestMarketValueCents:
+		m.ResetInvestMarketValueCents()
+		return nil
+	case account.FieldInvestReturnYtd:
+		m.ResetInvestReturnYtd()
+		return nil
+	case account.FieldFixedPrincipalCents:
+		m.ResetFixedPrincipalCents()
+		return nil
+	case account.FieldFixedStartDate:
+		m.ResetFixedStartDate()
+		return nil
+	case account.FieldFixedMaturityDate:
+		m.ResetFixedMaturityDate()
+		return nil
+	case account.FieldFixedTermMonths:
+		m.ResetFixedTermMonths()
+		return nil
+	case account.FieldGoldProductType:
+		m.ResetGoldProductType()
+		return nil
+	case account.FieldGoldQuantity:
+		m.ResetGoldQuantity()
+		return nil
+	case account.FieldGoldBuyPriceCents:
+		m.ResetGoldBuyPriceCents()
+		return nil
+	case account.FieldGoldCurrentPriceCents:
+		m.ResetGoldCurrentPriceCents()
+		return nil
+	case account.FieldEstatePurchasePriceCents:
+		m.ResetEstatePurchasePriceCents()
+		return nil
+	case account.FieldEstateCurrentValueCents:
+		m.ResetEstateCurrentValueCents()
+		return nil
+	case account.FieldEstatePurchaseDate:
+		m.ResetEstatePurchaseDate()
+		return nil
+	case account.FieldEstateDepreciationRate:
+		m.ResetEstateDepreciationRate()
+		return nil
+	case account.FieldLoanOriginalCents:
+		m.ResetLoanOriginalCents()
+		return nil
+	case account.FieldLoanRemainingCents:
+		m.ResetLoanRemainingCents()
+		return nil
+	case account.FieldLoanMonthlyCents:
+		m.ResetLoanMonthlyCents()
+		return nil
+	case account.FieldLoanNextPaymentDate:
+		m.ResetLoanNextPaymentDate()
 		return nil
 	case account.FieldStatus:
 		m.ResetStatus()

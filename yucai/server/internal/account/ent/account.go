@@ -47,6 +47,58 @@ type Account struct {
 	Institution string `json:"institution,omitempty"`
 	// Credit limit in cents (for credit cards/lines)
 	CreditLimitCents int64 `json:"credit_limit_cents,omitempty"`
+	// Card/account last digits (financial types)
+	CardNumberTail string `json:"card_number_tail,omitempty"`
+	// Free-form notes
+	Notes string `json:"notes,omitempty"`
+	// Account opening date (financial types)
+	OpeningDate *time.Time `json:"opening_date,omitempty"`
+	// Annual rate %: savings/fixed/loan rate, credit card APR
+	InterestRate *float64 `json:"interest_rate,omitempty"`
+	// Credit card billing day (1-31)
+	CreditBillingDay *int `json:"credit_billing_day,omitempty"`
+	// Credit card repayment day (1-31)
+	CreditRepaymentDay *int `json:"credit_repayment_day,omitempty"`
+	// Credit card annual fee in cents
+	CreditAnnualFeeCents *int64 `json:"credit_annual_fee_cents,omitempty"`
+	// Investment total cost basis in cents
+	InvestCostCents *int64 `json:"invest_cost_cents,omitempty"`
+	// Investment current market value in cents
+	InvestMarketValueCents *int64 `json:"invest_market_value_cents,omitempty"`
+	// Investment year-to-date return rate (%)
+	InvestReturnYtd *float64 `json:"invest_return_ytd,omitempty"`
+	// Fixed deposit principal in cents
+	FixedPrincipalCents *int64 `json:"fixed_principal_cents,omitempty"`
+	// Fixed deposit start (value) date
+	FixedStartDate *time.Time `json:"fixed_start_date,omitempty"`
+	// Fixed deposit maturity date
+	FixedMaturityDate *time.Time `json:"fixed_maturity_date,omitempty"`
+	// Fixed deposit term in months
+	FixedTermMonths *int `json:"fixed_term_months,omitempty"`
+	// Gold/FX product type (e.g. gold, usd)
+	GoldProductType string `json:"gold_product_type,omitempty"`
+	// Gold/FX holding quantity
+	GoldQuantity *float64 `json:"gold_quantity,omitempty"`
+	// Gold/FX buy price in cents
+	GoldBuyPriceCents *int64 `json:"gold_buy_price_cents,omitempty"`
+	// Gold/FX current price in cents
+	GoldCurrentPriceCents *int64 `json:"gold_current_price_cents,omitempty"`
+	// Real estate purchase price in cents
+	EstatePurchasePriceCents *int64 `json:"estate_purchase_price_cents,omitempty"`
+	// Real estate current appraised value in cents
+	EstateCurrentValueCents *int64 `json:"estate_current_value_cents,omitempty"`
+	// Real estate purchase date
+	EstatePurchaseDate *time.Time `json:"estate_purchase_date,omitempty"`
+	// Real estate depreciation rate (%)
+	EstateDepreciationRate *float64 `json:"estate_depreciation_rate,omitempty"`
+	// Loan original principal in cents
+	LoanOriginalCents *int64 `json:"loan_original_cents,omitempty"`
+	// Loan remaining principal in cents
+	LoanRemainingCents *int64 `json:"loan_remaining_cents,omitempty"`
+	// Loan monthly payment in cents
+	LoanMonthlyCents *int64 `json:"loan_monthly_cents,omitempty"`
+	// Loan next payment date
+	LoanNextPaymentDate *time.Time `json:"loan_next_payment_date,omitempty"`
 	// Account status
 	Status account.Status `json:"status,omitempty"`
 	// Optimistic locking version
@@ -67,11 +119,13 @@ func (*Account) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case account.FieldParentID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
-		case account.FieldInitialBalanceCents, account.FieldCurrentBalanceCents, account.FieldCreditLimitCents, account.FieldVersion:
+		case account.FieldInterestRate, account.FieldInvestReturnYtd, account.FieldGoldQuantity, account.FieldEstateDepreciationRate:
+			values[i] = new(sql.NullFloat64)
+		case account.FieldInitialBalanceCents, account.FieldCurrentBalanceCents, account.FieldCreditLimitCents, account.FieldCreditBillingDay, account.FieldCreditRepaymentDay, account.FieldCreditAnnualFeeCents, account.FieldInvestCostCents, account.FieldInvestMarketValueCents, account.FieldFixedPrincipalCents, account.FieldFixedTermMonths, account.FieldGoldBuyPriceCents, account.FieldGoldCurrentPriceCents, account.FieldEstatePurchasePriceCents, account.FieldEstateCurrentValueCents, account.FieldLoanOriginalCents, account.FieldLoanRemainingCents, account.FieldLoanMonthlyCents, account.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case account.FieldName, account.FieldAccountType, account.FieldCategory, account.FieldCurrencyCode, account.FieldOwnership, account.FieldIcon, account.FieldColor, account.FieldChartCode, account.FieldInstitution, account.FieldStatus:
+		case account.FieldName, account.FieldAccountType, account.FieldCategory, account.FieldCurrencyCode, account.FieldOwnership, account.FieldIcon, account.FieldColor, account.FieldChartCode, account.FieldInstitution, account.FieldCardNumberTail, account.FieldNotes, account.FieldGoldProductType, account.FieldStatus:
 			values[i] = new(sql.NullString)
-		case account.FieldDeletedAt, account.FieldCreatedAt, account.FieldUpdatedAt:
+		case account.FieldOpeningDate, account.FieldFixedStartDate, account.FieldFixedMaturityDate, account.FieldEstatePurchaseDate, account.FieldLoanNextPaymentDate, account.FieldDeletedAt, account.FieldCreatedAt, account.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		case account.FieldID, account.FieldTenantID:
 			values[i] = new(uuid.UUID)
@@ -180,6 +234,185 @@ func (a *Account) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field credit_limit_cents", values[i])
 			} else if value.Valid {
 				a.CreditLimitCents = value.Int64
+			}
+		case account.FieldCardNumberTail:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field card_number_tail", values[i])
+			} else if value.Valid {
+				a.CardNumberTail = value.String
+			}
+		case account.FieldNotes:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field notes", values[i])
+			} else if value.Valid {
+				a.Notes = value.String
+			}
+		case account.FieldOpeningDate:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field opening_date", values[i])
+			} else if value.Valid {
+				a.OpeningDate = new(time.Time)
+				*a.OpeningDate = value.Time
+			}
+		case account.FieldInterestRate:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field interest_rate", values[i])
+			} else if value.Valid {
+				a.InterestRate = new(float64)
+				*a.InterestRate = value.Float64
+			}
+		case account.FieldCreditBillingDay:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field credit_billing_day", values[i])
+			} else if value.Valid {
+				a.CreditBillingDay = new(int)
+				*a.CreditBillingDay = int(value.Int64)
+			}
+		case account.FieldCreditRepaymentDay:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field credit_repayment_day", values[i])
+			} else if value.Valid {
+				a.CreditRepaymentDay = new(int)
+				*a.CreditRepaymentDay = int(value.Int64)
+			}
+		case account.FieldCreditAnnualFeeCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field credit_annual_fee_cents", values[i])
+			} else if value.Valid {
+				a.CreditAnnualFeeCents = new(int64)
+				*a.CreditAnnualFeeCents = value.Int64
+			}
+		case account.FieldInvestCostCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field invest_cost_cents", values[i])
+			} else if value.Valid {
+				a.InvestCostCents = new(int64)
+				*a.InvestCostCents = value.Int64
+			}
+		case account.FieldInvestMarketValueCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field invest_market_value_cents", values[i])
+			} else if value.Valid {
+				a.InvestMarketValueCents = new(int64)
+				*a.InvestMarketValueCents = value.Int64
+			}
+		case account.FieldInvestReturnYtd:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field invest_return_ytd", values[i])
+			} else if value.Valid {
+				a.InvestReturnYtd = new(float64)
+				*a.InvestReturnYtd = value.Float64
+			}
+		case account.FieldFixedPrincipalCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field fixed_principal_cents", values[i])
+			} else if value.Valid {
+				a.FixedPrincipalCents = new(int64)
+				*a.FixedPrincipalCents = value.Int64
+			}
+		case account.FieldFixedStartDate:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field fixed_start_date", values[i])
+			} else if value.Valid {
+				a.FixedStartDate = new(time.Time)
+				*a.FixedStartDate = value.Time
+			}
+		case account.FieldFixedMaturityDate:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field fixed_maturity_date", values[i])
+			} else if value.Valid {
+				a.FixedMaturityDate = new(time.Time)
+				*a.FixedMaturityDate = value.Time
+			}
+		case account.FieldFixedTermMonths:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field fixed_term_months", values[i])
+			} else if value.Valid {
+				a.FixedTermMonths = new(int)
+				*a.FixedTermMonths = int(value.Int64)
+			}
+		case account.FieldGoldProductType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field gold_product_type", values[i])
+			} else if value.Valid {
+				a.GoldProductType = value.String
+			}
+		case account.FieldGoldQuantity:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field gold_quantity", values[i])
+			} else if value.Valid {
+				a.GoldQuantity = new(float64)
+				*a.GoldQuantity = value.Float64
+			}
+		case account.FieldGoldBuyPriceCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field gold_buy_price_cents", values[i])
+			} else if value.Valid {
+				a.GoldBuyPriceCents = new(int64)
+				*a.GoldBuyPriceCents = value.Int64
+			}
+		case account.FieldGoldCurrentPriceCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field gold_current_price_cents", values[i])
+			} else if value.Valid {
+				a.GoldCurrentPriceCents = new(int64)
+				*a.GoldCurrentPriceCents = value.Int64
+			}
+		case account.FieldEstatePurchasePriceCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field estate_purchase_price_cents", values[i])
+			} else if value.Valid {
+				a.EstatePurchasePriceCents = new(int64)
+				*a.EstatePurchasePriceCents = value.Int64
+			}
+		case account.FieldEstateCurrentValueCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field estate_current_value_cents", values[i])
+			} else if value.Valid {
+				a.EstateCurrentValueCents = new(int64)
+				*a.EstateCurrentValueCents = value.Int64
+			}
+		case account.FieldEstatePurchaseDate:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field estate_purchase_date", values[i])
+			} else if value.Valid {
+				a.EstatePurchaseDate = new(time.Time)
+				*a.EstatePurchaseDate = value.Time
+			}
+		case account.FieldEstateDepreciationRate:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field estate_depreciation_rate", values[i])
+			} else if value.Valid {
+				a.EstateDepreciationRate = new(float64)
+				*a.EstateDepreciationRate = value.Float64
+			}
+		case account.FieldLoanOriginalCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field loan_original_cents", values[i])
+			} else if value.Valid {
+				a.LoanOriginalCents = new(int64)
+				*a.LoanOriginalCents = value.Int64
+			}
+		case account.FieldLoanRemainingCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field loan_remaining_cents", values[i])
+			} else if value.Valid {
+				a.LoanRemainingCents = new(int64)
+				*a.LoanRemainingCents = value.Int64
+			}
+		case account.FieldLoanMonthlyCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field loan_monthly_cents", values[i])
+			} else if value.Valid {
+				a.LoanMonthlyCents = new(int64)
+				*a.LoanMonthlyCents = value.Int64
+			}
+		case account.FieldLoanNextPaymentDate:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field loan_next_payment_date", values[i])
+			} else if value.Valid {
+				a.LoanNextPaymentDate = new(time.Time)
+				*a.LoanNextPaymentDate = value.Time
 			}
 		case account.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -291,6 +524,130 @@ func (a *Account) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("credit_limit_cents=")
 	builder.WriteString(fmt.Sprintf("%v", a.CreditLimitCents))
+	builder.WriteString(", ")
+	builder.WriteString("card_number_tail=")
+	builder.WriteString(a.CardNumberTail)
+	builder.WriteString(", ")
+	builder.WriteString("notes=")
+	builder.WriteString(a.Notes)
+	builder.WriteString(", ")
+	if v := a.OpeningDate; v != nil {
+		builder.WriteString("opening_date=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := a.InterestRate; v != nil {
+		builder.WriteString("interest_rate=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := a.CreditBillingDay; v != nil {
+		builder.WriteString("credit_billing_day=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := a.CreditRepaymentDay; v != nil {
+		builder.WriteString("credit_repayment_day=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := a.CreditAnnualFeeCents; v != nil {
+		builder.WriteString("credit_annual_fee_cents=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := a.InvestCostCents; v != nil {
+		builder.WriteString("invest_cost_cents=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := a.InvestMarketValueCents; v != nil {
+		builder.WriteString("invest_market_value_cents=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := a.InvestReturnYtd; v != nil {
+		builder.WriteString("invest_return_ytd=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := a.FixedPrincipalCents; v != nil {
+		builder.WriteString("fixed_principal_cents=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := a.FixedStartDate; v != nil {
+		builder.WriteString("fixed_start_date=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := a.FixedMaturityDate; v != nil {
+		builder.WriteString("fixed_maturity_date=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := a.FixedTermMonths; v != nil {
+		builder.WriteString("fixed_term_months=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("gold_product_type=")
+	builder.WriteString(a.GoldProductType)
+	builder.WriteString(", ")
+	if v := a.GoldQuantity; v != nil {
+		builder.WriteString("gold_quantity=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := a.GoldBuyPriceCents; v != nil {
+		builder.WriteString("gold_buy_price_cents=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := a.GoldCurrentPriceCents; v != nil {
+		builder.WriteString("gold_current_price_cents=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := a.EstatePurchasePriceCents; v != nil {
+		builder.WriteString("estate_purchase_price_cents=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := a.EstateCurrentValueCents; v != nil {
+		builder.WriteString("estate_current_value_cents=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := a.EstatePurchaseDate; v != nil {
+		builder.WriteString("estate_purchase_date=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := a.EstateDepreciationRate; v != nil {
+		builder.WriteString("estate_depreciation_rate=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := a.LoanOriginalCents; v != nil {
+		builder.WriteString("loan_original_cents=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := a.LoanRemainingCents; v != nil {
+		builder.WriteString("loan_remaining_cents=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := a.LoanMonthlyCents; v != nil {
+		builder.WriteString("loan_monthly_cents=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := a.LoanNextPaymentDate; v != nil {
+		builder.WriteString("loan_next_payment_date=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", a.Status))

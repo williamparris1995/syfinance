@@ -43,6 +43,58 @@ const (
 	FieldInstitution = "institution"
 	// FieldCreditLimitCents holds the string denoting the credit_limit_cents field in the database.
 	FieldCreditLimitCents = "credit_limit_cents"
+	// FieldCardNumberTail holds the string denoting the card_number_tail field in the database.
+	FieldCardNumberTail = "card_number_tail"
+	// FieldNotes holds the string denoting the notes field in the database.
+	FieldNotes = "notes"
+	// FieldOpeningDate holds the string denoting the opening_date field in the database.
+	FieldOpeningDate = "opening_date"
+	// FieldInterestRate holds the string denoting the interest_rate field in the database.
+	FieldInterestRate = "interest_rate"
+	// FieldCreditBillingDay holds the string denoting the credit_billing_day field in the database.
+	FieldCreditBillingDay = "credit_billing_day"
+	// FieldCreditRepaymentDay holds the string denoting the credit_repayment_day field in the database.
+	FieldCreditRepaymentDay = "credit_repayment_day"
+	// FieldCreditAnnualFeeCents holds the string denoting the credit_annual_fee_cents field in the database.
+	FieldCreditAnnualFeeCents = "credit_annual_fee_cents"
+	// FieldInvestCostCents holds the string denoting the invest_cost_cents field in the database.
+	FieldInvestCostCents = "invest_cost_cents"
+	// FieldInvestMarketValueCents holds the string denoting the invest_market_value_cents field in the database.
+	FieldInvestMarketValueCents = "invest_market_value_cents"
+	// FieldInvestReturnYtd holds the string denoting the invest_return_ytd field in the database.
+	FieldInvestReturnYtd = "invest_return_ytd"
+	// FieldFixedPrincipalCents holds the string denoting the fixed_principal_cents field in the database.
+	FieldFixedPrincipalCents = "fixed_principal_cents"
+	// FieldFixedStartDate holds the string denoting the fixed_start_date field in the database.
+	FieldFixedStartDate = "fixed_start_date"
+	// FieldFixedMaturityDate holds the string denoting the fixed_maturity_date field in the database.
+	FieldFixedMaturityDate = "fixed_maturity_date"
+	// FieldFixedTermMonths holds the string denoting the fixed_term_months field in the database.
+	FieldFixedTermMonths = "fixed_term_months"
+	// FieldGoldProductType holds the string denoting the gold_product_type field in the database.
+	FieldGoldProductType = "gold_product_type"
+	// FieldGoldQuantity holds the string denoting the gold_quantity field in the database.
+	FieldGoldQuantity = "gold_quantity"
+	// FieldGoldBuyPriceCents holds the string denoting the gold_buy_price_cents field in the database.
+	FieldGoldBuyPriceCents = "gold_buy_price_cents"
+	// FieldGoldCurrentPriceCents holds the string denoting the gold_current_price_cents field in the database.
+	FieldGoldCurrentPriceCents = "gold_current_price_cents"
+	// FieldEstatePurchasePriceCents holds the string denoting the estate_purchase_price_cents field in the database.
+	FieldEstatePurchasePriceCents = "estate_purchase_price_cents"
+	// FieldEstateCurrentValueCents holds the string denoting the estate_current_value_cents field in the database.
+	FieldEstateCurrentValueCents = "estate_current_value_cents"
+	// FieldEstatePurchaseDate holds the string denoting the estate_purchase_date field in the database.
+	FieldEstatePurchaseDate = "estate_purchase_date"
+	// FieldEstateDepreciationRate holds the string denoting the estate_depreciation_rate field in the database.
+	FieldEstateDepreciationRate = "estate_depreciation_rate"
+	// FieldLoanOriginalCents holds the string denoting the loan_original_cents field in the database.
+	FieldLoanOriginalCents = "loan_original_cents"
+	// FieldLoanRemainingCents holds the string denoting the loan_remaining_cents field in the database.
+	FieldLoanRemainingCents = "loan_remaining_cents"
+	// FieldLoanMonthlyCents holds the string denoting the loan_monthly_cents field in the database.
+	FieldLoanMonthlyCents = "loan_monthly_cents"
+	// FieldLoanNextPaymentDate holds the string denoting the loan_next_payment_date field in the database.
+	FieldLoanNextPaymentDate = "loan_next_payment_date"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldVersion holds the string denoting the version field in the database.
@@ -74,6 +126,32 @@ var Columns = []string{
 	FieldParentID,
 	FieldInstitution,
 	FieldCreditLimitCents,
+	FieldCardNumberTail,
+	FieldNotes,
+	FieldOpeningDate,
+	FieldInterestRate,
+	FieldCreditBillingDay,
+	FieldCreditRepaymentDay,
+	FieldCreditAnnualFeeCents,
+	FieldInvestCostCents,
+	FieldInvestMarketValueCents,
+	FieldInvestReturnYtd,
+	FieldFixedPrincipalCents,
+	FieldFixedStartDate,
+	FieldFixedMaturityDate,
+	FieldFixedTermMonths,
+	FieldGoldProductType,
+	FieldGoldQuantity,
+	FieldGoldBuyPriceCents,
+	FieldGoldCurrentPriceCents,
+	FieldEstatePurchasePriceCents,
+	FieldEstateCurrentValueCents,
+	FieldEstatePurchaseDate,
+	FieldEstateDepreciationRate,
+	FieldLoanOriginalCents,
+	FieldLoanRemainingCents,
+	FieldLoanMonthlyCents,
+	FieldLoanNextPaymentDate,
 	FieldStatus,
 	FieldVersion,
 	FieldDeletedAt,
@@ -110,6 +188,12 @@ var (
 	DefaultInstitution string
 	// DefaultCreditLimitCents holds the default value on creation for the "credit_limit_cents" field.
 	DefaultCreditLimitCents int64
+	// DefaultCardNumberTail holds the default value on creation for the "card_number_tail" field.
+	DefaultCardNumberTail string
+	// DefaultNotes holds the default value on creation for the "notes" field.
+	DefaultNotes string
+	// DefaultGoldProductType holds the default value on creation for the "gold_product_type" field.
+	DefaultGoldProductType string
 	// DefaultVersion holds the default value on creation for the "version" field.
 	DefaultVersion int64
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -309,6 +393,136 @@ func ByInstitution(opts ...sql.OrderTermOption) OrderOption {
 // ByCreditLimitCents orders the results by the credit_limit_cents field.
 func ByCreditLimitCents(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreditLimitCents, opts...).ToFunc()
+}
+
+// ByCardNumberTail orders the results by the card_number_tail field.
+func ByCardNumberTail(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCardNumberTail, opts...).ToFunc()
+}
+
+// ByNotes orders the results by the notes field.
+func ByNotes(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNotes, opts...).ToFunc()
+}
+
+// ByOpeningDate orders the results by the opening_date field.
+func ByOpeningDate(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOpeningDate, opts...).ToFunc()
+}
+
+// ByInterestRate orders the results by the interest_rate field.
+func ByInterestRate(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInterestRate, opts...).ToFunc()
+}
+
+// ByCreditBillingDay orders the results by the credit_billing_day field.
+func ByCreditBillingDay(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCreditBillingDay, opts...).ToFunc()
+}
+
+// ByCreditRepaymentDay orders the results by the credit_repayment_day field.
+func ByCreditRepaymentDay(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCreditRepaymentDay, opts...).ToFunc()
+}
+
+// ByCreditAnnualFeeCents orders the results by the credit_annual_fee_cents field.
+func ByCreditAnnualFeeCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCreditAnnualFeeCents, opts...).ToFunc()
+}
+
+// ByInvestCostCents orders the results by the invest_cost_cents field.
+func ByInvestCostCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInvestCostCents, opts...).ToFunc()
+}
+
+// ByInvestMarketValueCents orders the results by the invest_market_value_cents field.
+func ByInvestMarketValueCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInvestMarketValueCents, opts...).ToFunc()
+}
+
+// ByInvestReturnYtd orders the results by the invest_return_ytd field.
+func ByInvestReturnYtd(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInvestReturnYtd, opts...).ToFunc()
+}
+
+// ByFixedPrincipalCents orders the results by the fixed_principal_cents field.
+func ByFixedPrincipalCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFixedPrincipalCents, opts...).ToFunc()
+}
+
+// ByFixedStartDate orders the results by the fixed_start_date field.
+func ByFixedStartDate(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFixedStartDate, opts...).ToFunc()
+}
+
+// ByFixedMaturityDate orders the results by the fixed_maturity_date field.
+func ByFixedMaturityDate(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFixedMaturityDate, opts...).ToFunc()
+}
+
+// ByFixedTermMonths orders the results by the fixed_term_months field.
+func ByFixedTermMonths(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFixedTermMonths, opts...).ToFunc()
+}
+
+// ByGoldProductType orders the results by the gold_product_type field.
+func ByGoldProductType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGoldProductType, opts...).ToFunc()
+}
+
+// ByGoldQuantity orders the results by the gold_quantity field.
+func ByGoldQuantity(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGoldQuantity, opts...).ToFunc()
+}
+
+// ByGoldBuyPriceCents orders the results by the gold_buy_price_cents field.
+func ByGoldBuyPriceCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGoldBuyPriceCents, opts...).ToFunc()
+}
+
+// ByGoldCurrentPriceCents orders the results by the gold_current_price_cents field.
+func ByGoldCurrentPriceCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGoldCurrentPriceCents, opts...).ToFunc()
+}
+
+// ByEstatePurchasePriceCents orders the results by the estate_purchase_price_cents field.
+func ByEstatePurchasePriceCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEstatePurchasePriceCents, opts...).ToFunc()
+}
+
+// ByEstateCurrentValueCents orders the results by the estate_current_value_cents field.
+func ByEstateCurrentValueCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEstateCurrentValueCents, opts...).ToFunc()
+}
+
+// ByEstatePurchaseDate orders the results by the estate_purchase_date field.
+func ByEstatePurchaseDate(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEstatePurchaseDate, opts...).ToFunc()
+}
+
+// ByEstateDepreciationRate orders the results by the estate_depreciation_rate field.
+func ByEstateDepreciationRate(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEstateDepreciationRate, opts...).ToFunc()
+}
+
+// ByLoanOriginalCents orders the results by the loan_original_cents field.
+func ByLoanOriginalCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLoanOriginalCents, opts...).ToFunc()
+}
+
+// ByLoanRemainingCents orders the results by the loan_remaining_cents field.
+func ByLoanRemainingCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLoanRemainingCents, opts...).ToFunc()
+}
+
+// ByLoanMonthlyCents orders the results by the loan_monthly_cents field.
+func ByLoanMonthlyCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLoanMonthlyCents, opts...).ToFunc()
+}
+
+// ByLoanNextPaymentDate orders the results by the loan_next_payment_date field.
+func ByLoanNextPaymentDate(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLoanNextPaymentDate, opts...).ToFunc()
 }
 
 // ByStatus orders the results by the status field.

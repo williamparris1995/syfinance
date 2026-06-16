@@ -81,6 +81,32 @@ func (Account) Fields() []ent.Field {
 		field.Int64("credit_limit_cents").
 			Default(0).
 			Comment("Credit limit in cents (for credit cards/lines)"),
+		field.String("card_number_tail").Optional().Default("").Comment("Card/account last digits (financial types)"),
+		field.String("notes").Optional().Default("").Comment("Free-form notes"),
+		field.Time("opening_date").Optional().Nillable().Comment("Account opening date (financial types)"),
+		field.Float("interest_rate").Optional().Nillable().Comment("Annual rate %: savings/fixed/loan rate, credit card APR"),
+		field.Int("credit_billing_day").Optional().Nillable().Comment("Credit card billing day (1-31)"),
+		field.Int("credit_repayment_day").Optional().Nillable().Comment("Credit card repayment day (1-31)"),
+		field.Int64("credit_annual_fee_cents").Optional().Nillable().Comment("Credit card annual fee in cents"),
+		field.Int64("invest_cost_cents").Optional().Nillable().Comment("Investment total cost basis in cents"),
+		field.Int64("invest_market_value_cents").Optional().Nillable().Comment("Investment current market value in cents"),
+		field.Float("invest_return_ytd").Optional().Nillable().Comment("Investment year-to-date return rate (%)"),
+		field.Int64("fixed_principal_cents").Optional().Nillable().Comment("Fixed deposit principal in cents"),
+		field.Time("fixed_start_date").Optional().Nillable().Comment("Fixed deposit start (value) date"),
+		field.Time("fixed_maturity_date").Optional().Nillable().Comment("Fixed deposit maturity date"),
+		field.Int("fixed_term_months").Optional().Nillable().Comment("Fixed deposit term in months"),
+		field.String("gold_product_type").Optional().Default("").Comment("Gold/FX product type (e.g. gold, usd)"),
+		field.Float("gold_quantity").Optional().Nillable().Comment("Gold/FX holding quantity"),
+		field.Int64("gold_buy_price_cents").Optional().Nillable().Comment("Gold/FX buy price in cents"),
+		field.Int64("gold_current_price_cents").Optional().Nillable().Comment("Gold/FX current price in cents"),
+		field.Int64("estate_purchase_price_cents").Optional().Nillable().Comment("Real estate purchase price in cents"),
+		field.Int64("estate_current_value_cents").Optional().Nillable().Comment("Real estate current appraised value in cents"),
+		field.Time("estate_purchase_date").Optional().Nillable().Comment("Real estate purchase date"),
+		field.Float("estate_depreciation_rate").Optional().Nillable().Comment("Real estate depreciation rate (%)"),
+		field.Int64("loan_original_cents").Optional().Nillable().Comment("Loan original principal in cents"),
+		field.Int64("loan_remaining_cents").Optional().Nillable().Comment("Loan remaining principal in cents"),
+		field.Int64("loan_monthly_cents").Optional().Nillable().Comment("Loan monthly payment in cents"),
+		field.Time("loan_next_payment_date").Optional().Nillable().Comment("Loan next payment date"),
 		field.Enum("status").
 			Values("active", "archived").
 			Default("active").

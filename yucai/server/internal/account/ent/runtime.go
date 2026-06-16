@@ -53,16 +53,28 @@ func init() {
 	accountDescCreditLimitCents := accountFields[13].Descriptor()
 	// account.DefaultCreditLimitCents holds the default value on creation for the credit_limit_cents field.
 	account.DefaultCreditLimitCents = accountDescCreditLimitCents.Default.(int64)
+	// accountDescCardNumberTail is the schema descriptor for card_number_tail field.
+	accountDescCardNumberTail := accountFields[14].Descriptor()
+	// account.DefaultCardNumberTail holds the default value on creation for the card_number_tail field.
+	account.DefaultCardNumberTail = accountDescCardNumberTail.Default.(string)
+	// accountDescNotes is the schema descriptor for notes field.
+	accountDescNotes := accountFields[15].Descriptor()
+	// account.DefaultNotes holds the default value on creation for the notes field.
+	account.DefaultNotes = accountDescNotes.Default.(string)
+	// accountDescGoldProductType is the schema descriptor for gold_product_type field.
+	accountDescGoldProductType := accountFields[28].Descriptor()
+	// account.DefaultGoldProductType holds the default value on creation for the gold_product_type field.
+	account.DefaultGoldProductType = accountDescGoldProductType.Default.(string)
 	// accountDescVersion is the schema descriptor for version field.
-	accountDescVersion := accountFields[15].Descriptor()
+	accountDescVersion := accountFields[41].Descriptor()
 	// account.DefaultVersion holds the default value on creation for the version field.
 	account.DefaultVersion = accountDescVersion.Default.(int64)
 	// accountDescCreatedAt is the schema descriptor for created_at field.
-	accountDescCreatedAt := accountFields[17].Descriptor()
+	accountDescCreatedAt := accountFields[43].Descriptor()
 	// account.DefaultCreatedAt holds the default value on creation for the created_at field.
 	account.DefaultCreatedAt = accountDescCreatedAt.Default.(func() time.Time)
 	// accountDescUpdatedAt is the schema descriptor for updated_at field.
-	accountDescUpdatedAt := accountFields[18].Descriptor()
+	accountDescUpdatedAt := accountFields[44].Descriptor()
 	// account.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	account.DefaultUpdatedAt = accountDescUpdatedAt.Default.(func() time.Time)
 	// account.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

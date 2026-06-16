@@ -193,6 +193,370 @@ func (ac *AccountCreate) SetNillableCreditLimitCents(i *int64) *AccountCreate {
 	return ac
 }
 
+// SetCardNumberTail sets the "card_number_tail" field.
+func (ac *AccountCreate) SetCardNumberTail(s string) *AccountCreate {
+	ac.mutation.SetCardNumberTail(s)
+	return ac
+}
+
+// SetNillableCardNumberTail sets the "card_number_tail" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableCardNumberTail(s *string) *AccountCreate {
+	if s != nil {
+		ac.SetCardNumberTail(*s)
+	}
+	return ac
+}
+
+// SetNotes sets the "notes" field.
+func (ac *AccountCreate) SetNotes(s string) *AccountCreate {
+	ac.mutation.SetNotes(s)
+	return ac
+}
+
+// SetNillableNotes sets the "notes" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableNotes(s *string) *AccountCreate {
+	if s != nil {
+		ac.SetNotes(*s)
+	}
+	return ac
+}
+
+// SetOpeningDate sets the "opening_date" field.
+func (ac *AccountCreate) SetOpeningDate(t time.Time) *AccountCreate {
+	ac.mutation.SetOpeningDate(t)
+	return ac
+}
+
+// SetNillableOpeningDate sets the "opening_date" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableOpeningDate(t *time.Time) *AccountCreate {
+	if t != nil {
+		ac.SetOpeningDate(*t)
+	}
+	return ac
+}
+
+// SetInterestRate sets the "interest_rate" field.
+func (ac *AccountCreate) SetInterestRate(f float64) *AccountCreate {
+	ac.mutation.SetInterestRate(f)
+	return ac
+}
+
+// SetNillableInterestRate sets the "interest_rate" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableInterestRate(f *float64) *AccountCreate {
+	if f != nil {
+		ac.SetInterestRate(*f)
+	}
+	return ac
+}
+
+// SetCreditBillingDay sets the "credit_billing_day" field.
+func (ac *AccountCreate) SetCreditBillingDay(i int) *AccountCreate {
+	ac.mutation.SetCreditBillingDay(i)
+	return ac
+}
+
+// SetNillableCreditBillingDay sets the "credit_billing_day" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableCreditBillingDay(i *int) *AccountCreate {
+	if i != nil {
+		ac.SetCreditBillingDay(*i)
+	}
+	return ac
+}
+
+// SetCreditRepaymentDay sets the "credit_repayment_day" field.
+func (ac *AccountCreate) SetCreditRepaymentDay(i int) *AccountCreate {
+	ac.mutation.SetCreditRepaymentDay(i)
+	return ac
+}
+
+// SetNillableCreditRepaymentDay sets the "credit_repayment_day" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableCreditRepaymentDay(i *int) *AccountCreate {
+	if i != nil {
+		ac.SetCreditRepaymentDay(*i)
+	}
+	return ac
+}
+
+// SetCreditAnnualFeeCents sets the "credit_annual_fee_cents" field.
+func (ac *AccountCreate) SetCreditAnnualFeeCents(i int64) *AccountCreate {
+	ac.mutation.SetCreditAnnualFeeCents(i)
+	return ac
+}
+
+// SetNillableCreditAnnualFeeCents sets the "credit_annual_fee_cents" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableCreditAnnualFeeCents(i *int64) *AccountCreate {
+	if i != nil {
+		ac.SetCreditAnnualFeeCents(*i)
+	}
+	return ac
+}
+
+// SetInvestCostCents sets the "invest_cost_cents" field.
+func (ac *AccountCreate) SetInvestCostCents(i int64) *AccountCreate {
+	ac.mutation.SetInvestCostCents(i)
+	return ac
+}
+
+// SetNillableInvestCostCents sets the "invest_cost_cents" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableInvestCostCents(i *int64) *AccountCreate {
+	if i != nil {
+		ac.SetInvestCostCents(*i)
+	}
+	return ac
+}
+
+// SetInvestMarketValueCents sets the "invest_market_value_cents" field.
+func (ac *AccountCreate) SetInvestMarketValueCents(i int64) *AccountCreate {
+	ac.mutation.SetInvestMarketValueCents(i)
+	return ac
+}
+
+// SetNillableInvestMarketValueCents sets the "invest_market_value_cents" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableInvestMarketValueCents(i *int64) *AccountCreate {
+	if i != nil {
+		ac.SetInvestMarketValueCents(*i)
+	}
+	return ac
+}
+
+// SetInvestReturnYtd sets the "invest_return_ytd" field.
+func (ac *AccountCreate) SetInvestReturnYtd(f float64) *AccountCreate {
+	ac.mutation.SetInvestReturnYtd(f)
+	return ac
+}
+
+// SetNillableInvestReturnYtd sets the "invest_return_ytd" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableInvestReturnYtd(f *float64) *AccountCreate {
+	if f != nil {
+		ac.SetInvestReturnYtd(*f)
+	}
+	return ac
+}
+
+// SetFixedPrincipalCents sets the "fixed_principal_cents" field.
+func (ac *AccountCreate) SetFixedPrincipalCents(i int64) *AccountCreate {
+	ac.mutation.SetFixedPrincipalCents(i)
+	return ac
+}
+
+// SetNillableFixedPrincipalCents sets the "fixed_principal_cents" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableFixedPrincipalCents(i *int64) *AccountCreate {
+	if i != nil {
+		ac.SetFixedPrincipalCents(*i)
+	}
+	return ac
+}
+
+// SetFixedStartDate sets the "fixed_start_date" field.
+func (ac *AccountCreate) SetFixedStartDate(t time.Time) *AccountCreate {
+	ac.mutation.SetFixedStartDate(t)
+	return ac
+}
+
+// SetNillableFixedStartDate sets the "fixed_start_date" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableFixedStartDate(t *time.Time) *AccountCreate {
+	if t != nil {
+		ac.SetFixedStartDate(*t)
+	}
+	return ac
+}
+
+// SetFixedMaturityDate sets the "fixed_maturity_date" field.
+func (ac *AccountCreate) SetFixedMaturityDate(t time.Time) *AccountCreate {
+	ac.mutation.SetFixedMaturityDate(t)
+	return ac
+}
+
+// SetNillableFixedMaturityDate sets the "fixed_maturity_date" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableFixedMaturityDate(t *time.Time) *AccountCreate {
+	if t != nil {
+		ac.SetFixedMaturityDate(*t)
+	}
+	return ac
+}
+
+// SetFixedTermMonths sets the "fixed_term_months" field.
+func (ac *AccountCreate) SetFixedTermMonths(i int) *AccountCreate {
+	ac.mutation.SetFixedTermMonths(i)
+	return ac
+}
+
+// SetNillableFixedTermMonths sets the "fixed_term_months" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableFixedTermMonths(i *int) *AccountCreate {
+	if i != nil {
+		ac.SetFixedTermMonths(*i)
+	}
+	return ac
+}
+
+// SetGoldProductType sets the "gold_product_type" field.
+func (ac *AccountCreate) SetGoldProductType(s string) *AccountCreate {
+	ac.mutation.SetGoldProductType(s)
+	return ac
+}
+
+// SetNillableGoldProductType sets the "gold_product_type" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableGoldProductType(s *string) *AccountCreate {
+	if s != nil {
+		ac.SetGoldProductType(*s)
+	}
+	return ac
+}
+
+// SetGoldQuantity sets the "gold_quantity" field.
+func (ac *AccountCreate) SetGoldQuantity(f float64) *AccountCreate {
+	ac.mutation.SetGoldQuantity(f)
+	return ac
+}
+
+// SetNillableGoldQuantity sets the "gold_quantity" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableGoldQuantity(f *float64) *AccountCreate {
+	if f != nil {
+		ac.SetGoldQuantity(*f)
+	}
+	return ac
+}
+
+// SetGoldBuyPriceCents sets the "gold_buy_price_cents" field.
+func (ac *AccountCreate) SetGoldBuyPriceCents(i int64) *AccountCreate {
+	ac.mutation.SetGoldBuyPriceCents(i)
+	return ac
+}
+
+// SetNillableGoldBuyPriceCents sets the "gold_buy_price_cents" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableGoldBuyPriceCents(i *int64) *AccountCreate {
+	if i != nil {
+		ac.SetGoldBuyPriceCents(*i)
+	}
+	return ac
+}
+
+// SetGoldCurrentPriceCents sets the "gold_current_price_cents" field.
+func (ac *AccountCreate) SetGoldCurrentPriceCents(i int64) *AccountCreate {
+	ac.mutation.SetGoldCurrentPriceCents(i)
+	return ac
+}
+
+// SetNillableGoldCurrentPriceCents sets the "gold_current_price_cents" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableGoldCurrentPriceCents(i *int64) *AccountCreate {
+	if i != nil {
+		ac.SetGoldCurrentPriceCents(*i)
+	}
+	return ac
+}
+
+// SetEstatePurchasePriceCents sets the "estate_purchase_price_cents" field.
+func (ac *AccountCreate) SetEstatePurchasePriceCents(i int64) *AccountCreate {
+	ac.mutation.SetEstatePurchasePriceCents(i)
+	return ac
+}
+
+// SetNillableEstatePurchasePriceCents sets the "estate_purchase_price_cents" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableEstatePurchasePriceCents(i *int64) *AccountCreate {
+	if i != nil {
+		ac.SetEstatePurchasePriceCents(*i)
+	}
+	return ac
+}
+
+// SetEstateCurrentValueCents sets the "estate_current_value_cents" field.
+func (ac *AccountCreate) SetEstateCurrentValueCents(i int64) *AccountCreate {
+	ac.mutation.SetEstateCurrentValueCents(i)
+	return ac
+}
+
+// SetNillableEstateCurrentValueCents sets the "estate_current_value_cents" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableEstateCurrentValueCents(i *int64) *AccountCreate {
+	if i != nil {
+		ac.SetEstateCurrentValueCents(*i)
+	}
+	return ac
+}
+
+// SetEstatePurchaseDate sets the "estate_purchase_date" field.
+func (ac *AccountCreate) SetEstatePurchaseDate(t time.Time) *AccountCreate {
+	ac.mutation.SetEstatePurchaseDate(t)
+	return ac
+}
+
+// SetNillableEstatePurchaseDate sets the "estate_purchase_date" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableEstatePurchaseDate(t *time.Time) *AccountCreate {
+	if t != nil {
+		ac.SetEstatePurchaseDate(*t)
+	}
+	return ac
+}
+
+// SetEstateDepreciationRate sets the "estate_depreciation_rate" field.
+func (ac *AccountCreate) SetEstateDepreciationRate(f float64) *AccountCreate {
+	ac.mutation.SetEstateDepreciationRate(f)
+	return ac
+}
+
+// SetNillableEstateDepreciationRate sets the "estate_depreciation_rate" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableEstateDepreciationRate(f *float64) *AccountCreate {
+	if f != nil {
+		ac.SetEstateDepreciationRate(*f)
+	}
+	return ac
+}
+
+// SetLoanOriginalCents sets the "loan_original_cents" field.
+func (ac *AccountCreate) SetLoanOriginalCents(i int64) *AccountCreate {
+	ac.mutation.SetLoanOriginalCents(i)
+	return ac
+}
+
+// SetNillableLoanOriginalCents sets the "loan_original_cents" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableLoanOriginalCents(i *int64) *AccountCreate {
+	if i != nil {
+		ac.SetLoanOriginalCents(*i)
+	}
+	return ac
+}
+
+// SetLoanRemainingCents sets the "loan_remaining_cents" field.
+func (ac *AccountCreate) SetLoanRemainingCents(i int64) *AccountCreate {
+	ac.mutation.SetLoanRemainingCents(i)
+	return ac
+}
+
+// SetNillableLoanRemainingCents sets the "loan_remaining_cents" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableLoanRemainingCents(i *int64) *AccountCreate {
+	if i != nil {
+		ac.SetLoanRemainingCents(*i)
+	}
+	return ac
+}
+
+// SetLoanMonthlyCents sets the "loan_monthly_cents" field.
+func (ac *AccountCreate) SetLoanMonthlyCents(i int64) *AccountCreate {
+	ac.mutation.SetLoanMonthlyCents(i)
+	return ac
+}
+
+// SetNillableLoanMonthlyCents sets the "loan_monthly_cents" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableLoanMonthlyCents(i *int64) *AccountCreate {
+	if i != nil {
+		ac.SetLoanMonthlyCents(*i)
+	}
+	return ac
+}
+
+// SetLoanNextPaymentDate sets the "loan_next_payment_date" field.
+func (ac *AccountCreate) SetLoanNextPaymentDate(t time.Time) *AccountCreate {
+	ac.mutation.SetLoanNextPaymentDate(t)
+	return ac
+}
+
+// SetNillableLoanNextPaymentDate sets the "loan_next_payment_date" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableLoanNextPaymentDate(t *time.Time) *AccountCreate {
+	if t != nil {
+		ac.SetLoanNextPaymentDate(*t)
+	}
+	return ac
+}
+
 // SetStatus sets the "status" field.
 func (ac *AccountCreate) SetStatus(a account.Status) *AccountCreate {
 	ac.mutation.SetStatus(a)
@@ -351,6 +715,18 @@ func (ac *AccountCreate) defaults() {
 	if _, ok := ac.mutation.CreditLimitCents(); !ok {
 		v := account.DefaultCreditLimitCents
 		ac.mutation.SetCreditLimitCents(v)
+	}
+	if _, ok := ac.mutation.CardNumberTail(); !ok {
+		v := account.DefaultCardNumberTail
+		ac.mutation.SetCardNumberTail(v)
+	}
+	if _, ok := ac.mutation.Notes(); !ok {
+		v := account.DefaultNotes
+		ac.mutation.SetNotes(v)
+	}
+	if _, ok := ac.mutation.GoldProductType(); !ok {
+		v := account.DefaultGoldProductType
+		ac.mutation.SetGoldProductType(v)
 	}
 	if _, ok := ac.mutation.Status(); !ok {
 		v := account.DefaultStatus
@@ -530,6 +906,110 @@ func (ac *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
 	if value, ok := ac.mutation.CreditLimitCents(); ok {
 		_spec.SetField(account.FieldCreditLimitCents, field.TypeInt64, value)
 		_node.CreditLimitCents = value
+	}
+	if value, ok := ac.mutation.CardNumberTail(); ok {
+		_spec.SetField(account.FieldCardNumberTail, field.TypeString, value)
+		_node.CardNumberTail = value
+	}
+	if value, ok := ac.mutation.Notes(); ok {
+		_spec.SetField(account.FieldNotes, field.TypeString, value)
+		_node.Notes = value
+	}
+	if value, ok := ac.mutation.OpeningDate(); ok {
+		_spec.SetField(account.FieldOpeningDate, field.TypeTime, value)
+		_node.OpeningDate = &value
+	}
+	if value, ok := ac.mutation.InterestRate(); ok {
+		_spec.SetField(account.FieldInterestRate, field.TypeFloat64, value)
+		_node.InterestRate = &value
+	}
+	if value, ok := ac.mutation.CreditBillingDay(); ok {
+		_spec.SetField(account.FieldCreditBillingDay, field.TypeInt, value)
+		_node.CreditBillingDay = &value
+	}
+	if value, ok := ac.mutation.CreditRepaymentDay(); ok {
+		_spec.SetField(account.FieldCreditRepaymentDay, field.TypeInt, value)
+		_node.CreditRepaymentDay = &value
+	}
+	if value, ok := ac.mutation.CreditAnnualFeeCents(); ok {
+		_spec.SetField(account.FieldCreditAnnualFeeCents, field.TypeInt64, value)
+		_node.CreditAnnualFeeCents = &value
+	}
+	if value, ok := ac.mutation.InvestCostCents(); ok {
+		_spec.SetField(account.FieldInvestCostCents, field.TypeInt64, value)
+		_node.InvestCostCents = &value
+	}
+	if value, ok := ac.mutation.InvestMarketValueCents(); ok {
+		_spec.SetField(account.FieldInvestMarketValueCents, field.TypeInt64, value)
+		_node.InvestMarketValueCents = &value
+	}
+	if value, ok := ac.mutation.InvestReturnYtd(); ok {
+		_spec.SetField(account.FieldInvestReturnYtd, field.TypeFloat64, value)
+		_node.InvestReturnYtd = &value
+	}
+	if value, ok := ac.mutation.FixedPrincipalCents(); ok {
+		_spec.SetField(account.FieldFixedPrincipalCents, field.TypeInt64, value)
+		_node.FixedPrincipalCents = &value
+	}
+	if value, ok := ac.mutation.FixedStartDate(); ok {
+		_spec.SetField(account.FieldFixedStartDate, field.TypeTime, value)
+		_node.FixedStartDate = &value
+	}
+	if value, ok := ac.mutation.FixedMaturityDate(); ok {
+		_spec.SetField(account.FieldFixedMaturityDate, field.TypeTime, value)
+		_node.FixedMaturityDate = &value
+	}
+	if value, ok := ac.mutation.FixedTermMonths(); ok {
+		_spec.SetField(account.FieldFixedTermMonths, field.TypeInt, value)
+		_node.FixedTermMonths = &value
+	}
+	if value, ok := ac.mutation.GoldProductType(); ok {
+		_spec.SetField(account.FieldGoldProductType, field.TypeString, value)
+		_node.GoldProductType = value
+	}
+	if value, ok := ac.mutation.GoldQuantity(); ok {
+		_spec.SetField(account.FieldGoldQuantity, field.TypeFloat64, value)
+		_node.GoldQuantity = &value
+	}
+	if value, ok := ac.mutation.GoldBuyPriceCents(); ok {
+		_spec.SetField(account.FieldGoldBuyPriceCents, field.TypeInt64, value)
+		_node.GoldBuyPriceCents = &value
+	}
+	if value, ok := ac.mutation.GoldCurrentPriceCents(); ok {
+		_spec.SetField(account.FieldGoldCurrentPriceCents, field.TypeInt64, value)
+		_node.GoldCurrentPriceCents = &value
+	}
+	if value, ok := ac.mutation.EstatePurchasePriceCents(); ok {
+		_spec.SetField(account.FieldEstatePurchasePriceCents, field.TypeInt64, value)
+		_node.EstatePurchasePriceCents = &value
+	}
+	if value, ok := ac.mutation.EstateCurrentValueCents(); ok {
+		_spec.SetField(account.FieldEstateCurrentValueCents, field.TypeInt64, value)
+		_node.EstateCurrentValueCents = &value
+	}
+	if value, ok := ac.mutation.EstatePurchaseDate(); ok {
+		_spec.SetField(account.FieldEstatePurchaseDate, field.TypeTime, value)
+		_node.EstatePurchaseDate = &value
+	}
+	if value, ok := ac.mutation.EstateDepreciationRate(); ok {
+		_spec.SetField(account.FieldEstateDepreciationRate, field.TypeFloat64, value)
+		_node.EstateDepreciationRate = &value
+	}
+	if value, ok := ac.mutation.LoanOriginalCents(); ok {
+		_spec.SetField(account.FieldLoanOriginalCents, field.TypeInt64, value)
+		_node.LoanOriginalCents = &value
+	}
+	if value, ok := ac.mutation.LoanRemainingCents(); ok {
+		_spec.SetField(account.FieldLoanRemainingCents, field.TypeInt64, value)
+		_node.LoanRemainingCents = &value
+	}
+	if value, ok := ac.mutation.LoanMonthlyCents(); ok {
+		_spec.SetField(account.FieldLoanMonthlyCents, field.TypeInt64, value)
+		_node.LoanMonthlyCents = &value
+	}
+	if value, ok := ac.mutation.LoanNextPaymentDate(); ok {
+		_spec.SetField(account.FieldLoanNextPaymentDate, field.TypeTime, value)
+		_node.LoanNextPaymentDate = &value
 	}
 	if value, ok := ac.mutation.Status(); ok {
 		_spec.SetField(account.FieldStatus, field.TypeEnum, value)

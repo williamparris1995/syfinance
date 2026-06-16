@@ -262,6 +262,652 @@ func (au *AccountUpdate) AddCreditLimitCents(i int64) *AccountUpdate {
 	return au
 }
 
+// SetCardNumberTail sets the "card_number_tail" field.
+func (au *AccountUpdate) SetCardNumberTail(s string) *AccountUpdate {
+	au.mutation.SetCardNumberTail(s)
+	return au
+}
+
+// SetNillableCardNumberTail sets the "card_number_tail" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableCardNumberTail(s *string) *AccountUpdate {
+	if s != nil {
+		au.SetCardNumberTail(*s)
+	}
+	return au
+}
+
+// ClearCardNumberTail clears the value of the "card_number_tail" field.
+func (au *AccountUpdate) ClearCardNumberTail() *AccountUpdate {
+	au.mutation.ClearCardNumberTail()
+	return au
+}
+
+// SetNotes sets the "notes" field.
+func (au *AccountUpdate) SetNotes(s string) *AccountUpdate {
+	au.mutation.SetNotes(s)
+	return au
+}
+
+// SetNillableNotes sets the "notes" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableNotes(s *string) *AccountUpdate {
+	if s != nil {
+		au.SetNotes(*s)
+	}
+	return au
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (au *AccountUpdate) ClearNotes() *AccountUpdate {
+	au.mutation.ClearNotes()
+	return au
+}
+
+// SetOpeningDate sets the "opening_date" field.
+func (au *AccountUpdate) SetOpeningDate(t time.Time) *AccountUpdate {
+	au.mutation.SetOpeningDate(t)
+	return au
+}
+
+// SetNillableOpeningDate sets the "opening_date" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableOpeningDate(t *time.Time) *AccountUpdate {
+	if t != nil {
+		au.SetOpeningDate(*t)
+	}
+	return au
+}
+
+// ClearOpeningDate clears the value of the "opening_date" field.
+func (au *AccountUpdate) ClearOpeningDate() *AccountUpdate {
+	au.mutation.ClearOpeningDate()
+	return au
+}
+
+// SetInterestRate sets the "interest_rate" field.
+func (au *AccountUpdate) SetInterestRate(f float64) *AccountUpdate {
+	au.mutation.ResetInterestRate()
+	au.mutation.SetInterestRate(f)
+	return au
+}
+
+// SetNillableInterestRate sets the "interest_rate" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableInterestRate(f *float64) *AccountUpdate {
+	if f != nil {
+		au.SetInterestRate(*f)
+	}
+	return au
+}
+
+// AddInterestRate adds f to the "interest_rate" field.
+func (au *AccountUpdate) AddInterestRate(f float64) *AccountUpdate {
+	au.mutation.AddInterestRate(f)
+	return au
+}
+
+// ClearInterestRate clears the value of the "interest_rate" field.
+func (au *AccountUpdate) ClearInterestRate() *AccountUpdate {
+	au.mutation.ClearInterestRate()
+	return au
+}
+
+// SetCreditBillingDay sets the "credit_billing_day" field.
+func (au *AccountUpdate) SetCreditBillingDay(i int) *AccountUpdate {
+	au.mutation.ResetCreditBillingDay()
+	au.mutation.SetCreditBillingDay(i)
+	return au
+}
+
+// SetNillableCreditBillingDay sets the "credit_billing_day" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableCreditBillingDay(i *int) *AccountUpdate {
+	if i != nil {
+		au.SetCreditBillingDay(*i)
+	}
+	return au
+}
+
+// AddCreditBillingDay adds i to the "credit_billing_day" field.
+func (au *AccountUpdate) AddCreditBillingDay(i int) *AccountUpdate {
+	au.mutation.AddCreditBillingDay(i)
+	return au
+}
+
+// ClearCreditBillingDay clears the value of the "credit_billing_day" field.
+func (au *AccountUpdate) ClearCreditBillingDay() *AccountUpdate {
+	au.mutation.ClearCreditBillingDay()
+	return au
+}
+
+// SetCreditRepaymentDay sets the "credit_repayment_day" field.
+func (au *AccountUpdate) SetCreditRepaymentDay(i int) *AccountUpdate {
+	au.mutation.ResetCreditRepaymentDay()
+	au.mutation.SetCreditRepaymentDay(i)
+	return au
+}
+
+// SetNillableCreditRepaymentDay sets the "credit_repayment_day" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableCreditRepaymentDay(i *int) *AccountUpdate {
+	if i != nil {
+		au.SetCreditRepaymentDay(*i)
+	}
+	return au
+}
+
+// AddCreditRepaymentDay adds i to the "credit_repayment_day" field.
+func (au *AccountUpdate) AddCreditRepaymentDay(i int) *AccountUpdate {
+	au.mutation.AddCreditRepaymentDay(i)
+	return au
+}
+
+// ClearCreditRepaymentDay clears the value of the "credit_repayment_day" field.
+func (au *AccountUpdate) ClearCreditRepaymentDay() *AccountUpdate {
+	au.mutation.ClearCreditRepaymentDay()
+	return au
+}
+
+// SetCreditAnnualFeeCents sets the "credit_annual_fee_cents" field.
+func (au *AccountUpdate) SetCreditAnnualFeeCents(i int64) *AccountUpdate {
+	au.mutation.ResetCreditAnnualFeeCents()
+	au.mutation.SetCreditAnnualFeeCents(i)
+	return au
+}
+
+// SetNillableCreditAnnualFeeCents sets the "credit_annual_fee_cents" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableCreditAnnualFeeCents(i *int64) *AccountUpdate {
+	if i != nil {
+		au.SetCreditAnnualFeeCents(*i)
+	}
+	return au
+}
+
+// AddCreditAnnualFeeCents adds i to the "credit_annual_fee_cents" field.
+func (au *AccountUpdate) AddCreditAnnualFeeCents(i int64) *AccountUpdate {
+	au.mutation.AddCreditAnnualFeeCents(i)
+	return au
+}
+
+// ClearCreditAnnualFeeCents clears the value of the "credit_annual_fee_cents" field.
+func (au *AccountUpdate) ClearCreditAnnualFeeCents() *AccountUpdate {
+	au.mutation.ClearCreditAnnualFeeCents()
+	return au
+}
+
+// SetInvestCostCents sets the "invest_cost_cents" field.
+func (au *AccountUpdate) SetInvestCostCents(i int64) *AccountUpdate {
+	au.mutation.ResetInvestCostCents()
+	au.mutation.SetInvestCostCents(i)
+	return au
+}
+
+// SetNillableInvestCostCents sets the "invest_cost_cents" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableInvestCostCents(i *int64) *AccountUpdate {
+	if i != nil {
+		au.SetInvestCostCents(*i)
+	}
+	return au
+}
+
+// AddInvestCostCents adds i to the "invest_cost_cents" field.
+func (au *AccountUpdate) AddInvestCostCents(i int64) *AccountUpdate {
+	au.mutation.AddInvestCostCents(i)
+	return au
+}
+
+// ClearInvestCostCents clears the value of the "invest_cost_cents" field.
+func (au *AccountUpdate) ClearInvestCostCents() *AccountUpdate {
+	au.mutation.ClearInvestCostCents()
+	return au
+}
+
+// SetInvestMarketValueCents sets the "invest_market_value_cents" field.
+func (au *AccountUpdate) SetInvestMarketValueCents(i int64) *AccountUpdate {
+	au.mutation.ResetInvestMarketValueCents()
+	au.mutation.SetInvestMarketValueCents(i)
+	return au
+}
+
+// SetNillableInvestMarketValueCents sets the "invest_market_value_cents" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableInvestMarketValueCents(i *int64) *AccountUpdate {
+	if i != nil {
+		au.SetInvestMarketValueCents(*i)
+	}
+	return au
+}
+
+// AddInvestMarketValueCents adds i to the "invest_market_value_cents" field.
+func (au *AccountUpdate) AddInvestMarketValueCents(i int64) *AccountUpdate {
+	au.mutation.AddInvestMarketValueCents(i)
+	return au
+}
+
+// ClearInvestMarketValueCents clears the value of the "invest_market_value_cents" field.
+func (au *AccountUpdate) ClearInvestMarketValueCents() *AccountUpdate {
+	au.mutation.ClearInvestMarketValueCents()
+	return au
+}
+
+// SetInvestReturnYtd sets the "invest_return_ytd" field.
+func (au *AccountUpdate) SetInvestReturnYtd(f float64) *AccountUpdate {
+	au.mutation.ResetInvestReturnYtd()
+	au.mutation.SetInvestReturnYtd(f)
+	return au
+}
+
+// SetNillableInvestReturnYtd sets the "invest_return_ytd" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableInvestReturnYtd(f *float64) *AccountUpdate {
+	if f != nil {
+		au.SetInvestReturnYtd(*f)
+	}
+	return au
+}
+
+// AddInvestReturnYtd adds f to the "invest_return_ytd" field.
+func (au *AccountUpdate) AddInvestReturnYtd(f float64) *AccountUpdate {
+	au.mutation.AddInvestReturnYtd(f)
+	return au
+}
+
+// ClearInvestReturnYtd clears the value of the "invest_return_ytd" field.
+func (au *AccountUpdate) ClearInvestReturnYtd() *AccountUpdate {
+	au.mutation.ClearInvestReturnYtd()
+	return au
+}
+
+// SetFixedPrincipalCents sets the "fixed_principal_cents" field.
+func (au *AccountUpdate) SetFixedPrincipalCents(i int64) *AccountUpdate {
+	au.mutation.ResetFixedPrincipalCents()
+	au.mutation.SetFixedPrincipalCents(i)
+	return au
+}
+
+// SetNillableFixedPrincipalCents sets the "fixed_principal_cents" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableFixedPrincipalCents(i *int64) *AccountUpdate {
+	if i != nil {
+		au.SetFixedPrincipalCents(*i)
+	}
+	return au
+}
+
+// AddFixedPrincipalCents adds i to the "fixed_principal_cents" field.
+func (au *AccountUpdate) AddFixedPrincipalCents(i int64) *AccountUpdate {
+	au.mutation.AddFixedPrincipalCents(i)
+	return au
+}
+
+// ClearFixedPrincipalCents clears the value of the "fixed_principal_cents" field.
+func (au *AccountUpdate) ClearFixedPrincipalCents() *AccountUpdate {
+	au.mutation.ClearFixedPrincipalCents()
+	return au
+}
+
+// SetFixedStartDate sets the "fixed_start_date" field.
+func (au *AccountUpdate) SetFixedStartDate(t time.Time) *AccountUpdate {
+	au.mutation.SetFixedStartDate(t)
+	return au
+}
+
+// SetNillableFixedStartDate sets the "fixed_start_date" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableFixedStartDate(t *time.Time) *AccountUpdate {
+	if t != nil {
+		au.SetFixedStartDate(*t)
+	}
+	return au
+}
+
+// ClearFixedStartDate clears the value of the "fixed_start_date" field.
+func (au *AccountUpdate) ClearFixedStartDate() *AccountUpdate {
+	au.mutation.ClearFixedStartDate()
+	return au
+}
+
+// SetFixedMaturityDate sets the "fixed_maturity_date" field.
+func (au *AccountUpdate) SetFixedMaturityDate(t time.Time) *AccountUpdate {
+	au.mutation.SetFixedMaturityDate(t)
+	return au
+}
+
+// SetNillableFixedMaturityDate sets the "fixed_maturity_date" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableFixedMaturityDate(t *time.Time) *AccountUpdate {
+	if t != nil {
+		au.SetFixedMaturityDate(*t)
+	}
+	return au
+}
+
+// ClearFixedMaturityDate clears the value of the "fixed_maturity_date" field.
+func (au *AccountUpdate) ClearFixedMaturityDate() *AccountUpdate {
+	au.mutation.ClearFixedMaturityDate()
+	return au
+}
+
+// SetFixedTermMonths sets the "fixed_term_months" field.
+func (au *AccountUpdate) SetFixedTermMonths(i int) *AccountUpdate {
+	au.mutation.ResetFixedTermMonths()
+	au.mutation.SetFixedTermMonths(i)
+	return au
+}
+
+// SetNillableFixedTermMonths sets the "fixed_term_months" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableFixedTermMonths(i *int) *AccountUpdate {
+	if i != nil {
+		au.SetFixedTermMonths(*i)
+	}
+	return au
+}
+
+// AddFixedTermMonths adds i to the "fixed_term_months" field.
+func (au *AccountUpdate) AddFixedTermMonths(i int) *AccountUpdate {
+	au.mutation.AddFixedTermMonths(i)
+	return au
+}
+
+// ClearFixedTermMonths clears the value of the "fixed_term_months" field.
+func (au *AccountUpdate) ClearFixedTermMonths() *AccountUpdate {
+	au.mutation.ClearFixedTermMonths()
+	return au
+}
+
+// SetGoldProductType sets the "gold_product_type" field.
+func (au *AccountUpdate) SetGoldProductType(s string) *AccountUpdate {
+	au.mutation.SetGoldProductType(s)
+	return au
+}
+
+// SetNillableGoldProductType sets the "gold_product_type" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableGoldProductType(s *string) *AccountUpdate {
+	if s != nil {
+		au.SetGoldProductType(*s)
+	}
+	return au
+}
+
+// ClearGoldProductType clears the value of the "gold_product_type" field.
+func (au *AccountUpdate) ClearGoldProductType() *AccountUpdate {
+	au.mutation.ClearGoldProductType()
+	return au
+}
+
+// SetGoldQuantity sets the "gold_quantity" field.
+func (au *AccountUpdate) SetGoldQuantity(f float64) *AccountUpdate {
+	au.mutation.ResetGoldQuantity()
+	au.mutation.SetGoldQuantity(f)
+	return au
+}
+
+// SetNillableGoldQuantity sets the "gold_quantity" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableGoldQuantity(f *float64) *AccountUpdate {
+	if f != nil {
+		au.SetGoldQuantity(*f)
+	}
+	return au
+}
+
+// AddGoldQuantity adds f to the "gold_quantity" field.
+func (au *AccountUpdate) AddGoldQuantity(f float64) *AccountUpdate {
+	au.mutation.AddGoldQuantity(f)
+	return au
+}
+
+// ClearGoldQuantity clears the value of the "gold_quantity" field.
+func (au *AccountUpdate) ClearGoldQuantity() *AccountUpdate {
+	au.mutation.ClearGoldQuantity()
+	return au
+}
+
+// SetGoldBuyPriceCents sets the "gold_buy_price_cents" field.
+func (au *AccountUpdate) SetGoldBuyPriceCents(i int64) *AccountUpdate {
+	au.mutation.ResetGoldBuyPriceCents()
+	au.mutation.SetGoldBuyPriceCents(i)
+	return au
+}
+
+// SetNillableGoldBuyPriceCents sets the "gold_buy_price_cents" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableGoldBuyPriceCents(i *int64) *AccountUpdate {
+	if i != nil {
+		au.SetGoldBuyPriceCents(*i)
+	}
+	return au
+}
+
+// AddGoldBuyPriceCents adds i to the "gold_buy_price_cents" field.
+func (au *AccountUpdate) AddGoldBuyPriceCents(i int64) *AccountUpdate {
+	au.mutation.AddGoldBuyPriceCents(i)
+	return au
+}
+
+// ClearGoldBuyPriceCents clears the value of the "gold_buy_price_cents" field.
+func (au *AccountUpdate) ClearGoldBuyPriceCents() *AccountUpdate {
+	au.mutation.ClearGoldBuyPriceCents()
+	return au
+}
+
+// SetGoldCurrentPriceCents sets the "gold_current_price_cents" field.
+func (au *AccountUpdate) SetGoldCurrentPriceCents(i int64) *AccountUpdate {
+	au.mutation.ResetGoldCurrentPriceCents()
+	au.mutation.SetGoldCurrentPriceCents(i)
+	return au
+}
+
+// SetNillableGoldCurrentPriceCents sets the "gold_current_price_cents" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableGoldCurrentPriceCents(i *int64) *AccountUpdate {
+	if i != nil {
+		au.SetGoldCurrentPriceCents(*i)
+	}
+	return au
+}
+
+// AddGoldCurrentPriceCents adds i to the "gold_current_price_cents" field.
+func (au *AccountUpdate) AddGoldCurrentPriceCents(i int64) *AccountUpdate {
+	au.mutation.AddGoldCurrentPriceCents(i)
+	return au
+}
+
+// ClearGoldCurrentPriceCents clears the value of the "gold_current_price_cents" field.
+func (au *AccountUpdate) ClearGoldCurrentPriceCents() *AccountUpdate {
+	au.mutation.ClearGoldCurrentPriceCents()
+	return au
+}
+
+// SetEstatePurchasePriceCents sets the "estate_purchase_price_cents" field.
+func (au *AccountUpdate) SetEstatePurchasePriceCents(i int64) *AccountUpdate {
+	au.mutation.ResetEstatePurchasePriceCents()
+	au.mutation.SetEstatePurchasePriceCents(i)
+	return au
+}
+
+// SetNillableEstatePurchasePriceCents sets the "estate_purchase_price_cents" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableEstatePurchasePriceCents(i *int64) *AccountUpdate {
+	if i != nil {
+		au.SetEstatePurchasePriceCents(*i)
+	}
+	return au
+}
+
+// AddEstatePurchasePriceCents adds i to the "estate_purchase_price_cents" field.
+func (au *AccountUpdate) AddEstatePurchasePriceCents(i int64) *AccountUpdate {
+	au.mutation.AddEstatePurchasePriceCents(i)
+	return au
+}
+
+// ClearEstatePurchasePriceCents clears the value of the "estate_purchase_price_cents" field.
+func (au *AccountUpdate) ClearEstatePurchasePriceCents() *AccountUpdate {
+	au.mutation.ClearEstatePurchasePriceCents()
+	return au
+}
+
+// SetEstateCurrentValueCents sets the "estate_current_value_cents" field.
+func (au *AccountUpdate) SetEstateCurrentValueCents(i int64) *AccountUpdate {
+	au.mutation.ResetEstateCurrentValueCents()
+	au.mutation.SetEstateCurrentValueCents(i)
+	return au
+}
+
+// SetNillableEstateCurrentValueCents sets the "estate_current_value_cents" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableEstateCurrentValueCents(i *int64) *AccountUpdate {
+	if i != nil {
+		au.SetEstateCurrentValueCents(*i)
+	}
+	return au
+}
+
+// AddEstateCurrentValueCents adds i to the "estate_current_value_cents" field.
+func (au *AccountUpdate) AddEstateCurrentValueCents(i int64) *AccountUpdate {
+	au.mutation.AddEstateCurrentValueCents(i)
+	return au
+}
+
+// ClearEstateCurrentValueCents clears the value of the "estate_current_value_cents" field.
+func (au *AccountUpdate) ClearEstateCurrentValueCents() *AccountUpdate {
+	au.mutation.ClearEstateCurrentValueCents()
+	return au
+}
+
+// SetEstatePurchaseDate sets the "estate_purchase_date" field.
+func (au *AccountUpdate) SetEstatePurchaseDate(t time.Time) *AccountUpdate {
+	au.mutation.SetEstatePurchaseDate(t)
+	return au
+}
+
+// SetNillableEstatePurchaseDate sets the "estate_purchase_date" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableEstatePurchaseDate(t *time.Time) *AccountUpdate {
+	if t != nil {
+		au.SetEstatePurchaseDate(*t)
+	}
+	return au
+}
+
+// ClearEstatePurchaseDate clears the value of the "estate_purchase_date" field.
+func (au *AccountUpdate) ClearEstatePurchaseDate() *AccountUpdate {
+	au.mutation.ClearEstatePurchaseDate()
+	return au
+}
+
+// SetEstateDepreciationRate sets the "estate_depreciation_rate" field.
+func (au *AccountUpdate) SetEstateDepreciationRate(f float64) *AccountUpdate {
+	au.mutation.ResetEstateDepreciationRate()
+	au.mutation.SetEstateDepreciationRate(f)
+	return au
+}
+
+// SetNillableEstateDepreciationRate sets the "estate_depreciation_rate" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableEstateDepreciationRate(f *float64) *AccountUpdate {
+	if f != nil {
+		au.SetEstateDepreciationRate(*f)
+	}
+	return au
+}
+
+// AddEstateDepreciationRate adds f to the "estate_depreciation_rate" field.
+func (au *AccountUpdate) AddEstateDepreciationRate(f float64) *AccountUpdate {
+	au.mutation.AddEstateDepreciationRate(f)
+	return au
+}
+
+// ClearEstateDepreciationRate clears the value of the "estate_depreciation_rate" field.
+func (au *AccountUpdate) ClearEstateDepreciationRate() *AccountUpdate {
+	au.mutation.ClearEstateDepreciationRate()
+	return au
+}
+
+// SetLoanOriginalCents sets the "loan_original_cents" field.
+func (au *AccountUpdate) SetLoanOriginalCents(i int64) *AccountUpdate {
+	au.mutation.ResetLoanOriginalCents()
+	au.mutation.SetLoanOriginalCents(i)
+	return au
+}
+
+// SetNillableLoanOriginalCents sets the "loan_original_cents" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableLoanOriginalCents(i *int64) *AccountUpdate {
+	if i != nil {
+		au.SetLoanOriginalCents(*i)
+	}
+	return au
+}
+
+// AddLoanOriginalCents adds i to the "loan_original_cents" field.
+func (au *AccountUpdate) AddLoanOriginalCents(i int64) *AccountUpdate {
+	au.mutation.AddLoanOriginalCents(i)
+	return au
+}
+
+// ClearLoanOriginalCents clears the value of the "loan_original_cents" field.
+func (au *AccountUpdate) ClearLoanOriginalCents() *AccountUpdate {
+	au.mutation.ClearLoanOriginalCents()
+	return au
+}
+
+// SetLoanRemainingCents sets the "loan_remaining_cents" field.
+func (au *AccountUpdate) SetLoanRemainingCents(i int64) *AccountUpdate {
+	au.mutation.ResetLoanRemainingCents()
+	au.mutation.SetLoanRemainingCents(i)
+	return au
+}
+
+// SetNillableLoanRemainingCents sets the "loan_remaining_cents" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableLoanRemainingCents(i *int64) *AccountUpdate {
+	if i != nil {
+		au.SetLoanRemainingCents(*i)
+	}
+	return au
+}
+
+// AddLoanRemainingCents adds i to the "loan_remaining_cents" field.
+func (au *AccountUpdate) AddLoanRemainingCents(i int64) *AccountUpdate {
+	au.mutation.AddLoanRemainingCents(i)
+	return au
+}
+
+// ClearLoanRemainingCents clears the value of the "loan_remaining_cents" field.
+func (au *AccountUpdate) ClearLoanRemainingCents() *AccountUpdate {
+	au.mutation.ClearLoanRemainingCents()
+	return au
+}
+
+// SetLoanMonthlyCents sets the "loan_monthly_cents" field.
+func (au *AccountUpdate) SetLoanMonthlyCents(i int64) *AccountUpdate {
+	au.mutation.ResetLoanMonthlyCents()
+	au.mutation.SetLoanMonthlyCents(i)
+	return au
+}
+
+// SetNillableLoanMonthlyCents sets the "loan_monthly_cents" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableLoanMonthlyCents(i *int64) *AccountUpdate {
+	if i != nil {
+		au.SetLoanMonthlyCents(*i)
+	}
+	return au
+}
+
+// AddLoanMonthlyCents adds i to the "loan_monthly_cents" field.
+func (au *AccountUpdate) AddLoanMonthlyCents(i int64) *AccountUpdate {
+	au.mutation.AddLoanMonthlyCents(i)
+	return au
+}
+
+// ClearLoanMonthlyCents clears the value of the "loan_monthly_cents" field.
+func (au *AccountUpdate) ClearLoanMonthlyCents() *AccountUpdate {
+	au.mutation.ClearLoanMonthlyCents()
+	return au
+}
+
+// SetLoanNextPaymentDate sets the "loan_next_payment_date" field.
+func (au *AccountUpdate) SetLoanNextPaymentDate(t time.Time) *AccountUpdate {
+	au.mutation.SetLoanNextPaymentDate(t)
+	return au
+}
+
+// SetNillableLoanNextPaymentDate sets the "loan_next_payment_date" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableLoanNextPaymentDate(t *time.Time) *AccountUpdate {
+	if t != nil {
+		au.SetLoanNextPaymentDate(*t)
+	}
+	return au
+}
+
+// ClearLoanNextPaymentDate clears the value of the "loan_next_payment_date" field.
+func (au *AccountUpdate) ClearLoanNextPaymentDate() *AccountUpdate {
+	au.mutation.ClearLoanNextPaymentDate()
+	return au
+}
+
 // SetStatus sets the "status" field.
 func (au *AccountUpdate) SetStatus(a account.Status) *AccountUpdate {
 	au.mutation.SetStatus(a)
@@ -468,6 +1114,216 @@ func (au *AccountUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := au.mutation.AddedCreditLimitCents(); ok {
 		_spec.AddField(account.FieldCreditLimitCents, field.TypeInt64, value)
+	}
+	if value, ok := au.mutation.CardNumberTail(); ok {
+		_spec.SetField(account.FieldCardNumberTail, field.TypeString, value)
+	}
+	if au.mutation.CardNumberTailCleared() {
+		_spec.ClearField(account.FieldCardNumberTail, field.TypeString)
+	}
+	if value, ok := au.mutation.Notes(); ok {
+		_spec.SetField(account.FieldNotes, field.TypeString, value)
+	}
+	if au.mutation.NotesCleared() {
+		_spec.ClearField(account.FieldNotes, field.TypeString)
+	}
+	if value, ok := au.mutation.OpeningDate(); ok {
+		_spec.SetField(account.FieldOpeningDate, field.TypeTime, value)
+	}
+	if au.mutation.OpeningDateCleared() {
+		_spec.ClearField(account.FieldOpeningDate, field.TypeTime)
+	}
+	if value, ok := au.mutation.InterestRate(); ok {
+		_spec.SetField(account.FieldInterestRate, field.TypeFloat64, value)
+	}
+	if value, ok := au.mutation.AddedInterestRate(); ok {
+		_spec.AddField(account.FieldInterestRate, field.TypeFloat64, value)
+	}
+	if au.mutation.InterestRateCleared() {
+		_spec.ClearField(account.FieldInterestRate, field.TypeFloat64)
+	}
+	if value, ok := au.mutation.CreditBillingDay(); ok {
+		_spec.SetField(account.FieldCreditBillingDay, field.TypeInt, value)
+	}
+	if value, ok := au.mutation.AddedCreditBillingDay(); ok {
+		_spec.AddField(account.FieldCreditBillingDay, field.TypeInt, value)
+	}
+	if au.mutation.CreditBillingDayCleared() {
+		_spec.ClearField(account.FieldCreditBillingDay, field.TypeInt)
+	}
+	if value, ok := au.mutation.CreditRepaymentDay(); ok {
+		_spec.SetField(account.FieldCreditRepaymentDay, field.TypeInt, value)
+	}
+	if value, ok := au.mutation.AddedCreditRepaymentDay(); ok {
+		_spec.AddField(account.FieldCreditRepaymentDay, field.TypeInt, value)
+	}
+	if au.mutation.CreditRepaymentDayCleared() {
+		_spec.ClearField(account.FieldCreditRepaymentDay, field.TypeInt)
+	}
+	if value, ok := au.mutation.CreditAnnualFeeCents(); ok {
+		_spec.SetField(account.FieldCreditAnnualFeeCents, field.TypeInt64, value)
+	}
+	if value, ok := au.mutation.AddedCreditAnnualFeeCents(); ok {
+		_spec.AddField(account.FieldCreditAnnualFeeCents, field.TypeInt64, value)
+	}
+	if au.mutation.CreditAnnualFeeCentsCleared() {
+		_spec.ClearField(account.FieldCreditAnnualFeeCents, field.TypeInt64)
+	}
+	if value, ok := au.mutation.InvestCostCents(); ok {
+		_spec.SetField(account.FieldInvestCostCents, field.TypeInt64, value)
+	}
+	if value, ok := au.mutation.AddedInvestCostCents(); ok {
+		_spec.AddField(account.FieldInvestCostCents, field.TypeInt64, value)
+	}
+	if au.mutation.InvestCostCentsCleared() {
+		_spec.ClearField(account.FieldInvestCostCents, field.TypeInt64)
+	}
+	if value, ok := au.mutation.InvestMarketValueCents(); ok {
+		_spec.SetField(account.FieldInvestMarketValueCents, field.TypeInt64, value)
+	}
+	if value, ok := au.mutation.AddedInvestMarketValueCents(); ok {
+		_spec.AddField(account.FieldInvestMarketValueCents, field.TypeInt64, value)
+	}
+	if au.mutation.InvestMarketValueCentsCleared() {
+		_spec.ClearField(account.FieldInvestMarketValueCents, field.TypeInt64)
+	}
+	if value, ok := au.mutation.InvestReturnYtd(); ok {
+		_spec.SetField(account.FieldInvestReturnYtd, field.TypeFloat64, value)
+	}
+	if value, ok := au.mutation.AddedInvestReturnYtd(); ok {
+		_spec.AddField(account.FieldInvestReturnYtd, field.TypeFloat64, value)
+	}
+	if au.mutation.InvestReturnYtdCleared() {
+		_spec.ClearField(account.FieldInvestReturnYtd, field.TypeFloat64)
+	}
+	if value, ok := au.mutation.FixedPrincipalCents(); ok {
+		_spec.SetField(account.FieldFixedPrincipalCents, field.TypeInt64, value)
+	}
+	if value, ok := au.mutation.AddedFixedPrincipalCents(); ok {
+		_spec.AddField(account.FieldFixedPrincipalCents, field.TypeInt64, value)
+	}
+	if au.mutation.FixedPrincipalCentsCleared() {
+		_spec.ClearField(account.FieldFixedPrincipalCents, field.TypeInt64)
+	}
+	if value, ok := au.mutation.FixedStartDate(); ok {
+		_spec.SetField(account.FieldFixedStartDate, field.TypeTime, value)
+	}
+	if au.mutation.FixedStartDateCleared() {
+		_spec.ClearField(account.FieldFixedStartDate, field.TypeTime)
+	}
+	if value, ok := au.mutation.FixedMaturityDate(); ok {
+		_spec.SetField(account.FieldFixedMaturityDate, field.TypeTime, value)
+	}
+	if au.mutation.FixedMaturityDateCleared() {
+		_spec.ClearField(account.FieldFixedMaturityDate, field.TypeTime)
+	}
+	if value, ok := au.mutation.FixedTermMonths(); ok {
+		_spec.SetField(account.FieldFixedTermMonths, field.TypeInt, value)
+	}
+	if value, ok := au.mutation.AddedFixedTermMonths(); ok {
+		_spec.AddField(account.FieldFixedTermMonths, field.TypeInt, value)
+	}
+	if au.mutation.FixedTermMonthsCleared() {
+		_spec.ClearField(account.FieldFixedTermMonths, field.TypeInt)
+	}
+	if value, ok := au.mutation.GoldProductType(); ok {
+		_spec.SetField(account.FieldGoldProductType, field.TypeString, value)
+	}
+	if au.mutation.GoldProductTypeCleared() {
+		_spec.ClearField(account.FieldGoldProductType, field.TypeString)
+	}
+	if value, ok := au.mutation.GoldQuantity(); ok {
+		_spec.SetField(account.FieldGoldQuantity, field.TypeFloat64, value)
+	}
+	if value, ok := au.mutation.AddedGoldQuantity(); ok {
+		_spec.AddField(account.FieldGoldQuantity, field.TypeFloat64, value)
+	}
+	if au.mutation.GoldQuantityCleared() {
+		_spec.ClearField(account.FieldGoldQuantity, field.TypeFloat64)
+	}
+	if value, ok := au.mutation.GoldBuyPriceCents(); ok {
+		_spec.SetField(account.FieldGoldBuyPriceCents, field.TypeInt64, value)
+	}
+	if value, ok := au.mutation.AddedGoldBuyPriceCents(); ok {
+		_spec.AddField(account.FieldGoldBuyPriceCents, field.TypeInt64, value)
+	}
+	if au.mutation.GoldBuyPriceCentsCleared() {
+		_spec.ClearField(account.FieldGoldBuyPriceCents, field.TypeInt64)
+	}
+	if value, ok := au.mutation.GoldCurrentPriceCents(); ok {
+		_spec.SetField(account.FieldGoldCurrentPriceCents, field.TypeInt64, value)
+	}
+	if value, ok := au.mutation.AddedGoldCurrentPriceCents(); ok {
+		_spec.AddField(account.FieldGoldCurrentPriceCents, field.TypeInt64, value)
+	}
+	if au.mutation.GoldCurrentPriceCentsCleared() {
+		_spec.ClearField(account.FieldGoldCurrentPriceCents, field.TypeInt64)
+	}
+	if value, ok := au.mutation.EstatePurchasePriceCents(); ok {
+		_spec.SetField(account.FieldEstatePurchasePriceCents, field.TypeInt64, value)
+	}
+	if value, ok := au.mutation.AddedEstatePurchasePriceCents(); ok {
+		_spec.AddField(account.FieldEstatePurchasePriceCents, field.TypeInt64, value)
+	}
+	if au.mutation.EstatePurchasePriceCentsCleared() {
+		_spec.ClearField(account.FieldEstatePurchasePriceCents, field.TypeInt64)
+	}
+	if value, ok := au.mutation.EstateCurrentValueCents(); ok {
+		_spec.SetField(account.FieldEstateCurrentValueCents, field.TypeInt64, value)
+	}
+	if value, ok := au.mutation.AddedEstateCurrentValueCents(); ok {
+		_spec.AddField(account.FieldEstateCurrentValueCents, field.TypeInt64, value)
+	}
+	if au.mutation.EstateCurrentValueCentsCleared() {
+		_spec.ClearField(account.FieldEstateCurrentValueCents, field.TypeInt64)
+	}
+	if value, ok := au.mutation.EstatePurchaseDate(); ok {
+		_spec.SetField(account.FieldEstatePurchaseDate, field.TypeTime, value)
+	}
+	if au.mutation.EstatePurchaseDateCleared() {
+		_spec.ClearField(account.FieldEstatePurchaseDate, field.TypeTime)
+	}
+	if value, ok := au.mutation.EstateDepreciationRate(); ok {
+		_spec.SetField(account.FieldEstateDepreciationRate, field.TypeFloat64, value)
+	}
+	if value, ok := au.mutation.AddedEstateDepreciationRate(); ok {
+		_spec.AddField(account.FieldEstateDepreciationRate, field.TypeFloat64, value)
+	}
+	if au.mutation.EstateDepreciationRateCleared() {
+		_spec.ClearField(account.FieldEstateDepreciationRate, field.TypeFloat64)
+	}
+	if value, ok := au.mutation.LoanOriginalCents(); ok {
+		_spec.SetField(account.FieldLoanOriginalCents, field.TypeInt64, value)
+	}
+	if value, ok := au.mutation.AddedLoanOriginalCents(); ok {
+		_spec.AddField(account.FieldLoanOriginalCents, field.TypeInt64, value)
+	}
+	if au.mutation.LoanOriginalCentsCleared() {
+		_spec.ClearField(account.FieldLoanOriginalCents, field.TypeInt64)
+	}
+	if value, ok := au.mutation.LoanRemainingCents(); ok {
+		_spec.SetField(account.FieldLoanRemainingCents, field.TypeInt64, value)
+	}
+	if value, ok := au.mutation.AddedLoanRemainingCents(); ok {
+		_spec.AddField(account.FieldLoanRemainingCents, field.TypeInt64, value)
+	}
+	if au.mutation.LoanRemainingCentsCleared() {
+		_spec.ClearField(account.FieldLoanRemainingCents, field.TypeInt64)
+	}
+	if value, ok := au.mutation.LoanMonthlyCents(); ok {
+		_spec.SetField(account.FieldLoanMonthlyCents, field.TypeInt64, value)
+	}
+	if value, ok := au.mutation.AddedLoanMonthlyCents(); ok {
+		_spec.AddField(account.FieldLoanMonthlyCents, field.TypeInt64, value)
+	}
+	if au.mutation.LoanMonthlyCentsCleared() {
+		_spec.ClearField(account.FieldLoanMonthlyCents, field.TypeInt64)
+	}
+	if value, ok := au.mutation.LoanNextPaymentDate(); ok {
+		_spec.SetField(account.FieldLoanNextPaymentDate, field.TypeTime, value)
+	}
+	if au.mutation.LoanNextPaymentDateCleared() {
+		_spec.ClearField(account.FieldLoanNextPaymentDate, field.TypeTime)
 	}
 	if value, ok := au.mutation.Status(); ok {
 		_spec.SetField(account.FieldStatus, field.TypeEnum, value)
@@ -740,6 +1596,652 @@ func (auo *AccountUpdateOne) AddCreditLimitCents(i int64) *AccountUpdateOne {
 	return auo
 }
 
+// SetCardNumberTail sets the "card_number_tail" field.
+func (auo *AccountUpdateOne) SetCardNumberTail(s string) *AccountUpdateOne {
+	auo.mutation.SetCardNumberTail(s)
+	return auo
+}
+
+// SetNillableCardNumberTail sets the "card_number_tail" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableCardNumberTail(s *string) *AccountUpdateOne {
+	if s != nil {
+		auo.SetCardNumberTail(*s)
+	}
+	return auo
+}
+
+// ClearCardNumberTail clears the value of the "card_number_tail" field.
+func (auo *AccountUpdateOne) ClearCardNumberTail() *AccountUpdateOne {
+	auo.mutation.ClearCardNumberTail()
+	return auo
+}
+
+// SetNotes sets the "notes" field.
+func (auo *AccountUpdateOne) SetNotes(s string) *AccountUpdateOne {
+	auo.mutation.SetNotes(s)
+	return auo
+}
+
+// SetNillableNotes sets the "notes" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableNotes(s *string) *AccountUpdateOne {
+	if s != nil {
+		auo.SetNotes(*s)
+	}
+	return auo
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (auo *AccountUpdateOne) ClearNotes() *AccountUpdateOne {
+	auo.mutation.ClearNotes()
+	return auo
+}
+
+// SetOpeningDate sets the "opening_date" field.
+func (auo *AccountUpdateOne) SetOpeningDate(t time.Time) *AccountUpdateOne {
+	auo.mutation.SetOpeningDate(t)
+	return auo
+}
+
+// SetNillableOpeningDate sets the "opening_date" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableOpeningDate(t *time.Time) *AccountUpdateOne {
+	if t != nil {
+		auo.SetOpeningDate(*t)
+	}
+	return auo
+}
+
+// ClearOpeningDate clears the value of the "opening_date" field.
+func (auo *AccountUpdateOne) ClearOpeningDate() *AccountUpdateOne {
+	auo.mutation.ClearOpeningDate()
+	return auo
+}
+
+// SetInterestRate sets the "interest_rate" field.
+func (auo *AccountUpdateOne) SetInterestRate(f float64) *AccountUpdateOne {
+	auo.mutation.ResetInterestRate()
+	auo.mutation.SetInterestRate(f)
+	return auo
+}
+
+// SetNillableInterestRate sets the "interest_rate" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableInterestRate(f *float64) *AccountUpdateOne {
+	if f != nil {
+		auo.SetInterestRate(*f)
+	}
+	return auo
+}
+
+// AddInterestRate adds f to the "interest_rate" field.
+func (auo *AccountUpdateOne) AddInterestRate(f float64) *AccountUpdateOne {
+	auo.mutation.AddInterestRate(f)
+	return auo
+}
+
+// ClearInterestRate clears the value of the "interest_rate" field.
+func (auo *AccountUpdateOne) ClearInterestRate() *AccountUpdateOne {
+	auo.mutation.ClearInterestRate()
+	return auo
+}
+
+// SetCreditBillingDay sets the "credit_billing_day" field.
+func (auo *AccountUpdateOne) SetCreditBillingDay(i int) *AccountUpdateOne {
+	auo.mutation.ResetCreditBillingDay()
+	auo.mutation.SetCreditBillingDay(i)
+	return auo
+}
+
+// SetNillableCreditBillingDay sets the "credit_billing_day" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableCreditBillingDay(i *int) *AccountUpdateOne {
+	if i != nil {
+		auo.SetCreditBillingDay(*i)
+	}
+	return auo
+}
+
+// AddCreditBillingDay adds i to the "credit_billing_day" field.
+func (auo *AccountUpdateOne) AddCreditBillingDay(i int) *AccountUpdateOne {
+	auo.mutation.AddCreditBillingDay(i)
+	return auo
+}
+
+// ClearCreditBillingDay clears the value of the "credit_billing_day" field.
+func (auo *AccountUpdateOne) ClearCreditBillingDay() *AccountUpdateOne {
+	auo.mutation.ClearCreditBillingDay()
+	return auo
+}
+
+// SetCreditRepaymentDay sets the "credit_repayment_day" field.
+func (auo *AccountUpdateOne) SetCreditRepaymentDay(i int) *AccountUpdateOne {
+	auo.mutation.ResetCreditRepaymentDay()
+	auo.mutation.SetCreditRepaymentDay(i)
+	return auo
+}
+
+// SetNillableCreditRepaymentDay sets the "credit_repayment_day" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableCreditRepaymentDay(i *int) *AccountUpdateOne {
+	if i != nil {
+		auo.SetCreditRepaymentDay(*i)
+	}
+	return auo
+}
+
+// AddCreditRepaymentDay adds i to the "credit_repayment_day" field.
+func (auo *AccountUpdateOne) AddCreditRepaymentDay(i int) *AccountUpdateOne {
+	auo.mutation.AddCreditRepaymentDay(i)
+	return auo
+}
+
+// ClearCreditRepaymentDay clears the value of the "credit_repayment_day" field.
+func (auo *AccountUpdateOne) ClearCreditRepaymentDay() *AccountUpdateOne {
+	auo.mutation.ClearCreditRepaymentDay()
+	return auo
+}
+
+// SetCreditAnnualFeeCents sets the "credit_annual_fee_cents" field.
+func (auo *AccountUpdateOne) SetCreditAnnualFeeCents(i int64) *AccountUpdateOne {
+	auo.mutation.ResetCreditAnnualFeeCents()
+	auo.mutation.SetCreditAnnualFeeCents(i)
+	return auo
+}
+
+// SetNillableCreditAnnualFeeCents sets the "credit_annual_fee_cents" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableCreditAnnualFeeCents(i *int64) *AccountUpdateOne {
+	if i != nil {
+		auo.SetCreditAnnualFeeCents(*i)
+	}
+	return auo
+}
+
+// AddCreditAnnualFeeCents adds i to the "credit_annual_fee_cents" field.
+func (auo *AccountUpdateOne) AddCreditAnnualFeeCents(i int64) *AccountUpdateOne {
+	auo.mutation.AddCreditAnnualFeeCents(i)
+	return auo
+}
+
+// ClearCreditAnnualFeeCents clears the value of the "credit_annual_fee_cents" field.
+func (auo *AccountUpdateOne) ClearCreditAnnualFeeCents() *AccountUpdateOne {
+	auo.mutation.ClearCreditAnnualFeeCents()
+	return auo
+}
+
+// SetInvestCostCents sets the "invest_cost_cents" field.
+func (auo *AccountUpdateOne) SetInvestCostCents(i int64) *AccountUpdateOne {
+	auo.mutation.ResetInvestCostCents()
+	auo.mutation.SetInvestCostCents(i)
+	return auo
+}
+
+// SetNillableInvestCostCents sets the "invest_cost_cents" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableInvestCostCents(i *int64) *AccountUpdateOne {
+	if i != nil {
+		auo.SetInvestCostCents(*i)
+	}
+	return auo
+}
+
+// AddInvestCostCents adds i to the "invest_cost_cents" field.
+func (auo *AccountUpdateOne) AddInvestCostCents(i int64) *AccountUpdateOne {
+	auo.mutation.AddInvestCostCents(i)
+	return auo
+}
+
+// ClearInvestCostCents clears the value of the "invest_cost_cents" field.
+func (auo *AccountUpdateOne) ClearInvestCostCents() *AccountUpdateOne {
+	auo.mutation.ClearInvestCostCents()
+	return auo
+}
+
+// SetInvestMarketValueCents sets the "invest_market_value_cents" field.
+func (auo *AccountUpdateOne) SetInvestMarketValueCents(i int64) *AccountUpdateOne {
+	auo.mutation.ResetInvestMarketValueCents()
+	auo.mutation.SetInvestMarketValueCents(i)
+	return auo
+}
+
+// SetNillableInvestMarketValueCents sets the "invest_market_value_cents" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableInvestMarketValueCents(i *int64) *AccountUpdateOne {
+	if i != nil {
+		auo.SetInvestMarketValueCents(*i)
+	}
+	return auo
+}
+
+// AddInvestMarketValueCents adds i to the "invest_market_value_cents" field.
+func (auo *AccountUpdateOne) AddInvestMarketValueCents(i int64) *AccountUpdateOne {
+	auo.mutation.AddInvestMarketValueCents(i)
+	return auo
+}
+
+// ClearInvestMarketValueCents clears the value of the "invest_market_value_cents" field.
+func (auo *AccountUpdateOne) ClearInvestMarketValueCents() *AccountUpdateOne {
+	auo.mutation.ClearInvestMarketValueCents()
+	return auo
+}
+
+// SetInvestReturnYtd sets the "invest_return_ytd" field.
+func (auo *AccountUpdateOne) SetInvestReturnYtd(f float64) *AccountUpdateOne {
+	auo.mutation.ResetInvestReturnYtd()
+	auo.mutation.SetInvestReturnYtd(f)
+	return auo
+}
+
+// SetNillableInvestReturnYtd sets the "invest_return_ytd" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableInvestReturnYtd(f *float64) *AccountUpdateOne {
+	if f != nil {
+		auo.SetInvestReturnYtd(*f)
+	}
+	return auo
+}
+
+// AddInvestReturnYtd adds f to the "invest_return_ytd" field.
+func (auo *AccountUpdateOne) AddInvestReturnYtd(f float64) *AccountUpdateOne {
+	auo.mutation.AddInvestReturnYtd(f)
+	return auo
+}
+
+// ClearInvestReturnYtd clears the value of the "invest_return_ytd" field.
+func (auo *AccountUpdateOne) ClearInvestReturnYtd() *AccountUpdateOne {
+	auo.mutation.ClearInvestReturnYtd()
+	return auo
+}
+
+// SetFixedPrincipalCents sets the "fixed_principal_cents" field.
+func (auo *AccountUpdateOne) SetFixedPrincipalCents(i int64) *AccountUpdateOne {
+	auo.mutation.ResetFixedPrincipalCents()
+	auo.mutation.SetFixedPrincipalCents(i)
+	return auo
+}
+
+// SetNillableFixedPrincipalCents sets the "fixed_principal_cents" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableFixedPrincipalCents(i *int64) *AccountUpdateOne {
+	if i != nil {
+		auo.SetFixedPrincipalCents(*i)
+	}
+	return auo
+}
+
+// AddFixedPrincipalCents adds i to the "fixed_principal_cents" field.
+func (auo *AccountUpdateOne) AddFixedPrincipalCents(i int64) *AccountUpdateOne {
+	auo.mutation.AddFixedPrincipalCents(i)
+	return auo
+}
+
+// ClearFixedPrincipalCents clears the value of the "fixed_principal_cents" field.
+func (auo *AccountUpdateOne) ClearFixedPrincipalCents() *AccountUpdateOne {
+	auo.mutation.ClearFixedPrincipalCents()
+	return auo
+}
+
+// SetFixedStartDate sets the "fixed_start_date" field.
+func (auo *AccountUpdateOne) SetFixedStartDate(t time.Time) *AccountUpdateOne {
+	auo.mutation.SetFixedStartDate(t)
+	return auo
+}
+
+// SetNillableFixedStartDate sets the "fixed_start_date" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableFixedStartDate(t *time.Time) *AccountUpdateOne {
+	if t != nil {
+		auo.SetFixedStartDate(*t)
+	}
+	return auo
+}
+
+// ClearFixedStartDate clears the value of the "fixed_start_date" field.
+func (auo *AccountUpdateOne) ClearFixedStartDate() *AccountUpdateOne {
+	auo.mutation.ClearFixedStartDate()
+	return auo
+}
+
+// SetFixedMaturityDate sets the "fixed_maturity_date" field.
+func (auo *AccountUpdateOne) SetFixedMaturityDate(t time.Time) *AccountUpdateOne {
+	auo.mutation.SetFixedMaturityDate(t)
+	return auo
+}
+
+// SetNillableFixedMaturityDate sets the "fixed_maturity_date" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableFixedMaturityDate(t *time.Time) *AccountUpdateOne {
+	if t != nil {
+		auo.SetFixedMaturityDate(*t)
+	}
+	return auo
+}
+
+// ClearFixedMaturityDate clears the value of the "fixed_maturity_date" field.
+func (auo *AccountUpdateOne) ClearFixedMaturityDate() *AccountUpdateOne {
+	auo.mutation.ClearFixedMaturityDate()
+	return auo
+}
+
+// SetFixedTermMonths sets the "fixed_term_months" field.
+func (auo *AccountUpdateOne) SetFixedTermMonths(i int) *AccountUpdateOne {
+	auo.mutation.ResetFixedTermMonths()
+	auo.mutation.SetFixedTermMonths(i)
+	return auo
+}
+
+// SetNillableFixedTermMonths sets the "fixed_term_months" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableFixedTermMonths(i *int) *AccountUpdateOne {
+	if i != nil {
+		auo.SetFixedTermMonths(*i)
+	}
+	return auo
+}
+
+// AddFixedTermMonths adds i to the "fixed_term_months" field.
+func (auo *AccountUpdateOne) AddFixedTermMonths(i int) *AccountUpdateOne {
+	auo.mutation.AddFixedTermMonths(i)
+	return auo
+}
+
+// ClearFixedTermMonths clears the value of the "fixed_term_months" field.
+func (auo *AccountUpdateOne) ClearFixedTermMonths() *AccountUpdateOne {
+	auo.mutation.ClearFixedTermMonths()
+	return auo
+}
+
+// SetGoldProductType sets the "gold_product_type" field.
+func (auo *AccountUpdateOne) SetGoldProductType(s string) *AccountUpdateOne {
+	auo.mutation.SetGoldProductType(s)
+	return auo
+}
+
+// SetNillableGoldProductType sets the "gold_product_type" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableGoldProductType(s *string) *AccountUpdateOne {
+	if s != nil {
+		auo.SetGoldProductType(*s)
+	}
+	return auo
+}
+
+// ClearGoldProductType clears the value of the "gold_product_type" field.
+func (auo *AccountUpdateOne) ClearGoldProductType() *AccountUpdateOne {
+	auo.mutation.ClearGoldProductType()
+	return auo
+}
+
+// SetGoldQuantity sets the "gold_quantity" field.
+func (auo *AccountUpdateOne) SetGoldQuantity(f float64) *AccountUpdateOne {
+	auo.mutation.ResetGoldQuantity()
+	auo.mutation.SetGoldQuantity(f)
+	return auo
+}
+
+// SetNillableGoldQuantity sets the "gold_quantity" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableGoldQuantity(f *float64) *AccountUpdateOne {
+	if f != nil {
+		auo.SetGoldQuantity(*f)
+	}
+	return auo
+}
+
+// AddGoldQuantity adds f to the "gold_quantity" field.
+func (auo *AccountUpdateOne) AddGoldQuantity(f float64) *AccountUpdateOne {
+	auo.mutation.AddGoldQuantity(f)
+	return auo
+}
+
+// ClearGoldQuantity clears the value of the "gold_quantity" field.
+func (auo *AccountUpdateOne) ClearGoldQuantity() *AccountUpdateOne {
+	auo.mutation.ClearGoldQuantity()
+	return auo
+}
+
+// SetGoldBuyPriceCents sets the "gold_buy_price_cents" field.
+func (auo *AccountUpdateOne) SetGoldBuyPriceCents(i int64) *AccountUpdateOne {
+	auo.mutation.ResetGoldBuyPriceCents()
+	auo.mutation.SetGoldBuyPriceCents(i)
+	return auo
+}
+
+// SetNillableGoldBuyPriceCents sets the "gold_buy_price_cents" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableGoldBuyPriceCents(i *int64) *AccountUpdateOne {
+	if i != nil {
+		auo.SetGoldBuyPriceCents(*i)
+	}
+	return auo
+}
+
+// AddGoldBuyPriceCents adds i to the "gold_buy_price_cents" field.
+func (auo *AccountUpdateOne) AddGoldBuyPriceCents(i int64) *AccountUpdateOne {
+	auo.mutation.AddGoldBuyPriceCents(i)
+	return auo
+}
+
+// ClearGoldBuyPriceCents clears the value of the "gold_buy_price_cents" field.
+func (auo *AccountUpdateOne) ClearGoldBuyPriceCents() *AccountUpdateOne {
+	auo.mutation.ClearGoldBuyPriceCents()
+	return auo
+}
+
+// SetGoldCurrentPriceCents sets the "gold_current_price_cents" field.
+func (auo *AccountUpdateOne) SetGoldCurrentPriceCents(i int64) *AccountUpdateOne {
+	auo.mutation.ResetGoldCurrentPriceCents()
+	auo.mutation.SetGoldCurrentPriceCents(i)
+	return auo
+}
+
+// SetNillableGoldCurrentPriceCents sets the "gold_current_price_cents" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableGoldCurrentPriceCents(i *int64) *AccountUpdateOne {
+	if i != nil {
+		auo.SetGoldCurrentPriceCents(*i)
+	}
+	return auo
+}
+
+// AddGoldCurrentPriceCents adds i to the "gold_current_price_cents" field.
+func (auo *AccountUpdateOne) AddGoldCurrentPriceCents(i int64) *AccountUpdateOne {
+	auo.mutation.AddGoldCurrentPriceCents(i)
+	return auo
+}
+
+// ClearGoldCurrentPriceCents clears the value of the "gold_current_price_cents" field.
+func (auo *AccountUpdateOne) ClearGoldCurrentPriceCents() *AccountUpdateOne {
+	auo.mutation.ClearGoldCurrentPriceCents()
+	return auo
+}
+
+// SetEstatePurchasePriceCents sets the "estate_purchase_price_cents" field.
+func (auo *AccountUpdateOne) SetEstatePurchasePriceCents(i int64) *AccountUpdateOne {
+	auo.mutation.ResetEstatePurchasePriceCents()
+	auo.mutation.SetEstatePurchasePriceCents(i)
+	return auo
+}
+
+// SetNillableEstatePurchasePriceCents sets the "estate_purchase_price_cents" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableEstatePurchasePriceCents(i *int64) *AccountUpdateOne {
+	if i != nil {
+		auo.SetEstatePurchasePriceCents(*i)
+	}
+	return auo
+}
+
+// AddEstatePurchasePriceCents adds i to the "estate_purchase_price_cents" field.
+func (auo *AccountUpdateOne) AddEstatePurchasePriceCents(i int64) *AccountUpdateOne {
+	auo.mutation.AddEstatePurchasePriceCents(i)
+	return auo
+}
+
+// ClearEstatePurchasePriceCents clears the value of the "estate_purchase_price_cents" field.
+func (auo *AccountUpdateOne) ClearEstatePurchasePriceCents() *AccountUpdateOne {
+	auo.mutation.ClearEstatePurchasePriceCents()
+	return auo
+}
+
+// SetEstateCurrentValueCents sets the "estate_current_value_cents" field.
+func (auo *AccountUpdateOne) SetEstateCurrentValueCents(i int64) *AccountUpdateOne {
+	auo.mutation.ResetEstateCurrentValueCents()
+	auo.mutation.SetEstateCurrentValueCents(i)
+	return auo
+}
+
+// SetNillableEstateCurrentValueCents sets the "estate_current_value_cents" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableEstateCurrentValueCents(i *int64) *AccountUpdateOne {
+	if i != nil {
+		auo.SetEstateCurrentValueCents(*i)
+	}
+	return auo
+}
+
+// AddEstateCurrentValueCents adds i to the "estate_current_value_cents" field.
+func (auo *AccountUpdateOne) AddEstateCurrentValueCents(i int64) *AccountUpdateOne {
+	auo.mutation.AddEstateCurrentValueCents(i)
+	return auo
+}
+
+// ClearEstateCurrentValueCents clears the value of the "estate_current_value_cents" field.
+func (auo *AccountUpdateOne) ClearEstateCurrentValueCents() *AccountUpdateOne {
+	auo.mutation.ClearEstateCurrentValueCents()
+	return auo
+}
+
+// SetEstatePurchaseDate sets the "estate_purchase_date" field.
+func (auo *AccountUpdateOne) SetEstatePurchaseDate(t time.Time) *AccountUpdateOne {
+	auo.mutation.SetEstatePurchaseDate(t)
+	return auo
+}
+
+// SetNillableEstatePurchaseDate sets the "estate_purchase_date" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableEstatePurchaseDate(t *time.Time) *AccountUpdateOne {
+	if t != nil {
+		auo.SetEstatePurchaseDate(*t)
+	}
+	return auo
+}
+
+// ClearEstatePurchaseDate clears the value of the "estate_purchase_date" field.
+func (auo *AccountUpdateOne) ClearEstatePurchaseDate() *AccountUpdateOne {
+	auo.mutation.ClearEstatePurchaseDate()
+	return auo
+}
+
+// SetEstateDepreciationRate sets the "estate_depreciation_rate" field.
+func (auo *AccountUpdateOne) SetEstateDepreciationRate(f float64) *AccountUpdateOne {
+	auo.mutation.ResetEstateDepreciationRate()
+	auo.mutation.SetEstateDepreciationRate(f)
+	return auo
+}
+
+// SetNillableEstateDepreciationRate sets the "estate_depreciation_rate" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableEstateDepreciationRate(f *float64) *AccountUpdateOne {
+	if f != nil {
+		auo.SetEstateDepreciationRate(*f)
+	}
+	return auo
+}
+
+// AddEstateDepreciationRate adds f to the "estate_depreciation_rate" field.
+func (auo *AccountUpdateOne) AddEstateDepreciationRate(f float64) *AccountUpdateOne {
+	auo.mutation.AddEstateDepreciationRate(f)
+	return auo
+}
+
+// ClearEstateDepreciationRate clears the value of the "estate_depreciation_rate" field.
+func (auo *AccountUpdateOne) ClearEstateDepreciationRate() *AccountUpdateOne {
+	auo.mutation.ClearEstateDepreciationRate()
+	return auo
+}
+
+// SetLoanOriginalCents sets the "loan_original_cents" field.
+func (auo *AccountUpdateOne) SetLoanOriginalCents(i int64) *AccountUpdateOne {
+	auo.mutation.ResetLoanOriginalCents()
+	auo.mutation.SetLoanOriginalCents(i)
+	return auo
+}
+
+// SetNillableLoanOriginalCents sets the "loan_original_cents" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableLoanOriginalCents(i *int64) *AccountUpdateOne {
+	if i != nil {
+		auo.SetLoanOriginalCents(*i)
+	}
+	return auo
+}
+
+// AddLoanOriginalCents adds i to the "loan_original_cents" field.
+func (auo *AccountUpdateOne) AddLoanOriginalCents(i int64) *AccountUpdateOne {
+	auo.mutation.AddLoanOriginalCents(i)
+	return auo
+}
+
+// ClearLoanOriginalCents clears the value of the "loan_original_cents" field.
+func (auo *AccountUpdateOne) ClearLoanOriginalCents() *AccountUpdateOne {
+	auo.mutation.ClearLoanOriginalCents()
+	return auo
+}
+
+// SetLoanRemainingCents sets the "loan_remaining_cents" field.
+func (auo *AccountUpdateOne) SetLoanRemainingCents(i int64) *AccountUpdateOne {
+	auo.mutation.ResetLoanRemainingCents()
+	auo.mutation.SetLoanRemainingCents(i)
+	return auo
+}
+
+// SetNillableLoanRemainingCents sets the "loan_remaining_cents" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableLoanRemainingCents(i *int64) *AccountUpdateOne {
+	if i != nil {
+		auo.SetLoanRemainingCents(*i)
+	}
+	return auo
+}
+
+// AddLoanRemainingCents adds i to the "loan_remaining_cents" field.
+func (auo *AccountUpdateOne) AddLoanRemainingCents(i int64) *AccountUpdateOne {
+	auo.mutation.AddLoanRemainingCents(i)
+	return auo
+}
+
+// ClearLoanRemainingCents clears the value of the "loan_remaining_cents" field.
+func (auo *AccountUpdateOne) ClearLoanRemainingCents() *AccountUpdateOne {
+	auo.mutation.ClearLoanRemainingCents()
+	return auo
+}
+
+// SetLoanMonthlyCents sets the "loan_monthly_cents" field.
+func (auo *AccountUpdateOne) SetLoanMonthlyCents(i int64) *AccountUpdateOne {
+	auo.mutation.ResetLoanMonthlyCents()
+	auo.mutation.SetLoanMonthlyCents(i)
+	return auo
+}
+
+// SetNillableLoanMonthlyCents sets the "loan_monthly_cents" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableLoanMonthlyCents(i *int64) *AccountUpdateOne {
+	if i != nil {
+		auo.SetLoanMonthlyCents(*i)
+	}
+	return auo
+}
+
+// AddLoanMonthlyCents adds i to the "loan_monthly_cents" field.
+func (auo *AccountUpdateOne) AddLoanMonthlyCents(i int64) *AccountUpdateOne {
+	auo.mutation.AddLoanMonthlyCents(i)
+	return auo
+}
+
+// ClearLoanMonthlyCents clears the value of the "loan_monthly_cents" field.
+func (auo *AccountUpdateOne) ClearLoanMonthlyCents() *AccountUpdateOne {
+	auo.mutation.ClearLoanMonthlyCents()
+	return auo
+}
+
+// SetLoanNextPaymentDate sets the "loan_next_payment_date" field.
+func (auo *AccountUpdateOne) SetLoanNextPaymentDate(t time.Time) *AccountUpdateOne {
+	auo.mutation.SetLoanNextPaymentDate(t)
+	return auo
+}
+
+// SetNillableLoanNextPaymentDate sets the "loan_next_payment_date" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableLoanNextPaymentDate(t *time.Time) *AccountUpdateOne {
+	if t != nil {
+		auo.SetLoanNextPaymentDate(*t)
+	}
+	return auo
+}
+
+// ClearLoanNextPaymentDate clears the value of the "loan_next_payment_date" field.
+func (auo *AccountUpdateOne) ClearLoanNextPaymentDate() *AccountUpdateOne {
+	auo.mutation.ClearLoanNextPaymentDate()
+	return auo
+}
+
 // SetStatus sets the "status" field.
 func (auo *AccountUpdateOne) SetStatus(a account.Status) *AccountUpdateOne {
 	auo.mutation.SetStatus(a)
@@ -976,6 +2478,216 @@ func (auo *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err e
 	}
 	if value, ok := auo.mutation.AddedCreditLimitCents(); ok {
 		_spec.AddField(account.FieldCreditLimitCents, field.TypeInt64, value)
+	}
+	if value, ok := auo.mutation.CardNumberTail(); ok {
+		_spec.SetField(account.FieldCardNumberTail, field.TypeString, value)
+	}
+	if auo.mutation.CardNumberTailCleared() {
+		_spec.ClearField(account.FieldCardNumberTail, field.TypeString)
+	}
+	if value, ok := auo.mutation.Notes(); ok {
+		_spec.SetField(account.FieldNotes, field.TypeString, value)
+	}
+	if auo.mutation.NotesCleared() {
+		_spec.ClearField(account.FieldNotes, field.TypeString)
+	}
+	if value, ok := auo.mutation.OpeningDate(); ok {
+		_spec.SetField(account.FieldOpeningDate, field.TypeTime, value)
+	}
+	if auo.mutation.OpeningDateCleared() {
+		_spec.ClearField(account.FieldOpeningDate, field.TypeTime)
+	}
+	if value, ok := auo.mutation.InterestRate(); ok {
+		_spec.SetField(account.FieldInterestRate, field.TypeFloat64, value)
+	}
+	if value, ok := auo.mutation.AddedInterestRate(); ok {
+		_spec.AddField(account.FieldInterestRate, field.TypeFloat64, value)
+	}
+	if auo.mutation.InterestRateCleared() {
+		_spec.ClearField(account.FieldInterestRate, field.TypeFloat64)
+	}
+	if value, ok := auo.mutation.CreditBillingDay(); ok {
+		_spec.SetField(account.FieldCreditBillingDay, field.TypeInt, value)
+	}
+	if value, ok := auo.mutation.AddedCreditBillingDay(); ok {
+		_spec.AddField(account.FieldCreditBillingDay, field.TypeInt, value)
+	}
+	if auo.mutation.CreditBillingDayCleared() {
+		_spec.ClearField(account.FieldCreditBillingDay, field.TypeInt)
+	}
+	if value, ok := auo.mutation.CreditRepaymentDay(); ok {
+		_spec.SetField(account.FieldCreditRepaymentDay, field.TypeInt, value)
+	}
+	if value, ok := auo.mutation.AddedCreditRepaymentDay(); ok {
+		_spec.AddField(account.FieldCreditRepaymentDay, field.TypeInt, value)
+	}
+	if auo.mutation.CreditRepaymentDayCleared() {
+		_spec.ClearField(account.FieldCreditRepaymentDay, field.TypeInt)
+	}
+	if value, ok := auo.mutation.CreditAnnualFeeCents(); ok {
+		_spec.SetField(account.FieldCreditAnnualFeeCents, field.TypeInt64, value)
+	}
+	if value, ok := auo.mutation.AddedCreditAnnualFeeCents(); ok {
+		_spec.AddField(account.FieldCreditAnnualFeeCents, field.TypeInt64, value)
+	}
+	if auo.mutation.CreditAnnualFeeCentsCleared() {
+		_spec.ClearField(account.FieldCreditAnnualFeeCents, field.TypeInt64)
+	}
+	if value, ok := auo.mutation.InvestCostCents(); ok {
+		_spec.SetField(account.FieldInvestCostCents, field.TypeInt64, value)
+	}
+	if value, ok := auo.mutation.AddedInvestCostCents(); ok {
+		_spec.AddField(account.FieldInvestCostCents, field.TypeInt64, value)
+	}
+	if auo.mutation.InvestCostCentsCleared() {
+		_spec.ClearField(account.FieldInvestCostCents, field.TypeInt64)
+	}
+	if value, ok := auo.mutation.InvestMarketValueCents(); ok {
+		_spec.SetField(account.FieldInvestMarketValueCents, field.TypeInt64, value)
+	}
+	if value, ok := auo.mutation.AddedInvestMarketValueCents(); ok {
+		_spec.AddField(account.FieldInvestMarketValueCents, field.TypeInt64, value)
+	}
+	if auo.mutation.InvestMarketValueCentsCleared() {
+		_spec.ClearField(account.FieldInvestMarketValueCents, field.TypeInt64)
+	}
+	if value, ok := auo.mutation.InvestReturnYtd(); ok {
+		_spec.SetField(account.FieldInvestReturnYtd, field.TypeFloat64, value)
+	}
+	if value, ok := auo.mutation.AddedInvestReturnYtd(); ok {
+		_spec.AddField(account.FieldInvestReturnYtd, field.TypeFloat64, value)
+	}
+	if auo.mutation.InvestReturnYtdCleared() {
+		_spec.ClearField(account.FieldInvestReturnYtd, field.TypeFloat64)
+	}
+	if value, ok := auo.mutation.FixedPrincipalCents(); ok {
+		_spec.SetField(account.FieldFixedPrincipalCents, field.TypeInt64, value)
+	}
+	if value, ok := auo.mutation.AddedFixedPrincipalCents(); ok {
+		_spec.AddField(account.FieldFixedPrincipalCents, field.TypeInt64, value)
+	}
+	if auo.mutation.FixedPrincipalCentsCleared() {
+		_spec.ClearField(account.FieldFixedPrincipalCents, field.TypeInt64)
+	}
+	if value, ok := auo.mutation.FixedStartDate(); ok {
+		_spec.SetField(account.FieldFixedStartDate, field.TypeTime, value)
+	}
+	if auo.mutation.FixedStartDateCleared() {
+		_spec.ClearField(account.FieldFixedStartDate, field.TypeTime)
+	}
+	if value, ok := auo.mutation.FixedMaturityDate(); ok {
+		_spec.SetField(account.FieldFixedMaturityDate, field.TypeTime, value)
+	}
+	if auo.mutation.FixedMaturityDateCleared() {
+		_spec.ClearField(account.FieldFixedMaturityDate, field.TypeTime)
+	}
+	if value, ok := auo.mutation.FixedTermMonths(); ok {
+		_spec.SetField(account.FieldFixedTermMonths, field.TypeInt, value)
+	}
+	if value, ok := auo.mutation.AddedFixedTermMonths(); ok {
+		_spec.AddField(account.FieldFixedTermMonths, field.TypeInt, value)
+	}
+	if auo.mutation.FixedTermMonthsCleared() {
+		_spec.ClearField(account.FieldFixedTermMonths, field.TypeInt)
+	}
+	if value, ok := auo.mutation.GoldProductType(); ok {
+		_spec.SetField(account.FieldGoldProductType, field.TypeString, value)
+	}
+	if auo.mutation.GoldProductTypeCleared() {
+		_spec.ClearField(account.FieldGoldProductType, field.TypeString)
+	}
+	if value, ok := auo.mutation.GoldQuantity(); ok {
+		_spec.SetField(account.FieldGoldQuantity, field.TypeFloat64, value)
+	}
+	if value, ok := auo.mutation.AddedGoldQuantity(); ok {
+		_spec.AddField(account.FieldGoldQuantity, field.TypeFloat64, value)
+	}
+	if auo.mutation.GoldQuantityCleared() {
+		_spec.ClearField(account.FieldGoldQuantity, field.TypeFloat64)
+	}
+	if value, ok := auo.mutation.GoldBuyPriceCents(); ok {
+		_spec.SetField(account.FieldGoldBuyPriceCents, field.TypeInt64, value)
+	}
+	if value, ok := auo.mutation.AddedGoldBuyPriceCents(); ok {
+		_spec.AddField(account.FieldGoldBuyPriceCents, field.TypeInt64, value)
+	}
+	if auo.mutation.GoldBuyPriceCentsCleared() {
+		_spec.ClearField(account.FieldGoldBuyPriceCents, field.TypeInt64)
+	}
+	if value, ok := auo.mutation.GoldCurrentPriceCents(); ok {
+		_spec.SetField(account.FieldGoldCurrentPriceCents, field.TypeInt64, value)
+	}
+	if value, ok := auo.mutation.AddedGoldCurrentPriceCents(); ok {
+		_spec.AddField(account.FieldGoldCurrentPriceCents, field.TypeInt64, value)
+	}
+	if auo.mutation.GoldCurrentPriceCentsCleared() {
+		_spec.ClearField(account.FieldGoldCurrentPriceCents, field.TypeInt64)
+	}
+	if value, ok := auo.mutation.EstatePurchasePriceCents(); ok {
+		_spec.SetField(account.FieldEstatePurchasePriceCents, field.TypeInt64, value)
+	}
+	if value, ok := auo.mutation.AddedEstatePurchasePriceCents(); ok {
+		_spec.AddField(account.FieldEstatePurchasePriceCents, field.TypeInt64, value)
+	}
+	if auo.mutation.EstatePurchasePriceCentsCleared() {
+		_spec.ClearField(account.FieldEstatePurchasePriceCents, field.TypeInt64)
+	}
+	if value, ok := auo.mutation.EstateCurrentValueCents(); ok {
+		_spec.SetField(account.FieldEstateCurrentValueCents, field.TypeInt64, value)
+	}
+	if value, ok := auo.mutation.AddedEstateCurrentValueCents(); ok {
+		_spec.AddField(account.FieldEstateCurrentValueCents, field.TypeInt64, value)
+	}
+	if auo.mutation.EstateCurrentValueCentsCleared() {
+		_spec.ClearField(account.FieldEstateCurrentValueCents, field.TypeInt64)
+	}
+	if value, ok := auo.mutation.EstatePurchaseDate(); ok {
+		_spec.SetField(account.FieldEstatePurchaseDate, field.TypeTime, value)
+	}
+	if auo.mutation.EstatePurchaseDateCleared() {
+		_spec.ClearField(account.FieldEstatePurchaseDate, field.TypeTime)
+	}
+	if value, ok := auo.mutation.EstateDepreciationRate(); ok {
+		_spec.SetField(account.FieldEstateDepreciationRate, field.TypeFloat64, value)
+	}
+	if value, ok := auo.mutation.AddedEstateDepreciationRate(); ok {
+		_spec.AddField(account.FieldEstateDepreciationRate, field.TypeFloat64, value)
+	}
+	if auo.mutation.EstateDepreciationRateCleared() {
+		_spec.ClearField(account.FieldEstateDepreciationRate, field.TypeFloat64)
+	}
+	if value, ok := auo.mutation.LoanOriginalCents(); ok {
+		_spec.SetField(account.FieldLoanOriginalCents, field.TypeInt64, value)
+	}
+	if value, ok := auo.mutation.AddedLoanOriginalCents(); ok {
+		_spec.AddField(account.FieldLoanOriginalCents, field.TypeInt64, value)
+	}
+	if auo.mutation.LoanOriginalCentsCleared() {
+		_spec.ClearField(account.FieldLoanOriginalCents, field.TypeInt64)
+	}
+	if value, ok := auo.mutation.LoanRemainingCents(); ok {
+		_spec.SetField(account.FieldLoanRemainingCents, field.TypeInt64, value)
+	}
+	if value, ok := auo.mutation.AddedLoanRemainingCents(); ok {
+		_spec.AddField(account.FieldLoanRemainingCents, field.TypeInt64, value)
+	}
+	if auo.mutation.LoanRemainingCentsCleared() {
+		_spec.ClearField(account.FieldLoanRemainingCents, field.TypeInt64)
+	}
+	if value, ok := auo.mutation.LoanMonthlyCents(); ok {
+		_spec.SetField(account.FieldLoanMonthlyCents, field.TypeInt64, value)
+	}
+	if value, ok := auo.mutation.AddedLoanMonthlyCents(); ok {
+		_spec.AddField(account.FieldLoanMonthlyCents, field.TypeInt64, value)
+	}
+	if auo.mutation.LoanMonthlyCentsCleared() {
+		_spec.ClearField(account.FieldLoanMonthlyCents, field.TypeInt64)
+	}
+	if value, ok := auo.mutation.LoanNextPaymentDate(); ok {
+		_spec.SetField(account.FieldLoanNextPaymentDate, field.TypeTime, value)
+	}
+	if auo.mutation.LoanNextPaymentDateCleared() {
+		_spec.ClearField(account.FieldLoanNextPaymentDate, field.TypeTime)
 	}
 	if value, ok := auo.mutation.Status(); ok {
 		_spec.SetField(account.FieldStatus, field.TypeEnum, value)
