@@ -68,6 +68,20 @@ func (s *Service) ListAccounts(ctx context.Context, req ListAccountsRequest) (*L
 	}, nil
 }
 
+// FindByAccountType returns all non-deleted accounts of a given type for the
+// tenant. Used by the transaction-form category dropdown (account-as-category).
+func (s *Service) FindByAccountType(ctx context.Context, tenantID uuid.UUID, accountType domain.AccountType) ([]AccountDTO, error) {
+	accounts, err := s.accountRepo.FindByAccountType(ctx, tenantID, accountType)
+	if err != nil {
+		return nil, fmt.Errorf("find accounts by type: %w", err)
+	}
+	dtos := make([]AccountDTO, len(accounts))
+	for i, a := range accounts {
+		dtos[i] = AccountToDTO(&a)
+	}
+	return dtos, nil
+}
+
 // UpdateAccount updates mutable account fields with optimistic locking.
 func (s *Service) UpdateAccount(ctx context.Context, req UpdateAccountRequest) (*AccountDTO, error) {
 	account, err := s.accountRepo.FindByID(ctx, req.TenantID, req.AccountID)

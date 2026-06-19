@@ -119,6 +119,8 @@ type AccountDTO struct {
 	Color                    string
 	ChartCode                string
 	ParentID                 *uuid.UUID
+	IsSystem                 bool
+	SortOrder                int
 	Institution              string
 	CreditLimitCents         int64
 	CardNumberTail           string
@@ -176,6 +178,8 @@ func AccountToDTO(a *domain.Account) AccountDTO {
 		Color:                    a.Color,
 		ChartCode:                a.ChartCode,
 		ParentID:                 a.ParentID,
+		IsSystem:                 a.IsSystem,
+		SortOrder:                a.SortOrder,
 		Institution:              a.Institution,
 		CreditLimitCents:         a.CreditLimitCents,
 		CardNumberTail:           a.CardNumberTail,

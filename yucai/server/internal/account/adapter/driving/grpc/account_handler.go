@@ -195,6 +195,29 @@ func (h *AccountHandler) ListAccounts(ctx context.Context, req *pb.ListAccountsR
 	}, nil
 }
 
+// FindByAccountType returns all non-deleted accounts of a given type for the
+// caller's tenant. Powers the transaction-form category dropdown.
+func (h *AccountHandler) FindByAccountType(ctx context.Context, req *pb.FindByAccountTypeRequest) (*pb.FindByAccountTypeResponse, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	if req.AccountType == pb.AccountType_ACCOUNT_TYPE_UNSPECIFIED {
+		return nil, status.Error(codes.InvalidArgument, "account_type is required")
+	}
+
+	accounts, err := h.service.FindByAccountType(ctx, tenantID, protoToAccountType(req.AccountType))
+	if err != nil {
+		return nil, mapError(err)
+	}
+
+	dtos := make([]*pb.AccountDTO, len(accounts))
+	for i, a := range accounts {
+		dtos[i] = dtoToProto(a)
+	}
+	return &pb.FindByAccountTypeResponse{Accounts: dtos}, nil
+}
+
 // UpdateAccount updates an existing account.
 func (h *AccountHandler) UpdateAccount(ctx context.Context, req *pb.UpdateAccountRequest) (*pb.AccountResponse, error) {
 	tenantID, err := getTenantID(ctx)
@@ -280,6 +303,8 @@ func dtoToProto(a application.AccountDTO) *pb.AccountDTO {
 		Icon:                a.Icon,
 		Color:               a.Color,
 		ChartCode:           a.ChartCode,
+		IsSystem:            a.IsSystem,
+		SortOrder:           int32(a.SortOrder),
 		Institution:         a.Institution,
 		CreditLimitCents:    a.CreditLimitCents,
 		CardNumberTail:           optStr(a.CardNumberTail),

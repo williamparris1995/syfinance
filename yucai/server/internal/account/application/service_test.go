@@ -61,6 +61,19 @@ func (m *mockAccountRepo) FindAll(_ context.Context, tenantID uuid.UUID, _ domai
 	return out, nil
 }
 
+func (m *mockAccountRepo) FindByAccountType(_ context.Context, tenantID uuid.UUID, accountType domain.AccountType) ([]domain.Account, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var out []domain.Account
+	for _, a := range m.byID {
+		if a.TenantID == tenantID && a.AccountType == accountType {
+			c := *a
+			out = append(out, c)
+		}
+	}
+	return out, nil
+}
+
 func (m *mockAccountRepo) Update(_ context.Context, account *domain.Account) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

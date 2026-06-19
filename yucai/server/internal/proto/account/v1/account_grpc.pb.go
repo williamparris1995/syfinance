@@ -20,11 +20,12 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AccountService_CreateAccount_FullMethodName = "/yucai.account.v1.AccountService/CreateAccount"
-	AccountService_GetAccount_FullMethodName    = "/yucai.account.v1.AccountService/GetAccount"
-	AccountService_ListAccounts_FullMethodName  = "/yucai.account.v1.AccountService/ListAccounts"
-	AccountService_UpdateAccount_FullMethodName = "/yucai.account.v1.AccountService/UpdateAccount"
-	AccountService_DeleteAccount_FullMethodName = "/yucai.account.v1.AccountService/DeleteAccount"
+	AccountService_CreateAccount_FullMethodName     = "/yucai.account.v1.AccountService/CreateAccount"
+	AccountService_GetAccount_FullMethodName        = "/yucai.account.v1.AccountService/GetAccount"
+	AccountService_ListAccounts_FullMethodName      = "/yucai.account.v1.AccountService/ListAccounts"
+	AccountService_UpdateAccount_FullMethodName     = "/yucai.account.v1.AccountService/UpdateAccount"
+	AccountService_DeleteAccount_FullMethodName     = "/yucai.account.v1.AccountService/DeleteAccount"
+	AccountService_FindByAccountType_FullMethodName = "/yucai.account.v1.AccountService/FindByAccountType"
 )
 
 // AccountServiceClient is the client API for AccountService service.
@@ -38,6 +39,11 @@ type AccountServiceClient interface {
 	ListAccounts(ctx context.Context, in *ListAccountsRequest, opts ...grpc.CallOption) (*ListAccountsResponse, error)
 	UpdateAccount(ctx context.Context, in *UpdateAccountRequest, opts ...grpc.CallOption) (*AccountResponse, error)
 	DeleteAccount(ctx context.Context, in *DeleteAccountRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// FindByAccountType returns all non-deleted accounts of a given type for the
+	// caller's tenant. Used by the transaction-form category dropdown
+	// (account-as-category): expense transactions list Expense accounts, income
+	// transactions list Income accounts.
+	FindByAccountType(ctx context.Context, in *FindByAccountTypeRequest, opts ...grpc.CallOption) (*FindByAccountTypeResponse, error)
 }
 
 type accountServiceClient struct {
@@ -98,6 +104,16 @@ func (c *accountServiceClient) DeleteAccount(ctx context.Context, in *DeleteAcco
 	return out, nil
 }
 
+func (c *accountServiceClient) FindByAccountType(ctx context.Context, in *FindByAccountTypeRequest, opts ...grpc.CallOption) (*FindByAccountTypeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FindByAccountTypeResponse)
+	err := c.cc.Invoke(ctx, AccountService_FindByAccountType_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AccountServiceServer is the server API for AccountService service.
 // All implementations must embed UnimplementedAccountServiceServer
 // for forward compatibility.
@@ -109,6 +125,11 @@ type AccountServiceServer interface {
 	ListAccounts(context.Context, *ListAccountsRequest) (*ListAccountsResponse, error)
 	UpdateAccount(context.Context, *UpdateAccountRequest) (*AccountResponse, error)
 	DeleteAccount(context.Context, *DeleteAccountRequest) (*emptypb.Empty, error)
+	// FindByAccountType returns all non-deleted accounts of a given type for the
+	// caller's tenant. Used by the transaction-form category dropdown
+	// (account-as-category): expense transactions list Expense accounts, income
+	// transactions list Income accounts.
+	FindByAccountType(context.Context, *FindByAccountTypeRequest) (*FindByAccountTypeResponse, error)
 	mustEmbedUnimplementedAccountServiceServer()
 }
 
@@ -133,6 +154,9 @@ func (UnimplementedAccountServiceServer) UpdateAccount(context.Context, *UpdateA
 }
 func (UnimplementedAccountServiceServer) DeleteAccount(context.Context, *DeleteAccountRequest) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteAccount not implemented")
+}
+func (UnimplementedAccountServiceServer) FindByAccountType(context.Context, *FindByAccountTypeRequest) (*FindByAccountTypeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method FindByAccountType not implemented")
 }
 func (UnimplementedAccountServiceServer) mustEmbedUnimplementedAccountServiceServer() {}
 func (UnimplementedAccountServiceServer) testEmbeddedByValue()                        {}
@@ -245,6 +269,24 @@ func _AccountService_DeleteAccount_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AccountService_FindByAccountType_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FindByAccountTypeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AccountServiceServer).FindByAccountType(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AccountService_FindByAccountType_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AccountServiceServer).FindByAccountType(ctx, req.(*FindByAccountTypeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AccountService_ServiceDesc is the grpc.ServiceDesc for AccountService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -271,6 +313,10 @@ var AccountService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteAccount",
 			Handler:    _AccountService_DeleteAccount_Handler,
+		},
+		{
+			MethodName: "FindByAccountType",
+			Handler:    _AccountService_FindByAccountType_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

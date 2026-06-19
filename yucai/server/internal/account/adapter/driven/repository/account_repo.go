@@ -153,6 +153,31 @@ func (r *AccountRepository) FindAll(ctx context.Context, tenantID uuid.UUID, fil
 	}, nil
 }
 
+// FindByAccountType returns all non-deleted accounts of a given type within a tenant,
+// ordered by sort_order then name for stable category-dropdown display.
+func (r *AccountRepository) FindByAccountType(ctx context.Context, tenantID uuid.UUID, accountType domain.AccountType) ([]domain.Account, error) {
+	results, err := r.client.Account.Query().
+		Where(
+			accountent.TenantID(tenantID),
+			accountent.AccountTypeEQ(accountent.AccountType(accountType.String())),
+			accountent.DeletedAtIsNil(),
+		).
+		Order(
+			ent.Asc(accountent.FieldSortOrder),
+			ent.Asc(accountent.FieldName),
+		).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("find accounts by type: %w", err)
+	}
+
+	accounts := make([]domain.Account, len(results))
+	for i, a := range results {
+		accounts[i] = *toDomainAccount(a)
+	}
+	return accounts, nil
+}
+
 // Update persists changes to an existing account (optimistic lock via version).
 func (r *AccountRepository) Update(ctx context.Context, a *domain.Account) error {
 	n, err := r.client.Account.UpdateOneID(a.ID).
@@ -230,6 +255,8 @@ func toDomainAccount(a *ent.Account) *domain.Account {
 		Ownership:                domain.ParseOwnership(string(a.Ownership)),
 		Icon:                     a.Icon,
 		Color:                    a.Color,
+		IsSystem:                 a.IsSystem,
+		SortOrder:                a.SortOrder,
 		ChartCode:                a.ChartCode,
 		Institution:              a.Institution,
 		CreditLimitCents:         a.CreditLimitCents,

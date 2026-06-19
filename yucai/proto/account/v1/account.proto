@@ -16,6 +16,11 @@ service AccountService {
   rpc ListAccounts(ListAccountsRequest) returns (ListAccountsResponse);
   rpc UpdateAccount(UpdateAccountRequest) returns (AccountResponse);
   rpc DeleteAccount(DeleteAccountRequest) returns (google.protobuf.Empty);
+  // FindByAccountType returns all non-deleted accounts of a given type for the
+  // caller's tenant. Used by the transaction-form category dropdown
+  // (account-as-category): expense transactions list Expense accounts, income
+  // transactions list Income accounts.
+  rpc FindByAccountType(FindByAccountTypeRequest) returns (FindByAccountTypeResponse);
 }
 
 enum AccountType {
@@ -97,6 +102,8 @@ message AccountDTO {
   optional int64 loan_remaining_cents = 42;
   optional int64 loan_monthly_cents = 43;
   google.protobuf.Timestamp loan_next_payment_date = 44;
+  bool is_system = 45;
+  int32 sort_order = 46;
 }
 
 message CreateAccountRequest {
@@ -199,4 +206,12 @@ message DeleteAccountRequest {
 
 message AccountResponse {
   AccountDTO account = 1;
+}
+
+message FindByAccountTypeRequest {
+  AccountType account_type = 1;
+}
+
+message FindByAccountTypeResponse {
+  repeated AccountDTO accounts = 1;
 }

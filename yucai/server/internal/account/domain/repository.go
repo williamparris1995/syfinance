@@ -46,6 +46,10 @@ type AccountRepository interface {
 	Save(ctx context.Context, account *Account) error
 	FindByID(ctx context.Context, tenantID, id uuid.UUID) (*Account, error)
 	FindAll(ctx context.Context, tenantID uuid.UUID, filter AccountFilter, page PageRequest) (*PaginatedResult[Account], error)
+	// FindByAccountType returns all non-deleted accounts of a given type within a tenant.
+	// Used for the transaction-form category dropdown (account-as-category): a category
+	// is an account whose AccountType is Expense (for an expense transaction) or Income.
+	FindByAccountType(ctx context.Context, tenantID uuid.UUID, accountType AccountType) ([]Account, error)
 	Update(ctx context.Context, account *Account) error
 	SoftDelete(ctx context.Context, tenantID, id uuid.UUID) error
 }
