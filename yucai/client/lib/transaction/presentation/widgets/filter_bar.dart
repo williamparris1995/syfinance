@@ -166,14 +166,17 @@ class TxnFilterBar extends StatelessWidget {
         decoration: _boxDecoration,
         child: Row(
           children: [
+            // 类型分段固定宽度（4 个胶囊，不伸缩）。
             typeSegment,
             const SizedBox(width: AppSpacing.md),
-            SizedBox(width: 160, child: accountPicker),
+            // 三个下拉用 flex 而非固定宽度，避免在窄容器里溢出（fixed
+            // SizedBox 宽度 + Spacer 在内容总宽超过容器时会 overflow）。
+            Expanded(flex: 2, child: accountPicker),
             const SizedBox(width: AppSpacing.sm),
-            SizedBox(width: 160, child: categoryPicker),
+            Expanded(flex: 2, child: categoryPicker),
             const SizedBox(width: AppSpacing.sm),
-            SizedBox(width: 140, child: monthPicker),
-            const Spacer(),
+            Expanded(flex: 2, child: monthPicker),
+            const SizedBox(width: AppSpacing.sm),
             resetBtn,
           ],
         ),

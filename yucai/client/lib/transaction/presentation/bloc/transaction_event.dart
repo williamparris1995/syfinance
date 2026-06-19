@@ -1,0 +1,35 @@
+import 'package:equatable/equatable.dart';
+
+import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
+
+/// Events for [TransactionBloc] (the list-page bloc; the form-page bloc is
+/// separate in `transaction_form_*`).
+///
+/// Lifecycle:
+///   - [LoadTransactionsRequested] — (re)fetch page 1 with a (possibly new)
+///     filter. Resets accumulated list + cursor.
+///   - [LoadMoreTransactionsRequested] — fetch the next page using the prior
+///     `nextPageToken` and append. No-op when there is no next page.
+///   - [RetryTransactionsRequested] — re-run the last requested filter.
+abstract class TransactionEvent extends Equatable {
+  const TransactionEvent();
+  @override
+  List<Object?> get props => [];
+}
+
+/// (Re)load the first page. [filter] defaults to "all" when omitted.
+class LoadTransactionsRequested extends TransactionEvent {
+  const LoadTransactionsRequested({this.filter = const TxnFilterState()});
+
+  final TxnFilterState filter;
+
+  @override
+  List<Object?> get props => [filter];
+}
+
+/// Fetch the next page and append to the current list. Ignored when the
+/// current state has no `nextPageToken`.
+class LoadMoreTransactionsRequested extends TransactionEvent {}
+
+/// Retry the last load (typically after a [TransactionsError]).
+class RetryTransactionsRequested extends TransactionEvent {}

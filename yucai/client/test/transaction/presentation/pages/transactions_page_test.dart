@@ -1,0 +1,173 @@
+// TDD three-size widget test for TransactionsPage.
+//
+// Asserts the御财 responsive breakpoints drive distinct layouts:
+//   - 390   → mobile  → card-stack rows (TxnRow mobile branch), SummaryCard grid
+//   - 1024  → tablet  → table rows (TxnRow table branch)
+//   - 1440  → desktop → table rows, SummaryCard single row
+//
+// Plus:
+//   - transactions are grouped by day, each group shows a date header
+//   - the FilterBar is rendered and selecting a type dispatches a reload
+//   - a "load more" control appears when the bloc signals hasMore
+//   - the "新增交易" entry (FAB / button) is present
+//
+// The bloc is wired via BlocProvider with a fake repo; no DI / no gRPC.
+import 'package:dartz/dartz.dart' as dartz;
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+
+import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
+import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
+import 'package:yucai_client/transaction/domain/value_objects.dart';
+import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
+import 'package:yucai_client/transaction/presentation/bloc/transaction_event.dart';
+import 'package:yucai_client/transaction/presentation/pages/transactions_page.dart';
+
+class _FakeTxnRepo extends Mock implements TransactionRepository {}
+
+Transaction _txn(String id, DateTime date, {int amount = 5000}) {
+  return Transaction(
+    id: id,
+    transactionDate: date,
+    description: '交易 $id',
+    entries: [
+      TransactionEntry(accountId: 'a1', debitCents: amount, creditCents: 0),
+      TransactionEntry(accountId: 'a2', debitCents: 0, creditCents: amount),
+    ],
+  );
+}
+
+Widget _harness({required Widget child, required Size size}) {
+  return MaterialApp(
+    home: MediaQuery(
+      data: MediaQueryData(size: size),
+      child: Scaffold(body: child),
+    ),
+  );
+}
+
+void main() {
+  late _FakeTxnRepo txnRepo;
+
+  setUp(() {
+    txnRepo = _FakeTxnRepo();
+    registerFallbackValue(ListTransactionsParams());
+    when(() => txnRepo.list(any())).thenAnswer((_) async => dartz.Right(
+        ListTransactionsResult(transactions: [
+          _txn('t1', DateTime(2026, 6, 19)),
+          _txn('t2', DateTime(2026, 6, 19)),
+          _txn('t3', DateTime(2026, 6, 18)),
+        ], nextPageToken: '')));
+  });
+
+  Future<void> pumpPage(WidgetTester tester, Size size) async {
+    await tester.pumpWidget(_harness(
+      size: size,
+      child: BlocProvider<TransactionBloc>(
+        create: (_) {
+          final b = TransactionBloc(txnRepo);
+          b.add(const LoadTransactionsRequested());
+          return b;
+        },
+        child: const TransactionsPage(),
+      ),
+    ));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets(
+      'mobile (390): renders card-stack rows (no table header), SummaryCard grid',
+      (tester) async {
+    await pumpPage(tester, const Size(390, 844));
+
+    // No table header column labels on mobile.
+    expect(find.text('日期'), findsNothing);
+    // Card-stack rows render each txn description.
+    expect(find.text('交易 t1'), findsOneWidget);
+    expect(find.text('交易 t2'), findsOneWidget);
+    // Summary placeholder cells present (four of them).
+    expect(find.text('本月收入'), findsOneWidget);
+    expect(find.text('本月支出'), findsOneWidget);
+  });
+
+  testWidgets(
+      'tablet (1024): renders table header + table rows',
+      (tester) async {
+    await pumpPage(tester, const Size(1024, 768));
+
+    expect(find.text('日期'), findsOneWidget);
+    expect(find.text('交易 t1'), findsOneWidget);
+  });
+
+  testWidgets(
+      'desktop (1440): renders table header + table rows + SummaryCard row',
+      (tester) async {
+    await pumpPage(tester, const Size(1440, 900));
+
+    expect(find.text('日期'), findsOneWidget);
+    expect(find.text('交易 t1'), findsOneWidget);
+  });
+
+  testWidgets('transactions are grouped by day with date headers',
+      (tester) async {
+    await pumpPage(tester, const Size(1440, 900));
+
+    // Two distinct day groups: 06-19 (t1, t2) and 06-18 (t3).
+    expect(find.text('06-19'), findsWidgets);
+    expect(find.text('06-18'), findsWidgets);
+  });
+
+  testWidgets('FilterBar type segment "支出" dispatches a reload',
+      (tester) async {
+    await pumpPage(tester, const Size(1440, 900));
+
+    // Tap the 支出 segment in the filter bar.
+    await tester.tap(find.text('支出').first);
+    await tester.pumpAndSettle();
+
+    // repo.list called at least twice (initial + reload).
+    verify(() => txnRepo.list(any())).called(greaterThanOrEqualTo(2));
+  });
+
+  testWidgets('"加载更多" appears when the bloc has a next page token',
+      (tester) async {
+    when(() => txnRepo.list(any())).thenAnswer((_) async => dartz.Right(
+        ListTransactionsResult(
+            transactions: [_txn('t1', DateTime(2026, 6, 19))],
+            nextPageToken: 'cursor1')));
+
+    await pumpPage(tester, const Size(1440, 900));
+    expect(find.text('加载更多'), findsOneWidget);
+
+    // Tapping it triggers a second list call with the cursor.
+    when(() => txnRepo.list(any())).thenAnswer((_) async => dartz.Right(
+        ListTransactionsResult(
+            transactions: [_txn('t2', DateTime(2026, 6, 19))],
+            nextPageToken: '')));
+    await tester.tap(find.text('加载更多'));
+    await tester.pumpAndSettle();
+    verify(() => txnRepo.list(any())).called(greaterThanOrEqualTo(2));
+  });
+
+  testWidgets('error state surfaces the message and a retry control',
+      (tester) async {
+    when(() => txnRepo.list(any())).thenAnswer(
+        (_) async => const dartz.Left(ServerFailure('加载失败')));
+
+    await pumpPage(tester, const Size(1440, 900));
+
+    expect(find.text('加载失败'), findsOneWidget);
+    expect(find.text('重试'), findsOneWidget);
+  });
+
+  testWidgets('empty state shows a "新增交易" entry', (tester) async {
+    when(() => txnRepo.list(any())).thenAnswer(
+        (_) async => const dartz.Right(ListTransactionsResult(transactions: [])));
+
+    await pumpPage(tester, const Size(1440, 900));
+    expect(find.textContaining('新增交易'), findsWidgets);
+  });
+}
