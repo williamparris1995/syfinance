@@ -1,0 +1,13 @@
+version: v2
+plugins:
+  # Dart proto + gRPC stubs via the locally-installed protoc_plugin (protoc-gen-dart).
+  # The remote buf.build/grpc/grpc-dart plugin was REMOVED from the Buf registry,
+  # so we invoke the local protoc_plugin snapshot directly. The `grpc` opt makes it
+  # emit BOTH the message classes (.pb/.pbenum/.pbjson) AND the gRPC client stubs
+  # (.pbgrpc.dart) in one pass — matching the official grpc package's regenerate.sh.
+  #
+  # Requires: dart pub global activate protoc_plugin
+  #           (creates .../global_packages/protoc_plugin/bin/protoc_plugin.dart-<sdk>.snapshot)
+  - local: ["dart", "C:\\Users\\andy\\AppData\\Local\\Pub\\Cache\\global_packages\\protoc_plugin\\bin\\protoc_plugin.dart-3.12.1.snapshot"]
+    out: ../client/lib/proto
+    opt: grpc
