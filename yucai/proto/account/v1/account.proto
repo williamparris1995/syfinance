@@ -21,6 +21,12 @@ service AccountService {
   // (account-as-category): expense transactions list Expense accounts, income
   // transactions list Income accounts.
   rpc FindByAccountType(FindByAccountTypeRequest) returns (FindByAccountTypeResponse);
+  // Category CRUD (account-as-category model: a category is an Account whose
+  // AccountType is Expense or Income). Powers the category-manager UI.
+  rpc CreateCategory(CreateCategoryRequest) returns (AccountResponse);
+  rpc UpdateCategory(UpdateCategoryRequest) returns (AccountResponse);
+  rpc DeleteCategory(DeleteCategoryRequest) returns (google.protobuf.Empty);
+  rpc ReorderCategories(ReorderCategoriesRequest) returns (google.protobuf.Empty);
 }
 
 enum AccountType {
@@ -214,4 +220,32 @@ message FindByAccountTypeRequest {
 
 message FindByAccountTypeResponse {
   repeated AccountDTO accounts = 1;
+}
+
+// --- Category CRUD messages (account-as-category) ---
+
+message CreateCategoryRequest {
+  string name = 1;
+  AccountType account_type = 2; // must be INCOME or EXPENSE
+  string icon = 3;
+  string color = 4;
+  string parent_id = 5; // optional sub-category parent (empty = top-level)
+}
+
+message UpdateCategoryRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string icon = 3;
+  optional string color = 4;
+  optional string parent_id = 5;
+  int64 version = 6; // optimistic lock
+}
+
+message ReorderCategoriesRequest {
+  AccountType account_type = 1;      // INCOME or EXPENSE
+  repeated string ordered_ids = 2;   // new sort order (1-indexed)
+}
+
+message DeleteCategoryRequest {
+  string id = 1;
 }

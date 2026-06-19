@@ -100,7 +100,7 @@ type mockChartRepo struct{}
 
 func newMockChartRepo() *mockChartRepo { return &mockChartRepo{} }
 
-func (mockChartRepo) Save(_ context.Context, _ *domain.ChartOfAccount) error             { return nil }
+func (mockChartRepo) Save(_ context.Context, _ *domain.ChartOfAccount) error { return nil }
 func (mockChartRepo) FindByCode(_ context.Context, _ uuid.UUID, _ string) (*domain.ChartOfAccount, error) {
 	return nil, fmt.Errorf("not found")
 }
@@ -127,6 +127,174 @@ func TestCreateAccountPersistsTypeSpecificFields(t *testing.T) {
 		t.Errorf("type-specific fields not persisted: %+v", dto)
 	}
 }
+
+func TestCreateCategory_CreatesExpenseCategoryAccount(t *testing.T) {
+	repo := newMockAccountRepo()
+	svc := NewService(repo, newMockChartRepo())
+	tenantID := uuid.New()
+
+	dto, err := svc.CreateCategory(context.Background(), CreateCategoryRequest{
+		TenantID:    tenantID,
+		Name:        "餐饮",
+		Icon:        "utensils",
+		Color:       "#FF6B6B",
+		AccountType: domain.AccountTypeExpense,
+	})
+	if err != nil {
+		t.Fatalf("create category: %v", err)
+	}
+	if dto.AccountType != domain.AccountTypeExpense {
+		t.Errorf("expected expense type, got %v", dto.AccountType)
+	}
+	if dto.IsSystem {
+		t.Errorf("user-created category must not be system")
+	}
+	if dto.Name != "餐饮" || dto.Icon != "utensils" || dto.Color != "#FF6B6B" {
+		t.Errorf("category fields not persisted: %+v", dto)
+	}
+}
+
+func TestCreateCategory_RejectsNonCategoryType(t *testing.T) {
+	repo := newMockAccountRepo()
+	svc := NewService(repo, newMockChartRepo())
+	_, err := svc.CreateCategory(context.Background(), CreateCategoryRequest{
+		TenantID:    uuid.New(),
+		Name:        "x",
+		AccountType: domain.AccountTypeAsset,
+	})
+	if err == nil {
+		t.Fatal("expected error creating category with asset type")
+	}
+}
+
+func TestDeleteCategory_RejectsSystemCategory(t *testing.T) {
+	repo := newMockAccountRepo()
+	svc := NewService(repo, newMockChartRepo())
+	tenantID := uuid.New()
+
+	// Seed a system category directly into the repo.
+	sys := mustNewAccount(t, tenantID, "餐饮", domain.AccountTypeExpense)
+	sys.IsSystem = true
+	_ = repo.Save(context.Background(), sys)
+
+	err := svc.DeleteCategory(context.Background(), tenantID, sys.ID)
+	if err == nil {
+		t.Fatal("expected error deleting system category")
+	}
+}
+
+func TestDeleteCategory_DeletesUserCategory(t *testing.T) {
+	repo := newMockAccountRepo()
+	svc := NewService(repo, newMockChartRepo())
+	tenantID := uuid.New()
+
+	dto, err := svc.CreateCategory(context.Background(), CreateCategoryRequest{
+		TenantID: tenantID, Name: "咖啡", AccountType: domain.AccountTypeExpense,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.DeleteCategory(context.Background(), tenantID, dto.ID); err != nil {
+		t.Fatalf("delete user category: %v", err)
+	}
+}
+
+func TestUpdateCategory_UpdatesNameIconColor(t *testing.T) {
+	repo := newMockAccountRepo()
+	svc := NewService(repo, newMockChartRepo())
+	tenantID := uuid.New()
+
+	created, err := svc.CreateCategory(context.Background(), CreateCategoryRequest{
+		TenantID: tenantID, Name: "old", AccountType: domain.AccountTypeIncome,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated, err := svc.UpdateCategory(context.Background(), UpdateCategoryRequest{
+		TenantID: tenantID, CategoryID: created.ID, Version: created.Version,
+		Name: ptr("new"), Icon: ptr("star"), Color: ptr("#abc"),
+	})
+	if err != nil {
+		t.Fatalf("update category: %v", err)
+	}
+	if updated.Name != "new" || updated.Icon != "star" || updated.Color != "#abc" {
+		t.Errorf("update not applied: %+v", updated)
+	}
+}
+
+func TestReorderCategories_UpdatesSortOrder(t *testing.T) {
+	repo := newMockAccountRepo()
+	svc := NewService(repo, newMockChartRepo())
+	tenantID := uuid.New()
+
+	a, _ := svc.CreateCategory(context.Background(), CreateCategoryRequest{TenantID: tenantID, Name: "a", AccountType: domain.AccountTypeExpense})
+	b, _ := svc.CreateCategory(context.Background(), CreateCategoryRequest{TenantID: tenantID, Name: "b", AccountType: domain.AccountTypeExpense})
+	c, _ := svc.CreateCategory(context.Background(), CreateCategoryRequest{TenantID: tenantID, Name: "c", AccountType: domain.AccountTypeExpense})
+
+	// Reverse order: c, b, a
+	if err := svc.ReorderCategories(context.Background(), ReorderCategoriesRequest{
+		TenantID: tenantID, AccountType: domain.AccountTypeExpense,
+		OrderedIDs: []uuid.UUID{c.ID, b.ID, a.ID},
+	}); err != nil {
+		t.Fatalf("reorder: %v", err)
+	}
+	got, _ := repo.FindByAccountType(context.Background(), tenantID, domain.AccountTypeExpense)
+	byID := map[uuid.UUID]int{}
+	for _, acc := range got {
+		byID[acc.ID] = acc.SortOrder
+	}
+	if byID[c.ID] != 1 || byID[b.ID] != 2 || byID[a.ID] != 3 {
+		t.Errorf("sort_order not applied (1,2,3 for c,b,a): %+v", byID)
+	}
+}
+
+func TestSeedPresetCategories_Creates10SystemCategories(t *testing.T) {
+	repo := newMockAccountRepo()
+	svc := NewService(repo, newMockChartRepo())
+	tenantID := uuid.New()
+
+	if err := svc.SeedPresetCategories(context.Background(), tenantID); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	expense, _ := repo.FindByAccountType(context.Background(), tenantID, domain.AccountTypeExpense)
+	income, _ := repo.FindByAccountType(context.Background(), tenantID, domain.AccountTypeIncome)
+	if len(expense) != 6 {
+		t.Errorf("expected 6 expense presets, got %d", len(expense))
+	}
+	if len(income) != 4 {
+		t.Errorf("expected 4 income presets, got %d", len(income))
+	}
+	for _, a := range append(append([]domain.Account{}, expense...), income...) {
+		if !a.IsSystem {
+			t.Errorf("preset category %s must be is_system=true", a.Name)
+		}
+	}
+}
+
+func TestSeedPresetCategories_Idempotent(t *testing.T) {
+	repo := newMockAccountRepo()
+	svc := NewService(repo, newMockChartRepo())
+	tenantID := uuid.New()
+
+	_ = svc.SeedPresetCategories(context.Background(), tenantID)
+	// Second seed should be a no-op (or at least not double-create).
+	_ = svc.SeedPresetCategories(context.Background(), tenantID)
+	expense, _ := repo.FindByAccountType(context.Background(), tenantID, domain.AccountTypeExpense)
+	if len(expense) != 6 {
+		t.Errorf("seed not idempotent: expected 6 expense, got %d", len(expense))
+	}
+}
+
+func mustNewAccount(t *testing.T, tenantID uuid.UUID, name string, at domain.AccountType) *domain.Account {
+	t.Helper()
+	a, err := domain.NewAccount(tenantID, name, at, "CNY")
+	if err != nil {
+		t.Fatalf("new account: %v", err)
+	}
+	return a
+}
+
+func ptr(s string) *string { return &s }
 
 func TestUpdateAccountClosesAccount(t *testing.T) {
 	repo := newMockAccountRepo()

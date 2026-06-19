@@ -4,12 +4,12 @@ import (
 	"context"
 	"time"
 
-	pb "github.com/yucai/server/internal/proto/account/v1"
-	commonpb "github.com/yucai/server/internal/proto/common/v1"
 	"github.com/google/uuid"
-	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
 	"github.com/yucai/server/internal/account/application"
 	"github.com/yucai/server/internal/account/domain"
+	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
+	pb "github.com/yucai/server/internal/proto/account/v1"
+	commonpb "github.com/yucai/server/internal/proto/common/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -86,18 +86,18 @@ func (h *AccountHandler) CreateAccount(ctx context.Context, req *pb.CreateAccoun
 	}
 
 	resp, err := h.service.CreateAccount(ctx, application.CreateAccountRequest{
-		TenantID:            tenantID,
-		Name:                req.Name,
-		AccountType:         protoToAccountType(req.AccountType),
-		Category:            protoToAccountCategory(req.Category),
-		CurrencyCode:        req.CurrencyCode,
-		InitialBalanceCents: req.InitialBalanceCents,
-		Ownership:           protoToOwnership(req.Ownership),
-		Icon:                req.Icon,
-		Color:               req.Color,
-		ChartCode:           req.ChartCode,
-		Institution:         req.Institution,
-		CreditLimitCents:    req.CreditLimitCents,
+		TenantID:                 tenantID,
+		Name:                     req.Name,
+		AccountType:              protoToAccountType(req.AccountType),
+		Category:                 protoToAccountCategory(req.Category),
+		CurrencyCode:             req.CurrencyCode,
+		InitialBalanceCents:      req.InitialBalanceCents,
+		Ownership:                protoToOwnership(req.Ownership),
+		Icon:                     req.Icon,
+		Color:                    req.Color,
+		ChartCode:                req.ChartCode,
+		Institution:              req.Institution,
+		CreditLimitCents:         req.CreditLimitCents,
 		CardNumberTail:           req.CardNumberTail,
 		Notes:                    req.Notes,
 		OpeningDate:              ts(req.OpeningDate),
@@ -230,14 +230,14 @@ func (h *AccountHandler) UpdateAccount(ctx context.Context, req *pb.UpdateAccoun
 	}
 
 	resp, err := h.service.UpdateAccount(ctx, application.UpdateAccountRequest{
-		TenantID:         tenantID,
-		AccountID:        accountID,
-		Name:             req.Name,
-		Icon:             req.Icon,
-		Color:            req.Color,
-		ChartCode:        req.ChartCode,
-		Institution:      req.Institution,
-		CreditLimitCents: req.CreditLimitCents,
+		TenantID:                 tenantID,
+		AccountID:                accountID,
+		Name:                     req.Name,
+		Icon:                     req.Icon,
+		Color:                    req.Color,
+		ChartCode:                req.ChartCode,
+		Institution:              req.Institution,
+		CreditLimitCents:         req.CreditLimitCents,
 		Status:                   statusPtr(req.Status),
 		CardNumberTail:           req.CardNumberTail,
 		Notes:                    req.Notes,
@@ -265,7 +265,7 @@ func (h *AccountHandler) UpdateAccount(ctx context.Context, req *pb.UpdateAccoun
 		LoanRemainingCents:       req.LoanRemainingCents,
 		LoanMonthlyCents:         req.LoanMonthlyCents,
 		LoanNextPaymentDate:      ts(req.LoanNextPaymentDate),
-		Version:          req.Version,
+		Version:                  req.Version,
 	})
 	if err != nil {
 		return nil, mapError(err)
@@ -290,23 +290,148 @@ func (h *AccountHandler) DeleteAccount(ctx context.Context, req *pb.DeleteAccoun
 	return &emptypb.Empty{}, nil
 }
 
+// --- Category CRUD handlers (account-as-category) ---
+
+// CreateCategory creates an Expense/Income category account.
+func (h *AccountHandler) CreateCategory(ctx context.Context, req *pb.CreateCategoryRequest) (*pb.AccountResponse, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	if req.Name == "" {
+		return nil, status.Error(codes.InvalidArgument, "name is required")
+	}
+	at := protoToAccountType(req.AccountType)
+	if at != domain.AccountTypeExpense && at != domain.AccountTypeIncome {
+		return nil, status.Error(codes.InvalidArgument, "account_type must be income or expense")
+	}
+
+	var parentID *uuid.UUID
+	if req.ParentId != "" {
+		pid, err := uuid.Parse(req.ParentId)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid parent_id")
+		}
+		parentID = &pid
+	}
+
+	resp, err := h.service.CreateCategory(ctx, application.CreateCategoryRequest{
+		TenantID:    tenantID,
+		Name:        req.Name,
+		Icon:        req.Icon,
+		Color:       req.Color,
+		AccountType: at,
+		ParentID:    parentID,
+	})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.AccountResponse{Account: dtoToProto(*resp)}, nil
+}
+
+// UpdateCategory edits a category's display fields. Empty optional strings are
+// treated as "unchanged" (proto3 optional collapses to value accessors here).
+func (h *AccountHandler) UpdateCategory(ctx context.Context, req *pb.UpdateCategoryRequest) (*pb.AccountResponse, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	categoryID, err := uuid.Parse(req.Id)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid category id")
+	}
+
+	var parentID *uuid.UUID
+	if req.ParentId != nil && *req.ParentId != "" {
+		pid, err := uuid.Parse(*req.ParentId)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid parent_id")
+		}
+		parentID = &pid
+	}
+
+	resp, err := h.service.UpdateCategory(ctx, application.UpdateCategoryRequest{
+		TenantID:   tenantID,
+		CategoryID: categoryID,
+		Name:       req.Name,
+		Icon:       req.Icon,
+		Color:      req.Color,
+		ParentID:   parentID,
+		Version:    req.Version,
+	})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.AccountResponse{Account: dtoToProto(*resp)}, nil
+}
+
+// DeleteCategory soft-deletes a category (system categories are rejected).
+func (h *AccountHandler) DeleteCategory(ctx context.Context, req *pb.DeleteCategoryRequest) (*emptypb.Empty, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	categoryID, err := uuid.Parse(req.Id)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid category id")
+	}
+	if err := h.service.DeleteCategory(ctx, tenantID, categoryID); err != nil {
+		return nil, mapError(err)
+	}
+	return &emptypb.Empty{}, nil
+}
+
+// ReorderCategories rewrites sort_order for the given category IDs within a
+// tenant + account-type group.
+func (h *AccountHandler) ReorderCategories(ctx context.Context, req *pb.ReorderCategoriesRequest) (*emptypb.Empty, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	at := protoToAccountType(req.AccountType)
+	if at != domain.AccountTypeExpense && at != domain.AccountTypeIncome {
+		return nil, status.Error(codes.InvalidArgument, "account_type must be income or expense")
+	}
+	if len(req.OrderedIds) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "ordered_ids must not be empty")
+	}
+
+	ordered := make([]uuid.UUID, 0, len(req.OrderedIds))
+	for _, s := range req.OrderedIds {
+		id, err := uuid.Parse(s)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid category id in ordered_ids")
+		}
+		ordered = append(ordered, id)
+	}
+
+	if err := h.service.ReorderCategories(ctx, application.ReorderCategoriesRequest{
+		TenantID:    tenantID,
+		AccountType: at,
+		OrderedIDs:  ordered,
+	}); err != nil {
+		return nil, mapError(err)
+	}
+	return &emptypb.Empty{}, nil
+}
+
 func dtoToProto(a application.AccountDTO) *pb.AccountDTO {
 	dto := &pb.AccountDTO{
-		Id:                  a.ID.String(),
-		Name:                a.Name,
-		AccountType:         accountTypeToProto(a.AccountType),
-		Category:            accountCategoryToProto(a.Category),
-		CurrencyCode:        a.CurrencyCode,
-		InitialBalanceCents: a.InitialBalanceCents,
-		CurrentBalanceCents: a.CurrentBalanceCents,
-		Ownership:           ownershipToProto(a.Ownership),
-		Icon:                a.Icon,
-		Color:               a.Color,
-		ChartCode:           a.ChartCode,
-		IsSystem:            a.IsSystem,
-		SortOrder:           int32(a.SortOrder),
-		Institution:         a.Institution,
-		CreditLimitCents:    a.CreditLimitCents,
+		Id:                       a.ID.String(),
+		Name:                     a.Name,
+		AccountType:              accountTypeToProto(a.AccountType),
+		Category:                 accountCategoryToProto(a.Category),
+		CurrencyCode:             a.CurrencyCode,
+		InitialBalanceCents:      a.InitialBalanceCents,
+		CurrentBalanceCents:      a.CurrentBalanceCents,
+		Ownership:                ownershipToProto(a.Ownership),
+		Icon:                     a.Icon,
+		Color:                    a.Color,
+		ChartCode:                a.ChartCode,
+		IsSystem:                 a.IsSystem,
+		SortOrder:                int32(a.SortOrder),
+		Institution:              a.Institution,
+		CreditLimitCents:         a.CreditLimitCents,
 		CardNumberTail:           optStr(a.CardNumberTail),
 		Notes:                    optStr(a.Notes),
 		OpeningDate:              optTs(a.OpeningDate),
@@ -333,10 +458,10 @@ func dtoToProto(a application.AccountDTO) *pb.AccountDTO {
 		LoanRemainingCents:       a.LoanRemainingCents,
 		LoanMonthlyCents:         a.LoanMonthlyCents,
 		LoanNextPaymentDate:      optTs(a.LoanNextPaymentDate),
-		Status:              accountStatusToProto(a.Status),
-		Version:             a.Version,
-		CreatedAt:           timestamppb.New(a.CreatedAt),
-		UpdatedAt:           timestamppb.New(a.UpdatedAt),
+		Status:                   accountStatusToProto(a.Status),
+		Version:                  a.Version,
+		CreatedAt:                timestamppb.New(a.CreatedAt),
+		UpdatedAt:                timestamppb.New(a.UpdatedAt),
 	}
 	if a.ParentID != nil {
 		dto.ParentId = a.ParentID.String()
@@ -462,11 +587,11 @@ func mapError(err error) error {
 	switch {
 	case contains(msg, "not found"):
 		return status.Error(codes.NotFound, msg)
-	case contains(msg, "must not be empty"), contains(msg, "invalid"):
+	case contains(msg, "must not be empty"), contains(msg, "invalid"), contains(msg, "not a category account"):
 		return status.Error(codes.InvalidArgument, msg)
 	case contains(msg, "optimistic lock"):
 		return status.Error(codes.Aborted, msg)
-	case contains(msg, "non-zero balance"):
+	case contains(msg, "non-zero balance"), contains(msg, "system category"):
 		return status.Error(codes.FailedPrecondition, msg)
 	default:
 		return status.Error(codes.Internal, msg)

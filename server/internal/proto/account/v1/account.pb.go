@@ -251,27 +251,55 @@ func (AccountCategory) EnumDescriptor() ([]byte, []int) {
 }
 
 type AccountDTO struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	Id                  string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name                string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	AccountType         AccountType            `protobuf:"varint,3,opt,name=account_type,json=accountType,proto3,enum=yucai.account.v1.AccountType" json:"account_type,omitempty"`
-	CurrencyCode        string                 `protobuf:"bytes,4,opt,name=currency_code,json=currencyCode,proto3" json:"currency_code,omitempty"`
-	InitialBalanceCents int64                  `protobuf:"varint,5,opt,name=initial_balance_cents,json=initialBalanceCents,proto3" json:"initial_balance_cents,omitempty"`
-	CurrentBalanceCents int64                  `protobuf:"varint,6,opt,name=current_balance_cents,json=currentBalanceCents,proto3" json:"current_balance_cents,omitempty"`
-	Ownership           Ownership              `protobuf:"varint,7,opt,name=ownership,proto3,enum=yucai.account.v1.Ownership" json:"ownership,omitempty"`
-	Icon                string                 `protobuf:"bytes,8,opt,name=icon,proto3" json:"icon,omitempty"`
-	Color               string                 `protobuf:"bytes,9,opt,name=color,proto3" json:"color,omitempty"`
-	ChartCode           string                 `protobuf:"bytes,10,opt,name=chart_code,json=chartCode,proto3" json:"chart_code,omitempty"`
-	ParentId            string                 `protobuf:"bytes,11,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"`
-	Institution         string                 `protobuf:"bytes,12,opt,name=institution,proto3" json:"institution,omitempty"`
-	CreditLimitCents    int64                  `protobuf:"varint,13,opt,name=credit_limit_cents,json=creditLimitCents,proto3" json:"credit_limit_cents,omitempty"`
-	Status              AccountStatus          `protobuf:"varint,14,opt,name=status,proto3,enum=yucai.account.v1.AccountStatus" json:"status,omitempty"`
-	Version             int64                  `protobuf:"varint,15,opt,name=version,proto3" json:"version,omitempty"`
-	CreatedAt           *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt           *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	Category            AccountCategory        `protobuf:"varint,18,opt,name=category,proto3,enum=yucai.account.v1.AccountCategory" json:"category,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	Id                       string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                     string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	AccountType              AccountType            `protobuf:"varint,3,opt,name=account_type,json=accountType,proto3,enum=yucai.account.v1.AccountType" json:"account_type,omitempty"`
+	CurrencyCode             string                 `protobuf:"bytes,4,opt,name=currency_code,json=currencyCode,proto3" json:"currency_code,omitempty"`
+	InitialBalanceCents      int64                  `protobuf:"varint,5,opt,name=initial_balance_cents,json=initialBalanceCents,proto3" json:"initial_balance_cents,omitempty"`
+	CurrentBalanceCents      int64                  `protobuf:"varint,6,opt,name=current_balance_cents,json=currentBalanceCents,proto3" json:"current_balance_cents,omitempty"`
+	Ownership                Ownership              `protobuf:"varint,7,opt,name=ownership,proto3,enum=yucai.account.v1.Ownership" json:"ownership,omitempty"`
+	Icon                     string                 `protobuf:"bytes,8,opt,name=icon,proto3" json:"icon,omitempty"`
+	Color                    string                 `protobuf:"bytes,9,opt,name=color,proto3" json:"color,omitempty"`
+	ChartCode                string                 `protobuf:"bytes,10,opt,name=chart_code,json=chartCode,proto3" json:"chart_code,omitempty"`
+	ParentId                 string                 `protobuf:"bytes,11,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"`
+	Institution              string                 `protobuf:"bytes,12,opt,name=institution,proto3" json:"institution,omitempty"`
+	CreditLimitCents         int64                  `protobuf:"varint,13,opt,name=credit_limit_cents,json=creditLimitCents,proto3" json:"credit_limit_cents,omitempty"`
+	Status                   AccountStatus          `protobuf:"varint,14,opt,name=status,proto3,enum=yucai.account.v1.AccountStatus" json:"status,omitempty"`
+	Version                  int64                  `protobuf:"varint,15,opt,name=version,proto3" json:"version,omitempty"`
+	CreatedAt                *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt                *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Category                 AccountCategory        `protobuf:"varint,18,opt,name=category,proto3,enum=yucai.account.v1.AccountCategory" json:"category,omitempty"`
+	CardNumberTail           *string                `protobuf:"bytes,19,opt,name=card_number_tail,json=cardNumberTail,proto3,oneof" json:"card_number_tail,omitempty"`
+	Notes                    *string                `protobuf:"bytes,20,opt,name=notes,proto3,oneof" json:"notes,omitempty"`
+	OpeningDate              *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=opening_date,json=openingDate,proto3" json:"opening_date,omitempty"`
+	InterestRate             *float64               `protobuf:"fixed64,22,opt,name=interest_rate,json=interestRate,proto3,oneof" json:"interest_rate,omitempty"`
+	CreditBillingDay         *int32                 `protobuf:"varint,23,opt,name=credit_billing_day,json=creditBillingDay,proto3,oneof" json:"credit_billing_day,omitempty"`
+	CreditRepaymentDay       *int32                 `protobuf:"varint,24,opt,name=credit_repayment_day,json=creditRepaymentDay,proto3,oneof" json:"credit_repayment_day,omitempty"`
+	CreditAnnualFeeCents     *int64                 `protobuf:"varint,25,opt,name=credit_annual_fee_cents,json=creditAnnualFeeCents,proto3,oneof" json:"credit_annual_fee_cents,omitempty"`
+	InvestCostCents          *int64                 `protobuf:"varint,26,opt,name=invest_cost_cents,json=investCostCents,proto3,oneof" json:"invest_cost_cents,omitempty"`
+	InvestMarketValueCents   *int64                 `protobuf:"varint,27,opt,name=invest_market_value_cents,json=investMarketValueCents,proto3,oneof" json:"invest_market_value_cents,omitempty"`
+	InvestReturnYtd          *float64               `protobuf:"fixed64,28,opt,name=invest_return_ytd,json=investReturnYtd,proto3,oneof" json:"invest_return_ytd,omitempty"`
+	FixedPrincipalCents      *int64                 `protobuf:"varint,29,opt,name=fixed_principal_cents,json=fixedPrincipalCents,proto3,oneof" json:"fixed_principal_cents,omitempty"`
+	FixedStartDate           *timestamppb.Timestamp `protobuf:"bytes,30,opt,name=fixed_start_date,json=fixedStartDate,proto3" json:"fixed_start_date,omitempty"`
+	FixedMaturityDate        *timestamppb.Timestamp `protobuf:"bytes,31,opt,name=fixed_maturity_date,json=fixedMaturityDate,proto3" json:"fixed_maturity_date,omitempty"`
+	FixedTermMonths          *int32                 `protobuf:"varint,32,opt,name=fixed_term_months,json=fixedTermMonths,proto3,oneof" json:"fixed_term_months,omitempty"`
+	GoldProductType          *string                `protobuf:"bytes,33,opt,name=gold_product_type,json=goldProductType,proto3,oneof" json:"gold_product_type,omitempty"`
+	GoldQuantity             *float64               `protobuf:"fixed64,34,opt,name=gold_quantity,json=goldQuantity,proto3,oneof" json:"gold_quantity,omitempty"`
+	GoldBuyPriceCents        *int64                 `protobuf:"varint,35,opt,name=gold_buy_price_cents,json=goldBuyPriceCents,proto3,oneof" json:"gold_buy_price_cents,omitempty"`
+	GoldCurrentPriceCents    *int64                 `protobuf:"varint,36,opt,name=gold_current_price_cents,json=goldCurrentPriceCents,proto3,oneof" json:"gold_current_price_cents,omitempty"`
+	EstatePurchasePriceCents *int64                 `protobuf:"varint,37,opt,name=estate_purchase_price_cents,json=estatePurchasePriceCents,proto3,oneof" json:"estate_purchase_price_cents,omitempty"`
+	EstateCurrentValueCents  *int64                 `protobuf:"varint,38,opt,name=estate_current_value_cents,json=estateCurrentValueCents,proto3,oneof" json:"estate_current_value_cents,omitempty"`
+	EstatePurchaseDate       *timestamppb.Timestamp `protobuf:"bytes,39,opt,name=estate_purchase_date,json=estatePurchaseDate,proto3" json:"estate_purchase_date,omitempty"`
+	EstateDepreciationRate   *float64               `protobuf:"fixed64,40,opt,name=estate_depreciation_rate,json=estateDepreciationRate,proto3,oneof" json:"estate_depreciation_rate,omitempty"`
+	LoanOriginalCents        *int64                 `protobuf:"varint,41,opt,name=loan_original_cents,json=loanOriginalCents,proto3,oneof" json:"loan_original_cents,omitempty"`
+	LoanRemainingCents       *int64                 `protobuf:"varint,42,opt,name=loan_remaining_cents,json=loanRemainingCents,proto3,oneof" json:"loan_remaining_cents,omitempty"`
+	LoanMonthlyCents         *int64                 `protobuf:"varint,43,opt,name=loan_monthly_cents,json=loanMonthlyCents,proto3,oneof" json:"loan_monthly_cents,omitempty"`
+	LoanNextPaymentDate      *timestamppb.Timestamp `protobuf:"bytes,44,opt,name=loan_next_payment_date,json=loanNextPaymentDate,proto3" json:"loan_next_payment_date,omitempty"`
+	IsSystem                 bool                   `protobuf:"varint,45,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
+	SortOrder                int32                  `protobuf:"varint,46,opt,name=sort_order,json=sortOrder,proto3" json:"sort_order,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *AccountDTO) Reset() {
@@ -430,22 +458,244 @@ func (x *AccountDTO) GetCategory() AccountCategory {
 	return AccountCategory_ACCOUNT_CATEGORY_UNSPECIFIED
 }
 
+func (x *AccountDTO) GetCardNumberTail() string {
+	if x != nil && x.CardNumberTail != nil {
+		return *x.CardNumberTail
+	}
+	return ""
+}
+
+func (x *AccountDTO) GetNotes() string {
+	if x != nil && x.Notes != nil {
+		return *x.Notes
+	}
+	return ""
+}
+
+func (x *AccountDTO) GetOpeningDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.OpeningDate
+	}
+	return nil
+}
+
+func (x *AccountDTO) GetInterestRate() float64 {
+	if x != nil && x.InterestRate != nil {
+		return *x.InterestRate
+	}
+	return 0
+}
+
+func (x *AccountDTO) GetCreditBillingDay() int32 {
+	if x != nil && x.CreditBillingDay != nil {
+		return *x.CreditBillingDay
+	}
+	return 0
+}
+
+func (x *AccountDTO) GetCreditRepaymentDay() int32 {
+	if x != nil && x.CreditRepaymentDay != nil {
+		return *x.CreditRepaymentDay
+	}
+	return 0
+}
+
+func (x *AccountDTO) GetCreditAnnualFeeCents() int64 {
+	if x != nil && x.CreditAnnualFeeCents != nil {
+		return *x.CreditAnnualFeeCents
+	}
+	return 0
+}
+
+func (x *AccountDTO) GetInvestCostCents() int64 {
+	if x != nil && x.InvestCostCents != nil {
+		return *x.InvestCostCents
+	}
+	return 0
+}
+
+func (x *AccountDTO) GetInvestMarketValueCents() int64 {
+	if x != nil && x.InvestMarketValueCents != nil {
+		return *x.InvestMarketValueCents
+	}
+	return 0
+}
+
+func (x *AccountDTO) GetInvestReturnYtd() float64 {
+	if x != nil && x.InvestReturnYtd != nil {
+		return *x.InvestReturnYtd
+	}
+	return 0
+}
+
+func (x *AccountDTO) GetFixedPrincipalCents() int64 {
+	if x != nil && x.FixedPrincipalCents != nil {
+		return *x.FixedPrincipalCents
+	}
+	return 0
+}
+
+func (x *AccountDTO) GetFixedStartDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FixedStartDate
+	}
+	return nil
+}
+
+func (x *AccountDTO) GetFixedMaturityDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FixedMaturityDate
+	}
+	return nil
+}
+
+func (x *AccountDTO) GetFixedTermMonths() int32 {
+	if x != nil && x.FixedTermMonths != nil {
+		return *x.FixedTermMonths
+	}
+	return 0
+}
+
+func (x *AccountDTO) GetGoldProductType() string {
+	if x != nil && x.GoldProductType != nil {
+		return *x.GoldProductType
+	}
+	return ""
+}
+
+func (x *AccountDTO) GetGoldQuantity() float64 {
+	if x != nil && x.GoldQuantity != nil {
+		return *x.GoldQuantity
+	}
+	return 0
+}
+
+func (x *AccountDTO) GetGoldBuyPriceCents() int64 {
+	if x != nil && x.GoldBuyPriceCents != nil {
+		return *x.GoldBuyPriceCents
+	}
+	return 0
+}
+
+func (x *AccountDTO) GetGoldCurrentPriceCents() int64 {
+	if x != nil && x.GoldCurrentPriceCents != nil {
+		return *x.GoldCurrentPriceCents
+	}
+	return 0
+}
+
+func (x *AccountDTO) GetEstatePurchasePriceCents() int64 {
+	if x != nil && x.EstatePurchasePriceCents != nil {
+		return *x.EstatePurchasePriceCents
+	}
+	return 0
+}
+
+func (x *AccountDTO) GetEstateCurrentValueCents() int64 {
+	if x != nil && x.EstateCurrentValueCents != nil {
+		return *x.EstateCurrentValueCents
+	}
+	return 0
+}
+
+func (x *AccountDTO) GetEstatePurchaseDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EstatePurchaseDate
+	}
+	return nil
+}
+
+func (x *AccountDTO) GetEstateDepreciationRate() float64 {
+	if x != nil && x.EstateDepreciationRate != nil {
+		return *x.EstateDepreciationRate
+	}
+	return 0
+}
+
+func (x *AccountDTO) GetLoanOriginalCents() int64 {
+	if x != nil && x.LoanOriginalCents != nil {
+		return *x.LoanOriginalCents
+	}
+	return 0
+}
+
+func (x *AccountDTO) GetLoanRemainingCents() int64 {
+	if x != nil && x.LoanRemainingCents != nil {
+		return *x.LoanRemainingCents
+	}
+	return 0
+}
+
+func (x *AccountDTO) GetLoanMonthlyCents() int64 {
+	if x != nil && x.LoanMonthlyCents != nil {
+		return *x.LoanMonthlyCents
+	}
+	return 0
+}
+
+func (x *AccountDTO) GetLoanNextPaymentDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LoanNextPaymentDate
+	}
+	return nil
+}
+
+func (x *AccountDTO) GetIsSystem() bool {
+	if x != nil {
+		return x.IsSystem
+	}
+	return false
+}
+
+func (x *AccountDTO) GetSortOrder() int32 {
+	if x != nil {
+		return x.SortOrder
+	}
+	return 0
+}
+
 type CreateAccountRequest struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	Name                string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	AccountType         AccountType            `protobuf:"varint,2,opt,name=account_type,json=accountType,proto3,enum=yucai.account.v1.AccountType" json:"account_type,omitempty"`
-	CurrencyCode        string                 `protobuf:"bytes,3,opt,name=currency_code,json=currencyCode,proto3" json:"currency_code,omitempty"`
-	InitialBalanceCents int64                  `protobuf:"varint,4,opt,name=initial_balance_cents,json=initialBalanceCents,proto3" json:"initial_balance_cents,omitempty"`
-	Ownership           Ownership              `protobuf:"varint,5,opt,name=ownership,proto3,enum=yucai.account.v1.Ownership" json:"ownership,omitempty"`
-	Icon                string                 `protobuf:"bytes,6,opt,name=icon,proto3" json:"icon,omitempty"`
-	Color               string                 `protobuf:"bytes,7,opt,name=color,proto3" json:"color,omitempty"`
-	ChartCode           string                 `protobuf:"bytes,8,opt,name=chart_code,json=chartCode,proto3" json:"chart_code,omitempty"`
-	ParentId            string                 `protobuf:"bytes,9,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"`
-	Institution         string                 `protobuf:"bytes,10,opt,name=institution,proto3" json:"institution,omitempty"`
-	CreditLimitCents    int64                  `protobuf:"varint,11,opt,name=credit_limit_cents,json=creditLimitCents,proto3" json:"credit_limit_cents,omitempty"`
-	Category            AccountCategory        `protobuf:"varint,12,opt,name=category,proto3,enum=yucai.account.v1.AccountCategory" json:"category,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	Name                     string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	AccountType              AccountType            `protobuf:"varint,2,opt,name=account_type,json=accountType,proto3,enum=yucai.account.v1.AccountType" json:"account_type,omitempty"`
+	CurrencyCode             string                 `protobuf:"bytes,3,opt,name=currency_code,json=currencyCode,proto3" json:"currency_code,omitempty"`
+	InitialBalanceCents      int64                  `protobuf:"varint,4,opt,name=initial_balance_cents,json=initialBalanceCents,proto3" json:"initial_balance_cents,omitempty"`
+	Ownership                Ownership              `protobuf:"varint,5,opt,name=ownership,proto3,enum=yucai.account.v1.Ownership" json:"ownership,omitempty"`
+	Icon                     string                 `protobuf:"bytes,6,opt,name=icon,proto3" json:"icon,omitempty"`
+	Color                    string                 `protobuf:"bytes,7,opt,name=color,proto3" json:"color,omitempty"`
+	ChartCode                string                 `protobuf:"bytes,8,opt,name=chart_code,json=chartCode,proto3" json:"chart_code,omitempty"`
+	ParentId                 string                 `protobuf:"bytes,9,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"`
+	Institution              string                 `protobuf:"bytes,10,opt,name=institution,proto3" json:"institution,omitempty"`
+	CreditLimitCents         int64                  `protobuf:"varint,11,opt,name=credit_limit_cents,json=creditLimitCents,proto3" json:"credit_limit_cents,omitempty"`
+	Category                 AccountCategory        `protobuf:"varint,12,opt,name=category,proto3,enum=yucai.account.v1.AccountCategory" json:"category,omitempty"`
+	CardNumberTail           *string                `protobuf:"bytes,13,opt,name=card_number_tail,json=cardNumberTail,proto3,oneof" json:"card_number_tail,omitempty"`
+	Notes                    *string                `protobuf:"bytes,14,opt,name=notes,proto3,oneof" json:"notes,omitempty"`
+	OpeningDate              *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=opening_date,json=openingDate,proto3" json:"opening_date,omitempty"`
+	InterestRate             *float64               `protobuf:"fixed64,16,opt,name=interest_rate,json=interestRate,proto3,oneof" json:"interest_rate,omitempty"`
+	CreditBillingDay         *int32                 `protobuf:"varint,17,opt,name=credit_billing_day,json=creditBillingDay,proto3,oneof" json:"credit_billing_day,omitempty"`
+	CreditRepaymentDay       *int32                 `protobuf:"varint,18,opt,name=credit_repayment_day,json=creditRepaymentDay,proto3,oneof" json:"credit_repayment_day,omitempty"`
+	CreditAnnualFeeCents     *int64                 `protobuf:"varint,19,opt,name=credit_annual_fee_cents,json=creditAnnualFeeCents,proto3,oneof" json:"credit_annual_fee_cents,omitempty"`
+	InvestCostCents          *int64                 `protobuf:"varint,20,opt,name=invest_cost_cents,json=investCostCents,proto3,oneof" json:"invest_cost_cents,omitempty"`
+	InvestMarketValueCents   *int64                 `protobuf:"varint,21,opt,name=invest_market_value_cents,json=investMarketValueCents,proto3,oneof" json:"invest_market_value_cents,omitempty"`
+	InvestReturnYtd          *float64               `protobuf:"fixed64,22,opt,name=invest_return_ytd,json=investReturnYtd,proto3,oneof" json:"invest_return_ytd,omitempty"`
+	FixedPrincipalCents      *int64                 `protobuf:"varint,23,opt,name=fixed_principal_cents,json=fixedPrincipalCents,proto3,oneof" json:"fixed_principal_cents,omitempty"`
+	FixedStartDate           *timestamppb.Timestamp `protobuf:"bytes,24,opt,name=fixed_start_date,json=fixedStartDate,proto3" json:"fixed_start_date,omitempty"`
+	FixedMaturityDate        *timestamppb.Timestamp `protobuf:"bytes,25,opt,name=fixed_maturity_date,json=fixedMaturityDate,proto3" json:"fixed_maturity_date,omitempty"`
+	FixedTermMonths          *int32                 `protobuf:"varint,26,opt,name=fixed_term_months,json=fixedTermMonths,proto3,oneof" json:"fixed_term_months,omitempty"`
+	GoldProductType          *string                `protobuf:"bytes,27,opt,name=gold_product_type,json=goldProductType,proto3,oneof" json:"gold_product_type,omitempty"`
+	GoldQuantity             *float64               `protobuf:"fixed64,28,opt,name=gold_quantity,json=goldQuantity,proto3,oneof" json:"gold_quantity,omitempty"`
+	GoldBuyPriceCents        *int64                 `protobuf:"varint,29,opt,name=gold_buy_price_cents,json=goldBuyPriceCents,proto3,oneof" json:"gold_buy_price_cents,omitempty"`
+	GoldCurrentPriceCents    *int64                 `protobuf:"varint,30,opt,name=gold_current_price_cents,json=goldCurrentPriceCents,proto3,oneof" json:"gold_current_price_cents,omitempty"`
+	EstatePurchasePriceCents *int64                 `protobuf:"varint,31,opt,name=estate_purchase_price_cents,json=estatePurchasePriceCents,proto3,oneof" json:"estate_purchase_price_cents,omitempty"`
+	EstateCurrentValueCents  *int64                 `protobuf:"varint,32,opt,name=estate_current_value_cents,json=estateCurrentValueCents,proto3,oneof" json:"estate_current_value_cents,omitempty"`
+	EstatePurchaseDate       *timestamppb.Timestamp `protobuf:"bytes,33,opt,name=estate_purchase_date,json=estatePurchaseDate,proto3" json:"estate_purchase_date,omitempty"`
+	EstateDepreciationRate   *float64               `protobuf:"fixed64,34,opt,name=estate_depreciation_rate,json=estateDepreciationRate,proto3,oneof" json:"estate_depreciation_rate,omitempty"`
+	LoanOriginalCents        *int64                 `protobuf:"varint,35,opt,name=loan_original_cents,json=loanOriginalCents,proto3,oneof" json:"loan_original_cents,omitempty"`
+	LoanRemainingCents       *int64                 `protobuf:"varint,36,opt,name=loan_remaining_cents,json=loanRemainingCents,proto3,oneof" json:"loan_remaining_cents,omitempty"`
+	LoanMonthlyCents         *int64                 `protobuf:"varint,37,opt,name=loan_monthly_cents,json=loanMonthlyCents,proto3,oneof" json:"loan_monthly_cents,omitempty"`
+	LoanNextPaymentDate      *timestamppb.Timestamp `protobuf:"bytes,38,opt,name=loan_next_payment_date,json=loanNextPaymentDate,proto3" json:"loan_next_payment_date,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *CreateAccountRequest) Reset() {
@@ -560,6 +810,188 @@ func (x *CreateAccountRequest) GetCategory() AccountCategory {
 		return x.Category
 	}
 	return AccountCategory_ACCOUNT_CATEGORY_UNSPECIFIED
+}
+
+func (x *CreateAccountRequest) GetCardNumberTail() string {
+	if x != nil && x.CardNumberTail != nil {
+		return *x.CardNumberTail
+	}
+	return ""
+}
+
+func (x *CreateAccountRequest) GetNotes() string {
+	if x != nil && x.Notes != nil {
+		return *x.Notes
+	}
+	return ""
+}
+
+func (x *CreateAccountRequest) GetOpeningDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.OpeningDate
+	}
+	return nil
+}
+
+func (x *CreateAccountRequest) GetInterestRate() float64 {
+	if x != nil && x.InterestRate != nil {
+		return *x.InterestRate
+	}
+	return 0
+}
+
+func (x *CreateAccountRequest) GetCreditBillingDay() int32 {
+	if x != nil && x.CreditBillingDay != nil {
+		return *x.CreditBillingDay
+	}
+	return 0
+}
+
+func (x *CreateAccountRequest) GetCreditRepaymentDay() int32 {
+	if x != nil && x.CreditRepaymentDay != nil {
+		return *x.CreditRepaymentDay
+	}
+	return 0
+}
+
+func (x *CreateAccountRequest) GetCreditAnnualFeeCents() int64 {
+	if x != nil && x.CreditAnnualFeeCents != nil {
+		return *x.CreditAnnualFeeCents
+	}
+	return 0
+}
+
+func (x *CreateAccountRequest) GetInvestCostCents() int64 {
+	if x != nil && x.InvestCostCents != nil {
+		return *x.InvestCostCents
+	}
+	return 0
+}
+
+func (x *CreateAccountRequest) GetInvestMarketValueCents() int64 {
+	if x != nil && x.InvestMarketValueCents != nil {
+		return *x.InvestMarketValueCents
+	}
+	return 0
+}
+
+func (x *CreateAccountRequest) GetInvestReturnYtd() float64 {
+	if x != nil && x.InvestReturnYtd != nil {
+		return *x.InvestReturnYtd
+	}
+	return 0
+}
+
+func (x *CreateAccountRequest) GetFixedPrincipalCents() int64 {
+	if x != nil && x.FixedPrincipalCents != nil {
+		return *x.FixedPrincipalCents
+	}
+	return 0
+}
+
+func (x *CreateAccountRequest) GetFixedStartDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FixedStartDate
+	}
+	return nil
+}
+
+func (x *CreateAccountRequest) GetFixedMaturityDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FixedMaturityDate
+	}
+	return nil
+}
+
+func (x *CreateAccountRequest) GetFixedTermMonths() int32 {
+	if x != nil && x.FixedTermMonths != nil {
+		return *x.FixedTermMonths
+	}
+	return 0
+}
+
+func (x *CreateAccountRequest) GetGoldProductType() string {
+	if x != nil && x.GoldProductType != nil {
+		return *x.GoldProductType
+	}
+	return ""
+}
+
+func (x *CreateAccountRequest) GetGoldQuantity() float64 {
+	if x != nil && x.GoldQuantity != nil {
+		return *x.GoldQuantity
+	}
+	return 0
+}
+
+func (x *CreateAccountRequest) GetGoldBuyPriceCents() int64 {
+	if x != nil && x.GoldBuyPriceCents != nil {
+		return *x.GoldBuyPriceCents
+	}
+	return 0
+}
+
+func (x *CreateAccountRequest) GetGoldCurrentPriceCents() int64 {
+	if x != nil && x.GoldCurrentPriceCents != nil {
+		return *x.GoldCurrentPriceCents
+	}
+	return 0
+}
+
+func (x *CreateAccountRequest) GetEstatePurchasePriceCents() int64 {
+	if x != nil && x.EstatePurchasePriceCents != nil {
+		return *x.EstatePurchasePriceCents
+	}
+	return 0
+}
+
+func (x *CreateAccountRequest) GetEstateCurrentValueCents() int64 {
+	if x != nil && x.EstateCurrentValueCents != nil {
+		return *x.EstateCurrentValueCents
+	}
+	return 0
+}
+
+func (x *CreateAccountRequest) GetEstatePurchaseDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EstatePurchaseDate
+	}
+	return nil
+}
+
+func (x *CreateAccountRequest) GetEstateDepreciationRate() float64 {
+	if x != nil && x.EstateDepreciationRate != nil {
+		return *x.EstateDepreciationRate
+	}
+	return 0
+}
+
+func (x *CreateAccountRequest) GetLoanOriginalCents() int64 {
+	if x != nil && x.LoanOriginalCents != nil {
+		return *x.LoanOriginalCents
+	}
+	return 0
+}
+
+func (x *CreateAccountRequest) GetLoanRemainingCents() int64 {
+	if x != nil && x.LoanRemainingCents != nil {
+		return *x.LoanRemainingCents
+	}
+	return 0
+}
+
+func (x *CreateAccountRequest) GetLoanMonthlyCents() int64 {
+	if x != nil && x.LoanMonthlyCents != nil {
+		return *x.LoanMonthlyCents
+	}
+	return 0
+}
+
+func (x *CreateAccountRequest) GetLoanNextPaymentDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LoanNextPaymentDate
+	}
+	return nil
 }
 
 type GetAccountRequest struct {
@@ -719,17 +1151,44 @@ func (x *ListAccountsResponse) GetPage() *v1.PageResponse {
 }
 
 type UpdateAccountRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name             string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Icon             string                 `protobuf:"bytes,3,opt,name=icon,proto3" json:"icon,omitempty"`
-	Color            string                 `protobuf:"bytes,4,opt,name=color,proto3" json:"color,omitempty"`
-	ChartCode        string                 `protobuf:"bytes,5,opt,name=chart_code,json=chartCode,proto3" json:"chart_code,omitempty"`
-	Institution      string                 `protobuf:"bytes,6,opt,name=institution,proto3" json:"institution,omitempty"`
-	CreditLimitCents int64                  `protobuf:"varint,7,opt,name=credit_limit_cents,json=creditLimitCents,proto3" json:"credit_limit_cents,omitempty"`
-	Version          int64                  `protobuf:"varint,8,opt,name=version,proto3" json:"version,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	Id                       string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                     string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Icon                     string                 `protobuf:"bytes,3,opt,name=icon,proto3" json:"icon,omitempty"`
+	Color                    string                 `protobuf:"bytes,4,opt,name=color,proto3" json:"color,omitempty"`
+	ChartCode                string                 `protobuf:"bytes,5,opt,name=chart_code,json=chartCode,proto3" json:"chart_code,omitempty"`
+	Institution              string                 `protobuf:"bytes,6,opt,name=institution,proto3" json:"institution,omitempty"`
+	CreditLimitCents         int64                  `protobuf:"varint,7,opt,name=credit_limit_cents,json=creditLimitCents,proto3" json:"credit_limit_cents,omitempty"`
+	Version                  int64                  `protobuf:"varint,8,opt,name=version,proto3" json:"version,omitempty"`
+	Status                   *AccountStatus         `protobuf:"varint,9,opt,name=status,proto3,enum=yucai.account.v1.AccountStatus,oneof" json:"status,omitempty"`
+	CardNumberTail           *string                `protobuf:"bytes,10,opt,name=card_number_tail,json=cardNumberTail,proto3,oneof" json:"card_number_tail,omitempty"`
+	Notes                    *string                `protobuf:"bytes,11,opt,name=notes,proto3,oneof" json:"notes,omitempty"`
+	OpeningDate              *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=opening_date,json=openingDate,proto3" json:"opening_date,omitempty"`
+	InterestRate             *float64               `protobuf:"fixed64,13,opt,name=interest_rate,json=interestRate,proto3,oneof" json:"interest_rate,omitempty"`
+	CreditBillingDay         *int32                 `protobuf:"varint,14,opt,name=credit_billing_day,json=creditBillingDay,proto3,oneof" json:"credit_billing_day,omitempty"`
+	CreditRepaymentDay       *int32                 `protobuf:"varint,15,opt,name=credit_repayment_day,json=creditRepaymentDay,proto3,oneof" json:"credit_repayment_day,omitempty"`
+	CreditAnnualFeeCents     *int64                 `protobuf:"varint,16,opt,name=credit_annual_fee_cents,json=creditAnnualFeeCents,proto3,oneof" json:"credit_annual_fee_cents,omitempty"`
+	InvestCostCents          *int64                 `protobuf:"varint,17,opt,name=invest_cost_cents,json=investCostCents,proto3,oneof" json:"invest_cost_cents,omitempty"`
+	InvestMarketValueCents   *int64                 `protobuf:"varint,18,opt,name=invest_market_value_cents,json=investMarketValueCents,proto3,oneof" json:"invest_market_value_cents,omitempty"`
+	InvestReturnYtd          *float64               `protobuf:"fixed64,19,opt,name=invest_return_ytd,json=investReturnYtd,proto3,oneof" json:"invest_return_ytd,omitempty"`
+	FixedPrincipalCents      *int64                 `protobuf:"varint,20,opt,name=fixed_principal_cents,json=fixedPrincipalCents,proto3,oneof" json:"fixed_principal_cents,omitempty"`
+	FixedStartDate           *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=fixed_start_date,json=fixedStartDate,proto3" json:"fixed_start_date,omitempty"`
+	FixedMaturityDate        *timestamppb.Timestamp `protobuf:"bytes,22,opt,name=fixed_maturity_date,json=fixedMaturityDate,proto3" json:"fixed_maturity_date,omitempty"`
+	FixedTermMonths          *int32                 `protobuf:"varint,23,opt,name=fixed_term_months,json=fixedTermMonths,proto3,oneof" json:"fixed_term_months,omitempty"`
+	GoldProductType          *string                `protobuf:"bytes,24,opt,name=gold_product_type,json=goldProductType,proto3,oneof" json:"gold_product_type,omitempty"`
+	GoldQuantity             *float64               `protobuf:"fixed64,25,opt,name=gold_quantity,json=goldQuantity,proto3,oneof" json:"gold_quantity,omitempty"`
+	GoldBuyPriceCents        *int64                 `protobuf:"varint,26,opt,name=gold_buy_price_cents,json=goldBuyPriceCents,proto3,oneof" json:"gold_buy_price_cents,omitempty"`
+	GoldCurrentPriceCents    *int64                 `protobuf:"varint,27,opt,name=gold_current_price_cents,json=goldCurrentPriceCents,proto3,oneof" json:"gold_current_price_cents,omitempty"`
+	EstatePurchasePriceCents *int64                 `protobuf:"varint,28,opt,name=estate_purchase_price_cents,json=estatePurchasePriceCents,proto3,oneof" json:"estate_purchase_price_cents,omitempty"`
+	EstateCurrentValueCents  *int64                 `protobuf:"varint,29,opt,name=estate_current_value_cents,json=estateCurrentValueCents,proto3,oneof" json:"estate_current_value_cents,omitempty"`
+	EstatePurchaseDate       *timestamppb.Timestamp `protobuf:"bytes,30,opt,name=estate_purchase_date,json=estatePurchaseDate,proto3" json:"estate_purchase_date,omitempty"`
+	EstateDepreciationRate   *float64               `protobuf:"fixed64,31,opt,name=estate_depreciation_rate,json=estateDepreciationRate,proto3,oneof" json:"estate_depreciation_rate,omitempty"`
+	LoanOriginalCents        *int64                 `protobuf:"varint,32,opt,name=loan_original_cents,json=loanOriginalCents,proto3,oneof" json:"loan_original_cents,omitempty"`
+	LoanRemainingCents       *int64                 `protobuf:"varint,33,opt,name=loan_remaining_cents,json=loanRemainingCents,proto3,oneof" json:"loan_remaining_cents,omitempty"`
+	LoanMonthlyCents         *int64                 `protobuf:"varint,34,opt,name=loan_monthly_cents,json=loanMonthlyCents,proto3,oneof" json:"loan_monthly_cents,omitempty"`
+	LoanNextPaymentDate      *timestamppb.Timestamp `protobuf:"bytes,35,opt,name=loan_next_payment_date,json=loanNextPaymentDate,proto3" json:"loan_next_payment_date,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *UpdateAccountRequest) Reset() {
@@ -816,6 +1275,195 @@ func (x *UpdateAccountRequest) GetVersion() int64 {
 		return x.Version
 	}
 	return 0
+}
+
+func (x *UpdateAccountRequest) GetStatus() AccountStatus {
+	if x != nil && x.Status != nil {
+		return *x.Status
+	}
+	return AccountStatus_ACCOUNT_STATUS_UNSPECIFIED
+}
+
+func (x *UpdateAccountRequest) GetCardNumberTail() string {
+	if x != nil && x.CardNumberTail != nil {
+		return *x.CardNumberTail
+	}
+	return ""
+}
+
+func (x *UpdateAccountRequest) GetNotes() string {
+	if x != nil && x.Notes != nil {
+		return *x.Notes
+	}
+	return ""
+}
+
+func (x *UpdateAccountRequest) GetOpeningDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.OpeningDate
+	}
+	return nil
+}
+
+func (x *UpdateAccountRequest) GetInterestRate() float64 {
+	if x != nil && x.InterestRate != nil {
+		return *x.InterestRate
+	}
+	return 0
+}
+
+func (x *UpdateAccountRequest) GetCreditBillingDay() int32 {
+	if x != nil && x.CreditBillingDay != nil {
+		return *x.CreditBillingDay
+	}
+	return 0
+}
+
+func (x *UpdateAccountRequest) GetCreditRepaymentDay() int32 {
+	if x != nil && x.CreditRepaymentDay != nil {
+		return *x.CreditRepaymentDay
+	}
+	return 0
+}
+
+func (x *UpdateAccountRequest) GetCreditAnnualFeeCents() int64 {
+	if x != nil && x.CreditAnnualFeeCents != nil {
+		return *x.CreditAnnualFeeCents
+	}
+	return 0
+}
+
+func (x *UpdateAccountRequest) GetInvestCostCents() int64 {
+	if x != nil && x.InvestCostCents != nil {
+		return *x.InvestCostCents
+	}
+	return 0
+}
+
+func (x *UpdateAccountRequest) GetInvestMarketValueCents() int64 {
+	if x != nil && x.InvestMarketValueCents != nil {
+		return *x.InvestMarketValueCents
+	}
+	return 0
+}
+
+func (x *UpdateAccountRequest) GetInvestReturnYtd() float64 {
+	if x != nil && x.InvestReturnYtd != nil {
+		return *x.InvestReturnYtd
+	}
+	return 0
+}
+
+func (x *UpdateAccountRequest) GetFixedPrincipalCents() int64 {
+	if x != nil && x.FixedPrincipalCents != nil {
+		return *x.FixedPrincipalCents
+	}
+	return 0
+}
+
+func (x *UpdateAccountRequest) GetFixedStartDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FixedStartDate
+	}
+	return nil
+}
+
+func (x *UpdateAccountRequest) GetFixedMaturityDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FixedMaturityDate
+	}
+	return nil
+}
+
+func (x *UpdateAccountRequest) GetFixedTermMonths() int32 {
+	if x != nil && x.FixedTermMonths != nil {
+		return *x.FixedTermMonths
+	}
+	return 0
+}
+
+func (x *UpdateAccountRequest) GetGoldProductType() string {
+	if x != nil && x.GoldProductType != nil {
+		return *x.GoldProductType
+	}
+	return ""
+}
+
+func (x *UpdateAccountRequest) GetGoldQuantity() float64 {
+	if x != nil && x.GoldQuantity != nil {
+		return *x.GoldQuantity
+	}
+	return 0
+}
+
+func (x *UpdateAccountRequest) GetGoldBuyPriceCents() int64 {
+	if x != nil && x.GoldBuyPriceCents != nil {
+		return *x.GoldBuyPriceCents
+	}
+	return 0
+}
+
+func (x *UpdateAccountRequest) GetGoldCurrentPriceCents() int64 {
+	if x != nil && x.GoldCurrentPriceCents != nil {
+		return *x.GoldCurrentPriceCents
+	}
+	return 0
+}
+
+func (x *UpdateAccountRequest) GetEstatePurchasePriceCents() int64 {
+	if x != nil && x.EstatePurchasePriceCents != nil {
+		return *x.EstatePurchasePriceCents
+	}
+	return 0
+}
+
+func (x *UpdateAccountRequest) GetEstateCurrentValueCents() int64 {
+	if x != nil && x.EstateCurrentValueCents != nil {
+		return *x.EstateCurrentValueCents
+	}
+	return 0
+}
+
+func (x *UpdateAccountRequest) GetEstatePurchaseDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EstatePurchaseDate
+	}
+	return nil
+}
+
+func (x *UpdateAccountRequest) GetEstateDepreciationRate() float64 {
+	if x != nil && x.EstateDepreciationRate != nil {
+		return *x.EstateDepreciationRate
+	}
+	return 0
+}
+
+func (x *UpdateAccountRequest) GetLoanOriginalCents() int64 {
+	if x != nil && x.LoanOriginalCents != nil {
+		return *x.LoanOriginalCents
+	}
+	return 0
+}
+
+func (x *UpdateAccountRequest) GetLoanRemainingCents() int64 {
+	if x != nil && x.LoanRemainingCents != nil {
+		return *x.LoanRemainingCents
+	}
+	return 0
+}
+
+func (x *UpdateAccountRequest) GetLoanMonthlyCents() int64 {
+	if x != nil && x.LoanMonthlyCents != nil {
+		return *x.LoanMonthlyCents
+	}
+	return 0
+}
+
+func (x *UpdateAccountRequest) GetLoanNextPaymentDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LoanNextPaymentDate
+	}
+	return nil
 }
 
 type DeleteAccountRequest struct {
@@ -906,11 +1554,355 @@ func (x *AccountResponse) GetAccount() *AccountDTO {
 	return nil
 }
 
+type FindByAccountTypeRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountType   AccountType            `protobuf:"varint,1,opt,name=account_type,json=accountType,proto3,enum=yucai.account.v1.AccountType" json:"account_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FindByAccountTypeRequest) Reset() {
+	*x = FindByAccountTypeRequest{}
+	mi := &file_account_v1_account_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FindByAccountTypeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FindByAccountTypeRequest) ProtoMessage() {}
+
+func (x *FindByAccountTypeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_account_v1_account_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FindByAccountTypeRequest.ProtoReflect.Descriptor instead.
+func (*FindByAccountTypeRequest) Descriptor() ([]byte, []int) {
+	return file_account_v1_account_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *FindByAccountTypeRequest) GetAccountType() AccountType {
+	if x != nil {
+		return x.AccountType
+	}
+	return AccountType_ACCOUNT_TYPE_UNSPECIFIED
+}
+
+type FindByAccountTypeResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Accounts      []*AccountDTO          `protobuf:"bytes,1,rep,name=accounts,proto3" json:"accounts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FindByAccountTypeResponse) Reset() {
+	*x = FindByAccountTypeResponse{}
+	mi := &file_account_v1_account_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FindByAccountTypeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FindByAccountTypeResponse) ProtoMessage() {}
+
+func (x *FindByAccountTypeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_account_v1_account_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FindByAccountTypeResponse.ProtoReflect.Descriptor instead.
+func (*FindByAccountTypeResponse) Descriptor() ([]byte, []int) {
+	return file_account_v1_account_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *FindByAccountTypeResponse) GetAccounts() []*AccountDTO {
+	if x != nil {
+		return x.Accounts
+	}
+	return nil
+}
+
+type CreateCategoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	AccountType   AccountType            `protobuf:"varint,2,opt,name=account_type,json=accountType,proto3,enum=yucai.account.v1.AccountType" json:"account_type,omitempty"` // must be INCOME or EXPENSE
+	Icon          string                 `protobuf:"bytes,3,opt,name=icon,proto3" json:"icon,omitempty"`
+	Color         string                 `protobuf:"bytes,4,opt,name=color,proto3" json:"color,omitempty"`
+	ParentId      string                 `protobuf:"bytes,5,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"` // optional sub-category parent (empty = top-level)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateCategoryRequest) Reset() {
+	*x = CreateCategoryRequest{}
+	mi := &file_account_v1_account_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateCategoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateCategoryRequest) ProtoMessage() {}
+
+func (x *CreateCategoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_account_v1_account_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateCategoryRequest.ProtoReflect.Descriptor instead.
+func (*CreateCategoryRequest) Descriptor() ([]byte, []int) {
+	return file_account_v1_account_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *CreateCategoryRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateCategoryRequest) GetAccountType() AccountType {
+	if x != nil {
+		return x.AccountType
+	}
+	return AccountType_ACCOUNT_TYPE_UNSPECIFIED
+}
+
+func (x *CreateCategoryRequest) GetIcon() string {
+	if x != nil {
+		return x.Icon
+	}
+	return ""
+}
+
+func (x *CreateCategoryRequest) GetColor() string {
+	if x != nil {
+		return x.Color
+	}
+	return ""
+}
+
+func (x *CreateCategoryRequest) GetParentId() string {
+	if x != nil {
+		return x.ParentId
+	}
+	return ""
+}
+
+type UpdateCategoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Icon          *string                `protobuf:"bytes,3,opt,name=icon,proto3,oneof" json:"icon,omitempty"`
+	Color         *string                `protobuf:"bytes,4,opt,name=color,proto3,oneof" json:"color,omitempty"`
+	ParentId      *string                `protobuf:"bytes,5,opt,name=parent_id,json=parentId,proto3,oneof" json:"parent_id,omitempty"`
+	Version       int64                  `protobuf:"varint,6,opt,name=version,proto3" json:"version,omitempty"` // optimistic lock
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateCategoryRequest) Reset() {
+	*x = UpdateCategoryRequest{}
+	mi := &file_account_v1_account_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateCategoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateCategoryRequest) ProtoMessage() {}
+
+func (x *UpdateCategoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_account_v1_account_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateCategoryRequest.ProtoReflect.Descriptor instead.
+func (*UpdateCategoryRequest) Descriptor() ([]byte, []int) {
+	return file_account_v1_account_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *UpdateCategoryRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *UpdateCategoryRequest) GetName() string {
+	if x != nil && x.Name != nil {
+		return *x.Name
+	}
+	return ""
+}
+
+func (x *UpdateCategoryRequest) GetIcon() string {
+	if x != nil && x.Icon != nil {
+		return *x.Icon
+	}
+	return ""
+}
+
+func (x *UpdateCategoryRequest) GetColor() string {
+	if x != nil && x.Color != nil {
+		return *x.Color
+	}
+	return ""
+}
+
+func (x *UpdateCategoryRequest) GetParentId() string {
+	if x != nil && x.ParentId != nil {
+		return *x.ParentId
+	}
+	return ""
+}
+
+func (x *UpdateCategoryRequest) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+type ReorderCategoriesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountType   AccountType            `protobuf:"varint,1,opt,name=account_type,json=accountType,proto3,enum=yucai.account.v1.AccountType" json:"account_type,omitempty"` // INCOME or EXPENSE
+	OrderedIds    []string               `protobuf:"bytes,2,rep,name=ordered_ids,json=orderedIds,proto3" json:"ordered_ids,omitempty"`                                       // new sort order (1-indexed)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReorderCategoriesRequest) Reset() {
+	*x = ReorderCategoriesRequest{}
+	mi := &file_account_v1_account_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReorderCategoriesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReorderCategoriesRequest) ProtoMessage() {}
+
+func (x *ReorderCategoriesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_account_v1_account_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReorderCategoriesRequest.ProtoReflect.Descriptor instead.
+func (*ReorderCategoriesRequest) Descriptor() ([]byte, []int) {
+	return file_account_v1_account_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ReorderCategoriesRequest) GetAccountType() AccountType {
+	if x != nil {
+		return x.AccountType
+	}
+	return AccountType_ACCOUNT_TYPE_UNSPECIFIED
+}
+
+func (x *ReorderCategoriesRequest) GetOrderedIds() []string {
+	if x != nil {
+		return x.OrderedIds
+	}
+	return nil
+}
+
+type DeleteCategoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteCategoryRequest) Reset() {
+	*x = DeleteCategoryRequest{}
+	mi := &file_account_v1_account_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteCategoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteCategoryRequest) ProtoMessage() {}
+
+func (x *DeleteCategoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_account_v1_account_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteCategoryRequest.ProtoReflect.Descriptor instead.
+func (*DeleteCategoryRequest) Descriptor() ([]byte, []int) {
+	return file_account_v1_account_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *DeleteCategoryRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
 var File_account_v1_account_proto protoreflect.FileDescriptor
 
 const file_account_v1_account_proto_rawDesc = "" +
 	"\n" +
-	"\x18account/v1/account.proto\x12\x10yucai.account.v1\x1a\x15common/v1/money.proto\x1a\x1acommon/v1/pagination.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf8\x05\n" +
+	"\x18account/v1/account.proto\x12\x10yucai.account.v1\x1a\x15common/v1/money.proto\x1a\x1acommon/v1/pagination.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf6\x15\n" +
 	"\n" +
 	"AccountDTO\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
@@ -934,7 +1926,58 @@ const file_account_v1_account_proto_rawDesc = "" +
 	"created_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12=\n" +
-	"\bcategory\x18\x12 \x01(\x0e2!.yucai.account.v1.AccountCategoryR\bcategory\"\xf5\x03\n" +
+	"\bcategory\x18\x12 \x01(\x0e2!.yucai.account.v1.AccountCategoryR\bcategory\x12-\n" +
+	"\x10card_number_tail\x18\x13 \x01(\tH\x00R\x0ecardNumberTail\x88\x01\x01\x12\x19\n" +
+	"\x05notes\x18\x14 \x01(\tH\x01R\x05notes\x88\x01\x01\x12=\n" +
+	"\fopening_date\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\vopeningDate\x12(\n" +
+	"\rinterest_rate\x18\x16 \x01(\x01H\x02R\finterestRate\x88\x01\x01\x121\n" +
+	"\x12credit_billing_day\x18\x17 \x01(\x05H\x03R\x10creditBillingDay\x88\x01\x01\x125\n" +
+	"\x14credit_repayment_day\x18\x18 \x01(\x05H\x04R\x12creditRepaymentDay\x88\x01\x01\x12:\n" +
+	"\x17credit_annual_fee_cents\x18\x19 \x01(\x03H\x05R\x14creditAnnualFeeCents\x88\x01\x01\x12/\n" +
+	"\x11invest_cost_cents\x18\x1a \x01(\x03H\x06R\x0finvestCostCents\x88\x01\x01\x12>\n" +
+	"\x19invest_market_value_cents\x18\x1b \x01(\x03H\aR\x16investMarketValueCents\x88\x01\x01\x12/\n" +
+	"\x11invest_return_ytd\x18\x1c \x01(\x01H\bR\x0finvestReturnYtd\x88\x01\x01\x127\n" +
+	"\x15fixed_principal_cents\x18\x1d \x01(\x03H\tR\x13fixedPrincipalCents\x88\x01\x01\x12D\n" +
+	"\x10fixed_start_date\x18\x1e \x01(\v2\x1a.google.protobuf.TimestampR\x0efixedStartDate\x12J\n" +
+	"\x13fixed_maturity_date\x18\x1f \x01(\v2\x1a.google.protobuf.TimestampR\x11fixedMaturityDate\x12/\n" +
+	"\x11fixed_term_months\x18  \x01(\x05H\n" +
+	"R\x0ffixedTermMonths\x88\x01\x01\x12/\n" +
+	"\x11gold_product_type\x18! \x01(\tH\vR\x0fgoldProductType\x88\x01\x01\x12(\n" +
+	"\rgold_quantity\x18\" \x01(\x01H\fR\fgoldQuantity\x88\x01\x01\x124\n" +
+	"\x14gold_buy_price_cents\x18# \x01(\x03H\rR\x11goldBuyPriceCents\x88\x01\x01\x12<\n" +
+	"\x18gold_current_price_cents\x18$ \x01(\x03H\x0eR\x15goldCurrentPriceCents\x88\x01\x01\x12B\n" +
+	"\x1bestate_purchase_price_cents\x18% \x01(\x03H\x0fR\x18estatePurchasePriceCents\x88\x01\x01\x12@\n" +
+	"\x1aestate_current_value_cents\x18& \x01(\x03H\x10R\x17estateCurrentValueCents\x88\x01\x01\x12L\n" +
+	"\x14estate_purchase_date\x18' \x01(\v2\x1a.google.protobuf.TimestampR\x12estatePurchaseDate\x12=\n" +
+	"\x18estate_depreciation_rate\x18( \x01(\x01H\x11R\x16estateDepreciationRate\x88\x01\x01\x123\n" +
+	"\x13loan_original_cents\x18) \x01(\x03H\x12R\x11loanOriginalCents\x88\x01\x01\x125\n" +
+	"\x14loan_remaining_cents\x18* \x01(\x03H\x13R\x12loanRemainingCents\x88\x01\x01\x121\n" +
+	"\x12loan_monthly_cents\x18+ \x01(\x03H\x14R\x10loanMonthlyCents\x88\x01\x01\x12O\n" +
+	"\x16loan_next_payment_date\x18, \x01(\v2\x1a.google.protobuf.TimestampR\x13loanNextPaymentDate\x12\x1b\n" +
+	"\tis_system\x18- \x01(\bR\bisSystem\x12\x1d\n" +
+	"\n" +
+	"sort_order\x18. \x01(\x05R\tsortOrderB\x13\n" +
+	"\x11_card_number_tailB\b\n" +
+	"\x06_notesB\x10\n" +
+	"\x0e_interest_rateB\x15\n" +
+	"\x13_credit_billing_dayB\x17\n" +
+	"\x15_credit_repayment_dayB\x1a\n" +
+	"\x18_credit_annual_fee_centsB\x14\n" +
+	"\x12_invest_cost_centsB\x1c\n" +
+	"\x1a_invest_market_value_centsB\x14\n" +
+	"\x12_invest_return_ytdB\x18\n" +
+	"\x16_fixed_principal_centsB\x14\n" +
+	"\x12_fixed_term_monthsB\x14\n" +
+	"\x12_gold_product_typeB\x10\n" +
+	"\x0e_gold_quantityB\x17\n" +
+	"\x15_gold_buy_price_centsB\x1b\n" +
+	"\x19_gold_current_price_centsB\x1e\n" +
+	"\x1c_estate_purchase_price_centsB\x1d\n" +
+	"\x1b_estate_current_value_centsB\x1b\n" +
+	"\x19_estate_depreciation_rateB\x16\n" +
+	"\x14_loan_original_centsB\x17\n" +
+	"\x15_loan_remaining_centsB\x15\n" +
+	"\x13_loan_monthly_cents\"\xb7\x13\n" +
 	"\x14CreateAccountRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12@\n" +
 	"\faccount_type\x18\x02 \x01(\x0e2\x1d.yucai.account.v1.AccountTypeR\vaccountType\x12#\n" +
@@ -949,7 +1992,55 @@ const file_account_v1_account_proto_rawDesc = "" +
 	"\vinstitution\x18\n" +
 	" \x01(\tR\vinstitution\x12,\n" +
 	"\x12credit_limit_cents\x18\v \x01(\x03R\x10creditLimitCents\x12=\n" +
-	"\bcategory\x18\f \x01(\x0e2!.yucai.account.v1.AccountCategoryR\bcategory\"#\n" +
+	"\bcategory\x18\f \x01(\x0e2!.yucai.account.v1.AccountCategoryR\bcategory\x12-\n" +
+	"\x10card_number_tail\x18\r \x01(\tH\x00R\x0ecardNumberTail\x88\x01\x01\x12\x19\n" +
+	"\x05notes\x18\x0e \x01(\tH\x01R\x05notes\x88\x01\x01\x12=\n" +
+	"\fopening_date\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\vopeningDate\x12(\n" +
+	"\rinterest_rate\x18\x10 \x01(\x01H\x02R\finterestRate\x88\x01\x01\x121\n" +
+	"\x12credit_billing_day\x18\x11 \x01(\x05H\x03R\x10creditBillingDay\x88\x01\x01\x125\n" +
+	"\x14credit_repayment_day\x18\x12 \x01(\x05H\x04R\x12creditRepaymentDay\x88\x01\x01\x12:\n" +
+	"\x17credit_annual_fee_cents\x18\x13 \x01(\x03H\x05R\x14creditAnnualFeeCents\x88\x01\x01\x12/\n" +
+	"\x11invest_cost_cents\x18\x14 \x01(\x03H\x06R\x0finvestCostCents\x88\x01\x01\x12>\n" +
+	"\x19invest_market_value_cents\x18\x15 \x01(\x03H\aR\x16investMarketValueCents\x88\x01\x01\x12/\n" +
+	"\x11invest_return_ytd\x18\x16 \x01(\x01H\bR\x0finvestReturnYtd\x88\x01\x01\x127\n" +
+	"\x15fixed_principal_cents\x18\x17 \x01(\x03H\tR\x13fixedPrincipalCents\x88\x01\x01\x12D\n" +
+	"\x10fixed_start_date\x18\x18 \x01(\v2\x1a.google.protobuf.TimestampR\x0efixedStartDate\x12J\n" +
+	"\x13fixed_maturity_date\x18\x19 \x01(\v2\x1a.google.protobuf.TimestampR\x11fixedMaturityDate\x12/\n" +
+	"\x11fixed_term_months\x18\x1a \x01(\x05H\n" +
+	"R\x0ffixedTermMonths\x88\x01\x01\x12/\n" +
+	"\x11gold_product_type\x18\x1b \x01(\tH\vR\x0fgoldProductType\x88\x01\x01\x12(\n" +
+	"\rgold_quantity\x18\x1c \x01(\x01H\fR\fgoldQuantity\x88\x01\x01\x124\n" +
+	"\x14gold_buy_price_cents\x18\x1d \x01(\x03H\rR\x11goldBuyPriceCents\x88\x01\x01\x12<\n" +
+	"\x18gold_current_price_cents\x18\x1e \x01(\x03H\x0eR\x15goldCurrentPriceCents\x88\x01\x01\x12B\n" +
+	"\x1bestate_purchase_price_cents\x18\x1f \x01(\x03H\x0fR\x18estatePurchasePriceCents\x88\x01\x01\x12@\n" +
+	"\x1aestate_current_value_cents\x18  \x01(\x03H\x10R\x17estateCurrentValueCents\x88\x01\x01\x12L\n" +
+	"\x14estate_purchase_date\x18! \x01(\v2\x1a.google.protobuf.TimestampR\x12estatePurchaseDate\x12=\n" +
+	"\x18estate_depreciation_rate\x18\" \x01(\x01H\x11R\x16estateDepreciationRate\x88\x01\x01\x123\n" +
+	"\x13loan_original_cents\x18# \x01(\x03H\x12R\x11loanOriginalCents\x88\x01\x01\x125\n" +
+	"\x14loan_remaining_cents\x18$ \x01(\x03H\x13R\x12loanRemainingCents\x88\x01\x01\x121\n" +
+	"\x12loan_monthly_cents\x18% \x01(\x03H\x14R\x10loanMonthlyCents\x88\x01\x01\x12O\n" +
+	"\x16loan_next_payment_date\x18& \x01(\v2\x1a.google.protobuf.TimestampR\x13loanNextPaymentDateB\x13\n" +
+	"\x11_card_number_tailB\b\n" +
+	"\x06_notesB\x10\n" +
+	"\x0e_interest_rateB\x15\n" +
+	"\x13_credit_billing_dayB\x17\n" +
+	"\x15_credit_repayment_dayB\x1a\n" +
+	"\x18_credit_annual_fee_centsB\x14\n" +
+	"\x12_invest_cost_centsB\x1c\n" +
+	"\x1a_invest_market_value_centsB\x14\n" +
+	"\x12_invest_return_ytdB\x18\n" +
+	"\x16_fixed_principal_centsB\x14\n" +
+	"\x12_fixed_term_monthsB\x14\n" +
+	"\x12_gold_product_typeB\x10\n" +
+	"\x0e_gold_quantityB\x17\n" +
+	"\x15_gold_buy_price_centsB\x1b\n" +
+	"\x19_gold_current_price_centsB\x1e\n" +
+	"\x1c_estate_purchase_price_centsB\x1d\n" +
+	"\x1b_estate_current_value_centsB\x1b\n" +
+	"\x19_estate_depreciation_rateB\x16\n" +
+	"\x14_loan_original_centsB\x17\n" +
+	"\x15_loan_remaining_centsB\x15\n" +
+	"\x13_loan_monthly_cents\"#\n" +
 	"\x11GetAccountRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\xc2\x01\n" +
 	"\x13ListAccountsRequest\x120\n" +
@@ -958,7 +2049,7 @@ const file_account_v1_account_proto_rawDesc = "" +
 	"\x06status\x18\x03 \x01(\x0e2\x1f.yucai.account.v1.AccountStatusR\x06status\"\x83\x01\n" +
 	"\x14ListAccountsResponse\x128\n" +
 	"\baccounts\x18\x01 \x03(\v2\x1c.yucai.account.v1.AccountDTOR\baccounts\x121\n" +
-	"\x04page\x18\x02 \x01(\v2\x1d.yucai.common.v1.PageResponseR\x04page\"\xed\x01\n" +
+	"\x04page\x18\x02 \x01(\v2\x1d.yucai.common.v1.PageResponseR\x04page\"\xf8\x11\n" +
 	"\x14UpdateAccountRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -968,11 +2059,90 @@ const file_account_v1_account_proto_rawDesc = "" +
 	"chart_code\x18\x05 \x01(\tR\tchartCode\x12 \n" +
 	"\vinstitution\x18\x06 \x01(\tR\vinstitution\x12,\n" +
 	"\x12credit_limit_cents\x18\a \x01(\x03R\x10creditLimitCents\x12\x18\n" +
-	"\aversion\x18\b \x01(\x03R\aversion\"&\n" +
+	"\aversion\x18\b \x01(\x03R\aversion\x12<\n" +
+	"\x06status\x18\t \x01(\x0e2\x1f.yucai.account.v1.AccountStatusH\x00R\x06status\x88\x01\x01\x12-\n" +
+	"\x10card_number_tail\x18\n" +
+	" \x01(\tH\x01R\x0ecardNumberTail\x88\x01\x01\x12\x19\n" +
+	"\x05notes\x18\v \x01(\tH\x02R\x05notes\x88\x01\x01\x12=\n" +
+	"\fopening_date\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\vopeningDate\x12(\n" +
+	"\rinterest_rate\x18\r \x01(\x01H\x03R\finterestRate\x88\x01\x01\x121\n" +
+	"\x12credit_billing_day\x18\x0e \x01(\x05H\x04R\x10creditBillingDay\x88\x01\x01\x125\n" +
+	"\x14credit_repayment_day\x18\x0f \x01(\x05H\x05R\x12creditRepaymentDay\x88\x01\x01\x12:\n" +
+	"\x17credit_annual_fee_cents\x18\x10 \x01(\x03H\x06R\x14creditAnnualFeeCents\x88\x01\x01\x12/\n" +
+	"\x11invest_cost_cents\x18\x11 \x01(\x03H\aR\x0finvestCostCents\x88\x01\x01\x12>\n" +
+	"\x19invest_market_value_cents\x18\x12 \x01(\x03H\bR\x16investMarketValueCents\x88\x01\x01\x12/\n" +
+	"\x11invest_return_ytd\x18\x13 \x01(\x01H\tR\x0finvestReturnYtd\x88\x01\x01\x127\n" +
+	"\x15fixed_principal_cents\x18\x14 \x01(\x03H\n" +
+	"R\x13fixedPrincipalCents\x88\x01\x01\x12D\n" +
+	"\x10fixed_start_date\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\x0efixedStartDate\x12J\n" +
+	"\x13fixed_maturity_date\x18\x16 \x01(\v2\x1a.google.protobuf.TimestampR\x11fixedMaturityDate\x12/\n" +
+	"\x11fixed_term_months\x18\x17 \x01(\x05H\vR\x0ffixedTermMonths\x88\x01\x01\x12/\n" +
+	"\x11gold_product_type\x18\x18 \x01(\tH\fR\x0fgoldProductType\x88\x01\x01\x12(\n" +
+	"\rgold_quantity\x18\x19 \x01(\x01H\rR\fgoldQuantity\x88\x01\x01\x124\n" +
+	"\x14gold_buy_price_cents\x18\x1a \x01(\x03H\x0eR\x11goldBuyPriceCents\x88\x01\x01\x12<\n" +
+	"\x18gold_current_price_cents\x18\x1b \x01(\x03H\x0fR\x15goldCurrentPriceCents\x88\x01\x01\x12B\n" +
+	"\x1bestate_purchase_price_cents\x18\x1c \x01(\x03H\x10R\x18estatePurchasePriceCents\x88\x01\x01\x12@\n" +
+	"\x1aestate_current_value_cents\x18\x1d \x01(\x03H\x11R\x17estateCurrentValueCents\x88\x01\x01\x12L\n" +
+	"\x14estate_purchase_date\x18\x1e \x01(\v2\x1a.google.protobuf.TimestampR\x12estatePurchaseDate\x12=\n" +
+	"\x18estate_depreciation_rate\x18\x1f \x01(\x01H\x12R\x16estateDepreciationRate\x88\x01\x01\x123\n" +
+	"\x13loan_original_cents\x18  \x01(\x03H\x13R\x11loanOriginalCents\x88\x01\x01\x125\n" +
+	"\x14loan_remaining_cents\x18! \x01(\x03H\x14R\x12loanRemainingCents\x88\x01\x01\x121\n" +
+	"\x12loan_monthly_cents\x18\" \x01(\x03H\x15R\x10loanMonthlyCents\x88\x01\x01\x12O\n" +
+	"\x16loan_next_payment_date\x18# \x01(\v2\x1a.google.protobuf.TimestampR\x13loanNextPaymentDateB\t\n" +
+	"\a_statusB\x13\n" +
+	"\x11_card_number_tailB\b\n" +
+	"\x06_notesB\x10\n" +
+	"\x0e_interest_rateB\x15\n" +
+	"\x13_credit_billing_dayB\x17\n" +
+	"\x15_credit_repayment_dayB\x1a\n" +
+	"\x18_credit_annual_fee_centsB\x14\n" +
+	"\x12_invest_cost_centsB\x1c\n" +
+	"\x1a_invest_market_value_centsB\x14\n" +
+	"\x12_invest_return_ytdB\x18\n" +
+	"\x16_fixed_principal_centsB\x14\n" +
+	"\x12_fixed_term_monthsB\x14\n" +
+	"\x12_gold_product_typeB\x10\n" +
+	"\x0e_gold_quantityB\x17\n" +
+	"\x15_gold_buy_price_centsB\x1b\n" +
+	"\x19_gold_current_price_centsB\x1e\n" +
+	"\x1c_estate_purchase_price_centsB\x1d\n" +
+	"\x1b_estate_current_value_centsB\x1b\n" +
+	"\x19_estate_depreciation_rateB\x16\n" +
+	"\x14_loan_original_centsB\x17\n" +
+	"\x15_loan_remaining_centsB\x15\n" +
+	"\x13_loan_monthly_cents\"&\n" +
 	"\x14DeleteAccountRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"I\n" +
 	"\x0fAccountResponse\x126\n" +
-	"\aaccount\x18\x01 \x01(\v2\x1c.yucai.account.v1.AccountDTOR\aaccount*\xab\x01\n" +
+	"\aaccount\x18\x01 \x01(\v2\x1c.yucai.account.v1.AccountDTOR\aaccount\"\\\n" +
+	"\x18FindByAccountTypeRequest\x12@\n" +
+	"\faccount_type\x18\x01 \x01(\x0e2\x1d.yucai.account.v1.AccountTypeR\vaccountType\"U\n" +
+	"\x19FindByAccountTypeResponse\x128\n" +
+	"\baccounts\x18\x01 \x03(\v2\x1c.yucai.account.v1.AccountDTOR\baccounts\"\xb4\x01\n" +
+	"\x15CreateCategoryRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12@\n" +
+	"\faccount_type\x18\x02 \x01(\x0e2\x1d.yucai.account.v1.AccountTypeR\vaccountType\x12\x12\n" +
+	"\x04icon\x18\x03 \x01(\tR\x04icon\x12\x14\n" +
+	"\x05color\x18\x04 \x01(\tR\x05color\x12\x1b\n" +
+	"\tparent_id\x18\x05 \x01(\tR\bparentId\"\xda\x01\n" +
+	"\x15UpdateCategoryRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
+	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12\x17\n" +
+	"\x04icon\x18\x03 \x01(\tH\x01R\x04icon\x88\x01\x01\x12\x19\n" +
+	"\x05color\x18\x04 \x01(\tH\x02R\x05color\x88\x01\x01\x12 \n" +
+	"\tparent_id\x18\x05 \x01(\tH\x03R\bparentId\x88\x01\x01\x12\x18\n" +
+	"\aversion\x18\x06 \x01(\x03R\aversionB\a\n" +
+	"\x05_nameB\a\n" +
+	"\x05_iconB\b\n" +
+	"\x06_colorB\f\n" +
+	"\n" +
+	"_parent_id\"}\n" +
+	"\x18ReorderCategoriesRequest\x12@\n" +
+	"\faccount_type\x18\x01 \x01(\x0e2\x1d.yucai.account.v1.AccountTypeR\vaccountType\x12\x1f\n" +
+	"\vordered_ids\x18\x02 \x03(\tR\n" +
+	"orderedIds\"'\n" +
+	"\x15DeleteCategoryRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id*\xab\x01\n" +
 	"\vAccountType\x12\x1c\n" +
 	"\x18ACCOUNT_TYPE_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12ACCOUNT_TYPE_ASSET\x10\x01\x12\x1a\n" +
@@ -998,14 +2168,19 @@ const file_account_v1_account_proto_rawDesc = "" +
 	"\x1cACCOUNT_CATEGORY_REAL_ESTATE\x10\x06\x12\x19\n" +
 	"\x15ACCOUNT_CATEGORY_LOAN\x10\a\x12 \n" +
 	"\x1cACCOUNT_CATEGORY_OTHER_ASSET\x10\b\x12$\n" +
-	" ACCOUNT_CATEGORY_OTHER_LIABILITY\x10\t2\xce\x03\n" +
+	" ACCOUNT_CATEGORY_OTHER_LIABILITY\x10\t2\xa4\a\n" +
 	"\x0eAccountService\x12Z\n" +
 	"\rCreateAccount\x12&.yucai.account.v1.CreateAccountRequest\x1a!.yucai.account.v1.AccountResponse\x12T\n" +
 	"\n" +
 	"GetAccount\x12#.yucai.account.v1.GetAccountRequest\x1a!.yucai.account.v1.AccountResponse\x12]\n" +
 	"\fListAccounts\x12%.yucai.account.v1.ListAccountsRequest\x1a&.yucai.account.v1.ListAccountsResponse\x12Z\n" +
 	"\rUpdateAccount\x12&.yucai.account.v1.UpdateAccountRequest\x1a!.yucai.account.v1.AccountResponse\x12O\n" +
-	"\rDeleteAccount\x12&.yucai.account.v1.DeleteAccountRequest\x1a\x16.google.protobuf.EmptyB\xc3\x01\n" +
+	"\rDeleteAccount\x12&.yucai.account.v1.DeleteAccountRequest\x1a\x16.google.protobuf.Empty\x12l\n" +
+	"\x11FindByAccountType\x12*.yucai.account.v1.FindByAccountTypeRequest\x1a+.yucai.account.v1.FindByAccountTypeResponse\x12\\\n" +
+	"\x0eCreateCategory\x12'.yucai.account.v1.CreateCategoryRequest\x1a!.yucai.account.v1.AccountResponse\x12\\\n" +
+	"\x0eUpdateCategory\x12'.yucai.account.v1.UpdateCategoryRequest\x1a!.yucai.account.v1.AccountResponse\x12Q\n" +
+	"\x0eDeleteCategory\x12'.yucai.account.v1.DeleteCategoryRequest\x1a\x16.google.protobuf.Empty\x12W\n" +
+	"\x11ReorderCategories\x12*.yucai.account.v1.ReorderCategoriesRequest\x1a\x16.google.protobuf.EmptyB\xc3\x01\n" +
 	"\x14com.yucai.account.v1B\fAccountProtoP\x01Z;github.com/yucai/server/internal/proto/account/v1;accountv1\xa2\x02\x03YAX\xaa\x02\x10Yucai.Account.V1\xca\x02\x10Yucai\\Account\\V1\xe2\x02\x1cYucai\\Account\\V1\\GPBMetadata\xea\x02\x12Yucai::Account::V1b\x06proto3"
 
 var (
@@ -1021,56 +2196,92 @@ func file_account_v1_account_proto_rawDescGZIP() []byte {
 }
 
 var file_account_v1_account_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_account_v1_account_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_account_v1_account_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_account_v1_account_proto_goTypes = []any{
-	(AccountType)(0),              // 0: yucai.account.v1.AccountType
-	(Ownership)(0),                // 1: yucai.account.v1.Ownership
-	(AccountStatus)(0),            // 2: yucai.account.v1.AccountStatus
-	(AccountCategory)(0),          // 3: yucai.account.v1.AccountCategory
-	(*AccountDTO)(nil),            // 4: yucai.account.v1.AccountDTO
-	(*CreateAccountRequest)(nil),  // 5: yucai.account.v1.CreateAccountRequest
-	(*GetAccountRequest)(nil),     // 6: yucai.account.v1.GetAccountRequest
-	(*ListAccountsRequest)(nil),   // 7: yucai.account.v1.ListAccountsRequest
-	(*ListAccountsResponse)(nil),  // 8: yucai.account.v1.ListAccountsResponse
-	(*UpdateAccountRequest)(nil),  // 9: yucai.account.v1.UpdateAccountRequest
-	(*DeleteAccountRequest)(nil),  // 10: yucai.account.v1.DeleteAccountRequest
-	(*AccountResponse)(nil),       // 11: yucai.account.v1.AccountResponse
-	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
-	(*v1.PageRequest)(nil),        // 13: yucai.common.v1.PageRequest
-	(*v1.PageResponse)(nil),       // 14: yucai.common.v1.PageResponse
-	(*emptypb.Empty)(nil),         // 15: google.protobuf.Empty
+	(AccountType)(0),                  // 0: yucai.account.v1.AccountType
+	(Ownership)(0),                    // 1: yucai.account.v1.Ownership
+	(AccountStatus)(0),                // 2: yucai.account.v1.AccountStatus
+	(AccountCategory)(0),              // 3: yucai.account.v1.AccountCategory
+	(*AccountDTO)(nil),                // 4: yucai.account.v1.AccountDTO
+	(*CreateAccountRequest)(nil),      // 5: yucai.account.v1.CreateAccountRequest
+	(*GetAccountRequest)(nil),         // 6: yucai.account.v1.GetAccountRequest
+	(*ListAccountsRequest)(nil),       // 7: yucai.account.v1.ListAccountsRequest
+	(*ListAccountsResponse)(nil),      // 8: yucai.account.v1.ListAccountsResponse
+	(*UpdateAccountRequest)(nil),      // 9: yucai.account.v1.UpdateAccountRequest
+	(*DeleteAccountRequest)(nil),      // 10: yucai.account.v1.DeleteAccountRequest
+	(*AccountResponse)(nil),           // 11: yucai.account.v1.AccountResponse
+	(*FindByAccountTypeRequest)(nil),  // 12: yucai.account.v1.FindByAccountTypeRequest
+	(*FindByAccountTypeResponse)(nil), // 13: yucai.account.v1.FindByAccountTypeResponse
+	(*CreateCategoryRequest)(nil),     // 14: yucai.account.v1.CreateCategoryRequest
+	(*UpdateCategoryRequest)(nil),     // 15: yucai.account.v1.UpdateCategoryRequest
+	(*ReorderCategoriesRequest)(nil),  // 16: yucai.account.v1.ReorderCategoriesRequest
+	(*DeleteCategoryRequest)(nil),     // 17: yucai.account.v1.DeleteCategoryRequest
+	(*timestamppb.Timestamp)(nil),     // 18: google.protobuf.Timestamp
+	(*v1.PageRequest)(nil),            // 19: yucai.common.v1.PageRequest
+	(*v1.PageResponse)(nil),           // 20: yucai.common.v1.PageResponse
+	(*emptypb.Empty)(nil),             // 21: google.protobuf.Empty
 }
 var file_account_v1_account_proto_depIdxs = []int32{
 	0,  // 0: yucai.account.v1.AccountDTO.account_type:type_name -> yucai.account.v1.AccountType
 	1,  // 1: yucai.account.v1.AccountDTO.ownership:type_name -> yucai.account.v1.Ownership
 	2,  // 2: yucai.account.v1.AccountDTO.status:type_name -> yucai.account.v1.AccountStatus
-	12, // 3: yucai.account.v1.AccountDTO.created_at:type_name -> google.protobuf.Timestamp
-	12, // 4: yucai.account.v1.AccountDTO.updated_at:type_name -> google.protobuf.Timestamp
+	18, // 3: yucai.account.v1.AccountDTO.created_at:type_name -> google.protobuf.Timestamp
+	18, // 4: yucai.account.v1.AccountDTO.updated_at:type_name -> google.protobuf.Timestamp
 	3,  // 5: yucai.account.v1.AccountDTO.category:type_name -> yucai.account.v1.AccountCategory
-	0,  // 6: yucai.account.v1.CreateAccountRequest.account_type:type_name -> yucai.account.v1.AccountType
-	1,  // 7: yucai.account.v1.CreateAccountRequest.ownership:type_name -> yucai.account.v1.Ownership
-	3,  // 8: yucai.account.v1.CreateAccountRequest.category:type_name -> yucai.account.v1.AccountCategory
-	13, // 9: yucai.account.v1.ListAccountsRequest.page:type_name -> yucai.common.v1.PageRequest
-	0,  // 10: yucai.account.v1.ListAccountsRequest.account_type:type_name -> yucai.account.v1.AccountType
-	2,  // 11: yucai.account.v1.ListAccountsRequest.status:type_name -> yucai.account.v1.AccountStatus
-	4,  // 12: yucai.account.v1.ListAccountsResponse.accounts:type_name -> yucai.account.v1.AccountDTO
-	14, // 13: yucai.account.v1.ListAccountsResponse.page:type_name -> yucai.common.v1.PageResponse
-	4,  // 14: yucai.account.v1.AccountResponse.account:type_name -> yucai.account.v1.AccountDTO
-	5,  // 15: yucai.account.v1.AccountService.CreateAccount:input_type -> yucai.account.v1.CreateAccountRequest
-	6,  // 16: yucai.account.v1.AccountService.GetAccount:input_type -> yucai.account.v1.GetAccountRequest
-	7,  // 17: yucai.account.v1.AccountService.ListAccounts:input_type -> yucai.account.v1.ListAccountsRequest
-	9,  // 18: yucai.account.v1.AccountService.UpdateAccount:input_type -> yucai.account.v1.UpdateAccountRequest
-	10, // 19: yucai.account.v1.AccountService.DeleteAccount:input_type -> yucai.account.v1.DeleteAccountRequest
-	11, // 20: yucai.account.v1.AccountService.CreateAccount:output_type -> yucai.account.v1.AccountResponse
-	11, // 21: yucai.account.v1.AccountService.GetAccount:output_type -> yucai.account.v1.AccountResponse
-	8,  // 22: yucai.account.v1.AccountService.ListAccounts:output_type -> yucai.account.v1.ListAccountsResponse
-	11, // 23: yucai.account.v1.AccountService.UpdateAccount:output_type -> yucai.account.v1.AccountResponse
-	15, // 24: yucai.account.v1.AccountService.DeleteAccount:output_type -> google.protobuf.Empty
-	20, // [20:25] is the sub-list for method output_type
-	15, // [15:20] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	18, // 6: yucai.account.v1.AccountDTO.opening_date:type_name -> google.protobuf.Timestamp
+	18, // 7: yucai.account.v1.AccountDTO.fixed_start_date:type_name -> google.protobuf.Timestamp
+	18, // 8: yucai.account.v1.AccountDTO.fixed_maturity_date:type_name -> google.protobuf.Timestamp
+	18, // 9: yucai.account.v1.AccountDTO.estate_purchase_date:type_name -> google.protobuf.Timestamp
+	18, // 10: yucai.account.v1.AccountDTO.loan_next_payment_date:type_name -> google.protobuf.Timestamp
+	0,  // 11: yucai.account.v1.CreateAccountRequest.account_type:type_name -> yucai.account.v1.AccountType
+	1,  // 12: yucai.account.v1.CreateAccountRequest.ownership:type_name -> yucai.account.v1.Ownership
+	3,  // 13: yucai.account.v1.CreateAccountRequest.category:type_name -> yucai.account.v1.AccountCategory
+	18, // 14: yucai.account.v1.CreateAccountRequest.opening_date:type_name -> google.protobuf.Timestamp
+	18, // 15: yucai.account.v1.CreateAccountRequest.fixed_start_date:type_name -> google.protobuf.Timestamp
+	18, // 16: yucai.account.v1.CreateAccountRequest.fixed_maturity_date:type_name -> google.protobuf.Timestamp
+	18, // 17: yucai.account.v1.CreateAccountRequest.estate_purchase_date:type_name -> google.protobuf.Timestamp
+	18, // 18: yucai.account.v1.CreateAccountRequest.loan_next_payment_date:type_name -> google.protobuf.Timestamp
+	19, // 19: yucai.account.v1.ListAccountsRequest.page:type_name -> yucai.common.v1.PageRequest
+	0,  // 20: yucai.account.v1.ListAccountsRequest.account_type:type_name -> yucai.account.v1.AccountType
+	2,  // 21: yucai.account.v1.ListAccountsRequest.status:type_name -> yucai.account.v1.AccountStatus
+	4,  // 22: yucai.account.v1.ListAccountsResponse.accounts:type_name -> yucai.account.v1.AccountDTO
+	20, // 23: yucai.account.v1.ListAccountsResponse.page:type_name -> yucai.common.v1.PageResponse
+	2,  // 24: yucai.account.v1.UpdateAccountRequest.status:type_name -> yucai.account.v1.AccountStatus
+	18, // 25: yucai.account.v1.UpdateAccountRequest.opening_date:type_name -> google.protobuf.Timestamp
+	18, // 26: yucai.account.v1.UpdateAccountRequest.fixed_start_date:type_name -> google.protobuf.Timestamp
+	18, // 27: yucai.account.v1.UpdateAccountRequest.fixed_maturity_date:type_name -> google.protobuf.Timestamp
+	18, // 28: yucai.account.v1.UpdateAccountRequest.estate_purchase_date:type_name -> google.protobuf.Timestamp
+	18, // 29: yucai.account.v1.UpdateAccountRequest.loan_next_payment_date:type_name -> google.protobuf.Timestamp
+	4,  // 30: yucai.account.v1.AccountResponse.account:type_name -> yucai.account.v1.AccountDTO
+	0,  // 31: yucai.account.v1.FindByAccountTypeRequest.account_type:type_name -> yucai.account.v1.AccountType
+	4,  // 32: yucai.account.v1.FindByAccountTypeResponse.accounts:type_name -> yucai.account.v1.AccountDTO
+	0,  // 33: yucai.account.v1.CreateCategoryRequest.account_type:type_name -> yucai.account.v1.AccountType
+	0,  // 34: yucai.account.v1.ReorderCategoriesRequest.account_type:type_name -> yucai.account.v1.AccountType
+	5,  // 35: yucai.account.v1.AccountService.CreateAccount:input_type -> yucai.account.v1.CreateAccountRequest
+	6,  // 36: yucai.account.v1.AccountService.GetAccount:input_type -> yucai.account.v1.GetAccountRequest
+	7,  // 37: yucai.account.v1.AccountService.ListAccounts:input_type -> yucai.account.v1.ListAccountsRequest
+	9,  // 38: yucai.account.v1.AccountService.UpdateAccount:input_type -> yucai.account.v1.UpdateAccountRequest
+	10, // 39: yucai.account.v1.AccountService.DeleteAccount:input_type -> yucai.account.v1.DeleteAccountRequest
+	12, // 40: yucai.account.v1.AccountService.FindByAccountType:input_type -> yucai.account.v1.FindByAccountTypeRequest
+	14, // 41: yucai.account.v1.AccountService.CreateCategory:input_type -> yucai.account.v1.CreateCategoryRequest
+	15, // 42: yucai.account.v1.AccountService.UpdateCategory:input_type -> yucai.account.v1.UpdateCategoryRequest
+	17, // 43: yucai.account.v1.AccountService.DeleteCategory:input_type -> yucai.account.v1.DeleteCategoryRequest
+	16, // 44: yucai.account.v1.AccountService.ReorderCategories:input_type -> yucai.account.v1.ReorderCategoriesRequest
+	11, // 45: yucai.account.v1.AccountService.CreateAccount:output_type -> yucai.account.v1.AccountResponse
+	11, // 46: yucai.account.v1.AccountService.GetAccount:output_type -> yucai.account.v1.AccountResponse
+	8,  // 47: yucai.account.v1.AccountService.ListAccounts:output_type -> yucai.account.v1.ListAccountsResponse
+	11, // 48: yucai.account.v1.AccountService.UpdateAccount:output_type -> yucai.account.v1.AccountResponse
+	21, // 49: yucai.account.v1.AccountService.DeleteAccount:output_type -> google.protobuf.Empty
+	13, // 50: yucai.account.v1.AccountService.FindByAccountType:output_type -> yucai.account.v1.FindByAccountTypeResponse
+	11, // 51: yucai.account.v1.AccountService.CreateCategory:output_type -> yucai.account.v1.AccountResponse
+	11, // 52: yucai.account.v1.AccountService.UpdateCategory:output_type -> yucai.account.v1.AccountResponse
+	21, // 53: yucai.account.v1.AccountService.DeleteCategory:output_type -> google.protobuf.Empty
+	21, // 54: yucai.account.v1.AccountService.ReorderCategories:output_type -> google.protobuf.Empty
+	45, // [45:55] is the sub-list for method output_type
+	35, // [35:45] is the sub-list for method input_type
+	35, // [35:35] is the sub-list for extension type_name
+	35, // [35:35] is the sub-list for extension extendee
+	0,  // [0:35] is the sub-list for field type_name
 }
 
 func init() { file_account_v1_account_proto_init() }
@@ -1078,13 +2289,17 @@ func file_account_v1_account_proto_init() {
 	if File_account_v1_account_proto != nil {
 		return
 	}
+	file_account_v1_account_proto_msgTypes[0].OneofWrappers = []any{}
+	file_account_v1_account_proto_msgTypes[1].OneofWrappers = []any{}
+	file_account_v1_account_proto_msgTypes[5].OneofWrappers = []any{}
+	file_account_v1_account_proto_msgTypes[11].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_account_v1_account_proto_rawDesc), len(file_account_v1_account_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   8,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

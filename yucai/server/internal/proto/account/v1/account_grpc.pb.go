@@ -26,6 +26,10 @@ const (
 	AccountService_UpdateAccount_FullMethodName     = "/yucai.account.v1.AccountService/UpdateAccount"
 	AccountService_DeleteAccount_FullMethodName     = "/yucai.account.v1.AccountService/DeleteAccount"
 	AccountService_FindByAccountType_FullMethodName = "/yucai.account.v1.AccountService/FindByAccountType"
+	AccountService_CreateCategory_FullMethodName    = "/yucai.account.v1.AccountService/CreateCategory"
+	AccountService_UpdateCategory_FullMethodName    = "/yucai.account.v1.AccountService/UpdateCategory"
+	AccountService_DeleteCategory_FullMethodName    = "/yucai.account.v1.AccountService/DeleteCategory"
+	AccountService_ReorderCategories_FullMethodName = "/yucai.account.v1.AccountService/ReorderCategories"
 )
 
 // AccountServiceClient is the client API for AccountService service.
@@ -44,6 +48,12 @@ type AccountServiceClient interface {
 	// (account-as-category): expense transactions list Expense accounts, income
 	// transactions list Income accounts.
 	FindByAccountType(ctx context.Context, in *FindByAccountTypeRequest, opts ...grpc.CallOption) (*FindByAccountTypeResponse, error)
+	// Category CRUD (account-as-category model: a category is an Account whose
+	// AccountType is Expense or Income). Powers the category-manager UI.
+	CreateCategory(ctx context.Context, in *CreateCategoryRequest, opts ...grpc.CallOption) (*AccountResponse, error)
+	UpdateCategory(ctx context.Context, in *UpdateCategoryRequest, opts ...grpc.CallOption) (*AccountResponse, error)
+	DeleteCategory(ctx context.Context, in *DeleteCategoryRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	ReorderCategories(ctx context.Context, in *ReorderCategoriesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type accountServiceClient struct {
@@ -114,6 +124,46 @@ func (c *accountServiceClient) FindByAccountType(ctx context.Context, in *FindBy
 	return out, nil
 }
 
+func (c *accountServiceClient) CreateCategory(ctx context.Context, in *CreateCategoryRequest, opts ...grpc.CallOption) (*AccountResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AccountResponse)
+	err := c.cc.Invoke(ctx, AccountService_CreateCategory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *accountServiceClient) UpdateCategory(ctx context.Context, in *UpdateCategoryRequest, opts ...grpc.CallOption) (*AccountResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AccountResponse)
+	err := c.cc.Invoke(ctx, AccountService_UpdateCategory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *accountServiceClient) DeleteCategory(ctx context.Context, in *DeleteCategoryRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, AccountService_DeleteCategory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *accountServiceClient) ReorderCategories(ctx context.Context, in *ReorderCategoriesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, AccountService_ReorderCategories_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AccountServiceServer is the server API for AccountService service.
 // All implementations must embed UnimplementedAccountServiceServer
 // for forward compatibility.
@@ -130,6 +180,12 @@ type AccountServiceServer interface {
 	// (account-as-category): expense transactions list Expense accounts, income
 	// transactions list Income accounts.
 	FindByAccountType(context.Context, *FindByAccountTypeRequest) (*FindByAccountTypeResponse, error)
+	// Category CRUD (account-as-category model: a category is an Account whose
+	// AccountType is Expense or Income). Powers the category-manager UI.
+	CreateCategory(context.Context, *CreateCategoryRequest) (*AccountResponse, error)
+	UpdateCategory(context.Context, *UpdateCategoryRequest) (*AccountResponse, error)
+	DeleteCategory(context.Context, *DeleteCategoryRequest) (*emptypb.Empty, error)
+	ReorderCategories(context.Context, *ReorderCategoriesRequest) (*emptypb.Empty, error)
 	mustEmbedUnimplementedAccountServiceServer()
 }
 
@@ -157,6 +213,18 @@ func (UnimplementedAccountServiceServer) DeleteAccount(context.Context, *DeleteA
 }
 func (UnimplementedAccountServiceServer) FindByAccountType(context.Context, *FindByAccountTypeRequest) (*FindByAccountTypeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method FindByAccountType not implemented")
+}
+func (UnimplementedAccountServiceServer) CreateCategory(context.Context, *CreateCategoryRequest) (*AccountResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateCategory not implemented")
+}
+func (UnimplementedAccountServiceServer) UpdateCategory(context.Context, *UpdateCategoryRequest) (*AccountResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateCategory not implemented")
+}
+func (UnimplementedAccountServiceServer) DeleteCategory(context.Context, *DeleteCategoryRequest) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteCategory not implemented")
+}
+func (UnimplementedAccountServiceServer) ReorderCategories(context.Context, *ReorderCategoriesRequest) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReorderCategories not implemented")
 }
 func (UnimplementedAccountServiceServer) mustEmbedUnimplementedAccountServiceServer() {}
 func (UnimplementedAccountServiceServer) testEmbeddedByValue()                        {}
@@ -287,6 +355,78 @@ func _AccountService_FindByAccountType_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AccountService_CreateCategory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateCategoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AccountServiceServer).CreateCategory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AccountService_CreateCategory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AccountServiceServer).CreateCategory(ctx, req.(*CreateCategoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AccountService_UpdateCategory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateCategoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AccountServiceServer).UpdateCategory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AccountService_UpdateCategory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AccountServiceServer).UpdateCategory(ctx, req.(*UpdateCategoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AccountService_DeleteCategory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteCategoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AccountServiceServer).DeleteCategory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AccountService_DeleteCategory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AccountServiceServer).DeleteCategory(ctx, req.(*DeleteCategoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AccountService_ReorderCategories_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReorderCategoriesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AccountServiceServer).ReorderCategories(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AccountService_ReorderCategories_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AccountServiceServer).ReorderCategories(ctx, req.(*ReorderCategoriesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AccountService_ServiceDesc is the grpc.ServiceDesc for AccountService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -317,6 +457,22 @@ var AccountService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "FindByAccountType",
 			Handler:    _AccountService_FindByAccountType_Handler,
+		},
+		{
+			MethodName: "CreateCategory",
+			Handler:    _AccountService_CreateCategory_Handler,
+		},
+		{
+			MethodName: "UpdateCategory",
+			Handler:    _AccountService_UpdateCategory_Handler,
+		},
+		{
+			MethodName: "DeleteCategory",
+			Handler:    _AccountService_DeleteCategory_Handler,
+		},
+		{
+			MethodName: "ReorderCategories",
+			Handler:    _AccountService_ReorderCategories_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

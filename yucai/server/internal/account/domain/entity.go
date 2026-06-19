@@ -114,6 +114,42 @@ func NewAccountWithCategory(tenantID uuid.UUID, name string, category AccountCat
 	}, nil
 }
 
+// NewCategoryAccount creates an Expense/Income category account under the
+// account-as-category model. Categories have no balance, currency CNY, and
+// IsSystem=false by default (preset seeds flip it to true).
+func NewCategoryAccount(tenantID uuid.UUID, name string, accountType AccountType) (*Account, error) {
+	if accountType != AccountTypeExpense && accountType != AccountTypeIncome {
+		return nil, fmt.Errorf("category account type must be expense or income, got %s", accountType)
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, fmt.Errorf("account name must not be empty")
+	}
+	return &Account{
+		ID:           uuid.New(),
+		TenantID:     tenantID,
+		Name:         name,
+		AccountType:  accountType,
+		CurrencyCode: "CNY",
+		Status:       AccountStatusActive,
+		Version:      1,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	}, nil
+}
+
+// SetSortOrder updates the category sort order.
+func (a *Account) SetSortOrder(order int) {
+	a.SortOrder = order
+	a.UpdatedAt = time.Now()
+}
+
+// MarkSystem flags the account as a system preset (non-deletable).
+func (a *Account) MarkSystem() {
+	a.IsSystem = true
+	a.UpdatedAt = time.Now()
+}
+
 // UpdateName changes the account display name.
 func (a *Account) UpdateName(name string) error {
 	name = strings.TrimSpace(name)

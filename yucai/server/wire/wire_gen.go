@@ -70,22 +70,24 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	}
 	ts := provideTokenService(cfg)
 
+	// Account module (created before auth so its Service can back the
+	// per-tenant preset seeder injected into RegisterHandler).
+	accountRepo := provideAccountRepo(accountClient)
+	chartRepo := provideChartRepo(accountClient)
+	accountService := provideAccountService(accountRepo, chartRepo)
+	accountHandler := provideAccountHandler(accountService)
+	presetSeeder := providePresetSeeder(accountService)
+
 	// Auth module
 	tenantRepo := provideTenantRepo(authClient)
 	userRepo := provideUserRepo(authClient)
 	sessionStore := provideSessionStore(rdb)
-	registerHandler := provideRegisterHandler(tenantRepo, userRepo, ts)
+	registerHandler := provideRegisterHandler(tenantRepo, userRepo, ts, presetSeeder)
 	loginHandler := provideLoginHandler(userRepo, ts)
 	refreshHandler := provideRefreshHandler(sessionStore)
 	profileHandler := provideProfileHandler(userRepo)
 	authService := provideAuthService(tenantRepo, userRepo, ts, sessionStore, registerHandler, loginHandler, refreshHandler, profileHandler)
 	authHandler := provideAuthHandler(authService)
-
-	// Account module
-	accountRepo := provideAccountRepo(accountClient)
-	chartRepo := provideChartRepo(accountClient)
-	accountService := provideAccountService(accountRepo, chartRepo)
-	accountHandler := provideAccountHandler(accountService)
 
 	// Transaction module
 	txnRepo := provideTransactionRepo(txnClient)

@@ -88,7 +88,40 @@ type UpdateAccountRequest struct {
 	LoanRemainingCents       *int64
 	LoanMonthlyCents         *int64
 	LoanNextPaymentDate      *time.Time
+	SortOrder                *int // nil = 不更新；分类重排时由 ReorderCategories 设置
 	Version                  int64
+}
+
+// CreateCategoryRequest creates a category account (AccountType=Expense/Income).
+// Categories are accounts under the account-as-category model.
+type CreateCategoryRequest struct {
+	TenantID    uuid.UUID
+	Name        string
+	Icon        string
+	Color       string
+	AccountType domain.AccountType // must be Expense or Income
+	ParentID    *uuid.UUID         // optional sub-category parent
+}
+
+// UpdateCategoryRequest edits a category account. System categories may change
+// icon/color/name but not type. All optional fields use pointers (nil = unchanged).
+type UpdateCategoryRequest struct {
+	TenantID   uuid.UUID
+	CategoryID uuid.UUID
+	Name       *string
+	Icon       *string
+	Color      *string
+	ParentID   *uuid.UUID
+	Version    int64
+}
+
+// ReorderCategoriesRequest sets sort_order for the given category IDs within a
+// tenant + account-type group. The slice order defines the new sort order
+// (1-indexed).
+type ReorderCategoriesRequest struct {
+	TenantID    uuid.UUID
+	AccountType domain.AccountType
+	OrderedIDs  []uuid.UUID
 }
 
 // DeleteAccountRequest holds input for soft-deleting an account.

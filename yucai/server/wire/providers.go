@@ -158,8 +158,22 @@ func provideUserRepo(client *authent.Client) *authrepo.UserRepository {
 func provideSessionStore(rdb *redis.Client) *session.RedisSessionStore {
 	return session.NewRedisSessionStore(rdb)
 }
-func provideRegisterHandler(tr *authrepo.TenantRepository, ur *authrepo.UserRepository, ts *authjwt.TokenService) *authcmd.RegisterHandler {
-	return authcmd.NewRegisterHandler(tr, ur, ts)
+func provideRegisterHandler(tr *authrepo.TenantRepository, ur *authrepo.UserRepository, ts *authjwt.TokenService, seeder authcmd.PresetSeeder) *authcmd.RegisterHandler {
+	return authcmd.NewRegisterHandler(tr, ur, ts, seeder)
+}
+
+// accountPresetSeeder adapts the account application Service to the auth
+// command.PresetSeeder port. Lives in wire to avoid auth importing account.
+type accountPresetSeeder struct {
+	svc *accountapp.Service
+}
+
+func (a accountPresetSeeder) SeedTenantPresets(ctx context.Context, tenantID uuid.UUID) error {
+	return a.svc.SeedPresetCategories(ctx, tenantID)
+}
+
+func providePresetSeeder(svc *accountapp.Service) authcmd.PresetSeeder {
+	return accountPresetSeeder{svc: svc}
 }
 func provideLoginHandler(ur *authrepo.UserRepository, ts *authjwt.TokenService) *authcmd.LoginHandler {
 	return authcmd.NewLoginHandler(ur, ts)

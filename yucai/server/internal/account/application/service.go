@@ -97,6 +97,9 @@ func (s *Service) UpdateAccount(ctx context.Context, req UpdateAccountRequest) (
 	if req.Status != nil && *req.Status == domain.AccountStatusArchived {
 		account.Archive()
 	}
+	if req.SortOrder != nil {
+		account.SetSortOrder(*req.SortOrder)
+	}
 	account.IncrementVersion()
 
 	if err := s.accountRepo.Update(ctx, account); err != nil {
@@ -117,6 +120,165 @@ func (s *Service) DeleteAccount(ctx context.Context, tenantID, accountID uuid.UU
 		return fmt.Errorf("cannot delete account with non-zero balance")
 	}
 	return s.accountRepo.SoftDelete(ctx, tenantID, accountID)
+}
+
+// --- Category CRUD (account-as-category model) ---
+//
+// A category is an Account whose AccountType is Expense or Income. Categories
+// back the transaction-form dropdown and the user-facing category manager.
+// Preset (is_system=true) categories are created per-tenant at registration and
+// may be restyled but not deleted.
+
+// CreateCategory creates an Expense/Income category account for the tenant.
+func (s *Service) CreateCategory(ctx context.Context, req CreateCategoryRequest) (*AccountDTO, error) {
+	account, err := domain.NewCategoryAccount(req.TenantID, req.Name, req.AccountType)
+	if err != nil {
+		return nil, fmt.Errorf("create category: %w", err)
+	}
+	account.Icon = req.Icon
+	account.Color = req.Color
+	account.ParentID = req.ParentID
+
+	if err := s.accountRepo.Save(ctx, account); err != nil {
+		return nil, fmt.Errorf("save category: %w", err)
+	}
+	dto := AccountToDTO(account)
+	return &dto, nil
+}
+
+// UpdateCategory edits a category's mutable display fields. System categories
+// keep their type; user categories likewise cannot change type via this path
+// (type is immutable for all categories — a category's type is part of its
+// identity in the dropdown grouping).
+func (s *Service) UpdateCategory(ctx context.Context, req UpdateCategoryRequest) (*AccountDTO, error) {
+	account, err := s.accountRepo.FindByID(ctx, req.TenantID, req.CategoryID)
+	if err != nil {
+		return nil, fmt.Errorf("category not found: %w", err)
+	}
+	if err := ValidateUpdateVersion(account.Version, req.Version); err != nil {
+		return nil, err
+	}
+	if account.AccountType != domain.AccountTypeExpense && account.AccountType != domain.AccountTypeIncome {
+		return nil, fmt.Errorf("not a category account: type %s", account.AccountType)
+	}
+	account.ApplyProfile(&domain.AccountProfile{
+		Name:  req.Name,
+		Icon:  req.Icon,
+		Color: req.Color,
+	})
+	if req.ParentID != nil {
+		account.ParentID = req.ParentID
+	}
+	account.IncrementVersion()
+	if err := s.accountRepo.Update(ctx, account); err != nil {
+		return nil, fmt.Errorf("update category: %w", err)
+	}
+	dto := AccountToDTO(account)
+	return &dto, nil
+}
+
+// DeleteCategory soft-deletes a category. System (preset) categories are
+// non-deletable — the guard is the defining behavior of is_system.
+func (s *Service) DeleteCategory(ctx context.Context, tenantID, categoryID uuid.UUID) error {
+	account, err := s.accountRepo.FindByID(ctx, tenantID, categoryID)
+	if err != nil {
+		return fmt.Errorf("category not found: %w", err)
+	}
+	if account.IsSystem {
+		return fmt.Errorf("cannot delete system category %q", account.Name)
+	}
+	if account.AccountType != domain.AccountTypeExpense && account.AccountType != domain.AccountTypeIncome {
+		return fmt.Errorf("not a category account: type %s", account.AccountType)
+	}
+	return s.accountRepo.SoftDelete(ctx, tenantID, categoryID)
+}
+
+// ReorderCategories rewrites sort_order for the given category IDs within the
+// tenant + account-type group. The slice order defines the new sort order
+// (1-indexed). Categories not in the list keep their existing sort_order.
+func (s *Service) ReorderCategories(ctx context.Context, req ReorderCategoriesRequest) error {
+	if req.AccountType != domain.AccountTypeExpense && req.AccountType != domain.AccountTypeIncome {
+		return fmt.Errorf("reorder requires expense or income type, got %s", req.AccountType)
+	}
+	for i, id := range req.OrderedIDs {
+		account, err := s.accountRepo.FindByID(ctx, req.TenantID, id)
+		if err != nil {
+			return fmt.Errorf("category %s not found: %w", id, err)
+		}
+		if account.AccountType != req.AccountType {
+			return fmt.Errorf("category %s type mismatch: expected %s, got %s", id, req.AccountType, account.AccountType)
+		}
+		account.SetSortOrder(i + 1)
+		account.IncrementVersion()
+		if err := s.accountRepo.Update(ctx, account); err != nil {
+			return fmt.Errorf("update sort_order for %s: %w", id, err)
+		}
+	}
+	return nil
+}
+
+// presetCategories defines the 10 system categories seeded per tenant at
+// registration: 6 expense + 4 income. Ordered so sort_order is stable.
+var presetCategories = []struct {
+	Name        string
+	AccountType domain.AccountType
+	Icon        string
+	Color       string
+}{
+	// Expense (6)
+	{"餐饮", domain.AccountTypeExpense, "utensils", "#FF6B6B"},
+	{"交通", domain.AccountTypeExpense, "car", "#4ECDC4"},
+	{"购物", domain.AccountTypeExpense, "shopping-bag", "#FFD93D"},
+	{"娱乐", domain.AccountTypeExpense, "gamepad", "#6C5CE7"},
+	{"居家", domain.AccountTypeExpense, "home", "#A8E6CF"},
+	{"医疗", domain.AccountTypeExpense, "heart-pulse", "#FF8B94"},
+	// Income (4)
+	{"工资", domain.AccountTypeIncome, "banknote", "#00B894"},
+	{"兼职", domain.AccountTypeIncome, "briefcase", "#0984E3"},
+	{"理财收益", domain.AccountTypeIncome, "trending-up", "#FDCB6E"},
+	{"红包", domain.AccountTypeIncome, "gift", "#E17055"},
+}
+
+// SeedPresetCategories creates the 10 system categories for a tenant if they
+// do not already exist (idempotent — safe to call on every registration retry).
+func (s *Service) SeedPresetCategories(ctx context.Context, tenantID uuid.UUID) error {
+	existingExpense, err := s.accountRepo.FindByAccountType(ctx, tenantID, domain.AccountTypeExpense)
+	if err != nil {
+		return fmt.Errorf("check existing expense categories: %w", err)
+	}
+	existingIncome, err := s.accountRepo.FindByAccountType(ctx, tenantID, domain.AccountTypeIncome)
+	if err != nil {
+		return fmt.Errorf("check existing income categories: %w", err)
+	}
+	// If any system category already exists, assume seeding ran — no-op.
+	for _, a := range append(append([]domain.Account{}, existingExpense...), existingIncome...) {
+		if a.IsSystem {
+			return nil
+		}
+	}
+
+	expenseOrder := 0
+	incomeOrder := 0
+	for _, p := range presetCategories {
+		account, err := domain.NewCategoryAccount(tenantID, p.Name, p.AccountType)
+		if err != nil {
+			return fmt.Errorf("build preset category %q: %w", p.Name, err)
+		}
+		account.Icon = p.Icon
+		account.Color = p.Color
+		account.MarkSystem()
+		if p.AccountType == domain.AccountTypeExpense {
+			expenseOrder++
+			account.SortOrder = expenseOrder
+		} else {
+			incomeOrder++
+			account.SortOrder = incomeOrder
+		}
+		if err := s.accountRepo.Save(ctx, account); err != nil {
+			return fmt.Errorf("save preset category %q: %w", p.Name, err)
+		}
+	}
+	return nil
 }
 
 // Unimplemented command/query handler stubs (service handles orchestration directly).

@@ -188,6 +188,7 @@ func (r *AccountRepository) Update(ctx context.Context, a *domain.Account) error
 		SetCurrentBalanceCents(a.CurrentBalanceCents).
 		SetIcon(a.Icon).
 		SetColor(a.Color).
+		SetSortOrder(a.SortOrder).
 		SetChartCode(a.ChartCode).
 		SetInstitution(a.Institution).
 		SetCreditLimitCents(a.CreditLimitCents).
