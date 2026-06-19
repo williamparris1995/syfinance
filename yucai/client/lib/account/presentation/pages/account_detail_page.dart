@@ -10,9 +10,18 @@ import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/bloc/account_state.dart';
 import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
 import 'package:yucai_client/account/presentation/widgets/account_category_style.dart';
+import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
+import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
+import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
+import 'package:yucai_client/transaction/domain/value_objects.dart';
+import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
+import 'package:yucai_client/transaction/presentation/bloc/transaction_event.dart';
+import 'package:yucai_client/transaction/presentation/bloc/transaction_state.dart';
+import 'package:yucai_client/transaction/presentation/pages/transaction_form_page.dart';
+import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
 
 /// 账户详情页。承接 Task 11 GetAccountUseCase + AccountDetailLoaded。
 ///
@@ -43,10 +52,54 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   void initState() {
     super.initState();
     context.read<AccountBloc>().add(GetAccountRequested(widget.id));
+    // 跨模块：account 详情页接 transaction bloc。生产路径在 widget 树里没有
+    // 现成的 TransactionBloc（路由只 provide AccountBloc），页面在 build 顶
+    // 端用 BlocProvider<TransactionBloc>(create:) 自建一个并 scope 到本账户
+    //（list accountId + summary accountId）。测试路径从 MultiBlocProvider
+    // 注入 bloc 时，build 里的 _ambientTxnBloc 命中、跳过 create 分支。
+    final txn = _ambientTxnBloc;
+    if (txn != null) {
+      _dispatchScoped(txn);
+    }
+  }
+
+  /// 树里若有 TransactionBloc（测试/外层 provide）返回之；否则 null。
+  TransactionBloc? get _ambientTxnBloc {
+    // flutter_bloc 的 read 找不到时抛 ProviderNotFoundException；用 try/catch。
+    try {
+      return context.read<TransactionBloc>();
+    } on ProviderNotFoundException {
+      return null;
+    }
+  }
+
+  /// 触发该账户的近期交易加载 + 月度统计（Task 5.1 accountId scope）。
+  void _dispatchScoped(TransactionBloc b) {
+    final now = DateTime.now();
+    b.add(LoadTransactionsRequested(
+        filter: TxnFilterState(accountId: widget.id)));
+    b.add(LoadSummaryRequested(
+        year: now.year, month: now.month, accountId: widget.id));
   }
 
   @override
   Widget build(BuildContext context) {
+    final txn = _ambientTxnBloc;
+    if (txn != null) {
+      return _scaffold();
+    }
+    // 生产路径：自建 TransactionBloc 并 scope 到本账户。
+    return BlocProvider<TransactionBloc>(
+      create: (_) {
+        final b = TransactionBloc(getIt<TransactionRepository>());
+        _dispatchScoped(b);
+        return b;
+      },
+      child: Builder(builder: (_) => _scaffold()),
+    );
+  }
+
+  Widget _scaffold() {
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
@@ -71,13 +124,13 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                       onPressed: a == null ? null : () => _edit(a),
                       child: const Text('编辑'),
                     ),
-                    const TextButton(
-                      onPressed: null,
-                      child: Text('记一笔🔒'),
+                    TextButton(
+                      onPressed: a == null ? null : _recordTxn,
+                      child: const Text('记一笔'),
                     ),
-                    const TextButton(
-                      onPressed: null,
-                      child: Text('转账🔒'),
+                    TextButton(
+                      onPressed: a == null ? null : _transfer,
+                      child: const Text('转账'),
                     ),
                   ],
                   PopupMenuButton<String>(
@@ -155,24 +208,34 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     );
   }
 
-  Widget _body(Account a) => ListView(
+  Widget _body(Account a) {
+    // 读 TransactionBloc state（页面 build 顶部已确保 bloc 存在）。
+    final txnState = context.watch<TransactionBloc>().state;
+    final txns = txnState is TransactionsLoaded
+        ? txnState.transactions
+        : (txnState is TransactionsLoadingMore ? txnState.transactions : const <Transaction>[]);
+    final summary = txnState is TransactionsLoaded
+        ? txnState.summary
+        : (txnState is TransactionsLoadingMore ? txnState.summary : null);
+    return ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           _hero(a),
           const SizedBox(height: AppSpacing.lg),
-          _statsRow(),
+          _statsRow(txns, summary),
           const SizedBox(height: AppSpacing.lg),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: _panel('近期交易', '待 Transaction 模块接入')),
+              Expanded(child: _recentTxnPanel(txns)),
               const SizedBox(width: AppSpacing.lg),
-              // 右栏：收支统计 + 快捷操作（对照原型 right-col：信息+快捷操作）
+              // 右栏：收支统计（_statsRow 已展示 4 卡，这里显示月度净额说明）+
+              // 快捷操作（对照原型 right-col：信息+快捷操作）
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _panel('收支统计', '待 Transaction 模块接入'),
+                    _summaryPanel(summary),
                     const SizedBox(height: AppSpacing.lg),
                     _quickActions(a),
                   ],
@@ -189,6 +252,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
             const SizedBox.shrink(),
         ],
       );
+  }
 
   Widget _hero(Account a) => DataCard(
         child: Column(
@@ -325,8 +389,17 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         .toList();
   }
 
-  Widget _statsRow() {
-    const labels = ['本月收入', '本月支出', '净值变动', '交易数'];
+  /// 收支统计 4 卡：本月收入 / 本月支出 / 净值变动 / 交易数。
+  /// 接 TransactionBloc 的 account-scoped MonthlySummary（Task 5.1 accountId
+  /// scope）。summary 未到位前显示 —；交易数取已加载列表长度。
+  Widget _statsRow(List<Transaction> txns, MonthlySummary? summary) {
+    final labels = ['本月收入', '本月支出', '净值变动', '交易数'];
+    final values = <String>[
+      _fmtSigned(summary?.incomeCents ?? 0),
+      _fmtSigned(summary?.expenseCents ?? 0),
+      _fmtSigned(summary?.netCents ?? 0),
+      '${txns.length}',
+    ];
     // 卡片间 14px 间距（原型 .quick-stats gap:14px）；首尾无边缘缩进。
     return Row(
       children: [
@@ -340,16 +413,13 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
               child: DataCard(
                 child: Column(
                   children: [
-                    const Text('—',
-                        style: TextStyle(
+                    Text(values[i],
+                        style: const TextStyle(
                             fontSize: 18, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 4),
                     Text(labels[i],
                         style: const TextStyle(
                             color: AppColors.muted, fontSize: 11)),
-                    const Text('待交易模块',
-                        style:
-                            TextStyle(color: AppColors.muted, fontSize: 10)),
                   ],
                 ),
               ),
@@ -377,8 +447,116 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         ),
       );
 
+  /// 近期交易 panel：接 TransactionBloc 的 account-scoped list。空列表显示
+  /// 占位文案；非空取前 5 条用紧凑行渲染（描述 + 金额，不用 TxnRow 的宽表
+  /// 布局 —— 该 panel 在窄列里，TxnRow 会溢出）。
+  Widget _recentTxnPanel(List<Transaction> txns) {
+    final recent = txns.take(5).toList();
+    return DataCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('近期交易',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              Text('${txns.length} 笔',
+                  style:
+                      const TextStyle(color: AppColors.muted, fontSize: 12)),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          if (recent.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(
+                child: Text('暂无交易',
+                    style: TextStyle(color: AppColors.muted, fontSize: 12)),
+              ),
+            )
+          else
+            for (final t in recent) _recentTxnRow(t),
+        ],
+      ),
+    );
+  }
+
+  /// 紧凑近期交易行：描述 + 日期 / 金额。
+  Widget _recentTxnRow(Transaction t) {
+    final amount = t.totalDebitCents;
+    final dateLabel =
+        '${t.transactionDate.month.toString().padLeft(2, '0')}-${t.transactionDate.day.toString().padLeft(2, '0')}';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  t.description.isEmpty ? '(无描述)' : t.description,
+                  style: const TextStyle(fontSize: 13),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(dateLabel,
+                    style: const TextStyle(
+                        color: AppColors.muted, fontSize: 11)),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            _fmtSigned(amount),
+            style: const TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 收支统计 panel：月度净额 + 日均，接 account-scoped MonthlySummary。
+  /// 4 张 quick-stat 卡已在 _statsRow 展示，这里补一行说明（月度净额 / 日均）。
+  Widget _summaryPanel(MonthlySummary? summary) {
+    final lines = <String>[];
+    if (summary != null) {
+      lines
+        ..add('本月净额：${_fmtSigned(summary.netCents)}')
+        ..add('日均：${_fmtSigned(summary.dailyAvgCents)}');
+    }
+    return DataCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('收支统计',
+              style: TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: AppSpacing.md),
+          if (lines.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(
+                child: Text('统计加载中',
+                    style: TextStyle(color: AppColors.muted, fontSize: 12)),
+              ),
+            )
+          else
+            for (final l in lines)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Text(l,
+                    style: const TextStyle(
+                        color: AppColors.muted, fontSize: 12)),
+              ),
+        ],
+      ),
+    );
+  }
+
   /// 快捷操作 card（对照原型 desktop-detail-account.html .actions-card）。
-  /// 激活：编辑真实 + 记一笔/转账/查看账单/隐藏账户 🔒 占位。
+  /// 激活：编辑/记一笔/转账真实；查看账单/隐藏账户 🔒 占位。
   /// 归档：移除编辑/记一笔/转账（只读，需先重新激活）。
   Widget _quickActions(Account a) {
     final archived = a.status == AccountStatus.archived;
@@ -391,8 +569,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
           const SizedBox(height: AppSpacing.md),
           if (!archived) ...[
             _actionBtn('编辑账户', Icons.edit_outlined, () => _edit(a)),
-            _actionBtn('记一笔（待交易模块）', Icons.add, null),
-            _actionBtn('转账（待交易模块）', Icons.swap_horiz, null),
+            _actionBtn('记一笔', Icons.add, _recordTxn),
+            _actionBtn('转账', Icons.swap_horiz, _transfer),
           ],
           _actionBtn(
               '查看账单（待交易模块）', Icons.receipt_long_outlined, null),
@@ -427,6 +605,31 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   }
 
   // ───────────────────────── 操作 ─────────────────────────
+
+  /// 记一笔：push TransactionFormPage。表单返回 true（提交成功）后刷新本账户
+  /// 的近期交易 + 月度统计（余额由 GetAccountRequested 同步刷新）。
+  /// 注：当前 TransactionFormPage 不支持预填账户 / 直入转账模式（YAGNI，
+  /// 属于 form 页扩展），故此处仅 push 通用表单；用户在表单里选账户/类型。
+  void _recordTxn() {
+    Navigator.of(context)
+        .push<bool>(MaterialPageRoute(builder: (_) => const TransactionFormPage()))
+        .then((ok) {
+      if (ok == true && mounted) {
+        AppToast.show(context, '交易已记录', type: ToastType.success);
+        _refreshTxn();
+        context.read<AccountBloc>().add(GetAccountRequested(widget.id));
+      }
+    });
+  }
+
+  /// 转账：push TransactionFormPage（同 _recordTxn；用户切到转账 tab）。
+  void _transfer() => _recordTxn();
+
+  /// 重新拉取本账户的近期交易 + 月度统计。
+  void _refreshTxn() {
+    final b = _ambientTxnBloc;
+    if (b != null) _dispatchScoped(b);
+  }
 
   void _edit(Account a) {
     Navigator.of(context)
@@ -589,6 +792,26 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     final yuan = abs ~/ 100;
     final fen = (abs % 100).toString().padLeft(2, '0');
     return '$sign¥ $yuan.$fen';
+  }
+
+  /// 千分位 + 两位小数（与 SummaryCard 格式一致：¥1,234.56）。负数保留负号。
+  String _fmtSigned(int cents) {
+    final sign = cents < 0 ? '-' : '';
+    final abs = cents.abs();
+    final yuan = abs ~/ 100;
+    final frac = (abs % 100).toString().padLeft(2, '0');
+    final yuanStr = _groupThousands(yuan);
+    return '$sign¥$yuanStr.$frac';
+  }
+
+  static String _groupThousands(int yuan) {
+    final s = yuan.toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return buf.toString();
   }
 
   String _fmtDate(DateTime d) =>
