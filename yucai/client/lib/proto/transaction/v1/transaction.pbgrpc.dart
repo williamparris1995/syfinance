@@ -90,6 +90,16 @@ class TransactionServiceClient extends $grpc.Client {
     return $createUnaryCall(_$simpleTransfer, request, options: options);
   }
 
+  /// TransactionSummary returns a tenant's monthly income/expense summary,
+  /// optionally scoped to one account (account_detail view), broken down by
+  /// day and by Income/Expense account (category).
+  $grpc.ResponseFuture<$0.TransactionSummaryResponse> transactionSummary(
+    $0.TransactionSummaryRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$transactionSummary, request, options: options);
+  }
+
   // method descriptors
 
   static final _$recordTransaction =
@@ -132,6 +142,11 @@ class TransactionServiceClient extends $grpc.Client {
           '/yucai.transaction.v1.TransactionService/SimpleTransfer',
           ($0.SimpleTransferRequest value) => value.writeToBuffer(),
           $0.TransactionResponse.fromBuffer);
+  static final _$transactionSummary = $grpc.ClientMethod<
+          $0.TransactionSummaryRequest, $0.TransactionSummaryResponse>(
+      '/yucai.transaction.v1.TransactionService/TransactionSummary',
+      ($0.TransactionSummaryRequest value) => value.writeToBuffer(),
+      $0.TransactionSummaryResponse.fromBuffer);
 }
 
 @$pb.GrpcServiceName('yucai.transaction.v1.TransactionService')
@@ -210,6 +225,15 @@ abstract class TransactionServiceBase extends $grpc.Service {
             ($core.List<$core.int> value) =>
                 $0.SimpleTransferRequest.fromBuffer(value),
             ($0.TransactionResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.TransactionSummaryRequest,
+            $0.TransactionSummaryResponse>(
+        'TransactionSummary',
+        transactionSummary_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.TransactionSummaryRequest.fromBuffer(value),
+        ($0.TransactionSummaryResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.TransactionResponse> recordTransaction_Pre(
@@ -282,4 +306,13 @@ abstract class TransactionServiceBase extends $grpc.Service {
 
   $async.Future<$0.TransactionResponse> simpleTransfer(
       $grpc.ServiceCall call, $0.SimpleTransferRequest request);
+
+  $async.Future<$0.TransactionSummaryResponse> transactionSummary_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.TransactionSummaryRequest> $request) async {
+    return transactionSummary($call, await $request);
+  }
+
+  $async.Future<$0.TransactionSummaryResponse> transactionSummary(
+      $grpc.ServiceCall call, $0.TransactionSummaryRequest request);
 }

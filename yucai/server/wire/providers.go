@@ -206,8 +206,21 @@ func provideAccountHandler(svc *accountapp.Service) *accountgrpc.AccountHandler 
 }
 
 // Transaction providers
-func provideTransactionRepo(client *txnent.Client) *txnrepo.TransactionRepository {
-	return txnrepo.NewTransactionRepository(client)
+func provideTransactionRepo(client *txnent.Client, db *sql.DB) *txnrepo.TransactionRepository {
+	return txnrepo.NewTransactionRepository(client, db)
+}
+
+// provideTransactionDB opens the *sql.DB backing the transaction ent client.
+// It is the same physical database as the ent client (same DSN via openEntDriver),
+// used by the repo's TransactionSummary raw aggregation query (which cannot be
+// expressed through ent without cross-module edges). Wire injects this into the
+// repo alongside the ent client.
+func provideTransactionDB(cfg *config.Config) (*sql.DB, error) {
+	db, err := sql.Open("pgx", cfg.DatabaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("open transaction db: %w", err)
+	}
+	return db, nil
 }
 func provideBalanceUpdater(ar *accountrepo.AccountRepository) *txnbalance.BalanceUpdaterImpl {
 	return txnbalance.NewBalanceUpdater(ar)

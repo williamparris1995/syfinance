@@ -10,16 +10,14 @@
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
 // ignore_for_file: non_constant_identifier_names, prefer_relative_imports
 
-import 'dart:async' as $async;
 import 'dart:core' as $core;
 
 import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
-import 'package:protobuf/well_known_types/google/protobuf/empty.pb.dart' as $2;
 import 'package:protobuf/well_known_types/google/protobuf/timestamp.pb.dart'
-    as $0;
+    as $2;
 
-import '../../common/v1/pagination.pb.dart' as $1;
+import '../../common/v1/pagination.pb.dart' as $3;
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
 
@@ -30,8 +28,8 @@ class TransactionDTO extends $pb.GeneratedMessage {
     $core.String? description,
     $core.Iterable<EntryDTO>? entries,
     $fixnum.Int64? version,
-    $0.Timestamp? createdAt,
-    $0.Timestamp? updatedAt,
+    $2.Timestamp? createdAt,
+    $2.Timestamp? updatedAt,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -64,10 +62,10 @@ class TransactionDTO extends $pb.GeneratedMessage {
     ..pPM<EntryDTO>(4, _omitFieldNames ? '' : 'entries',
         subBuilder: EntryDTO.create)
     ..aInt64(5, _omitFieldNames ? '' : 'version')
-    ..aOM<$0.Timestamp>(6, _omitFieldNames ? '' : 'createdAt',
-        subBuilder: $0.Timestamp.create)
-    ..aOM<$0.Timestamp>(7, _omitFieldNames ? '' : 'updatedAt',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(6, _omitFieldNames ? '' : 'createdAt',
+        subBuilder: $2.Timestamp.create)
+    ..aOM<$2.Timestamp>(7, _omitFieldNames ? '' : 'updatedAt',
+        subBuilder: $2.Timestamp.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -129,26 +127,26 @@ class TransactionDTO extends $pb.GeneratedMessage {
   void clearVersion() => $_clearField(5);
 
   @$pb.TagNumber(6)
-  $0.Timestamp get createdAt => $_getN(5);
+  $2.Timestamp get createdAt => $_getN(5);
   @$pb.TagNumber(6)
-  set createdAt($0.Timestamp value) => $_setField(6, value);
+  set createdAt($2.Timestamp value) => $_setField(6, value);
   @$pb.TagNumber(6)
   $core.bool hasCreatedAt() => $_has(5);
   @$pb.TagNumber(6)
   void clearCreatedAt() => $_clearField(6);
   @$pb.TagNumber(6)
-  $0.Timestamp ensureCreatedAt() => $_ensure(5);
+  $2.Timestamp ensureCreatedAt() => $_ensure(5);
 
   @$pb.TagNumber(7)
-  $0.Timestamp get updatedAt => $_getN(6);
+  $2.Timestamp get updatedAt => $_getN(6);
   @$pb.TagNumber(7)
-  set updatedAt($0.Timestamp value) => $_setField(7, value);
+  set updatedAt($2.Timestamp value) => $_setField(7, value);
   @$pb.TagNumber(7)
   $core.bool hasUpdatedAt() => $_has(6);
   @$pb.TagNumber(7)
   void clearUpdatedAt() => $_clearField(7);
   @$pb.TagNumber(7)
-  $0.Timestamp ensureUpdatedAt() => $_ensure(6);
+  $2.Timestamp ensureUpdatedAt() => $_ensure(6);
 }
 
 class EntryDTO extends $pb.GeneratedMessage {
@@ -399,7 +397,7 @@ class GetTransactionRequest extends $pb.GeneratedMessage {
 
 class ListTransactionsRequest extends $pb.GeneratedMessage {
   factory ListTransactionsRequest({
-    $1.PageRequest? page,
+    $3.PageRequest? page,
     $core.String? accountId,
     $core.String? dateFrom,
     $core.String? dateTo,
@@ -426,8 +424,8 @@ class ListTransactionsRequest extends $pb.GeneratedMessage {
       package: const $pb.PackageName(
           _omitMessageNames ? '' : 'yucai.transaction.v1'),
       createEmptyInstance: create)
-    ..aOM<$1.PageRequest>(1, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageRequest.create)
+    ..aOM<$3.PageRequest>(1, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageRequest.create)
     ..aOS(2, _omitFieldNames ? '' : 'accountId')
     ..aOS(3, _omitFieldNames ? '' : 'dateFrom')
     ..aOS(4, _omitFieldNames ? '' : 'dateTo')
@@ -454,15 +452,15 @@ class ListTransactionsRequest extends $pb.GeneratedMessage {
   static ListTransactionsRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $1.PageRequest get page => $_getN(0);
+  $3.PageRequest get page => $_getN(0);
   @$pb.TagNumber(1)
-  set page($1.PageRequest value) => $_setField(1, value);
+  set page($3.PageRequest value) => $_setField(1, value);
   @$pb.TagNumber(1)
   $core.bool hasPage() => $_has(0);
   @$pb.TagNumber(1)
   void clearPage() => $_clearField(1);
   @$pb.TagNumber(1)
-  $1.PageRequest ensurePage() => $_ensure(0);
+  $3.PageRequest ensurePage() => $_ensure(0);
 
   @$pb.TagNumber(2)
   $core.String get accountId => $_getSZ(1);
@@ -495,7 +493,7 @@ class ListTransactionsRequest extends $pb.GeneratedMessage {
 class ListTransactionsResponse extends $pb.GeneratedMessage {
   factory ListTransactionsResponse({
     $core.Iterable<TransactionDTO>? transactions,
-    $1.PageResponse? page,
+    $3.PageResponse? page,
   }) {
     final result = create();
     if (transactions != null) result.transactions.addAll(transactions);
@@ -519,8 +517,8 @@ class ListTransactionsResponse extends $pb.GeneratedMessage {
       createEmptyInstance: create)
     ..pPM<TransactionDTO>(1, _omitFieldNames ? '' : 'transactions',
         subBuilder: TransactionDTO.create)
-    ..aOM<$1.PageResponse>(2, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageResponse.create)
+    ..aOM<$3.PageResponse>(2, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageResponse.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -547,15 +545,15 @@ class ListTransactionsResponse extends $pb.GeneratedMessage {
   $pb.PbList<TransactionDTO> get transactions => $_getList(0);
 
   @$pb.TagNumber(2)
-  $1.PageResponse get page => $_getN(1);
+  $3.PageResponse get page => $_getN(1);
   @$pb.TagNumber(2)
-  set page($1.PageResponse value) => $_setField(2, value);
+  set page($3.PageResponse value) => $_setField(2, value);
   @$pb.TagNumber(2)
   $core.bool hasPage() => $_has(1);
   @$pb.TagNumber(2)
   void clearPage() => $_clearField(2);
   @$pb.TagNumber(2)
-  $1.PageResponse ensurePage() => $_ensure(1);
+  $3.PageResponse ensurePage() => $_ensure(1);
 }
 
 class UpdateTransactionRequest extends $pb.GeneratedMessage {
@@ -1118,44 +1116,412 @@ class TransactionResponse extends $pb.GeneratedMessage {
   TransactionDTO ensureTransaction() => $_ensure(0);
 }
 
-/// TransactionService manages double-entry bookkeeping transactions.
-class TransactionServiceApi {
-  final $pb.RpcClient _client;
+class TransactionSummaryRequest extends $pb.GeneratedMessage {
+  factory TransactionSummaryRequest({
+    $core.int? year,
+    $core.int? month,
+    $core.String? accountId,
+  }) {
+    final result = create();
+    if (year != null) result.year = year;
+    if (month != null) result.month = month;
+    if (accountId != null) result.accountId = accountId;
+    return result;
+  }
 
-  TransactionServiceApi(this._client);
+  TransactionSummaryRequest._();
 
-  $async.Future<TransactionResponse> recordTransaction(
-          $pb.ClientContext? ctx, RecordTransactionRequest request) =>
-      _client.invoke<TransactionResponse>(ctx, 'TransactionService',
-          'RecordTransaction', request, TransactionResponse());
-  $async.Future<TransactionResponse> getTransaction(
-          $pb.ClientContext? ctx, GetTransactionRequest request) =>
-      _client.invoke<TransactionResponse>(ctx, 'TransactionService',
-          'GetTransaction', request, TransactionResponse());
-  $async.Future<ListTransactionsResponse> listTransactions(
-          $pb.ClientContext? ctx, ListTransactionsRequest request) =>
-      _client.invoke<ListTransactionsResponse>(ctx, 'TransactionService',
-          'ListTransactions', request, ListTransactionsResponse());
-  $async.Future<TransactionResponse> updateTransaction(
-          $pb.ClientContext? ctx, UpdateTransactionRequest request) =>
-      _client.invoke<TransactionResponse>(ctx, 'TransactionService',
-          'UpdateTransaction', request, TransactionResponse());
-  $async.Future<$2.Empty> deleteTransaction(
-          $pb.ClientContext? ctx, DeleteTransactionRequest request) =>
-      _client.invoke<$2.Empty>(
-          ctx, 'TransactionService', 'DeleteTransaction', request, $2.Empty());
-  $async.Future<TransactionResponse> simpleIncome(
-          $pb.ClientContext? ctx, SimpleIncomeRequest request) =>
-      _client.invoke<TransactionResponse>(ctx, 'TransactionService',
-          'SimpleIncome', request, TransactionResponse());
-  $async.Future<TransactionResponse> simpleExpense(
-          $pb.ClientContext? ctx, SimpleExpenseRequest request) =>
-      _client.invoke<TransactionResponse>(ctx, 'TransactionService',
-          'SimpleExpense', request, TransactionResponse());
-  $async.Future<TransactionResponse> simpleTransfer(
-          $pb.ClientContext? ctx, SimpleTransferRequest request) =>
-      _client.invoke<TransactionResponse>(ctx, 'TransactionService',
-          'SimpleTransfer', request, TransactionResponse());
+  factory TransactionSummaryRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory TransactionSummaryRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'TransactionSummaryRequest',
+      package: const $pb.PackageName(
+          _omitMessageNames ? '' : 'yucai.transaction.v1'),
+      createEmptyInstance: create)
+    ..aI(1, _omitFieldNames ? '' : 'year')
+    ..aI(2, _omitFieldNames ? '' : 'month')
+    ..aOS(3, _omitFieldNames ? '' : 'accountId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  TransactionSummaryRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  TransactionSummaryRequest copyWith(
+          void Function(TransactionSummaryRequest) updates) =>
+      super.copyWith((message) => updates(message as TransactionSummaryRequest))
+          as TransactionSummaryRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static TransactionSummaryRequest create() => TransactionSummaryRequest._();
+  @$core.override
+  TransactionSummaryRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static TransactionSummaryRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<TransactionSummaryRequest>(create);
+  static TransactionSummaryRequest? _defaultInstance;
+
+  /// Calendar year, e.g. 2026.
+  @$pb.TagNumber(1)
+  $core.int get year => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set year($core.int value) => $_setSignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasYear() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearYear() => $_clearField(1);
+
+  /// Calendar month, 1-12.
+  @$pb.TagNumber(2)
+  $core.int get month => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set month($core.int value) => $_setSignedInt32(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasMonth() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearMonth() => $_clearField(2);
+
+  /// Optional: scope the summary to a single account (account_detail view).
+  /// Empty = all accounts.
+  @$pb.TagNumber(3)
+  $core.String get accountId => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set accountId($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasAccountId() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearAccountId() => $_clearField(3);
+}
+
+class TransactionSummaryResponse extends $pb.GeneratedMessage {
+  factory TransactionSummaryResponse({
+    MonthlySummary? summary,
+  }) {
+    final result = create();
+    if (summary != null) result.summary = summary;
+    return result;
+  }
+
+  TransactionSummaryResponse._();
+
+  factory TransactionSummaryResponse.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory TransactionSummaryResponse.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'TransactionSummaryResponse',
+      package: const $pb.PackageName(
+          _omitMessageNames ? '' : 'yucai.transaction.v1'),
+      createEmptyInstance: create)
+    ..aOM<MonthlySummary>(1, _omitFieldNames ? '' : 'summary',
+        subBuilder: MonthlySummary.create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  TransactionSummaryResponse clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  TransactionSummaryResponse copyWith(
+          void Function(TransactionSummaryResponse) updates) =>
+      super.copyWith(
+              (message) => updates(message as TransactionSummaryResponse))
+          as TransactionSummaryResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static TransactionSummaryResponse create() => TransactionSummaryResponse._();
+  @$core.override
+  TransactionSummaryResponse createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static TransactionSummaryResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<TransactionSummaryResponse>(create);
+  static TransactionSummaryResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  MonthlySummary get summary => $_getN(0);
+  @$pb.TagNumber(1)
+  set summary(MonthlySummary value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSummary() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSummary() => $_clearField(1);
+  @$pb.TagNumber(1)
+  MonthlySummary ensureSummary() => $_ensure(0);
+}
+
+class MonthlySummary extends $pb.GeneratedMessage {
+  factory MonthlySummary({
+    $fixnum.Int64? incomeCents,
+    $fixnum.Int64? expenseCents,
+    $fixnum.Int64? netCents,
+    $fixnum.Int64? dailyAvgCents,
+    $core.Iterable<DailyItem>? byDay,
+  }) {
+    final result = create();
+    if (incomeCents != null) result.incomeCents = incomeCents;
+    if (expenseCents != null) result.expenseCents = expenseCents;
+    if (netCents != null) result.netCents = netCents;
+    if (dailyAvgCents != null) result.dailyAvgCents = dailyAvgCents;
+    if (byDay != null) result.byDay.addAll(byDay);
+    return result;
+  }
+
+  MonthlySummary._();
+
+  factory MonthlySummary.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory MonthlySummary.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'MonthlySummary',
+      package: const $pb.PackageName(
+          _omitMessageNames ? '' : 'yucai.transaction.v1'),
+      createEmptyInstance: create)
+    ..aInt64(1, _omitFieldNames ? '' : 'incomeCents')
+    ..aInt64(2, _omitFieldNames ? '' : 'expenseCents')
+    ..aInt64(3, _omitFieldNames ? '' : 'netCents')
+    ..aInt64(4, _omitFieldNames ? '' : 'dailyAvgCents')
+    ..pPM<DailyItem>(5, _omitFieldNames ? '' : 'byDay',
+        subBuilder: DailyItem.create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  MonthlySummary clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  MonthlySummary copyWith(void Function(MonthlySummary) updates) =>
+      super.copyWith((message) => updates(message as MonthlySummary))
+          as MonthlySummary;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static MonthlySummary create() => MonthlySummary._();
+  @$core.override
+  MonthlySummary createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static MonthlySummary getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<MonthlySummary>(create);
+  static MonthlySummary? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get incomeCents => $_getI64(0);
+  @$pb.TagNumber(1)
+  set incomeCents($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasIncomeCents() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearIncomeCents() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get expenseCents => $_getI64(1);
+  @$pb.TagNumber(2)
+  set expenseCents($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasExpenseCents() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearExpenseCents() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get netCents => $_getI64(2);
+  @$pb.TagNumber(3)
+  set netCents($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasNetCents() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearNetCents() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get dailyAvgCents => $_getI64(3);
+  @$pb.TagNumber(4)
+  set dailyAvgCents($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasDailyAvgCents() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearDailyAvgCents() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $pb.PbList<DailyItem> get byDay => $_getList(4);
+}
+
+class DailyItem extends $pb.GeneratedMessage {
+  factory DailyItem({
+    $core.String? date,
+    $fixnum.Int64? totalIncome,
+    $core.Iterable<CategoryItem>? byCategory,
+  }) {
+    final result = create();
+    if (date != null) result.date = date;
+    if (totalIncome != null) result.totalIncome = totalIncome;
+    if (byCategory != null) result.byCategory.addAll(byCategory);
+    return result;
+  }
+
+  DailyItem._();
+
+  factory DailyItem.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory DailyItem.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'DailyItem',
+      package: const $pb.PackageName(
+          _omitMessageNames ? '' : 'yucai.transaction.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'date')
+    ..aInt64(2, _omitFieldNames ? '' : 'totalIncome')
+    ..pPM<CategoryItem>(3, _omitFieldNames ? '' : 'byCategory',
+        subBuilder: CategoryItem.create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  DailyItem clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  DailyItem copyWith(void Function(DailyItem) updates) =>
+      super.copyWith((message) => updates(message as DailyItem)) as DailyItem;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static DailyItem create() => DailyItem._();
+  @$core.override
+  DailyItem createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static DailyItem getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<DailyItem>(create);
+  static DailyItem? _defaultInstance;
+
+  /// Calendar day in YYYY-MM-DD form (UTC midnight of the transaction's date).
+  @$pb.TagNumber(1)
+  $core.String get date => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set date($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasDate() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearDate() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get totalIncome => $_getI64(1);
+  @$pb.TagNumber(2)
+  set totalIncome($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasTotalIncome() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearTotalIncome() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $pb.PbList<CategoryItem> get byCategory => $_getList(2);
+}
+
+class CategoryItem extends $pb.GeneratedMessage {
+  factory CategoryItem({
+    $core.String? accountId,
+    $core.String? name,
+    $core.String? accountType,
+    $fixnum.Int64? amount,
+  }) {
+    final result = create();
+    if (accountId != null) result.accountId = accountId;
+    if (name != null) result.name = name;
+    if (accountType != null) result.accountType = accountType;
+    if (amount != null) result.amount = amount;
+    return result;
+  }
+
+  CategoryItem._();
+
+  factory CategoryItem.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory CategoryItem.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'CategoryItem',
+      package: const $pb.PackageName(
+          _omitMessageNames ? '' : 'yucai.transaction.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'accountId')
+    ..aOS(2, _omitFieldNames ? '' : 'name')
+    ..aOS(3, _omitFieldNames ? '' : 'accountType')
+    ..aInt64(4, _omitFieldNames ? '' : 'amount')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CategoryItem clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CategoryItem copyWith(void Function(CategoryItem) updates) =>
+      super.copyWith((message) => updates(message as CategoryItem))
+          as CategoryItem;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static CategoryItem create() => CategoryItem._();
+  @$core.override
+  CategoryItem createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static CategoryItem getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<CategoryItem>(create);
+  static CategoryItem? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get accountId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set accountId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasAccountId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearAccountId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get name => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set name($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasName() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearName() => $_clearField(2);
+
+  /// "income" or "expense".
+  @$pb.TagNumber(3)
+  $core.String get accountType => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set accountType($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasAccountType() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearAccountType() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get amount => $_getI64(3);
+  @$pb.TagNumber(4)
+  set amount($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasAmount() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearAmount() => $_clearField(4);
 }
 
 const $core.bool _omitFieldNames =

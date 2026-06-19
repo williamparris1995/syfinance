@@ -28,6 +28,10 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	txnDB, err := provideTransactionDB(cfg)
+	if err != nil {
+		return nil, err
+	}
 	budgetClient, err := provideBudgetEntClient(cfg)
 	if err != nil {
 		return nil, err
@@ -90,7 +94,7 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	authHandler := provideAuthHandler(authService)
 
 	// Transaction module
-	txnRepo := provideTransactionRepo(txnClient)
+	txnRepo := provideTransactionRepo(txnClient, txnDB)
 	balanceUpdater := provideBalanceUpdater(accountRepo)
 	txnService := provideTransactionService(txnRepo, accountRepo, balanceUpdater)
 	txnHandler := provideTransactionHandler(txnService)

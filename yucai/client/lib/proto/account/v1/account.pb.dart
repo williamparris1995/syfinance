@@ -10,16 +10,14 @@
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
 // ignore_for_file: non_constant_identifier_names, prefer_relative_imports
 
-import 'dart:async' as $async;
 import 'dart:core' as $core;
 
 import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
-import 'package:protobuf/well_known_types/google/protobuf/empty.pb.dart' as $2;
 import 'package:protobuf/well_known_types/google/protobuf/timestamp.pb.dart'
-    as $0;
+    as $2;
 
-import '../../common/v1/pagination.pb.dart' as $1;
+import '../../common/v1/pagination.pb.dart' as $3;
 import 'account.pbenum.dart';
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
@@ -43,12 +41,12 @@ class AccountDTO extends $pb.GeneratedMessage {
     $fixnum.Int64? creditLimitCents,
     AccountStatus? status,
     $fixnum.Int64? version,
-    $0.Timestamp? createdAt,
-    $0.Timestamp? updatedAt,
+    $2.Timestamp? createdAt,
+    $2.Timestamp? updatedAt,
     AccountCategory? category,
     $core.String? cardNumberTail,
     $core.String? notes,
-    $0.Timestamp? openingDate,
+    $2.Timestamp? openingDate,
     $core.double? interestRate,
     $core.int? creditBillingDay,
     $core.int? creditRepaymentDay,
@@ -57,8 +55,8 @@ class AccountDTO extends $pb.GeneratedMessage {
     $fixnum.Int64? investMarketValueCents,
     $core.double? investReturnYtd,
     $fixnum.Int64? fixedPrincipalCents,
-    $0.Timestamp? fixedStartDate,
-    $0.Timestamp? fixedMaturityDate,
+    $2.Timestamp? fixedStartDate,
+    $2.Timestamp? fixedMaturityDate,
     $core.int? fixedTermMonths,
     $core.String? goldProductType,
     $core.double? goldQuantity,
@@ -66,12 +64,14 @@ class AccountDTO extends $pb.GeneratedMessage {
     $fixnum.Int64? goldCurrentPriceCents,
     $fixnum.Int64? estatePurchasePriceCents,
     $fixnum.Int64? estateCurrentValueCents,
-    $0.Timestamp? estatePurchaseDate,
+    $2.Timestamp? estatePurchaseDate,
     $core.double? estateDepreciationRate,
     $fixnum.Int64? loanOriginalCents,
     $fixnum.Int64? loanRemainingCents,
     $fixnum.Int64? loanMonthlyCents,
-    $0.Timestamp? loanNextPaymentDate,
+    $2.Timestamp? loanNextPaymentDate,
+    $core.bool? isSystem,
+    $core.int? sortOrder,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -131,6 +131,8 @@ class AccountDTO extends $pb.GeneratedMessage {
     if (loanMonthlyCents != null) result.loanMonthlyCents = loanMonthlyCents;
     if (loanNextPaymentDate != null)
       result.loanNextPaymentDate = loanNextPaymentDate;
+    if (isSystem != null) result.isSystem = isSystem;
+    if (sortOrder != null) result.sortOrder = sortOrder;
     return result;
   }
 
@@ -166,16 +168,16 @@ class AccountDTO extends $pb.GeneratedMessage {
     ..aE<AccountStatus>(14, _omitFieldNames ? '' : 'status',
         enumValues: AccountStatus.values)
     ..aInt64(15, _omitFieldNames ? '' : 'version')
-    ..aOM<$0.Timestamp>(16, _omitFieldNames ? '' : 'createdAt',
-        subBuilder: $0.Timestamp.create)
-    ..aOM<$0.Timestamp>(17, _omitFieldNames ? '' : 'updatedAt',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(16, _omitFieldNames ? '' : 'createdAt',
+        subBuilder: $2.Timestamp.create)
+    ..aOM<$2.Timestamp>(17, _omitFieldNames ? '' : 'updatedAt',
+        subBuilder: $2.Timestamp.create)
     ..aE<AccountCategory>(18, _omitFieldNames ? '' : 'category',
         enumValues: AccountCategory.values)
     ..aOS(19, _omitFieldNames ? '' : 'cardNumberTail')
     ..aOS(20, _omitFieldNames ? '' : 'notes')
-    ..aOM<$0.Timestamp>(21, _omitFieldNames ? '' : 'openingDate',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(21, _omitFieldNames ? '' : 'openingDate',
+        subBuilder: $2.Timestamp.create)
     ..aD(22, _omitFieldNames ? '' : 'interestRate')
     ..aI(23, _omitFieldNames ? '' : 'creditBillingDay')
     ..aI(24, _omitFieldNames ? '' : 'creditRepaymentDay')
@@ -184,10 +186,10 @@ class AccountDTO extends $pb.GeneratedMessage {
     ..aInt64(27, _omitFieldNames ? '' : 'investMarketValueCents')
     ..aD(28, _omitFieldNames ? '' : 'investReturnYtd')
     ..aInt64(29, _omitFieldNames ? '' : 'fixedPrincipalCents')
-    ..aOM<$0.Timestamp>(30, _omitFieldNames ? '' : 'fixedStartDate',
-        subBuilder: $0.Timestamp.create)
-    ..aOM<$0.Timestamp>(31, _omitFieldNames ? '' : 'fixedMaturityDate',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(30, _omitFieldNames ? '' : 'fixedStartDate',
+        subBuilder: $2.Timestamp.create)
+    ..aOM<$2.Timestamp>(31, _omitFieldNames ? '' : 'fixedMaturityDate',
+        subBuilder: $2.Timestamp.create)
     ..aI(32, _omitFieldNames ? '' : 'fixedTermMonths')
     ..aOS(33, _omitFieldNames ? '' : 'goldProductType')
     ..aD(34, _omitFieldNames ? '' : 'goldQuantity')
@@ -195,14 +197,16 @@ class AccountDTO extends $pb.GeneratedMessage {
     ..aInt64(36, _omitFieldNames ? '' : 'goldCurrentPriceCents')
     ..aInt64(37, _omitFieldNames ? '' : 'estatePurchasePriceCents')
     ..aInt64(38, _omitFieldNames ? '' : 'estateCurrentValueCents')
-    ..aOM<$0.Timestamp>(39, _omitFieldNames ? '' : 'estatePurchaseDate',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(39, _omitFieldNames ? '' : 'estatePurchaseDate',
+        subBuilder: $2.Timestamp.create)
     ..aD(40, _omitFieldNames ? '' : 'estateDepreciationRate')
     ..aInt64(41, _omitFieldNames ? '' : 'loanOriginalCents')
     ..aInt64(42, _omitFieldNames ? '' : 'loanRemainingCents')
     ..aInt64(43, _omitFieldNames ? '' : 'loanMonthlyCents')
-    ..aOM<$0.Timestamp>(44, _omitFieldNames ? '' : 'loanNextPaymentDate',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(44, _omitFieldNames ? '' : 'loanNextPaymentDate',
+        subBuilder: $2.Timestamp.create)
+    ..aOB(45, _omitFieldNames ? '' : 'isSystem')
+    ..aI(46, _omitFieldNames ? '' : 'sortOrder')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -359,26 +363,26 @@ class AccountDTO extends $pb.GeneratedMessage {
   void clearVersion() => $_clearField(15);
 
   @$pb.TagNumber(16)
-  $0.Timestamp get createdAt => $_getN(15);
+  $2.Timestamp get createdAt => $_getN(15);
   @$pb.TagNumber(16)
-  set createdAt($0.Timestamp value) => $_setField(16, value);
+  set createdAt($2.Timestamp value) => $_setField(16, value);
   @$pb.TagNumber(16)
   $core.bool hasCreatedAt() => $_has(15);
   @$pb.TagNumber(16)
   void clearCreatedAt() => $_clearField(16);
   @$pb.TagNumber(16)
-  $0.Timestamp ensureCreatedAt() => $_ensure(15);
+  $2.Timestamp ensureCreatedAt() => $_ensure(15);
 
   @$pb.TagNumber(17)
-  $0.Timestamp get updatedAt => $_getN(16);
+  $2.Timestamp get updatedAt => $_getN(16);
   @$pb.TagNumber(17)
-  set updatedAt($0.Timestamp value) => $_setField(17, value);
+  set updatedAt($2.Timestamp value) => $_setField(17, value);
   @$pb.TagNumber(17)
   $core.bool hasUpdatedAt() => $_has(16);
   @$pb.TagNumber(17)
   void clearUpdatedAt() => $_clearField(17);
   @$pb.TagNumber(17)
-  $0.Timestamp ensureUpdatedAt() => $_ensure(16);
+  $2.Timestamp ensureUpdatedAt() => $_ensure(16);
 
   @$pb.TagNumber(18)
   AccountCategory get category => $_getN(17);
@@ -408,15 +412,15 @@ class AccountDTO extends $pb.GeneratedMessage {
   void clearNotes() => $_clearField(20);
 
   @$pb.TagNumber(21)
-  $0.Timestamp get openingDate => $_getN(20);
+  $2.Timestamp get openingDate => $_getN(20);
   @$pb.TagNumber(21)
-  set openingDate($0.Timestamp value) => $_setField(21, value);
+  set openingDate($2.Timestamp value) => $_setField(21, value);
   @$pb.TagNumber(21)
   $core.bool hasOpeningDate() => $_has(20);
   @$pb.TagNumber(21)
   void clearOpeningDate() => $_clearField(21);
   @$pb.TagNumber(21)
-  $0.Timestamp ensureOpeningDate() => $_ensure(20);
+  $2.Timestamp ensureOpeningDate() => $_ensure(20);
 
   @$pb.TagNumber(22)
   $core.double get interestRate => $_getN(21);
@@ -491,26 +495,26 @@ class AccountDTO extends $pb.GeneratedMessage {
   void clearFixedPrincipalCents() => $_clearField(29);
 
   @$pb.TagNumber(30)
-  $0.Timestamp get fixedStartDate => $_getN(29);
+  $2.Timestamp get fixedStartDate => $_getN(29);
   @$pb.TagNumber(30)
-  set fixedStartDate($0.Timestamp value) => $_setField(30, value);
+  set fixedStartDate($2.Timestamp value) => $_setField(30, value);
   @$pb.TagNumber(30)
   $core.bool hasFixedStartDate() => $_has(29);
   @$pb.TagNumber(30)
   void clearFixedStartDate() => $_clearField(30);
   @$pb.TagNumber(30)
-  $0.Timestamp ensureFixedStartDate() => $_ensure(29);
+  $2.Timestamp ensureFixedStartDate() => $_ensure(29);
 
   @$pb.TagNumber(31)
-  $0.Timestamp get fixedMaturityDate => $_getN(30);
+  $2.Timestamp get fixedMaturityDate => $_getN(30);
   @$pb.TagNumber(31)
-  set fixedMaturityDate($0.Timestamp value) => $_setField(31, value);
+  set fixedMaturityDate($2.Timestamp value) => $_setField(31, value);
   @$pb.TagNumber(31)
   $core.bool hasFixedMaturityDate() => $_has(30);
   @$pb.TagNumber(31)
   void clearFixedMaturityDate() => $_clearField(31);
   @$pb.TagNumber(31)
-  $0.Timestamp ensureFixedMaturityDate() => $_ensure(30);
+  $2.Timestamp ensureFixedMaturityDate() => $_ensure(30);
 
   @$pb.TagNumber(32)
   $core.int get fixedTermMonths => $_getIZ(31);
@@ -576,15 +580,15 @@ class AccountDTO extends $pb.GeneratedMessage {
   void clearEstateCurrentValueCents() => $_clearField(38);
 
   @$pb.TagNumber(39)
-  $0.Timestamp get estatePurchaseDate => $_getN(38);
+  $2.Timestamp get estatePurchaseDate => $_getN(38);
   @$pb.TagNumber(39)
-  set estatePurchaseDate($0.Timestamp value) => $_setField(39, value);
+  set estatePurchaseDate($2.Timestamp value) => $_setField(39, value);
   @$pb.TagNumber(39)
   $core.bool hasEstatePurchaseDate() => $_has(38);
   @$pb.TagNumber(39)
   void clearEstatePurchaseDate() => $_clearField(39);
   @$pb.TagNumber(39)
-  $0.Timestamp ensureEstatePurchaseDate() => $_ensure(38);
+  $2.Timestamp ensureEstatePurchaseDate() => $_ensure(38);
 
   @$pb.TagNumber(40)
   $core.double get estateDepreciationRate => $_getN(39);
@@ -623,15 +627,33 @@ class AccountDTO extends $pb.GeneratedMessage {
   void clearLoanMonthlyCents() => $_clearField(43);
 
   @$pb.TagNumber(44)
-  $0.Timestamp get loanNextPaymentDate => $_getN(43);
+  $2.Timestamp get loanNextPaymentDate => $_getN(43);
   @$pb.TagNumber(44)
-  set loanNextPaymentDate($0.Timestamp value) => $_setField(44, value);
+  set loanNextPaymentDate($2.Timestamp value) => $_setField(44, value);
   @$pb.TagNumber(44)
   $core.bool hasLoanNextPaymentDate() => $_has(43);
   @$pb.TagNumber(44)
   void clearLoanNextPaymentDate() => $_clearField(44);
   @$pb.TagNumber(44)
-  $0.Timestamp ensureLoanNextPaymentDate() => $_ensure(43);
+  $2.Timestamp ensureLoanNextPaymentDate() => $_ensure(43);
+
+  @$pb.TagNumber(45)
+  $core.bool get isSystem => $_getBF(44);
+  @$pb.TagNumber(45)
+  set isSystem($core.bool value) => $_setBool(44, value);
+  @$pb.TagNumber(45)
+  $core.bool hasIsSystem() => $_has(44);
+  @$pb.TagNumber(45)
+  void clearIsSystem() => $_clearField(45);
+
+  @$pb.TagNumber(46)
+  $core.int get sortOrder => $_getIZ(45);
+  @$pb.TagNumber(46)
+  set sortOrder($core.int value) => $_setSignedInt32(45, value);
+  @$pb.TagNumber(46)
+  $core.bool hasSortOrder() => $_has(45);
+  @$pb.TagNumber(46)
+  void clearSortOrder() => $_clearField(46);
 }
 
 class CreateAccountRequest extends $pb.GeneratedMessage {
@@ -650,7 +672,7 @@ class CreateAccountRequest extends $pb.GeneratedMessage {
     AccountCategory? category,
     $core.String? cardNumberTail,
     $core.String? notes,
-    $0.Timestamp? openingDate,
+    $2.Timestamp? openingDate,
     $core.double? interestRate,
     $core.int? creditBillingDay,
     $core.int? creditRepaymentDay,
@@ -659,8 +681,8 @@ class CreateAccountRequest extends $pb.GeneratedMessage {
     $fixnum.Int64? investMarketValueCents,
     $core.double? investReturnYtd,
     $fixnum.Int64? fixedPrincipalCents,
-    $0.Timestamp? fixedStartDate,
-    $0.Timestamp? fixedMaturityDate,
+    $2.Timestamp? fixedStartDate,
+    $2.Timestamp? fixedMaturityDate,
     $core.int? fixedTermMonths,
     $core.String? goldProductType,
     $core.double? goldQuantity,
@@ -668,12 +690,12 @@ class CreateAccountRequest extends $pb.GeneratedMessage {
     $fixnum.Int64? goldCurrentPriceCents,
     $fixnum.Int64? estatePurchasePriceCents,
     $fixnum.Int64? estateCurrentValueCents,
-    $0.Timestamp? estatePurchaseDate,
+    $2.Timestamp? estatePurchaseDate,
     $core.double? estateDepreciationRate,
     $fixnum.Int64? loanOriginalCents,
     $fixnum.Int64? loanRemainingCents,
     $fixnum.Int64? loanMonthlyCents,
-    $0.Timestamp? loanNextPaymentDate,
+    $2.Timestamp? loanNextPaymentDate,
   }) {
     final result = create();
     if (name != null) result.name = name;
@@ -760,8 +782,8 @@ class CreateAccountRequest extends $pb.GeneratedMessage {
         enumValues: AccountCategory.values)
     ..aOS(13, _omitFieldNames ? '' : 'cardNumberTail')
     ..aOS(14, _omitFieldNames ? '' : 'notes')
-    ..aOM<$0.Timestamp>(15, _omitFieldNames ? '' : 'openingDate',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(15, _omitFieldNames ? '' : 'openingDate',
+        subBuilder: $2.Timestamp.create)
     ..aD(16, _omitFieldNames ? '' : 'interestRate')
     ..aI(17, _omitFieldNames ? '' : 'creditBillingDay')
     ..aI(18, _omitFieldNames ? '' : 'creditRepaymentDay')
@@ -770,10 +792,10 @@ class CreateAccountRequest extends $pb.GeneratedMessage {
     ..aInt64(21, _omitFieldNames ? '' : 'investMarketValueCents')
     ..aD(22, _omitFieldNames ? '' : 'investReturnYtd')
     ..aInt64(23, _omitFieldNames ? '' : 'fixedPrincipalCents')
-    ..aOM<$0.Timestamp>(24, _omitFieldNames ? '' : 'fixedStartDate',
-        subBuilder: $0.Timestamp.create)
-    ..aOM<$0.Timestamp>(25, _omitFieldNames ? '' : 'fixedMaturityDate',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(24, _omitFieldNames ? '' : 'fixedStartDate',
+        subBuilder: $2.Timestamp.create)
+    ..aOM<$2.Timestamp>(25, _omitFieldNames ? '' : 'fixedMaturityDate',
+        subBuilder: $2.Timestamp.create)
     ..aI(26, _omitFieldNames ? '' : 'fixedTermMonths')
     ..aOS(27, _omitFieldNames ? '' : 'goldProductType')
     ..aD(28, _omitFieldNames ? '' : 'goldQuantity')
@@ -781,14 +803,14 @@ class CreateAccountRequest extends $pb.GeneratedMessage {
     ..aInt64(30, _omitFieldNames ? '' : 'goldCurrentPriceCents')
     ..aInt64(31, _omitFieldNames ? '' : 'estatePurchasePriceCents')
     ..aInt64(32, _omitFieldNames ? '' : 'estateCurrentValueCents')
-    ..aOM<$0.Timestamp>(33, _omitFieldNames ? '' : 'estatePurchaseDate',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(33, _omitFieldNames ? '' : 'estatePurchaseDate',
+        subBuilder: $2.Timestamp.create)
     ..aD(34, _omitFieldNames ? '' : 'estateDepreciationRate')
     ..aInt64(35, _omitFieldNames ? '' : 'loanOriginalCents')
     ..aInt64(36, _omitFieldNames ? '' : 'loanRemainingCents')
     ..aInt64(37, _omitFieldNames ? '' : 'loanMonthlyCents')
-    ..aOM<$0.Timestamp>(38, _omitFieldNames ? '' : 'loanNextPaymentDate',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(38, _omitFieldNames ? '' : 'loanNextPaymentDate',
+        subBuilder: $2.Timestamp.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -937,15 +959,15 @@ class CreateAccountRequest extends $pb.GeneratedMessage {
   void clearNotes() => $_clearField(14);
 
   @$pb.TagNumber(15)
-  $0.Timestamp get openingDate => $_getN(14);
+  $2.Timestamp get openingDate => $_getN(14);
   @$pb.TagNumber(15)
-  set openingDate($0.Timestamp value) => $_setField(15, value);
+  set openingDate($2.Timestamp value) => $_setField(15, value);
   @$pb.TagNumber(15)
   $core.bool hasOpeningDate() => $_has(14);
   @$pb.TagNumber(15)
   void clearOpeningDate() => $_clearField(15);
   @$pb.TagNumber(15)
-  $0.Timestamp ensureOpeningDate() => $_ensure(14);
+  $2.Timestamp ensureOpeningDate() => $_ensure(14);
 
   @$pb.TagNumber(16)
   $core.double get interestRate => $_getN(15);
@@ -1020,26 +1042,26 @@ class CreateAccountRequest extends $pb.GeneratedMessage {
   void clearFixedPrincipalCents() => $_clearField(23);
 
   @$pb.TagNumber(24)
-  $0.Timestamp get fixedStartDate => $_getN(23);
+  $2.Timestamp get fixedStartDate => $_getN(23);
   @$pb.TagNumber(24)
-  set fixedStartDate($0.Timestamp value) => $_setField(24, value);
+  set fixedStartDate($2.Timestamp value) => $_setField(24, value);
   @$pb.TagNumber(24)
   $core.bool hasFixedStartDate() => $_has(23);
   @$pb.TagNumber(24)
   void clearFixedStartDate() => $_clearField(24);
   @$pb.TagNumber(24)
-  $0.Timestamp ensureFixedStartDate() => $_ensure(23);
+  $2.Timestamp ensureFixedStartDate() => $_ensure(23);
 
   @$pb.TagNumber(25)
-  $0.Timestamp get fixedMaturityDate => $_getN(24);
+  $2.Timestamp get fixedMaturityDate => $_getN(24);
   @$pb.TagNumber(25)
-  set fixedMaturityDate($0.Timestamp value) => $_setField(25, value);
+  set fixedMaturityDate($2.Timestamp value) => $_setField(25, value);
   @$pb.TagNumber(25)
   $core.bool hasFixedMaturityDate() => $_has(24);
   @$pb.TagNumber(25)
   void clearFixedMaturityDate() => $_clearField(25);
   @$pb.TagNumber(25)
-  $0.Timestamp ensureFixedMaturityDate() => $_ensure(24);
+  $2.Timestamp ensureFixedMaturityDate() => $_ensure(24);
 
   @$pb.TagNumber(26)
   $core.int get fixedTermMonths => $_getIZ(25);
@@ -1105,15 +1127,15 @@ class CreateAccountRequest extends $pb.GeneratedMessage {
   void clearEstateCurrentValueCents() => $_clearField(32);
 
   @$pb.TagNumber(33)
-  $0.Timestamp get estatePurchaseDate => $_getN(32);
+  $2.Timestamp get estatePurchaseDate => $_getN(32);
   @$pb.TagNumber(33)
-  set estatePurchaseDate($0.Timestamp value) => $_setField(33, value);
+  set estatePurchaseDate($2.Timestamp value) => $_setField(33, value);
   @$pb.TagNumber(33)
   $core.bool hasEstatePurchaseDate() => $_has(32);
   @$pb.TagNumber(33)
   void clearEstatePurchaseDate() => $_clearField(33);
   @$pb.TagNumber(33)
-  $0.Timestamp ensureEstatePurchaseDate() => $_ensure(32);
+  $2.Timestamp ensureEstatePurchaseDate() => $_ensure(32);
 
   @$pb.TagNumber(34)
   $core.double get estateDepreciationRate => $_getN(33);
@@ -1152,15 +1174,15 @@ class CreateAccountRequest extends $pb.GeneratedMessage {
   void clearLoanMonthlyCents() => $_clearField(37);
 
   @$pb.TagNumber(38)
-  $0.Timestamp get loanNextPaymentDate => $_getN(37);
+  $2.Timestamp get loanNextPaymentDate => $_getN(37);
   @$pb.TagNumber(38)
-  set loanNextPaymentDate($0.Timestamp value) => $_setField(38, value);
+  set loanNextPaymentDate($2.Timestamp value) => $_setField(38, value);
   @$pb.TagNumber(38)
   $core.bool hasLoanNextPaymentDate() => $_has(37);
   @$pb.TagNumber(38)
   void clearLoanNextPaymentDate() => $_clearField(38);
   @$pb.TagNumber(38)
-  $0.Timestamp ensureLoanNextPaymentDate() => $_ensure(37);
+  $2.Timestamp ensureLoanNextPaymentDate() => $_ensure(37);
 }
 
 class GetAccountRequest extends $pb.GeneratedMessage {
@@ -1220,7 +1242,7 @@ class GetAccountRequest extends $pb.GeneratedMessage {
 
 class ListAccountsRequest extends $pb.GeneratedMessage {
   factory ListAccountsRequest({
-    $1.PageRequest? page,
+    $3.PageRequest? page,
     AccountType? accountType,
     AccountStatus? status,
   }) {
@@ -1245,8 +1267,8 @@ class ListAccountsRequest extends $pb.GeneratedMessage {
       package:
           const $pb.PackageName(_omitMessageNames ? '' : 'yucai.account.v1'),
       createEmptyInstance: create)
-    ..aOM<$1.PageRequest>(1, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageRequest.create)
+    ..aOM<$3.PageRequest>(1, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageRequest.create)
     ..aE<AccountType>(2, _omitFieldNames ? '' : 'accountType',
         enumValues: AccountType.values)
     ..aE<AccountStatus>(3, _omitFieldNames ? '' : 'status',
@@ -1273,15 +1295,15 @@ class ListAccountsRequest extends $pb.GeneratedMessage {
   static ListAccountsRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $1.PageRequest get page => $_getN(0);
+  $3.PageRequest get page => $_getN(0);
   @$pb.TagNumber(1)
-  set page($1.PageRequest value) => $_setField(1, value);
+  set page($3.PageRequest value) => $_setField(1, value);
   @$pb.TagNumber(1)
   $core.bool hasPage() => $_has(0);
   @$pb.TagNumber(1)
   void clearPage() => $_clearField(1);
   @$pb.TagNumber(1)
-  $1.PageRequest ensurePage() => $_ensure(0);
+  $3.PageRequest ensurePage() => $_ensure(0);
 
   @$pb.TagNumber(2)
   AccountType get accountType => $_getN(1);
@@ -1305,7 +1327,7 @@ class ListAccountsRequest extends $pb.GeneratedMessage {
 class ListAccountsResponse extends $pb.GeneratedMessage {
   factory ListAccountsResponse({
     $core.Iterable<AccountDTO>? accounts,
-    $1.PageResponse? page,
+    $3.PageResponse? page,
   }) {
     final result = create();
     if (accounts != null) result.accounts.addAll(accounts);
@@ -1329,8 +1351,8 @@ class ListAccountsResponse extends $pb.GeneratedMessage {
       createEmptyInstance: create)
     ..pPM<AccountDTO>(1, _omitFieldNames ? '' : 'accounts',
         subBuilder: AccountDTO.create)
-    ..aOM<$1.PageResponse>(2, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageResponse.create)
+    ..aOM<$3.PageResponse>(2, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageResponse.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1356,15 +1378,15 @@ class ListAccountsResponse extends $pb.GeneratedMessage {
   $pb.PbList<AccountDTO> get accounts => $_getList(0);
 
   @$pb.TagNumber(2)
-  $1.PageResponse get page => $_getN(1);
+  $3.PageResponse get page => $_getN(1);
   @$pb.TagNumber(2)
-  set page($1.PageResponse value) => $_setField(2, value);
+  set page($3.PageResponse value) => $_setField(2, value);
   @$pb.TagNumber(2)
   $core.bool hasPage() => $_has(1);
   @$pb.TagNumber(2)
   void clearPage() => $_clearField(2);
   @$pb.TagNumber(2)
-  $1.PageResponse ensurePage() => $_ensure(1);
+  $3.PageResponse ensurePage() => $_ensure(1);
 }
 
 class UpdateAccountRequest extends $pb.GeneratedMessage {
@@ -1380,7 +1402,7 @@ class UpdateAccountRequest extends $pb.GeneratedMessage {
     AccountStatus? status,
     $core.String? cardNumberTail,
     $core.String? notes,
-    $0.Timestamp? openingDate,
+    $2.Timestamp? openingDate,
     $core.double? interestRate,
     $core.int? creditBillingDay,
     $core.int? creditRepaymentDay,
@@ -1389,8 +1411,8 @@ class UpdateAccountRequest extends $pb.GeneratedMessage {
     $fixnum.Int64? investMarketValueCents,
     $core.double? investReturnYtd,
     $fixnum.Int64? fixedPrincipalCents,
-    $0.Timestamp? fixedStartDate,
-    $0.Timestamp? fixedMaturityDate,
+    $2.Timestamp? fixedStartDate,
+    $2.Timestamp? fixedMaturityDate,
     $core.int? fixedTermMonths,
     $core.String? goldProductType,
     $core.double? goldQuantity,
@@ -1398,12 +1420,12 @@ class UpdateAccountRequest extends $pb.GeneratedMessage {
     $fixnum.Int64? goldCurrentPriceCents,
     $fixnum.Int64? estatePurchasePriceCents,
     $fixnum.Int64? estateCurrentValueCents,
-    $0.Timestamp? estatePurchaseDate,
+    $2.Timestamp? estatePurchaseDate,
     $core.double? estateDepreciationRate,
     $fixnum.Int64? loanOriginalCents,
     $fixnum.Int64? loanRemainingCents,
     $fixnum.Int64? loanMonthlyCents,
-    $0.Timestamp? loanNextPaymentDate,
+    $2.Timestamp? loanNextPaymentDate,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -1481,8 +1503,8 @@ class UpdateAccountRequest extends $pb.GeneratedMessage {
         enumValues: AccountStatus.values)
     ..aOS(10, _omitFieldNames ? '' : 'cardNumberTail')
     ..aOS(11, _omitFieldNames ? '' : 'notes')
-    ..aOM<$0.Timestamp>(12, _omitFieldNames ? '' : 'openingDate',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(12, _omitFieldNames ? '' : 'openingDate',
+        subBuilder: $2.Timestamp.create)
     ..aD(13, _omitFieldNames ? '' : 'interestRate')
     ..aI(14, _omitFieldNames ? '' : 'creditBillingDay')
     ..aI(15, _omitFieldNames ? '' : 'creditRepaymentDay')
@@ -1491,10 +1513,10 @@ class UpdateAccountRequest extends $pb.GeneratedMessage {
     ..aInt64(18, _omitFieldNames ? '' : 'investMarketValueCents')
     ..aD(19, _omitFieldNames ? '' : 'investReturnYtd')
     ..aInt64(20, _omitFieldNames ? '' : 'fixedPrincipalCents')
-    ..aOM<$0.Timestamp>(21, _omitFieldNames ? '' : 'fixedStartDate',
-        subBuilder: $0.Timestamp.create)
-    ..aOM<$0.Timestamp>(22, _omitFieldNames ? '' : 'fixedMaturityDate',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(21, _omitFieldNames ? '' : 'fixedStartDate',
+        subBuilder: $2.Timestamp.create)
+    ..aOM<$2.Timestamp>(22, _omitFieldNames ? '' : 'fixedMaturityDate',
+        subBuilder: $2.Timestamp.create)
     ..aI(23, _omitFieldNames ? '' : 'fixedTermMonths')
     ..aOS(24, _omitFieldNames ? '' : 'goldProductType')
     ..aD(25, _omitFieldNames ? '' : 'goldQuantity')
@@ -1502,14 +1524,14 @@ class UpdateAccountRequest extends $pb.GeneratedMessage {
     ..aInt64(27, _omitFieldNames ? '' : 'goldCurrentPriceCents')
     ..aInt64(28, _omitFieldNames ? '' : 'estatePurchasePriceCents')
     ..aInt64(29, _omitFieldNames ? '' : 'estateCurrentValueCents')
-    ..aOM<$0.Timestamp>(30, _omitFieldNames ? '' : 'estatePurchaseDate',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(30, _omitFieldNames ? '' : 'estatePurchaseDate',
+        subBuilder: $2.Timestamp.create)
     ..aD(31, _omitFieldNames ? '' : 'estateDepreciationRate')
     ..aInt64(32, _omitFieldNames ? '' : 'loanOriginalCents')
     ..aInt64(33, _omitFieldNames ? '' : 'loanRemainingCents')
     ..aInt64(34, _omitFieldNames ? '' : 'loanMonthlyCents')
-    ..aOM<$0.Timestamp>(35, _omitFieldNames ? '' : 'loanNextPaymentDate',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(35, _omitFieldNames ? '' : 'loanNextPaymentDate',
+        subBuilder: $2.Timestamp.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1631,15 +1653,15 @@ class UpdateAccountRequest extends $pb.GeneratedMessage {
   void clearNotes() => $_clearField(11);
 
   @$pb.TagNumber(12)
-  $0.Timestamp get openingDate => $_getN(11);
+  $2.Timestamp get openingDate => $_getN(11);
   @$pb.TagNumber(12)
-  set openingDate($0.Timestamp value) => $_setField(12, value);
+  set openingDate($2.Timestamp value) => $_setField(12, value);
   @$pb.TagNumber(12)
   $core.bool hasOpeningDate() => $_has(11);
   @$pb.TagNumber(12)
   void clearOpeningDate() => $_clearField(12);
   @$pb.TagNumber(12)
-  $0.Timestamp ensureOpeningDate() => $_ensure(11);
+  $2.Timestamp ensureOpeningDate() => $_ensure(11);
 
   @$pb.TagNumber(13)
   $core.double get interestRate => $_getN(12);
@@ -1714,26 +1736,26 @@ class UpdateAccountRequest extends $pb.GeneratedMessage {
   void clearFixedPrincipalCents() => $_clearField(20);
 
   @$pb.TagNumber(21)
-  $0.Timestamp get fixedStartDate => $_getN(20);
+  $2.Timestamp get fixedStartDate => $_getN(20);
   @$pb.TagNumber(21)
-  set fixedStartDate($0.Timestamp value) => $_setField(21, value);
+  set fixedStartDate($2.Timestamp value) => $_setField(21, value);
   @$pb.TagNumber(21)
   $core.bool hasFixedStartDate() => $_has(20);
   @$pb.TagNumber(21)
   void clearFixedStartDate() => $_clearField(21);
   @$pb.TagNumber(21)
-  $0.Timestamp ensureFixedStartDate() => $_ensure(20);
+  $2.Timestamp ensureFixedStartDate() => $_ensure(20);
 
   @$pb.TagNumber(22)
-  $0.Timestamp get fixedMaturityDate => $_getN(21);
+  $2.Timestamp get fixedMaturityDate => $_getN(21);
   @$pb.TagNumber(22)
-  set fixedMaturityDate($0.Timestamp value) => $_setField(22, value);
+  set fixedMaturityDate($2.Timestamp value) => $_setField(22, value);
   @$pb.TagNumber(22)
   $core.bool hasFixedMaturityDate() => $_has(21);
   @$pb.TagNumber(22)
   void clearFixedMaturityDate() => $_clearField(22);
   @$pb.TagNumber(22)
-  $0.Timestamp ensureFixedMaturityDate() => $_ensure(21);
+  $2.Timestamp ensureFixedMaturityDate() => $_ensure(21);
 
   @$pb.TagNumber(23)
   $core.int get fixedTermMonths => $_getIZ(22);
@@ -1799,15 +1821,15 @@ class UpdateAccountRequest extends $pb.GeneratedMessage {
   void clearEstateCurrentValueCents() => $_clearField(29);
 
   @$pb.TagNumber(30)
-  $0.Timestamp get estatePurchaseDate => $_getN(29);
+  $2.Timestamp get estatePurchaseDate => $_getN(29);
   @$pb.TagNumber(30)
-  set estatePurchaseDate($0.Timestamp value) => $_setField(30, value);
+  set estatePurchaseDate($2.Timestamp value) => $_setField(30, value);
   @$pb.TagNumber(30)
   $core.bool hasEstatePurchaseDate() => $_has(29);
   @$pb.TagNumber(30)
   void clearEstatePurchaseDate() => $_clearField(30);
   @$pb.TagNumber(30)
-  $0.Timestamp ensureEstatePurchaseDate() => $_ensure(29);
+  $2.Timestamp ensureEstatePurchaseDate() => $_ensure(29);
 
   @$pb.TagNumber(31)
   $core.double get estateDepreciationRate => $_getN(30);
@@ -1846,15 +1868,15 @@ class UpdateAccountRequest extends $pb.GeneratedMessage {
   void clearLoanMonthlyCents() => $_clearField(34);
 
   @$pb.TagNumber(35)
-  $0.Timestamp get loanNextPaymentDate => $_getN(34);
+  $2.Timestamp get loanNextPaymentDate => $_getN(34);
   @$pb.TagNumber(35)
-  set loanNextPaymentDate($0.Timestamp value) => $_setField(35, value);
+  set loanNextPaymentDate($2.Timestamp value) => $_setField(35, value);
   @$pb.TagNumber(35)
   $core.bool hasLoanNextPaymentDate() => $_has(34);
   @$pb.TagNumber(35)
   void clearLoanNextPaymentDate() => $_clearField(35);
   @$pb.TagNumber(35)
-  $0.Timestamp ensureLoanNextPaymentDate() => $_ensure(34);
+  $2.Timestamp ensureLoanNextPaymentDate() => $_ensure(34);
 }
 
 class DeleteAccountRequest extends $pb.GeneratedMessage {
@@ -1970,32 +1992,452 @@ class AccountResponse extends $pb.GeneratedMessage {
   AccountDTO ensureAccount() => $_ensure(0);
 }
 
-/// AccountService manages chart of accounts and account CRUD operations.
-class AccountServiceApi {
-  final $pb.RpcClient _client;
+class FindByAccountTypeRequest extends $pb.GeneratedMessage {
+  factory FindByAccountTypeRequest({
+    AccountType? accountType,
+  }) {
+    final result = create();
+    if (accountType != null) result.accountType = accountType;
+    return result;
+  }
 
-  AccountServiceApi(this._client);
+  FindByAccountTypeRequest._();
 
-  $async.Future<AccountResponse> createAccount(
-          $pb.ClientContext? ctx, CreateAccountRequest request) =>
-      _client.invoke<AccountResponse>(
-          ctx, 'AccountService', 'CreateAccount', request, AccountResponse());
-  $async.Future<AccountResponse> getAccount(
-          $pb.ClientContext? ctx, GetAccountRequest request) =>
-      _client.invoke<AccountResponse>(
-          ctx, 'AccountService', 'GetAccount', request, AccountResponse());
-  $async.Future<ListAccountsResponse> listAccounts(
-          $pb.ClientContext? ctx, ListAccountsRequest request) =>
-      _client.invoke<ListAccountsResponse>(ctx, 'AccountService',
-          'ListAccounts', request, ListAccountsResponse());
-  $async.Future<AccountResponse> updateAccount(
-          $pb.ClientContext? ctx, UpdateAccountRequest request) =>
-      _client.invoke<AccountResponse>(
-          ctx, 'AccountService', 'UpdateAccount', request, AccountResponse());
-  $async.Future<$2.Empty> deleteAccount(
-          $pb.ClientContext? ctx, DeleteAccountRequest request) =>
-      _client.invoke<$2.Empty>(
-          ctx, 'AccountService', 'DeleteAccount', request, $2.Empty());
+  factory FindByAccountTypeRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory FindByAccountTypeRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'FindByAccountTypeRequest',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.account.v1'),
+      createEmptyInstance: create)
+    ..aE<AccountType>(1, _omitFieldNames ? '' : 'accountType',
+        enumValues: AccountType.values)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  FindByAccountTypeRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  FindByAccountTypeRequest copyWith(
+          void Function(FindByAccountTypeRequest) updates) =>
+      super.copyWith((message) => updates(message as FindByAccountTypeRequest))
+          as FindByAccountTypeRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static FindByAccountTypeRequest create() => FindByAccountTypeRequest._();
+  @$core.override
+  FindByAccountTypeRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static FindByAccountTypeRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<FindByAccountTypeRequest>(create);
+  static FindByAccountTypeRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  AccountType get accountType => $_getN(0);
+  @$pb.TagNumber(1)
+  set accountType(AccountType value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasAccountType() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearAccountType() => $_clearField(1);
+}
+
+class FindByAccountTypeResponse extends $pb.GeneratedMessage {
+  factory FindByAccountTypeResponse({
+    $core.Iterable<AccountDTO>? accounts,
+  }) {
+    final result = create();
+    if (accounts != null) result.accounts.addAll(accounts);
+    return result;
+  }
+
+  FindByAccountTypeResponse._();
+
+  factory FindByAccountTypeResponse.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory FindByAccountTypeResponse.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'FindByAccountTypeResponse',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.account.v1'),
+      createEmptyInstance: create)
+    ..pPM<AccountDTO>(1, _omitFieldNames ? '' : 'accounts',
+        subBuilder: AccountDTO.create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  FindByAccountTypeResponse clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  FindByAccountTypeResponse copyWith(
+          void Function(FindByAccountTypeResponse) updates) =>
+      super.copyWith((message) => updates(message as FindByAccountTypeResponse))
+          as FindByAccountTypeResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static FindByAccountTypeResponse create() => FindByAccountTypeResponse._();
+  @$core.override
+  FindByAccountTypeResponse createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static FindByAccountTypeResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<FindByAccountTypeResponse>(create);
+  static FindByAccountTypeResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<AccountDTO> get accounts => $_getList(0);
+}
+
+class CreateCategoryRequest extends $pb.GeneratedMessage {
+  factory CreateCategoryRequest({
+    $core.String? name,
+    AccountType? accountType,
+    $core.String? icon,
+    $core.String? color,
+    $core.String? parentId,
+  }) {
+    final result = create();
+    if (name != null) result.name = name;
+    if (accountType != null) result.accountType = accountType;
+    if (icon != null) result.icon = icon;
+    if (color != null) result.color = color;
+    if (parentId != null) result.parentId = parentId;
+    return result;
+  }
+
+  CreateCategoryRequest._();
+
+  factory CreateCategoryRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory CreateCategoryRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'CreateCategoryRequest',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.account.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'name')
+    ..aE<AccountType>(2, _omitFieldNames ? '' : 'accountType',
+        enumValues: AccountType.values)
+    ..aOS(3, _omitFieldNames ? '' : 'icon')
+    ..aOS(4, _omitFieldNames ? '' : 'color')
+    ..aOS(5, _omitFieldNames ? '' : 'parentId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CreateCategoryRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CreateCategoryRequest copyWith(
+          void Function(CreateCategoryRequest) updates) =>
+      super.copyWith((message) => updates(message as CreateCategoryRequest))
+          as CreateCategoryRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static CreateCategoryRequest create() => CreateCategoryRequest._();
+  @$core.override
+  CreateCategoryRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static CreateCategoryRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<CreateCategoryRequest>(create);
+  static CreateCategoryRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get name => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set name($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasName() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearName() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  AccountType get accountType => $_getN(1);
+  @$pb.TagNumber(2)
+  set accountType(AccountType value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasAccountType() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearAccountType() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get icon => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set icon($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasIcon() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearIcon() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get color => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set color($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasColor() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearColor() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get parentId => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set parentId($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasParentId() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearParentId() => $_clearField(5);
+}
+
+class UpdateCategoryRequest extends $pb.GeneratedMessage {
+  factory UpdateCategoryRequest({
+    $core.String? id,
+    $core.String? name,
+    $core.String? icon,
+    $core.String? color,
+    $core.String? parentId,
+    $fixnum.Int64? version,
+  }) {
+    final result = create();
+    if (id != null) result.id = id;
+    if (name != null) result.name = name;
+    if (icon != null) result.icon = icon;
+    if (color != null) result.color = color;
+    if (parentId != null) result.parentId = parentId;
+    if (version != null) result.version = version;
+    return result;
+  }
+
+  UpdateCategoryRequest._();
+
+  factory UpdateCategoryRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory UpdateCategoryRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'UpdateCategoryRequest',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.account.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'id')
+    ..aOS(2, _omitFieldNames ? '' : 'name')
+    ..aOS(3, _omitFieldNames ? '' : 'icon')
+    ..aOS(4, _omitFieldNames ? '' : 'color')
+    ..aOS(5, _omitFieldNames ? '' : 'parentId')
+    ..aInt64(6, _omitFieldNames ? '' : 'version')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  UpdateCategoryRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  UpdateCategoryRequest copyWith(
+          void Function(UpdateCategoryRequest) updates) =>
+      super.copyWith((message) => updates(message as UpdateCategoryRequest))
+          as UpdateCategoryRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static UpdateCategoryRequest create() => UpdateCategoryRequest._();
+  @$core.override
+  UpdateCategoryRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static UpdateCategoryRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<UpdateCategoryRequest>(create);
+  static UpdateCategoryRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get id => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set id($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get name => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set name($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasName() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearName() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get icon => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set icon($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasIcon() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearIcon() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get color => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set color($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasColor() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearColor() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get parentId => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set parentId($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasParentId() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearParentId() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $fixnum.Int64 get version => $_getI64(5);
+  @$pb.TagNumber(6)
+  set version($fixnum.Int64 value) => $_setInt64(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasVersion() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearVersion() => $_clearField(6);
+}
+
+class ReorderCategoriesRequest extends $pb.GeneratedMessage {
+  factory ReorderCategoriesRequest({
+    AccountType? accountType,
+    $core.Iterable<$core.String>? orderedIds,
+  }) {
+    final result = create();
+    if (accountType != null) result.accountType = accountType;
+    if (orderedIds != null) result.orderedIds.addAll(orderedIds);
+    return result;
+  }
+
+  ReorderCategoriesRequest._();
+
+  factory ReorderCategoriesRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory ReorderCategoriesRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReorderCategoriesRequest',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.account.v1'),
+      createEmptyInstance: create)
+    ..aE<AccountType>(1, _omitFieldNames ? '' : 'accountType',
+        enumValues: AccountType.values)
+    ..pPS(2, _omitFieldNames ? '' : 'orderedIds')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReorderCategoriesRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReorderCategoriesRequest copyWith(
+          void Function(ReorderCategoriesRequest) updates) =>
+      super.copyWith((message) => updates(message as ReorderCategoriesRequest))
+          as ReorderCategoriesRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static ReorderCategoriesRequest create() => ReorderCategoriesRequest._();
+  @$core.override
+  ReorderCategoriesRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static ReorderCategoriesRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReorderCategoriesRequest>(create);
+  static ReorderCategoriesRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  AccountType get accountType => $_getN(0);
+  @$pb.TagNumber(1)
+  set accountType(AccountType value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasAccountType() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearAccountType() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $pb.PbList<$core.String> get orderedIds => $_getList(1);
+}
+
+class DeleteCategoryRequest extends $pb.GeneratedMessage {
+  factory DeleteCategoryRequest({
+    $core.String? id,
+  }) {
+    final result = create();
+    if (id != null) result.id = id;
+    return result;
+  }
+
+  DeleteCategoryRequest._();
+
+  factory DeleteCategoryRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory DeleteCategoryRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'DeleteCategoryRequest',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.account.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'id')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  DeleteCategoryRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  DeleteCategoryRequest copyWith(
+          void Function(DeleteCategoryRequest) updates) =>
+      super.copyWith((message) => updates(message as DeleteCategoryRequest))
+          as DeleteCategoryRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static DeleteCategoryRequest create() => DeleteCategoryRequest._();
+  @$core.override
+  DeleteCategoryRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static DeleteCategoryRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<DeleteCategoryRequest>(create);
+  static DeleteCategoryRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get id => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set id($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
 }
 
 const $core.bool _omitFieldNames =

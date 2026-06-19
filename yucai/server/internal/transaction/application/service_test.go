@@ -102,6 +102,9 @@ func (r *recordingTxnRepo) SoftDelete(context.Context, uuid.UUID, uuid.UUID) err
 func (r *recordingTxnRepo) FindRecentByAccount(context.Context, uuid.UUID, uuid.UUID, int) ([]domain.Transaction, error) {
 	panic("unexpected FindRecentByAccount call")
 }
+func (r *recordingTxnRepo) TransactionSummary(context.Context, domain.SummaryScope) (*domain.MonthlySummary, error) {
+	panic("unexpected TransactionSummary call")
+}
 
 // recentTxnRepo is a TransactionRepository whose FindRecentByAccount returns a
 // canned result (and records its args) so the service-level thin-wrapper test
@@ -134,6 +137,9 @@ func (r *recentTxnRepo) FindRecentByAccount(_ context.Context, tenantID, account
 	r.gotAccountID = accountID
 	r.gotLimit = limit
 	return r.result, r.err
+}
+func (r *recentTxnRepo) TransactionSummary(context.Context, domain.SummaryScope) (*domain.MonthlySummary, error) {
+	panic("unexpected TransactionSummary call")
 }
 
 // --- Helpers ---

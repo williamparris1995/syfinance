@@ -69,6 +69,47 @@ class AccountServiceClient extends $grpc.Client {
     return $createUnaryCall(_$deleteAccount, request, options: options);
   }
 
+  /// FindByAccountType returns all non-deleted accounts of a given type for the
+  /// caller's tenant. Used by the transaction-form category dropdown
+  /// (account-as-category): expense transactions list Expense accounts, income
+  /// transactions list Income accounts.
+  $grpc.ResponseFuture<$0.FindByAccountTypeResponse> findByAccountType(
+    $0.FindByAccountTypeRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$findByAccountType, request, options: options);
+  }
+
+  /// Category CRUD (account-as-category model: a category is an Account whose
+  /// AccountType is Expense or Income). Powers the category-manager UI.
+  $grpc.ResponseFuture<$0.AccountResponse> createCategory(
+    $0.CreateCategoryRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$createCategory, request, options: options);
+  }
+
+  $grpc.ResponseFuture<$0.AccountResponse> updateCategory(
+    $0.UpdateCategoryRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$updateCategory, request, options: options);
+  }
+
+  $grpc.ResponseFuture<$1.Empty> deleteCategory(
+    $0.DeleteCategoryRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$deleteCategory, request, options: options);
+  }
+
+  $grpc.ResponseFuture<$1.Empty> reorderCategories(
+    $0.ReorderCategoriesRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$reorderCategories, request, options: options);
+  }
+
   // method descriptors
 
   static final _$createAccount =
@@ -95,6 +136,31 @@ class AccountServiceClient extends $grpc.Client {
       $grpc.ClientMethod<$0.DeleteAccountRequest, $1.Empty>(
           '/yucai.account.v1.AccountService/DeleteAccount',
           ($0.DeleteAccountRequest value) => value.writeToBuffer(),
+          $1.Empty.fromBuffer);
+  static final _$findByAccountType = $grpc.ClientMethod<
+          $0.FindByAccountTypeRequest, $0.FindByAccountTypeResponse>(
+      '/yucai.account.v1.AccountService/FindByAccountType',
+      ($0.FindByAccountTypeRequest value) => value.writeToBuffer(),
+      $0.FindByAccountTypeResponse.fromBuffer);
+  static final _$createCategory =
+      $grpc.ClientMethod<$0.CreateCategoryRequest, $0.AccountResponse>(
+          '/yucai.account.v1.AccountService/CreateCategory',
+          ($0.CreateCategoryRequest value) => value.writeToBuffer(),
+          $0.AccountResponse.fromBuffer);
+  static final _$updateCategory =
+      $grpc.ClientMethod<$0.UpdateCategoryRequest, $0.AccountResponse>(
+          '/yucai.account.v1.AccountService/UpdateCategory',
+          ($0.UpdateCategoryRequest value) => value.writeToBuffer(),
+          $0.AccountResponse.fromBuffer);
+  static final _$deleteCategory =
+      $grpc.ClientMethod<$0.DeleteCategoryRequest, $1.Empty>(
+          '/yucai.account.v1.AccountService/DeleteCategory',
+          ($0.DeleteCategoryRequest value) => value.writeToBuffer(),
+          $1.Empty.fromBuffer);
+  static final _$reorderCategories =
+      $grpc.ClientMethod<$0.ReorderCategoriesRequest, $1.Empty>(
+          '/yucai.account.v1.AccountService/ReorderCategories',
+          ($0.ReorderCategoriesRequest value) => value.writeToBuffer(),
           $1.Empty.fromBuffer);
 }
 
@@ -143,6 +209,49 @@ abstract class AccountServiceBase extends $grpc.Service {
         ($core.List<$core.int> value) =>
             $0.DeleteAccountRequest.fromBuffer(value),
         ($1.Empty value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.FindByAccountTypeRequest,
+            $0.FindByAccountTypeResponse>(
+        'FindByAccountType',
+        findByAccountType_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.FindByAccountTypeRequest.fromBuffer(value),
+        ($0.FindByAccountTypeResponse value) => value.writeToBuffer()));
+    $addMethod(
+        $grpc.ServiceMethod<$0.CreateCategoryRequest, $0.AccountResponse>(
+            'CreateCategory',
+            createCategory_Pre,
+            false,
+            false,
+            ($core.List<$core.int> value) =>
+                $0.CreateCategoryRequest.fromBuffer(value),
+            ($0.AccountResponse value) => value.writeToBuffer()));
+    $addMethod(
+        $grpc.ServiceMethod<$0.UpdateCategoryRequest, $0.AccountResponse>(
+            'UpdateCategory',
+            updateCategory_Pre,
+            false,
+            false,
+            ($core.List<$core.int> value) =>
+                $0.UpdateCategoryRequest.fromBuffer(value),
+            ($0.AccountResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.DeleteCategoryRequest, $1.Empty>(
+        'DeleteCategory',
+        deleteCategory_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.DeleteCategoryRequest.fromBuffer(value),
+        ($1.Empty value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.ReorderCategoriesRequest, $1.Empty>(
+        'ReorderCategories',
+        reorderCategories_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.ReorderCategoriesRequest.fromBuffer(value),
+        ($1.Empty value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.AccountResponse> createAccount_Pre($grpc.ServiceCall $call,
@@ -185,4 +294,45 @@ abstract class AccountServiceBase extends $grpc.Service {
 
   $async.Future<$1.Empty> deleteAccount(
       $grpc.ServiceCall call, $0.DeleteAccountRequest request);
+
+  $async.Future<$0.FindByAccountTypeResponse> findByAccountType_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.FindByAccountTypeRequest> $request) async {
+    return findByAccountType($call, await $request);
+  }
+
+  $async.Future<$0.FindByAccountTypeResponse> findByAccountType(
+      $grpc.ServiceCall call, $0.FindByAccountTypeRequest request);
+
+  $async.Future<$0.AccountResponse> createCategory_Pre($grpc.ServiceCall $call,
+      $async.Future<$0.CreateCategoryRequest> $request) async {
+    return createCategory($call, await $request);
+  }
+
+  $async.Future<$0.AccountResponse> createCategory(
+      $grpc.ServiceCall call, $0.CreateCategoryRequest request);
+
+  $async.Future<$0.AccountResponse> updateCategory_Pre($grpc.ServiceCall $call,
+      $async.Future<$0.UpdateCategoryRequest> $request) async {
+    return updateCategory($call, await $request);
+  }
+
+  $async.Future<$0.AccountResponse> updateCategory(
+      $grpc.ServiceCall call, $0.UpdateCategoryRequest request);
+
+  $async.Future<$1.Empty> deleteCategory_Pre($grpc.ServiceCall $call,
+      $async.Future<$0.DeleteCategoryRequest> $request) async {
+    return deleteCategory($call, await $request);
+  }
+
+  $async.Future<$1.Empty> deleteCategory(
+      $grpc.ServiceCall call, $0.DeleteCategoryRequest request);
+
+  $async.Future<$1.Empty> reorderCategories_Pre($grpc.ServiceCall $call,
+      $async.Future<$0.ReorderCategoriesRequest> $request) async {
+    return reorderCategories($call, await $request);
+  }
+
+  $async.Future<$1.Empty> reorderCategories(
+      $grpc.ServiceCall call, $0.ReorderCategoriesRequest request);
 }

@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	pb "github.com/yucai/server/internal/proto/transaction/v1"
-	commonpb "github.com/yucai/server/internal/proto/common/v1"
 	"github.com/google/uuid"
 	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
+	commonpb "github.com/yucai/server/internal/proto/common/v1"
+	pb "github.com/yucai/server/internal/proto/transaction/v1"
 	"github.com/yucai/server/internal/transaction/application"
 	"github.com/yucai/server/internal/transaction/domain"
 	"google.golang.org/grpc/codes"
@@ -240,6 +240,63 @@ func (h *TransactionHandler) SimpleTransfer(ctx context.Context, req *pb.SimpleT
 		return nil, mapError(err)
 	}
 	return &pb.TransactionResponse{Transaction: txnToProto(*resp)}, nil
+}
+
+// TransactionSummary returns the monthly income/expense summary, optionally
+// scoped to a single account.
+func (h *TransactionHandler) TransactionSummary(ctx context.Context, req *pb.TransactionSummaryRequest) (*pb.TransactionSummaryResponse, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	if req.Month < 1 || req.Month > 12 {
+		return nil, status.Error(codes.InvalidArgument, "month must be 1-12")
+	}
+	if req.Year < 1 {
+		return nil, status.Error(codes.InvalidArgument, "invalid year")
+	}
+
+	var accountID *uuid.UUID
+	if req.AccountId != "" {
+		aid, err := uuid.Parse(req.AccountId)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid account_id")
+		}
+		accountID = &aid
+	}
+
+	summary, err := h.service.TransactionSummary(ctx, tenantID, int(req.Year), int(req.Month), accountID)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.TransactionSummaryResponse{Summary: summaryToProto(summary)}, nil
+}
+
+func summaryToProto(s application.MonthlySummaryDTO) *pb.MonthlySummary {
+	byDay := make([]*pb.DailyItem, len(s.ByDay))
+	for i, d := range s.ByDay {
+		cats := make([]*pb.CategoryItem, len(d.ByCategory))
+		for j, c := range d.ByCategory {
+			cats[j] = &pb.CategoryItem{
+				AccountId:   c.AccountID.String(),
+				Name:        c.Name,
+				AccountType: c.AccountType,
+				Amount:      c.Amount,
+			}
+		}
+		byDay[i] = &pb.DailyItem{
+			Date:        d.Date.Format("2006-01-02"),
+			TotalIncome: d.TotalIncome,
+			ByCategory:  cats,
+		}
+	}
+	return &pb.MonthlySummary{
+		IncomeCents:   s.IncomeCents,
+		ExpenseCents:  s.ExpenseCents,
+		NetCents:      s.NetCents,
+		DailyAvgCents: s.DailyAvgCents,
+		ByDay:         byDay,
+	}
 }
 
 func txnToProto(t application.TransactionDTO) *pb.TransactionDTO {

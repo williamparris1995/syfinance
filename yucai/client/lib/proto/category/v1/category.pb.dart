@@ -10,16 +10,14 @@
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
 // ignore_for_file: non_constant_identifier_names, prefer_relative_imports
 
-import 'dart:async' as $async;
 import 'dart:core' as $core;
 
 import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
-import 'package:protobuf/well_known_types/google/protobuf/empty.pb.dart' as $2;
 import 'package:protobuf/well_known_types/google/protobuf/timestamp.pb.dart'
-    as $0;
+    as $2;
 
-import '../../common/v1/pagination.pb.dart' as $1;
+import '../../common/v1/pagination.pb.dart' as $3;
 import 'category.pbenum.dart';
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
@@ -37,8 +35,8 @@ class CategoryDTO extends $pb.GeneratedMessage {
     $core.bool? isSystem,
     $core.int? sortOrder,
     $fixnum.Int64? version,
-    $0.Timestamp? createdAt,
-    $0.Timestamp? updatedAt,
+    $2.Timestamp? createdAt,
+    $2.Timestamp? updatedAt,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -79,10 +77,10 @@ class CategoryDTO extends $pb.GeneratedMessage {
     ..aOB(7, _omitFieldNames ? '' : 'isSystem')
     ..aI(8, _omitFieldNames ? '' : 'sortOrder')
     ..aInt64(9, _omitFieldNames ? '' : 'version')
-    ..aOM<$0.Timestamp>(10, _omitFieldNames ? '' : 'createdAt',
-        subBuilder: $0.Timestamp.create)
-    ..aOM<$0.Timestamp>(11, _omitFieldNames ? '' : 'updatedAt',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(10, _omitFieldNames ? '' : 'createdAt',
+        subBuilder: $2.Timestamp.create)
+    ..aOM<$2.Timestamp>(11, _omitFieldNames ? '' : 'updatedAt',
+        subBuilder: $2.Timestamp.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -186,26 +184,26 @@ class CategoryDTO extends $pb.GeneratedMessage {
   void clearVersion() => $_clearField(9);
 
   @$pb.TagNumber(10)
-  $0.Timestamp get createdAt => $_getN(9);
+  $2.Timestamp get createdAt => $_getN(9);
   @$pb.TagNumber(10)
-  set createdAt($0.Timestamp value) => $_setField(10, value);
+  set createdAt($2.Timestamp value) => $_setField(10, value);
   @$pb.TagNumber(10)
   $core.bool hasCreatedAt() => $_has(9);
   @$pb.TagNumber(10)
   void clearCreatedAt() => $_clearField(10);
   @$pb.TagNumber(10)
-  $0.Timestamp ensureCreatedAt() => $_ensure(9);
+  $2.Timestamp ensureCreatedAt() => $_ensure(9);
 
   @$pb.TagNumber(11)
-  $0.Timestamp get updatedAt => $_getN(10);
+  $2.Timestamp get updatedAt => $_getN(10);
   @$pb.TagNumber(11)
-  set updatedAt($0.Timestamp value) => $_setField(11, value);
+  set updatedAt($2.Timestamp value) => $_setField(11, value);
   @$pb.TagNumber(11)
   $core.bool hasUpdatedAt() => $_has(10);
   @$pb.TagNumber(11)
   void clearUpdatedAt() => $_clearField(11);
   @$pb.TagNumber(11)
-  $0.Timestamp ensureUpdatedAt() => $_ensure(10);
+  $2.Timestamp ensureUpdatedAt() => $_ensure(10);
 }
 
 class CreateCategoryRequest extends $pb.GeneratedMessage {
@@ -554,7 +552,7 @@ class GetCategoryRequest extends $pb.GeneratedMessage {
 
 class ListCategoriesRequest extends $pb.GeneratedMessage {
   factory ListCategoriesRequest({
-    $1.PageRequest? page,
+    $3.PageRequest? page,
     CategoryType? categoryType,
     $core.String? search,
   }) {
@@ -579,8 +577,8 @@ class ListCategoriesRequest extends $pb.GeneratedMessage {
       package:
           const $pb.PackageName(_omitMessageNames ? '' : 'yucai.category.v1'),
       createEmptyInstance: create)
-    ..aOM<$1.PageRequest>(1, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageRequest.create)
+    ..aOM<$3.PageRequest>(1, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageRequest.create)
     ..aE<CategoryType>(2, _omitFieldNames ? '' : 'categoryType',
         enumValues: CategoryType.values)
     ..aOS(3, _omitFieldNames ? '' : 'search')
@@ -607,15 +605,15 @@ class ListCategoriesRequest extends $pb.GeneratedMessage {
   static ListCategoriesRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $1.PageRequest get page => $_getN(0);
+  $3.PageRequest get page => $_getN(0);
   @$pb.TagNumber(1)
-  set page($1.PageRequest value) => $_setField(1, value);
+  set page($3.PageRequest value) => $_setField(1, value);
   @$pb.TagNumber(1)
   $core.bool hasPage() => $_has(0);
   @$pb.TagNumber(1)
   void clearPage() => $_clearField(1);
   @$pb.TagNumber(1)
-  $1.PageRequest ensurePage() => $_ensure(0);
+  $3.PageRequest ensurePage() => $_ensure(0);
 
   @$pb.TagNumber(2)
   CategoryType get categoryType => $_getN(1);
@@ -639,7 +637,7 @@ class ListCategoriesRequest extends $pb.GeneratedMessage {
 class ListCategoriesResponse extends $pb.GeneratedMessage {
   factory ListCategoriesResponse({
     $core.Iterable<CategoryDTO>? categories,
-    $1.PageResponse? page,
+    $3.PageResponse? page,
   }) {
     final result = create();
     if (categories != null) result.categories.addAll(categories);
@@ -663,8 +661,8 @@ class ListCategoriesResponse extends $pb.GeneratedMessage {
       createEmptyInstance: create)
     ..pPM<CategoryDTO>(1, _omitFieldNames ? '' : 'categories',
         subBuilder: CategoryDTO.create)
-    ..aOM<$1.PageResponse>(2, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageResponse.create)
+    ..aOM<$3.PageResponse>(2, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageResponse.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -691,15 +689,15 @@ class ListCategoriesResponse extends $pb.GeneratedMessage {
   $pb.PbList<CategoryDTO> get categories => $_getList(0);
 
   @$pb.TagNumber(2)
-  $1.PageResponse get page => $_getN(1);
+  $3.PageResponse get page => $_getN(1);
   @$pb.TagNumber(2)
-  set page($1.PageResponse value) => $_setField(2, value);
+  set page($3.PageResponse value) => $_setField(2, value);
   @$pb.TagNumber(2)
   $core.bool hasPage() => $_has(1);
   @$pb.TagNumber(2)
   void clearPage() => $_clearField(2);
   @$pb.TagNumber(2)
-  $1.PageResponse ensurePage() => $_ensure(1);
+  $3.PageResponse ensurePage() => $_ensure(1);
 }
 
 class CategoryResponse extends $pb.GeneratedMessage {
@@ -758,33 +756,6 @@ class CategoryResponse extends $pb.GeneratedMessage {
   void clearCategory() => $_clearField(1);
   @$pb.TagNumber(1)
   CategoryDTO ensureCategory() => $_ensure(0);
-}
-
-class CategoryServiceApi {
-  final $pb.RpcClient _client;
-
-  CategoryServiceApi(this._client);
-
-  $async.Future<CategoryResponse> createCategory(
-          $pb.ClientContext? ctx, CreateCategoryRequest request) =>
-      _client.invoke<CategoryResponse>(ctx, 'CategoryService', 'CreateCategory',
-          request, CategoryResponse());
-  $async.Future<CategoryResponse> updateCategory(
-          $pb.ClientContext? ctx, UpdateCategoryRequest request) =>
-      _client.invoke<CategoryResponse>(ctx, 'CategoryService', 'UpdateCategory',
-          request, CategoryResponse());
-  $async.Future<$2.Empty> deleteCategory(
-          $pb.ClientContext? ctx, DeleteCategoryRequest request) =>
-      _client.invoke<$2.Empty>(
-          ctx, 'CategoryService', 'DeleteCategory', request, $2.Empty());
-  $async.Future<ListCategoriesResponse> listCategories(
-          $pb.ClientContext? ctx, ListCategoriesRequest request) =>
-      _client.invoke<ListCategoriesResponse>(ctx, 'CategoryService',
-          'ListCategories', request, ListCategoriesResponse());
-  $async.Future<CategoryResponse> getCategory(
-          $pb.ClientContext? ctx, GetCategoryRequest request) =>
-      _client.invoke<CategoryResponse>(
-          ctx, 'CategoryService', 'GetCategory', request, CategoryResponse());
 }
 
 const $core.bool _omitFieldNames =

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -21,16 +22,26 @@ import (
 const (
 	accountsTable         = "accounts"
 	transactionEntryTable = "transaction_entries"
+	transactionTable      = "transactions"
 )
 
 // TransactionRepository implements domain.TransactionRepository using entGo.
 type TransactionRepository struct {
 	client *txnent.Client
+	// rawDB is the underlying *sql.DB shared with the ent client. It is used for
+	// the TransactionSummary aggregation query, which performs a multi-table
+	// JOIN + GROUP BY that ent's query builder (without cross-module edges)
+	// cannot express cleanly. May be nil; TransactionSummary returns an error
+	// in that case (CRUD operations are unaffected).
+	rawDB *sql.DB
 }
 
-// NewTransactionRepository creates a new TransactionRepository.
-func NewTransactionRepository(client *txnent.Client) *TransactionRepository {
-	return &TransactionRepository{client: client}
+// NewTransactionRepository creates a new TransactionRepository. db is the
+// underlying *sql.DB the ent client was built on; it powers the raw
+// TransactionSummary aggregation. Pass nil only in narrow test scenarios that
+// do not exercise summary aggregation.
+func NewTransactionRepository(client *txnent.Client, db *sql.DB) *TransactionRepository {
+	return &TransactionRepository{client: client, rawDB: db}
 }
 
 // Save persists a transaction and its entries in a single operation.
@@ -384,6 +395,197 @@ func (r *TransactionRepository) Update(ctx context.Context, tx *domain.Transacti
 		return fmt.Errorf("update transaction: %w", err)
 	}
 	return nil
+}
+
+// TransactionSummary aggregates a tenant's income/expense flows for a month,
+// broken down by day and by Income/Expense account (the account-as-category
+// breakdown). It runs a single raw SQL query that JOINs transactions → entries
+// → accounts and GROUPs BY (day, account). The query returns one row per
+// (day, account) pair; the Go layer rolls those rows up into MonthlySummary /
+// SummaryDailyItem / SummaryCategoryItem.
+//
+// Direction rules (account-as-category + double-entry, same as BalanceCalculator):
+//   - Income account leg contributes its credit_cents to IncomeCents.
+//   - Expense account leg contributes its debit_cents to ExpenseCents.
+//   - Asset/Liability/Equity legs are neither income nor expense and are
+//     filtered out by the CASE expressions (so an asset→asset transfer
+//     contributes 0 to both totals but its day still appears with no categories).
+//
+// AccountID, when set, scopes the aggregation to that single account's legs.
+func (r *TransactionRepository) TransactionSummary(ctx context.Context, scope domain.SummaryScope) (*domain.MonthlySummary, error) {
+	if r.rawDB == nil {
+		return nil, fmt.Errorf("transaction summary requires the underlying *sql.DB (rawDB is nil)")
+	}
+
+	start, end, err := monthRange(scope.Year, scope.Month)
+	if err != nil {
+		return nil, err
+	}
+
+	// One row per (day, account). amount is the directional contribution:
+	// income accounts: credit_cents; expense accounts: debit_cents; else 0.
+	//
+	// The day is extracted via substr(1,10): ent stores transaction_date as text
+	// (modernc sqlite), and the stored format starts with "YYYY-MM-DD ..." for
+	// every value, so taking the first 10 chars yields the calendar day
+	// regardless of the trailing time/zone representation. SQLite's DATE()/
+	// strftime() return NULL on the stored format, so they cannot be used here.
+	const q = `
+		SELECT
+			substr(t.transaction_date, 1, 10)                        AS d,
+			e.account_id                                              AS account_id,
+			a.name                                                    AS account_name,
+			a.account_type                                            AS account_type,
+			CASE
+				WHEN a.account_type = ? THEN COALESCE(e.credit_cents, 0)
+				WHEN a.account_type = ? THEN COALESCE(e.debit_cents, 0)
+				ELSE 0
+			END                                                       AS amount
+		FROM ` + transactionTable + ` t
+		JOIN ` + transactionEntryTable + ` e ON e.transaction_id = t.id
+		JOIN ` + accountsTable + ` a ON a.id = e.account_id
+		WHERE t.tenant_id = ?
+		  AND t.deleted_at IS NULL
+		  AND t.transaction_date >= ?
+		  AND t.transaction_date < ?
+		  AND (? IS NULL OR e.account_id = ?)
+		ORDER BY d ASC, account_name ASC
+	`
+
+	args := []any{
+		accountTypeIncome, accountTypeExpense,
+		scope.TenantID,
+		start, end,
+		scope.AccountID, scope.AccountID,
+	}
+
+	rows, err := r.rawDB.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query transaction summary: %w", err)
+	}
+	defer rows.Close()
+
+	type dayAccountKey struct {
+		day       string
+		accountID uuid.UUID
+	}
+
+	// Aggregate per (day, account) into a category, and per-day totals.
+	type categoryAcc struct {
+		accountID   uuid.UUID
+		name        string
+		accountType string
+		amount      int64
+	}
+	type dayAcc struct {
+		date        time.Time
+		totalIncome int64
+		categories  []categoryAcc
+	}
+
+	dayOrder := []string{} // preserve ASC order of first appearance
+	days := map[string]*dayAcc{}
+	perDayAccount := map[dayAccountKey]*categoryAcc{}
+
+	for rows.Next() {
+		var (
+			dayStr       string
+			accountIDStr string
+			name         string
+			acctType     string
+			amount       int64
+		)
+		if err := rows.Scan(&dayStr, &accountIDStr, &name, &acctType, &amount); err != nil {
+			return nil, fmt.Errorf("scan summary row: %w", err)
+		}
+		accountID, parseErr := uuid.Parse(accountIDStr)
+		if parseErr != nil {
+			return nil, fmt.Errorf("parse account id %q: %w", accountIDStr, parseErr)
+		}
+
+		day, dateErr := time.Parse("2006-01-02", dayStr)
+		if dateErr != nil {
+			return nil, fmt.Errorf("parse day %q: %w", dayStr, dateErr)
+		}
+
+		if _, ok := days[dayStr]; !ok {
+			days[dayStr] = &dayAcc{date: day}
+			dayOrder = append(dayOrder, dayStr)
+		}
+
+		// Skip zero-amount legs (e.g. the asset/transfer legs): they do not
+		// form a category, though their day already exists.
+		if amount == 0 {
+			continue
+		}
+
+		key := dayAccountKey{day: dayStr, accountID: accountID}
+		acc, ok := perDayAccount[key]
+		if !ok {
+			acc = &categoryAcc{accountID: accountID, name: name, accountType: acctType}
+			perDayAccount[key] = acc
+			days[dayStr].categories = append(days[dayStr].categories, categoryAcc{
+				accountID: accountID, name: name, accountType: acctType,
+			})
+			// Point the map entry at the slice element so later rows accumulate
+			// into the same struct.
+			acc = &days[dayStr].categories[len(days[dayStr].categories)-1]
+			perDayAccount[key] = acc
+		}
+		acc.amount += amount
+		if acctType == accountTypeIncome {
+			days[dayStr].totalIncome += amount
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate summary rows: %w", err)
+	}
+
+	// Build the result in day order.
+	summary := &domain.MonthlySummary{}
+	byDay := make([]domain.SummaryDailyItem, 0, len(dayOrder))
+	for _, ds := range dayOrder {
+		d := days[ds]
+		cats := make([]domain.SummaryCategoryItem, len(d.categories))
+		dayExpense := int64(0)
+		for i, c := range d.categories {
+			cats[i] = domain.SummaryCategoryItem{
+				AccountID:   c.accountID,
+				Name:        c.name,
+				AccountType: c.accountType,
+				Amount:      c.amount,
+			}
+			if c.accountType == accountTypeExpense {
+				dayExpense += c.amount
+			}
+		}
+		summary.IncomeCents += d.totalIncome
+		summary.ExpenseCents += dayExpense
+		byDay = append(byDay, domain.SummaryDailyItem{
+			Date:        d.date,
+			TotalIncome: d.totalIncome,
+			ByCategory:  cats,
+		})
+	}
+
+	summary.NetCents = summary.IncomeCents - summary.ExpenseCents
+	if n := len(byDay); n > 0 {
+		summary.DailyAvgCents = summary.NetCents / int64(n)
+	}
+	summary.ByDay = byDay
+	return summary, nil
+}
+
+// monthRange returns the [start, end) UTC time window covering the given
+// calendar month. end is exclusive (first instant of the next month). month is
+// 1-12; values outside that range are an error.
+func monthRange(year, month int) (time.Time, time.Time, error) {
+	if month < 1 || month > 12 {
+		return time.Time{}, time.Time{}, fmt.Errorf("invalid month %d (want 1-12)", month)
+	}
+	start := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
+	end := start.AddDate(0, 1, 0)
+	return start, end, nil
 }
 
 // SoftDelete marks the transaction as deleted.

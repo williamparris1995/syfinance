@@ -105,6 +105,24 @@ func (s *Service) ListRecentByAccount(ctx context.Context, tenantID, accountID u
 	return dtos, nil
 }
 
+// TransactionSummary returns the monthly income/expense summary for a tenant,
+// optionally scoped to a single account (the account_detail view). It delegates
+// aggregation to the repository and maps the domain MonthlySummary to a DTO.
+// IncomeCents/ExpenseCents follow the account-as-category + double-entry
+// direction rules (Income account credit legs; Expense account debit legs).
+func (s *Service) TransactionSummary(ctx context.Context, tenantID uuid.UUID, year, month int, accountID *uuid.UUID) (MonthlySummaryDTO, error) {
+	summary, err := s.txnRepo.TransactionSummary(ctx, domain.SummaryScope{
+		TenantID:  tenantID,
+		Year:      year,
+		Month:     month,
+		AccountID: accountID,
+	})
+	if err != nil {
+		return MonthlySummaryDTO{}, fmt.Errorf("transaction summary for %04d-%02d: %w", year, month, err)
+	}
+	return SummaryToDTO(summary), nil
+}
+
 // UpdateTransaction replaces entries and adjusts balances.
 func (s *Service) UpdateTransaction(ctx context.Context, req UpdateTransactionRequest) (*TransactionDTO, error) {
 	txn, err := s.txnRepo.FindByID(ctx, req.TenantID, req.TransactionID)

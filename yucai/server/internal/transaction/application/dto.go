@@ -111,6 +111,64 @@ type ListTransactionsResult struct {
 	TotalCount    int32
 }
 
+// CategoryItemDTO is one account-as-category contribution to a day's income or
+// expense. AccountType is "income" or "expense"; Amount is signed by direction.
+type CategoryItemDTO struct {
+	AccountID   uuid.UUID
+	Name        string
+	AccountType string
+	Amount      int64
+}
+
+// DailyItemDTO aggregates a single day's income/expense and its category breakdown.
+type DailyItemDTO struct {
+	Date        time.Time
+	TotalIncome int64
+	ByCategory  []CategoryItemDTO
+}
+
+// MonthlySummaryDTO is the TransactionSummary result for a (tenant, year, month)
+// scope. IncomeCents/ExpenseCents are month totals; NetCents = Income - Expense;
+// DailyAvgCents is the net mean over distinct active days.
+type MonthlySummaryDTO struct {
+	IncomeCents   int64
+	ExpenseCents  int64
+	NetCents      int64
+	DailyAvgCents int64
+	ByDay         []DailyItemDTO
+}
+
+// SummaryToDTO maps a domain MonthlySummary to its DTO form.
+func SummaryToDTO(m *domain.MonthlySummary) MonthlySummaryDTO {
+	if m == nil {
+		return MonthlySummaryDTO{}
+	}
+	byDay := make([]DailyItemDTO, len(m.ByDay))
+	for i, d := range m.ByDay {
+		cats := make([]CategoryItemDTO, len(d.ByCategory))
+		for j, c := range d.ByCategory {
+			cats[j] = CategoryItemDTO{
+				AccountID:   c.AccountID,
+				Name:        c.Name,
+				AccountType: c.AccountType,
+				Amount:      c.Amount,
+			}
+		}
+		byDay[i] = DailyItemDTO{
+			Date:        d.Date,
+			TotalIncome: d.TotalIncome,
+			ByCategory:  cats,
+		}
+	}
+	return MonthlySummaryDTO{
+		IncomeCents:   m.IncomeCents,
+		ExpenseCents:  m.ExpenseCents,
+		NetCents:      m.NetCents,
+		DailyAvgCents: m.DailyAvgCents,
+		ByDay:         byDay,
+	}
+}
+
 // TransactionToDTO converts domain Transaction to DTO.
 func TransactionToDTO(tx *domain.Transaction) TransactionDTO {
 	entries := make([]EntryDTO, len(tx.Entries))

@@ -205,7 +205,7 @@ func transferEntries(fromAssetID, toAssetID uuid.UUID, amount int64) []domain.Tr
 // (1 + N). After the fix, entries are loaded in a single batched query.
 func TestFindAll_NoNPlusOne_LoadsEntriesInConstantQueries(t *testing.T) {
 	txnClient, queryCount, accDrv := setupCountingDB(t)
-	txnRepo := repository.NewTransactionRepository(txnClient)
+	txnRepo := repository.NewTransactionRepository(txnClient, nil)
 	// Account schema was migrated inside setupCountingDB on the raw driver.
 	// Reuse that same physical DB (via the raw driver) for the account repo.
 	accDrvClient := accountent.NewClient(accountent.Driver(accDrv))
@@ -251,7 +251,7 @@ func TestFindAll_NoNPlusOne_LoadsEntriesInConstantQueries(t *testing.T) {
 
 func TestFindAll_TypeFilter_Income(t *testing.T) {
 	txnClient, accClient := setupTestDB(t)
-	txnRepo := repository.NewTransactionRepository(txnClient)
+	txnRepo := repository.NewTransactionRepository(txnClient, nil)
 	accRepo := accountrepo.NewAccountRepository(accClient)
 	f := seedFixture(t, accRepo, txnRepo)
 
@@ -276,7 +276,7 @@ func TestFindAll_TypeFilter_Income(t *testing.T) {
 
 func TestFindAll_TypeFilter_Expense(t *testing.T) {
 	txnClient, accClient := setupTestDB(t)
-	txnRepo := repository.NewTransactionRepository(txnClient)
+	txnRepo := repository.NewTransactionRepository(txnClient, nil)
 	accRepo := accountrepo.NewAccountRepository(accClient)
 	f := seedFixture(t, accRepo, txnRepo)
 
@@ -303,7 +303,7 @@ func TestFindAll_TypeFilter_Expense(t *testing.T) {
 
 func TestFindAll_TypeFilter_Transfer(t *testing.T) {
 	txnClient, accClient := setupTestDB(t)
-	txnRepo := repository.NewTransactionRepository(txnClient)
+	txnRepo := repository.NewTransactionRepository(txnClient, nil)
 	accRepo := accountrepo.NewAccountRepository(accClient)
 	f := seedFixture(t, accRepo, txnRepo)
 
@@ -330,7 +330,7 @@ func TestFindAll_TypeFilter_Transfer(t *testing.T) {
 // accounts must NOT match the income filter (income requires an Income account).
 func TestFindAll_TypeFilter_TransferNotIncome(t *testing.T) {
 	txnClient, accClient := setupTestDB(t)
-	txnRepo := repository.NewTransactionRepository(txnClient)
+	txnRepo := repository.NewTransactionRepository(txnClient, nil)
 	accRepo := accountrepo.NewAccountRepository(accClient)
 	f := seedFixture(t, accRepo, txnRepo)
 
@@ -352,7 +352,7 @@ func TestFindAll_TypeFilter_TransferNotIncome(t *testing.T) {
 
 func TestFindAll_AccountIDFilter_StillWorks(t *testing.T) {
 	txnClient, accClient := setupTestDB(t)
-	txnRepo := repository.NewTransactionRepository(txnClient)
+	txnRepo := repository.NewTransactionRepository(txnClient, nil)
 	accRepo := accountrepo.NewAccountRepository(accClient)
 	f := seedFixture(t, accRepo, txnRepo)
 
@@ -372,7 +372,7 @@ func TestFindAll_AccountIDFilter_StillWorks(t *testing.T) {
 
 func TestFindAll_DateFilter_StillWorks(t *testing.T) {
 	txnClient, accClient := setupTestDB(t)
-	txnRepo := repository.NewTransactionRepository(txnClient)
+	txnRepo := repository.NewTransactionRepository(txnClient, nil)
 	accRepo := accountrepo.NewAccountRepository(accClient)
 	f := seedFixture(t, accRepo, txnRepo)
 
@@ -396,7 +396,7 @@ func TestFindAll_DateFilter_StillWorks(t *testing.T) {
 
 func TestFindAll_Pagination_StillWorks(t *testing.T) {
 	txnClient, accClient := setupTestDB(t)
-	txnRepo := repository.NewTransactionRepository(txnClient)
+	txnRepo := repository.NewTransactionRepository(txnClient, nil)
 	accRepo := accountrepo.NewAccountRepository(accClient)
 	f := seedFixture(t, accRepo, txnRepo)
 
@@ -433,7 +433,7 @@ func TestFindAll_Pagination_StillWorks(t *testing.T) {
 
 func TestFindAll_TenantIsolation_StillWorks(t *testing.T) {
 	txnClient, accClient := setupTestDB(t)
-	txnRepo := repository.NewTransactionRepository(txnClient)
+	txnRepo := repository.NewTransactionRepository(txnClient, nil)
 	accRepo := accountrepo.NewAccountRepository(accClient)
 	f := seedFixture(t, accRepo, txnRepo)
 
@@ -458,7 +458,7 @@ func TestFindAll_TenantIsolation_StillWorks(t *testing.T) {
 // ordered by transaction_date DESC, and that entries are eager-loaded.
 func TestFindRecentByAccount_ReturnsSameAccountTransactions_OrderedDesc(t *testing.T) {
 	txnClient, accClient := setupTestDB(t)
-	txnRepo := repository.NewTransactionRepository(txnClient)
+	txnRepo := repository.NewTransactionRepository(txnClient, nil)
 	accRepo := accountrepo.NewAccountRepository(accClient)
 	f := seedFixture(t, accRepo, txnRepo)
 
@@ -496,7 +496,7 @@ func TestFindRecentByAccount_ReturnsSameAccountTransactions_OrderedDesc(t *testi
 // TestFindRecentByAccount_RespectsLimit verifies the limit parameter is honored.
 func TestFindRecentByAccount_RespectsLimit(t *testing.T) {
 	txnClient, accClient := setupTestDB(t)
-	txnRepo := repository.NewTransactionRepository(txnClient)
+	txnRepo := repository.NewTransactionRepository(txnClient, nil)
 	accRepo := accountrepo.NewAccountRepository(accClient)
 	f := seedFixture(t, accRepo, txnRepo)
 
@@ -523,7 +523,7 @@ func TestFindRecentByAccount_RespectsLimit(t *testing.T) {
 // TestFindRecentByAccount_TenantIsolation verifies cross-tenant rows are excluded.
 func TestFindRecentByAccount_TenantIsolation(t *testing.T) {
 	txnClient, accClient := setupTestDB(t)
-	txnRepo := repository.NewTransactionRepository(txnClient)
+	txnRepo := repository.NewTransactionRepository(txnClient, nil)
 	accRepo := accountrepo.NewAccountRepository(accClient)
 	f := seedFixture(t, accRepo, txnRepo)
 
@@ -546,7 +546,7 @@ func TestFindRecentByAccount_TenantIsolation(t *testing.T) {
 // do not appear in the recent list.
 func TestFindRecentByAccount_ExcludesSoftDeleted(t *testing.T) {
 	txnClient, accClient := setupTestDB(t)
-	txnRepo := repository.NewTransactionRepository(txnClient)
+	txnRepo := repository.NewTransactionRepository(txnClient, nil)
 	accRepo := accountrepo.NewAccountRepository(accClient)
 	f := seedFixture(t, accRepo, txnRepo)
 
@@ -571,7 +571,7 @@ func TestFindRecentByAccount_ExcludesSoftDeleted(t *testing.T) {
 // a sane default and that an oversized limit is capped.
 func TestFindRecentByAccount_LimitClamping(t *testing.T) {
 	txnClient, accClient := setupTestDB(t)
-	txnRepo := repository.NewTransactionRepository(txnClient)
+	txnRepo := repository.NewTransactionRepository(txnClient, nil)
 	accRepo := accountrepo.NewAccountRepository(accClient)
 	f := seedFixture(t, accRepo, txnRepo)
 

@@ -18,6 +18,10 @@ service TransactionService {
   rpc SimpleIncome(SimpleIncomeRequest) returns (TransactionResponse);
   rpc SimpleExpense(SimpleExpenseRequest) returns (TransactionResponse);
   rpc SimpleTransfer(SimpleTransferRequest) returns (TransactionResponse);
+  // TransactionSummary returns a tenant's monthly income/expense summary,
+  // optionally scoped to one account (account_detail view), broken down by
+  // day and by Income/Expense account (category).
+  rpc TransactionSummary(TransactionSummaryRequest) returns (TransactionSummaryResponse);
 }
 
 message TransactionDTO {
@@ -103,4 +107,43 @@ message SimpleTransferRequest {
 
 message TransactionResponse {
   TransactionDTO transaction = 1;
+}
+
+// --- TransactionSummary ---
+
+message TransactionSummaryRequest {
+  // Calendar year, e.g. 2026.
+  int32 year = 1;
+  // Calendar month, 1-12.
+  int32 month = 2;
+  // Optional: scope the summary to a single account (account_detail view).
+  // Empty = all accounts.
+  string account_id = 3;
+}
+
+message TransactionSummaryResponse {
+  MonthlySummary summary = 1;
+}
+
+message MonthlySummary {
+  int64 income_cents = 1;
+  int64 expense_cents = 2;
+  int64 net_cents = 3;
+  int64 daily_avg_cents = 4;
+  repeated DailyItem by_day = 5;
+}
+
+message DailyItem {
+  // Calendar day in YYYY-MM-DD form (UTC midnight of the transaction's date).
+  string date = 1;
+  int64 total_income = 2;
+  repeated CategoryItem by_category = 3;
+}
+
+message CategoryItem {
+  string account_id = 1;
+  string name = 2;
+  // "income" or "expense".
+  string account_type = 3;
+  int64 amount = 4;
 }
