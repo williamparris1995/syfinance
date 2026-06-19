@@ -10,6 +10,7 @@ import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
+import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_event.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_state.dart';
@@ -24,8 +25,9 @@ import 'package:yucai_client/transaction/presentation/widgets/txn_row.dart';
 ///   - Mobile ≤600：卡片堆叠 + 汇总四宫格
 ///
 /// 组成：
-///   - 汇总卡（SummaryCard）—— **占位**：传入 0/占位值，Task 5.2 才接真实
-///     MonthlySummary。卡片下方标注「待统计」。
+///   - 汇总卡（SummaryCard）—— 接真实 [MonthlySummary]（Task 5.2）：TransactionBloc
+///     在 LoadTransactionsRequested 后并行触发 TransactionSummary RPC，结果
+///     挂在 TransactionsLoaded.summary 上，卡片显示本月收入/支出/净额/日均。
 ///   - TxnFilterBar（类型分段 + 账户/分类/月份下拉 + 重置）
 ///   - 按日分组（groupBy transactionDate）的 TxnRow
 ///   - 分页：游标 nextToken，「加载更多」按钮
@@ -76,11 +78,35 @@ class _TransactionsView extends StatefulWidget {
 }
 
 class _TransactionsViewState extends State<_TransactionsView> {
-  /// FilterBar 受控状态：任何变化都重新发起 LoadTransactionsRequested。
+  @override
+  void initState() {
+    super.initState();
+    // Kick off the initial summary fetch alongside the list load. The list is
+    // loaded by the TransactionsPage bloc factory; summary is a separate RPC
+    // triggered here so the SummaryCard populates as soon as the bloc is live.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _requestSummary(const TxnFilterState());
+    });
+  }
+
+  /// Emits a [LoadSummaryRequested] matching [filter]'s month (or the current
+  /// calendar month when no month filter is set). Safe to call repeatedly.
+  void _requestSummary(TxnFilterState filter) {
+    final scope = TransactionBloc.summaryScope(filter);
+    context.read<TransactionBloc>().add(LoadSummaryRequested(
+          year: scope.year,
+          month: scope.month,
+          accountId: filter.accountId,
+        ));
+  }
+
+  /// FilterBar 受控状态：任何变化都重新发起 LoadTransactionsRequested +
+  /// LoadSummaryRequested（Task 5.2）。
   void _onFilterChanged(TxnFilterState next) {
-    context
-        .read<TransactionBloc>()
-        .add(LoadTransactionsRequested(filter: next));
+    final bloc = context.read<TransactionBloc>();
+    bloc.add(LoadTransactionsRequested(filter: next));
+    _requestSummary(next);
   }
 
   Future<void> _openCreateForm() async {
@@ -92,13 +118,14 @@ class _TransactionsViewState extends State<_TransactionsView> {
         false;
     if (ok && mounted) {
       AppToast.show(context, '交易已记录');
-      // 刷新列表。
+      // 刷新列表 + 汇总（Task 5.2：新交易改变了本月统计）。
       final bloc = context.read<TransactionBloc>();
       final state = bloc.state;
       final filter = state is TransactionsLoaded
           ? state.filter
           : (state is TransactionsError ? state.filter : const TxnFilterState());
       bloc.add(LoadTransactionsRequested(filter: filter));
+      _requestSummary(filter);
     }
   }
 
@@ -188,6 +215,12 @@ class _Content extends StatelessWidget {
 
   bool get _hasMore => _nextToken.isNotEmpty;
 
+  /// This month's summary (Task 5.2). null until the parallel
+  /// `TransactionSummary` RPC resolves; the card falls back to zeros.
+  MonthlySummary? get _summary => state is TransactionsLoaded
+      ? (state as TransactionsLoaded).summary
+      : (state as TransactionsLoadingMore).summary;
+
   @override
   Widget build(BuildContext context) {
     // 账户选项从 AccountRepository 拉一次（FutureBuilder，避免把账户状态
@@ -222,16 +255,12 @@ class _Content extends StatelessWidget {
                       onCreate: onCreate,
                     ),
                     const SizedBox(height: AppSpacing.md),
-                    const SummaryCard(
-                      incomeCents: 0,
-                      expenseCents: 0,
-                      netCents: 0,
-                      dailyAvgCents: 0,
+                    SummaryCard(
+                      incomeCents: _summary?.incomeCents ?? 0,
+                      expenseCents: _summary?.expenseCents ?? 0,
+                      netCents: _summary?.netCents ?? 0,
+                      dailyAvgCents: _summary?.dailyAvgCents ?? 0,
                     ),
-                    const SizedBox(height: 4),
-                    const Text('汇总待统计（Task 5.2 接入真实 MonthlySummary）',
-                        style: TextStyle(
-                            color: AppColors.muted, fontSize: 12)),
                     const SizedBox(height: AppSpacing.md),
                     TxnFilterBar(
                       state: _filter,

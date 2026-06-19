@@ -48,6 +48,18 @@ void main() {
   setUp(() {
     txnRepo = _MockTxnRepo();
     registerFallbackValue(ListTransactionsParams());
+    // Task 5.2: _onLoad triggers a parallel summary fetch on every successful
+    // page-1 load. Provide a default stub so existing list tests don't hit
+    // MissingStubError; tests that assert on summary override this.
+    when(() => txnRepo.summary(any(), any(),
+            accountId: any(named: 'accountId')))
+        .thenAnswer((_) async => const dartz.Right(MonthlySummary(
+              year: 2026,
+              month: 6,
+              incomeCents: 100,
+              expenseCents: 50,
+              netCents: 50,
+            )));
   });
 
   blocTest<TransactionBloc, TransactionState>(
@@ -189,5 +201,77 @@ void main() {
       // no LoadingMore / second Loaded — LoadMore returned early.
     ],
     verify: (_) => verify(() => txnRepo.list(any())).called(1),
+  );
+
+  // ───────────────────────── Task 5.2: summary ─────────────────────────
+
+  blocTest<TransactionBloc, TransactionState>(
+    'LoadSummaryRequested stamps summary onto the current Loaded state',
+    build: () {
+      when(() => txnRepo.list(any())).thenAnswer((_) async => _ok([_txn('t1')], ''));
+      when(() => txnRepo.summary(2026, 6, accountId: any(named: 'accountId')))
+          .thenAnswer((_) async => const dartz.Right(MonthlySummary(
+                year: 2026,
+                month: 6,
+                incomeCents: 1000,
+                expenseCents: 400,
+                netCents: 600,
+              )));
+      return TransactionBloc(txnRepo);
+    },
+    act: (b) async {
+      b.add(const LoadTransactionsRequested());
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      b.add(const LoadSummaryRequested(year: 2026, month: 6));
+    },
+    wait: const Duration(milliseconds: 150),
+    verify: (bloc) {
+      final s = bloc.state as TransactionsLoaded;
+      expect(s.summary, isNotNull);
+      expect(s.summary!.incomeCents, 1000);
+      expect(s.summary!.expenseCents, 400);
+      expect(s.summary!.netCents, 600);
+      // List contents preserved.
+      expect(s.transactions.length, 1);
+    },
+  );
+
+  blocTest<TransactionBloc, TransactionState>(
+    'LoadSummaryRequested is a no-op when state is not list-bearing',
+    build: () {
+      when(() => txnRepo.summary(any(), any(),
+              accountId: any(named: 'accountId')))
+          .thenAnswer((_) async => const dartz.Right(MonthlySummary(
+                year: 2026,
+                month: 6,
+                incomeCents: 1,
+              )));
+      return TransactionBloc(txnRepo);
+    },
+    act: (b) => b.add(const LoadSummaryRequested(year: 2026, month: 6)),
+    expect: () => const <TransactionState>[],
+    verify: (bloc) => expect(bloc.state, isA<TransactionsInitial>()),
+  );
+
+  blocTest<TransactionBloc, TransactionState>(
+    'a failed summary leaves the prior Loaded state untouched (no error state)',
+    build: () {
+      when(() => txnRepo.list(any())).thenAnswer((_) async => _ok([_txn('t1')], ''));
+      when(() => txnRepo.summary(any(), any(),
+              accountId: any(named: 'accountId')))
+          .thenAnswer((_) async => const dartz.Left(ServerFailure('boom')));
+      return TransactionBloc(txnRepo);
+    },
+    act: (b) async {
+      b.add(const LoadTransactionsRequested());
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      b.add(const LoadSummaryRequested(year: 2026, month: 6));
+    },
+    wait: const Duration(milliseconds: 150),
+    verify: (bloc) {
+      expect(bloc.state, isA<TransactionsLoaded>());
+      final s = bloc.state as TransactionsLoaded;
+      expect(s.summary, isNull); // prior summary was null; failure leaves it.
+    },
   );
 }

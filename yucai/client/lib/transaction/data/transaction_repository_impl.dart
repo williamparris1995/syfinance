@@ -35,7 +35,7 @@ class TransactionRepositoryImpl implements TransactionRepository {
       _guard(() => _remote.recordTransaction(params));
 
   @override
-  Future<Either<Failure, List<Transaction>>> list(
+  Future<Either<Failure, ListTransactionsResult>> list(
           ListTransactionsParams params) =>
       _guard(() => _remote.list(params));
 
@@ -57,16 +57,8 @@ class TransactionRepositoryImpl implements TransactionRepository {
     int year,
     int month, {
     String? accountId,
-  }) {
-    // The TransactionSummary RPC is added in Task 5.1 alongside the proto
-    // redesign. Until then we throw — the trait signature is stable so
-    // presentation code can be written against it, but any real call fails
-    // loudly instead of silently doing nothing.
-    throw UnimplementedError(
-      'TransactionRepository.summary is deferred to Task 5.1 '
-      '(TransactionSummary RPC not yet in proto).',
-    );
-  }
+  }) =>
+      _guard(() => _remote.summary(year, month, accountId: accountId));
 
   /// Maps thrown GrpcError / exceptions to [Failure], wrapping the op in
   /// Either. Mirrors [AccountRepositoryImpl._guard].

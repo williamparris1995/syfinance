@@ -2,6 +2,7 @@ import 'package:fixnum/fixnum.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
+import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/proto/transaction/v1/transaction.pb.dart' as pb;
 
 /// Maps generated proto `TransactionDTO` / `EntryDTO` ↔ domain
@@ -45,6 +46,42 @@ class TransactionMapper {
       debitCents: _i64(e.debitCents),
       creditCents: _i64(e.creditCents),
       note: e.note,
+    );
+  }
+
+  /// Maps a proto [pb.MonthlySummary] to the domain [MonthlySummary].
+  ///
+  /// `year`/`month` are not on the proto DTO; the caller (datasource) passes
+  /// them in so the domain object echoes the request scope. Int64 → int via
+  /// [Int64.toInt] (amounts are cents, well within int32 range).
+  MonthlySummary summaryToDomain(
+    pb.MonthlySummary dto, {
+    required int year,
+    required int month,
+  }) {
+    return MonthlySummary(
+      year: year,
+      month: month,
+      incomeCents: dto.incomeCents.toInt(),
+      expenseCents: dto.expenseCents.toInt(),
+      netCents: dto.netCents.toInt(),
+      dailyAvgCents: dto.dailyAvgCents.toInt(),
+      byDay: [
+        for (final d in dto.byDay)
+          DailySummary(
+            date: d.date,
+            totalIncomeCents: d.totalIncome.toInt(),
+            byCategory: [
+              for (final c in d.byCategory)
+                CategoryTotal(
+                  categoryId: c.accountId,
+                  name: c.name,
+                  accountType: c.accountType,
+                  amountCents: c.amount.toInt(),
+                ),
+            ],
+          ),
+      ],
     );
   }
 }

@@ -88,10 +88,13 @@ class TransactionRemoteDataSource {
     });
   }
 
-  Future<List<Transaction>> list(ListTransactionsParams p) {
+  Future<ListTransactionsResult> list(ListTransactionsParams p) {
     return _retry.call(() async {
       final req = pb.ListTransactionsRequest(
-        page: common.PageRequest(pageSize: p.pageSize),
+        page: common.PageRequest(
+          pageSize: p.pageSize,
+          pageToken: p.pageToken ?? '',
+        ),
       );
       if (p.accountId != null && p.accountId!.isNotEmpty) {
         req.accountId = p.accountId!;
@@ -99,7 +102,16 @@ class TransactionRemoteDataSource {
       if (p.dateFrom != null) req.dateFrom = formatTxnDate(p.dateFrom!);
       if (p.dateTo != null) req.dateTo = formatTxnDate(p.dateTo!);
       final res = await _client.listTransactions(req);
-      return res.transactions.map(_mapper.toDomain).toList(growable: false);
+      var txns = res.transactions.map(_mapper.toDomain).toList();
+      // Server-side type filter not yet in proto (Task 2.1 not landed in
+      // client stub); apply client-side so the UI contract is stable.
+      final f = p.typeFilter;
+      if (f != null) txns = txns.where((t) => inferFlavour(t) == f).toList();
+      return ListTransactionsResult(
+        transactions: txns,
+        nextPageToken: res.hasPage() ? res.page.nextPageToken : '',
+        totalCount: res.hasPage() ? res.page.totalCount : 0,
+      );
     });
   }
 
@@ -129,6 +141,26 @@ class TransactionRemoteDataSource {
   Future<void> delete(String id) {
     return _retry.call(() async {
       await _client.deleteTransaction(pb.DeleteTransactionRequest(id: id));
+    });
+  }
+
+  /// Calls the `TransactionSummary` RPC (Task 5.1). Returns the domain
+  /// [MonthlySummary]; `year`/`month`/`accountId` are stamped onto the domain
+  /// object by the mapper since the proto DTO only carries the totals + per-day
+  /// breakdown, not the scope.
+  Future<MonthlySummary> summary(int year, int month, {String? accountId}) {
+    return _retry.call(() async {
+      final req = pb.TransactionSummaryRequest(
+        year: year,
+        month: month,
+        accountId: accountId ?? '',
+      );
+      final res = await _client.transactionSummary(req);
+      return _mapper.summaryToDomain(
+        res.hasSummary() ? res.summary : pb.MonthlySummary(),
+        year: year,
+        month: month,
+      );
     });
   }
 }

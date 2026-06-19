@@ -8,10 +8,27 @@ import 'package:yucai_client/transaction/domain/value_objects.dart';
 ///
 /// The three `recordXxx` convenience methods wrap the server's
 /// SimpleExpense / SimpleIncome / SimpleTransfer RPCs; `recordTransaction`
-/// is the full double-entry path. `summary` is **declared but not yet
-/// implemented** — the server's `TransactionSummary` RPC lands in Task 5.1
-/// alongside a proto redesign; until then the impl throws
-/// [UnimplementedError] so any premature caller fails loudly.
+/// is the full double-entry path. `summary` wraps the server's
+/// `TransactionSummary` RPC (Task 5.1) and returns a [MonthlySummary].
+/// Paged result of `list`.
+///
+/// [nextPageToken] is empty when there are no more pages. The repository maps
+/// the proto `PageResponse.next_page_token` into this field; callers drive a
+/// cursor-style "load more" loop with it.
+class ListTransactionsResult {
+  const ListTransactionsResult({
+    required this.transactions,
+    this.nextPageToken = '',
+    this.totalCount = 0,
+  });
+
+  final List<Transaction> transactions;
+  final String nextPageToken;
+  final int totalCount;
+
+  bool get hasMore => nextPageToken.isNotEmpty;
+}
+
 abstract class TransactionRepository {
   Future<Either<Failure, Transaction>> recordExpense(
       RecordExpenseParams params);
@@ -25,7 +42,8 @@ abstract class TransactionRepository {
   Future<Either<Failure, Transaction>> recordTransaction(
       RecordTransactionParams params);
 
-  Future<Either<Failure, List<Transaction>>> list(ListTransactionsParams params);
+  Future<Either<Failure, ListTransactionsResult>> list(
+      ListTransactionsParams params);
 
   Future<Either<Failure, Transaction>> getById(String id);
 
@@ -33,7 +51,9 @@ abstract class TransactionRepository {
 
   Future<Either<Failure, void>> delete(String id);
 
-  /// Deferred to Task 5.1 (proto `TransactionSummary` RPC not yet generated).
+  /// Monthly income/expense/net/dailyAvg summary. `accountId` optional scopes
+  /// to one account (account-detail view). Backed by the server's
+  /// `TransactionSummary` RPC.
   Future<Either<Failure, MonthlySummary>> summary(
     int year,
     int month, {

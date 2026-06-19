@@ -12,6 +12,8 @@
 //   - the "新增交易" entry (FAB / button) is present
 //
 // The bloc is wired via BlocProvider with a fake repo; no DI / no gRPC.
+import 'dart:async';
+
 import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -61,6 +63,19 @@ void main() {
           _txn('t2', DateTime(2026, 6, 19)),
           _txn('t3', DateTime(2026, 6, 18)),
         ], nextPageToken: '')));
+    // Task 5.2: the page triggers LoadSummaryRequested on init / filter
+    // change / after-create. Default to a non-zero summary so tests that assert
+    // on the card values have something to render; override per-test as needed.
+    when(() => txnRepo.summary(any(), any(),
+            accountId: any(named: 'accountId')))
+        .thenAnswer((_) async => const dartz.Right(MonthlySummary(
+              year: 2026,
+              month: 6,
+              incomeCents: 123456,
+              expenseCents: 78900,
+              netCents: 44556,
+              dailyAvgCents: 1481,
+            )));
   });
 
   Future<void> pumpPage(WidgetTester tester, Size size) async {
@@ -169,5 +184,41 @@ void main() {
 
     await pumpPage(tester, const Size(1440, 900));
     expect(find.textContaining('新增交易'), findsWidgets);
+  });
+
+  // ───────────────────────── Task 5.2: SummaryCard 接真实 ─────────────────────────
+
+  testWidgets('SummaryCard renders the real MonthlySummary values', (tester) async {
+    await pumpPage(tester, const Size(1440, 900));
+
+    // Default stub: income 123456 → ¥1,234.56 ; expense 78900 → ¥789.00.
+    expect(find.text('¥1,234.56'), findsOneWidget);
+    expect(find.text('¥789.00'), findsOneWidget);
+    // net 44556 → ¥445.56 (positive → green / income-coloured).
+    expect(find.text('¥445.56'), findsOneWidget);
+    // dailyAvg 1481 → ¥14.81.
+    expect(find.text('¥14.81'), findsOneWidget);
+  });
+
+  testWidgets('SummaryCard falls back to ¥0.00 before summary resolves',
+      (tester) async {
+    // summary never resolves (pending) → card shows zeros, list still renders.
+    when(() => txnRepo.summary(any(), any(),
+            accountId: any(named: 'accountId')))
+        .thenAnswer((_) => Completer<dartz.Either<Failure, MonthlySummary>>()
+            .future);
+    await pumpPage(tester, const Size(1440, 900));
+    expect(find.text('¥0.00'), findsWidgets);
+  });
+
+  testWidgets('a failed summary leaves the card at ¥0.00 (does not crash)',
+      (tester) async {
+    when(() => txnRepo.summary(any(), any(),
+            accountId: any(named: 'accountId')))
+        .thenAnswer((_) async => const dartz.Left(ServerFailure('summary err')));
+    await pumpPage(tester, const Size(1440, 900));
+    expect(find.text('¥0.00'), findsWidgets);
+    // The list still renders normally — a summary blip doesn't blank it.
+    expect(find.text('交易 t1'), findsOneWidget);
   });
 }

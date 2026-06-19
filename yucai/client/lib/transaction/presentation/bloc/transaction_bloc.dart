@@ -28,6 +28,7 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
     on<LoadMoreTransactionsRequested>(_onLoadMore);
     on<RetryTransactionsRequested>(_onRetry);
     on<LoadTransactionDetail>(_onLoadDetail);
+    on<LoadSummaryRequested>(_onLoadSummary);
   }
 
   final TransactionRepository _txnRepo;
@@ -44,7 +45,80 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
         transactions: page.transactions,
         filter: filter,
         nextPageToken: page.nextPageToken,
+        // Carry over any already-loaded summary so a list reload (e.g. filter
+        // change) doesn't blank the card while the next summary RPC is in
+        // flight. The page re-emits LoadSummaryRequested on filter change,
+        // which replaces this with the freshly-fetched value.
+        summary: _priorSummary,
       )),
+    );
+  }
+
+  /// The summary on the current list-bearing state, or null. Used to preserve
+  /// the card across list reloads.
+  MonthlySummary? get _priorSummary {
+    final s = state;
+    if (s is TransactionsLoaded) return s.summary;
+    if (s is TransactionsLoadingMore) return s.summary;
+    return null;
+  }
+
+  /// Determines the (year, month) the SummaryCard should show for a given
+  /// filter. When the filter pins a month (`YYYY-MM`), that's the scope;
+  /// otherwise the current calendar month. Exposed so the page can build a
+  /// [LoadSummaryRequested] that matches the list filter.
+  static ({int year, int month}) summaryScope(TxnFilterState filter) {
+    final m = filter.month;
+    if (m != null && m.isNotEmpty) {
+      final parts = m.split('-');
+      if (parts.length == 2) {
+        return (year: int.parse(parts[0]), month: int.parse(parts[1]));
+      }
+    }
+    final now = DateTime.now();
+    return (year: now.year, month: now.month);
+  }
+
+  Future<void> _onLoadSummary(
+      LoadSummaryRequested event, Emitter<TransactionState> emit) async {
+    await _fetchSummary(event.year, event.month,
+        accountId: event.accountId, emit: emit);
+  }
+
+  /// Fetches the summary and stamps it onto the current list-bearing state.
+  /// If the current state isn't list-bearing (loading/error/initial), the
+  /// result is held until the next list emit replaces state — i.e. the summary
+  /// is best-effort and never blocks the list. On failure we leave any prior
+  /// summary in place (a transient network blip shouldn't zero the card).
+  Future<void> _fetchSummary(
+    int year,
+    int month, {
+    String? accountId,
+    required Emitter<TransactionState> emit,
+  }) async {
+    final result = await _txnRepo.summary(year, month, accountId: accountId);
+    result.fold(
+      (_) {}, // swallow: see dartdoc — list state unchanged, card keeps prior.
+      (summary) {
+        final s = state;
+        if (s is TransactionsLoaded) {
+          emit(TransactionsLoaded(
+            transactions: s.transactions,
+            filter: s.filter,
+            nextPageToken: s.nextPageToken,
+            summary: summary,
+          ));
+        } else if (s is TransactionsLoadingMore) {
+          emit(TransactionsLoadingMore(
+            transactions: s.transactions,
+            filter: s.filter,
+            nextPageToken: s.nextPageToken,
+            summary: summary,
+          ));
+        }
+        // else: not list-bearing yet; summary is dropped. The next
+        // LoadTransactionsRequested re-fetches it.
+      },
     );
   }
 

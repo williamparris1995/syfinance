@@ -158,15 +158,17 @@ void main() {
 
   group('list', () {
     test('success returns Right with transaction list', () async {
-      when(() => remote.list(any())).thenAnswer((_) async => [sample]);
+      when(() => remote.list(any())).thenAnswer((_) async =>
+          ListTransactionsResult(transactions: [sample], nextPageToken: ''));
       final result = await repo.list(ListTransactionsParams());
       expect(result.isRight(), isTrue);
       result.fold(
         (_) => fail('expected Right'),
-        (items) {
-          expect(items.length, 1);
-          expect(items.first.id, 't1');
-          expect(items.first.entries.length, 2);
+        (page) {
+          expect(page.transactions.length, 1);
+          expect(page.transactions.first.id, 't1');
+          expect(page.transactions.first.entries.length, 2);
+          expect(page.hasMore, isFalse);
         },
       );
     });
@@ -216,15 +218,37 @@ void main() {
     });
   });
 
-  group('summary (Task 5.1 — not yet implemented)', () {
-    test('throws UnimplementedError (deferred to Task 5.1)', () {
-      // summary RPC does not exist on the server yet; impl deliberately
-      // throws synchronously so accidental callers fail loudly. Task 5.1
-      // wires the real RPC + proto after the proto is regenerated.
-      expect(
-        () => repo.summary(2026, 6),
-        throwsA(isA<UnimplementedError>()),
-      );
+  group('summary (Task 5.2 — wired to TransactionSummary RPC)', () {
+    final sampleSummary = MonthlySummary(
+      year: 2026,
+      month: 6,
+      incomeCents: 1200000,
+      expenseCents: 800000,
+      netCents: 400000,
+      dailyAvgCents: 13333,
+    );
+
+    test('forwards (year, month, accountId) and returns Right', () async {
+      when(() => remote.summary(2026, 6, accountId: any(named: 'accountId')))
+          .thenAnswer((_) async => sampleSummary);
+      final result = await repo.summary(2026, 6, accountId: 'acc-1');
+      expect(result, Right<Failure, MonthlySummary>(sampleSummary));
+      verify(() => remote.summary(2026, 6, accountId: 'acc-1')).called(1);
+    });
+
+    test('null accountId forwarded as null', () async {
+      when(() => remote.summary(any(), any(), accountId: any(named: 'accountId')))
+          .thenAnswer((_) async => sampleSummary);
+      await repo.summary(2026, 6);
+      verify(() => remote.summary(2026, 6, accountId: null)).called(1);
+    });
+
+    test('unavailable maps to NetworkFailure', () async {
+      when(() => remote.summary(any(), any(),
+              accountId: any(named: 'accountId')))
+          .thenThrow(GrpcError.unavailable('down'));
+      final result = await repo.summary(2026, 6);
+      expect(result.fold((l) => l, (_) => null), isA<NetworkFailure>());
     });
   });
 

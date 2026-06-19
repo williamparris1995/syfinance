@@ -11,6 +11,8 @@ import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
 ///   - [LoadMoreTransactionsRequested] — fetch the next page using the prior
 ///     `nextPageToken` and append. No-op when there is no next page.
 ///   - [RetryTransactionsRequested] — re-run the last requested filter.
+///   - [LoadSummaryRequested] — fetch the month's [MonthlySummary] for the
+///     SummaryCard. Scoped by [year]/[month]/[accountId] (Task 5.2).
 abstract class TransactionEvent extends Equatable {
   const TransactionEvent();
   @override
@@ -50,4 +52,26 @@ class LoadTransactionDetail extends TransactionEvent {
 
   @override
   List<Object?> get props => [id];
+}
+
+/// Fetch the monthly summary for the SummaryCard. [year]/[month] select the
+/// calendar month; [accountId] optional scopes to one account. The bloc emits
+/// [SummaryLoading] then [SummaryLoaded] (or [SummaryError]).
+///
+/// This is a parallel concern to the list lifecycle — the page emits it on
+/// init and on filter change, and the state holds summary independently of the
+/// list states so a summary failure doesn't blank the list (and vice versa).
+class LoadSummaryRequested extends TransactionEvent {
+  const LoadSummaryRequested({
+    required this.year,
+    required this.month,
+    this.accountId,
+  });
+
+  final int year;
+  final int month;
+  final String? accountId;
+
+  @override
+  List<Object?> get props => [year, month, accountId];
 }

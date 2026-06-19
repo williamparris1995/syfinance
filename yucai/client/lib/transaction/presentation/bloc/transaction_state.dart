@@ -1,16 +1,25 @@
 import 'package:equatable/equatable.dart';
 
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
+import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
 
 /// States for [TransactionBloc] (list-page).
 ///
 /// - [TransactionsInitial] — pre-first-load.
 /// - [TransactionsLoading] — page-1 fetch in flight; list empty.
-/// - [TransactionsLoaded] — page-1 done; carries the list + cursor + filter.
+/// - [TransactionsLoaded] — page-1 done; carries the list + cursor + filter +
+///   an optional [MonthlySummary] (Task 5.2 SummaryCard).
 /// - [TransactionsLoadingMore] — next-page fetch in flight; carries the
 ///   already-loaded list so the UI keeps rendering it.
 /// - [TransactionsError] — fetch failed; retains the filter for retry.
+///
+/// **Summary** (Task 5.2): the month's [MonthlySummary] rides on
+/// [TransactionsLoaded]/[TransactionsLoadingMore] via the [summary] field.
+/// It is loaded in parallel with the list (separate RPC) and stamped onto
+/// whatever list state is current when it resolves. `null` = not yet loaded;
+/// the SummaryCard falls back to zeros. A summary-only failure does NOT blank
+/// the list — it leaves [summary] at its prior value.
 abstract class TransactionState extends Equatable {
   const TransactionState();
   @override
@@ -33,16 +42,23 @@ class TransactionsLoaded extends TransactionState {
     required this.transactions,
     required this.filter,
     this.nextPageToken = '',
+    this.summary,
   });
 
   final List<Transaction> transactions;
   final TxnFilterState filter;
   final String nextPageToken;
 
+  /// This month's summary for the SummaryCard. null until the parallel
+  /// `TransactionSummary` RPC resolves. The bloc updates this in place via
+  /// `copyWith`-style re-emit (new state object, same list) when the summary
+  /// lands, so the UI rebuilds the card without touching the list.
+  final MonthlySummary? summary;
+
   bool get hasMore => nextPageToken.isNotEmpty;
 
   @override
-  List<Object?> get props => [transactions, filter, nextPageToken];
+  List<Object?> get props => [transactions, filter, nextPageToken, summary];
 }
 
 /// Next-page fetch in flight. [transactions] is the previously loaded list so
@@ -52,16 +68,18 @@ class TransactionsLoadingMore extends TransactionState {
     required this.transactions,
     required this.filter,
     required this.nextPageToken,
+    this.summary,
   });
 
   final List<Transaction> transactions;
   final TxnFilterState filter;
   final String nextPageToken;
+  final MonthlySummary? summary;
 
   bool get hasMore => nextPageToken.isNotEmpty;
 
   @override
-  List<Object?> get props => [transactions, filter, nextPageToken];
+  List<Object?> get props => [transactions, filter, nextPageToken, summary];
 }
 
 class TransactionsError extends TransactionState {

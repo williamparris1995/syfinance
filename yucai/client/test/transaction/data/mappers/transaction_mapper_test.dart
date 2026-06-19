@@ -104,4 +104,72 @@ void main() {
     expect(formatTxnDate(DateTime(2026, 6, 9)), '2026-06-09');
     expect(formatTxnDate(DateTime(2026, 12, 31)), '2026-12-31');
   });
+
+  group('summaryToDomain (Task 5.2)', () {
+    test('maps MonthlySummary DTO totals + stamps request year/month', () {
+      final dto = pb.MonthlySummary()
+        ..incomeCents = Int64(1200000)
+        ..expenseCents = Int64(800000)
+        ..netCents = Int64(400000)
+        ..dailyAvgCents = Int64(13333);
+
+      final got = mapper.summaryToDomain(dto, year: 2026, month: 6);
+
+      expect(got.year, 2026);
+      expect(got.month, 6);
+      expect(got.incomeCents, 1200000);
+      expect(got.expenseCents, 800000);
+      expect(got.netCents, 400000);
+      expect(got.dailyAvgCents, 13333);
+      expect(got.byDay, isEmpty);
+    });
+
+    test('maps per-day + per-category breakdown', () {
+      final dto = pb.MonthlySummary()
+        ..incomeCents = Int64(100)
+        ..byDay.addAll([
+          pb.DailyItem()
+            ..date = '2026-06-19'
+            ..totalIncome = Int64(50)
+            ..byCategory.addAll([
+              pb.CategoryItem()
+                ..accountId = 'acc-food'
+                ..name = '餐饮'
+                ..accountType = 'EXPENSE'
+                ..amount = Int64(50),
+            ]),
+        ]);
+
+      final got = mapper.summaryToDomain(dto, year: 2026, month: 6);
+
+      expect(got.byDay.length, 1);
+      final day = got.byDay.single;
+      expect(day.date, '2026-06-19');
+      expect(day.totalIncomeCents, 50);
+      final cat = day.byCategory.single;
+      expect(cat.categoryId, 'acc-food');
+      expect(cat.name, '餐饮');
+      expect(cat.accountType, 'EXPENSE');
+      expect(cat.amountCents, 50);
+    });
+
+    test('net cents preserves negative sign', () {
+      final dto = pb.MonthlySummary()
+        ..incomeCents = Int64(100)
+        ..expenseCents = Int64(300)
+        ..netCents = Int64(-200);
+      final got = mapper.summaryToDomain(dto, year: 2026, month: 6);
+      expect(got.netCents, -200);
+    });
+
+    test('empty DTO maps to zeroed totals (no crash)', () {
+      final got = mapper.summaryToDomain(pb.MonthlySummary(),
+          year: 2026, month: 6);
+      expect(got.incomeCents, 0);
+      expect(got.expenseCents, 0);
+      expect(got.netCents, 0);
+      expect(got.dailyAvgCents, 0);
+      expect(got.byDay, isEmpty);
+    });
+  });
 }
