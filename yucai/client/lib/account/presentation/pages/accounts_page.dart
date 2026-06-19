@@ -12,6 +12,7 @@ import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
 import 'package:yucai_client/account/presentation/widgets/account_category_style.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
+import 'package:yucai_client/transaction/presentation/pages/transaction_form_page.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/core/widgets/filter_bar.dart';
 
@@ -623,6 +624,22 @@ class _AccountCard extends StatelessWidget {
   final VoidCallback? onReactivate;
   final VoidCallback? onDelete;
 
+  /// 记一笔/转账：push TransactionFormPage（用户在表单里切收支/转账 tab）。
+  /// 同 account_detail_page._recordTxn：成功返回后 toast + 重新拉账户列表
+  ///（交易可能改变余额）。
+  void _recordTxn(BuildContext context) {
+    Navigator.of(context)
+        .push<bool>(
+            MaterialPageRoute(builder: (_) => const TransactionFormPage()))
+        .then((ok) {
+      if (ok == true && context.mounted) {
+        AppToast.show(context, '交易已记录', type: ToastType.success);
+        // 刷新账户列表（余额/近期交易视图依赖最新数据）。
+        context.read<AccountBloc>().add(LoadAccountsRequested());
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final negative = account.currentBalanceCents < 0;
@@ -704,13 +721,9 @@ class _AccountCard extends StatelessWidget {
                   if (!archived) ...[
                     const PopupMenuItem(value: 'edit', child: Text('编辑')),
                     const PopupMenuItem(
-                        value: 'record',
-                        enabled: false,
-                        child: Text('记一笔（待交易模块）')),
+                        value: 'record', child: Text('记一笔')),
                     const PopupMenuItem(
-                        value: 'transfer',
-                        enabled: false,
-                        child: Text('转账（待交易模块）')),
+                        value: 'transfer', child: Text('转账')),
                   ],
                   const PopupMenuItem(value: 'copy', child: Text('复制')),
                   if (archived)
@@ -727,6 +740,10 @@ class _AccountCard extends StatelessWidget {
                       context.go('/accounts/${account.id}');
                     case 'edit':
                       onEdit?.call();
+                    case 'record':
+                      _recordTxn(context);
+                    case 'transfer':
+                      _recordTxn(context);
                     case 'copy':
                       onDuplicate?.call();
                     case 'close':
