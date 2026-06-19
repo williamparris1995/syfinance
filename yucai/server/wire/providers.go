@@ -29,10 +29,6 @@ import (
 	budgetgrpc "github.com/yucai/server/internal/budget/adapter/driving/grpc"
 	budgetapp "github.com/yucai/server/internal/budget/application"
 	budgetent "github.com/yucai/server/internal/budget/ent"
-	categoryrepo "github.com/yucai/server/internal/category/adapter/driven/repository"
-	categorygrpc "github.com/yucai/server/internal/category/adapter/driving/grpc"
-	categoryapp "github.com/yucai/server/internal/category/application"
-	categoryent "github.com/yucai/server/internal/category/ent"
 	"github.com/yucai/server/internal/currency/adapter/driven/exchangerate"
 	currencyrepo "github.com/yucai/server/internal/currency/adapter/driven/repository"
 	currencygrpc "github.com/yucai/server/internal/currency/adapter/driving/grpc"
@@ -432,28 +428,6 @@ func provideSyncService(
 }
 func provideSyncHandler(svc *syncapp.Service) *syncgrpc.SyncHandler {
 	return syncgrpc.NewSyncHandler(svc)
-}
-
-// Category providers
-func provideCategoryEntClient(cfg *config.Config) (*categoryent.Client, error) {
-	drv, err := openEntDriver(cfg)
-	if err != nil {
-		return nil, err
-	}
-	client := categoryent.NewClient(categoryent.Driver(drv))
-	if err := client.Schema.Create(context.Background()); err != nil {
-		return nil, fmt.Errorf("migrate category schema: %w", err)
-	}
-	return client, nil
-}
-func provideCategoryRepo(client *categoryent.Client) *categoryrepo.CategoryRepository {
-	return categoryrepo.NewCategoryRepository(client)
-}
-func provideCategoryService(repo *categoryrepo.CategoryRepository) *categoryapp.Service {
-	return categoryapp.NewService(repo)
-}
-func provideCategoryHandler(svc *categoryapp.Service) *categorygrpc.CategoryHandler {
-	return categorygrpc.NewCategoryHandler(svc)
 }
 
 // Currency providers
