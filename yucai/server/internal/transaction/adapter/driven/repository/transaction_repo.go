@@ -5,11 +5,22 @@ import (
 	"fmt"
 	"time"
 
+	entsql "entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/transaction/domain"
 	txnent "github.com/yucai/server/internal/transaction/ent"
 	"github.com/yucai/server/internal/transaction/ent/transaction"
 	txnentryent "github.com/yucai/server/internal/transaction/ent/transactionentry"
+)
+
+// Shared SQLite table names. The transaction and account modules run against
+// one physical database in production, so a transaction's entries can JOIN the
+// accounts table to read account_type for the Type filter. The ent schemas in
+// each module declare no cross-module edges (per-module ent design), so the
+// JOIN is expressed as raw SQL via sql.ExprP below.
+const (
+	accountsTable         = "accounts"
+	transactionEntryTable = "transaction_entries"
 )
 
 // TransactionRepository implements domain.TransactionRepository using entGo.
@@ -78,6 +89,16 @@ func (r *TransactionRepository) FindByID(ctx context.Context, tenantID, id uuid.
 }
 
 // FindAll returns paginated transactions with optional filters.
+//
+// Performance: entries are loaded in a single batched query
+// (`WHERE transaction_id IN (...)`) rather than once per transaction,
+// eliminating the N+1 read pattern that previously scaled with page size.
+//
+// Type filter: the income/expense/transfer classification is inferred from
+// the account_type of each entry's account (account-as-category model). Since
+// the transaction and account ent modules share one physical database but
+// declare no cross-module edges, the classification is expressed as a raw
+// EXISTS subquery joining transaction_entries → accounts.
 func (r *TransactionRepository) FindAll(ctx context.Context, tenantID uuid.UUID, filter domain.TransactionFilter, page domain.PageRequest) (*domain.PaginatedResult[domain.Transaction], error) {
 	query := r.client.Transaction.Query().
 		Where(
@@ -86,28 +107,19 @@ func (r *TransactionRepository) FindAll(ctx context.Context, tenantID uuid.UUID,
 		)
 
 	if filter.AccountID != nil {
-		// Join through entries — get transactions that have an entry for this account
-		entryResults, err := r.client.TransactionEntry.Query().
-			Where(txnentryent.AccountID(*filter.AccountID)).
-			All(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("filter by account: %w", err)
-		}
-		txnIDs := make([]uuid.UUID, len(entryResults))
-		for i, e := range entryResults {
-			txnIDs[i] = e.TransactionID
-		}
-		if len(txnIDs) > 0 {
-			query.Where(transaction.IDIn(txnIDs...))
-		} else {
-			return &domain.PaginatedResult[domain.Transaction]{}, nil
-		}
+		// Restrict to transactions that have at least one entry for this account.
+		// Expressed as an EXISTS subquery so the page/count stay consistent and
+		// we avoid the previous two-step (fetch entry txnIDs, then filter).
+		query.Where(hasEntryForAccount(*filter.AccountID))
 	}
 	if filter.DateFrom != nil {
 		query.Where(transaction.TransactionDateGTE(*filter.DateFrom))
 	}
 	if filter.DateTo != nil {
 		query.Where(transaction.TransactionDateLTE(*filter.DateTo))
+	}
+	if filter.Type != nil {
+		query.Where(typePredicate(*filter.Type))
 	}
 
 	total, err := query.Count(ctx)
@@ -119,12 +131,18 @@ func (r *TransactionRepository) FindAll(ctx context.Context, tenantID uuid.UUID,
 	if pageSize <= 0 {
 		pageSize = 20
 	}
+
+	// Deterministic ordering is required for keyset (cursor) pagination:
+	// IDGT(cursor) only has stable semantics when results are ordered by id.
+	query.Order(transaction.ByID(entsql.OrderAsc()))
 	query.Limit(pageSize + 1)
 
 	if page.PageToken != "" {
 		cursorID, err := uuid.Parse(page.PageToken)
 		if err == nil {
-			query.Where(transaction.IDGTE(cursorID))
+			// Exclusive cursor: the last item of the previous page must not
+			// reappear. Use GT (not GTE) so page boundaries don't overlap.
+			query.Where(transaction.IDGT(cursorID))
 		}
 	}
 
@@ -139,15 +157,15 @@ func (r *TransactionRepository) FindAll(ctx context.Context, tenantID uuid.UUID,
 		results = results[:pageSize]
 	}
 
+	// Eager-load entries in ONE batched query (avoids N+1).
+	entriesByTxn, err := r.loadEntriesByTransaction(ctx, results)
+	if err != nil {
+		return nil, err
+	}
+
 	txns := make([]domain.Transaction, len(results))
 	for i, t := range results {
-		entries, err := r.client.TransactionEntry.Query().
-			Where(txnentryent.TransactionID(t.ID)).
-			All(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("load entries for %s: %w", t.ID, err)
-		}
-		txns[i] = *toDomainTransaction(t, entries)
+		txns[i] = *toDomainTransaction(t, entriesByTxn[t.ID])
 	}
 
 	return &domain.PaginatedResult[domain.Transaction]{
@@ -156,6 +174,118 @@ func (r *TransactionRepository) FindAll(ctx context.Context, tenantID uuid.UUID,
 		TotalCount:    int32(total),
 	}, nil
 }
+
+// loadEntriesByTransaction fetches all entries for the given transactions in a
+// single query and groups them by transaction_id. Returns an empty map (not nil)
+// when there are no transactions, so callers can index safely.
+func (r *TransactionRepository) loadEntriesByTransaction(ctx context.Context, txns []*txnent.Transaction) (map[uuid.UUID][]*txnent.TransactionEntry, error) {
+	out := make(map[uuid.UUID][]*txnent.TransactionEntry)
+	if len(txns) == 0 {
+		return out, nil
+	}
+
+	ids := make([]uuid.UUID, len(txns))
+	for i, t := range txns {
+		ids[i] = t.ID
+	}
+
+	entries, err := r.client.TransactionEntry.Query().
+		Where(txnentryent.TransactionIDIn(ids...)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("batch load entries: %w", err)
+	}
+
+	for _, e := range entries {
+		out[e.TransactionID] = append(out[e.TransactionID], e)
+	}
+	// Ensure every transaction has a non-nil slice (consistent with FindByID).
+	for _, id := range ids {
+		if out[id] == nil {
+			out[id] = []*txnent.TransactionEntry{}
+		}
+	}
+	return out, nil
+}
+
+// hasEntryForAccount builds a predicate restricting transactions to those that
+// have at least one entry pointing at the given account. Uses a raw EXISTS
+// subquery against the shared transaction_entries table.
+func hasEntryForAccount(accountID uuid.UUID) func(*entsql.Selector) {
+	return func(s *entsql.Selector) {
+		// s.C(transaction.FieldID) yields the correlated outer column, e.g. "t0"."id".
+		s.Where(entsql.ExprP(
+			"EXISTS (SELECT 1 FROM "+transactionEntryTable+
+				" WHERE "+transactionEntryTable+"."+transactionEntryFieldTransactionID+" = "+s.C(transaction.FieldID)+
+				" AND "+transactionEntryTable+"."+transactionEntryFieldAccountID+" = ?)",
+			accountID,
+		))
+	}
+}
+
+// typePredicate builds the income/expense/transfer classification predicate.
+//
+//	account-as-category + double-entry inference:
+//	  income   — EXISTS an entry on an Income account credited (credit_cents > 0)
+//	  expense  — EXISTS an entry on an Expense account debited (debit_cents > 0)
+//	  transfer — every entry's account is an Asset account (NOT EXISTS a non-asset)
+//
+// Implemented as raw EXISTS subqueries joining transaction_entries → accounts.
+// The transaction and account ent modules share one physical database, so the
+// cross-table JOIN is valid even though no ent edge connects them.
+func typePredicate(t domain.TransactionType) func(*entsql.Selector) {
+	return func(s *entsql.Selector) {
+		outerID := s.C(transaction.FieldID) // correlated outer column, e.g. "t0"."id"
+		join := " FROM " + transactionEntryTable +
+			" JOIN " + accountsTable +
+			" ON " + transactionEntryTable + "." + transactionEntryFieldAccountID +
+			" = " + accountsTable + "." + accountsFieldID +
+			" WHERE " + transactionEntryTable + "." + transactionEntryFieldTransactionID + " = " + outerID
+
+		switch t {
+		case domain.TransactionTypeIncome:
+			s.Where(entsql.ExprP(
+				"EXISTS (SELECT 1"+join+
+					" AND "+accountsTable+"."+accountsFieldAccountType+" = ?"+
+					" AND "+transactionEntryTable+"."+transactionEntryFieldCreditCents+" > 0)",
+				accountTypeIncome,
+			))
+
+		case domain.TransactionTypeExpense:
+			s.Where(entsql.ExprP(
+				"EXISTS (SELECT 1"+join+
+					" AND "+accountsTable+"."+accountsFieldAccountType+" = ?"+
+					" AND "+transactionEntryTable+"."+transactionEntryFieldDebitCents+" > 0)",
+				accountTypeExpense,
+			))
+
+		case domain.TransactionTypeTransfer:
+			// A transfer is a transaction whose entries only touch Asset accounts.
+			// Equivalently: NOT EXISTS an entry whose account is NOT an Asset.
+			s.Where(entsql.ExprP(
+				"NOT EXISTS (SELECT 1"+join+
+					" AND "+accountsTable+"."+accountsFieldAccountType+" != ?)",
+				accountTypeAsset,
+			))
+		}
+	}
+}
+
+// Field/column name constants for the raw JOINs. Kept here rather than imported
+// from the account ent package (cross-module) or hardcoded inline.
+const (
+	transactionEntryFieldTransactionID = "transaction_id"
+	transactionEntryFieldAccountID     = "account_id"
+	transactionEntryFieldDebitCents    = "debit_cents"
+	transactionEntryFieldCreditCents   = "credit_cents"
+
+	accountsFieldID          = "id"
+	accountsFieldAccountType = "account_type"
+
+	accountTypeIncome  = "income"
+	accountTypeExpense = "expense"
+	accountTypeAsset   = "asset"
+)
 
 // Update replaces entries and updates the transaction.
 func (r *TransactionRepository) Update(ctx context.Context, tx *domain.Transaction) error {
