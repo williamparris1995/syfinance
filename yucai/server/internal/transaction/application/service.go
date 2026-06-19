@@ -5,18 +5,28 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	accountdomain "github.com/yucai/server/internal/account/domain"
 	"github.com/yucai/server/internal/transaction/domain"
 )
 
+// AccountLookup is the account-reading port used by the transaction service
+// for business validation (currency consistency, balance sufficiency).
+// Only the read methods needed for validation are exposed here; the concrete
+// account domain.AccountRepository satisfies this interface.
+type AccountLookup interface {
+	FindByID(ctx context.Context, tenantID, id uuid.UUID) (*accountdomain.Account, error)
+}
+
 // Service orchestrates transaction operations.
 type Service struct {
-	txnRepo      domain.TransactionRepository
-	balanceUpd   BalanceUpdater
+	txnRepo     domain.TransactionRepository
+	accountRepo AccountLookup
+	balanceUpd  BalanceUpdater
 }
 
 // NewService creates a new transaction application service.
-func NewService(txnRepo domain.TransactionRepository, balanceUpd BalanceUpdater) *Service {
-	return &Service{txnRepo: txnRepo, balanceUpd: balanceUpd}
+func NewService(txnRepo domain.TransactionRepository, accountRepo AccountLookup, balanceUpd BalanceUpdater) *Service {
+	return &Service{txnRepo: txnRepo, accountRepo: accountRepo, balanceUpd: balanceUpd}
 }
 
 // RecordTransaction validates and persists a new double-entry transaction.
@@ -155,7 +165,20 @@ func (s *Service) SimpleIncome(ctx context.Context, req SimpleIncomeRequest) (*T
 }
 
 // SimpleExpense creates a debit-expense + credit-asset transaction.
+// It rejects the expense when the asset account's current balance is
+// insufficient to cover the amount (prevents overdraft on the spot).
 func (s *Service) SimpleExpense(ctx context.Context, req SimpleExpenseRequest) (*TransactionDTO, error) {
+	asset, err := s.accountRepo.FindByID(ctx, req.TenantID, req.AssetAccountID)
+	if err != nil {
+		return nil, fmt.Errorf("find asset account %s: %w", req.AssetAccountID, err)
+	}
+	if asset.CurrentBalanceCents < req.AmountCents {
+		return nil, fmt.Errorf(
+			"insufficient balance: account %s has %d cents, expense requires %d cents",
+			req.AssetAccountID, asset.CurrentBalanceCents, req.AmountCents,
+		)
+	}
+
 	return s.RecordTransaction(ctx, RecordTransactionRequest{
 		TenantID:        req.TenantID,
 		TransactionDate: req.TransactionDate,
@@ -165,7 +188,24 @@ func (s *Service) SimpleExpense(ctx context.Context, req SimpleExpenseRequest) (
 }
 
 // SimpleTransfer creates a debit-to + credit-from transaction.
+// It rejects transfers between accounts that use different currencies
+// (cross-currency transfers require explicit FX handling, out of scope here).
 func (s *Service) SimpleTransfer(ctx context.Context, req SimpleTransferRequest) (*TransactionDTO, error) {
+	from, err := s.accountRepo.FindByID(ctx, req.TenantID, req.FromAccountID)
+	if err != nil {
+		return nil, fmt.Errorf("find from account %s: %w", req.FromAccountID, err)
+	}
+	to, err := s.accountRepo.FindByID(ctx, req.TenantID, req.ToAccountID)
+	if err != nil {
+		return nil, fmt.Errorf("find to account %s: %w", req.ToAccountID, err)
+	}
+	if from.CurrencyCode != to.CurrencyCode {
+		return nil, fmt.Errorf(
+			"currency mismatch: from account %s uses %s, to account %s uses %s",
+			req.FromAccountID, from.CurrencyCode, req.ToAccountID, to.CurrencyCode,
+		)
+	}
+
 	return s.RecordTransaction(ctx, RecordTransactionRequest{
 		TenantID:        req.TenantID,
 		TransactionDate: req.TransactionDate,

@@ -90,7 +90,7 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	// Transaction module
 	txnRepo := provideTransactionRepo(txnClient)
 	balanceUpdater := provideBalanceUpdater(accountRepo)
-	txnService := provideTransactionService(txnRepo, balanceUpdater)
+	txnService := provideTransactionService(txnRepo, accountRepo, balanceUpdater)
 	txnHandler := provideTransactionHandler(txnService)
 
 	// Budget module
