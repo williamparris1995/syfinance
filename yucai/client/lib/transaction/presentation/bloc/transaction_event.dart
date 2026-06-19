@@ -33,3 +33,21 @@ class LoadMoreTransactionsRequested extends TransactionEvent {}
 
 /// Retry the last load (typically after a [TransactionsError]).
 class RetryTransactionsRequested extends TransactionEvent {}
+
+/// Load the detail view for one transaction (Task 3.2 detail page).
+///
+/// Fetches the transaction by [id] plus a few recent same-account transactions
+/// (for the 「同分类近期」 panel). The same-account list is served by the same
+/// `list` RPC scoped to the transaction's first entry account — a client-side
+/// workaround until the Task 3.1 server `FindRecentByAccount` RPC lands in the
+/// regenerated client proto stub (see progress.md / stub-regen backlog). The
+/// detail bloc handler documents this explicitly so the workaround is not
+/// hidden.
+class LoadTransactionDetail extends TransactionEvent {
+  const LoadTransactionDetail(this.id);
+
+  final String id;
+
+  @override
+  List<Object?> get props => [id];
+}

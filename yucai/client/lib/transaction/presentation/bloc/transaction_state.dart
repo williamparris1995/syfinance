@@ -73,3 +73,38 @@ class TransactionsError extends TransactionState {
   @override
   List<Object?> get props => [message, filter];
 }
+
+/// Detail-page states (Task 3.2). Separate from the list lifecycle so the two
+/// pages can share [TransactionBloc] without their states interfering.
+///
+/// - [TransactionDetailLoading] — fetch in flight.
+/// - [TransactionDetailLoaded] — carries the transaction + same-account
+///   recent list (best-effort; empty when the recent fetch fails or there is
+///   no usable account id on the transaction).
+/// - [TransactionDetailError] — primary fetch failed.
+class TransactionDetailLoading extends TransactionState {}
+
+class TransactionDetailLoaded extends TransactionState {
+  const TransactionDetailLoaded({
+    required this.transaction,
+    this.recent = const [],
+  });
+
+  final Transaction transaction;
+
+  /// Recent transactions touching the same account(s) as [transaction].
+  /// Excludes [transaction] itself. Best-effort: empty when unavailable.
+  final List<Transaction> recent;
+
+  @override
+  List<Object?> get props => [transaction, recent];
+}
+
+class TransactionDetailError extends TransactionState {
+  const TransactionDetailError(this.message);
+
+  final String message;
+
+  @override
+  List<Object?> get props => [message];
+}

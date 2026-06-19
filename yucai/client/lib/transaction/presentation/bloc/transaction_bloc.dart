@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_event.dart';
@@ -26,6 +27,7 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
     on<LoadTransactionsRequested>(_onLoad);
     on<LoadMoreTransactionsRequested>(_onLoadMore);
     on<RetryTransactionsRequested>(_onRetry);
+    on<LoadTransactionDetail>(_onLoadDetail);
   }
 
   final TransactionRepository _txnRepo;
@@ -123,5 +125,46 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
     final start = DateTime(int.parse(parts[0]), int.parse(parts[1]));
     // Next month, day 0 = last day of this month.
     return DateTime(start.year, start.month + 1, 0);
+  }
+
+  /// Detail-page handler (Task 3.2). Fetches the transaction, then the recent
+  /// same-account list for the 「同分类近期」 panel.
+  ///
+  /// **findRecentByAccount workaround**: the server `FindRecentByAccount` RPC
+  /// (Task 3.1) is not yet in the regenerated client proto stub. As an interim
+  /// we reuse `list(ListTransactionsParams{accountId})` and trim to the first
+  /// few rows, excluding the current transaction. Swap to a dedicated
+  /// `findRecentByAccount` repo method once the stub is regenerated.
+  Future<void> _onLoadDetail(
+      LoadTransactionDetail event, Emitter<TransactionState> emit) async {
+    emit(TransactionDetailLoading());
+    final result = await _txnRepo.getById(event.id);
+    await result.fold(
+      (failure) async => emit(TransactionDetailError(failure.displayMessage)),
+      (txn) async {
+        final recent = await _recentSameAccount(txn, event.id);
+        emit(TransactionDetailLoaded(transaction: txn, recent: recent));
+      },
+    );
+  }
+
+  /// Best-effort recent same-account list. Picks the first debit-side account
+  /// on the transaction (the 「expense / category」 leg) and lists a few rows
+  /// for it, excluding the current transaction. Empty on any failure.
+  Future<List<Transaction>> _recentSameAccount(
+      Transaction txn, String currentId) async {
+    final debitEntry = txn.entries.cast<TransactionEntry?>().firstWhere(
+          (e) => e != null && e.debitCents > 0,
+          orElse: () => txn.entries.isEmpty ? null : txn.entries.first,
+        );
+    final account = debitEntry?.accountId ?? '';
+    if (account.isEmpty) return const [];
+    final result = await _txnRepo
+        .list(ListTransactionsParams(accountId: account, pageSize: 10));
+    return result.fold(
+      (_) => const [],
+      (page) =>
+          page.transactions.where((t) => t.id != currentId).take(5).toList(),
+    );
   }
 }
