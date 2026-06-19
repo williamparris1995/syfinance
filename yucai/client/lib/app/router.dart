@@ -4,6 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:yucai_client/account/domain/usecases/create_account_usecase.dart';
+import 'package:yucai_client/account/domain/usecases/delete_account_usecase.dart';
+import 'package:yucai_client/account/domain/usecases/list_accounts_usecase.dart';
+import 'package:yucai_client/account/domain/usecases/update_account_usecase.dart';
 import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/pages/account_detail_page.dart';
 import 'package:yucai_client/account/presentation/pages/accounts_page.dart';
@@ -14,6 +18,13 @@ import 'package:yucai_client/auth/presentation/pages/home_page.dart';
 import 'package:yucai_client/auth/presentation/pages/login_page.dart';
 import 'package:yucai_client/auth/presentation/pages/register_page.dart';
 import 'package:yucai_client/core/di/injection.dart';
+import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
+import 'package:yucai_client/transaction/presentation/bloc/category_bloc.dart';
+import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
+import 'package:yucai_client/transaction/presentation/pages/category_management_page.dart';
+import 'package:yucai_client/transaction/presentation/pages/transaction_detail_page.dart';
+import 'package:yucai_client/transaction/presentation/pages/transaction_form_page.dart';
+import 'package:yucai_client/transaction/presentation/pages/transactions_page.dart';
 
 /// Builds the app router. Reads auth state to guard routes.
 ///
@@ -29,7 +40,9 @@ GoRouter buildRouter(AuthBloc authBloc) {
       final goingToAuth = state.matchedLocation == '/login' ||
           state.matchedLocation == '/register';
       final goingProtected = state.matchedLocation == '/home' ||
-          state.matchedLocation.startsWith('/accounts');
+          state.matchedLocation.startsWith('/accounts') ||
+          state.matchedLocation.startsWith('/transactions') ||
+          state.matchedLocation.startsWith('/categories');
 
       if (isLoading) return null;
 
@@ -77,6 +90,50 @@ GoRouter buildRouter(AuthBloc authBloc) {
                     ),
                   ),
                 ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/transactions',
+                // TransactionsPage 内部自建 BlocProvider<TransactionBloc>
+                //（getIt<TransactionRepository>()），故这里不再包裹。
+                builder: (_, __) => const TransactionsPage(),
+                routes: [
+                  GoRoute(
+                    path: 'new',
+                    // TransactionFormPage 内部自建 BlocProvider<TransactionFormBloc>。
+                    builder: (_, __) => const TransactionFormPage(),
+                  ),
+                  GoRoute(
+                    path: ':id',
+                    // TransactionDetailPage 在 initState 里
+                    // context.read<TransactionBloc>() 触发 LoadTransactionDetail，
+                    // 故这里必须 provide TransactionBloc（否则 ProviderNotFoundException）。
+                    builder: (context, state) =>
+                        BlocProvider<TransactionBloc>(
+                      create: (_) => TransactionBloc(
+                          getIt<TransactionRepository>()),
+                      child: TransactionDetailPage(
+                          id: state.pathParameters['id']!),
+                    ),
+                  ),
+                ],
+              ),
+              GoRoute(
+                path: '/categories',
+                // CategoryManagementPage 从树里读 CategoryBloc（无 getIt 工厂），
+                // 故这里 provide。四个 use case 均经 injectable 注册。
+                builder: (_, __) => BlocProvider<CategoryBloc>(
+                  create: (_) => CategoryBloc(
+                    getIt<ListAccountsUseCase>(),
+                    getIt<CreateAccountUseCase>(),
+                    getIt<DeleteAccountUseCase>(),
+                    getIt<UpdateAccountUseCase>(),
+                  ),
+                  child: const CategoryManagementPage(),
+                ),
               ),
             ],
           ),

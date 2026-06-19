@@ -16,6 +16,7 @@ import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
@@ -34,6 +35,7 @@ import 'package:yucai_client/transaction/domain/repositories/transaction_reposit
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_event.dart';
+import 'package:yucai_client/transaction/presentation/pages/transaction_form_page.dart';
 import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
 
 class _MockAccountRepo extends Mock implements AccountRepository {}
@@ -77,6 +79,10 @@ void main() {
   late _MockAccountRepo accountRepo;
   late _FakeTxnRepo txnRepo;
 
+  tearDown(() {
+    GetIt.instance.reset();
+  });
+
   setUp(() {
     accountRepo = _MockAccountRepo();
     txnRepo = _FakeTxnRepo();
@@ -84,6 +90,10 @@ void main() {
     registerFallbackValue(
       const UpdateAccountParams(id: 'a1', version: 1),
     );
+    // Register both repos in getIt so TransactionFormPage (pushed by
+    // _recordTxn) can resolve them when building its own bloc.
+    GetIt.instance.registerSingleton<AccountRepository>(accountRepo);
+    GetIt.instance.registerSingleton<TransactionRepository>(txnRepo);
 
     // Account detail page emits GetAccountRequested on initState.
     when(() => accountRepo.getById(any()))
@@ -217,6 +227,28 @@ void main() {
     // Activated labels render.
     expect(find.text('记一笔'), findsWidgets);
     expect(find.text('转账'), findsWidgets);
+  });
+
+  testWidgets('tapping 记一笔 (AppBar) pushes TransactionFormPage',
+      (tester) async {
+    await pumpPage(tester);
+
+    // Two 「记一笔」 surfaces exist (AppBar + 快捷操作 card). Tap the AppBar
+    // one by scoping to AppBar descendants.
+    final btn = find.descendant(
+      of: find.byType(AppBar),
+      matching: find.ancestor(
+        of: find.text('记一笔'),
+        matching: find.byType(TextButton),
+      ),
+    );
+    expect(btn, findsOneWidget);
+    await tester.ensureVisible(btn);
+    await tester.tap(btn, warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    // A new route was pushed: the form page is on screen.
+    expect(find.byType(TransactionFormPage), findsOneWidget);
   });
 
   testWidgets('archived account keeps 记一笔 / 转账 disabled (no write ops)',
