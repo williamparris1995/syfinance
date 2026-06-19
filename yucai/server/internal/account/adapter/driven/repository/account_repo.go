@@ -35,6 +35,8 @@ func (r *AccountRepository) Save(ctx context.Context, a *domain.Account) error {
 		SetOwnership(accountent.Ownership(a.Ownership.String())).
 		SetIcon(a.Icon).
 		SetColor(a.Color).
+		SetIsSystem(a.IsSystem).
+		SetSortOrder(a.SortOrder).
 		SetChartCode(a.ChartCode).
 		SetInstitution(a.Institution).
 		SetCreditLimitCents(a.CreditLimitCents).

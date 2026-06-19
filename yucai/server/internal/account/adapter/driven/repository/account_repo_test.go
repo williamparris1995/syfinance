@@ -122,3 +122,59 @@ func TestFindByAccountType_EmptyResult(t *testing.T) {
 		t.Errorf("expected 0 accounts, got %d", len(got))
 	}
 }
+
+// TestFindByAccountType_OrdersBySortOrder verifies that accounts are returned
+// ordered by sort_order ASC (name ASC as tiebreaker). This guards the
+// "deterministic dropdown order" contract and is only meaningful once Save
+// persists sort_order (fixed alongside this test).
+func TestFindByAccountType_OrdersBySortOrder(t *testing.T) {
+	client := setupAccountTestDB(t)
+	repo := repository.NewAccountRepository(client)
+	tenantID := uuid.New()
+
+	// Save three Expense accounts with deliberately out-of-alphabetical sort_order.
+	// Without sort_order persistence, all would default to 0 and only name
+	// tiebreak would apply (alphabetical: A, B, C) — masking the bug.
+	c := newAccountWithSortOrder(tenantID, "C-first", domain.AccountTypeExpense, 1)
+	b := newAccountWithSortOrder(tenantID, "B-second", domain.AccountTypeExpense, 2)
+	a := newAccountWithSortOrder(tenantID, "A-third", domain.AccountTypeExpense, 3)
+	for _, acc := range []*domain.Account{c, b, a} {
+		if err := repo.Save(context.Background(), acc); err != nil {
+			t.Fatalf("save account %q: %v", acc.Name, err)
+		}
+	}
+
+	got, err := repo.FindByAccountType(context.Background(), tenantID, domain.AccountTypeExpense)
+	if err != nil {
+		t.Fatalf("FindByAccountType: %v", err)
+	}
+	if len(got) != 3 {
+		t.Fatalf("expected 3 expense accounts, got %d", len(got))
+	}
+
+	// Expected order: sort_order 1, 2, 3 (i.e. names "C-first", "B-second", "A-third").
+	wantNames := []string{"C-first", "B-second", "A-third"}
+	for i, want := range wantNames {
+		if got[i].Name != want {
+			t.Errorf("position %d: got %q (sort_order=%d), want %q — order should be sort_order ASC",
+				i, got[i].Name, got[i].SortOrder, want)
+		}
+	}
+
+	// Sanity: confirm sort_order round-tripped non-zero (verifies Save fix).
+	for _, acc := range got {
+		if acc.SortOrder == 0 {
+			t.Errorf("account %q has SortOrder=0; Save did not persist sort_order", acc.Name)
+		}
+	}
+}
+
+// newAccountWithSortOrder builds a minimal account with an explicit sort_order.
+func newAccountWithSortOrder(tenantID uuid.UUID, name string, at domain.AccountType, sortOrder int) *domain.Account {
+	a, err := domain.NewAccount(tenantID, name, at, "CNY")
+	if err != nil {
+		panic(err)
+	}
+	a.SortOrder = sortOrder
+	return a
+}
