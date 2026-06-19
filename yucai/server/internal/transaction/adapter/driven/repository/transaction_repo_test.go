@@ -450,3 +450,149 @@ func TestFindAll_TenantIsolation_StillWorks(t *testing.T) {
 		t.Fatalf("tenant isolation broken: got %+v", res.Items)
 	}
 }
+
+// --- FindRecentByAccount tests ------------------------------------------
+
+// TestFindRecentByAccount_ReturnsSameAccountTransactions_OrderedDesc verifies
+// that FindRecentByAccount returns transactions touching the given account,
+// ordered by transaction_date DESC, and that entries are eager-loaded.
+func TestFindRecentByAccount_ReturnsSameAccountTransactions_OrderedDesc(t *testing.T) {
+	txnClient, accClient := setupTestDB(t)
+	txnRepo := repository.NewTransactionRepository(txnClient)
+	accRepo := accountrepo.NewAccountRepository(accClient)
+	f := seedFixture(t, accRepo, txnRepo)
+
+	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	// Three expense txns (touching expenseAcc) at different dates...
+	recordTxn(t, txnRepo, f.tenantID, base, "jan1 lunch", expenseEntries(f.expenseAcc.ID, f.assetAcc.ID, 50))
+	recordTxn(t, txnRepo, f.tenantID, base.AddDate(0, 0, 5), "jan6 lunch", expenseEntries(f.expenseAcc.ID, f.assetAcc.ID, 60))
+	recordTxn(t, txnRepo, f.tenantID, base.AddDate(0, 0, 10), "jan11 lunch", expenseEntries(f.expenseAcc.ID, f.assetAcc.ID, 70))
+	// ...and one income txn that does NOT touch expenseAcc — must be excluded.
+	recordTxn(t, txnRepo, f.tenantID, base.AddDate(0, 0, 20), "salary", incomeEntries(f.assetAcc.ID, f.incomeAcc.ID, 5000))
+
+	got, err := txnRepo.FindRecentByAccount(context.Background(), f.tenantID, f.expenseAcc.ID, 10)
+	if err != nil {
+		t.Fatalf("FindRecentByAccount: %v", err)
+	}
+	if len(got) != 3 {
+		t.Fatalf("expected 3 expense txns, got %d", len(got))
+	}
+	// DESC order: jan11, jan6, jan1.
+	want := []string{"jan11 lunch", "jan6 lunch", "jan1 lunch"}
+	for i, w := range want {
+		if got[i].Description != w {
+			t.Errorf("position %d: got %q, want %q", i, got[i].Description, w)
+		}
+	}
+	// Entries must be eager-loaded (the point of the FindAll pattern).
+	for i, tx := range got {
+		if len(tx.Entries) != 2 {
+			t.Fatalf("transaction %d (%q) has %d entries, want 2 (eager load broken)",
+				i, tx.Description, len(tx.Entries))
+		}
+	}
+}
+
+// TestFindRecentByAccount_RespectsLimit verifies the limit parameter is honored.
+func TestFindRecentByAccount_RespectsLimit(t *testing.T) {
+	txnClient, accClient := setupTestDB(t)
+	txnRepo := repository.NewTransactionRepository(txnClient)
+	accRepo := accountrepo.NewAccountRepository(accClient)
+	f := seedFixture(t, accRepo, txnRepo)
+
+	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	for i := 0; i < 5; i++ {
+		recordTxn(t, txnRepo, f.tenantID, base.AddDate(0, 0, i), fmt.Sprintf("lunch %d", i),
+			expenseEntries(f.expenseAcc.ID, f.assetAcc.ID, 50))
+	}
+
+	got, err := txnRepo.FindRecentByAccount(context.Background(), f.tenantID, f.expenseAcc.ID, 2)
+	if err != nil {
+		t.Fatalf("FindRecentByAccount: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("expected 2 txns (limit), got %d", len(got))
+	}
+	// The two newest: lunch 4 then lunch 3.
+	if got[0].Description != "lunch 4" || got[1].Description != "lunch 3" {
+		t.Errorf("limit+order: got %q, %q; want lunch 4, lunch 3",
+			got[0].Description, got[1].Description)
+	}
+}
+
+// TestFindRecentByAccount_TenantIsolation verifies cross-tenant rows are excluded.
+func TestFindRecentByAccount_TenantIsolation(t *testing.T) {
+	txnClient, accClient := setupTestDB(t)
+	txnRepo := repository.NewTransactionRepository(txnClient)
+	accRepo := accountrepo.NewAccountRepository(accClient)
+	f := seedFixture(t, accRepo, txnRepo)
+
+	otherTenant := uuid.New()
+	recordTxn(t, txnRepo, f.tenantID, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		"mine", expenseEntries(f.expenseAcc.ID, f.assetAcc.ID, 50))
+	recordTxn(t, txnRepo, otherTenant, time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC),
+		"theirs", expenseEntries(f.expenseAcc.ID, f.assetAcc.ID, 50))
+
+	got, err := txnRepo.FindRecentByAccount(context.Background(), f.tenantID, f.expenseAcc.ID, 10)
+	if err != nil {
+		t.Fatalf("FindRecentByAccount: %v", err)
+	}
+	if len(got) != 1 || got[0].Description != "mine" {
+		t.Fatalf("tenant isolation broken: got %+v", got)
+	}
+}
+
+// TestFindRecentByAccount_ExcludesSoftDeleted verifies soft-deleted transactions
+// do not appear in the recent list.
+func TestFindRecentByAccount_ExcludesSoftDeleted(t *testing.T) {
+	txnClient, accClient := setupTestDB(t)
+	txnRepo := repository.NewTransactionRepository(txnClient)
+	accRepo := accountrepo.NewAccountRepository(accClient)
+	f := seedFixture(t, accRepo, txnRepo)
+
+	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	live := recordTxn(t, txnRepo, f.tenantID, base, "live", expenseEntries(f.expenseAcc.ID, f.assetAcc.ID, 50))
+	deleted := recordTxn(t, txnRepo, f.tenantID, base.AddDate(0, 0, 1), "deleted",
+		expenseEntries(f.expenseAcc.ID, f.assetAcc.ID, 60))
+	if err := txnRepo.SoftDelete(context.Background(), f.tenantID, deleted.ID); err != nil {
+		t.Fatalf("soft delete: %v", err)
+	}
+
+	got, err := txnRepo.FindRecentByAccount(context.Background(), f.tenantID, f.expenseAcc.ID, 10)
+	if err != nil {
+		t.Fatalf("FindRecentByAccount: %v", err)
+	}
+	if len(got) != 1 || got[0].ID != live.ID {
+		t.Fatalf("soft-deleted leaked: got %+v", got)
+	}
+}
+
+// TestFindRecentByAccount_LimitClamping verifies that limit <= 0 falls back to
+// a sane default and that an oversized limit is capped.
+func TestFindRecentByAccount_LimitClamping(t *testing.T) {
+	txnClient, accClient := setupTestDB(t)
+	txnRepo := repository.NewTransactionRepository(txnClient)
+	accRepo := accountrepo.NewAccountRepository(accClient)
+	f := seedFixture(t, accRepo, txnRepo)
+
+	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	recordTxn(t, txnRepo, f.tenantID, base, "a", expenseEntries(f.expenseAcc.ID, f.assetAcc.ID, 50))
+
+	// limit <= 0 → default (must return the one seeded txn, not error/empty).
+	got, err := txnRepo.FindRecentByAccount(context.Background(), f.tenantID, f.expenseAcc.ID, 0)
+	if err != nil {
+		t.Fatalf("FindRecentByAccount limit=0: %v", err)
+	}
+	if len(got) != 1 {
+		t.Errorf("limit=0 default: got %d, want 1", len(got))
+	}
+
+	// limit oversized (10000) → capped, still returns the one seeded txn cleanly.
+	gotBig, err := txnRepo.FindRecentByAccount(context.Background(), f.tenantID, f.expenseAcc.ID, 10000)
+	if err != nil {
+		t.Fatalf("FindRecentByAccount limit=10000: %v", err)
+	}
+	if len(gotBig) != 1 {
+		t.Errorf("limit=10000 capped: got %d, want 1", len(gotBig))
+	}
+}

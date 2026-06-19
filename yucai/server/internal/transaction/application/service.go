@@ -87,6 +87,24 @@ func (s *Service) ListTransactions(ctx context.Context, req ListTransactionsRequ
 	}, nil
 }
 
+// ListRecentByAccount returns the most recent transactions touching the given
+// account (the "same-category recent transactions" view under
+// account-as-category), newest first. Thin wrapper over the repository: it
+// delegates tenant scoping, soft-delete exclusion, ordering and limit clamping
+// to the repo and just maps domain entities to DTOs. Useful for the
+// transaction-detail page's "recent same-category" panel.
+func (s *Service) ListRecentByAccount(ctx context.Context, tenantID, accountID uuid.UUID, limit int) ([]TransactionDTO, error) {
+	txns, err := s.txnRepo.FindRecentByAccount(ctx, tenantID, accountID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list recent transactions by account %s: %w", accountID, err)
+	}
+	dtos := make([]TransactionDTO, len(txns))
+	for i, tx := range txns {
+		dtos[i] = TransactionToDTO(&tx)
+	}
+	return dtos, nil
+}
+
 // UpdateTransaction replaces entries and adjusts balances.
 func (s *Service) UpdateTransaction(ctx context.Context, req UpdateTransactionRequest) (*TransactionDTO, error) {
 	txn, err := s.txnRepo.FindByID(ctx, req.TenantID, req.TransactionID)

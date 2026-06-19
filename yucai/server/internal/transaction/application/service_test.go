@@ -99,6 +99,42 @@ func (r *recordingTxnRepo) Update(context.Context, *domain.Transaction) error {
 func (r *recordingTxnRepo) SoftDelete(context.Context, uuid.UUID, uuid.UUID) error {
 	panic("unexpected SoftDelete call")
 }
+func (r *recordingTxnRepo) FindRecentByAccount(context.Context, uuid.UUID, uuid.UUID, int) ([]domain.Transaction, error) {
+	panic("unexpected FindRecentByAccount call")
+}
+
+// recentTxnRepo is a TransactionRepository whose FindRecentByAccount returns a
+// canned result (and records its args) so the service-level thin-wrapper test
+// can assert delegation. All other methods panic.
+type recentTxnRepo struct {
+	gotTenantID  uuid.UUID
+	gotAccountID uuid.UUID
+	gotLimit     int
+	result       []domain.Transaction
+	err          error
+}
+
+func (r *recentTxnRepo) Save(context.Context, *domain.Transaction) error {
+	panic("unexpected Save call")
+}
+func (r *recentTxnRepo) FindByID(context.Context, uuid.UUID, uuid.UUID) (*domain.Transaction, error) {
+	panic("unexpected FindByID call")
+}
+func (r *recentTxnRepo) FindAll(context.Context, uuid.UUID, domain.TransactionFilter, domain.PageRequest) (*domain.PaginatedResult[domain.Transaction], error) {
+	panic("unexpected FindAll call")
+}
+func (r *recentTxnRepo) Update(context.Context, *domain.Transaction) error {
+	panic("unexpected Update call")
+}
+func (r *recentTxnRepo) SoftDelete(context.Context, uuid.UUID, uuid.UUID) error {
+	panic("unexpected SoftDelete call")
+}
+func (r *recentTxnRepo) FindRecentByAccount(_ context.Context, tenantID, accountID uuid.UUID, limit int) ([]domain.Transaction, error) {
+	r.gotTenantID = tenantID
+	r.gotAccountID = accountID
+	r.gotLimit = limit
+	return r.result, r.err
+}
 
 // --- Helpers ---
 
@@ -217,5 +253,45 @@ func TestSimpleExpense_AcceptsExactBalance(t *testing.T) {
 	}
 	if dto == nil || txnRepo.saved == nil {
 		t.Fatal("expected transaction to be saved after passing validation")
+	}
+}
+
+// TestListRecentByAccount_DelegatesToRepo verifies the service method is a thin
+// wrapper: it passes tenant/account/limit straight through and converts domain
+// entities to DTOs.
+func TestListRecentByAccount_DelegatesToRepo(t *testing.T) {
+	tenantID := uuid.New()
+	accountID := uuid.New()
+	seeded := []domain.Transaction{
+		{ID: uuid.New(), TenantID: tenantID, Description: "recent-a"},
+		{ID: uuid.New(), TenantID: tenantID, Description: "recent-b"},
+	}
+	repo := &recentTxnRepo{result: seeded}
+	svc := NewService(repo, newMockAccountRepo(), noopBalanceUpdater{})
+
+	got, err := svc.ListRecentByAccount(context.Background(), tenantID, accountID, 5)
+	if err != nil {
+		t.Fatalf("ListRecentByAccount: %v", err)
+	}
+	if repo.gotTenantID != tenantID || repo.gotAccountID != accountID || repo.gotLimit != 5 {
+		t.Errorf("delegation args: tenant=%v account=%v limit=%d; want %v %v 5",
+			repo.gotTenantID, repo.gotAccountID, repo.gotLimit, tenantID, accountID)
+	}
+	if len(got) != 2 {
+		t.Fatalf("expected 2 DTOs, got %d", len(got))
+	}
+	if got[0].Description != "recent-a" || got[1].Description != "recent-b" {
+		t.Errorf("DTO order/content: got %q, %q", got[0].Description, got[1].Description)
+	}
+}
+
+// TestListRecentByAccount_PropagatesRepoError verifies the service surfaces
+// repository errors instead of swallowing them.
+func TestListRecentByAccount_PropagatesRepoError(t *testing.T) {
+	repo := &recentTxnRepo{err: fmt.Errorf("boom")}
+	svc := NewService(repo, newMockAccountRepo(), noopBalanceUpdater{})
+
+	if _, err := svc.ListRecentByAccount(context.Background(), uuid.New(), uuid.New(), 5); err == nil {
+		t.Fatal("expected error to propagate, got nil")
 	}
 }

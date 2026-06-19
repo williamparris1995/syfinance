@@ -13,6 +13,12 @@ type TransactionRepository interface {
 	Save(ctx context.Context, tx *Transaction) error
 	FindByID(ctx context.Context, tenantID, id uuid.UUID) (*Transaction, error)
 	FindAll(ctx context.Context, tenantID uuid.UUID, filter TransactionFilter, page PageRequest) (*PaginatedResult[Transaction], error)
+	// FindRecentByAccount returns the most recent transactions that touch the
+	// given account (the account-as-category "same-category recent transactions"
+	// view, e.g. other meals charged to the same Food expense account), ordered
+	// by transaction_date DESC. limit <= 0 falls back to a default and is capped
+	// to a sane maximum; the caller decides whether to exclude a specific tx.
+	FindRecentByAccount(ctx context.Context, tenantID, accountID uuid.UUID, limit int) ([]Transaction, error)
 	Update(ctx context.Context, tx *Transaction) error
 	SoftDelete(ctx context.Context, tenantID, id uuid.UUID) error
 }

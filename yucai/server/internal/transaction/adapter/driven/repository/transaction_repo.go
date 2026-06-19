@@ -175,6 +175,65 @@ func (r *TransactionRepository) FindAll(ctx context.Context, tenantID uuid.UUID,
 	}, nil
 }
 
+// FindRecentByAccount returns the most recent transactions that have at least
+// one entry on the given account, ordered by transaction_date DESC (newest
+// first). Under the account-as-category model this is the "same-category recent
+// transactions" view (e.g. other expenses charged to the same Food account).
+//
+// limit is clamped: <= 0 falls back to defaultRecentLimit, and values above
+// maxRecentLimit are capped. Tenant scoping and soft-delete exclusion are
+// applied. Entries are eager-loaded in a single batched query (same pattern as
+// FindAll) to avoid N+1.
+func (r *TransactionRepository) FindRecentByAccount(ctx context.Context, tenantID, accountID uuid.UUID, limit int) ([]domain.Transaction, error) {
+	if limit <= 0 {
+		limit = defaultRecentLimit
+	}
+	if limit > maxRecentLimit {
+		limit = maxRecentLimit
+	}
+
+	query := r.client.Transaction.Query().
+		Where(
+			transaction.TenantID(tenantID),
+			transaction.DeletedAtIsNil(),
+			// Restrict to transactions that have at least one entry on this
+			// account. Expressed as the same EXISTS subquery FindAll uses for
+			// its AccountID filter, so semantics stay consistent.
+			hasEntryForAccount(accountID),
+		).
+		// Primary sort: date DESC (newest first). Secondary sort: id DESC so
+		// transactions sharing a date have a deterministic order (avoids rows
+		// shuffling between calls).
+		Order(
+			transaction.ByTransactionDate(entsql.OrderDesc()),
+			transaction.ByID(entsql.OrderDesc()),
+		).
+		Limit(limit)
+
+	results, err := query.All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("query recent transactions by account %s: %w", accountID, err)
+	}
+
+	entriesByTxn, err := r.loadEntriesByTransaction(ctx, results)
+	if err != nil {
+		return nil, err
+	}
+
+	txns := make([]domain.Transaction, len(results))
+	for i, t := range results {
+		txns[i] = *toDomainTransaction(t, entriesByTxn[t.ID])
+	}
+	return txns, nil
+}
+
+// Limits for FindRecentByAccount. The default keeps the "recent" panel light,
+// and the cap protects against unbounded result sets from a misbehaving caller.
+const (
+	defaultRecentLimit = 10
+	maxRecentLimit     = 50
+)
+
 // loadEntriesByTransaction fetches all entries for the given transactions in a
 // single query and groups them by transaction_id. Returns an empty map (not nil)
 // when there are no transactions, so callers can index safely.
