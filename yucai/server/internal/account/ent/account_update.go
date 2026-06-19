@@ -221,6 +221,41 @@ func (au *AccountUpdate) ClearParentID() *AccountUpdate {
 	return au
 }
 
+// SetIsSystem sets the "is_system" field.
+func (au *AccountUpdate) SetIsSystem(b bool) *AccountUpdate {
+	au.mutation.SetIsSystem(b)
+	return au
+}
+
+// SetNillableIsSystem sets the "is_system" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableIsSystem(b *bool) *AccountUpdate {
+	if b != nil {
+		au.SetIsSystem(*b)
+	}
+	return au
+}
+
+// SetSortOrder sets the "sort_order" field.
+func (au *AccountUpdate) SetSortOrder(i int) *AccountUpdate {
+	au.mutation.ResetSortOrder()
+	au.mutation.SetSortOrder(i)
+	return au
+}
+
+// SetNillableSortOrder sets the "sort_order" field if the given value is not nil.
+func (au *AccountUpdate) SetNillableSortOrder(i *int) *AccountUpdate {
+	if i != nil {
+		au.SetSortOrder(*i)
+	}
+	return au
+}
+
+// AddSortOrder adds i to the "sort_order" field.
+func (au *AccountUpdate) AddSortOrder(i int) *AccountUpdate {
+	au.mutation.AddSortOrder(i)
+	return au
+}
+
 // SetInstitution sets the "institution" field.
 func (au *AccountUpdate) SetInstitution(s string) *AccountUpdate {
 	au.mutation.SetInstitution(s)
@@ -1103,6 +1138,15 @@ func (au *AccountUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if au.mutation.ParentIDCleared() {
 		_spec.ClearField(account.FieldParentID, field.TypeUUID)
 	}
+	if value, ok := au.mutation.IsSystem(); ok {
+		_spec.SetField(account.FieldIsSystem, field.TypeBool, value)
+	}
+	if value, ok := au.mutation.SortOrder(); ok {
+		_spec.SetField(account.FieldSortOrder, field.TypeInt, value)
+	}
+	if value, ok := au.mutation.AddedSortOrder(); ok {
+		_spec.AddField(account.FieldSortOrder, field.TypeInt, value)
+	}
 	if value, ok := au.mutation.Institution(); ok {
 		_spec.SetField(account.FieldInstitution, field.TypeString, value)
 	}
@@ -1552,6 +1596,41 @@ func (auo *AccountUpdateOne) SetNillableParentID(u *uuid.UUID) *AccountUpdateOne
 // ClearParentID clears the value of the "parent_id" field.
 func (auo *AccountUpdateOne) ClearParentID() *AccountUpdateOne {
 	auo.mutation.ClearParentID()
+	return auo
+}
+
+// SetIsSystem sets the "is_system" field.
+func (auo *AccountUpdateOne) SetIsSystem(b bool) *AccountUpdateOne {
+	auo.mutation.SetIsSystem(b)
+	return auo
+}
+
+// SetNillableIsSystem sets the "is_system" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableIsSystem(b *bool) *AccountUpdateOne {
+	if b != nil {
+		auo.SetIsSystem(*b)
+	}
+	return auo
+}
+
+// SetSortOrder sets the "sort_order" field.
+func (auo *AccountUpdateOne) SetSortOrder(i int) *AccountUpdateOne {
+	auo.mutation.ResetSortOrder()
+	auo.mutation.SetSortOrder(i)
+	return auo
+}
+
+// SetNillableSortOrder sets the "sort_order" field if the given value is not nil.
+func (auo *AccountUpdateOne) SetNillableSortOrder(i *int) *AccountUpdateOne {
+	if i != nil {
+		auo.SetSortOrder(*i)
+	}
+	return auo
+}
+
+// AddSortOrder adds i to the "sort_order" field.
+func (auo *AccountUpdateOne) AddSortOrder(i int) *AccountUpdateOne {
+	auo.mutation.AddSortOrder(i)
 	return auo
 }
 
@@ -2466,6 +2545,15 @@ func (auo *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err e
 	}
 	if auo.mutation.ParentIDCleared() {
 		_spec.ClearField(account.FieldParentID, field.TypeUUID)
+	}
+	if value, ok := auo.mutation.IsSystem(); ok {
+		_spec.SetField(account.FieldIsSystem, field.TypeBool, value)
+	}
+	if value, ok := auo.mutation.SortOrder(); ok {
+		_spec.SetField(account.FieldSortOrder, field.TypeInt, value)
+	}
+	if value, ok := auo.mutation.AddedSortOrder(); ok {
+		_spec.AddField(account.FieldSortOrder, field.TypeInt, value)
 	}
 	if value, ok := auo.mutation.Institution(); ok {
 		_spec.SetField(account.FieldInstitution, field.TypeString, value)

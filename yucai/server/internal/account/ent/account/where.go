@@ -100,6 +100,16 @@ func ParentID(v uuid.UUID) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldParentID, v))
 }
 
+// IsSystem applies equality check predicate on the "is_system" field. It's identical to IsSystemEQ.
+func IsSystem(v bool) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldIsSystem, v))
+}
+
+// SortOrder applies equality check predicate on the "sort_order" field. It's identical to SortOrderEQ.
+func SortOrder(v int) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldSortOrder, v))
+}
+
 // Institution applies equality check predicate on the "institution" field. It's identical to InstitutionEQ.
 func Institution(v string) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldInstitution, v))
@@ -843,6 +853,56 @@ func ParentIDIsNil() predicate.Account {
 // ParentIDNotNil applies the NotNil predicate on the "parent_id" field.
 func ParentIDNotNil() predicate.Account {
 	return predicate.Account(sql.FieldNotNull(FieldParentID))
+}
+
+// IsSystemEQ applies the EQ predicate on the "is_system" field.
+func IsSystemEQ(v bool) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldIsSystem, v))
+}
+
+// IsSystemNEQ applies the NEQ predicate on the "is_system" field.
+func IsSystemNEQ(v bool) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldIsSystem, v))
+}
+
+// SortOrderEQ applies the EQ predicate on the "sort_order" field.
+func SortOrderEQ(v int) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldSortOrder, v))
+}
+
+// SortOrderNEQ applies the NEQ predicate on the "sort_order" field.
+func SortOrderNEQ(v int) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldSortOrder, v))
+}
+
+// SortOrderIn applies the In predicate on the "sort_order" field.
+func SortOrderIn(vs ...int) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldSortOrder, vs...))
+}
+
+// SortOrderNotIn applies the NotIn predicate on the "sort_order" field.
+func SortOrderNotIn(vs ...int) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldSortOrder, vs...))
+}
+
+// SortOrderGT applies the GT predicate on the "sort_order" field.
+func SortOrderGT(v int) predicate.Account {
+	return predicate.Account(sql.FieldGT(FieldSortOrder, v))
+}
+
+// SortOrderGTE applies the GTE predicate on the "sort_order" field.
+func SortOrderGTE(v int) predicate.Account {
+	return predicate.Account(sql.FieldGTE(FieldSortOrder, v))
+}
+
+// SortOrderLT applies the LT predicate on the "sort_order" field.
+func SortOrderLT(v int) predicate.Account {
+	return predicate.Account(sql.FieldLT(FieldSortOrder, v))
+}
+
+// SortOrderLTE applies the LTE predicate on the "sort_order" field.
+func SortOrderLTE(v int) predicate.Account {
+	return predicate.Account(sql.FieldLTE(FieldSortOrder, v))
 }
 
 // InstitutionEQ applies the EQ predicate on the "institution" field.

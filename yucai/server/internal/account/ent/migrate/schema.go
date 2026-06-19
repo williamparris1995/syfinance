@@ -23,6 +23,8 @@ var (
 		{Name: "color", Type: field.TypeString, Nullable: true, Comment: "Hex color for display", Default: ""},
 		{Name: "chart_code", Type: field.TypeString, Nullable: true, Comment: "Chart of accounts code", Default: ""},
 		{Name: "parent_id", Type: field.TypeUUID, Nullable: true, Comment: "Parent account for hierarchical structure"},
+		{Name: "is_system", Type: field.TypeBool, Comment: "Marks system-preset category accounts that cannot be deleted", Default: false},
+		{Name: "sort_order", Type: field.TypeInt, Comment: "User/admin ordering of accounts/categories (ascending)", Default: 0},
 		{Name: "institution", Type: field.TypeString, Nullable: true, Comment: "Bank or financial institution name", Default: ""},
 		{Name: "credit_limit_cents", Type: field.TypeInt64, Comment: "Credit limit in cents (for credit cards/lines)", Default: 0},
 		{Name: "card_number_tail", Type: field.TypeString, Nullable: true, Comment: "Card/account last digits (financial types)", Default: ""},
@@ -76,12 +78,22 @@ var (
 			{
 				Name:    "account_tenant_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{AccountsColumns[1], AccountsColumns[41]},
+				Columns: []*schema.Column{AccountsColumns[1], AccountsColumns[43]},
 			},
 			{
 				Name:    "account_tenant_id_chart_code",
 				Unique:  false,
 				Columns: []*schema.Column{AccountsColumns[1], AccountsColumns[11]},
+			},
+			{
+				Name:    "account_tenant_id_parent_id",
+				Unique:  false,
+				Columns: []*schema.Column{AccountsColumns[1], AccountsColumns[12]},
+			},
+			{
+				Name:    "account_tenant_id_sort_order",
+				Unique:  false,
+				Columns: []*schema.Column{AccountsColumns[1], AccountsColumns[14]},
 			},
 		},
 	}

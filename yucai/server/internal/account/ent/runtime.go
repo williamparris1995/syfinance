@@ -45,36 +45,44 @@ func init() {
 	accountDescChartCode := accountFields[10].Descriptor()
 	// account.DefaultChartCode holds the default value on creation for the chart_code field.
 	account.DefaultChartCode = accountDescChartCode.Default.(string)
+	// accountDescIsSystem is the schema descriptor for is_system field.
+	accountDescIsSystem := accountFields[12].Descriptor()
+	// account.DefaultIsSystem holds the default value on creation for the is_system field.
+	account.DefaultIsSystem = accountDescIsSystem.Default.(bool)
+	// accountDescSortOrder is the schema descriptor for sort_order field.
+	accountDescSortOrder := accountFields[13].Descriptor()
+	// account.DefaultSortOrder holds the default value on creation for the sort_order field.
+	account.DefaultSortOrder = accountDescSortOrder.Default.(int)
 	// accountDescInstitution is the schema descriptor for institution field.
-	accountDescInstitution := accountFields[12].Descriptor()
+	accountDescInstitution := accountFields[14].Descriptor()
 	// account.DefaultInstitution holds the default value on creation for the institution field.
 	account.DefaultInstitution = accountDescInstitution.Default.(string)
 	// accountDescCreditLimitCents is the schema descriptor for credit_limit_cents field.
-	accountDescCreditLimitCents := accountFields[13].Descriptor()
+	accountDescCreditLimitCents := accountFields[15].Descriptor()
 	// account.DefaultCreditLimitCents holds the default value on creation for the credit_limit_cents field.
 	account.DefaultCreditLimitCents = accountDescCreditLimitCents.Default.(int64)
 	// accountDescCardNumberTail is the schema descriptor for card_number_tail field.
-	accountDescCardNumberTail := accountFields[14].Descriptor()
+	accountDescCardNumberTail := accountFields[16].Descriptor()
 	// account.DefaultCardNumberTail holds the default value on creation for the card_number_tail field.
 	account.DefaultCardNumberTail = accountDescCardNumberTail.Default.(string)
 	// accountDescNotes is the schema descriptor for notes field.
-	accountDescNotes := accountFields[15].Descriptor()
+	accountDescNotes := accountFields[17].Descriptor()
 	// account.DefaultNotes holds the default value on creation for the notes field.
 	account.DefaultNotes = accountDescNotes.Default.(string)
 	// accountDescGoldProductType is the schema descriptor for gold_product_type field.
-	accountDescGoldProductType := accountFields[28].Descriptor()
+	accountDescGoldProductType := accountFields[30].Descriptor()
 	// account.DefaultGoldProductType holds the default value on creation for the gold_product_type field.
 	account.DefaultGoldProductType = accountDescGoldProductType.Default.(string)
 	// accountDescVersion is the schema descriptor for version field.
-	accountDescVersion := accountFields[41].Descriptor()
+	accountDescVersion := accountFields[43].Descriptor()
 	// account.DefaultVersion holds the default value on creation for the version field.
 	account.DefaultVersion = accountDescVersion.Default.(int64)
 	// accountDescCreatedAt is the schema descriptor for created_at field.
-	accountDescCreatedAt := accountFields[43].Descriptor()
+	accountDescCreatedAt := accountFields[45].Descriptor()
 	// account.DefaultCreatedAt holds the default value on creation for the created_at field.
 	account.DefaultCreatedAt = accountDescCreatedAt.Default.(func() time.Time)
 	// accountDescUpdatedAt is the schema descriptor for updated_at field.
-	accountDescUpdatedAt := accountFields[44].Descriptor()
+	accountDescUpdatedAt := accountFields[46].Descriptor()
 	// account.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	account.DefaultUpdatedAt = accountDescUpdatedAt.Default.(func() time.Time)
 	// account.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

@@ -165,6 +165,34 @@ func (ac *AccountCreate) SetNillableParentID(u *uuid.UUID) *AccountCreate {
 	return ac
 }
 
+// SetIsSystem sets the "is_system" field.
+func (ac *AccountCreate) SetIsSystem(b bool) *AccountCreate {
+	ac.mutation.SetIsSystem(b)
+	return ac
+}
+
+// SetNillableIsSystem sets the "is_system" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableIsSystem(b *bool) *AccountCreate {
+	if b != nil {
+		ac.SetIsSystem(*b)
+	}
+	return ac
+}
+
+// SetSortOrder sets the "sort_order" field.
+func (ac *AccountCreate) SetSortOrder(i int) *AccountCreate {
+	ac.mutation.SetSortOrder(i)
+	return ac
+}
+
+// SetNillableSortOrder sets the "sort_order" field if the given value is not nil.
+func (ac *AccountCreate) SetNillableSortOrder(i *int) *AccountCreate {
+	if i != nil {
+		ac.SetSortOrder(*i)
+	}
+	return ac
+}
+
 // SetInstitution sets the "institution" field.
 func (ac *AccountCreate) SetInstitution(s string) *AccountCreate {
 	ac.mutation.SetInstitution(s)
@@ -708,6 +736,14 @@ func (ac *AccountCreate) defaults() {
 		v := account.DefaultChartCode
 		ac.mutation.SetChartCode(v)
 	}
+	if _, ok := ac.mutation.IsSystem(); !ok {
+		v := account.DefaultIsSystem
+		ac.mutation.SetIsSystem(v)
+	}
+	if _, ok := ac.mutation.SortOrder(); !ok {
+		v := account.DefaultSortOrder
+		ac.mutation.SetSortOrder(v)
+	}
 	if _, ok := ac.mutation.Institution(); !ok {
 		v := account.DefaultInstitution
 		ac.mutation.SetInstitution(v)
@@ -795,6 +831,12 @@ func (ac *AccountCreate) check() error {
 		if err := account.OwnershipValidator(v); err != nil {
 			return &ValidationError{Name: "ownership", err: fmt.Errorf(`ent: validator failed for field "Account.ownership": %w`, err)}
 		}
+	}
+	if _, ok := ac.mutation.IsSystem(); !ok {
+		return &ValidationError{Name: "is_system", err: errors.New(`ent: missing required field "Account.is_system"`)}
+	}
+	if _, ok := ac.mutation.SortOrder(); !ok {
+		return &ValidationError{Name: "sort_order", err: errors.New(`ent: missing required field "Account.sort_order"`)}
 	}
 	if _, ok := ac.mutation.CreditLimitCents(); !ok {
 		return &ValidationError{Name: "credit_limit_cents", err: errors.New(`ent: missing required field "Account.credit_limit_cents"`)}
@@ -898,6 +940,14 @@ func (ac *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
 	if value, ok := ac.mutation.ParentID(); ok {
 		_spec.SetField(account.FieldParentID, field.TypeUUID, value)
 		_node.ParentID = &value
+	}
+	if value, ok := ac.mutation.IsSystem(); ok {
+		_spec.SetField(account.FieldIsSystem, field.TypeBool, value)
+		_node.IsSystem = value
+	}
+	if value, ok := ac.mutation.SortOrder(); ok {
+		_spec.SetField(account.FieldSortOrder, field.TypeInt, value)
+		_node.SortOrder = value
 	}
 	if value, ok := ac.mutation.Institution(); ok {
 		_spec.SetField(account.FieldInstitution, field.TypeString, value)

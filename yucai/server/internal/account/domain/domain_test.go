@@ -236,3 +236,44 @@ func TestArchiveSetsStatusWithoutDelete(t *testing.T) {
 		t.Error("Archive must NOT set DeletedAt (that's SoftDelete)")
 	}
 }
+
+// TestAccount_CategoryFields verifies the category-as-account extension fields
+// (parent_id / is_system / sort_order) are present and assignable on the
+// Account aggregate. These back the account-as-category redesign:
+//   - ParentID:   two-level category hierarchy (e.g. "coffee" under "dining")
+//   - IsSystem:   marks system-preset categories that cannot be deleted
+//   - SortOrder:  user/admin ordering of categories
+func TestAccount_CategoryFields(t *testing.T) {
+	a, err := NewAccount(uuid.New(), "Dining", AccountTypeExpense, "CNY")
+	if err != nil {
+		t.Fatalf("NewAccount failed: %v", err)
+	}
+
+	// Defaults: a freshly-created user account is not a system category and
+	// has no implicit sort order.
+	if a.IsSystem {
+		t.Error("new account should default IsSystem=false")
+	}
+	if a.SortOrder != 0 {
+		t.Errorf("new account should default SortOrder=0, got %d", a.SortOrder)
+	}
+	if a.ParentID != nil {
+		t.Error("new account should default ParentID=nil")
+	}
+
+	// All three fields are settable.
+	pid := uuid.New()
+	a.ParentID = &pid
+	a.IsSystem = true
+	a.SortOrder = 5
+
+	if a.ParentID == nil || *a.ParentID != pid {
+		t.Errorf("ParentID not set, got %v", a.ParentID)
+	}
+	if !a.IsSystem {
+		t.Error("IsSystem not set")
+	}
+	if a.SortOrder != 5 {
+		t.Errorf("SortOrder not set, got %d", a.SortOrder)
+	}
+}

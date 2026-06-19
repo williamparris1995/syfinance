@@ -50,6 +50,9 @@ type AccountMutation struct {
 	color                          *string
 	chart_code                     *string
 	parent_id                      *uuid.UUID
+	is_system                      *bool
+	sort_order                     *int
+	addsort_order                  *int
 	institution                    *string
 	credit_limit_cents             *int64
 	addcredit_limit_cents          *int64
@@ -735,6 +738,98 @@ func (m *AccountMutation) ParentIDCleared() bool {
 func (m *AccountMutation) ResetParentID() {
 	m.parent_id = nil
 	delete(m.clearedFields, account.FieldParentID)
+}
+
+// SetIsSystem sets the "is_system" field.
+func (m *AccountMutation) SetIsSystem(b bool) {
+	m.is_system = &b
+}
+
+// IsSystem returns the value of the "is_system" field in the mutation.
+func (m *AccountMutation) IsSystem() (r bool, exists bool) {
+	v := m.is_system
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsSystem returns the old "is_system" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldIsSystem(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsSystem is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsSystem requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsSystem: %w", err)
+	}
+	return oldValue.IsSystem, nil
+}
+
+// ResetIsSystem resets all changes to the "is_system" field.
+func (m *AccountMutation) ResetIsSystem() {
+	m.is_system = nil
+}
+
+// SetSortOrder sets the "sort_order" field.
+func (m *AccountMutation) SetSortOrder(i int) {
+	m.sort_order = &i
+	m.addsort_order = nil
+}
+
+// SortOrder returns the value of the "sort_order" field in the mutation.
+func (m *AccountMutation) SortOrder() (r int, exists bool) {
+	v := m.sort_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSortOrder returns the old "sort_order" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldSortOrder(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSortOrder is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSortOrder requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSortOrder: %w", err)
+	}
+	return oldValue.SortOrder, nil
+}
+
+// AddSortOrder adds i to the "sort_order" field.
+func (m *AccountMutation) AddSortOrder(i int) {
+	if m.addsort_order != nil {
+		*m.addsort_order += i
+	} else {
+		m.addsort_order = &i
+	}
+}
+
+// AddedSortOrder returns the value that was added to the "sort_order" field in this mutation.
+func (m *AccountMutation) AddedSortOrder() (r int, exists bool) {
+	v := m.addsort_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSortOrder resets all changes to the "sort_order" field.
+func (m *AccountMutation) ResetSortOrder() {
+	m.sort_order = nil
+	m.addsort_order = nil
 }
 
 // SetInstitution sets the "institution" field.
@@ -2741,7 +2836,7 @@ func (m *AccountMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AccountMutation) Fields() []string {
-	fields := make([]string, 0, 45)
+	fields := make([]string, 0, 47)
 	if m.tenant_id != nil {
 		fields = append(fields, account.FieldTenantID)
 	}
@@ -2777,6 +2872,12 @@ func (m *AccountMutation) Fields() []string {
 	}
 	if m.parent_id != nil {
 		fields = append(fields, account.FieldParentID)
+	}
+	if m.is_system != nil {
+		fields = append(fields, account.FieldIsSystem)
+	}
+	if m.sort_order != nil {
+		fields = append(fields, account.FieldSortOrder)
 	}
 	if m.institution != nil {
 		fields = append(fields, account.FieldInstitution)
@@ -2909,6 +3010,10 @@ func (m *AccountMutation) Field(name string) (ent.Value, bool) {
 		return m.ChartCode()
 	case account.FieldParentID:
 		return m.ParentID()
+	case account.FieldIsSystem:
+		return m.IsSystem()
+	case account.FieldSortOrder:
+		return m.SortOrder()
 	case account.FieldInstitution:
 		return m.Institution()
 	case account.FieldCreditLimitCents:
@@ -3008,6 +3113,10 @@ func (m *AccountMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldChartCode(ctx)
 	case account.FieldParentID:
 		return m.OldParentID(ctx)
+	case account.FieldIsSystem:
+		return m.OldIsSystem(ctx)
+	case account.FieldSortOrder:
+		return m.OldSortOrder(ctx)
 	case account.FieldInstitution:
 		return m.OldInstitution(ctx)
 	case account.FieldCreditLimitCents:
@@ -3166,6 +3275,20 @@ func (m *AccountMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetParentID(v)
+		return nil
+	case account.FieldIsSystem:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsSystem(v)
+		return nil
+	case account.FieldSortOrder:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSortOrder(v)
 		return nil
 	case account.FieldInstitution:
 		v, ok := value.(string)
@@ -3412,6 +3535,9 @@ func (m *AccountMutation) AddedFields() []string {
 	if m.addcurrent_balance_cents != nil {
 		fields = append(fields, account.FieldCurrentBalanceCents)
 	}
+	if m.addsort_order != nil {
+		fields = append(fields, account.FieldSortOrder)
+	}
 	if m.addcredit_limit_cents != nil {
 		fields = append(fields, account.FieldCreditLimitCents)
 	}
@@ -3484,6 +3610,8 @@ func (m *AccountMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedInitialBalanceCents()
 	case account.FieldCurrentBalanceCents:
 		return m.AddedCurrentBalanceCents()
+	case account.FieldSortOrder:
+		return m.AddedSortOrder()
 	case account.FieldCreditLimitCents:
 		return m.AddedCreditLimitCents()
 	case account.FieldInterestRate:
@@ -3546,6 +3674,13 @@ func (m *AccountMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddCurrentBalanceCents(v)
+		return nil
+	case account.FieldSortOrder:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSortOrder(v)
 		return nil
 	case account.FieldCreditLimitCents:
 		v, ok := value.(int64)
@@ -3944,6 +4079,12 @@ func (m *AccountMutation) ResetField(name string) error {
 		return nil
 	case account.FieldParentID:
 		m.ResetParentID()
+		return nil
+	case account.FieldIsSystem:
+		m.ResetIsSystem()
+		return nil
+	case account.FieldSortOrder:
+		m.ResetSortOrder()
 		return nil
 	case account.FieldInstitution:
 		m.ResetInstitution()

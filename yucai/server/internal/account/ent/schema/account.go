@@ -74,6 +74,12 @@ func (Account) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			Comment("Parent account for hierarchical structure"),
+		field.Bool("is_system").
+			Default(false).
+			Comment("Marks system-preset category accounts that cannot be deleted"),
+		field.Int("sort_order").
+			Default(0).
+			Comment("User/admin ordering of accounts/categories (ascending)"),
 		field.String("institution").
 			Optional().
 			Default("").
@@ -138,5 +144,7 @@ func (Account) Indexes() []ent.Index {
 		index.Fields("tenant_id", "account_type"),
 		index.Fields("tenant_id", "status"),
 		index.Fields("tenant_id", "chart_code"),
+		index.Fields("tenant_id", "parent_id"),
+		index.Fields("tenant_id", "sort_order"),
 	}
 }

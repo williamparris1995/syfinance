@@ -39,6 +39,10 @@ const (
 	FieldChartCode = "chart_code"
 	// FieldParentID holds the string denoting the parent_id field in the database.
 	FieldParentID = "parent_id"
+	// FieldIsSystem holds the string denoting the is_system field in the database.
+	FieldIsSystem = "is_system"
+	// FieldSortOrder holds the string denoting the sort_order field in the database.
+	FieldSortOrder = "sort_order"
 	// FieldInstitution holds the string denoting the institution field in the database.
 	FieldInstitution = "institution"
 	// FieldCreditLimitCents holds the string denoting the credit_limit_cents field in the database.
@@ -124,6 +128,8 @@ var Columns = []string{
 	FieldColor,
 	FieldChartCode,
 	FieldParentID,
+	FieldIsSystem,
+	FieldSortOrder,
 	FieldInstitution,
 	FieldCreditLimitCents,
 	FieldCardNumberTail,
@@ -184,6 +190,10 @@ var (
 	DefaultColor string
 	// DefaultChartCode holds the default value on creation for the "chart_code" field.
 	DefaultChartCode string
+	// DefaultIsSystem holds the default value on creation for the "is_system" field.
+	DefaultIsSystem bool
+	// DefaultSortOrder holds the default value on creation for the "sort_order" field.
+	DefaultSortOrder int
 	// DefaultInstitution holds the default value on creation for the "institution" field.
 	DefaultInstitution string
 	// DefaultCreditLimitCents holds the default value on creation for the "credit_limit_cents" field.
@@ -383,6 +393,16 @@ func ByChartCode(opts ...sql.OrderTermOption) OrderOption {
 // ByParentID orders the results by the parent_id field.
 func ByParentID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldParentID, opts...).ToFunc()
+}
+
+// ByIsSystem orders the results by the is_system field.
+func ByIsSystem(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIsSystem, opts...).ToFunc()
+}
+
+// BySortOrder orders the results by the sort_order field.
+func BySortOrder(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSortOrder, opts...).ToFunc()
 }
 
 // ByInstitution orders the results by the institution field.

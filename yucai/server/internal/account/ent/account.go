@@ -43,6 +43,10 @@ type Account struct {
 	ChartCode string `json:"chart_code,omitempty"`
 	// Parent account for hierarchical structure
 	ParentID *uuid.UUID `json:"parent_id,omitempty"`
+	// Marks system-preset category accounts that cannot be deleted
+	IsSystem bool `json:"is_system,omitempty"`
+	// User/admin ordering of accounts/categories (ascending)
+	SortOrder int `json:"sort_order,omitempty"`
 	// Bank or financial institution name
 	Institution string `json:"institution,omitempty"`
 	// Credit limit in cents (for credit cards/lines)
@@ -119,9 +123,11 @@ func (*Account) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case account.FieldParentID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
+		case account.FieldIsSystem:
+			values[i] = new(sql.NullBool)
 		case account.FieldInterestRate, account.FieldInvestReturnYtd, account.FieldGoldQuantity, account.FieldEstateDepreciationRate:
 			values[i] = new(sql.NullFloat64)
-		case account.FieldInitialBalanceCents, account.FieldCurrentBalanceCents, account.FieldCreditLimitCents, account.FieldCreditBillingDay, account.FieldCreditRepaymentDay, account.FieldCreditAnnualFeeCents, account.FieldInvestCostCents, account.FieldInvestMarketValueCents, account.FieldFixedPrincipalCents, account.FieldFixedTermMonths, account.FieldGoldBuyPriceCents, account.FieldGoldCurrentPriceCents, account.FieldEstatePurchasePriceCents, account.FieldEstateCurrentValueCents, account.FieldLoanOriginalCents, account.FieldLoanRemainingCents, account.FieldLoanMonthlyCents, account.FieldVersion:
+		case account.FieldInitialBalanceCents, account.FieldCurrentBalanceCents, account.FieldSortOrder, account.FieldCreditLimitCents, account.FieldCreditBillingDay, account.FieldCreditRepaymentDay, account.FieldCreditAnnualFeeCents, account.FieldInvestCostCents, account.FieldInvestMarketValueCents, account.FieldFixedPrincipalCents, account.FieldFixedTermMonths, account.FieldGoldBuyPriceCents, account.FieldGoldCurrentPriceCents, account.FieldEstatePurchasePriceCents, account.FieldEstateCurrentValueCents, account.FieldLoanOriginalCents, account.FieldLoanRemainingCents, account.FieldLoanMonthlyCents, account.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case account.FieldName, account.FieldAccountType, account.FieldCategory, account.FieldCurrencyCode, account.FieldOwnership, account.FieldIcon, account.FieldColor, account.FieldChartCode, account.FieldInstitution, account.FieldCardNumberTail, account.FieldNotes, account.FieldGoldProductType, account.FieldStatus:
 			values[i] = new(sql.NullString)
@@ -222,6 +228,18 @@ func (a *Account) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				a.ParentID = new(uuid.UUID)
 				*a.ParentID = *value.S.(*uuid.UUID)
+			}
+		case account.FieldIsSystem:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field is_system", values[i])
+			} else if value.Valid {
+				a.IsSystem = value.Bool
+			}
+		case account.FieldSortOrder:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field sort_order", values[i])
+			} else if value.Valid {
+				a.SortOrder = int(value.Int64)
 			}
 		case account.FieldInstitution:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -518,6 +536,12 @@ func (a *Account) String() string {
 		builder.WriteString("parent_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("is_system=")
+	builder.WriteString(fmt.Sprintf("%v", a.IsSystem))
+	builder.WriteString(", ")
+	builder.WriteString("sort_order=")
+	builder.WriteString(fmt.Sprintf("%v", a.SortOrder))
 	builder.WriteString(", ")
 	builder.WriteString("institution=")
 	builder.WriteString(a.Institution)

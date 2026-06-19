@@ -22,7 +22,9 @@ type Account struct {
 	Icon                     string
 	Color                    string
 	ChartCode                string
-	ParentID                 *uuid.UUID
+	ParentID                 *uuid.UUID // 父分类账户（二级分类，如"咖啡"归属"餐饮"）
+	IsSystem                 bool       // 系统预置分类（不可删；category-as-account 重构）
+	SortOrder                int        // 分类排序（升序，默认 0）
 	Institution              string
 	CreditLimitCents         int64
 	CardNumberTail           string     // 卡号/账号尾号（金融类）
