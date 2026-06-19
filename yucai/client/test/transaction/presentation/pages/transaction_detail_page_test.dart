@@ -11,6 +11,12 @@
 //   - Three placeholder zones (AA 分摊 / 同商户 / 预算联动) show with 🔒.
 //   - Quick actions (编辑 / 复制 / 删除) present in AppBar.
 //   - Three breakpoints render distinct layouts without crashing.
+//   - Amount colour follows the touched account types (Task 3.2 fix):
+//       * expense account touched  → 支出红 (AppColors.negative)
+//       * income  account touched  → 收入绿 (AppColors.positive)
+//       * asset-only (transfer)    → 中性色 (AppColors.fg)
+//   - initState self-drives the load (dispatches LoadTransactionDetail even
+//     when the parent harness does not).
 import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -20,6 +26,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
+import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
@@ -44,6 +51,33 @@ Transaction _expense() => Transaction(
       ],
     );
 
+/// SimpleIncome (复式记账的收入交易): 借 asset / 贷 income。
+/// Prior heuristic (inferFlavour == compound ? 红 : 绿) mis-coloured this red.
+Transaction _income() => Transaction(
+      id: 't1',
+      transactionDate: _date,
+      description: '工资',
+      entries: const [
+        TransactionEntry(
+            accountId: 'acc-cmb', debitCents: 50000, creditCents: 0),
+        TransactionEntry(
+            accountId: 'inc-salary', debitCents: 0, creditCents: 50000),
+      ],
+    );
+
+/// SimpleTransfer: both legs are asset accounts → neutral colour.
+Transaction _transfer() => Transaction(
+      id: 't1',
+      transactionDate: _date,
+      description: '转账',
+      entries: const [
+        TransactionEntry(
+            accountId: 'acc-cmb', debitCents: 0, creditCents: 10000),
+        TransactionEntry(
+            accountId: 'acc-ali', debitCents: 10000, creditCents: 0),
+      ],
+    );
+
 Transaction _recent(String id, int amount) => Transaction(
       id: id,
       transactionDate: _date,
@@ -56,11 +90,11 @@ Transaction _recent(String id, int amount) => Transaction(
       ],
     );
 
-Account _account(String id, String name, AccountCategory cat) => Account(
+Account _account(String id, String name, AccountType type) => Account(
       id: id,
       name: name,
-      accountType: AccountType.expense,
-      category: cat,
+      accountType: type,
+      category: AccountCategory.savings,
       currencyCode: 'CNY',
       initialBalanceCents: 0,
       currentBalanceCents: 0,
@@ -93,12 +127,27 @@ void main() {
           _recent('r2', 2200),
         ], nextPageToken: '')));
     when(() => acctRepo.list()).thenAnswer((_) async => dartz.Right([
-          _account('exp-food', '餐饮', AccountCategory.savings),
-          _account('acc-cmb', '招商银行', AccountCategory.savings),
+          _account('exp-food', '餐饮', AccountType.expense),
+          _account('acc-cmb', '招商银行', AccountType.asset),
+          _account('acc-ali', '支付宝', AccountType.asset),
+          _account('inc-salary', '工资', AccountType.income),
         ]));
   });
 
-  Future<void> pumpPage(WidgetTester tester, Size size) async {
+  /// Pumps the page. By default the harness pre-dispatches
+  /// LoadTransactionDetail (mirrors how list pages navigate in with the event
+  /// already in flight). Pass [selfDriveOnly] = true to NOT pre-dispatch and
+  /// verify initState triggers the load itself.
+  Future<void> pumpPage(
+    WidgetTester tester,
+    Size size, {
+    bool selfDriveOnly = false,
+    Transaction Function()? txnOverride,
+  }) async {
+    if (txnOverride != null) {
+      when(() => txnRepo.getById(any()))
+          .thenAnswer((_) async => dartz.Right(txnOverride()));
+    }
     await tester.pumpWidget(_harness(
       size: size,
       child: MultiRepositoryProvider(
@@ -108,7 +157,9 @@ void main() {
         child: BlocProvider<TransactionBloc>(
           create: (_) {
             final b = TransactionBloc(txnRepo);
-            b.add(const LoadTransactionDetail('t1'));
+            if (!selfDriveOnly) {
+              b.add(const LoadTransactionDetail('t1'));
+            }
             return b;
           },
           child: const TransactionDetailPage(id: 't1'),
@@ -162,5 +213,69 @@ void main() {
     await pumpPage(tester, const Size(390, 844));
     expect(find.text('晚餐 餐厅'), findsOneWidget);
     expect(find.text('借贷平衡'), findsOneWidget);
+  });
+
+  // ───────────────── Amount colour by account type (Task 3.2 fix) ─────────
+
+  /// Finds the summary amount Text widget (large display number in the
+  /// summary card) and returns its colour.
+  Color? summaryAmountColor(WidgetTester tester) {
+    final amountPattern = RegExp(r'^¥\s');
+    Color? found;
+    tester.widgetList<Text>(find.byType(Text)).forEach((t) {
+      if (found != null) return;
+      final data = t.data ?? '';
+      if (amountPattern.hasMatch(data) &&
+          (t.style?.fontSize ?? 0) >= 28 &&
+          t.style?.color != null) {
+        found = t.style!.color;
+      }
+    });
+    return found;
+  }
+
+  testWidgets('amount colour: expense transaction → 支出红 (negative)',
+      (tester) async {
+    await pumpPage(tester, const Size(1440, 900));
+    // Expense touches exp-food (AccountType.expense) → red.
+    expect(summaryAmountColor(tester), AppColors.negative);
+  });
+
+  testWidgets('amount colour: income transaction → 收入绿 (positive)',
+      (tester) async {
+    await pumpPage(
+      tester,
+      const Size(1440, 900),
+      txnOverride: _income,
+    );
+    // Income touches inc-salary (AccountType.income) → green.
+    expect(summaryAmountColor(tester), AppColors.positive);
+  });
+
+  testWidgets('amount colour: asset-only transfer → 中性色 (fg)',
+      (tester) async {
+    await pumpPage(
+      tester,
+      const Size(1440, 900),
+      txnOverride: _transfer,
+    );
+    // Both legs are asset accounts → neutral (fg).
+    expect(summaryAmountColor(tester), AppColors.fg);
+  });
+
+  // ───────────────── initState self-drive (Task 3.2 fix) ─────────────────
+
+  testWidgets(
+      'initState dispatches LoadTransactionDetail (self-drive on real route)',
+      (tester) async {
+    // Pump WITHOUT pre-dispatching — the page must trigger the load itself.
+    await pumpPage(tester, const Size(1440, 900), selfDriveOnly: true);
+
+    // The repo.getById must have been called (proves the bloc event fired).
+    verify(() => txnRepo.getById('t1')).called(1);
+
+    // And the page reached the loaded state (renders description, not blank).
+    expect(find.text('晚餐 餐厅'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 }

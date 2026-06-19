@@ -3,12 +3,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
+import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
+import 'package:yucai_client/transaction/presentation/bloc/transaction_event.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_state.dart';
 import 'package:yucai_client/transaction/presentation/widgets/journal_entry.dart';
 import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.dart';
@@ -42,6 +44,10 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
   @override
   void initState() {
     super.initState();
+    // Self-drive the detail load (mirrors account_detail_page's
+    // GetAccountRequested dispatch in initState). Without this, a real route
+    // entry — where no parent dispatches — renders a blank SizedBox.shrink.
+    context.read<TransactionBloc>().add(LoadTransactionDetail(widget.id));
     _loadAccounts();
   }
 
@@ -58,6 +64,47 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
       if (a.id == id) return a.name;
     }
     return id.length > 6 ? '#${id.substring(0, 6)}' : '#$id';
+  }
+
+  AccountType? _accountTypeOf(String id) {
+    for (final a in _accounts) {
+      if (a.id == id) return a.accountType;
+    }
+    return null;
+  }
+
+  /// Infers the amount colour from the account types touched by the entries
+  /// (account-as-category: the Expense/Income account in the entry is the
+  /// category leg and decides the cash-flow direction).
+  ///
+  ///   - any entry's account is `AccountType.expense` → 支出色 (negative/red)
+  ///   - any entry's account is `AccountType.income`  → 收入色 (positive/green)
+  ///   - only `asset` accounts (SimpleTransfer)        → 中性色 (fg)
+  ///
+  /// Replaces the prior `inferFlavour == compound ? 红 : 绿` heuristic, which
+  /// mis-coloured SimpleIncome (借 asset / 贷 income) as red — an accounting
+  /// semantic error. Unknown account types (e.g. accounts not yet loaded)
+  /// fall back to neutral so we never show a wrong cash-flow colour.
+  Color _amountColorOf(Transaction txn) {
+    bool hasExpense = false;
+    bool hasIncome = false;
+    bool onlyAssetOrUnknown = true;
+    for (final e in txn.entries) {
+      final t = _accountTypeOf(e.accountId);
+      if (t == AccountType.expense) {
+        hasExpense = true;
+        onlyAssetOrUnknown = false;
+      } else if (t == AccountType.income) {
+        hasIncome = true;
+        onlyAssetOrUnknown = false;
+      } else if (t != null && t != AccountType.asset) {
+        onlyAssetOrUnknown = false;
+      }
+    }
+    if (hasExpense) return AppColors.negative;
+    if (hasIncome) return AppColors.positive;
+    if (onlyAssetOrUnknown) return AppColors.fg;
+    return AppColors.fg;
   }
 
   @override
@@ -90,6 +137,7 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
               txn: state.transaction,
               recent: state.recent,
               accountNameOf: _accountNameOf,
+              amountColorOf: _amountColorOf,
             );
           }
           return const SizedBox.shrink();
@@ -173,11 +221,13 @@ class _DetailContent extends StatelessWidget {
     required this.txn,
     required this.recent,
     required this.accountNameOf,
+    required this.amountColorOf,
   });
 
   final Transaction txn;
   final List<Transaction> recent;
   final String Function(String accountId) accountNameOf;
+  final Color Function(Transaction txn) amountColorOf;
 
   @override
   Widget build(BuildContext context) {
@@ -192,8 +242,7 @@ class _DetailContent extends StatelessWidget {
 
   Widget _summary() {
     final flavour = inferFlavour(txn);
-    final isExpense = flavour == TxnFlavour.compound;
-    final amountColor = isExpense ? AppColors.negative : AppColors.positive;
+    final amountColor = amountColorOf(txn);
     return DataCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
