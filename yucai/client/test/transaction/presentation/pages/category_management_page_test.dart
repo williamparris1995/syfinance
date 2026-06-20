@@ -180,4 +180,47 @@ void main() {
     expect(find.text('工资'), findsOneWidget);
     expect(find.text('餐饮'), findsNothing);
   });
+
+  testWidgets('edit panel shows icon grid and color palette selectors '
+      '(click-to-pick, not manual text input)',
+      (tester) async {
+    await pumpPage(tester, const Size(1440, 900));
+    // Icon picker: preset emoji chips present and clickable.
+    expect(find.byKey(const ValueKey('icon_pick_🥢')), findsOneWidget);
+    expect(find.byKey(const ValueKey('icon_pick_🚌')), findsOneWidget);
+    // Color picker: preset swatches present and clickable.
+    expect(find.byKey(const ValueKey('color_pick_#B08D57')), findsOneWidget);
+    expect(find.byKey(const ValueKey('color_pick_#3B82F6')), findsOneWidget);
+    // No manual icon/color TextFields (the old TextEditingController inputs).
+    expect(find.text('图标（名称）'), findsNothing);
+    expect(find.text('颜色（hex）'), findsNothing);
+    // Parent dropdown exists with the default top-level option.
+    expect(find.text('父分类（二级）'), findsOneWidget);
+    expect(find.text('无（一级分类）'), findsOneWidget);
+  });
+
+  testWidgets('clicking an icon + color then save dispatches the picked '
+      'values through CreateAccountParams', (tester) async {
+    await pumpPage(tester, const Size(1440, 900));
+    // Enter a name (the first TextField in the panel).
+    await tester.enterText(find.byType(TextField).first, '测试分类');
+    // Pick an icon chip and a color swatch.
+    await tester.tap(find.byKey(const ValueKey('icon_pick_🚌')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('color_pick_#3B82F6')));
+    await tester.pump();
+    // Save (desktop default panel is in 新建 mode). The save button sits below
+    // the default test surface; scroll it into view first.
+    await tester.ensureVisible(find.text('确认创建'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('确认创建'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    final captured = verify(() => createUc.call(captureAny())).captured.single
+        as CreateAccountParams;
+    expect(captured.icon, '🚌');
+    expect(captured.color, '#3B82F6');
+    // Default parent is '' (一级分类) → empty parentId.
+    expect(captured.parentId, '');
+  });
 }

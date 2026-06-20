@@ -29,6 +29,7 @@ class CreateAccountParams {
     required this.ownership,
     this.icon = '',
     this.color = '',
+    this.parentId = '',
     this.institution = '',
     this.creditLimitCents = 0,
     this.cardNumberTail = '',
@@ -67,6 +68,7 @@ class CreateAccountParams {
   final Ownership ownership;
   final String icon;
   final String color;
+  final String parentId;
 
   // Shared / credit-card fields.
   final String institution;
@@ -123,6 +125,7 @@ class UpdateAccountParams {
     this.name = '',
     this.icon = '',
     this.color = '',
+    this.parentId = '',
     this.institution = '',
     this.cardNumberTail = '',
     this.notes = '',
@@ -161,6 +164,7 @@ class UpdateAccountParams {
   final String name;
   final String icon;
   final String color;
+  final String parentId;
   final String institution;
   final String cardNumberTail;
   final String notes;

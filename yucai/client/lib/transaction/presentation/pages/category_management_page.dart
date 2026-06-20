@@ -58,12 +58,21 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
       showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
-        builder: (_) => _EditPanel(
-          key: CategoryManagementPage.editPanelKey,
-          type: _type,
-          item: item,
-          onSave: _dispatchSave,
-          onDelete: _dispatchDelete,
+        // The modal lives on a separate Navigator route without the ambient
+        // CategoryBloc; re-provide it from the page context.
+        builder: (_) => BlocProvider<CategoryBloc>.value(
+          value: context.read<CategoryBloc>(),
+          child: BlocBuilder<CategoryBloc, CategoryState>(
+            buildWhen: (_, c) => c is! CategorySubmitting,
+            builder: (ctx, state) => _EditPanel(
+              key: CategoryManagementPage.editPanelKey,
+              type: _type,
+              item: item,
+              candidates: _parentCandidates(state, item?.id),
+              onSave: _dispatchSave,
+              onDelete: _dispatchDelete,
+            ),
+          ),
         ),
       );
     } else if (bp == Breakpoint.tablet) {
@@ -72,7 +81,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
     // desktop: panel is always visible; _editing drives its content.
   }
 
-  void _dispatchSave(String name, String icon, String color) {
+  void _dispatchSave(String name, String icon, String color, String parentId) {
     final e = _editing;
     context.read<CategoryBloc>().add(SaveCategoryRequested(
           type: _type,
@@ -81,6 +90,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
           version: e?.version ?? 0,
           icon: icon,
           color: color,
+          parentId: parentId,
         ));
     Navigator.of(context).maybePop();
   }
@@ -113,12 +123,16 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
       endDrawer: Breakpoints.of(context) == Breakpoint.tablet
           ? Drawer(
               width: 380,
-              child: _EditPanel(
-                key: CategoryManagementPage.editPanelKey,
-                type: _type,
-                item: _editing,
-                onSave: _dispatchSave,
-                onDelete: _dispatchDelete,
+              child: BlocBuilder<CategoryBloc, CategoryState>(
+                buildWhen: (_, c) => c is! CategorySubmitting,
+                builder: (ctx, state) => _EditPanel(
+                  key: CategoryManagementPage.editPanelKey,
+                  type: _type,
+                  item: _editing,
+                  candidates: _parentCandidates(state, _editing?.id),
+                  onSave: _dispatchSave,
+                  onDelete: _dispatchDelete,
+                ),
               ),
             )
           : null,
@@ -187,12 +201,16 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
         const VerticalDivider(width: 1, color: AppColors.border),
         Expanded(
           flex: 2,
-          child: _EditPanel(
-            key: CategoryManagementPage.editPanelKey,
-            type: _type,
-            item: _editing,
-            onSave: _dispatchSave,
-            onDelete: _dispatchDelete,
+          child: BlocBuilder<CategoryBloc, CategoryState>(
+            buildWhen: (_, c) => c is! CategorySubmitting,
+            builder: (ctx, state) => _EditPanel(
+              key: CategoryManagementPage.editPanelKey,
+              type: _type,
+              item: _editing,
+              candidates: _parentCandidates(state, _editing?.id),
+              onSave: _dispatchSave,
+              onDelete: _dispatchDelete,
+            ),
           ),
         ),
       ],
@@ -205,6 +223,20 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
     if (state is CategorySubmitting) return state.categories;
     if (state is CategoryError) return state.categories;
     return const [];
+  }
+
+  /// Parent-category candidates for the dropdown: same-type top-level
+  /// categories (no parentId), excluding the item being edited (can't be
+  /// own parent) and any descendants (avoids cycles). For now children are
+  /// also excluded from being parents to keep the picker to depth-2.
+  List<CategoryItem> _parentCandidates(CategoryState state, String? selfId) {
+    final items = _itemsOf(state);
+    return items
+        .where((c) =>
+            c.parentId.isEmpty && // only top-level can be a parent
+            c.id != selfId &&
+            !c.isSystem) // presets aren't meant as custom parents
+        .toList();
   }
 }
 
@@ -288,8 +320,7 @@ class _CategoryRow extends StatelessWidget {
       onTap: onTap,
       leading: CircleAvatar(
         backgroundColor: _colorOf(item.color).withValues(alpha: 0.15),
-        child: Icon(Icons.label_outline,
-            size: 18, color: _colorOf(item.color)),
+        child: _iconContent(item.icon, item.color, 18),
       ),
       title: Row(
         children: [
@@ -359,32 +390,61 @@ class _EditPanel extends StatefulWidget {
     super.key,
     required this.type,
     required this.item,
+    required this.candidates,
     required this.onSave,
     required this.onDelete,
   });
 
   final CategoryType type;
   final CategoryItem? item; // null = 新建
-  final void Function(String name, String icon, String color) onSave;
+  /// 可选父分类候选（同 accountType 的顶级分类，排除当前编辑项）。
+  final List<CategoryItem> candidates;
+  final void Function(String name, String icon, String color, String parentId) onSave;
   final VoidCallback onDelete;
 
   @override
   State<_EditPanel> createState() => _EditPanelState();
 }
 
+/// 常用 emoji 图标（餐饮/交通/购物/娱乐/居家/医疗/工资/兼职/理财/红包/教育/旅行...）。
+/// 存为 account.icon 字符串（emoji 直接保存，前端渲染即字符串）。
+const _presetIcons = <String>[
+  '🥢', '🍔', '☕', '🍷',
+  '🚌', '🚗', '✈️', '🚕',
+  '🛍️', '👕', '💻', '📦',
+  '🎮', '🎬', '🎵', '📚',
+  '🏠', '🛏️', '💡', '🔧',
+  '💊', '🏥', '🦷', '💪',
+  '💰', '💼', '📈', '🏦',
+  '🧧', '🎁', '🎓', '🌍',
+];
+
+/// 色板：御财品牌色 + 常用色（hex 字符串，存 account.color）。
+const _presetColors = <String>[
+  '#B08D57', '#2D8A6E', '#C4544D', '#1C1E21',
+  '#3B82F6', '#8B5CF6', '#F59E0B', '#EC4899',
+  '#10B981', '#EF4444', '#6366F1', '#14B8A6',
+];
+
 class _EditPanelState extends State<_EditPanel> {
   final _nameCtrl = TextEditingController();
-  String _icon = 'label';
-  String _color = '#B08D57';
-  String? _parentId; // 二级分类父分类（占位下拉，未持久化）
+  // 默认图标用首个预设 emoji，避免空值。
+  String _icon = _presetIcons.first;
+  String _color = _presetColors.first;
+  String _parentId = ''; // 空 = 一级分类
 
   @override
   void initState() {
     super.initState();
-    if (widget.item != null) {
-      _nameCtrl.text = widget.item!.name;
-      _icon = widget.item!.icon.isEmpty ? 'label' : widget.item!.icon;
-      _color = widget.item!.color.isEmpty ? '#B08D57' : widget.item!.color;
+    _hydrate(widget.item);
+  }
+
+  void _hydrate(CategoryItem? item) {
+    if (item != null) {
+      _nameCtrl.text = item.name;
+      _icon = item.icon.isEmpty ? _presetIcons.first : item.icon;
+      _color = item.color.isEmpty ? _presetColors.first : item.color;
+      _parentId = item.parentId;
     }
   }
 
@@ -398,9 +458,7 @@ class _EditPanelState extends State<_EditPanel> {
   void didUpdateWidget(covariant _EditPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.item?.id != widget.item?.id) {
-      _nameCtrl.text = widget.item?.name ?? '';
-      _icon = (widget.item?.icon.isNotEmpty ?? false) ? widget.item!.icon : 'label';
-      _color = (widget.item?.color.isNotEmpty ?? false) ? widget.item!.color : '#B08D57';
+      _hydrate(widget.item);
     }
   }
 
@@ -432,22 +490,16 @@ class _EditPanelState extends State<_EditPanel> {
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
-            TextField(
-              controller: TextEditingController(text: _icon),
-              decoration: const InputDecoration(
-                labelText: '图标（名称）',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (v) => _icon = v.trim(),
+            const _Label('图标'),
+            _IconPicker(
+              value: _icon,
+              onChanged: (v) => setState(() => _icon = v),
             ),
             const SizedBox(height: AppSpacing.sm),
-            TextField(
-              controller: TextEditingController(text: _color),
-              decoration: const InputDecoration(
-                labelText: '颜色（hex）',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (v) => _color = v.trim(),
+            const _Label('颜色'),
+            _ColorPicker(
+              value: _color,
+              onChanged: (v) => setState(() => _color = v),
             ),
             const SizedBox(height: AppSpacing.sm),
             DropdownButtonFormField<String>(
@@ -455,11 +507,29 @@ class _EditPanelState extends State<_EditPanel> {
                 labelText: '父分类（二级）',
                 border: OutlineInputBorder(),
               ),
-              initialValue: _parentId,
-              items: const [
-                DropdownMenuItem(value: null, child: Text('无（一级分类）')),
+              // ignore: deprecated_member_use
+              value: _parentId,
+              items: [
+                const DropdownMenuItem<String>(
+                  value: '',
+                  child: Text('无（一级分类）'),
+                ),
+                ...widget.candidates.map(
+                  (c) => DropdownMenuItem<String>(
+                    value: c.id,
+                    child: Row(
+                      children: [
+                        _IconBadge(icon: c.icon, color: c.color, size: 18),
+                        const SizedBox(width: 8),
+                        Text(c.name),
+                      ],
+                    ),
+                  ),
+                ),
               ],
-              onChanged: (v) => setState(() => _parentId = v),
+              onChanged: isSystem
+                  ? null
+                  : (v) => setState(() => _parentId = v ?? ''),
             ),
             const SizedBox(height: AppSpacing.lg),
             Row(
@@ -468,7 +538,12 @@ class _EditPanelState extends State<_EditPanel> {
                   child: FilledButton(
                     onPressed: isSystem
                         ? null
-                        : () => widget.onSave(_nameCtrl.text.trim(), _icon, _color),
+                        : () => widget.onSave(
+                              _nameCtrl.text.trim(),
+                              _icon,
+                              _color,
+                              _parentId,
+                            ),
                     child: Text(isEdit ? '保存修改' : '确认创建'),
                   ),
                 ),
@@ -495,6 +570,126 @@ class _EditPanelState extends State<_EditPanel> {
       ),
     );
   }
+}
+
+class _Label extends StatelessWidget {
+  const _Label(this.text);
+  final String text;
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Text(text,
+            style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+      );
+}
+
+/// 图标网格选择器：点击 emoji 选中高亮。
+class _IconPicker extends StatelessWidget {
+  const _IconPicker({required this.value, required this.onChanged});
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        for (final e in _presetIcons)
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              key: ValueKey('icon_pick_$e'),
+              onTap: () => onChanged(e),
+              child: Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: e == value
+                      ? AppColors.accentSoft
+                      : AppColors.surface,
+                  border: Border.all(
+                    color: e == value ? AppColors.accent : AppColors.border,
+                    width: e == value ? 2 : 1,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(e, style: const TextStyle(fontSize: 18)),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// 颜色色板选择器：点击色块选中高亮。
+class _ColorPicker extends StatelessWidget {
+  const _ColorPicker({required this.value, required this.onChanged});
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final hex in _presetColors)
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              key: ValueKey('color_pick_$hex'),
+              onTap: () => onChanged(hex),
+              child: Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: _colorOf(hex),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: hex.toUpperCase() == value.toUpperCase()
+                        ? AppColors.fg
+                        : Colors.transparent,
+                    width: 3,
+                  ),
+                ),
+                child: hex.toUpperCase() == value.toUpperCase()
+                    ? const Icon(Icons.check, size: 16, color: Colors.white)
+                    : null,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// 图标徽章（下拉项用）：圆形背景 + emoji/兜底 label 图标。
+class _IconBadge extends StatelessWidget {
+  const _IconBadge({required this.icon, required this.color, this.size = 18});
+  final String icon;
+  final String color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return CircleAvatar(
+      radius: size / 2,
+      backgroundColor: _colorOf(color).withValues(alpha: 0.15),
+      child: _iconContent(icon, color, size),
+    );
+  }
+}
+
+/// Renders the leading icon: emoji text when [icon] is an emoji, else the
+/// default label glyph tinted by [color].
+Widget _iconContent(String icon, String color, double size) {
+  final isEmoji = icon.isNotEmpty && icon.runes.first > 0x2000;
+  return isEmoji
+      ? Text(icon, style: TextStyle(fontSize: size * 0.9))
+      : Icon(Icons.label_outline, size: size, color: _colorOf(color));
 }
 
 Color _colorOf(String hex) {

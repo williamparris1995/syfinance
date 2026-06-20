@@ -81,6 +81,7 @@ class CategoryBloc extends Bloc<CategoryEvent, CategoryState> {
         ownership: Ownership.personal,
         icon: event.icon,
         color: event.color,
+        parentId: event.parentId,
       );
       final result = await _create.call(params);
       result.fold(
@@ -95,6 +96,9 @@ class CategoryBloc extends Bloc<CategoryEvent, CategoryState> {
         name: event.name,
         icon: event.icon,
         color: event.color,
+        // parentId flows into the proto only on Create; UpdateAccountRequest
+        // has no parentId field (see account_remote_ds.dart).
+        parentId: event.parentId,
       );
       final result = await _update.call(params);
       result.fold(

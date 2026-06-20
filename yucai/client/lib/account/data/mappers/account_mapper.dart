@@ -22,6 +22,7 @@ class AccountMapper {
       status: accountStatusFromProto(dto.status),
       icon: dto.icon,
       color: dto.color,
+      parentId: dto.parentId,
       institution: dto.institution,
       creditLimitCents: dto.creditLimitCents.toInt(),
       cardNumberTail: dto.hasCardNumberTail() ? dto.cardNumberTail : '',

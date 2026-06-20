@@ -17,6 +17,7 @@ class Account extends Equatable {
     required this.status,
     this.icon = '',
     this.color = '',
+    this.parentId = '',
     this.institution = '',
     this.creditLimitCents = 0,
     this.cardNumberTail = '',
@@ -60,6 +61,8 @@ class Account extends Equatable {
   final AccountStatus status;
   final String icon;
   final String color;
+  /// 二级分类的父分类 id（account-as-category；空 = 一级）。
+  final String parentId;
   final String institution;
   final int creditLimitCents;
 
@@ -97,8 +100,8 @@ class Account extends Equatable {
   @override
   List<Object?> get props => [
         id, name, accountType, category, currencyCode, initialBalanceCents,
-        currentBalanceCents, ownership, status, icon, color, institution,
-        creditLimitCents,
+        currentBalanceCents, ownership, status, icon, color, parentId,
+        institution, creditLimitCents,
         cardNumberTail, notes, openingDate, interestRate,
         creditBillingDay, creditRepaymentDay, creditAnnualFeeCents,
         investCostCents, investMarketValueCents, investReturnYtd,
@@ -128,6 +131,7 @@ class Account extends Equatable {
     AccountStatus? status,
     String? icon,
     String? color,
+    String? parentId,
     String? institution,
     int? creditLimitCents,
     String? cardNumberTail,
@@ -171,6 +175,7 @@ class Account extends Equatable {
       status: status ?? this.status,
       icon: icon ?? this.icon,
       color: color ?? this.color,
+      parentId: parentId ?? this.parentId,
       institution: institution ?? this.institution,
       creditLimitCents: creditLimitCents ?? this.creditLimitCents,
       cardNumberTail: cardNumberTail ?? this.cardNumberTail,

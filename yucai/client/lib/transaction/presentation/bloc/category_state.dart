@@ -51,6 +51,7 @@ class CategoryItem extends Equatable {
       version: a.version,
       icon: a.icon,
       color: a.color,
+      parentId: a.parentId,
     );
   }
 
