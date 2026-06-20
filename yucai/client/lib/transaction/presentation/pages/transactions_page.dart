@@ -625,12 +625,7 @@ class _TxTableRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final flavour = _flavour;
     final amount = txn.totalDebitCents; // 表格用主金额（借方合计）展示
-    final primaryAccountId =
-        txn.entries.isNotEmpty ? txn.entries.first.accountId : '';
-    final primaryAccount = accountOf(primaryAccountId);
-    final accountLabel = primaryAccountId.isEmpty
-        ? ''
-        : accountNameOf(primaryAccountId);
+    final cell = _resolveAccountCell();
 
     return InkWell(
       onTap: () => onOpenDetail(txn.id),
@@ -653,18 +648,23 @@ class _TxTableRow extends StatelessWidget {
               child: _TxMain(
                 description: txn.description,
                 flavour: flavour,
-                secondary: _secondaryLine(primaryAccount),
+                secondary: _secondaryLine(cell),
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
             SizedBox(
               width: 100,
-              child: _CategoryChip(account: primaryAccount),
+              child: _CategoryChip(account: cell.categoryAccount),
             ),
             const SizedBox(width: AppSpacing.sm),
             SizedBox(
               width: 120,
-              child: _AccountTag(label: accountLabel, account: primaryAccount),
+              child: cell.isTransfer
+                  ? _TransferAccounts(
+                      fromLabel: cell.fromLabel, toLabel: cell.toLabel)
+                  : _AccountTag(
+                      label: cell.primaryLabel,
+                      account: accountOf(cell.primaryAccountId)),
             ),
             const SizedBox(width: AppSpacing.sm),
             SizedBox(
@@ -696,12 +696,103 @@ class _TxTableRow extends StatelessWidget {
     );
   }
 
-  /// 副标题：优先用账户名 + note；无则退化为短日期。
-  String _secondaryLine(Account? primary) {
-    if (primary != null && primary.name.isNotEmpty) {
-      return primary.name;
+  /// 副标题：转账 from → to；非转账用主账户名。
+  String _secondaryLine(_AccountCell cell) {
+    if (cell.isTransfer) {
+      return '${cell.fromLabel} → ${cell.toLabel}';
     }
-    return '';
+    return cell.primaryLabel;
+  }
+
+  /// 解析账户列内容（转账双账户 / 非转账单账户 + 分类）。
+  _AccountCell _resolveAccountCell() {
+    if (_isTransfer) {
+      final fromEntry = txn.entries.firstWhere(
+        (e) => e.creditCents > 0,
+        orElse: () => txn.entries.first,
+      );
+      final toEntry = txn.entries.firstWhere(
+        (e) => e.debitCents > 0,
+        orElse: () => txn.entries.last,
+      );
+      return _AccountCell.transfer(
+        accountNameOf(fromEntry.accountId),
+        accountNameOf(toEntry.accountId),
+      );
+    }
+    // 非转账：asset 账户为主，对侧（income/expense）为分类。
+    Account? assetAccount;
+    Account? otherAccount;
+    String assetId = '';
+    for (final e in txn.entries) {
+      final a = accountOf(e.accountId);
+      if (a == null) continue;
+      if (a.accountType == AccountType.asset && assetAccount == null) {
+        assetAccount = a;
+        assetId = e.accountId;
+      } else {
+        otherAccount ??= a;
+      }
+    }
+    final primaryId = assetId.isNotEmpty
+        ? assetId
+        : (txn.entries.isNotEmpty ? txn.entries.first.accountId : '');
+    return _AccountCell.single(
+      primaryId.isEmpty ? '' : accountNameOf(primaryId),
+      otherAccount,
+      primaryId,
+    );
+  }
+
+  /// 转账判定：两条 entry 且两端账户都是 asset（无元信息退化为平衡两行）。
+  bool get _isTransfer {
+    if (txn.entries.length != 2) return false;
+    final e0 = accountOf(txn.entries[0].accountId);
+    final e1 = accountOf(txn.entries[1].accountId);
+    if (e0 == null || e1 == null) return txn.isBalanced;
+    return e0.accountType == AccountType.asset &&
+        e1.accountType == AccountType.asset;
+  }
+}
+
+/// 账户列解析结果。
+class _AccountCell {
+  _AccountCell.transfer(this.fromLabel, this.toLabel)
+      : primaryLabel = fromLabel,
+        primaryAccountId = '',
+        categoryAccount = null;
+  _AccountCell.single(
+      this.primaryLabel, this.categoryAccount, this.primaryAccountId)
+      : fromLabel = '',
+        toLabel = '';
+
+  final String primaryLabel;
+  final String primaryAccountId;
+  final String fromLabel;
+  final String toLabel;
+  final Account? categoryAccount;
+  bool get isTransfer => fromLabel.isNotEmpty;
+}
+
+/// 转账双账户：from → to + 箭头。
+class _TransferAccounts extends StatelessWidget {
+  const _TransferAccounts({required this.fromLabel, required this.toLabel});
+  final String fromLabel;
+  final String toLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(child: _AccountTag(label: fromLabel, account: null)),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4),
+          child: Icon(Icons.arrow_forward, size: 14, color: AppColors.muted),
+        ),
+        Flexible(child: _AccountTag(label: toLabel, account: null)),
+      ],
+    );
   }
 }
 
@@ -959,6 +1050,7 @@ class _MobileList extends StatelessWidget {
             _MobileTxnCard(
               txn: t,
               accountNameOf: _nameOf,
+              accountOf: _accountOf,
               onTap: () => onOpenDetail(t.id),
             ),
           const SizedBox(height: AppSpacing.sm),
@@ -966,30 +1058,74 @@ class _MobileList extends StatelessWidget {
       ],
     );
   }
+
+  Account? _accountOf(String id) {
+    for (final a in accounts) {
+      if (a.id == id) return a;
+    }
+    return null;
+  }
 }
 
 class _MobileTxnCard extends StatelessWidget {
   const _MobileTxnCard({
     required this.txn,
     required this.accountNameOf,
+    required this.accountOf,
     required this.onTap,
   });
 
   final Transaction txn;
   final String Function(String id) accountNameOf;
+  final Account? Function(String id) accountOf;
   final VoidCallback onTap;
 
   TxnFlavour get _flavour => inferFlavour(txn);
+
+  /// 转账判定：两条 entry 且两端账户都是 asset（无元信息退化为平衡两行）。
+  bool get _isTransfer {
+    if (txn.entries.length != 2) return false;
+    final e0 = accountOf(txn.entries[0].accountId);
+    final e1 = accountOf(txn.entries[1].accountId);
+    if (e0 == null || e1 == null) return txn.isBalanced;
+    return e0.accountType == AccountType.asset &&
+        e1.accountType == AccountType.asset;
+  }
 
   @override
   Widget build(BuildContext context) {
     final flavour = _flavour;
     final amount = txn.totalDebitCents;
-    final primaryAccountId =
-        txn.entries.isNotEmpty ? txn.entries.first.accountId : '';
-    final accountLabel = primaryAccountId.isEmpty
-        ? ''
-        : accountNameOf(primaryAccountId);
+    final isTransfer = _isTransfer;
+    String fromLabel = '';
+    String toLabel = '';
+    String singleLabel = '';
+    if (isTransfer) {
+      final fromEntry = txn.entries.firstWhere(
+        (e) => e.creditCents > 0,
+        orElse: () => txn.entries.first,
+      );
+      final toEntry = txn.entries.firstWhere(
+        (e) => e.debitCents > 0,
+        orElse: () => txn.entries.last,
+      );
+      fromLabel = accountNameOf(fromEntry.accountId);
+      toLabel = accountNameOf(toEntry.accountId);
+    } else {
+      // 非转账：asset 账户为主，找不到 asset 退化为首条。
+      String assetId = '';
+      for (final e in txn.entries) {
+        final a = accountOf(e.accountId);
+        if (a != null && a.accountType == AccountType.asset) {
+          assetId = e.accountId;
+          break;
+        }
+      }
+      final primaryId = assetId.isNotEmpty
+          ? assetId
+          : (txn.entries.isNotEmpty ? txn.entries.first.accountId : '');
+      singleLabel = primaryId.isEmpty ? '' : accountNameOf(primaryId);
+    }
 
     return GestureDetector(
       onTap: onTap,
@@ -1018,14 +1154,32 @@ class _MobileTxnCard extends StatelessWidget {
                         fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    [
-                      _formatDate(txn.transactionDate),
-                      if (accountLabel.isNotEmpty) accountLabel,
-                    ].join(' · '),
-                    style: const TextStyle(
-                        color: AppColors.muted, fontSize: 12),
-                  ),
+                  if (isTransfer)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                            child: _AccountTag(
+                                label: fromLabel, account: null)),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4),
+                          child: Icon(Icons.arrow_forward,
+                              size: 14, color: AppColors.muted),
+                        ),
+                        Flexible(
+                            child:
+                                _AccountTag(label: toLabel, account: null)),
+                      ],
+                    )
+                  else
+                    Text(
+                      [
+                        _formatDate(txn.transactionDate),
+                        if (singleLabel.isNotEmpty) singleLabel,
+                      ].join(' · '),
+                      style: const TextStyle(
+                          color: AppColors.muted, fontSize: 12),
+                    ),
                 ],
               ),
             ),
