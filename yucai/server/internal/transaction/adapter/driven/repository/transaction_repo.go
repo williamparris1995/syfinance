@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	entsql "entgo.io/ent/dialect/sql"
@@ -25,6 +27,17 @@ const (
 	transactionTable      = "transactions"
 )
 
+// Dialect constants for the raw TransactionSummary SQL. The raw query is built
+// per-call because the two backends (SQLite tests, PostgreSQL production) need
+// different date extraction and placeholder syntax.
+const (
+	// DialectSQLite3 matches the modernc/sqlite driver registered name and the
+	// ent SQLite dialect. Tests use this.
+	DialectSQLite3 = "sqlite3"
+	// DialectPostgres matches the ent postgres dialect. Production (pgx) uses this.
+	DialectPostgres = "postgres"
+)
+
 // TransactionRepository implements domain.TransactionRepository using entGo.
 type TransactionRepository struct {
 	client *txnent.Client
@@ -34,14 +47,32 @@ type TransactionRepository struct {
 	// cannot express cleanly. May be nil; TransactionSummary returns an error
 	// in that case (CRUD operations are unaffected).
 	rawDB *sql.DB
+	// rawDialect is the SQL dialect of rawDB ("sqlite3" or "postgres"). It
+	// selects the placeholder style and date extraction for TransactionSummary.
+	// Defaults to DialectSQLite3 (the in-memory test backend). Production wire
+	// wiring sets it to DialectPostgres via SetDialect.
+	rawDialect string
 }
 
 // NewTransactionRepository creates a new TransactionRepository. db is the
 // underlying *sql.DB the ent client was built on; it powers the raw
 // TransactionSummary aggregation. Pass nil only in narrow test scenarios that
 // do not exercise summary aggregation.
+//
+// The raw SQL dialect defaults to SQLite (the in-memory test backend). For
+// PostgreSQL production deployments, call SetDialect(repository.DialectPostgres)
+// on the returned repo before first use.
 func NewTransactionRepository(client *txnent.Client, db *sql.DB) *TransactionRepository {
-	return &TransactionRepository{client: client, rawDB: db}
+	return &TransactionRepository{client: client, rawDB: db, rawDialect: DialectSQLite3}
+}
+
+// SetDialect configures the SQL dialect used by the raw TransactionSummary
+// query. Must be one of DialectSQLite3 or DialectPostgres. It must match the
+// dialect backing rawDB; otherwise the summary query will fail at runtime.
+// Returns the receiver for chaining.
+func (r *TransactionRepository) SetDialect(d string) *TransactionRepository {
+	r.rawDialect = d
+	return r
 }
 
 // Save persists a transaction and its entries in a single operation.
@@ -281,15 +312,22 @@ func (r *TransactionRepository) loadEntriesByTransaction(ctx context.Context, tx
 // hasEntryForAccount builds a predicate restricting transactions to those that
 // have at least one entry pointing at the given account. Uses a raw EXISTS
 // subquery against the shared transaction_entries table.
+//
+// The predicate is built with entsql.P + b.Arg rather than entsql.ExprP, so the
+// bound parameter is rewritten to the dialect-correct placeholder: '?' on
+// SQLite and '$N' on PostgreSQL. ExprP leaves literal '?' in the SQL string,
+// which PostgreSQL/pqx rejects with "syntax error at or near ..." (pgx does not
+// rebind '?' placeholders, unlike SQLite's native driver).
 func hasEntryForAccount(accountID uuid.UUID) func(*entsql.Selector) {
 	return func(s *entsql.Selector) {
-		// s.C(transaction.FieldID) yields the correlated outer column, e.g. "t0"."id".
-		s.Where(entsql.ExprP(
-			"EXISTS (SELECT 1 FROM "+transactionEntryTable+
-				" WHERE "+transactionEntryTable+"."+transactionEntryFieldTransactionID+" = "+s.C(transaction.FieldID)+
-				" AND "+transactionEntryTable+"."+transactionEntryFieldAccountID+" = ?)",
-			accountID,
-		))
+		s.Where(entsql.P(func(b *entsql.Builder) {
+			// s.C(transaction.FieldID) yields the correlated outer column, e.g. "transactions"."id".
+			b.WriteString("EXISTS (SELECT 1 FROM " + transactionEntryTable +
+				" WHERE " + transactionEntryTable + "." + transactionEntryFieldTransactionID + " = " + s.C(transaction.FieldID) +
+				" AND " + transactionEntryTable + "." + transactionEntryFieldAccountID + " = ")
+			b.Arg(accountID)
+			b.WriteByte(')')
+		}))
 	}
 }
 
@@ -303,9 +341,13 @@ func hasEntryForAccount(accountID uuid.UUID) func(*entsql.Selector) {
 // Implemented as raw EXISTS subqueries joining transaction_entries → accounts.
 // The transaction and account ent modules share one physical database, so the
 // cross-table JOIN is valid even though no ent edge connects them.
+//
+// Built with entsql.P + b.Arg (not entsql.ExprP) so the bound account-type
+// parameter is rewritten to the dialect placeholder ('?' on SQLite, '$N' on
+// PostgreSQL). ExprP leaves literal '?' in the SQL string and pgx rejects it.
 func typePredicate(t domain.TransactionType) func(*entsql.Selector) {
 	return func(s *entsql.Selector) {
-		outerID := s.C(transaction.FieldID) // correlated outer column, e.g. "t0"."id"
+		outerID := s.C(transaction.FieldID) // correlated outer column, e.g. "transactions"."id"
 		join := " FROM " + transactionEntryTable +
 			" JOIN " + accountsTable +
 			" ON " + transactionEntryTable + "." + transactionEntryFieldAccountID +
@@ -314,29 +356,30 @@ func typePredicate(t domain.TransactionType) func(*entsql.Selector) {
 
 		switch t {
 		case domain.TransactionTypeIncome:
-			s.Where(entsql.ExprP(
-				"EXISTS (SELECT 1"+join+
-					" AND "+accountsTable+"."+accountsFieldAccountType+" = ?"+
-					" AND "+transactionEntryTable+"."+transactionEntryFieldCreditCents+" > 0)",
-				accountTypeIncome,
-			))
+			s.Where(entsql.P(func(b *entsql.Builder) {
+				b.WriteString("EXISTS (SELECT 1" + join +
+					" AND " + accountsTable + "." + accountsFieldAccountType + " = ")
+				b.Arg(accountTypeIncome)
+				b.WriteString(" AND " + transactionEntryTable + "." + transactionEntryFieldCreditCents + " > 0)")
+			}))
 
 		case domain.TransactionTypeExpense:
-			s.Where(entsql.ExprP(
-				"EXISTS (SELECT 1"+join+
-					" AND "+accountsTable+"."+accountsFieldAccountType+" = ?"+
-					" AND "+transactionEntryTable+"."+transactionEntryFieldDebitCents+" > 0)",
-				accountTypeExpense,
-			))
+			s.Where(entsql.P(func(b *entsql.Builder) {
+				b.WriteString("EXISTS (SELECT 1" + join +
+					" AND " + accountsTable + "." + accountsFieldAccountType + " = ")
+				b.Arg(accountTypeExpense)
+				b.WriteString(" AND " + transactionEntryTable + "." + transactionEntryFieldDebitCents + " > 0)")
+			}))
 
 		case domain.TransactionTypeTransfer:
 			// A transfer is a transaction whose entries only touch Asset accounts.
 			// Equivalently: NOT EXISTS an entry whose account is NOT an Asset.
-			s.Where(entsql.ExprP(
-				"NOT EXISTS (SELECT 1"+join+
-					" AND "+accountsTable+"."+accountsFieldAccountType+" != ?)",
-				accountTypeAsset,
-			))
+			s.Where(entsql.P(func(b *entsql.Builder) {
+				b.WriteString("NOT EXISTS (SELECT 1" + join +
+					" AND " + accountsTable + "." + accountsFieldAccountType + " != ")
+				b.Arg(accountTypeAsset)
+				b.WriteByte(')')
+			}))
 		}
 	}
 }
@@ -425,14 +468,32 @@ func (r *TransactionRepository) TransactionSummary(ctx context.Context, scope do
 	// One row per (day, account). amount is the directional contribution:
 	// income accounts: credit_cents; expense accounts: debit_cents; else 0.
 	//
-	// The day is extracted via substr(1,10): ent stores transaction_date as text
-	// (modernc sqlite), and the stored format starts with "YYYY-MM-DD ..." for
-	// every value, so taking the first 10 chars yields the calendar day
-	// regardless of the trailing time/zone representation. SQLite's DATE()/
-	// strftime() return NULL on the stored format, so they cannot be used here.
-	const q = `
+	// Day extraction is dialect-aware:
+	//   SQLite   — transaction_date is stored as TEXT "YYYY-MM-DD ...", so
+	//              substr(CAST(... AS TEXT), 1, 10) slices the calendar day.
+	//   Postgres — transaction_date is timestamptz; CAST(... AS TEXT) yields
+	//              "YYYY-MM-DD HH:MM:SS+TZ" so the same substr(1,10) works.
+	// CAST AS TEXT is a no-op on SQLite and a portable timestamp→text coercion
+	// on Postgres; substr(text, int, int) exists on both. SQLite's DATE()/
+	// strftime() return NULL on the stored text format, so they cannot be used.
+	//
+	// Placeholders: the SQL is written with '?' (SQLite-native), then rebound
+	// to '$N' for PostgreSQL because pgx's stdlib driver does not rewrite '?'
+	// (unlike modernc/sqlite which binds '?' positionally).
+	dateExpr := "substr(CAST(t.transaction_date AS TEXT), 1, 10)"
+	// The account-scope clause "(:p IS NULL OR e.account_id = :p)" lets a single
+	// optional account filter the rows. PostgreSQL cannot infer the type of a
+	// bound NULL parameter that appears only in "x IS NULL" (SQLSTATE 42P18), so
+	// on Postgres the parameter is cast to the uuid type. SQLite ignores the
+	// "::uuid" suffix as a no-op cast on its dynamic typing. The placeholder
+	// token uses '?' here and is rewritten to '$N' below for Postgres.
+	accountScopeClause := "(? IS NULL OR e.account_id = ?)"
+	if r.rawDialect == DialectPostgres {
+		accountScopeClause = "(?::uuid IS NULL OR e.account_id = ?::uuid)"
+	}
+	q := `
 		SELECT
-			substr(t.transaction_date, 1, 10)                        AS d,
+			` + dateExpr + `                                          AS d,
 			e.account_id                                              AS account_id,
 			a.name                                                    AS account_name,
 			a.account_type                                            AS account_type,
@@ -448,9 +509,10 @@ func (r *TransactionRepository) TransactionSummary(ctx context.Context, scope do
 		  AND t.deleted_at IS NULL
 		  AND t.transaction_date >= ?
 		  AND t.transaction_date < ?
-		  AND (? IS NULL OR e.account_id = ?)
+		  AND ` + accountScopeClause + `
 		ORDER BY d ASC, account_name ASC
 	`
+	q = rebindPlaceholders(q, r.rawDialect)
 
 	args := []any{
 		accountTypeIncome, accountTypeExpense,
@@ -586,6 +648,42 @@ func monthRange(year, month int) (time.Time, time.Time, error) {
 	start := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 1, 0)
 	return start, end, nil
+}
+
+// rebindPlaceholders converts '?' placeholders in a raw SQL string to the
+// dialect's positional style. SQLite and MySQL keep '?'; PostgreSQL needs '$N'
+// because the pgx stdlib driver does not rebind '?' (unlike modernc/sqlite,
+// which binds '?' positionally). Only bare '?' are converted — '?' inside
+// string literals is left untouched. For dialects other than postgres the
+// string is returned unchanged.
+func rebindPlaceholders(query, dialect string) string {
+	if dialect != DialectPostgres {
+		return query
+	}
+	var (
+		out      strings.Builder
+		n        int
+		inSingle bool
+	)
+	for i := 0; i < len(query); i++ {
+		c := query[i]
+		if c == '\'' {
+			// Toggle single-quote literal mode. Standard SQL doubles '' for an
+			// escaped quote, but this raw query contains no string literals with
+			// embedded quotes, so a simple toggle is sufficient.
+			inSingle = !inSingle
+			out.WriteByte(c)
+			continue
+		}
+		if c == '?' && !inSingle {
+			n++
+			out.WriteString("$")
+			out.WriteString(strconv.Itoa(n))
+			continue
+		}
+		out.WriteByte(c)
+	}
+	return out.String()
 }
 
 // SoftDelete marks the transaction as deleted.

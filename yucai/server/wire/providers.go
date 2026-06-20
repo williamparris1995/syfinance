@@ -203,7 +203,10 @@ func provideAccountHandler(svc *accountapp.Service) *accountgrpc.AccountHandler 
 
 // Transaction providers
 func provideTransactionRepo(client *txnent.Client, db *sql.DB) *txnrepo.TransactionRepository {
-	return txnrepo.NewTransactionRepository(client, db)
+	// Production uses the "postgres" ent dialect (see openEntDriver). The repo's
+	// raw TransactionSummary SQL needs to know the dialect to pick the correct
+	// placeholder style ($N) and date extraction (timestamptz → text cast).
+	return txnrepo.NewTransactionRepository(client, db).SetDialect(txnrepo.DialectPostgres)
 }
 
 // provideTransactionDB opens the *sql.DB backing the transaction ent client.
