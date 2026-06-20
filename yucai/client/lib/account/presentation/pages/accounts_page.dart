@@ -292,13 +292,18 @@ class _AccountsPageState extends State<AccountsPage> {
   }
 
   Widget _content(List<Account> accounts) {
+    // account-as-category 方案下 Expense/Income 类型账户 = 分类，归属分类管理页，
+    // 不应出现在账户列表。这里只保留资产/负债账户（equity 系统账户也排除）。
+    final balanceSheet = accounts.where((a) =>
+        a.accountType == AccountType.asset ||
+        a.accountType == AccountType.liability);
     // 归档账户不参与活跃统计（合计/默认列表）；_showArchived 时才显示。
-    final active = accounts
+    final active = balanceSheet
         .where((a) => a.status == AccountStatus.active)
         .toList();
     final totalCents =
         active.fold<int>(0, (s, a) => s + a.currentBalanceCents);
-    final scoped = _showArchived ? accounts : active;
+    final scoped = _showArchived ? balanceSheet.toList() : active;
     final filtered = _filter == null
         ? scoped
         : scoped.where((a) => a.category == _filter).toList();

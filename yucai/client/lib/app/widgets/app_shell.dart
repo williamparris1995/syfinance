@@ -88,11 +88,16 @@ class AppShell extends StatelessWidget {
 // ───────────────────────── 侧边栏 ─────────────────────────
 
 class _NavItem {
-  const _NavItem(this.label, this.icon, this.branchIndex, {this.badge});
+  const _NavItem(this.label, this.icon, this.branchIndex,
+      {this.badge, this.route});
   final String label;
   final IconData icon;
-  final int? branchIndex; // null = 即将上线（禁用）
+  final int? branchIndex; // null = 即将上线（禁用）或由 route 自定义导航
   final String? badge;
+  // 自定义导航目标路由（非 branch 切换）。非 null 时该项可点击，走 context.go(route)。
+  // 例如「分类管理」位于 transactions branch 内（/categories），不是顶层 branch，
+  // 不能用 navigationShell.goBranch，改用 context.go('/categories')。
+  final String? route;
 }
 
 class _NavGroup {
@@ -109,6 +114,9 @@ const _navGroups = <_NavGroup>[
     _NavItem('账户管理', Icons.account_balance_wallet_outlined, 1),
     _NavItem('预算管理', Icons.savings_outlined, null),
     _NavItem('目标追踪', Icons.flag_outlined, null),
+  ]),
+  _NavGroup('交易', [
+    _NavItem('分类管理', Icons.category_outlined, null, route: '/categories'),
   ]),
   _NavGroup('投资', [
     _NavItem('投资组合', Icons.show_chart_outlined, null, badge: '5'),
@@ -199,10 +207,21 @@ class _Sidebar extends StatelessWidget {
                   for (final item in g.items)
                     _NavItemTile(
                       item: item,
-                      selected: item.branchIndex == currentIndex,
-                      onTap: item.branchIndex == null
+                      // route 项：当前路径在 /categories 下时高亮（非 branch index）。
+                      selected: item.route != null
+                          ? GoRouterState.of(context)
+                              .matchedLocation
+                              .startsWith(item.route!)
+                          : item.branchIndex == currentIndex,
+                      onTap: item.branchIndex == null && item.route == null
                           ? null
-                          : () => onSelect(item.branchIndex!),
+                          : () {
+                              if (item.route != null) {
+                                context.go(item.route!);
+                              } else if (item.branchIndex != null) {
+                                onSelect(item.branchIndex!);
+                              }
+                            },
                     ),
                 ],
               ],
