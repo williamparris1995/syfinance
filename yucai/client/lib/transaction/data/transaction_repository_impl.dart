@@ -1,4 +1,7 @@
+import 'dart:developer' as developer;
+
 import 'package:dartz/dartz.dart';
+import 'package:flutter/foundation.dart';
 import 'package:grpc/grpc.dart';
 import 'package:injectable/injectable.dart';
 
@@ -62,12 +65,25 @@ class TransactionRepositoryImpl implements TransactionRepository {
 
   /// Maps thrown GrpcError / exceptions to [Failure], wrapping the op in
   /// Either. Mirrors [AccountRepositoryImpl._guard].
+  ///
+  /// Logs every exception with the runtime type + message so a crash that the
+  /// static DI/proto wiring can't surface shows up in the console as
+  /// `[TXN] _guard(...)`. This was added during the post-4643811 investigation:
+  /// DI was confirmed correct but users still reported list/detail crashes, so
+  /// the actual exception needed to be observable at runtime.
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {
     try {
       return Right(await op());
-    } on GrpcError catch (e) {
+    } on GrpcError catch (e, st) {
+      debugPrint('[TXN] _guard GrpcError: code=${e.code} '
+          'name=${e.codeName} msg=${e.message}');
+      developer.log('[TXN] _guard GrpcError', name: 'txn.repo',
+          error: e, stackTrace: st);
       return Left(_mapGrpcError(e));
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[TXN] _guard ${e.runtimeType}: $e');
+      developer.log('[TXN] _guard ${e.runtimeType}', name: 'txn.repo',
+          error: e, stackTrace: st);
       return Left(UnexpectedFailure(e.toString()));
     }
   }

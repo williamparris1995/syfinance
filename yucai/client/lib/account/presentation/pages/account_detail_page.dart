@@ -606,13 +606,15 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
 
   // ───────────────────────── 操作 ─────────────────────────
 
-  /// 记一笔：push TransactionFormPage。表单返回 true（提交成功）后刷新本账户
-  /// 的近期交易 + 月度统计（余额由 GetAccountRequested 同步刷新）。
-  /// 注：当前 TransactionFormPage 不支持预填账户 / 直入转账模式（YAGNI，
-  /// 属于 form 页扩展），故此处仅 push 通用表单；用户在表单里选账户/类型。
+  /// 记一笔：push TransactionFormPage，预选本账户（省去用户在表单里重挑）。
+  /// 表单返回 true（提交成功）后刷新本账户的近期交易 + 月度统计
+  ///（余额由 GetAccountRequested 同步刷新）。
   void _recordTxn() {
     Navigator.of(context)
-        .push<bool>(MaterialPageRoute(builder: (_) => const TransactionFormPage()))
+        .push<bool>(MaterialPageRoute(
+            builder: (_) => TransactionFormPage(
+                  initialAccountId: widget.id,
+                )))
         .then((ok) {
       if (ok == true && mounted) {
         AppToast.show(context, '交易已记录', type: ToastType.success);
@@ -622,8 +624,22 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     });
   }
 
-  /// 转账：push TransactionFormPage（同 _recordTxn；用户切到转账 tab）。
-  void _transfer() => _recordTxn();
+  /// 转账：push TransactionFormPage 并直入转账 tab，预选本账户为转出账户。
+  void _transfer() {
+    Navigator.of(context)
+        .push<bool>(MaterialPageRoute(
+            builder: (_) => TransactionFormPage(
+                  initialAccountId: widget.id,
+                  initialType: TxnType.transfer,
+                )))
+        .then((ok) {
+      if (ok == true && mounted) {
+        AppToast.show(context, '交易已记录', type: ToastType.success);
+        _refreshTxn();
+        context.read<AccountBloc>().add(GetAccountRequested(widget.id));
+      }
+    });
+  }
 
   /// 重新拉取本账户的近期交易 + 月度统计。
   void _refreshTxn() {

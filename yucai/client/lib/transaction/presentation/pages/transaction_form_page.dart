@@ -30,10 +30,29 @@ import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.
 ///
 /// [bloc] 可选注入：生产路径留空，页面自行从 getIt 构造（并触发账户加载）；
 /// 测试路径传入预构造的 bloc 以隔离 DI 与 gRPC。
+///
+/// [initialAccountId] / [initialType]：从账户入口（记一笔/转账）进入时预选
+/// 当前账户 + 默认类型，省去用户在表单里重新挑账户的步骤。
+///   - 支出/收入：预选「资产账户」= initialAccountId（仅当该账户是 Asset）。
+///   - 转账：预选「转出账户」= initialAccountId。
+/// 任一为 null/空时不预选（通用入口保持原行为）。
 class TransactionFormPage extends StatelessWidget {
-  const TransactionFormPage({super.key, this.bloc});
+  const TransactionFormPage({
+    super.key,
+    this.bloc,
+    this.initialAccountId,
+    this.initialType,
+  });
 
   final TransactionFormBloc? bloc;
+
+  /// 预选账户 id。支出/收入 → 资产账户字段；转账 → 转出账户字段。
+  /// 页面在 initState 应用此值；若该 id 不在加载到的账户列表里（被删除/
+  /// 类型不符），下拉会回落到「未选」而不报错。
+  final String? initialAccountId;
+
+  /// 预选交易类型 tab。null 默认支出。
+  final TxnType? initialType;
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +60,10 @@ class TransactionFormPage extends StatelessWidget {
     if (injected != null) {
       return BlocProvider<TransactionFormBloc>.value(
         value: injected,
-        child: const _TransactionFormView(),
+        child: _TransactionFormView(
+          initialAccountId: initialAccountId,
+          initialType: initialType,
+        ),
       );
     }
     // 页面级 bloc：两个 repo 从 getIt 注入。bloc 不经 injectable 注册，避免
@@ -55,7 +77,10 @@ class TransactionFormPage extends StatelessWidget {
         b.add(const LoadAccountsRequested());
         return b;
       },
-      child: const _TransactionFormView(),
+      child: _TransactionFormView(
+        initialAccountId: initialAccountId,
+        initialType: initialType,
+      ),
     );
   }
 }
@@ -88,7 +113,10 @@ extension TxnTypeX on TxnType {
 }
 
 class _TransactionFormView extends StatefulWidget {
-  const _TransactionFormView();
+  const _TransactionFormView({this.initialAccountId, this.initialType});
+
+  final String? initialAccountId;
+  final TxnType? initialType;
 
   @override
   State<_TransactionFormView> createState() => _TransactionFormViewState();
@@ -100,11 +128,20 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
   final _payeeCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
 
-  TxnType _type = TxnType.expense;
+  late TxnType _type;
   DateTime _date = DateTime.now();
-  String? _assetAccountId; // 支出/收入：资产账户；转账：转出账户
+  // 支出/收入：资产账户；转账：转出账户。从账户入口进入时预选当前账户
+  //（initState 里赋值，避免在字段初始化时访问 widget）。
+  String? _assetAccountId;
   String? _categoryAccountId; // 支出→expense 账户；收入→income 账户
   String? _toAccountId; // 转账：转入账户
+
+  @override
+  void initState() {
+    super.initState();
+    _type = widget.initialType ?? TxnType.expense;
+    _assetAccountId = widget.initialAccountId;
+  }
 
   @override
   void dispose() {

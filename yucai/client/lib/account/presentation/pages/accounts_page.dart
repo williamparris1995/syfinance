@@ -624,13 +624,17 @@ class _AccountCard extends StatelessWidget {
   final VoidCallback? onReactivate;
   final VoidCallback? onDelete;
 
-  /// 记一笔/转账：push TransactionFormPage（用户在表单里切收支/转账 tab）。
+  /// 记一笔/转账：push TransactionFormPage，预选本账户（省去用户在表单里
+  /// 重挑账户）。记一笔默认支出 tab；转账直入转账 tab 且本账户作为转出方。
   /// 同 account_detail_page._recordTxn：成功返回后 toast + 重新拉账户列表
   ///（交易可能改变余额）。
-  void _recordTxn(BuildContext context) {
+  void _recordTxn(BuildContext context, {TxnType? initialType}) {
     Navigator.of(context)
-        .push<bool>(
-            MaterialPageRoute(builder: (_) => const TransactionFormPage()))
+        .push<bool>(MaterialPageRoute(
+            builder: (_) => TransactionFormPage(
+                  initialAccountId: account.id,
+                  initialType: initialType,
+                )))
         .then((ok) {
       if (ok == true && context.mounted) {
         AppToast.show(context, '交易已记录', type: ToastType.success);
@@ -743,7 +747,7 @@ class _AccountCard extends StatelessWidget {
                     case 'record':
                       _recordTxn(context);
                     case 'transfer':
-                      _recordTxn(context);
+                      _recordTxn(context, initialType: TxnType.transfer);
                     case 'copy':
                       onDuplicate?.call();
                     case 'close':

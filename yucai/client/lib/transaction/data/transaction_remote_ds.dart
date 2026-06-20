@@ -1,4 +1,7 @@
+import 'dart:developer' as developer;
+
 import 'package:fixnum/fixnum.dart';
+import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:yucai_client/core/network/auth_retry.dart';
@@ -10,6 +13,18 @@ import 'package:yucai_client/transaction/data/mappers/transaction_mapper.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
+
+/// Diagnostic tag for transaction-layer logs. Every [debugPrint] in this file
+/// is prefixed with `[TXN]` so a runtime crash (which the static config can't
+/// surface) shows the exact exception in the console. The repository's `_guard`
+/// maps thrown errors to [Failure] for the UI, but during the post-4643811
+/// investigation users still reported crashes — these logs let us see whether
+/// it's a gRPC error, a proto-decode error, or a null-deref in the mapper.
+void _txnLog(String op, Object? e, [StackTrace? st]) {
+  final msg = '[TXN] $op failed: $e';
+  debugPrint(msg);
+  developer.log(msg, name: 'txn.ds', error: e, stackTrace: st);
+}
 
 /// Wraps the generated `TransactionServiceClient`. Throws `GrpcError` on
 /// failure (caught and mapped to [Failure] by [TransactionRepositoryImpl]).
@@ -102,13 +117,24 @@ class TransactionRemoteDataSource {
       if (p.dateFrom != null) req.dateFrom = formatTxnDate(p.dateFrom!);
       if (p.dateTo != null) req.dateTo = formatTxnDate(p.dateTo!);
       final res = await _client.listTransactions(req);
-      var txns = res.transactions.map(_mapper.toDomain).toList();
+      // Defensive mapping: a single malformed row (bad date / decode error)
+      // must not poison the whole list — log it and skip. The page otherwise
+      // blanks to an error and the user can't see *any* transactions.
+      final txns = <Transaction>[];
+      for (var i = 0; i < res.transactions.length; i++) {
+        try {
+          txns.add(_mapper.toDomain(res.transactions[i]));
+        } catch (e, st) {
+          _txnLog('list.toDomain[$i]', e, st);
+        }
+      }
       // Server-side type filter not yet in proto (Task 2.1 not landed in
       // client stub); apply client-side so the UI contract is stable.
       final f = p.typeFilter;
-      if (f != null) txns = txns.where((t) => inferFlavour(t) == f).toList();
+      final filtered =
+          f != null ? txns.where((t) => inferFlavour(t) == f).toList() : txns;
       return ListTransactionsResult(
-        transactions: txns,
+        transactions: filtered,
         nextPageToken: res.hasPage() ? res.page.nextPageToken : '',
         totalCount: res.hasPage() ? res.page.totalCount : 0,
       );
@@ -156,11 +182,15 @@ class TransactionRemoteDataSource {
         accountId: accountId ?? '',
       );
       final res = await _client.transactionSummary(req);
-      return _mapper.summaryToDomain(
-        res.hasSummary() ? res.summary : pb.MonthlySummary(),
-        year: year,
-        month: month,
-      );
+      final dto = res.hasSummary() ? res.summary : pb.MonthlySummary();
+      try {
+        return _mapper.summaryToDomain(dto, year: year, month: month);
+      } catch (e, st) {
+        // Mapper crash (e.g. unexpected enum / null field) must not blank the
+        // card — fall back to a zeroed summary so the list still renders.
+        _txnLog('summary.summaryToDomain', e, st);
+        return MonthlySummary(year: year, month: month);
+      }
     });
   }
 }
