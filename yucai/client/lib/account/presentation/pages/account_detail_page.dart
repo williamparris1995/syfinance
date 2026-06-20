@@ -10,12 +10,10 @@ import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/bloc/account_state.dart';
 import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
 import 'package:yucai_client/account/presentation/widgets/account_category_style.dart';
-import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
-import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_event.dart';
@@ -52,51 +50,18 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   void initState() {
     super.initState();
     context.read<AccountBloc>().add(GetAccountRequested(widget.id));
-    // 跨模块：account 详情页接 transaction bloc。生产路径在 widget 树里没有
-    // 现成的 TransactionBloc（路由只 provide AccountBloc），页面在 build 顶
-    // 端用 BlocProvider<TransactionBloc>(create:) 自建一个并 scope 到本账户
-    //（list accountId + summary accountId）。测试路径从 MultiBlocProvider
-    // 注入 bloc 时，build 里的 _ambientTxnBloc 命中、跳过 create 分支。
-    final txn = _ambientTxnBloc;
-    if (txn != null) {
-      _dispatchScoped(txn);
-    }
-  }
-
-  /// 树里若有 TransactionBloc（测试/外层 provide）返回之；否则 null。
-  TransactionBloc? get _ambientTxnBloc {
-    // flutter_bloc 的 read 找不到时抛 ProviderNotFoundException；用 try/catch。
-    try {
-      return context.read<TransactionBloc>();
-    } on ProviderNotFoundException {
-      return null;
-    }
-  }
-
-  /// 触发该账户的近期交易加载 + 月度统计（Task 5.1 accountId scope）。
-  void _dispatchScoped(TransactionBloc b) {
-    final now = DateTime.now();
-    b.add(LoadTransactionsRequested(
-        filter: TxnFilterState(accountId: widget.id)));
-    b.add(LoadSummaryRequested(
-        year: now.year, month: now.month, accountId: widget.id));
+    // 跨模块：account 详情页接 transaction bloc。
+    // TransactionBloc + 初始 LoadTransactionsRequested / LoadSummaryRequested
+    //（account-scoped）在路由层 `/accounts/:id` 的 MultiBlocProvider 里
+    // provide —— 详情页 State.context 位于该 BlocProvider 下，
+    // context.watch<TransactionBloc>() 能找到。本页不再自建 BlocProvider
+    //（旧实现把 Provider 放在 build 返回的 Builder child 里，而 State.context
+    // 在 Provider 之上，运行时抛 ProviderNotFoundException）。
   }
 
   @override
   Widget build(BuildContext context) {
-    final txn = _ambientTxnBloc;
-    if (txn != null) {
-      return _scaffold();
-    }
-    // 生产路径：自建 TransactionBloc 并 scope 到本账户。
-    return BlocProvider<TransactionBloc>(
-      create: (_) {
-        final b = TransactionBloc(getIt<TransactionRepository>());
-        _dispatchScoped(b);
-        return b;
-      },
-      child: Builder(builder: (_) => _scaffold()),
-    );
+    return _scaffold();
   }
 
   Widget _scaffold() {
@@ -642,9 +607,14 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   }
 
   /// 重新拉取本账户的近期交易 + 月度统计。
+  /// TransactionBloc 由路由层 provide（见 router.dart `/accounts/:id`）。
   void _refreshTxn() {
-    final b = _ambientTxnBloc;
-    if (b != null) _dispatchScoped(b);
+    final b = context.read<TransactionBloc>();
+    final now = DateTime.now();
+    b.add(LoadTransactionsRequested(
+        filter: TxnFilterState(accountId: widget.id)));
+    b.add(LoadSummaryRequested(
+        year: now.year, month: now.month, accountId: widget.id));
   }
 
   void _edit(Account a) {

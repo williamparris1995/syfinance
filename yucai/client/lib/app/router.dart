@@ -21,10 +21,12 @@ import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/presentation/bloc/category_bloc.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
+import 'package:yucai_client/transaction/presentation/bloc/transaction_event.dart';
 import 'package:yucai_client/transaction/presentation/pages/category_management_page.dart';
 import 'package:yucai_client/transaction/presentation/pages/transaction_detail_page.dart';
 import 'package:yucai_client/transaction/presentation/pages/transaction_form_page.dart';
 import 'package:yucai_client/transaction/presentation/pages/transactions_page.dart';
+import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
 
 /// Builds the app router. Reads auth state to guard routes.
 ///
@@ -81,13 +83,41 @@ GoRouter buildRouter(AuthBloc authBloc) {
                 routes: [
                   GoRoute(
                     path: ':id',
-                    builder: (context, state) => BlocProvider<AccountBloc>(
-                      // 详情页用独立 bloc 实例：列表页 bloc 在跳转时被释放，
-                      // 详情页需要自己的实例来发起 GetAccountRequested。
-                      create: (_) => getIt<AccountBloc>(),
-                      child: AccountDetailPage(
-                          id: state.pathParameters['id']!),
-                    ),
+                    // 详情页用独立 bloc 实例：列表页 bloc 在跳转时被释放，
+                    // 详情页需要自己的 AccountBloc 发起 GetAccountRequested。
+                    //
+                    // 同时在这里 provide 一个 account-scoped TransactionBloc
+                    //（list accountId + summary accountId），因为详情页的
+                    // _body() 用 State.context.watch<TransactionBloc>() ——
+                    // State.context 在路由 BlocProvider 下才能被 watch 找到。
+                    // 若只在 build 里自建 BlocProvider，其 child 是 Builder
+                    // 的 context，而非 AccountDetailPage 自己的 State.context，
+                    // 会触发 ProviderNotFoundException（runtime 崩）。
+                    builder: (context, state) {
+                      final id = state.pathParameters['id']!;
+                      final now = DateTime.now();
+                      return MultiBlocProvider(
+                        providers: [
+                          BlocProvider<AccountBloc>(
+                            create: (_) => getIt<AccountBloc>(),
+                          ),
+                          BlocProvider<TransactionBloc>(
+                            create: (_) {
+                              final b = TransactionBloc(
+                                  getIt<TransactionRepository>());
+                              b.add(LoadTransactionsRequested(
+                                  filter: TxnFilterState(accountId: id)));
+                              b.add(LoadSummaryRequested(
+                                  year: now.year,
+                                  month: now.month,
+                                  accountId: id));
+                              return b;
+                            },
+                          ),
+                        ],
+                        child: AccountDetailPage(id: id),
+                      );
+                    },
                   ),
                 ],
               ),
