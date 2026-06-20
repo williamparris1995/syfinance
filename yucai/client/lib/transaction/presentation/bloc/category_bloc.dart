@@ -74,7 +74,9 @@ class CategoryBloc extends Bloc<CategoryEvent, CategoryState> {
       final params = CreateAccountParams(
         name: event.name,
         accountType: event.type.accountType,
-        // 分类账户没有金融属性，落到 otherAsset category 占位（不影响展示）。
+        // expense/income 分类账户走 NewCategoryAccount（服务端 CreateAccount
+        // 按 accountType=Expense/Income 分流），category 字段对分类账户无意义、
+        // 服务端忽略。见 server/service.go CreateAccount。
         category: AccountCategory.otherAsset,
         currencyCode: 'CNY',
         initialBalanceCents: 0,

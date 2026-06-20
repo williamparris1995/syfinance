@@ -128,6 +128,56 @@ func TestCreateAccountPersistsTypeSpecificFields(t *testing.T) {
 	}
 }
 
+// Regression: creating an expense/income account must persist the requested
+// AccountType, NOT derive asset/other_asset from the (ignored) Category field.
+// Previously CreateAccount always called NewAccountWithCategory, which mapped
+// otherAsset→asset and silently miscategorized category-manager creations.
+func TestCreateAccount_HonoursExpenseIncomeType(t *testing.T) {
+	for _, at := range []domain.AccountType{domain.AccountTypeExpense, domain.AccountTypeIncome} {
+		repo := newMockAccountRepo()
+		svc := NewService(repo, newMockChartRepo())
+		req := CreateAccountRequest{
+			TenantID:    uuid.New(),
+			Name:        "阿斯顿",
+			AccountType: at,
+			// Client still sends otherAsset (placeholder); server must ignore it
+			// for expense/income and use AccountType.
+			Category:    domain.AccountCategoryOtherAsset,
+			CurrencyCode: "CNY",
+			Icon:        "📦",
+			Color:       "#3B82F6",
+		}
+		dto, err := svc.CreateAccount(context.Background(), req)
+		if err != nil {
+			t.Fatalf("type %s: %v", at, err)
+		}
+		if dto.AccountType != at {
+			t.Errorf("type %s: expected AccountType %s, got %s (miscategorized as asset?)",
+				at, at, dto.AccountType)
+		}
+	}
+}
+
+// Asset-path still derives type from category (unchanged behaviour).
+func TestCreateAccount_DerivesAssetTypeFromCategory(t *testing.T) {
+	repo := newMockAccountRepo()
+	svc := NewService(repo, newMockChartRepo())
+	req := CreateAccountRequest{
+		TenantID: uuid.New(), Name: "招行储蓄",
+		Category: domain.AccountCategorySavings, CurrencyCode: "CNY",
+	}
+	dto, err := svc.CreateAccount(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dto.AccountType != domain.AccountTypeAsset {
+		t.Errorf("savings category should derive asset type, got %s", dto.AccountType)
+	}
+	if dto.Category != domain.AccountCategorySavings {
+		t.Errorf("category not persisted: %s", dto.Category)
+	}
+}
+
 func TestCreateCategory_CreatesExpenseCategoryAccount(t *testing.T) {
 	repo := newMockAccountRepo()
 	svc := NewService(repo, newMockChartRepo())

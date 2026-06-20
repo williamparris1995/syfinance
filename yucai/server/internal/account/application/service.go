@@ -22,8 +22,24 @@ func NewService(accountRepo domain.AccountRepository, chartRepo domain.ChartRepo
 }
 
 // CreateAccount creates a new account and returns its DTO.
+//
+// Construction is split by account_type:
+//   - Expense/Income (account-as-category): built via [domain.NewCategoryAccount],
+//     which sets AccountType from the request and leaves Category at its zero
+//     value (categories carry no financial category). The request's Category
+//     field is ignored for these types — it is meaningless for a category
+//     account and previously caused expense/income categories to be silently
+//     stored as asset/other_asset (see task: 分类创建存成了 asset 类型).
+//   - Asset/Liability/Equity: built via [domain.NewAccountWithCategory], which
+//     derives AccountType from Category (the documented user-facing path).
 func (s *Service) CreateAccount(ctx context.Context, req CreateAccountRequest) (*AccountDTO, error) {
-	account, err := domain.NewAccountWithCategory(req.TenantID, req.Name, req.Category, req.CurrencyCode)
+	var account *domain.Account
+	var err error
+	if req.AccountType == domain.AccountTypeExpense || req.AccountType == domain.AccountTypeIncome {
+		account, err = domain.NewCategoryAccount(req.TenantID, req.Name, req.AccountType)
+	} else {
+		account, err = domain.NewAccountWithCategory(req.TenantID, req.Name, req.Category, req.CurrencyCode)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("create account: %w", err)
 	}
