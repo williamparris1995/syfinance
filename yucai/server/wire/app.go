@@ -1,8 +1,10 @@
 package wire
 
 import (
+	accountapp "github.com/yucai/server/internal/account/application"
 	accountgrpc "github.com/yucai/server/internal/account/adapter/driving/grpc"
 	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
+	authrepo "github.com/yucai/server/internal/auth/adapter/driven/repository"
 	budgetgrpc "github.com/yucai/server/internal/budget/adapter/driving/grpc"
 	debtgrpc "github.com/yucai/server/internal/debt/adapter/driving/grpc"
 	goalgrpc "github.com/yucai/server/internal/goal/adapter/driving/grpc"
@@ -22,6 +24,8 @@ type App struct {
 	Config             *config.Config
 	Logger             *logger.Logger
 	GRPCServer         *GRPCServer
+	TenantRepo         *authrepo.TenantRepository
+	AccountService     *accountapp.Service
 	AuthHandler        *authgrpc.AuthHandler
 	AccountHandler     *accountgrpc.AccountHandler
 	TransactionHandler *txngrpc.TransactionHandler
@@ -41,6 +45,8 @@ func NewApp(
 	cfg *config.Config,
 	log *logger.Logger,
 	srv *GRPCServer,
+	tenantRepo *authrepo.TenantRepository,
+	accountService *accountapp.Service,
 	authHandler *authgrpc.AuthHandler,
 	accountHandler *accountgrpc.AccountHandler,
 	transactionHandler *txngrpc.TransactionHandler,
@@ -58,6 +64,8 @@ func NewApp(
 		Config:             cfg,
 		Logger:             log,
 		GRPCServer:         srv,
+		TenantRepo:         tenantRepo,
+		AccountService:     accountService,
 		AuthHandler:        authHandler,
 		AccountHandler:     accountHandler,
 		TransactionHandler: transactionHandler,

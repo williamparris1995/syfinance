@@ -10,6 +10,10 @@ import (
 type TenantRepository interface {
 	Save(ctx context.Context, tenant *Tenant) error
 	FindByID(ctx context.Context, id uuid.UUID) (*Tenant, error)
+	// FindAllIDs returns the IDs of all tenants. Used by the startup preset
+	// seeder to backfill system categories for tenants created before the
+	// seeder was wired into registration.
+	FindAllIDs(ctx context.Context) ([]uuid.UUID, error)
 }
 
 // UserRepository defines the port for User persistence.

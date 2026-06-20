@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -11,6 +12,8 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib" // register "pgx" database/sql driver
 
 	authpb "github.com/yucai/server/internal/proto/auth/v1"
+	accountapp "github.com/yucai/server/internal/account/application"
+	authrepo "github.com/yucai/server/internal/auth/adapter/driven/repository"
 	accountpb "github.com/yucai/server/internal/proto/account/v1"
 	transactionpb "github.com/yucai/server/internal/proto/transaction/v1"
 	budgetpb "github.com/yucai/server/internal/proto/budget/v1"
@@ -38,6 +41,11 @@ func main() {
 		slog.Error("failed to initialize app", "error", err)
 		os.Exit(1)
 	}
+
+	// Backfill preset categories for any tenant created before the seeder was
+	// wired into registration (idempotent: tenants with system categories are
+	// skipped). Runs once at startup so legacy tenants see the category dropdown.
+	seedPresetCategories(context.Background(), app.TenantRepo, app.AccountService)
 
 	// Register gRPC services
 	authpb.RegisterAuthServiceServer(app.GRPCServer, app.AuthHandler)
@@ -75,4 +83,26 @@ func main() {
 	sig := <-sigCh
 	slog.Info("shutting down", "signal", sig)
 	app.GRPCServer.GracefulStop()
+}
+
+// seedPresetCategories backfills the 10 system category accounts for every
+// tenant in the database. It is idempotent: SeedPresetCategories is a no-op for
+// tenants that already have system categories, so running it for all tenants on
+// every startup is safe.
+func seedPresetCategories(ctx context.Context, tenantRepo *authrepo.TenantRepository, accountService *accountapp.Service) {
+	tenantIDs, err := tenantRepo.FindAllIDs(ctx)
+	if err != nil {
+		slog.Error("preset seed: failed to list tenants", "error", err)
+		return
+	}
+
+	seeded := 0
+	for _, id := range tenantIDs {
+		if err := accountService.SeedPresetCategories(ctx, id); err != nil {
+			slog.Error("preset seed: failed to seed tenant", "tenant_id", id, "error", err)
+			continue
+		}
+		seeded++
+	}
+	slog.Info("preset seed: completed backfill", "tenant_count", len(tenantIDs), "seeded_or_skipped", seeded)
 }

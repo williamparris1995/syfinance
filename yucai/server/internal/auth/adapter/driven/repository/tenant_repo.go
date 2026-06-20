@@ -45,6 +45,20 @@ func (r *TenantRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.
 	return toDomainTenant(result), nil
 }
 
+// FindAllIDs returns the IDs of every tenant. Used by the startup preset
+// seeder to backfill system categories for legacy tenants.
+func (r *TenantRepository) FindAllIDs(ctx context.Context) ([]uuid.UUID, error) {
+	tenants, err := r.client.Tenant.Query().All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("query all tenants: %w", err)
+	}
+	ids := make([]uuid.UUID, 0, len(tenants))
+	for _, t := range tenants {
+		ids = append(ids, t.ID)
+	}
+	return ids, nil
+}
+
 func toDomainTenant(t *ent.Tenant) *domain.Tenant {
 	return &domain.Tenant{
 		ID:        t.ID,
