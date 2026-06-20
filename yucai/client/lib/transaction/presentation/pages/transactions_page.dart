@@ -4,12 +4,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
-import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
-import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_event.dart';
@@ -34,10 +32,17 @@ import 'package:yucai_client/transaction/presentation/widgets/txn_row.dart';
 ///   - 新增交易入口：右上角按钮 + 空态/错误态的 CTA + Mobile FAB
 ///
 /// 遵循 `accounts_page` 的 BlocConsumer 模式。
+///
+/// Bloc 来源（按优先级）：
+///   1. [bloc] 构造参数 —— 测试注入预构造 bloc。
+///   2. 路由层 BlocProvider —— 生产路径（见 router.dart `/transactions`
+///      分支）。页面 build 直接返回 _TransactionsView，State.context 一定在
+///      Provider 下，避免之前 ambient try/catch 在 debug 模式下漏接
+///      AssertionError 导致的 ProviderNotFoundException 运行时崩。
 class TransactionsPage extends StatelessWidget {
   const TransactionsPage({super.key, this.bloc});
 
-  /// 测试可注入预构造 bloc；生产路径留空，页面从 getIt 构造。
+  /// 测试可注入预构造 bloc；生产路径留空，bloc 由路由层 BlocProvider 提供。
   final TransactionBloc? bloc;
 
   @override
@@ -49,24 +54,8 @@ class TransactionsPage extends StatelessWidget {
         child: const _TransactionsView(),
       );
     }
-    // Reuse a bloc provided higher in the tree (test harness pattern) when
-    // present, so tests don't need to register TransactionRepository in GetIt.
-    // BlocProvider.of throws ProviderNotFoundException when absent; treat that
-    // as "no ambient bloc" and fall through to GetIt construction.
-    try {
-      BlocProvider.of<TransactionBloc>(context);
-      return const _TransactionsView();
-    } on ProviderNotFoundException {
-      // fall through
-    }
-    return BlocProvider<TransactionBloc>(
-      create: (_) {
-        final b = TransactionBloc(getIt<TransactionRepository>());
-        b.add(const LoadTransactionsRequested());
-        return b;
-      },
-      child: const _TransactionsView(),
-    );
+    // 生产路径：bloc 由路由层 `/transactions` 分支的 BlocProvider 提供。
+    return const _TransactionsView();
   }
 }
 

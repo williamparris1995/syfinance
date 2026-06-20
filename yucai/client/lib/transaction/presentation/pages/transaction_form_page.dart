@@ -507,20 +507,23 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
   ) {
     switch (_type) {
       case TxnType.expense:
+        // account-as-category：支出 = 借支出分类(Expense) + 贷转出账户(Asset)。
+        // 两个字段必须明确区分「资产账户（钱从哪出）」与「支出分类（算什么
+        // 类，如餐饮/交通，来自分类管理）」，避免用户误以为只需选一个账户。
         return [
-          _accountSection('账户', '从哪个账户支出', assetAccounts, _assetAccountId,
-              (v) => setState(() => _assetAccountId = v)),
+          _accountSection('转出账户', '如招商银行、现金', assetAccounts,
+              _assetAccountId, (v) => setState(() => _assetAccountId = v)),
           const SizedBox(height: AppSpacing.lg),
-          _accountSection('分类', '支出类别', expenseAccounts,
+          _accountSection('支出分类', '如餐饮、交通', expenseAccounts,
               _categoryAccountId, (v) => setState(() => _categoryAccountId = v)),
         ];
       case TxnType.income:
         return [
-          _accountSection('账户', '收入入账到哪个账户', assetAccounts, _assetAccountId,
-              (v) => setState(() => _assetAccountId = v)),
+          _accountSection('转入账户', '如招商银行、现金', assetAccounts,
+              _assetAccountId, (v) => setState(() => _assetAccountId = v)),
           const SizedBox(height: AppSpacing.lg),
-          _accountSection('分类', '收入类别', incomeAccounts, _categoryAccountId,
-              (v) => setState(() => _categoryAccountId = v)),
+          _accountSection('收入分类', '如工资、理财收益', incomeAccounts,
+              _categoryAccountId, (v) => setState(() => _categoryAccountId = v)),
         ];
       case TxnType.transfer:
         return [

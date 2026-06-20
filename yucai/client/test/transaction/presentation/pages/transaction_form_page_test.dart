@@ -161,14 +161,16 @@ void main() {
   testWidgets('switching to 转账 shows 转出/转入 sections instead of 分类',
       (tester) async {
     await pumpPage(tester, 1440);
-    // default 支出 has 分类 section (section title + dropdown label).
-    expect(find.text('分类'), findsWidgets);
+    // default 支出 has 支出分类 section (section title + dropdown label).
+    expect(find.text('支出分类'), findsWidgets);
     // tap 转账 tab.
     await tester.tap(find.text('转账').last);
     await tester.pumpAndSettle();
     expect(find.text('转出账户'), findsWidgets);
     expect(find.text('转入账户'), findsWidgets);
-    expect(find.text('分类'), findsNothing);
+    // transfer mode has no category section.
+    expect(find.text('支出分类'), findsNothing);
+    expect(find.text('收入分类'), findsNothing);
   });
 
   testWidgets('submit with empty amount does NOT call record (form guard)',

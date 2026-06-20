@@ -77,11 +77,11 @@ void main() {
         routerConfig: router,
         builder: (context, child) => BlocProvider<AuthBloc>.value(
           value: authBloc,
-          // TransactionsPage/TransactionDetailPage call BlocProvider.of for
-          // TransactionBloc during their build; in tests that lookup throws an
-          // AssertionError (not ProviderNotFoundException) when no ancestor
-          // bloc exists. Provide an ambient TransactionBloc so the page's
-          // lookup succeeds and the create branch is skipped.
+          // TransactionDetailPage calls context.read<TransactionBloc> in
+          // initState, so it needs a TransactionBloc ancestor. /transactions
+          // itself now provides its own TransactionBloc at the route layer
+          // (router.dart), so TransactionsPage no longer needs an ambient
+          // bloc; this wrapper remains to cover TransactionDetailPage routes.
           child: BlocProvider<TransactionBloc>(
             create: (_) => TransactionBloc(getIt<TransactionRepository>()),
             child: child!,

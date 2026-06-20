@@ -127,9 +127,21 @@ GoRouter buildRouter(AuthBloc authBloc) {
             routes: [
               GoRoute(
                 path: '/transactions',
-                // TransactionsPage 内部自建 BlocProvider<TransactionBloc>
-                //（getIt<TransactionRepository>()），故这里不再包裹。
-                builder: (_, __) => const TransactionsPage(),
+                // 在路由层 provide TransactionBloc（与 /accounts/:id 详情页一致）。
+                // TransactionsPage.build 之前在内部 try BlocProvider.of + 自建
+                // 两段式回退，但 debug 模式下 BlocProvider.of 缺失时抛的是
+                // AssertionError（非 ProviderNotFoundException），try/catch 漏接
+                // → 运行时崩。把 provide 提到路由层后，页面 build 直接返回
+                // _TransactionsView，State.context 一定在 Provider 下。
+                builder: (_, __) => BlocProvider<TransactionBloc>(
+                  create: (_) {
+                    final b = TransactionBloc(
+                        getIt<TransactionRepository>());
+                    b.add(const LoadTransactionsRequested());
+                    return b;
+                  },
+                  child: const TransactionsPage(),
+                ),
                 routes: [
                   GoRoute(
                     path: 'new',
