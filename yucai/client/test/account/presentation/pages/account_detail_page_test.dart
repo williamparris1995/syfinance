@@ -30,6 +30,7 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/pages/account_detail_page.dart';
+import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
@@ -47,16 +48,49 @@ class _MockDelete extends Mock implements DeleteAccountUseCase {}
 class _MockGet extends Mock implements GetAccountUseCase {}
 class _MockUpdate extends Mock implements UpdateAccountUseCase {}
 
-Account _account({AccountStatus status = AccountStatus.active}) => Account(
+Account _account({
+  AccountStatus status = AccountStatus.active,
+  AccountCategory category = AccountCategory.savings,
+  AccountType accountType = AccountType.asset,
+  int currentBalanceCents = 100000,
+  String name = '现金',
+}) =>
+    Account(
       id: 'a1',
-      name: '现金',
-      accountType: AccountType.asset,
-      category: AccountCategory.savings,
+      name: name,
+      accountType: accountType,
+      category: category,
       currencyCode: 'CNY',
       initialBalanceCents: 0,
-      currentBalanceCents: 100000,
+      currentBalanceCents: currentBalanceCents,
       ownership: Ownership.personal,
       status: status,
+    );
+
+/// 信用卡账户（覆盖 hero-fields creditCard 分支）。
+Account _creditCardAccount() => _account(
+      name: '招行信用卡',
+      category: AccountCategory.creditCard,
+      accountType: AccountType.liability,
+      currentBalanceCents: -320000,
+    ).copyWith(
+      creditLimitCents: 500000,
+      creditBillingDay: 9,
+      creditRepaymentDay: 27,
+      creditAnnualFeeCents: 10000,
+    );
+
+/// 贷款账户（覆盖 hero-fields loan 分支）。
+Account _loanAccount() => _account(
+      name: '房贷',
+      category: AccountCategory.loan,
+      accountType: AccountType.liability,
+      currentBalanceCents: -180000000,
+    ).copyWith(
+      loanOriginalCents: 200000000,
+      loanRemainingCents: 180000000,
+      loanMonthlyCents: 900000,
+      loanNextPaymentDate: DateTime(2026, 7, 1),
     );
 
 Transaction _txn(String id, DateTime date, {int amount = 5000}) {
@@ -121,14 +155,35 @@ void main() {
             )));
   });
 
-  Future<void> pumpPage(WidgetTester tester) async {
+  Future<void> pumpPage(
+    WidgetTester tester, {
+    Account? account,
+    int? netCents,
+  }) async {
+    final a = account ?? _account();
+    final net = netCents ?? 44556;
+    // Override the setUp default stubs for this pump (account + summary).
+    // 保留 setUp 默认 income/expense（123456/78900）以不破坏既有「收支统计」
+    // 4 卡断言；仅 net 由参数控制（hero 本月收支副信息用 net）。
+    when(() => accountRepo.getById(any()))
+        .thenAnswer((_) async => dartz.Right(a));
+    when(() => txnRepo.summary(any(), any(),
+            accountId: any(named: 'accountId')))
+        .thenAnswer((_) async => dartz.Right(MonthlySummary(
+              year: 2026,
+              month: 6,
+              incomeCents: 123456,
+              expenseCents: 78900,
+              netCents: net,
+              dailyAvgCents: 1481,
+            )));
+
     final listUc = _MockList();
     final createUc = _MockCreate();
     final deleteUc = _MockDelete();
     final getUc = _MockGet();
     final updateUc = _MockUpdate();
-    when(() => getUc.call(any()))
-        .thenAnswer((_) async => dartz.Right(_account()));
+    when(() => getUc.call(any())).thenAnswer((_) async => dartz.Right(a));
 
     await tester.pumpWidget(_harness(
       child: MultiBlocProvider(
@@ -298,5 +353,122 @@ void main() {
     // Archived → AppBar record/transfer buttons are removed entirely.
     expect(find.text('记一笔'), findsNothing);
     expect(find.text('转账'), findsNothing);
+  });
+
+  // ───── Task 2: 账户详情 Hero 升级（深色金色渐变 + badge + 本月净额 + 字段网格）─────
+
+  testWidgets('hero: 深色金色渐变 Container + 径向金色光晕', (tester) async {
+    await pumpPage(tester);
+
+    // Hero 是带 LinearGradient 的 Container（#1C1E21 → #2A2D33）。
+    final containers = tester
+        .widgetList<Container>(find.byType(Container))
+        .where((c) =>
+            c.decoration is BoxDecoration &&
+            (c.decoration as BoxDecoration).gradient is LinearGradient)
+        .toList();
+    expect(containers, isNotEmpty,
+        reason: 'hero 应有 LinearGradient 的 Container');
+
+    final grad =
+        (containers.first.decoration as BoxDecoration).gradient as LinearGradient;
+    expect(grad.colors.first, const Color(0xFF1C1E21));
+    expect(grad.colors.last, const Color(0xFF2A2D33));
+
+    // 径向金色光晕（RadialGradient + accent #B08D57 alpha 0.18）。
+    final radial = tester
+        .widgetList<Container>(find.byType(Container))
+        .where((c) =>
+            c.decoration is BoxDecoration &&
+            (c.decoration as BoxDecoration).gradient is RadialGradient)
+        .toList();
+    expect(radial, isNotEmpty, reason: 'hero 应有径向金色光晕');
+    final rg = (radial.first.decoration as BoxDecoration).gradient
+        as RadialGradient;
+    expect(rg.colors.first.withValues(alpha: 1.0), AppColors.accent);
+  });
+
+  testWidgets('hero: 40px serif 白字余额', (tester) async {
+    await pumpPage(tester);
+
+    // currentBalanceCents 100000 → _fmt "¥ 1,000.00"（hero 用 _fmt）。
+    // 找到 40px 的 Text。
+    final bal = tester.widgetList<Text>(find.byType(Text)).firstWhere(
+      (t) => t.style?.fontSize == 40,
+      orElse: () => throw StateError('未找到 40px 余额文本'),
+    );
+    expect(bal.style?.color, Colors.white);
+    expect(bal.style?.fontFamily, AppTypography.displayFamily);
+  });
+
+  testWidgets('hero: hero-badge 类型 + 资产·负债 + 活期/定期', (tester) async {
+    await pumpPage(tester);
+
+    // 储蓄账户 → '储蓄' / '资产类' / '活期'。
+    expect(find.text('储蓄'), findsWidgets);
+    expect(find.text('资产类'), findsOneWidget);
+    expect(find.text('活期'), findsOneWidget);
+  });
+
+  testWidgets('hero: hero-bal-sub 本月收支（正数绿色）', (tester) async {
+    // 默认 netCents 44556 → "本月收支 +¥445.56"（绿）。
+    await pumpPage(tester);
+
+    expect(find.text('本月收支 +¥445.56'), findsOneWidget);
+    final net = tester.widgetList<Text>(find.byType(Text)).firstWhere(
+      (t) => t.data == '本月收支 +¥445.56',
+    );
+    expect(net.style?.color, const Color(0xFF6FCF9A));
+  });
+
+  testWidgets('hero: hero-bal-sub 本月收支（负数红色）', (tester) async {
+    await pumpPage(tester, netCents: -30000);
+
+    // -30000 → "-¥300.00"（红）。
+    expect(find.text('本月收支 -¥300.00'), findsOneWidget);
+    final net = tester.widgetList<Text>(find.byType(Text)).firstWhere(
+      (t) => t.data == '本月收支 -¥300.00',
+    );
+    expect(net.style?.color, const Color(0xFFE57373));
+  });
+
+  testWidgets('hero: 字段网格（储蓄 → 利率/开户日期/币种）', (tester) async {
+    await pumpPage(
+      tester,
+      account: _account().copyWith(
+        interestRate: 3.5,
+        openingDate: DateTime(2024, 1, 15),
+      ),
+    );
+
+    // 储蓄默认分支字段。
+    expect(find.text('利率'), findsOneWidget);
+    expect(find.text('开户日期'), findsOneWidget);
+    expect(find.text('币种'), findsOneWidget);
+    // _specificChips 的扁平 Chip 已被结构化字段网格取代。
+    expect(find.byType(Chip), findsNothing);
+  });
+
+  testWidgets('hero: 字段网格（信用卡 → 额度/账单日/还款日/年费）',
+      (tester) async {
+    await pumpPage(tester, account: _creditCardAccount());
+
+    expect(find.text('额度'), findsOneWidget);
+    expect(find.text('账单日'), findsOneWidget);
+    expect(find.text('还款日'), findsOneWidget);
+    expect(find.text('年费'), findsOneWidget);
+    // 负债类 badge。
+    expect(find.text('负债类'), findsOneWidget);
+  });
+
+  testWidgets('hero: 字段网格（贷款 → 原始本金/剩余本金/月供/下次还款）',
+      (tester) async {
+    await pumpPage(tester, account: _loanAccount());
+
+    expect(find.text('原始本金'), findsOneWidget);
+    expect(find.text('剩余本金'), findsOneWidget);
+    expect(find.text('月供'), findsOneWidget);
+    expect(find.text('下次还款'), findsOneWidget);
+    expect(find.text('负债类'), findsOneWidget);
   });
 }

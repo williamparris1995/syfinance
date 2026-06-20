@@ -1,16 +1,16 @@
-# Graph Report - syfinance  (2026-06-16)
+# Graph Report - syfinance  (2026-06-20)
 
 ## Corpus Check
-- 1352 files · ~1,206,239 words
+- 1372 files · ~1,240,818 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 30315 nodes · 57490 edges · 1610 communities (1111 shown, 499 thin omitted)
-- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 1362 edges (avg confidence: 0.7)
+- 30926 nodes · 58612 edges · 1598 communities (1101 shown, 497 thin omitted)
+- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 1433 edges (avg confidence: 0.71)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `9cbfcb57`
+- Built from commit: `f22f7ae9`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -860,7 +860,6 @@
 - [[_COMMUNITY_Community 848|Community 848]]
 - [[_COMMUNITY_Community 849|Community 849]]
 - [[_COMMUNITY_Community 850|Community 850]]
-- [[_COMMUNITY_Community 851|Community 851]]
 - [[_COMMUNITY_Community 852|Community 852]]
 - [[_COMMUNITY_Community 853|Community 853]]
 - [[_COMMUNITY_Community 854|Community 854]]
@@ -878,7 +877,6 @@
 - [[_COMMUNITY_Community 866|Community 866]]
 - [[_COMMUNITY_Community 867|Community 867]]
 - [[_COMMUNITY_Community 868|Community 868]]
-- [[_COMMUNITY_Community 869|Community 869]]
 - [[_COMMUNITY_Community 870|Community 870]]
 - [[_COMMUNITY_Community 871|Community 871]]
 - [[_COMMUNITY_Community 872|Community 872]]
@@ -893,9 +891,7 @@
 - [[_COMMUNITY_Community 881|Community 881]]
 - [[_COMMUNITY_Community 882|Community 882]]
 - [[_COMMUNITY_Community 883|Community 883]]
-- [[_COMMUNITY_Community 884|Community 884]]
 - [[_COMMUNITY_Community 885|Community 885]]
-- [[_COMMUNITY_Community 886|Community 886]]
 - [[_COMMUNITY_Community 887|Community 887]]
 - [[_COMMUNITY_Community 888|Community 888]]
 - [[_COMMUNITY_Community 889|Community 889]]
@@ -918,7 +914,6 @@
 - [[_COMMUNITY_Community 906|Community 906]]
 - [[_COMMUNITY_Community 907|Community 907]]
 - [[_COMMUNITY_Community 908|Community 908]]
-- [[_COMMUNITY_Community 909|Community 909]]
 - [[_COMMUNITY_Community 910|Community 910]]
 - [[_COMMUNITY_Community 911|Community 911]]
 - [[_COMMUNITY_Community 912|Community 912]]
@@ -941,7 +936,6 @@
 - [[_COMMUNITY_Community 929|Community 929]]
 - [[_COMMUNITY_Community 930|Community 930]]
 - [[_COMMUNITY_Community 931|Community 931]]
-- [[_COMMUNITY_Community 932|Community 932]]
 - [[_COMMUNITY_Community 933|Community 933]]
 - [[_COMMUNITY_Community 934|Community 934]]
 - [[_COMMUNITY_Community 935|Community 935]]
@@ -970,7 +964,6 @@
 - [[_COMMUNITY_Community 958|Community 958]]
 - [[_COMMUNITY_Community 959|Community 959]]
 - [[_COMMUNITY_Community 960|Community 960]]
-- [[_COMMUNITY_Community 961|Community 961]]
 - [[_COMMUNITY_Community 962|Community 962]]
 - [[_COMMUNITY_Community 963|Community 963]]
 - [[_COMMUNITY_Community 964|Community 964]]
@@ -978,7 +971,6 @@
 - [[_COMMUNITY_Community 966|Community 966]]
 - [[_COMMUNITY_Community 967|Community 967]]
 - [[_COMMUNITY_Community 968|Community 968]]
-- [[_COMMUNITY_Community 969|Community 969]]
 - [[_COMMUNITY_Community 970|Community 970]]
 - [[_COMMUNITY_Community 971|Community 971]]
 - [[_COMMUNITY_Community 972|Community 972]]
@@ -1103,8 +1095,6 @@
 - [[_COMMUNITY_Community 1091|Community 1091]]
 - [[_COMMUNITY_Community 1092|Community 1092]]
 - [[_COMMUNITY_Community 1093|Community 1093]]
-- [[_COMMUNITY_Community 1094|Community 1094]]
-- [[_COMMUNITY_Community 1095|Community 1095]]
 - [[_COMMUNITY_Community 1096|Community 1096]]
 - [[_COMMUNITY_Community 1097|Community 1097]]
 - [[_COMMUNITY_Community 1098|Community 1098]]
@@ -1117,7 +1107,6 @@
 - [[_COMMUNITY_Community 1105|Community 1105]]
 - [[_COMMUNITY_Community 1106|Community 1106]]
 - [[_COMMUNITY_Community 1107|Community 1107]]
-- [[_COMMUNITY_Community 1108|Community 1108]]
 - [[_COMMUNITY_Community 1109|Community 1109]]
 - [[_COMMUNITY_Community 1110|Community 1110]]
 - [[_COMMUNITY_Community 1111|Community 1111]]
@@ -1234,6 +1223,11 @@
 - [[_COMMUNITY_Community 1223|Community 1223]]
 - [[_COMMUNITY_Community 1224|Community 1224]]
 - [[_COMMUNITY_Community 1225|Community 1225]]
+- [[_COMMUNITY_Community 1232|Community 1232]]
+- [[_COMMUNITY_Community 1237|Community 1237]]
+- [[_COMMUNITY_Community 1241|Community 1241]]
+- [[_COMMUNITY_Community 1242|Community 1242]]
+- [[_COMMUNITY_Community 1247|Community 1247]]
 - [[_COMMUNITY_Community 1260|Community 1260]]
 - [[_COMMUNITY_Community 1261|Community 1261]]
 - [[_COMMUNITY_Community 1262|Community 1262]]
@@ -1309,11 +1303,10 @@
 - [[_COMMUNITY_Community 1333|Community 1333]]
 - [[_COMMUNITY_Community 1334|Community 1334]]
 - [[_COMMUNITY_Community 1335|Community 1335]]
-- [[_COMMUNITY_Community 1343|Community 1343]]
+- [[_COMMUNITY_Community 1336|Community 1336]]
 - [[_COMMUNITY_Community 1345|Community 1345]]
 - [[_COMMUNITY_Community 1347|Community 1347]]
 - [[_COMMUNITY_Community 1348|Community 1348]]
-- [[_COMMUNITY_Community 1349|Community 1349]]
 - [[_COMMUNITY_Community 1350|Community 1350]]
 - [[_COMMUNITY_Community 1351|Community 1351]]
 - [[_COMMUNITY_Community 1352|Community 1352]]
@@ -1495,16 +1488,16 @@
 - [[_COMMUNITY_Community 1562|Community 1562]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `Account` - 506 edges
-2. `AccountMutation` - 329 edges
+1. `Account` - 518 edges
+2. `AccountMutation` - 339 edges
 3. `TransactionTemplate` - 219 edges
 4. `Goal` - 160 edges
-5. `invokeTauri()` - 154 edges
-6. `AccountUpdateOne` - 153 edges
-7. `AccountUpdate` - 152 edges
+5. `AccountUpdateOne` - 158 edges
+6. `AccountUpdate` - 157 edges
+7. `invokeTauri()` - 154 edges
 8. `cn()` - 140 edges
 9. `TransactionTemplateMutation` - 139 edges
-10. `Category` - 138 edges
+10. `HoldingTransaction` - 134 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `Last Write Wins Conflict Resolution` --semantically_similar_to--> `Backup-Based Sync Limitation`  [INFERRED] [semantically similar]
@@ -1535,10 +1528,10 @@
 - 1-file cycle: `src-tauri/tests/budget_integration_test.rs -> src-tauri/tests/budget_integration_test.rs`
 - 1-file cycle: `src-tauri/src/presentation/tauri_commands/budget_commands.rs -> src-tauri/src/presentation/tauri_commands/budget_commands.rs`
 - 1-file cycle: `src-tauri/src/application/services/category_service.rs -> src-tauri/src/application/services/category_service.rs`
+- 1-file cycle: `src-tauri/src/infrastructure/repositories/category_repository.rs -> src-tauri/src/infrastructure/repositories/category_repository.rs`
 - 1-file cycle: `src-tauri/src/application/services/debt_service.rs -> src-tauri/src/application/services/debt_service.rs`
 - 1-file cycle: `src-tauri/src/application/services/encryption_app_service.rs -> src-tauri/src/application/services/encryption_app_service.rs`
 - 1-file cycle: `src-tauri/src/application/services/goal_service.rs -> src-tauri/src/application/services/goal_service.rs`
-- 1-file cycle: `src-tauri/src/domain/aggregates/goal.rs -> src-tauri/src/domain/aggregates/goal.rs`
 
 ## Hyperedges (group relationships)
 - **YuCai Prototype Screen Ecosystem** —  [INFERRED]
@@ -1566,7 +1559,7 @@
 - **hyperedge_yucai_page_patterns** — yucai_redesign_design_list_page_pattern, yucai_redesign_design_detail_page_pattern, yucai_redesign_design_form_page_pattern, yucai_redesign_design_page_shell, yucai_redesign_design_page_header [EXTRACTED 1.00]
 - **hyperedge_p0_components_created** — p0_plan_task7_shared_component_skeletons, yucai_redesign_design_page_shell, yucai_redesign_design_page_header, yucai_redesign_design_filter_bar, yucai_redesign_design_hero_card, yucai_redesign_design_stat_card, yucai_redesign_design_data_card, yucai_redesign_design_form_card, yucai_redesign_design_type_tabs, yucai_redesign_design_amount_input, yucai_redesign_design_detail_two_col [EXTRACTED 1.00]
 
-## Communities (1610 total, 499 thin omitted)
+## Communities (1598 total, 497 thin omitted)
 
 ### Community 0 - "Account Edit & Hero"
 Cohesion: 0.16
@@ -1578,23 +1571,27 @@ Nodes (76): add_entry_requires_transaction_to_remain_balanced(), balanced_transa
 
 ### Community 2 - "Account Repositories"
 Cohesion: 0.01
-Nodes (422): AccountTypeIn(), AccountTypeNotIn(), And(), CardNumberTail(), CardNumberTailContains(), CardNumberTailContainsFold(), CardNumberTailEQ(), CardNumberTailEqualFold() (+414 more)
+Nodes (434): AccountTypeIn(), AccountTypeNotIn(), And(), CardNumberTail(), CardNumberTailContains(), CardNumberTailContainsFold(), CardNumberTailEQ(), CardNumberTailEqualFold() (+426 more)
 
 ### Community 4 - "Reminder Commands"
 Cohesion: 0.03
 Nodes (149): AmountCents(), AmountCentsEQ(), AmountCentsGT(), AmountCentsGTE(), AmountCentsIn(), AmountCentsLT(), AmountCentsLTE(), AmountCentsNEQ() (+141 more)
 
 ### Community 5 - "ZH Account Form i18n"
-Cohesion: 0.02
-Nodes (124): account.pbenum.dart, AccountCategory get, AccountDTO get, AccountStatus get, AccountType get, Ownership get, static AccountDTO?, static AccountResponse? (+116 more)
+Cohesion: 0.01
+Nodes (135): account.pbenum.dart, AccountCategory get, AccountDTO get, AccountStatus get, Ownership get, static AccountDTO?, static AccountResponse?, static CreateAccountRequest? (+127 more)
 
 ### Community 6 - "Debt Domain Logic"
-Cohesion: 0.10
-Nodes (26): account ownership (own vs external), account_type CHECK constraint evolution, accounts created_at column migration, accounts table (unified), budget_items table, budgets table, categories table (dropped), monetary amounts as integer cents (+18 more)
+Cohesion: 0.11
+Nodes (23): account ownership (own vs external), account_type CHECK constraint evolution, accounts created_at column migration, accounts table (unified), budget_items table, budgets table, categories table (dropped), monetary amounts as integer cents (+15 more)
 
 ### Community 7 - "Account Aggregate"
+Cohesion: 0.04
+Nodes (74): getRelativeTime(), SyncStatus(), SyncStatusDto, setLastSyncTime(), triggerSync(), invokeTauri(), TauriArgs, TagRepository (+66 more)
+
+### Community 8 - "Misc Cluster 8"
 Cohesion: 0.03
-Nodes (101): TagsSection(), useCreateTag(), useSoftDeleteTag(), useTags(), useUpdateTag(), invokeTauri(), TauriArgs, TagRepository (+93 more)
+Nodes (101): _fetchSummary, _flavourOf, _monthEnd, _monthStart, _onLoad, _onLoadDetail, _onLoadMore, _onLoadSummary (+93 more)
 
 ### Community 9 - "Chart of Accounts"
 Cohesion: 0.05
@@ -1609,12 +1606,12 @@ Cohesion: 0.02
 Nodes (116): holding.pbenum.dart, HoldingTransactionDTO get, SecurityDTO get, SecurityType get, static CreateSecurityRequest?, static HoldingDTO?, static HoldingTradeRequest?, static HoldingTransactionDTO? (+108 more)
 
 ### Community 12 - "Notification & Scheduler"
-Cohesion: 0.10
-Nodes (21): ALL_GROUP_IDS, getDefaultState(), GroupId, loadStateFromStorage(), useSidebarState(), AppLayout(), AppLayoutProps, Header() (+13 more)
+Cohesion: 0.02
+Nodes (93): buildSettings(), handleTestConnection(), AccountChangesDialogProps, CloudConfigDialog(), CloudConfigDialogProps, OAUTH_CLIENT_IDS, OAUTH_PROVIDERS, PROVIDER_ICONS (+85 more)
 
 ### Community 13 - "Backup UI & Commands"
-Cohesion: 0.05
-Nodes (42): CurrencyForm(), CurrencyFormProps, SyncConflictDialog(), SyncConflictDialogProps, useCloudSyncNow(), useCloudSyncSettings(), useCloudSyncStatus(), useResolveSyncConflict() (+34 more)
+Cohesion: 0.14
+Nodes (17): CurrencyFormProps, buildRateMap(), calculateTotalBalanceInCNY(), convertAmountWithDto(), convertMoney(), ExchangeRate, getMissingRates(), addCurrency() (+9 more)
 
 ### Community 14 - "Category Commands"
 Cohesion: 0.04
@@ -1626,43 +1623,43 @@ Nodes (45): TemplateCycle, TemplateDirection, TransactionTemplate, TransactionTe
 
 ### Community 16 - "Reminder Integration Tests"
 Cohesion: 0.03
-Nodes (91): @LazySingleton, AssertionError, AccountRemoteDataSource, AccountRepositoryImpl, create, delete, getById, list (+83 more)
+Nodes (80): AccountType get, account, AccountDetailLoaded, AccountError, AccountFormSubmitting, AccountInitial, AccountLoading, accounts (+72 more)
 
 ### Community 17 - "Debt Domain Logic"
 Cohesion: 0.04
 Nodes (104): And(), AvatarURL(), AvatarURLContains(), AvatarURLContainsFold(), AvatarURLEQ(), AvatarURLEqualFold(), AvatarURLGT(), AvatarURLGTE() (+96 more)
 
 ### Community 18 - "Router & Dashboard"
-Cohesion: 0.02
-Nodes (142): handleSubmit(), handleClose(), resetWizard(), DataCard(), DataCardProps, HeroCard(), HeroCardProps, StatCard() (+134 more)
+Cohesion: 0.06
+Nodes (41): ErrorBoundary, ErrorBoundaryProps, ErrorBoundaryState, ErrorFallbackDisplay(), ErrorFallbackDisplayProps, queryClient, HoldingsPage(), HomePage() (+33 more)
 
 ### Community 19 - "ZH Transaction i18n"
-Cohesion: 0.06
-Nodes (98): BalanceUpdaterImpl, LocalProvider, openEntDriver(), provideAccountEntClient(), provideAccountHandler(), provideAccountRepo(), provideAccountService(), provideAuthEntClient() (+90 more)
+Cohesion: 0.05
+Nodes (105): BalanceUpdaterImpl, LocalProvider, MockProvider, accountPresetSeeder, openEntDriver(), provideAccountEntClient(), provideAccountHandler(), provideAccountRepo() (+97 more)
 
 ### Community 20 - "ZH Debts i18n"
 Cohesion: 0.04
-Nodes (97): And(), CategoryType(), CategoryTypeContains(), CategoryTypeContainsFold(), CategoryTypeEQ(), CategoryTypeEqualFold(), CategoryTypeGT(), CategoryTypeGTE() (+89 more)
+Nodes (69): CategoryBloc, CategoryEvent, color, DeleteCategoryRequested, icon, id, LoadCategoriesRequested, name (+61 more)
 
 ### Community 21 - "Debts Page"
-Cohesion: 0.03
-Nodes (128): handleNew(), resetForm(), CurrencyFormValues, amortizationLabel(), DebtDetailPanel(), DebtDetailPanelProps, debtTypeBadge(), formatCurrency() (+120 more)
+Cohesion: 0.04
+Nodes (94): HeroCard(), HeroCardProps, StatCard(), StatCardProps, handleNew(), resetForm(), AccountDetailPanel(), DetailBalanceChart() (+86 more)
 
 ### Community 22 - "EN Common i18n"
 Cohesion: 0.04
-Nodes (97): And(), CreatedAtIn(), CreatedAtNotIn(), CurrencyCode(), CurrencyCodeContains(), CurrencyCodeContainsFold(), CurrencyCodeEQ(), CurrencyCodeEqualFold() (+89 more)
+Nodes (89): And(), CreatedAtIn(), CreatedAtNotIn(), CurrencyCode(), CurrencyCodeContains(), CurrencyCodeContainsFold(), CurrencyCodeEQ(), CurrencyCodeEqualFold() (+81 more)
 
 ### Community 23 - "EN Reminders i18n"
 Cohesion: 0.02
 Nodes (96): AmortizationMethod get, debt.pbenum.dart, DebtDetailDTO get, DebtDTO get, PaymentEntryDTO get, static CreateDebtRequest?, static DebtDetailDTO?, static DebtDetailResponse? (+88 more)
 
 ### Community 24 - "ZH Locale Misc"
-Cohesion: 0.05
-Nodes (68): GoalType, test_goal_creation(), test_mark_completed(), test_progress_percentage(), buildSettings(), handleTestConnection(), AccountChangesDialogProps, CloudConfigDialog() (+60 more)
+Cohesion: 0.06
+Nodes (54): Goal, GoalType, test_goal_creation(), test_mark_completed(), test_progress_percentage(), ByCompletedAt(), ByCreatedAt(), ByCurrencyCode() (+46 more)
 
 ### Community 25 - "Budget Page"
-Cohesion: 0.08
-Nodes (35): test_budget_creation(), useAddBudgetItem(), useBudgetByMonth(), useCloneBudgetToMonth(), useComputeBudgetActuals(), useCreateBudget(), useDeleteBudget(), useRemoveBudgetItem() (+27 more)
+Cohesion: 0.14
+Nodes (26): useAddBudgetItem(), useBudgetByMonth(), useCloneBudgetToMonth(), useComputeBudgetActuals(), useCreateBudget(), useDeleteBudget(), useRemoveBudgetItem(), formatBudgetAmount() (+18 more)
 
 ### Community 26 - "EN Accounts i18n"
 Cohesion: 0.04
@@ -1673,8 +1670,8 @@ Cohesion: 0.02
 Nodes (90): BudgetDetailDTO get, BudgetDTO get, static AddBudgetItemRequest?, static BudgetDetailDTO?, static BudgetDetailResponse?, static BudgetDTO?, static BudgetItemDTO?, static BudgetItemInput? (+82 more)
 
 ### Community 28 - "Backup Service"
-Cohesion: 0.12
-Nodes (43): BackupData, BackupError, BackupFile, BackupInfo, BackupMetadata, BackupService, bind_json_value(), diff_table() (+35 more)
+Cohesion: 0.15
+Nodes (27): BackupData, BackupError, BackupFile, BackupInfo, BackupMetadata, BackupService, diff_table(), DiffSummary (+19 more)
 
 ### Community 29 - "Transaction Commands"
 Cohesion: 0.05
@@ -1685,8 +1682,8 @@ Cohesion: 0.05
 Nodes (51): Account Card Component, Amount Input with Currency Tag, Asset Allocation Panel, Budget Category Card, Budget Category Row Pattern, Budget Category Row Editor, Buy/Sell Tab Selector, Dashboard Page (+43 more)
 
 ### Community 31 - "Accounts Page"
-Cohesion: 0.03
-Nodes (84): ../../account/data/account_remote_ds.dart, ../../account/data/account_repository_impl.dart, ../../account/data/mappers/account_mapper.dart, ../../account/domain/repositories/account_repository.dart, ../../account/domain/usecases/create_account_usecase.dart, ../../account/domain/usecases/delete_account_usecase.dart, ../../account/domain/usecases/get_account_usecase.dart, ../../account/domain/usecases/list_accounts_usecase.dart (+76 more)
+Cohesion: 0.01
+Nodes (221): ../../account/data/account_remote_ds.dart, ../../account/data/account_repository_impl.dart, ../../account/data/mappers/account_mapper.dart, ../../account/domain/repositories/account_repository.dart, ../../account/domain/usecases/create_account_usecase.dart, ../../account/domain/usecases/delete_account_usecase.dart, ../../account/domain/usecases/get_account_usecase.dart, ../../account/domain/usecases/list_accounts_usecase.dart (+213 more)
 
 ### Community 32 - "Transaction Service"
 Cohesion: 0.05
@@ -1697,28 +1694,24 @@ Cohesion: 0.05
 Nodes (86): AccountIDIn(), AccountIDNotIn(), AmountCents(), AmountCentsEQ(), AmountCentsGT(), AmountCentsGTE(), AmountCentsIn(), AmountCentsLT() (+78 more)
 
 ### Community 34 - "EN Debts i18n"
-Cohesion: 0.04
-Nodes (83): AccountEvent, AccountBloc, CreateAccountRequested, DeleteAccountRequested, GetAccountRequested, id, LoadAccountsRequested, params (+75 more)
+Cohesion: 0.03
+Nodes (116): AccountEvent, AccountBloc, _create, _delete, _get, _last, _list, _onCreate (+108 more)
 
 ### Community 35 - "App Root"
-Cohesion: 0.03
-Nodes (72): build, YuCaiApp, _AuthBlocListenable, buildRouter, dispose, _sub, ChangeNotifier, FormState (+64 more)
+Cohesion: 0.02
+Nodes (131): build, YuCaiApp, _account, app, getIt, main, _MockAccountRepo, _MockTxnRepo (+123 more)
 
 ### Community 36 - "EN Accounts i18n"
-Cohesion: 0.11
-Nodes (22): Holding, HoldingTransaction, HoldingTransactionType, ByAccountID(), ByAvgCostCents(), ByCreatedAt(), ByID(), ByQuantity() (+14 more)
+Cohesion: 0.18
+Nodes (14): Holding, ByAccountID(), ByAvgCostCents(), ByCreatedAt(), ByID(), ByQuantity(), BySecurityID(), ByTenantID() (+6 more)
 
 ### Community 37 - "Sync Service"
 Cohesion: 0.06
 Nodes (52): AtomicUsize, Clone, F, L, AppHandle, Arc, Box, Default (+44 more)
 
-### Community 38 - "Category Domain"
-Cohesion: 0.23
-Nodes (14): ByCategoryType(), ByColor(), ByCreatedAt(), ByDeletedAt(), ByIcon(), ByID(), ByIsSystem(), ByName() (+6 more)
-
 ### Community 39 - "Misc Cluster 39"
-Cohesion: 0.05
-Nodes (62): ApiError, ErrorResponse, create_sync_routes(), pull_changes(), push_changes(), register(), sync_status(), SyncState (+54 more)
+Cohesion: 0.12
+Nodes (26): create_sync_routes(), pull_changes(), push_changes(), register(), sync_status(), SyncState, ApiError, EntityChange (+18 more)
 
 ### Community 40 - "Sync Service"
 Cohesion: 0.02
@@ -1769,12 +1762,12 @@ Cohesion: 0.10
 Nodes (25): Stat Row Layout, P0 Task 7: Shared Component Skeletons, P0 Task 8: Route Expansion, P1 Task 1: AccountsPage Table to DataCard Grid, P1 Task 2: AccountDetailPage Implementation, P1 Task 3: Account Form Pages Restyle, P2 Task 1: TransactionsPage Restyle, P2 Task 2: TransactionDetailPage Implementation (+17 more)
 
 ### Community 52 - "ZH Account Form i18n"
-Cohesion: 0.07
-Nodes (56): BudgetService, last_day_of_month(), SqliteBudgetRepository, Arc, Budget, Option, Result, Self (+48 more)
+Cohesion: 0.22
+Nodes (27): Arc, Budget, BudgetItemDto, BudgetService, From, Option, Result, Self (+19 more)
 
 ### Community 53 - "ZH Debts i18n"
-Cohesion: 0.03
-Nodes (77): static DeleteTransactionRequest?, static EntryDTO?, static GetTransactionRequest?, static ListTransactionsRequest?, static ListTransactionsResponse?, static RecordTransactionRequest?, static SimpleExpenseRequest?, static SimpleIncomeRequest? (+69 more)
+Cohesion: 0.02
+Nodes (111): static CategoryItem?, static DailyItem?, static DeleteTransactionRequest?, static EntryDTO?, static GetTransactionRequest?, static ListTransactionsRequest?, static ListTransactionsResponse?, static MonthlySummary? (+103 more)
 
 ### Community 54 - "Package Dependencies"
 Cohesion: 0.08
@@ -1785,16 +1778,16 @@ Cohesion: 0.05
 Nodes (9): HoldingTransactionUpdate, HoldingTransactionUpdateOne, config, Context, HoldingTransaction, HoldingTransactionMutation, Hook, Time (+1 more)
 
 ### Community 56 - "Screen Artifacts"
-Cohesion: 0.10
-Nodes (39): AccountServiceError, E, AccountService<R, U>, AccountServiceError, InvestmentTemplate, MockAccountRepository, MockCurrencyRepository, test_create_account_invalid_currency() (+31 more)
+Cohesion: 0.05
+Nodes (61): AccountServiceError, E, PostgresAccountRepository, AccountService, AccountService<R, U>, AccountServiceError, InvestmentTemplate, MockAccountRepository (+53 more)
 
 ### Community 57 - "Account Commands"
-Cohesion: 0.05
-Nodes (5): CategoryMutation, Op, Time, UUID, Value
+Cohesion: 0.04
+Nodes (48): main, remote, repo, sample, sampleDate, AuthFailure, displayMessage, Failure (+40 more)
 
 ### Community 58 - "Encryption Service"
-Cohesion: 0.05
-Nodes (9): CategoryUpdate, CategoryUpdateOne, Category, CategoryMutation, config, Context, Hook, Time (+1 more)
+Cohesion: 0.06
+Nodes (32): 10. 数据迁移, 11. 范围边界 + UI 占位策略, 12. 未来迭代（本期 UI 占位，功能待对接）, 13. 三尺寸原型参考（Open Design）, 1. 概述, 2. 现状（探索结论）, 3. 设计决策：方案 A（account-as-category）, 4. 切片地图（方法 3 + 共享基础层先行） (+24 more)
 
 ### Community 59 - "Debt Service"
 Cohesion: 0.06
@@ -1809,8 +1802,8 @@ Cohesion: 0.09
 Nodes (21): aliases, components, hooks, lib, ui, utils, iconLibrary, menuAccent (+13 more)
 
 ### Community 62 - "Full-Text Search"
-Cohesion: 0.07
-Nodes (49): CategoryServiceError, DebtService, CategoryDto, CategoryService, CategoryService<R>, CategoryServiceError, EncryptionAppError, EncryptionAppService (+41 more)
+Cohesion: 0.23
+Nodes (22): DebtService, CreateDebtDto, DebtDto, RecordPaymentDto, Result, Self, SqlitePool, State (+14 more)
 
 ### Community 63 - "Account Repositories"
 Cohesion: 0.05
@@ -1818,7 +1811,7 @@ Nodes (73): AccountIDIn(), AccountIDNotIn(), AmortizationMethod(), AmortizationM
 
 ### Community 64 - "Misc Cluster 64"
 Cohesion: 0.05
-Nodes (69): DebtForm(), FormValues, HoldingTradeForm(), Props, SECURITY_TYPES, tradeSchema, SimpleTransactionForm(), formatAmount() (+61 more)
+Nodes (55): HoldingTradeForm(), Props, CursorPageState, FetcherFn, PageInfo, PaginatedResult, useCursorPagination(), addDecimals() (+47 more)
 
 ### Community 65 - "Misc Cluster 65"
 Cohesion: 0.07
@@ -1826,7 +1819,7 @@ Nodes (54): ByCode(), ByExchangeRate(), ByID(), ByIsActive(), ByName(), BySymbol
 
 ### Community 66 - "Account Edit & Hero"
 Cohesion: 0.05
-Nodes (5): GoalMutation, Op, Time, Tx, UUID
+Nodes (5): GoalMutation, Op, Time, Tx, Value
 
 ### Community 67 - "Misc Cluster 67"
 Cohesion: 0.05
@@ -1857,8 +1850,8 @@ Cohesion: 0.11
 Nodes (19): compilerOptions, allowJs, allowSyntheticDefaultImports, baseUrl, esModuleInterop, forceConsistentCasingInFileNames, isolatedModules, jsx (+11 more)
 
 ### Community 74 - "Transaction Commands"
-Cohesion: 0.05
-Nodes (49): Client, Context, AggregateFunc, clientCtxKey, ConstraintError, As(), Asc(), checkColumn() (+41 more)
+Cohesion: 0.16
+Nodes (13): noopBalanceUpdater, recentTxnRepo, recordingTxnRepo, AccountFilter, Context, MonthlySummary, PageRequest, PaginatedResult (+5 more)
 
 ### Community 75 - "Goals Domain"
 Cohesion: 0.12
@@ -1873,8 +1866,8 @@ Cohesion: 0.07
 Nodes (38): description_i18n, ar, de, en, es, fr, id, it (+30 more)
 
 ### Community 78 - "Transaction Domain Tests"
-Cohesion: 0.33
-Nodes (9): OrderOption, ByCreatedAt(), ByCurrencyCode(), ByCurrentPriceCents(), ByExchange(), ByID(), ByName(), BySecurityType() (+1 more)
+Cohesion: 0.05
+Nodes (35): main, d, day, _entryToDomain, entryToProto, formatTxnDate, fromMillisecondsSinceEpoch, _i64 (+27 more)
 
 ### Community 79 - "Account Repositories"
 Cohesion: 0.05
@@ -1905,16 +1898,16 @@ Cohesion: 0.05
 Nodes (49): Client, Context, AggregateFunc, clientCtxKey, ConstraintError, As(), Asc(), checkColumn() (+41 more)
 
 ### Community 86 - "Debt Domain Logic"
-Cohesion: 0.18
-Nodes (11): Buy/Sell Creates Double-Entry Transaction, Categories Absorbed Into Accounts, Debt Repayment Creates Double-Entry Transaction, Low Balance Alert (Prepaid), No Uuid::nil() Sentinel Rationale, Prepaid Account Type, Prepaid Consumption Feature, Prepaid Double-Entry Transaction Flows (+3 more)
+Cohesion: 0.06
+Nodes (35): static final, accountId, accountOptions, _boxDecoration, category, categoryOptions, copyWith, current (+27 more)
 
 ### Community 87 - "HTML Prototypes"
 Cohesion: 0.05
 Nodes (49): Client, Context, AggregateFunc, clientCtxKey, ConstraintError, As(), Asc(), checkColumn() (+41 more)
 
 ### Community 88 - "Debt Service"
-Cohesion: 0.05
-Nodes (39): AccountCreate, AccountCreateBulk, AccountDelete, AccountDeleteOne, AccountQuery, AccountUpdate, ChartOfAccountsCreate, ChartOfAccountsCreateBulk (+31 more)
+Cohesion: 0.06
+Nodes (31): AccountCreate, AccountCreateBulk, AccountDelete, AccountDeleteOne, AccountQuery, AccountUpdate, ChartOfAccountsCreate, ChartOfAccountsCreateBulk (+23 more)
 
 ### Community 89 - "Reports"
 Cohesion: 0.11
@@ -1930,7 +1923,7 @@ Nodes (15): AI Assistant System, Backup File Format (.enc), Backup Module Design
 
 ### Community 92 - "Tags System"
 Cohesion: 0.12
-Nodes (21): Budget, test_add_item(), test_over_budget(), test_remove_item(), ByCreatedAt(), ByCurrencyCode(), ByDeletedAt(), ByID() (+13 more)
+Nodes (22): Budget, test_add_item(), test_budget_creation(), test_over_budget(), test_remove_item(), ByCreatedAt(), ByCurrencyCode(), ByDeletedAt() (+14 more)
 
 ### Community 93 - "Misc Cluster 93"
 Cohesion: 0.06
@@ -1938,7 +1931,7 @@ Nodes (34): HoldingTransactionClient, holdingtransactionOption, newHoldingTransa
 
 ### Community 94 - "Encryption Service"
 Cohesion: 0.06
-Nodes (46): CategoryDTO, CreateCategoryRequest, CategoryToDTO(), ListCategoriesResult, UpdateCategoryRequest, Category, CategoryType, TestCategory_SoftDelete_SystemRejected() (+38 more)
+Nodes (31): Execution Handoff, File Structure, Global Constraints, Self-Review, Task 0.1: 服务端 account 字段扩展（parent_id/is_system/sort_order）, Task 0.2: 服务端 account FindByAccountType 查询, Task 0.3: 服务端 transaction wire ProviderSet 注册, Task 0.4: 客户端 proto grpc stub 生成 (+23 more)
 
 ### Community 95 - "Reports"
 Cohesion: 0.06
@@ -1962,7 +1955,7 @@ Nodes (14): author, name, url, compat, agentSkills, description, homepage, licen
 
 ### Community 100 - "Misc Cluster 100"
 Cohesion: 0.06
-Nodes (48): CreateGoalRequest, GoalToDTO(), GoalDTO, ListGoalsRequest, ListGoalsResult, UpdateGoalRequest, UpdateProgressRequest, TestGoal_AddProgress() (+40 more)
+Nodes (46): CreateGoalRequest, GoalToDTO(), GoalDTO, ListGoalsRequest, ListGoalsResult, UpdateGoalRequest, UpdateProgressRequest, TestGoal_AddProgress() (+38 more)
 
 ### Community 102 - "Debt Service"
 Cohesion: 0.07
@@ -1981,8 +1974,8 @@ Cohesion: 0.06
 Nodes (9): PaymentScheduleUpdate, PaymentScheduleUpdateOne, config, Context, Hook, PaymentSchedule, PaymentScheduleMutation, Time (+1 more)
 
 ### Community 106 - "Screen Artifacts"
-Cohesion: 0.03
-Nodes (62): EdgeInsetsGeometry, FilterTab, IconData?, ValueChanged, VoidCallback, Widget, build, child (+54 more)
+Cohesion: 0.06
+Nodes (34): accountCount, _accountsOf, assetTotal, build, createState, data, date, emptyHint (+26 more)
 
 ### Community 107 - "Screen Artifacts"
 Cohesion: 0.06
@@ -1993,12 +1986,12 @@ Cohesion: 0.05
 Nodes (3): HoldingMutation, Client, UUID
 
 ### Community 110 - "Screen Artifacts"
-Cohesion: 0.04
-Nodes (54): @InjectableInit, AuthInterceptor, AuthServiceClient, ClientChannel, Completer, AppConfig, serverHost, serverPort (+46 more)
+Cohesion: 0.02
+Nodes (172): AccountServiceClient, @InjectableInit, @LazySingleton, AssertionError, AuthServiceClient, ClientInterceptor, dart:developer, AccountRemoteDataSource (+164 more)
 
 ### Community 111 - "Debt Service"
 Cohesion: 0.03
-Nodes (3): AccountUpdate, config, Hook
+Nodes (3): AccountUpdate, AccountMutation, Hook
 
 ### Community 112 - "Screen Artifacts"
 Cohesion: 0.05
@@ -2022,7 +2015,7 @@ Nodes (31): newTransactionEntryMutation(), newTransactionMutation(), Transaction
 
 ### Community 117 - "Screen Artifacts"
 Cohesion: 0.06
-Nodes (30): BudgetCreate, BudgetCreateBulk, BudgetDelete, BudgetDeleteOne, BudgetItemCreate, BudgetItemCreateBulk, BudgetItemDelete, BudgetItemDeleteOne (+22 more)
+Nodes (31): BudgetCreate, BudgetCreateBulk, BudgetDelete, BudgetDeleteOne, BudgetItemCreate, BudgetItemCreateBulk, BudgetItemDelete, BudgetItemDeleteOne (+23 more)
 
 ### Community 118 - "Screen Artifacts"
 Cohesion: 0.07
@@ -2033,8 +2026,8 @@ Cohesion: 0.06
 Nodes (30): newTenantMutation(), newUserMutation(), TenantClient, UserClient, TenantCreate, TenantCreateBulk, TenantDelete, TenantDeleteOne (+22 more)
 
 ### Community 120 - "Screen Artifacts"
-Cohesion: 0.05
-Nodes (47): account.pb.dart, account.pbjson.dart, auth.pb.dart, auth.pbjson.dart, backup.pb.dart, backup.pbjson.dart, budget.pb.dart, budget.pbjson.dart (+39 more)
+Cohesion: 0.04
+Nodes (54): account.pb.dart, account.pbjson.dart, auth.pb.dart, auth.pbjson.dart, backup.pb.dart, backup.pbjson.dart, budget.pb.dart, budget.pbjson.dart (+46 more)
 
 ### Community 121 - "Screen Artifacts"
 Cohesion: 0.06
@@ -2053,8 +2046,8 @@ Cohesion: 0.06
 Nodes (60): And(), CreatedAtIn(), CreatedAtNotIn(), DeviceIDIn(), DeviceIDNotIn(), EntityIDIn(), EntityIDNotIn(), EntityType() (+52 more)
 
 ### Community 126 - "Screen Artifacts"
-Cohesion: 0.06
-Nodes (5): BudgetItemMutation, config, Tx, UUID, Value
+Cohesion: 0.05
+Nodes (5): BudgetItemMutation, Op, Tx, UUID, Value
 
 ### Community 127 - "Debt Service"
 Cohesion: 0.09
@@ -2077,8 +2070,8 @@ Cohesion: 0.08
 Nodes (36): ClientConnInterface, Context, CreateSecurityRequest, Empty, HoldingTradeRequest, HoldingTransactionResponse, ListHoldingsRequest, ListHoldingsResponse (+28 more)
 
 ### Community 132 - "Screen Artifacts"
-Cohesion: 0.03
-Nodes (57): category.pbenum.dart, CategoryDTO get, CategoryType get, static CategoryDTO?, static CategoryResponse?, static CreateCategoryRequest?, static DeleteCategoryRequest?, static GetCategoryRequest? (+49 more)
+Cohesion: 0.04
+Nodes (56): category.pbenum.dart, CategoryDTO get, CategoryType get, static CategoryDTO?, static CategoryResponse?, static CreateCategoryRequest?, static DeleteCategoryRequest?, static GetCategoryRequest? (+48 more)
 
 ### Community 133 - "Screen Artifacts"
 Cohesion: 0.07
@@ -2089,8 +2082,8 @@ Cohesion: 0.04
 Nodes (57): CreatedAt(), CreatedAtEQ(), CreatedAtGT(), CreatedAtGTE(), CreatedAtLT(), CreatedAtLTE(), CreatedAtNEQ(), DeletedAt() (+49 more)
 
 ### Community 135 - "Screen Artifacts"
-Cohesion: 0.06
-Nodes (53): Bloc, AccountEvent, account, AccountDetailLoaded, AccountError, AccountFormSubmitting, AccountInitial, AccountLoading (+45 more)
+Cohesion: 0.03
+Nodes (96): Bloc, _accountRepo, _onExpense, _onIncome, _onLoad, _onTransfer, accountRepo, _asset (+88 more)
 
 ### Community 136 - "Screen Artifacts"
 Cohesion: 0.05
@@ -2105,8 +2098,8 @@ Cohesion: 0.33
 Nodes (8): Sprint 1 Backlog (Local Version), Sprint 2 Backlog (Sync), US-1: Data Encryption Storage, US-3: Payment Reminder Notifications, US-4: Multi-Device Data Sync, US-5: Secure Sync Authentication, ISSUE-001: No Authentication on Sync API, ISSUE-002: No Data Encryption
 
 ### Community 139 - "Misc Cluster 139"
-Cohesion: 0.04
-Nodes (55): _AccountCard, _AccountsHeader, _GroupBlock, accountCount, _accountsOf, assetTotal, createState, data (+47 more)
+Cohesion: 0.01
+Nodes (168): Breakpoint?, MonthlySummary? get, package:yucai_client/core/widgets/data_card.dart, package:yucai_client/transaction/presentation/widgets/responsive_layout.dart, package:yucai_client/transaction/presentation/widgets/summary_card.dart, _ColorPicker, abs, account (+160 more)
 
 ### Community 140 - "Misc Cluster 140"
 Cohesion: 0.07
@@ -2133,12 +2126,12 @@ Cohesion: 0.07
 Nodes (8): TransactionEntryUpdate, TransactionEntryUpdateOne, config, Context, Hook, TransactionEntry, TransactionEntryMutation, UUID
 
 ### Community 147 - "Goals Domain"
-Cohesion: 0.06
-Nodes (61): Goal, ByCompletedAt(), ByCreatedAt(), ByCurrencyCode(), ByCurrentAmountCents(), ByDeadline(), ByGoalType(), ByID() (+53 more)
+Cohesion: 0.13
+Nodes (23): TransactionService, TransactionServiceError, SimpleExpenseDto, SimpleIncomeDto, SimpleTransferDto, Arc, CreateTransactionDto, Display (+15 more)
 
 ### Community 148 - "Misc Cluster 148"
-Cohesion: 0.11
-Nodes (48): CreateSecurityDto, Decimal, DividendDto, HoldingDto, HoldingService, HoldingTradeDto, HoldingTransactionDto, Option (+40 more)
+Cohesion: 0.18
+Nodes (34): CreateSecurityDto, Decimal, DividendDto, HoldingDto, HoldingService, HoldingTradeDto, HoldingTransactionDto, Option (+26 more)
 
 ### Community 149 - "Screen Artifacts"
 Cohesion: 0.22
@@ -2169,8 +2162,8 @@ Cohesion: 0.11
 Nodes (18): Cloud Backup Providers, DDD 4-Layer Architecture, SQLite FTS5 Full-Text Search, i18n No Literal String Constraint, INTEGER Cents Monetary Storage, Project Overview (CLAUDE.md), Soft Delete (Tombstone Pattern), Tauri IPC Wrapper Pattern (+10 more)
 
 ### Community 156 - "Sync Service"
-Cohesion: 0.12
-Nodes (21): CloudBackupInfo, CloudError, CloudPreset, CloudProvider, CloudSettings, get_presets(), build_cloud_provider(), Provider (+13 more)
+Cohesion: 0.20
+Nodes (15): CloudBackupInfo, CloudError, CloudPreset, CloudProvider, CloudSettings, get_presets(), Provider, auto_backup_settings table (+7 more)
 
 ### Community 157 - "YuCai UI Plans"
 Cohesion: 0.29
@@ -2202,7 +2195,7 @@ Nodes (32): AddBudgetItemRequest, BudgetDetailResponse, BudgetResponse, ClientCo
 
 ### Community 164 - "Reports"
 Cohesion: 0.07
-Nodes (49): ByAccountType(), ByCardNumberTail(), ByCategory(), ByChartCode(), ByColor(), ByCreatedAt(), ByCreditAnnualFeeCents(), ByCreditBillingDay() (+41 more)
+Nodes (51): ByAccountType(), ByCardNumberTail(), ByCategory(), ByChartCode(), ByColor(), ByCreatedAt(), ByCreditAnnualFeeCents(), ByCreditBillingDay() (+43 more)
 
 ### Community 165 - "Misc Cluster 165"
 Cohesion: 0.25
@@ -2225,8 +2218,8 @@ Cohesion: 0.27
 Nodes (10): Database Performance Indexes, Improvement Task Plan - Sprint Roadmap, Low-Balance Notification Wiring, N+1 Query Fix (Batch Loading), Prepaid Expiry Alert Scheduler, Server-Side Account Filtering (Replace In-Memory), Sprint 7: Pagination and YoY Design, Sprint 8-9: Performance Optimization and Tech Debt Cleanup (+2 more)
 
 ### Community 173 - "Misc Cluster 173"
-Cohesion: 0.04
-Nodes (50): FormField, package:flutter/material.dart, package:flutter/services.dart, package:yucai_client/core/theme/app_design.dart, static const List, TextEditingController, _, accent (+42 more)
+Cohesion: 0.06
+Nodes (35): static const, static const List, _, accent, accentHover, accentSoft, AppColors, AppRadius (+27 more)
 
 ### Community 174 - "Misc Cluster 174"
 Cohesion: 0.04
@@ -2265,8 +2258,8 @@ Cohesion: 0.38
 Nodes (7): Sprint 7 Token-Based Pagination and YoY Plan, Sprint 8 Performance Optimization Plan, Cursor-Based Pagination, N+1 Query Fix Pattern, PrepaidAlertScheduler, ReportService, Server-Side Report Aggregation
 
 ### Community 183 - "Misc Cluster 183"
-Cohesion: 0.10
-Nodes (14): CategoryGroupBy, CategorySelect, CategoryGroupBy, CategoryQuery, CategorySelect, Category, config, Context (+6 more)
+Cohesion: 0.15
+Nodes (24): NotificationService, check_and_trigger_creates_next_occurrence_for_recurring(), check_and_trigger_sends_notification_for_due_reminder(), check_and_trigger_skips_already_notified(), check_and_trigger_skips_future_reminders(), metadata(), reminder(), ReminderScheduler (+16 more)
 
 ### Community 184 - "Tags System"
 Cohesion: 0.10
@@ -2277,8 +2270,8 @@ Cohesion: 0.10
 Nodes (14): CurrencyGroupBy, CurrencySelect, CurrencyGroupBy, CurrencyQuery, CurrencySelect, config, Context, Currency (+6 more)
 
 ### Community 186 - "Misc Cluster 186"
-Cohesion: 0.04
-Nodes (38): EmptyState(), EmptyStateProps, GlobalSearch(), GlobalSearchProps, resultTypeIcons, resultTypeRoutes, getRelativeTime(), SyncStatus() (+30 more)
+Cohesion: 0.02
+Nodes (99): DataCard(), DataCardProps, EmptyState(), GlobalSearch(), GlobalSearchProps, resultTypeIcons, resultTypeRoutes, AmountInput() (+91 more)
 
 ### Community 187 - "Reminder System"
 Cohesion: 0.10
@@ -2425,8 +2418,12 @@ Cohesion: 0.10
 Nodes (14): UserGroupBy, UserQuery, UserSelect, UserGroupBy, UserSelect, config, Context, Interceptor (+6 more)
 
 ### Community 225 - "Misc Cluster 225"
-Cohesion: 0.06
-Nodes (33): Account, Accounts, NewAccountClient(), NewChartOfAccountsClient(), AccountType, AccountUpdateOne, Category, config (+25 more)
+Cohesion: 0.17
+Nodes (11): Account, Accounts, AccountType, Category, config, Ownership, SelectValues, Status (+3 more)
+
+### Community 228 - "Misc Cluster 228"
+Cohesion: 0.18
+Nodes (16): GoalService, GoalServiceError, SqliteGoalRepository, Arc, Display, Error, Formatter, From (+8 more)
 
 ### Community 232 - "Misc Cluster 232"
 Cohesion: 0.08
@@ -2481,8 +2478,8 @@ Cohesion: 0.07
 Nodes (40): Point, RECT, MessageHandler(), OnCreate(), Create(), Destroy(), EnableFullDpiSupportIfAvailable(), GetClientArea() (+32 more)
 
 ### Community 275 - "Community 275"
-Cohesion: 0.14
-Nodes (29): create_test_account(), setup_test_db(), SqliteAccountRepository, test_create_and_find_by_id(), test_find_all_excludes_deleted(), test_find_all_including_deleted(), test_find_by_type(), test_get_changes_since() (+21 more)
+Cohesion: 0.18
+Nodes (15): SqliteAccountRepository, Account, AccountRepository, DateTime, Decimal, Error, HashMap, Option (+7 more)
 
 ### Community 276 - "Community 276"
 Cohesion: 0.10
@@ -2493,8 +2490,8 @@ Cohesion: 0.10
 Nodes (29): HoldingService, HoldingServiceError, parse_security_type(), SqliteHoldingRepository, SqliteSecurityRepository, Arc, CreateSecurityDto, Decimal (+21 more)
 
 ### Community 278 - "Community 278"
-Cohesion: 0.10
-Nodes (29): ClientConnInterface, Context, DeleteTransactionRequest, Empty, GetTransactionRequest, ListTransactionsRequest, ListTransactionsResponse, RecordTransactionRequest (+21 more)
+Cohesion: 0.09
+Nodes (32): _TransactionService_TransactionSummary_Handler(), ClientConnInterface, Context, DeleteTransactionRequest, Empty, GetTransactionRequest, ListTransactionsRequest, ListTransactionsResponse (+24 more)
 
 ### Community 279 - "Community 279"
 Cohesion: 0.16
@@ -2505,12 +2502,12 @@ Cohesion: 0.04
 Nodes (46): ../../common/v1/pagination.pb.dart, CurrencyDTO get, static AddCurrencyRequest?, static CurrencyDTO?, static CurrencyResponse?, static FetchRateRequest?, static FetchRateResponse?, static ListCurrenciesRequest? (+38 more)
 
 ### Community 281 - "Community 281"
-Cohesion: 0.09
-Nodes (40): main(), accountCategoryToProto(), accountStatusToProto(), accountTypeToProto(), contains(), dtoToProto(), getTenantID(), i32ToInt() (+32 more)
+Cohesion: 0.08
+Nodes (46): main(), accountCategoryToProto(), accountStatusToProto(), accountTypeToProto(), contains(), dtoToProto(), getTenantID(), i32ToInt() (+38 more)
 
 ### Community 282 - "Community 282"
-Cohesion: 0.09
-Nodes (10): CategoryCreate, CategoryCreateBulk, Category, CategoryMutation, config, Context, CreateSpec, Hook (+2 more)
+Cohesion: 0.24
+Nodes (24): Arc, From, Goal, GoalService, Option, Result, Self, SqlitePool (+16 more)
 
 ### Community 283 - "Community 283"
 Cohesion: 0.08
@@ -2522,7 +2519,7 @@ Nodes (5): CurrencyMutation, config, Op, Tx, Value
 
 ### Community 285 - "Community 285"
 Cohesion: 0.04
-Nodes (45): AccountRepository, accountType, cardNumberTail, category, color, create, creditAnnualFeeCents, creditBillingDay (+37 more)
+Nodes (46): AccountRepository, accountType, cardNumberTail, category, color, create, creditAnnualFeeCents, creditBillingDay (+38 more)
 
 ### Community 286 - "Community 286"
 Cohesion: 0.09
@@ -2534,23 +2531,23 @@ Nodes (29): ClientConnInterface, Context, CreateDebtRequest, DebtDetailResponse,
 
 ### Community 288 - "Community 288"
 Cohesion: 0.04
-Nodes (44): double?, accountType, cardNumberTail, category, color, copyWith, createdAt, creditAnnualFeeCents (+36 more)
+Nodes (45): double?, accountType, cardNumberTail, category, color, copyWith, createdAt, creditAnnualFeeCents (+37 more)
 
 ### Community 289 - "Community 289"
 Cohesion: 0.12
 Nodes (30): cycle_to_str(), direction_to_str(), parse_cycle(), parse_direction(), transaction_to_dto(), TransactionTemplateService, TransactionTemplateServiceError, SqliteTransactionTemplateRepository (+22 more)
 
 ### Community 290 - "Community 290"
-Cohesion: 0.13
-Nodes (31): creates_valid_reminder(), daily_pattern_adds_one_day(), future_time(), mark_notified_increments_count(), mark_notified_updates_status_and_sync(), metadata(), monthly_pattern_adds_one_month(), monthly_pattern_handles_month_end() (+23 more)
+Cohesion: 0.06
+Nodes (53): creates_valid_reminder(), daily_pattern_adds_one_day(), future_time(), mark_notified_increments_count(), mark_notified_updates_status_and_sync(), metadata(), monthly_pattern_adds_one_month(), monthly_pattern_handles_month_end() (+45 more)
 
 ### Community 291 - "Community 291"
 Cohesion: 0.10
 Nodes (10): HoldingTransactionCreate, HoldingTransactionCreateBulk, config, Context, CreateSpec, HoldingTransaction, HoldingTransactionMutation, Hook (+2 more)
 
 ### Community 292 - "Community 292"
-Cohesion: 0.12
-Nodes (31): SqliteReminderRepository, Arc, From, Option, Reminder, Result, Self, SqlitePool (+23 more)
+Cohesion: 0.10
+Nodes (23): DateRangePreset, ReportsPage(), downloadCSV(), exportBalanceSheet(), exportIncomeStatement(), BalanceSheet, BalanceSheetItem, DashboardSummary (+15 more)
 
 ### Community 293 - "Community 293"
 Cohesion: 0.10
@@ -2597,8 +2594,8 @@ Cohesion: 0.06
 Nodes (21): HoldingClient, holdingOption, newHoldingMutation(), withHolding(), withHoldingID(), withSecurity(), withSecurityID(), securityOption (+13 more)
 
 ### Community 304 - "Community 304"
-Cohesion: 0.07
-Nodes (25): newSyncDeviceMutation(), withSyncConflict(), withSyncConflictID(), withSyncDevice(), withSyncDeviceID(), withSyncLog(), withSyncLogID(), syncconflictOption (+17 more)
+Cohesion: 0.13
+Nodes (18): CategoryServiceError, CategoryDto, CategoryService, CategoryService<R>, CategoryServiceError, Arc, Category, CategoryDto (+10 more)
 
 ### Community 305 - "Community 305"
 Cohesion: 0.10
@@ -2609,12 +2606,12 @@ Cohesion: 0.12
 Nodes (24): Arc, DateTime, Mutex, NotificationError, NotificationSender, Option, Reminder, ReminderRepository (+16 more)
 
 ### Community 307 - "Community 307"
-Cohesion: 0.09
-Nodes (41): And(), CreatedAtIn(), CreatedAtNotIn(), DeletedAtIn(), DeletedAtIsNil(), DeletedAtNotIn(), DeletedAtNotNil(), Description() (+33 more)
+Cohesion: 0.06
+Nodes (85): And(), CreatedAt(), CreatedAtEQ(), CreatedAtGT(), CreatedAtGTE(), CreatedAtIn(), CreatedAtLT(), CreatedAtLTE() (+77 more)
 
 ### Community 308 - "Community 308"
 Cohesion: 0.16
-Nodes (39): BackupFile, BackupInfo, CloudPreset, DiffSummary, RestoreResult, AppHandle, Arc, CloudBackupInfo (+31 more)
+Nodes (40): BackupFile, BackupInfo, CloudPreset, DiffSummary, RestoreResult, main(), AppHandle, Arc (+32 more)
 
 ### Community 309 - "Community 309"
 Cohesion: 0.05
@@ -2649,16 +2646,16 @@ Cohesion: 0.10
 Nodes (32): contains(), debtToProto(), detailToProto(), entryToProto(), getTenantID(), mapError(), methodToProto(), NewDebtHandler() (+24 more)
 
 ### Community 317 - "Community 317"
-Cohesion: 0.16
-Nodes (25): BudgetRepository, setup_test_db(), SqliteBudgetRepository, test_add_and_find_items(), test_create_and_find_budget(), test_delete_budget(), test_find_all(), test_find_by_month() (+17 more)
+Cohesion: 0.18
+Nodes (22): setup_test_db(), SqliteBudgetRepository, test_add_and_find_items(), test_create_and_find_budget(), test_delete_budget(), test_find_all(), test_find_by_month(), test_remove_item() (+14 more)
 
 ### Community 318 - "Community 318"
-Cohesion: 0.05
-Nodes (35): AccountServiceClient, _applyCreateFields, _applyUpdateFields, _client, create, delete, getById, _grpcClient (+27 more)
+Cohesion: 0.02
+Nodes (91): Account? get, EdgeInsetsGeometry, FormField, package:flutter/material.dart, package:flutter/services.dart, package:yucai_client/core/theme/app_design.dart, package:yucai_client/core/widgets/amount_input.dart, package:yucai_client/core/widgets/date_picker_input.dart (+83 more)
 
 ### Community 319 - "Community 319"
-Cohesion: 0.06
-Nodes (26): flutter(), flutter(), flutter(), flutter(), flutter(), flutter(), flutter(), SetMethodCallHandler() (+18 more)
+Cohesion: 0.10
+Nodes (16): flutter(), flutter(), flutter(), SetMethodCallHandler(), DecodeAndProcessResponseEnvelope(), flutter(), flutter(), flutter() (+8 more)
 
 ### Community 320 - "Community 320"
 Cohesion: 0.11
@@ -2677,8 +2674,8 @@ Cohesion: 0.10
 Nodes (8): CategoryValidator(), Category, Account, AccountType, Category, Context, Ownership, Status
 
 ### Community 324 - "Community 324"
-Cohesion: 0.15
-Nodes (28): add_months(), AmortizationMethod, amortized_debt(), compound_factor(), DebtDetails, dec(), dec_rate(), equal_principal_interest_creates_12_month_schedule() (+20 more)
+Cohesion: 0.17
+Nodes (26): add_months(), AmortizationMethod, amortized_debt(), compound_factor(), DebtDetails, dec(), dec_rate(), equal_principal_interest_creates_12_month_schedule() (+18 more)
 
 ### Community 325 - "Community 325"
 Cohesion: 0.09
@@ -2709,12 +2706,12 @@ Cohesion: 0.11
 Nodes (25): ClientConnInterface, Context, GetProfileRequest, GetProfileResponse, LoginRequest, LoginResponse, RefreshTokenRequest, RefreshTokenResponse (+17 more)
 
 ### Community 332 - "Community 332"
-Cohesion: 0.13
-Nodes (23): TransactionService, TransactionServiceError, SimpleExpenseDto, SimpleIncomeDto, SimpleTransferDto, Arc, CreateTransactionDto, Display (+15 more)
+Cohesion: 0.07
+Nodes (4): file_account_v1_account_proto_rawDescGZIP(), AccountType, CreateCategoryRequest, ReorderCategoriesRequest
 
 ### Community 333 - "Community 333"
-Cohesion: 0.15
-Nodes (25): Decimal, Display, Error, Formatter, Into, Result, Self, String (+17 more)
+Cohesion: 0.14
+Nodes (28): Decimal, Display, Error, Formatter, Into, Result, Self, String (+20 more)
 
 ### Community 334 - "Community 334"
 Cohesion: 0.11
@@ -2722,11 +2719,11 @@ Nodes (25): ClientConnInterface, Context, GetProfileRequest, GetProfileResponse,
 
 ### Community 335 - "Community 335"
 Cohesion: 0.15
-Nodes (21): ../../common/v1/pagination.pbjson.dart, dart:convert, dart:core, dart:typed_data, package:protobuf/well_known_types/google/protobuf/empty.pbjson.dart, package:protobuf/well_known_types/google/protobuf/timestamp.pbjson.dart, static const CategoryType, static const SyncOperation (+13 more)
+Nodes (21): ../../common/v1/pagination.pbjson.dart, dart:convert, dart:core, dart:typed_data, package:protobuf/well_known_types/google/protobuf/empty.pbjson.dart, package:protobuf/well_known_types/google/protobuf/timestamp.pbjson.dart, static const CategoryType, static const GoalType (+13 more)
 
 ### Community 336 - "Community 336"
-Cohesion: 0.09
-Nodes (25): NewCategoryClient(), CategoryUpdateOne, CategoryClient, CategoryMutation, config, Context, Driver, Client (+17 more)
+Cohesion: 0.10
+Nodes (22): NewAccountClient(), NewChartOfAccountsClient(), AccountUpdateOne, ChartOfAccountsUpdateOne, AccountClient, ChartOfAccountsClient, config, Driver (+14 more)
 
 ### Community 337 - "Community 337"
 Cohesion: 0.09
@@ -2758,7 +2755,7 @@ Nodes (36): Dependencies Between Tasks, Improvement Task Plan — Sprint Roadmap
 
 ### Community 345 - "Community 345"
 Cohesion: 0.11
-Nodes (27): Account, AccountProfile, ChartOfAccount, TestAccountCategoryStringRoundTrip(), TestAccountCategoryToAccountType(), TestAccountIncrementVersion(), TestAccountSoftDelete(), TestAccountUpdateName() (+19 more)
+Nodes (29): Account, AccountProfile, ChartOfAccount, TestAccount_CategoryFields(), TestAccountCategoryStringRoundTrip(), TestAccountCategoryToAccountType(), TestAccountIncrementVersion(), TestAccountSoftDelete() (+21 more)
 
 ### Community 346 - "Community 346"
 Cohesion: 0.13
@@ -2773,12 +2770,12 @@ Cohesion: 0.06
 Nodes (36): AccountID(), AccountIDEQ(), AccountIDGT(), AccountIDGTE(), AccountIDLT(), AccountIDLTE(), AccountIDNEQ(), ID() (+28 more)
 
 ### Community 349 - "Community 349"
-Cohesion: 0.14
-Nodes (18): PostgresAccountRepository, Account, AccountRepository, AccountType, DateTime, Decimal, Error, HashMap (+10 more)
+Cohesion: 0.25
+Nodes (8): MockReminderRepository, DateTime, NotificationError, Reminder, Result, Utc, Uuid, Vec
 
 ### Community 350 - "Community 350"
-Cohesion: 0.12
-Nodes (23): AccountResponse, ClientConnInterface, Context, CreateAccountRequest, DeleteAccountRequest, Empty, GetAccountRequest, ListAccountsRequest (+15 more)
+Cohesion: 0.08
+Nodes (34): AccountResponse, ClientConnInterface, Context, CreateAccountRequest, CreateCategoryRequest, DeleteAccountRequest, DeleteCategoryRequest, Empty (+26 more)
 
 ### Community 351 - "Community 351"
 Cohesion: 0.12
@@ -2793,12 +2790,12 @@ Cohesion: 0.06
 Nodes (36): DestinationAccountID(), DestinationAccountIDEQ(), DestinationAccountIDGT(), DestinationAccountIDGTE(), DestinationAccountIDLT(), DestinationAccountIDLTE(), DestinationAccountIDNEQ(), ID() (+28 more)
 
 ### Community 354 - "Community 354"
-Cohesion: 0.12
-Nodes (23): AccountResponse, ClientConnInterface, Context, CreateAccountRequest, DeleteAccountRequest, Empty, GetAccountRequest, ListAccountsRequest (+15 more)
+Cohesion: 0.08
+Nodes (34): AccountResponse, ClientConnInterface, Context, CreateAccountRequest, CreateCategoryRequest, DeleteAccountRequest, DeleteCategoryRequest, Empty (+26 more)
 
 ### Community 355 - "Community 355"
-Cohesion: 0.12
-Nodes (23): CategoryResponse, ClientConnInterface, Context, CreateCategoryRequest, DeleteCategoryRequest, Empty, GetCategoryRequest, ListCategoriesRequest (+15 more)
+Cohesion: 0.09
+Nodes (22): DebtID(), DebtIDEQ(), DebtIDGT(), DebtIDGTE(), DebtIDLT(), DebtIDLTE(), DebtIDNEQ(), ID() (+14 more)
 
 ### Community 356 - "Community 356"
 Cohesion: 0.10
@@ -2833,12 +2830,12 @@ Cohesion: 0.06
 Nodes (35): CreatedAt(), CreatedAtEQ(), CreatedAtGT(), CreatedAtGTE(), CreatedAtLT(), CreatedAtLTE(), CreatedAtNEQ(), EndDate() (+27 more)
 
 ### Community 364 - "Community 364"
-Cohesion: 0.08
-Nodes (6): EnumDescriptor, EnumNumber, EnumType, AccountCategory, AccountType, Ownership
+Cohesion: 0.10
+Nodes (5): EnumDescriptor, EnumNumber, EnumType, AccountCategory, Ownership
 
 ### Community 365 - "Community 365"
-Cohesion: 0.07
-Nodes (9): Message, MessageState, PageResponse, SizeCache, UnknownFields, AccountResponse, DeleteAccountRequest, GetAccountRequest (+1 more)
+Cohesion: 0.05
+Nodes (13): Message, MessageState, SizeCache, UnknownFields, file_account_v1_account_proto_init(), init(), AccountResponse, DeleteAccountRequest (+5 more)
 
 ### Community 366 - "Community 366"
 Cohesion: 0.23
@@ -2849,12 +2846,12 @@ Cohesion: 0.11
 Nodes (18): BackupCreate, BackupCreateBulk, BackupDelete, BackupDeleteOne, BackupQuery, BackupUpdate, BackupClient, newBackupMutation() (+10 more)
 
 ### Community 368 - "Community 368"
-Cohesion: 0.11
-Nodes (18): GoalClient, newGoalMutation(), GoalCreate, GoalCreateBulk, GoalDelete, GoalDeleteOne, GoalQuery, GoalUpdate (+10 more)
+Cohesion: 0.14
+Nodes (14): GoalClient, newGoalMutation(), GoalCreate, GoalCreateBulk, GoalDelete, GoalDeleteOne, GoalQuery, GoalUpdate (+6 more)
 
 ### Community 370 - "Community 370"
-Cohesion: 0.07
-Nodes (23): FlutterViewController(), HandleTopLevelWindowProc(), view_id(), flutter(), flutter(), flutter(), flutter(), flutter() (+15 more)
+Cohesion: 0.11
+Nodes (14): flutter(), flutter(), flutter(), flutter(), flutter(), flutter(), flutter(), namespace (+6 more)
 
 ### Community 371 - "Community 371"
 Cohesion: 0.13
@@ -2905,8 +2902,8 @@ Cohesion: 0.14
 Nodes (8): TransactionTagUpdate, TransactionTagUpdateOne, config, Context, Hook, TransactionTag, TransactionTagMutation, UUID
 
 ### Community 385 - "Community 385"
-Cohesion: 0.06
-Nodes (31): package:yucai_client/core/widgets/amount_input.dart, package:yucai_client/core/widgets/date_picker_input.dart, package:yucai_client/core/widgets/form_section.dart, cardNumberTailCtrl, CategoryFieldBundle, categoryFieldsWidget, clearAll, creditAnnualFeeCtrl (+23 more)
+Cohesion: 0.09
+Nodes (21): 1. 概述, 2. P0-1：账户列表 card 按类型分支, 3. P0-2：账户详情 Hero 升级, 4. P0-3：交易转账行双账户箭头, 5. 御财 token（严格遵循）, 6. 测试策略（TDD）, 7. 范围边界, 8. 原型参考（OD） (+13 more)
 
 ### Community 386 - "Community 386"
 Cohesion: 0.06
@@ -2953,16 +2950,16 @@ Cohesion: 0.11
 Nodes (17): Client, config, Context, Driver, CommitFunc, CommitHook, Committer, Rollbacker (+9 more)
 
 ### Community 397 - "Community 397"
-Cohesion: 0.11
-Nodes (21): AR, PR, PrepaidService, PrepaidServiceError, Account, Arc, Decimal, Display (+13 more)
+Cohesion: 0.07
+Nodes (48): AR, PR, PrepaidAlertScheduler, PrepaidService, PrepaidServiceError, SqliteReminderRepository, Account, Arc (+40 more)
 
 ### Community 398 - "Community 398"
 Cohesion: 0.10
 Nodes (21): NewTransactionTemplateClient(), config, Driver, Client, Debug(), Driver(), Log(), NewClient() (+13 more)
 
 ### Community 399 - "Community 399"
-Cohesion: 0.15
-Nodes (22): contains(), getTenantID(), mapError(), NewTransactionHandler(), txnToProto(), TransactionHandler, UnimplementedTransactionServiceServer, Context (+14 more)
+Cohesion: 0.12
+Nodes (27): contains(), getTenantID(), mapError(), NewTransactionHandler(), summaryToProto(), txnToProto(), TransactionHandler, UnimplementedTransactionServiceServer (+19 more)
 
 ### Community 400 - "Community 400"
 Cohesion: 0.06
@@ -2977,8 +2974,8 @@ Cohesion: 0.11
 Nodes (16): BackupClient, Client, config, Context, Driver, CommitFunc, CommitHook, Committer (+8 more)
 
 ### Community 403 - "Community 403"
-Cohesion: 0.11
-Nodes (16): CategoryClient, Client, config, Context, Driver, CommitFunc, CommitHook, Committer (+8 more)
+Cohesion: 0.17
+Nodes (18): CategoryDto, CreateCategoryDto, UpdateCategoryDto, useCategories(), useCreateCategory(), useDeleteCategory(), useUpdateCategory(), CategoriesPage() (+10 more)
 
 ### Community 404 - "Community 404"
 Cohesion: 0.11
@@ -2993,8 +2990,8 @@ Cohesion: 0.11
 Nodes (16): Client, config, Context, Driver, CommitFunc, CommitHook, Committer, Rollbacker (+8 more)
 
 ### Community 407 - "Community 407"
-Cohesion: 0.21
-Nodes (28): AccountEvent, balance_currency_mismatch_fails(), bank_account_with_negative_balance_succeeds(), cash_account_with_negative_balance_fails(), cash_account_with_negative_balance_still_fails(), credit_card_account_with_negative_balance_succeeds(), currency(), emits_created_and_balance_updated_events() (+20 more)
+Cohesion: 0.25
+Nodes (26): balance_currency_mismatch_fails(), bank_account_with_negative_balance_succeeds(), cash_account_with_negative_balance_fails(), cash_account_with_negative_balance_still_fails(), credit_card_account_with_negative_balance_succeeds(), currency(), emits_created_and_balance_updated_events(), emits_deleted_event() (+18 more)
 
 ### Community 408 - "Community 408"
 Cohesion: 0.12
@@ -3021,8 +3018,8 @@ Cohesion: 0.18
 Nodes (17): Category, category_empty_name_fails(), category_new_success(), CategoryError, CategoryType, metadata(), CategoryError, Display (+9 more)
 
 ### Community 414 - "Community 414"
-Cohesion: 0.07
-Nodes (29): Animation, AnimationController, Color, Offset, SingleTickerProviderStateMixin, static OverlayEntry?, static Timer?, _ (+21 more)
+Cohesion: 0.02
+Nodes (88): Animation, AnimationController, Color, FilterTab, IconData?, Offset, package:yucai_client/account/presentation/widgets/account_category_style.dart, _Pill (+80 more)
 
 ### Community 415 - "Community 415"
 Cohesion: 0.13
@@ -3045,8 +3042,8 @@ Cohesion: 0.11
 Nodes (20): NewCurrencyClient(), config, CurrencyClient, Driver, Client, Debug(), Driver(), Log() (+12 more)
 
 ### Community 420 - "Community 420"
-Cohesion: 0.11
-Nodes (20): NewGoalClient(), config, Driver, Client, Debug(), Driver(), Log(), NewClient() (+12 more)
+Cohesion: 0.09
+Nodes (25): NewGoalClient(), config, Context, Driver, Client, Debug(), Driver(), Log() (+17 more)
 
 ### Community 421 - "Community 421"
 Cohesion: 0.07
@@ -3065,20 +3062,20 @@ Cohesion: 0.07
 Nodes (29): DeviceID(), DeviceIDEQ(), DeviceIDGT(), DeviceIDGTE(), DeviceIDLT(), DeviceIDLTE(), DeviceIDNEQ(), EntityID() (+21 more)
 
 ### Community 425 - "Community 425"
-Cohesion: 0.07
-Nodes (27): Account? get, bool get, package:yucai_client/account/presentation/widgets/category_fields.dart, package:yucai_client/core/widgets/type_tabs.dart, build, _buildCreate, _buildUpdate, _bundle (+19 more)
+Cohesion: 0.11
+Nodes (10): accountOption, chartofaccountsOption, withAccount(), withAccountID(), withChartOfAccounts(), withChartOfAccountsID(), Account, ChartOfAccounts (+2 more)
 
 ### Community 426 - "Community 426"
-Cohesion: 0.14
-Nodes (14): CategoryCreate, CategoryCreateBulk, CategoryDelete, CategoryDeleteOne, CategoryQuery, CategoryUpdate, CategoryClient, newCategoryMutation() (+6 more)
+Cohesion: 0.26
+Nodes (19): Arc, EncryptionAppService, Result, Self, SqlitePool, State, String, create_encryption_default_state() (+11 more)
 
 ### Community 427 - "Community 427"
 Cohesion: 0.12
 Nodes (20): ConflictResolution, TestConflictResolution_RoundTrip(), TestNewSyncDevice_EmptyName(), TestNewSyncDevice_Valid(), TestSyncConflict_Resolve(), TestSyncDevice_UpdateSyncVersion(), TestSyncOperation_RoundTrip(), NewSyncConflict() (+12 more)
 
 ### Community 430 - "Community 430"
-Cohesion: 0.16
-Nodes (22): dtoToProto(), getTenantID(), mapError(), NewCategoryHandler(), parseUUID(), protoToType(), typeToProto(), CategoryHandler (+14 more)
+Cohesion: 0.22
+Nodes (20): Arc, DateTime, Default, Option, Result, RwLock, Self, State (+12 more)
 
 ### Community 431 - "Community 431"
 Cohesion: 0.15
@@ -3125,8 +3122,8 @@ Cohesion: 0.09
 Nodes (9): Message, MessageState, SizeCache, UnknownFields, file_common_v1_error_proto_init(), file_common_v1_error_proto_rawDescGZIP(), init(), ErrorDetail (+1 more)
 
 ### Community 442 - "Community 442"
-Cohesion: 0.09
-Nodes (6): PageRequest, file_holding_v1_holding_proto_init(), init(), ListHoldingsRequest, ListSecuritiesRequest, ListTradesRequest
+Cohesion: 0.10
+Nodes (5): MessageState, PageRequest, ListHoldingsRequest, ListSecuritiesRequest, ListTradesRequest
 
 ### Community 443 - "Community 443"
 Cohesion: 0.07
@@ -3149,20 +3146,20 @@ Cohesion: 0.09
 Nodes (6): PageRequest, file_holding_v1_holding_proto_init(), init(), ListHoldingsRequest, ListSecuritiesRequest, ListTradesRequest
 
 ### Community 448 - "Community 448"
-Cohesion: 0.08
-Nodes (18): Any, flutter(), flutter(), flutter(), flutter(), flutter(), FlutterAppDelegate, NSApplication (+10 more)
+Cohesion: 0.09
+Nodes (16): flutter(), flutter(), flutter(), flutter(), flutter(), flutter(), flutter(), flutter() (+8 more)
 
 ### Community 449 - "Community 449"
 Cohesion: 0.15
 Nodes (18): BudgetToDetailDTO(), BudgetToDTO(), EntryTotalsFunc, ListBudgetsResult, Budget, AddBudgetItemRequest, Service, NewService() (+10 more)
 
 ### Community 450 - "Community 450"
-Cohesion: 0.09
-Nodes (24): _getProfile, _login, _logout, _onAppStarted, _onLogin, _onLogout, _onRegister, _onTokenRefreshFailed (+16 more)
+Cohesion: 0.37
+Nodes (14): create_test_account(), setup_test_db(), test_create_and_find_by_id(), test_find_all_excludes_deleted(), test_find_all_including_deleted(), test_find_by_type(), test_get_changes_since(), test_mark_as_synced() (+6 more)
 
 ### Community 451 - "Community 451"
 Cohesion: 0.13
-Nodes (20): CategoryRow, CategoryRepository, CategoryRow, row_to_category(), SqliteCategoryRepository, Send, Sync, Category (+12 more)
+Nodes (20): CategoryRepository, CategoryRow, CategoryRepository, CategoryRow, row_to_category(), SqliteCategoryRepository, Send, Sync (+12 more)
 
 ### Community 452 - "Community 452"
 Cohesion: 0.15
@@ -3171,6 +3168,10 @@ Nodes (13): CurrencyCreate, CurrencyCreateBulk, CurrencyDelete, CurrencyDeleteOn
 ### Community 453 - "Community 453"
 Cohesion: 0.15
 Nodes (20): TestCalculateNextDate_MonthEndClamping(), TestCalculateNextDate_Monthly(), TestCalculateNextDate_Weekly(), TestNewTemplate_EmptyName(), TestNewTemplate_Valid(), TestTemplate_AdvanceToNext(), TestTemplate_IsDue(), TestTemplate_PauseResume() (+12 more)
+
+### Community 454 - "Community 454"
+Cohesion: 0.07
+Nodes (25): newSyncDeviceMutation(), withSyncConflict(), withSyncConflictID(), withSyncDevice(), withSyncDeviceID(), withSyncLog(), withSyncLogID(), syncconflictOption (+17 more)
 
 ### Community 455 - "Community 455"
 Cohesion: 0.17
@@ -3197,8 +3198,8 @@ Cohesion: 0.07
 Nodes (26): Burndown Chart, Day 1, Day 2, Day 3, Day 4, Definition of Done, Done, In Progress (+18 more)
 
 ### Community 461 - "Community 461"
-Cohesion: 0.07
-Nodes (27): CreatedAt(), CreatedAtEQ(), CreatedAtGT(), CreatedAtGTE(), CreatedAtLT(), CreatedAtLTE(), CreatedAtNEQ(), DeletedAt() (+19 more)
+Cohesion: 0.27
+Nodes (17): bind_json_value(), insert_or_ignore_row(), insert_row(), restore_table(), row_to_json(), sanitize_row(), update_row(), upsert_row() (+9 more)
 
 ### Community 462 - "Community 462"
 Cohesion: 0.08
@@ -3225,8 +3226,8 @@ Cohesion: 0.16
 Nodes (21): BackupFunc, Context, Hook, Chain, Condition, And(), FixedError(), HasAddedFields() (+13 more)
 
 ### Community 469 - "Community 469"
-Cohesion: 0.16
-Nodes (21): CategoryFunc, Context, Hook, Chain, Condition, And(), FixedError(), HasAddedFields() (+13 more)
+Cohesion: 0.08
+Nodes (26): static const AmortizationMethod, static const BackupProvider, static const SyncOperation, _, BACKUP_PROVIDER_DROPBOX, BACKUP_PROVIDER_GOOGLE_DRIVE, BACKUP_PROVIDER_LOCAL, BACKUP_PROVIDER_ONE_DRIVE (+18 more)
 
 ### Community 470 - "Community 470"
 Cohesion: 0.16
@@ -3253,16 +3254,16 @@ Cohesion: 0.08
 Nodes (25): 1.1 修改 BackupData 结构, 1.2 修改 query_all_tables, 1.3 修改 BackupMetadata, 1.4 更新 DiffSummary 和 compute_diff, 2.1 恢复方法签名, 2.2 恢复流程, 2.3 每表恢复逻辑, 2.4 软删除处理 (+17 more)
 
 ### Community 476 - "Community 476"
-Cohesion: 0.08
-Nodes (26): static const AmortizationMethod, static const BackupProvider, static const GoalType, _, BACKUP_PROVIDER_DROPBOX, BACKUP_PROVIDER_GOOGLE_DRIVE, BACKUP_PROVIDER_LOCAL, BACKUP_PROVIDER_ONE_DRIVE (+18 more)
+Cohesion: 0.27
+Nodes (13): newTestAccount(), TestListRecentByAccount_DelegatesToRepo(), TestListRecentByAccount_PropagatesRepoError(), TestSimpleExpense_AcceptsExactBalance(), TestSimpleExpense_RejectsInsufficientBalance(), TestSimpleTransfer_AcceptsSameCurrency(), TestSimpleTransfer_RejectsMismatchedCurrency(), Account (+5 more)
 
 ### Community 477 - "Community 477"
-Cohesion: 0.10
-Nodes (23): AccountCategory, AccountCategoryX, AccountStatus, accountStatusFromProto, AccountStatusProto, AccountType, accountTypeFromProto, AccountTypeProto (+15 more)
+Cohesion: 0.04
+Nodes (45): AccountCategory, AccountCategoryX, accountId, AccountStatus, accountStatusFromProto, AccountStatusProto, accountTypeFromProto, AccountTypeProto (+37 more)
 
 ### Community 478 - "Community 478"
-Cohesion: 0.17
-Nodes (13): FromStr, SqliteCurrencyRepository, Currency, CurrencyRepository, Decimal, Error, Option, Result (+5 more)
+Cohesion: 0.18
+Nodes (12): SqliteCurrencyRepository, Currency, CurrencyRepository, Decimal, Error, Option, Result, Self (+4 more)
 
 ### Community 479 - "Community 479"
 Cohesion: 0.08
@@ -3281,8 +3282,8 @@ Cohesion: 0.25
 Nodes (21): CreateTransactionTemplateDto, Result, Self, SqlitePool, State, String, TransactionDto, TransactionTemplateDto (+13 more)
 
 ### Community 483 - "Community 483"
-Cohesion: 0.17
-Nodes (15): mockAccountRepo, mockChartRepo, newMockAccountRepo(), newMockChartRepo(), TestCreateAccountPersistsTypeSpecificFields(), TestUpdateAccountClosesAccount(), Account, AccountFilter (+7 more)
+Cohesion: 0.15
+Nodes (28): mockChartRepo, mustNewAccount(), newMockChartRepo(), ptr(), TestCreateAccount_DerivesAssetTypeFromCategory(), TestCreateAccount_HonoursExpenseIncomeType(), TestCreateAccountPersistsTypeSpecificFields(), TestCreateCategory_CreatesExpenseCategoryAccount() (+20 more)
 
 ### Community 484 - "Community 484"
 Cohesion: 0.19
@@ -3317,8 +3318,8 @@ Cohesion: 0.08
 Nodes (23): Burndown Chart, Day 1, Day 2, Definition of Done, Done, In Progress, Sprint 1 Backlog, Sprint Backlog - 任务分解 (+15 more)
 
 ### Community 492 - "Community 492"
-Cohesion: 0.12
-Nodes (4): EnumDescriptor, EnumNumber, AccountCategory, AccountStatus
+Cohesion: 0.10
+Nodes (5): EnumDescriptor, EnumNumber, EnumType, AccountCategory, Ownership
 
 ### Community 493 - "Community 493"
 Cohesion: 0.11
@@ -3341,8 +3342,8 @@ Cohesion: 0.08
 Nodes (23): 1. 概述, 2. 系统架构, 3. 备份文件格式, 4.1 CloudProvider trait, 4.2 支持的提供商, 4.3 配置持久化, 4. 云盘提供商, 5.1 差异计算 (+15 more)
 
 ### Community 498 - "Community 498"
-Cohesion: 0.22
-Nodes (20): Arc, DateTime, Default, Option, Result, RwLock, Self, State (+12 more)
+Cohesion: 0.37
+Nodes (13): BudgetService, SqlitePool, seed_account(), setup_service(), setup_test_db(), test_clone_budget_to_next_month(), test_compute_budget_actuals(), test_create_budget_with_items() (+5 more)
 
 ### Community 499 - "Community 499"
 Cohesion: 0.16
@@ -3393,8 +3394,8 @@ Cohesion: 0.22
 Nodes (11): PostgresReminderRepository, DateTime, Option, PgPool, Reminder, ReminderRepository, Result, Self (+3 more)
 
 ### Community 511 - "Community 511"
-Cohesion: 0.22
-Nodes (11): SqliteReminderRepository, DateTime, Option, Reminder, ReminderRepository, Result, Self, SqlitePool (+3 more)
+Cohesion: 0.26
+Nodes (10): toDomainAccount(), AccountRepository, Account, AccountFilter, AccountType, Client, Context, PageRequest (+2 more)
 
 ### Community 512 - "Community 512"
 Cohesion: 0.18
@@ -3421,8 +3422,8 @@ Cohesion: 0.09
 Nodes (22): open-design 原型, Section 1: domain 字段（26 字段，固定列 nullable，category 前缀命名）, Section 2: 表单按 category 完全动态字段集, Section 3: 卡片操作按钮, Section 4: 详情页 `/accounts/:id`, 信用卡专属（`credit_`）, 共享字段（跨 category）, 功能对接策略 (+14 more)
 
 ### Community 519 - "Community 519"
-Cohesion: 0.11
-Nodes (6): PageRequest, file_account_v1_account_proto_init(), file_account_v1_account_proto_rawDescGZIP(), init(), AccountStatus, ListAccountsRequest
+Cohesion: 0.15
+Nodes (3): PageRequest, AccountStatus, ListAccountsRequest
 
 ### Community 520 - "Community 520"
 Cohesion: 0.10
@@ -3437,24 +3438,24 @@ Cohesion: 0.09
 Nodes (22): ID(), IDEQ(), IDGT(), IDGTE(), IDLT(), IDLTE(), IDNEQ(), ParentID() (+14 more)
 
 ### Community 524 - "Community 524"
-Cohesion: 0.16
-Nodes (20): BalanceUpdater, DeleteTransactionRequest, TransactionToDTO(), EntryDTO, EntryInput, ListTransactionsRequest, ListTransactionsResult, RecordTransactionRequest (+12 more)
+Cohesion: 0.15
+Nodes (23): BalanceUpdater, CategoryItemDTO, DailyItemDTO, DeleteTransactionRequest, SummaryToDTO(), EntryDTO, EntryInput, ListTransactionsRequest (+15 more)
 
 ### Community 525 - "Community 525"
-Cohesion: 0.17
-Nodes (14): BalanceUpdater, ListTransactionsResult, Service, NewService(), Context, ListTransactionsRequest, RecordTransactionRequest, SimpleExpenseRequest (+6 more)
+Cohesion: 0.15
+Nodes (18): AccountLookup, TransactionToDTO(), BalanceUpdater, ListTransactionsResult, Transaction, Service, NewService(), Context (+10 more)
 
 ### Community 526 - "Community 526"
 Cohesion: 0.09
 Nodes (22): CreatedAt(), CreatedAtEQ(), CreatedAtGT(), CreatedAtGTE(), CreatedAtLT(), CreatedAtLTE(), CreatedAtNEQ(), DeletedAt() (+14 more)
 
 ### Community 527 - "Community 527"
-Cohesion: 0.09
-Nodes (22): CreatedAt(), CreatedAtEQ(), CreatedAtGT(), CreatedAtGTE(), CreatedAtLT(), CreatedAtLTE(), CreatedAtNEQ(), DeletedAt() (+14 more)
+Cohesion: 0.31
+Nodes (13): newAccountWithSortOrder(), saveAccount(), setupAccountTestDB(), TestFindByAccountType_EmptyResult(), TestFindByAccountType_ExcludesSoftDeleted(), TestFindByAccountType_OrdersBySortOrder(), TestFindByAccountType_ReturnsOnlyMatchingType(), Account (+5 more)
 
 ### Community 528 - "Community 528"
-Cohesion: 0.09
-Nodes (22): ID(), IDEQ(), IDGT(), IDGTE(), IDLT(), IDLTE(), IDNEQ(), ParentID() (+14 more)
+Cohesion: 0.15
+Nodes (11): FlutterViewController(), HandleTopLevelWindowProc(), view_id(), FlutterViewId, DartProject, HWND, LPARAM, LRESULT (+3 more)
 
 ### Community 529 - "Community 529"
 Cohesion: 0.10
@@ -3477,8 +3478,8 @@ Cohesion: 0.09
 Nodes (22): ID(), IDEQ(), IDGT(), IDGTE(), IDLT(), IDLTE(), IDNEQ(), LinkedAccountID() (+14 more)
 
 ### Community 536 - "Community 536"
-Cohesion: 0.09
-Nodes (22): DebtID(), DebtIDEQ(), DebtIDGT(), DebtIDGTE(), DebtIDLT(), DebtIDLTE(), DebtIDNEQ(), ID() (+14 more)
+Cohesion: 0.12
+Nodes (13): AuthInterceptor, ClientChannel, AppConfig, serverHost, serverPort, main, useTls, authInterceptor (+5 more)
 
 ### Community 537 - "Community 537"
 Cohesion: 0.09
@@ -3487,10 +3488,6 @@ Nodes (21): Account Module P3 Deferred Items — Decimal Migration & PG Reposito
 ### Community 538 - "Community 538"
 Cohesion: 0.09
 Nodes (21): Additional features, Changes (minimal — styling only), Commit, Commit, Commit, Data fetching, Delete (after migration), File Map (+13 more)
-
-### Community 539 - "Community 539"
-Cohesion: 0.11
-Nodes (4): SizeCache, CloudSettingsDTO, CloudSettingsResponse, SaveCloudSettingsRequest
 
 ### Community 540 - "Community 540"
 Cohesion: 0.10
@@ -3501,8 +3498,8 @@ Cohesion: 0.12
 Nodes (5): EnumDescriptor, EnumNumber, EnumType, SecurityType, TradeType
 
 ### Community 542 - "Community 542"
-Cohesion: 0.10
-Nodes (4): Timestamp, UnknownFields, HoldingTransactionDTO, HoldingTransactionResponse
+Cohesion: 0.09
+Nodes (3): Timestamp, HoldingTransactionDTO, HoldingTransactionResponse
 
 ### Community 543 - "Community 543"
 Cohesion: 0.09
@@ -3533,24 +3530,24 @@ Cohesion: 0.10
 Nodes (4): Timestamp, UnknownFields, HoldingTransactionDTO, HoldingTransactionResponse
 
 ### Community 550 - "Community 550"
-Cohesion: 0.15
-Nodes (14): ListDebtsResult, RecordPaymentResult, UpcomingPaymentsResult, Service, NewService(), Context, CreateDebtRequest, DebtDetailDTO (+6 more)
+Cohesion: 0.05
+Nodes (60): CreateDebtRequest, DebtDetailDTO, DebtDTO, DebtToDetailDTO(), DebtToDTO(), entryToDTO(), ListDebtsRequest, ListDebtsResult (+52 more)
 
 ### Community 551 - "Community 551"
 Cohesion: 0.21
 Nodes (19): CategoryService, SqliteCategoryRepository, Arc, CategoryDto, CreateCategoryDto, Option, Result, Self (+11 more)
 
 ### Community 552 - "Community 552"
-Cohesion: 0.17
-Nodes (18): CategoryDto, CreateCategoryDto, UpdateCategoryDto, useCategories(), useCreateCategory(), useDeleteCategory(), useUpdateCategory(), CategoriesPage() (+10 more)
+Cohesion: 0.13
+Nodes (15): FilterTab, PRIORITY_COLORS, RemindersPage(), TYPE_COLORS, handleNew(), resetForm(), completeReminder(), createReminder() (+7 more)
 
 ### Community 553 - "Community 553"
 Cohesion: 0.10
 Nodes (3): GoalUpdate, GoalMutation, Hook
 
 ### Community 554 - "Community 554"
-Cohesion: 0.13
-Nodes (15): handleCompleteGoal(), clearAuth(), getAccountId(), getDeviceId(), getStore(), isRegistered(), linkDevice(), registerDevice() (+7 more)
+Cohesion: 0.04
+Nodes (58): handleSubmit(), handleClose(), resetWizard(), AccountChangesDialog(), ChangeItem, AccountForm(), AccountFormProps, createAccountFormSchema() (+50 more)
 
 ### Community 555 - "Community 555"
 Cohesion: 0.19
@@ -3561,8 +3558,8 @@ Cohesion: 0.10
 Nodes (20): File Structure, File Structure, Part A: Category Module, Part B: Currency Module, Plan 08: Category + Currency Modules, Self-Review, Task A1: Protobuf Category Service Definition, Task A2: entGo Schema (Category) (+12 more)
 
 ### Community 557 - "Community 557"
-Cohesion: 0.13
-Nodes (8): MessageState, SizeCache, UnknownFields, file_account_v1_account_proto_init(), init(), AccountResponse, DeleteAccountRequest, GetAccountRequest
+Cohesion: 0.06
+Nodes (12): Message, MessageState, SizeCache, UnknownFields, file_account_v1_account_proto_init(), init(), AccountResponse, DeleteAccountRequest (+4 more)
 
 ### Community 558 - "Community 558"
 Cohesion: 0.11
@@ -3574,7 +3571,7 @@ Nodes (3): Timestamp, DebtDTO, DebtResponse
 
 ### Community 560 - "Community 560"
 Cohesion: 0.12
-Nodes (5): MessageState, PageResponse, ListHoldingsResponse, ListSecuritiesResponse, ListTradesResponse
+Nodes (5): PageResponse, UnknownFields, ListHoldingsResponse, ListSecuritiesResponse, ListTradesResponse
 
 ### Community 561 - "Community 561"
 Cohesion: 0.10
@@ -3585,8 +3582,8 @@ Cohesion: 0.10
 Nodes (20): 1. category 枚举（9 类，固定）, 2. category 与 account_type 关系, 3.1 domain（`server/internal/account/domain/valueobject.go`）, 3.2 domain entity（`server/internal/account/domain/entity.go`）, 3.3 ent schema（`server/internal/account/ent/schema/account.go`）, 3.4 proto（`yucai/proto/account/v1/account.proto`）, 3. 数据模型, 4. 后端改动清单 (+12 more)
 
 ### Community 563 - "Community 563"
-Cohesion: 0.26
-Nodes (19): Arc, EncryptionAppService, Result, Self, SqlitePool, State, String, create_encryption_default_state() (+11 more)
+Cohesion: 0.31
+Nodes (9): EncryptionAppError, EncryptionAppService, EncryptionService, Mutex, Option, Result, Self, SqlitePool (+1 more)
 
 ### Community 564 - "Community 564"
 Cohesion: 0.10
@@ -3605,12 +3602,12 @@ Cohesion: 0.12
 Nodes (5): MessageState, PageResponse, ListHoldingsResponse, ListSecuritiesResponse, ListTradesResponse
 
 ### Community 568 - "Community 568"
-Cohesion: 0.18
-Nodes (18): AccountProfile, AccountDTO, CreateAccountRequest, DeleteAccountRequest, CreateRequestToProfile(), strPtr(), UpdateRequestToProfile(), ListAccountsRequest (+10 more)
+Cohesion: 0.15
+Nodes (23): AccountProfile, AccountDTO, CreateAccountRequest, CreateCategoryRequest, DeleteAccountRequest, ApplyCreateDefaults(), CreateRequestToProfile(), strPtr() (+15 more)
 
 ### Community 569 - "Community 569"
-Cohesion: 0.21
-Nodes (19): CreateDebtRequest, DebtDetailDTO, DebtDTO, DebtToDetailDTO(), DebtToDTO(), entryToDTO(), ListDebtsRequest, ListDebtsResult (+11 more)
+Cohesion: 0.23
+Nodes (11): BudgetService, last_day_of_month(), SqliteBudgetRepository, Arc, Budget, Option, Result, Self (+3 more)
 
 ### Community 570 - "Community 570"
 Cohesion: 0.30
@@ -3625,8 +3622,8 @@ Cohesion: 0.21
 Nodes (11): ChartOfAccountsRepository, ChartOfAccountsType, SqliteChartOfAccountsRepository, ChartOfAccounts, Error, Option, Result, Self (+3 more)
 
 ### Community 573 - "Community 573"
-Cohesion: 0.17
-Nodes (16): NewTenant(), NewUser(), TestFamilyRoleString(), TestNewTenant(), TestNewUser(), TestTenantTypeString(), TestUserUpdateProfile(), Tenant (+8 more)
+Cohesion: 0.11
+Nodes (24): noopPresetSeeder, PresetSeeder, NewRegisterHandler(), RegisterHandler, NewTenant(), NewUser(), TestFamilyRoleString(), TestNewTenant() (+16 more)
 
 ### Community 574 - "Community 574"
 Cohesion: 0.22
@@ -3637,12 +3634,12 @@ Cohesion: 0.19
 Nodes (11): FamilyRole, TenantType, ParseFamilyRole(), ParseTenantType(), NewUserRepository(), toDomainUser(), UserRepository, Client (+3 more)
 
 ### Community 577 - "Community 577"
-Cohesion: 0.17
-Nodes (15): dtoToProto(), mapError(), NewCurrencyHandler(), CurrencyHandler, UnimplementedCurrencyServiceServer, AddCurrencyRequest, Context, CurrencyDTO (+7 more)
+Cohesion: 0.15
+Nodes (17): dtoToProto(), mapError(), NewCurrencyHandler(), CurrencyHandler, UnimplementedCurrencyServiceServer, provideCurrencyHandler(), AddCurrencyRequest, Context (+9 more)
 
 ### Community 578 - "Community 578"
-Cohesion: 0.18
-Nodes (11): useTheme(), queryClient, applyTheme(), getResolvedTheme(), getSystemTheme(), Theme, App(), main() (+3 more)
+Cohesion: 0.17
+Nodes (8): Any, FlutterAppDelegate, NSApplication, UIApplication, Bool, AppDelegate, Bool, AppDelegate
 
 ### Community 579 - "Community 579"
 Cohesion: 0.10
@@ -3665,12 +3662,8 @@ Cohesion: 0.12
 Nodes (5): EnumDescriptor, EnumNumber, EnumType, BackupProvider, TestConnectionRequest
 
 ### Community 588 - "Community 588"
-Cohesion: 0.19
-Nodes (14): AccountToDTO(), ApplyCreateDefaults(), ListAccountsResult, Account, AccountDTO, AccountRepository, Service, NewService() (+6 more)
-
-### Community 589 - "Community 589"
-Cohesion: 0.27
-Nodes (18): TestAddMonths_Clamping(), TestAmortizationMethod_StringRoundTrip(), TestEqualPrincipalInterestSchedule(), TestEqualPrincipalSchedule(), TestIncrementVersion(), TestLumpSumSchedule(), TestMarkPaid(), TestMarkPaid_EntryNotFound() (+10 more)
+Cohesion: 0.16
+Nodes (16): AccountToDTO(), ListAccountsResult, AccountDTO, AccountRepository, AccountType, Service, NewService(), ChartRepository (+8 more)
 
 ### Community 590 - "Community 590"
 Cohesion: 0.22
@@ -3693,8 +3686,8 @@ Cohesion: 0.11
 Nodes (18): Account Category Implementation Plan, Part A: 服务端（Tasks 1-7）, Part B: 客户端（Tasks 9-13）, Part C: 验证（Task 13）, Self-Review 结果, Task 10: 前端 data 层（entity + mapper + remote_ds + repo + params）, Task 11: AccountFormPage TypeTabs 用 category + 显示说明, Task 12: AccountsPage 按 category 分组 + 筛选 (+10 more)
 
 ### Community 596 - "Community 596"
-Cohesion: 0.20
-Nodes (13): NewTransactionRepository(), toDomainTransaction(), TransactionRepository, TransactionDateGTE(), TransactionDateLTE(), Client, Context, PageRequest (+5 more)
+Cohesion: 0.14
+Nodes (20): hasEntryForAccount(), monthRange(), rebindPlaceholders(), toDomainTransaction(), typePredicate(), TransactionRepository, TransactionType, Client (+12 more)
 
 ### Community 599 - "Community 599"
 Cohesion: 0.11
@@ -3709,8 +3702,8 @@ Cohesion: 0.11
 Nodes (19): static const SecurityType, static const TradeType, _, SECURITY_TYPE_BOND, SECURITY_TYPE_ETF, SECURITY_TYPE_FUND, SECURITY_TYPE_GOLD, SECURITY_TYPE_OPTION (+11 more)
 
 ### Community 602 - "Community 602"
-Cohesion: 0.13
-Nodes (6): MessageState, SizeCache, UnknownFields, CategoryResponse, DeleteCategoryRequest, GetCategoryRequest
+Cohesion: 0.18
+Nodes (11): HoldingTransaction, HoldingTransactionType, currencies table, holdings table, securities table, Display, Formatter, NaiveDate (+3 more)
 
 ### Community 604 - "Community 604"
 Cohesion: 0.19
@@ -3721,16 +3714,12 @@ Cohesion: 0.18
 Nodes (14): AccountType, BalanceDirection, AccountTypeValidator(), ByAccountType(), ByBalanceDirection(), ByCode(), ByCreatedAt(), ByID() (+6 more)
 
 ### Community 606 - "Community 606"
-Cohesion: 0.23
-Nodes (16): NewRegisterHandler(), RegisterHandler, setupTestDB(), setupTestService(), TestDuplicateEmail(), TestGetProfile(), TestInvalidCredentials(), TestJWTTokenFromRegistration() (+8 more)
+Cohesion: 0.17
+Nodes (19): GetProfileHandler, GetProfileQuery, GetProfileResult, NewGetProfileHandler(), setupTestDB(), setupTestService(), TestDuplicateEmail(), TestGetProfile() (+11 more)
 
 ### Community 607 - "Community 607"
-Cohesion: 0.14
-Nodes (10): AccountCategory, AccountStatus, AccountType, BalanceDirection, TestParseAccountType(), Ownership, ParseAccountStatus(), ParseAccountType() (+2 more)
-
-### Community 608 - "Community 608"
 Cohesion: 0.15
-Nodes (12): SecurityType, TradeType, ParseSecurityType(), ParseTradeType(), toDomainTrade(), TradeRepository, Client, Context (+4 more)
+Nodes (10): AccountCategory, AccountStatus, AccountType, BalanceDirection, Ownership, ParseAccountCategory(), ParseAccountStatus(), ParseAccountType() (+2 more)
 
 ### Community 610 - "Community 610"
 Cohesion: 0.16
@@ -3741,8 +3730,8 @@ Cohesion: 0.22
 Nodes (6): ChartOfAccountsCreateBulk, AccountType, ChartOfAccounts, config, Context, CreateSpec
 
 ### Community 612 - "Community 612"
-Cohesion: 0.22
-Nodes (18): GRPCServer, App, NewApp(), AccountHandler, AuthHandler, BackupHandler, BudgetHandler, CategoryHandler (+10 more)
+Cohesion: 0.21
+Nodes (19): GRPCServer, App, NewApp(), AccountHandler, AuthHandler, BackupHandler, BudgetHandler, Config (+11 more)
 
 ### Community 613 - "Community 613"
 Cohesion: 0.11
@@ -3753,12 +3742,12 @@ Cohesion: 0.22
 Nodes (11): toDomainSecurity(), SecurityRepository, ExchangeEQ(), SecurityTypeEQ(), Client, Context, PageRequest, PaginatedResult (+3 more)
 
 ### Community 615 - "Community 615"
-Cohesion: 0.12
-Nodes (3): Timestamp, BackupDTO, BackupResponse
+Cohesion: 0.13
+Nodes (4): SizeCache, Timestamp, BackupDTO, BackupResponse
 
 ### Community 616 - "Community 616"
-Cohesion: 0.14
-Nodes (6): MessageState, SizeCache, UnknownFields, CategoryResponse, DeleteCategoryRequest, GetCategoryRequest
+Cohesion: 0.13
+Nodes (6): MessageState, SizeCache, UnknownFields, DeleteCategoryRequest, CategoryResponse, GetCategoryRequest
 
 ### Community 617 - "Community 617"
 Cohesion: 0.14
@@ -3800,6 +3789,10 @@ Nodes (17): Acceptance Criteria, Acceptance Criteria, Sprint 8-9: Performance Op
 Cohesion: 0.20
 Nodes (12): Default, Option, Result, Self, String, T, Vec, build_cursor() (+4 more)
 
+### Community 627 - "Community 627"
+Cohesion: 0.32
+Nodes (11): Result, Self, SqlitePool, State, String, Vec, create_search_default_state(), global_search() (+3 more)
+
 ### Community 628 - "Community 628"
 Cohesion: 0.13
 Nodes (4): SizeCache, Timestamp, BackupDTO, BackupResponse
@@ -3821,16 +3814,16 @@ Cohesion: 0.14
 Nodes (6): MessageState, SizeCache, UnknownFields, DeleteTemplateRequest, PauseTemplateRequest, ResumeTemplateRequest
 
 ### Community 633 - "Community 633"
-Cohesion: 0.14
-Nodes (6): MessageState, SizeCache, UnknownFields, DeleteTransactionRequest, GetTransactionRequest, TransactionResponse
+Cohesion: 0.18
+Nodes (5): TransactionSummaryResponse, MessageState, MonthlySummary, UnknownFields, DeleteTransactionRequest
 
 ### Community 634 - "Community 634"
 Cohesion: 0.19
 Nodes (16): AddBudgetItemRequest, BudgetDetailDTO, BudgetDTO, BudgetItemDTO, BudgetItemInput, CloneBudgetRequest, ComputeActualsRequest, CreateBudgetRequest (+8 more)
 
 ### Community 635 - "Community 635"
-Cohesion: 0.15
-Nodes (13): AddPlugin(), ClearPlugins(), GetInstance(), OnRegistrarDestroyed(), PluginRegistrar(), flutter(), flutter(), Plugin (+5 more)
+Cohesion: 0.18
+Nodes (11): flutter(), AddPlugin(), ClearPlugins(), GetInstance(), OnRegistrarDestroyed(), PluginRegistrar(), Plugin, PluginRegistrarManager (+3 more)
 
 ### Community 636 - "Community 636"
 Cohesion: 0.20
@@ -3861,8 +3854,8 @@ Cohesion: 0.17
 Nodes (11): NewLoginHandler(), LoginHandler, LoginCommand, CheckPassword(), HashPassword(), TestHashAndCheck(), Context, TokenService (+3 more)
 
 ### Community 644 - "Community 644"
-Cohesion: 0.19
-Nodes (9): NewSecurity(), Holding, HoldingTransaction, Security, trimSpace(), SecurityType, Time, TradeType (+1 more)
+Cohesion: 0.11
+Nodes (23): Holding, Int64, seedSummaryFixture(), setupSummaryTestDB(), TestTransactionSummary_AccountScope(), TestTransactionSummary_AggregatesIncomeExpenseByDayAndCategory(), TestTransactionSummary_ExcludesSoftDeleted(), TestTransactionSummary_MonthIsolation() (+15 more)
 
 ### Community 646 - "Community 646"
 Cohesion: 0.23
@@ -3881,24 +3874,24 @@ Cohesion: 0.12
 Nodes (15): Create, Delete (later phases), File Map, Modify, Summary, Task 1: Theme Tokens, Task 2: Sidebar Redesign, Task 3: Breadcrumb Component (+7 more)
 
 ### Community 650 - "Community 650"
-Cohesion: 0.18
-Nodes (16): RedisSessionStore, Server, GRPCServer, provideAuthService(), provideGRPCServer(), provideLoginHandler(), provideProfileHandler(), provideRefreshHandler() (+8 more)
+Cohesion: 0.16
+Nodes (18): PresetSeeder, RedisSessionStore, Server, GRPCServer, provideAuthService(), provideGRPCServer(), provideLoginHandler(), providePresetSeeder() (+10 more)
 
 ### Community 651 - "Community 651"
-Cohesion: 0.22
-Nodes (13): Sqlite, SqliteChartOfAccountsRepository, Box, Error, Result, test_category_datetime_format(), setup_repository(), test_create_and_find_account() (+5 more)
+Cohesion: 0.44
+Nodes (8): SqliteChartOfAccountsRepository, setup_repository(), test_create_and_find_account(), test_hierarchical_query_get_children(), test_list_by_type(), test_seed_data_level1_accounts(), test_seed_data_level2_accounts(), test_soft_delete()
 
 ### Community 652 - "Community 652"
-Cohesion: 0.26
-Nodes (10): NewAccountRepository(), toDomainAccount(), AccountRepository, Account, AccountFilter, Client, Context, PageRequest (+2 more)
+Cohesion: 0.16
+Nodes (40): NewAccountRepository(), fixture, queryCountingDriver, NewTransactionRepository(), expenseEntries(), incomeEntries(), recordTxn(), saveAccount() (+32 more)
 
 ### Community 653 - "Community 653"
 Cohesion: 0.30
 Nodes (7): Path, Rust code quality validator — migrated from validate_code_quality.py., Ban sqlx::query! — must use SeaORM instead., Warn on log:: crate usage — prefer tracing., Validates Rust source files against coding standards., Warn on public enums missing Serialize/Deserialize., RustValidator
 
 ### Community 654 - "Community 654"
-Cohesion: 0.16
-Nodes (6): MessageState, SizeCache, UnknownFields, GetProfileRequest, GetProfileResponse, RefreshTokenRequest
+Cohesion: 0.18
+Nodes (4): MessageState, UnknownFields, GetProfileRequest, RefreshTokenResponse
 
 ### Community 655 - "Community 655"
 Cohesion: 0.14
@@ -3921,8 +3914,8 @@ Cohesion: 0.14
 Nodes (3): MessageState, CurrencyDTO, CurrencyResponse
 
 ### Community 663 - "Community 663"
-Cohesion: 0.14
-Nodes (12): NewConflictResolver(), ConflictResolver, provideConflictResolver(), provideSyncService(), ConflictResolution, SyncConflict, SyncOperation, UUID (+4 more)
+Cohesion: 0.25
+Nodes (6): NewConflictResolver(), ConflictResolver, ConflictResolution, SyncConflict, SyncOperation, UUID
 
 ### Community 664 - "Community 664"
 Cohesion: 0.13
@@ -3953,8 +3946,8 @@ Cohesion: 0.17
 Nodes (6): backupOption, withBackup(), withBackupID(), Backup, Client, UUID
 
 ### Community 672 - "Community 672"
-Cohesion: 0.26
-Nodes (9): IsCompletedEQ(), toDomainGoal(), GoalRepository, Client, Context, Goal, PageRequest, PaginatedResult (+1 more)
+Cohesion: 0.19
+Nodes (11): GoalType, ParseGoalType(), IsCompletedEQ(), toDomainGoal(), GoalRepository, Client, Context, Goal (+3 more)
 
 ### Community 673 - "Community 673"
 Cohesion: 0.13
@@ -3976,10 +3969,6 @@ Nodes (14): 1. Spec Coverage, 2. Placeholder Scan, 3. Type Consistency, File Str
 Cohesion: 0.28
 Nodes (9): NewCurrencyRepository(), toDomain(), CurrencyRepository, Client, Context, Currency, PageRequest, PaginatedResult (+1 more)
 
-### Community 678 - "Community 678"
-Cohesion: 0.15
-Nodes (3): UserDTO, RegisterResponse, UpdateProfileResponse
-
 ### Community 683 - "Community 683"
 Cohesion: 0.13
 Nodes (14): 1. Tabs — Global `line` Variant, 2. Stat Cards (HomePage), 3. Buttons, 4. Tables, 5. Date Filter Presets, 6. Cards (Global), 7. Sidebar, Color System (+6 more)
@@ -3993,16 +3982,12 @@ Cohesion: 0.13
 Nodes (14): P0: 持仓数据模型（基础）, P0 详细设计: 持仓数据模型, P1: 股票持仓（最高价值）, P2: ETF/基金 + 债券 + 黄金, P3: 期权/期货 + 房产 + 其他, P4: 自动化, 下一步, 优先级划分 (+6 more)
 
 ### Community 686 - "Community 686"
-Cohesion: 0.32
-Nodes (13): GoalService, SqlitePool, setup_service(), setup_test_db(), test_complete_goal_manually(), test_create_debt_payoff_goal(), test_create_investment_goal(), test_create_savings_goal() (+5 more)
+Cohesion: 0.26
+Nodes (14): FromStr, GoalService, SqlitePool, setup_service(), setup_test_db(), test_complete_goal_manually(), test_create_debt_payoff_goal(), test_create_investment_goal() (+6 more)
 
 ### Community 687 - "Community 687"
 Cohesion: 0.14
 Nodes (15): static const TemplateCycle, static const TemplateDirection, _, CYCLE_CUSTOM, CYCLE_MONTHLY, CYCLE_UNSPECIFIED, CYCLE_WEEKLY, CYCLE_YEARLY (+7 more)
-
-### Community 688 - "Community 688"
-Cohesion: 0.13
-Nodes (15): ID(), IDEQ(), IDGT(), IDGTE(), IDLT(), IDLTE(), IDNEQ(), TenantID() (+7 more)
 
 ### Community 689 - "Community 689"
 Cohesion: 0.13
@@ -4052,9 +4037,9 @@ Nodes (6): BudgetDelete, BudgetDeleteOne, BudgetMutation, config, Context, Hook
 Cohesion: 0.23
 Nodes (6): BudgetItemDelete, BudgetItemDeleteOne, BudgetItemMutation, config, Context, Hook
 
-### Community 705 - "Community 705"
-Cohesion: 0.23
-Nodes (6): CategoryDelete, CategoryDeleteOne, CategoryMutation, config, Context, Hook
+### Community 706 - "Community 706"
+Cohesion: 0.25
+Nodes (8): ID(), IDEQ(), IDGT(), IDGTE(), IDLT(), IDLTE(), IDNEQ(), UUID
 
 ### Community 707 - "Community 707"
 Cohesion: 0.18
@@ -4073,8 +4058,8 @@ Cohesion: 0.23
 Nodes (6): DebtDetailsDelete, DebtDetailsDeleteOne, config, Context, DebtDetailsMutation, Hook
 
 ### Community 711 - "Community 711"
-Cohesion: 0.15
-Nodes (8): Goal, Goals, config, GoalUpdateOne, SelectValues, Time, UUID, Value
+Cohesion: 0.18
+Nodes (7): Goal, Goals, config, SelectValues, Time, UUID, Value
 
 ### Community 712 - "Community 712"
 Cohesion: 0.23
@@ -4145,12 +4130,12 @@ Cohesion: 0.14
 Nodes (13): Sprint Retrospective Template, Sprint 回顾, 下个 Sprint 的改进重点, 什么做得好？（Keep Doing）, 什么需要改进？（Stop Doing）, 团队士气, 备注, 我们可以尝试什么？（Start Doing） (+5 more)
 
 ### Community 731 - "Community 731"
-Cohesion: 0.16
-Nodes (3): PageRequest, AccountType, ListAccountsRequest
+Cohesion: 0.12
+Nodes (4): PageRequest, file_account_v1_account_proto_rawDescGZIP(), AccountStatus, ListAccountsRequest
 
 ### Community 732 - "Community 732"
-Cohesion: 0.16
-Nodes (3): UnknownFields, BudgetDetailDTO, BudgetDetailResponse
+Cohesion: 0.09
+Nodes (4): UnknownFields, BudgetDetailDTO, BudgetDetailResponse, BudgetItemDTO
 
 ### Community 733 - "Community 733"
 Cohesion: 0.14
@@ -4169,28 +4154,28 @@ Cohesion: 0.16
 Nodes (3): UnknownFields, BudgetDetailDTO, BudgetDetailResponse
 
 ### Community 737 - "Community 737"
-Cohesion: 0.19
-Nodes (8): ReminderError, RepeatPattern, Err, Display, Error, Formatter, Result, Self
+Cohesion: 0.21
+Nodes (4): SizeCache, UserDTO, GetProfileResponse, UpdateProfileResponse
 
 ### Community 738 - "Community 738"
-Cohesion: 0.24
-Nodes (10): Security, SecurityType, Decimal, Display, Formatter, Option, Result, Self (+2 more)
+Cohesion: 0.14
+Nodes (19): Security, SecurityType, OrderOption, ByCreatedAt(), ByCurrencyCode(), ByCurrentPriceCents(), ByExchange(), ByID() (+11 more)
 
 ### Community 739 - "Community 739"
-Cohesion: 0.21
-Nodes (7): DebtDetails, PaymentScheduleEntry, AmortizationMethod, trimSpace(), PaymentScheduleEntry, Time, UUID
+Cohesion: 0.18
+Nodes (10): Execution Handoff, File Structure, Global Constraints, Self-Review, Task 1: 账户列表 card 按类型分支, Task 2: 账户详情 Hero 升级, Task 3: 交易转账行双账户箭头, 修改 (+2 more)
 
 ### Community 740 - "Community 740"
-Cohesion: 0.28
-Nodes (12): TestHolding_ApplyBuy(), TestHolding_ApplyDividend(), TestHolding_ApplySell(), TestHolding_ApplySell_InsufficientShares(), TestHolding_ApplySplit(), TestHolding_MarketValue(), TestHolding_UnrealizedPnL(), TestNewSecurity_EmptySymbol() (+4 more)
+Cohesion: 0.12
+Nodes (24): TestHolding_ApplyBuy(), TestHolding_ApplyDividend(), TestHolding_ApplySell(), TestHolding_ApplySell_InsufficientShares(), TestHolding_ApplySplit(), TestHolding_MarketValue(), TestHolding_UnrealizedPnL(), TestNewSecurity_EmptySymbol() (+16 more)
 
 ### Community 741 - "Community 741"
 Cohesion: 0.40
 Nodes (12): CreateDebtDto, DebtDto, PaymentScheduleDto, RecordPaymentDto, UpdateDebtDto, AccountType, Decimal, NaiveDate (+4 more)
 
 ### Community 742 - "Community 742"
-Cohesion: 0.31
-Nodes (4): AccountCreateBulk, Account, config, Context
+Cohesion: 0.17
+Nodes (7): AccountCreateBulk, Account, AccountType, Category, config, Context, CreateSpec
 
 ### Community 743 - "Community 743"
 Cohesion: 0.17
@@ -4199,6 +4184,10 @@ Nodes (7): Currencies, Currency, config, CurrencyUpdateOne, SelectValues, UUID, 
 ### Community 744 - "Community 744"
 Cohesion: 0.18
 Nodes (8): Tenant, Tenants, config, SelectValues, Time, Type, UUID, Value
+
+### Community 745 - "Community 745"
+Cohesion: 0.07
+Nodes (46): AccountDetailPanelProps, CurrencyForm(), CurrencyFormValues, DEBT_ACCOUNT_TYPES, DebtForm(), PaymentPreview, EmptyStateProps, FormValues (+38 more)
 
 ### Community 747 - "Community 747"
 Cohesion: 0.18
@@ -4280,12 +4269,8 @@ Nodes (7): TransactionTemplate, Annotation, Edge, Field, Index, Mixin, Schema
 Cohesion: 0.24
 Nodes (7): main(), Path, LogValidator, Log language validator — ensures all log messages use English., Validates that log messages contain no CJK characters (must be English)., Check Rust tracing macros for CJK characters., Check TypeScript console methods for CJK characters.
 
-### Community 768 - "Community 768"
-Cohesion: 0.17
-Nodes (4): MessageState, UnknownFields, DeleteBackupRequest, TestConnectionResponse
-
 ### Community 769 - "Community 769"
-Cohesion: 0.18
+Cohesion: 0.16
 Nodes (4): EnumDescriptor, EnumNumber, EnumType, CategoryType
 
 ### Community 770 - "Community 770"
@@ -4309,40 +4294,36 @@ Cohesion: 0.33
 Nodes (8): AppHandle, Arc, CloudSyncService, Option, Self, String, CloudSyncEvent, CloudSyncScheduler
 
 ### Community 780 - "Community 780"
-Cohesion: 0.18
-Nodes (4): EnumDescriptor, EnumNumber, EnumType, CategoryType
+Cohesion: 0.20
+Nodes (6): PaymentSchedule, Annotation, Edge, Field, Index, Schema
 
 ### Community 781 - "Community 781"
 Cohesion: 0.18
 Nodes (3): MessageState, DebtDetailDTO, DebtDetailResponse
 
 ### Community 787 - "Community 787"
-Cohesion: 0.19
-Nodes (3): EntryDTO, Timestamp, TransactionDTO
+Cohesion: 0.13
+Nodes (5): EntryDTO, SizeCache, Timestamp, TransactionDTO, TransactionResponse
 
 ### Community 788 - "Community 788"
-Cohesion: 0.18
-Nodes (6): ErrorBoundary, ErrorBoundaryProps, ErrorBoundaryState, ErrorFallbackDisplay(), ErrorFallbackDisplayProps, renderForm()
+Cohesion: 0.40
+Nodes (4): flutter(), flutter(), namespace, namespace
 
 ### Community 789 - "Community 789"
 Cohesion: 0.20
 Nodes (9): AccountFilter, AccountRepository, BalanceCalculator, ChartRepository, AccountStatus, AccountType, PageRequest, PaginatedResult (+1 more)
 
 ### Community 790 - "Community 790"
-Cohesion: 0.36
-Nodes (10): CreateTransactionDto, CreateTransactionEntryDto, TransactionDto, TransactionEntryDto, Decimal, NaiveDate, Option, String (+2 more)
-
-### Community 791 - "Community 791"
-Cohesion: 0.24
-Nodes (4): AccountType, Category, CreateSpec, Ownership
+Cohesion: 0.15
+Nodes (26): PrepaidDetailDto, TopUpRecordDto, TopUpRequest, SimpleExpenseDto, SimpleIncomeDto, SimpleTransferDto, CreateTransactionDto, CreateTransactionEntryDto (+18 more)
 
 ### Community 793 - "Community 793"
 Cohesion: 0.18
 Nodes (7): Budget, Budgets, config, SelectValues, Time, UUID, Value
 
 ### Community 794 - "Community 794"
-Cohesion: 0.18
-Nodes (7): Categories, Category, config, SelectValues, Time, UUID, Value
+Cohesion: 0.40
+Nodes (4): ApiError, ErrorResponse, IntoResponse, String
 
 ### Community 796 - "Community 796"
 Cohesion: 0.18
@@ -4433,12 +4414,12 @@ Cohesion: 0.32
 Nodes (8): NewChartRepository(), toDomainChart(), ChartRepository, ChartOfAccount, ChartOfAccounts, Client, Context, UUID
 
 ### Community 821 - "Community 821"
-Cohesion: 0.29
-Nodes (8): toDomainHolding(), HoldingRepository, Client, Context, Holding, PageRequest, PaginatedResult, UUID
+Cohesion: 0.12
+Nodes (27): NewHoldingRepository(), toDomainHolding(), HoldingRepository, NewSecurityRepository(), NewTradeRepository(), toDomainTrade(), TradeRepository, setupHoldingTestDB() (+19 more)
 
 ### Community 822 - "Community 822"
-Cohesion: 0.50
-Nodes (11): NewHoldingRepository(), NewSecurityRepository(), NewTradeRepository(), setupHoldingTestDB(), TestBuyHolding(), TestDividend(), TestSecurityCRUD(), TestSellHolding() (+3 more)
+Cohesion: 0.18
+Nodes (11): Buy/Sell Creates Double-Entry Transaction, Categories Absorbed Into Accounts, Debt Repayment Creates Double-Entry Transaction, Low Balance Alert (Prepaid), No Uuid::nil() Sentinel Rationale, Prepaid Account Type, Prepaid Consumption Feature, Prepaid Double-Entry Transaction Flows (+3 more)
 
 ### Community 823 - "Community 823"
 Cohesion: 0.39
@@ -4457,8 +4438,8 @@ Cohesion: 0.20
 Nodes (7): Budget, Annotation, Edge, Field, Index, Mixin, Schema
 
 ### Community 827 - "Community 827"
-Cohesion: 0.20
-Nodes (7): Category, Annotation, Edge, Field, Index, Mixin, Schema
+Cohesion: 0.40
+Nodes (4): Box, Error, Result, test_category_datetime_format()
 
 ### Community 828 - "Community 828"
 Cohesion: 0.20
@@ -4490,7 +4471,7 @@ Nodes (12): Backlog Items, Backlog 优先级, Product Backlog, Sprint 1 - 本地
 
 ### Community 836 - "Community 836"
 Cohesion: 0.18
-Nodes (4): MessageState, SizeCache, DeleteBudgetRequest, GetBudgetByMonthRequest
+Nodes (4): MessageState, SizeCache, ComputeActualsRequest, DeleteBudgetRequest
 
 ### Community 837 - "Community 837"
 Cohesion: 0.18
@@ -4544,10 +4525,6 @@ Nodes (11): Client, migrateSchema(), NewClient(), newOptions(), Open(), WithMigr
 Cohesion: 0.39
 Nodes (11): Client, migrateSchema(), NewClient(), newOptions(), Open(), WithMigrateOptions(), WithOptions(), Option (+3 more)
 
-### Community 851 - "Community 851"
-Cohesion: 0.39
-Nodes (11): Client, migrateSchema(), NewClient(), newOptions(), Open(), WithMigrateOptions(), WithOptions(), Option (+3 more)
-
 ### Community 852 - "Community 852"
 Cohesion: 0.39
 Nodes (11): Client, migrateSchema(), NewClient(), newOptions(), Open(), WithMigrateOptions(), WithOptions(), Option (+3 more)
@@ -4570,7 +4547,7 @@ Nodes (4): MessageState, UnknownFields, CreateBackupRequest, DeleteBackupRequest
 
 ### Community 857 - "Community 857"
 Cohesion: 0.18
-Nodes (4): MessageState, SizeCache, DeleteBudgetRequest, GetBudgetByMonthRequest
+Nodes (4): MessageState, SizeCache, ComputeActualsRequest, GetBudgetRequest
 
 ### Community 858 - "Community 858"
 Cohesion: 0.18
@@ -4647,14 +4624,6 @@ Nodes (10): Account Edit Implementation Plan, Task 1: Extend Rust UpdateAccountD
 ### Community 878 - "Community 878"
 Cohesion: 0.18
 Nodes (10): Phase 3 完成检查清单, Phase 3: 目标设定系统实施计划, Task 1: 创建目标数据库表, Task 2: 创建目标领域模型, Task 3: 创建目标仓库, Task 4: 创建 Tauri 命令, Task 5: 创建前端 API 和页面, 下一步 (+2 more)
-
-### Community 879 - "Community 879"
-Cohesion: 0.20
-Nodes (6): BudgetItem, Annotation, Edge, Field, Index, Schema
-
-### Community 880 - "Community 880"
-Cohesion: 0.20
-Nodes (6): PaymentSchedule, Annotation, Edge, Field, Index, Schema
 
 ### Community 881 - "Community 881"
 Cohesion: 0.20
@@ -4741,8 +4710,8 @@ Cohesion: 0.31
 Nodes (6): NewRefreshHandler(), RefreshHandler, SessionStore, RefreshCommand, Context, Duration
 
 ### Community 921 - "Community 921"
-Cohesion: 0.44
-Nodes (9): PrepaidDetailDto, TopUpRecordDto, TopUpRequest, Decimal, NaiveDate, Option, String, Uuid (+1 more)
+Cohesion: 0.22
+Nodes (3): file_backup_v1_backup_proto_init(), init(), CreateBackupRequest
 
 ### Community 922 - "Community 922"
 Cohesion: 0.20
@@ -4769,8 +4738,8 @@ Cohesion: 0.29
 Nodes (9): Q, Bus, Dispatch(), Register(), Handler, handlerWrapper, Context, R (+1 more)
 
 ### Community 928 - "Community 928"
-Cohesion: 0.29
-Nodes (8): GetProfileHandler, GetProfileQuery, GetProfileResult, NewGetProfileHandler(), Context, User, UserRepository, UUID
+Cohesion: 0.42
+Nodes (7): disableEncryption(), EncryptionStatus, getEncryptionStatus(), lockEncryption(), setupEncryption(), unlockEncryption(), unlockEncryptionKeychain()
 
 ### Community 929 - "Community 929"
 Cohesion: 0.51
@@ -4784,21 +4753,17 @@ Nodes (9): NewGoalRepository(), setupGoalTestDB(), TestGoalCRUD(), TestGoalOverd
 Cohesion: 0.33
 Nodes (7): NewTenantRepository(), toDomainTenant(), TenantRepository, Client, Context, Tenant, UUID
 
-### Community 932 - "Community 932"
-Cohesion: 0.49
-Nodes (5): PrepaidAlertScheduler, Result, Self, SqlitePool, String
-
 ### Community 933 - "Community 933"
 Cohesion: 0.24
 Nodes (6): Security, Annotation, Edge, Field, Index, Schema
 
 ### Community 934 - "Community 934"
-Cohesion: 0.20
-Nodes (10): $ref, description, items, type, uniqueItems, description, items, type (+2 more)
+Cohesion: 0.50
+Nodes (4): description, type, uniqueItems, permissions
 
 ### Community 935 - "Community 935"
-Cohesion: 0.24
-Nodes (10): type, webviews, windows, items, description, items, type, description (+2 more)
+Cohesion: 0.15
+Nodes (16): $ref, type, items, description, items, type, platforms, webviews (+8 more)
 
 ### Community 936 - "Community 936"
 Cohesion: 0.20
@@ -4807,10 +4772,6 @@ Nodes (10): $ref, description, items, type, uniqueItems, description, items, typ
 ### Community 937 - "Community 937"
 Cohesion: 0.24
 Nodes (10): type, webviews, windows, items, description, items, type, description (+2 more)
-
-### Community 939 - "Community 939"
-Cohesion: 0.22
-Nodes (3): file_backup_v1_backup_proto_init(), init(), CreateBackupRequest
 
 ### Community 941 - "Community 941"
 Cohesion: 0.22
@@ -4823,6 +4784,10 @@ Nodes (3): file_debt_v1_debt_proto_init(), init(), GetDebtRequest
 ### Community 945 - "Community 945"
 Cohesion: 0.22
 Nodes (3): CompleteGoalRequest, file_goal_v1_goal_proto_init(), init()
+
+### Community 946 - "Community 946"
+Cohesion: 0.17
+Nodes (3): CreateSecurityRequest, file_holding_v1_holding_proto_init(), init()
 
 ### Community 947 - "Community 947"
 Cohesion: 0.22
@@ -4872,10 +4837,6 @@ Nodes (7): Context, Driver, Create(), NewSchema(), Schema, Table, Writer
 Cohesion: 0.36
 Nodes (7): Context, Driver, Create(), NewSchema(), Schema, Table, Writer
 
-### Community 961 - "Community 961"
-Cohesion: 0.36
-Nodes (7): Context, Driver, Create(), NewSchema(), Schema, Table, Writer
-
 ### Community 962 - "Community 962"
 Cohesion: 0.36
 Nodes (7): Context, Driver, Create(), NewSchema(), Schema, Table, Writer
@@ -4894,7 +4855,7 @@ Nodes (7): Context, Driver, Create(), NewSchema(), Schema, Table, Writer
 
 ### Community 968 - "Community 968"
 Cohesion: 0.22
-Nodes (3): file_budget_v1_budget_proto_init(), init(), GetBudgetRequest
+Nodes (3): file_budget_v1_budget_proto_init(), init(), DeleteBudgetRequest
 
 ### Community 970 - "Community 970"
 Cohesion: 0.22
@@ -4937,8 +4898,8 @@ Cohesion: 0.39
 Nodes (7): ByAccountID(), ByActualAmountCents(), ByBudgetID(), ByID(), ByNotes(), ByPlannedAmountCents(), OrderOption
 
 ### Community 984 - "Community 984"
-Cohesion: 0.22
-Nodes (8): ClientInterceptor, applyIdentity, appName, appVersion, AuthInterceptor, clientId, isAuthBypassed, shouldRetry
+Cohesion: 0.38
+Nodes (5): Decimal, Option, Self, String, BudgetItem
 
 ### Community 985 - "Community 985"
 Cohesion: 0.31
@@ -4953,8 +4914,8 @@ Cohesion: 0.58
 Nodes (8): CreateTransactionTemplateDto, TransactionTemplateDto, UpdateTransactionTemplateDto, Decimal, NaiveDate, Option, String, Uuid
 
 ### Community 988 - "Community 988"
-Cohesion: 0.25
-Nodes (7): NewMockProvider(), MockProvider, MockProvider, provideCurrencyService(), provideExchangeRateProvider(), Context, CurrencyRepository
+Cohesion: 0.50
+Nodes (3): NewMockProvider(), MockProvider, Context
 
 ### Community 989 - "Community 989"
 Cohesion: 0.47
@@ -5004,6 +4965,10 @@ Nodes (9): properties, description, default, description, type, local, urls, des
 Cohesion: 0.28
 Nodes (9): definitions, Identifier, Target, description, oneOf, type, identifier, description (+1 more)
 
+### Community 1002 - "Community 1002"
+Cohesion: 0.33
+Nodes (3): MessageState, PageRequest, ListBackupsRequest
+
 ### Community 1023 - "Community 1023"
 Cohesion: 0.22
 Nodes (9): 7.1 测试金字塔, 7.2 单元测试（60%覆盖率）, 7.3 集成测试（30%覆盖率）, 7.4 E2E测试（10%覆盖率）, 7.5 性能测试, 7.6 合规性测试, 7.7 测试覆盖率目标, 7.8 GitLab CI/CD集成 (+1 more)
@@ -5021,12 +4986,12 @@ Cohesion: 0.22
 Nodes (9): P2-1: Add budget template / copy-to-next-month, P2-2: Add Goals edit UI + auto-sync from account balances, P2-3: Add bulk transaction operations, P2-4: Implement OAuth for Dropbox/Google Drive/OneDrive backup, P2-5: Add scheduled/automatic backup, P2-6: Add FTS (full-text search), P2-7: Add cloud sync conflict resolution UI, P2-8: Add Tags management page + update + soft delete (+1 more)
 
 ### Community 1048 - "Community 1048"
-Cohesion: 0.25
-Nodes (7): TransactionFilter, TransactionRepository, PageRequest, PaginatedResult, T, Time, UUID
+Cohesion: 0.20
+Nodes (13): MonthlySummary, ParseTransactionType(), SummaryCategoryItem, SummaryDailyItem, SummaryScope, TransactionFilter, TransactionRepository, TransactionType (+5 more)
 
 ### Community 1049 - "Community 1049"
-Cohesion: 0.64
-Nodes (7): SimpleExpenseDto, SimpleIncomeDto, SimpleTransferDto, Decimal, NaiveDate, String, Uuid
+Cohesion: 0.29
+Nodes (6): build_cloud_provider(), Box, CloudError, CloudProvider, CloudSettings, Result
 
 ### Community 1050 - "Community 1050"
 Cohesion: 0.25
@@ -5096,6 +5061,10 @@ Nodes (7): CreateTransactionEntryInput, CreateTransactionInput, IsoDate, Transac
 Cohesion: 0.25
 Nodes (8): CreatedAt(), CreatedAtEQ(), CreatedAtGT(), CreatedAtGTE(), CreatedAtLT(), CreatedAtLTE(), CreatedAtNEQ(), Time
 
+### Community 1093 - "Community 1093"
+Cohesion: 0.67
+Nodes (3): BudgetRepository, Send, Sync
+
 ### Community 1104 - "Community 1104"
 Cohesion: 0.38
 Nodes (4): NewWebDAVProvider(), WebDAVProvider, Client, Context
@@ -5109,16 +5078,12 @@ Cohesion: 0.38
 Nodes (5): NewUpdateProfileHandler(), UpdateProfileHandler, UpdateProfileCommand, Context, UserRepository
 
 ### Community 1107 - "Community 1107"
-Cohesion: 0.33
-Nodes (5): Config, Load(), TestLoadFromEnv(), main(), T
-
-### Community 1108 - "Community 1108"
-Cohesion: 0.38
-Nodes (5): categoryOption, withCategory(), withCategoryID(), Category, Client
+Cohesion: 0.22
+Nodes (9): Config, Load(), TestLoadFromEnv(), main(), seedPresetCategories(), Context, Service, TenantRepository (+1 more)
 
 ### Community 1110 - "Community 1110"
-Cohesion: 0.38
-Nodes (5): goalOption, withGoal(), withGoalID(), Client, Goal
+Cohesion: 0.15
+Nodes (6): goalOption, withGoal(), withGoalID(), Client, Goal, UUID
 
 ### Community 1111 - "Community 1111"
 Cohesion: 0.33
@@ -5185,8 +5150,8 @@ Cohesion: 0.33
 Nodes (5): handle_new_rx_page(), __lldb_init_module(), Intercept NOTIFY_DEBUGGER_ABOUT_RX_PAGES and touch the pages., SBDebugger, SBFrame
 
 ### Community 1167 - "Community 1167"
-Cohesion: 0.33
-Nodes (6): PaymentDate(), PaymentDateEQ(), PaymentDateGT(), PaymentDateLT(), PaymentDateNEQ(), Time
+Cohesion: 0.22
+Nodes (3): GetTransactionRequest, file_transaction_v1_transaction_proto_init(), init()
 
 ### Community 1168 - "Community 1168"
 Cohesion: 0.33
@@ -5207,6 +5172,10 @@ Nodes (5): GetAccountQuery, ListAccountsQuery, AccountFilter, PageRequest, UUID
 ### Community 1172 - "Community 1172"
 Cohesion: 0.33
 Nodes (5): Anti-slop spot-check, P0 — must pass, P1 — should pass, P2 — nice to have, Web prototype checklist
+
+### Community 1173 - "Community 1173"
+Cohesion: 0.09
+Nodes (3): AccountType, CreateCategoryRequest, ReorderCategoriesRequest
 
 ### Community 1179 - "Community 1179"
 Cohesion: 0.33
@@ -5271,10 +5240,6 @@ Nodes (4): UnaryRecoveryInterceptor(), Context, UnaryHandler, UnaryServerInfo
 ### Community 1203 - "Community 1203"
 Cohesion: 0.40
 Nodes (5): 1. Sprint Planning（Sprint 计划会）, 2. Daily Scrum（每日站会）, 3. Sprint Review（Sprint 评审会）, 4. Sprint Retrospective（Sprint 回顾会）, Scrum 仪式
-
-### Community 1204 - "Community 1204"
-Cohesion: 0.60
-Nodes (4): AccountService, Arc, R, U
 
 ### Community 1205 - "Community 1205"
 Cohesion: 0.40
@@ -5359,10 +5324,6 @@ Nodes (3): Holding, HoldingTransaction, Security
 ### Community 1265 - "Community 1265"
 Cohesion: 0.50
 Nodes (3): SyncConflict, SyncDevice, SyncLog
-
-### Community 1266 - "Community 1266"
-Cohesion: 0.50
-Nodes (3): ReminderRepository, Send, Sync
 
 ### Community 1267 - "Community 1267"
 Cohesion: 0.50
@@ -5468,6 +5429,10 @@ Nodes (3): AccountTypeEQ(), AccountTypeNEQ(), AccountType
 Cohesion: 0.67
 Nodes (3): BalanceDirectionEQ(), BalanceDirectionNEQ(), BalanceDirection
 
+### Community 1310 - "Community 1310"
+Cohesion: 0.22
+Nodes (3): file_auth_v1_auth_proto_init(), init(), RefreshTokenRequest
+
 ### Community 1316 - "Community 1316"
 Cohesion: 0.67
 Nodes (3): Sprint 1 测试, Sprint 2 测试, 测试策略
@@ -5477,32 +5442,40 @@ Cohesion: 0.67
 Nodes (3): 开发环境, 环境配置, 生产环境
 
 ### Community 1318 - "Community 1318"
-Cohesion: 0.67
-Nodes (3): Value, Strategy, money_strategy()
+Cohesion: 0.33
+Nodes (6): PaymentDate(), PaymentDateEQ(), PaymentDateGT(), PaymentDateLT(), PaymentDateNEQ(), Time
 
 ### Community 1321 - "Community 1321"
 Cohesion: 0.67
 Nodes (3): FamilyRoleEQ(), FamilyRoleNEQ(), FamilyRole
 
+### Community 1323 - "Community 1323"
+Cohesion: 0.50
+Nodes (3): Self, SqlitePool, create_default_state_from_pool()
+
+### Community 1328 - "Community 1328"
+Cohesion: 0.50
+Nodes (4): Debt Card with Progress, Debt Hero Card (Dark Red), Debts Page (Mobile), Debt Form (Mobile)
+
 ## Knowledge Gaps
-- **6164 isolated node(s):** `$schema`, `specVersion`, `title`, `zh-CN`, `en` (+6159 more)
+- **6781 isolated node(s):** `$schema`, `specVersion`, `title`, `zh-CN`, `en` (+6776 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **499 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **497 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Map` connect `Backup Service` to `Community 416`, `Community 448`, `Community 370`, `Community 635`, `Community 319`?**
-  _High betweenness centrality (0.009) - this node is a cross-community bridge._
-- **Why does `_` connect `Community 389` to `Screen Artifacts`, `Community 335`?**
+- **Why does `OwnershipValidator()` connect `Account Edit & Hero` to `Community 323`, `Reports`, `Community 742`?**
   _High betweenness centrality (0.005) - this node is a cross-community bridge._
-- **Why does `Backup Module Design` connect `Encryption Service` to `Backup Service`?**
-  _High betweenness centrality (0.003) - this node is a cross-community bridge._
-- **Are the 16 inferred relationships involving `invokeTauri()` (e.g. with `createDebt()` and `deleteDebt()`) actually correct?**
-  _`invokeTauri()` has 16 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `AccountUpdateOne` connect `Goals Domain` to `Community 909`, `Community 932`, `Community 1193`, `Community 428`, `Community 961`, `Community 323`, `Community 1094`, `Community 1095`, `Community 969`, `Community 1226`, `Community 1227`, `Community 1228`, `Community 1229`, `Community 1230`, `Community 1231`, `Community 1233`, `Community 1234`, `Community 851`, `Community 1108`, `Community 1235`, `Community 1236`, `Community 1238`, `Community 1239`, `Community 1240`, `Community 1243`, `Community 1244`, `Community 1245`, `Community 1246`, `Community 1248`, `Community 1249`, `Community 869`, `Debt Service`, `Community 884`, `Community 886`?**
+  _High betweenness centrality (0.004) - this node is a cross-community bridge._
+- **Why does `AccountUpdate` connect `Debt Service` to `Community 909`, `Community 932`, `Community 1193`, `Community 428`, `Community 961`, `Community 323`, `Community 1094`, `Community 1095`, `Community 969`, `Community 1226`, `Community 1227`, `Community 1228`, `Community 1229`, `Community 1230`, `Community 1231`, `Community 1233`, `Community 1234`, `Community 851`, `Community 1108`, `Community 1235`, `Community 1236`, `Community 1238`, `Community 1239`, `Community 1240`, `Community 1243`, `Community 1244`, `Community 1245`, `Community 1246`, `Community 1248`, `Community 1249`, `Goals Domain`, `Community 869`, `Community 884`, `Community 886`?**
+  _High betweenness centrality (0.004) - this node is a cross-community bridge._
 - **What connects `$schema`, `specVersion`, `title` to the rest of the system?**
-  _6186 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _6803 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `EN Transaction i18n` be split into smaller, more focused modules?**
   _Cohesion score 0.04108622817845177 - nodes in this community are weakly interconnected._
 - **Should `Account Repositories` be split into smaller, more focused modules?**
-  _Cohesion score 0.009433856565045433 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.009174214735949997 - nodes in this community are weakly interconnected._
+- **Should `Tauri ACL Schema` be split into smaller, more focused modules?**
+  _Cohesion score 0.019310344827586208 - nodes in this community are weakly interconnected._

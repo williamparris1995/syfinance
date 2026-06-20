@@ -9,7 +9,6 @@ import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/bloc/account_state.dart';
 import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
-import 'package:yucai_client/account/presentation/widgets/account_category_style.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
@@ -185,7 +184,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     return ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
-          _hero(a),
+          _hero(a, summary?.netCents ?? 0),
           const SizedBox(height: AppSpacing.lg),
           _statsRow(txns, summary),
           const SizedBox(height: AppSpacing.lg),
@@ -219,140 +218,221 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
       );
   }
 
-  Widget _hero(Account a) => DataCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _hero(Account a, int netCents) {
+    final isLiability = a.accountType == AccountType.liability;
+    final netPositive = netCents >= 0;
+    return ClipRRect(
+      borderRadius: AppRadius.lgBorder,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF1C1E21), Color(0xFF2A2D33)],
+          ),
+        ),
+        child: Stack(
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: categoryColor(a.category).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                  ),
-                  child: Icon(categoryIcon(a.category),
-                      size: 22, color: categoryColor(a.category)),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(a.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.w600)),
-                      Text(
-                        '${a.institution.isEmpty ? '—' : a.institution} · ${a.currencyCode} · ${a.category.label}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: AppColors.muted, fontSize: 12),
-                      ),
+            // 径向金色光晕（御财金 #B08D57 alpha 0.18）。
+            Positioned(
+              top: -40,
+              right: -40,
+              child: Container(
+                width: 180,
+                height: 180,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      AppColors.accent.withValues(alpha: 0.18),
+                      Colors.transparent,
                     ],
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              _fmt(a.currentBalanceCents),
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w600,
-                letterSpacing: -0.3,
-                color: a.currentBalanceCents < 0
-                    ? AppColors.negative
-                    : AppColors.fg,
-                fontFeatures: AppTypography.tabularFigures,
-                fontFamily: AppTypography.displayFamily,
-                fontFamilyFallback: AppTypography.displayFallback,
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _specificChips(a),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // hero-badge: 类型 + 资产·负债类 + 活期/定期。
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _heroBadge(a.category.label),
+                    _heroBadge(isLiability ? '负债类' : '资产类'),
+                    _heroBadge(a.category == AccountCategory.fixedDeposit
+                        ? '定期'
+                        : '活期'),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                // 余额 40px 白字 serif display。
+                Text(
+                  _fmt(a.currentBalanceCents),
+                  style: const TextStyle(
+                    fontSize: 40,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.5,
+                    color: Colors.white,
+                    fontFeatures: AppTypography.tabularFigures,
+                    fontFamily: AppTypography.displayFamily,
+                    fontFamilyFallback: AppTypography.displayFallback,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                // hero-bal-sub 本月收支（正绿 #6FCF9A 负红 #E57373）。
+                Text(
+                  '本月收支 ${netPositive ? '+' : '-'}¥'
+                  '${(netCents.abs() ~/ 100).toString()}.'
+                  '${(netCents.abs() % 100).toString().padLeft(2, '0')}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: netPositive
+                        ? const Color(0xFF6FCF9A)
+                        : const Color(0xFFE57373),
+                    fontFeatures: AppTypography.tabularFigures,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                // hero-fields 类型专属字段网格。
+                _heroFields(a),
+              ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// hero-badge：半透明金色描边小 pill。
+  Widget _heroBadge(String label) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppColors.accent.withValues(alpha: 0.5),
+          ),
+          color: AppColors.accent.withValues(alpha: 0.08),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            color: AppColors.accentSoft,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       );
 
-  /// category 专属字段 chip（只展示非空 / 非零值）。
-  List<Widget> _specificChips(Account a) {
-    final chips = <_Chip>[];
+  /// hero-fields：类型专属字段结构化网格（desktop 4 列 / mobile 2 列）。
+  /// 替代原 _specificChips 的扁平 Chip Wrap。
+  Widget _heroFields(Account a) {
+    final fields = <(String, String)>[]; // (label, value)
     void add(String label, String? v) {
-      if (v != null && v.isNotEmpty) chips.add(_Chip(label, v));
+      if (v != null && v.isNotEmpty) fields.add((label, v));
     }
 
     void addNum(String label, int? cents) {
-      if (cents != null && cents != 0) {
-        chips.add(_Chip(label, _fmt(cents)));
-      }
+      if (cents != null && cents != 0) fields.add((label, _fmt(cents)));
     }
 
     void addRate(String label, double? r) {
-      // 利率/收益率/折旧率统一 2 位小数（避免 3.8571428% 这种长尾）。
-      if (r != null) chips.add(_Chip(label, '${r.toStringAsFixed(2)}%'));
+      // 利率/收益率/折旧率统一 2 位小数。
+      if (r != null) fields.add((label, '${r.toStringAsFixed(2)}%'));
     }
 
     void addDay(String label, int? d) {
-      if (d != null) chips.add(_Chip(label, '$d日'));
+      if (d != null) fields.add((label, '$d日'));
     }
 
     void addDate(String label, DateTime? d) {
-      if (d != null) chips.add(_Chip(label, _fmtDate(d)));
+      if (d != null) fields.add((label, _fmtDate(d)));
     }
 
-    // 信用卡
-    addNum('信用额度',
-        a.creditLimitCents == 0 ? null : a.creditLimitCents);
-    addDay('账单日', a.creditBillingDay);
-    addDay('还款日', a.creditRepaymentDay);
-    addNum('年费', a.creditAnnualFeeCents);
-    // 通用利率
-    addRate('利率', a.interestRate);
-    // 投资
-    addNum('市值', a.investMarketValueCents);
-    addRate('今年收益率', a.investReturnYtd);
-    addNum('成本', a.investCostCents);
-    // 定期
-    addNum('定期本金', a.fixedPrincipalCents);
-    addDate('起息日', a.fixedStartDate);
-    addDate('到期日', a.fixedMaturityDate);
-    if (a.fixedTermMonths != null) {
-      chips.add(_Chip('期限', '${a.fixedTermMonths}月'));
+    switch (a.category) {
+      case AccountCategory.creditCard:
+        addNum('额度', a.creditLimitCents == 0 ? null : a.creditLimitCents);
+        addDay('账单日', a.creditBillingDay);
+        addDay('还款日', a.creditRepaymentDay);
+        addNum('年费', a.creditAnnualFeeCents);
+      case AccountCategory.loan:
+        addNum('原始本金', a.loanOriginalCents);
+        addNum('剩余本金', a.loanRemainingCents);
+        addNum('月供', a.loanMonthlyCents);
+        addDate('下次还款', a.loanNextPaymentDate);
+      case AccountCategory.investment:
+        addNum('市值', a.investMarketValueCents);
+        addNum('成本', a.investCostCents);
+        addRate('今年收益率', a.investReturnYtd);
+      case AccountCategory.goldFx:
+        add('品种', a.goldProductType.isEmpty ? null : a.goldProductType);
+        if (a.goldQuantity != null) {
+          // 黄金/外汇数量精度 3 位（克/盎司通常 2-3 位小数）。
+          add('数量', a.goldQuantity!.toStringAsFixed(3));
+        }
+        addNum('买入价', a.goldBuyPriceCents);
+        addNum('现价', a.goldCurrentPriceCents);
+      case AccountCategory.realEstate:
+        addNum('买入价', a.estatePurchasePriceCents);
+        addNum('现估值', a.estateCurrentValueCents);
+        addDate('买入日期', a.estatePurchaseDate);
+        addRate('折旧率', a.estateDepreciationRate);
+      case AccountCategory.fixedDeposit:
+        addNum('本金', a.fixedPrincipalCents);
+        addDate('起息日', a.fixedStartDate);
+        addDate('到期日', a.fixedMaturityDate);
+        if (a.fixedTermMonths != null) {
+          add('期限', '${a.fixedTermMonths}月');
+        }
+      case AccountCategory.savings:
+      case AccountCategory.otherAsset:
+      case AccountCategory.otherLiability:
+        addRate('利率', a.interestRate);
+        addDate('开户日期', a.openingDate);
+        add('币种', a.currencyCode);
     }
-    // 黄金
-    add('品种', a.goldProductType.isEmpty ? null : a.goldProductType);
-    if (a.goldQuantity != null) {
-      // 黄金/外汇数量精度 3 位（克/盎司通常 2-3 位小数）。
-      chips.add(_Chip('数量', a.goldQuantity!.toStringAsFixed(3)));
-    }
-    addNum('买入价', a.goldBuyPriceCents);
-    addNum('现价', a.goldCurrentPriceCents);
-    // 房产
-    addNum('买入价', a.estatePurchasePriceCents);
-    addNum('现估值', a.estateCurrentValueCents);
-    addDate('买入日期', a.estatePurchaseDate);
-    addRate('折旧率', a.estateDepreciationRate);
-    // 贷款
-    addNum('原始本金', a.loanOriginalCents);
-    addNum('剩余本金', a.loanRemainingCents);
-    addNum('月供', a.loanMonthlyCents);
-    addDate('下次还款', a.loanNextPaymentDate);
 
-    return chips
-        .map((c) => Chip(
-              label: Text('${c.label}: ${c.value}',
-                  style: const TextStyle(fontSize: 12)),
-            ))
-        .toList();
+    return LayoutBuilder(
+      builder: (ctx, c) => GridView.count(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: c.maxWidth > 600 ? 4 : 2,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 2.6,
+        children: [for (final f in fields) _heroField(f.$1, f.$2)],
+      ),
+    );
   }
+
+  /// hero-field：浅色 label + 白字 value 的单格。
+  Widget _heroField(String label, String value) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.white.withValues(alpha: 0.5),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.white,
+              fontWeight: FontWeight.w500,
+              fontFeatures: AppTypography.tabularFigures,
+            ),
+          ),
+        ],
+      );
 
   /// 收支统计 4 卡：本月收入 / 本月支出 / 净值变动 / 交易数。
   /// 接 TransactionBloc 的 account-scoped MonthlySummary（Task 5.1 accountId
@@ -802,10 +882,4 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
 
   String _fmtDate(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-}
-
-class _Chip {
-  const _Chip(this.label, this.value);
-  final String label;
-  final String value;
 }

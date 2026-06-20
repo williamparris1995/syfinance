@@ -2245,147 +2245,147 @@
     "semantic_hash": ""
   },
   "server/internal/proto/account/v1/account.pb.go": {
-    "mtime": 1781498084.561759,
-    "ast_hash": "882c32fc755c084e3aca93338b972390",
+    "mtime": 1781872240.2363942,
+    "ast_hash": "0c56bf1bc68fc23a10cf5b5e4b5bfe7d",
     "semantic_hash": ""
   },
   "server/internal/proto/account/v1/account_grpc.pb.go": {
-    "mtime": 1781498084.561759,
-    "ast_hash": "308b862704ddea0530989e757d62eec2",
+    "mtime": 1781872240.2383947,
+    "ast_hash": "1e3dd10e984a7a11321897fb9b9bfae3",
     "semantic_hash": ""
   },
   "server/internal/proto/auth/v1/auth.pb.go": {
-    "mtime": 1781498084.561744,
+    "mtime": 1781871941.1528273,
     "ast_hash": "d5bcf8b3bc3502160e89c052fc04e77d",
     "semantic_hash": ""
   },
   "server/internal/proto/auth/v1/auth_grpc.pb.go": {
-    "mtime": 1781498084.5612276,
+    "mtime": 1781871941.1528273,
     "ast_hash": "f16934b04c1477224ba83e6f87424e19",
     "semantic_hash": ""
   },
   "server/internal/proto/backup/v1/backup.pb.go": {
-    "mtime": 1781498084.5734541,
+    "mtime": 1781871941.1528273,
     "ast_hash": "69e918662c3235c196e8488a781a826d",
     "semantic_hash": ""
   },
   "server/internal/proto/backup/v1/backup_grpc.pb.go": {
-    "mtime": 1781498084.5729501,
+    "mtime": 1781871941.1528273,
     "ast_hash": "84672ddb4f60ed714ed608b18fa3ca74",
     "semantic_hash": ""
   },
   "server/internal/proto/budget/v1/budget.pb.go": {
-    "mtime": 1781498084.5708294,
+    "mtime": 1781871941.1528273,
     "ast_hash": "e70e35211f23f56a564ad3ea01832ffc",
     "semantic_hash": ""
   },
   "server/internal/proto/budget/v1/budget_grpc.pb.go": {
-    "mtime": 1781498084.5617535,
+    "mtime": 1781871941.1528273,
     "ast_hash": "0ef2aa56d75000ddf519c955da783ea2",
     "semantic_hash": ""
   },
   "server/internal/proto/category/v1/category.pb.go": {
-    "mtime": 1781498084.5734856,
+    "mtime": 1781871941.1528273,
     "ast_hash": "a906d3ec63d597c8165ea292ead7d29a",
     "semantic_hash": ""
   },
   "server/internal/proto/category/v1/category_grpc.pb.go": {
-    "mtime": 1781498084.5729501,
+    "mtime": 1781871941.1528273,
     "ast_hash": "257f758b37381ccb388ff11dab9b6fdb",
     "semantic_hash": ""
   },
   "server/internal/proto/common/v1/error.pb.go": {
-    "mtime": 1781498084.561759,
+    "mtime": 1781871941.1528273,
     "ast_hash": "3a74df6d6f926bd2a7add038653d5a44",
     "semantic_hash": ""
   },
   "server/internal/proto/common/v1/money.pb.go": {
-    "mtime": 1781498084.561759,
+    "mtime": 1781871941.1528273,
     "ast_hash": "0f88ff3949f09909041cc33a220505e1",
     "semantic_hash": ""
   },
   "server/internal/proto/common/v1/pagination.pb.go": {
-    "mtime": 1781498084.5713937,
+    "mtime": 1781871941.1623614,
     "ast_hash": "a7d3e164fdb049167d13d606e01d527d",
     "semantic_hash": ""
   },
   "server/internal/proto/currency/v1/currency.pb.go": {
-    "mtime": 1781498084.5734856,
+    "mtime": 1781871941.1623614,
     "ast_hash": "a71156667133ab264a61a0e065c0ac18",
     "semantic_hash": ""
   },
   "server/internal/proto/currency/v1/currency_grpc.pb.go": {
-    "mtime": 1781498084.5750656,
+    "mtime": 1781871941.1623418,
     "ast_hash": "91eeb8b9862bcd585e2df969bf6b81af",
     "semantic_hash": ""
   },
   "server/internal/proto/debt/v1/debt.pb.go": {
-    "mtime": 1781498084.57191,
+    "mtime": 1781871941.1623614,
     "ast_hash": "8cb231cd2f6bd8c3532d53152b941c67",
     "semantic_hash": ""
   },
   "server/internal/proto/debt/v1/debt_grpc.pb.go": {
-    "mtime": 1781498084.57191,
+    "mtime": 1781871941.1623614,
     "ast_hash": "709b391768686ae332e0bef7fed58c1a",
     "semantic_hash": ""
   },
   "server/internal/proto/goal/v1/goal.pb.go": {
-    "mtime": 1781498084.57191,
+    "mtime": 1781871941.162875,
     "ast_hash": "7635730fb537feeebc9c69aa2bd7d500",
     "semantic_hash": ""
   },
   "server/internal/proto/goal/v1/goal_grpc.pb.go": {
-    "mtime": 1781498084.57191,
+    "mtime": 1781871941.1629362,
     "ast_hash": "cfc2de88e7fe41fc33db0a6c0299e5a0",
     "semantic_hash": ""
   },
   "server/internal/proto/holding/v1/holding.pb.go": {
-    "mtime": 1781498084.576119,
+    "mtime": 1781871941.1629362,
     "ast_hash": "68ad51f571f837ab8df5628f53384d9b",
     "semantic_hash": ""
   },
   "server/internal/proto/holding/v1/holding_grpc.pb.go": {
-    "mtime": 1781498084.576119,
+    "mtime": 1781871941.1629362,
     "ast_hash": "8064fb5ff443734bcf97cc31bf202ed0",
     "semantic_hash": ""
   },
   "server/internal/proto/sync/v1/sync.pb.go": {
-    "mtime": 1781498084.576119,
+    "mtime": 1781871941.1629362,
     "ast_hash": "8608720688296b7707a4f835847a4a94",
     "semantic_hash": ""
   },
   "server/internal/proto/sync/v1/sync_grpc.pb.go": {
-    "mtime": 1781498084.5781903,
+    "mtime": 1781871941.1629362,
     "ast_hash": "41ebbee06022d5c74e61dee77efb106c",
     "semantic_hash": ""
   },
   "server/internal/proto/tag/v1/tag.pb.go": {
-    "mtime": 1781498084.5750656,
+    "mtime": 1781871941.1629362,
     "ast_hash": "f778b842b0afdfeaf3dad07d934396ca",
     "semantic_hash": ""
   },
   "server/internal/proto/tag/v1/tag_grpc.pb.go": {
-    "mtime": 1781498084.5750656,
+    "mtime": 1781871941.1650417,
     "ast_hash": "78b97467ba95afa87cd60ac0b3b2fe8c",
     "semantic_hash": ""
   },
   "server/internal/proto/template/v1/template.pb.go": {
-    "mtime": 1781498084.5750656,
+    "mtime": 1781871941.1650417,
     "ast_hash": "86a51e7bdf6e48d5ca1f9dd1a8f71e08",
     "semantic_hash": ""
   },
   "server/internal/proto/template/v1/template_grpc.pb.go": {
-    "mtime": 1781498084.5750656,
+    "mtime": 1781871941.1650417,
     "ast_hash": "a6e7569a2ccfde6c925005f159b606b2",
     "semantic_hash": ""
   },
   "server/internal/proto/transaction/v1/transaction.pb.go": {
-    "mtime": 1781498084.5755968,
+    "mtime": 1781871941.1650417,
     "ast_hash": "c72c1bacde0913ce18c3475b5e2ced0b",
     "semantic_hash": ""
   },
   "server/internal/proto/transaction/v1/transaction_grpc.pb.go": {
-    "mtime": 1781498084.576119,
+    "mtime": 1781871941.1650417,
     "ast_hash": "7a0dc0d5b93567324489b4c499fd3725",
     "semantic_hash": ""
   },
@@ -2850,7 +2850,7 @@
     "semantic_hash": ""
   },
   "yucai/client/.dart_tool/flutter_build/9707ccc54c595434a9db7f850e18f9d1/outputs.json": {
-    "mtime": 1781412172.1617556,
+    "mtime": 1781935021.399517,
     "ast_hash": "0216f4ce8e0fe91b25c0dbf49e970df4",
     "semantic_hash": ""
   },
@@ -2880,7 +2880,7 @@
     "semantic_hash": ""
   },
   "yucai/client/.dart_tool/flutter_build/d78d0b579c2e918ee974c607cd620477/outputs.json": {
-    "mtime": 1781520142.8655272,
+    "mtime": 1781625250.3068867,
     "ast_hash": "0216f4ce8e0fe91b25c0dbf49e970df4",
     "semantic_hash": ""
   },
@@ -2970,28 +2970,28 @@
     "semantic_hash": ""
   },
   "yucai/client/lib/account/data/account_remote_ds.dart": {
-    "mtime": 1781598789.1581547,
-    "ast_hash": "eca35c2f085af00a3cacf59e69542bad",
+    "mtime": 1781932459.5720515,
+    "ast_hash": "f79e361cc787e98a8e2ce3c0e002ab8e",
     "semantic_hash": ""
   },
   "yucai/client/lib/account/data/account_repository_impl.dart": {
-    "mtime": 1781598697.6757264,
+    "mtime": 1781619096.115378,
     "ast_hash": "9c89171a825995e9031565ab89615284",
     "semantic_hash": ""
   },
   "yucai/client/lib/account/data/mappers/account_mapper.dart": {
-    "mtime": 1781597953.245612,
-    "ast_hash": "f4396f2f6b9c2a5202d4fa5cb955fb52",
+    "mtime": 1781932366.7130237,
+    "ast_hash": "5878610c25e3605bde8e9844d75a6d15",
     "semantic_hash": ""
   },
   "yucai/client/lib/account/domain/entities/account_entity.dart": {
-    "mtime": 1781597423.893725,
-    "ast_hash": "081d5d44afc7161e620bf2c0c61918f1",
+    "mtime": 1781932321.3578365,
+    "ast_hash": "bb9b8d1cd4bfc7c24769b2d06508a1b4",
     "semantic_hash": ""
   },
   "yucai/client/lib/account/domain/repositories/account_repository.dart": {
-    "mtime": 1781598691.5253966,
-    "ast_hash": "055486e1f3d37d351da57880521ebf98",
+    "mtime": 1781932338.1561172,
+    "ast_hash": "896c86e99b8325d710cb0a4208a6ee54",
     "semantic_hash": ""
   },
   "yucai/client/lib/account/domain/usecases/create_account_usecase.dart": {
@@ -3005,7 +3005,7 @@
     "semantic_hash": ""
   },
   "yucai/client/lib/account/domain/usecases/get_account_usecase.dart": {
-    "mtime": 1781599359.0008583,
+    "mtime": 1781619096.1203775,
     "ast_hash": "21329491c45fd91cadb1acd79a0b3496",
     "semantic_hash": ""
   },
@@ -3015,7 +3015,7 @@
     "semantic_hash": ""
   },
   "yucai/client/lib/account/domain/usecases/update_account_usecase.dart": {
-    "mtime": 1781599361.0225537,
+    "mtime": 1781619096.1211646,
     "ast_hash": "0393e7848e7ae09966728c3ac3ee97e9",
     "semantic_hash": ""
   },
@@ -3025,38 +3025,38 @@
     "semantic_hash": ""
   },
   "yucai/client/lib/account/presentation/bloc/account_bloc.dart": {
-    "mtime": 1781599389.9445195,
+    "mtime": 1781619096.1231608,
     "ast_hash": "3ed25a25707bf364ef3fa52532c296d8",
     "semantic_hash": ""
   },
   "yucai/client/lib/account/presentation/bloc/account_event.dart": {
-    "mtime": 1781599366.7728915,
+    "mtime": 1781619096.124814,
     "ast_hash": "bf530854b758045b90b3c776f7e545b7",
     "semantic_hash": ""
   },
   "yucai/client/lib/account/presentation/bloc/account_state.dart": {
-    "mtime": 1781599369.1053534,
+    "mtime": 1781619096.1263294,
     "ast_hash": "3e923da7a471f80ce7721d647a4b4398",
     "semantic_hash": ""
   },
   "yucai/client/lib/account/presentation/pages/account_detail_page.dart": {
-    "mtime": 1781606752.9408133,
-    "ast_hash": "bda8a6b96b64099eff8d836840ce0e1e",
+    "mtime": 1781957698.1512904,
+    "ast_hash": "bdd79aa2a5edd07f75947166e01c1bd0",
     "semantic_hash": ""
   },
   "yucai/client/lib/account/presentation/pages/account_form_page.dart": {
-    "mtime": 1781605174.224065,
-    "ast_hash": "b5d24c6206bb69421df1492e0ebfb014",
+    "mtime": 1781619096.1298838,
+    "ast_hash": "23619ff3a4ffeda60bccb3c04833ec19",
     "semantic_hash": ""
   },
   "yucai/client/lib/account/presentation/pages/accounts_page.dart": {
-    "mtime": 1781606524.0523758,
-    "ast_hash": "8cfc320508ae31c61ab3ee3e0d44f93c",
+    "mtime": 1781955412.7570226,
+    "ast_hash": "762a6497ac9107fa19a4d08aecd3876a",
     "semantic_hash": ""
   },
   "yucai/client/lib/account/presentation/widgets/category_fields.dart": {
-    "mtime": 1781605055.7050395,
-    "ast_hash": "7b9450f7edaa0541b7edf3d1645722b9",
+    "mtime": 1781620241.7978501,
+    "ast_hash": "d2452f4d8692dc8c8495e5caa122b35b",
     "semantic_hash": ""
   },
   "yucai/client/lib/app/app.dart": {
@@ -3065,13 +3065,13 @@
     "semantic_hash": ""
   },
   "yucai/client/lib/app/router.dart": {
-    "mtime": 1781606765.7223408,
-    "ast_hash": "7061bfc959ceb5256560047c4e905651",
+    "mtime": 1781925311.65573,
+    "ast_hash": "f00e0f58840c39b16000150b2310a329",
     "semantic_hash": ""
   },
   "yucai/client/lib/app/widgets/app_shell.dart": {
-    "mtime": 1781423850.432148,
-    "ast_hash": "76f127248245cacc9607f2796bba9590",
+    "mtime": 1781930978.1886346,
+    "ast_hash": "9236c6b610125f478d13e1ff3b345428",
     "semantic_hash": ""
   },
   "yucai/client/lib/auth/data/auth_remote_ds.dart": {
@@ -3160,8 +3160,8 @@
     "semantic_hash": ""
   },
   "yucai/client/lib/core/di/injection.config.dart": {
-    "mtime": 1781599463.1845565,
-    "ast_hash": "516b3da3052e313d7a2aaac85a2e7c59",
+    "mtime": 1781883914.9670646,
+    "ast_hash": "4be727f55d86e38256d71c63318f74f4",
     "semantic_hash": ""
   },
   "yucai/client/lib/core/di/injection.dart": {
@@ -3215,7 +3215,7 @@
     "semantic_hash": ""
   },
   "yucai/client/lib/core/widgets/date_picker_input.dart": {
-    "mtime": 1781600186.449653,
+    "mtime": 1781619096.1379547,
     "ast_hash": "b797f83e53a81c5ba022975be82e4bd8",
     "semantic_hash": ""
   },
@@ -3245,27 +3245,27 @@
     "semantic_hash": ""
   },
   "yucai/client/lib/proto/account/v1/account.pb.dart": {
-    "mtime": 1781594419.567802,
-    "ast_hash": "737c552e3c7f74e9458d02acc40053da",
+    "mtime": 1781875544.2638304,
+    "ast_hash": "afadcbebd489ad67ca14a4f2f3c9f09b",
     "semantic_hash": ""
   },
   "yucai/client/lib/proto/account/v1/account.pbenum.dart": {
-    "mtime": 1781594419.560964,
+    "mtime": 1781875544.283832,
     "ast_hash": "2b0e143d99577ab7d7caf33317c9deea",
     "semantic_hash": ""
   },
   "yucai/client/lib/proto/account/v1/account.pbgrpc.dart": {
-    "mtime": 1781499052.1851256,
-    "ast_hash": "273a3aef8f5a8c3f9aef1f99ad144514",
+    "mtime": 1781875412.2849433,
+    "ast_hash": "9582d4334b8c664e116aecef818ffc0a",
     "semantic_hash": ""
   },
   "yucai/client/lib/proto/account/v1/account.pbjson.dart": {
-    "mtime": 1781594419.560964,
+    "mtime": 1781619096.1433527,
     "ast_hash": "7e25e59d27219e1acc4a015f5e709a68",
     "semantic_hash": ""
   },
   "yucai/client/lib/proto/account/v1/account.pbserver.dart": {
-    "mtime": 1781594419.567802,
+    "mtime": 1781619096.1443512,
     "ast_hash": "ba270d1b3359b957658a70eaba705ef1",
     "semantic_hash": ""
   },
@@ -3335,12 +3335,12 @@
     "semantic_hash": ""
   },
   "yucai/client/lib/proto/category/v1/category.pb.dart": {
-    "mtime": 1781594419.5735855,
-    "ast_hash": "e3fc13bf45f4ae067c1c95762f39ba82",
+    "mtime": 1781875544.387942,
+    "ast_hash": "f400992b8ed158f8a15c55438386bad9",
     "semantic_hash": ""
   },
   "yucai/client/lib/proto/category/v1/category.pbenum.dart": {
-    "mtime": 1781594419.5725424,
+    "mtime": 1781875544.4114742,
     "ast_hash": "71ce591b139f61c562fd224a4c120e2a",
     "semantic_hash": ""
   },
@@ -3540,8 +3540,8 @@
     "semantic_hash": ""
   },
   "yucai/client/lib/proto/transaction/v1/transaction.pb.dart": {
-    "mtime": 1781594419.5874257,
-    "ast_hash": "46888b0b54a777a64745172269ccbc2d",
+    "mtime": 1781875491.501392,
+    "ast_hash": "a67d461f09d5feec0c1b22dcd1043fef",
     "semantic_hash": ""
   },
   "yucai/client/lib/proto/transaction/v1/transaction.pbenum.dart": {
@@ -3625,7 +3625,7 @@
     "semantic_hash": ""
   },
   "yucai/client/test/account/domain/usecases/usecases_test.dart": {
-    "mtime": 1781599564.3403292,
+    "mtime": 1781619096.14635,
     "ast_hash": "1b504582551bfac3266f3286f2b16eb3",
     "semantic_hash": ""
   },
@@ -3640,7 +3640,7 @@
     "semantic_hash": ""
   },
   "yucai/client/test/account/presentation/bloc/account_bloc_test.dart": {
-    "mtime": 1781600004.4270022,
+    "mtime": 1781619096.1483517,
     "ast_hash": "d6e79c9b1225f7a094e2a8320daf1627",
     "semantic_hash": ""
   },
@@ -3960,8 +3960,8 @@
     "semantic_hash": ""
   },
   "yucai/server/cmd/server/main.go": {
-    "mtime": 1781370479.9977393,
-    "ast_hash": "0d06c791dcba9a29778cff6f95b4f68f",
+    "mtime": 1781931435.249476,
+    "ast_hash": "3e85f90d80ee6882705f60450b33d594",
     "semantic_hash": ""
   },
   "yucai/server/cmd/smoke/main.go": {
@@ -3975,8 +3975,8 @@
     "semantic_hash": ""
   },
   "yucai/server/internal/account/adapter/driven/repository/account_repo.go": {
-    "mtime": 1781596665.7905312,
-    "ast_hash": "beb3286a48fbd0a14deb612920ea5229",
+    "mtime": 1781872748.2678523,
+    "ast_hash": "c63be7ca5d9ec476ae4baeed09e671e4",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/adapter/driven/repository/chart_repo.go": {
@@ -3985,18 +3985,18 @@
     "semantic_hash": ""
   },
   "yucai/server/internal/account/adapter/driving/grpc/account_handler.go": {
-    "mtime": 1781596956.3862329,
-    "ast_hash": "0cfb5efcc0b9d83f9701fb4879546bb3",
+    "mtime": 1781872748.2697055,
+    "ast_hash": "f717e9c094a7c13791aa79365246537e",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/application/command/commands.go": {
-    "mtime": 1781595111.4982631,
+    "mtime": 1781619096.15635,
     "ast_hash": "2774caf8683f2eb7f28ad0d70e0739b2",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/application/dto.go": {
-    "mtime": 1781595111.5024405,
-    "ast_hash": "0915a953f3d03e2e5e72fbc07e648e2d",
+    "mtime": 1781872748.2707045,
+    "ast_hash": "ed48495e601fb1affde2cec7389f0c88",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/application/query/queries.go": {
@@ -4005,28 +4005,28 @@
     "semantic_hash": ""
   },
   "yucai/server/internal/account/application/service.go": {
-    "mtime": 1781596035.940036,
-    "ast_hash": "e0fc7bfacbf023ad3efaff350cb6c5e8",
+    "mtime": 1781934257.6478736,
+    "ast_hash": "c185d5b4a090b4a44a1767a3faf7dc17",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/application/service_test.go": {
-    "mtime": 1781595535.5660453,
-    "ast_hash": "506e1b8599c146fc6a3e6f7e4b1d3a9f",
+    "mtime": 1781934286.2209282,
+    "ast_hash": "1ae2fcb521625605beb0961eedb1ed67",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/domain/domain_test.go": {
-    "mtime": 1781593083.2051172,
-    "ast_hash": "971eac9992816182353660af6a4c5468",
+    "mtime": 1781845553.7772722,
+    "ast_hash": "28e0d1e0679f095cd6604ba28011c5d7",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/domain/entity.go": {
-    "mtime": 1781596017.6606095,
-    "ast_hash": "470022db526f7b765b89eaab540ce9dc",
+    "mtime": 1781872748.2797065,
+    "ast_hash": "4f49a9b41c8a78a661916894bdc54d83",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/domain/repository.go": {
-    "mtime": 1781061993.0384893,
-    "ast_hash": "a69123acb8af6b451e064459ff2e5b29",
+    "mtime": 1781846271.324553,
+    "ast_hash": "9d42fa396c301a7d478fdf1ea725f6a1",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/domain/valueobject.go": {
@@ -4035,87 +4035,87 @@
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/account.go": {
-    "mtime": 1781593800.234223,
-    "ast_hash": "3bd1112300b4bef678cdeb23acad6de4",
+    "mtime": 1781845615.762432,
+    "ast_hash": "1ab98b88588e6112085f8c69ce5176a6",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/account/account.go": {
-    "mtime": 1781593800.1357582,
-    "ast_hash": "42bbbf6a1ef9183b1afa4cc9244ee79e",
+    "mtime": 1781845615.6905072,
+    "ast_hash": "23ced887a909132a4a319724666d74f6",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/account/where.go": {
-    "mtime": 1781593800.2484994,
-    "ast_hash": "267530d39d604998a2cbbd29dfb49766",
+    "mtime": 1781845615.7245994,
+    "ast_hash": "f7a99aa25913a6073a3ec810912d457a",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/account_create.go": {
-    "mtime": 1781593800.1412532,
-    "ast_hash": "6b019c8ed85d759ed26a4624c1ac296a",
+    "mtime": 1781845615.8227346,
+    "ast_hash": "81aa3c02b90a69d773aeaddaf8be77f2",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/account_delete.go": {
-    "mtime": 1781593800.2135305,
+    "mtime": 1781845615.7084882,
     "ast_hash": "9822618851d1e560203a13999f9e5fe1",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/account_query.go": {
-    "mtime": 1781593800.226705,
+    "mtime": 1781845615.8200955,
     "ast_hash": "75af71583d6e9514eb18afd2b4456820",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/account_update.go": {
-    "mtime": 1781593800.154332,
-    "ast_hash": "1e822d3b7842bc31f25d6670fa96d1be",
+    "mtime": 1781845615.8232512,
+    "ast_hash": "4b9f48e513774fc80be2a8a180a48974",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/chartofaccounts.go": {
-    "mtime": 1781593800.1374035,
+    "mtime": 1781845615.8242972,
     "ast_hash": "5d2c87db947aad8c005941ecceb9ee94",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/chartofaccounts/chartofaccounts.go": {
-    "mtime": 1781593800.2314878,
+    "mtime": 1781845615.6996653,
     "ast_hash": "acac3fd56dff39f2aad3067b8a5ec7a7",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/chartofaccounts/where.go": {
-    "mtime": 1781593800.1402056,
+    "mtime": 1781845615.7079544,
     "ast_hash": "f8737dbe9e0ea48987dd47de199d0578",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/chartofaccounts_create.go": {
-    "mtime": 1781593800.1327415,
+    "mtime": 1781845615.7869637,
     "ast_hash": "e74bd528025167cc66573ef5e3bcc15d",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/chartofaccounts_delete.go": {
-    "mtime": 1781593800.1362844,
+    "mtime": 1781845615.8169334,
     "ast_hash": "ab17d15e578e691004e8dd163e32c6c5",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/chartofaccounts_query.go": {
-    "mtime": 1781593800.1396902,
+    "mtime": 1781845615.6975994,
     "ast_hash": "da1f3b607c7a1eb55d719ee3ea70dd72",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/chartofaccounts_update.go": {
-    "mtime": 1781593800.2368584,
+    "mtime": 1781845615.8086696,
     "ast_hash": "a8bd2a29caa9d93eb25233b570f1e853",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/client.go": {
-    "mtime": 1781593800.1773305,
+    "mtime": 1781845615.8434968,
     "ast_hash": "4445ecb5ff035a75338a6c816a678808",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/ent.go": {
-    "mtime": 1781593800.1402056,
+    "mtime": 1781845615.6842268,
     "ast_hash": "25c8fab2c8d70a152dd977e609545780",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/enttest/enttest.go": {
-    "mtime": 1781593800.2156634,
+    "mtime": 1781845615.705974,
     "ast_hash": "d319abfe64d4b5579cdb7facf8ca0055",
     "semantic_hash": ""
   },
@@ -4125,43 +4125,43 @@
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/hook/hook.go": {
-    "mtime": 1781593800.1291041,
+    "mtime": 1781845615.683159,
     "ast_hash": "a0419a90305aa3303f97a7f5dee947ce",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/migrate/migrate.go": {
-    "mtime": 1781593800.2358,
+    "mtime": 1781845615.751723,
     "ast_hash": "8395cab4b9ba6b5c41a6a081145dfdb9",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/migrate/schema.go": {
-    "mtime": 1781593800.2468855,
-    "ast_hash": "d0034d4901dfe9de820a38d0e3f5b095",
+    "mtime": 1781845615.840302,
+    "ast_hash": "387b6e1fc11a2a6d3587157e7d1f7ee3",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/mutation.go": {
-    "mtime": 1781593800.2854426,
-    "ast_hash": "4afd5676750ba11528ba0d2cee42bdf9",
+    "mtime": 1781845615.8345363,
+    "ast_hash": "2dd1dfe07f9b970cbb8de76b1844a103",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/predicate/predicate.go": {
-    "mtime": 1781593800.2400243,
+    "mtime": 1781845615.8028784,
     "ast_hash": "4c368e006229a4b8bb1fc74dc6a3ae33",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/runtime.go": {
-    "mtime": 1781593800.2228925,
-    "ast_hash": "edccbc1e3675bc4c81cb6b5b9b7ad8e3",
+    "mtime": 1781845615.6842268,
+    "ast_hash": "71f973e864ebd10e68d699ab5db75f3d",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/runtime/runtime.go": {
-    "mtime": 1781593800.1177104,
+    "mtime": 1781845615.682609,
     "ast_hash": "e4a7ee1fa3a27a347527e64251d38b35",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/schema/account.go": {
-    "mtime": 1781593770.0515592,
-    "ast_hash": "1cdbcf9cd41225d6adaf2eda061f7041",
+    "mtime": 1781845601.9312606,
+    "ast_hash": "5e308d9d1fab163a26f7f2cddfca5fff",
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/schema/chart_of_accounts.go": {
@@ -4170,13 +4170,13 @@
     "semantic_hash": ""
   },
   "yucai/server/internal/account/ent/tx.go": {
-    "mtime": 1781593800.1773305,
+    "mtime": 1781845615.6783707,
     "ast_hash": "a31ddc31512540c2839cc74f2cbed43b",
     "semantic_hash": ""
   },
   "yucai/server/internal/auth/adapter/driven/repository/tenant_repo.go": {
-    "mtime": 1781060189.9559505,
-    "ast_hash": "dbebc7c4dbe0fa16cfbbdb46c61982d1",
+    "mtime": 1781931353.3386443,
+    "ast_hash": "c8dec77938f6b6cf92ddf50447302d4c",
     "semantic_hash": ""
   },
   "yucai/server/internal/auth/adapter/driven/repository/user_repo.go": {
@@ -4210,8 +4210,8 @@
     "semantic_hash": ""
   },
   "yucai/server/internal/auth/application/command/register.go": {
-    "mtime": 1781409493.5514092,
-    "ast_hash": "2ad26b9140f7e28d576768ea047d3fa7",
+    "mtime": 1781872748.2817068,
+    "ast_hash": "5d528e934ebc0d053507791d2752d247",
     "semantic_hash": ""
   },
   "yucai/server/internal/auth/application/command/update_profile.go": {
@@ -4250,8 +4250,8 @@
     "semantic_hash": ""
   },
   "yucai/server/internal/auth/domain/repository.go": {
-    "mtime": 1781059624.4913385,
-    "ast_hash": "653bc1e7dc09edf25fac4d755bbdb816",
+    "mtime": 1781931350.3476934,
+    "ast_hash": "515eef0fc2a0f4ddff95acd89bf51d25",
     "semantic_hash": ""
   },
   "yucai/server/internal/auth/domain/valueobject.go": {
@@ -4732,146 +4732,6 @@
   "yucai/server/internal/budget/ent/tx.go": {
     "mtime": 1781496822.9081614,
     "ast_hash": "c67fc51e6183e58b9819eee683b2f542",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/adapter/driven/repository/category_repo.go": {
-    "mtime": 1781338943.8369243,
-    "ast_hash": "3c2229cd88fff58332935df79c8044f2",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/adapter/driving/grpc/category_handler.go": {
-    "mtime": 1781339064.5300252,
-    "ast_hash": "23ca7eaaa94134354fed5e4c36ea21ec",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/application/dto.go": {
-    "mtime": 1781338680.0259533,
-    "ast_hash": "00f2b97d791545d91a1da5ef7e2c619c",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/application/service.go": {
-    "mtime": 1781338800.739528,
-    "ast_hash": "06cca2b85f26d9829c9c0a2f721e4471",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/domain/domain_test.go": {
-    "mtime": 1781338280.3812876,
-    "ast_hash": "7a74fe0b6311d176d6ada0c441034c64",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/domain/entity.go": {
-    "mtime": 1781338038.9353833,
-    "ast_hash": "17e87d4daca2539f652cc6cc29974edd",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/domain/repository.go": {
-    "mtime": 1781338160.1910799,
-    "ast_hash": "2090c0f3d346a7374e0d78b86d35b5b2",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/domain/valueobject.go": {
-    "mtime": 1781337918.7387803,
-    "ast_hash": "161b3a5b25cebf37f05b4ffe7ff8b077",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/ent/category.go": {
-    "mtime": 1781496824.1729019,
-    "ast_hash": "5c372089c0a454f204dd3e740b96bed9",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/ent/category/category.go": {
-    "mtime": 1781496824.172381,
-    "ast_hash": "9fc3bed70b8d5f184369260c81f2e41d",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/ent/category/where.go": {
-    "mtime": 1781496824.2326422,
-    "ast_hash": "0bf1b46a63c129855972f5d9307fc78a",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/ent/category_create.go": {
-    "mtime": 1781496824.2151544,
-    "ast_hash": "1cf97fb4d035cac2f54a3f40bb6380e1",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/ent/category_delete.go": {
-    "mtime": 1781496824.2151544,
-    "ast_hash": "16c4c624909394f0c2ef31f1f616e31c",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/ent/category_query.go": {
-    "mtime": 1781496824.1744204,
-    "ast_hash": "0c74b9f2222cf1096c16e77b60d6b6d8",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/ent/category_update.go": {
-    "mtime": 1781496824.2326422,
-    "ast_hash": "d7282a3bb31736854af66402ef98a574",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/ent/client.go": {
-    "mtime": 1781496824.1791568,
-    "ast_hash": "4ef0cc76e46fc8536526f7a013c09711",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/ent/ent.go": {
-    "mtime": 1781496824.2326422,
-    "ast_hash": "419baad7f3ac65904bade496893a1e98",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/ent/enttest/enttest.go": {
-    "mtime": 1781496824.171966,
-    "ast_hash": "7251f4054f94ce763070e5ad99f57090",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/ent/generate.go": {
-    "mtime": 1781337112.3448212,
-    "ast_hash": "988e009c04267e4b3df84df22a8a39f0",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/ent/hook/hook.go": {
-    "mtime": 1781496824.1688628,
-    "ast_hash": "15bd91e006eb26956f7775f5ed76973e",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/ent/migrate/migrate.go": {
-    "mtime": 1781496824.1596813,
-    "ast_hash": "8395cab4b9ba6b5c41a6a081145dfdb9",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/ent/migrate/schema.go": {
-    "mtime": 1781496824.1705341,
-    "ast_hash": "8823fbff366a14f52bc76521504a0b37",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/ent/mutation.go": {
-    "mtime": 1781496824.1801553,
-    "ast_hash": "c09c9b46891ea6ad521ec5afd1ae0780",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/ent/predicate/predicate.go": {
-    "mtime": 1781496824.1607537,
-    "ast_hash": "cf49655ac30c8752599c7b0bd60d2b60",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/ent/runtime.go": {
-    "mtime": 1781496824.1596813,
-    "ast_hash": "55e2bbc0714106a8deb70bc8c2f3a14f",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/ent/runtime/runtime.go": {
-    "mtime": 1781496824.2331462,
-    "ast_hash": "53d526241bc849e9362532bddbcd967c",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/ent/schema/category.go": {
-    "mtime": 1781370838.4460094,
-    "ast_hash": "aae7939842af4ff30383d00a6e15ae08",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/category/ent/tx.go": {
-    "mtime": 1781496824.1646984,
-    "ast_hash": "9476709fa5aaff377d133a86aaec097c",
     "semantic_hash": ""
   },
   "yucai/server/internal/currency/adapter/driven/exchangerate/mock_provider.go": {
@@ -5585,148 +5445,138 @@
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/account/v1/account.pb.go": {
-    "mtime": 1781594395.0609446,
-    "ast_hash": "4122269df6c88e7a0a49e0d26d9ab0b7",
+    "mtime": 1781875249.0477498,
+    "ast_hash": "0c56bf1bc68fc23a10cf5b5e4b5bfe7d",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/account/v1/account_grpc.pb.go": {
-    "mtime": 1781594395.0609446,
-    "ast_hash": "308b862704ddea0530989e757d62eec2",
+    "mtime": 1781875249.0477498,
+    "ast_hash": "1e3dd10e984a7a11321897fb9b9bfae3",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/auth/v1/auth.pb.go": {
-    "mtime": 1781594395.0609446,
+    "mtime": 1781875249.0477498,
     "ast_hash": "d5bcf8b3bc3502160e89c052fc04e77d",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/auth/v1/auth_grpc.pb.go": {
-    "mtime": 1781594395.0609446,
+    "mtime": 1781875249.0477498,
     "ast_hash": "f16934b04c1477224ba83e6f87424e19",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/backup/v1/backup.pb.go": {
-    "mtime": 1781594395.0609446,
+    "mtime": 1781875249.0493703,
     "ast_hash": "69e918662c3235c196e8488a781a826d",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/backup/v1/backup_grpc.pb.go": {
-    "mtime": 1781594395.0609446,
+    "mtime": 1781875249.0477498,
     "ast_hash": "84672ddb4f60ed714ed608b18fa3ca74",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/budget/v1/budget.pb.go": {
-    "mtime": 1781594395.0609446,
+    "mtime": 1781875249.0477498,
     "ast_hash": "e70e35211f23f56a564ad3ea01832ffc",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/budget/v1/budget_grpc.pb.go": {
-    "mtime": 1781594395.0609446,
+    "mtime": 1781875249.0477498,
     "ast_hash": "0ef2aa56d75000ddf519c955da783ea2",
     "semantic_hash": ""
   },
-  "yucai/server/internal/proto/category/v1/category.pb.go": {
-    "mtime": 1781594395.0609446,
-    "ast_hash": "a906d3ec63d597c8165ea292ead7d29a",
-    "semantic_hash": ""
-  },
-  "yucai/server/internal/proto/category/v1/category_grpc.pb.go": {
-    "mtime": 1781594395.0609446,
-    "ast_hash": "257f758b37381ccb388ff11dab9b6fdb",
-    "semantic_hash": ""
-  },
   "yucai/server/internal/proto/common/v1/error.pb.go": {
-    "mtime": 1781594395.0609446,
+    "mtime": 1781875249.0493703,
     "ast_hash": "3a74df6d6f926bd2a7add038653d5a44",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/common/v1/money.pb.go": {
-    "mtime": 1781594395.0609446,
+    "mtime": 1781875249.0477498,
     "ast_hash": "0f88ff3949f09909041cc33a220505e1",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/common/v1/pagination.pb.go": {
-    "mtime": 1781594395.0639439,
+    "mtime": 1781875249.0643463,
     "ast_hash": "a7d3e164fdb049167d13d606e01d527d",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/currency/v1/currency.pb.go": {
-    "mtime": 1781594395.0639439,
+    "mtime": 1781875249.0643463,
     "ast_hash": "a71156667133ab264a61a0e065c0ac18",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/currency/v1/currency_grpc.pb.go": {
-    "mtime": 1781594395.0649445,
+    "mtime": 1781875249.0643463,
     "ast_hash": "91eeb8b9862bcd585e2df969bf6b81af",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/debt/v1/debt.pb.go": {
-    "mtime": 1781594395.0649445,
+    "mtime": 1781875249.0643463,
     "ast_hash": "8cb231cd2f6bd8c3532d53152b941c67",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/debt/v1/debt_grpc.pb.go": {
-    "mtime": 1781594395.0649445,
+    "mtime": 1781875249.0643463,
     "ast_hash": "709b391768686ae332e0bef7fed58c1a",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/goal/v1/goal.pb.go": {
-    "mtime": 1781594395.0649445,
+    "mtime": 1781875249.0643463,
     "ast_hash": "7635730fb537feeebc9c69aa2bd7d500",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/goal/v1/goal_grpc.pb.go": {
-    "mtime": 1781594395.0649445,
+    "mtime": 1781875249.0643463,
     "ast_hash": "cfc2de88e7fe41fc33db0a6c0299e5a0",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/holding/v1/holding.pb.go": {
-    "mtime": 1781594395.0649445,
+    "mtime": 1781875249.0643463,
     "ast_hash": "68ad51f571f837ab8df5628f53384d9b",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/holding/v1/holding_grpc.pb.go": {
-    "mtime": 1781594395.0649445,
+    "mtime": 1781875249.0643463,
     "ast_hash": "8064fb5ff443734bcf97cc31bf202ed0",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/sync/v1/sync.pb.go": {
-    "mtime": 1781594395.0649445,
+    "mtime": 1781875249.0750887,
     "ast_hash": "8608720688296b7707a4f835847a4a94",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/sync/v1/sync_grpc.pb.go": {
-    "mtime": 1781594395.0649445,
+    "mtime": 1781875249.0750887,
     "ast_hash": "41ebbee06022d5c74e61dee77efb106c",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/tag/v1/tag.pb.go": {
-    "mtime": 1781594395.0649445,
+    "mtime": 1781875249.0750887,
     "ast_hash": "f778b842b0afdfeaf3dad07d934396ca",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/tag/v1/tag_grpc.pb.go": {
-    "mtime": 1781594395.066944,
+    "mtime": 1781875249.0792503,
     "ast_hash": "78b97467ba95afa87cd60ac0b3b2fe8c",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/template/v1/template.pb.go": {
-    "mtime": 1781594395.066944,
+    "mtime": 1781875249.0797658,
     "ast_hash": "86a51e7bdf6e48d5ca1f9dd1a8f71e08",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/template/v1/template_grpc.pb.go": {
-    "mtime": 1781594395.0679443,
+    "mtime": 1781875249.0797758,
     "ast_hash": "a6e7569a2ccfde6c925005f159b606b2",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/transaction/v1/transaction.pb.go": {
-    "mtime": 1781594395.0679443,
-    "ast_hash": "c72c1bacde0913ce18c3475b5e2ced0b",
+    "mtime": 1781875249.0797758,
+    "ast_hash": "9b8636663dcba8bfb27aed706d301150",
     "semantic_hash": ""
   },
   "yucai/server/internal/proto/transaction/v1/transaction_grpc.pb.go": {
-    "mtime": 1781594395.0679443,
-    "ast_hash": "7a0dc0d5b93567324489b4c499fd3725",
+    "mtime": 1781875249.0797758,
+    "ast_hash": "e5456f871311903017bc47b85126dae5",
     "semantic_hash": ""
   },
   "yucai/server/internal/shared/application/command/bus.go": {
@@ -6340,23 +6190,23 @@
     "semantic_hash": ""
   },
   "yucai/server/internal/transaction/adapter/driven/repository/transaction_repo.go": {
-    "mtime": 1781065096.621393,
-    "ast_hash": "a1cdacad4bf6a24630b778493bcb5499",
+    "mtime": 1781924486.882483,
+    "ast_hash": "7f2ab57a10d3097678f8105d5351c77e",
     "semantic_hash": ""
   },
   "yucai/server/internal/transaction/adapter/driving/grpc/transaction_handler.go": {
-    "mtime": 1781065132.7504923,
-    "ast_hash": "6103ec817ed98d62f0bfda6fdd0328d7",
+    "mtime": 1781875640.7495372,
+    "ast_hash": "b76f02ffe42d76d7c8ff501e45abf3f7",
     "semantic_hash": ""
   },
   "yucai/server/internal/transaction/application/dto.go": {
-    "mtime": 1781065067.5407217,
-    "ast_hash": "6b71a5fc37a59de74c50609b8cb6da5d",
+    "mtime": 1781875090.7713027,
+    "ast_hash": "6757659ce419a20ac58707ceaeed44a0",
     "semantic_hash": ""
   },
   "yucai/server/internal/transaction/application/service.go": {
-    "mtime": 1781063979.7090776,
-    "ast_hash": "910d540616a2dee556fe770dcbdef7fa",
+    "mtime": 1781875103.9859624,
+    "ast_hash": "613e748d898d9eba48e3b5f2b404f11d",
     "semantic_hash": ""
   },
   "yucai/server/internal/transaction/domain/domain_test.go": {
@@ -6370,8 +6220,8 @@
     "semantic_hash": ""
   },
   "yucai/server/internal/transaction/domain/repository.go": {
-    "mtime": 1781063880.7928708,
-    "ast_hash": "2da0e9e5bbe89eadf74533a6406d4403",
+    "mtime": 1781874449.3309894,
+    "ast_hash": "e38f1aff6acec15f6faa1222b2a262ed",
     "semantic_hash": ""
   },
   "yucai/server/internal/transaction/domain/service.go": {
@@ -6605,28 +6455,28 @@
     "semantic_hash": ""
   },
   "yucai/server/tests/transaction_integration_test.go": {
-    "mtime": 1781065564.4552288,
-    "ast_hash": "503c84a3dd81c255fb0fa32b96812872",
+    "mtime": 1781874770.242584,
+    "ast_hash": "226e52d696c8e71fdb99e9c86675a772",
     "semantic_hash": ""
   },
   "yucai/server/wire/app.go": {
-    "mtime": 1781343114.153522,
-    "ast_hash": "dd1215cb4fcf4a233bfcf8ca4fc77be4",
+    "mtime": 1781931402.9071155,
+    "ast_hash": "f1978b51932abb00532255f60b30e796",
     "semantic_hash": ""
   },
   "yucai/server/wire/providers.go": {
-    "mtime": 1781406223.0182338,
-    "ast_hash": "511ec95c596a6c483062a04ea136d05a",
+    "mtime": 1781924402.0065675,
+    "ast_hash": "37297d7e11fa23ee17ae540c9c73da43",
     "semantic_hash": ""
   },
   "yucai/server/wire/wire.go": {
-    "mtime": 1781343137.9808478,
-    "ast_hash": "8e1cf0b79324b7124eca34b2982d059f",
+    "mtime": 1781879229.4532173,
+    "ast_hash": "3c26e895b28c97edaaca606386bf9fc4",
     "semantic_hash": ""
   },
   "yucai/server/wire/wire_gen.go": {
-    "mtime": 1781406230.2574172,
-    "ast_hash": "408108f5ddfe870f309925a1c639c408",
+    "mtime": 1781931410.6320298,
+    "ast_hash": "accd648697146ad501c19467b8043022",
     "semantic_hash": ""
   },
   ".od-skills/agent-browser-80c4a40a48/SKILL.md": {
@@ -6760,7 +6610,7 @@
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-06-15-account-type-specific-fields.md": {
-    "mtime": 1781592318.1388001,
+    "mtime": 1781847092.4881117,
     "ast_hash": "c49e2537f6c128a38b28015cd9a6a0c3",
     "semantic_hash": ""
   },
@@ -7257,6 +7107,261 @@
   "yucai/client/web/icons/Icon-maskable-512.png": {
     "mtime": 1780996070.6379497,
     "ast_hash": "301a7604d45b3e739efc881eb04896ea",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/account/presentation/widgets/account_category_style.dart": {
+    "mtime": 1781620022.4282959,
+    "ast_hash": "f643c66b85355a9c6a798b3a784e80ad",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/proto/category/v1/category.pbgrpc.dart": {
+    "mtime": 1781875412.3741686,
+    "ast_hash": "c5d8ea1702e6ee652ab444fc28257dba",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/proto/transaction/v1/transaction.pbgrpc.dart": {
+    "mtime": 1781875411.9215946,
+    "ast_hash": "0eb8b5a8a4deb979dd073383bafc2973",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/data/mappers/transaction_mapper.dart": {
+    "mtime": 1781876404.6814408,
+    "ast_hash": "94766cf9fce111212a8d0e5783922ebd",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/data/transaction_remote_ds.dart": {
+    "mtime": 1781919681.2692332,
+    "ast_hash": "c0bbc617b46f4c74df535bf02a87a574",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/data/transaction_repository_impl.dart": {
+    "mtime": 1781919709.0414102,
+    "ast_hash": "f28ad40c35605b337a572abf1ee6d365",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/domain/entities/transaction_entity.dart": {
+    "mtime": 1781848681.3761368,
+    "ast_hash": "1230b6ad203555bd25f4165258caa077",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/domain/repositories/transaction_repository.dart": {
+    "mtime": 1781876453.6374855,
+    "ast_hash": "bf0e9dc7a9af76ae1330e7f6b3084b2d",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/domain/value_objects.dart": {
+    "mtime": 1781876368.980004,
+    "ast_hash": "b0cd53d9e6c91a60f21ac6bb2ef1b838",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/presentation/bloc/category_bloc.dart": {
+    "mtime": 1781934270.224159,
+    "ast_hash": "3fa4872f20effee978c5601a82d61e04",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/presentation/bloc/category_event.dart": {
+    "mtime": 1781873195.2594287,
+    "ast_hash": "206fb4e010830a9d9f698a7fbd6db82a",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/presentation/bloc/category_state.dart": {
+    "mtime": 1781932467.8671024,
+    "ast_hash": "444e6e320d6c6c1a44b084409956cccb",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/presentation/bloc/transaction_bloc.dart": {
+    "mtime": 1781876764.6805131,
+    "ast_hash": "d5913394416b2455b947d999e9cf722d",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/presentation/bloc/transaction_event.dart": {
+    "mtime": 1781876486.1449614,
+    "ast_hash": "af2cbb1233425dd497f48a0197dc1373",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/presentation/bloc/transaction_form_bloc.dart": {
+    "mtime": 1781851251.872213,
+    "ast_hash": "c65dd9555f575a0fa6a5eb97ae467831",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/presentation/bloc/transaction_form_event.dart": {
+    "mtime": 1781851203.8899424,
+    "ast_hash": "709d6fa6866bf2e730be5d769ff1c178",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/presentation/bloc/transaction_form_state.dart": {
+    "mtime": 1781851211.5541546,
+    "ast_hash": "b4206d2b23be0ae41081d6a6a5af3ffb",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/presentation/bloc/transaction_state.dart": {
+    "mtime": 1781876515.4398222,
+    "ast_hash": "ec021bd125cf99f2ee0c0b6e69e8267e",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/presentation/pages/category_management_page.dart": {
+    "mtime": 1781932942.6350217,
+    "ast_hash": "c04bc5e867554e881d363e17846a51f0",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/presentation/pages/transaction_detail_page.dart": {
+    "mtime": 1781870917.4850166,
+    "ast_hash": "4bdd8b357c7f6077ce7c2d597686daf9",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/presentation/pages/transaction_form_page.dart": {
+    "mtime": 1781925553.394407,
+    "ast_hash": "1d4960f3feab1f282a473643c9998dec",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/presentation/pages/transactions_page.dart": {
+    "mtime": 1781934574.6991844,
+    "ast_hash": "b170a8f9a4f0947b56c7027ed176edd4",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/presentation/widgets/category_chip.dart": {
+    "mtime": 1781849573.7321818,
+    "ast_hash": "2eba08abb7d1a81fe0593f52f01632b7",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/presentation/widgets/filter_bar.dart": {
+    "mtime": 1781868828.982215,
+    "ast_hash": "c228eaa26997abf92ce37222519a0763",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/presentation/widgets/journal_entry.dart": {
+    "mtime": 1781849666.694092,
+    "ast_hash": "2c5951c048307163816ded28b4ac4888",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/presentation/widgets/responsive_layout.dart": {
+    "mtime": 1781849485.0039742,
+    "ast_hash": "9132ce2c985645b6014a5638436a2cd5",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/presentation/widgets/summary_card.dart": {
+    "mtime": 1781849535.4867542,
+    "ast_hash": "6d253ac6b453d355141e453f16be3c10",
+    "semantic_hash": ""
+  },
+  "yucai/client/lib/transaction/presentation/widgets/txn_row.dart": {
+    "mtime": 1781849674.2661343,
+    "ast_hash": "2503ccdc04a017cb9010bd615d43669f",
+    "semantic_hash": ""
+  },
+  "yucai/client/test/account/presentation/pages/account_detail_page_test.dart": {
+    "mtime": 1781957894.0753314,
+    "ast_hash": "2414257bed664d7cd3e7c2a33a2c7e20",
+    "semantic_hash": ""
+  },
+  "yucai/client/test/account/presentation/widgets/category_fields_test.dart": {
+    "mtime": 1781619096.1493516,
+    "ast_hash": "c08460fa6c0430a7d4bfa2e7ac012663",
+    "semantic_hash": ""
+  },
+  "yucai/client/test/app/router_test.dart": {
+    "mtime": 1781925366.5005114,
+    "ast_hash": "3f6fbce444bc1d7a68ac20cecaef6104",
+    "semantic_hash": ""
+  },
+  "yucai/client/test/transaction/data/mappers/transaction_mapper_test.dart": {
+    "mtime": 1781876659.0102134,
+    "ast_hash": "42c7b7051a325d155121cffefa220922",
+    "semantic_hash": ""
+  },
+  "yucai/client/test/transaction/data/transaction_repository_impl_test.dart": {
+    "mtime": 1781876670.5351908,
+    "ast_hash": "cc259fbfc7018353df567de958ccdbba",
+    "semantic_hash": ""
+  },
+  "yucai/client/test/transaction/presentation/bloc/category_bloc_test.dart": {
+    "mtime": 1781873745.8685298,
+    "ast_hash": "7f283089c01bbfdd6b0de20ae171a12e",
+    "semantic_hash": ""
+  },
+  "yucai/client/test/transaction/presentation/bloc/transaction_bloc_test.dart": {
+    "mtime": 1781876882.2591274,
+    "ast_hash": "d4d02cd3178315ba578989aad528c715",
+    "semantic_hash": ""
+  },
+  "yucai/client/test/transaction/presentation/bloc/transaction_form_bloc_test.dart": {
+    "mtime": 1781851951.3358493,
+    "ast_hash": "318758ac0f8a6151b7b1235415813c59",
+    "semantic_hash": ""
+  },
+  "yucai/client/test/transaction/presentation/pages/category_management_page_test.dart": {
+    "mtime": 1781933029.5987394,
+    "ast_hash": "0b2976eb8865ad58ee975009d20b574b",
+    "semantic_hash": ""
+  },
+  "yucai/client/test/transaction/presentation/pages/transaction_detail_page_test.dart": {
+    "mtime": 1781871003.908667,
+    "ast_hash": "18d0080597d2e218225cd8a1b4008612",
+    "semantic_hash": ""
+  },
+  "yucai/client/test/transaction/presentation/pages/transaction_form_page_test.dart": {
+    "mtime": 1781925562.8924015,
+    "ast_hash": "5e6520ebc1413ca017c9909fc425edbd",
+    "semantic_hash": ""
+  },
+  "yucai/client/test/transaction/presentation/pages/transactions_page_test.dart": {
+    "mtime": 1781876862.3993926,
+    "ast_hash": "e4de182ad450ec8a7a58511f9084c039",
+    "semantic_hash": ""
+  },
+  "yucai/client/test/transaction/presentation/widgets/responsive_layout_test.dart": {
+    "mtime": 1781849491.0018682,
+    "ast_hash": "7e7f48474eba4649f7a0b84a54ef4280",
+    "semantic_hash": ""
+  },
+  "yucai/server/internal/account/adapter/driven/repository/account_repo_test.go": {
+    "mtime": 1781847107.0102866,
+    "ast_hash": "d2d93aa8836f18e7f1cde1c204b64aa3",
+    "semantic_hash": ""
+  },
+  "yucai/server/internal/transaction/adapter/driven/repository/summary_repo_test.go": {
+    "mtime": 1781875640.7495372,
+    "ast_hash": "b72589f94dff64f754ce9b37c4b5476c",
+    "semantic_hash": ""
+  },
+  "yucai/server/internal/transaction/adapter/driven/repository/transaction_repo_test.go": {
+    "mtime": 1781874770.2195864,
+    "ast_hash": "b0cc564a36f26ec1ac113bd8be1c91dd",
+    "semantic_hash": ""
+  },
+  "yucai/server/internal/transaction/application/service_test.go": {
+    "mtime": 1781875078.0380697,
+    "ast_hash": "f8fb7d93f1f72bbe9f8bdb1a059d13b3",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-06-19-transaction-module-redesign.md": {
+    "mtime": 1781845227.0656295,
+    "ast_hash": "a9a823e110189f895e6545214d241cbe",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-06-19-transaction-module-redesign-design.md": {
+    "mtime": 1781844801.3714883,
+    "ast_hash": "403e2ec8c8cbeb8b9756f51781b85dbe",
+    "semantic_hash": ""
+  },
+  "yucai/proto/.buf.gen.dart.local.yaml": {
+    "mtime": 1781848181.519531,
+    "ast_hash": "503071f70b089640bd3abec3c4513d7e",
+    "semantic_hash": ""
+  },
+  "yucai/client/test/account/presentation/pages/accounts_page_test.dart": {
+    "mtime": 1781955194.4460416,
+    "ast_hash": "89b56514e53a09aef5339d535f468717",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-06-20-ui-align-p0.md": {
+    "mtime": 1781947281.4141312,
+    "ast_hash": "a0b5d6cfee9fddaf5d1edeb17d3cc966",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-06-20-ui-align-p0-design.md": {
+    "mtime": 1781946235.0290804,
+    "ast_hash": "8542bb0175df414f83904b2250e5a49a",
     "semantic_hash": ""
   }
 }
