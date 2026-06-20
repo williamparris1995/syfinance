@@ -538,7 +538,6 @@ class _GroupBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final subtotal =
         accounts.fold<int>(0, (s, a) => s + a.currentBalanceCents);
-    final absSubtotal = subtotal.abs();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -585,10 +584,6 @@ class _GroupBlock extends StatelessWidget {
               itemBuilder: (_, i) => _AccountCard(
                 account: accounts[i],
                 formatCents: formatCents,
-                barFraction: absSubtotal == 0
-                    ? 0.4
-                    : (accounts[i].currentBalanceCents.abs() / absSubtotal)
-                        .clamp(0.06, 1.0),
                 onLongPress: () => onDelete(accounts[i]),
                 onEdit: () => onEdit(accounts[i]),
                 onDuplicate: () => onDuplicate(accounts[i]),
@@ -610,7 +605,6 @@ class _AccountCard extends StatelessWidget {
   const _AccountCard({
     required this.account,
     required this.formatCents,
-    required this.barFraction,
     required this.onLongPress,
     this.onEdit,
     this.onDuplicate,
@@ -621,7 +615,6 @@ class _AccountCard extends StatelessWidget {
 
   final Account account;
   final String Function(int) formatCents;
-  final double barFraction;
   final VoidCallback onLongPress;
   final VoidCallback? onEdit;
   final VoidCallback? onDuplicate;
@@ -781,23 +774,11 @@ class _AccountCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          // ac-sub
-          Text(_subline(account),
-              style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+          // ac-sub（类型专属副信息）
+          _sublineWidget(account),
           const SizedBox(height: 14),
-          // ac-bar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(2),
-            child: Container(
-              height: 3,
-              color: AppColors.border,
-              child: FractionallySizedBox(
-                alignment: Alignment.centerLeft,
-                widthFactor: barFraction,
-                child: Container(color: typeColor),
-              ),
-            ),
-          ),
+          // ac-bar（仅信用卡已用额度红 / 贷款已还比例绿；其余类型无 bar）
+          _progressBar(account),
         ],
       ),
     );
@@ -808,10 +789,117 @@ class _AccountCard extends StatelessWidget {
     return card;
   }
 
-  String _subline(Account a) {
-    if (a.creditLimitCents > 0) {
-      return '额度 ${formatCents(a.creditLimitCents)} · ${a.ownership.label}';
+  /// 类型专属副信息。按 [Account.category] 分支渲染：
+  /// 储蓄=利率（interestRate 有值时）/ 信用卡=额度+账单+还款日 / 投资=今年收益率
+  /// / 定期=到期日+利率 / 黄金=买入+涨幅 / 房产=现估值+增值 / 贷款=原始+月供+下次还款。
+  /// 涨跌幅/收益率正绿负红（[AppColors.positive]/[AppColors.negative]）。
+  Widget _sublineWidget(Account a) {
+    const style = TextStyle(color: AppColors.muted, fontSize: 12);
+    Color tone(double v) => v >= 0 ? AppColors.positive : AppColors.negative;
+    String sign(double v) => v >= 0 ? '+' : '';
+    switch (a.category) {
+      case AccountCategory.creditCard:
+        return Text(
+          '额度 ${formatCents(a.creditLimitCents)} · '
+          '账单${a.creditBillingDay ?? '-'}日 / '
+          '还款${a.creditRepaymentDay ?? '-'}日',
+          style: style,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        );
+      case AccountCategory.investment:
+        final r = a.investReturnYtd ?? 0.0;
+        return Text(
+          '${sign(r)}${r.toStringAsFixed(2)}% 今年收益',
+          style: TextStyle(color: tone(r), fontSize: 12),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        );
+      case AccountCategory.fixedDeposit:
+        return Text(
+          '到期 ${_fmtDate(a.fixedMaturityDate)} · '
+          '利率 ${a.interestRate?.toStringAsFixed(2) ?? '-'}%',
+          style: style,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        );
+      case AccountCategory.goldFx:
+        final qty = a.goldQuantity ?? 0;
+        final cur = a.goldCurrentPriceCents ?? 0;
+        final buy = a.goldBuyPriceCents ?? 0;
+        // 涨幅按单位价格比（现价/买入价），与持仓数量无关。
+        final pct = buy > 0 ? (cur - buy) / buy * 100 : 0.0;
+        return Text(
+          '现值 ${formatCents((cur * qty).toInt())} · 买入 ${formatCents(buy)} · '
+          '${sign(pct)}${pct.toStringAsFixed(2)}%',
+          style: TextStyle(color: tone(pct), fontSize: 12),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        );
+      case AccountCategory.realEstate:
+        final cur = a.estateCurrentValueCents ?? 0;
+        final buy = a.estatePurchasePriceCents ?? 0;
+        final pct = buy > 0 ? (cur - buy) / buy * 100 : 0.0;
+        return Text(
+          '现估值 ${formatCents(cur)} · ${sign(pct)}${pct.toStringAsFixed(2)}%',
+          style: TextStyle(color: tone(pct), fontSize: 12),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        );
+      case AccountCategory.loan:
+        return Text(
+          '原始 ${formatCents(a.loanOriginalCents ?? 0)} · '
+          '月供 ${formatCents(a.loanMonthlyCents ?? 0)} · '
+          '下次 ${_fmtDate(a.loanNextPaymentDate)}',
+          style: style,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        );
+      case AccountCategory.savings:
+      case AccountCategory.otherAsset:
+      case AccountCategory.otherLiability:
+        final rate = a.interestRate;
+        return rate == null
+            ? Text('可用余额', style: style)
+            : Text('利率 ${rate.toStringAsFixed(2)}%', style: style);
     }
-    return '可用余额 · ${a.ownership.label}';
   }
+
+  /// 类型专属进度条。仅信用卡（已用额度 = currentBalance/limit，红）与
+  /// 贷款（已还比例 = (orig-remain)/orig，绿）渲染；其余类型返回空 [SizedBox]。
+  Widget _progressBar(Account a) {
+    final spec = _usageSpec(a);
+    if (spec == null) return const SizedBox.shrink();
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(2),
+      child: LinearProgressIndicator(
+        value: spec.$1,
+        minHeight: 3,
+        backgroundColor: AppColors.border,
+        valueColor: AlwaysStoppedAnimation<Color>(spec.$2),
+      ),
+    );
+  }
+
+  /// 返回 (fraction, color)，无法计算时 null（不渲染 bar）。
+  (double, Color)? _usageSpec(Account a) {
+    switch (a.category) {
+      case AccountCategory.creditCard:
+        if (a.creditLimitCents <= 0) return null;
+        final v = (a.currentBalanceCents.abs() / a.creditLimitCents)
+            .clamp(0.0, 1.0);
+        return (v, AppColors.negative);
+      case AccountCategory.loan:
+        final orig = a.loanOriginalCents ?? 0;
+        final remain = a.loanRemainingCents ?? 0;
+        if (orig <= 0) return null;
+        final v = ((orig - remain) / orig).clamp(0.0, 1.0);
+        return (v, AppColors.positive);
+      default:
+        return null;
+    }
+  }
+
+  static String _fmtDate(DateTime? d) =>
+      d == null ? '-' : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 }
