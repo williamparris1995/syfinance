@@ -105,8 +105,17 @@
 - P1 移动端：移动交易卡分类 chip/时间、移动筛选底部 sheet、移动月份切换/可展开汇总、详情响应式断点
 - P2 交互：卡片内联快速操作、搜索、收支饼图、移动左滑删除
 
-## 8. 原型参考（OD）
+## 8. 原型参考（优先级：OD v2 > screens v1）
 
-- 账户原型：`yucai-account-prototype-65e6`（accounts.html cardHTML + detail-account.html hero）
-- 交易原型：`yucai-transaction-trisize-9d3e`（transactions.html desktop + mobile/transactions.html）
-- Explore 差异清单（本 spec 基础）：11 项 P0/P1/P2 分级
+**规则：如有新版本（OD），参考新版本实施。**
+
+### OD（v2，最新，优先参考）
+- 账户：`yucai-account-prototype-65e6`（accounts.html / detail-account.html / form-account.html）
+- 交易：`yucai-transaction-trisize-9d3e`（desktop transactions/form/detail + mobile/ + tablet 旧 `yucai-transaction-tablet-prototype-abb9`）
+- 分类管理：`yucai-category-management-db5f`（desktop/tablet/mobile）
+
+### screens/（v1，旧版，备份）
+- `screens/desktop-*.html` + `mobile-*.html`（早期第一版原型）
+- **仅在 OD 无对应页面时**参考 screens
+- OD 有对应页面时，**以 OD 为准**（screens 可能与 OD 不一致，如账户 card 副标题：screens=机构·卡号，OD=机构·币种）
+2、
