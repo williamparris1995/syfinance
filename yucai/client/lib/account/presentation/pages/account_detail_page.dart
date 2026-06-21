@@ -45,6 +45,12 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   /// 写操作成功后的 toast 文案（关闭/激活共用同一套 pending → BlocListener 流程）。
   String? _pendingSuccessMsg;
 
+  /// 近期交易客户端分页（Task 6）。pageSize=5；当前页 0-based。
+  /// _recentTxnPanel 入口对越界（列表缩短 / 账户切换后页码失效）做 clamp，
+  /// 不引入 account-id 追踪 —— 切账户走 push 新 route，State 重建。
+  static const int _recentPageSize = 5;
+  int _recentPage = 0;
+
   @override
   void initState() {
     super.initState();
@@ -607,10 +613,16 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
       );
 
   /// 近期交易 panel：接 TransactionBloc 的 account-scoped list。空列表显示
-  /// 占位文案；非空取前 5 条用紧凑行渲染（描述 + 金额，不用 TxnRow 的宽表
-  /// 布局 —— 该 panel 在窄列里，TxnRow 会溢出）。
+  /// 占位文案；非空按 _recentPageSize（5/页）切片 + 紧凑行渲染（描述 + 金额，
+  /// 不用 TxnRow 的宽表布局 —— 该 panel 在窄列里，TxnRow 会溢出）。
+  /// 分页 >1 页时底部追加「‹ 1/N ›」pager。越界（列表缩短 / 账户切换）在
+  /// 入口 clamp，避免 stale page index。
   Widget _recentTxnPanel(List<Transaction> txns) {
-    final recent = txns.take(5).toList();
+    final pageCount = (txns.length / _recentPageSize).ceil();
+    if (_recentPage >= pageCount && pageCount > 0) _recentPage = pageCount - 1;
+    if (pageCount == 0) _recentPage = 0;
+    final start = _recentPage * _recentPageSize;
+    final page = txns.skip(start).take(_recentPageSize).toList();
     return DataCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -626,7 +638,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          if (recent.isEmpty)
+          if (page.isEmpty)
             const Padding(
               padding: EdgeInsets.all(24),
               child: Center(
@@ -635,9 +647,38 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
               ),
             )
           else
-            for (final t in recent) _recentTxnRow(t),
+            for (final t in page) _recentTxnRow(t),
+          if (pageCount > 1) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _recentPager(pageCount),
+          ],
         ],
       ),
+    );
+  }
+
+  /// 近期交易页码行：‹ 上一页 · 1/N · 下一页 ›。首页/末页对应按钮禁用。
+  Widget _recentPager(int pageCount) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        IconButton(
+          tooltip: '上一页',
+          icon: const Icon(Icons.chevron_left, size: 20, color: AppColors.muted),
+          onPressed: _recentPage > 0
+              ? () => setState(() => _recentPage--)
+              : null,
+        ),
+        Text('${_recentPage + 1}/$pageCount',
+            style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+        IconButton(
+          tooltip: '下一页',
+          icon: const Icon(Icons.chevron_right, size: 20, color: AppColors.muted),
+          onPressed: _recentPage < pageCount - 1
+              ? () => setState(() => _recentPage++)
+              : null,
+        ),
+      ],
     );
   }
 

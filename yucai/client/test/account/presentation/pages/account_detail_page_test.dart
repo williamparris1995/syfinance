@@ -159,9 +159,17 @@ void main() {
     WidgetTester tester, {
     Account? account,
     int? netCents,
+    List<Transaction>? transactions,
   }) async {
     final a = account ?? _account();
     final net = netCents ?? 44556;
+    // 近期交易分页测试（Task 6）：注入自定义交易列表。默认沿用 setUp 的
+    // 2 条 stub；若显式传入则覆盖 list 返回。
+    if (transactions != null) {
+      when(() => txnRepo.list(any())).thenAnswer((_) async =>
+          dartz.Right(ListTransactionsResult(
+              transactions: transactions, nextPageToken: '')));
+    }
     // Override the setUp default stubs for this pump (account + summary).
     // 保留 setUp 默认 income/expense（123456/78900）以不破坏既有「收支统计」
     // 4 卡断言；仅 net 由参数控制（hero 本月收支副信息用 net）。
@@ -561,5 +569,44 @@ void main() {
     expect(find.text('本月支出'), findsOneWidget);
     expect(find.text('本月净流入'), findsOneWidget);
     expect(find.text('交易数'), findsOneWidget);
+  });
+
+  // ───── Task 6: 详情近期交易页码分页（5/页）─────
+
+  testWidgets('recent txn pagination: page 2 shows remaining + page indicator',
+      (tester) async {
+    // 造 7 条交易 → ceil(7/5)=2 页。第 1 页显示 0-4，第 2 页显示 5-6。
+    final txns = List.generate(
+        7, (i) => _txn('t$i', DateTime(2026, 6, 19).subtract(Duration(days: i))));
+    await pumpPage(tester, transactions: txns);
+
+    // 近期交易 panel 在 ListView 之下，需滚入视口才渲染。
+    await tester.scrollUntilVisible(
+      find.textContaining('近期交易'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    // 第 1 页：显示 t0..t4（描述格式「交易 t0」…）。
+    expect(find.text('交易 t0'), findsOneWidget);
+    expect(find.text('交易 t4'), findsOneWidget);
+    // 页码指示：2/2（page+1=1 但总页数 ceil(7/5)=2，当前 page=0 → "1/2"）。
+    expect(find.text('1/2'), findsOneWidget);
+
+    // 点「下一页」→ 第 2 页（page=1），显示 t5/t6。
+    // find.byTooltip 命中的是 RawTooltip，取其 IconButton 祖先再触发 onPressed。
+    final nextIconBtn = tester.widget<IconButton>(find.ancestor(
+      of: find.byTooltip('下一页'),
+      matching: find.byType(IconButton),
+    ));
+    expect(nextIconBtn.onPressed, isNotNull,
+        reason: '下一页 在 page=0 / pageCount=2 时应可点击');
+    nextIconBtn.onPressed!();
+    await tester.pumpAndSettle();
+    expect(find.text('交易 t5'), findsOneWidget);
+    expect(find.text('交易 t6'), findsOneWidget);
+    // 第 1 页的 t0 不应再显示。
+    expect(find.text('交易 t0'), findsNothing);
+    expect(find.text('2/2'), findsOneWidget);
   });
 }
