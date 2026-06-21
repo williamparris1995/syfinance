@@ -301,8 +301,13 @@ class _AccountsPageState extends State<AccountsPage> {
     final active = balanceSheet
         .where((a) => a.status == AccountStatus.active)
         .toList();
-    final totalCents =
-        active.fold<int>(0, (s, a) => s + a.currentBalanceCents);
+    final assetCents = active
+        .where((a) => a.accountType == AccountType.asset)
+        .fold<int>(0, (s, a) => s + a.currentBalanceCents);
+    final liabCents = active
+        .where((a) => a.accountType == AccountType.liability)
+        .fold<int>(0, (s, a) => s + a.currentBalanceCents);
+    final netCents = assetCents + liabCents; // 负债余额为负，相加得净资产
     final scoped = _showArchived ? balanceSheet.toList() : active;
     final filtered = _filter == null
         ? scoped
@@ -327,8 +332,9 @@ class _AccountsPageState extends State<AccountsPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _AccountsHeader(
-                  totalCents: totalCents,
-                  count: scoped.length,
+                  netCents: netCents,
+                  assetCents: assetCents,
+                  liabCents: liabCents,
                   onAdd: _openCreateForm,
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -395,75 +401,178 @@ class _AccountsPageState extends State<AccountsPage> {
 
 class _AccountsHeader extends StatelessWidget {
   const _AccountsHeader({
-    required this.totalCents,
-    required this.count,
+    required this.netCents,
+    required this.assetCents,
+    required this.liabCents,
     required this.onAdd,
   });
 
-  final int totalCents;
-  final int count;
+  final int netCents;
+  final int assetCents;
+  final int liabCents;
   final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+    return LayoutBuilder(
+      builder: (ctx, c) => c.maxWidth < 600 ? _mobileCard(context) : _sumcard(context),
+    );
+  }
+
+  /// desktop/tablet：白卡 sumcard（对齐 tablet.html .sumcard）。
+  Widget _sumcard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 22),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppRadius.lgBorder,
+        boxShadow: const [
+          BoxShadow(color: Color(0x141A1916), blurRadius: 3, offset: Offset(0, 1)),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                _netBlock(),
+                const SizedBox(width: 26),
+                _vline(),
+                const SizedBox(width: 26),
+                _statBlock('总资产', assetCents, AppColors.positive),
+                const SizedBox(width: 26),
+                _vline(),
+                const SizedBox(width: 26),
+                _statBlock('总负债', liabCents, AppColors.negative),
+              ],
+            ),
+          ),
+          _NewAccountButton(onPressed: onAdd),
+        ],
+      ),
+    );
+  }
+
+  /// mobile：紧凑汇总卡（对齐 mobile.html .summary）。
+  Widget _mobileCard(BuildContext context) {
+    return Stack(
       children: [
-        Expanded(
+        // 右上 accent-soft 圆形装饰（原型 .deco）。
+        Positioned(
+          top: -38,
+          right: -32,
+          child: Container(
+            width: 124,
+            height: 124,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.accentSoft,
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 17),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: AppRadius.lgBorder,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
             children: [
-              RichText(
-                text: TextSpan(
-                  style: DefaultTextStyle.of(context).style,
-                  children: [
-                    const TextSpan(
-                      text: '全部账户余额合计 · ',
-                      style:
-                          TextStyle(color: AppColors.muted, fontSize: 15),
-                    ),
-                    TextSpan(
-                      text: _formatInline(totalCents),
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w600,
-                        color: totalCents < 0
-                            ? AppColors.negative
-                            : AppColors.fg,
-                        letterSpacing: -0.3,
-                        fontFamily: AppTypography.displayFamily,
-                        fontFamilyFallback: AppTypography.displayFallback,
-                      ),
-                    ),
-                  ],
+              const Text('全部账户余额合计',
+                  style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+              const SizedBox(height: 5),
+              Text(
+                _fmt(netCents),
+                style: TextStyle(
+                  fontSize: 27,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.5,
+                  color: netCents < 0 ? AppColors.negative : AppColors.fg,
+                  fontFeatures: AppTypography.tabularFigures,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text('共 $count 个账户',
-                  style: const TextStyle(
-                      color: AppColors.muted, fontSize: 12)),
+              const SizedBox(height: 9),
+              Text.rich(
+                TextSpan(
+                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                  children: [
+                    const TextSpan(text: '资产 '),
+                    TextSpan(
+                        text: _fmt(assetCents),
+                        style: const TextStyle(color: AppColors.positive)),
+                    const TextSpan(text: '   ·   负债 '),
+                    TextSpan(
+                        text: _fmt(liabCents),
+                        style: const TextStyle(color: AppColors.negative)),
+                  ],
+                ),
+                style: const TextStyle(
+                    fontFeatures: AppTypography.tabularFigures),
+              ),
             ],
           ),
         ),
-        _NewAccountButton(onPressed: onAdd),
       ],
     );
   }
 
-  String _formatInline(int cents) {
+  Widget _netBlock() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('净资产合计', style: TextStyle(color: AppColors.muted, fontSize: 13)),
+        const SizedBox(height: 6),
+        Text(
+          _fmt(netCents),
+          style: TextStyle(
+            fontSize: 30,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+            color: netCents < 0 ? AppColors.negative : AppColors.fg,
+            fontFamily: AppTypography.displayFamily,
+            fontFamilyFallback: AppTypography.displayFallback,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _statBlock(String label, int cents, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+        const SizedBox(height: 5),
+        Text(
+          _fmt(cents),
+          style: TextStyle(
+            fontSize: 19,
+            fontWeight: FontWeight.w600,
+            color: color,
+            fontFeatures: AppTypography.tabularFigures,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _vline() =>
+      Container(width: 1, height: 48, color: AppColors.border);
+
+  /// 千分位 + 两位小数（¥ 前缀）。净资产/资产为正、负债为负（带 -）。
+  static String _fmt(int cents) {
     final sign = cents < 0 ? '-' : '';
     final abs = cents.abs();
     final yuan = abs ~/ 100;
     final fen = (abs % 100).toString().padLeft(2, '0');
-    // 千分位
     final s = yuan.toString();
     final buf = StringBuffer();
     for (var i = 0; i < s.length; i++) {
       if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
       buf.write(s[i]);
     }
-    return '$sign¥ $buf.$fen';
+    return '$sign¥$buf.$fen';
   }
 }
 

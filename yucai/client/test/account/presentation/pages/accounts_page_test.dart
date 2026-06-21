@@ -140,6 +140,25 @@ Account _loan() => Account(
       loanNextPaymentDate: DateTime(2026, 7, 1),
     );
 
+Account _account(
+  String id,
+  String name, {
+  AccountCategory cat = AccountCategory.savings,
+  int bal = 0,
+  AccountType type = AccountType.asset,
+}) =>
+    Account(
+      id: id,
+      name: name,
+      accountType: type,
+      category: cat,
+      currencyCode: 'CNY',
+      initialBalanceCents: 0,
+      currentBalanceCents: bal,
+      ownership: Ownership.personal,
+      status: AccountStatus.active,
+    );
+
 Widget _harness(List<Account> accounts) {
   final listUc = _MockList();
   final createUc = _MockCreate();
@@ -332,5 +351,41 @@ void main() {
     ]));
     await t.pumpAndSettle();
     expect(find.text('储蓄 · CNY'), findsOneWidget);
+  });
+
+  // Task 1 — _AccountsHeader 响应式（desktop sumcard / mobile 紧凑汇总卡）
+  testWidgets('desktop header: sumcard with 净资产 + 总资产 + 总负债', (t) async {
+    t.view.physicalSize = size;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    await t.pumpWidget(_harness([
+      _account('a1', '储蓄', cat: AccountCategory.savings, bal: 100000),
+      _account('a2', '信用卡',
+          cat: AccountCategory.creditCard,
+          type: AccountType.liability,
+          bal: -30000),
+    ]));
+    await t.pumpAndSettle();
+    expect(find.text('净资产合计'), findsOneWidget);
+    expect(find.text('总资产'), findsOneWidget);
+    expect(find.text('总负债'), findsOneWidget);
+  });
+
+  testWidgets('mobile header: compact 净资产 + 资产·负债 meta, no count', (t) async {
+    t.view.physicalSize = const Size(390, 844);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    await t.pumpWidget(_harness([
+      _account('a1', '储蓄', cat: AccountCategory.savings, bal: 100000),
+      _account('a2', '信用卡',
+          cat: AccountCategory.creditCard,
+          type: AccountType.liability,
+          bal: -30000),
+    ]));
+    await t.pumpAndSettle();
+    expect(find.text('全部账户余额合计'), findsOneWidget);
+    expect(find.text('净资产合计'), findsNothing); // mobile 用 label 非「净资产合计」
+    expect(find.textContaining('资产'), findsWidgets);
+    expect(find.textContaining('共'), findsNothing); // count 行去掉
   });
 }
