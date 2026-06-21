@@ -503,8 +503,10 @@ void main() {
       (tester) async {
     await pumpPage(tester, account: _creditCardAccount());
 
+    // Task 5 quick-stats 卡也渲染「账单日」，故 hero+stats 共 2 处；用
+    // findsWidgets 容忍重复，仍断言 hero 字段存在。
     expect(find.text('额度'), findsOneWidget);
-    expect(find.text('账单日'), findsOneWidget);
+    expect(find.text('账单日'), findsWidgets);
     expect(find.text('还款日'), findsOneWidget);
     expect(find.text('年费'), findsOneWidget);
     // 负债类 badge。
@@ -515,10 +517,42 @@ void main() {
       (tester) async {
     await pumpPage(tester, account: _loanAccount());
 
-    expect(find.text('原始本金'), findsOneWidget);
-    expect(find.text('剩余本金'), findsOneWidget);
-    expect(find.text('月供'), findsOneWidget);
+    // Task 5 quick-stats 卡也渲染 原始本金/剩余本金/月供，故 hero+stats 共 2 处。
+    expect(find.text('原始本金'), findsWidgets);
+    expect(find.text('剩余本金'), findsWidgets);
+    expect(find.text('月供'), findsWidgets);
     expect(find.text('下次还款'), findsOneWidget);
     expect(find.text('负债类'), findsOneWidget);
+  });
+
+  // ───── Task 5: quick-stats 类型专属 4 卡（按 category 分支）─────
+
+  testWidgets('credit card stats: 额度/已用/可用/账单日', (tester) async {
+    await pumpPage(tester, account: _creditCardAccount());
+
+    // hero field grid (Task 4) also renders 「账单日」 for creditCard, so
+    // assert the stats-card-exclusive labels strictly and 账单日 loosely.
+    expect(find.text('信用额度'), findsOneWidget);
+    expect(find.text('已用额度'), findsOneWidget);
+    expect(find.text('可用额度'), findsOneWidget);
+    expect(find.text('账单日'), findsWidgets);
+  });
+
+  testWidgets('loan stats: 原始/剩余/月供/已还比例', (tester) async {
+    // currentBalance -180w, original 200w, remaining 180w → 已还 (200w-180w)/200w = 10.0%.
+    await pumpPage(tester, account: _loanAccount());
+
+    expect(find.text('已还比例'), findsOneWidget);
+    expect(find.text('10.0%'), findsOneWidget);
+  });
+
+  testWidgets('savings stats: 本月收入/本月支出/本月净流入/交易数（默认）',
+      (tester) async {
+    await pumpPage(tester);
+
+    expect(find.text('本月收入'), findsOneWidget);
+    expect(find.text('本月支出'), findsOneWidget);
+    expect(find.text('本月净流入'), findsOneWidget);
+    expect(find.text('交易数'), findsOneWidget);
   });
 }

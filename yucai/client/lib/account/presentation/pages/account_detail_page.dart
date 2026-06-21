@@ -186,7 +186,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         children: [
           _hero(a, summary?.netCents ?? 0),
           const SizedBox(height: AppSpacing.lg),
-          _statsRow(txns, summary),
+          _statsRow(a, txns, summary),
           const SizedBox(height: AppSpacing.lg),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -475,35 +475,31 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         ],
       );
 
-  /// 收支统计 4 卡：本月收入 / 本月支出 / 净值变动 / 交易数。
-  /// 接 TransactionBloc 的 account-scoped MonthlySummary（Task 5.1 accountId
-  /// scope）。summary 未到位前显示 —；交易数取已加载列表长度。
-  Widget _statsRow(List<Transaction> txns, MonthlySummary? summary) {
-    final labels = ['本月收入', '本月支出', '净值变动', '交易数'];
-    final values = <String>[
-      _fmtSigned(summary?.incomeCents ?? 0),
-      _fmtSigned(summary?.expenseCents ?? 0),
-      _fmtSigned(summary?.netCents ?? 0),
-      '${txns.length}',
-    ];
+  /// quick-stats 4 卡：按 account.category 渲染类型专属 (label, value)。
+  /// 储蓄/其他类用通用本月收支 4 卡；其余按现有类型专属字段（无积分/未出账
+  /// 数据源的指标不显示）。summary 接 TransactionBloc 的 account-scoped
+  /// MonthlySummary；交易数取已加载列表长度。
+  Widget _statsRow(
+      Account a, List<Transaction> txns, MonthlySummary? summary) {
+    final stats = _statsFor(a: a, txns: txns, summary: summary);
     // 卡片间 14px 间距（原型 .quick-stats gap:14px）；首尾无边缘缩进。
     return Row(
       children: [
-        for (var i = 0; i < labels.length; i++)
+        for (var i = 0; i < stats.length; i++)
           Expanded(
             child: Padding(
               padding: EdgeInsets.only(
                 left: i == 0 ? 0 : 7,
-                right: i == labels.length - 1 ? 0 : 7,
+                right: i == stats.length - 1 ? 0 : 7,
               ),
               child: DataCard(
                 child: Column(
                   children: [
-                    Text(values[i],
+                    Text(stats[i].$2,
                         style: const TextStyle(
                             fontSize: 18, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 4),
-                    Text(labels[i],
+                    Text(stats[i].$1,
                         style: const TextStyle(
                             color: AppColors.muted, fontSize: 11)),
                   ],
@@ -513,6 +509,82 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
           ),
       ],
     );
+  }
+
+  /// 类型专属 4 卡 (label, value)。储蓄/其他类用通用本月收支；其余按现有字段。
+  /// 仅用 Account 现有字段（无积分/未出账数据源的指标不显示）。
+  List<(String, String)> _statsFor({
+    required Account a,
+    required List<Transaction> txns,
+    required MonthlySummary? summary,
+  }) {
+    switch (a.category) {
+      case AccountCategory.creditCard:
+        final limit = a.creditLimitCents;
+        final used = a.currentBalanceCents.abs(); // 欠款为负，取绝对值
+        final avail = (limit - used).clamp(0, limit);
+        return [
+          ('信用额度', _fmtSigned(limit)),
+          ('已用额度', _fmtSigned(used)),
+          ('可用额度', _fmtSigned(avail)),
+          ('账单日', '${a.creditBillingDay ?? '-'}日'),
+        ];
+      case AccountCategory.loan:
+        final orig = a.loanOriginalCents ?? 0;
+        final remain = a.loanRemainingCents ?? 0;
+        final repaidPct = orig > 0 ? ((orig - remain) / orig * 100) : 0.0;
+        return [
+          ('原始本金', _fmtSigned(orig)),
+          ('剩余本金', _fmtSigned(remain)),
+          ('月供', _fmtSigned(a.loanMonthlyCents ?? 0)),
+          ('已还比例', '${repaidPct.toStringAsFixed(1)}%'),
+        ];
+      case AccountCategory.investment:
+        return [
+          ('当前市值', _fmtSigned(a.investMarketValueCents ?? 0)),
+          ('投入成本', _fmtSigned(a.investCostCents ?? 0)),
+          ('今年收益率', '${(a.investReturnYtd ?? 0).toStringAsFixed(2)}%'),
+          ('持仓交易数', '${txns.length}'),
+        ];
+      case AccountCategory.fixedDeposit:
+        return [
+          ('本金', _fmtSigned(a.fixedPrincipalCents ?? 0)),
+          ('到期日', a.fixedMaturityDate == null
+              ? '-'
+              : _fmtDate(a.fixedMaturityDate!)),
+          ('年化利率', '${(a.interestRate ?? 0).toStringAsFixed(2)}%'),
+          ('本月收支', _fmtSigned(summary?.netCents ?? 0)),
+        ];
+      case AccountCategory.goldFx:
+        final cur = a.goldCurrentPriceCents ?? 0;
+        final buy = a.goldBuyPriceCents ?? 0;
+        final pct = buy > 0 ? (cur - buy) / buy * 100 : 0.0;
+        return [
+          ('现值', _fmtSigned((cur * (a.goldQuantity ?? 0)).toInt())),
+          ('买入价', _fmtSigned(buy)),
+          ('涨幅', '${pct.toStringAsFixed(2)}%'),
+          ('本月收支', _fmtSigned(summary?.netCents ?? 0)),
+        ];
+      case AccountCategory.realEstate:
+        final cur = a.estateCurrentValueCents ?? 0;
+        final buy = a.estatePurchasePriceCents ?? 0;
+        final pct = buy > 0 ? (cur - buy) / buy * 100 : 0.0;
+        return [
+          ('现估值', _fmtSigned(cur)),
+          ('买入价', _fmtSigned(buy)),
+          ('增值率', '${pct.toStringAsFixed(2)}%'),
+          ('本月收支', _fmtSigned(summary?.netCents ?? 0)),
+        ];
+      case AccountCategory.savings:
+      case AccountCategory.otherAsset:
+      case AccountCategory.otherLiability:
+        return [
+          ('本月收入', _fmtSigned(summary?.incomeCents ?? 0)),
+          ('本月支出', _fmtSigned(summary?.expenseCents ?? 0)),
+          ('本月净流入', _fmtSigned(summary?.netCents ?? 0)),
+          ('交易数', '${txns.length}'),
+        ];
+    }
   }
 
   Widget _panel(String title, String hint) => DataCard(
