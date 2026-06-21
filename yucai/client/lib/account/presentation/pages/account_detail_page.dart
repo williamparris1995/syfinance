@@ -944,7 +944,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
             height: 9,
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
-              color: _categoryColor(c.categoryId),
+              color: _categoryColorForCategory(c.categoryId),
               borderRadius: BorderRadius.circular(3),
             ),
           ),
@@ -959,25 +959,6 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         ],
       ),
     );
-  }
-
-  /// 分类色：按 categoryId 哈希到御财调色板（稳定着色）。
-  /// _DonutPainter 内有同逻辑的 _categoryColorForPaint（CustomPainter 不能
-  /// 访问 State 方法）；保持两处一致。
-  Color _categoryColor(String id) {
-    const palette = [
-      Color(0xFFB08D57),
-      Color(0xFFC4544D),
-      Color(0xFF2D8A6E),
-      Color(0xFF3B6FB0),
-      Color(0xFF8A6FB0),
-      Color(0xFFB08D33),
-    ];
-    var h = 0;
-    for (final c in id.codeUnits) {
-      h = (h * 31 + c) & 0x7fffffff;
-    }
-    return palette[h % palette.length];
   }
 
   // ───────────────────────── 操作 ─────────────────────────
@@ -1215,11 +1196,27 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 }
 
+/// 分类色：按 categoryId 哈希到御财调色板（稳定着色）。顶层函数，供
+/// _legendRow（State）与 _DonutPainter 共用，避免两处调色板重复维护。
+Color _categoryColorForCategory(String id) {
+  const palette = [
+    Color(0xFFB08D57),
+    Color(0xFFC4544D),
+    Color(0xFF2D8A6E),
+    Color(0xFF3B6FB0),
+    Color(0xFF8A6FB0),
+    Color(0xFFB08D33),
+  ];
+  var h = 0;
+  for (final c in id.codeUnits) {
+    h = (h * 31 + c) & 0x7fffffff;
+  }
+  return palette[h % palette.length];
+}
+
 /// 收支统计饼图 painter（对齐 OD .pie-wrap：SVG circle + stroke-dasharray）。
 /// 背景环（#EFECE4）+ 各分类按占比画 stroke 扇区，12 点起顺时针。
-///
-/// 着色逻辑与 _AccountDetailPageState._categoryColor 重复（palette + 哈希）——
-/// CustomPainter 不能访问 State 方法，故保留两处一致实现。
+/// 着色走顶层 [_categoryColorForCategory]。
 class _DonutPainter extends CustomPainter {
   _DonutPainter(this.cats, this.total);
 
@@ -1255,29 +1252,18 @@ class _DonutPainter extends CustomPainter {
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = thickness
-          ..color = _categoryColorForPaint(c.categoryId),
+          ..color = _categoryColorForCategory(c.categoryId),
       );
       start += sweep;
     }
   }
 
-  Color _categoryColorForPaint(String id) {
-    const palette = [
-      Color(0xFFB08D57),
-      Color(0xFFC4544D),
-      Color(0xFF2D8A6E),
-      Color(0xFF3B6FB0),
-      Color(0xFF8A6FB0),
-      Color(0xFFB08D33),
-    ];
-    var h = 0;
-    for (final c in id.codeUnits) {
-      h = (h * 31 + c) & 0x7fffffff;
-    }
-    return palette[h % palette.length];
-  }
-
+  // CategoryTotal 无值相等（无 == / hashCode），用顺序+金额的折叠签名比对，
+  // 覆盖「同总数同数量但顺序变化」的视觉变更场景。
   @override
   bool shouldRepaint(_DonutPainter old) =>
-      old.total != total || old.cats.length != cats.length;
+      old.total != total ||
+      old.cats.length != cats.length ||
+      old.cats.fold<int>(0, (s, c) => s ^ c.amountCents) !=
+          cats.fold<int>(0, (s, c) => s ^ c.amountCents);
 }
