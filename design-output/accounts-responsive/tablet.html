@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>御财 YuCai · 账户管理（平板版）</title>
+<style>
+:root{
+  --bg:#f7f6f2; --surface:#ffffff; --fg:#1a1916; --muted:#7a7770;
+  --border:#e6e3dc; --accent:#b08d57; --accent-soft:#f3ebdd; --accent-press:#98773f;
+  --income:#2d8a6e; --expense:#c4544d; --sidebar:#1c1e21;
+  --radius:10px; --radius-lg:14px;
+  --font-display:Georgia,'Noto Serif SC','Songti SC',serif;
+  --font-body:'PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+  --font-mono:'SF Mono','JetBrains Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+body{background:#e7e4db;min-height:100vh;font-family:var(--font-body);color:var(--fg);padding:32px 24px 60px;}
+
+.wrap{width:900px;max-width:100%;margin:0 auto;}
+
+/* page row */
+.pagerow{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px;}
+.crumb{font-size:13px;color:var(--muted);font-family:var(--font-mono);}
+.crumb b{color:var(--fg);font-weight:600;}
+.brand{font-family:var(--font-display);font-size:15px;color:var(--accent);letter-spacing:1px;}
+
+/* summary header card */
+.sumcard{background:var(--surface);border-radius:var(--radius-lg);padding:26px 30px;display:flex;align-items:center;gap:32px;position:relative;overflow:hidden;}
+.sumcard .deco{position:absolute;top:-54px;right:-44px;width:190px;height:190px;border-radius:50%;background:var(--accent-soft);}
+.blk{position:relative;}
+.net-label{font-size:13px;color:var(--muted);}
+.net-val{font-family:var(--font-display);font-size:30px;font-weight:600;margin-top:6px;letter-spacing:.5px;}
+.net-val .cur{font-size:18px;color:var(--muted);margin-right:3px;font-weight:400;}
+.vline{width:1px;height:48px;background:var(--border);position:relative;}
+.stat-label{font-size:12px;color:var(--muted);}
+.stat-val{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:19px;font-weight:600;margin-top:5px;}
+.newbtn{margin-left:auto;position:relative;height:40px;padding:0 20px;border-radius:9999px;background:var(--accent);color:#fff;font-size:14px;font-weight:600;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:7px;box-shadow:0 4px 12px rgba(176,141,87,.32);font-family:var(--font-body);}
+.newbtn .pl{font-size:18px;font-weight:400;line-height:1;}
+.newbtn:hover{background:var(--accent-press);}
+
+/* chips */
+.chips{display:flex;gap:9px;overflow-x:auto;padding:18px 0 4px;scrollbar-width:none;}
+.chips::-webkit-scrollbar{display:none;}
+.chip{flex-shrink:0;height:32px;padding:0 14px;border-radius:9999px;background:var(--surface);border:1px solid var(--border);font-size:13px;color:var(--fg);display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;transition:.15s;}
+.chip .cnt{color:var(--muted);font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:12px;}
+.chip.active{background:#1a1916;border-color:#1a1916;color:#fff;}
+.chip.active .cnt{color:rgba(255,255,255,.55);}
+.chip:not(.active):hover{border-color:var(--accent);}
+
+/* group */
+.group{margin-top:28px;}
+.group-head{display:flex;align-items:center;gap:11px;padding:0 2px 15px;}
+.gicon{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.gname{font-size:17px;font-weight:600;}
+.gcnt{font-size:12.5px;color:var(--muted);}
+.gsub{margin-left:auto;font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:15px;font-weight:600;}
+.gsub small{font-size:11px;color:var(--muted);font-weight:400;margin-right:6px;}
+
+/* 2-col grid + full card */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.card{display:block;text-decoration:none;color:inherit;background:var(--surface);border-radius:var(--radius-lg);padding:18px 20px;transition:transform .14s,box-shadow .14s;}
+.card:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(0,0,0,.07);}
+.card .r1{display:flex;align-items:center;gap:13px;}
+.cicon{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0;}
+.cmain{flex:1;min-width:0;}
+.cname{font-size:16px;font-weight:600;}
+.corg{font-size:12.5px;color:var(--muted);margin-top:3px;}
+.cv{text-align:right;flex-shrink:0;padding-left:8px;}
+.cvlabel{font-size:11.5px;color:var(--muted);}
+.cval{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:21px;font-weight:600;margin-top:2px;white-space:nowrap;}
+.csub{font-size:12.5px;color:var(--muted);margin-top:14px;padding-top:13px;border-top:1px solid var(--border);line-height:1.5;}
+.csub b{font-weight:600;color:var(--fg);}
+.bar{height:6px;border-radius:6px;background:var(--accent-soft);overflow:hidden;margin-top:13px;}
+.bar>i{display:block;height:100%;border-radius:6px;}
+.bar-meta{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-top:7px;font-family:var(--font-mono);font-variant-numeric:tabular-nums;}
+.empty{grid-column:1/-1;padding:40px 0;text-align:center;color:var(--muted);font-size:14px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="pagerow">
+    <div class="crumb">御财 YuCai &nbsp;/&nbsp; <b>账户管理</b></div>
+    <div class="brand">YUCAI · 御财</div>
+  </div>
+  <div class="sumcard" id="sumcard"></div>
+  <div class="chips" id="chips"></div>
+  <div id="groups"></div>
+</div>
+<script>
+const STYLES={
+  savings:{bg:'#f3ebdd',fg:'#b08d57',label:'储蓄',icon:'🏦',kind:'资产'},
+  credit:{bg:'#f6e3e1',fg:'#c4544d',label:'信用卡',icon:'💳',kind:'负债'},
+  investment:{bg:'#e3ecf7',fg:'#3b6fb0',label:'投资',icon:'📈',kind:'资产'},
+  fixed:{bg:'#e1efe8',fg:'#2d8a6e',label:'定期',icon:'🔒',kind:'资产'},
+  gold:{bg:'#f7eed1',fg:'#b08a1f',label:'黄金',icon:'💎',kind:'资产'},
+  asset:{bg:'#efe7df',fg:'#8a6d4b',label:'房产',icon:'🏠',kind:'资产'},
+  loan:{bg:'#f4e2e6',fg:'#b04a5a',label:'贷款',icon:'🏠',kind:'负债'},
+  otherAsset:{bg:'#e3efe9',fg:'#3f8a72',label:'其他资产',icon:'💰',kind:'资产'},
+  otherLiability:{bg:'#f1e6da',fg:'#a8753f',label:'其他负债',icon:'📋',kind:'负债'},
+};
+const ACCOUNTS=[
+  {cat:'savings',name:'招商银行储蓄卡',org:'招商银行',tail:'2840',cur:'CNY',bal:1285400,rate:1.9},
+  {cat:'savings',name:'工商银行活期',org:'工商银行',tail:'0612',cur:'CNY',bal:86200,rate:0.3},
+  {cat:'savings',name:'建设银行储蓄卡',org:'建设银行',tail:'3378',cur:'CNY',bal:320000,rate:1.65},
+  {cat:'credit',name:'招商 Visa 信用卡',org:'招商银行',tail:'8821',cur:'CNY',used:12400,limit:80000,billDay:12,repayDay:1},
+  {cat:'credit',name:'中信万事达信用卡',org:'中信银行',tail:'6650',cur:'CNY',used:8900,limit:50000,billDay:8,repayDay:25},
+  {cat:'investment',name:'华泰证券 A股',org:'华泰证券',tail:'—',cur:'CNY',market:456000,ytd:18.6},
+  {cat:'investment',name:'蚂蚁财富·基金组合',org:'蚂蚁财富',tail:'—',cur:'CNY',market:123000,ytd:6.2},
+  {cat:'fixed',name:'招行大额存单 3年期',org:'招商银行',tail:'9920',cur:'CNY',bal:200000,rate:2.85,due:'2026-09-15'},
+  {cat:'gold',name:'实物黄金 AU9999',org:'黄金 · 50 克',tail:'—',cur:'CNY',qty:50,buy:420,now:512},
+  {cat:'gold',name:'美元现汇账户',org:'USD · 12,000',tail:'—',cur:'USD',qty:12000,buy:7.12,now:7.18},
+  {cat:'asset',name:'朝阳区住宅',org:'不动产 · 自住',tail:'—',cur:'CNY',buy:3800000,now:4650000},
+  {cat:'loan',name:'招商银行房贷',org:'招商银行',tail:'5519',cur:'CNY',remain:2100000,principal:2800000,monthly:13200,next:'2026-06-20'},
+  {cat:'otherAsset',name:'北京公积金账户',org:'北京公积金中心',tail:'—',cur:'CNY',bal:186000},
+  {cat:'otherLiability',name:'亲友借款',org:'个人借款',tail:'—',cur:'CNY',bal:30000},
+];
+const GROUP_ORDER=['savings','credit','investment','fixed','gold','asset','loan','otherAsset','otherLiability'];
+const GROUP_LABELS={savings:'储蓄',credit:'信用卡',investment:'投资',fixed:'定期',gold:'黄金',asset:'房产',loan:'贷款',otherAsset:'其他资产',otherLiability:'其他负债'};
+
+function money(n){return n==null?'—':'¥'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function pct(now,buy){const p=(now-buy)/buy*100;return (p>=0?'+':'')+p.toFixed(1)+'%';}
+function numValue(a){switch(a.cat){case 'savings':case 'fixed':case 'otherAsset':case 'otherLiability':return a.bal;case 'credit':return a.used;case 'investment':return a.market;case 'gold':return a.now*a.qty;case 'asset':return a.now;case 'loan':return a.remain;}return 0;}
+function describe(a){switch(a.cat){
+  case 'savings':return {label:'可用余额',value:money(a.bal),color:'var(--fg)',sub:`利率 <b>${a.rate.toFixed(2)}%</b>`};
+  case 'credit':return {label:'当前欠款',value:money(a.used),color:'var(--expense)',sub:`额度 ${money(a.limit)} · 账单${a.billDay}日 / 还款${a.repayDay}日`,progress:{pct:a.used/a.limit*100,color:'var(--expense)'}};
+  case 'investment':return {label:'当前市值',value:money(a.market),color:'var(--fg)',sub:`今年 <b style="color:var(--income)">${a.ytd>=0?'+':''}${a.ytd.toFixed(1)}%</b>`};
+  case 'fixed':return {label:'存单本金',value:money(a.bal),color:'var(--fg)',sub:`到期 ${a.due} · 利率 <b>${a.rate}%</b>`};
+  case 'gold':return {label:'当前现值',value:money(a.now*a.qty),color:'var(--fg)',sub:`买入 ${a.buy} · 涨幅 <b style="color:var(--income)">${pct(a.now,a.buy)}</b>`};
+  case 'asset':return {label:'现估值',value:money(a.now),color:'var(--fg)',sub:`买入 ${money(a.buy)} · 增值 <b style="color:var(--income)">${pct(a.now,a.buy)}</b>`};
+  case 'loan':return {label:'剩余本金',value:money(a.remain),color:'var(--expense)',sub:`原始 ${money(a.principal)} · 月供 ${money(a.monthly)} · 下次 ${a.next}`,progress:{pct:(a.principal-a.remain)/a.principal*100,color:'var(--income)'}};
+  case 'otherAsset':return {label:'账户金额',value:money(a.bal),color:'var(--fg)'};
+  case 'otherLiability':return {label:'待还金额',value:money(a.bal),color:'var(--expense)'};
+}}
+
+let tA=0,tL=0;
+ACCOUNTS.forEach(a=>{if(STYLES[a.cat].kind==='资产')tA+=numValue(a);else tL+=numValue(a);});
+
+const netStr=Number(tA-tL).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+document.getElementById('sumcard').innerHTML=`
+  <div class="deco"></div>
+  <div class="blk"><div class="net-label">净资产合计</div><div class="net-val"><span class="cur">¥</span>${netStr}</div></div>
+  <div class="vline"></div>
+  <div class="blk"><div class="stat-label">总资产</div><div class="stat-val" style="color:var(--income)">${money(tA)}</div></div>
+  <div class="vline"></div>
+  <div class="blk"><div class="stat-label">总负债</div><div class="stat-val" style="color:var(--expense)">${money(tL)}</div></div>
+  <button class="newbtn" onclick="alert('新建账户（原型占位）')"><span class="pl">+</span>新建账户</button>`;
+
+const CHIP_DEFS=[{cat:'all',label:'全部'}].concat(GROUP_ORDER.map(c=>({cat:c,label:GROUP_LABELS[c]})));
+document.getElementById('chips').innerHTML=CHIP_DEFS.map((c,i)=>{
+  const cnt=c.cat==='all'?ACCOUNTS.length:ACCOUNTS.filter(a=>a.cat===c.cat).length;
+  return `<div class="chip ${i===0?'active':''}" data-cat="${c.cat}">${c.label}<span class="cnt">${cnt}</span></div>`;
+}).join('');
+
+function orgText(a){return a.org+(a.tail&&a.tail!=='—'?' · 尾号 '+a.tail:'');}
+function cardHtml(a){
+  const d=describe(a),st=STYLES[a.cat];
+  let h=`<a class="card" href="detail-account.html">
+   <div class="r1">
+     <div class="cicon" style="background:${st.bg}">${st.icon}</div>
+     <div class="cmain"><div class="cname">${a.name}</div><div class="corg">${orgText(a)}</div></div>
+     <div class="cv"><div class="cvlabel">${d.label}</div><div class="cval" style="color:${d.color}">${d.value}</div></div>
+   </div>`;
+  if(d.sub)h+=`<div class="csub">${d.sub}</div>`;
+  if(d.progress){
+    const usedTxt=a.cat==='credit'?`已用 ${money(a.used)} / ${money(a.limit)}`:`已还 ${money(a.principal-a.remain)} / ${money(a.principal)}`;
+    h+=`<div class="bar"><i style="width:${Math.min(100,d.progress.pct).toFixed(1)}%;background:${d.progress.color}"></i></div>
+        <div class="bar-meta"><span>${usedTxt}</span><span style="color:${d.progress.color}">${d.progress.pct.toFixed(1)}%</span></div>`;
+  }
+  h+=`</a>`;
+  return h;
+}
+function renderGroups(filter){
+  let html='';
+  GROUP_ORDER.forEach(cat=>{
+    if(filter&&filter!=='all'&&filter!==cat)return;
+    const accs=ACCOUNTS.filter(a=>a.cat===cat);if(!accs.length)return;
+    const sub=accs.reduce((s,a)=>s+numValue(a),0),st=STYLES[cat];
+    html+=`<div class="group">
+      <div class="group-head">
+        <div class="gicon" style="background:${st.bg}">${st.icon}</div>
+        <span class="gname">${GROUP_LABELS[cat]}</span>
+        <span class="gcnt">${accs.length} 个账户</span>
+        <span class="gsub" style="color:${st.kind==='负债'?'var(--expense)':'var(--fg)'}"><small>小计</small>${money(sub)}</span>
+      </div>
+      <div class="grid">${accs.map(cardHtml).join('')}</div>
+    </div>`;
+  });
+  document.getElementById('groups').innerHTML=html||`<div class="empty">该分类暂无账户</div>`;
+}
+renderGroups('all');
+document.getElementById('chips').addEventListener('click',e=>{
+  const el=e.target.closest('.chip');if(!el)return;
+  document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  renderGroups(el.dataset.cat);
+  window.scrollTo({top:0,behavior:'smooth'});
+});
+</script>
+</body>
+</html>

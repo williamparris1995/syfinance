@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>御财 YuCai · 账户管理（手机版）</title>
+<style>
+:root{
+  --bg:#f7f6f2; --surface:#ffffff; --fg:#1a1916; --muted:#7a7770;
+  --border:#e6e3dc; --accent:#b08d57; --accent-soft:#f3ebdd; --accent-press:#98773f;
+  --income:#2d8a6e; --expense:#c4544d; --sidebar:#1c1e21;
+  --radius:10px; --radius-lg:14px;
+  --font-display:Georgia,'Noto Serif SC','Songti SC',serif;
+  --font-body:'PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+  --font-mono:'SF Mono','JetBrains Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+body{background:#e7e4db;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:var(--font-body);color:var(--fg);}
+.phone{width:390px;height:844px;background:var(--bg);overflow:hidden;position:relative;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.14);}
+
+/* status bar */
+.statusbar{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0;font-weight:600;font-size:15px;}
+.statusbar .right{display:flex;align-items:center;gap:7px;color:var(--fg);}
+.statusbar svg{display:block;}
+
+/* topbar */
+.topbar{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;flex-shrink:0;}
+.topbar .back{width:30px;font-size:30px;line-height:.8;color:var(--fg);font-weight:300;cursor:pointer;}
+.topbar .title{font-family:var(--font-display);font-size:19px;font-weight:600;letter-spacing:.5px;}
+.topbar .add{width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:21px;line-height:1;font-weight:400;cursor:pointer;box-shadow:0 3px 8px rgba(176,141,87,.35);}
+
+/* scroll area */
+.scroll{flex:1;overflow-y:auto;padding:0 16px 8px;scrollbar-width:none;}
+.scroll::-webkit-scrollbar{display:none;}
+
+/* summary card */
+.summary{background:var(--surface);border-radius:var(--radius-lg);padding:18px 20px 17px;position:relative;overflow:hidden;margin-top:6px;}
+.summary .deco{position:absolute;top:-38px;right:-32px;width:124px;height:124px;border-radius:50%;background:var(--accent-soft);}
+.summary .lbl{font-size:12.5px;color:var(--muted);position:relative;}
+.summary .net{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:27px;font-weight:600;letter-spacing:-.5px;margin-top:5px;position:relative;}
+.summary .meta{font-size:12px;color:var(--muted);margin-top:9px;position:relative;font-variant-numeric:tabular-nums;}
+.summary .meta .a{color:var(--income);}
+.summary .meta .l{color:var(--expense);}
+
+/* chips */
+.chips{display:flex;gap:8px;overflow-x:auto;padding:14px 0 4px;scrollbar-width:none;}
+.chips::-webkit-scrollbar{display:none;}
+.chip{flex-shrink:0;height:30px;padding:0 13px;border-radius:9999px;background:var(--surface);border:1px solid var(--border);font-size:13px;color:var(--fg);display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;transition:.15s;}
+.chip .cnt{color:var(--muted);font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:11.5px;}
+.chip.active{background:#1a1916;border-color:#1a1916;color:#fff;}
+.chip.active .cnt{color:rgba(255,255,255,.55);}
+.chip:not(.active):hover{border-color:var(--accent);}
+
+/* group */
+.group{margin-top:18px;}
+.group-head{display:flex;align-items:center;gap:9px;padding:4px 2px 10px;}
+.gicon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.gname{font-size:15px;font-weight:600;}
+.gcnt{font-size:11.5px;color:var(--muted);}
+.gsub{margin-left:auto;font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:13.5px;font-weight:600;}
+
+/* account compact row */
+.acc{display:block;text-decoration:none;color:inherit;background:var(--surface);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px;transition:transform .12s;}
+.acc:active{transform:scale(.985);}
+.acc .r1{display:flex;align-items:center;gap:11px;}
+.aicon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.amain{flex:1;min-width:0;}
+.aname{font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.aorg{font-size:11.5px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.av{flex-shrink:0;text-align:right;padding-left:8px;}
+.avlabel{font-size:10.5px;color:var(--muted);margin-bottom:2px;}
+.aval{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:15px;font-weight:600;white-space:nowrap;}
+.bar{height:5px;border-radius:5px;background:var(--accent-soft);overflow:hidden;margin-top:10px;}
+.bar>i{display:block;height:100%;border-radius:5px;}
+.asub{font-size:11.5px;color:var(--muted);margin-top:9px;padding-top:9px;border-top:1px dashed var(--border);line-height:1.5;}
+.asub b{font-weight:600;color:var(--fg);}
+.empty{padding:40px 0;text-align:center;color:var(--muted);font-size:13px;}
+
+/* tab bar */
+.tabbar{height:72px;flex-shrink:0;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-around;padding-top:9px;position:relative;}
+.tab{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--muted);flex:1;cursor:pointer;}
+.tab .tic{font-size:19px;line-height:1;}
+.tab.active{color:var(--accent);}
+.fab{width:52px;height:52px;border-radius:50%;background:var(--accent);border:3px solid var(--surface);color:#fff;font-size:26px;line-height:1;display:flex;align-items:center;justify-content:center;margin-top:-18px;box-shadow:0 5px 14px rgba(176,141,87,.45);cursor:pointer;font-weight:300;}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="statusbar">
+    <span>9:41</span>
+    <span class="right">
+      <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx=".5"/><rect x="4.5" y="5" width="3" height="6" rx=".5"/><rect x="9" y="2.5" width="3" height="8.5" rx=".5"/><rect x="13.5" y="0" width="3" height="11" rx=".5"/></svg>
+      <svg width="16" height="11" viewBox="0 0 16 12" fill="currentColor"><path d="M8 1.8c2.7 0 5.2 1 7 2.7l-1.4 1.5A7.7 7.7 0 0 0 8 3.8 7.7 7.7 0 0 0 2.4 6L1 4.5A9.8 9.8 0 0 1 8 1.8zm0 3.4c1.6 0 3.1.6 4.2 1.7l-1.5 1.5A3.7 3.7 0 0 0 8 6.9c-1 0-1.9.4-2.7 1.1L3.8 6.6A6 6 0 0 1 8 5.2zm0 3.3c.7 0 1.4.3 1.9.8L8 11.3 6.1 9c.5-.3 1.2-.5 1.9-.5z"/></svg>
+      <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x=".5" y=".5" width="22" height="11" rx="3" stroke="currentColor" stroke-opacity=".4"/><rect x="2" y="2" width="17" height="8" rx="1.5" fill="currentColor"/><rect x="23.8" y="3.8" width="1.7" height="4.4" rx=".8" fill="currentColor" fill-opacity=".4"/></svg>
+    </span>
+  </div>
+  <div class="topbar">
+    <span class="back" title="返回">‹</span>
+    <span class="title">账户管理</span>
+    <span class="add" title="新建账户">+</span>
+  </div>
+  <div class="scroll" id="scroll">
+    <div class="summary" id="summary"></div>
+    <div class="chips" id="chips"></div>
+    <div id="list"></div>
+    <div style="height:14px;"></div>
+  </div>
+  <div class="tabbar">
+    <div class="tab"><span class="tic">⌂</span>首页</div>
+    <div class="tab"><span class="tic">⇄</span>交易</div>
+    <div class="fab" title="记一笔">+</div>
+    <div class="tab"><span class="tic">▦</span>报表</div>
+    <div class="tab active"><span class="tic">◉</span>我的</div>
+  </div>
+</div>
+<script>
+const STYLES={
+  savings:{bg:'#f3ebdd',fg:'#b08d57',label:'储蓄',icon:'🏦',kind:'资产'},
+  credit:{bg:'#f6e3e1',fg:'#c4544d',label:'信用卡',icon:'💳',kind:'负债'},
+  investment:{bg:'#e3ecf7',fg:'#3b6fb0',label:'投资',icon:'📈',kind:'资产'},
+  fixed:{bg:'#e1efe8',fg:'#2d8a6e',label:'定期',icon:'🔒',kind:'资产'},
+  gold:{bg:'#f7eed1',fg:'#b08a1f',label:'黄金',icon:'💎',kind:'资产'},
+  asset:{bg:'#efe7df',fg:'#8a6d4b',label:'房产',icon:'🏠',kind:'资产'},
+  loan:{bg:'#f4e2e6',fg:'#b04a5a',label:'贷款',icon:'🏠',kind:'负债'},
+  otherAsset:{bg:'#e3efe9',fg:'#3f8a72',label:'其他资产',icon:'💰',kind:'资产'},
+  otherLiability:{bg:'#f1e6da',fg:'#a8753f',label:'其他负债',icon:'📋',kind:'负债'},
+};
+const ACCOUNTS=[
+  {cat:'savings',name:'招商银行储蓄卡',org:'招商银行',tail:'2840',cur:'CNY',bal:1285400,rate:1.9},
+  {cat:'savings',name:'工商银行活期',org:'工商银行',tail:'0612',cur:'CNY',bal:86200,rate:0.3},
+  {cat:'savings',name:'建设银行储蓄卡',org:'建设银行',tail:'3378',cur:'CNY',bal:320000,rate:1.65},
+  {cat:'credit',name:'招商 Visa 信用卡',org:'招商银行',tail:'8821',cur:'CNY',used:12400,limit:80000,billDay:12,repayDay:1},
+  {cat:'credit',name:'中信万事达信用卡',org:'中信银行',tail:'6650',cur:'CNY',used:8900,limit:50000,billDay:8,repayDay:25},
+  {cat:'investment',name:'华泰证券 A股',org:'华泰证券',tail:'—',cur:'CNY',market:456000,ytd:18.6},
+  {cat:'investment',name:'蚂蚁财富·基金组合',org:'蚂蚁财富',tail:'—',cur:'CNY',market:123000,ytd:6.2},
+  {cat:'fixed',name:'招行大额存单 3年期',org:'招商银行',tail:'9920',cur:'CNY',bal:200000,rate:2.85,due:'2026-09-15'},
+  {cat:'gold',name:'实物黄金 AU9999',org:'黄金 · 50 克',tail:'—',cur:'CNY',qty:50,buy:420,now:512},
+  {cat:'gold',name:'美元现汇账户',org:'USD · 12,000',tail:'—',cur:'USD',qty:12000,buy:7.12,now:7.18},
+  {cat:'asset',name:'朝阳区住宅',org:'不动产 · 自住',tail:'—',cur:'CNY',buy:3800000,now:4650000},
+  {cat:'loan',name:'招商银行房贷',org:'招商银行',tail:'5519',cur:'CNY',remain:2100000,principal:2800000,monthly:13200,next:'2026-06-20'},
+  {cat:'otherAsset',name:'北京公积金账户',org:'北京公积金中心',tail:'—',cur:'CNY',bal:186000},
+  {cat:'otherLiability',name:'亲友借款',org:'个人借款',tail:'—',cur:'CNY',bal:30000},
+];
+const GROUP_ORDER=['savings','credit','investment','fixed','gold','asset','loan','otherAsset','otherLiability'];
+const GROUP_LABELS={savings:'储蓄',credit:'信用卡',investment:'投资',fixed:'定期',gold:'黄金',asset:'房产',loan:'贷款',otherAsset:'其他资产',otherLiability:'其他负债'};
+
+function money(n){return n==null?'—':'¥'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function pct(now,buy){const p=(now-buy)/buy*100;return (p>=0?'+':'')+p.toFixed(1)+'%';}
+function numValue(a){switch(a.cat){case 'savings':case 'fixed':case 'otherAsset':case 'otherLiability':return a.bal;case 'credit':return a.used;case 'investment':return a.market;case 'gold':return a.now*a.qty;case 'asset':return a.now;case 'loan':return a.remain;}return 0;}
+function describe(a){switch(a.cat){
+  case 'savings':return {label:'可用余额',value:money(a.bal),color:'var(--fg)',sub:`利率 <b>${a.rate.toFixed(2)}%</b>`};
+  case 'credit':return {label:'当前欠款',value:money(a.used),color:'var(--expense)',sub:`额度 ${money(a.limit)} · 账单${a.billDay}日 / 还款${a.repayDay}日`,progress:{pct:a.used/a.limit*100,color:'var(--expense)'}};
+  case 'investment':return {label:'当前市值',value:money(a.market),color:'var(--fg)',sub:`今年 <b style="color:var(--income)">${a.ytd>=0?'+':''}${a.ytd.toFixed(1)}%</b>`};
+  case 'fixed':return {label:'存单本金',value:money(a.bal),color:'var(--fg)',sub:`到期 ${a.due} · 利率 <b>${a.rate}%</b>`};
+  case 'gold':return {label:'当前现值',value:money(a.now*a.qty),color:'var(--fg)',sub:`买入 ${a.buy} · 涨幅 <b style="color:var(--income)">${pct(a.now,a.buy)}</b>`};
+  case 'asset':return {label:'现估值',value:money(a.now),color:'var(--fg)',sub:`买入 ${money(a.buy)} · 增值 <b style="color:var(--income)">${pct(a.now,a.buy)}</b>`};
+  case 'loan':return {label:'剩余本金',value:money(a.remain),color:'var(--expense)',sub:`原始 ${money(a.principal)} · 月供 ${money(a.monthly)} · 下次 ${a.next}`,progress:{pct:(a.principal-a.remain)/a.principal*100,color:'var(--income)'}};
+  case 'otherAsset':return {label:'账户金额',value:money(a.bal),color:'var(--fg)'};
+  case 'otherLiability':return {label:'待还金额',value:money(a.bal),color:'var(--expense)'};
+}}
+
+let tA=0,tL=0;
+ACCOUNTS.forEach(a=>{if(STYLES[a.cat].kind==='资产')tA+=numValue(a);else tL+=numValue(a);});
+
+document.getElementById('summary').innerHTML=`
+  <div class="deco"></div>
+  <div class="lbl">全部账户余额合计</div>
+  <div class="net">${money(tA-tL)}</div>
+  <div class="meta">资产 <span class="a">${money(tA)}</span> &nbsp;·&nbsp; 负债 <span class="l">${money(tL)}</span></div>`;
+
+const CHIP_DEFS=[{cat:'all',label:'全部'}].concat(GROUP_ORDER.map(c=>({cat:c,label:GROUP_LABELS[c]})));
+document.getElementById('chips').innerHTML=CHIP_DEFS.map((c,i)=>{
+  const cnt=c.cat==='all'?ACCOUNTS.length:ACCOUNTS.filter(a=>a.cat===c.cat).length;
+  return `<div class="chip ${i===0?'active':''}" data-cat="${c.cat}">${c.label}<span class="cnt">${cnt}</span></div>`;
+}).join('');
+
+function orgText(a){return a.org+(a.tail&&a.tail!=='—'?' · 尾号 '+a.tail:'');}
+function cardHtml(a){
+  const d=describe(a),st=STYLES[a.cat];
+  let h=`<a class="acc" href="detail-account.html">
+   <div class="r1">
+     <div class="aicon" style="background:${st.bg}">${st.icon}</div>
+     <div class="amain"><div class="aname">${a.name}</div><div class="aorg">${orgText(a)}</div></div>
+     <div class="av"><div class="avlabel">${d.label}</div><div class="aval" style="color:${d.color}">${d.value}</div></div>
+   </div>`;
+  if(d.progress)h+=`<div class="bar"><i style="width:${Math.min(100,d.progress.pct).toFixed(1)}%;background:${d.progress.color}"></i></div>`;
+  if(d.sub)h+=`<div class="asub">${d.sub}</div>`;
+  h+=`</a>`;
+  return h;
+}
+function renderList(filter){
+  let html='';
+  GROUP_ORDER.forEach(cat=>{
+    if(filter&&filter!=='all'&&filter!==cat)return;
+    const accs=ACCOUNTS.filter(a=>a.cat===cat);if(!accs.length)return;
+    const sub=accs.reduce((s,a)=>s+numValue(a),0),st=STYLES[cat];
+    html+=`<div class="group">
+      <div class="group-head">
+        <div class="gicon" style="background:${st.bg}">${st.icon}</div>
+        <span class="gname">${GROUP_LABELS[cat]}</span>
+        <span class="gcnt">${accs.length} 个账户</span>
+        <span class="gsub" style="color:${st.kind==='负债'?'var(--expense)':'var(--fg)'}">${money(sub)}</span>
+      </div>${accs.map(cardHtml).join('')}</div>`;
+  });
+  document.getElementById('list').innerHTML=html||`<div class="empty">该分类暂无账户</div>`;
+}
+renderList('all');
+document.getElementById('chips').addEventListener('click',e=>{
+  const el=e.target.closest('.chip');if(!el)return;
+  document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  renderList(el.dataset.cat);
+  document.getElementById('scroll').scrollTop=0;
+});
+</script>
+</body>
+</html>
