@@ -221,6 +221,15 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   Widget _hero(Account a, int netCents) {
     final isLiability = a.accountType == AccountType.liability;
     final netPositive = netCents >= 0;
+    // hero-org: 机构 · 币种 · 尾号（对齐 OD .hero-org）。
+    // 机构/尾号都缺失时回退到 类别 · 币种（保持 hero-org 非空）。
+    final org = a.institution.isEmpty && a.cardNumberTail.isEmpty
+        ? '${a.category.label} · ${a.currencyCode}'
+        : [
+            if (a.institution.isNotEmpty) a.institution,
+            a.currencyCode,
+            if (a.cardNumberTail.isNotEmpty) '尾号 ${a.cardNumberTail}',
+          ].join(' · ');
     return ClipRRect(
       borderRadius: AppRadius.lgBorder,
       child: Container(
@@ -255,19 +264,51 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // hero-badge: 类型 + 资产·负债类 + 活期/定期。
+                // hero-badges: 类型 + 资产/负债类（对齐 OD 的 2 个 ghost badge）。
+                // 原「活期/定期」独立 badge 已合并进语义（OD 简化）。
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
                     _heroBadge(a.category.label),
                     _heroBadge(isLiability ? '负债类' : '资产类'),
-                    _heroBadge(a.category == AccountCategory.fixedDeposit
-                        ? '定期'
-                        : '活期'),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
+                // hero-name: 账户名 28px serif（对齐 OD .hero-name）。
+                // 账户名从 AppBar title 移入 hero（AppBar title 保持「账户详情」）。
+                Text(
+                  a.name,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: 0.01,
+                    height: 1.15,
+                    fontFamily: AppTypography.displayFamily,
+                    fontFamilyFallback: AppTypography.displayFallback,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                // hero-org: 机构 · 币种 · 尾号（对齐 OD .hero-org）。
+                Text(
+                  org,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white.withValues(alpha: 0.6),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                // hero-bal-label「可用余额」（对齐 OD .hero-bal-label）。
+                Text(
+                  '可用余额',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.55),
+                    letterSpacing: 0.04,
+                  ),
+                ),
+                const SizedBox(height: 6),
                 // 余额 40px 白字 serif display。
                 Text(
                   _fmt(a.currentBalanceCents),

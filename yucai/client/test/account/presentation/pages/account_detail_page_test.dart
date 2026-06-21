@@ -253,6 +253,13 @@ void main() {
 
     // Placeholder text replaced.
     expect(find.text('待 Transaction 模块接入'), findsNothing);
+    // hero 加了 hero-name + hero-org + hero-bal-label 后整体更高，近期交易
+    // panel 被推到默认 800x600 视口之下；ListView 懒构建，需滚入视口才渲染。
+    await tester.scrollUntilVisible(
+      find.textContaining('近期交易'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     // Both stubbed transactions render.
     expect(find.text('交易 t1'), findsOneWidget);
     expect(find.text('交易 t2'), findsOneWidget);
@@ -401,13 +408,56 @@ void main() {
     expect(bal.style?.fontFamily, AppTypography.displayFamily);
   });
 
-  testWidgets('hero: hero-badge 类型 + 资产·负债 + 活期/定期', (tester) async {
+  testWidgets('hero: hero-badge 类型 + 资产·负债类（2 badges，对齐 OD）',
+      (tester) async {
     await pumpPage(tester);
 
-    // 储蓄账户 → '储蓄' / '资产类' / '活期'。
+    // 储蓄账户 → '储蓄' / '资产类'。OD hero 只保留 2 个 ghost badge
+    //（类型 + 资产/负债类）；原「活期/定期」badge 已合并进语义，不再独立显示。
     expect(find.text('储蓄'), findsWidgets);
     expect(find.text('资产类'), findsOneWidget);
-    expect(find.text('活期'), findsOneWidget);
+    expect(find.text('活期'), findsNothing,
+        reason: 'OD 对齐后 hero 只保留 2 badge，活期/定期不再独立显示');
+    expect(find.text('定期'), findsNothing);
+  });
+
+  // ───── Task 4: hero 加 hero-name + hero-org + hero-bal-label（对齐 OD）─────
+
+  testWidgets('hero: hero-name 显示账户名（28px serif，从 AppBar 移入）',
+      (tester) async {
+    // 账户名现在渲染在 hero-name，不再在 AppBar title。
+    await pumpPage(tester, account: _account(name: '招商银行储蓄卡'));
+
+    expect(find.text('招商银行储蓄卡'), findsOneWidget);
+    // AppBar title 保持「账户详情」（决策：不改面包屑）。
+    expect(find.text('账户详情'), findsOneWidget);
+  });
+
+  testWidgets('hero: hero-org 机构 · 币种 · 尾号', (tester) async {
+    await pumpPage(
+      tester,
+      account: _account(name: '招商银行储蓄卡').copyWith(
+        institution: '招商银行',
+        cardNumberTail: '2840',
+      ),
+    );
+
+    // hero-org: 机构 · 币种 · 尾号（对齐 OD .hero-org）。
+    expect(find.text('招商银行 · CNY · 尾号 2840'), findsOneWidget);
+  });
+
+  testWidgets('hero: hero-bal-label "可用余额"', (tester) async {
+    await pumpPage(tester);
+
+    expect(find.text('可用余额'), findsOneWidget);
+  });
+
+  testWidgets('hero: hero-org 机构/尾号缺失时回退到 类别 · 币种', (tester) async {
+    // 默认 _account() 无 institution / cardNumberTail → 回退分支。
+    await pumpPage(tester);
+
+    // 储蓄 category label = '储蓄'。
+    expect(find.text('储蓄 · CNY'), findsOneWidget);
   });
 
   testWidgets('hero: hero-bal-sub 本月收支（正数绿色）', (tester) async {
