@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -378,11 +380,15 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 60,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-      color: AppColors.bg,
-      child: Row(children: [
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          height: 60,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          // OD .topbar: rgba(247,246,242,.85)
+          color: const Color(0xFFF7F6F2).withValues(alpha: 0.85),
+          child: Row(children: [
         Text(title,
             style: TextStyle(
               fontSize: 18,
@@ -422,6 +428,8 @@ class _TopBar extends StatelessWidget {
             onPressed: () {},
           ),
       ]),
+        ),
+      ),
     );
   }
 }
