@@ -481,15 +481,31 @@ func (r *TransactionRepository) TransactionSummary(ctx context.Context, scope do
 	// to '$N' for PostgreSQL because pgx's stdlib driver does not rewrite '?'
 	// (unlike modernc/sqlite which binds '?' positionally).
 	dateExpr := "substr(CAST(t.transaction_date AS TEXT), 1, 10)"
-	// The account-scope clause "(:p IS NULL OR e.account_id = :p)" lets a single
-	// optional account filter the rows. PostgreSQL cannot infer the type of a
-	// bound NULL parameter that appears only in "x IS NULL" (SQLSTATE 42P18), so
-	// on Postgres the parameter is cast to the uuid type. SQLite ignores the
-	// "::uuid" suffix as a no-op cast on its dynamic typing. The placeholder
-	// token uses '?' here and is rewritten to '$N' below for Postgres.
-	accountScopeClause := "(? IS NULL OR e.account_id = ?)"
+	// Account-scope: filter TRANSACTIONS that hit the scoped account (not entry
+	// rows). The pre-fix clause "e.account_id = ?" filtered entry rows directly,
+	// so when scope.AccountID pointed at an asset/liability account only that
+	// account's own leg survived — and since the CASE below returns 0 for asset/
+	// liability/equity accounts, the account-detail page's monthly income/
+	// expense was dead-data 0. The subquery "t.id IN (SELECT transaction_id
+	// FROM <entryTable> WHERE account_id = ?)" selects the transactions touching
+	// the account, preserving ALL their entry legs (including the counterparty
+	// income/expense category account).
+	//
+	// Placeholders: the SQL is written with '?' (SQLite-native), then rebound
+	// to '$N' for PostgreSQL because pgx's stdlib driver does not rewrite '?'.
+	// PostgreSQL cannot infer the type of a bound NULL parameter that appears
+	// only in "x IS NULL" (SQLSTATE 42P18), so on Postgres the parameter is
+	// cast to the uuid type. SQLite ignores the "::uuid" suffix as a no-op cast
+	// on its dynamic typing.
+	accountScopeClause := "(? IS NULL OR t.id IN (SELECT " +
+		transactionEntryTable + "." + transactionEntryFieldTransactionID + " FROM " +
+		transactionEntryTable + " WHERE " +
+		transactionEntryTable + "." + transactionEntryFieldAccountID + " = ?))"
 	if r.rawDialect == DialectPostgres {
-		accountScopeClause = "(?::uuid IS NULL OR e.account_id = ?::uuid)"
+		accountScopeClause = "(?::uuid IS NULL OR t.id IN (SELECT " +
+			transactionEntryTable + "." + transactionEntryFieldTransactionID + " FROM " +
+			transactionEntryTable + " WHERE " +
+			transactionEntryTable + "." + transactionEntryFieldAccountID + " = ?::uuid))"
 	}
 	q := `
 		SELECT

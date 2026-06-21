@@ -178,6 +178,41 @@ func TestTransactionSummary_AccountScope(t *testing.T) {
 	assert.Equal(t, int64(0), summary.ExpenseCents)
 }
 
+// TestTransactionSummary_AccountScopeAggregatesCounterpartyLegs guards the
+// A1 subquery fix: when scope.AccountID points at an asset account, the
+// aggregation must cover the counterparty income/expense legs of every
+// transaction that touches that asset. The pre-fix clause
+// "(? IS NULL OR e.account_id = ?)" filtered entry rows directly, so only the
+// asset's own leg survived — and since the CASE returns 0 for asset accounts,
+// the account-detail page's "this month income/expense" was dead-data 0.
+//
+// Scenario: 1 asset (Cash) + 1 expense (Food) + one 100.00 food txn
+// (Food debit 10000 / Cash credit 10000). Scope to Cash → the fix preserves
+// the Food leg, so ExpenseCents = 10000 and NetCents = -10000.
+func TestTransactionSummary_AccountScopeAggregatesCounterpartyLegs(t *testing.T) {
+	txnClient, accClient, db := setupSummaryTestDB(t)
+	f := seedSummaryFixture(t, txnClient, accClient, db)
+
+	now := time.Now()
+	recordTxn(t, f.txnRepo, f.tenantID, time.Date(now.Year(), now.Month(), 15, 12, 0, 0, 0, time.UTC),
+		"lunch", expenseEntries(f.food.ID, f.cash.ID, 10000))
+
+	cashID := f.cash.ID
+	summary, err := f.txnRepo.TransactionSummary(context.Background(), domain.SummaryScope{
+		TenantID:  f.tenantID,
+		Year:      now.Year(),
+		Month:     int(now.Month()),
+		AccountID: &cashID,
+	})
+	require.NoError(t, err)
+
+	// Counterparty Food leg (expense debit 10000) must survive the asset-scope filter.
+	assert.Equal(t, int64(10000), summary.ExpenseCents,
+		"scope to asset: expense must aggregate counterparty Food leg, not 0")
+	assert.Equal(t, int64(-10000), summary.NetCents,
+		"scope to asset: net = income - expense = 0 - 10000")
+}
+
 // TestTransactionSummary_MonthIsolation verifies only the queried month is
 // included (a transaction in a different month is excluded).
 func TestTransactionSummary_MonthIsolation(t *testing.T) {
