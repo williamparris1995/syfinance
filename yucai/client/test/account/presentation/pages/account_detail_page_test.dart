@@ -609,4 +609,38 @@ void main() {
     expect(find.text('交易 t0'), findsNothing);
     expect(find.text('2/2'), findsOneWidget);
   });
+
+  // ───── Task 7: 详情 info-card 独立字段表（对齐 OD .info-card / .info-grid）─────
+
+  testWidgets('info-card shows institution + card tail + initial balance',
+      (tester) async {
+    final account = Account(
+      id: 'a1',
+      name: '招行储蓄',
+      accountType: AccountType.asset,
+      category: AccountCategory.savings,
+      currencyCode: 'CNY',
+      initialBalanceCents: 120000000,
+      currentBalanceCents: 128540000,
+      ownership: Ownership.personal,
+      status: AccountStatus.active,
+      institution: '招商银行',
+      cardNumberTail: '2840',
+      interestRate: 1.9,
+      openingDate: DateTime(2022, 3, 15),
+    );
+    await pumpPage(tester, account: account);
+
+    // info-card 在 ListView 之下，需滚入视口才渲染。
+    await tester.scrollUntilVisible(
+      find.textContaining('账户信息'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('账户信息'), findsOneWidget);
+    expect(find.text('开户机构'), findsOneWidget);
+    expect(find.text('招商银行'), findsOneWidget);
+    expect(find.text('卡号尾号'), findsOneWidget);
+    expect(find.text('尾号 2840'), findsOneWidget);
+  });
 }

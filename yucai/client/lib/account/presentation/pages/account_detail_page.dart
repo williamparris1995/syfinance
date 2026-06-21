@@ -214,6 +214,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
+          _infoCard(a),
+          const SizedBox(height: AppSpacing.lg),
           if (a.category == AccountCategory.investment)
             _panel('持仓列表', '待 Holding 模块接入')
           else if (a.category == AccountCategory.loan)
@@ -223,6 +225,128 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         ],
       );
   }
+
+  /// 账户信息卡：独立 3 列字段表（对齐 OD .info-card / .info-grid）。
+  /// 仅展示 entity 已有字段；累计利息/安全等级/最后更新无数据源不渲染。
+  Widget _infoCard(Account a) {
+    final cells = <(String, String)>[];
+    void add(String label, String? v) {
+      if (v != null && v.isNotEmpty) cells.add((label, v));
+    }
+    void addNum(String label, int? cents) {
+      if (cents != null && cents != 0) cells.add((label, _fmtSigned(cents)));
+    }
+    add('开户机构', a.institution.isEmpty ? null : a.institution);
+    add('卡号尾号', a.cardNumberTail.isEmpty ? null : '尾号 ${a.cardNumberTail}');
+    add('账户类型', '${a.category.label} · ${_typeSuffix(a)}');
+    addNum('初始余额', a.initialBalanceCents == 0 ? null : a.initialBalanceCents);
+    addNum('当前余额', a.currentBalanceCents);
+    final rate = a.interestRate;
+    add('年化利率', rate == null ? null : '${rate.toStringAsFixed(2)}%');
+    final opening = a.openingDate;
+    add('开户日期', opening == null ? null : _fmtDate(opening));
+    add('币种', '${a.currencyCode} ${_currencyName(a.currencyCode)}');
+    add('备注', a.notes.isEmpty ? null : a.notes);
+    // 类型专属补充字段
+    switch (a.category) {
+      case AccountCategory.creditCard:
+        add('账单日', a.creditBillingDay == null ? null : '${a.creditBillingDay}日');
+        add('还款日',
+            a.creditRepaymentDay == null ? null : '${a.creditRepaymentDay}日');
+        addNum('年费', a.creditAnnualFeeCents);
+      case AccountCategory.loan:
+        addNum('原始本金', a.loanOriginalCents);
+        addNum('剩余本金', a.loanRemainingCents);
+        addNum('月供', a.loanMonthlyCents);
+        add('下次还款',
+            a.loanNextPaymentDate == null ? null : _fmtDate(a.loanNextPaymentDate!));
+      case AccountCategory.investment:
+        addNum('市值', a.investMarketValueCents);
+        addNum('成本', a.investCostCents);
+        add('今年收益率',
+            a.investReturnYtd == null ? null : '${a.investReturnYtd!.toStringAsFixed(2)}%');
+      case AccountCategory.fixedDeposit:
+        addNum('本金', a.fixedPrincipalCents);
+        add('起息日',
+            a.fixedStartDate == null ? null : _fmtDate(a.fixedStartDate!));
+        add('到期日',
+            a.fixedMaturityDate == null ? null : _fmtDate(a.fixedMaturityDate!));
+        add('期限', a.fixedTermMonths == null ? null : '${a.fixedTermMonths}月');
+      case AccountCategory.goldFx:
+        add('品种', a.goldProductType.isEmpty ? null : a.goldProductType);
+        if (a.goldQuantity != null) {
+          add('数量', a.goldQuantity!.toStringAsFixed(3));
+        }
+        addNum('买入价', a.goldBuyPriceCents);
+        addNum('现价', a.goldCurrentPriceCents);
+      case AccountCategory.realEstate:
+        addNum('买入价', a.estatePurchasePriceCents);
+        addNum('现估值', a.estateCurrentValueCents);
+        add('买入日期',
+            a.estatePurchaseDate == null ? null : _fmtDate(a.estatePurchaseDate!));
+        add('折旧率',
+            a.estateDepreciationRate == null ? null : '${a.estateDepreciationRate!.toStringAsFixed(2)}%');
+      case AccountCategory.savings:
+      case AccountCategory.otherAsset:
+      case AccountCategory.otherLiability:
+        break;
+    }
+    return DataCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('账户信息', style: TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: AppSpacing.md),
+          LayoutBuilder(
+            builder: (ctx, c) {
+              final cols = c.maxWidth > 600 ? 3 : 2;
+              return GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: cols,
+                mainAxisSpacing: 14,
+                crossAxisSpacing: 12,
+                childAspectRatio: 2.8,
+                children: [for (final cell in cells) _infoCell(cell.$1, cell.$2)],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoCell(String label, String value) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.muted,
+                  letterSpacing: 0.07)),
+          const SizedBox(height: 5),
+          Text(value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.fg,
+                  fontWeight: FontWeight.w500,
+                  fontFeatures: AppTypography.tabularFigures)),
+        ],
+      );
+
+  String _typeSuffix(Account a) =>
+      a.accountType == AccountType.liability ? '负债' : '资产';
+
+  String _currencyName(String code) => switch (code) {
+        'CNY' => '人民币',
+        'USD' => '美元',
+        'EUR' => '欧元',
+        'HKD' => '港币',
+        _ => '',
+      };
 
   Widget _hero(Account a, int netCents) {
     final isLiability = a.accountType == AccountType.liability;
