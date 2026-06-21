@@ -8,7 +8,8 @@
 //     TransactionBloc.loadByAccount (no more "待 Transaction 模块接入").
 //   - 「收支统计」 4 cards render the MonthlySummary(accountId) values
 //     (本月收入 / 本月支出 / 净值变动 / 交易数) — no more "—/待交易模块".
-//   - 「快捷操作」 记一笔 / 转账 are activated (enabled).
+//   - AppBar 记一笔 / 转账 activated (Task 8: content 内 _quickActions card
+//     已移除，操作集中在 AppBar)。
 //
 // Both blocs are wired via BlocProvider with a fake repo; no DI / no gRPC.
 // Mirrors transactions_page_test.dart harness shape.
@@ -160,6 +161,7 @@ void main() {
     Account? account,
     int? netCents,
     List<Transaction>? transactions,
+    MonthlySummary? summary,
   }) async {
     final a = account ?? _account();
     final net = netCents ?? 44556;
@@ -173,11 +175,13 @@ void main() {
     // Override the setUp default stubs for this pump (account + summary).
     // 保留 setUp 默认 income/expense（123456/78900）以不破坏既有「收支统计」
     // 4 卡断言；仅 net 由参数控制（hero 本月收支副信息用 net）。
+    // Task 8：传入 summary 时直接用（含 byDay 供饼图聚合）。
     when(() => accountRepo.getById(any()))
         .thenAnswer((_) async => dartz.Right(a));
     when(() => txnRepo.summary(any(), any(),
             accountId: any(named: 'accountId')))
-        .thenAnswer((_) async => dartz.Right(MonthlySummary(
+        .thenAnswer((_) async => dartz.Right(summary ??
+            MonthlySummary(
               year: 2026,
               month: 6,
               incomeCents: 123456,
@@ -287,24 +291,39 @@ void main() {
     expect(find.text('2'), findsOneWidget);
   });
 
-  testWidgets('「快捷操作」 记一笔 / 转账 are activated (enabled)',
+  testWidgets('AppBar 记一笔 / 转账 activated (no 待交易模块 placeholder)',
       (tester) async {
+    // Task 8: 原 content 内 _quickActions card 已移除（操作集中在 AppBar）。
+    // 此测试改为断言 AppBar 上的记一笔/转账已激活（无 🔒/待交易模块 占位）。
     await pumpPage(tester);
 
-    // Quick-action labels no longer carry the 「（待交易模块）」 placeholder.
+    // AppBar buttons no longer carry the 「（待交易模块）」 placeholder.
     expect(find.textContaining('记一笔（待交易模块）'), findsNothing);
     expect(find.textContaining('转账（待交易模块）'), findsNothing);
-    // Activated labels render.
-    expect(find.text('记一笔'), findsWidgets);
-    expect(find.text('转账'), findsWidgets);
+    // Activated labels render in AppBar.
+    expect(
+      find.descendant(
+        of: find.byType(AppBar),
+        matching: find.text('记一笔'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(AppBar),
+        matching: find.text('转账'),
+      ),
+      findsOneWidget,
+    );
+    // Content 内 _quickActions card 标题不应出现。
+    expect(find.text('快捷操作'), findsNothing);
   });
 
   testWidgets('tapping 记一笔 (AppBar) pushes TransactionFormPage',
       (tester) async {
     await pumpPage(tester);
 
-    // Two 「记一笔」 surfaces exist (AppBar + 快捷操作 card). Tap the AppBar
-    // one by scoping to AppBar descendants.
+    // Task 8: content 内 _quickActions card 已移除，记一笔只在 AppBar。
     final btn = find.descendant(
       of: find.byType(AppBar),
       matching: find.ancestor(
@@ -642,5 +661,55 @@ void main() {
     expect(find.text('招商银行'), findsOneWidget);
     expect(find.text('卡号尾号'), findsOneWidget);
     expect(find.text('尾号 2840'), findsOneWidget);
+  });
+
+  // ───── Task 8: 收支统计饼图（_summaryPanel 重写为 pie + legend）+ 移除 content 内 _quickActions ─────
+
+  testWidgets('summary panel renders pie + legend; no quick actions card',
+      (tester) async {
+    // summary.byDay 含 expense 分类（餐饮/交通）→ 月度聚合后饼图应渲染 + legend
+    // 显示分类名。_quickActions 已移除（操作集中在 AppBar）。
+    final summary = MonthlySummary(
+      year: 2026,
+      month: 6,
+      expenseCents: 18000,
+      incomeCents: 24000,
+      netCents: 6000,
+      byDay: [
+        DailySummary(
+          date: '2026-06-01',
+          totalIncomeCents: 0,
+          byCategory: [
+            CategoryTotal(
+                categoryId: 'food',
+                name: '餐饮',
+                accountType: 'expense',
+                amountCents: 12000),
+            CategoryTotal(
+                categoryId: 'tran',
+                name: '交通',
+                accountType: 'expense',
+                amountCents: 6000),
+          ],
+        ),
+      ],
+    );
+    // 通过 pumpPage 的 summary 参数注入（避免 helper 内部覆盖 stub）。
+    await pumpPage(tester, summary: summary);
+
+    // 收支统计 panel 在 ListView 之下（hero + stats 占满首屏），需滚入视口。
+    await tester.scrollUntilVisible(
+      find.textContaining('收支统计'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    // 饼图用 CustomPaint 绘制（findsWidgets ≥1 即可）。
+    expect(find.byType(CustomPaint), findsWidgets);
+    // legend 显示分类名。
+    expect(find.text('餐饮'), findsOneWidget);
+    expect(find.text('交通'), findsOneWidget);
+    // _quickActions 已移除，「快捷操作」标题不应出现。
+    expect(find.text('快捷操作'), findsNothing);
   });
 }

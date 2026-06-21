@@ -1,3 +1,5 @@
+import 'dart:math' show pi;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -194,23 +196,15 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
           const SizedBox(height: AppSpacing.lg),
           _statsRow(a, txns, summary),
           const SizedBox(height: AppSpacing.lg),
+          // 双栏：左近期交易（flex 3）/ 右收支统计饼图（flex 2）。
+          // 对齐 OD .cols 1.5fr:1fr 比例。原右栏的 _quickActions 已移除——操作
+          // 集中在 AppBar（编辑/记一笔/转账/更多菜单），避免重复。
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: _recentTxnPanel(txns)),
+              Expanded(flex: 3, child: _recentTxnPanel(txns)),
               const SizedBox(width: AppSpacing.lg),
-              // 右栏：收支统计（_statsRow 已展示 4 卡，这里显示月度净额说明）+
-              // 快捷操作（对照原型 right-col：信息+快捷操作）
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _summaryPanel(summary),
-                    const SizedBox(height: AppSpacing.lg),
-                    _quickActions(a),
-                  ],
-                ),
-              ),
+              Expanded(flex: 2, child: _summaryPanel(summary)),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -842,90 +836,148 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     );
   }
 
-  /// 收支统计 panel：月度净额 + 日均，接 account-scoped MonthlySummary。
-  /// 4 张 quick-stat 卡已在 _statsRow 展示，这里补一行说明（月度净额 / 日均）。
+  /// 收支统计 panel：饼图 + legend（对齐 OD .pie-wrap）。
+  /// expense 分类从 summary.byDay 客户端聚合（_monthExpenseByCategory）；
+  /// 无数据时显占位「本月暂无支出」。
   Widget _summaryPanel(MonthlySummary? summary) {
-    final lines = <String>[];
-    if (summary != null) {
-      lines
-        ..add('本月净额：${_fmtSigned(summary.netCents)}')
-        ..add('日均：${_fmtSigned(summary.dailyAvgCents)}');
-    }
+    final cats = _monthExpenseByCategory(summary);
+    final total = cats.fold<int>(0, (s, c) => s + c.amountCents);
     return DataCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('收支统计',
-              style: TextStyle(fontWeight: FontWeight.w600)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('收支统计',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text('本月',
+                  style: TextStyle(color: AppColors.muted, fontSize: 12)),
+            ],
+          ),
           const SizedBox(height: AppSpacing.md),
-          if (lines.isEmpty)
+          if (cats.isEmpty)
             const Padding(
               padding: EdgeInsets.all(24),
               child: Center(
-                child: Text('统计加载中',
+                child: Text('本月暂无支出',
                     style: TextStyle(color: AppColors.muted, fontSize: 12)),
               ),
             )
-          else
-            for (final l in lines)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Text(l,
-                    style: const TextStyle(
-                        color: AppColors.muted, fontSize: 12)),
-              ),
-        ],
-      ),
-    );
-  }
-
-  /// 快捷操作 card（对照原型 desktop-detail-account.html .actions-card）。
-  /// 激活：编辑/记一笔/转账真实；查看账单/隐藏账户 🔒 占位。
-  /// 归档：移除编辑/记一笔/转账（只读，需先重新激活）。
-  Widget _quickActions(Account a) {
-    final archived = a.status == AccountStatus.archived;
-    return DataCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('快捷操作',
-              style: TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: AppSpacing.md),
-          if (!archived) ...[
-            _actionBtn('编辑账户', Icons.edit_outlined, () => _edit(a)),
-            _actionBtn('记一笔', Icons.add, _recordTxn),
-            _actionBtn('转账', Icons.swap_horiz, _transfer),
+          else ...[
+            _pieChart(cats, total),
+            const SizedBox(height: AppSpacing.md),
+            for (final c in cats) _legendRow(c, total),
           ],
-          _actionBtn(
-              '查看账单（待交易模块）', Icons.receipt_long_outlined, null),
-          _actionBtn('隐藏账户（待功能）', Icons.visibility_off_outlined, null),
         ],
       ),
     );
   }
 
-  Widget _actionBtn(String label, IconData icon, VoidCallback? onTap) {
-    final disabled = onTap == null;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+  /// 从 summary.byDay 聚合月度 expense 分类（饼图用）。按 amountCents 降序。
+  /// 跳过非 expense 类型与 0 金额项。
+  List<CategoryTotal> _monthExpenseByCategory(MonthlySummary? summary) {
+    if (summary == null) return const [];
+    final merged = <String, CategoryTotal>{};
+    for (final day in summary.byDay) {
+      for (final c in day.byCategory) {
+        if (c.accountType != 'expense' || c.amountCents == 0) continue;
+        final existing = merged[c.categoryId];
+        if (existing == null) {
+          merged[c.categoryId] = CategoryTotal(
+            categoryId: c.categoryId,
+            name: c.name,
+            accountType: c.accountType,
+            amountCents: c.amountCents,
+          );
+        } else {
+          merged[c.categoryId] = CategoryTotal(
+            categoryId: existing.categoryId,
+            name: existing.name,
+            accountType: existing.accountType,
+            amountCents: existing.amountCents + c.amountCents,
+          );
+        }
+      }
+    }
+    final list = merged.values.toList()
+      ..sort((a, b) => b.amountCents.compareTo(a.amountCents));
+    return list;
+  }
+
+  /// 饼图：CustomPaint(_DonutPainter) + 中心总金额/支出 label（对齐 OD .pie-wrap）。
+  Widget _pieChart(List<CategoryTotal> cats, int total) {
+    return Center(
       child: SizedBox(
-        width: double.infinity,
-        child: TextButton.icon(
-          onPressed: onTap,
-          icon: Icon(icon, size: 16),
-          label: Text(label),
-          style: TextButton.styleFrom(
-            foregroundColor: disabled ? AppColors.muted : AppColors.fg,
-            backgroundColor: AppColors.bg,
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: AppRadius.smBorder,
-              side: BorderSide(color: AppColors.border),
+        width: 128,
+        height: 128,
+        child: CustomPaint(
+          painter: _DonutPainter(cats, total),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(_fmtSigned(total),
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        fontFeatures: AppTypography.tabularFigures)),
+                const Text('支出',
+                    style: TextStyle(color: AppColors.muted, fontSize: 10)),
+              ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  /// legend 行：色块 + 分类名 + 占比%·金额（对齐 OD .legend-row）。
+  Widget _legendRow(CategoryTotal c, int total) {
+    final pct = total > 0 ? (c.amountCents / total * 100) : 0.0;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 9,
+            height: 9,
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: _categoryColor(c.categoryId),
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+          Text(c.name.isEmpty ? '未分类' : c.name,
+              style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+          const Spacer(),
+          Text('${pct.toStringAsFixed(0)}% · ${_fmtSigned(c.amountCents)}',
+              style: const TextStyle(
+                  color: AppColors.muted,
+                  fontSize: 12,
+                  fontFeatures: AppTypography.tabularFigures)),
+        ],
+      ),
+    );
+  }
+
+  /// 分类色：按 categoryId 哈希到御财调色板（稳定着色）。
+  /// _DonutPainter 内有同逻辑的 _categoryColorForPaint（CustomPainter 不能
+  /// 访问 State 方法）；保持两处一致。
+  Color _categoryColor(String id) {
+    const palette = [
+      Color(0xFFB08D57),
+      Color(0xFFC4544D),
+      Color(0xFF2D8A6E),
+      Color(0xFF3B6FB0),
+      Color(0xFF8A6FB0),
+      Color(0xFFB08D33),
+    ];
+    var h = 0;
+    for (final c in id.codeUnits) {
+      h = (h * 31 + c) & 0x7fffffff;
+    }
+    return palette[h % palette.length];
   }
 
   // ───────────────────────── 操作 ─────────────────────────
@@ -1161,4 +1213,71 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
 
   String _fmtDate(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+}
+
+/// 收支统计饼图 painter（对齐 OD .pie-wrap：SVG circle + stroke-dasharray）。
+/// 背景环（#EFECE4）+ 各分类按占比画 stroke 扇区，12 点起顺时针。
+///
+/// 着色逻辑与 _AccountDetailPageState._categoryColor 重复（palette + 哈希）——
+/// CustomPainter 不能访问 State 方法，故保留两处一致实现。
+class _DonutPainter extends CustomPainter {
+  _DonutPainter(this.cats, this.total);
+
+  final List<CategoryTotal> cats;
+  final int total;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+    const thickness = 16.0;
+    // 背景环。
+    canvas.drawCircle(
+      center,
+      radius - thickness / 2,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = thickness
+        ..color = const Color(0xFFEFECE4),
+    );
+    if (total == 0) return;
+    // 分类扇区。
+    final rect =
+        Rect.fromCircle(center: center, radius: radius - thickness / 2);
+    var start = -pi / 2; // 12 点起。
+    for (final c in cats) {
+      final sweep = (c.amountCents / total) * 2 * pi;
+      canvas.drawArc(
+        rect,
+        start,
+        sweep,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = thickness
+          ..color = _categoryColorForPaint(c.categoryId),
+      );
+      start += sweep;
+    }
+  }
+
+  Color _categoryColorForPaint(String id) {
+    const palette = [
+      Color(0xFFB08D57),
+      Color(0xFFC4544D),
+      Color(0xFF2D8A6E),
+      Color(0xFF3B6FB0),
+      Color(0xFF8A6FB0),
+      Color(0xFFB08D33),
+    ];
+    var h = 0;
+    for (final c in id.codeUnits) {
+      h = (h * 31 + c) & 0x7fffffff;
+    }
+    return palette[h % palette.length];
+  }
+
+  @override
+  bool shouldRepaint(_DonutPainter old) =>
+      old.total != total || old.cats.length != cats.length;
 }
