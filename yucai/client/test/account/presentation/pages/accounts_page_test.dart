@@ -260,4 +260,77 @@ void main() {
     expect((bar.valueColor as AlwaysStoppedAnimation<Color?>?)?.value,
         AppColors.positive);
   });
+
+  // Task 1 — card 副标题 = institution · 卡号尾号（ac-sub，非类型专属 _sublineWidget）
+  testWidgets('card subtitle: institution · 尾号 when both present', (t) async {
+    t.view.physicalSize = size;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    await t.pumpWidget(_harness([
+      const Account(
+        id: 'a1',
+        name: '招行储蓄',
+        accountType: AccountType.asset,
+        category: AccountCategory.savings,
+        currencyCode: 'CNY',
+        initialBalanceCents: 0,
+        currentBalanceCents: 100000,
+        ownership: Ownership.personal,
+        status: AccountStatus.active,
+        institution: '招商银行',
+        cardNumberTail: '2840',
+      ),
+    ]));
+    await t.pumpAndSettle();
+    expect(find.text('招商银行 · 尾号 2840'), findsOneWidget);
+  });
+
+  testWidgets('card subtitle: institution only when no cardNumberTail',
+      (t) async {
+    t.view.physicalSize = size;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    await t.pumpWidget(_harness([
+      const Account(
+        id: 'a2',
+        name: '现金',
+        accountType: AccountType.asset,
+        category: AccountCategory.savings,
+        currencyCode: 'CNY',
+        initialBalanceCents: 0,
+        currentBalanceCents: 50000,
+        ownership: Ownership.personal,
+        status: AccountStatus.active,
+        institution: '微信',
+        cardNumberTail: '',
+      ),
+    ]));
+    await t.pumpAndSettle();
+    expect(find.text('微信'), findsOneWidget);
+  });
+
+  testWidgets(
+      'card subtitle: category · currency fallback when no institution',
+      (t) async {
+    t.view.physicalSize = size;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    await t.pumpWidget(_harness([
+      const Account(
+        id: 'a3',
+        name: '现金钱包',
+        accountType: AccountType.asset,
+        category: AccountCategory.savings,
+        currencyCode: 'CNY',
+        initialBalanceCents: 0,
+        currentBalanceCents: 50000,
+        ownership: Ownership.personal,
+        status: AccountStatus.active,
+        institution: '',
+        cardNumberTail: '',
+      ),
+    ]));
+    await t.pumpAndSettle();
+    expect(find.text('储蓄 · CNY'), findsOneWidget);
+  });
 }

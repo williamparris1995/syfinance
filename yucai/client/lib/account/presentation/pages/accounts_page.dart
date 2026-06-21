@@ -689,10 +689,9 @@ class _AccountCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 2),
+                    // ac-sub（机构 · 卡号尾号；institution 空时 fallback category · 币种）
                     Text(
-                      account.institution.isNotEmpty
-                          ? '${account.institution} · ${account.currencyCode}'
-                          : '${account.category.label} · ${account.currencyCode}',
+                      _subline(account),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -787,6 +786,17 @@ class _AccountCard extends StatelessWidget {
       card = Opacity(opacity: 0.55, child: card);
     }
     return card;
+  }
+
+  /// 卡片副标题：机构 · 卡号尾号（对齐 OD accounts.html hero-sub）。
+  /// institution 空 → fallback category · 币种（保留可读性）。
+  String _subline(Account a) {
+    if (a.institution.isNotEmpty) {
+      return a.cardNumberTail.isNotEmpty
+          ? '${a.institution} · 尾号 ${a.cardNumberTail}'
+          : a.institution;
+    }
+    return '${a.category.label} · ${a.currencyCode}';
   }
 
   /// 类型专属副信息。按 [Account.category] 分支渲染：
