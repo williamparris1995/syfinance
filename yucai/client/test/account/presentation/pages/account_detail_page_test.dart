@@ -503,10 +503,12 @@ void main() {
       (tester) async {
     await pumpPage(tester, account: _creditCardAccount());
 
-    // Task 5 quick-stats 卡也渲染「账单日」，故 hero+stats 共 2 处；用
-    // findsWidgets 容忍重复，仍断言 hero 字段存在。
+    // Task 5 quick-stats 卡也渲染「账单日」（共 2 处），故 hero 字段断言
+    // 收紧为 hero-scoped find.descendant，仍证明 hero 字段网格渲染该 label。
+    final hero = find.byKey(const ValueKey('heroFields'));
     expect(find.text('额度'), findsOneWidget);
-    expect(find.text('账单日'), findsWidgets);
+    expect(find.descendant(of: hero, matching: find.text('账单日')),
+        findsOneWidget);
     expect(find.text('还款日'), findsOneWidget);
     expect(find.text('年费'), findsOneWidget);
     // 负债类 badge。
@@ -517,10 +519,15 @@ void main() {
       (tester) async {
     await pumpPage(tester, account: _loanAccount());
 
-    // Task 5 quick-stats 卡也渲染 原始本金/剩余本金/月供，故 hero+stats 共 2 处。
-    expect(find.text('原始本金'), findsWidgets);
-    expect(find.text('剩余本金'), findsWidgets);
-    expect(find.text('月供'), findsWidgets);
+    // Task 5 quick-stats 卡也渲染 原始本金/剩余本金/月供（共 2 处），故 hero
+    // 字段断言收紧为 hero-scoped find.descendant。
+    final hero = find.byKey(const ValueKey('heroFields'));
+    expect(find.descendant(of: hero, matching: find.text('原始本金')),
+        findsOneWidget);
+    expect(find.descendant(of: hero, matching: find.text('剩余本金')),
+        findsOneWidget);
+    expect(find.descendant(of: hero, matching: find.text('月供')),
+        findsOneWidget);
     expect(find.text('下次还款'), findsOneWidget);
     expect(find.text('负债类'), findsOneWidget);
   });

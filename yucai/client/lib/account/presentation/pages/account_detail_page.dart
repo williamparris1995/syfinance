@@ -437,6 +437,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
 
     return LayoutBuilder(
       builder: (ctx, c) => GridView.count(
+        key: const ValueKey('heroFields'),
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         crossAxisCount: c.maxWidth > 600 ? 4 : 2,
