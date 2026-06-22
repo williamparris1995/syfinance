@@ -1046,6 +1046,7 @@ class _AccountCardState extends State<_AccountCard> {
           if (_hasSub(a)) ...[
             const SizedBox(height: 14),
             Container(
+              width: double.infinity,
               padding: const EdgeInsets.only(top: 13),
               decoration: const BoxDecoration(
                 border: Border(top: BorderSide(color: AppColors.border)),
@@ -1209,6 +1210,7 @@ class _AccountCardState extends State<_AccountCard> {
             Padding(
               padding: const EdgeInsets.only(top: 9),
               child: Container(
+                width: double.infinity,
                 padding: const EdgeInsets.only(top: 9),
                 decoration: const BoxDecoration(
                   border: Border(top: BorderSide(color: AppColors.border)),
