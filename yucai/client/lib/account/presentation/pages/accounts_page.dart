@@ -11,13 +11,16 @@ import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
 import 'package:yucai_client/account/presentation/widgets/account_category_style.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
-import 'package:yucai_client/core/widgets/data_card.dart';
-import 'package:yucai_client/core/widgets/filter_bar.dart';
 
-/// 账户管理列表页。对齐 OD 原型（accounts.html desktop / mobile.html / tablet.html）：
-/// 汇总头（净资产 + 总资产/负债 + 新建）→ 类型筛选 → 按类型分组的账户卡片。
-/// 三断点：mobile(<600) 紧凑行卡 / tablet(600-1099) 2列完整卡 / desktop(>=1100) auto-fill。
-/// 完整卡 = cicon + cmain + cv(label+val) + csub 分隔 + bar + bar-meta（对齐 tablet.html .card）。
+/// 账户管理列表页。对齐 OD 原型 CSS 1:1：
+///  - design-output/accounts-responsive/tablet.html （desktop/tablet）
+///  - design-output/accounts-responsive/mobile.html  （mobile 390）
+///
+/// 布局：汇总头（.sumcard/.summary）→ 水平滚动筛选 chips（.chips/.chip）
+///       → 按类型分组的账户卡片（.group/.group-head/.grid/.card/.acc）。
+///
+/// 注意：本页内容渲染在 AppShell 内（侧栏 + topbar），原型中 .wrap/.pagerow/
+/// body padding/.tabbar/status-bar 由 AppShell 承载或与本页无关，故不对齐。
 class AccountsPage extends StatefulWidget {
   const AccountsPage({super.key});
 
@@ -190,10 +193,12 @@ class _AccountsPageState extends State<AccountsPage> {
         : scoped.where((a) => a.category == _filter).toList();
     final groups = _groupByCategory(filtered);
 
-    final tabs = <FilterTab<AccountCategory?>>[
-      const FilterTab(null, '全部'),
-      for (final t in AccountCategory.values) FilterTab(t, t.label),
-    ];
+    // chips 计数：全部 = 当前 scoped 总数；分类 = 该分类 scoped 数。
+    final chipCounts = <AccountCategory?, int>{
+      null: scoped.length,
+      for (final c in AccountCategory.values)
+        c: scoped.where((a) => a.category == c).length,
+    };
 
     return RefreshIndicator(
       onRefresh: () async =>
@@ -213,10 +218,11 @@ class _AccountsPageState extends State<AccountsPage> {
                   liabCents: liabCents,
                   onAdd: _openCreateForm,
                 ),
-                const SizedBox(height: AppSpacing.md),
-                FilterBar<AccountCategory?>(
-                  tabs: tabs,
+                // .chips：水平滚动 + gap9 + chip h32 px14，active 黑底白字。
+                // proto tablet padding:18px 0 4px；mobile padding:14px 0 4px。
+                _FilterChips(
                   active: _filter,
+                  counts: chipCounts,
                   onChanged: (v) => setState(() => _filter = v),
                 ),
                 Padding(
@@ -234,13 +240,12 @@ class _AccountsPageState extends State<AccountsPage> {
                     ],
                   ),
                 ),
-                const SizedBox(height: AppSpacing.lg),
                 if (groups.isEmpty)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
                     child: Center(
-                        child: Text('该筛选下暂无账户',
-                            style: TextStyle(color: AppColors.muted))),
+                      child: Text('该筛选下暂无账户',
+                          style: TextStyle(color: AppColors.muted))),
                   )
                 else
                   for (final entry in groups.entries) ...[
@@ -250,7 +255,8 @@ class _AccountsPageState extends State<AccountsPage> {
                       formatCents: _formatCents,
                       onDelete: _confirmDelete,
                     ),
-                    const SizedBox(height: AppSpacing.xl),
+                    // .group margin-top:28px（首个由 _content padding 提供，后续由此 SizedBox 提供）。
+                    const SizedBox(height: AppSpacing.lg),
                   ],
               ],
             ),
@@ -293,6 +299,7 @@ class _AccountsHeader extends StatelessWidget {
 
   /// desktop/tablet：白卡 sumcard（对齐 tablet.html .sumcard）。
   /// 右上 accent-soft 圆形装饰（原型 .sumcard .deco，190px，比 mobile 124 大）。
+  /// proto: padding:26px 30px; gap:32px; border-radius:14; bg:#fff; 无 box-shadow。
   Widget _sumcard(BuildContext context) {
     return Stack(
       children: [
@@ -309,13 +316,12 @@ class _AccountsHeader extends StatelessWidget {
           ),
         ),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 22),
-          decoration: BoxDecoration(
+          // .sumcard padding:26px 30px（vertical 26 / horizontal 30）
+          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 26),
+          decoration: const BoxDecoration(
             color: AppColors.surface,
-            borderRadius: AppRadius.lgBorder,
-            boxShadow: const [
-              BoxShadow(color: Color(0x141A1916), blurRadius: 3, offset: Offset(0, 1)),
-            ],
+            borderRadius: AppRadius.lgBorder, // radius-lg 14
+            // proto .sumcard 无 box-shadow（仅有 deco 圆 + border-radius + bg）。
           ),
           child: Row(
             children: [
@@ -323,17 +329,18 @@ class _AccountsHeader extends StatelessWidget {
                 child: Row(
                   children: [
                     _netBlock(),
-                    const SizedBox(width: 26),
+                    const SizedBox(width: 32), // gap:32px
                     _vline(),
-                    const SizedBox(width: 26),
+                    const SizedBox(width: 32),
                     _statBlock('总资产', assetCents, AppColors.positive),
-                    const SizedBox(width: 26),
+                    const SizedBox(width: 32),
                     _vline(),
-                    const SizedBox(width: 26),
+                    const SizedBox(width: 32),
                     _statBlock('总负债', liabCents, AppColors.negative),
                   ],
                 ),
               ),
+              const SizedBox(width: 32),
               _NewAccountButton(onPressed: onAdd),
             ],
           ),
@@ -343,69 +350,76 @@ class _AccountsHeader extends StatelessWidget {
   }
 
   /// mobile：紧凑汇总卡（对齐 mobile.html .summary）。
+  /// proto: padding:18px 20px 17px; border-radius:14; margin-top:6; deco 124 circle。
   Widget _mobileCard(BuildContext context) {
-    return Stack(
-      children: [
-        // 右上 accent-soft 圆形装饰（原型 .deco）。
-        Positioned(
-          top: -38,
-          right: -32,
-          child: Container(
-            width: 124,
-            height: 124,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.accentSoft,
+    return Container(
+      margin: const EdgeInsets.only(top: 6), // .summary margin-top:6px
+      clipBehavior: Clip.hardEdge, // 让 deco 圆被 radius 裁剪
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppRadius.lgBorder,
+      ),
+      child: Stack(
+        children: [
+          // 右上 accent-soft 圆形装饰（原型 .deco）。
+          Positioned(
+            top: -38,
+            right: -32,
+            child: Container(
+              width: 124,
+              height: 124,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.accentSoft,
+              ),
             ),
           ),
-        ),
-        Container(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 17),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: AppRadius.lgBorder,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('全部账户余额合计',
-                  style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
-              const SizedBox(height: 5),
-              Text(
-                _fmt(netCents),
-                style: TextStyle(
-                  fontSize: 27,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -0.5,
-                  color: netCents < 0 ? AppColors.negative : AppColors.fg,
-                  fontFeatures: AppTypography.tabularFigures,
+          Padding(
+            // .summary padding:18px 20px 17px
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 17),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('全部账户余额合计',
+                    style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+                const SizedBox(height: 5),
+                Text(
+                  _fmt(netCents),
+                  style: TextStyle(
+                    fontSize: 27,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.5,
+                    color: netCents < 0 ? AppColors.negative : AppColors.fg,
+                    fontFeatures: AppTypography.tabularFigures,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 9),
-              Text.rich(
-                TextSpan(
-                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
-                  children: [
-                    const TextSpan(text: '资产 '),
-                    TextSpan(
-                        text: _fmt(assetCents),
-                        style: const TextStyle(color: AppColors.positive)),
-                    const TextSpan(text: '   ·   负债 '),
-                    TextSpan(
-                        text: _fmt(liabCents),
-                        style: const TextStyle(color: AppColors.negative)),
-                  ],
+                const SizedBox(height: 9),
+                Text.rich(
+                  TextSpan(
+                    style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                    children: [
+                      const TextSpan(text: '资产 '),
+                      TextSpan(
+                          text: _fmt(assetCents),
+                          style: const TextStyle(color: AppColors.positive)),
+                      const TextSpan(text: '   ·   负债 '),
+                      TextSpan(
+                          text: _fmt(liabCents),
+                          style: const TextStyle(color: AppColors.negative)),
+                    ],
+                  ),
+                  style: const TextStyle(
+                      fontFeatures: AppTypography.tabularFigures),
                 ),
-                style: const TextStyle(
-                    fontFeatures: AppTypography.tabularFigures),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
+  /// .net-label 13 muted + .net-val 30 display w600 mt:6 letter-spacing:.5。
   Widget _netBlock() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -427,6 +441,7 @@ class _AccountsHeader extends StatelessWidget {
     );
   }
 
+  /// .stat-label 12 muted + .stat-val 19 mono w600 mt:5 tabular。
   Widget _statBlock(String label, int cents, Color color) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -446,6 +461,7 @@ class _AccountsHeader extends StatelessWidget {
     );
   }
 
+  /// .vline 1×48 border color。
   Widget _vline() =>
       Container(width: 1, height: 48, color: AppColors.border);
 
@@ -465,6 +481,9 @@ class _AccountsHeader extends StatelessWidget {
   }
 }
 
+/// .newbtn：margin-left:auto height:40 padding:0 20 radius:9999px accent bg
+/// #fff 14 w600 gap7 box-shadow:0 4px 12px rgba(176,141,87,.32)；:hover accent-press。
+/// + 字号 18 w400。
 class _NewAccountButton extends StatefulWidget {
   const _NewAccountButton({required this.onPressed});
   final VoidCallback onPressed;
@@ -485,22 +504,170 @@ class _NewAccountButtonState extends State<_NewAccountButton> {
       child: GestureDetector(
         onTap: widget.onPressed,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          duration: const Duration(milliseconds: 150),
+          height: 40, // .newbtn height:40px
+          padding: const EdgeInsets.symmetric(horizontal: 20), // 0 20px
           decoration: BoxDecoration(
-            color: _hover ? AppColors.accentHover : AppColors.accent,
-            borderRadius: AppRadius.smBorder,
+            color: _hover ? const Color(0xFF98773F) : AppColors.accent, // :hover accent-press(#98773f)
+            borderRadius: BorderRadius.circular(9999), // radius:9999px (pill)
+            boxShadow: const [
+              // .newbtn box-shadow:0 4px 12px rgba(176,141,87,.32)
+              BoxShadow(
+                color: Color(0x52B08D57),
+                blurRadius: 12,
+                offset: Offset(0, 4),
+              ),
+            ],
           ),
           child: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.add, size: 15, color: Colors.white),
-              SizedBox(width: 6),
+              Icon(Icons.add, size: 18, color: Colors.white), // .pl 18 w400
+              SizedBox(width: 7), // gap:7px
               Text('新建账户',
                   style: TextStyle(
                       color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500)),
+                      fontSize: 14, // 14 w600
+                      fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────── 筛选 chips（水平滚动） ───────────────────────
+
+/// 对齐 prototype .chips + .chip：
+///  - .chips display:flex gap:9 overflow-x:auto padding:18px 0 4px（tablet）
+///    / gap:8 padding:14px 0 4px（mobile）
+///  - .chip h:32 padding:0 14 radius:9999 bg:#fff border:1 #e6e3dc 13 #1a1916
+///    .cnt 12 mono muted；active bg/border #1a1916 #fff .cnt 55%white
+///    :not(.active):hover border-color accent
+///
+/// 决策：弃用共享 FilterBar（Wrap 布局，active 用 accent 金、无 count），
+/// 改为本页内联水平滚动 chip 行以 1:1 还原原型（黑底 active + count badge +
+/// hover 金边）。FilterBar 本身不改（被 transactions_page 等复用）。
+class _FilterChips extends StatelessWidget {
+  const _FilterChips({
+    required this.active,
+    required this.counts,
+    required this.onChanged,
+  });
+
+  final AccountCategory? active;
+  final Map<AccountCategory?, int> counts;
+  final ValueChanged<AccountCategory?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final defs = <AccountCategory?>[null, ...AccountCategory.values];
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    // proto gap：tablet 9 / mobile 8；padding-top：tablet 18 / mobile 14。
+    final gap = isMobile ? 8.0 : 9.0;
+    final padTop = isMobile ? 14.0 : 18.0;
+    return Padding(
+      padding: EdgeInsets.only(top: padTop, bottom: 4),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal, // overflow-x:auto
+        child: SeparatedRow(
+          gap: gap,
+          children: [
+            for (final c in defs)
+              _Chip(
+                label: c?.label ?? '全部',
+                count: counts[c] ?? 0,
+                selected: c == active,
+                onTap: () => onChanged(c),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 简单的 Row + 等宽 gap（无 Expanded，支持横向滚动自然宽度）。
+class SeparatedRow extends StatelessWidget {
+  const SeparatedRow({super.key, required this.gap, required this.children});
+  final double gap;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <Widget>[];
+    for (var i = 0; i < children.length; i++) {
+      items.add(children[i]);
+      if (i < children.length - 1) items.add(SizedBox(width: gap));
+    }
+    return Row(mainAxisSize: MainAxisSize.min, children: items);
+  }
+}
+
+class _Chip extends StatefulWidget {
+  const _Chip({
+    required this.label,
+    required this.count,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final int count;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  State<_Chip> createState() => _ChipState();
+}
+
+class _ChipState extends State<_Chip> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    const activeBg = Color(0xFF1A1916); // #1a1916（.chip.active）
+    const activeBorder = Color(0xFF1A1916);
+    final border = widget.selected
+        ? activeBorder
+        : (_hover ? AppColors.accent : AppColors.border); // :not(.active):hover accent
+    final bg = widget.selected ? activeBg : AppColors.surface;
+    final fg = widget.selected ? Colors.white : AppColors.fg;
+    // .cnt：非 active muted；active rgba(255,255,255,.55)
+    final cntColor =
+        widget.selected ? const Color(0x8CFFFFFF) : AppColors.muted;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150), // .chip transition:.15s
+          // .chip height:32 padding:0 14 radius:9999
+          height: 32,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: bg,
+            border: Border.all(color: border),
+            borderRadius: BorderRadius.circular(9999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // .chip 13 #1a1916（active #fff）
+              Text(widget.label,
+                  style: TextStyle(
+                      color: fg, fontSize: 13, fontWeight: FontWeight.w400)),
+              const SizedBox(width: 6), // gap:6
+              // .cnt 12 mono tabular muted
+              Text('${widget.count}',
+                  style: TextStyle(
+                    color: cntColor,
+                    fontSize: 12,
+                    fontFeatures: AppTypography.tabularFigures,
+                  )),
             ],
           ),
         ),
@@ -528,45 +695,97 @@ class _GroupBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final subtotal =
         accounts.fold<int>(0, (s, a) => s + a.currentBalanceCents);
+    final isLiability = accounts.first.accountType == AccountType.liability;
+    final typeColor = categoryColor(type);
+    // .group-head：gap 11 / padding 0 2 15（tablet）；mobile gap 9 / padding 4 2 10。
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    final headGap = isMobile ? 9.0 : 11.0;
+    final headPad = isMobile
+        ? const EdgeInsets.fromLTRB(2, 4, 2, 10)
+        : const EdgeInsets.fromLTRB(2, 0, 2, 15);
+    final giconSize = isMobile ? 28.0 : 34.0; // mobile 28 / tablet 34
+    final gnameSize = isMobile ? 15.0 : 17.0; // mobile 15 / tablet 17
+    final gcntSize = isMobile ? 11.5 : 12.5; // mobile 11.5 / tablet 12.5
+    final gsubSize = isMobile ? 13.5 : 15.0; // mobile 13.5 / tablet 15
+    final iconIconSize = isMobile ? 14.0 : 16.0; // gicon font-size 14/16
+
+    // .group margin-top:28px（首组无 margin，由外层 spacing 提供；此 widget 自身不加）。
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // group-header
+        // group-head（无 Divider —— 原型 .group-head 后直接 .grid，无分隔线）
         Padding(
-          padding: const EdgeInsets.only(bottom: 10),
+          padding: headPad,
           child: Row(
             children: [
-              Icon(categoryIcon(type), size: 20, color: AppColors.accent),
-              const SizedBox(width: 8),
+              // .gicon 圆 bg:类型色软底 + 类型图标
+              Container(
+                width: giconSize,
+                height: giconSize,
+                decoration: BoxDecoration(
+                  color: typeColor.withValues(alpha: 0.14),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(categoryIcon(type), size: iconIconSize, color: typeColor),
+              ),
+              SizedBox(width: headGap),
               Text(type.label,
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w600)),
-              const Spacer(),
-              Text('合计 ${formatCents(subtotal)}',
                   style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.muted,
-                      fontFeatures: AppTypography.tabularFigures)),
+                      fontSize: gnameSize, fontWeight: FontWeight.w600)),
+              const SizedBox(width: 6),
+              // .gcnt N 个账户
+              Text('${accounts.length} 个账户',
+                  style: TextStyle(color: AppColors.muted, fontSize: gcntSize)),
+              const Spacer(),
+              // .gsub 小计 ¥X —— mono tabular w600；<small>小计</small> 11 muted 前缀（仅 tablet）
+              if (!isMobile)
+                Text.rich(
+                  TextSpan(
+                    style: TextStyle(
+                      fontSize: gsubSize,
+                      fontWeight: FontWeight.w600,
+                      fontFeatures: AppTypography.tabularFigures,
+                      color: isLiability ? AppColors.negative : AppColors.fg,
+                    ),
+                    children: [
+                      const TextSpan(
+                        text: '小计 ',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.muted,
+                            fontWeight: FontWeight.w400),
+                      ),
+                      TextSpan(text: formatCents(subtotal)),
+                    ],
+                  ),
+                )
+              else
+                // mobile .gsub 无「小计」前缀，直接金额
+                Text(
+                  formatCents(subtotal),
+                  style: TextStyle(
+                    fontSize: gsubSize,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: AppTypography.tabularFigures,
+                    color: isLiability ? AppColors.negative : AppColors.fg,
+                  ),
+                ),
             ],
           ),
         ),
-        const Divider(height: 1, color: AppColors.border),
-        const SizedBox(height: AppSpacing.sm),
         // account-grid
         LayoutBuilder(
           builder: (context, constraints) {
             // 三断点（基于 group 容器宽 ≈ page 内容宽）：
-            //   mobile <600     → 1 列，紧凑行（aspect 2.3 更矮）
-            //   tablet 600-1099 → 2 列，完整卡（aspect 1.72）
-            //   desktop >=1100  → auto-fill 280px，完整卡（aspect 1.72）
+            //   mobile <600     → 1 列，紧凑行
+            //   tablet 600-1099 → 2 列，完整卡
+            //   desktop >=1100  → auto-fill 280px，完整卡
             // gap14 与原型 minmax(280, 1fr) gap14 一致。
-            final gap = 14.0;
+            const gap = 14.0;
             int cols;
             double aspect;
             if (constraints.maxWidth < 600) {
               cols = 1;
-              // 紧凑行实际高度含 padding + 标题 + 副信息 + 进度条 ~120-130h；
-              // 窄屏（390 - padding → 卡 ~290w）需 aspect ~2.3 避免溢出。
               aspect = 2.3;
             } else if (constraints.maxWidth < 1100) {
               cols = 2;
@@ -602,7 +821,10 @@ class _GroupBlock extends StatelessWidget {
 
 // ───────────────────────── 账户卡 ─────────────────────────
 
-class _AccountCard extends StatelessWidget {
+/// 原型 .card / .acc：自承载 hover（MouseRegion + AnimatedContainer）以精确还原
+/// translateY(-2px) + box-shadow:0 10px 26px rgba(0,0,0,.07)。
+/// 弃用共享 DataCard（其 translateY-1 + border + 不同 shadow 无法 1:1 匹配原型）。
+class _AccountCard extends StatefulWidget {
   const _AccountCard({
     required this.account,
     required this.formatCents,
@@ -614,32 +836,105 @@ class _AccountCard extends StatelessWidget {
   final VoidCallback onLongPress;
 
   @override
+  State<_AccountCard> createState() => _AccountCardState();
+}
+
+class _AccountCardState extends State<_AccountCard> {
+  bool _hover = false;
+  // mobile :active transform:scale(.985) —— 仅 press 期间。
+  bool _pressed = false;
+
+  /// 透传 widget.formatCents，使 helper 方法内部沿用原 `formatCents(...)` 调用。
+  String Function(int) get formatCents => widget.formatCents;
+
+  @override
   Widget build(BuildContext context) {
-    // 断点基于页面宽度（非卡片宽度）：mobile(<600) 紧凑行，desktop/tablet 完整卡。
-    // 卡片宽度（网格 cell ~280-500）永远 <600，故不能用 LayoutBuilder 约束判形态。
+    // 断点基于页面宽度：mobile(<600) 紧凑行，desktop/tablet 完整卡。
     final isMobile = MediaQuery.of(context).size.width < 600;
     return isMobile ? _compactCard(context) : _fullCard(context);
   }
 
-  /// desktop/tablet 完整卡（对齐 tablet.html .card：cicon 左 + cmain + cv 右 + csub 分隔 + bar + bar-meta）。
-  /// 操作（编辑/记账/转账/删除等）移至详情页 AppBar，列表卡点即进详情（对齐原型无 menu）。
+  /// 计算 hover/active 的 transform：
+  ///  - desktop/tablet .card:hover → translateY(-2px)
+  ///  - mobile .acc:active → scale(0.985)
+  Matrix4 _transformFor(bool isMobile) {
+    if (isMobile) {
+      if (!_pressed) return Matrix4.identity();
+      // .acc:active scale(0.985) —— 直接构造缩放矩阵（vector_math 的 scale() 已废弃）。
+      return Matrix4.diagonal3Values(0.985, 0.985, 1.0);
+    }
+    return _hover
+        ? Matrix4.translationValues(0.0, -2.0, 0.0)
+        : Matrix4.identity();
+  }
+
+  Widget _cardShell({required Widget child, required bool isMobile}) {
+    final a = widget.account;
+    final archived = a.status == AccountStatus.archived;
+    // .card padding:18px 20px radius:14；.acc padding:12px 14px radius:10 mb:8。
+    final padding = isMobile
+        ? const EdgeInsets.symmetric(horizontal: 14, vertical: 12)
+        : const EdgeInsets.symmetric(horizontal: 20, vertical: 18);
+    final radius = isMobile ? AppRadius.sm : AppRadius.lg; // 10 / 14
+    Widget card = MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() {
+        _hover = false;
+        _pressed = false;
+      }),
+      child: GestureDetector(
+        onTap: () => context.go('/accounts/${a.id}'),
+        onLongPress: widget.onLongPress,
+        onTapDown: (_) => isMobile ? setState(() => _pressed = true) : null,
+        onTapUp: (_) => isMobile ? setState(() => _pressed = false) : null,
+        onTapCancel: () => isMobile ? setState(() => _pressed = false) : null,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140), // .card transition:.14s
+          transform: _transformFor(isMobile),
+          padding: padding,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.all(Radius.circular(radius)),
+            // 无 border（原型 .card/.acc 均无 border，仅有 bg + radius）。
+            boxShadow: isMobile
+                ? const []
+                : [
+                    if (_hover)
+                      // .card:hover box-shadow:0 10px 26px rgba(0,0,0,.07)
+                      const BoxShadow(
+                        color: Color(0x12000000), // .07 alpha
+                        blurRadius: 26,
+                        offset: Offset(0, 10),
+                      ),
+                  ],
+          ),
+          child: child,
+        ),
+      ),
+    );
+    if (archived) card = Opacity(opacity: 0.55, child: card);
+    return card;
+  }
+
+  /// desktop/tablet 完整卡（对齐 tablet.html .card）。
   Widget _fullCard(BuildContext context) {
-    final a = account;
+    final a = widget.account;
     final negative = a.currentBalanceCents < 0;
     final typeColor = categoryColor(a.category);
+    final spec = _usageSpec(a);
+    final (label, val) = _compactVal(a);
     final archived = a.status == AccountStatus.archived;
-    final spec = _usageSpec(a); // (fraction, color)? — 仅信用卡/贷款
-    final (label, val) = _compactVal(a); // 复用 compact label/val（对齐原型 describe）
 
-    Widget card = DataCard(
-      onTap: () => context.go('/accounts/${a.id}'),
-      onLongPress: onLongPress,
+    return _cardShell(
+      isMobile: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // r1：cicon(左) + cmain + cv(右)（对齐原型 .card .r1）
+          // r1：cicon(左 44) + cmain + cv(右)
           Row(
             children: [
+              // .cicon 44 circle font-size 21
               Container(
                 width: 44,
                 height: 44,
@@ -649,7 +944,7 @@ class _AccountCard extends StatelessWidget {
                 ),
                 child: Icon(categoryIcon(a.category), size: 21, color: typeColor),
               ),
-              const SizedBox(width: 13),
+              const SizedBox(width: 13), // .r1 gap:13
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -679,7 +974,7 @@ class _AccountCard extends StatelessWidget {
                         ],
                       ],
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 3), // .corg margin-top:3
                     Text(
                       _subline(a),
                       maxLines: 1,
@@ -690,17 +985,19 @@ class _AccountCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 8), // .cv padding-left:8
               Flexible(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
+                    // .cvlabel 11.5 muted
                     Text(label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                             color: AppColors.muted, fontSize: 11.5)),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 2), // .cval margin-top:2
+                    // .cval 21 mono w600 tabular
                     Text(
                       val,
                       maxLines: 1,
@@ -717,7 +1014,7 @@ class _AccountCard extends StatelessWidget {
               ),
             ],
           ),
-          // csub：副信息（实线 border-top 分隔，对齐原型 .csub）
+          // .csub margin-top:14 padding-top:13 border-top 1px #e6e3dc 12.5 muted
           if (_hasSub(a)) ...[
             const SizedBox(height: 14),
             Container(
@@ -728,7 +1025,7 @@ class _AccountCard extends StatelessWidget {
               child: _sublineWidget(a),
             ),
           ],
-          // bar + bar-meta（仅信用卡/贷款，对齐原型 .bar + .bar-meta）
+          // .bar 6 radius:6 bg:accent-soft margin-top:13
           if (spec != null) ...[
             const SizedBox(height: 13),
             ClipRRect(
@@ -740,6 +1037,7 @@ class _AccountCard extends StatelessWidget {
                 valueColor: AlwaysStoppedAnimation<Color>(spec.$2),
               ),
             ),
+            // .bar-meta margin-top:7 mono 11.5 space-between
             const SizedBox(height: 7),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -771,29 +1069,27 @@ class _AccountCard extends StatelessWidget {
         ],
       ),
     );
-    if (archived) card = Opacity(opacity: 0.55, child: card);
-    return card;
   }
 
   /// mobile 紧凑行卡片（对齐 mobile.html .acc）。
-  /// 水平：aicon + (name + 机构·尾号) | (label + 余额)；下方副信息 + 进度条。
   Widget _compactCard(BuildContext context) {
-    final a = account;
+    final a = widget.account;
     final negative = a.currentBalanceCents < 0;
     final typeColor = categoryColor(a.category);
     final archived = a.status == AccountStatus.archived;
-    final spec = _usageSpec(a); // (fraction, color)? — 复用，仅信用卡/贷款非 null
-    final (label, val) = _compactVal(a); // (label, 格式化值)
+    final spec = _usageSpec(a);
+    final (label, val) = _compactVal(a);
 
-    Widget card = DataCard(
-      onTap: () => context.go('/accounts/${a.id}'),
-      onLongPress: onLongPress,
+    // .acc margin-bottom:8（由外层 GridView mainAxisSpacing 提供，故不加内 margin）。
+    return _cardShell(
+      isMobile: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // r1：aicon + amain + av
+          // r1：aicon(36) + amain + av
           Row(
             children: [
+              // .aicon 36 circle font-size 17
               Container(
                 width: 36,
                 height: 36,
@@ -801,9 +1097,9 @@ class _AccountCard extends StatelessWidget {
                   color: typeColor.withValues(alpha: 0.14),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(categoryIcon(a.category), size: 18, color: typeColor),
+                child: Icon(categoryIcon(a.category), size: 17, color: typeColor),
               ),
-              const SizedBox(width: 11),
+              const SizedBox(width: 11), // .r1 gap:11
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -833,7 +1129,7 @@ class _AccountCard extends StatelessWidget {
                         ],
                       ],
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 2), // .aorg margin-top:2
                     Text(
                       _subline(a),
                       maxLines: 1,
@@ -843,14 +1139,16 @@ class _AccountCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 8), // .av padding-left:8
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  // .avlabel 10.5 muted margin-bottom:2
                   Text(label,
                       style: const TextStyle(
                           color: AppColors.muted, fontSize: 10.5)),
                   const SizedBox(height: 2),
+                  // .aval 15 mono w600 tabular
                   Text(
                     val,
                     style: TextStyle(
@@ -864,11 +1162,22 @@ class _AccountCard extends StatelessWidget {
               ),
             ],
           ),
-          // 副信息（分隔）+ 进度条（若有）。
-          if (_hasSub(a) || spec != null) ...[
+          // .bar 5 radius:5 margin-top:10（在 .asub 之前 —— proto 顺序）
+          if (spec != null) ...[
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(5),
+              child: LinearProgressIndicator(
+                value: spec.$1,
+                minHeight: 5,
+                backgroundColor: AppColors.accentSoft,
+                valueColor: AlwaysStoppedAnimation<Color>(spec.$2),
+              ),
+            ),
+          ],
+          // .asub margin-top:9 padding-top:9 border-top 1px (dashed→solid) 11.5 muted
+          if (_hasSub(a)) ...[
             const SizedBox(height: 9),
-            // asub：复用 _sublineWidget（类型副信息），实线 border-top 近似原型虚线
-            // （Flutter 原生无 dotted；如需精确虚线后续用 dotted_border 包）。
             Padding(
               padding: const EdgeInsets.only(top: 9),
               child: Container(
@@ -880,26 +1189,13 @@ class _AccountCard extends StatelessWidget {
               ),
             ),
           ],
-          if (spec != null) ...[
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(5),
-              child: LinearProgressIndicator(
-                value: spec.$1,
-                minHeight: 5,
-                backgroundColor: AppColors.accentSoft,
-                valueColor: AlwaysStoppedAnimation<Color>(spec.$2),
-              ),
-            ),
-          ],
         ],
       ),
     );
-    if (archived) card = Opacity(opacity: 0.55, child: card);
-    return card;
   }
 
-  /// 紧凑行右侧 (label, value)：主数字按 category（对齐原型 describe()）。
+  // ─── 以下为业务副信息 helper（保持原逻辑不变） ───
+
   (String, String) _compactVal(Account a) {
     switch (a.category) {
       case AccountCategory.creditCard:
@@ -925,15 +1221,13 @@ class _AccountCard extends StatelessWidget {
     }
   }
 
-  /// 是否有类型副信息（紧凑行虚线下方）。储蓄无利率时无副信息。
   bool _hasSub(Account a) {
-    if (a.category == AccountCategory.savings &&
-        a.interestRate == null) return false;
+    if (a.category == AccountCategory.savings && a.interestRate == null) {
+      return false;
+    }
     return true;
   }
 
-  /// 卡片副标题：机构 · 卡号尾号（对齐 OD accounts.html hero-sub）。
-  /// institution 空 → fallback category · 币种（保留可读性）。
   String _subline(Account a) {
     if (a.institution.isNotEmpty) {
       return a.cardNumberTail.isNotEmpty
@@ -943,10 +1237,6 @@ class _AccountCard extends StatelessWidget {
     return '${a.category.label} · ${a.currencyCode}';
   }
 
-  /// 类型专属副信息。按 [Account.category] 分支渲染：
-  /// 储蓄=利率（interestRate 有值时）/ 信用卡=额度+账单+还款日 / 投资=今年收益率
-  /// / 定期=到期日+利率 / 黄金=买入+涨幅 / 房产=现估值+增值 / 贷款=原始+月供+下次还款。
-  /// 涨跌幅/收益率正绿负红（[AppColors.positive]/[AppColors.negative]）。
   Widget _sublineWidget(Account a) {
     const style = TextStyle(color: AppColors.muted, fontSize: 12);
     Color tone(double v) => v >= 0 ? AppColors.positive : AppColors.negative;
@@ -981,7 +1271,6 @@ class _AccountCard extends StatelessWidget {
         final qty = a.goldQuantity ?? 0;
         final cur = a.goldCurrentPriceCents ?? 0;
         final buy = a.goldBuyPriceCents ?? 0;
-        // 涨幅按单位价格比（现价/买入价），与持仓数量无关。
         final pct = buy > 0 ? (cur - buy) / buy * 100 : 0.0;
         return Text(
           '现值 ${formatCents((cur * qty).toInt())} · 买入 ${formatCents(buy)} · '
@@ -1014,12 +1303,11 @@ class _AccountCard extends StatelessWidget {
       case AccountCategory.otherLiability:
         final rate = a.interestRate;
         return rate == null
-            ? Text('可用余额', style: style)
+            ? const Text('可用余额', style: style)
             : Text('利率 ${rate.toStringAsFixed(2)}%', style: style);
     }
   }
 
-  /// 返回 (fraction, color)，无法计算时 null（不渲染 bar）。
   (double, Color)? _usageSpec(Account a) {
     switch (a.category) {
       case AccountCategory.creditCard:
