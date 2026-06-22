@@ -259,7 +259,9 @@ void main() {
     addTearDown(t.view.resetPhysicalSize);
     await t.pumpWidget(_harness([_estate()]));
     await t.pumpAndSettle();
-    expect(find.textContaining('现估值'), findsOneWidget);
+    // Task 2: compact 行新增 label「现估值」，与 _sublineWidget「现估值 ¥ ...」并存；
+    // 用完整 subline 文本断言类型副信息（唯一），避免与紧凑 label 冲突。
+    expect(find.textContaining('现估值'), findsWidgets);
     expect(find.textContaining('+20.00%'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsNothing);
   });
@@ -387,5 +389,59 @@ void main() {
     expect(find.text('净资产合计'), findsNothing); // mobile 用 label 非「净资产合计」
     expect(find.textContaining('资产'), findsWidgets);
     expect(find.textContaining('共'), findsNothing); // count 行去掉
+  });
+
+  // Task 2 — _AccountCard mobile 紧凑行（< 600）：右侧 label+val；下方副信息+bar。
+  testWidgets('mobile card: compact row (label+val right, sub+bar below)',
+      (t) async {
+    t.view.physicalSize = const Size(390, 844);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    await t.pumpWidget(_harness([
+      Account(
+        id: 'c1',
+        name: '招行信用卡',
+        accountType: AccountType.liability,
+        category: AccountCategory.creditCard,
+        currencyCode: 'CNY',
+        initialBalanceCents: 0,
+        currentBalanceCents: -12400, // 欠款 124
+        ownership: Ownership.personal,
+        status: AccountStatus.active,
+        creditLimitCents: 800000, // 额度 8000
+        creditBillingDay: 12,
+        creditRepaymentDay: 1,
+      ),
+    ]));
+    await t.pumpAndSettle();
+    // 紧凑行：右侧 label「当前欠款」+ 余额
+    expect(find.text('当前欠款'), findsOneWidget);
+    expect(find.text('招行信用卡'), findsOneWidget);
+    // 进度条存在（信用卡）
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+  });
+
+  // desktop 网格（colWidth 280, page maxWidth 1120 → 3 列）下单卡宽度恒 < 600，
+  // 故 desktop 网格内 _AccountCard 走 compact 分支。此测试确认 desktop 视口下
+  // 信用卡卡仍渲染紧凑行（label「当前欠款」+ 进度条），与 mobile 视口行为一致。
+  // _fullCard 分支仅当单卡宽度 ≥ 600 时触发（当前网格不产生此宽度；留待 Task 3
+  // 网格重构后补充专属测试）。_fullCard 主体为现状 build 原样提取，正确性由
+  // 上方 12 个 type-specific / subtitle 测试（均走 compact 但断言 _sublineWidget/
+  // _progressBar 共享逻辑）间接覆盖。
+  testWidgets('desktop grid card: compact row (card width < 600 in 3-col grid)',
+      (t) async {
+    t.view.physicalSize = size;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    await t.pumpWidget(_harness([
+      _account('c1', '招行信用卡',
+          cat: AccountCategory.creditCard,
+          type: AccountType.liability,
+          bal: -12400),
+    ]));
+    await t.pumpAndSettle();
+    // 紧凑行 label 存在（desktop 网格列宽 < 600 → compact 分支）。
+    expect(find.text('当前欠款'), findsOneWidget);
+    expect(find.text('招行信用卡'), findsOneWidget);
   });
 }

@@ -753,6 +753,16 @@ class _AccountCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (ctx, c) {
+        if (c.maxWidth < 600) return _compactCard(context);
+        return _fullCard(context);
+      },
+    );
+  }
+
+  /// desktop/tablet 完整卡（现状 build 主体，原样提取，不改逻辑）。
+  Widget _fullCard(BuildContext context) {
     final negative = account.currentBalanceCents < 0;
     final typeColor = categoryColor(account.category);
     final archived = account.status == AccountStatus.archived;
@@ -895,6 +905,155 @@ class _AccountCard extends StatelessWidget {
       card = Opacity(opacity: 0.55, child: card);
     }
     return card;
+  }
+
+  /// mobile 紧凑行卡片（对齐 mobile.html .acc）。
+  /// 水平：aicon + (name + 机构·尾号) | (label + 余额)；下方副信息 + 进度条。
+  Widget _compactCard(BuildContext context) {
+    final a = account;
+    final negative = a.currentBalanceCents < 0;
+    final typeColor = categoryColor(a.category);
+    final archived = a.status == AccountStatus.archived;
+    final spec = _usageSpec(a); // (fraction, color)? — 复用，仅信用卡/贷款非 null
+    final (label, val) = _compactVal(a); // (label, 格式化值)
+
+    Widget card = DataCard(
+      onTap: () => context.go('/accounts/${a.id}'),
+      onLongPress: onLongPress,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // r1：aicon + amain + av
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: typeColor.withValues(alpha: 0.14),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(categoryIcon(a.category), size: 18, color: typeColor),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(a.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 14.5, fontWeight: FontWeight.w600)),
+                        ),
+                        if (archived) ...[
+                          const SizedBox(width: 6),
+                          const Text('已归档',
+                              style:
+                                  TextStyle(color: AppColors.muted, fontSize: 10)),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _subline(a),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: AppColors.muted, fontSize: 11.5),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(label,
+                      style: const TextStyle(
+                          color: AppColors.muted, fontSize: 10.5)),
+                  const SizedBox(height: 2),
+                  Text(
+                    val,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: negative ? AppColors.negative : AppColors.fg,
+                      fontFeatures: AppTypography.tabularFigures,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // 副信息（分隔）+ 进度条（若有）。
+          if (_hasSub(a) || spec != null) ...[
+            const SizedBox(height: 9),
+            // asub：复用 _sublineWidget（类型副信息），实线 border-top 近似原型虚线
+            // （Flutter 原生无 dotted；如需精确虚线后续用 dotted_border 包）。
+            Padding(
+              padding: const EdgeInsets.only(top: 9),
+              child: Container(
+                padding: const EdgeInsets.only(top: 9),
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: AppColors.border)),
+                ),
+                child: _sublineWidget(a),
+              ),
+            ),
+          ],
+          if (spec != null) ...[
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(5),
+              child: LinearProgressIndicator(
+                value: spec.$1,
+                minHeight: 5,
+                backgroundColor: AppColors.accentSoft,
+                valueColor: AlwaysStoppedAnimation<Color>(spec.$2),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+    if (archived) card = Opacity(opacity: 0.55, child: card);
+    return card;
+  }
+
+  /// 紧凑行右侧 (label, value)：主数字按 category（对齐原型 describe()）。
+  (String, String) _compactVal(Account a) {
+    switch (a.category) {
+      case AccountCategory.creditCard:
+        return ('当前欠款', formatCents(a.currentBalanceCents));
+      case AccountCategory.loan:
+        return ('剩余本金', formatCents(a.loanRemainingCents ?? 0));
+      case AccountCategory.investment:
+        return ('当前市值', formatCents(a.investMarketValueCents ?? 0));
+      case AccountCategory.goldFx:
+        final cur = a.goldCurrentPriceCents ?? 0;
+        final qty = a.goldQuantity ?? 0;
+        return ('当前现值', formatCents((cur * qty).toInt()));
+      case AccountCategory.realEstate:
+        return ('现估值', formatCents(a.estateCurrentValueCents ?? 0));
+      case AccountCategory.fixedDeposit:
+        return ('存单本金', formatCents(a.fixedPrincipalCents ?? 0));
+      case AccountCategory.otherAsset:
+        return ('账户金额', formatCents(a.currentBalanceCents));
+      case AccountCategory.otherLiability:
+        return ('待还金额', formatCents(a.currentBalanceCents));
+      case AccountCategory.savings:
+        return ('可用余额', formatCents(a.currentBalanceCents));
+    }
+  }
+
+  /// 是否有类型副信息（紧凑行虚线下方）。储蓄无利率时无副信息。
+  bool _hasSub(Account a) {
+    if (a.category == AccountCategory.savings &&
+        a.interestRate == null) return false;
+    return true;
   }
 
   /// 卡片副标题：机构 · 卡号尾号（对齐 OD accounts.html hero-sub）。
