@@ -411,6 +411,10 @@ class _AccountsHeader extends StatelessWidget {
                   style: const TextStyle(
                       fontFeatures: AppTypography.tabularFigures),
                 ),
+                const SizedBox(height: 14),
+                // mobile 顶部无 AppShell + 按钮，汇总卡内提供「新建账户」入口
+                // （对齐原型 mobile topbar 的 + 意图）。
+                Center(child: _NewAccountButton(onPressed: onAdd)),
               ],
             ),
           ),
@@ -569,19 +573,23 @@ class _FilterChips extends StatelessWidget {
     final padTop = isMobile ? 14.0 : 18.0;
     return Padding(
       padding: EdgeInsets.only(top: padTop, bottom: 4),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal, // overflow-x:auto
-        child: SeparatedRow(
-          gap: gap,
-          children: [
-            for (final c in defs)
-              _Chip(
-                label: c?.label ?? '全部',
-                count: counts[c] ?? 0,
-                selected: c == active,
-                onTap: () => onChanged(c),
-              ),
-          ],
+      // 横向滚动 + 隐藏滚动条（还原原型 .chips{overflow-x:auto} 无可见 scrollbar）。
+      child: ScrollConfiguration(
+        behavior: const ScrollBehavior().copyWith(scrollbars: false),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal, // overflow-x:auto
+          child: SeparatedRow(
+            gap: gap,
+            children: [
+              for (final c in defs)
+                _Chip(
+                  label: c?.label ?? '全部',
+                  count: counts[c] ?? 0,
+                  selected: c == active,
+                  onTap: () => onChanged(c),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -777,24 +785,44 @@ class _GroupBlock extends StatelessWidget {
         LayoutBuilder(
           builder: (context, constraints) {
             // 三断点（基于 group 容器宽 ≈ page 内容宽）：
-            //   mobile <600     → 1 列，紧凑行
-            //   tablet 600-1099 → 2 列，完整卡
-            //   desktop >=1100  → auto-fill 280px，完整卡
-            // gap14 与原型 minmax(280, 1fr) gap14 一致。
+            //   mobile <600     → 1 列 Column（卡片高度自适应内容，无 aspect 约束）
+            //   tablet 600-1099 → 2 列 GridView，aspect 取适配最高卡片的值
+            //   desktop >=1100  → auto-fill 280px GridView，同上 aspect
+            //
+            // 高度问题：固定 childAspectRatio 会让高内容卡（subline+bar+bar-meta，
+            // 如信用卡/贷款）底部被裁剪、矮卡留白。mobile 改 Column 使每卡 intrinsic
+            // 高度；tablet/desktop 取一个能容纳最高卡内容的 aspect（实测最高内容
+            // ≈165px @ 280 宽 → 1.70；但 tablet 卡更宽（~500）需 height 同 165 →
+            // aspect≈3.0，取 3.1 留余量；desktop 280 宽取 1.68 留余量）。
             const gap = 14.0;
+            if (constraints.maxWidth < 600) {
+              // mobile：Column + SizedBox gap 还原 mainAxisSpacing:14。
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < accounts.length; i++) ...[
+                    _AccountCard(
+                      account: accounts[i],
+                      formatCents: formatCents,
+                      onLongPress: () => onDelete(accounts[i]),
+                    ),
+                    if (i < accounts.length - 1) const SizedBox(height: gap),
+                  ],
+                ],
+              );
+            }
             int cols;
             double aspect;
-            if (constraints.maxWidth < 600) {
-              cols = 1;
-              aspect = 2.3;
-            } else if (constraints.maxWidth < 1100) {
+            if (constraints.maxWidth < 1100) {
               cols = 2;
-              aspect = 1.72;
+              // tablet 卡宽 ~500，最高内容 ~165 → aspect≈3.0，取 3.1 留余量。
+              aspect = 3.1;
             } else {
               const colWidth = 280.0;
               cols = ((constraints.maxWidth + gap) / (colWidth + gap)).floor();
               if (cols < 1) cols = 1;
-              aspect = 1.72;
+              // desktop 卡宽 280，最高内容 ~165 → aspect≈1.70，取 1.68 留余量。
+              aspect = 1.68;
             }
             return GridView.builder(
               shrinkWrap: true,

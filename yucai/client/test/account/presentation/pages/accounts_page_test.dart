@@ -453,10 +453,11 @@ void main() {
     expect(find.byType(PopupMenuButton), findsNothing);
   });
 
-  // Task 3 — _GroupBlock 三断点列数（mobile 1 / tablet 2 / desktop auto-fill）。
-  // 断点基于 _GroupBlock LayoutBuilder.constraints.maxWidth（≈ page 内容宽，
-  // 受外层 ConstrainedBox(maxWidth: 1120) + 视口 - padding 钳制）。
-  testWidgets('mobile: single column grid', (tester) async {
+  // Task 3 — _GroupBlock 三断点列数（mobile 1-col Column / tablet 2 / desktop auto-fill）。
+  // mobile 改用 Column（卡片 intrinsic 高度，避免固定 aspect 裁剪），故此处断言
+  // mobile 视口下无 GridView（_GroupBlock 走 Column 分支）+ 两卡纵向排列。
+  testWidgets('mobile: Column layout (no GridView), cards stack vertically',
+      (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -465,10 +466,11 @@ void main() {
       _account('a2', '储蓄2', cat: AccountCategory.savings, bal: 20000),
     ]));
     await tester.pumpAndSettle();
-    final grid = tester.widget<GridView>(find.byType(GridView).first);
-    final delegate =
-        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
-    expect(delegate.crossAxisCount, 1);
+    // mobile 分支用 Column，不再有 GridView。
+    expect(find.byType(GridView), findsNothing);
+    // 两卡名都在树中（纵向堆叠）。
+    expect(find.text('储蓄1'), findsOneWidget);
+    expect(find.text('储蓄2'), findsOneWidget);
   });
 
   testWidgets('tablet: 2 columns', (tester) async {
