@@ -933,25 +933,26 @@ class _GroupBlock extends StatelessWidget {
           builder: (context, constraints) {
             // 三断点（基于 group 容器宽 ≈ page 内容宽）：
             //   mobile <600     → 1 列 Column（卡片高度自适应内容，无 aspect 约束）
-            //   tablet 600-1099 → 2 列 GridView，aspect 取适配最高卡片的值
-            //   desktop >=1100  → auto-fill 280px GridView，同上 aspect
+            //   tablet 600-1099 → 2 列 GridView，mainAxisExtent 固定高度
+            //   desktop >=1100  → auto-fill 280px GridView，同上 mainAxisExtent
             //
             // 高度问题：固定 childAspectRatio 会让高内容卡（cicon row + csub +
-            // bar + bar-meta + hover action bar，如信用卡/贷款）底部被裁剪。
-            // mobile 改 Column 使每卡 intrinsic 高度；tablet/desktop 取能容纳
-            // 最高卡内容（含始终渲染的 hover action bar）的 aspect。
+            // bar + bar-meta + hover action bar，如信用卡/贷款）底部被裁剪
+            //（aspect 依赖 cell width，宽视口算出的高度不足以容纳最高卡片）。
+            // 改用 mainAxisExtent 设固定卡片高度（与 cell width 无关），
+            // 直接取能容纳最高卡内容（信用卡，含始终渲染的 hover action bar）的值。
             //
-            // 内容高度估算（_fullCard 最高 = 信用卡/贷款，含 action bar）：
+            // 内容高度估算（_fullCard 最高 = 信用卡，含 csub+bar+meta+action bar）：
             //   padding 18*2 = 36
             //   cicon row 44
-            //   csub 14(margin)+13(padding-top)+~16(text) = 43
+            //   csub 14(margin)+13(padding-top/border)+~17(text) = 44
             //   bar  13(margin)+6 = 19
-            //   meta 7(margin)+~14 = 21
-            //   action bar 13(margin)+11(padding-top)+16(icon)+3+11(text)+2 = 56
-            //   合计 ≈ 215px
-            // tablet 卡宽 ~500 → aspect = 500/215 ≈ 2.32，取 2.2 留余量（防裁剪）。
-            // desktop 卡宽 280 → aspect = 280/215 ≈ 1.30，取 1.25 留余量。
+            //   meta 7(margin)+~15(text) = 22
+            //   action bar 13(margin)+11(padding-top)+16(icon)+3+14(text)+2*2(vpad) = 61
+            //   合计 ≈ 226px，+10 余量 → mainAxisExtent = 236
             const gap = 14.0;
+            // 固定卡片高度（与列数/视口宽无关），覆盖最高卡（信用卡）。
+            const cardExtent = 236.0;
             if (constraints.maxWidth < 600) {
               // mobile：Column + SizedBox gap 还原 mainAxisSpacing:14。
               return Column(
@@ -973,17 +974,12 @@ class _GroupBlock extends StatelessWidget {
               );
             }
             int cols;
-            double aspect;
             if (constraints.maxWidth < 1100) {
               cols = 2;
-              // tablet 卡宽 ~500，最高内容 ~215（含 action bar）→ aspect≈2.32，取 2.2。
-              aspect = 2.2;
             } else {
               const colWidth = 280.0;
               cols = ((constraints.maxWidth + gap) / (colWidth + gap)).floor();
               if (cols < 1) cols = 1;
-              // desktop 卡宽 280，最高内容 ~215 → aspect≈1.30，取 1.25。
-              aspect = 1.25;
             }
             return GridView.builder(
               shrinkWrap: true,
@@ -992,7 +988,9 @@ class _GroupBlock extends StatelessWidget {
                 crossAxisCount: cols,
                 mainAxisSpacing: gap,
                 crossAxisSpacing: gap,
-                childAspectRatio: aspect,
+                // 固定卡片高度（与 cell width 无关），确保最高卡（信用卡）
+                // 完整显示不裁剪；矮卡（如储蓄）底部留白可接受。
+                mainAxisExtent: cardExtent,
               ),
               itemCount: accounts.length,
               itemBuilder: (_, i) => _AccountCard(
