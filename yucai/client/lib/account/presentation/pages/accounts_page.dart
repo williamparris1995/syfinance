@@ -14,9 +14,10 @@ import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/core/widgets/filter_bar.dart';
 
-/// 账户管理列表页。严格还原 desktop-accounts.html：
-/// 汇总头（合计 · ¥X + 新建按钮）→ 胶囊筛选 → 按类型分组的账户卡片网格。
-/// 每张卡 = ac-top（名称+机构 / 类型图标）→ 余额 → 副信息 → 3px 进度条。
+/// 账户管理列表页。对齐 OD 原型（accounts.html desktop / mobile.html / tablet.html）：
+/// 汇总头（净资产 + 总资产/负债 + 新建）→ 类型筛选 → 按类型分组的账户卡片。
+/// 三断点：mobile(<600) 紧凑行卡 / tablet(600-1099) 2列完整卡 / desktop(>=1100) auto-fill。
+/// 完整卡 = cicon + cmain + cv(label+val) + csub 分隔 + bar + bar-meta（对齐 tablet.html .card）。
 class AccountsPage extends StatefulWidget {
   const AccountsPage({super.key});
 
@@ -664,9 +665,17 @@ class _AccountCard extends StatelessWidget {
                         ),
                         if (archived) ...[
                           const SizedBox(width: 6),
-                          const Text('已归档',
-                              style:
-                                  TextStyle(color: AppColors.muted, fontSize: 10)),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AppColors.muted.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text('已归档',
+                                style: TextStyle(
+                                    color: AppColors.muted, fontSize: 10)),
+                          ),
                         ],
                       ],
                     ),
@@ -810,9 +819,17 @@ class _AccountCard extends StatelessWidget {
                         ),
                         if (archived) ...[
                           const SizedBox(width: 6),
-                          const Text('已归档',
-                              style:
-                                  TextStyle(color: AppColors.muted, fontSize: 10)),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AppColors.muted.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text('已归档',
+                                style: TextStyle(
+                                    color: AppColors.muted, fontSize: 10)),
+                          ),
                         ],
                       ],
                     ),
