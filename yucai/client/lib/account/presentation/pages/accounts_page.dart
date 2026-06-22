@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
-import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/bloc/account_event.dart';
@@ -12,7 +11,6 @@ import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
 import 'package:yucai_client/account/presentation/widgets/account_category_style.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
-import 'package:yucai_client/transaction/presentation/pages/transaction_form_page.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/core/widgets/filter_bar.dart';
 
@@ -84,129 +82,6 @@ class _AccountsPageState extends State<AccountsPage> {
       setState(() => _pendingIds.add(account.id));
       context.read<AccountBloc>().add(DeleteAccountRequested(account.id));
     }
-  }
-
-  /// 编辑：预填现有账户，提交后触发更新。
-  void _openEditForm(Account a) {
-    Navigator.of(context)
-        .push<bool>(
-      MaterialPageRoute(
-        builder: (_) => BlocProvider.value(
-          value: context.read<AccountBloc>(),
-          child: AccountFormPage(existing: a),
-        ),
-      ),
-    )
-        .then((ok) {
-      if (ok == true && mounted) {
-        AppToast.show(context, '账户已更新');
-      }
-    });
-  }
-
-  /// 复制：清空 id/version，以原账户为 seed 走创建流程。
-  void _openCopyForm(Account a) {
-    Navigator.of(context)
-        .push<bool>(
-      MaterialPageRoute(
-        builder: (_) => BlocProvider.value(
-          value: context.read<AccountBloc>(),
-          child: AccountFormPage(
-            existing: a.copyWith(id: '', version: 0, name: '${a.name}（副本）'),
-          ),
-        ),
-      ),
-    )
-        .then((ok) {
-      if (ok == true && mounted) {
-        AppToast.show(context, '账户已复制');
-      }
-    });
-  }
-
-  /// 关闭账户：归档（status=archived），账户仍可见但停止参与活跃统计。
-  void _confirmClose(Account a) {
-    showDialog<bool>(
-      context: context,
-      builder: (dctx) => AlertDialog(
-        title: const Text('关闭账户'),
-        content: Text('关闭「${a.name}」？关闭后账户归档，详情仍可查看。'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(dctx, false),
-              child: const Text('取消')),
-          TextButton(
-              onPressed: () => Navigator.pop(dctx, true),
-              child: const Text('关闭')),
-        ],
-      ),
-    ).then((ok) {
-      if (ok == true && mounted) {
-        setState(() => _pendingIds.add(a.id));
-        context.read<AccountBloc>().add(UpdateAccountRequested(
-              UpdateAccountParams(
-                id: a.id,
-                version: a.version,
-                status: AccountStatus.archived,
-                // 保留现有值字段：account_remote_ds.update 对非 optional 标量
-                // （name/icon/color/institution/creditLimitCents）无条件覆盖，
-                // 不传会用默认值（''/0）→ 关闭账户会清空这些字段。补传当前值
-                // 确保关闭只改 status，不破坏其他字段。string 字段（cardNumberTail
-                // /notes/goldProductType）虽 remote_ds 对非空才设，但保留值更安全。
-                // nullable 字段（26 个 type-specific）保持默认 null：remote_ds 对
-                // null 不设，不会清空。
-                name: a.name,
-                icon: a.icon,
-                color: a.color,
-                institution: a.institution,
-                creditLimitCents: a.creditLimitCents,
-                cardNumberTail: a.cardNumberTail,
-                notes: a.notes,
-                goldProductType: a.goldProductType,
-              ),
-            ));
-      }
-    });
-  }
-
-  /// 重新激活：把归档账户恢复为 active（与 _confirmClose 对称）。
-  void _reactivate(Account a) {
-    showDialog<bool>(
-      context: context,
-      builder: (dctx) => AlertDialog(
-        title: const Text('重新激活账户'),
-        content: Text('重新激活「${a.name}」？账户恢复活跃状态。'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(dctx, false),
-              child: const Text('取消')),
-          TextButton(
-              onPressed: () => Navigator.pop(dctx, true),
-              child: const Text('激活')),
-        ],
-      ),
-    ).then((ok) {
-      if (ok == true && mounted) {
-        setState(() => _pendingIds.add(a.id));
-        context.read<AccountBloc>().add(UpdateAccountRequested(
-              UpdateAccountParams(
-                id: a.id,
-                version: a.version,
-                status: AccountStatus.active,
-                // 保留现有值字段（同 _confirmClose）：remote_ds 对非 optional
-                // 标量无条件覆盖，不传会用默认值清空字段。
-                name: a.name,
-                icon: a.icon,
-                color: a.color,
-                institution: a.institution,
-                creditLimitCents: a.creditLimitCents,
-                cardNumberTail: a.cardNumberTail,
-                notes: a.notes,
-                goldProductType: a.goldProductType,
-              ),
-            ));
-      }
-    });
   }
 
   Future<void> _openCreateForm() async {
@@ -373,10 +248,6 @@ class _AccountsPageState extends State<AccountsPage> {
                       accounts: entry.value,
                       formatCents: _formatCents,
                       onDelete: _confirmDelete,
-                      onEdit: _openEditForm,
-                      onDuplicate: _openCopyForm,
-                      onClose: _confirmClose,
-                      onReactivate: _reactivate,
                     ),
                     const SizedBox(height: AppSpacing.xl),
                   ],
@@ -420,36 +291,53 @@ class _AccountsHeader extends StatelessWidget {
   }
 
   /// desktop/tablet：白卡 sumcard（对齐 tablet.html .sumcard）。
+  /// 右上 accent-soft 圆形装饰（原型 .sumcard .deco，190px，比 mobile 124 大）。
   Widget _sumcard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 22),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: AppRadius.lgBorder,
-        boxShadow: const [
-          BoxShadow(color: Color(0x141A1916), blurRadius: 3, offset: Offset(0, 1)),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Row(
-              children: [
-                _netBlock(),
-                const SizedBox(width: 26),
-                _vline(),
-                const SizedBox(width: 26),
-                _statBlock('总资产', assetCents, AppColors.positive),
-                const SizedBox(width: 26),
-                _vline(),
-                const SizedBox(width: 26),
-                _statBlock('总负债', liabCents, AppColors.negative),
-              ],
+    return Stack(
+      children: [
+        Positioned(
+          top: -54,
+          right: -44,
+          child: Container(
+            width: 190,
+            height: 190,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.accentSoft,
             ),
           ),
-          _NewAccountButton(onPressed: onAdd),
-        ],
-      ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 22),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: AppRadius.lgBorder,
+            boxShadow: const [
+              BoxShadow(color: Color(0x141A1916), blurRadius: 3, offset: Offset(0, 1)),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    _netBlock(),
+                    const SizedBox(width: 26),
+                    _vline(),
+                    const SizedBox(width: 26),
+                    _statBlock('总资产', assetCents, AppColors.positive),
+                    const SizedBox(width: 26),
+                    _vline(),
+                    const SizedBox(width: 26),
+                    _statBlock('总负债', liabCents, AppColors.negative),
+                  ],
+                ),
+              ),
+              _NewAccountButton(onPressed: onAdd),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -628,20 +516,12 @@ class _GroupBlock extends StatelessWidget {
     required this.accounts,
     required this.formatCents,
     required this.onDelete,
-    required this.onEdit,
-    required this.onDuplicate,
-    required this.onClose,
-    required this.onReactivate,
   });
 
   final AccountCategory type;
   final List<Account> accounts;
   final String Function(int) formatCents;
   final Future<void> Function(Account) onDelete;
-  final void Function(Account) onEdit;
-  final void Function(Account) onDuplicate;
-  final void Function(Account) onClose;
-  final void Function(Account) onReactivate;
 
   @override
   Widget build(BuildContext context) {
@@ -710,11 +590,6 @@ class _GroupBlock extends StatelessWidget {
                 account: accounts[i],
                 formatCents: formatCents,
                 onLongPress: () => onDelete(accounts[i]),
-                onEdit: () => onEdit(accounts[i]),
-                onDuplicate: () => onDuplicate(accounts[i]),
-                onClose: () => onClose(accounts[i]),
-                onReactivate: () => onReactivate(accounts[i]),
-                onDelete: () => onDelete(accounts[i]),
               ),
             );
           },
@@ -731,41 +606,11 @@ class _AccountCard extends StatelessWidget {
     required this.account,
     required this.formatCents,
     required this.onLongPress,
-    this.onEdit,
-    this.onDuplicate,
-    this.onClose,
-    this.onReactivate,
-    this.onDelete,
   });
 
   final Account account;
   final String Function(int) formatCents;
   final VoidCallback onLongPress;
-  final VoidCallback? onEdit;
-  final VoidCallback? onDuplicate;
-  final VoidCallback? onClose;
-  final VoidCallback? onReactivate;
-  final VoidCallback? onDelete;
-
-  /// 记一笔/转账：push TransactionFormPage，预选本账户（省去用户在表单里
-  /// 重挑账户）。记一笔默认支出 tab；转账直入转账 tab 且本账户作为转出方。
-  /// 同 account_detail_page._recordTxn：成功返回后 toast + 重新拉账户列表
-  ///（交易可能改变余额）。
-  void _recordTxn(BuildContext context, {TxnType? initialType}) {
-    Navigator.of(context)
-        .push<bool>(MaterialPageRoute(
-            builder: (_) => TransactionFormPage(
-                  initialAccountId: account.id,
-                  initialType: initialType,
-                )))
-        .then((ok) {
-      if (ok == true && context.mounted) {
-        AppToast.show(context, '交易已记录', type: ToastType.success);
-        // 刷新账户列表（余额/近期交易视图依赖最新数据）。
-        context.read<AccountBloc>().add(LoadAccountsRequested());
-      }
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -775,22 +620,35 @@ class _AccountCard extends StatelessWidget {
     return isMobile ? _compactCard(context) : _fullCard(context);
   }
 
-  /// desktop/tablet 完整卡（现状 build 主体，原样提取，不改逻辑）。
+  /// desktop/tablet 完整卡（对齐 tablet.html .card：cicon 左 + cmain + cv 右 + csub 分隔 + bar + bar-meta）。
+  /// 操作（编辑/记账/转账/删除等）移至详情页 AppBar，列表卡点即进详情（对齐原型无 menu）。
   Widget _fullCard(BuildContext context) {
-    final negative = account.currentBalanceCents < 0;
-    final typeColor = categoryColor(account.category);
-    final archived = account.status == AccountStatus.archived;
+    final a = account;
+    final negative = a.currentBalanceCents < 0;
+    final typeColor = categoryColor(a.category);
+    final archived = a.status == AccountStatus.archived;
+    final spec = _usageSpec(a); // (fraction, color)? — 仅信用卡/贷款
+    final (label, val) = _compactVal(a); // 复用 compact label/val（对齐原型 describe）
+
     Widget card = DataCard(
-      // 点击卡片直接进详情（⋯ 菜单另有点击/长按入口）。
-      onTap: () => context.go('/accounts/${account.id}'),
+      onTap: () => context.go('/accounts/${a.id}'),
       onLongPress: onLongPress,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ac-top：左 name+角标+机构，中 类型图标，右 操作菜单
+          // r1：cicon(左) + cmain + cv(右)（对齐原型 .card .r1）
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: typeColor.withValues(alpha: 0.14),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(categoryIcon(a.category), size: 21, color: typeColor),
+              ),
+              const SizedBox(width: 13),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -798,126 +656,113 @@ class _AccountCard extends StatelessWidget {
                     Row(
                       children: [
                         Flexible(
-                          child: Text(account.name,
+                          child: Text(a.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500)),
+                                  fontSize: 16, fontWeight: FontWeight.w600)),
                         ),
                         if (archived) ...[
                           const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 5, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: AppColors.muted.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Text('已归档',
-                                style: TextStyle(
-                                    color: AppColors.muted, fontSize: 10)),
-                          ),
+                          const Text('已归档',
+                              style:
+                                  TextStyle(color: AppColors.muted, fontSize: 10)),
                         ],
                       ],
                     ),
-                    const SizedBox(height: 2),
-                    // ac-sub（机构 · 卡号尾号；institution 空时 fallback category · 币种）
+                    const SizedBox(height: 3),
                     Text(
-                      _subline(account),
+                      _subline(a),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                          color: AppColors.muted, fontSize: 12),
+                          color: AppColors.muted, fontSize: 12.5),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: typeColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-                child: Icon(categoryIcon(account.category),
-                    size: 18, color: typeColor),
-              ),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_horiz,
-                    size: 18, color: AppColors.muted),
-                tooltip: '账户操作',
-                itemBuilder: (_) => [
-                  const PopupMenuItem(
-                      value: 'detail', child: Text('查看详情')),
-                  // 归档账户：移除编辑/记一笔/转账（不可再产生交易）。
-                  if (!archived) ...[
-                    const PopupMenuItem(value: 'edit', child: Text('编辑')),
-                    const PopupMenuItem(
-                        value: 'record', child: Text('记一笔')),
-                    const PopupMenuItem(
-                        value: 'transfer', child: Text('转账')),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: AppColors.muted, fontSize: 11.5)),
+                    const SizedBox(height: 2),
+                    Text(
+                      val,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w600,
+                        color: negative ? AppColors.negative : AppColors.fg,
+                        fontFeatures: AppTypography.tabularFigures,
+                      ),
+                    ),
                   ],
-                  const PopupMenuItem(value: 'copy', child: Text('复制')),
-                  if (archived)
-                    const PopupMenuItem(
-                        value: 'reactivate', child: Text('重新激活'))
-                  else
-                    const PopupMenuItem(
-                        value: 'close', child: Text('关闭账户')),
-                  const PopupMenuItem(value: 'delete', child: Text('删除账户')),
-                ],
-                onSelected: (v) {
-                  switch (v) {
-                    case 'detail':
-                      context.go('/accounts/${account.id}');
-                    case 'edit':
-                      onEdit?.call();
-                    case 'record':
-                      _recordTxn(context);
-                    case 'transfer':
-                      _recordTxn(context, initialType: TxnType.transfer);
-                    case 'copy':
-                      onDuplicate?.call();
-                    case 'close':
-                      onClose?.call();
-                    case 'reactivate':
-                      onReactivate?.call();
-                    case 'delete':
-                      onDelete?.call();
-                  }
-                },
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          // ac-balance
-          Text(
-            formatCents(account.currentBalanceCents),
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -0.2,
-              color: negative ? AppColors.negative : AppColors.fg,
-              fontFeatures: AppTypography.tabularFigures,
-              fontFamily: AppTypography.displayFamily,
-              fontFamilyFallback: AppTypography.displayFallback,
+          // csub：副信息（实线 border-top 分隔，对齐原型 .csub）
+          if (_hasSub(a)) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.only(top: 13),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.border)),
+              ),
+              child: _sublineWidget(a),
             ),
-          ),
-          const SizedBox(height: 4),
-          // ac-sub（类型专属副信息）
-          _sublineWidget(account),
-          const SizedBox(height: 14),
-          // ac-bar（仅信用卡已用额度红 / 贷款已还比例绿；其余类型无 bar）
-          _progressBar(account),
+          ],
+          // bar + bar-meta（仅信用卡/贷款，对齐原型 .bar + .bar-meta）
+          if (spec != null) ...[
+            const SizedBox(height: 13),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: spec.$1,
+                minHeight: 6,
+                backgroundColor: AppColors.accentSoft,
+                valueColor: AlwaysStoppedAnimation<Color>(spec.$2),
+              ),
+            ),
+            const SizedBox(height: 7),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text(
+                    a.category == AccountCategory.creditCard
+                        ? '已用 ${formatCents(a.currentBalanceCents.abs())} / ${formatCents(a.creditLimitCents)}'
+                        : '已还 ${formatCents((a.loanOriginalCents ?? 0) - (a.loanRemainingCents ?? 0))} / ${formatCents(a.loanOriginalCents ?? 0)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 11.5,
+                        fontFeatures: AppTypography.tabularFigures),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${(spec.$1 * 100).toStringAsFixed(1)}%',
+                  style: TextStyle(
+                      color: spec.$2,
+                      fontSize: 11.5,
+                      fontFeatures: AppTypography.tabularFigures),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
-    // 归档账户整体灰显，强化「非活跃」视觉信号。
-    if (archived) {
-      card = Opacity(opacity: 0.55, child: card);
-    }
+    if (archived) card = Opacity(opacity: 0.55, child: card);
     return card;
   }
 
@@ -1155,22 +1000,6 @@ class _AccountCard extends StatelessWidget {
             ? Text('可用余额', style: style)
             : Text('利率 ${rate.toStringAsFixed(2)}%', style: style);
     }
-  }
-
-  /// 类型专属进度条。仅信用卡（已用额度 = currentBalance/limit，红）与
-  /// 贷款（已还比例 = (orig-remain)/orig，绿）渲染；其余类型返回空 [SizedBox]。
-  Widget _progressBar(Account a) {
-    final spec = _usageSpec(a);
-    if (spec == null) return const SizedBox.shrink();
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(2),
-      child: LinearProgressIndicator(
-        value: spec.$1,
-        minHeight: 3,
-        backgroundColor: AppColors.border,
-        valueColor: AlwaysStoppedAnimation<Color>(spec.$2),
-      ),
-    );
   }
 
   /// 返回 (fraction, color)，无法计算时 null（不渲染 bar）。

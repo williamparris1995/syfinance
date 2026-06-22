@@ -422,31 +422,35 @@ void main() {
   });
 
   // 断点基于页面宽度（MediaQuery）后，desktop 视口（1400×900 → page width ≥ 600）
-  // 下 _AccountCard 走 _fullCard 分支：无紧凑行 label「当前欠款」，且渲染 _fullCard
-  // 专属的 PopupMenuButton（tooltip「账户操作」）。此测试证明 _fullCard 在桌面宽度可达
-  // （修此 bug 前 LayoutBuilder 用 card width 判分支，_fullCard 永不可达）。
+  // 下 _AccountCard 走 _fullCard 分支。_fullCard 重写后对齐 tablet.html .card：
+  // cicon + cv(右) + csub + bar + bar-meta，无 PopupMenuButton（操作移至详情页）。
+  // 此测试用 _fullCard 专属的 bar-meta「已用 ...」作判别 witness（_compactCard 无 bar-meta）。
   testWidgets(
-      'desktop card: _fullCard branch (page width >= 600, no compact label)',
+      'desktop card: _fullCard branch (bar-meta present, no PopupMenuButton)',
       (t) async {
     t.view.physicalSize = size;
     t.view.devicePixelRatio = 1.0;
     addTearDown(t.view.resetPhysicalSize);
     await t.pumpWidget(_harness([
-      _account('c1', '招行信用卡',
-          cat: AccountCategory.creditCard,
-          type: AccountType.liability,
-          bal: -12400),
+      Account(
+        id: 'c1',
+        name: '招行信用卡',
+        accountType: AccountType.liability,
+        category: AccountCategory.creditCard,
+        currencyCode: 'CNY',
+        initialBalanceCents: 0,
+        currentBalanceCents: -12400, // 欠款 124
+        ownership: Ownership.personal,
+        status: AccountStatus.active,
+        creditLimitCents: 800000, // 额度 8000（_usageSpec 非 null → bar+meta）
+      ),
     ]));
     await t.pumpAndSettle();
-    // _fullCard 无紧凑行 label「当前欠款」。
-    expect(find.text('当前欠款'), findsNothing);
     expect(find.text('招行信用卡'), findsOneWidget);
-    // _fullCard 专属：PopupMenuButton tooltip「账户操作」（compact 行无此控件）。
-    expect(find.byTooltip('账户操作'), findsOneWidget);
-    // _fullCard 专属：余额作为大号独立文本（-¥ 124.00），22px w600。
-    final bal = t.widget<Text>(find.text('-¥ 124.00'));
-    expect(bal.style?.fontSize, 22);
-    expect(bal.style?.fontWeight, FontWeight.w600);
+    // _fullCard 专属：bar-meta「已用 ... / ...」（_compactCard 只有 bar 无 meta）。
+    expect(find.textContaining('已用'), findsOneWidget);
+    // 操作菜单已移除（迁至详情页 AppBar）。
+    expect(find.byType(PopupMenuButton), findsNothing);
   });
 
   // Task 3 — _GroupBlock 三断点列数（mobile 1 / tablet 2 / desktop auto-fill）。
