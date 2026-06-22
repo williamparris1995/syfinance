@@ -448,4 +448,53 @@ void main() {
     expect(bal.style?.fontSize, 22);
     expect(bal.style?.fontWeight, FontWeight.w600);
   });
+
+  // Task 3 — _GroupBlock 三断点列数（mobile 1 / tablet 2 / desktop auto-fill）。
+  // 断点基于 _GroupBlock LayoutBuilder.constraints.maxWidth（≈ page 内容宽，
+  // 受外层 ConstrainedBox(maxWidth: 1120) + 视口 - padding 钳制）。
+  testWidgets('mobile: single column grid', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    await tester.pumpWidget(_harness([
+      _account('a1', '储蓄1', cat: AccountCategory.savings, bal: 10000),
+      _account('a2', '储蓄2', cat: AccountCategory.savings, bal: 20000),
+    ]));
+    await tester.pumpAndSettle();
+    final grid = tester.widget<GridView>(find.byType(GridView).first);
+    final delegate =
+        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+    expect(delegate.crossAxisCount, 1);
+  });
+
+  testWidgets('tablet: 2 columns', (tester) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    await tester.pumpWidget(_harness([
+      _account('a1', '储蓄1', cat: AccountCategory.savings, bal: 10000),
+      _account('a2', '储蓄2', cat: AccountCategory.savings, bal: 20000),
+    ]));
+    await tester.pumpAndSettle();
+    final grid = tester.widget<GridView>(find.byType(GridView).first);
+    final delegate =
+        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+    expect(delegate.crossAxisCount, 2);
+  });
+
+  testWidgets('desktop: auto-fill (>=3 cols at 1280)', (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    await tester.pumpWidget(_harness([
+      _account('a1', '储蓄1', cat: AccountCategory.savings, bal: 10000),
+      _account('a2', '储蓄2', cat: AccountCategory.savings, bal: 20000),
+      _account('a3', '储蓄3', cat: AccountCategory.savings, bal: 30000),
+    ]));
+    await tester.pumpAndSettle();
+    final grid = tester.widget<GridView>(find.byType(GridView).first);
+    final delegate =
+        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+    expect(delegate.crossAxisCount, greaterThanOrEqualTo(3));
+  });
 }

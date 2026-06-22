@@ -674,12 +674,28 @@ class _GroupBlock extends StatelessWidget {
         // account-grid
         LayoutBuilder(
           builder: (context, constraints) {
-            // 原型 auto-fill minmax(280, 1fr) gap14。
-            final colWidth = 280.0;
+            // 三断点（基于 group 容器宽 ≈ page 内容宽）：
+            //   mobile <600     → 1 列，紧凑行（aspect 3.0 更矮）
+            //   tablet 600-1099 → 2 列，完整卡（aspect 1.72）
+            //   desktop >=1100  → auto-fill 280px，完整卡（aspect 1.72）
+            // gap14 与原型 minmax(280, 1fr) gap14 一致。
             final gap = 14.0;
-            var cols =
-                ((constraints.maxWidth + gap) / (colWidth + gap)).floor();
-            if (cols < 1) cols = 1;
+            int cols;
+            double aspect;
+            if (constraints.maxWidth < 600) {
+              cols = 1;
+              // 紧凑行实际高度含 padding + 标题 + 副信息 + 进度条 ~120-130h；
+              // 窄屏（390 - padding → 卡 ~290w）需 aspect ~2.3 避免溢出。
+              aspect = 2.3;
+            } else if (constraints.maxWidth < 1100) {
+              cols = 2;
+              aspect = 1.72;
+            } else {
+              const colWidth = 280.0;
+              cols = ((constraints.maxWidth + gap) / (colWidth + gap)).floor();
+              if (cols < 1) cols = 1;
+              aspect = 1.72;
+            }
             return GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -687,7 +703,7 @@ class _GroupBlock extends StatelessWidget {
                 crossAxisCount: cols,
                 mainAxisSpacing: gap,
                 crossAxisSpacing: gap,
-                childAspectRatio: 1.72,
+                childAspectRatio: aspect,
               ),
               itemCount: accounts.length,
               itemBuilder: (_, i) => _AccountCard(
