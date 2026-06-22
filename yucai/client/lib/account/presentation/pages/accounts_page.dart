@@ -675,7 +675,7 @@ class _GroupBlock extends StatelessWidget {
         LayoutBuilder(
           builder: (context, constraints) {
             // 三断点（基于 group 容器宽 ≈ page 内容宽）：
-            //   mobile <600     → 1 列，紧凑行（aspect 3.0 更矮）
+            //   mobile <600     → 1 列，紧凑行（aspect 2.3 更矮）
             //   tablet 600-1099 → 2 列，完整卡（aspect 1.72）
             //   desktop >=1100  → auto-fill 280px，完整卡（aspect 1.72）
             // gap14 与原型 minmax(280, 1fr) gap14 一致。

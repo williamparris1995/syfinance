@@ -497,4 +497,26 @@ void main() {
         grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
     expect(delegate.crossAxisCount, greaterThanOrEqualTo(3));
   });
+
+  // Discriminating witness：旧 auto-fill 公式 floor((maxWidth+14)/(280+14))
+  // 在 1050px 视口算出 3 列，新断点（600-1099 → 2 列）给出 2 列。
+  // 此测试在旧代码会 FAIL（期望 2 实得 3），故为有效回归守卫，而非 smoke test。
+  // 旧：floor((1050-32+14)/(280+14)) = floor(1032/294) = 3
+  // 新：1050-32=1018 ∈ tablet(600-1099) → 2
+  testWidgets('tablet 1050px: 2 cols (discriminating — old auto-fill gave 3)',
+      (tester) async {
+    tester.view.physicalSize = const Size(1050, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    await tester.pumpWidget(_harness([
+      _account('a1', '储蓄1', cat: AccountCategory.savings, bal: 10000),
+      _account('a2', '储蓄2', cat: AccountCategory.savings, bal: 20000),
+      _account('a3', '储蓄3', cat: AccountCategory.savings, bal: 30000),
+    ]));
+    await tester.pumpAndSettle();
+    final grid = tester.widget<GridView>(find.byType(GridView).first);
+    final delegate =
+        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+    expect(delegate.crossAxisCount, 2);
+  });
 }
