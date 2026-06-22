@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
+import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/bloc/account_event.dart';
@@ -11,6 +12,7 @@ import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
 import 'package:yucai_client/account/presentation/widgets/account_category_style.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
+import 'package:yucai_client/transaction/presentation/pages/transaction_form_page.dart';
 
 /// 账户管理列表页。对齐 OD 原型 CSS 1:1：
 ///  - design-output/accounts-responsive/tablet.html （desktop/tablet）
@@ -101,6 +103,126 @@ class _AccountsPageState extends State<AccountsPage> {
     if (created && mounted) {
       AppToast.show(context, '账户创建成功');
     }
+  }
+
+  /// 编辑：预填现有账户，提交后触发更新。
+  void _openEditForm(Account a) {
+    Navigator.of(context)
+        .push<bool>(
+      MaterialPageRoute(
+        builder: (_) => BlocProvider.value(
+          value: context.read<AccountBloc>(),
+          child: AccountFormPage(existing: a),
+        ),
+      ),
+    )
+        .then((ok) {
+      if (ok == true && mounted) {
+        AppToast.show(context, '账户已更新');
+      }
+    });
+  }
+
+  /// 复制：清空 id/version，以原账户为 seed 走创建流程。
+  void _openCopyForm(Account a) {
+    Navigator.of(context)
+        .push<bool>(
+      MaterialPageRoute(
+        builder: (_) => BlocProvider.value(
+          value: context.read<AccountBloc>(),
+          child: AccountFormPage(
+            existing:
+                a.copyWith(id: '', version: 0, name: '${a.name}（副本）'),
+          ),
+        ),
+      ),
+    )
+        .then((ok) {
+      if (ok == true && mounted) {
+        AppToast.show(context, '账户已复制');
+      }
+    });
+  }
+
+  /// 关闭账户：归档（status=archived），账户仍可见但停止参与活跃统计。
+  void _confirmClose(Account a) {
+    showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: const Text('关闭账户'),
+        content: Text('关闭「${a.name}」？关闭后账户归档，详情仍可查看。'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dctx, false),
+              child: const Text('取消')),
+          TextButton(
+              onPressed: () => Navigator.pop(dctx, true),
+              child: const Text('关闭')),
+        ],
+      ),
+    ).then((ok) {
+      if (ok == true && mounted) {
+        setState(() => _pendingIds.add(a.id));
+        context.read<AccountBloc>().add(UpdateAccountRequested(
+              UpdateAccountParams(
+                id: a.id,
+                version: a.version,
+                status: AccountStatus.archived,
+                // 保留现有值字段：account_remote_ds.update 对非 optional 标量
+                // （name/icon/color/institution/creditLimitCents）无条件覆盖，
+                // 不传会用默认值（''/0）→ 关闭账户会清空这些字段。补传当前值
+                // 确保关闭只改 status，不破坏其他字段。
+                name: a.name,
+                icon: a.icon,
+                color: a.color,
+                institution: a.institution,
+                creditLimitCents: a.creditLimitCents,
+                cardNumberTail: a.cardNumberTail,
+                notes: a.notes,
+                goldProductType: a.goldProductType,
+              ),
+            ));
+      }
+    });
+  }
+
+  /// 重新激活：把归档账户恢复为 active（与 _confirmClose 对称）。
+  void _reactivate(Account a) {
+    showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: const Text('重新激活账户'),
+        content: Text('重新激活「${a.name}」？账户恢复活跃状态。'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dctx, false),
+              child: const Text('取消')),
+          TextButton(
+              onPressed: () => Navigator.pop(dctx, true),
+              child: const Text('激活')),
+        ],
+      ),
+    ).then((ok) {
+      if (ok == true && mounted) {
+        setState(() => _pendingIds.add(a.id));
+        context.read<AccountBloc>().add(UpdateAccountRequested(
+              UpdateAccountParams(
+                id: a.id,
+                version: a.version,
+                status: AccountStatus.active,
+                // 保留现有值字段（同 _confirmClose）。
+                name: a.name,
+                icon: a.icon,
+                color: a.color,
+                institution: a.institution,
+                creditLimitCents: a.creditLimitCents,
+                cardNumberTail: a.cardNumberTail,
+                notes: a.notes,
+                goldProductType: a.goldProductType,
+              ),
+            ));
+      }
+    });
   }
 
   @override
@@ -253,6 +375,10 @@ class _AccountsPageState extends State<AccountsPage> {
                       type: entry.key,
                       accounts: entry.value,
                       formatCents: _formatCents,
+                      onEdit: _openEditForm,
+                      onDuplicate: _openCopyForm,
+                      onClose: _confirmClose,
+                      onReactivate: _reactivate,
                       onDelete: _confirmDelete,
                     ),
                     // .group margin-top:28px（首个由 _content padding 提供，后续由此 SizedBox 提供）。
@@ -704,12 +830,20 @@ class _GroupBlock extends StatelessWidget {
     required this.type,
     required this.accounts,
     required this.formatCents,
+    required this.onEdit,
+    required this.onDuplicate,
+    required this.onClose,
+    required this.onReactivate,
     required this.onDelete,
   });
 
   final AccountCategory type;
   final List<Account> accounts;
   final String Function(int) formatCents;
+  final void Function(Account) onEdit;
+  final void Function(Account) onDuplicate;
+  final void Function(Account) onClose;
+  final void Function(Account) onReactivate;
   final Future<void> Function(Account) onDelete;
 
   @override
@@ -802,11 +936,21 @@ class _GroupBlock extends StatelessWidget {
             //   tablet 600-1099 → 2 列 GridView，aspect 取适配最高卡片的值
             //   desktop >=1100  → auto-fill 280px GridView，同上 aspect
             //
-            // 高度问题：固定 childAspectRatio 会让高内容卡（subline+bar+bar-meta，
-            // 如信用卡/贷款）底部被裁剪、矮卡留白。mobile 改 Column 使每卡 intrinsic
-            // 高度；tablet/desktop 取一个能容纳最高卡内容的 aspect（实测最高内容
-            // ≈165px @ 280 宽 → 1.70；但 tablet 卡更宽（~500）需 height 同 165 →
-            // aspect≈3.0，取 3.1 留余量；desktop 280 宽取 1.68 留余量）。
+            // 高度问题：固定 childAspectRatio 会让高内容卡（cicon row + csub +
+            // bar + bar-meta + hover action bar，如信用卡/贷款）底部被裁剪。
+            // mobile 改 Column 使每卡 intrinsic 高度；tablet/desktop 取能容纳
+            // 最高卡内容（含始终渲染的 hover action bar）的 aspect。
+            //
+            // 内容高度估算（_fullCard 最高 = 信用卡/贷款，含 action bar）：
+            //   padding 18*2 = 36
+            //   cicon row 44
+            //   csub 14(margin)+13(padding-top)+~16(text) = 43
+            //   bar  13(margin)+6 = 19
+            //   meta 7(margin)+~14 = 21
+            //   action bar 13(margin)+11(padding-top)+16(icon)+3+11(text)+2 = 56
+            //   合计 ≈ 215px
+            // tablet 卡宽 ~500 → aspect = 500/215 ≈ 2.32，取 2.2 留余量（防裁剪）。
+            // desktop 卡宽 280 → aspect = 280/215 ≈ 1.30，取 1.25 留余量。
             const gap = 14.0;
             if (constraints.maxWidth < 600) {
               // mobile：Column + SizedBox gap 还原 mainAxisSpacing:14。
@@ -817,7 +961,11 @@ class _GroupBlock extends StatelessWidget {
                     _AccountCard(
                       account: accounts[i],
                       formatCents: formatCents,
-                      onLongPress: () => onDelete(accounts[i]),
+                      onEdit: () => onEdit(accounts[i]),
+                      onDuplicate: () => onDuplicate(accounts[i]),
+                      onClose: () => onClose(accounts[i]),
+                      onReactivate: () => onReactivate(accounts[i]),
+                      onDelete: () => onDelete(accounts[i]),
                     ),
                     if (i < accounts.length - 1) const SizedBox(height: gap),
                   ],
@@ -828,14 +976,14 @@ class _GroupBlock extends StatelessWidget {
             double aspect;
             if (constraints.maxWidth < 1100) {
               cols = 2;
-              // tablet 卡宽 ~500，最高内容 ~165 → aspect≈3.0，取 3.1 留余量。
-              aspect = 3.1;
+              // tablet 卡宽 ~500，最高内容 ~215（含 action bar）→ aspect≈2.32，取 2.2。
+              aspect = 2.2;
             } else {
               const colWidth = 280.0;
               cols = ((constraints.maxWidth + gap) / (colWidth + gap)).floor();
               if (cols < 1) cols = 1;
-              // desktop 卡宽 280，最高内容 ~165 → aspect≈1.70，取 1.68 留余量。
-              aspect = 1.68;
+              // desktop 卡宽 280，最高内容 ~215 → aspect≈1.30，取 1.25。
+              aspect = 1.25;
             }
             return GridView.builder(
               shrinkWrap: true,
@@ -850,7 +998,11 @@ class _GroupBlock extends StatelessWidget {
               itemBuilder: (_, i) => _AccountCard(
                 account: accounts[i],
                 formatCents: formatCents,
-                onLongPress: () => onDelete(accounts[i]),
+                onEdit: () => onEdit(accounts[i]),
+                onDuplicate: () => onDuplicate(accounts[i]),
+                onClose: () => onClose(accounts[i]),
+                onReactivate: () => onReactivate(accounts[i]),
+                onDelete: () => onDelete(accounts[i]),
               ),
             );
           },
@@ -869,12 +1021,20 @@ class _AccountCard extends StatefulWidget {
   const _AccountCard({
     required this.account,
     required this.formatCents,
-    required this.onLongPress,
+    required this.onEdit,
+    required this.onDuplicate,
+    required this.onClose,
+    required this.onReactivate,
+    required this.onDelete,
   });
 
   final Account account;
   final String Function(int) formatCents;
-  final VoidCallback onLongPress;
+  final VoidCallback onEdit;
+  final VoidCallback onDuplicate;
+  final VoidCallback onClose;
+  final VoidCallback onReactivate;
+  final VoidCallback onDelete;
 
   @override
   State<_AccountCard> createState() => _AccountCardState();
@@ -884,9 +1044,82 @@ class _AccountCardState extends State<_AccountCard> {
   bool _hover = false;
   // mobile :active transform:scale(.985) —— 仅 press 期间。
   bool _pressed = false;
+  // 长按菜单锚点（卡片 RenderBox 中心），showMenu 相对此位置弹出。
+  Offset? _longPressOffset;
 
   /// 透传 widget.formatCents，使 helper 方法内部沿用原 `formatCents(...)` 调用。
   String Function(int) get formatCents => widget.formatCents;
+
+  Account get a => widget.account;
+
+  /// 记一笔/转账：push TransactionFormPage，预选本账户（省去用户在表单里
+  /// 重挑账户）。记一笔默认支出 tab；转账直入转账 tab 且本账户作为转出方。
+  /// 同 account_detail_page._recordTxn：成功返回后 toast + 重新拉账户列表
+  ///（交易可能改变余额）。
+  void _recordTxn(BuildContext context, {TxnType? initialType}) {
+    Navigator.of(context)
+        .push<bool>(MaterialPageRoute(
+            builder: (_) => TransactionFormPage(
+                  initialAccountId: a.id,
+                  initialType: initialType,
+                )))
+        .then((ok) {
+      if (ok == true && context.mounted) {
+        AppToast.show(context, '交易已记录', type: ToastType.success);
+        // 刷新账户列表（余额/近期交易视图依赖最新数据）。
+        context.read<AccountBloc>().add(LoadAccountsRequested());
+      }
+    });
+  }
+
+  /// 长按 → 弹出快捷操作菜单（编辑/记一笔/转账/复制/关闭or激活/删除）。
+  /// 替代旧的 onLongPress=直接删除：删除改为菜单中一个条目。
+  Future<void> _showQuickMenu(BuildContext context) async {
+    if (_longPressOffset == null) return;
+    final archived = a.status == AccountStatus.archived;
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final selected = await showMenu<String>(
+      context: context,
+      // 相对 Overlay 的长按全局坐标定位。
+      position: RelativeRect.fromLTRB(
+        _longPressOffset!.dx,
+        _longPressOffset!.dy,
+        overlay.size.width - _longPressOffset!.dx,
+        overlay.size.height - _longPressOffset!.dy,
+      ),
+      items: <PopupMenuEntry<String>>[
+        const PopupMenuItem(value: 'edit', child: Text('编辑')),
+        const PopupMenuItem(value: 'record', child: Text('记一笔')),
+        const PopupMenuItem(value: 'transfer', child: Text('转账')),
+        const PopupMenuItem(value: 'duplicate', child: Text('复制')),
+        PopupMenuItem(
+            value: archived ? 'reactivate' : 'close',
+            child: Text(archived ? '重新激活' : '关闭账户')),
+        const PopupMenuDivider(),
+        const PopupMenuItem(
+            value: 'delete',
+            child: Text('删除账户', style: TextStyle(color: AppColors.negative))),
+      ],
+    );
+    if (!mounted || selected == null) return;
+    switch (selected) {
+      case 'edit':
+        widget.onEdit();
+      case 'record':
+        _recordTxn(this.context);
+      case 'transfer':
+        _recordTxn(this.context, initialType: TxnType.transfer);
+      case 'duplicate':
+        widget.onDuplicate();
+      case 'close':
+        widget.onClose();
+      case 'reactivate':
+        widget.onReactivate();
+      case 'delete':
+        widget.onDelete();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -926,7 +1159,12 @@ class _AccountCardState extends State<_AccountCard> {
       }),
       child: GestureDetector(
         onTap: () => context.go('/accounts/${a.id}'),
-        onLongPress: widget.onLongPress,
+        // 长按 → 弹出快捷菜单（含删除）；不再直接删除。
+        onLongPressDown: (details) {
+          // 记录长按屏幕坐标供 showMenu 定位（globalPosition 即屏幕坐标）。
+          _longPressOffset = details.globalPosition;
+        },
+        onLongPress: () => _showQuickMenu(context),
         onTapDown: (_) => isMobile ? setState(() => _pressed = true) : null,
         onTapUp: (_) => isMobile ? setState(() => _pressed = false) : null,
         onTapCancel: () => isMobile ? setState(() => _pressed = false) : null,
@@ -1108,7 +1346,101 @@ class _AccountCardState extends State<_AccountCard> {
               ],
             ),
           ],
+          // 快捷操作栏（对齐 accounts.html .ac-actions）。
+          // desktop 鼠标悬停时淡入 + 上移 6px；非悬停隐藏但保留高度（稳定布局）。
+          // tablet 触屏无 hover：长按卡片弹出菜单（Issue 2）替代。
+          _hoverActionBar(context),
         ],
+      ),
+    );
+  }
+
+  /// desktop/tablet 卡片底部快捷操作栏（对齐 prototype .ac-actions）。
+  /// 5 个等宽按钮（详情/编辑/记账/转账/更多），始终渲染以保持卡片高度稳定，
+  /// 通过 AnimatedOpacity + Transform.translate 实现 hover 时淡入 + 上滑动画。
+  /// 非悬停时 IgnorePointer 屏蔽点击（避免误触透明按钮）。
+  Widget _hoverActionBar(BuildContext context) {
+    return IgnorePointer(
+      // 非悬停时禁用点击（按钮仍占位但不响应）。
+      ignoring: !_hover,
+      child: AnimatedOpacity(
+        opacity: _hover ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 160),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          // hover 时上移 6px（还原 prototype translateY(6px)→0）。
+          transform: Matrix4.translationValues(0, _hover ? 0.0 : 6.0, 0.0),
+          margin: const EdgeInsets.only(top: 13),
+          padding: const EdgeInsets.only(top: 11),
+          decoration: const BoxDecoration(
+            // 虚线分隔（CSS .ac-actions border-top:1px dashed）。
+            border: Border(
+              top: BorderSide(color: AppColors.border, width: 1.0),
+            ),
+          ),
+          child: Row(
+            children: [
+              _actionBtn(
+                icon: Icons.info_outline,
+                label: '详情',
+                onTap: () => context.go('/accounts/${a.id}'),
+              ),
+              _actionBtn(
+                icon: Icons.edit_outlined,
+                label: '编辑',
+                onTap: widget.onEdit,
+              ),
+              _actionBtn(
+                icon: Icons.post_add,
+                label: '记账',
+                onTap: () => _recordTxn(context),
+              ),
+              _actionBtn(
+                icon: Icons.swap_horiz,
+                label: '转账',
+                onTap: () => _recordTxn(context, initialType: TxnType.transfer),
+              ),
+              // 更多：内嵌 PopupMenuButton，复用长按菜单条目。
+              _actionBtn(
+                icon: Icons.more_horiz,
+                label: '更多',
+                onTap: () => _showQuickMenu(context),
+                isLast: true,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 单个等宽快捷按钮（icon + label，纵向）。
+  Widget _actionBtn({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool isLast = false,
+  }) {
+    return Expanded(
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 16, color: AppColors.muted),
+                const SizedBox(height: 3),
+                Text(label,
+                    style: const TextStyle(
+                        color: AppColors.muted, fontSize: 11)),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

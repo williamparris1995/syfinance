@@ -525,4 +525,41 @@ void main() {
         grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
     expect(delegate.crossAxisCount, 2);
   });
+
+  // Issue 2 回归守卫：长按卡片应弹出快捷菜单（含「删除账户」条目），而非直接删除。
+  // 旧实现 onLongPress=onDelete 直接走确认弹窗；新实现先弹菜单。
+  testWidgets(
+      'long-press opens quick menu with 删除账户 item (not direct delete)',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    await tester.pumpWidget(_harness([_savings()]));
+    await tester.pumpAndSettle();
+    // 长按前无菜单条目。
+    expect(find.text('删除账户'), findsNothing);
+    // 长按卡片（_compactCard 的 GestureDetector）。
+    await tester.longPress(find.text('招行储蓄'));
+    await tester.pumpAndSettle();
+    // 菜单弹出，包含「删除账户」「编辑」「记一笔」等条目。
+    expect(find.text('删除账户'), findsOneWidget);
+    expect(find.text('编辑'), findsOneWidget);
+    expect(find.text('记一笔'), findsOneWidget);
+  });
+
+  // Issue 1 回归守卫：desktop _fullCard 底部有 5 个快捷操作按钮（详情/编辑/记账/转账/更多）。
+  // 按钮始终渲染（opacity 0 时不可见但占位），保证卡片高度稳定。
+  testWidgets('desktop card: hover action bar has 5 quick actions', (t) async {
+    t.view.physicalSize = size;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    await t.pumpWidget(_harness([_savings()]));
+    await t.pumpAndSettle();
+    // 5 个快捷按钮 label 都在树中（即使 opacity 0 也渲染）。
+    expect(find.text('详情'), findsOneWidget);
+    expect(find.text('编辑'), findsOneWidget);
+    expect(find.text('记账'), findsOneWidget);
+    expect(find.text('转账'), findsOneWidget);
+    expect(find.text('更多'), findsOneWidget);
+  });
 }
