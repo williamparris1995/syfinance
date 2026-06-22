@@ -421,14 +421,12 @@ void main() {
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
   });
 
-  // desktop 网格（colWidth 280, page maxWidth 1120 → 3 列）下单卡宽度恒 < 600，
-  // 故 desktop 网格内 _AccountCard 走 compact 分支。此测试确认 desktop 视口下
-  // 信用卡卡仍渲染紧凑行（label「当前欠款」+ 进度条），与 mobile 视口行为一致。
-  // _fullCard 分支仅当单卡宽度 ≥ 600 时触发（当前网格不产生此宽度；留待 Task 3
-  // 网格重构后补充专属测试）。_fullCard 主体为现状 build 原样提取，正确性由
-  // 上方 12 个 type-specific / subtitle 测试（均走 compact 但断言 _sublineWidget/
-  // _progressBar 共享逻辑）间接覆盖。
-  testWidgets('desktop grid card: compact row (card width < 600 in 3-col grid)',
+  // 断点基于页面宽度（MediaQuery）后，desktop 视口（1400×900 → page width ≥ 600）
+  // 下 _AccountCard 走 _fullCard 分支：无紧凑行 label「当前欠款」，且渲染 _fullCard
+  // 专属的 PopupMenuButton（tooltip「账户操作」）。此测试证明 _fullCard 在桌面宽度可达
+  // （修此 bug 前 LayoutBuilder 用 card width 判分支，_fullCard 永不可达）。
+  testWidgets(
+      'desktop card: _fullCard branch (page width >= 600, no compact label)',
       (t) async {
     t.view.physicalSize = size;
     t.view.devicePixelRatio = 1.0;
@@ -440,8 +438,14 @@ void main() {
           bal: -12400),
     ]));
     await t.pumpAndSettle();
-    // 紧凑行 label 存在（desktop 网格列宽 < 600 → compact 分支）。
-    expect(find.text('当前欠款'), findsOneWidget);
+    // _fullCard 无紧凑行 label「当前欠款」。
+    expect(find.text('当前欠款'), findsNothing);
     expect(find.text('招行信用卡'), findsOneWidget);
+    // _fullCard 专属：PopupMenuButton tooltip「账户操作」（compact 行无此控件）。
+    expect(find.byTooltip('账户操作'), findsOneWidget);
+    // _fullCard 专属：余额作为大号独立文本（-¥ 124.00），22px w600。
+    final bal = t.widget<Text>(find.text('-¥ 124.00'));
+    expect(bal.style?.fontSize, 22);
+    expect(bal.style?.fontWeight, FontWeight.w600);
   });
 }

@@ -753,12 +753,10 @@ class _AccountCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (ctx, c) {
-        if (c.maxWidth < 600) return _compactCard(context);
-        return _fullCard(context);
-      },
-    );
+    // 断点基于页面宽度（非卡片宽度）：mobile(<600) 紧凑行，desktop/tablet 完整卡。
+    // 卡片宽度（网格 cell ~280-500）永远 <600，故不能用 LayoutBuilder 约束判形态。
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    return isMobile ? _compactCard(context) : _fullCard(context);
   }
 
   /// desktop/tablet 完整卡（现状 build 主体，原样提取，不改逻辑）。
