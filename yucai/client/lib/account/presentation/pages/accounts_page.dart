@@ -374,6 +374,23 @@ class _AccountsHeader extends StatelessWidget {
               ),
             ),
           ),
+          // 右上角圆形 + 新建按钮（mobile：只 Icon 无文字，对齐原型 mobile topbar + 意图）
+          Positioned(
+            top: 14,
+            right: 14,
+            child: GestureDetector(
+              onTap: onAdd,
+              child: Container(
+                width: 34,
+                height: 34,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.accent,
+                ),
+                child: const Icon(Icons.add, color: Colors.white, size: 20),
+              ),
+            ),
+          ),
           Padding(
             // .summary padding:18px 20px 17px
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 17),
@@ -411,10 +428,6 @@ class _AccountsHeader extends StatelessWidget {
                   style: const TextStyle(
                       fontFeatures: AppTypography.tabularFigures),
                 ),
-                const SizedBox(height: 14),
-                // mobile 顶部无 AppShell + 按钮，汇总卡内提供「新建账户」入口
-                // （对齐原型 mobile topbar 的 + 意图）。
-                Center(child: _NewAccountButton(onPressed: onAdd)),
               ],
             ),
           ),
