@@ -195,6 +195,7 @@ func (s *Service) SimpleIncome(ctx context.Context, req SimpleIncomeRequest) (*T
 	return s.RecordTransaction(ctx, RecordTransactionRequest{
 		TenantID:        req.TenantID,
 		TransactionDate: req.TransactionDate,
+		TransactionTime: req.TransactionTime,
 		Description:     req.Description,
 		Entries:         BuildSimpleEntries(req.AmountCents, req.AssetAccountID, req.IncomeAccountID, req.Note),
 	})
@@ -218,6 +219,7 @@ func (s *Service) SimpleExpense(ctx context.Context, req SimpleExpenseRequest) (
 	return s.RecordTransaction(ctx, RecordTransactionRequest{
 		TenantID:        req.TenantID,
 		TransactionDate: req.TransactionDate,
+		TransactionTime: req.TransactionTime,
 		Description:     req.Description,
 		Entries:         BuildSimpleEntries(req.AmountCents, req.ExpenseAccountID, req.AssetAccountID, req.Note),
 	})
@@ -245,6 +247,7 @@ func (s *Service) SimpleTransfer(ctx context.Context, req SimpleTransferRequest)
 	return s.RecordTransaction(ctx, RecordTransactionRequest{
 		TenantID:        req.TenantID,
 		TransactionDate: req.TransactionDate,
+		TransactionTime: req.TransactionTime,
 		Description:     req.Description,
 		Entries:         BuildSimpleEntries(req.AmountCents, req.ToAccountID, req.FromAccountID, req.Note),
 	})

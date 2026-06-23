@@ -40,13 +40,9 @@ func (h *TransactionHandler) RecordTransaction(ctx context.Context, req *pb.Reco
 
 	// transaction_time is an optional RFC3339 wall-clock time. Empty string
 	// means unset; a malformed value is rejected as InvalidArgument.
-	var transactionTime *time.Time
-	if req.TransactionTime != "" {
-		tt, err := time.Parse(time.RFC3339, req.TransactionTime)
-		if err != nil {
-			return nil, status.Error(codes.InvalidArgument, "invalid transaction_time format, use RFC3339")
-		}
-		transactionTime = &tt
+	transactionTime, err := parseTransactionTime(req.TransactionTime)
+	if err != nil {
+		return nil, err
 	}
 
 	entries := make([]application.EntryInput, len(req.Entries))
@@ -201,11 +197,15 @@ func (h *TransactionHandler) SimpleIncome(ctx context.Context, req *pb.SimpleInc
 		return nil, status.Error(codes.Unauthenticated, err.Error())
 	}
 	date, _ := time.Parse("2006-01-02", req.TransactionDate)
+	transactionTime, err := parseTransactionTime(req.TransactionTime)
+	if err != nil {
+		return nil, err
+	}
 	assetID, _ := uuid.Parse(req.AssetAccountId)
 	incomeID, _ := uuid.Parse(req.IncomeAccountId)
 
 	resp, err := h.service.SimpleIncome(ctx, application.SimpleIncomeRequest{
-		TenantID: tenantID, TransactionDate: date, Description: req.Description,
+		TenantID: tenantID, TransactionDate: date, TransactionTime: transactionTime, Description: req.Description,
 		AssetAccountID: assetID, IncomeAccountID: incomeID, AmountCents: req.AmountCents, Note: req.Note,
 	})
 	if err != nil {
@@ -221,11 +221,15 @@ func (h *TransactionHandler) SimpleExpense(ctx context.Context, req *pb.SimpleEx
 		return nil, status.Error(codes.Unauthenticated, err.Error())
 	}
 	date, _ := time.Parse("2006-01-02", req.TransactionDate)
+	transactionTime, err := parseTransactionTime(req.TransactionTime)
+	if err != nil {
+		return nil, err
+	}
 	expenseID, _ := uuid.Parse(req.ExpenseAccountId)
 	assetID, _ := uuid.Parse(req.AssetAccountId)
 
 	resp, err := h.service.SimpleExpense(ctx, application.SimpleExpenseRequest{
-		TenantID: tenantID, TransactionDate: date, Description: req.Description,
+		TenantID: tenantID, TransactionDate: date, TransactionTime: transactionTime, Description: req.Description,
 		ExpenseAccountID: expenseID, AssetAccountID: assetID, AmountCents: req.AmountCents, Note: req.Note,
 	})
 	if err != nil {
@@ -241,11 +245,15 @@ func (h *TransactionHandler) SimpleTransfer(ctx context.Context, req *pb.SimpleT
 		return nil, status.Error(codes.Unauthenticated, err.Error())
 	}
 	date, _ := time.Parse("2006-01-02", req.TransactionDate)
+	transactionTime, err := parseTransactionTime(req.TransactionTime)
+	if err != nil {
+		return nil, err
+	}
 	fromID, _ := uuid.Parse(req.FromAccountId)
 	toID, _ := uuid.Parse(req.ToAccountId)
 
 	resp, err := h.service.SimpleTransfer(ctx, application.SimpleTransferRequest{
-		TenantID: tenantID, TransactionDate: date, Description: req.Description,
+		TenantID: tenantID, TransactionDate: date, TransactionTime: transactionTime, Description: req.Description,
 		FromAccountID: fromID, ToAccountID: toID, AmountCents: req.AmountCents, Note: req.Note,
 	})
 	if err != nil {
@@ -336,6 +344,21 @@ func txnToProto(t application.TransactionDTO) *pb.TransactionDTO {
 func getTenantID(ctx context.Context) (uuid.UUID, error) {
 	_, tenantID, err := authgrpc.GetUserAndTenantIDFromContext(ctx)
 	return tenantID, err
+}
+
+// parseTransactionTime parses the optional RFC3339 wall-clock time carried by
+// the record/simple RPCs. An empty string means "unset" → nil (no default).
+// A malformed value is rejected as InvalidArgument. Shared by RecordTransaction
+// and the SimpleIncome/Expense/Transfer handlers.
+func parseTransactionTime(s string) (*time.Time, error) {
+	if s == "" {
+		return nil, nil
+	}
+	tt, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid transaction_time format, use RFC3339")
+	}
+	return &tt, nil
 }
 
 func mapError(err error) error {

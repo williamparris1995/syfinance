@@ -262,6 +262,142 @@ func TestSimpleExpense_AcceptsExactBalance(t *testing.T) {
 	}
 }
 
+// TestSimpleExpense_ForwardsTransactionTime verifies that SimpleExpense forwards
+// its optional TransactionTime to the underlying RecordTransaction so the saved
+// domain.Transaction carries it. Set → saved; nil → saved as nil (no default).
+func TestSimpleExpense_ForwardsTransactionTime(t *testing.T) {
+	tenantID := uuid.New()
+	assetAcc := newTestAccount(t, accountdomain.AccountTypeAsset, "CNY", 1000_00)
+	expenseAcc := newTestAccount(t, accountdomain.AccountTypeExpense, "CNY", 0)
+
+	repo := newMockAccountRepo()
+	repo.seed(assetAcc)
+	repo.seed(expenseAcc)
+	txnRepo := &recordingTxnRepo{}
+	svc := NewService(txnRepo, repo, noopBalanceUpdater{})
+
+	want := time.Date(2026, 6, 5, 19, 20, 0, 0, time.UTC)
+	if _, err := svc.SimpleExpense(context.Background(), SimpleExpenseRequest{
+		TenantID:         tenantID,
+		TransactionDate:  time.Now(),
+		Description:      "lunch",
+		ExpenseAccountID: expenseAcc.ID,
+		AssetAccountID:   assetAcc.ID,
+		AmountCents:      50_00,
+		TransactionTime:  &want,
+	}); err != nil {
+		t.Fatalf("SimpleExpense with TransactionTime: %v", err)
+	}
+	if txnRepo.saved == nil {
+		t.Fatal("expected transaction to be saved")
+	}
+	if txnRepo.saved.TransactionTime == nil {
+		t.Fatal("expected saved TransactionTime to be set, got nil")
+	}
+	if !txnRepo.saved.TransactionTime.Equal(want) {
+		t.Errorf("saved TransactionTime = %v, want %v", *txnRepo.saved.TransactionTime, want)
+	}
+}
+
+// TestSimpleExpense_NoTransactionTimeDefaultsToNil verifies that omitting
+// TransactionTime leaves the saved domain.Transaction's TransactionTime as nil
+// (RecordTransaction does not synthesize a default now-time).
+func TestSimpleExpense_NoTransactionTimeDefaultsToNil(t *testing.T) {
+	tenantID := uuid.New()
+	assetAcc := newTestAccount(t, accountdomain.AccountTypeAsset, "CNY", 1000_00)
+	expenseAcc := newTestAccount(t, accountdomain.AccountTypeExpense, "CNY", 0)
+
+	repo := newMockAccountRepo()
+	repo.seed(assetAcc)
+	repo.seed(expenseAcc)
+	txnRepo := &recordingTxnRepo{}
+	svc := NewService(txnRepo, repo, noopBalanceUpdater{})
+
+	if _, err := svc.SimpleExpense(context.Background(), SimpleExpenseRequest{
+		TenantID:         tenantID,
+		TransactionDate:  time.Now(),
+		Description:      "lunch",
+		ExpenseAccountID: expenseAcc.ID,
+		AssetAccountID:   assetAcc.ID,
+		AmountCents:      50_00,
+		// TransactionTime intentionally nil
+	}); err != nil {
+		t.Fatalf("SimpleExpense without TransactionTime: %v", err)
+	}
+	if txnRepo.saved == nil {
+		t.Fatal("expected transaction to be saved")
+	}
+	if txnRepo.saved.TransactionTime != nil {
+		t.Errorf("expected saved TransactionTime nil, got %v", *txnRepo.saved.TransactionTime)
+	}
+}
+
+// TestSimpleIncome_ForwardsTransactionTime verifies SimpleIncome forwards its
+// TransactionTime into the saved domain transaction.
+func TestSimpleIncome_ForwardsTransactionTime(t *testing.T) {
+	tenantID := uuid.New()
+	assetAcc := newTestAccount(t, accountdomain.AccountTypeAsset, "CNY", 0)
+	incomeAcc := newTestAccount(t, accountdomain.AccountTypeIncome, "CNY", 0)
+
+	repo := newMockAccountRepo()
+	repo.seed(assetAcc)
+	repo.seed(incomeAcc)
+	txnRepo := &recordingTxnRepo{}
+	svc := NewService(txnRepo, repo, noopBalanceUpdater{})
+
+	want := time.Date(2026, 6, 5, 8, 0, 0, 0, time.UTC)
+	if _, err := svc.SimpleIncome(context.Background(), SimpleIncomeRequest{
+		TenantID:        tenantID,
+		TransactionDate: time.Now(),
+		Description:     "salary",
+		AssetAccountID:  assetAcc.ID,
+		IncomeAccountID: incomeAcc.ID,
+		AmountCents:     1000_00,
+		TransactionTime: &want,
+	}); err != nil {
+		t.Fatalf("SimpleIncome with TransactionTime: %v", err)
+	}
+	if txnRepo.saved == nil || txnRepo.saved.TransactionTime == nil {
+		t.Fatalf("expected saved TransactionTime set, got: saved=%v", txnRepo.saved)
+	}
+	if !txnRepo.saved.TransactionTime.Equal(want) {
+		t.Errorf("saved TransactionTime = %v, want %v", *txnRepo.saved.TransactionTime, want)
+	}
+}
+
+// TestSimpleTransfer_ForwardsTransactionTime verifies SimpleTransfer forwards
+// its TransactionTime into the saved domain transaction.
+func TestSimpleTransfer_ForwardsTransactionTime(t *testing.T) {
+	tenantID := uuid.New()
+	fromAcc := newTestAccount(t, accountdomain.AccountTypeAsset, "CNY", 1000_00)
+	toAcc := newTestAccount(t, accountdomain.AccountTypeAsset, "CNY", 0)
+
+	repo := newMockAccountRepo()
+	repo.seed(fromAcc)
+	repo.seed(toAcc)
+	txnRepo := &recordingTxnRepo{}
+	svc := NewService(txnRepo, repo, noopBalanceUpdater{})
+
+	want := time.Date(2026, 6, 5, 12, 30, 0, 0, time.UTC)
+	if _, err := svc.SimpleTransfer(context.Background(), SimpleTransferRequest{
+		TenantID:        tenantID,
+		TransactionDate: time.Now(),
+		Description:     "move",
+		FromAccountID:   fromAcc.ID,
+		ToAccountID:     toAcc.ID,
+		AmountCents:     100_00,
+		TransactionTime: &want,
+	}); err != nil {
+		t.Fatalf("SimpleTransfer with TransactionTime: %v", err)
+	}
+	if txnRepo.saved == nil || txnRepo.saved.TransactionTime == nil {
+		t.Fatalf("expected saved TransactionTime set, got: saved=%v", txnRepo.saved)
+	}
+	if !txnRepo.saved.TransactionTime.Equal(want) {
+		t.Errorf("saved TransactionTime = %v, want %v", *txnRepo.saved.TransactionTime, want)
+	}
+}
+
 // TestListRecentByAccount_DelegatesToRepo verifies the service method is a thin
 // wrapper: it passes tenant/account/limit straight through and converts domain
 // entities to DTOs.

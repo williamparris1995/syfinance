@@ -90,6 +90,8 @@ message SimpleIncomeRequest {
   string income_account_id = 4;
   int64 amount_cents = 5;
   string note = 6;
+  // Optional wall-clock time the transaction occurred (RFC3339). Empty = unset.
+  string transaction_time = 7;
 }
 
 message SimpleExpenseRequest {
@@ -99,6 +101,8 @@ message SimpleExpenseRequest {
   string asset_account_id = 4;
   int64 amount_cents = 5;
   string note = 6;
+  // Optional wall-clock time the transaction occurred (RFC3339). Empty = unset.
+  string transaction_time = 7;
 }
 
 message SimpleTransferRequest {
@@ -108,6 +112,8 @@ message SimpleTransferRequest {
   string to_account_id = 4;
   int64 amount_cents = 5;
   string note = 6;
+  // Optional wall-clock time the transaction occurred (RFC3339). Empty = unset.
+  string transaction_time = 7;
 }
 
 message TransactionResponse {

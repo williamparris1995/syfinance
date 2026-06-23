@@ -572,6 +572,8 @@ type SimpleIncomeRequest struct {
 	IncomeAccountId string                 `protobuf:"bytes,4,opt,name=income_account_id,json=incomeAccountId,proto3" json:"income_account_id,omitempty"`
 	AmountCents     int64                  `protobuf:"varint,5,opt,name=amount_cents,json=amountCents,proto3" json:"amount_cents,omitempty"`
 	Note            string                 `protobuf:"bytes,6,opt,name=note,proto3" json:"note,omitempty"`
+	// Optional wall-clock time the transaction occurred (RFC3339). Empty = unset.
+	TransactionTime string `protobuf:"bytes,7,opt,name=transaction_time,json=transactionTime,proto3" json:"transaction_time,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -648,6 +650,13 @@ func (x *SimpleIncomeRequest) GetNote() string {
 	return ""
 }
 
+func (x *SimpleIncomeRequest) GetTransactionTime() string {
+	if x != nil {
+		return x.TransactionTime
+	}
+	return ""
+}
+
 type SimpleExpenseRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	TransactionDate  string                 `protobuf:"bytes,1,opt,name=transaction_date,json=transactionDate,proto3" json:"transaction_date,omitempty"`
@@ -656,8 +665,10 @@ type SimpleExpenseRequest struct {
 	AssetAccountId   string                 `protobuf:"bytes,4,opt,name=asset_account_id,json=assetAccountId,proto3" json:"asset_account_id,omitempty"`
 	AmountCents      int64                  `protobuf:"varint,5,opt,name=amount_cents,json=amountCents,proto3" json:"amount_cents,omitempty"`
 	Note             string                 `protobuf:"bytes,6,opt,name=note,proto3" json:"note,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Optional wall-clock time the transaction occurred (RFC3339). Empty = unset.
+	TransactionTime string `protobuf:"bytes,7,opt,name=transaction_time,json=transactionTime,proto3" json:"transaction_time,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *SimpleExpenseRequest) Reset() {
@@ -732,6 +743,13 @@ func (x *SimpleExpenseRequest) GetNote() string {
 	return ""
 }
 
+func (x *SimpleExpenseRequest) GetTransactionTime() string {
+	if x != nil {
+		return x.TransactionTime
+	}
+	return ""
+}
+
 type SimpleTransferRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	TransactionDate string                 `protobuf:"bytes,1,opt,name=transaction_date,json=transactionDate,proto3" json:"transaction_date,omitempty"`
@@ -740,6 +758,8 @@ type SimpleTransferRequest struct {
 	ToAccountId     string                 `protobuf:"bytes,4,opt,name=to_account_id,json=toAccountId,proto3" json:"to_account_id,omitempty"`
 	AmountCents     int64                  `protobuf:"varint,5,opt,name=amount_cents,json=amountCents,proto3" json:"amount_cents,omitempty"`
 	Note            string                 `protobuf:"bytes,6,opt,name=note,proto3" json:"note,omitempty"`
+	// Optional wall-clock time the transaction occurred (RFC3339). Empty = unset.
+	TransactionTime string `protobuf:"bytes,7,opt,name=transaction_time,json=transactionTime,proto3" json:"transaction_time,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -812,6 +832,13 @@ func (x *SimpleTransferRequest) GetAmountCents() int64 {
 func (x *SimpleTransferRequest) GetNote() string {
 	if x != nil {
 		return x.Note
+	}
+	return ""
+}
+
+func (x *SimpleTransferRequest) GetTransactionTime() string {
+	if x != nil {
+		return x.TransactionTime
 	}
 	return ""
 }
@@ -1222,28 +1249,31 @@ const file_transaction_v1_transaction_proto_rawDesc = "" +
 	"\aentries\x18\x04 \x03(\v2\x1e.yucai.transaction.v1.EntryDTOR\aentries\x12\x18\n" +
 	"\aversion\x18\x05 \x01(\x03R\aversion\"*\n" +
 	"\x18DeleteTransactionRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\xef\x01\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x9a\x02\n" +
 	"\x13SimpleIncomeRequest\x12)\n" +
 	"\x10transaction_date\x18\x01 \x01(\tR\x0ftransactionDate\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12(\n" +
 	"\x10asset_account_id\x18\x03 \x01(\tR\x0eassetAccountId\x12*\n" +
 	"\x11income_account_id\x18\x04 \x01(\tR\x0fincomeAccountId\x12!\n" +
 	"\famount_cents\x18\x05 \x01(\x03R\vamountCents\x12\x12\n" +
-	"\x04note\x18\x06 \x01(\tR\x04note\"\xf2\x01\n" +
+	"\x04note\x18\x06 \x01(\tR\x04note\x12)\n" +
+	"\x10transaction_time\x18\a \x01(\tR\x0ftransactionTime\"\x9d\x02\n" +
 	"\x14SimpleExpenseRequest\x12)\n" +
 	"\x10transaction_date\x18\x01 \x01(\tR\x0ftransactionDate\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12,\n" +
 	"\x12expense_account_id\x18\x03 \x01(\tR\x10expenseAccountId\x12(\n" +
 	"\x10asset_account_id\x18\x04 \x01(\tR\x0eassetAccountId\x12!\n" +
 	"\famount_cents\x18\x05 \x01(\x03R\vamountCents\x12\x12\n" +
-	"\x04note\x18\x06 \x01(\tR\x04note\"\xe7\x01\n" +
+	"\x04note\x18\x06 \x01(\tR\x04note\x12)\n" +
+	"\x10transaction_time\x18\a \x01(\tR\x0ftransactionTime\"\x92\x02\n" +
 	"\x15SimpleTransferRequest\x12)\n" +
 	"\x10transaction_date\x18\x01 \x01(\tR\x0ftransactionDate\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12&\n" +
 	"\x0ffrom_account_id\x18\x03 \x01(\tR\rfromAccountId\x12\"\n" +
 	"\rto_account_id\x18\x04 \x01(\tR\vtoAccountId\x12!\n" +
 	"\famount_cents\x18\x05 \x01(\x03R\vamountCents\x12\x12\n" +
-	"\x04note\x18\x06 \x01(\tR\x04note\"]\n" +
+	"\x04note\x18\x06 \x01(\tR\x04note\x12)\n" +
+	"\x10transaction_time\x18\a \x01(\tR\x0ftransactionTime\"]\n" +
 	"\x13TransactionResponse\x12F\n" +
 	"\vtransaction\x18\x01 \x01(\v2$.yucai.transaction.v1.TransactionDTOR\vtransaction\"d\n" +
 	"\x19TransactionSummaryRequest\x12\x12\n" +

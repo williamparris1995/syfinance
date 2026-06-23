@@ -56,6 +56,8 @@ type ListTransactionsRequest struct {
 type SimpleIncomeRequest struct {
 	TenantID        uuid.UUID
 	TransactionDate time.Time
+	// TransactionTime is the optional wall-clock time; nil means unset.
+	TransactionTime *time.Time
 	Description     string
 	AssetAccountID  uuid.UUID
 	IncomeAccountID uuid.UUID
@@ -67,6 +69,8 @@ type SimpleIncomeRequest struct {
 type SimpleExpenseRequest struct {
 	TenantID         uuid.UUID
 	TransactionDate  time.Time
+	// TransactionTime is the optional wall-clock time; nil means unset.
+	TransactionTime *time.Time
 	Description      string
 	ExpenseAccountID uuid.UUID
 	AssetAccountID   uuid.UUID
@@ -78,6 +82,8 @@ type SimpleExpenseRequest struct {
 type SimpleTransferRequest struct {
 	TenantID        uuid.UUID
 	TransactionDate time.Time
+	// TransactionTime is the optional wall-clock time; nil means unset.
+	TransactionTime *time.Time
 	Description     string
 	FromAccountID   uuid.UUID
 	ToAccountID     uuid.UUID
