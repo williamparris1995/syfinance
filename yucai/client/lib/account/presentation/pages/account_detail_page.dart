@@ -1665,7 +1665,13 @@ class _RecentTxnCell {
 
 /// 分类 icon 圆角方块（income 绿 #2d8a6e / expense 红 #c4544d / transfer 灰
 /// #8a8b8f）。OD .txn-cat 36×36 r10，白色 lucide 线性 icon（stroke ~1.7）。
-/// flavour 通用 icon：收入 ArrowDownLeft / 支出 ArrowUpRight / 转账 ArrowLeftRight。
+///
+/// icon 按「分类语义」而非方向箭头选（对齐 OD 近期交易行 income→coins /
+/// expense→receipt / transfer→card）：
+///   - income → coins（默认）；可按分类 name 细化：工资→banknote / 利息→percent。
+///   - expense → receipt（默认）；按分类 name 细化：餐饮→utensils / 购物→shoppingBag
+///     / 交通→car / 娱乐→gamepad / 医疗→heartPulse。
+///   - transfer / compound → creditCard（保留 arrowLeftRight 兜底语义）。
 class _TxnTypeIcon extends StatelessWidget {
   const _TxnTypeIcon({required this.flavour, this.categoryAccount});
   final TxnFlavour flavour;
@@ -1687,20 +1693,53 @@ class _TxnTypeIcon extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
       ),
       alignment: Alignment.center,
-      child: Icon(_iconFor(flavour), size: 18, color: Colors.white),
+      child: Icon(_iconFor(flavour, categoryAccount),
+          size: 18, color: Colors.white),
     );
   }
 
-  IconData _iconFor(TxnFlavour f) {
+  /// 按 flavour 选基础 icon，expense/income 再按 categoryAccount.name 细化
+  /// 到更贴合的分类 icon（本 app 模型里 income/expense 账户即分类，name 是
+  /// 分类名如「餐饮」「工资」）。未匹配到细化的 → flavour 默认 icon。
+  IconData _iconFor(TxnFlavour f, Account? category) {
+    final name = category?.name ?? '';
     switch (f) {
       case TxnFlavour.income:
-        return LucideIcons.arrowDownLeft;
+        if (_contains(name, ['工资', '薪', 'salary'])) return LucideIcons.banknote;
+        if (_contains(name, ['利息', '收益', 'interest'])) {
+          return LucideIcons.percent;
+        }
+        return LucideIcons.coins;
       case TxnFlavour.expense:
-        return LucideIcons.arrowUpRight;
+        if (_contains(name, ['餐', '食', '饭', 'food', 'meal'])) {
+          return LucideIcons.utensils;
+        }
+        if (_contains(name, ['购', '商', '购物', 'shop', 'shopping'])) {
+          return LucideIcons.shoppingBag;
+        }
+        if (_contains(name, ['车', '交通', '出行', 'transport', 'taxi', 'bus'])) {
+          return LucideIcons.car;
+        }
+        if (_contains(name, ['娱乐', '游戏', 'entertainment', 'game'])) {
+          return LucideIcons.gamepad2;
+        }
+        if (_contains(name, ['医', '药', 'health', 'medical'])) {
+          return LucideIcons.heartPulse;
+        }
+        return LucideIcons.receipt;
       case TxnFlavour.transfer:
       case TxnFlavour.compound:
-        return LucideIcons.arrowLeftRight;
+        return LucideIcons.creditCard;
     }
+  }
+
+  /// 大小写不敏感的包含匹配（中文不区分大小写但保留调用语义）。
+  bool _contains(String haystack, List<String> needles) {
+    final lower = haystack.toLowerCase();
+    for (final n in needles) {
+      if (lower.contains(n.toLowerCase())) return true;
+    }
+    return false;
   }
 }
 

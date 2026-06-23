@@ -1125,4 +1125,134 @@ void main() {
     expect(find.text('实时'), findsNWidgets(4));
     expect(find.textContaining('待 Transaction'), findsNothing);
   });
+
+  // ───── icon 对齐：近期交易行分类 icon（income→coins / expense→分类细化 /
+  // transfer→creditCard），取代旧方向箭头 arrowDownLeft/arrowUpRight/arrowLeftRight ─────
+
+  /// 构造近期交易测试的账户集（asset + 一个分类账户）。
+  List<Account> recentIconAccounts({
+    required String categoryId,
+    required String categoryName,
+    required AccountType categoryType,
+  }) =>
+      [
+        _account(name: '现金'),
+        Account(
+          id: categoryId,
+          name: categoryName,
+          accountType: categoryType,
+          category: AccountCategory.otherAsset,
+          currencyCode: 'CNY',
+          initialBalanceCents: 0,
+          currentBalanceCents: 0,
+          ownership: Ownership.personal,
+          status: AccountStatus.active,
+        ),
+      ];
+
+  testWidgets(
+      'recent txn icon: expense 餐饮 → lucide utensils（分类细化，非 arrowUpRight）',
+      (tester) async {
+    final accounts = recentIconAccounts(
+        categoryId: 'a3', categoryName: '餐饮', categoryType: AccountType.expense);
+    final txns = [expenseTxn(DateTime(2026, 6, 5))];
+    await pumpPage(tester, transactions: txns, accounts: accounts);
+    await tester.scrollUntilVisible(
+      find.textContaining('近期交易'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    expect(find.byIcon(LucideIcons.utensils), findsOneWidget,
+        reason: 'expense 餐饮 应显示 utensils 分类 icon');
+    // 旧的方向箭头不应再出现。
+    expect(find.byIcon(LucideIcons.arrowUpRight), findsNothing);
+  });
+
+  testWidgets(
+      'recent txn icon: expense 默认（未命中细化词）→ lucide receipt', (tester) async {
+    final accounts = recentIconAccounts(
+        categoryId: 'a3',
+        categoryName: '其他支出',
+        categoryType: AccountType.expense);
+    final txns = [expenseTxn(DateTime(2026, 6, 5))];
+    await pumpPage(tester, transactions: txns, accounts: accounts);
+    await tester.scrollUntilVisible(
+      find.textContaining('近期交易'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    expect(find.byIcon(LucideIcons.receipt), findsOneWidget,
+        reason: 'expense 默认 应显示 receipt icon');
+  });
+
+  testWidgets('recent txn icon: income 工资 → lucide banknote', (tester) async {
+    final accounts = recentIconAccounts(
+        categoryId: 'a4', categoryName: '工资', categoryType: AccountType.income);
+    final txns = [
+      Transaction(
+        id: 'ti',
+        transactionDate: DateTime(2026, 6, 3),
+        description: '六月工资',
+        entries: [
+          const TransactionEntry(
+              accountId: 'a1', debitCents: 800000, creditCents: 0),
+          const TransactionEntry(
+              accountId: 'a4', debitCents: 0, creditCents: 800000),
+        ],
+      ),
+    ];
+    await pumpPage(tester, transactions: txns, accounts: accounts);
+    await tester.scrollUntilVisible(
+      find.textContaining('近期交易'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    expect(find.byIcon(LucideIcons.banknote), findsOneWidget,
+        reason: 'income 工资 应显示 banknote icon');
+    expect(find.byIcon(LucideIcons.arrowDownLeft), findsNothing);
+  });
+
+  testWidgets('recent txn icon: transfer → lucide creditCard', (tester) async {
+    // 两端 asset → flavour=transfer。
+    final accounts = [
+      _account(name: '现金'),
+      Account(
+        id: 'a2',
+        name: '银行卡',
+        accountType: AccountType.asset,
+        category: AccountCategory.savings,
+        currencyCode: 'CNY',
+        initialBalanceCents: 0,
+        currentBalanceCents: 0,
+        ownership: Ownership.personal,
+        status: AccountStatus.active,
+      ),
+    ];
+    final txns = [
+      Transaction(
+        id: 'tt',
+        transactionDate: DateTime(2026, 6, 4),
+        description: '内部转账',
+        entries: [
+          const TransactionEntry(
+              accountId: 'a2', debitCents: 5000, creditCents: 0),
+          const TransactionEntry(
+              accountId: 'a1', debitCents: 0, creditCents: 5000),
+        ],
+      ),
+    ];
+    await pumpPage(tester, transactions: txns, accounts: accounts);
+    await tester.scrollUntilVisible(
+      find.textContaining('近期交易'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    expect(find.byIcon(LucideIcons.creditCard), findsOneWidget,
+        reason: 'transfer 应显示 creditCard icon');
+    expect(find.byIcon(LucideIcons.arrowLeftRight), findsNothing);
+  });
 }
