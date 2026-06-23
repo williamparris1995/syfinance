@@ -1072,12 +1072,19 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     );
   }
 
-  /// 收支统计 panel：饼图 + legend（对齐 OD .pie-wrap）。
-  /// expense 分类从 summary.byDay 客户端聚合（_monthExpenseByCategory）；
-  /// 无数据时显占位「本月暂无支出」。
+  /// 收支统计 panel：双色饼图 + 圆心净流入 + 图例（Task 13，对齐 OD .pie-wrap）。
+  ///
+  /// 双色饼图（取代 Task 8 按分类多色）：income 弧绿 + expense 弧红，
+  /// 占比按 incomeCents/expenseCents 相对 (income+expense) 计算。圆心 overlay
+  /// 显净流入（+¥X 正绿 / -¥X 负红）+「本X净流入」label（scope-aware via
+  /// [_scopeLabel]）。图例 2 行：收入类 / 支出类（色点 + 金额 · 占比）。
+  ///
+  /// income+expense == 0 时改显占位「暂无收支」（避免除零 + 空弧）。
   Widget _summaryPanel(MonthlySummary? summary) {
-    final cats = _monthExpenseByCategory(summary);
-    final total = cats.fold<int>(0, (s, c) => s + c.amountCents);
+    final income = summary?.incomeCents ?? 0;
+    final expense = summary?.expenseCents ?? 0;
+    final net = summary?.netCents ?? 0;
+    final total = income + expense;
     return DataCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1091,74 +1098,62 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          if (cats.isEmpty)
+          if (total == 0)
             const Padding(
               padding: EdgeInsets.all(24),
               child: Center(
-                child: Text('本月暂无支出',
+                child: Text('暂无收支',
                     style: TextStyle(color: AppColors.muted, fontSize: 12)),
               ),
             )
           else ...[
-            _pieChart(cats, total),
+            _pieChart(income, expense, net),
             const SizedBox(height: AppSpacing.md),
-            for (final c in cats) _legendRow(c, total),
+            _legendRow(
+                label: '收入类',
+                amountCents: income,
+                total: total,
+                isIncome: true),
+            _legendRow(
+                label: '支出类',
+                amountCents: expense,
+                total: total,
+                isIncome: false),
           ],
         ],
       ),
     );
   }
 
-  /// 从 summary.byDay 聚合月度 expense 分类（饼图用）。按 amountCents 降序。
-  /// 跳过非 expense 类型与 0 金额项。
-  List<CategoryTotal> _monthExpenseByCategory(MonthlySummary? summary) {
-    if (summary == null) return const [];
-    final merged = <String, CategoryTotal>{};
-    for (final day in summary.byDay) {
-      for (final c in day.byCategory) {
-        if (c.accountType != 'expense' || c.amountCents == 0) continue;
-        final existing = merged[c.categoryId];
-        if (existing == null) {
-          merged[c.categoryId] = CategoryTotal(
-            categoryId: c.categoryId,
-            name: c.name,
-            accountType: c.accountType,
-            amountCents: c.amountCents,
-          );
-        } else {
-          merged[c.categoryId] = CategoryTotal(
-            categoryId: existing.categoryId,
-            name: existing.name,
-            accountType: existing.accountType,
-            amountCents: existing.amountCents + c.amountCents,
-          );
-        }
-      }
-    }
-    final list = merged.values.toList()
-      ..sort((a, b) => b.amountCents.compareTo(a.amountCents));
-    return list;
-  }
-
-  /// 饼图：CustomPaint(_DonutPainter) + 中心总金额/支出 label（对齐 OD .pie-wrap）。
-  Widget _pieChart(List<CategoryTotal> cats, int total) {
+  /// 双色饼图：CustomPaint(_DonutPainter) + 圆心 overlay 净流入 + scope label。
+  /// 净流入正 → AppColors.positive（绿）；负 → AppColors.negative（红）。
+  Widget _pieChart(int incomeCents, int expenseCents, int netCents) {
+    final netColor =
+        netCents >= 0 ? AppColors.positive : AppColors.negative;
+    // 净流入金额带符号：正 + / 负 -（_fmtSigned 已含负号；正号此处补）。
+    final netLabel = netCents >= 0
+        ? '+${_fmtSigned(netCents)}'
+        : _fmtSigned(netCents);
     return Center(
       child: SizedBox(
         width: 128,
         height: 128,
         child: CustomPaint(
-          painter: _DonutPainter(cats, total),
+          painter: _DonutPainter(
+              incomeCents: incomeCents, expenseCents: expenseCents),
           child: Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(_fmtSigned(total),
-                    style: const TextStyle(
+                Text(netLabel,
+                    style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
+                        color: netColor,
                         fontFeatures: AppTypography.tabularFigures)),
-                const Text('支出',
-                    style: TextStyle(color: AppColors.muted, fontSize: 10)),
+                Text('$_scopeLabel净流入',
+                    style: const TextStyle(
+                        color: AppColors.muted, fontSize: 10)),
               ],
             ),
           ),
@@ -1167,9 +1162,15 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     );
   }
 
-  /// legend 行：色块 + 分类名 + 占比%·金额（对齐 OD .legend-row）。
-  Widget _legendRow(CategoryTotal c, int total) {
-    final pct = total > 0 ? (c.amountCents / total * 100) : 0.0;
+  /// 图例行：色点 + 标签（收入类/支出类）+ 金额 · 占比%（对齐 OD .legend-row）。
+  /// [isIncome] 决定色点颜色（收入绿 / 支出红）。
+  Widget _legendRow({
+    required String label,
+    required int amountCents,
+    required int total,
+    required bool isIncome,
+  }) {
+    final pct = total > 0 ? (amountCents / total * 100) : 0.0;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -1179,14 +1180,15 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
             height: 9,
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
-              color: _categoryColorForCategory(c.categoryId),
+              color: isIncome ? AppColors.positive : AppColors.negative,
               borderRadius: BorderRadius.circular(3),
             ),
           ),
-          Text(c.name.isEmpty ? '未分类' : c.name,
+          Text(label,
               style: const TextStyle(color: AppColors.muted, fontSize: 12)),
           const Spacer(),
-          Text('${pct.toStringAsFixed(0)}% · ${_fmtSigned(c.amountCents)}',
+          Text(
+              '${_fmtSigned(amountCents)} · ${pct.toStringAsFixed(0)}%',
               style: const TextStyle(
                   color: AppColors.muted,
                   fontSize: 12,
@@ -1449,32 +1451,19 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 }
 
-/// 分类色：按 categoryId 哈希到御财调色板（稳定着色）。顶层函数，供
-/// _legendRow（State）与 _DonutPainter 共用，避免两处调色板重复维护。
-Color _categoryColorForCategory(String id) {
-  const palette = [
-    Color(0xFFB08D57),
-    Color(0xFFC4544D),
-    Color(0xFF2D8A6E),
-    Color(0xFF3B6FB0),
-    Color(0xFF8A6FB0),
-    Color(0xFFB08D33),
-  ];
-  var h = 0;
-  for (final c in id.codeUnits) {
-    h = (h * 31 + c) & 0x7fffffff;
-  }
-  return palette[h % palette.length];
-}
-
-/// 收支统计饼图 painter（对齐 OD .pie-wrap：SVG circle + stroke-dasharray）。
-/// 背景环（#EFECE4）+ 各分类按占比画 stroke 扇区，12 点起顺时针。
-/// 着色走顶层 [_categoryColorForCategory]。
+/// 收支统计双色饼图 painter（Task 13，对齐 OD .pie-wrap）。
+///
+/// 仅两段弧（取代 Task 8 的按分类多色）：
+///   - income 弧：[AppColors.positive]（绿 #2D8A6E），占比 = incomeCents/total。
+///   - expense 弧：[AppColors.negative]（红 #C4544D），占比 = expenseCents/total。
+///
+/// 12 点起顺时针先画 income 再画 expense。背景环 #EFECE4。total == 0 时仅画
+/// 背景环（由调用方在 income+expense==0 时改为渲染占位，不走本 painter）。
 class _DonutPainter extends CustomPainter {
-  _DonutPainter(this.cats, this.total);
+  _DonutPainter({required this.incomeCents, required this.expenseCents});
 
-  final List<CategoryTotal> cats;
-  final int total;
+  final int incomeCents;
+  final int expenseCents;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1490,35 +1479,39 @@ class _DonutPainter extends CustomPainter {
         ..strokeWidth = thickness
         ..color = const Color(0xFFEFECE4),
     );
+    final total = incomeCents + expenseCents;
     if (total == 0) return;
-    // 分类扇区。
     final rect =
         Rect.fromCircle(center: center, radius: radius - thickness / 2);
-    var start = -pi / 2; // 12 点起。
-    for (final c in cats) {
-      final sweep = (c.amountCents / total) * 2 * pi;
-      canvas.drawArc(
-        rect,
-        start,
-        sweep,
-        false,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = thickness
-          ..color = _categoryColorForCategory(c.categoryId),
-      );
-      start += sweep;
-    }
+    // income 绿弧（12 点起）。
+    final incomeSweep = (incomeCents / total) * 2 * pi;
+    canvas.drawArc(
+      rect,
+      -pi / 2,
+      incomeSweep,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = thickness
+        ..color = AppColors.positive,
+    );
+    // expense 红弧（紧接 income 弧之后）。
+    final expenseSweep = (expenseCents / total) * 2 * pi;
+    canvas.drawArc(
+      rect,
+      -pi / 2 + incomeSweep,
+      expenseSweep,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = thickness
+        ..color = AppColors.negative,
+    );
   }
 
-  // CategoryTotal 无值相等（无 == / hashCode），用顺序+金额的折叠签名比对，
-  // 覆盖「同总数同数量但顺序变化」的视觉变更场景。
   @override
   bool shouldRepaint(_DonutPainter old) =>
-      old.total != total ||
-      old.cats.length != cats.length ||
-      old.cats.fold<int>(0, (s, c) => s ^ c.amountCents) !=
-          cats.fold<int>(0, (s, c) => s ^ c.amountCents);
+      old.incomeCents != incomeCents || old.expenseCents != expenseCents;
 }
 
 /// 近期交易行的账户列解析结果（_recentTxnRow 内部用）。

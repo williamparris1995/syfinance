@@ -679,54 +679,118 @@ void main() {
     expect(find.text('尾号 2840'), findsOneWidget);
   });
 
-  // ───── Task 8: 收支统计饼图（_summaryPanel 重写为 pie + legend）+ 移除 content 内 _quickActions ─────
+  // ───── Task 13: 双色饼图（收入绿 + 支出红）+ 圆心净流入 + 图例（取代 Task 8 多色分类饼图）─────
+  //
+  // Task 8 的多色分类饼图（_monthExpenseByCategory → _legendRow 分类名）已被
+  // Task 13 双色饼图取代：income 弧绿 + expense 弧红 + 圆心净流入（本X净流入）+
+  // 图例 2 行（收入类/支出类 · 金额 · 占比）。_quickActions 仍移除（断言保留）。
 
-  testWidgets('summary panel renders pie + legend; no quick actions card',
-      (tester) async {
-    // summary.byDay 含 expense 分类（餐饮/交通）→ 月度聚合后饼图应渲染 + legend
-    // 显示分类名。_quickActions 已移除（操作集中在 AppBar）。
-    final summary = MonthlySummary(
-      year: 2026,
-      month: 6,
-      expenseCents: 18000,
-      incomeCents: 24000,
-      netCents: 6000,
-      byDay: [
-        DailySummary(
-          date: '2026-06-01',
-          totalIncomeCents: 0,
-          byCategory: [
-            CategoryTotal(
-                categoryId: 'food',
-                name: '餐饮',
-                accountType: 'expense',
-                amountCents: 12000),
-            CategoryTotal(
-                categoryId: 'tran',
-                name: '交通',
-                accountType: 'expense',
-                amountCents: 6000),
-          ],
-        ),
-      ],
-    );
-    // 通过 pumpPage 的 summary 参数注入（避免 helper 内部覆盖 stub）。
-    await pumpPage(tester, summary: summary);
-
-    // 收支统计 panel 在 ListView 之下（hero + stats 占满首屏），需滚入视口。
+  /// 滚动到收支统计 panel 并返回（多个测试共用）。
+  Future<void> _scrollToSummary(WidgetTester tester) async {
     await tester.scrollUntilVisible(
       find.textContaining('收支统计'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
+  }
 
-    // 饼图用 CustomPaint 绘制（findsWidgets ≥1 即可）。
+  testWidgets(
+      'Task 13: 双色饼图 — 圆心显示净流入 + scope label + 图例收入/支出金额·占比',
+      (tester) async {
+    // income 24000 / expense 18000 / net +6000 → 圆心「+¥60.00」(green) +
+    // 「本月净流入」label + 图例 收入类 ¥240.00·57% / 支出类 ¥180.00·43%。
+    final summary = MonthlySummary(
+      year: 2026,
+      month: 6,
+      incomeCents: 24000,
+      expenseCents: 18000,
+      netCents: 6000,
+    );
+    await pumpPage(tester, summary: summary);
+    await _scrollToSummary(tester);
+
+    // 饼图用 CustomPaint 绘制（双色 income 绿 + expense 红 弧）。
     expect(find.byType(CustomPaint), findsWidgets);
-    // legend 显示分类名。
-    expect(find.text('餐饮'), findsOneWidget);
-    expect(find.text('交通'), findsOneWidget);
-    // _quickActions 已移除，「快捷操作」标题不应出现。
+    // 圆心：净流入金额（pie 独有；stats 卡显 ¥60.00 无 + 号）。
+    expect(find.text('+¥60.00'), findsOneWidget);
+    // 圆心 scope label：stats 卡也显「本月净流入」→ 共 2 处。
+    expect(find.text('本月净流入'), findsNWidgets(2));
+    // 图例 2 行：收入类 / 支出类 标签（取代 Task 8 的分类名）。
+    expect(find.text('收入类'), findsOneWidget);
+    expect(find.text('支出类'), findsOneWidget);
+    // 图例金额 + 占比：income 24000/(24000+18000)=57%，expense=43%。
+    expect(find.textContaining('¥240.00'), findsWidgets);
+    expect(find.textContaining('57%'), findsOneWidget);
+    expect(find.textContaining('¥180.00'), findsWidgets);
+    expect(find.textContaining('43%'), findsOneWidget);
+    // Task 8 的分类图例（餐饮/交通）已不再渲染。
+    expect(find.text('餐饮'), findsNothing);
+    expect(find.text('交通'), findsNothing);
+    // _quickActions 仍移除。
     expect(find.text('快捷操作'), findsNothing);
+  });
+
+  testWidgets('Task 13: 净流入为负 → 圆心红色 -¥X（sign-colored）',
+      (tester) async {
+    // expense > income → net 负 → 圆心显红色「-¥300.00」（-30000 cents）。
+    final summary = MonthlySummary(
+      year: 2026,
+      month: 6,
+      incomeCents: 10000,
+      expenseCents: 40000,
+      netCents: -30000,
+    );
+    await pumpPage(tester, summary: summary);
+    await _scrollToSummary(tester);
+
+    // 圆心：负净流入显「-¥300.00」。stats 卡也显同文本（size 18 无色），
+    // 圆心为 size 13 红色 —— 取 fontSize==13 的那个断言颜色。
+    final netTexts = find.text('-¥300.00');
+    expect(netTexts, findsNWidgets(2));
+    final rendered = tester
+        .widgetList<Text>(netTexts)
+        .firstWhere((t) => t.style?.fontSize == 13);
+    expect(rendered.style?.color, AppColors.negative);
+  });
+
+  testWidgets('Task 13: 净流入为正 → 圆心绿色 +¥X（sign-colored）',
+      (tester) async {
+    // +30000 cents → 「+¥300.00」绿色（stats 卡显无 + 号的 ¥300.00）。
+    final summary = MonthlySummary(
+      year: 2026,
+      month: 6,
+      incomeCents: 50000,
+      expenseCents: 20000,
+      netCents: 30000,
+    );
+    await pumpPage(tester, summary: summary);
+    await _scrollToSummary(tester);
+
+    // 圆心 +¥300.00（size 13 绿）；stats 卡无 + 号，故 +¥ 仅圆心一处。
+    final netText = find.text('+¥300.00');
+    expect(netText, findsOneWidget);
+    final rendered = tester.widget<Text>(netText);
+    expect(rendered.style?.color, AppColors.positive);
+  });
+
+  testWidgets('Task 13: income+expense==0 → 占位文案（避免除零）',
+      (tester) async {
+    // 全零 summary → 双色饼图无弧可画，显占位「暂无收支」而非崩溃（除零）。
+    const summary = MonthlySummary(
+      year: 2026,
+      month: 6,
+      incomeCents: 0,
+      expenseCents: 0,
+      netCents: 0,
+    );
+    await pumpPage(tester, summary: summary);
+    await _scrollToSummary(tester);
+
+    expect(find.textContaining('暂无收支'), findsOneWidget);
+    // 无双色饼图（占位取代）、无图例。stats 卡的「本月净流入」仍在，但饼图
+    // 圆心独有的净流入金额（+¥X / -¥X）不应出现。
+    expect(find.text('收入类'), findsNothing);
+    expect(find.text('支出类'), findsNothing);
   });
 
   // ───── Task 10: 周期切换 segmented control（日/月/年）+ scope state ─────
@@ -829,10 +893,19 @@ void main() {
     await tester.tap(find.text('年'));
     await tester.pumpAndSettle();
 
+    // Task 13：双色饼图让收支统计 panel 变高，切换 scope 后重建使顶部 4 卡
+    // 滑出 ListView cacheExtent 被卸载 —— 先滚回顶部让 4 卡重新挂载。
+    await tester.scrollUntilVisible(
+      find.textContaining('可用余额'),
+      -200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
     // 储蓄 4 卡 label 按 scope=year。
     expect(find.text('本年收入'), findsOneWidget);
     expect(find.text('本年支出'), findsOneWidget);
-    expect(find.text('本年净流入'), findsOneWidget);
+    // Task 13：饼图圆心也显「本年净流入」→ stats 卡 + 圆心共 2 处。
+    expect(find.text('本年净流入'), findsNWidgets(2));
     expect(find.text('本年交易'), findsOneWidget);
     // hero-bal-sub 副信息也按 scope=year。滚回顶部让 hero 重新构建可见。
     await tester.scrollUntilVisible(
@@ -860,9 +933,18 @@ void main() {
     await tester.tap(find.text('日'));
     await tester.pumpAndSettle();
 
+    // Task 13：双色饼图让 panel 变高，切 scope 后重建使顶部 4 卡滑出
+    // cacheExtent 被卸载 —— 先滚回顶部让 4 卡重新挂载。
+    await tester.scrollUntilVisible(
+      find.textContaining('可用余额'),
+      -200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
     expect(find.text('本日收入'), findsOneWidget);
     expect(find.text('本日支出'), findsOneWidget);
-    expect(find.text('本日净流入'), findsOneWidget);
+    // Task 13：饼图圆心也显「本日净流入」→ stats 卡 + 圆心共 2 处。
+    expect(find.text('本日净流入'), findsNWidgets(2));
     expect(find.text('本日交易'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.textContaining('可用余额'),
