@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
@@ -1106,15 +1107,16 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
 
-    // 4 个位置 icon：收入 trend-up / 支出 trend-dn / 净流入 wallet / 交易 notebook。
-    expect(find.byIcon(Icons.trending_up), findsOneWidget,
-        reason: 'card1 收入 应显示 trend-up icon');
-    expect(find.byIcon(Icons.trending_down), findsOneWidget,
-        reason: 'card2 支出 应显示 trend-down icon');
-    expect(find.byIcon(Icons.account_balance_wallet), findsOneWidget,
-        reason: 'card3 净流入 应显示 wallet icon');
-    expect(find.byIcon(Icons.receipt_long), findsOneWidget,
-        reason: 'card4 交易 应显示 notebook icon');
+    // 4 个位置 icon（lucide 线性，对齐 OD .stat-ico）：
+    //   收入 trendingUp / 支出 trendingDown / 净流入 wallet / 交易 fileText。
+    expect(find.byIcon(LucideIcons.trendingUp), findsOneWidget,
+        reason: 'card1 收入 应显示 lucide trendingUp icon');
+    expect(find.byIcon(LucideIcons.trendingDown), findsOneWidget,
+        reason: 'card2 支出 应显示 lucide trendingDown icon');
+    expect(find.byIcon(LucideIcons.wallet), findsOneWidget,
+        reason: 'card3 净流入 应显示 lucide wallet icon');
+    expect(find.byIcon(LucideIcons.fileText), findsOneWidget,
+        reason: 'card4 交易 应显示 lucide fileText icon');
 
     // 4 卡都显示「实时」tag（取代「待 Transaction」）。
     expect(find.text('实时'), findsNWidgets(4));

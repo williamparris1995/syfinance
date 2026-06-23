@@ -3,6 +3,7 @@ import 'dart:math' show pi;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
@@ -233,24 +234,26 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         ? txnState.summary
         : (txnState is TransactionsLoadingMore ? txnState.summary : null);
     return ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        // OD .content padding 24 36 70（top/bottom 24，左右 36，底部 70）。
+        // 保留底部 70 给 FAB/导航留白；section 间距对齐原型 stat-row margin 18。
+        padding: const EdgeInsets.fromLTRB(36, 24, 36, 70),
         children: [
           _hero(a, summary?.netCents ?? 0),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: 18),
           _statsRow(a, txns, summary),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: 18),
           // 双栏：左近期交易（flex 3）/ 右收支统计饼图（flex 2）。
-          // 对齐 OD .cols 1.5fr:1fr 比例。原右栏的 _quickActions 已移除——操作
-          // 集中在 AppBar（编辑/记一笔/转账/更多菜单），避免重复。
+          // 对齐 OD .cols 1.5fr:1fr 比例 + gap 16px。原右栏的 _quickActions 已移除——
+          // 操作集中在 AppBar（编辑/记一笔/转账/更多菜单），避免重复。
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(flex: 3, child: _recentTxnPanel(txns)),
-              const SizedBox(width: AppSpacing.lg),
+              const SizedBox(width: 16),
               Expanded(flex: 2, child: _summaryPanel(summary)),
             ],
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: 18),
           _infoCard(a),
           const SizedBox(height: AppSpacing.lg),
           if (a.category == AccountCategory.investment)
@@ -400,7 +403,8 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     return ClipRRect(
       borderRadius: AppRadius.lgBorder,
       child: Container(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        // OD .hero padding 28 32 30（top 28 / 左右 32 / bottom 30）。
+        padding: const EdgeInsets.fromLTRB(32, 28, 32, 30),
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -504,8 +508,9 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                     fontFeatures: AppTypography.tabularFigures,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.lg),
-                // hero-fields 类型专属字段网格。
+                const SizedBox(height: 26),
+                // hero-fields 类型专属字段网格（OD .hero-fields：margin-top 26，
+                // padding-top 22 + border-top，gap 18）。
                 _heroFields(a),
               ],
             ),
@@ -603,16 +608,26 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         add('币种', a.currencyCode);
     }
 
-    return LayoutBuilder(
-      builder: (ctx, c) => GridView.count(
-        key: const ValueKey('heroFields'),
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: c.maxWidth > 600 ? 4 : 2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 2.6,
-        children: [for (final f in fields) _heroField(f.$1, f.$2)],
+    return Container(
+      // OD .hero-fields：padding-top 22 + 顶部细分割线（rgba(255,255,255,.1)）。
+      padding: const EdgeInsets.only(top: 22),
+      decoration: const BoxDecoration(
+        border: Border(
+          top: BorderSide(color: Color(0x1AFFFFFF), width: 1),
+        ),
+      ),
+      child: LayoutBuilder(
+        builder: (ctx, c) => GridView.count(
+          key: const ValueKey('heroFields'),
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: c.maxWidth > 600 ? 4 : 2,
+          // OD .hero-fields gap 18px。
+          mainAxisSpacing: 18,
+          crossAxisSpacing: 18,
+          childAspectRatio: 2.6,
+          children: [for (final f in fields) _heroField(f.$1, f.$2)],
+        ),
       ),
     );
   }
@@ -651,17 +666,19 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   Widget _statsRow(
       Account a, List<Transaction> txns, MonthlySummary? summary) {
     final stats = _statsFor(a: a, txns: txns, summary: summary);
-    // 4 卡按位置映射 colored icon square（OD .stat-ico，对齐原型 detail-account）：
-    //   card1 收入 → bg #e1efe8 + income-green trend-up
-    //   card2 支出 → bg #f6e3e1 + expense-red trend-down
-    //   card3 净流入 → bg #f3ebdd (accent-soft) + accent-gold wallet
-    //   card4 交易 → bg #e3ecf7 + #3b6fb0 blue notebook
+    // 4 卡按位置映射 colored icon square（OD .stat-ico 24×24 r6，icon ico-sm 15px）：
+    //   card1 收入 → bg #e1efe8 + income-green LucideIcons.trendingUp
+    //   card2 支出 → bg #f6e3e1 + expense-red LucideIcons.trendingDown
+    //   card3 净流入 → bg #f3ebdd (accent-soft) + accent-gold LucideIcons.wallet
+    //   card4 交易 → bg #e3ecf7 + #3b6fb0 blue LucideIcons.fileText
     // 全 account 类型共用同一 4 卡 icon set（按位置，不按 category）。
+    // Lucide 线性 stroke 2px（最接近 OD 原型 inline SVG stroke 1.6px），取代
+    // Task 14 的 Material 实心 icon。fileText 在 lucide 0.257 无 notebookText。
     const iconSpecs = <(Color, Color, IconData)>[
-      (Color(0xFFE1EFE8), AppColors.positive, Icons.trending_up),
-      (Color(0xFFF6E3E1), AppColors.negative, Icons.trending_down),
-      (Color(0xFFF3ECDD), AppColors.accent, Icons.account_balance_wallet),
-      (Color(0xFFE3ECF7), Color(0xFF3B6FB0), Icons.receipt_long),
+      (Color(0xFFE1EFE8), AppColors.positive, LucideIcons.trendingUp),
+      (Color(0xFFF6E3E1), AppColors.negative, LucideIcons.trendingDown),
+      (Color(0xFFF3ECDD), AppColors.accent, LucideIcons.wallet),
+      (Color(0xFFE3ECF7), Color(0xFF3B6FB0), LucideIcons.fileText),
     ];
     // 卡片间 14px 间距（原型 .quick-stats gap:14px）；首尾无边缘缩进。
     return Row(
@@ -674,6 +691,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                 right: i == stats.length - 1 ? 0 : 7,
               ),
               child: DataCard(
+                padding: const EdgeInsets.fromLTRB(17, 15, 17, 15),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1564,8 +1582,8 @@ class _RecentTxnCell {
 }
 
 /// 分类 icon 圆角方块（income 绿 #2d8a6e / expense 红 #c4544d / transfer 灰
-/// #8a8b8f）。icon 按 category（food→餐具 / transport→车 等），缺省用 flavour
-/// 通用 icon（支出↓ / 收入↑ / 转账⇄）。
+/// #8a8b8f）。OD .txn-cat 36×36 r10，白色 lucide 线性 icon（stroke ~1.7）。
+/// flavour 通用 icon：收入 ArrowDownLeft / 支出 ArrowUpRight / 转账 ArrowLeftRight。
 class _TxnTypeIcon extends StatelessWidget {
   const _TxnTypeIcon({required this.flavour, this.categoryAccount});
   final TxnFlavour flavour;
@@ -1579,32 +1597,34 @@ class _TxnTypeIcon extends StatelessWidget {
       TxnFlavour.transfer => const Color(0xFF8A8B8F),
       TxnFlavour.compound => const Color(0xFF8A8B8F),
     };
-    final icon = _iconFor(flavour, categoryAccount?.category);
     return Container(
-      width: 30,
-      height: 30,
+      width: 36,
+      height: 36,
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
       ),
       alignment: Alignment.center,
-      child: Icon(icon, size: 16, color: Colors.white),
+      child: Icon(_iconFor(flavour), size: 18, color: Colors.white),
     );
   }
 
-  IconData _iconFor(TxnFlavour f, AccountCategory? cat) {
-    if (f == TxnFlavour.income) return Icons.arrow_downward;
-    if (f == TxnFlavour.transfer) return Icons.swap_horiz;
-    if (cat == null) return Icons.arrow_upward;
-    // expense 按 category 分支（AccountCategory 是资产分类，不直接对应支出类目，
-    // 但复用其语义做近义 icon；无匹配时用通用支出 icon）。
-    return Icons.arrow_upward;
+  IconData _iconFor(TxnFlavour f) {
+    switch (f) {
+      case TxnFlavour.income:
+        return LucideIcons.arrowDownLeft;
+      case TxnFlavour.expense:
+        return LucideIcons.arrowUpRight;
+      case TxnFlavour.transfer:
+      case TxnFlavour.compound:
+        return LucideIcons.arrowLeftRight;
+    }
   }
 }
 
-/// stat 卡 colored icon square（OD .stat-ico）。28×28 圆角方块 + 14px 白色 icon。
+/// stat 卡 colored icon square（OD .stat-ico 24×24 r6，icon ico-sm 15px）。
 /// bg = 浅色品类色（收入 #e1efe8 / 支出 #f6e3e1 / 净流入 #f3ebdd / 交易 #e3ecf7），
-/// fg = 同色系深色（用于 icon）。
+/// fg = 同色系深色（用于 icon）。尺寸/圆角对齐原型，lucide 线性 icon。
 class _StatIconSquare extends StatelessWidget {
   const _StatIconSquare({
     required this.bg,
@@ -1618,14 +1638,14 @@ class _StatIconSquare extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 28,
-      height: 28,
+      width: 24,
+      height: 24,
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
       ),
       alignment: Alignment.center,
-      child: Icon(icon, size: 14, color: fg),
+      child: Icon(icon, size: 15, color: fg),
     );
   }
 }
