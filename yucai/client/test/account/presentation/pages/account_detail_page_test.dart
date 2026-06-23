@@ -717,4 +717,88 @@ void main() {
     // _quickActions 已移除，「快捷操作」标题不应出现。
     expect(find.text('快捷操作'), findsNothing);
   });
+
+  // ───── Task 10: 周期切换 segmented control（日/月/年）+ scope state ─────
+
+  testWidgets('period segmented control: default 本月 → 月 active', (tester) async {
+    await pumpPage(tester);
+
+    // 收支统计 panel 在 ListView 之下（hero + stats 占满首屏），需滚入视口。
+    await tester.scrollUntilVisible(
+      find.textContaining('收支统计'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    // 三个段都渲染。
+    expect(find.text('日'), findsOneWidget);
+    expect(find.text('月'), findsOneWidget);
+    expect(find.text('年'), findsOneWidget);
+    // 旧的固定「本月」文本已被 segmented control 取代。
+    expect(find.text('本月'), findsNothing);
+  });
+
+  testWidgets('tapping 年 → emits LoadSummaryRequested(scope: year)',
+      (tester) async {
+    await pumpPage(tester);
+
+    // 滚到收支统计 panel（segmented control 在 panel-head 右侧）。
+    await tester.scrollUntilVisible(
+      find.textContaining('收支统计'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    // 点「年」。
+    await tester.tap(find.text('年'));
+    await tester.pumpAndSettle();
+
+    // 验证 repo.summary 被以 scope=year 调用（事件传播到 RPC 的直接证据）。
+    verify(() => txnRepo.summary(any(), any(),
+            accountId: any(named: 'accountId'),
+            scope: SummaryScope.year,
+            day: any(named: 'day')));
+  });
+
+  testWidgets('tapping 日 → emits LoadSummaryRequested(scope: day, day: today)',
+      (tester) async {
+    await pumpPage(tester);
+
+    await tester.scrollUntilVisible(
+      find.textContaining('收支统计'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    await tester.tap(find.text('日'));
+    await tester.pumpAndSettle();
+
+    final today = DateTime.now().day;
+    verify(() => txnRepo.summary(any(), any(),
+            accountId: any(named: 'accountId'),
+            scope: SummaryScope.day,
+            day: today));
+  });
+
+  testWidgets('tapping 月 → emits LoadSummaryRequested(scope: month)',
+      (tester) async {
+    await pumpPage(tester);
+
+    await tester.scrollUntilVisible(
+      find.textContaining('收支统计'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    // 先切到年（离开默认月），再切回月，确保切换确有 dispatch。
+    await tester.tap(find.text('年'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('月'));
+    await tester.pumpAndSettle();
+
+    verify(() => txnRepo.summary(any(), any(),
+            accountId: any(named: 'accountId'),
+            scope: SummaryScope.month,
+            day: any(named: 'day')));
+  });
 }

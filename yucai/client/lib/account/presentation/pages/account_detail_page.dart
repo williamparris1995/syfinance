@@ -53,6 +53,12 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   static const int _recentPageSize = 5;
   int _recentPage = 0;
 
+  /// 收支统计的周期粒度（Task 10）。默认月（与 OD 原型 `.period-tabs` 月段
+  /// active 对齐）。切换 → setState + 发 LoadSummaryRequested(scope, day)。
+  /// DAY scope 时 `_day` = 今天 day-of-month；MONTH/YEAR 时为 null。
+  SummaryScope _scope = SummaryScope.month;
+  int? _day;
+
   @override
   void initState() {
     super.initState();
@@ -836,6 +842,62 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     );
   }
 
+  /// 周期切换 segmented control（日/月/年），对齐 OD 原型 `.period-tabs`。
+  /// 容器 bg `#f7f6f2`（AppColors.bg）+ 边框 `#e6e3dc`（AppColors.border），
+  /// active 段白底（AppColors.surface）；inactive 段透明、灰字（AppColors.muted）。
+  /// active 段文字用 accent-press 金 `#98773f`（比 accent 更深，对齐 OD press 态）。
+  /// 三段等宽，整组圆角 AppRadius.sm。
+  Widget _periodSegmentedControl() {
+    /// accent-press 金（OD 原型 active 段文字色，比 AppColors.accent 更深）。
+    const accentPress = Color(0xFF98773F);
+    const segments = [
+      (SummaryScope.day, '日'),
+      (SummaryScope.month, '月'),
+      (SummaryScope.year, '年'),
+    ];
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.bg,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final (scope, label) in segments)
+            _periodSegment(scope, label, accentPress),
+        ],
+      ),
+    );
+  }
+
+  /// 单个周期段。active 时白底 + 金字；inactive 时透明 + 灰字。点击切换 scope。
+  Widget _periodSegment(
+      SummaryScope scope, String label, Color activeColor) {
+    final active = scope == _scope;
+    return InkWell(
+      onTap: () => _changeScope(scope),
+      borderRadius: BorderRadius.circular(6),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: active ? AppColors.surface : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+            color: active ? activeColor : AppColors.muted,
+          ),
+        ),
+      ),
+    );
+  }
+
   /// 收支统计 panel：饼图 + legend（对齐 OD .pie-wrap）。
   /// expense 分类从 summary.byDay 客户端聚合（_monthExpenseByCategory）；
   /// 无数据时显占位「本月暂无支出」。
@@ -851,8 +913,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
             children: [
               const Text('收支统计',
                   style: TextStyle(fontWeight: FontWeight.w600)),
-              const Text('本月',
-                  style: TextStyle(color: AppColors.muted, fontSize: 12)),
+              _periodSegmentedControl(),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
@@ -998,15 +1059,33 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     });
   }
 
-  /// 重新拉取本账户的近期交易 + 月度统计。
+  /// 重新拉取本账户的近期交易 + 收支统计。
   /// TransactionBloc 由路由层 provide（见 router.dart `/accounts/:id`）。
+  /// Task 10：summary 现按当前 `_scope` / `_day` 发 LoadSummaryRequested，
+  /// 切换周期粒度走同一入口。
   void _refreshTxn() {
     final b = context.read<TransactionBloc>();
     final now = DateTime.now();
     b.add(LoadTransactionsRequested(
         filter: TxnFilterState(accountId: widget.id)));
     b.add(LoadSummaryRequested(
-        year: now.year, month: now.month, accountId: widget.id));
+      year: now.year,
+      month: now.month,
+      accountId: widget.id,
+      scope: _scope,
+      day: _scope == SummaryScope.day ? (_day ?? now.day) : null,
+    ));
+  }
+
+  /// 切周期粒度（Task 10）。更新 `_scope`/`_day` 后重载 summary。
+  /// DAY scope 时把 `_day` 钉到今天 day-of-month。
+  void _changeScope(SummaryScope next) {
+    if (next == _scope) return;
+    setState(() {
+      _scope = next;
+      _day = next == SummaryScope.day ? DateTime.now().day : null;
+    });
+    _refreshTxn();
   }
 
   void _edit(Account a) {
