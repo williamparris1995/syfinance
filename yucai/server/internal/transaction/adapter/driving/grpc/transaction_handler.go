@@ -38,6 +38,17 @@ func (h *TransactionHandler) RecordTransaction(ctx context.Context, req *pb.Reco
 		return nil, status.Error(codes.InvalidArgument, "invalid date format, use YYYY-MM-DD")
 	}
 
+	// transaction_time is an optional RFC3339 wall-clock time. Empty string
+	// means unset; a malformed value is rejected as InvalidArgument.
+	var transactionTime *time.Time
+	if req.TransactionTime != "" {
+		tt, err := time.Parse(time.RFC3339, req.TransactionTime)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid transaction_time format, use RFC3339")
+		}
+		transactionTime = &tt
+	}
+
 	entries := make([]application.EntryInput, len(req.Entries))
 	for i, e := range req.Entries {
 		accountID, err := uuid.Parse(e.AccountId)
@@ -56,6 +67,7 @@ func (h *TransactionHandler) RecordTransaction(ctx context.Context, req *pb.Reco
 	resp, err := h.service.RecordTransaction(ctx, application.RecordTransactionRequest{
 		TenantID:        tenantID,
 		TransactionDate: date,
+		TransactionTime: transactionTime,
 		Description:     req.Description,
 		Entries:         entries,
 	})
@@ -308,10 +320,16 @@ func txnToProto(t application.TransactionDTO) *pb.TransactionDTO {
 			CreditCents: e.CreditCents, Note: e.Note,
 		}
 	}
+	// transaction_time: RFC3339 when set, empty (proto3 default, omitted) when nil.
+	var transactionTime string
+	if t.TransactionTime != nil {
+		transactionTime = t.TransactionTime.Format(time.RFC3339)
+	}
 	return &pb.TransactionDTO{
 		Id: t.ID.String(), TransactionDate: t.TransactionDate.Format("2006-01-02"),
 		Description: t.Description, Entries: entries, Version: t.Version,
 		CreatedAt: timestamppb.New(t.CreatedAt), UpdatedAt: timestamppb.New(t.UpdatedAt),
+		TransactionTime: transactionTime,
 	}
 }
 

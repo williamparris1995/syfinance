@@ -43,7 +43,7 @@ func (s *Service) RecordTransaction(ctx context.Context, req RecordTransactionRe
 		}
 	}
 
-	txn, err := domain.NewTransaction(req.TenantID, req.TransactionDate, req.Description, entries)
+	txn, err := domain.NewTransaction(req.TenantID, req.TransactionDate, req.TransactionTime, req.Description, entries)
 	if err != nil {
 		return nil, fmt.Errorf("create transaction: %w", err)
 	}

@@ -81,6 +81,7 @@ func (r *TransactionRepository) Save(ctx context.Context, tx *domain.Transaction
 		SetID(tx.ID).
 		SetTenantID(tx.TenantID).
 		SetTransactionDate(tx.TransactionDate).
+		SetNillableTransactionTime(tx.TransactionTime).
 		SetDescription(tx.Description).
 		SetVersion(tx.Version).
 		SetCreatedAt(tx.CreatedAt).
@@ -427,13 +428,18 @@ func (r *TransactionRepository) Update(ctx context.Context, tx *domain.Transacti
 	}
 
 	// Update transaction with optimistic lock
-	_, err = r.client.Transaction.UpdateOneID(tx.ID).
+	upd := r.client.Transaction.UpdateOneID(tx.ID).
 		Where(transaction.Version(tx.Version - 1)).
 		SetTransactionDate(tx.TransactionDate).
 		SetDescription(tx.Description).
 		SetVersion(tx.Version).
-		SetUpdatedAt(tx.UpdatedAt).
-		Save(ctx)
+		SetUpdatedAt(tx.UpdatedAt)
+	if tx.TransactionTime != nil {
+		upd = upd.SetTransactionTime(*tx.TransactionTime)
+	} else {
+		upd = upd.ClearTransactionTime()
+	}
+	_, err = upd.Save(ctx)
 	if err != nil {
 		return fmt.Errorf("update transaction: %w", err)
 	}
@@ -732,6 +738,7 @@ func toDomainTransaction(t *txnent.Transaction, entries []*txnent.TransactionEnt
 		ID:              t.ID,
 		TenantID:        t.TenantID,
 		TransactionDate: t.TransactionDate,
+		TransactionTime: t.TransactionTime,
 		Description:     t.Description,
 		Entries:         domainEntries,
 		Version:         t.Version,

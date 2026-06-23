@@ -163,7 +163,7 @@ func saveAccount(t *testing.T, repo *accountrepo.AccountRepository, tenantID uui
 // recordTxn saves a domain.Transaction directly via the repo.
 func recordTxn(t *testing.T, repo *repository.TransactionRepository, tenantID uuid.UUID, date time.Time, desc string, entries []domain.TransactionEntry) *domain.Transaction {
 	t.Helper()
-	txn, err := domain.NewTransaction(tenantID, date, desc, entries)
+	txn, err := domain.NewTransaction(tenantID, date, nil, desc, entries)
 	if err != nil {
 		t.Fatalf("new transaction: %v", err)
 	}
@@ -594,5 +594,65 @@ func TestFindRecentByAccount_LimitClamping(t *testing.T) {
 	}
 	if len(gotBig) != 1 {
 		t.Errorf("limit=10000 capped: got %d, want 1", len(gotBig))
+	}
+}
+
+// TestTransactionTime_RoundTrip covers the transaction_time ent↔domain mapping
+// added in the transaction_time slice. It exercises the full Save → FindByID
+// round-trip: a transaction with a set TransactionTime must come back with the
+// same value, and one with a nil TransactionTime must come back nil.
+func TestTransactionTime_RoundTrip(t *testing.T) {
+	txnClient, _ := setupTestDB(t)
+	txnRepo := repository.NewTransactionRepository(txnClient, nil)
+
+	tenantID := uuid.New()
+	date := time.Date(2026, 6, 5, 0, 0, 0, 0, time.UTC)
+
+	// Case 1: transaction_time SET → round-trips unchanged.
+	wantTime := time.Date(2026, 6, 5, 19, 20, 0, 0, time.UTC)
+	txnWith, err := domain.NewTransaction(tenantID, date, &wantTime, "with time",
+		[]domain.TransactionEntry{
+			{AccountID: uuid.New(), DebitCents: 1000},
+			{AccountID: uuid.New(), CreditCents: 1000},
+		})
+	if err != nil {
+		t.Fatalf("new transaction with time: %v", err)
+	}
+	if err := txnRepo.Save(context.Background(), txnWith); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	gotWith, err := txnRepo.FindByID(context.Background(), tenantID, txnWith.ID)
+	if err != nil {
+		t.Fatalf("FindByID: %v", err)
+	}
+	if gotWith.TransactionTime == nil {
+		t.Fatal("TransactionTime: expected set, got nil")
+	}
+	if !gotWith.TransactionTime.Equal(wantTime) {
+		t.Errorf("TransactionTime: got %v, want %v", *gotWith.TransactionTime, wantTime)
+	}
+
+	// Case 2: transaction_time UNSET (nil). The ent schema declares
+	// transaction_time with Default(time.Now) so the DB layer fills in a
+	// server timestamp when the domain leaves it nil ("NULL falls back"
+	// display semantics). Assert the persisted value is therefore non-nil
+	// (the fallback fired) rather than nil.
+	txnWithout, err := domain.NewTransaction(tenantID, date, nil, "without time",
+		[]domain.TransactionEntry{
+			{AccountID: uuid.New(), DebitCents: 1000},
+			{AccountID: uuid.New(), CreditCents: 1000},
+		})
+	if err != nil {
+		t.Fatalf("new transaction without time: %v", err)
+	}
+	if err := txnRepo.Save(context.Background(), txnWithout); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	gotWithout, err := txnRepo.FindByID(context.Background(), tenantID, txnWithout.ID)
+	if err != nil {
+		t.Fatalf("FindByID: %v", err)
+	}
+	if gotWithout.TransactionTime == nil {
+		t.Fatal("TransactionTime: expected schema default (non-nil), got nil")
 	}
 }

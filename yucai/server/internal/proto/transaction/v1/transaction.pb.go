@@ -33,6 +33,9 @@ type TransactionDTO struct {
 	Version         int64                  `protobuf:"varint,5,opt,name=version,proto3" json:"version,omitempty"`
 	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt       *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Optional wall-clock time the transaction occurred (RFC3339, e.g.
+	// "2026-06-05T19:20:00Z"). Empty when unset (proto3 default).
+	TransactionTime string `protobuf:"bytes,8,opt,name=transaction_time,json=transactionTime,proto3" json:"transaction_time,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -114,6 +117,13 @@ func (x *TransactionDTO) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *TransactionDTO) GetTransactionTime() string {
+	if x != nil {
+		return x.TransactionTime
+	}
+	return ""
 }
 
 type EntryDTO struct {
@@ -205,6 +215,8 @@ type RecordTransactionRequest struct {
 	TransactionDate string                 `protobuf:"bytes,1,opt,name=transaction_date,json=transactionDate,proto3" json:"transaction_date,omitempty"`
 	Description     string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
 	Entries         []*EntryDTO            `protobuf:"bytes,3,rep,name=entries,proto3" json:"entries,omitempty"`
+	// Optional wall-clock time the transaction occurred (RFC3339). Empty = unset.
+	TransactionTime string `protobuf:"bytes,4,opt,name=transaction_time,json=transactionTime,proto3" json:"transaction_time,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -258,6 +270,13 @@ func (x *RecordTransactionRequest) GetEntries() []*EntryDTO {
 		return x.Entries
 	}
 	return nil
+}
+
+func (x *RecordTransactionRequest) GetTransactionTime() string {
+	if x != nil {
+		return x.TransactionTime
+	}
+	return ""
 }
 
 type GetTransactionRequest struct {
@@ -1159,7 +1178,7 @@ var File_transaction_v1_transaction_proto protoreflect.FileDescriptor
 
 const file_transaction_v1_transaction_proto_rawDesc = "" +
 	"\n" +
-	" transaction/v1/transaction.proto\x12\x14yucai.transaction.v1\x1a\x1acommon/v1/pagination.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb7\x02\n" +
+	" transaction/v1/transaction.proto\x12\x14yucai.transaction.v1\x1a\x1acommon/v1/pagination.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe2\x02\n" +
 	"\x0eTransactionDTO\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12)\n" +
 	"\x10transaction_date\x18\x02 \x01(\tR\x0ftransactionDate\x12 \n" +
@@ -1169,7 +1188,8 @@ const file_transaction_v1_transaction_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xc4\x01\n" +
+	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12)\n" +
+	"\x10transaction_time\x18\b \x01(\tR\x0ftransactionTime\"\xc4\x01\n" +
 	"\bEntryDTO\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -1178,11 +1198,12 @@ const file_transaction_v1_transaction_proto_rawDesc = "" +
 	"\vdebit_cents\x18\x04 \x01(\x03R\n" +
 	"debitCents\x12!\n" +
 	"\fcredit_cents\x18\x05 \x01(\x03R\vcreditCents\x12\x12\n" +
-	"\x04note\x18\x06 \x01(\tR\x04note\"\xa1\x01\n" +
+	"\x04note\x18\x06 \x01(\tR\x04note\"\xcc\x01\n" +
 	"\x18RecordTransactionRequest\x12)\n" +
 	"\x10transaction_date\x18\x01 \x01(\tR\x0ftransactionDate\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x128\n" +
-	"\aentries\x18\x03 \x03(\v2\x1e.yucai.transaction.v1.EntryDTOR\aentries\"'\n" +
+	"\aentries\x18\x03 \x03(\v2\x1e.yucai.transaction.v1.EntryDTOR\aentries\x12)\n" +
+	"\x10transaction_time\x18\x04 \x01(\tR\x0ftransactionTime\"'\n" +
 	"\x15GetTransactionRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\xa0\x01\n" +
 	"\x17ListTransactionsRequest\x120\n" +

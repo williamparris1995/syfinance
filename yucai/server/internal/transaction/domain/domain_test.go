@@ -54,7 +54,7 @@ func TestNewTransaction_Valid(t *testing.T) {
 		{AccountID: uuid.New(), DebitCents: 1000},
 		{AccountID: uuid.New(), CreditCents: 1000},
 	}
-	txn, err := NewTransaction(uuid.New(), time.Now(), "Test", entries)
+	txn, err := NewTransaction(uuid.New(), time.Now(), nil, "Test", entries)
 	if err != nil {
 		t.Fatalf("NewTransaction failed: %v", err)
 	}
@@ -70,7 +70,7 @@ func TestNewTransaction_SingleEntry(t *testing.T) {
 	entries := []TransactionEntry{
 		{AccountID: uuid.New(), DebitCents: 1000},
 	}
-	_, err := NewTransaction(uuid.New(), time.Now(), "Test", entries)
+	_, err := NewTransaction(uuid.New(), time.Now(), nil, "Test", entries)
 	if err == nil {
 		t.Error("single entry should fail")
 	}
@@ -81,7 +81,7 @@ func TestNewTransaction_Unbalanced(t *testing.T) {
 		{AccountID: uuid.New(), DebitCents: 1000},
 		{AccountID: uuid.New(), CreditCents: 500},
 	}
-	_, err := NewTransaction(uuid.New(), time.Now(), "Test", entries)
+	_, err := NewTransaction(uuid.New(), time.Now(), nil, "Test", entries)
 	if err == nil {
 		t.Error("unbalanced should fail")
 	}

@@ -32,6 +32,9 @@ message TransactionDTO {
   int64 version = 5;
   google.protobuf.Timestamp created_at = 6;
   google.protobuf.Timestamp updated_at = 7;
+  // Optional wall-clock time the transaction occurred (RFC3339, e.g.
+  // "2026-06-05T19:20:00Z"). Empty when unset (proto3 default).
+  string transaction_time = 8;
 }
 
 message EntryDTO {
@@ -47,6 +50,8 @@ message RecordTransactionRequest {
   string transaction_date = 1;
   string description = 2;
   repeated EntryDTO entries = 3;
+  // Optional wall-clock time the transaction occurred (RFC3339). Empty = unset.
+  string transaction_time = 4;
 }
 
 message GetTransactionRequest {

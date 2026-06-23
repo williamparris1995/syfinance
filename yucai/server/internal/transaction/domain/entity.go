@@ -12,6 +12,9 @@ type Transaction struct {
 	ID              uuid.UUID
 	TenantID        uuid.UUID
 	TransactionDate time.Time
+	// TransactionTime is the optional wall-clock time the transaction occurred
+	// (distinct from the calendar TransactionDate). Nil means unset.
+	TransactionTime *time.Time
 	Description     string
 	Entries         []TransactionEntry
 	Version         int64
@@ -32,7 +35,8 @@ type TransactionEntry struct {
 }
 
 // NewTransaction creates a validated Transaction with double-entry checking.
-func NewTransaction(tenantID uuid.UUID, date time.Time, description string, entries []TransactionEntry) (*Transaction, error) {
+// transactionTime is the optional wall-clock time; pass nil to leave it unset.
+func NewTransaction(tenantID uuid.UUID, date time.Time, transactionTime *time.Time, description string, entries []TransactionEntry) (*Transaction, error) {
 	if len(entries) < 2 {
 		return nil, fmt.Errorf("transaction must have at least 2 entries, got %d", len(entries))
 	}
@@ -53,6 +57,7 @@ func NewTransaction(tenantID uuid.UUID, date time.Time, description string, entr
 		ID:              txnID,
 		TenantID:        tenantID,
 		TransactionDate: date,
+		TransactionTime: transactionTime,
 		Description:     description,
 		Entries:         entries,
 		Version:         1,

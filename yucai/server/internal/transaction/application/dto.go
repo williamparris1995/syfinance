@@ -13,6 +13,9 @@ import (
 type RecordTransactionRequest struct {
 	TenantID        uuid.UUID
 	TransactionDate time.Time
+	// TransactionTime is the optional wall-clock time the transaction occurred.
+	// Nil means unset (no transaction_time stored).
+	TransactionTime *time.Time
 	Description     string
 	Entries         []EntryInput
 }
@@ -87,6 +90,8 @@ type TransactionDTO struct {
 	ID              uuid.UUID
 	TenantID        uuid.UUID
 	TransactionDate time.Time
+	// TransactionTime is the optional wall-clock time; nil means unset.
+	TransactionTime *time.Time
 	Description     string
 	Entries         []EntryDTO
 	Version         int64
@@ -186,6 +191,7 @@ func TransactionToDTO(tx *domain.Transaction) TransactionDTO {
 		ID:              tx.ID,
 		TenantID:        tx.TenantID,
 		TransactionDate: tx.TransactionDate,
+		TransactionTime: tx.TransactionTime,
 		Description:     tx.Description,
 		Entries:         entries,
 		Version:         tx.Version,
