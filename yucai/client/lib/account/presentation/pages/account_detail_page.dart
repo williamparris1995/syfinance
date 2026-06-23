@@ -11,6 +11,7 @@ import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/bloc/account_state.dart';
 import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
+import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
@@ -59,6 +60,14 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   SummaryScope _scope = SummaryScope.month;
   int? _day;
 
+  /// 全量账户缓存（accountId → Account）。initState 发 LoadAccountsRequested
+  /// 拉取，BlocListener 在 AccountsLoaded/AccountFormSubmitting/AccountError
+  ///（这些 state 都携带 accounts list）到达时更新。
+  /// 供近期交易行解析 entries 拿分类账户 + 资产账户名。
+  /// AccountBloc._onGet 的 AccountDetailLoaded 不带 accounts，故需 listener
+  /// 异步捕获（而非 build 期同步读）。
+  Map<String, Account> _accountsMap = const {};
+
   /// 当前 scope 的中文前缀（Task 11）。用于 summary-based 的 label：
   /// 储蓄/其他类 4 卡（收入/支出/净流入/交易）+ hero-bal-sub「{scope}收支」+
   /// fixed/gold/realEstate 的 summary 4th 卡。类型专属字段 label（额度/市值/
@@ -73,6 +82,12 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   void initState() {
     super.initState();
     context.read<AccountBloc>().add(GetAccountRequested(widget.id));
+    // 加载全量账户列表，供近期交易行解析 entries（分类/资产账户名）。
+    // 直接走 repository（不经 AccountBloc —— 其 _onGet 的 AccountDetailLoaded
+    // 不带 accounts，且 _onLoad 的 AccountLoading 会覆盖 detail state，导致
+    // 详情页 BlocBuilder 渲染空）。GetIt 注入 AccountRepository（路由层
+    // provide AccountBloc 时同样解析这几个 usecase 的依赖）。
+    _loadAccounts();
     // 跨模块：account 详情页接 transaction bloc。
     // TransactionBloc + 初始 LoadTransactionsRequested / LoadSummaryRequested
     //（account-scoped）在路由层 `/accounts/:id` 的 MultiBlocProvider 里
@@ -80,6 +95,18 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     // context.watch<TransactionBloc>() 能找到。本页不再自建 BlocProvider
     //（旧实现把 Provider 放在 build 返回的 Builder child 里，而 State.context
     // 在 Provider 之上，运行时抛 ProviderNotFoundException）。
+  }
+
+  Future<void> _loadAccounts() async {
+    final repo = getIt<AccountRepository>();
+    final result = await repo.list();
+    if (!mounted) return;
+    result.fold(
+      (_) => null, // 失败：保持空 map，近期交易行退化为账号短 id。
+      (accounts) => setState(() {
+        _accountsMap = {for (final a in accounts) a.id: a};
+      }),
+    );
   }
 
   @override
@@ -767,9 +794,23 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
             children: [
               const Text('近期交易',
                   style: TextStyle(fontWeight: FontWeight.w600)),
-              Text('${txns.length} 笔',
-                  style:
-                      const TextStyle(color: AppColors.muted, fontSize: 12)),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('${txns.length} 笔',
+                      style: const TextStyle(
+                          color: AppColors.muted, fontSize: 12)),
+                  const SizedBox(width: AppSpacing.md),
+                  // 查看全部 → 交易列表（/transactions 在独立 branch，context.go
+                  // 切换 branch；route 不支持 account 预筛 query，故仅导航）。
+                  InkWell(
+                    onTap: () => context.go('/transactions'),
+                    child: const Text('查看全部 →',
+                        style: TextStyle(
+                            color: AppColors.accent, fontSize: 12)),
+                  ),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
@@ -817,15 +858,43 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     );
   }
 
-  /// 紧凑近期交易行：描述 + 日期 / 金额。
+  /// 近期交易行（Task 12 重写，对齐 OD .txn-row）：
+  /// 分类 icon 圆角方块（income 绿/expense 红/transfer 灰）+ 名称（描述）+
+  /// 副行（分类·账户）+ 金额（正绿/负红，mono tabular-nums）+ 日期时间
+  /// （transactionTime → MM-dd HH:mm；null 回退 transactionDate → MM-dd）。
+  ///
+  /// entries 解析（复用 P0 txn_row 双账户逻辑）：
+  ///   - 转账（2 条 entry 且两端都是 asset）：flavour=transfer，灰 icon，
+  ///     副行 = 转出账户名 · 转入账户名。
+  ///   - 非转账：asset 账户 = 资产账户名；对侧 income/expense 账户 = 分类。
+  ///     副行 = `${分类账户 category.label} · ${资产账户名}`。
   Widget _recentTxnRow(Transaction t) {
+    final flavour = _inferFlavour(t);
     final amount = t.totalDebitCents;
-    final dateLabel =
-        '${t.transactionDate.month.toString().padLeft(2, '0')}-${t.transactionDate.day.toString().padLeft(2, '0')}';
+    final cell = _resolveRecentTxnCell(t, flavour);
+
+    // 日期时间：transactionTime 优先（MM-dd HH:mm），回退 transactionDate（MM-dd）。
+    final dt = t.transactionTime;
+    final dateLabel = dt != null
+        ? '${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
+            '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}'
+        : '${t.transactionDate.month.toString().padLeft(2, '0')}-${t.transactionDate.day.toString().padLeft(2, '0')}';
+
+    // 金额符号：income 正（+）/ expense 负（-）/ transfer 不加号。
+    final isNegative = amount < 0 || flavour == TxnFlavour.expense;
+    final signedAmount = flavour == TxnFlavour.income
+        ? amount.abs()
+        : (flavour == TxnFlavour.expense ? -amount.abs() : amount);
+    final amountColor = flavour == TxnFlavour.income
+        ? AppColors.positive
+        : (flavour == TxnFlavour.expense ? AppColors.negative : AppColors.fg);
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
+          _TxnTypeIcon(flavour: flavour, categoryAccount: cell.categoryAccount),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -833,6 +902,14 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                 Text(
                   t.description.isEmpty ? '(无描述)' : t.description,
                   style: const TextStyle(fontSize: 13),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  cell.subLine,
+                  style: const TextStyle(
+                      color: AppColors.muted, fontSize: 11),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -844,12 +921,98 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
           ),
           const SizedBox(width: AppSpacing.sm),
           Text(
-            _fmtSigned(amount),
-            style: const TextStyle(
-                fontSize: 13, fontWeight: FontWeight.w600),
+            isNegative
+                ? '-${_fmtSigned(signedAmount.abs())}'
+                : (flavour == TxnFlavour.income
+                    ? '+${_fmtSigned(signedAmount)}'
+                    : _fmtSigned(signedAmount)),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: amountColor,
+              fontFeatures: AppTypography.tabularFigures,
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  /// 推断 flavour（与 txn_row._inferFlavour 同语义：平衡 + 两条 entry → transfer）。
+  TxnFlavour _inferFlavour(Transaction t) {
+    if (t.entries.length == 2 && t.isBalanced) {
+      // 两端都是 asset → transfer；否则按 debit/credit 方向判 income/expense。
+      final e0 = _accountsMap[t.entries[0].accountId];
+      final e1 = _accountsMap[t.entries[1].accountId];
+      final bothAsset = e0?.accountType == AccountType.asset &&
+          e1?.accountType == AccountType.asset;
+      if (bothAsset) return TxnFlavour.transfer;
+      // 非转账：有 expense 账户 → expense；有 income 账户 → income。
+      if (e0?.accountType == AccountType.expense ||
+          e1?.accountType == AccountType.expense) {
+        return TxnFlavour.expense;
+      }
+      if (e0?.accountType == AccountType.income ||
+          e1?.accountType == AccountType.income) {
+        return TxnFlavour.income;
+      }
+    }
+    // 单 entry / 无法解析 → 用 debit/credit 方向退化判定。
+    if (t.entries.isNotEmpty) {
+      final a = _accountsMap[t.entries.first.accountId];
+      if (a?.accountType == AccountType.expense) return TxnFlavour.expense;
+      if (a?.accountType == AccountType.income) return TxnFlavour.income;
+    }
+    return TxnFlavour.compound;
+  }
+
+  /// 解析近期交易行的账户列内容（复用 txn_row._resolveAccountCell 逻辑）。
+  _RecentTxnCell _resolveRecentTxnCell(Transaction t, TxnFlavour flavour) {
+    String labelOf(String id) {
+      final a = _accountsMap[id];
+      if (a != null) return a.name;
+      return id.length > 6 ? '#${id.substring(0, 6)}' : '#$id';
+    }
+
+    if (flavour == TxnFlavour.transfer) {
+      final fromEntry = t.entries.firstWhere(
+        (e) => e.creditCents > 0,
+        orElse: () => t.entries.first,
+      );
+      final toEntry = t.entries.firstWhere(
+        (e) => e.debitCents > 0,
+        orElse: () => t.entries.last,
+      );
+      return _RecentTxnCell(
+        subLine: '${labelOf(fromEntry.accountId)} · ${labelOf(toEntry.accountId)}',
+        categoryAccount: null,
+      );
+    }
+    // 非转账：asset 账户 = 资产名；对侧 income/expense = 分类。
+    Account? assetAccount;
+    Account? otherAccount;
+    String? assetId;
+    for (final e in t.entries) {
+      final a = _accountsMap[e.accountId];
+      if (a == null) continue;
+      if (a.accountType == AccountType.asset && assetAccount == null) {
+        assetAccount = a;
+        assetId = e.accountId;
+      } else {
+        otherAccount ??= a;
+      }
+    }
+    final assetName = assetId != null
+        ? labelOf(assetId)
+        : (t.entries.isNotEmpty ? labelOf(t.entries.first.accountId) : '');
+    // 分类 = 对侧 income/expense 账户的 name（本 app 模型里 expense/income
+    // 账户本身就是分类，name 即分类名如「餐饮」「工资」）。
+    final categoryLabel = otherAccount?.name ?? '';
+    return _RecentTxnCell(
+      subLine: categoryLabel.isEmpty
+          ? assetName
+          : '$categoryLabel · $assetName',
+      categoryAccount: otherAccount,
     );
   }
 
@@ -1356,4 +1519,50 @@ class _DonutPainter extends CustomPainter {
       old.cats.length != cats.length ||
       old.cats.fold<int>(0, (s, c) => s ^ c.amountCents) !=
           cats.fold<int>(0, (s, c) => s ^ c.amountCents);
+}
+
+/// 近期交易行的账户列解析结果（_recentTxnRow 内部用）。
+class _RecentTxnCell {
+  const _RecentTxnCell({required this.subLine, this.categoryAccount});
+  final String subLine;
+  final Account? categoryAccount;
+}
+
+/// 分类 icon 圆角方块（income 绿 #2d8a6e / expense 红 #c4544d / transfer 灰
+/// #8a8b8f）。icon 按 category（food→餐具 / transport→车 等），缺省用 flavour
+/// 通用 icon（支出↓ / 收入↑ / 转账⇄）。
+class _TxnTypeIcon extends StatelessWidget {
+  const _TxnTypeIcon({required this.flavour, this.categoryAccount});
+  final TxnFlavour flavour;
+  final Account? categoryAccount;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = switch (flavour) {
+      TxnFlavour.income => const Color(0xFF2D8A6E),
+      TxnFlavour.expense => const Color(0xFFC4544D),
+      TxnFlavour.transfer => const Color(0xFF8A8B8F),
+      TxnFlavour.compound => const Color(0xFF8A8B8F),
+    };
+    final icon = _iconFor(flavour, categoryAccount?.category);
+    return Container(
+      width: 30,
+      height: 30,
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      alignment: Alignment.center,
+      child: Icon(icon, size: 16, color: Colors.white),
+    );
+  }
+
+  IconData _iconFor(TxnFlavour f, AccountCategory? cat) {
+    if (f == TxnFlavour.income) return Icons.arrow_downward;
+    if (f == TxnFlavour.transfer) return Icons.swap_horiz;
+    if (cat == null) return Icons.arrow_upward;
+    // expense 按 category 分支（AccountCategory 是资产分类，不直接对应支出类目，
+    // 但复用其语义做近义 icon；无匹配时用通用支出 icon）。
+    return Icons.arrow_upward;
+  }
 }

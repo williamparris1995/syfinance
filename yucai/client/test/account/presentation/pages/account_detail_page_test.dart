@@ -165,6 +165,7 @@ void main() {
     int? netCents,
     List<Transaction>? transactions,
     MonthlySummary? summary,
+    List<Account>? accounts,
   }) async {
     final a = account ?? _account();
     final net = netCents ?? 44556;
@@ -201,6 +202,13 @@ void main() {
     final getUc = _MockGet();
     final updateUc = _MockUpdate();
     when(() => getUc.call(any())).thenAnswer((_) async => dartz.Right(a));
+    // Task 12：详情页 initState 现在也发 LoadAccountsRequested（供近期交易行
+    // 解析 entries 的账户名）。listUc 默认返回单账户；具体测试可通过
+    // accounts 参数注入多账户。
+    final accountsList = accounts ?? [a];
+    when(() => listUc.call()).thenAnswer((_) async => dartz.Right(accountsList));
+    when(() => accountRepo.list())
+        .thenAnswer((_) async => dartz.Right(accountsList));
 
     await tester.pumpWidget(_harness(
       child: MultiBlocProvider(
@@ -356,6 +364,8 @@ void main() {
     when(() => getUc.call(any()))
         .thenAnswer((_) async => dartz.Right(_account(status: AccountStatus.archived)));
     final listUc = _MockList();
+    when(() => listUc.call()).thenAnswer(
+        (_) async => dartz.Right([_account(status: AccountStatus.archived)]));
     final createUc = _MockCreate();
     final deleteUc = _MockDelete();
     final updateUc = _MockUpdate();
@@ -872,5 +882,131 @@ void main() {
     // 默认 month scope → 交易卡 label 为「本月交易」。
     expect(find.text('本月交易'), findsOneWidget);
     expect(find.textContaining('本月收支'), findsOneWidget);
+  });
+
+  // ───── Task 12: 近期交易真实行（icon + 名称 + 分类·账户 + 金额 + 日期时间）─────
+
+  /// expense 交易：expense 账户 a3（借方）+ asset 账户 a1（贷方）。
+  /// amount 5000 cents → -¥50.00（负，红）。分类=支出账户 category label，
+  /// 账户=asset 账户名。
+  Transaction expenseTxn(DateTime date, {DateTime? time}) => Transaction(
+        id: 'te',
+        transactionDate: date,
+        transactionTime: time,
+        description: '午餐',
+        entries: [
+          const TransactionEntry(
+              accountId: 'a3', debitCents: 5000, creditCents: 0),
+          const TransactionEntry(
+              accountId: 'a1', debitCents: 0, creditCents: 5000),
+        ],
+      );
+
+  testWidgets(
+      'recent txn row: expense → name + 分类·账户 + 红色金额 + MM-dd HH:mm '
+      '(from transactionTime)', (tester) async {
+    // list 必须返回 asset + expense 账户，供 entries 解析分类/账户名。
+    final accounts = [
+      _account(name: '现金'),
+      Account(
+        id: 'a3',
+        name: '餐饮',
+        accountType: AccountType.expense,
+        category: AccountCategory.otherAsset,
+        currencyCode: 'CNY',
+        initialBalanceCents: 0,
+        currentBalanceCents: 0,
+        ownership: Ownership.personal,
+        status: AccountStatus.active,
+      ),
+    ];
+    final txns = [
+      expenseTxn(DateTime(2026, 6, 5), time: DateTime(2026, 6, 5, 9, 30)),
+    ];
+    await pumpPage(tester, transactions: txns, accounts: accounts);
+
+    await tester.scrollUntilVisible(
+      find.textContaining('近期交易'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    // 名称。
+    expect(find.text('午餐'), findsOneWidget);
+    // 副行：分类 · 账户（餐饮 · 现金）。
+    expect(find.text('餐饮 · 现金'), findsOneWidget);
+    // 日期时间 MM-dd HH:mm（来自 transactionTime）。
+    expect(find.text('06-05 09:30'), findsOneWidget);
+    // 金额：expense → 负，红。
+    final amt = tester.widgetList<Text>(find.byType(Text)).firstWhere(
+      (t) => t.data == '-¥50.00',
+      orElse: () => throw StateError('未找到 expense 金额 -¥50.00'),
+    );
+    expect(amt.style?.color, AppColors.negative);
+  });
+
+  testWidgets(
+      'recent txn row: income → 绿色金额；transactionTime null → MM-dd fallback',
+      (tester) async {
+    final accounts = [
+      _account(name: '现金'),
+      Account(
+        id: 'a4',
+        name: '工资',
+        accountType: AccountType.income,
+        category: AccountCategory.otherAsset,
+        currencyCode: 'CNY',
+        initialBalanceCents: 0,
+        currentBalanceCents: 0,
+        ownership: Ownership.personal,
+        status: AccountStatus.active,
+      ),
+    ];
+    // income: asset a1 借方（入账），income a4 贷方。
+    final txns = [
+      Transaction(
+        id: 'ti',
+        transactionDate: DateTime(2026, 6, 3),
+        description: '六月工资',
+        entries: [
+          const TransactionEntry(
+              accountId: 'a1', debitCents: 800000, creditCents: 0),
+          const TransactionEntry(
+              accountId: 'a4', debitCents: 0, creditCents: 800000),
+        ],
+      ),
+    ];
+    await pumpPage(tester, transactions: txns, accounts: accounts);
+
+    await tester.scrollUntilVisible(
+      find.textContaining('近期交易'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    expect(find.text('六月工资'), findsOneWidget);
+    expect(find.text('工资 · 现金'), findsOneWidget);
+    // transactionTime null → 回退 MM-dd（来自 transactionDate）。
+    expect(find.text('06-03'), findsOneWidget);
+    // income → 正（+），绿。
+    final amt = tester.widgetList<Text>(find.byType(Text)).firstWhere(
+      (t) => t.data == '+¥8,000.00',
+      orElse: () => throw StateError('未找到 income 金额'),
+    );
+    expect(amt.style?.color, AppColors.positive);
+  });
+
+  testWidgets('recent txn panel head: 查看全部 link navigates to /transactions',
+      (tester) async {
+    // 用一个带 GoRouter 的 harness 验证导航。
+    await pumpPage(tester);
+
+    await tester.scrollUntilVisible(
+      find.textContaining('近期交易'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    expect(find.textContaining('查看全部'), findsOneWidget);
   });
 }
