@@ -42,6 +42,26 @@ func (tu *TransactionUpdate) SetNillableTransactionDate(t *time.Time) *Transacti
 	return tu
 }
 
+// SetTransactionTime sets the "transaction_time" field.
+func (tu *TransactionUpdate) SetTransactionTime(t time.Time) *TransactionUpdate {
+	tu.mutation.SetTransactionTime(t)
+	return tu
+}
+
+// SetNillableTransactionTime sets the "transaction_time" field if the given value is not nil.
+func (tu *TransactionUpdate) SetNillableTransactionTime(t *time.Time) *TransactionUpdate {
+	if t != nil {
+		tu.SetTransactionTime(*t)
+	}
+	return tu
+}
+
+// ClearTransactionTime clears the value of the "transaction_time" field.
+func (tu *TransactionUpdate) ClearTransactionTime() *TransactionUpdate {
+	tu.mutation.ClearTransactionTime()
+	return tu
+}
+
 // SetDescription sets the "description" field.
 func (tu *TransactionUpdate) SetDescription(s string) *TransactionUpdate {
 	tu.mutation.SetDescription(s)
@@ -156,6 +176,12 @@ func (tu *TransactionUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if value, ok := tu.mutation.TransactionDate(); ok {
 		_spec.SetField(transaction.FieldTransactionDate, field.TypeTime, value)
 	}
+	if value, ok := tu.mutation.TransactionTime(); ok {
+		_spec.SetField(transaction.FieldTransactionTime, field.TypeTime, value)
+	}
+	if tu.mutation.TransactionTimeCleared() {
+		_spec.ClearField(transaction.FieldTransactionTime, field.TypeTime)
+	}
 	if value, ok := tu.mutation.Description(); ok {
 		_spec.SetField(transaction.FieldDescription, field.TypeString, value)
 	}
@@ -205,6 +231,26 @@ func (tuo *TransactionUpdateOne) SetNillableTransactionDate(t *time.Time) *Trans
 	if t != nil {
 		tuo.SetTransactionDate(*t)
 	}
+	return tuo
+}
+
+// SetTransactionTime sets the "transaction_time" field.
+func (tuo *TransactionUpdateOne) SetTransactionTime(t time.Time) *TransactionUpdateOne {
+	tuo.mutation.SetTransactionTime(t)
+	return tuo
+}
+
+// SetNillableTransactionTime sets the "transaction_time" field if the given value is not nil.
+func (tuo *TransactionUpdateOne) SetNillableTransactionTime(t *time.Time) *TransactionUpdateOne {
+	if t != nil {
+		tuo.SetTransactionTime(*t)
+	}
+	return tuo
+}
+
+// ClearTransactionTime clears the value of the "transaction_time" field.
+func (tuo *TransactionUpdateOne) ClearTransactionTime() *TransactionUpdateOne {
+	tuo.mutation.ClearTransactionTime()
 	return tuo
 }
 
@@ -351,6 +397,12 @@ func (tuo *TransactionUpdateOne) sqlSave(ctx context.Context) (_node *Transactio
 	}
 	if value, ok := tuo.mutation.TransactionDate(); ok {
 		_spec.SetField(transaction.FieldTransactionDate, field.TypeTime, value)
+	}
+	if value, ok := tuo.mutation.TransactionTime(); ok {
+		_spec.SetField(transaction.FieldTransactionTime, field.TypeTime, value)
+	}
+	if tuo.mutation.TransactionTimeCleared() {
+		_spec.ClearField(transaction.FieldTransactionTime, field.TypeTime)
 	}
 	if value, ok := tuo.mutation.Description(); ok {
 		_spec.SetField(transaction.FieldDescription, field.TypeString, value)

@@ -22,6 +22,8 @@ type Transaction struct {
 	TenantID uuid.UUID `json:"tenant_id,omitempty"`
 	// The date of the transaction
 	TransactionDate time.Time `json:"transaction_date,omitempty"`
+	// The wall-clock time of the transaction (HH:MM granularity for display); NULL falls back to transaction_date
+	TransactionTime *time.Time `json:"transaction_time,omitempty"`
 	// Description holds the value of the "description" field.
 	Description string `json:"description,omitempty"`
 	// Version holds the value of the "version" field.
@@ -44,7 +46,7 @@ func (*Transaction) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case transaction.FieldDescription:
 			values[i] = new(sql.NullString)
-		case transaction.FieldTransactionDate, transaction.FieldDeletedAt, transaction.FieldCreatedAt, transaction.FieldUpdatedAt:
+		case transaction.FieldTransactionDate, transaction.FieldTransactionTime, transaction.FieldDeletedAt, transaction.FieldCreatedAt, transaction.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		case transaction.FieldID, transaction.FieldTenantID:
 			values[i] = new(uuid.UUID)
@@ -80,6 +82,13 @@ func (t *Transaction) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field transaction_date", values[i])
 			} else if value.Valid {
 				t.TransactionDate = value.Time
+			}
+		case transaction.FieldTransactionTime:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field transaction_time", values[i])
+			} else if value.Valid {
+				t.TransactionTime = new(time.Time)
+				*t.TransactionTime = value.Time
 			}
 		case transaction.FieldDescription:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -153,6 +162,11 @@ func (t *Transaction) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("transaction_date=")
 	builder.WriteString(t.TransactionDate.Format(time.ANSIC))
+	builder.WriteString(", ")
+	if v := t.TransactionTime; v != nil {
+		builder.WriteString("transaction_time=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("description=")
 	builder.WriteString(t.Description)

@@ -65,6 +65,11 @@ func TransactionDate(v time.Time) predicate.Transaction {
 	return predicate.Transaction(sql.FieldEQ(FieldTransactionDate, v))
 }
 
+// TransactionTime applies equality check predicate on the "transaction_time" field. It's identical to TransactionTimeEQ.
+func TransactionTime(v time.Time) predicate.Transaction {
+	return predicate.Transaction(sql.FieldEQ(FieldTransactionTime, v))
+}
+
 // Description applies equality check predicate on the "description" field. It's identical to DescriptionEQ.
 func Description(v string) predicate.Transaction {
 	return predicate.Transaction(sql.FieldEQ(FieldDescription, v))
@@ -168,6 +173,56 @@ func TransactionDateLT(v time.Time) predicate.Transaction {
 // TransactionDateLTE applies the LTE predicate on the "transaction_date" field.
 func TransactionDateLTE(v time.Time) predicate.Transaction {
 	return predicate.Transaction(sql.FieldLTE(FieldTransactionDate, v))
+}
+
+// TransactionTimeEQ applies the EQ predicate on the "transaction_time" field.
+func TransactionTimeEQ(v time.Time) predicate.Transaction {
+	return predicate.Transaction(sql.FieldEQ(FieldTransactionTime, v))
+}
+
+// TransactionTimeNEQ applies the NEQ predicate on the "transaction_time" field.
+func TransactionTimeNEQ(v time.Time) predicate.Transaction {
+	return predicate.Transaction(sql.FieldNEQ(FieldTransactionTime, v))
+}
+
+// TransactionTimeIn applies the In predicate on the "transaction_time" field.
+func TransactionTimeIn(vs ...time.Time) predicate.Transaction {
+	return predicate.Transaction(sql.FieldIn(FieldTransactionTime, vs...))
+}
+
+// TransactionTimeNotIn applies the NotIn predicate on the "transaction_time" field.
+func TransactionTimeNotIn(vs ...time.Time) predicate.Transaction {
+	return predicate.Transaction(sql.FieldNotIn(FieldTransactionTime, vs...))
+}
+
+// TransactionTimeGT applies the GT predicate on the "transaction_time" field.
+func TransactionTimeGT(v time.Time) predicate.Transaction {
+	return predicate.Transaction(sql.FieldGT(FieldTransactionTime, v))
+}
+
+// TransactionTimeGTE applies the GTE predicate on the "transaction_time" field.
+func TransactionTimeGTE(v time.Time) predicate.Transaction {
+	return predicate.Transaction(sql.FieldGTE(FieldTransactionTime, v))
+}
+
+// TransactionTimeLT applies the LT predicate on the "transaction_time" field.
+func TransactionTimeLT(v time.Time) predicate.Transaction {
+	return predicate.Transaction(sql.FieldLT(FieldTransactionTime, v))
+}
+
+// TransactionTimeLTE applies the LTE predicate on the "transaction_time" field.
+func TransactionTimeLTE(v time.Time) predicate.Transaction {
+	return predicate.Transaction(sql.FieldLTE(FieldTransactionTime, v))
+}
+
+// TransactionTimeIsNil applies the IsNil predicate on the "transaction_time" field.
+func TransactionTimeIsNil() predicate.Transaction {
+	return predicate.Transaction(sql.FieldIsNull(FieldTransactionTime))
+}
+
+// TransactionTimeNotNil applies the NotNil predicate on the "transaction_time" field.
+func TransactionTimeNotNil() predicate.Transaction {
+	return predicate.Transaction(sql.FieldNotNull(FieldTransactionTime))
 }
 
 // DescriptionEQ applies the EQ predicate on the "description" field.

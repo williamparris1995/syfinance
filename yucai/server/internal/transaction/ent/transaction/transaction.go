@@ -18,6 +18,8 @@ const (
 	FieldTenantID = "tenant_id"
 	// FieldTransactionDate holds the string denoting the transaction_date field in the database.
 	FieldTransactionDate = "transaction_date"
+	// FieldTransactionTime holds the string denoting the transaction_time field in the database.
+	FieldTransactionTime = "transaction_time"
 	// FieldDescription holds the string denoting the description field in the database.
 	FieldDescription = "description"
 	// FieldVersion holds the string denoting the version field in the database.
@@ -37,6 +39,7 @@ var Columns = []string{
 	FieldID,
 	FieldTenantID,
 	FieldTransactionDate,
+	FieldTransactionTime,
 	FieldDescription,
 	FieldVersion,
 	FieldDeletedAt,
@@ -55,6 +58,8 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultTransactionTime holds the default value on creation for the "transaction_time" field.
+	DefaultTransactionTime func() time.Time
 	// DefaultDescription holds the default value on creation for the "description" field.
 	DefaultDescription string
 	// DefaultVersion holds the default value on creation for the "version" field.
@@ -85,6 +90,11 @@ func ByTenantID(opts ...sql.OrderTermOption) OrderOption {
 // ByTransactionDate orders the results by the transaction_date field.
 func ByTransactionDate(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTransactionDate, opts...).ToFunc()
+}
+
+// ByTransactionTime orders the results by the transaction_time field.
+func ByTransactionTime(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTransactionTime, opts...).ToFunc()
 }
 
 // ByDescription orders the results by the description field.

@@ -38,6 +38,7 @@ type TransactionMutation struct {
 	id               *uuid.UUID
 	tenant_id        *uuid.UUID
 	transaction_date *time.Time
+	transaction_time *time.Time
 	description      *string
 	version          *int64
 	addversion       *int64
@@ -224,6 +225,55 @@ func (m *TransactionMutation) OldTransactionDate(ctx context.Context) (v time.Ti
 // ResetTransactionDate resets all changes to the "transaction_date" field.
 func (m *TransactionMutation) ResetTransactionDate() {
 	m.transaction_date = nil
+}
+
+// SetTransactionTime sets the "transaction_time" field.
+func (m *TransactionMutation) SetTransactionTime(t time.Time) {
+	m.transaction_time = &t
+}
+
+// TransactionTime returns the value of the "transaction_time" field in the mutation.
+func (m *TransactionMutation) TransactionTime() (r time.Time, exists bool) {
+	v := m.transaction_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTransactionTime returns the old "transaction_time" field's value of the Transaction entity.
+// If the Transaction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionMutation) OldTransactionTime(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTransactionTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTransactionTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTransactionTime: %w", err)
+	}
+	return oldValue.TransactionTime, nil
+}
+
+// ClearTransactionTime clears the value of the "transaction_time" field.
+func (m *TransactionMutation) ClearTransactionTime() {
+	m.transaction_time = nil
+	m.clearedFields[transaction.FieldTransactionTime] = struct{}{}
+}
+
+// TransactionTimeCleared returns if the "transaction_time" field was cleared in this mutation.
+func (m *TransactionMutation) TransactionTimeCleared() bool {
+	_, ok := m.clearedFields[transaction.FieldTransactionTime]
+	return ok
+}
+
+// ResetTransactionTime resets all changes to the "transaction_time" field.
+func (m *TransactionMutation) ResetTransactionTime() {
+	m.transaction_time = nil
+	delete(m.clearedFields, transaction.FieldTransactionTime)
 }
 
 // SetDescription sets the "description" field.
@@ -473,12 +523,15 @@ func (m *TransactionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TransactionMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 8)
 	if m.tenant_id != nil {
 		fields = append(fields, transaction.FieldTenantID)
 	}
 	if m.transaction_date != nil {
 		fields = append(fields, transaction.FieldTransactionDate)
+	}
+	if m.transaction_time != nil {
+		fields = append(fields, transaction.FieldTransactionTime)
 	}
 	if m.description != nil {
 		fields = append(fields, transaction.FieldDescription)
@@ -507,6 +560,8 @@ func (m *TransactionMutation) Field(name string) (ent.Value, bool) {
 		return m.TenantID()
 	case transaction.FieldTransactionDate:
 		return m.TransactionDate()
+	case transaction.FieldTransactionTime:
+		return m.TransactionTime()
 	case transaction.FieldDescription:
 		return m.Description()
 	case transaction.FieldVersion:
@@ -530,6 +585,8 @@ func (m *TransactionMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldTenantID(ctx)
 	case transaction.FieldTransactionDate:
 		return m.OldTransactionDate(ctx)
+	case transaction.FieldTransactionTime:
+		return m.OldTransactionTime(ctx)
 	case transaction.FieldDescription:
 		return m.OldDescription(ctx)
 	case transaction.FieldVersion:
@@ -562,6 +619,13 @@ func (m *TransactionMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTransactionDate(v)
+		return nil
+	case transaction.FieldTransactionTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTransactionTime(v)
 		return nil
 	case transaction.FieldDescription:
 		v, ok := value.(string)
@@ -643,6 +707,9 @@ func (m *TransactionMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *TransactionMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(transaction.FieldTransactionTime) {
+		fields = append(fields, transaction.FieldTransactionTime)
+	}
 	if m.FieldCleared(transaction.FieldDeletedAt) {
 		fields = append(fields, transaction.FieldDeletedAt)
 	}
@@ -660,6 +727,9 @@ func (m *TransactionMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *TransactionMutation) ClearField(name string) error {
 	switch name {
+	case transaction.FieldTransactionTime:
+		m.ClearTransactionTime()
+		return nil
 	case transaction.FieldDeletedAt:
 		m.ClearDeletedAt()
 		return nil
@@ -676,6 +746,9 @@ func (m *TransactionMutation) ResetField(name string) error {
 		return nil
 	case transaction.FieldTransactionDate:
 		m.ResetTransactionDate()
+		return nil
+	case transaction.FieldTransactionTime:
+		m.ResetTransactionTime()
 		return nil
 	case transaction.FieldDescription:
 		m.ResetDescription()

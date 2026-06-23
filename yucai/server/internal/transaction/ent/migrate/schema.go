@@ -14,6 +14,7 @@ var (
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "tenant_id", Type: field.TypeUUID, Comment: "FK to tenants table — data isolation boundary"},
 		{Name: "transaction_date", Type: field.TypeTime, Comment: "The date of the transaction"},
+		{Name: "transaction_time", Type: field.TypeTime, Nullable: true, Comment: "The wall-clock time of the transaction (HH:MM granularity for display); NULL falls back to transaction_date"},
 		{Name: "description", Type: field.TypeString, Default: ""},
 		{Name: "version", Type: field.TypeInt64, Default: 1},
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},

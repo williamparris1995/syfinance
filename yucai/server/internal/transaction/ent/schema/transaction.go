@@ -34,6 +34,11 @@ func (Transaction) Fields() []ent.Field {
 			Default(uuid.New),
 		field.Time("transaction_date").
 			Comment("The date of the transaction"),
+		field.Time("transaction_time").
+			Optional().
+			Nillable().
+			Default(time.Now).
+			Comment("The wall-clock time of the transaction (HH:MM granularity for display); NULL falls back to transaction_date"),
 		field.String("description").
 			Default(""),
 		field.Int64("version").

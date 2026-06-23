@@ -33,6 +33,20 @@ func (tc *TransactionCreate) SetTransactionDate(t time.Time) *TransactionCreate 
 	return tc
 }
 
+// SetTransactionTime sets the "transaction_time" field.
+func (tc *TransactionCreate) SetTransactionTime(t time.Time) *TransactionCreate {
+	tc.mutation.SetTransactionTime(t)
+	return tc
+}
+
+// SetNillableTransactionTime sets the "transaction_time" field if the given value is not nil.
+func (tc *TransactionCreate) SetNillableTransactionTime(t *time.Time) *TransactionCreate {
+	if t != nil {
+		tc.SetTransactionTime(*t)
+	}
+	return tc
+}
+
 // SetDescription sets the "description" field.
 func (tc *TransactionCreate) SetDescription(s string) *TransactionCreate {
 	tc.mutation.SetDescription(s)
@@ -152,6 +166,10 @@ func (tc *TransactionCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (tc *TransactionCreate) defaults() {
+	if _, ok := tc.mutation.TransactionTime(); !ok {
+		v := transaction.DefaultTransactionTime()
+		tc.mutation.SetTransactionTime(v)
+	}
 	if _, ok := tc.mutation.Description(); !ok {
 		v := transaction.DefaultDescription
 		tc.mutation.SetDescription(v)
@@ -236,6 +254,10 @@ func (tc *TransactionCreate) createSpec() (*Transaction, *sqlgraph.CreateSpec) {
 	if value, ok := tc.mutation.TransactionDate(); ok {
 		_spec.SetField(transaction.FieldTransactionDate, field.TypeTime, value)
 		_node.TransactionDate = value
+	}
+	if value, ok := tc.mutation.TransactionTime(); ok {
+		_spec.SetField(transaction.FieldTransactionTime, field.TypeTime, value)
+		_node.TransactionTime = &value
 	}
 	if value, ok := tc.mutation.Description(); ok {
 		_spec.SetField(transaction.FieldDescription, field.TypeString, value)

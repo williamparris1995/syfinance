@@ -17,20 +17,24 @@ import (
 func init() {
 	transactionFields := schema.Transaction{}.Fields()
 	_ = transactionFields
+	// transactionDescTransactionTime is the schema descriptor for transaction_time field.
+	transactionDescTransactionTime := transactionFields[2].Descriptor()
+	// transaction.DefaultTransactionTime holds the default value on creation for the transaction_time field.
+	transaction.DefaultTransactionTime = transactionDescTransactionTime.Default.(func() time.Time)
 	// transactionDescDescription is the schema descriptor for description field.
-	transactionDescDescription := transactionFields[2].Descriptor()
+	transactionDescDescription := transactionFields[3].Descriptor()
 	// transaction.DefaultDescription holds the default value on creation for the description field.
 	transaction.DefaultDescription = transactionDescDescription.Default.(string)
 	// transactionDescVersion is the schema descriptor for version field.
-	transactionDescVersion := transactionFields[3].Descriptor()
+	transactionDescVersion := transactionFields[4].Descriptor()
 	// transaction.DefaultVersion holds the default value on creation for the version field.
 	transaction.DefaultVersion = transactionDescVersion.Default.(int64)
 	// transactionDescCreatedAt is the schema descriptor for created_at field.
-	transactionDescCreatedAt := transactionFields[5].Descriptor()
+	transactionDescCreatedAt := transactionFields[6].Descriptor()
 	// transaction.DefaultCreatedAt holds the default value on creation for the created_at field.
 	transaction.DefaultCreatedAt = transactionDescCreatedAt.Default.(func() time.Time)
 	// transactionDescUpdatedAt is the schema descriptor for updated_at field.
-	transactionDescUpdatedAt := transactionFields[6].Descriptor()
+	transactionDescUpdatedAt := transactionFields[7].Descriptor()
 	// transaction.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	transaction.DefaultUpdatedAt = transactionDescUpdatedAt.Default.(func() time.Time)
 	// transaction.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
