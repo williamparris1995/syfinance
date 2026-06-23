@@ -59,6 +59,16 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   SummaryScope _scope = SummaryScope.month;
   int? _day;
 
+  /// 当前 scope 的中文前缀（Task 11）。用于 summary-based 的 label：
+  /// 储蓄/其他类 4 卡（收入/支出/净流入/交易）+ hero-bal-sub「{scope}收支」+
+  /// fixed/gold/realEstate 的 summary 4th 卡。类型专属字段 label（额度/市值/
+  /// 本金…）不由此前缀修饰 —— 它们不是 summary 派生。
+  String get _scopeLabel => switch (_scope) {
+        SummaryScope.day => '本日',
+        SummaryScope.month => '本月',
+        SummaryScope.year => '本年',
+      };
+
   @override
   void initState() {
     super.initState();
@@ -453,9 +463,10 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                // hero-bal-sub 本月收支（正绿 #6FCF9A 负红 #E57373）。
+                // hero-bal-sub {scope}收支（正绿 #6FCF9A 负红 #E57373）。
+                // Task 11：前缀跟随 _scope（本日/本月/本年）。
                 Text(
-                  '本月收支 ${netPositive ? '+' : '-'}¥'
+                  '$_scopeLabel收支 ${netPositive ? '+' : '-'}¥'
                   '${(netCents.abs() ~/ 100).toString()}.'
                   '${(netCents.abs() % 100).toString().padLeft(2, '0')}',
                   style: TextStyle(
@@ -684,7 +695,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
               ? '-'
               : _fmtDate(a.fixedMaturityDate!)),
           ('年化利率', '${(a.interestRate ?? 0).toStringAsFixed(2)}%'),
-          ('本月收支', _fmtSigned(summary?.netCents ?? 0)),
+          ('$_scopeLabel收支', _fmtSigned(summary?.netCents ?? 0)),
         ];
       case AccountCategory.goldFx:
         final cur = a.goldCurrentPriceCents ?? 0;
@@ -694,7 +705,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
           ('现值', _fmtSigned((cur * (a.goldQuantity ?? 0)).toInt())),
           ('买入价', _fmtSigned(buy)),
           ('涨幅', '${pct.toStringAsFixed(2)}%'),
-          ('本月收支', _fmtSigned(summary?.netCents ?? 0)),
+          ('$_scopeLabel收支', _fmtSigned(summary?.netCents ?? 0)),
         ];
       case AccountCategory.realEstate:
         final cur = a.estateCurrentValueCents ?? 0;
@@ -704,16 +715,16 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
           ('现估值', _fmtSigned(cur)),
           ('买入价', _fmtSigned(buy)),
           ('增值率', '${pct.toStringAsFixed(2)}%'),
-          ('本月收支', _fmtSigned(summary?.netCents ?? 0)),
+          ('$_scopeLabel收支', _fmtSigned(summary?.netCents ?? 0)),
         ];
       case AccountCategory.savings:
       case AccountCategory.otherAsset:
       case AccountCategory.otherLiability:
         return [
-          ('本月收入', _fmtSigned(summary?.incomeCents ?? 0)),
-          ('本月支出', _fmtSigned(summary?.expenseCents ?? 0)),
-          ('本月净流入', _fmtSigned(summary?.netCents ?? 0)),
-          ('交易数', '${txns.length}'),
+          ('$_scopeLabel收入', _fmtSigned(summary?.incomeCents ?? 0)),
+          ('$_scopeLabel支出', _fmtSigned(summary?.expenseCents ?? 0)),
+          ('$_scopeLabel净流入', _fmtSigned(summary?.netCents ?? 0)),
+          ('$_scopeLabel交易', '${txns.length}'),
         ];
     }
   }

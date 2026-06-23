@@ -585,14 +585,15 @@ void main() {
     expect(find.text('10.0%'), findsOneWidget);
   });
 
-  testWidgets('savings stats: 本月收入/本月支出/本月净流入/交易数（默认）',
+  testWidgets('savings stats: 本月收入/本月支出/本月净流入/本月交易（默认 month）',
       (tester) async {
     await pumpPage(tester);
 
     expect(find.text('本月收入'), findsOneWidget);
     expect(find.text('本月支出'), findsOneWidget);
     expect(find.text('本月净流入'), findsOneWidget);
-    expect(find.text('交易数'), findsOneWidget);
+    // Task 11：交易卡 label 也跟随 scope（默认 month → 本月交易）。
+    expect(find.text('本月交易'), findsOneWidget);
   });
 
   // ───── Task 6: 详情近期交易页码分页（5/页）─────
@@ -800,5 +801,76 @@ void main() {
             accountId: any(named: 'accountId'),
             scope: SummaryScope.month,
             day: any(named: 'day')));
+  });
+
+  // ───── Task 11: stat 4 卡 + hero 文案按 scope 动态（本日/本月/本年）─────
+
+  testWidgets(
+      'scope=year → savings stats show 本年收入/本年支出/本年净流入/本年交易 '
+      '+ hero sub 本年收支', (tester) async {
+    await pumpPage(tester);
+
+    // 滚到收支统计 panel 让 segmented control 可见。
+    await tester.scrollUntilVisible(
+      find.textContaining('收支统计'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('年'));
+    await tester.pumpAndSettle();
+
+    // 储蓄 4 卡 label 按 scope=year。
+    expect(find.text('本年收入'), findsOneWidget);
+    expect(find.text('本年支出'), findsOneWidget);
+    expect(find.text('本年净流入'), findsOneWidget);
+    expect(find.text('本年交易'), findsOneWidget);
+    // hero-bal-sub 副信息也按 scope=year。滚回顶部让 hero 重新构建可见。
+    await tester.scrollUntilVisible(
+      find.textContaining('可用余额'),
+      -200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.textContaining('本年收支'), findsOneWidget);
+    // 旧的「本月」前缀应消失（stat + hero sub 全部跟随 scope）。
+    expect(find.text('本月收入'), findsNothing);
+    expect(find.text('本月支出'), findsNothing);
+    expect(find.text('本月净流入'), findsNothing);
+  });
+
+  testWidgets(
+      'scope=day → savings stats show 本日收入/本日支出/本日净流入/本日交易 '
+      '+ hero sub 本日收支', (tester) async {
+    await pumpPage(tester);
+
+    await tester.scrollUntilVisible(
+      find.textContaining('收支统计'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('日'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('本日收入'), findsOneWidget);
+    expect(find.text('本日支出'), findsOneWidget);
+    expect(find.text('本日净流入'), findsOneWidget);
+    expect(find.text('本日交易'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.textContaining('可用余额'),
+      -200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.textContaining('本日收支'), findsOneWidget);
+  });
+
+  testWidgets('scope=month (default) → savings stats show 本月... (unchanged)',
+      (tester) async {
+    await pumpPage(tester);
+
+    expect(find.text('本月收入'), findsOneWidget);
+    expect(find.text('本月支出'), findsOneWidget);
+    expect(find.text('本月净流入'), findsOneWidget);
+    // 默认 month scope → 交易卡 label 为「本月交易」。
+    expect(find.text('本月交易'), findsOneWidget);
+    expect(find.textContaining('本月收支'), findsOneWidget);
   });
 }
