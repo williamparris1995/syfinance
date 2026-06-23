@@ -54,6 +54,7 @@ const TransactionDTO$json = {
       '6': '.google.protobuf.Timestamp',
       '10': 'updatedAt'
     },
+    {'1': 'transaction_time', '3': 8, '4': 1, '5': 9, '10': 'transactionTime'},
   ],
 };
 
@@ -64,7 +65,8 @@ final $typed_data.Uint8List transactionDTODescriptor = $convert.base64Decode(
     'CgdlbnRyaWVzGAQgAygLMh4ueXVjYWkudHJhbnNhY3Rpb24udjEuRW50cnlEVE9SB2VudHJpZX'
     'MSGAoHdmVyc2lvbhgFIAEoA1IHdmVyc2lvbhI5CgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xl'
     'LnByb3RvYnVmLlRpbWVzdGFtcFIJY3JlYXRlZEF0EjkKCnVwZGF0ZWRfYXQYByABKAsyGi5nb2'
-    '9nbGUucHJvdG9idWYuVGltZXN0YW1wUgl1cGRhdGVkQXQ=');
+    '9nbGUucHJvdG9idWYuVGltZXN0YW1wUgl1cGRhdGVkQXQSKQoQdHJhbnNhY3Rpb25fdGltZRgI'
+    'IAEoCVIPdHJhbnNhY3Rpb25UaW1l');
 
 @$core.Deprecated('Use entryDTODescriptor instead')
 const EntryDTO$json = {
@@ -106,6 +108,7 @@ const RecordTransactionRequest$json = {
       '6': '.yucai.transaction.v1.EntryDTO',
       '10': 'entries'
     },
+    {'1': 'transaction_time', '3': 4, '4': 1, '5': 9, '10': 'transactionTime'},
   ],
 };
 
@@ -113,7 +116,8 @@ const RecordTransactionRequest$json = {
 final $typed_data.Uint8List recordTransactionRequestDescriptor = $convert.base64Decode(
     'ChhSZWNvcmRUcmFuc2FjdGlvblJlcXVlc3QSKQoQdHJhbnNhY3Rpb25fZGF0ZRgBIAEoCVIPdH'
     'JhbnNhY3Rpb25EYXRlEiAKC2Rlc2NyaXB0aW9uGAIgASgJUgtkZXNjcmlwdGlvbhI4CgdlbnRy'
-    'aWVzGAMgAygLMh4ueXVjYWkudHJhbnNhY3Rpb24udjEuRW50cnlEVE9SB2VudHJpZXM=');
+    'aWVzGAMgAygLMh4ueXVjYWkudHJhbnNhY3Rpb24udjEuRW50cnlEVE9SB2VudHJpZXMSKQoQdH'
+    'JhbnNhY3Rpb25fdGltZRgEIAEoCVIPdHJhbnNhY3Rpb25UaW1l');
 
 @$core.Deprecated('Use getTransactionRequestDescriptor instead')
 const GetTransactionRequest$json = {
@@ -228,6 +232,7 @@ const SimpleIncomeRequest$json = {
     {'1': 'income_account_id', '3': 4, '4': 1, '5': 9, '10': 'incomeAccountId'},
     {'1': 'amount_cents', '3': 5, '4': 1, '5': 3, '10': 'amountCents'},
     {'1': 'note', '3': 6, '4': 1, '5': 9, '10': 'note'},
+    {'1': 'transaction_time', '3': 7, '4': 1, '5': 9, '10': 'transactionTime'},
   ],
 };
 
@@ -237,7 +242,8 @@ final $typed_data.Uint8List simpleIncomeRequestDescriptor = $convert.base64Decod
     'N0aW9uRGF0ZRIgCgtkZXNjcmlwdGlvbhgCIAEoCVILZGVzY3JpcHRpb24SKAoQYXNzZXRfYWNj'
     'b3VudF9pZBgDIAEoCVIOYXNzZXRBY2NvdW50SWQSKgoRaW5jb21lX2FjY291bnRfaWQYBCABKA'
     'lSD2luY29tZUFjY291bnRJZBIhCgxhbW91bnRfY2VudHMYBSABKANSC2Ftb3VudENlbnRzEhIK'
-    'BG5vdGUYBiABKAlSBG5vdGU=');
+    'BG5vdGUYBiABKAlSBG5vdGUSKQoQdHJhbnNhY3Rpb25fdGltZRgHIAEoCVIPdHJhbnNhY3Rpb2'
+    '5UaW1l');
 
 @$core.Deprecated('Use simpleExpenseRequestDescriptor instead')
 const SimpleExpenseRequest$json = {
@@ -255,6 +261,7 @@ const SimpleExpenseRequest$json = {
     {'1': 'asset_account_id', '3': 4, '4': 1, '5': 9, '10': 'assetAccountId'},
     {'1': 'amount_cents', '3': 5, '4': 1, '5': 3, '10': 'amountCents'},
     {'1': 'note', '3': 6, '4': 1, '5': 9, '10': 'note'},
+    {'1': 'transaction_time', '3': 7, '4': 1, '5': 9, '10': 'transactionTime'},
   ],
 };
 
@@ -264,7 +271,8 @@ final $typed_data.Uint8List simpleExpenseRequestDescriptor = $convert.base64Deco
     'FjdGlvbkRhdGUSIAoLZGVzY3JpcHRpb24YAiABKAlSC2Rlc2NyaXB0aW9uEiwKEmV4cGVuc2Vf'
     'YWNjb3VudF9pZBgDIAEoCVIQZXhwZW5zZUFjY291bnRJZBIoChBhc3NldF9hY2NvdW50X2lkGA'
     'QgASgJUg5hc3NldEFjY291bnRJZBIhCgxhbW91bnRfY2VudHMYBSABKANSC2Ftb3VudENlbnRz'
-    'EhIKBG5vdGUYBiABKAlSBG5vdGU=');
+    'EhIKBG5vdGUYBiABKAlSBG5vdGUSKQoQdHJhbnNhY3Rpb25fdGltZRgHIAEoCVIPdHJhbnNhY3'
+    'Rpb25UaW1l');
 
 @$core.Deprecated('Use simpleTransferRequestDescriptor instead')
 const SimpleTransferRequest$json = {
@@ -276,6 +284,7 @@ const SimpleTransferRequest$json = {
     {'1': 'to_account_id', '3': 4, '4': 1, '5': 9, '10': 'toAccountId'},
     {'1': 'amount_cents', '3': 5, '4': 1, '5': 3, '10': 'amountCents'},
     {'1': 'note', '3': 6, '4': 1, '5': 9, '10': 'note'},
+    {'1': 'transaction_time', '3': 7, '4': 1, '5': 9, '10': 'transactionTime'},
   ],
 };
 
@@ -285,7 +294,7 @@ final $typed_data.Uint8List simpleTransferRequestDescriptor = $convert.base64Dec
     'NhY3Rpb25EYXRlEiAKC2Rlc2NyaXB0aW9uGAIgASgJUgtkZXNjcmlwdGlvbhImCg9mcm9tX2Fj'
     'Y291bnRfaWQYAyABKAlSDWZyb21BY2NvdW50SWQSIgoNdG9fYWNjb3VudF9pZBgEIAEoCVILdG'
     '9BY2NvdW50SWQSIQoMYW1vdW50X2NlbnRzGAUgASgDUgthbW91bnRDZW50cxISCgRub3RlGAYg'
-    'ASgJUgRub3Rl');
+    'ASgJUgRub3RlEikKEHRyYW5zYWN0aW9uX3RpbWUYByABKAlSD3RyYW5zYWN0aW9uVGltZQ==');
 
 @$core.Deprecated('Use transactionResponseDescriptor instead')
 const TransactionResponse$json = {
@@ -306,6 +315,109 @@ const TransactionResponse$json = {
 final $typed_data.Uint8List transactionResponseDescriptor = $convert.base64Decode(
     'ChNUcmFuc2FjdGlvblJlc3BvbnNlEkYKC3RyYW5zYWN0aW9uGAEgASgLMiQueXVjYWkudHJhbn'
     'NhY3Rpb24udjEuVHJhbnNhY3Rpb25EVE9SC3RyYW5zYWN0aW9u');
+
+@$core.Deprecated('Use transactionSummaryRequestDescriptor instead')
+const TransactionSummaryRequest$json = {
+  '1': 'TransactionSummaryRequest',
+  '2': [
+    {'1': 'year', '3': 1, '4': 1, '5': 5, '10': 'year'},
+    {'1': 'month', '3': 2, '4': 1, '5': 5, '10': 'month'},
+    {'1': 'account_id', '3': 3, '4': 1, '5': 9, '10': 'accountId'},
+  ],
+};
+
+/// Descriptor for `TransactionSummaryRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List transactionSummaryRequestDescriptor =
+    $convert.base64Decode(
+        'ChlUcmFuc2FjdGlvblN1bW1hcnlSZXF1ZXN0EhIKBHllYXIYASABKAVSBHllYXISFAoFbW9udG'
+        'gYAiABKAVSBW1vbnRoEh0KCmFjY291bnRfaWQYAyABKAlSCWFjY291bnRJZA==');
+
+@$core.Deprecated('Use transactionSummaryResponseDescriptor instead')
+const TransactionSummaryResponse$json = {
+  '1': 'TransactionSummaryResponse',
+  '2': [
+    {
+      '1': 'summary',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.yucai.transaction.v1.MonthlySummary',
+      '10': 'summary'
+    },
+  ],
+};
+
+/// Descriptor for `TransactionSummaryResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List transactionSummaryResponseDescriptor =
+    $convert.base64Decode(
+        'ChpUcmFuc2FjdGlvblN1bW1hcnlSZXNwb25zZRI+CgdzdW1tYXJ5GAEgASgLMiQueXVjYWkudH'
+        'JhbnNhY3Rpb24udjEuTW9udGhseVN1bW1hcnlSB3N1bW1hcnk=');
+
+@$core.Deprecated('Use monthlySummaryDescriptor instead')
+const MonthlySummary$json = {
+  '1': 'MonthlySummary',
+  '2': [
+    {'1': 'income_cents', '3': 1, '4': 1, '5': 3, '10': 'incomeCents'},
+    {'1': 'expense_cents', '3': 2, '4': 1, '5': 3, '10': 'expenseCents'},
+    {'1': 'net_cents', '3': 3, '4': 1, '5': 3, '10': 'netCents'},
+    {'1': 'daily_avg_cents', '3': 4, '4': 1, '5': 3, '10': 'dailyAvgCents'},
+    {
+      '1': 'by_day',
+      '3': 5,
+      '4': 3,
+      '5': 11,
+      '6': '.yucai.transaction.v1.DailyItem',
+      '10': 'byDay'
+    },
+  ],
+};
+
+/// Descriptor for `MonthlySummary`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List monthlySummaryDescriptor = $convert.base64Decode(
+    'Cg5Nb250aGx5U3VtbWFyeRIhCgxpbmNvbWVfY2VudHMYASABKANSC2luY29tZUNlbnRzEiMKDW'
+    'V4cGVuc2VfY2VudHMYAiABKANSDGV4cGVuc2VDZW50cxIbCgluZXRfY2VudHMYAyABKANSCG5l'
+    'dENlbnRzEiYKD2RhaWx5X2F2Z19jZW50cxgEIAEoA1INZGFpbHlBdmdDZW50cxI2CgZieV9kYX'
+    'kYBSADKAsyHy55dWNhaS50cmFuc2FjdGlvbi52MS5EYWlseUl0ZW1SBWJ5RGF5');
+
+@$core.Deprecated('Use dailyItemDescriptor instead')
+const DailyItem$json = {
+  '1': 'DailyItem',
+  '2': [
+    {'1': 'date', '3': 1, '4': 1, '5': 9, '10': 'date'},
+    {'1': 'total_income', '3': 2, '4': 1, '5': 3, '10': 'totalIncome'},
+    {
+      '1': 'by_category',
+      '3': 3,
+      '4': 3,
+      '5': 11,
+      '6': '.yucai.transaction.v1.CategoryItem',
+      '10': 'byCategory'
+    },
+  ],
+};
+
+/// Descriptor for `DailyItem`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List dailyItemDescriptor = $convert.base64Decode(
+    'CglEYWlseUl0ZW0SEgoEZGF0ZRgBIAEoCVIEZGF0ZRIhCgx0b3RhbF9pbmNvbWUYAiABKANSC3'
+    'RvdGFsSW5jb21lEkMKC2J5X2NhdGVnb3J5GAMgAygLMiIueXVjYWkudHJhbnNhY3Rpb24udjEu'
+    'Q2F0ZWdvcnlJdGVtUgpieUNhdGVnb3J5');
+
+@$core.Deprecated('Use categoryItemDescriptor instead')
+const CategoryItem$json = {
+  '1': 'CategoryItem',
+  '2': [
+    {'1': 'account_id', '3': 1, '4': 1, '5': 9, '10': 'accountId'},
+    {'1': 'name', '3': 2, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'account_type', '3': 3, '4': 1, '5': 9, '10': 'accountType'},
+    {'1': 'amount', '3': 4, '4': 1, '5': 3, '10': 'amount'},
+  ],
+};
+
+/// Descriptor for `CategoryItem`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List categoryItemDescriptor = $convert.base64Decode(
+    'CgxDYXRlZ29yeUl0ZW0SHQoKYWNjb3VudF9pZBgBIAEoCVIJYWNjb3VudElkEhIKBG5hbWUYAi'
+    'ABKAlSBG5hbWUSIQoMYWNjb3VudF90eXBlGAMgASgJUgthY2NvdW50VHlwZRIWCgZhbW91bnQY'
+    'BCABKANSBmFtb3VudA==');
 
 const $core.Map<$core.String, $core.dynamic> TransactionServiceBase$json = {
   '1': 'TransactionService',
@@ -350,6 +462,11 @@ const $core.Map<$core.String, $core.dynamic> TransactionServiceBase$json = {
       '2': '.yucai.transaction.v1.SimpleTransferRequest',
       '3': '.yucai.transaction.v1.TransactionResponse'
     },
+    {
+      '1': 'TransactionSummary',
+      '2': '.yucai.transaction.v1.TransactionSummaryRequest',
+      '3': '.yucai.transaction.v1.TransactionSummaryResponse'
+    },
   ],
 };
 
@@ -376,6 +493,13 @@ const $core.Map<$core.String, $core.Map<$core.String, $core.dynamic>>
   '.yucai.transaction.v1.SimpleIncomeRequest': SimpleIncomeRequest$json,
   '.yucai.transaction.v1.SimpleExpenseRequest': SimpleExpenseRequest$json,
   '.yucai.transaction.v1.SimpleTransferRequest': SimpleTransferRequest$json,
+  '.yucai.transaction.v1.TransactionSummaryRequest':
+      TransactionSummaryRequest$json,
+  '.yucai.transaction.v1.TransactionSummaryResponse':
+      TransactionSummaryResponse$json,
+  '.yucai.transaction.v1.MonthlySummary': MonthlySummary$json,
+  '.yucai.transaction.v1.DailyItem': DailyItem$json,
+  '.yucai.transaction.v1.CategoryItem': CategoryItem$json,
 };
 
 /// Descriptor for `TransactionService`. Decode as a `google.protobuf.ServiceDescriptorProto`.
@@ -395,4 +519,6 @@ final $typed_data.Uint8List transactionServiceDescriptor = $convert.base64Decode
     'bXBsZUV4cGVuc2USKi55dWNhaS50cmFuc2FjdGlvbi52MS5TaW1wbGVFeHBlbnNlUmVxdWVzdB'
     'opLnl1Y2FpLnRyYW5zYWN0aW9uLnYxLlRyYW5zYWN0aW9uUmVzcG9uc2USaAoOU2ltcGxlVHJh'
     'bnNmZXISKy55dWNhaS50cmFuc2FjdGlvbi52MS5TaW1wbGVUcmFuc2ZlclJlcXVlc3QaKS55dW'
-    'NhaS50cmFuc2FjdGlvbi52MS5UcmFuc2FjdGlvblJlc3BvbnNl');
+    'NhaS50cmFuc2FjdGlvbi52MS5UcmFuc2FjdGlvblJlc3BvbnNlEncKElRyYW5zYWN0aW9uU3Vt'
+    'bWFyeRIvLnl1Y2FpLnRyYW5zYWN0aW9uLnYxLlRyYW5zYWN0aW9uU3VtbWFyeVJlcXVlc3QaMC'
+    '55dWNhaS50cmFuc2FjdGlvbi52MS5UcmFuc2FjdGlvblN1bW1hcnlSZXNwb25zZQ==');

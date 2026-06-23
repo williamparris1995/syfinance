@@ -57,6 +57,11 @@ class TransactionEntry extends Equatable {
 ///
 /// `transactionDate` is a proto `string` (`YYYY-MM-DD`); the domain holds it
 /// as [DateTime] for ergonomics. The mapper converts at the data boundary.
+///
+/// [transactionTime] is the optional wall-clock time of the transaction
+/// (proto `string` RFC3339, field 8). When absent the domain holds `null`;
+/// the UI falls back to [transactionDate]. This is distinct from
+/// [transactionDate] (the accounting date) and from [createdAt] (audit).
 class Transaction extends Equatable {
   const Transaction({
     required this.transactionDate,
@@ -64,6 +69,7 @@ class Transaction extends Equatable {
     this.id = '',
     this.description = '',
     this.version = 1,
+    this.transactionTime,
     this.createdAt,
     this.updatedAt,
   });
@@ -73,6 +79,9 @@ class Transaction extends Equatable {
   final String description;
   final List<TransactionEntry> entries;
   final int version;
+
+  /// Optional wall-clock time (RFC3339). `null` when the server omits it.
+  final DateTime? transactionTime;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -92,6 +101,7 @@ class Transaction extends Equatable {
     String? description,
     List<TransactionEntry>? entries,
     int? version,
+    DateTime? transactionTime,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -101,6 +111,7 @@ class Transaction extends Equatable {
       description: description ?? this.description,
       entries: entries ?? this.entries,
       version: version ?? this.version,
+      transactionTime: transactionTime ?? this.transactionTime,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -113,7 +124,16 @@ class Transaction extends Equatable {
         description,
         entries,
         version,
+        transactionTime,
         createdAt,
         updatedAt,
       ];
+
+  @override
+  String toString() {
+    return 'Transaction(id: $id, transactionDate: $transactionDate, '
+        'description: $description, entries: $entries, version: $version, '
+        'transactionTime: $transactionTime, createdAt: $createdAt, '
+        'updatedAt: $updatedAt)';
+  }
 }

@@ -402,6 +402,8 @@ const AccountDTO$json = {
       '6': '.google.protobuf.Timestamp',
       '10': 'loanNextPaymentDate'
     },
+    {'1': 'is_system', '3': 45, '4': 1, '5': 8, '10': 'isSystem'},
+    {'1': 'sort_order', '3': 46, '4': 1, '5': 5, '10': 'sortOrder'},
   ],
   '8': [
     {'1': '_card_number_tail'},
@@ -470,16 +472,17 @@ final $typed_data.Uint8List accountDTODescriptor = $convert.base64Decode(
     'ESNQoUbG9hbl9yZW1haW5pbmdfY2VudHMYKiABKANIE1ISbG9hblJlbWFpbmluZ0NlbnRziAEB'
     'EjEKEmxvYW5fbW9udGhseV9jZW50cxgrIAEoA0gUUhBsb2FuTW9udGhseUNlbnRziAEBEk8KFm'
     'xvYW5fbmV4dF9wYXltZW50X2RhdGUYLCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1w'
-    'UhNsb2FuTmV4dFBheW1lbnREYXRlQhMKEV9jYXJkX251bWJlcl90YWlsQggKBl9ub3Rlc0IQCg'
-    '5faW50ZXJlc3RfcmF0ZUIVChNfY3JlZGl0X2JpbGxpbmdfZGF5QhcKFV9jcmVkaXRfcmVwYXlt'
-    'ZW50X2RheUIaChhfY3JlZGl0X2FubnVhbF9mZWVfY2VudHNCFAoSX2ludmVzdF9jb3N0X2Nlbn'
-    'RzQhwKGl9pbnZlc3RfbWFya2V0X3ZhbHVlX2NlbnRzQhQKEl9pbnZlc3RfcmV0dXJuX3l0ZEIY'
-    'ChZfZml4ZWRfcHJpbmNpcGFsX2NlbnRzQhQKEl9maXhlZF90ZXJtX21vbnRoc0IUChJfZ29sZF'
-    '9wcm9kdWN0X3R5cGVCEAoOX2dvbGRfcXVhbnRpdHlCFwoVX2dvbGRfYnV5X3ByaWNlX2NlbnRz'
-    'QhsKGV9nb2xkX2N1cnJlbnRfcHJpY2VfY2VudHNCHgocX2VzdGF0ZV9wdXJjaGFzZV9wcmljZV'
-    '9jZW50c0IdChtfZXN0YXRlX2N1cnJlbnRfdmFsdWVfY2VudHNCGwoZX2VzdGF0ZV9kZXByZWNp'
-    'YXRpb25fcmF0ZUIWChRfbG9hbl9vcmlnaW5hbF9jZW50c0IXChVfbG9hbl9yZW1haW5pbmdfY2'
-    'VudHNCFQoTX2xvYW5fbW9udGhseV9jZW50cw==');
+    'UhNsb2FuTmV4dFBheW1lbnREYXRlEhsKCWlzX3N5c3RlbRgtIAEoCFIIaXNTeXN0ZW0SHQoKc2'
+    '9ydF9vcmRlchguIAEoBVIJc29ydE9yZGVyQhMKEV9jYXJkX251bWJlcl90YWlsQggKBl9ub3Rl'
+    'c0IQCg5faW50ZXJlc3RfcmF0ZUIVChNfY3JlZGl0X2JpbGxpbmdfZGF5QhcKFV9jcmVkaXRfcm'
+    'VwYXltZW50X2RheUIaChhfY3JlZGl0X2FubnVhbF9mZWVfY2VudHNCFAoSX2ludmVzdF9jb3N0'
+    'X2NlbnRzQhwKGl9pbnZlc3RfbWFya2V0X3ZhbHVlX2NlbnRzQhQKEl9pbnZlc3RfcmV0dXJuX3'
+    'l0ZEIYChZfZml4ZWRfcHJpbmNpcGFsX2NlbnRzQhQKEl9maXhlZF90ZXJtX21vbnRoc0IUChJf'
+    'Z29sZF9wcm9kdWN0X3R5cGVCEAoOX2dvbGRfcXVhbnRpdHlCFwoVX2dvbGRfYnV5X3ByaWNlX2'
+    'NlbnRzQhsKGV9nb2xkX2N1cnJlbnRfcHJpY2VfY2VudHNCHgocX2VzdGF0ZV9wdXJjaGFzZV9w'
+    'cmljZV9jZW50c0IdChtfZXN0YXRlX2N1cnJlbnRfdmFsdWVfY2VudHNCGwoZX2VzdGF0ZV9kZX'
+    'ByZWNpYXRpb25fcmF0ZUIWChRfbG9hbl9vcmlnaW5hbF9jZW50c0IXChVfbG9hbl9yZW1haW5p'
+    'bmdfY2VudHNCFQoTX2xvYW5fbW9udGhseV9jZW50cw==');
 
 @$core.Deprecated('Use createAccountRequestDescriptor instead')
 const CreateAccountRequest$json = {
@@ -1257,6 +1260,142 @@ final $typed_data.Uint8List accountResponseDescriptor = $convert.base64Decode(
     'Cg9BY2NvdW50UmVzcG9uc2USNgoHYWNjb3VudBgBIAEoCzIcLnl1Y2FpLmFjY291bnQudjEuQW'
     'Njb3VudERUT1IHYWNjb3VudA==');
 
+@$core.Deprecated('Use findByAccountTypeRequestDescriptor instead')
+const FindByAccountTypeRequest$json = {
+  '1': 'FindByAccountTypeRequest',
+  '2': [
+    {
+      '1': 'account_type',
+      '3': 1,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.account.v1.AccountType',
+      '10': 'accountType'
+    },
+  ],
+};
+
+/// Descriptor for `FindByAccountTypeRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List findByAccountTypeRequestDescriptor =
+    $convert.base64Decode(
+        'ChhGaW5kQnlBY2NvdW50VHlwZVJlcXVlc3QSQAoMYWNjb3VudF90eXBlGAEgASgOMh0ueXVjYW'
+        'kuYWNjb3VudC52MS5BY2NvdW50VHlwZVILYWNjb3VudFR5cGU=');
+
+@$core.Deprecated('Use findByAccountTypeResponseDescriptor instead')
+const FindByAccountTypeResponse$json = {
+  '1': 'FindByAccountTypeResponse',
+  '2': [
+    {
+      '1': 'accounts',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.yucai.account.v1.AccountDTO',
+      '10': 'accounts'
+    },
+  ],
+};
+
+/// Descriptor for `FindByAccountTypeResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List findByAccountTypeResponseDescriptor =
+    $convert.base64Decode(
+        'ChlGaW5kQnlBY2NvdW50VHlwZVJlc3BvbnNlEjgKCGFjY291bnRzGAEgAygLMhwueXVjYWkuYW'
+        'Njb3VudC52MS5BY2NvdW50RFRPUghhY2NvdW50cw==');
+
+@$core.Deprecated('Use createCategoryRequestDescriptor instead')
+const CreateCategoryRequest$json = {
+  '1': 'CreateCategoryRequest',
+  '2': [
+    {'1': 'name', '3': 1, '4': 1, '5': 9, '10': 'name'},
+    {
+      '1': 'account_type',
+      '3': 2,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.account.v1.AccountType',
+      '10': 'accountType'
+    },
+    {'1': 'icon', '3': 3, '4': 1, '5': 9, '10': 'icon'},
+    {'1': 'color', '3': 4, '4': 1, '5': 9, '10': 'color'},
+    {'1': 'parent_id', '3': 5, '4': 1, '5': 9, '10': 'parentId'},
+  ],
+};
+
+/// Descriptor for `CreateCategoryRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List createCategoryRequestDescriptor = $convert.base64Decode(
+    'ChVDcmVhdGVDYXRlZ29yeVJlcXVlc3QSEgoEbmFtZRgBIAEoCVIEbmFtZRJACgxhY2NvdW50X3'
+    'R5cGUYAiABKA4yHS55dWNhaS5hY2NvdW50LnYxLkFjY291bnRUeXBlUgthY2NvdW50VHlwZRIS'
+    'CgRpY29uGAMgASgJUgRpY29uEhQKBWNvbG9yGAQgASgJUgVjb2xvchIbCglwYXJlbnRfaWQYBS'
+    'ABKAlSCHBhcmVudElk');
+
+@$core.Deprecated('Use updateCategoryRequestDescriptor instead')
+const UpdateCategoryRequest$json = {
+  '1': 'UpdateCategoryRequest',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 9, '10': 'id'},
+    {'1': 'name', '3': 2, '4': 1, '5': 9, '9': 0, '10': 'name', '17': true},
+    {'1': 'icon', '3': 3, '4': 1, '5': 9, '9': 1, '10': 'icon', '17': true},
+    {'1': 'color', '3': 4, '4': 1, '5': 9, '9': 2, '10': 'color', '17': true},
+    {
+      '1': 'parent_id',
+      '3': 5,
+      '4': 1,
+      '5': 9,
+      '9': 3,
+      '10': 'parentId',
+      '17': true
+    },
+    {'1': 'version', '3': 6, '4': 1, '5': 3, '10': 'version'},
+  ],
+  '8': [
+    {'1': '_name'},
+    {'1': '_icon'},
+    {'1': '_color'},
+    {'1': '_parent_id'},
+  ],
+};
+
+/// Descriptor for `UpdateCategoryRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List updateCategoryRequestDescriptor = $convert.base64Decode(
+    'ChVVcGRhdGVDYXRlZ29yeVJlcXVlc3QSDgoCaWQYASABKAlSAmlkEhcKBG5hbWUYAiABKAlIAF'
+    'IEbmFtZYgBARIXCgRpY29uGAMgASgJSAFSBGljb26IAQESGQoFY29sb3IYBCABKAlIAlIFY29s'
+    'b3KIAQESIAoJcGFyZW50X2lkGAUgASgJSANSCHBhcmVudElkiAEBEhgKB3ZlcnNpb24YBiABKA'
+    'NSB3ZlcnNpb25CBwoFX25hbWVCBwoFX2ljb25CCAoGX2NvbG9yQgwKCl9wYXJlbnRfaWQ=');
+
+@$core.Deprecated('Use reorderCategoriesRequestDescriptor instead')
+const ReorderCategoriesRequest$json = {
+  '1': 'ReorderCategoriesRequest',
+  '2': [
+    {
+      '1': 'account_type',
+      '3': 1,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.account.v1.AccountType',
+      '10': 'accountType'
+    },
+    {'1': 'ordered_ids', '3': 2, '4': 3, '5': 9, '10': 'orderedIds'},
+  ],
+};
+
+/// Descriptor for `ReorderCategoriesRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reorderCategoriesRequestDescriptor = $convert.base64Decode(
+    'ChhSZW9yZGVyQ2F0ZWdvcmllc1JlcXVlc3QSQAoMYWNjb3VudF90eXBlGAEgASgOMh0ueXVjYW'
+    'kuYWNjb3VudC52MS5BY2NvdW50VHlwZVILYWNjb3VudFR5cGUSHwoLb3JkZXJlZF9pZHMYAiAD'
+    'KAlSCm9yZGVyZWRJZHM=');
+
+@$core.Deprecated('Use deleteCategoryRequestDescriptor instead')
+const DeleteCategoryRequest$json = {
+  '1': 'DeleteCategoryRequest',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 9, '10': 'id'},
+  ],
+};
+
+/// Descriptor for `DeleteCategoryRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List deleteCategoryRequestDescriptor = $convert
+    .base64Decode('ChVEZWxldGVDYXRlZ29yeVJlcXVlc3QSDgoCaWQYASABKAlSAmlk');
+
 const $core.Map<$core.String, $core.dynamic> AccountServiceBase$json = {
   '1': 'AccountService',
   '2': [
@@ -1285,6 +1424,31 @@ const $core.Map<$core.String, $core.dynamic> AccountServiceBase$json = {
       '2': '.yucai.account.v1.DeleteAccountRequest',
       '3': '.google.protobuf.Empty'
     },
+    {
+      '1': 'FindByAccountType',
+      '2': '.yucai.account.v1.FindByAccountTypeRequest',
+      '3': '.yucai.account.v1.FindByAccountTypeResponse'
+    },
+    {
+      '1': 'CreateCategory',
+      '2': '.yucai.account.v1.CreateCategoryRequest',
+      '3': '.yucai.account.v1.AccountResponse'
+    },
+    {
+      '1': 'UpdateCategory',
+      '2': '.yucai.account.v1.UpdateCategoryRequest',
+      '3': '.yucai.account.v1.AccountResponse'
+    },
+    {
+      '1': 'DeleteCategory',
+      '2': '.yucai.account.v1.DeleteCategoryRequest',
+      '3': '.google.protobuf.Empty'
+    },
+    {
+      '1': 'ReorderCategories',
+      '2': '.yucai.account.v1.ReorderCategoriesRequest',
+      '3': '.google.protobuf.Empty'
+    },
   ],
 };
 
@@ -1303,6 +1467,12 @@ const $core.Map<$core.String, $core.Map<$core.String, $core.dynamic>>
   '.yucai.account.v1.UpdateAccountRequest': UpdateAccountRequest$json,
   '.yucai.account.v1.DeleteAccountRequest': DeleteAccountRequest$json,
   '.google.protobuf.Empty': $2.Empty$json,
+  '.yucai.account.v1.FindByAccountTypeRequest': FindByAccountTypeRequest$json,
+  '.yucai.account.v1.FindByAccountTypeResponse': FindByAccountTypeResponse$json,
+  '.yucai.account.v1.CreateCategoryRequest': CreateCategoryRequest$json,
+  '.yucai.account.v1.UpdateCategoryRequest': UpdateCategoryRequest$json,
+  '.yucai.account.v1.DeleteCategoryRequest': DeleteCategoryRequest$json,
+  '.yucai.account.v1.ReorderCategoriesRequest': ReorderCategoriesRequest$json,
 };
 
 /// Descriptor for `AccountService`. Decode as a `google.protobuf.ServiceDescriptorProto`.
@@ -1315,4 +1485,12 @@ final $typed_data.Uint8List accountServiceDescriptor = $convert.base64Decode(
     'VudHNSZXNwb25zZRJaCg1VcGRhdGVBY2NvdW50EiYueXVjYWkuYWNjb3VudC52MS5VcGRhdGVB'
     'Y2NvdW50UmVxdWVzdBohLnl1Y2FpLmFjY291bnQudjEuQWNjb3VudFJlc3BvbnNlEk8KDURlbG'
     'V0ZUFjY291bnQSJi55dWNhaS5hY2NvdW50LnYxLkRlbGV0ZUFjY291bnRSZXF1ZXN0GhYuZ29v'
-    'Z2xlLnByb3RvYnVmLkVtcHR5');
+    'Z2xlLnByb3RvYnVmLkVtcHR5EmwKEUZpbmRCeUFjY291bnRUeXBlEioueXVjYWkuYWNjb3VudC'
+    '52MS5GaW5kQnlBY2NvdW50VHlwZVJlcXVlc3QaKy55dWNhaS5hY2NvdW50LnYxLkZpbmRCeUFj'
+    'Y291bnRUeXBlUmVzcG9uc2USXAoOQ3JlYXRlQ2F0ZWdvcnkSJy55dWNhaS5hY2NvdW50LnYxLk'
+    'NyZWF0ZUNhdGVnb3J5UmVxdWVzdBohLnl1Y2FpLmFjY291bnQudjEuQWNjb3VudFJlc3BvbnNl'
+    'ElwKDlVwZGF0ZUNhdGVnb3J5EicueXVjYWkuYWNjb3VudC52MS5VcGRhdGVDYXRlZ29yeVJlcX'
+    'Vlc3QaIS55dWNhaS5hY2NvdW50LnYxLkFjY291bnRSZXNwb25zZRJRCg5EZWxldGVDYXRlZ29y'
+    'eRInLnl1Y2FpLmFjY291bnQudjEuRGVsZXRlQ2F0ZWdvcnlSZXF1ZXN0GhYuZ29vZ2xlLnByb3'
+    'RvYnVmLkVtcHR5ElcKEVJlb3JkZXJDYXRlZ29yaWVzEioueXVjYWkuYWNjb3VudC52MS5SZW9y'
+    'ZGVyQ2F0ZWdvcmllc1JlcXVlc3QaFi5nb29nbGUucHJvdG9idWYuRW1wdHk=');

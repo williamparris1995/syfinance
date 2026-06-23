@@ -69,6 +69,46 @@ void main() {
     expect(t.version, 0); // default Int64 → 0
   });
 
+  group('transactionTime (Task 4)', () {
+    test('maps RFC3339 transactionTime to domain DateTime', () {
+      final dto = pb.TransactionDTO()
+        ..id = 't3'
+        ..transactionDate = '2026-06-19'
+        ..transactionTime = '2026-06-19T13:45:30Z';
+      final t = mapper.toDomain(dto);
+      expect(t.transactionTime, DateTime.utc(2026, 6, 19, 13, 45, 30));
+    });
+
+    test('missing transactionTime maps to null', () {
+      final dto = pb.TransactionDTO()
+        ..id = 't4'
+        ..transactionDate = '2026-06-19';
+      final t = mapper.toDomain(dto);
+      expect(t.transactionTime, isNull);
+    });
+
+    test('empty transactionTime string maps to null', () {
+      final dto = pb.TransactionDTO()
+        ..id = 't5'
+        ..transactionDate = '2026-06-19'
+        ..transactionTime = '';
+      final t = mapper.toDomain(dto);
+      expect(t.transactionTime, isNull);
+    });
+
+    test('preserves timezone offset in transactionTime', () {
+      final dto = pb.TransactionDTO()
+        ..id = 't6'
+        ..transactionDate = '2026-06-19'
+        ..transactionTime = '2026-06-19T21:30:00+08:00';
+      final t = mapper.toDomain(dto);
+      expect(t.transactionTime, DateTime.parse('2026-06-19T21:30:00+08:00'));
+      // Equivalent UTC instant.
+      expect(t.transactionTime!.toUtc(),
+          DateTime.utc(2026, 6, 19, 13, 30, 0));
+    });
+  });
+
   test('entryToProto round-trips a debit entry', () {
     final entry = TransactionEntry(
       id: 'e1',

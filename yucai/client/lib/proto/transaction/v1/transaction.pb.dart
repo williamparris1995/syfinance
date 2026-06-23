@@ -10,14 +10,16 @@
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
 // ignore_for_file: non_constant_identifier_names, prefer_relative_imports
 
+import 'dart:async' as $async;
 import 'dart:core' as $core;
 
 import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
+import 'package:protobuf/well_known_types/google/protobuf/empty.pb.dart' as $2;
 import 'package:protobuf/well_known_types/google/protobuf/timestamp.pb.dart'
-    as $2;
+    as $0;
 
-import '../../common/v1/pagination.pb.dart' as $3;
+import '../../common/v1/pagination.pb.dart' as $1;
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
 
@@ -28,8 +30,9 @@ class TransactionDTO extends $pb.GeneratedMessage {
     $core.String? description,
     $core.Iterable<EntryDTO>? entries,
     $fixnum.Int64? version,
-    $2.Timestamp? createdAt,
-    $2.Timestamp? updatedAt,
+    $0.Timestamp? createdAt,
+    $0.Timestamp? updatedAt,
+    $core.String? transactionTime,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -39,6 +42,7 @@ class TransactionDTO extends $pb.GeneratedMessage {
     if (version != null) result.version = version;
     if (createdAt != null) result.createdAt = createdAt;
     if (updatedAt != null) result.updatedAt = updatedAt;
+    if (transactionTime != null) result.transactionTime = transactionTime;
     return result;
   }
 
@@ -62,10 +66,11 @@ class TransactionDTO extends $pb.GeneratedMessage {
     ..pPM<EntryDTO>(4, _omitFieldNames ? '' : 'entries',
         subBuilder: EntryDTO.create)
     ..aInt64(5, _omitFieldNames ? '' : 'version')
-    ..aOM<$2.Timestamp>(6, _omitFieldNames ? '' : 'createdAt',
-        subBuilder: $2.Timestamp.create)
-    ..aOM<$2.Timestamp>(7, _omitFieldNames ? '' : 'updatedAt',
-        subBuilder: $2.Timestamp.create)
+    ..aOM<$0.Timestamp>(6, _omitFieldNames ? '' : 'createdAt',
+        subBuilder: $0.Timestamp.create)
+    ..aOM<$0.Timestamp>(7, _omitFieldNames ? '' : 'updatedAt',
+        subBuilder: $0.Timestamp.create)
+    ..aOS(8, _omitFieldNames ? '' : 'transactionTime')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -127,26 +132,37 @@ class TransactionDTO extends $pb.GeneratedMessage {
   void clearVersion() => $_clearField(5);
 
   @$pb.TagNumber(6)
-  $2.Timestamp get createdAt => $_getN(5);
+  $0.Timestamp get createdAt => $_getN(5);
   @$pb.TagNumber(6)
-  set createdAt($2.Timestamp value) => $_setField(6, value);
+  set createdAt($0.Timestamp value) => $_setField(6, value);
   @$pb.TagNumber(6)
   $core.bool hasCreatedAt() => $_has(5);
   @$pb.TagNumber(6)
   void clearCreatedAt() => $_clearField(6);
   @$pb.TagNumber(6)
-  $2.Timestamp ensureCreatedAt() => $_ensure(5);
+  $0.Timestamp ensureCreatedAt() => $_ensure(5);
 
   @$pb.TagNumber(7)
-  $2.Timestamp get updatedAt => $_getN(6);
+  $0.Timestamp get updatedAt => $_getN(6);
   @$pb.TagNumber(7)
-  set updatedAt($2.Timestamp value) => $_setField(7, value);
+  set updatedAt($0.Timestamp value) => $_setField(7, value);
   @$pb.TagNumber(7)
   $core.bool hasUpdatedAt() => $_has(6);
   @$pb.TagNumber(7)
   void clearUpdatedAt() => $_clearField(7);
   @$pb.TagNumber(7)
-  $2.Timestamp ensureUpdatedAt() => $_ensure(6);
+  $0.Timestamp ensureUpdatedAt() => $_ensure(6);
+
+  /// Optional wall-clock time the transaction occurred (RFC3339, e.g.
+  /// "2026-06-05T19:20:00Z"). Empty when unset (proto3 default).
+  @$pb.TagNumber(8)
+  $core.String get transactionTime => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set transactionTime($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasTransactionTime() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearTransactionTime() => $_clearField(8);
 }
 
 class EntryDTO extends $pb.GeneratedMessage {
@@ -269,11 +285,13 @@ class RecordTransactionRequest extends $pb.GeneratedMessage {
     $core.String? transactionDate,
     $core.String? description,
     $core.Iterable<EntryDTO>? entries,
+    $core.String? transactionTime,
   }) {
     final result = create();
     if (transactionDate != null) result.transactionDate = transactionDate;
     if (description != null) result.description = description;
     if (entries != null) result.entries.addAll(entries);
+    if (transactionTime != null) result.transactionTime = transactionTime;
     return result;
   }
 
@@ -295,6 +313,7 @@ class RecordTransactionRequest extends $pb.GeneratedMessage {
     ..aOS(2, _omitFieldNames ? '' : 'description')
     ..pPM<EntryDTO>(3, _omitFieldNames ? '' : 'entries',
         subBuilder: EntryDTO.create)
+    ..aOS(4, _omitFieldNames ? '' : 'transactionTime')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -337,6 +356,16 @@ class RecordTransactionRequest extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(3)
   $pb.PbList<EntryDTO> get entries => $_getList(2);
+
+  /// Optional wall-clock time the transaction occurred (RFC3339). Empty = unset.
+  @$pb.TagNumber(4)
+  $core.String get transactionTime => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set transactionTime($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasTransactionTime() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearTransactionTime() => $_clearField(4);
 }
 
 class GetTransactionRequest extends $pb.GeneratedMessage {
@@ -397,7 +426,7 @@ class GetTransactionRequest extends $pb.GeneratedMessage {
 
 class ListTransactionsRequest extends $pb.GeneratedMessage {
   factory ListTransactionsRequest({
-    $3.PageRequest? page,
+    $1.PageRequest? page,
     $core.String? accountId,
     $core.String? dateFrom,
     $core.String? dateTo,
@@ -424,8 +453,8 @@ class ListTransactionsRequest extends $pb.GeneratedMessage {
       package: const $pb.PackageName(
           _omitMessageNames ? '' : 'yucai.transaction.v1'),
       createEmptyInstance: create)
-    ..aOM<$3.PageRequest>(1, _omitFieldNames ? '' : 'page',
-        subBuilder: $3.PageRequest.create)
+    ..aOM<$1.PageRequest>(1, _omitFieldNames ? '' : 'page',
+        subBuilder: $1.PageRequest.create)
     ..aOS(2, _omitFieldNames ? '' : 'accountId')
     ..aOS(3, _omitFieldNames ? '' : 'dateFrom')
     ..aOS(4, _omitFieldNames ? '' : 'dateTo')
@@ -452,15 +481,15 @@ class ListTransactionsRequest extends $pb.GeneratedMessage {
   static ListTransactionsRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $3.PageRequest get page => $_getN(0);
+  $1.PageRequest get page => $_getN(0);
   @$pb.TagNumber(1)
-  set page($3.PageRequest value) => $_setField(1, value);
+  set page($1.PageRequest value) => $_setField(1, value);
   @$pb.TagNumber(1)
   $core.bool hasPage() => $_has(0);
   @$pb.TagNumber(1)
   void clearPage() => $_clearField(1);
   @$pb.TagNumber(1)
-  $3.PageRequest ensurePage() => $_ensure(0);
+  $1.PageRequest ensurePage() => $_ensure(0);
 
   @$pb.TagNumber(2)
   $core.String get accountId => $_getSZ(1);
@@ -493,7 +522,7 @@ class ListTransactionsRequest extends $pb.GeneratedMessage {
 class ListTransactionsResponse extends $pb.GeneratedMessage {
   factory ListTransactionsResponse({
     $core.Iterable<TransactionDTO>? transactions,
-    $3.PageResponse? page,
+    $1.PageResponse? page,
   }) {
     final result = create();
     if (transactions != null) result.transactions.addAll(transactions);
@@ -517,8 +546,8 @@ class ListTransactionsResponse extends $pb.GeneratedMessage {
       createEmptyInstance: create)
     ..pPM<TransactionDTO>(1, _omitFieldNames ? '' : 'transactions',
         subBuilder: TransactionDTO.create)
-    ..aOM<$3.PageResponse>(2, _omitFieldNames ? '' : 'page',
-        subBuilder: $3.PageResponse.create)
+    ..aOM<$1.PageResponse>(2, _omitFieldNames ? '' : 'page',
+        subBuilder: $1.PageResponse.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -545,15 +574,15 @@ class ListTransactionsResponse extends $pb.GeneratedMessage {
   $pb.PbList<TransactionDTO> get transactions => $_getList(0);
 
   @$pb.TagNumber(2)
-  $3.PageResponse get page => $_getN(1);
+  $1.PageResponse get page => $_getN(1);
   @$pb.TagNumber(2)
-  set page($3.PageResponse value) => $_setField(2, value);
+  set page($1.PageResponse value) => $_setField(2, value);
   @$pb.TagNumber(2)
   $core.bool hasPage() => $_has(1);
   @$pb.TagNumber(2)
   void clearPage() => $_clearField(2);
   @$pb.TagNumber(2)
-  $3.PageResponse ensurePage() => $_ensure(1);
+  $1.PageResponse ensurePage() => $_ensure(1);
 }
 
 class UpdateTransactionRequest extends $pb.GeneratedMessage {
@@ -720,6 +749,7 @@ class SimpleIncomeRequest extends $pb.GeneratedMessage {
     $core.String? incomeAccountId,
     $fixnum.Int64? amountCents,
     $core.String? note,
+    $core.String? transactionTime,
   }) {
     final result = create();
     if (transactionDate != null) result.transactionDate = transactionDate;
@@ -728,6 +758,7 @@ class SimpleIncomeRequest extends $pb.GeneratedMessage {
     if (incomeAccountId != null) result.incomeAccountId = incomeAccountId;
     if (amountCents != null) result.amountCents = amountCents;
     if (note != null) result.note = note;
+    if (transactionTime != null) result.transactionTime = transactionTime;
     return result;
   }
 
@@ -751,6 +782,7 @@ class SimpleIncomeRequest extends $pb.GeneratedMessage {
     ..aOS(4, _omitFieldNames ? '' : 'incomeAccountId')
     ..aInt64(5, _omitFieldNames ? '' : 'amountCents')
     ..aOS(6, _omitFieldNames ? '' : 'note')
+    ..aOS(7, _omitFieldNames ? '' : 'transactionTime')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -825,6 +857,16 @@ class SimpleIncomeRequest extends $pb.GeneratedMessage {
   $core.bool hasNote() => $_has(5);
   @$pb.TagNumber(6)
   void clearNote() => $_clearField(6);
+
+  /// Optional wall-clock time the transaction occurred (RFC3339). Empty = unset.
+  @$pb.TagNumber(7)
+  $core.String get transactionTime => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set transactionTime($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasTransactionTime() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearTransactionTime() => $_clearField(7);
 }
 
 class SimpleExpenseRequest extends $pb.GeneratedMessage {
@@ -835,6 +877,7 @@ class SimpleExpenseRequest extends $pb.GeneratedMessage {
     $core.String? assetAccountId,
     $fixnum.Int64? amountCents,
     $core.String? note,
+    $core.String? transactionTime,
   }) {
     final result = create();
     if (transactionDate != null) result.transactionDate = transactionDate;
@@ -843,6 +886,7 @@ class SimpleExpenseRequest extends $pb.GeneratedMessage {
     if (assetAccountId != null) result.assetAccountId = assetAccountId;
     if (amountCents != null) result.amountCents = amountCents;
     if (note != null) result.note = note;
+    if (transactionTime != null) result.transactionTime = transactionTime;
     return result;
   }
 
@@ -866,6 +910,7 @@ class SimpleExpenseRequest extends $pb.GeneratedMessage {
     ..aOS(4, _omitFieldNames ? '' : 'assetAccountId')
     ..aInt64(5, _omitFieldNames ? '' : 'amountCents')
     ..aOS(6, _omitFieldNames ? '' : 'note')
+    ..aOS(7, _omitFieldNames ? '' : 'transactionTime')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -940,6 +985,16 @@ class SimpleExpenseRequest extends $pb.GeneratedMessage {
   $core.bool hasNote() => $_has(5);
   @$pb.TagNumber(6)
   void clearNote() => $_clearField(6);
+
+  /// Optional wall-clock time the transaction occurred (RFC3339). Empty = unset.
+  @$pb.TagNumber(7)
+  $core.String get transactionTime => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set transactionTime($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasTransactionTime() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearTransactionTime() => $_clearField(7);
 }
 
 class SimpleTransferRequest extends $pb.GeneratedMessage {
@@ -950,6 +1005,7 @@ class SimpleTransferRequest extends $pb.GeneratedMessage {
     $core.String? toAccountId,
     $fixnum.Int64? amountCents,
     $core.String? note,
+    $core.String? transactionTime,
   }) {
     final result = create();
     if (transactionDate != null) result.transactionDate = transactionDate;
@@ -958,6 +1014,7 @@ class SimpleTransferRequest extends $pb.GeneratedMessage {
     if (toAccountId != null) result.toAccountId = toAccountId;
     if (amountCents != null) result.amountCents = amountCents;
     if (note != null) result.note = note;
+    if (transactionTime != null) result.transactionTime = transactionTime;
     return result;
   }
 
@@ -981,6 +1038,7 @@ class SimpleTransferRequest extends $pb.GeneratedMessage {
     ..aOS(4, _omitFieldNames ? '' : 'toAccountId')
     ..aInt64(5, _omitFieldNames ? '' : 'amountCents')
     ..aOS(6, _omitFieldNames ? '' : 'note')
+    ..aOS(7, _omitFieldNames ? '' : 'transactionTime')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1056,6 +1114,16 @@ class SimpleTransferRequest extends $pb.GeneratedMessage {
   $core.bool hasNote() => $_has(5);
   @$pb.TagNumber(6)
   void clearNote() => $_clearField(6);
+
+  /// Optional wall-clock time the transaction occurred (RFC3339). Empty = unset.
+  @$pb.TagNumber(7)
+  $core.String get transactionTime => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set transactionTime($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasTransactionTime() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearTransactionTime() => $_clearField(7);
 }
 
 class TransactionResponse extends $pb.GeneratedMessage {
@@ -1522,6 +1590,54 @@ class CategoryItem extends $pb.GeneratedMessage {
   $core.bool hasAmount() => $_has(3);
   @$pb.TagNumber(4)
   void clearAmount() => $_clearField(4);
+}
+
+/// TransactionService manages double-entry bookkeeping transactions.
+class TransactionServiceApi {
+  final $pb.RpcClient _client;
+
+  TransactionServiceApi(this._client);
+
+  $async.Future<TransactionResponse> recordTransaction(
+          $pb.ClientContext? ctx, RecordTransactionRequest request) =>
+      _client.invoke<TransactionResponse>(ctx, 'TransactionService',
+          'RecordTransaction', request, TransactionResponse());
+  $async.Future<TransactionResponse> getTransaction(
+          $pb.ClientContext? ctx, GetTransactionRequest request) =>
+      _client.invoke<TransactionResponse>(ctx, 'TransactionService',
+          'GetTransaction', request, TransactionResponse());
+  $async.Future<ListTransactionsResponse> listTransactions(
+          $pb.ClientContext? ctx, ListTransactionsRequest request) =>
+      _client.invoke<ListTransactionsResponse>(ctx, 'TransactionService',
+          'ListTransactions', request, ListTransactionsResponse());
+  $async.Future<TransactionResponse> updateTransaction(
+          $pb.ClientContext? ctx, UpdateTransactionRequest request) =>
+      _client.invoke<TransactionResponse>(ctx, 'TransactionService',
+          'UpdateTransaction', request, TransactionResponse());
+  $async.Future<$2.Empty> deleteTransaction(
+          $pb.ClientContext? ctx, DeleteTransactionRequest request) =>
+      _client.invoke<$2.Empty>(
+          ctx, 'TransactionService', 'DeleteTransaction', request, $2.Empty());
+  $async.Future<TransactionResponse> simpleIncome(
+          $pb.ClientContext? ctx, SimpleIncomeRequest request) =>
+      _client.invoke<TransactionResponse>(ctx, 'TransactionService',
+          'SimpleIncome', request, TransactionResponse());
+  $async.Future<TransactionResponse> simpleExpense(
+          $pb.ClientContext? ctx, SimpleExpenseRequest request) =>
+      _client.invoke<TransactionResponse>(ctx, 'TransactionService',
+          'SimpleExpense', request, TransactionResponse());
+  $async.Future<TransactionResponse> simpleTransfer(
+          $pb.ClientContext? ctx, SimpleTransferRequest request) =>
+      _client.invoke<TransactionResponse>(ctx, 'TransactionService',
+          'SimpleTransfer', request, TransactionResponse());
+
+  /// TransactionSummary returns a tenant's monthly income/expense summary,
+  /// optionally scoped to one account (account_detail view), broken down by
+  /// day and by Income/Expense account (category).
+  $async.Future<TransactionSummaryResponse> transactionSummary(
+          $pb.ClientContext? ctx, TransactionSummaryRequest request) =>
+      _client.invoke<TransactionSummaryResponse>(ctx, 'TransactionService',
+          'TransactionSummary', request, TransactionSummaryResponse());
 }
 
 const $core.bool _omitFieldNames =

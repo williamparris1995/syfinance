@@ -32,6 +32,16 @@ abstract class AccountServiceBase extends $pb.GeneratedService {
       $pb.ServerContext ctx, $3.UpdateAccountRequest request);
   $async.Future<$2.Empty> deleteAccount(
       $pb.ServerContext ctx, $3.DeleteAccountRequest request);
+  $async.Future<$3.FindByAccountTypeResponse> findByAccountType(
+      $pb.ServerContext ctx, $3.FindByAccountTypeRequest request);
+  $async.Future<$3.AccountResponse> createCategory(
+      $pb.ServerContext ctx, $3.CreateCategoryRequest request);
+  $async.Future<$3.AccountResponse> updateCategory(
+      $pb.ServerContext ctx, $3.UpdateCategoryRequest request);
+  $async.Future<$2.Empty> deleteCategory(
+      $pb.ServerContext ctx, $3.DeleteCategoryRequest request);
+  $async.Future<$2.Empty> reorderCategories(
+      $pb.ServerContext ctx, $3.ReorderCategoriesRequest request);
 
   $pb.GeneratedMessage createRequest($core.String methodName) {
     switch (methodName) {
@@ -45,6 +55,16 @@ abstract class AccountServiceBase extends $pb.GeneratedService {
         return $3.UpdateAccountRequest();
       case 'DeleteAccount':
         return $3.DeleteAccountRequest();
+      case 'FindByAccountType':
+        return $3.FindByAccountTypeRequest();
+      case 'CreateCategory':
+        return $3.CreateCategoryRequest();
+      case 'UpdateCategory':
+        return $3.UpdateCategoryRequest();
+      case 'DeleteCategory':
+        return $3.DeleteCategoryRequest();
+      case 'ReorderCategories':
+        return $3.ReorderCategoriesRequest();
       default:
         throw $core.ArgumentError('Unknown method: $methodName');
     }
@@ -63,6 +83,16 @@ abstract class AccountServiceBase extends $pb.GeneratedService {
         return updateAccount(ctx, request as $3.UpdateAccountRequest);
       case 'DeleteAccount':
         return deleteAccount(ctx, request as $3.DeleteAccountRequest);
+      case 'FindByAccountType':
+        return findByAccountType(ctx, request as $3.FindByAccountTypeRequest);
+      case 'CreateCategory':
+        return createCategory(ctx, request as $3.CreateCategoryRequest);
+      case 'UpdateCategory':
+        return updateCategory(ctx, request as $3.UpdateCategoryRequest);
+      case 'DeleteCategory':
+        return deleteCategory(ctx, request as $3.DeleteCategoryRequest);
+      case 'ReorderCategories':
+        return reorderCategories(ctx, request as $3.ReorderCategoriesRequest);
       default:
         throw $core.ArgumentError('Unknown method: $methodName');
     }

@@ -22,6 +22,7 @@ class TransactionMapper {
       description: dto.description,
       entries: dto.entries.map(_entryToDomain).toList(growable: false),
       version: dto.version.toInt(),
+      transactionTime: _parseTransactionTime(dto.transactionTime),
       createdAt: dto.hasCreatedAt() ? dto.createdAt.toDateTime() : null,
       updatedAt: dto.hasUpdatedAt() ? dto.updatedAt.toDateTime() : null,
     );
@@ -95,6 +96,15 @@ DateTime _parseDate(String s) {
   if (s.isEmpty) return DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
   final d = DateTime.tryParse(s);
   return d ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+}
+
+/// Parses `transactionTime` (proto `string`, RFC3339). Returns `null` when the
+/// server omits the field or sends an empty string, so the UI can fall back to
+/// `transactionDate`. An unparseable value also yields `null` rather than
+/// throwing — a single malformed row must not poison the list view.
+DateTime? _parseTransactionTime(String s) {
+  if (s.isEmpty) return null;
+  return DateTime.tryParse(s);
 }
 
 Int64 _i64(int v) => Int64(v);

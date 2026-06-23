@@ -38,6 +38,8 @@ abstract class TransactionServiceBase extends $pb.GeneratedService {
       $pb.ServerContext ctx, $3.SimpleExpenseRequest request);
   $async.Future<$3.TransactionResponse> simpleTransfer(
       $pb.ServerContext ctx, $3.SimpleTransferRequest request);
+  $async.Future<$3.TransactionSummaryResponse> transactionSummary(
+      $pb.ServerContext ctx, $3.TransactionSummaryRequest request);
 
   $pb.GeneratedMessage createRequest($core.String methodName) {
     switch (methodName) {
@@ -57,6 +59,8 @@ abstract class TransactionServiceBase extends $pb.GeneratedService {
         return $3.SimpleExpenseRequest();
       case 'SimpleTransfer':
         return $3.SimpleTransferRequest();
+      case 'TransactionSummary':
+        return $3.TransactionSummaryRequest();
       default:
         throw $core.ArgumentError('Unknown method: $methodName');
     }
@@ -81,6 +85,8 @@ abstract class TransactionServiceBase extends $pb.GeneratedService {
         return simpleExpense(ctx, request as $3.SimpleExpenseRequest);
       case 'SimpleTransfer':
         return simpleTransfer(ctx, request as $3.SimpleTransferRequest);
+      case 'TransactionSummary':
+        return transactionSummary(ctx, request as $3.TransactionSummaryRequest);
       default:
         throw $core.ArgumentError('Unknown method: $methodName');
     }
