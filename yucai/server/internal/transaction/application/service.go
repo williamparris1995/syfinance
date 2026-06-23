@@ -105,16 +105,27 @@ func (s *Service) ListRecentByAccount(ctx context.Context, tenantID, accountID u
 	return dtos, nil
 }
 
-// TransactionSummary returns the monthly income/expense summary for a tenant,
-// optionally scoped to a single account (the account_detail view). It delegates
-// aggregation to the repository and maps the domain MonthlySummary to a DTO.
+// TransactionSummary returns the income/expense summary for a tenant over a
+// period selected by scope (DAY/MONTH/YEAR), optionally narrowed to a single
+// account (the account_detail view). It delegates aggregation to the repository
+// and maps the domain MonthlySummary to a DTO.
+//
 // IncomeCents/ExpenseCents follow the account-as-category + double-entry
 // direction rules (Income account credit legs; Expense account debit legs).
-func (s *Service) TransactionSummary(ctx context.Context, tenantID uuid.UUID, year, month int, accountID *uuid.UUID) (MonthlySummaryDTO, error) {
+//
+//   - scope == ScopeMonth (or the zero value) aggregates per calendar day for
+//     (year, month); DailyAvgCents is meaningful only in this case.
+//   - scope == ScopeYear aggregates per calendar month for year; month is
+//     ignored; day must be nil.
+//   - scope == ScopeDay aggregates the single calendar day (year, month, *day);
+//     day must be non-nil and in [1,31] (the handler enforces this).
+func (s *Service) TransactionSummary(ctx context.Context, tenantID uuid.UUID, year, month int, accountID *uuid.UUID, scope domain.Scope, day *int) (MonthlySummaryDTO, error) {
 	summary, err := s.txnRepo.TransactionSummary(ctx, domain.SummaryScope{
 		TenantID:  tenantID,
 		Year:      year,
 		Month:     month,
+		Day:       day,
+		Scope:     scope,
 		AccountID: accountID,
 	})
 	if err != nil {

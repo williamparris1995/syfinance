@@ -262,8 +262,8 @@ func (h *TransactionHandler) SimpleTransfer(ctx context.Context, req *pb.SimpleT
 	return &pb.TransactionResponse{Transaction: txnToProto(*resp)}, nil
 }
 
-// TransactionSummary returns the monthly income/expense summary, optionally
-// scoped to a single account.
+// TransactionSummary returns the income/expense summary over the requested
+// scope (DAY/MONTH/YEAR), optionally narrowed to a single account.
 func (h *TransactionHandler) TransactionSummary(ctx context.Context, req *pb.TransactionSummaryRequest) (*pb.TransactionSummaryResponse, error) {
 	tenantID, err := getTenantID(ctx)
 	if err != nil {
@@ -276,6 +276,11 @@ func (h *TransactionHandler) TransactionSummary(ctx context.Context, req *pb.Tra
 		return nil, status.Error(codes.InvalidArgument, "invalid year")
 	}
 
+	scope, day, err := resolveSummaryScope(req.Scope, req.Day)
+	if err != nil {
+		return nil, err
+	}
+
 	var accountID *uuid.UUID
 	if req.AccountId != "" {
 		aid, err := uuid.Parse(req.AccountId)
@@ -285,11 +290,49 @@ func (h *TransactionHandler) TransactionSummary(ctx context.Context, req *pb.Tra
 		accountID = &aid
 	}
 
-	summary, err := h.service.TransactionSummary(ctx, tenantID, int(req.Year), int(req.Month), accountID)
+	summary, err := h.service.TransactionSummary(ctx, tenantID, int(req.Year), int(req.Month), accountID, scope, day)
 	if err != nil {
 		return nil, mapError(err)
 	}
 	return &pb.TransactionSummaryResponse{Summary: summaryToProto(summary)}, nil
+}
+
+// resolveSummaryScope maps the proto Scope enum to the domain.Scope value and
+// resolves the optional day, applying the TransactionSummary contract:
+//
+//   - SCOPE_UNSPECIFIED (the zero value) defaults to MONTH for backward
+//     compatibility — callers that omit Scope keep the historical per-month
+//     behavior. No error.
+//   - SCOPE_DAY requires a day in [1,31]. proto3 scalars have no presence, so
+//     a missing day arrives as 0, which is rejected as InvalidArgument alongside
+//     any out-of-range value. Returns the day as a non-nil *int.
+//   - SCOPE_MONTH / SCOPE_YEAR ignore day entirely (returned as nil); YEAR also
+//     ignores month at the SQL layer (the handler still validates month ∈ 1-12
+//     for request-shape sanity, but the repo does not use it under YEAR).
+//
+// The proto yucai.transaction.v1.Scope enum and domain.Scope share identical
+// numbering (DAY=1, MONTH=2, YEAR=3) per the Task 6 design, so the mapping is a
+// direct cast with no translation table.
+func resolveSummaryScope(pbScope pb.Scope, day int32) (domain.Scope, *int, error) {
+	// Default UNSPECIFIED → MONTH for backward compatibility.
+	if pbScope == pb.Scope_SCOPE_UNSPECIFIED {
+		return domain.ScopeMonth, nil, nil
+	}
+
+	scope := domain.Scope(pbScope)
+
+	// DAY requires a valid calendar day 1-31. proto3 has no presence on scalar
+	// fields, so "unset" arrives as 0 — treat 0 and out-of-range alike.
+	if scope == domain.ScopeDay {
+		if day < 1 || day > 31 {
+			return 0, nil, status.Error(codes.InvalidArgument, "scope DAY requires day in 1-31")
+		}
+		d := int(day)
+		return scope, &d, nil
+	}
+
+	// MONTH / YEAR ignore day.
+	return scope, nil, nil
 }
 
 func summaryToProto(s application.MonthlySummaryDTO) *pb.MonthlySummary {
