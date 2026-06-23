@@ -299,10 +299,15 @@ func TestSimpleExpense_ForwardsTransactionTime(t *testing.T) {
 	}
 }
 
-// TestSimpleExpense_NoTransactionTimeDefaultsToNil verifies that omitting
+// TestSimpleExpense_NoTransactionTimeDomainNil verifies that omitting
 // TransactionTime leaves the saved domain.Transaction's TransactionTime as nil
-// (RecordTransaction does not synthesize a default now-time).
-func TestSimpleExpense_NoTransactionTimeDefaultsToNil(t *testing.T) {
+// at the domain layer. repo Save uses SetNillableTransactionTime (a no-op when
+// nil), so ent's Default(time.Now) applies on Create → DB gets now → UI shows
+// MM-DD HH:MM. This mock-based test (recordingTxnRepo stores the domain pointer
+// verbatim, never runs ent) can only verify the domain entity is nil; the ent
+// Default → DB now behavior is enforced by ent's generated defaults(), not
+// asserted here.
+func TestSimpleExpense_NoTransactionTimeDomainNil(t *testing.T) {
 	tenantID := uuid.New()
 	assetAcc := newTestAccount(t, accountdomain.AccountTypeAsset, "CNY", 1000_00)
 	expenseAcc := newTestAccount(t, accountdomain.AccountTypeExpense, "CNY", 0)
