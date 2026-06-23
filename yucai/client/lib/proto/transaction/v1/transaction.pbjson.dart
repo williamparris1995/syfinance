@@ -22,6 +22,22 @@ import 'package:protobuf/well_known_types/google/protobuf/timestamp.pbjson.dart'
 
 import '../../common/v1/pagination.pbjson.dart' as $1;
 
+@$core.Deprecated('Use scopeDescriptor instead')
+const Scope$json = {
+  '1': 'Scope',
+  '2': [
+    {'1': 'SCOPE_UNSPECIFIED', '2': 0},
+    {'1': 'SCOPE_DAY', '2': 1},
+    {'1': 'SCOPE_MONTH', '2': 2},
+    {'1': 'SCOPE_YEAR', '2': 3},
+  ],
+};
+
+/// Descriptor for `Scope`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List scopeDescriptor = $convert.base64Decode(
+    'CgVTY29wZRIVChFTQ09QRV9VTlNQRUNJRklFRBAAEg0KCVNDT1BFX0RBWRABEg8KC1NDT1BFX0'
+    '1PTlRIEAISDgoKU0NPUEVfWUVBUhAD');
+
 @$core.Deprecated('Use transactionDTODescriptor instead')
 const TransactionDTO$json = {
   '1': 'TransactionDTO',
@@ -323,14 +339,24 @@ const TransactionSummaryRequest$json = {
     {'1': 'year', '3': 1, '4': 1, '5': 5, '10': 'year'},
     {'1': 'month', '3': 2, '4': 1, '5': 5, '10': 'month'},
     {'1': 'account_id', '3': 3, '4': 1, '5': 9, '10': 'accountId'},
+    {
+      '1': 'scope',
+      '3': 4,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.transaction.v1.Scope',
+      '10': 'scope'
+    },
+    {'1': 'day', '3': 5, '4': 1, '5': 5, '10': 'day'},
   ],
 };
 
 /// Descriptor for `TransactionSummaryRequest`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List transactionSummaryRequestDescriptor =
-    $convert.base64Decode(
-        'ChlUcmFuc2FjdGlvblN1bW1hcnlSZXF1ZXN0EhIKBHllYXIYASABKAVSBHllYXISFAoFbW9udG'
-        'gYAiABKAVSBW1vbnRoEh0KCmFjY291bnRfaWQYAyABKAlSCWFjY291bnRJZA==');
+final $typed_data.Uint8List transactionSummaryRequestDescriptor = $convert.base64Decode(
+    'ChlUcmFuc2FjdGlvblN1bW1hcnlSZXF1ZXN0EhIKBHllYXIYASABKAVSBHllYXISFAoFbW9udG'
+    'gYAiABKAVSBW1vbnRoEh0KCmFjY291bnRfaWQYAyABKAlSCWFjY291bnRJZBIxCgVzY29wZRgE'
+    'IAEoDjIbLnl1Y2FpLnRyYW5zYWN0aW9uLnYxLlNjb3BlUgVzY29wZRIQCgNkYXkYBSABKAVSA2'
+    'RheQ==');
 
 @$core.Deprecated('Use transactionSummaryResponseDescriptor instead')
 const TransactionSummaryResponse$json = {

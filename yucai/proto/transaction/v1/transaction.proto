@@ -122,14 +122,28 @@ message TransactionResponse {
 
 // --- TransactionSummary ---
 
+// Scope selects the aggregation period for TransactionSummary. UNSPECIFIED is
+// treated as MONTH by the server for backward compatibility. DAY requires day
+// to be set; YEAR ignores month/day.
+enum Scope {
+  SCOPE_UNSPECIFIED = 0;
+  SCOPE_DAY = 1;
+  SCOPE_MONTH = 2;
+  SCOPE_YEAR = 3;
+}
+
 message TransactionSummaryRequest {
   // Calendar year, e.g. 2026.
   int32 year = 1;
-  // Calendar month, 1-12.
+  // Calendar month, 1-12. Ignored when scope = YEAR.
   int32 month = 2;
   // Optional: scope the summary to a single account (account_detail view).
   // Empty = all accounts.
   string account_id = 3;
+  // Aggregation period. UNSPECIFIED defaults to MONTH for backward compat.
+  Scope scope = 4;
+  // Calendar day, 1-31. Required when scope = DAY; ignored otherwise.
+  int32 day = 5;
 }
 
 message TransactionSummaryResponse {

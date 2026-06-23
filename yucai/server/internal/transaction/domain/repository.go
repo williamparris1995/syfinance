@@ -128,14 +128,33 @@ type MonthlySummary struct {
 	ByDay         []SummaryDailyItem
 }
 
-// SummaryScope narrows a TransactionSummary query to a month, optionally to a
-// single account (account_detail view). AccountID == nil means all accounts.
+// SummaryScope narrows a TransactionSummary query to a period (day/month/year),
+// optionally to a single account (account_detail view). AccountID == nil means
+// all accounts. Scope defaults to ScopeMonth when zero. Day is honored only
+// when Scope == ScopeDay.
 type SummaryScope struct {
 	TenantID  uuid.UUID
 	Year      int
-	Month     int // 1-12
+	Month     int // 1-12 (ignored when Scope == ScopeYear)
+	Day       *int // 1-31, used only when Scope == ScopeDay
+	Scope     Scope
 	AccountID *uuid.UUID
 }
+
+// Scope selects the aggregation period for TransactionSummary. Numbering
+// matches the proto yucai.transaction.v1.Scope enum so the two can be mapped
+// without a translation table.
+type Scope int
+
+const (
+	// ScopeDay aggregates income/expense for a single calendar day (Year/Month/Day).
+	ScopeDay Scope = 1
+	// ScopeMonth aggregates income/expense for a whole calendar month (Year/Month).
+	// This is the zero-value default for backward compatibility.
+	ScopeMonth Scope = 2
+	// ScopeYear aggregates income/expense for a whole calendar year (Year).
+	ScopeYear Scope = 3
+)
 
 // TransactionSummary returns the monthly income/expense summary, broken down by
 // day and by Income/Expense account (category). Implements the account-as-

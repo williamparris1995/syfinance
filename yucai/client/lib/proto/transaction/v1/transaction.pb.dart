@@ -20,8 +20,11 @@ import 'package:protobuf/well_known_types/google/protobuf/timestamp.pb.dart'
     as $0;
 
 import '../../common/v1/pagination.pb.dart' as $1;
+import 'transaction.pbenum.dart';
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
+
+export 'transaction.pbenum.dart';
 
 class TransactionDTO extends $pb.GeneratedMessage {
   factory TransactionDTO({
@@ -1189,11 +1192,15 @@ class TransactionSummaryRequest extends $pb.GeneratedMessage {
     $core.int? year,
     $core.int? month,
     $core.String? accountId,
+    Scope? scope,
+    $core.int? day,
   }) {
     final result = create();
     if (year != null) result.year = year;
     if (month != null) result.month = month;
     if (accountId != null) result.accountId = accountId;
+    if (scope != null) result.scope = scope;
+    if (day != null) result.day = day;
     return result;
   }
 
@@ -1214,6 +1221,8 @@ class TransactionSummaryRequest extends $pb.GeneratedMessage {
     ..aI(1, _omitFieldNames ? '' : 'year')
     ..aI(2, _omitFieldNames ? '' : 'month')
     ..aOS(3, _omitFieldNames ? '' : 'accountId')
+    ..aE<Scope>(4, _omitFieldNames ? '' : 'scope', enumValues: Scope.values)
+    ..aI(5, _omitFieldNames ? '' : 'day')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1246,7 +1255,7 @@ class TransactionSummaryRequest extends $pb.GeneratedMessage {
   @$pb.TagNumber(1)
   void clearYear() => $_clearField(1);
 
-  /// Calendar month, 1-12.
+  /// Calendar month, 1-12. Ignored when scope = YEAR.
   @$pb.TagNumber(2)
   $core.int get month => $_getIZ(1);
   @$pb.TagNumber(2)
@@ -1266,6 +1275,26 @@ class TransactionSummaryRequest extends $pb.GeneratedMessage {
   $core.bool hasAccountId() => $_has(2);
   @$pb.TagNumber(3)
   void clearAccountId() => $_clearField(3);
+
+  /// Aggregation period. UNSPECIFIED defaults to MONTH for backward compat.
+  @$pb.TagNumber(4)
+  Scope get scope => $_getN(3);
+  @$pb.TagNumber(4)
+  set scope(Scope value) => $_setField(4, value);
+  @$pb.TagNumber(4)
+  $core.bool hasScope() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearScope() => $_clearField(4);
+
+  /// Calendar day, 1-31. Required when scope = DAY; ignored otherwise.
+  @$pb.TagNumber(5)
+  $core.int get day => $_getIZ(4);
+  @$pb.TagNumber(5)
+  set day($core.int value) => $_setSignedInt32(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasDay() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearDay() => $_clearField(5);
 }
 
 class TransactionSummaryResponse extends $pb.GeneratedMessage {
