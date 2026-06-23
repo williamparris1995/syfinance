@@ -211,5 +211,19 @@ void main() {
       expect(got.dailyAvgCents, 0);
       expect(got.byDay, isEmpty);
     });
+
+    // Task 9: scope is stamped from the request (the proto DTO doesn't carry
+    // it). Default = null (backward-compat for pre-Task-9 callers).
+    test('scope is stamped when provided (Task 9)', () {
+      final got = mapper.summaryToDomain(pb.MonthlySummary(),
+          year: 2026, month: 6, scope: SummaryScope.year);
+      expect(got.scope, SummaryScope.year);
+    });
+
+    test('scope defaults to null when omitted (backward-compat)', () {
+      final got = mapper.summaryToDomain(pb.MonthlySummary(),
+          year: 2026, month: 6);
+      expect(got.scope, isNull);
+    });
   });
 }

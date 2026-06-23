@@ -82,7 +82,10 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
   Future<void> _onLoadSummary(
       LoadSummaryRequested event, Emitter<TransactionState> emit) async {
     await _fetchSummary(event.year, event.month,
-        accountId: event.accountId, emit: emit);
+        accountId: event.accountId,
+        scope: event.scope,
+        day: event.day,
+        emit: emit);
   }
 
   /// Fetches the summary and stamps it onto the current list-bearing state.
@@ -94,9 +97,12 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
     int year,
     int month, {
     String? accountId,
+    SummaryScope scope = SummaryScope.month,
+    int? day,
     required Emitter<TransactionState> emit,
   }) async {
-    final result = await _txnRepo.summary(year, month, accountId: accountId);
+    final result = await _txnRepo.summary(year, month,
+        accountId: accountId, scope: scope, day: day);
     result.fold(
       (_) {}, // swallow: see dartdoc — list state unchanged, card keeps prior.
       (summary) {

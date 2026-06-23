@@ -45,6 +45,7 @@ void main() {
 
   setUpAll(() {
     registerFallbackValue(ListTransactionsParams());
+    registerFallbackValue(SummaryScope.month);
   });
 
   setUp(() {
@@ -60,7 +61,9 @@ void main() {
         (_) async => dartz.Right(const ListTransactionsResult(
             transactions: [], nextPageToken: '')));
     when(() => txnRepo.summary(any(), any(),
-            accountId: any(named: 'accountId')))
+            accountId: any(named: 'accountId'),
+            scope: any(named: 'scope'),
+            day: any(named: 'day')))
         .thenAnswer((_) async => const dartz.Right(MonthlySummary(
               year: 2026,
               month: 6,

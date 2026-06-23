@@ -48,11 +48,17 @@ void main() {
   setUp(() {
     txnRepo = _MockTxnRepo();
     registerFallbackValue(ListTransactionsParams());
+    // Task 9: `any(named: 'scope')` requires a SummaryScope fallback value.
+    registerFallbackValue(SummaryScope.month);
     // Task 5.2: _onLoad triggers a parallel summary fetch on every successful
     // page-1 load. Provide a default stub so existing list tests don't hit
     // MissingStubError; tests that assert on summary override this.
+    // Task 9: summary() now carries scope + day; wildcard them so all callers
+    // (default-month and explicit-scope alike) hit this fallback.
     when(() => txnRepo.summary(any(), any(),
-            accountId: any(named: 'accountId')))
+            accountId: any(named: 'accountId'),
+            scope: any(named: 'scope'),
+            day: any(named: 'day')))
         .thenAnswer((_) async => const dartz.Right(MonthlySummary(
               year: 2026,
               month: 6,
@@ -203,13 +209,48 @@ void main() {
     verify: (_) => verify(() => txnRepo.list(any())).called(1),
   );
 
+  // ───────────────────────── Task 9: summary scope ─────────────────────────
+
+  // Task 9: LoadSummaryRequested now carries SummaryScope (day/month/year) +
+  // optional day. The bloc forwards them to the repo; the repo maps them to the
+  // proto Scope on the wire (asserted in the remote_ds test). Here we assert
+  // the bloc → repo contract: scope=year reaches summary() as SummaryScope.year
+  // with the day forwarded verbatim.
+  blocTest<TransactionBloc, TransactionState>(
+    'LoadSummaryRequested(scope: year, day: 15) forwards scope+day to repo.summary',
+    build: () {
+      when(() => txnRepo.list(any())).thenAnswer((_) async => _ok([_txn('t1')], ''));
+      when(() => txnRepo.summary(2026, 6,
+              accountId: any(named: 'accountId'),
+              scope: any(named: 'scope'),
+              day: any(named: 'day'))).thenAnswer((_) async => const dartz.Right(
+          MonthlySummary(
+              year: 2026, month: 6, scope: SummaryScope.year, incomeCents: 1)));
+      return TransactionBloc(txnRepo);
+    },
+    act: (b) async {
+      b.add(const LoadTransactionsRequested());
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      b.add(const LoadSummaryRequested(
+          year: 2026, month: 6, scope: SummaryScope.year, day: 15));
+    },
+    wait: const Duration(milliseconds: 150),
+    verify: (bloc) {
+      verify(() => txnRepo.summary(2026, 6,
+          accountId: null, scope: SummaryScope.year, day: 15)).called(1);
+    },
+  );
+
   // ───────────────────────── Task 5.2: summary ─────────────────────────
 
   blocTest<TransactionBloc, TransactionState>(
     'LoadSummaryRequested stamps summary onto the current Loaded state',
     build: () {
       when(() => txnRepo.list(any())).thenAnswer((_) async => _ok([_txn('t1')], ''));
-      when(() => txnRepo.summary(2026, 6, accountId: any(named: 'accountId')))
+      when(() => txnRepo.summary(2026, 6,
+              accountId: any(named: 'accountId'),
+              scope: any(named: 'scope'),
+              day: any(named: 'day')))
           .thenAnswer((_) async => const dartz.Right(MonthlySummary(
                 year: 2026,
                 month: 6,
@@ -240,7 +281,9 @@ void main() {
     'LoadSummaryRequested is a no-op when state is not list-bearing',
     build: () {
       when(() => txnRepo.summary(any(), any(),
-              accountId: any(named: 'accountId')))
+              accountId: any(named: 'accountId'),
+              scope: any(named: 'scope'),
+              day: any(named: 'day')))
           .thenAnswer((_) async => const dartz.Right(MonthlySummary(
                 year: 2026,
                 month: 6,
@@ -258,7 +301,9 @@ void main() {
     build: () {
       when(() => txnRepo.list(any())).thenAnswer((_) async => _ok([_txn('t1')], ''));
       when(() => txnRepo.summary(any(), any(),
-              accountId: any(named: 'accountId')))
+              accountId: any(named: 'accountId'),
+              scope: any(named: 'scope'),
+              day: any(named: 'day')))
           .thenAnswer((_) async => const dartz.Left(ServerFailure('boom')));
       return TransactionBloc(txnRepo);
     },

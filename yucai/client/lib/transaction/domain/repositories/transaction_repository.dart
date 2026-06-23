@@ -51,13 +51,17 @@ abstract class TransactionRepository {
 
   Future<Either<Failure, void>> delete(String id);
 
-  /// Monthly income/expense/net/dailyAvg summary. `accountId` optional scopes
-  /// to one account (account-detail view). Backed by the server's
-  /// `TransactionSummary` RPC.
+  /// Income/expense/net/dailyAvg summary. `accountId` optional scopes to one
+  /// account (account-detail view). `scope` (Task 9) selects the aggregation
+  /// granularity — [SummaryScope.month] is the default (legacy callers keep
+  /// their behaviour); `day` pins the day-of-month for [SummaryScope.day].
+  /// Backed by the server's `TransactionSummary` RPC.
   Future<Either<Failure, MonthlySummary>> summary(
     int year,
     int month, {
     String? accountId,
+    SummaryScope scope = SummaryScope.month,
+    int? day,
   });
 }
 

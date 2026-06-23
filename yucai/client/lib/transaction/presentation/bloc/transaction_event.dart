@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 
+import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
 
 /// Events for [TransactionBloc] (the list-page bloc; the form-page bloc is
@@ -54,9 +55,12 @@ class LoadTransactionDetail extends TransactionEvent {
   List<Object?> get props => [id];
 }
 
-/// Fetch the monthly summary for the SummaryCard. [year]/[month] select the
-/// calendar month; [accountId] optional scopes to one account. The bloc emits
-/// [SummaryLoading] then [SummaryLoaded] (or [SummaryError]).
+/// Fetch the summary for the SummaryCard. [year]/[month] select the calendar
+/// anchor; [accountId] optional scopes to one account. [scope] (Task 9)
+/// selects the aggregation granularity — [SummaryScope.month] is the default
+/// (pre-Task-9 callers keep their behaviour); [day] is only meaningful with
+/// [SummaryScope.day] (the day-of-month to pin). The bloc emits [SummaryLoading]
+/// then [SummaryLoaded] (or [SummaryError]).
 ///
 /// This is a parallel concern to the list lifecycle — the page emits it on
 /// init and on filter change, and the state holds summary independently of the
@@ -66,12 +70,22 @@ class LoadSummaryRequested extends TransactionEvent {
     required this.year,
     required this.month,
     this.accountId,
+    this.scope = SummaryScope.month,
+    this.day,
   });
 
   final int year;
   final int month;
   final String? accountId;
 
+  /// Aggregation granularity. Defaults to [SummaryScope.month] so existing
+  /// callers that omit it behave exactly as before (Task 9 backward-compat).
+  final SummaryScope scope;
+
+  /// Day-of-month. Required for [SummaryScope.day] to be meaningful; ignored
+  /// otherwise. Forwarded verbatim to the RPC.
+  final int? day;
+
   @override
-  List<Object?> get props => [year, month, accountId];
+  List<Object?> get props => [year, month, accountId, scope, day];
 }

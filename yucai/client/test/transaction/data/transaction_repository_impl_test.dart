@@ -55,6 +55,8 @@ void main() {
       incomeAccountId: '',
       amountCents: 0,
     ));
+    // Task 9: `any(named: 'scope')` requires a SummaryScope fallback value.
+    registerFallbackValue(SummaryScope.month);
     registerFallbackValue(RecordTransferParams(
       transactionDate: sampleDate,
       fromAccountId: '',
@@ -229,23 +231,49 @@ void main() {
     );
 
     test('forwards (year, month, accountId) and returns Right', () async {
-      when(() => remote.summary(2026, 6, accountId: any(named: 'accountId')))
+      when(() => remote.summary(2026, 6,
+              accountId: any(named: 'accountId'),
+              scope: any(named: 'scope'),
+              day: any(named: 'day')))
           .thenAnswer((_) async => sampleSummary);
       final result = await repo.summary(2026, 6, accountId: 'acc-1');
       expect(result, Right<Failure, MonthlySummary>(sampleSummary));
-      verify(() => remote.summary(2026, 6, accountId: 'acc-1')).called(1);
+      verify(() => remote.summary(2026, 6,
+              accountId: 'acc-1',
+              scope: SummaryScope.month,
+              day: null))
+          .called(1);
     });
 
     test('null accountId forwarded as null', () async {
-      when(() => remote.summary(any(), any(), accountId: any(named: 'accountId')))
+      when(() => remote.summary(any(), any(),
+              accountId: any(named: 'accountId'),
+              scope: any(named: 'scope'),
+              day: any(named: 'day')))
           .thenAnswer((_) async => sampleSummary);
       await repo.summary(2026, 6);
-      verify(() => remote.summary(2026, 6, accountId: null)).called(1);
+      verify(() => remote.summary(2026, 6,
+              accountId: null, scope: SummaryScope.month, day: null))
+          .called(1);
+    });
+
+    test('forwards scope + day when provided (Task 9)', () async {
+      when(() => remote.summary(any(), any(),
+              accountId: any(named: 'accountId'),
+              scope: any(named: 'scope'),
+              day: any(named: 'day')))
+          .thenAnswer((_) async => sampleSummary);
+      await repo.summary(2026, 6, scope: SummaryScope.year, day: 15);
+      verify(() => remote.summary(2026, 6,
+              accountId: null, scope: SummaryScope.year, day: 15))
+          .called(1);
     });
 
     test('unavailable maps to NetworkFailure', () async {
       when(() => remote.summary(any(), any(),
-              accountId: any(named: 'accountId')))
+              accountId: any(named: 'accountId'),
+              scope: any(named: 'scope'),
+              day: any(named: 'day')))
           .thenThrow(GrpcError.unavailable('down'));
       final result = await repo.summary(2026, 6);
       expect(result.fold((l) => l, (_) => null), isA<NetworkFailure>());

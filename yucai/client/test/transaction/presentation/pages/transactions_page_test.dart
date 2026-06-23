@@ -57,6 +57,7 @@ void main() {
   setUp(() {
     txnRepo = _FakeTxnRepo();
     registerFallbackValue(ListTransactionsParams());
+    registerFallbackValue(SummaryScope.month);
     when(() => txnRepo.list(any())).thenAnswer((_) async => dartz.Right(
         ListTransactionsResult(transactions: [
           _txn('t1', DateTime(2026, 6, 19)),
@@ -67,7 +68,9 @@ void main() {
     // change / after-create. Default to a non-zero summary so tests that assert
     // on the card values have something to render; override per-test as needed.
     when(() => txnRepo.summary(any(), any(),
-            accountId: any(named: 'accountId')))
+            accountId: any(named: 'accountId'),
+            scope: any(named: 'scope'),
+            day: any(named: 'day')))
         .thenAnswer((_) async => const dartz.Right(MonthlySummary(
               year: 2026,
               month: 6,
@@ -204,7 +207,9 @@ void main() {
       (tester) async {
     // summary never resolves (pending) → card shows zeros, list still renders.
     when(() => txnRepo.summary(any(), any(),
-            accountId: any(named: 'accountId')))
+            accountId: any(named: 'accountId'),
+            scope: any(named: 'scope'),
+            day: any(named: 'day')))
         .thenAnswer((_) => Completer<dartz.Either<Failure, MonthlySummary>>()
             .future);
     await pumpPage(tester, const Size(1440, 900));
@@ -214,7 +219,9 @@ void main() {
   testWidgets('a failed summary leaves the card at ¥0.00 (does not crash)',
       (tester) async {
     when(() => txnRepo.summary(any(), any(),
-            accountId: any(named: 'accountId')))
+            accountId: any(named: 'accountId'),
+            scope: any(named: 'scope'),
+            day: any(named: 'day')))
         .thenAnswer((_) async => const dartz.Left(ServerFailure('summary err')));
     await pumpPage(tester, const Size(1440, 900));
     expect(find.text('¥0.00'), findsWidgets);

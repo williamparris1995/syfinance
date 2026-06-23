@@ -176,27 +176,58 @@ class TransactionRemoteDataSource {
     });
   }
 
-  /// Calls the `TransactionSummary` RPC (Task 5.1). Returns the domain
-  /// [MonthlySummary]; `year`/`month`/`accountId` are stamped onto the domain
-  /// object by the mapper since the proto DTO only carries the totals + per-day
-  /// breakdown, not the scope.
-  Future<MonthlySummary> summary(int year, int month, {String? accountId}) {
+  /// Calls the `TransactionSummary` RPC (Task 5.1 + Task 9 scope). Returns
+  /// the domain [MonthlySummary]; `year`/`month`/`accountId`/`scope` are
+  /// stamped onto the domain object by the mapper since the proto DTO only
+  /// carries the totals + per-day breakdown, not the scope.
+  ///
+  /// **Scope mapping** (client [SummaryScope] → proto `Scope`):
+  ///   - [SummaryScope.day]   → `Scope.SCOPE_DAY`
+  ///   - [SummaryScope.month] → `Scope.SCOPE_MONTH` (the default)
+  ///   - [SummaryScope.year]  → `Scope.SCOPE_YEAR`
+  ///
+  /// `day` is forwarded only when non-null (meaningful for day scope).
+  Future<MonthlySummary> summary(
+    int year,
+    int month, {
+    String? accountId,
+    SummaryScope scope = SummaryScope.month,
+    int? day,
+  }) {
     return _retry.call(() async {
       final req = pb.TransactionSummaryRequest(
         year: year,
         month: month,
         accountId: accountId ?? '',
+        scope: _scopeToProto(scope),
       );
+      if (day != null) req.day = day;
       final res = await _client.transactionSummary(req);
       final dto = res.hasSummary() ? res.summary : pb.MonthlySummary();
       try {
-        return _mapper.summaryToDomain(dto, year: year, month: month);
+        return _mapper.summaryToDomain(dto,
+            year: year, month: month, scope: scope);
       } catch (e, st) {
         // Mapper crash (e.g. unexpected enum / null field) must not blank the
         // card — fall back to a zeroed summary so the list still renders.
         _txnLog('summary.summaryToDomain', e, st);
-        return MonthlySummary(year: year, month: month);
+        return MonthlySummary(year: year, month: month, scope: scope);
       }
     });
+  }
+}
+
+/// Maps a client [SummaryScope] to the proto `Scope` enum. Kept as a
+/// top-level helper so a future read path (e.g. decoding a stored summary)
+/// can re-use it. The proto's `SCOPE_UNSPECIFIED` is never produced here —
+/// callers always carry a concrete granularity (defaulting to month).
+pb.Scope _scopeToProto(SummaryScope scope) {
+  switch (scope) {
+    case SummaryScope.day:
+      return pb.Scope.SCOPE_DAY;
+    case SummaryScope.month:
+      return pb.Scope.SCOPE_MONTH;
+    case SummaryScope.year:
+      return pb.Scope.SCOPE_YEAR;
   }
 }

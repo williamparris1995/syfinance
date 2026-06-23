@@ -52,13 +52,14 @@ class TransactionMapper {
 
   /// Maps a proto [pb.MonthlySummary] to the domain [MonthlySummary].
   ///
-  /// `year`/`month` are not on the proto DTO; the caller (datasource) passes
-  /// them in so the domain object echoes the request scope. Int64 → int via
-  /// [Int64.toInt] (amounts are cents, well within int32 range).
+  /// `year`/`month`/`scope` are not on the proto DTO; the caller (datasource)
+  /// passes them in so the domain object echoes the request scope. Int64 → int
+  /// via [Int64.toInt] (amounts are cents, well within int32 range).
   MonthlySummary summaryToDomain(
     pb.MonthlySummary dto, {
     required int year,
     required int month,
+    SummaryScope? scope,
   }) {
     return MonthlySummary(
       year: year,
@@ -67,6 +68,7 @@ class TransactionMapper {
       expenseCents: dto.expenseCents.toInt(),
       netCents: dto.netCents.toInt(),
       dailyAvgCents: dto.dailyAvgCents.toInt(),
+      scope: scope,
       byDay: [
         for (final d in dto.byDay)
           DailySummary(

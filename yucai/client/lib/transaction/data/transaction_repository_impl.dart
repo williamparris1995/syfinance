@@ -60,8 +60,11 @@ class TransactionRepositoryImpl implements TransactionRepository {
     int year,
     int month, {
     String? accountId,
+    SummaryScope scope = SummaryScope.month,
+    int? day,
   }) =>
-      _guard(() => _remote.summary(year, month, accountId: accountId));
+      _guard(() => _remote.summary(year, month,
+          accountId: accountId, scope: scope, day: day));
 
   /// Maps thrown GrpcError / exceptions to [Failure], wrapping the op in
   /// Either. Mirrors [AccountRepositoryImpl._guard].

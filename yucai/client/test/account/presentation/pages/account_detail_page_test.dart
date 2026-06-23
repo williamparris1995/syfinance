@@ -125,6 +125,7 @@ void main() {
     registerFallbackValue(
       const UpdateAccountParams(id: 'a1', version: 1),
     );
+    registerFallbackValue(SummaryScope.month);
     // Register both repos in getIt so TransactionFormPage (pushed by
     // _recordTxn) can resolve them when building its own bloc.
     GetIt.instance.registerSingleton<AccountRepository>(accountRepo);
@@ -145,7 +146,9 @@ void main() {
             ], nextPageToken: '')));
     // MonthlySummary scoped to this account (Task 5.1 accountId scope).
     when(() => txnRepo.summary(any(), any(),
-            accountId: any(named: 'accountId')))
+            accountId: any(named: 'accountId'),
+            scope: any(named: 'scope'),
+            day: any(named: 'day')))
         .thenAnswer((_) async => const dartz.Right(MonthlySummary(
               year: 2026,
               month: 6,
@@ -179,7 +182,9 @@ void main() {
     when(() => accountRepo.getById(any()))
         .thenAnswer((_) async => dartz.Right(a));
     when(() => txnRepo.summary(any(), any(),
-            accountId: any(named: 'accountId')))
+            accountId: any(named: 'accountId'),
+            scope: any(named: 'scope'),
+            day: any(named: 'day')))
         .thenAnswer((_) async => dartz.Right(summary ??
             MonthlySummary(
               year: 2026,

@@ -21,6 +21,22 @@ extension EntrySideLabel on EntrySide {
 /// as a presentation aid — the server records raw entries, not a flavour.
 enum TxnFlavour { expense, income, transfer, compound }
 
+/// Aggregation granularity for the `TransactionSummary` RPC (Task 9).
+///
+/// The server's `Scope` proto enum (DAY=1 / MONTH=2 / YEAR=3) selects the
+/// aggregation period:
+///   - [day]    — single bucket for the given [MonthlySummary.year] /
+///     [MonthlySummary.month] / `day` (the day-of-month the caller pins).
+///   - [month]  — per-day breakdown across the month (the legacy default;
+///     every pre-Task-9 caller behaves as before).
+///   - [year]   — per-month breakdown across the year.
+///
+/// Kept in the **client** layer (not re-exporting the proto enum) so the
+/// domain / bloc don't depend on generated proto code — mirrors the
+/// [TxnFlavour] / [EntrySide] decision above. The data layer maps this to the
+/// proto `Scope` (see `TransactionRemoteDataSource.summary`).
+enum SummaryScope { day, month, year }
+
 extension TxnFlavourLabel on TxnFlavour {
   String get label {
     switch (this) {
@@ -108,7 +124,9 @@ class ListTransactionsParams {
 ///
 /// `year`/`month` echo the request so callers don't need to thread them; the
 /// server does not return them in the DTO, the mapper stamps them from the
-/// request.
+/// request. [scope] (Task 9) echoes the requested granularity so the UI can
+/// label the returned aggregation; null = the legacy month default (kept
+/// backward-compatible).
 class MonthlySummary {
   const MonthlySummary({
     required this.year,
@@ -118,6 +136,7 @@ class MonthlySummary {
     this.netCents = 0,
     this.dailyAvgCents = 0,
     this.byDay = const <DailySummary>[],
+    this.scope,
   });
 
   final int year;
@@ -132,6 +151,12 @@ class MonthlySummary {
   /// model carries [byDay] so future charts (Task 5.x) can read it without a
   /// second RPC round-trip.
   final List<DailySummary> byDay;
+
+  /// The granularity the server aggregated at for this summary (Task 9). null
+  /// on pre-Task-9 callers / the fallback zeroed summary; the mapper stamps it
+  /// from the request scope. The UI reads this to label the card without
+  /// re-deriving it.
+  final SummaryScope? scope;
 }
 
 /// One day's contribution to a [MonthlySummary]. Mirrors proto `DailyItem`:
