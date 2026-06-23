@@ -47,6 +47,7 @@ class TransactionFormBloc
       amountCents: e.amountCents,
       description: e.description,
       note: e.note,
+      transactionTime: e.transactionTime,
     );
     final result = await _txnRepo.recordExpense(params);
     result.fold(
@@ -67,6 +68,7 @@ class TransactionFormBloc
       amountCents: e.amountCents,
       description: e.description,
       note: e.note,
+      transactionTime: e.transactionTime,
     );
     final result = await _txnRepo.recordIncome(params);
     result.fold(
@@ -87,6 +89,7 @@ class TransactionFormBloc
       amountCents: e.amountCents,
       description: e.description,
       note: e.note,
+      transactionTime: e.transactionTime,
     );
     final result = await _txnRepo.recordTransfer(params);
     result.fold(

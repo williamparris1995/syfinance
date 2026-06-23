@@ -29,6 +29,7 @@ class RecordExpenseRequested extends TransactionFormEvent {
     required this.amountCents,
     this.description = '',
     this.note = '',
+    this.transactionTime = '',
   });
 
   final DateTime transactionDate;
@@ -38,6 +39,10 @@ class RecordExpenseRequested extends TransactionFormEvent {
   final String description;
   final String note;
 
+  /// RFC3339 timestamp assembled from the form's date + TimeOfDay picker
+  /// (Task 5). Empty string leaves server-side stamping untouched.
+  final String transactionTime;
+
   @override
   List<Object?> get props => [
         transactionDate,
@@ -46,6 +51,7 @@ class RecordExpenseRequested extends TransactionFormEvent {
         amountCents,
         description,
         note,
+        transactionTime,
       ];
 }
 
@@ -57,6 +63,7 @@ class RecordIncomeRequested extends TransactionFormEvent {
     required this.amountCents,
     this.description = '',
     this.note = '',
+    this.transactionTime = '',
   });
 
   final DateTime transactionDate;
@@ -65,6 +72,7 @@ class RecordIncomeRequested extends TransactionFormEvent {
   final int amountCents;
   final String description;
   final String note;
+  final String transactionTime;
 
   @override
   List<Object?> get props => [
@@ -74,6 +82,7 @@ class RecordIncomeRequested extends TransactionFormEvent {
         amountCents,
         description,
         note,
+        transactionTime,
       ];
 }
 
@@ -85,6 +94,7 @@ class RecordTransferRequested extends TransactionFormEvent {
     required this.amountCents,
     this.description = '',
     this.note = '',
+    this.transactionTime = '',
   });
 
   final DateTime transactionDate;
@@ -93,6 +103,7 @@ class RecordTransferRequested extends TransactionFormEvent {
   final int amountCents;
   final String description;
   final String note;
+  final String transactionTime;
 
   @override
   List<Object?> get props => [
@@ -102,5 +113,6 @@ class RecordTransferRequested extends TransactionFormEvent {
         amountCents,
         description,
         note,
+        transactionTime,
       ];
 }

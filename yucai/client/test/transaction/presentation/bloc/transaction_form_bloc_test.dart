@@ -126,6 +126,75 @@ void main() {
     },
   );
 
+  // Task 5 (WRITE-path transaction_time): when the event carries a
+  // transactionTime, the bloc forwards it onto the RecordExpenseParams so the
+  // data layer can stamp it onto the SimpleExpenseRequest proto.
+  blocTest<TransactionFormBloc, TransactionFormState>(
+    'RecordExpense forwards transactionTime onto params (Task 5)',
+    build: () {
+      when(() => txnRepo.recordExpense(any()))
+          .thenAnswer((_) async => dartz.Right(_recorded));
+      return TransactionFormBloc(txnRepo, accountRepo);
+    },
+    act: (b) => b.add(RecordExpenseRequested(
+      transactionDate: _dummyDate,
+      expenseAccountId: 'e1',
+      assetAccountId: 'a1',
+      amountCents: 100,
+      transactionTime: _expectedRfc3339,
+    )),
+    wait: const Duration(milliseconds: 100),
+    verify: (b) {
+      verify(() => txnRepo.recordExpense(any(
+          that: predicate<RecordExpenseParams>(
+              (p) => p.transactionTime == _expectedRfc3339)))).called(1);
+    },
+  );
+
+  blocTest<TransactionFormBloc, TransactionFormState>(
+    'RecordIncome forwards transactionTime onto params (Task 5)',
+    build: () {
+      when(() => txnRepo.recordIncome(any()))
+          .thenAnswer((_) async => dartz.Right(_recorded));
+      return TransactionFormBloc(txnRepo, accountRepo);
+    },
+    act: (b) => b.add(RecordIncomeRequested(
+      transactionDate: _dummyDate,
+      assetAccountId: 'a1',
+      incomeAccountId: 'e1',
+      amountCents: 100,
+      transactionTime: _expectedRfc3339,
+    )),
+    wait: const Duration(milliseconds: 100),
+    verify: (b) {
+      verify(() => txnRepo.recordIncome(any(
+          that: predicate<RecordIncomeParams>(
+              (p) => p.transactionTime == _expectedRfc3339)))).called(1);
+    },
+  );
+
+  blocTest<TransactionFormBloc, TransactionFormState>(
+    'RecordTransfer forwards transactionTime onto params (Task 5)',
+    build: () {
+      when(() => txnRepo.recordTransfer(any()))
+          .thenAnswer((_) async => dartz.Right(_recorded));
+      return TransactionFormBloc(txnRepo, accountRepo);
+    },
+    act: (b) => b.add(RecordTransferRequested(
+      transactionDate: _dummyDate,
+      fromAccountId: 'a1',
+      toAccountId: 'a2',
+      amountCents: 100,
+      transactionTime: _expectedRfc3339,
+    )),
+    wait: const Duration(milliseconds: 100),
+    verify: (b) {
+      verify(() => txnRepo.recordTransfer(any(
+          that: predicate<RecordTransferParams>(
+              (p) => p.transactionTime == _expectedRfc3339)))).called(1);
+    },
+  );
+
   blocTest<TransactionFormBloc, TransactionFormState>(
     'RecordIncome success emits [Submitting, Success]',
     build: () {
@@ -189,3 +258,9 @@ void main() {
 }
 
 final _dummyDate = DateTime(2026, 6, 19);
+
+// Task 5: an RFC3339 timestamp the form assembles from date + TimeOfDay.
+// 2026-06-19T13:45:00.000Z is what (2026-06-19, 13:45 local) -> UTC yields
+// in the UTC zone (test default); the form uses .toUtc().toIso8601String().
+final _expectedRfc3339 =
+    DateTime(2026, 6, 19, 13, 45).toUtc().toIso8601String();

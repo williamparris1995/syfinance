@@ -52,42 +52,48 @@ class TransactionRemoteDataSource {
 
   Future<Transaction> recordExpense(RecordExpenseParams p) {
     return _retry.call(() async {
-      final res = await _client.simpleExpense(pb.SimpleExpenseRequest(
+      final req = pb.SimpleExpenseRequest(
         transactionDate: formatTxnDate(p.transactionDate),
         description: p.description,
         expenseAccountId: p.expenseAccountId,
         assetAccountId: p.assetAccountId,
         amountCents: Int64(p.amountCents),
         note: p.note,
-      ));
+      );
+      if (p.transactionTime.isNotEmpty) req.transactionTime = p.transactionTime;
+      final res = await _client.simpleExpense(req);
       return _mapper.toDomain(res.transaction);
     });
   }
 
   Future<Transaction> recordIncome(RecordIncomeParams p) {
     return _retry.call(() async {
-      final res = await _client.simpleIncome(pb.SimpleIncomeRequest(
+      final req = pb.SimpleIncomeRequest(
         transactionDate: formatTxnDate(p.transactionDate),
         description: p.description,
         assetAccountId: p.assetAccountId,
         incomeAccountId: p.incomeAccountId,
         amountCents: Int64(p.amountCents),
         note: p.note,
-      ));
+      );
+      if (p.transactionTime.isNotEmpty) req.transactionTime = p.transactionTime;
+      final res = await _client.simpleIncome(req);
       return _mapper.toDomain(res.transaction);
     });
   }
 
   Future<Transaction> recordTransfer(RecordTransferParams p) {
     return _retry.call(() async {
-      final res = await _client.simpleTransfer(pb.SimpleTransferRequest(
+      final req = pb.SimpleTransferRequest(
         transactionDate: formatTxnDate(p.transactionDate),
         description: p.description,
         fromAccountId: p.fromAccountId,
         toAccountId: p.toAccountId,
         amountCents: Int64(p.amountCents),
         note: p.note,
-      ));
+      );
+      if (p.transactionTime.isNotEmpty) req.transactionTime = p.transactionTime;
+      final res = await _client.simpleTransfer(req);
       return _mapper.toDomain(res.transaction);
     });
   }

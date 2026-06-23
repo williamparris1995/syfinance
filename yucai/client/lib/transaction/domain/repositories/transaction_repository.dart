@@ -63,6 +63,11 @@ abstract class TransactionRepository {
 
 /// Records a SimpleExpense RPC: debit an expense account, credit an asset
 /// account (e.g. cash / bank card).
+///
+/// [transactionTime] (Task 5) is the optional RFC3339 wall-clock timestamp
+/// the form assembles from the date + TimeOfDay picker. Empty string means
+/// "server stamps it itself" (legacy behavior); when set, the data layer
+/// forwards it to the proto's `transaction_time` field.
 class RecordExpenseParams {
   const RecordExpenseParams({
     required this.transactionDate,
@@ -71,6 +76,7 @@ class RecordExpenseParams {
     required this.amountCents,
     this.description = '',
     this.note = '',
+    this.transactionTime = '',
   });
 
   final DateTime transactionDate;
@@ -79,6 +85,7 @@ class RecordExpenseParams {
   final int amountCents;
   final String description;
   final String note;
+  final String transactionTime;
 }
 
 /// Records a SimpleIncome RPC: debit an asset account, credit an income
@@ -91,6 +98,7 @@ class RecordIncomeParams {
     required this.amountCents,
     this.description = '',
     this.note = '',
+    this.transactionTime = '',
   });
 
   final DateTime transactionDate;
@@ -99,6 +107,7 @@ class RecordIncomeParams {
   final int amountCents;
   final String description;
   final String note;
+  final String transactionTime;
 }
 
 /// Records a SimpleTransfer RPC: debit the destination asset account,
@@ -111,6 +120,7 @@ class RecordTransferParams {
     required this.amountCents,
     this.description = '',
     this.note = '',
+    this.transactionTime = '',
   });
 
   final DateTime transactionDate;
@@ -119,6 +129,7 @@ class RecordTransferParams {
   final int amountCents;
   final String description;
   final String note;
+  final String transactionTime;
 }
 
 /// Full double-entry record. Caller supplies balanced [entries] (sum of

@@ -10,6 +10,7 @@ import 'package:yucai_client/core/widgets/amount_input.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/date_picker_input.dart';
 import 'package:yucai_client/core/widgets/form_section.dart';
+import 'package:yucai_client/core/widgets/time_picker_input.dart';
 import 'package:yucai_client/core/widgets/type_tabs.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
@@ -130,6 +131,9 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
 
   late TxnType _type;
   DateTime _date = DateTime.now();
+  // Task 5：交易时间 HH:MM，默认当前时刻。提交时与 _date 拼成 RFC3339
+  // transaction_time 落库；用户不调整时即记录「此刻」，保留旧行为。
+  TimeOfDay _time = TimeOfDay.now();
   // 支出/收入：资产账户；转账：转出账户。从账户入口进入时预选当前账户
   //（initState 里赋值，避免在字段初始化时访问 widget）。
   String? _assetAccountId;
@@ -171,6 +175,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
     _formKey.currentState!.save();
 
     final bloc = context.read<TransactionFormBloc>();
+    final transactionTime = _transactionTimeRfc3339();
     switch (_type) {
       case TxnType.expense:
         if (_assetAccountId == null || _categoryAccountId == null) return;
@@ -181,6 +186,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
           amountCents: _amountCents,
           description: _payeeCtrl.text.trim(),
           note: _noteCtrl.text.trim(),
+          transactionTime: transactionTime,
         ));
         break;
       case TxnType.income:
@@ -192,6 +198,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
           amountCents: _amountCents,
           description: _payeeCtrl.text.trim(),
           note: _noteCtrl.text.trim(),
+          transactionTime: transactionTime,
         ));
         break;
       case TxnType.transfer:
@@ -203,9 +210,25 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
           amountCents: _amountCents,
           description: _payeeCtrl.text.trim(),
           note: _noteCtrl.text.trim(),
+          transactionTime: transactionTime,
         ));
         break;
     }
+  }
+
+  /// Task 5：把表单日期 `_date` 与时间选择器 `_time` 拼成一个本地
+  /// [DateTime]，再 `.toUtc().toIso8601String()` 得到服务器期望的 RFC3339
+  /// `transaction_time`（例 `2026-06-19T05:45:00.000Z`）。用户没动时间选择器
+  /// 时 `_time` 已是 `TimeOfDay.now()`，即「此刻」—— 等价于旧行为。
+  String _transactionTimeRfc3339() {
+    final local = DateTime(
+      _date.year,
+      _date.month,
+      _date.day,
+      _time.hour,
+      _time.minute,
+    );
+    return local.toUtc().toIso8601String();
   }
 
   /// 实时复式预览：根据当前类型 + 选中的账户 + 金额构造两条分录。
@@ -448,14 +471,31 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
                 assetAccounts, expenseAccounts, incomeAccounts),
             const SizedBox(height: AppSpacing.lg),
 
-            // 日期 / 交易对象 / 备注
+            // 日期 / 时间 / 交易对象 / 备注
             FormSection(
               title: '详情',
               children: [
-                DatePickerInput(
-                  label: '交易日期',
-                  initialValue: _date,
-                  onSaved: (v) => _date = v ?? DateTime.now(),
+                // 交易日期 + 交易时间并排（Task 5）。时间默认当前时刻，
+                // 用户不调整即记「此刻」，等价旧行为。
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: DatePickerInput(
+                        label: '交易日期',
+                        initialValue: _date,
+                        onSaved: (v) => _date = v ?? DateTime.now(),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: TimePickerInput(
+                        label: '交易时间',
+                        initialTime: _time,
+                        onChanged: (t) => setState(() => _time = t),
+                      ),
+                    ),
+                  ],
                 ),
                 TextFormField(
                   controller: _payeeCtrl,
