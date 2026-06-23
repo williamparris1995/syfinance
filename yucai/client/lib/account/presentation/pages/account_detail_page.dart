@@ -384,22 +384,31 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         'CNY' => '人民币',
         'USD' => '美元',
         'EUR' => '欧元',
-        'HKD' => '港币',
+        'HKD' => '港元',
+        'GBP' => '英镑',
+        'JPY' => '日元',
         _ => '',
       };
 
   Widget _hero(Account a, int netCents) {
     final isLiability = a.accountType == AccountType.liability;
     final netPositive = netCents >= 0;
-    // hero-org: 机构 · 币种 · 尾号（对齐 OD .hero-org）。
-    // 机构/尾号都缺失时回退到 类别 · 币种（保持 hero-org 非空）。
+    // hero-org: 机构 · 人民币 币种 · 卡号 **** 尾号（对齐 OD .hero-org）。
+    // 机构/尾号都缺失时回退到 类别 · 人民币 币种（保持 hero-org 非空）。
+    final curName = _currencyName(a.currencyCode);
+    final curLabel = curName.isEmpty
+        ? a.currencyCode
+        : '$curName ${a.currencyCode}';
     final org = a.institution.isEmpty && a.cardNumberTail.isEmpty
-        ? '${a.category.label} · ${a.currencyCode}'
+        ? '${a.category.label} · $curLabel'
         : [
             if (a.institution.isNotEmpty) a.institution,
-            a.currencyCode,
-            if (a.cardNumberTail.isNotEmpty) '尾号 ${a.cardNumberTail}',
+            curLabel,
+            if (a.cardNumberTail.isNotEmpty) '卡号 **** ${a.cardNumberTail}',
           ].join(' · ');
+    // 第2 badge：{资产类/负债类}·活期/定期（fixedDeposit→定期，其他→活期）。
+    final liquidity = a.category == AccountCategory.fixedDeposit ? '定期' : '活期';
+    final classLabel = '${isLiability ? '负债类' : '资产类'} · $liquidity';
     return ClipRRect(
       borderRadius: AppRadius.lgBorder,
       child: Container(
@@ -432,17 +441,23 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                 ),
               ),
             ),
+            // hero-pick（右上角）：已绑定实名 · 银行直连（对齐 OD .hero-pick）。
+            // Positioned 在 Column 之上但不挡 Column（Column 左上起，pill 右上角）。
+            Positioned(top: 0, right: 0, child: _heroPick()),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // hero-badges: 类型 + 资产/负债类（对齐 OD 的 2 个 ghost badge）。
-                // 原「活期/定期」独立 badge 已合并进语义（OD 简化）。
+                // hero-badges: 类型徽章（金色实心 + icon）+ 资产/负债类·活期/定期（ghost）。
+                // 对齐 OD .hero-badges（第1 .hero-badge 金色 icon，第2 .hero-badge.ghost）。
                 Wrap(
-                  spacing: 8,
+                  spacing: 7,
                   runSpacing: 8,
                   children: [
-                    _heroBadge(a.category.label),
-                    _heroBadge(isLiability ? '负债类' : '资产类'),
+                    _heroBadge(
+                      '${a.category.label}账户',
+                      icon: _categoryIcon(a.category),
+                    ),
+                    _heroBadge(classLabel, ghost: true),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -520,23 +535,84 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     );
   }
 
-  /// hero-badge：半透明金色描边小 pill。
-  Widget _heroBadge(String label) => Container(
+  /// hero-pick：右上角 pill「已绑定实名 · 银行直连」（对齐 OD .hero-pick）。
+  /// 白底 alpha 0.08 + 白描边 alpha 0.14 + r9 + padding 8/14 + shieldCheck 金色。
+  Widget _heroPick() => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(9),
+          color: Colors.white.withValues(alpha: 0.08),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              LucideIcons.shieldCheck,
+              size: 15,
+              color: AppColors.accent,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '已绑定实名 · 银行直连',
+              style: TextStyle(
+                fontSize: 12.5,
+                color: Colors.white.withValues(alpha: 0.85),
+              ),
+            ),
+          ],
+        ),
+      );
+
+  /// 按 account.category 映射类型 lucide icon（hero-badge 第1徽章前置图标）。
+  IconData _categoryIcon(AccountCategory c) => switch (c) {
+        AccountCategory.savings => LucideIcons.landmark,
+        AccountCategory.fixedDeposit => LucideIcons.landmark,
+        AccountCategory.creditCard => LucideIcons.creditCard,
+        AccountCategory.investment => LucideIcons.trendingUp,
+        AccountCategory.goldFx => LucideIcons.gem,
+        AccountCategory.realEstate => LucideIcons.building2,
+        AccountCategory.loan => LucideIcons.landmark,
+        AccountCategory.otherAsset => LucideIcons.wallet,
+        AccountCategory.otherLiability => LucideIcons.wallet,
+      };
+
+  /// hero-badge：第1金色实心（icon + 文字）；第2 ghost（半透明白）。
+  /// 对齐 OD .hero-badge（金底 #b08d57 18% + 金描边 32% + #e0bd84 字 + bank icon）
+  /// 与 .hero-badge.ghost（白底 7% + 白描边 12% + 白字 70%）。
+  Widget _heroBadge(String label, {IconData? icon, bool ghost = false}) =>
+      Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(6),
           border: Border.all(
-            color: AppColors.accent.withValues(alpha: 0.5),
+            color: ghost
+                ? Colors.white.withValues(alpha: 0.12)
+                : AppColors.accent.withValues(alpha: 0.32),
           ),
-          color: AppColors.accent.withValues(alpha: 0.08),
+          color: ghost
+              ? Colors.white.withValues(alpha: 0.07)
+              : AppColors.accent.withValues(alpha: 0.18),
         ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11,
-            color: AppColors.accentSoft,
-            fontWeight: FontWeight.w500,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 13, color: const Color(0xFFE0BD84)),
+              const SizedBox(width: 5),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.02,
+                color: ghost
+                    ? Colors.white.withValues(alpha: 0.7)
+                    : const Color(0xFFE0BD84),
+              ),
+            ),
+          ],
         ),
       );
 
@@ -603,9 +679,15 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
       case AccountCategory.savings:
       case AccountCategory.otherAsset:
       case AccountCategory.otherLiability:
-        addRate('利率', a.interestRate);
+        // 对齐 OD .hero-fields 储蓄分支 4 字段：
+        // 年化利率 / 开户日期 / 账户类型 ·活期·定期 / 币种（code + 中文名）。
+        addRate('年化利率', a.interestRate);
         addDate('开户日期', a.openingDate);
-        add('币种', a.currencyCode);
+        final liquidity =
+            a.category == AccountCategory.fixedDeposit ? '定期' : '活期';
+        add('账户类型', '${a.category.label} · $liquidity');
+        final cn = _currencyName(a.currencyCode);
+        add('币种', cn.isEmpty ? a.currencyCode : '${a.currencyCode} $cn');
     }
 
     return Container(

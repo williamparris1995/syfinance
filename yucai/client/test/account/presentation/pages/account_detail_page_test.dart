@@ -451,17 +451,14 @@ void main() {
     expect(bal.style?.fontFamily, AppTypography.displayFamily);
   });
 
-  testWidgets('hero: hero-badge 类型 + 资产·负债类（2 badges，对齐 OD）',
+  testWidgets('hero: hero-badge 类型账户 + 资产·负债类·活期（2 badges，对齐 OD）',
       (tester) async {
     await pumpPage(tester);
 
-    // 储蓄账户 → '储蓄' / '资产类'。OD hero 只保留 2 个 ghost badge
-    //（类型 + 资产/负债类）；原「活期/定期」badge 已合并进语义，不再独立显示。
-    expect(find.text('储蓄'), findsWidgets);
-    expect(find.text('资产类'), findsOneWidget);
-    expect(find.text('活期'), findsNothing,
-        reason: 'OD 对齐后 hero 只保留 2 badge，活期/定期不再独立显示');
-    expect(find.text('定期'), findsNothing);
+    // 储蓄账户 → 第1金色实心 badge「储蓄账户」(landmark icon)，
+    // 第2 ghost badge「资产类 · 活期」。对齐 OD .hero-badges。
+    expect(find.text('储蓄账户'), findsOneWidget);
+    expect(find.text('资产类 · 活期'), findsOneWidget);
   });
 
   // ───── Task 4: hero 加 hero-name + hero-org + hero-bal-label（对齐 OD）─────
@@ -485,8 +482,8 @@ void main() {
       ),
     );
 
-    // hero-org: 机构 · 币种 · 尾号（对齐 OD .hero-org）。
-    expect(find.text('招商银行 · CNY · 尾号 2840'), findsOneWidget);
+    // hero-org: 机构 · 人民币 币种 · 卡号 **** 尾号（对齐 OD .hero-org）。
+    expect(find.text('招商银行 · 人民币 CNY · 卡号 **** 2840'), findsOneWidget);
   });
 
   testWidgets('hero: hero-bal-label "可用余额"', (tester) async {
@@ -499,8 +496,8 @@ void main() {
     // 默认 _account() 无 institution / cardNumberTail → 回退分支。
     await pumpPage(tester);
 
-    // 储蓄 category label = '储蓄'。
-    expect(find.text('储蓄 · CNY'), findsOneWidget);
+    // 储蓄 category label = '储蓄'；CNY 中文名「人民币」。
+    expect(find.text('储蓄 · 人民币 CNY'), findsOneWidget);
   });
 
   testWidgets('hero: hero-bal-sub 本月收支（正数绿色）', (tester) async {
@@ -534,10 +531,15 @@ void main() {
       ),
     );
 
-    // 储蓄默认分支字段。
-    expect(find.text('利率'), findsOneWidget);
+    // 储蓄默认分支 4 字段（对齐 OD .hero-fields）。
+    expect(find.text('年化利率'), findsOneWidget);
     expect(find.text('开户日期'), findsOneWidget);
+    expect(find.text('账户类型'), findsOneWidget);
     expect(find.text('币种'), findsOneWidget);
+    // 币种值：「CNY 人民币」（code + 中文名）。
+    expect(find.text('CNY 人民币'), findsOneWidget);
+    // 账户类型值：储蓄非定期 → 「储蓄 · 活期」。
+    expect(find.text('储蓄 · 活期'), findsOneWidget);
     // _specificChips 的扁平 Chip 已被结构化字段网格取代。
     expect(find.byType(Chip), findsNothing);
   });
@@ -554,8 +556,8 @@ void main() {
         findsOneWidget);
     expect(find.text('还款日'), findsOneWidget);
     expect(find.text('年费'), findsOneWidget);
-    // 负债类 badge。
-    expect(find.text('负债类'), findsOneWidget);
+    // 负债类 badge（信用卡非定期 → 「负债类 · 活期」）。
+    expect(find.text('负债类 · 活期'), findsOneWidget);
   });
 
   testWidgets('hero: 字段网格（贷款 → 原始本金/剩余本金/月供/下次还款）',
@@ -572,7 +574,8 @@ void main() {
     expect(find.descendant(of: hero, matching: find.text('月供')),
         findsOneWidget);
     expect(find.text('下次还款'), findsOneWidget);
-    expect(find.text('负债类'), findsOneWidget);
+    // 负债类 badge（贷款非定期 → 「负债类 · 活期」）。
+    expect(find.text('负债类 · 活期'), findsOneWidget);
   });
 
   // ───── Task 5: quick-stats 类型专属 4 卡（按 category 分支）─────
