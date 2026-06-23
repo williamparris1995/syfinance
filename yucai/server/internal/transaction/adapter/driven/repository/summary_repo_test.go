@@ -268,3 +268,56 @@ func TestTransactionSummary_ExcludesSoftDeleted(t *testing.T) {
 	require.Len(t, summary.ByDay, 1)
 	assert.Equal(t, live.Entries[0].AccountID, f.cash.ID) // sanity: live txn's cash leg
 }
+
+// TestTransactionSummary_YearScopeDailyAvgIsZero guards the semantic-defect fix:
+// under YEAR scope the ByDay entries are per-MONTH buckets, so net/len(ByDay)
+// would be a per-active-month value (~30x too large) mislabeled as a daily
+// average. DailyAvgCents must be 0 for YEAR scope.
+func TestTransactionSummary_YearScopeDailyAvgIsZero(t *testing.T) {
+	txnClient, accClient, db := setupSummaryTestDB(t)
+	f := seedSummaryFixture(t, txnClient, accClient, db)
+
+	feb1 := time.Date(2026, 2, 1, 12, 0, 0, 0, time.UTC)
+	mar1 := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
+	recordTxn(t, f.txnRepo, f.tenantID, feb1, "salary-feb", incomeEntries(f.cash.ID, f.salary.ID, 10000_00))
+	recordTxn(t, f.txnRepo, f.tenantID, mar1, "salary-mar", incomeEntries(f.cash.ID, f.salary.ID, 20000_00))
+
+	summary, err := f.txnRepo.TransactionSummary(context.Background(), domain.SummaryScope{
+		TenantID: f.tenantID, Year: 2026, Scope: domain.ScopeYear,
+	})
+	require.NoError(t, err)
+
+	// 2 active months under YEAR scope.
+	require.Len(t, summary.ByDay, 2)
+	assert.Equal(t, int64(30000_00), summary.IncomeCents)
+	assert.Equal(t, int64(30000_00), summary.NetCents)
+	// DailyAvgCents MUST be 0 under YEAR scope (would be 15000_00 if the old
+	// net/len(ByDay) formula were still applied).
+	assert.Equal(t, int64(0), summary.DailyAvgCents, "DailyAvgCents must be 0 under YEAR scope")
+}
+
+// TestTransactionSummary_DayScopeDailyAvgIsZero guards the DAY-scope branch:
+// there is a single bucket, so an "average" is meaningless. DailyAvgCents must
+// be 0 for DAY scope.
+func TestTransactionSummary_DayScopeDailyAvgIsZero(t *testing.T) {
+	txnClient, accClient, db := setupSummaryTestDB(t)
+	f := seedSummaryFixture(t, txnClient, accClient, db)
+
+	day := 15
+	jan := func(d int) time.Time { return time.Date(2026, 1, d, 12, 0, 0, 0, time.UTC) }
+	recordTxn(t, f.txnRepo, f.tenantID, jan(day), "salary", incomeEntries(f.cash.ID, f.salary.ID, 10000_00))
+	recordTxn(t, f.txnRepo, f.tenantID, jan(day), "food", expenseEntries(f.food.ID, f.cash.ID, 50_00))
+
+	summary, err := f.txnRepo.TransactionSummary(context.Background(), domain.SummaryScope{
+		TenantID: f.tenantID, Year: 2026, Month: 1, Day: &day, Scope: domain.ScopeDay,
+	})
+	require.NoError(t, err)
+
+	require.Len(t, summary.ByDay, 1)
+	assert.Equal(t, int64(10000_00), summary.IncomeCents)
+	assert.Equal(t, int64(50_00), summary.ExpenseCents)
+	assert.Equal(t, int64(9950_00), summary.NetCents)
+	// DailyAvgCents MUST be 0 under DAY scope (would equal NetCents under the
+	// old net/len(ByDay) formula since there is a single bucket).
+	assert.Equal(t, int64(0), summary.DailyAvgCents, "DailyAvgCents must be 0 under DAY scope")
+}

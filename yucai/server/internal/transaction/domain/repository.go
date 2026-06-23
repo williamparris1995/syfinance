@@ -106,8 +106,9 @@ type SummaryCategoryItem struct {
 	Amount      int64
 }
 
-// SummaryDailyItem aggregates all income/expense entries for a single calendar
-// day within the queried month. ByCategory breaks the day down by the Income or
+// SummaryDailyItem aggregates all income/expense entries for a single period
+// bucket. For DAY/MONTH scope: a calendar day. For YEAR scope: first-of-month
+// (the bucket is a month). ByCategory breaks the bucket down by the Income or
 // Expense account that absorbed each leg (the account-as-category breakdown for
 // the home/dashboard "by category" chart).
 type SummaryDailyItem struct {
@@ -118,8 +119,9 @@ type SummaryDailyItem struct {
 
 // MonthlySummary is the result of TransactionSummary for a (tenant, year, month)
 // scope, optionally narrowed to a single account. IncomeCents/ExpenseCents are
-// month totals; NetCents = Income - Expense; DailyAvgCents is the month mean
-// over the number of distinct days that had any income or expense activity.
+// the period totals; NetCents = Income - Expense; DailyAvgCents is NetCents
+// divided by the number of distinct active days. Only computed for MONTH scope;
+// 0 for DAY/YEAR scopes (use ByDay aggregation directly for those).
 type MonthlySummary struct {
 	IncomeCents   int64
 	ExpenseCents  int64

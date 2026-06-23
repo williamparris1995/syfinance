@@ -702,8 +702,17 @@ func (r *TransactionRepository) TransactionSummary(ctx context.Context, scope do
 	}
 
 	summary.NetCents = summary.IncomeCents - summary.ExpenseCents
-	if n := len(byDay); n > 0 {
-		summary.DailyAvgCents = summary.NetCents / int64(n)
+	// DailyAvgCents is only semantically meaningful for MONTH scope (and the
+	// zero/default scope, which behaves as MONTH for backward compatibility),
+	// where each ByDay entry is one calendar day (net / distinct active days).
+	// Under YEAR scope the ByDay entries are per-MONTH buckets, so net/len would
+	// be a per-active-month value mislabeled as "daily". Under DAY scope there is
+	// a single bucket, so an "average" is meaningless. Leave it 0 in both cases;
+	// callers that need those aggregations read ByDay directly.
+	if scope.Scope == domain.ScopeMonth || scope.Scope == 0 {
+		if n := len(byDay); n > 0 {
+			summary.DailyAvgCents = summary.NetCents / int64(n)
+		}
 	}
 	summary.ByDay = byDay
 	return summary, nil
