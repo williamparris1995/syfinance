@@ -446,19 +446,26 @@ func (r *TransactionRepository) Update(ctx context.Context, tx *domain.Transacti
 	return nil
 }
 
-// TransactionSummary aggregates a tenant's income/expense flows for a month,
-// broken down by day and by Income/Expense account (the account-as-category
-// breakdown). It runs a single raw SQL query that JOINs transactions → entries
-// → accounts and GROUPs BY (day, account). The query returns one row per
-// (day, account) pair; the Go layer rolls those rows up into MonthlySummary /
-// SummaryDailyItem / SummaryCategoryItem.
+// TransactionSummary aggregates a tenant's income/expense flows for a period
+// selected by scope.Scope, broken down by bucket (day/month/single) and by
+// Income/Expense account (the account-as-category breakdown). It runs a single
+// raw SQL query that JOINs transactions → entries → accounts and GROUPs BY
+// (bucket, account). The query returns one row per (bucket, account) pair; the
+// Go layer rolls those rows up into MonthlySummary / SummaryDailyItem /
+// SummaryCategoryItem.
+//
+// Scope granularity:
+//   - ScopeDay:   one single bucket aggregating the whole day. Day must be set.
+//   - ScopeMonth: per-day buckets (existing behavior, default).
+//   - ScopeYear:  per-month buckets.
 //
 // Direction rules (account-as-category + double-entry, same as BalanceCalculator):
 //   - Income account leg contributes its credit_cents to IncomeCents.
 //   - Expense account leg contributes its debit_cents to ExpenseCents.
 //   - Asset/Liability/Equity legs are neither income nor expense and are
 //     filtered out by the CASE expressions (so an asset→asset transfer
-//     contributes 0 to both totals but its day still appears with no categories).
+//     contributes 0 to both totals but its bucket still appears with no
+//     categories).
 //
 // AccountID, when set, scopes the aggregation to that single account's legs.
 func (r *TransactionRepository) TransactionSummary(ctx context.Context, scope domain.SummaryScope) (*domain.MonthlySummary, error) {
@@ -466,27 +473,43 @@ func (r *TransactionRepository) TransactionSummary(ctx context.Context, scope do
 		return nil, fmt.Errorf("transaction summary requires the underlying *sql.DB (rawDB is nil)")
 	}
 
-	start, end, err := monthRange(scope.Year, scope.Month)
+	start, end, err := scopeRange(scope.Scope, scope.Year, scope.Month, scope.Day)
 	if err != nil {
 		return nil, err
 	}
 
-	// One row per (day, account). amount is the directional contribution:
+	// dateExpr selects how each row's transaction_date is bucketed for GROUP BY:
+	//   DAY   — single bucket: a constant literal collapses every row into one
+	//            group (the whole day aggregates together, no per-day split).
+	//   MONTH — substr(...,1,10) slices "YYYY-MM-DD ..." to per-day buckets.
+	//   YEAR  — substr(...,1,7) slices to "YYYY-MM" per-month buckets.
+	// The default (Scope zero / ScopeUnspecified) matches MONTH for backward
+	// compatibility with callers that omit Scope.
+	dateExpr := "substr(CAST(t.transaction_date AS TEXT), 1, 10)" // MONTH default
+	switch scope.Scope {
+	case domain.ScopeDay:
+		// A literal constant makes GROUP BY collapse to one bucket for the day.
+		// The selected column is still returned (callers index it), so use a
+		// stable string rather than NULL to keep the row-level scan path uniform.
+		dateExpr = "'" + singleBucketKey + "'"
+	case domain.ScopeYear:
+		dateExpr = "substr(CAST(t.transaction_date AS TEXT), 1, 7)"
+	}
+
+	// One row per (bucket, account). amount is the directional contribution:
 	// income accounts: credit_cents; expense accounts: debit_cents; else 0.
 	//
-	// Day extraction is dialect-aware:
+	// Bucket extraction is dialect-aware:
 	//   SQLite   — transaction_date is stored as TEXT "YYYY-MM-DD ...", so
-	//              substr(CAST(... AS TEXT), 1, 10) slices the calendar day.
+	//              substr(CAST(... AS TEXT), 1, N) slices the calendar prefix.
 	//   Postgres — transaction_date is timestamptz; CAST(... AS TEXT) yields
-	//              "YYYY-MM-DD HH:MM:SS+TZ" so the same substr(1,10) works.
-	// CAST AS TEXT is a no-op on SQLite and a portable timestamp→text coercion
-	// on Postgres; substr(text, int, int) exists on both. SQLite's DATE()/
-	// strftime() return NULL on the stored text format, so they cannot be used.
+	//              "YYYY-MM-DD HH:MM:SS+TZ" so the same substr() slicing works.
+	// For DAY scope dateExpr is a constant literal so GROUP BY collapses every
+	// row of the day into a single bucket.
 	//
 	// Placeholders: the SQL is written with '?' (SQLite-native), then rebound
 	// to '$N' for PostgreSQL because pgx's stdlib driver does not rewrite '?'
 	// (unlike modernc/sqlite which binds '?' positionally).
-	dateExpr := "substr(CAST(t.transaction_date AS TEXT), 1, 10)"
 	// Account-scope: filter TRANSACTIONS that hit the scoped account (not entry
 	// rows). The pre-fix clause "e.account_id = ?" filtered entry rows directly,
 	// so when scope.AccountID pointed at an asset/liability account only that
@@ -554,7 +577,9 @@ func (r *TransactionRepository) TransactionSummary(ctx context.Context, scope do
 		accountID uuid.UUID
 	}
 
-	// Aggregate per (day, account) into a category, and per-day totals.
+	// Aggregate per (bucket, account) into a category, and per-bucket totals.
+	// The "bucket" is a calendar day (MONTH scope), a calendar month (YEAR
+	// scope), or the single-bucket sentinel (DAY scope).
 	type categoryAcc struct {
 		accountID   uuid.UUID
 		name        string
@@ -570,6 +595,30 @@ func (r *TransactionRepository) TransactionSummary(ctx context.Context, scope do
 	dayOrder := []string{} // preserve ASC order of first appearance
 	days := map[string]*dayAcc{}
 	perDayAccount := map[dayAccountKey]*categoryAcc{}
+
+	// parseBucket converts a SQL bucket string into the time.Time recorded on the
+	// resulting SummaryDailyItem. The format depends on scope:
+	//   DAY   — bucket is the singleBucketKey sentinel; the item's Date is the
+	//           normalized start of the scoped day (start, computed above).
+	//   MONTH — "YYYY-MM-DD" → parsed as a calendar day.
+	//   YEAR  — "YYYY-MM"    → parsed as the first day of that month.
+	parseBucket := func(bucket string) (time.Time, error) {
+		if scope.Scope == domain.ScopeDay {
+			return start, nil
+		}
+		if scope.Scope == domain.ScopeYear {
+			t, err := time.Parse("2006-01", bucket)
+			if err != nil {
+				return time.Time{}, fmt.Errorf("parse month bucket %q: %w", bucket, err)
+			}
+			return t, nil
+		}
+		t, err := time.Parse("2006-01-02", bucket)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("parse day bucket %q: %w", bucket, err)
+		}
+		return t, nil
+	}
 
 	for rows.Next() {
 		var (
@@ -587,9 +636,9 @@ func (r *TransactionRepository) TransactionSummary(ctx context.Context, scope do
 			return nil, fmt.Errorf("parse account id %q: %w", accountIDStr, parseErr)
 		}
 
-		day, dateErr := time.Parse("2006-01-02", dayStr)
+		day, dateErr := parseBucket(dayStr)
 		if dateErr != nil {
-			return nil, fmt.Errorf("parse day %q: %w", dayStr, dateErr)
+			return nil, dateErr
 		}
 
 		if _, ok := days[dayStr]; !ok {
@@ -598,7 +647,7 @@ func (r *TransactionRepository) TransactionSummary(ctx context.Context, scope do
 		}
 
 		// Skip zero-amount legs (e.g. the asset/transfer legs): they do not
-		// form a category, though their day already exists.
+		// form a category, though their bucket already exists.
 		if amount == 0 {
 			continue
 		}
@@ -660,16 +709,57 @@ func (r *TransactionRepository) TransactionSummary(ctx context.Context, scope do
 	return summary, nil
 }
 
-// monthRange returns the [start, end) UTC time window covering the given
-// calendar month. end is exclusive (first instant of the next month). month is
-// 1-12; values outside that range are an error.
-func monthRange(year, month int) (time.Time, time.Time, error) {
-	if month < 1 || month > 12 {
-		return time.Time{}, time.Time{}, fmt.Errorf("invalid month %d (want 1-12)", month)
+// singleBucketKey is the SQL literal selected as the "bucket" column when
+// scope == ScopeDay. Because it is a constant (not derived from
+// transaction_date), GROUP BY collapses every row of the day into one bucket,
+// which is exactly the DAY-scope aggregation contract (a single sum for the
+// day, no per-date breakdown). It is a short stable string so the row scan
+// path stays uniform with the MONTH/YEAR branches.
+const singleBucketKey = "__day__"
+
+// scopeRange returns the [start, end) UTC time window covering the period
+// selected by scope:
+//
+//   - ScopeDay:   [y-m-d 00:00, y-m-(d+1) 00:00) — requires day non-nil.
+//   - ScopeMonth: [y-m-1 00:00, y-(m+1)-1 00:00) — existing monthRange logic.
+//   - ScopeYear:  [y-1-1 00:00, (y+1)-1-1 00:00).
+//
+// Scope zero (ScopeUnspecified) defaults to MONTH for backward compatibility
+// with callers that omit Scope. month is 1-12; values outside that range are an
+// error (ignored for ScopeYear). day is 1-31 and is only consulted for
+// ScopeDay; the caller must validate the calendar day for the month.
+func scopeRange(scope domain.Scope, year, month int, day *int) (time.Time, time.Time, error) {
+	switch scope {
+	case domain.ScopeDay:
+		if day == nil {
+			return time.Time{}, time.Time{}, fmt.Errorf("scope DAY requires a non-nil day")
+		}
+		if month < 1 || month > 12 {
+			return time.Time{}, time.Time{}, fmt.Errorf("invalid month %d (want 1-12)", month)
+		}
+		if *day < 1 || *day > 31 {
+			return time.Time{}, time.Time{}, fmt.Errorf("invalid day %d (want 1-31)", *day)
+		}
+		start := time.Date(year, time.Month(month), *day, 0, 0, 0, 0, time.UTC)
+		// AddDate normalizes overflow (e.g. Jan 32 → Feb 1, Dec 31 → Jan 1 next
+		// year), so the end is always the next calendar day regardless of month
+		// or year boundaries.
+		end := start.AddDate(0, 0, 1)
+		return start, end, nil
+
+	case domain.ScopeYear:
+		start := time.Date(year, time.January, 1, 0, 0, 0, 0, time.UTC)
+		end := start.AddDate(1, 0, 0)
+		return start, end, nil
+
+	default: // ScopeMonth, ScopeUnspecified (zero), and any unknown value.
+		if month < 1 || month > 12 {
+			return time.Time{}, time.Time{}, fmt.Errorf("invalid month %d (want 1-12)", month)
+		}
+		start := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
+		end := start.AddDate(0, 1, 0)
+		return start, end, nil
 	}
-	start := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
-	end := start.AddDate(0, 1, 0)
-	return start, end, nil
 }
 
 // rebindPlaceholders converts '?' placeholders in a raw SQL string to the
