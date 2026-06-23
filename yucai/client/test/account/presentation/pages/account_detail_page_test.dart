@@ -1091,4 +1091,33 @@ void main() {
 
     expect(find.textContaining('查看全部'), findsOneWidget);
   });
+
+  // ───── Task 14: stat 卡 colored icon square + 「实时」tag（视觉收尾）─────
+
+  testWidgets(
+      'Task 14: 4 stat cards each show a colored icon square '
+      '(trend-up/trend-dn/wallet/notebook) + 「实时」tag', (tester) async {
+    await pumpPage(tester);
+
+    // 4 stat 卡在首屏顶部（hero 之下）。滚到 stat row 让 Icon 挂载。
+    await tester.scrollUntilVisible(
+      find.textContaining('本月收入'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    // 4 个位置 icon：收入 trend-up / 支出 trend-dn / 净流入 wallet / 交易 notebook。
+    expect(find.byIcon(Icons.trending_up), findsOneWidget,
+        reason: 'card1 收入 应显示 trend-up icon');
+    expect(find.byIcon(Icons.trending_down), findsOneWidget,
+        reason: 'card2 支出 应显示 trend-down icon');
+    expect(find.byIcon(Icons.account_balance_wallet), findsOneWidget,
+        reason: 'card3 净流入 应显示 wallet icon');
+    expect(find.byIcon(Icons.receipt_long), findsOneWidget,
+        reason: 'card4 交易 应显示 notebook icon');
+
+    // 4 卡都显示「实时」tag（取代「待 Transaction」）。
+    expect(find.text('实时'), findsNWidgets(4));
+    expect(find.textContaining('待 Transaction'), findsNothing);
+  });
 }

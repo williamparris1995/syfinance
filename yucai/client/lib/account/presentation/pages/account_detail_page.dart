@@ -651,6 +651,18 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   Widget _statsRow(
       Account a, List<Transaction> txns, MonthlySummary? summary) {
     final stats = _statsFor(a: a, txns: txns, summary: summary);
+    // 4 卡按位置映射 colored icon square（OD .stat-ico，对齐原型 detail-account）：
+    //   card1 收入 → bg #e1efe8 + income-green trend-up
+    //   card2 支出 → bg #f6e3e1 + expense-red trend-down
+    //   card3 净流入 → bg #f3ebdd (accent-soft) + accent-gold wallet
+    //   card4 交易 → bg #e3ecf7 + #3b6fb0 blue notebook
+    // 全 account 类型共用同一 4 卡 icon set（按位置，不按 category）。
+    const iconSpecs = <(Color, Color, IconData)>[
+      (Color(0xFFE1EFE8), AppColors.positive, Icons.trending_up),
+      (Color(0xFFF6E3E1), AppColors.negative, Icons.trending_down),
+      (Color(0xFFF3ECDD), AppColors.accent, Icons.account_balance_wallet),
+      (Color(0xFFE3ECF7), Color(0xFF3B6FB0), Icons.receipt_long),
+    ];
     // 卡片间 14px 间距（原型 .quick-stats gap:14px）；首尾无边缘缩进。
     return Row(
       children: [
@@ -663,14 +675,44 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
               ),
               child: DataCard(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // label row：colored icon square + label。
+                    Row(
+                      children: [
+                        _StatIconSquare(
+                          bg: iconSpecs[i].$1,
+                          fg: iconSpecs[i].$2,
+                          icon: iconSpecs[i].$3,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(stats[i].$1,
+                              style: const TextStyle(
+                                  color: AppColors.muted, fontSize: 11)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
                     Text(stats[i].$2,
                         style: const TextStyle(
                             fontSize: 18, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 4),
-                    Text(stats[i].$1,
-                        style: const TextStyle(
-                            color: AppColors.muted, fontSize: 11)),
+                    // OD .stat-tag「实时」（取代「待 Transaction」占位）。
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: AppColors.accentSoft,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text('实时',
+                          style: TextStyle(
+                            color: AppColors.accent,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          )),
+                    ),
                   ],
                 ),
               ),
@@ -1557,5 +1599,33 @@ class _TxnTypeIcon extends StatelessWidget {
     // expense 按 category 分支（AccountCategory 是资产分类，不直接对应支出类目，
     // 但复用其语义做近义 icon；无匹配时用通用支出 icon）。
     return Icons.arrow_upward;
+  }
+}
+
+/// stat 卡 colored icon square（OD .stat-ico）。28×28 圆角方块 + 14px 白色 icon。
+/// bg = 浅色品类色（收入 #e1efe8 / 支出 #f6e3e1 / 净流入 #f3ebdd / 交易 #e3ecf7），
+/// fg = 同色系深色（用于 icon）。
+class _StatIconSquare extends StatelessWidget {
+  const _StatIconSquare({
+    required this.bg,
+    required this.fg,
+    required this.icon,
+  });
+  final Color bg;
+  final Color fg;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 28,
+      height: 28,
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      alignment: Alignment.center,
+      child: Icon(icon, size: 14, color: fg),
+    );
   }
 }
