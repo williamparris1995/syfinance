@@ -33,6 +33,15 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
 
   final TransactionRepository _txnRepo;
 
+  /// The most recently resolved summary, regardless of whether a list-bearing
+  /// state existed at the moment it landed. This buffers a summary that resolves
+  /// during a concurrent list reload (e.g. the account_detail page's
+  /// `_changeScope` dispatches LoadTransactionsRequested + LoadSummaryRequested
+  /// back-to-back): without it the summary RPC can resolve while state is still
+  /// `TransactionsLoading`, silently dropping the new scope's totals so the pie
+  /// chart shows stale/zero data. The next `TransactionsLoaded` reapplies it.
+  MonthlySummary? _pendingSummary;
+
   Future<void> _onLoad(
       LoadTransactionsRequested event, Emitter<TransactionState> emit) async {
     final filter = event.filter;
@@ -45,13 +54,15 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
         transactions: page.transactions,
         filter: filter,
         nextPageToken: page.nextPageToken,
-        // Carry over any already-loaded summary so a list reload (e.g. filter
-        // change) doesn't blank the card while the next summary RPC is in
-        // flight. The page re-emits LoadSummaryRequested on filter change,
-        // which replaces this with the freshly-fetched value.
-        summary: _priorSummary,
+        // Prefer a summary that resolved DURING this reload (issue ① race): if
+        // a LoadSummaryRequested landed while state was Loading, its result was
+        // buffered in _pendingSummary. Otherwise carry over the prior Loaded's
+        // summary so a list reload doesn't blank the card while the next
+        // summary RPC is in flight. Clearing the buffer once consumed.
+        summary: _pendingSummary ?? _priorSummary,
       )),
     );
+    _pendingSummary = null;
   }
 
   /// The summary on the current list-bearing state, or null. Used to preserve
@@ -121,9 +132,14 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
             nextPageToken: s.nextPageToken,
             summary: summary,
           ));
+        } else {
+          // Not list-bearing (e.g. TransactionsLoading during a scope-change
+          // reload): buffer the summary so the next LoadTransactionsRequested
+          // stamps it onto its Loaded emit. Without this the new scope's
+          // totals would be silently dropped (issue ①) and the pie chart would
+          // show stale/zero data until the next manual reload.
+          _pendingSummary = summary;
         }
-        // else: not list-bearing yet; summary is dropped. The next
-        // LoadTransactionsRequested re-fetches it.
       },
     );
   }

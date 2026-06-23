@@ -893,9 +893,38 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
           ('$_scopeLabel收入', _fmtSigned(summary?.incomeCents ?? 0)),
           ('$_scopeLabel支出', _fmtSigned(summary?.expenseCents ?? 0)),
           ('$_scopeLabel净流入', _fmtSigned(summary?.netCents ?? 0)),
-          ('$_scopeLabel交易', '${txns.length}'),
+          // Issue ②: 交易数 must match the scope of the other three cards
+          // (which are scope-scoped via the summary RPC). The txns list is
+          // account-scoped (all recent), so filter it by the current scope:
+          // DAY = today, MONTH = this month, YEAR = this year. Otherwise the
+          // count was inconsistent (scope-scoped totals + all-recent count).
+          ('$_scopeLabel交易', '${_txnCountInScope(txns)}'),
         ];
     }
+  }
+
+  /// Counts the transactions in [txns] that fall within the current [_scope]
+  /// (本日/本月/本年), based on each txn's calendar [Transaction.transactionDate]
+  /// (local time). Used by the savings/other stat-card 4th tile so all four
+  /// cards reflect the same period as the scope-scoped income/expense/net.
+  int _txnCountInScope(List<Transaction> txns) {
+    final now = DateTime.now();
+    int inScope(Transaction t) {
+      final d = t.transactionDate;
+      switch (_scope) {
+        case SummaryScope.day:
+          return d.year == now.year &&
+                  d.month == now.month &&
+                  d.day == (_day ?? now.day)
+              ? 1
+              : 0;
+        case SummaryScope.month:
+          return d.year == now.year && d.month == now.month ? 1 : 0;
+        case SummaryScope.year:
+          return d.year == now.year ? 1 : 0;
+      }
+    }
+    return txns.fold(0, (acc, t) => acc + inScope(t));
   }
 
   Widget _panel(String title, String hint) => DataCard(

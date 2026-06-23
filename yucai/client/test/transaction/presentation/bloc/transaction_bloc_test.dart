@@ -319,4 +319,57 @@ void main() {
       expect(s.summary, isNull); // prior summary was null; failure leaves it.
     },
   );
+
+  // ───── Issue ① regression: summary must survive a concurrent list reload ─────
+  //
+  // The account_detail page's _changeScope dispatches BOTH LoadTransactionsRequested
+  // (which flips state to TransactionsLoading) AND LoadSummaryRequested in quick
+  // succession. If the summary RPC resolves while the list reload is still in
+  // flight (state == Loading, not list-bearing), the summary must NOT be silently
+  // dropped — otherwise the pie chart shows stale/zero data for the new scope.
+  //
+  // This test reproduces the race: summary resolves first (fast mock), list
+  // resolves second (slow mock). The buffered summary must reappear on the next
+  // Loaded state.
+
+  blocTest<TransactionBloc, TransactionState>(
+    'LoadSummaryRequested resolves during a list reload: summary is buffered '
+    'and stamped onto the next Loaded (issue ① race)',
+    build: () {
+      // Slow list (50ms) so the summary RPC — fast (0ms) — resolves while the
+      // state is still TransactionsLoading.
+      when(() => txnRepo.list(any())).thenAnswer((_) async {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        return _ok([_txn('t1')], '');
+      });
+      when(() => txnRepo.summary(2026, 6,
+              accountId: any(named: 'accountId'),
+              scope: any(named: 'scope'),
+              day: any(named: 'day')))
+          .thenAnswer((_) async => const dartz.Right(MonthlySummary(
+                year: 2026,
+                month: 6,
+                incomeCents: 28600,
+                expenseCents: 28600,
+                netCents: 0,
+              )));
+      return TransactionBloc(txnRepo);
+    },
+    act: (b) async {
+      // Mirror _changeScope → _refreshTxn: dispatch list reload + summary back
+      // to back. The summary resolves before the list reload completes.
+      b.add(const LoadTransactionsRequested());
+      b.add(const LoadSummaryRequested(year: 2026, month: 6));
+    },
+    wait: const Duration(milliseconds: 150),
+    verify: (bloc) {
+      expect(bloc.state, isA<TransactionsLoaded>());
+      final s = bloc.state as TransactionsLoaded;
+      // The buffered DAY/YEAR summary must survive — not dropped while Loading.
+      expect(s.summary, isNotNull,
+          reason: 'issue ①: summary resolved during Loading must not be dropped');
+      expect(s.summary!.incomeCents, 28600);
+      expect(s.summary!.expenseCents, 28600);
+    },
+  );
 }

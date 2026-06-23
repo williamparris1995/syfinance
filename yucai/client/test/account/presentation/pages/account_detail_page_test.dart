@@ -970,6 +970,85 @@ void main() {
     expect(find.textContaining('本月收支'), findsOneWidget);
   });
 
+  // ───── Issue ②: stat-card 交易数 must follow scope ─────
+  //
+  // The savings stat-card row shows income/expense/net (all scope-scoped via
+  // the summary RPC) PLUS a 4th card 「{scope}交易 = txns.length」. But txns is
+  // the account-scoped recent list (no scope filter), so the count was
+  // inconsistent: scope-scoped totals + all-recent count. The fix filters the
+  // count by scope (DAY = today's txns, MONTH = this month's, YEAR = this
+  // year's), so all four cards reflect the same period.
+
+  testWidgets(
+    'Issue ②: scope=day → stat-card 本日交易 count reflects only today\'s txns '
+    '(not the full account-scoped list)',
+    (tester) async {
+      // Three transactions: one today, one earlier this month, one last month.
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final txns = [
+        _txn('today', today),
+        _txn('earlierThisMonth', today.subtract(const Duration(days: 5))),
+        _txn('lastMonth', today.subtract(const Duration(days: 40))),
+      ];
+      await pumpPage(tester, transactions: txns);
+
+      // Switch to DAY scope.
+      await tester.scrollUntilVisible(
+        find.textContaining('收支统计'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('日'));
+      await tester.pumpAndSettle();
+
+      // Stat cards rebuilt at top after scope change — scroll back.
+      await tester.scrollUntilVisible(
+        find.textContaining('可用余额'),
+        -200,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      // DAY scope → 本日交易 count = 1 (only today's txn), NOT 3.
+      expect(find.text('本日交易'), findsOneWidget);
+      expect(find.text('1'), findsOneWidget,
+          reason: 'issue ②: 本日交易 should count only today\'s txn (1), not all (3)');
+    },
+  );
+
+  testWidgets(
+    'Issue ②: scope=year → stat-card 本年交易 count reflects this year\'s txns',
+    (tester) async {
+      final now = DateTime.now();
+      final thisYear = DateTime(now.year, 6, 15);
+      final txns = [
+        _txn('y1', thisYear),
+        _txn('y2', thisYear.subtract(const Duration(days: 60))),
+        // A txn from last year must be excluded under YEAR scope.
+        _txn('lastYear', DateTime(now.year - 1, 6, 15)),
+      ];
+      await pumpPage(tester, transactions: txns);
+
+      await tester.scrollUntilVisible(
+        find.textContaining('收支统计'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('年'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.textContaining('可用余额'),
+        -200,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      // YEAR scope → 本年交易 = 2 (y1 + y2), NOT 3.
+      expect(find.text('本年交易'), findsOneWidget);
+      expect(find.text('2'), findsOneWidget,
+          reason: 'issue ②: 本年交易 should exclude last year (2), not all (3)');
+    },
+  );
+
   // ───── Task 12: 近期交易真实行（icon + 名称 + 分类·账户 + 金额 + 日期时间）─────
 
   /// expense 交易：expense 账户 a3（借方）+ asset 账户 a1（贷方）。
