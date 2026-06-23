@@ -231,3 +231,49 @@ func TestTransactionSummary_YearScope_ExcludesOtherYears(t *testing.T) {
 	assert.Equal(t, int64(6000_00), summary.IncomeCents, "2025 must be excluded")
 	require.Len(t, summary.ByDay, 1, "only 2026 month should appear")
 }
+
+// TestTransactionSummary_AccountScopeMonth_IncomeAndExpenseNonzero guards the
+// account_detail page chart regression: scoping to an asset account under MONTH
+// must aggregate BOTH the counterparty income leg AND the counterparty expense
+// leg of the transactions touching that asset, returning nonzero IncomeCents
+// AND ExpenseCents (so the pie chart renders instead of "暂无收支").
+//
+// Pre-existing coverage (TestTransactionSummary_AccountScopeAggregatesCounterpartyLegs)
+// only asserts expense; this test additionally pins income so a regression that
+// drops either direction is caught. It mirrors the account_detail page's exact
+// request shape (MONTH scope, account-scoped).
+func TestTransactionSummary_AccountScopeMonth_IncomeAndExpenseNonzero(t *testing.T) {
+	txnClient, accClient, db := setupSummaryTestDB(t)
+	f := seedSummaryFixture(t, txnClient, accClient, db)
+
+	// Two transactions touching the Cash asset (the account-detail target):
+	//   Jan 5:  income  salary 10000 (Cash debit / Salary credit)
+	//   Jan 20: expense food    5000 (Food debit / Cash credit)
+	jan := func(day int) time.Time { return time.Date(2026, 1, day, 12, 0, 0, 0, time.UTC) }
+	recordTxn(t, f.txnRepo, f.tenantID, jan(5), "salary",
+		incomeEntries(f.cash.ID, f.salary.ID, 10000_00))
+	recordTxn(t, f.txnRepo, f.tenantID, jan(20), "food",
+		expenseEntries(f.food.ID, f.cash.ID, 5000_00))
+
+	cashID := f.cash.ID
+	summary, err := f.txnRepo.TransactionSummary(context.Background(), domain.SummaryScope{
+		TenantID:  f.tenantID,
+		Year:      2026,
+		Month:     1,
+		Scope:     domain.ScopeMonth,
+		AccountID: &cashID,
+	})
+	require.NoError(t, err)
+
+	// BOTH directions must be nonzero — the chart (income + expense > 0) renders.
+	assert.NotZero(t, summary.IncomeCents,
+		"account-scope MONTH: income must aggregate counterparty Salary leg")
+	assert.Equal(t, int64(10000_00), summary.IncomeCents,
+		"account-scope MONTH income = salary counterparty leg")
+	assert.NotZero(t, summary.ExpenseCents,
+		"account-scope MONTH: expense must aggregate counterparty Food leg")
+	assert.Equal(t, int64(5000_00), summary.ExpenseCents,
+		"account-scope MONTH expense = food counterparty leg")
+	// net = 10000 - 5000 = 5000 (positive → green center).
+	assert.Equal(t, int64(5000_00), summary.NetCents)
+}
