@@ -102,6 +102,21 @@ func (r *CurrencyRepository) FindAll(ctx context.Context, activeOnly bool, page 
 	}, nil
 }
 
+// FindAllActive returns all active currencies without pagination.
+func (r *CurrencyRepository) FindAllActive(ctx context.Context) ([]domain.Currency, error) {
+	results, err := r.client.Currency.Query().
+		Where(currency.IsActive(true)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("query active currencies: %w", err)
+	}
+	items := make([]domain.Currency, len(results))
+	for i, c := range results {
+		items[i] = *toDomain(c)
+	}
+	return items, nil
+}
+
 // Update saves changes to an existing currency.
 func (r *CurrencyRepository) Update(ctx context.Context, c *domain.Currency) error {
 	_, err := r.client.Currency.UpdateOneID(c.ID).

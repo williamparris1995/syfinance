@@ -25,5 +25,7 @@ type CurrencyRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*Currency, error)
 	FindByCode(ctx context.Context, code string) (*Currency, error)
 	FindAll(ctx context.Context, activeOnly bool, page PageRequest) (*PaginatedResult[Currency], error)
+	// FindAllActive returns all active currencies (no pagination).
+	FindAllActive(ctx context.Context) ([]Currency, error)
 	Update(ctx context.Context, currency *Currency) error
 }

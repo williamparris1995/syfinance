@@ -74,3 +74,37 @@ func (s *Service) ListCurrencies(ctx context.Context, activeOnly bool, page doma
 		TotalCount:    result.TotalCount,
 	}, nil
 }
+
+// SyncRates fetches fresh rates from the provider and bulk-updates all active currencies.
+// Currencies without a returned rate (or non-positive rate) are skipped. Returns the
+// count of currencies actually updated.
+func (s *Service) SyncRates(ctx context.Context) (int, error) {
+	active, err := s.repo.FindAllActive(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("list active currencies: %w", err)
+	}
+	codes := make([]string, 0, len(active))
+	for _, c := range active {
+		codes = append(codes, c.Code)
+	}
+	rates, err := s.provider.FetchRates(ctx, codes)
+	if err != nil {
+		return 0, fmt.Errorf("fetch rates: %w", err)
+	}
+	updated := 0
+	for i := range active {
+		c := &active[i]
+		r, ok := rates[c.Code]
+		if !ok || r <= 0 {
+			continue
+		}
+		if err := c.UpdateRate(r); err != nil {
+			continue
+		}
+		if err := s.repo.Update(ctx, c); err != nil {
+			return updated, fmt.Errorf("update currency %s: %w", c.Code, err)
+		}
+		updated++
+	}
+	return updated, nil
+}
