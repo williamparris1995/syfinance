@@ -372,4 +372,98 @@ void main() {
       expect(s.summary!.expenseCents, 28600);
     },
   );
+
+  // ───── Final-review Important #1: stale-buffer must be keyed ─────
+  //
+  // _pendingSummary is a single slot keyed by nothing. If account A's summary
+  // resolves during a list reload, then the user switches to account B (or a
+  // different scope), the buffered A-summary could be stamped onto B's Loaded —
+  // stale cross-account/scope data. The buffer must only apply when the
+  // LoadTransactionsRequested filter matches the buffered LoadSummaryRequested
+  // (accountId + scope + day); otherwise it is discarded.
+  //
+  // This test: account A summary resolves while Loading; then account B's list
+  // is requested. B's Loaded must NOT carry A's summary.
+
+  blocTest<TransactionBloc, TransactionState>(
+    'buffered summary is NOT applied to a mismatched-account Loaded '
+    '(final-review #1 stale-buffer)',
+    build: () {
+      // Account A's summary resolves instantly (buffered while accA Loading).
+      when(() => txnRepo.summary(2026, 6,
+              accountId: 'accA',
+              scope: any(named: 'scope'),
+              day: any(named: 'day')))
+          .thenAnswer((_) async => const dartz.Right(MonthlySummary(
+                year: 2026,
+                month: 6,
+                incomeCents: 999, // marker for accA
+              )));
+      // Slow list so the summary reliably buffers during Loading.
+      when(() => txnRepo.list(any())).thenAnswer((_) async {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        return _ok([], '');
+      });
+      return TransactionBloc(txnRepo);
+    },
+    act: (b) async {
+      // accA list reload (goes Loading, slow) + accA summary (fast → buffered).
+      b.add(const LoadTransactionsRequested(
+          filter: TxnFilterState(accountId: 'accA')));
+      b.add(const LoadSummaryRequested(
+          year: 2026, month: 6, accountId: 'accA'));
+      // Before accA's slow list resolves, switch to accB: its Loaded must NOT
+      // carry accA's buffered summary.
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      b.add(const LoadTransactionsRequested(
+          filter: TxnFilterState(accountId: 'accB')));
+    },
+    wait: const Duration(milliseconds: 200),
+    verify: (bloc) {
+      expect(bloc.state, isA<TransactionsLoaded>());
+      final s = bloc.state as TransactionsLoaded;
+      expect(s.filter.accountId, 'accB');
+      expect(s.summary, isNull,
+          reason: 'final-review #1: accA buffered summary must not leak into '
+              'accB Loaded (stale cross-account data)');
+    },
+  );
+
+  // Positive counterpart: a MATCHED buffer (same account/scope) IS applied —
+  // guards against an over-aggressive fix that drops the buffer unconditionally.
+  blocTest<TransactionBloc, TransactionState>(
+    'buffered summary IS applied to a matched-account Loaded '
+    '(final-review #1 positive)',
+    build: () {
+      when(() => txnRepo.summary(2026, 6,
+              accountId: 'accA',
+              scope: any(named: 'scope'),
+              day: any(named: 'day')))
+          .thenAnswer((_) async => const dartz.Right(MonthlySummary(
+                year: 2026,
+                month: 6,
+                incomeCents: 777,
+              )));
+      // Slow list so the summary buffers during Loading, then re-applies on
+      // the matched accA Loaded.
+      when(() => txnRepo.list(any())).thenAnswer((_) async {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        return _ok([], '');
+      });
+      return TransactionBloc(txnRepo);
+    },
+    act: (b) async {
+      b.add(const LoadTransactionsRequested(
+          filter: TxnFilterState(accountId: 'accA')));
+      b.add(const LoadSummaryRequested(
+          year: 2026, month: 6, accountId: 'accA'));
+    },
+    wait: const Duration(milliseconds: 150),
+    verify: (bloc) {
+      final s = bloc.state as TransactionsLoaded;
+      expect(s.summary, isNotNull,
+          reason: 'matched buffer must apply (regression guard)');
+      expect(s.summary!.incomeCents, 777);
+    },
+  );
 }

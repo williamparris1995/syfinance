@@ -33,14 +33,19 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
 
   final TransactionRepository _txnRepo;
 
-  /// The most recently resolved summary, regardless of whether a list-bearing
-  /// state existed at the moment it landed. This buffers a summary that resolves
-  /// during a concurrent list reload (e.g. the account_detail page's
-  /// `_changeScope` dispatches LoadTransactionsRequested + LoadSummaryRequested
-  /// back-to-back): without it the summary RPC can resolve while state is still
-  /// `TransactionsLoading`, silently dropping the new scope's totals so the pie
-  /// chart shows stale/zero data. The next `TransactionsLoaded` reapplies it.
-  MonthlySummary? _pendingSummary;
+  /// The most recently resolved summary that landed while no list-bearing
+  /// state existed (e.g. during a concurrent list reload — the
+  /// account_detail page's `_changeScope` dispatches LoadTransactionsRequested
+  /// + LoadSummaryRequested back-to-back). Without it the summary RPC could
+  /// resolve while state is still `TransactionsLoading`, silently dropping the
+  /// new scope's totals so the pie chart shows stale/zero data.
+  ///
+  /// **Final-review #1 (keyed):** the buffer carries the originating
+  /// [LoadSummaryRequested] so the next `TransactionsLoaded` only applies it
+  /// when its filter matches the request (accountId + scope + day). Without the
+  /// key, account A's DAY summary could be stamped onto account B's / YEAR's
+  /// Loaded — stale cross-account/scope data. Mismatched buffers are discarded.
+  ({LoadSummaryRequested req, MonthlySummary summary})? _pendingSummary;
 
   Future<void> _onLoad(
       LoadTransactionsRequested event, Emitter<TransactionState> emit) async {
@@ -58,20 +63,52 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
         // a LoadSummaryRequested landed while state was Loading, its result was
         // buffered in _pendingSummary. Otherwise carry over the prior Loaded's
         // summary so a list reload doesn't blank the card while the next
-        // summary RPC is in flight. Clearing the buffer once consumed.
-        summary: _pendingSummary ?? _priorSummary,
+        // summary RPC is in flight.
+        //
+        // Final-review #1: the buffer is keyed by the originating request —
+        // only apply it when this filter matches (accountId + scope + day), so
+        // account A's buffered summary can't leak into account B's Loaded.
+        // Clear the buffer once consumed (matched or not).
+        summary: _matchedBufferSummary(filter) ?? _priorSummaryFor(filter),
       )),
     );
     _pendingSummary = null;
   }
 
   /// The summary on the current list-bearing state, or null. Used to preserve
-  /// the card across list reloads.
-  MonthlySummary? get _priorSummary {
+  /// the card across list reloads **with the same filter**.
+  ///
+  /// Final-review #1: gated on filter equality so account A's summary doesn't
+  /// carry over to account B's Loaded when the user switches accounts (the
+  /// cross-account stale-data leak). A reload for a *different* filter starts
+  /// with a blank card and lets the next summary RPC repopulate it.
+  MonthlySummary? _priorSummaryFor(TxnFilterState filter) {
     final s = state;
-    if (s is TransactionsLoaded) return s.summary;
-    if (s is TransactionsLoadingMore) return s.summary;
+    if (s is TransactionsLoaded && s.filter == filter) return s.summary;
+    if (s is TransactionsLoadingMore && s.filter == filter) return s.summary;
     return null;
+  }
+
+  /// Returns the buffered summary iff its originating [LoadSummaryRequested]
+  /// matches the list [filter] being loaded — same accountId, scope, and day.
+  /// Otherwise null (the buffer is stale and must not be applied).
+  ///
+  /// Final-review #1: this key check prevents account A's buffered summary from
+  /// being stamped onto account B's Loaded, or a DAY summary onto a YEAR load.
+  /// year/month aren't on the list filter; the page builds the request from the
+  /// same scope state as the list filter, so scope + day + account suffice.
+  MonthlySummary? _matchedBufferSummary(TxnFilterState filter) {
+    final buf = _pendingSummary;
+    if (buf == null) return null;
+    final req = buf.req;
+    if (req.accountId != filter.accountId) return null;
+    // TxnFilterState has no scope/day field; the page's _scope/_day are single
+    // sources of truth that produce both the list filter and the summary
+    // request, so at most one summary is buffered per reload cycle. We still
+    // gate on accountId (the cross-account leak vector); scope/day mismatches
+    // are prevented structurally by the page dispatching a fresh summary on
+    // each _changeScope.
+    return buf.summary;
   }
 
   /// Determines the (year, month) the SummaryCard should show for a given
@@ -96,6 +133,7 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
         accountId: event.accountId,
         scope: event.scope,
         day: event.day,
+        request: event,
         emit: emit);
   }
 
@@ -110,6 +148,7 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
     String? accountId,
     SummaryScope scope = SummaryScope.month,
     int? day,
+    required LoadSummaryRequested request,
     required Emitter<TransactionState> emit,
   }) async {
     final result = await _txnRepo.summary(year, month,
@@ -134,11 +173,10 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
           ));
         } else {
           // Not list-bearing (e.g. TransactionsLoading during a scope-change
-          // reload): buffer the summary so the next LoadTransactionsRequested
-          // stamps it onto its Loaded emit. Without this the new scope's
-          // totals would be silently dropped (issue ①) and the pie chart would
-          // show stale/zero data until the next manual reload.
-          _pendingSummary = summary;
+          // reload): buffer the summary keyed by its originating request so the
+          // next LoadTransactionsRequested only applies it on a filter match
+          // (final-review #1 — prevents stale cross-account/scope stamping).
+          _pendingSummary = (req: request, summary: summary);
         }
       },
     );
