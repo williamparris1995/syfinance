@@ -83,4 +83,30 @@ class AuthRemoteDataSource {
       return res.preferences.rateSyncIntervalHours;
     });
   }
+
+  /// Full preference read (preferred currency + interval) via the
+  /// GetPreferences RPC. Used by the settings page to render current values.
+  Future<({String preferredCurrency, int rateSyncIntervalHours})>
+      getPreferences() async {
+    return _retry.call(() async {
+      final res = await _client.getPreferences(pb.GetPreferencesRequest());
+      final p = res.preferences;
+      return (
+        preferredCurrency: p.preferredCurrency,
+        rateSyncIntervalHours: p.rateSyncIntervalHours,
+      );
+    });
+  }
+
+  /// Persist preferred currency + rate-sync interval via the UpdatePreferences
+  /// RPC. Used by the settings page onChange handlers; on success the caller
+  /// re-dispatches LoadPreferencesRequested to refresh CurrencyBloc state.
+  Future<void> updatePreferences(
+      String preferredCurrency, int rateSyncIntervalHours) async {
+    await _retry.call(() async {
+      await _client.updatePreferences(pb.UpdatePreferencesRequest()
+        ..preferredCurrency = preferredCurrency
+        ..rateSyncIntervalHours = rateSyncIntervalHours);
+    });
+  }
 }

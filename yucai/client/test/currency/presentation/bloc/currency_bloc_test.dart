@@ -42,9 +42,10 @@ void main() {
     wait: const Duration(milliseconds: 100),
     expect: () => [
       const CurrencyState(status: CurrencyStatus.loading),
-      const CurrencyState(
+      CurrencyState(
         status: CurrencyStatus.loaded,
-        rates: {'USD': 1.08, 'CNY': 7.8},
+        currencies: _sampleCurrencies,
+        rates: const {'USD': 1.08, 'CNY': 7.8},
       ),
     ],
   );

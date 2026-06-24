@@ -129,7 +129,7 @@ const _navGroups = <_NavGroup>[
   ]),
   _NavGroup('工具', [
     _NavItem('报表分析', Icons.bar_chart_outlined, null),
-    _NavItem('设置', Icons.settings_outlined, null),
+    _NavItem('设置', Icons.settings_outlined, null, route: '/settings'),
   ]),
 ];
 
@@ -425,7 +425,7 @@ class _TopBar extends StatelessWidget {
             tooltip: '设置',
             icon: const Icon(Icons.settings_outlined,
                 color: AppColors.muted),
-            onPressed: () {},
+            onPressed: () => context.go('/settings'),
           ),
       ]),
         ),

@@ -32,7 +32,11 @@ class CurrencyBloc extends Bloc<CurrencyEvent, CurrencyState> {
         final rates = <String, double>{
           for (final c in currencies) c.code: c.exchangeRate,
         };
-        emit(state.copyWith(status: CurrencyStatus.loaded, rates: rates));
+        emit(state.copyWith(
+          status: CurrencyStatus.loaded,
+          currencies: currencies,
+          rates: rates,
+        ));
       },
     );
   }

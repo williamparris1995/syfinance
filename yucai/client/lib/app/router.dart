@@ -20,6 +20,7 @@ import 'package:yucai_client/auth/presentation/pages/register_page.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_event.dart';
+import 'package:yucai_client/settings/presentation/settings_page.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/presentation/bloc/category_bloc.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
@@ -46,7 +47,8 @@ GoRouter buildRouter(AuthBloc authBloc) {
       final goingProtected = state.matchedLocation == '/home' ||
           state.matchedLocation.startsWith('/accounts') ||
           state.matchedLocation.startsWith('/transactions') ||
-          state.matchedLocation.startsWith('/categories');
+          state.matchedLocation.startsWith('/categories') ||
+          state.matchedLocation.startsWith('/settings');
 
       if (isLoading) return null;
 
@@ -198,6 +200,24 @@ GoRouter buildRouter(AuthBloc authBloc) {
             ],
           ),
         ],
+      ),
+      // 设置页：顶层路由（非 shell 分支），从侧栏「设置」直接进入。
+      // 独立 CurrencyBloc 实例，进入即拉取 currencies + preferences 渲染 dropdown。
+      GoRoute(
+        path: '/settings',
+        builder: (_, __) => MultiBlocProvider(
+          providers: [
+            BlocProvider<CurrencyBloc>(
+              create: (_) {
+                final b = getIt<CurrencyBloc>();
+                b.add(const LoadCurrenciesRequested());
+                b.add(const LoadPreferencesRequested());
+                return b;
+              },
+            ),
+          ],
+          child: const SettingsPage(),
+        ),
       ),
     ],
     initialLocation: '/home',
