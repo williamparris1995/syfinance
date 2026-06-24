@@ -6,4 +6,7 @@ import "context"
 type Provider interface {
 	// FetchRate retrieves the exchange rate for the given currency code.
 	FetchRate(ctx context.Context, code string) (float64, error)
+	// FetchRates retrieves exchange rates relative to EUR for the given codes.
+	// EUR is always present with value 1.0; unavailable codes are omitted.
+	FetchRates(ctx context.Context, codes []string) (map[string]float64, error)
 }
