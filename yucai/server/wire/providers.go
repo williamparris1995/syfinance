@@ -196,12 +196,17 @@ type currencyCodeChecker struct {
 
 func (c currencyCodeChecker) FindByCode(ctx context.Context, code string) (bool, error) {
 	_, err := c.repo.FindByCode(ctx, code)
-	if err != nil {
-		// ent returns a NotFound error for missing rows; any such error means
-		// "code not in catalog" rather than a hard failure.
+	if err == nil {
+		return true, nil
+	}
+	// ent returns a NotFound error for missing rows; the repo wraps it via %w
+	// so IsNotFound still matches through the error chain. Only NotFound means
+	// "code not in catalog" — any other (DB) error must propagate so the auth
+	// service can surface it as Internal rather than InvalidArgument.
+	if currencyent.IsNotFound(err) {
 		return false, nil
 	}
-	return true, nil
+	return false, fmt.Errorf("check currency code: %w", err)
 }
 
 func provideCurrencyCodeChecker(repo *currencyrepo.CurrencyRepository) authdomain.CurrencyCodeChecker {
