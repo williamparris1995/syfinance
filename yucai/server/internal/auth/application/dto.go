@@ -43,4 +43,21 @@ type UserDTO struct {
 	DisplayName string
 	AvatarURL   string
 	CreatedAt   string
+	// PreferredCurrency mirrors the tenant's preferred display currency so the
+	// client can render the correct symbol on first paint without a second RPC.
+	PreferredCurrency string
+}
+
+// TenantPreferencesDTO carries the tenant-level display currency and rate-sync
+// interval.
+type TenantPreferencesDTO struct {
+	PreferredCurrency    string
+	RateSyncIntervalHours int32
+}
+
+// UpdatePreferencesRequest holds the input for tenant preference updates.
+type UpdatePreferencesRequest struct {
+	TenantID          uuid.UUID
+	PreferredCurrency string
+	IntervalHours     int
 }

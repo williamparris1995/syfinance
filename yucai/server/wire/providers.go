@@ -16,6 +16,7 @@ import (
 	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
 	authapp "github.com/yucai/server/internal/auth/application"
 	authcmd "github.com/yucai/server/internal/auth/application/command"
+	authdomain "github.com/yucai/server/internal/auth/domain"
 	authquery "github.com/yucai/server/internal/auth/application/query"
 	authent "github.com/yucai/server/internal/auth/ent"
 	authjwt "github.com/yucai/server/internal/auth/infrastructure/jwt"
@@ -180,8 +181,29 @@ func provideRefreshHandler(ss *session.RedisSessionStore) *authcmd.RefreshHandle
 func provideProfileHandler(ur *authrepo.UserRepository) *authquery.GetProfileHandler {
 	return authquery.NewGetProfileHandler(ur)
 }
-func provideAuthService(tr *authrepo.TenantRepository, ur *authrepo.UserRepository, ts *authjwt.TokenService, ss *session.RedisSessionStore, rh *authcmd.RegisterHandler, lh *authcmd.LoginHandler, fh *authcmd.RefreshHandler, ph *authquery.GetProfileHandler) *authapp.Service {
-	return authapp.NewService(tr, ur, ts, ss, rh, lh, fh, ph)
+func provideAuthService(tr *authrepo.TenantRepository, ur *authrepo.UserRepository, ts *authjwt.TokenService, ss *session.RedisSessionStore, rh *authcmd.RegisterHandler, lh *authcmd.LoginHandler, fh *authcmd.RefreshHandler, ph *authquery.GetProfileHandler, checker authdomain.CurrencyCodeChecker) *authapp.Service {
+	return authapp.NewService(tr, ur, ts, ss, rh, lh, fh, ph, checker)
+}
+
+// currencyCodeChecker adapts the currency CurrencyRepository to the auth
+// domain.CurrencyCodeChecker port. Lives in wire so auth never imports
+// currency (mirrors the accountPresetSeeder pattern above).
+type currencyCodeChecker struct {
+	repo *currencyrepo.CurrencyRepository
+}
+
+func (c currencyCodeChecker) FindByCode(ctx context.Context, code string) (bool, error) {
+	_, err := c.repo.FindByCode(ctx, code)
+	if err != nil {
+		// ent returns a NotFound error for missing rows; any such error means
+		// "code not in catalog" rather than a hard failure.
+		return false, nil
+	}
+	return true, nil
+}
+
+func provideCurrencyCodeChecker(repo *currencyrepo.CurrencyRepository) authdomain.CurrencyCodeChecker {
+	return currencyCodeChecker{repo: repo}
 }
 func provideAuthHandler(svc *authapp.Service) *authgrpc.AuthHandler {
 	return authgrpc.NewAuthHandler(svc)

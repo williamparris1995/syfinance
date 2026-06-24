@@ -527,15 +527,16 @@ func (x *UpdateProfileResponse) GetUser() *UserDTO {
 }
 
 type UserDTO struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	TenantId      string                 `protobuf:"bytes,2,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Email         string                 `protobuf:"bytes,3,opt,name=email,proto3" json:"email,omitempty"`
-	DisplayName   string                 `protobuf:"bytes,4,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	AvatarUrl     string                 `protobuf:"bytes,5,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
-	CreatedAt     string                 `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	TenantId          string                 `protobuf:"bytes,2,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Email             string                 `protobuf:"bytes,3,opt,name=email,proto3" json:"email,omitempty"`
+	DisplayName       string                 `protobuf:"bytes,4,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	AvatarUrl         string                 `protobuf:"bytes,5,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
+	CreatedAt         string                 `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	PreferredCurrency string                 `protobuf:"bytes,7,opt,name=preferred_currency,json=preferredCurrency,proto3" json:"preferred_currency,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *UserDTO) Reset() {
@@ -610,6 +611,244 @@ func (x *UserDTO) GetCreatedAt() string {
 	return ""
 }
 
+func (x *UserDTO) GetPreferredCurrency() string {
+	if x != nil {
+		return x.PreferredCurrency
+	}
+	return ""
+}
+
+// TenantPreferencesDTO carries the tenant-level display currency and rate-sync
+// interval. Embedded in UserDTO-free preference RPCs so the client can read and
+// edit tenant settings independently of the user profile.
+type TenantPreferencesDTO struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	PreferredCurrency     string                 `protobuf:"bytes,1,opt,name=preferred_currency,json=preferredCurrency,proto3" json:"preferred_currency,omitempty"`
+	RateSyncIntervalHours int32                  `protobuf:"varint,2,opt,name=rate_sync_interval_hours,json=rateSyncIntervalHours,proto3" json:"rate_sync_interval_hours,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *TenantPreferencesDTO) Reset() {
+	*x = TenantPreferencesDTO{}
+	mi := &file_auth_v1_auth_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TenantPreferencesDTO) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TenantPreferencesDTO) ProtoMessage() {}
+
+func (x *TenantPreferencesDTO) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_auth_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TenantPreferencesDTO.ProtoReflect.Descriptor instead.
+func (*TenantPreferencesDTO) Descriptor() ([]byte, []int) {
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *TenantPreferencesDTO) GetPreferredCurrency() string {
+	if x != nil {
+		return x.PreferredCurrency
+	}
+	return ""
+}
+
+func (x *TenantPreferencesDTO) GetRateSyncIntervalHours() int32 {
+	if x != nil {
+		return x.RateSyncIntervalHours
+	}
+	return 0
+}
+
+type GetPreferencesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPreferencesRequest) Reset() {
+	*x = GetPreferencesRequest{}
+	mi := &file_auth_v1_auth_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPreferencesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPreferencesRequest) ProtoMessage() {}
+
+func (x *GetPreferencesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_auth_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPreferencesRequest.ProtoReflect.Descriptor instead.
+func (*GetPreferencesRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{12}
+}
+
+type GetPreferencesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Preferences   *TenantPreferencesDTO  `protobuf:"bytes,1,opt,name=preferences,proto3" json:"preferences,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPreferencesResponse) Reset() {
+	*x = GetPreferencesResponse{}
+	mi := &file_auth_v1_auth_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPreferencesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPreferencesResponse) ProtoMessage() {}
+
+func (x *GetPreferencesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_auth_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPreferencesResponse.ProtoReflect.Descriptor instead.
+func (*GetPreferencesResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *GetPreferencesResponse) GetPreferences() *TenantPreferencesDTO {
+	if x != nil {
+		return x.Preferences
+	}
+	return nil
+}
+
+type UpdatePreferencesRequest struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	PreferredCurrency     string                 `protobuf:"bytes,1,opt,name=preferred_currency,json=preferredCurrency,proto3" json:"preferred_currency,omitempty"`
+	RateSyncIntervalHours int32                  `protobuf:"varint,2,opt,name=rate_sync_interval_hours,json=rateSyncIntervalHours,proto3" json:"rate_sync_interval_hours,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *UpdatePreferencesRequest) Reset() {
+	*x = UpdatePreferencesRequest{}
+	mi := &file_auth_v1_auth_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdatePreferencesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdatePreferencesRequest) ProtoMessage() {}
+
+func (x *UpdatePreferencesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_auth_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdatePreferencesRequest.ProtoReflect.Descriptor instead.
+func (*UpdatePreferencesRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *UpdatePreferencesRequest) GetPreferredCurrency() string {
+	if x != nil {
+		return x.PreferredCurrency
+	}
+	return ""
+}
+
+func (x *UpdatePreferencesRequest) GetRateSyncIntervalHours() int32 {
+	if x != nil {
+		return x.RateSyncIntervalHours
+	}
+	return 0
+}
+
+type UpdatePreferencesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Preferences   *TenantPreferencesDTO  `protobuf:"bytes,1,opt,name=preferences,proto3" json:"preferences,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdatePreferencesResponse) Reset() {
+	*x = UpdatePreferencesResponse{}
+	mi := &file_auth_v1_auth_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdatePreferencesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdatePreferencesResponse) ProtoMessage() {}
+
+func (x *UpdatePreferencesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_auth_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdatePreferencesResponse.ProtoReflect.Descriptor instead.
+func (*UpdatePreferencesResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *UpdatePreferencesResponse) GetPreferences() *TenantPreferencesDTO {
+	if x != nil {
+		return x.Preferences
+	}
+	return nil
+}
+
 var File_auth_v1_auth_proto protoreflect.FileDescriptor
 
 const file_auth_v1_auth_proto_rawDesc = "" +
@@ -643,7 +882,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\n" +
 	"avatar_url\x18\x03 \x01(\tR\tavatarUrl\"C\n" +
 	"\x15UpdateProfileResponse\x12*\n" +
-	"\x04user\x18\x01 \x01(\v2\x16.yucai.auth.v1.UserDTOR\x04user\"\xad\x01\n" +
+	"\x04user\x18\x01 \x01(\v2\x16.yucai.auth.v1.UserDTOR\x04user\"\xdc\x01\n" +
 	"\aUserDTO\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12\x14\n" +
@@ -652,14 +891,28 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\n" +
 	"avatar_url\x18\x05 \x01(\tR\tavatarUrl\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x06 \x01(\tR\tcreatedAt2\xa6\x03\n" +
+	"created_at\x18\x06 \x01(\tR\tcreatedAt\x12-\n" +
+	"\x12preferred_currency\x18\a \x01(\tR\x11preferredCurrency\"~\n" +
+	"\x14TenantPreferencesDTO\x12-\n" +
+	"\x12preferred_currency\x18\x01 \x01(\tR\x11preferredCurrency\x127\n" +
+	"\x18rate_sync_interval_hours\x18\x02 \x01(\x05R\x15rateSyncIntervalHours\"\x17\n" +
+	"\x15GetPreferencesRequest\"_\n" +
+	"\x16GetPreferencesResponse\x12E\n" +
+	"\vpreferences\x18\x01 \x01(\v2#.yucai.auth.v1.TenantPreferencesDTOR\vpreferences\"\x82\x01\n" +
+	"\x18UpdatePreferencesRequest\x12-\n" +
+	"\x12preferred_currency\x18\x01 \x01(\tR\x11preferredCurrency\x127\n" +
+	"\x18rate_sync_interval_hours\x18\x02 \x01(\x05R\x15rateSyncIntervalHours\"b\n" +
+	"\x19UpdatePreferencesResponse\x12E\n" +
+	"\vpreferences\x18\x01 \x01(\v2#.yucai.auth.v1.TenantPreferencesDTOR\vpreferences2\xed\x04\n" +
 	"\vAuthService\x12K\n" +
 	"\bRegister\x12\x1e.yucai.auth.v1.RegisterRequest\x1a\x1f.yucai.auth.v1.RegisterResponse\x12B\n" +
 	"\x05Login\x12\x1b.yucai.auth.v1.LoginRequest\x1a\x1c.yucai.auth.v1.LoginResponse\x12W\n" +
 	"\fRefreshToken\x12\".yucai.auth.v1.RefreshTokenRequest\x1a#.yucai.auth.v1.RefreshTokenResponse\x12Q\n" +
 	"\n" +
 	"GetProfile\x12 .yucai.auth.v1.GetProfileRequest\x1a!.yucai.auth.v1.GetProfileResponse\x12Z\n" +
-	"\rUpdateProfile\x12#.yucai.auth.v1.UpdateProfileRequest\x1a$.yucai.auth.v1.UpdateProfileResponseB\xab\x01\n" +
+	"\rUpdateProfile\x12#.yucai.auth.v1.UpdateProfileRequest\x1a$.yucai.auth.v1.UpdateProfileResponse\x12]\n" +
+	"\x0eGetPreferences\x12$.yucai.auth.v1.GetPreferencesRequest\x1a%.yucai.auth.v1.GetPreferencesResponse\x12f\n" +
+	"\x11UpdatePreferences\x12'.yucai.auth.v1.UpdatePreferencesRequest\x1a(.yucai.auth.v1.UpdatePreferencesResponseB\xab\x01\n" +
 	"\x11com.yucai.auth.v1B\tAuthProtoP\x01Z5github.com/yucai/server/internal/proto/auth/v1;authv1\xa2\x02\x03YAX\xaa\x02\rYucai.Auth.V1\xca\x02\rYucai\\Auth\\V1\xe2\x02\x19Yucai\\Auth\\V1\\GPBMetadata\xea\x02\x0fYucai::Auth::V1b\x06proto3"
 
 var (
@@ -674,40 +927,51 @@ func file_auth_v1_auth_proto_rawDescGZIP() []byte {
 	return file_auth_v1_auth_proto_rawDescData
 }
 
-var file_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_auth_v1_auth_proto_goTypes = []any{
-	(*RegisterRequest)(nil),       // 0: yucai.auth.v1.RegisterRequest
-	(*RegisterResponse)(nil),      // 1: yucai.auth.v1.RegisterResponse
-	(*LoginRequest)(nil),          // 2: yucai.auth.v1.LoginRequest
-	(*LoginResponse)(nil),         // 3: yucai.auth.v1.LoginResponse
-	(*RefreshTokenRequest)(nil),   // 4: yucai.auth.v1.RefreshTokenRequest
-	(*RefreshTokenResponse)(nil),  // 5: yucai.auth.v1.RefreshTokenResponse
-	(*GetProfileRequest)(nil),     // 6: yucai.auth.v1.GetProfileRequest
-	(*GetProfileResponse)(nil),    // 7: yucai.auth.v1.GetProfileResponse
-	(*UpdateProfileRequest)(nil),  // 8: yucai.auth.v1.UpdateProfileRequest
-	(*UpdateProfileResponse)(nil), // 9: yucai.auth.v1.UpdateProfileResponse
-	(*UserDTO)(nil),               // 10: yucai.auth.v1.UserDTO
+	(*RegisterRequest)(nil),           // 0: yucai.auth.v1.RegisterRequest
+	(*RegisterResponse)(nil),          // 1: yucai.auth.v1.RegisterResponse
+	(*LoginRequest)(nil),              // 2: yucai.auth.v1.LoginRequest
+	(*LoginResponse)(nil),             // 3: yucai.auth.v1.LoginResponse
+	(*RefreshTokenRequest)(nil),       // 4: yucai.auth.v1.RefreshTokenRequest
+	(*RefreshTokenResponse)(nil),      // 5: yucai.auth.v1.RefreshTokenResponse
+	(*GetProfileRequest)(nil),         // 6: yucai.auth.v1.GetProfileRequest
+	(*GetProfileResponse)(nil),        // 7: yucai.auth.v1.GetProfileResponse
+	(*UpdateProfileRequest)(nil),      // 8: yucai.auth.v1.UpdateProfileRequest
+	(*UpdateProfileResponse)(nil),     // 9: yucai.auth.v1.UpdateProfileResponse
+	(*UserDTO)(nil),                   // 10: yucai.auth.v1.UserDTO
+	(*TenantPreferencesDTO)(nil),      // 11: yucai.auth.v1.TenantPreferencesDTO
+	(*GetPreferencesRequest)(nil),     // 12: yucai.auth.v1.GetPreferencesRequest
+	(*GetPreferencesResponse)(nil),    // 13: yucai.auth.v1.GetPreferencesResponse
+	(*UpdatePreferencesRequest)(nil),  // 14: yucai.auth.v1.UpdatePreferencesRequest
+	(*UpdatePreferencesResponse)(nil), // 15: yucai.auth.v1.UpdatePreferencesResponse
 }
 var file_auth_v1_auth_proto_depIdxs = []int32{
 	10, // 0: yucai.auth.v1.RegisterResponse.user:type_name -> yucai.auth.v1.UserDTO
 	10, // 1: yucai.auth.v1.LoginResponse.user:type_name -> yucai.auth.v1.UserDTO
 	10, // 2: yucai.auth.v1.GetProfileResponse.user:type_name -> yucai.auth.v1.UserDTO
 	10, // 3: yucai.auth.v1.UpdateProfileResponse.user:type_name -> yucai.auth.v1.UserDTO
-	0,  // 4: yucai.auth.v1.AuthService.Register:input_type -> yucai.auth.v1.RegisterRequest
-	2,  // 5: yucai.auth.v1.AuthService.Login:input_type -> yucai.auth.v1.LoginRequest
-	4,  // 6: yucai.auth.v1.AuthService.RefreshToken:input_type -> yucai.auth.v1.RefreshTokenRequest
-	6,  // 7: yucai.auth.v1.AuthService.GetProfile:input_type -> yucai.auth.v1.GetProfileRequest
-	8,  // 8: yucai.auth.v1.AuthService.UpdateProfile:input_type -> yucai.auth.v1.UpdateProfileRequest
-	1,  // 9: yucai.auth.v1.AuthService.Register:output_type -> yucai.auth.v1.RegisterResponse
-	3,  // 10: yucai.auth.v1.AuthService.Login:output_type -> yucai.auth.v1.LoginResponse
-	5,  // 11: yucai.auth.v1.AuthService.RefreshToken:output_type -> yucai.auth.v1.RefreshTokenResponse
-	7,  // 12: yucai.auth.v1.AuthService.GetProfile:output_type -> yucai.auth.v1.GetProfileResponse
-	9,  // 13: yucai.auth.v1.AuthService.UpdateProfile:output_type -> yucai.auth.v1.UpdateProfileResponse
-	9,  // [9:14] is the sub-list for method output_type
-	4,  // [4:9] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	11, // 4: yucai.auth.v1.GetPreferencesResponse.preferences:type_name -> yucai.auth.v1.TenantPreferencesDTO
+	11, // 5: yucai.auth.v1.UpdatePreferencesResponse.preferences:type_name -> yucai.auth.v1.TenantPreferencesDTO
+	0,  // 6: yucai.auth.v1.AuthService.Register:input_type -> yucai.auth.v1.RegisterRequest
+	2,  // 7: yucai.auth.v1.AuthService.Login:input_type -> yucai.auth.v1.LoginRequest
+	4,  // 8: yucai.auth.v1.AuthService.RefreshToken:input_type -> yucai.auth.v1.RefreshTokenRequest
+	6,  // 9: yucai.auth.v1.AuthService.GetProfile:input_type -> yucai.auth.v1.GetProfileRequest
+	8,  // 10: yucai.auth.v1.AuthService.UpdateProfile:input_type -> yucai.auth.v1.UpdateProfileRequest
+	12, // 11: yucai.auth.v1.AuthService.GetPreferences:input_type -> yucai.auth.v1.GetPreferencesRequest
+	14, // 12: yucai.auth.v1.AuthService.UpdatePreferences:input_type -> yucai.auth.v1.UpdatePreferencesRequest
+	1,  // 13: yucai.auth.v1.AuthService.Register:output_type -> yucai.auth.v1.RegisterResponse
+	3,  // 14: yucai.auth.v1.AuthService.Login:output_type -> yucai.auth.v1.LoginResponse
+	5,  // 15: yucai.auth.v1.AuthService.RefreshToken:output_type -> yucai.auth.v1.RefreshTokenResponse
+	7,  // 16: yucai.auth.v1.AuthService.GetProfile:output_type -> yucai.auth.v1.GetProfileResponse
+	9,  // 17: yucai.auth.v1.AuthService.UpdateProfile:output_type -> yucai.auth.v1.UpdateProfileResponse
+	13, // 18: yucai.auth.v1.AuthService.GetPreferences:output_type -> yucai.auth.v1.GetPreferencesResponse
+	15, // 19: yucai.auth.v1.AuthService.UpdatePreferences:output_type -> yucai.auth.v1.UpdatePreferencesResponse
+	13, // [13:20] is the sub-list for method output_type
+	6,  // [6:13] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_auth_proto_init() }
@@ -721,7 +985,7 @@ func file_auth_v1_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_auth_proto_rawDesc), len(file_auth_v1_auth_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

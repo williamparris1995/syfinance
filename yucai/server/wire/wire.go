@@ -25,6 +25,7 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 		provideLoginHandler,
 		provideRefreshHandler,
 		provideProfileHandler,
+		provideCurrencyCodeChecker,
 		provideAuthService,
 		provideAuthHandler,
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -26,6 +27,7 @@ type Service struct {
 	loginHandler    *command.LoginHandler
 	refreshHandler  *command.RefreshHandler
 	profileHandler  *query.GetProfileHandler
+	currencyChecker domain.CurrencyCodeChecker
 }
 
 // NewService creates a new auth application service.
@@ -38,6 +40,7 @@ func NewService(
 	loginHandler *command.LoginHandler,
 	refreshHandler *command.RefreshHandler,
 	profileHandler *query.GetProfileHandler,
+	currencyChecker domain.CurrencyCodeChecker,
 ) *Service {
 	return &Service{
 		tenantRepo:      tenantRepo,
@@ -48,6 +51,7 @@ func NewService(
 		loginHandler:    loginHandler,
 		refreshHandler:  refreshHandler,
 		profileHandler:  profileHandler,
+		currencyChecker: currencyChecker,
 	}
 }
 
@@ -65,7 +69,17 @@ func (s *Service) issueSession(ctx context.Context, user *domain.User) (accessTo
 	return accessToken, refreshToken, nil
 }
 
-// Register creates a new tenant and user, returns auth tokens.
+// preferredCurrencyFor looks up the tenant's preferred display currency.
+// On any error (tenant missing, repo failure) it falls back to the empty
+// string so a transient storage hiccup never blocks login/profile reads —
+// the client can still issue GetPreferences to recover.
+func (s *Service) preferredCurrencyFor(ctx context.Context, tenantID uuid.UUID) string {
+	tenant, err := s.tenantRepo.FindByID(ctx, tenantID)
+	if err != nil || tenant == nil {
+		return ""
+	}
+	return tenant.PreferredCurrency
+}
 func (s *Service) Register(ctx context.Context, req RegisterRequest) (*AuthResponse, error) {
 	cmd := command.RegisterCommand{
 		Email:       req.Email,
@@ -88,7 +102,7 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*AuthRespo
 	return &AuthResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		User:         UserToDTO(user),
+		User:         UserToDTOWithCurrency(user, s.preferredCurrencyFor(ctx, user.TenantID)),
 	}, nil
 }
 
@@ -106,7 +120,7 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*AuthResponse, e
 	return &AuthResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		User:         UserToDTO(user),
+		User:         UserToDTOWithCurrency(user, s.preferredCurrencyFor(ctx, user.TenantID)),
 	}, nil
 }
 
@@ -158,7 +172,7 @@ func (s *Service) GetProfile(ctx context.Context, userID, tenantID uuid.UUID) (*
 	if err != nil {
 		return nil, err
 	}
-	dto := UserToDTO(result.User)
+	dto := UserToDTOWithCurrency(result.User, s.preferredCurrencyFor(ctx, tenantID))
 	return &dto, nil
 }
 
@@ -175,6 +189,57 @@ func (s *Service) UpdateProfile(ctx context.Context, req UpdateProfileRequest) (
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		return nil, fmt.Errorf("update user: %w", err)
 	}
-	dto := UserToDTO(user)
+	dto := UserToDTOWithCurrency(user, s.preferredCurrencyFor(ctx, req.TenantID))
 	return &dto, nil
+}
+
+// GetPreferences returns the tenant's display currency and rate-sync interval.
+func (s *Service) GetPreferences(ctx context.Context, tenantID uuid.UUID) (*TenantPreferencesDTO, error) {
+	tenant, err := s.tenantRepo.FindByID(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("tenant not found: %w", err)
+	}
+	return &TenantPreferencesDTO{
+		PreferredCurrency:     tenant.PreferredCurrency,
+		RateSyncIntervalHours: int32(tenant.RateSyncIntervalHours),
+	}, nil
+}
+
+// UpdatePreferences validates and persists the tenant's preferred display
+// currency and rate-sync interval. The currency code must exist in the currency
+// catalog (checked via the cross-module CurrencyCodeChecker port); the interval
+// must be in [1, 168]. Domain-level invariants are re-asserted by Tenant.UpdatePreferences.
+func (s *Service) UpdatePreferences(ctx context.Context, req UpdatePreferencesRequest) (*TenantPreferencesDTO, error) {
+	tenant, err := s.tenantRepo.FindByID(ctx, req.TenantID)
+	if err != nil {
+		return nil, fmt.Errorf("tenant not found: %w", err)
+	}
+
+	// Normalize then validate the currency code against the catalog. The domain
+	// entity upper-cases it too, but we validate before calling UpdatePreferences
+	// so an unknown code is rejected before mutation.
+	currency := strings.ToUpper(strings.TrimSpace(req.PreferredCurrency))
+	if currency == "" {
+		return nil, fmt.Errorf("preferred_currency must not be empty")
+	}
+	exists, err := s.currencyChecker.FindByCode(ctx, currency)
+	if err != nil {
+		return nil, fmt.Errorf("check currency code: %w", err)
+	}
+	if !exists {
+		return nil, fmt.Errorf("invalid currency code: %s is not in the catalog", currency)
+	}
+
+	if err := tenant.UpdatePreferences(currency, req.IntervalHours); err != nil {
+		return nil, err
+	}
+
+	if err := s.tenantRepo.Update(ctx, tenant); err != nil {
+		return nil, fmt.Errorf("update tenant preferences: %w", err)
+	}
+
+	return &TenantPreferencesDTO{
+		PreferredCurrency:     tenant.PreferredCurrency,
+		RateSyncIntervalHours: int32(tenant.RateSyncIntervalHours),
+	}, nil
 }

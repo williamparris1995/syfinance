@@ -1,6 +1,9 @@
 version: v2
 plugins:
-  - remote: buf.build/protocolbuffers/dart
+  # protoc_plugin 25.0.0 (installed via `dart pub global activate protoc_plugin`)
+  # generates both the message stubs (.pb.dart/.pbenum.dart/.pbjson.dart) and,
+  # with the grpc option, the gRPC client/server stubs
+  # (.pbgrpc.dart/.pbserver.dart) in a single invocation.
+  - local: protoc-gen-dart
     out: ../client/lib/proto
-  - remote: buf.build/grpc/grpc-dart
-    out: ../client/lib/proto
+    opt: grpc

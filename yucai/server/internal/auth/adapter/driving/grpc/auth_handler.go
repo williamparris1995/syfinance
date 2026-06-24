@@ -114,14 +114,54 @@ func (h *AuthHandler) UpdateProfile(ctx context.Context, req *pb.UpdateProfileRe
 	return &pb.UpdateProfileResponse{User: dtoToProto(*dto)}, nil
 }
 
+// GetPreferences returns the authenticated tenant's display currency and
+// rate-sync interval.
+func (h *AuthHandler) GetPreferences(ctx context.Context, req *pb.GetPreferencesRequest) (*pb.GetPreferencesResponse, error) {
+	_, tenantID, err := GetUserAndTenantIDFromContext(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	dto, err := h.service.GetPreferences(ctx, tenantID)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.GetPreferencesResponse{Preferences: tenantPreferencesToProto(*dto)}, nil
+}
+
+// UpdatePreferences validates and persists the tenant's preferred display
+// currency and rate-sync interval.
+func (h *AuthHandler) UpdatePreferences(ctx context.Context, req *pb.UpdatePreferencesRequest) (*pb.UpdatePreferencesResponse, error) {
+	_, tenantID, err := GetUserAndTenantIDFromContext(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	dto, err := h.service.UpdatePreferences(ctx, application.UpdatePreferencesRequest{
+		TenantID:          tenantID,
+		PreferredCurrency: req.PreferredCurrency,
+		IntervalHours:     int(req.RateSyncIntervalHours),
+	})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.UpdatePreferencesResponse{Preferences: tenantPreferencesToProto(*dto)}, nil
+}
+
 func dtoToProto(u application.UserDTO) *pb.UserDTO {
 	return &pb.UserDTO{
-		Id:          u.ID.String(),
-		TenantId:    u.TenantID.String(),
-		Email:       u.Email,
-		DisplayName: u.DisplayName,
-		AvatarUrl:   u.AvatarURL,
-		CreatedAt:   u.CreatedAt,
+		Id:                u.ID.String(),
+		TenantId:          u.TenantID.String(),
+		Email:             u.Email,
+		DisplayName:       u.DisplayName,
+		AvatarUrl:         u.AvatarURL,
+		CreatedAt:         u.CreatedAt,
+		PreferredCurrency: u.PreferredCurrency,
+	}
+}
+
+func tenantPreferencesToProto(p application.TenantPreferencesDTO) *pb.TenantPreferencesDTO {
+	return &pb.TenantPreferencesDTO{
+		PreferredCurrency:     p.PreferredCurrency,
+		RateSyncIntervalHours: p.RateSyncIntervalHours,
 	}
 }
 
@@ -134,7 +174,8 @@ func mapError(err error) error {
 		return status.Error(codes.Unauthenticated, msg)
 	case contains(msg, "already registered"), contains(msg, "already exists"):
 		return status.Error(codes.AlreadyExists, msg)
-	case contains(msg, "must not be empty"), contains(msg, "invalid email"):
+	case contains(msg, "must not be empty"), contains(msg, "invalid email"),
+		contains(msg, "must be between 1 and 168"), contains(msg, "invalid currency code"):
 		return status.Error(codes.InvalidArgument, msg)
 	default:
 		return status.Error(codes.Internal, msg)

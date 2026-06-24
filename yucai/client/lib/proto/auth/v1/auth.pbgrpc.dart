@@ -68,6 +68,20 @@ class AuthServiceClient extends $grpc.Client {
     return $createUnaryCall(_$updateProfile, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.GetPreferencesResponse> getPreferences(
+    $0.GetPreferencesRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$getPreferences, request, options: options);
+  }
+
+  $grpc.ResponseFuture<$0.UpdatePreferencesResponse> updatePreferences(
+    $0.UpdatePreferencesRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$updatePreferences, request, options: options);
+  }
+
   // method descriptors
 
   static final _$register =
@@ -94,6 +108,16 @@ class AuthServiceClient extends $grpc.Client {
           '/yucai.auth.v1.AuthService/UpdateProfile',
           ($0.UpdateProfileRequest value) => value.writeToBuffer(),
           $0.UpdateProfileResponse.fromBuffer);
+  static final _$getPreferences =
+      $grpc.ClientMethod<$0.GetPreferencesRequest, $0.GetPreferencesResponse>(
+          '/yucai.auth.v1.AuthService/GetPreferences',
+          ($0.GetPreferencesRequest value) => value.writeToBuffer(),
+          $0.GetPreferencesResponse.fromBuffer);
+  static final _$updatePreferences = $grpc.ClientMethod<
+          $0.UpdatePreferencesRequest, $0.UpdatePreferencesResponse>(
+      '/yucai.auth.v1.AuthService/UpdatePreferences',
+      ($0.UpdatePreferencesRequest value) => value.writeToBuffer(),
+      $0.UpdatePreferencesResponse.fromBuffer);
 }
 
 @$pb.GrpcServiceName('yucai.auth.v1.AuthService')
@@ -140,6 +164,24 @@ abstract class AuthServiceBase extends $grpc.Service {
             ($core.List<$core.int> value) =>
                 $0.UpdateProfileRequest.fromBuffer(value),
             ($0.UpdateProfileResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetPreferencesRequest,
+            $0.GetPreferencesResponse>(
+        'GetPreferences',
+        getPreferences_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.GetPreferencesRequest.fromBuffer(value),
+        ($0.GetPreferencesResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.UpdatePreferencesRequest,
+            $0.UpdatePreferencesResponse>(
+        'UpdatePreferences',
+        updatePreferences_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.UpdatePreferencesRequest.fromBuffer(value),
+        ($0.UpdatePreferencesResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.RegisterResponse> register_Pre($grpc.ServiceCall $call,
@@ -183,4 +225,22 @@ abstract class AuthServiceBase extends $grpc.Service {
 
   $async.Future<$0.UpdateProfileResponse> updateProfile(
       $grpc.ServiceCall call, $0.UpdateProfileRequest request);
+
+  $async.Future<$0.GetPreferencesResponse> getPreferences_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.GetPreferencesRequest> $request) async {
+    return getPreferences($call, await $request);
+  }
+
+  $async.Future<$0.GetPreferencesResponse> getPreferences(
+      $grpc.ServiceCall call, $0.GetPreferencesRequest request);
+
+  $async.Future<$0.UpdatePreferencesResponse> updatePreferences_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.UpdatePreferencesRequest> $request) async {
+    return updatePreferences($call, await $request);
+  }
+
+  $async.Future<$0.UpdatePreferencesResponse> updatePreferences(
+      $grpc.ServiceCall call, $0.UpdatePreferencesRequest request);
 }

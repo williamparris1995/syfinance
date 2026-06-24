@@ -47,6 +47,20 @@ func (r *TenantRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.
 	return toDomainTenant(result), nil
 }
 
+// Update persists changes to an existing tenant's mutable fields
+// (preferred_currency, rate_sync_interval_hours, updated_at).
+func (r *TenantRepository) Update(ctx context.Context, t *domain.Tenant) error {
+	_, err := r.client.Tenant.UpdateOneID(t.ID).
+		SetPreferredCurrency(t.PreferredCurrency).
+		SetRateSyncIntervalHours(t.RateSyncIntervalHours).
+		SetUpdatedAt(t.UpdatedAt).
+		Save(ctx)
+	if err != nil {
+		return fmt.Errorf("update tenant: %w", err)
+	}
+	return nil
+}
+
 // FindAllIDs returns the IDs of every tenant. Used by the startup preset
 // seeder to backfill system categories for legacy tenants.
 func (r *TenantRepository) FindAllIDs(ctx context.Context) ([]uuid.UUID, error) {

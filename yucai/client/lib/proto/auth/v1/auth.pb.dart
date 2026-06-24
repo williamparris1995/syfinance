@@ -10,7 +10,6 @@
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
 // ignore_for_file: non_constant_identifier_names, prefer_relative_imports
 
-import 'dart:async' as $async;
 import 'dart:core' as $core;
 
 import 'package:protobuf/protobuf.dart' as $pb;
@@ -666,6 +665,7 @@ class UserDTO extends $pb.GeneratedMessage {
     $core.String? displayName,
     $core.String? avatarUrl,
     $core.String? createdAt,
+    $core.String? preferredCurrency,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -674,6 +674,7 @@ class UserDTO extends $pb.GeneratedMessage {
     if (displayName != null) result.displayName = displayName;
     if (avatarUrl != null) result.avatarUrl = avatarUrl;
     if (createdAt != null) result.createdAt = createdAt;
+    if (preferredCurrency != null) result.preferredCurrency = preferredCurrency;
     return result;
   }
 
@@ -696,6 +697,7 @@ class UserDTO extends $pb.GeneratedMessage {
     ..aOS(4, _omitFieldNames ? '' : 'displayName')
     ..aOS(5, _omitFieldNames ? '' : 'avatarUrl')
     ..aOS(6, _omitFieldNames ? '' : 'createdAt')
+    ..aOS(7, _omitFieldNames ? '' : 'preferredCurrency')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -769,34 +771,308 @@ class UserDTO extends $pb.GeneratedMessage {
   $core.bool hasCreatedAt() => $_has(5);
   @$pb.TagNumber(6)
   void clearCreatedAt() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get preferredCurrency => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set preferredCurrency($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasPreferredCurrency() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearPreferredCurrency() => $_clearField(7);
 }
 
-/// AuthService handles authentication, registration, and profile management.
-class AuthServiceApi {
-  final $pb.RpcClient _client;
+/// TenantPreferencesDTO carries the tenant-level display currency and rate-sync
+/// interval. Embedded in UserDTO-free preference RPCs so the client can read and
+/// edit tenant settings independently of the user profile.
+class TenantPreferencesDTO extends $pb.GeneratedMessage {
+  factory TenantPreferencesDTO({
+    $core.String? preferredCurrency,
+    $core.int? rateSyncIntervalHours,
+  }) {
+    final result = create();
+    if (preferredCurrency != null) result.preferredCurrency = preferredCurrency;
+    if (rateSyncIntervalHours != null)
+      result.rateSyncIntervalHours = rateSyncIntervalHours;
+    return result;
+  }
 
-  AuthServiceApi(this._client);
+  TenantPreferencesDTO._();
 
-  $async.Future<RegisterResponse> register(
-          $pb.ClientContext? ctx, RegisterRequest request) =>
-      _client.invoke<RegisterResponse>(
-          ctx, 'AuthService', 'Register', request, RegisterResponse());
-  $async.Future<LoginResponse> login(
-          $pb.ClientContext? ctx, LoginRequest request) =>
-      _client.invoke<LoginResponse>(
-          ctx, 'AuthService', 'Login', request, LoginResponse());
-  $async.Future<RefreshTokenResponse> refreshToken(
-          $pb.ClientContext? ctx, RefreshTokenRequest request) =>
-      _client.invoke<RefreshTokenResponse>(
-          ctx, 'AuthService', 'RefreshToken', request, RefreshTokenResponse());
-  $async.Future<GetProfileResponse> getProfile(
-          $pb.ClientContext? ctx, GetProfileRequest request) =>
-      _client.invoke<GetProfileResponse>(
-          ctx, 'AuthService', 'GetProfile', request, GetProfileResponse());
-  $async.Future<UpdateProfileResponse> updateProfile(
-          $pb.ClientContext? ctx, UpdateProfileRequest request) =>
-      _client.invoke<UpdateProfileResponse>(ctx, 'AuthService', 'UpdateProfile',
-          request, UpdateProfileResponse());
+  factory TenantPreferencesDTO.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory TenantPreferencesDTO.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'TenantPreferencesDTO',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.auth.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'preferredCurrency')
+    ..aI(2, _omitFieldNames ? '' : 'rateSyncIntervalHours')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  TenantPreferencesDTO clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  TenantPreferencesDTO copyWith(void Function(TenantPreferencesDTO) updates) =>
+      super.copyWith((message) => updates(message as TenantPreferencesDTO))
+          as TenantPreferencesDTO;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static TenantPreferencesDTO create() => TenantPreferencesDTO._();
+  @$core.override
+  TenantPreferencesDTO createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static TenantPreferencesDTO getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<TenantPreferencesDTO>(create);
+  static TenantPreferencesDTO? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get preferredCurrency => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set preferredCurrency($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasPreferredCurrency() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPreferredCurrency() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.int get rateSyncIntervalHours => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set rateSyncIntervalHours($core.int value) => $_setSignedInt32(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasRateSyncIntervalHours() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearRateSyncIntervalHours() => $_clearField(2);
+}
+
+class GetPreferencesRequest extends $pb.GeneratedMessage {
+  factory GetPreferencesRequest() => create();
+
+  GetPreferencesRequest._();
+
+  factory GetPreferencesRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory GetPreferencesRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GetPreferencesRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.auth.v1'),
+      createEmptyInstance: create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetPreferencesRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetPreferencesRequest copyWith(
+          void Function(GetPreferencesRequest) updates) =>
+      super.copyWith((message) => updates(message as GetPreferencesRequest))
+          as GetPreferencesRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetPreferencesRequest create() => GetPreferencesRequest._();
+  @$core.override
+  GetPreferencesRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static GetPreferencesRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetPreferencesRequest>(create);
+  static GetPreferencesRequest? _defaultInstance;
+}
+
+class GetPreferencesResponse extends $pb.GeneratedMessage {
+  factory GetPreferencesResponse({
+    TenantPreferencesDTO? preferences,
+  }) {
+    final result = create();
+    if (preferences != null) result.preferences = preferences;
+    return result;
+  }
+
+  GetPreferencesResponse._();
+
+  factory GetPreferencesResponse.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory GetPreferencesResponse.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GetPreferencesResponse',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.auth.v1'),
+      createEmptyInstance: create)
+    ..aOM<TenantPreferencesDTO>(1, _omitFieldNames ? '' : 'preferences',
+        subBuilder: TenantPreferencesDTO.create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetPreferencesResponse clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetPreferencesResponse copyWith(
+          void Function(GetPreferencesResponse) updates) =>
+      super.copyWith((message) => updates(message as GetPreferencesResponse))
+          as GetPreferencesResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetPreferencesResponse create() => GetPreferencesResponse._();
+  @$core.override
+  GetPreferencesResponse createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static GetPreferencesResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetPreferencesResponse>(create);
+  static GetPreferencesResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  TenantPreferencesDTO get preferences => $_getN(0);
+  @$pb.TagNumber(1)
+  set preferences(TenantPreferencesDTO value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasPreferences() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPreferences() => $_clearField(1);
+  @$pb.TagNumber(1)
+  TenantPreferencesDTO ensurePreferences() => $_ensure(0);
+}
+
+class UpdatePreferencesRequest extends $pb.GeneratedMessage {
+  factory UpdatePreferencesRequest({
+    $core.String? preferredCurrency,
+    $core.int? rateSyncIntervalHours,
+  }) {
+    final result = create();
+    if (preferredCurrency != null) result.preferredCurrency = preferredCurrency;
+    if (rateSyncIntervalHours != null)
+      result.rateSyncIntervalHours = rateSyncIntervalHours;
+    return result;
+  }
+
+  UpdatePreferencesRequest._();
+
+  factory UpdatePreferencesRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory UpdatePreferencesRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'UpdatePreferencesRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.auth.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'preferredCurrency')
+    ..aI(2, _omitFieldNames ? '' : 'rateSyncIntervalHours')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  UpdatePreferencesRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  UpdatePreferencesRequest copyWith(
+          void Function(UpdatePreferencesRequest) updates) =>
+      super.copyWith((message) => updates(message as UpdatePreferencesRequest))
+          as UpdatePreferencesRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static UpdatePreferencesRequest create() => UpdatePreferencesRequest._();
+  @$core.override
+  UpdatePreferencesRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static UpdatePreferencesRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<UpdatePreferencesRequest>(create);
+  static UpdatePreferencesRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get preferredCurrency => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set preferredCurrency($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasPreferredCurrency() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPreferredCurrency() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.int get rateSyncIntervalHours => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set rateSyncIntervalHours($core.int value) => $_setSignedInt32(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasRateSyncIntervalHours() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearRateSyncIntervalHours() => $_clearField(2);
+}
+
+class UpdatePreferencesResponse extends $pb.GeneratedMessage {
+  factory UpdatePreferencesResponse({
+    TenantPreferencesDTO? preferences,
+  }) {
+    final result = create();
+    if (preferences != null) result.preferences = preferences;
+    return result;
+  }
+
+  UpdatePreferencesResponse._();
+
+  factory UpdatePreferencesResponse.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory UpdatePreferencesResponse.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'UpdatePreferencesResponse',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.auth.v1'),
+      createEmptyInstance: create)
+    ..aOM<TenantPreferencesDTO>(1, _omitFieldNames ? '' : 'preferences',
+        subBuilder: TenantPreferencesDTO.create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  UpdatePreferencesResponse clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  UpdatePreferencesResponse copyWith(
+          void Function(UpdatePreferencesResponse) updates) =>
+      super.copyWith((message) => updates(message as UpdatePreferencesResponse))
+          as UpdatePreferencesResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static UpdatePreferencesResponse create() => UpdatePreferencesResponse._();
+  @$core.override
+  UpdatePreferencesResponse createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static UpdatePreferencesResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<UpdatePreferencesResponse>(create);
+  static UpdatePreferencesResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  TenantPreferencesDTO get preferences => $_getN(0);
+  @$pb.TagNumber(1)
+  set preferences(TenantPreferencesDTO value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasPreferences() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPreferences() => $_clearField(1);
+  @$pb.TagNumber(1)
+  TenantPreferencesDTO ensurePreferences() => $_ensure(0);
 }
 
 const $core.bool _omitFieldNames =

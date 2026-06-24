@@ -190,6 +190,13 @@ const UserDTO$json = {
     {'1': 'display_name', '3': 4, '4': 1, '5': 9, '10': 'displayName'},
     {'1': 'avatar_url', '3': 5, '4': 1, '5': 9, '10': 'avatarUrl'},
     {'1': 'created_at', '3': 6, '4': 1, '5': 9, '10': 'createdAt'},
+    {
+      '1': 'preferred_currency',
+      '3': 7,
+      '4': 1,
+      '5': 9,
+      '10': 'preferredCurrency'
+    },
   ],
 };
 
@@ -198,62 +205,109 @@ final $typed_data.Uint8List userDTODescriptor = $convert.base64Decode(
     'CgdVc2VyRFRPEg4KAmlkGAEgASgJUgJpZBIbCgl0ZW5hbnRfaWQYAiABKAlSCHRlbmFudElkEh'
     'QKBWVtYWlsGAMgASgJUgVlbWFpbBIhCgxkaXNwbGF5X25hbWUYBCABKAlSC2Rpc3BsYXlOYW1l'
     'Eh0KCmF2YXRhcl91cmwYBSABKAlSCWF2YXRhclVybBIdCgpjcmVhdGVkX2F0GAYgASgJUgljcm'
-    'VhdGVkQXQ=');
+    'VhdGVkQXQSLQoScHJlZmVycmVkX2N1cnJlbmN5GAcgASgJUhFwcmVmZXJyZWRDdXJyZW5jeQ==');
 
-const $core.Map<$core.String, $core.dynamic> AuthServiceBase$json = {
-  '1': 'AuthService',
+@$core.Deprecated('Use tenantPreferencesDTODescriptor instead')
+const TenantPreferencesDTO$json = {
+  '1': 'TenantPreferencesDTO',
   '2': [
     {
-      '1': 'Register',
-      '2': '.yucai.auth.v1.RegisterRequest',
-      '3': '.yucai.auth.v1.RegisterResponse'
+      '1': 'preferred_currency',
+      '3': 1,
+      '4': 1,
+      '5': 9,
+      '10': 'preferredCurrency'
     },
     {
-      '1': 'Login',
-      '2': '.yucai.auth.v1.LoginRequest',
-      '3': '.yucai.auth.v1.LoginResponse'
-    },
-    {
-      '1': 'RefreshToken',
-      '2': '.yucai.auth.v1.RefreshTokenRequest',
-      '3': '.yucai.auth.v1.RefreshTokenResponse'
-    },
-    {
-      '1': 'GetProfile',
-      '2': '.yucai.auth.v1.GetProfileRequest',
-      '3': '.yucai.auth.v1.GetProfileResponse'
-    },
-    {
-      '1': 'UpdateProfile',
-      '2': '.yucai.auth.v1.UpdateProfileRequest',
-      '3': '.yucai.auth.v1.UpdateProfileResponse'
+      '1': 'rate_sync_interval_hours',
+      '3': 2,
+      '4': 1,
+      '5': 5,
+      '10': 'rateSyncIntervalHours'
     },
   ],
 };
 
-@$core.Deprecated('Use authServiceDescriptor instead')
-const $core.Map<$core.String, $core.Map<$core.String, $core.dynamic>>
-    AuthServiceBase$messageJson = {
-  '.yucai.auth.v1.RegisterRequest': RegisterRequest$json,
-  '.yucai.auth.v1.RegisterResponse': RegisterResponse$json,
-  '.yucai.auth.v1.UserDTO': UserDTO$json,
-  '.yucai.auth.v1.LoginRequest': LoginRequest$json,
-  '.yucai.auth.v1.LoginResponse': LoginResponse$json,
-  '.yucai.auth.v1.RefreshTokenRequest': RefreshTokenRequest$json,
-  '.yucai.auth.v1.RefreshTokenResponse': RefreshTokenResponse$json,
-  '.yucai.auth.v1.GetProfileRequest': GetProfileRequest$json,
-  '.yucai.auth.v1.GetProfileResponse': GetProfileResponse$json,
-  '.yucai.auth.v1.UpdateProfileRequest': UpdateProfileRequest$json,
-  '.yucai.auth.v1.UpdateProfileResponse': UpdateProfileResponse$json,
+/// Descriptor for `TenantPreferencesDTO`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List tenantPreferencesDTODescriptor = $convert.base64Decode(
+    'ChRUZW5hbnRQcmVmZXJlbmNlc0RUTxItChJwcmVmZXJyZWRfY3VycmVuY3kYASABKAlSEXByZW'
+    'ZlcnJlZEN1cnJlbmN5EjcKGHJhdGVfc3luY19pbnRlcnZhbF9ob3VycxgCIAEoBVIVcmF0ZVN5'
+    'bmNJbnRlcnZhbEhvdXJz');
+
+@$core.Deprecated('Use getPreferencesRequestDescriptor instead')
+const GetPreferencesRequest$json = {
+  '1': 'GetPreferencesRequest',
 };
 
-/// Descriptor for `AuthService`. Decode as a `google.protobuf.ServiceDescriptorProto`.
-final $typed_data.Uint8List authServiceDescriptor = $convert.base64Decode(
-    'CgtBdXRoU2VydmljZRJLCghSZWdpc3RlchIeLnl1Y2FpLmF1dGgudjEuUmVnaXN0ZXJSZXF1ZX'
-    'N0Gh8ueXVjYWkuYXV0aC52MS5SZWdpc3RlclJlc3BvbnNlEkIKBUxvZ2luEhsueXVjYWkuYXV0'
-    'aC52MS5Mb2dpblJlcXVlc3QaHC55dWNhaS5hdXRoLnYxLkxvZ2luUmVzcG9uc2USVwoMUmVmcm'
-    'VzaFRva2VuEiIueXVjYWkuYXV0aC52MS5SZWZyZXNoVG9rZW5SZXF1ZXN0GiMueXVjYWkuYXV0'
-    'aC52MS5SZWZyZXNoVG9rZW5SZXNwb25zZRJRCgpHZXRQcm9maWxlEiAueXVjYWkuYXV0aC52MS'
-    '5HZXRQcm9maWxlUmVxdWVzdBohLnl1Y2FpLmF1dGgudjEuR2V0UHJvZmlsZVJlc3BvbnNlEloK'
-    'DVVwZGF0ZVByb2ZpbGUSIy55dWNhaS5hdXRoLnYxLlVwZGF0ZVByb2ZpbGVSZXF1ZXN0GiQueX'
-    'VjYWkuYXV0aC52MS5VcGRhdGVQcm9maWxlUmVzcG9uc2U=');
+/// Descriptor for `GetPreferencesRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getPreferencesRequestDescriptor =
+    $convert.base64Decode('ChVHZXRQcmVmZXJlbmNlc1JlcXVlc3Q=');
+
+@$core.Deprecated('Use getPreferencesResponseDescriptor instead')
+const GetPreferencesResponse$json = {
+  '1': 'GetPreferencesResponse',
+  '2': [
+    {
+      '1': 'preferences',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.yucai.auth.v1.TenantPreferencesDTO',
+      '10': 'preferences'
+    },
+  ],
+};
+
+/// Descriptor for `GetPreferencesResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getPreferencesResponseDescriptor =
+    $convert.base64Decode(
+        'ChZHZXRQcmVmZXJlbmNlc1Jlc3BvbnNlEkUKC3ByZWZlcmVuY2VzGAEgASgLMiMueXVjYWkuYX'
+        'V0aC52MS5UZW5hbnRQcmVmZXJlbmNlc0RUT1ILcHJlZmVyZW5jZXM=');
+
+@$core.Deprecated('Use updatePreferencesRequestDescriptor instead')
+const UpdatePreferencesRequest$json = {
+  '1': 'UpdatePreferencesRequest',
+  '2': [
+    {
+      '1': 'preferred_currency',
+      '3': 1,
+      '4': 1,
+      '5': 9,
+      '10': 'preferredCurrency'
+    },
+    {
+      '1': 'rate_sync_interval_hours',
+      '3': 2,
+      '4': 1,
+      '5': 5,
+      '10': 'rateSyncIntervalHours'
+    },
+  ],
+};
+
+/// Descriptor for `UpdatePreferencesRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List updatePreferencesRequestDescriptor = $convert.base64Decode(
+    'ChhVcGRhdGVQcmVmZXJlbmNlc1JlcXVlc3QSLQoScHJlZmVycmVkX2N1cnJlbmN5GAEgASgJUh'
+    'FwcmVmZXJyZWRDdXJyZW5jeRI3ChhyYXRlX3N5bmNfaW50ZXJ2YWxfaG91cnMYAiABKAVSFXJh'
+    'dGVTeW5jSW50ZXJ2YWxIb3Vycw==');
+
+@$core.Deprecated('Use updatePreferencesResponseDescriptor instead')
+const UpdatePreferencesResponse$json = {
+  '1': 'UpdatePreferencesResponse',
+  '2': [
+    {
+      '1': 'preferences',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.yucai.auth.v1.TenantPreferencesDTO',
+      '10': 'preferences'
+    },
+  ],
+};
+
+/// Descriptor for `UpdatePreferencesResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List updatePreferencesResponseDescriptor =
+    $convert.base64Decode(
+        'ChlVcGRhdGVQcmVmZXJlbmNlc1Jlc3BvbnNlEkUKC3ByZWZlcmVuY2VzGAEgASgLMiMueXVjYW'
+        'kuYXV0aC52MS5UZW5hbnRQcmVmZXJlbmNlc0RUT1ILcHJlZmVyZW5jZXM=');

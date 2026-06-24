@@ -86,8 +86,6 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	loginHandler := provideLoginHandler(userRepo, ts)
 	refreshHandler := provideRefreshHandler(sessionStore)
 	profileHandler := provideProfileHandler(userRepo)
-	authService := provideAuthService(tenantRepo, userRepo, ts, sessionStore, registerHandler, loginHandler, refreshHandler, profileHandler)
-	authHandler := provideAuthHandler(authService)
 
 	// Transaction module
 	txnRepo := provideTransactionRepo(txnClient, txnDB)
@@ -146,6 +144,12 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	exchangeRateProvider := provideExchangeRateProvider()
 	currencyService := provideCurrencyService(currencyRepo, exchangeRateProvider)
 	currencyHandler := provideCurrencyHandler(currencyService)
+
+	// Auth service (depends on currencyRepo via the CurrencyCodeChecker port,
+	// so it must be wired after the Currency module).
+	currencyCodeChecker := provideCurrencyCodeChecker(currencyRepo)
+	authService := provideAuthService(tenantRepo, userRepo, ts, sessionStore, registerHandler, loginHandler, refreshHandler, profileHandler, currencyCodeChecker)
+	authHandler := provideAuthHandler(authService)
 
 	// gRPC server
 	grpcSrv := provideGRPCServer(ts)
