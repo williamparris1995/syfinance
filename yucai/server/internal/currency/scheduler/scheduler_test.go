@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -133,6 +134,48 @@ func TestSyncNowTriggersSync(t *testing.T) {
 	}
 	if got := syncer.calls.Load(); got != initial+1 {
 		t.Fatalf("SyncNow did not trigger exactly one sync; before=%d after=%d", initial, got)
+	}
+}
+
+// TestSyncNowPropagatesError: mock syncer 返 error → SyncNow 透传同 error。
+func TestSyncNowPropagatesError(t *testing.T) {
+	src := &fakeIntervalSource{hours: 9999}
+	wantErr := errors.New("upstream rate provider unavailable")
+	syncer := &mockSyncer{err: wantErr}
+	s := NewScheduler(syncer, src, time.Hour, nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	count, err := s.SyncNow(ctx)
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("SyncNow did not propagate syncer error; got %v want %v", err, wantErr)
+	}
+	if count != 0 {
+		t.Fatalf("SyncNow count on error should be 0; got %d", count)
+	}
+}
+
+// TestSyncNowCtxCancelledShortCircuits: ctx 已 cancel → doSync 前置 ctx.Err()
+// 检查直接返回，不调 syncer。
+func TestSyncNowCtxCancelledShortCircuits(t *testing.T) {
+	src := &fakeIntervalSource{hours: 9999}
+	syncer := &mockSyncer{}
+	s := NewScheduler(syncer, src, time.Hour, nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // 先 cancel
+
+	before := syncer.calls.Load()
+	count, err := s.SyncNow(ctx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("SyncNow on cancelled ctx should return context.Canceled; got %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("SyncNow count on cancelled ctx should be 0; got %d", count)
+	}
+	if got := syncer.calls.Load(); got != before {
+		t.Fatalf("doSync should not call syncer on cancelled ctx; before=%d after=%d", before, got)
 	}
 }
 

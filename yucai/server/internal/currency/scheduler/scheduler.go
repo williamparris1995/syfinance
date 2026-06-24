@@ -47,7 +47,9 @@ func NewScheduler(syncer RateSyncer, src IntervalSource, tick time.Duration, log
 // MinIntervalHours have elapsed since the last sync. Errors are logged but
 // never exit the loop.
 func (s *Scheduler) Start(ctx context.Context) {
-	s.doSync(ctx)
+	if _, err := s.doSync(ctx); err != nil {
+		s.log.Error("rate sync failed", "error", err, "operation", "scheduler.Start.doSync")
+	}
 
 	ticker := time.NewTicker(s.tick)
 	defer ticker.Stop()
@@ -62,21 +64,28 @@ func (s *Scheduler) Start(ctx context.Context) {
 			elapsed := time.Since(s.lastSync)
 			s.mu.Unlock()
 			if elapsed >= interval {
-				s.doSync(ctx)
+				if _, err := s.doSync(ctx); err != nil {
+					s.log.Error("rate sync failed", "error", err, "operation", "scheduler.Start.doSync")
+				}
 			}
 		}
 	}
 }
 
 // SyncNow triggers an immediate rate sync (manual trigger) and refreshes
-// lastSync so the next automatic sync is gated from this point.
+// lastSync so the next automatic sync is gated from this point. It returns
+// the count and propagates the syncer error to the caller (honest contract).
 func (s *Scheduler) SyncNow(ctx context.Context) (int, error) {
-	return s.doSync(ctx), nil
+	return s.doSync(ctx)
 }
 
-// doSync runs SyncRates once, updates lastSync, and logs result/error.
-// Returns the count reported by the syncer (0 on error).
-func (s *Scheduler) doSync(ctx context.Context) int {
+// doSync runs SyncRates once, updates lastSync, logs the result, and returns
+// the count plus the syncer error (if any). A cancelled ctx short-circuits
+// before invoking the syncer.
+func (s *Scheduler) doSync(ctx context.Context) (int, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
 	count, err := s.syncer.SyncRates(ctx)
 	if err != nil {
 		s.log.Error("rate sync failed", "error", err, "operation", "scheduler.SyncRates")
@@ -86,5 +95,5 @@ func (s *Scheduler) doSync(ctx context.Context) int {
 	s.mu.Lock()
 	s.lastSync = time.Now()
 	s.mu.Unlock()
-	return count
+	return count, err
 }
