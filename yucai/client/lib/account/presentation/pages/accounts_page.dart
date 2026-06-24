@@ -10,6 +10,8 @@ import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/bloc/account_state.dart';
 import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
 import 'package:yucai_client/account/presentation/widgets/account_category_style.dart';
+import 'package:yucai_client/currency/domain/currency_convert.dart';
+import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/transaction/presentation/pages/transaction_form_page.dart';
@@ -30,6 +32,22 @@ class AccountsPage extends StatefulWidget {
   State<AccountsPage> createState() => _AccountsPageState();
 }
 
+/// 千分位 + 两位小数，前缀用 `currencySymbol(currencyCode)`。
+/// 供总计/小计/状态卡等「单货币展示」场景复用（金额已是该货币口径）。
+String _fmtSymbol(int cents, String currencyCode) {
+  final sign = cents < 0 ? '-' : '';
+  final abs = cents.abs();
+  final yuan = abs ~/ 100;
+  final fen = (abs % 100).toString().padLeft(2, '0');
+  final s = yuan.toString();
+  final buf = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+    buf.write(s[i]);
+  }
+  return '$sign${currencySymbol(currencyCode)}$buf.$fen';
+}
+
 class _AccountsPageState extends State<AccountsPage> {
   /// null = 全部。
   AccountCategory? _filter;
@@ -43,12 +61,12 @@ class _AccountsPageState extends State<AccountsPage> {
     context.read<AccountBloc>().add(LoadAccountsRequested());
   }
 
-  String _formatCents(int cents) {
+  String _formatCents(int cents, String currencyCode) {
     final sign = cents < 0 ? '-' : '';
     final abs = cents.abs();
     final yuan = abs ~/ 100;
     final fen = (abs % 100).toString().padLeft(2, '0');
-    return '$sign¥ ${_groupThousands(yuan)}.$fen';
+    return '$sign${currencySymbol(currencyCode)}${_groupThousands(yuan)}.$fen';
   }
 
   String _groupThousands(int n) {
@@ -293,6 +311,9 @@ class _AccountsPageState extends State<AccountsPage> {
   }
 
   Widget _content(List<Account> accounts) {
+    // 货币换算口径（rates/preferred 来自 CurrencyBloc）。总计/小计统一换算到
+    // preferred 后累加；Card 余额仍按各账户原货币显示（见 _formatCents）。
+    final cstate = context.watch<CurrencyBloc>().state;
     // account-as-category 方案下 Expense/Income 类型账户 = 分类，归属分类管理页，
     // 不应出现在账户列表。这里只保留资产/负债账户（equity 系统账户也排除）。
     final balanceSheet = accounts.where((a) =>
@@ -302,12 +323,14 @@ class _AccountsPageState extends State<AccountsPage> {
     final active = balanceSheet
         .where((a) => a.status == AccountStatus.active)
         .toList();
-    final assetCents = active
-        .where((a) => a.accountType == AccountType.asset)
-        .fold<int>(0, (s, a) => s + a.currentBalanceCents);
-    final liabCents = active
-        .where((a) => a.accountType == AccountType.liability)
-        .fold<int>(0, (s, a) => s + a.currentBalanceCents);
+    final assetCents = active.where((a) => a.accountType == AccountType.asset).fold<int>(
+        0,
+        (s, a) => s +
+            toPreferredCents(a.currentBalanceCents, a.currencyCode, cstate.rates, cstate.preferred));
+    final liabCents = active.where((a) => a.accountType == AccountType.liability).fold<int>(
+        0,
+        (s, a) => s +
+            toPreferredCents(a.currentBalanceCents, a.currencyCode, cstate.rates, cstate.preferred));
     final netCents = assetCents + liabCents; // 负债余额为负，相加得净资产
     final scoped = _showArchived ? balanceSheet.toList() : active;
     final filtered = _filter == null
@@ -338,6 +361,7 @@ class _AccountsPageState extends State<AccountsPage> {
                   netCents: netCents,
                   assetCents: assetCents,
                   liabCents: liabCents,
+                  preferred: cstate.preferred,
                   onAdd: _openCreateForm,
                 ),
                 // .chips：水平滚动 + gap9 + chip h32 px14，active 黑底白字。
@@ -408,12 +432,15 @@ class _AccountsHeader extends StatelessWidget {
     required this.netCents,
     required this.assetCents,
     required this.liabCents,
+    required this.preferred,
     required this.onAdd,
   });
 
   final int netCents;
   final int assetCents;
   final int liabCents;
+  /// 总计金额的展示货币代码（已换算到此货币），用于符号前缀。
+  final String preferred;
   final VoidCallback onAdd;
 
   @override
@@ -527,7 +554,7 @@ class _AccountsHeader extends StatelessWidget {
                     style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
                 const SizedBox(height: 5),
                 Text(
-                  _fmt(netCents),
+                  _fmtSymbol(netCents, preferred),
                   style: TextStyle(
                     fontSize: 27,
                     fontWeight: FontWeight.w600,
@@ -543,11 +570,11 @@ class _AccountsHeader extends StatelessWidget {
                     children: [
                       const TextSpan(text: '资产 '),
                       TextSpan(
-                          text: _fmt(assetCents),
+                          text: _fmtSymbol(assetCents, preferred),
                           style: const TextStyle(color: AppColors.positive)),
                       const TextSpan(text: '   ·   负债 '),
                       TextSpan(
-                          text: _fmt(liabCents),
+                          text: _fmtSymbol(liabCents, preferred),
                           style: const TextStyle(color: AppColors.negative)),
                     ],
                   ),
@@ -570,7 +597,7 @@ class _AccountsHeader extends StatelessWidget {
         const Text('净资产合计', style: TextStyle(color: AppColors.muted, fontSize: 13)),
         const SizedBox(height: 6),
         Text(
-          _fmt(netCents),
+          _fmtSymbol(netCents, preferred),
           style: TextStyle(
             fontSize: 30,
             fontWeight: FontWeight.w600,
@@ -592,7 +619,7 @@ class _AccountsHeader extends StatelessWidget {
         Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
         const SizedBox(height: 5),
         Text(
-          _fmt(cents),
+          _fmtSymbol(cents, preferred),
           style: TextStyle(
             fontSize: 19,
             fontWeight: FontWeight.w600,
@@ -607,21 +634,6 @@ class _AccountsHeader extends StatelessWidget {
   /// .vline 1×48 border color。
   Widget _vline() =>
       Container(width: 1, height: 48, color: AppColors.border);
-
-  /// 千分位 + 两位小数（¥ 前缀）。净资产/资产为正、负债为负（带 -）。
-  static String _fmt(int cents) {
-    final sign = cents < 0 ? '-' : '';
-    final abs = cents.abs();
-    final yuan = abs ~/ 100;
-    final fen = (abs % 100).toString().padLeft(2, '0');
-    final s = yuan.toString();
-    final buf = StringBuffer();
-    for (var i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
-      buf.write(s[i]);
-    }
-    return '$sign¥$buf.$fen';
-  }
 }
 
 /// .newbtn：margin-left:auto height:40 padding:0 20 radius:9999px accent bg
@@ -839,7 +851,7 @@ class _GroupBlock extends StatelessWidget {
 
   final AccountCategory type;
   final List<Account> accounts;
-  final String Function(int) formatCents;
+  final String Function(int, String) formatCents;
   final void Function(Account) onEdit;
   final void Function(Account) onDuplicate;
   final void Function(Account) onClose;
@@ -848,8 +860,12 @@ class _GroupBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final subtotal =
-        accounts.fold<int>(0, (s, a) => s + a.currentBalanceCents);
+    final cstate = context.watch<CurrencyBloc>().state;
+    final subtotal = accounts.fold<int>(
+        0,
+        (s, a) => s +
+            toPreferredCents(
+                a.currentBalanceCents, a.currencyCode, cstate.rates, cstate.preferred));
     final isLiability = accounts.first.accountType == AccountType.liability;
     final typeColor = categoryColor(type);
     // .group-head：gap 11 / padding 0 2 15（tablet）；mobile gap 9 / padding 4 2 10。
@@ -863,6 +879,8 @@ class _GroupBlock extends StatelessWidget {
     final gcntSize = isMobile ? 11.5 : 12.5; // mobile 11.5 / tablet 12.5
     final gsubSize = isMobile ? 13.5 : 15.0; // mobile 13.5 / tablet 15
     final iconIconSize = isMobile ? 14.0 : 16.0; // gicon font-size 14/16
+    // 小计金额（已换算到 preferred 货币 + preferred 符号）。
+    final subText = _fmtSymbol(subtotal, cstate.preferred);
 
     // .group margin-top:28px（首组无 margin，由外层 spacing 提供；此 widget 自身不加）。
     return Column(
@@ -892,7 +910,7 @@ class _GroupBlock extends StatelessWidget {
               Text('${accounts.length} 个账户',
                   style: TextStyle(color: AppColors.muted, fontSize: gcntSize)),
               const Spacer(),
-              // .gsub 小计 ¥X —— mono tabular w600；<small>小计</small> 11 muted 前缀（仅 tablet）
+              // .gsub 小计：换算到 preferred 货币后用 preferred 符号显示。
               if (!isMobile)
                 Text.rich(
                   TextSpan(
@@ -910,14 +928,14 @@ class _GroupBlock extends StatelessWidget {
                             color: AppColors.muted,
                             fontWeight: FontWeight.w400),
                       ),
-                      TextSpan(text: formatCents(subtotal)),
+                      TextSpan(text: subText),
                     ],
                   ),
                 )
               else
                 // mobile .gsub 无「小计」前缀，直接金额
                 Text(
-                  formatCents(subtotal),
+                  subText,
                   style: TextStyle(
                     fontSize: gsubSize,
                     fontWeight: FontWeight.w600,
@@ -1027,7 +1045,7 @@ class _AccountCard extends StatefulWidget {
   });
 
   final Account account;
-  final String Function(int) formatCents;
+  final String Function(int, String) formatCents;
   final VoidCallback onEdit;
   final VoidCallback onDuplicate;
   final VoidCallback onClose;
@@ -1046,7 +1064,7 @@ class _AccountCardState extends State<_AccountCard> {
   Offset? _longPressOffset;
 
   /// 透传 widget.formatCents，使 helper 方法内部沿用原 `formatCents(...)` 调用。
-  String Function(int) get formatCents => widget.formatCents;
+  String Function(int, String) get formatCents => widget.formatCents;
 
   Account get a => widget.account;
 
@@ -1323,8 +1341,8 @@ class _AccountCardState extends State<_AccountCard> {
                 Flexible(
                   child: Text(
                     a.category == AccountCategory.creditCard
-                        ? '已用 ${formatCents(a.currentBalanceCents.abs())} / ${formatCents(a.creditLimitCents)}'
-                        : '已还 ${formatCents((a.loanOriginalCents ?? 0) - (a.loanRemainingCents ?? 0))} / ${formatCents(a.loanOriginalCents ?? 0)}',
+                        ? '已用 ${formatCents(a.currentBalanceCents.abs(), a.currencyCode)} / ${formatCents(a.creditLimitCents, a.currencyCode)}'
+                        : '已还 ${formatCents((a.loanOriginalCents ?? 0) - (a.loanRemainingCents ?? 0), a.currencyCode)} / ${formatCents(a.loanOriginalCents ?? 0, a.currencyCode)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -1572,25 +1590,25 @@ class _AccountCardState extends State<_AccountCard> {
   (String, String) _compactVal(Account a) {
     switch (a.category) {
       case AccountCategory.creditCard:
-        return ('当前欠款', formatCents(a.currentBalanceCents));
+        return ('当前欠款', formatCents(a.currentBalanceCents, a.currencyCode));
       case AccountCategory.loan:
-        return ('剩余本金', formatCents(a.loanRemainingCents ?? 0));
+        return ('剩余本金', formatCents(a.loanRemainingCents ?? 0, a.currencyCode));
       case AccountCategory.investment:
-        return ('当前市值', formatCents(a.investMarketValueCents ?? 0));
+        return ('当前市值', formatCents(a.investMarketValueCents ?? 0, a.currencyCode));
       case AccountCategory.goldFx:
         final cur = a.goldCurrentPriceCents ?? 0;
         final qty = a.goldQuantity ?? 0;
-        return ('当前现值', formatCents((cur * qty).toInt()));
+        return ('当前现值', formatCents((cur * qty).toInt(), a.currencyCode));
       case AccountCategory.realEstate:
-        return ('现估值', formatCents(a.estateCurrentValueCents ?? 0));
+        return ('现估值', formatCents(a.estateCurrentValueCents ?? 0, a.currencyCode));
       case AccountCategory.fixedDeposit:
-        return ('存单本金', formatCents(a.fixedPrincipalCents ?? 0));
+        return ('存单本金', formatCents(a.fixedPrincipalCents ?? 0, a.currencyCode));
       case AccountCategory.otherAsset:
-        return ('账户金额', formatCents(a.currentBalanceCents));
+        return ('账户金额', formatCents(a.currentBalanceCents, a.currencyCode));
       case AccountCategory.otherLiability:
-        return ('待还金额', formatCents(a.currentBalanceCents));
+        return ('待还金额', formatCents(a.currentBalanceCents, a.currencyCode));
       case AccountCategory.savings:
-        return ('可用余额', formatCents(a.currentBalanceCents));
+        return ('可用余额', formatCents(a.currentBalanceCents, a.currencyCode));
     }
   }
 
@@ -1617,7 +1635,7 @@ class _AccountCardState extends State<_AccountCard> {
     switch (a.category) {
       case AccountCategory.creditCard:
         return Text(
-          '额度 ${formatCents(a.creditLimitCents)} · '
+          '额度 ${formatCents(a.creditLimitCents, a.currencyCode)} · '
           '账单${a.creditBillingDay ?? '-'}日 / '
           '还款${a.creditRepaymentDay ?? '-'}日',
           style: style,
@@ -1646,7 +1664,7 @@ class _AccountCardState extends State<_AccountCard> {
         final buy = a.goldBuyPriceCents ?? 0;
         final pct = buy > 0 ? (cur - buy) / buy * 100 : 0.0;
         return Text(
-          '现值 ${formatCents((cur * qty).toInt())} · 买入 ${formatCents(buy)} · '
+          '现值 ${formatCents((cur * qty).toInt(), a.currencyCode)} · 买入 ${formatCents(buy, a.currencyCode)} · '
           '${sign(pct)}${pct.toStringAsFixed(2)}%',
           style: TextStyle(color: tone(pct), fontSize: 12),
           maxLines: 1,
@@ -1657,15 +1675,15 @@ class _AccountCardState extends State<_AccountCard> {
         final buy = a.estatePurchasePriceCents ?? 0;
         final pct = buy > 0 ? (cur - buy) / buy * 100 : 0.0;
         return Text(
-          '现估值 ${formatCents(cur)} · ${sign(pct)}${pct.toStringAsFixed(2)}%',
+          '现估值 ${formatCents(cur, a.currencyCode)} · ${sign(pct)}${pct.toStringAsFixed(2)}%',
           style: TextStyle(color: tone(pct), fontSize: 12),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         );
       case AccountCategory.loan:
         return Text(
-          '原始 ${formatCents(a.loanOriginalCents ?? 0)} · '
-          '月供 ${formatCents(a.loanMonthlyCents ?? 0)} · '
+          '原始 ${formatCents(a.loanOriginalCents ?? 0, a.currencyCode)} · '
+          '月供 ${formatCents(a.loanMonthlyCents ?? 0, a.currencyCode)} · '
           '下次 ${_fmtDate(a.loanNextPaymentDate)}',
           style: style,
           maxLines: 1,

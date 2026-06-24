@@ -29,12 +29,24 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/pages/accounts_page.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
+import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
 
 class _MockList extends Mock implements ListAccountsUseCase {}
 class _MockCreate extends Mock implements CreateAccountUseCase {}
 class _MockDelete extends Mock implements DeleteAccountUseCase {}
 class _MockGet extends Mock implements GetAccountUseCase {}
 class _MockUpdate extends Mock implements UpdateAccountUseCase {}
+
+/// Fake CurrencyBloc that holds a fixed state (no async event dispatch needed).
+class _FakeCurrencyBloc extends Fake implements CurrencyBloc {
+  _FakeCurrencyBloc(this._state);
+  final CurrencyState _state;
+  @override
+  CurrencyState get state => _state;
+  @override
+  Stream<CurrencyState> get stream => Stream.value(_state);
+}
 
 Account _savings() => const Account(
       id: 's1',
@@ -159,7 +171,12 @@ Account _account(
       status: AccountStatus.active,
     );
 
-Widget _harness(List<Account> accounts) {
+Widget _harness(List<Account> accounts) =>
+    _harnessWithCurrency(accounts, const CurrencyState());
+
+/// Multi-currency variant: provides a CurrencyBloc pre-seeded with `cstate`
+/// (rates/preferred) so the page's `context.watch<CurrencyBloc>()` resolves.
+Widget _harnessWithCurrency(List<Account> accounts, CurrencyState cstate) {
   final listUc = _MockList();
   final createUc = _MockCreate();
   final deleteUc = _MockDelete();
@@ -177,9 +194,14 @@ Widget _harness(List<Account> accounts) {
   ));
   registerFallbackValue(const UpdateAccountParams(id: '', version: 0));
   return MaterialApp(
-    home: BlocProvider<AccountBloc>(
-      create: (_) =>
-          AccountBloc(listUc, createUc, deleteUc, getUc, updateUc),
+    home: MultiBlocProvider(
+      providers: [
+        BlocProvider<AccountBloc>(
+          create: (_) =>
+              AccountBloc(listUc, createUc, deleteUc, getUc, updateUc),
+        ),
+        BlocProvider<CurrencyBloc>.value(value: _FakeCurrencyBloc(cstate)),
+      ],
       child: const AccountsPage(),
     ),
   );
@@ -561,5 +583,54 @@ void main() {
     expect(find.text('记账'), findsOneWidget);
     expect(find.text('转账'), findsOneWidget);
     expect(find.text('更多'), findsOneWidget);
+  });
+
+  // ─── Task 9 — multi-currency conversion ───
+  // Card 余额：原货币符号 + 原金额（不换算）。
+  // 总计/小计：toPreferredCents 换算到 preferred(CNY) 后累加，显示 preferred 符号。
+  //
+  // 数据：USD 1000 cents（= $10.00）+ CNY 10000 cents（= ¥100.00），preferred=CNY，
+  //       rates {USD:1.08, CNY:7.81, EUR:1.0}。
+  // 换算：USD→CNY = 7.81/1.08 × 1000 = 7231.5 → round 7231；+CNY 10000 = 17231 cents
+  //       = ¥172.31。
+  testWidgets(
+      'multi-currency: sumcard 总资产 in preferred (¥) + USD card keeps \$ original',
+      (t) async {
+    t.view.physicalSize = size;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    final usd = Account(
+      id: 'u1',
+      name: '美元储蓄',
+      accountType: AccountType.asset,
+      category: AccountCategory.savings,
+      currencyCode: 'USD',
+      initialBalanceCents: 0,
+      currentBalanceCents: 1000, // $10.00
+      ownership: Ownership.personal,
+      status: AccountStatus.active,
+    );
+    final cny = Account(
+      id: 'c2',
+      name: '人民币储蓄',
+      accountType: AccountType.asset,
+      category: AccountCategory.savings,
+      currencyCode: 'CNY',
+      initialBalanceCents: 0,
+      currentBalanceCents: 10000, // ¥100.00
+      ownership: Ownership.personal,
+      status: AccountStatus.active,
+    );
+    const cstate = CurrencyState(
+      preferred: 'CNY',
+      rates: {'USD': 1.08, 'CNY': 7.81, 'EUR': 1.0},
+      status: CurrencyStatus.loaded,
+    );
+    await t.pumpWidget(_harnessWithCurrency([usd, cny], cstate));
+    await t.pumpAndSettle();
+    // 总资产 sumcard：preferred(CNY) 符号 ¥ + 换算后 17231 cents = ¥172.31。
+    expect(find.textContaining('¥172.31'), findsWidgets);
+    // USD card 余额：原货币符号 $ + 原金额（不换算）= $10.00。
+    expect(find.textContaining(r'$10.00'), findsOneWidget);
   });
 }

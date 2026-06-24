@@ -18,6 +18,8 @@ import 'package:yucai_client/auth/presentation/pages/home_page.dart';
 import 'package:yucai_client/auth/presentation/pages/login_page.dart';
 import 'package:yucai_client/auth/presentation/pages/register_page.dart';
 import 'package:yucai_client/core/di/injection.dart';
+import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
+import 'package:yucai_client/currency/presentation/bloc/currency_event.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/presentation/bloc/category_bloc.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
@@ -75,9 +77,25 @@ GoRouter buildRouter(AuthBloc authBloc) {
             routes: [
               GoRoute(
                 path: '/accounts',
-                builder: (_, __) => BlocProvider<AccountBloc>(
-                  // Factory 注册 → 每次进入分支都是全新 bloc；离开分支时释放。
-                  create: (_) => getIt<AccountBloc>(),
+                // 在路由层 provide AccountBloc + CurrencyBloc：
+                //  - AccountBloc：Factory 注册，每次进入分支全新实例，离开释放。
+                //  - CurrencyBloc：列表页总计/小计换算依赖 rates/preferred，
+                //    create 时立即发起 LoadCurrencies + LoadPreferences 拉取汇率
+                //    与用户偏好（与详情页一致）。
+                builder: (_, __) => MultiBlocProvider(
+                  providers: [
+                    BlocProvider<AccountBloc>(
+                      create: (_) => getIt<AccountBloc>(),
+                    ),
+                    BlocProvider<CurrencyBloc>(
+                      create: (_) {
+                        final b = getIt<CurrencyBloc>();
+                        b.add(const LoadCurrenciesRequested());
+                        b.add(const LoadPreferencesRequested());
+                        return b;
+                      },
+                    ),
+                  ],
                   child: const AccountsPage(),
                 ),
                 routes: [
