@@ -63,4 +63,24 @@ class AuthRemoteDataSource {
       return _mapper.toDomain(res.user);
     });
   }
+
+  /// Raw preferred-currency read off the user profile (UserDTO field 7).
+  /// Returns the code (e.g. "CNY"), or empty string when unset. Used by
+  /// CurrencyBloc.LoadPreferencesRequested to populate `preferred`.
+  Future<String> getPreferredCurrency() async {
+    return _retry.call(() async {
+      final res = await _client.getProfile(pb.GetProfileRequest());
+      return res.user.preferredCurrency;
+    });
+  }
+
+  /// Tenant-level rate-sync interval in hours (TenantPreferencesDTO field 2),
+  /// read via the GetPreferences RPC. Used by CurrencyBloc.LoadPreferencesRequested
+  /// to populate `interval`.
+  Future<int> getRateSyncIntervalHours() async {
+    return _retry.call(() async {
+      final res = await _client.getPreferences(pb.GetPreferencesRequest());
+      return res.preferences.rateSyncIntervalHours;
+    });
+  }
 }

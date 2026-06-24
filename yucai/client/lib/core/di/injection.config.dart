@@ -33,6 +33,11 @@ import '../../auth/domain/usecases/logout_usecase.dart' as _i231;
 import '../../auth/domain/usecases/refresh_token_usecase.dart' as _i752;
 import '../../auth/domain/usecases/register_usecase.dart' as _i246;
 import '../../auth/presentation/bloc/auth_bloc.dart' as _i946;
+import '../../currency/data/currency_remote_ds.dart' as _i386;
+import '../../currency/data/currency_repository_impl.dart' as _i254;
+import '../../currency/data/mappers/currency_mapper.dart' as _i380;
+import '../../currency/domain/repositories/currency_repository.dart' as _i108;
+import '../../currency/presentation/bloc/currency_bloc.dart' as _i284;
 import '../../transaction/data/mappers/transaction_mapper.dart' as _i667;
 import '../../transaction/data/transaction_remote_ds.dart' as _i666;
 import '../../transaction/data/transaction_repository_impl.dart' as _i733;
@@ -51,6 +56,7 @@ extension GetItInjectableX on _i174.GetIt {
     final gh = _i526.GetItHelper(this, environment, environmentFilter);
     gh.factory<_i994.AccountMapper>(() => const _i994.AccountMapper());
     gh.factory<_i102.UserMapper>(() => const _i102.UserMapper());
+    gh.factory<_i380.CurrencyMapper>(() => const _i380.CurrencyMapper());
     gh.factory<_i667.TransactionMapper>(() => const _i667.TransactionMapper());
     gh.lazySingleton<_i832.AuthRemoteDataSource>(
       () => _i832.AuthRemoteDataSource(
@@ -59,12 +65,22 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i102.UserMapper>(),
       ),
     );
+    gh.lazySingleton<_i386.CurrencyRemoteDataSource>(
+      () => _i386.CurrencyRemoteDataSource(
+        gh<_i160.GrpcClient>(),
+        gh<_i763.AuthRetryCaller>(),
+        gh<_i380.CurrencyMapper>(),
+      ),
+    );
     gh.lazySingleton<_i666.TransactionRemoteDataSource>(
       () => _i666.TransactionRemoteDataSource(
         gh<_i160.GrpcClient>(),
         gh<_i763.AuthRetryCaller>(),
         gh<_i667.TransactionMapper>(),
       ),
+    );
+    gh.lazySingleton<_i108.CurrencyRepository>(
+      () => _i254.CurrencyRepositoryImpl(gh<_i386.CurrencyRemoteDataSource>()),
     );
     gh.lazySingleton<_i414.AccountRemoteDataSource>(
       () => _i414.AccountRemoteDataSource(
@@ -77,6 +93,12 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i648.AuthRepositoryImpl(
         gh<_i832.AuthRemoteDataSource>(),
         gh<_i382.TokenStorage>(),
+      ),
+    );
+    gh.factory<_i284.CurrencyBloc>(
+      () => _i284.CurrencyBloc(
+        gh<_i108.CurrencyRepository>(),
+        gh<_i832.AuthRemoteDataSource>(),
       ),
     );
     gh.lazySingleton<_i822.TransactionRepository>(

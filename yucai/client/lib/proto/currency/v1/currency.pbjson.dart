@@ -15,8 +15,6 @@ import 'dart:convert' as $convert;
 import 'dart:core' as $core;
 import 'dart:typed_data' as $typed_data;
 
-import '../../common/v1/pagination.pbjson.dart' as $0;
-
 @$core.Deprecated('Use currencyDTODescriptor instead')
 const CurrencyDTO$json = {
   '1': 'CurrencyDTO',
@@ -162,55 +160,3 @@ const CurrencyResponse$json = {
 final $typed_data.Uint8List currencyResponseDescriptor = $convert.base64Decode(
     'ChBDdXJyZW5jeVJlc3BvbnNlEjoKCGN1cnJlbmN5GAEgASgLMh4ueXVjYWkuY3VycmVuY3kudj'
     'EuQ3VycmVuY3lEVE9SCGN1cnJlbmN5');
-
-const $core.Map<$core.String, $core.dynamic> CurrencyServiceBase$json = {
-  '1': 'CurrencyService',
-  '2': [
-    {
-      '1': 'ListCurrencies',
-      '2': '.yucai.currency.v1.ListCurrenciesRequest',
-      '3': '.yucai.currency.v1.ListCurrenciesResponse'
-    },
-    {
-      '1': 'AddCurrency',
-      '2': '.yucai.currency.v1.AddCurrencyRequest',
-      '3': '.yucai.currency.v1.CurrencyResponse'
-    },
-    {
-      '1': 'UpdateExchangeRate',
-      '2': '.yucai.currency.v1.UpdateRateRequest',
-      '3': '.yucai.currency.v1.CurrencyResponse'
-    },
-    {
-      '1': 'FetchExchangeRate',
-      '2': '.yucai.currency.v1.FetchRateRequest',
-      '3': '.yucai.currency.v1.FetchRateResponse'
-    },
-  ],
-};
-
-@$core.Deprecated('Use currencyServiceDescriptor instead')
-const $core.Map<$core.String, $core.Map<$core.String, $core.dynamic>>
-    CurrencyServiceBase$messageJson = {
-  '.yucai.currency.v1.ListCurrenciesRequest': ListCurrenciesRequest$json,
-  '.yucai.common.v1.PageRequest': $0.PageRequest$json,
-  '.yucai.currency.v1.ListCurrenciesResponse': ListCurrenciesResponse$json,
-  '.yucai.currency.v1.CurrencyDTO': CurrencyDTO$json,
-  '.yucai.common.v1.PageResponse': $0.PageResponse$json,
-  '.yucai.currency.v1.AddCurrencyRequest': AddCurrencyRequest$json,
-  '.yucai.currency.v1.CurrencyResponse': CurrencyResponse$json,
-  '.yucai.currency.v1.UpdateRateRequest': UpdateRateRequest$json,
-  '.yucai.currency.v1.FetchRateRequest': FetchRateRequest$json,
-  '.yucai.currency.v1.FetchRateResponse': FetchRateResponse$json,
-};
-
-/// Descriptor for `CurrencyService`. Decode as a `google.protobuf.ServiceDescriptorProto`.
-final $typed_data.Uint8List currencyServiceDescriptor = $convert.base64Decode(
-    'Cg9DdXJyZW5jeVNlcnZpY2USZQoOTGlzdEN1cnJlbmNpZXMSKC55dWNhaS5jdXJyZW5jeS52MS'
-    '5MaXN0Q3VycmVuY2llc1JlcXVlc3QaKS55dWNhaS5jdXJyZW5jeS52MS5MaXN0Q3VycmVuY2ll'
-    'c1Jlc3BvbnNlElkKC0FkZEN1cnJlbmN5EiUueXVjYWkuY3VycmVuY3kudjEuQWRkQ3VycmVuY3'
-    'lSZXF1ZXN0GiMueXVjYWkuY3VycmVuY3kudjEuQ3VycmVuY3lSZXNwb25zZRJfChJVcGRhdGVF'
-    'eGNoYW5nZVJhdGUSJC55dWNhaS5jdXJyZW5jeS52MS5VcGRhdGVSYXRlUmVxdWVzdBojLnl1Y2'
-    'FpLmN1cnJlbmN5LnYxLkN1cnJlbmN5UmVzcG9uc2USXgoRRmV0Y2hFeGNoYW5nZVJhdGUSIy55'
-    'dWNhaS5jdXJyZW5jeS52MS5GZXRjaFJhdGVSZXF1ZXN0GiQueXVjYWkuY3VycmVuY3kudjEuRm'
-    'V0Y2hSYXRlUmVzcG9uc2U=');

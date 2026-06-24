@@ -10,12 +10,11 @@
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
 // ignore_for_file: non_constant_identifier_names, prefer_relative_imports
 
-import 'dart:async' as $async;
 import 'dart:core' as $core;
 
 import 'package:protobuf/protobuf.dart' as $pb;
 
-import '../../common/v1/pagination.pb.dart' as $0;
+import '../../common/v1/pagination.pb.dart' as $1;
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
 
@@ -416,7 +415,7 @@ class FetchRateResponse extends $pb.GeneratedMessage {
 
 class ListCurrenciesRequest extends $pb.GeneratedMessage {
   factory ListCurrenciesRequest({
-    $0.PageRequest? page,
+    $1.PageRequest? page,
     $core.bool? activeOnly,
   }) {
     final result = create();
@@ -439,8 +438,8 @@ class ListCurrenciesRequest extends $pb.GeneratedMessage {
       package:
           const $pb.PackageName(_omitMessageNames ? '' : 'yucai.currency.v1'),
       createEmptyInstance: create)
-    ..aOM<$0.PageRequest>(1, _omitFieldNames ? '' : 'page',
-        subBuilder: $0.PageRequest.create)
+    ..aOM<$1.PageRequest>(1, _omitFieldNames ? '' : 'page',
+        subBuilder: $1.PageRequest.create)
     ..aOB(2, _omitFieldNames ? '' : 'activeOnly')
     ..hasRequiredFields = false;
 
@@ -465,15 +464,15 @@ class ListCurrenciesRequest extends $pb.GeneratedMessage {
   static ListCurrenciesRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $0.PageRequest get page => $_getN(0);
+  $1.PageRequest get page => $_getN(0);
   @$pb.TagNumber(1)
-  set page($0.PageRequest value) => $_setField(1, value);
+  set page($1.PageRequest value) => $_setField(1, value);
   @$pb.TagNumber(1)
   $core.bool hasPage() => $_has(0);
   @$pb.TagNumber(1)
   void clearPage() => $_clearField(1);
   @$pb.TagNumber(1)
-  $0.PageRequest ensurePage() => $_ensure(0);
+  $1.PageRequest ensurePage() => $_ensure(0);
 
   @$pb.TagNumber(2)
   $core.bool get activeOnly => $_getBF(1);
@@ -488,7 +487,7 @@ class ListCurrenciesRequest extends $pb.GeneratedMessage {
 class ListCurrenciesResponse extends $pb.GeneratedMessage {
   factory ListCurrenciesResponse({
     $core.Iterable<CurrencyDTO>? currencies,
-    $0.PageResponse? page,
+    $1.PageResponse? page,
   }) {
     final result = create();
     if (currencies != null) result.currencies.addAll(currencies);
@@ -512,8 +511,8 @@ class ListCurrenciesResponse extends $pb.GeneratedMessage {
       createEmptyInstance: create)
     ..pPM<CurrencyDTO>(1, _omitFieldNames ? '' : 'currencies',
         subBuilder: CurrencyDTO.create)
-    ..aOM<$0.PageResponse>(2, _omitFieldNames ? '' : 'page',
-        subBuilder: $0.PageResponse.create)
+    ..aOM<$1.PageResponse>(2, _omitFieldNames ? '' : 'page',
+        subBuilder: $1.PageResponse.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -540,15 +539,15 @@ class ListCurrenciesResponse extends $pb.GeneratedMessage {
   $pb.PbList<CurrencyDTO> get currencies => $_getList(0);
 
   @$pb.TagNumber(2)
-  $0.PageResponse get page => $_getN(1);
+  $1.PageResponse get page => $_getN(1);
   @$pb.TagNumber(2)
-  set page($0.PageResponse value) => $_setField(2, value);
+  set page($1.PageResponse value) => $_setField(2, value);
   @$pb.TagNumber(2)
   $core.bool hasPage() => $_has(1);
   @$pb.TagNumber(2)
   void clearPage() => $_clearField(2);
   @$pb.TagNumber(2)
-  $0.PageResponse ensurePage() => $_ensure(1);
+  $1.PageResponse ensurePage() => $_ensure(1);
 }
 
 class CurrencyResponse extends $pb.GeneratedMessage {
@@ -607,29 +606,6 @@ class CurrencyResponse extends $pb.GeneratedMessage {
   void clearCurrency() => $_clearField(1);
   @$pb.TagNumber(1)
   CurrencyDTO ensureCurrency() => $_ensure(0);
-}
-
-class CurrencyServiceApi {
-  final $pb.RpcClient _client;
-
-  CurrencyServiceApi(this._client);
-
-  $async.Future<ListCurrenciesResponse> listCurrencies(
-          $pb.ClientContext? ctx, ListCurrenciesRequest request) =>
-      _client.invoke<ListCurrenciesResponse>(ctx, 'CurrencyService',
-          'ListCurrencies', request, ListCurrenciesResponse());
-  $async.Future<CurrencyResponse> addCurrency(
-          $pb.ClientContext? ctx, AddCurrencyRequest request) =>
-      _client.invoke<CurrencyResponse>(
-          ctx, 'CurrencyService', 'AddCurrency', request, CurrencyResponse());
-  $async.Future<CurrencyResponse> updateExchangeRate(
-          $pb.ClientContext? ctx, UpdateRateRequest request) =>
-      _client.invoke<CurrencyResponse>(ctx, 'CurrencyService',
-          'UpdateExchangeRate', request, CurrencyResponse());
-  $async.Future<FetchRateResponse> fetchExchangeRate(
-          $pb.ClientContext? ctx, FetchRateRequest request) =>
-      _client.invoke<FetchRateResponse>(ctx, 'CurrencyService',
-          'FetchExchangeRate', request, FetchRateResponse());
 }
 
 const $core.bool _omitFieldNames =
