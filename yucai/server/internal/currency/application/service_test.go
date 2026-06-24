@@ -121,3 +121,38 @@ func TestService_SyncRates_UpdatesActiveCurrencies(t *testing.T) {
 		}
 	}
 }
+
+func TestService_SeedDefaults_Idempotent(t *testing.T) {
+	client := setupCurrencyTestDB(t)
+	repo := repository.NewCurrencyRepository(client)
+	svc := application.NewService(repo, &stubProvider{rates: map[string]float64{}})
+
+	// First seed creates the built-in reference currencies.
+	n, err := svc.SeedDefaults(context.Background())
+	if err != nil {
+		t.Fatalf("SeedDefaults first: %v", err)
+	}
+	if n == 0 {
+		t.Fatal("expected >0 currencies seeded on empty db")
+	}
+
+	// All default codes exist and are active.
+	for _, code := range []string{"CNY", "USD", "EUR", "GBP", "HKD", "JPY"} {
+		c, err := repo.FindByCode(context.Background(), code)
+		if err != nil {
+			t.Fatalf("FindByCode %s after seed: %v", code, err)
+		}
+		if !c.IsActive {
+			t.Errorf("%s not active after seed", code)
+		}
+	}
+
+	// Second seed is a no-op (idempotent — existing codes skipped).
+	n2, err := svc.SeedDefaults(context.Background())
+	if err != nil {
+		t.Fatalf("SeedDefaults second: %v", err)
+	}
+	if n2 != 0 {
+		t.Errorf("expected 0 seeded on second run (idempotent), got %d", n2)
+	}
+}

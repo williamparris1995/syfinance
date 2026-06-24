@@ -24,6 +24,7 @@ import (
 	holdingpb "github.com/yucai/server/internal/proto/holding/v1"
 	backuppb "github.com/yucai/server/internal/proto/backup/v1"
 	syncpb "github.com/yucai/server/internal/proto/sync/v1"
+	currencyapp "github.com/yucai/server/internal/currency/application"
 	currencypb "github.com/yucai/server/internal/proto/currency/v1"
 	"github.com/yucai/server/pkg/config"
 	"github.com/yucai/server/wire"
@@ -46,6 +47,11 @@ func main() {
 	// wired into registration (idempotent: tenants with system categories are
 	// skipped). Runs once at startup so legacy tenants see the category dropdown.
 	seedPresetCategories(context.Background(), app.TenantRepo, app.AccountService)
+
+	// Seed built-in reference currencies (idempotent) so the rate-sync scheduler
+	// has active rows to refresh and the client currency dropdown has data even
+	// before the first frankfurter fetch succeeds.
+	seedCurrencies(context.Background(), app.CurrencyService)
 
 	// Start currency rate-sync scheduler. Performs an immediate SyncRates,
 	// then re-syncs at most once per tenant's rate_sync_interval_hours. The
@@ -112,4 +118,17 @@ func seedPresetCategories(ctx context.Context, tenantRepo *authrepo.TenantReposi
 		seeded++
 	}
 	slog.Info("preset seed: completed backfill", "tenant_count", len(tenantIDs), "seeded_or_skipped", seeded)
+}
+
+// seedCurrencies ensures the built-in reference currencies (CNY/USD/EUR/GBP/
+// HKD/JPY, EUR-base rates) exist. Idempotent: SeedDefaults skips codes already
+// present. Runs once at startup, before the rate-sync scheduler, so the
+// scheduler's immediate SyncRates has active currencies to refresh.
+func seedCurrencies(ctx context.Context, svc *currencyapp.Service) {
+	created, err := svc.SeedDefaults(ctx)
+	if err != nil {
+		slog.Error("currency seed: failed", "error", err)
+		return
+	}
+	slog.Info("currency seed: completed", "created", created)
 }

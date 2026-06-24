@@ -156,6 +156,6 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	// gRPC server
 	grpcSrv := provideGRPCServer(ts)
 
-	app := NewApp(cfg, log, grpcSrv, tenantRepo, accountService, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler, holdingHandler, backupHandler, syncHandler, currencyHandler, currencyScheduler)
+	app := NewApp(cfg, log, grpcSrv, tenantRepo, accountService, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler, holdingHandler, backupHandler, syncHandler, currencyHandler, currencyScheduler, currencyService)
 	return app, nil
 }

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:yucai_client/app/route_observer.dart';
 import 'package:yucai_client/account/domain/usecases/create_account_usecase.dart';
 import 'package:yucai_client/account/domain/usecases/delete_account_usecase.dart';
 import 'package:yucai_client/account/domain/usecases/list_accounts_usecase.dart';
@@ -37,6 +38,7 @@ import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
 /// ([AppShell]) 在整个会话期间保持挂载，分支切换不重建外壳。
 GoRouter buildRouter(AuthBloc authBloc) {
   return GoRouter(
+    observers: [routeObserver],
     refreshListenable: _AuthBlocListenable(authBloc),
     redirect: (context, state) {
       final auth = authBloc.state;

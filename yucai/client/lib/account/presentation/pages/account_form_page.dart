@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -141,7 +143,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
     return v == null ? null : (v * 100).round();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     // 触发 DatePickerInput（FormField<DateTime>）的 onSaved，回写 bundle 日期字段。
     _formKey.currentState!.save();
@@ -160,12 +162,28 @@ class _AccountFormPageState extends State<AccountFormPage> {
         _category == AccountCategory.realEstate ? rate : null;
 
     if (_isEdit) {
-      context.read<AccountBloc>().add(UpdateAccountRequested(_buildUpdate(
-            primaryCents,
-            interestRate,
-            investReturnYtd,
-            estateDepreciationRate,
-          )));
+      final bloc = context.read<AccountBloc>();
+      // 刷新 version：ListAccounts 缓存的 version 可能因交易记账/历史编辑而过期，
+      // 直接提交会触发乐观锁冲突（Aborted: optimistic lock conflict），表现为
+      // "编辑账户现值无法保存"。GetAccount 取 server 最新 version 再提交。
+      bloc.add(GetAccountRequested(_existing!.id));
+      var version = _existing!.version;
+      try {
+        final s = await bloc.stream
+            .firstWhere((st) =>
+                st is AccountDetailLoaded && st.account.id == _existing!.id)
+            .timeout(const Duration(seconds: 2));
+        version = (s as AccountDetailLoaded).account.version;
+      } catch (_) {
+        // 超时或错误：回退缓存 version（最坏再次乐观锁冲突，由 bloc 错误态提示）
+      }
+      bloc.add(UpdateAccountRequested(_buildUpdate(
+        primaryCents,
+        interestRate,
+        investReturnYtd,
+        estateDepreciationRate,
+        version: version,
+      )));
     } else {
       context.read<AccountBloc>().add(CreateAccountRequested(_buildCreate(
             primaryCents,
@@ -180,11 +198,12 @@ class _AccountFormPageState extends State<AccountFormPage> {
     int primary,
     double? rate,
     double? retYtd,
-    double? dep,
-  ) {
+    double? dep, {
+    required int version,
+  }) {
     return UpdateAccountParams(
       id: _existing!.id,
-      version: _existing!.version,
+      version: version,
       name: _nameCtrl.text.trim(),
       institution: _bundle.institutionCtrl.text.trim(),
       cardNumberTail: _bundle.cardNumberTailCtrl.text.trim(),

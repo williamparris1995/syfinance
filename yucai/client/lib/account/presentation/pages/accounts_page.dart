@@ -10,6 +10,7 @@ import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/bloc/account_state.dart';
 import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
 import 'package:yucai_client/account/presentation/widgets/account_category_style.dart';
+import 'package:yucai_client/app/route_observer.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
@@ -48,7 +49,41 @@ String _fmtSymbol(int cents, String currencyCode) {
   return '$sign${currencySymbol(currencyCode)}$buf.$fen';
 }
 
-class _AccountsPageState extends State<AccountsPage> {
+/// Card 主数字 + 总计/小计共用的「展示金额」(cents，原货币口径)。对齐 OD 原型
+/// `numValue()`：各 category 取对应字段——investment→市值、gold→现价×数量、
+/// realEstate→现估值、loan→剩余本金，其余→currentBalance。Card 显示与 fold
+/// 统一用此值，避免「Card 显示现估值但小计用 balance(=0)不计入」的口径不一致。
+int _displayValueCents(Account a) {
+  // 估值字段缺失（null/0）时回退 currentBalanceCents：例如武汉房产 currentBalance
+  // =230万但 estateValue 未填，不能因估值缺失就把整笔资产踢出小计/总计。
+  switch (a.category) {
+    case AccountCategory.investment:
+      final v = a.investMarketValueCents;
+      return (v != null && v > 0) ? v : a.currentBalanceCents;
+    case AccountCategory.goldFx:
+      final cur = a.goldCurrentPriceCents;
+      final qty = a.goldQuantity;
+      return (cur != null && qty != null && cur > 0)
+          ? (cur * qty).toInt()
+          : a.currentBalanceCents;
+    case AccountCategory.realEstate:
+      final v = a.estateCurrentValueCents;
+      return (v != null && v > 0) ? v : a.currentBalanceCents;
+    case AccountCategory.fixedDeposit:
+      final v = a.fixedPrincipalCents;
+      return (v != null && v > 0) ? v : a.currentBalanceCents;
+    case AccountCategory.loan:
+      final v = a.loanRemainingCents;
+      return (v != null && v != 0) ? v : a.currentBalanceCents;
+    case AccountCategory.creditCard:
+    case AccountCategory.savings:
+    case AccountCategory.otherAsset:
+    case AccountCategory.otherLiability:
+      return a.currentBalanceCents;
+  }
+}
+
+class _AccountsPageState extends State<AccountsPage> with RouteAware {
   /// null = 全部。
   AccountCategory? _filter;
   bool _showArchived = false; // 归档账户默认隐藏，勾选「含已归档」时显示
@@ -59,6 +94,28 @@ class _AccountsPageState extends State<AccountsPage> {
   void initState() {
     super.initState();
     context.read<AccountBloc>().add(LoadAccountsRequested());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 订阅全局 RouteObserver：从详情页/编辑页 pop 回来时 didPopNext 触发，重新拉
+    // 列表——详情页用独立 AccountBloc，编辑只刷新它自己的 bloc，列表不会自动更新。
+    routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    // 从详情/编辑返回：账户数据可能已变（编辑估值、记交易等），重新拉取。
+    if (mounted) {
+      context.read<AccountBloc>().add(LoadAccountsRequested());
+    }
   }
 
   String _formatCents(int cents, String currencyCode) {
@@ -326,7 +383,10 @@ class _AccountsPageState extends State<AccountsPage> {
     final assetCents = active.where((a) => a.accountType == AccountType.asset).fold<int>(
         0,
         (s, a) => s +
-            toPreferredCents(a.currentBalanceCents, a.currencyCode, cstate.rates, cstate.preferred));
+            toPreferredCents(_displayValueCents(a), a.currencyCode, cstate.rates, cstate.preferred));
+    // 负债类用 currentBalanceCents（欠款/余额，负值），不用 _displayValueCents：
+    // loan 的 loanRemainingCents 是正数（剩余本金），若 fold 进 netCents(=asset+liab)
+    // 会把负债误加成资产。资产类才用 _displayValueCents（含估值字段）。
     final liabCents = active.where((a) => a.accountType == AccountType.liability).fold<int>(
         0,
         (s, a) => s +
@@ -865,7 +925,12 @@ class _GroupBlock extends StatelessWidget {
         0,
         (s, a) => s +
             toPreferredCents(
-                a.currentBalanceCents, a.currencyCode, cstate.rates, cstate.preferred));
+                a.accountType == AccountType.liability
+                    ? a.currentBalanceCents
+                    : _displayValueCents(a),
+                a.currencyCode,
+                cstate.rates,
+                cstate.preferred));
     final isLiability = accounts.first.accountType == AccountType.liability;
     final typeColor = categoryColor(type);
     // .group-head：gap 11 / padding 0 2 15（tablet）；mobile gap 9 / padding 4 2 10。
@@ -1281,31 +1346,32 @@ class _AccountCardState extends State<_AccountCard> {
                 ),
               ),
               const SizedBox(width: 8), // .cv padding-left:8
-              Flexible(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    // .cvlabel 11.5 muted
-                    Text(label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: AppColors.muted, fontSize: 11.5)),
-                    const SizedBox(height: 2), // .cval margin-top:2
-                    // .cval 21 mono w600 tabular
-                    Text(
-                      val,
+              // 对齐 OD 原型 .cv{text-align:right;flex-shrink:0}：不用 Flexible
+              //（flex:1 loose 会把 val 推到分配空间左侧、不靠 Row 最右），裸 Column
+              // 自然宽度，由左侧 Expanded 推到行末，crossAxisAlignment.end 右对齐。
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  // .cvlabel 11.5 muted
+                  Text(label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 21,
-                        fontWeight: FontWeight.w600,
-                        color: negative ? AppColors.negative : AppColors.fg,
-                        fontFeatures: AppTypography.tabularFigures,
-                      ),
+                      style: const TextStyle(
+                          color: AppColors.muted, fontSize: 11.5)),
+                  const SizedBox(height: 2), // .cval margin-top:2
+                  // .cval 21 mono w600 tabular
+                  Text(
+                    val,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.w600,
+                      color: negative ? AppColors.negative : AppColors.fg,
+                      fontFeatures: AppTypography.tabularFigures,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -1362,9 +1428,11 @@ class _AccountCardState extends State<_AccountCard> {
               ],
             ),
           ],
-          // 快捷操作栏（对齐 accounts.html .ac-actions）。
-          // desktop 鼠标悬停时淡入 + 上移 6px；非悬停隐藏但保留高度（稳定布局）。
-          // tablet 触屏无 hover：长按卡片弹出菜单（Issue 2）替代。
+          // 操作栏贴卡片底部：Spacer 占据剩余高度把操作栏推到最底（对齐原型
+          // .ac-actions 位于 .card 底部，而非内容流末尾的留白处）。
+          const Spacer(),
+          // 快捷操作栏（对齐 accounts.html .ac-actions）：详情/编辑/记账/转账/更多，
+          // 始终常驻显示（此前仅 hover 淡入，desktop 不悬停看不到操作入口）。
           _hoverActionBar(context),
         ],
       ),
@@ -1376,56 +1444,46 @@ class _AccountCardState extends State<_AccountCard> {
   /// 通过 AnimatedOpacity + Transform.translate 实现 hover 时淡入 + 上滑动画。
   /// 非悬停时 IgnorePointer 屏蔽点击（避免误触透明按钮）。
   Widget _hoverActionBar(BuildContext context) {
-    return IgnorePointer(
-      // 非悬停时禁用点击（按钮仍占位但不响应）。
-      ignoring: !_hover,
-      child: AnimatedOpacity(
-        opacity: _hover ? 1.0 : 0.0,
-        duration: const Duration(milliseconds: 160),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          // hover 时上移 6px（还原 prototype translateY(6px)→0）。
-          transform: Matrix4.translationValues(0, _hover ? 0.0 : 6.0, 0.0),
-          margin: const EdgeInsets.only(top: 13),
-          padding: const EdgeInsets.only(top: 11),
-          decoration: const BoxDecoration(
-            // 虚线分隔（CSS .ac-actions border-top:1px dashed）。
-            border: Border(
-              top: BorderSide(color: AppColors.border, width: 1.0),
-            ),
-          ),
-          child: Row(
-            children: [
-              _actionBtn(
-                icon: Icons.info_outline,
-                label: '详情',
-                onTap: () => context.go('/accounts/${a.id}'),
-              ),
-              _actionBtn(
-                icon: Icons.edit_outlined,
-                label: '编辑',
-                onTap: widget.onEdit,
-              ),
-              _actionBtn(
-                icon: Icons.post_add,
-                label: '记账',
-                onTap: () => _recordTxn(context),
-              ),
-              _actionBtn(
-                icon: Icons.swap_horiz,
-                label: '转账',
-                onTap: () => _recordTxn(context, initialType: TxnType.transfer),
-              ),
-              // 更多：内嵌 PopupMenuButton，复用长按菜单条目。
-              _actionBtn(
-                icon: Icons.more_horiz,
-                label: '更多',
-                onTap: () => _showQuickMenu(context),
-                isLast: true,
-              ),
-            ],
-          ),
+    // 始终显示在卡片底部（详情/编辑/记账/转账/更多），对齐 OD 原型 .ac-actions。
+    // 此前仅 hover 时淡入，desktop 不悬停看不到操作入口，改为常驻可见。
+    return Container(
+      margin: const EdgeInsets.only(top: 13),
+      padding: const EdgeInsets.only(top: 11),
+      decoration: const BoxDecoration(
+        border: Border(
+          top: BorderSide(color: AppColors.border, width: 1.0),
         ),
+      ),
+      child: Row(
+        children: [
+          _actionBtn(
+            icon: Icons.info_outline,
+            label: '详情',
+            onTap: () => context.go('/accounts/${a.id}'),
+          ),
+          _actionBtn(
+            icon: Icons.edit_outlined,
+            label: '编辑',
+            onTap: widget.onEdit,
+          ),
+          _actionBtn(
+            icon: Icons.post_add,
+            label: '记账',
+            onTap: () => _recordTxn(context),
+          ),
+          _actionBtn(
+            icon: Icons.swap_horiz,
+            label: '转账',
+            onTap: () => _recordTxn(context, initialType: TxnType.transfer),
+          ),
+          // 更多：内嵌 PopupMenuButton，复用长按菜单条目。
+          _actionBtn(
+            icon: Icons.more_horiz,
+            label: '更多',
+            onTap: () => _showQuickMenu(context),
+            isLast: true,
+          ),
+        ],
       ),
     );
   }
@@ -1588,28 +1646,19 @@ class _AccountCardState extends State<_AccountCard> {
   // ─── 以下为业务副信息 helper（保持原逻辑不变） ───
 
   (String, String) _compactVal(Account a) {
-    switch (a.category) {
-      case AccountCategory.creditCard:
-        return ('当前欠款', formatCents(a.currentBalanceCents, a.currencyCode));
-      case AccountCategory.loan:
-        return ('剩余本金', formatCents(a.loanRemainingCents ?? 0, a.currencyCode));
-      case AccountCategory.investment:
-        return ('当前市值', formatCents(a.investMarketValueCents ?? 0, a.currencyCode));
-      case AccountCategory.goldFx:
-        final cur = a.goldCurrentPriceCents ?? 0;
-        final qty = a.goldQuantity ?? 0;
-        return ('当前现值', formatCents((cur * qty).toInt(), a.currencyCode));
-      case AccountCategory.realEstate:
-        return ('现估值', formatCents(a.estateCurrentValueCents ?? 0, a.currencyCode));
-      case AccountCategory.fixedDeposit:
-        return ('存单本金', formatCents(a.fixedPrincipalCents ?? 0, a.currencyCode));
-      case AccountCategory.otherAsset:
-        return ('账户金额', formatCents(a.currentBalanceCents, a.currencyCode));
-      case AccountCategory.otherLiability:
-        return ('待还金额', formatCents(a.currentBalanceCents, a.currencyCode));
-      case AccountCategory.savings:
-        return ('可用余额', formatCents(a.currentBalanceCents, a.currencyCode));
-    }
+    final label = switch (a.category) {
+      AccountCategory.creditCard => '当前欠款',
+      AccountCategory.loan => '剩余本金',
+      AccountCategory.investment => '当前市值',
+      AccountCategory.goldFx => '当前现值',
+      AccountCategory.realEstate => '现估值',
+      AccountCategory.fixedDeposit => '存单本金',
+      AccountCategory.otherAsset => '账户金额',
+      AccountCategory.otherLiability => '待还金额',
+      AccountCategory.savings => '可用余额',
+    };
+    // 金额统一取 _displayValueCents（与总计/小计同口径），原货币符号。
+    return (label, formatCents(_displayValueCents(a), a.currencyCode));
   }
 
   bool _hasSub(Account a) {
@@ -1659,13 +1708,11 @@ class _AccountCardState extends State<_AccountCard> {
           overflow: TextOverflow.ellipsis,
         );
       case AccountCategory.goldFx:
-        final qty = a.goldQuantity ?? 0;
         final cur = a.goldCurrentPriceCents ?? 0;
         final buy = a.goldBuyPriceCents ?? 0;
         final pct = buy > 0 ? (cur - buy) / buy * 100 : 0.0;
         return Text(
-          '现值 ${formatCents((cur * qty).toInt(), a.currencyCode)} · 买入 ${formatCents(buy, a.currencyCode)} · '
-          '${sign(pct)}${pct.toStringAsFixed(2)}%',
+          '买入 ${formatCents(buy, a.currencyCode)} · 涨幅 ${sign(pct)}${pct.toStringAsFixed(2)}%',
           style: TextStyle(color: tone(pct), fontSize: 12),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -1675,7 +1722,7 @@ class _AccountCardState extends State<_AccountCard> {
         final buy = a.estatePurchasePriceCents ?? 0;
         final pct = buy > 0 ? (cur - buy) / buy * 100 : 0.0;
         return Text(
-          '现估值 ${formatCents(cur, a.currencyCode)} · ${sign(pct)}${pct.toStringAsFixed(2)}%',
+          '买入 ${formatCents(buy, a.currencyCode)} · 增值 ${sign(pct)}${pct.toStringAsFixed(2)}%',
           style: TextStyle(color: tone(pct), fontSize: 12),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,

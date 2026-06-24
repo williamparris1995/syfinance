@@ -108,3 +108,44 @@ func (s *Service) SyncRates(ctx context.Context) (int, error) {
 	}
 	return updated, nil
 }
+
+// defaultCurrencies are the built-in reference currencies seeded at startup.
+// Rates are EUR-base (frankfurter convention: rate[EUR] = 1.0). SyncRates
+// refreshes these from frankfurter; currencies frankfurter does not serve
+// (e.g. HKD) keep these fallback rates.
+var defaultCurrencies = []struct {
+	code, name, symbol string
+	rate               float64
+}{
+	{"EUR", "Euro", "€", 1.0},
+	{"USD", "US Dollar", "$", 1.08},
+	{"CNY", "Chinese Yuan", "¥", 7.8},
+	{"GBP", "British Pound", "£", 0.85},
+	{"HKD", "Hong Kong Dollar", "HK$", 8.4},
+	{"JPY", "Japanese Yen", "¥", 170},
+}
+
+// SeedDefaults ensures the built-in reference currencies exist. Idempotent:
+// currencies already present (by code) are skipped; a Save that hits a unique
+// constraint (concurrent seed) is also skipped. Returns the count created.
+// Runs at server startup so the rate-sync scheduler and the client currency
+// dropdown always have reference data even before the first frankfurter fetch.
+func (s *Service) SeedDefaults(ctx context.Context) (int, error) {
+	created := 0
+	for _, d := range defaultCurrencies {
+		if existing, err := s.repo.FindByCode(ctx, d.code); err == nil && existing != nil {
+			continue
+		}
+		c, err := domain.NewCurrency(d.code, d.name, d.symbol, d.rate)
+		if err != nil {
+			return created, fmt.Errorf("new currency %s: %w", d.code, err)
+		}
+		if err := s.repo.Save(ctx, c); err != nil {
+			// FindByCode returned a NotFound (wrapped), but a concurrent seed
+			// already inserted this code → unique-constraint violation. Skip.
+			continue
+		}
+		created++
+	}
+	return created, nil
+}
