@@ -3,7 +3,9 @@ package tests
 import (
 	"context"
 	"database/sql"
+	"sync"
 	"testing"
+	"time"
 
 	_ "modernc.org/sqlite"
 
@@ -14,9 +16,55 @@ import (
 	"github.com/yucai/server/internal/auth/application"
 	"github.com/yucai/server/internal/auth/application/command"
 	"github.com/yucai/server/internal/auth/application/query"
+	authdomain "github.com/yucai/server/internal/auth/domain"
 	authent "github.com/yucai/server/internal/auth/ent"
 	authjwt "github.com/yucai/server/internal/auth/infrastructure/jwt"
 )
+
+// memorySessionStore is an in-memory command.SessionStore for tests that don't
+// have a Redis dependency. It implements Create/Rotate/Revoke with a simple
+// map keyed by the refresh-token string. Sufficient for the register/login
+// flow exercised here (Create is the only path hit; Rotate/Revoke are stubbed
+// so the interface is satisfied).
+type memorySessionStore struct {
+	mu       sync.Mutex
+	sessions map[string]struct{}
+}
+
+func newMemorySessionStore() *memorySessionStore {
+	return &memorySessionStore{sessions: make(map[string]struct{})}
+}
+
+func (s *memorySessionStore) Create(_ context.Context, token, _, _, _ string, _ time.Duration) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.sessions[token] = struct{}{}
+	return nil
+}
+
+func (s *memorySessionStore) Rotate(_ context.Context, oldToken, newToken string, _ time.Duration) (string, string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.sessions, oldToken)
+	s.sessions[newToken] = struct{}{}
+	return "", "", nil
+}
+
+func (s *memorySessionStore) Revoke(_ context.Context, token string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.sessions, token)
+	return nil
+}
+
+// noopCurrencyChecker is a domain.CurrencyCodeChecker that always reports the
+// code as known. The integration tests don't exercise UpdatePreferences, so a
+// real catalog lookup is unnecessary.
+type noopCurrencyChecker struct{}
+
+func (noopCurrencyChecker) FindByCode(_ context.Context, _ string) (bool, error) {
+	return true, nil
+}
 
 // setupTestDB creates an in-memory SQLite database with auth schema migrated.
 func setupTestDB(t *testing.T) *authent.Client {
@@ -51,13 +99,15 @@ func setupTestService(t *testing.T) *application.Service {
 	tenantRepo := repository.NewTenantRepository(client)
 	userRepo := repository.NewUserRepository(client)
 	tokenService := authjwt.NewTokenService("test-secret-key-at-least-32-chars-long")
+	sessionStore := newMemorySessionStore()
 
-	registerHandler := command.NewRegisterHandler(tenantRepo, userRepo, tokenService)
+	registerHandler := command.NewRegisterHandler(tenantRepo, userRepo, tokenService, nil)
 	loginHandler := command.NewLoginHandler(userRepo, tokenService)
-	refreshHandler := command.NewRefreshHandler(userRepo, tokenService, nil)
+	refreshHandler := command.NewRefreshHandler(sessionStore)
 	profileHandler := query.NewGetProfileHandler(userRepo)
 
-	svc := application.NewService(tenantRepo, userRepo, tokenService, registerHandler, loginHandler, refreshHandler, profileHandler)
+	var currencyChecker authdomain.CurrencyCodeChecker = noopCurrencyChecker{}
+	svc := application.NewService(tenantRepo, userRepo, tokenService, sessionStore, registerHandler, loginHandler, refreshHandler, profileHandler, currencyChecker)
 	return svc
 }
 

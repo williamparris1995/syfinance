@@ -61,7 +61,7 @@ func setupTransactionTestService(t *testing.T) (accountapp.Service, *txnapp.Serv
 
 	txnRepo := txnrepo.NewTransactionRepository(txnClient, nil)
 	bu := txnbalance.NewBalanceUpdater(ar)
-	txnSvc := txnapp.NewService(txnRepo, bu)
+	txnSvc := txnapp.NewService(txnRepo, ar, bu)
 	return acctSvc, txnSvc
 }
 
