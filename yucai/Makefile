@@ -1,4 +1,4 @@
-.PHONY: all generate build test test-unit lint proto clean docker-up docker-down flutter-get flutter-build-runner flutter-test validate
+.PHONY: all generate build test test-unit lint proto gen-dart clean docker-up docker-down flutter-get flutter-build-runner flutter-test validate
 
 # Go server
 SERVER_DIR := server
@@ -20,6 +20,9 @@ lint: ## Run golangci-lint
 
 proto: ## Generate Protobuf stubs (Go + Dart)
 	buf generate
+
+gen-dart: ## Generate Flutter Dart protobuf stubs via manual protoc
+	cd proto && bash gen-dart.sh
 
 clean: ## Clean build artifacts
 	rm -rf $(SERVER_DIR)/bin

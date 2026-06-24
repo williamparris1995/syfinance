@@ -1,3 +1,21 @@
+# ---------------------------------------------------------------------------
+# NOTE: This yaml is NON-FUNCTIONAL — it documents intent only.
+# ---------------------------------------------------------------------------
+# The Dart stubs are generated via MANUAL `protoc` (see gen-dart.sh / the
+# `make gen-dart` target in yucai/Makefile), NOT via `buf generate`.
+#
+# Why: buf's `local:` plugin resolver cannot exec a `.bat` file, and Pub
+# installs the plugin as `protoc-gen-dart.bat` (with extension) under
+# `%LOCALAPPDATA%\Pub\Cache\bin\`. So `buf generate --template
+# buf.gen.dart.yaml` fails with "plugin not found".
+#
+# DO NOT run `buf generate --template buf.gen.dart.yaml` directly — it will
+# silently fail / regress. Use `make gen-dart` from yucai/ instead, which
+# puts the Pub bin dir on PATH and invokes protoc directly.
+#
+# This file is retained purely to document the local-plugin intent (protoc
+# plugin 25.0.0 + grpc option → .pb/.pbenum/.pbjson/.pbgrpc).
+# ---------------------------------------------------------------------------
 version: v2
 plugins:
   # protoc_plugin 25.0.0 (installed via `dart pub global activate protoc_plugin`)
