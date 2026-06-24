@@ -35,6 +35,7 @@ import (
 	currencygrpc "github.com/yucai/server/internal/currency/adapter/driving/grpc"
 	currencyapp "github.com/yucai/server/internal/currency/application"
 	currencyent "github.com/yucai/server/internal/currency/ent"
+	"github.com/yucai/server/internal/currency/scheduler"
 	debtrepo "github.com/yucai/server/internal/debt/adapter/driven/repository"
 	debtgrpc "github.com/yucai/server/internal/debt/adapter/driving/grpc"
 	debtapp "github.com/yucai/server/internal/debt/application"
@@ -69,6 +70,7 @@ import (
 	"github.com/yucai/server/pkg/middleware"
 
 	"database/sql"
+	"time"
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
 	"google.golang.org/grpc"
@@ -470,14 +472,50 @@ func provideCurrencyEntClient(cfg *config.Config) (*currencyent.Client, error) {
 func provideCurrencyRepo(client *currencyent.Client) *currencyrepo.CurrencyRepository {
 	return currencyrepo.NewCurrencyRepository(client)
 }
-func provideExchangeRateProvider() *exchangerate.MockProvider {
-	return exchangerate.NewMockProvider()
+func provideExchangeRateProvider() exchangerate.Provider {
+	return exchangerate.NewFrankfurterProvider()
 }
-func provideCurrencyService(repo *currencyrepo.CurrencyRepository, provider *exchangerate.MockProvider) *currencyapp.Service {
+func provideCurrencyService(repo *currencyrepo.CurrencyRepository, provider exchangerate.Provider) *currencyapp.Service {
 	return currencyapp.NewService(repo, provider)
 }
 func provideCurrencyHandler(svc *currencyapp.Service) *currencygrpc.CurrencyHandler {
 	return currencygrpc.NewCurrencyHandler(svc)
+}
+
+// tenantIntervalSource adapts auth TenantRepository to scheduler.IntervalSource.
+// It reports the minimum rate_sync_interval_hours across all tenants so the
+// scheduler syncs often enough for the most-frequently-syncing tenant.
+type tenantIntervalSource struct {
+	tr *authrepo.TenantRepository
+}
+
+// MinIntervalHours returns the smallest tenant interval, or 8 if no tenants or
+// on error (sensible default so rate sync still runs when the table is empty).
+func (s tenantIntervalSource) MinIntervalHours(ctx context.Context) int {
+	intervals, err := s.tr.FindAllIntervalHours(ctx)
+	if err != nil || len(intervals) == 0 {
+		return 8
+	}
+	min := intervals[0]
+	for _, h := range intervals[1:] {
+		if h < min {
+			min = h
+		}
+	}
+	if min <= 0 {
+		return 8
+	}
+	return min
+}
+
+func provideIntervalSource(tr *authrepo.TenantRepository) scheduler.IntervalSource {
+	return tenantIntervalSource{tr: tr}
+}
+
+// provideCurrencyScheduler builds the rate-sync scheduler. *currencyapp.Service
+// implements scheduler.RateSyncer via its SyncRates method. tick is 1h in prod.
+func provideCurrencyScheduler(svc *currencyapp.Service, src scheduler.IntervalSource) *scheduler.Scheduler {
+	return scheduler.NewScheduler(svc, src, 1*time.Hour, nil)
 }
 
 func provideGRPCServer(ts *authjwt.TokenService) *GRPCServer {

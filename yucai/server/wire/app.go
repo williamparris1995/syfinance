@@ -14,6 +14,7 @@ import (
 	backupgrpc "github.com/yucai/server/internal/backup/adapter/driving/grpc"
 	syncgrpc "github.com/yucai/server/internal/sync/adapter/driving/grpc"
 	currencygrpc "github.com/yucai/server/internal/currency/adapter/driving/grpc"
+	"github.com/yucai/server/internal/currency/scheduler"
 	txngrpc "github.com/yucai/server/internal/transaction/adapter/driving/grpc"
 	"github.com/yucai/server/pkg/config"
 	"github.com/yucai/server/pkg/logger"
@@ -38,6 +39,7 @@ type App struct {
 	BackupHandler      *backupgrpc.BackupHandler
 	SyncHandler        *syncgrpc.SyncHandler
 	CurrencyHandler    *currencygrpc.CurrencyHandler
+	CurrencyScheduler  *scheduler.Scheduler
 }
 
 // NewApp creates the application with wired dependencies.
@@ -59,6 +61,7 @@ func NewApp(
 	backupHandler *backupgrpc.BackupHandler,
 	syncHandler *syncgrpc.SyncHandler,
 	currencyHandler *currencygrpc.CurrencyHandler,
+	currencyScheduler *scheduler.Scheduler,
 ) *App {
 	return &App{
 		Config:             cfg,
@@ -78,5 +81,6 @@ func NewApp(
 		BackupHandler:      backupHandler,
 		SyncHandler:        syncHandler,
 		CurrencyHandler:    currencyHandler,
+		CurrencyScheduler:  currencyScheduler,
 	}
 }

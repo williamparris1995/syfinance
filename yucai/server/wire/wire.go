@@ -103,6 +103,8 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 		provideExchangeRateProvider,
 		provideCurrencyService,
 		provideCurrencyHandler,
+		provideIntervalSource,
+		provideCurrencyScheduler,
 
 		// gRPC server (must come after all handlers)
 		provideGRPCServer,

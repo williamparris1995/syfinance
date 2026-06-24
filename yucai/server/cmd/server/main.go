@@ -47,6 +47,12 @@ func main() {
 	// skipped). Runs once at startup so legacy tenants see the category dropdown.
 	seedPresetCategories(context.Background(), app.TenantRepo, app.AccountService)
 
+	// Start currency rate-sync scheduler. Performs an immediate SyncRates,
+	// then re-syncs at most once per tenant's rate_sync_interval_hours. The
+	// scheduler exits when schedCtx is cancelled during shutdown.
+	schedCtx, schedCancel := context.WithCancel(context.Background())
+	go app.CurrencyScheduler.Start(schedCtx)
+
 	// Register gRPC services
 	authpb.RegisterAuthServiceServer(app.GRPCServer, app.AuthHandler)
 	accountpb.RegisterAccountServiceServer(app.GRPCServer, app.AccountHandler)
@@ -82,6 +88,7 @@ func main() {
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	sig := <-sigCh
 	slog.Info("shutting down", "signal", sig)
+	schedCancel() // stop the rate-sync scheduler before the gRPC server
 	app.GRPCServer.GracefulStop()
 }
 

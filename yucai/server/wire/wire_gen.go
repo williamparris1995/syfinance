@@ -144,6 +144,8 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	exchangeRateProvider := provideExchangeRateProvider()
 	currencyService := provideCurrencyService(currencyRepo, exchangeRateProvider)
 	currencyHandler := provideCurrencyHandler(currencyService)
+	intervalSource := provideIntervalSource(tenantRepo)
+	currencyScheduler := provideCurrencyScheduler(currencyService, intervalSource)
 
 	// Auth service (depends on currencyRepo via the CurrencyCodeChecker port,
 	// so it must be wired after the Currency module).
@@ -154,6 +156,6 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	// gRPC server
 	grpcSrv := provideGRPCServer(ts)
 
-	app := NewApp(cfg, log, grpcSrv, tenantRepo, accountService, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler, holdingHandler, backupHandler, syncHandler, currencyHandler)
+	app := NewApp(cfg, log, grpcSrv, tenantRepo, accountService, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler, holdingHandler, backupHandler, syncHandler, currencyHandler, currencyScheduler)
 	return app, nil
 }
