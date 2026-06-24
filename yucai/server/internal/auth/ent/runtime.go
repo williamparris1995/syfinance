@@ -31,6 +31,14 @@ func init() {
 	tenant.DefaultUpdatedAt = tenantDescUpdatedAt.Default.(func() time.Time)
 	// tenant.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	tenant.UpdateDefaultUpdatedAt = tenantDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// tenantDescPreferredCurrency is the schema descriptor for preferred_currency field.
+	tenantDescPreferredCurrency := tenantFields[5].Descriptor()
+	// tenant.DefaultPreferredCurrency holds the default value on creation for the preferred_currency field.
+	tenant.DefaultPreferredCurrency = tenantDescPreferredCurrency.Default.(string)
+	// tenantDescRateSyncIntervalHours is the schema descriptor for rate_sync_interval_hours field.
+	tenantDescRateSyncIntervalHours := tenantFields[6].Descriptor()
+	// tenant.DefaultRateSyncIntervalHours holds the default value on creation for the rate_sync_interval_hours field.
+	tenant.DefaultRateSyncIntervalHours = tenantDescRateSyncIntervalHours.Default.(int)
 	// tenantDescID is the schema descriptor for id field.
 	tenantDescID := tenantFields[0].Descriptor()
 	// tenant.DefaultID holds the default value on creation for the id field.

@@ -33,17 +33,20 @@ const (
 // TenantMutation represents an operation that mutates the Tenant nodes in the graph.
 type TenantMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *uuid.UUID
-	_type         *tenant.Type
-	name          *string
-	created_at    *time.Time
-	updated_at    *time.Time
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*Tenant, error)
-	predicates    []predicate.Tenant
+	op                          Op
+	typ                         string
+	id                          *uuid.UUID
+	_type                       *tenant.Type
+	name                        *string
+	created_at                  *time.Time
+	updated_at                  *time.Time
+	preferred_currency          *string
+	rate_sync_interval_hours    *int
+	addrate_sync_interval_hours *int
+	clearedFields               map[string]struct{}
+	done                        bool
+	oldValue                    func(context.Context) (*Tenant, error)
+	predicates                  []predicate.Tenant
 }
 
 var _ ent.Mutation = (*TenantMutation)(nil)
@@ -294,6 +297,98 @@ func (m *TenantMutation) ResetUpdatedAt() {
 	m.updated_at = nil
 }
 
+// SetPreferredCurrency sets the "preferred_currency" field.
+func (m *TenantMutation) SetPreferredCurrency(s string) {
+	m.preferred_currency = &s
+}
+
+// PreferredCurrency returns the value of the "preferred_currency" field in the mutation.
+func (m *TenantMutation) PreferredCurrency() (r string, exists bool) {
+	v := m.preferred_currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPreferredCurrency returns the old "preferred_currency" field's value of the Tenant entity.
+// If the Tenant object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TenantMutation) OldPreferredCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPreferredCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPreferredCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPreferredCurrency: %w", err)
+	}
+	return oldValue.PreferredCurrency, nil
+}
+
+// ResetPreferredCurrency resets all changes to the "preferred_currency" field.
+func (m *TenantMutation) ResetPreferredCurrency() {
+	m.preferred_currency = nil
+}
+
+// SetRateSyncIntervalHours sets the "rate_sync_interval_hours" field.
+func (m *TenantMutation) SetRateSyncIntervalHours(i int) {
+	m.rate_sync_interval_hours = &i
+	m.addrate_sync_interval_hours = nil
+}
+
+// RateSyncIntervalHours returns the value of the "rate_sync_interval_hours" field in the mutation.
+func (m *TenantMutation) RateSyncIntervalHours() (r int, exists bool) {
+	v := m.rate_sync_interval_hours
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRateSyncIntervalHours returns the old "rate_sync_interval_hours" field's value of the Tenant entity.
+// If the Tenant object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TenantMutation) OldRateSyncIntervalHours(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRateSyncIntervalHours is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRateSyncIntervalHours requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRateSyncIntervalHours: %w", err)
+	}
+	return oldValue.RateSyncIntervalHours, nil
+}
+
+// AddRateSyncIntervalHours adds i to the "rate_sync_interval_hours" field.
+func (m *TenantMutation) AddRateSyncIntervalHours(i int) {
+	if m.addrate_sync_interval_hours != nil {
+		*m.addrate_sync_interval_hours += i
+	} else {
+		m.addrate_sync_interval_hours = &i
+	}
+}
+
+// AddedRateSyncIntervalHours returns the value that was added to the "rate_sync_interval_hours" field in this mutation.
+func (m *TenantMutation) AddedRateSyncIntervalHours() (r int, exists bool) {
+	v := m.addrate_sync_interval_hours
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRateSyncIntervalHours resets all changes to the "rate_sync_interval_hours" field.
+func (m *TenantMutation) ResetRateSyncIntervalHours() {
+	m.rate_sync_interval_hours = nil
+	m.addrate_sync_interval_hours = nil
+}
+
 // Where appends a list predicates to the TenantMutation builder.
 func (m *TenantMutation) Where(ps ...predicate.Tenant) {
 	m.predicates = append(m.predicates, ps...)
@@ -328,7 +423,7 @@ func (m *TenantMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TenantMutation) Fields() []string {
-	fields := make([]string, 0, 4)
+	fields := make([]string, 0, 6)
 	if m._type != nil {
 		fields = append(fields, tenant.FieldType)
 	}
@@ -340,6 +435,12 @@ func (m *TenantMutation) Fields() []string {
 	}
 	if m.updated_at != nil {
 		fields = append(fields, tenant.FieldUpdatedAt)
+	}
+	if m.preferred_currency != nil {
+		fields = append(fields, tenant.FieldPreferredCurrency)
+	}
+	if m.rate_sync_interval_hours != nil {
+		fields = append(fields, tenant.FieldRateSyncIntervalHours)
 	}
 	return fields
 }
@@ -357,6 +458,10 @@ func (m *TenantMutation) Field(name string) (ent.Value, bool) {
 		return m.CreatedAt()
 	case tenant.FieldUpdatedAt:
 		return m.UpdatedAt()
+	case tenant.FieldPreferredCurrency:
+		return m.PreferredCurrency()
+	case tenant.FieldRateSyncIntervalHours:
+		return m.RateSyncIntervalHours()
 	}
 	return nil, false
 }
@@ -374,6 +479,10 @@ func (m *TenantMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldCreatedAt(ctx)
 	case tenant.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
+	case tenant.FieldPreferredCurrency:
+		return m.OldPreferredCurrency(ctx)
+	case tenant.FieldRateSyncIntervalHours:
+		return m.OldRateSyncIntervalHours(ctx)
 	}
 	return nil, fmt.Errorf("unknown Tenant field %s", name)
 }
@@ -411,6 +520,20 @@ func (m *TenantMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetUpdatedAt(v)
 		return nil
+	case tenant.FieldPreferredCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPreferredCurrency(v)
+		return nil
+	case tenant.FieldRateSyncIntervalHours:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRateSyncIntervalHours(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Tenant field %s", name)
 }
@@ -418,13 +541,21 @@ func (m *TenantMutation) SetField(name string, value ent.Value) error {
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *TenantMutation) AddedFields() []string {
-	return nil
+	var fields []string
+	if m.addrate_sync_interval_hours != nil {
+		fields = append(fields, tenant.FieldRateSyncIntervalHours)
+	}
+	return fields
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *TenantMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case tenant.FieldRateSyncIntervalHours:
+		return m.AddedRateSyncIntervalHours()
+	}
 	return nil, false
 }
 
@@ -433,6 +564,13 @@ func (m *TenantMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *TenantMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case tenant.FieldRateSyncIntervalHours:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRateSyncIntervalHours(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Tenant numeric field %s", name)
 }
@@ -471,6 +609,12 @@ func (m *TenantMutation) ResetField(name string) error {
 		return nil
 	case tenant.FieldUpdatedAt:
 		m.ResetUpdatedAt()
+		return nil
+	case tenant.FieldPreferredCurrency:
+		m.ResetPreferredCurrency()
+		return nil
+	case tenant.FieldRateSyncIntervalHours:
+		m.ResetRateSyncIntervalHours()
 		return nil
 	}
 	return fmt.Errorf("unknown Tenant field %s", name)

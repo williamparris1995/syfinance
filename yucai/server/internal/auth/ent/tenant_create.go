@@ -69,6 +69,34 @@ func (tc *TenantCreate) SetNillableUpdatedAt(t *time.Time) *TenantCreate {
 	return tc
 }
 
+// SetPreferredCurrency sets the "preferred_currency" field.
+func (tc *TenantCreate) SetPreferredCurrency(s string) *TenantCreate {
+	tc.mutation.SetPreferredCurrency(s)
+	return tc
+}
+
+// SetNillablePreferredCurrency sets the "preferred_currency" field if the given value is not nil.
+func (tc *TenantCreate) SetNillablePreferredCurrency(s *string) *TenantCreate {
+	if s != nil {
+		tc.SetPreferredCurrency(*s)
+	}
+	return tc
+}
+
+// SetRateSyncIntervalHours sets the "rate_sync_interval_hours" field.
+func (tc *TenantCreate) SetRateSyncIntervalHours(i int) *TenantCreate {
+	tc.mutation.SetRateSyncIntervalHours(i)
+	return tc
+}
+
+// SetNillableRateSyncIntervalHours sets the "rate_sync_interval_hours" field if the given value is not nil.
+func (tc *TenantCreate) SetNillableRateSyncIntervalHours(i *int) *TenantCreate {
+	if i != nil {
+		tc.SetRateSyncIntervalHours(*i)
+	}
+	return tc
+}
+
 // SetID sets the "id" field.
 func (tc *TenantCreate) SetID(u uuid.UUID) *TenantCreate {
 	tc.mutation.SetID(u)
@@ -130,6 +158,14 @@ func (tc *TenantCreate) defaults() {
 		v := tenant.DefaultUpdatedAt()
 		tc.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := tc.mutation.PreferredCurrency(); !ok {
+		v := tenant.DefaultPreferredCurrency
+		tc.mutation.SetPreferredCurrency(v)
+	}
+	if _, ok := tc.mutation.RateSyncIntervalHours(); !ok {
+		v := tenant.DefaultRateSyncIntervalHours
+		tc.mutation.SetRateSyncIntervalHours(v)
+	}
 	if _, ok := tc.mutation.ID(); !ok {
 		v := tenant.DefaultID()
 		tc.mutation.SetID(v)
@@ -159,6 +195,12 @@ func (tc *TenantCreate) check() error {
 	}
 	if _, ok := tc.mutation.UpdatedAt(); !ok {
 		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "Tenant.updated_at"`)}
+	}
+	if _, ok := tc.mutation.PreferredCurrency(); !ok {
+		return &ValidationError{Name: "preferred_currency", err: errors.New(`ent: missing required field "Tenant.preferred_currency"`)}
+	}
+	if _, ok := tc.mutation.RateSyncIntervalHours(); !ok {
+		return &ValidationError{Name: "rate_sync_interval_hours", err: errors.New(`ent: missing required field "Tenant.rate_sync_interval_hours"`)}
 	}
 	return nil
 }
@@ -210,6 +252,14 @@ func (tc *TenantCreate) createSpec() (*Tenant, *sqlgraph.CreateSpec) {
 	if value, ok := tc.mutation.UpdatedAt(); ok {
 		_spec.SetField(tenant.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if value, ok := tc.mutation.PreferredCurrency(); ok {
+		_spec.SetField(tenant.FieldPreferredCurrency, field.TypeString, value)
+		_node.PreferredCurrency = value
+	}
+	if value, ok := tc.mutation.RateSyncIntervalHours(); ok {
+		_spec.SetField(tenant.FieldRateSyncIntervalHours, field.TypeInt, value)
+		_node.RateSyncIntervalHours = value
 	}
 	return _node, _spec
 }

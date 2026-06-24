@@ -23,6 +23,10 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// FieldPreferredCurrency holds the string denoting the preferred_currency field in the database.
+	FieldPreferredCurrency = "preferred_currency"
+	// FieldRateSyncIntervalHours holds the string denoting the rate_sync_interval_hours field in the database.
+	FieldRateSyncIntervalHours = "rate_sync_interval_hours"
 	// Table holds the table name of the tenant in the database.
 	Table = "tenants"
 )
@@ -34,6 +38,8 @@ var Columns = []string{
 	FieldName,
 	FieldCreatedAt,
 	FieldUpdatedAt,
+	FieldPreferredCurrency,
+	FieldRateSyncIntervalHours,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -55,6 +61,10 @@ var (
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
+	// DefaultPreferredCurrency holds the default value on creation for the "preferred_currency" field.
+	DefaultPreferredCurrency string
+	// DefaultRateSyncIntervalHours holds the default value on creation for the "rate_sync_interval_hours" field.
+	DefaultRateSyncIntervalHours int
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
@@ -111,4 +121,14 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// ByPreferredCurrency orders the results by the preferred_currency field.
+func ByPreferredCurrency(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPreferredCurrency, opts...).ToFunc()
+}
+
+// ByRateSyncIntervalHours orders the results by the rate_sync_interval_hours field.
+func ByRateSyncIntervalHours(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRateSyncIntervalHours, opts...).ToFunc()
 }

@@ -41,6 +41,12 @@ func (Tenant) Fields() []ent.Field {
 			Default(time.Now).
 			UpdateDefault(time.Now).
 			Comment("Last update time"),
+		field.String("preferred_currency").
+			Default("CNY").
+			Comment("ISO 4217 preferred display currency"),
+		field.Int("rate_sync_interval_hours").
+			Default(8).
+			Comment("Exchange rate sync interval hours (1-168)"),
 	}
 }
 

@@ -26,8 +26,12 @@ type Tenant struct {
 	// Record creation time
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// Last update time
-	UpdatedAt    time.Time `json:"updated_at,omitempty"`
-	selectValues sql.SelectValues
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// ISO 4217 preferred display currency
+	PreferredCurrency string `json:"preferred_currency,omitempty"`
+	// Exchange rate sync interval hours (1-168)
+	RateSyncIntervalHours int `json:"rate_sync_interval_hours,omitempty"`
+	selectValues          sql.SelectValues
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -35,7 +39,9 @@ func (*Tenant) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case tenant.FieldType, tenant.FieldName:
+		case tenant.FieldRateSyncIntervalHours:
+			values[i] = new(sql.NullInt64)
+		case tenant.FieldType, tenant.FieldName, tenant.FieldPreferredCurrency:
 			values[i] = new(sql.NullString)
 		case tenant.FieldCreatedAt, tenant.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -86,6 +92,18 @@ func (t *Tenant) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				t.UpdatedAt = value.Time
 			}
+		case tenant.FieldPreferredCurrency:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field preferred_currency", values[i])
+			} else if value.Valid {
+				t.PreferredCurrency = value.String
+			}
+		case tenant.FieldRateSyncIntervalHours:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field rate_sync_interval_hours", values[i])
+			} else if value.Valid {
+				t.RateSyncIntervalHours = int(value.Int64)
+			}
 		default:
 			t.selectValues.Set(columns[i], values[i])
 		}
@@ -133,6 +151,12 @@ func (t *Tenant) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(t.UpdatedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("preferred_currency=")
+	builder.WriteString(t.PreferredCurrency)
+	builder.WriteString(", ")
+	builder.WriteString("rate_sync_interval_hours=")
+	builder.WriteString(fmt.Sprintf("%v", t.RateSyncIntervalHours))
 	builder.WriteByte(')')
 	return builder.String()
 }

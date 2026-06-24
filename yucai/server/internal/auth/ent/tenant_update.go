@@ -62,6 +62,41 @@ func (tu *TenantUpdate) SetUpdatedAt(t time.Time) *TenantUpdate {
 	return tu
 }
 
+// SetPreferredCurrency sets the "preferred_currency" field.
+func (tu *TenantUpdate) SetPreferredCurrency(s string) *TenantUpdate {
+	tu.mutation.SetPreferredCurrency(s)
+	return tu
+}
+
+// SetNillablePreferredCurrency sets the "preferred_currency" field if the given value is not nil.
+func (tu *TenantUpdate) SetNillablePreferredCurrency(s *string) *TenantUpdate {
+	if s != nil {
+		tu.SetPreferredCurrency(*s)
+	}
+	return tu
+}
+
+// SetRateSyncIntervalHours sets the "rate_sync_interval_hours" field.
+func (tu *TenantUpdate) SetRateSyncIntervalHours(i int) *TenantUpdate {
+	tu.mutation.ResetRateSyncIntervalHours()
+	tu.mutation.SetRateSyncIntervalHours(i)
+	return tu
+}
+
+// SetNillableRateSyncIntervalHours sets the "rate_sync_interval_hours" field if the given value is not nil.
+func (tu *TenantUpdate) SetNillableRateSyncIntervalHours(i *int) *TenantUpdate {
+	if i != nil {
+		tu.SetRateSyncIntervalHours(*i)
+	}
+	return tu
+}
+
+// AddRateSyncIntervalHours adds i to the "rate_sync_interval_hours" field.
+func (tu *TenantUpdate) AddRateSyncIntervalHours(i int) *TenantUpdate {
+	tu.mutation.AddRateSyncIntervalHours(i)
+	return tu
+}
+
 // Mutation returns the TenantMutation object of the builder.
 func (tu *TenantUpdate) Mutation() *TenantMutation {
 	return tu.mutation
@@ -139,6 +174,15 @@ func (tu *TenantUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if value, ok := tu.mutation.UpdatedAt(); ok {
 		_spec.SetField(tenant.FieldUpdatedAt, field.TypeTime, value)
 	}
+	if value, ok := tu.mutation.PreferredCurrency(); ok {
+		_spec.SetField(tenant.FieldPreferredCurrency, field.TypeString, value)
+	}
+	if value, ok := tu.mutation.RateSyncIntervalHours(); ok {
+		_spec.SetField(tenant.FieldRateSyncIntervalHours, field.TypeInt, value)
+	}
+	if value, ok := tu.mutation.AddedRateSyncIntervalHours(); ok {
+		_spec.AddField(tenant.FieldRateSyncIntervalHours, field.TypeInt, value)
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, tu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{tenant.Label}
@@ -190,6 +234,41 @@ func (tuo *TenantUpdateOne) SetNillableName(s *string) *TenantUpdateOne {
 // SetUpdatedAt sets the "updated_at" field.
 func (tuo *TenantUpdateOne) SetUpdatedAt(t time.Time) *TenantUpdateOne {
 	tuo.mutation.SetUpdatedAt(t)
+	return tuo
+}
+
+// SetPreferredCurrency sets the "preferred_currency" field.
+func (tuo *TenantUpdateOne) SetPreferredCurrency(s string) *TenantUpdateOne {
+	tuo.mutation.SetPreferredCurrency(s)
+	return tuo
+}
+
+// SetNillablePreferredCurrency sets the "preferred_currency" field if the given value is not nil.
+func (tuo *TenantUpdateOne) SetNillablePreferredCurrency(s *string) *TenantUpdateOne {
+	if s != nil {
+		tuo.SetPreferredCurrency(*s)
+	}
+	return tuo
+}
+
+// SetRateSyncIntervalHours sets the "rate_sync_interval_hours" field.
+func (tuo *TenantUpdateOne) SetRateSyncIntervalHours(i int) *TenantUpdateOne {
+	tuo.mutation.ResetRateSyncIntervalHours()
+	tuo.mutation.SetRateSyncIntervalHours(i)
+	return tuo
+}
+
+// SetNillableRateSyncIntervalHours sets the "rate_sync_interval_hours" field if the given value is not nil.
+func (tuo *TenantUpdateOne) SetNillableRateSyncIntervalHours(i *int) *TenantUpdateOne {
+	if i != nil {
+		tuo.SetRateSyncIntervalHours(*i)
+	}
+	return tuo
+}
+
+// AddRateSyncIntervalHours adds i to the "rate_sync_interval_hours" field.
+func (tuo *TenantUpdateOne) AddRateSyncIntervalHours(i int) *TenantUpdateOne {
+	tuo.mutation.AddRateSyncIntervalHours(i)
 	return tuo
 }
 
@@ -299,6 +378,15 @@ func (tuo *TenantUpdateOne) sqlSave(ctx context.Context) (_node *Tenant, err err
 	}
 	if value, ok := tuo.mutation.UpdatedAt(); ok {
 		_spec.SetField(tenant.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if value, ok := tuo.mutation.PreferredCurrency(); ok {
+		_spec.SetField(tenant.FieldPreferredCurrency, field.TypeString, value)
+	}
+	if value, ok := tuo.mutation.RateSyncIntervalHours(); ok {
+		_spec.SetField(tenant.FieldRateSyncIntervalHours, field.TypeInt, value)
+	}
+	if value, ok := tuo.mutation.AddedRateSyncIntervalHours(); ok {
+		_spec.AddField(tenant.FieldRateSyncIntervalHours, field.TypeInt, value)
 	}
 	_node = &Tenant{config: tuo.config}
 	_spec.Assign = _node.assignValues

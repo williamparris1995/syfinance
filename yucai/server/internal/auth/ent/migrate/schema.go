@@ -15,6 +15,8 @@ var (
 		{Name: "name", Type: field.TypeString, Comment: "Display name for the tenant"},
 		{Name: "created_at", Type: field.TypeTime, Comment: "Record creation time"},
 		{Name: "updated_at", Type: field.TypeTime, Comment: "Last update time"},
+		{Name: "preferred_currency", Type: field.TypeString, Comment: "ISO 4217 preferred display currency", Default: "CNY"},
+		{Name: "rate_sync_interval_hours", Type: field.TypeInt, Comment: "Exchange rate sync interval hours (1-168)", Default: 8},
 	}
 	// TenantsTable holds the schema information for the "tenants" table.
 	TenantsTable = &schema.Table{

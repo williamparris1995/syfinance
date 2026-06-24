@@ -70,6 +70,16 @@ func UpdatedAt(v time.Time) predicate.Tenant {
 	return predicate.Tenant(sql.FieldEQ(FieldUpdatedAt, v))
 }
 
+// PreferredCurrency applies equality check predicate on the "preferred_currency" field. It's identical to PreferredCurrencyEQ.
+func PreferredCurrency(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldEQ(FieldPreferredCurrency, v))
+}
+
+// RateSyncIntervalHours applies equality check predicate on the "rate_sync_interval_hours" field. It's identical to RateSyncIntervalHoursEQ.
+func RateSyncIntervalHours(v int) predicate.Tenant {
+	return predicate.Tenant(sql.FieldEQ(FieldRateSyncIntervalHours, v))
+}
+
 // TypeEQ applies the EQ predicate on the "type" field.
 func TypeEQ(v Type) predicate.Tenant {
 	return predicate.Tenant(sql.FieldEQ(FieldType, v))
@@ -233,6 +243,111 @@ func UpdatedAtLT(v time.Time) predicate.Tenant {
 // UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
 func UpdatedAtLTE(v time.Time) predicate.Tenant {
 	return predicate.Tenant(sql.FieldLTE(FieldUpdatedAt, v))
+}
+
+// PreferredCurrencyEQ applies the EQ predicate on the "preferred_currency" field.
+func PreferredCurrencyEQ(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldEQ(FieldPreferredCurrency, v))
+}
+
+// PreferredCurrencyNEQ applies the NEQ predicate on the "preferred_currency" field.
+func PreferredCurrencyNEQ(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldNEQ(FieldPreferredCurrency, v))
+}
+
+// PreferredCurrencyIn applies the In predicate on the "preferred_currency" field.
+func PreferredCurrencyIn(vs ...string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldIn(FieldPreferredCurrency, vs...))
+}
+
+// PreferredCurrencyNotIn applies the NotIn predicate on the "preferred_currency" field.
+func PreferredCurrencyNotIn(vs ...string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldNotIn(FieldPreferredCurrency, vs...))
+}
+
+// PreferredCurrencyGT applies the GT predicate on the "preferred_currency" field.
+func PreferredCurrencyGT(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldGT(FieldPreferredCurrency, v))
+}
+
+// PreferredCurrencyGTE applies the GTE predicate on the "preferred_currency" field.
+func PreferredCurrencyGTE(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldGTE(FieldPreferredCurrency, v))
+}
+
+// PreferredCurrencyLT applies the LT predicate on the "preferred_currency" field.
+func PreferredCurrencyLT(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldLT(FieldPreferredCurrency, v))
+}
+
+// PreferredCurrencyLTE applies the LTE predicate on the "preferred_currency" field.
+func PreferredCurrencyLTE(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldLTE(FieldPreferredCurrency, v))
+}
+
+// PreferredCurrencyContains applies the Contains predicate on the "preferred_currency" field.
+func PreferredCurrencyContains(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldContains(FieldPreferredCurrency, v))
+}
+
+// PreferredCurrencyHasPrefix applies the HasPrefix predicate on the "preferred_currency" field.
+func PreferredCurrencyHasPrefix(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldHasPrefix(FieldPreferredCurrency, v))
+}
+
+// PreferredCurrencyHasSuffix applies the HasSuffix predicate on the "preferred_currency" field.
+func PreferredCurrencyHasSuffix(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldHasSuffix(FieldPreferredCurrency, v))
+}
+
+// PreferredCurrencyEqualFold applies the EqualFold predicate on the "preferred_currency" field.
+func PreferredCurrencyEqualFold(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldEqualFold(FieldPreferredCurrency, v))
+}
+
+// PreferredCurrencyContainsFold applies the ContainsFold predicate on the "preferred_currency" field.
+func PreferredCurrencyContainsFold(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldContainsFold(FieldPreferredCurrency, v))
+}
+
+// RateSyncIntervalHoursEQ applies the EQ predicate on the "rate_sync_interval_hours" field.
+func RateSyncIntervalHoursEQ(v int) predicate.Tenant {
+	return predicate.Tenant(sql.FieldEQ(FieldRateSyncIntervalHours, v))
+}
+
+// RateSyncIntervalHoursNEQ applies the NEQ predicate on the "rate_sync_interval_hours" field.
+func RateSyncIntervalHoursNEQ(v int) predicate.Tenant {
+	return predicate.Tenant(sql.FieldNEQ(FieldRateSyncIntervalHours, v))
+}
+
+// RateSyncIntervalHoursIn applies the In predicate on the "rate_sync_interval_hours" field.
+func RateSyncIntervalHoursIn(vs ...int) predicate.Tenant {
+	return predicate.Tenant(sql.FieldIn(FieldRateSyncIntervalHours, vs...))
+}
+
+// RateSyncIntervalHoursNotIn applies the NotIn predicate on the "rate_sync_interval_hours" field.
+func RateSyncIntervalHoursNotIn(vs ...int) predicate.Tenant {
+	return predicate.Tenant(sql.FieldNotIn(FieldRateSyncIntervalHours, vs...))
+}
+
+// RateSyncIntervalHoursGT applies the GT predicate on the "rate_sync_interval_hours" field.
+func RateSyncIntervalHoursGT(v int) predicate.Tenant {
+	return predicate.Tenant(sql.FieldGT(FieldRateSyncIntervalHours, v))
+}
+
+// RateSyncIntervalHoursGTE applies the GTE predicate on the "rate_sync_interval_hours" field.
+func RateSyncIntervalHoursGTE(v int) predicate.Tenant {
+	return predicate.Tenant(sql.FieldGTE(FieldRateSyncIntervalHours, v))
+}
+
+// RateSyncIntervalHoursLT applies the LT predicate on the "rate_sync_interval_hours" field.
+func RateSyncIntervalHoursLT(v int) predicate.Tenant {
+	return predicate.Tenant(sql.FieldLT(FieldRateSyncIntervalHours, v))
+}
+
+// RateSyncIntervalHoursLTE applies the LTE predicate on the "rate_sync_interval_hours" field.
+func RateSyncIntervalHoursLTE(v int) predicate.Tenant {
+	return predicate.Tenant(sql.FieldLTE(FieldRateSyncIntervalHours, v))
 }
 
 // And groups predicates with the AND operator between them.
