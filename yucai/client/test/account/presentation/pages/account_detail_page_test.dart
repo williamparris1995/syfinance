@@ -1396,4 +1396,28 @@ void main() {
     );
     expect(find.text('已绑定实名 · 银行直连'), findsOneWidget);
   });
+
+  // ───── Task 10: Hero 余额按 account.currencyCode 原货币符号（不换算）─────
+  //
+  // spec §3：Hero 余额按原账户货币符号显示（不换算到 preferred）。USD 账户
+  // currentBalanceCents 100000 → 「$ 1,000.00」（currencySymbol('USD') = $），
+  // 不是「¥ 1,000.00」。验证 _fmt 用 a.currencyCode 而非硬编码 ¥。
+
+  testWidgets(
+      'Task 10: USD account hero balance shows native \$ symbol (not ¥)',
+      (tester) async {
+    await pumpPage(
+      tester,
+      account: _account().copyWith(currencyCode: 'USD'),
+    );
+
+    // 40px serif hero balance。
+    final bal = tester.widgetList<Text>(find.byType(Text)).firstWhere(
+      (t) => t.style?.fontSize == 40,
+      orElse: () => throw StateError('未找到 40px 余额文本'),
+    );
+    expect(bal.data, '\$ 1000.00',
+        reason: 'USD 账户 Hero 余额应显示原货币符号 \$ 而非 ¥（_fmt 无千分位）');
+    expect(find.text('¥ 1,000.00'), findsNothing);
+  });
 }

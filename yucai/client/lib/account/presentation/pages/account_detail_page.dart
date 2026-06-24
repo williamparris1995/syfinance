@@ -14,6 +14,7 @@ import 'package:yucai_client/account/presentation/bloc/account_state.dart';
 import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
@@ -248,9 +249,9 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(flex: 3, child: _recentTxnPanel(txns)),
+              Expanded(flex: 3, child: _recentTxnPanel(txns, a.currencyCode)),
               const SizedBox(width: 16),
-              Expanded(flex: 2, child: _summaryPanel(summary)),
+              Expanded(flex: 2, child: _summaryPanel(summary, a.currencyCode)),
             ],
           ),
           const SizedBox(height: 18),
@@ -274,7 +275,9 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
       if (v != null && v.isNotEmpty) cells.add((label, v));
     }
     void addNum(String label, int? cents) {
-      if (cents != null && cents != 0) cells.add((label, _fmtSigned(cents)));
+      if (cents != null && cents != 0) {
+        cells.add((label, _fmtSigned(cents, a.currencyCode)));
+      }
     }
     add('开户机构', a.institution.isEmpty ? null : a.institution);
     add('卡号尾号', a.cardNumberTail.isEmpty ? null : '尾号 ${a.cardNumberTail}');
@@ -501,7 +504,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                 const SizedBox(height: 6),
                 // 余额 40px 白字 serif display。
                 Text(
-                  _fmt(a.currentBalanceCents),
+                  _fmt(a.currentBalanceCents, a.currencyCode),
                   style: const TextStyle(
                     fontSize: 40,
                     fontWeight: FontWeight.w600,
@@ -516,7 +519,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                 // hero-bal-sub {scope}收支（正绿 #6FCF9A 负红 #E57373）。
                 // Task 11：前缀跟随 _scope（本日/本月/本年）。
                 Text(
-                  '$_scopeLabel收支 ${netPositive ? '+' : '-'}¥'
+                  '$_scopeLabel收支 ${netPositive ? '+' : '-'}${currencySymbol(a.currencyCode)}'
                   '${(netCents.abs() ~/ 100).toString()}.'
                   '${(netCents.abs() % 100).toString().padLeft(2, '0')}',
                   style: TextStyle(
@@ -643,7 +646,9 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     }
 
     void addNum(String label, int? cents) {
-      if (cents != null && cents != 0) fields.add((label, _fmt(cents)));
+      if (cents != null && cents != 0) {
+        fields.add((label, _fmt(cents, a.currencyCode)));
+      }
     }
 
     void addRate(String label, double? r) {
@@ -853,9 +858,9 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         final used = a.currentBalanceCents.abs(); // 欠款为负，取绝对值
         final avail = (limit - used).clamp(0, limit);
         return [
-          ('信用额度', _fmtSigned(limit)),
-          ('已用额度', _fmtSigned(used)),
-          ('可用额度', _fmtSigned(avail)),
+          ('信用额度', _fmtSigned(limit, a.currencyCode)),
+          ('已用额度', _fmtSigned(used, a.currencyCode)),
+          ('可用额度', _fmtSigned(avail, a.currencyCode)),
           ('账单日', '${a.creditBillingDay ?? '-'}日'),
         ];
       case AccountCategory.loan:
@@ -863,54 +868,55 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         final remain = a.loanRemainingCents ?? 0;
         final repaidPct = orig > 0 ? ((orig - remain) / orig * 100) : 0.0;
         return [
-          ('原始本金', _fmtSigned(orig)),
-          ('剩余本金', _fmtSigned(remain)),
-          ('月供', _fmtSigned(a.loanMonthlyCents ?? 0)),
+          ('原始本金', _fmtSigned(orig, a.currencyCode)),
+          ('剩余本金', _fmtSigned(remain, a.currencyCode)),
+          ('月供', _fmtSigned(a.loanMonthlyCents ?? 0, a.currencyCode)),
           ('已还比例', '${repaidPct.toStringAsFixed(1)}%'),
         ];
       case AccountCategory.investment:
         return [
-          ('当前市值', _fmtSigned(a.investMarketValueCents ?? 0)),
-          ('投入成本', _fmtSigned(a.investCostCents ?? 0)),
+          ('当前市值', _fmtSigned(a.investMarketValueCents ?? 0, a.currencyCode)),
+          ('投入成本', _fmtSigned(a.investCostCents ?? 0, a.currencyCode)),
           ('今年收益率', '${(a.investReturnYtd ?? 0).toStringAsFixed(2)}%'),
           ('持仓交易数', '${txns.length}'),
         ];
       case AccountCategory.fixedDeposit:
         return [
-          ('本金', _fmtSigned(a.fixedPrincipalCents ?? 0)),
+          ('本金', _fmtSigned(a.fixedPrincipalCents ?? 0, a.currencyCode)),
           ('到期日', a.fixedMaturityDate == null
               ? '-'
               : _fmtDate(a.fixedMaturityDate!)),
           ('年化利率', '${(a.interestRate ?? 0).toStringAsFixed(2)}%'),
-          ('$_scopeLabel收支', _fmtSigned(summary?.netCents ?? 0)),
+          ('$_scopeLabel收支', _fmtSigned(summary?.netCents ?? 0, a.currencyCode)),
         ];
       case AccountCategory.goldFx:
         final cur = a.goldCurrentPriceCents ?? 0;
         final buy = a.goldBuyPriceCents ?? 0;
         final pct = buy > 0 ? (cur - buy) / buy * 100 : 0.0;
         return [
-          ('现值', _fmtSigned((cur * (a.goldQuantity ?? 0)).toInt())),
-          ('买入价', _fmtSigned(buy)),
+          ('现值', _fmtSigned(
+              (cur * (a.goldQuantity ?? 0)).toInt(), a.currencyCode)),
+          ('买入价', _fmtSigned(buy, a.currencyCode)),
           ('涨幅', '${pct.toStringAsFixed(2)}%'),
-          ('$_scopeLabel收支', _fmtSigned(summary?.netCents ?? 0)),
+          ('$_scopeLabel收支', _fmtSigned(summary?.netCents ?? 0, a.currencyCode)),
         ];
       case AccountCategory.realEstate:
         final cur = a.estateCurrentValueCents ?? 0;
         final buy = a.estatePurchasePriceCents ?? 0;
         final pct = buy > 0 ? (cur - buy) / buy * 100 : 0.0;
         return [
-          ('现估值', _fmtSigned(cur)),
-          ('买入价', _fmtSigned(buy)),
+          ('现估值', _fmtSigned(cur, a.currencyCode)),
+          ('买入价', _fmtSigned(buy, a.currencyCode)),
           ('增值率', '${pct.toStringAsFixed(2)}%'),
-          ('$_scopeLabel收支', _fmtSigned(summary?.netCents ?? 0)),
+          ('$_scopeLabel收支', _fmtSigned(summary?.netCents ?? 0, a.currencyCode)),
         ];
       case AccountCategory.savings:
       case AccountCategory.otherAsset:
       case AccountCategory.otherLiability:
         return [
-          ('$_scopeLabel收入', _fmtSigned(summary?.incomeCents ?? 0)),
-          ('$_scopeLabel支出', _fmtSigned(summary?.expenseCents ?? 0)),
-          ('$_scopeLabel净流入', _fmtSigned(summary?.netCents ?? 0)),
+          ('$_scopeLabel收入', _fmtSigned(summary?.incomeCents ?? 0, a.currencyCode)),
+          ('$_scopeLabel支出', _fmtSigned(summary?.expenseCents ?? 0, a.currencyCode)),
+          ('$_scopeLabel净流入', _fmtSigned(summary?.netCents ?? 0, a.currencyCode)),
           // Issue ②: 交易数 must match the scope of the other three cards
           // (which are scope-scoped via the summary RPC). The txns list is
           // account-scoped (all recent), so filter it by the current scope:
@@ -968,7 +974,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   /// 不用 TxnRow 的宽表布局 —— 该 panel 在窄列里，TxnRow 会溢出）。
   /// 分页 >1 页时底部追加「‹ 1/N ›」pager。越界（列表缩短 / 账户切换）在
   /// 入口 clamp，避免 stale page index。
-  Widget _recentTxnPanel(List<Transaction> txns) {
+  Widget _recentTxnPanel(List<Transaction> txns, String currencyCode) {
     final pageCount = (txns.length / _recentPageSize).ceil();
     if (_recentPage >= pageCount && pageCount > 0) _recentPage = pageCount - 1;
     if (pageCount == 0) _recentPage = 0;
@@ -1012,7 +1018,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
               ),
             )
           else
-            for (final t in page) _recentTxnRow(t),
+            for (final t in page) _recentTxnRow(t, currencyCode),
           if (pageCount > 1) ...[
             const SizedBox(height: AppSpacing.sm),
             _recentPager(pageCount),
@@ -1057,7 +1063,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   ///     副行 = 转出账户名 · 转入账户名。
   ///   - 非转账：asset 账户 = 资产账户名；对侧 income/expense 账户 = 分类。
   ///     副行 = `${分类账户 category.label} · ${资产账户名}`。
-  Widget _recentTxnRow(Transaction t) {
+  Widget _recentTxnRow(Transaction t, String currencyCode) {
     final flavour = _inferFlavour(t);
     final amount = t.totalDebitCents;
     final cell = _resolveRecentTxnCell(t, flavour);
@@ -1111,10 +1117,10 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
           const SizedBox(width: AppSpacing.sm),
           Text(
             isNegative
-                ? '-${_fmtSigned(signedAmount.abs())}'
+                ? '-${_fmtSigned(signedAmount.abs(), currencyCode)}'
                 : (flavour == TxnFlavour.income
-                    ? '+${_fmtSigned(signedAmount)}'
-                    : _fmtSigned(signedAmount)),
+                    ? '+${_fmtSigned(signedAmount, currencyCode)}'
+                    : _fmtSigned(signedAmount, currencyCode)),
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -1269,7 +1275,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
   /// [_scopeLabel]）。图例 2 行：收入类 / 支出类（色点 + 金额 · 占比）。
   ///
   /// income+expense == 0 时改显占位「暂无收支」（避免除零 + 空弧）。
-  Widget _summaryPanel(MonthlySummary? summary) {
+  Widget _summaryPanel(MonthlySummary? summary, String currencyCode) {
     final income = summary?.incomeCents ?? 0;
     final expense = summary?.expenseCents ?? 0;
     final net = summary?.netCents ?? 0;
@@ -1296,18 +1302,20 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
               ),
             )
           else ...[
-            _pieChart(income, expense, net),
+            _pieChart(income, expense, net, currencyCode),
             const SizedBox(height: AppSpacing.md),
             _legendRow(
                 label: '收入类',
                 amountCents: income,
                 total: total,
-                isIncome: true),
+                isIncome: true,
+                currencyCode: currencyCode),
             _legendRow(
                 label: '支出类',
                 amountCents: expense,
                 total: total,
-                isIncome: false),
+                isIncome: false,
+                currencyCode: currencyCode),
           ],
         ],
       ),
@@ -1316,13 +1324,14 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
 
   /// 双色饼图：CustomPaint(_DonutPainter) + 圆心 overlay 净流入 + scope label。
   /// 净流入正 → AppColors.positive（绿）；负 → AppColors.negative（红）。
-  Widget _pieChart(int incomeCents, int expenseCents, int netCents) {
+  Widget _pieChart(
+      int incomeCents, int expenseCents, int netCents, String currencyCode) {
     final netColor =
         netCents >= 0 ? AppColors.positive : AppColors.negative;
     // 净流入金额带符号：正 + / 负 -（_fmtSigned 已含负号；正号此处补）。
     final netLabel = netCents >= 0
-        ? '+${_fmtSigned(netCents)}'
-        : _fmtSigned(netCents);
+        ? '+${_fmtSigned(netCents, currencyCode)}'
+        : _fmtSigned(netCents, currencyCode);
     return Center(
       child: SizedBox(
         width: 128,
@@ -1358,6 +1367,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     required int amountCents,
     required int total,
     required bool isIncome,
+    required String currencyCode,
   }) {
     final pct = total > 0 ? (amountCents / total * 100) : 0.0;
     return Padding(
@@ -1377,7 +1387,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
               style: const TextStyle(color: AppColors.muted, fontSize: 12)),
           const Spacer(),
           Text(
-              '${_fmtSigned(amountCents)} · ${pct.toStringAsFixed(0)}%',
+              '${_fmtSigned(amountCents, currencyCode)} · ${pct.toStringAsFixed(0)}%',
               style: const TextStyle(
                   color: AppColors.muted,
                   fontSize: 12,
@@ -1608,22 +1618,22 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
 
   // ───────────────────────── 工具 ─────────────────────────
 
-  String _fmt(int cents) {
+  String _fmt(int cents, String currencyCode) {
     final sign = cents < 0 ? '-' : '';
     final abs = cents.abs();
     final yuan = abs ~/ 100;
     final fen = (abs % 100).toString().padLeft(2, '0');
-    return '$sign¥ $yuan.$fen';
+    return '$sign${currencySymbol(currencyCode)} $yuan.$fen';
   }
 
   /// 千分位 + 两位小数（与 SummaryCard 格式一致：¥1,234.56）。负数保留负号。
-  String _fmtSigned(int cents) {
+  String _fmtSigned(int cents, String currencyCode) {
     final sign = cents < 0 ? '-' : '';
     final abs = cents.abs();
     final yuan = abs ~/ 100;
     final frac = (abs % 100).toString().padLeft(2, '0');
     final yuanStr = _groupThousands(yuan);
-    return '$sign¥$yuanStr.$frac';
+    return '$sign${currencySymbol(currencyCode)}$yuanStr.$frac';
   }
 
   static String _groupThousands(int yuan) {
