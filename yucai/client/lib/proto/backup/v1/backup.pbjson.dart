@@ -15,13 +15,6 @@ import 'dart:convert' as $convert;
 import 'dart:core' as $core;
 import 'dart:typed_data' as $typed_data;
 
-import 'package:protobuf/well_known_types/google/protobuf/empty.pbjson.dart'
-    as $2;
-import 'package:protobuf/well_known_types/google/protobuf/timestamp.pbjson.dart'
-    as $0;
-
-import '../../common/v1/pagination.pbjson.dart' as $1;
-
 @$core.Deprecated('Use backupProviderDescriptor instead')
 const BackupProvider$json = {
   '1': 'BackupProvider',
@@ -328,87 +321,3 @@ const BackupResponse$json = {
 final $typed_data.Uint8List backupResponseDescriptor = $convert.base64Decode(
     'Cg5CYWNrdXBSZXNwb25zZRIyCgZiYWNrdXAYASABKAsyGi55dWNhaS5iYWNrdXAudjEuQmFja3'
     'VwRFRPUgZiYWNrdXA=');
-
-const $core.Map<$core.String, $core.dynamic> BackupServiceBase$json = {
-  '1': 'BackupService',
-  '2': [
-    {
-      '1': 'CreateBackup',
-      '2': '.yucai.backup.v1.CreateBackupRequest',
-      '3': '.yucai.backup.v1.BackupResponse'
-    },
-    {
-      '1': 'RestoreBackup',
-      '2': '.yucai.backup.v1.RestoreBackupRequest',
-      '3': '.google.protobuf.Empty'
-    },
-    {
-      '1': 'ListBackups',
-      '2': '.yucai.backup.v1.ListBackupsRequest',
-      '3': '.yucai.backup.v1.ListBackupsResponse'
-    },
-    {
-      '1': 'DeleteBackup',
-      '2': '.yucai.backup.v1.DeleteBackupRequest',
-      '3': '.google.protobuf.Empty'
-    },
-    {
-      '1': 'SaveCloudSettings',
-      '2': '.yucai.backup.v1.SaveCloudSettingsRequest',
-      '3': '.google.protobuf.Empty'
-    },
-    {
-      '1': 'GetCloudSettings',
-      '2': '.google.protobuf.Empty',
-      '3': '.yucai.backup.v1.CloudSettingsResponse'
-    },
-    {
-      '1': 'TestCloudConnection',
-      '2': '.yucai.backup.v1.TestConnectionRequest',
-      '3': '.yucai.backup.v1.TestConnectionResponse'
-    },
-    {
-      '1': 'UploadToCloud',
-      '2': '.yucai.backup.v1.UploadRequest',
-      '3': '.yucai.backup.v1.BackupResponse'
-    },
-  ],
-};
-
-@$core.Deprecated('Use backupServiceDescriptor instead')
-const $core.Map<$core.String, $core.Map<$core.String, $core.dynamic>>
-    BackupServiceBase$messageJson = {
-  '.yucai.backup.v1.CreateBackupRequest': CreateBackupRequest$json,
-  '.yucai.backup.v1.BackupResponse': BackupResponse$json,
-  '.yucai.backup.v1.BackupDTO': BackupDTO$json,
-  '.google.protobuf.Timestamp': $0.Timestamp$json,
-  '.yucai.backup.v1.RestoreBackupRequest': RestoreBackupRequest$json,
-  '.google.protobuf.Empty': $2.Empty$json,
-  '.yucai.backup.v1.ListBackupsRequest': ListBackupsRequest$json,
-  '.yucai.common.v1.PageRequest': $1.PageRequest$json,
-  '.yucai.backup.v1.ListBackupsResponse': ListBackupsResponse$json,
-  '.yucai.common.v1.PageResponse': $1.PageResponse$json,
-  '.yucai.backup.v1.DeleteBackupRequest': DeleteBackupRequest$json,
-  '.yucai.backup.v1.SaveCloudSettingsRequest': SaveCloudSettingsRequest$json,
-  '.yucai.backup.v1.CloudSettingsDTO': CloudSettingsDTO$json,
-  '.yucai.backup.v1.CloudSettingsResponse': CloudSettingsResponse$json,
-  '.yucai.backup.v1.TestConnectionRequest': TestConnectionRequest$json,
-  '.yucai.backup.v1.TestConnectionResponse': TestConnectionResponse$json,
-  '.yucai.backup.v1.UploadRequest': UploadRequest$json,
-};
-
-/// Descriptor for `BackupService`. Decode as a `google.protobuf.ServiceDescriptorProto`.
-final $typed_data.Uint8List backupServiceDescriptor = $convert.base64Decode(
-    'Cg1CYWNrdXBTZXJ2aWNlElUKDENyZWF0ZUJhY2t1cBIkLnl1Y2FpLmJhY2t1cC52MS5DcmVhdG'
-    'VCYWNrdXBSZXF1ZXN0Gh8ueXVjYWkuYmFja3VwLnYxLkJhY2t1cFJlc3BvbnNlEk4KDVJlc3Rv'
-    'cmVCYWNrdXASJS55dWNhaS5iYWNrdXAudjEuUmVzdG9yZUJhY2t1cFJlcXVlc3QaFi5nb29nbG'
-    'UucHJvdG9idWYuRW1wdHkSWAoLTGlzdEJhY2t1cHMSIy55dWNhaS5iYWNrdXAudjEuTGlzdEJh'
-    'Y2t1cHNSZXF1ZXN0GiQueXVjYWkuYmFja3VwLnYxLkxpc3RCYWNrdXBzUmVzcG9uc2USTAoMRG'
-    'VsZXRlQmFja3VwEiQueXVjYWkuYmFja3VwLnYxLkRlbGV0ZUJhY2t1cFJlcXVlc3QaFi5nb29n'
-    'bGUucHJvdG9idWYuRW1wdHkSVgoRU2F2ZUNsb3VkU2V0dGluZ3MSKS55dWNhaS5iYWNrdXAudj'
-    'EuU2F2ZUNsb3VkU2V0dGluZ3NSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5ElIKEEdl'
-    'dENsb3VkU2V0dGluZ3MSFi5nb29nbGUucHJvdG9idWYuRW1wdHkaJi55dWNhaS5iYWNrdXAudj'
-    'EuQ2xvdWRTZXR0aW5nc1Jlc3BvbnNlEmYKE1Rlc3RDbG91ZENvbm5lY3Rpb24SJi55dWNhaS5i'
-    'YWNrdXAudjEuVGVzdENvbm5lY3Rpb25SZXF1ZXN0GicueXVjYWkuYmFja3VwLnYxLlRlc3RDb2'
-    '5uZWN0aW9uUmVzcG9uc2USUAoNVXBsb2FkVG9DbG91ZBIeLnl1Y2FpLmJhY2t1cC52MS5VcGxv'
-    'YWRSZXF1ZXN0Gh8ueXVjYWkuYmFja3VwLnYxLkJhY2t1cFJlc3BvbnNl');

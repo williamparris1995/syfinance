@@ -10,16 +10,14 @@
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
 // ignore_for_file: non_constant_identifier_names, prefer_relative_imports
 
-import 'dart:async' as $async;
 import 'dart:core' as $core;
 
 import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
-import 'package:protobuf/well_known_types/google/protobuf/empty.pb.dart' as $2;
 import 'package:protobuf/well_known_types/google/protobuf/timestamp.pb.dart'
-    as $0;
+    as $2;
 
-import '../../common/v1/pagination.pb.dart' as $1;
+import '../../common/v1/pagination.pb.dart' as $3;
 import 'goal.pbenum.dart';
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
@@ -34,16 +32,16 @@ class GoalDTO extends $pb.GeneratedMessage {
     $fixnum.Int64? targetAmountCents,
     $fixnum.Int64? currentAmountCents,
     $core.String? currencyCode,
-    $0.Timestamp? deadline,
+    $2.Timestamp? deadline,
     $core.String? linkedAccountId,
     $core.String? notes,
     $core.bool? isCompleted,
-    $0.Timestamp? completedAt,
+    $2.Timestamp? completedAt,
     $core.double? progressPct,
     $fixnum.Int64? remainingCents,
     $fixnum.Int64? version,
-    $0.Timestamp? createdAt,
-    $0.Timestamp? updatedAt,
+    $2.Timestamp? createdAt,
+    $2.Timestamp? updatedAt,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -86,20 +84,20 @@ class GoalDTO extends $pb.GeneratedMessage {
     ..aInt64(4, _omitFieldNames ? '' : 'targetAmountCents')
     ..aInt64(5, _omitFieldNames ? '' : 'currentAmountCents')
     ..aOS(6, _omitFieldNames ? '' : 'currencyCode')
-    ..aOM<$0.Timestamp>(7, _omitFieldNames ? '' : 'deadline',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(7, _omitFieldNames ? '' : 'deadline',
+        subBuilder: $2.Timestamp.create)
     ..aOS(8, _omitFieldNames ? '' : 'linkedAccountId')
     ..aOS(9, _omitFieldNames ? '' : 'notes')
     ..aOB(10, _omitFieldNames ? '' : 'isCompleted')
-    ..aOM<$0.Timestamp>(11, _omitFieldNames ? '' : 'completedAt',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(11, _omitFieldNames ? '' : 'completedAt',
+        subBuilder: $2.Timestamp.create)
     ..aD(12, _omitFieldNames ? '' : 'progressPct')
     ..aInt64(13, _omitFieldNames ? '' : 'remainingCents')
     ..aInt64(14, _omitFieldNames ? '' : 'version')
-    ..aOM<$0.Timestamp>(15, _omitFieldNames ? '' : 'createdAt',
-        subBuilder: $0.Timestamp.create)
-    ..aOM<$0.Timestamp>(16, _omitFieldNames ? '' : 'updatedAt',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(15, _omitFieldNames ? '' : 'createdAt',
+        subBuilder: $2.Timestamp.create)
+    ..aOM<$2.Timestamp>(16, _omitFieldNames ? '' : 'updatedAt',
+        subBuilder: $2.Timestamp.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -175,15 +173,15 @@ class GoalDTO extends $pb.GeneratedMessage {
   void clearCurrencyCode() => $_clearField(6);
 
   @$pb.TagNumber(7)
-  $0.Timestamp get deadline => $_getN(6);
+  $2.Timestamp get deadline => $_getN(6);
   @$pb.TagNumber(7)
-  set deadline($0.Timestamp value) => $_setField(7, value);
+  set deadline($2.Timestamp value) => $_setField(7, value);
   @$pb.TagNumber(7)
   $core.bool hasDeadline() => $_has(6);
   @$pb.TagNumber(7)
   void clearDeadline() => $_clearField(7);
   @$pb.TagNumber(7)
-  $0.Timestamp ensureDeadline() => $_ensure(6);
+  $2.Timestamp ensureDeadline() => $_ensure(6);
 
   @$pb.TagNumber(8)
   $core.String get linkedAccountId => $_getSZ(7);
@@ -213,15 +211,15 @@ class GoalDTO extends $pb.GeneratedMessage {
   void clearIsCompleted() => $_clearField(10);
 
   @$pb.TagNumber(11)
-  $0.Timestamp get completedAt => $_getN(10);
+  $2.Timestamp get completedAt => $_getN(10);
   @$pb.TagNumber(11)
-  set completedAt($0.Timestamp value) => $_setField(11, value);
+  set completedAt($2.Timestamp value) => $_setField(11, value);
   @$pb.TagNumber(11)
   $core.bool hasCompletedAt() => $_has(10);
   @$pb.TagNumber(11)
   void clearCompletedAt() => $_clearField(11);
   @$pb.TagNumber(11)
-  $0.Timestamp ensureCompletedAt() => $_ensure(10);
+  $2.Timestamp ensureCompletedAt() => $_ensure(10);
 
   @$pb.TagNumber(12)
   $core.double get progressPct => $_getN(11);
@@ -251,26 +249,26 @@ class GoalDTO extends $pb.GeneratedMessage {
   void clearVersion() => $_clearField(14);
 
   @$pb.TagNumber(15)
-  $0.Timestamp get createdAt => $_getN(14);
+  $2.Timestamp get createdAt => $_getN(14);
   @$pb.TagNumber(15)
-  set createdAt($0.Timestamp value) => $_setField(15, value);
+  set createdAt($2.Timestamp value) => $_setField(15, value);
   @$pb.TagNumber(15)
   $core.bool hasCreatedAt() => $_has(14);
   @$pb.TagNumber(15)
   void clearCreatedAt() => $_clearField(15);
   @$pb.TagNumber(15)
-  $0.Timestamp ensureCreatedAt() => $_ensure(14);
+  $2.Timestamp ensureCreatedAt() => $_ensure(14);
 
   @$pb.TagNumber(16)
-  $0.Timestamp get updatedAt => $_getN(15);
+  $2.Timestamp get updatedAt => $_getN(15);
   @$pb.TagNumber(16)
-  set updatedAt($0.Timestamp value) => $_setField(16, value);
+  set updatedAt($2.Timestamp value) => $_setField(16, value);
   @$pb.TagNumber(16)
   $core.bool hasUpdatedAt() => $_has(15);
   @$pb.TagNumber(16)
   void clearUpdatedAt() => $_clearField(16);
   @$pb.TagNumber(16)
-  $0.Timestamp ensureUpdatedAt() => $_ensure(15);
+  $2.Timestamp ensureUpdatedAt() => $_ensure(15);
 }
 
 class CreateGoalRequest extends $pb.GeneratedMessage {
@@ -800,7 +798,7 @@ class GetGoalRequest extends $pb.GeneratedMessage {
 
 class ListGoalsRequest extends $pb.GeneratedMessage {
   factory ListGoalsRequest({
-    $1.PageRequest? page,
+    $3.PageRequest? page,
     $core.bool? completed,
   }) {
     final result = create();
@@ -822,8 +820,8 @@ class ListGoalsRequest extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'ListGoalsRequest',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.goal.v1'),
       createEmptyInstance: create)
-    ..aOM<$1.PageRequest>(1, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageRequest.create)
+    ..aOM<$3.PageRequest>(1, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageRequest.create)
     ..aOB(2, _omitFieldNames ? '' : 'completed')
     ..hasRequiredFields = false;
 
@@ -847,15 +845,15 @@ class ListGoalsRequest extends $pb.GeneratedMessage {
   static ListGoalsRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $1.PageRequest get page => $_getN(0);
+  $3.PageRequest get page => $_getN(0);
   @$pb.TagNumber(1)
-  set page($1.PageRequest value) => $_setField(1, value);
+  set page($3.PageRequest value) => $_setField(1, value);
   @$pb.TagNumber(1)
   $core.bool hasPage() => $_has(0);
   @$pb.TagNumber(1)
   void clearPage() => $_clearField(1);
   @$pb.TagNumber(1)
-  $1.PageRequest ensurePage() => $_ensure(0);
+  $3.PageRequest ensurePage() => $_ensure(0);
 
   @$pb.TagNumber(2)
   $core.bool get completed => $_getBF(1);
@@ -870,7 +868,7 @@ class ListGoalsRequest extends $pb.GeneratedMessage {
 class ListGoalsResponse extends $pb.GeneratedMessage {
   factory ListGoalsResponse({
     $core.Iterable<GoalDTO>? goals,
-    $1.PageResponse? page,
+    $3.PageResponse? page,
   }) {
     final result = create();
     if (goals != null) result.goals.addAll(goals);
@@ -893,8 +891,8 @@ class ListGoalsResponse extends $pb.GeneratedMessage {
       createEmptyInstance: create)
     ..pPM<GoalDTO>(1, _omitFieldNames ? '' : 'goals',
         subBuilder: GoalDTO.create)
-    ..aOM<$1.PageResponse>(2, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageResponse.create)
+    ..aOM<$3.PageResponse>(2, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageResponse.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -920,15 +918,15 @@ class ListGoalsResponse extends $pb.GeneratedMessage {
   $pb.PbList<GoalDTO> get goals => $_getList(0);
 
   @$pb.TagNumber(2)
-  $1.PageResponse get page => $_getN(1);
+  $3.PageResponse get page => $_getN(1);
   @$pb.TagNumber(2)
-  set page($1.PageResponse value) => $_setField(2, value);
+  set page($3.PageResponse value) => $_setField(2, value);
   @$pb.TagNumber(2)
   $core.bool hasPage() => $_has(1);
   @$pb.TagNumber(2)
   void clearPage() => $_clearField(2);
   @$pb.TagNumber(2)
-  $1.PageResponse ensurePage() => $_ensure(1);
+  $3.PageResponse ensurePage() => $_ensure(1);
 }
 
 class GoalResponse extends $pb.GeneratedMessage {
@@ -1041,45 +1039,6 @@ class GoalDetailResponse extends $pb.GeneratedMessage {
   void clearGoal() => $_clearField(1);
   @$pb.TagNumber(1)
   GoalDTO ensureGoal() => $_ensure(0);
-}
-
-class GoalServiceApi {
-  final $pb.RpcClient _client;
-
-  GoalServiceApi(this._client);
-
-  $async.Future<GoalResponse> createGoal(
-          $pb.ClientContext? ctx, CreateGoalRequest request) =>
-      _client.invoke<GoalResponse>(
-          ctx, 'GoalService', 'CreateGoal', request, GoalResponse());
-  $async.Future<GoalResponse> updateGoal(
-          $pb.ClientContext? ctx, UpdateGoalRequest request) =>
-      _client.invoke<GoalResponse>(
-          ctx, 'GoalService', 'UpdateGoal', request, GoalResponse());
-  $async.Future<GoalResponse> updateGoalProgress(
-          $pb.ClientContext? ctx, UpdateProgressRequest request) =>
-      _client.invoke<GoalResponse>(
-          ctx, 'GoalService', 'UpdateGoalProgress', request, GoalResponse());
-  $async.Future<$2.Empty> completeGoal(
-          $pb.ClientContext? ctx, CompleteGoalRequest request) =>
-      _client.invoke<$2.Empty>(
-          ctx, 'GoalService', 'CompleteGoal', request, $2.Empty());
-  $async.Future<$2.Empty> deleteGoal(
-          $pb.ClientContext? ctx, DeleteGoalRequest request) =>
-      _client.invoke<$2.Empty>(
-          ctx, 'GoalService', 'DeleteGoal', request, $2.Empty());
-  $async.Future<GoalResponse> syncGoalProgress(
-          $pb.ClientContext? ctx, SyncGoalProgressRequest request) =>
-      _client.invoke<GoalResponse>(
-          ctx, 'GoalService', 'SyncGoalProgress', request, GoalResponse());
-  $async.Future<GoalDetailResponse> getGoal(
-          $pb.ClientContext? ctx, GetGoalRequest request) =>
-      _client.invoke<GoalDetailResponse>(
-          ctx, 'GoalService', 'GetGoal', request, GoalDetailResponse());
-  $async.Future<ListGoalsResponse> listGoals(
-          $pb.ClientContext? ctx, ListGoalsRequest request) =>
-      _client.invoke<ListGoalsResponse>(
-          ctx, 'GoalService', 'ListGoals', request, ListGoalsResponse());
 }
 
 const $core.bool _omitFieldNames =

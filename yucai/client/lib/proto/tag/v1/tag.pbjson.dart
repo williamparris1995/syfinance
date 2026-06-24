@@ -15,13 +15,6 @@ import 'dart:convert' as $convert;
 import 'dart:core' as $core;
 import 'dart:typed_data' as $typed_data;
 
-import 'package:protobuf/well_known_types/google/protobuf/empty.pbjson.dart'
-    as $2;
-import 'package:protobuf/well_known_types/google/protobuf/timestamp.pbjson.dart'
-    as $0;
-
-import '../../common/v1/pagination.pbjson.dart' as $1;
-
 @$core.Deprecated('Use tagDTODescriptor instead')
 const TagDTO$json = {
   '1': 'TagDTO',
@@ -193,76 +186,3 @@ const TagResponse$json = {
 /// Descriptor for `TagResponse`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List tagResponseDescriptor = $convert.base64Decode(
     'CgtUYWdSZXNwb25zZRImCgN0YWcYASABKAsyFC55dWNhaS50YWcudjEuVGFnRFRPUgN0YWc=');
-
-const $core.Map<$core.String, $core.dynamic> TagServiceBase$json = {
-  '1': 'TagService',
-  '2': [
-    {
-      '1': 'CreateTag',
-      '2': '.yucai.tag.v1.CreateTagRequest',
-      '3': '.yucai.tag.v1.TagResponse'
-    },
-    {
-      '1': 'UpdateTag',
-      '2': '.yucai.tag.v1.UpdateTagRequest',
-      '3': '.yucai.tag.v1.TagResponse'
-    },
-    {
-      '1': 'DeleteTag',
-      '2': '.yucai.tag.v1.DeleteTagRequest',
-      '3': '.google.protobuf.Empty'
-    },
-    {
-      '1': 'ListTags',
-      '2': '.yucai.tag.v1.ListTagsRequest',
-      '3': '.yucai.tag.v1.ListTagsResponse'
-    },
-    {
-      '1': 'AddTagToTransaction',
-      '2': '.yucai.tag.v1.TagTransactionRequest',
-      '3': '.google.protobuf.Empty'
-    },
-    {
-      '1': 'RemoveTagFromTransaction',
-      '2': '.yucai.tag.v1.TagTransactionRequest',
-      '3': '.google.protobuf.Empty'
-    },
-    {
-      '1': 'GetTransactionTags',
-      '2': '.yucai.tag.v1.GetTransactionTagsRequest',
-      '3': '.yucai.tag.v1.ListTagsResponse'
-    },
-  ],
-};
-
-@$core.Deprecated('Use tagServiceDescriptor instead')
-const $core.Map<$core.String, $core.Map<$core.String, $core.dynamic>>
-    TagServiceBase$messageJson = {
-  '.yucai.tag.v1.CreateTagRequest': CreateTagRequest$json,
-  '.yucai.tag.v1.TagResponse': TagResponse$json,
-  '.yucai.tag.v1.TagDTO': TagDTO$json,
-  '.google.protobuf.Timestamp': $0.Timestamp$json,
-  '.yucai.tag.v1.UpdateTagRequest': UpdateTagRequest$json,
-  '.yucai.tag.v1.DeleteTagRequest': DeleteTagRequest$json,
-  '.google.protobuf.Empty': $2.Empty$json,
-  '.yucai.tag.v1.ListTagsRequest': ListTagsRequest$json,
-  '.yucai.common.v1.PageRequest': $1.PageRequest$json,
-  '.yucai.tag.v1.ListTagsResponse': ListTagsResponse$json,
-  '.yucai.common.v1.PageResponse': $1.PageResponse$json,
-  '.yucai.tag.v1.TagTransactionRequest': TagTransactionRequest$json,
-  '.yucai.tag.v1.GetTransactionTagsRequest': GetTransactionTagsRequest$json,
-};
-
-/// Descriptor for `TagService`. Decode as a `google.protobuf.ServiceDescriptorProto`.
-final $typed_data.Uint8List tagServiceDescriptor = $convert.base64Decode(
-    'CgpUYWdTZXJ2aWNlEkYKCUNyZWF0ZVRhZxIeLnl1Y2FpLnRhZy52MS5DcmVhdGVUYWdSZXF1ZX'
-    'N0GhkueXVjYWkudGFnLnYxLlRhZ1Jlc3BvbnNlEkYKCVVwZGF0ZVRhZxIeLnl1Y2FpLnRhZy52'
-    'MS5VcGRhdGVUYWdSZXF1ZXN0GhkueXVjYWkudGFnLnYxLlRhZ1Jlc3BvbnNlEkMKCURlbGV0ZV'
-    'RhZxIeLnl1Y2FpLnRhZy52MS5EZWxldGVUYWdSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVt'
-    'cHR5EkkKCExpc3RUYWdzEh0ueXVjYWkudGFnLnYxLkxpc3RUYWdzUmVxdWVzdBoeLnl1Y2FpLn'
-    'RhZy52MS5MaXN0VGFnc1Jlc3BvbnNlElIKE0FkZFRhZ1RvVHJhbnNhY3Rpb24SIy55dWNhaS50'
-    'YWcudjEuVGFnVHJhbnNhY3Rpb25SZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5ElcKGF'
-    'JlbW92ZVRhZ0Zyb21UcmFuc2FjdGlvbhIjLnl1Y2FpLnRhZy52MS5UYWdUcmFuc2FjdGlvblJl'
-    'cXVlc3QaFi5nb29nbGUucHJvdG9idWYuRW1wdHkSXQoSR2V0VHJhbnNhY3Rpb25UYWdzEicueX'
-    'VjYWkudGFnLnYxLkdldFRyYW5zYWN0aW9uVGFnc1JlcXVlc3QaHi55dWNhaS50YWcudjEuTGlz'
-    'dFRhZ3NSZXNwb25zZQ==');

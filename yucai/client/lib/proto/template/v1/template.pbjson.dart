@@ -15,13 +15,6 @@ import 'dart:convert' as $convert;
 import 'dart:core' as $core;
 import 'dart:typed_data' as $typed_data;
 
-import 'package:protobuf/well_known_types/google/protobuf/empty.pbjson.dart'
-    as $2;
-import 'package:protobuf/well_known_types/google/protobuf/timestamp.pbjson.dart'
-    as $0;
-
-import '../../common/v1/pagination.pbjson.dart' as $1;
-
 @$core.Deprecated('Use templateDirectionDescriptor instead')
 const TemplateDirection$json = {
   '1': 'TemplateDirection',
@@ -342,81 +335,3 @@ const TemplateResponse$json = {
 final $typed_data.Uint8List templateResponseDescriptor = $convert.base64Decode(
     'ChBUZW1wbGF0ZVJlc3BvbnNlEjoKCHRlbXBsYXRlGAEgASgLMh4ueXVjYWkudGVtcGxhdGUudj'
     'EuVGVtcGxhdGVEVE9SCHRlbXBsYXRl');
-
-const $core.Map<$core.String, $core.dynamic>
-    TransactionTemplateServiceBase$json = {
-  '1': 'TransactionTemplateService',
-  '2': [
-    {
-      '1': 'CreateTransactionTemplate',
-      '2': '.yucai.template.v1.CreateTemplateRequest',
-      '3': '.yucai.template.v1.TemplateResponse'
-    },
-    {
-      '1': 'UpdateTransactionTemplate',
-      '2': '.yucai.template.v1.UpdateTemplateRequest',
-      '3': '.yucai.template.v1.TemplateResponse'
-    },
-    {
-      '1': 'DeleteTransactionTemplate',
-      '2': '.yucai.template.v1.DeleteTemplateRequest',
-      '3': '.google.protobuf.Empty'
-    },
-    {
-      '1': 'PauseTransactionTemplate',
-      '2': '.yucai.template.v1.PauseTemplateRequest',
-      '3': '.yucai.template.v1.TemplateResponse'
-    },
-    {
-      '1': 'ResumeTransactionTemplate',
-      '2': '.yucai.template.v1.ResumeTemplateRequest',
-      '3': '.yucai.template.v1.TemplateResponse'
-    },
-    {
-      '1': 'GetTransactionTemplate',
-      '2': '.yucai.template.v1.GetTemplateRequest',
-      '3': '.yucai.template.v1.TemplateResponse'
-    },
-    {
-      '1': 'ListTransactionTemplates',
-      '2': '.yucai.template.v1.ListTemplatesRequest',
-      '3': '.yucai.template.v1.ListTemplatesResponse'
-    },
-  ],
-};
-
-@$core.Deprecated('Use transactionTemplateServiceDescriptor instead')
-const $core.Map<$core.String, $core.Map<$core.String, $core.dynamic>>
-    TransactionTemplateServiceBase$messageJson = {
-  '.yucai.template.v1.CreateTemplateRequest': CreateTemplateRequest$json,
-  '.yucai.template.v1.TemplateResponse': TemplateResponse$json,
-  '.yucai.template.v1.TemplateDTO': TemplateDTO$json,
-  '.google.protobuf.Timestamp': $0.Timestamp$json,
-  '.yucai.template.v1.UpdateTemplateRequest': UpdateTemplateRequest$json,
-  '.yucai.template.v1.DeleteTemplateRequest': DeleteTemplateRequest$json,
-  '.google.protobuf.Empty': $2.Empty$json,
-  '.yucai.template.v1.PauseTemplateRequest': PauseTemplateRequest$json,
-  '.yucai.template.v1.ResumeTemplateRequest': ResumeTemplateRequest$json,
-  '.yucai.template.v1.GetTemplateRequest': GetTemplateRequest$json,
-  '.yucai.template.v1.ListTemplatesRequest': ListTemplatesRequest$json,
-  '.yucai.common.v1.PageRequest': $1.PageRequest$json,
-  '.yucai.template.v1.ListTemplatesResponse': ListTemplatesResponse$json,
-  '.yucai.common.v1.PageResponse': $1.PageResponse$json,
-};
-
-/// Descriptor for `TransactionTemplateService`. Decode as a `google.protobuf.ServiceDescriptorProto`.
-final $typed_data.Uint8List transactionTemplateServiceDescriptor = $convert.base64Decode(
-    'ChpUcmFuc2FjdGlvblRlbXBsYXRlU2VydmljZRJqChlDcmVhdGVUcmFuc2FjdGlvblRlbXBsYX'
-    'RlEigueXVjYWkudGVtcGxhdGUudjEuQ3JlYXRlVGVtcGxhdGVSZXF1ZXN0GiMueXVjYWkudGVt'
-    'cGxhdGUudjEuVGVtcGxhdGVSZXNwb25zZRJqChlVcGRhdGVUcmFuc2FjdGlvblRlbXBsYXRlEi'
-    'gueXVjYWkudGVtcGxhdGUudjEuVXBkYXRlVGVtcGxhdGVSZXF1ZXN0GiMueXVjYWkudGVtcGxh'
-    'dGUudjEuVGVtcGxhdGVSZXNwb25zZRJdChlEZWxldGVUcmFuc2FjdGlvblRlbXBsYXRlEigueX'
-    'VjYWkudGVtcGxhdGUudjEuRGVsZXRlVGVtcGxhdGVSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVm'
-    'LkVtcHR5EmgKGFBhdXNlVHJhbnNhY3Rpb25UZW1wbGF0ZRInLnl1Y2FpLnRlbXBsYXRlLnYxLl'
-    'BhdXNlVGVtcGxhdGVSZXF1ZXN0GiMueXVjYWkudGVtcGxhdGUudjEuVGVtcGxhdGVSZXNwb25z'
-    'ZRJqChlSZXN1bWVUcmFuc2FjdGlvblRlbXBsYXRlEigueXVjYWkudGVtcGxhdGUudjEuUmVzdW'
-    '1lVGVtcGxhdGVSZXF1ZXN0GiMueXVjYWkudGVtcGxhdGUudjEuVGVtcGxhdGVSZXNwb25zZRJk'
-    'ChZHZXRUcmFuc2FjdGlvblRlbXBsYXRlEiUueXVjYWkudGVtcGxhdGUudjEuR2V0VGVtcGxhdG'
-    'VSZXF1ZXN0GiMueXVjYWkudGVtcGxhdGUudjEuVGVtcGxhdGVSZXNwb25zZRJtChhMaXN0VHJh'
-    'bnNhY3Rpb25UZW1wbGF0ZXMSJy55dWNhaS50ZW1wbGF0ZS52MS5MaXN0VGVtcGxhdGVzUmVxdW'
-    'VzdBooLnl1Y2FpLnRlbXBsYXRlLnYxLkxpc3RUZW1wbGF0ZXNSZXNwb25zZQ==');

@@ -24,6 +24,61 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Scope selects the aggregation period for TransactionSummary. UNSPECIFIED is
+// treated as MONTH by the server for backward compatibility. DAY requires day
+// to be set; YEAR ignores month/day.
+type Scope int32
+
+const (
+	Scope_SCOPE_UNSPECIFIED Scope = 0
+	Scope_SCOPE_DAY         Scope = 1
+	Scope_SCOPE_MONTH       Scope = 2
+	Scope_SCOPE_YEAR        Scope = 3
+)
+
+// Enum value maps for Scope.
+var (
+	Scope_name = map[int32]string{
+		0: "SCOPE_UNSPECIFIED",
+		1: "SCOPE_DAY",
+		2: "SCOPE_MONTH",
+		3: "SCOPE_YEAR",
+	}
+	Scope_value = map[string]int32{
+		"SCOPE_UNSPECIFIED": 0,
+		"SCOPE_DAY":         1,
+		"SCOPE_MONTH":       2,
+		"SCOPE_YEAR":        3,
+	}
+)
+
+func (x Scope) Enum() *Scope {
+	p := new(Scope)
+	*p = x
+	return p
+}
+
+func (x Scope) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Scope) Descriptor() protoreflect.EnumDescriptor {
+	return file_transaction_v1_transaction_proto_enumTypes[0].Descriptor()
+}
+
+func (Scope) Type() protoreflect.EnumType {
+	return &file_transaction_v1_transaction_proto_enumTypes[0]
+}
+
+func (x Scope) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Scope.Descriptor instead.
+func (Scope) EnumDescriptor() ([]byte, []int) {
+	return file_transaction_v1_transaction_proto_rawDescGZIP(), []int{0}
+}
+
 type TransactionDTO struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -33,6 +88,9 @@ type TransactionDTO struct {
 	Version         int64                  `protobuf:"varint,5,opt,name=version,proto3" json:"version,omitempty"`
 	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt       *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Optional wall-clock time the transaction occurred (RFC3339, e.g.
+	// "2026-06-05T19:20:00Z"). Empty when unset (proto3 default).
+	TransactionTime string `protobuf:"bytes,8,opt,name=transaction_time,json=transactionTime,proto3" json:"transaction_time,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -114,6 +172,13 @@ func (x *TransactionDTO) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *TransactionDTO) GetTransactionTime() string {
+	if x != nil {
+		return x.TransactionTime
+	}
+	return ""
 }
 
 type EntryDTO struct {
@@ -205,6 +270,8 @@ type RecordTransactionRequest struct {
 	TransactionDate string                 `protobuf:"bytes,1,opt,name=transaction_date,json=transactionDate,proto3" json:"transaction_date,omitempty"`
 	Description     string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
 	Entries         []*EntryDTO            `protobuf:"bytes,3,rep,name=entries,proto3" json:"entries,omitempty"`
+	// Optional wall-clock time the transaction occurred (RFC3339). Empty = unset.
+	TransactionTime string `protobuf:"bytes,4,opt,name=transaction_time,json=transactionTime,proto3" json:"transaction_time,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -258,6 +325,13 @@ func (x *RecordTransactionRequest) GetEntries() []*EntryDTO {
 		return x.Entries
 	}
 	return nil
+}
+
+func (x *RecordTransactionRequest) GetTransactionTime() string {
+	if x != nil {
+		return x.TransactionTime
+	}
+	return ""
 }
 
 type GetTransactionRequest struct {
@@ -553,6 +627,8 @@ type SimpleIncomeRequest struct {
 	IncomeAccountId string                 `protobuf:"bytes,4,opt,name=income_account_id,json=incomeAccountId,proto3" json:"income_account_id,omitempty"`
 	AmountCents     int64                  `protobuf:"varint,5,opt,name=amount_cents,json=amountCents,proto3" json:"amount_cents,omitempty"`
 	Note            string                 `protobuf:"bytes,6,opt,name=note,proto3" json:"note,omitempty"`
+	// Optional wall-clock time the transaction occurred (RFC3339). Empty = unset.
+	TransactionTime string `protobuf:"bytes,7,opt,name=transaction_time,json=transactionTime,proto3" json:"transaction_time,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -629,6 +705,13 @@ func (x *SimpleIncomeRequest) GetNote() string {
 	return ""
 }
 
+func (x *SimpleIncomeRequest) GetTransactionTime() string {
+	if x != nil {
+		return x.TransactionTime
+	}
+	return ""
+}
+
 type SimpleExpenseRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	TransactionDate  string                 `protobuf:"bytes,1,opt,name=transaction_date,json=transactionDate,proto3" json:"transaction_date,omitempty"`
@@ -637,8 +720,10 @@ type SimpleExpenseRequest struct {
 	AssetAccountId   string                 `protobuf:"bytes,4,opt,name=asset_account_id,json=assetAccountId,proto3" json:"asset_account_id,omitempty"`
 	AmountCents      int64                  `protobuf:"varint,5,opt,name=amount_cents,json=amountCents,proto3" json:"amount_cents,omitempty"`
 	Note             string                 `protobuf:"bytes,6,opt,name=note,proto3" json:"note,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Optional wall-clock time the transaction occurred (RFC3339). Empty = unset.
+	TransactionTime string `protobuf:"bytes,7,opt,name=transaction_time,json=transactionTime,proto3" json:"transaction_time,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *SimpleExpenseRequest) Reset() {
@@ -713,6 +798,13 @@ func (x *SimpleExpenseRequest) GetNote() string {
 	return ""
 }
 
+func (x *SimpleExpenseRequest) GetTransactionTime() string {
+	if x != nil {
+		return x.TransactionTime
+	}
+	return ""
+}
+
 type SimpleTransferRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	TransactionDate string                 `protobuf:"bytes,1,opt,name=transaction_date,json=transactionDate,proto3" json:"transaction_date,omitempty"`
@@ -721,6 +813,8 @@ type SimpleTransferRequest struct {
 	ToAccountId     string                 `protobuf:"bytes,4,opt,name=to_account_id,json=toAccountId,proto3" json:"to_account_id,omitempty"`
 	AmountCents     int64                  `protobuf:"varint,5,opt,name=amount_cents,json=amountCents,proto3" json:"amount_cents,omitempty"`
 	Note            string                 `protobuf:"bytes,6,opt,name=note,proto3" json:"note,omitempty"`
+	// Optional wall-clock time the transaction occurred (RFC3339). Empty = unset.
+	TransactionTime string `protobuf:"bytes,7,opt,name=transaction_time,json=transactionTime,proto3" json:"transaction_time,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -797,6 +891,13 @@ func (x *SimpleTransferRequest) GetNote() string {
 	return ""
 }
 
+func (x *SimpleTransferRequest) GetTransactionTime() string {
+	if x != nil {
+		return x.TransactionTime
+	}
+	return ""
+}
+
 type TransactionResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Transaction   *TransactionDTO        `protobuf:"bytes,1,opt,name=transaction,proto3" json:"transaction,omitempty"`
@@ -841,11 +942,343 @@ func (x *TransactionResponse) GetTransaction() *TransactionDTO {
 	return nil
 }
 
+type TransactionSummaryRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Calendar year, e.g. 2026.
+	Year int32 `protobuf:"varint,1,opt,name=year,proto3" json:"year,omitempty"`
+	// Calendar month, 1-12. Ignored when scope = YEAR.
+	Month int32 `protobuf:"varint,2,opt,name=month,proto3" json:"month,omitempty"`
+	// Optional: scope the summary to a single account (account_detail view).
+	// Empty = all accounts.
+	AccountId string `protobuf:"bytes,3,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	// Aggregation period. UNSPECIFIED defaults to MONTH for backward compat.
+	Scope Scope `protobuf:"varint,4,opt,name=scope,proto3,enum=yucai.transaction.v1.Scope" json:"scope,omitempty"`
+	// Calendar day, 1-31. Required when scope = DAY; ignored otherwise.
+	Day           int32 `protobuf:"varint,5,opt,name=day,proto3" json:"day,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TransactionSummaryRequest) Reset() {
+	*x = TransactionSummaryRequest{}
+	mi := &file_transaction_v1_transaction_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TransactionSummaryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TransactionSummaryRequest) ProtoMessage() {}
+
+func (x *TransactionSummaryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_transaction_v1_transaction_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TransactionSummaryRequest.ProtoReflect.Descriptor instead.
+func (*TransactionSummaryRequest) Descriptor() ([]byte, []int) {
+	return file_transaction_v1_transaction_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *TransactionSummaryRequest) GetYear() int32 {
+	if x != nil {
+		return x.Year
+	}
+	return 0
+}
+
+func (x *TransactionSummaryRequest) GetMonth() int32 {
+	if x != nil {
+		return x.Month
+	}
+	return 0
+}
+
+func (x *TransactionSummaryRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *TransactionSummaryRequest) GetScope() Scope {
+	if x != nil {
+		return x.Scope
+	}
+	return Scope_SCOPE_UNSPECIFIED
+}
+
+func (x *TransactionSummaryRequest) GetDay() int32 {
+	if x != nil {
+		return x.Day
+	}
+	return 0
+}
+
+type TransactionSummaryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Summary       *MonthlySummary        `protobuf:"bytes,1,opt,name=summary,proto3" json:"summary,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TransactionSummaryResponse) Reset() {
+	*x = TransactionSummaryResponse{}
+	mi := &file_transaction_v1_transaction_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TransactionSummaryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TransactionSummaryResponse) ProtoMessage() {}
+
+func (x *TransactionSummaryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_transaction_v1_transaction_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TransactionSummaryResponse.ProtoReflect.Descriptor instead.
+func (*TransactionSummaryResponse) Descriptor() ([]byte, []int) {
+	return file_transaction_v1_transaction_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *TransactionSummaryResponse) GetSummary() *MonthlySummary {
+	if x != nil {
+		return x.Summary
+	}
+	return nil
+}
+
+type MonthlySummary struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	IncomeCents   int64                  `protobuf:"varint,1,opt,name=income_cents,json=incomeCents,proto3" json:"income_cents,omitempty"`
+	ExpenseCents  int64                  `protobuf:"varint,2,opt,name=expense_cents,json=expenseCents,proto3" json:"expense_cents,omitempty"`
+	NetCents      int64                  `protobuf:"varint,3,opt,name=net_cents,json=netCents,proto3" json:"net_cents,omitempty"`
+	DailyAvgCents int64                  `protobuf:"varint,4,opt,name=daily_avg_cents,json=dailyAvgCents,proto3" json:"daily_avg_cents,omitempty"`
+	ByDay         []*DailyItem           `protobuf:"bytes,5,rep,name=by_day,json=byDay,proto3" json:"by_day,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MonthlySummary) Reset() {
+	*x = MonthlySummary{}
+	mi := &file_transaction_v1_transaction_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MonthlySummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MonthlySummary) ProtoMessage() {}
+
+func (x *MonthlySummary) ProtoReflect() protoreflect.Message {
+	mi := &file_transaction_v1_transaction_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MonthlySummary.ProtoReflect.Descriptor instead.
+func (*MonthlySummary) Descriptor() ([]byte, []int) {
+	return file_transaction_v1_transaction_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *MonthlySummary) GetIncomeCents() int64 {
+	if x != nil {
+		return x.IncomeCents
+	}
+	return 0
+}
+
+func (x *MonthlySummary) GetExpenseCents() int64 {
+	if x != nil {
+		return x.ExpenseCents
+	}
+	return 0
+}
+
+func (x *MonthlySummary) GetNetCents() int64 {
+	if x != nil {
+		return x.NetCents
+	}
+	return 0
+}
+
+func (x *MonthlySummary) GetDailyAvgCents() int64 {
+	if x != nil {
+		return x.DailyAvgCents
+	}
+	return 0
+}
+
+func (x *MonthlySummary) GetByDay() []*DailyItem {
+	if x != nil {
+		return x.ByDay
+	}
+	return nil
+}
+
+type DailyItem struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Calendar day in YYYY-MM-DD form (UTC midnight of the transaction's date).
+	Date          string          `protobuf:"bytes,1,opt,name=date,proto3" json:"date,omitempty"`
+	TotalIncome   int64           `protobuf:"varint,2,opt,name=total_income,json=totalIncome,proto3" json:"total_income,omitempty"`
+	ByCategory    []*CategoryItem `protobuf:"bytes,3,rep,name=by_category,json=byCategory,proto3" json:"by_category,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DailyItem) Reset() {
+	*x = DailyItem{}
+	mi := &file_transaction_v1_transaction_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DailyItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DailyItem) ProtoMessage() {}
+
+func (x *DailyItem) ProtoReflect() protoreflect.Message {
+	mi := &file_transaction_v1_transaction_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DailyItem.ProtoReflect.Descriptor instead.
+func (*DailyItem) Descriptor() ([]byte, []int) {
+	return file_transaction_v1_transaction_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *DailyItem) GetDate() string {
+	if x != nil {
+		return x.Date
+	}
+	return ""
+}
+
+func (x *DailyItem) GetTotalIncome() int64 {
+	if x != nil {
+		return x.TotalIncome
+	}
+	return 0
+}
+
+func (x *DailyItem) GetByCategory() []*CategoryItem {
+	if x != nil {
+		return x.ByCategory
+	}
+	return nil
+}
+
+type CategoryItem struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Name      string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// "income" or "expense".
+	AccountType   string `protobuf:"bytes,3,opt,name=account_type,json=accountType,proto3" json:"account_type,omitempty"`
+	Amount        int64  `protobuf:"varint,4,opt,name=amount,proto3" json:"amount,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CategoryItem) Reset() {
+	*x = CategoryItem{}
+	mi := &file_transaction_v1_transaction_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CategoryItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CategoryItem) ProtoMessage() {}
+
+func (x *CategoryItem) ProtoReflect() protoreflect.Message {
+	mi := &file_transaction_v1_transaction_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CategoryItem.ProtoReflect.Descriptor instead.
+func (*CategoryItem) Descriptor() ([]byte, []int) {
+	return file_transaction_v1_transaction_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *CategoryItem) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *CategoryItem) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CategoryItem) GetAccountType() string {
+	if x != nil {
+		return x.AccountType
+	}
+	return ""
+}
+
+func (x *CategoryItem) GetAmount() int64 {
+	if x != nil {
+		return x.Amount
+	}
+	return 0
+}
+
 var File_transaction_v1_transaction_proto protoreflect.FileDescriptor
 
 const file_transaction_v1_transaction_proto_rawDesc = "" +
 	"\n" +
-	" transaction/v1/transaction.proto\x12\x14yucai.transaction.v1\x1a\x1acommon/v1/pagination.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb7\x02\n" +
+	" transaction/v1/transaction.proto\x12\x14yucai.transaction.v1\x1a\x1acommon/v1/pagination.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe2\x02\n" +
 	"\x0eTransactionDTO\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12)\n" +
 	"\x10transaction_date\x18\x02 \x01(\tR\x0ftransactionDate\x12 \n" +
@@ -855,7 +1288,8 @@ const file_transaction_v1_transaction_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xc4\x01\n" +
+	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12)\n" +
+	"\x10transaction_time\x18\b \x01(\tR\x0ftransactionTime\"\xc4\x01\n" +
 	"\bEntryDTO\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -864,11 +1298,12 @@ const file_transaction_v1_transaction_proto_rawDesc = "" +
 	"\vdebit_cents\x18\x04 \x01(\x03R\n" +
 	"debitCents\x12!\n" +
 	"\fcredit_cents\x18\x05 \x01(\x03R\vcreditCents\x12\x12\n" +
-	"\x04note\x18\x06 \x01(\tR\x04note\"\xa1\x01\n" +
+	"\x04note\x18\x06 \x01(\tR\x04note\"\xcc\x01\n" +
 	"\x18RecordTransactionRequest\x12)\n" +
 	"\x10transaction_date\x18\x01 \x01(\tR\x0ftransactionDate\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x128\n" +
-	"\aentries\x18\x03 \x03(\v2\x1e.yucai.transaction.v1.EntryDTOR\aentries\"'\n" +
+	"\aentries\x18\x03 \x03(\v2\x1e.yucai.transaction.v1.EntryDTOR\aentries\x12)\n" +
+	"\x10transaction_time\x18\x04 \x01(\tR\x0ftransactionTime\"'\n" +
 	"\x15GetTransactionRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\xa0\x01\n" +
 	"\x17ListTransactionsRequest\x120\n" +
@@ -887,30 +1322,65 @@ const file_transaction_v1_transaction_proto_rawDesc = "" +
 	"\aentries\x18\x04 \x03(\v2\x1e.yucai.transaction.v1.EntryDTOR\aentries\x12\x18\n" +
 	"\aversion\x18\x05 \x01(\x03R\aversion\"*\n" +
 	"\x18DeleteTransactionRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\xef\x01\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x9a\x02\n" +
 	"\x13SimpleIncomeRequest\x12)\n" +
 	"\x10transaction_date\x18\x01 \x01(\tR\x0ftransactionDate\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12(\n" +
 	"\x10asset_account_id\x18\x03 \x01(\tR\x0eassetAccountId\x12*\n" +
 	"\x11income_account_id\x18\x04 \x01(\tR\x0fincomeAccountId\x12!\n" +
 	"\famount_cents\x18\x05 \x01(\x03R\vamountCents\x12\x12\n" +
-	"\x04note\x18\x06 \x01(\tR\x04note\"\xf2\x01\n" +
+	"\x04note\x18\x06 \x01(\tR\x04note\x12)\n" +
+	"\x10transaction_time\x18\a \x01(\tR\x0ftransactionTime\"\x9d\x02\n" +
 	"\x14SimpleExpenseRequest\x12)\n" +
 	"\x10transaction_date\x18\x01 \x01(\tR\x0ftransactionDate\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12,\n" +
 	"\x12expense_account_id\x18\x03 \x01(\tR\x10expenseAccountId\x12(\n" +
 	"\x10asset_account_id\x18\x04 \x01(\tR\x0eassetAccountId\x12!\n" +
 	"\famount_cents\x18\x05 \x01(\x03R\vamountCents\x12\x12\n" +
-	"\x04note\x18\x06 \x01(\tR\x04note\"\xe7\x01\n" +
+	"\x04note\x18\x06 \x01(\tR\x04note\x12)\n" +
+	"\x10transaction_time\x18\a \x01(\tR\x0ftransactionTime\"\x92\x02\n" +
 	"\x15SimpleTransferRequest\x12)\n" +
 	"\x10transaction_date\x18\x01 \x01(\tR\x0ftransactionDate\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12&\n" +
 	"\x0ffrom_account_id\x18\x03 \x01(\tR\rfromAccountId\x12\"\n" +
 	"\rto_account_id\x18\x04 \x01(\tR\vtoAccountId\x12!\n" +
 	"\famount_cents\x18\x05 \x01(\x03R\vamountCents\x12\x12\n" +
-	"\x04note\x18\x06 \x01(\tR\x04note\"]\n" +
+	"\x04note\x18\x06 \x01(\tR\x04note\x12)\n" +
+	"\x10transaction_time\x18\a \x01(\tR\x0ftransactionTime\"]\n" +
 	"\x13TransactionResponse\x12F\n" +
-	"\vtransaction\x18\x01 \x01(\v2$.yucai.transaction.v1.TransactionDTOR\vtransaction2\xe6\x06\n" +
+	"\vtransaction\x18\x01 \x01(\v2$.yucai.transaction.v1.TransactionDTOR\vtransaction\"\xa9\x01\n" +
+	"\x19TransactionSummaryRequest\x12\x12\n" +
+	"\x04year\x18\x01 \x01(\x05R\x04year\x12\x14\n" +
+	"\x05month\x18\x02 \x01(\x05R\x05month\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x03 \x01(\tR\taccountId\x121\n" +
+	"\x05scope\x18\x04 \x01(\x0e2\x1b.yucai.transaction.v1.ScopeR\x05scope\x12\x10\n" +
+	"\x03day\x18\x05 \x01(\x05R\x03day\"\\\n" +
+	"\x1aTransactionSummaryResponse\x12>\n" +
+	"\asummary\x18\x01 \x01(\v2$.yucai.transaction.v1.MonthlySummaryR\asummary\"\xd5\x01\n" +
+	"\x0eMonthlySummary\x12!\n" +
+	"\fincome_cents\x18\x01 \x01(\x03R\vincomeCents\x12#\n" +
+	"\rexpense_cents\x18\x02 \x01(\x03R\fexpenseCents\x12\x1b\n" +
+	"\tnet_cents\x18\x03 \x01(\x03R\bnetCents\x12&\n" +
+	"\x0fdaily_avg_cents\x18\x04 \x01(\x03R\rdailyAvgCents\x126\n" +
+	"\x06by_day\x18\x05 \x03(\v2\x1f.yucai.transaction.v1.DailyItemR\x05byDay\"\x87\x01\n" +
+	"\tDailyItem\x12\x12\n" +
+	"\x04date\x18\x01 \x01(\tR\x04date\x12!\n" +
+	"\ftotal_income\x18\x02 \x01(\x03R\vtotalIncome\x12C\n" +
+	"\vby_category\x18\x03 \x03(\v2\".yucai.transaction.v1.CategoryItemR\n" +
+	"byCategory\"|\n" +
+	"\fCategoryItem\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
+	"\faccount_type\x18\x03 \x01(\tR\vaccountType\x12\x16\n" +
+	"\x06amount\x18\x04 \x01(\x03R\x06amount*N\n" +
+	"\x05Scope\x12\x15\n" +
+	"\x11SCOPE_UNSPECIFIED\x10\x00\x12\r\n" +
+	"\tSCOPE_DAY\x10\x01\x12\x0f\n" +
+	"\vSCOPE_MONTH\x10\x02\x12\x0e\n" +
+	"\n" +
+	"SCOPE_YEAR\x10\x032\xdf\a\n" +
 	"\x12TransactionService\x12n\n" +
 	"\x11RecordTransaction\x12..yucai.transaction.v1.RecordTransactionRequest\x1a).yucai.transaction.v1.TransactionResponse\x12h\n" +
 	"\x0eGetTransaction\x12+.yucai.transaction.v1.GetTransactionRequest\x1a).yucai.transaction.v1.TransactionResponse\x12q\n" +
@@ -919,7 +1389,8 @@ const file_transaction_v1_transaction_proto_rawDesc = "" +
 	"\x11DeleteTransaction\x12..yucai.transaction.v1.DeleteTransactionRequest\x1a\x16.google.protobuf.Empty\x12d\n" +
 	"\fSimpleIncome\x12).yucai.transaction.v1.SimpleIncomeRequest\x1a).yucai.transaction.v1.TransactionResponse\x12f\n" +
 	"\rSimpleExpense\x12*.yucai.transaction.v1.SimpleExpenseRequest\x1a).yucai.transaction.v1.TransactionResponse\x12h\n" +
-	"\x0eSimpleTransfer\x12+.yucai.transaction.v1.SimpleTransferRequest\x1a).yucai.transaction.v1.TransactionResponseB\xe3\x01\n" +
+	"\x0eSimpleTransfer\x12+.yucai.transaction.v1.SimpleTransferRequest\x1a).yucai.transaction.v1.TransactionResponse\x12w\n" +
+	"\x12TransactionSummary\x12/.yucai.transaction.v1.TransactionSummaryRequest\x1a0.yucai.transaction.v1.TransactionSummaryResponseB\xe3\x01\n" +
 	"\x18com.yucai.transaction.v1B\x10TransactionProtoP\x01ZCgithub.com/yucai/server/internal/proto/transaction/v1;transactionv1\xa2\x02\x03YTX\xaa\x02\x14Yucai.Transaction.V1\xca\x02\x14Yucai\\Transaction\\V1\xe2\x02 Yucai\\Transaction\\V1\\GPBMetadata\xea\x02\x16Yucai::Transaction::V1b\x06proto3"
 
 var (
@@ -934,56 +1405,69 @@ func file_transaction_v1_transaction_proto_rawDescGZIP() []byte {
 	return file_transaction_v1_transaction_proto_rawDescData
 }
 
-var file_transaction_v1_transaction_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_transaction_v1_transaction_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_transaction_v1_transaction_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_transaction_v1_transaction_proto_goTypes = []any{
-	(*TransactionDTO)(nil),           // 0: yucai.transaction.v1.TransactionDTO
-	(*EntryDTO)(nil),                 // 1: yucai.transaction.v1.EntryDTO
-	(*RecordTransactionRequest)(nil), // 2: yucai.transaction.v1.RecordTransactionRequest
-	(*GetTransactionRequest)(nil),    // 3: yucai.transaction.v1.GetTransactionRequest
-	(*ListTransactionsRequest)(nil),  // 4: yucai.transaction.v1.ListTransactionsRequest
-	(*ListTransactionsResponse)(nil), // 5: yucai.transaction.v1.ListTransactionsResponse
-	(*UpdateTransactionRequest)(nil), // 6: yucai.transaction.v1.UpdateTransactionRequest
-	(*DeleteTransactionRequest)(nil), // 7: yucai.transaction.v1.DeleteTransactionRequest
-	(*SimpleIncomeRequest)(nil),      // 8: yucai.transaction.v1.SimpleIncomeRequest
-	(*SimpleExpenseRequest)(nil),     // 9: yucai.transaction.v1.SimpleExpenseRequest
-	(*SimpleTransferRequest)(nil),    // 10: yucai.transaction.v1.SimpleTransferRequest
-	(*TransactionResponse)(nil),      // 11: yucai.transaction.v1.TransactionResponse
-	(*timestamppb.Timestamp)(nil),    // 12: google.protobuf.Timestamp
-	(*v1.PageRequest)(nil),           // 13: yucai.common.v1.PageRequest
-	(*v1.PageResponse)(nil),          // 14: yucai.common.v1.PageResponse
-	(*emptypb.Empty)(nil),            // 15: google.protobuf.Empty
+	(Scope)(0),                         // 0: yucai.transaction.v1.Scope
+	(*TransactionDTO)(nil),             // 1: yucai.transaction.v1.TransactionDTO
+	(*EntryDTO)(nil),                   // 2: yucai.transaction.v1.EntryDTO
+	(*RecordTransactionRequest)(nil),   // 3: yucai.transaction.v1.RecordTransactionRequest
+	(*GetTransactionRequest)(nil),      // 4: yucai.transaction.v1.GetTransactionRequest
+	(*ListTransactionsRequest)(nil),    // 5: yucai.transaction.v1.ListTransactionsRequest
+	(*ListTransactionsResponse)(nil),   // 6: yucai.transaction.v1.ListTransactionsResponse
+	(*UpdateTransactionRequest)(nil),   // 7: yucai.transaction.v1.UpdateTransactionRequest
+	(*DeleteTransactionRequest)(nil),   // 8: yucai.transaction.v1.DeleteTransactionRequest
+	(*SimpleIncomeRequest)(nil),        // 9: yucai.transaction.v1.SimpleIncomeRequest
+	(*SimpleExpenseRequest)(nil),       // 10: yucai.transaction.v1.SimpleExpenseRequest
+	(*SimpleTransferRequest)(nil),      // 11: yucai.transaction.v1.SimpleTransferRequest
+	(*TransactionResponse)(nil),        // 12: yucai.transaction.v1.TransactionResponse
+	(*TransactionSummaryRequest)(nil),  // 13: yucai.transaction.v1.TransactionSummaryRequest
+	(*TransactionSummaryResponse)(nil), // 14: yucai.transaction.v1.TransactionSummaryResponse
+	(*MonthlySummary)(nil),             // 15: yucai.transaction.v1.MonthlySummary
+	(*DailyItem)(nil),                  // 16: yucai.transaction.v1.DailyItem
+	(*CategoryItem)(nil),               // 17: yucai.transaction.v1.CategoryItem
+	(*timestamppb.Timestamp)(nil),      // 18: google.protobuf.Timestamp
+	(*v1.PageRequest)(nil),             // 19: yucai.common.v1.PageRequest
+	(*v1.PageResponse)(nil),            // 20: yucai.common.v1.PageResponse
+	(*emptypb.Empty)(nil),              // 21: google.protobuf.Empty
 }
 var file_transaction_v1_transaction_proto_depIdxs = []int32{
-	1,  // 0: yucai.transaction.v1.TransactionDTO.entries:type_name -> yucai.transaction.v1.EntryDTO
-	12, // 1: yucai.transaction.v1.TransactionDTO.created_at:type_name -> google.protobuf.Timestamp
-	12, // 2: yucai.transaction.v1.TransactionDTO.updated_at:type_name -> google.protobuf.Timestamp
-	1,  // 3: yucai.transaction.v1.RecordTransactionRequest.entries:type_name -> yucai.transaction.v1.EntryDTO
-	13, // 4: yucai.transaction.v1.ListTransactionsRequest.page:type_name -> yucai.common.v1.PageRequest
-	0,  // 5: yucai.transaction.v1.ListTransactionsResponse.transactions:type_name -> yucai.transaction.v1.TransactionDTO
-	14, // 6: yucai.transaction.v1.ListTransactionsResponse.page:type_name -> yucai.common.v1.PageResponse
-	1,  // 7: yucai.transaction.v1.UpdateTransactionRequest.entries:type_name -> yucai.transaction.v1.EntryDTO
-	0,  // 8: yucai.transaction.v1.TransactionResponse.transaction:type_name -> yucai.transaction.v1.TransactionDTO
-	2,  // 9: yucai.transaction.v1.TransactionService.RecordTransaction:input_type -> yucai.transaction.v1.RecordTransactionRequest
-	3,  // 10: yucai.transaction.v1.TransactionService.GetTransaction:input_type -> yucai.transaction.v1.GetTransactionRequest
-	4,  // 11: yucai.transaction.v1.TransactionService.ListTransactions:input_type -> yucai.transaction.v1.ListTransactionsRequest
-	6,  // 12: yucai.transaction.v1.TransactionService.UpdateTransaction:input_type -> yucai.transaction.v1.UpdateTransactionRequest
-	7,  // 13: yucai.transaction.v1.TransactionService.DeleteTransaction:input_type -> yucai.transaction.v1.DeleteTransactionRequest
-	8,  // 14: yucai.transaction.v1.TransactionService.SimpleIncome:input_type -> yucai.transaction.v1.SimpleIncomeRequest
-	9,  // 15: yucai.transaction.v1.TransactionService.SimpleExpense:input_type -> yucai.transaction.v1.SimpleExpenseRequest
-	10, // 16: yucai.transaction.v1.TransactionService.SimpleTransfer:input_type -> yucai.transaction.v1.SimpleTransferRequest
-	11, // 17: yucai.transaction.v1.TransactionService.RecordTransaction:output_type -> yucai.transaction.v1.TransactionResponse
-	11, // 18: yucai.transaction.v1.TransactionService.GetTransaction:output_type -> yucai.transaction.v1.TransactionResponse
-	5,  // 19: yucai.transaction.v1.TransactionService.ListTransactions:output_type -> yucai.transaction.v1.ListTransactionsResponse
-	11, // 20: yucai.transaction.v1.TransactionService.UpdateTransaction:output_type -> yucai.transaction.v1.TransactionResponse
-	15, // 21: yucai.transaction.v1.TransactionService.DeleteTransaction:output_type -> google.protobuf.Empty
-	11, // 22: yucai.transaction.v1.TransactionService.SimpleIncome:output_type -> yucai.transaction.v1.TransactionResponse
-	11, // 23: yucai.transaction.v1.TransactionService.SimpleExpense:output_type -> yucai.transaction.v1.TransactionResponse
-	11, // 24: yucai.transaction.v1.TransactionService.SimpleTransfer:output_type -> yucai.transaction.v1.TransactionResponse
-	17, // [17:25] is the sub-list for method output_type
-	9,  // [9:17] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	2,  // 0: yucai.transaction.v1.TransactionDTO.entries:type_name -> yucai.transaction.v1.EntryDTO
+	18, // 1: yucai.transaction.v1.TransactionDTO.created_at:type_name -> google.protobuf.Timestamp
+	18, // 2: yucai.transaction.v1.TransactionDTO.updated_at:type_name -> google.protobuf.Timestamp
+	2,  // 3: yucai.transaction.v1.RecordTransactionRequest.entries:type_name -> yucai.transaction.v1.EntryDTO
+	19, // 4: yucai.transaction.v1.ListTransactionsRequest.page:type_name -> yucai.common.v1.PageRequest
+	1,  // 5: yucai.transaction.v1.ListTransactionsResponse.transactions:type_name -> yucai.transaction.v1.TransactionDTO
+	20, // 6: yucai.transaction.v1.ListTransactionsResponse.page:type_name -> yucai.common.v1.PageResponse
+	2,  // 7: yucai.transaction.v1.UpdateTransactionRequest.entries:type_name -> yucai.transaction.v1.EntryDTO
+	1,  // 8: yucai.transaction.v1.TransactionResponse.transaction:type_name -> yucai.transaction.v1.TransactionDTO
+	0,  // 9: yucai.transaction.v1.TransactionSummaryRequest.scope:type_name -> yucai.transaction.v1.Scope
+	15, // 10: yucai.transaction.v1.TransactionSummaryResponse.summary:type_name -> yucai.transaction.v1.MonthlySummary
+	16, // 11: yucai.transaction.v1.MonthlySummary.by_day:type_name -> yucai.transaction.v1.DailyItem
+	17, // 12: yucai.transaction.v1.DailyItem.by_category:type_name -> yucai.transaction.v1.CategoryItem
+	3,  // 13: yucai.transaction.v1.TransactionService.RecordTransaction:input_type -> yucai.transaction.v1.RecordTransactionRequest
+	4,  // 14: yucai.transaction.v1.TransactionService.GetTransaction:input_type -> yucai.transaction.v1.GetTransactionRequest
+	5,  // 15: yucai.transaction.v1.TransactionService.ListTransactions:input_type -> yucai.transaction.v1.ListTransactionsRequest
+	7,  // 16: yucai.transaction.v1.TransactionService.UpdateTransaction:input_type -> yucai.transaction.v1.UpdateTransactionRequest
+	8,  // 17: yucai.transaction.v1.TransactionService.DeleteTransaction:input_type -> yucai.transaction.v1.DeleteTransactionRequest
+	9,  // 18: yucai.transaction.v1.TransactionService.SimpleIncome:input_type -> yucai.transaction.v1.SimpleIncomeRequest
+	10, // 19: yucai.transaction.v1.TransactionService.SimpleExpense:input_type -> yucai.transaction.v1.SimpleExpenseRequest
+	11, // 20: yucai.transaction.v1.TransactionService.SimpleTransfer:input_type -> yucai.transaction.v1.SimpleTransferRequest
+	13, // 21: yucai.transaction.v1.TransactionService.TransactionSummary:input_type -> yucai.transaction.v1.TransactionSummaryRequest
+	12, // 22: yucai.transaction.v1.TransactionService.RecordTransaction:output_type -> yucai.transaction.v1.TransactionResponse
+	12, // 23: yucai.transaction.v1.TransactionService.GetTransaction:output_type -> yucai.transaction.v1.TransactionResponse
+	6,  // 24: yucai.transaction.v1.TransactionService.ListTransactions:output_type -> yucai.transaction.v1.ListTransactionsResponse
+	12, // 25: yucai.transaction.v1.TransactionService.UpdateTransaction:output_type -> yucai.transaction.v1.TransactionResponse
+	21, // 26: yucai.transaction.v1.TransactionService.DeleteTransaction:output_type -> google.protobuf.Empty
+	12, // 27: yucai.transaction.v1.TransactionService.SimpleIncome:output_type -> yucai.transaction.v1.TransactionResponse
+	12, // 28: yucai.transaction.v1.TransactionService.SimpleExpense:output_type -> yucai.transaction.v1.TransactionResponse
+	12, // 29: yucai.transaction.v1.TransactionService.SimpleTransfer:output_type -> yucai.transaction.v1.TransactionResponse
+	14, // 30: yucai.transaction.v1.TransactionService.TransactionSummary:output_type -> yucai.transaction.v1.TransactionSummaryResponse
+	22, // [22:31] is the sub-list for method output_type
+	13, // [13:22] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_transaction_v1_transaction_proto_init() }
@@ -996,13 +1480,14 @@ func file_transaction_v1_transaction_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_transaction_v1_transaction_proto_rawDesc), len(file_transaction_v1_transaction_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   12,
+			NumEnums:      1,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_transaction_v1_transaction_proto_goTypes,
 		DependencyIndexes: file_transaction_v1_transaction_proto_depIdxs,
+		EnumInfos:         file_transaction_v1_transaction_proto_enumTypes,
 		MessageInfos:      file_transaction_v1_transaction_proto_msgTypes,
 	}.Build()
 	File_transaction_v1_transaction_proto = out.File

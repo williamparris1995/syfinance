@@ -15,13 +15,6 @@ import 'dart:convert' as $convert;
 import 'dart:core' as $core;
 import 'dart:typed_data' as $typed_data;
 
-import 'package:protobuf/well_known_types/google/protobuf/empty.pbjson.dart'
-    as $2;
-import 'package:protobuf/well_known_types/google/protobuf/timestamp.pbjson.dart'
-    as $0;
-
-import '../../common/v1/pagination.pbjson.dart' as $1;
-
 @$core.Deprecated('Use syncOperationDescriptor instead')
 const SyncOperation$json = {
   '1': 'SyncOperation',
@@ -298,74 +291,3 @@ final $typed_data.Uint8List listConflictsResponseDescriptor = $convert.base64Dec
     'ChVMaXN0Q29uZmxpY3RzUmVzcG9uc2USOAoJY29uZmxpY3RzGAEgAygLMhoueXVjYWkuc3luYy'
     '52MS5Db25mbGljdERUT1IJY29uZmxpY3RzEjEKBHBhZ2UYAiABKAsyHS55dWNhaS5jb21tb24u'
     'djEuUGFnZVJlc3BvbnNlUgRwYWdl');
-
-const $core.Map<$core.String, $core.dynamic> SyncServiceBase$json = {
-  '1': 'SyncService',
-  '2': [
-    {
-      '1': 'RegisterDevice',
-      '2': '.yucai.sync.v1.RegisterDeviceRequest',
-      '3': '.yucai.sync.v1.RegisterDeviceResponse'
-    },
-    {
-      '1': 'GetSyncStatus',
-      '2': '.yucai.sync.v1.GetSyncStatusRequest',
-      '3': '.yucai.sync.v1.SyncStatusResponse'
-    },
-    {
-      '1': 'PushChanges',
-      '2': '.yucai.sync.v1.PushChangesRequest',
-      '3': '.yucai.sync.v1.PushResponse'
-    },
-    {
-      '1': 'PullChanges',
-      '2': '.yucai.sync.v1.PullChangesRequest',
-      '3': '.yucai.sync.v1.PullChangesResponse'
-    },
-    {
-      '1': 'ResolveConflict',
-      '2': '.yucai.sync.v1.ResolveConflictRequest',
-      '3': '.google.protobuf.Empty'
-    },
-    {
-      '1': 'ListConflicts',
-      '2': '.yucai.sync.v1.ListConflictsRequest',
-      '3': '.yucai.sync.v1.ListConflictsResponse'
-    },
-  ],
-};
-
-@$core.Deprecated('Use syncServiceDescriptor instead')
-const $core.Map<$core.String, $core.Map<$core.String, $core.dynamic>>
-    SyncServiceBase$messageJson = {
-  '.yucai.sync.v1.RegisterDeviceRequest': RegisterDeviceRequest$json,
-  '.yucai.sync.v1.RegisterDeviceResponse': RegisterDeviceResponse$json,
-  '.yucai.sync.v1.GetSyncStatusRequest': GetSyncStatusRequest$json,
-  '.yucai.sync.v1.SyncStatusResponse': SyncStatusResponse$json,
-  '.google.protobuf.Timestamp': $0.Timestamp$json,
-  '.yucai.sync.v1.PushChangesRequest': PushChangesRequest$json,
-  '.yucai.sync.v1.SyncPayload': SyncPayload$json,
-  '.yucai.sync.v1.PushResponse': PushResponse$json,
-  '.yucai.sync.v1.ConflictDTO': ConflictDTO$json,
-  '.yucai.sync.v1.PullChangesRequest': PullChangesRequest$json,
-  '.yucai.sync.v1.PullChangesResponse': PullChangesResponse$json,
-  '.yucai.sync.v1.ResolveConflictRequest': ResolveConflictRequest$json,
-  '.google.protobuf.Empty': $2.Empty$json,
-  '.yucai.sync.v1.ListConflictsRequest': ListConflictsRequest$json,
-  '.yucai.common.v1.PageRequest': $1.PageRequest$json,
-  '.yucai.sync.v1.ListConflictsResponse': ListConflictsResponse$json,
-  '.yucai.common.v1.PageResponse': $1.PageResponse$json,
-};
-
-/// Descriptor for `SyncService`. Decode as a `google.protobuf.ServiceDescriptorProto`.
-final $typed_data.Uint8List syncServiceDescriptor = $convert.base64Decode(
-    'CgtTeW5jU2VydmljZRJdCg5SZWdpc3RlckRldmljZRIkLnl1Y2FpLnN5bmMudjEuUmVnaXN0ZX'
-    'JEZXZpY2VSZXF1ZXN0GiUueXVjYWkuc3luYy52MS5SZWdpc3RlckRldmljZVJlc3BvbnNlElcK'
-    'DUdldFN5bmNTdGF0dXMSIy55dWNhaS5zeW5jLnYxLkdldFN5bmNTdGF0dXNSZXF1ZXN0GiEueX'
-    'VjYWkuc3luYy52MS5TeW5jU3RhdHVzUmVzcG9uc2USTQoLUHVzaENoYW5nZXMSIS55dWNhaS5z'
-    'eW5jLnYxLlB1c2hDaGFuZ2VzUmVxdWVzdBobLnl1Y2FpLnN5bmMudjEuUHVzaFJlc3BvbnNlEl'
-    'QKC1B1bGxDaGFuZ2VzEiEueXVjYWkuc3luYy52MS5QdWxsQ2hhbmdlc1JlcXVlc3QaIi55dWNh'
-    'aS5zeW5jLnYxLlB1bGxDaGFuZ2VzUmVzcG9uc2USUAoPUmVzb2x2ZUNvbmZsaWN0EiUueXVjYW'
-    'kuc3luYy52MS5SZXNvbHZlQ29uZmxpY3RSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5'
-    'EloKDUxpc3RDb25mbGljdHMSIy55dWNhaS5zeW5jLnYxLkxpc3RDb25mbGljdHNSZXF1ZXN0Gi'
-    'QueXVjYWkuc3luYy52MS5MaXN0Q29uZmxpY3RzUmVzcG9uc2U=');

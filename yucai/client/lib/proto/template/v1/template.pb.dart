@@ -10,16 +10,14 @@
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
 // ignore_for_file: non_constant_identifier_names, prefer_relative_imports
 
-import 'dart:async' as $async;
 import 'dart:core' as $core;
 
 import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
-import 'package:protobuf/well_known_types/google/protobuf/empty.pb.dart' as $2;
 import 'package:protobuf/well_known_types/google/protobuf/timestamp.pb.dart'
-    as $0;
+    as $2;
 
-import '../../common/v1/pagination.pb.dart' as $1;
+import '../../common/v1/pagination.pb.dart' as $3;
 import 'template.pbenum.dart';
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
@@ -46,8 +44,8 @@ class TemplateDTO extends $pb.GeneratedMessage {
     $core.String? lastTransactionId,
     $core.String? category,
     $fixnum.Int64? version,
-    $0.Timestamp? createdAt,
-    $0.Timestamp? updatedAt,
+    $2.Timestamp? createdAt,
+    $2.Timestamp? updatedAt,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -108,10 +106,10 @@ class TemplateDTO extends $pb.GeneratedMessage {
     ..aOS(16, _omitFieldNames ? '' : 'lastTransactionId')
     ..aOS(17, _omitFieldNames ? '' : 'category')
     ..aInt64(18, _omitFieldNames ? '' : 'version')
-    ..aOM<$0.Timestamp>(19, _omitFieldNames ? '' : 'createdAt',
-        subBuilder: $0.Timestamp.create)
-    ..aOM<$0.Timestamp>(20, _omitFieldNames ? '' : 'updatedAt',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(19, _omitFieldNames ? '' : 'createdAt',
+        subBuilder: $2.Timestamp.create)
+    ..aOM<$2.Timestamp>(20, _omitFieldNames ? '' : 'updatedAt',
+        subBuilder: $2.Timestamp.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -296,26 +294,26 @@ class TemplateDTO extends $pb.GeneratedMessage {
   void clearVersion() => $_clearField(18);
 
   @$pb.TagNumber(19)
-  $0.Timestamp get createdAt => $_getN(18);
+  $2.Timestamp get createdAt => $_getN(18);
   @$pb.TagNumber(19)
-  set createdAt($0.Timestamp value) => $_setField(19, value);
+  set createdAt($2.Timestamp value) => $_setField(19, value);
   @$pb.TagNumber(19)
   $core.bool hasCreatedAt() => $_has(18);
   @$pb.TagNumber(19)
   void clearCreatedAt() => $_clearField(19);
   @$pb.TagNumber(19)
-  $0.Timestamp ensureCreatedAt() => $_ensure(18);
+  $2.Timestamp ensureCreatedAt() => $_ensure(18);
 
   @$pb.TagNumber(20)
-  $0.Timestamp get updatedAt => $_getN(19);
+  $2.Timestamp get updatedAt => $_getN(19);
   @$pb.TagNumber(20)
-  set updatedAt($0.Timestamp value) => $_setField(20, value);
+  set updatedAt($2.Timestamp value) => $_setField(20, value);
   @$pb.TagNumber(20)
   $core.bool hasUpdatedAt() => $_has(19);
   @$pb.TagNumber(20)
   void clearUpdatedAt() => $_clearField(20);
   @$pb.TagNumber(20)
-  $0.Timestamp ensureUpdatedAt() => $_ensure(19);
+  $2.Timestamp ensureUpdatedAt() => $_ensure(19);
 }
 
 class CreateTemplateRequest extends $pb.GeneratedMessage {
@@ -898,7 +896,7 @@ class GetTemplateRequest extends $pb.GeneratedMessage {
 
 class ListTemplatesRequest extends $pb.GeneratedMessage {
   factory ListTemplatesRequest({
-    $1.PageRequest? page,
+    $3.PageRequest? page,
     $core.bool? paused,
   }) {
     final result = create();
@@ -921,8 +919,8 @@ class ListTemplatesRequest extends $pb.GeneratedMessage {
       package:
           const $pb.PackageName(_omitMessageNames ? '' : 'yucai.template.v1'),
       createEmptyInstance: create)
-    ..aOM<$1.PageRequest>(1, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageRequest.create)
+    ..aOM<$3.PageRequest>(1, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageRequest.create)
     ..aOB(2, _omitFieldNames ? '' : 'paused')
     ..hasRequiredFields = false;
 
@@ -946,15 +944,15 @@ class ListTemplatesRequest extends $pb.GeneratedMessage {
   static ListTemplatesRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $1.PageRequest get page => $_getN(0);
+  $3.PageRequest get page => $_getN(0);
   @$pb.TagNumber(1)
-  set page($1.PageRequest value) => $_setField(1, value);
+  set page($3.PageRequest value) => $_setField(1, value);
   @$pb.TagNumber(1)
   $core.bool hasPage() => $_has(0);
   @$pb.TagNumber(1)
   void clearPage() => $_clearField(1);
   @$pb.TagNumber(1)
-  $1.PageRequest ensurePage() => $_ensure(0);
+  $3.PageRequest ensurePage() => $_ensure(0);
 
   @$pb.TagNumber(2)
   $core.bool get paused => $_getBF(1);
@@ -969,7 +967,7 @@ class ListTemplatesRequest extends $pb.GeneratedMessage {
 class ListTemplatesResponse extends $pb.GeneratedMessage {
   factory ListTemplatesResponse({
     $core.Iterable<TemplateDTO>? templates,
-    $1.PageResponse? page,
+    $3.PageResponse? page,
   }) {
     final result = create();
     if (templates != null) result.templates.addAll(templates);
@@ -993,8 +991,8 @@ class ListTemplatesResponse extends $pb.GeneratedMessage {
       createEmptyInstance: create)
     ..pPM<TemplateDTO>(1, _omitFieldNames ? '' : 'templates',
         subBuilder: TemplateDTO.create)
-    ..aOM<$1.PageResponse>(2, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageResponse.create)
+    ..aOM<$3.PageResponse>(2, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageResponse.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1021,15 +1019,15 @@ class ListTemplatesResponse extends $pb.GeneratedMessage {
   $pb.PbList<TemplateDTO> get templates => $_getList(0);
 
   @$pb.TagNumber(2)
-  $1.PageResponse get page => $_getN(1);
+  $3.PageResponse get page => $_getN(1);
   @$pb.TagNumber(2)
-  set page($1.PageResponse value) => $_setField(2, value);
+  set page($3.PageResponse value) => $_setField(2, value);
   @$pb.TagNumber(2)
   $core.bool hasPage() => $_has(1);
   @$pb.TagNumber(2)
   void clearPage() => $_clearField(2);
   @$pb.TagNumber(2)
-  $1.PageResponse ensurePage() => $_ensure(1);
+  $3.PageResponse ensurePage() => $_ensure(1);
 }
 
 class TemplateResponse extends $pb.GeneratedMessage {
@@ -1088,41 +1086,6 @@ class TemplateResponse extends $pb.GeneratedMessage {
   void clearTemplate() => $_clearField(1);
   @$pb.TagNumber(1)
   TemplateDTO ensureTemplate() => $_ensure(0);
-}
-
-class TransactionTemplateServiceApi {
-  final $pb.RpcClient _client;
-
-  TransactionTemplateServiceApi(this._client);
-
-  $async.Future<TemplateResponse> createTransactionTemplate(
-          $pb.ClientContext? ctx, CreateTemplateRequest request) =>
-      _client.invoke<TemplateResponse>(ctx, 'TransactionTemplateService',
-          'CreateTransactionTemplate', request, TemplateResponse());
-  $async.Future<TemplateResponse> updateTransactionTemplate(
-          $pb.ClientContext? ctx, UpdateTemplateRequest request) =>
-      _client.invoke<TemplateResponse>(ctx, 'TransactionTemplateService',
-          'UpdateTransactionTemplate', request, TemplateResponse());
-  $async.Future<$2.Empty> deleteTransactionTemplate(
-          $pb.ClientContext? ctx, DeleteTemplateRequest request) =>
-      _client.invoke<$2.Empty>(ctx, 'TransactionTemplateService',
-          'DeleteTransactionTemplate', request, $2.Empty());
-  $async.Future<TemplateResponse> pauseTransactionTemplate(
-          $pb.ClientContext? ctx, PauseTemplateRequest request) =>
-      _client.invoke<TemplateResponse>(ctx, 'TransactionTemplateService',
-          'PauseTransactionTemplate', request, TemplateResponse());
-  $async.Future<TemplateResponse> resumeTransactionTemplate(
-          $pb.ClientContext? ctx, ResumeTemplateRequest request) =>
-      _client.invoke<TemplateResponse>(ctx, 'TransactionTemplateService',
-          'ResumeTransactionTemplate', request, TemplateResponse());
-  $async.Future<TemplateResponse> getTransactionTemplate(
-          $pb.ClientContext? ctx, GetTemplateRequest request) =>
-      _client.invoke<TemplateResponse>(ctx, 'TransactionTemplateService',
-          'GetTransactionTemplate', request, TemplateResponse());
-  $async.Future<ListTemplatesResponse> listTransactionTemplates(
-          $pb.ClientContext? ctx, ListTemplatesRequest request) =>
-      _client.invoke<ListTemplatesResponse>(ctx, 'TransactionTemplateService',
-          'ListTransactionTemplates', request, ListTemplatesResponse());
 }
 
 const $core.bool _omitFieldNames =

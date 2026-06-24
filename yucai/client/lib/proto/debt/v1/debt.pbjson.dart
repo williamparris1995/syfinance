@@ -15,13 +15,6 @@ import 'dart:convert' as $convert;
 import 'dart:core' as $core;
 import 'dart:typed_data' as $typed_data;
 
-import 'package:protobuf/well_known_types/google/protobuf/empty.pbjson.dart'
-    as $2;
-import 'package:protobuf/well_known_types/google/protobuf/timestamp.pbjson.dart'
-    as $0;
-
-import '../../common/v1/pagination.pbjson.dart' as $1;
-
 @$core.Deprecated('Use amortizationMethodDescriptor instead')
 const AmortizationMethod$json = {
   '1': 'AmortizationMethod',
@@ -373,81 +366,3 @@ const DebtDetailResponse$json = {
 final $typed_data.Uint8List debtDetailResponseDescriptor = $convert.base64Decode(
     'ChJEZWJ0RGV0YWlsUmVzcG9uc2USMAoEZGVidBgBIAEoCzIcLnl1Y2FpLmRlYnQudjEuRGVidE'
     'RldGFpbERUT1IEZGVidA==');
-
-const $core.Map<$core.String, $core.dynamic> DebtServiceBase$json = {
-  '1': 'DebtService',
-  '2': [
-    {
-      '1': 'CreateDebt',
-      '2': '.yucai.debt.v1.CreateDebtRequest',
-      '3': '.yucai.debt.v1.DebtResponse'
-    },
-    {
-      '1': 'UpdateDebt',
-      '2': '.yucai.debt.v1.UpdateDebtRequest',
-      '3': '.yucai.debt.v1.DebtResponse'
-    },
-    {
-      '1': 'DeleteDebt',
-      '2': '.yucai.debt.v1.DeleteDebtRequest',
-      '3': '.google.protobuf.Empty'
-    },
-    {
-      '1': 'RecordPayment',
-      '2': '.yucai.debt.v1.RecordPaymentRequest',
-      '3': '.yucai.debt.v1.RecordPaymentResponse'
-    },
-    {
-      '1': 'GetDebt',
-      '2': '.yucai.debt.v1.GetDebtRequest',
-      '3': '.yucai.debt.v1.DebtDetailResponse'
-    },
-    {
-      '1': 'ListDebts',
-      '2': '.yucai.debt.v1.ListDebtsRequest',
-      '3': '.yucai.debt.v1.ListDebtsResponse'
-    },
-    {
-      '1': 'GetUpcomingPayments',
-      '2': '.yucai.debt.v1.GetUpcomingPaymentsRequest',
-      '3': '.yucai.debt.v1.ListDebtsResponse'
-    },
-  ],
-};
-
-@$core.Deprecated('Use debtServiceDescriptor instead')
-const $core.Map<$core.String, $core.Map<$core.String, $core.dynamic>>
-    DebtServiceBase$messageJson = {
-  '.yucai.debt.v1.CreateDebtRequest': CreateDebtRequest$json,
-  '.yucai.debt.v1.DebtResponse': DebtResponse$json,
-  '.yucai.debt.v1.DebtDTO': DebtDTO$json,
-  '.google.protobuf.Timestamp': $0.Timestamp$json,
-  '.yucai.debt.v1.UpdateDebtRequest': UpdateDebtRequest$json,
-  '.yucai.debt.v1.DeleteDebtRequest': DeleteDebtRequest$json,
-  '.google.protobuf.Empty': $2.Empty$json,
-  '.yucai.debt.v1.RecordPaymentRequest': RecordPaymentRequest$json,
-  '.yucai.debt.v1.RecordPaymentResponse': RecordPaymentResponse$json,
-  '.yucai.debt.v1.PaymentEntryDTO': PaymentEntryDTO$json,
-  '.yucai.debt.v1.GetDebtRequest': GetDebtRequest$json,
-  '.yucai.debt.v1.DebtDetailResponse': DebtDetailResponse$json,
-  '.yucai.debt.v1.DebtDetailDTO': DebtDetailDTO$json,
-  '.yucai.debt.v1.ListDebtsRequest': ListDebtsRequest$json,
-  '.yucai.common.v1.PageRequest': $1.PageRequest$json,
-  '.yucai.debt.v1.ListDebtsResponse': ListDebtsResponse$json,
-  '.yucai.common.v1.PageResponse': $1.PageResponse$json,
-  '.yucai.debt.v1.GetUpcomingPaymentsRequest': GetUpcomingPaymentsRequest$json,
-};
-
-/// Descriptor for `DebtService`. Decode as a `google.protobuf.ServiceDescriptorProto`.
-final $typed_data.Uint8List debtServiceDescriptor = $convert.base64Decode(
-    'CgtEZWJ0U2VydmljZRJLCgpDcmVhdGVEZWJ0EiAueXVjYWkuZGVidC52MS5DcmVhdGVEZWJ0Um'
-    'VxdWVzdBobLnl1Y2FpLmRlYnQudjEuRGVidFJlc3BvbnNlEksKClVwZGF0ZURlYnQSIC55dWNh'
-    'aS5kZWJ0LnYxLlVwZGF0ZURlYnRSZXF1ZXN0GhsueXVjYWkuZGVidC52MS5EZWJ0UmVzcG9uc2'
-    'USRgoKRGVsZXRlRGVidBIgLnl1Y2FpLmRlYnQudjEuRGVsZXRlRGVidFJlcXVlc3QaFi5nb29n'
-    'bGUucHJvdG9idWYuRW1wdHkSWgoNUmVjb3JkUGF5bWVudBIjLnl1Y2FpLmRlYnQudjEuUmVjb3'
-    'JkUGF5bWVudFJlcXVlc3QaJC55dWNhaS5kZWJ0LnYxLlJlY29yZFBheW1lbnRSZXNwb25zZRJL'
-    'CgdHZXREZWJ0Eh0ueXVjYWkuZGVidC52MS5HZXREZWJ0UmVxdWVzdBohLnl1Y2FpLmRlYnQudj'
-    'EuRGVidERldGFpbFJlc3BvbnNlEk4KCUxpc3REZWJ0cxIfLnl1Y2FpLmRlYnQudjEuTGlzdERl'
-    'YnRzUmVxdWVzdBogLnl1Y2FpLmRlYnQudjEuTGlzdERlYnRzUmVzcG9uc2USYgoTR2V0VXBjb2'
-    '1pbmdQYXltZW50cxIpLnl1Y2FpLmRlYnQudjEuR2V0VXBjb21pbmdQYXltZW50c1JlcXVlc3Qa'
-    'IC55dWNhaS5kZWJ0LnYxLkxpc3REZWJ0c1Jlc3BvbnNl');

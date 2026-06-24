@@ -10,16 +10,14 @@
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
 // ignore_for_file: non_constant_identifier_names, prefer_relative_imports
 
-import 'dart:async' as $async;
 import 'dart:core' as $core;
 
 import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
-import 'package:protobuf/well_known_types/google/protobuf/empty.pb.dart' as $2;
 import 'package:protobuf/well_known_types/google/protobuf/timestamp.pb.dart'
-    as $0;
+    as $2;
 
-import '../../common/v1/pagination.pb.dart' as $1;
+import '../../common/v1/pagination.pb.dart' as $3;
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
 
@@ -32,8 +30,8 @@ class BudgetDTO extends $pb.GeneratedMessage {
     $core.String? currencyCode,
     $core.bool? isActive,
     $fixnum.Int64? version,
-    $0.Timestamp? createdAt,
-    $0.Timestamp? updatedAt,
+    $2.Timestamp? createdAt,
+    $2.Timestamp? updatedAt,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -69,10 +67,10 @@ class BudgetDTO extends $pb.GeneratedMessage {
     ..aOS(5, _omitFieldNames ? '' : 'currencyCode')
     ..aOB(6, _omitFieldNames ? '' : 'isActive')
     ..aInt64(7, _omitFieldNames ? '' : 'version')
-    ..aOM<$0.Timestamp>(8, _omitFieldNames ? '' : 'createdAt',
-        subBuilder: $0.Timestamp.create)
-    ..aOM<$0.Timestamp>(9, _omitFieldNames ? '' : 'updatedAt',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(8, _omitFieldNames ? '' : 'createdAt',
+        subBuilder: $2.Timestamp.create)
+    ..aOM<$2.Timestamp>(9, _omitFieldNames ? '' : 'updatedAt',
+        subBuilder: $2.Timestamp.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -157,26 +155,26 @@ class BudgetDTO extends $pb.GeneratedMessage {
   void clearVersion() => $_clearField(7);
 
   @$pb.TagNumber(8)
-  $0.Timestamp get createdAt => $_getN(7);
+  $2.Timestamp get createdAt => $_getN(7);
   @$pb.TagNumber(8)
-  set createdAt($0.Timestamp value) => $_setField(8, value);
+  set createdAt($2.Timestamp value) => $_setField(8, value);
   @$pb.TagNumber(8)
   $core.bool hasCreatedAt() => $_has(7);
   @$pb.TagNumber(8)
   void clearCreatedAt() => $_clearField(8);
   @$pb.TagNumber(8)
-  $0.Timestamp ensureCreatedAt() => $_ensure(7);
+  $2.Timestamp ensureCreatedAt() => $_ensure(7);
 
   @$pb.TagNumber(9)
-  $0.Timestamp get updatedAt => $_getN(8);
+  $2.Timestamp get updatedAt => $_getN(8);
   @$pb.TagNumber(9)
-  set updatedAt($0.Timestamp value) => $_setField(9, value);
+  set updatedAt($2.Timestamp value) => $_setField(9, value);
   @$pb.TagNumber(9)
   $core.bool hasUpdatedAt() => $_has(8);
   @$pb.TagNumber(9)
   void clearUpdatedAt() => $_clearField(9);
   @$pb.TagNumber(9)
-  $0.Timestamp ensureUpdatedAt() => $_ensure(8);
+  $2.Timestamp ensureUpdatedAt() => $_ensure(8);
 }
 
 class BudgetItemDTO extends $pb.GeneratedMessage {
@@ -676,7 +674,7 @@ class GetBudgetByMonthRequest extends $pb.GeneratedMessage {
 
 class ListBudgetsRequest extends $pb.GeneratedMessage {
   factory ListBudgetsRequest({
-    $1.PageRequest? page,
+    $3.PageRequest? page,
     $core.bool? activeOnly,
   }) {
     final result = create();
@@ -699,8 +697,8 @@ class ListBudgetsRequest extends $pb.GeneratedMessage {
       package:
           const $pb.PackageName(_omitMessageNames ? '' : 'yucai.budget.v1'),
       createEmptyInstance: create)
-    ..aOM<$1.PageRequest>(1, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageRequest.create)
+    ..aOM<$3.PageRequest>(1, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageRequest.create)
     ..aOB(2, _omitFieldNames ? '' : 'activeOnly')
     ..hasRequiredFields = false;
 
@@ -724,15 +722,15 @@ class ListBudgetsRequest extends $pb.GeneratedMessage {
   static ListBudgetsRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $1.PageRequest get page => $_getN(0);
+  $3.PageRequest get page => $_getN(0);
   @$pb.TagNumber(1)
-  set page($1.PageRequest value) => $_setField(1, value);
+  set page($3.PageRequest value) => $_setField(1, value);
   @$pb.TagNumber(1)
   $core.bool hasPage() => $_has(0);
   @$pb.TagNumber(1)
   void clearPage() => $_clearField(1);
   @$pb.TagNumber(1)
-  $1.PageRequest ensurePage() => $_ensure(0);
+  $3.PageRequest ensurePage() => $_ensure(0);
 
   @$pb.TagNumber(2)
   $core.bool get activeOnly => $_getBF(1);
@@ -747,7 +745,7 @@ class ListBudgetsRequest extends $pb.GeneratedMessage {
 class ListBudgetsResponse extends $pb.GeneratedMessage {
   factory ListBudgetsResponse({
     $core.Iterable<BudgetDTO>? budgets,
-    $1.PageResponse? page,
+    $3.PageResponse? page,
   }) {
     final result = create();
     if (budgets != null) result.budgets.addAll(budgets);
@@ -771,8 +769,8 @@ class ListBudgetsResponse extends $pb.GeneratedMessage {
       createEmptyInstance: create)
     ..pPM<BudgetDTO>(1, _omitFieldNames ? '' : 'budgets',
         subBuilder: BudgetDTO.create)
-    ..aOM<$1.PageResponse>(2, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageResponse.create)
+    ..aOM<$3.PageResponse>(2, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageResponse.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -798,15 +796,15 @@ class ListBudgetsResponse extends $pb.GeneratedMessage {
   $pb.PbList<BudgetDTO> get budgets => $_getList(0);
 
   @$pb.TagNumber(2)
-  $1.PageResponse get page => $_getN(1);
+  $3.PageResponse get page => $_getN(1);
   @$pb.TagNumber(2)
-  set page($1.PageResponse value) => $_setField(2, value);
+  set page($3.PageResponse value) => $_setField(2, value);
   @$pb.TagNumber(2)
   $core.bool hasPage() => $_has(1);
   @$pb.TagNumber(2)
   void clearPage() => $_clearField(2);
   @$pb.TagNumber(2)
-  $1.PageResponse ensurePage() => $_ensure(1);
+  $3.PageResponse ensurePage() => $_ensure(1);
 }
 
 class DeleteBudgetRequest extends $pb.GeneratedMessage {
@@ -1273,49 +1271,6 @@ class BudgetDetailResponse extends $pb.GeneratedMessage {
   void clearBudget() => $_clearField(1);
   @$pb.TagNumber(1)
   BudgetDetailDTO ensureBudget() => $_ensure(0);
-}
-
-class BudgetServiceApi {
-  final $pb.RpcClient _client;
-
-  BudgetServiceApi(this._client);
-
-  $async.Future<BudgetResponse> createBudget(
-          $pb.ClientContext? ctx, CreateBudgetRequest request) =>
-      _client.invoke<BudgetResponse>(
-          ctx, 'BudgetService', 'CreateBudget', request, BudgetResponse());
-  $async.Future<BudgetDetailResponse> getBudget(
-          $pb.ClientContext? ctx, GetBudgetRequest request) =>
-      _client.invoke<BudgetDetailResponse>(
-          ctx, 'BudgetService', 'GetBudget', request, BudgetDetailResponse());
-  $async.Future<BudgetDetailResponse> getBudgetByMonth(
-          $pb.ClientContext? ctx, GetBudgetByMonthRequest request) =>
-      _client.invoke<BudgetDetailResponse>(ctx, 'BudgetService',
-          'GetBudgetByMonth', request, BudgetDetailResponse());
-  $async.Future<ListBudgetsResponse> listBudgets(
-          $pb.ClientContext? ctx, ListBudgetsRequest request) =>
-      _client.invoke<ListBudgetsResponse>(
-          ctx, 'BudgetService', 'ListBudgets', request, ListBudgetsResponse());
-  $async.Future<$2.Empty> deleteBudget(
-          $pb.ClientContext? ctx, DeleteBudgetRequest request) =>
-      _client.invoke<$2.Empty>(
-          ctx, 'BudgetService', 'DeleteBudget', request, $2.Empty());
-  $async.Future<BudgetResponse> addBudgetItem(
-          $pb.ClientContext? ctx, AddBudgetItemRequest request) =>
-      _client.invoke<BudgetResponse>(
-          ctx, 'BudgetService', 'AddBudgetItem', request, BudgetResponse());
-  $async.Future<BudgetResponse> removeBudgetItem(
-          $pb.ClientContext? ctx, RemoveBudgetItemRequest request) =>
-      _client.invoke<BudgetResponse>(
-          ctx, 'BudgetService', 'RemoveBudgetItem', request, BudgetResponse());
-  $async.Future<BudgetResponse> computeBudgetActuals(
-          $pb.ClientContext? ctx, ComputeActualsRequest request) =>
-      _client.invoke<BudgetResponse>(ctx, 'BudgetService',
-          'ComputeBudgetActuals', request, BudgetResponse());
-  $async.Future<BudgetResponse> cloneBudgetToMonth(
-          $pb.ClientContext? ctx, CloneBudgetRequest request) =>
-      _client.invoke<BudgetResponse>(ctx, 'BudgetService', 'CloneBudgetToMonth',
-          request, BudgetResponse());
 }
 
 const $core.bool _omitFieldNames =

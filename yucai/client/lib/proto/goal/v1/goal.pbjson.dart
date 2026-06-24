@@ -15,13 +15,6 @@ import 'dart:convert' as $convert;
 import 'dart:core' as $core;
 import 'dart:typed_data' as $typed_data;
 
-import 'package:protobuf/well_known_types/google/protobuf/empty.pbjson.dart'
-    as $2;
-import 'package:protobuf/well_known_types/google/protobuf/timestamp.pbjson.dart'
-    as $0;
-
-import '../../common/v1/pagination.pbjson.dart' as $1;
-
 @$core.Deprecated('Use goalTypeDescriptor instead')
 const GoalType$json = {
   '1': 'GoalType',
@@ -337,85 +330,3 @@ const GoalDetailResponse$json = {
 final $typed_data.Uint8List goalDetailResponseDescriptor = $convert.base64Decode(
     'ChJHb2FsRGV0YWlsUmVzcG9uc2USKgoEZ29hbBgBIAEoCzIWLnl1Y2FpLmdvYWwudjEuR29hbE'
     'RUT1IEZ29hbA==');
-
-const $core.Map<$core.String, $core.dynamic> GoalServiceBase$json = {
-  '1': 'GoalService',
-  '2': [
-    {
-      '1': 'CreateGoal',
-      '2': '.yucai.goal.v1.CreateGoalRequest',
-      '3': '.yucai.goal.v1.GoalResponse'
-    },
-    {
-      '1': 'UpdateGoal',
-      '2': '.yucai.goal.v1.UpdateGoalRequest',
-      '3': '.yucai.goal.v1.GoalResponse'
-    },
-    {
-      '1': 'UpdateGoalProgress',
-      '2': '.yucai.goal.v1.UpdateProgressRequest',
-      '3': '.yucai.goal.v1.GoalResponse'
-    },
-    {
-      '1': 'CompleteGoal',
-      '2': '.yucai.goal.v1.CompleteGoalRequest',
-      '3': '.google.protobuf.Empty'
-    },
-    {
-      '1': 'DeleteGoal',
-      '2': '.yucai.goal.v1.DeleteGoalRequest',
-      '3': '.google.protobuf.Empty'
-    },
-    {
-      '1': 'SyncGoalProgress',
-      '2': '.yucai.goal.v1.SyncGoalProgressRequest',
-      '3': '.yucai.goal.v1.GoalResponse'
-    },
-    {
-      '1': 'GetGoal',
-      '2': '.yucai.goal.v1.GetGoalRequest',
-      '3': '.yucai.goal.v1.GoalDetailResponse'
-    },
-    {
-      '1': 'ListGoals',
-      '2': '.yucai.goal.v1.ListGoalsRequest',
-      '3': '.yucai.goal.v1.ListGoalsResponse'
-    },
-  ],
-};
-
-@$core.Deprecated('Use goalServiceDescriptor instead')
-const $core.Map<$core.String, $core.Map<$core.String, $core.dynamic>>
-    GoalServiceBase$messageJson = {
-  '.yucai.goal.v1.CreateGoalRequest': CreateGoalRequest$json,
-  '.yucai.goal.v1.GoalResponse': GoalResponse$json,
-  '.yucai.goal.v1.GoalDTO': GoalDTO$json,
-  '.google.protobuf.Timestamp': $0.Timestamp$json,
-  '.yucai.goal.v1.UpdateGoalRequest': UpdateGoalRequest$json,
-  '.yucai.goal.v1.UpdateProgressRequest': UpdateProgressRequest$json,
-  '.yucai.goal.v1.CompleteGoalRequest': CompleteGoalRequest$json,
-  '.google.protobuf.Empty': $2.Empty$json,
-  '.yucai.goal.v1.DeleteGoalRequest': DeleteGoalRequest$json,
-  '.yucai.goal.v1.SyncGoalProgressRequest': SyncGoalProgressRequest$json,
-  '.yucai.goal.v1.GetGoalRequest': GetGoalRequest$json,
-  '.yucai.goal.v1.GoalDetailResponse': GoalDetailResponse$json,
-  '.yucai.goal.v1.ListGoalsRequest': ListGoalsRequest$json,
-  '.yucai.common.v1.PageRequest': $1.PageRequest$json,
-  '.yucai.goal.v1.ListGoalsResponse': ListGoalsResponse$json,
-  '.yucai.common.v1.PageResponse': $1.PageResponse$json,
-};
-
-/// Descriptor for `GoalService`. Decode as a `google.protobuf.ServiceDescriptorProto`.
-final $typed_data.Uint8List goalServiceDescriptor = $convert.base64Decode(
-    'CgtHb2FsU2VydmljZRJLCgpDcmVhdGVHb2FsEiAueXVjYWkuZ29hbC52MS5DcmVhdGVHb2FsUm'
-    'VxdWVzdBobLnl1Y2FpLmdvYWwudjEuR29hbFJlc3BvbnNlEksKClVwZGF0ZUdvYWwSIC55dWNh'
-    'aS5nb2FsLnYxLlVwZGF0ZUdvYWxSZXF1ZXN0GhsueXVjYWkuZ29hbC52MS5Hb2FsUmVzcG9uc2'
-    'USVwoSVXBkYXRlR29hbFByb2dyZXNzEiQueXVjYWkuZ29hbC52MS5VcGRhdGVQcm9ncmVzc1Jl'
-    'cXVlc3QaGy55dWNhaS5nb2FsLnYxLkdvYWxSZXNwb25zZRJKCgxDb21wbGV0ZUdvYWwSIi55dW'
-    'NhaS5nb2FsLnYxLkNvbXBsZXRlR29hbFJlcXVlc3QaFi5nb29nbGUucHJvdG9idWYuRW1wdHkS'
-    'RgoKRGVsZXRlR29hbBIgLnl1Y2FpLmdvYWwudjEuRGVsZXRlR29hbFJlcXVlc3QaFi5nb29nbG'
-    'UucHJvdG9idWYuRW1wdHkSVwoQU3luY0dvYWxQcm9ncmVzcxImLnl1Y2FpLmdvYWwudjEuU3lu'
-    'Y0dvYWxQcm9ncmVzc1JlcXVlc3QaGy55dWNhaS5nb2FsLnYxLkdvYWxSZXNwb25zZRJLCgdHZX'
-    'RHb2FsEh0ueXVjYWkuZ29hbC52MS5HZXRHb2FsUmVxdWVzdBohLnl1Y2FpLmdvYWwudjEuR29h'
-    'bERldGFpbFJlc3BvbnNlEk4KCUxpc3RHb2FscxIfLnl1Y2FpLmdvYWwudjEuTGlzdEdvYWxzUm'
-    'VxdWVzdBogLnl1Y2FpLmdvYWwudjEuTGlzdEdvYWxzUmVzcG9uc2U=');

@@ -10,16 +10,14 @@
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
 // ignore_for_file: non_constant_identifier_names, prefer_relative_imports
 
-import 'dart:async' as $async;
 import 'dart:core' as $core;
 
 import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
-import 'package:protobuf/well_known_types/google/protobuf/empty.pb.dart' as $2;
 import 'package:protobuf/well_known_types/google/protobuf/timestamp.pb.dart'
-    as $0;
+    as $2;
 
-import '../../common/v1/pagination.pb.dart' as $1;
+import '../../common/v1/pagination.pb.dart' as $3;
 import 'debt.pbenum.dart';
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
@@ -38,8 +36,8 @@ class DebtDTO extends $pb.GeneratedMessage {
     $fixnum.Int64? totalPrincipalCents,
     $fixnum.Int64? remainingPrincipalCents,
     $fixnum.Int64? version,
-    $0.Timestamp? createdAt,
-    $0.Timestamp? updatedAt,
+    $2.Timestamp? createdAt,
+    $2.Timestamp? updatedAt,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -84,10 +82,10 @@ class DebtDTO extends $pb.GeneratedMessage {
     ..aInt64(8, _omitFieldNames ? '' : 'totalPrincipalCents')
     ..aInt64(9, _omitFieldNames ? '' : 'remainingPrincipalCents')
     ..aInt64(10, _omitFieldNames ? '' : 'version')
-    ..aOM<$0.Timestamp>(11, _omitFieldNames ? '' : 'createdAt',
-        subBuilder: $0.Timestamp.create)
-    ..aOM<$0.Timestamp>(12, _omitFieldNames ? '' : 'updatedAt',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(11, _omitFieldNames ? '' : 'createdAt',
+        subBuilder: $2.Timestamp.create)
+    ..aOM<$2.Timestamp>(12, _omitFieldNames ? '' : 'updatedAt',
+        subBuilder: $2.Timestamp.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -199,26 +197,26 @@ class DebtDTO extends $pb.GeneratedMessage {
   void clearVersion() => $_clearField(10);
 
   @$pb.TagNumber(11)
-  $0.Timestamp get createdAt => $_getN(10);
+  $2.Timestamp get createdAt => $_getN(10);
   @$pb.TagNumber(11)
-  set createdAt($0.Timestamp value) => $_setField(11, value);
+  set createdAt($2.Timestamp value) => $_setField(11, value);
   @$pb.TagNumber(11)
   $core.bool hasCreatedAt() => $_has(10);
   @$pb.TagNumber(11)
   void clearCreatedAt() => $_clearField(11);
   @$pb.TagNumber(11)
-  $0.Timestamp ensureCreatedAt() => $_ensure(10);
+  $2.Timestamp ensureCreatedAt() => $_ensure(10);
 
   @$pb.TagNumber(12)
-  $0.Timestamp get updatedAt => $_getN(11);
+  $2.Timestamp get updatedAt => $_getN(11);
   @$pb.TagNumber(12)
-  set updatedAt($0.Timestamp value) => $_setField(12, value);
+  set updatedAt($2.Timestamp value) => $_setField(12, value);
   @$pb.TagNumber(12)
   $core.bool hasUpdatedAt() => $_has(11);
   @$pb.TagNumber(12)
   void clearUpdatedAt() => $_clearField(12);
   @$pb.TagNumber(12)
-  $0.Timestamp ensureUpdatedAt() => $_ensure(11);
+  $2.Timestamp ensureUpdatedAt() => $_ensure(11);
 }
 
 class PaymentEntryDTO extends $pb.GeneratedMessage {
@@ -899,7 +897,7 @@ class GetDebtRequest extends $pb.GeneratedMessage {
 
 class ListDebtsRequest extends $pb.GeneratedMessage {
   factory ListDebtsRequest({
-    $1.PageRequest? page,
+    $3.PageRequest? page,
   }) {
     final result = create();
     if (page != null) result.page = page;
@@ -919,8 +917,8 @@ class ListDebtsRequest extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'ListDebtsRequest',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.debt.v1'),
       createEmptyInstance: create)
-    ..aOM<$1.PageRequest>(1, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageRequest.create)
+    ..aOM<$3.PageRequest>(1, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageRequest.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -943,21 +941,21 @@ class ListDebtsRequest extends $pb.GeneratedMessage {
   static ListDebtsRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $1.PageRequest get page => $_getN(0);
+  $3.PageRequest get page => $_getN(0);
   @$pb.TagNumber(1)
-  set page($1.PageRequest value) => $_setField(1, value);
+  set page($3.PageRequest value) => $_setField(1, value);
   @$pb.TagNumber(1)
   $core.bool hasPage() => $_has(0);
   @$pb.TagNumber(1)
   void clearPage() => $_clearField(1);
   @$pb.TagNumber(1)
-  $1.PageRequest ensurePage() => $_ensure(0);
+  $3.PageRequest ensurePage() => $_ensure(0);
 }
 
 class ListDebtsResponse extends $pb.GeneratedMessage {
   factory ListDebtsResponse({
     $core.Iterable<DebtDTO>? debts,
-    $1.PageResponse? page,
+    $3.PageResponse? page,
   }) {
     final result = create();
     if (debts != null) result.debts.addAll(debts);
@@ -980,8 +978,8 @@ class ListDebtsResponse extends $pb.GeneratedMessage {
       createEmptyInstance: create)
     ..pPM<DebtDTO>(1, _omitFieldNames ? '' : 'debts',
         subBuilder: DebtDTO.create)
-    ..aOM<$1.PageResponse>(2, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageResponse.create)
+    ..aOM<$3.PageResponse>(2, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageResponse.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1007,15 +1005,15 @@ class ListDebtsResponse extends $pb.GeneratedMessage {
   $pb.PbList<DebtDTO> get debts => $_getList(0);
 
   @$pb.TagNumber(2)
-  $1.PageResponse get page => $_getN(1);
+  $3.PageResponse get page => $_getN(1);
   @$pb.TagNumber(2)
-  set page($1.PageResponse value) => $_setField(2, value);
+  set page($3.PageResponse value) => $_setField(2, value);
   @$pb.TagNumber(2)
   $core.bool hasPage() => $_has(1);
   @$pb.TagNumber(2)
   void clearPage() => $_clearField(2);
   @$pb.TagNumber(2)
-  $1.PageResponse ensurePage() => $_ensure(1);
+  $3.PageResponse ensurePage() => $_ensure(1);
 }
 
 class GetUpcomingPaymentsRequest extends $pb.GeneratedMessage {
@@ -1185,41 +1183,6 @@ class DebtDetailResponse extends $pb.GeneratedMessage {
   void clearDebt() => $_clearField(1);
   @$pb.TagNumber(1)
   DebtDetailDTO ensureDebt() => $_ensure(0);
-}
-
-class DebtServiceApi {
-  final $pb.RpcClient _client;
-
-  DebtServiceApi(this._client);
-
-  $async.Future<DebtResponse> createDebt(
-          $pb.ClientContext? ctx, CreateDebtRequest request) =>
-      _client.invoke<DebtResponse>(
-          ctx, 'DebtService', 'CreateDebt', request, DebtResponse());
-  $async.Future<DebtResponse> updateDebt(
-          $pb.ClientContext? ctx, UpdateDebtRequest request) =>
-      _client.invoke<DebtResponse>(
-          ctx, 'DebtService', 'UpdateDebt', request, DebtResponse());
-  $async.Future<$2.Empty> deleteDebt(
-          $pb.ClientContext? ctx, DeleteDebtRequest request) =>
-      _client.invoke<$2.Empty>(
-          ctx, 'DebtService', 'DeleteDebt', request, $2.Empty());
-  $async.Future<RecordPaymentResponse> recordPayment(
-          $pb.ClientContext? ctx, RecordPaymentRequest request) =>
-      _client.invoke<RecordPaymentResponse>(ctx, 'DebtService', 'RecordPayment',
-          request, RecordPaymentResponse());
-  $async.Future<DebtDetailResponse> getDebt(
-          $pb.ClientContext? ctx, GetDebtRequest request) =>
-      _client.invoke<DebtDetailResponse>(
-          ctx, 'DebtService', 'GetDebt', request, DebtDetailResponse());
-  $async.Future<ListDebtsResponse> listDebts(
-          $pb.ClientContext? ctx, ListDebtsRequest request) =>
-      _client.invoke<ListDebtsResponse>(
-          ctx, 'DebtService', 'ListDebts', request, ListDebtsResponse());
-  $async.Future<ListDebtsResponse> getUpcomingPayments(
-          $pb.ClientContext? ctx, GetUpcomingPaymentsRequest request) =>
-      _client.invoke<ListDebtsResponse>(ctx, 'DebtService',
-          'GetUpcomingPayments', request, ListDebtsResponse());
 }
 
 const $core.bool _omitFieldNames =

@@ -10,16 +10,14 @@
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
 // ignore_for_file: non_constant_identifier_names, prefer_relative_imports
 
-import 'dart:async' as $async;
 import 'dart:core' as $core;
 
 import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
-import 'package:protobuf/well_known_types/google/protobuf/empty.pb.dart' as $2;
 import 'package:protobuf/well_known_types/google/protobuf/timestamp.pb.dart'
-    as $0;
+    as $2;
 
-import '../../common/v1/pagination.pb.dart' as $1;
+import '../../common/v1/pagination.pb.dart' as $3;
 import 'backup.pbenum.dart';
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
@@ -35,7 +33,7 @@ class BackupDTO extends $pb.GeneratedMessage {
     $core.String? checksum,
     $core.bool? encrypted,
     $core.bool? auto,
-    $0.Timestamp? createdAt,
+    $2.Timestamp? createdAt,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -71,8 +69,8 @@ class BackupDTO extends $pb.GeneratedMessage {
     ..aOS(5, _omitFieldNames ? '' : 'checksum')
     ..aOB(6, _omitFieldNames ? '' : 'encrypted')
     ..aOB(7, _omitFieldNames ? '' : 'auto')
-    ..aOM<$0.Timestamp>(8, _omitFieldNames ? '' : 'createdAt',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(8, _omitFieldNames ? '' : 'createdAt',
+        subBuilder: $2.Timestamp.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -157,15 +155,15 @@ class BackupDTO extends $pb.GeneratedMessage {
   void clearAuto() => $_clearField(7);
 
   @$pb.TagNumber(8)
-  $0.Timestamp get createdAt => $_getN(7);
+  $2.Timestamp get createdAt => $_getN(7);
   @$pb.TagNumber(8)
-  set createdAt($0.Timestamp value) => $_setField(8, value);
+  set createdAt($2.Timestamp value) => $_setField(8, value);
   @$pb.TagNumber(8)
   $core.bool hasCreatedAt() => $_has(7);
   @$pb.TagNumber(8)
   void clearCreatedAt() => $_clearField(8);
   @$pb.TagNumber(8)
-  $0.Timestamp ensureCreatedAt() => $_ensure(7);
+  $2.Timestamp ensureCreatedAt() => $_ensure(7);
 }
 
 class CreateBackupRequest extends $pb.GeneratedMessage {
@@ -292,7 +290,7 @@ class RestoreBackupRequest extends $pb.GeneratedMessage {
 
 class ListBackupsRequest extends $pb.GeneratedMessage {
   factory ListBackupsRequest({
-    $1.PageRequest? page,
+    $3.PageRequest? page,
     BackupProvider? provider,
   }) {
     final result = create();
@@ -315,8 +313,8 @@ class ListBackupsRequest extends $pb.GeneratedMessage {
       package:
           const $pb.PackageName(_omitMessageNames ? '' : 'yucai.backup.v1'),
       createEmptyInstance: create)
-    ..aOM<$1.PageRequest>(1, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageRequest.create)
+    ..aOM<$3.PageRequest>(1, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageRequest.create)
     ..aE<BackupProvider>(2, _omitFieldNames ? '' : 'provider',
         enumValues: BackupProvider.values)
     ..hasRequiredFields = false;
@@ -341,15 +339,15 @@ class ListBackupsRequest extends $pb.GeneratedMessage {
   static ListBackupsRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $1.PageRequest get page => $_getN(0);
+  $3.PageRequest get page => $_getN(0);
   @$pb.TagNumber(1)
-  set page($1.PageRequest value) => $_setField(1, value);
+  set page($3.PageRequest value) => $_setField(1, value);
   @$pb.TagNumber(1)
   $core.bool hasPage() => $_has(0);
   @$pb.TagNumber(1)
   void clearPage() => $_clearField(1);
   @$pb.TagNumber(1)
-  $1.PageRequest ensurePage() => $_ensure(0);
+  $3.PageRequest ensurePage() => $_ensure(0);
 
   @$pb.TagNumber(2)
   BackupProvider get provider => $_getN(1);
@@ -364,7 +362,7 @@ class ListBackupsRequest extends $pb.GeneratedMessage {
 class ListBackupsResponse extends $pb.GeneratedMessage {
   factory ListBackupsResponse({
     $core.Iterable<BackupDTO>? backups,
-    $1.PageResponse? page,
+    $3.PageResponse? page,
   }) {
     final result = create();
     if (backups != null) result.backups.addAll(backups);
@@ -388,8 +386,8 @@ class ListBackupsResponse extends $pb.GeneratedMessage {
       createEmptyInstance: create)
     ..pPM<BackupDTO>(1, _omitFieldNames ? '' : 'backups',
         subBuilder: BackupDTO.create)
-    ..aOM<$1.PageResponse>(2, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageResponse.create)
+    ..aOM<$3.PageResponse>(2, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageResponse.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -415,15 +413,15 @@ class ListBackupsResponse extends $pb.GeneratedMessage {
   $pb.PbList<BackupDTO> get backups => $_getList(0);
 
   @$pb.TagNumber(2)
-  $1.PageResponse get page => $_getN(1);
+  $3.PageResponse get page => $_getN(1);
   @$pb.TagNumber(2)
-  set page($1.PageResponse value) => $_setField(2, value);
+  set page($3.PageResponse value) => $_setField(2, value);
   @$pb.TagNumber(2)
   $core.bool hasPage() => $_has(1);
   @$pb.TagNumber(2)
   void clearPage() => $_clearField(2);
   @$pb.TagNumber(2)
-  $1.PageResponse ensurePage() => $_ensure(1);
+  $3.PageResponse ensurePage() => $_ensure(1);
 }
 
 class DeleteBackupRequest extends $pb.GeneratedMessage {
@@ -965,45 +963,6 @@ class BackupResponse extends $pb.GeneratedMessage {
   void clearBackup() => $_clearField(1);
   @$pb.TagNumber(1)
   BackupDTO ensureBackup() => $_ensure(0);
-}
-
-class BackupServiceApi {
-  final $pb.RpcClient _client;
-
-  BackupServiceApi(this._client);
-
-  $async.Future<BackupResponse> createBackup(
-          $pb.ClientContext? ctx, CreateBackupRequest request) =>
-      _client.invoke<BackupResponse>(
-          ctx, 'BackupService', 'CreateBackup', request, BackupResponse());
-  $async.Future<$2.Empty> restoreBackup(
-          $pb.ClientContext? ctx, RestoreBackupRequest request) =>
-      _client.invoke<$2.Empty>(
-          ctx, 'BackupService', 'RestoreBackup', request, $2.Empty());
-  $async.Future<ListBackupsResponse> listBackups(
-          $pb.ClientContext? ctx, ListBackupsRequest request) =>
-      _client.invoke<ListBackupsResponse>(
-          ctx, 'BackupService', 'ListBackups', request, ListBackupsResponse());
-  $async.Future<$2.Empty> deleteBackup(
-          $pb.ClientContext? ctx, DeleteBackupRequest request) =>
-      _client.invoke<$2.Empty>(
-          ctx, 'BackupService', 'DeleteBackup', request, $2.Empty());
-  $async.Future<$2.Empty> saveCloudSettings(
-          $pb.ClientContext? ctx, SaveCloudSettingsRequest request) =>
-      _client.invoke<$2.Empty>(
-          ctx, 'BackupService', 'SaveCloudSettings', request, $2.Empty());
-  $async.Future<CloudSettingsResponse> getCloudSettings(
-          $pb.ClientContext? ctx, $2.Empty request) =>
-      _client.invoke<CloudSettingsResponse>(ctx, 'BackupService',
-          'GetCloudSettings', request, CloudSettingsResponse());
-  $async.Future<TestConnectionResponse> testCloudConnection(
-          $pb.ClientContext? ctx, TestConnectionRequest request) =>
-      _client.invoke<TestConnectionResponse>(ctx, 'BackupService',
-          'TestCloudConnection', request, TestConnectionResponse());
-  $async.Future<BackupResponse> uploadToCloud(
-          $pb.ClientContext? ctx, UploadRequest request) =>
-      _client.invoke<BackupResponse>(
-          ctx, 'BackupService', 'UploadToCloud', request, BackupResponse());
 }
 
 const $core.bool _omitFieldNames =

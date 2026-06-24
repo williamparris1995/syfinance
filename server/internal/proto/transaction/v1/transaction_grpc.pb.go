@@ -20,14 +20,15 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	TransactionService_RecordTransaction_FullMethodName = "/yucai.transaction.v1.TransactionService/RecordTransaction"
-	TransactionService_GetTransaction_FullMethodName    = "/yucai.transaction.v1.TransactionService/GetTransaction"
-	TransactionService_ListTransactions_FullMethodName  = "/yucai.transaction.v1.TransactionService/ListTransactions"
-	TransactionService_UpdateTransaction_FullMethodName = "/yucai.transaction.v1.TransactionService/UpdateTransaction"
-	TransactionService_DeleteTransaction_FullMethodName = "/yucai.transaction.v1.TransactionService/DeleteTransaction"
-	TransactionService_SimpleIncome_FullMethodName      = "/yucai.transaction.v1.TransactionService/SimpleIncome"
-	TransactionService_SimpleExpense_FullMethodName     = "/yucai.transaction.v1.TransactionService/SimpleExpense"
-	TransactionService_SimpleTransfer_FullMethodName    = "/yucai.transaction.v1.TransactionService/SimpleTransfer"
+	TransactionService_RecordTransaction_FullMethodName  = "/yucai.transaction.v1.TransactionService/RecordTransaction"
+	TransactionService_GetTransaction_FullMethodName     = "/yucai.transaction.v1.TransactionService/GetTransaction"
+	TransactionService_ListTransactions_FullMethodName   = "/yucai.transaction.v1.TransactionService/ListTransactions"
+	TransactionService_UpdateTransaction_FullMethodName  = "/yucai.transaction.v1.TransactionService/UpdateTransaction"
+	TransactionService_DeleteTransaction_FullMethodName  = "/yucai.transaction.v1.TransactionService/DeleteTransaction"
+	TransactionService_SimpleIncome_FullMethodName       = "/yucai.transaction.v1.TransactionService/SimpleIncome"
+	TransactionService_SimpleExpense_FullMethodName      = "/yucai.transaction.v1.TransactionService/SimpleExpense"
+	TransactionService_SimpleTransfer_FullMethodName     = "/yucai.transaction.v1.TransactionService/SimpleTransfer"
+	TransactionService_TransactionSummary_FullMethodName = "/yucai.transaction.v1.TransactionService/TransactionSummary"
 )
 
 // TransactionServiceClient is the client API for TransactionService service.
@@ -44,6 +45,10 @@ type TransactionServiceClient interface {
 	SimpleIncome(ctx context.Context, in *SimpleIncomeRequest, opts ...grpc.CallOption) (*TransactionResponse, error)
 	SimpleExpense(ctx context.Context, in *SimpleExpenseRequest, opts ...grpc.CallOption) (*TransactionResponse, error)
 	SimpleTransfer(ctx context.Context, in *SimpleTransferRequest, opts ...grpc.CallOption) (*TransactionResponse, error)
+	// TransactionSummary returns a tenant's monthly income/expense summary,
+	// optionally scoped to one account (account_detail view), broken down by
+	// day and by Income/Expense account (category).
+	TransactionSummary(ctx context.Context, in *TransactionSummaryRequest, opts ...grpc.CallOption) (*TransactionSummaryResponse, error)
 }
 
 type transactionServiceClient struct {
@@ -134,6 +139,16 @@ func (c *transactionServiceClient) SimpleTransfer(ctx context.Context, in *Simpl
 	return out, nil
 }
 
+func (c *transactionServiceClient) TransactionSummary(ctx context.Context, in *TransactionSummaryRequest, opts ...grpc.CallOption) (*TransactionSummaryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TransactionSummaryResponse)
+	err := c.cc.Invoke(ctx, TransactionService_TransactionSummary_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TransactionServiceServer is the server API for TransactionService service.
 // All implementations must embed UnimplementedTransactionServiceServer
 // for forward compatibility.
@@ -148,6 +163,10 @@ type TransactionServiceServer interface {
 	SimpleIncome(context.Context, *SimpleIncomeRequest) (*TransactionResponse, error)
 	SimpleExpense(context.Context, *SimpleExpenseRequest) (*TransactionResponse, error)
 	SimpleTransfer(context.Context, *SimpleTransferRequest) (*TransactionResponse, error)
+	// TransactionSummary returns a tenant's monthly income/expense summary,
+	// optionally scoped to one account (account_detail view), broken down by
+	// day and by Income/Expense account (category).
+	TransactionSummary(context.Context, *TransactionSummaryRequest) (*TransactionSummaryResponse, error)
 	mustEmbedUnimplementedTransactionServiceServer()
 }
 
@@ -181,6 +200,9 @@ func (UnimplementedTransactionServiceServer) SimpleExpense(context.Context, *Sim
 }
 func (UnimplementedTransactionServiceServer) SimpleTransfer(context.Context, *SimpleTransferRequest) (*TransactionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SimpleTransfer not implemented")
+}
+func (UnimplementedTransactionServiceServer) TransactionSummary(context.Context, *TransactionSummaryRequest) (*TransactionSummaryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method TransactionSummary not implemented")
 }
 func (UnimplementedTransactionServiceServer) mustEmbedUnimplementedTransactionServiceServer() {}
 func (UnimplementedTransactionServiceServer) testEmbeddedByValue()                            {}
@@ -347,6 +369,24 @@ func _TransactionService_SimpleTransfer_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TransactionService_TransactionSummary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TransactionSummaryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransactionServiceServer).TransactionSummary(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TransactionService_TransactionSummary_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransactionServiceServer).TransactionSummary(ctx, req.(*TransactionSummaryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // TransactionService_ServiceDesc is the grpc.ServiceDesc for TransactionService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -385,6 +425,10 @@ var TransactionService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SimpleTransfer",
 			Handler:    _TransactionService_SimpleTransfer_Handler,
+		},
+		{
+			MethodName: "TransactionSummary",
+			Handler:    _TransactionService_TransactionSummary_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

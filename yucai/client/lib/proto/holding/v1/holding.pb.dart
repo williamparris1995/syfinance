@@ -10,16 +10,14 @@
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
 // ignore_for_file: non_constant_identifier_names, prefer_relative_imports
 
-import 'dart:async' as $async;
 import 'dart:core' as $core;
 
 import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
-import 'package:protobuf/well_known_types/google/protobuf/empty.pb.dart' as $2;
 import 'package:protobuf/well_known_types/google/protobuf/timestamp.pb.dart'
-    as $0;
+    as $2;
 
-import '../../common/v1/pagination.pb.dart' as $1;
+import '../../common/v1/pagination.pb.dart' as $3;
 import 'holding.pbenum.dart';
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
@@ -35,7 +33,7 @@ class SecurityDTO extends $pb.GeneratedMessage {
     $core.String? exchange,
     $core.String? currencyCode,
     $fixnum.Int64? currentPriceCents,
-    $0.Timestamp? createdAt,
+    $2.Timestamp? createdAt,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -71,8 +69,8 @@ class SecurityDTO extends $pb.GeneratedMessage {
     ..aOS(5, _omitFieldNames ? '' : 'exchange')
     ..aOS(6, _omitFieldNames ? '' : 'currencyCode')
     ..aInt64(7, _omitFieldNames ? '' : 'currentPriceCents')
-    ..aOM<$0.Timestamp>(8, _omitFieldNames ? '' : 'createdAt',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(8, _omitFieldNames ? '' : 'createdAt',
+        subBuilder: $2.Timestamp.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -158,15 +156,15 @@ class SecurityDTO extends $pb.GeneratedMessage {
   void clearCurrentPriceCents() => $_clearField(7);
 
   @$pb.TagNumber(8)
-  $0.Timestamp get createdAt => $_getN(7);
+  $2.Timestamp get createdAt => $_getN(7);
   @$pb.TagNumber(8)
-  set createdAt($0.Timestamp value) => $_setField(8, value);
+  set createdAt($2.Timestamp value) => $_setField(8, value);
   @$pb.TagNumber(8)
   $core.bool hasCreatedAt() => $_has(7);
   @$pb.TagNumber(8)
   void clearCreatedAt() => $_clearField(8);
   @$pb.TagNumber(8)
-  $0.Timestamp ensureCreatedAt() => $_ensure(7);
+  $2.Timestamp ensureCreatedAt() => $_ensure(7);
 }
 
 class HoldingDTO extends $pb.GeneratedMessage {
@@ -344,7 +342,7 @@ class HoldingTransactionDTO extends $pb.GeneratedMessage {
     $fixnum.Int64? feeCents,
     $core.String? tradeDate,
     $core.String? notes,
-    $0.Timestamp? createdAt,
+    $2.Timestamp? createdAt,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -386,8 +384,8 @@ class HoldingTransactionDTO extends $pb.GeneratedMessage {
     ..aInt64(8, _omitFieldNames ? '' : 'feeCents')
     ..aOS(9, _omitFieldNames ? '' : 'tradeDate')
     ..aOS(10, _omitFieldNames ? '' : 'notes')
-    ..aOM<$0.Timestamp>(11, _omitFieldNames ? '' : 'createdAt',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(11, _omitFieldNames ? '' : 'createdAt',
+        subBuilder: $2.Timestamp.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -501,15 +499,15 @@ class HoldingTransactionDTO extends $pb.GeneratedMessage {
   void clearNotes() => $_clearField(10);
 
   @$pb.TagNumber(11)
-  $0.Timestamp get createdAt => $_getN(10);
+  $2.Timestamp get createdAt => $_getN(10);
   @$pb.TagNumber(11)
-  set createdAt($0.Timestamp value) => $_setField(11, value);
+  set createdAt($2.Timestamp value) => $_setField(11, value);
   @$pb.TagNumber(11)
   $core.bool hasCreatedAt() => $_has(10);
   @$pb.TagNumber(11)
   void clearCreatedAt() => $_clearField(11);
   @$pb.TagNumber(11)
-  $0.Timestamp ensureCreatedAt() => $_ensure(10);
+  $2.Timestamp ensureCreatedAt() => $_ensure(10);
 }
 
 class CreateSecurityRequest extends $pb.GeneratedMessage {
@@ -619,7 +617,7 @@ class CreateSecurityRequest extends $pb.GeneratedMessage {
 
 class ListSecuritiesRequest extends $pb.GeneratedMessage {
   factory ListSecuritiesRequest({
-    $1.PageRequest? page,
+    $3.PageRequest? page,
     SecurityType? securityType,
   }) {
     final result = create();
@@ -642,8 +640,8 @@ class ListSecuritiesRequest extends $pb.GeneratedMessage {
       package:
           const $pb.PackageName(_omitMessageNames ? '' : 'yucai.holding.v1'),
       createEmptyInstance: create)
-    ..aOM<$1.PageRequest>(1, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageRequest.create)
+    ..aOM<$3.PageRequest>(1, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageRequest.create)
     ..aE<SecurityType>(2, _omitFieldNames ? '' : 'securityType',
         enumValues: SecurityType.values)
     ..hasRequiredFields = false;
@@ -669,15 +667,15 @@ class ListSecuritiesRequest extends $pb.GeneratedMessage {
   static ListSecuritiesRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $1.PageRequest get page => $_getN(0);
+  $3.PageRequest get page => $_getN(0);
   @$pb.TagNumber(1)
-  set page($1.PageRequest value) => $_setField(1, value);
+  set page($3.PageRequest value) => $_setField(1, value);
   @$pb.TagNumber(1)
   $core.bool hasPage() => $_has(0);
   @$pb.TagNumber(1)
   void clearPage() => $_clearField(1);
   @$pb.TagNumber(1)
-  $1.PageRequest ensurePage() => $_ensure(0);
+  $3.PageRequest ensurePage() => $_ensure(0);
 
   @$pb.TagNumber(2)
   SecurityType get securityType => $_getN(1);
@@ -1185,7 +1183,7 @@ class RecordSplitRequest extends $pb.GeneratedMessage {
 class ListHoldingsRequest extends $pb.GeneratedMessage {
   factory ListHoldingsRequest({
     $core.String? accountId,
-    $1.PageRequest? page,
+    $3.PageRequest? page,
   }) {
     final result = create();
     if (accountId != null) result.accountId = accountId;
@@ -1208,8 +1206,8 @@ class ListHoldingsRequest extends $pb.GeneratedMessage {
           const $pb.PackageName(_omitMessageNames ? '' : 'yucai.holding.v1'),
       createEmptyInstance: create)
     ..aOS(1, _omitFieldNames ? '' : 'accountId')
-    ..aOM<$1.PageRequest>(2, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageRequest.create)
+    ..aOM<$3.PageRequest>(2, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageRequest.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1241,22 +1239,22 @@ class ListHoldingsRequest extends $pb.GeneratedMessage {
   void clearAccountId() => $_clearField(1);
 
   @$pb.TagNumber(2)
-  $1.PageRequest get page => $_getN(1);
+  $3.PageRequest get page => $_getN(1);
   @$pb.TagNumber(2)
-  set page($1.PageRequest value) => $_setField(2, value);
+  set page($3.PageRequest value) => $_setField(2, value);
   @$pb.TagNumber(2)
   $core.bool hasPage() => $_has(1);
   @$pb.TagNumber(2)
   void clearPage() => $_clearField(2);
   @$pb.TagNumber(2)
-  $1.PageRequest ensurePage() => $_ensure(1);
+  $3.PageRequest ensurePage() => $_ensure(1);
 }
 
 class ListTradesRequest extends $pb.GeneratedMessage {
   factory ListTradesRequest({
     $core.String? accountId,
     $core.String? securityId,
-    $1.PageRequest? page,
+    $3.PageRequest? page,
   }) {
     final result = create();
     if (accountId != null) result.accountId = accountId;
@@ -1281,8 +1279,8 @@ class ListTradesRequest extends $pb.GeneratedMessage {
       createEmptyInstance: create)
     ..aOS(1, _omitFieldNames ? '' : 'accountId')
     ..aOS(2, _omitFieldNames ? '' : 'securityId')
-    ..aOM<$1.PageRequest>(3, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageRequest.create)
+    ..aOM<$3.PageRequest>(3, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageRequest.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1323,15 +1321,15 @@ class ListTradesRequest extends $pb.GeneratedMessage {
   void clearSecurityId() => $_clearField(2);
 
   @$pb.TagNumber(3)
-  $1.PageRequest get page => $_getN(2);
+  $3.PageRequest get page => $_getN(2);
   @$pb.TagNumber(3)
-  set page($1.PageRequest value) => $_setField(3, value);
+  set page($3.PageRequest value) => $_setField(3, value);
   @$pb.TagNumber(3)
   $core.bool hasPage() => $_has(2);
   @$pb.TagNumber(3)
   void clearPage() => $_clearField(3);
   @$pb.TagNumber(3)
-  $1.PageRequest ensurePage() => $_ensure(2);
+  $3.PageRequest ensurePage() => $_ensure(2);
 }
 
 class SecurityResponse extends $pb.GeneratedMessage {
@@ -1395,7 +1393,7 @@ class SecurityResponse extends $pb.GeneratedMessage {
 class ListSecuritiesResponse extends $pb.GeneratedMessage {
   factory ListSecuritiesResponse({
     $core.Iterable<SecurityDTO>? securities,
-    $1.PageResponse? page,
+    $3.PageResponse? page,
   }) {
     final result = create();
     if (securities != null) result.securities.addAll(securities);
@@ -1419,8 +1417,8 @@ class ListSecuritiesResponse extends $pb.GeneratedMessage {
       createEmptyInstance: create)
     ..pPM<SecurityDTO>(1, _omitFieldNames ? '' : 'securities',
         subBuilder: SecurityDTO.create)
-    ..aOM<$1.PageResponse>(2, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageResponse.create)
+    ..aOM<$3.PageResponse>(2, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageResponse.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1447,15 +1445,15 @@ class ListSecuritiesResponse extends $pb.GeneratedMessage {
   $pb.PbList<SecurityDTO> get securities => $_getList(0);
 
   @$pb.TagNumber(2)
-  $1.PageResponse get page => $_getN(1);
+  $3.PageResponse get page => $_getN(1);
   @$pb.TagNumber(2)
-  set page($1.PageResponse value) => $_setField(2, value);
+  set page($3.PageResponse value) => $_setField(2, value);
   @$pb.TagNumber(2)
   $core.bool hasPage() => $_has(1);
   @$pb.TagNumber(2)
   void clearPage() => $_clearField(2);
   @$pb.TagNumber(2)
-  $1.PageResponse ensurePage() => $_ensure(1);
+  $3.PageResponse ensurePage() => $_ensure(1);
 }
 
 class SearchSecuritiesResponse extends $pb.GeneratedMessage {
@@ -1572,7 +1570,7 @@ class HoldingTransactionResponse extends $pb.GeneratedMessage {
 class ListHoldingsResponse extends $pb.GeneratedMessage {
   factory ListHoldingsResponse({
     $core.Iterable<HoldingDTO>? holdings,
-    $1.PageResponse? page,
+    $3.PageResponse? page,
   }) {
     final result = create();
     if (holdings != null) result.holdings.addAll(holdings);
@@ -1596,8 +1594,8 @@ class ListHoldingsResponse extends $pb.GeneratedMessage {
       createEmptyInstance: create)
     ..pPM<HoldingDTO>(1, _omitFieldNames ? '' : 'holdings',
         subBuilder: HoldingDTO.create)
-    ..aOM<$1.PageResponse>(2, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageResponse.create)
+    ..aOM<$3.PageResponse>(2, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageResponse.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1623,21 +1621,21 @@ class ListHoldingsResponse extends $pb.GeneratedMessage {
   $pb.PbList<HoldingDTO> get holdings => $_getList(0);
 
   @$pb.TagNumber(2)
-  $1.PageResponse get page => $_getN(1);
+  $3.PageResponse get page => $_getN(1);
   @$pb.TagNumber(2)
-  set page($1.PageResponse value) => $_setField(2, value);
+  set page($3.PageResponse value) => $_setField(2, value);
   @$pb.TagNumber(2)
   $core.bool hasPage() => $_has(1);
   @$pb.TagNumber(2)
   void clearPage() => $_clearField(2);
   @$pb.TagNumber(2)
-  $1.PageResponse ensurePage() => $_ensure(1);
+  $3.PageResponse ensurePage() => $_ensure(1);
 }
 
 class ListTradesResponse extends $pb.GeneratedMessage {
   factory ListTradesResponse({
     $core.Iterable<HoldingTransactionDTO>? trades,
-    $1.PageResponse? page,
+    $3.PageResponse? page,
   }) {
     final result = create();
     if (trades != null) result.trades.addAll(trades);
@@ -1661,8 +1659,8 @@ class ListTradesResponse extends $pb.GeneratedMessage {
       createEmptyInstance: create)
     ..pPM<HoldingTransactionDTO>(1, _omitFieldNames ? '' : 'trades',
         subBuilder: HoldingTransactionDTO.create)
-    ..aOM<$1.PageResponse>(2, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageResponse.create)
+    ..aOM<$3.PageResponse>(2, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageResponse.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1688,62 +1686,15 @@ class ListTradesResponse extends $pb.GeneratedMessage {
   $pb.PbList<HoldingTransactionDTO> get trades => $_getList(0);
 
   @$pb.TagNumber(2)
-  $1.PageResponse get page => $_getN(1);
+  $3.PageResponse get page => $_getN(1);
   @$pb.TagNumber(2)
-  set page($1.PageResponse value) => $_setField(2, value);
+  set page($3.PageResponse value) => $_setField(2, value);
   @$pb.TagNumber(2)
   $core.bool hasPage() => $_has(1);
   @$pb.TagNumber(2)
   void clearPage() => $_clearField(2);
   @$pb.TagNumber(2)
-  $1.PageResponse ensurePage() => $_ensure(1);
-}
-
-class HoldingServiceApi {
-  final $pb.RpcClient _client;
-
-  HoldingServiceApi(this._client);
-
-  $async.Future<SecurityResponse> createSecurity(
-          $pb.ClientContext? ctx, CreateSecurityRequest request) =>
-      _client.invoke<SecurityResponse>(
-          ctx, 'HoldingService', 'CreateSecurity', request, SecurityResponse());
-  $async.Future<ListSecuritiesResponse> listSecurities(
-          $pb.ClientContext? ctx, ListSecuritiesRequest request) =>
-      _client.invoke<ListSecuritiesResponse>(ctx, 'HoldingService',
-          'ListSecurities', request, ListSecuritiesResponse());
-  $async.Future<$2.Empty> updateSecurityPrice(
-          $pb.ClientContext? ctx, UpdatePriceRequest request) =>
-      _client.invoke<$2.Empty>(
-          ctx, 'HoldingService', 'UpdateSecurityPrice', request, $2.Empty());
-  $async.Future<SearchSecuritiesResponse> searchSecurities(
-          $pb.ClientContext? ctx, SearchSecuritiesRequest request) =>
-      _client.invoke<SearchSecuritiesResponse>(ctx, 'HoldingService',
-          'SearchSecurities', request, SearchSecuritiesResponse());
-  $async.Future<HoldingTransactionResponse> buyHolding(
-          $pb.ClientContext? ctx, HoldingTradeRequest request) =>
-      _client.invoke<HoldingTransactionResponse>(ctx, 'HoldingService',
-          'BuyHolding', request, HoldingTransactionResponse());
-  $async.Future<HoldingTransactionResponse> sellHolding(
-          $pb.ClientContext? ctx, HoldingTradeRequest request) =>
-      _client.invoke<HoldingTransactionResponse>(ctx, 'HoldingService',
-          'SellHolding', request, HoldingTransactionResponse());
-  $async.Future<HoldingTransactionResponse> recordDividend(
-          $pb.ClientContext? ctx, RecordDividendRequest request) =>
-      _client.invoke<HoldingTransactionResponse>(ctx, 'HoldingService',
-          'RecordDividend', request, HoldingTransactionResponse());
-  $async.Future<HoldingTransactionResponse> recordSplit(
-          $pb.ClientContext? ctx, RecordSplitRequest request) =>
-      _client.invoke<HoldingTransactionResponse>(ctx, 'HoldingService',
-          'RecordSplit', request, HoldingTransactionResponse());
-  $async.Future<ListHoldingsResponse> listHoldings(
-          $pb.ClientContext? ctx, ListHoldingsRequest request) =>
-      _client.invoke<ListHoldingsResponse>(ctx, 'HoldingService',
-          'ListHoldings', request, ListHoldingsResponse());
-  $async.Future<ListTradesResponse> listHoldingTransactions(
-          $pb.ClientContext? ctx, ListTradesRequest request) =>
-      _client.invoke<ListTradesResponse>(ctx, 'HoldingService',
-          'ListHoldingTransactions', request, ListTradesResponse());
+  $3.PageResponse ensurePage() => $_ensure(1);
 }
 
 const $core.bool _omitFieldNames =

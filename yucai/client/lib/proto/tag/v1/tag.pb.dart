@@ -10,16 +10,14 @@
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
 // ignore_for_file: non_constant_identifier_names, prefer_relative_imports
 
-import 'dart:async' as $async;
 import 'dart:core' as $core;
 
 import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
-import 'package:protobuf/well_known_types/google/protobuf/empty.pb.dart' as $2;
 import 'package:protobuf/well_known_types/google/protobuf/timestamp.pb.dart'
-    as $0;
+    as $2;
 
-import '../../common/v1/pagination.pb.dart' as $1;
+import '../../common/v1/pagination.pb.dart' as $3;
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
 
@@ -29,8 +27,8 @@ class TagDTO extends $pb.GeneratedMessage {
     $core.String? name,
     $core.String? color,
     $fixnum.Int64? version,
-    $0.Timestamp? createdAt,
-    $0.Timestamp? updatedAt,
+    $2.Timestamp? createdAt,
+    $2.Timestamp? updatedAt,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -59,10 +57,10 @@ class TagDTO extends $pb.GeneratedMessage {
     ..aOS(2, _omitFieldNames ? '' : 'name')
     ..aOS(3, _omitFieldNames ? '' : 'color')
     ..aInt64(4, _omitFieldNames ? '' : 'version')
-    ..aOM<$0.Timestamp>(5, _omitFieldNames ? '' : 'createdAt',
-        subBuilder: $0.Timestamp.create)
-    ..aOM<$0.Timestamp>(6, _omitFieldNames ? '' : 'updatedAt',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(5, _omitFieldNames ? '' : 'createdAt',
+        subBuilder: $2.Timestamp.create)
+    ..aOM<$2.Timestamp>(6, _omitFieldNames ? '' : 'updatedAt',
+        subBuilder: $2.Timestamp.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -120,26 +118,26 @@ class TagDTO extends $pb.GeneratedMessage {
   void clearVersion() => $_clearField(4);
 
   @$pb.TagNumber(5)
-  $0.Timestamp get createdAt => $_getN(4);
+  $2.Timestamp get createdAt => $_getN(4);
   @$pb.TagNumber(5)
-  set createdAt($0.Timestamp value) => $_setField(5, value);
+  set createdAt($2.Timestamp value) => $_setField(5, value);
   @$pb.TagNumber(5)
   $core.bool hasCreatedAt() => $_has(4);
   @$pb.TagNumber(5)
   void clearCreatedAt() => $_clearField(5);
   @$pb.TagNumber(5)
-  $0.Timestamp ensureCreatedAt() => $_ensure(4);
+  $2.Timestamp ensureCreatedAt() => $_ensure(4);
 
   @$pb.TagNumber(6)
-  $0.Timestamp get updatedAt => $_getN(5);
+  $2.Timestamp get updatedAt => $_getN(5);
   @$pb.TagNumber(6)
-  set updatedAt($0.Timestamp value) => $_setField(6, value);
+  set updatedAt($2.Timestamp value) => $_setField(6, value);
   @$pb.TagNumber(6)
   $core.bool hasUpdatedAt() => $_has(5);
   @$pb.TagNumber(6)
   void clearUpdatedAt() => $_clearField(6);
   @$pb.TagNumber(6)
-  $0.Timestamp ensureUpdatedAt() => $_ensure(5);
+  $2.Timestamp ensureUpdatedAt() => $_ensure(5);
 }
 
 class CreateTagRequest extends $pb.GeneratedMessage {
@@ -354,7 +352,7 @@ class DeleteTagRequest extends $pb.GeneratedMessage {
 
 class ListTagsRequest extends $pb.GeneratedMessage {
   factory ListTagsRequest({
-    $1.PageRequest? page,
+    $3.PageRequest? page,
     $core.String? search,
   }) {
     final result = create();
@@ -376,8 +374,8 @@ class ListTagsRequest extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'ListTagsRequest',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.tag.v1'),
       createEmptyInstance: create)
-    ..aOM<$1.PageRequest>(1, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageRequest.create)
+    ..aOM<$3.PageRequest>(1, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageRequest.create)
     ..aOS(2, _omitFieldNames ? '' : 'search')
     ..hasRequiredFields = false;
 
@@ -401,15 +399,15 @@ class ListTagsRequest extends $pb.GeneratedMessage {
   static ListTagsRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $1.PageRequest get page => $_getN(0);
+  $3.PageRequest get page => $_getN(0);
   @$pb.TagNumber(1)
-  set page($1.PageRequest value) => $_setField(1, value);
+  set page($3.PageRequest value) => $_setField(1, value);
   @$pb.TagNumber(1)
   $core.bool hasPage() => $_has(0);
   @$pb.TagNumber(1)
   void clearPage() => $_clearField(1);
   @$pb.TagNumber(1)
-  $1.PageRequest ensurePage() => $_ensure(0);
+  $3.PageRequest ensurePage() => $_ensure(0);
 
   @$pb.TagNumber(2)
   $core.String get search => $_getSZ(1);
@@ -424,7 +422,7 @@ class ListTagsRequest extends $pb.GeneratedMessage {
 class ListTagsResponse extends $pb.GeneratedMessage {
   factory ListTagsResponse({
     $core.Iterable<TagDTO>? tags,
-    $1.PageResponse? page,
+    $3.PageResponse? page,
   }) {
     final result = create();
     if (tags != null) result.tags.addAll(tags);
@@ -446,8 +444,8 @@ class ListTagsResponse extends $pb.GeneratedMessage {
       package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.tag.v1'),
       createEmptyInstance: create)
     ..pPM<TagDTO>(1, _omitFieldNames ? '' : 'tags', subBuilder: TagDTO.create)
-    ..aOM<$1.PageResponse>(2, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageResponse.create)
+    ..aOM<$3.PageResponse>(2, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageResponse.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -473,15 +471,15 @@ class ListTagsResponse extends $pb.GeneratedMessage {
   $pb.PbList<TagDTO> get tags => $_getList(0);
 
   @$pb.TagNumber(2)
-  $1.PageResponse get page => $_getN(1);
+  $3.PageResponse get page => $_getN(1);
   @$pb.TagNumber(2)
-  set page($1.PageResponse value) => $_setField(2, value);
+  set page($3.PageResponse value) => $_setField(2, value);
   @$pb.TagNumber(2)
   $core.bool hasPage() => $_has(1);
   @$pb.TagNumber(2)
   void clearPage() => $_clearField(2);
   @$pb.TagNumber(2)
-  $1.PageResponse ensurePage() => $_ensure(1);
+  $3.PageResponse ensurePage() => $_ensure(1);
 }
 
 class TagTransactionRequest extends $pb.GeneratedMessage {
@@ -660,41 +658,6 @@ class TagResponse extends $pb.GeneratedMessage {
   void clearTag() => $_clearField(1);
   @$pb.TagNumber(1)
   TagDTO ensureTag() => $_ensure(0);
-}
-
-class TagServiceApi {
-  final $pb.RpcClient _client;
-
-  TagServiceApi(this._client);
-
-  $async.Future<TagResponse> createTag(
-          $pb.ClientContext? ctx, CreateTagRequest request) =>
-      _client.invoke<TagResponse>(
-          ctx, 'TagService', 'CreateTag', request, TagResponse());
-  $async.Future<TagResponse> updateTag(
-          $pb.ClientContext? ctx, UpdateTagRequest request) =>
-      _client.invoke<TagResponse>(
-          ctx, 'TagService', 'UpdateTag', request, TagResponse());
-  $async.Future<$2.Empty> deleteTag(
-          $pb.ClientContext? ctx, DeleteTagRequest request) =>
-      _client.invoke<$2.Empty>(
-          ctx, 'TagService', 'DeleteTag', request, $2.Empty());
-  $async.Future<ListTagsResponse> listTags(
-          $pb.ClientContext? ctx, ListTagsRequest request) =>
-      _client.invoke<ListTagsResponse>(
-          ctx, 'TagService', 'ListTags', request, ListTagsResponse());
-  $async.Future<$2.Empty> addTagToTransaction(
-          $pb.ClientContext? ctx, TagTransactionRequest request) =>
-      _client.invoke<$2.Empty>(
-          ctx, 'TagService', 'AddTagToTransaction', request, $2.Empty());
-  $async.Future<$2.Empty> removeTagFromTransaction(
-          $pb.ClientContext? ctx, TagTransactionRequest request) =>
-      _client.invoke<$2.Empty>(
-          ctx, 'TagService', 'RemoveTagFromTransaction', request, $2.Empty());
-  $async.Future<ListTagsResponse> getTransactionTags(
-          $pb.ClientContext? ctx, GetTransactionTagsRequest request) =>
-      _client.invoke<ListTagsResponse>(
-          ctx, 'TagService', 'GetTransactionTags', request, ListTagsResponse());
 }
 
 const $core.bool _omitFieldNames =

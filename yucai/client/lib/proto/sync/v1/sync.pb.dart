@@ -10,16 +10,14 @@
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
 // ignore_for_file: non_constant_identifier_names, prefer_relative_imports
 
-import 'dart:async' as $async;
 import 'dart:core' as $core;
 
 import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
-import 'package:protobuf/well_known_types/google/protobuf/empty.pb.dart' as $2;
 import 'package:protobuf/well_known_types/google/protobuf/timestamp.pb.dart'
-    as $0;
+    as $2;
 
-import '../../common/v1/pagination.pb.dart' as $1;
+import '../../common/v1/pagination.pb.dart' as $3;
 import 'sync.pbenum.dart';
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
@@ -306,7 +304,7 @@ class SyncStatusResponse extends $pb.GeneratedMessage {
   factory SyncStatusResponse({
     $core.String? deviceId,
     $fixnum.Int64? lastSyncVersion,
-    $0.Timestamp? lastSyncAt,
+    $2.Timestamp? lastSyncAt,
     $core.int? pendingConflicts,
   }) {
     final result = create();
@@ -332,8 +330,8 @@ class SyncStatusResponse extends $pb.GeneratedMessage {
       createEmptyInstance: create)
     ..aOS(1, _omitFieldNames ? '' : 'deviceId')
     ..aInt64(2, _omitFieldNames ? '' : 'lastSyncVersion')
-    ..aOM<$0.Timestamp>(3, _omitFieldNames ? '' : 'lastSyncAt',
-        subBuilder: $0.Timestamp.create)
+    ..aOM<$2.Timestamp>(3, _omitFieldNames ? '' : 'lastSyncAt',
+        subBuilder: $2.Timestamp.create)
     ..aI(4, _omitFieldNames ? '' : 'pendingConflicts')
     ..hasRequiredFields = false;
 
@@ -375,15 +373,15 @@ class SyncStatusResponse extends $pb.GeneratedMessage {
   void clearLastSyncVersion() => $_clearField(2);
 
   @$pb.TagNumber(3)
-  $0.Timestamp get lastSyncAt => $_getN(2);
+  $2.Timestamp get lastSyncAt => $_getN(2);
   @$pb.TagNumber(3)
-  set lastSyncAt($0.Timestamp value) => $_setField(3, value);
+  set lastSyncAt($2.Timestamp value) => $_setField(3, value);
   @$pb.TagNumber(3)
   $core.bool hasLastSyncAt() => $_has(2);
   @$pb.TagNumber(3)
   void clearLastSyncAt() => $_clearField(3);
   @$pb.TagNumber(3)
-  $0.Timestamp ensureLastSyncAt() => $_ensure(2);
+  $2.Timestamp ensureLastSyncAt() => $_ensure(2);
 
   @$pb.TagNumber(4)
   $core.int get pendingConflicts => $_getIZ(3);
@@ -848,7 +846,7 @@ class ResolveConflictRequest extends $pb.GeneratedMessage {
 
 class ListConflictsRequest extends $pb.GeneratedMessage {
   factory ListConflictsRequest({
-    $1.PageRequest? page,
+    $3.PageRequest? page,
   }) {
     final result = create();
     if (page != null) result.page = page;
@@ -868,8 +866,8 @@ class ListConflictsRequest extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'ListConflictsRequest',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.sync.v1'),
       createEmptyInstance: create)
-    ..aOM<$1.PageRequest>(1, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageRequest.create)
+    ..aOM<$3.PageRequest>(1, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageRequest.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -892,21 +890,21 @@ class ListConflictsRequest extends $pb.GeneratedMessage {
   static ListConflictsRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $1.PageRequest get page => $_getN(0);
+  $3.PageRequest get page => $_getN(0);
   @$pb.TagNumber(1)
-  set page($1.PageRequest value) => $_setField(1, value);
+  set page($3.PageRequest value) => $_setField(1, value);
   @$pb.TagNumber(1)
   $core.bool hasPage() => $_has(0);
   @$pb.TagNumber(1)
   void clearPage() => $_clearField(1);
   @$pb.TagNumber(1)
-  $1.PageRequest ensurePage() => $_ensure(0);
+  $3.PageRequest ensurePage() => $_ensure(0);
 }
 
 class ListConflictsResponse extends $pb.GeneratedMessage {
   factory ListConflictsResponse({
     $core.Iterable<ConflictDTO>? conflicts,
-    $1.PageResponse? page,
+    $3.PageResponse? page,
   }) {
     final result = create();
     if (conflicts != null) result.conflicts.addAll(conflicts);
@@ -929,8 +927,8 @@ class ListConflictsResponse extends $pb.GeneratedMessage {
       createEmptyInstance: create)
     ..pPM<ConflictDTO>(1, _omitFieldNames ? '' : 'conflicts',
         subBuilder: ConflictDTO.create)
-    ..aOM<$1.PageResponse>(2, _omitFieldNames ? '' : 'page',
-        subBuilder: $1.PageResponse.create)
+    ..aOM<$3.PageResponse>(2, _omitFieldNames ? '' : 'page',
+        subBuilder: $3.PageResponse.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -957,51 +955,15 @@ class ListConflictsResponse extends $pb.GeneratedMessage {
   $pb.PbList<ConflictDTO> get conflicts => $_getList(0);
 
   @$pb.TagNumber(2)
-  $1.PageResponse get page => $_getN(1);
+  $3.PageResponse get page => $_getN(1);
   @$pb.TagNumber(2)
-  set page($1.PageResponse value) => $_setField(2, value);
+  set page($3.PageResponse value) => $_setField(2, value);
   @$pb.TagNumber(2)
   $core.bool hasPage() => $_has(1);
   @$pb.TagNumber(2)
   void clearPage() => $_clearField(2);
   @$pb.TagNumber(2)
-  $1.PageResponse ensurePage() => $_ensure(1);
-}
-
-class SyncServiceApi {
-  final $pb.RpcClient _client;
-
-  SyncServiceApi(this._client);
-
-  /// Device registration + status
-  $async.Future<RegisterDeviceResponse> registerDevice(
-          $pb.ClientContext? ctx, RegisterDeviceRequest request) =>
-      _client.invoke<RegisterDeviceResponse>(ctx, 'SyncService',
-          'RegisterDevice', request, RegisterDeviceResponse());
-  $async.Future<SyncStatusResponse> getSyncStatus(
-          $pb.ClientContext? ctx, GetSyncStatusRequest request) =>
-      _client.invoke<SyncStatusResponse>(
-          ctx, 'SyncService', 'GetSyncStatus', request, SyncStatusResponse());
-
-  /// Push/pull per entity batch
-  $async.Future<PushResponse> pushChanges(
-          $pb.ClientContext? ctx, PushChangesRequest request) =>
-      _client.invoke<PushResponse>(
-          ctx, 'SyncService', 'PushChanges', request, PushResponse());
-  $async.Future<PullChangesResponse> pullChanges(
-          $pb.ClientContext? ctx, PullChangesRequest request) =>
-      _client.invoke<PullChangesResponse>(
-          ctx, 'SyncService', 'PullChanges', request, PullChangesResponse());
-
-  /// Conflict resolution
-  $async.Future<$2.Empty> resolveConflict(
-          $pb.ClientContext? ctx, ResolveConflictRequest request) =>
-      _client.invoke<$2.Empty>(
-          ctx, 'SyncService', 'ResolveConflict', request, $2.Empty());
-  $async.Future<ListConflictsResponse> listConflicts(
-          $pb.ClientContext? ctx, ListConflictsRequest request) =>
-      _client.invoke<ListConflictsResponse>(ctx, 'SyncService', 'ListConflicts',
-          request, ListConflictsResponse());
+  $3.PageResponse ensurePage() => $_ensure(1);
 }
 
 const $core.bool _omitFieldNames =
