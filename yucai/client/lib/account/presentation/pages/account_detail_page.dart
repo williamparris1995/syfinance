@@ -443,7 +443,11 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
             ),
             // hero-pick（右上角）：已绑定实名 · 银行直连（对齐 OD .hero-pick）。
             // Positioned 在 Column 之上但不挡 Column（Column 左上起，pill 右上角）。
-            Positioned(top: 0, right: 0, child: _heroPick()),
+            // Final-review #4：仅银行类账户（储蓄/信用卡/定期/贷款）+ institution 非空
+            // 才显示「银行直连」pill —— 对 goldFx/realEstate/otherAsset/investment 等非银
+            // 行账户该文案误导，隐藏。
+            if (_isBankLinked(a))
+              Positioned(top: 0, right: 0, child: _heroPick()),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -533,6 +537,20 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         ),
       ),
     );
+  }
+
+  /// Final-review #4：是否显示「已绑定实名 · 银行直连」pill。仅银行类账户
+  /// （savings/creditCard/fixedDeposit/loan）且 institution 非空 —— 模拟「银行直连」
+  /// 的真实语义。goldFx/realEstate/otherAsset/otherLiability/investment 等非银行账户
+  /// （现金/黄金/房产/手工）该文案误导，隐藏。
+  bool _isBankLinked(Account a) {
+    const bankCategories = {
+      AccountCategory.savings,
+      AccountCategory.creditCard,
+      AccountCategory.fixedDeposit,
+      AccountCategory.loan,
+    };
+    return bankCategories.contains(a.category) && a.institution.isNotEmpty;
   }
 
   /// hero-pick：右上角 pill「已绑定实名 · 银行直连」（对齐 OD .hero-pick）。

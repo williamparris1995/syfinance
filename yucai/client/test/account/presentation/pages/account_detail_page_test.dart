@@ -1334,4 +1334,66 @@ void main() {
         reason: 'transfer 应显示 creditCard icon');
     expect(find.byIcon(LucideIcons.arrowLeftRight), findsNothing);
   });
+
+  // ───── Final-review #4: hero-pick「已绑定实名 · 银行直连」gate ─────
+  //
+  // The 「已绑定实名 · 银行直连」pill must only show for bank-like accounts
+  // (savings/creditCard/fixedDeposit/loan) WITH a non-empty institution. For
+  // non-bank categories (goldFx/realEstate/otherAsset/investment) or bank
+  // categories with no institution (cash/manual accounts) the copy is
+  // misleading and must be hidden.
+
+  testWidgets(
+      'Final-review #4: hero-pick「银行直连」hidden for non-bank category '
+      '(goldFx)', (tester) async {
+    await pumpPage(
+      tester,
+      account: _account(
+        name: '黄金账户',
+        category: AccountCategory.goldFx,
+      ).copyWith(institution: '某金店'),
+    );
+    expect(find.text('已绑定实名 · 银行直连'), findsNothing,
+        reason: 'goldFx is not bank-linked; pill must be hidden');
+  });
+
+  testWidgets(
+      'Final-review #4: hero-pick「银行直连」hidden for otherAsset '
+      '(cash/manual)', (tester) async {
+    await pumpPage(
+      tester,
+      account: _account(
+        name: '现金',
+        category: AccountCategory.otherAsset,
+      ),
+    );
+    expect(find.text('已绑定实名 · 银行直连'), findsNothing);
+  });
+
+  testWidgets(
+      'Final-review #4: hero-pick「银行直连」hidden for bank category '
+      'with EMPTY institution (manual account)', (tester) async {
+    await pumpPage(
+      tester,
+      account: _account(
+        name: '手工储蓄',
+        category: AccountCategory.savings,
+      ), // institution defaults to ''
+    );
+    expect(find.text('已绑定实名 · 银行直连'), findsNothing,
+        reason: 'bank category but no institution → no 银行直连');
+  });
+
+  testWidgets(
+      'Final-review #4: hero-pick「银行直连」SHOWN for savings + '
+      'institution', (tester) async {
+    await pumpPage(
+      tester,
+      account: _account(
+        name: '招行储蓄',
+        category: AccountCategory.savings,
+      ).copyWith(institution: '招商银行'),
+    );
+    expect(find.text('已绑定实名 · 银行直连'), findsOneWidget);
+  });
 }
