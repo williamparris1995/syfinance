@@ -1346,32 +1346,34 @@ class _AccountCardState extends State<_AccountCard> {
                 ),
               ),
               const SizedBox(width: 8), // .cv padding-left:8
-              // 对齐 OD 原型 .cv{text-align:right;flex-shrink:0}：不用 Flexible
-              //（flex:1 loose 会把 val 推到分配空间左侧、不靠 Row 最右），裸 Column
-              // 自然宽度，由左侧 Expanded 推到行末，crossAxisAlignment.end 右对齐。
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  // .cvlabel 11.5 muted
-                  Text(label,
+              // Flexible(loose)：窄卡时把 val 限制在分配宽度内（cval ellipsis），
+              // 避免裸 Column 溢出；由左侧 Expanded 推到行末，crossAxisAlignment.end
+              // 让 cvlabel/cval 在 val 列内靠右（行末）。
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    // .cvlabel 11.5 muted
+                    Text(label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: AppColors.muted, fontSize: 11.5)),
+                    const SizedBox(height: 2), // .cval margin-top:2
+                    // .cval 21 mono w600 tabular
+                    Text(
+                      val,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          color: AppColors.muted, fontSize: 11.5)),
-                  const SizedBox(height: 2), // .cval margin-top:2
-                  // .cval 21 mono w600 tabular
-                  Text(
-                    val,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 21,
-                      fontWeight: FontWeight.w600,
-                      color: negative ? AppColors.negative : AppColors.fg,
-                      fontFeatures: AppTypography.tabularFigures,
+                      style: TextStyle(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w600,
+                        color: negative ? AppColors.negative : AppColors.fg,
+                        fontFeatures: AppTypography.tabularFigures,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
