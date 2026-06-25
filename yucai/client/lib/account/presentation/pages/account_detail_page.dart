@@ -234,19 +234,34 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
     final summary = txnState is TransactionsLoaded
         ? txnState.summary
         : (txnState is TransactionsLoadingMore ? txnState.summary : null);
+    // 三端响应式断点（对齐 OD @media 900/720）。
+    final w = MediaQuery.of(context).size.width;
+    final isTablet = w <= 900; // ≤900 tablet（含 mobile）
+    final isMobile = w <= 720; // ≤720 mobile
     return ListView(
-        // OD .content padding 24 36 70（top/bottom 24，左右 36，底部 70）。
-        // 保留底部 70 给 FAB/导航留白；section 间距对齐原型 stat-row margin 18。
-        padding: const EdgeInsets.fromLTRB(36, 24, 36, 70),
-        children: [
-          _hero(a, summary?.netCents ?? 0),
-          const SizedBox(height: 18),
-          _statsRow(a, txns, summary),
-          const SizedBox(height: 18),
-          // 双栏：左近期交易（flex 3）/ 右收支统计饼图（flex 2）。
-          // 对齐 OD .cols 1.5fr:1fr 比例 + gap 16px。原右栏的 _quickActions 已移除——
-          // 操作集中在 AppBar（编辑/记一笔/转账/更多菜单），避免重复。
+      // OD .content padding 24/36/70（top/bottom 24,左右 36,底部 70）；
+      // ≤720 缩到 16/14/60。
+      padding: isMobile
+          ? const EdgeInsets.fromLTRB(16, 14, 16, 60)
+          : const EdgeInsets.fromLTRB(36, 24, 36, 70),
+      children: [
+        _hero(a, summary?.netCents ?? 0),
+        const SizedBox(height: 18),
+        _statsRow(a, txns, summary),
+        const SizedBox(height: 18),
+        // OD .cols：>900 双栏（交易 1.5fr + 饼图 1fr）/ ≤900 堆叠单列。
+        if (isTablet)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _recentTxnPanel(txns, a.currencyCode),
+              const SizedBox(height: 16),
+              _summaryPanel(summary, a.currencyCode),
+            ],
+          )
+        else
           Row(
+            key: const ValueKey('detailBodyRow'),
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(flex: 3, child: _recentTxnPanel(txns, a.currencyCode)),
@@ -254,17 +269,17 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
               Expanded(flex: 2, child: _summaryPanel(summary, a.currencyCode)),
             ],
           ),
-          const SizedBox(height: 18),
-          _infoCard(a),
-          const SizedBox(height: AppSpacing.lg),
-          if (a.category == AccountCategory.investment)
-            _panel('持仓列表', '待 Holding 模块接入')
-          else if (a.category == AccountCategory.loan)
-            _panel('还款计划', '待 payment_schedule 模块接入')
-          else
-            const SizedBox.shrink(),
-        ],
-      );
+        const SizedBox(height: 18),
+        _infoCard(a),
+        const SizedBox(height: AppSpacing.lg),
+        if (a.category == AccountCategory.investment)
+          _panel('持仓列表', '待 Holding 模块接入')
+        else if (a.category == AccountCategory.loan)
+          _panel('还款计划', '待 payment_schedule 模块接入')
+        else
+          const SizedBox.shrink(),
+      ],
+    );
   }
 
   /// 账户信息卡：独立 3 列字段表（对齐 OD .info-card / .info-grid）。

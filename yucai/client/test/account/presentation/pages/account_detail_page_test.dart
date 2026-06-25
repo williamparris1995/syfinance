@@ -819,6 +819,13 @@ void main() {
 
   testWidgets('tapping 年 → emits LoadSummaryRequested(scope: year)',
       (tester) async {
+    // Task 1 响应式：默认 800x600 落入 tablet(≤900) 走 Column 堆叠，segmented
+    // control tap 位置漂移 → pin desktop viewport 让其走 Row 分支（本测试设计
+    // 基于双栏布局，收支统计 panel 在右侧）。
+    tester.view.physicalSize = const Size(1200, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await pumpPage(tester);
 
     // 滚到收支统计 panel（segmented control 在 panel-head 右侧）。
@@ -841,6 +848,12 @@ void main() {
 
   testWidgets('tapping 日 → emits LoadSummaryRequested(scope: day, day: today)',
       (tester) async {
+    // Task 1 响应式：pin desktop viewport（同 tapping 年，避免 tablet 堆叠导致
+    // segmented control tap 漂移）。
+    tester.view.physicalSize = const Size(1200, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await pumpPage(tester);
 
     await tester.scrollUntilVisible(
@@ -886,6 +899,13 @@ void main() {
   testWidgets(
       'scope=year → savings stats show 本年收入/本年支出/本年净流入/本年交易 '
       '+ hero sub 本年收支', (tester) async {
+    // Task 1 响应式：pin desktop viewport —— 本测试断言「滚回顶部后 stat 4 卡
+    // 仍挂载」，仅在双栏 Row 布局（stat 卡在顶部、收支统计在右侧）下成立。
+    // tablet Column 堆叠下 stat 卡易滑出 cacheExtent，故固定 desktop 视口。
+    tester.view.physicalSize = const Size(1200, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await pumpPage(tester);
 
     // 滚到收支统计 panel 让 segmented control 可见。
@@ -927,6 +947,12 @@ void main() {
   testWidgets(
       'scope=day → savings stats show 本日收入/本日支出/本日净流入/本日交易 '
       '+ hero sub 本日收支', (tester) async {
+    // Task 1 响应式：pin desktop viewport（同 scope=year 测试，stat 卡在双栏
+    // 顶部布局下才能在滚回顶部后重新挂载）。
+    tester.view.physicalSize = const Size(1200, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await pumpPage(tester);
 
     await tester.scrollUntilVisible(
@@ -991,6 +1017,12 @@ void main() {
         _txn('earlierThisMonth', today.subtract(const Duration(days: 5))),
         _txn('lastMonth', today.subtract(const Duration(days: 40))),
       ];
+      // Task 1 响应式：pin desktop viewport —— 本测试断言「切 scope 后滚回顶部
+      // stat 4 卡重新挂载」，仅在双栏 Row 布局下成立。
+      tester.view.physicalSize = const Size(1200, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       await pumpPage(tester, transactions: txns);
 
       // Switch to DAY scope.
@@ -1027,6 +1059,11 @@ void main() {
         // A txn from last year must be excluded under YEAR scope.
         _txn('lastYear', DateTime(now.year - 1, 6, 15)),
       ];
+      // Task 1 响应式：pin desktop viewport（同 Issue② scope=day）。
+      tester.view.physicalSize = const Size(1200, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       await pumpPage(tester, transactions: txns);
 
       await tester.scrollUntilVisible(
@@ -1419,5 +1456,44 @@ void main() {
     expect(bal.data, '\$ 1000.00',
         reason: 'USD 账户 Hero 余额应显示原货币符号 \$ 而非 ¥（_fmt 无千分位）');
     expect(find.text('¥ 1,000.00'), findsNothing);
+  });
+
+  // ───── Responsive (Task 1): _body 双栏堆叠 + mobile padding ─────
+
+  testWidgets('tablet 800: body 双栏堆叠成单列(交易在上 饼图在下)', (t) async {
+    t.view.physicalSize = const Size(800, 1400);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    addTearDown(t.view.resetDevicePixelRatio);
+    await pumpPage(t);
+    await t.pumpAndSettle();
+    // 近期交易 panel 与 收支统计 panel 在同一 Column(垂直堆叠)。
+    // 注：原 brief 用 SingleChildScrollView 断言 statsPanel，但页面外层是
+    // ListView 而非 SingleChildScrollView，且 _summaryPanel 包在 DataCard 内
+    // 无独立 SingleChildScrollView —— 改用 Column 祖先断言（与近期交易一致）证明堆叠。
+    final statsPanel = find.ancestor(
+        of: find.text('收支统计'), matching: find.byType(Column));
+    expect(
+        find.ancestor(of: find.text('近期交易'), matching: find.byType(Column)),
+        findsWidgets,
+        reason: 'tablet 应堆叠:近期交易在 Column 内');
+    expect(statsPanel, findsWidgets,
+        reason: 'tablet 应堆叠:收支统计在 Column 内');
+  });
+
+  testWidgets('desktop 1200: body 保持双栏 Row', (t) async {
+    t.view.physicalSize = const Size(1200, 1400);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    addTearDown(t.view.resetDevicePixelRatio);
+    await pumpPage(t);
+    await t.pumpAndSettle();
+    // desktop:近期交易在 Row(flex:3)内 —— 找到它祖先有 Row(非 Column 堆叠)
+    expect(
+        find.ancestor(
+            of: find.text('近期交易'),
+            matching: find.byKey(const ValueKey('detailBodyRow'))),
+        findsOneWidget,
+        reason: 'desktop 应双栏:近期交易在 detailBodyRow 内');
   });
 }
