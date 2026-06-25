@@ -842,8 +842,10 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
       crossAxisCount: isTablet ? 2 : 4,
       mainAxisSpacing: 14,
       crossAxisSpacing: 14,
-      // DataCard 高约 96（label+val+sub+tag），宽约 170（desktop）/ 360（tablet 2 列）。
-      childAspectRatio: isTablet ? 3.0 : 1.6,
+      // 固定卡高(mainAxisExtent):内容 = label Row(24) + 6 + val(24) + 4 + tag(16)
+      // + DataCard padding(30) ≈ 104,留余量 116。原 childAspectRatio(isTablet?3.0:1.6)
+      // 在窄屏算出卡高 55-79 < 内容 104,导致 stat 文本竖向溢出卡高度。
+      mainAxisExtent: 116,
       children: [
         for (var i = 0; i < stats.length; i++)
           DataCard(
