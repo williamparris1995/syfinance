@@ -410,6 +410,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
       };
 
   Widget _hero(Account a, int netCents) {
+    final isMobile = MediaQuery.of(context).size.width <= 720;
     final isLiability = a.accountType == AccountType.liability;
     final netPositive = netCents >= 0;
     // hero-org: 机构 · 人民币 币种 · 卡号 **** 尾号（对齐 OD .hero-org）。
@@ -518,11 +519,12 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                // 余额 40px 白字 serif display。
+                // 余额 mobile 32px / desktop 40px 白字 serif display。
                 Text(
+                  key: const ValueKey('heroBalance'),
                   _fmt(a.currentBalanceCents, a.currencyCode),
-                  style: const TextStyle(
-                    fontSize: 40,
+                  style: TextStyle(
+                    fontSize: isMobile ? 32 : 40,
                     fontWeight: FontWeight.w600,
                     letterSpacing: -0.5,
                     color: Colors.white,

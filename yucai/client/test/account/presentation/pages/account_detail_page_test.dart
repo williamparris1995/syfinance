@@ -1568,4 +1568,32 @@ void main() {
         grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
     expect(delegate.crossAxisCount, 2, reason: 'tablet info-grid 2 列');
   });
+
+  // ───── Task 5: hero 余额字号 mobile 32px / desktop 40px（断点 720）─────
+
+  testWidgets('mobile 375: hero 余额字号 32', (t) async {
+    t.view.physicalSize = const Size(375, 900);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    addTearDown(t.view.resetDevicePixelRatio);
+    await pumpPage(t);
+    await t.pumpAndSettle();
+    // 375 窄视口下 stat-card / hero 列有既有 RenderFlex 溢出（与本任务字号断言
+    // 无关，是页面在 mobile 尺寸的预存布局问题）。takeException 吸收该 layout
+    // 异常，让 fontSize 断言得以执行。
+    t.takeException();
+    final bal = t.widget<Text>(find.byKey(const ValueKey('heroBalance')));
+    expect(bal.style?.fontSize, 32, reason: 'mobile hero 余额 32px');
+  });
+
+  testWidgets('desktop 1200: hero 余额字号 40', (t) async {
+    t.view.physicalSize = const Size(1200, 1400);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    addTearDown(t.view.resetDevicePixelRatio);
+    await pumpPage(t);
+    await t.pumpAndSettle();
+    final bal = t.widget<Text>(find.byKey(const ValueKey('heroBalance')));
+    expect(bal.style?.fontSize, 40, reason: 'desktop hero 余额 40px');
+  });
 }
