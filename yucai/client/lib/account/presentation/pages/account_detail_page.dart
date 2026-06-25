@@ -800,60 +800,60 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
       (Color(0xFFF3ECDD), AppColors.accent, LucideIcons.wallet),
       (Color(0xFFE3ECF7), Color(0xFF3B6FB0), LucideIcons.fileText),
     ];
-    // 卡片间 14px 间距（原型 .quick-stats gap:14px）；首尾无边缘缩进。
-    return Row(
+    // OD .stat-row：>900 4 列 / ≤900 2 列（gap 14）。
+    final w = MediaQuery.of(context).size.width;
+    final isTablet = w <= 900;
+    return GridView.count(
+      key: const ValueKey('statsRow'),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: isTablet ? 2 : 4,
+      mainAxisSpacing: 14,
+      crossAxisSpacing: 14,
+      // DataCard 高约 96（label+val+sub+tag），宽约 170（desktop）/ 360（tablet 2 列）。
+      childAspectRatio: isTablet ? 3.0 : 1.6,
       children: [
         for (var i = 0; i < stats.length; i++)
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(
-                left: i == 0 ? 0 : 7,
-                right: i == stats.length - 1 ? 0 : 7,
-              ),
-              child: DataCard(
-                padding: const EdgeInsets.fromLTRB(17, 15, 17, 15),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          DataCard(
+            padding: const EdgeInsets.fromLTRB(17, 15, 17, 15),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    // label row：colored icon square + label。
-                    Row(
-                      children: [
-                        _StatIconSquare(
-                          bg: iconSpecs[i].$1,
-                          fg: iconSpecs[i].$2,
-                          icon: iconSpecs[i].$3,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(stats[i].$1,
-                              style: const TextStyle(
-                                  color: AppColors.muted, fontSize: 11)),
-                        ),
-                      ],
+                    _StatIconSquare(
+                      bg: iconSpecs[i].$1,
+                      fg: iconSpecs[i].$2,
+                      icon: iconSpecs[i].$3,
                     ),
-                    const SizedBox(height: 6),
-                    Text(stats[i].$2,
-                        style: const TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 4),
-                    // OD .stat-tag「实时」（取代「待 Transaction」占位）。
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: AppColors.accentSoft,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text('实时',
-                          style: TextStyle(
-                            color: AppColors.accent,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                          )),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(stats[i].$1,
+                          style: const TextStyle(
+                              color: AppColors.muted, fontSize: 11)),
                     ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 6),
+                Text(stats[i].$2,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentSoft,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text('实时',
+                      style: TextStyle(
+                        color: AppColors.accent,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      )),
+                ),
+              ],
             ),
           ),
       ],

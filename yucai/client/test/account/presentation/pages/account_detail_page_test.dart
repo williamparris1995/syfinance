@@ -1496,4 +1496,32 @@ void main() {
         findsOneWidget,
         reason: 'desktop 应双栏:近期交易在 detailBodyRow 内');
   });
+
+  // ───── Task 2: _statsRow 4 列 ↔ 2 列（GridView.count 响应式）─────
+
+  testWidgets('tablet 800: statsRow 2 列', (t) async {
+    t.view.physicalSize = const Size(800, 1400);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    addTearDown(t.view.resetDevicePixelRatio);
+    await pumpPage(t);
+    await t.pumpAndSettle();
+    final grid = t.widget<GridView>(find.byKey(const ValueKey('statsRow')));
+    final delegate =
+        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+    expect(delegate.crossAxisCount, 2, reason: 'tablet stat 卡 2 列');
+  });
+
+  testWidgets('desktop 1200: statsRow 4 列', (t) async {
+    t.view.physicalSize = const Size(1200, 1400);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    addTearDown(t.view.resetDevicePixelRatio);
+    await pumpPage(t);
+    await t.pumpAndSettle();
+    final grid = t.widget<GridView>(find.byKey(const ValueKey('statsRow')));
+    final delegate =
+        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+    expect(delegate.crossAxisCount, 4, reason: 'desktop stat 卡 4 列');
+  });
 }
