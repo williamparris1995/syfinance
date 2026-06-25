@@ -132,23 +132,47 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
             builder: (context, state) {
               final a = state is AccountDetailLoaded ? state.account : null;
               final archived = a?.status == AccountStatus.archived;
+              // Task 6：≤900 tablet/mobile 仅 icon（防窄卡 3 个 TextButton 挤压）；
+              // >900 desktop 保留 icon+文字 TextButton。lucide edit/penLine/
+              // arrowLeftRight 已在 lucide_icons_flutter 3.1.14+2 验证存在。
+              final isTablet =
+                  MediaQuery.of(context).size.width <= 900;
               return Row(
                 children: [
                   // 归档账户：移除编辑/记一笔/转账（不可再产生交易），
                   // 只留更多菜单（复制/重新激活/删除）。
                   if (!archived) ...[
-                    TextButton(
-                      onPressed: a == null ? null : () => _edit(a),
-                      child: const Text('编辑'),
-                    ),
-                    TextButton(
-                      onPressed: a == null ? null : _recordTxn,
-                      child: const Text('记一笔'),
-                    ),
-                    TextButton(
-                      onPressed: a == null ? null : _transfer,
-                      child: const Text('转账'),
-                    ),
+                    if (isTablet) ...[
+                      IconButton(
+                        tooltip: '编辑',
+                        icon: const Icon(LucideIcons.edit, size: 18),
+                        onPressed: a == null ? null : () => _edit(a),
+                      ),
+                      IconButton(
+                        tooltip: '记一笔',
+                        icon: const Icon(LucideIcons.penLine, size: 18),
+                        onPressed: a == null ? null : _recordTxn,
+                      ),
+                      IconButton(
+                        tooltip: '转账',
+                        icon:
+                            const Icon(LucideIcons.arrowLeftRight, size: 18),
+                        onPressed: a == null ? null : _transfer,
+                      ),
+                    ] else ...[
+                      TextButton(
+                        onPressed: a == null ? null : () => _edit(a),
+                        child: const Text('编辑'),
+                      ),
+                      TextButton(
+                        onPressed: a == null ? null : _recordTxn,
+                        child: const Text('记一笔'),
+                      ),
+                      TextButton(
+                        onPressed: a == null ? null : _transfer,
+                        child: const Text('转账'),
+                      ),
+                    ],
                   ],
                   PopupMenuButton<String>(
                     tooltip: '更多操作',

@@ -245,6 +245,13 @@ void main() {
 
   testWidgets('「记一笔」按钮 enabled (placeholder 🔒 removed)',
       (tester) async {
+    // Task 6 响应式：默认 800×600 → tablet(≤900) → AppBar 记一笔/转账 改为
+    // IconButton（无文字），本测试断言 TextButton 文字「记一笔」需 pin desktop
+    // 视口（1200，>900 走 TextButton icon+文字 分支）。
+    tester.view.physicalSize = const Size(1200, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await pumpPage(tester);
 
     // Active account → button label has no 🔒.
@@ -261,6 +268,12 @@ void main() {
 
   testWidgets('「转账」按钮 enabled (placeholder 🔒 removed)',
       (tester) async {
+    // Task 6 响应式：同 记一笔 enabled 测试，pin desktop 视口让 AppBar 走
+    // TextButton 分支（默认 800×600 tablet 改为 IconButton 无文字）。
+    tester.view.physicalSize = const Size(1200, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await pumpPage(tester);
 
     expect(find.text('转账🔒'), findsNothing);
@@ -309,6 +322,12 @@ void main() {
       (tester) async {
     // Task 8: 原 content 内 _quickActions card 已移除（操作集中在 AppBar）。
     // 此测试改为断言 AppBar 上的记一笔/转账已激活（无 🔒/待交易模块 占位）。
+    // Task 6 响应式：默认 800×600 → tablet → AppBar 改 IconButton 无文字；本测试
+    // 断言 find.text('记一笔'/'转账') 需 pin desktop 视口（1200，TextButton 分支）。
+    tester.view.physicalSize = const Size(1200, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await pumpPage(tester);
 
     // AppBar buttons no longer carry the 「（待交易模块）」 placeholder.
@@ -335,6 +354,13 @@ void main() {
 
   testWidgets('tapping 记一笔 (AppBar) pushes TransactionFormPage',
       (tester) async {
+    // Task 6 响应式：默认 800×600 → tablet → AppBar 记一笔改 IconButton（无文字
+    // 也非 TextButton），本测试通过 find.text('记一笔') 找 TextButton 触发 tap，
+    // 需 pin desktop 视口（1200，TextButton icon+文字 分支）。
+    tester.view.physicalSize = const Size(1200, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await pumpPage(tester);
 
     // Task 8: content 内 _quickActions card 已移除，记一笔只在 AppBar。
@@ -1346,6 +1372,14 @@ void main() {
 
   testWidgets('recent txn icon: transfer → lucide creditCard', (tester) async {
     // 两端 asset → flavour=transfer。
+    // Task 6 响应式：默认 800×600 → tablet → AppBar 转账 IconButton 用
+    // LucideIcons.arrowLeftRight，本测试断言该 icon findsNothing（行内 transfer
+    // 应显 creditCard 而非 arrowLeftRight），需 pin desktop 视口（1200，AppBar
+    // 走 TextButton 分支不再渲染 arrowLeftRight）。
+    tester.view.physicalSize = const Size(1200, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     final accounts = [
       _account(name: '现金'),
       Account(
@@ -1595,5 +1629,29 @@ void main() {
     await t.pumpAndSettle();
     final bal = t.widget<Text>(find.byKey(const ValueKey('heroBalance')));
     expect(bal.style?.fontSize, 40, reason: 'desktop hero 余额 40px');
+  });
+
+  // ───── Task 6: topbar ≤900 仅 icon(tablet/mobile，去文字防挤) ─────
+
+  testWidgets('tablet 800: topbar 编辑/记一笔/转账 仅 icon(无文字)', (t) async {
+    t.view.physicalSize = const Size(800, 1400);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    addTearDown(t.view.resetDevicePixelRatio);
+    await pumpPage(t);
+    await t.pumpAndSettle();
+    expect(find.text('编辑'), findsNothing, reason: 'tablet topbar 仅 icon');
+    expect(find.text('记一笔'), findsNothing);
+    expect(find.text('转账'), findsNothing);
+  });
+
+  testWidgets('desktop 1200: topbar 编辑 有文字', (t) async {
+    t.view.physicalSize = const Size(1200, 1400);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    addTearDown(t.view.resetDevicePixelRatio);
+    await pumpPage(t);
+    await t.pumpAndSettle();
+    expect(find.text('编辑'), findsOneWidget, reason: 'desktop topbar icon+文字');
   });
 }
