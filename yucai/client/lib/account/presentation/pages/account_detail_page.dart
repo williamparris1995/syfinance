@@ -737,17 +737,22 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
         ),
       ),
       child: LayoutBuilder(
-        builder: (ctx, c) => GridView.count(
-          key: const ValueKey('heroFields'),
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: c.maxWidth > 600 ? 4 : 2,
-          // OD .hero-fields gap 18px。
-          mainAxisSpacing: 18,
-          crossAxisSpacing: 18,
-          childAspectRatio: 2.6,
-          children: [for (final f in fields) _heroField(f.$1, f.$2)],
-        ),
+        builder: (ctx, c) {
+          // 断点用 viewport 宽（MediaQuery）对齐 OD @media 900，而非 content 宽
+          //（content = viewport - sidebar 240，会偏移断点）。
+          final isDesktop = MediaQuery.of(ctx).size.width > 900;
+          return GridView.count(
+            key: const ValueKey('heroFields'),
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: isDesktop ? 4 : 2,
+            // OD .hero-fields gap 18px。
+            mainAxisSpacing: 18,
+            crossAxisSpacing: 18,
+            childAspectRatio: 2.6,
+            children: [for (final f in fields) _heroField(f.$1, f.$2)],
+          );
+        },
       ),
     );
   }

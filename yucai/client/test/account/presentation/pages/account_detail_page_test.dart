@@ -583,6 +583,13 @@ void main() {
   testWidgets('credit card stats: 额度/已用/可用/账单日', (tester) async {
     await pumpPage(tester, account: _creditCardAccount());
 
+    // Task 3：heroFields 断点 600→900 后，默认 800x600 视口下 hero 字段网格
+    // 变成 2 列（更高），把 stat 卡推到首屏之外 —— 滚入视口再断言。
+    await tester.scrollUntilVisible(
+      find.textContaining('信用额度'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     // hero field grid (Task 4) also renders 「账单日」 for creditCard, so
     // assert the stats-card-exclusive labels strictly and 账单日 loosely.
     expect(find.text('信用额度'), findsOneWidget);
@@ -595,6 +602,12 @@ void main() {
     // currentBalance -180w, original 200w, remaining 180w → 已还 (200w-180w)/200w = 10.0%.
     await pumpPage(tester, account: _loanAccount());
 
+    // Task 3：同 credit card stats —— hero 变高后 stat 卡需滚入视口。
+    await tester.scrollUntilVisible(
+      find.textContaining('已还比例'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('已还比例'), findsOneWidget);
     expect(find.text('10.0%'), findsOneWidget);
   });
@@ -1523,5 +1536,21 @@ void main() {
     final delegate =
         grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
     expect(delegate.crossAxisCount, 4, reason: 'desktop stat 卡 4 列');
+  });
+
+  // ───── Task 3: _heroFields 断点 600 → 900（对齐 OD @media）─────
+
+  testWidgets('tablet 800: heroFields 2 列（断点 900）', (t) async {
+    t.view.physicalSize = const Size(800, 1400);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    addTearDown(t.view.resetDevicePixelRatio);
+    await pumpPage(t);
+    await t.pumpAndSettle();
+    final grid = t.widget<GridView>(find.byKey(const ValueKey('heroFields')));
+    final delegate =
+        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+    expect(delegate.crossAxisCount, 2,
+        reason: 'tablet hero-fields 2 列（断点 900，旧 600 在 800 宽会误判 4 列）');
   });
 }
