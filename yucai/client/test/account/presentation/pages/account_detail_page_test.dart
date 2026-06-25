@@ -1553,4 +1553,19 @@ void main() {
     expect(delegate.crossAxisCount, 2,
         reason: 'tablet hero-fields 2 列（断点 900，旧 600 在 800 宽会误判 4 列）');
   });
+
+  // ───── Task 4: _infoCard 断点 600 → 900（对齐 OD @media）─────
+
+  testWidgets('tablet 800: infoCard 2 列（断点 900）', (t) async {
+    t.view.physicalSize = const Size(800, 1400);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    addTearDown(t.view.resetDevicePixelRatio);
+    await pumpPage(t);
+    await t.pumpAndSettle();
+    final grid = t.widget<GridView>(find.byKey(const ValueKey('infoCard')));
+    final delegate =
+        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+    expect(delegate.crossAxisCount, 2, reason: 'tablet info-grid 2 列');
+  });
 }

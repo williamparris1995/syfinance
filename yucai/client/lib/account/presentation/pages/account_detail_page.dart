@@ -357,11 +357,12 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
           const SizedBox(height: AppSpacing.md),
           LayoutBuilder(
             builder: (ctx, c) {
-              final cols = c.maxWidth > 600 ? 3 : 2;
+              final isDesktop = MediaQuery.of(ctx).size.width > 900;
               return GridView.count(
+                key: const ValueKey('infoCard'),
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: cols,
+                crossAxisCount: isDesktop ? 3 : 2,
                 mainAxisSpacing: 14,
                 crossAxisSpacing: 12,
                 childAspectRatio: 2.8,
