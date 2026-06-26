@@ -349,4 +349,57 @@ void main() {
 
     expect(applied, isNotNull);
   });
+
+  // ─────────── Task 3: MobileHeader month-bar + 可展开 sum-card ───────────
+  //
+  // 单元 pump MobileHeader(公开 + @visibleForTesting),不依赖 _Content 组装(组装在 Task 4)。
+  // 验证:month-bar 文本(YYYY年M月) + sum-card 三列(收入/支出/净额) + 展开切换 + 日均支出。
+
+  testWidgets('MobileHeader: month-bar 文本 + sum-card 三列 + 展开日均', (t) async {
+    await t.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: MobileHeader(
+          filter: const TxnFilterState(month: '2026-06'),
+          count: 12,
+          summary: const MonthlySummary(
+              year: 2026,
+              month: 6,
+              incomeCents: 2480000,
+              expenseCents: 1835000,
+              netCents: 645000,
+              dailyAvgCents: 61167),
+          onFilterChanged: (_) {},
+        ),
+      ),
+    ));
+    // month-bar 文本(2026年6月)
+    expect(find.textContaining('2026年6月'), findsOneWidget);
+    // sum-card 三列(收入/支出/净额)
+    expect(find.text('本月收入'), findsOneWidget);
+    expect(find.text('本月支出'), findsOneWidget);
+    expect(find.textContaining('本月净'), findsOneWidget);
+    // 展开 toggle
+    expect(find.text('查看月度明细'), findsOneWidget);
+    await t.tap(find.text('查看月度明细'));
+    await t.pumpAndSettle();
+    // 展开后:日均支出
+    expect(find.textContaining('日均'), findsWidgets);
+  });
+
+  testWidgets('MobileHeader: prev/next 切月 onFilterChanged', (t) async {
+    TxnFilterState? next;
+    await t.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: MobileHeader(
+          filter: const TxnFilterState(month: '2026-06'),
+          count: 12,
+          summary: null,
+          onFilterChanged: (s) => next = s,
+        ),
+      ),
+    ));
+    await t.tap(find.byTooltip('上一月'));
+    await t.pumpAndSettle();
+    expect(next?.month, '2026-05', reason: 'prev → 上一月');
+  });
 }

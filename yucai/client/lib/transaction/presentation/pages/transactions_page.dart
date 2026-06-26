@@ -1660,3 +1660,204 @@ class _MobileAppBar extends StatelessWidget {
     );
   }
 }
+
+// ───────────────────────── Task 3: mobile month-bar + 可展开 sum-card ─────────────────────────
+//
+// mobile 顶部:month-bar(prev/text/next 切月) + 可展开 sum-card(收入/支出/净额 三列 +
+// 「查看月度明细」展开日均支出)。组装进 _Content 是 Task 4;此处仅新增 widget 定义。
+
+/// mobile 顶部:month-bar(prev/text/next) + 可展开 sum-card。
+///
+/// 公开 + `@visibleForTesting`:Task 3 单元 test 直接 pump 本 widget
+/// (不依赖 _Content 组装,组装在 Task 4)。生产路径由 _Content 内部构造。
+@visibleForTesting
+class MobileHeader extends StatefulWidget {
+  const MobileHeader({
+    super.key,
+    required this.filter,
+    required this.count,
+    required this.summary,
+    required this.onFilterChanged,
+  });
+
+  final TxnFilterState filter;
+  final int count;
+  final MonthlySummary? summary;
+  final ValueChanged<TxnFilterState> onFilterChanged;
+
+  @override
+  State<MobileHeader> createState() => _MobileHeaderState();
+}
+
+class _MobileHeaderState extends State<MobileHeader> {
+  bool _expanded = false;
+
+  String get _monthLabel {
+    final m = widget.filter.month;
+    if (m != null && m.length >= 7) {
+      final parts = m.split('-');
+      if (parts.length == 2) return '${parts[0]}年${int.parse(parts[1])}月';
+    }
+    final now = DateTime.now();
+    return '${now.year}年${now.month}月';
+  }
+
+  void _shift(int delta) {
+    final m = widget.filter.month;
+    DateTime base;
+    if (m != null && m.length >= 7) {
+      final parts = m.split('-');
+      base = DateTime(int.parse(parts[0]), int.parse(parts[1]));
+    } else {
+      base = DateTime.now();
+    }
+    final d = DateTime(base.year, base.month + delta);
+    final ym = '${d.year}-${d.month.toString().padLeft(2, '0')}';
+    widget.onFilterChanged(widget.filter.copyWith(month: ym));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.summary;
+    return Column(
+      children: [
+        // month-bar
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                tooltip: '上一月',
+                icon: const Icon(Icons.chevron_left, size: 20),
+                onPressed: () => _shift(-1),
+              ),
+              Column(
+                children: [
+                  Text(_monthLabel,
+                      style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Georgia')),
+                  Text('本月 · 共 ${widget.count} 笔',
+                      style: const TextStyle(
+                          color: AppColors.muted, fontSize: 11)),
+                ],
+              ),
+              IconButton(
+                tooltip: '下一月',
+                icon: const Icon(Icons.chevron_right, size: 20),
+                onPressed: () => _shift(1),
+              ),
+            ],
+          ),
+        ),
+        // sum-card
+        Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            border: Border.all(color: AppColors.border),
+            borderRadius: AppRadius.lgBorder,
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  _sumCol('本月收入', s?.incomeCents ?? 0, AppColors.positive),
+                  _vd(),
+                  _sumCol('本月支出', s?.expenseCents ?? 0, AppColors.negative),
+                  _vd(),
+                  _sumCol('本月净额', s?.netCents ?? 0, null),
+                ],
+              ),
+              InkWell(
+                onTap: () => setState(() => _expanded = !_expanded),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  decoration: const BoxDecoration(
+                      border:
+                          Border(top: BorderSide(color: AppColors.border))),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                          _expanded ? '收起月度明细' : '查看月度明细',
+                          style: const TextStyle(
+                              color: AppColors.muted, fontSize: 12.5)),
+                      Icon(
+                        _expanded
+                            ? Icons.keyboard_arrow_up
+                            : Icons.keyboard_arrow_down,
+                        size: 16,
+                        color: AppColors.muted,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (_expanded)
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Column(
+                    children: [
+                      _extraRow('日均支出', s?.dailyAvgCents ?? 0),
+                      // 储蓄率/已对账/较上月 无数据源,本期省略(spec §3.3)
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _sumCol(String label, int cents, Color? color) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          children: [
+            Text(label,
+                style: const TextStyle(
+                    color: AppColors.muted, fontSize: 11.5)),
+            const SizedBox(height: 6),
+            Text(
+              _formatCents(cents, signed: cents != 0),
+              style: TextStyle(
+                  color: color ?? AppColors.fg,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: AppTypography.tabularFigures),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _vd() => Container(
+      width: 1,
+      margin: const EdgeInsets.symmetric(vertical: 12),
+      color: AppColors.border);
+
+  Widget _extraRow(String label, int cents) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+          Text(_formatCents(cents),
+              style: const TextStyle(
+                  color: AppColors.fg,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  fontFeatures: AppTypography.tabularFigures)),
+        ],
+      ),
+    );
+  }
+}
