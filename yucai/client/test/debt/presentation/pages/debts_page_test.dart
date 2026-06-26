@@ -151,9 +151,12 @@ void main() {
     // 利率
     expect(find.textContaining('4.10%'), findsOneWidget);
     expect(find.textContaining('5.20%'), findsOneWidget);
-    // 到期
-    expect(find.textContaining('2051-06'), findsOneWidget);
-    expect(find.textContaining('2027-03'), findsOneWidget);
+    // 到期（yyyy-MM-dd）—— 卡片 meta 行
+    expect(find.textContaining('2051-06-01'), findsOneWidget);
+    // 2027-03-01 出现两次：overview「下次还款」+ d2 卡「到期」
+    expect(find.textContaining('2027-03-01'), findsNWidgets(2));
+    // 下次还款 = min(dueDate) = 2027-03-01（d2 最早到期）—— overview 行
+    expect(find.textContaining('下次还款'), findsWidgets);
   });
 
   testWidgets('debt card: progress bar uses gold accent + progressRatio',

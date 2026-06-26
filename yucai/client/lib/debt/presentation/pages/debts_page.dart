@@ -111,6 +111,12 @@ class _DebtsPageState extends State<DebtsPage> {
     final overallRatio = totalPrincipal > 0
         ? (totalRepaid / totalPrincipal).clamp(0.0, 1.0)
         : 0.0;
+    // 下次还款 = min(dueDate)（最早到期的债务）。空列表时为 null。
+    final nextPaymentDate = debts.isEmpty
+        ? null
+        : debts
+            .map((d) => d.dueDate)
+            .reduce((a, b) => a.isBefore(b) ? a : b);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
@@ -128,6 +134,7 @@ class _DebtsPageState extends State<DebtsPage> {
                 count: debts.length,
                 overallRatio: overallRatio,
                 preferred: preferred,
+                nextPaymentDate: nextPaymentDate,
               ),
               const SizedBox(height: AppSpacing.lg),
               _SectionHead(count: debts.length),
@@ -151,6 +158,7 @@ class _OverviewCard extends StatelessWidget {
     required this.count,
     required this.overallRatio,
     required this.preferred,
+    this.nextPaymentDate,
   });
 
   final int totalRemaining; // 总剩余本金（preferred 口径）
@@ -159,6 +167,10 @@ class _OverviewCard extends StatelessWidget {
   final int count; // 在途债务笔数
   final double overallRatio; // 整体还清进度 0~1
   final String preferred;
+  // 下次还款 = min(dueDate)（最早到期的债务到期日）。空列表时为 null → 不渲染。
+  // 注：Debt 实体无 per-payment next date（下次还款期在 DebtDetail.schedule），
+  // 用 dueDate 近似；标 label「下次还款」与 brief 对齐（最早到期日）。
+  final DateTime? nextPaymentDate;
 
   @override
   Widget build(BuildContext context) {
@@ -221,6 +233,8 @@ class _OverviewCard extends StatelessWidget {
               _kv('总剩余本金', _fmtSymbol(totalRemaining, preferred)),
               _kv('累计已还', _fmtSymbol(totalRepaid, preferred)),
               _kv('在途债务', '$count 笔'),
+              if (nextPaymentDate != null)
+                _kv('下次还款', _fmtDate(nextPaymentDate!)),
             ],
           ),
           const SizedBox(height: 20),
@@ -298,6 +312,8 @@ class _OverviewCard extends StatelessWidget {
             children: [
               _kv('剩余', _fmtSymbol(totalRemaining, preferred)),
               _kv('已还', _fmtSymbol(totalRepaid, preferred)),
+              if (nextPaymentDate != null)
+                _kv('下次还款', _fmtDate(nextPaymentDate!)),
             ],
           ),
           const SizedBox(height: 14),
@@ -417,8 +433,8 @@ class _DebtList extends StatelessWidget {
             mainAxisSpacing: gap,
             crossAxisSpacing: gap,
             // 固定卡片高度（与内容宽无关），覆盖最高卡（counterparty + mid +
-            // progress + meta + actions）。
-            mainAxisExtent: 340,
+            // progress + meta + actions）。到期 yyyy-MM-dd 比 yyyy-M 略宽 → 348。
+            mainAxisExtent: 348,
           ),
           itemCount: debts.length,
           itemBuilder: (_, i) =>
@@ -511,7 +527,7 @@ class _DebtCard extends StatelessWidget {
                   text: '${debt.interestRate.toStringAsFixed(2)}%'),
               _MetaItem(
                   icon: Icons.event_outlined,
-                  text: '到期 ${_fmtMonth(debt.dueDate)}'),
+                  text: '到期 ${_fmtDate(debt.dueDate)}'),
               _MetaItem(
                   icon: Icons.show_chart,
                   text: _amortLabel(debt.amortization)),
@@ -588,7 +604,7 @@ class _DebtCard extends StatelessWidget {
             children: [
               _MetaItem(
                   icon: Icons.event_outlined,
-                  text: '到期 ${_fmtMonth(debt.dueDate)}'),
+                  text: '到期 ${_fmtDate(debt.dueDate)}'),
             ],
           ),
           const SizedBox(height: 10),
@@ -813,9 +829,12 @@ String _amortLabel(AmortizationMethod m) {
   }
 }
 
-/// YYYY-MM 月格式（对齐 prototype「到期 2051-06」）。
-String _fmtMonth(DateTime d) =>
-    '${d.year}-${d.month.toString().padLeft(2, '0')}';
+/// YYYY-MM-DD 完整日期格式（对齐 brief「下次还款 / 到期 2051-06-01」）。
+String _fmtDate(DateTime d) {
+  final m = d.month.toString().padLeft(2, '0');
+  final day = d.day.toString().padLeft(2, '0');
+  return '${d.year}-$m-$day';
+}
 
 /// 千分位 + 两位小数 + 货币符号前缀。对齐 accounts_page._fmtSymbol。
 String _fmtSymbol(int cents, String currencyCode) {
