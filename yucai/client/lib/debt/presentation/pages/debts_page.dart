@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
@@ -49,7 +50,7 @@ class _DebtsPageState extends State<DebtsPage> {
       floatingActionButton: MediaQuery.of(context).size.width <=
               Breakpoints.mobileUpper
           ? FloatingActionButton(
-              onPressed: () {}, // 创建债务表单由 Task 7 实现
+              onPressed: () => context.push('/debts/new'),
               backgroundColor: AppColors.accent,
               child: const Icon(Icons.add, color: Colors.white),
             )
@@ -466,7 +467,7 @@ class _DebtCard extends StatelessWidget {
   Widget _fullCard(BuildContext context) {
     final badge = _inferBadge(debt.counterparty);
     return DataCard(
-      onTap: () {}, // 详情页由 Task 8 实现
+      onTap: () => context.push('/debts/${debt.id}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -543,7 +544,7 @@ class _DebtCard extends StatelessWidget {
   Widget _compactCard(BuildContext context) {
     final badge = _inferBadge(debt.counterparty);
     return DataCard(
-      onTap: () {},
+      onTap: () => context.push('/debts/${debt.id}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

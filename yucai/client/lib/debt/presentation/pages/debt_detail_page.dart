@@ -813,9 +813,9 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
       label: const Text('记账'),
       style: overdue
           ? OutlinedButton.styleFrom(
-              backgroundColor: AppColors.positive,
+              backgroundColor: AppColors.negative,
               foregroundColor: Colors.white,
-              side: const BorderSide(color: AppColors.positive),
+              side: const BorderSide(color: AppColors.negative),
               padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 5),
               minimumSize: const Size(0, 30),
               textStyle: const TextStyle(fontSize: 12),
