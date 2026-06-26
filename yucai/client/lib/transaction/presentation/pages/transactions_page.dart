@@ -1423,3 +1423,240 @@ Color _amountColor(TxnFlavour f) {
       return AppColors.fg;
   }
 }
+
+// ───────────────────────── Task 2: mobile 筛选 sheet + appbar ─────────────────────────
+//
+// mobile 专属筛选 UI:filterBtn 触发底部 sheet(类型/账户/分类/月份 chip 单选 +
+// 重置/应用)。_MobileAppBar 提供标题 + 搜索 btn + 筛选 btn。
+// 组装进 _Content 是 Task 4;此处仅新增 widget 定义,不改 _Content。
+
+/// mobile 筛选底部 sheet(filterBtn 触发)。
+/// 内部持临时 filter state,应用时一次性回传 onApply。
+///
+/// 公开 + `@visibleForTesting`:Task 2 单元 test 直接 pump 本 widget
+/// (不依赖 _Content 组装,组装在 Task 4)。生产路径由 _Content 内部构造。
+@visibleForTesting
+class MobileFilterSheet extends StatefulWidget {
+  const MobileFilterSheet({
+    super.key,
+    required this.initial,
+    required this.accountOptions,
+    required this.categoryOptions,
+    required this.monthOptions,
+    required this.onApply,
+  });
+
+  final TxnFilterState initial;
+  final List<FilterOption> accountOptions;
+  final List<FilterOption> categoryOptions;
+  final List<FilterOption> monthOptions;
+  final ValueChanged<TxnFilterState> onApply;
+
+  @override
+  State<MobileFilterSheet> createState() => _MobileFilterSheetState();
+}
+
+class _MobileFilterSheetState extends State<MobileFilterSheet> {
+  late TxnFilterState _draft;
+
+  @override
+  void initState() {
+    super.initState();
+    _draft = widget.initial;
+  }
+
+  Widget _chipGroup({
+    required String label,
+    required List<FilterOption> options,
+    required String? selectedId, // null = 全部
+    required ValueChanged<String?> onSelect, // null = 选「全部」
+    String allLabel = '全部',
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 9),
+            child: Text(label,
+                style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _filterChip(allLabel, selectedId == null, () => onSelect(null)),
+              for (final o in options)
+                _filterChip(
+                    o.label, selectedId == o.value, () => onSelect(o.value)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterChip(String text, bool on, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(9),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
+        decoration: BoxDecoration(
+          color: on ? AppColors.accentSoft : AppColors.surfaceAlt,
+          border:
+              Border.all(color: on ? const Color(0xFFE0D2B6) : AppColors.border),
+          borderRadius: BorderRadius.circular(9),
+        ),
+        child: Text(text,
+            style: TextStyle(
+                color: on ? const Color(0xFF7A5F33) : AppColors.fg,
+                fontSize: 13.5,
+                fontWeight: on ? FontWeight.w500 : FontWeight.w400)),
+      ),
+    );
+  }
+
+  Widget _typeGroup() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(bottom: 9),
+            child: Text('交易类型',
+                style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final tf in TxnTypeFilter.values)
+                _filterChip(tf.label, _draft.type == tf,
+                    () => setState(() => _draft = _draft.copyWith(type: tf))),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 8, 18, 20),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2)),
+              ),
+              const Text('筛选交易',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Georgia')),
+              _typeGroup(),
+              _chipGroup(
+                label: '账户',
+                options: widget.accountOptions,
+                selectedId: _draft.accountId,
+                onSelect: (id) =>
+                    setState(() => _draft = _draft.copyWith(accountId: id)),
+                allLabel: '全部账户',
+              ),
+              _chipGroup(
+                label: '分类',
+                options: widget.categoryOptions,
+                selectedId: _draft.category,
+                onSelect: (id) =>
+                    setState(() => _draft = _draft.copyWith(category: id)),
+                allLabel: '全部分类',
+              ),
+              _chipGroup(
+                label: '月份',
+                options: widget.monthOptions,
+                selectedId: _draft.month,
+                onSelect: (id) =>
+                    setState(() => _draft = _draft.copyWith(month: id)),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () =>
+                          setState(() => _draft = const TxnFilterState()),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: const RoundedRectangleBorder(
+                            borderRadius: AppRadius.smBorder),
+                      ),
+                      child: const Text('重置'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => widget.onApply(_draft),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: const RoundedRectangleBorder(
+                            borderRadius: AppRadius.smBorder),
+                      ),
+                      child: const Text('应用筛选'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// mobile appbar:标题 + 搜索 btn + 筛选 btn。
+class _MobileAppBar extends StatelessWidget {
+  const _MobileAppBar({required this.onFilter});
+  final VoidCallback onFilter;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        children: [
+          const Text('交易管理',
+              style: TextStyle(
+                  fontSize: 21,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Georgia')),
+          const Spacer(),
+          IconButton(
+            tooltip: '搜索',
+            icon: const Icon(Icons.search, size: 21),
+            onPressed: () {}, // 搜索本期占位(P2 search)
+          ),
+          IconButton(
+            tooltip: '筛选',
+            icon: const Icon(Icons.tune, size: 21),
+            onPressed: onFilter,
+          ),
+        ],
+      ),
+    );
+  }
+}

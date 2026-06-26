@@ -30,6 +30,7 @@ import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_event.dart';
 import 'package:yucai_client/transaction/presentation/pages/transactions_page.dart';
+import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
 
 class _FakeTxnRepo extends Mock implements TransactionRepository {}
 class _FakeAccountRepo extends Mock implements AccountRepository {}
@@ -319,5 +320,33 @@ void main() {
     // 账户首字母方块:_AccountTag 渲染 asset 账户名「现金」
     expect(find.text('现金'), findsWidgets,
         reason: 'mobile 副行应含账户首字母方块 + 账户名');
+  });
+
+  // ─────────── Task 2: _MobileFilterSheet 单元渲染 + 应用回调 ───────────
+  //
+  // sheet 在 Task 4 才组装进 _Content;此处直接 pump 单元 widget,
+  // 验证渲染(标题/应用按钮) + 点击「应用筛选」回调 onApply。
+
+  testWidgets('_MobileFilterSheet 渲染 + 应用回调', (tester) async {
+    TxnFilterState? applied;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: MobileFilterSheet(
+          initial: const TxnFilterState(),
+          accountOptions: const [FilterOption('a1', '招商银行')],
+          categoryOptions: const [FilterOption('food', '餐饮')],
+          monthOptions: const [FilterOption('2026-06', '2026年6月')],
+          onApply: (s) => applied = s,
+        ),
+      ),
+    ));
+
+    expect(find.text('筛选交易'), findsOneWidget);
+    expect(find.text('应用筛选'), findsOneWidget);
+
+    await tester.tap(find.text('应用筛选'));
+    await tester.pumpAndSettle();
+
+    expect(applied, isNotNull);
   });
 }
