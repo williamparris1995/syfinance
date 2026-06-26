@@ -322,6 +322,91 @@ void main() {
         reason: 'mobile 副行应含账户首字母方块 + 账户名');
   });
 
+  // ─────────── C1 fix regression: 非转账无 asset 账户不崩溃 ───────────
+  //
+  // _MobileTxnCard 非转账副行曾用 firstWhere(无 orElse)找 asset 账户;若交易
+  // 全是 expense/income(无 asset)或 accountOf 全 null → StateError 崩溃。
+  // 现加 orElse: () => txn.entries.first,本测试断言该场景渲染不崩溃。
+
+  testWidgets(
+      'mobile txn card: 非转账 entries 无 asset 账户渲染不崩溃 (C1 fix)',
+      (tester) async {
+    final accountRepo = _FakeAccountRepo();
+    // 注入两个 expense 账户(非 asset),让 firstWhere(asset) 找不到匹配。
+    const expenseAcct1 = Account(
+      id: 'a1',
+      name: '餐饮',
+      accountType: AccountType.expense,
+      category: AccountCategory.otherAsset,
+      currencyCode: 'CNY',
+      initialBalanceCents: 0,
+      currentBalanceCents: 0,
+      ownership: Ownership.personal,
+      status: AccountStatus.active,
+    );
+    const expenseAcct2 = Account(
+      id: 'a2',
+      name: '交通',
+      accountType: AccountType.expense,
+      category: AccountCategory.otherAsset,
+      currencyCode: 'CNY',
+      initialBalanceCents: 0,
+      currentBalanceCents: 0,
+      ownership: Ownership.personal,
+      status: AccountStatus.active,
+    );
+    when(() => accountRepo.list()).thenAnswer(
+        (_) async => const dartz.Right([expenseAcct1, expenseAcct2]));
+
+    // 非转账 compound:两条 entries 都是 expense 账户(无 asset)。
+    when(() => txnRepo.list(any())).thenAnswer((_) async => dartz.Right(
+        ListTransactionsResult(transactions: [
+          Transaction(
+            id: 'c1',
+            transactionDate: DateTime(2026, 6, 19),
+            transactionTime: DateTime(2026, 6, 19, 9, 5),
+            description: '复合支出',
+            entries: const [
+              TransactionEntry(
+                  accountId: 'a1', debitCents: 1200, creditCents: 0),
+              TransactionEntry(
+                  accountId: 'a2', debitCents: 0, creditCents: 1200),
+            ],
+          ),
+        ], nextPageToken: '')));
+
+    // mobile viewport 375×900 触发 mobile 分支。
+    tester.view.physicalSize = const Size(375, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(MaterialApp(
+      home: MediaQuery(
+        data: const MediaQueryData(size: Size(375, 900)),
+        child: Scaffold(
+          body: RepositoryProvider<AccountRepository>.value(
+            value: accountRepo,
+            child: BlocProvider<TransactionBloc>(
+              create: (_) {
+                final b = TransactionBloc(txnRepo);
+                b.add(const LoadTransactionsRequested());
+                return b;
+              },
+              child: const TransactionsPage(),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    // 修复前:firstWhere 无 orElse → StateError: No element 崩溃,pumpAndSettle 抛错。
+    // 修复后:回落到 entries.first,正常渲染描述文本。
+    expect(find.text('复合支出'), findsOneWidget,
+        reason: '无 asset 账户的非转账交易应正常渲染,不崩溃 (C1 fix)');
+  });
+
   // ─────────── Task 2: _MobileFilterSheet 单元渲染 + 应用回调 ───────────
   //
   // sheet 在 Task 4 才组装进 _Content;此处直接 pump 单元 widget,

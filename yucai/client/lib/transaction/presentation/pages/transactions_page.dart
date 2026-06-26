@@ -1268,9 +1268,11 @@ class _MobileTxnCard extends StatelessWidget {
                           _AccountTag(
                               label: singleLabel,
                               account: accountOf(txn.entries
-                                  .firstWhere((e) =>
-                                      accountOf(e.accountId)?.accountType ==
-                                          AccountType.asset)
+                                  .firstWhere(
+                                      (e) =>
+                                          accountOf(e.accountId)?.accountType ==
+                                              AccountType.asset,
+                                      orElse: () => txn.entries.first)
                                   .accountId)),
                         if (txn.transactionTime != null)
                           Text('· $_hhmm',
