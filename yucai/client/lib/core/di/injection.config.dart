@@ -41,6 +41,7 @@ import '../../currency/presentation/bloc/currency_bloc.dart' as _i284;
 import '../../debt/data/debt_remote_ds.dart' as _i243;
 import '../../debt/data/debt_repository_impl.dart' as _i1060;
 import '../../debt/domain/repositories/debt_repository.dart' as _i670;
+import '../../debt/presentation/bloc/debt_bloc.dart' as _i383;
 import '../../transaction/data/mappers/transaction_mapper.dart' as _i667;
 import '../../transaction/data/transaction_remote_ds.dart' as _i666;
 import '../../transaction/data/transaction_repository_impl.dart' as _i733;
@@ -106,6 +107,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i670.DebtRepository>(
       () => _i1060.DebtRepositoryImpl(gh<_i243.DebtRemoteDataSource>()),
+    );
+    gh.factory<_i383.DebtBloc>(
+      () => _i383.DebtBloc(gh<_i670.DebtRepository>()),
     );
     gh.factory<_i284.CurrencyBloc>(
       () => _i284.CurrencyBloc(

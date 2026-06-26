@@ -19,6 +19,12 @@ import 'package:yucai_client/auth/presentation/pages/home_page.dart';
 import 'package:yucai_client/auth/presentation/pages/login_page.dart';
 import 'package:yucai_client/auth/presentation/pages/register_page.dart';
 import 'package:yucai_client/core/di/injection.dart';
+import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
+import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
+import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
+import 'package:yucai_client/debt/presentation/pages/debt_detail_page.dart';
+import 'package:yucai_client/debt/presentation/pages/debt_form_page.dart';
+import 'package:yucai_client/debt/presentation/pages/debts_page.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_event.dart';
 import 'package:yucai_client/settings/presentation/settings_page.dart';
@@ -50,6 +56,7 @@ GoRouter buildRouter(AuthBloc authBloc) {
           state.matchedLocation.startsWith('/accounts') ||
           state.matchedLocation.startsWith('/transactions') ||
           state.matchedLocation.startsWith('/categories') ||
+          state.matchedLocation.startsWith('/debts') ||
           state.matchedLocation.startsWith('/settings');
 
       if (isLoading) return null;
@@ -198,6 +205,49 @@ GoRouter buildRouter(AuthBloc authBloc) {
                   ),
                   child: const CategoryManagementPage(),
                 ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/debts',
+                // 列表页：路由层 provide DebtBloc，进入即拉 LoadDebtsRequested
+                //（对齐 /accounts /transactions 分支模式）。
+                builder: (_, __) => BlocProvider<DebtBloc>(
+                  create: (_) {
+                    final b = DebtBloc(getIt<DebtRepository>());
+                    b.add(LoadDebtsRequested());
+                    return b;
+                  },
+                  child: const DebtsPage(),
+                ),
+                routes: [
+                  GoRoute(
+                    path: 'new',
+                    // 表单页 context.read<DebtBloc>() 触发 CreateDebtRequested，
+                    // 嵌套路由是 /debts 的兄弟子树（非 DebtsPage 子节点），
+                    // 不能继承 /debts builder 的 BlocProvider，故这里独立 provide。
+                    builder: (_, __) => BlocProvider<DebtBloc>(
+                      create: (_) => DebtBloc(getIt<DebtRepository>()),
+                      child: const DebtFormPage(),
+                    ),
+                  ),
+                  GoRoute(
+                    path: ':id',
+                    // 详情页用独立 DebtBloc（列表页 bloc 在跳转时被释放），
+                    // 进入即 LoadDebtRequested(id)，对齐 /accounts/:id 独立 AccountBloc。
+                    builder: (_, state) => BlocProvider<DebtBloc>(
+                      create: (_) {
+                        final id = state.pathParameters['id']!;
+                        final b = DebtBloc(getIt<DebtRepository>());
+                        b.add(LoadDebtRequested(id));
+                        return b;
+                      },
+                      child: DebtDetailPage(id: state.pathParameters['id']!),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

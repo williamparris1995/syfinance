@@ -28,6 +28,12 @@ import 'package:yucai_client/auth/domain/usecases/logout_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/register_usecase.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
+import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
+import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
+import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
+import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
+import 'package:yucai_client/debt/domain/value_objects.dart';
+import 'package:yucai_client/debt/presentation/pages/debts_page.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
@@ -35,10 +41,20 @@ import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart
 
 class _MockAccountRepo extends Mock implements AccountRepository {}
 class _MockTxnRepo extends Mock implements TransactionRepository {}
+class _MockDebtRepo extends Mock implements DebtRepository {}
 class _MockLogin extends Mock implements LoginUseCase {}
 class _MockRegister extends Mock implements RegisterUseCase {}
 class _MockProfile extends Mock implements GetProfileUseCase {}
 class _MockLogout extends Mock implements LogoutUseCase {}
+
+/// Fake CurrencyBloc — DebtDetailPage / DebtsPage both context.watch it for
+/// preferred-currency conversion. Mirrors debts_page_test's fake.
+class _FakeCurrencyBloc extends Fake implements CurrencyBloc {
+  @override
+  CurrencyState get state => const CurrencyState();
+  @override
+  Stream<CurrencyState> get stream => Stream.value(const CurrencyState());
+}
 
 void main() {
   final getIt = GetIt.instance;
@@ -52,11 +68,17 @@ void main() {
     getIt.reset();
     final accountRepo = _MockAccountRepo();
     final txnRepo = _MockTxnRepo();
+    final debtRepo = _MockDebtRepo();
     getIt.registerSingleton<AccountRepository>(accountRepo);
     getIt.registerSingleton<TransactionRepository>(txnRepo);
+    getIt.registerSingleton<DebtRepository>(debtRepo);
 
     when(() => accountRepo.list()).thenAnswer(
         (_) async => dartz.Right([_account()]));
+    // /debts branch root fires LoadDebtsRequested on entry; stub globally so
+    // any /debts/* navigation (including /debts/new) doesn't hit a null return.
+    when(() => debtRepo.list())
+        .thenAnswer((_) async => const dartz.Right([]));
     when(() => txnRepo.list(any())).thenAnswer(
         (_) async => dartz.Right(const ListTransactionsResult(
             transactions: [], nextPageToken: '')));
@@ -87,7 +109,12 @@ void main() {
           // bloc; this wrapper remains to cover TransactionDetailPage routes.
           child: BlocProvider<TransactionBloc>(
             create: (_) => TransactionBloc(getIt<TransactionRepository>()),
-            child: child!,
+            child: BlocProvider<CurrencyBloc>.value(
+              // Debt pages (DebtsPage / DebtDetailPage) context.watch<CurrencyBloc>
+              // for preferred-currency conversion; provide a fake at the root.
+              value: _FakeCurrencyBloc(),
+              child: child!,
+            ),
           ),
         ),
       );
@@ -133,14 +160,71 @@ void main() {
         '/transactions/t-42');
   });
 
-  test('router has three StatefulShell branches (home/accounts/transactions)',
-      () {
+  test('router has four StatefulShell branches '
+      '(home/accounts/transactions/debts)', () {
     final router = buildRouter(_seededAuthBloc());
     final shell = router.configuration.routes
         .whereType<StatefulShellRoute>()
         .first;
-    expect(shell.branches.length, 3,
-        reason: 'transaction branch (index 2) must be registered');
+    expect(shell.branches.length, 4,
+        reason: 'debt branch (index 3) must be registered');
+  });
+
+  testWidgets('/debts resolves inside the debt branch and renders DebtsPage',
+      (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/debts');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(), '/debts');
+    // Branch 3 of StatefulShellRoute renders the debt list page.
+    expect(find.byType(DebtsPage), findsOneWidget);
+  });
+
+  testWidgets('/debts/new resolves to the debt form route', (tester) async {
+    // DebtFormPage desktop 双列布局在默认 800x600 视口会 RenderFlex 溢出，
+    // 给一个桌面宽视口让 form + preview side-by-side 有足够宽度。
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/debts/new');
+    await tester.pumpWidget(app(router, authBloc));
+    // Don't pumpAndSettle: DebtFormPage's live amortization preview schedules
+    // frames indefinitely in this stripped harness. A few pumps are enough for
+    // the router to resolve the route (mirrors /transactions list test).
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/debts/new');
+  });
+
+  testWidgets('/debts/:id resolves to the debt detail route', (tester) async {
+    when(() => getIt<DebtRepository>().get(any())).thenAnswer(
+        (_) async => dartz.Right(_debtDetail()));
+    // DebtDetailPage desktop 布局同样需要桌面宽视口避免溢出。
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/debts/d-42');
+    await tester.pumpWidget(app(router, authBloc));
+    // Don't pumpAndSettle: DebtDetailPage schedules post-frame work in this
+    // stripped harness. A few pumps are enough for the router to resolve.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/debts/d-42');
   });
 
   testWidgets('auth guard redirects unauthenticated /transactions to /login',
@@ -201,6 +285,24 @@ Account _account() => Account(
       currentBalanceCents: 0,
       ownership: Ownership.personal,
       status: AccountStatus.active,
+    );
+
+DebtDetail _debtDetail() => DebtDetail(
+      debt: Debt(
+        id: 'd1',
+        accountId: 'a1',
+        counterparty: '招商银行',
+        interestRate: 4.10,
+        amortization: AmortizationMethod.equalPrincipalInterest,
+        startDate: DateTime(2026, 1, 1),
+        dueDate: DateTime(2051, 6, 1),
+        totalPrincipalCents: 280000000,
+        remainingPrincipalCents: 210000000,
+        version: 1,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+      ),
+      schedule: const [],
     );
 
 Transaction _txn() => Transaction(
