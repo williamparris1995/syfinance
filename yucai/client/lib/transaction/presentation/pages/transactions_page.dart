@@ -235,41 +235,65 @@ class _Content extends StatelessWidget {
 
         final groups = _groupByDay(_txns);
 
+        // Task 4: mobile 分支判定 —— 与 accounts_page 同断点(Breakpoints mobileUpper=600)。
+        final isMobile = Breakpoints.of(context) == Breakpoint.mobile;
+
         return RefreshIndicator(
           onRefresh: () async => context
               .read<TransactionBloc>()
               .add(LoadTransactionsRequested(filter: _filter)),
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 96),
+            padding: isMobile
+                ? const EdgeInsets.fromLTRB(4, 4, 4, 96)
+                : const EdgeInsets.fromLTRB(
+                    AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 96),
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1120),
+                constraints: BoxConstraints(
+                    maxWidth: isMobile ? double.infinity : 1120),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _Header(
-                      count: _txns.length,
-                      monthLabel: _currentMonthLabel(_filter),
-                      onCreate: onCreate,
-                      onExport: onExport,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    SummaryCard(
-                      incomeCents: _summary?.incomeCents ?? 0,
-                      expenseCents: _summary?.expenseCents ?? 0,
-                      netCents: _summary?.netCents ?? 0,
-                      dailyAvgCents: _summary?.dailyAvgCents ?? 0,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    TxnFilterBar(
-                      state: _filter,
-                      onChanged: onFilterChanged,
-                      accountOptions: accountOptions,
-                      categoryOptions: categoryOptions,
-                      monthOptions: monthOptions,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
+                    if (isMobile) ...[
+                      _MobileAppBar(
+                        onFilter: () => _showMobileFilterSheet(
+                          context,
+                          accountOptions: accountOptions,
+                          categoryOptions: categoryOptions,
+                          monthOptions: monthOptions,
+                        ),
+                      ),
+                      MobileHeader(
+                        filter: _filter,
+                        count: _txns.length,
+                        summary: _summary,
+                        onFilterChanged: onFilterChanged,
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                    ] else ...[
+                      _Header(
+                        count: _txns.length,
+                        monthLabel: _currentMonthLabel(_filter),
+                        onCreate: onCreate,
+                        onExport: onExport,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      SummaryCard(
+                        incomeCents: _summary?.incomeCents ?? 0,
+                        expenseCents: _summary?.expenseCents ?? 0,
+                        netCents: _summary?.netCents ?? 0,
+                        dailyAvgCents: _summary?.dailyAvgCents ?? 0,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      TxnFilterBar(
+                        state: _filter,
+                        onChanged: onFilterChanged,
+                        accountOptions: accountOptions,
+                        categoryOptions: categoryOptions,
+                        monthOptions: monthOptions,
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                    ],
                     ResponsiveLayout(
                       mobile: _MobileList(
                         groups: groups,
@@ -302,6 +326,34 @@ class _Content extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  /// mobile 筛选 sheet 弹出(Task 2 MobileFilterSheet)。
+  /// 由 _MobileAppBar 的筛选 btn 触发,应用筛选后回调 onFilterChanged 并关闭 sheet。
+  void _showMobileFilterSheet(
+    BuildContext context, {
+    required List<FilterOption> accountOptions,
+    required List<FilterOption> categoryOptions,
+    required List<FilterOption> monthOptions,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (_) => MobileFilterSheet(
+        initial: _filter,
+        accountOptions: accountOptions,
+        categoryOptions: categoryOptions,
+        monthOptions: monthOptions,
+        onApply: (next) {
+          onFilterChanged(next);
+          Navigator.of(context).pop();
+        },
+      ),
     );
   }
 

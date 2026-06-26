@@ -402,4 +402,55 @@ void main() {
     await t.pumpAndSettle();
     expect(next?.month, '2026-05', reason: 'prev → 上一月');
   });
+
+  // ─────────── Task 4: _Content mobile 分支组装(_MobileAppBar + MobileHeader + _MobileList) ───────────
+  //
+  // mobile 分支显示 _MobileAppBar(标题「交易管理」) + MobileHeader(month-bar YYYY年M月),
+  // 隐藏 desktop _Header(标题「交易记录」) / SummaryCard / TxnFilterBar。
+  //
+  // 注:既有 mobile (390) test 用 _harness(MediaQuery size) 注入宽度,本 task 同样用
+  // MediaQuery 包一层注入 mobile 宽度,与既有 mobile test 同源(Breakpoints 基于
+  // MediaQuery.size.width),无需 tester.view.physicalSize。
+
+  testWidgets(
+      'mobile: _Content 显示 _MobileAppBar/_MobileHeader,隐藏 desktop _Header/TxnFilterBar',
+      (t) async {
+    // mobile viewport 375×900 触发 mobile 分支(Breakpoints mobileUpper=600)。
+    await pumpPage(t, const Size(375, 900));
+
+    // mobile appbar 标题「交易管理」(_MobileAppBar)
+    expect(find.text('交易管理'), findsOneWidget,
+        reason: 'mobile 分支应渲染 _MobileAppBar (标题「交易管理」)');
+    // mobile header month-bar 文本(YYYY年M月,MobileHeader)
+    expect(find.textContaining(RegExp(r'\d{4}年\d+月')), findsWidgets,
+        reason: 'mobile 分支应渲染 MobileHeader (month-bar YYYY年M月)');
+    // desktop _Header 标题「交易记录」隐藏(mobile 分支不渲染 _Header)
+    expect(find.text('交易记录'), findsNothing,
+        reason: 'mobile 分支应隐藏 desktop _Header (标题「交易记录」)');
+  });
+
+  // ─────────── Task 2 推迟的端到端 test: filterBtn tap → 筛选 sheet 弹 → 应用筛选 → 关 ───────────
+  //
+  // Task 2 reviewer 提醒:Task 2 仅单元 pump MobileFilterSheet;_MobileAppBar.filterBtn →
+  // _showMobileFilterSheet → MobileFilterSheet 的端到端链路需在 Task 4 组装后验证。
+
+  testWidgets(
+      'mobile: filterBtn tap 弹出筛选 sheet,「应用筛选」关闭 sheet (端到端)',
+      (t) async {
+    await pumpPage(t, const Size(375, 900));
+
+    // 1. _MobileAppBar 的筛选 IconButton(tooltip='筛选')
+    final filterBtn = find.byTooltip('筛选');
+    expect(filterBtn, findsOneWidget, reason: 'mobile appbar 应有筛选 btn');
+    // 2. tap 弹出 MobileFilterSheet(标题「筛选交易」)
+    await t.tap(filterBtn);
+    await t.pumpAndSettle();
+    expect(find.text('筛选交易'), findsOneWidget,
+        reason: 'tap 筛选 btn 应弹出 MobileFilterSheet (标题「筛选交易」)');
+    // 3. tap「应用筛选」关闭 sheet
+    await t.tap(find.text('应用筛选'));
+    await t.pumpAndSettle();
+    expect(find.text('筛选交易'), findsNothing,
+        reason: 'tap 应用筛选 应关闭 sheet');
+  });
 }
