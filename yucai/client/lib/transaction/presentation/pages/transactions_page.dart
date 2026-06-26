@@ -1092,6 +1092,27 @@ class _MobileTxnCard extends StatelessWidget {
         e1.accountType == AccountType.asset;
   }
 
+  /// 分类账户:非转账交易的 expense/income 对方账户(account-as-category)。
+  /// 转账无分类账户,返回 null(_CategoryChip 隐藏)。
+  Account? get _categoryAccount {
+    for (final e in txn.entries) {
+      final a = accountOf(e.accountId);
+      if (a != null &&
+          (a.accountType == AccountType.expense ||
+              a.accountType == AccountType.income)) {
+        return a;
+      }
+    }
+    return null;
+  }
+
+  /// HH:MM:优先 transactionTime,回退 transactionDate。
+  String get _hhmm {
+    final dt = txn.transactionTime ?? txn.transactionDate;
+    return '${dt.hour.toString().padLeft(2, '0')}:'
+        '${dt.minute.toString().padLeft(2, '0')}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final flavour = _flavour;
@@ -1155,42 +1176,75 @@ class _MobileTxnCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   if (isTransfer)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 4,
+                      runSpacing: 2,
                       children: [
-                        Flexible(
-                            child: _AccountTag(
-                                label: fromLabel, account: null)),
+                        _AccountTag(
+                            label: fromLabel,
+                            account: accountOf(txn.entries
+                                .firstWhere(
+                                    (e) => e.creditCents > 0,
+                                    orElse: () => txn.entries.first)
+                                .accountId)),
                         const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 4),
+                          padding: EdgeInsets.symmetric(horizontal: 2),
                           child: Icon(Icons.arrow_forward,
                               size: 14, color: AppColors.muted),
                         ),
-                        Flexible(
-                            child:
-                                _AccountTag(label: toLabel, account: null)),
+                        _AccountTag(
+                            label: toLabel,
+                            account: accountOf(txn.entries
+                                .firstWhere(
+                                    (e) => e.debitCents > 0,
+                                    orElse: () => txn.entries.last)
+                                .accountId)),
+                        if (txn.transactionTime != null)
+                          Text('· $_hhmm',
+                              style: const TextStyle(
+                                  color: AppColors.muted, fontSize: 12)),
                       ],
                     )
                   else
-                    Text(
-                      [
-                        _formatDate(txn.transactionDate),
-                        if (singleLabel.isNotEmpty) singleLabel,
-                      ].join(' · '),
-                      style: const TextStyle(
-                          color: AppColors.muted, fontSize: 12),
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 6,
+                      runSpacing: 2,
+                      children: [
+                        if (singleLabel.isNotEmpty)
+                          _AccountTag(
+                              label: singleLabel,
+                              account: accountOf(txn.entries
+                                  .firstWhere((e) =>
+                                      accountOf(e.accountId)?.accountType ==
+                                          AccountType.asset)
+                                  .accountId)),
+                        if (txn.transactionTime != null)
+                          Text('· $_hhmm',
+                              style: const TextStyle(
+                                  color: AppColors.muted, fontSize: 12)),
+                      ],
                     ),
                 ],
               ),
             ),
-            Text(
-              _formatCents(amount, signed: true),
-              style: TextStyle(
-                color: _amountColor(flavour),
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                fontFeatures: AppTypography.tabularFigures,
-              ),
+            // 右侧:分类 chip + 金额
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                _CategoryChip(account: _categoryAccount),
+                const SizedBox(height: 4),
+                Text(
+                  _formatCents(amount, signed: true),
+                  style: TextStyle(
+                    color: _amountColor(flavour),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: AppTypography.tabularFigures,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

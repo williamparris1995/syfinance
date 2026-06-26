@@ -20,6 +20,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:yucai_client/account/domain/entities/account_entity.dart';
+import 'package:yucai_client/account/domain/repositories/account_repository.dart';
+import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
@@ -29,6 +32,7 @@ import 'package:yucai_client/transaction/presentation/bloc/transaction_event.dar
 import 'package:yucai_client/transaction/presentation/pages/transactions_page.dart';
 
 class _FakeTxnRepo extends Mock implements TransactionRepository {}
+class _FakeAccountRepo extends Mock implements AccountRepository {}
 
 Transaction _txn(String id, DateTime date, {int amount = 5000}) {
   return Transaction(
@@ -227,5 +231,93 @@ void main() {
     expect(find.text('¥0.00'), findsWidgets);
     // The list still renders normally — a summary blip doesn't blank it.
     expect(find.text('交易 t1'), findsOneWidget);
+  });
+
+  // ─────────── Task 1: _MobileTxnCard 副行(账户首字母方块 + HH:MM) + 右侧分类 chip ───────────
+
+  testWidgets(
+      'mobile txn card: 分类 chip + HH:MM + 账户首字母方块 (text assertions)',
+      (tester) async {
+    // 注入账户仓库:一个 expense(餐饮)账户 + 一个 asset(现金)账户,
+    // 让 _CategoryChip / _AccountTag 有真实 account 可渲染。
+    final accountRepo = _FakeAccountRepo();
+    const expenseAcct = Account(
+      id: 'a2',
+      name: '餐饮',
+      accountType: AccountType.expense,
+      category: AccountCategory.otherAsset,
+      currencyCode: 'CNY',
+      initialBalanceCents: 0,
+      currentBalanceCents: 0,
+      ownership: Ownership.personal,
+      status: AccountStatus.active,
+    );
+    const assetAcct = Account(
+      id: 'a1',
+      name: '现金',
+      accountType: AccountType.asset,
+      category: AccountCategory.savings,
+      currencyCode: 'CNY',
+      initialBalanceCents: 0,
+      currentBalanceCents: 0,
+      ownership: Ownership.personal,
+      status: AccountStatus.active,
+    );
+    when(() => accountRepo.list())
+        .thenAnswer((_) async => const dartz.Right([expenseAcct, assetAcct]));
+
+    // 交易带 transactionTime(HH:MM 来源)。
+    when(() => txnRepo.list(any())).thenAnswer((_) async => dartz.Right(
+        ListTransactionsResult(transactions: [
+          Transaction(
+            id: 'm1',
+            transactionDate: DateTime(2026, 6, 19),
+            transactionTime: DateTime(2026, 6, 19, 9, 5),
+            description: '早餐',
+            entries: const [
+              TransactionEntry(
+                  accountId: 'a1', debitCents: 1200, creditCents: 0),
+              TransactionEntry(
+                  accountId: 'a2', debitCents: 0, creditCents: 1200),
+            ],
+          ),
+        ], nextPageToken: '')));
+
+    // mobile viewport 375×900 触发 mobile 分支。
+    tester.view.physicalSize = const Size(375, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    // 包一层 RepositoryProvider<AccountRepository> 让页面 _loadAccounts 可解析。
+    await tester.pumpWidget(MaterialApp(
+      home: MediaQuery(
+        data: const MediaQueryData(size: Size(375, 900)),
+        child: Scaffold(
+          body: RepositoryProvider<AccountRepository>.value(
+            value: accountRepo,
+            child: BlocProvider<TransactionBloc>(
+              create: (_) {
+                final b = TransactionBloc(txnRepo);
+                b.add(const LoadTransactionsRequested());
+                return b;
+              },
+              child: const TransactionsPage(),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    // 分类 chip:expense 账户 category.label
+    expect(find.text('其他资产'), findsWidgets,
+        reason: 'mobile 交易卡右侧应渲染分类 chip (账户 category label)');
+    // HH:MM 时间(transactionTime 09:05,副行显示「· 09:05」)
+    expect(find.textContaining(RegExp(r'\d{2}:\d{2}')), findsWidgets,
+        reason: 'mobile 副行应显示 HH:MM');
+    // 账户首字母方块:_AccountTag 渲染 asset 账户名「现金」
+    expect(find.text('现金'), findsWidgets,
+        reason: 'mobile 副行应含账户首字母方块 + 账户名');
   });
 }
