@@ -166,7 +166,7 @@ func (h *AccountHandler) ListAccounts(ctx context.Context, req *pb.ListAccountsR
 		filter.Status = &s
 	}
 
-	pageReq := domain.PageRequest{PageSize: 20}
+	pageReq := domain.PageRequest{PageSize: 200}
 	if req.Page != nil {
 		pageReq.PageSize = req.Page.PageSize
 		pageReq.PageToken = req.Page.PageToken

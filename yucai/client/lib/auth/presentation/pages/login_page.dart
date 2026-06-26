@@ -16,6 +16,7 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -63,9 +64,20 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _passwordCtrl,
-                      decoration: const InputDecoration(labelText: '密码'),
-                      obscureText: true,
-                      validator: (v) => (v == null || v.isEmpty) ? '请输入密码' : null,
+                      decoration: InputDecoration(
+                        labelText: '密码',
+                        suffixIcon: IconButton(
+                          icon: Icon(_obscurePassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined),
+                          onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword),
+                          tooltip: _obscurePassword ? '显示密码' : '隐藏密码',
+                        ),
+                      ),
+                      obscureText: _obscurePassword,
+                      validator: (v) =>
+                          (v == null || v.isEmpty) ? '请输入密码' : null,
                     ),
                     const SizedBox(height: 24),
                     BlocBuilder<AuthBloc, AuthState>(

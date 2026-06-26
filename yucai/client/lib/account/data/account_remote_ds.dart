@@ -34,10 +34,19 @@ class AccountRemoteDataSource {
 
   Future<List<Account>> list() async {
     return _retry.call(() async {
-      final res = await _client.listAccounts(pb.ListAccountsRequest(
-        page: common.PageRequest(pageSize: 100),
-      ));
-      return res.accounts.map(_mapper.toDomain).toList();
+      // 循环分页拿全量账户(含 expense/income 分类账户),避免 pageSize 限制
+      // 漏分类账户 → 交易分录/卡显示 #id。
+      final all = <Account>[];
+      String? pageToken;
+      do {
+        final res = await _client.listAccounts(pb.ListAccountsRequest(
+          page: common.PageRequest(pageSize: 100, pageToken: pageToken ?? ''),
+        ));
+        all.addAll(res.accounts.map(_mapper.toDomain).toList());
+        final next = res.page.nextPageToken;
+        pageToken = next.isNotEmpty ? next : null;
+      } while (pageToken != null);
+      return all;
     });
   }
 

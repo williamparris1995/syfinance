@@ -121,7 +121,9 @@ func (r *AccountRepository) FindAll(ctx context.Context, tenantID uuid.UUID, fil
 	// Apply pagination
 	pageSize := int(page.PageSize)
 	if pageSize <= 0 {
-		pageSize = 20
+		// 默认放大:交易分录/分类 chip 需解析所有账户(含 expense/income 分类账户),
+		// 若分页太小(default 20)会漏分类账户 → client 显示 #id。200 容纳常规租户全量。
+		pageSize = 200
 	}
 	query.Limit(pageSize + 1) // +1 to detect next page
 

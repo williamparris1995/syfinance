@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
@@ -52,11 +53,15 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
   }
 
   Future<void> _loadAccounts() async {
-    final repo = context.read<AccountRepository?>();
-    if (repo == null) return;
-    final result = await repo.list();
-    if (!mounted) return;
-    result.fold((_) {}, (list) => setState(() => _accounts = list));
+    // router /transactions/:id 只 provide TransactionBloc,不 provide AccountRepository。
+    // 直接 getIt 拿,避免 context.read<AccountRepository?>() 返回 null → accounts=[]
+    // → 分录显示 #id(而非账户名)。
+    try {
+      final repo = GetIt.instance<AccountRepository>();
+      final result = await repo.list();
+      if (!mounted) return;
+      result.fold((_) {}, (list) => setState(() => _accounts = list));
+    } catch (_) {}
   }
 
   String _accountNameOf(String id) {

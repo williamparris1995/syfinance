@@ -92,7 +92,6 @@ class TxnFilterBar extends StatelessWidget {
   final List<FilterOption> categoryOptions;
   final List<FilterOption> monthOptions;
 
-  void _setType(TxnTypeFilter t) => onChanged(state.copyWith(type: t));
   void _setAccount(String? id) => onChanged(state.copyWith(accountId: id));
   void _setCategory(String? c) => onChanged(state.copyWith(category: c));
   void _setMonth(String? m) => onChanged(state.copyWith(month: m));
@@ -100,10 +99,8 @@ class TxnFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final typeSegment = _TypeSegment(
-      current: state.type,
-      onChanged: _setType,
-    );
+    // 类型分段抽到独立 TxnTypeSeg(transactions_page 渲染),TxnFilterBar 只保留
+    // 账户/分类/月份 下拉 + 重置。
     final accountPicker = _Picker(
       label: '账户',
       value: state.accountId,
@@ -131,8 +128,6 @@ class TxnFilterBar extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            typeSegment,
-            const SizedBox(height: AppSpacing.sm),
             accountPicker,
             const SizedBox(height: AppSpacing.xs),
             categoryPicker,
@@ -152,7 +147,6 @@ class TxnFilterBar extends StatelessWidget {
           runSpacing: AppSpacing.xs,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            typeSegment,
             accountPicker,
             categoryPicker,
             monthPicker,
@@ -166,11 +160,7 @@ class TxnFilterBar extends StatelessWidget {
         decoration: _boxDecoration,
         child: Row(
           children: [
-            // 类型分段固定宽度（4 个胶囊，不伸缩）。
-            typeSegment,
-            const SizedBox(width: AppSpacing.md),
-            // 三个下拉用 flex 而非固定宽度，避免在窄容器里溢出（fixed
-            // SizedBox 宽度 + Spacer 在内容总宽超过容器时会 overflow）。
+            // 三个下拉用 flex 而非固定宽度,避免在窄容器里溢出。
             Expanded(flex: 2, child: accountPicker),
             const SizedBox(width: AppSpacing.sm),
             Expanded(flex: 2, child: categoryPicker),
@@ -196,66 +186,6 @@ class FilterOption {
   const FilterOption(this.value, this.label);
   final String value;
   final String label;
-}
-
-class _TypeSegment extends StatelessWidget {
-  const _TypeSegment({required this.current, required this.onChanged});
-  final TxnTypeFilter current;
-  final ValueChanged<TxnTypeFilter> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceAlt,
-        borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final t in TxnTypeFilter.values)
-            _SegmentButton(
-              label: t.label,
-              selected: t == current,
-              onTap: () => onChanged(t),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SegmentButton extends StatelessWidget {
-  const _SegmentButton(
-      {required this.label, required this.selected, required this.onTap});
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.accent : Colors.transparent,
-          borderRadius: BorderRadius.circular(99),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? Colors.white : AppColors.muted,
-            fontSize: 13,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _Picker extends StatelessWidget {

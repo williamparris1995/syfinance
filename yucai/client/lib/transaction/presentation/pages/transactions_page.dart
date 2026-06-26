@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
@@ -112,7 +114,10 @@ class _TransactionsViewState extends State<_TransactionsView> {
   }
 
   void _openDetail(String id) {
-    Navigator.of(context).pushNamed('/transactions/$id');
+    // GoRouter 管理 /transactions/:id —— Navigator.pushNamed 不认(GoRouter 用
+    // context.push by path)。改 context.push,mobile 整卡 tap + tablet/desktop
+    // more 按钮(_RowOpMenu)都走此 → 跳交易详情。
+    context.push('/transactions/$id');
   }
 
   void _export() {
@@ -154,12 +159,9 @@ class _TransactionsViewState extends State<_TransactionsView> {
           if (state is! TransactionsLoaded && state is! TransactionsLoadingMore) {
             return const Center(child: CircularProgressIndicator());
           }
-          final txns = state is TransactionsLoaded
-              ? (state).transactions
-              : (state as TransactionsLoadingMore).transactions;
-          if (txns.isEmpty) {
-            return _EmptyView(onCreate: _openCreateForm);
-          }
+          // 空列表(如切到无记录月份)保留 _Content 的 header(mobile month-bar/
+          // sum-card/筛选 或 desktop _Header/SummaryCard/TxnFilterBar),列表区
+          // 显示空提示(不再全屏 _EmptyView 覆盖 header)。
           return _Content(
             state: state,
             loadingMore: state is TransactionsLoadingMore,
@@ -269,6 +271,12 @@ class _Content extends StatelessWidget {
                         summary: _summary,
                         onFilterChanged: onFilterChanged,
                       ),
+                      const SizedBox(height: AppSpacing.md),
+                      TxnTypeSeg(
+                        type: _filter.type,
+                        onChanged: (tf) =>
+                            onFilterChanged(_filter.copyWith(type: tf)),
+                      ),
                       const SizedBox(height: AppSpacing.lg),
                     ] else ...[
                       _Header(
@@ -285,6 +293,12 @@ class _Content extends StatelessWidget {
                         dailyAvgCents: _summary?.dailyAvgCents ?? 0,
                       ),
                       const SizedBox(height: AppSpacing.md),
+                      TxnTypeSeg(
+                        type: _filter.type,
+                        onChanged: (tf) =>
+                            onFilterChanged(_filter.copyWith(type: tf)),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
                       TxnFilterBar(
                         state: _filter,
                         onChanged: onFilterChanged,
@@ -294,31 +308,34 @@ class _Content extends StatelessWidget {
                       ),
                       const SizedBox(height: AppSpacing.lg),
                     ],
-                    ResponsiveLayout(
-                      mobile: _MobileList(
-                        groups: groups,
-                        accounts: accounts,
-                        onOpenDetail: onOpenDetail,
+                    if (groups.isEmpty)
+                      _EmptyListHint(onCreate: onCreate)
+                    else
+                      ResponsiveLayout(
+                        mobile: _MobileList(
+                          groups: groups,
+                          accounts: accounts,
+                          onOpenDetail: onOpenDetail,
+                        ),
+                        tablet: _TxCard(
+                          groups: groups,
+                          accounts: accounts,
+                          onOpenDetail: onOpenDetail,
+                          hasMore: _hasMore,
+                          loadingMore: loadingMore,
+                          onLoadMore: onLoadMore,
+                          totalCount: _txns.length,
+                        ),
+                        desktop: _TxCard(
+                          groups: groups,
+                          accounts: accounts,
+                          onOpenDetail: onOpenDetail,
+                          hasMore: _hasMore,
+                          loadingMore: loadingMore,
+                          onLoadMore: onLoadMore,
+                          totalCount: _txns.length,
+                        ),
                       ),
-                      tablet: _TxCard(
-                        groups: groups,
-                        accounts: accounts,
-                        onOpenDetail: onOpenDetail,
-                        hasMore: _hasMore,
-                        loadingMore: loadingMore,
-                        onLoadMore: onLoadMore,
-                        totalCount: _txns.length,
-                      ),
-                      desktop: _TxCard(
-                        groups: groups,
-                        accounts: accounts,
-                        onOpenDetail: onOpenDetail,
-                        hasMore: _hasMore,
-                        loadingMore: loadingMore,
-                        onLoadMore: onLoadMore,
-                        totalCount: _txns.length,
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -358,10 +375,16 @@ class _Content extends StatelessWidget {
   }
 
   Future<List<Account>> _loadAccounts(BuildContext context) async {
-    final repo = context.read<AccountRepository?>();
-    if (repo == null) return const [];
-    final result = await repo.list();
-    return result.fold((_) => const [], (list) => list);
+    // router /transactions 只 provide TransactionBloc,不 provide AccountRepository。
+    // 直接从 getIt 拿(注册于 DI),避免 context.read<AccountRepository?>() 返回 null
+    // 导致 accounts=[] → 交易卡全显示 #id + 分类 chip 隐藏。
+    try {
+      final repo = GetIt.instance<AccountRepository>();
+      final result = await repo.list();
+      return result.fold((_) => const [], (list) => list);
+    } catch (_) {
+      return const [];
+    }
   }
 
   List<FilterOption> _categoryOptions(List<Account> accounts) {
@@ -671,7 +694,26 @@ class _TxTableRow extends StatelessWidget {
   final Account? Function(String id) accountOf;
   final ValueChanged<String> onOpenDetail;
 
-  TxnFlavour get _flavour => inferFlavour(txn);
+  /// 转账判定（两条 entry 且两端账户都是 asset）。
+  bool get _isTransfer {
+    if (txn.entries.length != 2) return false;
+    final e0 = accountOf(txn.entries[0].accountId);
+    final e1 = accountOf(txn.entries[1].accountId);
+    if (e0 == null || e1 == null) return txn.isBalanced;
+    return e0.accountType == AccountType.asset &&
+        e1.accountType == AccountType.asset;
+  }
+
+  TxnFlavour get _flavour {
+    // 用 account type 判定,避免 inferFlavour 误判 expense/income 为 transfer。
+    if (_isTransfer) return TxnFlavour.transfer;
+    for (final e in txn.entries) {
+      final t = accountOf(e.accountId)?.accountType;
+      if (t == AccountType.expense) return TxnFlavour.expense;
+      if (t == AccountType.income) return TxnFlavour.income;
+    }
+    return TxnFlavour.compound;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -794,16 +836,6 @@ class _TxTableRow extends StatelessWidget {
       otherAccount,
       primaryId,
     );
-  }
-
-  /// 转账判定：两条 entry 且两端账户都是 asset（无元信息退化为平衡两行）。
-  bool get _isTransfer {
-    if (txn.entries.length != 2) return false;
-    final e0 = accountOf(txn.entries[0].accountId);
-    final e1 = accountOf(txn.entries[1].accountId);
-    if (e0 == null || e1 == null) return txn.isBalanced;
-    return e0.accountType == AccountType.asset &&
-        e1.accountType == AccountType.asset;
   }
 }
 
@@ -933,7 +965,9 @@ class _CategoryChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (account == null) return const SizedBox.shrink();
-    final label = account!.category.label;
+    // 显示账户名(餐饮/购物/工资)而非 category.label(分类账户 category 可能是
+    // savings/other,不代表分类语义)。
+    final label = account!.name;
     final isIncomeType = account!.accountType == AccountType.income;
     final isExpenseType = account!.accountType == AccountType.expense;
     final fg = isIncomeType
@@ -1073,6 +1107,54 @@ class _PagerFooter extends StatelessWidget {
 
 // ───────────────────────── 移动端：卡片堆叠 ─────────────────────────
 
+/// 类型 segmented(全部/收入/支出/转账)——对齐 OD typeSeg,复用 TxnTypeFilter。
+/// mobile + tablet/desktop 共用(mobile 在 sum-card 后;tablet/desktop 在 SummaryCard 后)。
+class TxnTypeSeg extends StatelessWidget {
+  const TxnTypeSeg({super.key, required this.type, required this.onChanged});
+  final TxnTypeFilter type;
+  final ValueChanged<TxnTypeFilter> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(11),
+      ),
+      child: Row(
+        children: [
+          for (final tf in TxnTypeFilter.values)
+            Expanded(
+              child: GestureDetector(
+                onTap: () => onChanged(tf),
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: type == tf
+                        ? AppColors.accentSoft
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(tf.label,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color:
+                              type == tf ? AppColors.accent : AppColors.muted,
+                          fontSize: 14,
+                          fontWeight:
+                              type == tf ? FontWeight.w600 : FontWeight.w400)),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _MobileList extends StatelessWidget {
   const _MobileList({
     required this.groups,
@@ -1132,7 +1214,18 @@ class _MobileTxnCard extends StatelessWidget {
   final Account? Function(String id) accountOf;
   final VoidCallback onTap;
 
-  TxnFlavour get _flavour => inferFlavour(txn);
+  TxnFlavour get _flavour {
+    // inferFlavour 仅看「2 entries + balanced → transfer」,会误判 expense/income
+    // (它们也是 2 entries balanced)。改用 account type 判定:
+    //   asset×2 → transfer;含 expense → expense;含 income → income;else compound。
+    if (_isTransfer) return TxnFlavour.transfer;
+    for (final e in txn.entries) {
+      final t = accountOf(e.accountId)?.accountType;
+      if (t == AccountType.expense) return TxnFlavour.expense;
+      if (t == AccountType.income) return TxnFlavour.income;
+    }
+    return TxnFlavour.compound;
+  }
 
   /// 转账判定：两条 entry 且两端账户都是 asset（无元信息退化为平衡两行）。
   bool get _isTransfer {
@@ -1365,45 +1458,31 @@ class _LoadMoreControl extends StatelessWidget {
 
 // ───────────────────────── 空态 / 错误态 ─────────────────────────
 
-class _EmptyView extends StatelessWidget {
-  const _EmptyView({required this.onCreate});
+/// 列表区空提示(非全屏):切到无记录月份时 _Content 列表区显示,保留 header。
+class _EmptyListHint extends StatelessWidget {
+  const _EmptyListHint({required this.onCreate});
   final VoidCallback onCreate;
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: () async => context
-          .read<TransactionBloc>()
-          .add(const LoadTransactionsRequested()),
-      child: ListView(
-        children: [
-          const SizedBox(height: 120),
-          Center(
-            child: Column(
-              children: [
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: AppColors.accentSoft,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(Icons.receipt_long_outlined,
-                      size: 30, color: AppColors.accent),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                const Text('还没有交易',
-                    style:
-                        TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 6),
-                const Text('点击「新增交易」开始记录第一笔',
-                    style: TextStyle(color: AppColors.muted, fontSize: 14)),
-                const SizedBox(height: AppSpacing.lg),
-                _CreateButton(onPressed: onCreate),
-              ],
-            ),
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 60),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.receipt_long_outlined,
+                size: 36, color: AppColors.muted),
+            const SizedBox(height: 12),
+            const Text('本月暂无交易',
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.muted)),
+            const SizedBox(height: 16),
+            _CreateButton(onPressed: onCreate),
+          ],
+        ),
       ),
     );
   }
