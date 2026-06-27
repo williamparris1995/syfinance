@@ -644,9 +644,11 @@ class _DebtCard extends StatelessWidget {
     );
   }
 
-  /// 卡片底部操作栏：记账 / 详情 / 更多。
-  /// - 记账 / 详情 → 跳详情页（RecordPayment 在详情页内）
-  /// - 更多 → showMenu（编辑 / 删除占位，暂仅 toast 提示）
+  /// 卡片底部操作栏：详情 / 更多。
+  /// - 详情 → 跳详情页（记账在详情页 schedule 行内 —— 列表 DebtDTO 不知哪期）。
+  /// - 更多 → PopupMenuButton<String>（Flutter 自动贴按钮定位，无需手算
+  ///   findRenderObject 坐标；对齐 account card _hoverActionBar 的更多按钮模式）。
+  ///   items：编辑 / 删除（占位，暂仅 toast 提示）。
   Widget _actionBar(Debt debt, BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(top: 11),
@@ -657,56 +659,63 @@ class _DebtCard extends StatelessWidget {
       child: Row(
         children: [
           _ActionBtn(
-            icon: Icons.receipt_long_outlined,
-            label: '记账',
-            emphasized: true,
-            onTap: (_) => context.push('/debts/${debt.id}'),
-          ),
-          _ActionBtn(
             icon: Icons.info_outline,
             label: '详情',
             onTap: (_) => context.push('/debts/${debt.id}'),
           ),
-          _ActionBtn(
-            icon: Icons.more_horiz,
-            label: '更多',
-            // 更多按钮把自身 BuildContext 传给回调，用于按按钮位置定位 showMenu。
-            onTap: (btnCtx) => _showMoreMenu(debt, btnCtx),
-          ),
+          _MoreBtn(debt: debt),
         ],
       ),
     );
   }
+}
 
-  /// 更多菜单：按「更多」按钮位置定位 showMenu（对齐 account card
-  /// _showQuickMenu 用长按坐标 + Overlay findRenderObject 的模式）。
-  /// btnCtx = _ActionBtn 的 element，其 renderObject = 按钮盒子。
-  Future<void> _showMoreMenu(Debt debt, BuildContext btnCtx) async {
-    final box = btnCtx.findRenderObject() as RenderBox?;
-    if (box == null) return;
-    // 按钮右上角全局坐标（菜单下挂在其下方右对齐按钮宽度）。
-    final topRight = box.localToGlobal(Offset.zero.translate(box.size.width, 0));
-    final overlay =
-        Overlay.of(btnCtx).context.findRenderObject() as RenderBox;
-    final choice = await showMenu<String>(
-      context: btnCtx,
-      position: RelativeRect.fromLTRB(
-        topRight.dx,
-        topRight.dy + box.size.height,
-        overlay.size.width - topRight.dx,
-        overlay.size.height - (topRight.dy + box.size.height),
+/// 「更多」按钮：_ActionBtn 外观 + 内嵌 PopupMenuButton<String>。
+/// PopupMenuButton 由 Flutter 自动按按钮位置定位弹出菜单（替代手算
+/// findRenderObject + RelativeRect 的 showMenu 方案，避免定位偏移）。
+class _MoreBtn extends StatelessWidget {
+  const _MoreBtn({required this.debt});
+  final Debt debt;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: PopupMenuButton<String>(
+        tooltip: '更多',
+        // 用 child（非 icon）规避 PopupMenuButton 内部 IconButton 默认 48x48
+        // 最小触达高度 —— 在固定卡高 mainAxisExtent 下会顶溢出 12px。child 路径
+        // 直接渲染自定义视觉，与 _ActionBtn 高度一致。
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        child: _btnVisual(),
+        itemBuilder: (_) => const [
+          PopupMenuItem(value: 'edit', child: Text('编辑')),
+          PopupMenuItem(value: 'delete', child: Text('删除')),
+        ],
+        onSelected: (v) {
+          if (v == 'edit') {
+            AppToast.show(context, '编辑功能即将上线', type: ToastType.warning);
+          } else if (v == 'delete') {
+            AppToast.show(context, '删除功能即将上线', type: ToastType.warning);
+          }
+        },
       ),
-      items: const [
-        PopupMenuItem(value: 'edit', child: Text('编辑')),
-        PopupMenuItem(value: 'delete', child: Text('删除')),
-      ],
     );
-    if (!btnCtx.mounted) return;
-    if (choice == 'edit') {
-      AppToast.show(btnCtx, '编辑功能即将上线', type: ToastType.warning);
-    } else if (choice == 'delete') {
-      AppToast.show(btnCtx, '删除功能即将上线', type: ToastType.warning);
-    }
+  }
+
+  Widget _btnVisual() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 2),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.more_horiz, size: 16, color: AppColors.muted),
+          SizedBox(height: 3),
+          Text('更多',
+              style: TextStyle(color: AppColors.muted, fontSize: 11)),
+        ],
+      ),
+    );
   }
 }
 
@@ -778,13 +787,10 @@ class _ActionBtn extends StatelessWidget {
   const _ActionBtn({
     required this.icon,
     required this.label,
-    this.emphasized = false,
     this.onTap,
   });
   final IconData icon;
   final String label;
-  final bool emphasized;
-  /// 回调收按钮自身 BuildContext（用于 showMenu 按钮定位等）。
   final ValueChanged<BuildContext>? onTap;
 
   @override
@@ -800,16 +806,11 @@ class _ActionBtn extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon,
-                    size: 16,
-                    color: emphasized ? AppColors.positive : AppColors.muted),
+                Icon(icon, size: 16, color: AppColors.muted),
                 const SizedBox(height: 3),
                 Text(label,
-                    style: TextStyle(
-                        color: emphasized
-                            ? AppColors.positive
-                            : AppColors.muted,
-                        fontSize: 11)),
+                    style: const TextStyle(
+                        color: AppColors.muted, fontSize: 11)),
               ],
             ),
           ),
