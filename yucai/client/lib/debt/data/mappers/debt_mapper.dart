@@ -25,6 +25,7 @@ class DebtMapper {
       version: dto.version.toInt(),
       createdAt: dto.createdAt.toDateTime(),
       updatedAt: dto.updatedAt.toDateTime(),
+      type: debtTypeFromProto(dto.debtType),
     );
   }
 
@@ -62,6 +63,35 @@ class DebtMapper {
         return pb.AmortizationMethod.AMORTIZATION_EQUAL_PRINCIPAL;
       case AmortizationMethod.lumpSum:
         return pb.AmortizationMethod.AMORTIZATION_LUMP_SUM;
+    }
+  }
+
+  /// proto DebtType → domain DebtType。
+  ///
+  /// 与 AmortizationMethod 同样的 off-by-one:proto 值为 UNSPECIFIED=0 /
+  /// BORROWED_IN=1 / BORROWED_OUT=2,而 domain 索引为 borrowedIn=0 /
+  /// borrowedOut=1,二者不对齐,故按符号 NAME 显式映射,绝不按 int 强转。
+  /// UNSPECIFIED 折叠为 borrowedIn(匹配服务端旧行为:既有/未指定债务为借入)。
+  static DebtType debtTypeFromProto(pb.DebtType t) {
+    switch (t) {
+      case pb.DebtType.DEBT_TYPE_BORROWED_OUT:
+        return DebtType.borrowedOut;
+      case pb.DebtType.DEBT_TYPE_BORROWED_IN:
+      case pb.DebtType.DEBT_TYPE_UNSPECIFIED:
+      default:
+        // UNSPECIFIED 折叠为 borrowedIn(匹配服务端旧行为:既有/未指定债务为借入)。
+        return DebtType.borrowedIn;
+    }
+  }
+
+  /// domain DebtType → proto DebtType。debtTypeFromProto 的逆映射
+  /// (UNSPECIFIED 在正向不可达,故为部分逆)。
+  static pb.DebtType debtTypeToProto(DebtType t) {
+    switch (t) {
+      case DebtType.borrowedIn:
+        return pb.DebtType.DEBT_TYPE_BORROWED_IN;
+      case DebtType.borrowedOut:
+        return pb.DebtType.DEBT_TYPE_BORROWED_OUT;
     }
   }
 }

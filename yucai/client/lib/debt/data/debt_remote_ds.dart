@@ -36,10 +36,13 @@ class DebtRemoteDataSource {
   final AuthRetryCaller _retry;
   late final grpc.DebtServiceClient _client;
 
-  Future<List<Debt>> list() async {
+  Future<List<Debt>> list({DebtType? typeFilter}) async {
     return _retry.call(() async {
       final res = await _client.listDebts(pb.ListDebtsRequest(
         page: common.PageRequest(pageSize: 100),
+        typeFilter: typeFilter == null
+            ? null
+            : DebtMapper.debtTypeToProto(typeFilter),
       ));
       return res.debts.map(DebtMapper.toDomain).toList();
     });
@@ -64,6 +67,7 @@ class DebtRemoteDataSource {
     required DateTime startDate,
     required DateTime dueDate,
     required int totalPrincipalCents,
+    required DebtType type,
   }) async {
     return _retry.call(() async {
       final res = await _client.createDebt(pb.CreateDebtRequest(
@@ -76,6 +80,7 @@ class DebtRemoteDataSource {
         startDate: _fmtDate(startDate),
         dueDate: _fmtDate(dueDate),
         totalPrincipalCents: Int64(totalPrincipalCents),
+        debtType: DebtMapper.debtTypeToProto(type),
       ));
       return DebtMapper.toDomain(res.debt);
     });
