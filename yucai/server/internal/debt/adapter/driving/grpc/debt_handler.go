@@ -57,6 +57,7 @@ func (h *DebtHandler) CreateDebt(ctx context.Context, req *pb.CreateDebtRequest)
 		StartDate:           startDate,
 		DueDate:             dueDate,
 		TotalPrincipalCents: req.TotalPrincipalCents,
+		DebtType:            protoToDebtType(req.DebtType),
 	})
 	if err != nil {
 		return nil, mapError(err)
@@ -163,9 +164,17 @@ func (h *DebtHandler) ListDebts(ctx context.Context, req *pb.ListDebtsRequest) (
 		pageReq.PageToken = req.Page.PageToken
 	}
 
+	// type_filter is optional: UNSPECIFIED means "all types" (no filter applied).
+	var typeFilter *domain.DebtType
+	if req.TypeFilter != pb.DebtType_DEBT_TYPE_UNSPECIFIED {
+		t := protoToDebtType(req.TypeFilter)
+		typeFilter = &t
+	}
+
 	result, err := h.service.ListDebts(ctx, application.ListDebtsRequest{
-		TenantID: tenantID,
-		Page:     pageReq,
+		TenantID:   tenantID,
+		Page:       pageReq,
+		TypeFilter: typeFilter,
 	})
 	if err != nil {
 		return nil, mapError(err)
@@ -221,6 +230,7 @@ func debtToProto(d application.DebtDTO) *pb.DebtDTO {
 		StartDate:           d.StartDate.Format("2006-01-02"),
 		DueDate:             d.DueDate.Format("2006-01-02"),
 		TotalPrincipalCents: d.TotalPrincipalCents,
+		DebtType:            debtTypeToProto(d.DebtType),
 		RemainingPrincipalCents: d.RemainingPrincipal,
 		Version:             d.Version,
 		CreatedAt:           timestamppb.New(d.CreatedAt),
@@ -278,6 +288,34 @@ func methodToProto(m domain.AmortizationMethod) pb.AmortizationMethod {
 		return pb.AmortizationMethod_AMORTIZATION_LUMP_SUM
 	default:
 		return pb.AmortizationMethod_AMORTIZATION_UNSPECIFIED
+	}
+}
+
+// protoToDebtType converts a proto DebtType to the domain enum.
+// Mapping is NAME-BASED (not by numeric value) to avoid off-by-one bugs across
+// the proto/domain boundary. UNSPECIFIED/unknown resolves to BorrowedIn, matching
+// the ent column default so legacy/omitted values behave as borrowed_in.
+func protoToDebtType(t pb.DebtType) domain.DebtType {
+	switch t {
+	case pb.DebtType_DEBT_TYPE_BORROWED_IN:
+		return domain.BorrowedIn
+	case pb.DebtType_DEBT_TYPE_BORROWED_OUT:
+		return domain.BorrowedOut
+	default: // DEBT_TYPE_UNSPECIFIED or unknown
+		return domain.BorrowedIn
+	}
+}
+
+// debtTypeToProto converts a domain DebtType to the proto enum.
+// Mapping is NAME-BASED. Unspecified/unknown resolves to BORROWED_IN.
+func debtTypeToProto(t domain.DebtType) pb.DebtType {
+	switch t {
+	case domain.BorrowedOut:
+		return pb.DebtType_DEBT_TYPE_BORROWED_OUT
+	case domain.BorrowedIn, domain.DebtTypeUnspecified:
+		return pb.DebtType_DEBT_TYPE_BORROWED_IN
+	default:
+		return pb.DebtType_DEBT_TYPE_BORROWED_IN
 	}
 }
 

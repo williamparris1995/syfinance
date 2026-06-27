@@ -27,6 +27,7 @@ func (s *Service) CreateDebt(ctx context.Context, req CreateDebtRequest) (*DebtD
 		req.AmortizationMethod,
 		req.StartDate, req.DueDate,
 		req.TotalPrincipalCents,
+		req.DebtType,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create debt: %w", err)
@@ -81,8 +82,9 @@ func (s *Service) GetDebt(ctx context.Context, tenantID, id uuid.UUID) (*DebtDet
 }
 
 // ListDebts returns a paginated list of debts.
+// When req.TypeFilter is non-nil, results are restricted to that debt type.
 func (s *Service) ListDebts(ctx context.Context, req ListDebtsRequest) (*ListDebtsResult, error) {
-	result, err := s.repo.FindAll(ctx, req.TenantID, req.Page)
+	result, err := s.repo.FindAll(ctx, req.TenantID, req.Page, req.TypeFilter)
 	if err != nil {
 		return nil, fmt.Errorf("list debts: %w", err)
 	}

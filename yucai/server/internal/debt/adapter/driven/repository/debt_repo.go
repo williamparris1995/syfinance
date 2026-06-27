@@ -34,6 +34,7 @@ func (r *DebtRepository) Save(ctx context.Context, d *domain.DebtDetails) error 
 		SetStartDate(d.StartDate).
 		SetDueDate(d.DueDate).
 		SetTotalPrincipalCents(d.TotalPrincipalCents).
+		SetDebtType(d.DebtType.String()).
 		SetVersion(d.Version).
 		SetCreatedAt(d.CreatedAt).
 		SetUpdatedAt(d.UpdatedAt).
@@ -86,9 +87,14 @@ func (r *DebtRepository) FindByID(ctx context.Context, tenantID, id uuid.UUID) (
 }
 
 // FindAll returns paginated debts (without schedule for performance).
-func (r *DebtRepository) FindAll(ctx context.Context, tenantID uuid.UUID, page domain.PageRequest) (*domain.PaginatedResult[domain.DebtDetails], error) {
+// If typeFilter is non-nil, results are restricted to the given debt type.
+func (r *DebtRepository) FindAll(ctx context.Context, tenantID uuid.UUID, page domain.PageRequest, typeFilter *domain.DebtType) (*domain.PaginatedResult[domain.DebtDetails], error) {
 	query := r.client.DebtDetails.Query().
 		Where(debtdetails.TenantID(tenantID))
+
+	if typeFilter != nil {
+		query.Where(debtdetails.DebtTypeEQ((*typeFilter).String()))
+	}
 
 	total, err := query.Count(ctx)
 	if err != nil {
@@ -238,6 +244,7 @@ func toDomainDebt(dd *debtent.DebtDetails, entries []*debtent.PaymentSchedule) *
 		StartDate:           dd.StartDate,
 		DueDate:             dd.DueDate,
 		TotalPrincipalCents: dd.TotalPrincipalCents,
+		DebtType:            domain.ParseDebtType(dd.DebtType),
 		Schedule:            schedule,
 		Version:             dd.Version,
 		CreatedAt:           dd.CreatedAt,

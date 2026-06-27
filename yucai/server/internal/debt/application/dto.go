@@ -17,6 +17,7 @@ type CreateDebtRequest struct {
 	StartDate           time.Time
 	DueDate             time.Time
 	TotalPrincipalCents int64
+	DebtType            domain.DebtType
 }
 
 // UpdateDebtRequest holds input for updating a debt.
@@ -37,9 +38,11 @@ type RecordPaymentRequest struct {
 }
 
 // ListDebtsRequest holds input for listing debts.
+// TypeFilter is optional: a nil pointer returns debts of all types.
 type ListDebtsRequest struct {
-	TenantID uuid.UUID
-	Page     domain.PageRequest
+	TenantID   uuid.UUID
+	Page       domain.PageRequest
+	TypeFilter *domain.DebtType
 }
 
 // DebtDTO is the data transfer object.
@@ -53,6 +56,7 @@ type DebtDTO struct {
 	StartDate           time.Time
 	DueDate             time.Time
 	TotalPrincipalCents int64
+	DebtType            domain.DebtType
 	RemainingPrincipal  int64
 	Version             int64
 	CreatedAt           time.Time
@@ -108,6 +112,7 @@ func DebtToDTO(d *domain.DebtDetails) DebtDTO {
 		StartDate:           d.StartDate,
 		DueDate:             d.DueDate,
 		TotalPrincipalCents: d.TotalPrincipalCents,
+		DebtType:            d.DebtType,
 		RemainingPrincipal:  d.RemainingPrincipal(),
 		Version:             d.Version,
 		CreatedAt:           d.CreatedAt,

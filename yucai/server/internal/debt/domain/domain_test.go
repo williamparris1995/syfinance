@@ -16,6 +16,7 @@ func TestNewDebtDetails_Valid(t *testing.T) {
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
 		10000000, // 100,000 yuan in cents
+		DebtTypeUnspecified,
 	)
 	if err != nil {
 		t.Fatalf("NewDebtDetails failed: %v", err)
@@ -39,6 +40,7 @@ func TestNewDebtDetails_EmptyCounterparty(t *testing.T) {
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
 		100000,
+		DebtTypeUnspecified,
 	)
 	if err == nil {
 		t.Error("expected error for empty counterparty")
@@ -52,6 +54,7 @@ func TestNewDebtDetails_NonPositivePrincipal(t *testing.T) {
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
 		0,
+		DebtTypeUnspecified,
 	)
 	if err == nil {
 		t.Error("expected error for zero principal")
@@ -65,6 +68,7 @@ func TestNewDebtDetails_NegativeInterestRate(t *testing.T) {
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
 		100000,
+		DebtTypeUnspecified,
 	)
 	if err == nil {
 		t.Error("expected error for negative interest rate")
@@ -78,6 +82,7 @@ func TestNewDebtDetails_DueDateBeforeStartDate(t *testing.T) {
 		time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		100000,
+		DebtTypeUnspecified,
 	)
 	if err == nil {
 		t.Error("expected error for due date before start date")
@@ -91,6 +96,7 @@ func TestLumpSumSchedule(t *testing.T) {
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
 		12000000, // 120,000 yuan
+		DebtTypeUnspecified,
 	)
 	entries := d.GenerateSchedule()
 	if len(entries) != 1 {
@@ -117,6 +123,7 @@ func TestEqualPrincipalSchedule(t *testing.T) {
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
 		12000000, // 120,000 yuan, 6 months
+		DebtTypeUnspecified,
 	)
 	entries := d.GenerateSchedule()
 	if len(entries) != 6 {
@@ -149,6 +156,7 @@ func TestEqualPrincipalInterestSchedule(t *testing.T) {
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
 		12000000, // 120,000 yuan, 6 months
+		DebtTypeUnspecified,
 	)
 	entries := d.GenerateSchedule()
 	if len(entries) != 6 {
@@ -183,6 +191,7 @@ func TestZeroInterestRate(t *testing.T) {
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
 		900000, // 9,000 yuan, 3 months
+		DebtTypeUnspecified,
 	)
 	entries := d.GenerateSchedule()
 	if len(entries) != 3 {
@@ -205,6 +214,7 @@ func TestMarkPaid(t *testing.T) {
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
 		1000000,
+		DebtTypeUnspecified,
 	)
 	d.GenerateSchedule()
 	entryID := d.Schedule[0].ID
@@ -232,6 +242,7 @@ func TestMarkPaid_EntryNotFound(t *testing.T) {
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
 		1000000,
+		DebtTypeUnspecified,
 	)
 	err := d.MarkPaid(uuid.New(), uuid.New())
 	if err == nil {
@@ -246,6 +257,7 @@ func TestRemainingPrincipal(t *testing.T) {
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
 		900000, // 3 months
+		DebtTypeUnspecified,
 	)
 	d.GenerateSchedule()
 
@@ -268,6 +280,7 @@ func TestTermInMonths(t *testing.T) {
 		time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC),
 		1000000,
+		DebtTypeUnspecified,
 	)
 	if months := d.TermInMonths(); months != 6 {
 		t.Errorf("expected 6 months, got %d", months)
@@ -281,6 +294,7 @@ func TestIncrementVersion(t *testing.T) {
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
 		1000000,
+		DebtTypeUnspecified,
 	)
 	before := d.Version
 	d.IncrementVersion()
@@ -299,6 +313,38 @@ func TestAmortizationMethod_StringRoundTrip(t *testing.T) {
 		parsed := ParseAmortizationMethod(m.String())
 		if parsed != m {
 			t.Errorf("round-trip failed: %v -> %s -> %v", m, m.String(), parsed)
+		}
+	}
+}
+
+func TestDebtType_StringRoundTrip(t *testing.T) {
+	types := []DebtType{BorrowedIn, BorrowedOut}
+	for _, dt := range types {
+		parsed := ParseDebtType(dt.String())
+		if parsed != dt {
+			t.Errorf("round-trip failed: %v -> %q -> %v", dt, dt.String(), parsed)
+		}
+	}
+}
+
+func TestDebtType_StringValues(t *testing.T) {
+	// ent column stores exact strings; verify them explicitly (name-based mapping).
+	if BorrowedIn.String() != "borrowed_in" {
+		t.Errorf("BorrowedIn.String() = %q, want %q", BorrowedIn.String(), "borrowed_in")
+	}
+	if BorrowedOut.String() != "borrowed_out" {
+		t.Errorf("BorrowedOut.String() = %q, want %q", BorrowedOut.String(), "borrowed_out")
+	}
+	// Unspecified normalizes to borrowed_in (matches ent default).
+	if DebtTypeUnspecified.String() != "borrowed_in" {
+		t.Errorf("DebtTypeUnspecified.String() = %q, want %q", DebtTypeUnspecified.String(), "borrowed_in")
+	}
+}
+
+func TestParseDebtType_UnknownDefaultsToBorrowedIn(t *testing.T) {
+	for _, s := range []string{"", "unknown", "INVALID", "BorrowedIn"} {
+		if got := ParseDebtType(s); got != BorrowedIn {
+			t.Errorf("ParseDebtType(%q) = %v, want BorrowedIn", s, got)
 		}
 	}
 }

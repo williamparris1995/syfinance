@@ -18,6 +18,7 @@ type DebtDetails struct {
 	StartDate           time.Time
 	DueDate             time.Time
 	TotalPrincipalCents int64
+	DebtType            DebtType
 	Schedule            []PaymentScheduleEntry
 	Version             int64
 	CreatedAt           time.Time
@@ -45,6 +46,7 @@ func NewDebtDetails(
 	method AmortizationMethod,
 	startDate, dueDate time.Time,
 	totalPrincipalCents int64,
+	debtType DebtType,
 ) (*DebtDetails, error) {
 	counterparty = trimSpace(counterparty)
 	if counterparty == "" {
@@ -60,6 +62,11 @@ func NewDebtDetails(
 		return nil, fmt.Errorf("due date must be after start date")
 	}
 
+	// Normalize zero/unspecified debt type to BorrowedIn (matches ent default).
+	if debtType == DebtTypeUnspecified {
+		debtType = BorrowedIn
+	}
+
 	now := time.Now()
 	return &DebtDetails{
 		ID:                  uuid.New(),
@@ -71,6 +78,7 @@ func NewDebtDetails(
 		StartDate:           startDate,
 		DueDate:             dueDate,
 		TotalPrincipalCents: totalPrincipalCents,
+		DebtType:            debtType,
 		Version:             1,
 		CreatedAt:           now,
 		UpdatedAt:           now,

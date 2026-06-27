@@ -36,3 +36,49 @@ func ParseAmortizationMethod(s string) AmortizationMethod {
 		return 0
 	}
 }
+
+// DebtType distinguishes money the user borrowed (a liability, borrowed_in)
+// from money the user lent out (a receivable, borrowed_out).
+//
+// Mapping across layers is NAME-BASED, never by numeric coincidence:
+//   - ent (string column): "borrowed_in" / "borrowed_out"
+//   - domain (this enum):  BorrowedIn / BorrowedOut
+//   - proto enum:          DEBT_TYPE_BORROWED_IN / DEBT_TYPE_BORROWED_OUT
+//
+// Unknown / unspecified values resolve to BorrowedIn, matching the ent column
+// default ("borrowed_in") so existing rows map correctly.
+type DebtType int
+
+const (
+	// DebtTypeUnspecified is the zero value; treated as BorrowedIn at boundaries.
+	DebtTypeUnspecified DebtType = iota
+	// BorrowedIn means the user borrowed money (a liability).
+	BorrowedIn
+	// BorrowedOut means the user lent money out (a receivable).
+	BorrowedOut
+)
+
+// String returns the string representation stored in the ent debt_type column.
+func (t DebtType) String() string {
+	switch t {
+	case BorrowedIn, DebtTypeUnspecified:
+		return "borrowed_in"
+	case BorrowedOut:
+		return "borrowed_out"
+	default:
+		return "borrowed_in"
+	}
+}
+
+// ParseDebtType converts an ent debt_type string to the domain enum.
+// Unknown values default to BorrowedIn (matches the ent column default).
+func ParseDebtType(s string) DebtType {
+	switch s {
+	case "borrowed_out":
+		return BorrowedOut
+	case "borrowed_in":
+		return BorrowedIn
+	default:
+		return BorrowedIn
+	}
+}
