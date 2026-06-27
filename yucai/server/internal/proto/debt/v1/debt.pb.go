@@ -76,6 +76,55 @@ func (AmortizationMethod) EnumDescriptor() ([]byte, []int) {
 	return file_debt_v1_debt_proto_rawDescGZIP(), []int{0}
 }
 
+type DebtType int32
+
+const (
+	DebtType_DEBT_TYPE_UNSPECIFIED  DebtType = 0
+	DebtType_DEBT_TYPE_BORROWED_IN  DebtType = 1
+	DebtType_DEBT_TYPE_BORROWED_OUT DebtType = 2
+)
+
+// Enum value maps for DebtType.
+var (
+	DebtType_name = map[int32]string{
+		0: "DEBT_TYPE_UNSPECIFIED",
+		1: "DEBT_TYPE_BORROWED_IN",
+		2: "DEBT_TYPE_BORROWED_OUT",
+	}
+	DebtType_value = map[string]int32{
+		"DEBT_TYPE_UNSPECIFIED":  0,
+		"DEBT_TYPE_BORROWED_IN":  1,
+		"DEBT_TYPE_BORROWED_OUT": 2,
+	}
+)
+
+func (x DebtType) Enum() *DebtType {
+	p := new(DebtType)
+	*p = x
+	return p
+}
+
+func (x DebtType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DebtType) Descriptor() protoreflect.EnumDescriptor {
+	return file_debt_v1_debt_proto_enumTypes[1].Descriptor()
+}
+
+func (DebtType) Type() protoreflect.EnumType {
+	return &file_debt_v1_debt_proto_enumTypes[1]
+}
+
+func (x DebtType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DebtType.Descriptor instead.
+func (DebtType) EnumDescriptor() ([]byte, []int) {
+	return file_debt_v1_debt_proto_rawDescGZIP(), []int{1}
+}
+
 type DebtDTO struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
 	Id                      string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -90,6 +139,7 @@ type DebtDTO struct {
 	Version                 int64                  `protobuf:"varint,10,opt,name=version,proto3" json:"version,omitempty"`
 	CreatedAt               *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt               *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	DebtType                DebtType               `protobuf:"varint,13,opt,name=debt_type,json=debtType,proto3,enum=yucai.debt.v1.DebtType" json:"debt_type,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -206,6 +256,13 @@ func (x *DebtDTO) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *DebtDTO) GetDebtType() DebtType {
+	if x != nil {
+		return x.DebtType
+	}
+	return DebtType_DEBT_TYPE_UNSPECIFIED
 }
 
 type PaymentEntryDTO struct {
@@ -369,6 +426,7 @@ type CreateDebtRequest struct {
 	StartDate           string                 `protobuf:"bytes,5,opt,name=start_date,json=startDate,proto3" json:"start_date,omitempty"`
 	DueDate             string                 `protobuf:"bytes,6,opt,name=due_date,json=dueDate,proto3" json:"due_date,omitempty"`
 	TotalPrincipalCents int64                  `protobuf:"varint,7,opt,name=total_principal_cents,json=totalPrincipalCents,proto3" json:"total_principal_cents,omitempty"`
+	DebtType            DebtType               `protobuf:"varint,8,opt,name=debt_type,json=debtType,proto3,enum=yucai.debt.v1.DebtType" json:"debt_type,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -450,6 +508,13 @@ func (x *CreateDebtRequest) GetTotalPrincipalCents() int64 {
 		return x.TotalPrincipalCents
 	}
 	return 0
+}
+
+func (x *CreateDebtRequest) GetDebtType() DebtType {
+	if x != nil {
+		return x.DebtType
+	}
+	return DebtType_DEBT_TYPE_UNSPECIFIED
 }
 
 type UpdateDebtRequest struct {
@@ -723,6 +788,7 @@ func (x *GetDebtRequest) GetId() string {
 type ListDebtsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Page          *v1.PageRequest        `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	TypeFilter    DebtType               `protobuf:"varint,2,opt,name=type_filter,json=typeFilter,proto3,enum=yucai.debt.v1.DebtType" json:"type_filter,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -762,6 +828,13 @@ func (x *ListDebtsRequest) GetPage() *v1.PageRequest {
 		return x.Page
 	}
 	return nil
+}
+
+func (x *ListDebtsRequest) GetTypeFilter() DebtType {
+	if x != nil {
+		return x.TypeFilter
+	}
+	return DebtType_DEBT_TYPE_UNSPECIFIED
 }
 
 type ListDebtsResponse struct {
@@ -952,7 +1025,7 @@ var File_debt_v1_debt_proto protoreflect.FileDescriptor
 
 const file_debt_v1_debt_proto_rawDesc = "" +
 	"\n" +
-	"\x12debt/v1/debt.proto\x12\ryucai.debt.v1\x1a\x1acommon/v1/pagination.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8f\x04\n" +
+	"\x12debt/v1/debt.proto\x12\ryucai.debt.v1\x1a\x1acommon/v1/pagination.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc5\x04\n" +
 	"\aDebtDTO\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -970,7 +1043,8 @@ const file_debt_v1_debt_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x8f\x02\n" +
+	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x124\n" +
+	"\tdebt_type\x18\r \x01(\x0e2\x17.yucai.debt.v1.DebtTypeR\bdebtType\"\x8f\x02\n" +
 	"\x0fPaymentEntryDTO\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fpayment_date\x18\x02 \x01(\tR\vpaymentDate\x12'\n" +
@@ -984,7 +1058,7 @@ const file_debt_v1_debt_proto_rawDesc = "" +
 	"\x0etransaction_id\x18\b \x01(\tR\rtransactionId\"w\n" +
 	"\rDebtDetailDTO\x12*\n" +
 	"\x04debt\x18\x01 \x01(\v2\x16.yucai.debt.v1.DebtDTOR\x04debt\x12:\n" +
-	"\bschedule\x18\x02 \x03(\v2\x1e.yucai.debt.v1.PaymentEntryDTOR\bschedule\"\xbd\x02\n" +
+	"\bschedule\x18\x02 \x03(\v2\x1e.yucai.debt.v1.PaymentEntryDTOR\bschedule\"\xf3\x02\n" +
 	"\x11CreateDebtRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\"\n" +
@@ -994,7 +1068,8 @@ const file_debt_v1_debt_proto_rawDesc = "" +
 	"\n" +
 	"start_date\x18\x05 \x01(\tR\tstartDate\x12\x19\n" +
 	"\bdue_date\x18\x06 \x01(\tR\adueDate\x122\n" +
-	"\x15total_principal_cents\x18\a \x01(\x03R\x13totalPrincipalCents\"\x86\x01\n" +
+	"\x15total_principal_cents\x18\a \x01(\x03R\x13totalPrincipalCents\x124\n" +
+	"\tdebt_type\x18\b \x01(\x0e2\x17.yucai.debt.v1.DebtTypeR\bdebtType\"\x86\x01\n" +
 	"\x11UpdateDebtRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\"\n" +
 	"\fcounterparty\x18\x02 \x01(\tR\fcounterparty\x12#\n" +
@@ -1010,9 +1085,11 @@ const file_debt_v1_debt_proto_rawDesc = "" +
 	"\x0etransaction_id\x18\x01 \x01(\tR\rtransactionId\x124\n" +
 	"\x05entry\x18\x02 \x01(\v2\x1e.yucai.debt.v1.PaymentEntryDTOR\x05entry\" \n" +
 	"\x0eGetDebtRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"D\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"~\n" +
 	"\x10ListDebtsRequest\x120\n" +
-	"\x04page\x18\x01 \x01(\v2\x1c.yucai.common.v1.PageRequestR\x04page\"t\n" +
+	"\x04page\x18\x01 \x01(\v2\x1c.yucai.common.v1.PageRequestR\x04page\x128\n" +
+	"\vtype_filter\x18\x02 \x01(\x0e2\x17.yucai.debt.v1.DebtTypeR\n" +
+	"typeFilter\"t\n" +
 	"\x11ListDebtsResponse\x12,\n" +
 	"\x05debts\x18\x01 \x03(\v2\x16.yucai.debt.v1.DebtDTOR\x05debts\x121\n" +
 	"\x04page\x18\x02 \x01(\v2\x1d.yucai.common.v1.PageResponseR\x04page\";\n" +
@@ -1027,7 +1104,11 @@ const file_debt_v1_debt_proto_rawDesc = "" +
 	"\x18AMORTIZATION_UNSPECIFIED\x10\x00\x12)\n" +
 	"%AMORTIZATION_EQUAL_PRINCIPAL_INTEREST\x10\x01\x12 \n" +
 	"\x1cAMORTIZATION_EQUAL_PRINCIPAL\x10\x02\x12\x19\n" +
-	"\x15AMORTIZATION_LUMP_SUM\x10\x032\xcc\x04\n" +
+	"\x15AMORTIZATION_LUMP_SUM\x10\x03*\\\n" +
+	"\bDebtType\x12\x19\n" +
+	"\x15DEBT_TYPE_UNSPECIFIED\x10\x00\x12\x19\n" +
+	"\x15DEBT_TYPE_BORROWED_IN\x10\x01\x12\x1a\n" +
+	"\x16DEBT_TYPE_BORROWED_OUT\x10\x022\xcc\x04\n" +
 	"\vDebtService\x12K\n" +
 	"\n" +
 	"CreateDebt\x12 .yucai.debt.v1.CreateDebtRequest\x1a\x1b.yucai.debt.v1.DebtResponse\x12K\n" +
@@ -1053,61 +1134,65 @@ func file_debt_v1_debt_proto_rawDescGZIP() []byte {
 	return file_debt_v1_debt_proto_rawDescData
 }
 
-var file_debt_v1_debt_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_debt_v1_debt_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_debt_v1_debt_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_debt_v1_debt_proto_goTypes = []any{
 	(AmortizationMethod)(0),            // 0: yucai.debt.v1.AmortizationMethod
-	(*DebtDTO)(nil),                    // 1: yucai.debt.v1.DebtDTO
-	(*PaymentEntryDTO)(nil),            // 2: yucai.debt.v1.PaymentEntryDTO
-	(*DebtDetailDTO)(nil),              // 3: yucai.debt.v1.DebtDetailDTO
-	(*CreateDebtRequest)(nil),          // 4: yucai.debt.v1.CreateDebtRequest
-	(*UpdateDebtRequest)(nil),          // 5: yucai.debt.v1.UpdateDebtRequest
-	(*DeleteDebtRequest)(nil),          // 6: yucai.debt.v1.DeleteDebtRequest
-	(*RecordPaymentRequest)(nil),       // 7: yucai.debt.v1.RecordPaymentRequest
-	(*RecordPaymentResponse)(nil),      // 8: yucai.debt.v1.RecordPaymentResponse
-	(*GetDebtRequest)(nil),             // 9: yucai.debt.v1.GetDebtRequest
-	(*ListDebtsRequest)(nil),           // 10: yucai.debt.v1.ListDebtsRequest
-	(*ListDebtsResponse)(nil),          // 11: yucai.debt.v1.ListDebtsResponse
-	(*GetUpcomingPaymentsRequest)(nil), // 12: yucai.debt.v1.GetUpcomingPaymentsRequest
-	(*DebtResponse)(nil),               // 13: yucai.debt.v1.DebtResponse
-	(*DebtDetailResponse)(nil),         // 14: yucai.debt.v1.DebtDetailResponse
-	(*timestamppb.Timestamp)(nil),      // 15: google.protobuf.Timestamp
-	(*v1.PageRequest)(nil),             // 16: yucai.common.v1.PageRequest
-	(*v1.PageResponse)(nil),            // 17: yucai.common.v1.PageResponse
-	(*emptypb.Empty)(nil),              // 18: google.protobuf.Empty
+	(DebtType)(0),                      // 1: yucai.debt.v1.DebtType
+	(*DebtDTO)(nil),                    // 2: yucai.debt.v1.DebtDTO
+	(*PaymentEntryDTO)(nil),            // 3: yucai.debt.v1.PaymentEntryDTO
+	(*DebtDetailDTO)(nil),              // 4: yucai.debt.v1.DebtDetailDTO
+	(*CreateDebtRequest)(nil),          // 5: yucai.debt.v1.CreateDebtRequest
+	(*UpdateDebtRequest)(nil),          // 6: yucai.debt.v1.UpdateDebtRequest
+	(*DeleteDebtRequest)(nil),          // 7: yucai.debt.v1.DeleteDebtRequest
+	(*RecordPaymentRequest)(nil),       // 8: yucai.debt.v1.RecordPaymentRequest
+	(*RecordPaymentResponse)(nil),      // 9: yucai.debt.v1.RecordPaymentResponse
+	(*GetDebtRequest)(nil),             // 10: yucai.debt.v1.GetDebtRequest
+	(*ListDebtsRequest)(nil),           // 11: yucai.debt.v1.ListDebtsRequest
+	(*ListDebtsResponse)(nil),          // 12: yucai.debt.v1.ListDebtsResponse
+	(*GetUpcomingPaymentsRequest)(nil), // 13: yucai.debt.v1.GetUpcomingPaymentsRequest
+	(*DebtResponse)(nil),               // 14: yucai.debt.v1.DebtResponse
+	(*DebtDetailResponse)(nil),         // 15: yucai.debt.v1.DebtDetailResponse
+	(*timestamppb.Timestamp)(nil),      // 16: google.protobuf.Timestamp
+	(*v1.PageRequest)(nil),             // 17: yucai.common.v1.PageRequest
+	(*v1.PageResponse)(nil),            // 18: yucai.common.v1.PageResponse
+	(*emptypb.Empty)(nil),              // 19: google.protobuf.Empty
 }
 var file_debt_v1_debt_proto_depIdxs = []int32{
 	0,  // 0: yucai.debt.v1.DebtDTO.amortization_method:type_name -> yucai.debt.v1.AmortizationMethod
-	15, // 1: yucai.debt.v1.DebtDTO.created_at:type_name -> google.protobuf.Timestamp
-	15, // 2: yucai.debt.v1.DebtDTO.updated_at:type_name -> google.protobuf.Timestamp
-	1,  // 3: yucai.debt.v1.DebtDetailDTO.debt:type_name -> yucai.debt.v1.DebtDTO
-	2,  // 4: yucai.debt.v1.DebtDetailDTO.schedule:type_name -> yucai.debt.v1.PaymentEntryDTO
-	0,  // 5: yucai.debt.v1.CreateDebtRequest.amortization_method:type_name -> yucai.debt.v1.AmortizationMethod
-	2,  // 6: yucai.debt.v1.RecordPaymentResponse.entry:type_name -> yucai.debt.v1.PaymentEntryDTO
-	16, // 7: yucai.debt.v1.ListDebtsRequest.page:type_name -> yucai.common.v1.PageRequest
-	1,  // 8: yucai.debt.v1.ListDebtsResponse.debts:type_name -> yucai.debt.v1.DebtDTO
-	17, // 9: yucai.debt.v1.ListDebtsResponse.page:type_name -> yucai.common.v1.PageResponse
-	1,  // 10: yucai.debt.v1.DebtResponse.debt:type_name -> yucai.debt.v1.DebtDTO
-	3,  // 11: yucai.debt.v1.DebtDetailResponse.debt:type_name -> yucai.debt.v1.DebtDetailDTO
-	4,  // 12: yucai.debt.v1.DebtService.CreateDebt:input_type -> yucai.debt.v1.CreateDebtRequest
-	5,  // 13: yucai.debt.v1.DebtService.UpdateDebt:input_type -> yucai.debt.v1.UpdateDebtRequest
-	6,  // 14: yucai.debt.v1.DebtService.DeleteDebt:input_type -> yucai.debt.v1.DeleteDebtRequest
-	7,  // 15: yucai.debt.v1.DebtService.RecordPayment:input_type -> yucai.debt.v1.RecordPaymentRequest
-	9,  // 16: yucai.debt.v1.DebtService.GetDebt:input_type -> yucai.debt.v1.GetDebtRequest
-	10, // 17: yucai.debt.v1.DebtService.ListDebts:input_type -> yucai.debt.v1.ListDebtsRequest
-	12, // 18: yucai.debt.v1.DebtService.GetUpcomingPayments:input_type -> yucai.debt.v1.GetUpcomingPaymentsRequest
-	13, // 19: yucai.debt.v1.DebtService.CreateDebt:output_type -> yucai.debt.v1.DebtResponse
-	13, // 20: yucai.debt.v1.DebtService.UpdateDebt:output_type -> yucai.debt.v1.DebtResponse
-	18, // 21: yucai.debt.v1.DebtService.DeleteDebt:output_type -> google.protobuf.Empty
-	8,  // 22: yucai.debt.v1.DebtService.RecordPayment:output_type -> yucai.debt.v1.RecordPaymentResponse
-	14, // 23: yucai.debt.v1.DebtService.GetDebt:output_type -> yucai.debt.v1.DebtDetailResponse
-	11, // 24: yucai.debt.v1.DebtService.ListDebts:output_type -> yucai.debt.v1.ListDebtsResponse
-	11, // 25: yucai.debt.v1.DebtService.GetUpcomingPayments:output_type -> yucai.debt.v1.ListDebtsResponse
-	19, // [19:26] is the sub-list for method output_type
-	12, // [12:19] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	16, // 1: yucai.debt.v1.DebtDTO.created_at:type_name -> google.protobuf.Timestamp
+	16, // 2: yucai.debt.v1.DebtDTO.updated_at:type_name -> google.protobuf.Timestamp
+	1,  // 3: yucai.debt.v1.DebtDTO.debt_type:type_name -> yucai.debt.v1.DebtType
+	2,  // 4: yucai.debt.v1.DebtDetailDTO.debt:type_name -> yucai.debt.v1.DebtDTO
+	3,  // 5: yucai.debt.v1.DebtDetailDTO.schedule:type_name -> yucai.debt.v1.PaymentEntryDTO
+	0,  // 6: yucai.debt.v1.CreateDebtRequest.amortization_method:type_name -> yucai.debt.v1.AmortizationMethod
+	1,  // 7: yucai.debt.v1.CreateDebtRequest.debt_type:type_name -> yucai.debt.v1.DebtType
+	3,  // 8: yucai.debt.v1.RecordPaymentResponse.entry:type_name -> yucai.debt.v1.PaymentEntryDTO
+	17, // 9: yucai.debt.v1.ListDebtsRequest.page:type_name -> yucai.common.v1.PageRequest
+	1,  // 10: yucai.debt.v1.ListDebtsRequest.type_filter:type_name -> yucai.debt.v1.DebtType
+	2,  // 11: yucai.debt.v1.ListDebtsResponse.debts:type_name -> yucai.debt.v1.DebtDTO
+	18, // 12: yucai.debt.v1.ListDebtsResponse.page:type_name -> yucai.common.v1.PageResponse
+	2,  // 13: yucai.debt.v1.DebtResponse.debt:type_name -> yucai.debt.v1.DebtDTO
+	4,  // 14: yucai.debt.v1.DebtDetailResponse.debt:type_name -> yucai.debt.v1.DebtDetailDTO
+	5,  // 15: yucai.debt.v1.DebtService.CreateDebt:input_type -> yucai.debt.v1.CreateDebtRequest
+	6,  // 16: yucai.debt.v1.DebtService.UpdateDebt:input_type -> yucai.debt.v1.UpdateDebtRequest
+	7,  // 17: yucai.debt.v1.DebtService.DeleteDebt:input_type -> yucai.debt.v1.DeleteDebtRequest
+	8,  // 18: yucai.debt.v1.DebtService.RecordPayment:input_type -> yucai.debt.v1.RecordPaymentRequest
+	10, // 19: yucai.debt.v1.DebtService.GetDebt:input_type -> yucai.debt.v1.GetDebtRequest
+	11, // 20: yucai.debt.v1.DebtService.ListDebts:input_type -> yucai.debt.v1.ListDebtsRequest
+	13, // 21: yucai.debt.v1.DebtService.GetUpcomingPayments:input_type -> yucai.debt.v1.GetUpcomingPaymentsRequest
+	14, // 22: yucai.debt.v1.DebtService.CreateDebt:output_type -> yucai.debt.v1.DebtResponse
+	14, // 23: yucai.debt.v1.DebtService.UpdateDebt:output_type -> yucai.debt.v1.DebtResponse
+	19, // 24: yucai.debt.v1.DebtService.DeleteDebt:output_type -> google.protobuf.Empty
+	9,  // 25: yucai.debt.v1.DebtService.RecordPayment:output_type -> yucai.debt.v1.RecordPaymentResponse
+	15, // 26: yucai.debt.v1.DebtService.GetDebt:output_type -> yucai.debt.v1.DebtDetailResponse
+	12, // 27: yucai.debt.v1.DebtService.ListDebts:output_type -> yucai.debt.v1.ListDebtsResponse
+	12, // 28: yucai.debt.v1.DebtService.GetUpcomingPayments:output_type -> yucai.debt.v1.ListDebtsResponse
+	22, // [22:29] is the sub-list for method output_type
+	15, // [15:22] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_debt_v1_debt_proto_init() }
@@ -1120,7 +1205,7 @@ func file_debt_v1_debt_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_debt_v1_debt_proto_rawDesc), len(file_debt_v1_debt_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,

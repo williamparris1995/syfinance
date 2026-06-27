@@ -25,6 +25,12 @@ enum AmortizationMethod {
   AMORTIZATION_LUMP_SUM = 3;
 }
 
+enum DebtType {
+  DEBT_TYPE_UNSPECIFIED = 0;
+  DEBT_TYPE_BORROWED_IN = 1;
+  DEBT_TYPE_BORROWED_OUT = 2;
+}
+
 message DebtDTO {
   string id = 1;
   string account_id = 2;
@@ -38,6 +44,7 @@ message DebtDTO {
   int64 version = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
+  DebtType debt_type = 13;
 }
 
 message PaymentEntryDTO {
@@ -64,6 +71,7 @@ message CreateDebtRequest {
   string start_date = 5;
   string due_date = 6;
   int64 total_principal_cents = 7;
+  DebtType debt_type = 8;
 }
 
 message UpdateDebtRequest {
@@ -90,6 +98,7 @@ message GetDebtRequest { string id = 1; }
 
 message ListDebtsRequest {
   yucai.common.v1.PageRequest page = 1;
+  DebtType type_filter = 2;
 }
 
 message ListDebtsResponse {

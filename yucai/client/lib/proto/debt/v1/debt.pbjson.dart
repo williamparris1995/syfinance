@@ -32,6 +32,21 @@ final $typed_data.Uint8List amortizationMethodDescriptor = $convert.base64Decode
     '1PUlRJWkFUSU9OX0VRVUFMX1BSSU5DSVBBTF9JTlRFUkVTVBABEiAKHEFNT1JUSVpBVElPTl9F'
     'UVVBTF9QUklOQ0lQQUwQAhIZChVBTU9SVElaQVRJT05fTFVNUF9TVU0QAw==');
 
+@$core.Deprecated('Use debtTypeDescriptor instead')
+const DebtType$json = {
+  '1': 'DebtType',
+  '2': [
+    {'1': 'DEBT_TYPE_UNSPECIFIED', '2': 0},
+    {'1': 'DEBT_TYPE_BORROWED_IN', '2': 1},
+    {'1': 'DEBT_TYPE_BORROWED_OUT', '2': 2},
+  ],
+};
+
+/// Descriptor for `DebtType`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List debtTypeDescriptor = $convert.base64Decode(
+    'CghEZWJ0VHlwZRIZChVERUJUX1RZUEVfVU5TUEVDSUZJRUQQABIZChVERUJUX1RZUEVfQk9SUk'
+    '9XRURfSU4QARIaChZERUJUX1RZUEVfQk9SUk9XRURfT1VUEAI=');
+
 @$core.Deprecated('Use debtDTODescriptor instead')
 const DebtDTO$json = {
   '1': 'DebtDTO',
@@ -81,6 +96,14 @@ const DebtDTO$json = {
       '6': '.google.protobuf.Timestamp',
       '10': 'updatedAt'
     },
+    {
+      '1': 'debt_type',
+      '3': 13,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.debt.v1.DebtType',
+      '10': 'debtType'
+    },
   ],
 };
 
@@ -95,7 +118,8 @@ final $typed_data.Uint8List debtDTODescriptor = $convert.base64Decode(
     'aW5nX3ByaW5jaXBhbF9jZW50cxgJIAEoA1IXcmVtYWluaW5nUHJpbmNpcGFsQ2VudHMSGAoHdm'
     'Vyc2lvbhgKIAEoA1IHdmVyc2lvbhI5CgpjcmVhdGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3Rv'
     'YnVmLlRpbWVzdGFtcFIJY3JlYXRlZEF0EjkKCnVwZGF0ZWRfYXQYDCABKAsyGi5nb29nbGUucH'
-    'JvdG9idWYuVGltZXN0YW1wUgl1cGRhdGVkQXQ=');
+    'JvdG9idWYuVGltZXN0YW1wUgl1cGRhdGVkQXQSNAoJZGVidF90eXBlGA0gASgOMhcueXVjYWku'
+    'ZGVidC52MS5EZWJ0VHlwZVIIZGVidFR5cGU=');
 
 @$core.Deprecated('Use paymentEntryDTODescriptor instead')
 const PaymentEntryDTO$json = {
@@ -173,6 +197,14 @@ const CreateDebtRequest$json = {
       '5': 3,
       '10': 'totalPrincipalCents'
     },
+    {
+      '1': 'debt_type',
+      '3': 8,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.debt.v1.DebtType',
+      '10': 'debtType'
+    },
   ],
 };
 
@@ -183,7 +215,8 @@ final $typed_data.Uint8List createDebtRequestDescriptor = $convert.base64Decode(
     'aW50ZXJlc3RSYXRlElIKE2Ftb3J0aXphdGlvbl9tZXRob2QYBCABKA4yIS55dWNhaS5kZWJ0Ln'
     'YxLkFtb3J0aXphdGlvbk1ldGhvZFISYW1vcnRpemF0aW9uTWV0aG9kEh0KCnN0YXJ0X2RhdGUY'
     'BSABKAlSCXN0YXJ0RGF0ZRIZCghkdWVfZGF0ZRgGIAEoCVIHZHVlRGF0ZRIyChV0b3RhbF9wcm'
-    'luY2lwYWxfY2VudHMYByABKANSE3RvdGFsUHJpbmNpcGFsQ2VudHM=');
+    'luY2lwYWxfY2VudHMYByABKANSE3RvdGFsUHJpbmNpcGFsQ2VudHMSNAoJZGVidF90eXBlGAgg'
+    'ASgOMhcueXVjYWkuZGVidC52MS5EZWJ0VHlwZVIIZGVidFR5cGU=');
 
 @$core.Deprecated('Use updateDebtRequestDescriptor instead')
 const UpdateDebtRequest$json = {
@@ -276,13 +309,22 @@ const ListDebtsRequest$json = {
       '6': '.yucai.common.v1.PageRequest',
       '10': 'page'
     },
+    {
+      '1': 'type_filter',
+      '3': 2,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.debt.v1.DebtType',
+      '10': 'typeFilter'
+    },
   ],
 };
 
 /// Descriptor for `ListDebtsRequest`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List listDebtsRequestDescriptor = $convert.base64Decode(
     'ChBMaXN0RGVidHNSZXF1ZXN0EjAKBHBhZ2UYASABKAsyHC55dWNhaS5jb21tb24udjEuUGFnZV'
-    'JlcXVlc3RSBHBhZ2U=');
+    'JlcXVlc3RSBHBhZ2USOAoLdHlwZV9maWx0ZXIYAiABKA4yFy55dWNhaS5kZWJ0LnYxLkRlYnRU'
+    'eXBlUgp0eXBlRmlsdGVy');
 
 @$core.Deprecated('Use listDebtsResponseDescriptor instead')
 const ListDebtsResponse$json = {

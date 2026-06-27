@@ -41,5 +41,27 @@ class AmortizationMethod extends $pb.ProtobufEnum {
   const AmortizationMethod._(super.value, super.name);
 }
 
+class DebtType extends $pb.ProtobufEnum {
+  static const DebtType DEBT_TYPE_UNSPECIFIED =
+      DebtType._(0, _omitEnumNames ? '' : 'DEBT_TYPE_UNSPECIFIED');
+  static const DebtType DEBT_TYPE_BORROWED_IN =
+      DebtType._(1, _omitEnumNames ? '' : 'DEBT_TYPE_BORROWED_IN');
+  static const DebtType DEBT_TYPE_BORROWED_OUT =
+      DebtType._(2, _omitEnumNames ? '' : 'DEBT_TYPE_BORROWED_OUT');
+
+  static const $core.List<DebtType> values = <DebtType>[
+    DEBT_TYPE_UNSPECIFIED,
+    DEBT_TYPE_BORROWED_IN,
+    DEBT_TYPE_BORROWED_OUT,
+  ];
+
+  static final $core.List<DebtType?> _byValue =
+      $pb.ProtobufEnum.$_initByValueList(values, 2);
+  static DebtType? valueOf($core.int value) =>
+      value < 0 || value >= _byValue.length ? null : _byValue[value];
+
+  const DebtType._(super.value, super.name);
+}
+
 const $core.bool _omitEnumNames =
     $core.bool.fromEnvironment('protobuf.omit_enum_names');

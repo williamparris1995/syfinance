@@ -38,6 +38,7 @@ class DebtDTO extends $pb.GeneratedMessage {
     $fixnum.Int64? version,
     $2.Timestamp? createdAt,
     $2.Timestamp? updatedAt,
+    DebtType? debtType,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -55,6 +56,7 @@ class DebtDTO extends $pb.GeneratedMessage {
     if (version != null) result.version = version;
     if (createdAt != null) result.createdAt = createdAt;
     if (updatedAt != null) result.updatedAt = updatedAt;
+    if (debtType != null) result.debtType = debtType;
     return result;
   }
 
@@ -86,6 +88,8 @@ class DebtDTO extends $pb.GeneratedMessage {
         subBuilder: $2.Timestamp.create)
     ..aOM<$2.Timestamp>(12, _omitFieldNames ? '' : 'updatedAt',
         subBuilder: $2.Timestamp.create)
+    ..aE<DebtType>(13, _omitFieldNames ? '' : 'debtType',
+        enumValues: DebtType.values)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -217,6 +221,15 @@ class DebtDTO extends $pb.GeneratedMessage {
   void clearUpdatedAt() => $_clearField(12);
   @$pb.TagNumber(12)
   $2.Timestamp ensureUpdatedAt() => $_ensure(11);
+
+  @$pb.TagNumber(13)
+  DebtType get debtType => $_getN(12);
+  @$pb.TagNumber(13)
+  set debtType(DebtType value) => $_setField(13, value);
+  @$pb.TagNumber(13)
+  $core.bool hasDebtType() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearDebtType() => $_clearField(13);
 }
 
 class PaymentEntryDTO extends $pb.GeneratedMessage {
@@ -429,6 +442,7 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
     $core.String? startDate,
     $core.String? dueDate,
     $fixnum.Int64? totalPrincipalCents,
+    DebtType? debtType,
   }) {
     final result = create();
     if (accountId != null) result.accountId = accountId;
@@ -440,6 +454,7 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
     if (dueDate != null) result.dueDate = dueDate;
     if (totalPrincipalCents != null)
       result.totalPrincipalCents = totalPrincipalCents;
+    if (debtType != null) result.debtType = debtType;
     return result;
   }
 
@@ -464,6 +479,8 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
     ..aOS(5, _omitFieldNames ? '' : 'startDate')
     ..aOS(6, _omitFieldNames ? '' : 'dueDate')
     ..aInt64(7, _omitFieldNames ? '' : 'totalPrincipalCents')
+    ..aE<DebtType>(8, _omitFieldNames ? '' : 'debtType',
+        enumValues: DebtType.values)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -547,6 +564,15 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
   $core.bool hasTotalPrincipalCents() => $_has(6);
   @$pb.TagNumber(7)
   void clearTotalPrincipalCents() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  DebtType get debtType => $_getN(7);
+  @$pb.TagNumber(8)
+  set debtType(DebtType value) => $_setField(8, value);
+  @$pb.TagNumber(8)
+  $core.bool hasDebtType() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearDebtType() => $_clearField(8);
 }
 
 class UpdateDebtRequest extends $pb.GeneratedMessage {
@@ -898,9 +924,11 @@ class GetDebtRequest extends $pb.GeneratedMessage {
 class ListDebtsRequest extends $pb.GeneratedMessage {
   factory ListDebtsRequest({
     $3.PageRequest? page,
+    DebtType? typeFilter,
   }) {
     final result = create();
     if (page != null) result.page = page;
+    if (typeFilter != null) result.typeFilter = typeFilter;
     return result;
   }
 
@@ -919,6 +947,8 @@ class ListDebtsRequest extends $pb.GeneratedMessage {
       createEmptyInstance: create)
     ..aOM<$3.PageRequest>(1, _omitFieldNames ? '' : 'page',
         subBuilder: $3.PageRequest.create)
+    ..aE<DebtType>(2, _omitFieldNames ? '' : 'typeFilter',
+        enumValues: DebtType.values)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -950,6 +980,15 @@ class ListDebtsRequest extends $pb.GeneratedMessage {
   void clearPage() => $_clearField(1);
   @$pb.TagNumber(1)
   $3.PageRequest ensurePage() => $_ensure(0);
+
+  @$pb.TagNumber(2)
+  DebtType get typeFilter => $_getN(1);
+  @$pb.TagNumber(2)
+  set typeFilter(DebtType value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasTypeFilter() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearTypeFilter() => $_clearField(2);
 }
 
 class ListDebtsResponse extends $pb.GeneratedMessage {
