@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
@@ -46,15 +47,12 @@ class _DebtsPageState extends State<DebtsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      // mobile FAB（创建债务），对齐 mobile.html .fab。
-      floatingActionButton: MediaQuery.of(context).size.width <=
-              Breakpoints.mobileUpper
-          ? FloatingActionButton(
-              onPressed: () => context.push('/debts/new'),
-              backgroundColor: AppColors.accent,
-              child: const Icon(Icons.add, color: Colors.white),
-            )
-          : null,
+      // 创建债务 FAB(所有断点,空状态 + 有数据都可创建)。
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => context.push('/debts/new'),
+        backgroundColor: AppColors.accent,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
       body: BlocBuilder<DebtBloc, DebtState>(
         builder: (context, state) {
           final debts = _debtsOf(state);
@@ -87,8 +85,18 @@ class _DebtsPageState extends State<DebtsPage> {
           const Text('还没有债务',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
-          const Text('点击右下角「+」创建第一笔债务记录',
+          const Text('点击右下角「+」或下方按钮创建第一笔债务记录',
               style: TextStyle(color: AppColors.muted, fontSize: 14)),
+          const SizedBox(height: AppSpacing.lg),
+          FilledButton.icon(
+            onPressed: () => context.push('/debts/new'),
+            icon: const Icon(Icons.add),
+            label: const Text('创建债务'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            ),
+          ),
         ],
       ),
     );
@@ -466,12 +474,13 @@ class _DebtCard extends StatelessWidget {
 
   Widget _fullCard(BuildContext context) {
     final badge = _inferBadge(debt.counterparty);
+    final isOverdue = debt.dueDate.isBefore(DateTime.now());
     return DataCard(
       onTap: () => context.push('/debts/${debt.id}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // row1：counterparty + badge
+          // row1：counterparty + badge（+ 逾期红 badge）
           Wrap(
             crossAxisAlignment: WrapCrossAlignment.center,
             spacing: 8,
@@ -484,6 +493,12 @@ class _DebtCard extends StatelessWidget {
                       fontFamily: AppTypography.displayFamily,
                       fontFamilyFallback: AppTypography.displayFallback)),
               _Badge(label: badge.label, fg: badge.fg, bg: badge.bg),
+              if (isOverdue)
+                const _Badge(
+                    label: '逾期',
+                    fg: AppColors.negative,
+                    bg: Color(0x1AC4544D) // rgba(196,84,77,.10)
+                    ),
             ],
           ),
           const SizedBox(height: 9),
@@ -534,7 +549,7 @@ class _DebtCard extends StatelessWidget {
                   text: _amortLabel(debt.amortization)),
             ],
           ),
-          _ActionsRow(),
+          _actionBar(debt, context),
         ],
       ),
     );
@@ -543,6 +558,7 @@ class _DebtCard extends StatelessWidget {
   /// mobile 紧凑卡（对齐 debts-mobile.html .card.debt-card）。
   Widget _compactCard(BuildContext context) {
     final badge = _inferBadge(debt.counterparty);
+    final isOverdue = debt.dueDate.isBefore(DateTime.now());
     return DataCard(
       onTap: () => context.push('/debts/${debt.id}'),
       child: Column(
@@ -567,6 +583,12 @@ class _DebtCard extends StatelessWidget {
                                 fontFamilyFallback:
                                     AppTypography.displayFallback)),
                         _Badge(label: badge.label, fg: badge.fg, bg: badge.bg),
+                        if (isOverdue)
+                          const _Badge(
+                              label: '逾期',
+                              fg: AppColors.negative,
+                              bg: Color(0x1AC4544D) // rgba(196,84,77,.10)
+                              ),
                       ],
                     ),
                     const SizedBox(height: 3),
@@ -609,7 +631,55 @@ class _DebtCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          _ActionsRow(),
+          _actionBar(debt, context),
+        ],
+      ),
+    );
+  }
+
+  /// 卡片底部操作栏：记账 / 详情 / 更多。
+  /// - 记账 / 详情 → 跳详情页（RecordPayment 在详情页内）
+  /// - 更多 → showMenu（编辑 / 删除占位，暂仅 toast 提示）
+  Widget _actionBar(Debt debt, BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 11),
+      padding: const EdgeInsets.only(top: 10),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.border, width: 1.0)),
+      ),
+      child: Row(
+        children: [
+          _ActionBtn(
+            icon: Icons.receipt_long_outlined,
+            label: '记账',
+            emphasized: true,
+            onTap: () => context.push('/debts/${debt.id}'),
+          ),
+          _ActionBtn(
+            icon: Icons.info_outline,
+            label: '详情',
+            onTap: () => context.push('/debts/${debt.id}'),
+          ),
+          _ActionBtn(
+            icon: Icons.more_horiz,
+            label: '更多',
+            onTap: () async {
+              final choice = await showMenu<String>(
+                context: context,
+                position: const RelativeRect.fromLTRB(200, 400, 40, 0),
+                items: const [
+                  PopupMenuItem(value: 'edit', child: Text('编辑')),
+                  PopupMenuItem(value: 'delete', child: Text('删除')),
+                ],
+              );
+              if (!context.mounted) return;
+              if (choice == 'edit') {
+                AppToast.show(context, '编辑功能即将上线', type: ToastType.warning);
+              } else if (choice == 'delete') {
+                AppToast.show(context, '删除功能即将上线', type: ToastType.warning);
+              }
+            },
+          ),
         ],
       ),
     );
@@ -680,38 +750,17 @@ class _MetaItem extends StatelessWidget {
   }
 }
 
-class _ActionsRow extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(top: 11),
-      padding: const EdgeInsets.only(top: 10),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.border, width: 1.0)),
-      ),
-      child: const Row(
-        children: [
-          _ActionBtn(
-              icon: Icons.receipt_long_outlined,
-              label: '记账',
-              emphasized: true),
-          _ActionBtn(icon: Icons.info_outline, label: '详情'),
-          _ActionBtn(icon: Icons.more_horiz, label: '更多'),
-        ],
-      ),
-    );
-  }
-}
-
 class _ActionBtn extends StatelessWidget {
   const _ActionBtn({
     required this.icon,
     required this.label,
     this.emphasized = false,
+    this.onTap,
   });
   final IconData icon;
   final String label;
   final bool emphasized;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -720,6 +769,7 @@ class _ActionBtn extends StatelessWidget {
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
+          onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 2),
             child: Column(

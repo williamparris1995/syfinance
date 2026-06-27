@@ -8,6 +8,7 @@ import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/form_section.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
@@ -229,16 +230,46 @@ class _DebtFormPageState extends State<DebtFormPage> {
   // ===================== 提交 =====================
 
   void _submit() {
+    // 显式校验必要字段并 toast 提示（避免空 submit 无反应）。
+    if (_counterpartyCtrl.text.trim().isEmpty) {
+      AppToast.show(context, '请填写债权方', type: ToastType.warning);
+      return;
+    }
+    if (_accountId == null) {
+      AppToast.show(context, '请选择关联账户', type: ToastType.warning);
+      return;
+    }
+    final principal = double.tryParse(_principalCtrl.text) ?? 0;
+    if (_principalCtrl.text.isEmpty || principal <= 0) {
+      AppToast.show(context, '请输入借款本金', type: ToastType.warning);
+      return;
+    }
+    final rate = double.tryParse(_rateCtrl.text);
+    if (_rateCtrl.text.isEmpty || rate == null || rate < 0) {
+      AppToast.show(context, '请输入年利率', type: ToastType.warning);
+      return;
+    }
+    if (_startDate == null) {
+      AppToast.show(context, '请选择起始日期', type: ToastType.warning);
+      return;
+    }
+    if (_dueDate == null) {
+      AppToast.show(context, '请选择到期日期', type: ToastType.warning);
+      return;
+    }
+    if (_dueDate!.isBefore(_startDate!)) {
+      AppToast.show(context, '到期日期需晚于起始日期', type: ToastType.warning);
+      return;
+    }
+
     if (!(_formKey.currentState?.validate() ?? false)) return;
     _formKey.currentState?.save();
-    if (_accountId == null || _startDate == null || _dueDate == null) return;
     _submitted = true;
-    final principalCents =
-        ((double.tryParse(_principalCtrl.text) ?? 0) * 100).round();
+    final principalCents = (principal * 100).round();
     context.read<DebtBloc>().add(CreateDebtRequested(CreateDebtParams(
           accountId: _accountId!,
           counterparty: _counterpartyCtrl.text.trim(),
-          interestRate: double.tryParse(_rateCtrl.text) ?? 0,
+          interestRate: rate,
           amortizationIndex: _amortization.index,
           startDateOption: _startDate,
           dueDateOption: _dueDate,
