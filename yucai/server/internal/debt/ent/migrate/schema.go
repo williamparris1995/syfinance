@@ -19,6 +19,7 @@ var (
 		{Name: "start_date", Type: field.TypeTime},
 		{Name: "due_date", Type: field.TypeTime},
 		{Name: "total_principal_cents", Type: field.TypeInt64},
+		{Name: "debt_type", Type: field.TypeString, Comment: "borrowed_in(我借入) / borrowed_out(我借出/债权)", Default: "borrowed_in"},
 		{Name: "version", Type: field.TypeInt64, Default: 1},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},

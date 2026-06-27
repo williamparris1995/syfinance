@@ -44,6 +44,9 @@ func (DebtDetails) Fields() []ent.Field {
 		field.Time("start_date"),
 		field.Time("due_date"),
 		field.Int64("total_principal_cents"),
+		field.String("debt_type").
+			Default("borrowed_in").
+			Comment("borrowed_in(我借入) / borrowed_out(我借出/债权)"),
 		field.Int64("version").
 			Default(1),
 		field.Time("created_at").

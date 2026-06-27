@@ -141,6 +141,20 @@ func (ddu *DebtDetailsUpdate) AddTotalPrincipalCents(i int64) *DebtDetailsUpdate
 	return ddu
 }
 
+// SetDebtType sets the "debt_type" field.
+func (ddu *DebtDetailsUpdate) SetDebtType(s string) *DebtDetailsUpdate {
+	ddu.mutation.SetDebtType(s)
+	return ddu
+}
+
+// SetNillableDebtType sets the "debt_type" field if the given value is not nil.
+func (ddu *DebtDetailsUpdate) SetNillableDebtType(s *string) *DebtDetailsUpdate {
+	if s != nil {
+		ddu.SetDebtType(*s)
+	}
+	return ddu
+}
+
 // SetVersion sets the "version" field.
 func (ddu *DebtDetailsUpdate) SetVersion(i int64) *DebtDetailsUpdate {
 	ddu.mutation.ResetVersion()
@@ -244,6 +258,9 @@ func (ddu *DebtDetailsUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := ddu.mutation.AddedTotalPrincipalCents(); ok {
 		_spec.AddField(debtdetails.FieldTotalPrincipalCents, field.TypeInt64, value)
+	}
+	if value, ok := ddu.mutation.DebtType(); ok {
+		_spec.SetField(debtdetails.FieldDebtType, field.TypeString, value)
 	}
 	if value, ok := ddu.mutation.Version(); ok {
 		_spec.SetField(debtdetails.FieldVersion, field.TypeInt64, value)
@@ -386,6 +403,20 @@ func (dduo *DebtDetailsUpdateOne) AddTotalPrincipalCents(i int64) *DebtDetailsUp
 	return dduo
 }
 
+// SetDebtType sets the "debt_type" field.
+func (dduo *DebtDetailsUpdateOne) SetDebtType(s string) *DebtDetailsUpdateOne {
+	dduo.mutation.SetDebtType(s)
+	return dduo
+}
+
+// SetNillableDebtType sets the "debt_type" field if the given value is not nil.
+func (dduo *DebtDetailsUpdateOne) SetNillableDebtType(s *string) *DebtDetailsUpdateOne {
+	if s != nil {
+		dduo.SetDebtType(*s)
+	}
+	return dduo
+}
+
 // SetVersion sets the "version" field.
 func (dduo *DebtDetailsUpdateOne) SetVersion(i int64) *DebtDetailsUpdateOne {
 	dduo.mutation.ResetVersion()
@@ -519,6 +550,9 @@ func (dduo *DebtDetailsUpdateOne) sqlSave(ctx context.Context) (_node *DebtDetai
 	}
 	if value, ok := dduo.mutation.AddedTotalPrincipalCents(); ok {
 		_spec.AddField(debtdetails.FieldTotalPrincipalCents, field.TypeInt64, value)
+	}
+	if value, ok := dduo.mutation.DebtType(); ok {
+		_spec.SetField(debtdetails.FieldDebtType, field.TypeString, value)
 	}
 	if value, ok := dduo.mutation.Version(); ok {
 		_spec.SetField(debtdetails.FieldVersion, field.TypeInt64, value)

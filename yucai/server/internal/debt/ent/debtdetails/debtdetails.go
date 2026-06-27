@@ -30,6 +30,8 @@ const (
 	FieldDueDate = "due_date"
 	// FieldTotalPrincipalCents holds the string denoting the total_principal_cents field in the database.
 	FieldTotalPrincipalCents = "total_principal_cents"
+	// FieldDebtType holds the string denoting the debt_type field in the database.
+	FieldDebtType = "debt_type"
 	// FieldVersion holds the string denoting the version field in the database.
 	FieldVersion = "version"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -51,6 +53,7 @@ var Columns = []string{
 	FieldStartDate,
 	FieldDueDate,
 	FieldTotalPrincipalCents,
+	FieldDebtType,
 	FieldVersion,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -67,6 +70,8 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultDebtType holds the default value on creation for the "debt_type" field.
+	DefaultDebtType string
 	// DefaultVersion holds the default value on creation for the "version" field.
 	DefaultVersion int64
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -125,6 +130,11 @@ func ByDueDate(opts ...sql.OrderTermOption) OrderOption {
 // ByTotalPrincipalCents orders the results by the total_principal_cents field.
 func ByTotalPrincipalCents(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTotalPrincipalCents, opts...).ToFunc()
+}
+
+// ByDebtType orders the results by the debt_type field.
+func ByDebtType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDebtType, opts...).ToFunc()
 }
 
 // ByVersion orders the results by the version field.

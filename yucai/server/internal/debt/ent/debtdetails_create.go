@@ -69,6 +69,20 @@ func (ddc *DebtDetailsCreate) SetTotalPrincipalCents(i int64) *DebtDetailsCreate
 	return ddc
 }
 
+// SetDebtType sets the "debt_type" field.
+func (ddc *DebtDetailsCreate) SetDebtType(s string) *DebtDetailsCreate {
+	ddc.mutation.SetDebtType(s)
+	return ddc
+}
+
+// SetNillableDebtType sets the "debt_type" field if the given value is not nil.
+func (ddc *DebtDetailsCreate) SetNillableDebtType(s *string) *DebtDetailsCreate {
+	if s != nil {
+		ddc.SetDebtType(*s)
+	}
+	return ddc
+}
+
 // SetVersion sets the "version" field.
 func (ddc *DebtDetailsCreate) SetVersion(i int64) *DebtDetailsCreate {
 	ddc.mutation.SetVersion(i)
@@ -160,6 +174,10 @@ func (ddc *DebtDetailsCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (ddc *DebtDetailsCreate) defaults() {
+	if _, ok := ddc.mutation.DebtType(); !ok {
+		v := debtdetails.DefaultDebtType
+		ddc.mutation.SetDebtType(v)
+	}
 	if _, ok := ddc.mutation.Version(); !ok {
 		v := debtdetails.DefaultVersion
 		ddc.mutation.SetVersion(v)
@@ -203,6 +221,9 @@ func (ddc *DebtDetailsCreate) check() error {
 	}
 	if _, ok := ddc.mutation.TotalPrincipalCents(); !ok {
 		return &ValidationError{Name: "total_principal_cents", err: errors.New(`ent: missing required field "DebtDetails.total_principal_cents"`)}
+	}
+	if _, ok := ddc.mutation.DebtType(); !ok {
+		return &ValidationError{Name: "debt_type", err: errors.New(`ent: missing required field "DebtDetails.debt_type"`)}
 	}
 	if _, ok := ddc.mutation.Version(); !ok {
 		return &ValidationError{Name: "version", err: errors.New(`ent: missing required field "DebtDetails.version"`)}
@@ -279,6 +300,10 @@ func (ddc *DebtDetailsCreate) createSpec() (*DebtDetails, *sqlgraph.CreateSpec) 
 	if value, ok := ddc.mutation.TotalPrincipalCents(); ok {
 		_spec.SetField(debtdetails.FieldTotalPrincipalCents, field.TypeInt64, value)
 		_node.TotalPrincipalCents = value
+	}
+	if value, ok := ddc.mutation.DebtType(); ok {
+		_spec.SetField(debtdetails.FieldDebtType, field.TypeString, value)
+		_node.DebtType = value
 	}
 	if value, ok := ddc.mutation.Version(); ok {
 		_spec.SetField(debtdetails.FieldVersion, field.TypeInt64, value)

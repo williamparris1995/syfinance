@@ -34,6 +34,8 @@ type DebtDetails struct {
 	DueDate time.Time `json:"due_date,omitempty"`
 	// TotalPrincipalCents holds the value of the "total_principal_cents" field.
 	TotalPrincipalCents int64 `json:"total_principal_cents,omitempty"`
+	// borrowed_in(我借入) / borrowed_out(我借出/债权)
+	DebtType string `json:"debt_type,omitempty"`
 	// Version holds the value of the "version" field.
 	Version int64 `json:"version,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -52,7 +54,7 @@ func (*DebtDetails) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case debtdetails.FieldTotalPrincipalCents, debtdetails.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case debtdetails.FieldCounterparty, debtdetails.FieldAmortizationMethod:
+		case debtdetails.FieldCounterparty, debtdetails.FieldAmortizationMethod, debtdetails.FieldDebtType:
 			values[i] = new(sql.NullString)
 		case debtdetails.FieldStartDate, debtdetails.FieldDueDate, debtdetails.FieldCreatedAt, debtdetails.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -126,6 +128,12 @@ func (dd *DebtDetails) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field total_principal_cents", values[i])
 			} else if value.Valid {
 				dd.TotalPrincipalCents = value.Int64
+			}
+		case debtdetails.FieldDebtType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field debt_type", values[i])
+			} else if value.Valid {
+				dd.DebtType = value.String
 			}
 		case debtdetails.FieldVersion:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -204,6 +212,9 @@ func (dd *DebtDetails) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("total_principal_cents=")
 	builder.WriteString(fmt.Sprintf("%v", dd.TotalPrincipalCents))
+	builder.WriteString(", ")
+	builder.WriteString("debt_type=")
+	builder.WriteString(dd.DebtType)
 	builder.WriteString(", ")
 	builder.WriteString("version=")
 	builder.WriteString(fmt.Sprintf("%v", dd.Version))

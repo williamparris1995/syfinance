@@ -95,6 +95,11 @@ func TotalPrincipalCents(v int64) predicate.DebtDetails {
 	return predicate.DebtDetails(sql.FieldEQ(FieldTotalPrincipalCents, v))
 }
 
+// DebtType applies equality check predicate on the "debt_type" field. It's identical to DebtTypeEQ.
+func DebtType(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldDebtType, v))
+}
+
 // Version applies equality check predicate on the "version" field. It's identical to VersionEQ.
 func Version(v int64) predicate.DebtDetails {
 	return predicate.DebtDetails(sql.FieldEQ(FieldVersion, v))
@@ -478,6 +483,71 @@ func TotalPrincipalCentsLT(v int64) predicate.DebtDetails {
 // TotalPrincipalCentsLTE applies the LTE predicate on the "total_principal_cents" field.
 func TotalPrincipalCentsLTE(v int64) predicate.DebtDetails {
 	return predicate.DebtDetails(sql.FieldLTE(FieldTotalPrincipalCents, v))
+}
+
+// DebtTypeEQ applies the EQ predicate on the "debt_type" field.
+func DebtTypeEQ(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldDebtType, v))
+}
+
+// DebtTypeNEQ applies the NEQ predicate on the "debt_type" field.
+func DebtTypeNEQ(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNEQ(FieldDebtType, v))
+}
+
+// DebtTypeIn applies the In predicate on the "debt_type" field.
+func DebtTypeIn(vs ...string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldIn(FieldDebtType, vs...))
+}
+
+// DebtTypeNotIn applies the NotIn predicate on the "debt_type" field.
+func DebtTypeNotIn(vs ...string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNotIn(FieldDebtType, vs...))
+}
+
+// DebtTypeGT applies the GT predicate on the "debt_type" field.
+func DebtTypeGT(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGT(FieldDebtType, v))
+}
+
+// DebtTypeGTE applies the GTE predicate on the "debt_type" field.
+func DebtTypeGTE(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGTE(FieldDebtType, v))
+}
+
+// DebtTypeLT applies the LT predicate on the "debt_type" field.
+func DebtTypeLT(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLT(FieldDebtType, v))
+}
+
+// DebtTypeLTE applies the LTE predicate on the "debt_type" field.
+func DebtTypeLTE(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLTE(FieldDebtType, v))
+}
+
+// DebtTypeContains applies the Contains predicate on the "debt_type" field.
+func DebtTypeContains(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldContains(FieldDebtType, v))
+}
+
+// DebtTypeHasPrefix applies the HasPrefix predicate on the "debt_type" field.
+func DebtTypeHasPrefix(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldHasPrefix(FieldDebtType, v))
+}
+
+// DebtTypeHasSuffix applies the HasSuffix predicate on the "debt_type" field.
+func DebtTypeHasSuffix(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldHasSuffix(FieldDebtType, v))
+}
+
+// DebtTypeEqualFold applies the EqualFold predicate on the "debt_type" field.
+func DebtTypeEqualFold(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEqualFold(FieldDebtType, v))
+}
+
+// DebtTypeContainsFold applies the ContainsFold predicate on the "debt_type" field.
+func DebtTypeContainsFold(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldContainsFold(FieldDebtType, v))
 }
 
 // VersionEQ applies the EQ predicate on the "version" field.

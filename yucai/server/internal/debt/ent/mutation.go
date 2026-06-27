@@ -46,6 +46,7 @@ type DebtDetailsMutation struct {
 	due_date                 *time.Time
 	total_principal_cents    *int64
 	addtotal_principal_cents *int64
+	debt_type                *string
 	version                  *int64
 	addversion               *int64
 	created_at               *time.Time
@@ -488,6 +489,42 @@ func (m *DebtDetailsMutation) ResetTotalPrincipalCents() {
 	m.addtotal_principal_cents = nil
 }
 
+// SetDebtType sets the "debt_type" field.
+func (m *DebtDetailsMutation) SetDebtType(s string) {
+	m.debt_type = &s
+}
+
+// DebtType returns the value of the "debt_type" field in the mutation.
+func (m *DebtDetailsMutation) DebtType() (r string, exists bool) {
+	v := m.debt_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDebtType returns the old "debt_type" field's value of the DebtDetails entity.
+// If the DebtDetails object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DebtDetailsMutation) OldDebtType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDebtType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDebtType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDebtType: %w", err)
+	}
+	return oldValue.DebtType, nil
+}
+
+// ResetDebtType resets all changes to the "debt_type" field.
+func (m *DebtDetailsMutation) ResetDebtType() {
+	m.debt_type = nil
+}
+
 // SetVersion sets the "version" field.
 func (m *DebtDetailsMutation) SetVersion(i int64) {
 	m.version = &i
@@ -650,7 +687,7 @@ func (m *DebtDetailsMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DebtDetailsMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 12)
 	if m.tenant_id != nil {
 		fields = append(fields, debtdetails.FieldTenantID)
 	}
@@ -674,6 +711,9 @@ func (m *DebtDetailsMutation) Fields() []string {
 	}
 	if m.total_principal_cents != nil {
 		fields = append(fields, debtdetails.FieldTotalPrincipalCents)
+	}
+	if m.debt_type != nil {
+		fields = append(fields, debtdetails.FieldDebtType)
 	}
 	if m.version != nil {
 		fields = append(fields, debtdetails.FieldVersion)
@@ -708,6 +748,8 @@ func (m *DebtDetailsMutation) Field(name string) (ent.Value, bool) {
 		return m.DueDate()
 	case debtdetails.FieldTotalPrincipalCents:
 		return m.TotalPrincipalCents()
+	case debtdetails.FieldDebtType:
+		return m.DebtType()
 	case debtdetails.FieldVersion:
 		return m.Version()
 	case debtdetails.FieldCreatedAt:
@@ -739,6 +781,8 @@ func (m *DebtDetailsMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldDueDate(ctx)
 	case debtdetails.FieldTotalPrincipalCents:
 		return m.OldTotalPrincipalCents(ctx)
+	case debtdetails.FieldDebtType:
+		return m.OldDebtType(ctx)
 	case debtdetails.FieldVersion:
 		return m.OldVersion(ctx)
 	case debtdetails.FieldCreatedAt:
@@ -809,6 +853,13 @@ func (m *DebtDetailsMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTotalPrincipalCents(v)
+		return nil
+	case debtdetails.FieldDebtType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDebtType(v)
 		return nil
 	case debtdetails.FieldVersion:
 		v, ok := value.(int64)
@@ -942,6 +993,9 @@ func (m *DebtDetailsMutation) ResetField(name string) error {
 		return nil
 	case debtdetails.FieldTotalPrincipalCents:
 		m.ResetTotalPrincipalCents()
+		return nil
+	case debtdetails.FieldDebtType:
+		m.ResetDebtType()
 		return nil
 	case debtdetails.FieldVersion:
 		m.ResetVersion()

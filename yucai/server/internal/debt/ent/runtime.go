@@ -17,16 +17,20 @@ import (
 func init() {
 	debtdetailsFields := schema.DebtDetails{}.Fields()
 	_ = debtdetailsFields
+	// debtdetailsDescDebtType is the schema descriptor for debt_type field.
+	debtdetailsDescDebtType := debtdetailsFields[8].Descriptor()
+	// debtdetails.DefaultDebtType holds the default value on creation for the debt_type field.
+	debtdetails.DefaultDebtType = debtdetailsDescDebtType.Default.(string)
 	// debtdetailsDescVersion is the schema descriptor for version field.
-	debtdetailsDescVersion := debtdetailsFields[8].Descriptor()
+	debtdetailsDescVersion := debtdetailsFields[9].Descriptor()
 	// debtdetails.DefaultVersion holds the default value on creation for the version field.
 	debtdetails.DefaultVersion = debtdetailsDescVersion.Default.(int64)
 	// debtdetailsDescCreatedAt is the schema descriptor for created_at field.
-	debtdetailsDescCreatedAt := debtdetailsFields[9].Descriptor()
+	debtdetailsDescCreatedAt := debtdetailsFields[10].Descriptor()
 	// debtdetails.DefaultCreatedAt holds the default value on creation for the created_at field.
 	debtdetails.DefaultCreatedAt = debtdetailsDescCreatedAt.Default.(func() time.Time)
 	// debtdetailsDescUpdatedAt is the schema descriptor for updated_at field.
-	debtdetailsDescUpdatedAt := debtdetailsFields[10].Descriptor()
+	debtdetailsDescUpdatedAt := debtdetailsFields[11].Descriptor()
 	// debtdetails.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	debtdetails.DefaultUpdatedAt = debtdetailsDescUpdatedAt.Default.(func() time.Time)
 	// debtdetails.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
