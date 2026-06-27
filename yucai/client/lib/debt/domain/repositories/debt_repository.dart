@@ -1,9 +1,11 @@
 import 'package:dartz/dartz.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
+import 'package:yucai_client/debt/domain/value_objects.dart';
 
 abstract class DebtRepository {
-  Future<Either<Failure, List<Debt>>> list();
+  /// 列出债务。`typeFilter` 非空时只返回该方向(borrowedIn / borrowedOut)。
+  Future<Either<Failure, List<Debt>>> list({DebtType? typeFilter});
   Future<Either<Failure, DebtDetail>> get(String id);
   Future<Either<Failure, Debt>> create({
     required String accountId,
@@ -13,6 +15,7 @@ abstract class DebtRepository {
     required DateTime startDate,
     required DateTime dueDate,
     required int totalPrincipalCents,
+    required DebtType type,
   });
   Future<Either<Failure, Debt>> update({
     required String id,

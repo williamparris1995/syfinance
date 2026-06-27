@@ -3,6 +3,49 @@ import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 
 void main() {
+  group('Debt.type', () {
+    Debt buildDebt({DebtType? type}) {
+      final base = Debt(
+        id: 'd1',
+        accountId: 'a1',
+        counterparty: '招行',
+        interestRate: 4.2,
+        amortization: AmortizationMethod.equalPrincipalInterest,
+        startDate: DateTime(2024, 1, 1),
+        dueDate: DateTime(2034, 1, 1),
+        totalPrincipalCents: 280000000,
+        remainingPrincipalCents: 210000000,
+        version: 1,
+        createdAt: DateTime(2024, 1, 1),
+        updatedAt: DateTime(2024, 1, 1),
+      );
+      if (type == null) return base;
+      return Debt(
+        id: base.id,
+        accountId: base.accountId,
+        counterparty: base.counterparty,
+        interestRate: base.interestRate,
+        amortization: base.amortization,
+        startDate: base.startDate,
+        dueDate: base.dueDate,
+        totalPrincipalCents: base.totalPrincipalCents,
+        remainingPrincipalCents: base.remainingPrincipalCents,
+        version: base.version,
+        createdAt: base.createdAt,
+        updatedAt: base.updatedAt,
+        type: type,
+      );
+    }
+
+    test('defaults to borrowedIn when omitted', () {
+      expect(buildDebt().type, DebtType.borrowedIn);
+    });
+
+    test('can be constructed as borrowedOut', () {
+      expect(buildDebt(type: DebtType.borrowedOut).type, DebtType.borrowedOut);
+    });
+  });
+
   test('Debt.progressRatio = (total - remaining) / total', () {
     final d = Debt(
       id: 'd1',
