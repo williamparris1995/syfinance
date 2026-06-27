@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:yucai_client/core/di/injection.dart';
+
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
+import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
@@ -670,7 +673,11 @@ class _DebtCard extends StatelessWidget {
             label: '编辑',
             onTap: (_) => Navigator.of(context).push<bool>(
               MaterialPageRoute(
-                builder: (_) => DebtFormPage(existing: debt),
+                builder: (_) => BlocProvider<DebtBloc>(
+                  // push 的 route tree 独立,不继承 /debts BlocProvider,需自带。
+                  create: (_) => DebtBloc(getIt<DebtRepository>()),
+                  child: DebtFormPage(existing: debt),
+                ),
               ),
             ),
           ),
