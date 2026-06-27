@@ -214,12 +214,26 @@ GoRouter buildRouter(AuthBloc authBloc) {
                 path: '/debts',
                 // 列表页：路由层 provide DebtBloc，进入即拉 LoadDebtsRequested
                 //（对齐 /accounts /transactions 分支模式）。
-                builder: (_, __) => BlocProvider<DebtBloc>(
-                  create: (_) {
-                    final b = DebtBloc(getIt<DebtRepository>());
-                    b.add(LoadDebtsRequested());
-                    return b;
-                  },
+                builder: (_, __) => MultiBlocProvider(
+                  providers: [
+                    BlocProvider<DebtBloc>(
+                      create: (_) {
+                        final b = DebtBloc(getIt<DebtRepository>());
+                        b.add(LoadDebtsRequested());
+                        return b;
+                      },
+                    ),
+                    // DebtsPage._content 用 CurrencyBloc 做总计换算(toPreferred),
+                    // 需 provide(对齐 /accounts MultiBlocProvider)。
+                    BlocProvider<CurrencyBloc>(
+                      create: (_) {
+                        final b = getIt<CurrencyBloc>();
+                        b.add(const LoadCurrenciesRequested());
+                        b.add(const LoadPreferencesRequested());
+                        return b;
+                      },
+                    ),
+                  ],
                   child: const DebtsPage(),
                 ),
                 routes: [
@@ -237,13 +251,26 @@ GoRouter buildRouter(AuthBloc authBloc) {
                     path: ':id',
                     // 详情页用独立 DebtBloc（列表页 bloc 在跳转时被释放），
                     // 进入即 LoadDebtRequested(id)，对齐 /accounts/:id 独立 AccountBloc。
-                    builder: (_, state) => BlocProvider<DebtBloc>(
-                      create: (_) {
-                        final id = state.pathParameters['id']!;
-                        final b = DebtBloc(getIt<DebtRepository>());
-                        b.add(LoadDebtRequested(id));
-                        return b;
-                      },
+                    builder: (_, state) => MultiBlocProvider(
+                      providers: [
+                        BlocProvider<DebtBloc>(
+                          create: (_) {
+                            final id = state.pathParameters['id']!;
+                            final b = DebtBloc(getIt<DebtRepository>());
+                            b.add(LoadDebtRequested(id));
+                            return b;
+                          },
+                        ),
+                        // DebtDetailPage 用 CurrencyBloc 换算(_fmtSymbol)。
+                        BlocProvider<CurrencyBloc>(
+                          create: (_) {
+                            final b = getIt<CurrencyBloc>();
+                            b.add(const LoadCurrenciesRequested());
+                            b.add(const LoadPreferencesRequested());
+                            return b;
+                          },
+                        ),
+                      ],
                       child: DebtDetailPage(id: state.pathParameters['id']!),
                     ),
                   ),
