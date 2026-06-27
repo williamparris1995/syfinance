@@ -217,14 +217,16 @@ GoRouter buildRouter(AuthBloc authBloc) {
             routes: [
               GoRoute(
                 path: '/debts',
-                // 列表页：路由层 provide DebtBloc，进入即拉 LoadDebtsRequested
-                //（对齐 /accounts /transactions 分支模式）。
+                // 列表页：路由层 provide DebtBloc，进入即拉 borrowedIn 过滤的
+                // LoadDebtsRequested（仅借入/负债；债权/借出归 /receivables，
+                // 对齐 receivables 分支的 borrowedOut 过滤）。
                 builder: (_, __) => MultiBlocProvider(
                   providers: [
                     BlocProvider<DebtBloc>(
                       create: (_) {
                         final b = DebtBloc(getIt<DebtRepository>());
-                        b.add(LoadDebtsRequested());
+                        b.add(const LoadDebtsRequested(
+                            typeFilter: DebtType.borrowedIn));
                         return b;
                       },
                     ),

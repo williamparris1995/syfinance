@@ -36,7 +36,11 @@ class _DebtsPageState extends State<DebtsPage> {
   @override
   void initState() {
     super.initState();
-    context.read<DebtBloc>().add(LoadDebtsRequested());
+    // borrowedIn 过滤:只列借入方向(负债),排除借出方向(债权/应收),
+    // 后者归 /receivables 页(对齐 receivables_page 的 borrowedOut 过滤)。
+    context
+        .read<DebtBloc>()
+        .add(const LoadDebtsRequested(typeFilter: DebtType.borrowedIn));
   }
 
   List<Debt> _debtsOf(DebtState state) {

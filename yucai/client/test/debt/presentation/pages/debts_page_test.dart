@@ -241,4 +241,92 @@ void main() {
     // 概览不渲染（0 笔）→ 空态文案。
     expect(find.textContaining('还没有债务'), findsOneWidget);
   });
+
+  // 回归测试(Finding 1):debts_page 必须以 borrowedIn 过滤拉取,
+  // 确保 borrowedOut(债权/应收)不会泄漏进债务列表 + 总债务概览。
+  testWidgets(
+      'regression: dispatches LoadDebtsRequested(typeFilter: borrowedIn)',
+      (t) async {
+    final repo = _MockRepo();
+    registerFallbackValue(const CreateDebtParams(
+      accountId: '',
+      counterparty: '',
+      interestRate: 0,
+      amortizationIndex: 0,
+      startDateOption: null,
+      dueDateOption: null,
+      totalPrincipalCents: 0,
+    ));
+    final calls = <DebtType?>[];
+    when(() => repo.list(typeFilter: any(named: 'typeFilter')))
+        .thenAnswer((inv) async {
+      calls.add(inv.namedArguments[#typeFilter] as DebtType?);
+      return const dartz.Right([]);
+    });
+    await t.pumpWidget(MaterialApp(
+      home: MultiBlocProvider(
+        providers: [
+          BlocProvider<DebtBloc>(create: (_) => DebtBloc(repo)),
+          BlocProvider<CurrencyBloc>.value(
+              value: _FakeCurrencyBloc(const CurrencyState())),
+        ],
+        child: const DebtsPage(),
+      ),
+    ));
+    await t.pumpAndSettle();
+    expect(calls, isNotEmpty);
+    expect(calls.last, DebtType.borrowedIn);
+  });
+
+  // 回归测试(Finding 1,负向断言):即便 repo 返回 borrowedOut(债权)的债务,
+  // debts_page 也不应将其当作债务渲染。锁定制表单的负向测试模式:
+  // mock 仅对 borrowedIn 返回空 → borrowedOut 的「张三」绝不出现在债务页。
+  testWidgets(
+      'regression: borrowedOut receivable does NOT appear in debts page',
+      (t) async {
+    final repo = _MockRepo();
+    registerFallbackValue(const CreateDebtParams(
+      accountId: '',
+      counterparty: '',
+      interestRate: 0,
+      amortizationIndex: 0,
+      startDateOption: null,
+      dueDateOption: null,
+      totalPrincipalCents: 0,
+    ));
+    // borrowedIn(债务)返回空;其他方向(债权)即便有数据也不入此页。
+    when(() => repo.list(typeFilter: DebtType.borrowedIn))
+        .thenAnswer((_) async => const dartz.Right([]));
+    when(() => repo.list(typeFilter: any(
+            named: 'typeFilter', that: isNot(equals(DebtType.borrowedIn)))))
+        .thenAnswer((_) async => dartz.Right([
+              _debt(
+                id: 'recv-leak',
+                counterparty: '张三-不应泄漏',
+                interestRate: 0.0,
+                amortization: AmortizationMethod.equalPrincipal,
+                dueDate: DateTime(2026, 8, 15),
+                totalPrincipalCents: 5000000,
+                remainingPrincipalCents: 3000000,
+              ),
+            ]));
+    t.view.physicalSize = desktop;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    await t.pumpWidget(MaterialApp(
+      home: MultiBlocProvider(
+        providers: [
+          BlocProvider<DebtBloc>(create: (_) => DebtBloc(repo)),
+          BlocProvider<CurrencyBloc>.value(
+              value: _FakeCurrencyBloc(const CurrencyState())),
+        ],
+        child: const DebtsPage(),
+      ),
+    ));
+    await t.pumpAndSettle();
+    // 债权方向数据绝不在债务页渲染。
+    expect(find.text('张三-不应泄漏'), findsNothing);
+    // 空态(borrowedIn 无数据)。
+    expect(find.textContaining('还没有债务'), findsOneWidget);
+  });
 }

@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
+import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_state.dart';
 
@@ -21,10 +22,16 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
 
   List<Debt> _last = const [];
 
+  /// 上一次 LoadDebtsRequested 携带的 typeFilter。create/update/delete 成功后的
+  /// 刷新用它重放,使 debts_page(borrowedIn)与 receivables_page(borrowedOut)
+  /// 的内联操作不会因刷新重置为「全部」而泄漏另一方向的债务。
+  DebtType? _lastTypeFilter;
+
   Future<void> _onLoadDebts(
     LoadDebtsRequested event,
     Emitter<DebtState> emit,
   ) async {
+    _lastTypeFilter = event.typeFilter;
     emit(DebtLoading());
     final result = await _repo.list(typeFilter: event.typeFilter);
     result.fold(
@@ -66,7 +73,8 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
     );
     result.fold(
       (failure) => emit(DebtError(failure.displayMessage, last: _last)),
-      (_) => add(const LoadDebtsRequested()), // refresh list on success
+      (_) =>
+          add(LoadDebtsRequested(typeFilter: _lastTypeFilter)), // refresh list on success
     );
   }
 
@@ -84,7 +92,8 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
     );
     result.fold(
       (failure) => emit(DebtError(failure.displayMessage, last: _last)),
-      (_) => add(const LoadDebtsRequested()), // refresh list on success
+      (_) =>
+          add(LoadDebtsRequested(typeFilter: _lastTypeFilter)), // refresh list on success
     );
   }
 
@@ -95,7 +104,8 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
     final result = await _repo.delete(event.id);
     result.fold(
       (failure) => emit(DebtError(failure.displayMessage, last: _last)),
-      (_) => add(const LoadDebtsRequested()), // refresh list on success
+      (_) =>
+          add(LoadDebtsRequested(typeFilter: _lastTypeFilter)), // refresh list on success
     );
   }
 

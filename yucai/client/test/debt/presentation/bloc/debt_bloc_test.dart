@@ -257,4 +257,88 @@ void main() {
     wait: const Duration(milliseconds: 150),
     expect: () => [DebtLoading(), DebtDetailLoaded(detail)],
   );
+
+  // Finding 2 regression: refresh paths (create/update/delete) must re-apply
+  // the last typeFilter, so an inline op in receivables_page (borrowedOut)
+  // does not reload the unfiltered list and leak the other direction in.
+  blocTest<DebtBloc, DebtState>(
+    'Create refresh re-applies last typeFilter (borrowedOut)',
+    build: () {
+      when(() => repo.create(
+            accountId: any(named: 'accountId'),
+            counterparty: any(named: 'counterparty'),
+            interestRate: any(named: 'interestRate'),
+            amortizationIndex: any(named: 'amortizationIndex'),
+            startDate: any(named: 'startDate'),
+            dueDate: any(named: 'dueDate'),
+            totalPrincipalCents: any(named: 'totalPrincipalCents'),
+            type: any(named: 'type'),
+          )).thenAnswer((_) async => Right(sample));
+      when(() => repo.list(typeFilter: DebtType.borrowedOut))
+          .thenAnswer((_) async => Right([sample]));
+      return DebtBloc(repo);
+    },
+    act: (b) => b
+      ..add(const LoadDebtsRequested(typeFilter: DebtType.borrowedOut))
+      ..add(CreateDebtRequested(CreateDebtParams(
+        accountId: 'a1',
+        counterparty: 'Bank A',
+        interestRate: 5.0,
+        amortizationIndex: 0,
+        startDateOption: DateTime(2026, 1, 1),
+        dueDateOption: DateTime(2027, 1, 1),
+        totalPrincipalCents: 1000000,
+        type: DebtType.borrowedOut,
+      ))),
+    wait: const Duration(milliseconds: 200),
+    verify: (b) {
+      // Refresh after create must reuse borrowedOut, never null.
+      verify(() => repo.list(typeFilter: DebtType.borrowedOut)).called(greaterThanOrEqualTo(2));
+      verifyNever(() => repo.list(typeFilter: null));
+    },
+  );
+
+  blocTest<DebtBloc, DebtState>(
+    'Update refresh re-applies last typeFilter (borrowedOut)',
+    build: () {
+      when(() => repo.update(
+            id: any(named: 'id'),
+            counterparty: any(named: 'counterparty'),
+            interestRate: any(named: 'interestRate'),
+            version: any(named: 'version'),
+          )).thenAnswer((_) async => Right(sample));
+      when(() => repo.list(typeFilter: DebtType.borrowedOut))
+          .thenAnswer((_) async => Right([sample]));
+      return DebtBloc(repo);
+    },
+    act: (b) => b
+      ..add(const LoadDebtsRequested(typeFilter: DebtType.borrowedOut))
+      ..add(const UpdateDebtRequested(
+        UpdateDebtParams(
+            id: 'd1', counterparty: 'B', interestRate: 6.0, version: 1),
+      )),
+    wait: const Duration(milliseconds: 200),
+    verify: (b) {
+      verify(() => repo.list(typeFilter: DebtType.borrowedOut)).called(greaterThanOrEqualTo(2));
+      verifyNever(() => repo.list(typeFilter: null));
+    },
+  );
+
+  blocTest<DebtBloc, DebtState>(
+    'Delete refresh re-applies last typeFilter (borrowedOut)',
+    build: () {
+      when(() => repo.delete('d1')).thenAnswer((_) async => const Right(null));
+      when(() => repo.list(typeFilter: DebtType.borrowedOut))
+          .thenAnswer((_) async => Right([sample]));
+      return DebtBloc(repo);
+    },
+    act: (b) => b
+      ..add(const LoadDebtsRequested(typeFilter: DebtType.borrowedOut))
+      ..add(const DeleteDebtRequested('d1')),
+    wait: const Duration(milliseconds: 200),
+    verify: (b) {
+      verify(() => repo.list(typeFilter: DebtType.borrowedOut)).called(greaterThanOrEqualTo(2));
+      verifyNever(() => repo.list(typeFilter: null));
+    },
+  );
 }
