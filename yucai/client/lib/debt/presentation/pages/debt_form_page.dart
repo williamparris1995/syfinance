@@ -10,31 +10,35 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/form_section.dart';
+import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_state.dart';
 import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.dart';
 
-/// 债务表单页（创建模式）。对齐 OD 原型 debt-form.html / tablet / mobile：
-/// 表单分区（基本信息 / 金额利率 / 借款日期）+ 实时摊还预览（前 5 期）+ 三端：
-///   - desktop / tablet：双列（表单 | 深色预览卡）
-///   - mobile：step wizard（Step1 基本信息 → Step2 金额利率 → Step3 日期），
-///     顶部进度指示。
+/// 债务表单页（创建 + 编辑模式）。对齐 OD 原型 debt-form.html / tablet / mobile：
 ///
-/// 提交 → dispatch [CreateDebtRequested] → 成功后 pop 回 debts_page。
+/// 提交 → dispatch [CreateDebtRequested] / [UpdateDebtRequested] → 成功后 pop 回 debts_page。
 /// DebtBloc 通过 router provide（Task 9）；本页 `context.read<DebtBloc>()`。
 ///
+/// - [existing] == null：创建模式（dispatch CreateDebtRequested）。
+/// - [existing] != null：编辑模式（预填字段，dispatch UpdateDebtRequested）。
+///   对齐 `account_form_page.dart` 的 existing edit 模式。
+///
 /// 可选 [initialStartDate] / [initialDueDate] / [initialAccountId] 供测试
-/// 直接 seed 表单状态，避免在 widget test 里驱动 showDatePicker。
+/// 直接 seed 表单状态，避免在 widget test 里驱动 showDatePicker（仅创建模式生效）。
 class DebtFormPage extends StatefulWidget {
   const DebtFormPage({
     super.key,
+    this.existing,
     this.initialStartDate,
     this.initialDueDate,
     this.initialAccountId,
   });
 
+  /// 编辑模式传入的现有 Debt；null = 创建模式。
+  final Debt? existing;
   final DateTime? initialStartDate;
   final DateTime? initialDueDate;
   final String? initialAccountId;
@@ -68,6 +72,9 @@ class _DebtFormPageState extends State<DebtFormPage> {
 
   bool _submitted = false;
 
+  Debt? get _existing => widget.existing;
+  bool get _isEdit => _existing != null;
+
   static const _debtTypes = <String>['房贷', '车贷', '信用卡', '亲友借款', '其他'];
   static const _amortizations = <AmortizationMethod>[
     AmortizationMethod.equalPrincipalInterest,
@@ -78,9 +85,25 @@ class _DebtFormPageState extends State<DebtFormPage> {
   @override
   void initState() {
     super.initState();
-    _startDate = widget.initialStartDate;
-    _dueDate = widget.initialDueDate;
-    _accountId = widget.initialAccountId;
+    final e = _existing;
+    if (e != null) {
+      // 编辑模式：预填所有可编辑字段（counterparty / 本金 / 利率 / 摊还 / 日期 /
+      // 关联账户）。对齐 account_form_page 的 existing 预填。UpdateDebtParams 仅
+      // 回传 counterparty + interestRate + version，其余字段仅供预览一致性展示。
+      _counterpartyCtrl.text = e.counterparty;
+      _principalCtrl.text =
+          (e.totalPrincipalCents / 100).toStringAsFixed(2);
+      _rateCtrl.text = e.interestRate.toString();
+      _amortization = e.amortization;
+      _startDate = e.startDate;
+      _dueDate = e.dueDate;
+      _accountId = e.accountId;
+    } else {
+      // 创建模式：测试 seed 参数。
+      _startDate = widget.initialStartDate;
+      _dueDate = widget.initialDueDate;
+      _accountId = widget.initialAccountId;
+    }
     _loadAccounts();
     // 输入变化即重算预览（principal/rate/dates/amortization 都是 setState 触发）。
     _principalCtrl.addListener(() => setState(() {}));
@@ -266,15 +289,27 @@ class _DebtFormPageState extends State<DebtFormPage> {
     _formKey.currentState?.save();
     _submitted = true;
     final principalCents = (principal * 100).round();
-    context.read<DebtBloc>().add(CreateDebtRequested(CreateDebtParams(
-          accountId: _accountId!,
-          counterparty: _counterpartyCtrl.text.trim(),
-          interestRate: rate,
-          amortizationIndex: _amortization.index,
-          startDateOption: _startDate,
-          dueDateOption: _dueDate,
-          totalPrincipalCents: principalCents,
-        )));
+    final e = _existing;
+    if (e != null) {
+      // 编辑模式：UpdateDebtParams 仅含 id / counterparty / interestRate / version
+      // （对齐 debt_event.dart 签名 —— 后端暂不支持改本金/摊还/日期）。
+      context.read<DebtBloc>().add(UpdateDebtRequested(UpdateDebtParams(
+            id: e.id,
+            counterparty: _counterpartyCtrl.text.trim(),
+            interestRate: rate,
+            version: e.version,
+          )));
+    } else {
+      context.read<DebtBloc>().add(CreateDebtRequested(CreateDebtParams(
+            accountId: _accountId!,
+            counterparty: _counterpartyCtrl.text.trim(),
+            interestRate: rate,
+            amortizationIndex: _amortization.index,
+            startDateOption: _startDate,
+            dueDateOption: _dueDate,
+            totalPrincipalCents: principalCents,
+          )));
+    }
   }
 
   String? _required(String? v, String label) =>
@@ -288,7 +323,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
       backgroundColor: AppColors.bg,
       appBar: AppBar(
         leading: BackButton(onPressed: () => Navigator.of(context).pop()),
-        title: const Text('新建债务'),
+        title: Text(_isEdit ? '编辑债务' : '新建债务'),
       ),
       body: BlocListener<DebtBloc, DebtState>(
         listenWhen: (prev, curr) =>
@@ -390,7 +425,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: Colors.white),
                   )
-                : const Text('确认创建'),
+                : Text(_isEdit ? '保存修改' : '确认创建'),
           ),
       ],
     );
@@ -408,7 +443,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
         FormSection(title: '3 · 借款日期', children: _dateFields()),
         const SizedBox(height: AppSpacing.xl),
         FormActions(
-          submitLabel: '确认创建',
+          submitLabel: _isEdit ? '保存修改' : '确认创建',
           submitting: false,
           onSubmit: _submit,
           onCancel: () => Navigator.of(context).pop(),

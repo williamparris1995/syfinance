@@ -29,7 +29,7 @@ import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
-// CreateDebtParams lives in debt_event.dart (re-exported implicitly via bloc).
+// CreateDebtParams / UpdateDebtParams lives in debt_event.dart (re-exported implicitly via bloc).
 import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
 import 'package:yucai_client/debt/presentation/pages/debt_form_page.dart';
 
@@ -67,6 +67,7 @@ Widget _harness({
   DateTime? startDate,
   DateTime? dueDate,
   String? accountId,
+  Debt? existing,
 }) {
   // 表单页 initState 走 GetIt<AccountRepository>().list()（对齐
   // transactions_page _loadAccounts）。注册到 GetIt 避免返回 null → 空下拉。
@@ -81,6 +82,7 @@ Widget _harness({
           value: _FakeCurrencyBloc(const CurrencyState())),
       ],
       child: DebtFormPage(
+        existing: existing,
         initialStartDate: startDate,
         initialDueDate: dueDate,
         initialAccountId: accountId,
@@ -363,6 +365,119 @@ void main() {
       }
       expect(created, isTrue);
       // 成功后可能弹 toast Timer，pump 推进
+      await t.pump(const Duration(seconds: 4));
+      await t.pumpAndSettle();
+    });
+  });
+
+  group('编辑模式（existing）', () {
+    // 复用 _emptyDetail 的 Debt 结构，但 counterparty/version 改为可识别值。
+    Debt existingDebt({
+      String id = 'd-1',
+      String counterparty = '招商银行',
+      double interestRate = 4.25,
+      int totalPrincipalCents = 15000000,
+      int version = 3,
+    }) =>
+        Debt(
+          id: id,
+          accountId: 'loan-1',
+          counterparty: counterparty,
+          interestRate: interestRate,
+          amortization: AmortizationMethod.equalPrincipalInterest,
+          startDate: DateTime(2025, 1, 1),
+          dueDate: DateTime(2030, 1, 1),
+          totalPrincipalCents: totalPrincipalCents,
+          remainingPrincipalCents: totalPrincipalCents,
+          version: version,
+          createdAt: DateTime(2025, 1, 1),
+          updatedAt: DateTime(2025, 6, 1),
+        );
+
+    testWidgets('AppBar title = 编辑债务 + 预填 counterparty / 本金 / 利率',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list())
+          .thenAnswer((_) async => dartz.Right([_loanAccount(id: 'loan-1')]));
+      when(() => debtRepo.list()).thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        existing: existingDebt(),
+      ));
+      await t.pumpAndSettle();
+
+      // AppBar 标题 = 编辑债务（非「新建债务」）
+      expect(find.text('编辑债务'), findsOneWidget);
+      expect(find.text('新建债务'), findsNothing);
+      // 字段预填
+      expect(
+          find.descendant(
+              of: find.byKey(const ValueKey('counterpartyField')),
+              matching: find.textContaining('招商银行')),
+          findsWidgets);
+      expect(
+          find.descendant(
+              of: find.byKey(const ValueKey('principalField')),
+              matching: find.textContaining('150000')),
+          findsWidgets);
+      expect(
+          find.descendant(
+              of: find.byKey(const ValueKey('rateField')),
+              matching: find.textContaining('4.25')),
+          findsWidgets);
+    });
+
+    testWidgets('submit → dispatch UpdateDebtRequested (repo.update called)',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      registerFallbackValue(const UpdateDebtParams(
+        id: '',
+        counterparty: '',
+        interestRate: 0,
+        version: 0,
+      ));
+      when(() => accountRepo.list())
+          .thenAnswer((_) async => dartz.Right([_loanAccount(id: 'loan-1')]));
+      var updated = false;
+      when(() => debtRepo.update(
+              id: any(named: 'id'),
+              counterparty: any(named: 'counterparty'),
+              interestRate: any(named: 'interestRate'),
+              version: any(named: 'version'))).thenAnswer((_) {
+        updated = true;
+        return Future.value(dartz.Right(existingDebt(counterparty: '已改')));
+      });
+      when(() => debtRepo.list()).thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        existing: existingDebt(),
+      ));
+      await t.pumpAndSettle();
+
+      // 改 counterparty，触发 dirty + 验证通过
+      await t.enterText(
+          find.byKey(const ValueKey('counterpartyField')), '建设银行');
+      // 提交：desktop 走 FormActions「保存修改」
+      final submitFinder = find.byKey(const ValueKey('submitButton')).evaluate().isNotEmpty
+          ? find.byKey(const ValueKey('submitButton'))
+          : find.text('保存修改');
+      await t.ensureVisible(submitFinder);
+      await t.tap(submitFinder);
+      for (var i = 0; i < 10 && !updated; i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+      expect(updated, isTrue);
+      // 成功后 pop（编辑模式与创建模式同 BlocListener）
       await t.pump(const Duration(seconds: 4));
       await t.pumpAndSettle();
     });

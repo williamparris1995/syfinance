@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
-import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
@@ -12,6 +11,7 @@ import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_state.dart';
+import 'package:yucai_client/debt/presentation/pages/debt_form_page.dart';
 import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.dart';
 
 /// 债务列表页。对齐 OD 原型：
@@ -479,6 +479,7 @@ class _DebtCard extends StatelessWidget {
     // GestureDetector 吞掉内层 _ActionBtn 的 tap（对齐 account card 模式 ——
     // account card 仅靠 _hoverActionBar 按钮跳转，card 本身不整体可点）。
     return DataCard(
+      onTap: () => context.push('/debts/${debt.id}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -568,6 +569,7 @@ class _DebtCard extends StatelessWidget {
     // 无 DataCard.onTap（同 _fullCard）：操作栏按钮负责导航，避免吞 tap。
     // mobile 列表用 Column 自适应高度，无 Spacer（unbounded 高度下 Spacer 报错）。
     return DataCard(
+      onTap: () => context.push('/debts/${debt.id}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -663,56 +665,42 @@ class _DebtCard extends StatelessWidget {
             label: '详情',
             onTap: (_) => context.push('/debts/${debt.id}'),
           ),
-          _MoreBtn(debt: debt),
-        ],
-      ),
-    );
-  }
-}
-
-/// 「更多」按钮：_ActionBtn 外观 + 内嵌 PopupMenuButton<String>。
-/// PopupMenuButton 由 Flutter 自动按按钮位置定位弹出菜单（替代手算
-/// findRenderObject + RelativeRect 的 showMenu 方案，避免定位偏移）。
-class _MoreBtn extends StatelessWidget {
-  const _MoreBtn({required this.debt});
-  final Debt debt;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: PopupMenuButton<String>(
-        tooltip: '更多',
-        // 用 child（非 icon）规避 PopupMenuButton 内部 IconButton 默认 48x48
-        // 最小触达高度 —— 在固定卡高 mainAxisExtent 下会顶溢出 12px。child 路径
-        // 直接渲染自定义视觉，与 _ActionBtn 高度一致。
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(),
-        child: _btnVisual(),
-        itemBuilder: (_) => const [
-          PopupMenuItem(value: 'edit', child: Text('编辑')),
-          PopupMenuItem(value: 'delete', child: Text('删除')),
-        ],
-        onSelected: (v) {
-          if (v == 'edit') {
-            AppToast.show(context, '编辑功能即将上线', type: ToastType.warning);
-          } else if (v == 'delete') {
-            AppToast.show(context, '删除功能即将上线', type: ToastType.warning);
-          }
-        },
-      ),
-    );
-  }
-
-  Widget _btnVisual() {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 2),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.more_horiz, size: 16, color: AppColors.muted),
-          SizedBox(height: 3),
-          Text('更多',
-              style: TextStyle(color: AppColors.muted, fontSize: 11)),
+          _ActionBtn(
+            icon: Icons.edit_outlined,
+            label: '编辑',
+            onTap: (_) => Navigator.of(context).push<bool>(
+              MaterialPageRoute(
+                builder: (_) => DebtFormPage(existing: debt),
+              ),
+            ),
+          ),
+          _ActionBtn(
+            icon: Icons.delete_outline,
+            label: '删除',
+            onTap: (_) async {
+              final ok = await showDialog<bool>(
+                context: context,
+                builder: (dctx) => AlertDialog(
+                  title: const Text('删除债务'),
+                  content: Text(
+                      '确定删除「${debt.counterparty}」?此操作不可撤销。'),
+                  actions: [
+                    TextButton(
+                        onPressed: () => Navigator.pop(dctx, false),
+                        child: const Text('取消')),
+                    TextButton(
+                        onPressed: () => Navigator.pop(dctx, true),
+                        child: const Text('删除',
+                            style:
+                                TextStyle(color: AppColors.negative))),
+                  ],
+                ),
+              );
+              if (ok == true && context.mounted) {
+                context.read<DebtBloc>().add(DeleteDebtRequested(debt.id));
+              }
+            },
+          ),
         ],
       ),
     );
