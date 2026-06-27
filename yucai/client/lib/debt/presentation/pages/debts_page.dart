@@ -475,8 +475,10 @@ class _DebtCard extends StatelessWidget {
   Widget _fullCard(BuildContext context) {
     final badge = _inferBadge(debt.counterparty);
     final isOverdue = debt.dueDate.isBefore(DateTime.now());
+    // 无 DataCard.onTap：操作栏按钮（详情/记账）负责导航，避免外层
+    // GestureDetector 吞掉内层 _ActionBtn 的 tap（对齐 account card 模式 ——
+    // account card 仅靠 _hoverActionBar 按钮跳转，card 本身不整体可点）。
     return DataCard(
-      onTap: () => context.push('/debts/${debt.id}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -549,6 +551,10 @@ class _DebtCard extends StatelessWidget {
                   text: _amortLabel(debt.amortization)),
             ],
           ),
+          // Spacer 占据剩余高度，把操作栏推到卡片底部（对齐 account card
+          // _fullCard 的 const Spacer() + _hoverActionBar 模式）。GridView
+          // mainAxisExtent 固定卡高时，矮卡中部内容上方留白而非底部。
+          const Spacer(),
           _actionBar(debt, context),
         ],
       ),
@@ -559,8 +565,9 @@ class _DebtCard extends StatelessWidget {
   Widget _compactCard(BuildContext context) {
     final badge = _inferBadge(debt.counterparty);
     final isOverdue = debt.dueDate.isBefore(DateTime.now());
+    // 无 DataCard.onTap（同 _fullCard）：操作栏按钮负责导航，避免吞 tap。
+    // mobile 列表用 Column 自适应高度，无 Spacer（unbounded 高度下 Spacer 报错）。
     return DataCard(
-      onTap: () => context.push('/debts/${debt.id}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -653,36 +660,53 @@ class _DebtCard extends StatelessWidget {
             icon: Icons.receipt_long_outlined,
             label: '记账',
             emphasized: true,
-            onTap: () => context.push('/debts/${debt.id}'),
+            onTap: (_) => context.push('/debts/${debt.id}'),
           ),
           _ActionBtn(
             icon: Icons.info_outline,
             label: '详情',
-            onTap: () => context.push('/debts/${debt.id}'),
+            onTap: (_) => context.push('/debts/${debt.id}'),
           ),
           _ActionBtn(
             icon: Icons.more_horiz,
             label: '更多',
-            onTap: () async {
-              final choice = await showMenu<String>(
-                context: context,
-                position: const RelativeRect.fromLTRB(200, 400, 40, 0),
-                items: const [
-                  PopupMenuItem(value: 'edit', child: Text('编辑')),
-                  PopupMenuItem(value: 'delete', child: Text('删除')),
-                ],
-              );
-              if (!context.mounted) return;
-              if (choice == 'edit') {
-                AppToast.show(context, '编辑功能即将上线', type: ToastType.warning);
-              } else if (choice == 'delete') {
-                AppToast.show(context, '删除功能即将上线', type: ToastType.warning);
-              }
-            },
+            // 更多按钮把自身 BuildContext 传给回调，用于按按钮位置定位 showMenu。
+            onTap: (btnCtx) => _showMoreMenu(debt, btnCtx),
           ),
         ],
       ),
     );
+  }
+
+  /// 更多菜单：按「更多」按钮位置定位 showMenu（对齐 account card
+  /// _showQuickMenu 用长按坐标 + Overlay findRenderObject 的模式）。
+  /// btnCtx = _ActionBtn 的 element，其 renderObject = 按钮盒子。
+  Future<void> _showMoreMenu(Debt debt, BuildContext btnCtx) async {
+    final box = btnCtx.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    // 按钮右上角全局坐标（菜单下挂在其下方右对齐按钮宽度）。
+    final topRight = box.localToGlobal(Offset.zero.translate(box.size.width, 0));
+    final overlay =
+        Overlay.of(btnCtx).context.findRenderObject() as RenderBox;
+    final choice = await showMenu<String>(
+      context: btnCtx,
+      position: RelativeRect.fromLTRB(
+        topRight.dx,
+        topRight.dy + box.size.height,
+        overlay.size.width - topRight.dx,
+        overlay.size.height - (topRight.dy + box.size.height),
+      ),
+      items: const [
+        PopupMenuItem(value: 'edit', child: Text('编辑')),
+        PopupMenuItem(value: 'delete', child: Text('删除')),
+      ],
+    );
+    if (!btnCtx.mounted) return;
+    if (choice == 'edit') {
+      AppToast.show(btnCtx, '编辑功能即将上线', type: ToastType.warning);
+    } else if (choice == 'delete') {
+      AppToast.show(btnCtx, '删除功能即将上线', type: ToastType.warning);
+    }
   }
 }
 
@@ -760,7 +784,8 @@ class _ActionBtn extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool emphasized;
-  final VoidCallback? onTap;
+  /// 回调收按钮自身 BuildContext（用于 showMenu 按钮定位等）。
+  final ValueChanged<BuildContext>? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -769,7 +794,7 @@ class _ActionBtn extends StatelessWidget {
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: onTap,
+          onTap: onTap == null ? null : () => onTap!(context),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 2),
             child: Column(
