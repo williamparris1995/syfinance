@@ -77,7 +77,7 @@ void main() {
         (_) async => dartz.Right([_account()]));
     // /debts branch root fires LoadDebtsRequested on entry; stub globally so
     // any /debts/* navigation (including /debts/new) doesn't hit a null return.
-    when(() => debtRepo.list())
+    when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
         .thenAnswer((_) async => const dartz.Right([]));
     when(() => txnRepo.list(any())).thenAnswer(
         (_) async => dartz.Right(const ListTransactionsResult(

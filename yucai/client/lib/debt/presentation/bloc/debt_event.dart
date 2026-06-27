@@ -1,12 +1,21 @@
 import 'package:equatable/equatable.dart';
 
+import 'package:yucai_client/debt/domain/value_objects.dart';
+
 abstract class DebtEvent extends Equatable {
   const DebtEvent();
   @override
   List<Object?> get props => [];
 }
 
-class LoadDebtsRequested extends DebtEvent {}
+/// 拉取债务列表。`typeFilter` 非空时只取该方向(borrowedIn/borrowedOut),
+/// 为 null(默认)时不过滤 → 既有 debts_page「列出全部」行为保持不变。
+class LoadDebtsRequested extends DebtEvent {
+  const LoadDebtsRequested({this.typeFilter});
+  final DebtType? typeFilter;
+  @override
+  List<Object?> get props => [typeFilter];
+}
 
 class LoadDebtRequested extends DebtEvent {
   const LoadDebtRequested(this.id);
@@ -26,6 +35,7 @@ class CreateDebtParams extends Equatable {
     required this.startDateOption,
     required this.dueDateOption,
     required this.totalPrincipalCents,
+    this.type = DebtType.borrowedIn,
   });
   final String accountId;
   final String counterparty;
@@ -34,6 +44,9 @@ class CreateDebtParams extends Equatable {
   final DateTime? startDateOption;
   final DateTime? dueDateOption;
   final int totalPrincipalCents;
+  /// 债务方向。默认 borrowedIn → 既有 debts_page/form 行为不变;
+  /// Task 9 的 receivables 表单会显式传 borrowedOut。
+  final DebtType type;
 
   @override
   List<Object?> get props => [
@@ -44,6 +57,7 @@ class CreateDebtParams extends Equatable {
         startDateOption,
         dueDateOption,
         totalPrincipalCents,
+        type,
       ];
 }
 

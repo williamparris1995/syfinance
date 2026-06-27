@@ -6,6 +6,7 @@ import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/debt/data/debt_remote_ds.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
+import 'package:yucai_client/debt/domain/value_objects.dart';
 
 @LazySingleton(as: DebtRepository)
 class DebtRepositoryImpl implements DebtRepository {
@@ -14,8 +15,8 @@ class DebtRepositoryImpl implements DebtRepository {
   final DebtRemoteDataSource _remote;
 
   @override
-  Future<Either<Failure, List<Debt>>> list() =>
-      _guard(() => _remote.list());
+  Future<Either<Failure, List<Debt>>> list({DebtType? typeFilter}) =>
+      _guard(() => _remote.list(typeFilter: typeFilter));
 
   @override
   Future<Either<Failure, DebtDetail>> get(String id) =>
@@ -30,6 +31,7 @@ class DebtRepositoryImpl implements DebtRepository {
     required DateTime startDate,
     required DateTime dueDate,
     required int totalPrincipalCents,
+    required DebtType type,
   }) =>
       _guard(() => _remote.create(
             accountId: accountId,
@@ -39,6 +41,7 @@ class DebtRepositoryImpl implements DebtRepository {
             startDate: startDate,
             dueDate: dueDate,
             totalPrincipalCents: totalPrincipalCents,
+            type: type,
           ));
 
   @override

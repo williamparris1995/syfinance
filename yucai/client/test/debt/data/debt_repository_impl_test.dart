@@ -36,7 +36,8 @@ void main() {
   });
 
   test('list success returns Right with debts', () async {
-    when(() => remote.list()).thenAnswer((_) async => [sample]);
+    when(() => remote.list(typeFilter: any(named: 'typeFilter')))
+        .thenAnswer((_) async => [sample]);
     final result = await repo.list();
     expect(result.isRight(), isTrue);
     result.fold(
@@ -49,10 +50,18 @@ void main() {
   });
 
   test('list failure returns Left<ServerFailure>', () async {
-    when(() => remote.list()).thenThrow(GrpcError.notFound('gone'));
+    when(() => remote.list(typeFilter: any(named: 'typeFilter')))
+        .thenThrow(GrpcError.notFound('gone'));
     final result = await repo.list();
     expect(result.isLeft(), isTrue);
     expect(result.fold((l) => l, (_) => null), isA<ServerFailure>());
+  });
+
+  test('list forwards typeFilter to remote', () async {
+    when(() => remote.list(typeFilter: DebtType.borrowedOut))
+        .thenAnswer((_) async => [sample]);
+    await repo.list(typeFilter: DebtType.borrowedOut);
+    verify(() => remote.list(typeFilter: DebtType.borrowedOut)).called(1);
   });
 
   test('get success returns Right with DebtDetail', () async {

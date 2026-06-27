@@ -68,7 +68,7 @@ Widget _harness(List<Debt> debts) {
     dueDateOption: null,
     totalPrincipalCents: 0,
   ));
-  when(() => repo.list())
+  when(() => repo.list(typeFilter: any(named: 'typeFilter')))
       .thenAnswer((_) async => dartz.Right(debts));
   return MaterialApp(
     home: MultiBlocProvider(

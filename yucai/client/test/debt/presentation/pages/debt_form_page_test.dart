@@ -92,6 +92,10 @@ Widget _harness({
 }
 
 void main() {
+  setUpAll(() {
+    registerFallbackValue(DebtType.borrowedIn);
+  });
+
   tearDown(() {
     GetIt.instance.reset();
   });
@@ -118,7 +122,7 @@ void main() {
       ));
       when(() => accountRepo.list())
           .thenAnswer((_) async => dartz.Right([_loanAccount()]));
-      when(() => debtRepo.list()).thenAnswer((_) async => const dartz.Right([]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter'))).thenAnswer((_) async => const dartz.Right([]));
       await t.pumpWidget(
           _harness(debtRepo: debtRepo, accountRepo: accountRepo));
       await t.pumpAndSettle();
@@ -143,7 +147,7 @@ void main() {
       final accountRepo = _MockAccountRepo();
       when(() => accountRepo.list())
           .thenAnswer((_) async => dartz.Right([_loanAccount()]));
-      when(() => debtRepo.list()).thenAnswer((_) async => const dartz.Right([]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter'))).thenAnswer((_) async => const dartz.Right([]));
       await t.pumpWidget(
           _harness(debtRepo: debtRepo, accountRepo: accountRepo));
       await t.pumpAndSettle();
@@ -162,7 +166,7 @@ void main() {
       final accountRepo = _MockAccountRepo();
       when(() => accountRepo.list())
           .thenAnswer((_) async => dartz.Right([_loanAccount()]));
-      when(() => debtRepo.list()).thenAnswer((_) async => const dartz.Right([]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter'))).thenAnswer((_) async => const dartz.Right([]));
       await t.pumpWidget(
           _harness(debtRepo: debtRepo, accountRepo: accountRepo));
       await t.pumpAndSettle();
@@ -182,7 +186,7 @@ void main() {
       when(() => accountRepo.list()).thenAnswer(
           (_) async => dartz.Right([_loanAccount(id: 'l1', name: '招行房贷'),
                         _loanAccount(id: 'l2', name: '建行车贷')]));
-      when(() => debtRepo.list()).thenAnswer((_) async => const dartz.Right([]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter'))).thenAnswer((_) async => const dartz.Right([]));
       await t.pumpWidget(
           _harness(debtRepo: debtRepo, accountRepo: accountRepo));
       await t.pumpAndSettle();
@@ -215,7 +219,7 @@ void main() {
       final accountRepo = _MockAccountRepo();
       when(() => accountRepo.list())
           .thenAnswer((_) async => dartz.Right([_loanAccount()]));
-      when(() => debtRepo.list()).thenAnswer((_) async => const dartz.Right([]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter'))).thenAnswer((_) async => const dartz.Right([]));
       await t.pumpWidget(
           _harness(debtRepo: debtRepo, accountRepo: accountRepo,
               startDate: DateTime(2026, 7, 1),
@@ -240,7 +244,7 @@ void main() {
       final accountRepo = _MockAccountRepo();
       when(() => accountRepo.list())
           .thenAnswer((_) async => dartz.Right([_loanAccount()]));
-      when(() => debtRepo.list()).thenAnswer((_) async => const dartz.Right([]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter'))).thenAnswer((_) async => const dartz.Right([]));
       await t.pumpWidget(
           _harness(debtRepo: debtRepo, accountRepo: accountRepo,
               startDate: DateTime(2026, 7, 1),
@@ -264,7 +268,7 @@ void main() {
       final accountRepo = _MockAccountRepo();
       when(() => accountRepo.list())
           .thenAnswer((_) async => dartz.Right([_loanAccount()]));
-      when(() => debtRepo.list()).thenAnswer((_) async => const dartz.Right([]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter'))).thenAnswer((_) async => const dartz.Right([]));
       await t.pumpWidget(
           _harness(debtRepo: debtRepo, accountRepo: accountRepo,
               startDate: DateTime(2026, 7, 1),
@@ -289,7 +293,7 @@ void main() {
       final accountRepo = _MockAccountRepo();
       when(() => accountRepo.list())
           .thenAnswer((_) async => dartz.Right([_loanAccount()]));
-      when(() => debtRepo.list()).thenAnswer((_) async => const dartz.Right([]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter'))).thenAnswer((_) async => const dartz.Right([]));
       await t.pumpWidget(
           _harness(debtRepo: debtRepo, accountRepo: accountRepo));
       await t.pumpAndSettle();
@@ -326,12 +330,13 @@ void main() {
               amortizationIndex: any(named: 'amortizationIndex'),
               startDate: any(named: 'startDate'),
               dueDate: any(named: 'dueDate'),
-              totalPrincipalCents: any(named: 'totalPrincipalCents')))
+              totalPrincipalCents: any(named: 'totalPrincipalCents'),
+              type: any(named: 'type')))
           .thenAnswer((inv) {
         created = true;
         return Future.value(dartz.Right(_emptyDetail().debt));
       });
-      when(() => debtRepo.list())
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
           .thenAnswer((_) async => const dartz.Right([]));
       await t.pumpWidget(_harness(
         debtRepo: debtRepo,
@@ -403,7 +408,7 @@ void main() {
       final accountRepo = _MockAccountRepo();
       when(() => accountRepo.list())
           .thenAnswer((_) async => dartz.Right([_loanAccount(id: 'loan-1')]));
-      when(() => debtRepo.list()).thenAnswer((_) async => const dartz.Right([]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter'))).thenAnswer((_) async => const dartz.Right([]));
       await t.pumpWidget(_harness(
         debtRepo: debtRepo,
         accountRepo: accountRepo,
@@ -456,7 +461,7 @@ void main() {
         updated = true;
         return Future.value(dartz.Right(existingDebt(counterparty: '已改')));
       });
-      when(() => debtRepo.list()).thenAnswer((_) async => const dartz.Right([]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter'))).thenAnswer((_) async => const dartz.Right([]));
       await t.pumpWidget(_harness(
         debtRepo: debtRepo,
         accountRepo: accountRepo,
@@ -493,7 +498,7 @@ void main() {
       final accountRepo = _MockAccountRepo();
       when(() => accountRepo.list())
           .thenAnswer((_) async => dartz.Right([_loanAccount()]));
-      when(() => debtRepo.list()).thenAnswer((_) async => const dartz.Right([]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter'))).thenAnswer((_) async => const dartz.Right([]));
       await t.pumpWidget(
           _harness(debtRepo: debtRepo, accountRepo: accountRepo));
       await t.pumpAndSettle();
@@ -511,7 +516,7 @@ void main() {
       final accountRepo = _MockAccountRepo();
       when(() => accountRepo.list())
           .thenAnswer((_) async => dartz.Right([_loanAccount()]));
-      when(() => debtRepo.list()).thenAnswer((_) async => const dartz.Right([]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter'))).thenAnswer((_) async => const dartz.Right([]));
       await t.pumpWidget(
           _harness(debtRepo: debtRepo, accountRepo: accountRepo));
       await t.pumpAndSettle();
@@ -527,7 +532,7 @@ void main() {
       final accountRepo = _MockAccountRepo();
       when(() => accountRepo.list())
           .thenAnswer((_) async => dartz.Right([_loanAccount()]));
-      when(() => debtRepo.list()).thenAnswer((_) async => const dartz.Right([]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter'))).thenAnswer((_) async => const dartz.Right([]));
       await t.pumpWidget(
           _harness(debtRepo: debtRepo, accountRepo: accountRepo));
       await t.pumpAndSettle();

@@ -60,12 +60,14 @@ void main() {
   setUp(() {
     repo = _MockRepo();
     registerFallbackValue(createParams);
+    registerFallbackValue(DebtType.borrowedIn);
   });
 
   blocTest<DebtBloc, DebtState>(
     'LoadDebts emits [Loading, Loaded]',
     build: () {
-      when(() => repo.list()).thenAnswer((_) async => Right([sample]));
+      when(() => repo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => Right([sample]));
       return DebtBloc(repo);
     },
     act: (b) => b.add(LoadDebtsRequested()),
@@ -76,13 +78,44 @@ void main() {
   blocTest<DebtBloc, DebtState>(
     'LoadDebts failure emits [Loading, Error]',
     build: () {
-      when(() => repo.list())
+      when(() => repo.list(typeFilter: any(named: 'typeFilter')))
           .thenAnswer((_) async => const Left(ServerFailure('down')));
       return DebtBloc(repo);
     },
     act: (b) => b.add(LoadDebtsRequested()),
     wait: const Duration(milliseconds: 100),
     expect: () => [DebtLoading(), isA<DebtError>()],
+  );
+
+  blocTest<DebtBloc, DebtState>(
+    'LoadDebts with typeFilter borrowedOut passes it through to repo',
+    build: () {
+      when(() => repo.list(typeFilter: DebtType.borrowedOut))
+          .thenAnswer((_) async => Right([sample]));
+      return DebtBloc(repo);
+    },
+    act: (b) =>
+        b.add(const LoadDebtsRequested(typeFilter: DebtType.borrowedOut)),
+    wait: const Duration(milliseconds: 100),
+    expect: () => [DebtLoading(), DebtsLoaded([sample])],
+    verify: (b) {
+      verify(() => repo.list(typeFilter: DebtType.borrowedOut)).called(1);
+    },
+  );
+
+  blocTest<DebtBloc, DebtState>(
+    'LoadDebts with no typeFilter calls repo.list with null (list-all)',
+    build: () {
+      when(() => repo.list(typeFilter: null))
+          .thenAnswer((_) async => Right([sample]));
+      return DebtBloc(repo);
+    },
+    act: (b) => b.add(const LoadDebtsRequested()),
+    wait: const Duration(milliseconds: 100),
+    expect: () => [DebtLoading(), DebtsLoaded([sample])],
+    verify: (b) {
+      verify(() => repo.list(typeFilter: null)).called(1);
+    },
   );
 
   blocTest<DebtBloc, DebtState>(
@@ -107,8 +140,10 @@ void main() {
             startDate: any(named: 'startDate'),
             dueDate: any(named: 'dueDate'),
             totalPrincipalCents: any(named: 'totalPrincipalCents'),
+            type: any(named: 'type'),
           )).thenAnswer((_) async => Right(sample));
-      when(() => repo.list()).thenAnswer((_) async => Right([sample]));
+      when(() => repo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => Right([sample]));
       return DebtBloc(repo);
     },
     act: (b) => b.add(CreateDebtRequested(createParams)),
@@ -121,6 +156,48 @@ void main() {
   );
 
   blocTest<DebtBloc, DebtState>(
+    'Create forwards params.type (borrowedOut) to repo.create',
+    build: () {
+      when(() => repo.create(
+            accountId: any(named: 'accountId'),
+            counterparty: any(named: 'counterparty'),
+            interestRate: any(named: 'interestRate'),
+            amortizationIndex: any(named: 'amortizationIndex'),
+            startDate: any(named: 'startDate'),
+            dueDate: any(named: 'dueDate'),
+            totalPrincipalCents: any(named: 'totalPrincipalCents'),
+            type: DebtType.borrowedOut,
+          )).thenAnswer((_) async => Right(sample));
+      when(() => repo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const Right([]));
+      return DebtBloc(repo);
+    },
+    act: (b) => b.add(CreateDebtRequested(CreateDebtParams(
+      accountId: 'a1',
+      counterparty: 'Bank A',
+      interestRate: 5.0,
+      amortizationIndex: 0,
+      startDateOption: DateTime(2026, 1, 1),
+      dueDateOption: DateTime(2027, 1, 1),
+      totalPrincipalCents: 1000000,
+      type: DebtType.borrowedOut,
+    ))),
+    wait: const Duration(milliseconds: 150),
+    verify: (b) {
+      verify(() => repo.create(
+            accountId: any(named: 'accountId'),
+            counterparty: any(named: 'counterparty'),
+            interestRate: any(named: 'interestRate'),
+            amortizationIndex: any(named: 'amortizationIndex'),
+            startDate: any(named: 'startDate'),
+            dueDate: any(named: 'dueDate'),
+            totalPrincipalCents: any(named: 'totalPrincipalCents'),
+            type: DebtType.borrowedOut,
+          )).called(1);
+    },
+  );
+
+  blocTest<DebtBloc, DebtState>(
     'Update success refreshes the list',
     build: () {
       when(() => repo.update(
@@ -129,7 +206,8 @@ void main() {
             interestRate: any(named: 'interestRate'),
             version: any(named: 'version'),
           )).thenAnswer((_) async => Right(sample));
-      when(() => repo.list()).thenAnswer((_) async => Right([sample]));
+      when(() => repo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => Right([sample]));
       return DebtBloc(repo);
     },
     act: (b) => b.add(
@@ -149,7 +227,8 @@ void main() {
     'Delete success refreshes the list',
     build: () {
       when(() => repo.delete('d1')).thenAnswer((_) async => const Right(null));
-      when(() => repo.list()).thenAnswer((_) async => Right([sample]));
+      when(() => repo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => Right([sample]));
       return DebtBloc(repo);
     },
     act: (b) => b.add(const DeleteDebtRequested('d1')),

@@ -26,7 +26,7 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
     Emitter<DebtState> emit,
   ) async {
     emit(DebtLoading());
-    final result = await _repo.list();
+    final result = await _repo.list(typeFilter: event.typeFilter);
     result.fold(
       (failure) => emit(DebtError(failure.displayMessage, last: _last)),
       (debts) {
@@ -62,10 +62,11 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
       startDate: p.startDateOption!,
       dueDate: p.dueDateOption!,
       totalPrincipalCents: p.totalPrincipalCents,
+      type: p.type,
     );
     result.fold(
       (failure) => emit(DebtError(failure.displayMessage, last: _last)),
-      (_) => add(LoadDebtsRequested()), // refresh list on success
+      (_) => add(const LoadDebtsRequested()), // refresh list on success
     );
   }
 
@@ -83,7 +84,7 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
     );
     result.fold(
       (failure) => emit(DebtError(failure.displayMessage, last: _last)),
-      (_) => add(LoadDebtsRequested()), // refresh list on success
+      (_) => add(const LoadDebtsRequested()), // refresh list on success
     );
   }
 
@@ -94,7 +95,7 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
     final result = await _repo.delete(event.id);
     result.fold(
       (failure) => emit(DebtError(failure.displayMessage, last: _last)),
-      (_) => add(LoadDebtsRequested()), // refresh list on success
+      (_) => add(const LoadDebtsRequested()), // refresh list on success
     );
   }
 
