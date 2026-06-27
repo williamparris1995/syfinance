@@ -34,6 +34,7 @@ import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/pages/debts_page.dart';
+import 'package:yucai_client/debt/presentation/pages/receivables_page.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
@@ -47,13 +48,20 @@ class _MockRegister extends Mock implements RegisterUseCase {}
 class _MockProfile extends Mock implements GetProfileUseCase {}
 class _MockLogout extends Mock implements LogoutUseCase {}
 
-/// Fake CurrencyBloc — DebtDetailPage / DebtsPage both context.watch it for
-/// preferred-currency conversion. Mirrors debts_page_test's fake.
+/// Fake CurrencyBloc — DebtDetailPage / DebtsPage / ReceivablesPage /
+/// ReceivableDetailPage all context.watch it for preferred-currency conversion.
+/// Routes also call `b.add(LoadCurrenciesRequested())` on the freshly-created
+/// bloc (router.dart), so `add` must be a no-op rather than Fake's default
+/// (which throws). Mirrors debts_page_test's fake + adds the `add` override.
 class _FakeCurrencyBloc extends Fake implements CurrencyBloc {
   @override
   CurrencyState get state => const CurrencyState();
   @override
   Stream<CurrencyState> get stream => Stream.value(const CurrencyState());
+  @override
+  void add(Object? event) {}
+  @override
+  Future<void> close() async {}
 }
 
 void main() {
@@ -72,6 +80,13 @@ void main() {
     getIt.registerSingleton<AccountRepository>(accountRepo);
     getIt.registerSingleton<TransactionRepository>(txnRepo);
     getIt.registerSingleton<DebtRepository>(debtRepo);
+    // Routes create a fresh CurrencyBloc via getIt<CurrencyBloc>() (router.dart
+    // /debts, /debts/:id, /receivables, /receivables/:id, /accounts, /settings).
+    // Register a factory returning a fake so those route builders resolve;
+    // without this the /debts/:id (and /receivables/:id) route throws
+    // `GetIt: CurrencyBloc is not registered` during page build, which also
+    // leaks widget state and breaks subsequent tests (auth-guard).
+    getIt.registerFactory<CurrencyBloc>(() => _FakeCurrencyBloc());
 
     when(() => accountRepo.list()).thenAnswer(
         (_) async => dartz.Right([_account()]));
@@ -160,14 +175,14 @@ void main() {
         '/transactions/t-42');
   });
 
-  test('router has four StatefulShell branches '
-      '(home/accounts/transactions/debts)', () {
+  test('router has five StatefulShell branches '
+      '(home/accounts/transactions/debts/receivables)', () {
     final router = buildRouter(_seededAuthBloc());
     final shell = router.configuration.routes
         .whereType<StatefulShellRoute>()
         .first;
-    expect(shell.branches.length, 4,
-        reason: 'debt branch (index 3) must be registered');
+    expect(shell.branches.length, 5,
+        reason: 'receivables branch (index 4) must be registered');
   });
 
   testWidgets('/debts resolves inside the debt branch and renders DebtsPage',
@@ -225,6 +240,63 @@ void main() {
 
     expect(router.routerDelegate.currentConfiguration.uri.toString(),
         '/debts/d-42');
+  });
+
+  testWidgets('/receivables resolves inside the receivables branch and '
+      'renders ReceivablesPage', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/receivables');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/receivables');
+    // Branch 4 of StatefulShellRoute renders the receivables list page.
+    expect(find.byType(ReceivablesPage), findsOneWidget);
+  });
+
+  testWidgets('/receivables/new resolves to the receivable form route',
+      (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/receivables/new');
+    await tester.pumpWidget(app(router, authBloc));
+    // Don't pumpAndSettle: ReceivableFormPage's live amortization preview
+    // schedules frames indefinitely in this stripped harness (mirrors
+    // /debts/new). A few pumps are enough for the router to resolve.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/receivables/new');
+  });
+
+  testWidgets('/receivables/:id resolves to the receivable detail route',
+      (tester) async {
+    when(() => getIt<DebtRepository>().get(any())).thenAnswer(
+        (_) async => dartz.Right(_debtDetail()));
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/receivables/r-42');
+    await tester.pumpWidget(app(router, authBloc));
+    // Don't pumpAndSettle: ReceivableDetailPage schedules post-frame work in
+    // this stripped harness (mirrors /debts/:id). A few pumps are enough.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/receivables/r-42');
   });
 
   testWidgets('auth guard redirects unauthenticated /transactions to /login',

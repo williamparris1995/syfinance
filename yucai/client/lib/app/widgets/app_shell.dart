@@ -83,6 +83,8 @@ class AppShell extends StatelessWidget {
         return '交易管理';
       case 3:
         return '债务管理';
+      case 4:
+        return '债权管理';
       default:
         return '御财';
     }
@@ -129,6 +131,7 @@ const _navGroups = <_NavGroup>[
   _NavGroup('借贷', [
     _NavItem('债务管理', Icons.account_balance_wallet_outlined, 3,
         route: '/debts'),
+    _NavItem('债权管理', Icons.call_made_outlined, 4, route: '/receivables'),
   ]),
   _NavGroup('工具', [
     _NavItem('报表分析', Icons.bar_chart_outlined, null),
@@ -452,8 +455,8 @@ class _BottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 底栏映射已实现的分支：仪表盘(0) / 交易(2) / 账户(1) / 债务(3) / 退出
-    // 四个分支索引 0/2/1/3 + 退出（末位），用 _branchSlots 把底栏位序 → 分支索引。
+    // 底栏映射已实现的分支：仪表盘(0) / 交易(2) / 账户(1) / 债务(3) / 债权(4) / 退出
+    // 五个分支索引 0/2/1/3/4 + 退出（末位），用 _branchSlots 把底栏位序 → 分支索引。
     return NavigationBar(
       backgroundColor: AppColors.surface,
       indicatorColor: AppColors.accentSoft,
@@ -475,14 +478,16 @@ class _BottomNav extends StatelessWidget {
             label: '账户'),
         NavigationDestination(
             icon: Icon(Icons.credit_card_outlined), label: '债务'),
+        NavigationDestination(
+            icon: Icon(Icons.call_made_outlined), label: '债权'),
         NavigationDestination(icon: Icon(Icons.logout), label: '退出'),
       ],
     );
   }
 
-  /// 底栏位序 → 分支索引。底栏顺序为 仪表盘/交易/账户/债务/退出，
-  /// 对应分支 0/2/1/3，退出单独处理。未匹配的分支（如未来新增）回退到 0。
-  static const _branchSlots = [0, 2, 1, 3];
+  /// 底栏位序 → 分支索引。底栏顺序为 仪表盘/交易/账户/债务/债权/退出，
+  /// 对应分支 0/2/1/3/4，退出单独处理。未匹配的分支（如未来新增）回退到 0。
+  static const _branchSlots = [0, 2, 1, 3, 4];
 
   static int _slotIndexOf(int branchIndex) {
     final i = _branchSlots.indexOf(branchIndex);

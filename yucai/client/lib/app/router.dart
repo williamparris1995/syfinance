@@ -22,9 +22,13 @@ import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
+import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/pages/debt_detail_page.dart';
 import 'package:yucai_client/debt/presentation/pages/debt_form_page.dart';
 import 'package:yucai_client/debt/presentation/pages/debts_page.dart';
+import 'package:yucai_client/debt/presentation/pages/receivable_detail_page.dart';
+import 'package:yucai_client/debt/presentation/pages/receivable_form_page.dart';
+import 'package:yucai_client/debt/presentation/pages/receivables_page.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_event.dart';
 import 'package:yucai_client/settings/presentation/settings_page.dart';
@@ -57,6 +61,7 @@ GoRouter buildRouter(AuthBloc authBloc) {
           state.matchedLocation.startsWith('/transactions') ||
           state.matchedLocation.startsWith('/categories') ||
           state.matchedLocation.startsWith('/debts') ||
+          state.matchedLocation.startsWith('/receivables') ||
           state.matchedLocation.startsWith('/settings');
 
       if (isLoading) return null;
@@ -272,6 +277,75 @@ GoRouter buildRouter(AuthBloc authBloc) {
                         ),
                       ],
                       child: DebtDetailPage(id: state.pathParameters['id']!),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/receivables',
+                // 债权列表（branch 4）：与 /debts 同构，但 DebtBloc 以
+                // LoadDebtsRequested(typeFilter: borrowedOut) 仅取借出方向。
+                // CurrencyBloc 提供总计/小计换算（对齐 /debts /accounts）。
+                builder: (_, __) => MultiBlocProvider(
+                  providers: [
+                    BlocProvider<DebtBloc>(
+                      create: (_) {
+                        final b = DebtBloc(getIt<DebtRepository>());
+                        b.add(const LoadDebtsRequested(
+                            typeFilter: DebtType.borrowedOut));
+                        return b;
+                      },
+                    ),
+                    BlocProvider<CurrencyBloc>(
+                      create: (_) {
+                        final b = getIt<CurrencyBloc>();
+                        b.add(const LoadCurrenciesRequested());
+                        b.add(const LoadPreferencesRequested());
+                        return b;
+                      },
+                    ),
+                  ],
+                  child: const ReceivablesPage(),
+                ),
+                routes: [
+                  GoRoute(
+                    path: 'new',
+                    // 表单页：嵌套路由是 /receivables 的兄弟子树，不继承
+                    // /receivables builder 的 BlocProvider，故独立 provide。
+                    // type 在表单内部固定 borrowedOut（Task 9）。
+                    builder: (_, __) => BlocProvider<DebtBloc>(
+                      create: (_) => DebtBloc(getIt<DebtRepository>()),
+                      child: const ReceivableFormPage(),
+                    ),
+                  ),
+                  GoRoute(
+                    path: ':id',
+                    // 详情页用独立 DebtBloc，进入即 LoadDebtRequested(id)，
+                    // 对齐 /debts/:id。
+                    builder: (_, state) => MultiBlocProvider(
+                      providers: [
+                        BlocProvider<DebtBloc>(
+                          create: (_) {
+                            final b = DebtBloc(getIt<DebtRepository>());
+                            b.add(LoadDebtRequested(state.pathParameters['id']!));
+                            return b;
+                          },
+                        ),
+                        // ReceivableDetailPage 用 CurrencyBloc 换算。
+                        BlocProvider<CurrencyBloc>(
+                          create: (_) {
+                            final b = getIt<CurrencyBloc>();
+                            b.add(const LoadCurrenciesRequested());
+                            b.add(const LoadPreferencesRequested());
+                            return b;
+                          },
+                        ),
+                      ],
+                      child: ReceivableDetailPage(id: state.pathParameters['id']!),
                     ),
                   ),
                 ],
