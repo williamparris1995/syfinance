@@ -109,6 +109,9 @@ message HoldingTradeRequest {
   int64 fee_cents = 5;
   string trade_date = 6;
   string notes = 7;
+  // 双写资金来源账户(cash asset,savings/investment)。BuyHolding/SellHolding 必填;
+  // buy:credit(现金−);sell:debit(现金+)。
+  string from_account_id = 8;
 }
 
 message RecordDividendRequest {

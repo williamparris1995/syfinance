@@ -716,14 +716,17 @@ func (x *SearchSecuritiesRequest) GetLimit() int32 {
 }
 
 type HoldingTradeRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	SecurityId    string                 `protobuf:"bytes,2,opt,name=security_id,json=securityId,proto3" json:"security_id,omitempty"`
-	Quantity      float64                `protobuf:"fixed64,3,opt,name=quantity,proto3" json:"quantity,omitempty"`
-	PriceCents    int64                  `protobuf:"varint,4,opt,name=price_cents,json=priceCents,proto3" json:"price_cents,omitempty"`
-	FeeCents      int64                  `protobuf:"varint,5,opt,name=fee_cents,json=feeCents,proto3" json:"fee_cents,omitempty"`
-	TradeDate     string                 `protobuf:"bytes,6,opt,name=trade_date,json=tradeDate,proto3" json:"trade_date,omitempty"`
-	Notes         string                 `protobuf:"bytes,7,opt,name=notes,proto3" json:"notes,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	AccountId  string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	SecurityId string                 `protobuf:"bytes,2,opt,name=security_id,json=securityId,proto3" json:"security_id,omitempty"`
+	Quantity   float64                `protobuf:"fixed64,3,opt,name=quantity,proto3" json:"quantity,omitempty"`
+	PriceCents int64                  `protobuf:"varint,4,opt,name=price_cents,json=priceCents,proto3" json:"price_cents,omitempty"`
+	FeeCents   int64                  `protobuf:"varint,5,opt,name=fee_cents,json=feeCents,proto3" json:"fee_cents,omitempty"`
+	TradeDate  string                 `protobuf:"bytes,6,opt,name=trade_date,json=tradeDate,proto3" json:"trade_date,omitempty"`
+	Notes      string                 `protobuf:"bytes,7,opt,name=notes,proto3" json:"notes,omitempty"`
+	// 双写资金来源账户(cash asset,savings/investment)。BuyHolding/SellHolding 必填;
+	// buy:credit(现金−);sell:debit(现金+)。
+	FromAccountId string `protobuf:"bytes,8,opt,name=from_account_id,json=fromAccountId,proto3" json:"from_account_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -803,6 +806,13 @@ func (x *HoldingTradeRequest) GetTradeDate() string {
 func (x *HoldingTradeRequest) GetNotes() string {
 	if x != nil {
 		return x.Notes
+	}
+	return ""
+}
+
+func (x *HoldingTradeRequest) GetFromAccountId() string {
+	if x != nil {
+		return x.FromAccountId
 	}
 	return ""
 }
@@ -1440,7 +1450,7 @@ const file_holding_v1_holding_proto_rawDesc = "" +
 	"priceCents\"E\n" +
 	"\x17SearchSecuritiesRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\x05R\x05limit\"\xe4\x01\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\"\x8c\x02\n" +
 	"\x13HoldingTradeRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x1f\n" +
@@ -1452,7 +1462,8 @@ const file_holding_v1_holding_proto_rawDesc = "" +
 	"\tfee_cents\x18\x05 \x01(\x03R\bfeeCents\x12\x1d\n" +
 	"\n" +
 	"trade_date\x18\x06 \x01(\tR\ttradeDate\x12\x14\n" +
-	"\x05notes\x18\a \x01(\tR\x05notes\"\x87\x02\n" +
+	"\x05notes\x18\a \x01(\tR\x05notes\x12&\n" +
+	"\x0ffrom_account_id\x18\b \x01(\tR\rfromAccountId\"\x87\x02\n" +
 	"\x15RecordDividendRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x1f\n" +
