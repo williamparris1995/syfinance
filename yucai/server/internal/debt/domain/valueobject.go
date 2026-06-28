@@ -82,3 +82,23 @@ func ParseDebtType(s string) DebtType {
 		return BorrowedIn
 	}
 }
+
+// Debt subtype keys for borrowedIn (money the user borrowed).
+// Use these consts everywhere instead of bare strings — no enum mapping is
+// performed; the value is persisted and returned verbatim at every layer.
+const (
+	DebtSubtypeMortgage   = "mortgage"
+	DebtSubtypeAutoLoan   = "auto_loan"
+	DebtSubtypeCreditCard = "credit_card"
+	DebtSubtypeFamily     = "family"
+	DebtSubtypeOther      = "other"
+)
+
+// Receivable subtype keys for borrowedOut (money the user lent out).
+// Note: "family" and "other" are shared with borrowedIn — since subtype is a
+// plain string (no enum), reuse DebtSubtypeFamily / DebtSubtypeOther for those;
+// only the distinct keys are declared here.
+const (
+	ReceivableSubtypePersonal = "personal"
+	ReceivableSubtypeBusiness = "business"
+)

@@ -35,6 +35,7 @@ func (r *DebtRepository) Save(ctx context.Context, d *domain.DebtDetails) error 
 		SetDueDate(d.DueDate).
 		SetTotalPrincipalCents(d.TotalPrincipalCents).
 		SetDebtType(d.DebtType.String()).
+		SetSubtype(d.Subtype).
 		SetVersion(d.Version).
 		SetCreatedAt(d.CreatedAt).
 		SetUpdatedAt(d.UpdatedAt).
@@ -245,6 +246,7 @@ func toDomainDebt(dd *debtent.DebtDetails, entries []*debtent.PaymentSchedule) *
 		DueDate:             dd.DueDate,
 		TotalPrincipalCents: dd.TotalPrincipalCents,
 		DebtType:            domain.ParseDebtType(dd.DebtType),
+		Subtype:             dd.Subtype,
 		Schedule:            schedule,
 		Version:             dd.Version,
 		CreatedAt:           dd.CreatedAt,

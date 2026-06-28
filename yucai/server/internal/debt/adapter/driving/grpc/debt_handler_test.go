@@ -57,3 +57,27 @@ func TestDebtToProto_EmitsDebtType(t *testing.T) {
 		t.Errorf("debtToProto DebtType = %v, want BORROWED_IN", p.DebtType)
 	}
 }
+
+// TestDebtToProto_EmitsSubtype verifies debtToProto carries the Subtype string
+// through verbatim (no enum mapping — unlike DebtType).
+func TestDebtToProto_EmitsSubtype(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		subtype string
+	}{
+		{"empty", ""},
+		{"mortgage_const", domain.DebtSubtypeMortgage},
+		{"auto_loan_const", domain.DebtSubtypeAutoLoan},
+		{"credit_card_const", domain.DebtSubtypeCreditCard},
+		{"receivable_personal", domain.ReceivableSubtypePersonal},
+		{"unknown_custom", "custom_value"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dto := application.DebtDTO{Subtype: tc.subtype}
+			p := debtToProto(dto)
+			if p.Subtype != tc.subtype {
+				t.Errorf("debtToProto Subtype = %q, want %q", p.Subtype, tc.subtype)
+			}
+		})
+	}
+}

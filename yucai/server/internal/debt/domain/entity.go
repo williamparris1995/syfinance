@@ -19,6 +19,7 @@ type DebtDetails struct {
 	DueDate             time.Time
 	TotalPrincipalCents int64
 	DebtType            DebtType
+	Subtype             string
 	Schedule            []PaymentScheduleEntry
 	Version             int64
 	CreatedAt           time.Time
@@ -39,6 +40,8 @@ type PaymentScheduleEntry struct {
 }
 
 // NewDebtDetails creates a validated DebtDetails aggregate.
+// subtype is a plain string persisted verbatim (no enum mapping); pass "" when
+// unspecified. Use the DebtSubtype* / ReceivableSubtype* consts for known keys.
 func NewDebtDetails(
 	tenantID, accountID uuid.UUID,
 	counterparty string,
@@ -47,6 +50,7 @@ func NewDebtDetails(
 	startDate, dueDate time.Time,
 	totalPrincipalCents int64,
 	debtType DebtType,
+	subtype string,
 ) (*DebtDetails, error) {
 	counterparty = trimSpace(counterparty)
 	if counterparty == "" {
@@ -79,6 +83,7 @@ func NewDebtDetails(
 		DueDate:             dueDate,
 		TotalPrincipalCents: totalPrincipalCents,
 		DebtType:            debtType,
+		Subtype:             subtype,
 		Version:             1,
 		CreatedAt:           now,
 		UpdatedAt:           now,

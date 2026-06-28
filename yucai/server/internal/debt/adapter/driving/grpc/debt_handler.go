@@ -58,6 +58,7 @@ func (h *DebtHandler) CreateDebt(ctx context.Context, req *pb.CreateDebtRequest)
 		DueDate:             dueDate,
 		TotalPrincipalCents: req.TotalPrincipalCents,
 		DebtType:            protoToDebtType(req.DebtType),
+		Subtype:             req.Subtype,
 	})
 	if err != nil {
 		return nil, mapError(err)
@@ -231,6 +232,7 @@ func debtToProto(d application.DebtDTO) *pb.DebtDTO {
 		DueDate:             d.DueDate.Format("2006-01-02"),
 		TotalPrincipalCents: d.TotalPrincipalCents,
 		DebtType:            debtTypeToProto(d.DebtType),
+		Subtype:             d.Subtype,
 		RemainingPrincipalCents: d.RemainingPrincipal,
 		Version:             d.Version,
 		CreatedAt:           timestamppb.New(d.CreatedAt),

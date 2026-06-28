@@ -8,6 +8,8 @@ import (
 )
 
 // CreateDebtRequest holds input for creating a debt.
+// Subtype is a plain string persisted verbatim; pass a DebtSubtype* /
+// ReceivableSubtype* const (or "" when unspecified).
 type CreateDebtRequest struct {
 	TenantID            uuid.UUID
 	AccountID           uuid.UUID
@@ -18,6 +20,7 @@ type CreateDebtRequest struct {
 	DueDate             time.Time
 	TotalPrincipalCents int64
 	DebtType            domain.DebtType
+	Subtype             string
 }
 
 // UpdateDebtRequest holds input for updating a debt.
@@ -57,6 +60,7 @@ type DebtDTO struct {
 	DueDate             time.Time
 	TotalPrincipalCents int64
 	DebtType            domain.DebtType
+	Subtype             string
 	RemainingPrincipal  int64
 	Version             int64
 	CreatedAt           time.Time
@@ -113,6 +117,7 @@ func DebtToDTO(d *domain.DebtDetails) DebtDTO {
 		DueDate:             d.DueDate,
 		TotalPrincipalCents: d.TotalPrincipalCents,
 		DebtType:            d.DebtType,
+		Subtype:             d.Subtype,
 		RemainingPrincipal:  d.RemainingPrincipal(),
 		Version:             d.Version,
 		CreatedAt:           d.CreatedAt,

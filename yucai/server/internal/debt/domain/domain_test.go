@@ -17,6 +17,7 @@ func TestNewDebtDetails_Valid(t *testing.T) {
 		time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
 		10000000, // 100,000 yuan in cents
 		DebtTypeUnspecified,
+		"",
 	)
 	if err != nil {
 		t.Fatalf("NewDebtDetails failed: %v", err)
@@ -41,6 +42,7 @@ func TestNewDebtDetails_EmptyCounterparty(t *testing.T) {
 		time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
 		100000,
 		DebtTypeUnspecified,
+		"",
 	)
 	if err == nil {
 		t.Error("expected error for empty counterparty")
@@ -55,6 +57,7 @@ func TestNewDebtDetails_NonPositivePrincipal(t *testing.T) {
 		time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
 		0,
 		DebtTypeUnspecified,
+		"",
 	)
 	if err == nil {
 		t.Error("expected error for zero principal")
@@ -69,6 +72,7 @@ func TestNewDebtDetails_NegativeInterestRate(t *testing.T) {
 		time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
 		100000,
 		DebtTypeUnspecified,
+		"",
 	)
 	if err == nil {
 		t.Error("expected error for negative interest rate")
@@ -83,6 +87,7 @@ func TestNewDebtDetails_DueDateBeforeStartDate(t *testing.T) {
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		100000,
 		DebtTypeUnspecified,
+		"",
 	)
 	if err == nil {
 		t.Error("expected error for due date before start date")
@@ -97,6 +102,7 @@ func TestLumpSumSchedule(t *testing.T) {
 		time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
 		12000000, // 120,000 yuan
 		DebtTypeUnspecified,
+		"",
 	)
 	entries := d.GenerateSchedule()
 	if len(entries) != 1 {
@@ -124,6 +130,7 @@ func TestEqualPrincipalSchedule(t *testing.T) {
 		time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
 		12000000, // 120,000 yuan, 6 months
 		DebtTypeUnspecified,
+		"",
 	)
 	entries := d.GenerateSchedule()
 	if len(entries) != 6 {
@@ -157,6 +164,7 @@ func TestEqualPrincipalInterestSchedule(t *testing.T) {
 		time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
 		12000000, // 120,000 yuan, 6 months
 		DebtTypeUnspecified,
+		"",
 	)
 	entries := d.GenerateSchedule()
 	if len(entries) != 6 {
@@ -192,6 +200,7 @@ func TestZeroInterestRate(t *testing.T) {
 		time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
 		900000, // 9,000 yuan, 3 months
 		DebtTypeUnspecified,
+		"",
 	)
 	entries := d.GenerateSchedule()
 	if len(entries) != 3 {
@@ -215,6 +224,7 @@ func TestMarkPaid(t *testing.T) {
 		time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
 		1000000,
 		DebtTypeUnspecified,
+		"",
 	)
 	d.GenerateSchedule()
 	entryID := d.Schedule[0].ID
@@ -243,6 +253,7 @@ func TestMarkPaid_EntryNotFound(t *testing.T) {
 		time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
 		1000000,
 		DebtTypeUnspecified,
+		"",
 	)
 	err := d.MarkPaid(uuid.New(), uuid.New())
 	if err == nil {
@@ -258,6 +269,7 @@ func TestRemainingPrincipal(t *testing.T) {
 		time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
 		900000, // 3 months
 		DebtTypeUnspecified,
+		"",
 	)
 	d.GenerateSchedule()
 
@@ -281,6 +293,7 @@ func TestTermInMonths(t *testing.T) {
 		time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC),
 		1000000,
 		DebtTypeUnspecified,
+		"",
 	)
 	if months := d.TermInMonths(); months != 6 {
 		t.Errorf("expected 6 months, got %d", months)
@@ -295,6 +308,7 @@ func TestIncrementVersion(t *testing.T) {
 		time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
 		1000000,
 		DebtTypeUnspecified,
+		"",
 	)
 	before := d.Version
 	d.IncrementVersion()
@@ -345,6 +359,66 @@ func TestParseDebtType_UnknownDefaultsToBorrowedIn(t *testing.T) {
 	for _, s := range []string{"", "unknown", "INVALID", "BorrowedIn"} {
 		if got := ParseDebtType(s); got != BorrowedIn {
 			t.Errorf("ParseDebtType(%q) = %v, want BorrowedIn", s, got)
+		}
+	}
+}
+
+func TestNewDebtDetails_SubtypeRoundTrips(t *testing.T) {
+	// subtype is a plain string passed through verbatim (no normalization).
+	for _, tc := range []struct {
+		name    string
+		subtype string
+	}{
+		{"empty", ""},
+		{"mortgage_const", DebtSubtypeMortgage},
+		{"auto_loan_const", DebtSubtypeAutoLoan},
+		{"credit_card_const", DebtSubtypeCreditCard},
+		{"receivable_personal", ReceivableSubtypePersonal},
+		{"arbitrary_unknown_value", "custom_value"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d, err := NewDebtDetails(
+				uuid.New(), uuid.New(),
+				"Lender", 0.05, AmortizationLumpSum,
+				time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+				time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+				1000000, DebtTypeUnspecified,
+				tc.subtype,
+			)
+			if err != nil {
+				t.Fatalf("NewDebtDetails failed: %v", err)
+			}
+			if d.Subtype != tc.subtype {
+				t.Errorf("Subtype = %q, want %q", d.Subtype, tc.subtype)
+			}
+		})
+	}
+}
+
+func TestSubtypeConstValues(t *testing.T) {
+	// Consts hold the exact string keys persisted/returned verbatim — verify
+	// them explicitly so renames surface here rather than at the client.
+	want := map[string]string{
+		"DebtSubtypeMortgage":      DebtSubtypeMortgage,
+		"DebtSubtypeAutoLoan":      DebtSubtypeAutoLoan,
+		"DebtSubtypeCreditCard":    DebtSubtypeCreditCard,
+		"DebtSubtypeFamily":        DebtSubtypeFamily,
+		"DebtSubtypeOther":         DebtSubtypeOther,
+		"ReceivableSubtypePersonal": ReceivableSubtypePersonal,
+		"ReceivableSubtypeBusiness": ReceivableSubtypeBusiness,
+	}
+	expected := map[string]string{
+		"DebtSubtypeMortgage":      "mortgage",
+		"DebtSubtypeAutoLoan":      "auto_loan",
+		"DebtSubtypeCreditCard":    "credit_card",
+		"DebtSubtypeFamily":        "family",
+		"DebtSubtypeOther":         "other",
+		"ReceivableSubtypePersonal": "personal",
+		"ReceivableSubtypeBusiness": "business",
+	}
+	for name, v := range want {
+		if v != expected[name] {
+			t.Errorf("%s = %q, want %q", name, v, expected[name])
 		}
 	}
 }

@@ -139,6 +139,92 @@ func TestCreateDebt_PersistsDebtType(t *testing.T) {
 	}
 }
 
+func TestCreateDebt_PersistsSubtype(t *testing.T) {
+	// subtype is a plain string; service passes it through verbatim, no mapping.
+	repo := newMockDebtRepo()
+	svc := NewService(repo)
+
+	for _, tc := range []struct {
+		name    string
+		subtype string
+	}{
+		{"empty_default", ""},
+		{"mortgage_const", domain.DebtSubtypeMortgage},
+		{"credit_card_const", domain.DebtSubtypeCreditCard},
+		{"receivable_personal", domain.ReceivableSubtypePersonal},
+		{"unknown_custom", "custom_value"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := svc.CreateDebt(context.Background(), CreateDebtRequest{
+				TenantID:            uuid.New(),
+				AccountID:           uuid.New(),
+				Counterparty:        "Lender",
+				InterestRate:        0.05,
+				AmortizationMethod:  domain.AmortizationLumpSum,
+				StartDate:           time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+				DueDate:             time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+				TotalPrincipalCents: 1000000,
+				DebtType:            domain.BorrowedIn,
+				Subtype:             tc.subtype,
+			})
+			if err != nil {
+				t.Fatalf("CreateDebt failed: %v", err)
+			}
+			// DTO carries subtype verbatim.
+			if resp.Subtype != tc.subtype {
+				t.Errorf("DTO Subtype = %q, want %q", resp.Subtype, tc.subtype)
+			}
+			// Persisted aggregate carries subtype verbatim.
+			saved, ok := repo.byID[resp.ID]
+			if !ok {
+				t.Fatalf("debt not persisted")
+			}
+			if saved.Subtype != tc.subtype {
+				t.Errorf("persisted Subtype = %q, want %q", saved.Subtype, tc.subtype)
+			}
+		})
+	}
+}
+
+func TestListDebts_ReturnsSubtype(t *testing.T) {
+	tenant := uuid.New()
+	repo := newMockDebtRepo()
+	svc := NewService(repo)
+
+	// Seed a debt with a known subtype via CreateDebt so it flows through the
+	// full service -> domain -> repo path.
+	created, err := svc.CreateDebt(context.Background(), CreateDebtRequest{
+		TenantID:            tenant,
+		AccountID:           uuid.New(),
+		Counterparty:        "Bank",
+		InterestRate:        0.03,
+		AmortizationMethod:  domain.AmortizationLumpSum,
+		StartDate:           time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		DueDate:             time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+		TotalPrincipalCents: 500000,
+		DebtType:            domain.BorrowedOut,
+		Subtype:             domain.ReceivableSubtypeBusiness,
+	})
+	if err != nil {
+		t.Fatalf("CreateDebt failed: %v", err)
+	}
+
+	res, err := svc.ListDebts(context.Background(), ListDebtsRequest{TenantID: tenant})
+	if err != nil {
+		t.Fatalf("ListDebts failed: %v", err)
+	}
+	if len(res.Debts) != 1 {
+		t.Fatalf("expected 1 debt, got %d", len(res.Debts))
+	}
+	got := res.Debts[0]
+	if got.ID != created.ID {
+		t.Errorf("returned ID %v != created %v", got.ID, created.ID)
+	}
+	if got.Subtype != domain.ReceivableSubtypeBusiness {
+		t.Errorf("returned Subtype = %q, want %q", got.Subtype, domain.ReceivableSubtypeBusiness)
+	}
+}
+
 func TestListDebts_TypeFilter_PassedThroughAndApplied(t *testing.T) {
 	tenant := uuid.New()
 	repo := newMockDebtRepo()
@@ -148,7 +234,7 @@ func TestListDebts_TypeFilter_PassedThroughAndApplied(t *testing.T) {
 			tenant, uuid.New(), "C", 0.0, domain.AmortizationLumpSum,
 			time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 			time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
-			100000, dt,
+			100000, dt, "",
 		)
 		repo.byID[d.ID] = d
 	}
