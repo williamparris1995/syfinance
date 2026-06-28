@@ -357,7 +357,8 @@ void main() {
               dueDate: any(named: 'dueDate'),
               totalPrincipalCents: any(named: 'totalPrincipalCents'),
               type: any(named: 'type'),
-              subtype: any(named: 'subtype'))).thenAnswer((inv) {
+              subtype: any(named: 'subtype'),
+              sourceAccountId: any(named: 'sourceAccountId'))).thenAnswer((inv) {
         capturedType = inv.namedArguments[#type] as DebtType?;
         capturedSubtype = inv.namedArguments[#subtype] as String?;
         return Future.value(dartz.Right(_emptyDetail().debt));

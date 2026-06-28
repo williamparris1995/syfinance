@@ -362,7 +362,8 @@ void main() {
               dueDate: any(named: 'dueDate'),
               totalPrincipalCents: any(named: 'totalPrincipalCents'),
               type: any(named: 'type'),
-              subtype: any(named: 'subtype')))
+              subtype: any(named: 'subtype'),
+              sourceAccountId: any(named: 'sourceAccountId')))
           .thenAnswer((inv) {
         created = true;
         return Future.value(dartz.Right(_emptyDetail().debt));
@@ -796,7 +797,8 @@ void main() {
               dueDate: any(named: 'dueDate'),
               totalPrincipalCents: any(named: 'totalPrincipalCents'),
               type: any(named: 'type'),
-              subtype: any(named: 'subtype'))).thenAnswer((inv) {
+              subtype: any(named: 'subtype'),
+              sourceAccountId: any(named: 'sourceAccountId'))).thenAnswer((inv) {
         capturedSubtype = inv.namedArguments[#subtype] as String?;
         return Future.value(dartz.Right(_emptyDetail().debt));
       });

@@ -141,6 +141,8 @@ void main() {
             dueDate: any(named: 'dueDate'),
             totalPrincipalCents: any(named: 'totalPrincipalCents'),
             type: any(named: 'type'),
+            subtype: any(named: 'subtype'),
+            sourceAccountId: any(named: 'sourceAccountId'),
           )).thenAnswer((_) async => Right(sample));
       when(() => repo.list(typeFilter: any(named: 'typeFilter')))
           .thenAnswer((_) async => Right([sample]));
@@ -167,6 +169,8 @@ void main() {
             dueDate: any(named: 'dueDate'),
             totalPrincipalCents: any(named: 'totalPrincipalCents'),
             type: DebtType.borrowedOut,
+            subtype: any(named: 'subtype'),
+            sourceAccountId: any(named: 'sourceAccountId'),
           )).thenAnswer((_) async => Right(sample));
       when(() => repo.list(typeFilter: any(named: 'typeFilter')))
           .thenAnswer((_) async => const Right([]));
@@ -193,6 +197,8 @@ void main() {
             dueDate: any(named: 'dueDate'),
             totalPrincipalCents: any(named: 'totalPrincipalCents'),
             type: DebtType.borrowedOut,
+            subtype: any(named: 'subtype'),
+            sourceAccountId: any(named: 'sourceAccountId'),
           )).called(1);
     },
   );
@@ -212,6 +218,7 @@ void main() {
             totalPrincipalCents: any(named: 'totalPrincipalCents'),
             type: any(named: 'type'),
             subtype: 'mortgage',
+            sourceAccountId: any(named: 'sourceAccountId'),
           )).thenAnswer((_) async => Right(sample));
       when(() => repo.list(typeFilter: any(named: 'typeFilter')))
           .thenAnswer((_) async => const Right([]));
@@ -240,6 +247,7 @@ void main() {
             totalPrincipalCents: any(named: 'totalPrincipalCents'),
             type: any(named: 'type'),
             subtype: 'mortgage',
+            sourceAccountId: any(named: 'sourceAccountId'),
           )).called(1);
     },
   );
@@ -320,6 +328,8 @@ void main() {
             dueDate: any(named: 'dueDate'),
             totalPrincipalCents: any(named: 'totalPrincipalCents'),
             type: any(named: 'type'),
+            subtype: any(named: 'subtype'),
+            sourceAccountId: any(named: 'sourceAccountId'),
           )).thenAnswer((_) async => Right(sample));
       when(() => repo.list(typeFilter: DebtType.borrowedOut))
           .thenAnswer((_) async => Right([sample]));

@@ -17,6 +17,7 @@ abstract class DebtRepository {
     required int totalPrincipalCents,
     required DebtType type,
     String subtype = '',
+    String? sourceAccountId,
   });
   Future<Either<Failure, Debt>> update({
     required String id,

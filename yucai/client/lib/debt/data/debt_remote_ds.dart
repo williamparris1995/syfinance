@@ -69,6 +69,7 @@ class DebtRemoteDataSource {
     required int totalPrincipalCents,
     required DebtType type,
     String subtype = '',
+    String? sourceAccountId,
   }) async {
     return _retry.call(() async {
       final res = await _client.createDebt(pb.CreateDebtRequest(
@@ -84,6 +85,9 @@ class DebtRemoteDataSource {
         debtType: DebtMapper.debtTypeToProto(type),
         // subtype 纯 String 直传(无映射),默认 '' 与 domain Debt.subtype 默认一致。
         subtype: subtype,
+        // source_account_id:borrowedOut 双写资金来源(cash asset);borrowedIn
+        // 或未选 → '' → 后端不双写。
+        sourceAccountId: sourceAccountId ?? '',
       ));
       return DebtMapper.toDomain(res.debt);
     });

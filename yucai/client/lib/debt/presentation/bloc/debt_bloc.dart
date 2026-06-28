@@ -71,6 +71,7 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
       totalPrincipalCents: p.totalPrincipalCents,
       type: p.type,
       subtype: p.subtype,
+      sourceAccountId: p.sourceAccountId,
     );
     result.fold(
       (failure) => emit(DebtError(failure.displayMessage, last: _last)),

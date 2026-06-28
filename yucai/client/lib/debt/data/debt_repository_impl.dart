@@ -33,6 +33,7 @@ class DebtRepositoryImpl implements DebtRepository {
     required int totalPrincipalCents,
     required DebtType type,
     String subtype = '',
+    String? sourceAccountId,
   }) =>
       _guard(() => _remote.create(
             accountId: accountId,
@@ -44,6 +45,7 @@ class DebtRepositoryImpl implements DebtRepository {
             totalPrincipalCents: totalPrincipalCents,
             type: type,
             subtype: subtype,
+            sourceAccountId: sourceAccountId,
           ));
 
   @override

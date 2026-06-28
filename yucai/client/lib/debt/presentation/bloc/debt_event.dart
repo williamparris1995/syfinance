@@ -37,6 +37,7 @@ class CreateDebtParams extends Equatable {
     required this.totalPrincipalCents,
     this.type = DebtType.borrowedIn,
     this.subtype = '',
+    this.sourceAccountId,
   });
   final String accountId;
   final String counterparty;
@@ -46,11 +47,13 @@ class CreateDebtParams extends Equatable {
   final DateTime? dueDateOption;
   final int totalPrincipalCents;
   /// 债务方向。默认 borrowedIn → 既有 debts_page/form 行为不变;
-  /// Task 9 的 receivables 表单会显式传 borrowedOut。
+  /// receivables 表单显式传 borrowedOut。
   final DebtType type;
-  /// 债务子类型(纯 String,无枚举映射)。默认 '' → 既有 CreateDebtRequested
-  /// 调用点(debt_form / receivable_form,Task 7-8 前未传 subtype)编译不变。
+  /// 债务子类型(纯 String,无枚举映射)。默认 '' → 既有调用点编译不变。
   final String subtype;
+  /// borrowedOut 双写:借出资金的来源账户(cash asset)。borrowedOut 必填;
+  /// borrowedIn 忽略(不双写)。null → 空字符串 → 不双写。
+  final String? sourceAccountId;
 
   @override
   List<Object?> get props => [
@@ -63,6 +66,7 @@ class CreateDebtParams extends Equatable {
         totalPrincipalCents,
         type,
         subtype,
+        sourceAccountId,
       ];
 }
 
