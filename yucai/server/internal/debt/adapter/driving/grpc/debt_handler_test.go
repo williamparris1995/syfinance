@@ -808,3 +808,162 @@ func TestBuildCreateEntries_BorrowedOut(t *testing.T) {
 		t.Errorf("unbalanced: credit=%d debit=%d", entries[0].CreditCents, entries[1].DebitCents)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// CreateDebt validation fail-fast tests (create-debt-dual-write)
+//
+// Validation runs BEFORE service.CreateDebt, so an invalid source fails fast
+// and no debt is persisted. Each test asserts the gRPC error code AND that no
+// debt was saved AND no transaction was recorded.
+// ---------------------------------------------------------------------------
+
+// borrowedOut base request builder (valid except the field under test).
+func newBorrowedOutCreateReq(debtAccID, sourceAccID string) *pb.CreateDebtRequest {
+	return &pb.CreateDebtRequest{
+		AccountId:           debtAccID,
+		SourceAccountId:     sourceAccID,
+		Counterparty:        "张三",
+		InterestRate:        5.0,
+		AmortizationMethod:  pb.AmortizationMethod_AMORTIZATION_LUMP_SUM,
+		StartDate:           "2026-01-01",
+		DueDate:             "2026-12-31",
+		TotalPrincipalCents: 1_000_00,
+		DebtType:            pb.DebtType_DEBT_TYPE_BORROWED_OUT,
+	}
+}
+
+// requireNoDebtAndNoTxn asserts the fail-fast invariant: nothing persisted.
+func requireNoDebtAndNoTxn(t *testing.T, resp *pb.DebtResponse, err error, debtRepo *fakeDebtRepo, txnRepo *recordingTxnRepo) {
+	t.Helper()
+	if err == nil {
+		t.Fatal("expected validation error, got nil")
+	}
+	if resp != nil {
+		t.Errorf("expected nil response on validation failure, got %+v", resp)
+	}
+	if len(debtRepo.byID) != 0 {
+		t.Errorf("fail-fast: no debt should be persisted, got %d", len(debtRepo.byID))
+	}
+	if txnRepo.saved != nil {
+		t.Error("fail-fast: no transaction should be recorded")
+	}
+}
+
+// TestCreateDebt_MissingSource_Rejects: borrowedOut with empty source is
+// rejected with InvalidArgument (source is required for borrowedOut).
+func TestCreateDebt_MissingSource_Rejects(t *testing.T) {
+	h, tenantID, _, debtAccID, txnRepo, _, debtRepo :=
+		setupCreateDebtHarness(t)
+
+	req := newBorrowedOutCreateReq(debtAccID.String(), "")
+	resp, err := h.CreateDebt(ctxWithTenant(tenantID), req)
+
+	requireNoDebtAndNoTxn(t, resp, err, debtRepo, txnRepo)
+	st, ok := status.FromError(err)
+	if !ok || st.Code() != codes.InvalidArgument {
+		t.Errorf("error code: got %v, want InvalidArgument", err)
+	}
+}
+
+// TestCreateDebt_NonAssetSource_Rejects: a source whose AccountType is not
+// asset is rejected with InvalidArgument before the debt is created.
+func TestCreateDebt_NonAssetSource_Rejects(t *testing.T) {
+	h, tenantID, _, debtAccID, txnRepo, accLookup, debtRepo :=
+		setupCreateDebtHarness(t)
+
+	liabAcc, err := accountdomain.NewAccount(tenantID, "liability source", accountdomain.AccountTypeLiability, "CNY")
+	if err != nil {
+		t.Fatalf("seed liability account: %v", err)
+	}
+	liabAcc.ChartCode = "2202"
+	liabAcc.CurrentBalanceCents = 1_000_000_00
+	accLookup.seed(liabAcc)
+
+	req := newBorrowedOutCreateReq(debtAccID.String(), liabAcc.ID.String())
+	resp, err := h.CreateDebt(ctxWithTenant(tenantID), req)
+
+	requireNoDebtAndNoTxn(t, resp, err, debtRepo, txnRepo)
+	st, ok := status.FromError(err)
+	if !ok || st.Code() != codes.InvalidArgument {
+		t.Errorf("error code: got %v, want InvalidArgument", err)
+	}
+}
+
+// TestCreateDebt_InsufficientBalance_Rejects: a source whose balance is below
+// the lent principal is rejected with FailedPrecondition before the debt is
+// created.
+func TestCreateDebt_InsufficientBalance_Rejects(t *testing.T) {
+	h, tenantID, sourceAccID, debtAccID, txnRepo, accLookup, debtRepo :=
+		setupCreateDebtHarness(t)
+
+	// Drop source balance below the 1000.00 principal.
+	accLookup.byID[sourceAccID].CurrentBalanceCents = 500_00
+
+	req := newBorrowedOutCreateReq(debtAccID.String(), sourceAccID.String())
+	resp, err := h.CreateDebt(ctxWithTenant(tenantID), req)
+
+	requireNoDebtAndNoTxn(t, resp, err, debtRepo, txnRepo)
+	st, ok := status.FromError(err)
+	if !ok || st.Code() != codes.FailedPrecondition {
+		t.Errorf("error code: got %v, want FailedPrecondition", err)
+	}
+}
+
+// TestCreateDebt_CrossCurrency_Rejects: a source whose currency differs from
+// the receivable account is rejected with InvalidArgument.
+func TestCreateDebt_CrossCurrency_Rejects(t *testing.T) {
+	h, tenantID, _, debtAccID, txnRepo, accLookup, debtRepo :=
+		setupCreateDebtHarness(t)
+
+	usdAcc, err := accountdomain.NewAccount(tenantID, "usd cash", accountdomain.AccountTypeAsset, "USD")
+	if err != nil {
+		t.Fatalf("seed usd account: %v", err)
+	}
+	usdAcc.ChartCode = "1001"
+	usdAcc.CurrentBalanceCents = 1_000_000_00
+	accLookup.seed(usdAcc)
+
+	req := newBorrowedOutCreateReq(debtAccID.String(), usdAcc.ID.String())
+	resp, err := h.CreateDebt(ctxWithTenant(tenantID), req)
+
+	requireNoDebtAndNoTxn(t, resp, err, debtRepo, txnRepo)
+	st, ok := status.FromError(err)
+	if !ok || st.Code() != codes.InvalidArgument {
+		t.Errorf("error code: got %v, want InvalidArgument", err)
+	}
+}
+
+// TestCreateDebt_SelfTransfer_Rejects: source == receivable account is
+// rejected with InvalidArgument (no self-transfer).
+func TestCreateDebt_SelfTransfer_Rejects(t *testing.T) {
+	h, tenantID, _, debtAccID, txnRepo, _, debtRepo :=
+		setupCreateDebtHarness(t)
+
+	// Point source at the receivable account itself.
+	req := newBorrowedOutCreateReq(debtAccID.String(), debtAccID.String())
+	resp, err := h.CreateDebt(ctxWithTenant(tenantID), req)
+
+	requireNoDebtAndNoTxn(t, resp, err, debtRepo, txnRepo)
+	st, ok := status.FromError(err)
+	if !ok || st.Code() != codes.InvalidArgument {
+		t.Errorf("error code: got %v, want InvalidArgument", err)
+	}
+}
+
+// TestCreateDebt_SourceNotFound_Rejects: a source account id that the lookup
+// has no account for is rejected with NotFound before the debt is created.
+func TestCreateDebt_SourceNotFound_Rejects(t *testing.T) {
+	h, tenantID, _, debtAccID, txnRepo, _, debtRepo :=
+		setupCreateDebtHarness(t)
+
+	// A valid UUID the lookup has no account for.
+	missing := uuid.New()
+	req := newBorrowedOutCreateReq(debtAccID.String(), missing.String())
+	resp, err := h.CreateDebt(ctxWithTenant(tenantID), req)
+
+	requireNoDebtAndNoTxn(t, resp, err, debtRepo, txnRepo)
+	st, ok := status.FromError(err)
+	if !ok || st.Code() != codes.NotFound {
+		t.Errorf("error code: got %v, want NotFound", err)
+	}
+}
