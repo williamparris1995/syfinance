@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- **proto 生成**:Go stubs 用 `make -C yucai proto`(`buf generate`);Dart stubs 用 `make -C yucai gen-dart`(`bash proto/gen-dart.sh`)。两者都要跑。
+- **proto 生成**(`make` 在 Git Bash 不可用,用直接命令):Go stubs 用 `cd yucai/proto && buf generate --template buf.gen.go.yaml`;Dart stubs 用 `bash yucai/proto/gen-dart.sh`(脚本自己 cd 到 proto/)。两者都要跑。Dart 生成会打印预存的 unused-import 警告(auth/common/currency proto),非本次引入,可忽略。
 - **Go 测试**:`cd yucai/server && go test ./internal/debt/adapter/driving/grpc/... -run <TestName> -v -count=1`
 - **Go 编译**:`cd yucai/server && go build ./...`
 - **Flutter 测试**:`cd yucai/client && flutter test test/debt/presentation/pages/receivable_form_page_test.dart`
@@ -80,9 +80,9 @@ message CreateDebtRequest {
 
 Run:
 ```bash
-make -C yucai proto && make -C yucai gen-dart
+cd yucai/proto && buf generate --template buf.gen.go.yaml && bash /e/projects/syfinance/yucai/proto/gen-dart.sh
 ```
-Expected: 两条命令都成功(无 diff 之外的错误)。`debt.pb.go` 里出现 `CreateDebtRequest.SourceAccountId` 字段 + getter;`debt.pb.dart` 里出现 `sourceAccountId` 的 tagNumber 10 getter/setter。
+Expected: Go 生成成功;Dart 生成成功(打印预存的 auth/common/currency unused-import 警告,可忽略)。`debt.pb.go` 里出现 `CreateDebtRequest.SourceAccountId` 字段 + getter;`debt.pb.dart` 里出现 `sourceAccountId` 的 tagNumber 10 getter/setter。
 
 - [ ] **Step 3: 验证双端编译**
 
