@@ -57,6 +57,7 @@ func TestAccountCRUD(t *testing.T) {
 		TenantID:     tenantID,
 		Name:         "Cash",
 		AccountType:  domain.AccountTypeAsset,
+		Category:     domain.AccountCategorySavings,
 		CurrencyCode: "CNY",
 		Ownership:    domain.OwnershipPersonal,
 	})
@@ -126,9 +127,13 @@ func TestAccountList(t *testing.T) {
 		if name == "Food" {
 			at = domain.AccountTypeExpense
 		}
-		_, err := svc.CreateAccount(ctx, application.CreateAccountRequest{
+		req := application.CreateAccountRequest{
 			TenantID: tenantID, Name: name, AccountType: at, CurrencyCode: "CNY",
-		})
+		}
+		if at == domain.AccountTypeAsset {
+			req.Category = domain.AccountCategorySavings
+		}
+		_, err := svc.CreateAccount(ctx, req)
 		if err != nil {
 			t.Fatalf("create %s: %v", name, err)
 		}
@@ -169,6 +174,7 @@ func TestAccountTenantIsolation(t *testing.T) {
 
 	_, err := svc.CreateAccount(ctx, application.CreateAccountRequest{
 		TenantID: tenantA, Name: "A Cash", AccountType: domain.AccountTypeAsset,
+		Category: domain.AccountCategorySavings,
 	})
 	if err != nil {
 		t.Fatalf("create for A: %v", err)
@@ -193,6 +199,7 @@ func TestAccountOptimisticLock(t *testing.T) {
 
 	created, err := svc.CreateAccount(ctx, application.CreateAccountRequest{
 		TenantID: tenantID, Name: "Cash", AccountType: domain.AccountTypeAsset,
+		Category: domain.AccountCategorySavings,
 	})
 	if err != nil {
 		t.Fatalf("create: %v", err)
@@ -219,6 +226,7 @@ func TestDeleteNonZeroBalance(t *testing.T) {
 		TenantID:            tenantID,
 		Name:                "Bank",
 		AccountType:         domain.AccountTypeAsset,
+		Category:            domain.AccountCategorySavings,
 		InitialBalanceCents: 50000,
 	})
 	if err != nil {

@@ -71,6 +71,7 @@ func createTestAccounts(t *testing.T, ctx context.Context, acctSvc accountapp.Se
 		TenantID:     tenantID,
 		Name:         "Cash",
 		AccountType:  accountdomain.AccountTypeAsset,
+		Category:     accountdomain.AccountCategorySavings,
 		CurrencyCode: "CNY",
 	})
 	if err != nil {
@@ -242,6 +243,7 @@ func TestSimpleTransfer(t *testing.T) {
 		TenantID:     tenantID,
 		Name:         "Bank",
 		AccountType:  accountdomain.AccountTypeAsset,
+		Category:     accountdomain.AccountCategorySavings,
 		CurrencyCode: "CNY",
 	})
 	if err != nil {
@@ -419,6 +421,7 @@ func TestTenantIsolation(t *testing.T) {
 	// Create accounts for tenant A
 	assetA, _ := acctSvc.CreateAccount(ctx, accountapp.CreateAccountRequest{
 		TenantID: tenantA, Name: "Cash A", AccountType: accountdomain.AccountTypeAsset,
+		Category: accountdomain.AccountCategorySavings,
 	})
 	incomeA, _ := acctSvc.CreateAccount(ctx, accountapp.CreateAccountRequest{
 		TenantID: tenantA, Name: "Salary A", AccountType: accountdomain.AccountTypeIncome,
