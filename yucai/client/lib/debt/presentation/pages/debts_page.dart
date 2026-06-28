@@ -33,6 +33,9 @@ class DebtsPage extends StatefulWidget {
 }
 
 class _DebtsPageState extends State<DebtsPage> {
+  // 列表筛选:默认「进行中」(隐藏已结清,对齐 receivables_page)。
+  _ListFilter _filter = _ListFilter.active;
+
   @override
   void initState() {
     super.initState();
@@ -134,6 +137,10 @@ class _DebtsPageState extends State<DebtsPage> {
             .map((d) => d.dueDate)
             .reduce((a, b) => a.isBefore(b) ? a : b);
 
+    // 列表口径:排序(逾期→到期→已结清沉底)+ 筛选。概览仍用全部。
+    final filtered = ([...debts]..sort(_compareDebt))
+        .where((d) => _matchesListFilter(d, _filter))
+        .toList();
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.xl),
@@ -155,7 +162,26 @@ class _DebtsPageState extends State<DebtsPage> {
               const SizedBox(height: AppSpacing.lg),
               _SectionHead(count: debts.length),
               const SizedBox(height: AppSpacing.sm),
-              _DebtList(debts: debts, preferred: preferred),
+              _ListFilterSegmented(
+                filter: _filter,
+                activeCount:
+                    debts.where((d) => d.remainingPrincipalCents > 0).length,
+                settledCount:
+                    debts.where((d) => d.remainingPrincipalCents <= 0).length,
+                onChanged: (f) => setState(() => _filter = f),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              if (filtered.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(
+                    child: Text('该筛选下无债务',
+                        style:
+                            TextStyle(color: AppColors.muted, fontSize: 12)),
+                  ),
+                )
+              else
+                _DebtList(debts: filtered, preferred: preferred),
             ],
           ),
         ),
@@ -925,4 +951,104 @@ String _fmtSymbol(int cents, String currencyCode) {
     buf.write(s[i]);
   }
   return '$sign${currencySymbol(currencyCode)}$buf.$fen';
+}
+
+// ───────────────────────── 列表筛选(全部/进行中/已结清)+ 排序 ─────────────────────────
+
+/// 列表筛选:默认「进行中」(隐藏已结清)。对齐 receivables_page._ListFilter。
+enum _ListFilter { all, active, settled }
+
+/// 列表排序:未结清在前(按到期升序 —— 逾期因 dueDate 早自然靠前),已结清沉底。
+int _compareDebt(Debt a, Debt b) {
+  final aSettled = a.remainingPrincipalCents <= 0;
+  final bSettled = b.remainingPrincipalCents <= 0;
+  if (aSettled != bSettled) return aSettled ? 1 : -1;
+  return a.dueDate.compareTo(b.dueDate);
+}
+
+bool _matchesListFilter(Debt d, _ListFilter f) {
+  final settled = d.remainingPrincipalCents <= 0;
+  switch (f) {
+    case _ListFilter.all:
+      return true;
+    case _ListFilter.active:
+      return !settled;
+    case _ListFilter.settled:
+      return settled;
+  }
+}
+
+/// 列表筛选 segmented(全部/进行中/已结清 + 各自计数)。复用详情页 schedule 筛选样式。
+class _ListFilterSegmented extends StatelessWidget {
+  const _ListFilterSegmented({
+    required this.filter,
+    required this.activeCount,
+    required this.settledCount,
+    required this.onChanged,
+  });
+  final _ListFilter filter;
+  final int activeCount;
+  final int settledCount;
+  final ValueChanged<_ListFilter> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    const segments = [
+      (_ListFilter.all, '全部'),
+      (_ListFilter.active, '进行中'),
+      (_ListFilter.settled, '已结清'),
+    ];
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFECE5),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final (f, label) in segments) _segment(f, label),
+        ],
+      ),
+    );
+  }
+
+  Widget _segment(_ListFilter f, String label) {
+    final active = f == filter;
+    final count = switch (f) {
+      _ListFilter.active => activeCount,
+      _ListFilter.settled => settledCount,
+      _ListFilter.all => activeCount + settledCount,
+    };
+    return InkWell(
+      key: ValueKey('listFilter-$label'),
+      onTap: () => onChanged(f),
+      borderRadius: BorderRadius.circular(7),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? AppColors.surface : Colors.transparent,
+          borderRadius: BorderRadius.circular(7),
+          boxShadow: active
+              ? const [
+                  BoxShadow(
+                      color: Color(0x0F1C1E21),
+                      blurRadius: 3,
+                      offset: Offset(0, 1))
+                ]
+              : const [],
+        ),
+        child: Text(
+          '$label $count',
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+            color: active ? AppColors.accentHover : const Color(0xFF54585F),
+            fontFeatures: AppTypography.tabularFigures,
+          ),
+        ),
+      ),
+    );
+  }
 }

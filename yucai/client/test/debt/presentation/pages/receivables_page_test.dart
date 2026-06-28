@@ -198,8 +198,7 @@ void main() {
     expect(find.text('记账'), findsNothing);
   });
 
-  testWidgets('receivable card: 已结清债权显示「已结清 ✓」badge(优先于逾期)',
-      (t) async {
+  testWidgets('已结清: 默认「进行中」隐藏,切「全部」显示「已结清 ✓」badge', (t) async {
     t.view.physicalSize = desktop;
     t.view.devicePixelRatio = 1.0;
     addTearDown(t.view.resetPhysicalSize);
@@ -214,9 +213,47 @@ void main() {
     );
     await t.pumpWidget(_harness([settled]));
     await t.pumpAndSettle();
-    expect(find.textContaining('已结清'), findsOneWidget);
-    // 已结清优先,不再显示逾期 badge。
+    // 默认「进行中」→ 已结清不在列表。
+    expect(find.text('赵六'), findsNothing);
+    // 切「全部」→ 已结清卡显示 + 精确 badge「已结清 ✓」(区别于 segmented「已结清 1」)。
+    await t.tap(find.byKey(const ValueKey('listFilter-全部')));
+    await t.pumpAndSettle();
+    expect(find.text('赵六'), findsOneWidget);
+    expect(find.text('已结清 ✓'), findsOneWidget);
+    // 已结清优先,不显示逾期 badge。
     expect(find.text('逾期'), findsNothing);
+  });
+
+  testWidgets('筛选 segmented: 计数 + 切换(默认进行中隐藏已结清)', (t) async {
+    t.view.physicalSize = desktop;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    final mixed = [
+      ...receivables, // r1 张三 / r2 李四(进行中)
+      _debt(
+        id: 's1',
+        counterparty: '赵六',
+        interestRate: 0.00,
+        amortization: AmortizationMethod.lumpSum,
+        dueDate: DateTime(2025, 1, 1),
+        totalPrincipalCents: 5000000,
+        remainingPrincipalCents: 0, // 已结清
+      ),
+    ];
+    await t.pumpWidget(_harness(mixed));
+    await t.pumpAndSettle();
+    // segmented 计数:全部 3 / 进行中 2 / 已结清 1。
+    expect(find.text('全部 3'), findsOneWidget);
+    expect(find.text('进行中 2'), findsOneWidget);
+    expect(find.text('已结清 1'), findsOneWidget);
+    // 默认进行中 → 赵六(已结清)不显示,张三/李四显示。
+    expect(find.text('赵六'), findsNothing);
+    expect(find.text('张三'), findsOneWidget);
+    // 切「已结清」→ 只赵六,张三/李四排除。
+    await t.tap(find.byKey(const ValueKey('listFilter-已结清')));
+    await t.pumpAndSettle();
+    expect(find.text('赵六'), findsOneWidget);
+    expect(find.text('张三'), findsNothing);
   });
 
   testWidgets('mobile: single-column Column (no GridView)', (t) async {
