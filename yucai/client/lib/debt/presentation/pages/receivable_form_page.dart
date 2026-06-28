@@ -47,6 +47,7 @@ class ReceivableFormPage extends StatefulWidget {
     this.initialStartDate,
     this.initialDueDate,
     this.initialAccountId,
+    this.initialSourceAccountId,
   });
 
   /// 编辑模式传入的现有 Debt；null = 创建模式。
@@ -54,6 +55,8 @@ class ReceivableFormPage extends StatefulWidget {
   final DateTime? initialStartDate;
   final DateTime? initialDueDate;
   final String? initialAccountId;
+  /// 测试 seed:借出来源账户(仅创建模式生效,避免 dropdown 交互)。
+  final String? initialSourceAccountId;
 
   @override
   State<ReceivableFormPage> createState() => _ReceivableFormPageState();
@@ -74,11 +77,15 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
 
   /// 关联应收账户（asset / otherAsset）。null = 未选。
   String? _accountId;
+  /// borrowedOut 双写:借出资金来源账户（cash asset,非应收）。null = 未选。
+  String? _sourceAccountId;
   DateTime? _startDate;
   DateTime? _dueDate;
 
   /// 应收账户候选（AccountRepository.list filter category == otherAsset）。
   List<Account> _accounts = const [];
+  /// 来源账户候选（asset 且 category != otherAsset:储蓄/投资等流动资产）。
+  List<Account> _sourceAccounts = const [];
   bool _accountsLoading = true;
 
   /// mobile step wizard 当前步（0/1/2）。
@@ -118,8 +125,10 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
       _startDate = widget.initialStartDate;
       _dueDate = widget.initialDueDate;
       _accountId = widget.initialAccountId;
+      _sourceAccountId = widget.initialSourceAccountId;
     }
     _loadAccounts();
+    _loadSourceAccounts();
     // 输入变化即重算预览（principal/rate/dates/amortization 都是 setState 触发）。
     _principalCtrl.addListener(() => setState(() {}));
     _rateCtrl.addListener(() => setState(() {}));
@@ -156,6 +165,26 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _accountsLoading = false);
+    }
+  }
+
+  Future<void> _loadSourceAccounts() async {
+    // 来源账户 = 流动资产（储蓄/投资/黄金等 asset），排除应收（otherAsset）。
+    // 借出本金从这类账户扣减；应收账户不应作为自己的来源。
+    try {
+      final repo = GetIt.instance<AccountRepository>();
+      final result = await repo.list();
+      final list = result.fold((_) => const <Account>[], (l) => l);
+      if (!mounted) return;
+      setState(() {
+        _sourceAccounts = list
+            .where((a) =>
+                a.accountType == AccountType.asset &&
+                a.category != AccountCategory.otherAsset)
+            .toList();
+      });
+    } catch (_) {
+      // 加载失败静默（_sourceAccounts 保持空，提交时校验会拦截）。
     }
   }
 
@@ -307,6 +336,11 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
       AppToast.show(context, '到期日期需晚于借出日期', type: ToastType.warning);
       return;
     }
+    // 来源账户仅在创建模式校验：编辑模式不改账户关联（UpdateDebt 不动账户）。
+    if (!_isEdit && _sourceAccountId == null) {
+      AppToast.show(context, '请选择借出来源账户', type: ToastType.warning);
+      return;
+    }
 
     if (!(_formKey.currentState?.validate() ?? false)) return;
     _formKey.currentState?.save();
@@ -337,6 +371,7 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
             totalPrincipalCents: principalCents,
             type: DebtType.borrowedOut,
             subtype: _subtypeKey,
+            sourceAccountId: _sourceAccountId,
           )));
     }
   }
@@ -532,6 +567,23 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
         onChanged: (v) => setState(() => _accountId = v),
         validator: (v) => v == null || v.isEmpty ? '请选择关联应收账户' : null,
       ),
+      const SizedBox(height: AppSpacing.md),
+      // 借出来源账户（borrowedOut 双写:现金来源,asset 非 otherAsset）。
+      // 编辑模式不展示/不校验来源（UpdateDebt 不改账户关联），仅创建模式需要。
+      if (_isEdit)
+        const SizedBox.shrink()
+      else
+        DropdownButtonFormField<String>(
+          value: _sourceAccountId,
+          decoration: const InputDecoration(labelText: '借出来源账户'),
+          items: [
+            for (final a in _sourceAccounts)
+              DropdownMenuItem(value: a.id, child: Text(a.name)),
+          ],
+          hint: const Text('选择来源账户'),
+          onChanged: (v) => setState(() => _sourceAccountId = v),
+          validator: (v) => v == null || v.isEmpty ? '请选择借出来源账户' : null,
+        ),
     ];
   }
 

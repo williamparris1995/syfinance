@@ -80,12 +80,30 @@ Account _loanAccount({
       status: AccountStatus.active,
     );
 
+/// 借出来源账户（asset / savings）—— 现金来源候选。
+Account _sourceAccount({
+  String id = 'src-1',
+  String name = '招商银行储蓄',
+}) =>
+    Account(
+      id: id,
+      name: name,
+      accountType: AccountType.asset,
+      category: AccountCategory.savings,
+      currencyCode: 'CNY',
+      initialBalanceCents: 0,
+      currentBalanceCents: 10000000,
+      ownership: Ownership.personal,
+      status: AccountStatus.active,
+    );
+
 Widget _harness({
   required _MockDebtRepo debtRepo,
   required _MockAccountRepo accountRepo,
   DateTime? startDate,
   DateTime? dueDate,
   String? accountId,
+  String? sourceAccountId,
   Debt? existing,
 }) {
   GetIt.instance.registerSingleton<AccountRepository>(accountRepo);
@@ -102,6 +120,7 @@ Widget _harness({
         initialStartDate: startDate,
         initialDueDate: dueDate,
         initialAccountId: accountId,
+        initialSourceAccountId: sourceAccountId,
       ),
     ),
   );
@@ -342,8 +361,10 @@ void main() {
         dueDateOption: null,
         totalPrincipalCents: 0,
       ));
-      when(() => accountRepo.list()).thenAnswer(
-          (_) async => dartz.Right([_receivableAccount(id: 'recv-1')]));
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right([
+            _receivableAccount(id: 'recv-1'),
+            _sourceAccount(id: 'src-1'),
+          ]));
 
       // 拦截 repo.create，捕获 type + subtype 参数验证。
       DebtType? capturedType;
@@ -371,6 +392,7 @@ void main() {
         startDate: DateTime(2026, 6, 15),
         dueDate: DateTime(2027, 6, 15),
         accountId: 'recv-1',
+        sourceAccountId: 'src-1',
       ));
       await t.pumpAndSettle();
 
@@ -392,6 +414,76 @@ void main() {
       // 关键断言：type 固定 borrowedOut（非默认 borrowedIn）；subtype = const key。
       expect(capturedType, DebtType.borrowedOut);
       expect(capturedSubtype, ReceivableSubtypes.family);
+      await t.pump(const Duration(seconds: 4));
+      await t.pumpAndSettle();
+    });
+
+    testWidgets(
+        'fill form → repo.create called with sourceAccountId(borrowedOut 双写来源)',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      registerFallbackValue(const CreateDebtParams(
+        accountId: '',
+        counterparty: '',
+        interestRate: 0,
+        amortizationIndex: 0,
+        startDateOption: null,
+        dueDateOption: null,
+        totalPrincipalCents: 0,
+      ));
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right([
+            _receivableAccount(id: 'recv-1'),
+            _sourceAccount(id: 'src-1'),
+          ]));
+      String? capturedSource;
+      String? capturedAccount;
+      when(() => debtRepo.create(
+              accountId: any(named: 'accountId'),
+              counterparty: any(named: 'counterparty'),
+              interestRate: any(named: 'interestRate'),
+              amortizationIndex: any(named: 'amortizationIndex'),
+              startDate: any(named: 'startDate'),
+              dueDate: any(named: 'dueDate'),
+              totalPrincipalCents: any(named: 'totalPrincipalCents'),
+              type: any(named: 'type'),
+              subtype: any(named: 'subtype'),
+              sourceAccountId: any(named: 'sourceAccountId'))).thenAnswer((inv) {
+        capturedSource = inv.namedArguments[#sourceAccountId] as String?;
+        capturedAccount = inv.namedArguments[#accountId] as String?;
+        return Future.value(dartz.Right(_emptyDetail().debt));
+      });
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        startDate: DateTime(2026, 6, 15),
+        dueDate: DateTime(2027, 6, 15),
+        accountId: 'recv-1',
+        sourceAccountId: 'src-1',
+      ));
+      await t.pumpAndSettle();
+
+      await t.enterText(find.byKey(const ValueKey('counterpartyField')), '李四');
+      await t.enterText(find.byKey(const ValueKey('principalField')), '100000');
+      await t.enterText(find.byKey(const ValueKey('rateField')), '8.0');
+      final submitFinder = find
+              .byKey(const ValueKey('submitButton'))
+              .evaluate()
+              .isNotEmpty
+          ? find.byKey(const ValueKey('submitButton'))
+          : find.text('创建债权');
+      await t.ensureVisible(submitFinder);
+      await t.tap(submitFinder);
+      for (var i = 0; i < 10 && capturedSource == null; i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+      expect(capturedAccount, 'recv-1');
+      expect(capturedSource, 'src-1');
       await t.pump(const Duration(seconds: 4));
       await t.pumpAndSettle();
     });
