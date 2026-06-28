@@ -123,7 +123,7 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	holdingRepo := provideHoldingRepo(holdingClient)
 	tradeRepo := provideTradeRepo(holdingClient)
 	holdingService := provideHoldingService(securityRepo, holdingRepo, tradeRepo)
-	holdingHandler := provideHoldingHandler(holdingService)
+	holdingHandler := provideHoldingHandler(holdingService, txnService, accountRepo)
 
 	// Backup module
 	backupRepo := provideBackupRepo(backupClient)

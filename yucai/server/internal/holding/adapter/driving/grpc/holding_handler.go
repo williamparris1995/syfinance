@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	pb "github.com/yucai/server/internal/proto/holding/v1"
@@ -20,11 +21,13 @@ import (
 
 type HoldingHandler struct {
 	pb.UnimplementedHoldingServiceServer
-	service *application.Service
+	service        *application.Service
+	transactionSvc *txnApp.Service      // double-write: Buy/Sell 创建 transaction 联动 account 余额
+	accountLookup  txnApp.AccountLookup // from_account lookup + balance validation
 }
 
-func NewHoldingHandler(service *application.Service) *HoldingHandler {
-	return &HoldingHandler{service: service}
+func NewHoldingHandler(service *application.Service, txnSvc *txnApp.Service, accountLookup txnApp.AccountLookup) *HoldingHandler {
+	return &HoldingHandler{service: service, transactionSvc: txnSvc, accountLookup: accountLookup}
 }
 
 func (h *HoldingHandler) CreateSecurity(ctx context.Context, req *pb.CreateSecurityRequest) (*pb.SecurityResponse, error) {
@@ -300,6 +303,80 @@ func contains(s, sub string) bool {
 		if s[i:i+len(sub)] == sub { return true }
 	}
 	return false
+}
+
+// validateTradeFromAccount reads the from_account + holding account and enforces
+// the holding-trade invariants BEFORE the trade is recorded, so an invalid
+// from_account fails fast.
+//
+//  1. from_account must exist (NotFound).
+//  2. from_account must be asset (InvalidArgument).
+//  3. from_account must differ from holding account (InvalidArgument — no self).
+//  4. from + holding accounts share currency (InvalidArgument).
+//  5. buy: from balance >= amount (FailedPrecondition). sell: 不查余额(现金入账)。
+func (h *HoldingHandler) validateTradeFromAccount(ctx context.Context, tenantID, fromAccountID, holdingAccountID uuid.UUID, amountCents int64, isBuy bool) (*accountdomain.Account, error) {
+	if h.accountLookup == nil {
+		return nil, nil
+	}
+	fromAcc, err := h.accountLookup.FindByID(ctx, tenantID, fromAccountID)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, "from_account not found: "+err.Error())
+	}
+	if fromAcc.AccountType != accountdomain.AccountTypeAsset {
+		return nil, status.Error(codes.InvalidArgument, "from_account must be asset")
+	}
+	if fromAccountID == holdingAccountID {
+		return nil, status.Error(codes.InvalidArgument, "from_account must differ from holding account")
+	}
+	holdAcc, err := h.accountLookup.FindByID(ctx, tenantID, holdingAccountID)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, "holding account not found: "+err.Error())
+	}
+	if fromAcc.CurrencyCode != holdAcc.CurrencyCode {
+		return nil, status.Error(codes.InvalidArgument, "cross-currency, manual handling required")
+	}
+	if isBuy && fromAcc.CurrentBalanceCents < amountCents {
+		return nil, status.Error(codes.FailedPrecondition, "from_account balance insufficient")
+	}
+	return fromAcc, nil
+}
+
+// recordTradeTransaction builds the buy/sell double-entry pair and records it via
+// the transaction service. Best-effort: any failure is logged (English structured)
+// and swallowed so the already-recorded trade is not rolled back.
+//
+// fromAcc is the from_account already fetched + validated; passing it in avoids a
+// redundant lookup.
+func (h *HoldingHandler) recordTradeTransaction(ctx context.Context, tenantID, fromAccountID uuid.UUID, fromAcc *accountdomain.Account, holdingAccountID uuid.UUID, tradeType domain.TradeType, amountCents int64) {
+	if h.transactionSvc == nil || h.accountLookup == nil || fromAcc == nil {
+		return
+	}
+	holdAcc, err := h.accountLookup.FindByID(ctx, tenantID, holdingAccountID)
+	if err != nil {
+		slog.Error("holding trade double-write: holding account lookup failed",
+			"operation", "holding.recordTradeTransaction",
+			"from_account_id", fromAccountID.String(),
+			"holding_account_id", holdingAccountID.String(),
+			"trade_type", tradeType.String(),
+			"amount_cents", amountCents,
+			"error", err.Error())
+		return
+	}
+	entries := buildTradeEntries(tradeType, *fromAcc, *holdAcc, amountCents)
+	if _, err := h.transactionSvc.RecordTransaction(ctx, txnApp.RecordTransactionRequest{
+		TenantID:        tenantID,
+		TransactionDate: time.Now(),
+		Description:     "Holding trade double-write",
+		Entries:         entries,
+	}); err != nil {
+		slog.Error("holding trade double-write: transaction write failed",
+			"operation", "holding.recordTradeTransaction",
+			"from_account_id", fromAccountID.String(),
+			"holding_account_id", holdingAccountID.String(),
+			"trade_type", tradeType.String(),
+			"amount_cents", amountCents,
+			"error", err.Error())
+	}
 }
 
 // buildTradeEntries constructs the buy/sell double-entry pair for a holding trade.

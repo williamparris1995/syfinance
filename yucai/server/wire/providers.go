@@ -394,8 +394,8 @@ func provideTradeRepo(client *holdingent.Client) *holdingsec.TradeRepository {
 func provideHoldingService(secRepo *holdingsec.SecurityRepository, hRepo *holdingsec.HoldingRepository, tRepo *holdingsec.TradeRepository) *holdingapp.Service {
 	return holdingapp.NewService(secRepo, hRepo, tRepo)
 }
-func provideHoldingHandler(svc *holdingapp.Service) *holdinggrpc.HoldingHandler {
-	return holdinggrpc.NewHoldingHandler(svc)
+func provideHoldingHandler(svc *holdingapp.Service, txnSvc *txnapp.Service, accountLookup txnapp.AccountLookup) *holdinggrpc.HoldingHandler {
+	return holdinggrpc.NewHoldingHandler(svc, txnSvc, accountLookup)
 }
 
 // Backup providers
