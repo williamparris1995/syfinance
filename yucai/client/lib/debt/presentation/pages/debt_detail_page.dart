@@ -103,6 +103,11 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
         listener: (context, state) {
           if (state is DebtDetailLoaded) {
             setState(() => _recordPending = false);
+            // Task 4 (ccs): RecordPayment 双写后 server 端 from_account 与
+            // debt.account_id(信用卡账户)余额已变,重新拉账户列表刷新
+            // from_account picker 余额 + 信用卡 StatRow 利用率(均依赖
+            // _accounts/_allAccounts 的 currentBalanceCents)。
+            _loadAccounts();
             AppToast.show(context, '还款已记账', type: ToastType.success);
           } else if (state is DebtError) {
             setState(() => _recordPending = false);

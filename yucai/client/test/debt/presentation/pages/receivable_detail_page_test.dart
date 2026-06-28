@@ -409,6 +409,65 @@ void main() {
       await t.pump(const Duration(seconds: 4));
       await t.pumpAndSettle();
     });
+
+    // Task 4 (ccs): RecordPayment 双写后 server 端 account 余额已变,详情页
+    // 必须重新拉 account 列表(收款账户 picker 余额依赖 _accounts 的
+    // currentBalanceCents)。验证:list() 在 initState 调用一次后,确认收款
+    // 成功(DebtDetailLoaded)再被调用。
+    testWidgets(
+        '确认收款 success re-fetches account balances (double-write refresh)',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      registerFallbackValue(const RecordPaymentRequested(
+          debtId: '', scheduleEntryId: '', fromAccountId: ''));
+      final detail = _detail();
+      when(() => debtRepo.get(any()))
+          .thenAnswer((_) async => dartz.Right(detail));
+      when(() => debtRepo.recordPayment(
+              debtId: any(named: 'debtId'),
+              scheduleEntryId: any(named: 'scheduleEntryId'),
+              fromAccountId: any(named: 'fromAccountId')))
+          .thenAnswer(
+              (_) async => dartz.Right(detail.schedule.first));
+      // 计数 list() 调用次数:initState 一次,确认收款成功后应再来一次。
+      var listCalls = 0;
+      when(() => accountRepo.list()).thenAnswer((_) async {
+        listCalls++;
+        return dartz.Right([_assetAccount(id: 'acct-1')]);
+      });
+      GetIt.instance.registerSingleton<AccountRepository>(accountRepo);
+
+      await t.pumpWidget(MaterialApp(
+        home: MultiBlocProvider(
+          providers: [
+            BlocProvider<DebtBloc>(create: (_) => DebtBloc(debtRepo)),
+            BlocProvider<CurrencyBloc>.value(
+                value: _FakeCurrencyBloc(const CurrencyState())),
+          ],
+          child: ReceivableDetailPage(id: detail.debt.id),
+        ),
+      ));
+      await t.pumpAndSettle();
+      // initState 已拉取一次账户列表。
+      expect(listCalls, 1);
+      // 点确认收款 → 确认 → RecordPayment 成功 → DebtDetailLoaded →
+      // BlocListener 应触发 account 余额刷新(list() 再调一次)。
+      await t.tap(find.textContaining('确认收款').first);
+      await t.pumpAndSettle();
+      await t.tap(find.textContaining('确认收款').last);
+      // 推进微任务链直到 RecordPayment 成功 + listener 触发 account reload。
+      for (var i = 0; i < 20 && listCalls < 2; i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+      expect(listCalls, greaterThanOrEqualTo(2));
+      // AppToast Timer(3s)推进避免 teardown 报 timersPending。
+      await t.pump(const Duration(seconds: 4));
+      await t.pumpAndSettle();
+    });
   });
 
   group('responsive layout', () {

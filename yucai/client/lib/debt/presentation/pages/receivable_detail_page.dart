@@ -98,6 +98,10 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
         listener: (context, state) {
           if (state is DebtDetailLoaded) {
             setState(() => _recordPending = false);
+            // Task 4 (ccs): RecordPayment 双写后 server 端收款账户余额已变,
+            // 重新拉账户列表刷新收款账户 picker 余额(依赖 _accounts 的
+            // currentBalanceCents)。
+            _loadAccounts();
             AppToast.show(context, '已确认收款', type: ToastType.success);
           } else if (state is DebtError) {
             setState(() => _recordPending = false);
