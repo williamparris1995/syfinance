@@ -47,6 +47,7 @@ type DebtDetailsMutation struct {
 	total_principal_cents    *int64
 	addtotal_principal_cents *int64
 	debt_type                *string
+	subtype                  *string
 	version                  *int64
 	addversion               *int64
 	created_at               *time.Time
@@ -525,6 +526,42 @@ func (m *DebtDetailsMutation) ResetDebtType() {
 	m.debt_type = nil
 }
 
+// SetSubtype sets the "subtype" field.
+func (m *DebtDetailsMutation) SetSubtype(s string) {
+	m.subtype = &s
+}
+
+// Subtype returns the value of the "subtype" field in the mutation.
+func (m *DebtDetailsMutation) Subtype() (r string, exists bool) {
+	v := m.subtype
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubtype returns the old "subtype" field's value of the DebtDetails entity.
+// If the DebtDetails object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DebtDetailsMutation) OldSubtype(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubtype is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubtype requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubtype: %w", err)
+	}
+	return oldValue.Subtype, nil
+}
+
+// ResetSubtype resets all changes to the "subtype" field.
+func (m *DebtDetailsMutation) ResetSubtype() {
+	m.subtype = nil
+}
+
 // SetVersion sets the "version" field.
 func (m *DebtDetailsMutation) SetVersion(i int64) {
 	m.version = &i
@@ -687,7 +724,7 @@ func (m *DebtDetailsMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DebtDetailsMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 13)
 	if m.tenant_id != nil {
 		fields = append(fields, debtdetails.FieldTenantID)
 	}
@@ -714,6 +751,9 @@ func (m *DebtDetailsMutation) Fields() []string {
 	}
 	if m.debt_type != nil {
 		fields = append(fields, debtdetails.FieldDebtType)
+	}
+	if m.subtype != nil {
+		fields = append(fields, debtdetails.FieldSubtype)
 	}
 	if m.version != nil {
 		fields = append(fields, debtdetails.FieldVersion)
@@ -750,6 +790,8 @@ func (m *DebtDetailsMutation) Field(name string) (ent.Value, bool) {
 		return m.TotalPrincipalCents()
 	case debtdetails.FieldDebtType:
 		return m.DebtType()
+	case debtdetails.FieldSubtype:
+		return m.Subtype()
 	case debtdetails.FieldVersion:
 		return m.Version()
 	case debtdetails.FieldCreatedAt:
@@ -783,6 +825,8 @@ func (m *DebtDetailsMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldTotalPrincipalCents(ctx)
 	case debtdetails.FieldDebtType:
 		return m.OldDebtType(ctx)
+	case debtdetails.FieldSubtype:
+		return m.OldSubtype(ctx)
 	case debtdetails.FieldVersion:
 		return m.OldVersion(ctx)
 	case debtdetails.FieldCreatedAt:
@@ -860,6 +904,13 @@ func (m *DebtDetailsMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDebtType(v)
+		return nil
+	case debtdetails.FieldSubtype:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubtype(v)
 		return nil
 	case debtdetails.FieldVersion:
 		v, ok := value.(int64)
@@ -996,6 +1047,9 @@ func (m *DebtDetailsMutation) ResetField(name string) error {
 		return nil
 	case debtdetails.FieldDebtType:
 		m.ResetDebtType()
+		return nil
+	case debtdetails.FieldSubtype:
+		m.ResetSubtype()
 		return nil
 	case debtdetails.FieldVersion:
 		m.ResetVersion()

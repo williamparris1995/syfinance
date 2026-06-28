@@ -36,6 +36,8 @@ type DebtDetails struct {
 	TotalPrincipalCents int64 `json:"total_principal_cents,omitempty"`
 	// borrowed_in(我借入) / borrowed_out(我借出/债权)
 	DebtType string `json:"debt_type,omitempty"`
+	// debt subtype key: mortgage/auto_loan/credit_card/family/other (borrowedIn); personal/business/family/other (borrowedOut)
+	Subtype string `json:"subtype,omitempty"`
 	// Version holds the value of the "version" field.
 	Version int64 `json:"version,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -54,7 +56,7 @@ func (*DebtDetails) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case debtdetails.FieldTotalPrincipalCents, debtdetails.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case debtdetails.FieldCounterparty, debtdetails.FieldAmortizationMethod, debtdetails.FieldDebtType:
+		case debtdetails.FieldCounterparty, debtdetails.FieldAmortizationMethod, debtdetails.FieldDebtType, debtdetails.FieldSubtype:
 			values[i] = new(sql.NullString)
 		case debtdetails.FieldStartDate, debtdetails.FieldDueDate, debtdetails.FieldCreatedAt, debtdetails.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -134,6 +136,12 @@ func (dd *DebtDetails) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field debt_type", values[i])
 			} else if value.Valid {
 				dd.DebtType = value.String
+			}
+		case debtdetails.FieldSubtype:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field subtype", values[i])
+			} else if value.Valid {
+				dd.Subtype = value.String
 			}
 		case debtdetails.FieldVersion:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -215,6 +223,9 @@ func (dd *DebtDetails) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("debt_type=")
 	builder.WriteString(dd.DebtType)
+	builder.WriteString(", ")
+	builder.WriteString("subtype=")
+	builder.WriteString(dd.Subtype)
 	builder.WriteString(", ")
 	builder.WriteString("version=")
 	builder.WriteString(fmt.Sprintf("%v", dd.Version))

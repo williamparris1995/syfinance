@@ -83,6 +83,20 @@ func (ddc *DebtDetailsCreate) SetNillableDebtType(s *string) *DebtDetailsCreate 
 	return ddc
 }
 
+// SetSubtype sets the "subtype" field.
+func (ddc *DebtDetailsCreate) SetSubtype(s string) *DebtDetailsCreate {
+	ddc.mutation.SetSubtype(s)
+	return ddc
+}
+
+// SetNillableSubtype sets the "subtype" field if the given value is not nil.
+func (ddc *DebtDetailsCreate) SetNillableSubtype(s *string) *DebtDetailsCreate {
+	if s != nil {
+		ddc.SetSubtype(*s)
+	}
+	return ddc
+}
+
 // SetVersion sets the "version" field.
 func (ddc *DebtDetailsCreate) SetVersion(i int64) *DebtDetailsCreate {
 	ddc.mutation.SetVersion(i)
@@ -178,6 +192,10 @@ func (ddc *DebtDetailsCreate) defaults() {
 		v := debtdetails.DefaultDebtType
 		ddc.mutation.SetDebtType(v)
 	}
+	if _, ok := ddc.mutation.Subtype(); !ok {
+		v := debtdetails.DefaultSubtype
+		ddc.mutation.SetSubtype(v)
+	}
 	if _, ok := ddc.mutation.Version(); !ok {
 		v := debtdetails.DefaultVersion
 		ddc.mutation.SetVersion(v)
@@ -224,6 +242,9 @@ func (ddc *DebtDetailsCreate) check() error {
 	}
 	if _, ok := ddc.mutation.DebtType(); !ok {
 		return &ValidationError{Name: "debt_type", err: errors.New(`ent: missing required field "DebtDetails.debt_type"`)}
+	}
+	if _, ok := ddc.mutation.Subtype(); !ok {
+		return &ValidationError{Name: "subtype", err: errors.New(`ent: missing required field "DebtDetails.subtype"`)}
 	}
 	if _, ok := ddc.mutation.Version(); !ok {
 		return &ValidationError{Name: "version", err: errors.New(`ent: missing required field "DebtDetails.version"`)}
@@ -304,6 +325,10 @@ func (ddc *DebtDetailsCreate) createSpec() (*DebtDetails, *sqlgraph.CreateSpec) 
 	if value, ok := ddc.mutation.DebtType(); ok {
 		_spec.SetField(debtdetails.FieldDebtType, field.TypeString, value)
 		_node.DebtType = value
+	}
+	if value, ok := ddc.mutation.Subtype(); ok {
+		_spec.SetField(debtdetails.FieldSubtype, field.TypeString, value)
+		_node.Subtype = value
 	}
 	if value, ok := ddc.mutation.Version(); ok {
 		_spec.SetField(debtdetails.FieldVersion, field.TypeInt64, value)

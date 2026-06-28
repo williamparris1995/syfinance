@@ -155,6 +155,20 @@ func (ddu *DebtDetailsUpdate) SetNillableDebtType(s *string) *DebtDetailsUpdate 
 	return ddu
 }
 
+// SetSubtype sets the "subtype" field.
+func (ddu *DebtDetailsUpdate) SetSubtype(s string) *DebtDetailsUpdate {
+	ddu.mutation.SetSubtype(s)
+	return ddu
+}
+
+// SetNillableSubtype sets the "subtype" field if the given value is not nil.
+func (ddu *DebtDetailsUpdate) SetNillableSubtype(s *string) *DebtDetailsUpdate {
+	if s != nil {
+		ddu.SetSubtype(*s)
+	}
+	return ddu
+}
+
 // SetVersion sets the "version" field.
 func (ddu *DebtDetailsUpdate) SetVersion(i int64) *DebtDetailsUpdate {
 	ddu.mutation.ResetVersion()
@@ -261,6 +275,9 @@ func (ddu *DebtDetailsUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := ddu.mutation.DebtType(); ok {
 		_spec.SetField(debtdetails.FieldDebtType, field.TypeString, value)
+	}
+	if value, ok := ddu.mutation.Subtype(); ok {
+		_spec.SetField(debtdetails.FieldSubtype, field.TypeString, value)
 	}
 	if value, ok := ddu.mutation.Version(); ok {
 		_spec.SetField(debtdetails.FieldVersion, field.TypeInt64, value)
@@ -417,6 +434,20 @@ func (dduo *DebtDetailsUpdateOne) SetNillableDebtType(s *string) *DebtDetailsUpd
 	return dduo
 }
 
+// SetSubtype sets the "subtype" field.
+func (dduo *DebtDetailsUpdateOne) SetSubtype(s string) *DebtDetailsUpdateOne {
+	dduo.mutation.SetSubtype(s)
+	return dduo
+}
+
+// SetNillableSubtype sets the "subtype" field if the given value is not nil.
+func (dduo *DebtDetailsUpdateOne) SetNillableSubtype(s *string) *DebtDetailsUpdateOne {
+	if s != nil {
+		dduo.SetSubtype(*s)
+	}
+	return dduo
+}
+
 // SetVersion sets the "version" field.
 func (dduo *DebtDetailsUpdateOne) SetVersion(i int64) *DebtDetailsUpdateOne {
 	dduo.mutation.ResetVersion()
@@ -553,6 +584,9 @@ func (dduo *DebtDetailsUpdateOne) sqlSave(ctx context.Context) (_node *DebtDetai
 	}
 	if value, ok := dduo.mutation.DebtType(); ok {
 		_spec.SetField(debtdetails.FieldDebtType, field.TypeString, value)
+	}
+	if value, ok := dduo.mutation.Subtype(); ok {
+		_spec.SetField(debtdetails.FieldSubtype, field.TypeString, value)
 	}
 	if value, ok := dduo.mutation.Version(); ok {
 		_spec.SetField(debtdetails.FieldVersion, field.TypeInt64, value)

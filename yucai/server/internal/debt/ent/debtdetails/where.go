@@ -100,6 +100,11 @@ func DebtType(v string) predicate.DebtDetails {
 	return predicate.DebtDetails(sql.FieldEQ(FieldDebtType, v))
 }
 
+// Subtype applies equality check predicate on the "subtype" field. It's identical to SubtypeEQ.
+func Subtype(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldSubtype, v))
+}
+
 // Version applies equality check predicate on the "version" field. It's identical to VersionEQ.
 func Version(v int64) predicate.DebtDetails {
 	return predicate.DebtDetails(sql.FieldEQ(FieldVersion, v))
@@ -548,6 +553,71 @@ func DebtTypeEqualFold(v string) predicate.DebtDetails {
 // DebtTypeContainsFold applies the ContainsFold predicate on the "debt_type" field.
 func DebtTypeContainsFold(v string) predicate.DebtDetails {
 	return predicate.DebtDetails(sql.FieldContainsFold(FieldDebtType, v))
+}
+
+// SubtypeEQ applies the EQ predicate on the "subtype" field.
+func SubtypeEQ(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldSubtype, v))
+}
+
+// SubtypeNEQ applies the NEQ predicate on the "subtype" field.
+func SubtypeNEQ(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNEQ(FieldSubtype, v))
+}
+
+// SubtypeIn applies the In predicate on the "subtype" field.
+func SubtypeIn(vs ...string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldIn(FieldSubtype, vs...))
+}
+
+// SubtypeNotIn applies the NotIn predicate on the "subtype" field.
+func SubtypeNotIn(vs ...string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNotIn(FieldSubtype, vs...))
+}
+
+// SubtypeGT applies the GT predicate on the "subtype" field.
+func SubtypeGT(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGT(FieldSubtype, v))
+}
+
+// SubtypeGTE applies the GTE predicate on the "subtype" field.
+func SubtypeGTE(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGTE(FieldSubtype, v))
+}
+
+// SubtypeLT applies the LT predicate on the "subtype" field.
+func SubtypeLT(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLT(FieldSubtype, v))
+}
+
+// SubtypeLTE applies the LTE predicate on the "subtype" field.
+func SubtypeLTE(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLTE(FieldSubtype, v))
+}
+
+// SubtypeContains applies the Contains predicate on the "subtype" field.
+func SubtypeContains(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldContains(FieldSubtype, v))
+}
+
+// SubtypeHasPrefix applies the HasPrefix predicate on the "subtype" field.
+func SubtypeHasPrefix(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldHasPrefix(FieldSubtype, v))
+}
+
+// SubtypeHasSuffix applies the HasSuffix predicate on the "subtype" field.
+func SubtypeHasSuffix(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldHasSuffix(FieldSubtype, v))
+}
+
+// SubtypeEqualFold applies the EqualFold predicate on the "subtype" field.
+func SubtypeEqualFold(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEqualFold(FieldSubtype, v))
+}
+
+// SubtypeContainsFold applies the ContainsFold predicate on the "subtype" field.
+func SubtypeContainsFold(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldContainsFold(FieldSubtype, v))
 }
 
 // VersionEQ applies the EQ predicate on the "version" field.

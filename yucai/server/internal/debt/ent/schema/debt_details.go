@@ -47,6 +47,9 @@ func (DebtDetails) Fields() []ent.Field {
 		field.String("debt_type").
 			Default("borrowed_in").
 			Comment("borrowed_in(我借入) / borrowed_out(我借出/债权)"),
+		field.String("subtype").
+			Default("").
+			Comment("debt subtype key: mortgage/auto_loan/credit_card/family/other (borrowedIn); personal/business/family/other (borrowedOut)"),
 		field.Int64("version").
 			Default(1),
 		field.Time("created_at").
