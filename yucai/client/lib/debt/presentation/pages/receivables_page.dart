@@ -472,18 +472,22 @@ class _ReceivableCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width <= Breakpoints.mobileUpper;
-    return isMobile ? _compactCard(context) : _fullCard(context);
+    final isSettled = debt.remainingPrincipalCents <= 0;
+    final card = isMobile ? _compactCard(context) : _fullCard(context);
+    // 已结清债权整卡淡化,突出"已完成"特殊状态。
+    return isSettled ? Opacity(opacity: 0.6, child: card) : card;
   }
 
   Widget _fullCard(BuildContext context) {
     final badge = _inferBadge(debt.counterparty);
     final isOverdue = debt.dueDate.isBefore(DateTime.now());
+    final isSettled = debt.remainingPrincipalCents <= 0;
     return DataCard(
       onTap: () => context.push('/receivables/${debt.id}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // row1:债务人 + badge(+ 逾期红 badge)
+          // row1:债务人 + badge(+ 已结清/逾期)
           Wrap(
             crossAxisAlignment: WrapCrossAlignment.center,
             spacing: 8,
@@ -496,7 +500,12 @@ class _ReceivableCard extends StatelessWidget {
                       fontFamily: AppTypography.displayFamily,
                       fontFamilyFallback: AppTypography.displayFallback)),
               _Badge(label: badge.label, fg: badge.fg, bg: badge.bg),
-              if (isOverdue)
+              if (isSettled)
+                const _Badge(
+                    label: '已结清 ✓',
+                    fg: AppColors.positive,
+                    bg: Color(0x1A2D8A6E)) // rgba(45,138,110,.10)
+              else if (isOverdue)
                 const _Badge(
                     label: '逾期',
                     fg: AppColors.negative,
@@ -564,6 +573,7 @@ class _ReceivableCard extends StatelessWidget {
   Widget _compactCard(BuildContext context) {
     final badge = _inferBadge(debt.counterparty);
     final isOverdue = debt.dueDate.isBefore(DateTime.now());
+    final isSettled = debt.remainingPrincipalCents <= 0;
     // mobile 列表用 Column 自适应高度,无 Spacer(unbounded 高度下 Spacer 报错)。
     return DataCard(
       onTap: () => context.push('/receivables/${debt.id}'),
@@ -589,7 +599,12 @@ class _ReceivableCard extends StatelessWidget {
                                 fontFamilyFallback:
                                     AppTypography.displayFallback)),
                         _Badge(label: badge.label, fg: badge.fg, bg: badge.bg),
-                        if (isOverdue)
+                        if (isSettled)
+                          const _Badge(
+                              label: '已结清 ✓',
+                              fg: AppColors.positive,
+                              bg: Color(0x1A2D8A6E))
+                        else if (isOverdue)
                           const _Badge(
                               label: '逾期',
                               fg: AppColors.negative,
@@ -661,16 +676,6 @@ class _ReceivableCard extends StatelessWidget {
             icon: Icons.info_outline,
             label: '详情',
             onTap: (_) => context.push('/receivables/${debt.id}'),
-          ),
-          _ActionBtn(
-            icon: Icons.south_west_outlined,
-            label: '收款',
-            onTap: (_) => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('收款请在详情页对应期次内确认'),
-                duration: Duration(seconds: 2),
-              ),
-            ),
           ),
           _ActionBtn(
             icon: Icons.more_horiz,

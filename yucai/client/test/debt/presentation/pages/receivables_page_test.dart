@@ -5,7 +5,7 @@
 // 验证(BorrowedOut 语义 = 应收 / 收款,非 负债 / 还款):
 //   - 总应收概览:总应收 / 剩余应收 / 本金收回进度 progress bar
 //   - 债权卡:债务人 counterparty / 类型 badge / 剩余应收 / 收回进度 progress / 利率 / 到期
-//   - 收款 action 存在(占位)
+//   - 列表无「收款」按钮(收款在详情页 schedule 行内处理)
 //   - 三端 viewport:mobile 单列 Column / tablet 2 列 / desktop ≥3 列 GridView
 import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
@@ -183,16 +183,40 @@ void main() {
         AppColors.accent);
   });
 
-  testWidgets('receivable card: 收款 action 存在', (t) async {
+  testWidgets('receivable card: 列表无「收款」按钮(收款在详情页处理)', (t) async {
     t.view.physicalSize = desktop;
     t.view.devicePixelRatio = 1.0;
     addTearDown(t.view.resetPhysicalSize);
     await t.pumpWidget(_harness(receivables));
     await t.pumpAndSettle();
-    // 两张卡 → 两个「收款」操作按钮。
-    expect(find.text('收款'), findsNWidgets(2));
+    // 收款按钮已从列表移除(详情页 schedule 行内确认收款)。
+    expect(find.text('收款'), findsNothing);
+    // 详情 / 更多 按钮仍在。
+    expect(find.text('详情'), findsNWidgets(2));
+    expect(find.text('更多'), findsNWidgets(2));
     // 误用「记账」不应出现。
     expect(find.text('记账'), findsNothing);
+  });
+
+  testWidgets('receivable card: 已结清债权显示「已结清 ✓」badge(优先于逾期)',
+      (t) async {
+    t.view.physicalSize = desktop;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    final settled = _debt(
+      id: 's1',
+      counterparty: '赵六',
+      interestRate: 0.00,
+      amortization: AmortizationMethod.lumpSum,
+      dueDate: DateTime(2025, 1, 1), // 过去(本会逾期)
+      totalPrincipalCents: 5000000,
+      remainingPrincipalCents: 0, // 已结清
+    );
+    await t.pumpWidget(_harness([settled]));
+    await t.pumpAndSettle();
+    expect(find.textContaining('已结清'), findsOneWidget);
+    // 已结清优先,不再显示逾期 badge。
+    expect(find.text('逾期'), findsNothing);
   });
 
   testWidgets('mobile: single-column Column (no GridView)', (t) async {

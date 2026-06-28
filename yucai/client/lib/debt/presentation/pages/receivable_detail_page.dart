@@ -151,6 +151,7 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     final ratio = debt.progressRatio;
     final pct = (ratio * 100).toStringAsFixed(1);
     final badge = _inferBadge(debt.counterparty);
+    final isSettled = debt.remainingPrincipalCents <= 0;
     // 已收期数 / 总期数（schedule 总期数未知 —— 用 progressRatio 不直接给期次，
     // 故 hero-prog 文案显「收回进度」+ 百分比，对齐 OD）。
     return ClipRRect(
@@ -224,6 +225,7 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
                       ),
                     ),
                     _heroBadge(badge.label),
+                    if (isSettled) _heroBadge('已结清 ✓'),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 2),
@@ -563,6 +565,7 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRadius.sm),
         child: Table(
+        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
         columnWidths: const {
           0: FlexColumnWidth(1.4),
           1: FlexColumnWidth(1),
@@ -646,7 +649,7 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
           child: Center(child: _statusBadge(e)),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 14),
           child: Center(child: _scheduleAction(e)),
         ),
       ],
