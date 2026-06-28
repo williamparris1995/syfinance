@@ -144,13 +144,17 @@ void main() {
       ..version = $fixnum.Int64(1);
 
     test('toDomain reads dto.subtype verbatim (creditCard)', () {
-      final dto = baseDto()..subtype = 'creditCard';
-      expect(DebtMapper.toDomain(dto).subtype, 'creditCard');
+      // 用真实 const(DebtSubtypes.creditCard == 'credit_card', snake_case)
+      // —— 否则 mapper 的 verbatim pass-through 会让任意字符串都通过,
+      // 无法在 wire 边界捕获 snake/camel 不匹配。
+      final dto = baseDto()..subtype = DebtSubtypes.creditCard;
+      expect(DebtMapper.toDomain(dto).subtype, DebtSubtypes.creditCard);
     });
 
     test('toDomain reads dto.subtype verbatim (receivable subtypes)', () {
       // 应收债权子类型同样以纯 String 直传(无名称映射)。
-      for (final s in ['loan', 'prepay', 'other']) {
+      // 用真实 ReceivableSubtypes const 做 round-trip。
+      for (final s in ReceivableSubtypes.all) {
         final dto = baseDto()..subtype = s;
         expect(DebtMapper.toDomain(dto).subtype, s);
       }
@@ -165,8 +169,8 @@ void main() {
       // 远端 ds 把调用方传入的 subtype 字符串原样写入 CreateDebtRequest.subtype;
       // 这里直接验证 proto 字段级 round-trip(mapper 无 create-helper,故在
       // proto 层断言以覆盖 remote_ds.create 的 subtype wiring)。
-      final req = pb.CreateDebtRequest()..subtype = 'creditCard';
-      expect(req.subtype, 'creditCard');
+      final req = pb.CreateDebtRequest()..subtype = DebtSubtypes.creditCard;
+      expect(req.subtype, DebtSubtypes.creditCard);
       final empty = pb.CreateDebtRequest()..subtype = '';
       expect(empty.subtype, '');
     });

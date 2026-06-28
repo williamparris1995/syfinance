@@ -603,16 +603,30 @@ class _DebtFormPageState extends State<DebtFormPage> {
               key: ValueKey('debtType-$key'),
               label: DebtSubtypes.labels[key]!,
               selected: _subtypeKey == key,
-              onTap: () => setState(() {
-                _subtypeKey = key;
-                // 切到/切离信用卡时复位信用卡字段脏标记与回填
-                //（_visibleAccounts 随 _isCreditCard 变化，若当前选中账户
-                // 不再可见，_accountId 保留 —— 编辑模式旧账户仍可读字段）。
-                _refillCreditCardFields();
-              }),
+              // 编辑模式:UpdateDebtParams 不携带 subtype(后端不支持改),
+              // 故 chips 只读显示当前 subtype,不可点击(避免误以为可改)。
+              // 创建模式:可交互。
+              onTap: _isEdit
+                  ? null
+                  : () => setState(() {
+                        _subtypeKey = key;
+                        // 切到/切离信用卡时复位信用卡字段脏标记与回填
+                        //（_visibleAccounts 随 _isCreditCard 变化,若当前选中账户
+                        // 不再可见,_accountId 保留 —— 编辑模式旧账户仍可读字段）。
+                        _refillCreditCardFields();
+                      }),
             ),
         ],
       ),
+      if (_isEdit)
+        const Padding(
+          key: ValueKey('subtypeReadonlyHint'),
+          padding: EdgeInsets.only(top: AppSpacing.xs),
+          child: Text(
+            '编辑模式不可更改债务类型',
+            style: TextStyle(color: AppColors.muted, fontSize: 11),
+          ),
+        ),
       const SizedBox(height: AppSpacing.md),
       // 关联账户下拉：信用卡子类型 → 仅 credit_card；其他 → 全部 liability。
       DropdownButtonFormField<String>(
@@ -913,6 +927,8 @@ class _StepIndicator extends StatelessWidget {
 }
 
 /// 单选 chip（债务类型 / 摊还方法）。复用 TypeTabs 视觉（金选中态）。
+/// [onTap] == null → 禁用态（只读显示，无 hover cursor / 无 tap），
+/// 用于编辑模式下 subtype 不可更改的场景。
 class _RadioChip extends StatelessWidget {
   const _RadioChip({
     super.key,
@@ -923,16 +939,18 @@ class _RadioChip extends StatelessWidget {
 
   final String label;
   final bool selected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final bg =
-        selected ? AppColors.accentSoft : AppColors.surface;
-    final fg = selected ? AppColors.accentHover : AppColors.muted;
+    final disabled = onTap == null;
+    final bg = selected ? AppColors.accentSoft : AppColors.surface;
+    final fg = selected
+        ? AppColors.accentHover
+        : (disabled ? AppColors.muted.withValues(alpha: 0.6) : AppColors.muted);
     final border = selected ? AppColors.accent : AppColors.border;
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
+      cursor: disabled ? SystemMouseCursors.basic : SystemMouseCursors.click,
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(

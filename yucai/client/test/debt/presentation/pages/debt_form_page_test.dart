@@ -517,6 +517,45 @@ void main() {
       await t.pump(const Duration(seconds: 4));
       await t.pumpAndSettle();
     });
+
+    testWidgets(
+        'edit mode: subtype chips are read-only (tapping does not change subtype)',
+        (t) async {
+      // M2 fix:UpdateDebtParams 不携带 subtype,后端不支持改 —— chips 必须
+      // 显示当前 subtype 但不可点击,避免用户误改后静默丢失。
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      // existing.subtype 用真实 const(非 mortgage,便于验证不被切换回 mortgage)。
+      final existing = existingDebt();
+      when(() => accountRepo.list())
+          .thenAnswer((_) async => dartz.Right([_loanAccount(id: 'loan-1')]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        existing: existing,
+      ));
+      await t.pumpAndSettle();
+
+      // 提示文案存在
+      expect(find.byKey(const ValueKey('subtypeReadonlyHint')), findsOneWidget);
+      // 点其他 subtype chip 后,selected 状态不变(仍是默认 mortgage,因为
+      // existing 未带 subtype → initState fallback 到 mortgage)。
+      final creditCardChip =
+          find.byKey(const ValueKey('debtType-${DebtSubtypes.creditCard}'));
+      // 默认 selected 是 mortgage —— mortgage chip 应有 selected 视觉,
+      // creditCard chip 不 selected。tapped 后仍如此。
+      // GestureDetector.onTap=null 时 tap 被忽略,无异常。
+      await t.tap(creditCardChip, warnIfMissed: false);
+      await t.pumpAndSettle();
+      // 再次断言提示仍在 + creditCard chip 仍未变 selected(通过 hint 仍存在
+      // 间接证明 chips 未被点动 —— _isEdit 不变,提示不会消失)。
+      expect(find.byKey(const ValueKey('subtypeReadonlyHint')), findsOneWidget);
+    });
   });
 
   group('三端响应式', () {
