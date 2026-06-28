@@ -65,11 +65,11 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
   final _principalCtrl = TextEditingController();
   final _rateCtrl = TextEditingController();
 
-  /// 4 债权类型（私人借款 / 商业借款 / 亲友借款 / 其他）。仅 metadata：
-  /// 当前 Debt 实体的 `type` 固定 borrowedOut（方向），这里的「类型」是
-  /// 债权性质分类，仅用于预览标题展示，不参与提交（对齐 DebtFormPage 的
-  /// 房贷/车贷 5 卡模式 —— metadata only）。
-  String _receivableType = '商业借款';
+  /// 债权子类型 key（ReceivableSubtypes.personal / business / family / other）。
+  /// 存 **key**（非中文 label）—— 判断用 const，UI 显示 labels[key]。提交时
+  /// 透传 CreateDebtParams.subtype。债权无信用卡，不驱动任何字段（区别于
+  /// DebtFormPage 的 credit-card 区块）。
+  String _subtypeKey = ReceivableSubtypes.business;
   AmortizationMethod _amortization = AmortizationMethod.equalPrincipalInterest;
 
   /// 关联应收账户（asset / otherAsset）。null = 未选。
@@ -89,12 +89,6 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
   Debt? get _existing => widget.existing;
   bool get _isEdit => _existing != null;
 
-  static const _receivableTypes = <String>[
-    '私人借款',
-    '商业借款',
-    '亲友借款',
-    '其他',
-  ];
   static const _amortizations = <AmortizationMethod>[
     AmortizationMethod.equalPrincipalInterest,
     AmortizationMethod.equalPrincipal,
@@ -117,6 +111,8 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
       _startDate = e.startDate;
       _dueDate = e.dueDate;
       _accountId = e.accountId;
+      // 子类型 key 预填（空 → business 默认，避免 const 判断落空）。
+      _subtypeKey = e.subtype.isEmpty ? ReceivableSubtypes.business : e.subtype;
     } else {
       // 创建模式：测试 seed 参数。
       _startDate = widget.initialStartDate;
@@ -330,6 +326,7 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
     } else {
       // 创建模式：type 显式 borrowedOut（Task 6 的 CreateDebtParams.type）。
       // 这是从 DebtFormPage 的关键差异 —— 后者走默认 borrowedIn。
+      // subtype 来自 _subtypeKey（const key），透传到 params.subtype（Task 6）。
       context.read<DebtBloc>().add(CreateDebtRequested(CreateDebtParams(
             accountId: _accountId!,
             counterparty: _counterpartyCtrl.text.trim(),
@@ -339,6 +336,7 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
             dueDateOption: _dueDate,
             totalPrincipalCents: principalCents,
             type: DebtType.borrowedOut,
+            subtype: _subtypeKey,
           )));
     }
   }
@@ -496,9 +494,9 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
         validator: (v) => _required(v, '债务人'),
       ),
       const SizedBox(height: AppSpacing.md),
-      // 债权类型（4 卡：私人 / 商业 / 亲友 / 其他）。仅 metadata：Debt.type
-      // 固定 borrowedOut（方向），这里的「类型」是债权性质分类，仅供预览标题
-      // 展示，不参与提交（对齐 DebtFormPage 房贷/车贷 5 卡 metadata-only 模式）。
+      // 债权类型（4 卡：私人 / 商业 / 亲友 / 其他）—— 选项来自
+      // ReceivableSubtypes.all（const），禁硬编码字符串。ValueKey / selected /
+      // onTap 全部基于 key（_subtypeKey 存 key），UI 显示 labels[key]。
       const Text('债权类型',
           style: TextStyle(
               color: AppColors.muted,
@@ -510,12 +508,12 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
         spacing: AppSpacing.xs,
         runSpacing: AppSpacing.xs,
         children: [
-          for (final t in _receivableTypes)
+          for (final key in ReceivableSubtypes.all)
             _RadioChip(
-              key: ValueKey('receivableType-$t'),
-              label: t,
-              selected: _receivableType == t,
-              onTap: () => setState(() => _receivableType = t),
+              key: ValueKey('receivableType-$key'),
+              label: ReceivableSubtypes.labels[key]!,
+              selected: _subtypeKey == key,
+              onTap: () => setState(() => _subtypeKey = key),
             ),
         ],
       ),
@@ -611,8 +609,10 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
   // ----- 预览列 -----
   Widget _previewColumn() {
     final preview = _computePreview();
+    // 预览标题展示子类型 label（中文）—— _subtypeKey 存 key，labels[key] 取显示。
+    final subtypeLabel = ReceivableSubtypes.labels[_subtypeKey] ?? '';
     return _CollectionPreview(
-      title: '$_counterpartyOrDefault · $_receivableType',
+      title: '$_counterpartyOrDefault · $subtypeLabel',
       preview: preview,
     );
   }

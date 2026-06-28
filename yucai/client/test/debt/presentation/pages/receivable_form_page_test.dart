@@ -174,7 +174,8 @@ void main() {
       expect(find.textContaining('还款计划'), findsNothing);
     });
 
-    testWidgets('renders 4 receivable-type cards (私人/商业/亲友/其他) — not debt types',
+    testWidgets(
+        'renders receivable-type cards from ReceivableSubtypes.all (const) — not debt types',
         (t) async {
       t.view.physicalSize = desktop;
       t.view.devicePixelRatio = 1.0;
@@ -187,13 +188,15 @@ void main() {
           .thenAnswer((_) async => const dartz.Right([]));
       await t.pumpWidget(_harness(debtRepo: debtRepo, accountRepo: accountRepo));
       await t.pumpAndSettle();
-      // 4 个债权类型卡
-      for (final label in ['私人借款', '商业借款', '亲友借款', '其他']) {
-        expect(find.byKey(ValueKey('receivableType-$label')), findsOneWidget);
+      // 4 个债权类型卡：keys 来自 ReceivableSubtypes.all，label 来自 labels[key]。
+      expect(ReceivableSubtypes.all.length, 4);
+      for (final key in ReceivableSubtypes.all) {
+        expect(find.byKey(ValueKey('receivableType-$key')), findsOneWidget);
+        expect(find.text(ReceivableSubtypes.labels[key]!), findsOneWidget);
       }
-      // 负向：不出现债务类型卡
-      for (final label in ['房贷', '车贷', '信用卡']) {
-        expect(find.byKey(ValueKey('debtType-$label')), findsNothing);
+      // 负向：不出现债务类型卡（debt_form 的 DebtSubtypes）
+      for (final key in DebtSubtypes.all) {
+        expect(find.byKey(ValueKey('debtType-$key')), findsNothing);
       }
     });
 
@@ -322,7 +325,8 @@ void main() {
   });
 
   group('提交 CreateDebtRequested (type: borrowedOut)', () {
-    testWidgets('fill form → tap 创建债权 → repo.create called with type borrowedOut',
+    testWidgets(
+        'fill form → tap 创建债权 → repo.create called with type borrowedOut + subtype key',
         (t) async {
       t.view.physicalSize = desktop;
       t.view.devicePixelRatio = 1.0;
@@ -341,8 +345,9 @@ void main() {
       when(() => accountRepo.list()).thenAnswer(
           (_) async => dartz.Right([_receivableAccount(id: 'recv-1')]));
 
-      // 拦截 repo.create，捕获 type 参数验证 == borrowedOut。
+      // 拦截 repo.create，捕获 type + subtype 参数验证。
       DebtType? capturedType;
+      String? capturedSubtype;
       when(() => debtRepo.create(
               accountId: any(named: 'accountId'),
               counterparty: any(named: 'counterparty'),
@@ -351,8 +356,10 @@ void main() {
               startDate: any(named: 'startDate'),
               dueDate: any(named: 'dueDate'),
               totalPrincipalCents: any(named: 'totalPrincipalCents'),
-              type: any(named: 'type'))).thenAnswer((inv) {
+              type: any(named: 'type'),
+              subtype: any(named: 'subtype'))).thenAnswer((inv) {
         capturedType = inv.namedArguments[#type] as DebtType?;
+        capturedSubtype = inv.namedArguments[#subtype] as String?;
         return Future.value(dartz.Right(_emptyDetail().debt));
       });
       when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
@@ -369,6 +376,9 @@ void main() {
       await t.enterText(find.byKey(const ValueKey('counterpartyField')), '李四');
       await t.enterText(find.byKey(const ValueKey('principalField')), '100000');
       await t.enterText(find.byKey(const ValueKey('rateField')), '8.0');
+      // 切到「亲友」子类型（const key），验证 key 透传到 repo.create。
+      await t.tap(find.byKey(ValueKey('receivableType-${ReceivableSubtypes.family}')));
+      await t.pump();
       // desktop: FormActions「创建债权」
       final submitFinder = find.byKey(const ValueKey('submitButton')).evaluate().isNotEmpty
           ? find.byKey(const ValueKey('submitButton'))
@@ -378,8 +388,9 @@ void main() {
       for (var i = 0; i < 10 && capturedType == null; i++) {
         await t.pump(const Duration(milliseconds: 50));
       }
-      // 关键断言：type 固定 borrowedOut（非默认 borrowedIn）
+      // 关键断言：type 固定 borrowedOut（非默认 borrowedIn）；subtype = const key。
       expect(capturedType, DebtType.borrowedOut);
+      expect(capturedSubtype, ReceivableSubtypes.family);
       await t.pump(const Duration(seconds: 4));
       await t.pumpAndSettle();
     });
@@ -392,6 +403,7 @@ void main() {
       double interestRate = 8.0,
       int totalPrincipalCents = 10000000,
       int version = 3,
+      String subtype = '',
     }) =>
         Debt(
           id: id,
@@ -407,6 +419,7 @@ void main() {
           createdAt: DateTime(2025, 6, 15),
           updatedAt: DateTime(2025, 12, 1),
           type: DebtType.borrowedOut,
+          subtype: subtype,
         );
 
     testWidgets('AppBar title = 编辑债权 + 预填 债务人 / 本金 / 利率', (t) async {
@@ -490,6 +503,35 @@ void main() {
       expect(updated, isTrue);
       await t.pump(const Duration(seconds: 4));
       await t.pumpAndSettle();
+    });
+
+    testWidgets('prefills _subtypeKey from debt.subtype (const key)', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer(
+          (_) async => dartz.Right([_receivableAccount(id: 'recv-1')]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      // existing 带子类型 personal —— 表单应预选「私人」卡。
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        existing:
+            existingDebt(subtype: ReceivableSubtypes.personal),
+      ));
+      await t.pumpAndSettle();
+      // personal 卡选中、其他卡未选中。
+      expect(
+          find.byKey(
+              ValueKey('receivableType-${ReceivableSubtypes.personal}')),
+          findsOneWidget);
+      expect(
+          find.byKey(
+              ValueKey('receivableType-${ReceivableSubtypes.business}')),
+          findsOneWidget);
     });
   });
 
