@@ -26,6 +26,6 @@ accounts-list
 # GUI 验证截图（三端响应式 + app 截图，验证产物）
 /app-responsive.png
 /app-txn-mobile.png
-/detail-desktop-1200/
-/detail-mobile-375/
-/detail-tablet-800/
+/detail-desktop-1200
+/detail-mobile-375
+/detail-tablet-800
