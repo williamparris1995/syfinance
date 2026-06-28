@@ -14,6 +14,8 @@ import (
 	pb "github.com/yucai/server/internal/proto/debt/v1"
 	txnApp "github.com/yucai/server/internal/transaction/application"
 	txnDomain "github.com/yucai/server/internal/transaction/domain"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // TestProtoDebtTypeMapping verifies the NAME-BASED mapping between the proto
@@ -180,7 +182,9 @@ func (r *recordingTxnRepo) FindAll(context.Context, uuid.UUID, txnDomain.Transac
 func (r *recordingTxnRepo) FindRecentByAccount(context.Context, uuid.UUID, uuid.UUID, int) ([]txnDomain.Transaction, error) {
 	panic("unexpected FindRecentByAccount call")
 }
-func (r *recordingTxnRepo) Update(context.Context, *txnDomain.Transaction) error { panic("unexpected Update call") }
+func (r *recordingTxnRepo) Update(context.Context, *txnDomain.Transaction) error {
+	panic("unexpected Update call")
+}
 func (r *recordingTxnRepo) SoftDelete(context.Context, uuid.UUID, uuid.UUID) error {
 	panic("unexpected SoftDelete call")
 }
@@ -444,10 +448,151 @@ func (r *failingTxnRepo) FindAll(context.Context, uuid.UUID, txnDomain.Transacti
 func (r *failingTxnRepo) FindRecentByAccount(context.Context, uuid.UUID, uuid.UUID, int) ([]txnDomain.Transaction, error) {
 	panic("unexpected FindRecentByAccount call")
 }
-func (r *failingTxnRepo) Update(context.Context, *txnDomain.Transaction) error { panic("unexpected Update call") }
+func (r *failingTxnRepo) Update(context.Context, *txnDomain.Transaction) error {
+	panic("unexpected Update call")
+}
 func (r *failingTxnRepo) SoftDelete(context.Context, uuid.UUID, uuid.UUID) error {
 	panic("unexpected SoftDelete call")
 }
 func (r *failingTxnRepo) TransactionSummary(context.Context, txnDomain.SummaryScope) (*txnDomain.MonthlySummary, error) {
 	panic("unexpected TransactionSummary call")
+}
+
+// ---------------------------------------------------------------------------
+// RecordPayment validation tests (credit-card-sync Task 3)
+//
+// Validation runs BEFORE the debt is marked paid, so an invalid from_account
+// fails fast and the debt schedule entry stays unpaid. Each test asserts both
+// the gRPC error code AND that the entry remained unpaid (fail-fast invariant).
+// ---------------------------------------------------------------------------
+
+// requireNotPaid fetches the debt detail and fails the test if the seeded
+// schedule entry has been marked paid — used to assert the fail-fast invariant.
+func requireNotPaid(t *testing.T, h *DebtHandler, tenantID, debtID, entryID uuid.UUID) {
+	t.Helper()
+	detail, err := h.service.GetDebt(context.Background(), tenantID, debtID)
+	if err != nil {
+		t.Fatalf("verify unpaid: GetDebt: %v", err)
+	}
+	for _, e := range detail.Schedule {
+		if e.ID == entryID && e.Paid {
+			t.Fatal("fail-fast invariant violated: entry was marked paid despite validation error")
+		}
+	}
+}
+
+// TestRecordPayment_NonAssetFromAccount_RejectsAndLeavesDebtUntouched: a
+// from_account whose AccountType is not asset is rejected with InvalidArgument
+// BEFORE the debt is marked paid.
+func TestRecordPayment_NonAssetFromAccount_RejectsAndLeavesDebtUntouched(t *testing.T) {
+	h, tenantID, debtID, _, _, entryID, txnRepo, accLookup :=
+		setupRecordPaymentHarness(t, domain.BorrowedIn)
+
+	// Replace the seeded asset from_account with a liability from_account by
+	// seeding a new account under the same id slot is awkward; instead add a
+	// fresh liability account and point the request at it.
+	liabilityAcc, err := accountdomain.NewAccount(tenantID, "liability from", accountdomain.AccountTypeLiability, "CNY")
+	if err != nil {
+		t.Fatalf("seed liability account: %v", err)
+	}
+	liabilityAcc.ChartCode = "2202"
+	liabilityAcc.CurrentBalanceCents = 1_000_000_00
+	accLookup.seed(liabilityAcc)
+
+	resp, err := h.RecordPayment(ctxWithTenant(tenantID), &pb.RecordPaymentRequest{
+		DebtId:          debtID.String(),
+		ScheduleEntryId: entryID.String(),
+		FromAccountId:   liabilityAcc.ID.String(),
+	})
+
+	if err == nil {
+		t.Fatal("RecordPayment should reject non-asset from_account, got nil error")
+	}
+	if resp != nil {
+		t.Errorf("expected nil response on validation failure, got %+v", resp)
+	}
+	st, ok := status.FromError(err)
+	if !ok || st.Code() != codes.InvalidArgument {
+		t.Errorf("error code: got %v, want InvalidArgument", err)
+	}
+
+	// Fail-fast: no transaction written and the entry stays unpaid.
+	if txnRepo.saved != nil {
+		t.Error("no transaction should be written when validation fails")
+	}
+	requireNotPaid(t, h, tenantID, debtID, entryID)
+}
+
+// TestRecordPayment_BorrowedInInsufficientBalance_RejectsAndLeavesDebtUntouched:
+// for a BorrowedIn repayment, a from_account whose balance is below the entry
+// total is rejected with FailedPrecondition before the debt is marked paid.
+func TestRecordPayment_BorrowedInInsufficientBalance_RejectsAndLeavesDebtUntouched(t *testing.T) {
+	h, tenantID, debtID, fromAccID, _, entryID, txnRepo, accLookup :=
+		setupRecordPaymentHarness(t, domain.BorrowedIn)
+
+	// Drain the from_account balance below the entry total. The harness seeds
+	// a lump-sum debt of 1000.00 principal + 5000.00 interest = 6000.00 total,
+	// and a from_account balance of 10000.00. Drop it to 1000.00 (< 6000.00).
+	accLookup.byID[fromAccID].CurrentBalanceCents = 1_000_00
+
+	resp, err := h.RecordPayment(ctxWithTenant(tenantID), &pb.RecordPaymentRequest{
+		DebtId:          debtID.String(),
+		ScheduleEntryId: entryID.String(),
+		FromAccountId:   fromAccID.String(),
+	})
+
+	if err == nil {
+		t.Fatal("RecordPayment should reject insufficient balance, got nil error")
+	}
+	if resp != nil {
+		t.Errorf("expected nil response on validation failure, got %+v", resp)
+	}
+	st, ok := status.FromError(err)
+	if !ok || st.Code() != codes.FailedPrecondition {
+		t.Errorf("error code: got %v, want FailedPrecondition", err)
+	}
+
+	if txnRepo.saved != nil {
+		t.Error("no transaction should be written when validation fails")
+	}
+	requireNotPaid(t, h, tenantID, debtID, entryID)
+}
+
+// TestRecordPayment_CrossCurrency_RejectsAndLeavesDebtUntouched: a from_account
+// whose currency differs from the debt account's currency is rejected with
+// InvalidArgument before the debt is marked paid.
+func TestRecordPayment_CrossCurrency_RejectsAndLeavesDebtUntouched(t *testing.T) {
+	h, tenantID, debtID, _, _, entryID, txnRepo, accLookup :=
+		setupRecordPaymentHarness(t, domain.BorrowedIn)
+
+	// Seed an asset from_account in USD; the debt account is CNY (harness default).
+	usdAcc, err := accountdomain.NewAccount(tenantID, "usd cash", accountdomain.AccountTypeAsset, "USD")
+	if err != nil {
+		t.Fatalf("seed usd account: %v", err)
+	}
+	usdAcc.ChartCode = "1001"
+	usdAcc.CurrentBalanceCents = 1_000_000_00
+	accLookup.seed(usdAcc)
+
+	resp, err := h.RecordPayment(ctxWithTenant(tenantID), &pb.RecordPaymentRequest{
+		DebtId:          debtID.String(),
+		ScheduleEntryId: entryID.String(),
+		FromAccountId:   usdAcc.ID.String(),
+	})
+
+	if err == nil {
+		t.Fatal("RecordPayment should reject cross-currency, got nil error")
+	}
+	if resp != nil {
+		t.Errorf("expected nil response on validation failure, got %+v", resp)
+	}
+	st, ok := status.FromError(err)
+	if !ok || st.Code() != codes.InvalidArgument {
+		t.Errorf("error code: got %v, want InvalidArgument", err)
+	}
+
+	if txnRepo.saved != nil {
+		t.Error("no transaction should be written when validation fails")
+	}
+	requireNotPaid(t, h, tenantID, debtID, entryID)
 }

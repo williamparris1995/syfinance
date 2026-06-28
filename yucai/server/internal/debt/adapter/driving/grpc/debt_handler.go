@@ -5,13 +5,13 @@ import (
 	"log/slog"
 	"time"
 
-	pb "github.com/yucai/server/internal/proto/debt/v1"
-	commonpb "github.com/yucai/server/internal/proto/common/v1"
 	"github.com/google/uuid"
 	accountdomain "github.com/yucai/server/internal/account/domain"
 	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
 	"github.com/yucai/server/internal/debt/application"
 	"github.com/yucai/server/internal/debt/domain"
+	commonpb "github.com/yucai/server/internal/proto/common/v1"
+	pb "github.com/yucai/server/internal/proto/debt/v1"
 	transactionApp "github.com/yucai/server/internal/transaction/application"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -23,7 +23,7 @@ import (
 type DebtHandler struct {
 	pb.UnimplementedDebtServiceServer
 	service        *application.Service
-	transactionSvc *transactionApp.Service     // double-write: RecordPayment will create a transaction (Task 2)
+	transactionSvc *transactionApp.Service      // double-write: RecordPayment will create a transaction (Task 2)
 	accountLookup  transactionApp.AccountLookup // account chart_code lookup + balance validation (Task 2-3)
 }
 
@@ -114,18 +114,21 @@ func (h *DebtHandler) DeleteDebt(ctx context.Context, req *pb.DeleteDebtRequest)
 
 // RecordPayment records a payment for a schedule entry.
 //
-// Double-write flow (credit-card-sync Task 2):
-//  1. h.service.RecordPayment marks the schedule entry paid (debt side).
-//  2. The debt's DebtType + AccountID are not carried on RecordPaymentResult,
-//     so we re-fetch the debt detail to drive entry construction.
-//  3. Look up from_account + debt.account_id via accountLookup to get each
-//     account's ChartOfAccountCode.
+// Double-write flow (credit-card-sync Tasks 2-3):
+//  1. Validate from_account BEFORE marking the debt paid — fail fast so an
+//     invalid from_account (non-asset, insufficient balance, cross-currency)
+//     leaves the debt untouched (Task 3). Needs the debt detail to know its
+//     DebtType + account_id, so the debt is fetched (read) first.
+//  2. h.service.RecordPayment marks the schedule entry paid (debt side).
+//  3. Look up debt.account_id via accountLookup to get its ChartOfAccountCode
+//     (from_account was already looked up in step 1 and is passed through).
 //  4. Build double-entry pairs by DebtType and call transactionSvc.RecordTransaction
 //     so UpdateBalances adjusts both accounts.
 //
 // The transaction write is BEST-EFFORT: if it fails after the debt is already
 // marked paid, we log (English structured) and keep the debt paid rather than
-// surfacing an error to the client. Task 3 will refine failure handling.
+// surfacing an error to the client. The response still carries the debt-side
+// transaction id.
 func (h *DebtHandler) RecordPayment(ctx context.Context, req *pb.RecordPaymentRequest) (*pb.RecordPaymentResponse, error) {
 	tenantID, err := getTenantID(ctx)
 	if err != nil {
@@ -134,6 +137,16 @@ func (h *DebtHandler) RecordPayment(ctx context.Context, req *pb.RecordPaymentRe
 	debtID, _ := uuid.Parse(req.DebtId)
 	entryID, _ := uuid.Parse(req.ScheduleEntryId)
 	fromAccountID, _ := uuid.Parse(req.FromAccountId)
+
+	// Pre-validate from_account BEFORE marking the debt paid, so an invalid
+	// from_account fails fast and the debt stays untouched. Requires reading
+	// the debt detail (for DebtType + account_id + the target entry total) and
+	// the from_account; the double-write helper reuses the already-fetched
+	// from_account.
+	fromAcc, validationErr := h.validateFromAccount(ctx, tenantID, debtID, entryID, fromAccountID)
+	if validationErr != nil {
+		return nil, validationErr
+	}
 
 	resp, err := h.service.RecordPayment(ctx, application.RecordPaymentRequest{
 		TenantID:        tenantID,
@@ -147,7 +160,7 @@ func (h *DebtHandler) RecordPayment(ctx context.Context, req *pb.RecordPaymentRe
 
 	// Double-write: record a balancing transaction so account balances move.
 	// Failures are best-effort (debt stays paid); see function doc.
-	h.recordPaymentTransaction(ctx, tenantID, debtID, fromAccountID, resp.Entry.TotalCents)
+	h.recordPaymentTransaction(ctx, tenantID, debtID, fromAccountID, fromAcc, resp.Entry.TotalCents)
 
 	return &pb.RecordPaymentResponse{
 		TransactionId: resp.TransactionID.String(),
@@ -155,14 +168,82 @@ func (h *DebtHandler) RecordPayment(ctx context.Context, req *pb.RecordPaymentRe
 	}, nil
 }
 
+// validateFromAccount reads the debt detail + from_account and enforces the
+// three RecordPayment invariants (Task 3). Runs BEFORE h.service.RecordPayment
+// so an invalid from_account leaves the debt untouched (fail fast).
+//
+//  1. from_account must be an asset account (InvalidArgument otherwise).
+//  2. For BorrowedIn (repayment), from_account must have enough balance to
+//     cover the TARGET schedule entry's total (FailedPrecondition otherwise).
+//  3. from_account and the debt's account must share a currency
+//     (InvalidArgument otherwise — cross-currency needs manual FX handling).
+func (h *DebtHandler) validateFromAccount(ctx context.Context, tenantID, debtID, entryID, fromAccountID uuid.UUID) (*accountdomain.Account, error) {
+	// Without a lookup wired in (e.g., a unit test missing deps) we cannot
+	// validate; skip rather than block the payment. Production wires the lookup.
+	if h.accountLookup == nil {
+		return nil, nil
+	}
+
+	fromAcc, err := h.accountLookup.FindByID(ctx, tenantID, fromAccountID)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, "from_account not found: "+err.Error())
+	}
+	if fromAcc.AccountType != accountdomain.AccountTypeAsset {
+		return nil, status.Error(codes.InvalidArgument, "from_account must be asset")
+	}
+
+	// Debt detail carries DebtType + AccountID + the schedule (for the entry
+	// total) needed for the remaining checks.
+	detail, err := h.service.GetDebt(ctx, tenantID, debtID)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, "debt not found: "+err.Error())
+	}
+	debtAcc, err := h.accountLookup.FindByID(ctx, tenantID, detail.Debt.AccountID)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, "debt account not found: "+err.Error())
+	}
+	if fromAcc.CurrencyCode != debtAcc.CurrencyCode {
+		return nil, status.Error(codes.InvalidArgument, "跨币种,需手动处理")
+	}
+
+	// BorrowedIn repayment: from_account must cover the target entry's total.
+	if detail.Debt.DebtType == domain.BorrowedIn {
+		entryTotal, ok := lookupEntryTotal(detail.Schedule, entryID)
+		if ok && fromAcc.CurrentBalanceCents < entryTotal {
+			return nil, status.Error(codes.FailedPrecondition, "from_account 余额不足")
+		}
+	}
+
+	return fromAcc, nil
+}
+
+// lookupEntryTotal scans the schedule for the given entry id and returns its
+// TotalCents. Returns ok=false if the entry is not found (the service layer
+// will surface a NotFound for the unknown entry id; we skip the balance check).
+func lookupEntryTotal(schedule []application.PaymentEntryDTO, entryID uuid.UUID) (int64, bool) {
+	for _, e := range schedule {
+		if e.ID == entryID {
+			return e.TotalCents, true
+		}
+	}
+	return 0, false
+}
+
 // recordPaymentTransaction builds double-entry pairs by DebtType and records
 // them via the transaction service. It is best-effort: any failure (debt
 // lookup, account lookup, or the transaction write itself) is logged with
 // English structured fields and swallowed so the already-paid debt is not
 // rolled back. Returns nothing — callers ignore the outcome by design.
-func (h *DebtHandler) recordPaymentTransaction(ctx context.Context, tenantID, debtID, fromAccountID uuid.UUID, totalCents int64) {
+//
+// fromAcc is the from_account already fetched + validated by RecordPayment
+// (Task 3); passing it in avoids a redundant lookup here.
+func (h *DebtHandler) recordPaymentTransaction(ctx context.Context, tenantID, debtID, fromAccountID uuid.UUID, fromAcc *accountdomain.Account, totalCents int64) {
 	if h.transactionSvc == nil || h.accountLookup == nil {
 		// Wiring incomplete (e.g., unit test without txn deps); nothing to do.
+		return
+	}
+	if fromAcc == nil {
+		// Defensive: validation was skipped (lookup not wired); nothing to do.
 		return
 	}
 
@@ -172,22 +253,22 @@ func (h *DebtHandler) recordPaymentTransaction(ctx context.Context, tenantID, de
 	if err != nil {
 		slog.Error("record payment double-write: debt lookup failed",
 			"operation", "debt.RecordPayment.recordPaymentTransaction",
-			"debt_id", debtID.String(), "error", err.Error())
+			"debt_id", debtID.String(),
+			"from_account_id", fromAccountID.String(),
+			"amount_cents", totalCents,
+			"error", err.Error())
 		return
 	}
 
-	fromAcc, err := h.accountLookup.FindByID(ctx, tenantID, fromAccountID)
-	if err != nil {
-		slog.Error("record payment double-write: from_account lookup failed",
-			"operation", "debt.RecordPayment.recordPaymentTransaction",
-			"debt_id", debtID.String(), "from_account_id", fromAccountID.String(), "error", err.Error())
-		return
-	}
 	debtAcc, err := h.accountLookup.FindByID(ctx, tenantID, detail.Debt.AccountID)
 	if err != nil {
 		slog.Error("record payment double-write: debt account lookup failed",
 			"operation", "debt.RecordPayment.recordPaymentTransaction",
-			"debt_id", debtID.String(), "debt_account_id", detail.Debt.AccountID.String(), "error", err.Error())
+			"debt_id", debtID.String(),
+			"from_account_id", fromAccountID.String(),
+			"debt_account_id", detail.Debt.AccountID.String(),
+			"amount_cents", totalCents,
+			"error", err.Error())
 		return
 	}
 
@@ -200,7 +281,11 @@ func (h *DebtHandler) recordPaymentTransaction(ctx context.Context, tenantID, de
 	}); err != nil {
 		slog.Error("record payment double-write: transaction write failed",
 			"operation", "debt.RecordPayment.recordPaymentTransaction",
-			"debt_id", debtID.String(), "total_cents", totalCents, "error", err.Error())
+			"debt_id", debtID.String(),
+			"from_account_id", fromAccountID.String(),
+			"debt_account_id", detail.Debt.AccountID.String(),
+			"amount_cents", totalCents,
+			"error", err.Error())
 	}
 }
 
@@ -305,7 +390,7 @@ func (h *DebtHandler) GetUpcomingPayments(ctx context.Context, req *pb.GetUpcomi
 	debts := make([]*pb.DebtDTO, 0)
 	for _, e := range result.Entries {
 		debts = append(debts, &pb.DebtDTO{
-			Id:       e.ID.String(),
+			Id:        e.ID.String(),
 			AccountId: e.DebtID.String(),
 		})
 	}
@@ -315,20 +400,20 @@ func (h *DebtHandler) GetUpcomingPayments(ctx context.Context, req *pb.GetUpcomi
 
 func debtToProto(d application.DebtDTO) *pb.DebtDTO {
 	return &pb.DebtDTO{
-		Id:                  d.ID.String(),
-		AccountId:           d.AccountID.String(),
-		Counterparty:        d.Counterparty,
-		InterestRate:        d.InterestRate,
-		AmortizationMethod:  methodToProto(d.AmortizationMethod),
-		StartDate:           d.StartDate.Format("2006-01-02"),
-		DueDate:             d.DueDate.Format("2006-01-02"),
-		TotalPrincipalCents: d.TotalPrincipalCents,
-		DebtType:            debtTypeToProto(d.DebtType),
-		Subtype:             d.Subtype,
+		Id:                      d.ID.String(),
+		AccountId:               d.AccountID.String(),
+		Counterparty:            d.Counterparty,
+		InterestRate:            d.InterestRate,
+		AmortizationMethod:      methodToProto(d.AmortizationMethod),
+		StartDate:               d.StartDate.Format("2006-01-02"),
+		DueDate:                 d.DueDate.Format("2006-01-02"),
+		TotalPrincipalCents:     d.TotalPrincipalCents,
+		DebtType:                debtTypeToProto(d.DebtType),
+		Subtype:                 d.Subtype,
 		RemainingPrincipalCents: d.RemainingPrincipal,
-		Version:             d.Version,
-		CreatedAt:           timestamppb.New(d.CreatedAt),
-		UpdatedAt:           timestamppb.New(d.UpdatedAt),
+		Version:                 d.Version,
+		CreatedAt:               timestamppb.New(d.CreatedAt),
+		UpdatedAt:               timestamppb.New(d.UpdatedAt),
 	}
 }
 
