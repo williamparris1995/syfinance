@@ -282,3 +282,44 @@ func TestBuyHolding_DoubleWrite(t *testing.T) {
 		t.Errorf("holding balance: got %d, want %d", got, want)
 	}
 }
+
+// TestSellHolding_DoubleWrite: sell first buys to establish a position, then
+// sells. Sell = cash INTO from_account (debit, +) + investment OUT of holding
+// account (credit, −). The test only asserts the from_account increased by the
+// sell amount — the holding balance MAY go negative when sell > cost basis
+// (investment-account semantics), so it is not asserted.
+func TestSellHolding_DoubleWrite(t *testing.T) {
+	h, tenantID, fromAccID, holdAccID, _, accLookup := setupBuyHoldingHarness(t)
+	ctx := ctxWithTenant(tenantID)
+	sec, err := h.CreateSecurity(ctx, &pb.CreateSecurityRequest{
+		Symbol: "600000", Name: "浦发", SecurityType: pb.SecurityType_SECURITY_TYPE_STOCK, CurrencyCode: "CNY",
+	})
+	if err != nil {
+		t.Fatalf("CreateSecurity: %v", err)
+	}
+
+	// buy 建仓 10 × 5000 = 50000 → from 100000−50000 = 50000.
+	if _, err := h.BuyHolding(ctx, &pb.HoldingTradeRequest{
+		AccountId: holdAccID.String(), SecurityId: sec.Security.Id, FromAccountId: fromAccID.String(),
+		Quantity: 10, PriceCents: 5000, TradeDate: "2026-06-28",
+	}); err != nil {
+		t.Fatalf("BuyHolding (setup): %v", err)
+	}
+
+	// sell 10 × 6000 = 60000 → from +60000 = 110000.
+	resp, err := h.SellHolding(ctx, &pb.HoldingTradeRequest{
+		AccountId: holdAccID.String(), SecurityId: sec.Security.Id, FromAccountId: fromAccID.String(),
+		Quantity: 10, PriceCents: 6000, TradeDate: "2026-06-29",
+	})
+	if err != nil {
+		t.Fatalf("SellHolding: %v", err)
+	}
+	if resp == nil || resp.Transaction == nil {
+		t.Fatal("SellHolding returned empty trade")
+	}
+
+	// sell credits from_account 60000 (cash +): 50000 + 60000 = 110000.
+	if got := accLookup.byID[fromAccID].CurrentBalanceCents; got != 50000+60000 {
+		t.Errorf("from balance after sell: got %d, want 110000", got)
+	}
+}
