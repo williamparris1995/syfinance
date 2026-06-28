@@ -300,8 +300,8 @@ func provideDebtRepo(client *debtent.Client) *debtrepo.DebtRepository {
 func provideDebtService(repo *debtrepo.DebtRepository) *debtapp.Service {
 	return debtapp.NewService(repo)
 }
-func provideDebtHandler(svc *debtapp.Service) *debtgrpc.DebtHandler {
-	return debtgrpc.NewDebtHandler(svc)
+func provideDebtHandler(svc *debtapp.Service, txnSvc *txnapp.Service, accountLookup txnapp.AccountLookup) *debtgrpc.DebtHandler {
+	return debtgrpc.NewDebtHandler(svc, txnSvc, accountLookup)
 }
 
 // Goal providers

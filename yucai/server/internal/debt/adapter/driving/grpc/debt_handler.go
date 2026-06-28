@@ -10,6 +10,7 @@ import (
 	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
 	"github.com/yucai/server/internal/debt/application"
 	"github.com/yucai/server/internal/debt/domain"
+	transactionApp "github.com/yucai/server/internal/transaction/application"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -19,12 +20,14 @@ import (
 // DebtHandler implements the generated DebtServiceServer.
 type DebtHandler struct {
 	pb.UnimplementedDebtServiceServer
-	service *application.Service
+	service        *application.Service
+	transactionSvc *transactionApp.Service     // double-write: RecordPayment will create a transaction (Task 2)
+	accountLookup  transactionApp.AccountLookup // account chart_code lookup + balance validation (Task 2-3)
 }
 
 // NewDebtHandler creates a new DebtHandler.
-func NewDebtHandler(service *application.Service) *DebtHandler {
-	return &DebtHandler{service: service}
+func NewDebtHandler(service *application.Service, txnSvc *transactionApp.Service, accountLookup transactionApp.AccountLookup) *DebtHandler {
+	return &DebtHandler{service: service, transactionSvc: txnSvc, accountLookup: accountLookup}
 }
 
 // CreateDebt creates a new debt with amortization schedule.

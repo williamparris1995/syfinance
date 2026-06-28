@@ -101,7 +101,7 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	// Debt module
 	debtRepo := provideDebtRepo(debtClient)
 	debtService := provideDebtService(debtRepo)
-	debtHandler := provideDebtHandler(debtService)
+	debtHandler := provideDebtHandler(debtService, txnService, accountRepo)
 
 	// Goal module
 	goalRepo := provideGoalRepo(goalClient)
