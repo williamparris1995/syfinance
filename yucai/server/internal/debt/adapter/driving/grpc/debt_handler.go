@@ -33,6 +33,20 @@ func NewDebtHandler(service *application.Service, txnSvc *transactionApp.Service
 }
 
 // CreateDebt creates a new debt with amortization schedule.
+//
+// borrowedOut double-write (create-debt-dual-write): when creating a loan the
+// user lent out, a balancing transaction moves the lent principal from the
+// source (cash) account to the receivable account, so the receivable balance
+// reflects the principal from creation (fixes the negative-receivable bug
+// where RecordPayment reduced a zero-initial receivable).
+//
+// Flow:
+//  1. Parse source_account_id (borrowedOut required; borrowedIn ignores it).
+//  2. validateSourceAccount BEFORE service.CreateDebt — fail fast so an
+//     invalid source leaves no debt persisted.
+//  3. service.CreateDebt generates schedule + persists (unchanged).
+//  4. recordCreateTransaction (best-effort): on failure, log + swallow; the
+//     debt is already created and is not rolled back (mirrors RecordPayment).
 func (h *DebtHandler) CreateDebt(ctx context.Context, req *pb.CreateDebtRequest) (*pb.DebtResponse, error) {
 	tenantID, err := getTenantID(ctx)
 	if err != nil {
@@ -53,6 +67,24 @@ func (h *DebtHandler) CreateDebt(ctx context.Context, req *pb.CreateDebtRequest)
 		return nil, status.Error(codes.InvalidArgument, "invalid due_date")
 	}
 
+	debtType := protoToDebtType(req.DebtType)
+
+	// borrowedOut: validate the cash source BEFORE creating the debt so an
+	// invalid source fails fast and no debt is persisted. borrowedIn ignores
+	// the source entirely (no double-write).
+	var sourceAcc *accountdomain.Account
+	var sourceAccountID uuid.UUID
+	if debtType == domain.BorrowedOut {
+		sourceAccountID, err = uuid.Parse(req.SourceAccountId)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid source_account_id")
+		}
+		sourceAcc, err = h.validateSourceAccount(ctx, tenantID, sourceAccountID, accountID, req.TotalPrincipalCents)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	resp, err := h.service.CreateDebt(ctx, application.CreateDebtRequest{
 		TenantID:            tenantID,
 		AccountID:           accountID,
@@ -62,13 +94,110 @@ func (h *DebtHandler) CreateDebt(ctx context.Context, req *pb.CreateDebtRequest)
 		StartDate:           startDate,
 		DueDate:             dueDate,
 		TotalPrincipalCents: req.TotalPrincipalCents,
-		DebtType:            protoToDebtType(req.DebtType),
+		DebtType:            debtType,
 		Subtype:             req.Subtype,
 	})
 	if err != nil {
 		return nil, mapError(err)
 	}
+
+	// Double-write: move the lent principal from source (cash) to receivable.
+	// Best-effort (debt already created); see recordCreateTransaction doc.
+	if debtType == domain.BorrowedOut {
+		h.recordCreateTransaction(ctx, tenantID, sourceAccountID, sourceAcc, accountID, req.TotalPrincipalCents)
+	}
+
 	return &pb.DebtResponse{Debt: debtToProto(*resp)}, nil
+}
+
+// validateSourceAccount reads the source + receivable (debt) accounts and
+// enforces the CreateDebt borrowedOut invariants BEFORE service.CreateDebt, so
+// an invalid source fails fast and no debt is persisted.
+//
+//  1. source must exist (NotFound otherwise).
+//  2. source must be an asset account (InvalidArgument otherwise).
+//  3. source must differ from the receivable account (InvalidArgument — no
+//     self-transfer).
+//  4. source and the receivable account must share a currency (InvalidArgument
+//     otherwise — cross-currency needs manual FX handling).
+//  5. source balance must cover the lent principal (FailedPrecondition).
+//
+// debtAccountID is req.AccountId (the receivable account for borrowedOut).
+// Returns nil,(nil,nil) if accountLookup is unwired (defensive, mirrors
+// validateFromAccount) so unit tests without deps skip validation.
+func (h *DebtHandler) validateSourceAccount(ctx context.Context, tenantID, sourceAccountID, debtAccountID uuid.UUID, principalCents int64) (*accountdomain.Account, error) {
+	if h.accountLookup == nil {
+		return nil, nil
+	}
+
+	sourceAcc, err := h.accountLookup.FindByID(ctx, tenantID, sourceAccountID)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, "source_account not found: "+err.Error())
+	}
+	if sourceAcc.AccountType != accountdomain.AccountTypeAsset {
+		return nil, status.Error(codes.InvalidArgument, "source_account must be asset")
+	}
+	if sourceAccountID == debtAccountID {
+		return nil, status.Error(codes.InvalidArgument, "source_account must differ from receivable account")
+	}
+
+	debtAcc, err := h.accountLookup.FindByID(ctx, tenantID, debtAccountID)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, "receivable account not found: "+err.Error())
+	}
+	if sourceAcc.CurrencyCode != debtAcc.CurrencyCode {
+		return nil, status.Error(codes.InvalidArgument, "cross-currency, manual handling required")
+	}
+
+	if sourceAcc.CurrentBalanceCents < principalCents {
+		return nil, status.Error(codes.FailedPrecondition, "source_account balance insufficient")
+	}
+
+	return sourceAcc, nil
+}
+
+// recordCreateTransaction builds the borrowedOut double-entry pair (credit
+// source / debit receivable) via buildCreateEntries and records it through the
+// transaction service. It is best-effort: any failure (account lookup or the
+// transaction write) is logged with English structured fields and swallowed so
+// the already-created debt is not rolled back. Returns nothing — callers
+// ignore the outcome by design.
+//
+// sourceAcc is the source already fetched + validated by CreateDebt; passing
+// it in avoids a redundant lookup here.
+func (h *DebtHandler) recordCreateTransaction(ctx context.Context, tenantID, sourceAccountID uuid.UUID, sourceAcc *accountdomain.Account, debtAccountID uuid.UUID, principalCents int64) {
+	if h.transactionSvc == nil || h.accountLookup == nil {
+		return
+	}
+	if sourceAcc == nil {
+		return
+	}
+
+	debtAcc, err := h.accountLookup.FindByID(ctx, tenantID, debtAccountID)
+	if err != nil {
+		slog.Error("create debt double-write: receivable account lookup failed",
+			"operation", "debt.CreateDebt.recordCreateTransaction",
+			"source_account_id", sourceAccountID.String(),
+			"debt_account_id", debtAccountID.String(),
+			"amount_cents", principalCents,
+			"error", err.Error())
+		return
+	}
+
+	entries := buildCreateEntries(*sourceAcc, *debtAcc, principalCents)
+	if _, err := h.transactionSvc.RecordTransaction(ctx, transactionApp.RecordTransactionRequest{
+		TenantID:        tenantID,
+		TransactionDate: time.Now(),
+		Description:     "CreateDebt double-write",
+		Entries:         entries,
+	}); err != nil {
+		slog.Error("create debt double-write: transaction write failed",
+			"operation", "debt.CreateDebt.recordCreateTransaction",
+			"source_account_id", sourceAccountID.String(),
+			"debt_account_id", debtAccountID.String(),
+			"amount_cents", principalCents,
+			"error", err.Error())
+	}
 }
 
 // UpdateDebt updates a debt's mutable fields.

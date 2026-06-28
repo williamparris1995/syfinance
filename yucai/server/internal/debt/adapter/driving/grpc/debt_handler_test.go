@@ -597,6 +597,176 @@ func TestRecordPayment_CrossCurrency_RejectsAndLeavesDebtUntouched(t *testing.T)
 	requireNotPaid(t, h, tenantID, debtID, entryID)
 }
 
+// ---------------------------------------------------------------------------
+// CreateDebt double-write tests (create-debt-dual-write)
+// ---------------------------------------------------------------------------
+
+// setupCreateDebtHarness wires a DebtHandler with empty debt repo, a fake
+// account lookup seeding a receivable (debt) account [req.AccountId] + a cash
+// source account [req.source_account_id], and a real transaction service
+// backed by a recording repo + mutating balance updater. No debt is pre-seeded
+// (CreateDebt creates it). Returns debtRepo so fail-fast tests can assert no
+// debt was persisted.
+func setupCreateDebtHarness(t *testing.T) (
+	h *DebtHandler,
+	tenantID, sourceAccID, debtAccID uuid.UUID,
+	txnRepo *recordingTxnRepo,
+	accLookup *fakeAccountLookup,
+	debtRepo *fakeDebtRepo,
+) {
+	t.Helper()
+	tenantID = uuid.New()
+
+	// Receivable account = req.AccountId (asset / otherAsset).
+	rcvAcc, err := accountdomain.NewAccount(tenantID, "receivable account", accountdomain.AccountTypeAsset, "CNY")
+	if err != nil {
+		t.Fatalf("seed receivable account: %v", err)
+	}
+	rcvAcc.ChartCode = "1122" // receivable-ish chart code placeholder
+	debtAccID = rcvAcc.ID
+
+	// Source account = req.source_account_id (cash asset), ample balance.
+	srcAcc, err := accountdomain.NewAccount(tenantID, "cash account", accountdomain.AccountTypeAsset, "CNY")
+	if err != nil {
+		t.Fatalf("seed source account: %v", err)
+	}
+	srcAcc.ChartCode = "1001"
+	srcAcc.CurrentBalanceCents = 10_000_00
+	sourceAccID = srcAcc.ID
+
+	accLookup = newFakeAccountLookup()
+	accLookup.seed(rcvAcc)
+	accLookup.seed(srcAcc)
+
+	debtRepo = newFakeDebtRepo()
+	txnRepo = &recordingTxnRepo{}
+	txnSvc := txnApp.NewService(txnRepo, accLookup, mutatingBalanceUpdater{lookup: accLookup})
+	debtSvc := application.NewService(debtRepo)
+	h = NewDebtHandler(debtSvc, txnSvc, accLookup)
+	return
+}
+
+// TestCreateDebt_BorrowedOut_DoubleWrite: creating a borrowedOut debt records
+// a balancing transaction crediting source (cash −) and debiting the receivable
+// account (+principal), and both balances move accordingly.
+func TestCreateDebt_BorrowedOut_DoubleWrite(t *testing.T) {
+	h, tenantID, sourceAccID, debtAccID, txnRepo, accLookup, _ :=
+		setupCreateDebtHarness(t)
+
+	resp, err := h.CreateDebt(ctxWithTenant(tenantID), &pb.CreateDebtRequest{
+		AccountId:           debtAccID.String(),
+		SourceAccountId:     sourceAccID.String(),
+		Counterparty:        "张三",
+		InterestRate:        5.0,
+		AmortizationMethod:  pb.AmortizationMethod_AMORTIZATION_LUMP_SUM,
+		StartDate:           "2026-01-01",
+		DueDate:             "2026-12-31",
+		TotalPrincipalCents: 1_000_00,
+		DebtType:            pb.DebtType_DEBT_TYPE_BORROWED_OUT,
+		Subtype:             domain.ReceivableSubtypePersonal,
+	})
+	if err != nil {
+		t.Fatalf("CreateDebt: %v", err)
+	}
+	if resp == nil || resp.Debt == nil || resp.Debt.Id == "" {
+		t.Fatal("CreateDebt returned empty debt")
+	}
+
+	if txnRepo.saved == nil {
+		t.Fatal("double-write: no transaction recorded")
+	}
+	srcEntry, rcvEntry := entryPair(txnRepo.saved, sourceAccID, debtAccID)
+	if srcEntry.CreditCents == 0 || srcEntry.DebitCents != 0 {
+		t.Errorf("source entry: expected credit only, got debit=%d credit=%d",
+			srcEntry.DebitCents, srcEntry.CreditCents)
+	}
+	if rcvEntry.DebitCents == 0 || rcvEntry.CreditCents != 0 {
+		t.Errorf("receivable entry: expected debit only, got debit=%d credit=%d",
+			rcvEntry.DebitCents, rcvEntry.CreditCents)
+	}
+	if srcEntry.CreditCents != rcvEntry.DebitCents {
+		t.Errorf("unbalanced: credit=%d debit=%d", srcEntry.CreditCents, rcvEntry.DebitCents)
+	}
+	if srcEntry.CreditCents != 1_000_00 {
+		t.Errorf("amount: got %d, want 100000", srcEntry.CreditCents)
+	}
+
+	// Balances: source (cash) decreased by principal; receivable increased.
+	const srcBefore int64 = 10_000_00
+	if got := accLookup.byID[sourceAccID].CurrentBalanceCents; got != srcBefore-1_000_00 {
+		t.Errorf("source balance: got %d, want %d", got, srcBefore-1_000_00)
+	}
+	if got := accLookup.byID[debtAccID].CurrentBalanceCents; got != 1_000_00 {
+		t.Errorf("receivable balance: got %d, want 100000", got)
+	}
+}
+
+// TestCreateDebt_BorrowedIn_NoDoubleWrite: borrowedIn ignores the source
+// (even when supplied) and records NO transaction — debt is created, balances
+// untouched. borrowedIn balances are driven by consumption transactions.
+func TestCreateDebt_BorrowedIn_NoDoubleWrite(t *testing.T) {
+	h, tenantID, sourceAccID, debtAccID, txnRepo, accLookup, _ :=
+		setupCreateDebtHarness(t)
+
+	resp, err := h.CreateDebt(ctxWithTenant(tenantID), &pb.CreateDebtRequest{
+		AccountId:           debtAccID.String(),
+		SourceAccountId:     sourceAccID.String(), // supplied but must be ignored
+		Counterparty:        "银行",
+		InterestRate:        5.0,
+		AmortizationMethod:  pb.AmortizationMethod_AMORTIZATION_LUMP_SUM,
+		StartDate:           "2026-01-01",
+		DueDate:             "2026-12-31",
+		TotalPrincipalCents: 1_000_00,
+		DebtType:            pb.DebtType_DEBT_TYPE_BORROWED_IN,
+	})
+	if err != nil {
+		t.Fatalf("CreateDebt: %v", err)
+	}
+	if resp == nil || resp.Debt == nil || resp.Debt.Id == "" {
+		t.Fatal("CreateDebt returned empty debt")
+	}
+	if txnRepo.saved != nil {
+		t.Error("borrowedIn must NOT create a transaction")
+	}
+	const srcBefore int64 = 10_000_00
+	if got := accLookup.byID[sourceAccID].CurrentBalanceCents; got != srcBefore {
+		t.Errorf("source balance must be unchanged: got %d, want %d", got, srcBefore)
+	}
+	if got := accLookup.byID[debtAccID].CurrentBalanceCents; got != 0 {
+		t.Errorf("receivable balance must be unchanged: got %d, want 0", got)
+	}
+}
+
+// TestCreateDebt_BestEffortTxnFailureSwallowed: when the transaction write
+// fails AFTER the debt is created, CreateDebt still returns success — the
+// error is logged, not surfaced.
+func TestCreateDebt_BestEffortTxnFailureSwallowed(t *testing.T) {
+	h, tenantID, sourceAccID, debtAccID, _, _, _ :=
+		setupCreateDebtHarness(t)
+
+	// Swap in a failing txn repo; keep the same handler wiring.
+	failingRepo := &failingTxnRepo{err: fmt.Errorf("simulated txn write failure")}
+	h.transactionSvc = txnApp.NewService(failingRepo, h.accountLookup, mutatingBalanceUpdater{lookup: h.accountLookup.(*fakeAccountLookup)})
+
+	resp, err := h.CreateDebt(ctxWithTenant(tenantID), &pb.CreateDebtRequest{
+		AccountId:           debtAccID.String(),
+		SourceAccountId:     sourceAccID.String(),
+		Counterparty:        "张三",
+		InterestRate:        5.0,
+		AmortizationMethod:  pb.AmortizationMethod_AMORTIZATION_LUMP_SUM,
+		StartDate:           "2026-01-01",
+		DueDate:             "2026-12-31",
+		TotalPrincipalCents: 1_000_00,
+		DebtType:            pb.DebtType_DEBT_TYPE_BORROWED_OUT,
+	})
+	if err != nil {
+		t.Fatalf("CreateDebt should swallow best-effort txn failure, got: %v", err)
+	}
+	if resp == nil || resp.Debt == nil || resp.Debt.Id == "" {
+		t.Fatal("debt should still be created despite txn write failure")
+	}
+}
+
 // TestBuildCreateEntries_BorrowedOut verifies the borrowedOut creation
 // double-entry pair: credit source (cash out) + debit receivable (asset +),
 // balanced, with each account's ChartCode carried through. This is the
