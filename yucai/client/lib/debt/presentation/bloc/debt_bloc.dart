@@ -70,6 +70,7 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
       dueDate: p.dueDateOption!,
       totalPrincipalCents: p.totalPrincipalCents,
       type: p.type,
+      subtype: p.subtype,
     );
     result.fold(
       (failure) => emit(DebtError(failure.displayMessage, last: _last)),

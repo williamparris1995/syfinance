@@ -197,6 +197,53 @@ void main() {
     },
   );
 
+  // Task 6: CreateDebtParams.subtype (debt subtype, e.g. receivable's
+  // subtype string) must flow through the bloc into repo.create.
+  blocTest<DebtBloc, DebtState>(
+    'Create forwards params.subtype to repo.create',
+    build: () {
+      when(() => repo.create(
+            accountId: any(named: 'accountId'),
+            counterparty: any(named: 'counterparty'),
+            interestRate: any(named: 'interestRate'),
+            amortizationIndex: any(named: 'amortizationIndex'),
+            startDate: any(named: 'startDate'),
+            dueDate: any(named: 'dueDate'),
+            totalPrincipalCents: any(named: 'totalPrincipalCents'),
+            type: any(named: 'type'),
+            subtype: 'mortgage',
+          )).thenAnswer((_) async => Right(sample));
+      when(() => repo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const Right([]));
+      return DebtBloc(repo);
+    },
+    act: (b) => b.add(CreateDebtRequested(CreateDebtParams(
+      accountId: 'a1',
+      counterparty: 'Bank A',
+      interestRate: 5.0,
+      amortizationIndex: 0,
+      startDateOption: DateTime(2026, 1, 1),
+      dueDateOption: DateTime(2027, 1, 1),
+      totalPrincipalCents: 1000000,
+      type: DebtType.borrowedOut,
+      subtype: 'mortgage',
+    ))),
+    wait: const Duration(milliseconds: 150),
+    verify: (b) {
+      verify(() => repo.create(
+            accountId: any(named: 'accountId'),
+            counterparty: any(named: 'counterparty'),
+            interestRate: any(named: 'interestRate'),
+            amortizationIndex: any(named: 'amortizationIndex'),
+            startDate: any(named: 'startDate'),
+            dueDate: any(named: 'dueDate'),
+            totalPrincipalCents: any(named: 'totalPrincipalCents'),
+            type: any(named: 'type'),
+            subtype: 'mortgage',
+          )).called(1);
+    },
+  );
+
   blocTest<DebtBloc, DebtState>(
     'Update success refreshes the list',
     build: () {
