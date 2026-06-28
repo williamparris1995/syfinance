@@ -950,6 +950,15 @@ git commit -m "test(holding): 双写真 DB 端到端(buy/sell 联动 account 余
 - **Flutter 移植 / OD 原型**:A-flutter / A-od 子项目,各自 plan。
 - **价格自动 sync / 收益统计**:B / C 子项目。
 
+## Final review 发现的 deferred items(2026-06-29 整分支广审)
+
+> 整分支广审 verdict:**Ready to merge = Yes**(复式双向平衡、双写金额与 service 字节一致、fail-fast 防部分状态、wire 手改镜像 debt、真 DB e2e 黑盒断言)。以下为广审发现、本 plan 不修的项:
+
+- **跨币种 vs security gap(Important)**:`validateTradeFromAccount` 只校验 from↔holding 账户币种一致,未校验 security 币种。CNY 现金 + CNY 投资账户买 USD security(AAPL)会通过校验,但双写把 CNY cents 当 USD 移动 → 账户余额静默错误。修法:validateTradeFromAccount 加第 6 项检查(security.CurrencyCode == from 币种,fail-fast)。**留 A-flutter 或后续多币种统一处理。**
+- **fee 双写漂移(Important,plan 既定 defer)**:双写金额只算 `priceCents × quantity` 不含 fee → 账户余额长期 fee-inaccurate(现金偏高/投资偏低,累积 fee)。需 fee expense account 设计,后续增量。
+- **Dart proto stub 未重生成(handoff,A-flutter 前置)**:`HoldingTradeRequest.from_account_id` 已加(Go stub 已生),但 Dart stub(`yucai/client/lib/proto/holding/v1/holding.pb.dart`)仍 7 字段。**A-flutter 必须 `buf generate` Dart stub + from-account picker UI**,否则 BuyHolding/SellHolding 从 client 调用必 `InvalidArgument`。
+- **Minor(后续 polish)**:`buildTradeEntries` default 分支吞非 sell 类型(建议显式 `case TradeTypeBuy` + default 返 nil);`validateTradeFromAccount` 重复 lookup holdAcc(可返回双账户消除冗余 round-trip);`parseDate` 错误静默吞(pre-existing);`TestSellHolding_DoubleWrite` 不断言 holding balance(sell direction,建议断言 -10000 锁定)。
+
 ## 参考
 
 - debt 双写(本 plan 对称):[create-debt-dual-write plan](2026-06-28-create-debt-dual-write.md) + [debt_handler.go](../../yucai/server/internal/debt/adapter/driving/grpc/debt_handler.go)
