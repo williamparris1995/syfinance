@@ -16,6 +16,7 @@ class Debt extends Equatable {
     required this.createdAt,
     required this.updatedAt,
     this.type = DebtType.borrowedIn,
+    this.subtype = '',
   });
 
   final String id;
@@ -33,6 +34,10 @@ class Debt extends Equatable {
   /// 债务方向:borrowedIn(借入/负债,默认)/ borrowedOut(借出/应收)。
   /// 默认 borrowedIn 以保持既有调用点(data mapper / 测试)无需改动即可编译。
   final DebtType type;
+
+  /// 债务子类型(对应 DebtSubtypes / ReceivableSubtypes const 值,纯 String)。
+  /// 默认 '' 以保持既有调用点(data mapper / 测试)无需改动即可编译。
+  final String subtype;
 
   /// 已还比例 (total-remaining)/total,0~1。total=0 时 0。
   double get progressRatio => totalPrincipalCents <= 0

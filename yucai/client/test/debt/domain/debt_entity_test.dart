@@ -46,6 +46,90 @@ void main() {
     });
   });
 
+  group('Debt.subtype', () {
+    Debt buildDebt({String? subtype}) {
+      final base = Debt(
+        id: 'd1',
+        accountId: 'a1',
+        counterparty: '招行',
+        interestRate: 4.2,
+        amortization: AmortizationMethod.equalPrincipalInterest,
+        startDate: DateTime(2024, 1, 1),
+        dueDate: DateTime(2034, 1, 1),
+        totalPrincipalCents: 280000000,
+        remainingPrincipalCents: 210000000,
+        version: 1,
+        createdAt: DateTime(2024, 1, 1),
+        updatedAt: DateTime(2024, 1, 1),
+      );
+      if (subtype == null) return base;
+      return Debt(
+        id: base.id,
+        accountId: base.accountId,
+        counterparty: base.counterparty,
+        interestRate: base.interestRate,
+        amortization: base.amortization,
+        startDate: base.startDate,
+        dueDate: base.dueDate,
+        totalPrincipalCents: base.totalPrincipalCents,
+        remainingPrincipalCents: base.remainingPrincipalCents,
+        version: base.version,
+        createdAt: base.createdAt,
+        updatedAt: base.updatedAt,
+        subtype: subtype,
+      );
+    }
+
+    test('defaults to empty string when omitted', () {
+      expect(buildDebt().subtype, '');
+    });
+
+    test('can be constructed with DebtSubtypes.creditCard', () {
+      expect(
+        buildDebt(subtype: DebtSubtypes.creditCard).subtype,
+        DebtSubtypes.creditCard,
+      );
+    });
+  });
+
+  group('DebtSubtypes const', () {
+    test('exposes all borrowedIn subtype keys', () {
+      expect(DebtSubtypes.all, [
+        DebtSubtypes.mortgage,
+        DebtSubtypes.autoLoan,
+        DebtSubtypes.creditCard,
+        DebtSubtypes.family,
+        DebtSubtypes.other,
+      ]);
+    });
+
+    test('labels map covers every key with a Chinese label', () {
+      for (final key in DebtSubtypes.all) {
+        expect(DebtSubtypes.labels[key], isNotEmpty);
+      }
+      expect(DebtSubtypes.labels[DebtSubtypes.mortgage], '房贷');
+      expect(DebtSubtypes.labels[DebtSubtypes.creditCard], '信用卡');
+    });
+  });
+
+  group('ReceivableSubtypes const', () {
+    test('exposes all borrowedOut subtype keys', () {
+      expect(ReceivableSubtypes.all, [
+        ReceivableSubtypes.personal,
+        ReceivableSubtypes.business,
+        ReceivableSubtypes.family,
+        ReceivableSubtypes.other,
+      ]);
+    });
+
+    test('labels map covers every key with a Chinese label', () {
+      for (final key in ReceivableSubtypes.all) {
+        expect(ReceivableSubtypes.labels[key], isNotEmpty);
+      }
+      expect(ReceivableSubtypes.labels[ReceivableSubtypes.business], '商业');
+    });
+  });
+
   test('Debt.progressRatio = (total - remaining) / total', () {
     final d = Debt(
       id: 'd1',
