@@ -7,6 +7,8 @@ import 'package:get_it/get_it.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
+import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
+import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/form_section.dart';
@@ -53,9 +55,18 @@ class _DebtFormPageState extends State<DebtFormPage> {
   final _principalCtrl = TextEditingController();
   final _rateCtrl = TextEditingController();
 
-  /// 5 债务类型（房贷 / 车贷 / 信用卡 / 亲友借款 / 其他）。
-  /// 仅 metadata：当前 Debt 实体无 type 字段，预览标题 / 提交不依赖。
-  String _debtType = '房贷';
+  // ---- 信用卡信息区字段（subtype == DebtSubtypes.creditCard 时显示）。
+  // 字段来自关联的 credit_card account；用户编辑后 _ccDirty 置 true，
+  // 提交时回写 AccountRepository.update。
+  final _ccBillingDayCtrl = TextEditingController();
+  final _ccRepaymentDayCtrl = TextEditingController();
+  final _ccLimitCtrl = TextEditingController();
+  final _ccAnnualFeeCtrl = TextEditingController();
+  bool _ccDirty = false;
+
+  /// 债务子类型 key（DebtSubtypes.mortgage / autoLoan / creditCard / family /
+  /// other）。存 **key**（非中文 label）—— 判断用 const，UI 显示 labels[key]。
+  String _subtypeKey = DebtSubtypes.mortgage;
   AmortizationMethod _amortization = AmortizationMethod.equalPrincipalInterest;
 
   /// 关联 loan 账户。null = 未选。
@@ -63,7 +74,8 @@ class _DebtFormPageState extends State<DebtFormPage> {
   DateTime? _startDate;
   DateTime? _dueDate;
 
-  /// Loan 账户候选（AccountRepository.list filter liability/loan）。
+  /// 全部 liability 账户（含 credit_card / loan / 其他负债）。
+  /// 显示时按 subtype 过滤（_visibleAccounts）。
   List<Account> _accounts = const [];
   bool _accountsLoading = true;
 
@@ -75,7 +87,6 @@ class _DebtFormPageState extends State<DebtFormPage> {
   Debt? get _existing => widget.existing;
   bool get _isEdit => _existing != null;
 
-  static const _debtTypes = <String>['房贷', '车贷', '信用卡', '亲友借款', '其他'];
   static const _amortizations = <AmortizationMethod>[
     AmortizationMethod.equalPrincipalInterest,
     AmortizationMethod.equalPrincipal,
@@ -88,8 +99,8 @@ class _DebtFormPageState extends State<DebtFormPage> {
     final e = _existing;
     if (e != null) {
       // 编辑模式：预填所有可编辑字段（counterparty / 本金 / 利率 / 摊还 / 日期 /
-      // 关联账户）。对齐 account_form_page 的 existing 预填。UpdateDebtParams 仅
-      // 回传 counterparty + interestRate + version，其余字段仅供预览一致性展示。
+      // 关联账户 / 子类型）。对齐 account_form_page 的 existing 预填。UpdateDebtParams
+      // 仅回传 counterparty + interestRate + version，其余字段仅供预览一致性展示。
       _counterpartyCtrl.text = e.counterparty;
       _principalCtrl.text =
           (e.totalPrincipalCents / 100).toStringAsFixed(2);
@@ -98,6 +109,8 @@ class _DebtFormPageState extends State<DebtFormPage> {
       _startDate = e.startDate;
       _dueDate = e.dueDate;
       _accountId = e.accountId;
+      // 子类型 key 预填（空 → mortgage 默认，避免 const 判断落空）。
+      _subtypeKey = e.subtype.isEmpty ? DebtSubtypes.mortgage : e.subtype;
     } else {
       // 创建模式：测试 seed 参数。
       _startDate = widget.initialStartDate;
@@ -108,6 +121,12 @@ class _DebtFormPageState extends State<DebtFormPage> {
     // 输入变化即重算预览（principal/rate/dates/amortization 都是 setState 触发）。
     _principalCtrl.addListener(() => setState(() {}));
     _rateCtrl.addListener(() => setState(() {}));
+    // 信用卡字段编辑 → 标脏，提交时回写 account。
+    void markCcDirty() => _ccDirty = true;
+    _ccBillingDayCtrl.addListener(markCcDirty);
+    _ccRepaymentDayCtrl.addListener(markCcDirty);
+    _ccLimitCtrl.addListener(markCcDirty);
+    _ccAnnualFeeCtrl.addListener(markCcDirty);
   }
 
   @override
@@ -115,6 +134,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
     _counterpartyCtrl.dispose();
     _principalCtrl.dispose();
     _rateCtrl.dispose();
+    _ccBillingDayCtrl.dispose();
+    _ccRepaymentDayCtrl.dispose();
+    _ccLimitCtrl.dispose();
+    _ccAnnualFeeCtrl.dispose();
     super.dispose();
   }
 
@@ -131,11 +154,102 @@ class _DebtFormPageState extends State<DebtFormPage> {
         _accounts =
             list.where((a) => a.accountType == AccountType.liability).toList();
         _accountsLoading = false;
+        // 账户加载后若已有选中账户（编辑模式 / 测试 seed），回填信用卡字段。
+        _refillCreditCardFields();
       });
     } catch (_) {
       if (!mounted) return;
       setState(() => _accountsLoading = false);
     }
+  }
+
+  // ===================== 子类型 / 信用卡区 helpers =====================
+
+  /// 当前是否信用卡子类型（const 判断，禁裸字符串）。
+  bool get _isCreditCard => _subtypeKey == DebtSubtypes.creditCard;
+
+  /// 按 subtype 过滤的可选账户。信用卡子类型 → 仅 credit_card category；
+  /// 其他子类型 → 全部 liability（loan / 其他负债 / 信用卡均可挂载）。
+  List<Account> get _visibleAccounts => _isCreditCard
+      ? _accounts
+          .where((a) => a.category == AccountCategory.creditCard)
+          .toList()
+      : _accounts;
+
+  /// 当前选中的账户（可能不在 _visibleAccounts 内 —— 如编辑模式旧账户）。
+  Account? get _selectedAccount =>
+      _accounts.where((a) => a.id == _accountId).cast<Account?>().firstWhere(
+            (_) => true,
+            orElse: () => null,
+          );
+
+  /// 用选中账户的信用卡字段回填 4 个 controller（不触发 _ccDirty，因为这是
+  /// 程序化回填而非用户编辑）。账户切换 / 加载完成时调用。
+  void _refillCreditCardFields() {
+    final a = _selectedAccount;
+    if (a == null) return;
+    _ccBillingDayCtrl.text = a.creditBillingDay?.toString() ?? '';
+    _ccRepaymentDayCtrl.text = a.creditRepaymentDay?.toString() ?? '';
+    _ccLimitCtrl.text = a.creditLimitCents > 0
+        ? (a.creditLimitCents / 100).toStringAsFixed(2)
+        : '';
+    _ccAnnualFeeCtrl.text = a.creditAnnualFeeCents != null &&
+            a.creditAnnualFeeCents! > 0
+        ? (a.creditAnnualFeeCents! / 100).toStringAsFixed(2)
+        : '';
+    // 程序化回填不算用户编辑 —— 复位脏标记（listener 已先触发）。
+    _ccDirty = false;
+  }
+
+  /// 账户下拉 onChange：写回 _accountId + 回填信用卡字段。
+  void _onAccountChanged(String? v) {
+    setState(() {
+      _accountId = v;
+      _refillCreditCardFields();
+    });
+  }
+
+  /// 提交时若信用卡字段有变 → 回写关联 credit_card account（best-effort）。
+  /// 失败仅 log，不阻塞债务创建（对齐 data 层 getIt 模式）。
+  Future<void> _persistCreditCardFieldsIfNeeded() async {
+    if (!_isCreditCard || !_ccDirty) return;
+    final a = _selectedAccount;
+    if (a == null) return;
+    final limitCents =
+        (double.tryParse(_ccLimitCtrl.text) ?? 0).round() * 100;
+    final annualFeeCents =
+        (double.tryParse(_ccAnnualFeeCtrl.text) ?? 0).round() * 100;
+    try {
+      await GetIt.instance<AccountRepository>().update(UpdateAccountParams(
+        id: a.id,
+        version: a.version,
+        creditBillingDay: int.tryParse(_ccBillingDayCtrl.text),
+        creditRepaymentDay: int.tryParse(_ccRepaymentDayCtrl.text),
+        creditLimitCents: limitCents,
+        creditAnnualFeeCents: annualFeeCents,
+      ));
+    } catch (_) {
+      // best-effort：账户更新失败不阻断债务提交。
+    }
+    _ccDirty = false;
+  }
+
+  /// 「请先创建信用卡账户」提示 → 跳转 AccountFormPage（对齐 router 的
+  /// BlocProvider<AccountBloc>(getIt) 模式，见 router.dart /accounts）。
+  Future<void> _goCreateCreditCardAccount() async {
+    final ctx = context;
+    await Navigator.of(ctx).push(
+      MaterialPageRoute(
+        builder: (_) => BlocProvider<AccountBloc>(
+          create: (_) => GetIt.instance<AccountBloc>(),
+          child: const AccountFormPage(),
+        ),
+      ),
+    );
+    // 返回后重新拉账户列表（用户可能刚创建了信用卡账户）。
+    if (!mounted) return;
+    setState(() => _accountsLoading = true);
+    _loadAccounts();
   }
 
   // ===================== 摊还预览（client-side） =====================
@@ -252,7 +366,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
 
   // ===================== 提交 =====================
 
-  void _submit() {
+  Future<void> _submit() async {
     // 显式校验必要字段并 toast 提示（避免空 submit 无反应）。
     if (_counterpartyCtrl.text.trim().isEmpty) {
       AppToast.show(context, '请填写债权方', type: ToastType.warning);
@@ -289,18 +403,23 @@ class _DebtFormPageState extends State<DebtFormPage> {
     _formKey.currentState?.save();
     _submitted = true;
     final principalCents = (principal * 100).round();
+    // 在 await 前捕获 bloc，避免跨 async gap 用 BuildContext（lint）。
+    final bloc = context.read<DebtBloc>();
+    // 信用卡字段回写 account（best-effort，先于债务提交）。
+    await _persistCreditCardFieldsIfNeeded();
     final e = _existing;
     if (e != null) {
       // 编辑模式：UpdateDebtParams 仅含 id / counterparty / interestRate / version
       // （对齐 debt_event.dart 签名 —— 后端暂不支持改本金/摊还/日期）。
-      context.read<DebtBloc>().add(UpdateDebtRequested(UpdateDebtParams(
+      bloc.add(UpdateDebtRequested(UpdateDebtParams(
             id: e.id,
             counterparty: _counterpartyCtrl.text.trim(),
             interestRate: rate,
             version: e.version,
           )));
     } else {
-      context.read<DebtBloc>().add(CreateDebtRequested(CreateDebtParams(
+      // 创建模式：CreateDebtParams 带 subtype（_subtypeKey 存的是 const key）。
+      bloc.add(CreateDebtRequested(CreateDebtParams(
             accountId: _accountId!,
             counterparty: _counterpartyCtrl.text.trim(),
             interestRate: rate,
@@ -308,6 +427,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
             startDateOption: _startDate,
             dueDateOption: _dueDate,
             totalPrincipalCents: principalCents,
+            subtype: _subtypeKey,
           )));
     }
   }
@@ -465,7 +585,8 @@ class _DebtFormPageState extends State<DebtFormPage> {
         validator: (v) => _required(v, '债权方'),
       ),
       const SizedBox(height: AppSpacing.md),
-      // 债务类型（5 卡）
+      // 债务子类型（5 卡）—— 选项来自 DebtSubtypes.all（const），禁硬编码字符串。
+      // ValueKey / selected / onTap 全部基于 key（_subtypeKey 存 key）。
       const Text('债务类型',
           style: TextStyle(
               color: AppColors.muted,
@@ -477,29 +598,118 @@ class _DebtFormPageState extends State<DebtFormPage> {
         spacing: AppSpacing.xs,
         runSpacing: AppSpacing.xs,
         children: [
-          for (final t in _debtTypes)
+          for (final key in DebtSubtypes.all)
             _RadioChip(
-              key: ValueKey('debtType-$t'),
-              label: t,
-              selected: _debtType == t,
-              onTap: () => setState(() => _debtType = t),
+              key: ValueKey('debtType-$key'),
+              label: DebtSubtypes.labels[key]!,
+              selected: _subtypeKey == key,
+              onTap: () => setState(() {
+                _subtypeKey = key;
+                // 切到/切离信用卡时复位信用卡字段脏标记与回填
+                //（_visibleAccounts 随 _isCreditCard 变化，若当前选中账户
+                // 不再可见，_accountId 保留 —— 编辑模式旧账户仍可读字段）。
+                _refillCreditCardFields();
+              }),
             ),
         ],
       ),
       const SizedBox(height: AppSpacing.md),
-      // 关联账户下拉（loan / liability）
+      // 关联账户下拉：信用卡子类型 → 仅 credit_card；其他 → 全部 liability。
       DropdownButtonFormField<String>(
         key: const ValueKey('accountDropdown'),
-        decoration: const InputDecoration(labelText: '关联账户'),
+        decoration: InputDecoration(
+            labelText: _isCreditCard ? '关联信用卡账户' : '关联账户'),
         value: _accountId,
         items: [
-          for (final a in _accounts)
+          for (final a in _visibleAccounts)
             DropdownMenuItem(value: a.id, child: Text(a.name)),
         ],
-        hint: Text(_accountsLoading ? '加载中…' : '选择 Loan 账户'),
-        onChanged: (v) => setState(() => _accountId = v),
+        hint: Text(_accountsLoading
+            ? '加载中…'
+            : (_isCreditCard ? '选择信用卡账户' : '选择 Loan 账户')),
+        onChanged: _onAccountChanged,
         validator: (v) => v == null || v.isEmpty ? '请选择关联账户' : null,
       ),
+      // 信用卡子类型 + 无 credit_card 账户 → 提示去账户管理创建。
+      if (_isCreditCard && _visibleAccounts.isEmpty && !_accountsLoading)
+        Padding(
+          key: const ValueKey('createCreditCardHint'),
+          padding: const EdgeInsets.only(top: AppSpacing.sm),
+          child: GestureDetector(
+            onTap: _goCreateCreditCardAccount,
+            child: const Text(
+              '尚未找到信用卡账户，点此去账户管理创建',
+              style: TextStyle(
+                  color: AppColors.accent,
+                  fontSize: 12,
+                  decoration: TextDecoration.underline),
+            ),
+          ),
+        ),
+      // 信用卡信息区（仅 subtype == DebtSubtypes.creditCard）。
+      if (_isCreditCard) ...[
+        const SizedBox(height: AppSpacing.lg),
+        ..._creditCardFields(),
+      ],
+    ];
+  }
+
+  // ----- 字段：信用卡信息（账单日 / 还款日 / 额度 / 年费） -----
+  // 字段来自关联 credit_card account，TextEditingController 预填 + 可编辑。
+  // 提交时若 _ccDirty → AccountRepository.update 回写。
+  List<Widget> _creditCardFields() {
+    return [
+      const Text('💳 信用卡信息',
+          key: ValueKey('creditCardSection'),
+          style: TextStyle(
+              color: AppColors.muted,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8)),
+      const SizedBox(height: AppSpacing.sm),
+      FormRow(children: [
+        TextFormField(
+          key: const ValueKey('ccBillingDayField'),
+          controller: _ccBillingDayCtrl,
+          decoration: const InputDecoration(
+            labelText: '账单日',
+            hintText: '1-31',
+          ),
+          keyboardType: TextInputType.number,
+        ),
+        TextFormField(
+          key: const ValueKey('ccRepaymentDayField'),
+          controller: _ccRepaymentDayCtrl,
+          decoration: const InputDecoration(
+            labelText: '还款日',
+            hintText: '1-31',
+          ),
+          keyboardType: TextInputType.number,
+        ),
+      ]),
+      const SizedBox(height: AppSpacing.sm),
+      FormRow(children: [
+        TextFormField(
+          key: const ValueKey('ccLimitField'),
+          controller: _ccLimitCtrl,
+          decoration: const InputDecoration(
+            labelText: '信用额度',
+            prefixText: '¥ ',
+            hintText: '0.00',
+          ),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        ),
+        TextFormField(
+          key: const ValueKey('ccAnnualFeeField'),
+          controller: _ccAnnualFeeCtrl,
+          decoration: const InputDecoration(
+            labelText: '年费',
+            prefixText: '¥ ',
+            hintText: '0.00',
+          ),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        ),
+      ]),
     ];
   }
 
@@ -577,8 +787,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
   // ----- 预览列 -----
   Widget _previewColumn() {
     final preview = _computePreview();
+    // 预览标题展示子类型 label（中文）—— _subtypeKey 存 key，labels[key] 取显示。
+    final subtypeLabel = DebtSubtypes.labels[_subtypeKey] ?? '';
     return _AmortizationPreview(
-      title: '$_counterpartyOrDefault · $_debtType',
+      title: '$_counterpartyOrDefault · $subtypeLabel',
       preview: preview,
     );
   }

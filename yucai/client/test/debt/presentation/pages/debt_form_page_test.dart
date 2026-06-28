@@ -61,6 +61,33 @@ Account _loanAccount({
       status: AccountStatus.active,
     );
 
+Account _creditCardAccount({
+  String id = 'cc-1',
+  String name = '招商银行信用卡',
+  int creditLimitCents = 5000000,
+  int? creditBillingDay = 5,
+  int? creditRepaymentDay = 25,
+  int? creditAnnualFeeCents = 100000,
+  int version = 1,
+}) =>
+    Account(
+      id: id,
+      name: name,
+      // creditCard category 派生 accountType = liability（见 value_objects）。
+      accountType: AccountType.liability,
+      category: AccountCategory.creditCard,
+      currencyCode: 'CNY',
+      initialBalanceCents: 0,
+      currentBalanceCents: 0,
+      ownership: Ownership.personal,
+      status: AccountStatus.active,
+      creditLimitCents: creditLimitCents,
+      creditBillingDay: creditBillingDay,
+      creditRepaymentDay: creditRepaymentDay,
+      creditAnnualFeeCents: creditAnnualFeeCents,
+      version: version,
+    );
+
 Widget _harness({
   required _MockDebtRepo debtRepo,
   required _MockAccountRepo accountRepo,
@@ -138,7 +165,7 @@ void main() {
       expect(find.textContaining('到期日期'), findsOneWidget);
     });
 
-    testWidgets('renders 5 debt-type radio cards (房贷/车贷/信用卡/亲友借款/其他)',
+    testWidgets('renders 5 debt-type radio cards keyed by DebtSubtypes.all',
         (t) async {
       t.view.physicalSize = desktop;
       t.view.devicePixelRatio = 1.0;
@@ -151,9 +178,12 @@ void main() {
       await t.pumpWidget(
           _harness(debtRepo: debtRepo, accountRepo: accountRepo));
       await t.pumpAndSettle();
-      // 5 个债务类型卡（by ValueKey 区分，避开其他同名文字）
-      for (final label in ['房贷', '车贷', '信用卡', '亲友借款', '其他']) {
-        expect(find.byKey(ValueKey('debtType-$label')), findsOneWidget);
+      // 5 个债务类型卡 —— ValueKey 用 const key（DebtSubtypes.all），非中文 label。
+      // 否定硬编码 _debtTypes：选项必须来自 DebtSubtypes.all。
+      expect(DebtSubtypes.all.length, 5);
+      for (final key in DebtSubtypes.all) {
+        expect(find.byKey(ValueKey('debtType-$key')), findsOneWidget);
+        expect(find.text(DebtSubtypes.labels[key]!), findsOneWidget);
       }
     });
 
@@ -331,7 +361,8 @@ void main() {
               startDate: any(named: 'startDate'),
               dueDate: any(named: 'dueDate'),
               totalPrincipalCents: any(named: 'totalPrincipalCents'),
-              type: any(named: 'type')))
+              type: any(named: 'type'),
+              subtype: any(named: 'subtype')))
           .thenAnswer((inv) {
         created = true;
         return Future.value(dartz.Right(_emptyDetail().debt));
@@ -548,6 +579,245 @@ void main() {
       expect(find.textContaining('借款本金'), findsOneWidget);
       // 「下一步」+「上一步」并存
       expect(find.byKey(const ValueKey('prevStepButton')), findsOneWidget);
+    });
+  });
+
+  // Task 7 —— 子类型驱动 + 信用卡区(account 联动 updateAccount)
+  group('子类型驱动 · 信用卡区', () {
+    testWidgets('default subtype = mortgage; selecting creditCard shows cc section',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer(
+          (_) async => dartz.Right([_loanAccount(), _creditCardAccount()]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(
+          _harness(debtRepo: debtRepo, accountRepo: accountRepo));
+      await t.pumpAndSettle();
+
+      // 默认 mortgage（非信用卡）→ 信用卡区不出现
+      expect(find.byKey(const ValueKey('creditCardSection')), findsNothing);
+      expect(find.byKey(const ValueKey('ccBillingDayField')), findsNothing);
+
+      // 点「信用卡」子类型卡（ValueKey 用 const key）
+      await t.tap(find.byKey(const ValueKey('debtType-${DebtSubtypes.creditCard}')));
+      await t.pumpAndSettle();
+
+      // 信用卡区 + 4 字段出现
+      expect(find.byKey(const ValueKey('creditCardSection')), findsOneWidget);
+      expect(find.byKey(const ValueKey('ccBillingDayField')), findsOneWidget);
+      expect(find.byKey(const ValueKey('ccRepaymentDayField')), findsOneWidget);
+      expect(find.byKey(const ValueKey('ccLimitField')), findsOneWidget);
+      expect(find.byKey(const ValueKey('ccAnnualFeeField')), findsOneWidget);
+    });
+
+    testWidgets('negative: selecting mortgage hides cc section', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer(
+          (_) async => dartz.Right([_loanAccount(), _creditCardAccount()]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(
+          _harness(debtRepo: debtRepo, accountRepo: accountRepo));
+      await t.pumpAndSettle();
+
+      // 切到信用卡 → 出现
+      await t.tap(find.byKey(const ValueKey('debtType-${DebtSubtypes.creditCard}')));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('creditCardSection')), findsOneWidget);
+
+      // 切回 mortgage → 消失
+      await t.tap(find.byKey(const ValueKey('debtType-${DebtSubtypes.mortgage}')));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('creditCardSection')), findsNothing);
+    });
+
+    testWidgets('creditCard subtype narrows account dropdown to credit_card category',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right([
+            _loanAccount(id: 'l1', name: '招行房贷'),
+            _creditCardAccount(id: 'cc1', name: '招行信用卡'),
+          ]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(
+          _harness(debtRepo: debtRepo, accountRepo: accountRepo));
+      await t.pumpAndSettle();
+
+      // 切到信用卡 → 下拉只列信用卡账户
+      await t.tap(find.byKey(const ValueKey('debtType-${DebtSubtypes.creditCard}')));
+      await t.pumpAndSettle();
+      await t.tap(find.textContaining('选择信用卡账户'));
+      await t.pumpAndSettle();
+      expect(find.textContaining('招行信用卡'), findsWidgets);
+      expect(find.textContaining('招行房贷'), findsNothing);
+    });
+
+    testWidgets('cc fields prefilled from selected credit_card account', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer(
+          (_) async => dartz.Right([_creditCardAccount(creditBillingDay: 9, creditRepaymentDay: 28, creditLimitCents: 8000000, creditAnnualFeeCents: 200000)]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        accountId: 'cc-1',
+      ));
+      await t.pumpAndSettle();
+
+      // 切到信用卡 + 选中账户已 seed → 字段预填
+      await t.tap(find.byKey(const ValueKey('debtType-${DebtSubtypes.creditCard}')));
+      await t.pumpAndSettle();
+      expect(
+          find.descendant(
+              of: find.byKey(const ValueKey('ccBillingDayField')),
+              matching: find.textContaining('9')),
+          findsWidgets);
+      expect(
+          find.descendant(
+              of: find.byKey(const ValueKey('ccRepaymentDayField')),
+              matching: find.textContaining('28')),
+          findsWidgets);
+      // 额度 8000000 cents = 80000.00 元
+      expect(
+          find.descendant(
+              of: find.byKey(const ValueKey('ccLimitField')),
+              matching: find.textContaining('80000')),
+          findsWidgets);
+    });
+
+    testWidgets('no credit_card account + creditCard subtype → shows create hint',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      // 只有 loan，没有信用卡账户
+      when(() => accountRepo.list())
+          .thenAnswer((_) async => dartz.Right([_loanAccount()]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(
+          _harness(debtRepo: debtRepo, accountRepo: accountRepo));
+      await t.pumpAndSettle();
+
+      await t.tap(find.byKey(const ValueKey('debtType-${DebtSubtypes.creditCard}')));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('createCreditCardHint')), findsOneWidget);
+    });
+
+    testWidgets('submit with creditCard subtype → repo.create called with subtype key + updateAccount called',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      registerFallbackValue(const CreateDebtParams(
+        accountId: '',
+        counterparty: '',
+        interestRate: 0,
+        amortizationIndex: 0,
+        startDateOption: null,
+        dueDateOption: null,
+        totalPrincipalCents: 0,
+      ));
+      // update(any()) 需要 UpdateAccountParams fallback（mocktail sound null-safety）。
+      registerFallbackValue(
+          const UpdateAccountParams(id: '', version: 0));
+      // 捕获 create 收到的 subtype（应 == DebtSubtypes.creditCard const key）。
+      String? capturedSubtype;
+      when(() => accountRepo.list()).thenAnswer(
+          (_) async => dartz.Right([_creditCardAccount(id: 'cc-1', version: 7)]));
+      when(() => debtRepo.create(
+              accountId: any(named: 'accountId'),
+              counterparty: any(named: 'counterparty'),
+              interestRate: any(named: 'interestRate'),
+              amortizationIndex: any(named: 'amortizationIndex'),
+              startDate: any(named: 'startDate'),
+              dueDate: any(named: 'dueDate'),
+              totalPrincipalCents: any(named: 'totalPrincipalCents'),
+              type: any(named: 'type'),
+              subtype: any(named: 'subtype'))).thenAnswer((inv) {
+        capturedSubtype = inv.namedArguments[#subtype] as String?;
+        return Future.value(dartz.Right(_emptyDetail().debt));
+      });
+      // updateAccount(accountRepo.update) 拦截 —— 编辑信用卡字段后会触发。
+      var accountUpdated = false;
+      when(() => accountRepo.update(any())).thenAnswer((_) async {
+        accountUpdated = true;
+        return dartz.Right(_creditCardAccount(version: 8));
+      });
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        startDate: DateTime(2026, 7, 1),
+        dueDate: DateTime(2030, 7, 1),
+        accountId: 'cc-1',
+      ));
+      await t.pumpAndSettle();
+
+      // 选信用卡子类型
+      await t.tap(find.byKey(const ValueKey('debtType-${DebtSubtypes.creditCard}')));
+      await t.pumpAndSettle();
+      // 填必填字段
+      await t.enterText(
+          find.byKey(const ValueKey('counterpartyField')), '招商银行');
+      await t.enterText(find.byKey(const ValueKey('principalField')), '200000');
+      await t.enterText(find.byKey(const ValueKey('rateField')), '5.0');
+      // 编辑信用卡额度字段 → 触发 _ccDirty
+      await t.enterText(find.byKey(const ValueKey('ccLimitField')), '99999.00');
+
+      final submitFinder = find
+              .byKey(const ValueKey('submitButton'))
+              .evaluate()
+              .isNotEmpty
+          ? find.byKey(const ValueKey('submitButton'))
+          : find.text('确认创建');
+      await t.ensureVisible(submitFinder);
+      await t.tap(submitFinder);
+      for (var i = 0; i < 10 && capturedSubtype == null; i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+
+      // subtype 用 const key（非中文 label / 非裸字符串）
+      expect(capturedSubtype, DebtSubtypes.creditCard);
+      // 信用卡字段编辑 → accountRepo.update 被调用（account 联动回写）
+      expect(accountUpdated, isTrue);
+      await t.pump(const Duration(seconds: 4));
+      await t.pumpAndSettle();
+    });
+
+    testWidgets('negative: hardcoded _debtTypes list is gone (options from DebtSubtypes.all)',
+        (t) async {
+      // 静态保证：DebtSubtypes.all 与 labels 覆盖 5 项，且 key≠中文 label。
+      expect(DebtSubtypes.all.toSet().length, 5);
+      for (final key in DebtSubtypes.all) {
+        expect(DebtSubtypes.labels.containsKey(key), isTrue);
+        // key 是英文 snake_case，不是中文（防止把 label 当 key 存）。
+        expect(DebtSubtypes.labels[key], isNot(equals(key)));
+      }
     });
   });
 }
