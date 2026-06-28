@@ -436,8 +436,11 @@ type CreateDebtRequest struct {
 	TotalPrincipalCents int64                  `protobuf:"varint,7,opt,name=total_principal_cents,json=totalPrincipalCents,proto3" json:"total_principal_cents,omitempty"`
 	DebtType            DebtType               `protobuf:"varint,8,opt,name=debt_type,json=debtType,proto3,enum=yucai.debt.v1.DebtType" json:"debt_type,omitempty"`
 	Subtype             string                 `protobuf:"bytes,9,opt,name=subtype,proto3" json:"subtype,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// borrowedOut 双写:借出资金的来源账户(cash asset)。borrowedOut 必填;
+	// borrowedIn 忽略(不双写)。空字符串 = 不双写。
+	SourceAccountId string `protobuf:"bytes,10,opt,name=source_account_id,json=sourceAccountId,proto3" json:"source_account_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *CreateDebtRequest) Reset() {
@@ -529,6 +532,13 @@ func (x *CreateDebtRequest) GetDebtType() DebtType {
 func (x *CreateDebtRequest) GetSubtype() string {
 	if x != nil {
 		return x.Subtype
+	}
+	return ""
+}
+
+func (x *CreateDebtRequest) GetSourceAccountId() string {
+	if x != nil {
+		return x.SourceAccountId
 	}
 	return ""
 }
@@ -1075,7 +1085,7 @@ const file_debt_v1_debt_proto_rawDesc = "" +
 	"\x0etransaction_id\x18\b \x01(\tR\rtransactionId\"w\n" +
 	"\rDebtDetailDTO\x12*\n" +
 	"\x04debt\x18\x01 \x01(\v2\x16.yucai.debt.v1.DebtDTOR\x04debt\x12:\n" +
-	"\bschedule\x18\x02 \x03(\v2\x1e.yucai.debt.v1.PaymentEntryDTOR\bschedule\"\x8d\x03\n" +
+	"\bschedule\x18\x02 \x03(\v2\x1e.yucai.debt.v1.PaymentEntryDTOR\bschedule\"\xb9\x03\n" +
 	"\x11CreateDebtRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\"\n" +
@@ -1087,7 +1097,9 @@ const file_debt_v1_debt_proto_rawDesc = "" +
 	"\bdue_date\x18\x06 \x01(\tR\adueDate\x122\n" +
 	"\x15total_principal_cents\x18\a \x01(\x03R\x13totalPrincipalCents\x124\n" +
 	"\tdebt_type\x18\b \x01(\x0e2\x17.yucai.debt.v1.DebtTypeR\bdebtType\x12\x18\n" +
-	"\asubtype\x18\t \x01(\tR\asubtype\"\x86\x01\n" +
+	"\asubtype\x18\t \x01(\tR\asubtype\x12*\n" +
+	"\x11source_account_id\x18\n" +
+	" \x01(\tR\x0fsourceAccountId\"\x86\x01\n" +
 	"\x11UpdateDebtRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\"\n" +
 	"\fcounterparty\x18\x02 \x01(\tR\fcounterparty\x12#\n" +

@@ -207,6 +207,13 @@ const CreateDebtRequest$json = {
       '10': 'debtType'
     },
     {'1': 'subtype', '3': 9, '4': 1, '5': 9, '10': 'subtype'},
+    {
+      '1': 'source_account_id',
+      '3': 10,
+      '4': 1,
+      '5': 9,
+      '10': 'sourceAccountId'
+    },
   ],
 };
 
@@ -219,7 +226,7 @@ final $typed_data.Uint8List createDebtRequestDescriptor = $convert.base64Decode(
     'BSABKAlSCXN0YXJ0RGF0ZRIZCghkdWVfZGF0ZRgGIAEoCVIHZHVlRGF0ZRIyChV0b3RhbF9wcm'
     'luY2lwYWxfY2VudHMYByABKANSE3RvdGFsUHJpbmNpcGFsQ2VudHMSNAoJZGVidF90eXBlGAgg'
     'ASgOMhcueXVjYWkuZGVidC52MS5EZWJ0VHlwZVIIZGVidFR5cGUSGAoHc3VidHlwZRgJIAEoCV'
-    'IHc3VidHlwZQ==');
+    'IHc3VidHlwZRIqChFzb3VyY2VfYWNjb3VudF9pZBgKIAEoCVIPc291cmNlQWNjb3VudElk');
 
 @$core.Deprecated('Use updateDebtRequestDescriptor instead')
 const UpdateDebtRequest$json = {

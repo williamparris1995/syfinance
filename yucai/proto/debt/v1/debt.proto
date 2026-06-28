@@ -74,6 +74,9 @@ message CreateDebtRequest {
   int64 total_principal_cents = 7;
   DebtType debt_type = 8;
   string subtype = 9;
+  // borrowedOut 双写:借出资金的来源账户(cash asset)。borrowedOut 必填;
+  // borrowedIn 忽略(不双写)。空字符串 = 不双写。
+  string source_account_id = 10;
 }
 
 message UpdateDebtRequest {

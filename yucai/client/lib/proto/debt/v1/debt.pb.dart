@@ -456,6 +456,7 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
     $fixnum.Int64? totalPrincipalCents,
     DebtType? debtType,
     $core.String? subtype,
+    $core.String? sourceAccountId,
   }) {
     final result = create();
     if (accountId != null) result.accountId = accountId;
@@ -469,6 +470,7 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
       result.totalPrincipalCents = totalPrincipalCents;
     if (debtType != null) result.debtType = debtType;
     if (subtype != null) result.subtype = subtype;
+    if (sourceAccountId != null) result.sourceAccountId = sourceAccountId;
     return result;
   }
 
@@ -496,6 +498,7 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
     ..aE<DebtType>(8, _omitFieldNames ? '' : 'debtType',
         enumValues: DebtType.values)
     ..aOS(9, _omitFieldNames ? '' : 'subtype')
+    ..aOS(10, _omitFieldNames ? '' : 'sourceAccountId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -597,6 +600,17 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
   $core.bool hasSubtype() => $_has(8);
   @$pb.TagNumber(9)
   void clearSubtype() => $_clearField(9);
+
+  /// borrowedOut 双写:借出资金的来源账户(cash asset)。borrowedOut 必填;
+  /// borrowedIn 忽略(不双写)。空字符串 = 不双写。
+  @$pb.TagNumber(10)
+  $core.String get sourceAccountId => $_getSZ(9);
+  @$pb.TagNumber(10)
+  set sourceAccountId($core.String value) => $_setString(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasSourceAccountId() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearSourceAccountId() => $_clearField(10);
 }
 
 class UpdateDebtRequest extends $pb.GeneratedMessage {
