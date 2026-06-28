@@ -8,8 +8,10 @@ import (
 	commonpb "github.com/yucai/server/internal/proto/common/v1"
 	"github.com/google/uuid"
 	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
+	accountdomain "github.com/yucai/server/internal/account/domain"
 	"github.com/yucai/server/internal/holding/application"
 	"github.com/yucai/server/internal/holding/domain"
+	txnApp "github.com/yucai/server/internal/transaction/application"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -298,6 +300,28 @@ func contains(s, sub string) bool {
 		if s[i:i+len(sub)] == sub { return true }
 	}
 	return false
+}
+
+// buildTradeEntries constructs the buy/sell double-entry pair for a holding trade.
+// amountCents is the trade AmountCents (priceCents × quantity).
+//
+//	buy:  credit from_account (cash −)   + debit  holding.account (investment +)
+//	sell: debit  from_account (cash +)   + credit holding.account (investment −)
+//
+// Each entry carries the account's ChartOfAccountCode so the transaction
+// service can persist and route it correctly.
+func buildTradeEntries(tradeType domain.TradeType, fromAcc, holdingAcc accountdomain.Account, amountCents int64) []txnApp.EntryInput {
+	if tradeType == domain.TradeTypeSell {
+		return []txnApp.EntryInput{
+			{AccountID: fromAcc.ID, ChartOfAccountCode: fromAcc.ChartCode, DebitCents: amountCents},
+			{AccountID: holdingAcc.ID, ChartOfAccountCode: holdingAcc.ChartCode, CreditCents: amountCents},
+		}
+	}
+	// Buy (and default).
+	return []txnApp.EntryInput{
+		{AccountID: fromAcc.ID, ChartOfAccountCode: fromAcc.ChartCode, CreditCents: amountCents},
+		{AccountID: holdingAcc.ID, ChartOfAccountCode: holdingAcc.ChartCode, DebitCents: amountCents},
+	}
 }
 
 var _ = time.Time{}
