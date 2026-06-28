@@ -104,6 +104,7 @@ const DebtDTO$json = {
       '6': '.yucai.debt.v1.DebtType',
       '10': 'debtType'
     },
+    {'1': 'subtype', '3': 14, '4': 1, '5': 9, '10': 'subtype'},
   ],
 };
 
@@ -119,7 +120,7 @@ final $typed_data.Uint8List debtDTODescriptor = $convert.base64Decode(
     'Vyc2lvbhgKIAEoA1IHdmVyc2lvbhI5CgpjcmVhdGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3Rv'
     'YnVmLlRpbWVzdGFtcFIJY3JlYXRlZEF0EjkKCnVwZGF0ZWRfYXQYDCABKAsyGi5nb29nbGUucH'
     'JvdG9idWYuVGltZXN0YW1wUgl1cGRhdGVkQXQSNAoJZGVidF90eXBlGA0gASgOMhcueXVjYWku'
-    'ZGVidC52MS5EZWJ0VHlwZVIIZGVidFR5cGU=');
+    'ZGVidC52MS5EZWJ0VHlwZVIIZGVidFR5cGUSGAoHc3VidHlwZRgOIAEoCVIHc3VidHlwZQ==');
 
 @$core.Deprecated('Use paymentEntryDTODescriptor instead')
 const PaymentEntryDTO$json = {
@@ -205,6 +206,7 @@ const CreateDebtRequest$json = {
       '6': '.yucai.debt.v1.DebtType',
       '10': 'debtType'
     },
+    {'1': 'subtype', '3': 9, '4': 1, '5': 9, '10': 'subtype'},
   ],
 };
 
@@ -216,7 +218,8 @@ final $typed_data.Uint8List createDebtRequestDescriptor = $convert.base64Decode(
     'YxLkFtb3J0aXphdGlvbk1ldGhvZFISYW1vcnRpemF0aW9uTWV0aG9kEh0KCnN0YXJ0X2RhdGUY'
     'BSABKAlSCXN0YXJ0RGF0ZRIZCghkdWVfZGF0ZRgGIAEoCVIHZHVlRGF0ZRIyChV0b3RhbF9wcm'
     'luY2lwYWxfY2VudHMYByABKANSE3RvdGFsUHJpbmNpcGFsQ2VudHMSNAoJZGVidF90eXBlGAgg'
-    'ASgOMhcueXVjYWkuZGVidC52MS5EZWJ0VHlwZVIIZGVidFR5cGU=');
+    'ASgOMhcueXVjYWkuZGVidC52MS5EZWJ0VHlwZVIIZGVidFR5cGUSGAoHc3VidHlwZRgJIAEoCV'
+    'IHc3VidHlwZQ==');
 
 @$core.Deprecated('Use updateDebtRequestDescriptor instead')
 const UpdateDebtRequest$json = {

@@ -140,6 +140,7 @@ type DebtDTO struct {
 	CreatedAt               *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt               *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	DebtType                DebtType               `protobuf:"varint,13,opt,name=debt_type,json=debtType,proto3,enum=yucai.debt.v1.DebtType" json:"debt_type,omitempty"`
+	Subtype                 string                 `protobuf:"bytes,14,opt,name=subtype,proto3" json:"subtype,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -263,6 +264,13 @@ func (x *DebtDTO) GetDebtType() DebtType {
 		return x.DebtType
 	}
 	return DebtType_DEBT_TYPE_UNSPECIFIED
+}
+
+func (x *DebtDTO) GetSubtype() string {
+	if x != nil {
+		return x.Subtype
+	}
+	return ""
 }
 
 type PaymentEntryDTO struct {
@@ -427,6 +435,7 @@ type CreateDebtRequest struct {
 	DueDate             string                 `protobuf:"bytes,6,opt,name=due_date,json=dueDate,proto3" json:"due_date,omitempty"`
 	TotalPrincipalCents int64                  `protobuf:"varint,7,opt,name=total_principal_cents,json=totalPrincipalCents,proto3" json:"total_principal_cents,omitempty"`
 	DebtType            DebtType               `protobuf:"varint,8,opt,name=debt_type,json=debtType,proto3,enum=yucai.debt.v1.DebtType" json:"debt_type,omitempty"`
+	Subtype             string                 `protobuf:"bytes,9,opt,name=subtype,proto3" json:"subtype,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -515,6 +524,13 @@ func (x *CreateDebtRequest) GetDebtType() DebtType {
 		return x.DebtType
 	}
 	return DebtType_DEBT_TYPE_UNSPECIFIED
+}
+
+func (x *CreateDebtRequest) GetSubtype() string {
+	if x != nil {
+		return x.Subtype
+	}
+	return ""
 }
 
 type UpdateDebtRequest struct {
@@ -1025,7 +1041,7 @@ var File_debt_v1_debt_proto protoreflect.FileDescriptor
 
 const file_debt_v1_debt_proto_rawDesc = "" +
 	"\n" +
-	"\x12debt/v1/debt.proto\x12\ryucai.debt.v1\x1a\x1acommon/v1/pagination.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc5\x04\n" +
+	"\x12debt/v1/debt.proto\x12\ryucai.debt.v1\x1a\x1acommon/v1/pagination.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdf\x04\n" +
 	"\aDebtDTO\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -1044,7 +1060,8 @@ const file_debt_v1_debt_proto_rawDesc = "" +
 	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x124\n" +
-	"\tdebt_type\x18\r \x01(\x0e2\x17.yucai.debt.v1.DebtTypeR\bdebtType\"\x8f\x02\n" +
+	"\tdebt_type\x18\r \x01(\x0e2\x17.yucai.debt.v1.DebtTypeR\bdebtType\x12\x18\n" +
+	"\asubtype\x18\x0e \x01(\tR\asubtype\"\x8f\x02\n" +
 	"\x0fPaymentEntryDTO\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fpayment_date\x18\x02 \x01(\tR\vpaymentDate\x12'\n" +
@@ -1058,7 +1075,7 @@ const file_debt_v1_debt_proto_rawDesc = "" +
 	"\x0etransaction_id\x18\b \x01(\tR\rtransactionId\"w\n" +
 	"\rDebtDetailDTO\x12*\n" +
 	"\x04debt\x18\x01 \x01(\v2\x16.yucai.debt.v1.DebtDTOR\x04debt\x12:\n" +
-	"\bschedule\x18\x02 \x03(\v2\x1e.yucai.debt.v1.PaymentEntryDTOR\bschedule\"\xf3\x02\n" +
+	"\bschedule\x18\x02 \x03(\v2\x1e.yucai.debt.v1.PaymentEntryDTOR\bschedule\"\x8d\x03\n" +
 	"\x11CreateDebtRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\"\n" +
@@ -1069,7 +1086,8 @@ const file_debt_v1_debt_proto_rawDesc = "" +
 	"start_date\x18\x05 \x01(\tR\tstartDate\x12\x19\n" +
 	"\bdue_date\x18\x06 \x01(\tR\adueDate\x122\n" +
 	"\x15total_principal_cents\x18\a \x01(\x03R\x13totalPrincipalCents\x124\n" +
-	"\tdebt_type\x18\b \x01(\x0e2\x17.yucai.debt.v1.DebtTypeR\bdebtType\"\x86\x01\n" +
+	"\tdebt_type\x18\b \x01(\x0e2\x17.yucai.debt.v1.DebtTypeR\bdebtType\x12\x18\n" +
+	"\asubtype\x18\t \x01(\tR\asubtype\"\x86\x01\n" +
 	"\x11UpdateDebtRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\"\n" +
 	"\fcounterparty\x18\x02 \x01(\tR\fcounterparty\x12#\n" +

@@ -45,6 +45,7 @@ message DebtDTO {
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   DebtType debt_type = 13;
+  string subtype = 14;
 }
 
 message PaymentEntryDTO {
@@ -72,6 +73,7 @@ message CreateDebtRequest {
   string due_date = 6;
   int64 total_principal_cents = 7;
   DebtType debt_type = 8;
+  string subtype = 9;
 }
 
 message UpdateDebtRequest {

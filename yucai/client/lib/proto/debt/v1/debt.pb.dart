@@ -39,6 +39,7 @@ class DebtDTO extends $pb.GeneratedMessage {
     $2.Timestamp? createdAt,
     $2.Timestamp? updatedAt,
     DebtType? debtType,
+    $core.String? subtype,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -57,6 +58,7 @@ class DebtDTO extends $pb.GeneratedMessage {
     if (createdAt != null) result.createdAt = createdAt;
     if (updatedAt != null) result.updatedAt = updatedAt;
     if (debtType != null) result.debtType = debtType;
+    if (subtype != null) result.subtype = subtype;
     return result;
   }
 
@@ -90,6 +92,7 @@ class DebtDTO extends $pb.GeneratedMessage {
         subBuilder: $2.Timestamp.create)
     ..aE<DebtType>(13, _omitFieldNames ? '' : 'debtType',
         enumValues: DebtType.values)
+    ..aOS(14, _omitFieldNames ? '' : 'subtype')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -230,6 +233,15 @@ class DebtDTO extends $pb.GeneratedMessage {
   $core.bool hasDebtType() => $_has(12);
   @$pb.TagNumber(13)
   void clearDebtType() => $_clearField(13);
+
+  @$pb.TagNumber(14)
+  $core.String get subtype => $_getSZ(13);
+  @$pb.TagNumber(14)
+  set subtype($core.String value) => $_setString(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasSubtype() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearSubtype() => $_clearField(14);
 }
 
 class PaymentEntryDTO extends $pb.GeneratedMessage {
@@ -443,6 +455,7 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
     $core.String? dueDate,
     $fixnum.Int64? totalPrincipalCents,
     DebtType? debtType,
+    $core.String? subtype,
   }) {
     final result = create();
     if (accountId != null) result.accountId = accountId;
@@ -455,6 +468,7 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
     if (totalPrincipalCents != null)
       result.totalPrincipalCents = totalPrincipalCents;
     if (debtType != null) result.debtType = debtType;
+    if (subtype != null) result.subtype = subtype;
     return result;
   }
 
@@ -481,6 +495,7 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
     ..aInt64(7, _omitFieldNames ? '' : 'totalPrincipalCents')
     ..aE<DebtType>(8, _omitFieldNames ? '' : 'debtType',
         enumValues: DebtType.values)
+    ..aOS(9, _omitFieldNames ? '' : 'subtype')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -573,6 +588,15 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
   $core.bool hasDebtType() => $_has(7);
   @$pb.TagNumber(8)
   void clearDebtType() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.String get subtype => $_getSZ(8);
+  @$pb.TagNumber(9)
+  set subtype($core.String value) => $_setString(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasSubtype() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearSubtype() => $_clearField(9);
 }
 
 class UpdateDebtRequest extends $pb.GeneratedMessage {
