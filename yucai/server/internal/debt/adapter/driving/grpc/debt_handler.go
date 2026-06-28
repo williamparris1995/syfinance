@@ -311,6 +311,22 @@ func buildPaymentEntries(debtType domain.DebtType, fromAcc, debtAcc accountdomai
 	}
 }
 
+// buildCreateEntries constructs the borrowedOut creation double-entry pair.
+// amountCents is the lent principal (TotalPrincipalCents). It is the inverse
+// of buildPaymentEntries for BorrowedOut:
+//
+//	credit source_account  (asset −, cash out)
+//	debit  debt.account_id (asset receivable +)
+//
+// Each entry carries the account's ChartOfAccountCode so the transaction
+// service can persist and route it correctly.
+func buildCreateEntries(sourceAcc, debtAcc accountdomain.Account, amountCents int64) []transactionApp.EntryInput {
+	return []transactionApp.EntryInput{
+		{AccountID: sourceAcc.ID, ChartOfAccountCode: sourceAcc.ChartCode, CreditCents: amountCents},
+		{AccountID: debtAcc.ID, ChartOfAccountCode: debtAcc.ChartCode, DebitCents: amountCents},
+	}
+}
+
 // GetDebt retrieves a debt with its payment schedule.
 func (h *DebtHandler) GetDebt(ctx context.Context, req *pb.GetDebtRequest) (*pb.DebtDetailResponse, error) {
 	tenantID, err := getTenantID(ctx)

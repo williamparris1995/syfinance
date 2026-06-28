@@ -596,3 +596,45 @@ func TestRecordPayment_CrossCurrency_RejectsAndLeavesDebtUntouched(t *testing.T)
 	}
 	requireNotPaid(t, h, tenantID, debtID, entryID)
 }
+
+// TestBuildCreateEntries_BorrowedOut verifies the borrowedOut creation
+// double-entry pair: credit source (cash out) + debit receivable (asset +),
+// balanced, with each account's ChartCode carried through. This is the
+// inverse of buildPaymentEntries for BorrowedOut.
+func TestBuildCreateEntries_BorrowedOut(t *testing.T) {
+	src := accountdomain.Account{ID: uuid.New(), ChartCode: "1001"}
+	rcv := accountdomain.Account{ID: uuid.New(), ChartCode: "1122"}
+	const amount int64 = 1_000_00
+
+	entries := buildCreateEntries(src, rcv, amount)
+
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(entries))
+	}
+	// entries[0]: source — credit only (cash out).
+	if entries[0].AccountID != src.ID {
+		t.Errorf("entries[0] account: got %s, want source %s", entries[0].AccountID, src.ID)
+	}
+	if entries[0].ChartOfAccountCode != "1001" {
+		t.Errorf("entries[0] chart code: got %q, want 1001", entries[0].ChartOfAccountCode)
+	}
+	if entries[0].CreditCents != amount || entries[0].DebitCents != 0 {
+		t.Errorf("source entry: expected credit=%d debit=0, got credit=%d debit=%d",
+			amount, entries[0].CreditCents, entries[0].DebitCents)
+	}
+	// entries[1]: receivable — debit only (asset +).
+	if entries[1].AccountID != rcv.ID {
+		t.Errorf("entries[1] account: got %s, want receivable %s", entries[1].AccountID, rcv.ID)
+	}
+	if entries[1].ChartOfAccountCode != "1122" {
+		t.Errorf("entries[1] chart code: got %q, want 1122", entries[1].ChartOfAccountCode)
+	}
+	if entries[1].DebitCents != amount || entries[1].CreditCents != 0 {
+		t.Errorf("receivable entry: expected debit=%d credit=0, got debit=%d credit=%d",
+			amount, entries[1].DebitCents, entries[1].CreditCents)
+	}
+	// Balanced: source credit == receivable debit.
+	if entries[0].CreditCents != entries[1].DebitCents {
+		t.Errorf("unbalanced: credit=%d debit=%d", entries[0].CreditCents, entries[1].DebitCents)
+	}
+}
