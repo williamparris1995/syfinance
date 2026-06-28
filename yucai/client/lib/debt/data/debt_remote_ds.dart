@@ -68,6 +68,7 @@ class DebtRemoteDataSource {
     required DateTime dueDate,
     required int totalPrincipalCents,
     required DebtType type,
+    String subtype = '',
   }) async {
     return _retry.call(() async {
       final res = await _client.createDebt(pb.CreateDebtRequest(
@@ -81,6 +82,8 @@ class DebtRemoteDataSource {
         dueDate: _fmtDate(dueDate),
         totalPrincipalCents: Int64(totalPrincipalCents),
         debtType: DebtMapper.debtTypeToProto(type),
+        // subtype 纯 String 直传(无映射),默认 '' 与 domain Debt.subtype 默认一致。
+        subtype: subtype,
       ));
       return DebtMapper.toDomain(res.debt);
     });

@@ -26,6 +26,8 @@ class DebtMapper {
       createdAt: dto.createdAt.toDateTime(),
       updatedAt: dto.updatedAt.toDateTime(),
       type: debtTypeFromProto(dto.debtType),
+      // subtype 是纯 String,与 proto 直传,无名称映射(区别于 DebtType)。
+      subtype: dto.subtype,
     );
   }
 
