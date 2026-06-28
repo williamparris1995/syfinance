@@ -2,11 +2,13 @@ package grpc
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	pb "github.com/yucai/server/internal/proto/debt/v1"
 	commonpb "github.com/yucai/server/internal/proto/common/v1"
 	"github.com/google/uuid"
+	accountdomain "github.com/yucai/server/internal/account/domain"
 	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
 	"github.com/yucai/server/internal/debt/application"
 	"github.com/yucai/server/internal/debt/domain"
@@ -111,6 +113,19 @@ func (h *DebtHandler) DeleteDebt(ctx context.Context, req *pb.DeleteDebtRequest)
 }
 
 // RecordPayment records a payment for a schedule entry.
+//
+// Double-write flow (credit-card-sync Task 2):
+//  1. h.service.RecordPayment marks the schedule entry paid (debt side).
+//  2. The debt's DebtType + AccountID are not carried on RecordPaymentResult,
+//     so we re-fetch the debt detail to drive entry construction.
+//  3. Look up from_account + debt.account_id via accountLookup to get each
+//     account's ChartOfAccountCode.
+//  4. Build double-entry pairs by DebtType and call transactionSvc.RecordTransaction
+//     so UpdateBalances adjusts both accounts.
+//
+// The transaction write is BEST-EFFORT: if it fails after the debt is already
+// marked paid, we log (English structured) and keep the debt paid rather than
+// surfacing an error to the client. Task 3 will refine failure handling.
 func (h *DebtHandler) RecordPayment(ctx context.Context, req *pb.RecordPaymentRequest) (*pb.RecordPaymentResponse, error) {
 	tenantID, err := getTenantID(ctx)
 	if err != nil {
@@ -119,8 +134,6 @@ func (h *DebtHandler) RecordPayment(ctx context.Context, req *pb.RecordPaymentRe
 	debtID, _ := uuid.Parse(req.DebtId)
 	entryID, _ := uuid.Parse(req.ScheduleEntryId)
 	fromAccountID, _ := uuid.Parse(req.FromAccountId)
-
-	_ = fromAccountID // transaction creation handled here in future
 
 	resp, err := h.service.RecordPayment(ctx, application.RecordPaymentRequest{
 		TenantID:        tenantID,
@@ -131,10 +144,86 @@ func (h *DebtHandler) RecordPayment(ctx context.Context, req *pb.RecordPaymentRe
 	if err != nil {
 		return nil, mapError(err)
 	}
+
+	// Double-write: record a balancing transaction so account balances move.
+	// Failures are best-effort (debt stays paid); see function doc.
+	h.recordPaymentTransaction(ctx, tenantID, debtID, fromAccountID, resp.Entry.TotalCents)
+
 	return &pb.RecordPaymentResponse{
 		TransactionId: resp.TransactionID.String(),
 		Entry:         entryToProto(resp.Entry),
 	}, nil
+}
+
+// recordPaymentTransaction builds double-entry pairs by DebtType and records
+// them via the transaction service. It is best-effort: any failure (debt
+// lookup, account lookup, or the transaction write itself) is logged with
+// English structured fields and swallowed so the already-paid debt is not
+// rolled back. Returns nothing — callers ignore the outcome by design.
+func (h *DebtHandler) recordPaymentTransaction(ctx context.Context, tenantID, debtID, fromAccountID uuid.UUID, totalCents int64) {
+	if h.transactionSvc == nil || h.accountLookup == nil {
+		// Wiring incomplete (e.g., unit test without txn deps); nothing to do.
+		return
+	}
+
+	// RecordPaymentResult carries neither DebtType nor the debt's AccountID,
+	// so re-fetch the debt detail to drive entry construction.
+	detail, err := h.service.GetDebt(ctx, tenantID, debtID)
+	if err != nil {
+		slog.Error("record payment double-write: debt lookup failed",
+			"operation", "debt.RecordPayment.recordPaymentTransaction",
+			"debt_id", debtID.String(), "error", err.Error())
+		return
+	}
+
+	fromAcc, err := h.accountLookup.FindByID(ctx, tenantID, fromAccountID)
+	if err != nil {
+		slog.Error("record payment double-write: from_account lookup failed",
+			"operation", "debt.RecordPayment.recordPaymentTransaction",
+			"debt_id", debtID.String(), "from_account_id", fromAccountID.String(), "error", err.Error())
+		return
+	}
+	debtAcc, err := h.accountLookup.FindByID(ctx, tenantID, detail.Debt.AccountID)
+	if err != nil {
+		slog.Error("record payment double-write: debt account lookup failed",
+			"operation", "debt.RecordPayment.recordPaymentTransaction",
+			"debt_id", debtID.String(), "debt_account_id", detail.Debt.AccountID.String(), "error", err.Error())
+		return
+	}
+
+	entries := buildPaymentEntries(detail.Debt.DebtType, *fromAcc, *debtAcc, totalCents)
+	if _, err := h.transactionSvc.RecordTransaction(ctx, transactionApp.RecordTransactionRequest{
+		TenantID:        tenantID,
+		TransactionDate: time.Now(),
+		Description:     "RecordPayment double-write",
+		Entries:         entries,
+	}); err != nil {
+		slog.Error("record payment double-write: transaction write failed",
+			"operation", "debt.RecordPayment.recordPaymentTransaction",
+			"debt_id", debtID.String(), "total_cents", totalCents, "error", err.Error())
+	}
+}
+
+// buildPaymentEntries constructs the double-entry pair for a debt payment,
+// keyed by DebtType. amountCents is the schedule entry total.
+//
+//	borrowedIn (我还债): credit from_account (asset -) + debit debt.account_id (liability -)
+//	borrowedOut (我收款): debit from_account (asset +) + credit debt.account_id (receivable asset -)
+//
+// Each entry carries the account's ChartOfAccountCode so the transaction
+// service can persist and route it correctly.
+func buildPaymentEntries(debtType domain.DebtType, fromAcc, debtAcc accountdomain.Account, amountCents int64) []transactionApp.EntryInput {
+	if debtType == domain.BorrowedOut {
+		return []transactionApp.EntryInput{
+			{AccountID: fromAcc.ID, ChartOfAccountCode: fromAcc.ChartCode, DebitCents: amountCents},
+			{AccountID: debtAcc.ID, ChartOfAccountCode: debtAcc.ChartCode, CreditCents: amountCents},
+		}
+	}
+	// BorrowedIn (and Unspecified, which resolves to BorrowedIn) → repayment.
+	return []transactionApp.EntryInput{
+		{AccountID: fromAcc.ID, ChartOfAccountCode: fromAcc.ChartCode, CreditCents: amountCents},
+		{AccountID: debtAcc.ID, ChartOfAccountCode: debtAcc.ChartCode, DebitCents: amountCents},
+	}
 }
 
 // GetDebt retrieves a debt with its payment schedule.
