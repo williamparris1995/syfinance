@@ -446,4 +446,103 @@ void main() {
       expect(find.textContaining('本金'), findsWidgets);
     });
   });
+
+  // Task 9 — 信用卡 StatRow(subtype==creditCard 才显示)+ 列表 badge 持久化 label。
+  group('credit-card StatRow (Task 9)', () {
+    Account creditCardAccount({
+      String id = 'cc-1',
+      int creditLimitCents = 5000000, // ¥50,000
+      int currentBalanceCents = 1500000, // ¥15,000 → 利用率 30%(绿)
+      int? billingDay = 9,
+      int? repaymentDay = 27,
+      String tail = '8842',
+    }) =>
+        Account(
+          id: id,
+          name: '招行信用卡',
+          accountType: AccountType.liability,
+          category: AccountCategory.creditCard,
+          currencyCode: 'CNY',
+          initialBalanceCents: 0,
+          currentBalanceCents: currentBalanceCents,
+          ownership: Ownership.personal,
+          status: AccountStatus.active,
+          creditLimitCents: creditLimitCents,
+          creditBillingDay: billingDay,
+          creditRepaymentDay: repaymentDay,
+          cardNumberTail: tail,
+        );
+
+    /// 构造带 subtype + accountId 的 Debt(_debt 默认 subtype='')。
+    Debt debtWithSubtype({
+      required String subtype,
+      String accountId = 'cc-1',
+      String counterparty = '招行信用卡',
+      double interestRate = 18.0,
+      AmortizationMethod amortization = AmortizationMethod.lumpSum,
+    }) =>
+        Debt(
+          id: 'd1',
+          accountId: accountId,
+          counterparty: counterparty,
+          interestRate: interestRate,
+          amortization: amortization,
+          startDate: DateTime(2021, 6, 15),
+          dueDate: DateTime(2051, 6, 15),
+          totalPrincipalCents: 280000000,
+          remainingPrincipalCents: 210000000,
+          version: 1,
+          createdAt: DateTime(2021, 6, 15),
+          updatedAt: DateTime(2026, 6, 1),
+          type: DebtType.borrowedIn,
+          subtype: subtype,
+        );
+
+    testWidgets('credit-card debt(subtype=creditCard) shows 信用卡区', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final ccDebt =
+          debtWithSubtype(subtype: DebtSubtypes.creditCard, accountId: 'cc-1');
+      await t.pumpWidget(_harness(
+        detail: _detail(debt: ccDebt),
+        accounts: [creditCardAccount()],
+      ));
+      await t.pumpAndSettle();
+      // 信用卡 StatRow 存在(by ValueKey)
+      expect(find.byKey(const ValueKey('creditCardStatsRow')), findsOneWidget);
+      // 账单日 / 还款日 / 信用额度 / 利用率 标签均渲染
+      expect(find.textContaining('账单日'), findsWidgets);
+      expect(find.textContaining('还款日'), findsWidgets);
+      expect(find.textContaining('信用额度'), findsWidgets);
+      expect(find.textContaining('利用率'), findsWidgets);
+      // 账单日值「每月 9 日」
+      expect(find.textContaining('每月 9 日'), findsOneWidget);
+      // 利用率 30.0%(1500000/5000000)
+      expect(find.textContaining('30.0%'), findsWidgets);
+    });
+
+    testWidgets('non-credit-card debt does NOT show 信用卡区', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      // 房贷 subtype —— 不应显示信用卡区。
+      final mortgageDebt =
+          debtWithSubtype(subtype: DebtSubtypes.mortgage, accountId: 'a1');
+      await t.pumpWidget(_harness(detail: _detail(debt: mortgageDebt)));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('creditCardStatsRow')), findsNothing);
+      expect(find.textContaining('利用率'), findsNothing);
+    });
+
+    testWidgets('legacy debt(subtype empty) does NOT show 信用卡区', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final legacyDebt = debtWithSubtype(subtype: '', accountId: 'a1');
+      await t.pumpWidget(_harness(detail: _detail(debt: legacyDebt)));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('creditCardStatsRow')), findsNothing);
+    });
+  });
 }

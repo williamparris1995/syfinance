@@ -506,7 +506,7 @@ class _DebtCard extends StatelessWidget {
   }
 
   Widget _fullCard(BuildContext context) {
-    final badge = _inferBadge(debt.counterparty);
+    final badge = _badgeFor(debt);
     final isOverdue = debt.dueDate.isBefore(DateTime.now());
     // 无 DataCard.onTap：操作栏按钮（详情/记账）负责导航，避免外层
     // GestureDetector 吞掉内层 _ActionBtn 的 tap（对齐 account card 模式 ——
@@ -597,7 +597,7 @@ class _DebtCard extends StatelessWidget {
 
   /// mobile 紧凑卡（对齐 debts-mobile.html .card.debt-card）。
   Widget _compactCard(BuildContext context) {
-    final badge = _inferBadge(debt.counterparty);
+    final badge = _badgeFor(debt);
     final isOverdue = debt.dueDate.isBefore(DateTime.now());
     // 无 DataCard.onTap（同 _fullCard）：操作栏按钮负责导航，避免吞 tap。
     // mobile 列表用 Column 自适应高度，无 Spacer（unbounded 高度下 Spacer 报错）。
@@ -854,8 +854,24 @@ class _BadgeStyle {
   final Color bg;
 }
 
+/// 卡片类型 badge:优先用持久化 subtype const label(Task 9);
+/// subtype 空(legacy 债务)→ fallback counterparty 关键字推断 _inferBadge。
+/// const 判断,禁裸 subtype 字符串。持久化 subtype 用中性金色样式,
+/// fallback 保留推断的语义色(房贷金/信用卡红/...)。
+_BadgeStyle _badgeFor(Debt debt) {
+  if (debt.subtype.isNotEmpty) {
+    final label = DebtSubtypes.labels[debt.subtype];
+    if (label != null) {
+      return _BadgeStyle(
+          label: label, fg: AppColors.accentHover, bg: AppColors.accentSoft);
+    }
+  }
+  return _inferBadge(debt.counterparty);
+}
+
 /// 从 counterparty 关键字推断类型 badge（房贷/车贷/信用卡/亲友借款/借款）。
 /// 简化策略：Debt 实体不带 category，只能从文案推。Task 7 表单可显式选择类型。
+/// Task 9 起仅作 subtype 为空(legacy)时的 fallback。
 _BadgeStyle _inferBadge(String counterparty) {
   final s = counterparty.toLowerCase();
   if (counterparty.contains('房') || s.contains('mortgage')) {

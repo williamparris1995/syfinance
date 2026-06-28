@@ -48,6 +48,11 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
   /// 选择。initState 异步拉取（直接走 repository，不经 DebtBloc）。
   List<Account> _accounts = const [];
 
+  /// 全量账户缓存（不过滤 type/status）—— 供信用卡 StatRow 按
+  /// [Debt.accountId] 找关联 credit_card 账户(credit_card 属 liability,
+  /// 不在 _accounts 的 asset 过滤集内)。Task 9。
+  List<Account> _allAccounts = const [];
+
   /// RecordPayment 写操作进行中。dispatch 后置 true，BlocListener 收到
   /// [DebtDetailLoaded]（成功刷新）/[DebtError]（失败）后清零 + toast。
   bool _recordPending = false;
@@ -66,6 +71,7 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
     result.fold(
       (_) => null, // 失败：保持空列表，RecordPayment 仍可用空 picker。
       (accounts) => setState(() {
+        _allAccounts = accounts; // 全量,供信用卡 StatRow 查 credit_card 账户。
         _accounts = accounts
             .where((a) =>
                 a.accountType == AccountType.asset &&
@@ -135,6 +141,13 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
         _hero(detail.debt, preferred),
         const SizedBox(height: 18),
         _statsRow(detail, preferred),
+        // 信用卡债务(subtype==creditCard)追加 StatRow 信用卡区:
+        // 账单日 / 还款日 / 额度 / 利用率(颜色随额度使用:绿<30/黄<70/红>=70)。
+        // const 判断,禁裸 subtype 字符串。Task 9。
+        if (detail.debt.subtype == DebtSubtypes.creditCard) ...[
+          const SizedBox(height: 18),
+          _creditCardStats(detail.debt, preferred),
+        ],
         const SizedBox(height: 18),
         _scheduleSection(detail.schedule, isMobile, preferred),
       ],
@@ -149,7 +162,9 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
     final isMobile = MediaQuery.of(context).size.width <= 720;
     final ratio = debt.progressRatio;
     final pct = (ratio * 100).toStringAsFixed(1);
-    final badge = _inferBadge(debt.counterparty);
+    // 类型 badge 优先用持久化 subtype label(Task 9);subtype 空时 fallback
+    // counterparty 关键字推断(legacy 债务兼容)。
+    final badge = _badgeLabel(debt);
     // 已还期数 / 总期数（schedule 总期数未知 —— 用 debt 维度近似：用 progressRatio
     // 不直接给期次，故 hero-prog 文案显「还清进度」+ 百分比，对齐 OD）。
     return ClipRRect(
@@ -222,7 +237,7 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
                         fontFamilyFallback: AppTypography.displayFallback,
                       ),
                     ),
-                    _heroBadge(badge.label),
+                    _heroBadge(badge),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 2),
@@ -385,6 +400,99 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
       children: [for (final s in stats) _StatCard(data: s)],
     );
   }
+
+  // ───────────────────────── 信用卡 StatRow(Task 9) ─────────────────────────
+
+  /// 信用卡债务(subtype==creditCard)额外 StatRow:账单日 / 还款日 / 额度 /
+  /// 利用率。数据来自 [Debt.accountId] 关联的 credit_card 账户(credit_card
+  /// 属 liability,故从 _allAccounts 全量缓存按 id 查)。利用率 =
+  /// currentBalance / creditLimit,颜色 绿<30% / 黄<70% / 红>=70%(行业惯例)。
+  /// 关联账户缺失或额度为 0 时仍渲染卡片但显示「—」占位。
+  Widget _creditCardStats(Debt debt, String preferred) {
+    final acct = _allAccounts.firstWhere(
+      (a) => a.id == debt.accountId,
+      orElse: () => _emptyAccount(debt.accountId),
+    );
+    final billingDay = acct.creditBillingDay;
+    final repaymentDay = acct.creditRepaymentDay;
+    final limit = acct.creditLimitCents;
+    final balance = acct.currentBalanceCents;
+    // 利用率 = 已用额度 / 信用额度(currentBalance 为已用,正值)。limit<=0 无法算。
+    final util = limit > 0 ? (balance / limit).clamp(0.0, 1.0) : null;
+    final utilPct = util == null ? null : (util * 100).toStringAsFixed(1);
+    final utilColor = _utilizationColor(util);
+    final stats = <_StatCardData>[
+      _StatCardData(
+        label: '账单日',
+        icon: LucideIcons.calendarDays,
+        value: billingDay != null ? '每月 $billingDay 日' : '—',
+        sub: billingDay != null ? '出账日' : '未设置',
+      ),
+      _StatCardData(
+        label: '还款日',
+        icon: LucideIcons.calendarClock,
+        value: repaymentDay != null ? '每月 $repaymentDay 日' : '—',
+        sub: repaymentDay != null ? '到期还款' : '未设置',
+      ),
+      _StatCardData(
+        label: '信用额度',
+        icon: LucideIcons.creditCard,
+        value: limit > 0 ? _fmtSymbol(limit, preferred) : '—',
+        sub: limit > 0 ? '尾号 ${acct.cardNumberTail.isEmpty ? "—" : acct.cardNumberTail}' : '未设置额度',
+      ),
+      _StatCardData(
+        label: '利用率',
+        icon: LucideIcons.gauge,
+        value: utilPct != null ? '$utilPct%' : '—',
+        sub: _utilizationLabel(util),
+      ),
+    ];
+    final w = MediaQuery.of(context).size.width;
+    final isTablet = w <= 900;
+    return GridView.count(
+      key: const ValueKey('creditCardStatsRow'),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: isTablet ? 2 : 4,
+      mainAxisSpacing: 14,
+      crossAxisSpacing: 14,
+      mainAxisExtent: 148,
+      children: [
+        for (final s in stats)
+          _StatCard(data: s, valueColorOverride: s.label == '利用率' ? utilColor : null),
+      ],
+    );
+  }
+
+  /// 利用率颜色:绿(<30%) / 黄(<70%) / 红(>=70%)。null(无法计算) → 中性。
+  /// 复用 AppColors token:positive(绿)/ accent(金/黄)/ negative(红)。
+  Color? _utilizationColor(double? util) {
+    if (util == null) return null;
+    if (util < 0.30) return AppColors.positive;
+    if (util < 0.70) return AppColors.accent;
+    return AppColors.negative;
+  }
+
+  /// 利用率文字标签(配合颜色):健康(<30%) / 适中(<70%) / 偏高(>=70%) / —。
+  String _utilizationLabel(double? util) {
+    if (util == null) return '未设额度';
+    if (util < 0.30) return '使用健康';
+    if (util < 0.70) return '使用适中';
+    return '使用偏高';
+  }
+
+  /// 占位空账户(关联账户缺失时)。仅 id 与 debt.accountId 对齐,其余默认。
+  Account _emptyAccount(String id) => Account(
+        id: id,
+        name: '',
+        accountType: AccountType.liability,
+        category: AccountCategory.creditCard,
+        currencyCode: 'CNY',
+        initialBalanceCents: 0,
+        currentBalanceCents: 0,
+        ownership: Ownership.personal,
+        status: AccountStatus.active,
+      );
 
   // ───────────────────────── Schedule ─────────────────────────
 
@@ -919,9 +1027,11 @@ class _StatCardData {
 }
 
 /// StatCard（对齐 OD .stat：金 icon + label + value + sub）。
+/// [valueColorOverride] 用于利用率等需要语义着色的 value(Task 9)。
 class _StatCard extends StatelessWidget {
-  const _StatCard({required this.data});
+  const _StatCard({required this.data, this.valueColorOverride});
   final _StatCardData data;
+  final Color? valueColorOverride;
 
   @override
   Widget build(BuildContext context) {
@@ -945,10 +1055,11 @@ class _StatCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(data.value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 letterSpacing: -0.01,
+                color: valueColorOverride ?? AppColors.fg,
                 fontFeatures: AppTypography.tabularFigures,
               )),
           const SizedBox(height: 5),
@@ -1124,7 +1235,17 @@ String _amortLabel(AmortizationMethod m) {
   }
 }
 
+/// 类型 badge label:优先用持久化 subtype const label(Task 9);
+/// subtype 空(legacy 债务)→ fallback counterparty 关键字推断。
+String _badgeLabel(Debt debt) {
+  if (debt.subtype.isNotEmpty) {
+    return DebtSubtypes.labels[debt.subtype] ?? _inferBadge(debt.counterparty).label;
+  }
+  return _inferBadge(debt.counterparty).label;
+}
+
 /// 从 counterparty 关键字推断类型 badge（与 debts_page._inferBadge 同语义）。
+/// 仅作 subtype 为空时的 fallback。
 _BadgeStyle _inferBadge(String counterparty) {
   final s = counterparty.toLowerCase();
   if (counterparty.contains('房') || s.contains('mortgage')) {

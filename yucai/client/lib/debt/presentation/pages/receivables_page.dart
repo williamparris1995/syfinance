@@ -505,7 +505,7 @@ class _ReceivableCard extends StatelessWidget {
   }
 
   Widget _fullCard(BuildContext context) {
-    final badge = _inferBadge(debt.counterparty);
+    final badge = _badgeFor(debt);
     final isOverdue = debt.dueDate.isBefore(DateTime.now());
     final isSettled = debt.remainingPrincipalCents <= 0;
     return DataCard(
@@ -597,7 +597,7 @@ class _ReceivableCard extends StatelessWidget {
 
   /// mobile 紧凑卡(对齐 receivables-mobile.html .rcv)。
   Widget _compactCard(BuildContext context) {
-    final badge = _inferBadge(debt.counterparty);
+    final badge = _badgeFor(debt);
     final isOverdue = debt.dueDate.isBefore(DateTime.now());
     final isSettled = debt.remainingPrincipalCents <= 0;
     // mobile 列表用 Column 自适应高度,无 Spacer(unbounded 高度下 Spacer 报错)。
@@ -855,8 +855,24 @@ class _BadgeStyle {
   final Color bg;
 }
 
+/// 卡片类型 badge:优先用持久化 subtype const label(Task 9);
+/// subtype 空(legacy 债权)→ fallback counterparty 关键字推断 _inferBadge。
+/// const 判断,禁裸 subtype 字符串。持久化 subtype 用中性金色样式,
+/// fallback 保留推断的语义色(商业蓝/亲友绿/...)。
+_BadgeStyle _badgeFor(Debt debt) {
+  if (debt.subtype.isNotEmpty) {
+    final label = ReceivableSubtypes.labels[debt.subtype];
+    if (label != null) {
+      return _BadgeStyle(
+          label: label, fg: AppColors.accentHover, bg: AppColors.accentSoft);
+    }
+  }
+  return _inferBadge(debt.counterparty);
+}
+
 /// 从 counterparty 关键字推断债权类型 badge(商业/亲友/私人/借款)。
 /// 对齐 OD receivables.html 的 b-business / b-family / b-personal。
+/// Task 9 起仅作 subtype 为空(legacy)时的 fallback。
 _BadgeStyle _inferBadge(String counterparty) {
   final s = counterparty.toLowerCase();
   if (counterparty.contains('公司') ||

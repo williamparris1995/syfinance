@@ -329,4 +329,67 @@ void main() {
     // 空态(borrowedIn 无数据)。
     expect(find.textContaining('还没有债务'), findsOneWidget);
   });
+
+  // Task 9 — 列表 badge 用持久化 subtype const label(替代 _inferBadge 推断)。
+  group('badge subtype label (Task 9)', () {
+    Debt debtWith({
+      required String id,
+      required String subtype,
+      String counterparty = '某机构',
+    }) =>
+        Debt(
+          id: id,
+          accountId: 'a-$id',
+          counterparty: counterparty,
+          interestRate: 5.0,
+          amortization: AmortizationMethod.equalPrincipal,
+          startDate: DateTime(2026, 1, 1),
+          dueDate: DateTime(2027, 6, 1),
+          totalPrincipalCents: 1000000,
+          remainingPrincipalCents: 800000,
+          version: 1,
+          createdAt: DateTime(2026, 1, 1),
+          updatedAt: DateTime(2026, 1, 1),
+          type: DebtType.borrowedIn,
+          subtype: subtype,
+        );
+
+    testWidgets('subtype=creditCard shows const label "信用卡"', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      // counterparty 不含「信用卡/crAgent」关键字 —— 老 _inferBadge 会猜「借款」,
+      // 但持久化 subtype 应胜出,显示 const label「信用卡」。
+      final cc = debtWith(
+          id: 'cc', subtype: DebtSubtypes.creditCard, counterparty: '某机构');
+      await t.pumpWidget(_harness([cc]));
+      await t.pumpAndSettle();
+      expect(find.text('信用卡'), findsWidgets);
+      // 不出现 fallback 推断的「借款」badge。
+      expect(find.text('借款'), findsNothing);
+    });
+
+    testWidgets('subtype=mortgage shows const label "房贷"', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final mg = debtWith(
+          id: 'mg', subtype: DebtSubtypes.mortgage, counterparty: '某机构');
+      await t.pumpWidget(_harness([mg]));
+      await t.pumpAndSettle();
+      expect(find.text('房贷'), findsWidgets);
+    });
+
+    testWidgets('subtype empty(legacy) falls back to _inferBadge', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      // subtype 空 + counterparty 含「房」→ fallback 推断「房贷」。
+      final legacy = debtWith(
+          id: 'lg', subtype: '', counterparty: '某房贷机构');
+      await t.pumpWidget(_harness([legacy]));
+      await t.pumpAndSettle();
+      expect(find.text('房贷'), findsWidgets);
+    });
+  });
 }
