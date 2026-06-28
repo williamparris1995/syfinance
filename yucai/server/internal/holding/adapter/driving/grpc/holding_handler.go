@@ -93,9 +93,25 @@ func (h *HoldingHandler) BuyHolding(ctx context.Context, req *pb.HoldingTradeReq
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, err.Error())
 	}
+	fromAccountID, err := uuid.Parse(req.FromAccountId)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid from_account_id")
+	}
+	holdingAccountID, err := uuid.Parse(req.AccountId)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid account_id")
+	}
 	td, _ := parseDate(req.TradeDate)
+	// amount = priceCents × quantity (double-write 金额，与 service AmountCents 一致)。
+	amountCents := int64(float64(req.PriceCents) * req.Quantity)
+
+	fromAcc, err := h.validateTradeFromAccount(ctx, tenantID, fromAccountID, holdingAccountID, amountCents, true /*buy*/)
+	if err != nil {
+		return nil, err
+	}
+
 	resp, err := h.service.BuyHolding(ctx, application.HoldingTradeRequest{
-		TenantID: tenantID, AccountID: parseUUID(req.AccountId),
+		TenantID: tenantID, AccountID: holdingAccountID,
 		SecurityID: parseUUID(req.SecurityId), Quantity: req.Quantity,
 		PriceCents: req.PriceCents, FeeCents: req.FeeCents,
 		TradeDate: td, Notes: req.Notes,
@@ -103,6 +119,10 @@ func (h *HoldingHandler) BuyHolding(ctx context.Context, req *pb.HoldingTradeReq
 	if err != nil {
 		return nil, mapError(err)
 	}
+
+	// Double-write: cash out (from) + investment in (holding). Best-effort.
+	h.recordTradeTransaction(ctx, tenantID, fromAccountID, fromAcc, holdingAccountID, domain.TradeTypeBuy, amountCents)
+
 	return &pb.HoldingTransactionResponse{Transaction: tradeToProto(*resp)}, nil
 }
 
