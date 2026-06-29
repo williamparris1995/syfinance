@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Security 管理 · Mobile · 御财持仓</title>
+<!--
+  ============================================================================
+  Security 管理 · Mobile（<768px · 390×844 phone · 卡片列表 + FAB 创建 sheet）
+  ----------------------------------------------------------------------------
+  API 标注（对照 spec §3）:
+    - CreateSecurity(symbol, name, type, exchange, currency)        ✅ 已实现
+    - ListSecurities()                                              ✅ 已实现
+    - SearchSecurities(query)                                       ✅ 已实现
+    - UpdateSecurityPrice(security_id, price)  手动改价              ✅ 已实现
+    - 自动 sync provider(scheduler + 行情 API)                       ⏳ B 子项目（开关 disabled）
+  Mock 演示（mock-data.js）：6 securities；price/updated 覆盖在本地 <script>
+  形态：卡片行 + 创建/sync 走 sheet（bottom sheet 滑入）
+  ============================================================================
+-->
+<link rel="stylesheet" href="styles.css">
+<style>
+  body { background: var(--bg-deep); padding: 0; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <!-- ============ 状态栏 ============ -->
+  <div class="statusbar">
+    <span>9:41</span>
+    <span class="sb-icons">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 16 0"/><path d="M2 12a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z"/><path d="M8 14a4 4 0 0 1 8 0"/></svg>
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="10" x="2" y="7" rx="2"/><line x1="22" x2="22" y1="11" y2="13"/></svg>
+    </span>
+  </div>
+
+  <!-- ============ 顶栏 ============ -->
+  <div class="topbar">
+    <div class="tb-title">
+      <h1>Security</h1>
+      <div class="tb-sub">证券字典 · 价格管理 · 6 个</div>
+    </div>
+    <div class="tb-actions">
+      <button id="refreshBtn" class="icon-btn btn-refresh" title="刷新全部价格">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ 滚动区 ============ -->
+  <div class="scroll">
+    <!-- 搜索 -->
+    <div class="search" style="width:100%;padding:9px 12px;margin-bottom:14px;">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="searchInput" placeholder="搜索 symbol / 名称…" style="border:none;outline:none;background:transparent;font-size:13.5px;width:100%;">
+    </div>
+
+    <!-- sync 提示条 -->
+    <div class="card" style="margin-bottom:14px;padding:11px 13px;display:flex;align-items:center;gap:9px;background:var(--accent-soft);border-color:var(--gold-soft);">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="color:var(--gold-deep);width:16px;height:16px;flex-shrink:0;"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <div style="flex:1;font-size:11.5px;color:var(--gold-deep);min-width:0;line-height:1.35;">
+        <strong>自动同步未启用</strong><br><span style="color:var(--muted);font-size:10.5px;">B 子项目：scheduler + 行情 API</span>
+      </div>
+      <div class="m-provider" id="globalProvider">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        <span id="globalProvName">Yahoo</span>
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </div>
+    </div>
+
+    <!-- 区标题 -->
+    <div class="m-sec-h" style="margin-top:4px;">
+      <h3>证券列表</h3>
+      <span class="m-link" id="rowCount">共 6 个</span>
+    </div>
+
+    <!-- 卡片列表 -->
+    <div class="acc-list" id="secList"></div>
+
+    <div id="searchEmpty" class="search-empty" style="display:none;">
+      <div class="se-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></div>
+      <div class="se-title">未找到</div>
+      <div class="se-text">试试其他 symbol 或名称</div>
+    </div>
+
+    <div style="height:8px;"></div>
+  </div>
+
+  <!-- ============ FAB 创建 ============ -->
+  <button class="fab" id="createBtn" title="新建 Security">
+    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+  </button>
+
+  <!-- ============ 底部 tabbar ============ -->
+  <nav class="tabbar">
+    <div class="tab">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+      持仓
+    </div>
+    <div class="tab">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="m9 13 3 3 3-3"/></svg>
+      交易
+    </div>
+    <div class="tab active">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
+      Security
+    </div>
+    <div class="tab">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      我的
+    </div>
+  </nav>
+
+  <!-- ============ 创建 bottom sheet ============ -->
+  <div id="sheetOverlay" class="sheet-overlay" style="display:none;"></div>
+  <div id="sheet" class="sheet" style="display:none;width:100%;border-radius:var(--r-xl) var(--r-xl) 0 0;">
+    <div class="sheet-grabber"></div>
+    <div class="sheet-head">
+      <div class="sh-title">
+        <h2>新建 Security</h2>
+        <div class="sh-sub">CreateSecurity · ✅ 已实现</div>
+      </div>
+      <button class="icon-btn" id="sheetClose"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    </div>
+    <form class="sheet-body" id="createForm" onsubmit="return false;">
+      <div class="field"><label class="field-label">Symbol <span class="req">*</span><span class="field-hint">如 AAPL</span></label><input class="input mono" name="symbol" placeholder="AAPL" required></div>
+      <div class="field"><label class="field-label">名称 <span class="req">*</span></label><input class="input" name="name" placeholder="Apple Inc." required></div>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field"><label class="field-label">Type</label>
+          <select class="select" name="type"><option value="stock">股票</option><option value="fund">基金</option><option value="etf">ETF</option><option value="bond">债券</option><option value="gold">黄金</option></select>
+        </div>
+        <div class="field"><label class="field-label">Currency</label>
+          <select class="select mono" name="currency"><option>CNY</option><option>USD</option><option>HKD</option></select>
+        </div>
+      </div>
+      <div class="field"><label class="field-label">Exchange / Market <span class="req">*</span></label><input class="input mono" name="exchange" placeholder="NASDAQ / SH / HK" required></div>
+    </form>
+    <div class="sheet-foot">
+      <span class="api-badge done"><span class="dot"></span>CreateSecurity ✅</span>
+      <button class="btn btn-ghost" id="sheetCancel">取消</button>
+      <button class="btn btn-gold" id="sheetSave">创建</button>
+    </div>
+  </div>
+
+  <div class="toast-host" id="toastHost"></div>
+</div>
+
+<script src="mock-data.js"></script>
+<script>
+window.PRICE_OVERRIDE = {
+  s1: { price: 185.00, updated: '2026-06-29 09:30:00' },
+  s2: { price: 10.85,  updated: '2026-06-29 15:00:00' },
+  s3: { price: 4.12,   updated: '2026-06-29 15:00:00' },
+  s4: { price: 2.68,   updated: '2026-06-28 15:00:00' },
+  s5: { price: 101.20, updated: '2026-06-27 15:00:00' },
+  s6: { price: 545.00, updated: '2026-06-29 15:00:00' },
+};
+window.SECURITIES && Object.keys(window.SECURITIES).forEach(function (sid) {
+  if (!window.PRICE_OVERRIDE[sid]) {
+    var h = (window.HOLDINGS || []).find(function (x) { return x.security_id === sid; });
+    if (h) window.PRICE_OVERRIDE[sid] = { price: h.current_price, updated: '2026-06-28 15:00:00' };
+  }
+});
+var PROVIDERS = [
+  { id: 'yahoo',  name: 'Yahoo',  color: '#5f01d1' },
+  { id: 'sina',   name: '新浪',   color: '#cf1322' },
+  { id: 'tencent', name: '腾讯',  color: '#1a9c2c' },
+];
+var globalProvider = PROVIDERS[0];
+
+function relTime(absStr) {
+  var t = new Date(absStr.replace(' ', 'T'));
+  var now = new Date('2026-06-29 15:05:00');
+  var diff = Math.max(0, (now - t) / 1000);
+  if (diff < 60) return '刚刚';
+  if (diff < 3600) return Math.floor(diff / 60) + '分前';
+  if (diff < 86400) return Math.floor(diff / 3600) + '小时前';
+  return Math.floor(diff / 86400) + '天前';
+}
+
+function renderList(q) {
+  var list = document.getElementById('secList');
+  var sids = Object.keys(window.SECURITIES);
+  if (q) {
+    var ql = q.toLowerCase();
+    sids = sids.filter(function (sid) {
+      var s = window.SECURITIES[sid];
+      return s.symbol.toLowerCase().indexOf(ql) >= 0 || (s.name || '').toLowerCase().indexOf(ql) >= 0;
+    });
+  }
+  document.getElementById('rowCount').textContent = '共 ' + sids.length + ' 个';
+  document.getElementById('searchEmpty').style.display = sids.length === 0 ? 'block' : 'none';
+  list.innerHTML = sids.map(function (sid) {
+    var s = window.SECURITIES[sid];
+    var po = window.PRICE_OVERRIDE[sid] || {};
+    var meta = window.TYPE_META[s.type] || { label: s.type, color: 'var(--gold)' };
+    return '<div class="acc" data-sid="' + sid + '">'
+      + '<div class="sec-card-head">'
+      +   '<div class="sec-card-left">'
+      +     '<div class="sec-card-sym"><span class="sym">' + s.symbol + '</span><span class="type-tag" style="background:var(--accent-soft);color:' + meta.color + ';">' + meta.label + '</span></div>'
+      +     '<div class="sec-card-name">' + s.name + '</div>'
+      +     '<div class="sec-card-meta"><span>' + (s.market || '—') + '</span><span class="meta-cur">' + s.currency + '</span></div>'
+      +   '</div>'
+      +   '<div class="sec-card-right">'
+      +     '<div class="sec-card-price">' + window.fmtRaw(po.price, s.currency) + '</div>'
+      +     '<div class="sec-card-upd">' + relTime(po.updated) + '</div>'
+      +   '</div>'
+      + '</div>'
+      + '<div class="sec-card-foot">'
+      +   '<div class="sync-cell disabled" style="title:B 子项目;flex:1;">'
+      +     '<div class="sync-toggle"><svg class="icon st-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>'
+      +     '<div class="sync-meta"><span class="sm-provider">自动同步</span><span class="sm-hint">B 子项目</span></div>'
+      +   '</div>'
+      +   '<span class="scf-edit" data-sid="' + sid + '"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>改价</span>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+  list.querySelectorAll('.scf-edit').forEach(function (el) {
+    el.onclick = function () { openEditSheet(el.getAttribute('data-sid')); };
+  });
+}
+
+/* —— mobile 行内编辑走小 sheet（屏幕窄）—— */
+function openEditSheet(sid) {
+  closeEditSheet();
+  var s = window.SECURITIES[sid];
+  var po = window.PRICE_OVERRIDE[sid] || {};
+  var overlay = document.createElement('div');
+  overlay.className = 'sheet-overlay'; overlay.id = 'editOverlay';
+  overlay.style.display = 'flex';
+  var sheet = document.createElement('div');
+  sheet.className = 'sheet'; sheet.id = 'editSheet';
+  sheet.style.cssText = 'display:flex;width:100%;border-radius:var(--r-xl) var(--r-xl) 0 0;';
+  sheet.innerHTML = '<div class="sheet-grabber"></div>'
+    + '<div class="sheet-head"><div class="sh-title"><h2>编辑现价</h2><div class="sh-sub">' + s.symbol + ' · ' + s.name + ' · UpdateSecurityPrice ✅</div></div>'
+    + '<button class="icon-btn" id="editClose"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></div>'
+    + '<div class="sheet-body"><div class="field"><label class="field-label">现价 <span class="req">*</span><span class="field-hint">' + s.currency + '</span></label>'
+    + '<div class="input-affix"><span class="affix left">' + (s.currency === 'USD' ? '$' : '¥') + '</span>'
+    + '<input class="input mono has-l" id="editInput" value="' + po.price + '" type="number" step="0.001" min="0"></div></div>'
+    + '<div class="bal-preview ok" style="margin-top:6px;"><span class="bp-label">上次更新</span><span class="bp-flow">' + po.updated + '</span></div>'
+    + '</div>'
+    + '<div class="sheet-foot"><span class="api-badge done"><span class="dot"></span>UpdateSecurityPrice ✅</span>'
+    + '<button class="btn btn-ghost" id="editCancel">取消</button>'
+    + '<button class="btn btn-gold" id="editSave">保存</button></div>';
+  document.querySelector('.phone').appendChild(overlay);
+  document.querySelector('.phone').appendChild(sheet);
+  var inp = sheet.querySelector('#editInput'); inp.focus(); inp.select();
+  sheet.querySelector('#editClose').onclick = closeEditSheet;
+  sheet.querySelector('#editCancel').onclick = closeEditSheet;
+  overlay.onclick = closeEditSheet;
+  sheet.querySelector('#editSave').onclick = function () {
+    var v = parseFloat(inp.value);
+    if (!isFinite(v) || v <= 0) { toast('现价无效，需为正数', 'warn'); return; }
+    var old = po.price;
+    window.PRICE_OVERRIDE[sid] = { price: v, updated: '2026-06-29 15:05:00' };
+    closeEditSheet();
+    renderList(currentQuery());
+    toast('✓ ' + s.symbol + ' 现价：' + window.fmtRaw(old, s.currency) + ' → ' + window.fmtRaw(v, s.currency), 'ok');
+  };
+}
+function closeEditSheet() {
+  var o = document.getElementById('editOverlay'); if (o) o.remove();
+  var s = document.getElementById('editSheet'); if (s) s.remove();
+}
+
+document.getElementById('globalProvider').onclick = function (e) {
+  closeGlobalMenu();
+  var menu = document.createElement('div');
+  menu.className = 'ps-menu'; menu.id = 'openGlobalMenu'; menu.style.right = '0'; menu.style.left = 'auto';
+  menu.innerHTML = PROVIDERS.map(function (p) {
+    return '<div class="ps-item' + (p.id === globalProvider.id ? ' active' : '') + '" data-prov="' + p.id + '"><span class="ps-dot" style="background:' + p.color + ';"></span>' + p.name + '</div>';
+  }).join('');
+  e.currentTarget.appendChild(menu);
+  menu.querySelectorAll('.ps-item').forEach(function (it) {
+    it.onclick = function (ev) {
+      ev.stopPropagation();
+      globalProvider = PROVIDERS.find(function (x) { return x.id === it.getAttribute('data-prov'); });
+      document.getElementById('globalProvName').textContent = globalProvider.name;
+      closeGlobalMenu();
+      toast('行情源：' + globalProvider.name + '（mock）', 'ok');
+    };
+  });
+  setTimeout(function () { document.addEventListener('click', closeGlobalMenu, { once: true }); }, 0);
+};
+function closeGlobalMenu() { var m = document.getElementById('openGlobalMenu'); if (m) m.remove(); }
+
+function currentQuery() { return document.getElementById('searchInput').value.trim(); }
+document.getElementById('searchInput').oninput = function () { renderList(currentQuery()); };
+
+document.getElementById('refreshBtn').onclick = function () {
+  var btn = this;
+  if (btn.classList.contains('spinning')) return;
+  btn.classList.add('spinning'); btn.disabled = true;
+  setTimeout(function () {
+    Object.keys(window.PRICE_OVERRIDE).forEach(function (sid) {
+      var po = window.PRICE_OVERRIDE[sid];
+      var delta = po.price * (Math.random() - 0.5) * 0.01;
+      window.PRICE_OVERRIDE[sid] = { price: +(po.price + delta).toFixed(4), updated: '2026-06-29 15:05:00' };
+    });
+    renderList(currentQuery());
+    btn.classList.remove('spinning'); btn.disabled = false;
+    toast('✓ 已刷新全部价格', 'ok');
+  }, 1200);
+};
+
+var sheet = document.getElementById('sheet');
+var sheetOverlay = document.getElementById('sheetOverlay');
+function openSheet() { sheet.style.display = 'flex'; sheetOverlay.style.display = 'flex'; }
+function closeSheet() { sheet.style.display = 'none'; sheetOverlay.style.display = 'none'; document.getElementById('createForm').reset(); }
+document.getElementById('createBtn').onclick = openSheet;
+document.getElementById('sheetClose').onclick = closeSheet;
+document.getElementById('sheetCancel').onclick = closeSheet;
+document.getElementById('sheetSave').onclick = function () {
+  var f = document.getElementById('createForm');
+  if (!f.reportValidity()) return;
+  var data = new FormData(f);
+  toast('✓ 已创建：' + data.get('symbol') + ' · ' + data.get('name'), 'ok');
+  closeSheet();
+};
+
+function toast(msg, kind) {
+  var host = document.getElementById('toastHost');
+  var t = document.createElement('div');
+  t.className = 'toast ' + (kind === 'ok' ? 'ok' : '');
+  t.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + (kind === 'ok' ? '<path d="M20 6 9 17l-5-5"/>' : '<path d="M12 9v4"/><path d="M12 17h.01"/><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>') + '</svg>' + msg;
+  host.appendChild(t);
+  setTimeout(function () { t.remove(); }, 2100);
+}
+
+renderList('');
+</script>
+</body>
+</html>

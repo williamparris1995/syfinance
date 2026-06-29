@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Security 管理 · Desktop · 御财持仓</title>
+<!--
+  ============================================================================
+  Security 管理 · Desktop（≥1024px · 1440×900 · 侧栏 + 主区表格 + 右侧抽屉）
+  ----------------------------------------------------------------------------
+  API 标注（对照 spec §3）:
+    - CreateSecurity(symbol, name, type, exchange, currency)        ✅ 已实现
+    - ListSecurities()                                              ✅ 已实现
+    - SearchSecurities(query)  (symbol/name 实时过滤)               ✅ 已实现
+    - UpdateSecurityPrice(security_id, price)  (手动行内改价)        ✅ 已实现
+    - 自动 sync provider(scheduler + Yahoo/新浪/腾讯 行情 API)        ⏳ B 子项目
+        → 开关 disabled 占位，hover 提示「B 子项目：scheduler + 行情 API」
+        → 行情源下拉 mock（Yahoo/新浪/腾讯），切换仅 UI 演示
+  Mock 演示（mock-data.js）:
+    - 6 securities: AAPL(USD) / 600000 / 510300 / 163406 / 019547 / AU9999
+    - price/updated 覆盖在本地 <script>（mock-data.js SECURITIES 未带此两字段，
+      从 HOLDINGS.current_price 取 + 演示时间戳）
+  ============================================================================
+-->
+<link rel="stylesheet" href="styles.css">
+<style>
+  /* demo 画布：仅外壳背景，主体靠 styles.css 组件类 */
+  body { background: var(--bg-deep); padding: 0; }
+  .demo-shell { width: 1440px; margin: 24px auto; position: relative; }
+  /* 高亮 Security nav */
+  .nav-item.nav-security { background: var(--gold); color: #fff; }
+  .nav-item.nav-security .icon, .nav-item.nav-security .nav-cnt { color: #fff; }
+  /* 操作列按钮小号 */
+  .sec-table th.ops, .sec-table td.ops { width: 110px; text-align: right; }
+  .sec-table th.sync, .sec-table td.sync { width: 168px; }
+  .sec-table th.provider { width: 130px; }
+</style>
+</head>
+<body>
+<div class="demo-shell">
+  <div class="desk-shell" style="position:relative;">
+    <!-- ============ 侧栏 ============ -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">御</div>
+        <div class="brand-name">御财<span>·持仓</span></div>
+      </div>
+      <div class="nav-sec">
+        <div class="nav-sec-label">持仓管理</div>
+        <div class="nav-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 7l-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/></svg>持仓列表<span class="nav-cnt">6</span></div>
+        <div class="nav-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="m9 13 3 3 3-3"/></svg>交易 Sheet</div>
+        <div class="nav-item nav-security"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>Security 管理<span class="nav-cnt">6</span></div>
+        <div class="nav-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>持仓详情</div>
+        <div class="nav-sec-label" style="margin-top:10px;">统计 & 目标</div>
+        <div class="nav-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>收益统计</div>
+        <div class="nav-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>投资目标</div>
+      </div>
+      <div class="sidebar-foot">v1.0 · 御财持仓 A-od</div>
+    </aside>
+
+    <!-- ============ 主区 ============ -->
+    <main class="desk-main">
+      <div class="topbar-d">
+        <div class="tb-left">
+          <h1>Security 管理</h1>
+          <div class="tb-sub">证券字典 · 价格管理 · 6 个标的</div>
+        </div>
+        <div class="topbar-actions">
+          <button class="search" style="border:1px solid var(--border);padding:8px 12px;width:230px;">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input id="searchInput" placeholder="搜索 symbol / 名称…" style="border:none;outline:none;background:transparent;font-size:13px;width:100%;">
+          </button>
+          <button id="refreshBtn" class="btn btn-refresh">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+            刷新全部
+          </button>
+          <button id="createBtn" class="btn btn-gold">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+            新建 Security
+          </button>
+        </div>
+      </div>
+
+      <!-- 顶部 sync 提示条（B 预留） -->
+      <div class="card" style="margin-bottom:14px;padding:12px 18px;display:flex;align-items:center;gap:12px;background:var(--accent-soft);border-color:var(--gold-soft);">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="color:var(--gold-deep);width:18px;height:18px;"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <div style="flex:1;font-size:13px;color:var(--gold-deep);">
+          <strong>自动价格同步</strong>当前未启用 —— <span style="color:var(--muted);">B 子项目将实现 scheduler + 行情 API（Yahoo / 新浪 / 腾讯）自动抓取</span>
+        </div>
+        <div class="provider-select" id="globalProvider">
+          <div class="ps-current">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            行情源: <strong id="globalProvName" style="color:var(--fg-strong);margin-left:2px;">Yahoo Finance</strong>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ 表格 ============ -->
+      <div class="card table-card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">证券列表</div>
+            <div class="card-sub">symbol · name · type · exchange · currency · 现价 · 更新时间</div>
+          </div>
+          <div class="card-sub" id="rowCount">共 6 个</div>
+        </div>
+        <table class="holdings-table sec-table">
+          <thead>
+            <tr>
+              <th>Symbol / 名称</th>
+              <th style="width:90px;">Type</th>
+              <th style="width:90px;">Exchange</th>
+              <th style="width:80px;">Currency</th>
+              <th class="num" style="width:150px;">现价 <svg class="icon sort" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg></th>
+              <th class="num provider">行情源</th>
+              <th class="sync">自动同步</th>
+              <th class="num" style="width:140px;">更新时间</th>
+              <th class="ops">操作</th>
+            </tr>
+          </thead>
+          <tbody id="secBody"><!-- JS render --></tbody>
+        </table>
+        <div id="searchEmpty" class="search-empty" style="display:none;">
+          <div class="se-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></div>
+          <div class="se-title">未找到匹配的 Security</div>
+          <div class="se-text">试试其他 symbol 或名称关键词</div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ============ 右侧抽屉（创建表单）============ -->
+    <div id="drawerOverlay" class="drawer-overlay" style="display:none;"></div>
+    <aside id="drawer" class="drawer" style="display:none;">
+      <div class="drawer-head">
+        <div>
+          <h2>新建 Security</h2>
+          <div class="card-sub">CreateSecurity · ✅ 已实现</div>
+        </div>
+        <button class="icon-btn" id="drawerClose"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+      </div>
+      <form class="drawer-body" id="createForm" onsubmit="return false;">
+        <div class="field">
+          <label class="field-label">Symbol <span class="req">*</span><span class="field-hint">如 AAPL / 600000</span></label>
+          <input class="input mono" name="symbol" placeholder="AAPL" required>
+        </div>
+        <div class="field">
+          <label class="field-label">名称 <span class="req">*</span></label>
+          <input class="input" name="name" placeholder="Apple Inc." required>
+        </div>
+        <div class="field">
+          <label class="field-label">Type <span class="req">*</span></label>
+          <select class="select" name="type">
+            <option value="stock">股票 stock</option>
+            <option value="fund">基金 fund</option>
+            <option value="etf">ETF</option>
+            <option value="bond">债券 bond</option>
+            <option value="gold">黄金 gold</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label">Exchange / Market <span class="req">*</span></label>
+          <input class="input mono" name="exchange" placeholder="NASDAQ / SH / HK" required>
+        </div>
+        <div class="field">
+          <label class="field-label">Currency <span class="req">*</span></label>
+          <select class="select mono" name="currency">
+            <option value="CNY">CNY ¥</option>
+            <option value="USD">USD $</option>
+            <option value="HKD">HKD HK$</option>
+          </select>
+        </div>
+      </form>
+      <div class="drawer-foot">
+        <button class="btn btn-ghost" id="drawerCancel">取消</button>
+        <button class="btn btn-gold" id="drawerSave">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+          创建
+        </button>
+      </div>
+    </aside>
+
+    <div class="toast-host" id="toastHost"></div>
+  </div>
+</div>
+
+<script src="mock-data.js"></script>
+<script>
+/* —— 本地 price/updated 覆盖（mock-data.js SECURITIES 未带此两字段，演示用）—— */
+window.PRICE_OVERRIDE = {
+  s1: { price: 185.00, updated: '2026-06-29 09:30:00' },
+  s2: { price: 10.85,  updated: '2026-06-29 15:00:00' },
+  s3: { price: 4.12,   updated: '2026-06-29 15:00:00' },
+  s4: { price: 2.68,   updated: '2026-06-28 15:00:00' },
+  s5: { price: 101.20, updated: '2026-06-27 15:00:00' },
+  s6: { price: 545.00, updated: '2026-06-29 15:00:00' },
+};
+/* fallback：HOLDINGS current_price 也作来源 */
+window.SECURITIES && Object.keys(window.SECURITIES).forEach(function (sid) {
+  if (!window.PRICE_OVERRIDE[sid]) {
+    var h = (window.HOLDINGS || []).find(function (x) { return x.security_id === sid; });
+    if (h) window.PRICE_OVERRIDE[sid] = { price: h.current_price, updated: '2026-06-28 15:00:00' };
+  }
+});
+
+var PROVIDERS = [
+  { id: 'yahoo',  name: 'Yahoo Finance',  color: '#5f01d1' },
+  { id: 'sina',   name: '新浪财经',        color: '#cf1322' },
+  { id: 'tencent', name: '腾讯财经',        color: '#1a9c2c' },
+];
+var globalProvider = PROVIDERS[0];
+var rowProvider = {}; // sid -> provider（默认继承 global）
+Object.keys(window.SECURITIES).forEach(function (sid) { rowProvider[sid] = globalProvider; });
+
+/* —— 相对时间 —— */
+function relTime(absStr) {
+  // absStr: '2026-06-29 09:30:00' → '3分钟前'
+  var t = new Date(absStr.replace(' ', 'T'));
+  var now = new Date('2026-06-29 15:05:00'); // demo 固定 now
+  var diff = Math.max(0, (now - t) / 1000); // s
+  if (diff < 60) return '刚刚';
+  if (diff < 3600) return Math.floor(diff / 60) + ' 分钟前';
+  if (diff < 86400) return Math.floor(diff / 3600) + ' 小时前';
+  return Math.floor(diff / 86400) + ' 天前';
+}
+
+/* —— 行情源下拉 HTML —— */
+function providerMenuHTML(sid) {
+  var cur = rowProvider[sid];
+  return PROVIDERS.map(function (p) {
+    return '<div class="ps-item' + (p.id === cur.id ? ' active' : '') + '" data-sid="' + sid + '" data-prov="' + p.id + '">'
+      + '<span class="ps-dot" style="background:' + p.color + ';"></span>' + p.name + '</div>';
+  }).join('');
+}
+
+/* —— 渲染列表 —— */
+function renderList(q) {
+  var body = document.getElementById('secBody');
+  var sids = Object.keys(window.SECURITIES);
+  if (q) {
+    var ql = q.toLowerCase();
+    sids = sids.filter(function (sid) {
+      var s = window.SECURITIES[sid];
+      return s.symbol.toLowerCase().indexOf(ql) >= 0 || (s.name || '').toLowerCase().indexOf(ql) >= 0;
+    });
+  }
+  document.getElementById('rowCount').textContent = '共 ' + sids.length + ' 个';
+  var empty = document.getElementById('searchEmpty');
+  empty.style.display = sids.length === 0 ? 'block' : 'none';
+
+  body.innerHTML = sids.map(function (sid) {
+    var s = window.SECURITIES[sid];
+    var po = window.PRICE_OVERRIDE[sid] || {};
+    var meta = window.TYPE_META[s.type] || { label: s.type, color: 'var(--gold)' };
+    var prov = rowProvider[sid];
+    var priceStr = window.fmtRaw(po.price, s.currency);
+    return '<tr data-sid="' + sid + '">'
+      + '<td><div class="cell-sym"><span class="sym">' + s.symbol + '</span><span class="name">' + s.name + '</span></div></td>'
+      + '<td><span class="type-tag" style="background:' + hexSoft(meta.color) + ';color:' + meta.color + ';">' + meta.label + '</span></td>'
+      + '<td><span class="mono" style="font-size:12px;color:var(--muted);">' + (s.market || '—') + '</span></td>'
+      + '<td><span class="mono" style="font-size:12px;">' + s.currency + '</span></td>'
+      + '<td class="num">'
+      +   '<div class="price-cell" data-sid="' + sid + '">'
+      +     '<span class="pc-val">' + priceStr + '</span>'
+      +     '<span class="pc-edit" data-sid="' + sid + '" title="编辑现价"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>'
+      +   '</div>'
+      + '</td>'
+      + '<td class="num">'
+      +   '<div class="provider-select" data-sid="' + sid + '">'
+      +     '<div class="ps-current ps-trigger" data-sid="' + sid + '">'
+      +       '<span class="ps-dot" style="width:7px;height:7px;border-radius:50%;background:' + prov.color + ';display:inline-block;"></span>'
+      +       prov.name
+      +       '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'
+      +     '</div>'
+      +   '</div>'
+      + '</td>'
+      + '<td class="sync"><div class="sync-cell disabled" title="B 子项目：scheduler + 行情 API 自动同步（待实现）">'
+      +     '<div class="sync-toggle"><svg class="icon st-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>'
+      +     '<div class="sync-meta"><span class="sm-provider">未启用</span><span class="sm-hint">B 子项目</span></div>'
+      +   '</div></td>'
+      + '<td class="num"><div class="updated-cell"><span class="upd-rel">' + relTime(po.updated) + '</span><span class="upd-abs">' + po.updated.slice(5) + '</span></div></td>'
+      + '<td class="ops"><div class="sec-actions">'
+      +   '<button class="icon-btn pc-edit" data-sid="' + sid + '" title="编辑现价"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>'
+      + '</div></td>'
+      + '</tr>';
+  }).join('');
+
+  bindRowEvents();
+}
+
+function hexSoft(hex) {
+  // 简单 soft 底（用 accent-soft 占位避免色彩解析）
+  return 'var(--accent-soft)';
+}
+
+/* —— 行事件绑定 —— */
+function bindRowEvents() {
+  // 编辑现价
+  document.querySelectorAll('.pc-edit').forEach(function (el) {
+    el.onclick = function (e) {
+      e.stopPropagation();
+      enterEdit(el.getAttribute('data-sid'));
+    };
+  });
+  // 行情源下拉
+  document.querySelectorAll('.ps-trigger').forEach(function (el) {
+    el.onclick = function (e) {
+      e.stopPropagation();
+      openProvMenu(el);
+    };
+  });
+}
+
+function enterEdit(sid) {
+  var cell = document.querySelector('.price-cell[data-sid="' + sid + '"]');
+  if (!cell || cell.classList.contains('editing')) return;
+  var po = window.PRICE_OVERRIDE[sid] || {};
+  cell.classList.add('editing');
+  cell.innerHTML = ''
+    + '<input class="input pc-input mono" value="' + po.price + '" data-sid="' + sid + '">'
+    + '<button class="pc-go" data-sid="' + sid + '"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>'
+    + '<button class="pc-no" data-sid="' + sid + '"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>';
+  var inp = cell.querySelector('.pc-input');
+  inp.focus(); inp.select();
+  cell.querySelector('.pc-go').onclick = function () { savePrice(sid, inp.value); };
+  cell.querySelector('.pc-no').onclick = function () { renderList(currentQuery()); };
+  inp.onkeydown = function (ev) {
+    if (ev.key === 'Enter') { ev.preventDefault(); savePrice(sid, inp.value); }
+    if (ev.key === 'Escape') { renderList(currentQuery()); }
+  };
+}
+
+function savePrice(sid, raw) {
+  var v = parseFloat(raw);
+  if (!isFinite(v) || v <= 0) { toast('现价无效，需为正数', 'warn'); return; }
+  var old = (window.PRICE_OVERRIDE[sid] || {}).price;
+  window.PRICE_OVERRIDE[sid] = { price: v, updated: '2026-06-29 15:05:00' };
+  renderList(currentQuery());
+  toast('✓ 已更新 ' + window.SECURITIES[sid].symbol + ' 现价：' + window.fmtRaw(old, window.SECURITIES[sid].currency) + ' → ' + window.fmtRaw(v, window.SECURITIES[sid].currency), 'ok');
+}
+
+/* —— 行情源下拉 —— */
+function openProvMenu(triggerEl) {
+  closeProvMenu();
+  var sid = triggerEl.getAttribute('data-sid');
+  var wrap = triggerEl.parentElement;
+  var menu = document.createElement('div');
+  menu.className = 'ps-menu';
+  menu.id = 'openProvMenu';
+  menu.innerHTML = providerMenuHTML(sid);
+  wrap.appendChild(menu);
+  menu.querySelectorAll('.ps-item').forEach(function (it) {
+    it.onclick = function (e) {
+      e.stopPropagation();
+      var pid = it.getAttribute('data-prov');
+      var p = PROVIDERS.find(function (x) { return x.id === pid; });
+      rowProvider[sid] = p;
+      closeProvMenu();
+      renderList(currentQuery());
+      toast('行情源已切换：' + window.SECURITIES[sid].symbol + ' → ' + p.name + '（mock · 不发请求）', 'ok');
+    };
+  });
+  setTimeout(function () { document.addEventListener('click', closeProvMenu, { once: true }); }, 0);
+}
+function closeProvMenu() {
+  var m = document.getElementById('openProvMenu');
+  if (m) m.remove();
+}
+
+/* —— 全局行情源 —— */
+document.getElementById('globalProvider').onclick = function (e) {
+  var cur = e.currentTarget.querySelector('.ps-current');
+  closeGlobalMenu();
+  var menu = document.createElement('div');
+  menu.className = 'ps-menu';
+  menu.id = 'openGlobalMenu';
+  menu.style.right = '0';
+  menu.innerHTML = PROVIDERS.map(function (p) {
+    return '<div class="ps-item' + (p.id === globalProvider.id ? ' active' : '') + '" data-prov="' + p.id + '"><span class="ps-dot" style="background:' + p.color + ';"></span>' + p.name + '</div>';
+  }).join('');
+  e.currentTarget.appendChild(menu);
+  menu.querySelectorAll('.ps-item').forEach(function (it) {
+    it.onclick = function (ev) {
+      ev.stopPropagation();
+      globalProvider = PROVIDERS.find(function (x) { return x.id === it.getAttribute('data-prov'); });
+      Object.keys(rowProvider).forEach(function (sid) { rowProvider[sid] = globalProvider; });
+      document.getElementById('globalProvName').textContent = globalProvider.name;
+      closeGlobalMenu();
+      renderList(currentQuery());
+      toast('全局行情源：' + globalProvider.name + '（mock · 不发请求）', 'ok');
+    };
+  });
+  setTimeout(function () { document.addEventListener('click', closeGlobalMenu, { once: true }); }, 0);
+};
+function closeGlobalMenu() { var m = document.getElementById('openGlobalMenu'); if (m) m.remove(); }
+
+/* —— 搜索 —— */
+function currentQuery() { return document.getElementById('searchInput').value.trim(); }
+document.getElementById('searchInput').oninput = function () { renderList(currentQuery()); };
+
+/* —— 刷新全部 —— */
+document.getElementById('refreshBtn').onclick = function () {
+  var btn = this;
+  if (btn.classList.contains('spinning')) return;
+  btn.classList.add('spinning');
+  btn.disabled = true;
+  setTimeout(function () {
+    Object.keys(window.PRICE_OVERRIDE).forEach(function (sid) {
+      // 模拟轻微价格波动 ±0.5%
+      var po = window.PRICE_OVERRIDE[sid];
+      var delta = po.price * (Math.random() - 0.5) * 0.01;
+      window.PRICE_OVERRIDE[sid] = { price: +(po.price + delta).toFixed(4), updated: '2026-06-29 15:05:00' };
+    });
+    renderList(currentQuery());
+    btn.classList.remove('spinning');
+    btn.disabled = false;
+    toast('✓ 已刷新全部价格（' + globalProvider.name + ' · mock 模拟波动）', 'ok');
+  }, 1200);
+};
+
+/* —— 创建抽屉 —— */
+var drawer = document.getElementById('drawer');
+var drawerOverlay = document.getElementById('drawerOverlay');
+function openDrawer() { drawer.style.display = 'flex'; drawerOverlay.style.display = 'block'; }
+function closeDrawer() { drawer.style.display = 'none'; drawerOverlay.style.display = 'none'; document.getElementById('createForm').reset(); }
+document.getElementById('createBtn').onclick = openDrawer;
+document.getElementById('drawerClose').onclick = closeDrawer;
+document.getElementById('drawerCancel').onclick = closeDrawer;
+document.getElementById('drawerSave').onclick = function () {
+  var f = document.getElementById('createForm');
+  if (!f.reportValidity()) return;
+  var data = new FormData(f);
+  toast('✓ 已创建 Security：' + data.get('symbol') + ' · ' + data.get('name') + '（CreateSecurity ✅ · mock 不真存）', 'ok');
+  closeDrawer();
+};
+
+/* —— toast —— */
+function toast(msg, kind) {
+  var host = document.getElementById('toastHost');
+  var t = document.createElement('div');
+  t.className = 'toast ' + (kind === 'ok' ? 'ok' : '');
+  t.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + (kind === 'ok' ? '<path d="M20 6 9 17l-5-5"/>' : '<path d="M12 9v4"/><path d="M12 17h.01"/><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>') + '</svg>' + msg;
+  host.appendChild(t);
+  setTimeout(function () { t.remove(); }, 2100);
+}
+
+/* —— 初始 —— */
+renderList('');
+</script>
+</body>
+</html>
