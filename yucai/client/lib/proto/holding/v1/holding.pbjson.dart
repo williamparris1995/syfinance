@@ -276,6 +276,7 @@ const HoldingTradeRequest$json = {
     {'1': 'fee_cents', '3': 5, '4': 1, '5': 3, '10': 'feeCents'},
     {'1': 'trade_date', '3': 6, '4': 1, '5': 9, '10': 'tradeDate'},
     {'1': 'notes', '3': 7, '4': 1, '5': 9, '10': 'notes'},
+    {'1': 'from_account_id', '3': 8, '4': 1, '5': 9, '10': 'fromAccountId'},
   ],
 };
 
@@ -285,7 +286,7 @@ final $typed_data.Uint8List holdingTradeRequestDescriptor = $convert.base64Decod
     'tzZWN1cml0eV9pZBgCIAEoCVIKc2VjdXJpdHlJZBIaCghxdWFudGl0eRgDIAEoAVIIcXVhbnRp'
     'dHkSHwoLcHJpY2VfY2VudHMYBCABKANSCnByaWNlQ2VudHMSGwoJZmVlX2NlbnRzGAUgASgDUg'
     'hmZWVDZW50cxIdCgp0cmFkZV9kYXRlGAYgASgJUgl0cmFkZURhdGUSFAoFbm90ZXMYByABKAlS'
-    'BW5vdGVz');
+    'BW5vdGVzEiYKD2Zyb21fYWNjb3VudF9pZBgIIAEoCVINZnJvbUFjY291bnRJZA==');
 
 @$core.Deprecated('Use recordDividendRequestDescriptor instead')
 const RecordDividendRequest$json = {

@@ -831,6 +831,7 @@ class HoldingTradeRequest extends $pb.GeneratedMessage {
     $fixnum.Int64? feeCents,
     $core.String? tradeDate,
     $core.String? notes,
+    $core.String? fromAccountId,
   }) {
     final result = create();
     if (accountId != null) result.accountId = accountId;
@@ -840,6 +841,7 @@ class HoldingTradeRequest extends $pb.GeneratedMessage {
     if (feeCents != null) result.feeCents = feeCents;
     if (tradeDate != null) result.tradeDate = tradeDate;
     if (notes != null) result.notes = notes;
+    if (fromAccountId != null) result.fromAccountId = fromAccountId;
     return result;
   }
 
@@ -864,6 +866,7 @@ class HoldingTradeRequest extends $pb.GeneratedMessage {
     ..aInt64(5, _omitFieldNames ? '' : 'feeCents')
     ..aOS(6, _omitFieldNames ? '' : 'tradeDate')
     ..aOS(7, _omitFieldNames ? '' : 'notes')
+    ..aOS(8, _omitFieldNames ? '' : 'fromAccountId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -947,6 +950,17 @@ class HoldingTradeRequest extends $pb.GeneratedMessage {
   $core.bool hasNotes() => $_has(6);
   @$pb.TagNumber(7)
   void clearNotes() => $_clearField(7);
+
+  /// 双写资金来源账户(cash asset,savings/investment)。BuyHolding/SellHolding 必填;
+  /// buy:credit(现金−);sell:debit(现金+)。
+  @$pb.TagNumber(8)
+  $core.String get fromAccountId => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set fromAccountId($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasFromAccountId() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearFromAccountId() => $_clearField(8);
 }
 
 class RecordDividendRequest extends $pb.GeneratedMessage {
