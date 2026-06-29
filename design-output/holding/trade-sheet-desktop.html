@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>交易 Sheet · Desktop · 御财持仓</title>
+<!--
+  ============================================================================
+  交易 Sheet · Desktop（≥1024px · bottom sheet 滑入）
+  4 类型 segmented 切换: buy / sell / dividend / split (字段随类型变)
+  ----------------------------------------------------------------------------
+  API 标注（对照 spec §2）:
+    - BuyHolding(security_id, from_account_id, quantity, price, fee, date, note)
+        ✅ 已实现（双写: credit from-account + debit holding）
+    - SellHolding(security_id, from_account_id, quantity, price, fee, date, note)
+        ✅ 已实现（双写: debit from-account + credit holding）
+    - RecordDividend(security_id, income_account_id, per_share, date)
+        ✅ proto 已有 / ⏳ handler 双写待 income account 设计
+    - RecordSplit(security_id, ratio_from, ratio_to, date)
+        ⏳ 待实现（无现金流，仅调 holding quantity/cost_price）
+    - from_account_id 必填（A-server 已加，Dart stub 需 buf generate 重生成）
+    - 跨币种(security.currency vs account.currency) A-server 未校验
+        → from-account picker 客户端预校验（disabled 跨币种）作防线
+  Mock 演示（mock-data.js）:
+    - 默认 buy: AAPL(s1,USD) × a1(美股账户 USD) × qty10 × price185 × fee5
+        → 金额 $1,855.00 | 余额 $5,000 → $3,145（fail-fast ok）
+    - 切 600000(s2,CNY): a1 disabled（币种不匹配）, 默认 a2
+    - dividend: 600000 每股 ¥0.30 × 持有1000 → ¥300 入 a3(income)
+    - split: AAPL 1:2 → 50股@$170 ⇒ 100股@$85（无现金流）
+  ============================================================================
+-->
+<link rel="stylesheet" href="styles.css">
+<style>
+  /* demo 画布：把 sheet 直接渲染在一个 desktop 宽度的灰色背景上（模拟从持仓页 + 触发后弹出） */
+  body { background: var(--bg-deep); padding: 0; }
+  .demo-canvas {
+    width: 1440px; min-height: 900px; margin: 0 auto;
+    background: var(--bg-deep); position: relative;
+    display: flex; align-items: flex-end; justify-content: center;
+    padding: 0 0 0;
+  }
+  .demo-hint {
+    position: absolute; top: 28px; left: 32px;
+    font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px;
+  }
+  .demo-hint code { font-family: var(--font-mono); color: var(--gold-deep); background: var(--accent-soft); padding: 2px 8px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div class="demo-canvas">
+  <div class="demo-hint">
+    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+    Desktop ≥1024px · bottom sheet 滑入（演示触发态）。点击 4 类型切换，余额 fail-fast 实时预览。
+  </div>
+
+  <!-- ===== Bottom Sheet overlay ===== -->
+  <div class="sheet-overlay" id="overlay">
+    <div class="sheet size-desktop" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+
+      <!-- grabber + head -->
+      <div class="sheet-grabber"></div>
+      <div class="sheet-head">
+        <div class="sh-title">
+          <h2 id="sheetTitle">记录交易</h2>
+          <span class="sh-sub" id="shSub">买入持仓 · 资金从账户扣减，持仓数量增加</span>
+        </div>
+        <button class="icon-btn" aria-label="关闭" onclick="document.getElementById('overlay').style.display='none'">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- segmented control: 4 类型 -->
+      <div class="seg" role="tablist">
+        <button class="seg-item t-buy active"        data-type="buy"      role="tab" aria-selected="true"  onclick="switchType('buy')">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="m9 13 3 3 3-3"/></svg>
+          买入
+        </button>
+        <button class="seg-item t-sell"              data-type="sell"     role="tab" aria-selected="false" onclick="switchType('sell')">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16V8"/><path d="m9 11 3-3 3 3"/></svg>
+          卖出
+        </button>
+        <button class="seg-item t-dividend"          data-type="dividend" role="tab" aria-selected="false" onclick="switchType('dividend')">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></svg>
+          分红
+        </button>
+        <button class="seg-item t-split"             data-type="split"    role="tab" aria-selected="false" onclick="switchType('split')">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
+          拆分
+        </button>
+      </div>
+
+      <!-- form body -->
+      <div class="sheet-body">
+        <!-- ============ BUY / SELL form ============ -->
+        <div id="form-buysell" class="form-grid">
+          <!-- security picker -->
+          <div class="field span-2-full">
+            <label class="field-label">证券 <span class="req">*</span>
+              <span class="field-hint">点击切换 · 币种会约束账户</span>
+            </label>
+            <div class="sec-picker">
+              <div class="input" id="secDisplay" onclick="toggleSecMenu()">
+                <div class="sp-display">
+                  <span class="sp-sym" id="secSym">AAPL</span>
+                  <span class="sp-name" id="secName">Apple Inc.</span>
+                  <span class="sp-tag" id="secTag">stock · USD</span>
+                </div>
+                <svg class="sp-caret icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+              <div class="sec-menu" id="secMenu" style="display:none"></div>
+            </div>
+          </div>
+
+          <!-- from-account picker (跨币种约束) -->
+          <div class="field span-2-full">
+            <label class="field-label">
+              <span id="acctLabelBuySell">资金账户</span> <span class="req">*</span>
+              <span class="field-hint">币种需与证券一致 · 跨币种 disabled</span>
+            </label>
+            <div class="acct-list" id="acctList"></div>
+          </div>
+
+          <!-- 数量 / 价格 -->
+          <div class="field">
+            <label class="field-label">数量 <span class="req">*</span></label>
+            <div class="input-affix">
+              <input class="input mono has-r" type="number" id="qty" value="10" min="0" step="1" oninput="recalc()">
+              <span class="affix right" id="qtyUnit">股</span>
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label">价格 <span class="req">*</span></label>
+            <div class="input-affix">
+              <span class="affix left" id="priceSym">$</span>
+              <input class="input mono has-l" type="number" id="price" value="185.00" min="0" step="0.01" oninput="recalc()">
+            </div>
+          </div>
+
+          <!-- 费用 / 日期 -->
+          <div class="field">
+            <label class="field-label">交易费用</label>
+            <div class="input-affix">
+              <span class="affix left" id="feeSym">$</span>
+              <input class="input mono has-l" type="number" id="fee" value="5.00" min="0" step="0.01" oninput="recalc()">
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label">日期 <span class="req">*</span></label>
+            <input class="input mono" type="date" id="date" value="2026-06-29">
+          </div>
+
+          <!-- 备注 -->
+          <div class="field span-2-full">
+            <label class="field-label">备注</label>
+            <textarea class="textarea" id="note" placeholder="可选：记录本次交易的来源/策略…"></textarea>
+          </div>
+
+          <!-- 余额 fail-fast 预览 -->
+          <div class="field span-2-full">
+            <div class="bal-preview ok" id="balPreview">
+              <span class="bp-label">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+                账户余额
+              </span>
+              <span class="bp-flow"><span id="balBefore">$5,000.00</span> <span class="bp-arrow">→</span> <span class="bp-after" id="balAfter">$3,145.00</span></span>
+              <span class="bp-warn">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                余额不足
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ DIVIDEND form ============ -->
+        <div id="form-dividend" class="form-grid" style="display:none">
+          <div class="field span-2-full">
+            <label class="field-label">证券 <span class="req">*</span></label>
+            <div class="sec-picker">
+              <div class="input" id="secDisplayDiv" onclick="toggleSecMenuDiv()">
+                <div class="sp-display">
+                  <span class="sp-sym" id="secSymDiv">600000</span>
+                  <span class="sp-name" id="secNameDiv">浦发银行</span>
+                  <span class="sp-tag" id="secTagDiv">stock · CNY</span>
+                </div>
+                <svg class="sp-caret icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+              <div class="sec-menu" id="secMenuDiv" style="display:none"></div>
+            </div>
+          </div>
+
+          <!-- income-account picker (只 kind=income) -->
+          <div class="field span-2-full">
+            <label class="field-label">分红入账账户 <span class="req">*</span>
+              <span class="field-hint">income 类账户</span>
+            </label>
+            <div class="acct-list" id="incomeAcctList"></div>
+          </div>
+
+          <div class="field">
+            <label class="field-label">每股股息 <span class="req">*</span></label>
+            <div class="input-affix">
+              <span class="affix left" id="divSym">¥</span>
+              <input class="input mono has-l" type="number" id="perShare" value="0.30" min="0" step="0.001" oninput="recalcDiv()">
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label">持有量 <span class="req">*</span">
+              <span class="field-hint">自动从持仓取</span>
+            </label>
+            <div class="input-affix">
+              <input class="input mono has-r" type="number" id="divQty" readonly>
+              <span class="affix right" id="divQtyUnit">股</span>
+            </div>
+          </div>
+
+          <div class="field span-2-full">
+            <label class="field-label">除权日期 <span class="req">*</span></label>
+            <input class="input mono" type="date" id="divDate" value="2026-06-29">
+          </div>
+        </div>
+
+        <!-- ============ SPLIT form ============ -->
+        <div id="form-split" class="form-grid" style="display:none">
+          <div class="field span-2-full">
+            <label class="field-label">证券 <span class="req">*</span></label>
+            <div class="sec-picker">
+              <div class="input" id="secDisplaySplit" onclick="toggleSecMenuSplit()">
+                <div class="sp-display">
+                  <span class="sp-sym" id="secSymSplit">AAPL</span>
+                  <span class="sp-name" id="secNameSplit">Apple Inc.</span>
+                  <span class="sp-tag" id="secTagSplit">stock · USD</span>
+                </div>
+                <svg class="sp-caret icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+              <div class="sec-menu" id="secMenuSplit" style="display:none"></div>
+            </div>
+          </div>
+
+          <!-- 拆分比例 -->
+          <div class="field">
+            <label class="field-label">拆分比例（从）<span class="req">*</span></label>
+            <div class="input-affix">
+              <input class="input mono has-r" type="number" id="ratioFrom" value="1" min="1" step="1" oninput="recalcSplit()">
+              <span class="affix right">份</span>
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label">拆分比例（至）<span class="req">*</span></label>
+            <div class="input-affix">
+              <input class="input mono has-r" type="number" id="ratioTo" value="2" min="1" step="1" oninput="recalcSplit()">
+              <span class="affix right">份</span>
+            </div>
+          </div>
+
+          <div class="field span-2-full">
+            <label class="field-label">除权日期 <span class="req">*</span></label>
+            <input class="input mono" type="date" id="splitDate" value="2026-06-29">
+          </div>
+
+          <!-- 拆分预览（无现金流） -->
+          <div class="field span-2-full">
+            <div class="split-preview">
+              <div class="sp-title">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
+                拆分预览 · 持仓量与成本调整（无现金流）
+              </div>
+              <div class="split-grid">
+                <div class="split-cell">
+                  <span class="sc-label">拆分前持有</span>
+                  <span class="sc-val from" id="splitQtyBefore">50 股</span>
+                  <span class="sc-label" style="margin-top:6px">成本单价</span>
+                  <span class="sc-val from" id="splitCostBefore">$170.00</span>
+                </div>
+                <div class="split-cell">
+                  <span class="sc-label">拆分后持有</span>
+                  <span class="sc-val" id="splitQtyAfter">100 股</span>
+                  <span class="sc-label" style="margin-top:6px">成本单价</span>
+                  <span class="sc-val" id="splitCostAfter">$85.00</span>
+                </div>
+              </div>
+              <div class="split-noop">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                总市值不变 · 仅调整 quantity 与 cost_price（无现金流账户联动）
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- amount preview (sticky) -->
+      <div class="amt-preview" id="amtPreviewWrap">
+        <div class="amt-row t-buy" id="amtRow">
+          <span class="amt-label" id="amtLabel">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+            交易金额（含费用）
+          </span>
+          <span class="amt-val" id="amtVal">$1,855.00</span>
+        </div>
+      </div>
+
+      <!-- foot: api badge + buttons -->
+      <div class="sheet-foot">
+        <span class="api-badge done"  id="apiBadge">
+          <span class="dot"></span>BuyHolding · ✅ 已实现（双写）
+        </span>
+        <button class="btn btn-ghost" onclick="document.getElementById('overlay').style.display='none'">取消</button>
+        <button class="btn btn-gold" id="submitBtn">确认买入</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="mock-data.js"></script>
+<script>
+/* —— demo 账户余额（mock-data.js ACCOUNTS 没有 balance 字段，这里补演示用）—— */
+var ACCT_BAL = { a1: 5000, a2: 80000, a3: 0 };
+
+/* —— 状态 —— */
+var state = {
+  type: 'buy',
+  secId: 's1',           // buy/sell 默认 AAPL
+  divSecId: 's2',        // dividend 默认 600000
+  splitSecId: 's1',      // split 默认 AAPL
+  acctId: 'a1',          // buy/sell 选中账户
+  incomeAcctId: 'a3',
+};
+
+/* —— 工具 —— */
+function $(id){ return document.getElementById(id); }
+function fmt(v, cur){ return window.fmtRaw(v, cur); }
+function curOf(secId){ return window.SECURITIES[secId].currency; }
+
+/* —— 渲染 security 菜单 —— */
+function buildSecMenu(menuEl, onPick){
+  menuEl.innerHTML = '';
+  Object.keys(window.SECURITIES).forEach(function(sid){
+    var s = window.SECURITIES[sid];
+    var item = document.createElement('div');
+    item.className = 'sm-item';
+    item.innerHTML = '<span class="sm-sym">'+s.symbol+'</span>'
+                   + '<span class="sm-name">'+s.name+'</span>'
+                   + '<span class="sm-cur">'+s.currency+' · '+window.TYPE_META[s.type].label+'</span>';
+    item.onclick = function(){ onPick(sid); menuEl.style.display='none'; };
+    menuEl.appendChild(item);
+  });
+}
+function toggleSecMenu(){
+  var m = $('secMenu'); if (!m.dataset.built){ buildSecMenu(m, pickSec); m.dataset.built='1'; }
+  m.style.display = (m.style.display==='block') ? 'none' : 'block';
+}
+function toggleSecMenuDiv(){
+  var m = $('secMenuDiv'); if (!m.dataset.built){ buildSecMenu(m, pickSecDiv); m.dataset.built='1'; }
+  m.style.display = (m.style.display==='block') ? 'none' : 'block';
+}
+function toggleSecMenuSplit(){
+  var m = $('secMenuSplit'); if (!m.dataset.built){ buildSecMenu(m, pickSecSplit); m.dataset.built='1'; }
+  m.style.display = (m.style.display==='block') ? 'none' : 'block';
+}
+
+function renderSecDisplay(secId){
+  var s = window.SECURITIES[secId];
+  $('secSym').textContent = s.symbol;
+  $('secName').textContent = s.name;
+  $('secTag').textContent = window.TYPE_META[s.type].label + ' · ' + s.currency;
+  $('priceSym').textContent = s.currency==='USD' ? '$' : '¥';
+  $('feeSym').textContent   = s.currency==='USD' ? '$' : '¥';
+}
+function pickSec(sid){
+  state.secId = sid; renderSecDisplay(sid); renderAcctList(); recalc();
+}
+function pickSecDiv(sid){
+  state.divSecId = sid;
+  var s = window.SECURITIES[sid];
+  $('secSymDiv').textContent = s.symbol;
+  $('secNameDiv').textContent = s.name;
+  $('secTagDiv').textContent = window.TYPE_META[s.type].label + ' · ' + s.currency;
+  $('divSym').textContent = s.currency==='USD' ? '$' : '¥';
+  recalcDiv();
+}
+function pickSecSplit(sid){
+  state.splitSecId = sid; recalcSplit();
+  var s = window.SECURITIES[sid];
+  $('secSymSplit').textContent = s.symbol;
+  $('secNameSplit').textContent = s.name;
+  $('secTagSplit').textContent = window.TYPE_META[s.type].label + ' · ' + s.currency;
+}
+
+/* —— account picker (buy/sell) —— */
+function renderAcctList(){
+  var secCur = curOf(state.secId);
+  var list = $('acctList'); list.innerHTML = '';
+  // 演示：a1/a2 为 asset 资金账户；a3 为 income 不在 buy/sell 列
+  ['a1','a2'].forEach(function(aid){
+    var a = window.ACCOUNTS[aid];
+    var disabled = a.currency !== secCur;
+    var sel = (!disabled && state.acctId === aid);
+    var div = document.createElement('div');
+    div.className = 'acct-opt' + (sel ? ' selected' : '') + (disabled ? ' disabled' : '');
+    div.innerHTML =
+      '<span class="ao-radio"></span>' +
+      '<div class="ao-body">' +
+        '<span class="ao-name">'+a.name+'</span>' +
+        '<span class="ao-meta">'+a.broker+'</span>' +
+      '</div>' +
+      '<span class="ao-cur">'+a.currency+'</span>' +
+      '<span class="ao-bal">'+fmt(ACCT_BAL[aid], a.currency)+'</span>';
+    if (!disabled){
+      div.onclick = function(){ state.acctId = aid; renderAcctList(); recalc(); };
+    }
+    list.appendChild(div);
+  });
+  // 跨币种提示
+  var mismatch = Object.keys(window.ACCOUNTS).filter(function(aid){
+    return aid !== 'a3' && window.ACCOUNTS[aid].currency !== secCur;
+  });
+  if (mismatch.length){
+    var warn = document.createElement('div');
+    warn.className = 'acct-warn';
+    warn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>'
+      + mismatch.length + ' 个账户币种（'+mismatch.map(function(aid){return window.ACCOUNTS[aid].currency;}).join('/')+'）与证券（'+secCur+'）不一致，已 disabled';
+    list.appendChild(warn);
+  }
+  // 自动选第一个 enabled
+  if (!state.acctId || window.ACCOUNTS[state.acctId].currency !== secCur){
+    var first = ['a1','a2'].find(function(aid){ return window.ACCOUNTS[aid].currency === secCur; });
+    if (first){ state.acctId = first; renderAcctList(); return; }
+  }
+}
+
+/* —— income account picker (dividend) —— */
+function renderIncomeAcctList(){
+  var list = $('incomeAcctList'); list.innerHTML = '';
+  Object.keys(window.ACCOUNTS).forEach(function(aid){
+    var a = window.ACCOUNTS[aid];
+    if (a.kind !== 'income') return;
+    var sel = state.incomeAcctId === aid;
+    var div = document.createElement('div');
+    div.className = 'acct-opt' + (sel ? ' selected' : '');
+    div.innerHTML =
+      '<span class="ao-radio"></span>' +
+      '<div class="ao-body">' +
+        '<span class="ao-name">'+a.name+' <span style="font-size:10px;color:var(--gold-deep);background:var(--accent-soft);padding:1px 6px;border-radius:6px;margin-left:4px">income</span></span>' +
+        '<span class="ao-meta">'+a.broker+'</span>' +
+      '</div>' +
+      '<span class="ao-cur">'+a.currency+'</span>';
+    div.onclick = function(){ state.incomeAcctId = aid; renderIncomeAcctList(); recalcDiv(); };
+    list.appendChild(div);
+  });
+}
+
+/* —— 实时金额 + 余额 fail-fast —— */
+function recalc(){
+  var secCur = curOf(state.secId);
+  var qty = parseFloat($('qty').value) || 0;
+  var price = parseFloat($('price').value) || 0;
+  var fee = parseFloat($('fee').value) || 0;
+  var amt = state.type === 'buy' ? (qty*price + fee) : (qty*price - fee);
+  $('amtVal').textContent = fmt(amt, secCur);
+  $('amtRow').className = 'amt-row t-' + state.type;
+
+  // 余额 fail-fast
+  var bal = ACCT_BAL[state.acctId] || 0;
+  var after = state.type === 'buy' ? (bal - amt) : (bal + amt);
+  $('balBefore').textContent = fmt(bal, secCur);
+  $('balAfter').textContent = fmt(after, secCur);
+  var fail = state.type === 'buy' && after < 0;
+  $('balPreview').className = 'bal-preview ' + (fail ? 'fail' : 'ok');
+}
+
+/* —— dividend 计算 —— */
+function recalcDiv(){
+  var sid = state.divSecId;
+  var secCur = curOf(sid);
+  var holding = window.HOLDINGS.find(function(h){ return h.security_id === sid; });
+  var qty = holding ? holding.quantity : 0;
+  $('divQty').value = qty;
+  var per = parseFloat($('perShare').value) || 0;
+  var amt = per * qty;
+  $('amtVal').textContent = fmt(amt, secCur);
+  $('amtRow').className = 'amt-row t-dividend';
+}
+
+/* —— split 计算 —— */
+function recalcSplit(){
+  var sid = state.splitSecId;
+  var secCur = curOf(sid);
+  var holding = window.HOLDINGS.find(function(h){ return h.security_id === sid; });
+  var qty = holding ? holding.quantity : 0;
+  var cost = holding ? holding.cost_price : 0;
+  var rf = parseFloat($('ratioFrom').value) || 1;
+  var rt = parseFloat($('ratioTo').value) || 1;
+  var mult = rf > 0 ? rt/rf : 1;
+  $('splitQtyBefore').textContent = qty + ' 股';
+  $('splitCostBefore').textContent = fmt(cost, secCur);
+  $('splitQtyAfter').textContent = (qty*mult) + ' 股';
+  $('splitCostAfter').textContent = fmt(cost/mult, secCur);
+  // split 无现金流：amount preview 隐藏（切换时已 display:none）
+}
+
+/* —— 类型切换 —— */
+function switchType(t){
+  state.type = t;
+  // segmented 状态
+  document.querySelectorAll('.seg-item').forEach(function(b){
+    var on = b.dataset.type === t;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  // 显示对应表单
+  $('form-buysell').style.display  = (t==='buy' || t==='sell') ? '' : 'none';
+  $('form-dividend').style.display = (t==='dividend') ? '' : 'none';
+  $('form-split').style.display    = (t==='split') ? '' : 'none';
+
+  // 子标题
+  var subs = {
+    buy: '买入持仓 · 资金从账户扣减，持仓数量增加',
+    sell: '卖出持仓 · 资金入账户，持仓数量减少',
+    dividend: '记录现金分红 · 入 income 账户',
+    split: '记录拆分 · 调整持仓量与成本（无现金流）'
+  };
+  $('shSub').textContent = subs[t];
+
+  // amount preview 与余额预览的显示
+  $('amtPreviewWrap').style.display = (t==='split') ? 'none' : '';
+  var balWrap = $('balPreview').parentElement;
+  // buy/sell 显示余额预览，dividend/split 隐藏
+  $('balPreview').style.display = (t==='buy' || t==='sell') ? '' : 'none';
+
+  // amount label
+  var labels = {
+    buy: '买入金额（含费用）',
+    sell: '卖出净额（扣费用）',
+    dividend: '分红总额'
+  };
+  $('amtLabel').lastChild.textContent = ' ' + labels[t];
+
+  // submit btn + api badge
+  var btnText = { buy:'确认买入', sell:'确认卖出', dividend:'确认分红', split:'确认拆分' };
+  $('submitBtn').textContent = btnText[t];
+  var badge = $('apiBadge');
+  if (t==='buy' || t==='sell'){
+    badge.className = 'api-badge done';
+    badge.innerHTML = '<span class="dot"></span>' + (t==='buy'?'BuyHolding':'SellHolding') + ' · ✅ 已实现（双写 from + holding）';
+  } else if (t==='dividend'){
+    badge.className = 'api-badge proto';
+    badge.innerHTML = '<span class="dot"></span>RecordDividend · ✅ proto / ⏳ 双写待 income account';
+  } else {
+    badge.className = 'api-badge todo';
+    badge.innerHTML = '<span class="dot"></span>RecordSplit · ⏳ 待实现（无现金流）';
+  }
+
+  // 重算
+  if (t==='buy' || t==='sell') { renderAcctList(); recalc(); }
+  else if (t==='dividend')     { renderIncomeAcctList(); recalcDiv(); }
+  else                         { recalcSplit(); }
+}
+
+/* —— 初始化 —— */
+renderSecDisplay(state.secId);
+renderAcctList();
+recalc();
+</script>
+</body>
+</html>

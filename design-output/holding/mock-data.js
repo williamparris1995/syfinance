@@ -230,6 +230,19 @@ window.icon = function (name, cls) {
     'arrow-down-right': '<path d="M7 7l10 10"/><path d="M17 7v10H7"/>',
     'percent':       '<line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
     'refresh-cw':    '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/>',
+    /* —— Task 3 交易 Sheet 新增 icon —— */
+    'arrow-down-circle': '<circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="m9 13 3 3 3-3"/>',
+    'arrow-up-circle':   '<circle cx="12" cy="12" r="10"/><path d="M12 16V8"/><path d="m9 11 3-3 3 3"/>',
+    'coins':             '<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/>',
+    'git-merge':         '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/>',
+    'x':                 '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    'chevron-right':     '<path d="m9 18 6-6-6-6"/>',
+    'chevron-left':      '<path d="m15 18-6-6 6-6"/>',
+    'check':             '<path d="M20 6 9 17l-5-5"/>',
+    'alert-triangle':    '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+    'arrow-right':       '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+    'calendar':          '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+    'info':              '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
   };
   return '<svg ' + p + '>' + (map[name] || '') + '</svg>';
 };
