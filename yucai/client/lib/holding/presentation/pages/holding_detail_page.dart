@@ -94,20 +94,18 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
           }
           if (state is HoldingDetailLoaded) {
             // Stack:body 内容 + 底部 sticky 操作 bar(⑦)。
+            // ⏳ isPendingBackend:true 时 holding 仍带(bloc 从 listHoldings
+            // 成功获取),仅交易历史区降级(brief:交易历史区空态,非整页)。
             return Stack(
               children: [
-                _body(state.holding, state.trades),
+                _body(state.holding, state.trades,
+                    tradesPendingBackend: state.isPendingBackend),
                 _actionBar(),
               ],
             );
           }
           if (state is HoldingError) {
-            // ⏳ 降级:isPendingBackend(本页核心)。listHoldingTransactions ⏳
-            // fail → bloc 无 detail loaded,此处显示交易历史 ⏳ 占位 + holding
-            // 提示(与 brief 一致:交易历史区空态 + "⏳ 待后端")。
-            if (state.isPendingBackend) {
-              return _pendingBackendBody();
-            }
+            // 真业务错误(listHoldings fail,无 holding)→ 错误文案。
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.lg),
@@ -125,7 +123,11 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
 
   // ───────────────────────── body(7 组件) ─────────────────────────
 
-  Widget _body(Holding h, List<HoldingTransaction> trades) {
+  Widget _body(
+    Holding h,
+    List<HoldingTransaction> trades, {
+    bool tradesPendingBackend = false,
+  }) {
     final isMobile = MediaQuery.of(context).size.width <= 720;
     final currency = h.currency ?? 'CNY';
     return ListView(
@@ -139,53 +141,13 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
         const SizedBox(height: 16),
         _curveCard(h, trades, currency),
         const SizedBox(height: 16),
-        _tradesCard(trades, currency, isMobile),
+        _tradesCard(trades, currency, isMobile,
+            pendingBackend: tradesPendingBackend),
         const SizedBox(height: 16),
         _allocationCard(h),
         const SizedBox(height: 16),
         _goalCard(),
       ],
-    );
-  }
-
-  // ───────────────────────── ⏳ 降级 body ─────────────────────────
-
-  /// ⏳ isPendingBackend 降级:整页提示「交易历史待后端」(brief 核心要求)。
-  /// 复用 A-od trades-empty 样式(图标 + 标题 + 文案)。
-  Widget _pendingBackendBody() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: AppColors.accentSoft,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(LucideIcons.hourglass,
-                  size: 30, color: AppColors.accent),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            const Text('⏳ 交易历史待后端',
-                key: ValueKey('pendingBackendTitle'),
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.fg)),
-            const SizedBox(height: 6),
-            const Text(
-              'ListHoldingTransactions ⏳ 端点未实现,持仓详情将在后端就绪后可用',
-              textAlign: TextAlign.center,
-              key: ValueKey('pendingBackendHint'),
-              style: TextStyle(fontSize: 12.5, color: AppColors.muted),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -512,10 +474,12 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
   // ───────────────────────── ④ 交易历史 ─────────────────────────
 
   /// 交易历史(对齐 A-od trades-card)。
-  /// ListHoldingTransactions ⏳:isPendingBackend 由 build() 顶层拦截显示降级,
-  /// 此处仅在 trades loaded 后渲染。trades 空 → 「暂无成交」空态。
+  /// `pendingBackend`=true:ListHoldingTransactions ⏳ 端点未实现 →
+  /// 显示「⏳ 交易历史待后端」空态(holding 卡/曲线/配置仍在,brief 核心要求)。
+  /// trades 空 → 「暂无成交」空态。
   Widget _tradesCard(
-      List<HoldingTransaction> trades, String currency, bool isMobile) {
+      List<HoldingTransaction> trades, String currency, bool isMobile,
+      {bool pendingBackend = false}) {
     final filtered = _filteredTrades(trades);
     return DataCard(
       child: Column(
@@ -537,7 +501,9 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                               AppTypography.displayFallback)),
                   const SizedBox(height: 2),
                   Text(
-                      'ListHoldingTransactions · ${trades.length} 条 · ⏳',
+                      pendingBackend
+                          ? 'ListHoldingTransactions ⏳ 端点未实现'
+                          : 'ListHoldingTransactions · ${trades.length} 条 · ⏳',
                       key: const ValueKey('detailTradesSub'),
                       style: const TextStyle(
                           fontSize: 11.5, color: AppColors.muted)),
@@ -546,17 +512,53 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
             ],
           ),
           const SizedBox(height: 12),
-          _tradeFilterChips(trades),
-          const SizedBox(height: 12),
-          if (filtered.isEmpty)
-            _tradesEmpty(_tradeFilter == _TradeFilter.all
-                ? '暂无成交'
-                : '该筛选下无成交')
-          else if (isMobile)
-            _tradeMobileList(filtered, currency)
-          else
-            _tradeTable(filtered, currency),
+          if (pendingBackend)
+            _tradesPendingEmpty()
+          else ...[
+            _tradeFilterChips(trades),
+            const SizedBox(height: 12),
+            if (filtered.isEmpty)
+              _tradesEmpty(_tradeFilter == _TradeFilter.all
+                  ? '暂无成交'
+                  : '该筛选下无成交')
+            else if (isMobile)
+              _tradeMobileList(filtered, currency)
+            else
+              _tradeTable(filtered, currency),
+          ],
         ],
+      ),
+    );
+  }
+
+  /// ⏳ 交易历史待后端空态(复用 A-od trades-empty 样式)。
+  /// 仅交易历史子区域降级;holding 卡/曲线/配置/关联目标保留。
+  Widget _tradesPendingEmpty() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 28),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(LucideIcons.hourglass,
+                key: ValueKey('pendingBackendTitle'),
+                size: 26,
+                color: AppColors.accent),
+            const SizedBox(height: 8),
+            const Text('⏳ 交易历史待后端',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.fg)),
+            const SizedBox(height: 3),
+            const Text(
+              'ListHoldingTransactions ⏳ 端点未实现,流水将在后端就绪后可用',
+              textAlign: TextAlign.center,
+              key: ValueKey('pendingBackendHint'),
+              style: TextStyle(fontSize: 11.5, color: AppColors.muted),
+            ),
+          ],
+        ),
       ),
     );
   }

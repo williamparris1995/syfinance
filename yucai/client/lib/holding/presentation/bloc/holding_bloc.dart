@@ -75,51 +75,51 @@ class HoldingBloc extends Bloc<HoldingEvent, HoldingState> {
   /// 详情加载:listHoldings 找单条 + listHoldingTransactions 取流水。
   ///
   /// ⏳ 关键:listHoldingTransactions 是 ⏳ 端点(后端 B/C/D 未实现)。
-  /// 其 fail → HoldingError(isPendingBackend: true),UI 据此显示空态 +
-  /// "⏳ 待后端" 而非报错。listHoldings fail 视为真错误(isPendingBackend: false)。
+  /// 其 fail → **HoldingDetailLoaded(found, trades: [], isPendingBackend: true)**:
+  /// holding 仍可展示(来自 listHoldings ✅),仅交易历史降级为空态(brief)。
+  /// listHoldings fail / holding not found → HoldingError(isPendingBackend: false,
+  /// 无 holding,真业务错误)。
   Future<void> _onLoadDetail(
     LoadDetailRequested event,
     Emitter<HoldingState> emit,
   ) async {
     emit(HoldingLoading());
     final holdingResult = await _repo.listHoldings();
-    Holding? h;
-    Failure? holdErr;
-    holdingResult.fold(
-      (failure) => holdErr = failure,
-      (holdings) {
-        for (final item in holdings) {
-          if (item.id == event.id) {
-            h = item;
-            break;
-          }
-        }
-      },
-    );
-    if (holdErr != null) {
-      emit(HoldingError(holdErr!.displayMessage, last: _last));
+    // 先处理 listHoldings fail(真错误,无 holding)。
+    if (holdingResult.isLeft()) {
+      final failure = holdingResult
+          .swap()
+          .getOrElse(() => const ServerFailure('listHoldings'));
+      emit(HoldingError(failure.displayMessage, last: _last));
       return;
     }
-    final found = h;
-    if (found == null) {
+    final holdings = holdingResult.getOrElse(() => const <Holding>[]);
+    Holding? maybeFound;
+    for (final item in holdings) {
+      if (item.id == event.id) {
+        maybeFound = item;
+        break;
+      }
+    }
+    // holding not found(真业务错误,无 holding)。
+    if (maybeFound == null) {
       emit(HoldingError('holding not found', last: _last));
       return;
     }
+    final found = maybeFound; // 非空,下游闭包可提升。
     // ⚠️ 用 securityId(非 holding id)过滤交易:ListTradesRequest.security_id
     // 按 security 维度取流水;holding id 与 security id 不同,传 holding id 会
     // 返回错误(空)交易列表。found.id 仍用于上面 firstWhere 找持仓(正确)。
     final tradesResult =
         await _repo.listHoldingTransactions(securityId: found.securityId);
     tradesResult.fold(
-      (failure) => emit(HoldingError(
-        failure.displayMessage,
-        last: _last,
-        isPendingBackend: true, // ⏳ 降级:后端未实现,非真业务错误
+      // ⏳ 降级:holding 保留,交易历史空态(brief:交易历史区空态,非整页)。
+      (_) => emit(HoldingDetailLoaded(
+        holding: found,
+        trades: const [],
+        isPendingBackend: true,
       )),
-      (trades) {
-        final detail = HoldingDetailLoaded(holding: found, trades: trades);
-        emit(detail);
-      },
+      (trades) => emit(HoldingDetailLoaded(holding: found, trades: trades)),
     );
   }
 

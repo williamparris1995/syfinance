@@ -152,13 +152,16 @@ void main() {
     expect(find.text('2026-05-10'), findsOneWidget);
   });
 
-  testWidgets('⏳ isPendingBackend shows "⏳ 交易历史待后端" empty state', (t) async {
-    // 本测试覆盖 Task 5 触发不到的 ⏳ 降级路径(brief 核心要求)。
+  testWidgets('⏳ isPendingBackend keeps holding card + shows "⏳ 交易历史待后端" '
+      'in trades region only (not whole page)', (t) async {
+    // 本测试覆盖 Task 5 触发不到的 ⏳ 降级路径(brief 核心要求):
+    // listHoldingTransactions ⏳ fail → HoldingDetailLoaded(isPendingBackend:true)。
+    // brief 要求:交易历史区空态,但 holding 卡/曲线/配置仍可见。
     await setViewport(t);
     final repo = _MockHoldingRepo();
     final holding = _holding();
     _stubHolding(repo, holding);
-    // listHoldingTransactions ⏳ fail → HoldingError(isPendingBackend:true)。
+    // listHoldingTransactions ⏳ fail → HoldingDetailLoaded(isPendingBackend:true)。
     when(() => repo.listHoldingTransactions(
             accountId: any(named: 'accountId'),
             securityId: any(named: 'securityId')))
@@ -168,13 +171,21 @@ void main() {
     await t.pumpWidget(_harness(repo: repo, holding: holding));
     await t.pumpAndSettle();
 
-    // ⏳ 降级:整页 ⏳ 占位,头部/持仓卡/曲线不渲染(无 detail loaded)。
+    // 主体 7 组件仍渲染(holding 仍带):头部 symbol + 持仓卡 + 曲线 + 配置/目标。
+    expect(find.text('AAPL'), findsOneWidget);
+    expect(find.byKey(const ValueKey('detailMarketValue')), findsOneWidget);
+    expect(find.byKey(const ValueKey('detailQty')), findsOneWidget);
+    expect(find.byKey(const ValueKey('detailTotalCost')), findsOneWidget);
+    expect(find.text('收益曲线'), findsOneWidget);
+    expect(find.text('配置占比'), findsOneWidget);
+    expect(find.text('关联目标'), findsOneWidget);
+    // 交易历史区子标题仍在(文案切换为 ⏳),但不渲染筛选 chips/表格。
+    expect(find.byKey(const ValueKey('detailTradesSub')), findsOneWidget);
+    expect(find.byKey(const ValueKey('tradeFilter-all')), findsNothing);
+    // ⏳ 交易历史区降级空态(hourglass 图标 + 标题 + 文案)。
     expect(find.byKey(const ValueKey('pendingBackendTitle')), findsOneWidget);
     expect(find.byKey(const ValueKey('pendingBackendHint')), findsOneWidget);
     expect(find.text('⏳ 交易历史待后端'), findsOneWidget);
-    // 确认 detail 组件未渲染(区分于 loaded 态)。
-    expect(find.byKey(const ValueKey('detailMarketValue')), findsNothing);
-    expect(find.byKey(const ValueKey('detailTradesSub')), findsNothing);
   });
 
   testWidgets('trade filter chips filter the trade list', (t) async {

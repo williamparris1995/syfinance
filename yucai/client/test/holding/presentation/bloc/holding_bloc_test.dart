@@ -98,11 +98,12 @@ void main() {
   );
 
   // ⏳ fail 降级核心:ListHoldingTransactions(后端 B/C/D 未实现)fail →
-  // HoldingError(isPendingBackend: true),UI 据此显示空态 + ⏳ 标注,
-  // 而非当作真业务错误。
+  // HoldingDetailLoaded(found, trades: [], isPendingBackend: true)——
+  // holding 仍带(来自 listHoldings ✅),仅交易历史降级(brief:交易历史区
+  // 空态,非整页)。UI 据此保留 holding 卡/曲线/配置,仅交易历史显 ⏳ 空态。
   blocTest<HoldingBloc, HoldingState>(
     'LoadDetailRequested with listHoldingTransactions failure emits '
-    'HoldingError(isPendingBackend: true)',
+    'HoldingDetailLoaded(isPendingBackend: true, holding retained)',
     build: () {
       when(() => repo.listHoldings(accountId: any(named: 'accountId')))
           .thenAnswer((_) async => Right([sampleHolding]));
@@ -116,8 +117,46 @@ void main() {
     wait: const Duration(milliseconds: 100),
     expect: () => [
       HoldingLoading(),
+      isA<HoldingDetailLoaded>()
+          .having((s) => s.isPendingBackend, 'isPendingBackend', isTrue)
+          .having((s) => s.holding, 'holding', sampleHolding)
+          .having((s) => s.trades, 'trades', isEmpty),
+    ],
+  );
+
+  // 真业务错误:listHoldings fail(无 holding)→ HoldingError(isPendingBackend:false)。
+  blocTest<HoldingBloc, HoldingState>(
+    'LoadDetailRequested with listHoldings failure emits '
+    'HoldingError(isPendingBackend: false)',
+    build: () {
+      when(() => repo.listHoldings(accountId: any(named: 'accountId')))
+          .thenAnswer((_) async => const Left(ServerFailure('listHoldings fail')));
+      return HoldingBloc(repo);
+    },
+    act: (b) => b.add(const LoadDetailRequested('h1')),
+    wait: const Duration(milliseconds: 100),
+    expect: () => [
+      HoldingLoading(),
       isA<HoldingError>().having((s) => s.isPendingBackend,
-          'isPendingBackend', isTrue),
+          'isPendingBackend', isFalse),
+    ],
+  );
+
+  // holding not found(真业务错误)→ HoldingError(isPendingBackend:false)。
+  blocTest<HoldingBloc, HoldingState>(
+    'LoadDetailRequested with holding not found emits '
+    'HoldingError(isPendingBackend: false)',
+    build: () {
+      when(() => repo.listHoldings(accountId: any(named: 'accountId')))
+          .thenAnswer((_) async => const Right([]));
+      return HoldingBloc(repo);
+    },
+    act: (b) => b.add(const LoadDetailRequested('missing')),
+    wait: const Duration(milliseconds: 100),
+    expect: () => [
+      HoldingLoading(),
+      isA<HoldingError>().having((s) => s.isPendingBackend,
+          'isPendingBackend', isFalse),
     ],
   );
 

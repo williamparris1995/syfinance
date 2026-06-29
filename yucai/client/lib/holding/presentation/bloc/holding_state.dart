@@ -57,18 +57,24 @@ class HoldingLoaded extends HoldingState {
 }
 
 /// 详情页 loaded 状态。`pnlBreakdown` 可空(盈亏明细,前端计算/扩展用)。
+///
+/// `isPendingBackend` 为 true 时表示交易历史来自 ⏳ 端点降级(trades=空,
+/// holding 已从 listHoldings 成功获取)——UI 保留 holding 卡/曲线/配置/关联目标
+/// 7 组件主体,仅交易历史区显示「⏳ 待后端」空态(对齐 brief)。
 class HoldingDetailLoaded extends HoldingState {
   const HoldingDetailLoaded({
     required this.holding,
     required this.trades,
     this.pnlBreakdown,
+    this.isPendingBackend = false,
   });
   final Holding holding;
   final List<HoldingTransaction> trades;
   final Map<String, int>? pnlBreakdown;
+  final bool isPendingBackend;
 
   @override
-  List<Object?> get props => [holding, trades, pnlBreakdown];
+  List<Object?> get props => [holding, trades, pnlBreakdown, isPendingBackend];
 }
 
 /// 提交中:携带上次状态,UI 保持背景列表/详情不变。
