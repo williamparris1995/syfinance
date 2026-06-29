@@ -11,6 +11,7 @@ import (
 	taggrpc "github.com/yucai/server/internal/tag/adapter/driving/grpc"
 	tmplgrpc "github.com/yucai/server/internal/template/adapter/driving/grpc"
 	holdinggrpc "github.com/yucai/server/internal/holding/adapter/driving/grpc"
+	holdingapp "github.com/yucai/server/internal/holding/application"
 	backupgrpc "github.com/yucai/server/internal/backup/adapter/driving/grpc"
 	syncgrpc "github.com/yucai/server/internal/sync/adapter/driving/grpc"
 	currencygrpc "github.com/yucai/server/internal/currency/adapter/driving/grpc"
@@ -27,6 +28,7 @@ type App struct {
 	Logger             *logger.Logger
 	GRPCServer         *GRPCServer
 	TenantRepo         *authrepo.TenantRepository
+	UserRepo           *authrepo.UserRepository
 	AccountService     *accountapp.Service
 	AuthHandler        *authgrpc.AuthHandler
 	AccountHandler     *accountgrpc.AccountHandler
@@ -37,6 +39,7 @@ type App struct {
 	TagHandler         *taggrpc.TagHandler
 	TemplateHandler    *tmplgrpc.TemplateHandler
 	HoldingHandler     *holdinggrpc.HoldingHandler
+	HoldingService     *holdingapp.Service
 	BackupHandler      *backupgrpc.BackupHandler
 	SyncHandler        *syncgrpc.SyncHandler
 	CurrencyHandler    *currencygrpc.CurrencyHandler
@@ -50,6 +53,7 @@ func NewApp(
 	log *logger.Logger,
 	srv *GRPCServer,
 	tenantRepo *authrepo.TenantRepository,
+	userRepo *authrepo.UserRepository,
 	accountService *accountapp.Service,
 	authHandler *authgrpc.AuthHandler,
 	accountHandler *accountgrpc.AccountHandler,
@@ -60,6 +64,7 @@ func NewApp(
 	tagHandler *taggrpc.TagHandler,
 	templateHandler *tmplgrpc.TemplateHandler,
 	holdingHandler *holdinggrpc.HoldingHandler,
+	holdingService *holdingapp.Service,
 	backupHandler *backupgrpc.BackupHandler,
 	syncHandler *syncgrpc.SyncHandler,
 	currencyHandler *currencygrpc.CurrencyHandler,
@@ -71,6 +76,7 @@ func NewApp(
 		Logger:             log,
 		GRPCServer:         srv,
 		TenantRepo:         tenantRepo,
+		UserRepo:           userRepo,
 		AccountService:     accountService,
 		AuthHandler:        authHandler,
 		AccountHandler:     accountHandler,
@@ -81,6 +87,7 @@ func NewApp(
 		TagHandler:         tagHandler,
 		TemplateHandler:    templateHandler,
 		HoldingHandler:     holdingHandler,
+		HoldingService:     holdingService,
 		BackupHandler:      backupHandler,
 		SyncHandler:        syncHandler,
 		CurrencyHandler:    currencyHandler,

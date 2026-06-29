@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/holding/domain"
@@ -199,4 +200,83 @@ func (s *Service) ListHoldingTransactions(ctx context.Context, tenantID uuid.UUI
 		dtos[i] = TradeToDTO(&tr)
 	}
 	return &ListTradesResult{Trades: dtos, NextPageToken: result.NextPageToken, TotalCount: result.TotalCount}, nil
+}
+
+// seedSecurity presets one representative security per SecurityType plus a few
+// extras, giving the holding UI data across all categories (stock/fund/etf/
+// bond/gold/option). Prices are illustrative (cents).
+type seedSecurity struct {
+	symbol   string
+	name     string
+	secType  domain.SecurityType
+	exchange string
+	currency string
+	price    int64
+}
+
+var seedSecurities = []seedSecurity{
+	{"AAPL", "苹果公司", domain.SecurityTypeStock, "NASDAQ", "USD", 19500},
+	{"600519", "贵州茅台", domain.SecurityTypeStock, "SSE", "CNY", 168000},
+	{"000001", "华夏成长基金", domain.SecurityTypeFund, "OTC", "CNY", 145},
+	{"510300", "沪深300ETF", domain.SecurityTypeETF, "SSE", "CNY", 425},
+	{"511010", "国债ETF", domain.SecurityTypeBond, "SSE", "CNY", 119},
+	{"AU9999", "黄金现货", domain.SecurityTypeGold, "SGE", "CNY", 55000},
+	{"OP100006", "50ETF认购期权", domain.SecurityTypeOption, "SSE", "CNY", 826},
+}
+
+// SeedSecurities idempotently creates the preset securities covering every
+// SecurityType. Skips symbols already present (FindBySymbol), so it is safe to
+// run on every startup. Returns the number of newly created rows.
+func (s *Service) SeedSecurities(ctx context.Context) (int, error) {
+	created := 0
+	for _, p := range seedSecurities {
+		if existing, err := s.securityRepo.FindBySymbol(ctx, p.symbol, p.exchange); err == nil && existing != nil {
+			continue
+		}
+		sec, err := domain.NewSecurity(p.symbol, p.name, p.secType, p.exchange, p.currency)
+		if err != nil {
+			return created, fmt.Errorf("build seed security %s: %w", p.symbol, err)
+		}
+		sec.CurrentPriceCents = p.price
+		if err := s.securityRepo.Save(ctx, sec); err != nil {
+			return created, fmt.Errorf("save seed security %s: %w", p.symbol, err)
+		}
+		created++
+	}
+	return created, nil
+}
+
+// SeedSampleHoldings idempotently buys a basket of securities for a tenant's
+// investment account, producing holdings + buy trades so the list/detail/
+// performance pages have data. Skips if the tenant already has any holding.
+// Uses the application-layer BuyHolding (no cash double-write — seed data only,
+// bypassing the gRPC handler's from-account validation).
+func (s *Service) SeedSampleHoldings(ctx context.Context, tenantID, accountID uuid.UUID) error {
+	existing, err := s.holdingRepo.FindAll(ctx, tenantID, nil, domain.PageRequest{PageSize: 1})
+	if err != nil {
+		return fmt.Errorf("check existing holdings: %w", err)
+	}
+	if existing != nil && len(existing.Items) > 0 {
+		return nil
+	}
+	result, err := s.securityRepo.FindAll(ctx, nil, domain.PageRequest{PageSize: 50})
+	if err != nil {
+		return fmt.Errorf("list securities for seed: %w", err)
+	}
+	for i, sec := range result.Items {
+		qty := 50.0 + float64(i*30)
+		date := time.Now().AddDate(0, 0, -i*5)
+		if _, err := s.BuyHolding(ctx, HoldingTradeRequest{
+			TenantID:   tenantID,
+			AccountID:  accountID,
+			SecurityID: sec.ID,
+			Quantity:   qty,
+			PriceCents: sec.CurrentPriceCents,
+			TradeDate:  date,
+			Notes:      "种子数据",
+		}); err != nil {
+			return fmt.Errorf("seed buy %s: %w", sec.Symbol, err)
+		}
+	}
+	return nil
 }
