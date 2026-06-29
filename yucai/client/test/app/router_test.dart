@@ -19,6 +19,12 @@ import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
+import 'package:yucai_client/account/domain/usecases/create_account_usecase.dart';
+import 'package:yucai_client/account/domain/usecases/delete_account_usecase.dart';
+import 'package:yucai_client/account/domain/usecases/get_account_usecase.dart';
+import 'package:yucai_client/account/domain/usecases/list_accounts_usecase.dart';
+import 'package:yucai_client/account/domain/usecases/update_account_usecase.dart';
+import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/app/router.dart';
 import 'package:yucai_client/auth/domain/entities/user_entity.dart';
@@ -34,6 +40,7 @@ import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/pages/debts_page.dart';
+import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/debt/presentation/pages/receivables_page.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
@@ -43,6 +50,7 @@ import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart
 class _MockAccountRepo extends Mock implements AccountRepository {}
 class _MockTxnRepo extends Mock implements TransactionRepository {}
 class _MockDebtRepo extends Mock implements DebtRepository {}
+class _MockHoldingRepo extends Mock implements HoldingRepository {}
 class _MockLogin extends Mock implements LoginUseCase {}
 class _MockRegister extends Mock implements RegisterUseCase {}
 class _MockProfile extends Mock implements GetProfileUseCase {}
@@ -77,9 +85,11 @@ void main() {
     final accountRepo = _MockAccountRepo();
     final txnRepo = _MockTxnRepo();
     final debtRepo = _MockDebtRepo();
+    final holdingRepo = _MockHoldingRepo();
     getIt.registerSingleton<AccountRepository>(accountRepo);
     getIt.registerSingleton<TransactionRepository>(txnRepo);
     getIt.registerSingleton<DebtRepository>(debtRepo);
+    getIt.registerSingleton<HoldingRepository>(holdingRepo);
     // Routes create a fresh CurrencyBloc via getIt<CurrencyBloc>() (router.dart
     // /debts, /debts/:id, /receivables, /receivables/:id, /accounts, /settings).
     // Register a factory returning a fake so those route builders resolve;
@@ -87,6 +97,16 @@ void main() {
     // `GetIt: CurrencyBloc is not registered` during page build, which also
     // leaks widget state and breaks subsequent tests (auth-guard).
     getIt.registerFactory<CurrencyBloc>(() => _FakeCurrencyBloc());
+    // /home builder (router.dart) creates AccountBloc via getIt<AccountBloc>();
+    // register a factory wired to the mocked AccountRepository (mirrors
+    // app_shell_test.dart) so /home resolves during sidebar navigation tests.
+    getIt.registerFactory<AccountBloc>(() => AccountBloc(
+          ListAccountsUseCase(accountRepo),
+          CreateAccountUseCase(accountRepo),
+          DeleteAccountUseCase(accountRepo),
+          GetAccountUseCase(accountRepo),
+          UpdateAccountUseCase(accountRepo),
+        ));
 
     when(() => accountRepo.list()).thenAnswer(
         (_) async => dartz.Right([_account()]));
@@ -111,6 +131,10 @@ void main() {
             )));
     when(() => txnRepo.getById(any()))
         .thenAnswer((_) async => dartz.Right(_txn()));
+    // /holdings branch fires LoadHoldingsRequested on entry; stub globally so
+    // any /holdings navigation doesn't hit an unstubbed call.
+    when(() => holdingRepo.listHoldings(accountId: any(named: 'accountId')))
+        .thenAnswer((_) async => const dartz.Right([]));
   });
 
   Widget app(GoRouter router, AuthBloc authBloc) => MaterialApp.router(
@@ -175,14 +199,38 @@ void main() {
         '/transactions/t-42');
   });
 
-  test('router has five StatefulShell branches '
-      '(home/accounts/transactions/debts/receivables)', () {
+  test('router has six StatefulShell branches '
+      '(home/accounts/transactions/debts/receivables/holdings)', () {
     final router = buildRouter(_seededAuthBloc());
     final shell = router.configuration.routes
         .whereType<StatefulShellRoute>()
         .first;
-    expect(shell.branches.length, 5,
-        reason: 'receivables branch (index 4) must be registered');
+    expect(shell.branches.length, 6,
+        reason: 'holdings branch (index 5) must be registered');
+  });
+
+  testWidgets(
+      'sidebar 投资组合 tap navigates to /holdings (branch 5)',
+      (tester) async {
+    // 宽屏(>=1100)显示侧栏;默认 800x600 走底栏。侧栏投资组合项 onTap 用
+    // context.go('/holdings')(route 优先),此测试验证它真切换到 branch 5。
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/home');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('投资组合'), findsOneWidget);
+    await tester.tap(find.text('投资组合'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/holdings');
   });
 
   testWidgets('/debts resolves inside the debt branch and renders DebtsPage',
