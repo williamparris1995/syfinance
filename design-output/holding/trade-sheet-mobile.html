@@ -40,6 +40,51 @@
     margin-left: auto; font-size: 11px; padding: 2px 9px; border-radius: var(--r-pill);
     font-weight: 500;
   }
+
+  /* —— mobile step4 实时 mini 金额/余额 预览（本地，不污染 styles.css）—— */
+  .m-mini-preview {
+    margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--border);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .m-mini-amt {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: 10px 14px; border-radius: var(--r-lg);
+    background: var(--bg); border: 1px solid var(--border);
+  }
+  .m-mini-amt .mma-label { font-size: 12px; color: var(--muted); }
+  .m-mini-amt .mma-val {
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    font-size: 20px; font-weight: 600; color: var(--fg-strong); letter-spacing: -.01em;
+  }
+  .m-mini-amt.t-buy      .mma-val { color: var(--buy); }
+  .m-mini-amt.t-sell     .mma-val { color: var(--sell); }
+  .m-mini-amt.t-dividend .mma-val { color: var(--dividend); }
+  .m-mini-bal {
+    display: flex; align-items: center; gap: 8px; font-size: 12px;
+    padding: 9px 14px; border-radius: var(--r-sm);
+    background: var(--up-soft); border: 1px solid transparent;
+  }
+  .m-mini-bal .mmb-label { color: var(--muted); display: flex; align-items: center; gap: 5px; }
+  .m-mini-bal .mmb-flow {
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    margin-left: auto; color: var(--fg-strong); font-weight: 500;
+  }
+  .m-mini-bal .mmb-arrow { color: var(--muted-2); }
+  .m-mini-bal.ok  { background: var(--up-soft); }
+  .m-mini-bal.ok .mmb-after { color: var(--up); }
+  .m-mini-bal.fail { background: var(--down-soft); }
+  .m-mini-bal.fail .mmb-after { color: var(--down); font-weight: 600; }
+  .m-mini-bal.fail .mmb-warn {
+    margin-top: 4px; color: var(--down); display: flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 500;
+  }
+
+  /* —— split 跳步进度段 hollow（不误导为 done）—— */
+  .wiz-progress .wp-step.skip {
+    background: transparent; border: 1px dashed var(--muted-2);
+    height: 4px; /* 与基线一致 */
+  }
+  .wp-labels span.skip { color: var(--muted-2); text-decoration: line-through; }
 </style>
 </head>
 <body>
@@ -214,6 +259,25 @@
               <input class="input mono" type="date" id="divDate" value="2026-06-29">
             </div>
           </div>
+
+          <!-- step4 实时 mini 金额/余额预览（buy/sell/dividend 都用；split 路径不到 step4）-->
+          <div class="m-mini-preview" id="mMiniPreview">
+            <div class="m-mini-amt t-buy" id="mMiniAmt">
+              <span class="mma-label" id="mMiniAmtLabel">买入金额（含费用）</span>
+              <span class="mma-val" id="mMiniAmtVal">$0.00</span>
+            </div>
+            <div class="m-mini-bal ok" id="mMiniBal">
+              <span class="mmb-label">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M12 22c4.97 0 9-4.03 9-9 0-4.97-4.03-9-9-9-4.97 0-9 4.03-9 9 0 4.97 4.03 9 9 9z"/><path d="M14.5 9.5a3.5 3.5 0 0 0-5 0L7 12l2.5 2.5a3.5 3.5 0 0 0 5 0"/></svg>
+                资金账户余额
+              </span>
+              <span class="mmb-flow"><span class="mmb-before">$0.00</span> <span class="mmb-arrow">→</span> <span class="mmb-after">$0.00</span></span>
+            </div>
+            <div class="mmb-warn" id="mMiniWarn" style="display:none">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+              余额不足 · fail-fast 预览
+            </div>
+          </div>
         </div>
 
         <!-- ===== STEP 5: 确认 ===== -->
@@ -326,13 +390,45 @@ function renderAcctList(){
   }
 }
 
-/* recalc (buy/sell) */
-function recalc(){}
+/* recalc (buy/sell) —— 实时 mini 金额/余额 + fail-fast 预览（对齐 desktop 行为）*/
+function recalc(){
+  if(state.type!=='buy' && state.type!=='sell') return;
+  var secCur = curOf(state.secId);
+  var qty = parseFloat($('qty').value) || 0;
+  var price = parseFloat($('price').value) || 0;
+  var fee = parseFloat($('fee').value) || 0;
+  var amt = state.type==='buy' ? (qty*price + fee) : (qty*price - fee);
+
+  // 金额行
+  $('mMiniAmtVal').textContent = fmt(amt, secCur);
+  $('mMiniAmt').className = 'm-mini-amt t-' + state.type;
+  $('mMiniAmtLabel').textContent = state.type==='buy' ? '买入金额（含费用）' : '卖出净额（扣费用）';
+
+  // 余额 fail-fast（sell/dividend 无余额拦截；buy 查 from 账户）
+  var bal = ACCT_BAL[state.acctId] || 0;
+  var after = state.type==='buy' ? (bal - amt) : (bal + amt);
+  var fail = state.type==='buy' && after < 0;
+  $('mMiniBal').querySelector('.mmb-before').textContent = fmt(bal, secCur);
+  $('mMiniBal').querySelector('.mmb-after').textContent  = fmt(after, secCur);
+  $('mMiniBal').className = 'm-mini-bal ' + (fail ? 'fail' : 'ok');
+  $('mMiniBal').style.display = ''; // buy/sell 都显示余额流向
+  $('mMiniWarn').style.display = fail ? '' : 'none';
+}
 function recalcDiv(){
   // 这里 step4 切换 dividend 时同步 divQty 显示
   var sid = state.secId;
   var h = window.HOLDINGS.find(function(x){ return x.security_id===sid; });
   $('divQty').value = h ? h.quantity : 0;
+  // dividend mini 金额（入 income 账户，无余额拦截）
+  var secCur = curOf(sid);
+  var qty2 = h ? h.quantity : 0;
+  var per = parseFloat($('perShare').value) || 0;
+  var amt = per * qty2;
+  $('mMiniAmtVal').textContent = fmt(amt, secCur);
+  $('mMiniAmt').className = 'm-mini-amt t-dividend';
+  $('mMiniAmtLabel').textContent = '分红总额';
+  $('mMiniBal').style.display = 'none';
+  $('mMiniWarn').style.display = 'none';
 }
 function recalcSplit(){
   state.splitRatioFrom = parseFloat($('ratioFrom').value) || 1;
@@ -358,13 +454,19 @@ var STEP_TITLES = {
 
 function renderStep(){
   // progress
+  // split 路径走 1→2→5，跳过的 step3(账户)/step4(数量价格) 标 hollow(skip) 而非金色 done
+  var isSplit = state.type==='split';
   document.querySelectorAll('.wp-step').forEach(function(b){
     var s = parseInt(b.dataset.step);
-    b.classList.toggle('done',    s < state.step);
+    var skipped = isSplit && (s===3 || s===4);
+    b.classList.toggle('skip',    skipped);
+    b.classList.toggle('done',    !skipped && s < state.step);
     b.classList.toggle('current', s === state.step);
   });
   document.querySelectorAll('.wp-labels span').forEach(function(b){
     var s = parseInt(b.dataset.step);
+    var skipped = isSplit && (s===3 || s===4);
+    b.classList.toggle('skip',  skipped);
     b.classList.toggle('active', s === state.step);
   });
   $('wpTitle').textContent = STEP_TITLES[state.step]();
@@ -381,7 +483,7 @@ function renderStep(){
   if(state.step===4){
     $('qtyPriceBox').style.display = (state.type==='dividend') ? 'none' : '';
     $('divBox').style.display       = (state.type==='dividend') ? '' : 'none';
-    if(state.type==='dividend') recalcDiv();
+    if(state.type==='dividend') recalcDiv(); else recalc();
   }
 
   // step5 confirm
