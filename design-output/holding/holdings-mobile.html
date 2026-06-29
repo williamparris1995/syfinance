@@ -193,7 +193,7 @@
         + '</div>'
         + '<div class="acc-mid">'
         +   window.sparkSVG(v.h.sparkline, v.up, 'acc-spark', 96, 30)
-        +   '<span class="acc-pill ' + (v.up ? 'bg-up' : 'bg-down') + '">' + (v.up ? '▲' : '▼') + ' ' + window.fmtPct(v.pnlPct) + '</span>'
+        +   '<span class="acc-pill ' + (v.up ? 'bg-up' : 'bg-down') + '">' + icon(v.up ? 'trending-up' : 'trending-down', 'icon-sm') + window.fmtPct(v.pnlPct) + '</span>'
         + '</div>'
         + '<div class="acc-meta">'
         +   '<div class="kv"><span class="k">持有量</span><span class="v">' + v.h.quantity.toLocaleString('zh-CN') + '</span></div>'

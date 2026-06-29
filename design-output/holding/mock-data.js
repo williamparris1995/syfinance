@@ -9,23 +9,30 @@
 window.RATES = { USD: 7.25, CNY: 1, HKD: 0.92 };
 window.BASE_CURRENCY = 'CNY';
 
-/* 证券字典 */
+/* 证券字典（覆盖 5 种 type：stock/fund/etf/bond/gold） */
 window.SECURITIES = {
   s1: { id: 's1', symbol: 'AAPL',   name: 'Apple Inc.',  type: 'stock', currency: 'USD', market: 'NASDAQ' },
   s2: { id: 's2', symbol: '600000', name: '浦发银行',     type: 'stock', currency: 'CNY', market: 'SH' },
   s3: { id: 's3', symbol: '510300', name: '沪深300ETF',   type: 'etf',   currency: 'CNY', market: 'SH' },
+  s4: { id: 's4', symbol: '163406', name: '兴全合润混合', type: 'fund',  currency: 'CNY', market: 'SH' },
+  s5: { id: 's5', symbol: '019547', name: '24国债09',     type: 'bond',  currency: 'CNY', market: 'SH' },
+  s6: { id: 's6', symbol: 'AU9999', name: '黄金延期',     type: 'gold',  currency: 'CNY', market: 'SH' },
 };
 
-/* 账户 */
+/* 账户（含 income 类分红收入账户 a3，演示 dividend 入账） */
 window.ACCOUNTS = {
-  a1: { id: 'a1', name: '美股账户', broker: '盈透证券 IBKR', currency: 'USD' },
-  a2: { id: 'a2', name: 'A股账户',  broker: '华泰证券',       currency: 'CNY' },
+  a1: { id: 'a1', name: '美股账户',     broker: '盈透证券 IBKR', currency: 'USD' },
+  a2: { id: 'a2', name: 'A股账户',      broker: '华泰证券',       currency: 'CNY' },
+  a3: { id: 'a3', name: '分红收入账户', broker: '招商银行',       currency: 'CNY', kind: 'income' },
 };
 
-/* 持仓（3 条演示数据）
-   s1 AAPL：50 股，成本 $170，现价 $185  → +$750  ≈ +¥5437.5
-   s2 600000 浦发：1000 股，成本 ¥12.00，现价 ¥10.85 → -¥1150
-   s3 510300 ETF：2000 份，成本 ¥3.80，现价 ¥4.12   → +¥640
+/* 持仓（5 种 type 各 ≥1，跨 USD/CNY，盈亏混合）
+   s1 AAPL     (stock·USD)：50 股，成本 $170，现价 $185  → +$750   ≈ +¥5437.5
+   s2 600000   (stock·CNY)：1000 股，成本 ¥12.00，现价 ¥10.85 → -¥1150.0
+   s3 510300   (etf·CNY)：  2000 份，成本 ¥3.80，现价 ¥4.12   → +¥640.0
+   s4 163406   (fund·CNY)： 5000 份，成本 ¥2.50，现价 ¥2.68   → +¥900.0
+   s5 019547   (bond·CNY)：  100 张，成本 ¥100.00，现价 ¥101.20 → +¥120.0
+   s6 AU9999   (gold·CNY)： 100 克，成本 ¥520.00，现价 ¥545.00 → +¥2500.0
 */
 window.HOLDINGS = [
   {
@@ -46,7 +53,34 @@ window.HOLDINGS = [
     /* 盈利：30 点上行走势（较平缓） */
     sparkline: 'M0,20 L3,19 L7,20 L10,18 L14,19 L17,17 L21,18 L24,16 L28,17 L31,15 L34,16 L38,14 L41,15 L45,13 L48,12 L52,14 L55,11 L59,12 L62,10 L66,11 L69,9 L72,10 L76,8 L79,9 L83,7 L86,8 L90,7 L93,5 L97,6 L100,5',
   },
+  {
+    id: 'h4', security_id: 's4', account_id: 'a2',
+    quantity: 5000, cost_price: 2.50, current_price: 2.68, currency: 'CNY',
+    /* 盈利：30 点上行走势（震荡向上） */
+    sparkline: 'M0,19 L3,20 L7,18 L10,19 L14,17 L17,18 L21,16 L24,17 L28,15 L31,16 L34,14 L38,15 L41,13 L45,14 L48,12 L52,13 L55,11 L59,12 L62,10 L66,11 L69,9 L72,10 L76,8 L79,9 L83,7 L86,8 L90,6 L93,7 L97,5 L100,5',
+  },
+  {
+    id: 'h5', security_id: 's5', account_id: 'a2',
+    quantity: 100, cost_price: 100.00, current_price: 101.20, currency: 'CNY',
+    /* 盈利：30 点缓上行（债券低波动） */
+    sparkline: 'M0,17 L3,17 L7,18 L10,17 L14,16 L17,17 L21,16 L24,17 L28,15 L31,16 L34,15 L38,16 L41,14 L45,15 L48,14 L52,15 L55,13 L59,14 L62,13 L66,14 L69,12 L72,13 L76,12 L79,11 L83,12 L86,10 L90,11 L93,10 L97,9 L100,9',
+  },
+  {
+    id: 'h6', security_id: 's6', account_id: 'a2',
+    quantity: 100, cost_price: 520.00, current_price: 545.00, currency: 'CNY',
+    /* 盈利：30 点上行走势 */
+    sparkline: 'M0,21 L3,20 L7,19 L10,20 L14,18 L17,17 L21,18 L24,16 L28,15 L31,16 L34,14 L38,13 L41,14 L45,12 L48,11 L52,12 L55,10 L59,9 L62,10 L66,8 L69,7 L72,8 L76,6 L79,5 L83,6 L86,4 L90,5 L93,3 L97,4 L100,2',
+  },
 ];
+
+/* 占位（Task 2 列表页未使用，补于 Task 5/7）
+   · TRADES：成交明细（Task 5 交易明细表回填）
+   · PRICE_HISTORY：行情历史 K 线（Task 5 行情详情回填）
+   · GOALS：止盈止损 / 目标价（Task 7 持仓详情策略回填）
+*/
+window.TRADES = [];        // 补于 Task 5
+window.PRICE_HISTORY = {}; // 补于 Task 5
+window.GOALS = [];         // 补于 Task 7
 
 /* 类型元数据 */
 window.TYPE_META = {
