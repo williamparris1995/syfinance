@@ -12,6 +12,8 @@
            计算（server summary 端点后置）
      · 数据源：window.HOLDINGS / window.SECURITIES / window.ACCOUNTS（mock-data.js）
      · 汇率：USD → CNY = 7.25
+     · P&L 用平均成本 mock（holdingView：pnl = mktVal − cost，非 FIFO），
+       A-flutter 接 ⏳C snapshot 替换（FIFO/移动加权由 server 计算）
      ====================================================================== -->
 <link rel="stylesheet" href="styles.css">
 </head>

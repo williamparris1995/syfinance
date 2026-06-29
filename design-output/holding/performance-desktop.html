@@ -297,10 +297,11 @@
   /* ============================================================
      ④ 年化收益率 + 基准对比（mock）
      ============================================================ */
-  /* mock 基准：沪深300 同期累计 +6.8% / 年化 +5.4% */
-  var myAnnualized = 12.4;   /* mock：基于 agg.total/持仓时长推算（演示）*/
+  /* mock 基准：沪深300 同期累计 +6.8% / 年化 +5.4%（集中到 mock-data.js MOCK_ANNUALIZED/MOCK_BENCHMARK）
+     · A-flutter ⏳C snapshot 替换：年化由持仓时长推算 + 基准接真行情源 */
+  var myAnnualized = window.MOCK_ANNUALIZED;
   var myCumulative = sum.totalPnlPct;
-  var benchAnnualized = 5.4, benchCumulative = 6.8;
+  var benchAnnualized = window.MOCK_BENCHMARK.csi300, benchCumulative = window.MOCK_BENCHMARK.csi300Cumulative;
   var benchDelta = myAnnualized - benchAnnualized;
   document.getElementById('annualCard').innerHTML =
       '<div class="annual-head">'

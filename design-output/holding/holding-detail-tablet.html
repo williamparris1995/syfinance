@@ -16,6 +16,8 @@
         → 关联目标卡(市值 vs 目标额) · 对接真 window.GOALS(window.goalView)
   操作: buy/sell/dividend/split 触发统一交易 Sheet(见 trade-sheet-tablet.html)
   数据源: window.HOLDINGS / window.TRADES / window.PRICE_HISTORY
+  P&L 用平均成本 mock（holdingPnlBreakdown：realized 按成本均价摊销，非 FIFO），
+       A-flutter 接 ⏳C snapshot 替换（FIFO/移动加权由 server 计算）
   ============================================================================
 -->
 <link rel="stylesheet" href="styles.css">

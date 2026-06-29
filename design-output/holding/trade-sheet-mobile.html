@@ -95,15 +95,15 @@
     <div class="statusbar">
       <span>9:41</span>
       <span class="sb-icons">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c4.97 0 9-4.03 9-9 0-4.97-4.03-9-9-9-4.97 0-9 4.03-9 9 0 4.97 4.03 9 9 9z"/><path d="M12 18a6 6 0 0 0 6-6"/></svg>
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="10" x="2" y="7" rx="2"/><line x1="22" x2="22" y1="11" y2="13"/></svg>
+        <span data-icon="sb-signal"></span>
+        <span data-icon="battery"></span>
       </span>
     </div>
 
     <!-- wizard top: back + title -->
     <div class="wiz-top">
       <button class="back-btn" aria-label="返回" onclick="goBack()">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        <span data-icon="chevron-left"></span>
       </button>
       <span class="wt-title">记录交易</span>
       <span class="wt-type-tag" id="wtTypeTag" style="background:var(--buy-soft);color:var(--buy)">买入</span>
@@ -137,22 +137,22 @@
         <div class="wiz-step" data-step="1">
           <div class="type-cards">
             <div class="type-card t-buy selected" data-type="buy" onclick="pickType('buy')">
-              <div class="tc-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="m9 13 3 3 3-3"/></svg></div>
+              <div class="tc-icon"><span data-icon="arrow-down-circle"></span></div>
               <span class="tc-name">买入</span>
               <span class="tc-desc">资金扣减<br>持仓增加</span>
             </div>
             <div class="type-card t-sell" data-type="sell" onclick="pickType('sell')">
-              <div class="tc-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16V8"/><path d="m9 11 3-3 3 3"/></svg></div>
+              <div class="tc-icon"><span data-icon="arrow-up-circle"></span></div>
               <span class="tc-name">卖出</span>
               <span class="tc-desc">资金入账<br>持仓减少</span>
             </div>
             <div class="type-card t-dividend" data-type="dividend" onclick="pickType('dividend')">
-              <div class="tc-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></svg></div>
+              <div class="tc-icon"><span data-icon="coins"></span></div>
               <span class="tc-name">分红</span>
               <span class="tc-desc">入 income<br>账户</span>
             </div>
             <div class="type-card t-split" data-type="split" onclick="pickType('split')">
-              <div class="tc-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg></div>
+              <div class="tc-icon"><span data-icon="git-merge"></span></div>
               <span class="tc-name">拆分</span>
               <span class="tc-desc">调整量/成本<br>无现金流</span>
             </div>
@@ -170,7 +170,7 @@
                   <span class="sp-name" id="secName">Apple Inc.</span>
                   <span class="sp-tag" id="secTag">stock · USD</span>
                 </div>
-                <svg class="sp-caret icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                <span class="sp-caret" data-icon="chevron-down"></span>
               </div>
               <div class="sec-menu" id="secMenu" style="display:none"></div>
             </div>
@@ -181,13 +181,13 @@
               <label class="field-label">拆分比例（从 → 至）<span class="req">*</span></label>
               <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center">
                 <input class="input mono" type="number" id="ratioFrom" value="1" min="1" step="1" oninput="recalcSplit()">
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="color:var(--split)"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                <span data-icon="arrow-right" style="color:var(--split)"></span>
                 <input class="input mono" type="number" id="ratioTo" value="2" min="1" step="1" oninput="recalcSplit()">
               </div>
             </div>
             <div class="split-preview" style="margin-top:14px">
               <div class="sp-title">
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
+                <span data-icon="git-merge"></span>
                 拆分预览（无现金流）
               </div>
               <div class="split-grid">
@@ -268,13 +268,13 @@
             </div>
             <div class="m-mini-bal ok" id="mMiniBal">
               <span class="mmb-label">
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M12 22c4.97 0 9-4.03 9-9 0-4.97-4.03-9-9-9-4.97 0-9 4.03-9 9 0 4.97 4.03 9 9 9z"/><path d="M14.5 9.5a3.5 3.5 0 0 0-5 0L7 12l2.5 2.5a3.5 3.5 0 0 0 5 0"/></svg>
+                <span data-icon="help-circle" style="width:13px;height:13px"></span>
                 资金账户余额
               </span>
               <span class="mmb-flow"><span class="mmb-before">$0.00</span> <span class="mmb-arrow">→</span> <span class="mmb-after">$0.00</span></span>
             </div>
             <div class="mmb-warn" id="mMiniWarn" style="display:none">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+              <span data-icon="alert-triangle" style="width:13px;height:13px"></span>
               余额不足 · fail-fast 预览
             </div>
           </div>
@@ -290,7 +290,7 @@
       <!-- wizard foot -->
       <div class="wiz-foot" id="wizFoot">
         <button class="btn" id="prevBtn" onclick="goPrev()" style="display:none">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          <span data-icon="chevron-left"></span>
           上一步
         </button>
         <button class="btn btn-primary" id="nextBtn" onclick="goNext()">下一步</button>
@@ -302,6 +302,10 @@
 
 <script src="mock-data.js"></script>
 <script>
+/* —— 内联 SVG 占位 → window.icon 注入（对齐 holdings/performance 等界面）—— */
+document.querySelectorAll('[data-icon]').forEach(function (el) {
+  el.innerHTML = window.icon(el.getAttribute('data-icon'));
+});
 var ACCT_BAL = { a1: 5000, a2: 80000, a3: 0 };
 var state = { step:1, type:'buy', secId:'s1', acctId:'a1', incomeAcctId:'a3', splitRatioFrom:1, splitRatioTo:2 };
 function $(id){ return document.getElementById(id); }
@@ -385,7 +389,7 @@ function renderAcctList(){
   var mismatch = ['a1','a2'].filter(function(aid){ return window.ACCOUNTS[aid].currency !== secCur; });
   if(mismatch.length && state.type!=='dividend'){
     var w = document.createElement('div'); w.className = 'acct-warn';
-    w.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>'+mismatch.length+' 个账户币种与证券（'+secCur+'）不一致，已 disabled';
+    w.innerHTML = window.icon('alert-triangle')+mismatch.length+' 个账户币种与证券（'+secCur+'）不一致，已 disabled';
     list.appendChild(w);
   }
 }
@@ -497,7 +501,7 @@ function renderStep(){
   if(state.step===5){
     next.textContent = '确认提交';
   } else {
-    next.innerHTML = '下一步 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+    next.innerHTML = '下一步 ' + window.icon('chevron-right');
   }
 
   // step3 渲染账户列表
@@ -566,7 +570,7 @@ function renderConfirm(){
          + '</div>';
     if(fail){
       html += '<div class="bal-preview fail" style="margin-top:10px">'
-           +   '<span class="bp-warn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>余额不足 · fail-fast 拦截</span>'
+           +   '<span class="bp-warn">' + window.icon('alert-triangle') + '余额不足 · fail-fast 拦截</span>'
            + '</div>';
     }
   } else if(state.type==='dividend'){
@@ -585,7 +589,7 @@ function renderConfirm(){
     html += '<div class="chosen-row"><span class="cr-label">拆分比例</span><span class="cr-val" style="margin-left:auto">'+state.splitRatioFrom+' : '+state.splitRatioTo+'</span></div>';
     html += '<div class="chosen-row"><span class="cr-label">持有量</span><span class="cr-val" style="margin-left:auto;color:var(--muted);text-decoration:line-through">'+qty+' 股</span></div>';
     html += '<div class="chosen-row" style="background:var(--split-soft)"><span class="cr-label" style="color:var(--split)">拆分后</span><span class="cr-val" style="margin-left:auto;color:var(--split)">'+(qty*mult)+' 股 @ '+fmt(cost/mult,secCur)+'</span></div>';
-    html += '<div class="split-noop" style="margin-top:10px"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>无现金流 · 仅调整 quantity 与 cost_price</div>';
+    html += '<div class="split-noop" style="margin-top:10px">' + window.icon('info') + '无现金流 · 仅调整 quantity 与 cost_price</div>';
   }
 
   $('confirmBox').innerHTML = html;

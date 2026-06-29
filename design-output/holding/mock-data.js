@@ -9,6 +9,12 @@
 window.RATES = { USD: 7.25, CNY: 1, HKD: 0.92 };
 window.BASE_CURRENCY = 'CNY';
 
+/* mock 年化收益与基准（performance 页 3 端共用，避免硬编码重复）
+   注：mock 占位 · A-flutter 接入真 ⏳C snapshot（持仓时长推算年化 + 真基准源）后替换 */
+window.MOCK_ANNUALIZED = 12.4;          /* 年化收益率 %（mock）*/
+window.MOCK_BENCHMARK  = { csi300: 5.4, /* 沪深300 同期年化 %（mock）*/
+                           csi300Cumulative: 6.8 /* 沪深300 同期累计 %（mock）*/ };
+
 /* 证券字典（覆盖 5 种 type：stock/fund/etf/bond/gold） */
 window.SECURITIES = {
   s1: { id: 's1', symbol: 'AAPL',   name: 'Apple Inc.',  type: 'stock', currency: 'USD', market: 'NASDAQ' },
@@ -472,6 +478,17 @@ window.icon = function (name, cls) {
     'pencil':            '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>',
     'check-circle':      '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/>',
     'x-circle':          '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
+    /* —— Task 9 final review 新增 icon（trade-sheet / security 内联 SVG 统一）—— */
+    'activity':          '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>',
+    'layers':            '<path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>',
+    'globe':             '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
+    'lock':              '<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+    'square-pen':        '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+    'help-circle':       '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+    /* statusbar 装饰（非 lucide 标准字形，按原型视觉保留）*/
+    'battery':           '<rect width="16" height="10" x="2" y="7" rx="2"/><line x1="22" x2="22" y1="11" y2="13"/>',
+    'sb-signal':         '<circle cx="12" cy="12" r="10"/><path d="M12 18a6 6 0 0 0 6-6"/>',
+    'sb-wifi':           '<path d="M4 12a8 8 0 0 1 16 0"/><path d="M2 12a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z"/><path d="M8 14a4 4 0 0 1 8 0"/>',
   };
   return '<svg ' + p + '>' + (map[name] || '') + '</svg>';
 };

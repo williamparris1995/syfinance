@@ -40,7 +40,7 @@
 <body>
 <div class="demo-canvas">
   <div class="demo-hint">
-    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+    <span data-icon="pie-chart"></span>
     Tablet 768–1023px · bottom sheet 全宽 · 单列表单
   </div>
 
@@ -54,22 +54,22 @@
           <span class="sh-sub" id="shSub">买入持仓 · 资金从账户扣减，持仓数量增加</span>
         </div>
         <button class="icon-btn" aria-label="关闭" onclick="document.getElementById('overlay').style.display='none'">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          <span data-icon="x"></span>
         </button>
       </div>
 
       <div class="seg" role="tablist">
         <button class="seg-item t-buy active"        data-type="buy"      role="tab" aria-selected="true"  onclick="switchType('buy')">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="m9 13 3 3 3-3"/></svg>买入
+          <span data-icon="arrow-down-circle"></span>买入
         </button>
         <button class="seg-item t-sell"              data-type="sell"     role="tab" aria-selected="false" onclick="switchType('sell')">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16V8"/><path d="m9 11 3-3 3 3"/></svg>卖出
+          <span data-icon="arrow-up-circle"></span>卖出
         </button>
         <button class="seg-item t-dividend"          data-type="dividend" role="tab" aria-selected="false" onclick="switchType('dividend')">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></svg>分红
+          <span data-icon="coins"></span>分红
         </button>
         <button class="seg-item t-split"             data-type="split"    role="tab" aria-selected="false" onclick="switchType('split')">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>拆分
+          <span data-icon="git-merge"></span>拆分
         </button>
       </div>
 
@@ -87,7 +87,7 @@
                   <span class="sp-name" id="secName">Apple Inc.</span>
                   <span class="sp-tag" id="secTag">stock · USD</span>
                 </div>
-                <svg class="sp-caret icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                <span class="sp-caret" data-icon="chevron-down"></span>
               </div>
               <div class="sec-menu" id="secMenu" style="display:none"></div>
             </div>
@@ -132,12 +132,12 @@
           <div class="field span-2-full">
             <div class="bal-preview ok" id="balPreview">
               <span class="bp-label">
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+                <span data-icon="banknote"></span>
                 账户余额
               </span>
               <span class="bp-flow"><span id="balBefore">$5,000.00</span> <span class="bp-arrow">→</span> <span class="bp-after" id="balAfter">$3,145.00</span></span>
               <span class="bp-warn">
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                <span data-icon="alert-triangle"></span>
                 余额不足
               </span>
             </div>
@@ -155,7 +155,7 @@
                   <span class="sp-name" id="secNameDiv">浦发银行</span>
                   <span class="sp-tag" id="secTagDiv">stock · CNY</span>
                 </div>
-                <svg class="sp-caret icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                <span class="sp-caret" data-icon="chevron-down"></span>
               </div>
               <div class="sec-menu" id="secMenuDiv" style="display:none"></div>
             </div>
@@ -197,7 +197,7 @@
                   <span class="sp-name" id="secNameSplit">Apple Inc.</span>
                   <span class="sp-tag" id="secTagSplit">stock · USD</span>
                 </div>
-                <svg class="sp-caret icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                <span class="sp-caret" data-icon="chevron-down"></span>
               </div>
               <div class="sec-menu" id="secMenuSplit" style="display:none"></div>
             </div>
@@ -223,7 +223,7 @@
           <div class="field span-2-full">
             <div class="split-preview">
               <div class="sp-title">
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
+                <span data-icon="git-merge"></span>
                 拆分预览 · 持仓量与成本调整（无现金流）
               </div>
               <div class="split-grid">
@@ -241,7 +241,7 @@
                 </div>
               </div>
               <div class="split-noop">
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                <span data-icon="info"></span>
                 总市值不变 · 仅调整 quantity 与 cost_price（无现金流账户联动）
               </div>
             </div>
@@ -252,7 +252,7 @@
       <div class="amt-preview" id="amtPreviewWrap">
         <div class="amt-row t-buy" id="amtRow">
           <span class="amt-label" id="amtLabel">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+            <span data-icon="banknote"></span>
             交易金额（含费用）
           </span>
           <span class="amt-val" id="amtVal">$1,855.00</span>
@@ -271,6 +271,10 @@
 <script src="mock-data.js"></script>
 <script>
 /* tablet 版与 desktop 共享同一段交互脚本（form id 一致）—— 此处为完整内嵌副本以保持独立可预览 */
+/* —— 内联 SVG 占位 → window.icon 注入（对齐 holdings/performance 等界面）—— */
+document.querySelectorAll('[data-icon]').forEach(function (el) {
+  el.innerHTML = window.icon(el.getAttribute('data-icon'));
+});
 var ACCT_BAL = { a1: 5000, a2: 80000, a3: 0 };
 var state = { type:'buy', secId:'s1', divSecId:'s2', splitSecId:'s1', acctId:'a1', incomeAcctId:'a3' };
 function $(id){ return document.getElementById(id); }
@@ -325,7 +329,7 @@ function renderAcctList(){
   var mismatch=Object.keys(window.ACCOUNTS).filter(function(aid){ return aid!=='a3'&&window.ACCOUNTS[aid].currency!==secCur; });
   if(mismatch.length){
     var w=document.createElement('div'); w.className='acct-warn';
-    w.innerHTML='<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>'+mismatch.length+' 个账户币种与证券（'+secCur+'）不一致，已 disabled';
+    w.innerHTML=window.icon('alert-triangle')+mismatch.length+' 个账户币种与证券（'+secCur+'）不一致，已 disabled';
     list.appendChild(w);
   }
   if(!state.acctId || window.ACCOUNTS[state.acctId].currency!==secCur){

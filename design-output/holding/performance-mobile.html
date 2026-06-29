@@ -247,9 +247,9 @@
     +   '</div>'
     + '</div>';
 
-  /* ④ 年化收益率 */
-  var myAnnualized = 12.4, myCumulative = sum.totalPnlPct;
-  var benchAnnualized = 5.4, benchDelta = myAnnualized - benchAnnualized;
+  /* ④ 年化收益率（集中到 mock-data.js MOCK_ANNUALIZED/MOCK_BENCHMARK · A-flutter ⏳C snapshot 替换）*/
+  var myAnnualized = window.MOCK_ANNUALIZED, myCumulative = sum.totalPnlPct;
+  var benchAnnualized = window.MOCK_BENCHMARK.csi300, benchDelta = myAnnualized - benchAnnualized;
   document.getElementById('annualCard').innerHTML =
       '<div class="annual-head"><div class="ah-title"><h3>年化收益率</h3><span class="ah-sub">基准 沪深300 · mock</span></div></div>'
     + '<div class="annual-body">'
