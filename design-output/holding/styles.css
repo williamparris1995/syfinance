@@ -1043,3 +1043,318 @@ tr:hover .price-cell .pc-edit, .acc:hover .price-cell .pc-edit { opacity: 1; }
 .search-empty .se-icon .icon { width: 20px; height: 20px; }
 .search-empty .se-title { font-family: var(--font-serif); font-size: 15px; color: var(--fg-strong); margin-bottom: 3px; }
 .search-empty .se-text { font-size: 12px; }
+
+
+/* ========================================================================
+   === 持仓详情 新增组件 (Task 5) ========================================
+   适用: holding-detail-desktop / holding-detail-tablet / holding-detail-mobile
+   7 组件: 头部 / 持仓卡 / 收益曲线 / 交易历史 / 配置占比 / 关联目标 / 操作
+   ======================================================================== */
+
+/* —— 详情头部（symbol 衬线大字 + 名称 + type chip + 当前价 + 刷新）—— */
+.detail-header {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 20px 22px;
+  box-shadow: var(--shadow-sm);
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 18px;
+}
+.detail-header .dh-left { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.detail-header .dh-symbol-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.detail-header .dh-symbol {
+  font-family: var(--font-serif); font-size: 30px; font-weight: 700;
+  color: var(--fg-strong); letter-spacing: .005em; line-height: 1.05;
+}
+.detail-header .dh-name { font-size: 13px; color: var(--muted); }
+.detail-header .dh-meta { display: flex; align-items: center; gap: 12px; margin-top: 6px; font-size: 11.5px; color: var(--muted-2); }
+.detail-header .dh-meta .dh-meta-item { display: flex; align-items: center; gap: 4px; }
+.detail-header .dh-meta .dh-meta-item .icon { width: 13px; height: 13px; }
+.detail-header .dh-meta .dh-cur { font-family: var(--font-mono); }
+.detail-header .dh-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.detail-header .dh-price-row { display: flex; align-items: center; gap: 10px; }
+.detail-header .dh-price {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 28px; font-weight: 600; color: var(--fg-strong); letter-spacing: -.01em; line-height: 1;
+}
+.detail-header .dh-price .cc { font-size: 13px; color: var(--muted); margin-left: 3px; }
+.detail-header .dh-refresh {
+  width: 36px; height: 36px; border-radius: var(--r-sm);
+  border: 1px solid var(--border); background: var(--surface);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--muted); cursor: pointer; transition: background .15s, color .15s;
+}
+.detail-header .dh-refresh:hover { background: var(--surface-2); color: var(--gold-deep); }
+.detail-header .dh-refresh.spinning .icon { animation: spin 1s linear infinite; color: var(--gold); }
+.detail-header .dh-updated { font-size: 11px; color: var(--muted-2); font-family: var(--font-mono); }
+.detail-header .dh-updated.loading { color: var(--gold-deep); }
+
+.type-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: var(--r-pill);
+  font-size: 11px; font-weight: 500; letter-spacing: .02em;
+  background: var(--accent-soft); color: var(--gold-deep);
+}
+.type-chip .tc-dot { width: 7px; height: 7px; border-radius: 50%; }
+.type-chip.t-stock { background: rgba(176,141,87,.14); color: var(--type-stock); }
+.type-chip.t-stock .tc-dot { background: var(--type-stock); }
+.type-chip.t-fund  { background: rgba(138,109,59,.14);  color: var(--type-fund); }
+.type-chip.t-fund  .tc-dot { background: var(--type-fund); }
+.type-chip.t-etf   { background: rgba(45,138,110,.14);  color: var(--type-etf); }
+.type-chip.t-etf   .tc-dot { background: var(--type-etf); }
+.type-chip.t-bond  { background: rgba(107,122,143,.16); color: var(--type-bond); }
+.type-chip.t-bond  .tc-dot { background: var(--type-bond); }
+.type-chip.t-gold  { background: rgba(201,160,74,.16);  color: var(--type-gold); }
+.type-chip.t-gold  .tc-dot { background: var(--type-gold); }
+
+/* —— 持仓卡（持有量/成本价/市值/盈亏色块/盈亏%）—— */
+.position-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
+  padding: 18px 20px; display: grid; gap: 14px;
+}
+.position-card .pc-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.position-card .pc-mkt { display: flex; flex-direction: column; gap: 3px; }
+.position-card .pc-label { font-size: 12px; color: var(--muted); }
+.position-card .pc-mktval {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 28px; font-weight: 600; color: var(--fg-strong); letter-spacing: -.01em;
+}
+.position-card .pc-mktval .cc { font-size: 13px; color: var(--muted); }
+.position-card .pc-pnl-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 13px; border-radius: var(--r-pill);
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 14px; font-weight: 600;
+}
+.position-card .pc-pnl-pill .icon { width: 14px; height: 14px; }
+.position-card .pc-pnl-pill.up   { background: var(--up-soft);   color: var(--up); }
+.position-card .pc-pnl-pill.down { background: var(--down-soft); color: var(--down); }
+.position-card .pc-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+  padding-top: 14px; border-top: 1px dashed var(--border);
+}
+.position-card .pc-cell { display: flex; flex-direction: column; gap: 3px; }
+.position-card .pc-cell .pc-k { font-size: 11px; color: var(--muted); }
+.position-card .pc-cell .pc-v {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 15px; font-weight: 500; color: var(--fg-strong);
+}
+.position-card .pc-cell .pc-v .cc { font-size: 11px; color: var(--muted); }
+.position-card .pc-cell .pc-v.up   { color: var(--up); }
+.position-card .pc-cell .pc-v.down { color: var(--down); }
+
+/* —— 收益曲线卡（区间切换 + 折线图 + realized/unrealized 分解）—— */
+.curve-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); }
+.curve-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 8px; }
+.curve-head .ch-title { display: flex; flex-direction: column; gap: 2px; }
+.curve-head .ch-title h3 { font-size: 15px; }
+.curve-head .ch-title .ch-sub { font-size: 11px; color: var(--muted); }
+.range-tabs {
+  display: inline-flex; background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--r-pill); padding: 3px; gap: 2px;
+}
+.range-tab {
+  padding: 5px 14px; border-radius: var(--r-pill); border: none; background: transparent;
+  font-size: 12px; color: var(--muted); cursor: pointer; font-family: var(--font-sans);
+  transition: background .15s, color .15s;
+}
+.range-tab:hover { color: var(--fg); }
+.range-tab.active { background: var(--gold); color: #fff; }
+
+.curve-body { padding: 6px 18px 8px; }
+.curve-chart { width: 100%; height: 160px; display: block; }
+.curve-axis {
+  display: flex; justify-content: space-between; font-size: 10px; color: var(--muted-2);
+  font-family: var(--font-mono); margin-top: 2px;
+}
+.curve-foot {
+  display: flex; gap: 22px; padding: 12px 18px 16px; border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.curve-foot .cf-cell { display: flex; flex-direction: column; gap: 3px; }
+.curve-foot .cf-k { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+.curve-foot .cf-k .swatch { width: 9px; height: 9px; border-radius: 2px; }
+.curve-foot .cf-v {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 16px; font-weight: 600; color: var(--fg-strong);
+}
+.curve-foot .cf-v.up   { color: var(--up); }
+.curve-foot .cf-v.down { color: var(--down); }
+.curve-foot .cf-pct { font-size: 11px; color: var(--muted-2); margin-left: 4px; font-family: var(--font-mono); }
+
+/* —— 交易历史表 —— */
+.trades-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
+.trades-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px 10px; }
+.trades-head .th-title h3 { font-size: 15px; }
+.trades-head .th-title .th-sub { font-size: 11px; color: var(--muted); }
+.trades-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.trades-table th {
+  text-align: left; font-weight: 500; font-size: 11.5px; color: var(--muted);
+  padding: 9px 14px; border-bottom: 1px solid var(--border-strong);
+  white-space: nowrap; background: var(--surface-2);
+}
+.trades-table th:first-child { padding-left: 18px; }
+.trades-table th:last-child { padding-right: 18px; }
+.trades-table th.num, .trades-table td.num { text-align: right; }
+.trades-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.trades-table td:first-child { padding-left: 18px; }
+.trades-table td:last-child { padding-right: 18px; }
+.trades-table tbody tr { transition: background .12s; }
+.trades-table tbody tr:hover { background: var(--surface-2); }
+.trades-table tbody tr:last-child td { border-bottom: none; }
+.trades-table .td-date { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--fg); }
+.trades-table .td-sym { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 500; }
+.trade-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: var(--r-pill); font-size: 11px; font-weight: 500;
+}
+.trade-tag .icon { width: 12px; height: 12px; }
+.trade-tag.t-buy      { background: var(--buy-soft);      color: var(--buy); }
+.trade-tag.t-sell     { background: var(--sell-soft);     color: var(--sell); }
+.trade-tag.t-dividend { background: var(--dividend-soft); color: var(--dividend); }
+.trade-tag.t-split    { background: var(--split-soft);    color: var(--split); }
+.trades-table .td-flow.up   { color: var(--up); font-weight: 500; }
+.trades-table .td-flow.down { color: var(--down); font-weight: 500; }
+.trades-table .td-flow.neutral { color: var(--muted); }
+.td-note { font-size: 11.5px; color: var(--muted); }
+
+/* 交易历史筛选 chips(复用 .chips,放 trades-head 右侧) */
+.trades-empty { text-align: center; padding: 40px 20px; color: var(--muted); }
+.trades-empty .te-icon {
+  width: 44px; height: 44px; border-radius: 50%; margin: 0 auto 10px;
+  background: var(--accent-soft); color: var(--gold);
+  display: flex; align-items: center; justify-content: center;
+}
+.trades-empty .te-icon .icon { width: 20px; height: 20px; }
+.trades-empty .te-title { font-family: var(--font-serif); font-size: 15px; color: var(--fg-strong); margin-bottom: 3px; }
+.trades-empty .te-text { font-size: 12px; }
+
+/* —— 配置占比 mini 环图 —— */
+.alloc-mini { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); padding: 18px 20px; display: flex; align-items: center; gap: 18px; }
+.alloc-mini .am-donut {
+  width: 96px; height: 96px; border-radius: 50%; flex-shrink: 0; position: relative;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.03);
+}
+.alloc-mini .am-hole {
+  position: absolute; inset: 22%; background: var(--surface); border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+}
+.alloc-mini .am-hole .am-pct {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 17px; font-weight: 600; color: var(--fg-strong); line-height: 1;
+}
+.alloc-mini .am-hole .am-label { font-size: 9.5px; color: var(--muted); margin-top: 2px; }
+.alloc-mini .am-body { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.alloc-mini .am-body h3 { font-size: 14px; }
+.alloc-mini .am-body .am-sub { font-size: 12px; color: var(--muted); }
+.alloc-mini .am-body .am-rank {
+  font-size: 11px; color: var(--gold-deep); display: flex; align-items: center; gap: 4px; margin-top: 2px;
+}
+.alloc-mini .am-body .am-rank .icon { width: 12px; height: 12px; }
+
+/* —— 关联目标卡 —— */
+.goal-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); padding: 16px 18px; }
+.goal-card .gc-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.goal-card .gc-head .gc-title { display: flex; align-items: center; gap: 8px; }
+.goal-card .gc-head .gc-title h3 { font-size: 14px; }
+.goal-card .gc-head .gc-title .icon { width: 15px; height: 15px; color: var(--gold); }
+.goal-card .gc-badge {
+  font-size: 11px; padding: 2px 8px; border-radius: var(--r-pill);
+  background: var(--accent-soft); color: var(--gold-deep);
+}
+.goal-card .gc-body { margin-top: 12px; }
+.goal-card .gc-name { font-size: 13px; color: var(--fg); font-weight: 500; margin-bottom: 6px; }
+.goal-progress { height: 8px; background: var(--bg); border-radius: var(--r-pill); overflow: hidden; position: relative; }
+.goal-progress .gp-fill {
+  height: 100%; background: linear-gradient(90deg, var(--gold-soft), var(--gold));
+  border-radius: var(--r-pill); transition: width .4s ease;
+}
+.goal-card .gc-nums {
+  display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px;
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 12px;
+}
+.goal-card .gc-nums .gc-cur { color: var(--fg-strong); font-weight: 600; font-size: 14px; }
+.goal-card .gc-nums .gc-sep { color: var(--muted-2); }
+.goal-card .gc-nums .gc-target { color: var(--muted); }
+.goal-card .gc-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.goal-card .gc-pct { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600; color: var(--gold-deep); }
+.goal-card .gc-eta { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+.goal-card .gc-eta .icon { width: 12px; height: 12px; }
+.goal-card .gc-empty { text-align: center; padding: 20px 10px; color: var(--muted); font-size: 12px; }
+.goal-card .gc-empty .icon { width: 22px; height: 22px; color: var(--muted-2); margin-bottom: 6px; }
+
+/* —— 操作按钮区（buy/sell/dividend/split 4 个）—— */
+.action-bar {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm); padding: 12px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+}
+.act-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 12px 8px; border-radius: var(--r-sm); border: 1px solid var(--border);
+  background: var(--surface); cursor: pointer;
+  transition: background .15s, border-color .15s, transform .1s;
+  font-size: 12px; color: var(--fg); font-family: var(--font-sans);
+}
+.act-btn:hover { background: var(--surface-2); }
+.act-btn:active { transform: translateY(1px); }
+.act-btn .ab-icon {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.act-btn .ab-icon .icon { width: 16px; height: 16px; color: #fff; }
+.act-btn.t-buy      .ab-icon { background: var(--buy); }
+.act-btn.t-sell     .ab-icon { background: var(--sell); }
+.act-btn.t-dividend .ab-icon { background: var(--dividend); }
+.act-btn.t-split    .ab-icon { background: var(--split); }
+.act-btn .ab-name { font-weight: 500; }
+.act-btn .ab-desc { font-size: 10.5px; color: var(--muted); }
+
+/* ========================================================================
+   持仓详情 DESKTOP 布局
+   主区: 头部 → (持仓卡 占满) → (曲线+配置占比+关联目标 三列) → 交易历史全宽 → 操作 bar
+   ======================================================================== */
+.detail-grid-d { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 16px; align-items: start; margin-bottom: 16px; }
+.detail-grid-d .col-curve { grid-column: 1; }
+.detail-grid-d .col-alloc { grid-column: 2; }
+.detail-grid-d .col-goal  { grid-column: 3; }
+
+/* ========================================================================
+   持仓详情 TABLET 布局（上下堆叠）
+   ======================================================================== */
+.tb-detail-body { padding: 0 26px 26px; display: flex; flex-direction: column; gap: 16px; }
+.tb-detail-body .tb-back { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; padding: 4px 0; }
+.tb-detail-body .tb-back .icon { width: 16px; height: 16px; }
+.tb-detail-body .tb-back:hover { color: var(--gold-deep); }
+
+/* ========================================================================
+   持仓详情 MOBILE 布局
+   —— 曲线默认展开；m-detail-toggle 折叠曲线(节省纵向空间)
+   ======================================================================== */
+.m-detail-back { display: flex; align-items: center; gap: 4px; padding: 4px 2px 8px; font-size: 13px; color: var(--muted); cursor: pointer; }
+.m-detail-back .icon { width: 18px; height: 18px; }
+.m-curve-toggle { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 4px 2px 10px; }
+.m-curve-toggle .mct-left { display: flex; align-items: center; gap: 6px; }
+.m-curve-toggle .mct-left h3 { font-size: 14px; }
+.m-curve-toggle .mct-left .icon { width: 14px; height: 14px; color: var(--muted); }
+.m-curve-toggle .mct-chev { transition: transform .2s; color: var(--muted-2); }
+.m-curve-toggle .mct-chev .icon { width: 16px; height: 16px; }
+.m-curve-toggle.collapsed .mct-chev { transform: rotate(-90deg); }
+.m-curve-wrap { overflow: hidden; transition: max-height .25s ease, opacity .2s; max-height: 600px; }
+.m-curve-wrap.collapsed { max-height: 0; opacity: 0; }
+.m-action-bar { position: sticky; bottom: 0; background: var(--bg); padding: 8px 0 12px; margin-top: 4px; }
+.m-position-card { padding: 14px 16px; gap: 10px; }
+.m-position-card .pc-mktval { font-size: 24px; }
+.m-position-card .pc-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; padding-top: 10px; }
+.m-curve-card .curve-chart { height: 130px; }
+.m-curve-card .curve-foot { gap: 14px; padding: 10px 14px 12px; }
+.m-trades-card .trades-table { font-size: 12px; }
+.m-trades-card .trades-table th, .m-trades-card .trades-table td { padding: 8px 10px; }
+.m-trades-card .trades-table th:first-child, .m-trades-card .trades-table td:first-child { padding-left: 14px; }
+.m-trades-card .trades-table th:last-child, .m-trades-card .trades-table td:last-child { padding-right: 14px; }
+.m-trades-card .hide-mobile { display: none; }
+.m-action-bar .action-bar { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.m-action-bar .act-btn { padding: 10px 4px; }
+.m-action-bar .act-btn .ab-desc { display: none; }
+

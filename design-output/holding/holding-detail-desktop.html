@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>持仓详情 · Desktop · 御财持仓</title>
+<!--
+  ============================================================================
+  持仓详情 · Desktop（≥1024px · 1440×900 · 侧栏 + 主区 7 组件）
+  ----------------------------------------------------------------------------
+  目标持仓: h1 (AAPL · stock · USD) — 来自 mock-data.js HOLDINGS[0]
+  API 标注（对照 spec §4）:
+    - ListHoldings(security_id filter)                           ✅ 已实现
+        → 持仓卡(持有量/成本价/市值/盈亏) + 配置占比
+    - ListHoldingTransactions(holding_id)                        ⏳ 待实现
+        → 完整交易历史(buy/sell/dividend/split) · 本页 mock 演示
+    - 收益 snapshot(日/月/年聚合)                                 ⏳ C 子项目
+        → 收益曲线 + realized/unrealized · 本页 mock(前端从 PRICE_HISTORY + TRADES 聚合)
+    - goal.backing_holding_id                                    ⏳ D 子项目
+        → 关联目标卡(市值 vs 目标额) · 本页 mock(holdingMockGoal)
+  操作: buy/sell/dividend/split 触发统一交易 Sheet(见 trade-sheet-desktop.html)
+  数据源: window.HOLDINGS / window.TRADES / window.PRICE_HISTORY / window.SECURITIES
+  ============================================================================
+-->
+<link rel="stylesheet" href="styles.css">
+<style>
+  body { background: var(--bg-deep); padding: 0; }
+  .demo-shell { width: 1440px; margin: 24px auto; position: relative; }
+  /* 高亮 持仓详情 nav */
+  .nav-item.nav-detail { background: var(--gold); color: #fff; }
+  .nav-item.nav-detail .icon, .nav-item.nav-detail .nav-cnt { color: #fff; }
+  .detail-topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .detail-topbar .tb-back { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--muted); cursor: pointer; }
+  .detail-topbar .tb-back:hover { color: var(--gold-deep); }
+  .detail-topbar .tb-back .icon { width: 16px; height: 16px; }
+</style>
+</head>
+<body>
+<div class="demo-shell">
+  <div class="desk-shell">
+    <!-- ============ 侧栏（同持仓列表，高亮持仓详情）============ -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">御</div>
+        <div class="brand-name">御财<span>·持仓</span></div>
+      </div>
+      <div class="nav-sec">
+        <div class="nav-sec-label">持仓管理</div>
+        <div class="nav-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 7l-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/></svg>持仓列表<span class="nav-cnt">6</span></div>
+        <div class="nav-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="m9 13 3 3 3-3"/></svg>交易 Sheet</div>
+        <div class="nav-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>Security 管理</div>
+        <div class="nav-item nav-detail"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>持仓详情</div>
+        <div class="nav-sec-label" style="margin-top:10px;">统计 &amp; 目标</div>
+        <div class="nav-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>收益统计</div>
+        <div class="nav-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>投资目标</div>
+      </div>
+      <div class="sidebar-foot">v1.0 · 御财持仓 A-od</div>
+    </aside>
+
+    <!-- ============ 主区 ============ -->
+    <main class="desk-main">
+      <!-- 顶栏：返回 + 标题 -->
+      <div class="topbar-d">
+        <div class="tb-left">
+          <div class="detail-topbar">
+            <span class="tb-back" onclick="history.back()">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+              返回持仓列表
+            </span>
+          </div>
+          <h1 id="pageTitle">持仓详情</h1>
+          <div class="tb-sub" id="pageSub">单个证券持仓全貌</div>
+        </div>
+      </div>
+
+      <!-- ① 头部 -->
+      <section class="detail-header" id="detailHeader" style="margin-bottom:16px;"></section>
+
+      <!-- ② 持仓卡 -->
+      <section class="position-card" id="positionCard" style="margin-bottom:16px;"></section>
+
+      <!-- ③④⑤ 曲线 + 配置占比 + 关联目标 三列 -->
+      <section class="detail-grid-d">
+        <div class="col-curve">
+          <div class="curve-card m-curve-card" id="curveCard"></div>
+        </div>
+        <div class="col-alloc">
+          <div class="alloc-mini" id="allocMini"></div>
+          <!-- 操作 bar 放配置列下方,desktop 紧凑 -->
+          <div class="action-bar" id="actionBar" style="margin-top:14px;"></div>
+        </div>
+        <div class="col-goal">
+          <div class="goal-card" id="goalCard"></div>
+        </div>
+      </section>
+
+      <!-- ⑥ 完整交易历史(全宽) -->
+      <section class="trades-card" id="tradesCard" style="margin-top:16px;"></section>
+
+    </main>
+  </div>
+</div>
+
+<script src="mock-data.js"></script>
+<script>
+(function () {
+  /* 目标持仓：h1 AAPL */
+  var HOLDING_ID = 'h1';
+
+  var sec    = window.SECURITIES[window.HOLDINGS.find(function (h) { return h.id === HOLDING_ID; }).security_id];
+  var h      = window.HOLDINGS.find(function (x) { return x.id === HOLDING_ID; });
+  var v      = window.holdingView(h);
+  var icon   = window.icon;
+  var TYPE   = { stock: 't-stock', fund: 't-fund', etf: 't-etf', bond: 't-bond', gold: 't-gold' };
+  var up     = v.up;
+  var cur    = h.currency;
+  var fmtRaw = window.fmtRaw;
+  var fmtPct = window.fmtPct;
+  var fmtSigned = window.fmtSigned;
+
+  /* —— 页头副标题 —— */
+  document.getElementById('pageTitle').textContent = sec.symbol + ' · ' + sec.name;
+  document.getElementById('pageSub').textContent = sec.market + ' · ' + window.TYPE_META[sec.type].label + ' · ' + sec.currency;
+
+  /* —— ① 头部 —— */
+  document.getElementById('detailHeader').innerHTML =
+      '<div class="dh-left">'
+    +   '<div class="dh-symbol-row">'
+    +     '<span class="dh-symbol">' + sec.symbol + '</span>'
+    +     '<span class="type-chip ' + TYPE[sec.type] + '"><span class="tc-dot"></span>' + window.TYPE_META[sec.type].label + '</span>'
+    +   '</div>'
+    +   '<div class="dh-name">' + sec.name + '</div>'
+    +   '<div class="dh-meta">'
+    +     '<span class="dh-meta-item">' + icon('banknote') + sec.market + '</span>'
+    +     '<span class="dh-meta-item">' + icon('coins') + '<span class="dh-cur">' + sec.currency + '</span></span>'
+    +     '<span class="dh-meta-item">' + icon('briefcase') + window.ACCOUNTS[h.account_id].name + '</span>'
+    +   '</div>'
+    + '</div>'
+    + '<div class="dh-right">'
+    +   '<div class="dh-price-row">'
+    +     '<span class="dh-price mono" id="dhPrice">' + fmtRaw(h.current_price, cur) + '</span>'
+    +     '<button class="dh-refresh" id="dhRefresh" title="刷新现价">' + icon('refresh-cw') + '</button>'
+    +   '</div>'
+    +   '<div class="dh-updated" id="dhUpdated">更新于 2026-06-29 15:00 · manual</div>'
+    + '</div>';
+
+  /* —— ② 持仓卡 —— */
+  document.getElementById('positionCard').innerHTML =
+      '<div class="pc-top">'
+    +   '<div class="pc-mkt">'
+    +     '<span class="pc-label">当前市值</span>'
+    +     '<span class="pc-mktval mono">' + fmtRaw(v.mktVal, cur) + '<span class="cc">' + cur + '</span></span>'
+    +   '</div>'
+    +   '<span class="pc-pnl-pill ' + (up ? 'up' : 'down') + '">'
+    +     icon(up ? 'trending-up' : 'trending-down')
+    +     fmtSigned(v.pnl, cur) + ' · ' + fmtPct(v.pnlPct)
+    +   '</span>'
+    + '</div>'
+    + '<div class="pc-grid">'
+    +   '<div class="pc-cell"><span class="pc-k">持有量</span><span class="pc-v mono">' + h.quantity + '</span></div>'
+    +   '<div class="pc-cell"><span class="pc-k">成本价</span><span class="pc-v mono">' + fmtRaw(h.cost_price, cur) + '</span></div>'
+    +   '<div class="pc-cell"><span class="pc-k">现价</span><span class="pc-v mono">' + fmtRaw(h.current_price, cur) + '</span></div>'
+    +   '<div class="pc-cell"><span class="pc-k">总成本</span><span class="pc-v mono">' + fmtRaw(v.cost, cur) + '</span></div>'
+    + '</div>';
+
+  /* —— ③ 收益曲线 —— */
+  function renderCurve(range) {
+    range = range || 'D';
+    var pts = (window.PRICE_HISTORY[sec.id] || {})[range] || [];
+    var curve = window.buildCurve(pts);
+    var br = window.holdingPnlBreakdown(HOLDING_ID);
+    var stroke = curve.up ? 'var(--up)' : 'var(--down)';
+    var fill   = curve.up ? 'var(--up-soft)' : 'var(--down-soft)';
+    var firstLabel = pts.length ? (pts[0].t) : '—';
+    var lastLabel  = pts.length ? (pts[pts.length - 1].t) : '—';
+
+    var head =
+        '<div class="curve-head">'
+      +   '<div class="ch-title">'
+      +     '<h3>收益曲线</h3>'
+      +     '<span class="ch-sub">' + (range === 'D' ? '近 30 天' : range === 'M' ? '近 12 月' : '近 5 年') + ' · ' + sec.symbol + '</span>'
+      +   '</div>'
+      +   '<div class="range-tabs" id="rangeTabs">'
+      +     '<button class="range-tab ' + (range === 'D' ? 'active' : '') + '" data-r="D">日</button>'
+      +     '<button class="range-tab ' + (range === 'M' ? 'active' : '') + '" data-r="M">月</button>'
+      +     '<button class="range-tab ' + (range === 'Y' ? 'active' : '') + '" data-r="Y">年</button>'
+      +   '</div>'
+      + '</div>';
+
+    var body = pts.length === 0
+      ? '<div class="trades-empty"><div class="te-icon">' + icon('trending-up') + '</div><div class="te-title">暂无行情数据</div><div class="te-text">该证券尚未接入行情源</div></div>'
+      : '<div class="curve-body">'
+        + '<svg class="curve-chart" viewBox="0 0 100 40" preserveAspectRatio="none">'
+        +   '<defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">'
+        +     '<stop offset="0%" stop-color="' + fill + '" stop-opacity="0.7"/>'
+        +     '<stop offset="100%" stop-color="' + fill + '" stop-opacity="0.1"/>'
+        +   '</linearGradient></defs>'
+        +   '<path d="' + curve.area + '" fill="url(#cg)" stroke="none"/>'
+        +   '<path d="' + curve.line + '" fill="none" stroke="' + stroke + '" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>'
+        + '</svg>'
+        + '<div class="curve-axis"><span>' + firstLabel + '</span><span>' + lastLabel + '</span></div>'
+        + '</div>';
+
+    var foot =
+        '<div class="curve-foot">'
+        +   '<div class="cf-cell"><span class="cf-k"><span class="swatch" style="background:var(--up)"></span>浮动盈亏(未实现)</span>'
+        +     '<span class="cf-v mono ' + (br.unrealized >= 0 ? 'up' : 'down') + '">' + fmtSigned(br.unrealized, cur) + '</span></div>'
+        +   '<div class="cf-cell"><span class="cf-k"><span class="swatch" style="background:var(--gold)"></span>已实现(卖出+分红)</span>'
+        +     '<span class="cf-v mono">' + fmtRaw(br.realized, cur) + '<span class="cf-pct">' + br.realizedPct.toFixed(1) + '%</span></span></div>'
+        +   '<div class="cf-cell"><span class="cf-k"><span class="swatch" style="background:var(--fg-strong)"></span>总收益</span>'
+        +     '<span class="cf-v mono ' + (br.totalPnl >= 0 ? 'up' : 'down') + '">' + fmtSigned(br.totalPnl, cur) + '</span></div>'
+        + '</div>';
+
+    document.getElementById('curveCard').innerHTML = head + body + foot;
+    document.querySelectorAll('#rangeTabs .range-tab').forEach(function (b) {
+      b.addEventListener('click', function () { renderCurve(b.dataset.r); });
+    });
+  }
+  renderCurve('D');
+
+  /* —— ⑤ 配置占比 mini 环图 —— */
+  var pct = window.holdingAllocationPct(HOLDING_ID);
+  var alloc = window.computeAllocation();
+  var rankIdx = alloc.findIndex(function (a) { return a.type === sec.type; });
+  var donut = window.holdingDonut(HOLDING_ID);
+  document.getElementById('allocMini').innerHTML =
+      '<div class="am-donut" style="background:' + donut + '">'
+    +   '<div class="am-hole"><span class="am-pct mono">' + pct.toFixed(1) + '%</span><span class="am-label">占总持仓</span></div>'
+    + '</div>'
+    + '<div class="am-body">'
+    +   '<h3>配置占比</h3>'
+    +   '<span class="am-sub">该持仓市值占总持仓 ' + pct.toFixed(2) + '%（CNY 折算）</span>'
+    +   '<span class="am-rank">' + icon('pie-chart') + window.TYPE_META[sec.type].label + ' 类目内排名 #' + (rankIdx + 1) + '</span>'
+    + '</div>';
+
+  /* —— ⑥ 关联目标卡 —— */
+  var goal = window.holdingMockGoal(HOLDING_ID);
+  var goalHtml;
+  if (goal) {
+    goalHtml =
+        '<div class="gc-head">'
+      +   '<div class="gc-title">' + icon('gem', 'icon') + '<h3>关联目标</h3></div>'
+      +   '<span class="gc-badge">⏳ D</span>'
+      + '</div>'
+      + '<div class="gc-body">'
+      +   '<div class="gc-name">' + goal.name + '</div>'
+      +   '<div class="goal-progress"><div class="gp-fill" style="width:' + goal.pct + '%"></div></div>'
+      +   '<div class="gc-nums">'
+      +     '<span class="gc-cur">' + window.fmtCNY(goal.current) + '</span>'
+      +     '<span class="gc-sep">/</span>'
+      +     '<span class="gc-target">' + window.fmtCNY(goal.target) + '</span>'
+      +   '</div>'
+      +   '<div class="gc-foot">'
+      +     '<span class="gc-pct">' + goal.pct.toFixed(1) + '% 达成</span>'
+      +     '<span class="gc-eta">' + icon('calendar') + '预计 ' + goal.eta + '</span>'
+      +   '</div>'
+      + '</div>';
+  } else {
+    goalHtml =
+        '<div class="gc-head">'
+      +   '<div class="gc-title">' + icon('gem', 'icon') + '<h3>关联目标</h3></div>'
+      +   '<span class="gc-badge">⏳ D</span>'
+      + '</div>'
+      + '<div class="gc-empty">' + icon('gem') + '<div>该持仓未关联投资目标</div></div>';
+  }
+  document.getElementById('goalCard').innerHTML = goalHtml;
+
+  /* —— ⑦ 操作按钮（buy/sell/dividend/split）—— */
+  document.getElementById('actionBar').innerHTML =
+      '<button class="act-btn t-buy" data-act="buy">' + '<span class="ab-icon">' + icon('arrow-down-circle') + '</span><span class="ab-name">买入</span><span class="ab-desc">Buy</span></button>'
+    + '<button class="act-btn t-sell" data-act="sell">' + '<span class="ab-icon">' + icon('arrow-up-circle') + '</span><span class="ab-name">卖出</span><span class="ab-desc">Sell</span></button>'
+    + '<button class="act-btn t-dividend" data-act="dividend">' + '<span class="ab-icon">' + icon('coins') + '</span><span class="ab-name">分红</span><span class="ab-desc">Dividend</span></button>'
+    + '<button class="act-btn t-split" data-act="split">' + '<span class="ab-icon">' + icon('git-merge') + '</span><span class="ab-name">拆分</span><span class="ab-desc">Split</span></button>';
+  document.querySelectorAll('#actionBar .act-btn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var toast = document.createElement('div');
+      toast.className = 'toast ok';
+      toast.innerHTML = window.icon('check') + '触发 ' + b.dataset.act + ' 交易 Sheet（见 trade-sheet-desktop.html）';
+      toast.style.cssText = 'position:fixed;left:50%;bottom:36px;transform:translateX(-50%);z-index:100;display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:9999px;background:#1c1e21;color:#fff;font-size:13px;box-shadow:0 12px 32px rgba(40,35,25,.12);';
+      document.body.appendChild(toast);
+      setTimeout(function () { toast.remove(); }, 2000);
+    });
+  });
+
+  /* —— ④ 交易历史 —— */
+  function renderTrades(filter) {
+    filter = filter || 'all';
+    var all = window.holdingTrades(HOLDING_ID);
+    var rows = filter === 'all' ? all : all.filter(function (t) { return t.type === filter; });
+    var typeMeta = {
+      buy:      { cls: 't-buy',      label: '买入',   icon: 'arrow-down-circle' },
+      sell:     { cls: 't-sell',     label: '卖出',   icon: 'arrow-up-circle' },
+      dividend: { cls: 't-dividend', label: '分红',   icon: 'coins' },
+      split:    { cls: 't-split',    label: '拆分',   icon: 'git-merge' },
+    };
+    var body = rows.length === 0
+      ? '<div class="trades-empty"><div class="te-icon">' + icon('calendar') + '</div><div class="te-title">暂无成交</div><div class="te-text">该持仓尚无' + (filter === 'all' ? '' : '该类型') + '交易记录</div></div>'
+      : '<table class="trades-table">'
+        + '<thead><tr>'
+        +   '<th>日期</th><th>类型</th><th class="num">数量</th><th class="num">价格</th><th class="num">金额</th><th class="num">持有量</th><th>备注</th>'
+        + '</tr></thead><tbody>'
+        + rows.map(function (t) {
+            var m = typeMeta[t.type];
+            var flowCls = t.amount > 0 ? 'up' : t.amount < 0 ? 'down' : 'neutral';
+            var amtTxt = t.amount === 0 ? '—' : fmtSigned(t.amount, cur);
+            var priceTxt = t.type === 'split' ? '—' : fmtRaw(t.price, cur);
+            return '<tr>'
+              + '<td class="td-date">' + t.date + '</td>'
+              + '<td><span class="trade-tag ' + m.cls + '">' + icon(m.icon) + m.label + '</span></td>'
+              + '<td class="num td-sym">' + (t.quantity > 0 ? '+' : '') + t.quantity + '</td>'
+              + '<td class="num td-sym">' + priceTxt + '</td>'
+              + '<td class="num td-flow ' + flowCls + '">' + amtTxt + '</td>'
+              + '<td class="num td-sym">' + t.balance_after + '</td>'
+              + '<td class="td-note">' + (t.note || '') + '</td>'
+              + '</tr>';
+          }).join('')
+        + '</tbody></table>';
+
+    var filters = [
+      { k: 'all',      label: '全部' },
+      { k: 'buy',      label: '买入' },
+      { k: 'sell',     label: '卖出' },
+      { k: 'dividend', label: '分红' },
+      { k: 'split',    label: '拆分' },
+    ];
+    var chipsHtml = '<div class="chips" id="tradeFilters">'
+      + filters.map(function (f) {
+          var cnt = f.k === 'all' ? all.length : all.filter(function (t) { return t.type === f.k; }).length;
+          return '<span class="chip ' + (filter === f.k ? 'active' : '') + '" data-f="' + f.k + '">' + f.label + '<span class="cnt">' + cnt + '</span></span>';
+        }).join('')
+      + '</div>';
+
+    document.getElementById('tradesCard').innerHTML =
+        '<div class="trades-head">'
+        +   '<div class="th-title"><h3>交易历史</h3><span class="th-sub">ListHoldingTransactions · ' + all.length + ' 条 · ⏳ 待实现</span></div>'
+        +   chipsHtml
+        + '</div>'
+        + body;
+    document.querySelectorAll('#tradeFilters .chip').forEach(function (c) {
+      c.addEventListener('click', function () { renderTrades(c.dataset.f); });
+    });
+  }
+  renderTrades('all');
+
+  /* —— 头部刷新交互（loading + last-updated）—— */
+  var refreshBtn = document.getElementById('dhRefresh');
+  var updatedEl  = document.getElementById('dhUpdated');
+  var priceEl    = document.getElementById('dhPrice');
+  refreshBtn.addEventListener('click', function () {
+    refreshBtn.classList.add('spinning');
+    updatedEl.classList.add('loading');
+    updatedEl.textContent = '刷新中…';
+    setTimeout(function () {
+      refreshBtn.classList.remove('spinning');
+      updatedEl.classList.remove('loading');
+      var now = new Date();
+      var ts = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0')
+             + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+      updatedEl.textContent = '更新于 ' + ts + ' · manual';
+      /* mock 微涨 */
+      h.current_price = +(h.current_price * 1.002).toFixed(2);
+      priceEl.textContent = fmtRaw(h.current_price, cur);
+    }, 900);
+  });
+})();
+</script>
+</body>
+</html>

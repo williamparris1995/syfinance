@@ -78,9 +78,131 @@ window.HOLDINGS = [
    · PRICE_HISTORY：行情历史 K 线（Task 5 行情详情回填）
    · GOALS：止盈止损 / 目标价（Task 7 持仓详情策略回填）
 */
-window.TRADES = [];        // 补于 Task 5
-window.PRICE_HISTORY = {}; // 补于 Task 5
+/* ========================================================================
+   TRADES — 成交明细（Task 5 持仓详情回填）
+   覆盖 buy/sell/dividend/split 四类，关联 holding h1(AAPL) 全生命周期
+   · balance_after = 该笔后持有量
+   · cashflow 原币：buy/sell 影响现金流(负=流出/正=流入)，dividend 入账 income 账户，split 无现金流
+   ======================================================================== */
+window.TRADES = [
+  /* —— h1 AAPL(USD) 完整生命周期：建仓 → 加仓 → 分红 → 卖出部分 —— */
+  { id: 't1',  holding_id: 'h1', security_id: 's1', account_id: 'a1',
+    date: '2025-09-15', type: 'buy',      quantity:  30, price: 162.50, fee: 5.00, amount: -4880.00, balance_after:  30,
+    note: '建仓 30 股' },
+  { id: 't2',  holding_id: 'h1', security_id: 's1', account_id: 'a1',
+    date: '2025-11-02', type: 'buy',      quantity:  20, price: 168.00, fee: 5.00, amount: -3365.00, balance_after:  50,
+    note: '加仓 20 股' },
+  { id: 't3',  holding_id: 'h1', security_id: 's1', account_id: 'a3',
+    date: '2025-12-20', type: 'dividend', quantity:  50, price:  0.24, fee: 0,    amount:   12.00, balance_after:  50,
+    note: 'Q4 现金股息 $0.24/股 → 分红收入账户' },
+  { id: 't4',  holding_id: 'h1', security_id: 's1', account_id: 'a1',
+    date: '2026-01-12', type: 'sell',     quantity:  10, price: 178.50, fee: 5.00, amount:  1780.00, balance_after:  40,
+    note: '止盈卖出 10 股' },
+  { id: 't5',  holding_id: 'h1', security_id: 's1', account_id: 'a3',
+    date: '2026-03-15', type: 'dividend', quantity:  40, price:  0.25, fee: 0,    amount:   10.00, balance_after:  40,
+    note: 'Q1 现金股息 $0.25/股' },
+  { id: 't6',  holding_id: 'h1', security_id: 's1', account_id: 'a1',
+    date: '2026-04-08', type: 'buy',      quantity:  10, price: 172.00, fee: 5.00, amount: -1725.00, balance_after:  50,
+    note: '回调加仓 10 股' },
+
+  /* —— s2 浦发(CNY) 演示 split 类型 + 亏损样本 —— */
+  { id: 't7',  holding_id: 'h2', security_id: 's2', account_id: 'a2',
+    date: '2024-08-10', type: 'buy',      quantity: 500, price: 10.50, fee: 5.00, amount: -5255.00, balance_after: 500,
+    note: '建仓 500 股' },
+  { id: 't8',  holding_id: 'h2', security_id: 's2', account_id: 'a2',
+    date: '2024-12-01', type: 'split',    quantity: 500, price: 0,     fee: 0,    amount:    0.00,  balance_after: 1000,
+    note: '1 拆 2（成本价同步减半：¥10.50 → ¥5.25）' },
+  { id: 't9',  holding_id: 'h2', security_id: 's2', account_id: 'a3',
+    date: '2025-06-30', type: 'dividend', quantity: 1000, price: 0.35, fee: 0,    amount:  350.00, balance_after: 1000,
+    note: '中期分红 ¥0.35/股' },
+  { id: 't10', holding_id: 'h2', security_id: 's2', account_id: 'a2',
+    date: '2025-10-20', type: 'buy',      quantity: 200, price: 13.20, fee: 5.00, amount: -2645.00, balance_after: 1200,
+    note: '加仓 200 股' },
+  { id: 't11', holding_id: 'h2', security_id: 's2', account_id: 'a2',
+    date: '2026-02-14', type: 'sell',     quantity: 200, price: 11.80, fee: 5.00, amount: 2355.00, balance_after: 1000,
+    note: '止损卖出 200 股' },
+
+  /* —— s6 黄金(CNY) 演示 buy 累积 —— */
+  { id: 't12', holding_id: 'h6', security_id: 's6', account_id: 'a2',
+    date: '2025-05-20', type: 'buy',      quantity:  50, price: 510.00, fee: 0,   amount: -25500.00, balance_after:  50,
+    note: '建仓 50 克' },
+  { id: 't13', holding_id: 'h6', security_id: 's6', account_id: 'a2',
+    date: '2025-11-11', type: 'buy',      quantity:  50, price: 530.00, fee: 0,   amount: -26500.00, balance_after: 100,
+    note: '加仓 50 克' },
+];
+
+/* ========================================================================
+   PRICE_HISTORY — 行情历史（Task 5 持仓详情回填）
+   键 = security_id，值 = { D: 日线近30点, M: 月线近12点, Y: 年线近5点 }
+   每段 points: [{t:'YYYY-MM-DD' or label, v: 价格}]，对齐当前价(current_price)
+   收益曲线前端按区间聚合(日/月/年)+从 TRADES 推算成本基线
+   ======================================================================== */
+window.PRICE_HISTORY = {
+  /* s1 AAPL(USD) — 当前价 $185，整体上行 */
+  s1: {
+    D: _series([162.5,164.1,163.8,165.2,166.0,167.4,168.0,167.2,169.5,170.8,171.6,172.4,170.9,171.8,173.2,174.5,173.6,175.0,176.4,178.0,178.5,177.2,179.0,180.5,181.2,182.0,183.4,184.1,184.6,185.0], '2026-05-31'),
+    M: _seriesMonthly([162.5,165.0,168.0,170.5,172.4,175.0,177.8,179.0,181.2,183.0,184.1,185.0], '2025-07'),
+    Y: [
+      { t: '2022', v: 130.0 }, { t: '2023', v: 145.0 },
+      { t: '2024', v: 158.5 }, { t: '2025', v: 175.0 },
+      { t: '2026', v: 185.0 },
+    ],
+  },
+  /* s2 浦发(CNY) — 当前价 ¥10.85，下行 */
+  s2: {
+    D: _series([13.20,13.05,12.90,12.85,12.70,12.60,12.45,12.30,12.20,12.10,12.00,11.92,11.85,11.70,11.62,11.50,11.42,11.30,11.22,11.10,11.05,10.98,10.92,10.88,10.85,10.80,10.84,10.86,10.85,10.85], '2026-05-31'),
+    M: _seriesMonthly([13.20,12.95,12.70,12.45,12.20,12.00,11.80,11.62,11.42,11.20,11.00,10.85], '2025-07'),
+    Y: [
+      { t: '2022', v: 9.80 }, { t: '2023', v: 11.20 },
+      { t: '2024', v: 12.60 }, { t: '2025', v: 13.20 },
+      { t: '2026', v: 10.85 },
+    ],
+  },
+  /* s3 510300 ETF(CNY) — 当前 ¥4.12，缓涨 */
+  s3: {
+    D: _series([3.80,3.82,3.85,3.84,3.88,3.90,3.92,3.91,3.95,3.98,3.97,4.00,4.02,4.01,4.04,4.06,4.05,4.08,4.10,4.09,4.11,4.12,4.10,4.13,4.12,4.14,4.13,4.15,4.14,4.12], '2026-05-31'),
+    M: _seriesMonthly([3.80,3.85,3.90,3.95,3.98,4.00,4.04,4.06,4.08,4.10,4.11,4.12], '2025-07'),
+    Y: [{ t: '2022', v: 3.60 },{ t: '2023', v: 3.70 },{ t: '2024', v: 3.75 },{ t: '2025', v: 3.85 },{ t: '2026', v: 4.12 }],
+  },
+  /* s4 兴全合润(CNY) — 当前 ¥2.68 */
+  s4: {
+    D: _series([2.50,2.52,2.51,2.54,2.55,2.57,2.56,2.58,2.60,2.59,2.61,2.62,2.64,2.63,2.65,2.66,2.65,2.67,2.68,2.67,2.68,2.69,2.68,2.69,2.70,2.68,2.69,2.68,2.67,2.68], '2026-05-31'),
+    M: _seriesMonthly([2.50,2.55,2.58,2.60,2.62,2.64,2.65,2.66,2.67,2.68,2.67,2.68], '2025-07'),
+    Y: [{ t: '2022', v: 2.30 },{ t: '2023', v: 2.40 },{ t: '2024', v: 2.45 },{ t: '2025', v: 2.55 },{ t: '2026', v: 2.68 }],
+  },
+  /* s5 国债(CNY) — 当前 ¥101.20，低波动 */
+  s5: {
+    D: _series([100.0,100.1,100.2,100.1,100.3,100.4,100.5,100.4,100.6,100.7,100.8,100.7,100.9,101.0,100.9,101.0,101.1,101.2,101.1,101.2,101.3,101.2,101.1,101.2,101.3,101.2,101.1,101.2,101.2,101.2], '2026-05-31'),
+    M: _seriesMonthly([100.0,100.3,100.6,100.8,101.0,101.1,101.2,101.2,101.2,101.2,101.2,101.2], '2025-07'),
+    Y: [{ t: '2022', v: 99.5 },{ t: '2023', v: 99.8 },{ t: '2024', v: 100.0 },{ t: '2025', v: 100.5 },{ t: '2026', v: 101.2 }],
+  },
+  /* s6 黄金(CNY) — 当前 ¥545，强上行 */
+  s6: {
+    D: _series([520.0,522.5,524.0,526.5,528.0,530.5,532.0,534.5,536.0,538.5,540.0,537.5,539.0,541.5,543.0,540.5,542.0,544.5,543.0,545.5,544.0,546.5,545.0,547.5,546.0,544.5,545.0,545.5,545.0,545.0], '2026-05-31'),
+    M: _seriesMonthly([520.0,525.0,530.0,532.5,536.0,538.5,540.0,542.5,544.0,545.0,545.5,545.0], '2025-07'),
+    Y: [{ t: '2022', v: 410.0 },{ t: '2023', v: 450.0 },{ t: '2024', v: 490.0 },{ t: '2025', v: 520.0 },{ t: '2026', v: 545.0 }],
+  },
+};
+
 window.GOALS = [];         // 补于 Task 7
+
+/* —— 内部序列生成 helper（mock-data.js 私有，供 PRICE_HISTORY 用）—— */
+function _series(vals, startDate) {
+  const base = new Date(startDate);
+  return vals.map(function (v, i) {
+    const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
+    const iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    return { t: iso, v: v };
+  });
+}
+function _seriesMonthly(vals, startMonth) {
+  const parts = startMonth.split('-'); const y = Number(parts[0]); const m0 = Number(parts[1]) - 1;
+  return vals.map(function (v, i) {
+    const d = new Date(y, m0 + i, 1);
+    const iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    return { t: iso, v: v };
+  });
+}
 
 /* 类型元数据 */
 window.TYPE_META = {
@@ -245,4 +367,92 @@ window.icon = function (name, cls) {
     'info':              '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
   };
   return '<svg ' + p + '>' + (map[name] || '') + '</svg>';
+};
+
+/* ========================================================================
+   Task 5 持仓详情聚合 helpers
+   ======================================================================== */
+
+/* 取某 holding 的成交明细(按日期升序) */
+window.holdingTrades = function (holdingId) {
+  return window.TRADES.filter(function (t) { return t.holding_id === holdingId; })
+    .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+};
+
+/* realized/unrealized 分解（realized = 卖出+分红回笼现金；unrealized = 浮动盈亏）
+   返回 { realized, unrealized, totalPnl, realizedPct } 原币 */
+window.holdingPnlBreakdown = function (holdingId) {
+  const h = window.HOLDINGS.find(function (x) { return x.id === holdingId; });
+  if (!h) return { realized: 0, unrealized: 0, totalPnl: 0, realizedPct: 0 };
+  const trades = window.holdingTrades(holdingId);
+  // realized = sell/dividend 累计金额 + 卖出部分的成本回收(摊销)
+  let realized = 0;
+  trades.forEach(function (t) {
+    if (t.type === 'sell') {
+      // 已实现盈亏 = 卖出收入 - 卖出份额 × 当前成本均价(简化：用 cost_price 摊)
+      realized += t.amount + Math.abs(t.quantity) * h.cost_price;
+    } else if (t.type === 'dividend') {
+      realized += t.amount;
+    }
+  });
+  const mktVal = h.quantity * h.current_price;
+  const cost   = h.quantity * h.cost_price;
+  const unrealized = mktVal - cost;
+  const totalPnl = realized + unrealized;
+  const realizedPct = totalPnl !== 0 ? (realized / totalPnl) * 100 : 0;
+  return { realized: realized, unrealized: unrealized, totalPnl: totalPnl, realizedPct: realizedPct };
+};
+
+/* 收益曲线 SVG path 生成（折线 + 面积填充基线）
+   pts = [{t,v}], 返回 { line: 'M.. L..', area: '... Z', up: boolean, min, max, last, first } */
+window.buildCurve = function (pts) {
+  if (!pts || pts.length === 0) return { line: '', area: '', up: false, min: 0, max: 0, last: 0, first: 0 };
+  const W = 100, H = 40, pad = 3;
+  const vs = pts.map(function (p) { return p.v; });
+  const min = Math.min.apply(null, vs);
+  const max = Math.max.apply(null, vs);
+  const span = (max - min) || 1;
+  const n = pts.length;
+  const xy = pts.map(function (p, i) {
+    const x = (i / (n - 1)) * W;
+    const y = H - pad - ((p.v - min) / span) * (H - pad * 2);
+    return [x, y];
+  });
+  const line = xy.map(function (c, i) { return (i === 0 ? 'M' : 'L') + c[0].toFixed(2) + ',' + c[1].toFixed(2); }).join(' ');
+  const area = line + ' L' + W + ',' + H + ' L0,' + H + ' Z';
+  return { line: line, area: area, up: pts[n - 1].v >= pts[0].v, min: min, max: max, last: pts[n - 1].v, first: pts[0].v };
+};
+
+/* 该 holding 占总持仓市值 %（CNY 折算） */
+window.holdingAllocationPct = function (holdingId) {
+  const total = window.computeSummary().totalMktCNY;
+  const h = window.HOLDINGS.find(function (x) { return x.id === holdingId; });
+  if (!h || total === 0) return 0;
+  return (window.toCNY(h.quantity * h.current_price, h.currency) / total) * 100;
+};
+
+/* conic-gradient 字符串(单持仓占比 mini 环图：本持仓 vs 其余) */
+window.holdingDonut = function (holdingId) {
+  const pct = window.holdingAllocationPct(holdingId);
+  const sec = window.SECURITIES[(window.HOLDINGS.find(function (x) { return x.id === holdingId; }) || {}).security_id];
+  const color = sec ? window.TYPE_META[sec.type].color : 'var(--gold)';
+  const rest = 100 - pct;
+  return 'conic-gradient(' + color + ' 0 ' + pct + '%, var(--border) ' + pct + '% 100%)';
+};
+
+/* mock：该 holding 关联的 goal 进度(市值 vs 目标额) — Task 7 真实 GOALS 接入前 mock */
+window.holdingMockGoal = function (holdingId) {
+  const h = window.HOLDINGS.find(function (x) { return x.id === holdingId; });
+  if (!h) return null;
+  const mktCNY = window.toCNY(h.quantity * h.current_price, h.currency);
+  // 按 holding 派生 mock 目标额（演示用，非真数据）
+  const targets = {
+    h1: { name: '美股长线组合', target: 60000, eta: '2027-06' },
+    h2: { name: '银行股底仓',   target: 18000, eta: '2026-12' },
+    h6: { name: '黄金避险仓',   target: 40000, eta: '2028-01' },
+  };
+  const g = targets[holdingId];
+  if (!g) return null;
+  const pct = Math.min(100, (mktCNY / g.target) * 100);
+  return { name: g.name, target: g.target, current: mktCNY, pct: pct, eta: g.eta };
 };
