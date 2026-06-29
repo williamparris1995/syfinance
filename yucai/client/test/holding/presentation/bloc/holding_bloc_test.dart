@@ -121,6 +121,34 @@ void main() {
     ],
   );
 
+  // 数据正确性:LoadDetailRequested 必须用 securityId(非 holding id)查交易。
+  // sampleHolding id='h1' ≠ securityId='s1',传错(holding id)会被 verify 拒绝。
+  blocTest<HoldingBloc, HoldingState>(
+    'LoadDetailRequested queries transactions by securityId (not holding id)',
+    build: () {
+      when(() => repo.listHoldings(accountId: any(named: 'accountId')))
+          .thenAnswer((_) async => Right([sampleHolding]));
+      when(() => repo.listHoldingTransactions(
+            accountId: any(named: 'accountId'),
+            securityId: 's1',
+          )).thenAnswer((_) async => Right([sampleTrade]));
+      return HoldingBloc(repo);
+    },
+    act: (b) => b.add(const LoadDetailRequested('h1')),
+    wait: const Duration(milliseconds: 100),
+    verify: (b) {
+      verify(() => repo.listHoldingTransactions(
+            accountId: any(named: 'accountId'),
+            securityId: 's1',
+          )).called(1);
+      // 显式断言:绝未以 holding id 'h1' 调用(暴露回归)。
+      verifyNever(() => repo.listHoldingTransactions(
+            accountId: any(named: 'accountId'),
+            securityId: 'h1',
+          ));
+    },
+  );
+
   // 真业务错误(buy fail)→ HoldingError(isPendingBackend: false,默认)。
   blocTest<HoldingBloc, HoldingState>(
     'BuyRequested failure emits HoldingError(isPendingBackend: false)',

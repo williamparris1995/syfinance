@@ -105,8 +105,11 @@ class HoldingBloc extends Bloc<HoldingEvent, HoldingState> {
       emit(HoldingError('holding not found', last: _last));
       return;
     }
+    // ⚠️ 用 securityId(非 holding id)过滤交易:ListTradesRequest.security_id
+    // 按 security 维度取流水;holding id 与 security id 不同,传 holding id 会
+    // 返回错误(空)交易列表。found.id 仍用于上面 firstWhere 找持仓(正确)。
     final tradesResult =
-        await _repo.listHoldingTransactions(securityId: found.id);
+        await _repo.listHoldingTransactions(securityId: found.securityId);
     tradesResult.fold(
       (failure) => emit(HoldingError(
         failure.displayMessage,
