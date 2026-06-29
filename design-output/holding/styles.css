@@ -1358,3 +1358,223 @@ tr:hover .price-cell .pc-edit, .acc:hover .price-cell .pc-edit { opacity: 1; }
 .m-action-bar .act-btn { padding: 10px 4px; }
 .m-action-bar .act-btn .ab-desc { display: none; }
 
+
+/* ========================================================================
+   === 收益统计页 新增组件 (Task 6) =======================================
+   适用: performance-desktop / performance-tablet / performance-mobile
+   6 组件: 概览头(总收益+收益率) / 总收益曲线(日/月/年+区间) /
+           realized-unrealized 分解 / 年化收益率+基准对比 /
+           按持仓贡献条 / 按类型贡献条
+   复用: curve-card / range-tabs / buildCurve / TYPE_META
+   ======================================================================== */
+
+/* —— 概览头：大数字总收益 + 收益率 pill + 区间汇总 —— */
+.perf-header {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
+  padding: 22px 24px; display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 20px; flex-wrap: wrap;
+}
+.perf-header .ph-left { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.perf-header .ph-label {
+  font-size: 12px; color: var(--muted); letter-spacing: .03em;
+  display: flex; align-items: center; gap: 6px;
+}
+.perf-header .ph-label .icon { width: 14px; height: 14px; color: var(--muted-2); }
+.perf-header .ph-value {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 38px; font-weight: 600; color: var(--fg-strong); letter-spacing: -.01em; line-height: 1.1;
+}
+.perf-header .ph-value.up   { color: var(--up); }
+.perf-header .ph-value.down { color: var(--down); }
+.perf-header .ph-sub { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.perf-header .ph-sub .ph-sep { color: var(--muted-2); }
+.perf-header .ph-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.perf-header .ph-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 14px; border-radius: var(--r-pill);
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 16px; font-weight: 600;
+}
+.perf-header .ph-pill.up   { background: var(--up-soft);   color: var(--up); }
+.perf-header .ph-pill.down { background: var(--down-soft); color: var(--down); }
+.perf-header .ph-pill .icon { width: 15px; height: 15px; }
+.perf-header .ph-meta { font-size: 11px; color: var(--muted-2); font-family: var(--font-mono); }
+
+/* —— 曲线卡增强：增加区间选择(1M/3M/6M/1Y/全部) 二级 tabs —— */
+.curve-card.perf-curve { }
+.curve-head.perf-head { align-items: flex-start; }
+.range-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.range-secondary {
+  display: inline-flex; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-pill); padding: 2px; gap: 1px;
+}
+.range-sec-btn {
+  padding: 4px 11px; border-radius: var(--r-pill); border: none; background: transparent;
+  font-size: 11px; color: var(--muted); cursor: pointer; font-family: var(--font-sans);
+  transition: background .15s, color .15s;
+}
+.range-sec-btn:hover { color: var(--fg); }
+.range-sec-btn.active { background: var(--accent-soft); color: var(--gold-deep); font-weight: 600; }
+
+/* —— realized / unrealized 分解卡 —— */
+.split-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); }
+.split-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 10px; }
+.split-head .sh-title h3 { font-size: 15px; }
+.split-head .sh-title .sh-sub { font-size: 11px; color: var(--muted); }
+.split-body { padding: 6px 18px 12px; }
+.split-bar {
+  height: 14px; border-radius: var(--r-pill); overflow: hidden;
+  display: flex; background: var(--bg); border: 1px solid var(--border);
+}
+.split-bar .sb-realized   { background: var(--gold); height: 100%; transition: width .4s ease; }
+.split-bar .sb-unrealized { background: var(--up);   height: 100%; transition: width .4s ease; }
+.split-bar .sb-unrealized.down { background: var(--down); }
+.split-legend {
+  display: flex; gap: 22px; margin-top: 14px; flex-wrap: wrap;
+}
+.split-legend .sl-cell { display: flex; flex-direction: column; gap: 4px; }
+.split-legend .sl-k {
+  font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px;
+}
+.split-legend .sl-k .swatch { width: 10px; height: 10px; border-radius: 3px; }
+.split-legend .sl-v {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 20px; font-weight: 600; color: var(--fg-strong);
+}
+.split-legend .sl-v.up   { color: var(--up); }
+.split-legend .sl-v.down { color: var(--down); }
+.split-legend .sl-v.gold { color: var(--gold-deep); }
+.split-legend .sl-pct { font-size: 11px; color: var(--muted-2); font-family: var(--font-mono); margin-top: 1px; }
+.split-desc {
+  font-size: 11.5px; color: var(--muted); margin-top: 12px; padding-top: 12px;
+  border-top: 1px dashed var(--border); display: flex; align-items: center; gap: 6px;
+}
+.split-desc .icon { width: 13px; height: 13px; color: var(--gold); }
+
+/* —— 年化收益率 + 基准对比 —— */
+.annual-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); }
+.annual-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 10px; }
+.annual-head .ah-title h3 { font-size: 15px; }
+.annual-head .ah-title .ah-sub { font-size: 11px; color: var(--muted); }
+.annual-body { padding: 6px 18px 16px; }
+.annual-row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 14px 0; border-bottom: 1px dashed var(--border);
+}
+.annual-row:last-child { border-bottom: none; }
+.annual-row .ar-label { font-size: 13px; color: var(--fg); display: flex; align-items: center; gap: 7px; }
+.annual-row .ar-label .icon { width: 14px; height: 14px; color: var(--muted-2); }
+.annual-row .ar-val {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 22px; font-weight: 600; color: var(--fg-strong);
+}
+.annual-row .ar-val.up   { color: var(--up); }
+.annual-row .ar-val.down { color: var(--down); }
+.annual-row .ar-bench { font-size: 11.5px; color: var(--muted); font-family: var(--font-mono); }
+.annual-row .ar-bench .ar-delta { font-weight: 600; margin-left: 4px; }
+.annual-row .ar-bench .ar-delta.up   { color: var(--up); }
+.annual-row .ar-bench .ar-delta.down { color: var(--down); }
+
+/* 基准对比 mini 条形（my vs benchmark 并排） */
+.bench-mini { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border); }
+.bench-mini .bm-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.bench-mini .bm-label { width: 70px; color: var(--muted); flex-shrink: 0; }
+.bench-mini .bm-track { flex: 1; height: 8px; background: var(--bg); border-radius: var(--r-pill); position: relative; overflow: hidden; }
+.bench-mini .bm-fill { position: absolute; top: 0; bottom: 0; border-radius: var(--r-pill); transition: width .4s ease; }
+.bench-mini .bm-fill.my    { background: var(--gold); left: 50%; }
+.bench-mini .bm-fill.bench { background: var(--muted-2); left: 50%; }
+.bench-mini .bm-fill.my.pos    { transform: translateX(0); }
+.bench-mini .bm-fill.my.neg    { transform: translateX(-100%); background: var(--down); left: 50%; }
+.bench-mini .bm-mid { position: absolute; top: -2px; bottom: -2px; left: 50%; width: 1px; background: var(--border-strong); }
+.bench-mini .bm-val { width: 56px; text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 600; color: var(--fg-strong); flex-shrink: 0; }
+.bench-mini .bm-val.up   { color: var(--up); }
+.bench-mini .bm-val.down { color: var(--down); }
+
+/* —— 贡献条卡（按持仓 / 按类型）—— */
+.contrib-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); }
+.contrib-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 10px; }
+.contrib-head .ch-title h3 { font-size: 15px; }
+.contrib-head .ch-title .ch-sub { font-size: 11px; color: var(--muted); }
+.contrib-head .ch-toggle {
+  display: inline-flex; background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--r-pill); padding: 2px; gap: 1px;
+}
+.contrib-toggle-btn {
+  padding: 4px 12px; border-radius: var(--r-pill); border: none; background: transparent;
+  font-size: 11.5px; color: var(--muted); cursor: pointer; font-family: var(--font-sans);
+}
+.contrib-toggle-btn.active { background: var(--gold); color: #fff; }
+.contrib-body { padding: 6px 18px 14px; }
+.contrib-row {
+  display: grid; grid-template-columns: 130px 1fr 110px;
+  align-items: center; gap: 12px; padding: 8px 0;
+}
+.contrib-row .cr-name { font-size: 13px; color: var(--fg); display: flex; align-items: center; gap: 7px; min-width: 0; }
+.contrib-row .cr-name .swatch { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+.contrib-row .cr-name .cr-sym { font-family: var(--font-mono); font-weight: 600; color: var(--fg-strong); }
+.contrib-row .cr-name .cr-sub { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.contrib-track {
+  height: 10px; background: var(--bg); border-radius: var(--r-pill);
+  position: relative; overflow: visible; border: 1px solid var(--border);
+}
+.contrib-track .ct-mid { position: absolute; top: -2px; bottom: -2px; left: 50%; width: 1px; background: var(--border-strong); z-index: 1; }
+.contrib-track .ct-fill {
+  position: absolute; top: 0; bottom: 0; border-radius: var(--r-pill); transition: width .4s ease;
+}
+.contrib-track .ct-fill.pos { background: var(--up);   left: 50%; }
+.contrib-track .ct-fill.neg { background: var(--down); right: 50%; }
+.contrib-val {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 13px; font-weight: 600; text-align: right;
+}
+.contrib-val.up   { color: var(--up); }
+.contrib-val.down { color: var(--down); }
+.contrib-val .cv-pct { font-size: 10.5px; color: var(--muted-2); margin-left: 4px; font-weight: 400; }
+.contrib-empty { text-align: center; padding: 30px 16px; color: var(--muted); font-size: 12px; }
+
+/* —— 收益统计页 API 标注（页面底部说明）—— */
+.api-note {
+  margin-top: 14px; padding: 11px 16px; border-radius: var(--r-sm);
+  background: var(--accent-soft); border: 1px solid transparent;
+  display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--gold-deep);
+}
+.api-note .icon { width: 15px; height: 15px; color: var(--gold); flex-shrink: 0; }
+.api-note .an-badge {
+  font-size: 10.5px; padding: 2px 8px; border-radius: var(--r-pill);
+  background: var(--gold); color: #fff; font-family: var(--font-mono); letter-spacing: .02em;
+}
+
+/* ========================================================================
+   收益统计页 DESKTOP 布局
+   主区: 概览头 → 总曲线(全宽) → (realized/unrealized + 年化+基准) 两列 → (持仓贡献 + 类型贡献) 两列
+   ======================================================================== */
+.perf-grid-d-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; margin-bottom: 16px; }
+
+/* ========================================================================
+   收益统计页 TABLET 布局（上下堆叠）
+   ======================================================================== */
+
+/* ========================================================================
+   收益统计页 MOBILE 布局（纵向）
+   —— 概览头紧凑 / 曲线默认展开 / 贡献条行高自适应
+   ======================================================================== */
+.m-perf-header { padding: 16px 18px; }
+.m-perf-header .ph-value { font-size: 30px; }
+.m-perf-header .ph-pill { font-size: 14px; padding: 6px 12px; }
+.m-perf-header .ph-sub { font-size: 11px; }
+
+.m-curve-card-perf .curve-chart { height: 140px; }
+.m-curve-card-perf .curve-foot { gap: 14px; padding: 10px 14px 12px; }
+
+.m-split-card .split-legend { gap: 16px; }
+.m-split-card .split-legend .sl-v { font-size: 17px; }
+.m-split-card .split-desc { font-size: 11px; }
+
+.m-annual-card .annual-row { padding: 11px 0; }
+.m-annual-card .annual-row .ar-val { font-size: 18px; }
+
+.m-contrib-card .contrib-row { grid-template-columns: 96px 1fr 92px; gap: 8px; padding: 7px 0; }
+.m-contrib-card .contrib-row .cr-name .cr-sub { display: none; }
+.m-contrib-card .contrib-val { font-size: 12px; }
+.m-contrib-card .contrib-val .cv-pct { display: block; margin-left: 0; margin-top: 1px; }
