@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>投资目标关联 · Tablet · 御财持仓</title>
+<!--
+  ============================================================================
+  投资目标关联 · Tablet（834×1194 · 上下堆叠卡片）
+  ----------------------------------------------------------------------------
+  spec §6 投资目标关联(D 子项目 UI):tablet 卡片布局
+    ① 概览头(达成统计)
+    ② goal 卡片堆叠：目标名/状态/关联持仓/当前市值/目标额/进度条/预计达成/月供
+    ③ 卡片内「切换关联」按钮 → mock holding picker(行内展开)
+
+  API 标注(spec §6): goal.backing_holding_id ⏳ D; 进度计算(市值 vs 目标) ⏳ D
+  数据源: window.GOALS + window.HOLDINGS / window.SECURITIES / window.TYPE_META
+  复用: styles.css(goal-overview / goal-card-t / api-note) + mock-data.js
+  ============================================================================
+-->
+<link rel="stylesheet" href="styles.css">
+<style>
+  body { background: var(--bg-deep); padding: 0; }
+  .demo-shell { width: 834px; margin: 24px auto; position: relative; }
+</style>
+</head>
+<body>
+<div class="demo-shell">
+  <div class="tablet-shell">
+
+    <!-- 顶栏 -->
+    <div class="tb-top">
+      <div class="tb-left">
+        <h1>投资目标关联</h1>
+        <div class="tb-sub">holding-backed goals · 目标进度 = 持仓市值 vs 目标额 · ⏳ D</div>
+      </div>
+      <div class="topbar-actions">
+        <span class="icon-btn" id="editBtn"></span>
+        <span class="icon-btn" id="addBtn"></span>
+      </div>
+    </div>
+
+    <div class="tb-body">
+
+      <!-- ① 概览头 -->
+      <section class="goal-overview" id="goalOverview"></section>
+
+      <!-- ② goal 卡片列表 -->
+      <div id="goalCards" style="display:flex;flex-direction:column;gap:14px;"></div>
+
+      <!-- API 标注 -->
+      <div class="api-note">
+        <span class="icon" id="apiNoteIcon"></span>
+        <span class="an-badge">⏳ D</span>
+        <span>goal.backing_holding_id ⏳ D；进度/预计达成前端 mock(goalView)，A-flutter 接后端实时市值。</span>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="mock-data.js"></script>
+<script>
+(function () {
+  var icon   = window.icon;
+  var fmtCNY = window.fmtCNY;
+  var TYPE   = { stock: 't-stock', fund: 't-fund', etf: 't-etf', bond: 't-bond', gold: 't-gold' };
+  var STATUS_META = {
+    over:    { label: '超目标', icon: 'check-circle' },
+    ontrack: { label: '进行中', icon: 'trending-up' },
+    behind:  { label: '落后',   icon: 'alert-triangle' },
+  };
+
+  document.getElementById('editBtn').innerHTML = icon('pencil');
+  document.getElementById('addBtn').innerHTML  = icon('plus');
+  document.getElementById('apiNoteIcon').innerHTML = icon('info');
+  document.getElementById('editBtn').title = '编辑目标';
+  document.getElementById('addBtn').title  = '新建目标';
+  document.getElementById('editBtn').addEventListener('click', toast('编辑目标 ⏳ D'));
+  document.getElementById('addBtn').addEventListener('click', toast('新建目标 ⏳ D'));
+
+  function toast(msg) {
+    return function () {
+      var t = document.createElement('div');
+      t.innerHTML = icon('info') + msg;
+      t.style.cssText = 'position:fixed;left:50%;bottom:36px;transform:translateX(-50%);z-index:100;display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:9999px;background:#1c1e21;color:#fff;font-size:13px;box-shadow:0 12px 32px rgba(40,35,25,.12);';
+      document.body.appendChild(t);
+      setTimeout(function () { t.remove(); }, 1800);
+    };
+  }
+  function flashToast(msg) {
+    var t = document.createElement('div');
+    t.innerHTML = icon('check-circle') + msg;
+    t.style.cssText = 'position:fixed;left:50%;bottom:36px;transform:translateX(-50%);z-index:100;display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:9999px;background:var(--up);color:#fff;font-size:13px;box-shadow:0 12px 32px rgba(40,35,25,.18);';
+    document.body.appendChild(t);
+    setTimeout(function () { t.remove(); }, 1800);
+  }
+
+  /* —— ① 概览头 —— */
+  function stats() {
+    var over = 0, ontrack = 0, behind = 0, totalCurrent = 0, totalTarget = 0;
+    window.GOALS.forEach(function (g) {
+      var v = window.goalView(g.id);
+      if (v.status === 'over') over++; else if (v.status === 'ontrack') ontrack++; else behind++;
+      totalCurrent += g.current_market_value_cents;
+      totalTarget  += g.target_cents;
+    });
+    return { total: window.GOALS.length, over: over, ontrack: ontrack, behind: behind,
+      totalCurrent: totalCurrent, totalTarget: totalTarget,
+      pct: totalTarget > 0 ? (totalCurrent / totalTarget) * 100 : 0 };
+  }
+  function renderOverview() {
+    var st = stats();
+    document.getElementById('goalOverview').innerHTML =
+        '<div class="go-cell"><span class="go-label">' + icon('target') + '目标总数</span><span class="go-val">' + st.total + '</span><span class="go-sub">holding-backed</span></div>'
+      + '<div class="go-cell"><span class="go-label">' + icon('check-circle') + '超目标</span><span class="go-val up">' + st.over + '</span><span class="go-sub">≥ 100%</span></div>'
+      + '<div class="go-cell"><span class="go-label">' + icon('trending-up') + '进行中</span><span class="go-val gold">' + st.ontrack + '</span><span class="go-sub">预计按时</span></div>'
+      + '<div class="go-cell"><span class="go-label">' + icon('alert-triangle') + '落后</span><span class="go-val down">' + st.behind + '</span><span class="go-sub">需加码</span></div>'
+      + '<div class="go-cell"><span class="go-label">' + icon('percent') + '综合达成</span><span class="go-val gold">' + st.pct.toFixed(1) + '%</span><span class="go-sub">' + fmtCNY(st.totalCurrent / 100) + ' / ' + fmtCNY(st.totalTarget / 100) + '</span></div>';
+  }
+  renderOverview();
+
+  /* —— ② 卡片列表 —— */
+  function renderCards() {
+    var html = window.GOALS.map(function (g) {
+      var v = window.goalView(g.id);
+      var sec = v.security;
+      var meta = sec ? window.TYPE_META[sec.type] : null;
+      var dotColor = meta ? meta.color : 'var(--muted-2)';
+      var sMeta = STATUS_META[v.status];
+      var pctClamped = Math.min(100, v.pct);
+      var barColor = v.status === 'over' ? 'linear-gradient(90deg,var(--up-soft),var(--up))'
+                   : v.status === 'ontrack' ? 'linear-gradient(90deg,var(--gold-soft),var(--gold))'
+                   : 'linear-gradient(90deg,var(--down-soft),var(--down))';
+      return '<div class="goal-card-t ' + v.status + '" data-id="' + g.id + '">'
+        +   '<div class="gct-top">'
+        +     '<div>'
+        +       '<div class="gct-name">' + icon('gem') + g.name + '</div>'
+        +       '<div class="gct-note">' + (g.note || '—') + '</div>'
+        +     '</div>'
+        +     '<span class="status-pill ' + v.status + '">' + icon(sMeta.icon) + sMeta.label + '</span>'
+        +   '</div>'
+        +   '<div class="gct-body">'
+        +     '<div class="gct-cell"><span class="gct-k">关联持仓</span>'
+        +       '<span class="gct-v linked"><span class="tc-dot" style="background:' + dotColor + '"></span>' + (sec ? sec.symbol + ' · ' + sec.name : '未关联') + '</span>'
+        +     '</div>'
+        +     '<div class="gct-cell"><span class="gct-k">月供节奏</span>'
+        +       '<span class="gct-v">' + (g.monthly_contribution_cents > 0 ? fmtCNY(g.monthly_contribution_cents / 100) + '/月' : '暂停定投') + '</span>'
+        +     '</div>'
+        +     '<div class="gct-cell"><span class="gct-k">当前市值</span><span class="gct-v">' + fmtCNY(g.current_market_value_cents / 100) + '</span></div>'
+        +     '<div class="gct-cell"><span class="gct-k">目标额</span><span class="gct-v" style="color:var(--muted);">' + fmtCNY(g.target_cents / 100) + '</span></div>'
+        +   '</div>'
+        +   '<div class="gct-progress-wrap">'
+        +     '<div class="gct-progress-track"><div class="gct-progress-fill" style="width:' + pctClamped + '%;background:' + barColor + ';"></div></div>'
+        +     '<div class="gct-progress-row"><span class="gct-pct">' + v.pct.toFixed(1) + '%</span>'
+        +       '<span class="gct-eta">' + icon('calendar') + '预计 ' + (v.eta || '—') + ' · deadline ' + g.deadline + '</span>'
+        +     '</div>'
+        +   '</div>'
+        +   '<div class="gct-foot">'
+        +     '<button class="gct-link-btn" data-toggle="' + g.id + '">' + icon('swap') + '切换关联持仓</button>'
+        +     '<button class="gct-link-btn" data-edit="' + g.id + '">' + icon('pencil') + '编辑</button>'
+        +   '</div>'
+        +   '<div class="gd-holding-picker" id="picker-' + g.id + '" style="display:none;"></div>'
+        + '</div>';
+    }).join('') || ('<div class="goal-empty"><div class="ge-icon">' + icon('gem') + '</div>'
+      + '<div class="ge-title">暂无投资目标</div>'
+      + '<div class="ge-text">点击右上「+」新建目标关联持仓</div></div>');
+    document.getElementById('goalCards').innerHTML = html;
+
+    /* 切换关联 picker 展开/收起 */
+    document.querySelectorAll('[data-toggle]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var gid = btn.dataset.toggle;
+        var picker = document.getElementById('picker-' + gid);
+        var open = picker.style.display !== 'none';
+        if (open) {
+          picker.style.display = 'none';
+          picker.innerHTML = '';
+        } else {
+          renderPicker(picker, gid);
+          picker.style.display = 'flex';
+        }
+      });
+    });
+    document.querySelectorAll('[data-edit]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) { e.stopPropagation(); toast('编辑目标 ⏳ D')(); });
+    });
+  }
+
+  function renderPicker(node, gid) {
+    var g = window.GOALS.find(function (x) { return x.id === gid; });
+    var html = window.HOLDINGS.map(function (h) {
+      var s = window.SECURITIES[h.security_id];
+      var m = window.TYPE_META[s.type];
+      var mktCNY = window.toCNY(h.quantity * h.current_price, h.currency);
+      var isSel = h.id === g.backing_holding_id;
+      return '<div class="gd-hp-row' + (isSel ? ' selected' : '') + '" data-h="' + h.id + '">'
+        +   '<span class="gd-hp-radio">' + icon('check') + '</span>'
+        +   '<div class="gd-hp-info">'
+        +     '<span class="gd-hp-sym"><span class="tc-dot" style="background:' + m.color + '"></span>' + s.symbol + '</span>'
+        +     '<span class="gd-hp-name">' + s.name + '</span>'
+        +   '</div>'
+        +   '<span class="gd-hp-val">' + fmtCNY(mktCNY) + '<span class="gd-hp-cur"> CNY</span></span>'
+        + '</div>';
+    }).join('');
+    node.innerHTML = html;
+    node.querySelectorAll('.gd-hp-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        var hid = row.dataset.h;
+        var h = window.HOLDINGS.find(function (x) { return x.id === hid; });
+        g.backing_holding_id = hid;
+        g.current_market_value_cents = Math.round(window.toCNY(h.quantity * h.current_price, h.currency) * 100);
+        flashToast('已切换关联 → ' + window.SECURITIES[h.security_id].symbol + ' · 进度重算(mock)');
+        renderCards();
+        renderOverview();
+      });
+    });
+  }
+
+  renderCards();
+})();
+</script>
+</body>
+</html>

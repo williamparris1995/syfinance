@@ -184,7 +184,106 @@ window.PRICE_HISTORY = {
   },
 };
 
-window.GOALS = [];         // 补于 Task 7
+/* ========================================================================
+   GOALS — 投资目标（Task 7 投资目标关联回填）
+   holding-backed goals：每个 goal 通过 backing_holding_id 关联一条持仓
+   · target_cents           目标金额(人民币分)
+   · current_market_value_cents  当前关联持仓市值(人民币分折算，mock 与 holdingView 同源)
+   · deadline               截止日期(预计达成时间 mock 基线)
+   · monthly_contribution_cents  月定投额(可选，用于预计达成推算 mock)
+   · status                 超目标 over / 进行中 ontrack / 落后 behind（mock 派生用）
+   注：current_market_value_cents 为 mock 快照(对齐 HOLDINGS 当前价)，
+       A-flutter 接入真 ⏳D 后由后端按 backing_holding 实时市值推进。
+   ======================================================================== */
+window.GOALS = [
+  /* —— g1 美股养老：超目标(h1 AAPL 市值 ¥67,062.50 vs 目标 ¥60,000)—— */
+  { id: 'g1', name: '美股养老',
+    backing_holding_id: 'h1',
+    target_cents: 6000000,                 /* ¥60,000.00 */
+    current_market_value_cents: 6706250,   /* ¥67,062.50 (= 50 × 185 × 7.25) */
+    deadline: '2030-12-31',
+    monthly_contribution_cents: 200000,    /* ¥2,000/月 */
+    note: 'AAPL 长线养老金账户' },
+  /* —— g2 沪深定投：进行中(h3 ETF 市值 ¥8,240 vs 目标 ¥30,000，约 27%)—— */
+  { id: 'g2', name: '沪深定投',
+    backing_holding_id: 'h3',
+    target_cents: 3000000,                 /* ¥30,000.00 */
+    current_market_value_cents: 824000,    /* ¥8,240.00 (= 2000 × 4.12) */
+    deadline: '2028-06-30',
+    monthly_contribution_cents: 100000,    /* ¥1,000/月 */
+    note: '510300 月定投，宽基底仓' },
+  /* —— g3 黄金避险：进行中偏快(h6 市值 ¥54,500 vs 目标 ¥80,000，约 68%)—— */
+  { id: 'g3', name: '黄金避险',
+    backing_holding_id: 'h6',
+    target_cents: 8000000,                 /* ¥80,000.00 */
+    current_market_value_cents: 5450000,   /* ¥54,500.00 (= 100 × 545) */
+    deadline: '2029-03-31',
+    monthly_contribution_cents: 150000,    /* ¥1,500/月 */
+    note: 'AU9999 乱世避险仓' },
+  /* —— g4 基金成长：落后(h4 市值 ¥13,400 vs 目标 ¥50,000，约 27% 且 deadline 较近)—— */
+  { id: 'g4', name: '基金成长',
+    backing_holding_id: 'h4',
+    target_cents: 5000000,                 /* ¥50,000.00 */
+    current_market_value_cents: 1340000,   /* ¥13,400.00 (= 5000 × 2.68) */
+    deadline: '2027-09-30',
+    monthly_contribution_cents: 80000,     /* ¥800/月（按当前节奏预计落后）*/
+    note: '兴全合润主动基金' },
+  /* —— g5 银行底仓：落后亏损(h2 市值 ¥10,850 vs 目标 ¥20,000，约 54% 但持仓亏损)—— */
+  { id: 'g5', name: '银行底仓',
+    backing_holding_id: 'h2',
+    target_cents: 2000000,                 /* ¥20,000.00 */
+    current_market_value_cents: 1085000,   /* ¥10,850.00 (= 1000 × 10.85) */
+    deadline: '2027-06-30',
+    monthly_contribution_cents: 0,         /* 暂停定投 */
+    note: '浦发浮亏，观察是否止损' },
+  /* —— g6 国债稳健：进行中(h5 市值 ¥10,120 vs 目标 ¥15,000，约 67%)—— */
+  { id: 'g6', name: '国债稳健',
+    backing_holding_id: 'h5',
+    target_cents: 1500000,                 /* ¥15,000.00 */
+    current_market_value_cents: 1012000,   /* ¥10,120.00 (= 100 × 101.20) */
+    deadline: '2028-12-31',
+    monthly_contribution_cents: 50000,     /* ¥500/月 */
+    note: '24国债09 稳健配置' },
+];
+
+/* —— Goal 视图 helper：进度 / 预计达成(mock) / 状态 —— */
+window.goalView = function (goalId) {
+  var g = window.GOALS.find(function (x) { return x.id === goalId; });
+  if (!g) return null;
+  var pct = g.target_cents > 0 ? (g.current_market_value_cents / g.target_cents) * 100 : 0;
+  pct = Math.max(0, pct);
+  /* 状态：>=100 over / 月供节奏推算 deadline 前达成 ontrack / 否则 behind */
+  var status;
+  if (pct >= 100) {
+    status = 'over';
+  } else {
+    /* 粗略推算：剩余目标 / 月供 → 需要月数 vs 剩余月数 */
+    var remainCents = Math.max(0, g.target_cents - g.current_market_value_cents);
+    var now = new Date('2026-06-29');
+    var dl = new Date(g.deadline);
+    var monthsLeft = Math.max(0, (dl.getFullYear() - now.getFullYear()) * 12 + (dl.getMonth() - now.getMonth()));
+    var monthsNeeded = g.monthly_contribution_cents > 0 ? remainCents / g.monthly_contribution_cents : Infinity;
+    status = monthsNeeded <= monthsLeft ? 'ontrack' : 'behind';
+  }
+  /* 预计达成时间 mock：以月供推算 eta，封顶 deadline */
+  var etaIso;
+  if (pct >= 100) {
+    etaIso = '已达成';
+  } else if (g.monthly_contribution_cents > 0) {
+    var remainC = g.target_cents - g.current_market_value_cents;
+    var needMonths = Math.max(0, Math.ceil(remainC / g.monthly_contribution_cents));
+    var base = new Date('2026-06-29');
+    var eta = new Date(base.getFullYear(), base.getMonth() + needMonths, 1);
+    etaIso = eta.getFullYear() + '-' + String(eta.getMonth() + 1).padStart(2, '0');
+  } else {
+    etaIso = '需手动';
+  }
+  return {
+    g: g, pct: pct, status: status, eta: etaIso,
+    holding: window.HOLDINGS.find(function (h) { return h.id === g.backing_holding_id; }),
+    security: g.backing_holding_id ? window.SECURITIES[(window.HOLDINGS.find(function (h) { return h.id === g.backing_holding_id; }) || {}).security_id] : null,
+  };
+};
 
 /* —— 内部序列生成 helper（mock-data.js 私有，供 PRICE_HISTORY 用）—— */
 function _series(vals, startDate) {
@@ -365,6 +464,14 @@ window.icon = function (name, cls) {
     'arrow-right':       '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
     'calendar':          '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
     'info':              '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+    /* —— Task 7 投资目标关联 新增 icon —— */
+    'target':            '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+    'flag':              '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/>',
+    'link':              '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+    'swap':              '<path d="M16 3l4 4-4 4"/><path d="M20 7H4"/><path d="M8 21l-4-4 4-4"/><path d="M4 17h16"/>',
+    'pencil':            '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>',
+    'check-circle':      '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/>',
+    'x-circle':          '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
   };
   return '<svg ' + p + '>' + (map[name] || '') + '</svg>';
 };

@@ -1578,3 +1578,262 @@ tr:hover .price-cell .pc-edit, .acc:hover .price-cell .pc-edit { opacity: 1; }
 .m-contrib-card .contrib-row .cr-name .cr-sub { display: none; }
 .m-contrib-card .contrib-val { font-size: 12px; }
 .m-contrib-card .contrib-val .cv-pct { display: block; margin-left: 0; margin-top: 1px; }
+
+/* ========================================================================
+   投资目标关联页 GOAL-LINK（Task 7 · D 子项目）
+   布局: 概览头(达成统计) → 概览列表(桌面表/平板手机卡片) → 侧栏详情(桌面)
+        → goal 关联 holding 选择(mock 切换重算)
+   状态色: over(超目标,up 绿) / ontrack(进行中,gold 金) / behind(落后,down 红)
+   复用: api-note / api-badge / goal-progress(改色变体) / type-chip
+   ======================================================================== */
+
+/* —— 概览头：目标达成统计 —— */
+.goal-overview { display: flex; align-items: stretch; gap: 0;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm); overflow: hidden; }
+.goal-overview .go-cell { flex: 1; padding: 16px 20px; display: flex; flex-direction: column; gap: 4px;
+  border-right: 1px solid var(--border); }
+.goal-overview .go-cell:last-child { border-right: none; }
+.goal-overview .go-label { font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+.goal-overview .go-label .icon { width: 13px; height: 13px; color: var(--muted-2); }
+.goal-overview .go-val { font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 22px; color: var(--fg-strong); }
+.goal-overview .go-val.up { color: var(--up); }
+.goal-overview .go-val.gold { color: var(--gold-deep); }
+.goal-overview .go-val.down { color: var(--down); }
+.goal-overview .go-sub { font-size: 11px; color: var(--muted-2); }
+
+/* —— 概览列表表头(desktop 表格列) —— */
+.goal-list-head { display: grid; grid-template-columns: 2fr 1.6fr 1.5fr 0.9fr 1.5fr 0.4fr;
+  align-items: center; gap: 12px; padding: 10px 18px; font-size: 11px; color: var(--muted);
+  border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: .03em; }
+.goal-list-head .glh-num { text-align: right; }
+
+/* —— goal 行(desktop 列表行 / 可点击选中) —— */
+.goal-row { display: grid; grid-template-columns: 2fr 1.6fr 1.5fr 0.9fr 1.5fr 0.4fr;
+  align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background .15s ease; }
+.goal-row:last-child { border-bottom: none; }
+.goal-row:hover { background: var(--surface-2); }
+.goal-row.selected { background: var(--accent-soft); border-left: 3px solid var(--gold); padding-left: 15px; }
+.goal-row.over .gr-pct-bar { background: var(--up); }
+.goal-row.ontrack .gr-pct-bar { background: linear-gradient(90deg, var(--gold-soft), var(--gold)); }
+.goal-row.behind .gr-pct-bar { background: var(--down); }
+
+/* goal 名 + 状态徽章 */
+.gr-name-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.gr-name { font-size: 14px; color: var(--fg); font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.gr-name .icon { width: 14px; height: 14px; color: var(--gold); flex-shrink: 0; }
+.gr-note { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* 关联持仓 cell */
+.gr-holding { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.gr-holding .tc-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.gr-holding .gr-sym { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--fg-strong); }
+.gr-holding .gr-hname { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* 市值/目标数字列 */
+.gr-num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 13px;
+  text-align: right; color: var(--fg); }
+.gr-num.target { color: var(--muted); }
+
+/* 进度 cell：进度条 + 百分比 */
+.gr-progress-cell { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.gr-progress-track { height: 6px; background: var(--bg); border-radius: var(--r-pill); overflow: hidden; position: relative; }
+.gr-pct-bar { height: 100%; border-radius: var(--r-pill); transition: width .4s ease; }
+.gr-progress-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.gr-pct-num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 600; }
+.goal-row.over .gr-pct-num { color: var(--up); }
+.goal-row.ontrack .gr-pct-num { color: var(--gold-deep); }
+.goal-row.behind .gr-pct-num { color: var(--down); }
+
+/* 状态徽章 */
+.status-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px;
+  padding: 2px 8px; border-radius: var(--r-pill); font-weight: 500; white-space: nowrap; }
+.status-pill .icon { width: 11px; height: 11px; }
+.status-pill.over { background: var(--up-soft); color: var(--up); }
+.status-pill.ontrack { background: var(--accent-soft); color: var(--gold-deep); }
+.status-pill.behind { background: var(--down-soft); color: var(--down); }
+
+/* 行尾 chevron */
+.gr-chev { color: var(--muted-2); display: flex; align-items: center; justify-content: flex-end; }
+.gr-chev .icon { width: 16px; height: 16px; }
+
+/* —— 侧栏详情(desktop) —— */
+.goal-detail { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm); padding: 18px 20px; position: sticky; top: 16px; }
+.gd-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.gd-title { display: flex; align-items: center; gap: 8px; }
+.gd-title .icon { width: 18px; height: 18px; color: var(--gold); }
+.gd-title h3 { font-size: 16px; }
+.gd-sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; margin-left: 26px; }
+.gd-name-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.gd-name { font-size: 17px; font-weight: 600; color: var(--fg-strong); font-family: var(--font-display); }
+.gd-note { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+
+/* 详情大进度条 */
+.gd-big-progress { margin: 6px 0 14px; }
+.gd-bp-track { height: 12px; background: var(--bg); border-radius: var(--r-pill); overflow: hidden; position: relative; }
+.gd-bp-fill { height: 100%; border-radius: var(--r-pill); transition: width .4s ease; }
+.gd-bp-fill.over { background: linear-gradient(90deg, var(--up-soft), var(--up)); }
+.gd-bp-fill.ontrack { background: linear-gradient(90deg, var(--gold-soft), var(--gold)); }
+.gd-bp-fill.behind { background: linear-gradient(90deg, var(--down-soft), var(--down)); }
+.gd-bp-num-row { display: flex; align-items: baseline; justify-content: space-between; margin-top: 8px; }
+.gd-bp-pct { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 24px; font-weight: 700; }
+.gd-bp-pct.over { color: var(--up); }
+.gd-bp-pct.ontrack { color: var(--gold-deep); }
+.gd-bp-pct.behind { color: var(--down); }
+.gd-bp-vals { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 12px; color: var(--muted); }
+.gd-bp-vals strong { color: var(--fg-strong); font-weight: 600; }
+
+/* 详情明细行 */
+.gd-meta { display: flex; flex-direction: column; gap: 10px; padding: 14px 0; border-top: 1px dashed var(--border); border-bottom: 1px dashed var(--border); margin-bottom: 16px; }
+.gd-meta-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; }
+.gd-meta-row .gdm-k { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+.gd-meta-row .gdm-k .icon { width: 13px; height: 13px; color: var(--muted-2); }
+.gd-meta-row .gdm-v { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--fg-strong); }
+.gd-meta-row .gdm-v.linked { display: flex; align-items: center; gap: 6px; }
+.gd-meta-row .gdm-v .tc-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* —— 关联 holding 选择区 —— */
+.gd-link-sec { margin-top: 4px; }
+.gd-link-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.gd-link-title { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.gd-link-title .icon { width: 13px; height: 13px; color: var(--gold); }
+.gd-link-actions { display: flex; gap: 6px; }
+.gd-link-btn { font-size: 11.5px; padding: 4px 10px; border-radius: var(--r-pill); border: 1px solid var(--border);
+  background: transparent; color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+  transition: all .15s ease; }
+.gd-link-btn .icon { width: 12px; height: 12px; }
+.gd-link-btn:hover { border-color: var(--gold-soft); color: var(--gold-deep); }
+.gd-link-btn.active { background: var(--gold); border-color: var(--gold); color: #fff; }
+
+/* holding 选择列表(切换关联) */
+.gd-holding-picker { display: flex; flex-direction: column; gap: 6px; }
+.gd-hp-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--border);
+  border-radius: var(--r); cursor: pointer; transition: all .15s ease; background: var(--surface); }
+.gd-hp-row:hover { border-color: var(--gold-soft); background: var(--surface-2); }
+.gd-hp-row.selected { border-color: var(--gold); background: var(--accent-soft); }
+.gd-hp-radio { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--muted-2);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.gd-hp-row.selected .gd-hp-radio { border-color: var(--gold); background: var(--gold); color: #fff; }
+.gd-hp-radio .icon { width: 10px; height: 10px; opacity: 0; }
+.gd-hp-row.selected .gd-hp-radio .icon { opacity: 1; }
+.gd-hp-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.gd-hp-sym { font-family: var(--font-mono); font-size: 12.5px; font-weight: 600; color: var(--fg-strong); display: flex; align-items: center; gap: 6px; }
+.gd-hp-sym .tc-dot { width: 7px; height: 7px; border-radius: 50%; }
+.gd-hp-name { font-size: 11px; color: var(--muted); }
+.gd-hp-val { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 12px; color: var(--fg); text-align: right; }
+.gd-hp-val .gd-hp-cur { font-size: 10.5px; color: var(--muted-2); }
+
+/* 详情操作 */
+.gd-actions { display: flex; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.gd-action-btn { flex: 1; padding: 9px; border-radius: var(--r); border: 1px solid var(--border); background: var(--surface);
+  font-size: 12px; color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  transition: all .15s ease; }
+.gd-action-btn:hover { border-color: var(--gold-soft); color: var(--gold-deep); }
+.gd-action-btn.primary { background: var(--gold); border-color: var(--gold); color: #fff; }
+.gd-action-btn.primary:hover { background: var(--gold-deep); }
+.gd-action-btn .icon { width: 13px; height: 13px; }
+
+/* —— 桌面主区栅格：列表 + 侧栏 —— */
+.goal-grid-d { display: grid; grid-template-columns: 1fr 360px; gap: 16px; align-items: start; }
+.goal-grid-d .goal-list-col { background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
+
+/* —— 空态 —— */
+.goal-empty { padding: 36px 20px; text-align: center; }
+.goal-empty .ge-icon { color: var(--muted-2); }
+.goal-empty .ge-icon .icon { width: 36px; height: 36px; }
+.goal-empty .ge-title { font-size: 14px; color: var(--fg); margin-top: 8px; }
+.goal-empty .ge-text { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+/* ========================================================================
+   投资目标关联页 TABLET 布局（卡片堆叠）
+   ======================================================================== */
+.goal-card-t { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm); padding: 14px 16px; display: flex; flex-direction: column; gap: 12px;
+  cursor: pointer; transition: border-color .15s ease; }
+.goal-card-t:hover { border-color: var(--gold-soft); }
+.goal-card-t.over { border-left: 3px solid var(--up); padding-left: 14px; }
+.goal-card-t.ontrack { border-left: 3px solid var(--gold); padding-left: 14px; }
+.goal-card-t.behind { border-left: 3px solid var(--down); padding-left: 14px; }
+.gct-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.gct-name { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 600; color: var(--fg-strong); }
+.gct-name .icon { width: 15px; height: 15px; color: var(--gold); }
+.gct-note { font-size: 11.5px; color: var(--muted); margin-top: 3px; margin-left: 21px; }
+.gct-body { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+.gct-cell { display: flex; flex-direction: column; gap: 2px; }
+.gct-k { font-size: 11px; color: var(--muted); }
+.gct-v { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 13px; color: var(--fg-strong); }
+.gct-v.linked { display: flex; align-items: center; gap: 6px; }
+.gct-v .tc-dot { width: 7px; height: 7px; border-radius: 50%; }
+.gct-progress-wrap { display: flex; flex-direction: column; gap: 6px; }
+.gct-progress-track { height: 8px; background: var(--bg); border-radius: var(--r-pill); overflow: hidden; }
+.gct-progress-fill { height: 100%; border-radius: var(--r-pill); transition: width .4s ease; }
+.gct-progress-row { display: flex; align-items: center; justify-content: space-between; }
+.gct-pct { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600; }
+.goal-card-t.over .gct-pct { color: var(--up); }
+.goal-card-t.ontrack .gct-pct { color: var(--gold-deep); }
+.goal-card-t.behind .gct-pct { color: var(--down); }
+.gct-foot { display: flex; align-items: center; justify-content: space-between; padding-top: 10px;
+  border-top: 1px dashed var(--border); }
+.gct-link-btn { font-size: 11.5px; padding: 5px 12px; border-radius: var(--r-pill); border: 1px solid var(--border);
+  background: transparent; color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+.gct-link-btn:hover { border-color: var(--gold-soft); color: var(--gold-deep); }
+.gct-link-btn .icon { width: 13px; height: 13px; }
+.gct-eta { font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+.gct-eta .icon { width: 12px; height: 12px; }
+
+/* ========================================================================
+   投资目标关联页 MOBILE 布局（紧凑卡片）
+   ======================================================================== */
+.m-goal-overview { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm); overflow: hidden; }
+.m-goal-overview .go-cell { padding: 12px 10px; border-right: 1px solid var(--border); }
+.m-goal-overview .go-cell:last-child { border-right: none; }
+.m-goal-overview .go-val { font-size: 17px; }
+.m-goal-overview .go-label { font-size: 10.5px; }
+.m-goal-overview .go-sub { font-size: 10px; }
+
+.m-goal-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.m-goal-card.over { border-left: 3px solid var(--up); padding-left: 12px; }
+.m-goal-card.ontrack { border-left: 3px solid var(--gold); padding-left: 12px; }
+.m-goal-card.behind { border-left: 3px solid var(--down); padding-left: 12px; }
+.mgc-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.mgc-name { font-size: 14px; font-weight: 600; color: var(--fg-strong); display: flex; align-items: center; gap: 5px; }
+.mgc-name .icon { width: 14px; height: 14px; color: var(--gold); }
+.mgc-progress-track { height: 7px; background: var(--bg); border-radius: var(--r-pill); overflow: hidden; }
+.mgc-progress-fill { height: 100%; border-radius: var(--r-pill); transition: width .4s ease; }
+.mgc-pct-row { display: flex; align-items: baseline; justify-content: space-between; }
+.mgc-pct { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 18px; font-weight: 700; }
+.m-goal-card.over .mgc-pct { color: var(--up); }
+.m-goal-card.ontrack .mgc-pct { color: var(--gold-deep); }
+.m-goal-card.behind .mgc-pct { color: var(--down); }
+.mgc-vals { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 11px; color: var(--muted); }
+.mgc-vals strong { color: var(--fg-strong); }
+.mgc-meta { display: flex; flex-direction: column; gap: 5px; padding: 8px 0; border-top: 1px dashed var(--border); border-bottom: 1px dashed var(--border); }
+.mgc-meta-row { display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; }
+.mgc-meta-row .mmk { display: flex; align-items: center; gap: 5px; color: var(--muted); }
+.mgc-meta-row .mmk .icon { width: 12px; height: 12px; color: var(--muted-2); }
+.mgc-meta-row .mmv { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--fg); display: flex; align-items: center; gap: 5px; }
+.mgc-meta-row .mmv .tc-dot { width: 7px; height: 7px; border-radius: 50%; }
+.mgc-foot { display: flex; gap: 8px; }
+.mgc-foot .gd-link-btn { flex: 1; justify-content: center; }
+
+/* —— holding picker Sheet（mobile 全屏 step）—— */
+.sheet-overlay { position: fixed; inset: 0; background: rgba(20,18,14,.5); z-index: 50;
+  display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none;
+  transition: opacity .2s ease; }
+.sheet-overlay.open { opacity: 1; pointer-events: auto; }
+.sheet-panel { width: 100%; max-width: 480px; background: var(--surface); border-radius: var(--r-lg) var(--r-lg) 0 0;
+  padding: 16px 18px 24px; box-shadow: 0 -8px 32px rgba(40,35,25,.18); transform: translateY(100%);
+  transition: transform .25s ease; max-height: 80vh; overflow-y: auto; }
+.sheet-overlay.open .sheet-panel { transform: translateY(0); }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.sheet-head h3 { font-size: 15px; }
+.sheet-close { width: 28px; height: 28px; border-radius: 50%; background: var(--bg); display: flex;
+  align-items: center; justify-content: center; cursor: pointer; color: var(--muted); }
+.sheet-close .icon { width: 15px; height: 15px; }
