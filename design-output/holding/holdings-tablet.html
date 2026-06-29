@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=874">
+<title>御财 · 持仓列表 — Tablet</title>
+
+<!-- ======================================================================
+     API 标注
+     · API: ListHoldings(tenant_id, type_filter?)                    ✅ A-server 已实现
+     · API: 聚合统计 / 资产配置占比 / 多币种汇总                         ⏳ 首批前端从 ListHoldings
+           计算（server summary 端点后置）
+     · 数据源：window.HOLDINGS / window.SECURITIES / window.ACCOUNTS（mock-data.js）
+     · 汇率：USD → CNY = 7.25
+     ====================================================================== -->
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="d-tablet">
+
+<div class="tablet-shell">
+
+  <!-- 顶栏 -->
+  <header class="tb-top">
+    <div>
+      <h1>持仓列表</h1>
+      <div class="tb-sub">共 <span id="countAll" class="mono">0</span> 只证券 · 跨 2 个账户 · 更新于 06-29 15:00</div>
+    </div>
+    <div class="topbar-actions" style="display:flex;gap:10px;align-items:center">
+      <div class="search" style="width:180px"><span id="iconSearch"></span><input type="text" placeholder="搜索"></div>
+      <button class="icon-btn" id="iconRefreshBtn"></button>
+      <button class="btn btn-gold"><span class="icon icon-sm" data-icon="plus"></span>添加持仓</button>
+    </div>
+  </header>
+
+  <div class="tb-body">
+
+    <!-- API: 概览统计 -->
+    <!-- StatCard 2×2 紧凑 -->
+    <section class="stat-grid cols-2 tb-stats" id="stats"></section>
+
+    <!-- chips 筛选 -->
+    <div class="chips tb-chips" id="chips"></div>
+
+    <!-- 资产配置饼图 -->
+    <!-- API: 资产配置占比（前端聚合，USD 按 7.25 折算） -->
+    <div class="card tb-alloc">
+      <div class="card-head">
+        <div class="card-title">资产配置</div>
+        <div class="card-sub">按市值 · CNY</div>
+      </div>
+      <div class="alloc-body">
+        <div class="pie-chart donut size-sm" id="pie"></div>
+        <ul class="pie-legend" id="legend"></ul>
+      </div>
+    </div>
+
+    <!-- 紧凑持仓表 -->
+    <div class="card tb-table">
+      <div class="card-head">
+        <div class="card-title">持仓明细</div>
+        <div class="card-sub">按市值降序</div>
+      </div>
+      <table class="holdings-table">
+        <thead>
+          <tr>
+            <th>证券 <span class="sort">↕</span></th>
+            <th class="num">持有量 <span class="sort">↕</span></th>
+            <th class="num">现价 <span class="sort">↕</span></th>
+            <th class="num sorted">市值 <span class="sort">↓</span></th>
+            <th>走势</th>
+            <th class="num">盈亏 <span class="sort">↕</span></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div id="emptyWrap"></div>
+    </div>
+
+    <!-- API: 多币种汇总 -->
+    <div class="currency-bar tb-currency" id="currencyBar"></div>
+
+  </div>
+</div>
+
+<script src="mock-data.js"></script>
+<script>
+(function () {
+  var icon = window.icon;
+  document.getElementById('iconSearch').innerHTML = icon('search');
+  document.getElementById('iconRefreshBtn').innerHTML = icon('refresh-cw');
+  document.querySelectorAll('[data-icon]').forEach(function (el) {
+    el.innerHTML = icon(el.getAttribute('data-icon'));
+  });
+
+  var SUMMARY = window.computeSummary();
+  var ALLOC   = window.computeAllocation();
+  var CHIPS   = window.computeChips();
+  var upTotal = SUMMARY.totalPnlCNY >= 0;
+  document.getElementById('countAll').textContent = window.HOLDINGS.length;
+
+  /* StatCard 2×2 紧凑 */
+  var stats = [
+    { label: '总市值', icon: 'wallet',  value: window.fmtCNY(SUMMARY.totalMktCNY),  sub: '<span class="cc">CNY</span> 折算合计', valCls: '', subCls: '' },
+    { label: '总成本', icon: 'banknote',value: window.fmtCNY(SUMMARY.totalCostCNY),sub: '<span class="cc">CNY</span> 投入本金', valCls: '', subCls: '' },
+    { label: '总盈亏', icon: upTotal ? 'trending-up' : 'trending-down',
+      value: (upTotal ? '+' : '') + window.fmtCNY(Math.abs(SUMMARY.totalPnlCNY)),
+      sub: '浮动 + 已实现', valCls: upTotal ? 'pnl-up' : 'pnl-down', subCls: upTotal ? 'pnl-up' : 'pnl-down' },
+    { label: '收益率', icon: 'percent', value: window.fmtPct(SUMMARY.totalPnlPct),
+      sub: '相对总成本', valCls: upTotal ? 'pnl-up' : 'pnl-down', subCls: upTotal ? 'pnl-up' : 'pnl-down' },
+  ];
+  document.getElementById('stats').innerHTML = stats.map(function (s) {
+    return '<div class="stat-card compact">'
+      + '<div class="stat-label">' + icon(s.icon) + s.label + '</div>'
+      + '<div class="stat-value ' + (s.valCls || '') + '">' + s.value + '</div>'
+      + '<div class="stat-sub ' + (s.subCls || '') + '">' + s.sub + '</div>'
+      + '</div>';
+  }).join('');
+
+  /* 饼图 */
+  var pie = document.getElementById('pie');
+  var stops = [], acc = 0;
+  ALLOC.filter(function (a) { return a.pct > 0; }).forEach(function (a) {
+    var from = acc; acc += a.pct;
+    stops.push(a.color + ' ' + from.toFixed(2) + '% ' + acc.toFixed(2) + '%');
+  });
+  pie.style.background = 'conic-gradient(' + (stops.join(', ') || '#e6e3dc 0 100%') + ')';
+  var top = ALLOC.filter(function (a) { return a.pct > 0; }).sort(function (a, b) { return b.pct - a.pct; })[0];
+  pie.innerHTML = '<div class="pie-hole"><span class="pie-hole-pct">' + (top ? top.pct.toFixed(1) : '0') + '%</span>'
+    + '<span class="pie-hole-label">' + (top ? top.label : '无') + '</span></div>';
+
+  /* 图例 */
+  document.getElementById('legend').innerHTML = ALLOC.map(function (a) {
+    var dim = a.pct === 0;
+    return '<li>'
+      + '<span class="swatch" style="background:' + a.color + (dim ? ';opacity:.3' : '') + '"></span>'
+      + '<span class="leg-name ' + (dim ? 'legend-empty' : '') + '">' + a.label + '</span>'
+      + '<span class="leg-val ' + (dim ? 'legend-empty' : '') + '">' + (a.value > 0 ? window.fmtCNY(a.value) : '—') + '</span>'
+      + '<span class="leg-pct ' + (dim ? 'legend-empty' : '') + '">' + a.pct.toFixed(1) + '%</span>'
+      + '</li>';
+  }).join('');
+
+  /* chips */
+  var chipBox = document.getElementById('chips');
+  chipBox.innerHTML = CHIPS.map(function (c) {
+    return '<button class="chip ' + (c.key === 'all' ? 'active' : '') + '" data-type="' + c.key + '">'
+      + c.label + '<span class="cnt">' + c.count + '</span></button>';
+  }).join('');
+
+  /* 紧凑表 */
+  function renderRows(filter) {
+    var rows = window.HOLDINGS.map(function (h) { return window.holdingView(h); })
+      .filter(function (v) { return filter === 'all' || v.sec.type === filter; })
+      .sort(function (a, b) { return b.mktValCNY - a.mktValCNY; });
+    var tbody = document.getElementById('tbody');
+    var emptyWrap = document.getElementById('emptyWrap');
+    if (!rows.length) {
+      tbody.innerHTML = '';
+      emptyWrap.innerHTML = '<div class="empty"><div class="empty-ico">' + icon('briefcase', 'icon-lg') + '</div>'
+        + '<div class="empty-title">该类型暂无持仓</div>'
+        + '<div class="empty-text">切换其他类型，或添加该类型的证券。</div></div>';
+      return;
+    }
+    emptyWrap.innerHTML = '';
+    tbody.innerHTML = rows.map(function (v) {
+      var typeTag = '<span class="type-tag">' + window.TYPE_META[v.sec.type].label + '</span>';
+      return '<tr>'
+        + '<td><div class="cell-sym"><span class="sym">' + v.sec.symbol + typeTag + '</span><span class="name">' + v.sec.name + '</span></div></td>'
+        + '<td class="num mono">' + v.h.quantity.toLocaleString('zh-CN') + '</td>'
+        + '<td class="num mono">' + window.fmtRaw(v.h.current_price, v.h.currency) + '</td>'
+        + '<td class="num mono">' + window.fmtCNY(v.mktValCNY) + '</td>'
+        + '<td>' + window.sparkSVG(v.h.sparkline, v.up, '', 92, 26) + '</td>'
+        + '<td class="num"><span class="pill ' + (v.up ? 'bg-up' : 'bg-down') + '">' + window.fmtSigned(v.pnl, 'CNY') + '<br><span style="font-weight:500;font-size:11px">' + window.fmtPct(v.pnlPct) + '</span></span></td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  chipBox.addEventListener('click', function (e) {
+    var t = e.target.closest('.chip'); if (!t) return;
+    document.querySelectorAll('.chip').forEach(function (el) {
+      el.classList.toggle('active', el === t);
+    });
+    renderRows(t.getAttribute('data-type'));
+  });
+
+  renderRows('all');
+
+  /* 多币种汇总 */
+  var breakdown = window.computeCurrencyBreakdown();
+  var curDetail = breakdown.map(function (b) {
+    return '<div class="cb-cur"><span class="cb-cur-label">' + b.currency + '</span>'
+      + '<span class="cb-cur-val">' + (b.currency === 'USD' ? '$' : '¥') + b.value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>';
+  }).join('');
+  document.getElementById('currencyBar').innerHTML = ''
+    + '<div class="cb-main"><span class="cb-label">本币合计 · CNY 总市值</span><span class="cb-val">' + window.fmtCNY(SUMMARY.totalMktCNY) + '</span></div>'
+    + '<div class="cb-divider"></div>'
+    + '<div class="cb-detail">' + curDetail + '</div>'
+    + '<div class="cb-rate">USD→CNY 7.25</div>';
+})();
+</script>
+</body>
+</html>

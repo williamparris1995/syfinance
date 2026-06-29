@@ -1,63 +1,201 @@
-/* ============================================================
- * 御财 YuCai · Holding 模块共享 Mock 数据
- * 各界面 HTML <script src="mock-data.js"></script> 复用
- *
- * 用 window.X = ... 形式,便于 HTML 直接 <script> 引用(无构建步骤)
- *
- * 金额一律 cents(整数),与 Rust 后端 Money 一致
- * ============================================================ */
+/* ========================================================================
+   御财 YuCai · 持仓模块（Holding）· mock 数据
+   暴露：window.SECURITIES / window.HOLDINGS / window.ACCOUNTS
+         window.RATES (USD→CNY = 7.25)
+   以及前端聚合 helper（占比/统计/多币种汇总，首批前端从 ListHoldings 计算）
+   ======================================================================== */
 
-/* —— 证券主数据(4 个跨币种样本)——
- * 覆盖:美股(USD) / A股(CNY) / ETF(CNY) / 黄金(CNY)
- * type: stock | etf | gold | bond | fund */
-window.SECURITIES = [
-  {id:'s1', symbol:'AAPL',  name:'Apple Inc',    type:'stock', exchange:'NASDAQ', currency:'USD', price_cents:18500},
-  {id:'s2', symbol:'600000', name:'浦发银行',     type:'stock', exchange:'SSE',    currency:'CNY', price_cents:1085},
-  {id:'s3', symbol:'510300', name:'沪深300ETF',   type:'etf',   exchange:'SSE',    currency:'CNY', price_cents:412},
-  {id:'s4', symbol:'GOLD',   name:'纸黄金',       type:'gold',  exchange:'SHFE',   currency:'CNY', price_cents:45200},
-];
+/* 汇率（基准币 CNY） */
+window.RATES = { USD: 7.25, CNY: 1, HKD: 0.92 };
+window.BASE_CURRENCY = 'CNY';
 
-/* —— 持仓(3 个盈亏样本)——
- * 与 SECURITIES 通过 security_id 关联
- * 盈亏 = (current_price - avg_cost) * quantity
- * s1 盈利 USD(+750 USD), s2 亏损 CNY(-115000 CNY), s3 盈利 CNY(+64000 CNY) */
+/* 证券字典 */
+window.SECURITIES = {
+  s1: { id: 's1', symbol: 'AAPL',   name: 'Apple Inc.',  type: 'stock', currency: 'USD', market: 'NASDAQ' },
+  s2: { id: 's2', symbol: '600000', name: '浦发银行',     type: 'stock', currency: 'CNY', market: 'SH' },
+  s3: { id: 's3', symbol: '510300', name: '沪深300ETF',   type: 'etf',   currency: 'CNY', market: 'SH' },
+};
+
+/* 账户 */
+window.ACCOUNTS = {
+  a1: { id: 'a1', name: '美股账户', broker: '盈透证券 IBKR', currency: 'USD' },
+  a2: { id: 'a2', name: 'A股账户',  broker: '华泰证券',       currency: 'CNY' },
+};
+
+/* 持仓（3 条演示数据）
+   s1 AAPL：50 股，成本 $170，现价 $185  → +$750  ≈ +¥5437.5
+   s2 600000 浦发：1000 股，成本 ¥12.00，现价 ¥10.85 → -¥1150
+   s3 510300 ETF：2000 份，成本 ¥3.80，现价 ¥4.12   → +¥640
+*/
 window.HOLDINGS = [
-  {security_id:'s1', quantity:50,   avg_cost_cents:17000, current_price_cents:18500},  // 盈利 USD:  +750.00
-  {security_id:'s2', quantity:1000, avg_cost_cents:1200,  current_price_cents:1085},   // 亏损 CNY:  -115000(¥-1150.00)
-  {security_id:'s3', quantity:2000, avg_cost_cents:380,   current_price_cents:412},    // 盈利 CNY:  +64000(¥+640.00)
+  {
+    id: 'h1', security_id: 's1', account_id: 'a1',
+    quantity: 50, cost_price: 170, current_price: 185, currency: 'USD',
+    /* 盈利：30 点上行走势 */
+    sparkline: 'M0,22 L3,20 L7,21 L10,18 L14,19 L17,16 L21,17 L24,14 L28,15 L31,13 L34,14 L38,11 L41,12 L45,10 L48,9 L52,11 L55,8 L59,9 L62,7 L66,8 L69,6 L72,7 L76,5 L79,6 L83,4 L86,5 L90,3 L93,4 L97,3 L100,2',
+  },
+  {
+    id: 'h2', security_id: 's2', account_id: 'a2',
+    quantity: 1000, cost_price: 12.00, current_price: 10.85, currency: 'CNY',
+    /* 亏损：30 点下行走势 */
+    sparkline: 'M0,5 L3,6 L7,5 L10,7 L14,6 L17,8 L21,7 L24,9 L28,8 L31,10 L34,9 L38,11 L41,10 L45,12 L48,11 L52,13 L55,12 L59,14 L62,13 L66,15 L69,14 L72,16 L76,17 L79,16 L83,18 L86,19 L90,20 L93,19 L97,21 L100,23',
+  },
+  {
+    id: 'h3', security_id: 's3', account_id: 'a2',
+    quantity: 2000, cost_price: 3.80, current_price: 4.12, currency: 'CNY',
+    /* 盈利：30 点上行走势（较平缓） */
+    sparkline: 'M0,20 L3,19 L7,20 L10,18 L14,19 L17,17 L21,18 L24,16 L28,17 L31,15 L34,16 L38,14 L41,15 L45,13 L48,12 L52,14 L55,11 L59,12 L62,10 L66,11 L69,9 L72,10 L76,8 L79,9 L83,7 L86,8 L90,7 L93,5 L97,6 L100,5',
+  },
 ];
 
-/* —— 账户(含 income 类账户,供持仓关联 + 分红入账演示)——
- * category: asset | liability | income | expense(与 accounts-responsive STYLES.kind 对齐)
- * type:     savings | credit | investment | fixed | gold | income | ...
- * 持仓实际归属账户:a2 美股账户(USD 持仓 s1)、a4 A股账户(CNY 持仓 s2/s3) */
-window.ACCOUNTS = [
-  {id:'a1', name:'招商储蓄',   type:'savings',     currency:'CNY', balance_cents:1285400, category:'asset'},
-  {id:'a2', name:'美股账户',   type:'investment',  currency:'USD', balance_cents:25000,   category:'asset'},
-  {id:'a3', name:'分红收入',   type:'income',      currency:'CNY', balance_cents:0,       category:'income'},
-  // 持仓归属账户(holding 关联用,Task 2/6 持仓列表 + Task 5 交易写入会用):
-  {id:'a4', name:'华泰 A股账户', type:'investment', currency:'CNY', balance_cents:456000, category:'asset'},
-];
-
-/* —— 交易明细(buy/sell/dividend/split 样本)—— */
-// 补于 Task 5(交易页生成时,按持仓回填 buy 记录 + 演示 sell/dividend/split)
-window.TRADES = [];
-
-/* —— 价格历史(per-security 日/月 sparkline + 曲线数据)—— */
-// 补于 Task 7(趋势页生成时,为每个 security 生成 30 日 / 12 月 OHLC 序列)
-window.PRICE_HISTORY = {};
-
-/* —— 持仓 backed goals(holding 抵押/挂钩的目标)—— */
-// 补于 Task 7(目标页生成时,联动持仓市值演示进度)
-window.GOALS = [];
-
-/* —— 辅助查询函数(各界面共用)—— */
-window.holdingBySecurity = function (sid) {
-  return window.HOLDINGS.find(h => h.security_id === sid) || null;
+/* 类型元数据 */
+window.TYPE_META = {
+  stock: { label: '股票', color: '#b08d57' },
+  fund:  { label: '基金', color: '#8a6d3b' },
+  etf:   { label: 'ETF',  color: '#2d8a6e' },
+  bond:  { label: '债券', color: '#6b7a8f' },
+  gold:  { label: '黄金', color: '#c9a04a' },
 };
-window.securityById = function (sid) {
-  return window.SECURITIES.find(s => s.id === sid) || null;
+
+/* ---- 格式化 ---- */
+window.toCNY = function (amount, currency) {
+  const rate = window.RATES[currency] || 1;
+  return amount * rate;
 };
-window.accountById = function (aid) {
-  return window.ACCOUNTS.find(a => a.id === aid) || null;
+window.fmtCNY = function (v) {
+  return '¥' + Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+window.fmtUSD = function (v) {
+  return '$' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+window.fmtRaw = function (v, currency) {
+  const sym = currency === 'USD' ? '$' : currency === 'HKD' ? 'HK$' : '¥';
+  return sym + Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+window.fmtPct = function (v) {
+  return (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+};
+window.fmtSigned = function (v, currency) {
+  const sign = v >= 0 ? '+' : '-';
+  const abs = Math.abs(v);
+  return sign + window.fmtRaw(abs, currency);
+};
+
+/* ---- 单条持仓视图 ---- */
+window.holdingView = function (h) {
+  const sec = window.SECURITIES[h.security_id];
+  const mktVal   = h.quantity * h.current_price;   // 原币
+  const cost     = h.quantity * h.cost_price;      // 原币
+  const pnl      = mktVal - cost;                  // 原币
+  const pnlPct   = cost > 0 ? (pnl / cost) * 100 : 0;
+  const mktValCNY = window.toCNY(mktVal, h.currency);
+  const costCNY   = window.toCNY(cost, h.currency);
+  const pnlCNY    = window.toCNY(pnl, h.currency);
+  return { h, sec, mktVal, cost, pnl, pnlPct, mktValCNY, costCNY, pnlCNY, up: pnl >= 0 };
+};
+
+/* ---- 总览统计 ---- */
+window.computeSummary = function () {
+  let totalMktCNY = 0, totalCostCNY = 0;
+  window.HOLDINGS.forEach(function (h) {
+    const v = window.holdingView(h);
+    totalMktCNY  += v.mktValCNY;
+    totalCostCNY += v.costCNY;
+  });
+  const totalPnlCNY = totalMktCNY - totalCostCNY;
+  const totalPnlPct = totalCostCNY > 0 ? (totalPnlCNY / totalCostCNY) * 100 : 0;
+  return { totalMktCNY, totalCostCNY, totalPnlCNY, totalPnlPct };
+};
+
+/* ---- 按 type 聚合配置占比 ---- */
+window.computeAllocation = function () {
+  const total = window.computeSummary().totalMktCNY;
+  const byType = {};
+  window.HOLDINGS.forEach(function (h) {
+    const v = window.holdingView(h);
+    const t = v.sec.type;
+    byType[t] = (byType[t] || 0) + v.mktValCNY;
+  });
+  return Object.keys(window.TYPE_META).map(function (t) {
+    const value = byType[t] || 0;
+    return {
+      type: t,
+      label: window.TYPE_META[t].label,
+      color: window.TYPE_META[t].color,
+      value: value,
+      pct: total > 0 ? (value / total) * 100 : 0,
+    };
+  });
+};
+
+/* ---- chips 计数 ---- */
+window.computeChips = function () {
+  const order = [
+    { key: 'all',   label: '全部' },
+    { key: 'stock', label: '股票' },
+    { key: 'etf',   label: 'ETF' },
+    { key: 'fund',  label: '基金' },
+    { key: 'bond',  label: '债券' },
+    { key: 'gold',  label: '黄金' },
+  ];
+  return order.map(function (t) {
+    const count = t.key === 'all'
+      ? window.HOLDINGS.length
+      : window.HOLDINGS.filter(function (h) { return window.SECURITIES[h.security_id].type === t.key; }).length;
+    return { key: t.key, label: t.label, count: count };
+  });
+};
+
+/* ---- 多币种汇总（本币 + 各原币种明细）---- */
+window.computeCurrencyBreakdown = function () {
+  const byCur = {};
+  window.HOLDINGS.forEach(function (h) {
+    const v = window.holdingView(h);
+    byCur[h.currency] = (byCur[h.currency] || 0) + v.mktVal;   // 原币市值合计
+  });
+  return Object.keys(byCur).map(function (cur) {
+    return { currency: cur, value: byCur[cur], valueCNY: window.toCNY(byCur[cur], cur) };
+  }).sort(function (a, b) { return b.valueCNY - a.valueCNY; });
+};
+
+/* ---- 渲染一段 sparkline SVG（盈绿/亏红）---- */
+window.sparkSVG = function (d, up, cls, w, h) {
+  const stroke = up ? 'var(--up)' : 'var(--down)';
+  const fill   = up ? 'var(--up-soft)' : 'var(--down-soft)';
+  w = w || 100; h = h || 28;
+  const fillPath = d + ' L100,28 L0,28 Z';
+  return ''
+    + '<svg class="sparkline ' + (cls || '') + '" viewBox="0 0 100 ' + h + '" width="' + w + '" height="' + h + '" preserveAspectRatio="none">'
+    +   '<path d="' + fillPath + '" fill="' + fill + '" fill-opacity="0.5" stroke="none"/>'
+    +   '<path d="' + d + '" fill="none" stroke="' + stroke + '" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '</svg>';
+};
+
+/* lucide 图标内联（统一 1.6 描边、currentColor） */
+window.icon = function (name, cls) {
+  const c = cls ? ' ' + cls : '';
+  const p = 'class="icon' + c + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"';
+  const map = {
+    'trending-up':   '<path d="M22 7l-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/>',
+    'trending-down': '<path d="M22 17l-8.5-8.5-5 5L2 7"/><path d="M16 17h6v-6"/>',
+    'pie-chart':     '<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>',
+    'plus':          '<path d="M12 5v14"/><path d="M5 12h14"/>',
+    'search':        '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+    'chevron-up':    '<path d="m18 15-6-6-6 6"/>',
+    'chevron-down':  '<path d="m6 9 6 6 6-6"/>',
+    'wallet':        '<path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5"/><path d="M16 12h.01"/>',
+    'landmark':      '<line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/><line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/><line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/>',
+    'gem':           '<path d="M6 3h12l4 6-10 13L2 9Z"/><path d="M11 3 8 9l4 13 4-13-3-6"/><path d="M2 9h20"/>',
+    'banknote':      '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+    'circle-dollar-sign': '<circle cx="12" cy="12" r="10"/><path d="M12 6v12"/><path d="M15 9.5a3 3 0 0 0-3-2.5c-1.66 0-3 .9-3 2s1.34 2 3 2 3 .9 3 2-1.34 2-3 2a3 3 0 0 1-3-2.5"/>',
+    'briefcase':     '<rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
+    'grid':          '<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
+    'bell':          '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+    'user':          '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+    'arrow-up-right': '<path d="M7 7h10v10"/><path d="M7 17 17 7"/>',
+    'arrow-down-right': '<path d="M7 7l10 10"/><path d="M17 7v10H7"/>',
+    'percent':       '<line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+    'refresh-cw':    '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/>',
+  };
+  return '<svg ' + p + '>' + (map[name] || '') + '</svg>';
 };
