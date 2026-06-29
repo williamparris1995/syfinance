@@ -547,7 +547,8 @@ window.holdingDonut = function (holdingId) {
   return 'conic-gradient(' + color + ' 0 ' + pct + '%, var(--border) ' + pct + '% 100%)';
 };
 
-/* mock：该 holding 关联的 goal 进度(市值 vs 目标额) — Task 7 真实 GOALS 接入前 mock */
+/* @deprecated 持仓详情关联卡已对接真 window.GOALS + window.goalView（Task 8）。
+   此 helper 仅为兼容保留，新代码请用：GOALS.find(g => g.backing_holding_id === hid) + goalView(g.id)。 */
 window.holdingMockGoal = function (holdingId) {
   const h = window.HOLDINGS.find(function (x) { return x.id === holdingId; });
   if (!h) return null;

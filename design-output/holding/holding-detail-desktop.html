@@ -16,7 +16,7 @@
     - 收益 snapshot(日/月/年聚合)                                 ⏳ C 子项目
         → 收益曲线 + realized/unrealized · 本页 mock(前端从 PRICE_HISTORY + TRADES 聚合)
     - goal.backing_holding_id                                    ⏳ D 子项目
-        → 关联目标卡(市值 vs 目标额) · 本页 mock(holdingMockGoal)
+        → 关联目标卡(市值 vs 目标额) · 对接真 window.GOALS(window.goalView)
   操作: buy/sell/dividend/split 触发统一交易 Sheet(见 trade-sheet-desktop.html)
   数据源: window.HOLDINGS / window.TRADES / window.PRICE_HISTORY / window.SECURITIES
   ============================================================================
@@ -32,6 +32,22 @@
   .detail-topbar .tb-back { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--muted); cursor: pointer; }
   .detail-topbar .tb-back:hover { color: var(--gold-deep); }
   .detail-topbar .tb-back .icon { width: 16px; height: 16px; }
+  /* —— 关联目标卡 状态化增强（对接真 GOALS）—— */
+  .goal-card .gc-name-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .goal-card .gc-name-row .gc-name { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; color: var(--fg-strong); }
+  .goal-card .gc-name-row .gc-name .icon { width: 13px; height: 13px; color: var(--gold); }
+  .goal-card .goal-progress .gp-fill.over { background: var(--up); }
+  .goal-card .goal-progress .gp-fill.ontrack { background: var(--gold); }
+  .goal-card .goal-progress .gp-fill.behind { background: var(--down); }
+  .goal-card .gc-pct.over { color: var(--up); }
+  .goal-card .gc-pct.behind { color: var(--down); }
+  .goal-card .gc-link-cta { display: inline-flex; align-items: center; gap: 4px; margin-top: 10px; font-size: 11.5px; color: var(--gold-deep); text-decoration: none; }
+  .goal-card .gc-link-cta .icon { width: 12px; height: 12px; }
+  .goal-card .gc-link-cta:hover { text-decoration: underline; }
+  .goal-card .gc-empty .gce-title { font-size: 13px; color: var(--fg); font-weight: 500; margin-top: 4px; }
+  .goal-card .gc-empty .gce-text { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+  .goal-card .gc-empty .gc-empty-cta { margin-top: 12px; padding: 6px 12px; font-size: 12px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+  .goal-card .gc-empty .gc-empty-cta .icon { width: 12px; height: 12px; color: #fff; margin: 0; }
 </style>
 </head>
 <body>
@@ -232,27 +248,38 @@
     +   '<span class="am-rank">' + icon('pie-chart') + window.TYPE_META[sec.type].label + ' 类目内排名 #' + (rankIdx + 1) + '</span>'
     + '</div>';
 
-  /* —— ⑥ 关联目标卡 —— */
-  var goal = window.holdingMockGoal(HOLDING_ID);
+  /* —— ⑥ 关联目标卡（对接真 GOALS · spec §4.6 / §6）—— */
+  /* 查找该持仓对应的真 goal（g.backing_holding_id === HOLDING_ID），用 goalView 显示进度 */
+  var STATUS_META = {
+    over:    { label: '超目标', icon: 'check-circle' },
+    ontrack: { label: '进行中', icon: 'trending-up' },
+    behind:  { label: '落后',   icon: 'alert-triangle' },
+  };
+  var linkedGoal = window.GOALS.find(function (g) { return g.backing_holding_id === HOLDING_ID; });
+  var gv = linkedGoal ? window.goalView(linkedGoal.id) : null;
   var goalHtml;
-  if (goal) {
+  if (linkedGoal && gv) {
+    var pctClamped = Math.min(100, gv.pct);
+    var sMeta = STATUS_META[gv.status];
     goalHtml =
         '<div class="gc-head">'
       +   '<div class="gc-title">' + icon('gem', 'icon') + '<h3>关联目标</h3></div>'
       +   '<span class="gc-badge">⏳ D</span>'
       + '</div>'
       + '<div class="gc-body">'
-      +   '<div class="gc-name">' + goal.name + '</div>'
-      +   '<div class="goal-progress"><div class="gp-fill" style="width:' + goal.pct + '%"></div></div>'
+      +   '<div class="gc-name-row"><span class="gc-name">' + icon('target') + linkedGoal.name + '</span>'
+      +     '<span class="status-pill ' + gv.status + '">' + icon(sMeta.icon) + sMeta.label + '</span></div>'
+      +   '<div class="goal-progress"><div class="gp-fill ' + gv.status + '" style="width:' + pctClamped + '%"></div></div>'
       +   '<div class="gc-nums">'
-      +     '<span class="gc-cur">' + window.fmtCNY(goal.current) + '</span>'
+      +     '<span class="gc-cur">' + window.fmtCNY(linkedGoal.current_market_value_cents / 100) + '</span>'
       +     '<span class="gc-sep">/</span>'
-      +     '<span class="gc-target">' + window.fmtCNY(goal.target) + '</span>'
+      +     '<span class="gc-target">' + window.fmtCNY(linkedGoal.target_cents / 100) + '</span>'
       +   '</div>'
       +   '<div class="gc-foot">'
-      +     '<span class="gc-pct">' + goal.pct.toFixed(1) + '% 达成</span>'
-      +     '<span class="gc-eta">' + icon('calendar') + '预计 ' + goal.eta + '</span>'
+      +     '<span class="gc-pct ' + gv.status + '">' + gv.pct.toFixed(1) + '% 达成</span>'
+      +     '<span class="gc-eta">' + icon('calendar') + '预计 ' + gv.eta + '</span>'
       +   '</div>'
+      +   '<a class="gc-link-cta" href="goal-link-desktop.html">' + icon('link') + '查看投资目标页</a>'
       + '</div>';
   } else {
     goalHtml =
@@ -260,7 +287,11 @@
       +   '<div class="gc-title">' + icon('gem', 'icon') + '<h3>关联目标</h3></div>'
       +   '<span class="gc-badge">⏳ D</span>'
       + '</div>'
-      + '<div class="gc-empty">' + icon('gem') + '<div>该持仓未关联投资目标</div></div>';
+      + '<div class="gc-empty">'
+      +   icon('gem') + '<div class="gce-title">该持仓未关联投资目标</div>'
+      +   '<div class="gce-text">前往投资目标页，将此持仓设为目标 backing，进度按市值推进</div>'
+      +   '<a class="btn btn-gold gc-empty-cta" href="goal-link-desktop.html">' + icon('plus') + '去关联目标</a>'
+      + '</div>';
   }
   document.getElementById('goalCard').innerHTML = goalHtml;
 
