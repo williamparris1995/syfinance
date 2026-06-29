@@ -45,6 +45,7 @@ import '../../debt/presentation/bloc/debt_bloc.dart' as _i383;
 import '../../holding/data/holding_remote_ds.dart' as _i620;
 import '../../holding/data/holding_repository_impl.dart' as _i427;
 import '../../holding/domain/repositories/holding_repository.dart' as _i255;
+import '../../holding/presentation/bloc/holding_bloc.dart' as _i255;
 import '../../transaction/data/mappers/transaction_mapper.dart' as _i667;
 import '../../transaction/data/transaction_remote_ds.dart' as _i666;
 import '../../transaction/data/transaction_repository_impl.dart' as _i733;
@@ -159,6 +160,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i922.GetProfileUseCase>(),
         gh<_i231.LogoutUseCase>(),
       ),
+    );
+    gh.factory<_i255.HoldingBloc>(
+      () => _i255.HoldingBloc(gh<_i255.HoldingRepository>()),
     );
     gh.factory<_i82.CreateAccountUseCase>(
       () => _i82.CreateAccountUseCase(gh<_i270.AccountRepository>()),
