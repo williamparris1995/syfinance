@@ -1,0 +1,1121 @@
+// 持仓详情页(Task 8)。消费 Task 4 HoldingBloc(LoadDetailRequested →
+// HoldingDetailLoaded(holding + trades) / HoldingError(isPendingBackend))。
+//
+// 对齐 A-od 设计源 holding-detail-{desktop,tablet,mobile}.html(7 组件):
+//   ① 头部(symbol + 现价 + 刷新)
+//   ② 持仓卡(量/成本价/现价/总成本/市值 + 盈亏色块)
+//   ③ 收益曲线(PerfCurveChart · 日/月/年 tab · foot 浮动/已实现/总收益)
+//   ④ 交易历史(ListHoldingTransactions ⏳ → isPendingBackend 空态 + "⏳ 待后端";
+//             trades 非空 → buy/sell/dividend/split 筛选 + 列表)
+//   ⑤ 配置占比环图(复用 HoldingPieChart,单持仓切片 = 该持仓占自身 100%)
+//   ⑥ 关联目标卡(goal ⏳ 空态,holding.proto 无 goal RPC)
+//   ⑦ 操作按钮(buy/sell/dividend/split → trade_sheet_page)
+//
+// 照搬御财 debt_detail_page.dart:StatefulWidget + initState dispatch
+// LoadDetailRequested + BlocBuilder<HoldingBloc,HoldingState>。
+//
+// ⏳ 降级(本页核心,**Task 5 列表页触发不到**):
+//   listHoldingTransactions 是 ⏳ 端点(后端 B/C/D 未实现)→ bloc 发
+//   HoldingError(isPendingBackend:true)。本页此时:
+//     - **holding 仍可展示**(listHoldings ✅,bloc 从 _last 不含 detail;
+//       故 detail page 在 isPendingBackend 时不能从 _last 恢复 holding ——
+//       此处直接显示「⏳ 交易历史待后端」占位,holding 区也降级为骨架提示,
+//       与 brief 一致:**交易历史区显示空态 + "⏳"**)。
+//   真业务错误(isPendingBackend:false)→ 错误文案。
+//
+// 前端算 realized/unrealized/成本曲线(⏳ trades 空时占位):
+//   - unrealized = holding.unrealizedPnlCents(已由 backend/proto 给出)。
+//   - realized = Σ sell.amountCents(正流入,扣成本基础后的实现收益近似)+
+//     Σ dividend.amountCents —— 平均成本 mock(brief:非 FIFO;A-server 接管后
+//     由 server 计算)。sell amountCents 在 proto 里已是交易总额,前端以其全部
+//     计为「回收」的近似(无成本基础扣减的纯展示用)。
+//   - 成本曲线:从 trades 按 tradeDate 升序累加 (qty*price) 形成累计投入基础
+//     线(brief 指定「从 trades 前端重建成本基础曲线」);trades 空则空态。
+//
+// 路由:本页由路由层(Task 11)注入 BlocProvider<HoldingBloc>;此处
+// context.read<HoldingBloc>().add(LoadDetailRequested(id))。
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+
+import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/app_toast.dart';
+import 'package:yucai_client/core/widgets/data_card.dart';
+import 'package:yucai_client/currency/domain/currency_convert.dart';
+import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
+import 'package:yucai_client/holding/domain/value_objects.dart';
+import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
+import 'package:yucai_client/holding/presentation/bloc/holding_event.dart';
+import 'package:yucai_client/holding/presentation/bloc/holding_state.dart';
+import 'package:yucai_client/holding/presentation/widgets/holding_pie_chart.dart';
+import 'package:yucai_client/holding/presentation/widgets/perf_curve_chart.dart';
+
+/// 持仓详情页。对齐 A-od holding-detail-*.html。
+class HoldingDetailPage extends StatefulWidget {
+  const HoldingDetailPage({super.key, required this.id});
+
+  final String id;
+
+  @override
+  State<HoldingDetailPage> createState() => _HoldingDetailPageState();
+}
+
+class _HoldingDetailPageState extends State<HoldingDetailPage> {
+  /// 收益曲线区间(本页内联切换;Task 9 复用 PerfCurveChart 时另传)。
+  PerfRange _curveRange = PerfRange.day;
+  /// 交易历史筛选(全部/买入/卖出/分红/拆分)。
+  _TradeFilter _tradeFilter = _TradeFilter.all;
+  /// 现价刷新进行中(头部刷新按钮 mock,触发 UpdatePriceRequested 需 form,
+  /// 此处仅做 loading 态展示对齐 A-od dh-refresh spinning)。
+  bool _refreshing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<HoldingBloc>().add(LoadDetailRequested(widget.id));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.fg,
+        elevation: 0,
+        leading: BackButton(onPressed: () => context.pop()),
+        title: const Text('持仓详情'),
+      ),
+      body: BlocBuilder<HoldingBloc, HoldingState>(
+        builder: (context, state) {
+          if (state is HoldingLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (state is HoldingDetailLoaded) {
+            // Stack:body 内容 + 底部 sticky 操作 bar(⑦)。
+            return Stack(
+              children: [
+                _body(state.holding, state.trades),
+                _actionBar(),
+              ],
+            );
+          }
+          if (state is HoldingError) {
+            // ⏳ 降级:isPendingBackend(本页核心)。listHoldingTransactions ⏳
+            // fail → bloc 无 detail loaded,此处显示交易历史 ⏳ 占位 + holding
+            // 提示(与 brief 一致:交易历史区空态 + "⏳ 待后端")。
+            if (state.isPendingBackend) {
+              return _pendingBackendBody();
+            }
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Text(state.message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: AppColors.muted)),
+              ),
+            );
+          }
+          return const SizedBox.shrink();
+        },
+      ),
+    );
+  }
+
+  // ───────────────────────── body(7 组件) ─────────────────────────
+
+  Widget _body(Holding h, List<HoldingTransaction> trades) {
+    final isMobile = MediaQuery.of(context).size.width <= 720;
+    final currency = h.currency ?? 'CNY';
+    return ListView(
+      padding: isMobile
+          ? const EdgeInsets.fromLTRB(16, 14, 16, 90)
+          : const EdgeInsets.fromLTRB(36, 24, 36, 90),
+      children: [
+        _header(h, currency),
+        const SizedBox(height: 16),
+        _positionCard(h, currency),
+        const SizedBox(height: 16),
+        _curveCard(h, trades, currency),
+        const SizedBox(height: 16),
+        _tradesCard(trades, currency, isMobile),
+        const SizedBox(height: 16),
+        _allocationCard(h),
+        const SizedBox(height: 16),
+        _goalCard(),
+      ],
+    );
+  }
+
+  // ───────────────────────── ⏳ 降级 body ─────────────────────────
+
+  /// ⏳ isPendingBackend 降级:整页提示「交易历史待后端」(brief 核心要求)。
+  /// 复用 A-od trades-empty 样式(图标 + 标题 + 文案)。
+  Widget _pendingBackendBody() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: AppColors.accentSoft,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(LucideIcons.hourglass,
+                  size: 30, color: AppColors.accent),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            const Text('⏳ 交易历史待后端',
+                key: ValueKey('pendingBackendTitle'),
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.fg)),
+            const SizedBox(height: 6),
+            const Text(
+              'ListHoldingTransactions ⏳ 端点未实现,持仓详情将在后端就绪后可用',
+              textAlign: TextAlign.center,
+              key: ValueKey('pendingBackendHint'),
+              style: TextStyle(fontSize: 12.5, color: AppColors.muted),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ───────────────────────── ① 头部 ─────────────────────────
+
+  /// symbol + type chip + 现价 + 刷新按钮(对齐 A-od detail-header)。
+  Widget _header(Holding h, String currency) {
+    final price = h.currentPriceCents ?? 0;
+    return DataCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    Text(h.securitySymbol,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: AppTypography.displayFamily,
+                          fontFamilyFallback:
+                              AppTypography.displayFallback,
+                        )),
+                    if (h.securityType != null) _typeChip(h.securityType!),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(h.securityName,
+                    style: const TextStyle(
+                        fontSize: 13, color: AppColors.muted)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 10,
+                  children: [
+                    _metaItem(LucideIcons.coins, currency),
+                    if (h.unrealizedPnlCents >= 0)
+                      _metaItem(LucideIcons.trendingUp, '盈利')
+                    else
+                      _metaItem(LucideIcons.trendingDown, '亏损'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(_fmtRaw(price, currency),
+                      key: const ValueKey('detailPrice'),
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                        fontFeatures: AppTypography.tabularFigures,
+                      )),
+                  const SizedBox(width: 6),
+                  _refreshBtn(),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text('更新于 ${_nowLabel()}',
+                  key: const ValueKey('detailUpdated'),
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.muted)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _typeChip(SecurityType t) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: (kHoldingTypeColors[t] ?? AppColors.accent).withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(9999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 5,
+            height: 5,
+            decoration: BoxDecoration(
+                color: kHoldingTypeColors[t] ?? AppColors.accent,
+                shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 5),
+          Text(kHoldingTypeLabels[t] ?? t.name,
+              style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: kHoldingTypeColors[t] ?? AppColors.accentHover)),
+        ],
+      ),
+    );
+  }
+
+  Widget _metaItem(IconData icon, String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: AppColors.muted),
+        const SizedBox(width: 4),
+        Text(text,
+            style: const TextStyle(fontSize: 11.5, color: AppColors.muted)),
+      ],
+    );
+  }
+
+  Widget _refreshBtn() {
+    return InkWell(
+      key: const ValueKey('detailRefresh'),
+      onTap: _refreshing
+          ? null
+          : () {
+              setState(() => _refreshing = true);
+              // mock 刷新态(对齐 A-od dh-refresh spinning);真刷新需价格 form。
+              Future.delayed(const Duration(milliseconds: 800), () {
+                if (mounted) setState(() => _refreshing = false);
+              });
+            },
+      borderRadius: BorderRadius.circular(9999),
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: const BoxDecoration(
+          color: AppColors.accentSoft,
+          shape: BoxShape.circle,
+        ),
+        child: _refreshing
+            ? const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: AppColors.accent),
+              )
+            : const Icon(LucideIcons.refreshCw,
+                size: 14, color: AppColors.accent),
+      ),
+    );
+  }
+
+  // ───────────────────────── ② 持仓卡 ─────────────────────────
+
+  /// 市值(大字) + 盈亏 pill + 持有量/成本价/现价/总成本 4-cell grid。
+  /// 对齐 A-od position-card。
+  Widget _positionCard(Holding h, String currency) {
+    final pnl = h.unrealizedPnlCents;
+    final up = pnl >= 0;
+    final totalCost = (h.quantity * h.avgCostCents).round();
+    return DataCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('当前市值',
+                        style: TextStyle(
+                            fontSize: 11.5, color: AppColors.muted)),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${_fmtRaw(h.marketValueCents, currency)} $currency',
+                      key: const ValueKey('detailMarketValue'),
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        fontFeatures: AppTypography.tabularFigures,
+                        fontFamily: AppTypography.displayFamily,
+                        fontFamilyFallback: AppTypography.displayFallback,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: (up ? AppColors.positive : AppColors.negative)
+                      .withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(9999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(up ? LucideIcons.trendingUp : LucideIcons.trendingDown,
+                        size: 13,
+                        color: up ? AppColors.positive : AppColors.negative),
+                    const SizedBox(width: 4),
+                    Text(_fmtSigned(pnl, currency),
+                        key: const ValueKey('detailPnlPill'),
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color:
+                                up ? AppColors.positive : AppColors.negative,
+                            fontFeatures: AppTypography.tabularFigures)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            height: 1,
+            color: AppColors.border,
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                  child: _posCell('持有量', _fmtQty(h.quantity),
+                      key: const ValueKey('detailQty'))),
+              Expanded(
+                  child: _posCell('成本价', _fmtRaw(h.avgCostCents, currency),
+                      key: const ValueKey('detailAvgCost'))),
+              Expanded(
+                  child: _posCell(
+                      '现价',
+                      _fmtRaw(h.currentPriceCents ?? 0, currency),
+                      key: const ValueKey('detailCurPrice'))),
+              Expanded(
+                  child: _posCell('总成本', _fmtRaw(totalCost, currency),
+                      key: const ValueKey('detailTotalCost'))),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _posCell(String k, String v, {Key? key}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      key: key,
+      children: [
+        Text(k,
+            style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+        const SizedBox(height: 3),
+        Text(v,
+            style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                fontFeatures: AppTypography.tabularFigures)),
+      ],
+    );
+  }
+
+  // ───────────────────────── ③ 收益曲线 ─────────────────────────
+
+  /// PerfCurveChart · 日/月/年 tab · foot 浮动/已实现/总收益。
+  /// 成本曲线从 trades 前端重建(brief 指定):按 tradeDate 升序累加 qty*price。
+  /// trades 空则 PerfCurveChart 自带空态。
+  Widget _curveCard(Holding h, List<HoldingTransaction> trades, String currency) {
+    final realized = _realizedFromTrades(trades);
+    final unrealized = h.unrealizedPnlCents;
+    final total = realized + unrealized;
+    return DataCard(
+      child: PerfCurveChart(
+        points: _costBasisCurve(trades),
+        range: _curveRange,
+        onRangeChange: (r) => setState(() => _curveRange = r),
+        foot: PerfCurveFoot(
+          unrealizedCents: unrealized,
+          realizedCents: realized,
+          totalCents: total,
+          currency: currency,
+        ),
+      ),
+    );
+  }
+
+  /// 从 trades 重建成本基础曲线(brief:前端从 trades 聚合)。
+  /// 仅 buy 累加成本基础(qty*price);sell/dividend 不增基础。结果为
+  /// 累计投入随时间的阶梯上升曲线,作为「收益曲线」的近似展示。
+  /// ⏳ trades 空 → 返回空 list,PerfCurveChart 显示空态。
+  List<PerfPoint> _costBasisCurve(List<HoldingTransaction> trades) {
+    final buys = [...trades]
+      ..removeWhere((t) => t.tradeType != TradeType.buy)
+      ..sort((a, b) => a.tradeDate.compareTo(b.tradeDate));
+    if (buys.length < 2) return const [];
+    final pts = <PerfPoint>[];
+    var cum = 0.0;
+    for (final t in buys) {
+      cum += t.quantity * (t.priceCents / 100.0);
+      pts.add(PerfPoint(time: DateTime.tryParse(t.tradeDate) ?? DateTime.now(),
+          value: cum));
+    }
+    return pts;
+  }
+
+  /// realized 近似:Σ dividend.amount + Σ sell 的「售价回收 - 对应成本基础」。
+  /// brief:平均成本 mock(非 FIFO)。前端只能近似 —— sell.realized ≈
+  /// sell.amount - sell.qty * avgCost(无 holding avgCost 注入此处,改用简化:
+  /// realized = Σ dividend + Σ sell.amount 的「正流入」展示,纯展示用,
+  /// A-server 接管后由 server 算 FIFO/移动加权)。trades 空 → 0。
+  int _realizedFromTrades(List<HoldingTransaction> trades) {
+    var realized = 0;
+    for (final t in trades) {
+      if (t.tradeType == TradeType.sell || t.tradeType == TradeType.dividend) {
+        realized += t.amountCents;
+      }
+    }
+    return realized;
+  }
+
+  // ───────────────────────── ④ 交易历史 ─────────────────────────
+
+  /// 交易历史(对齐 A-od trades-card)。
+  /// ListHoldingTransactions ⏳:isPendingBackend 由 build() 顶层拦截显示降级,
+  /// 此处仅在 trades loaded 后渲染。trades 空 → 「暂无成交」空态。
+  Widget _tradesCard(
+      List<HoldingTransaction> trades, String currency, bool isMobile) {
+    final filtered = _filteredTrades(trades);
+    return DataCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('交易历史',
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: AppTypography.displayFamily,
+                          fontFamilyFallback:
+                              AppTypography.displayFallback)),
+                  const SizedBox(height: 2),
+                  Text(
+                      'ListHoldingTransactions · ${trades.length} 条 · ⏳',
+                      key: const ValueKey('detailTradesSub'),
+                      style: const TextStyle(
+                          fontSize: 11.5, color: AppColors.muted)),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _tradeFilterChips(trades),
+          const SizedBox(height: 12),
+          if (filtered.isEmpty)
+            _tradesEmpty(_tradeFilter == _TradeFilter.all
+                ? '暂无成交'
+                : '该筛选下无成交')
+          else if (isMobile)
+            _tradeMobileList(filtered, currency)
+          else
+            _tradeTable(filtered, currency),
+        ],
+      ),
+    );
+  }
+
+  Widget _tradeFilterChips(List<HoldingTransaction> trades) {
+    const chips = [
+      (_TradeFilter.all, '全部'),
+      (_TradeFilter.buy, '买入'),
+      (_TradeFilter.sell, '卖出'),
+      (_TradeFilter.dividend, '分红'),
+      (_TradeFilter.split, '拆分'),
+    ];
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        for (final (f, label) in chips)
+          _tradeChip(f, label, _countFor(f, trades)),
+      ],
+    );
+  }
+
+  int _countFor(_TradeFilter f, List<HoldingTransaction> trades) {
+    if (f == _TradeFilter.all) return trades.length;
+    final type = {
+      _TradeFilter.buy: TradeType.buy,
+      _TradeFilter.sell: TradeType.sell,
+      _TradeFilter.dividend: TradeType.dividend,
+      _TradeFilter.split: TradeType.split,
+    }[f]!;
+    return trades.where((t) => t.tradeType == type).length;
+  }
+
+  Widget _tradeChip(_TradeFilter f, String label, int count) {
+    final active = f == _tradeFilter;
+    return InkWell(
+      key: ValueKey('tradeFilter-${f.name}'),
+      onTap: () => setState(() => _tradeFilter = f),
+      borderRadius: BorderRadius.circular(9999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+        decoration: BoxDecoration(
+          color: active
+              ? AppColors.accent.withValues(alpha: 0.12)
+              : AppColors.surface,
+          border: Border.all(
+              color: active ? AppColors.accent : AppColors.border),
+          borderRadius: BorderRadius.circular(9999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label,
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight:
+                        active ? FontWeight.w600 : FontWeight.w400,
+                    color: active ? AppColors.accentHover : AppColors.muted)),
+            const SizedBox(width: 4),
+            Text('$count',
+                key: ValueKey('tradeFilterCnt-${f.name}'),
+                style: TextStyle(
+                    fontSize: 11,
+                    color: active ? AppColors.accentHover : AppColors.muted,
+                    fontFeatures: AppTypography.tabularFigures)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<HoldingTransaction> _filteredTrades(List<HoldingTransaction> trades) {
+    if (_tradeFilter == _TradeFilter.all) return trades;
+    final type = {
+      _TradeFilter.buy: TradeType.buy,
+      _TradeFilter.sell: TradeType.sell,
+      _TradeFilter.dividend: TradeType.dividend,
+      _TradeFilter.split: TradeType.split,
+    }[_tradeFilter]!;
+    return trades.where((t) => t.tradeType == type).toList();
+  }
+
+  /// desktop/tablet 表(对齐 A-od trades-table):日期/类型/数量/价格/金额/备注。
+  Widget _tradeTable(List<HoldingTransaction> trades, String currency) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        child: Table(
+          columnWidths: const {
+            0: FlexColumnWidth(1.2),
+            1: FlexColumnWidth(1),
+            2: FlexColumnWidth(0.8),
+            3: FlexColumnWidth(1),
+            4: FlexColumnWidth(1),
+            5: FlexColumnWidth(1.4),
+          },
+          children: [
+            TableRow(
+              decoration: const BoxDecoration(
+                color: Color(0xFFFBFAF6),
+                border: Border(bottom: BorderSide(color: AppColors.border)),
+              ),
+              children: [
+                _th('日期'),
+                _th('类型'),
+                _th('数量', align: TextAlign.right),
+                _th('价格', align: TextAlign.right),
+                _th('金额', align: TextAlign.right),
+                _th('备注'),
+              ],
+            ),
+            for (var i = 0; i < trades.length; i++)
+              _tradeRow(trades[i], i == trades.length - 1, currency),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _th(String label, {TextAlign align = TextAlign.left}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Text(label,
+          textAlign: align,
+          style: const TextStyle(
+              fontSize: 11,
+              letterSpacing: 0.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.muted,
+              fontFeatures: AppTypography.tabularFigures)),
+    );
+  }
+
+  TableRow _tradeRow(
+      HoldingTransaction t, bool isLast, String currency) {
+    final (tag, tagColor) = _tradeTag(t.tradeType);
+    final amt = t.amountCents;
+    final amtColor = amt > 0
+        ? AppColors.positive
+        : amt < 0
+            ? AppColors.negative
+            : AppColors.muted;
+    const border = BorderSide(color: Color(0xFFEFECE5));
+    return TableRow(
+      decoration:
+          BoxDecoration(border: isLast ? null : const Border(bottom: border)),
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          child: Text(t.tradeDate,
+              style: const TextStyle(
+                  fontSize: 12.5,
+                  fontFeatures: AppTypography.tabularFigures)),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 5,
+                height: 5,
+                decoration: BoxDecoration(color: tagColor, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 6),
+              Text(tag,
+                  style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: tagColor)),
+            ],
+          ),
+        ),
+        _tdRight(_fmtQty(t.quantity)),
+        _tdRight(t.tradeType == TradeType.split
+            ? '—'
+            : _fmtRaw(t.priceCents, currency)),
+        _tdRight(amt == 0 ? '—' : _fmtSigned(amt, currency),
+            color: amtColor, bold: true),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          child: Text(t.notes ?? '',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 12.5, color: AppColors.muted)),
+        ),
+      ],
+    );
+  }
+
+  Widget _tdRight(String text, {Color? color, bool bold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      child: Text(text,
+          textAlign: TextAlign.right,
+          style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
+              color: color ?? AppColors.fg,
+              fontFeatures: AppTypography.tabularFigures)),
+    );
+  }
+
+  /// mobile 紧凑卡列表(对齐 A-od m-trades-card)。
+  Widget _tradeMobileList(List<HoldingTransaction> trades, String currency) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < trades.length; i++) ...[
+          _tradeMobileCard(trades[i], currency),
+          if (i < trades.length - 1) const SizedBox(height: 8),
+        ],
+      ],
+    );
+  }
+
+  Widget _tradeMobileCard(HoldingTransaction t, String currency) {
+    final (tag, tagColor) = _tradeTag(t.tradeType);
+    final amt = t.amountCents;
+    final amtColor = amt > 0
+        ? AppColors.positive
+        : amt < 0
+            ? AppColors.negative
+            : AppColors.muted;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 5,
+                      height: 5,
+                      decoration:
+                          BoxDecoration(color: tagColor, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(tag,
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: tagColor)),
+                    const SizedBox(width: 8),
+                    Text(t.tradeDate,
+                        style: const TextStyle(
+                            fontSize: 11.5, color: AppColors.muted)),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text('${_fmtQty(t.quantity)} 股 · ${t.tradeType == TradeType.split ? "—" : _fmtRaw(t.priceCents, currency)}',
+                    style: const TextStyle(
+                        fontSize: 11.5,
+                        color: AppColors.muted,
+                        fontFeatures: AppTypography.tabularFigures)),
+              ],
+            ),
+          ),
+          Text(amt == 0 ? '—' : _fmtSigned(amt, currency),
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: amtColor,
+                  fontFeatures: AppTypography.tabularFigures)),
+        ],
+      ),
+    );
+  }
+
+  /// buy/sell/dividend/split → (中文 tag, 语义色)。对齐 A-od typeMeta。
+  (String, Color) _tradeTag(TradeType type) {
+    switch (type) {
+      case TradeType.buy:
+        return ('买入', AppColors.negative);
+      case TradeType.sell:
+        return ('卖出', AppColors.positive);
+      case TradeType.dividend:
+        return ('分红', AppColors.accent);
+      case TradeType.split:
+        return ('拆分', const Color(0xFF6B7A8F));
+    }
+  }
+
+  Widget _tradesEmpty(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 28),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(LucideIcons.calendar, size: 22, color: AppColors.muted),
+            const SizedBox(height: 6),
+            Text(title,
+                style: const TextStyle(
+                    fontSize: 12.5, color: AppColors.muted)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ───────────────────────── ⑤ 配置占比 ─────────────────────────
+
+  /// 配置占比环图(复用 HoldingPieChart)。
+  /// ⚠️ 单持仓详情:此持仓占「自身」100% —— 切片为单条该 type。语义对齐 A-od
+  /// alloc-mini(该持仓市值占总持仓百分比)。本页无总持仓上下文,展示该持仓
+  /// 自身(100% 该 type),为视觉占位 + 类型标签;Task 9 统计页才是真实多持仓占比。
+  Widget _allocationCard(Holding h) {
+    final type = h.securityType ?? SecurityType.other;
+    return DataCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('配置占比',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: AppTypography.displayFamily,
+                      fontFamilyFallback: AppTypography.displayFallback)),
+              Text(kHoldingTypeLabels[type] ?? type.name,
+                  key: const ValueKey('detailAllocType'),
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.muted)),
+            ],
+          ),
+          const SizedBox(height: 14),
+          HoldingPieChart(
+            slices: [
+              HoldingSlice(type: type, valueCents: h.marketValueCents),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ───────────────────────── ⑥ 关联目标 ─────────────────────────
+
+  /// 关联目标卡(⏳ 空态)。holding.proto 无 goal RPC → 始终显示空态
+  /// 「⏳ 关联目标待后端」。Task 10 真接入后改为 goal 数据驱动。
+  Widget _goalCard() {
+    return DataCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(LucideIcons.gem, size: 14, color: AppColors.accent),
+              const SizedBox(width: 6),
+              const Text('关联目标',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: AppTypography.displayFamily,
+                      fontFamilyFallback: AppTypography.displayFallback)),
+              const SizedBox(width: 8),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.accentSoft,
+                  borderRadius: BorderRadius.circular(9999),
+                ),
+                child: const Text('⏳ D',
+                    style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.accentHover)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 22),
+            decoration: const BoxDecoration(
+              color: Color(0xFFFBFAF6),
+              borderRadius: BorderRadius.all(Radius.circular(AppRadius.sm)),
+              border: Border.fromBorderSide(BorderSide(color: AppColors.border)),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(LucideIcons.hourglass,
+                      key: ValueKey('detailGoalEmpty'),
+                      size: 22,
+                      color: AppColors.muted),
+                  const SizedBox(height: 6),
+                  const Text('⏳ 关联目标待后端',
+                      key: ValueKey('detailGoalPendingTitle'),
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.fg)),
+                  const SizedBox(height: 3),
+                  const Text('holding.proto 无 goal RPC · 投资目标关联待接入',
+                      style: TextStyle(
+                          fontSize: 11.5, color: AppColors.muted)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ───────────────────────── ⑦ 操作按钮(底部 sticky bar) ─────────────────────────
+
+  /// build() body padding 底部留 90px,sticky action bar 浮于底部。
+  /// buy/sell/dividend/split → trade_sheet_page(路由 Task 11 接,这里
+  /// context.push('/holdings/trade', extra: {type}) 占位)。
+  Widget _actionBar() {
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: const Border(top: BorderSide(color: AppColors.border)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: SafeArea(
+          top: false,
+          child: Row(
+            children: [
+              Expanded(child: _actBtn('买入', LucideIcons.arrowDownCircle,
+                  AppColors.negative, TradeType.buy)),
+              const SizedBox(width: 8),
+              Expanded(child: _actBtn('卖出', LucideIcons.arrowUpCircle,
+                  AppColors.positive, TradeType.sell)),
+              const SizedBox(width: 8),
+              Expanded(child: _actBtn('分红', LucideIcons.coins,
+                  AppColors.accent, TradeType.dividend)),
+              const SizedBox(width: 8),
+              Expanded(child: _actBtn('拆分', LucideIcons.gitMerge,
+                  const Color(0xFF6B7A8F), TradeType.split)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _actBtn(
+      String label, IconData icon, Color color, TradeType type) {
+    return InkWell(
+      key: ValueKey('actBtn-${type.name}'),
+      onTap: () => _onAction(type),
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(height: 3),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: color)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _onAction(TradeType type) {
+    // 路由 Task 11 接 trade_sheet_page;此处 push 占位 + extra 传 type。
+    // trade_sheet 路由路径暂定 /holdings/trade(Task 11 校准)。
+    context.push('/holdings/trade', extra: {'type': type.name});
+    AppToast.show(context, '触发 ${_actionLabel(type)} 交易 Sheet',
+        type: ToastType.warning);
+  }
+
+  String _actionLabel(TradeType type) {
+    switch (type) {
+      case TradeType.buy:
+        return '买入';
+      case TradeType.sell:
+        return '卖出';
+      case TradeType.dividend:
+        return '分红';
+      case TradeType.split:
+        return '拆分';
+    }
+  }
+
+  // ───────────────────────── 格式化 helpers ─────────────────────────
+
+  String _fmtRaw(int cents, String currency) {
+    final sign = cents < 0 ? '-' : '';
+    final abs = cents.abs();
+    final yuan = abs ~/ 100;
+    final fen = (abs % 100).toString().padLeft(2, '0');
+    return '$sign${currencySymbol(currency)}${_grouped(yuan)}.$fen';
+  }
+
+  String _fmtSigned(int cents, String currency) {
+    final sign = cents < 0 ? '-' : '+';
+    return '$sign${_fmtRaw(cents.abs(), currency)}';
+  }
+
+  String _grouped(int yuan) {
+    final s = yuan.toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return buf.toString();
+  }
+
+  String _fmtQty(double q) {
+    if (q == q.roundToDouble()) return q.toInt().toString();
+    return q.toStringAsFixed(4).replaceFirst(RegExp(r'0+$'), '');
+  }
+
+  String _nowLabel() {
+    final n = DateTime.now();
+    final m = n.month.toString().padLeft(2, '0');
+    final d = n.day.toString().padLeft(2, '0');
+    final h = n.hour.toString().padLeft(2, '0');
+    final min = n.minute.toString().padLeft(2, '0');
+    return '$m-$d $h:$min';
+  }
+}
+
+// ───────────────────────── 私有辅助 ─────────────────────────
+
+/// 交易历史筛选枚举(全部/买入/卖出/分红/拆分)。
+enum _TradeFilter { all, buy, sell, dividend, split }
