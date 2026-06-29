@@ -29,6 +29,16 @@ import 'package:yucai_client/debt/presentation/pages/debts_page.dart';
 import 'package:yucai_client/debt/presentation/pages/receivable_detail_page.dart';
 import 'package:yucai_client/debt/presentation/pages/receivable_form_page.dart';
 import 'package:yucai_client/debt/presentation/pages/receivables_page.dart';
+import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
+import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
+import 'package:yucai_client/holding/presentation/bloc/holding_event.dart';
+import 'package:yucai_client/holding/presentation/pages/goal_link_page.dart';
+import 'package:yucai_client/holding/presentation/pages/holding_detail_page.dart';
+import 'package:yucai_client/holding/presentation/pages/holdings_page.dart';
+import 'package:yucai_client/holding/presentation/pages/performance_page.dart';
+import 'package:yucai_client/holding/presentation/pages/security_page.dart';
+import 'package:yucai_client/holding/presentation/pages/trade_sheet_page.dart';
+import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_event.dart';
 import 'package:yucai_client/settings/presentation/settings_page.dart';
@@ -62,6 +72,7 @@ GoRouter buildRouter(AuthBloc authBloc) {
           state.matchedLocation.startsWith('/categories') ||
           state.matchedLocation.startsWith('/debts') ||
           state.matchedLocation.startsWith('/receivables') ||
+          state.matchedLocation.startsWith('/holdings') ||
           state.matchedLocation.startsWith('/settings');
 
       if (isLoading) return null;
@@ -348,6 +359,161 @@ GoRouter buildRouter(AuthBloc authBloc) {
                         ),
                       ],
                       child: ReceivableDetailPage(id: state.pathParameters['id']!),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // 持仓管理（branch 5）：对齐 /debts /receivables 模板。
+          // 列表页 provide HoldingBloc（factory 注册）+ CurrencyBloc（多币种换算）。
+          // ⚠️ 子路由顺序：静态路径(security/performance/goals/trade/new)必须在
+          //    :id 之前(GoRouter 匹配优先级,否则被 :id 捕获)。
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/holdings',
+                builder: (_, __) => MultiBlocProvider(
+                  providers: [
+                    BlocProvider<HoldingBloc>(
+                      create: (_) {
+                        final b = HoldingBloc(getIt<HoldingRepository>());
+                        b.add(const LoadHoldingsRequested());
+                        return b;
+                      },
+                    ),
+                    BlocProvider<CurrencyBloc>(
+                      create: (_) {
+                        final b = getIt<CurrencyBloc>();
+                        b.add(const LoadCurrenciesRequested());
+                        b.add(const LoadPreferencesRequested());
+                        return b;
+                      },
+                    ),
+                  ],
+                  child: const HoldingsPage(),
+                ),
+                routes: [
+                  // 静态子路由(必须在 :id 前)。
+                  GoRoute(
+                    path: 'security',
+                    // Security 管理(Task 7):独立 HoldingBloc,进入即拉证券主数据。
+                    builder: (_, __) => BlocProvider<HoldingBloc>(
+                      create: (_) {
+                        final b = HoldingBloc(getIt<HoldingRepository>());
+                        b.add(const LoadSecuritiesRequested());
+                        return b;
+                      },
+                      child: const SecurityPage(),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'performance',
+                    // 收益统计(Task 9):复用列表数据(LoadHoldingsRequested)。
+                    builder: (_, __) => MultiBlocProvider(
+                      providers: [
+                        BlocProvider<HoldingBloc>(
+                          create: (_) {
+                            final b = HoldingBloc(getIt<HoldingRepository>());
+                            b.add(const LoadHoldingsRequested());
+                            return b;
+                          },
+                        ),
+                        BlocProvider<CurrencyBloc>(
+                          create: (_) {
+                            final b = getIt<CurrencyBloc>();
+                            b.add(const LoadCurrenciesRequested());
+                            b.add(const LoadPreferencesRequested());
+                            return b;
+                          },
+                        ),
+                      ],
+                      child: const PerformancePage(),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'goals',
+                    // 目标关联(Task 10):holding.proto 无 goal RPC,整页 ⏳D 空态,
+                    // 仅关联 holding 选择可从已加载 holdings 渲染。
+                    builder: (_, __) => MultiBlocProvider(
+                      providers: [
+                        BlocProvider<HoldingBloc>(
+                          create: (_) {
+                            final b = HoldingBloc(getIt<HoldingRepository>());
+                            b.add(const LoadHoldingsRequested());
+                            return b;
+                          },
+                        ),
+                        BlocProvider<CurrencyBloc>(
+                          create: (_) {
+                            final b = getIt<CurrencyBloc>();
+                            b.add(const LoadCurrenciesRequested());
+                            b.add(const LoadPreferencesRequested());
+                            return b;
+                          },
+                        ),
+                      ],
+                      child: const GoalLinkPage(),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'trade',
+                    // 交易 Sheet(Task 6,modal/sheet):接收 extra:{type}
+                    // (TradeType.name 预选 buy/sell/dividend/split)。
+                    builder: (_, state) {
+                      final typeArg = state.extra is Map
+                          ? (state.extra as Map)['type'] as String?
+                          : null;
+                      final initialType = TradeType.values.firstWhere(
+                        (t) => t.name == typeArg,
+                        orElse: () => TradeType.buy,
+                      );
+                      return BlocProvider<HoldingBloc>(
+                        create: (_) {
+                          final b = HoldingBloc(getIt<HoldingRepository>());
+                          b.add(const LoadSecuritiesRequested());
+                          return b;
+                        },
+                        child: TradeSheetPage(initialType: initialType),
+                      );
+                    },
+                  ),
+                  GoRoute(
+                    path: 'new',
+                    // FAB「+」(holdings_page)→ trade sheet 默认 buy(对齐 Task 5
+                    // 用的 /holdings/new 路径,映射到创建/买入流程)。
+                    builder: (_, __) => BlocProvider<HoldingBloc>(
+                      create: (_) {
+                        final b = HoldingBloc(getIt<HoldingRepository>());
+                        b.add(const LoadSecuritiesRequested());
+                        return b;
+                      },
+                      child: const TradeSheetPage(),
+                    ),
+                  ),
+                  GoRoute(
+                    path: ':id',
+                    // 详情(Task 8):独立 HoldingBloc,进入即 LoadDetailRequested(id)。
+                    builder: (_, state) => MultiBlocProvider(
+                      providers: [
+                        BlocProvider<HoldingBloc>(
+                          create: (_) {
+                            final id = state.pathParameters['id']!;
+                            final b = HoldingBloc(getIt<HoldingRepository>());
+                            b.add(LoadDetailRequested(id));
+                            return b;
+                          },
+                        ),
+                        BlocProvider<CurrencyBloc>(
+                          create: (_) {
+                            final b = getIt<CurrencyBloc>();
+                            b.add(const LoadCurrenciesRequested());
+                            b.add(const LoadPreferencesRequested());
+                            return b;
+                          },
+                        ),
+                      ],
+                      child: HoldingDetailPage(id: state.pathParameters['id']!),
                     ),
                   ),
                 ],

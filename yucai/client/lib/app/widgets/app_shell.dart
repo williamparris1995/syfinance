@@ -85,6 +85,8 @@ class AppShell extends StatelessWidget {
         return '债务管理';
       case 4:
         return '债权管理';
+      case 5:
+        return '持仓管理';
       default:
         return '御财';
     }
@@ -125,7 +127,7 @@ const _navGroups = <_NavGroup>[
     _NavItem('分类管理', Icons.category_outlined, null, route: '/categories'),
   ]),
   _NavGroup('投资', [
-    _NavItem('投资组合', Icons.show_chart_outlined, null, badge: '5'),
+    _NavItem('投资组合', Icons.show_chart_outlined, 5, route: '/holdings'),
     _NavItem('交易记录', Icons.receipt_long_outlined, 2),
   ]),
   _NavGroup('借贷', [
@@ -480,14 +482,16 @@ class _BottomNav extends StatelessWidget {
             icon: Icon(Icons.credit_card_outlined), label: '债务'),
         NavigationDestination(
             icon: Icon(Icons.call_made_outlined), label: '债权'),
+        NavigationDestination(
+            icon: Icon(Icons.show_chart_outlined), label: '持仓'),
         NavigationDestination(icon: Icon(Icons.logout), label: '退出'),
       ],
     );
   }
 
-  /// 底栏位序 → 分支索引。底栏顺序为 仪表盘/交易/账户/债务/债权/退出，
-  /// 对应分支 0/2/1/3/4，退出单独处理。未匹配的分支（如未来新增）回退到 0。
-  static const _branchSlots = [0, 2, 1, 3, 4];
+  /// 底栏位序 → 分支索引。底栏顺序为 仪表盘/交易/账户/债务/债权/持仓/退出，
+  /// 对应分支 0/2/1/3/4/5，退出单独处理。未匹配的分支（如未来新增）回退到 0。
+  static const _branchSlots = [0, 2, 1, 3, 4, 5];
 
   static int _slotIndexOf(int branchIndex) {
     final i = _branchSlots.indexOf(branchIndex);
