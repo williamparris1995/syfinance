@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/proto/holding/v1/holding.pb.dart' as pb;
@@ -148,6 +150,11 @@ class HoldingMapper {
       case pb.TradeType.TRADE_TYPE_UNSPECIFIED:
       default:
         // UNSPECIFIED 折叠为 buy(常见默认交易动作)。
+        // ⚠️ 后端未正确填充/新交易类型/后端 bug 会落入此分支 — 记日志让
+        // 异常可观测,避免本应是 sell/dividend/split 的交易被误显示为 buy
+        // 而误导已实现盈亏判断。映射行为不变(仍 → buy)。
+        debugPrint('[HOLDING] tradeTypeFromProto 收到 UNSPECIFIED TradeType'
+            '(后端未填充或新类型?),默认 buy');
         return TradeType.buy;
     }
   }
