@@ -41,19 +41,21 @@ class HoldingSummary extends Equatable {
 /// `securities` 供表单选择器复用(可空,LoadSecuritiesRequested 单独加载时
 /// 仍保留上次列表背景)。
 class HoldingLoaded extends HoldingState {
-  const HoldingLoaded({
+  HoldingLoaded({
     required this.holdings,
     required this.summary,
     this.securities = const [],
     this.typeFilter,
+    this.lastPriceSyncedAt,
   });
   final List<Holding> holdings;
   final HoldingSummary summary;
   final List<Security> securities;
   final SecurityType? typeFilter;
+  final DateTime? lastPriceSyncedAt; // 上次价格刷新时间(client 本地记录,拍板点①)
 
   @override
-  List<Object?> get props => [holdings, summary, securities, typeFilter];
+  List<Object?> get props => [holdings, summary, securities, typeFilter, lastPriceSyncedAt];
 }
 
 /// 详情页 loaded 状态。`pnlBreakdown` 可空(盈亏明细,前端计算/扩展用)。

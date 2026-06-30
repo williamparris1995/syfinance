@@ -235,3 +235,8 @@ class UpdatePriceRequested extends HoldingEvent {
   @override
   List<Object?> get props => [id, priceCents];
 }
+
+/// 手动触发 server 端批量价格同步(持仓页刷新按钮)。
+class RefreshPricesRequested extends HoldingEvent {
+  const RefreshPricesRequested();
+}

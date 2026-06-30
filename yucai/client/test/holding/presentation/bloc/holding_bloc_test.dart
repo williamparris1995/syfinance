@@ -47,6 +47,9 @@ final buyParams = BuyParams(
   tradeDate: '2026-01-01',
 );
 
+// Task 10: RefreshPricesRequested 测试用的 server 同步时间(固定值)。
+final syncAt = DateTime.utc(2026, 6, 30, 12, 0, 0);
+
 void main() {
   late _MockRepo repo;
 
@@ -213,5 +216,50 @@ void main() {
       isA<HoldingError>()
           .having((s) => s.isPendingBackend, 'isPendingBackend', isFalse),
     ],
+  );
+
+  // Task 10: RefreshPricesRequested Right → 记录 lastPriceSyncedAt +
+  // 重发 LoadHoldingsRequested(新价重算 marketValue/pnl)。
+  // emit 顺序 [HoldingSubmitting, HoldingLoading, HoldingLoaded]。
+  blocTest<HoldingBloc, HoldingState>(
+    'RefreshPricesRequested success updates lastPriceSyncedAt and refreshes list',
+    build: () {
+      when(() => repo.syncPrices()).thenAnswer(
+          (_) async => Right(SyncPricesResult(syncedCount: 3, syncedAt: syncAt)));
+      when(() => repo.listHoldings(accountId: any(named: 'accountId')))
+          .thenAnswer((_) async => Right([sampleHolding]));
+      return HoldingBloc(repo);
+    },
+    act: (b) => b.add(const RefreshPricesRequested()),
+    wait: const Duration(milliseconds: 150),
+    expect: () => [
+      isA<HoldingSubmitting>(),
+      HoldingLoading(),
+      isA<HoldingLoaded>()
+          .having((s) => s.lastPriceSyncedAt, 'lastPriceSyncedAt', syncAt),
+    ],
+    verify: (b) {
+      verify(() => repo.syncPrices()).called(1);
+    },
+  );
+
+  // Task 10: RefreshPricesRequested Left(syncPrices fail)→ HoldingError。
+  blocTest<HoldingBloc, HoldingState>(
+    'RefreshPricesRequested failure emits HoldingError',
+    build: () {
+      when(() => repo.syncPrices())
+          .thenAnswer((_) async => const Left(ServerFailure('price source down')));
+      return HoldingBloc(repo);
+    },
+    act: (b) => b.add(const RefreshPricesRequested()),
+    wait: const Duration(milliseconds: 150),
+    expect: () => [
+      isA<HoldingSubmitting>(),
+      isA<HoldingError>(),
+    ],
+    verify: (b) {
+      verify(() => repo.syncPrices()).called(1);
+      verifyNever(() => repo.listHoldings(accountId: any(named: 'accountId')));
+    },
   );
 }

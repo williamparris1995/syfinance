@@ -21,6 +21,7 @@ class HoldingBloc extends Bloc<HoldingEvent, HoldingState> {
     on<RecordSplitRequested>(_onRecordSplit);
     on<CreateSecurityRequested>(_onCreateSecurity);
     on<UpdatePriceRequested>(_onUpdatePrice);
+    on<RefreshPricesRequested>(_onRefreshPrices);
   }
 
   final HoldingRepository _repo;
@@ -31,6 +32,8 @@ class HoldingBloc extends Bloc<HoldingEvent, HoldingState> {
   SecurityType? _lastFilter;
   /// 上次证券列表(表单选择器背景,LoadSecurities 成功后更新)。
   List<Security> _lastSecurities = const [];
+  /// 上次价格刷新时间(client 本地,刷新成功后更新,_onLoadHoldings 带入 state)。
+  DateTime? _lastPriceSyncedAt;
 
   /// 从 holdings 聚合 summary。totalCostCents 按 quantity*avgCostCents 重建
   /// (proto HoldingDTO 未暴露总成本);totalPnlCents 来自 unrealizedPnlCents。
@@ -65,6 +68,7 @@ class HoldingBloc extends Bloc<HoldingEvent, HoldingState> {
           summary: _summarize(holdings),
           securities: _lastSecurities,
           typeFilter: event.typeFilter,
+          lastPriceSyncedAt: _lastPriceSyncedAt,
         );
         _last = loaded;
         emit(loaded);
@@ -304,6 +308,23 @@ class HoldingBloc extends Bloc<HoldingEvent, HoldingState> {
       (failure) =>
           emit(HoldingError(failure.displayMessage, last: _last)),
       (_) => add(LoadHoldingsRequested(typeFilter: _lastFilter)),
+    );
+  }
+
+  /// 手动刷新价格:调 repo.syncPrices(server 批量拉价)→ 成功则记录时间 +
+  /// 重发 LoadHoldingsRequested(用新价格重算 marketValue/pnl);失败 HoldingError。
+  Future<void> _onRefreshPrices(
+    RefreshPricesRequested event,
+    Emitter<HoldingState> emit,
+  ) async {
+    emit(HoldingSubmitting(last: _last));
+    final result = await _repo.syncPrices();
+    result.fold(
+      (failure) => emit(HoldingError(failure.displayMessage, last: _last)),
+      (r) {
+        _lastPriceSyncedAt = r.syncedAt;
+        add(LoadHoldingsRequested(typeFilter: _lastFilter));
+      },
     );
   }
 }
