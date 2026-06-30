@@ -15,9 +15,9 @@ import 'package:yucai_client/proto/holding/v1/holding.pbgrpc.dart' as grpc;
 /// RPC is wrapped in AuthRetryCaller so a 401 triggers a transparent refresh +
 /// single retry.
 ///
-/// 10 RPCs: createSecurity / listSecurities / updateSecurityPrice /
+/// 11 RPCs: createSecurity / listSecurities / updateSecurityPrice /
 /// searchSecurities / buyHolding / sellHolding / recordDividend / recordSplit /
-/// listHoldings / listHoldingTransactions.
+/// listHoldings / listHoldingTransactions / syncPrices.
 ///
 /// SecurityType / TradeType off-by-one: proto values are 0=UNSPECIFIED, 1+
 /// business, while domain enum indices are 0+. We therefore translate by NAME
@@ -235,6 +235,22 @@ class HoldingRemoteDataSource {
         securityId: id,
         priceCents: Int64(priceCents),
       ));
+    });
+  }
+
+  // —— 价格批量同步(server 拉外部行情,Task 9 新增)——
+  /// 触发 server 端批量价格同步(手动刷新)。返回成功更新数 + server 同步时间。
+  ///
+  /// 不接收参数:server 拉所有已配置行情源的 security 最新价。syncedAt
+  /// 为 server 完成同步的时间戳(proto Timestamp),toDateTime() 转 DateTime
+  /// (与 HoldingMapper createdAt 转换一致)。
+  Future<SyncPricesResult> syncPrices() async {
+    return _retry.call(() async {
+      final res = await _client.syncPrices(pb.SyncPricesRequest());
+      return SyncPricesResult(
+        syncedCount: res.syncedCount,
+        syncedAt: res.syncedAt.toDateTime(),
+      );
     });
   }
 }

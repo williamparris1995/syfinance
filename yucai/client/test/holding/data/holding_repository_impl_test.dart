@@ -190,4 +190,30 @@ void main() {
       expect(result.fold((l) => l, (_) => null), isA<ServerFailure>());
     });
   });
+
+  group('syncPrices', () {
+    test('success returns Right<SyncPricesResult>', () async {
+      // ignore: prefer_const_constructors — DateTime.utc is not const-evaluable.
+      when(() => remote.syncPrices()).thenAnswer((_) async => SyncPricesResult(
+            syncedCount: 7,
+            syncedAt: DateTime.utc(2026, 6, 30, 12, 0, 0),
+          ));
+      final result = await repo.syncPrices();
+      expect(result.isRight(), isTrue);
+      result.fold(
+        (_) => fail('expected Right'),
+        (r) {
+          expect(r.syncedCount, 7);
+          expect(r.syncedAt, DateTime.utc(2026, 6, 30, 12, 0, 0));
+        },
+      );
+    });
+
+    test('GrpcError → Left<ServerFailure>', () async {
+      when(() => remote.syncPrices())
+          .thenThrow(GrpcError.unavailable('upstream down'));
+      final result = await repo.syncPrices();
+      expect(result.fold((l) => l, (_) => null), isA<ServerFailure>());
+    });
+  });
 }

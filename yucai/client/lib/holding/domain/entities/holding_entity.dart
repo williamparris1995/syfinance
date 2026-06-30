@@ -132,3 +132,17 @@ class GoalLink extends Equatable {
   @override
   List<Object?> get props => [goalId];
 }
+
+/// SyncPrices RPC 结果(client 用)。对齐 proto SyncPricesResponse。
+///
+/// syncPrices 触发 server 端批量价格同步(手动刷新),返回成功更新的
+/// security 数 + server 完成同步的时间。Task 9 新增,Task 10 bloc 用。
+class SyncPricesResult extends Equatable {
+  const SyncPricesResult({required this.syncedCount, required this.syncedAt});
+
+  final int syncedCount; // 成功更新的 security 数
+  final DateTime syncedAt; // server 同步时间(proto Timestamp → DateTime)
+
+  @override
+  List<Object?> get props => [syncedCount, syncedAt];
+}

@@ -146,6 +146,11 @@ class HoldingRepositoryImpl implements HoldingRepository {
             priceCents: priceCents,
           ));
 
+  // —— 价格批量同步(Task 9 新增)——
+  @override
+  Future<Either<Failure, SyncPricesResult>> syncPrices() =>
+      _guard(() => _remote.syncPrices());
+
   // Maps thrown GrpcError/exceptions to Failure, wrapping the op in Either.
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {
     try {

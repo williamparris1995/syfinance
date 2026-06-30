@@ -79,4 +79,7 @@ abstract class HoldingRepository {
     required String id,
     required int priceCents,
   });
+
+  // —— 价格批量同步(Task 9 新增,server 拉行情)——
+  Future<Either<Failure, SyncPricesResult>> syncPrices();
 }

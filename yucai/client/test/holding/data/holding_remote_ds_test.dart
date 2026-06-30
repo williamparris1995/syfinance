@@ -182,6 +182,37 @@ void main() {
     });
   });
 
+  group('syncPrices response wiring (SyncPricesResponse → SyncPricesResult)', () {
+    test('syncedCount + syncedAt (Timestamp→DateTime) survive verbatim', () {
+      // DS maps res.syncedCount (int) + res.syncedAt (Timestamp) → SyncPricesResult;
+      // verify the proto field-level round-trip mirrors HoldingMapper's createdAt
+      // Timestamp→DateTime conversion (same toDateTime() extension).
+      final ts = DateTime.utc(2026, 6, 30, 12, 30, 0);
+      final res = pb.SyncPricesResponse(
+        syncedCount: 5,
+        syncedAt: tspb.Timestamp.fromDateTime(ts),
+      );
+      // Emulate the DS mapping (the DS body is a thin wrapper over these reads).
+      final result = SyncPricesResult(
+        syncedCount: res.syncedCount,
+        syncedAt: res.syncedAt.toDateTime(),
+      );
+      expect(result, isA<SyncPricesResult>());
+      expect(result.syncedCount, 5);
+      expect(result.syncedAt, ts);
+    });
+
+    test('SyncPricesResult Equatable props compare by syncedCount + syncedAt',
+        () {
+      final ts = DateTime.utc(2026, 6, 30);
+      final a = SyncPricesResult(syncedCount: 3, syncedAt: ts);
+      final b = SyncPricesResult(syncedCount: 3, syncedAt: ts);
+      final c = SyncPricesResult(syncedCount: 4, syncedAt: ts);
+      expect(a, b); // same props → equal
+      expect(a == c, isFalse); // different syncedCount → not equal
+    });
+  });
+
   test('HoldingRemoteDataSource is constructible with GrpcClient + retry', () {
     // The DS constructor eagerly builds a HoldingServiceClient from
     // GrpcClient.channel + authInterceptor — stub both so construction succeeds.
