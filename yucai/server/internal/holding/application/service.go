@@ -2,10 +2,13 @@ package application
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/holding/adapter/driven/priceprovider"
 	"github.com/yucai/server/internal/holding/domain"
 )
 
@@ -14,6 +17,7 @@ type Service struct {
 	securityRepo domain.SecurityRepository
 	holdingRepo  domain.HoldingRepository
 	tradeRepo    domain.TradeRepository
+	priceRouter  priceprovider.Router // injected via SetPriceRouter (wire); nil = SyncPrices errors
 }
 
 // NewService creates a new holding application service.
@@ -279,4 +283,61 @@ func (s *Service) SeedSampleHoldings(ctx context.Context, tenantID, accountID uu
 		}
 	}
 	return nil
+}
+
+// SetPriceRouter injects the price router used by SyncPrices. Called by wire
+// after construction (NewService signature stays unchanged so existing tests
+// and callers are not broken).
+func (s *Service) SetPriceRouter(r priceprovider.Router) {
+	s.priceRouter = r
+}
+
+// SyncPrices refreshes current_price_cents for every security via the price
+// router, best-effort: ErrNoSource skips the security (keeps old price, not a
+// failure); any other error is logged and the security is skipped without
+// aborting the batch. Returns the count of successfully updated securities.
+// Implements holding/scheduler.PriceSyncer.
+func (s *Service) SyncPrices(ctx context.Context) (int, error) {
+	if s.priceRouter == nil {
+		return 0, fmt.Errorf("sync prices: price router not configured")
+	}
+	synced := 0
+	page := domain.PageRequest{PageSize: 100}
+	for {
+		result, err := s.securityRepo.FindAll(ctx, nil, page)
+		if err != nil {
+			return synced, fmt.Errorf("sync prices: list securities: %w", err)
+		}
+		for _, sec := range result.Items {
+			if err := ctx.Err(); err != nil {
+				return synced, err
+			}
+			view := priceprovider.PriceView{Symbol: sec.Symbol, Exchange: sec.Exchange, Type: sec.SecurityType}
+			price, _, err := s.priceRouter.FetchPrice(ctx, view)
+			if err != nil {
+				if errors.Is(err, priceprovider.ErrNoSource) {
+					continue // not covered (e.g. US stock) — keep old price
+				}
+				slog.Warn("holding price sync: fetch failed, keep old price",
+					slog.String("symbol", sec.Symbol),
+					slog.String("exchange", sec.Exchange),
+					slog.String("error", err.Error()),
+					slog.String("operation", "SyncPrices"))
+				continue
+			}
+			if err := s.securityRepo.UpdatePrice(ctx, sec.ID, price); err != nil {
+				slog.Warn("holding price sync: update failed",
+					slog.String("symbol", sec.Symbol),
+					slog.String("error", err.Error()),
+					slog.String("operation", "SyncPrices"))
+				continue
+			}
+			synced++
+		}
+		if result.NextPageToken == "" || len(result.Items) == 0 {
+			break
+		}
+		page.PageToken = result.NextPageToken
+	}
+	return synced, nil
 }
