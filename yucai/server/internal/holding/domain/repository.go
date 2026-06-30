@@ -73,3 +73,12 @@ type RateHistoryRepository interface {
 	FindRate(ctx context.Context, code string, date time.Time) (float64, error)
 	FindRange(ctx context.Context, code string, from, to time.Time) (map[time.Time]float64, error)
 }
+
+// TenantLister enumerates every tenant ID in the system. Used by cross-tenant
+// batch jobs (SnapshotAllHoldings) that must fan out per-tenant because
+// HoldingRepository.FindAll is tenant-scoped (TenantID=uuid.Nil returns empty,
+// not all rows). Structural type — auth's TenantRepository satisfies it via
+// its FindAllIDs method (wire injects the concrete adapter).
+type TenantLister interface {
+	FindAllIDs(ctx context.Context) ([]uuid.UUID, error)
+}

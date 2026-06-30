@@ -3,6 +3,8 @@ package application
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/currency/adapter/driven/exchangerate"
@@ -11,13 +13,28 @@ import (
 
 // Service orchestrates currency operations.
 type Service struct {
-	repo     domain.CurrencyRepository
-	provider exchangerate.Provider
+	repo           domain.CurrencyRepository
+	provider       exchangerate.Provider
+	rateHistoryRepo domain.RateHistoryRepository // C: daily rate history (nil = skip history write)
 }
 
 // NewService creates a new currency application service.
 func NewService(repo domain.CurrencyRepository, provider exchangerate.Provider) *Service {
 	return &Service{repo: repo, provider: provider}
+}
+
+// SetRateHistoryRepository injects the FX rate history repo (Task 7 C). When
+// set, SyncRates records one daily rate point per updated currency (idempotent
+// via UNIQUE(currency_code, rate_date)). Structural — holding's repo also
+// satisfies this; wire binds currency's own RateHistoryRepository.
+func (s *Service) SetRateHistoryRepository(r domain.RateHistoryRepository) {
+	s.rateHistoryRepo = r
+}
+
+// truncateToDate clips a time to 00:00 UTC of its day, so same-day re-syncs
+// land on the same rate_history row (UNIQUE(currency_code, rate_date) guard).
+func truncateToDate(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
 }
 
 // AddCurrency creates a new global currency.
@@ -103,6 +120,24 @@ func (s *Service) SyncRates(ctx context.Context) (int, error) {
 		}
 		if err := s.repo.Update(ctx, c); err != nil {
 			return updated, fmt.Errorf("update currency %s: %w", c.Code, err)
+		}
+		// C: record daily rate history point (idempotent — same-day re-sync hits
+		// the same row via UNIQUE(currency_code, rate_date); a duplicate is logged
+		// and skipped, not fatal). Mirrors holding SyncPrices writing price_history.
+		if s.rateHistoryRepo != nil {
+			rh := domain.RateHistory{
+				ID:           uuid.New(),
+				CurrencyCode: c.Code,
+				RateDate:     truncateToDate(time.Now()),
+				ExchangeRate: r,
+			}
+			if err := s.rateHistoryRepo.Save(ctx, rh); err != nil {
+				slog.Warn("currency rate sync: save history failed",
+					slog.String("code", c.Code),
+					slog.String("error", err.Error()),
+					slog.String("operation", "SyncRates"))
+				// not fatal — rate_history missing just means thinner curves
+			}
 		}
 		updated++
 	}

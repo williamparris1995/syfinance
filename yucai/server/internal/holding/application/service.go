@@ -25,6 +25,7 @@ type Service struct {
 	priceHistoryRepo   domain.PriceHistoryRepository    // C: price history + backfill gate
 	historicalProvider priceprovider.HistoricalProvider // C: backfill
 	rateRepo           domain.RateHistoryRepository     // C: portfolio curve CNY折算 (cross-module currency interface)
+	tenantLister       domain.TenantLister              // C: SnapshotAllHoldings fan-out (wire injects auth.TenantRepository)
 }
 
 // NewService creates a new holding application service.
@@ -381,6 +382,11 @@ func (s *Service) SetHistoricalProvider(p priceprovider.HistoricalProvider) { s.
 // curve CNY折算). Structural type — currency's RateHistoryRepo satisfies this.
 func (s *Service) SetRateHistoryRepository(r domain.RateHistoryRepository) { s.rateRepo = r }
 
+// SetTenantLister injects the tenant enumerator used by SnapshotAllHoldings
+// (Task 7 C). Wire binds auth's TenantRepository (its FindAllIDs satisfies
+// domain.TenantLister). nil = SnapshotAllHoldings errors.
+func (s *Service) SetTenantLister(l domain.TenantLister) { s.tenantLister = l }
+
 // truncateToDate clips a time to 00:00 UTC of its day, so same-day re-syncs
 // hit the same price_history row (UNIQUE(security_id, price_date) guard).
 func truncateToDate(t time.Time) time.Time {
@@ -519,6 +525,42 @@ func (s *Service) SnapshotHoldings(ctx context.Context, tenantID uuid.UUID) (int
 		page.PageToken = result.NextPageToken
 	}
 	return synced, nil
+}
+
+// SnapshotAllHoldings snapshots every active holding across all tenants. It is
+// the cross-tenant entry point used by the SnapshotScheduler (Task 7).
+//
+// Implementation note: HoldingRepository.FindAll is tenant-scoped — passing
+// uuid.Nil returns EMPTY (ent matches WHERE tenant_id = Nil against no rows),
+// not "all tenants". So this method fans out by enumerating tenant IDs via the
+// injected TenantLister and accumulates each tenant's snapshot count. A
+// per-tenant error is logged but does not abort the batch (best-effort, like
+// SyncPrices/SnapshotHoldings); a failure to list tenants is fatal. Implements
+// holding/scheduler.Snapshotter.
+func (s *Service) SnapshotAllHoldings(ctx context.Context) (int, error) {
+	if s.tenantLister == nil {
+		return 0, fmt.Errorf("snapshot all: tenant lister not configured")
+	}
+	tenantIDs, err := s.tenantLister.FindAllIDs(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("snapshot all: list tenants: %w", err)
+	}
+	total := 0
+	for _, tid := range tenantIDs {
+		if err := ctx.Err(); err != nil {
+			return total, err
+		}
+		n, err := s.SnapshotHoldings(ctx, tid)
+		if err != nil {
+			slog.Warn("holding snapshot: tenant batch failed, continue",
+				slog.String("tenant_id", tid.String()),
+				slog.String("error", err.Error()),
+				slog.String("operation", "SnapshotAllHoldings"))
+			continue
+		}
+		total += n
+	}
+	return total, nil
 }
 
 // datalenForRange maps CurveRange to Sina K-line datalen (bar count).
