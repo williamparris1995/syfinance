@@ -334,7 +334,7 @@ class _PerformancePageState extends State<PerformancePage> {
               realUp),
           if (!realizedLoaded) ...[
             const SizedBox(height: 14),
-            // ⏳C realized 待后端说明(仅未加载时显示)。
+            // realized 未加载说明(加载中/失败/暂无数据时显示,③ realized 已接 GetPortfolioPerformance.realizedCents)。
             Container(
               padding: const EdgeInsets.fromLTRB(0, 12, 0, 0),
               decoration: const BoxDecoration(
@@ -348,7 +348,7 @@ class _PerformancePageState extends State<PerformancePage> {
                   SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      '已实现收益需跨持仓 trades 聚合（proto 无组合级 RPC）⏳C 待后端',
+                      '已实现收益加载中或暂无数据,请稍后重试',
                       key: ValueKey('splitRealizedHint'),
                       style: TextStyle(
                           fontSize: 11.5, color: AppColors.muted),
