@@ -111,6 +111,28 @@ class HoldingServiceClient extends $grpc.Client {
     return $createUnaryCall(_$syncPrices, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.PortfolioPerformanceResponse> getPortfolioPerformance(
+    $0.GetPortfolioPerformanceRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$getPortfolioPerformance, request,
+        options: options);
+  }
+
+  $grpc.ResponseFuture<$0.HoldingPerformanceResponse> getHoldingPerformance(
+    $0.GetHoldingPerformanceRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$getHoldingPerformance, request, options: options);
+  }
+
+  $grpc.ResponseFuture<$0.BackfillPriceHistoryResponse> backfillPriceHistory(
+    $0.BackfillPriceHistoryRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$backfillPriceHistory, request, options: options);
+  }
+
   // method descriptors
 
   static final _$createSecurity =
@@ -168,6 +190,21 @@ class HoldingServiceClient extends $grpc.Client {
           '/yucai.holding.v1.HoldingService/SyncPrices',
           ($0.SyncPricesRequest value) => value.writeToBuffer(),
           $0.SyncPricesResponse.fromBuffer);
+  static final _$getPortfolioPerformance = $grpc.ClientMethod<
+          $0.GetPortfolioPerformanceRequest, $0.PortfolioPerformanceResponse>(
+      '/yucai.holding.v1.HoldingService/GetPortfolioPerformance',
+      ($0.GetPortfolioPerformanceRequest value) => value.writeToBuffer(),
+      $0.PortfolioPerformanceResponse.fromBuffer);
+  static final _$getHoldingPerformance = $grpc.ClientMethod<
+          $0.GetHoldingPerformanceRequest, $0.HoldingPerformanceResponse>(
+      '/yucai.holding.v1.HoldingService/GetHoldingPerformance',
+      ($0.GetHoldingPerformanceRequest value) => value.writeToBuffer(),
+      $0.HoldingPerformanceResponse.fromBuffer);
+  static final _$backfillPriceHistory = $grpc.ClientMethod<
+          $0.BackfillPriceHistoryRequest, $0.BackfillPriceHistoryResponse>(
+      '/yucai.holding.v1.HoldingService/BackfillPriceHistory',
+      ($0.BackfillPriceHistoryRequest value) => value.writeToBuffer(),
+      $0.BackfillPriceHistoryResponse.fromBuffer);
 }
 
 @$pb.GrpcServiceName('yucai.holding.v1.HoldingService')
@@ -269,6 +306,33 @@ abstract class HoldingServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.SyncPricesRequest.fromBuffer(value),
         ($0.SyncPricesResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetPortfolioPerformanceRequest,
+            $0.PortfolioPerformanceResponse>(
+        'GetPortfolioPerformance',
+        getPortfolioPerformance_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.GetPortfolioPerformanceRequest.fromBuffer(value),
+        ($0.PortfolioPerformanceResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetHoldingPerformanceRequest,
+            $0.HoldingPerformanceResponse>(
+        'GetHoldingPerformance',
+        getHoldingPerformance_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.GetHoldingPerformanceRequest.fromBuffer(value),
+        ($0.HoldingPerformanceResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.BackfillPriceHistoryRequest,
+            $0.BackfillPriceHistoryResponse>(
+        'BackfillPriceHistory',
+        backfillPriceHistory_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.BackfillPriceHistoryRequest.fromBuffer(value),
+        ($0.BackfillPriceHistoryResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.SecurityResponse> createSecurity_Pre($grpc.ServiceCall $call,
@@ -366,4 +430,31 @@ abstract class HoldingServiceBase extends $grpc.Service {
 
   $async.Future<$0.SyncPricesResponse> syncPrices(
       $grpc.ServiceCall call, $0.SyncPricesRequest request);
+
+  $async.Future<$0.PortfolioPerformanceResponse> getPortfolioPerformance_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.GetPortfolioPerformanceRequest> $request) async {
+    return getPortfolioPerformance($call, await $request);
+  }
+
+  $async.Future<$0.PortfolioPerformanceResponse> getPortfolioPerformance(
+      $grpc.ServiceCall call, $0.GetPortfolioPerformanceRequest request);
+
+  $async.Future<$0.HoldingPerformanceResponse> getHoldingPerformance_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.GetHoldingPerformanceRequest> $request) async {
+    return getHoldingPerformance($call, await $request);
+  }
+
+  $async.Future<$0.HoldingPerformanceResponse> getHoldingPerformance(
+      $grpc.ServiceCall call, $0.GetHoldingPerformanceRequest request);
+
+  $async.Future<$0.BackfillPriceHistoryResponse> backfillPriceHistory_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.BackfillPriceHistoryRequest> $request) async {
+    return backfillPriceHistory($call, await $request);
+  }
+
+  $async.Future<$0.BackfillPriceHistoryResponse> backfillPriceHistory(
+      $grpc.ServiceCall call, $0.BackfillPriceHistoryRequest request);
 }

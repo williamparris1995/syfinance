@@ -79,5 +79,30 @@ class TradeType extends $pb.ProtobufEnum {
   const TradeType._(super.value, super.name);
 }
 
+class CurveRange extends $pb.ProtobufEnum {
+  static const CurveRange CURVE_RANGE_UNSPECIFIED =
+      CurveRange._(0, _omitEnumNames ? '' : 'CURVE_RANGE_UNSPECIFIED');
+  static const CurveRange CURVE_RANGE_DAY =
+      CurveRange._(1, _omitEnumNames ? '' : 'CURVE_RANGE_DAY');
+  static const CurveRange CURVE_RANGE_MONTH =
+      CurveRange._(2, _omitEnumNames ? '' : 'CURVE_RANGE_MONTH');
+  static const CurveRange CURVE_RANGE_YEAR =
+      CurveRange._(3, _omitEnumNames ? '' : 'CURVE_RANGE_YEAR');
+
+  static const $core.List<CurveRange> values = <CurveRange>[
+    CURVE_RANGE_UNSPECIFIED,
+    CURVE_RANGE_DAY,
+    CURVE_RANGE_MONTH,
+    CURVE_RANGE_YEAR,
+  ];
+
+  static final $core.List<CurveRange?> _byValue =
+      $pb.ProtobufEnum.$_initByValueList(values, 3);
+  static CurveRange? valueOf($core.int value) =>
+      value < 0 || value >= _byValue.length ? null : _byValue[value];
+
+  const CurveRange._(super.value, super.name);
+}
+
 const $core.bool _omitEnumNames =
     $core.bool.fromEnvironment('protobuf.omit_enum_names');

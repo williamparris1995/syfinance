@@ -1820,6 +1820,590 @@ class SyncPricesResponse extends $pb.GeneratedMessage {
   $2.Timestamp ensureSyncedAt() => $_ensure(1);
 }
 
+class CurvePoint extends $pb.GeneratedMessage {
+  factory CurvePoint({
+    $2.Timestamp? time,
+    $core.double? value,
+  }) {
+    final result = create();
+    if (time != null) result.time = time;
+    if (value != null) result.value = value;
+    return result;
+  }
+
+  CurvePoint._();
+
+  factory CurvePoint.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory CurvePoint.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'CurvePoint',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.holding.v1'),
+      createEmptyInstance: create)
+    ..aOM<$2.Timestamp>(1, _omitFieldNames ? '' : 'time',
+        subBuilder: $2.Timestamp.create)
+    ..aD(2, _omitFieldNames ? '' : 'value')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CurvePoint clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CurvePoint copyWith(void Function(CurvePoint) updates) =>
+      super.copyWith((message) => updates(message as CurvePoint)) as CurvePoint;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static CurvePoint create() => CurvePoint._();
+  @$core.override
+  CurvePoint createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static CurvePoint getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<CurvePoint>(create);
+  static CurvePoint? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $2.Timestamp get time => $_getN(0);
+  @$pb.TagNumber(1)
+  set time($2.Timestamp value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTime() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTime() => $_clearField(1);
+  @$pb.TagNumber(1)
+  $2.Timestamp ensureTime() => $_ensure(0);
+
+  @$pb.TagNumber(2)
+  $core.double get value => $_getN(1);
+  @$pb.TagNumber(2)
+  set value($core.double value) => $_setDouble(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasValue() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearValue() => $_clearField(2);
+}
+
+class GetPortfolioPerformanceRequest extends $pb.GeneratedMessage {
+  factory GetPortfolioPerformanceRequest({
+    $core.String? accountId,
+    CurveRange? range,
+    $core.bool? includeBenchmark,
+  }) {
+    final result = create();
+    if (accountId != null) result.accountId = accountId;
+    if (range != null) result.range = range;
+    if (includeBenchmark != null) result.includeBenchmark = includeBenchmark;
+    return result;
+  }
+
+  GetPortfolioPerformanceRequest._();
+
+  factory GetPortfolioPerformanceRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory GetPortfolioPerformanceRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GetPortfolioPerformanceRequest',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.holding.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'accountId')
+    ..aE<CurveRange>(2, _omitFieldNames ? '' : 'range',
+        enumValues: CurveRange.values)
+    ..aOB(3, _omitFieldNames ? '' : 'includeBenchmark')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetPortfolioPerformanceRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetPortfolioPerformanceRequest copyWith(
+          void Function(GetPortfolioPerformanceRequest) updates) =>
+      super.copyWith(
+              (message) => updates(message as GetPortfolioPerformanceRequest))
+          as GetPortfolioPerformanceRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetPortfolioPerformanceRequest create() =>
+      GetPortfolioPerformanceRequest._();
+  @$core.override
+  GetPortfolioPerformanceRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static GetPortfolioPerformanceRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetPortfolioPerformanceRequest>(create);
+  static GetPortfolioPerformanceRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get accountId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set accountId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasAccountId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearAccountId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  CurveRange get range => $_getN(1);
+  @$pb.TagNumber(2)
+  set range(CurveRange value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasRange() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearRange() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.bool get includeBenchmark => $_getBF(2);
+  @$pb.TagNumber(3)
+  set includeBenchmark($core.bool value) => $_setBool(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasIncludeBenchmark() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearIncludeBenchmark() => $_clearField(3);
+}
+
+class PortfolioPerformanceResponse extends $pb.GeneratedMessage {
+  factory PortfolioPerformanceResponse({
+    $core.Iterable<CurvePoint>? portfolioPoints,
+    $core.Iterable<CurvePoint>? benchmarkPoints,
+    $core.String? benchmarkName,
+    $fixnum.Int64? realizedCents,
+    $fixnum.Int64? unrealizedCents,
+    $fixnum.Int64? totalCents,
+    $core.double? annualizedPct,
+    $core.double? totalPct,
+    $core.String? currency,
+  }) {
+    final result = create();
+    if (portfolioPoints != null) result.portfolioPoints.addAll(portfolioPoints);
+    if (benchmarkPoints != null) result.benchmarkPoints.addAll(benchmarkPoints);
+    if (benchmarkName != null) result.benchmarkName = benchmarkName;
+    if (realizedCents != null) result.realizedCents = realizedCents;
+    if (unrealizedCents != null) result.unrealizedCents = unrealizedCents;
+    if (totalCents != null) result.totalCents = totalCents;
+    if (annualizedPct != null) result.annualizedPct = annualizedPct;
+    if (totalPct != null) result.totalPct = totalPct;
+    if (currency != null) result.currency = currency;
+    return result;
+  }
+
+  PortfolioPerformanceResponse._();
+
+  factory PortfolioPerformanceResponse.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory PortfolioPerformanceResponse.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'PortfolioPerformanceResponse',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.holding.v1'),
+      createEmptyInstance: create)
+    ..pPM<CurvePoint>(1, _omitFieldNames ? '' : 'portfolioPoints',
+        subBuilder: CurvePoint.create)
+    ..pPM<CurvePoint>(2, _omitFieldNames ? '' : 'benchmarkPoints',
+        subBuilder: CurvePoint.create)
+    ..aOS(3, _omitFieldNames ? '' : 'benchmarkName')
+    ..aInt64(4, _omitFieldNames ? '' : 'realizedCents')
+    ..aInt64(5, _omitFieldNames ? '' : 'unrealizedCents')
+    ..aInt64(6, _omitFieldNames ? '' : 'totalCents')
+    ..aD(7, _omitFieldNames ? '' : 'annualizedPct')
+    ..aD(8, _omitFieldNames ? '' : 'totalPct')
+    ..aOS(9, _omitFieldNames ? '' : 'currency')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  PortfolioPerformanceResponse clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  PortfolioPerformanceResponse copyWith(
+          void Function(PortfolioPerformanceResponse) updates) =>
+      super.copyWith(
+              (message) => updates(message as PortfolioPerformanceResponse))
+          as PortfolioPerformanceResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static PortfolioPerformanceResponse create() =>
+      PortfolioPerformanceResponse._();
+  @$core.override
+  PortfolioPerformanceResponse createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static PortfolioPerformanceResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<PortfolioPerformanceResponse>(create);
+  static PortfolioPerformanceResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<CurvePoint> get portfolioPoints => $_getList(0);
+
+  @$pb.TagNumber(2)
+  $pb.PbList<CurvePoint> get benchmarkPoints => $_getList(1);
+
+  @$pb.TagNumber(3)
+  $core.String get benchmarkName => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set benchmarkName($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasBenchmarkName() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearBenchmarkName() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get realizedCents => $_getI64(3);
+  @$pb.TagNumber(4)
+  set realizedCents($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasRealizedCents() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearRealizedCents() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $fixnum.Int64 get unrealizedCents => $_getI64(4);
+  @$pb.TagNumber(5)
+  set unrealizedCents($fixnum.Int64 value) => $_setInt64(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasUnrealizedCents() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearUnrealizedCents() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $fixnum.Int64 get totalCents => $_getI64(5);
+  @$pb.TagNumber(6)
+  set totalCents($fixnum.Int64 value) => $_setInt64(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasTotalCents() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearTotalCents() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.double get annualizedPct => $_getN(6);
+  @$pb.TagNumber(7)
+  set annualizedPct($core.double value) => $_setDouble(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasAnnualizedPct() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearAnnualizedPct() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.double get totalPct => $_getN(7);
+  @$pb.TagNumber(8)
+  set totalPct($core.double value) => $_setDouble(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasTotalPct() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearTotalPct() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.String get currency => $_getSZ(8);
+  @$pb.TagNumber(9)
+  set currency($core.String value) => $_setString(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasCurrency() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearCurrency() => $_clearField(9);
+}
+
+class GetHoldingPerformanceRequest extends $pb.GeneratedMessage {
+  factory GetHoldingPerformanceRequest({
+    $core.String? holdingId,
+    CurveRange? range,
+  }) {
+    final result = create();
+    if (holdingId != null) result.holdingId = holdingId;
+    if (range != null) result.range = range;
+    return result;
+  }
+
+  GetHoldingPerformanceRequest._();
+
+  factory GetHoldingPerformanceRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory GetHoldingPerformanceRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GetHoldingPerformanceRequest',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.holding.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'holdingId')
+    ..aE<CurveRange>(2, _omitFieldNames ? '' : 'range',
+        enumValues: CurveRange.values)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetHoldingPerformanceRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetHoldingPerformanceRequest copyWith(
+          void Function(GetHoldingPerformanceRequest) updates) =>
+      super.copyWith(
+              (message) => updates(message as GetHoldingPerformanceRequest))
+          as GetHoldingPerformanceRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetHoldingPerformanceRequest create() =>
+      GetHoldingPerformanceRequest._();
+  @$core.override
+  GetHoldingPerformanceRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static GetHoldingPerformanceRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetHoldingPerformanceRequest>(create);
+  static GetHoldingPerformanceRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get holdingId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set holdingId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasHoldingId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearHoldingId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  CurveRange get range => $_getN(1);
+  @$pb.TagNumber(2)
+  set range(CurveRange value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasRange() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearRange() => $_clearField(2);
+}
+
+class HoldingPerformanceResponse extends $pb.GeneratedMessage {
+  factory HoldingPerformanceResponse({
+    $core.Iterable<CurvePoint>? pricePoints,
+    $fixnum.Int64? realizedCents,
+    $fixnum.Int64? unrealizedCents,
+    $fixnum.Int64? totalCents,
+    $core.String? currency,
+  }) {
+    final result = create();
+    if (pricePoints != null) result.pricePoints.addAll(pricePoints);
+    if (realizedCents != null) result.realizedCents = realizedCents;
+    if (unrealizedCents != null) result.unrealizedCents = unrealizedCents;
+    if (totalCents != null) result.totalCents = totalCents;
+    if (currency != null) result.currency = currency;
+    return result;
+  }
+
+  HoldingPerformanceResponse._();
+
+  factory HoldingPerformanceResponse.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory HoldingPerformanceResponse.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'HoldingPerformanceResponse',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.holding.v1'),
+      createEmptyInstance: create)
+    ..pPM<CurvePoint>(1, _omitFieldNames ? '' : 'pricePoints',
+        subBuilder: CurvePoint.create)
+    ..aInt64(2, _omitFieldNames ? '' : 'realizedCents')
+    ..aInt64(3, _omitFieldNames ? '' : 'unrealizedCents')
+    ..aInt64(4, _omitFieldNames ? '' : 'totalCents')
+    ..aOS(5, _omitFieldNames ? '' : 'currency')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  HoldingPerformanceResponse clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  HoldingPerformanceResponse copyWith(
+          void Function(HoldingPerformanceResponse) updates) =>
+      super.copyWith(
+              (message) => updates(message as HoldingPerformanceResponse))
+          as HoldingPerformanceResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static HoldingPerformanceResponse create() => HoldingPerformanceResponse._();
+  @$core.override
+  HoldingPerformanceResponse createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static HoldingPerformanceResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<HoldingPerformanceResponse>(create);
+  static HoldingPerformanceResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<CurvePoint> get pricePoints => $_getList(0);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get realizedCents => $_getI64(1);
+  @$pb.TagNumber(2)
+  set realizedCents($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasRealizedCents() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearRealizedCents() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get unrealizedCents => $_getI64(2);
+  @$pb.TagNumber(3)
+  set unrealizedCents($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasUnrealizedCents() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearUnrealizedCents() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get totalCents => $_getI64(3);
+  @$pb.TagNumber(4)
+  set totalCents($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasTotalCents() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearTotalCents() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get currency => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set currency($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasCurrency() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearCurrency() => $_clearField(5);
+}
+
+class BackfillPriceHistoryRequest extends $pb.GeneratedMessage {
+  factory BackfillPriceHistoryRequest({
+    CurveRange? range,
+  }) {
+    final result = create();
+    if (range != null) result.range = range;
+    return result;
+  }
+
+  BackfillPriceHistoryRequest._();
+
+  factory BackfillPriceHistoryRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory BackfillPriceHistoryRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'BackfillPriceHistoryRequest',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.holding.v1'),
+      createEmptyInstance: create)
+    ..aE<CurveRange>(1, _omitFieldNames ? '' : 'range',
+        enumValues: CurveRange.values)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BackfillPriceHistoryRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BackfillPriceHistoryRequest copyWith(
+          void Function(BackfillPriceHistoryRequest) updates) =>
+      super.copyWith(
+              (message) => updates(message as BackfillPriceHistoryRequest))
+          as BackfillPriceHistoryRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static BackfillPriceHistoryRequest create() =>
+      BackfillPriceHistoryRequest._();
+  @$core.override
+  BackfillPriceHistoryRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static BackfillPriceHistoryRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<BackfillPriceHistoryRequest>(create);
+  static BackfillPriceHistoryRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  CurveRange get range => $_getN(0);
+  @$pb.TagNumber(1)
+  set range(CurveRange value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasRange() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRange() => $_clearField(1);
+}
+
+class BackfillPriceHistoryResponse extends $pb.GeneratedMessage {
+  factory BackfillPriceHistoryResponse({
+    $core.int? backfilledCount,
+  }) {
+    final result = create();
+    if (backfilledCount != null) result.backfilledCount = backfilledCount;
+    return result;
+  }
+
+  BackfillPriceHistoryResponse._();
+
+  factory BackfillPriceHistoryResponse.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory BackfillPriceHistoryResponse.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'BackfillPriceHistoryResponse',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.holding.v1'),
+      createEmptyInstance: create)
+    ..aI(1, _omitFieldNames ? '' : 'backfilledCount')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BackfillPriceHistoryResponse clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BackfillPriceHistoryResponse copyWith(
+          void Function(BackfillPriceHistoryResponse) updates) =>
+      super.copyWith(
+              (message) => updates(message as BackfillPriceHistoryResponse))
+          as BackfillPriceHistoryResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static BackfillPriceHistoryResponse create() =>
+      BackfillPriceHistoryResponse._();
+  @$core.override
+  BackfillPriceHistoryResponse createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static BackfillPriceHistoryResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<BackfillPriceHistoryResponse>(create);
+  static BackfillPriceHistoryResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get backfilledCount => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set backfilledCount($core.int value) => $_setSignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasBackfilledCount() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearBackfilledCount() => $_clearField(1);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

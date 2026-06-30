@@ -55,6 +55,22 @@ final $typed_data.Uint8List tradeTypeDescriptor = $convert.base64Decode(
     'VZEAESEwoPVFJBREVfVFlQRV9TRUxMEAISFwoTVFJBREVfVFlQRV9ESVZJREVORBADEhQKEFRS'
     'QURFX1RZUEVfU1BMSVQQBA==');
 
+@$core.Deprecated('Use curveRangeDescriptor instead')
+const CurveRange$json = {
+  '1': 'CurveRange',
+  '2': [
+    {'1': 'CURVE_RANGE_UNSPECIFIED', '2': 0},
+    {'1': 'CURVE_RANGE_DAY', '2': 1},
+    {'1': 'CURVE_RANGE_MONTH', '2': 2},
+    {'1': 'CURVE_RANGE_YEAR', '2': 3},
+  ],
+};
+
+/// Descriptor for `CurveRange`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List curveRangeDescriptor = $convert.base64Decode(
+    'CgpDdXJ2ZVJhbmdlEhsKF0NVUlZFX1JBTkdFX1VOU1BFQ0lGSUVEEAASEwoPQ1VSVkVfUkFOR0'
+    'VfREFZEAESFQoRQ1VSVkVfUkFOR0VfTU9OVEgQAhIUChBDVVJWRV9SQU5HRV9ZRUFSEAM=');
+
 @$core.Deprecated('Use securityDTODescriptor instead')
 const SecurityDTO$json = {
   '1': 'SecurityDTO',
@@ -563,3 +579,180 @@ final $typed_data.Uint8List syncPricesResponseDescriptor = $convert.base64Decode
     'ChJTeW5jUHJpY2VzUmVzcG9uc2USIQoMc3luY2VkX2NvdW50GAEgASgFUgtzeW5jZWRDb3VudB'
     'I3CglzeW5jZWRfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wUghzeW5jZWRB'
     'dA==');
+
+@$core.Deprecated('Use curvePointDescriptor instead')
+const CurvePoint$json = {
+  '1': 'CurvePoint',
+  '2': [
+    {
+      '1': 'time',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'time'
+    },
+    {'1': 'value', '3': 2, '4': 1, '5': 1, '10': 'value'},
+  ],
+};
+
+/// Descriptor for `CurvePoint`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List curvePointDescriptor = $convert.base64Decode(
+    'CgpDdXJ2ZVBvaW50Ei4KBHRpbWUYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wUg'
+    'R0aW1lEhQKBXZhbHVlGAIgASgBUgV2YWx1ZQ==');
+
+@$core.Deprecated('Use getPortfolioPerformanceRequestDescriptor instead')
+const GetPortfolioPerformanceRequest$json = {
+  '1': 'GetPortfolioPerformanceRequest',
+  '2': [
+    {'1': 'account_id', '3': 1, '4': 1, '5': 9, '10': 'accountId'},
+    {
+      '1': 'range',
+      '3': 2,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.holding.v1.CurveRange',
+      '10': 'range'
+    },
+    {
+      '1': 'include_benchmark',
+      '3': 3,
+      '4': 1,
+      '5': 8,
+      '10': 'includeBenchmark'
+    },
+  ],
+};
+
+/// Descriptor for `GetPortfolioPerformanceRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getPortfolioPerformanceRequestDescriptor =
+    $convert.base64Decode(
+        'Ch5HZXRQb3J0Zm9saW9QZXJmb3JtYW5jZVJlcXVlc3QSHQoKYWNjb3VudF9pZBgBIAEoCVIJYW'
+        'Njb3VudElkEjIKBXJhbmdlGAIgASgOMhwueXVjYWkuaG9sZGluZy52MS5DdXJ2ZVJhbmdlUgVy'
+        'YW5nZRIrChFpbmNsdWRlX2JlbmNobWFyaxgDIAEoCFIQaW5jbHVkZUJlbmNobWFyaw==');
+
+@$core.Deprecated('Use portfolioPerformanceResponseDescriptor instead')
+const PortfolioPerformanceResponse$json = {
+  '1': 'PortfolioPerformanceResponse',
+  '2': [
+    {
+      '1': 'portfolio_points',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.yucai.holding.v1.CurvePoint',
+      '10': 'portfolioPoints'
+    },
+    {
+      '1': 'benchmark_points',
+      '3': 2,
+      '4': 3,
+      '5': 11,
+      '6': '.yucai.holding.v1.CurvePoint',
+      '10': 'benchmarkPoints'
+    },
+    {'1': 'benchmark_name', '3': 3, '4': 1, '5': 9, '10': 'benchmarkName'},
+    {'1': 'realized_cents', '3': 4, '4': 1, '5': 3, '10': 'realizedCents'},
+    {'1': 'unrealized_cents', '3': 5, '4': 1, '5': 3, '10': 'unrealizedCents'},
+    {'1': 'total_cents', '3': 6, '4': 1, '5': 3, '10': 'totalCents'},
+    {'1': 'annualized_pct', '3': 7, '4': 1, '5': 1, '10': 'annualizedPct'},
+    {'1': 'total_pct', '3': 8, '4': 1, '5': 1, '10': 'totalPct'},
+    {'1': 'currency', '3': 9, '4': 1, '5': 9, '10': 'currency'},
+  ],
+};
+
+/// Descriptor for `PortfolioPerformanceResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List portfolioPerformanceResponseDescriptor = $convert.base64Decode(
+    'ChxQb3J0Zm9saW9QZXJmb3JtYW5jZVJlc3BvbnNlEkcKEHBvcnRmb2xpb19wb2ludHMYASADKA'
+    'syHC55dWNhaS5ob2xkaW5nLnYxLkN1cnZlUG9pbnRSD3BvcnRmb2xpb1BvaW50cxJHChBiZW5j'
+    'aG1hcmtfcG9pbnRzGAIgAygLMhwueXVjYWkuaG9sZGluZy52MS5DdXJ2ZVBvaW50Ug9iZW5jaG'
+    '1hcmtQb2ludHMSJQoOYmVuY2htYXJrX25hbWUYAyABKAlSDWJlbmNobWFya05hbWUSJQoOcmVh'
+    'bGl6ZWRfY2VudHMYBCABKANSDXJlYWxpemVkQ2VudHMSKQoQdW5yZWFsaXplZF9jZW50cxgFIA'
+    'EoA1IPdW5yZWFsaXplZENlbnRzEh8KC3RvdGFsX2NlbnRzGAYgASgDUgp0b3RhbENlbnRzEiUK'
+    'DmFubnVhbGl6ZWRfcGN0GAcgASgBUg1hbm51YWxpemVkUGN0EhsKCXRvdGFsX3BjdBgIIAEoAV'
+    'IIdG90YWxQY3QSGgoIY3VycmVuY3kYCSABKAlSCGN1cnJlbmN5');
+
+@$core.Deprecated('Use getHoldingPerformanceRequestDescriptor instead')
+const GetHoldingPerformanceRequest$json = {
+  '1': 'GetHoldingPerformanceRequest',
+  '2': [
+    {'1': 'holding_id', '3': 1, '4': 1, '5': 9, '10': 'holdingId'},
+    {
+      '1': 'range',
+      '3': 2,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.holding.v1.CurveRange',
+      '10': 'range'
+    },
+  ],
+};
+
+/// Descriptor for `GetHoldingPerformanceRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getHoldingPerformanceRequestDescriptor =
+    $convert.base64Decode(
+        'ChxHZXRIb2xkaW5nUGVyZm9ybWFuY2VSZXF1ZXN0Eh0KCmhvbGRpbmdfaWQYASABKAlSCWhvbG'
+        'RpbmdJZBIyCgVyYW5nZRgCIAEoDjIcLnl1Y2FpLmhvbGRpbmcudjEuQ3VydmVSYW5nZVIFcmFu'
+        'Z2U=');
+
+@$core.Deprecated('Use holdingPerformanceResponseDescriptor instead')
+const HoldingPerformanceResponse$json = {
+  '1': 'HoldingPerformanceResponse',
+  '2': [
+    {
+      '1': 'price_points',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.yucai.holding.v1.CurvePoint',
+      '10': 'pricePoints'
+    },
+    {'1': 'realized_cents', '3': 2, '4': 1, '5': 3, '10': 'realizedCents'},
+    {'1': 'unrealized_cents', '3': 3, '4': 1, '5': 3, '10': 'unrealizedCents'},
+    {'1': 'total_cents', '3': 4, '4': 1, '5': 3, '10': 'totalCents'},
+    {'1': 'currency', '3': 5, '4': 1, '5': 9, '10': 'currency'},
+  ],
+};
+
+/// Descriptor for `HoldingPerformanceResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List holdingPerformanceResponseDescriptor = $convert.base64Decode(
+    'ChpIb2xkaW5nUGVyZm9ybWFuY2VSZXNwb25zZRI/CgxwcmljZV9wb2ludHMYASADKAsyHC55dW'
+    'NhaS5ob2xkaW5nLnYxLkN1cnZlUG9pbnRSC3ByaWNlUG9pbnRzEiUKDnJlYWxpemVkX2NlbnRz'
+    'GAIgASgDUg1yZWFsaXplZENlbnRzEikKEHVucmVhbGl6ZWRfY2VudHMYAyABKANSD3VucmVhbG'
+    'l6ZWRDZW50cxIfCgt0b3RhbF9jZW50cxgEIAEoA1IKdG90YWxDZW50cxIaCghjdXJyZW5jeRgF'
+    'IAEoCVIIY3VycmVuY3k=');
+
+@$core.Deprecated('Use backfillPriceHistoryRequestDescriptor instead')
+const BackfillPriceHistoryRequest$json = {
+  '1': 'BackfillPriceHistoryRequest',
+  '2': [
+    {
+      '1': 'range',
+      '3': 1,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.holding.v1.CurveRange',
+      '10': 'range'
+    },
+  ],
+};
+
+/// Descriptor for `BackfillPriceHistoryRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List backfillPriceHistoryRequestDescriptor =
+    $convert.base64Decode(
+        'ChtCYWNrZmlsbFByaWNlSGlzdG9yeVJlcXVlc3QSMgoFcmFuZ2UYASABKA4yHC55dWNhaS5ob2'
+        'xkaW5nLnYxLkN1cnZlUmFuZ2VSBXJhbmdl');
+
+@$core.Deprecated('Use backfillPriceHistoryResponseDescriptor instead')
+const BackfillPriceHistoryResponse$json = {
+  '1': 'BackfillPriceHistoryResponse',
+  '2': [
+    {'1': 'backfilled_count', '3': 1, '4': 1, '5': 5, '10': 'backfilledCount'},
+  ],
+};
+
+/// Descriptor for `BackfillPriceHistoryResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List backfillPriceHistoryResponseDescriptor =
+    $convert.base64Decode(
+        'ChxCYWNrZmlsbFByaWNlSGlzdG9yeVJlc3BvbnNlEikKEGJhY2tmaWxsZWRfY291bnQYASABKA'
+        'VSD2JhY2tmaWxsZWRDb3VudA==');
