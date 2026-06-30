@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/goal/domain"
@@ -10,7 +11,8 @@ import (
 
 // Service orchestrates goal operations.
 type Service struct {
-	repo domain.GoalRepository
+	repo     domain.GoalRepository
+	mvSource domain.AccountMarketValueSource // D-goal: injected via setter; nil = SyncInvestmentGoals errors
 }
 
 // NewService creates a new goal application service.
@@ -138,7 +140,7 @@ func (s *Service) SyncGoalProgress(ctx context.Context, tenantID, id uuid.UUID, 
 
 // ListGoals returns a paginated list of goals.
 func (s *Service) ListGoals(ctx context.Context, req ListGoalsRequest) (*ListGoalsResult, error) {
-	result, err := s.repo.FindAll(ctx, req.TenantID, req.Completed, nil, req.Page)
+	result, err := s.repo.FindAll(ctx, req.TenantID, req.Completed, req.GoalType, req.Page)
 	if err != nil {
 		return nil, fmt.Errorf("list goals: %w", err)
 	}
@@ -151,4 +153,63 @@ func (s *Service) ListGoals(ctx context.Context, req ListGoalsRequest) (*ListGoa
 		NextPageToken: result.NextPageToken,
 		TotalCount:    result.TotalCount,
 	}, nil
+}
+
+// SetAccountMarketValueSource injects the holding market-value source used by
+// SyncInvestmentGoals. Called by wire after construction (NewService signature
+// unchanged). *holding/application.Service implements this port structurally.
+func (s *Service) SetAccountMarketValueSource(src domain.AccountMarketValueSource) {
+	s.mvSource = src
+}
+
+// SyncInvestmentGoals recomputes current_amount for every investment goal from
+// its linked investment account's Σ holdings market value. Best-effort: a goal
+// whose mv lookup fails is logged and skipped without aborting the batch.
+// Already-completed goals are skipped (mv may fluctuate; we don't un-complete).
+// Implements goal/scheduler.GoalSyncer.
+func (s *Service) SyncInvestmentGoals(ctx context.Context, tenantID uuid.UUID) (int, error) {
+	if s.mvSource == nil {
+		return 0, fmt.Errorf("sync investment goals: market value source not configured")
+	}
+	investment := domain.GoalTypeInvestment
+	synced := 0
+	page := domain.PageRequest{PageSize: 100}
+	for {
+		result, err := s.repo.FindAll(ctx, tenantID, nil, &investment, page)
+		if err != nil {
+			return synced, fmt.Errorf("sync investment goals: list: %w", err)
+		}
+		for _, g := range result.Items {
+			if err := ctx.Err(); err != nil {
+				return synced, err
+			}
+			if g.IsCompleted || g.GoalType != domain.GoalTypeInvestment || g.LinkedAccountID == nil {
+				continue
+			}
+			mv, err := s.mvSource.GetAccountMarketValue(ctx, tenantID, *g.LinkedAccountID)
+			if err != nil {
+				slog.Warn("goal sync: holding mv failed, skip goal",
+					slog.String("goal_id", g.ID.String()),
+					slog.String("account_id", g.LinkedAccountID.String()),
+					slog.String("error", err.Error()),
+					slog.String("operation", "SyncInvestmentGoals"))
+				continue
+			}
+			g.SetCurrentAmount(mv)
+			g.IncrementVersion()
+			if err := s.repo.Update(ctx, &g); err != nil {
+				slog.Warn("goal sync: update failed",
+					slog.String("goal_id", g.ID.String()),
+					slog.String("error", err.Error()),
+					slog.String("operation", "SyncInvestmentGoals"))
+				continue
+			}
+			synced++
+		}
+		if result.NextPageToken == "" || len(result.Items) == 0 {
+			break
+		}
+		page.PageToken = result.NextPageToken
+	}
+	return synced, nil
 }

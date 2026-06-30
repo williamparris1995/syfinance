@@ -41,6 +41,7 @@ type UpdateProgressRequest struct {
 type ListGoalsRequest struct {
 	TenantID  uuid.UUID
 	Completed *bool
+	GoalType  *domain.GoalType // D-goal: nil=全部, investment=scheduler/Flutter filter
 	Page      domain.PageRequest
 }
 
