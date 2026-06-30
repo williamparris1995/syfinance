@@ -2,6 +2,7 @@ package priceprovider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math"
@@ -133,4 +134,90 @@ func parseSinaCurrentPrice(line string) (float64, error) {
 		return 0, fmt.Errorf("parse current price %q: %w", fields[2], err)
 	}
 	return price, nil
+}
+
+// kLineItem matches the CN_MarketDataService.getKLineData JSON shape. Numeric
+// fields arrive as strings in the JSONP payload (e.g. "102.500").
+type kLineItem struct {
+	Day   string `json:"day"`   // "YYYY-MM-DD"
+	Close string `json:"close"` // e.g. "102.500"
+}
+
+// FetchHistory fetches daily K-line history from Sina
+// (CN_MarketDataService.getKLineData). datalen is the number of bars requested
+// (DAY 30 / MONTH 250 / YEAR 1200). The response is a JSONP-wrapped UTF-8 JSON
+// array (NOT GBK, unlike the realtime hq.sinajs.cn endpoint). Only SSE/SZSE
+// (and the sh000300 benchmark) are covered; other exchanges return ErrNoSource.
+// Router does not route history — the backfill service calls Sina directly.
+func (p *SinaProvider) FetchHistory(ctx context.Context, v PriceView, datalen int) ([]HistoryPoint, error) {
+	listKey, ok := sinaListKey(v.Exchange, v.Symbol)
+	if !ok {
+		return nil, ErrNoSource
+	}
+	url := p.baseURLKLine() + "?symbol=" + listKey +
+		"&scale=240&ma=no&datalen=" + strconv.Itoa(datalen)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("sina history build request: %w", err)
+	}
+	req.Header.Set("Referer", "https://finance.sina.com.cn")
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("sina history request: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("sina history status %d", resp.StatusCode)
+	}
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("sina history read body: %w", err)
+	}
+	// Strip JSONP wrapper "var _=<json>;" → extract the JSON array.
+	jsonStr := extractJSONPArray(string(raw))
+	var items []kLineItem
+	if err := json.Unmarshal([]byte(jsonStr), &items); err != nil {
+		return nil, fmt.Errorf("sina history parse json: %w", err)
+	}
+	pts := make([]HistoryPoint, 0, len(items))
+	for _, it := range items {
+		day, err := time.Parse("2006-01-02", it.Day)
+		if err != nil {
+			continue // skip malformed date
+		}
+		closeF, err := strconv.ParseFloat(it.Close, 64)
+		if err != nil {
+			continue // skip malformed price
+		}
+		// math.Round avoids float truncation (same convention as FetchPrice).
+		pts = append(pts, HistoryPoint{
+			Date:       day,
+			PriceCents: int64(math.Round(closeF * 100)),
+		})
+	}
+	return pts, nil
+}
+
+// baseURLKLine returns the historical K-line endpoint (different host from the
+// realtime hq.sinajs.cn). Test seam: if newSinaProviderWithURL set a baseURL,
+// reuse it so a single httptest server can serve both FetchPrice and
+// FetchHistory in tests.
+func (p *SinaProvider) baseURLKLine() string {
+	if p.baseURL != "http://hq.sinajs.cn" {
+		return p.baseURL
+	}
+	return "https://quotes.sina.cn/cn/api/jsonp.php/var_/CN_MarketDataService.getKLineData"
+}
+
+// extractJSONPArray extracts the JSON array from a "var _=[...];" JSONP
+// wrapper. Returns "[]" if no balanced brackets are found.
+func extractJSONPArray(s string) string {
+	open := strings.Index(s, "[")
+	closeBracket := strings.LastIndex(s, "]")
+	if open < 0 || closeBracket < 0 || closeBracket < open {
+		return "[]"
+	}
+	return s[open : closeBracket+1]
 }
