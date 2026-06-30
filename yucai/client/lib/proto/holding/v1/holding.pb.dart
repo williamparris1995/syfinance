@@ -1711,6 +1711,115 @@ class ListTradesResponse extends $pb.GeneratedMessage {
   $3.PageResponse ensurePage() => $_ensure(1);
 }
 
+class SyncPricesRequest extends $pb.GeneratedMessage {
+  factory SyncPricesRequest() => create();
+
+  SyncPricesRequest._();
+
+  factory SyncPricesRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory SyncPricesRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SyncPricesRequest',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.holding.v1'),
+      createEmptyInstance: create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SyncPricesRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SyncPricesRequest copyWith(void Function(SyncPricesRequest) updates) =>
+      super.copyWith((message) => updates(message as SyncPricesRequest))
+          as SyncPricesRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static SyncPricesRequest create() => SyncPricesRequest._();
+  @$core.override
+  SyncPricesRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static SyncPricesRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SyncPricesRequest>(create);
+  static SyncPricesRequest? _defaultInstance;
+}
+
+class SyncPricesResponse extends $pb.GeneratedMessage {
+  factory SyncPricesResponse({
+    $core.int? syncedCount,
+    $2.Timestamp? syncedAt,
+  }) {
+    final result = create();
+    if (syncedCount != null) result.syncedCount = syncedCount;
+    if (syncedAt != null) result.syncedAt = syncedAt;
+    return result;
+  }
+
+  SyncPricesResponse._();
+
+  factory SyncPricesResponse.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory SyncPricesResponse.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SyncPricesResponse',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.holding.v1'),
+      createEmptyInstance: create)
+    ..aI(1, _omitFieldNames ? '' : 'syncedCount')
+    ..aOM<$2.Timestamp>(2, _omitFieldNames ? '' : 'syncedAt',
+        subBuilder: $2.Timestamp.create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SyncPricesResponse clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SyncPricesResponse copyWith(void Function(SyncPricesResponse) updates) =>
+      super.copyWith((message) => updates(message as SyncPricesResponse))
+          as SyncPricesResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static SyncPricesResponse create() => SyncPricesResponse._();
+  @$core.override
+  SyncPricesResponse createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static SyncPricesResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SyncPricesResponse>(create);
+  static SyncPricesResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get syncedCount => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set syncedCount($core.int value) => $_setSignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSyncedCount() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSyncedCount() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $2.Timestamp get syncedAt => $_getN(1);
+  @$pb.TagNumber(2)
+  set syncedAt($2.Timestamp value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasSyncedAt() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearSyncedAt() => $_clearField(2);
+  @$pb.TagNumber(2)
+  $2.Timestamp ensureSyncedAt() => $_ensure(1);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

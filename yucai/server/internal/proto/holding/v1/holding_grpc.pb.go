@@ -30,6 +30,7 @@ const (
 	HoldingService_RecordSplit_FullMethodName             = "/yucai.holding.v1.HoldingService/RecordSplit"
 	HoldingService_ListHoldings_FullMethodName            = "/yucai.holding.v1.HoldingService/ListHoldings"
 	HoldingService_ListHoldingTransactions_FullMethodName = "/yucai.holding.v1.HoldingService/ListHoldingTransactions"
+	HoldingService_SyncPrices_FullMethodName              = "/yucai.holding.v1.HoldingService/SyncPrices"
 )
 
 // HoldingServiceClient is the client API for HoldingService service.
@@ -46,6 +47,7 @@ type HoldingServiceClient interface {
 	RecordSplit(ctx context.Context, in *RecordSplitRequest, opts ...grpc.CallOption) (*HoldingTransactionResponse, error)
 	ListHoldings(ctx context.Context, in *ListHoldingsRequest, opts ...grpc.CallOption) (*ListHoldingsResponse, error)
 	ListHoldingTransactions(ctx context.Context, in *ListTradesRequest, opts ...grpc.CallOption) (*ListTradesResponse, error)
+	SyncPrices(ctx context.Context, in *SyncPricesRequest, opts ...grpc.CallOption) (*SyncPricesResponse, error)
 }
 
 type holdingServiceClient struct {
@@ -156,6 +158,16 @@ func (c *holdingServiceClient) ListHoldingTransactions(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *holdingServiceClient) SyncPrices(ctx context.Context, in *SyncPricesRequest, opts ...grpc.CallOption) (*SyncPricesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SyncPricesResponse)
+	err := c.cc.Invoke(ctx, HoldingService_SyncPrices_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // HoldingServiceServer is the server API for HoldingService service.
 // All implementations must embed UnimplementedHoldingServiceServer
 // for forward compatibility.
@@ -170,6 +182,7 @@ type HoldingServiceServer interface {
 	RecordSplit(context.Context, *RecordSplitRequest) (*HoldingTransactionResponse, error)
 	ListHoldings(context.Context, *ListHoldingsRequest) (*ListHoldingsResponse, error)
 	ListHoldingTransactions(context.Context, *ListTradesRequest) (*ListTradesResponse, error)
+	SyncPrices(context.Context, *SyncPricesRequest) (*SyncPricesResponse, error)
 	mustEmbedUnimplementedHoldingServiceServer()
 }
 
@@ -209,6 +222,9 @@ func (UnimplementedHoldingServiceServer) ListHoldings(context.Context, *ListHold
 }
 func (UnimplementedHoldingServiceServer) ListHoldingTransactions(context.Context, *ListTradesRequest) (*ListTradesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListHoldingTransactions not implemented")
+}
+func (UnimplementedHoldingServiceServer) SyncPrices(context.Context, *SyncPricesRequest) (*SyncPricesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SyncPrices not implemented")
 }
 func (UnimplementedHoldingServiceServer) mustEmbedUnimplementedHoldingServiceServer() {}
 func (UnimplementedHoldingServiceServer) testEmbeddedByValue()                        {}
@@ -411,6 +427,24 @@ func _HoldingService_ListHoldingTransactions_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _HoldingService_SyncPrices_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SyncPricesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HoldingServiceServer).SyncPrices(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HoldingService_SyncPrices_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HoldingServiceServer).SyncPrices(ctx, req.(*SyncPricesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // HoldingService_ServiceDesc is the grpc.ServiceDesc for HoldingService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -457,6 +491,10 @@ var HoldingService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListHoldingTransactions",
 			Handler:    _HoldingService_ListHoldingTransactions_Handler,
+		},
+		{
+			MethodName: "SyncPrices",
+			Handler:    _HoldingService_SyncPrices_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

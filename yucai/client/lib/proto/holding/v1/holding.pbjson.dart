@@ -532,3 +532,34 @@ final $typed_data.Uint8List listTradesResponseDescriptor = $convert.base64Decode
     'ChJMaXN0VHJhZGVzUmVzcG9uc2USPwoGdHJhZGVzGAEgAygLMicueXVjYWkuaG9sZGluZy52MS'
     '5Ib2xkaW5nVHJhbnNhY3Rpb25EVE9SBnRyYWRlcxIxCgRwYWdlGAIgASgLMh0ueXVjYWkuY29t'
     'bW9uLnYxLlBhZ2VSZXNwb25zZVIEcGFnZQ==');
+
+@$core.Deprecated('Use syncPricesRequestDescriptor instead')
+const SyncPricesRequest$json = {
+  '1': 'SyncPricesRequest',
+};
+
+/// Descriptor for `SyncPricesRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List syncPricesRequestDescriptor =
+    $convert.base64Decode('ChFTeW5jUHJpY2VzUmVxdWVzdA==');
+
+@$core.Deprecated('Use syncPricesResponseDescriptor instead')
+const SyncPricesResponse$json = {
+  '1': 'SyncPricesResponse',
+  '2': [
+    {'1': 'synced_count', '3': 1, '4': 1, '5': 5, '10': 'syncedCount'},
+    {
+      '1': 'synced_at',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'syncedAt'
+    },
+  ],
+};
+
+/// Descriptor for `SyncPricesResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List syncPricesResponseDescriptor = $convert.base64Decode(
+    'ChJTeW5jUHJpY2VzUmVzcG9uc2USIQoMc3luY2VkX2NvdW50GAEgASgFUgtzeW5jZWRDb3VudB'
+    'I3CglzeW5jZWRfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wUghzeW5jZWRB'
+    'dA==');

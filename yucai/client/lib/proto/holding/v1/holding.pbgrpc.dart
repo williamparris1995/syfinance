@@ -104,6 +104,13 @@ class HoldingServiceClient extends $grpc.Client {
         options: options);
   }
 
+  $grpc.ResponseFuture<$0.SyncPricesResponse> syncPrices(
+    $0.SyncPricesRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$syncPrices, request, options: options);
+  }
+
   // method descriptors
 
   static final _$createSecurity =
@@ -156,6 +163,11 @@ class HoldingServiceClient extends $grpc.Client {
           '/yucai.holding.v1.HoldingService/ListHoldingTransactions',
           ($0.ListTradesRequest value) => value.writeToBuffer(),
           $0.ListTradesResponse.fromBuffer);
+  static final _$syncPrices =
+      $grpc.ClientMethod<$0.SyncPricesRequest, $0.SyncPricesResponse>(
+          '/yucai.holding.v1.HoldingService/SyncPrices',
+          ($0.SyncPricesRequest value) => value.writeToBuffer(),
+          $0.SyncPricesResponse.fromBuffer);
 }
 
 @$pb.GrpcServiceName('yucai.holding.v1.HoldingService')
@@ -250,6 +262,13 @@ abstract class HoldingServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.ListTradesRequest.fromBuffer(value),
         ($0.ListTradesResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.SyncPricesRequest, $0.SyncPricesResponse>(
+        'SyncPrices',
+        syncPrices_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.SyncPricesRequest.fromBuffer(value),
+        ($0.SyncPricesResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.SecurityResponse> createSecurity_Pre($grpc.ServiceCall $call,
@@ -339,4 +358,12 @@ abstract class HoldingServiceBase extends $grpc.Service {
 
   $async.Future<$0.ListTradesResponse> listHoldingTransactions(
       $grpc.ServiceCall call, $0.ListTradesRequest request);
+
+  $async.Future<$0.SyncPricesResponse> syncPrices_Pre($grpc.ServiceCall $call,
+      $async.Future<$0.SyncPricesRequest> $request) async {
+    return syncPrices($call, await $request);
+  }
+
+  $async.Future<$0.SyncPricesResponse> syncPrices(
+      $grpc.ServiceCall call, $0.SyncPricesRequest request);
 }

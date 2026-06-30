@@ -19,6 +19,7 @@ service HoldingService {
   rpc RecordSplit(RecordSplitRequest) returns (HoldingTransactionResponse);
   rpc ListHoldings(ListHoldingsRequest) returns (ListHoldingsResponse);
   rpc ListHoldingTransactions(ListTradesRequest) returns (ListTradesResponse);
+  rpc SyncPrices(SyncPricesRequest) returns (SyncPricesResponse);
 }
 
 enum SecurityType {
@@ -149,3 +150,10 @@ message SearchSecuritiesResponse { repeated SecurityDTO securities = 1; }
 message HoldingTransactionResponse { HoldingTransactionDTO transaction = 1; }
 message ListHoldingsResponse { repeated HoldingDTO holdings = 1; yucai.common.v1.PageResponse page = 2; }
 message ListTradesResponse { repeated HoldingTransactionDTO trades = 1; yucai.common.v1.PageResponse page = 2; }
+
+message SyncPricesRequest {}
+
+message SyncPricesResponse {
+  int32 synced_count = 1;
+  google.protobuf.Timestamp synced_at = 2;
+}
