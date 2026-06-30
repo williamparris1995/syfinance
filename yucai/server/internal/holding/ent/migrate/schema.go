@@ -195,11 +195,6 @@ var (
 				Unique:  true,
 				Columns: []*schema.Column{SecurityPriceHistoriesColumns[1], SecurityPriceHistoriesColumns[2]},
 			},
-			{
-				Name:    "securitypricehistory_security_id_price_date",
-				Unique:  false,
-				Columns: []*schema.Column{SecurityPriceHistoriesColumns[1], SecurityPriceHistoriesColumns[2]},
-			},
 		},
 	}
 	// Tables holds all the tables in the schema.

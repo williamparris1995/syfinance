@@ -52,7 +52,10 @@ func (SecurityPriceHistory) Edges() []ent.Edge {
 
 func (SecurityPriceHistory) Indexes() []ent.Index {
 	return []ent.Index{
+		// UNIQUE(security_id, price_date) doubles as the per-security date-range
+		// lookup index — the separate non-unique index on the same columns is
+		// dropped: it collided with the unique index name under ent auto-migrate
+		// ("index already exists") and was fully redundant.
 		index.Fields("security_id", "price_date").Unique(),
-		index.Fields("security_id", "price_date"),
 	}
 }

@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -40,4 +41,24 @@ type HoldingRepository interface {
 type TradeRepository interface {
 	Save(ctx context.Context, trade *HoldingTransaction) error
 	FindAll(ctx context.Context, tenantID uuid.UUID, accountID, securityID *uuid.UUID, page PageRequest) (*PaginatedResult[HoldingTransaction], error)
+}
+
+// SnapshotRepository persists daily holding market-value snapshots.
+type SnapshotRepository interface {
+	FindSnapshots(ctx context.Context, tenantID uuid.UUID, from, to time.Time, accountID, securityID *uuid.UUID) ([]HoldingSnapshot, error)
+	Save(ctx context.Context, s HoldingSnapshot) error
+}
+
+// LotRepository persists FIFO cost lots. FindByHolding returns lots ordered
+// by AcquiredDate ascending (FIFO consume order).
+type LotRepository interface {
+	FindByHolding(ctx context.Context, holdingID uuid.UUID) ([]HoldingLot, error)
+	SaveAll(ctx context.Context, lots []HoldingLot) error
+}
+
+// PriceHistoryRepository persists daily security price history.
+type PriceHistoryRepository interface {
+	FindBySecurity(ctx context.Context, securityID uuid.UUID, from, to time.Time) ([]SecurityPriceHistory, error)
+	SaveAll(ctx context.Context, ph []SecurityPriceHistory) error
+	Exists(ctx context.Context, securityID uuid.UUID) (bool, error)
 }

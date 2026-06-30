@@ -66,3 +66,14 @@ func (c *Currency) Activate() {
 	c.IsActive = true
 	c.UpdatedAt = time.Now()
 }
+
+// RateHistory is one day of exchange-rate history for a currency vs. the base
+// currency (CNY). Supports historical portfolio currency conversion and curve
+// backfill. Currency-code scoped (no tenant_id — global master data).
+type RateHistory struct {
+	ID            uuid.UUID
+	CurrencyCode  string
+	RateDate      time.Time
+	ExchangeRate  float64
+	CreatedAt     time.Time
+}

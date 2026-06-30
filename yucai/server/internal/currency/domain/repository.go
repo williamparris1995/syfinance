@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -28,4 +29,13 @@ type CurrencyRepository interface {
 	// FindAllActive returns all active currencies (no pagination).
 	FindAllActive(ctx context.Context) ([]Currency, error)
 	Update(ctx context.Context, currency *Currency) error
+}
+
+// RateHistoryRepository persists daily exchange-rate history. FindRate
+// forward-fills to the most recent rate at or before `date` (weekend/holiday
+// gaps) and returns 1.0 when no history exists (graceful base-currency fallback).
+type RateHistoryRepository interface {
+	FindRate(ctx context.Context, code string, date time.Time) (float64, error)
+	FindRange(ctx context.Context, code string, from, to time.Time) ([]RateHistory, error)
+	Save(ctx context.Context, r RateHistory) error
 }
