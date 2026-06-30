@@ -119,10 +119,14 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	templateHandler := provideTemplateHandler(templateService)
 
 	// Holding module
+	// priceRouter has no inputs, so declare it before the holding repos so it
+	// is in scope for provideHoldingService below. (Mirrors how priceScheduler
+	// reuses intervalSource from the Currency module further down.)
+	priceRouter := providePriceRouter()
 	securityRepo := provideSecurityRepo(holdingClient)
 	holdingRepo := provideHoldingRepo(holdingClient)
 	tradeRepo := provideTradeRepo(holdingClient)
-	holdingService := provideHoldingService(securityRepo, holdingRepo, tradeRepo)
+	holdingService := provideHoldingService(securityRepo, holdingRepo, tradeRepo, priceRouter)
 	holdingHandler := provideHoldingHandler(holdingService, txnService, accountRepo)
 
 	// Backup module
@@ -146,6 +150,7 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	currencyHandler := provideCurrencyHandler(currencyService)
 	intervalSource := provideIntervalSource(tenantRepo)
 	currencyScheduler := provideCurrencyScheduler(currencyService, intervalSource)
+	priceScheduler := providePriceScheduler(holdingService, intervalSource)
 
 	// Auth service (depends on currencyRepo via the CurrencyCodeChecker port,
 	// so it must be wired after the Currency module).
@@ -156,6 +161,6 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	// gRPC server
 	grpcSrv := provideGRPCServer(ts)
 
-	app := NewApp(cfg, log, grpcSrv, tenantRepo, userRepo, accountService, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler, holdingHandler, holdingService, backupHandler, syncHandler, currencyHandler, currencyScheduler, currencyService)
+	app := NewApp(cfg, log, grpcSrv, tenantRepo, userRepo, accountService, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler, holdingHandler, holdingService, backupHandler, syncHandler, currencyHandler, currencyScheduler, currencyService, priceScheduler)
 	return app, nil
 }

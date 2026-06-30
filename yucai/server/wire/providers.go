@@ -45,9 +45,11 @@ import (
 	goalapp "github.com/yucai/server/internal/goal/application"
 	goalent "github.com/yucai/server/internal/goal/ent"
 	holdingsec "github.com/yucai/server/internal/holding/adapter/driven/repository"
+	priceprovider "github.com/yucai/server/internal/holding/adapter/driven/priceprovider"
 	holdinggrpc "github.com/yucai/server/internal/holding/adapter/driving/grpc"
 	holdingapp "github.com/yucai/server/internal/holding/application"
 	holdingent "github.com/yucai/server/internal/holding/ent"
+	holdingscheduler "github.com/yucai/server/internal/holding/scheduler"
 	syncrepo "github.com/yucai/server/internal/sync/adapter/driven/repository"
 	syncgrpc "github.com/yucai/server/internal/sync/adapter/driving/grpc"
 	syncapp "github.com/yucai/server/internal/sync/application"
@@ -391,8 +393,10 @@ func provideHoldingRepo(client *holdingent.Client) *holdingsec.HoldingRepository
 func provideTradeRepo(client *holdingent.Client) *holdingsec.TradeRepository {
 	return holdingsec.NewTradeRepository(client)
 }
-func provideHoldingService(secRepo *holdingsec.SecurityRepository, hRepo *holdingsec.HoldingRepository, tRepo *holdingsec.TradeRepository) *holdingapp.Service {
-	return holdingapp.NewService(secRepo, hRepo, tRepo)
+func provideHoldingService(secRepo *holdingsec.SecurityRepository, hRepo *holdingsec.HoldingRepository, tRepo *holdingsec.TradeRepository, priceRouter priceprovider.Router) *holdingapp.Service {
+	svc := holdingapp.NewService(secRepo, hRepo, tRepo)
+	svc.SetPriceRouter(priceRouter) // wire 注入价格 router；nil 时 SyncPrices 会 error out
+	return svc
 }
 func provideHoldingHandler(svc *holdingapp.Service, txnSvc *txnapp.Service, accountLookup txnapp.AccountLookup) *holdinggrpc.HoldingHandler {
 	return holdinggrpc.NewHoldingHandler(svc, txnSvc, accountLookup)
@@ -521,6 +525,24 @@ func provideIntervalSource(tr *authrepo.TenantRepository) scheduler.IntervalSour
 // implements scheduler.RateSyncer via its SyncRates method. tick is 1h in prod.
 func provideCurrencyScheduler(svc *currencyapp.Service, src scheduler.IntervalSource) *scheduler.Scheduler {
 	return scheduler.NewScheduler(svc, src, 1*time.Hour, nil)
+}
+
+// providePriceRouter builds the holding price-provider router: Sina (A-share)
+// first, then the Stub fallback (non-covered types → keep old price).
+func providePriceRouter() priceprovider.Router {
+	return priceprovider.NewCompositeRouter(
+		priceprovider.NewSinaProvider(),
+		priceprovider.NewStubProvider(),
+	)
+}
+
+// providePriceScheduler builds the price-sync scheduler. *holdingapp.Service
+// implements holdingscheduler.PriceSyncer via its SyncPrices method. tick is 1h
+// in prod; reuses the same IntervalSource as the currency scheduler (Go
+// structural typing: tenantIntervalSource satisfies both scheduler.IntervalSource
+// and holdingscheduler.IntervalSource, both declaring MinIntervalHours(ctx) int).
+func providePriceScheduler(svc *holdingapp.Service, src holdingscheduler.IntervalSource) *holdingscheduler.Scheduler {
+	return holdingscheduler.NewScheduler(svc, src, 1*time.Hour, nil)
 }
 
 func provideGRPCServer(ts *authjwt.TokenService) *GRPCServer {

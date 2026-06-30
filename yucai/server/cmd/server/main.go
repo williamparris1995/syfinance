@@ -68,6 +68,12 @@ func main() {
 	schedCtx, schedCancel := context.WithCancel(context.Background())
 	go app.CurrencyScheduler.Start(schedCtx)
 
+	// Start holding price-sync scheduler. Performs an immediate SyncPrices on
+	// start, then refreshes A-share prices at most once per tenant's
+	// rate_sync_interval_hours (reuses the same IntervalSource as the currency
+	// scheduler). Exits when schedCtx is cancelled during shutdown.
+	go app.HoldingScheduler.Start(schedCtx)
+
 	// Register gRPC services
 	authpb.RegisterAuthServiceServer(app.GRPCServer, app.AuthHandler)
 	accountpb.RegisterAccountServiceServer(app.GRPCServer, app.AccountHandler)
