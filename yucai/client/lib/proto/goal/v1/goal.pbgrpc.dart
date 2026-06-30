@@ -89,6 +89,13 @@ class GoalServiceClient extends $grpc.Client {
     return $createUnaryCall(_$listGoals, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.SyncInvestmentGoalsResponse> syncInvestmentGoals(
+    $0.SyncInvestmentGoalsRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$syncInvestmentGoals, request, options: options);
+  }
+
   // method descriptors
 
   static final _$createGoal =
@@ -131,6 +138,11 @@ class GoalServiceClient extends $grpc.Client {
           '/yucai.goal.v1.GoalService/ListGoals',
           ($0.ListGoalsRequest value) => value.writeToBuffer(),
           $0.ListGoalsResponse.fromBuffer);
+  static final _$syncInvestmentGoals = $grpc.ClientMethod<
+          $0.SyncInvestmentGoalsRequest, $0.SyncInvestmentGoalsResponse>(
+      '/yucai.goal.v1.GoalService/SyncInvestmentGoals',
+      ($0.SyncInvestmentGoalsRequest value) => value.writeToBuffer(),
+      $0.SyncInvestmentGoalsResponse.fromBuffer);
 }
 
 @$pb.GrpcServiceName('yucai.goal.v1.GoalService')
@@ -197,6 +209,15 @@ abstract class GoalServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.ListGoalsRequest.fromBuffer(value),
         ($0.ListGoalsResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.SyncInvestmentGoalsRequest,
+            $0.SyncInvestmentGoalsResponse>(
+        'SyncInvestmentGoals',
+        syncInvestmentGoals_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.SyncInvestmentGoalsRequest.fromBuffer(value),
+        ($0.SyncInvestmentGoalsResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.GoalResponse> createGoal_Pre($grpc.ServiceCall $call,
@@ -262,4 +283,13 @@ abstract class GoalServiceBase extends $grpc.Service {
 
   $async.Future<$0.ListGoalsResponse> listGoals(
       $grpc.ServiceCall call, $0.ListGoalsRequest request);
+
+  $async.Future<$0.SyncInvestmentGoalsResponse> syncInvestmentGoals_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.SyncInvestmentGoalsRequest> $request) async {
+    return syncInvestmentGoals($call, await $request);
+  }
+
+  $async.Future<$0.SyncInvestmentGoalsResponse> syncInvestmentGoals(
+      $grpc.ServiceCall call, $0.SyncInvestmentGoalsRequest request);
 }

@@ -254,13 +254,22 @@ const ListGoalsRequest$json = {
       '10': 'page'
     },
     {'1': 'completed', '3': 2, '4': 1, '5': 8, '10': 'completed'},
+    {
+      '1': 'goal_type',
+      '3': 3,
+      '4': 1,
+      '5': 14,
+      '6': '.yucai.goal.v1.GoalType',
+      '10': 'goalType'
+    },
   ],
 };
 
 /// Descriptor for `ListGoalsRequest`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List listGoalsRequestDescriptor = $convert.base64Decode(
     'ChBMaXN0R29hbHNSZXF1ZXN0EjAKBHBhZ2UYASABKAsyHC55dWNhaS5jb21tb24udjEuUGFnZV'
-    'JlcXVlc3RSBHBhZ2USHAoJY29tcGxldGVkGAIgASgIUgljb21wbGV0ZWQ=');
+    'JlcXVlc3RSBHBhZ2USHAoJY29tcGxldGVkGAIgASgIUgljb21wbGV0ZWQSNAoJZ29hbF90eXBl'
+    'GAMgASgOMhcueXVjYWkuZ29hbC52MS5Hb2FsVHlwZVIIZ29hbFR5cGU=');
 
 @$core.Deprecated('Use listGoalsResponseDescriptor instead')
 const ListGoalsResponse$json = {
@@ -330,3 +339,35 @@ const GoalDetailResponse$json = {
 final $typed_data.Uint8List goalDetailResponseDescriptor = $convert.base64Decode(
     'ChJHb2FsRGV0YWlsUmVzcG9uc2USKgoEZ29hbBgBIAEoCzIWLnl1Y2FpLmdvYWwudjEuR29hbE'
     'RUT1IEZ29hbA==');
+
+@$core.Deprecated('Use syncInvestmentGoalsRequestDescriptor instead')
+const SyncInvestmentGoalsRequest$json = {
+  '1': 'SyncInvestmentGoalsRequest',
+};
+
+/// Descriptor for `SyncInvestmentGoalsRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List syncInvestmentGoalsRequestDescriptor =
+    $convert.base64Decode('ChpTeW5jSW52ZXN0bWVudEdvYWxzUmVxdWVzdA==');
+
+@$core.Deprecated('Use syncInvestmentGoalsResponseDescriptor instead')
+const SyncInvestmentGoalsResponse$json = {
+  '1': 'SyncInvestmentGoalsResponse',
+  '2': [
+    {'1': 'synced_count', '3': 1, '4': 1, '5': 5, '10': 'syncedCount'},
+    {
+      '1': 'synced_at',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'syncedAt'
+    },
+  ],
+};
+
+/// Descriptor for `SyncInvestmentGoalsResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List syncInvestmentGoalsResponseDescriptor =
+    $convert.base64Decode(
+        'ChtTeW5jSW52ZXN0bWVudEdvYWxzUmVzcG9uc2USIQoMc3luY2VkX2NvdW50GAEgASgFUgtzeW'
+        '5jZWRDb3VudBI3CglzeW5jZWRfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1w'
+        'UghzeW5jZWRBdA==');

@@ -17,6 +17,7 @@ service GoalService {
   rpc SyncGoalProgress(SyncGoalProgressRequest) returns (GoalResponse);
   rpc GetGoal(GetGoalRequest) returns (GoalDetailResponse);
   rpc ListGoals(ListGoalsRequest) returns (ListGoalsResponse);
+  rpc SyncInvestmentGoals(SyncInvestmentGoalsRequest) returns (SyncInvestmentGoalsResponse);
 }
 
 enum GoalType {
@@ -77,6 +78,7 @@ message GetGoalRequest { string id = 1; }
 message ListGoalsRequest {
   yucai.common.v1.PageRequest page = 1;
   bool completed = 2;
+  GoalType goal_type = 3;  // D-goal: filter by type (UNSPECIFIED=all)
 }
 
 message ListGoalsResponse {
@@ -86,3 +88,10 @@ message ListGoalsResponse {
 
 message GoalResponse { GoalDTO goal = 1; }
 message GoalDetailResponse { GoalDTO goal = 1; }
+
+message SyncInvestmentGoalsRequest {}
+
+message SyncInvestmentGoalsResponse {
+  int32 synced_count = 1;
+  google.protobuf.Timestamp synced_at = 2;
+}

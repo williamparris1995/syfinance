@@ -20,14 +20,15 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	GoalService_CreateGoal_FullMethodName         = "/yucai.goal.v1.GoalService/CreateGoal"
-	GoalService_UpdateGoal_FullMethodName         = "/yucai.goal.v1.GoalService/UpdateGoal"
-	GoalService_UpdateGoalProgress_FullMethodName = "/yucai.goal.v1.GoalService/UpdateGoalProgress"
-	GoalService_CompleteGoal_FullMethodName       = "/yucai.goal.v1.GoalService/CompleteGoal"
-	GoalService_DeleteGoal_FullMethodName         = "/yucai.goal.v1.GoalService/DeleteGoal"
-	GoalService_SyncGoalProgress_FullMethodName   = "/yucai.goal.v1.GoalService/SyncGoalProgress"
-	GoalService_GetGoal_FullMethodName            = "/yucai.goal.v1.GoalService/GetGoal"
-	GoalService_ListGoals_FullMethodName          = "/yucai.goal.v1.GoalService/ListGoals"
+	GoalService_CreateGoal_FullMethodName          = "/yucai.goal.v1.GoalService/CreateGoal"
+	GoalService_UpdateGoal_FullMethodName          = "/yucai.goal.v1.GoalService/UpdateGoal"
+	GoalService_UpdateGoalProgress_FullMethodName  = "/yucai.goal.v1.GoalService/UpdateGoalProgress"
+	GoalService_CompleteGoal_FullMethodName        = "/yucai.goal.v1.GoalService/CompleteGoal"
+	GoalService_DeleteGoal_FullMethodName          = "/yucai.goal.v1.GoalService/DeleteGoal"
+	GoalService_SyncGoalProgress_FullMethodName    = "/yucai.goal.v1.GoalService/SyncGoalProgress"
+	GoalService_GetGoal_FullMethodName             = "/yucai.goal.v1.GoalService/GetGoal"
+	GoalService_ListGoals_FullMethodName           = "/yucai.goal.v1.GoalService/ListGoals"
+	GoalService_SyncInvestmentGoals_FullMethodName = "/yucai.goal.v1.GoalService/SyncInvestmentGoals"
 )
 
 // GoalServiceClient is the client API for GoalService service.
@@ -42,6 +43,7 @@ type GoalServiceClient interface {
 	SyncGoalProgress(ctx context.Context, in *SyncGoalProgressRequest, opts ...grpc.CallOption) (*GoalResponse, error)
 	GetGoal(ctx context.Context, in *GetGoalRequest, opts ...grpc.CallOption) (*GoalDetailResponse, error)
 	ListGoals(ctx context.Context, in *ListGoalsRequest, opts ...grpc.CallOption) (*ListGoalsResponse, error)
+	SyncInvestmentGoals(ctx context.Context, in *SyncInvestmentGoalsRequest, opts ...grpc.CallOption) (*SyncInvestmentGoalsResponse, error)
 }
 
 type goalServiceClient struct {
@@ -132,6 +134,16 @@ func (c *goalServiceClient) ListGoals(ctx context.Context, in *ListGoalsRequest,
 	return out, nil
 }
 
+func (c *goalServiceClient) SyncInvestmentGoals(ctx context.Context, in *SyncInvestmentGoalsRequest, opts ...grpc.CallOption) (*SyncInvestmentGoalsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SyncInvestmentGoalsResponse)
+	err := c.cc.Invoke(ctx, GoalService_SyncInvestmentGoals_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GoalServiceServer is the server API for GoalService service.
 // All implementations must embed UnimplementedGoalServiceServer
 // for forward compatibility.
@@ -144,6 +156,7 @@ type GoalServiceServer interface {
 	SyncGoalProgress(context.Context, *SyncGoalProgressRequest) (*GoalResponse, error)
 	GetGoal(context.Context, *GetGoalRequest) (*GoalDetailResponse, error)
 	ListGoals(context.Context, *ListGoalsRequest) (*ListGoalsResponse, error)
+	SyncInvestmentGoals(context.Context, *SyncInvestmentGoalsRequest) (*SyncInvestmentGoalsResponse, error)
 	mustEmbedUnimplementedGoalServiceServer()
 }
 
@@ -177,6 +190,9 @@ func (UnimplementedGoalServiceServer) GetGoal(context.Context, *GetGoalRequest) 
 }
 func (UnimplementedGoalServiceServer) ListGoals(context.Context, *ListGoalsRequest) (*ListGoalsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListGoals not implemented")
+}
+func (UnimplementedGoalServiceServer) SyncInvestmentGoals(context.Context, *SyncInvestmentGoalsRequest) (*SyncInvestmentGoalsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SyncInvestmentGoals not implemented")
 }
 func (UnimplementedGoalServiceServer) mustEmbedUnimplementedGoalServiceServer() {}
 func (UnimplementedGoalServiceServer) testEmbeddedByValue()                     {}
@@ -343,6 +359,24 @@ func _GoalService_ListGoals_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GoalService_SyncInvestmentGoals_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SyncInvestmentGoalsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoalServiceServer).SyncInvestmentGoals(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GoalService_SyncInvestmentGoals_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoalServiceServer).SyncInvestmentGoals(ctx, req.(*SyncInvestmentGoalsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GoalService_ServiceDesc is the grpc.ServiceDesc for GoalService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -381,6 +415,10 @@ var GoalService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListGoals",
 			Handler:    _GoalService_ListGoals_Handler,
+		},
+		{
+			MethodName: "SyncInvestmentGoals",
+			Handler:    _GoalService_SyncInvestmentGoals_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -800,10 +800,12 @@ class ListGoalsRequest extends $pb.GeneratedMessage {
   factory ListGoalsRequest({
     $3.PageRequest? page,
     $core.bool? completed,
+    GoalType? goalType,
   }) {
     final result = create();
     if (page != null) result.page = page;
     if (completed != null) result.completed = completed;
+    if (goalType != null) result.goalType = goalType;
     return result;
   }
 
@@ -823,6 +825,8 @@ class ListGoalsRequest extends $pb.GeneratedMessage {
     ..aOM<$3.PageRequest>(1, _omitFieldNames ? '' : 'page',
         subBuilder: $3.PageRequest.create)
     ..aOB(2, _omitFieldNames ? '' : 'completed')
+    ..aE<GoalType>(3, _omitFieldNames ? '' : 'goalType',
+        enumValues: GoalType.values)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -863,6 +867,15 @@ class ListGoalsRequest extends $pb.GeneratedMessage {
   $core.bool hasCompleted() => $_has(1);
   @$pb.TagNumber(2)
   void clearCompleted() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  GoalType get goalType => $_getN(2);
+  @$pb.TagNumber(3)
+  set goalType(GoalType value) => $_setField(3, value);
+  @$pb.TagNumber(3)
+  $core.bool hasGoalType() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearGoalType() => $_clearField(3);
 }
 
 class ListGoalsResponse extends $pb.GeneratedMessage {
@@ -1039,6 +1052,118 @@ class GoalDetailResponse extends $pb.GeneratedMessage {
   void clearGoal() => $_clearField(1);
   @$pb.TagNumber(1)
   GoalDTO ensureGoal() => $_ensure(0);
+}
+
+class SyncInvestmentGoalsRequest extends $pb.GeneratedMessage {
+  factory SyncInvestmentGoalsRequest() => create();
+
+  SyncInvestmentGoalsRequest._();
+
+  factory SyncInvestmentGoalsRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory SyncInvestmentGoalsRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SyncInvestmentGoalsRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.goal.v1'),
+      createEmptyInstance: create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SyncInvestmentGoalsRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SyncInvestmentGoalsRequest copyWith(
+          void Function(SyncInvestmentGoalsRequest) updates) =>
+      super.copyWith(
+              (message) => updates(message as SyncInvestmentGoalsRequest))
+          as SyncInvestmentGoalsRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static SyncInvestmentGoalsRequest create() => SyncInvestmentGoalsRequest._();
+  @$core.override
+  SyncInvestmentGoalsRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static SyncInvestmentGoalsRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SyncInvestmentGoalsRequest>(create);
+  static SyncInvestmentGoalsRequest? _defaultInstance;
+}
+
+class SyncInvestmentGoalsResponse extends $pb.GeneratedMessage {
+  factory SyncInvestmentGoalsResponse({
+    $core.int? syncedCount,
+    $2.Timestamp? syncedAt,
+  }) {
+    final result = create();
+    if (syncedCount != null) result.syncedCount = syncedCount;
+    if (syncedAt != null) result.syncedAt = syncedAt;
+    return result;
+  }
+
+  SyncInvestmentGoalsResponse._();
+
+  factory SyncInvestmentGoalsResponse.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory SyncInvestmentGoalsResponse.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SyncInvestmentGoalsResponse',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.goal.v1'),
+      createEmptyInstance: create)
+    ..aI(1, _omitFieldNames ? '' : 'syncedCount')
+    ..aOM<$2.Timestamp>(2, _omitFieldNames ? '' : 'syncedAt',
+        subBuilder: $2.Timestamp.create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SyncInvestmentGoalsResponse clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SyncInvestmentGoalsResponse copyWith(
+          void Function(SyncInvestmentGoalsResponse) updates) =>
+      super.copyWith(
+              (message) => updates(message as SyncInvestmentGoalsResponse))
+          as SyncInvestmentGoalsResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static SyncInvestmentGoalsResponse create() =>
+      SyncInvestmentGoalsResponse._();
+  @$core.override
+  SyncInvestmentGoalsResponse createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static SyncInvestmentGoalsResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SyncInvestmentGoalsResponse>(create);
+  static SyncInvestmentGoalsResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get syncedCount => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set syncedCount($core.int value) => $_setSignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSyncedCount() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSyncedCount() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $2.Timestamp get syncedAt => $_getN(1);
+  @$pb.TagNumber(2)
+  set syncedAt($2.Timestamp value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasSyncedAt() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearSyncedAt() => $_clearField(2);
+  @$pb.TagNumber(2)
+  $2.Timestamp ensureSyncedAt() => $_ensure(1);
 }
 
 const $core.bool _omitFieldNames =
