@@ -34,6 +34,8 @@ type HoldingTransaction struct {
 	AmountCents int64 `json:"amount_cents,omitempty"`
 	// FeeCents holds the value of the "fee_cents" field.
 	FeeCents int64 `json:"fee_cents,omitempty"`
+	// FIFO realized P&L on sell (Task1 ConsumeLotsFIFO); 0 for other trade types
+	RealizedPnlCents int64 `json:"realized_pnl_cents,omitempty"`
 	// TradeDate holds the value of the "trade_date" field.
 	TradeDate time.Time `json:"trade_date,omitempty"`
 	// Linked accounting transaction
@@ -54,7 +56,7 @@ func (*HoldingTransaction) scanValues(columns []string) ([]any, error) {
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case holdingtransaction.FieldQuantity:
 			values[i] = new(sql.NullFloat64)
-		case holdingtransaction.FieldPriceCents, holdingtransaction.FieldAmountCents, holdingtransaction.FieldFeeCents:
+		case holdingtransaction.FieldPriceCents, holdingtransaction.FieldAmountCents, holdingtransaction.FieldFeeCents, holdingtransaction.FieldRealizedPnlCents:
 			values[i] = new(sql.NullInt64)
 		case holdingtransaction.FieldTradeType, holdingtransaction.FieldNotes:
 			values[i] = new(sql.NullString)
@@ -130,6 +132,12 @@ func (ht *HoldingTransaction) assignValues(columns []string, values []any) error
 				return fmt.Errorf("unexpected type %T for field fee_cents", values[i])
 			} else if value.Valid {
 				ht.FeeCents = value.Int64
+			}
+		case holdingtransaction.FieldRealizedPnlCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field realized_pnl_cents", values[i])
+			} else if value.Valid {
+				ht.RealizedPnlCents = value.Int64
 			}
 		case holdingtransaction.FieldTradeDate:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -215,6 +223,9 @@ func (ht *HoldingTransaction) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("fee_cents=")
 	builder.WriteString(fmt.Sprintf("%v", ht.FeeCents))
+	builder.WriteString(", ")
+	builder.WriteString("realized_pnl_cents=")
+	builder.WriteString(fmt.Sprintf("%v", ht.RealizedPnlCents))
 	builder.WriteString(", ")
 	builder.WriteString("trade_date=")
 	builder.WriteString(ht.TradeDate.Format(time.ANSIC))

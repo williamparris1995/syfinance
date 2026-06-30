@@ -9,8 +9,17 @@ import (
 // Holding is the predicate function for holding builders.
 type Holding func(*sql.Selector)
 
+// HoldingLot is the predicate function for holdinglot builders.
+type HoldingLot func(*sql.Selector)
+
+// HoldingSnapshot is the predicate function for holdingsnapshot builders.
+type HoldingSnapshot func(*sql.Selector)
+
 // HoldingTransaction is the predicate function for holdingtransaction builders.
 type HoldingTransaction func(*sql.Selector)
 
 // Security is the predicate function for security builders.
 type Security func(*sql.Selector)
+
+// SecurityPriceHistory is the predicate function for securitypricehistory builders.
+type SecurityPriceHistory func(*sql.Selector)

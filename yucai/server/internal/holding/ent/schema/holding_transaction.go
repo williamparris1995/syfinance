@@ -44,6 +44,10 @@ func (HoldingTransaction) Fields() []ent.Field {
 			Default(0),
 		field.Int64("fee_cents").
 			Default(0),
+		field.Int64("realized_pnl_cents").
+			Default(0).
+			Optional().
+			Comment("FIFO realized P&L on sell (Task1 ConsumeLotsFIFO); 0 for other trade types"),
 		field.Time("trade_date"),
 		field.UUID("transaction_id", uuid.UUID{}).
 			Optional().

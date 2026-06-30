@@ -7,12 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/currency/ent/currency"
 	"github.com/yucai/server/internal/currency/ent/predicate"
+	"github.com/yucai/server/internal/currency/ent/ratehistory"
 )
 
 const (
@@ -24,7 +26,8 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeCurrency = "Currency"
+	TypeCurrency    = "Currency"
+	TypeRateHistory = "RateHistory"
 )
 
 // CurrencyMutation represents an operation that mutates the Currency nodes in the graph.
@@ -609,4 +612,534 @@ func (m *CurrencyMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *CurrencyMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Currency edge %s", name)
+}
+
+// RateHistoryMutation represents an operation that mutates the RateHistory nodes in the graph.
+type RateHistoryMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *uuid.UUID
+	currency_code    *string
+	rate_date        *time.Time
+	exchange_rate    *float64
+	addexchange_rate *float64
+	created_at       *time.Time
+	clearedFields    map[string]struct{}
+	done             bool
+	oldValue         func(context.Context) (*RateHistory, error)
+	predicates       []predicate.RateHistory
+}
+
+var _ ent.Mutation = (*RateHistoryMutation)(nil)
+
+// ratehistoryOption allows management of the mutation configuration using functional options.
+type ratehistoryOption func(*RateHistoryMutation)
+
+// newRateHistoryMutation creates new mutation for the RateHistory entity.
+func newRateHistoryMutation(c config, op Op, opts ...ratehistoryOption) *RateHistoryMutation {
+	m := &RateHistoryMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeRateHistory,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withRateHistoryID sets the ID field of the mutation.
+func withRateHistoryID(id uuid.UUID) ratehistoryOption {
+	return func(m *RateHistoryMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *RateHistory
+		)
+		m.oldValue = func(ctx context.Context) (*RateHistory, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().RateHistory.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withRateHistory sets the old RateHistory of the mutation.
+func withRateHistory(node *RateHistory) ratehistoryOption {
+	return func(m *RateHistoryMutation) {
+		m.oldValue = func(context.Context) (*RateHistory, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m RateHistoryMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m RateHistoryMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of RateHistory entities.
+func (m *RateHistoryMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *RateHistoryMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *RateHistoryMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().RateHistory.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCurrencyCode sets the "currency_code" field.
+func (m *RateHistoryMutation) SetCurrencyCode(s string) {
+	m.currency_code = &s
+}
+
+// CurrencyCode returns the value of the "currency_code" field in the mutation.
+func (m *RateHistoryMutation) CurrencyCode() (r string, exists bool) {
+	v := m.currency_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrencyCode returns the old "currency_code" field's value of the RateHistory entity.
+// If the RateHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RateHistoryMutation) OldCurrencyCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrencyCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrencyCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrencyCode: %w", err)
+	}
+	return oldValue.CurrencyCode, nil
+}
+
+// ResetCurrencyCode resets all changes to the "currency_code" field.
+func (m *RateHistoryMutation) ResetCurrencyCode() {
+	m.currency_code = nil
+}
+
+// SetRateDate sets the "rate_date" field.
+func (m *RateHistoryMutation) SetRateDate(t time.Time) {
+	m.rate_date = &t
+}
+
+// RateDate returns the value of the "rate_date" field in the mutation.
+func (m *RateHistoryMutation) RateDate() (r time.Time, exists bool) {
+	v := m.rate_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRateDate returns the old "rate_date" field's value of the RateHistory entity.
+// If the RateHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RateHistoryMutation) OldRateDate(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRateDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRateDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRateDate: %w", err)
+	}
+	return oldValue.RateDate, nil
+}
+
+// ResetRateDate resets all changes to the "rate_date" field.
+func (m *RateHistoryMutation) ResetRateDate() {
+	m.rate_date = nil
+}
+
+// SetExchangeRate sets the "exchange_rate" field.
+func (m *RateHistoryMutation) SetExchangeRate(f float64) {
+	m.exchange_rate = &f
+	m.addexchange_rate = nil
+}
+
+// ExchangeRate returns the value of the "exchange_rate" field in the mutation.
+func (m *RateHistoryMutation) ExchangeRate() (r float64, exists bool) {
+	v := m.exchange_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExchangeRate returns the old "exchange_rate" field's value of the RateHistory entity.
+// If the RateHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RateHistoryMutation) OldExchangeRate(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExchangeRate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExchangeRate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExchangeRate: %w", err)
+	}
+	return oldValue.ExchangeRate, nil
+}
+
+// AddExchangeRate adds f to the "exchange_rate" field.
+func (m *RateHistoryMutation) AddExchangeRate(f float64) {
+	if m.addexchange_rate != nil {
+		*m.addexchange_rate += f
+	} else {
+		m.addexchange_rate = &f
+	}
+}
+
+// AddedExchangeRate returns the value that was added to the "exchange_rate" field in this mutation.
+func (m *RateHistoryMutation) AddedExchangeRate() (r float64, exists bool) {
+	v := m.addexchange_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetExchangeRate resets all changes to the "exchange_rate" field.
+func (m *RateHistoryMutation) ResetExchangeRate() {
+	m.exchange_rate = nil
+	m.addexchange_rate = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *RateHistoryMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *RateHistoryMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the RateHistory entity.
+// If the RateHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RateHistoryMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *RateHistoryMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the RateHistoryMutation builder.
+func (m *RateHistoryMutation) Where(ps ...predicate.RateHistory) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the RateHistoryMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *RateHistoryMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.RateHistory, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *RateHistoryMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *RateHistoryMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (RateHistory).
+func (m *RateHistoryMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *RateHistoryMutation) Fields() []string {
+	fields := make([]string, 0, 4)
+	if m.currency_code != nil {
+		fields = append(fields, ratehistory.FieldCurrencyCode)
+	}
+	if m.rate_date != nil {
+		fields = append(fields, ratehistory.FieldRateDate)
+	}
+	if m.exchange_rate != nil {
+		fields = append(fields, ratehistory.FieldExchangeRate)
+	}
+	if m.created_at != nil {
+		fields = append(fields, ratehistory.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *RateHistoryMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case ratehistory.FieldCurrencyCode:
+		return m.CurrencyCode()
+	case ratehistory.FieldRateDate:
+		return m.RateDate()
+	case ratehistory.FieldExchangeRate:
+		return m.ExchangeRate()
+	case ratehistory.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *RateHistoryMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case ratehistory.FieldCurrencyCode:
+		return m.OldCurrencyCode(ctx)
+	case ratehistory.FieldRateDate:
+		return m.OldRateDate(ctx)
+	case ratehistory.FieldExchangeRate:
+		return m.OldExchangeRate(ctx)
+	case ratehistory.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown RateHistory field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RateHistoryMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case ratehistory.FieldCurrencyCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrencyCode(v)
+		return nil
+	case ratehistory.FieldRateDate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRateDate(v)
+		return nil
+	case ratehistory.FieldExchangeRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExchangeRate(v)
+		return nil
+	case ratehistory.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown RateHistory field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *RateHistoryMutation) AddedFields() []string {
+	var fields []string
+	if m.addexchange_rate != nil {
+		fields = append(fields, ratehistory.FieldExchangeRate)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *RateHistoryMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case ratehistory.FieldExchangeRate:
+		return m.AddedExchangeRate()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RateHistoryMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case ratehistory.FieldExchangeRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddExchangeRate(v)
+		return nil
+	}
+	return fmt.Errorf("unknown RateHistory numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *RateHistoryMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *RateHistoryMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *RateHistoryMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown RateHistory nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *RateHistoryMutation) ResetField(name string) error {
+	switch name {
+	case ratehistory.FieldCurrencyCode:
+		m.ResetCurrencyCode()
+		return nil
+	case ratehistory.FieldRateDate:
+		m.ResetRateDate()
+		return nil
+	case ratehistory.FieldExchangeRate:
+		m.ResetExchangeRate()
+		return nil
+	case ratehistory.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown RateHistory field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *RateHistoryMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *RateHistoryMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *RateHistoryMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *RateHistoryMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *RateHistoryMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *RateHistoryMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *RateHistoryMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown RateHistory unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *RateHistoryMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown RateHistory edge %s", name)
 }

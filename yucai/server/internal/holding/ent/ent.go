@@ -13,8 +13,11 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/yucai/server/internal/holding/ent/holding"
+	"github.com/yucai/server/internal/holding/ent/holdinglot"
+	"github.com/yucai/server/internal/holding/ent/holdingsnapshot"
 	"github.com/yucai/server/internal/holding/ent/holdingtransaction"
 	"github.com/yucai/server/internal/holding/ent/security"
+	"github.com/yucai/server/internal/holding/ent/securitypricehistory"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -75,9 +78,12 @@ var (
 func checkColumn(table, column string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			holding.Table:            holding.ValidColumn,
-			holdingtransaction.Table: holdingtransaction.ValidColumn,
-			security.Table:           security.ValidColumn,
+			holding.Table:              holding.ValidColumn,
+			holdinglot.Table:           holdinglot.ValidColumn,
+			holdingsnapshot.Table:      holdingsnapshot.ValidColumn,
+			holdingtransaction.Table:   holdingtransaction.ValidColumn,
+			security.Table:             security.ValidColumn,
+			securitypricehistory.Table: securitypricehistory.ValidColumn,
 		})
 	})
 	return columnCheck(table, column)

@@ -16,6 +16,7 @@ import (
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"github.com/yucai/server/internal/currency/ent/currency"
+	"github.com/yucai/server/internal/currency/ent/ratehistory"
 )
 
 // Client is the client that holds all ent builders.
@@ -25,6 +26,8 @@ type Client struct {
 	Schema *migrate.Schema
 	// Currency is the client for interacting with the Currency builders.
 	Currency *CurrencyClient
+	// RateHistory is the client for interacting with the RateHistory builders.
+	RateHistory *RateHistoryClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -37,6 +40,7 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.Currency = NewCurrencyClient(c.config)
+	c.RateHistory = NewRateHistoryClient(c.config)
 }
 
 type (
@@ -127,9 +131,10 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:      ctx,
-		config:   cfg,
-		Currency: NewCurrencyClient(cfg),
+		ctx:         ctx,
+		config:      cfg,
+		Currency:    NewCurrencyClient(cfg),
+		RateHistory: NewRateHistoryClient(cfg),
 	}, nil
 }
 
@@ -147,9 +152,10 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:      ctx,
-		config:   cfg,
-		Currency: NewCurrencyClient(cfg),
+		ctx:         ctx,
+		config:      cfg,
+		Currency:    NewCurrencyClient(cfg),
+		RateHistory: NewRateHistoryClient(cfg),
 	}, nil
 }
 
@@ -179,12 +185,14 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	c.Currency.Use(hooks...)
+	c.RateHistory.Use(hooks...)
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	c.Currency.Intercept(interceptors...)
+	c.RateHistory.Intercept(interceptors...)
 }
 
 // Mutate implements the ent.Mutator interface.
@@ -192,6 +200,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *CurrencyMutation:
 		return c.Currency.mutate(ctx, m)
+	case *RateHistoryMutation:
+		return c.RateHistory.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -330,12 +340,145 @@ func (c *CurrencyClient) mutate(ctx context.Context, m *CurrencyMutation) (Value
 	}
 }
 
+// RateHistoryClient is a client for the RateHistory schema.
+type RateHistoryClient struct {
+	config
+}
+
+// NewRateHistoryClient returns a client for the RateHistory from the given config.
+func NewRateHistoryClient(c config) *RateHistoryClient {
+	return &RateHistoryClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `ratehistory.Hooks(f(g(h())))`.
+func (c *RateHistoryClient) Use(hooks ...Hook) {
+	c.hooks.RateHistory = append(c.hooks.RateHistory, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `ratehistory.Intercept(f(g(h())))`.
+func (c *RateHistoryClient) Intercept(interceptors ...Interceptor) {
+	c.inters.RateHistory = append(c.inters.RateHistory, interceptors...)
+}
+
+// Create returns a builder for creating a RateHistory entity.
+func (c *RateHistoryClient) Create() *RateHistoryCreate {
+	mutation := newRateHistoryMutation(c.config, OpCreate)
+	return &RateHistoryCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of RateHistory entities.
+func (c *RateHistoryClient) CreateBulk(builders ...*RateHistoryCreate) *RateHistoryCreateBulk {
+	return &RateHistoryCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *RateHistoryClient) MapCreateBulk(slice any, setFunc func(*RateHistoryCreate, int)) *RateHistoryCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &RateHistoryCreateBulk{err: fmt.Errorf("calling to RateHistoryClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*RateHistoryCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &RateHistoryCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for RateHistory.
+func (c *RateHistoryClient) Update() *RateHistoryUpdate {
+	mutation := newRateHistoryMutation(c.config, OpUpdate)
+	return &RateHistoryUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *RateHistoryClient) UpdateOne(rh *RateHistory) *RateHistoryUpdateOne {
+	mutation := newRateHistoryMutation(c.config, OpUpdateOne, withRateHistory(rh))
+	return &RateHistoryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *RateHistoryClient) UpdateOneID(id uuid.UUID) *RateHistoryUpdateOne {
+	mutation := newRateHistoryMutation(c.config, OpUpdateOne, withRateHistoryID(id))
+	return &RateHistoryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for RateHistory.
+func (c *RateHistoryClient) Delete() *RateHistoryDelete {
+	mutation := newRateHistoryMutation(c.config, OpDelete)
+	return &RateHistoryDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *RateHistoryClient) DeleteOne(rh *RateHistory) *RateHistoryDeleteOne {
+	return c.DeleteOneID(rh.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *RateHistoryClient) DeleteOneID(id uuid.UUID) *RateHistoryDeleteOne {
+	builder := c.Delete().Where(ratehistory.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &RateHistoryDeleteOne{builder}
+}
+
+// Query returns a query builder for RateHistory.
+func (c *RateHistoryClient) Query() *RateHistoryQuery {
+	return &RateHistoryQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeRateHistory},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a RateHistory entity by its id.
+func (c *RateHistoryClient) Get(ctx context.Context, id uuid.UUID) (*RateHistory, error) {
+	return c.Query().Where(ratehistory.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *RateHistoryClient) GetX(ctx context.Context, id uuid.UUID) *RateHistory {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *RateHistoryClient) Hooks() []Hook {
+	return c.hooks.RateHistory
+}
+
+// Interceptors returns the client interceptors.
+func (c *RateHistoryClient) Interceptors() []Interceptor {
+	return c.inters.RateHistory
+}
+
+func (c *RateHistoryClient) mutate(ctx context.Context, m *RateHistoryMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&RateHistoryCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&RateHistoryUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&RateHistoryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&RateHistoryDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown RateHistory mutation op: %q", m.Op())
+	}
+}
+
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Currency []ent.Hook
+		Currency, RateHistory []ent.Hook
 	}
 	inters struct {
-		Currency []ent.Interceptor
+		Currency, RateHistory []ent.Interceptor
 	}
 )

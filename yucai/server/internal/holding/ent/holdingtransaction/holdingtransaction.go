@@ -30,6 +30,8 @@ const (
 	FieldAmountCents = "amount_cents"
 	// FieldFeeCents holds the string denoting the fee_cents field in the database.
 	FieldFeeCents = "fee_cents"
+	// FieldRealizedPnlCents holds the string denoting the realized_pnl_cents field in the database.
+	FieldRealizedPnlCents = "realized_pnl_cents"
 	// FieldTradeDate holds the string denoting the trade_date field in the database.
 	FieldTradeDate = "trade_date"
 	// FieldTransactionID holds the string denoting the transaction_id field in the database.
@@ -53,6 +55,7 @@ var Columns = []string{
 	FieldPriceCents,
 	FieldAmountCents,
 	FieldFeeCents,
+	FieldRealizedPnlCents,
 	FieldTradeDate,
 	FieldTransactionID,
 	FieldNotes,
@@ -76,6 +79,8 @@ var (
 	DefaultAmountCents int64
 	// DefaultFeeCents holds the default value on creation for the "fee_cents" field.
 	DefaultFeeCents int64
+	// DefaultRealizedPnlCents holds the default value on creation for the "realized_pnl_cents" field.
+	DefaultRealizedPnlCents int64
 	// DefaultNotes holds the default value on creation for the "notes" field.
 	DefaultNotes string
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -130,6 +135,11 @@ func ByAmountCents(opts ...sql.OrderTermOption) OrderOption {
 // ByFeeCents orders the results by the fee_cents field.
 func ByFeeCents(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFeeCents, opts...).ToFunc()
+}
+
+// ByRealizedPnlCents orders the results by the realized_pnl_cents field.
+func ByRealizedPnlCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRealizedPnlCents, opts...).ToFunc()
 }
 
 // ByTradeDate orders the results by the trade_date field.

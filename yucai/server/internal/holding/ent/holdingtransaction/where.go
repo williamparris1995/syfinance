@@ -95,6 +95,11 @@ func FeeCents(v int64) predicate.HoldingTransaction {
 	return predicate.HoldingTransaction(sql.FieldEQ(FieldFeeCents, v))
 }
 
+// RealizedPnlCents applies equality check predicate on the "realized_pnl_cents" field. It's identical to RealizedPnlCentsEQ.
+func RealizedPnlCents(v int64) predicate.HoldingTransaction {
+	return predicate.HoldingTransaction(sql.FieldEQ(FieldRealizedPnlCents, v))
+}
+
 // TradeDate applies equality check predicate on the "trade_date" field. It's identical to TradeDateEQ.
 func TradeDate(v time.Time) predicate.HoldingTransaction {
 	return predicate.HoldingTransaction(sql.FieldEQ(FieldTradeDate, v))
@@ -458,6 +463,56 @@ func FeeCentsLT(v int64) predicate.HoldingTransaction {
 // FeeCentsLTE applies the LTE predicate on the "fee_cents" field.
 func FeeCentsLTE(v int64) predicate.HoldingTransaction {
 	return predicate.HoldingTransaction(sql.FieldLTE(FieldFeeCents, v))
+}
+
+// RealizedPnlCentsEQ applies the EQ predicate on the "realized_pnl_cents" field.
+func RealizedPnlCentsEQ(v int64) predicate.HoldingTransaction {
+	return predicate.HoldingTransaction(sql.FieldEQ(FieldRealizedPnlCents, v))
+}
+
+// RealizedPnlCentsNEQ applies the NEQ predicate on the "realized_pnl_cents" field.
+func RealizedPnlCentsNEQ(v int64) predicate.HoldingTransaction {
+	return predicate.HoldingTransaction(sql.FieldNEQ(FieldRealizedPnlCents, v))
+}
+
+// RealizedPnlCentsIn applies the In predicate on the "realized_pnl_cents" field.
+func RealizedPnlCentsIn(vs ...int64) predicate.HoldingTransaction {
+	return predicate.HoldingTransaction(sql.FieldIn(FieldRealizedPnlCents, vs...))
+}
+
+// RealizedPnlCentsNotIn applies the NotIn predicate on the "realized_pnl_cents" field.
+func RealizedPnlCentsNotIn(vs ...int64) predicate.HoldingTransaction {
+	return predicate.HoldingTransaction(sql.FieldNotIn(FieldRealizedPnlCents, vs...))
+}
+
+// RealizedPnlCentsGT applies the GT predicate on the "realized_pnl_cents" field.
+func RealizedPnlCentsGT(v int64) predicate.HoldingTransaction {
+	return predicate.HoldingTransaction(sql.FieldGT(FieldRealizedPnlCents, v))
+}
+
+// RealizedPnlCentsGTE applies the GTE predicate on the "realized_pnl_cents" field.
+func RealizedPnlCentsGTE(v int64) predicate.HoldingTransaction {
+	return predicate.HoldingTransaction(sql.FieldGTE(FieldRealizedPnlCents, v))
+}
+
+// RealizedPnlCentsLT applies the LT predicate on the "realized_pnl_cents" field.
+func RealizedPnlCentsLT(v int64) predicate.HoldingTransaction {
+	return predicate.HoldingTransaction(sql.FieldLT(FieldRealizedPnlCents, v))
+}
+
+// RealizedPnlCentsLTE applies the LTE predicate on the "realized_pnl_cents" field.
+func RealizedPnlCentsLTE(v int64) predicate.HoldingTransaction {
+	return predicate.HoldingTransaction(sql.FieldLTE(FieldRealizedPnlCents, v))
+}
+
+// RealizedPnlCentsIsNil applies the IsNil predicate on the "realized_pnl_cents" field.
+func RealizedPnlCentsIsNil() predicate.HoldingTransaction {
+	return predicate.HoldingTransaction(sql.FieldIsNull(FieldRealizedPnlCents))
+}
+
+// RealizedPnlCentsNotNil applies the NotNil predicate on the "realized_pnl_cents" field.
+func RealizedPnlCentsNotNil() predicate.HoldingTransaction {
+	return predicate.HoldingTransaction(sql.FieldNotNull(FieldRealizedPnlCents))
 }
 
 // TradeDateEQ applies the EQ predicate on the "trade_date" field.

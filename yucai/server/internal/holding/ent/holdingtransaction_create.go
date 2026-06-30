@@ -93,6 +93,20 @@ func (htc *HoldingTransactionCreate) SetNillableFeeCents(i *int64) *HoldingTrans
 	return htc
 }
 
+// SetRealizedPnlCents sets the "realized_pnl_cents" field.
+func (htc *HoldingTransactionCreate) SetRealizedPnlCents(i int64) *HoldingTransactionCreate {
+	htc.mutation.SetRealizedPnlCents(i)
+	return htc
+}
+
+// SetNillableRealizedPnlCents sets the "realized_pnl_cents" field if the given value is not nil.
+func (htc *HoldingTransactionCreate) SetNillableRealizedPnlCents(i *int64) *HoldingTransactionCreate {
+	if i != nil {
+		htc.SetRealizedPnlCents(*i)
+	}
+	return htc
+}
+
 // SetTradeDate sets the "trade_date" field.
 func (htc *HoldingTransactionCreate) SetTradeDate(t time.Time) *HoldingTransactionCreate {
 	htc.mutation.SetTradeDate(t)
@@ -201,6 +215,10 @@ func (htc *HoldingTransactionCreate) defaults() {
 	if _, ok := htc.mutation.FeeCents(); !ok {
 		v := holdingtransaction.DefaultFeeCents
 		htc.mutation.SetFeeCents(v)
+	}
+	if _, ok := htc.mutation.RealizedPnlCents(); !ok {
+		v := holdingtransaction.DefaultRealizedPnlCents
+		htc.mutation.SetRealizedPnlCents(v)
 	}
 	if _, ok := htc.mutation.Notes(); !ok {
 		v := holdingtransaction.DefaultNotes
@@ -314,6 +332,10 @@ func (htc *HoldingTransactionCreate) createSpec() (*HoldingTransaction, *sqlgrap
 	if value, ok := htc.mutation.FeeCents(); ok {
 		_spec.SetField(holdingtransaction.FieldFeeCents, field.TypeInt64, value)
 		_node.FeeCents = value
+	}
+	if value, ok := htc.mutation.RealizedPnlCents(); ok {
+		_spec.SetField(holdingtransaction.FieldRealizedPnlCents, field.TypeInt64, value)
+		_node.RealizedPnlCents = value
 	}
 	if value, ok := htc.mutation.TradeDate(); ok {
 		_spec.SetField(holdingtransaction.FieldTradeDate, field.TypeTime, value)

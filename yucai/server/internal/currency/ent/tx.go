@@ -14,6 +14,8 @@ type Tx struct {
 	config
 	// Currency is the client for interacting with the Currency builders.
 	Currency *CurrencyClient
+	// RateHistory is the client for interacting with the RateHistory builders.
+	RateHistory *RateHistoryClient
 
 	// lazily loaded.
 	client     *Client
@@ -146,6 +148,7 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.Currency = NewCurrencyClient(tx.config)
+	tx.RateHistory = NewRateHistoryClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

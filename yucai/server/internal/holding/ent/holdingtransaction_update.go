@@ -155,6 +155,33 @@ func (htu *HoldingTransactionUpdate) AddFeeCents(i int64) *HoldingTransactionUpd
 	return htu
 }
 
+// SetRealizedPnlCents sets the "realized_pnl_cents" field.
+func (htu *HoldingTransactionUpdate) SetRealizedPnlCents(i int64) *HoldingTransactionUpdate {
+	htu.mutation.ResetRealizedPnlCents()
+	htu.mutation.SetRealizedPnlCents(i)
+	return htu
+}
+
+// SetNillableRealizedPnlCents sets the "realized_pnl_cents" field if the given value is not nil.
+func (htu *HoldingTransactionUpdate) SetNillableRealizedPnlCents(i *int64) *HoldingTransactionUpdate {
+	if i != nil {
+		htu.SetRealizedPnlCents(*i)
+	}
+	return htu
+}
+
+// AddRealizedPnlCents adds i to the "realized_pnl_cents" field.
+func (htu *HoldingTransactionUpdate) AddRealizedPnlCents(i int64) *HoldingTransactionUpdate {
+	htu.mutation.AddRealizedPnlCents(i)
+	return htu
+}
+
+// ClearRealizedPnlCents clears the value of the "realized_pnl_cents" field.
+func (htu *HoldingTransactionUpdate) ClearRealizedPnlCents() *HoldingTransactionUpdate {
+	htu.mutation.ClearRealizedPnlCents()
+	return htu
+}
+
 // SetTradeDate sets the "trade_date" field.
 func (htu *HoldingTransactionUpdate) SetTradeDate(t time.Time) *HoldingTransactionUpdate {
 	htu.mutation.SetTradeDate(t)
@@ -282,6 +309,15 @@ func (htu *HoldingTransactionUpdate) sqlSave(ctx context.Context) (n int, err er
 	}
 	if value, ok := htu.mutation.AddedFeeCents(); ok {
 		_spec.AddField(holdingtransaction.FieldFeeCents, field.TypeInt64, value)
+	}
+	if value, ok := htu.mutation.RealizedPnlCents(); ok {
+		_spec.SetField(holdingtransaction.FieldRealizedPnlCents, field.TypeInt64, value)
+	}
+	if value, ok := htu.mutation.AddedRealizedPnlCents(); ok {
+		_spec.AddField(holdingtransaction.FieldRealizedPnlCents, field.TypeInt64, value)
+	}
+	if htu.mutation.RealizedPnlCentsCleared() {
+		_spec.ClearField(holdingtransaction.FieldRealizedPnlCents, field.TypeInt64)
 	}
 	if value, ok := htu.mutation.TradeDate(); ok {
 		_spec.SetField(holdingtransaction.FieldTradeDate, field.TypeTime, value)
@@ -444,6 +480,33 @@ func (htuo *HoldingTransactionUpdateOne) AddFeeCents(i int64) *HoldingTransactio
 	return htuo
 }
 
+// SetRealizedPnlCents sets the "realized_pnl_cents" field.
+func (htuo *HoldingTransactionUpdateOne) SetRealizedPnlCents(i int64) *HoldingTransactionUpdateOne {
+	htuo.mutation.ResetRealizedPnlCents()
+	htuo.mutation.SetRealizedPnlCents(i)
+	return htuo
+}
+
+// SetNillableRealizedPnlCents sets the "realized_pnl_cents" field if the given value is not nil.
+func (htuo *HoldingTransactionUpdateOne) SetNillableRealizedPnlCents(i *int64) *HoldingTransactionUpdateOne {
+	if i != nil {
+		htuo.SetRealizedPnlCents(*i)
+	}
+	return htuo
+}
+
+// AddRealizedPnlCents adds i to the "realized_pnl_cents" field.
+func (htuo *HoldingTransactionUpdateOne) AddRealizedPnlCents(i int64) *HoldingTransactionUpdateOne {
+	htuo.mutation.AddRealizedPnlCents(i)
+	return htuo
+}
+
+// ClearRealizedPnlCents clears the value of the "realized_pnl_cents" field.
+func (htuo *HoldingTransactionUpdateOne) ClearRealizedPnlCents() *HoldingTransactionUpdateOne {
+	htuo.mutation.ClearRealizedPnlCents()
+	return htuo
+}
+
 // SetTradeDate sets the "trade_date" field.
 func (htuo *HoldingTransactionUpdateOne) SetTradeDate(t time.Time) *HoldingTransactionUpdateOne {
 	htuo.mutation.SetTradeDate(t)
@@ -601,6 +664,15 @@ func (htuo *HoldingTransactionUpdateOne) sqlSave(ctx context.Context) (_node *Ho
 	}
 	if value, ok := htuo.mutation.AddedFeeCents(); ok {
 		_spec.AddField(holdingtransaction.FieldFeeCents, field.TypeInt64, value)
+	}
+	if value, ok := htuo.mutation.RealizedPnlCents(); ok {
+		_spec.SetField(holdingtransaction.FieldRealizedPnlCents, field.TypeInt64, value)
+	}
+	if value, ok := htuo.mutation.AddedRealizedPnlCents(); ok {
+		_spec.AddField(holdingtransaction.FieldRealizedPnlCents, field.TypeInt64, value)
+	}
+	if htuo.mutation.RealizedPnlCentsCleared() {
+		_spec.ClearField(holdingtransaction.FieldRealizedPnlCents, field.TypeInt64)
 	}
 	if value, ok := htuo.mutation.TradeDate(); ok {
 		_spec.SetField(holdingtransaction.FieldTradeDate, field.TypeTime, value)

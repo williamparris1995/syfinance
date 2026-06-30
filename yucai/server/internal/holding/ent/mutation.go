@@ -13,9 +13,12 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/holding/ent/holding"
+	"github.com/yucai/server/internal/holding/ent/holdinglot"
+	"github.com/yucai/server/internal/holding/ent/holdingsnapshot"
 	"github.com/yucai/server/internal/holding/ent/holdingtransaction"
 	"github.com/yucai/server/internal/holding/ent/predicate"
 	"github.com/yucai/server/internal/holding/ent/security"
+	"github.com/yucai/server/internal/holding/ent/securitypricehistory"
 )
 
 const (
@@ -27,9 +30,12 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeHolding            = "Holding"
-	TypeHoldingTransaction = "HoldingTransaction"
-	TypeSecurity           = "Security"
+	TypeHolding              = "Holding"
+	TypeHoldingLot           = "HoldingLot"
+	TypeHoldingSnapshot      = "HoldingSnapshot"
+	TypeHoldingTransaction   = "HoldingTransaction"
+	TypeSecurity             = "Security"
+	TypeSecurityPriceHistory = "SecurityPriceHistory"
 )
 
 // HoldingMutation represents an operation that mutates the Holding nodes in the graph.
@@ -844,32 +850,1733 @@ func (m *HoldingMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Holding edge %s", name)
 }
 
+// HoldingLotMutation represents an operation that mutates the HoldingLot nodes in the graph.
+type HoldingLotMutation struct {
+	config
+	op                    Op
+	typ                   string
+	id                    *uuid.UUID
+	tenant_id             *uuid.UUID
+	holding_id            *uuid.UUID
+	security_id           *uuid.UUID
+	acquired_date         *time.Time
+	acquired_trade_id     *uuid.UUID
+	price_cents           *int64
+	addprice_cents        *int64
+	quantity              *float64
+	addquantity           *float64
+	remaining_quantity    *float64
+	addremaining_quantity *float64
+	created_at            *time.Time
+	clearedFields         map[string]struct{}
+	done                  bool
+	oldValue              func(context.Context) (*HoldingLot, error)
+	predicates            []predicate.HoldingLot
+}
+
+var _ ent.Mutation = (*HoldingLotMutation)(nil)
+
+// holdinglotOption allows management of the mutation configuration using functional options.
+type holdinglotOption func(*HoldingLotMutation)
+
+// newHoldingLotMutation creates new mutation for the HoldingLot entity.
+func newHoldingLotMutation(c config, op Op, opts ...holdinglotOption) *HoldingLotMutation {
+	m := &HoldingLotMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeHoldingLot,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withHoldingLotID sets the ID field of the mutation.
+func withHoldingLotID(id uuid.UUID) holdinglotOption {
+	return func(m *HoldingLotMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *HoldingLot
+		)
+		m.oldValue = func(ctx context.Context) (*HoldingLot, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().HoldingLot.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withHoldingLot sets the old HoldingLot of the mutation.
+func withHoldingLot(node *HoldingLot) holdinglotOption {
+	return func(m *HoldingLotMutation) {
+		m.oldValue = func(context.Context) (*HoldingLot, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m HoldingLotMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m HoldingLotMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of HoldingLot entities.
+func (m *HoldingLotMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *HoldingLotMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *HoldingLotMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().HoldingLot.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *HoldingLotMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *HoldingLotMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the HoldingLot entity.
+// If the HoldingLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HoldingLotMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *HoldingLotMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetHoldingID sets the "holding_id" field.
+func (m *HoldingLotMutation) SetHoldingID(u uuid.UUID) {
+	m.holding_id = &u
+}
+
+// HoldingID returns the value of the "holding_id" field in the mutation.
+func (m *HoldingLotMutation) HoldingID() (r uuid.UUID, exists bool) {
+	v := m.holding_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHoldingID returns the old "holding_id" field's value of the HoldingLot entity.
+// If the HoldingLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HoldingLotMutation) OldHoldingID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHoldingID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHoldingID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHoldingID: %w", err)
+	}
+	return oldValue.HoldingID, nil
+}
+
+// ResetHoldingID resets all changes to the "holding_id" field.
+func (m *HoldingLotMutation) ResetHoldingID() {
+	m.holding_id = nil
+}
+
+// SetSecurityID sets the "security_id" field.
+func (m *HoldingLotMutation) SetSecurityID(u uuid.UUID) {
+	m.security_id = &u
+}
+
+// SecurityID returns the value of the "security_id" field in the mutation.
+func (m *HoldingLotMutation) SecurityID() (r uuid.UUID, exists bool) {
+	v := m.security_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSecurityID returns the old "security_id" field's value of the HoldingLot entity.
+// If the HoldingLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HoldingLotMutation) OldSecurityID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSecurityID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSecurityID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSecurityID: %w", err)
+	}
+	return oldValue.SecurityID, nil
+}
+
+// ResetSecurityID resets all changes to the "security_id" field.
+func (m *HoldingLotMutation) ResetSecurityID() {
+	m.security_id = nil
+}
+
+// SetAcquiredDate sets the "acquired_date" field.
+func (m *HoldingLotMutation) SetAcquiredDate(t time.Time) {
+	m.acquired_date = &t
+}
+
+// AcquiredDate returns the value of the "acquired_date" field in the mutation.
+func (m *HoldingLotMutation) AcquiredDate() (r time.Time, exists bool) {
+	v := m.acquired_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAcquiredDate returns the old "acquired_date" field's value of the HoldingLot entity.
+// If the HoldingLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HoldingLotMutation) OldAcquiredDate(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAcquiredDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAcquiredDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAcquiredDate: %w", err)
+	}
+	return oldValue.AcquiredDate, nil
+}
+
+// ResetAcquiredDate resets all changes to the "acquired_date" field.
+func (m *HoldingLotMutation) ResetAcquiredDate() {
+	m.acquired_date = nil
+}
+
+// SetAcquiredTradeID sets the "acquired_trade_id" field.
+func (m *HoldingLotMutation) SetAcquiredTradeID(u uuid.UUID) {
+	m.acquired_trade_id = &u
+}
+
+// AcquiredTradeID returns the value of the "acquired_trade_id" field in the mutation.
+func (m *HoldingLotMutation) AcquiredTradeID() (r uuid.UUID, exists bool) {
+	v := m.acquired_trade_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAcquiredTradeID returns the old "acquired_trade_id" field's value of the HoldingLot entity.
+// If the HoldingLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HoldingLotMutation) OldAcquiredTradeID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAcquiredTradeID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAcquiredTradeID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAcquiredTradeID: %w", err)
+	}
+	return oldValue.AcquiredTradeID, nil
+}
+
+// ResetAcquiredTradeID resets all changes to the "acquired_trade_id" field.
+func (m *HoldingLotMutation) ResetAcquiredTradeID() {
+	m.acquired_trade_id = nil
+}
+
+// SetPriceCents sets the "price_cents" field.
+func (m *HoldingLotMutation) SetPriceCents(i int64) {
+	m.price_cents = &i
+	m.addprice_cents = nil
+}
+
+// PriceCents returns the value of the "price_cents" field in the mutation.
+func (m *HoldingLotMutation) PriceCents() (r int64, exists bool) {
+	v := m.price_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPriceCents returns the old "price_cents" field's value of the HoldingLot entity.
+// If the HoldingLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HoldingLotMutation) OldPriceCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPriceCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPriceCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPriceCents: %w", err)
+	}
+	return oldValue.PriceCents, nil
+}
+
+// AddPriceCents adds i to the "price_cents" field.
+func (m *HoldingLotMutation) AddPriceCents(i int64) {
+	if m.addprice_cents != nil {
+		*m.addprice_cents += i
+	} else {
+		m.addprice_cents = &i
+	}
+}
+
+// AddedPriceCents returns the value that was added to the "price_cents" field in this mutation.
+func (m *HoldingLotMutation) AddedPriceCents() (r int64, exists bool) {
+	v := m.addprice_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPriceCents resets all changes to the "price_cents" field.
+func (m *HoldingLotMutation) ResetPriceCents() {
+	m.price_cents = nil
+	m.addprice_cents = nil
+}
+
+// SetQuantity sets the "quantity" field.
+func (m *HoldingLotMutation) SetQuantity(f float64) {
+	m.quantity = &f
+	m.addquantity = nil
+}
+
+// Quantity returns the value of the "quantity" field in the mutation.
+func (m *HoldingLotMutation) Quantity() (r float64, exists bool) {
+	v := m.quantity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldQuantity returns the old "quantity" field's value of the HoldingLot entity.
+// If the HoldingLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HoldingLotMutation) OldQuantity(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldQuantity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldQuantity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldQuantity: %w", err)
+	}
+	return oldValue.Quantity, nil
+}
+
+// AddQuantity adds f to the "quantity" field.
+func (m *HoldingLotMutation) AddQuantity(f float64) {
+	if m.addquantity != nil {
+		*m.addquantity += f
+	} else {
+		m.addquantity = &f
+	}
+}
+
+// AddedQuantity returns the value that was added to the "quantity" field in this mutation.
+func (m *HoldingLotMutation) AddedQuantity() (r float64, exists bool) {
+	v := m.addquantity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetQuantity resets all changes to the "quantity" field.
+func (m *HoldingLotMutation) ResetQuantity() {
+	m.quantity = nil
+	m.addquantity = nil
+}
+
+// SetRemainingQuantity sets the "remaining_quantity" field.
+func (m *HoldingLotMutation) SetRemainingQuantity(f float64) {
+	m.remaining_quantity = &f
+	m.addremaining_quantity = nil
+}
+
+// RemainingQuantity returns the value of the "remaining_quantity" field in the mutation.
+func (m *HoldingLotMutation) RemainingQuantity() (r float64, exists bool) {
+	v := m.remaining_quantity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRemainingQuantity returns the old "remaining_quantity" field's value of the HoldingLot entity.
+// If the HoldingLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HoldingLotMutation) OldRemainingQuantity(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRemainingQuantity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRemainingQuantity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRemainingQuantity: %w", err)
+	}
+	return oldValue.RemainingQuantity, nil
+}
+
+// AddRemainingQuantity adds f to the "remaining_quantity" field.
+func (m *HoldingLotMutation) AddRemainingQuantity(f float64) {
+	if m.addremaining_quantity != nil {
+		*m.addremaining_quantity += f
+	} else {
+		m.addremaining_quantity = &f
+	}
+}
+
+// AddedRemainingQuantity returns the value that was added to the "remaining_quantity" field in this mutation.
+func (m *HoldingLotMutation) AddedRemainingQuantity() (r float64, exists bool) {
+	v := m.addremaining_quantity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRemainingQuantity resets all changes to the "remaining_quantity" field.
+func (m *HoldingLotMutation) ResetRemainingQuantity() {
+	m.remaining_quantity = nil
+	m.addremaining_quantity = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *HoldingLotMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *HoldingLotMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the HoldingLot entity.
+// If the HoldingLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HoldingLotMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *HoldingLotMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the HoldingLotMutation builder.
+func (m *HoldingLotMutation) Where(ps ...predicate.HoldingLot) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the HoldingLotMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *HoldingLotMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.HoldingLot, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *HoldingLotMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *HoldingLotMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (HoldingLot).
+func (m *HoldingLotMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *HoldingLotMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.tenant_id != nil {
+		fields = append(fields, holdinglot.FieldTenantID)
+	}
+	if m.holding_id != nil {
+		fields = append(fields, holdinglot.FieldHoldingID)
+	}
+	if m.security_id != nil {
+		fields = append(fields, holdinglot.FieldSecurityID)
+	}
+	if m.acquired_date != nil {
+		fields = append(fields, holdinglot.FieldAcquiredDate)
+	}
+	if m.acquired_trade_id != nil {
+		fields = append(fields, holdinglot.FieldAcquiredTradeID)
+	}
+	if m.price_cents != nil {
+		fields = append(fields, holdinglot.FieldPriceCents)
+	}
+	if m.quantity != nil {
+		fields = append(fields, holdinglot.FieldQuantity)
+	}
+	if m.remaining_quantity != nil {
+		fields = append(fields, holdinglot.FieldRemainingQuantity)
+	}
+	if m.created_at != nil {
+		fields = append(fields, holdinglot.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *HoldingLotMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case holdinglot.FieldTenantID:
+		return m.TenantID()
+	case holdinglot.FieldHoldingID:
+		return m.HoldingID()
+	case holdinglot.FieldSecurityID:
+		return m.SecurityID()
+	case holdinglot.FieldAcquiredDate:
+		return m.AcquiredDate()
+	case holdinglot.FieldAcquiredTradeID:
+		return m.AcquiredTradeID()
+	case holdinglot.FieldPriceCents:
+		return m.PriceCents()
+	case holdinglot.FieldQuantity:
+		return m.Quantity()
+	case holdinglot.FieldRemainingQuantity:
+		return m.RemainingQuantity()
+	case holdinglot.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *HoldingLotMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case holdinglot.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case holdinglot.FieldHoldingID:
+		return m.OldHoldingID(ctx)
+	case holdinglot.FieldSecurityID:
+		return m.OldSecurityID(ctx)
+	case holdinglot.FieldAcquiredDate:
+		return m.OldAcquiredDate(ctx)
+	case holdinglot.FieldAcquiredTradeID:
+		return m.OldAcquiredTradeID(ctx)
+	case holdinglot.FieldPriceCents:
+		return m.OldPriceCents(ctx)
+	case holdinglot.FieldQuantity:
+		return m.OldQuantity(ctx)
+	case holdinglot.FieldRemainingQuantity:
+		return m.OldRemainingQuantity(ctx)
+	case holdinglot.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown HoldingLot field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *HoldingLotMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case holdinglot.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case holdinglot.FieldHoldingID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHoldingID(v)
+		return nil
+	case holdinglot.FieldSecurityID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSecurityID(v)
+		return nil
+	case holdinglot.FieldAcquiredDate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAcquiredDate(v)
+		return nil
+	case holdinglot.FieldAcquiredTradeID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAcquiredTradeID(v)
+		return nil
+	case holdinglot.FieldPriceCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPriceCents(v)
+		return nil
+	case holdinglot.FieldQuantity:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQuantity(v)
+		return nil
+	case holdinglot.FieldRemainingQuantity:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRemainingQuantity(v)
+		return nil
+	case holdinglot.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown HoldingLot field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *HoldingLotMutation) AddedFields() []string {
+	var fields []string
+	if m.addprice_cents != nil {
+		fields = append(fields, holdinglot.FieldPriceCents)
+	}
+	if m.addquantity != nil {
+		fields = append(fields, holdinglot.FieldQuantity)
+	}
+	if m.addremaining_quantity != nil {
+		fields = append(fields, holdinglot.FieldRemainingQuantity)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *HoldingLotMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case holdinglot.FieldPriceCents:
+		return m.AddedPriceCents()
+	case holdinglot.FieldQuantity:
+		return m.AddedQuantity()
+	case holdinglot.FieldRemainingQuantity:
+		return m.AddedRemainingQuantity()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *HoldingLotMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case holdinglot.FieldPriceCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPriceCents(v)
+		return nil
+	case holdinglot.FieldQuantity:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddQuantity(v)
+		return nil
+	case holdinglot.FieldRemainingQuantity:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRemainingQuantity(v)
+		return nil
+	}
+	return fmt.Errorf("unknown HoldingLot numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *HoldingLotMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *HoldingLotMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *HoldingLotMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown HoldingLot nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *HoldingLotMutation) ResetField(name string) error {
+	switch name {
+	case holdinglot.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case holdinglot.FieldHoldingID:
+		m.ResetHoldingID()
+		return nil
+	case holdinglot.FieldSecurityID:
+		m.ResetSecurityID()
+		return nil
+	case holdinglot.FieldAcquiredDate:
+		m.ResetAcquiredDate()
+		return nil
+	case holdinglot.FieldAcquiredTradeID:
+		m.ResetAcquiredTradeID()
+		return nil
+	case holdinglot.FieldPriceCents:
+		m.ResetPriceCents()
+		return nil
+	case holdinglot.FieldQuantity:
+		m.ResetQuantity()
+		return nil
+	case holdinglot.FieldRemainingQuantity:
+		m.ResetRemainingQuantity()
+		return nil
+	case holdinglot.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown HoldingLot field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *HoldingLotMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *HoldingLotMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *HoldingLotMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *HoldingLotMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *HoldingLotMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *HoldingLotMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *HoldingLotMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown HoldingLot unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *HoldingLotMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown HoldingLot edge %s", name)
+}
+
+// HoldingSnapshotMutation represents an operation that mutates the HoldingSnapshot nodes in the graph.
+type HoldingSnapshotMutation struct {
+	config
+	op                      Op
+	typ                     string
+	id                      *uuid.UUID
+	tenant_id               *uuid.UUID
+	holding_id              *uuid.UUID
+	security_id             *uuid.UUID
+	account_id              *uuid.UUID
+	snapshot_date           *time.Time
+	market_value_cents      *int64
+	addmarket_value_cents   *int64
+	unrealized_pnl_cents    *int64
+	addunrealized_pnl_cents *int64
+	currency_code           *string
+	created_at              *time.Time
+	clearedFields           map[string]struct{}
+	done                    bool
+	oldValue                func(context.Context) (*HoldingSnapshot, error)
+	predicates              []predicate.HoldingSnapshot
+}
+
+var _ ent.Mutation = (*HoldingSnapshotMutation)(nil)
+
+// holdingsnapshotOption allows management of the mutation configuration using functional options.
+type holdingsnapshotOption func(*HoldingSnapshotMutation)
+
+// newHoldingSnapshotMutation creates new mutation for the HoldingSnapshot entity.
+func newHoldingSnapshotMutation(c config, op Op, opts ...holdingsnapshotOption) *HoldingSnapshotMutation {
+	m := &HoldingSnapshotMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeHoldingSnapshot,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withHoldingSnapshotID sets the ID field of the mutation.
+func withHoldingSnapshotID(id uuid.UUID) holdingsnapshotOption {
+	return func(m *HoldingSnapshotMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *HoldingSnapshot
+		)
+		m.oldValue = func(ctx context.Context) (*HoldingSnapshot, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().HoldingSnapshot.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withHoldingSnapshot sets the old HoldingSnapshot of the mutation.
+func withHoldingSnapshot(node *HoldingSnapshot) holdingsnapshotOption {
+	return func(m *HoldingSnapshotMutation) {
+		m.oldValue = func(context.Context) (*HoldingSnapshot, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m HoldingSnapshotMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m HoldingSnapshotMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of HoldingSnapshot entities.
+func (m *HoldingSnapshotMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *HoldingSnapshotMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *HoldingSnapshotMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().HoldingSnapshot.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *HoldingSnapshotMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *HoldingSnapshotMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the HoldingSnapshot entity.
+// If the HoldingSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HoldingSnapshotMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *HoldingSnapshotMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetHoldingID sets the "holding_id" field.
+func (m *HoldingSnapshotMutation) SetHoldingID(u uuid.UUID) {
+	m.holding_id = &u
+}
+
+// HoldingID returns the value of the "holding_id" field in the mutation.
+func (m *HoldingSnapshotMutation) HoldingID() (r uuid.UUID, exists bool) {
+	v := m.holding_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHoldingID returns the old "holding_id" field's value of the HoldingSnapshot entity.
+// If the HoldingSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HoldingSnapshotMutation) OldHoldingID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHoldingID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHoldingID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHoldingID: %w", err)
+	}
+	return oldValue.HoldingID, nil
+}
+
+// ResetHoldingID resets all changes to the "holding_id" field.
+func (m *HoldingSnapshotMutation) ResetHoldingID() {
+	m.holding_id = nil
+}
+
+// SetSecurityID sets the "security_id" field.
+func (m *HoldingSnapshotMutation) SetSecurityID(u uuid.UUID) {
+	m.security_id = &u
+}
+
+// SecurityID returns the value of the "security_id" field in the mutation.
+func (m *HoldingSnapshotMutation) SecurityID() (r uuid.UUID, exists bool) {
+	v := m.security_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSecurityID returns the old "security_id" field's value of the HoldingSnapshot entity.
+// If the HoldingSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HoldingSnapshotMutation) OldSecurityID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSecurityID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSecurityID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSecurityID: %w", err)
+	}
+	return oldValue.SecurityID, nil
+}
+
+// ResetSecurityID resets all changes to the "security_id" field.
+func (m *HoldingSnapshotMutation) ResetSecurityID() {
+	m.security_id = nil
+}
+
+// SetAccountID sets the "account_id" field.
+func (m *HoldingSnapshotMutation) SetAccountID(u uuid.UUID) {
+	m.account_id = &u
+}
+
+// AccountID returns the value of the "account_id" field in the mutation.
+func (m *HoldingSnapshotMutation) AccountID() (r uuid.UUID, exists bool) {
+	v := m.account_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountID returns the old "account_id" field's value of the HoldingSnapshot entity.
+// If the HoldingSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HoldingSnapshotMutation) OldAccountID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountID: %w", err)
+	}
+	return oldValue.AccountID, nil
+}
+
+// ResetAccountID resets all changes to the "account_id" field.
+func (m *HoldingSnapshotMutation) ResetAccountID() {
+	m.account_id = nil
+}
+
+// SetSnapshotDate sets the "snapshot_date" field.
+func (m *HoldingSnapshotMutation) SetSnapshotDate(t time.Time) {
+	m.snapshot_date = &t
+}
+
+// SnapshotDate returns the value of the "snapshot_date" field in the mutation.
+func (m *HoldingSnapshotMutation) SnapshotDate() (r time.Time, exists bool) {
+	v := m.snapshot_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSnapshotDate returns the old "snapshot_date" field's value of the HoldingSnapshot entity.
+// If the HoldingSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HoldingSnapshotMutation) OldSnapshotDate(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSnapshotDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSnapshotDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSnapshotDate: %w", err)
+	}
+	return oldValue.SnapshotDate, nil
+}
+
+// ResetSnapshotDate resets all changes to the "snapshot_date" field.
+func (m *HoldingSnapshotMutation) ResetSnapshotDate() {
+	m.snapshot_date = nil
+}
+
+// SetMarketValueCents sets the "market_value_cents" field.
+func (m *HoldingSnapshotMutation) SetMarketValueCents(i int64) {
+	m.market_value_cents = &i
+	m.addmarket_value_cents = nil
+}
+
+// MarketValueCents returns the value of the "market_value_cents" field in the mutation.
+func (m *HoldingSnapshotMutation) MarketValueCents() (r int64, exists bool) {
+	v := m.market_value_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMarketValueCents returns the old "market_value_cents" field's value of the HoldingSnapshot entity.
+// If the HoldingSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HoldingSnapshotMutation) OldMarketValueCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMarketValueCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMarketValueCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMarketValueCents: %w", err)
+	}
+	return oldValue.MarketValueCents, nil
+}
+
+// AddMarketValueCents adds i to the "market_value_cents" field.
+func (m *HoldingSnapshotMutation) AddMarketValueCents(i int64) {
+	if m.addmarket_value_cents != nil {
+		*m.addmarket_value_cents += i
+	} else {
+		m.addmarket_value_cents = &i
+	}
+}
+
+// AddedMarketValueCents returns the value that was added to the "market_value_cents" field in this mutation.
+func (m *HoldingSnapshotMutation) AddedMarketValueCents() (r int64, exists bool) {
+	v := m.addmarket_value_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMarketValueCents resets all changes to the "market_value_cents" field.
+func (m *HoldingSnapshotMutation) ResetMarketValueCents() {
+	m.market_value_cents = nil
+	m.addmarket_value_cents = nil
+}
+
+// SetUnrealizedPnlCents sets the "unrealized_pnl_cents" field.
+func (m *HoldingSnapshotMutation) SetUnrealizedPnlCents(i int64) {
+	m.unrealized_pnl_cents = &i
+	m.addunrealized_pnl_cents = nil
+}
+
+// UnrealizedPnlCents returns the value of the "unrealized_pnl_cents" field in the mutation.
+func (m *HoldingSnapshotMutation) UnrealizedPnlCents() (r int64, exists bool) {
+	v := m.unrealized_pnl_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUnrealizedPnlCents returns the old "unrealized_pnl_cents" field's value of the HoldingSnapshot entity.
+// If the HoldingSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HoldingSnapshotMutation) OldUnrealizedPnlCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUnrealizedPnlCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUnrealizedPnlCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUnrealizedPnlCents: %w", err)
+	}
+	return oldValue.UnrealizedPnlCents, nil
+}
+
+// AddUnrealizedPnlCents adds i to the "unrealized_pnl_cents" field.
+func (m *HoldingSnapshotMutation) AddUnrealizedPnlCents(i int64) {
+	if m.addunrealized_pnl_cents != nil {
+		*m.addunrealized_pnl_cents += i
+	} else {
+		m.addunrealized_pnl_cents = &i
+	}
+}
+
+// AddedUnrealizedPnlCents returns the value that was added to the "unrealized_pnl_cents" field in this mutation.
+func (m *HoldingSnapshotMutation) AddedUnrealizedPnlCents() (r int64, exists bool) {
+	v := m.addunrealized_pnl_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUnrealizedPnlCents resets all changes to the "unrealized_pnl_cents" field.
+func (m *HoldingSnapshotMutation) ResetUnrealizedPnlCents() {
+	m.unrealized_pnl_cents = nil
+	m.addunrealized_pnl_cents = nil
+}
+
+// SetCurrencyCode sets the "currency_code" field.
+func (m *HoldingSnapshotMutation) SetCurrencyCode(s string) {
+	m.currency_code = &s
+}
+
+// CurrencyCode returns the value of the "currency_code" field in the mutation.
+func (m *HoldingSnapshotMutation) CurrencyCode() (r string, exists bool) {
+	v := m.currency_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrencyCode returns the old "currency_code" field's value of the HoldingSnapshot entity.
+// If the HoldingSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HoldingSnapshotMutation) OldCurrencyCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrencyCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrencyCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrencyCode: %w", err)
+	}
+	return oldValue.CurrencyCode, nil
+}
+
+// ResetCurrencyCode resets all changes to the "currency_code" field.
+func (m *HoldingSnapshotMutation) ResetCurrencyCode() {
+	m.currency_code = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *HoldingSnapshotMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *HoldingSnapshotMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the HoldingSnapshot entity.
+// If the HoldingSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HoldingSnapshotMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *HoldingSnapshotMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the HoldingSnapshotMutation builder.
+func (m *HoldingSnapshotMutation) Where(ps ...predicate.HoldingSnapshot) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the HoldingSnapshotMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *HoldingSnapshotMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.HoldingSnapshot, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *HoldingSnapshotMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *HoldingSnapshotMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (HoldingSnapshot).
+func (m *HoldingSnapshotMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *HoldingSnapshotMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.tenant_id != nil {
+		fields = append(fields, holdingsnapshot.FieldTenantID)
+	}
+	if m.holding_id != nil {
+		fields = append(fields, holdingsnapshot.FieldHoldingID)
+	}
+	if m.security_id != nil {
+		fields = append(fields, holdingsnapshot.FieldSecurityID)
+	}
+	if m.account_id != nil {
+		fields = append(fields, holdingsnapshot.FieldAccountID)
+	}
+	if m.snapshot_date != nil {
+		fields = append(fields, holdingsnapshot.FieldSnapshotDate)
+	}
+	if m.market_value_cents != nil {
+		fields = append(fields, holdingsnapshot.FieldMarketValueCents)
+	}
+	if m.unrealized_pnl_cents != nil {
+		fields = append(fields, holdingsnapshot.FieldUnrealizedPnlCents)
+	}
+	if m.currency_code != nil {
+		fields = append(fields, holdingsnapshot.FieldCurrencyCode)
+	}
+	if m.created_at != nil {
+		fields = append(fields, holdingsnapshot.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *HoldingSnapshotMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case holdingsnapshot.FieldTenantID:
+		return m.TenantID()
+	case holdingsnapshot.FieldHoldingID:
+		return m.HoldingID()
+	case holdingsnapshot.FieldSecurityID:
+		return m.SecurityID()
+	case holdingsnapshot.FieldAccountID:
+		return m.AccountID()
+	case holdingsnapshot.FieldSnapshotDate:
+		return m.SnapshotDate()
+	case holdingsnapshot.FieldMarketValueCents:
+		return m.MarketValueCents()
+	case holdingsnapshot.FieldUnrealizedPnlCents:
+		return m.UnrealizedPnlCents()
+	case holdingsnapshot.FieldCurrencyCode:
+		return m.CurrencyCode()
+	case holdingsnapshot.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *HoldingSnapshotMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case holdingsnapshot.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case holdingsnapshot.FieldHoldingID:
+		return m.OldHoldingID(ctx)
+	case holdingsnapshot.FieldSecurityID:
+		return m.OldSecurityID(ctx)
+	case holdingsnapshot.FieldAccountID:
+		return m.OldAccountID(ctx)
+	case holdingsnapshot.FieldSnapshotDate:
+		return m.OldSnapshotDate(ctx)
+	case holdingsnapshot.FieldMarketValueCents:
+		return m.OldMarketValueCents(ctx)
+	case holdingsnapshot.FieldUnrealizedPnlCents:
+		return m.OldUnrealizedPnlCents(ctx)
+	case holdingsnapshot.FieldCurrencyCode:
+		return m.OldCurrencyCode(ctx)
+	case holdingsnapshot.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown HoldingSnapshot field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *HoldingSnapshotMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case holdingsnapshot.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case holdingsnapshot.FieldHoldingID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHoldingID(v)
+		return nil
+	case holdingsnapshot.FieldSecurityID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSecurityID(v)
+		return nil
+	case holdingsnapshot.FieldAccountID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountID(v)
+		return nil
+	case holdingsnapshot.FieldSnapshotDate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSnapshotDate(v)
+		return nil
+	case holdingsnapshot.FieldMarketValueCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMarketValueCents(v)
+		return nil
+	case holdingsnapshot.FieldUnrealizedPnlCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUnrealizedPnlCents(v)
+		return nil
+	case holdingsnapshot.FieldCurrencyCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrencyCode(v)
+		return nil
+	case holdingsnapshot.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown HoldingSnapshot field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *HoldingSnapshotMutation) AddedFields() []string {
+	var fields []string
+	if m.addmarket_value_cents != nil {
+		fields = append(fields, holdingsnapshot.FieldMarketValueCents)
+	}
+	if m.addunrealized_pnl_cents != nil {
+		fields = append(fields, holdingsnapshot.FieldUnrealizedPnlCents)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *HoldingSnapshotMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case holdingsnapshot.FieldMarketValueCents:
+		return m.AddedMarketValueCents()
+	case holdingsnapshot.FieldUnrealizedPnlCents:
+		return m.AddedUnrealizedPnlCents()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *HoldingSnapshotMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case holdingsnapshot.FieldMarketValueCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMarketValueCents(v)
+		return nil
+	case holdingsnapshot.FieldUnrealizedPnlCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUnrealizedPnlCents(v)
+		return nil
+	}
+	return fmt.Errorf("unknown HoldingSnapshot numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *HoldingSnapshotMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *HoldingSnapshotMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *HoldingSnapshotMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown HoldingSnapshot nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *HoldingSnapshotMutation) ResetField(name string) error {
+	switch name {
+	case holdingsnapshot.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case holdingsnapshot.FieldHoldingID:
+		m.ResetHoldingID()
+		return nil
+	case holdingsnapshot.FieldSecurityID:
+		m.ResetSecurityID()
+		return nil
+	case holdingsnapshot.FieldAccountID:
+		m.ResetAccountID()
+		return nil
+	case holdingsnapshot.FieldSnapshotDate:
+		m.ResetSnapshotDate()
+		return nil
+	case holdingsnapshot.FieldMarketValueCents:
+		m.ResetMarketValueCents()
+		return nil
+	case holdingsnapshot.FieldUnrealizedPnlCents:
+		m.ResetUnrealizedPnlCents()
+		return nil
+	case holdingsnapshot.FieldCurrencyCode:
+		m.ResetCurrencyCode()
+		return nil
+	case holdingsnapshot.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown HoldingSnapshot field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *HoldingSnapshotMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *HoldingSnapshotMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *HoldingSnapshotMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *HoldingSnapshotMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *HoldingSnapshotMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *HoldingSnapshotMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *HoldingSnapshotMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown HoldingSnapshot unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *HoldingSnapshotMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown HoldingSnapshot edge %s", name)
+}
+
 // HoldingTransactionMutation represents an operation that mutates the HoldingTransaction nodes in the graph.
 type HoldingTransactionMutation struct {
 	config
-	op              Op
-	typ             string
-	id              *uuid.UUID
-	tenant_id       *uuid.UUID
-	account_id      *uuid.UUID
-	security_id     *uuid.UUID
-	trade_type      *string
-	quantity        *float64
-	addquantity     *float64
-	price_cents     *int64
-	addprice_cents  *int64
-	amount_cents    *int64
-	addamount_cents *int64
-	fee_cents       *int64
-	addfee_cents    *int64
-	trade_date      *time.Time
-	transaction_id  *uuid.UUID
-	notes           *string
-	created_at      *time.Time
-	clearedFields   map[string]struct{}
-	done            bool
-	oldValue        func(context.Context) (*HoldingTransaction, error)
-	predicates      []predicate.HoldingTransaction
+	op                    Op
+	typ                   string
+	id                    *uuid.UUID
+	tenant_id             *uuid.UUID
+	account_id            *uuid.UUID
+	security_id           *uuid.UUID
+	trade_type            *string
+	quantity              *float64
+	addquantity           *float64
+	price_cents           *int64
+	addprice_cents        *int64
+	amount_cents          *int64
+	addamount_cents       *int64
+	fee_cents             *int64
+	addfee_cents          *int64
+	realized_pnl_cents    *int64
+	addrealized_pnl_cents *int64
+	trade_date            *time.Time
+	transaction_id        *uuid.UUID
+	notes                 *string
+	created_at            *time.Time
+	clearedFields         map[string]struct{}
+	done                  bool
+	oldValue              func(context.Context) (*HoldingTransaction, error)
+	predicates            []predicate.HoldingTransaction
 }
 
 var _ ent.Mutation = (*HoldingTransactionMutation)(nil)
@@ -1344,6 +3051,76 @@ func (m *HoldingTransactionMutation) ResetFeeCents() {
 	m.addfee_cents = nil
 }
 
+// SetRealizedPnlCents sets the "realized_pnl_cents" field.
+func (m *HoldingTransactionMutation) SetRealizedPnlCents(i int64) {
+	m.realized_pnl_cents = &i
+	m.addrealized_pnl_cents = nil
+}
+
+// RealizedPnlCents returns the value of the "realized_pnl_cents" field in the mutation.
+func (m *HoldingTransactionMutation) RealizedPnlCents() (r int64, exists bool) {
+	v := m.realized_pnl_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRealizedPnlCents returns the old "realized_pnl_cents" field's value of the HoldingTransaction entity.
+// If the HoldingTransaction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HoldingTransactionMutation) OldRealizedPnlCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRealizedPnlCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRealizedPnlCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRealizedPnlCents: %w", err)
+	}
+	return oldValue.RealizedPnlCents, nil
+}
+
+// AddRealizedPnlCents adds i to the "realized_pnl_cents" field.
+func (m *HoldingTransactionMutation) AddRealizedPnlCents(i int64) {
+	if m.addrealized_pnl_cents != nil {
+		*m.addrealized_pnl_cents += i
+	} else {
+		m.addrealized_pnl_cents = &i
+	}
+}
+
+// AddedRealizedPnlCents returns the value that was added to the "realized_pnl_cents" field in this mutation.
+func (m *HoldingTransactionMutation) AddedRealizedPnlCents() (r int64, exists bool) {
+	v := m.addrealized_pnl_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearRealizedPnlCents clears the value of the "realized_pnl_cents" field.
+func (m *HoldingTransactionMutation) ClearRealizedPnlCents() {
+	m.realized_pnl_cents = nil
+	m.addrealized_pnl_cents = nil
+	m.clearedFields[holdingtransaction.FieldRealizedPnlCents] = struct{}{}
+}
+
+// RealizedPnlCentsCleared returns if the "realized_pnl_cents" field was cleared in this mutation.
+func (m *HoldingTransactionMutation) RealizedPnlCentsCleared() bool {
+	_, ok := m.clearedFields[holdingtransaction.FieldRealizedPnlCents]
+	return ok
+}
+
+// ResetRealizedPnlCents resets all changes to the "realized_pnl_cents" field.
+func (m *HoldingTransactionMutation) ResetRealizedPnlCents() {
+	m.realized_pnl_cents = nil
+	m.addrealized_pnl_cents = nil
+	delete(m.clearedFields, holdingtransaction.FieldRealizedPnlCents)
+}
+
 // SetTradeDate sets the "trade_date" field.
 func (m *HoldingTransactionMutation) SetTradeDate(t time.Time) {
 	m.trade_date = &t
@@ -1548,7 +3325,7 @@ func (m *HoldingTransactionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *HoldingTransactionMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 13)
 	if m.tenant_id != nil {
 		fields = append(fields, holdingtransaction.FieldTenantID)
 	}
@@ -1572,6 +3349,9 @@ func (m *HoldingTransactionMutation) Fields() []string {
 	}
 	if m.fee_cents != nil {
 		fields = append(fields, holdingtransaction.FieldFeeCents)
+	}
+	if m.realized_pnl_cents != nil {
+		fields = append(fields, holdingtransaction.FieldRealizedPnlCents)
 	}
 	if m.trade_date != nil {
 		fields = append(fields, holdingtransaction.FieldTradeDate)
@@ -1609,6 +3389,8 @@ func (m *HoldingTransactionMutation) Field(name string) (ent.Value, bool) {
 		return m.AmountCents()
 	case holdingtransaction.FieldFeeCents:
 		return m.FeeCents()
+	case holdingtransaction.FieldRealizedPnlCents:
+		return m.RealizedPnlCents()
 	case holdingtransaction.FieldTradeDate:
 		return m.TradeDate()
 	case holdingtransaction.FieldTransactionID:
@@ -1642,6 +3424,8 @@ func (m *HoldingTransactionMutation) OldField(ctx context.Context, name string) 
 		return m.OldAmountCents(ctx)
 	case holdingtransaction.FieldFeeCents:
 		return m.OldFeeCents(ctx)
+	case holdingtransaction.FieldRealizedPnlCents:
+		return m.OldRealizedPnlCents(ctx)
 	case holdingtransaction.FieldTradeDate:
 		return m.OldTradeDate(ctx)
 	case holdingtransaction.FieldTransactionID:
@@ -1715,6 +3499,13 @@ func (m *HoldingTransactionMutation) SetField(name string, value ent.Value) erro
 		}
 		m.SetFeeCents(v)
 		return nil
+	case holdingtransaction.FieldRealizedPnlCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRealizedPnlCents(v)
+		return nil
 	case holdingtransaction.FieldTradeDate:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -1763,6 +3554,9 @@ func (m *HoldingTransactionMutation) AddedFields() []string {
 	if m.addfee_cents != nil {
 		fields = append(fields, holdingtransaction.FieldFeeCents)
 	}
+	if m.addrealized_pnl_cents != nil {
+		fields = append(fields, holdingtransaction.FieldRealizedPnlCents)
+	}
 	return fields
 }
 
@@ -1779,6 +3573,8 @@ func (m *HoldingTransactionMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedAmountCents()
 	case holdingtransaction.FieldFeeCents:
 		return m.AddedFeeCents()
+	case holdingtransaction.FieldRealizedPnlCents:
+		return m.AddedRealizedPnlCents()
 	}
 	return nil, false
 }
@@ -1816,6 +3612,13 @@ func (m *HoldingTransactionMutation) AddField(name string, value ent.Value) erro
 		}
 		m.AddFeeCents(v)
 		return nil
+	case holdingtransaction.FieldRealizedPnlCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRealizedPnlCents(v)
+		return nil
 	}
 	return fmt.Errorf("unknown HoldingTransaction numeric field %s", name)
 }
@@ -1824,6 +3627,9 @@ func (m *HoldingTransactionMutation) AddField(name string, value ent.Value) erro
 // mutation.
 func (m *HoldingTransactionMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(holdingtransaction.FieldRealizedPnlCents) {
+		fields = append(fields, holdingtransaction.FieldRealizedPnlCents)
+	}
 	if m.FieldCleared(holdingtransaction.FieldTransactionID) {
 		fields = append(fields, holdingtransaction.FieldTransactionID)
 	}
@@ -1844,6 +3650,9 @@ func (m *HoldingTransactionMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *HoldingTransactionMutation) ClearField(name string) error {
 	switch name {
+	case holdingtransaction.FieldRealizedPnlCents:
+		m.ClearRealizedPnlCents()
+		return nil
 	case holdingtransaction.FieldTransactionID:
 		m.ClearTransactionID()
 		return nil
@@ -1881,6 +3690,9 @@ func (m *HoldingTransactionMutation) ResetField(name string) error {
 		return nil
 	case holdingtransaction.FieldFeeCents:
 		m.ResetFeeCents()
+		return nil
+	case holdingtransaction.FieldRealizedPnlCents:
+		m.ResetRealizedPnlCents()
 		return nil
 	case holdingtransaction.FieldTradeDate:
 		m.ResetTradeDate()
@@ -2678,4 +4490,642 @@ func (m *SecurityMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *SecurityMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Security edge %s", name)
+}
+
+// SecurityPriceHistoryMutation represents an operation that mutates the SecurityPriceHistory nodes in the graph.
+type SecurityPriceHistoryMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *uuid.UUID
+	security_id    *uuid.UUID
+	price_date     *time.Time
+	price_cents    *int64
+	addprice_cents *int64
+	currency_code  *string
+	source         *string
+	created_at     *time.Time
+	clearedFields  map[string]struct{}
+	done           bool
+	oldValue       func(context.Context) (*SecurityPriceHistory, error)
+	predicates     []predicate.SecurityPriceHistory
+}
+
+var _ ent.Mutation = (*SecurityPriceHistoryMutation)(nil)
+
+// securitypricehistoryOption allows management of the mutation configuration using functional options.
+type securitypricehistoryOption func(*SecurityPriceHistoryMutation)
+
+// newSecurityPriceHistoryMutation creates new mutation for the SecurityPriceHistory entity.
+func newSecurityPriceHistoryMutation(c config, op Op, opts ...securitypricehistoryOption) *SecurityPriceHistoryMutation {
+	m := &SecurityPriceHistoryMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSecurityPriceHistory,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSecurityPriceHistoryID sets the ID field of the mutation.
+func withSecurityPriceHistoryID(id uuid.UUID) securitypricehistoryOption {
+	return func(m *SecurityPriceHistoryMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *SecurityPriceHistory
+		)
+		m.oldValue = func(ctx context.Context) (*SecurityPriceHistory, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().SecurityPriceHistory.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSecurityPriceHistory sets the old SecurityPriceHistory of the mutation.
+func withSecurityPriceHistory(node *SecurityPriceHistory) securitypricehistoryOption {
+	return func(m *SecurityPriceHistoryMutation) {
+		m.oldValue = func(context.Context) (*SecurityPriceHistory, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SecurityPriceHistoryMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SecurityPriceHistoryMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of SecurityPriceHistory entities.
+func (m *SecurityPriceHistoryMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SecurityPriceHistoryMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SecurityPriceHistoryMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().SecurityPriceHistory.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetSecurityID sets the "security_id" field.
+func (m *SecurityPriceHistoryMutation) SetSecurityID(u uuid.UUID) {
+	m.security_id = &u
+}
+
+// SecurityID returns the value of the "security_id" field in the mutation.
+func (m *SecurityPriceHistoryMutation) SecurityID() (r uuid.UUID, exists bool) {
+	v := m.security_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSecurityID returns the old "security_id" field's value of the SecurityPriceHistory entity.
+// If the SecurityPriceHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SecurityPriceHistoryMutation) OldSecurityID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSecurityID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSecurityID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSecurityID: %w", err)
+	}
+	return oldValue.SecurityID, nil
+}
+
+// ResetSecurityID resets all changes to the "security_id" field.
+func (m *SecurityPriceHistoryMutation) ResetSecurityID() {
+	m.security_id = nil
+}
+
+// SetPriceDate sets the "price_date" field.
+func (m *SecurityPriceHistoryMutation) SetPriceDate(t time.Time) {
+	m.price_date = &t
+}
+
+// PriceDate returns the value of the "price_date" field in the mutation.
+func (m *SecurityPriceHistoryMutation) PriceDate() (r time.Time, exists bool) {
+	v := m.price_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPriceDate returns the old "price_date" field's value of the SecurityPriceHistory entity.
+// If the SecurityPriceHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SecurityPriceHistoryMutation) OldPriceDate(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPriceDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPriceDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPriceDate: %w", err)
+	}
+	return oldValue.PriceDate, nil
+}
+
+// ResetPriceDate resets all changes to the "price_date" field.
+func (m *SecurityPriceHistoryMutation) ResetPriceDate() {
+	m.price_date = nil
+}
+
+// SetPriceCents sets the "price_cents" field.
+func (m *SecurityPriceHistoryMutation) SetPriceCents(i int64) {
+	m.price_cents = &i
+	m.addprice_cents = nil
+}
+
+// PriceCents returns the value of the "price_cents" field in the mutation.
+func (m *SecurityPriceHistoryMutation) PriceCents() (r int64, exists bool) {
+	v := m.price_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPriceCents returns the old "price_cents" field's value of the SecurityPriceHistory entity.
+// If the SecurityPriceHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SecurityPriceHistoryMutation) OldPriceCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPriceCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPriceCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPriceCents: %w", err)
+	}
+	return oldValue.PriceCents, nil
+}
+
+// AddPriceCents adds i to the "price_cents" field.
+func (m *SecurityPriceHistoryMutation) AddPriceCents(i int64) {
+	if m.addprice_cents != nil {
+		*m.addprice_cents += i
+	} else {
+		m.addprice_cents = &i
+	}
+}
+
+// AddedPriceCents returns the value that was added to the "price_cents" field in this mutation.
+func (m *SecurityPriceHistoryMutation) AddedPriceCents() (r int64, exists bool) {
+	v := m.addprice_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPriceCents resets all changes to the "price_cents" field.
+func (m *SecurityPriceHistoryMutation) ResetPriceCents() {
+	m.price_cents = nil
+	m.addprice_cents = nil
+}
+
+// SetCurrencyCode sets the "currency_code" field.
+func (m *SecurityPriceHistoryMutation) SetCurrencyCode(s string) {
+	m.currency_code = &s
+}
+
+// CurrencyCode returns the value of the "currency_code" field in the mutation.
+func (m *SecurityPriceHistoryMutation) CurrencyCode() (r string, exists bool) {
+	v := m.currency_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrencyCode returns the old "currency_code" field's value of the SecurityPriceHistory entity.
+// If the SecurityPriceHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SecurityPriceHistoryMutation) OldCurrencyCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrencyCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrencyCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrencyCode: %w", err)
+	}
+	return oldValue.CurrencyCode, nil
+}
+
+// ResetCurrencyCode resets all changes to the "currency_code" field.
+func (m *SecurityPriceHistoryMutation) ResetCurrencyCode() {
+	m.currency_code = nil
+}
+
+// SetSource sets the "source" field.
+func (m *SecurityPriceHistoryMutation) SetSource(s string) {
+	m.source = &s
+}
+
+// Source returns the value of the "source" field in the mutation.
+func (m *SecurityPriceHistoryMutation) Source() (r string, exists bool) {
+	v := m.source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSource returns the old "source" field's value of the SecurityPriceHistory entity.
+// If the SecurityPriceHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SecurityPriceHistoryMutation) OldSource(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSource: %w", err)
+	}
+	return oldValue.Source, nil
+}
+
+// ResetSource resets all changes to the "source" field.
+func (m *SecurityPriceHistoryMutation) ResetSource() {
+	m.source = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *SecurityPriceHistoryMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *SecurityPriceHistoryMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the SecurityPriceHistory entity.
+// If the SecurityPriceHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SecurityPriceHistoryMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *SecurityPriceHistoryMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the SecurityPriceHistoryMutation builder.
+func (m *SecurityPriceHistoryMutation) Where(ps ...predicate.SecurityPriceHistory) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SecurityPriceHistoryMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SecurityPriceHistoryMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.SecurityPriceHistory, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SecurityPriceHistoryMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SecurityPriceHistoryMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (SecurityPriceHistory).
+func (m *SecurityPriceHistoryMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SecurityPriceHistoryMutation) Fields() []string {
+	fields := make([]string, 0, 6)
+	if m.security_id != nil {
+		fields = append(fields, securitypricehistory.FieldSecurityID)
+	}
+	if m.price_date != nil {
+		fields = append(fields, securitypricehistory.FieldPriceDate)
+	}
+	if m.price_cents != nil {
+		fields = append(fields, securitypricehistory.FieldPriceCents)
+	}
+	if m.currency_code != nil {
+		fields = append(fields, securitypricehistory.FieldCurrencyCode)
+	}
+	if m.source != nil {
+		fields = append(fields, securitypricehistory.FieldSource)
+	}
+	if m.created_at != nil {
+		fields = append(fields, securitypricehistory.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SecurityPriceHistoryMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case securitypricehistory.FieldSecurityID:
+		return m.SecurityID()
+	case securitypricehistory.FieldPriceDate:
+		return m.PriceDate()
+	case securitypricehistory.FieldPriceCents:
+		return m.PriceCents()
+	case securitypricehistory.FieldCurrencyCode:
+		return m.CurrencyCode()
+	case securitypricehistory.FieldSource:
+		return m.Source()
+	case securitypricehistory.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SecurityPriceHistoryMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case securitypricehistory.FieldSecurityID:
+		return m.OldSecurityID(ctx)
+	case securitypricehistory.FieldPriceDate:
+		return m.OldPriceDate(ctx)
+	case securitypricehistory.FieldPriceCents:
+		return m.OldPriceCents(ctx)
+	case securitypricehistory.FieldCurrencyCode:
+		return m.OldCurrencyCode(ctx)
+	case securitypricehistory.FieldSource:
+		return m.OldSource(ctx)
+	case securitypricehistory.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown SecurityPriceHistory field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SecurityPriceHistoryMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case securitypricehistory.FieldSecurityID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSecurityID(v)
+		return nil
+	case securitypricehistory.FieldPriceDate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPriceDate(v)
+		return nil
+	case securitypricehistory.FieldPriceCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPriceCents(v)
+		return nil
+	case securitypricehistory.FieldCurrencyCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrencyCode(v)
+		return nil
+	case securitypricehistory.FieldSource:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSource(v)
+		return nil
+	case securitypricehistory.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SecurityPriceHistory field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SecurityPriceHistoryMutation) AddedFields() []string {
+	var fields []string
+	if m.addprice_cents != nil {
+		fields = append(fields, securitypricehistory.FieldPriceCents)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SecurityPriceHistoryMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case securitypricehistory.FieldPriceCents:
+		return m.AddedPriceCents()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SecurityPriceHistoryMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case securitypricehistory.FieldPriceCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPriceCents(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SecurityPriceHistory numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SecurityPriceHistoryMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SecurityPriceHistoryMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SecurityPriceHistoryMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown SecurityPriceHistory nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SecurityPriceHistoryMutation) ResetField(name string) error {
+	switch name {
+	case securitypricehistory.FieldSecurityID:
+		m.ResetSecurityID()
+		return nil
+	case securitypricehistory.FieldPriceDate:
+		m.ResetPriceDate()
+		return nil
+	case securitypricehistory.FieldPriceCents:
+		m.ResetPriceCents()
+		return nil
+	case securitypricehistory.FieldCurrencyCode:
+		m.ResetCurrencyCode()
+		return nil
+	case securitypricehistory.FieldSource:
+		m.ResetSource()
+		return nil
+	case securitypricehistory.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown SecurityPriceHistory field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SecurityPriceHistoryMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SecurityPriceHistoryMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SecurityPriceHistoryMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SecurityPriceHistoryMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SecurityPriceHistoryMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SecurityPriceHistoryMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SecurityPriceHistoryMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown SecurityPriceHistory unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SecurityPriceHistoryMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown SecurityPriceHistory edge %s", name)
 }

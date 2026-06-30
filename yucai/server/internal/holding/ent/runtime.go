@@ -7,9 +7,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/holding/ent/holding"
+	"github.com/yucai/server/internal/holding/ent/holdinglot"
+	"github.com/yucai/server/internal/holding/ent/holdingsnapshot"
 	"github.com/yucai/server/internal/holding/ent/holdingtransaction"
 	"github.com/yucai/server/internal/holding/ent/schema"
 	"github.com/yucai/server/internal/holding/ent/security"
+	"github.com/yucai/server/internal/holding/ent/securitypricehistory"
 )
 
 // The init function reads all schema descriptors with runtime code
@@ -44,6 +47,30 @@ func init() {
 	holdingDescID := holdingFields[0].Descriptor()
 	// holding.DefaultID holds the default value on creation for the id field.
 	holding.DefaultID = holdingDescID.Default.(func() uuid.UUID)
+	holdinglotFields := schema.HoldingLot{}.Fields()
+	_ = holdinglotFields
+	// holdinglotDescCreatedAt is the schema descriptor for created_at field.
+	holdinglotDescCreatedAt := holdinglotFields[8].Descriptor()
+	// holdinglot.DefaultCreatedAt holds the default value on creation for the created_at field.
+	holdinglot.DefaultCreatedAt = holdinglotDescCreatedAt.Default.(func() time.Time)
+	// holdinglotDescID is the schema descriptor for id field.
+	holdinglotDescID := holdinglotFields[0].Descriptor()
+	// holdinglot.DefaultID holds the default value on creation for the id field.
+	holdinglot.DefaultID = holdinglotDescID.Default.(func() uuid.UUID)
+	holdingsnapshotFields := schema.HoldingSnapshot{}.Fields()
+	_ = holdingsnapshotFields
+	// holdingsnapshotDescCurrencyCode is the schema descriptor for currency_code field.
+	holdingsnapshotDescCurrencyCode := holdingsnapshotFields[7].Descriptor()
+	// holdingsnapshot.DefaultCurrencyCode holds the default value on creation for the currency_code field.
+	holdingsnapshot.DefaultCurrencyCode = holdingsnapshotDescCurrencyCode.Default.(string)
+	// holdingsnapshotDescCreatedAt is the schema descriptor for created_at field.
+	holdingsnapshotDescCreatedAt := holdingsnapshotFields[8].Descriptor()
+	// holdingsnapshot.DefaultCreatedAt holds the default value on creation for the created_at field.
+	holdingsnapshot.DefaultCreatedAt = holdingsnapshotDescCreatedAt.Default.(func() time.Time)
+	// holdingsnapshotDescID is the schema descriptor for id field.
+	holdingsnapshotDescID := holdingsnapshotFields[0].Descriptor()
+	// holdingsnapshot.DefaultID holds the default value on creation for the id field.
+	holdingsnapshot.DefaultID = holdingsnapshotDescID.Default.(func() uuid.UUID)
 	holdingtransactionFields := schema.HoldingTransaction{}.Fields()
 	_ = holdingtransactionFields
 	// holdingtransactionDescPriceCents is the schema descriptor for price_cents field.
@@ -58,12 +85,16 @@ func init() {
 	holdingtransactionDescFeeCents := holdingtransactionFields[7].Descriptor()
 	// holdingtransaction.DefaultFeeCents holds the default value on creation for the fee_cents field.
 	holdingtransaction.DefaultFeeCents = holdingtransactionDescFeeCents.Default.(int64)
+	// holdingtransactionDescRealizedPnlCents is the schema descriptor for realized_pnl_cents field.
+	holdingtransactionDescRealizedPnlCents := holdingtransactionFields[8].Descriptor()
+	// holdingtransaction.DefaultRealizedPnlCents holds the default value on creation for the realized_pnl_cents field.
+	holdingtransaction.DefaultRealizedPnlCents = holdingtransactionDescRealizedPnlCents.Default.(int64)
 	// holdingtransactionDescNotes is the schema descriptor for notes field.
-	holdingtransactionDescNotes := holdingtransactionFields[10].Descriptor()
+	holdingtransactionDescNotes := holdingtransactionFields[11].Descriptor()
 	// holdingtransaction.DefaultNotes holds the default value on creation for the notes field.
 	holdingtransaction.DefaultNotes = holdingtransactionDescNotes.Default.(string)
 	// holdingtransactionDescCreatedAt is the schema descriptor for created_at field.
-	holdingtransactionDescCreatedAt := holdingtransactionFields[11].Descriptor()
+	holdingtransactionDescCreatedAt := holdingtransactionFields[12].Descriptor()
 	// holdingtransaction.DefaultCreatedAt holds the default value on creation for the created_at field.
 	holdingtransaction.DefaultCreatedAt = holdingtransactionDescCreatedAt.Default.(func() time.Time)
 	// holdingtransactionDescID is the schema descriptor for id field.
@@ -100,4 +131,22 @@ func init() {
 	securityDescID := securityFields[0].Descriptor()
 	// security.DefaultID holds the default value on creation for the id field.
 	security.DefaultID = securityDescID.Default.(func() uuid.UUID)
+	securitypricehistoryFields := schema.SecurityPriceHistory{}.Fields()
+	_ = securitypricehistoryFields
+	// securitypricehistoryDescCurrencyCode is the schema descriptor for currency_code field.
+	securitypricehistoryDescCurrencyCode := securitypricehistoryFields[4].Descriptor()
+	// securitypricehistory.DefaultCurrencyCode holds the default value on creation for the currency_code field.
+	securitypricehistory.DefaultCurrencyCode = securitypricehistoryDescCurrencyCode.Default.(string)
+	// securitypricehistoryDescSource is the schema descriptor for source field.
+	securitypricehistoryDescSource := securitypricehistoryFields[5].Descriptor()
+	// securitypricehistory.DefaultSource holds the default value on creation for the source field.
+	securitypricehistory.DefaultSource = securitypricehistoryDescSource.Default.(string)
+	// securitypricehistoryDescCreatedAt is the schema descriptor for created_at field.
+	securitypricehistoryDescCreatedAt := securitypricehistoryFields[6].Descriptor()
+	// securitypricehistory.DefaultCreatedAt holds the default value on creation for the created_at field.
+	securitypricehistory.DefaultCreatedAt = securitypricehistoryDescCreatedAt.Default.(func() time.Time)
+	// securitypricehistoryDescID is the schema descriptor for id field.
+	securitypricehistoryDescID := securitypricehistoryFields[0].Descriptor()
+	// securitypricehistory.DefaultID holds the default value on creation for the id field.
+	securitypricehistory.DefaultID = securitypricehistoryDescID.Default.(func() uuid.UUID)
 }

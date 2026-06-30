@@ -3,8 +3,11 @@
 package ent
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/currency/ent/currency"
+	"github.com/yucai/server/internal/currency/ent/ratehistory"
 	"github.com/yucai/server/internal/currency/ent/schema"
 )
 
@@ -34,4 +37,14 @@ func init() {
 	currencyDescID := currencyFields[0].Descriptor()
 	// currency.DefaultID holds the default value on creation for the id field.
 	currency.DefaultID = currencyDescID.Default.(func() uuid.UUID)
+	ratehistoryFields := schema.RateHistory{}.Fields()
+	_ = ratehistoryFields
+	// ratehistoryDescCreatedAt is the schema descriptor for created_at field.
+	ratehistoryDescCreatedAt := ratehistoryFields[4].Descriptor()
+	// ratehistory.DefaultCreatedAt holds the default value on creation for the created_at field.
+	ratehistory.DefaultCreatedAt = ratehistoryDescCreatedAt.Default.(func() time.Time)
+	// ratehistoryDescID is the schema descriptor for id field.
+	ratehistoryDescID := ratehistoryFields[0].Descriptor()
+	// ratehistory.DefaultID holds the default value on creation for the id field.
+	ratehistory.DefaultID = ratehistoryDescID.Default.(func() uuid.UUID)
 }

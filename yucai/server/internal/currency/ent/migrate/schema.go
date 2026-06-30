@@ -30,9 +30,31 @@ var (
 			},
 		},
 	}
+	// RateHistoriesColumns holds the columns for the "rate_histories" table.
+	RateHistoriesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "currency_code", Type: field.TypeString, Comment: "ISO 4217 (CNY=base=1.0)"},
+		{Name: "rate_date", Type: field.TypeTime},
+		{Name: "exchange_rate", Type: field.TypeFloat64, Comment: "to base (CNY)"},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// RateHistoriesTable holds the schema information for the "rate_histories" table.
+	RateHistoriesTable = &schema.Table{
+		Name:       "rate_histories",
+		Columns:    RateHistoriesColumns,
+		PrimaryKey: []*schema.Column{RateHistoriesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "ratehistory_currency_code_rate_date",
+				Unique:  true,
+				Columns: []*schema.Column{RateHistoriesColumns[1], RateHistoriesColumns[2]},
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		CurrenciesTable,
+		RateHistoriesTable,
 	}
 )
 

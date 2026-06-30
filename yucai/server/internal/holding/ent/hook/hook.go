@@ -21,6 +21,30 @@ func (f HoldingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.HoldingMutation", m)
 }
 
+// The HoldingLotFunc type is an adapter to allow the use of ordinary
+// function as HoldingLot mutator.
+type HoldingLotFunc func(context.Context, *ent.HoldingLotMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f HoldingLotFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.HoldingLotMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.HoldingLotMutation", m)
+}
+
+// The HoldingSnapshotFunc type is an adapter to allow the use of ordinary
+// function as HoldingSnapshot mutator.
+type HoldingSnapshotFunc func(context.Context, *ent.HoldingSnapshotMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f HoldingSnapshotFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.HoldingSnapshotMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.HoldingSnapshotMutation", m)
+}
+
 // The HoldingTransactionFunc type is an adapter to allow the use of ordinary
 // function as HoldingTransaction mutator.
 type HoldingTransactionFunc func(context.Context, *ent.HoldingTransactionMutation) (ent.Value, error)
@@ -43,6 +67,18 @@ func (f SecurityFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SecurityMutation", m)
+}
+
+// The SecurityPriceHistoryFunc type is an adapter to allow the use of ordinary
+// function as SecurityPriceHistory mutator.
+type SecurityPriceHistoryFunc func(context.Context, *ent.SecurityPriceHistoryMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SecurityPriceHistoryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SecurityPriceHistoryMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SecurityPriceHistoryMutation", m)
 }
 
 // Condition is a hook condition function.

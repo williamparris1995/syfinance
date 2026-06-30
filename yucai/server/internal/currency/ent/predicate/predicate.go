@@ -8,3 +8,6 @@ import (
 
 // Currency is the predicate function for currency builders.
 type Currency func(*sql.Selector)
+
+// RateHistory is the predicate function for ratehistory builders.
+type RateHistory func(*sql.Selector)

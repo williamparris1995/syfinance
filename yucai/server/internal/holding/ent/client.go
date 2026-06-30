@@ -16,8 +16,11 @@ import (
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"github.com/yucai/server/internal/holding/ent/holding"
+	"github.com/yucai/server/internal/holding/ent/holdinglot"
+	"github.com/yucai/server/internal/holding/ent/holdingsnapshot"
 	"github.com/yucai/server/internal/holding/ent/holdingtransaction"
 	"github.com/yucai/server/internal/holding/ent/security"
+	"github.com/yucai/server/internal/holding/ent/securitypricehistory"
 )
 
 // Client is the client that holds all ent builders.
@@ -27,10 +30,16 @@ type Client struct {
 	Schema *migrate.Schema
 	// Holding is the client for interacting with the Holding builders.
 	Holding *HoldingClient
+	// HoldingLot is the client for interacting with the HoldingLot builders.
+	HoldingLot *HoldingLotClient
+	// HoldingSnapshot is the client for interacting with the HoldingSnapshot builders.
+	HoldingSnapshot *HoldingSnapshotClient
 	// HoldingTransaction is the client for interacting with the HoldingTransaction builders.
 	HoldingTransaction *HoldingTransactionClient
 	// Security is the client for interacting with the Security builders.
 	Security *SecurityClient
+	// SecurityPriceHistory is the client for interacting with the SecurityPriceHistory builders.
+	SecurityPriceHistory *SecurityPriceHistoryClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -43,8 +52,11 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.Holding = NewHoldingClient(c.config)
+	c.HoldingLot = NewHoldingLotClient(c.config)
+	c.HoldingSnapshot = NewHoldingSnapshotClient(c.config)
 	c.HoldingTransaction = NewHoldingTransactionClient(c.config)
 	c.Security = NewSecurityClient(c.config)
+	c.SecurityPriceHistory = NewSecurityPriceHistoryClient(c.config)
 }
 
 type (
@@ -135,11 +147,14 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:                ctx,
-		config:             cfg,
-		Holding:            NewHoldingClient(cfg),
-		HoldingTransaction: NewHoldingTransactionClient(cfg),
-		Security:           NewSecurityClient(cfg),
+		ctx:                  ctx,
+		config:               cfg,
+		Holding:              NewHoldingClient(cfg),
+		HoldingLot:           NewHoldingLotClient(cfg),
+		HoldingSnapshot:      NewHoldingSnapshotClient(cfg),
+		HoldingTransaction:   NewHoldingTransactionClient(cfg),
+		Security:             NewSecurityClient(cfg),
+		SecurityPriceHistory: NewSecurityPriceHistoryClient(cfg),
 	}, nil
 }
 
@@ -157,11 +172,14 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:                ctx,
-		config:             cfg,
-		Holding:            NewHoldingClient(cfg),
-		HoldingTransaction: NewHoldingTransactionClient(cfg),
-		Security:           NewSecurityClient(cfg),
+		ctx:                  ctx,
+		config:               cfg,
+		Holding:              NewHoldingClient(cfg),
+		HoldingLot:           NewHoldingLotClient(cfg),
+		HoldingSnapshot:      NewHoldingSnapshotClient(cfg),
+		HoldingTransaction:   NewHoldingTransactionClient(cfg),
+		Security:             NewSecurityClient(cfg),
+		SecurityPriceHistory: NewSecurityPriceHistoryClient(cfg),
 	}, nil
 }
 
@@ -190,17 +208,23 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
-	c.Holding.Use(hooks...)
-	c.HoldingTransaction.Use(hooks...)
-	c.Security.Use(hooks...)
+	for _, n := range []interface{ Use(...Hook) }{
+		c.Holding, c.HoldingLot, c.HoldingSnapshot, c.HoldingTransaction, c.Security,
+		c.SecurityPriceHistory,
+	} {
+		n.Use(hooks...)
+	}
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
-	c.Holding.Intercept(interceptors...)
-	c.HoldingTransaction.Intercept(interceptors...)
-	c.Security.Intercept(interceptors...)
+	for _, n := range []interface{ Intercept(...Interceptor) }{
+		c.Holding, c.HoldingLot, c.HoldingSnapshot, c.HoldingTransaction, c.Security,
+		c.SecurityPriceHistory,
+	} {
+		n.Intercept(interceptors...)
+	}
 }
 
 // Mutate implements the ent.Mutator interface.
@@ -208,10 +232,16 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *HoldingMutation:
 		return c.Holding.mutate(ctx, m)
+	case *HoldingLotMutation:
+		return c.HoldingLot.mutate(ctx, m)
+	case *HoldingSnapshotMutation:
+		return c.HoldingSnapshot.mutate(ctx, m)
 	case *HoldingTransactionMutation:
 		return c.HoldingTransaction.mutate(ctx, m)
 	case *SecurityMutation:
 		return c.Security.mutate(ctx, m)
+	case *SecurityPriceHistoryMutation:
+		return c.SecurityPriceHistory.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -347,6 +377,272 @@ func (c *HoldingClient) mutate(ctx context.Context, m *HoldingMutation) (Value, 
 		return (&HoldingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Holding mutation op: %q", m.Op())
+	}
+}
+
+// HoldingLotClient is a client for the HoldingLot schema.
+type HoldingLotClient struct {
+	config
+}
+
+// NewHoldingLotClient returns a client for the HoldingLot from the given config.
+func NewHoldingLotClient(c config) *HoldingLotClient {
+	return &HoldingLotClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `holdinglot.Hooks(f(g(h())))`.
+func (c *HoldingLotClient) Use(hooks ...Hook) {
+	c.hooks.HoldingLot = append(c.hooks.HoldingLot, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `holdinglot.Intercept(f(g(h())))`.
+func (c *HoldingLotClient) Intercept(interceptors ...Interceptor) {
+	c.inters.HoldingLot = append(c.inters.HoldingLot, interceptors...)
+}
+
+// Create returns a builder for creating a HoldingLot entity.
+func (c *HoldingLotClient) Create() *HoldingLotCreate {
+	mutation := newHoldingLotMutation(c.config, OpCreate)
+	return &HoldingLotCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of HoldingLot entities.
+func (c *HoldingLotClient) CreateBulk(builders ...*HoldingLotCreate) *HoldingLotCreateBulk {
+	return &HoldingLotCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *HoldingLotClient) MapCreateBulk(slice any, setFunc func(*HoldingLotCreate, int)) *HoldingLotCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &HoldingLotCreateBulk{err: fmt.Errorf("calling to HoldingLotClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*HoldingLotCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &HoldingLotCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for HoldingLot.
+func (c *HoldingLotClient) Update() *HoldingLotUpdate {
+	mutation := newHoldingLotMutation(c.config, OpUpdate)
+	return &HoldingLotUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *HoldingLotClient) UpdateOne(hl *HoldingLot) *HoldingLotUpdateOne {
+	mutation := newHoldingLotMutation(c.config, OpUpdateOne, withHoldingLot(hl))
+	return &HoldingLotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *HoldingLotClient) UpdateOneID(id uuid.UUID) *HoldingLotUpdateOne {
+	mutation := newHoldingLotMutation(c.config, OpUpdateOne, withHoldingLotID(id))
+	return &HoldingLotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for HoldingLot.
+func (c *HoldingLotClient) Delete() *HoldingLotDelete {
+	mutation := newHoldingLotMutation(c.config, OpDelete)
+	return &HoldingLotDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *HoldingLotClient) DeleteOne(hl *HoldingLot) *HoldingLotDeleteOne {
+	return c.DeleteOneID(hl.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *HoldingLotClient) DeleteOneID(id uuid.UUID) *HoldingLotDeleteOne {
+	builder := c.Delete().Where(holdinglot.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &HoldingLotDeleteOne{builder}
+}
+
+// Query returns a query builder for HoldingLot.
+func (c *HoldingLotClient) Query() *HoldingLotQuery {
+	return &HoldingLotQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeHoldingLot},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a HoldingLot entity by its id.
+func (c *HoldingLotClient) Get(ctx context.Context, id uuid.UUID) (*HoldingLot, error) {
+	return c.Query().Where(holdinglot.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *HoldingLotClient) GetX(ctx context.Context, id uuid.UUID) *HoldingLot {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *HoldingLotClient) Hooks() []Hook {
+	return c.hooks.HoldingLot
+}
+
+// Interceptors returns the client interceptors.
+func (c *HoldingLotClient) Interceptors() []Interceptor {
+	return c.inters.HoldingLot
+}
+
+func (c *HoldingLotClient) mutate(ctx context.Context, m *HoldingLotMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&HoldingLotCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&HoldingLotUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&HoldingLotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&HoldingLotDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown HoldingLot mutation op: %q", m.Op())
+	}
+}
+
+// HoldingSnapshotClient is a client for the HoldingSnapshot schema.
+type HoldingSnapshotClient struct {
+	config
+}
+
+// NewHoldingSnapshotClient returns a client for the HoldingSnapshot from the given config.
+func NewHoldingSnapshotClient(c config) *HoldingSnapshotClient {
+	return &HoldingSnapshotClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `holdingsnapshot.Hooks(f(g(h())))`.
+func (c *HoldingSnapshotClient) Use(hooks ...Hook) {
+	c.hooks.HoldingSnapshot = append(c.hooks.HoldingSnapshot, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `holdingsnapshot.Intercept(f(g(h())))`.
+func (c *HoldingSnapshotClient) Intercept(interceptors ...Interceptor) {
+	c.inters.HoldingSnapshot = append(c.inters.HoldingSnapshot, interceptors...)
+}
+
+// Create returns a builder for creating a HoldingSnapshot entity.
+func (c *HoldingSnapshotClient) Create() *HoldingSnapshotCreate {
+	mutation := newHoldingSnapshotMutation(c.config, OpCreate)
+	return &HoldingSnapshotCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of HoldingSnapshot entities.
+func (c *HoldingSnapshotClient) CreateBulk(builders ...*HoldingSnapshotCreate) *HoldingSnapshotCreateBulk {
+	return &HoldingSnapshotCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *HoldingSnapshotClient) MapCreateBulk(slice any, setFunc func(*HoldingSnapshotCreate, int)) *HoldingSnapshotCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &HoldingSnapshotCreateBulk{err: fmt.Errorf("calling to HoldingSnapshotClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*HoldingSnapshotCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &HoldingSnapshotCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for HoldingSnapshot.
+func (c *HoldingSnapshotClient) Update() *HoldingSnapshotUpdate {
+	mutation := newHoldingSnapshotMutation(c.config, OpUpdate)
+	return &HoldingSnapshotUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *HoldingSnapshotClient) UpdateOne(hs *HoldingSnapshot) *HoldingSnapshotUpdateOne {
+	mutation := newHoldingSnapshotMutation(c.config, OpUpdateOne, withHoldingSnapshot(hs))
+	return &HoldingSnapshotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *HoldingSnapshotClient) UpdateOneID(id uuid.UUID) *HoldingSnapshotUpdateOne {
+	mutation := newHoldingSnapshotMutation(c.config, OpUpdateOne, withHoldingSnapshotID(id))
+	return &HoldingSnapshotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for HoldingSnapshot.
+func (c *HoldingSnapshotClient) Delete() *HoldingSnapshotDelete {
+	mutation := newHoldingSnapshotMutation(c.config, OpDelete)
+	return &HoldingSnapshotDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *HoldingSnapshotClient) DeleteOne(hs *HoldingSnapshot) *HoldingSnapshotDeleteOne {
+	return c.DeleteOneID(hs.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *HoldingSnapshotClient) DeleteOneID(id uuid.UUID) *HoldingSnapshotDeleteOne {
+	builder := c.Delete().Where(holdingsnapshot.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &HoldingSnapshotDeleteOne{builder}
+}
+
+// Query returns a query builder for HoldingSnapshot.
+func (c *HoldingSnapshotClient) Query() *HoldingSnapshotQuery {
+	return &HoldingSnapshotQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeHoldingSnapshot},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a HoldingSnapshot entity by its id.
+func (c *HoldingSnapshotClient) Get(ctx context.Context, id uuid.UUID) (*HoldingSnapshot, error) {
+	return c.Query().Where(holdingsnapshot.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *HoldingSnapshotClient) GetX(ctx context.Context, id uuid.UUID) *HoldingSnapshot {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *HoldingSnapshotClient) Hooks() []Hook {
+	return c.hooks.HoldingSnapshot
+}
+
+// Interceptors returns the client interceptors.
+func (c *HoldingSnapshotClient) Interceptors() []Interceptor {
+	return c.inters.HoldingSnapshot
+}
+
+func (c *HoldingSnapshotClient) mutate(ctx context.Context, m *HoldingSnapshotMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&HoldingSnapshotCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&HoldingSnapshotUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&HoldingSnapshotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&HoldingSnapshotDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown HoldingSnapshot mutation op: %q", m.Op())
 	}
 }
 
@@ -616,12 +912,147 @@ func (c *SecurityClient) mutate(ctx context.Context, m *SecurityMutation) (Value
 	}
 }
 
+// SecurityPriceHistoryClient is a client for the SecurityPriceHistory schema.
+type SecurityPriceHistoryClient struct {
+	config
+}
+
+// NewSecurityPriceHistoryClient returns a client for the SecurityPriceHistory from the given config.
+func NewSecurityPriceHistoryClient(c config) *SecurityPriceHistoryClient {
+	return &SecurityPriceHistoryClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `securitypricehistory.Hooks(f(g(h())))`.
+func (c *SecurityPriceHistoryClient) Use(hooks ...Hook) {
+	c.hooks.SecurityPriceHistory = append(c.hooks.SecurityPriceHistory, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `securitypricehistory.Intercept(f(g(h())))`.
+func (c *SecurityPriceHistoryClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SecurityPriceHistory = append(c.inters.SecurityPriceHistory, interceptors...)
+}
+
+// Create returns a builder for creating a SecurityPriceHistory entity.
+func (c *SecurityPriceHistoryClient) Create() *SecurityPriceHistoryCreate {
+	mutation := newSecurityPriceHistoryMutation(c.config, OpCreate)
+	return &SecurityPriceHistoryCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SecurityPriceHistory entities.
+func (c *SecurityPriceHistoryClient) CreateBulk(builders ...*SecurityPriceHistoryCreate) *SecurityPriceHistoryCreateBulk {
+	return &SecurityPriceHistoryCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SecurityPriceHistoryClient) MapCreateBulk(slice any, setFunc func(*SecurityPriceHistoryCreate, int)) *SecurityPriceHistoryCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SecurityPriceHistoryCreateBulk{err: fmt.Errorf("calling to SecurityPriceHistoryClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SecurityPriceHistoryCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SecurityPriceHistoryCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SecurityPriceHistory.
+func (c *SecurityPriceHistoryClient) Update() *SecurityPriceHistoryUpdate {
+	mutation := newSecurityPriceHistoryMutation(c.config, OpUpdate)
+	return &SecurityPriceHistoryUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SecurityPriceHistoryClient) UpdateOne(sph *SecurityPriceHistory) *SecurityPriceHistoryUpdateOne {
+	mutation := newSecurityPriceHistoryMutation(c.config, OpUpdateOne, withSecurityPriceHistory(sph))
+	return &SecurityPriceHistoryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SecurityPriceHistoryClient) UpdateOneID(id uuid.UUID) *SecurityPriceHistoryUpdateOne {
+	mutation := newSecurityPriceHistoryMutation(c.config, OpUpdateOne, withSecurityPriceHistoryID(id))
+	return &SecurityPriceHistoryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SecurityPriceHistory.
+func (c *SecurityPriceHistoryClient) Delete() *SecurityPriceHistoryDelete {
+	mutation := newSecurityPriceHistoryMutation(c.config, OpDelete)
+	return &SecurityPriceHistoryDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SecurityPriceHistoryClient) DeleteOne(sph *SecurityPriceHistory) *SecurityPriceHistoryDeleteOne {
+	return c.DeleteOneID(sph.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SecurityPriceHistoryClient) DeleteOneID(id uuid.UUID) *SecurityPriceHistoryDeleteOne {
+	builder := c.Delete().Where(securitypricehistory.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SecurityPriceHistoryDeleteOne{builder}
+}
+
+// Query returns a query builder for SecurityPriceHistory.
+func (c *SecurityPriceHistoryClient) Query() *SecurityPriceHistoryQuery {
+	return &SecurityPriceHistoryQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSecurityPriceHistory},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SecurityPriceHistory entity by its id.
+func (c *SecurityPriceHistoryClient) Get(ctx context.Context, id uuid.UUID) (*SecurityPriceHistory, error) {
+	return c.Query().Where(securitypricehistory.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SecurityPriceHistoryClient) GetX(ctx context.Context, id uuid.UUID) *SecurityPriceHistory {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *SecurityPriceHistoryClient) Hooks() []Hook {
+	return c.hooks.SecurityPriceHistory
+}
+
+// Interceptors returns the client interceptors.
+func (c *SecurityPriceHistoryClient) Interceptors() []Interceptor {
+	return c.inters.SecurityPriceHistory
+}
+
+func (c *SecurityPriceHistoryClient) mutate(ctx context.Context, m *SecurityPriceHistoryMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SecurityPriceHistoryCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SecurityPriceHistoryUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SecurityPriceHistoryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SecurityPriceHistoryDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SecurityPriceHistory mutation op: %q", m.Op())
+	}
+}
+
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Holding, HoldingTransaction, Security []ent.Hook
+		Holding, HoldingLot, HoldingSnapshot, HoldingTransaction, Security,
+		SecurityPriceHistory []ent.Hook
 	}
 	inters struct {
-		Holding, HoldingTransaction, Security []ent.Interceptor
+		Holding, HoldingLot, HoldingSnapshot, HoldingTransaction, Security,
+		SecurityPriceHistory []ent.Interceptor
 	}
 )

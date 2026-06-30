@@ -38,6 +38,78 @@ var (
 			},
 		},
 	}
+	// HoldingLotsColumns holds the columns for the "holding_lots" table.
+	HoldingLotsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID, Comment: "FK to tenants table — data isolation boundary"},
+		{Name: "holding_id", Type: field.TypeUUID},
+		{Name: "security_id", Type: field.TypeUUID, Comment: "denormalized"},
+		{Name: "acquired_date", Type: field.TypeTime, Comment: "buy trade date; FIFO ordering key"},
+		{Name: "acquired_trade_id", Type: field.TypeUUID, Comment: "holding_transaction.id of the buy"},
+		{Name: "price_cents", Type: field.TypeInt64, Comment: "buy cost price"},
+		{Name: "quantity", Type: field.TypeFloat64, Comment: "original acquired quantity"},
+		{Name: "remaining_quantity", Type: field.TypeFloat64, Comment: "remaining after sells/splits"},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// HoldingLotsTable holds the schema information for the "holding_lots" table.
+	HoldingLotsTable = &schema.Table{
+		Name:       "holding_lots",
+		Columns:    HoldingLotsColumns,
+		PrimaryKey: []*schema.Column{HoldingLotsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "holdinglot_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{HoldingLotsColumns[1]},
+			},
+			{
+				Name:    "holdinglot_tenant_id_holding_id_acquired_date",
+				Unique:  false,
+				Columns: []*schema.Column{HoldingLotsColumns[1], HoldingLotsColumns[2], HoldingLotsColumns[4]},
+			},
+		},
+	}
+	// HoldingSnapshotsColumns holds the columns for the "holding_snapshots" table.
+	HoldingSnapshotsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID, Comment: "FK to tenants table — data isolation boundary"},
+		{Name: "holding_id", Type: field.TypeUUID},
+		{Name: "security_id", Type: field.TypeUUID, Comment: "denormalized for security-level aggregation"},
+		{Name: "account_id", Type: field.TypeUUID, Comment: "denormalized for account filter"},
+		{Name: "snapshot_date", Type: field.TypeTime},
+		{Name: "market_value_cents", Type: field.TypeInt64, Comment: "qty × day's price, original currency"},
+		{Name: "unrealized_pnl_cents", Type: field.TypeInt64, Comment: "original currency"},
+		{Name: "currency_code", Type: field.TypeString, Default: "CNY"},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// HoldingSnapshotsTable holds the schema information for the "holding_snapshots" table.
+	HoldingSnapshotsTable = &schema.Table{
+		Name:       "holding_snapshots",
+		Columns:    HoldingSnapshotsColumns,
+		PrimaryKey: []*schema.Column{HoldingSnapshotsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "holdingsnapshot_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{HoldingSnapshotsColumns[1]},
+			},
+			{
+				Name:    "holdingsnapshot_tenant_id_holding_id_snapshot_date",
+				Unique:  true,
+				Columns: []*schema.Column{HoldingSnapshotsColumns[1], HoldingSnapshotsColumns[2], HoldingSnapshotsColumns[5]},
+			},
+			{
+				Name:    "holdingsnapshot_tenant_id_snapshot_date",
+				Unique:  false,
+				Columns: []*schema.Column{HoldingSnapshotsColumns[1], HoldingSnapshotsColumns[5]},
+			},
+			{
+				Name:    "holdingsnapshot_tenant_id_security_id_snapshot_date",
+				Unique:  false,
+				Columns: []*schema.Column{HoldingSnapshotsColumns[1], HoldingSnapshotsColumns[3], HoldingSnapshotsColumns[5]},
+			},
+		},
+	}
 	// HoldingTransactionsColumns holds the columns for the "holding_transactions" table.
 	HoldingTransactionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -49,6 +121,7 @@ var (
 		{Name: "price_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "amount_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "fee_cents", Type: field.TypeInt64, Default: 0},
+		{Name: "realized_pnl_cents", Type: field.TypeInt64, Nullable: true, Comment: "FIFO realized P&L on sell (Task1 ConsumeLotsFIFO); 0 for other trade types", Default: 0},
 		{Name: "trade_date", Type: field.TypeTime},
 		{Name: "transaction_id", Type: field.TypeUUID, Nullable: true, Comment: "Linked accounting transaction"},
 		{Name: "notes", Type: field.TypeString, Nullable: true, Default: ""},
@@ -101,11 +174,42 @@ var (
 			},
 		},
 	}
+	// SecurityPriceHistoriesColumns holds the columns for the "security_price_histories" table.
+	SecurityPriceHistoriesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "security_id", Type: field.TypeUUID, Comment: "owning security (incl. benchmark 000300)"},
+		{Name: "price_date", Type: field.TypeTime, Comment: "one row per security per date"},
+		{Name: "price_cents", Type: field.TypeInt64, Comment: "close price in original currency cents"},
+		{Name: "currency_code", Type: field.TypeString, Default: "CNY"},
+		{Name: "source", Type: field.TypeString, Comment: "sina / backfill / manual", Default: "sina"},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// SecurityPriceHistoriesTable holds the schema information for the "security_price_histories" table.
+	SecurityPriceHistoriesTable = &schema.Table{
+		Name:       "security_price_histories",
+		Columns:    SecurityPriceHistoriesColumns,
+		PrimaryKey: []*schema.Column{SecurityPriceHistoriesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "securitypricehistory_security_id_price_date",
+				Unique:  true,
+				Columns: []*schema.Column{SecurityPriceHistoriesColumns[1], SecurityPriceHistoriesColumns[2]},
+			},
+			{
+				Name:    "securitypricehistory_security_id_price_date",
+				Unique:  false,
+				Columns: []*schema.Column{SecurityPriceHistoriesColumns[1], SecurityPriceHistoriesColumns[2]},
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		HoldingsTable,
+		HoldingLotsTable,
+		HoldingSnapshotsTable,
 		HoldingTransactionsTable,
 		SecuritiesTable,
+		SecurityPriceHistoriesTable,
 	}
 )
 

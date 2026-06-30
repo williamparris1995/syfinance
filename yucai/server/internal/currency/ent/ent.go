@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/yucai/server/internal/currency/ent/currency"
+	"github.com/yucai/server/internal/currency/ent/ratehistory"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -73,7 +74,8 @@ var (
 func checkColumn(table, column string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			currency.Table: currency.ValidColumn,
+			currency.Table:    currency.ValidColumn,
+			ratehistory.Table: ratehistory.ValidColumn,
 		})
 	})
 	return columnCheck(table, column)

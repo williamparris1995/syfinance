@@ -14,10 +14,16 @@ type Tx struct {
 	config
 	// Holding is the client for interacting with the Holding builders.
 	Holding *HoldingClient
+	// HoldingLot is the client for interacting with the HoldingLot builders.
+	HoldingLot *HoldingLotClient
+	// HoldingSnapshot is the client for interacting with the HoldingSnapshot builders.
+	HoldingSnapshot *HoldingSnapshotClient
 	// HoldingTransaction is the client for interacting with the HoldingTransaction builders.
 	HoldingTransaction *HoldingTransactionClient
 	// Security is the client for interacting with the Security builders.
 	Security *SecurityClient
+	// SecurityPriceHistory is the client for interacting with the SecurityPriceHistory builders.
+	SecurityPriceHistory *SecurityPriceHistoryClient
 
 	// lazily loaded.
 	client     *Client
@@ -150,8 +156,11 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.Holding = NewHoldingClient(tx.config)
+	tx.HoldingLot = NewHoldingLotClient(tx.config)
+	tx.HoldingSnapshot = NewHoldingSnapshotClient(tx.config)
 	tx.HoldingTransaction = NewHoldingTransactionClient(tx.config)
 	tx.Security = NewSecurityClient(tx.config)
+	tx.SecurityPriceHistory = NewSecurityPriceHistoryClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.
