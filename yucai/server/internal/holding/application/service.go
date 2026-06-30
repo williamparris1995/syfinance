@@ -577,8 +577,12 @@ func datalenForRange(rangeName string) int {
 
 // BackfillPriceHistory fetches historical daily K-line for every Sina-covered
 // security + CSI300, writing price_history. Best-effort: per-security fetch
-// failure logged, not fatal. Skips securities that already have history
-// (Exists gate — only backfills the empty case, idempotent).
+// failure logged, not fatal. Backfills every Sina-covered security on each
+// startup (no per-security Exists gate) so history is refreshed even when the
+// B SyncPrices scheduler already wrote the current-day point — SaveAll
+// upserts on UNIQUE(security_id, price_date), so pre-existing points are
+// updated rather than skipped. ErrNoSource (non A-share: US/OTC/SGE) is
+// still skipped silently.
 func (s *Service) BackfillPriceHistory(ctx context.Context, rangeName string) (int, error) {
 	if s.historicalProvider == nil || s.priceHistoryRepo == nil {
 		return 0, fmt.Errorf("backfill: historical provider/price history repo not configured")
@@ -594,10 +598,6 @@ func (s *Service) BackfillPriceHistory(ctx context.Context, rangeName string) (i
 		for _, sec := range result.Items {
 			if err := ctx.Err(); err != nil {
 				return backfilled, err
-			}
-			exists, _ := s.priceHistoryRepo.Exists(ctx, sec.ID)
-			if exists {
-				continue // already has history — only backfill empty
 			}
 			view := priceprovider.PriceView{Symbol: sec.Symbol, Exchange: sec.Exchange, Type: sec.SecurityType}
 			pts, err := s.historicalProvider.FetchHistory(ctx, view, datalen)

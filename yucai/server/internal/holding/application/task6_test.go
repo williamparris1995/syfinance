@@ -100,6 +100,9 @@ func (r *memSnapshotRepo) FindSnapshots(_ context.Context, tenantID uuid.UUID, f
 }
 
 // memPriceHistoryRepo records price rows + tracks Exists by securityID.
+// SaveAll/Save upsert on the (securityID, priceDate) key to mirror the real
+// repo's UNIQUE constraint (rows for an existing key are updated in place,
+// not appended) so application-layer tests reflect the production upsert.
 type memPriceHistoryRepo struct {
 	rows        []domain.SecurityPriceHistory
 	existingIDs map[uuid.UUID]bool // securities pre-marked as "has history"
@@ -123,17 +126,31 @@ func (r *memPriceHistoryRepo) FindBySecurity(_ context.Context, securityID uuid.
 	return out, nil
 }
 func (r *memPriceHistoryRepo) SaveAll(_ context.Context, ph []domain.SecurityPriceHistory) error {
-	r.rows = append(r.rows, ph...)
 	r.saveCalls++
-	// mark as existing for subsequent Exists() checks
-	for _, p := range ph {
-		r.existingIDs[p.SecurityID] = true
-	}
+	r.upsertAll(ph)
 	return nil
 }
 func (r *memPriceHistoryRepo) Save(_ context.Context, p domain.SecurityPriceHistory) error {
-	r.rows = append(r.rows, p)
+	r.upsertAll([]domain.SecurityPriceHistory{p})
 	return nil
+}
+// upsertAll inserts new (securityID, priceDate) keys and updates price/source
+// for keys already present.
+func (r *memPriceHistoryRepo) upsertAll(ph []domain.SecurityPriceHistory) {
+	for _, p := range ph {
+		r.existingIDs[p.SecurityID] = true
+		replaced := false
+		for i := range r.rows {
+			if r.rows[i].SecurityID == p.SecurityID && r.rows[i].PriceDate.Equal(p.PriceDate) {
+				r.rows[i] = p
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			r.rows = append(r.rows, p)
+		}
+	}
 }
 func (r *memPriceHistoryRepo) Exists(_ context.Context, securityID uuid.UUID) (bool, error) {
 	return r.existingIDs[securityID], nil
@@ -258,23 +275,30 @@ func TestSnapshotHoldingsSkipsMissingSecurity(t *testing.T) {
 	}
 }
 
-// TestBackfillPriceHistoryFetchesAndSkipsExisting verifies the Exists gate:
-// securities without history get backfilled, securities with history are
-// skipped. 510300 is pre-marked existing → skipped; 600519 fetched → 3 rows.
-func TestBackfillPriceHistoryFetchesAndSkipsExisting(t *testing.T) {
+// TestBackfillPriceHistoryBackfillsAllCoveredSecurities verifies the Exists
+// gate was removed: every Sina-covered security is backfilled on each run, even
+// one that already carries a today point written by the B SyncPrices scheduler.
+// 510300 is pre-seeded with a today row (Source="sina", PriceCents=99) — backfill
+// must NOT skip it; instead it fetches 510300 history and upserts the today row
+// to the backfill value. Both 600519 and 510300 are counted (count=2).
+func TestBackfillPriceHistoryBackfillsAllCoveredSecurities(t *testing.T) {
 	maotaiID, etfID := uuid.New(), uuid.New()
 	secRepo := newFullSecRepo([]secSeed{
 		{ID: maotaiID, Symbol: "600519", Exchange: "SSE", Type: domain.SecurityTypeStock, Currency: "CNY", CurrentPriceCents: 100},
 		{ID: etfID, Symbol: "510300", Exchange: "SSE", Type: domain.SecurityTypeETF, Currency: "CNY", CurrentPriceCents: 100},
 	})
-	// 510300 already has history → Exists=true.
-	phRepo := newMemPriceHistoryRepo(map[uuid.UUID]bool{etfID: true})
 	d1 := truncateToDate(time.Now().AddDate(0, 0, -2))
 	d2 := truncateToDate(time.Now().AddDate(0, 0, -1))
 	d3 := truncateToDate(time.Now())
+	// 510300 already has a today row (as if B SyncPrices wrote it before backfill).
+	phRepo := newMemPriceHistoryRepo(nil)
+	phRepo.rows = []domain.SecurityPriceHistory{
+		{SecurityID: etfID, PriceDate: d3, PriceCents: 99, Source: "sina"},
+	}
 	hist := &fakeHistoricalProvider{
 		points: map[string][]priceprovider.HistoryPoint{
 			"600519": {{Date: d1, PriceCents: 160}, {Date: d2, PriceCents: 165}, {Date: d3, PriceCents: 168}},
+			"510300": {{Date: d1, PriceCents: 400}, {Date: d2, PriceCents: 410}, {Date: d3, PriceCents: 420}},
 		},
 	}
 	svc := NewService(secRepo, newMemHoldingRepo(), &memTradeRepo{})
@@ -285,16 +309,38 @@ func TestBackfillPriceHistoryFetchesAndSkipsExisting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BackfillPriceHistory error: %v", err)
 	}
-	if count != 1 {
-		t.Fatalf("backfilled count = %d, want 1 (510300 skipped via Exists)", count)
+	// Both securities backfilled — 510300 is NOT skipped despite its existing today row.
+	if count != 2 {
+		t.Fatalf("backfilled count = %d, want 2 (no Exists gate — both covered securities refreshed)", count)
 	}
-	if len(phRepo.rows) != 3 {
-		t.Fatalf("price_history rows = %d, want 3 (600519 ×3 days)", len(phRepo.rows))
+	// 3 rows per security × 2 securities = 6 (510300's pre-existing today row is
+	// upserted in place, not appended a second time).
+	if len(phRepo.rows) != 6 {
+		t.Fatalf("price_history rows = %d, want 6 (600519 ×3 + 510300 ×3, today upserted)", len(phRepo.rows))
 	}
-	// 600519 now marked existing; 510300 untouched.
-	exists, _ := phRepo.Exists(context.Background(), maotaiID)
-	if !exists {
-		t.Fatal("600519 should be marked existing after backfill")
+	// 510300's today row was upserted to the backfill value (420), source "backfill".
+	var etfToday *domain.SecurityPriceHistory
+	for i := range phRepo.rows {
+		if phRepo.rows[i].SecurityID == etfID && phRepo.rows[i].PriceDate.Equal(d3) {
+			etfToday = &phRepo.rows[i]
+			break
+		}
+	}
+	if etfToday == nil {
+		t.Fatal("510300 today row missing after backfill")
+	}
+	if etfToday.PriceCents != 420 {
+		t.Fatalf("510300 today row price = %d, want 420 (upserted by backfill)", etfToday.PriceCents)
+	}
+	if etfToday.Source != "backfill" {
+		t.Fatalf("510300 today row source = %q, want \"backfill\" (upserted)", etfToday.Source)
+	}
+	// Both securities marked existing after backfill.
+	for _, id := range []uuid.UUID{maotaiID, etfID} {
+		exists, _ := phRepo.Exists(context.Background(), id)
+		if !exists {
+			t.Fatalf("%s should be marked existing after backfill", id)
+		}
 	}
 }
 

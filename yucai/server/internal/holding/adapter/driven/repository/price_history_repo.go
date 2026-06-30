@@ -43,47 +43,81 @@ func (r *PriceHistoryRepository) FindBySecurity(ctx context.Context, securityID 
 	return out, nil
 }
 
-// SaveAll bulk-inserts price rows. Backfill is idempotent at the call site
-// (UNIQUE(security_id, price_date) guards duplicates); callers backfilling an
-// empty range will hit no conflicts.
+// SaveAll upserts price rows. Each row is written via create-or-update against
+// the UNIQUE(security_id, price_date) constraint: a fresh (security,date) is
+// inserted; a pre-existing row (e.g. the B SyncPrices scheduler already wrote
+// the current-day point before backfill ran) has its price_cents/source/currency
+// updated in place. This lets BackfillPriceHistory refresh history for every
+// Sina-covered security on every startup without skipping securities that
+// already carry a today point. ent's generated code does not expose an
+// OnConflict upsert (the sql/upsert feature is not enabled in this codegen), so
+// the upsert is implemented as per-row create + conflict-then-update.
 func (r *PriceHistoryRepository) SaveAll(ctx context.Context, ph []domain.SecurityPriceHistory) error {
 	if len(ph) == 0 {
 		return nil
 	}
-	bulk := make([]*holdingent.SecurityPriceHistoryCreate, 0, len(ph))
 	for _, p := range ph {
-		bulk = append(bulk, r.client.SecurityPriceHistory.Create().
-			SetSecurityID(p.SecurityID).
-			SetPriceDate(p.PriceDate).
-			SetPriceCents(p.PriceCents).
-			SetCurrencyCode(p.CurrencyCode).
-			SetSource(p.Source))
-	}
-	if _, err := r.client.SecurityPriceHistory.CreateBulk(bulk...).Save(ctx); err != nil {
-		return fmt.Errorf("bulk save price history: %w", err)
+		if err := r.upsertPrice(ctx, p); err != nil {
+			return fmt.Errorf("upsert price history (security=%s date=%s): %w",
+				p.SecurityID, p.PriceDate.Format("2006-01-02"), err)
+		}
 	}
 	return nil
 }
 
-// Save inserts one price history row. Idempotent at the call site via the
-// UNIQUE(security_id, price_date) constraint — same-day re-sync from the B
-// scheduler upserts the same row; callers truncate PriceDate to the day so the
-// constraint key is stable. A conflict surfaces as an error here and is logged
-// (not fatal) by SyncPrices; first-of-day writes succeed.
-func (r *PriceHistoryRepository) Save(ctx context.Context, p domain.SecurityPriceHistory) error {
-	if _, err := r.client.SecurityPriceHistory.Create().
+// upsertPrice inserts p, and on a UNIQUE(security_id, price_date) conflict
+// updates the existing row's price_cents, currency_code and source in place.
+func (r *PriceHistoryRepository) upsertPrice(ctx context.Context, p domain.SecurityPriceHistory) error {
+	createErr := r.client.SecurityPriceHistory.Create().
 		SetSecurityID(p.SecurityID).
 		SetPriceDate(p.PriceDate).
 		SetPriceCents(p.PriceCents).
 		SetCurrencyCode(p.CurrencyCode).
 		SetSource(p.Source).
-		Save(ctx); err != nil {
+		Exec(ctx)
+	if createErr == nil {
+		return nil
+	}
+	if !holdingent.IsConstraintError(createErr) {
+		return createErr
+	}
+	// Conflict on UNIQUE(security_id, price_date) — update the existing row.
+	n, err := r.client.SecurityPriceHistory.Update().
+		Where(
+			securitypricehistory.SecurityIDEQ(p.SecurityID),
+			securitypricehistory.PriceDateEQ(p.PriceDate),
+		).
+		SetPriceCents(p.PriceCents).
+		SetCurrencyCode(p.CurrencyCode).
+		SetSource(p.Source).
+		Save(ctx)
+	if err != nil {
+		return fmt.Errorf("update on conflict: %w", err)
+	}
+	if n == 0 {
+		// No row matched yet the create reported a constraint error — the row
+		// was inserted by a concurrent transaction between the two calls.
+		// Treat as success (the constraint guarantees a row now exists).
+	}
+	return nil
+}
+
+// Save upserts one price history row against UNIQUE(security_id, price_date):
+// a fresh (security,date) is inserted; a pre-existing row has price_cents,
+// currency_code and source updated in place. Used by the B SyncPrices scheduler
+// so same-day re-syncs (and backfill-after-sync overlaps) refresh the row
+// instead of erroring. Callers truncate PriceDate to the day so the constraint
+// key is stable.
+func (r *PriceHistoryRepository) Save(ctx context.Context, p domain.SecurityPriceHistory) error {
+	if err := r.upsertPrice(ctx, p); err != nil {
 		return fmt.Errorf("save price history: %w", err)
 	}
 	return nil
 }
 
-// Exists reports whether any price row exists for the security (gates// backfill — skip already-populated securities).
+// Exists reports whether any price row exists for the security. No longer used
+// as a backfill gate (BackfillPriceHistory refreshes every Sina-covered security
+// each startup), but kept for ad-hoc checks and the repo interface.
 func (r *PriceHistoryRepository) Exists(ctx context.Context, securityID uuid.UUID) (bool, error) {
 	exists, err := r.client.SecurityPriceHistory.Query().
 		Where(securitypricehistory.SecurityIDEQ(securityID)).

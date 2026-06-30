@@ -49,7 +49,7 @@ func TestPriceHistoryRepoFindBySecurity_RangeAndOrder(t *testing.T) {
 }
 
 // TestPriceHistoryRepoExists confirms Exists distinguishes populated vs empty
-// (the backfill gate: skip securities that already have history).
+// (Exists is no longer used as a backfill gate, but is kept for ad-hoc checks).
 func TestPriceHistoryRepoExists(t *testing.T) {
 	client := setupHoldingTestDB(t)
 	ctx := context.Background()
@@ -98,6 +98,97 @@ func TestPriceHistoryRepoSaveAll_BulkInsert(t *testing.T) {
 	// Source + price round-tripped.
 	if got[0].Source != "sina" || got[0].PriceCents != 9000 {
 		t.Errorf("first row round-trip mismatch: %+v", got[0])
+	}
+}
+
+// TestPriceHistoryRepoSaveAll_UpsertOnConflict verifies SaveAll upserts on the
+// UNIQUE(security_id, price_date) constraint: re-saving a (security,date) that
+// already exists updates price_cents/source/currency_code in place instead of
+// erroring. This is what lets BackfillPriceHistory refresh history for a
+// security whose current-day row was already written by the B SyncPrices
+// scheduler (the Task 10 e2e backfill-gate defect).
+func TestPriceHistoryRepoSaveAll_UpsertOnConflict(t *testing.T) {
+	client := setupHoldingTestDB(t)
+	ctx := context.Background()
+	security := uuid.New()
+
+	// First save — fresh rows.
+	first := []domain.SecurityPriceHistory{
+		{SecurityID: security, PriceDate: day("2025-04-01"), PriceCents: 10000, CurrencyCode: "CNY", Source: "sina"},
+		{SecurityID: security, PriceDate: day("2025-04-02"), PriceCents: 10100, CurrencyCode: "CNY", Source: "sina"},
+	}
+	repo := repository.NewPriceHistoryRepository(client)
+	if err := repo.SaveAll(ctx, first); err != nil {
+		t.Fatalf("SaveAll first: %v", err)
+	}
+
+	// Second save — same (security,date) keys, new price + source (as if
+	// backfill re-fetched and upserted). Must NOT return a UNIQUE-constraint error.
+	second := []domain.SecurityPriceHistory{
+		{SecurityID: security, PriceDate: day("2025-04-01"), PriceCents: 9999, CurrencyCode: "CNY", Source: "backfill"},
+		{SecurityID: security, PriceDate: day("2025-04-03"), PriceCents: 10200, CurrencyCode: "CNY", Source: "backfill"},
+	}
+	if err := repo.SaveAll(ctx, second); err != nil {
+		t.Fatalf("SaveAll second (upsert): %v", err)
+	}
+
+	got, err := repo.FindBySecurity(ctx, security, day("2025-04-01"), day("2025-04-03"))
+	if err != nil {
+		t.Fatalf("FindBySecurity: %v", err)
+	}
+	// 3 distinct dates total (04-01 + 04-02 from first save, 04-03 new) — 04-01
+	// upserted in place, NOT duplicated.
+	if len(got) != 3 {
+		t.Fatalf("expected 3 rows after upsert, got %d (04-01 should be updated, not duplicated)", len(got))
+	}
+	// 04-01 updated to the backfill value (9999, "backfill").
+	var apr01 *domain.SecurityPriceHistory
+	for i := range got {
+		if got[i].PriceDate.Equal(day("2025-04-01")) {
+			apr01 = &got[i]
+			break
+		}
+	}
+	if apr01 == nil {
+		t.Fatal("04-01 row missing")
+	}
+	if apr01.PriceCents != 9999 || apr01.Source != "backfill" {
+		t.Errorf("04-01 row = (price=%d source=%q), want (9999, backfill) — upsert did not refresh", apr01.PriceCents, apr01.Source)
+	}
+}
+
+// TestPriceHistoryRepoSave_UpsertOnConflict verifies the single-row Save path
+// (used by the B SyncPrices scheduler) also upserts — same-day re-syncs refresh
+// the existing row instead of erroring.
+func TestPriceHistoryRepoSave_UpsertOnConflict(t *testing.T) {
+	client := setupHoldingTestDB(t)
+	ctx := context.Background()
+	security := uuid.New()
+	repo := repository.NewPriceHistoryRepository(client)
+
+	p := domain.SecurityPriceHistory{
+		SecurityID: security, PriceDate: day("2025-05-01"),
+		PriceCents: 5000, CurrencyCode: "CNY", Source: "sina",
+	}
+	if err := repo.Save(ctx, p); err != nil {
+		t.Fatalf("Save first: %v", err)
+	}
+	// Re-save same (security,date) with refreshed price — must upsert, not error.
+	p.PriceCents = 5500
+	p.Source = "sina"
+	if err := repo.Save(ctx, p); err != nil {
+		t.Fatalf("Save second (upsert): %v", err)
+	}
+
+	got, err := repo.FindBySecurity(ctx, security, day("2025-05-01"), day("2025-05-01"))
+	if err != nil {
+		t.Fatalf("FindBySecurity: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 row (upserted), got %d", len(got))
+	}
+	if got[0].PriceCents != 5500 {
+		t.Errorf("price = %d, want 5500 (upserted)", got[0].PriceCents)
 	}
 }
 
