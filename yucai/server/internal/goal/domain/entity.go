@@ -85,6 +85,20 @@ func (g *Goal) AddProgress(amountCents int64) bool {
 	return false
 }
 
+// SetCurrentAmount sets the current progress from a market-value snapshot
+// (used by investment goals whose progress = Σ holdings mv). Auto-completes
+// when reaching target; never un-completes a completed goal (mv may fluctuate).
+func (g *Goal) SetCurrentAmount(amtCents int64) {
+	g.CurrentAmountCents = amtCents
+	if g.CurrentAmountCents < 0 {
+		g.CurrentAmountCents = 0
+	}
+	g.UpdatedAt = time.Now()
+	if g.CurrentAmountCents >= g.TargetAmountCents && !g.IsCompleted {
+		g.MarkCompleted()
+	}
+}
+
 // MarkCompleted marks the goal as completed now.
 func (g *Goal) MarkCompleted() {
 	now := time.Now()

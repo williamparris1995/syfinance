@@ -67,13 +67,17 @@ func (r *GoalRepository) FindByID(ctx context.Context, tenantID, id uuid.UUID) (
 	return toDomainGoal(g), nil
 }
 
-// FindAll returns paginated goals with optional completed filter.
-func (r *GoalRepository) FindAll(ctx context.Context, tenantID uuid.UUID, completed *bool, page domain.PageRequest) (*domain.PaginatedResult[domain.Goal], error) {
+// FindAll returns paginated goals with optional completed and goalType filters.
+func (r *GoalRepository) FindAll(ctx context.Context, tenantID uuid.UUID, completed *bool, goalType *domain.GoalType, page domain.PageRequest) (*domain.PaginatedResult[domain.Goal], error) {
 	query := r.client.Goal.Query().
 		Where(goal.TenantID(tenantID))
 
 	if completed != nil {
 		query.Where(goal.IsCompletedEQ(*completed))
+	}
+
+	if goalType != nil {
+		query.Where(goal.GoalTypeEQ((*goalType).String()))
 	}
 
 	total, err := query.Count(ctx)

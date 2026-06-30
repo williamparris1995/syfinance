@@ -158,3 +158,38 @@ func TestGoalType_StringRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+func TestGoalSetCurrentAmountAndAutoComplete(t *testing.T) {
+	g := &Goal{
+		ID:                 uuid.New(),
+		TargetAmountCents:  100000,
+		CurrentAmountCents: 0,
+	}
+	// Set mv below target → progress 60%, not completed.
+	g.SetCurrentAmount(60000)
+	if g.CurrentAmountCents != 60000 {
+		t.Fatalf("current = %d, want 60000", g.CurrentAmountCents)
+	}
+	if g.IsCompleted {
+		t.Fatal("should not be completed below target")
+	}
+	// Set mv at/above target → auto-complete.
+	g.SetCurrentAmount(100000)
+	if !g.IsCompleted {
+		t.Fatal("should auto-complete at target")
+	}
+	if g.CompletedAt == nil {
+		t.Fatal("CompletedAt should be set")
+	}
+}
+
+func TestGoalSetCurrentAmountDoesNotUncomplete(t *testing.T) {
+	// Re-setting a lower mv after completion must not un-complete.
+	g := &Goal{TargetAmountCents: 100000, IsCompleted: true, CompletedAt: ptrTime(time.Now())}
+	g.SetCurrentAmount(10000)
+	if !g.IsCompleted {
+		t.Fatal("completed goal must stay completed even if mv drops")
+	}
+}
+
+func ptrTime(t time.Time) *time.Time { return &t }

@@ -138,7 +138,7 @@ func (s *Service) SyncGoalProgress(ctx context.Context, tenantID, id uuid.UUID, 
 
 // ListGoals returns a paginated list of goals.
 func (s *Service) ListGoals(ctx context.Context, req ListGoalsRequest) (*ListGoalsResult, error) {
-	result, err := s.repo.FindAll(ctx, req.TenantID, req.Completed, req.Page)
+	result, err := s.repo.FindAll(ctx, req.TenantID, req.Completed, nil, req.Page)
 	if err != nil {
 		return nil, fmt.Errorf("list goals: %w", err)
 	}
