@@ -59,6 +59,19 @@ func (r *HoldingRepository) FindByAccountAndSecurity(ctx context.Context, tenant
 	return toDomainHolding(h), nil
 }
 
+// FindByID retrieves a single holding by its primary key. Tenant scope is the
+// caller's responsibility (used by GetHoldingPerformance, where the holdingID
+// is already tenant-scoped at the handler).
+func (r *HoldingRepository) FindByID(ctx context.Context, holdingID uuid.UUID) (*domain.Holding, error) {
+	h, err := r.client.Holding.Query().
+		Where(holding.ID(holdingID)).
+		Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("find holding by id: %w", err)
+	}
+	return toDomainHolding(h), nil
+}
+
 func (r *HoldingRepository) FindAll(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID, page domain.PageRequest) (*domain.PaginatedResult[domain.Holding], error) {
 	query := r.client.Holding.Query().Where(holding.TenantID(tenantID))
 	if accountID != nil {

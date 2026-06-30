@@ -34,6 +34,7 @@ type SecurityRepository interface {
 type HoldingRepository interface {
 	SaveOrUpdate(ctx context.Context, holding *Holding) error
 	FindByAccountAndSecurity(ctx context.Context, tenantID, accountID, securityID uuid.UUID) (*Holding, error)
+	FindByID(ctx context.Context, holdingID uuid.UUID) (*Holding, error)
 	FindAll(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID, page PageRequest) (*PaginatedResult[Holding], error)
 }
 

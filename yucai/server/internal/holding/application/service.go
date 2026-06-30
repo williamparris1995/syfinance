@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -449,4 +450,428 @@ func (s *Service) SyncPrices(ctx context.Context) (int, error) {
 		page.PageToken = result.NextPageToken
 	}
 	return synced, nil
+}
+
+// --- Task 6 C: snapshot / backfill / performance ---
+
+// curveWindow maps a proto CurveRange name to (from, to, granularity).
+// granularity = "day"/"month"/"year" sampling.
+func curveWindow(rangeName string) (from, to time.Time, granularity string) {
+	to = truncateToDate(time.Now())
+	switch rangeName {
+	case "MONTH":
+		return to.AddDate(0, -12, 0), to, "month"
+	case "YEAR":
+		return to.AddDate(-5, 0, 0), to, "year"
+	default: // DAY
+		return to.AddDate(0, 0, -30), to, "day"
+	}
+}
+
+// SnapshotHoldings writes one market-value snapshot per active holding for
+// today. Best-effort: a holding whose security is missing is skipped + logged,
+// not fatal. Implements scheduler.Snapshotter (Task 7).
+func (s *Service) SnapshotHoldings(ctx context.Context, tenantID uuid.UUID) (int, error) {
+	if s.snapshotRepo == nil {
+		return 0, fmt.Errorf("snapshot: snapshot repo not configured")
+	}
+	today := truncateToDate(time.Now())
+	synced := 0
+	page := domain.PageRequest{PageSize: 100}
+	for {
+		result, err := s.holdingRepo.FindAll(ctx, tenantID, nil, page)
+		if err != nil {
+			return synced, fmt.Errorf("snapshot: list holdings: %w", err)
+		}
+		for _, h := range result.Items {
+			if err := ctx.Err(); err != nil {
+				return synced, err
+			}
+			sec, err := s.securityRepo.FindByID(ctx, h.SecurityID)
+			if err != nil || sec == nil {
+				slog.Warn("holding snapshot: security missing, skip",
+					slog.String("holding_id", h.ID.String()),
+					slog.String("operation", "SnapshotHoldings"))
+				continue
+			}
+			snap := domain.HoldingSnapshot{
+				TenantID:          h.TenantID,
+				HoldingID:         h.ID,
+				SecurityID:        h.SecurityID,
+				AccountID:         h.AccountID,
+				SnapshotDate:      today,
+				MarketValueCents:  h.MarketValue(sec.CurrentPriceCents),
+				UnrealizedPnlCents: h.UnrealizedPnL(sec.CurrentPriceCents),
+				CurrencyCode:      sec.CurrencyCode,
+			}
+			if err := s.snapshotRepo.Save(ctx, snap); err != nil {
+				slog.Warn("holding snapshot: save failed",
+					slog.String("holding_id", h.ID.String()),
+					slog.String("error", err.Error()),
+					slog.String("operation", "SnapshotHoldings"))
+				continue
+			}
+			synced++
+		}
+		if result.NextPageToken == "" || len(result.Items) == 0 {
+			break
+		}
+		page.PageToken = result.NextPageToken
+	}
+	return synced, nil
+}
+
+// datalenForRange maps CurveRange to Sina K-line datalen (bar count).
+func datalenForRange(rangeName string) int {
+	switch rangeName {
+	case "MONTH":
+		return 250
+	case "YEAR":
+		return 1200
+	default:
+		return 30
+	}
+}
+
+// BackfillPriceHistory fetches historical daily K-line for every Sina-covered
+// security + CSI300, writing price_history. Best-effort: per-security fetch
+// failure logged, not fatal. Skips securities that already have history
+// (Exists gate — only backfills the empty case, idempotent).
+func (s *Service) BackfillPriceHistory(ctx context.Context, rangeName string) (int, error) {
+	if s.historicalProvider == nil || s.priceHistoryRepo == nil {
+		return 0, fmt.Errorf("backfill: historical provider/price history repo not configured")
+	}
+	datalen := datalenForRange(rangeName)
+	backfilled := 0
+	page := domain.PageRequest{PageSize: 100}
+	for {
+		result, err := s.securityRepo.FindAll(ctx, nil, page)
+		if err != nil {
+			return backfilled, fmt.Errorf("backfill: list securities: %w", err)
+		}
+		for _, sec := range result.Items {
+			if err := ctx.Err(); err != nil {
+				return backfilled, err
+			}
+			exists, _ := s.priceHistoryRepo.Exists(ctx, sec.ID)
+			if exists {
+				continue // already has history — only backfill empty
+			}
+			view := priceprovider.PriceView{Symbol: sec.Symbol, Exchange: sec.Exchange, Type: sec.SecurityType}
+			pts, err := s.historicalProvider.FetchHistory(ctx, view, datalen)
+			if err != nil {
+				if errors.Is(err, priceprovider.ErrNoSource) {
+					continue // non A-share (US/OTC/SGE) — no history in batch
+				}
+				slog.Warn("holding backfill: fetch history failed",
+					slog.String("symbol", sec.Symbol),
+					slog.String("error", err.Error()),
+					slog.String("operation", "BackfillPriceHistory"))
+				continue
+			}
+			ph := make([]domain.SecurityPriceHistory, 0, len(pts))
+			for _, p := range pts {
+				ph = append(ph, domain.SecurityPriceHistory{
+					SecurityID: sec.ID, PriceDate: p.Date, PriceCents: p.PriceCents,
+					CurrencyCode: sec.CurrencyCode, Source: "backfill",
+				})
+			}
+			if err := s.priceHistoryRepo.SaveAll(ctx, ph); err != nil {
+				slog.Warn("holding backfill: save failed",
+					slog.String("symbol", sec.Symbol),
+					slog.String("error", err.Error()),
+					slog.String("operation", "BackfillPriceHistory"))
+				continue
+			}
+			backfilled++
+		}
+		if result.NextPageToken == "" || len(result.Items) == 0 {
+			break
+		}
+		page.PageToken = result.NextPageToken
+	}
+	return backfilled, nil
+}
+
+// GetPortfolioPerformance builds the portfolio CNY curve + realized/unrealized
+// + annualized + optional CSI300 benchmark.
+func (s *Service) GetPortfolioPerformance(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID, rangeName string, withBenchmark bool) (*PortfolioPerformance, error) {
+	if s.snapshotRepo == nil {
+		return nil, fmt.Errorf("portfolio perf: snapshot repo not configured")
+	}
+	from, to, granularity := curveWindow(rangeName)
+	snaps, err := s.snapshotRepo.FindSnapshots(ctx, tenantID, from, to, accountID, nil)
+	if err != nil {
+		return nil, fmt.Errorf("portfolio perf: find snapshots: %w", err)
+	}
+	// Sample by granularity: group snapshots by day/month/year bucket, take last per bucket.
+	portPts := s.samplePortfolioCNY(snaps, granularity)
+	// Realized: Σ sell realized + Σ dividend (from trades).
+	realized := s.aggregateRealized(ctx, tenantID, accountID)
+	// Unrealized (current): Σ current holding unrealized (CNY折算).
+	unrealized := s.currentUnrealizedCNY(ctx, tenantID, accountID)
+	total := realized + unrealized
+	// Cost basis (current): Σ qty×avgCost (CNY) — for total %.
+	costBasis := s.currentCostBasisCNY(ctx, tenantID, accountID)
+	totalPct := 0.0
+	if costBasis != 0 {
+		totalPct = float64(total) / float64(costBasis) * 100
+	}
+	annualized := s.annualizedPct(ctx, total, costBasis, tenantID)
+	out := &PortfolioPerformance{
+		PortfolioPoints: portPts, RealizedCents: realized, UnrealizedCents: unrealized,
+		TotalCents: total, AnnualizedPct: annualized, TotalPct: totalPct, Currency: "CNY",
+	}
+	if withBenchmark {
+		out.BenchmarkName = "沪深300"
+		out.BenchmarkPoints = s.benchmarkCurve(ctx, rangeName)
+	}
+	return out, nil
+}
+
+// samplePortfolioCNY groups snapshots by granularity bucket (day/month/year),
+// takes the last snapshot per holding per bucket, sums to portfolio market
+// value per bucket date,折算 each holding's original currency to CNY via rate
+// history. CNY holdings assume rate=1.0.
+func (s *Service) samplePortfolioCNY(snaps []domain.HoldingSnapshot, granularity string) []CurvePointDTO {
+	// bucket key = truncated date; collect last snapshot per (holding, bucket).
+	type key struct {
+		holding uuid.UUID
+		bucket  time.Time
+	}
+	last := map[key]domain.HoldingSnapshot{}
+	for _, sn := range snaps {
+		b := bucketOf(sn.SnapshotDate, granularity)
+		k := key{sn.HoldingID, b}
+		if cur, ok := last[k]; !ok || sn.SnapshotDate.After(cur.SnapshotDate) {
+			last[k] = sn
+		}
+	}
+	// sum market value per bucket date,折算 each holding's currency to CNY.
+	byDate := map[time.Time]int64{}
+	for _, sn := range last {
+		rate := 1.0
+		if s.rateRepo != nil && sn.CurrencyCode != "CNY" {
+			rate, _ = s.rateRepo.FindRate(context.Background(), sn.CurrencyCode, sn.SnapshotDate)
+		}
+		byDate[bucketOf(sn.SnapshotDate, granularity)] += int64(float64(sn.MarketValueCents) * rate)
+	}
+	// sorted points (double value in 元).
+	dates := make([]time.Time, 0, len(byDate))
+	for d := range byDate {
+		dates = append(dates, d)
+	}
+	sort.Slice(dates, func(i, j int) bool { return dates[i].Before(dates[j]) })
+	pts := make([]CurvePointDTO, 0, len(dates))
+	for _, d := range dates {
+		pts = append(pts, CurvePointDTO{Time: d, Value: float64(byDate[d]) / 100.0})
+	}
+	return pts
+}
+
+// bucketOf truncates a time to the start of its granularity bucket
+// (day/month/year), in UTC.
+func bucketOf(t time.Time, granularity string) time.Time {
+	switch granularity {
+	case "month":
+		return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC)
+	case "year":
+		return time.Date(t.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
+	default:
+		return truncateToDate(t)
+	}
+}
+
+// aggregateRealized sums sell FIFO realized + dividend total across the
+// portfolio's trades. Multi-currency折算 deferred (first batch: realized landed
+// in trade's original currency; for CNY-only portfolios this is exact; mixed
+// portfolios will be折算 in a follow-up).
+func (s *Service) aggregateRealized(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID) int64 {
+	var sum int64
+	page := domain.PageRequest{PageSize: 200}
+	for {
+		res, err := s.tradeRepo.FindAll(ctx, tenantID, accountID, nil, page)
+		if err != nil {
+			return sum
+		}
+		for _, tr := range res.Items {
+			sum += tr.RealizedPnLCents // sell realized
+			if tr.TradeType == domain.TradeTypeDividend {
+				sum += tr.AmountCents // dividend as realized income
+			}
+		}
+		if res.NextPageToken == "" || len(res.Items) == 0 {
+			break
+		}
+		page.PageToken = res.NextPageToken
+	}
+	return sum
+}
+
+// aggregateRealizedForSecurity narrows aggregateRealized to one security
+// (GetHoldingPerformance — this holding's realized only). First batch: no折算
+// (original currency).
+func (s *Service) aggregateRealizedForSecurity(ctx context.Context, tenantID uuid.UUID, accountID, securityID *uuid.UUID) int64 {
+	var sum int64
+	page := domain.PageRequest{PageSize: 200}
+	for {
+		res, err := s.tradeRepo.FindAll(ctx, tenantID, accountID, securityID, page)
+		if err != nil {
+			return sum
+		}
+		for _, tr := range res.Items {
+			sum += tr.RealizedPnLCents
+			if tr.TradeType == domain.TradeTypeDividend {
+				sum += tr.AmountCents
+			}
+		}
+		if res.NextPageToken == "" || len(res.Items) == 0 {
+			break
+		}
+		page.PageToken = res.NextPageToken
+	}
+	return sum
+}
+
+// currentUnrealizedCNY sums the current unrealized P&L across all holdings,
+// 折算 each holding's currency to CNY via rate history (CNY=1.0).
+func (s *Service) currentUnrealizedCNY(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID) int64 {
+	var sum int64
+	page := domain.PageRequest{PageSize: 100}
+	for {
+		res, err := s.holdingRepo.FindAll(ctx, tenantID, accountID, page)
+		if err != nil {
+			return sum
+		}
+		for _, h := range res.Items {
+			sec, err := s.securityRepo.FindByID(ctx, h.SecurityID)
+			if err != nil || sec == nil {
+				continue
+			}
+			pnl := h.UnrealizedPnL(sec.CurrentPriceCents)
+			rate := 1.0
+			if s.rateRepo != nil && sec.CurrencyCode != "CNY" {
+				rate, _ = s.rateRepo.FindRate(ctx, sec.CurrencyCode, time.Now())
+			}
+			sum += int64(float64(pnl) * rate)
+		}
+		if res.NextPageToken == "" || len(res.Items) == 0 {
+			break
+		}
+		page.PageToken = res.NextPageToken
+	}
+	return sum
+}
+
+// currentCostBasisCNY sums the current cost basis (qty × avgCost) across all
+// holdings,折算 each holding's currency to CNY via rate history (CNY=1.0).
+func (s *Service) currentCostBasisCNY(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID) int64 {
+	var sum int64
+	page := domain.PageRequest{PageSize: 100}
+	for {
+		res, err := s.holdingRepo.FindAll(ctx, tenantID, accountID, page)
+		if err != nil {
+			return sum
+		}
+		for _, h := range res.Items {
+			sec, err := s.securityRepo.FindByID(ctx, h.SecurityID)
+			if err != nil || sec == nil {
+				continue
+			}
+			basis := int64(math.Round(float64(h.AvgCostCents) * h.Quantity))
+			rate := 1.0
+			if s.rateRepo != nil && sec.CurrencyCode != "CNY" {
+				rate, _ = s.rateRepo.FindRate(ctx, sec.CurrencyCode, time.Now())
+			}
+			sum += int64(float64(basis) * rate)
+		}
+		if res.NextPageToken == "" || len(res.Items) == 0 {
+			break
+		}
+		page.PageToken = res.NextPageToken
+	}
+	return sum
+}
+
+// annualizedPct annualizes total return over the holding period (earliest
+// holding created_at → now). Returns 0 if period < 1 day or costBasis 0.
+// Simple annualization (totalReturn / years × 100) — not CAGR (first batch).
+func (s *Service) annualizedPct(ctx context.Context, total, costBasis int64, tenantID uuid.UUID) float64 {
+	if costBasis == 0 {
+		return 0
+	}
+	page := domain.PageRequest{PageSize: 200}
+	earliest := time.Now()
+	res, err := s.holdingRepo.FindAll(ctx, tenantID, nil, page)
+	if err != nil || len(res.Items) == 0 {
+		return 0
+	}
+	for _, h := range res.Items {
+		if h.CreatedAt.Before(earliest) {
+			earliest = h.CreatedAt
+		}
+	}
+	years := time.Since(earliest).Hours() / 24 / 365.25
+	if years < 1.0/365.25 {
+		return 0
+	}
+	totalReturn := float64(total) / float64(costBasis) // fraction
+	return totalReturn / years * 100
+}
+
+// benchmarkCurve returns CSI300 (000300) price history as curve points (元).
+// Empty if the security is not seeded or has no history.
+func (s *Service) benchmarkCurve(ctx context.Context, rangeName string) []CurvePointDTO {
+	if s.priceHistoryRepo == nil {
+		return nil
+	}
+	from, to, _ := curveWindow(rangeName)
+	sec, err := s.securityRepo.FindBySymbol(ctx, "000300", "SSE")
+	if err != nil || sec == nil {
+		return nil
+	}
+	ph, err := s.priceHistoryRepo.FindBySecurity(ctx, sec.ID, from, to)
+	if err != nil {
+		return nil
+	}
+	pts := make([]CurvePointDTO, 0, len(ph))
+	for _, p := range ph {
+		pts = append(pts, CurvePointDTO{Time: p.PriceDate, Value: float64(p.PriceCents) / 100.0})
+	}
+	return pts
+}
+
+// GetHoldingPerformance builds a single-holding curve (original-currency price
+// from price_history) + this holding's realized + current unrealized.
+func (s *Service) GetHoldingPerformance(ctx context.Context, holdingID uuid.UUID, rangeName string) (*HoldingPerformance, error) {
+	if s.priceHistoryRepo == nil {
+		return nil, fmt.Errorf("holding perf: price history repo not configured")
+	}
+	from, to, _ := curveWindow(rangeName)
+	h, err := s.holdingRepo.FindByID(ctx, holdingID)
+	if err != nil {
+		return nil, fmt.Errorf("holding perf: find holding: %w", err)
+	}
+	sec, err := s.securityRepo.FindByID(ctx, h.SecurityID)
+	if err != nil || sec == nil {
+		return nil, fmt.Errorf("holding perf: security missing: %w", err)
+	}
+	// Price curve (original currency).
+	ph, err := s.priceHistoryRepo.FindBySecurity(ctx, h.SecurityID, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("holding perf: price history: %w", err)
+	}
+	pts := make([]CurvePointDTO, 0, len(ph))
+	for _, p := range ph {
+		pts = append(pts, CurvePointDTO{Time: p.PriceDate, Value: float64(p.PriceCents) / 100.0})
+	}
+	// Realized for this holding: Σ trade.realized where trade.securityID = holding.securityID
+	// within the same (tenant, account). First batch: no折算 (original currency).
+	realized := s.aggregateRealizedForSecurity(ctx, h.TenantID, &h.AccountID, &h.SecurityID)
+	// Unrealized (current).
+	unrealized := h.UnrealizedPnL(sec.CurrentPriceCents)
+	return &HoldingPerformance{
+		PricePoints: pts, RealizedCents: realized, UnrealizedCents: unrealized,
+		TotalCents: realized + unrealized, Currency: sec.CurrencyCode,
+	}, nil
 }

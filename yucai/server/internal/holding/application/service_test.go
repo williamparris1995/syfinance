@@ -70,8 +70,19 @@ func (r *fakeSecurityRepo) priceFor(symbol string) int64 { return r.prices[symbo
 func (r *fakeSecurityRepo) Save(context.Context, *domain.Security) error {
 	panic("not used in SyncPrices test")
 }
-func (r *fakeSecurityRepo) FindByID(context.Context, uuid.UUID) (*domain.Security, error) {
-	panic("not used in SyncPrices test")
+func (r *fakeSecurityRepo) FindByID(_ context.Context, id uuid.UUID) (*domain.Security, error) {
+	for _, sym := range r.order {
+		if r.ids[sym] == id {
+			secType := domain.SecurityTypeStock
+			return &domain.Security{
+				ID: r.ids[sym], Symbol: sym, Name: sym,
+				SecurityType: secType, Exchange: "SSE",
+				CurrencyCode:      "CNY",
+				CurrentPriceCents: r.prices[sym],
+			}, nil
+		}
+	}
+	return nil, errors.New("security not found")
 }
 func (r *fakeSecurityRepo) FindBySymbol(context.Context, string, string) (*domain.Security, error) {
 	panic("not used in SyncPrices test")
@@ -120,6 +131,9 @@ func (nilHoldingRepo) SaveOrUpdate(context.Context, *domain.Holding) error {
 	panic("not used in SyncPrices test")
 }
 func (nilHoldingRepo) FindByAccountAndSecurity(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) (*domain.Holding, error) {
+	panic("not used in SyncPrices test")
+}
+func (nilHoldingRepo) FindByID(context.Context, uuid.UUID) (*domain.Holding, error) {
 	panic("not used in SyncPrices test")
 }
 func (nilHoldingRepo) FindAll(context.Context, uuid.UUID, *uuid.UUID, domain.PageRequest) (*domain.PaginatedResult[domain.Holding], error) {
@@ -213,7 +227,7 @@ func TestSyncPricesWithoutRouterErrors(t *testing.T) {
 
 // --- FIFO lot maintenance tests (Task 5 C) ---
 
-// memHoldingRepo is an in-memory HoldingRepository for Buy/Sell/Split tests.
+// memHoldingRepo is an in-memory HoldingRepository for Buy/Sell/Split + perf tests.
 type memHoldingRepo struct {
 	byKey map[string]*domain.Holding // key = accountID|securityID
 }
@@ -240,8 +254,31 @@ func (r *memHoldingRepo) FindByAccountAndSecurity(_ context.Context, _, accountI
 	return nil, errors.New("not found")
 }
 
-func (r *memHoldingRepo) FindAll(context.Context, uuid.UUID, *uuid.UUID, domain.PageRequest) (*domain.PaginatedResult[domain.Holding], error) {
-	panic("not used in lot test")
+// FindByID returns the holding with the given primary key.
+func (r *memHoldingRepo) FindByID(_ context.Context, holdingID uuid.UUID) (*domain.Holding, error) {
+	for _, h := range r.byKey {
+		if h.ID == holdingID {
+			cp := *h
+			return &cp, nil
+		}
+	}
+	return nil, errors.New("not found")
+}
+
+// FindAll returns all holdings (optionally filtered by tenantID/accountID).
+// tenantID=uuid.Nil means all tenants (scheduler/perf-friendly).
+func (r *memHoldingRepo) FindAll(_ context.Context, tenantID uuid.UUID, accountID *uuid.UUID, _ domain.PageRequest) (*domain.PaginatedResult[domain.Holding], error) {
+	items := make([]domain.Holding, 0, len(r.byKey))
+	for _, h := range r.byKey {
+		if tenantID != uuid.Nil && h.TenantID != tenantID {
+			continue
+		}
+		if accountID != nil && h.AccountID != *accountID {
+			continue
+		}
+		items = append(items, *h)
+	}
+	return &domain.PaginatedResult[domain.Holding]{Items: items, TotalCount: int32(len(items))}, nil
 }
 
 // memTradeRepo is an in-memory TradeRepository that records saved trades.
@@ -255,8 +292,23 @@ func (r *memTradeRepo) Save(_ context.Context, tr *domain.HoldingTransaction) er
 	return nil
 }
 
-func (r *memTradeRepo) FindAll(context.Context, uuid.UUID, *uuid.UUID, *uuid.UUID, domain.PageRequest) (*domain.PaginatedResult[domain.HoldingTransaction], error) {
-	panic("not used in lot test")
+// FindAll returns saved trades. Filters by tenantID (Nil=all), accountID and
+// securityID (both optional).
+func (r *memTradeRepo) FindAll(_ context.Context, tenantID uuid.UUID, accountID, securityID *uuid.UUID, _ domain.PageRequest) (*domain.PaginatedResult[domain.HoldingTransaction], error) {
+	items := make([]domain.HoldingTransaction, 0, len(r.saved))
+	for _, tr := range r.saved {
+		if tenantID != uuid.Nil && tr.TenantID != tenantID {
+			continue
+		}
+		if accountID != nil && tr.AccountID != *accountID {
+			continue
+		}
+		if securityID != nil && tr.SecurityID != *securityID {
+			continue
+		}
+		items = append(items, *tr)
+	}
+	return &domain.PaginatedResult[domain.HoldingTransaction]{Items: items, TotalCount: int32(len(items))}, nil
 }
 
 // memLotRepo is an in-memory LotRepository keyed by holdingID.

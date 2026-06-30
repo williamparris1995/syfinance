@@ -132,3 +132,34 @@ func TradeToDTO(tr *domain.HoldingTransaction) HoldingTransactionDTO {
 		Notes: tr.Notes, CreatedAt: tr.CreatedAt,
 	}
 }
+
+// CurvePointDTO is one time-series point (double value — CNY market value,
+// original-currency price, or benchmark index level). Value is in 元 (cents/100).
+type CurvePointDTO struct {
+	Time  time.Time
+	Value float64
+}
+
+// PortfolioPerformance is the portfolio-level curve + foot (Task 6 fills).
+// All monetary foot fields are CNY cents; curve points are CNY 元 (double).
+type PortfolioPerformance struct {
+	PortfolioPoints []CurvePointDTO // CNY market value over time
+	BenchmarkPoints []CurvePointDTO // CSI300 (empty if !include_benchmark)
+	BenchmarkName   string
+	RealizedCents   int64   // Σ sell FIFO realized + dividend, CNY
+	UnrealizedCents int64   // current portfolio unrealized, CNY
+	TotalCents      int64   // realized + unrealized
+	AnnualizedPct   float64 // annualized return %
+	TotalPct        float64 // cumulative return %
+	Currency        string  // "CNY"
+}
+
+// HoldingPerformance is the single-holding curve + foot.
+// Curve is original-currency price; foot fields are original currency.
+type HoldingPerformance struct {
+	PricePoints     []CurvePointDTO // original-currency price over time
+	RealizedCents   int64           // this holding's FIFO realized, original currency
+	UnrealizedCents int64           // current holding unrealized, original currency
+	TotalCents      int64           // realized + unrealized
+	Currency        string          // original currency
+}
