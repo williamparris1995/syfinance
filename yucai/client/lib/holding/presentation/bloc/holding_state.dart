@@ -2,6 +2,8 @@ import 'package:equatable/equatable.dart';
 
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
+import 'package:yucai_client/holding/presentation/widgets/perf_curve_chart.dart'
+    show PerfPoint;
 
 abstract class HoldingState extends Equatable {
   const HoldingState();
@@ -63,20 +65,47 @@ class HoldingLoaded extends HoldingState {
 /// `isPendingBackend` 为 true 时表示交易历史来自 ⏳ 端点降级(trades=空,
 /// holding 已从 listHoldings 成功获取)——UI 保留 holding 卡/曲线/配置/关联目标
 /// 7 组件主体,仅交易历史区显示「⏳ 待后端」空态(对齐 brief)。
+///
+/// Task 13(holding-C)新增:`holdingCurve` / `holdingCurveRealizedCents`
+/// 来自 server getHoldingPerformance(pricePoints + realizedCents,FIFO)。
+/// 可空 —— LoadHoldingCurveRequested 未发 / fail 时为 null,UI 走空态。
 class HoldingDetailLoaded extends HoldingState {
   const HoldingDetailLoaded({
     required this.holding,
     required this.trades,
     this.pnlBreakdown,
     this.isPendingBackend = false,
+    this.holdingCurve,
+    this.holdingCurveRealizedCents,
   });
   final Holding holding;
   final List<HoldingTransaction> trades;
   final Map<String, int>? pnlBreakdown;
   final bool isPendingBackend;
+  /// 单持仓价格曲线(server getHoldingPerformance.pricePoints)。
+  /// null/空 → PerfCurveChart 空态。
+  final List<PerfPoint>? holdingCurve;
+  /// server FIFO realized(cents)。null → foot realized 不渲染(避免 0 误导)。
+  final int? holdingCurveRealizedCents;
 
   @override
-  List<Object?> get props => [holding, trades, pnlBreakdown, isPendingBackend];
+  List<Object?> get props =>
+      [holding, trades, pnlBreakdown, isPendingBackend, holdingCurve, holdingCurveRealizedCents];
+
+  /// 保留现有字段,仅覆盖曲线相关(LoadHoldingCurveRequested 成功后用)。
+  HoldingDetailLoaded copyWith({
+    List<PerfPoint>? holdingCurve,
+    int? holdingCurveRealizedCents,
+  }) =>
+      HoldingDetailLoaded(
+        holding: holding,
+        trades: trades,
+        pnlBreakdown: pnlBreakdown,
+        isPendingBackend: isPendingBackend,
+        holdingCurve: holdingCurve ?? this.holdingCurve,
+        holdingCurveRealizedCents:
+            holdingCurveRealizedCents ?? this.holdingCurveRealizedCents,
+      );
 }
 
 /// 提交中:携带上次状态,UI 保持背景列表/详情不变。

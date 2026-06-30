@@ -22,6 +22,7 @@ class HoldingBloc extends Bloc<HoldingEvent, HoldingState> {
     on<CreateSecurityRequested>(_onCreateSecurity);
     on<UpdatePriceRequested>(_onUpdatePrice);
     on<RefreshPricesRequested>(_onRefreshPrices);
+    on<LoadHoldingCurveRequested>(_onLoadHoldingCurve);
   }
 
   final HoldingRepository _repo;
@@ -326,6 +327,40 @@ class HoldingBloc extends Bloc<HoldingEvent, HoldingState> {
       (r) {
         _lastPriceSyncedAt = r.syncedAt;
         add(LoadHoldingsRequested(typeFilter: _lastFilter));
+      },
+    );
+  }
+
+  /// 拉单持仓价格曲线(Task 13,holding-C 子事件)。
+  ///
+  /// range tab 切换时**仅更新曲线**(不重拉 holding/trades)。成功 →
+  /// 在现有 HoldingDetailLoaded 基础上 copyWith 曲线(pricePoints +
+  /// realizedCents)。失败 → 保留当前态,曲线区空态(对齐 isPendingBackend
+  /// 降级风格:不整页报错)。
+  ///
+  /// ⚠️ 读 `state`(bloc 当前态)而非 `_last`:detail 页 LoadDetail 不写 _last
+  /// (仅列表态写),但 detail loaded 态即当前 state,故从 state 取 current。
+  Future<void> _onLoadHoldingCurve(
+    LoadHoldingCurveRequested event,
+    Emitter<HoldingState> emit,
+  ) async {
+    final result = await _repo.getHoldingPerformance(
+      holdingId: event.holdingId,
+      range: event.range,
+    );
+    final current = state is HoldingDetailLoaded
+        ? state as HoldingDetailLoaded
+        : null;
+    result.fold(
+      (f) => emit(current != null
+          ? current.copyWith() // 保留,curve 区空态。
+          : HoldingError(f.displayMessage, last: _last)),
+      (perf) {
+        if (current == null) return; // 无 current 态:无承载,忽略(不应发生)。
+        emit(current.copyWith(
+          holdingCurve: perf.pricePoints,
+          holdingCurveRealizedCents: perf.realizedCents,
+        ));
       },
     );
   }

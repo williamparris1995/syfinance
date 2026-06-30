@@ -5,6 +5,7 @@ import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
+import 'package:yucai_client/holding/domain/entities/performance_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
@@ -260,6 +261,84 @@ void main() {
     verify: (b) {
       verify(() => repo.syncPrices()).called(1);
       verifyNever(() => repo.listHoldings(accountId: any(named: 'accountId')));
+    },
+  );
+
+  // Task 13(holding-C):LoadHoldingCurveRequested 成功 → 在现有
+  // HoldingDetailLoaded 上 copyWith 曲线(pricePoints + realizedCents)。
+  // 先发 LoadDetailRequested 建立 detail 态,再发 curve 事件。
+  blocTest<HoldingBloc, HoldingState>(
+    'LoadHoldingCurveRequested success copies curve onto HoldingDetailLoaded',
+    build: () {
+      when(() => repo.listHoldings(accountId: any(named: 'accountId')))
+          .thenAnswer((_) async => Right([sampleHolding]));
+      when(() => repo.listHoldingTransactions(
+            accountId: any(named: 'accountId'),
+            securityId: any(named: 'securityId'),
+          )).thenAnswer((_) async => Right([sampleTrade]));
+      when(() => repo.getHoldingPerformance(
+            holdingId: any(named: 'holdingId'),
+            range: any(named: 'range'),
+          )).thenAnswer((_) async => const Right(HoldingPerformance(
+            realizedCents: 5000,
+            unrealizedCents: 2000,
+            totalCents: 7000,
+          )));
+      return HoldingBloc(repo);
+    },
+    act: (b) => b
+      ..add(const LoadDetailRequested('h1'))
+      ..add(const LoadHoldingCurveRequested(holdingId: 'h1')),
+    wait: const Duration(milliseconds: 200),
+    expect: () => [
+      HoldingLoading(),
+      isA<HoldingDetailLoaded>()
+          .having((s) => s.holding, 'holding', sampleHolding),
+      isA<HoldingDetailLoaded>()
+          .having((s) => s.holdingCurveRealizedCents,
+              'holdingCurveRealizedCents', 5000)
+          .having((s) => s.holdingCurve, 'holdingCurve', isEmpty),
+    ],
+  );
+
+  // Task 13:LoadHoldingCurveRequested 失败 → 保留当前 detail 态,曲线区空。
+  // curve fail 时 emit current.copyWith()(字段全等)→ Equatable 去重,故不产生
+  // 新 state(emit 列表仅 2 项:Loading + detail)。verify 确认调用发生 +
+  // 终态仍 HoldingDetailLoaded(curve null)。
+  blocTest<HoldingBloc, HoldingState>(
+    'LoadHoldingCurveRequested failure retains HoldingDetailLoaded (curve empty)',
+    build: () {
+      when(() => repo.listHoldings(accountId: any(named: 'accountId')))
+          .thenAnswer((_) async => Right([sampleHolding]));
+      when(() => repo.listHoldingTransactions(
+            accountId: any(named: 'accountId'),
+            securityId: any(named: 'securityId'),
+          )).thenAnswer((_) async => const Left(ServerFailure('not impl')));
+      when(() => repo.getHoldingPerformance(
+            holdingId: any(named: 'holdingId'),
+            range: any(named: 'range'),
+          )).thenAnswer((_) async => const Left(ServerFailure('curve down')));
+      return HoldingBloc(repo);
+    },
+    act: (b) => b
+      ..add(const LoadDetailRequested('h1'))
+      ..add(const LoadHoldingCurveRequested(holdingId: 'h1')),
+    wait: const Duration(milliseconds: 200),
+    expect: () => [
+      HoldingLoading(),
+      isA<HoldingDetailLoaded>()
+          .having((s) => s.isPendingBackend, 'isPendingBackend', isTrue)
+          .having((s) => s.holdingCurve, 'holdingCurve', isNull),
+      // copyWith() 与原 detail 全等(Equatable 去重,不产生额外 state)。
+    ],
+    verify: (b) {
+      verify(() => repo.getHoldingPerformance(
+            holdingId: any(named: 'holdingId'),
+            range: any(named: 'range'),
+          )).called(1);
+      // 终态仍 HoldingDetailLoaded(curve 区空态,未崩成 HoldingError)。
+      expect(b.state, isA<HoldingDetailLoaded>());
+      expect((b.state as HoldingDetailLoaded).holdingCurve, isNull);
     },
   );
 }

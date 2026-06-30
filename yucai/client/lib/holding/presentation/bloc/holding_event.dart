@@ -240,3 +240,17 @@ class UpdatePriceRequested extends HoldingEvent {
 class RefreshPricesRequested extends HoldingEvent {
   const RefreshPricesRequested();
 }
+
+/// 拉取单持仓价格曲线 + 盈亏明细(Task 13,holding-C 子事件)。
+///
+/// 职责:range tab 切换时**仅更新曲线**(不重拉 holding/trades),调用
+/// getHoldingPerformance(Task 12)。range 大写英文串('DAY'/'MONTH'/'YEAR'),
+/// **不可传 PerfRange.label**(中文)。由 detail 页 PerfRange enum 经
+/// rangeName() 映射后传入。
+class LoadHoldingCurveRequested extends HoldingEvent {
+  const LoadHoldingCurveRequested({required this.holdingId, this.range = 'DAY'});
+  final String holdingId;
+  final String range;
+  @override
+  List<Object?> get props => [holdingId, range];
+}

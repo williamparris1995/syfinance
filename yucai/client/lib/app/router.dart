@@ -32,6 +32,7 @@ import 'package:yucai_client/debt/presentation/pages/receivables_page.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_event.dart';
+import 'package:yucai_client/holding/presentation/bloc/performance_bloc.dart';
 import 'package:yucai_client/holding/presentation/pages/goal_link_page.dart';
 import 'package:yucai_client/holding/presentation/pages/holding_detail_page.dart';
 import 'package:yucai_client/holding/presentation/pages/holdings_page.dart';
@@ -409,7 +410,8 @@ GoRouter buildRouter(AuthBloc authBloc) {
                   ),
                   GoRoute(
                     path: 'performance',
-                    // 收益统计(Task 9):复用列表数据(LoadHoldingsRequested)。
+                    // 收益统计(Task 9 列表数据 + Task 13 收益曲线 PerformanceBloc)。
+                    // PerformanceBloc 进入即拉组合曲线/盈亏明细(initState dispatch)。
                     builder: (_, __) => MultiBlocProvider(
                       providers: [
                         BlocProvider<HoldingBloc>(
@@ -418,6 +420,9 @@ GoRouter buildRouter(AuthBloc authBloc) {
                             b.add(const LoadHoldingsRequested());
                             return b;
                           },
+                        ),
+                        BlocProvider<PerformanceBloc>(
+                          create: (_) => getIt<PerformanceBloc>(),
                         ),
                         BlocProvider<CurrencyBloc>(
                           create: (_) {

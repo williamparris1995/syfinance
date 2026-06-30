@@ -18,10 +18,13 @@ import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
+import 'package:yucai_client/holding/domain/entities/performance_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
+import 'package:yucai_client/holding/presentation/bloc/performance_bloc.dart';
 import 'package:yucai_client/holding/presentation/pages/performance_page.dart';
+import 'package:yucai_client/holding/presentation/widgets/perf_curve_chart.dart';
 
 class _MockHoldingRepo extends Mock implements HoldingRepository {}
 
@@ -51,13 +54,17 @@ Holding _holding({
       currency: currency,
     );
 
-/// harness:注入 HoldingBloc(mock repo)。listHoldings 由 [result] 控制。
+/// harness:注入 HoldingBloc + PerformanceBloc(mock repo)。
+/// listHoldings / getPortfolioPerformance 由 stub 控制。
 Widget _harness({
   required _MockHoldingRepo repo,
 }) {
   return MaterialApp(
-    home: BlocProvider<HoldingBloc>(
-      create: (_) => HoldingBloc(repo),
+    home: MultiBlocProvider(
+      providers: [
+        BlocProvider<HoldingBloc>(create: (_) => HoldingBloc(repo)),
+        BlocProvider<PerformanceBloc>(create: (_) => PerformanceBloc(repo)),
+      ],
       child: const PerformancePage(),
     ),
   );
@@ -66,6 +73,18 @@ Widget _harness({
 void _stubHoldings(_MockHoldingRepo repo, List<Holding> holdings) {
   when(() => repo.listHoldings(accountId: any(named: 'accountId')))
       .thenAnswer((_) async => dartz.Right(holdings));
+}
+
+/// 默认 perf stub:Left → PerformanceError(非 Loaded),各 ⏳C 空态分支激活
+/// (曲线空 / realized「⏳C 待后端」/ 年化「⏳」/ 基准 mock)。对齐旧 degrade 断言。
+/// 页面不为 perf error 显示整页错误(仅 HoldingError 才整页错误)。
+void _stubPerfEmpty(_MockHoldingRepo repo) {
+  when(() => repo.getPortfolioPerformance(
+        range: any(named: 'range'),
+        accountId: any(named: 'accountId'),
+        includeBenchmark: any(named: 'includeBenchmark'),
+      )).thenAnswer((_) async =>
+      const dartz.Left(ServerFailure('perf not implemented')));
 }
 
 void main() {
@@ -93,6 +112,7 @@ void main() {
         marketValueCents: 3200000,
         unrealizedPnlCents: 200000);
     _stubHoldings(repo, [h1, h2]);
+    _stubPerfEmpty(repo);
 
     await t.pumpWidget(_harness(repo: repo));
     await t.pumpAndSettle();
@@ -112,6 +132,7 @@ void main() {
     await setViewport(t);
     final repo = _MockHoldingRepo();
     _stubHoldings(repo, [_holding()]);
+    _stubPerfEmpty(repo);
 
     await t.pumpWidget(_harness(repo: repo));
     await t.pumpAndSettle();
@@ -130,6 +151,7 @@ void main() {
     await setViewport(t);
     final repo = _MockHoldingRepo();
     _stubHoldings(repo, [_holding(unrealizedPnlCents: 250000)]);
+    _stubPerfEmpty(repo);
 
     await t.pumpWidget(_harness(repo: repo));
     await t.pumpAndSettle();
@@ -150,6 +172,7 @@ void main() {
     await setViewport(t);
     final repo = _MockHoldingRepo();
     _stubHoldings(repo, [_holding(unrealizedPnlCents: 250000)]);
+    _stubPerfEmpty(repo);
 
     await t.pumpWidget(_harness(repo: repo));
     await t.pumpAndSettle();
@@ -173,6 +196,7 @@ void main() {
     final h2 =
         _holding(id: 'h2', symbol: 'TSLA', unrealizedPnlCents: -80000);
     _stubHoldings(repo, [h1, h2]);
+    _stubPerfEmpty(repo);
 
     await t.pumpWidget(_harness(repo: repo));
     await t.pumpAndSettle();
@@ -195,6 +219,7 @@ void main() {
       _holding(
           id: 'h3', symbol: 'GBOND', type: SecurityType.bond, unrealizedPnlCents: -30000),
     ]);
+    _stubPerfEmpty(repo);
 
     await t.pumpWidget(_harness(repo: repo));
     await t.pumpAndSettle();
@@ -209,6 +234,7 @@ void main() {
     await setViewport(t);
     final repo = _MockHoldingRepo();
     _stubHoldings(repo, const []);
+    _stubPerfEmpty(repo);
 
     await t.pumpWidget(_harness(repo: repo));
     await t.pumpAndSettle();
@@ -223,6 +249,7 @@ void main() {
     await setViewport(t);
     final repo = _MockHoldingRepo();
     _stubHoldings(repo, [_holding()]);
+    _stubPerfEmpty(repo);
 
     await t.pumpWidget(_harness(repo: repo));
     await t.pumpAndSettle();
@@ -231,12 +258,56 @@ void main() {
     expect(find.byKey(const ValueKey('apiNoteText')), findsOneWidget);
   });
 
+  // Task 13:PerformanceLoaded 真数据路径 —— ①曲线/③realized/④年化/⑤基准
+  // 全部从 server PortfolioPerformance 渲染(非 ⏳C 空态)。
+  testWidgets(
+      'Task 13: renders server perf data (curve/realized/annualized/benchmark)',
+      (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    _stubHoldings(repo, [_holding(unrealizedPnlCents: 250000)]);
+    // server 真数据:2 点曲线 + realized 80000 + 年化 12.3% + 基准「沪深300」。
+    when(() => repo.getPortfolioPerformance(
+          range: any(named: 'range'),
+          accountId: any(named: 'accountId'),
+          includeBenchmark: any(named: 'includeBenchmark'),
+        )).thenAnswer((_) async => dartz.Right(PortfolioPerformance(
+          portfolioPoints: [
+            PerfPoint(time: DateTime(2026, 6, 1), value: 100),
+            PerfPoint(time: DateTime(2026, 6, 30), value: 120),
+          ],
+          realizedCents: 80000,
+          unrealizedCents: 250000,
+          totalCents: 330000,
+          annualizedPct: 12.3,
+          benchmarkName: '沪深300',
+        )));
+
+    await t.pumpWidget(_harness(repo: repo));
+    await t.pumpAndSettle();
+
+    // ① 曲线:2 点 → 不渲染空态「⏳C 收益快照待后端」。
+    expect(find.text('⏳C 收益快照待后端'), findsNothing);
+    // ③ realized 真数据(+$800.00),不再「⏳C 待后端」;无 ⏳C badge。
+    expect(find.text('⏳C 待后端'), findsNothing);
+    expect(find.byKey(const ValueKey('splitBadge')), findsNothing);
+    expect(t.widget<Text>(find.byKey(const ValueKey('splitRealizedVal'))).data,
+        '+\$800.00');
+    // ④ 年化真数据(+12.3%)。
+    expect(t.widget<Text>(find.byKey(const ValueKey('annualValue'))).data,
+        '+12.3%');
+    // ⑤ 基准 sub 标签:server benchmarkName「沪深300」。
+    expect(t.widget<Text>(find.byKey(const ValueKey('annualBenchLabel'))).data,
+        '基准 沪深300');
+  });
+
   testWidgets('shows CircularProgressIndicator while loading', (t) async {
     final repo = _MockHoldingRepo();
     // 用 Completer 阻塞 listHoldings(避免 Future.delayed 泄漏 pending timer)。
     final completer = Completer<dartz.Either<Failure, List<Holding>>>();
     when(() => repo.listHoldings(accountId: any(named: 'accountId')))
         .thenAnswer((_) => completer.future);
+    _stubPerfEmpty(repo); // PerformanceBloc initState dispatch 需 stub。
 
     await t.pumpWidget(_harness(repo: repo));
     await t.pump();
@@ -252,6 +323,7 @@ void main() {
     when(() => repo.listHoldings(accountId: any(named: 'accountId')))
         .thenAnswer((_) async =>
             const dartz.Left(ServerFailure('boom')));
+    _stubPerfEmpty(repo); // PerformanceBloc initState dispatch 需 stub。
 
     await t.pumpWidget(_harness(repo: repo));
     await t.pumpAndSettle();

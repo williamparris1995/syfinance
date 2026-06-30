@@ -17,10 +17,12 @@ import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
+import 'package:yucai_client/holding/domain/entities/performance_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
 import 'package:yucai_client/holding/presentation/pages/holding_detail_page.dart';
+import 'package:yucai_client/holding/presentation/widgets/perf_curve_chart.dart';
 
 class _MockHoldingRepo extends Mock implements HoldingRepository {}
 
@@ -93,6 +95,25 @@ void _stubHolding(_MockHoldingRepo repo, Holding holding) {
       .thenAnswer((_) async => dartz.Right([holding]));
 }
 
+/// Task 13:曲线 stub。默认空(HoldingPerformance 空曲线)—— detail 页
+/// LoadHoldingCurveRequested 在 initState 触发,需 stub 否则 MissingDummyError。
+/// [points] / [realizedCents] 非空时模拟 server 真数据。
+void _stubCurve(
+  _MockHoldingRepo repo, {
+  List<PerfPoint> points = const [],
+  int realizedCents = 0,
+}) {
+  when(() => repo.getHoldingPerformance(
+        holdingId: any(named: 'holdingId'),
+        range: any(named: 'range'),
+      )).thenAnswer((_) async => dartz.Right(HoldingPerformance(
+        pricePoints: points,
+        realizedCents: realizedCents,
+        unrealizedCents: 0,
+        totalCents: realizedCents,
+      )));
+}
+
 final _trades = [
   _tx(id: 't1', type: TradeType.buy, date: '2026-01-15', qty: 100,
       priceCents: 15000, amountCents: -150000, notes: '首次建仓'),
@@ -117,6 +138,7 @@ void main() {
     final repo = _MockHoldingRepo();
     final holding = _holding();
     _stubHolding(repo, holding);
+    _stubCurve(repo);
     when(() => repo.listHoldingTransactions(
             accountId: any(named: 'accountId'),
             securityId: any(named: 'securityId')))
@@ -161,6 +183,7 @@ void main() {
     final repo = _MockHoldingRepo();
     final holding = _holding();
     _stubHolding(repo, holding);
+    _stubCurve(repo);
     // listHoldingTransactions ⏳ fail → HoldingDetailLoaded(isPendingBackend:true)。
     when(() => repo.listHoldingTransactions(
             accountId: any(named: 'accountId'),
@@ -193,6 +216,7 @@ void main() {
     final repo = _MockHoldingRepo();
     final holding = _holding();
     _stubHolding(repo, holding);
+    _stubCurve(repo);
     when(() => repo.listHoldingTransactions(
             accountId: any(named: 'accountId'),
             securityId: any(named: 'securityId')))
@@ -217,6 +241,7 @@ void main() {
     final repo = _MockHoldingRepo();
     final holding = _holding();
     _stubHolding(repo, holding);
+    _stubCurve(repo);
     when(() => repo.listHoldingTransactions(
             accountId: any(named: 'accountId'),
             securityId: any(named: 'securityId')))
@@ -233,6 +258,7 @@ void main() {
     final repo = _MockHoldingRepo();
     final holding = _holding();
     _stubHolding(repo, holding);
+    _stubCurve(repo);
     when(() => repo.listHoldingTransactions(
             accountId: any(named: 'accountId'),
             securityId: any(named: 'securityId')))
@@ -252,6 +278,7 @@ void main() {
     final repo = _MockHoldingRepo();
     final holding = _holding();
     _stubHolding(repo, holding);
+    _stubCurve(repo);
     when(() => repo.listHoldingTransactions(
             accountId: any(named: 'accountId'),
             securityId: any(named: 'securityId')))
@@ -274,6 +301,7 @@ void main() {
     final repo = _MockHoldingRepo();
     final holding = _holding();
     _stubHolding(repo, holding);
+    _stubCurve(repo);
     when(() => repo.listHoldingTransactions(
             accountId: any(named: 'accountId'),
             securityId: any(named: 'securityId')))
@@ -288,5 +316,35 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('近 12 月'), findsOneWidget);
     expect(find.text('近 30 天'), findsNothing);
+  });
+
+  // Task 13(holding-C):detail 曲线接 server getHoldingPerformance 真数据。
+  // ②曲线 = pricePoints(2 点 → 非空态);⑥realized = server FIFO(foot 渲染)。
+  testWidgets('Task 13: detail curve renders server pricePoints + realized',
+      (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    final holding = _holding();
+    _stubHolding(repo, holding);
+    _stubCurve(repo,
+        points: [
+          PerfPoint(time: DateTime(2026, 6, 1), value: 100),
+          PerfPoint(time: DateTime(2026, 6, 30), value: 120),
+        ],
+        realizedCents: 5000);
+    when(() => repo.listHoldingTransactions(
+          accountId: any(named: 'accountId'),
+          securityId: any(named: 'securityId'),
+        )).thenAnswer((_) async => dartz.Right(_trades));
+
+    await t.pumpWidget(_harness(repo: repo, holding: holding));
+    await t.pumpAndSettle();
+
+    // ② 曲线:2 点 → 不渲染空态「该证券尚未接入行情源」(PerfCurveChart 空态文案)。
+    expect(find.text('该证券尚未接入行情源'), findsNothing);
+    expect(find.text('收益曲线'), findsOneWidget);
+    // ⑥ realized:server FIFO 5000 cents($50.00)→ foot「已实现」cell 渲染。
+    // foot realized 用 fmtRaw(无符号),故 $50.00。
+    expect(find.text('\$50.00'), findsWidgets);
   });
 }

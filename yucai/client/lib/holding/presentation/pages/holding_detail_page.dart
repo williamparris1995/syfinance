@@ -48,6 +48,8 @@ import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_event.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_state.dart';
+import 'package:yucai_client/holding/presentation/pages/performance_page.dart'
+    show rangeName;
 import 'package:yucai_client/holding/presentation/widgets/holding_pie_chart.dart';
 import 'package:yucai_client/holding/presentation/widgets/perf_curve_chart.dart';
 
@@ -74,6 +76,11 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
   void initState() {
     super.initState();
     context.read<HoldingBloc>().add(LoadDetailRequested(widget.id));
+    // Task 13:拉单持仓价格曲线(server getHoldingPerformance)。
+    // range 默认 DAY;range tab 切换时 _curveCard 重发。
+    context
+        .read<HoldingBloc>()
+        .add(LoadHoldingCurveRequested(holdingId: widget.id));
   }
 
   @override
@@ -99,7 +106,8 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
             return Stack(
               children: [
                 _body(state.holding, state.trades,
-                    tradesPendingBackend: state.isPendingBackend),
+                    tradesPendingBackend: state.isPendingBackend,
+                    detail: state),
                 _actionBar(),
               ],
             );
@@ -127,6 +135,7 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
     Holding h,
     List<HoldingTransaction> trades, {
     bool tradesPendingBackend = false,
+    required HoldingDetailLoaded detail,
   }) {
     final isMobile = MediaQuery.of(context).size.width <= 720;
     final currency = h.currency ?? 'CNY';
@@ -139,7 +148,7 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
         const SizedBox(height: 16),
         _positionCard(h, currency),
         const SizedBox(height: 16),
-        _curveCard(h, trades, currency),
+        _curveCard(h, currency, detail),
         const SizedBox(height: 16),
         _tradesCard(trades, currency, isMobile,
             pendingBackend: tradesPendingBackend),
@@ -416,59 +425,34 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
   // ───────────────────────── ③ 收益曲线 ─────────────────────────
 
   /// PerfCurveChart · 日/月/年 tab · foot 浮动/已实现/总收益。
-  /// 成本曲线从 trades 前端重建(brief 指定):按 tradeDate 升序累加 qty*price。
-  /// trades 空则 PerfCurveChart 自带空态。
-  Widget _curveCard(Holding h, List<HoldingTransaction> trades, String currency) {
-    final realized = _realizedFromTrades(trades);
+  ///
+  /// Task 13(holding-C)接 server 真数据:②曲线 = detail.holdingCurve
+  /// (getHoldingPerformance.pricePoints);⑥realized = detail.holdingCurveRealizedCents
+  /// (server FIFO)。两者均可空(LoadHoldingCurveRequested 未发/fail → null →
+  /// 空态,避免展示误导性 0)。range tab 切换 → 重发 LoadHoldingCurveRequested。
+  Widget _curveCard(Holding h, String currency, HoldingDetailLoaded detail) {
     final unrealized = h.unrealizedPnlCents;
-    final total = realized + unrealized;
+    final realized = detail.holdingCurveRealizedCents;
+    final total = realized != null ? realized + unrealized : null;
     return DataCard(
       child: PerfCurveChart(
-        points: _costBasisCurve(trades),
+        // ② 价格曲线(server pricePoints;null/空 → PerfCurveChart 空态)。
+        points: detail.holdingCurve ?? const [],
         range: _curveRange,
-        onRangeChange: (r) => setState(() => _curveRange = r),
+        onRangeChange: (r) {
+          setState(() => _curveRange = r);
+          context.read<HoldingBloc>().add(LoadHoldingCurveRequested(
+              holdingId: h.id, range: rangeName(r)));
+        },
         foot: PerfCurveFoot(
           unrealizedCents: unrealized,
+          // ⑥ realized(server FIFO;null → 不渲染 cell)。
           realizedCents: realized,
           totalCents: total,
           currency: currency,
         ),
       ),
     );
-  }
-
-  /// 从 trades 重建成本基础曲线(brief:前端从 trades 聚合)。
-  /// 仅 buy 累加成本基础(qty*price);sell/dividend 不增基础。结果为
-  /// 累计投入随时间的阶梯上升曲线,作为「收益曲线」的近似展示。
-  /// ⏳ trades 空 → 返回空 list,PerfCurveChart 显示空态。
-  List<PerfPoint> _costBasisCurve(List<HoldingTransaction> trades) {
-    final buys = [...trades]
-      ..removeWhere((t) => t.tradeType != TradeType.buy)
-      ..sort((a, b) => a.tradeDate.compareTo(b.tradeDate));
-    if (buys.length < 2) return const [];
-    final pts = <PerfPoint>[];
-    var cum = 0.0;
-    for (final t in buys) {
-      cum += t.quantity * (t.priceCents / 100.0);
-      pts.add(PerfPoint(time: DateTime.tryParse(t.tradeDate) ?? DateTime.now(),
-          value: cum));
-    }
-    return pts;
-  }
-
-  /// realized 近似:Σ dividend.amount + Σ sell 的「售价回收 - 对应成本基础」。
-  /// brief:平均成本 mock(非 FIFO)。前端只能近似 —— sell.realized ≈
-  /// sell.amount - sell.qty * avgCost(无 holding avgCost 注入此处,改用简化:
-  /// realized = Σ dividend + Σ sell.amount 的「正流入」展示,纯展示用,
-  /// A-server 接管后由 server 算 FIFO/移动加权)。trades 空 → 0。
-  int _realizedFromTrades(List<HoldingTransaction> trades) {
-    var realized = 0;
-    for (final t in trades) {
-      if (t.tradeType == TradeType.sell || t.tradeType == TradeType.dividend) {
-        realized += t.amountCents;
-      }
-    }
-    return realized;
   }
 
   // ───────────────────────── ④ 交易历史 ─────────────────────────

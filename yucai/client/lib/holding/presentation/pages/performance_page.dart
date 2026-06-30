@@ -40,8 +40,27 @@ import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_event.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_state.dart';
+import 'package:yucai_client/holding/presentation/bloc/performance_bloc.dart';
+import 'package:yucai_client/holding/presentation/bloc/performance_event.dart';
+import 'package:yucai_client/holding/presentation/bloc/performance_state.dart';
 import 'package:yucai_client/holding/presentation/widgets/holding_pie_chart.dart';
 import 'package:yucai_client/holding/presentation/widgets/perf_curve_chart.dart';
+
+/// PerfRange enum → 大写英文串('DAY'/'MONTH'/'YEAR')。
+///
+/// **关键约束**:bloc/repo range 参数必须是大写英文串(mapper curveRangeToProto
+/// 按此映射,未知折叠 DAY)。**不能传 PerfRange.label**(中文 '日/月/年')。
+/// performance_page / holding_detail_page range tab 切换时经此函数转换。
+String rangeName(PerfRange r) {
+  switch (r) {
+    case PerfRange.day:
+      return 'DAY';
+    case PerfRange.month:
+      return 'MONTH';
+    case PerfRange.year:
+      return 'YEAR';
+  }
+}
 
 /// 收益统计页。对齐 A-od performance-*.html。
 class PerformancePage extends StatefulWidget {
@@ -53,13 +72,18 @@ class PerformancePage extends StatefulWidget {
 
 class _PerformancePageState extends State<PerformancePage> {
   /// 总收益曲线区间(本页内联切换;复用 PerfCurveChart 的 日/月/年 tab)。
+  /// 切换时同时派发 LoadPortfolioPerformanceRequested(range 大写串)重拉曲线。
   PerfRange _curveRange = PerfRange.day;
 
   @override
   void initState() {
     super.initState();
-    // 确保持仓列表就绪(列表页先访问则 bloc 复用已 loaded 态;此处幂等)。
+    // 确保持仓列表就绪(贡献/概览头用,前端聚合;列表页先访问则 bloc 复用)。
     context.read<HoldingBloc>().add(const LoadHoldingsRequested());
+    // Task 13:拉组合收益曲线 + 盈亏明细(server 真数据,默认 DAY)。
+    context
+        .read<PerformanceBloc>()
+        .add(const LoadPortfolioPerformanceRequested());
   }
 
   @override
@@ -78,7 +102,11 @@ class _PerformancePageState extends State<PerformancePage> {
             return const Center(child: CircularProgressIndicator());
           }
           if (state is HoldingLoaded) {
-            return _body(state);
+            // 4 个 ⏳C 点(曲线/realized/年化/基准)来自 PerformanceBloc;
+            // 概览头/贡献/未实现仍从 HoldingBloc 前端聚合。
+            return BlocBuilder<PerformanceBloc, PerformanceState>(
+              builder: (context, perf) => _body(state, perf),
+            );
           }
           if (state is HoldingError) {
             return Center(
@@ -99,7 +127,7 @@ class _PerformancePageState extends State<PerformancePage> {
 
   // ───────────────────────── body(6 组件 + api-note) ─────────────────────────
 
-  Widget _body(HoldingLoaded state) {
+  Widget _body(HoldingLoaded state, PerformanceState perf) {
     final isMobile = MediaQuery.of(context).size.width <= 720;
     // 组合货币:取首个 holding 的 currency(或 CNY 兜底)。多币种混合时
     // 此处展示为 holding 自身币种的 unrealized 合计(不做汇率折算,与
@@ -112,11 +140,11 @@ class _PerformancePageState extends State<PerformancePage> {
       children: [
         _perfHeader(state, currency),
         const SizedBox(height: 16),
-        _curveCard(state, currency),
+        _curveCard(state, currency, perf),
         const SizedBox(height: 16),
-        _splitCard(state, currency),
+        _splitCard(state, currency, perf),
         const SizedBox(height: 16),
-        _annualCard(state, currency),
+        _annualCard(state, currency, perf),
         const SizedBox(height: 16),
         _contribHoldingCard(state, currency),
         const SizedBox(height: 16),
@@ -215,24 +243,33 @@ class _PerformancePageState extends State<PerformancePage> {
 
   /// PerfCurveChart · 日/月/年 tab · foot 浮动/已实现/总收益。
   ///
-  /// ⏳C 降级:proto 无 price history / snapshot RPC → 曲线数据为空 →
-  /// PerfCurveChart 自带空态(「⏳ 行情快照待后端」)。foot 仍渲染:
-  /// unrealized 从 holdings 算(✅),realized ⏳C(null → 不渲染该 cell,
-  /// 避免展示 0 误导)。
-  Widget _curveCard(HoldingLoaded state, String currency) {
+  /// Task 13 接 server 真数据:①曲线 points + ⑤基准(PerformanceLoaded)。
+  /// range tab 切换 → LoadPortfolioPerformanceRequested(range 大写串)重拉。
+  /// unrealized 仍从 holdings 前端聚合(组合级 ✅);realized/total 用 server
+  /// 数据(PerformanceLoaded 时填,Loading/Error 走空态避免误导)。
+  Widget _curveCard(HoldingLoaded state, String currency, PerformanceState perf) {
     final unrealized = _sumUnrealized(state.holdings);
+    final loaded = perf is PerformanceLoaded ? perf.performance : null;
+    // range tab 切换:更新本地 + 派发 PerformanceBloc 重拉曲线。
+    void onRange(PerfRange r) {
+      setState(() => _curveRange = r);
+      context
+          .read<PerformanceBloc>()
+          .add(LoadPortfolioPerformanceRequested(range: rangeName(r)));
+    }
+
     return DataCard(
       child: PerfCurveChart(
-        // ⏳C snapshot 待后端 → 空曲线,触发空态。
-        points: const [],
+        // ① 组合曲线 points(server portfolioPoints;Loading/Error → 空 → 空态)。
+        points: loaded?.portfolioPoints ?? const [],
         range: _curveRange,
-        onRangeChange: (r) => setState(() => _curveRange = r),
+        onRangeChange: onRange,
         emptyHint: '⏳C 收益快照待后端',
         foot: PerfCurveFoot(
           unrealizedCents: unrealized,
-          // realized ⏳C 跨持仓 trades 聚合待后端 → null(不渲染 cell)。
-          realizedCents: null,
-          totalCents: null,
+          // realized/total server 数据(无 → null 不渲染 cell,避免 0 误导)。
+          realizedCents: loaded?.realizedCents,
+          totalCents: loaded?.totalCents,
           currency: currency,
         ),
       ),
@@ -242,11 +279,15 @@ class _PerformancePageState extends State<PerformancePage> {
   // ───────────────────────── ③ 收益分解 ─────────────────────────
 
   /// realized/unrealized 分解卡(对齐 A-od split-card)。
-  /// unrealized ✅ 从 holdings 算;realized ⏳C(跨持仓 trades 聚合待后端)→
-  /// 空态 + "⏳C 待后端"标注(brief 指定)。
-  Widget _splitCard(HoldingLoaded state, String currency) {
+  /// unrealized ✅ 从 holdings 算;realized Task 13 接 server 真数据
+  /// (PerformanceLoaded.realizedCents)。Loading/Error 时 realized 走空态。
+  Widget _splitCard(HoldingLoaded state, String currency, PerformanceState perf) {
     final unrealized = _sumUnrealized(state.holdings);
     final unreaUp = unrealized >= 0;
+    final loaded = perf is PerformanceLoaded ? perf.performance : null;
+    final realized = loaded?.realizedCents;
+    final realizedLoaded = realized != null;
+    final realUp = realizedLoaded && realized >= 0;
     return DataCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -269,59 +310,67 @@ class _PerformancePageState extends State<PerformancePage> {
                           fontSize: 11.5, color: AppColors.muted)),
                 ],
               ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.accentSoft,
-                  borderRadius: BorderRadius.circular(9999),
+              if (!realizedLoaded)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentSoft,
+                    borderRadius: BorderRadius.circular(9999),
+                  ),
+                  child: const Text('⏳ C',
+                      key: ValueKey('splitBadge'),
+                      style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.accentHover)),
                 ),
-                child: const Text('⏳ C',
-                    key: ValueKey('splitBadge'),
-                    style: TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.accentHover)),
-              ),
             ],
           ),
           const SizedBox(height: 14),
-          // 分解条:realized(金,⏳C → 0%) + unrealized(绿/红)。
-          // ⏳C realized 无数据 → 整条仅显示 unrealized 占比(100%)。
-          _splitBar(unrealized, unreaUp),
+          _splitBar(unrealized, unreaUp, realized, realizedLoaded, realUp),
           const SizedBox(height: 16),
-          _splitLegend(unrealized, unreaUp, currency),
-          const SizedBox(height: 14),
-          // ⏳C realized 待后端说明。
-          Container(
-            padding: const EdgeInsets.fromLTRB(0, 12, 0, 0),
-            decoration: const BoxDecoration(
-                border: Border(
-                    top: BorderSide(
-                        color: Color(0xFFEFECE5), style: BorderStyle.solid))),
-            child: const Row(
-              children: [
-                Icon(LucideIcons.hourglass,
-                    size: 13, color: AppColors.accent),
-                SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    '已实现收益需跨持仓 trades 聚合（proto 无组合级 RPC）⏳C 待后端',
-                    key: ValueKey('splitRealizedHint'),
-                    style: TextStyle(
-                        fontSize: 11.5, color: AppColors.muted),
+          _splitLegend(unrealized, unreaUp, currency, realized, realizedLoaded,
+              realUp),
+          if (!realizedLoaded) ...[
+            const SizedBox(height: 14),
+            // ⏳C realized 待后端说明(仅未加载时显示)。
+            Container(
+              padding: const EdgeInsets.fromLTRB(0, 12, 0, 0),
+              decoration: const BoxDecoration(
+                  border: Border(
+                      top: BorderSide(
+                          color: Color(0xFFEFECE5), style: BorderStyle.solid))),
+              child: const Row(
+                children: [
+                  Icon(LucideIcons.hourglass,
+                      size: 13, color: AppColors.accent),
+                  SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '已实现收益需跨持仓 trades 聚合（proto 无组合级 RPC）⏳C 待后端',
+                      key: ValueKey('splitRealizedHint'),
+                      style: TextStyle(
+                          fontSize: 11.5, color: AppColors.muted),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
   }
 
-  /// 分解条(unrealized 占 100% 当 realized ⏳C;色随正负)。
-  Widget _splitBar(int unrealized, bool unreaUp) {
+  /// 分解条(realized + unrealized,色随正负)。
+  Widget _splitBar(
+      int unrealized, bool unreaUp, int? realized, bool realizedLoaded, bool realUp) {
+    // 比例:|realized| / (|realized| + |unrealized|),无 realized → 0%。
+    final realAbs = (realizedLoaded ? realized!.abs() : 0);
+    final unreaAbs = unrealized.abs();
+    final total = realAbs + unreaAbs;
+    final realFlex = total == 0 ? 0 : (realAbs / total * 100).round();
     return Container(
       height: 14,
       decoration: BoxDecoration(
@@ -333,15 +382,16 @@ class _PerformancePageState extends State<PerformancePage> {
         borderRadius: BorderRadius.circular(9999),
         child: Row(
           children: [
-            // realized ⏳C → 0% 占位(空)。
+            if (realFlex > 0)
+              Expanded(
+                flex: realFlex,
+                child: Container(
+                  key: const ValueKey('splitBarRealized'),
+                  color: AppColors.accent,
+                ),
+              ),
             Expanded(
-              flex: 0,
-              child: SizedBox(
-                  width: 0,
-                  child: Container(color: AppColors.accent)),
-            ),
-            Expanded(
-              flex: 100,
+              flex: 100 - realFlex,
               child: Container(
                 key: const ValueKey('splitBarUnrealized'),
                 color: unreaUp ? AppColors.positive : AppColors.negative,
@@ -353,10 +403,10 @@ class _PerformancePageState extends State<PerformancePage> {
     );
   }
 
-  Widget _splitLegend(int unrealized, bool unreaUp, String currency) {
+  Widget _splitLegend(int unrealized, bool unreaUp, String currency,
+      int? realized, bool realizedLoaded, bool realUp) {
     return Row(
       children: [
-        // 已实现 ⏳C:dim 占位。
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -368,7 +418,9 @@ class _PerformancePageState extends State<PerformancePage> {
                     width: 10,
                     height: 10,
                     decoration: BoxDecoration(
-                        color: AppColors.accent.withValues(alpha: 0.35),
+                        color: realizedLoaded
+                            ? AppColors.accent
+                            : AppColors.accent.withValues(alpha: 0.35),
                         borderRadius: BorderRadius.circular(3)),
                   ),
                   const SizedBox(width: 6),
@@ -378,13 +430,23 @@ class _PerformancePageState extends State<PerformancePage> {
                 ],
               ),
               const SizedBox(height: 4),
-              const Text('⏳C 待后端',
-                  key: ValueKey('splitRealizedVal'),
-                  style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.accentHover,
-                      fontFeatures: AppTypography.tabularFigures)),
+              realizedLoaded
+                  ? Text(_fmtSigned(realized!, currency),
+                      key: const ValueKey('splitRealizedVal'),
+                      style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          color: realUp
+                              ? AppColors.positive
+                              : AppColors.negative,
+                          fontFeatures: AppTypography.tabularFigures))
+                  : const Text('⏳C 待后端',
+                      key: ValueKey('splitRealizedVal'),
+                      style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.accentHover,
+                          fontFeatures: AppTypography.tabularFigures)),
             ],
           ),
         ),
@@ -430,46 +492,63 @@ class _PerformancePageState extends State<PerformancePage> {
   // ───────────────────────── ④ 年化收益率 ─────────────────────────
 
   /// 年化收益率卡(对齐 A-od annual-card)。
-  /// 累计 = unrealized / totalCost(✅);年化 ⏳ 近似(持仓时长缺 → 占位);
-  /// 基准 ⏳C(mock,无 snapshot)。
-  Widget _annualCard(HoldingLoaded state, String currency) {
+  /// ④ 年化:Task 13 接 server annualizedPct(PerformanceLoaded);Loading/Error → ⏳ 占位。
+  /// ⑤ 基准:sub 标签显示 benchmarkName(有)/「⏳C mock」(无)。
+  /// 累计 = unrealized / totalCost(✅ 前端,因 server totalPct 含 realized 口径不同)。
+  Widget _annualCard(HoldingLoaded state, String currency, PerformanceState perf) {
     final unrealized = _sumUnrealized(state.holdings);
     final totalCost = state.summary.totalCostCents;
     final cumulative = totalCost > 0 ? (unrealized / totalCost) * 100 : 0.0;
+    final loaded = perf is PerformanceLoaded ? perf.performance : null;
+    // ④ 年化:server annualizedPct(有数据 → 渲染;无 → ⏳ 占位)。
+    final hasAnnualized = loaded != null && loaded.annualizedPct != 0;
+    final annualValue = hasAnnualized
+        ? '${loaded.annualizedPct >= 0 ? '+' : ''}${loaded.annualizedPct.toStringAsFixed(1)}%'
+        : '⏳';
+    // ⑤ 基准名:server benchmarkName(有)/「⏳C mock」(无)。
+    final hasBenchmark = loaded != null && loaded.benchmarkName.isNotEmpty;
+    final benchLabel = hasBenchmark
+        ? '基准 ${loaded.benchmarkName}'
+        : '基准 沪深300 · ⏳C mock';
     return DataCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('年化收益率',
+                  const Text('年化收益率',
                       style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           fontFamily: AppTypography.displayFamily,
                           fontFamilyFallback: AppTypography.displayFallback)),
-                  SizedBox(height: 2),
-                  Text('基准 沪深300 · ⏳C mock',
-                      style: TextStyle(
+                  const SizedBox(height: 2),
+                  Text(benchLabel,
+                      key: const ValueKey('annualBenchLabel'),
+                      style: const TextStyle(
                           fontSize: 11.5, color: AppColors.muted)),
                 ],
               ),
             ],
           ),
           const SizedBox(height: 12),
-          // 年化行:⏳ 占位(持仓时长缺)。
+          // ④ 年化行:server annualizedPct(无 → ⏳ 占位)。
           _annualRow(
             icon: LucideIcons.percent,
             label: '年化',
-            value: '⏳',
-            valueColor: AppColors.muted,
+            value: annualValue,
+            valueColor: hasAnnualized
+                ? (loaded.annualizedPct >= 0
+                    ? AppColors.positive
+                    : AppColors.negative)
+                : AppColors.muted,
             key: const ValueKey('annualValue'),
           ),
-          // 累计行:✅ 从 holdings 算。
+          // 累计行:✅ 从 holdings 算(unrealized/totalCost)。
           _annualRow(
             icon: LucideIcons.trendingUp,
             label: '累计',
@@ -477,29 +556,6 @@ class _PerformancePageState extends State<PerformancePage> {
             valueColor:
                 cumulative >= 0 ? AppColors.positive : AppColors.negative,
             key: const ValueKey('annualCumulative'),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.fromLTRB(0, 12, 0, 0),
-            decoration: const BoxDecoration(
-                border: Border(
-                    top: BorderSide(
-                        color: Color(0xFFEFECE5), style: BorderStyle.solid))),
-            child: const Row(
-              children: [
-                Icon(LucideIcons.hourglass,
-                    size: 13, color: AppColors.accent),
-                SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    '年化需持仓时长 / 创建时间（proto 未暴露），基准收益 ⏳C snapshot 待后端',
-                    key: ValueKey('annualHint'),
-                    style: TextStyle(
-                        fontSize: 11.5, color: AppColors.muted),
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
