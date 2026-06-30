@@ -90,8 +90,8 @@ class HoldingSubmitting extends HoldingState {
 /// 错误状态。
 ///
 /// `last` 携带上次成功状态供 UI 恢复背景;`isPendingBackend` 区分
-/// ⏳ 端点(后端 B/C/D 未实现,ListHoldingTransactions 等)fail
-/// 与真业务错误 —— 前者为 true,UI 显示空态 + "⏳ 待后端" 而非报错。
+/// 后端兜底降级(ListHoldingTransactions 等网络/后端异常 fail)与真业务错误
+/// —— 前者为 true,UI 显示空态而非报错。
 class HoldingError extends HoldingState {
   const HoldingError(
     this.message, {

@@ -78,11 +78,10 @@ class HoldingBloc extends Bloc<HoldingEvent, HoldingState> {
 
   /// 详情加载:listHoldings 找单条 + listHoldingTransactions 取流水。
   ///
-  /// ⏳ 关键:listHoldingTransactions 是 ⏳ 端点(后端 B/C/D 未实现)。
-  /// 其 fail → **HoldingDetailLoaded(found, trades: [], isPendingBackend: true)**:
-  /// holding 仍可展示(来自 listHoldings ✅),仅交易历史降级为空态(brief)。
-  /// listHoldings fail / holding not found → HoldingError(isPendingBackend: false,
-  /// 无 holding,真业务错误)。
+  /// 后端✅已实现(holding_handler.go:229)。fail 仅作兜底降级(网络/后端异常)
+  /// → HoldingDetailLoaded(found, trades: [], isPendingBackend: true),
+  /// holding 仍展示,交易历史区空态。listHoldings fail / holding not found
+  /// → HoldingError(无 holding,真业务错误)。
   Future<void> _onLoadDetail(
     LoadDetailRequested event,
     Emitter<HoldingState> emit,
@@ -117,7 +116,7 @@ class HoldingBloc extends Bloc<HoldingEvent, HoldingState> {
     final tradesResult =
         await _repo.listHoldingTransactions(securityId: found.securityId);
     tradesResult.fold(
-      // ⏳ 降级:holding 保留,交易历史空态(brief:交易历史区空态,非整页)。
+      // 兜底降级:holding 保留,交易历史空态(后端异常/网络 fail 时,brief:交易历史区空态,非整页)。
       (_) => emit(HoldingDetailLoaded(
         holding: found,
         trades: const [],
@@ -145,6 +144,7 @@ class HoldingBloc extends Bloc<HoldingEvent, HoldingState> {
             summary: prev.summary,
             securities: securities,
             typeFilter: prev.typeFilter,
+            lastPriceSyncedAt: _lastPriceSyncedAt,
           );
           _last = updated;
           emit(updated);
@@ -157,6 +157,7 @@ class HoldingBloc extends Bloc<HoldingEvent, HoldingState> {
               totalPnlCents: 0,
             ),
             securities: securities,
+            lastPriceSyncedAt: _lastPriceSyncedAt,
           ));
         }
       },
@@ -180,6 +181,7 @@ class HoldingBloc extends Bloc<HoldingEvent, HoldingState> {
             totalPnlCents: 0,
           ),
           securities: securities,
+          lastPriceSyncedAt: _lastPriceSyncedAt,
         ));
       },
     );

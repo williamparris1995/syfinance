@@ -15,6 +15,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
@@ -298,7 +299,65 @@ class _TopBar extends StatelessWidget {
             ],
           ),
         ),
+        // 刷新价格按钮 + last-updated(对齐 OD 原型 topbar-actions 的 icon-btn
+        // 刷新,lucide refresh-cw 线性库)。submitting 时禁用 + loading spinner。
+        const _RefreshAction(),
       ],
+    );
+  }
+}
+
+/// 顶栏刷新价格动作:触发 RefreshPricesRequested(Task 10 bloc 手动刷新),
+/// syncing 时显示 loading + 禁用;last-updated 显示 lastPriceSyncedAt(HH:mm,
+/// client 本地时间戳,无 intl 依赖故手格式化)。
+class _RefreshAction extends StatelessWidget {
+  const _RefreshAction();
+
+  String _fmtHm(DateTime t) {
+    final hh = t.hour.toString().padLeft(2, '0');
+    final mm = t.minute.toString().padLeft(2, '0');
+    return '$hh:$mm';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<HoldingBloc, HoldingState>(
+      builder: (context, state) {
+        final syncing = state is HoldingSubmitting;
+        final last = state is HoldingLoaded ? state.lastPriceSyncedAt : null;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (last != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: Text(
+                  '上次更新 ${_fmtHm(last)}',
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: AppColors.muted,
+                    fontFeatures: AppTypography.tabularFigures,
+                  ),
+                ),
+              ),
+            IconButton(
+              tooltip: '刷新价格',
+              icon: syncing
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(LucideIcons.refreshCw, size: 18),
+              onPressed: syncing
+                  ? null
+                  : () => context
+                      .read<HoldingBloc>()
+                      .add(const RefreshPricesRequested()),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -19,6 +19,7 @@ import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_event.dart';
 import 'package:yucai_client/holding/presentation/pages/holdings_page.dart';
@@ -250,5 +251,88 @@ void main() {
     final delegate =
         grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
     expect(delegate.crossAxisCount, 2);
+  });
+
+  // Task 11 — 顶栏刷新价格按钮(lucide refresh-cw,对齐 OD 原型 topbar-actions
+  // icon-btn 刷新)。点按 → dispatch RefreshPricesRequested → repo.syncPrices 调用。
+  testWidgets('refresh button: lucide refresh-cw icon present + tap triggers syncPrices',
+      (t) async {
+    t.view.physicalSize = desktop;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+
+    final repo = _MockRepo();
+    registerFallbackValue(const RefreshPricesRequested());
+    when(() => repo.listHoldings(accountId: any(named: 'accountId')))
+        .thenAnswer((_) async => dartz.Right(holdings));
+    when(() => repo.syncPrices()).thenAnswer((_) async => dartz.Right(
+          SyncPricesResult(
+            syncedCount: 2,
+            syncedAt: DateTime(2026, 6, 30, 14, 5),
+          ),
+        ));
+
+    await t.pumpWidget(MaterialApp(
+      home: MultiBlocProvider(
+        providers: [
+          BlocProvider<HoldingBloc>(create: (_) => HoldingBloc(repo)),
+          BlocProvider<CurrencyBloc>.value(
+              value: _FakeCurrencyBloc(const CurrencyState())),
+        ],
+        child: const HoldingsPage(),
+      ),
+    ));
+    await t.pumpAndSettle();
+
+    // 刷新按钮(lucide refresh-cw icon)在顶栏存在。
+    final refreshBtn = find.byIcon(LucideIcons.refreshCw);
+    expect(refreshBtn, findsOneWidget);
+    // tooltip 文案对齐御财中文惯例。
+    expect(find.byTooltip('刷新价格'), findsOneWidget);
+
+    // 点刷新 → repo.syncPrices 被调一次。
+    verifyNever(() => repo.syncPrices());
+    await t.tap(refreshBtn);
+    await t.pumpAndSettle();
+    verify(() => repo.syncPrices()).called(1);
+  });
+
+  // Task 11 — 刷新成功后 last-updated 文案显示 lastPriceSyncedAt(HH:mm)。
+  testWidgets('last-updated label shows after successful refresh', (t) async {
+    t.view.physicalSize = desktop;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+
+    final repo = _MockRepo();
+    registerFallbackValue(const RefreshPricesRequested());
+    when(() => repo.listHoldings(accountId: any(named: 'accountId')))
+        .thenAnswer((_) async => dartz.Right(holdings));
+    when(() => repo.syncPrices()).thenAnswer((_) async => dartz.Right(
+          SyncPricesResult(
+            syncedCount: 2,
+            syncedAt: DateTime(2026, 6, 30, 9, 7),
+          ),
+        ));
+
+    await t.pumpWidget(MaterialApp(
+      home: MultiBlocProvider(
+        providers: [
+          BlocProvider<HoldingBloc>(create: (_) => HoldingBloc(repo)),
+          BlocProvider<CurrencyBloc>.value(
+              value: _FakeCurrencyBloc(const CurrencyState())),
+        ],
+        child: const HoldingsPage(),
+      ),
+    ));
+    await t.pumpAndSettle();
+
+    // 初始无 last-updated(未刷新过)。
+    expect(find.textContaining('上次更新'), findsNothing);
+
+    await t.tap(find.byIcon(LucideIcons.refreshCw));
+    await t.pumpAndSettle();
+
+    // 刷新后显示 "上次更新 09:07"(DateTime 9:7 → HH:mm padded)。
+    expect(find.text('上次更新 09:07'), findsOneWidget);
   });
 }
