@@ -126,7 +126,19 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	securityRepo := provideSecurityRepo(holdingClient)
 	holdingRepo := provideHoldingRepo(holdingClient)
 	tradeRepo := provideTradeRepo(holdingClient)
-	holdingService := provideHoldingService(securityRepo, holdingRepo, tradeRepo, priceRouter)
+	// C-repos + historical provider for the holding service (lots/snapshots/
+	// price-history). currencyRateHistoryRepo feeds the holdingRateAdapter
+	// (currencyClient was declared above with the other ent clients).
+	lotRepo := provideLotRepo(holdingClient)
+	snapshotRepo := provideSnapshotRepo(holdingClient)
+	priceHistoryRepo := providePriceHistoryRepo(holdingClient)
+	historicalProvider := provideHistoricalProvider()
+	currencyRateHistoryRepo := provideCurrencyRateHistoryRepo(currencyClient)
+	holdingRateRepo := provideHoldingRateRepo(currencyRateHistoryRepo)
+	// tenantRepo (declared in the Auth module above) satisfies holding's
+	// TenantLister port via its FindAllIDs method — cross-tenant fan-out for
+	// SnapshotAllHoldings.
+	holdingService := provideHoldingService(securityRepo, holdingRepo, tradeRepo, priceRouter, lotRepo, snapshotRepo, priceHistoryRepo, historicalProvider, holdingRateRepo, tenantRepo)
 	holdingHandler := provideHoldingHandler(holdingService, txnService, accountRepo)
 
 	// Backup module
@@ -146,11 +158,16 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	// Currency module
 	currencyRepo := provideCurrencyRepo(currencyClient)
 	exchangeRateProvider := provideExchangeRateProvider()
-	currencyService := provideCurrencyService(currencyRepo, exchangeRateProvider)
+	// currencyRateHistoryRepo was declared in the Holding module above (it
+	// feeds the holdingRateAdapter there); reuse it here directly.
+	currencyService := provideCurrencyService(currencyRepo, exchangeRateProvider, currencyRateHistoryRepo)
 	currencyHandler := provideCurrencyHandler(currencyService)
 	intervalSource := provideIntervalSource(tenantRepo)
 	currencyScheduler := provideCurrencyScheduler(currencyService, intervalSource)
 	priceScheduler := providePriceScheduler(holdingService, intervalSource)
+	// snapshotScheduler reuses intervalSource (like priceScheduler). The
+	// holding service implements Snapshotter via SnapshotAllHoldings.
+	snapshotScheduler := provideSnapshotScheduler(holdingService, intervalSource)
 
 	// Auth service (depends on currencyRepo via the CurrencyCodeChecker port,
 	// so it must be wired after the Currency module).
@@ -161,6 +178,6 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	// gRPC server
 	grpcSrv := provideGRPCServer(ts)
 
-	app := NewApp(cfg, log, grpcSrv, tenantRepo, userRepo, accountService, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler, holdingHandler, holdingService, backupHandler, syncHandler, currencyHandler, currencyScheduler, currencyService, priceScheduler)
+	app := NewApp(cfg, log, grpcSrv, tenantRepo, userRepo, accountService, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler, holdingHandler, holdingService, backupHandler, syncHandler, currencyHandler, currencyScheduler, currencyService, priceScheduler, snapshotScheduler)
 	return app, nil
 }

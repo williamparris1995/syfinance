@@ -74,6 +74,26 @@ func main() {
 	// scheduler). Exits when schedCtx is cancelled during shutdown.
 	go app.HoldingScheduler.Start(schedCtx)
 
+	// Start holding snapshot scheduler. Performs an immediate
+	// SnapshotAllHoldings (cross-tenant fan-out via the injected TenantLister),
+	// then re-snapshots at most once per tenant's rate_sync_interval_hours.
+	// Exits when schedCtx is cancelled during shutdown.
+	go app.SnapshotScheduler.Start(schedCtx)
+
+	// Backfill security price history on first launch (empty-table gate inside
+	// BackfillPriceHistory), async so it never blocks startup. Pulls Sina daily
+	// K-line for A-share holdings + CSI300 at YEAR depth (1200 bars ≈ 5 years).
+	go func() {
+		count, err := app.HoldingService.BackfillPriceHistory(context.Background(), "YEAR")
+		if err != nil {
+			slog.Error("holding backfill failed", "error", err, "operation", "main.backfill")
+			return
+		}
+		if count > 0 {
+			slog.Info("holding backfill completed", "count", count, "operation", "main.backfill")
+		}
+	}()
+
 	// Register gRPC services
 	authpb.RegisterAuthServiceServer(app.GRPCServer, app.AuthHandler)
 	accountpb.RegisterAccountServiceServer(app.GRPCServer, app.AccountHandler)

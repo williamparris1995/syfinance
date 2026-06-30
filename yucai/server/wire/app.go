@@ -47,6 +47,7 @@ type App struct {
 	CurrencyScheduler  *scheduler.Scheduler
 	CurrencyService    *currencyapp.Service
 	HoldingScheduler   *holdingscheduler.Scheduler
+	SnapshotScheduler  *holdingscheduler.SnapshotScheduler
 }
 
 // NewApp creates the application with wired dependencies.
@@ -73,6 +74,7 @@ func NewApp(
 	currencyScheduler *scheduler.Scheduler,
 	currencyService *currencyapp.Service,
 	holdingScheduler *holdingscheduler.Scheduler,
+	snapshotScheduler *holdingscheduler.SnapshotScheduler,
 ) *App {
 	return &App{
 		Config:             cfg,
@@ -97,5 +99,6 @@ func NewApp(
 		CurrencyScheduler:  currencyScheduler,
 		CurrencyService:    currencyService,
 		HoldingScheduler:   holdingScheduler,
+		SnapshotScheduler:  snapshotScheduler,
 	}
 }

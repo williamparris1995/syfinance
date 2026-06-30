@@ -48,6 +48,7 @@ import (
 	priceprovider "github.com/yucai/server/internal/holding/adapter/driven/priceprovider"
 	holdinggrpc "github.com/yucai/server/internal/holding/adapter/driving/grpc"
 	holdingapp "github.com/yucai/server/internal/holding/application"
+	holdingdomain "github.com/yucai/server/internal/holding/domain"
 	holdingent "github.com/yucai/server/internal/holding/ent"
 	holdingscheduler "github.com/yucai/server/internal/holding/scheduler"
 	syncrepo "github.com/yucai/server/internal/sync/adapter/driven/repository"
@@ -393,9 +394,26 @@ func provideHoldingRepo(client *holdingent.Client) *holdingsec.HoldingRepository
 func provideTradeRepo(client *holdingent.Client) *holdingsec.TradeRepository {
 	return holdingsec.NewTradeRepository(client)
 }
-func provideHoldingService(secRepo *holdingsec.SecurityRepository, hRepo *holdingsec.HoldingRepository, tRepo *holdingsec.TradeRepository, priceRouter priceprovider.Router) *holdingapp.Service {
+func provideHoldingService(
+	secRepo *holdingsec.SecurityRepository,
+	hRepo *holdingsec.HoldingRepository,
+	tRepo *holdingsec.TradeRepository,
+	priceRouter priceprovider.Router,
+	lotRepo *holdingsec.LotRepository,
+	snapshotRepo *holdingsec.SnapshotRepository,
+	priceHistoryRepo *holdingsec.PriceHistoryRepository,
+	historicalProvider priceprovider.HistoricalProvider,
+	holdingRateRepo holdingdomain.RateHistoryRepository,
+	tenantLister holdingdomain.TenantLister,
+) *holdingapp.Service {
 	svc := holdingapp.NewService(secRepo, hRepo, tRepo)
-	svc.SetPriceRouter(priceRouter) // wire 注入价格 router；nil 时 SyncPrices 会 error out
+	svc.SetPriceRouter(priceRouter)        // wire 注入价格 router；nil 时 SyncPrices 会 error out
+	svc.SetLotRepository(lotRepo)          // FIFO cost lots for realized P&L + cost basis
+	svc.SetSnapshotRepository(snapshotRepo) // daily market-value snapshots
+	svc.SetPriceHistoryRepository(priceHistoryRepo)
+	svc.SetHistoricalProvider(historicalProvider) // Sina K-line for BackfillPriceHistory
+	svc.SetRateHistoryRepository(holdingRateRepo) // currency→holding adapter (slice→map)
+	svc.SetTenantLister(tenantLister)             // cross-tenant fan-out for SnapshotAllHoldings
 	return svc
 }
 func provideHoldingHandler(svc *holdingapp.Service, txnSvc *txnapp.Service, accountLookup txnapp.AccountLookup) *holdinggrpc.HoldingHandler {
@@ -484,8 +502,10 @@ func provideCurrencyRepo(client *currencyent.Client) *currencyrepo.CurrencyRepos
 func provideExchangeRateProvider() exchangerate.Provider {
 	return exchangerate.NewFrankfurterProvider()
 }
-func provideCurrencyService(repo *currencyrepo.CurrencyRepository, provider exchangerate.Provider) *currencyapp.Service {
-	return currencyapp.NewService(repo, provider)
+func provideCurrencyService(repo *currencyrepo.CurrencyRepository, provider exchangerate.Provider, rateHistoryRepo *currencyrepo.RateHistoryRepository) *currencyapp.Service {
+	svc := currencyapp.NewService(repo, provider)
+	svc.SetRateHistoryRepository(rateHistoryRepo)
+	return svc
 }
 func provideCurrencyHandler(svc *currencyapp.Service) *currencygrpc.CurrencyHandler {
 	return currencygrpc.NewCurrencyHandler(svc)
@@ -543,6 +563,74 @@ func providePriceRouter() priceprovider.Router {
 // and holdingscheduler.IntervalSource, both declaring MinIntervalHours(ctx) int).
 func providePriceScheduler(svc *holdingapp.Service, src holdingscheduler.IntervalSource) *holdingscheduler.Scheduler {
 	return holdingscheduler.NewScheduler(svc, src, 1*time.Hour, nil)
+}
+
+// provideLotRepo builds the FIFO cost-lot repository. Used by the holding
+// service for lot-aware realized-gain/loss and snapshot cost basis.
+func provideLotRepo(client *holdingent.Client) *holdingsec.LotRepository {
+	return holdingsec.NewLotRepository(client)
+}
+
+// provideSnapshotRepo builds the daily holding market-value snapshot repository.
+func provideSnapshotRepo(client *holdingent.Client) *holdingsec.SnapshotRepository {
+	return holdingsec.NewSnapshotRepository(client)
+}
+
+// providePriceHistoryRepo builds the daily security price-history repository,
+// used by BackfillPriceHistory and portfolio-curve assembly.
+func providePriceHistoryRepo(client *holdingent.Client) *holdingsec.PriceHistoryRepository {
+	return holdingsec.NewPriceHistoryRepository(client)
+}
+
+// provideHistoricalProvider builds the daily K-line history provider. The same
+// SinaProvider that serves live A-share prices also implements HistoricalProvider
+// (FetchHistory), so backfill reuses it. Wire injects it directly into the
+// holding service (not via Router) — backfill wants A-share/CSI300 coverage only.
+func provideHistoricalProvider() priceprovider.HistoricalProvider {
+	return priceprovider.NewSinaProvider()
+}
+
+// provideCurrencyRateHistoryRepo builds the currency rate-history repository.
+// Injected into both the currency service (direct) and the holding
+// holdingRateAdapter (adapted to a map-returning FindRange).
+func provideCurrencyRateHistoryRepo(client *currencyent.Client) *currencyrepo.RateHistoryRepository {
+	return currencyrepo.NewRateHistoryRepository(client)
+}
+
+// holdingRateAdapter adapts the currency RateHistoryRepository (FindRange returns
+// a []domain.RateHistory slice) to the holding domain.RateHistoryRepository port
+// (FindRange returns a date→rate map). Holding does not import currency, so the
+// adapter lives in wire (mirrors the accountPresetSeeder / currencyCodeChecker
+// cross-module pattern). FindRate is signature-compatible and passes through.
+type holdingRateAdapter struct{ inner *currencyrepo.RateHistoryRepository }
+
+func (a *holdingRateAdapter) FindRate(ctx context.Context, code string, date time.Time) (float64, error) {
+	return a.inner.FindRate(ctx, code, date)
+}
+
+func (a *holdingRateAdapter) FindRange(ctx context.Context, code string, from, to time.Time) (map[time.Time]float64, error) {
+	rows, err := a.inner.FindRange(ctx, code, from, to)
+	if err != nil {
+		return nil, err
+	}
+	m := make(map[time.Time]float64, len(rows))
+	for _, r := range rows {
+		m[r.RateDate] = r.ExchangeRate
+	}
+	return m, nil
+}
+
+// provideHoldingRateRepo wraps the currency rate-history repo in the slice→map
+// adapter so it satisfies holding's domain.RateHistoryRepository.
+func provideHoldingRateRepo(inner *currencyrepo.RateHistoryRepository) holdingdomain.RateHistoryRepository {
+	return &holdingRateAdapter{inner: inner}
+}
+
+// provideSnapshotScheduler builds the daily holding-snapshot scheduler. The
+// holding *application.Service implements scheduler.Snapshotter via
+// SnapshotAllHoldings (cross-tenant fan-out). tick is 1h in prod.
+func provideSnapshotScheduler(svc *holdingapp.Service, src holdingscheduler.IntervalSource) *holdingscheduler.SnapshotScheduler {
+	return holdingscheduler.NewSnapshotScheduler(svc, src, 1*time.Hour, nil)
 }
 
 func provideGRPCServer(ts *authjwt.TokenService) *GRPCServer {
