@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
+import 'package:yucai_client/holding/domain/entities/performance_entity.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
 
 /// 持仓仓储抽象(对齐 holding.proto HoldingService,10 个 RPC)。
@@ -82,4 +83,18 @@ abstract class HoldingRepository {
 
   // —— 价格批量同步(Task 9 新增,server 拉行情)——
   Future<Either<Failure, SyncPricesResult>> syncPrices();
+
+  // —— 收益曲线(Task 12,holding-C 新增)——
+  /// 组合收益曲线 + 盈亏明细。range 取 'DAY'/'MONTH'/'YEAR'。
+  Future<Either<Failure, PortfolioPerformance>> getPortfolioPerformance({
+    required String range,
+    String? accountId,
+    bool includeBenchmark = false,
+  });
+
+  /// 单持仓价格曲线 + 盈亏明细。
+  Future<Either<Failure, HoldingPerformance>> getHoldingPerformance({
+    required String holdingId,
+    required String range,
+  });
 }

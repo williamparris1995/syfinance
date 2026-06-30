@@ -3,7 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:protobuf/well_known_types/google/protobuf/timestamp.pb.dart' as tspb;
 
 import 'package:yucai_client/holding/data/mappers/holding_mapper.dart';
+import 'package:yucai_client/holding/domain/entities/performance_entity.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
+import 'package:yucai_client/holding/presentation/widgets/perf_curve_chart.dart'
+    show PerfPoint;
 import 'package:yucai_client/proto/holding/v1/holding.pb.dart' as pb;
 
 void main() {
@@ -312,6 +315,135 @@ void main() {
       expect(t.tradeType, TradeType.buy);
       expect(t.notes, ''); // unset scalar default
       expect(t.createdAt, isNull);
+    });
+  });
+
+  // —— Task 12 (holding-C): 收益曲线 mapper ——
+  group('performance curve mapping (Task 12)', () {
+    test('curvePointToPerfPoint: Timestamp→DateTime + value 直传', () {
+      final ts = DateTime.utc(2026, 6, 30, 9, 30, 0);
+      final cp = pb.CurvePoint(
+        time: tspb.Timestamp.fromDateTime(ts),
+        value: 1234.5,
+      );
+      final pp = curvePointToPerfPoint(cp);
+      expect(pp.time, ts); // toDateTime() 转换一致
+      expect(pp.value, 1234.5);
+    });
+
+    test('portfolioResponseToEntity: 2 portfolioPoints + 1 benchmark + Int64→int cents', () {
+      // realizedCents/unrealizedCents/totalCents 是 proto Int64 getter,
+      // mapper 必须 .toInt()(否则 Int64→int 类型错位)。2 portfolio + 1 benchmark。
+      final res = pb.PortfolioPerformanceResponse(
+        portfolioPoints: [
+          pb.CurvePoint(
+            time: tspb.Timestamp.fromDateTime(DateTime.utc(2026, 6, 28)),
+            value: 10000.0,
+          ),
+          pb.CurvePoint(
+            time: tspb.Timestamp.fromDateTime(DateTime.utc(2026, 6, 30)),
+            value: 10800.0,
+          ),
+        ],
+        benchmarkPoints: [
+          pb.CurvePoint(
+            time: tspb.Timestamp.fromDateTime(DateTime.utc(2026, 6, 30)),
+            value: 1010.0,
+          ),
+        ],
+        benchmarkName: 'CSI300',
+        realizedCents: $fixnum.Int64(800),
+        unrealizedCents: $fixnum.Int64(200),
+        totalCents: $fixnum.Int64(1000),
+        annualizedPct: 12.5,
+        totalPct: 8.0,
+        currency: 'CNY',
+      );
+      final e = portfolioResponseToEntity(res);
+      expect(e, isA<PortfolioPerformance>());
+      expect(e.portfolioPoints.length, 2);
+      expect(e.benchmarkPoints.length, 1);
+      expect(e.benchmarkName, 'CSI300');
+      expect(e.realizedCents, 800); // Int64 → int
+      expect(e.unrealizedCents, 200);
+      expect(e.totalCents, 1000);
+      expect(e.annualizedPct, 12.5);
+      expect(e.totalPct, 8.0);
+      expect(e.currency, 'CNY');
+      // 第一个点时间/值透传(Timestamp→DateTime + double)
+      expect(e.portfolioPoints.first.time, DateTime.utc(2026, 6, 28));
+      expect(e.portfolioPoints.first.value, 10000.0);
+    });
+
+    test('holdingResponseToEntity: pricePoints + Int64→int cents', () {
+      final res = pb.HoldingPerformanceResponse(
+        pricePoints: [
+          pb.CurvePoint(
+            time: tspb.Timestamp.fromDateTime(DateTime.utc(2026, 6, 29)),
+            value: 18.5,
+          ),
+        ],
+        realizedCents: $fixnum.Int64(0),
+        unrealizedCents: $fixnum.Int64(-500),
+        totalCents: $fixnum.Int64(-500),
+        currency: 'CNY',
+      );
+      final e = holdingResponseToEntity(res);
+      expect(e.pricePoints.length, 1);
+      expect(e.pricePoints.first.value, 18.5);
+      expect(e.realizedCents, 0);
+      expect(e.unrealizedCents, -500); // 可负
+      expect(e.totalCents, -500);
+    });
+
+    test('curveRangeToProto: DAY/MONTH/YEAR by NAME + 未知折叠 DAY', () {
+      // ⚠️ 与 SecurityType 同理:按 NAME 不按 int。UNSPECIFIED 正向不可达。
+      expect(curveRangeToProto('DAY'), pb.CurveRange.CURVE_RANGE_DAY);
+      expect(curveRangeToProto('MONTH'), pb.CurveRange.CURVE_RANGE_MONTH);
+      expect(curveRangeToProto('YEAR'), pb.CurveRange.CURVE_RANGE_YEAR);
+      expect(curveRangeToProto('WEEK'), pb.CurveRange.CURVE_RANGE_DAY); // 未知→DAY
+      expect(curveRangeToProto(''), pb.CurveRange.CURVE_RANGE_DAY); // 空→DAY
+    });
+
+    test('PortfolioPerformance Equatable props compare by points + cents', () {
+      final ts = DateTime.utc(2026, 6, 30);
+      final a = PortfolioPerformance(
+        portfolioPoints: [PerfPoint(time: ts, value: 1)],
+        realizedCents: 800,
+        unrealizedCents: 200,
+        totalCents: 1000,
+      );
+      final b = PortfolioPerformance(
+        portfolioPoints: [PerfPoint(time: ts, value: 1)],
+        realizedCents: 800,
+        unrealizedCents: 200,
+        totalCents: 1000,
+      );
+      final c = PortfolioPerformance(
+        portfolioPoints: [PerfPoint(time: ts, value: 1)],
+        realizedCents: 900, // 不同 → 不等
+        unrealizedCents: 200,
+        totalCents: 1000,
+      );
+      expect(a, b);
+      expect(a == c, isFalse);
+    });
+
+    test('HoldingPerformance Equatable props compare by pricePoints + cents', () {
+      final ts = DateTime.utc(2026, 6, 30);
+      final a = HoldingPerformance(
+        pricePoints: [PerfPoint(time: ts, value: 18.5)],
+        realizedCents: 0,
+        unrealizedCents: -500,
+        totalCents: -500,
+      );
+      final b = HoldingPerformance(
+        pricePoints: [PerfPoint(time: ts, value: 18.5)],
+        realizedCents: 0,
+        unrealizedCents: -500,
+        totalCents: -500,
+      );
+      expect(a, b);
     });
   });
 }

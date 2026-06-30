@@ -1,7 +1,10 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
+import 'package:yucai_client/holding/domain/entities/performance_entity.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
+import 'package:yucai_client/holding/presentation/widgets/perf_curve_chart.dart'
+    show PerfPoint;
 import 'package:yucai_client/proto/holding/v1/holding.pb.dart' as pb;
 
 /// Maps generated proto HoldingDTO / SecurityDTO / HoldingTransactionDTO ↔
@@ -172,5 +175,55 @@ class HoldingMapper {
       case TradeType.split:
         return pb.TradeType.TRADE_TYPE_SPLIT;
     }
+  }
+}
+
+// —— 收益曲线(Task 12,holding-C)——
+// 顶层函数(非 HoldingMapper 静态方法):与 plan 一致,且收益曲线映射是独立
+// 关注点(不涉及 SecurityType/TradeType off-by-one),单独成组更清晰。
+
+/// CurvePoint → PerfPoint。proto Timestamp → DateTime 用 toDateTime()
+/// (protobuf 6.x 扩展,与 HoldingMapper createdAt / syncPrices syncedAt 一致)。
+PerfPoint curvePointToPerfPoint(pb.CurvePoint cp) =>
+    PerfPoint(time: cp.time.toDateTime(), value: cp.value);
+
+/// PortfolioPerformanceResponse → PortfolioPerformance。
+/// realized/unrealized/total cents 为 proto Int64 → domain int(.toInt(),
+/// 与 HoldingMapper avgCostCents.toInt() 同款,避免 Int64→int 类型错位)。
+PortfolioPerformance portfolioResponseToEntity(
+        pb.PortfolioPerformanceResponse r) =>
+    PortfolioPerformance(
+      portfolioPoints: r.portfolioPoints.map(curvePointToPerfPoint).toList(),
+      benchmarkPoints: r.benchmarkPoints.map(curvePointToPerfPoint).toList(),
+      benchmarkName: r.benchmarkName,
+      realizedCents: r.realizedCents.toInt(),
+      unrealizedCents: r.unrealizedCents.toInt(),
+      totalCents: r.totalCents.toInt(),
+      annualizedPct: r.annualizedPct,
+      totalPct: r.totalPct,
+      currency: r.currency,
+    );
+
+/// HoldingPerformanceResponse → HoldingPerformance。
+HoldingPerformance holdingResponseToEntity(pb.HoldingPerformanceResponse r) =>
+    HoldingPerformance(
+      pricePoints: r.pricePoints.map(curvePointToPerfPoint).toList(),
+      realizedCents: r.realizedCents.toInt(),
+      unrealizedCents: r.unrealizedCents.toInt(),
+      totalCents: r.totalCents.toInt(),
+      currency: r.currency,
+    );
+
+/// 区间字符串 → proto CurveRange。UI 层以 'DAY'/'MONTH'/'YEAR'(对齐
+/// PerfRange.day/month/year)传入;未知值折叠为 DAY(最细粒度默认)。
+/// UNSPECIFIED 在正向不可达(server 不接受 0)。
+pb.CurveRange curveRangeToProto(String range) {
+  switch (range) {
+    case 'MONTH':
+      return pb.CurveRange.CURVE_RANGE_MONTH;
+    case 'YEAR':
+      return pb.CurveRange.CURVE_RANGE_YEAR;
+    default:
+      return pb.CurveRange.CURVE_RANGE_DAY;
   }
 }

@@ -5,6 +5,7 @@ import 'package:injectable/injectable.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/holding/data/holding_remote_ds.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
+import 'package:yucai_client/holding/domain/entities/performance_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
 
@@ -150,6 +151,29 @@ class HoldingRepositoryImpl implements HoldingRepository {
   @override
   Future<Either<Failure, SyncPricesResult>> syncPrices() =>
       _guard(() => _remote.syncPrices());
+
+  // —— 收益曲线(Task 12,holding-C 新增)——
+  @override
+  Future<Either<Failure, PortfolioPerformance>> getPortfolioPerformance({
+    required String range,
+    String? accountId,
+    bool includeBenchmark = false,
+  }) =>
+      _guard(() => _remote.getPortfolioPerformance(
+            range: range,
+            accountId: accountId,
+            includeBenchmark: includeBenchmark,
+          ));
+
+  @override
+  Future<Either<Failure, HoldingPerformance>> getHoldingPerformance({
+    required String holdingId,
+    required String range,
+  }) =>
+      _guard(() => _remote.getHoldingPerformance(
+            holdingId: holdingId,
+            range: range,
+          ));
 
   // Maps thrown GrpcError/exceptions to Failure, wrapping the op in Either.
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {

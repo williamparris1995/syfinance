@@ -5,6 +5,7 @@ import 'package:yucai_client/core/network/auth_retry.dart';
 import 'package:yucai_client/core/network/grpc_client.dart';
 import 'package:yucai_client/holding/data/mappers/holding_mapper.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
+import 'package:yucai_client/holding/domain/entities/performance_entity.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/proto/common/v1/pagination.pb.dart' as common;
 import 'package:yucai_client/proto/holding/v1/holding.pb.dart' as pb;
@@ -251,6 +252,42 @@ class HoldingRemoteDataSource {
         syncedCount: res.syncedCount,
         syncedAt: res.syncedAt.toDateTime(),
       );
+    });
+  }
+
+  // —— 收益曲线(Task 12,holding-C)——
+  /// 组合收益曲线 + 盈亏明细。range 取 'DAY'/'MONTH'/'YEAR'
+  /// (对齐 PerfRange,mapper curveRangeToProto 折叠未知值为 DAY)。
+  /// includeBenchmark=true 时 server 回填 benchmarkPoints + benchmarkName。
+  Future<PortfolioPerformance> getPortfolioPerformance({
+    required String range,
+    String? accountId,
+    bool includeBenchmark = false,
+  }) async {
+    return _retry.call(() async {
+      final req = pb.GetPortfolioPerformanceRequest(
+        accountId: accountId ?? '',
+        range: curveRangeToProto(range),
+        includeBenchmark: includeBenchmark,
+      );
+      final res = await _client.getPortfolioPerformance(req);
+      return portfolioResponseToEntity(res);
+    });
+  }
+
+  /// 单持仓价格曲线 + 盈亏明细。range 同上。
+  Future<HoldingPerformance> getHoldingPerformance({
+    required String holdingId,
+    required String range,
+  }) async {
+    return _retry.call(() async {
+      final res = await _client.getHoldingPerformance(
+        pb.GetHoldingPerformanceRequest(
+          holdingId: holdingId,
+          range: curveRangeToProto(range),
+        ),
+      );
+      return holdingResponseToEntity(res);
     });
   }
 }

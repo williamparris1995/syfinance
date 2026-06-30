@@ -10,6 +10,7 @@ import 'package:yucai_client/core/network/grpc_client.dart';
 import 'package:yucai_client/holding/data/holding_remote_ds.dart';
 import 'package:yucai_client/holding/data/mappers/holding_mapper.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
+import 'package:yucai_client/holding/domain/entities/performance_entity.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/proto/holding/v1/holding.pb.dart' as pb;
 
@@ -210,6 +211,85 @@ void main() {
       final c = SyncPricesResult(syncedCount: 4, syncedAt: ts);
       expect(a, b); // same props → equal
       expect(a == c, isFalse); // different syncedCount → not equal
+    });
+  });
+
+  group('performance response wiring (Task 12 getPortfolio/getHolding)', () {
+    // DS 是 _retry.call 包裹的薄壳;非 trivial 逻辑 = request wiring
+    // (curveRangeToProto off-by-one NAME 映射) + response mapping
+    // (portfolioResponseToEntity / holdingResponseToEntity)。按现有 syncPrices
+    // test 同款,验证 proto field-level round-trip + DS 委托的 mapping。
+
+    test('getPortfolioPerformance: range NAME → CurveRange + response→entity', () {
+      // DS 把 'DAY'/'MONTH'/'YEAR' 经 curveRangeToProto 映射为 proto CurveRange
+      // (按 NAME,UNSPECIFIED 正向不可达);response 经 portfolioResponseToEntity。
+      expect(curveRangeToProto('DAY'), pb.CurveRange.CURVE_RANGE_DAY);
+      expect(curveRangeToProto('MONTH'), pb.CurveRange.CURVE_RANGE_MONTH);
+
+      final res = pb.PortfolioPerformanceResponse(
+        portfolioPoints: [
+          pb.CurvePoint(
+            time: tspb.Timestamp.fromDateTime(DateTime.utc(2026, 6, 29)),
+            value: 10000.0,
+          ),
+          pb.CurvePoint(
+            time: tspb.Timestamp.fromDateTime(DateTime.utc(2026, 6, 30)),
+            value: 10800.0,
+          ),
+        ],
+        benchmarkName: '',
+        realizedCents: Int64(800),
+        unrealizedCents: Int64(200),
+        totalCents: Int64(1000),
+        currency: 'CNY',
+      );
+      // Emulate DS mapping (DS body delegates to portfolioResponseToEntity).
+      final e = portfolioResponseToEntity(res);
+      expect(e, isA<PortfolioPerformance>());
+      expect(e.portfolioPoints.length, 2);
+      expect(e.realizedCents, 800); // Int64 → int
+    });
+
+    test('getHoldingPerformance: range + response→entity (Int64→int cents)', () {
+      expect(curveRangeToProto('YEAR'), pb.CurveRange.CURVE_RANGE_YEAR);
+
+      final res = pb.HoldingPerformanceResponse(
+        pricePoints: [
+          pb.CurvePoint(
+            time: tspb.Timestamp.fromDateTime(DateTime.utc(2026, 6, 30)),
+            value: 18.5,
+          ),
+        ],
+        realizedCents: Int64(0),
+        unrealizedCents: Int64(-500),
+        totalCents: Int64(-500),
+        currency: 'CNY',
+      );
+      final e = holdingResponseToEntity(res);
+      expect(e.pricePoints.length, 1);
+      expect(e.realizedCents, 0);
+      expect(e.unrealizedCents, -500);
+    });
+
+    test('GetPortfolioPerformanceRequest wires range + includeBenchmark', () {
+      // Verify the proto field-level round-trip the DS constructs.
+      final req = pb.GetPortfolioPerformanceRequest(
+        accountId: 'inv-1',
+        range: curveRangeToProto('MONTH'),
+        includeBenchmark: true,
+      );
+      expect(req.accountId, 'inv-1');
+      expect(req.range, pb.CurveRange.CURVE_RANGE_MONTH);
+      expect(req.includeBenchmark, true);
+    });
+
+    test('GetHoldingPerformanceRequest wires holdingId + range', () {
+      final req = pb.GetHoldingPerformanceRequest(
+        holdingId: 'h-1',
+        range: curveRangeToProto('YEAR'),
+      );
+      expect(req.holdingId, 'h-1');
+      expect(req.range, pb.CurveRange.CURVE_RANGE_YEAR);
     });
   });
 
