@@ -254,6 +254,24 @@ func (h *HoldingHandler) ListHoldingTransactions(ctx context.Context, req *pb.Li
 	return &pb.ListTradesResponse{Trades: trades, Page: &commonpb.PageResponse{NextPageToken: result.NextPageToken, TotalCount: result.TotalCount}}, nil
 }
 
+// SyncPrices triggers a manual price refresh of all securities via the
+// application service (which routes to the configured price provider).
+// Prices are security master data (tenant-shared), so we authenticate the
+// caller but do not filter by tenant.
+func (h *HoldingHandler) SyncPrices(ctx context.Context, _ *pb.SyncPricesRequest) (*pb.SyncPricesResponse, error) {
+	if _, err := getTenantID(ctx); err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	count, err := h.service.SyncPrices(ctx)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.SyncPricesResponse{
+		SyncedCount: int32(count),
+		SyncedAt:    timestamppb.Now(),
+	}, nil
+}
+
 func secToProto(s application.SecurityDTO) *pb.SecurityDTO {
 	return &pb.SecurityDTO{
 		Id: s.ID.String(), Symbol: s.Symbol, Name: s.Name,
