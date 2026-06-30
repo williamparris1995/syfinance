@@ -67,16 +67,21 @@ func TestPriceHistoryRepoExists(t *testing.T) {
 	}
 }
 
-// TestPriceHistoryRepoSaveAll_BulkInsert verifies SaveAll persists a batch and
-// the rows become queryable with the supplied IDs round-tripped.
+// TestPriceHistoryRepoSaveAll_BulkInsert verifies SaveAll persists a batch of
+// zero-ID rows (ent Default generates ids) and they become queryable with the
+// supplied price/source fields round-tripped.
 func TestPriceHistoryRepoSaveAll_BulkInsert(t *testing.T) {
 	client := setupHoldingTestDB(t)
 	ctx := context.Background()
 	security := uuid.New()
 
+	// Service callers leave ID empty (uuid.Nil); the repo does not SetID, so
+	// ent's Default(uuid.New) generates ids for each row. Passing empty IDs here
+	// mirrors production and guards against the backfill pkey-collision bug
+	// (every row in a bulk save sharing uuid.Nil).
 	batch := []domain.SecurityPriceHistory{
-		{ID: uuid.New(), SecurityID: security, PriceDate: day("2025-03-01"), PriceCents: 9000, CurrencyCode: "CNY", Source: "sina"},
-		{ID: uuid.New(), SecurityID: security, PriceDate: day("2025-03-02"), PriceCents: 9100, CurrencyCode: "CNY", Source: "sina"},
+		{SecurityID: security, PriceDate: day("2025-03-01"), PriceCents: 9000, CurrencyCode: "CNY", Source: "sina"},
+		{SecurityID: security, PriceDate: day("2025-03-02"), PriceCents: 9100, CurrencyCode: "CNY", Source: "sina"},
 	}
 	repo := repository.NewPriceHistoryRepository(client)
 	if err := repo.SaveAll(ctx, batch); err != nil {

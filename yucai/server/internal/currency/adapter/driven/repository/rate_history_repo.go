@@ -67,7 +67,6 @@ func (r *RateHistoryRepository) FindRange(ctx context.Context, code string, from
 // against duplicate days; the daily scheduler is the sole writer.
 func (r *RateHistoryRepository) Save(ctx context.Context, rh domain.RateHistory) error {
 	if err := r.client.RateHistory.Create().
-		SetID(rh.ID).
 		SetCurrencyCode(rh.CurrencyCode).
 		SetRateDate(rh.RateDate).
 		SetExchangeRate(rh.ExchangeRate).

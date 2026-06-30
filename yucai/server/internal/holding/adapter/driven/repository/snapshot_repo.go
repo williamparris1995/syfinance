@@ -52,7 +52,6 @@ func (r *SnapshotRepository) FindSnapshots(ctx context.Context, tenantID uuid.UU
 // responsible for deduping against UNIQUE(tenant_id, holding_id, snapshot_date).
 func (r *SnapshotRepository) Save(ctx context.Context, s domain.HoldingSnapshot) error {
 	if err := r.client.HoldingSnapshot.Create().
-		SetID(s.ID).
 		SetTenantID(s.TenantID).
 		SetHoldingID(s.HoldingID).
 		SetSecurityID(s.SecurityID).

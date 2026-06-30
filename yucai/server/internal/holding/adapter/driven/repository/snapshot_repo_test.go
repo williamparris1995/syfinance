@@ -104,8 +104,12 @@ func TestSnapshotRepoSave_RoundTrip(t *testing.T) {
 	account := uuid.New()
 
 	repo := repository.NewSnapshotRepository(client)
+	// Service callers construct snapshots without an ID (uuid.Nil); the repo
+	// must NOT SetID — ent's Default(uuid.New) generates it. Leaving ID empty
+	// here mirrors the production code path and guards against pkey collisions
+	// when multiple snapshots are saved in a batch.
 	s := domain.HoldingSnapshot{
-		ID: uuid.New(), TenantID: tenant, HoldingID: holding, SecurityID: security, AccountID: account,
+		TenantID: tenant, HoldingID: holding, SecurityID: security, AccountID: account,
 		SnapshotDate: day("2025-04-01"), MarketValueCents: 12345, UnrealizedPnlCents: 678,
 		CurrencyCode: "CNY",
 	}
@@ -123,8 +127,11 @@ func TestSnapshotRepoSave_RoundTrip(t *testing.T) {
 	if got[0].MarketValueCents != 12345 || got[0].UnrealizedPnlCents != 678 {
 		t.Errorf("round-trip mismatch: %+v", got[0])
 	}
-	if got[0].ID != s.ID {
-		t.Errorf("ID mismatch: got %s want %s", got[0].ID, s.ID)
+	// ent Default(uuid.New) generates the id — it must not be uuid.Nil (the
+	// value the service passed in), proving the repo did not echo the caller's
+	// empty ID back as a pkey.
+	if got[0].ID == uuid.Nil {
+		t.Errorf("ID not generated: got uuid.Nil, want ent-generated non-zero id")
 	}
 }
 

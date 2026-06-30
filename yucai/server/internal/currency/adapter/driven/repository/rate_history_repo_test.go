@@ -9,8 +9,6 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	_ "modernc.org/sqlite"
 
-	"github.com/google/uuid"
-
 	"github.com/yucai/server/internal/currency/adapter/driven/repository"
 	"github.com/yucai/server/internal/currency/domain"
 	currencyent "github.com/yucai/server/internal/currency/ent"
@@ -154,8 +152,9 @@ func TestRateHistoryRepoSave_RoundTrip(t *testing.T) {
 	ctx := context.Background()
 
 	repo := repository.NewRateHistoryRepository(client)
+	// Service callers leave ID empty; ent's Default(uuid.New) generates it.
 	rh := domain.RateHistory{
-		ID: uuid.New(), CurrencyCode: "EUR", RateDate: day("2025-05-01"),
+		CurrencyCode: "EUR", RateDate: day("2025-05-01"),
 		ExchangeRate: 7.80,
 	}
 	if err := repo.Save(ctx, rh); err != nil {

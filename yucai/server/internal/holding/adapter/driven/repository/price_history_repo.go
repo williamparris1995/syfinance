@@ -53,7 +53,6 @@ func (r *PriceHistoryRepository) SaveAll(ctx context.Context, ph []domain.Securi
 	bulk := make([]*holdingent.SecurityPriceHistoryCreate, 0, len(ph))
 	for _, p := range ph {
 		bulk = append(bulk, r.client.SecurityPriceHistory.Create().
-			SetID(p.ID).
 			SetSecurityID(p.SecurityID).
 			SetPriceDate(p.PriceDate).
 			SetPriceCents(p.PriceCents).
