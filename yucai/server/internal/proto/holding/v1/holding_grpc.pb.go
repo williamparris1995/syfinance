@@ -31,6 +31,9 @@ const (
 	HoldingService_ListHoldings_FullMethodName            = "/yucai.holding.v1.HoldingService/ListHoldings"
 	HoldingService_ListHoldingTransactions_FullMethodName = "/yucai.holding.v1.HoldingService/ListHoldingTransactions"
 	HoldingService_SyncPrices_FullMethodName              = "/yucai.holding.v1.HoldingService/SyncPrices"
+	HoldingService_GetPortfolioPerformance_FullMethodName = "/yucai.holding.v1.HoldingService/GetPortfolioPerformance"
+	HoldingService_GetHoldingPerformance_FullMethodName   = "/yucai.holding.v1.HoldingService/GetHoldingPerformance"
+	HoldingService_BackfillPriceHistory_FullMethodName    = "/yucai.holding.v1.HoldingService/BackfillPriceHistory"
 )
 
 // HoldingServiceClient is the client API for HoldingService service.
@@ -48,6 +51,9 @@ type HoldingServiceClient interface {
 	ListHoldings(ctx context.Context, in *ListHoldingsRequest, opts ...grpc.CallOption) (*ListHoldingsResponse, error)
 	ListHoldingTransactions(ctx context.Context, in *ListTradesRequest, opts ...grpc.CallOption) (*ListTradesResponse, error)
 	SyncPrices(ctx context.Context, in *SyncPricesRequest, opts ...grpc.CallOption) (*SyncPricesResponse, error)
+	GetPortfolioPerformance(ctx context.Context, in *GetPortfolioPerformanceRequest, opts ...grpc.CallOption) (*PortfolioPerformanceResponse, error)
+	GetHoldingPerformance(ctx context.Context, in *GetHoldingPerformanceRequest, opts ...grpc.CallOption) (*HoldingPerformanceResponse, error)
+	BackfillPriceHistory(ctx context.Context, in *BackfillPriceHistoryRequest, opts ...grpc.CallOption) (*BackfillPriceHistoryResponse, error)
 }
 
 type holdingServiceClient struct {
@@ -168,6 +174,36 @@ func (c *holdingServiceClient) SyncPrices(ctx context.Context, in *SyncPricesReq
 	return out, nil
 }
 
+func (c *holdingServiceClient) GetPortfolioPerformance(ctx context.Context, in *GetPortfolioPerformanceRequest, opts ...grpc.CallOption) (*PortfolioPerformanceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PortfolioPerformanceResponse)
+	err := c.cc.Invoke(ctx, HoldingService_GetPortfolioPerformance_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *holdingServiceClient) GetHoldingPerformance(ctx context.Context, in *GetHoldingPerformanceRequest, opts ...grpc.CallOption) (*HoldingPerformanceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HoldingPerformanceResponse)
+	err := c.cc.Invoke(ctx, HoldingService_GetHoldingPerformance_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *holdingServiceClient) BackfillPriceHistory(ctx context.Context, in *BackfillPriceHistoryRequest, opts ...grpc.CallOption) (*BackfillPriceHistoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BackfillPriceHistoryResponse)
+	err := c.cc.Invoke(ctx, HoldingService_BackfillPriceHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // HoldingServiceServer is the server API for HoldingService service.
 // All implementations must embed UnimplementedHoldingServiceServer
 // for forward compatibility.
@@ -183,6 +219,9 @@ type HoldingServiceServer interface {
 	ListHoldings(context.Context, *ListHoldingsRequest) (*ListHoldingsResponse, error)
 	ListHoldingTransactions(context.Context, *ListTradesRequest) (*ListTradesResponse, error)
 	SyncPrices(context.Context, *SyncPricesRequest) (*SyncPricesResponse, error)
+	GetPortfolioPerformance(context.Context, *GetPortfolioPerformanceRequest) (*PortfolioPerformanceResponse, error)
+	GetHoldingPerformance(context.Context, *GetHoldingPerformanceRequest) (*HoldingPerformanceResponse, error)
+	BackfillPriceHistory(context.Context, *BackfillPriceHistoryRequest) (*BackfillPriceHistoryResponse, error)
 	mustEmbedUnimplementedHoldingServiceServer()
 }
 
@@ -225,6 +264,15 @@ func (UnimplementedHoldingServiceServer) ListHoldingTransactions(context.Context
 }
 func (UnimplementedHoldingServiceServer) SyncPrices(context.Context, *SyncPricesRequest) (*SyncPricesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SyncPrices not implemented")
+}
+func (UnimplementedHoldingServiceServer) GetPortfolioPerformance(context.Context, *GetPortfolioPerformanceRequest) (*PortfolioPerformanceResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetPortfolioPerformance not implemented")
+}
+func (UnimplementedHoldingServiceServer) GetHoldingPerformance(context.Context, *GetHoldingPerformanceRequest) (*HoldingPerformanceResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetHoldingPerformance not implemented")
+}
+func (UnimplementedHoldingServiceServer) BackfillPriceHistory(context.Context, *BackfillPriceHistoryRequest) (*BackfillPriceHistoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method BackfillPriceHistory not implemented")
 }
 func (UnimplementedHoldingServiceServer) mustEmbedUnimplementedHoldingServiceServer() {}
 func (UnimplementedHoldingServiceServer) testEmbeddedByValue()                        {}
@@ -445,6 +493,60 @@ func _HoldingService_SyncPrices_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _HoldingService_GetPortfolioPerformance_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPortfolioPerformanceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HoldingServiceServer).GetPortfolioPerformance(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HoldingService_GetPortfolioPerformance_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HoldingServiceServer).GetPortfolioPerformance(ctx, req.(*GetPortfolioPerformanceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HoldingService_GetHoldingPerformance_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetHoldingPerformanceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HoldingServiceServer).GetHoldingPerformance(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HoldingService_GetHoldingPerformance_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HoldingServiceServer).GetHoldingPerformance(ctx, req.(*GetHoldingPerformanceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HoldingService_BackfillPriceHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BackfillPriceHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HoldingServiceServer).BackfillPriceHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HoldingService_BackfillPriceHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HoldingServiceServer).BackfillPriceHistory(ctx, req.(*BackfillPriceHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // HoldingService_ServiceDesc is the grpc.ServiceDesc for HoldingService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -495,6 +597,18 @@ var HoldingService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SyncPrices",
 			Handler:    _HoldingService_SyncPrices_Handler,
+		},
+		{
+			MethodName: "GetPortfolioPerformance",
+			Handler:    _HoldingService_GetPortfolioPerformance_Handler,
+		},
+		{
+			MethodName: "GetHoldingPerformance",
+			Handler:    _HoldingService_GetHoldingPerformance_Handler,
+		},
+		{
+			MethodName: "BackfillPriceHistory",
+			Handler:    _HoldingService_BackfillPriceHistory_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

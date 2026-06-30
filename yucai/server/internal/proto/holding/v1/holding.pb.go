@@ -143,6 +143,58 @@ func (TradeType) EnumDescriptor() ([]byte, []int) {
 	return file_holding_v1_holding_proto_rawDescGZIP(), []int{1}
 }
 
+type CurveRange int32
+
+const (
+	CurveRange_CURVE_RANGE_UNSPECIFIED CurveRange = 0
+	CurveRange_CURVE_RANGE_DAY         CurveRange = 1
+	CurveRange_CURVE_RANGE_MONTH       CurveRange = 2
+	CurveRange_CURVE_RANGE_YEAR        CurveRange = 3
+)
+
+// Enum value maps for CurveRange.
+var (
+	CurveRange_name = map[int32]string{
+		0: "CURVE_RANGE_UNSPECIFIED",
+		1: "CURVE_RANGE_DAY",
+		2: "CURVE_RANGE_MONTH",
+		3: "CURVE_RANGE_YEAR",
+	}
+	CurveRange_value = map[string]int32{
+		"CURVE_RANGE_UNSPECIFIED": 0,
+		"CURVE_RANGE_DAY":         1,
+		"CURVE_RANGE_MONTH":       2,
+		"CURVE_RANGE_YEAR":        3,
+	}
+)
+
+func (x CurveRange) Enum() *CurveRange {
+	p := new(CurveRange)
+	*p = x
+	return p
+}
+
+func (x CurveRange) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (CurveRange) Descriptor() protoreflect.EnumDescriptor {
+	return file_holding_v1_holding_proto_enumTypes[2].Descriptor()
+}
+
+func (CurveRange) Type() protoreflect.EnumType {
+	return &file_holding_v1_holding_proto_enumTypes[2]
+}
+
+func (x CurveRange) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use CurveRange.Descriptor instead.
+func (CurveRange) EnumDescriptor() ([]byte, []int) {
+	return file_holding_v1_holding_proto_rawDescGZIP(), []int{2}
+}
+
 type SecurityDTO struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -1473,6 +1525,442 @@ func (x *SyncPricesResponse) GetSyncedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type CurvePoint struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Time          *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=time,proto3" json:"time,omitempty"`
+	Value         float64                `protobuf:"fixed64,2,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CurvePoint) Reset() {
+	*x = CurvePoint{}
+	mi := &file_holding_v1_holding_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CurvePoint) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CurvePoint) ProtoMessage() {}
+
+func (x *CurvePoint) ProtoReflect() protoreflect.Message {
+	mi := &file_holding_v1_holding_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CurvePoint.ProtoReflect.Descriptor instead.
+func (*CurvePoint) Descriptor() ([]byte, []int) {
+	return file_holding_v1_holding_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *CurvePoint) GetTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Time
+	}
+	return nil
+}
+
+func (x *CurvePoint) GetValue() float64 {
+	if x != nil {
+		return x.Value
+	}
+	return 0
+}
+
+type GetPortfolioPerformanceRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	AccountId        string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Range            CurveRange             `protobuf:"varint,2,opt,name=range,proto3,enum=yucai.holding.v1.CurveRange" json:"range,omitempty"`
+	IncludeBenchmark bool                   `protobuf:"varint,3,opt,name=include_benchmark,json=includeBenchmark,proto3" json:"include_benchmark,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *GetPortfolioPerformanceRequest) Reset() {
+	*x = GetPortfolioPerformanceRequest{}
+	mi := &file_holding_v1_holding_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPortfolioPerformanceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPortfolioPerformanceRequest) ProtoMessage() {}
+
+func (x *GetPortfolioPerformanceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_holding_v1_holding_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPortfolioPerformanceRequest.ProtoReflect.Descriptor instead.
+func (*GetPortfolioPerformanceRequest) Descriptor() ([]byte, []int) {
+	return file_holding_v1_holding_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *GetPortfolioPerformanceRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *GetPortfolioPerformanceRequest) GetRange() CurveRange {
+	if x != nil {
+		return x.Range
+	}
+	return CurveRange_CURVE_RANGE_UNSPECIFIED
+}
+
+func (x *GetPortfolioPerformanceRequest) GetIncludeBenchmark() bool {
+	if x != nil {
+		return x.IncludeBenchmark
+	}
+	return false
+}
+
+type PortfolioPerformanceResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	PortfolioPoints []*CurvePoint          `protobuf:"bytes,1,rep,name=portfolio_points,json=portfolioPoints,proto3" json:"portfolio_points,omitempty"`
+	BenchmarkPoints []*CurvePoint          `protobuf:"bytes,2,rep,name=benchmark_points,json=benchmarkPoints,proto3" json:"benchmark_points,omitempty"`
+	BenchmarkName   string                 `protobuf:"bytes,3,opt,name=benchmark_name,json=benchmarkName,proto3" json:"benchmark_name,omitempty"`
+	RealizedCents   int64                  `protobuf:"varint,4,opt,name=realized_cents,json=realizedCents,proto3" json:"realized_cents,omitempty"`
+	UnrealizedCents int64                  `protobuf:"varint,5,opt,name=unrealized_cents,json=unrealizedCents,proto3" json:"unrealized_cents,omitempty"`
+	TotalCents      int64                  `protobuf:"varint,6,opt,name=total_cents,json=totalCents,proto3" json:"total_cents,omitempty"`
+	AnnualizedPct   float64                `protobuf:"fixed64,7,opt,name=annualized_pct,json=annualizedPct,proto3" json:"annualized_pct,omitempty"`
+	TotalPct        float64                `protobuf:"fixed64,8,opt,name=total_pct,json=totalPct,proto3" json:"total_pct,omitempty"`
+	Currency        string                 `protobuf:"bytes,9,opt,name=currency,proto3" json:"currency,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *PortfolioPerformanceResponse) Reset() {
+	*x = PortfolioPerformanceResponse{}
+	mi := &file_holding_v1_holding_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PortfolioPerformanceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PortfolioPerformanceResponse) ProtoMessage() {}
+
+func (x *PortfolioPerformanceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_holding_v1_holding_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PortfolioPerformanceResponse.ProtoReflect.Descriptor instead.
+func (*PortfolioPerformanceResponse) Descriptor() ([]byte, []int) {
+	return file_holding_v1_holding_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *PortfolioPerformanceResponse) GetPortfolioPoints() []*CurvePoint {
+	if x != nil {
+		return x.PortfolioPoints
+	}
+	return nil
+}
+
+func (x *PortfolioPerformanceResponse) GetBenchmarkPoints() []*CurvePoint {
+	if x != nil {
+		return x.BenchmarkPoints
+	}
+	return nil
+}
+
+func (x *PortfolioPerformanceResponse) GetBenchmarkName() string {
+	if x != nil {
+		return x.BenchmarkName
+	}
+	return ""
+}
+
+func (x *PortfolioPerformanceResponse) GetRealizedCents() int64 {
+	if x != nil {
+		return x.RealizedCents
+	}
+	return 0
+}
+
+func (x *PortfolioPerformanceResponse) GetUnrealizedCents() int64 {
+	if x != nil {
+		return x.UnrealizedCents
+	}
+	return 0
+}
+
+func (x *PortfolioPerformanceResponse) GetTotalCents() int64 {
+	if x != nil {
+		return x.TotalCents
+	}
+	return 0
+}
+
+func (x *PortfolioPerformanceResponse) GetAnnualizedPct() float64 {
+	if x != nil {
+		return x.AnnualizedPct
+	}
+	return 0
+}
+
+func (x *PortfolioPerformanceResponse) GetTotalPct() float64 {
+	if x != nil {
+		return x.TotalPct
+	}
+	return 0
+}
+
+func (x *PortfolioPerformanceResponse) GetCurrency() string {
+	if x != nil {
+		return x.Currency
+	}
+	return ""
+}
+
+type GetHoldingPerformanceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	HoldingId     string                 `protobuf:"bytes,1,opt,name=holding_id,json=holdingId,proto3" json:"holding_id,omitempty"`
+	Range         CurveRange             `protobuf:"varint,2,opt,name=range,proto3,enum=yucai.holding.v1.CurveRange" json:"range,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetHoldingPerformanceRequest) Reset() {
+	*x = GetHoldingPerformanceRequest{}
+	mi := &file_holding_v1_holding_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetHoldingPerformanceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetHoldingPerformanceRequest) ProtoMessage() {}
+
+func (x *GetHoldingPerformanceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_holding_v1_holding_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetHoldingPerformanceRequest.ProtoReflect.Descriptor instead.
+func (*GetHoldingPerformanceRequest) Descriptor() ([]byte, []int) {
+	return file_holding_v1_holding_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *GetHoldingPerformanceRequest) GetHoldingId() string {
+	if x != nil {
+		return x.HoldingId
+	}
+	return ""
+}
+
+func (x *GetHoldingPerformanceRequest) GetRange() CurveRange {
+	if x != nil {
+		return x.Range
+	}
+	return CurveRange_CURVE_RANGE_UNSPECIFIED
+}
+
+type HoldingPerformanceResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	PricePoints     []*CurvePoint          `protobuf:"bytes,1,rep,name=price_points,json=pricePoints,proto3" json:"price_points,omitempty"`
+	RealizedCents   int64                  `protobuf:"varint,2,opt,name=realized_cents,json=realizedCents,proto3" json:"realized_cents,omitempty"`
+	UnrealizedCents int64                  `protobuf:"varint,3,opt,name=unrealized_cents,json=unrealizedCents,proto3" json:"unrealized_cents,omitempty"`
+	TotalCents      int64                  `protobuf:"varint,4,opt,name=total_cents,json=totalCents,proto3" json:"total_cents,omitempty"`
+	Currency        string                 `protobuf:"bytes,5,opt,name=currency,proto3" json:"currency,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *HoldingPerformanceResponse) Reset() {
+	*x = HoldingPerformanceResponse{}
+	mi := &file_holding_v1_holding_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HoldingPerformanceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HoldingPerformanceResponse) ProtoMessage() {}
+
+func (x *HoldingPerformanceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_holding_v1_holding_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HoldingPerformanceResponse.ProtoReflect.Descriptor instead.
+func (*HoldingPerformanceResponse) Descriptor() ([]byte, []int) {
+	return file_holding_v1_holding_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *HoldingPerformanceResponse) GetPricePoints() []*CurvePoint {
+	if x != nil {
+		return x.PricePoints
+	}
+	return nil
+}
+
+func (x *HoldingPerformanceResponse) GetRealizedCents() int64 {
+	if x != nil {
+		return x.RealizedCents
+	}
+	return 0
+}
+
+func (x *HoldingPerformanceResponse) GetUnrealizedCents() int64 {
+	if x != nil {
+		return x.UnrealizedCents
+	}
+	return 0
+}
+
+func (x *HoldingPerformanceResponse) GetTotalCents() int64 {
+	if x != nil {
+		return x.TotalCents
+	}
+	return 0
+}
+
+func (x *HoldingPerformanceResponse) GetCurrency() string {
+	if x != nil {
+		return x.Currency
+	}
+	return ""
+}
+
+type BackfillPriceHistoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Range         CurveRange             `protobuf:"varint,1,opt,name=range,proto3,enum=yucai.holding.v1.CurveRange" json:"range,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BackfillPriceHistoryRequest) Reset() {
+	*x = BackfillPriceHistoryRequest{}
+	mi := &file_holding_v1_holding_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BackfillPriceHistoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BackfillPriceHistoryRequest) ProtoMessage() {}
+
+func (x *BackfillPriceHistoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_holding_v1_holding_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BackfillPriceHistoryRequest.ProtoReflect.Descriptor instead.
+func (*BackfillPriceHistoryRequest) Descriptor() ([]byte, []int) {
+	return file_holding_v1_holding_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *BackfillPriceHistoryRequest) GetRange() CurveRange {
+	if x != nil {
+		return x.Range
+	}
+	return CurveRange_CURVE_RANGE_UNSPECIFIED
+}
+
+type BackfillPriceHistoryResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	BackfilledCount int32                  `protobuf:"varint,1,opt,name=backfilled_count,json=backfilledCount,proto3" json:"backfilled_count,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *BackfillPriceHistoryResponse) Reset() {
+	*x = BackfillPriceHistoryResponse{}
+	mi := &file_holding_v1_holding_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BackfillPriceHistoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BackfillPriceHistoryResponse) ProtoMessage() {}
+
+func (x *BackfillPriceHistoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_holding_v1_holding_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BackfillPriceHistoryResponse.ProtoReflect.Descriptor instead.
+func (*BackfillPriceHistoryResponse) Descriptor() ([]byte, []int) {
+	return file_holding_v1_holding_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *BackfillPriceHistoryResponse) GetBackfilledCount() int32 {
+	if x != nil {
+		return x.BackfilledCount
+	}
+	return 0
+}
+
 var File_holding_v1_holding_proto protoreflect.FileDescriptor
 
 const file_holding_v1_holding_proto_rawDesc = "" +
@@ -1604,7 +2092,42 @@ const file_holding_v1_holding_proto_rawDesc = "" +
 	"\x11SyncPricesRequest\"p\n" +
 	"\x12SyncPricesResponse\x12!\n" +
 	"\fsynced_count\x18\x01 \x01(\x05R\vsyncedCount\x127\n" +
-	"\tsynced_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bsyncedAt*\xd8\x01\n" +
+	"\tsynced_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bsyncedAt\"R\n" +
+	"\n" +
+	"CurvePoint\x12.\n" +
+	"\x04time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x04time\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x01R\x05value\"\xa0\x01\n" +
+	"\x1eGetPortfolioPerformanceRequest\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x122\n" +
+	"\x05range\x18\x02 \x01(\x0e2\x1c.yucai.holding.v1.CurveRangeR\x05range\x12+\n" +
+	"\x11include_benchmark\x18\x03 \x01(\bR\x10includeBenchmark\"\xaa\x03\n" +
+	"\x1cPortfolioPerformanceResponse\x12G\n" +
+	"\x10portfolio_points\x18\x01 \x03(\v2\x1c.yucai.holding.v1.CurvePointR\x0fportfolioPoints\x12G\n" +
+	"\x10benchmark_points\x18\x02 \x03(\v2\x1c.yucai.holding.v1.CurvePointR\x0fbenchmarkPoints\x12%\n" +
+	"\x0ebenchmark_name\x18\x03 \x01(\tR\rbenchmarkName\x12%\n" +
+	"\x0erealized_cents\x18\x04 \x01(\x03R\rrealizedCents\x12)\n" +
+	"\x10unrealized_cents\x18\x05 \x01(\x03R\x0funrealizedCents\x12\x1f\n" +
+	"\vtotal_cents\x18\x06 \x01(\x03R\n" +
+	"totalCents\x12%\n" +
+	"\x0eannualized_pct\x18\a \x01(\x01R\rannualizedPct\x12\x1b\n" +
+	"\ttotal_pct\x18\b \x01(\x01R\btotalPct\x12\x1a\n" +
+	"\bcurrency\x18\t \x01(\tR\bcurrency\"q\n" +
+	"\x1cGetHoldingPerformanceRequest\x12\x1d\n" +
+	"\n" +
+	"holding_id\x18\x01 \x01(\tR\tholdingId\x122\n" +
+	"\x05range\x18\x02 \x01(\x0e2\x1c.yucai.holding.v1.CurveRangeR\x05range\"\xec\x01\n" +
+	"\x1aHoldingPerformanceResponse\x12?\n" +
+	"\fprice_points\x18\x01 \x03(\v2\x1c.yucai.holding.v1.CurvePointR\vpricePoints\x12%\n" +
+	"\x0erealized_cents\x18\x02 \x01(\x03R\rrealizedCents\x12)\n" +
+	"\x10unrealized_cents\x18\x03 \x01(\x03R\x0funrealizedCents\x12\x1f\n" +
+	"\vtotal_cents\x18\x04 \x01(\x03R\n" +
+	"totalCents\x12\x1a\n" +
+	"\bcurrency\x18\x05 \x01(\tR\bcurrency\"Q\n" +
+	"\x1bBackfillPriceHistoryRequest\x122\n" +
+	"\x05range\x18\x01 \x01(\x0e2\x1c.yucai.holding.v1.CurveRangeR\x05range\"I\n" +
+	"\x1cBackfillPriceHistoryResponse\x12)\n" +
+	"\x10backfilled_count\x18\x01 \x01(\x05R\x0fbackfilledCount*\xd8\x01\n" +
 	"\fSecurityType\x12\x1d\n" +
 	"\x19SECURITY_TYPE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13SECURITY_TYPE_STOCK\x10\x01\x12\x16\n" +
@@ -1619,7 +2142,13 @@ const file_holding_v1_holding_proto_rawDesc = "" +
 	"\x0eTRADE_TYPE_BUY\x10\x01\x12\x13\n" +
 	"\x0fTRADE_TYPE_SELL\x10\x02\x12\x17\n" +
 	"\x13TRADE_TYPE_DIVIDEND\x10\x03\x12\x14\n" +
-	"\x10TRADE_TYPE_SPLIT\x10\x042\xc5\b\n" +
+	"\x10TRADE_TYPE_SPLIT\x10\x04*k\n" +
+	"\n" +
+	"CurveRange\x12\x1b\n" +
+	"\x17CURVE_RANGE_UNSPECIFIED\x10\x00\x12\x13\n" +
+	"\x0fCURVE_RANGE_DAY\x10\x01\x12\x15\n" +
+	"\x11CURVE_RANGE_MONTH\x10\x02\x12\x14\n" +
+	"\x10CURVE_RANGE_YEAR\x10\x032\xb0\v\n" +
 	"\x0eHoldingService\x12]\n" +
 	"\x0eCreateSecurity\x12'.yucai.holding.v1.CreateSecurityRequest\x1a\".yucai.holding.v1.SecurityResponse\x12c\n" +
 	"\x0eListSecurities\x12'.yucai.holding.v1.ListSecuritiesRequest\x1a(.yucai.holding.v1.ListSecuritiesResponse\x12S\n" +
@@ -1633,7 +2162,10 @@ const file_holding_v1_holding_proto_rawDesc = "" +
 	"\fListHoldings\x12%.yucai.holding.v1.ListHoldingsRequest\x1a&.yucai.holding.v1.ListHoldingsResponse\x12d\n" +
 	"\x17ListHoldingTransactions\x12#.yucai.holding.v1.ListTradesRequest\x1a$.yucai.holding.v1.ListTradesResponse\x12W\n" +
 	"\n" +
-	"SyncPrices\x12#.yucai.holding.v1.SyncPricesRequest\x1a$.yucai.holding.v1.SyncPricesResponseB\xc3\x01\n" +
+	"SyncPrices\x12#.yucai.holding.v1.SyncPricesRequest\x1a$.yucai.holding.v1.SyncPricesResponse\x12{\n" +
+	"\x17GetPortfolioPerformance\x120.yucai.holding.v1.GetPortfolioPerformanceRequest\x1a..yucai.holding.v1.PortfolioPerformanceResponse\x12u\n" +
+	"\x15GetHoldingPerformance\x12..yucai.holding.v1.GetHoldingPerformanceRequest\x1a,.yucai.holding.v1.HoldingPerformanceResponse\x12u\n" +
+	"\x14BackfillPriceHistory\x12-.yucai.holding.v1.BackfillPriceHistoryRequest\x1a..yucai.holding.v1.BackfillPriceHistoryResponseB\xc3\x01\n" +
 	"\x14com.yucai.holding.v1B\fHoldingProtoP\x01Z;github.com/yucai/server/internal/proto/holding/v1;holdingv1\xa2\x02\x03YHX\xaa\x02\x10Yucai.Holding.V1\xca\x02\x10Yucai\\Holding\\V1\xe2\x02\x1cYucai\\Holding\\V1\\GPBMetadata\xea\x02\x12Yucai::Holding::V1b\x06proto3"
 
 var (
@@ -1648,83 +2180,104 @@ func file_holding_v1_holding_proto_rawDescGZIP() []byte {
 	return file_holding_v1_holding_proto_rawDescData
 }
 
-var file_holding_v1_holding_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_holding_v1_holding_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_holding_v1_holding_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_holding_v1_holding_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_holding_v1_holding_proto_goTypes = []any{
-	(SecurityType)(0),                  // 0: yucai.holding.v1.SecurityType
-	(TradeType)(0),                     // 1: yucai.holding.v1.TradeType
-	(*SecurityDTO)(nil),                // 2: yucai.holding.v1.SecurityDTO
-	(*HoldingDTO)(nil),                 // 3: yucai.holding.v1.HoldingDTO
-	(*HoldingTransactionDTO)(nil),      // 4: yucai.holding.v1.HoldingTransactionDTO
-	(*CreateSecurityRequest)(nil),      // 5: yucai.holding.v1.CreateSecurityRequest
-	(*ListSecuritiesRequest)(nil),      // 6: yucai.holding.v1.ListSecuritiesRequest
-	(*UpdatePriceRequest)(nil),         // 7: yucai.holding.v1.UpdatePriceRequest
-	(*SearchSecuritiesRequest)(nil),    // 8: yucai.holding.v1.SearchSecuritiesRequest
-	(*HoldingTradeRequest)(nil),        // 9: yucai.holding.v1.HoldingTradeRequest
-	(*RecordDividendRequest)(nil),      // 10: yucai.holding.v1.RecordDividendRequest
-	(*RecordSplitRequest)(nil),         // 11: yucai.holding.v1.RecordSplitRequest
-	(*ListHoldingsRequest)(nil),        // 12: yucai.holding.v1.ListHoldingsRequest
-	(*ListTradesRequest)(nil),          // 13: yucai.holding.v1.ListTradesRequest
-	(*SecurityResponse)(nil),           // 14: yucai.holding.v1.SecurityResponse
-	(*ListSecuritiesResponse)(nil),     // 15: yucai.holding.v1.ListSecuritiesResponse
-	(*SearchSecuritiesResponse)(nil),   // 16: yucai.holding.v1.SearchSecuritiesResponse
-	(*HoldingTransactionResponse)(nil), // 17: yucai.holding.v1.HoldingTransactionResponse
-	(*ListHoldingsResponse)(nil),       // 18: yucai.holding.v1.ListHoldingsResponse
-	(*ListTradesResponse)(nil),         // 19: yucai.holding.v1.ListTradesResponse
-	(*SyncPricesRequest)(nil),          // 20: yucai.holding.v1.SyncPricesRequest
-	(*SyncPricesResponse)(nil),         // 21: yucai.holding.v1.SyncPricesResponse
-	(*timestamppb.Timestamp)(nil),      // 22: google.protobuf.Timestamp
-	(*v1.PageRequest)(nil),             // 23: yucai.common.v1.PageRequest
-	(*v1.PageResponse)(nil),            // 24: yucai.common.v1.PageResponse
-	(*emptypb.Empty)(nil),              // 25: google.protobuf.Empty
+	(SecurityType)(0),                      // 0: yucai.holding.v1.SecurityType
+	(TradeType)(0),                         // 1: yucai.holding.v1.TradeType
+	(CurveRange)(0),                        // 2: yucai.holding.v1.CurveRange
+	(*SecurityDTO)(nil),                    // 3: yucai.holding.v1.SecurityDTO
+	(*HoldingDTO)(nil),                     // 4: yucai.holding.v1.HoldingDTO
+	(*HoldingTransactionDTO)(nil),          // 5: yucai.holding.v1.HoldingTransactionDTO
+	(*CreateSecurityRequest)(nil),          // 6: yucai.holding.v1.CreateSecurityRequest
+	(*ListSecuritiesRequest)(nil),          // 7: yucai.holding.v1.ListSecuritiesRequest
+	(*UpdatePriceRequest)(nil),             // 8: yucai.holding.v1.UpdatePriceRequest
+	(*SearchSecuritiesRequest)(nil),        // 9: yucai.holding.v1.SearchSecuritiesRequest
+	(*HoldingTradeRequest)(nil),            // 10: yucai.holding.v1.HoldingTradeRequest
+	(*RecordDividendRequest)(nil),          // 11: yucai.holding.v1.RecordDividendRequest
+	(*RecordSplitRequest)(nil),             // 12: yucai.holding.v1.RecordSplitRequest
+	(*ListHoldingsRequest)(nil),            // 13: yucai.holding.v1.ListHoldingsRequest
+	(*ListTradesRequest)(nil),              // 14: yucai.holding.v1.ListTradesRequest
+	(*SecurityResponse)(nil),               // 15: yucai.holding.v1.SecurityResponse
+	(*ListSecuritiesResponse)(nil),         // 16: yucai.holding.v1.ListSecuritiesResponse
+	(*SearchSecuritiesResponse)(nil),       // 17: yucai.holding.v1.SearchSecuritiesResponse
+	(*HoldingTransactionResponse)(nil),     // 18: yucai.holding.v1.HoldingTransactionResponse
+	(*ListHoldingsResponse)(nil),           // 19: yucai.holding.v1.ListHoldingsResponse
+	(*ListTradesResponse)(nil),             // 20: yucai.holding.v1.ListTradesResponse
+	(*SyncPricesRequest)(nil),              // 21: yucai.holding.v1.SyncPricesRequest
+	(*SyncPricesResponse)(nil),             // 22: yucai.holding.v1.SyncPricesResponse
+	(*CurvePoint)(nil),                     // 23: yucai.holding.v1.CurvePoint
+	(*GetPortfolioPerformanceRequest)(nil), // 24: yucai.holding.v1.GetPortfolioPerformanceRequest
+	(*PortfolioPerformanceResponse)(nil),   // 25: yucai.holding.v1.PortfolioPerformanceResponse
+	(*GetHoldingPerformanceRequest)(nil),   // 26: yucai.holding.v1.GetHoldingPerformanceRequest
+	(*HoldingPerformanceResponse)(nil),     // 27: yucai.holding.v1.HoldingPerformanceResponse
+	(*BackfillPriceHistoryRequest)(nil),    // 28: yucai.holding.v1.BackfillPriceHistoryRequest
+	(*BackfillPriceHistoryResponse)(nil),   // 29: yucai.holding.v1.BackfillPriceHistoryResponse
+	(*timestamppb.Timestamp)(nil),          // 30: google.protobuf.Timestamp
+	(*v1.PageRequest)(nil),                 // 31: yucai.common.v1.PageRequest
+	(*v1.PageResponse)(nil),                // 32: yucai.common.v1.PageResponse
+	(*emptypb.Empty)(nil),                  // 33: google.protobuf.Empty
 }
 var file_holding_v1_holding_proto_depIdxs = []int32{
 	0,  // 0: yucai.holding.v1.SecurityDTO.security_type:type_name -> yucai.holding.v1.SecurityType
-	22, // 1: yucai.holding.v1.SecurityDTO.created_at:type_name -> google.protobuf.Timestamp
+	30, // 1: yucai.holding.v1.SecurityDTO.created_at:type_name -> google.protobuf.Timestamp
 	1,  // 2: yucai.holding.v1.HoldingTransactionDTO.trade_type:type_name -> yucai.holding.v1.TradeType
-	22, // 3: yucai.holding.v1.HoldingTransactionDTO.created_at:type_name -> google.protobuf.Timestamp
+	30, // 3: yucai.holding.v1.HoldingTransactionDTO.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 4: yucai.holding.v1.CreateSecurityRequest.security_type:type_name -> yucai.holding.v1.SecurityType
-	23, // 5: yucai.holding.v1.ListSecuritiesRequest.page:type_name -> yucai.common.v1.PageRequest
+	31, // 5: yucai.holding.v1.ListSecuritiesRequest.page:type_name -> yucai.common.v1.PageRequest
 	0,  // 6: yucai.holding.v1.ListSecuritiesRequest.security_type:type_name -> yucai.holding.v1.SecurityType
-	23, // 7: yucai.holding.v1.ListHoldingsRequest.page:type_name -> yucai.common.v1.PageRequest
-	23, // 8: yucai.holding.v1.ListTradesRequest.page:type_name -> yucai.common.v1.PageRequest
-	2,  // 9: yucai.holding.v1.SecurityResponse.security:type_name -> yucai.holding.v1.SecurityDTO
-	2,  // 10: yucai.holding.v1.ListSecuritiesResponse.securities:type_name -> yucai.holding.v1.SecurityDTO
-	24, // 11: yucai.holding.v1.ListSecuritiesResponse.page:type_name -> yucai.common.v1.PageResponse
-	2,  // 12: yucai.holding.v1.SearchSecuritiesResponse.securities:type_name -> yucai.holding.v1.SecurityDTO
-	4,  // 13: yucai.holding.v1.HoldingTransactionResponse.transaction:type_name -> yucai.holding.v1.HoldingTransactionDTO
-	3,  // 14: yucai.holding.v1.ListHoldingsResponse.holdings:type_name -> yucai.holding.v1.HoldingDTO
-	24, // 15: yucai.holding.v1.ListHoldingsResponse.page:type_name -> yucai.common.v1.PageResponse
-	4,  // 16: yucai.holding.v1.ListTradesResponse.trades:type_name -> yucai.holding.v1.HoldingTransactionDTO
-	24, // 17: yucai.holding.v1.ListTradesResponse.page:type_name -> yucai.common.v1.PageResponse
-	22, // 18: yucai.holding.v1.SyncPricesResponse.synced_at:type_name -> google.protobuf.Timestamp
-	5,  // 19: yucai.holding.v1.HoldingService.CreateSecurity:input_type -> yucai.holding.v1.CreateSecurityRequest
-	6,  // 20: yucai.holding.v1.HoldingService.ListSecurities:input_type -> yucai.holding.v1.ListSecuritiesRequest
-	7,  // 21: yucai.holding.v1.HoldingService.UpdateSecurityPrice:input_type -> yucai.holding.v1.UpdatePriceRequest
-	8,  // 22: yucai.holding.v1.HoldingService.SearchSecurities:input_type -> yucai.holding.v1.SearchSecuritiesRequest
-	9,  // 23: yucai.holding.v1.HoldingService.BuyHolding:input_type -> yucai.holding.v1.HoldingTradeRequest
-	9,  // 24: yucai.holding.v1.HoldingService.SellHolding:input_type -> yucai.holding.v1.HoldingTradeRequest
-	10, // 25: yucai.holding.v1.HoldingService.RecordDividend:input_type -> yucai.holding.v1.RecordDividendRequest
-	11, // 26: yucai.holding.v1.HoldingService.RecordSplit:input_type -> yucai.holding.v1.RecordSplitRequest
-	12, // 27: yucai.holding.v1.HoldingService.ListHoldings:input_type -> yucai.holding.v1.ListHoldingsRequest
-	13, // 28: yucai.holding.v1.HoldingService.ListHoldingTransactions:input_type -> yucai.holding.v1.ListTradesRequest
-	20, // 29: yucai.holding.v1.HoldingService.SyncPrices:input_type -> yucai.holding.v1.SyncPricesRequest
-	14, // 30: yucai.holding.v1.HoldingService.CreateSecurity:output_type -> yucai.holding.v1.SecurityResponse
-	15, // 31: yucai.holding.v1.HoldingService.ListSecurities:output_type -> yucai.holding.v1.ListSecuritiesResponse
-	25, // 32: yucai.holding.v1.HoldingService.UpdateSecurityPrice:output_type -> google.protobuf.Empty
-	16, // 33: yucai.holding.v1.HoldingService.SearchSecurities:output_type -> yucai.holding.v1.SearchSecuritiesResponse
-	17, // 34: yucai.holding.v1.HoldingService.BuyHolding:output_type -> yucai.holding.v1.HoldingTransactionResponse
-	17, // 35: yucai.holding.v1.HoldingService.SellHolding:output_type -> yucai.holding.v1.HoldingTransactionResponse
-	17, // 36: yucai.holding.v1.HoldingService.RecordDividend:output_type -> yucai.holding.v1.HoldingTransactionResponse
-	17, // 37: yucai.holding.v1.HoldingService.RecordSplit:output_type -> yucai.holding.v1.HoldingTransactionResponse
-	18, // 38: yucai.holding.v1.HoldingService.ListHoldings:output_type -> yucai.holding.v1.ListHoldingsResponse
-	19, // 39: yucai.holding.v1.HoldingService.ListHoldingTransactions:output_type -> yucai.holding.v1.ListTradesResponse
-	21, // 40: yucai.holding.v1.HoldingService.SyncPrices:output_type -> yucai.holding.v1.SyncPricesResponse
-	30, // [30:41] is the sub-list for method output_type
-	19, // [19:30] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	31, // 7: yucai.holding.v1.ListHoldingsRequest.page:type_name -> yucai.common.v1.PageRequest
+	31, // 8: yucai.holding.v1.ListTradesRequest.page:type_name -> yucai.common.v1.PageRequest
+	3,  // 9: yucai.holding.v1.SecurityResponse.security:type_name -> yucai.holding.v1.SecurityDTO
+	3,  // 10: yucai.holding.v1.ListSecuritiesResponse.securities:type_name -> yucai.holding.v1.SecurityDTO
+	32, // 11: yucai.holding.v1.ListSecuritiesResponse.page:type_name -> yucai.common.v1.PageResponse
+	3,  // 12: yucai.holding.v1.SearchSecuritiesResponse.securities:type_name -> yucai.holding.v1.SecurityDTO
+	5,  // 13: yucai.holding.v1.HoldingTransactionResponse.transaction:type_name -> yucai.holding.v1.HoldingTransactionDTO
+	4,  // 14: yucai.holding.v1.ListHoldingsResponse.holdings:type_name -> yucai.holding.v1.HoldingDTO
+	32, // 15: yucai.holding.v1.ListHoldingsResponse.page:type_name -> yucai.common.v1.PageResponse
+	5,  // 16: yucai.holding.v1.ListTradesResponse.trades:type_name -> yucai.holding.v1.HoldingTransactionDTO
+	32, // 17: yucai.holding.v1.ListTradesResponse.page:type_name -> yucai.common.v1.PageResponse
+	30, // 18: yucai.holding.v1.SyncPricesResponse.synced_at:type_name -> google.protobuf.Timestamp
+	30, // 19: yucai.holding.v1.CurvePoint.time:type_name -> google.protobuf.Timestamp
+	2,  // 20: yucai.holding.v1.GetPortfolioPerformanceRequest.range:type_name -> yucai.holding.v1.CurveRange
+	23, // 21: yucai.holding.v1.PortfolioPerformanceResponse.portfolio_points:type_name -> yucai.holding.v1.CurvePoint
+	23, // 22: yucai.holding.v1.PortfolioPerformanceResponse.benchmark_points:type_name -> yucai.holding.v1.CurvePoint
+	2,  // 23: yucai.holding.v1.GetHoldingPerformanceRequest.range:type_name -> yucai.holding.v1.CurveRange
+	23, // 24: yucai.holding.v1.HoldingPerformanceResponse.price_points:type_name -> yucai.holding.v1.CurvePoint
+	2,  // 25: yucai.holding.v1.BackfillPriceHistoryRequest.range:type_name -> yucai.holding.v1.CurveRange
+	6,  // 26: yucai.holding.v1.HoldingService.CreateSecurity:input_type -> yucai.holding.v1.CreateSecurityRequest
+	7,  // 27: yucai.holding.v1.HoldingService.ListSecurities:input_type -> yucai.holding.v1.ListSecuritiesRequest
+	8,  // 28: yucai.holding.v1.HoldingService.UpdateSecurityPrice:input_type -> yucai.holding.v1.UpdatePriceRequest
+	9,  // 29: yucai.holding.v1.HoldingService.SearchSecurities:input_type -> yucai.holding.v1.SearchSecuritiesRequest
+	10, // 30: yucai.holding.v1.HoldingService.BuyHolding:input_type -> yucai.holding.v1.HoldingTradeRequest
+	10, // 31: yucai.holding.v1.HoldingService.SellHolding:input_type -> yucai.holding.v1.HoldingTradeRequest
+	11, // 32: yucai.holding.v1.HoldingService.RecordDividend:input_type -> yucai.holding.v1.RecordDividendRequest
+	12, // 33: yucai.holding.v1.HoldingService.RecordSplit:input_type -> yucai.holding.v1.RecordSplitRequest
+	13, // 34: yucai.holding.v1.HoldingService.ListHoldings:input_type -> yucai.holding.v1.ListHoldingsRequest
+	14, // 35: yucai.holding.v1.HoldingService.ListHoldingTransactions:input_type -> yucai.holding.v1.ListTradesRequest
+	21, // 36: yucai.holding.v1.HoldingService.SyncPrices:input_type -> yucai.holding.v1.SyncPricesRequest
+	24, // 37: yucai.holding.v1.HoldingService.GetPortfolioPerformance:input_type -> yucai.holding.v1.GetPortfolioPerformanceRequest
+	26, // 38: yucai.holding.v1.HoldingService.GetHoldingPerformance:input_type -> yucai.holding.v1.GetHoldingPerformanceRequest
+	28, // 39: yucai.holding.v1.HoldingService.BackfillPriceHistory:input_type -> yucai.holding.v1.BackfillPriceHistoryRequest
+	15, // 40: yucai.holding.v1.HoldingService.CreateSecurity:output_type -> yucai.holding.v1.SecurityResponse
+	16, // 41: yucai.holding.v1.HoldingService.ListSecurities:output_type -> yucai.holding.v1.ListSecuritiesResponse
+	33, // 42: yucai.holding.v1.HoldingService.UpdateSecurityPrice:output_type -> google.protobuf.Empty
+	17, // 43: yucai.holding.v1.HoldingService.SearchSecurities:output_type -> yucai.holding.v1.SearchSecuritiesResponse
+	18, // 44: yucai.holding.v1.HoldingService.BuyHolding:output_type -> yucai.holding.v1.HoldingTransactionResponse
+	18, // 45: yucai.holding.v1.HoldingService.SellHolding:output_type -> yucai.holding.v1.HoldingTransactionResponse
+	18, // 46: yucai.holding.v1.HoldingService.RecordDividend:output_type -> yucai.holding.v1.HoldingTransactionResponse
+	18, // 47: yucai.holding.v1.HoldingService.RecordSplit:output_type -> yucai.holding.v1.HoldingTransactionResponse
+	19, // 48: yucai.holding.v1.HoldingService.ListHoldings:output_type -> yucai.holding.v1.ListHoldingsResponse
+	20, // 49: yucai.holding.v1.HoldingService.ListHoldingTransactions:output_type -> yucai.holding.v1.ListTradesResponse
+	22, // 50: yucai.holding.v1.HoldingService.SyncPrices:output_type -> yucai.holding.v1.SyncPricesResponse
+	25, // 51: yucai.holding.v1.HoldingService.GetPortfolioPerformance:output_type -> yucai.holding.v1.PortfolioPerformanceResponse
+	27, // 52: yucai.holding.v1.HoldingService.GetHoldingPerformance:output_type -> yucai.holding.v1.HoldingPerformanceResponse
+	29, // 53: yucai.holding.v1.HoldingService.BackfillPriceHistory:output_type -> yucai.holding.v1.BackfillPriceHistoryResponse
+	40, // [40:54] is the sub-list for method output_type
+	26, // [26:40] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_holding_v1_holding_proto_init() }
@@ -1737,8 +2290,8 @@ func file_holding_v1_holding_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_holding_v1_holding_proto_rawDesc), len(file_holding_v1_holding_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   20,
+			NumEnums:      3,
+			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

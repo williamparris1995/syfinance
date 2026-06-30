@@ -20,6 +20,9 @@ service HoldingService {
   rpc ListHoldings(ListHoldingsRequest) returns (ListHoldingsResponse);
   rpc ListHoldingTransactions(ListTradesRequest) returns (ListTradesResponse);
   rpc SyncPrices(SyncPricesRequest) returns (SyncPricesResponse);
+  rpc GetPortfolioPerformance(GetPortfolioPerformanceRequest) returns (PortfolioPerformanceResponse);
+  rpc GetHoldingPerformance(GetHoldingPerformanceRequest) returns (HoldingPerformanceResponse);
+  rpc BackfillPriceHistory(BackfillPriceHistoryRequest) returns (BackfillPriceHistoryResponse);
 }
 
 enum SecurityType {
@@ -156,4 +159,55 @@ message SyncPricesRequest {}
 message SyncPricesResponse {
   int32 synced_count = 1;
   google.protobuf.Timestamp synced_at = 2;
+}
+
+enum CurveRange {
+  CURVE_RANGE_UNSPECIFIED = 0;
+  CURVE_RANGE_DAY = 1;
+  CURVE_RANGE_MONTH = 2;
+  CURVE_RANGE_YEAR = 3;
+}
+
+message CurvePoint {
+  google.protobuf.Timestamp time = 1;
+  double value = 2;
+}
+
+message GetPortfolioPerformanceRequest {
+  string account_id = 1;
+  CurveRange range = 2;
+  bool include_benchmark = 3;
+}
+
+message PortfolioPerformanceResponse {
+  repeated CurvePoint portfolio_points = 1;
+  repeated CurvePoint benchmark_points = 2;
+  string benchmark_name = 3;
+  int64 realized_cents = 4;
+  int64 unrealized_cents = 5;
+  int64 total_cents = 6;
+  double annualized_pct = 7;
+  double total_pct = 8;
+  string currency = 9;
+}
+
+message GetHoldingPerformanceRequest {
+  string holding_id = 1;
+  CurveRange range = 2;
+}
+
+message HoldingPerformanceResponse {
+  repeated CurvePoint price_points = 1;
+  int64 realized_cents = 2;
+  int64 unrealized_cents = 3;
+  int64 total_cents = 4;
+  string currency = 5;
+}
+
+message BackfillPriceHistoryRequest {
+  CurveRange range = 1;
+}
+
+message BackfillPriceHistoryResponse {
+  int32 backfilled_count = 1;
 }

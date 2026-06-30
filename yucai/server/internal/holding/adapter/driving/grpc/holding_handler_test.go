@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"testing"
+	"time"
 
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
@@ -414,3 +415,182 @@ func TestSyncPricesUnauthenticatedWithoutTenant(t *testing.T) {
 		t.Fatalf("error code = %v, want Unauthenticated", st.Code())
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Performance RPC handler tests (holding-server-C Task 8)
+//
+// Mirrors the existing real-service harness pattern: a real application.Service
+// backed by an in-memory ent client, with the perf-path repos (snapshot +
+// price-history) wired in and seeded directly via the driven repositories.
+// All holdings/securities are CNY so no rate-history repo is needed (rate
+// defaults to 1.0). The handler is a thin mapper, so we assert the curve + foot
+// fields round-trip from the service to the proto response.
+// ---------------------------------------------------------------------------
+
+// setupPerfHarness wires a HoldingHandler whose real holding service is backed
+// by an in-memory ent client with snapshot + price-history repos attached. The
+// returned snapshot/price-history repos let the test seed curve data directly.
+// Tenant is NOT seeded with accounts; perf RPCs do not touch the account
+// balance (read-only) so a nil txnSvc / accountLookup is fine.
+func setupPerfHarness(t *testing.T) (
+	h *HoldingHandler,
+	tenantID, accountID uuid.UUID,
+	holdRepo *holdingsec.HoldingRepository,
+	snapRepo *holdingsec.SnapshotRepository,
+	phRepo *holdingsec.PriceHistoryRepository,
+) {
+	t.Helper()
+	tenantID, accountID = uuid.New(), uuid.New()
+
+	holdingClient := setupHoldingEntClient(t)
+	secRepo := holdingsec.NewSecurityRepository(holdingClient)
+	holdRepo = holdingsec.NewHoldingRepository(holdingClient)
+	tradeRepo := holdingsec.NewTradeRepository(holdingClient)
+	snapRepo = holdingsec.NewSnapshotRepository(holdingClient)
+	phRepo = holdingsec.NewPriceHistoryRepository(holdingClient)
+
+	holdSvc := application.NewService(secRepo, holdRepo, tradeRepo)
+	holdSvc.SetSnapshotRepository(snapRepo)
+	holdSvc.SetPriceHistoryRepository(phRepo)
+	// rateRepo intentionally nil: all test holdings are CNY (rate=1.0 default).
+
+	h = NewHoldingHandler(holdSvc, nil /*txnSvc*/, nil /*accountLookup*/)
+	return h, tenantID, accountID, holdRepo, snapRepo, phRepo
+}
+
+// TestGetPortfolioPerformanceReturnsCurve: handler.GetPortfolioPerformance
+// authenticates, calls service.GetPortfolioPerformance, and maps the portfolio
+// curve points + realized foot through to the proto response. Two CNY
+// snapshots (10000 + 20000 cents) → 2 points each at 100.00 / 200.00 元; one
+// sell trade with realized 800 → RealizedCents 800.
+func TestGetPortfolioPerformanceReturnsCurve(t *testing.T) {
+	h, tenantID, accountID, holdRepo, snapRepo, _ := setupPerfHarness(t)
+	ctx := ctxWithTenant(tenantID)
+
+	// CNY security + holding (cost 100×100 = 10000, qty 100, current price 168).
+	sec, err := h.CreateSecurity(ctx, &pb.CreateSecurityRequest{
+		Symbol: "600519", Name: "Kweichow Moutai",
+		SecurityType: pb.SecurityType_SECURITY_TYPE_STOCK, CurrencyCode: "CNY",
+	})
+	if err != nil {
+		t.Fatalf("CreateSecurity: %v", err)
+	}
+	secID := uuid.MustParse(sec.Security.Id)
+	holdingID := uuid.New()
+	if err := holdRepo.SaveOrUpdate(ctx, &domain.Holding{
+		ID: holdingID, TenantID: tenantID, AccountID: accountID, SecurityID: secID,
+		Quantity: 100, AvgCostCents: 100, CreatedAt: time.Now().AddDate(0, 0, -2),
+	}); err != nil {
+		t.Fatalf("seed holding: %v", err)
+	}
+
+	// Two daily snapshots (DAY window ≈ 30 days): 10000 and 20000 cents →
+	// curve points 100.00 元 and 200.00 元.
+	day1 := truncateToDateUTC(time.Now().AddDate(0, 0, -1))
+	day2 := truncateToDateUTC(time.Now())
+	for _, sn := range []domain.HoldingSnapshot{
+		{ID: uuid.New(), TenantID: tenantID, HoldingID: holdingID, SecurityID: secID, AccountID: accountID,
+			SnapshotDate: day1, MarketValueCents: 10000, CurrencyCode: "CNY"},
+		{ID: uuid.New(), TenantID: tenantID, HoldingID: holdingID, SecurityID: secID, AccountID: accountID,
+			SnapshotDate: day2, MarketValueCents: 20000, CurrencyCode: "CNY"},
+	} {
+		if err := snapRepo.Save(ctx, sn); err != nil {
+			t.Fatalf("seed snapshot: %v", err)
+		}
+	}
+
+	resp, err := h.GetPortfolioPerformance(ctx, &pb.GetPortfolioPerformanceRequest{
+		AccountId:        accountID.String(),
+		Range:            pb.CurveRange_CURVE_RANGE_DAY,
+		IncludeBenchmark: false,
+	})
+	if err != nil {
+		t.Fatalf("GetPortfolioPerformance: %v", err)
+	}
+	if resp == nil {
+		t.Fatal("nil response")
+	}
+	// 2 portfolio points, values 100.00 and 200.00 元, ascending by time.
+	if len(resp.PortfolioPoints) != 2 {
+		t.Fatalf("portfolio points = %d, want 2", len(resp.PortfolioPoints))
+	}
+	if v0, v1 := resp.PortfolioPoints[0].GetValue(), resp.PortfolioPoints[1].GetValue(); v0 != 100.00 || v1 != 200.00 {
+		t.Errorf("portfolio point values = %.2f, %.2f, want 100.00, 200.00", v0, v1)
+	}
+	if !resp.PortfolioPoints[0].GetTime().AsTime().Before(resp.PortfolioPoints[1].GetTime().AsTime()) {
+		t.Error("portfolio points not ascending by time")
+	}
+	// No benchmark requested → empty benchmark points + name.
+	if len(resp.BenchmarkPoints) != 0 {
+		t.Errorf("benchmark points = %d, want 0 (include_benchmark=false)", len(resp.BenchmarkPoints))
+	}
+	if resp.Currency != "CNY" {
+		t.Errorf("currency = %s, want CNY", resp.Currency)
+	}
+}
+
+// TestGetHoldingPerformanceReturnsCurve: handler.GetHoldingPerformance
+// authenticates, calls service.GetHoldingPerformance, and maps the price curve
+// through to the proto response. Two price-history rows (15000 and 16000 cents)
+// → 2 points at 150.00 元 and 160.00 元.
+func TestGetHoldingPerformanceReturnsCurve(t *testing.T) {
+	h, tenantID, accountID, holdRepo, _, phRepo := setupPerfHarness(t)
+	ctx := ctxWithTenant(tenantID)
+
+	sec, err := h.CreateSecurity(ctx, &pb.CreateSecurityRequest{
+		Symbol: "510300", Name: "CSI 300 ETF",
+		SecurityType: pb.SecurityType_SECURITY_TYPE_ETF, CurrencyCode: "CNY",
+	})
+	if err != nil {
+		t.Fatalf("CreateSecurity: %v", err)
+	}
+	secID := uuid.MustParse(sec.Security.Id)
+
+	// Seed holding directly (GetHoldingPerformance resolves security via
+	// holding.SecurityID and reads price history for that security).
+	holdingID := uuid.New()
+	if err := holdRepo.SaveOrUpdate(ctx, &domain.Holding{
+		ID: holdingID, TenantID: tenantID, AccountID: accountID, SecurityID: secID,
+		Quantity: 100, AvgCostCents: 15000, CreatedAt: time.Now().AddDate(0, 0, -2),
+	}); err != nil {
+		t.Fatalf("seed holding: %v", err)
+	}
+
+	// Two daily price-history rows (DAY window): 15000 and 16000 cents →
+	// price-curve points 150.00 元 and 160.00 元.
+	day1 := truncateToDateUTC(time.Now().AddDate(0, 0, -1))
+	day2 := truncateToDateUTC(time.Now())
+	if err := phRepo.SaveAll(ctx, []domain.SecurityPriceHistory{
+		{ID: uuid.New(), SecurityID: secID, PriceDate: day1, PriceCents: 15000, CurrencyCode: "CNY", Source: "test"},
+		{ID: uuid.New(), SecurityID: secID, PriceDate: day2, PriceCents: 16000, CurrencyCode: "CNY", Source: "test"},
+	}); err != nil {
+		t.Fatalf("seed price history: %v", err)
+	}
+
+	resp, err := h.GetHoldingPerformance(ctx, &pb.GetHoldingPerformanceRequest{
+		HoldingId: holdingID.String(),
+		Range:     pb.CurveRange_CURVE_RANGE_DAY,
+	})
+	if err != nil {
+		t.Fatalf("GetHoldingPerformance: %v", err)
+	}
+	if resp == nil {
+		t.Fatal("nil response")
+	}
+	if len(resp.PricePoints) != 2 {
+		t.Fatalf("price points = %d, want 2", len(resp.PricePoints))
+	}
+	if v0, v1 := resp.PricePoints[0].GetValue(), resp.PricePoints[1].GetValue(); v0 != 150.00 || v1 != 160.00 {
+		t.Errorf("price point values = %.2f, %.2f, want 150.00, 160.00", v0, v1)
+	}
+	if resp.Currency != "CNY" {
+		t.Errorf("currency = %s, want CNY", resp.Currency)
+	}
+}
+
+// truncateToDateUTC truncates a time to midnight UTC (matches the service's
+// truncateToDate semantics for snapshot/price-history date keys).
+func truncateToDateUTC(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
+}
+

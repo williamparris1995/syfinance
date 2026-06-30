@@ -272,6 +272,101 @@ func (h *HoldingHandler) SyncPrices(ctx context.Context, _ *pb.SyncPricesRequest
 	}, nil
 }
 
+// GetPortfolioPerformance builds the portfolio CNY market-value curve + foot
+// (realized/unrealized/total/annualized), optionally with the CSI300 benchmark
+// curve. account_id is optional (empty = all accounts under the tenant).
+func (h *HoldingHandler) GetPortfolioPerformance(ctx context.Context, req *pb.GetPortfolioPerformanceRequest) (*pb.PortfolioPerformanceResponse, error) {
+	tid, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	var acct *uuid.UUID
+	if req.GetAccountId() != "" {
+		a, err := uuid.Parse(req.GetAccountId())
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid account_id")
+		}
+		acct = &a
+	}
+	perf, err := h.service.GetPortfolioPerformance(ctx, tid, acct, curveRangeName(req.GetRange()), req.GetIncludeBenchmark())
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.PortfolioPerformanceResponse{
+		PortfolioPoints: curvePointsToProto(perf.PortfolioPoints),
+		BenchmarkPoints: curvePointsToProto(perf.BenchmarkPoints),
+		BenchmarkName:   perf.BenchmarkName,
+		RealizedCents:   perf.RealizedCents,
+		UnrealizedCents: perf.UnrealizedCents,
+		TotalCents:      perf.TotalCents,
+		AnnualizedPct:   perf.AnnualizedPct,
+		TotalPct:        perf.TotalPct,
+		Currency:        perf.Currency,
+	}, nil
+}
+
+// GetHoldingPerformance builds a single-holding original-currency price curve
+// + foot (realized/unrealized/total). holding_id is required.
+func (h *HoldingHandler) GetHoldingPerformance(ctx context.Context, req *pb.GetHoldingPerformanceRequest) (*pb.HoldingPerformanceResponse, error) {
+	if _, err := getTenantID(ctx); err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	hid, err := uuid.Parse(req.GetHoldingId())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid holding_id")
+	}
+	perf, err := h.service.GetHoldingPerformance(ctx, hid, curveRangeName(req.GetRange()))
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.HoldingPerformanceResponse{
+		PricePoints:     curvePointsToProto(perf.PricePoints),
+		RealizedCents:   perf.RealizedCents,
+		UnrealizedCents: perf.UnrealizedCents,
+		TotalCents:      perf.TotalCents,
+		Currency:        perf.Currency,
+	}, nil
+}
+
+// BackfillPriceHistory manually backfills historical daily K-line for every
+// Sina-covered security that does not yet have history for the given range.
+// Returns the count of securities whose history was fetched.
+func (h *HoldingHandler) BackfillPriceHistory(ctx context.Context, req *pb.BackfillPriceHistoryRequest) (*pb.BackfillPriceHistoryResponse, error) {
+	if _, err := getTenantID(ctx); err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	count, err := h.service.BackfillPriceHistory(ctx, curveRangeName(req.GetRange()))
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.BackfillPriceHistoryResponse{BackfilledCount: int32(count)}, nil
+}
+
+// curveRangeName maps the proto CurveRange enum to the service's range string.
+// UNSPECIFIED/DAY both fall back to "DAY".
+func curveRangeName(r pb.CurveRange) string {
+	switch r {
+	case pb.CurveRange_CURVE_RANGE_MONTH:
+		return "MONTH"
+	case pb.CurveRange_CURVE_RANGE_YEAR:
+		return "YEAR"
+	default:
+		return "DAY"
+	}
+}
+
+// curvePointsToProto maps []CurvePointDTO → []*pb.CurvePoint.
+func curvePointsToProto(pts []application.CurvePointDTO) []*pb.CurvePoint {
+	out := make([]*pb.CurvePoint, 0, len(pts))
+	for _, p := range pts {
+		out = append(out, &pb.CurvePoint{
+			Time:  timestamppb.New(p.Time),
+			Value: p.Value,
+		})
+	}
+	return out
+}
+
 func secToProto(s application.SecurityDTO) *pb.SecurityDTO {
 	return &pb.SecurityDTO{
 		Id: s.ID.String(), Symbol: s.Symbol, Name: s.Name,
