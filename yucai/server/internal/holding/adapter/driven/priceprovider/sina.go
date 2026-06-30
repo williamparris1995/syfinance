@@ -17,11 +17,12 @@ import (
 // Covers Exchange == "SSE" (Shanghai, prefix sh) or "SZSE" (Shenzhen, sz).
 // All other exchanges return ErrNoSource so the router falls through.
 //
-// The endpoint returns GBK-encoded text:
+// The endpoint returns GBK-encoded text with name AND fields inside quotes:
 //
-//	var hq_str_sh600519="贵州茅台",今开,昨收,当前价(2),最高,最低,...
+//	var hq_str_sh600519="贵州茅台,今开,昨收,当前价,最高,最低,..."
 //
-// It requires a Referer header or returns 403. Current price is field index 2.
+// It requires a Referer header or returns 403. After stripping the name,
+// current price is field index 2 (0=open, 1=prevClose, 2=current).
 type SinaProvider struct {
 	baseURL string
 	client  *http.Client
@@ -93,14 +94,15 @@ func sinaListKey(exchange, symbol string) (string, bool) {
 	}
 }
 
-// parseSinaCurrentPrice extracts the current price (field index 2) from a
-// sinajs response line of the form:
+// parseSinaCurrentPrice extracts the current price from a sinajs response
+// line. The REAL sinajs format puts the security name AND all numeric fields
+// INSIDE the double quotes, comma-separated (verified against hq.sinajs.cn):
 //
-//	var hq_str_<key>="<name>",f0,f1,f2,...
+//	var hq_str_<key>="<name>,open,prevClose,current,high,low,..."
 //
-// The name is enclosed in double quotes; the numeric fields follow the
-// closing quote, comma-separated. An empty quote ("") means the symbol does
-// not exist → error. Field index: 0=open, 1=prevClose, 2=current.
+// The name is the first comma-separated token; after stripping it, current
+// price is field index 2 (0=open, 1=prevClose, 2=current). An empty quote
+// ("") means the symbol does not exist → error.
 func parseSinaCurrentPrice(line string) (float64, error) {
 	open := strings.Index(line, "\"")
 	if open < 0 {
@@ -111,19 +113,18 @@ func parseSinaCurrentPrice(line string) (float64, error) {
 	if close < 0 {
 		return 0, fmt.Errorf("no closing quote in response")
 	}
-	name := after[:close]
-	tail := after[close+1:] // ",f0,f1,f2,...;"
-	if strings.TrimSpace(name) == "" {
+	inner := after[:close] // "<name>,open,prevClose,current,..."
+	if strings.TrimSpace(inner) == "" {
 		// Empty quote ("") → symbol not found.
 		return 0, fmt.Errorf("empty quote, symbol not found")
 	}
-	// tail starts with ",f0,..."; strip the leading comma to get the fields.
-	tail = strings.TrimSpace(tail)
-	tail = strings.TrimPrefix(tail, ",")
-	if tail == "" {
+	// Strip the security name (everything up to the first comma) to get the
+	// numeric fields.
+	comma := strings.Index(inner, ",")
+	if comma < 0 {
 		return 0, fmt.Errorf("no fields after name")
 	}
-	fields := strings.Split(tail, ",")
+	fields := strings.Split(inner[comma+1:], ",")
 	if len(fields) < 3 {
 		return 0, fmt.Errorf("not enough fields: %d", len(fields))
 	}

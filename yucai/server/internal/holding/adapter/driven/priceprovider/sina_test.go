@@ -19,13 +19,15 @@ func TestSinaNotCoveredExchange(t *testing.T) {
 	}
 }
 
-// gbkQuote builds a fake sinajs response. Fields after the name:
-// open(0), prevClose(1), current(2), high(3), low(4)... — we set current(2).
+// gbkQuote builds a fake sinajs response matching the REAL format: security
+// name AND numeric fields are all INSIDE the double quotes (verified against
+// hq.sinajs.cn live: var hq_str_sh600519="贵州茅台,open,prevClose,current,...").
+// After the name, fields are: open(0), prevClose(1), current(2), high(3)...
 // ASCII name keeps the payload valid UTF-8 (ASCII is a 1:1 subset of GBK),
 // so the GBK decoder yields the same bytes and the test is deterministic.
 func gbkQuote(current float64) []byte {
-	return []byte("var hq_str_sh600519=\"TEST\",35.00,34.50," +
-		strconv.FormatFloat(current, 'f', 2, 64) + ",36.00,34.00,0,0,0,0,0,0,0,0,2024-01-02,15:00:00,00;")
+	return []byte("var hq_str_sh600519=\"TEST,35.00,34.50," +
+		strconv.FormatFloat(current, 'f', 2, 64) + ",36.00,34.00,0,0,0,0,0,0,0,0,2024-01-02,15:00:00,00,\";")
 }
 
 func TestSinaCoversSSEAndSZSE(t *testing.T) {
