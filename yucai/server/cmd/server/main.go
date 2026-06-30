@@ -160,38 +160,32 @@ func seedHoldingTestData(
 		slog.Info("holding seed: securities completed", "created", created)
 	}
 
-	tenantIDs, err := tenantRepo.FindAllIDs(ctx)
-	if err != nil {
-		slog.Error("holding seed: list tenants failed", "error", err)
+	// Ensure a test account exists (tenant + user + investment account) so the
+	// investment UI has a logged-in user with holdings. Idempotent on email.
+	email, derr := seedDemoAccount(ctx, tenantRepo, userRepo, accountService)
+	if derr != nil {
+		slog.Error("holding seed: test account failed", "error", derr)
 		return
 	}
-	// Ensure a demo account exists (tenant + user + investment account) so the
-	// investment UI has a logged-in user with holdings. Idempotent on email, so
-	// safe to run on every startup regardless of existing tenant count (handles
-	// the case where a partial seed left an orphan tenant without a user).
-	if email, derr := seedDemoAccount(ctx, tenantRepo, userRepo, accountService); derr != nil {
-		slog.Error("holding seed: demo account failed", "error", derr)
-	} else {
-		slog.Info("holding seed: demo account ready", "email", email)
-		if ids, e := tenantRepo.FindAllIDs(ctx); e == nil {
-			tenantIDs = ids
-		}
-	}
+	slog.Info("holding seed: test account ready", "email", email)
 
-	seeded := 0
-	for _, tid := range tenantIDs {
-		accounts, err := accountService.FindByAccountType(ctx, tid, accountdomain.AccountTypeAsset)
-		if err != nil || len(accounts) == 0 {
-			slog.Warn("holding seed: no asset account for tenant, skip holdings", "tenant_id", tid, "error", err)
-			continue
-		}
-		if err := holdingService.SeedSampleHoldings(ctx, tid, accounts[0].ID); err != nil {
-			slog.Error("holding seed: sample holdings failed", "tenant_id", tid, "error", err)
-			continue
-		}
-		seeded++
+	// Seed holdings ONLY to the test account (centralized test data; other
+	// tenants are expected to be cleared beforehand).
+	testUser, err := userRepo.FindByEmailGlobal(ctx, "test@yucai.local")
+	if err != nil || testUser == nil {
+		slog.Error("holding seed: test user not found after seed", "error", err)
+		return
 	}
-	slog.Info("holding seed: holdings completed", "tenant_count", len(tenantIDs), "seeded_or_skipped", seeded)
+	accounts, err := accountService.FindByAccountType(ctx, testUser.TenantID, accountdomain.AccountTypeAsset)
+	if err != nil || len(accounts) == 0 {
+		slog.Error("holding seed: test account has no asset account", "tenant_id", testUser.TenantID, "error", err)
+		return
+	}
+	if err := holdingService.SeedSampleHoldings(ctx, testUser.TenantID, accounts[0].ID); err != nil {
+		slog.Error("holding seed: test holdings failed", "error", err)
+		return
+	}
+	slog.Info("holding seed: test holdings completed", "tenant_id", testUser.TenantID, "account_id", accounts[0].ID)
 }
 
 // seedDemoAccount creates a demo tenant + user (known password) + investment
@@ -203,15 +197,15 @@ func seedDemoAccount(
 	userRepo *authrepo.UserRepository,
 	accountService *accountapp.Service,
 ) (string, error) {
-	const email = "demo@yucai.local"
+	const email = "test@yucai.local"
 	if existing, err := userRepo.FindByEmailGlobal(ctx, email); err == nil && existing != nil {
 		return email, nil
 	}
-	hash, err := authpassword.HashPassword("demo1234")
+	hash, err := authpassword.HashPassword("test1234")
 	if err != nil {
 		return "", fmt.Errorf("hash demo password: %w", err)
 	}
-	tenant, err := authdomain.NewTenant("演示家庭", authdomain.TenantTypePersonal)
+	tenant, err := authdomain.NewTenant("测试家庭", authdomain.TenantTypePersonal)
 	if err != nil {
 		return "", fmt.Errorf("new demo tenant: %w", err)
 	}
@@ -221,7 +215,7 @@ func seedDemoAccount(
 	if err := accountService.SeedPresetCategories(ctx, tenant.ID); err != nil {
 		return "", fmt.Errorf("seed demo presets: %w", err)
 	}
-	user, err := authdomain.NewUser(tenant.ID, email, hash, "演示用户")
+	user, err := authdomain.NewUser(tenant.ID, email, hash, "测试账户")
 	if err != nil {
 		return "", fmt.Errorf("new demo user: %w", err)
 	}
