@@ -27,20 +27,20 @@ type SecurityDTO struct {
 }
 
 type ListSecuritiesResult struct {
-	Securities   []SecurityDTO
+	Securities    []SecurityDTO
 	NextPageToken string
 	TotalCount    int32
 }
 
 type HoldingTradeRequest struct {
-	TenantID     uuid.UUID
-	AccountID    uuid.UUID
-	SecurityID   uuid.UUID
-	Quantity     float64
-	PriceCents   int64
-	FeeCents     int64
-	TradeDate    time.Time
-	Notes        string
+	TenantID   uuid.UUID
+	AccountID  uuid.UUID
+	SecurityID uuid.UUID
+	Quantity   float64
+	PriceCents int64
+	FeeCents   int64
+	TradeDate  time.Time
+	Notes      string
 }
 
 type RecordDividendRequest struct {
@@ -77,27 +77,28 @@ type HoldingDTO struct {
 }
 
 type HoldingTransactionDTO struct {
-	ID            uuid.UUID
-	AccountID     uuid.UUID
-	SecurityID    uuid.UUID
-	TradeType     domain.TradeType
-	Quantity      float64
-	PriceCents    int64
-	AmountCents   int64
-	FeeCents      int64
-	TradeDate     time.Time
-	Notes         string
-	CreatedAt     time.Time
+	ID               uuid.UUID
+	AccountID        uuid.UUID
+	SecurityID       uuid.UUID
+	TradeType        domain.TradeType
+	Quantity         float64
+	PriceCents       int64
+	AmountCents      int64
+	FeeCents         int64
+	RealizedPnLCents int64
+	TradeDate        time.Time
+	Notes            string
+	CreatedAt        time.Time
 }
 
 type ListHoldingsResult struct {
-	Holdings     []HoldingDTO
+	Holdings      []HoldingDTO
 	NextPageToken string
 	TotalCount    int32
 }
 
 type ListTradesResult struct {
-	Trades       []HoldingTransactionDTO
+	Trades        []HoldingTransactionDTO
 	NextPageToken string
 	TotalCount    int32
 }
@@ -127,7 +128,7 @@ func TradeToDTO(tr *domain.HoldingTransaction) HoldingTransactionDTO {
 		ID: tr.ID, AccountID: tr.AccountID, SecurityID: tr.SecurityID,
 		TradeType: tr.TradeType, Quantity: tr.Quantity,
 		PriceCents: tr.PriceCents, AmountCents: tr.AmountCents,
-		FeeCents: tr.FeeCents, TradeDate: tr.TradeDate,
+		FeeCents: tr.FeeCents, RealizedPnLCents: tr.RealizedPnLCents, TradeDate: tr.TradeDate,
 		Notes: tr.Notes, CreatedAt: tr.CreatedAt,
 	}
 }

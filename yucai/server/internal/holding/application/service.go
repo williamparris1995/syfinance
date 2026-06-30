@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,10 +15,15 @@ import (
 
 // Service orchestrates holding operations.
 type Service struct {
-	securityRepo domain.SecurityRepository
-	holdingRepo  domain.HoldingRepository
-	tradeRepo    domain.TradeRepository
-	priceRouter  priceprovider.Router // injected via SetPriceRouter (wire); nil = SyncPrices errors
+	securityRepo       domain.SecurityRepository
+	holdingRepo        domain.HoldingRepository
+	tradeRepo          domain.TradeRepository
+	priceRouter        priceprovider.Router             // injected via SetPriceRouter (wire); nil = SyncPrices errors
+	lotRepo            domain.LotRepository             // C: FIFO lot (nil = fallback to ApplySell)
+	snapshotRepo       domain.SnapshotRepository        // C: daily snapshot
+	priceHistoryRepo   domain.PriceHistoryRepository    // C: price history + backfill gate
+	historicalProvider priceprovider.HistoricalProvider // C: backfill
+	rateRepo           domain.RateHistoryRepository     // C: portfolio curve CNY折算 (cross-module currency interface)
 }
 
 // NewService creates a new holding application service.
@@ -81,12 +87,24 @@ func (s *Service) BuyHolding(ctx context.Context, req HoldingTradeRequest) (*Hol
 	}
 	h.ApplyBuy(req.Quantity, req.PriceCents)
 
+	tradeID := uuid.New()
+	newLot := domain.HoldingLot{
+		ID: uuid.New(), TenantID: req.TenantID, HoldingID: h.ID, SecurityID: req.SecurityID,
+		AcquiredDate: req.TradeDate, AcquiredTradeID: tradeID,
+		PriceCents: req.PriceCents, Quantity: req.Quantity, RemainingQuantity: req.Quantity,
+	}
+	// AvgCost from FIFO lots (existing + new), consistent with lot state.
+	if s.lotRepo != nil {
+		existing, _ := s.lotRepo.FindByHolding(ctx, h.ID)
+		h.AvgCostCents = domain.LotAvgCost(append(existing, newLot))
+	}
+
 	if err := s.holdingRepo.SaveOrUpdate(ctx, h); err != nil {
 		return nil, fmt.Errorf("save holding: %w", err)
 	}
 
 	trade := &domain.HoldingTransaction{
-		ID: uuid.New(), TenantID: req.TenantID,
+		ID: tradeID, TenantID: req.TenantID,
 		AccountID: req.AccountID, SecurityID: req.SecurityID,
 		TradeType: domain.TradeTypeBuy, Quantity: req.Quantity,
 		PriceCents: req.PriceCents, AmountCents: int64(float64(req.PriceCents) * req.Quantity),
@@ -95,6 +113,11 @@ func (s *Service) BuyHolding(ctx context.Context, req HoldingTradeRequest) (*Hol
 	}
 	if err := s.tradeRepo.Save(ctx, trade); err != nil {
 		return nil, fmt.Errorf("save trade: %w", err)
+	}
+	if s.lotRepo != nil {
+		if err := s.lotRepo.SaveAll(ctx, []domain.HoldingLot{newLot}); err != nil {
+			return nil, fmt.Errorf("save buy lot: %w", err)
+		}
 	}
 
 	dto := TradeToDTO(trade)
@@ -108,9 +131,38 @@ func (s *Service) SellHolding(ctx context.Context, req HoldingTradeRequest) (*Ho
 		return nil, fmt.Errorf("holding not found: %w", err)
 	}
 
-	_, err = h.ApplySell(req.Quantity, req.PriceCents)
-	if err != nil {
-		return nil, err
+	var realized int64
+	if s.lotRepo != nil {
+		lots, err := s.lotRepo.FindByHolding(ctx, h.ID)
+		if err != nil {
+			return nil, fmt.Errorf("load lots: %w", err)
+		}
+		consumedRealized, consumed, err := domain.ConsumeLotsFIFO(req.Quantity, req.PriceCents, lots)
+		if err != nil {
+			return nil, err
+		}
+		realized = consumedRealized
+		// Apply consumption in-memory, then persist.
+		consumedByID := map[uuid.UUID]float64{}
+		for _, c := range consumed {
+			consumedByID[c.LotID] = c.ConsumedQuantity
+		}
+		for i := range lots {
+			lots[i].RemainingQuantity -= consumedByID[lots[i].ID]
+		}
+		if err := s.lotRepo.SaveAll(ctx, lots); err != nil {
+			return nil, fmt.Errorf("save lots after sell: %w", err)
+		}
+		// Oversell guard + qty decrement via ApplySell (its moving-weighted realized ignored).
+		if _, err := h.ApplySell(req.Quantity, req.PriceCents); err != nil {
+			return nil, err
+		}
+		h.AvgCostCents = domain.LotAvgCost(lots) // consistent with FIFO remaining lots
+	} else {
+		realized, err = h.ApplySell(req.Quantity, req.PriceCents) // fallback (no lot repo)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if err := s.holdingRepo.SaveOrUpdate(ctx, h); err != nil {
@@ -123,12 +175,11 @@ func (s *Service) SellHolding(ctx context.Context, req HoldingTradeRequest) (*Ho
 		TradeType: domain.TradeTypeSell, Quantity: req.Quantity,
 		PriceCents: req.PriceCents, AmountCents: int64(float64(req.PriceCents) * req.Quantity),
 		FeeCents: req.FeeCents, TradeDate: req.TradeDate, Notes: req.Notes,
-		CreatedAt: h.UpdatedAt,
+		RealizedPnLCents: realized, CreatedAt: h.UpdatedAt,
 	}
 	if err := s.tradeRepo.Save(ctx, trade); err != nil {
 		return nil, fmt.Errorf("save trade: %w", err)
 	}
-
 	dto := TradeToDTO(trade)
 	return &dto, nil
 }
@@ -157,6 +208,24 @@ func (s *Service) RecordSplit(ctx context.Context, req RecordSplitRequest) (*Hol
 		return nil, fmt.Errorf("holding not found: %w", err)
 	}
 
+	// FIFO lot split-adjust: quantity×ratio + remaining×ratio + price/ratio
+	// (keeps per-share cost correct so post-split FIFO realized is right).
+	if s.lotRepo != nil {
+		lots, err := s.lotRepo.FindByHolding(ctx, h.ID)
+		if err != nil {
+			return nil, fmt.Errorf("load lots for split: %w", err)
+		}
+		for i := range lots {
+			lots[i].Quantity *= req.Ratio
+			lots[i].RemainingQuantity *= req.Ratio
+			if req.Ratio > 0 {
+				lots[i].PriceCents = int64(math.Round(float64(lots[i].PriceCents) / req.Ratio))
+			}
+		}
+		if err := s.lotRepo.SaveAll(ctx, lots); err != nil {
+			return nil, fmt.Errorf("save lots after split: %w", err)
+		}
+	}
 	h.ApplySplit(req.Ratio)
 	if err := s.holdingRepo.SaveOrUpdate(ctx, h); err != nil {
 		return nil, fmt.Errorf("save holding: %w", err)
@@ -226,6 +295,7 @@ var seedSecurities = []seedSecurity{
 	{"511010", "国债ETF", domain.SecurityTypeBond, "SSE", "CNY", 119},
 	{"AU9999", "黄金现货", domain.SecurityTypeGold, "SGE", "CNY", 55000},
 	{"OP100006", "50ETF认购期权", domain.SecurityTypeOption, "SSE", "CNY", 826},
+	{"000300", "沪深300指数", domain.SecurityTypeIndex, "SSE", "CNY", 3800},
 }
 
 // SeedSecurities idempotently creates the preset securities covering every
@@ -292,6 +362,30 @@ func (s *Service) SetPriceRouter(r priceprovider.Router) {
 	s.priceRouter = r
 }
 
+// SetLotRepository injects the FIFO lot repo (Task 5 C). nil = SellHolding
+// falls back to moving-weighted ApplySell; Buy/Split skip lot maintenance.
+func (s *Service) SetLotRepository(r domain.LotRepository) { s.lotRepo = r }
+
+// SetSnapshotRepository injects the daily snapshot repo (Task 5 C).
+func (s *Service) SetSnapshotRepository(r domain.SnapshotRepository) { s.snapshotRepo = r }
+
+// SetPriceHistoryRepository injects the price history repo (Task 5 C). Enables
+// SyncPrices to record daily price points and gates backfill.
+func (s *Service) SetPriceHistoryRepository(r domain.PriceHistoryRepository) { s.priceHistoryRepo = r }
+
+// SetHistoricalProvider injects the historical K-line provider (Task 5 C backfill).
+func (s *Service) SetHistoricalProvider(p priceprovider.HistoricalProvider) { s.historicalProvider = p }
+
+// SetRateHistoryRepository injects the FX rate history repo (Task 5 C, portfolio
+// curve CNY折算). Structural type — currency's RateHistoryRepo satisfies this.
+func (s *Service) SetRateHistoryRepository(r domain.RateHistoryRepository) { s.rateRepo = r }
+
+// truncateToDate clips a time to 00:00 UTC of its day, so same-day re-syncs
+// hit the same price_history row (UNIQUE(security_id, price_date) guard).
+func truncateToDate(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
+}
+
 // SyncPrices refreshes current_price_cents for every security via the price
 // router, best-effort: ErrNoSource skips the security (keeps old price, not a
 // failure); any other error is logged and the security is skipped without
@@ -331,6 +425,21 @@ func (s *Service) SyncPrices(ctx context.Context) (int, error) {
 					slog.String("error", err.Error()),
 					slog.String("operation", "SyncPrices"))
 				continue
+			}
+			// C: record daily price history point (idempotent — same-day re-sync
+			// upserts the same row via UNIQUE(security_id, price_date)).
+			if s.priceHistoryRepo != nil {
+				ph := domain.SecurityPriceHistory{
+					SecurityID: sec.ID, PriceDate: truncateToDate(time.Now()),
+					PriceCents: price, CurrencyCode: sec.CurrencyCode, Source: "sina",
+				}
+				if err := s.priceHistoryRepo.Save(ctx, ph); err != nil {
+					slog.Warn("holding price sync: save history failed",
+						slog.String("symbol", sec.Symbol),
+						slog.String("error", err.Error()),
+						slog.String("operation", "SyncPrices"))
+					// not fatal — price_history missing just means thinner curves
+				}
 			}
 			synced++
 		}

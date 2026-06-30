@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/holding/adapter/driven/priceprovider"
@@ -207,5 +208,280 @@ func TestSyncPricesWithoutRouterErrors(t *testing.T) {
 	_, svcs := newTestServiceWithSecurities(t, nil)
 	if _, err := svcs.SyncPrices(context.Background()); err == nil {
 		t.Fatal("SyncPrices without router must error")
+	}
+}
+
+// --- FIFO lot maintenance tests (Task 5 C) ---
+
+// memHoldingRepo is an in-memory HoldingRepository for Buy/Sell/Split tests.
+type memHoldingRepo struct {
+	byKey map[string]*domain.Holding // key = accountID|securityID
+}
+
+func newMemHoldingRepo() *memHoldingRepo {
+	return &memHoldingRepo{byKey: map[string]*domain.Holding{}}
+}
+
+func (r *memHoldingRepo) key(accountID, securityID uuid.UUID) string {
+	return accountID.String() + "|" + securityID.String()
+}
+
+func (r *memHoldingRepo) SaveOrUpdate(_ context.Context, h *domain.Holding) error {
+	cp := *h
+	r.byKey[r.key(h.AccountID, h.SecurityID)] = &cp
+	return nil
+}
+
+func (r *memHoldingRepo) FindByAccountAndSecurity(_ context.Context, _, accountID, securityID uuid.UUID) (*domain.Holding, error) {
+	if h, ok := r.byKey[r.key(accountID, securityID)]; ok {
+		cp := *h
+		return &cp, nil
+	}
+	return nil, errors.New("not found")
+}
+
+func (r *memHoldingRepo) FindAll(context.Context, uuid.UUID, *uuid.UUID, domain.PageRequest) (*domain.PaginatedResult[domain.Holding], error) {
+	panic("not used in lot test")
+}
+
+// memTradeRepo is an in-memory TradeRepository that records saved trades.
+type memTradeRepo struct {
+	saved []*domain.HoldingTransaction
+}
+
+func (r *memTradeRepo) Save(_ context.Context, tr *domain.HoldingTransaction) error {
+	cp := *tr
+	r.saved = append(r.saved, &cp)
+	return nil
+}
+
+func (r *memTradeRepo) FindAll(context.Context, uuid.UUID, *uuid.UUID, *uuid.UUID, domain.PageRequest) (*domain.PaginatedResult[domain.HoldingTransaction], error) {
+	panic("not used in lot test")
+}
+
+// memLotRepo is an in-memory LotRepository keyed by holdingID.
+type memLotRepo struct {
+	byHolding map[uuid.UUID][]domain.HoldingLot
+}
+
+func newMemLotRepo() *memLotRepo {
+	return &memLotRepo{byHolding: map[uuid.UUID][]domain.HoldingLot{}}
+}
+
+// seedLot adds a lot to a holding (for test setup, before calling the service).
+func (r *memLotRepo) seedLot(l domain.HoldingLot) {
+	r.byHolding[l.HoldingID] = append(r.byHolding[l.HoldingID], l)
+}
+
+func (r *memLotRepo) FindByHolding(_ context.Context, holdingID uuid.UUID) ([]domain.HoldingLot, error) {
+	out := make([]domain.HoldingLot, len(r.byHolding[holdingID]))
+	copy(out, r.byHolding[holdingID])
+	return out, nil
+}
+
+func (r *memLotRepo) SaveAll(_ context.Context, lots []domain.HoldingLot) error {
+	// Replace any lots with matching ID; otherwise append.
+	for _, l := range lots {
+		existing := r.byHolding[l.HoldingID]
+		found := false
+		for i := range existing {
+			if existing[i].ID == l.ID {
+				existing[i] = l
+				found = true
+				break
+			}
+		}
+		if !found {
+			r.byHolding[l.HoldingID] = append(r.byHolding[l.HoldingID], l)
+		}
+	}
+	return nil
+}
+
+// newLotService builds a Service with working holding/trade/lot repos for
+// FIFO tests.
+func newLotService() (*memHoldingRepo, *memTradeRepo, *memLotRepo, *Service) {
+	hr, tr, lr := newMemHoldingRepo(), &memTradeRepo{}, newMemLotRepo()
+	svc := NewService(nil, hr, tr) // securityRepo unused in lot tests
+	svc.SetLotRepository(lr)
+	return hr, tr, lr, svc
+}
+
+func TestBuyHoldingCreatesLotAndDerivesAvgCost(t *testing.T) {
+	// seed: existing holding with 60@100cents (one lot). Buy 40@120cents.
+	// expect: new lot created (40@120); avg cost = (60*100 + 40*120)/100 = 108 cents.
+	hr, _, lr, svc := newLotService()
+	tenantID, accountID, securityID := uuid.New(), uuid.New(), uuid.New()
+
+	existingHolding := &domain.Holding{
+		ID: uuid.New(), TenantID: tenantID, AccountID: accountID, SecurityID: securityID,
+		Quantity: 60, AvgCostCents: 100,
+	}
+	hr.SaveOrUpdate(context.Background(), existingHolding)
+	lr.seedLot(domain.HoldingLot{
+		ID: uuid.New(), TenantID: tenantID, HoldingID: existingHolding.ID, SecurityID: securityID,
+		AcquiredDate: time.Now().AddDate(0, 0, -10), PriceCents: 100,
+		Quantity: 60, RemainingQuantity: 60,
+	})
+
+	dto, err := svc.BuyHolding(context.Background(), HoldingTradeRequest{
+		TenantID: tenantID, AccountID: accountID, SecurityID: securityID,
+		Quantity: 40, PriceCents: 120, TradeDate: time.Now(),
+	})
+	if err != nil {
+		t.Fatalf("BuyHolding error: %v", err)
+	}
+	if dto.TradeType != domain.TradeTypeBuy {
+		t.Fatalf("trade type = %s, want buy", dto.TradeType)
+	}
+
+	// Holding avg cost should be the FIFO-weighted 108 cents.
+	h, _ := hr.FindByAccountAndSecurity(context.Background(), tenantID, accountID, securityID)
+	if h.AvgCostCents != 108 {
+		t.Fatalf("avg cost = %d, want 108", h.AvgCostCents)
+	}
+	if h.Quantity != 100 {
+		t.Fatalf("quantity = %v, want 100", h.Quantity)
+	}
+
+	// A new lot (40@120) was persisted.
+	lots, _ := lr.FindByHolding(context.Background(), h.ID)
+	var newLot *domain.HoldingLot
+	for i := range lots {
+		if lots[i].Quantity == 40 && lots[i].PriceCents == 120 {
+			newLot = &lots[i]
+			break
+		}
+	}
+	if newLot == nil {
+		t.Fatalf("new buy lot (40@120) not persisted; lots = %+v", lots)
+	}
+	if newLot.RemainingQuantity != 40 {
+		t.Fatalf("new lot remaining = %v, want 40", newLot.RemainingQuantity)
+	}
+}
+
+func TestSellHoldingFIFORealizedLandedOnTrade(t *testing.T) {
+	// seed lots: 60@100cents (older), 40@110cents (newer). Sell 80@130cents.
+	// expect: realized = (130-100)*60 + (130-110)*20 = 1800 + 400 = 2200;
+	//         lot1 remaining=0, lot2 remaining=20; avg cost = 110 (only lot2).
+	hr, tr, lr, svc := newLotService()
+	tenantID, accountID, securityID := uuid.New(), uuid.New(), uuid.New()
+
+	existingHolding := &domain.Holding{
+		ID: uuid.New(), TenantID: tenantID, AccountID: accountID, SecurityID: securityID,
+		Quantity: 100, AvgCostCents: 104, // (60*100+40*110)/100 = 104
+	}
+	hr.SaveOrUpdate(context.Background(), existingHolding)
+	lot1ID := uuid.New()
+	lot2ID := uuid.New()
+	lr.seedLot(domain.HoldingLot{
+		ID: lot1ID, TenantID: tenantID, HoldingID: existingHolding.ID, SecurityID: securityID,
+		AcquiredDate: time.Now().AddDate(0, 0, -10), PriceCents: 100,
+		Quantity: 60, RemainingQuantity: 60,
+	})
+	lr.seedLot(domain.HoldingLot{
+		ID: lot2ID, TenantID: tenantID, HoldingID: existingHolding.ID, SecurityID: securityID,
+		AcquiredDate: time.Now().AddDate(0, 0, -5), PriceCents: 110,
+		Quantity: 40, RemainingQuantity: 40,
+	})
+
+	dto, err := svc.SellHolding(context.Background(), HoldingTradeRequest{
+		TenantID: tenantID, AccountID: accountID, SecurityID: securityID,
+		Quantity: 80, PriceCents: 130, TradeDate: time.Now(),
+	})
+	if err != nil {
+		t.Fatalf("SellHolding error: %v", err)
+	}
+
+	// Realized landed on the trade DTO.
+	if dto.RealizedPnLCents != 2200 {
+		t.Fatalf("realized = %d, want 2200", dto.RealizedPnLCents)
+	}
+	// And on the persisted trade.
+	if len(tr.saved) != 1 || tr.saved[0].RealizedPnLCents != 2200 {
+		t.Fatalf("persisted trade realized = %v, want 2200", tr.saved)
+	}
+
+	// Lots consumed FIFO: lot1 fully (0 remaining), lot2 = 20 remaining.
+	lots, _ := lr.FindByHolding(context.Background(), existingHolding.ID)
+	var lot1, lot2 *domain.HoldingLot
+	for i := range lots {
+		switch lots[i].ID {
+		case lot1ID:
+			lot1 = &lots[i]
+		case lot2ID:
+			lot2 = &lots[i]
+		}
+	}
+	if lot1 == nil || lot1.RemainingQuantity != 0 {
+		t.Fatalf("lot1 remaining = %v, want 0 (fully consumed FIFO)", valOr(lot1))
+	}
+	if lot2 == nil || lot2.RemainingQuantity != 20 {
+		t.Fatalf("lot2 remaining = %v, want 20", valOr(lot2))
+	}
+
+	// Holding avg cost now reflects only lot2 (110); quantity 20.
+	h, _ := hr.FindByAccountAndSecurity(context.Background(), tenantID, accountID, securityID)
+	if h.AvgCostCents != 110 {
+		t.Fatalf("post-sell avg cost = %d, want 110 (only lot2 left)", h.AvgCostCents)
+	}
+	if h.Quantity != 20 {
+		t.Fatalf("post-sell quantity = %v, want 20", h.Quantity)
+	}
+}
+
+func valOr(l *domain.HoldingLot) float64 {
+	if l == nil {
+		return -1
+	}
+	return l.RemainingQuantity
+}
+
+func TestRecordSplitAdjustsLots(t *testing.T) {
+	// seed lot 100@100cents. Split ratio 2.
+	// expect: lot quantity=200, remaining=200, price=50 (100/2);
+	//         holding quantity=200, avg cost=50.
+	hr, _, lr, svc := newLotService()
+	tenantID, accountID, securityID := uuid.New(), uuid.New(), uuid.New()
+
+	existingHolding := &domain.Holding{
+		ID: uuid.New(), TenantID: tenantID, AccountID: accountID, SecurityID: securityID,
+		Quantity: 100, AvgCostCents: 100,
+	}
+	hr.SaveOrUpdate(context.Background(), existingHolding)
+	lotID := uuid.New()
+	lr.seedLot(domain.HoldingLot{
+		ID: lotID, TenantID: tenantID, HoldingID: existingHolding.ID, SecurityID: securityID,
+		AcquiredDate: time.Now().AddDate(0, 0, -10), PriceCents: 100,
+		Quantity: 100, RemainingQuantity: 100,
+	})
+
+	if _, err := svc.RecordSplit(context.Background(), RecordSplitRequest{
+		TenantID: tenantID, AccountID: accountID, SecurityID: securityID,
+		Ratio: 2, SplitDate: time.Now(),
+	}); err != nil {
+		t.Fatalf("RecordSplit error: %v", err)
+	}
+
+	lots, _ := lr.FindByHolding(context.Background(), existingHolding.ID)
+	if len(lots) != 1 {
+		t.Fatalf("expected 1 lot, got %d", len(lots))
+	}
+	lot := lots[0]
+	if lot.Quantity != 200 || lot.RemainingQuantity != 200 {
+		t.Fatalf("lot qty=%v remaining=%v, want 200/200", lot.Quantity, lot.RemainingQuantity)
+	}
+	if lot.PriceCents != 50 {
+		t.Fatalf("lot price = %d, want 50 (100/2 split-adjusted)", lot.PriceCents)
+	}
+
+	// Holding reflects ApplySplit (qty ×ratio, avg cost /ratio).
+	h, _ := hr.FindByAccountAndSecurity(context.Background(), tenantID, accountID, securityID)
+	if h.Quantity != 200 {
+		t.Fatalf("holding quantity = %v, want 200", h.Quantity)
+	}
+	if h.AvgCostCents != 50 {
+		t.Fatalf("holding avg cost = %d, want 50", h.AvgCostCents)
 	}
 }

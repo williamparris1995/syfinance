@@ -60,5 +60,15 @@ type LotRepository interface {
 type PriceHistoryRepository interface {
 	FindBySecurity(ctx context.Context, securityID uuid.UUID, from, to time.Time) ([]SecurityPriceHistory, error)
 	SaveAll(ctx context.Context, ph []SecurityPriceHistory) error
+	Save(ctx context.Context, p SecurityPriceHistory) error
 	Exists(ctx context.Context, securityID uuid.UUID) (bool, error)
+}
+
+// RateHistoryRepository reads exchange-rate history for CNY折算 of portfolio
+// curves. Implemented by currency's RateHistoryRepo (structural type — holding
+// does not import currency). FindRange returns a date→rate map for O(1) lookup
+// when assembling a curve; the wire layer adapts currency's slice form to map.
+type RateHistoryRepository interface {
+	FindRate(ctx context.Context, code string, date time.Time) (float64, error)
+	FindRange(ctx context.Context, code string, from, to time.Time) (map[time.Time]float64, error)
 }

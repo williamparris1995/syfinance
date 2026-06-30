@@ -66,8 +66,25 @@ func (r *PriceHistoryRepository) SaveAll(ctx context.Context, ph []domain.Securi
 	return nil
 }
 
-// Exists reports whether any price row exists for the security (gates
-// backfill — skip already-populated securities).
+// Save inserts one price history row. Idempotent at the call site via the
+// UNIQUE(security_id, price_date) constraint — same-day re-sync from the B
+// scheduler upserts the same row; callers truncate PriceDate to the day so the
+// constraint key is stable. A conflict surfaces as an error here and is logged
+// (not fatal) by SyncPrices; first-of-day writes succeed.
+func (r *PriceHistoryRepository) Save(ctx context.Context, p domain.SecurityPriceHistory) error {
+	if _, err := r.client.SecurityPriceHistory.Create().
+		SetSecurityID(p.SecurityID).
+		SetPriceDate(p.PriceDate).
+		SetPriceCents(p.PriceCents).
+		SetCurrencyCode(p.CurrencyCode).
+		SetSource(p.Source).
+		Save(ctx); err != nil {
+		return fmt.Errorf("save price history: %w", err)
+	}
+	return nil
+}
+
+// Exists reports whether any price row exists for the security (gates// backfill — skip already-populated securities).
 func (r *PriceHistoryRepository) Exists(ctx context.Context, securityID uuid.UUID) (bool, error) {
 	exists, err := r.client.SecurityPriceHistory.Query().
 		Where(securitypricehistory.SecurityIDEQ(securityID)).

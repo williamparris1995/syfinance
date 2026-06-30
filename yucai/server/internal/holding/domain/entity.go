@@ -10,14 +10,14 @@ import (
 
 // Security is a global reference to a tradable security (no tenant).
 type Security struct {
-	ID                 uuid.UUID
-	Symbol             string
-	Name               string
-	SecurityType       SecurityType
-	Exchange           string
-	CurrencyCode       string
-	CurrentPriceCents  int64
-	CreatedAt          time.Time
+	ID                uuid.UUID
+	Symbol            string
+	Name              string
+	SecurityType      SecurityType
+	Exchange          string
+	CurrencyCode      string
+	CurrentPriceCents int64
+	CreatedAt         time.Time
 }
 
 // NewSecurity creates a validated Security.
@@ -49,15 +49,15 @@ func NewSecurity(symbol, name string, securityType SecurityType, exchange, curre
 
 // Holding tracks a position in a security.
 type Holding struct {
-	ID             uuid.UUID
-	TenantID       uuid.UUID
-	AccountID      uuid.UUID
-	SecurityID     uuid.UUID
-	Quantity       float64
-	AvgCostCents   int64
-	Version        int64
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID           uuid.UUID
+	TenantID     uuid.UUID
+	AccountID    uuid.UUID
+	SecurityID   uuid.UUID
+	Quantity     float64
+	AvgCostCents int64
+	Version      int64
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 // ApplyBuy adds shares and recalculates average cost.
@@ -114,19 +114,20 @@ func (h *Holding) UnrealizedPnL(currentPriceCents int64) int64 {
 
 // HoldingTransaction is an append-only trade record.
 type HoldingTransaction struct {
-	ID            uuid.UUID
-	TenantID      uuid.UUID
-	AccountID     uuid.UUID
-	SecurityID    uuid.UUID
-	TradeType     TradeType
-	Quantity      float64
-	PriceCents    int64
-	AmountCents   int64
-	FeeCents      int64
-	TradeDate     time.Time
-	TransactionID *uuid.UUID
-	Notes         string
-	CreatedAt     time.Time
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	AccountID        uuid.UUID
+	SecurityID       uuid.UUID
+	TradeType        TradeType
+	Quantity         float64
+	PriceCents       int64
+	AmountCents      int64
+	FeeCents         int64
+	RealizedPnLCents int64 // FIFO realized P&L on sell (0 for buy/dividend/split)
+	TradeDate        time.Time
+	TransactionID    *uuid.UUID
+	Notes            string
+	CreatedAt        time.Time
 }
 
 func trimSpace(s string) string {

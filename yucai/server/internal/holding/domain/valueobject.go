@@ -4,13 +4,14 @@ package domain
 type SecurityType int
 
 const (
-	SecurityTypeStock  SecurityType = iota + 1
+	SecurityTypeStock SecurityType = iota + 1
 	SecurityTypeFund
 	SecurityTypeETF
 	SecurityTypeBond
 	SecurityTypeGold
 	SecurityTypeOption
 	SecurityTypeOther
+	SecurityTypeIndex
 )
 
 func (t SecurityType) String() string {
@@ -29,6 +30,8 @@ func (t SecurityType) String() string {
 		return "option"
 	case SecurityTypeOther:
 		return "other"
+	case SecurityTypeIndex:
+		return "index"
 	default:
 		return "unknown"
 	}
@@ -50,6 +53,8 @@ func ParseSecurityType(s string) SecurityType {
 		return SecurityTypeOption
 	case "other":
 		return SecurityTypeOther
+	case "index":
+		return SecurityTypeIndex
 	default:
 		return 0
 	}
@@ -59,7 +64,7 @@ func ParseSecurityType(s string) SecurityType {
 type TradeType int
 
 const (
-	TradeTypeBuy      TradeType = iota + 1
+	TradeTypeBuy TradeType = iota + 1
 	TradeTypeSell
 	TradeTypeDividend
 	TradeTypeSplit
