@@ -537,3 +537,78 @@ func TestRecordSplitAdjustsLots(t *testing.T) {
 		t.Fatalf("holding avg cost = %d, want 50", h.AvgCostCents)
 	}
 }
+
+// --- D-goal Task 2: GetAccountMarketValue ---
+
+// TestGetAccountMarketValueSumsHoldings verifies the port exposed to the goal
+// domain: Σ (qty × current_price) of all holdings under a tenant+account, in
+// the original currency (no CNY折算). Account B's holdings must NOT leak into
+// account A's total (isolation). Tenant scoping is also exercised.
+func TestGetAccountMarketValueSumsHoldings(t *testing.T) {
+	tenantID := uuid.New()
+	accountA := uuid.New()
+	accountB := uuid.New()
+
+	// Two securities with distinct prices.
+	secRepo := newFakeSecurityRepo([]seedSec{
+		{Symbol: "600519", Exchange: "SSE", StartPriceCents: 1680},
+		{Symbol: "510300", Exchange: "SSE", StartPriceCents: 425},
+	})
+	secA1 := secRepo.ids["600519"]
+	secA2 := secRepo.ids["510300"]
+	// Re-seed a third security for account B by appending directly to the fake
+	// (newFakeSecurityRepo only takes the initial set).
+	secB := uuid.New()
+	secRepo.ids["BOND"] = secB
+	secRepo.prices["BOND"] = 1000
+	secRepo.order = append(secRepo.order, "BOND")
+
+	hr := newMemHoldingRepo()
+	svc := NewService(secRepo, hr, &memTradeRepo{})
+
+	// Account A: 2 holdings.
+	//   h1: 10 units × 1680 = 16800
+	//   h2: 20 units × 425  = 8500
+	//   Σ A = 25300
+	hr.SaveOrUpdate(context.Background(), &domain.Holding{
+		ID: uuid.New(), TenantID: tenantID, AccountID: accountA, SecurityID: secA1,
+		Quantity: 10, AvgCostCents: 1600,
+	})
+	hr.SaveOrUpdate(context.Background(), &domain.Holding{
+		ID: uuid.New(), TenantID: tenantID, AccountID: accountA, SecurityID: secA2,
+		Quantity: 20, AvgCostCents: 400,
+	})
+	// Account B: 1 holding — must be excluded from A's total.
+	//   h3: 5 units × 1000 = 5000
+	hr.SaveOrUpdate(context.Background(), &domain.Holding{
+		ID: uuid.New(), TenantID: tenantID, AccountID: accountB, SecurityID: secB,
+		Quantity: 5, AvgCostCents: 900,
+	})
+
+	// Account A total = 16800 + 8500 = 25300.
+	gotA, err := svc.GetAccountMarketValue(context.Background(), tenantID, accountA)
+	if err != nil {
+		t.Fatalf("GetAccountMarketValue(A) error: %v", err)
+	}
+	if gotA != 25300 {
+		t.Fatalf("account A market value = %d, want 25300", gotA)
+	}
+
+	// Account B total = 5000 (isolation: A holdings excluded).
+	gotB, err := svc.GetAccountMarketValue(context.Background(), tenantID, accountB)
+	if err != nil {
+		t.Fatalf("GetAccountMarketValue(B) error: %v", err)
+	}
+	if gotB != 5000 {
+		t.Fatalf("account B market value = %d, want 5000 (isolation from A)", gotB)
+	}
+
+	// Tenant scoping: a different tenant sees nothing.
+	gotOther, err := svc.GetAccountMarketValue(context.Background(), uuid.New(), accountA)
+	if err != nil {
+		t.Fatalf("GetAccountMarketValue(other tenant) error: %v", err)
+	}
+	if gotOther != 0 {
+		t.Fatalf("other tenant market value = %d, want 0 (tenant-scoped)", gotOther)
+	}
+}

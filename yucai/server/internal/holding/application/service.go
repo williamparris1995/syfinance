@@ -917,3 +917,42 @@ func (s *Service) GetHoldingPerformance(ctx context.Context, holdingID uuid.UUID
 		TotalCents: realized + unrealized, Currency: sec.CurrencyCode,
 	}, nil
 }
+
+// --- D-goal Task 2: GetAccountMarketValue (port exposed to goal) ---
+
+// GetAccountMarketValue returns the total market value (original currency,
+// NOT CNY-converted — investment goal tracks raw mv) of all holdings under an
+// account: Σ holding.MarketValue(security.CurrentPriceCents). Tenant-scoped
+// (a specific tenantID is required — passing uuid.Nil returns empty against
+// ent's WHERE clause, see SnapshotAllHoldings note). Paginates through all of
+// the account's holdings. Best-effort: a holding whose security is missing is
+// skipped + logged, not fatal. Implements goal/domain.AccountMarketValueSource
+// (structural — goal does not import holding).
+func (s *Service) GetAccountMarketValue(ctx context.Context, tenantID, accountID uuid.UUID) (int64, error) {
+	var total int64
+	page := domain.PageRequest{PageSize: 100}
+	for {
+		result, err := s.holdingRepo.FindAll(ctx, tenantID, &accountID, page)
+		if err != nil {
+			return 0, fmt.Errorf("account market value: list holdings: %w", err)
+		}
+		for _, h := range result.Items {
+			if err := ctx.Err(); err != nil {
+				return total, err
+			}
+			sec, err := s.securityRepo.FindByID(ctx, h.SecurityID)
+			if err != nil || sec == nil {
+				slog.Warn("account market value: security missing, skip",
+					slog.String("security_id", h.SecurityID.String()),
+					slog.String("operation", "GetAccountMarketValue"))
+				continue
+			}
+			total += h.MarketValue(sec.CurrentPriceCents)
+		}
+		if result.NextPageToken == "" || len(result.Items) == 0 {
+			break
+		}
+		page.PageToken = result.NextPageToken
+	}
+	return total, nil
+}
