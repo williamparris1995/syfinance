@@ -13,6 +13,7 @@ import (
 	holdinggrpc "github.com/yucai/server/internal/holding/adapter/driving/grpc"
 	holdingapp "github.com/yucai/server/internal/holding/application"
 	holdingscheduler "github.com/yucai/server/internal/holding/scheduler"
+	goalscheduler "github.com/yucai/server/internal/goal/scheduler"
 	backupgrpc "github.com/yucai/server/internal/backup/adapter/driving/grpc"
 	syncgrpc "github.com/yucai/server/internal/sync/adapter/driving/grpc"
 	currencygrpc "github.com/yucai/server/internal/currency/adapter/driving/grpc"
@@ -48,6 +49,7 @@ type App struct {
 	CurrencyService    *currencyapp.Service
 	HoldingScheduler   *holdingscheduler.Scheduler
 	SnapshotScheduler  *holdingscheduler.SnapshotScheduler
+	GoalScheduler      *goalscheduler.Scheduler
 }
 
 // NewApp creates the application with wired dependencies.
@@ -75,6 +77,7 @@ func NewApp(
 	currencyService *currencyapp.Service,
 	holdingScheduler *holdingscheduler.Scheduler,
 	snapshotScheduler *holdingscheduler.SnapshotScheduler,
+	goalScheduler *goalscheduler.Scheduler,
 ) *App {
 	return &App{
 		Config:             cfg,
@@ -100,5 +103,6 @@ func NewApp(
 		CurrencyService:    currencyService,
 		HoldingScheduler:   holdingScheduler,
 		SnapshotScheduler:  snapshotScheduler,
+		GoalScheduler:      goalScheduler,
 	}
 }

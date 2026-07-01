@@ -105,8 +105,9 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 
 	// Goal module
 	goalRepo := provideGoalRepo(goalClient)
-	goalService := provideGoalService(goalRepo)
-	goalHandler := provideGoalHandler(goalService)
+	// goalService is constructed after the Holding module below (it needs
+	// holdingService as the AccountMarketValueSource port — D-goal Task 8).
+	// goalHandler is also declared there for ordering.
 
 	// Tag module
 	tagRepo := provideTagRepo(tagClient)
@@ -141,6 +142,11 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	holdingService := provideHoldingService(securityRepo, holdingRepo, tradeRepo, priceRouter, lotRepo, snapshotRepo, priceHistoryRepo, historicalProvider, holdingRateRepo, tenantRepo)
 	holdingHandler := provideHoldingHandler(holdingService, txnService, accountRepo)
 
+	// Goal module (continued): holdingService is the AccountMarketValueSource
+	// port for SyncInvestmentGoals — constructed here so it is in scope.
+	goalService := provideGoalService(goalRepo, holdingService)
+	goalHandler := provideGoalHandler(goalService)
+
 	// Backup module
 	backupRepo := provideBackupRepo(backupClient)
 	localCloudProvider := provideLocalCloudProvider(cfg)
@@ -168,6 +174,9 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	// snapshotScheduler reuses intervalSource (like priceScheduler). The
 	// holding service implements Snapshotter via SnapshotAllHoldings.
 	snapshotScheduler := provideSnapshotScheduler(holdingService, intervalSource)
+	// goalScheduler fans out SyncInvestmentGoals across tenants. Reuses the
+	// tenantIntervalSource adapter (MinIntervalHours) + tenantRepo (TenantLister).
+	goalScheduler := provideGoalScheduler(goalService, tenantRepo)
 
 	// Auth service (depends on currencyRepo via the CurrencyCodeChecker port,
 	// so it must be wired after the Currency module).
@@ -178,6 +187,6 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	// gRPC server
 	grpcSrv := provideGRPCServer(ts)
 
-	app := NewApp(cfg, log, grpcSrv, tenantRepo, userRepo, accountService, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler, holdingHandler, holdingService, backupHandler, syncHandler, currencyHandler, currencyScheduler, currencyService, priceScheduler, snapshotScheduler)
+	app := NewApp(cfg, log, grpcSrv, tenantRepo, userRepo, accountService, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler, holdingHandler, holdingService, backupHandler, syncHandler, currencyHandler, currencyScheduler, currencyService, priceScheduler, snapshotScheduler, goalScheduler)
 	return app, nil
 }

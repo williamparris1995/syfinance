@@ -43,7 +43,9 @@ import (
 	goalrepo "github.com/yucai/server/internal/goal/adapter/driven/repository"
 	goalgrpc "github.com/yucai/server/internal/goal/adapter/driving/grpc"
 	goalapp "github.com/yucai/server/internal/goal/application"
+	goaldomain "github.com/yucai/server/internal/goal/domain"
 	goalent "github.com/yucai/server/internal/goal/ent"
+	goalscheduler "github.com/yucai/server/internal/goal/scheduler"
 	holdingsec "github.com/yucai/server/internal/holding/adapter/driven/repository"
 	priceprovider "github.com/yucai/server/internal/holding/adapter/driven/priceprovider"
 	holdinggrpc "github.com/yucai/server/internal/holding/adapter/driving/grpc"
@@ -322,8 +324,10 @@ func provideGoalEntClient(cfg *config.Config) (*goalent.Client, error) {
 func provideGoalRepo(client *goalent.Client) *goalrepo.GoalRepository {
 	return goalrepo.NewGoalRepository(client)
 }
-func provideGoalService(repo *goalrepo.GoalRepository) *goalapp.Service {
-	return goalapp.NewService(repo)
+func provideGoalService(repo *goalrepo.GoalRepository, mvSource goaldomain.AccountMarketValueSource) *goalapp.Service {
+	svc := goalapp.NewService(repo)
+	svc.SetAccountMarketValueSource(mvSource) // *holdingapp.Service structurally implements AccountMarketValueSource (GetAccountMarketValue)
+	return svc
 }
 func provideGoalHandler(svc *goalapp.Service) *goalgrpc.GoalHandler {
 	return goalgrpc.NewGoalHandler(svc)
@@ -631,6 +635,17 @@ func provideHoldingRateRepo(inner *currencyrepo.RateHistoryRepository) holdingdo
 // SnapshotAllHoldings (cross-tenant fan-out). tick is 1h in prod.
 func provideSnapshotScheduler(svc *holdingapp.Service, src holdingscheduler.IntervalSource) *holdingscheduler.SnapshotScheduler {
 	return holdingscheduler.NewSnapshotScheduler(svc, src, 1*time.Hour, nil)
+}
+
+// provideGoalScheduler builds the goal progress scheduler. *goalapp.Service
+// implements goalscheduler.GoalSyncer via SyncInvestmentGoals. The
+// *authrepo.TenantRepository structurally satisfies goalscheduler.TenantLister
+// (FindAllIDs, C Task 7). For IntervalSource the repo is wrapped in
+// tenantIntervalSource (FindAllIntervalHours → MinIntervalHours), reusing the
+// same adapter as the currency/price/snapshot schedulers. tick is 1h in prod.
+func provideGoalScheduler(svc *goalapp.Service, tenantRepo *authrepo.TenantRepository) *goalscheduler.Scheduler {
+	src := tenantIntervalSource{tr: tenantRepo}
+	return goalscheduler.NewScheduler(svc, tenantRepo, src, 1*time.Hour, nil)
 }
 
 func provideGRPCServer(ts *authjwt.TokenService) *GRPCServer {

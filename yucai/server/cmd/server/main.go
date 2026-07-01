@@ -80,6 +80,12 @@ func main() {
 	// Exits when schedCtx is cancelled during shutdown.
 	go app.SnapshotScheduler.Start(schedCtx)
 
+	// Start goal progress scheduler. Performs an immediate SyncInvestmentGoals
+	// (Σ holding mv → investment goal.current_amount), then re-syncs at most
+	// once per tenant's rate_sync_interval_hours. Exits when schedCtx is
+	// cancelled during shutdown.
+	go app.GoalScheduler.Start(schedCtx)
+
 	// Backfill security price history on first launch (empty-table gate inside
 	// BackfillPriceHistory), async so it never blocks startup. Pulls Sina daily
 	// K-line for A-share holdings + CSI300 at YEAR depth (1200 bars ≈ 5 years).
