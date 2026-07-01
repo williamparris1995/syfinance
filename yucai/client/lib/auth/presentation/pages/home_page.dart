@@ -2,18 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
-import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/bloc/account_state.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
+import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/currency/data/currency_settings.dart';
+import 'package:yucai_client/currency/domain/currency_convert.dart';
+import 'package:yucai_client/holding/data/networth_ds.dart';
+import 'package:yucai_client/holding/domain/entities/net_worth_entity.dart';
 
 /// 仪表盘（侧栏「概览」）。严格还原 desktop-dashboard.html 结构：
 /// 问候头 → 净资产大卡 → 资产分解 4 卡 → 快捷操作 4 格 → 双栏（近期交易 /
-/// 资产配置 + 即将到期）。能从账户算的数据用真实值，未接入模块（交易、持仓、
-/// 账单）以空态呈现，不伪造数字。
+/// 资产配置 + 即将到期）。净资产经 NetWorthService.GetNetWorth 折算到本位币
+/// (server-side:账户余额 + 持仓市值 − 负债余额);未接入模块(交易、账单)以
+/// 空态呈现,不伪造数字。
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -22,10 +27,23 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  late final NetWorthDataSource _netWorthDs = getIt<NetWorthDataSource>();
+  late final CurrencySettings _currencySettings = getIt<CurrencySettings>();
+
+  Future<NetWorthView>? _netWorthFuture;
+
   @override
   void initState() {
     super.initState();
     context.read<AccountBloc>().add(LoadAccountsRequested());
+    _loadNetWorth();
+  }
+
+  void _loadNetWorth() {
+    _netWorthFuture = () async {
+      final base = await _currencySettings.getBaseCurrency();
+      return _netWorthDs.getNetWorth(baseCurrency: base);
+    }();
   }
 
   List<Account> _accountsOf(AccountState state) {
@@ -35,14 +53,14 @@ class _HomePageState extends State<HomePage> {
     return const [];
   }
 
-  String _formatCents(int cents, {bool signed = false}) {
+  String _formatCents(int cents, String currency, {bool signed = false}) {
     final neg = cents < 0;
     final abs = cents.abs();
     final yuan = abs ~/ 100;
     final fen = (abs % 100).toString().padLeft(2, '0');
     final grouped = _groupThousands(yuan);
     final prefix = signed ? (neg ? '-' : '+') : (neg ? '-' : '');
-    return '$prefix¥ $grouped.$fen';
+    return '$prefix${currencySymbol(currency)} $grouped.$fen';
   }
 
   String _groupThousands(int n) {
@@ -81,36 +99,57 @@ class _HomePageState extends State<HomePage> {
       body: BlocBuilder<AccountBloc, AccountState>(
         builder: (context, state) {
           final accounts = _accountsOf(state);
-          final assetTotal = accounts
-              .where((a) => a.accountType == AccountType.asset)
-              .fold<int>(0, (s, a) => s + a.currentBalanceCents);
-          final liabTotal = accounts
-              .where((a) => a.accountType == AccountType.liability)
-              .fold<int>(0, (s, a) => s + a.currentBalanceCents);
-          final netWorth = assetTotal - liabTotal;
+          return FutureBuilder<NetWorthView>(
+            future: _netWorthFuture,
+            builder: (context, snap) {
+              final nw = snap.data;
+              final assetTotal = nw?.totalAssetsCents ?? 0;
+              final liabTotal = nw?.totalLiabilitiesCents ?? 0;
+              final netWorth = nw?.netWorthCents ?? 0;
+              final currency = nw?.currency ?? 'CNY';
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.xl),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1120),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _Header(greeting: _greeting(now.hour), name: name, date: dateStr),
-                    const SizedBox(height: AppSpacing.lg),
-                    _NetWorthCard(netWorth: netWorth, accountCount: accounts.length),
-                    const SizedBox(height: AppSpacing.md),
-                    _SummaryRow(assetTotal: assetTotal, liabTotal: liabTotal, format: _formatCents),
-                    const SizedBox(height: AppSpacing.md),
-                    const _QuickActions(),
-                    const SizedBox(height: AppSpacing.md),
-                    _SplitLayout(format: _formatCents),
-                  ],
+              return SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg,
+                    AppSpacing.lg, AppSpacing.xl),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1120),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _Header(
+                            greeting: _greeting(now.hour),
+                            name: name,
+                            date: dateStr),
+                        const SizedBox(height: AppSpacing.lg),
+                        _NetWorthCard(
+                          netWorth: netWorth,
+                          currency: currency,
+                          accountCount: accounts.length,
+                          loading: !snap.hasData && snap.connectionState !=
+                              ConnectionState.done,
+                          error: snap.hasError,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        _SummaryRow(
+                          assetTotal: assetTotal,
+                          liabTotal: liabTotal,
+                          format: (c, {bool signed = false}) =>
+                              _formatCents(c, currency, signed: signed),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        const _QuickActions(),
+                        const SizedBox(height: AppSpacing.md),
+                        _SplitLayout(
+                          format: (c, {bool signed = false}) =>
+                              _formatCents(c, currency, signed: signed),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           );
         },
       ),
@@ -152,12 +191,29 @@ class _Header extends StatelessWidget {
 // ───────────────────────── 净资产大卡 ─────────────────────────
 
 class _NetWorthCard extends StatelessWidget {
-  const _NetWorthCard({required this.netWorth, required this.accountCount});
+  const _NetWorthCard({
+    required this.netWorth,
+    required this.currency,
+    required this.accountCount,
+    this.loading = false,
+    this.error = false,
+  });
   final int netWorth;
+  final String currency;
   final int accountCount;
+  final bool loading;
+  final bool error;
 
   @override
   Widget build(BuildContext context) {
+    // 显示本位币符号(CNY→¥,USD→$ 等,经 currencySymbol;非硬编码 ¥)。
+    // loading 显示骨架 '--';error 显示 '加载失败'。
+    final valueText = error
+        ? '加载失败'
+        : loading
+            ? '--'
+            : _groupThousands(netWorth ~/ 100);
+    final symbol = currencySymbol(currency);
     return ClipRRect(
       borderRadius: AppRadius.lgBorder,
       child: Container(
@@ -202,7 +258,7 @@ class _NetWorthCard extends StatelessWidget {
                   text: TextSpan(
                     children: [
                       TextSpan(
-                        text: '¥ ',
+                        text: '$symbol ',
                         style: TextStyle(
                             fontSize: 21,
                             color: Colors.white54,
@@ -210,7 +266,7 @@ class _NetWorthCard extends StatelessWidget {
                             fontFamilyFallback: AppTypography.displayFallback),
                       ),
                       TextSpan(
-                        text: _groupThousands(netWorth ~/ 100),
+                        text: valueText,
                         style: TextStyle(
                           fontSize: 42,
                           fontWeight: FontWeight.w600,
@@ -265,8 +321,11 @@ class _NetWorthCard extends StatelessWidget {
 // ───────────────────────── 资产分解 4 卡 ─────────────────────────
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow(
-      {required this.assetTotal, required this.liabTotal, required this.format});
+  const _SummaryRow({
+    required this.assetTotal,
+    required this.liabTotal,
+    required this.format,
+  });
   final int assetTotal;
   final int liabTotal;
   final String Function(int, {bool signed}) format;

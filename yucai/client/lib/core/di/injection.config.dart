@@ -47,6 +47,7 @@ import '../../debt/presentation/bloc/debt_bloc.dart' as _i383;
 import '../../holding/data/goal_view_ds.dart' as _i616;
 import '../../holding/data/holding_remote_ds.dart' as _i620;
 import '../../holding/data/holding_repository_impl.dart' as _i427;
+import '../../holding/data/networth_ds.dart' as _i600;
 import '../../holding/domain/repositories/holding_repository.dart' as _i255;
 import '../../holding/presentation/bloc/holding_bloc.dart' as _i255;
 import '../../holding/presentation/bloc/performance_bloc.dart' as _i493;
@@ -124,6 +125,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i620.HoldingRemoteDataSource>(
       () => _i620.HoldingRemoteDataSource(
+        gh<_i160.GrpcClient>(),
+        gh<_i763.AuthRetryCaller>(),
+      ),
+    );
+    gh.lazySingleton<_i600.NetWorthDataSource>(
+      () => _i600.NetWorthDataSource(
         gh<_i160.GrpcClient>(),
         gh<_i763.AuthRetryCaller>(),
       ),
