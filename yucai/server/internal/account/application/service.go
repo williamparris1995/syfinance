@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/account/application/command"
@@ -295,6 +296,43 @@ func (s *Service) SeedPresetCategories(ctx context.Context, tenantID uuid.UUID) 
 		}
 	}
 	return nil
+}
+
+// SumBalancesByCurrency sums the CurrentBalanceCents of every active asset
+// account (cash / investment / fixed-asset categories; liability/equity and
+// expense/income category-accounts are excluded) for a tenant, grouped by the
+// account's CurrencyCode. Implements networth/domain.AccountBalanceSource
+// (structural — networth does not import account).
+//
+// Asset-only: liabilities are tracked separately via the debt module's
+// SumRemainingByCurrency; expense/income category accounts carry no balance.
+// Best-effort per-currency: a zero-currency-code account (should not happen —
+// NewAccount defaults to CNY) is bucketed under "".
+func (s *Service) SumBalancesByCurrency(ctx context.Context, tenantID uuid.UUID) (map[string]int64, error) {
+	byCur := map[string]int64{}
+	assetType := domain.AccountTypeAsset
+	page := domain.PageRequest{PageSize: 100}
+	for {
+		result, err := s.accountRepo.FindAll(ctx, tenantID, domain.AccountFilter{AccountType: &assetType}, page)
+		if err != nil {
+			return nil, fmt.Errorf("sum balances by currency: list asset accounts: %w", err)
+		}
+		for _, a := range result.Items {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+			byCur[a.CurrencyCode] += a.CurrentBalanceCents
+		}
+		if result.NextPageToken == "" || len(result.Items) == 0 {
+			break
+		}
+		page.PageToken = result.NextPageToken
+	}
+	slog.Debug("account sum balances by currency",
+		slog.String("tenant_id", tenantID.String()),
+		slog.Int("currencies", len(byCur)),
+		slog.String("operation", "SumBalancesByCurrency"))
+	return byCur, nil
 }
 
 // Unimplemented command/query handler stubs (service handles orchestration directly).

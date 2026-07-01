@@ -1039,3 +1039,40 @@ func (s *Service) GetAccountMarketValue(ctx context.Context, tenantID, accountID
 	}
 	return total, nil
 }
+
+// SumMarketValueByCurrency sums the current market value (qty × current price)
+// of every holding for a tenant, grouped by the security's CurrencyCode.
+// Implements networth/domain.HoldingMarketValueSource (structural — networth
+// does not import holding).
+//
+// Best-effort: a holding whose security is missing is skipped + logged, not
+// fatal (mirrors SnapshotHoldings / GetAccountMarketValue). Paginates at
+// PageSize 100.
+func (s *Service) SumMarketValueByCurrency(ctx context.Context, tenantID uuid.UUID) (map[string]int64, error) {
+	byCur := map[string]int64{}
+	page := domain.PageRequest{PageSize: 100}
+	for {
+		result, err := s.holdingRepo.FindAll(ctx, tenantID, nil, page)
+		if err != nil {
+			return nil, fmt.Errorf("sum market value by currency: list holdings: %w", err)
+		}
+		for _, h := range result.Items {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+			sec, err := s.securityRepo.FindByID(ctx, h.SecurityID)
+			if err != nil || sec == nil {
+				slog.Warn("holding market-value sum: security missing, skip",
+					slog.String("holding_id", h.ID.String()),
+					slog.String("operation", "SumMarketValueByCurrency"))
+				continue
+			}
+			byCur[sec.CurrencyCode] += h.MarketValue(sec.CurrentPriceCents)
+		}
+		if result.NextPageToken == "" || len(result.Items) == 0 {
+			break
+		}
+		page.PageToken = result.NextPageToken
+	}
+	return byCur, nil
+}
