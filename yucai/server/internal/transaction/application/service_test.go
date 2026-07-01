@@ -105,6 +105,9 @@ func (r *recordingTxnRepo) FindRecentByAccount(context.Context, uuid.UUID, uuid.
 func (r *recordingTxnRepo) TransactionSummary(context.Context, domain.SummaryScope) (*domain.MonthlySummary, error) {
 	panic("unexpected TransactionSummary call")
 }
+func (r *recordingTxnRepo) SumEntryTotalsByAccount(context.Context, uuid.UUID, time.Time, time.Time) (int64, int64, error) {
+	panic("unexpected SumEntryTotalsByAccount call")
+}
 
 // recentTxnRepo is a TransactionRepository whose FindRecentByAccount returns a
 // canned result (and records its args) so the service-level thin-wrapper test
@@ -140,6 +143,49 @@ func (r *recentTxnRepo) FindRecentByAccount(_ context.Context, tenantID, account
 }
 func (r *recentTxnRepo) TransactionSummary(context.Context, domain.SummaryScope) (*domain.MonthlySummary, error) {
 	panic("unexpected TransactionSummary call")
+}
+func (r *recentTxnRepo) SumEntryTotalsByAccount(context.Context, uuid.UUID, time.Time, time.Time) (int64, int64, error) {
+	panic("unexpected SumEntryTotalsByAccount call")
+}
+
+// sumByAccountTxnRepo is a TransactionRepository whose SumEntryTotalsByAccount
+// returns a canned result (and records its args) so the service-level
+// SpendingByAccount test can assert pure delegation. All other methods panic.
+type sumByAccountTxnRepo struct {
+	gotAccountID uuid.UUID
+	gotFrom      time.Time
+	gotTo        time.Time
+	debitTotal   int64
+	creditTotal  int64
+	err          error
+}
+
+func (r *sumByAccountTxnRepo) Save(context.Context, *domain.Transaction) error {
+	panic("unexpected Save call")
+}
+func (r *sumByAccountTxnRepo) FindByID(context.Context, uuid.UUID, uuid.UUID) (*domain.Transaction, error) {
+	panic("unexpected FindByID call")
+}
+func (r *sumByAccountTxnRepo) FindAll(context.Context, uuid.UUID, domain.TransactionFilter, domain.PageRequest) (*domain.PaginatedResult[domain.Transaction], error) {
+	panic("unexpected FindAll call")
+}
+func (r *sumByAccountTxnRepo) Update(context.Context, *domain.Transaction) error {
+	panic("unexpected Update call")
+}
+func (r *sumByAccountTxnRepo) SoftDelete(context.Context, uuid.UUID, uuid.UUID) error {
+	panic("unexpected SoftDelete call")
+}
+func (r *sumByAccountTxnRepo) FindRecentByAccount(context.Context, uuid.UUID, uuid.UUID, int) ([]domain.Transaction, error) {
+	panic("unexpected FindRecentByAccount call")
+}
+func (r *sumByAccountTxnRepo) TransactionSummary(context.Context, domain.SummaryScope) (*domain.MonthlySummary, error) {
+	panic("unexpected TransactionSummary call")
+}
+func (r *sumByAccountTxnRepo) SumEntryTotalsByAccount(_ context.Context, accountID uuid.UUID, from, to time.Time) (int64, int64, error) {
+	r.gotAccountID = accountID
+	r.gotFrom = from
+	r.gotTo = to
+	return r.debitTotal, r.creditTotal, r.err
 }
 
 // --- Helpers ---
@@ -439,6 +485,44 @@ func TestListRecentByAccount_PropagatesRepoError(t *testing.T) {
 	svc := NewService(repo, newMockAccountRepo(), noopBalanceUpdater{})
 
 	if _, err := svc.ListRecentByAccount(context.Background(), uuid.New(), uuid.New(), 5); err == nil {
+		t.Fatal("expected error to propagate, got nil")
+	}
+}
+
+// TestSpendingByAccount_DelegatesToRepo verifies the service method is a thin
+// wrapper that passes accountID/from/to straight through to the repository and
+// returns the debit/credit totals unchanged. The signature must match budget's
+// EntryTotalsFunc so Task 4 can wire a direct delegate closure.
+func TestSpendingByAccount_DelegatesToRepo(t *testing.T) {
+	accountID := uuid.New()
+	from := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 7, 31, 23, 59, 59, 0, time.UTC)
+	repo := &sumByAccountTxnRepo{
+		debitTotal:  50000, // ¥500 expense (debit on Expense account)
+		creditTotal: 5000,  // ¥50 refund (credit on Expense account)
+	}
+	svc := NewService(repo, newMockAccountRepo(), noopBalanceUpdater{})
+
+	debit, credit, err := svc.SpendingByAccount(context.Background(), accountID, from, to)
+	if err != nil {
+		t.Fatalf("SpendingByAccount: unexpected err: %v", err)
+	}
+	if repo.gotAccountID != accountID || !repo.gotFrom.Equal(from) || !repo.gotTo.Equal(to) {
+		t.Errorf("delegation args: account=%v from=%v to=%v; want %v %v %v",
+			repo.gotAccountID, repo.gotFrom, repo.gotTo, accountID, from, to)
+	}
+	if debit != 50000 || credit != 5000 {
+		t.Fatalf("got debit=%d credit=%d, want 50000/5000", debit, credit)
+	}
+}
+
+// TestSpendingByAccount_PropagatesRepoError verifies the service surfaces
+// repository errors instead of swallowing them.
+func TestSpendingByAccount_PropagatesRepoError(t *testing.T) {
+	repo := &sumByAccountTxnRepo{err: fmt.Errorf("boom")}
+	svc := NewService(repo, newMockAccountRepo(), noopBalanceUpdater{})
+
+	if _, _, err := svc.SpendingByAccount(context.Background(), uuid.New(), time.Now(), time.Now()); err == nil {
 		t.Fatal("expected error to propagate, got nil")
 	}
 }

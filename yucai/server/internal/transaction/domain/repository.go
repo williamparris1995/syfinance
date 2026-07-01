@@ -24,6 +24,13 @@ type TransactionRepository interface {
 	// TransactionSummary returns the monthly income/expense summary broken down
 	// by day and by Income/Expense account (category). See MonthlySummary.
 	TransactionSummary(ctx context.Context, scope SummaryScope) (*MonthlySummary, error)
+	// SumEntryTotalsByAccount returns the total debit/credit cents of entries
+	// posted to accountID whose transaction_date is in [from, to]. Used by budget
+	// actuals: budget items track Expense accounts (= categories), and an item's
+	// spend is the period's debit total on its account (refunds are the credit
+	// total). Transfers are asset→asset flows that never touch Expense accounts,
+	// so they are excluded automatically — no TransactionType filter is applied.
+	SumEntryTotalsByAccount(ctx context.Context, accountID uuid.UUID, from, to time.Time) (debitTotal, creditTotal int64, err error)
 }
 
 // TransactionType classifies a transaction by its economic effect for the

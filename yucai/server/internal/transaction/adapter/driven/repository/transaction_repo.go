@@ -820,6 +820,46 @@ func (r *TransactionRepository) SoftDelete(ctx context.Context, tenantID, id uui
 	return nil
 }
 
+// SumEntryTotalsByAccount sums debit_cents and credit_cents of all entries on
+// accountID whose transaction's date falls in [from, to]. Soft-deleted
+// transactions are excluded.
+//
+// Budget actuals consume this: budget items track Expense accounts (= the
+// account-as-category model), so an item's period spend is the debit total on
+// its account and refunds are the credit total. Transfers are asset→asset flows
+// that never touch Expense accounts, so they are excluded automatically — no
+// TransactionType filter is applied (it would be redundant).
+//
+// Implemented as raw SQL (same idiom as TransactionSummary): the transaction and
+// transaction_entries ent modules declare no edge, so a JOIN is cleaner via the
+// shared *sql.DB. Placeholders are rebound for PostgreSQL (pgx does not rewrite
+// '?').
+func (r *TransactionRepository) SumEntryTotalsByAccount(ctx context.Context, accountID uuid.UUID, from, to time.Time) (int64, int64, error) {
+	if r.rawDB == nil {
+		return 0, 0, fmt.Errorf("sum entry totals by account requires the underlying *sql.DB (rawDB is nil)")
+	}
+
+	q := `
+		SELECT
+			COALESCE(SUM(e.debit_cents), 0),
+			COALESCE(SUM(e.credit_cents), 0)
+		FROM ` + transactionEntryTable + ` e
+		JOIN ` + transactionTable + ` t ON t.id = e.transaction_id
+		WHERE e.account_id = ?
+		  AND t.deleted_at IS NULL
+		  AND t.transaction_date >= ?
+		  AND t.transaction_date <= ?
+	`
+	q = rebindPlaceholders(q, r.rawDialect)
+
+	var debitTotal, creditTotal int64
+	err := r.rawDB.QueryRowContext(ctx, q, accountID, from, to).Scan(&debitTotal, &creditTotal)
+	if err != nil {
+		return 0, 0, fmt.Errorf("sum entry totals by account %s: %w", accountID, err)
+	}
+	return debitTotal, creditTotal, nil
+}
+
 func toDomainTransaction(t *txnent.Transaction, entries []*txnent.TransactionEntry) *domain.Transaction {
 	domainEntries := make([]domain.TransactionEntry, len(entries))
 	for i, e := range entries {

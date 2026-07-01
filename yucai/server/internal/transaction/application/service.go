@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	accountdomain "github.com/yucai/server/internal/account/domain"
@@ -103,6 +104,22 @@ func (s *Service) ListRecentByAccount(ctx context.Context, tenantID, accountID u
 		dtos[i] = TransactionToDTO(&tx)
 	}
 	return dtos, nil
+}
+
+// SpendingByAccount returns the debit/credit totals of entries posted to
+// accountID in [from, to]. Used by budget actuals: budget items track Expense
+// accounts (= categories), so an item's period spend is the debit total and
+// refunds are the credit total. Transfers are asset→asset flows that never
+// touch Expense accounts, so they are excluded automatically — no type filter.
+//
+// Signature matches budget.EntryTotalsFunc exactly so Task 4 can wire a direct
+// delegate closure. Thin wrapper: delegates to the repository and wraps errors.
+func (s *Service) SpendingByAccount(ctx context.Context, accountID uuid.UUID, from, to time.Time) (int64, int64, error) {
+	debit, credit, err := s.txnRepo.SumEntryTotalsByAccount(ctx, accountID, from, to)
+	if err != nil {
+		return 0, 0, fmt.Errorf("spending by account %s: %w", accountID, err)
+	}
+	return debit, credit, nil
 }
 
 // TransactionSummary returns the income/expense summary for a tenant over a
