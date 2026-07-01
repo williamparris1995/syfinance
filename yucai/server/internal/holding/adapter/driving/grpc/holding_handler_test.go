@@ -133,6 +133,9 @@ func (r *recordingTxnRepo) SoftDelete(context.Context, uuid.UUID, uuid.UUID) err
 func (r *recordingTxnRepo) TransactionSummary(context.Context, txnDomain.SummaryScope) (*txnDomain.MonthlySummary, error) {
 	panic("unexpected TransactionSummary call")
 }
+func (r *recordingTxnRepo) SumEntryTotalsByAccount(context.Context, uuid.UUID, time.Time, time.Time) (int64, int64, error) {
+	panic("unexpected SumEntryTotalsByAccount call")
+}
 
 // mutatingBalanceUpdater applies each entry's (debit - credit) to the matching
 // account in the lookup so tests can assert balance movement end-to-end.
