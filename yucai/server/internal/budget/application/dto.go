@@ -73,6 +73,8 @@ type BudgetDTO struct {
 	Version          int64
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
+	TotalActualCents int64
+	UsagePct         float64
 }
 
 // BudgetItemDTO is the DTO for budget items.
@@ -125,6 +127,8 @@ func BudgetToDTO(b *domain.Budget) BudgetDTO {
 		Version:          b.Version,
 		CreatedAt:        b.CreatedAt,
 		UpdatedAt:        b.UpdatedAt,
+		TotalActualCents: b.TotalActual(),
+		UsagePct:         b.UsagePct(),
 	}
 }
 

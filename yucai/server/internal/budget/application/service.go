@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -53,6 +54,7 @@ func (s *Service) GetBudget(ctx context.Context, tenantID, id uuid.UUID) (*Budge
 	if err != nil {
 		return nil, fmt.Errorf("budget not found: %w", err)
 	}
+	s.computeActualsReadTime(ctx, budget) // D-budget: read-time actuals
 	dto := BudgetToDetailDTO(budget)
 	return &dto, nil
 }
@@ -63,6 +65,7 @@ func (s *Service) GetBudgetByMonth(ctx context.Context, tenantID uuid.UUID, mont
 	if err != nil {
 		return nil, fmt.Errorf("budget not found for month %s: %w", month, err)
 	}
+	s.computeActualsReadTime(ctx, budget) // D-budget: read-time actuals
 	dto := BudgetToDetailDTO(budget)
 	return &dto, nil
 }
@@ -75,6 +78,7 @@ func (s *Service) ListBudgets(ctx context.Context, req ListBudgetsRequest) (*Lis
 	}
 	dtos := make([]BudgetDTO, len(result.Items))
 	for i, b := range result.Items {
+		s.computeActualsReadTime(ctx, &b) // D-budget: read-time actuals
 		dtos[i] = BudgetToDTO(&b)
 	}
 	return &ListBudgetsResult{
@@ -175,4 +179,39 @@ func (s *Service) CloneBudgetToMonth(ctx context.Context, req CloneBudgetRequest
 
 	dto := BudgetToDTO(cloned)
 	return &dto, nil
+}
+
+// monthRange parses "YYYY-MM" into [first day 00:00:00, last day 23:59:59.999999999].
+// Returns zero times on parse failure (should not happen; domain regex already validates).
+func monthRange(month string) (time.Time, time.Time) {
+	t, err := time.Parse("2006-01", month)
+	if err != nil {
+		return time.Time{}, time.Time{}
+	}
+	from := t
+	to := t.AddDate(0, 1, -1).Add(24*time.Hour - time.Nanosecond)
+	return from, to
+}
+
+// computeActualsReadTime fills each item's ActualAmountCents via entryFunc without persisting
+// (avoids version thrash on every view). nil entryFunc -> actuals stay 0, no panic.
+// Per-item err -> that item set to 0 + slog (best-effort), error is NOT propagated.
+// actual = debit - credit (spending - refunds = net spend).
+func (s *Service) computeActualsReadTime(ctx context.Context, b *domain.Budget) {
+	if s.entryFunc == nil {
+		return // actuals stay 0 (stored value or zero)
+	}
+	from, to := monthRange(b.Month)
+	for i := range b.Items {
+		debit, credit, err := s.entryFunc(ctx, b.Items[i].AccountID, from, to)
+		if err != nil {
+			slog.Error("budget actuals: entryFunc failed",
+				"operation", "budget.computeActualsReadTime",
+				"budget_id", b.ID.String(), "item_id", b.Items[i].ID.String(),
+				"error", err.Error())
+			b.Items[i].ActualAmountCents = 0
+			continue
+		}
+		b.Items[i].ActualAmountCents = debit - credit
+	}
 }
