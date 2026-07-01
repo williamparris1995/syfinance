@@ -594,3 +594,113 @@ func truncateToDateUTC(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
 }
 
+// ---------------------------------------------------------------------------
+// Performance base_currency handler tests (holding-server-D Task 7)
+//
+// Task 7 wires req.GetBaseCurrency() through to the service (replacing the
+// hard-coded "CNY") on both GetPortfolioPerformance and GetHoldingPerformance.
+// The portfolio service echoes the resolved base in its response Currency, so
+// these two tests assert the empty → CNY fallback and the non-empty → echo
+// contract end-to-end via the portfolio RPC. The seed data is CNY (rate
+// defaults to 1.0), so only the Currency field differs — the curve/foot values
+// are unchanged, which is exactly what makes the test a clean base-switch
+// assertion rather than a currency-math test.
+//
+// GetHoldingPerformance forwards base_currency too, but its service echoes the
+// security's original currency in the response (not base — Task 3 concern 2),
+// so it has no response-side echo to assert here; see NOTE below its test.
+// ---------------------------------------------------------------------------
+
+// TestGetPortfolioPerformanceBaseCurrencyPassthrough: a non-empty
+// base_currency on the request is forwarded to the service, which echoes it
+// in the response Currency (here "USD"). All seeded data is CNY so the curve
+// is non-empty; we only assert the Currency echo.
+func TestGetPortfolioPerformanceBaseCurrencyPassthrough(t *testing.T) {
+	h, tenantID, accountID, holdRepo, snapRepo, _ := setupPerfHarness(t)
+	ctx := ctxWithTenant(tenantID)
+
+	sec, err := h.CreateSecurity(ctx, &pb.CreateSecurityRequest{
+		Symbol: "600519", Name: "Kweichow Moutai",
+		SecurityType: pb.SecurityType_SECURITY_TYPE_STOCK, CurrencyCode: "CNY",
+	})
+	if err != nil {
+		t.Fatalf("CreateSecurity: %v", err)
+	}
+	secID := uuid.MustParse(sec.Security.Id)
+	holdingID := uuid.New()
+	if err := holdRepo.SaveOrUpdate(ctx, &domain.Holding{
+		ID: holdingID, TenantID: tenantID, AccountID: accountID, SecurityID: secID,
+		Quantity: 100, AvgCostCents: 100, CreatedAt: time.Now().AddDate(0, 0, -1),
+	}); err != nil {
+		t.Fatalf("seed holding: %v", err)
+	}
+	if err := snapRepo.Save(ctx, domain.HoldingSnapshot{
+		ID: uuid.New(), TenantID: tenantID, HoldingID: holdingID, SecurityID: secID, AccountID: accountID,
+		SnapshotDate: truncateToDateUTC(time.Now()), MarketValueCents: 10000, CurrencyCode: "CNY",
+	}); err != nil {
+		t.Fatalf("seed snapshot: %v", err)
+	}
+
+	resp, err := h.GetPortfolioPerformance(ctx, &pb.GetPortfolioPerformanceRequest{
+		AccountId:   accountID.String(),
+		Range:       pb.CurveRange_CURVE_RANGE_DAY,
+		BaseCurrency: "USD",
+	})
+	if err != nil {
+		t.Fatalf("GetPortfolioPerformance: %v", err)
+	}
+	if resp.GetCurrency() != "USD" {
+		t.Errorf("currency = %q, want USD (base passthrough)", resp.GetCurrency())
+	}
+}
+
+// TestGetPortfolioPerformanceBaseCurrencyDefaultsCNY: an empty base_currency
+// preserves the Task 3 default behavior — the service falls back to CNY and
+// the response Currency is "CNY".
+func TestGetPortfolioPerformanceBaseCurrencyDefaultsCNY(t *testing.T) {
+	h, tenantID, accountID, holdRepo, snapRepo, _ := setupPerfHarness(t)
+	ctx := ctxWithTenant(tenantID)
+
+	sec, err := h.CreateSecurity(ctx, &pb.CreateSecurityRequest{
+		Symbol: "600519", Name: "Kweichow Moutai",
+		SecurityType: pb.SecurityType_SECURITY_TYPE_STOCK, CurrencyCode: "CNY",
+	})
+	if err != nil {
+		t.Fatalf("CreateSecurity: %v", err)
+	}
+	secID := uuid.MustParse(sec.Security.Id)
+	holdingID := uuid.New()
+	if err := holdRepo.SaveOrUpdate(ctx, &domain.Holding{
+		ID: holdingID, TenantID: tenantID, AccountID: accountID, SecurityID: secID,
+		Quantity: 100, AvgCostCents: 100, CreatedAt: time.Now().AddDate(0, 0, -1),
+	}); err != nil {
+		t.Fatalf("seed holding: %v", err)
+	}
+	if err := snapRepo.Save(ctx, domain.HoldingSnapshot{
+		ID: uuid.New(), TenantID: tenantID, HoldingID: holdingID, SecurityID: secID, AccountID: accountID,
+		SnapshotDate: truncateToDateUTC(time.Now()), MarketValueCents: 10000, CurrencyCode: "CNY",
+	}); err != nil {
+		t.Fatalf("seed snapshot: %v", err)
+	}
+
+	// base_currency intentionally omitted → defaults to "" → service CNY fallback.
+	resp, err := h.GetPortfolioPerformance(ctx, &pb.GetPortfolioPerformanceRequest{
+		AccountId: accountID.String(),
+		Range:     pb.CurveRange_CURVE_RANGE_DAY,
+	})
+	if err != nil {
+		t.Fatalf("GetPortfolioPerformance: %v", err)
+	}
+	if resp.GetCurrency() != "CNY" {
+		t.Errorf("currency = %q, want CNY (empty base fallback)", resp.GetCurrency())
+	}
+}
+
+// NOTE: GetHoldingPerformance intentionally echoes the underlying security's
+// original CurrencyCode (Task 3 concern 2: original vs base), NOT the request
+// base_currency. So there is no response-side echo to assert for the holding
+// RPC — the field is forwarded to the service (realized/unrealized 折算) but
+// the response Currency stays the security's currency. Changing that is out of
+// scope for Task 7 (deferred to final review). The existing
+// TestGetHoldingPerformanceReturnsCurve covers the CNY-default path.
+

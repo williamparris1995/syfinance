@@ -272,9 +272,11 @@ func (h *HoldingHandler) SyncPrices(ctx context.Context, _ *pb.SyncPricesRequest
 	}, nil
 }
 
-// GetPortfolioPerformance builds the portfolio CNY market-value curve + foot
+// GetPortfolioPerformance builds the portfolio market-value curve + foot
 // (realized/unrealized/total/annualized), optionally with the CSI300 benchmark
 // curve. account_id is optional (empty = all accounts under the tenant).
+// base_currency (optional) converts all amounts into that currency; empty falls
+// back to the tenant base currency (default CNY).
 func (h *HoldingHandler) GetPortfolioPerformance(ctx context.Context, req *pb.GetPortfolioPerformanceRequest) (*pb.PortfolioPerformanceResponse, error) {
 	tid, err := getTenantID(ctx)
 	if err != nil {
@@ -288,7 +290,7 @@ func (h *HoldingHandler) GetPortfolioPerformance(ctx context.Context, req *pb.Ge
 		}
 		acct = &a
 	}
-	perf, err := h.service.GetPortfolioPerformance(ctx, tid, acct, curveRangeName(req.GetRange()), req.GetIncludeBenchmark(), "CNY")
+	perf, err := h.service.GetPortfolioPerformance(ctx, tid, acct, curveRangeName(req.GetRange()), req.GetIncludeBenchmark(), req.GetBaseCurrency())
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -315,7 +317,7 @@ func (h *HoldingHandler) GetHoldingPerformance(ctx context.Context, req *pb.GetH
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid holding_id")
 	}
-	perf, err := h.service.GetHoldingPerformance(ctx, hid, curveRangeName(req.GetRange()), "CNY")
+	perf, err := h.service.GetHoldingPerformance(ctx, hid, curveRangeName(req.GetRange()), req.GetBaseCurrency())
 	if err != nil {
 		return nil, mapError(err)
 	}

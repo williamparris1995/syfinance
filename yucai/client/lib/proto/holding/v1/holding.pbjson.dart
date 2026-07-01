@@ -621,6 +621,7 @@ const GetPortfolioPerformanceRequest$json = {
       '5': 8,
       '10': 'includeBenchmark'
     },
+    {'1': 'base_currency', '3': 4, '4': 1, '5': 9, '10': 'baseCurrency'},
   ],
 };
 
@@ -629,7 +630,8 @@ final $typed_data.Uint8List getPortfolioPerformanceRequestDescriptor =
     $convert.base64Decode(
         'Ch5HZXRQb3J0Zm9saW9QZXJmb3JtYW5jZVJlcXVlc3QSHQoKYWNjb3VudF9pZBgBIAEoCVIJYW'
         'Njb3VudElkEjIKBXJhbmdlGAIgASgOMhwueXVjYWkuaG9sZGluZy52MS5DdXJ2ZVJhbmdlUgVy'
-        'YW5nZRIrChFpbmNsdWRlX2JlbmNobWFyaxgDIAEoCFIQaW5jbHVkZUJlbmNobWFyaw==');
+        'YW5nZRIrChFpbmNsdWRlX2JlbmNobWFyaxgDIAEoCFIQaW5jbHVkZUJlbmNobWFyaxIjCg1iYX'
+        'NlX2N1cnJlbmN5GAQgASgJUgxiYXNlQ3VycmVuY3k=');
 
 @$core.Deprecated('Use portfolioPerformanceResponseDescriptor instead')
 const PortfolioPerformanceResponse$json = {
@@ -685,6 +687,7 @@ const GetHoldingPerformanceRequest$json = {
       '6': '.yucai.holding.v1.CurveRange',
       '10': 'range'
     },
+    {'1': 'base_currency', '3': 3, '4': 1, '5': 9, '10': 'baseCurrency'},
   ],
 };
 
@@ -693,7 +696,7 @@ final $typed_data.Uint8List getHoldingPerformanceRequestDescriptor =
     $convert.base64Decode(
         'ChxHZXRIb2xkaW5nUGVyZm9ybWFuY2VSZXF1ZXN0Eh0KCmhvbGRpbmdfaWQYASABKAlSCWhvbG'
         'RpbmdJZBIyCgVyYW5nZRgCIAEoDjIcLnl1Y2FpLmhvbGRpbmcudjEuQ3VydmVSYW5nZVIFcmFu'
-        'Z2U=');
+        'Z2USIwoNYmFzZV9jdXJyZW5jeRgDIAEoCVIMYmFzZUN1cnJlbmN5');
 
 @$core.Deprecated('Use holdingPerformanceResponseDescriptor instead')
 const HoldingPerformanceResponse$json = {

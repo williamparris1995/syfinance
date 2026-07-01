@@ -1894,11 +1894,13 @@ class GetPortfolioPerformanceRequest extends $pb.GeneratedMessage {
     $core.String? accountId,
     CurveRange? range,
     $core.bool? includeBenchmark,
+    $core.String? baseCurrency,
   }) {
     final result = create();
     if (accountId != null) result.accountId = accountId;
     if (range != null) result.range = range;
     if (includeBenchmark != null) result.includeBenchmark = includeBenchmark;
+    if (baseCurrency != null) result.baseCurrency = baseCurrency;
     return result;
   }
 
@@ -1920,6 +1922,7 @@ class GetPortfolioPerformanceRequest extends $pb.GeneratedMessage {
     ..aE<CurveRange>(2, _omitFieldNames ? '' : 'range',
         enumValues: CurveRange.values)
     ..aOB(3, _omitFieldNames ? '' : 'includeBenchmark')
+    ..aOS(4, _omitFieldNames ? '' : 'baseCurrency')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1970,6 +1973,17 @@ class GetPortfolioPerformanceRequest extends $pb.GeneratedMessage {
   $core.bool hasIncludeBenchmark() => $_has(2);
   @$pb.TagNumber(3)
   void clearIncludeBenchmark() => $_clearField(3);
+
+  /// Base currency to convert all amounts into (ISO 4217, e.g. "CNY").
+  /// Empty/unknown falls back to the tenant base currency (default CNY).
+  @$pb.TagNumber(4)
+  $core.String get baseCurrency => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set baseCurrency($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasBaseCurrency() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearBaseCurrency() => $_clearField(4);
 }
 
 class PortfolioPerformanceResponse extends $pb.GeneratedMessage {
@@ -2120,10 +2134,12 @@ class GetHoldingPerformanceRequest extends $pb.GeneratedMessage {
   factory GetHoldingPerformanceRequest({
     $core.String? holdingId,
     CurveRange? range,
+    $core.String? baseCurrency,
   }) {
     final result = create();
     if (holdingId != null) result.holdingId = holdingId;
     if (range != null) result.range = range;
+    if (baseCurrency != null) result.baseCurrency = baseCurrency;
     return result;
   }
 
@@ -2144,6 +2160,7 @@ class GetHoldingPerformanceRequest extends $pb.GeneratedMessage {
     ..aOS(1, _omitFieldNames ? '' : 'holdingId')
     ..aE<CurveRange>(2, _omitFieldNames ? '' : 'range',
         enumValues: CurveRange.values)
+    ..aOS(3, _omitFieldNames ? '' : 'baseCurrency')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2185,6 +2202,17 @@ class GetHoldingPerformanceRequest extends $pb.GeneratedMessage {
   $core.bool hasRange() => $_has(1);
   @$pb.TagNumber(2)
   void clearRange() => $_clearField(2);
+
+  /// Base currency to convert all amounts into (ISO 4217, e.g. "CNY").
+  /// Empty/unknown falls back to the tenant base currency (default CNY).
+  @$pb.TagNumber(3)
+  $core.String get baseCurrency => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set baseCurrency($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasBaseCurrency() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearBaseCurrency() => $_clearField(3);
 }
 
 class HoldingPerformanceResponse extends $pb.GeneratedMessage {

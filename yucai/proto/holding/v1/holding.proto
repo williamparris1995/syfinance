@@ -177,6 +177,9 @@ message GetPortfolioPerformanceRequest {
   string account_id = 1;
   CurveRange range = 2;
   bool include_benchmark = 3;
+  // Base currency to convert all amounts into (ISO 4217, e.g. "CNY").
+  // Empty/unknown falls back to the tenant base currency (default CNY).
+  string base_currency = 4;
 }
 
 message PortfolioPerformanceResponse {
@@ -194,6 +197,9 @@ message PortfolioPerformanceResponse {
 message GetHoldingPerformanceRequest {
   string holding_id = 1;
   CurveRange range = 2;
+  // Base currency to convert all amounts into (ISO 4217, e.g. "CNY").
+  // Empty/unknown falls back to the tenant base currency (default CNY).
+  string base_currency = 3;
 }
 
 message HoldingPerformanceResponse {

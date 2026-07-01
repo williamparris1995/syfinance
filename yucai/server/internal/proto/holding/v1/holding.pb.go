@@ -1582,8 +1582,11 @@ type GetPortfolioPerformanceRequest struct {
 	AccountId        string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	Range            CurveRange             `protobuf:"varint,2,opt,name=range,proto3,enum=yucai.holding.v1.CurveRange" json:"range,omitempty"`
 	IncludeBenchmark bool                   `protobuf:"varint,3,opt,name=include_benchmark,json=includeBenchmark,proto3" json:"include_benchmark,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Base currency to convert all amounts into (ISO 4217, e.g. "CNY").
+	// Empty/unknown falls back to the tenant base currency (default CNY).
+	BaseCurrency  string `protobuf:"bytes,4,opt,name=base_currency,json=baseCurrency,proto3" json:"base_currency,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetPortfolioPerformanceRequest) Reset() {
@@ -1635,6 +1638,13 @@ func (x *GetPortfolioPerformanceRequest) GetIncludeBenchmark() bool {
 		return x.IncludeBenchmark
 	}
 	return false
+}
+
+func (x *GetPortfolioPerformanceRequest) GetBaseCurrency() string {
+	if x != nil {
+		return x.BaseCurrency
+	}
+	return ""
 }
 
 type PortfolioPerformanceResponse struct {
@@ -1746,9 +1756,12 @@ func (x *PortfolioPerformanceResponse) GetCurrency() string {
 }
 
 type GetHoldingPerformanceRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	HoldingId     string                 `protobuf:"bytes,1,opt,name=holding_id,json=holdingId,proto3" json:"holding_id,omitempty"`
-	Range         CurveRange             `protobuf:"varint,2,opt,name=range,proto3,enum=yucai.holding.v1.CurveRange" json:"range,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	HoldingId string                 `protobuf:"bytes,1,opt,name=holding_id,json=holdingId,proto3" json:"holding_id,omitempty"`
+	Range     CurveRange             `protobuf:"varint,2,opt,name=range,proto3,enum=yucai.holding.v1.CurveRange" json:"range,omitempty"`
+	// Base currency to convert all amounts into (ISO 4217, e.g. "CNY").
+	// Empty/unknown falls back to the tenant base currency (default CNY).
+	BaseCurrency  string `protobuf:"bytes,3,opt,name=base_currency,json=baseCurrency,proto3" json:"base_currency,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1795,6 +1808,13 @@ func (x *GetHoldingPerformanceRequest) GetRange() CurveRange {
 		return x.Range
 	}
 	return CurveRange_CURVE_RANGE_UNSPECIFIED
+}
+
+func (x *GetHoldingPerformanceRequest) GetBaseCurrency() string {
+	if x != nil {
+		return x.BaseCurrency
+	}
+	return ""
 }
 
 type HoldingPerformanceResponse struct {
@@ -2096,12 +2116,13 @@ const file_holding_v1_holding_proto_rawDesc = "" +
 	"\n" +
 	"CurvePoint\x12.\n" +
 	"\x04time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x04time\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x01R\x05value\"\xa0\x01\n" +
+	"\x05value\x18\x02 \x01(\x01R\x05value\"\xc5\x01\n" +
 	"\x1eGetPortfolioPerformanceRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x122\n" +
 	"\x05range\x18\x02 \x01(\x0e2\x1c.yucai.holding.v1.CurveRangeR\x05range\x12+\n" +
-	"\x11include_benchmark\x18\x03 \x01(\bR\x10includeBenchmark\"\xaa\x03\n" +
+	"\x11include_benchmark\x18\x03 \x01(\bR\x10includeBenchmark\x12#\n" +
+	"\rbase_currency\x18\x04 \x01(\tR\fbaseCurrency\"\xaa\x03\n" +
 	"\x1cPortfolioPerformanceResponse\x12G\n" +
 	"\x10portfolio_points\x18\x01 \x03(\v2\x1c.yucai.holding.v1.CurvePointR\x0fportfolioPoints\x12G\n" +
 	"\x10benchmark_points\x18\x02 \x03(\v2\x1c.yucai.holding.v1.CurvePointR\x0fbenchmarkPoints\x12%\n" +
@@ -2112,11 +2133,12 @@ const file_holding_v1_holding_proto_rawDesc = "" +
 	"totalCents\x12%\n" +
 	"\x0eannualized_pct\x18\a \x01(\x01R\rannualizedPct\x12\x1b\n" +
 	"\ttotal_pct\x18\b \x01(\x01R\btotalPct\x12\x1a\n" +
-	"\bcurrency\x18\t \x01(\tR\bcurrency\"q\n" +
+	"\bcurrency\x18\t \x01(\tR\bcurrency\"\x96\x01\n" +
 	"\x1cGetHoldingPerformanceRequest\x12\x1d\n" +
 	"\n" +
 	"holding_id\x18\x01 \x01(\tR\tholdingId\x122\n" +
-	"\x05range\x18\x02 \x01(\x0e2\x1c.yucai.holding.v1.CurveRangeR\x05range\"\xec\x01\n" +
+	"\x05range\x18\x02 \x01(\x0e2\x1c.yucai.holding.v1.CurveRangeR\x05range\x12#\n" +
+	"\rbase_currency\x18\x03 \x01(\tR\fbaseCurrency\"\xec\x01\n" +
 	"\x1aHoldingPerformanceResponse\x12?\n" +
 	"\fprice_points\x18\x01 \x03(\v2\x1c.yucai.holding.v1.CurvePointR\vpricePoints\x12%\n" +
 	"\x0erealized_cents\x18\x02 \x01(\x03R\rrealizedCents\x12)\n" +
