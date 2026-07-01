@@ -612,3 +612,71 @@ func TestGetAccountMarketValueSumsHoldings(t *testing.T) {
 		t.Fatalf("other tenant market value = %d, want 0 (tenant-scoped)", gotOther)
 	}
 }
+
+// --- D-currency Task 2: aggregateRealized multi-currency折算 ---
+
+// TestAggregateRealizedConvertsToBase verifies realized P&L and dividend income
+// are折算 to the base currency (CNY) via rate history. seed: a USD sell trade
+// realized=2000 USD-cents and a CNY dividend=500; rate[USD]=7.0, rate[CNY]=1.0;
+// expected base = 2000×7/1 + 500×1/1 = 14500 CNY.
+func TestAggregateRealizedConvertsToBase(t *testing.T) {
+	tenantID, accountID := uuid.New(), uuid.New()
+	secUSID, secCID := uuid.New(), uuid.New()
+
+	secRepo := newFullSecRepo([]secSeed{
+		{ID: secUSID, Symbol: "AAPL", Exchange: "NASDAQ", Type: domain.SecurityTypeStock, Currency: "USD", CurrentPriceCents: 20000},
+		{ID: secCID, Symbol: "600519", Exchange: "SSE", Type: domain.SecurityTypeStock, Currency: "CNY", CurrentPriceCents: 1680},
+	})
+	rateRepo := &fakeRateRepo{rateByCode: map[string]float64{"USD": 7.0, "CNY": 1.0}}
+	tr := &memTradeRepo{}
+	// g1: USD sell, realized=2000 (USD-cents). 折算 → 2000×7/1 = 14000.
+	tr.saved = append(tr.saved, &domain.HoldingTransaction{
+		ID: uuid.New(), TenantID: tenantID, AccountID: accountID, SecurityID: secUSID,
+		TradeType: domain.TradeTypeSell, RealizedPnLCents: 2000, TradeDate: time.Now(),
+	})
+	// g2: CNY dividend, amount=500. 折算 → 500×1/1 = 500.
+	tr.saved = append(tr.saved, &domain.HoldingTransaction{
+		ID: uuid.New(), TenantID: tenantID, AccountID: accountID, SecurityID: secCID,
+		TradeType: domain.TradeTypeDividend, AmountCents: 500, TradeDate: time.Now(),
+	})
+
+	svc := NewService(secRepo, newMemHoldingRepo(), tr)
+	svc.SetRateHistoryRepository(rateRepo)
+
+	got, err := svc.aggregateRealized(context.Background(), tenantID, &accountID, "CNY")
+	if err != nil {
+		t.Fatalf("aggregateRealized error: %v", err)
+	}
+	if got != 14500 {
+		t.Fatalf("aggregateRealized(CNY base) = %d, want 14500 (14000 USD折算 + 500 CNY)", got)
+	}
+}
+
+// TestAggregateRealizedDefaultBaseCNY verifies baseCurrency="" falls back to CNY
+// (rate[CNY]=1.0 → no conversion). A single CNY sell realized=1000 stays 1000.
+func TestAggregateRealizedDefaultBaseCNY(t *testing.T) {
+	tenantID, accountID := uuid.New(), uuid.New()
+	secID := uuid.New()
+
+	secRepo := newFullSecRepo([]secSeed{
+		{ID: secID, Symbol: "600519", Exchange: "SSE", Type: domain.SecurityTypeStock, Currency: "CNY", CurrentPriceCents: 1680},
+	})
+	rateRepo := &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}}
+	tr := &memTradeRepo{}
+	tr.saved = append(tr.saved, &domain.HoldingTransaction{
+		ID: uuid.New(), TenantID: tenantID, AccountID: accountID, SecurityID: secID,
+		TradeType: domain.TradeTypeSell, RealizedPnLCents: 1000, TradeDate: time.Now(),
+	})
+
+	svc := NewService(secRepo, newMemHoldingRepo(), tr)
+	svc.SetRateHistoryRepository(rateRepo)
+
+	// baseCurrency="" → default CNY.
+	got, err := svc.aggregateRealized(context.Background(), tenantID, &accountID, "")
+	if err != nil {
+		t.Fatalf("aggregateRealized('') error: %v", err)
+	}
+	if got != 1000 {
+		t.Fatalf("aggregateRealized('') = %d, want 1000 (default CNY, no conversion)", got)
+	}
+}

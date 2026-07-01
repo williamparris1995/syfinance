@@ -434,25 +434,25 @@ func TestGetPortfolioPerformanceSamplesAndConverts(t *testing.T) {
 	if !perf.PortfolioPoints[0].Time.Before(perf.PortfolioPoints[1].Time) {
 		t.Fatal("portfolio points not sorted ascending by time")
 	}
-	// Realized = sell 2000 + dividend 500 = 2500.
-	if perf.RealizedCents != 2500 {
-		t.Fatalf("realized = %d, want 2500", perf.RealizedCents)
+	// Realized = CNY sell 2000 (×1.0) + USD dividend 500 (×7.0) = 5500 base CNY.
+	if perf.RealizedCents != 5500 {
+		t.Fatalf("realized = %d, want 5500 (CNY sell 2000 + USD dividend 500×7 折算)", perf.RealizedCents)
 	}
 	// Unrealized = CNY 6800 (×1.0) + USD 0 (×7) = 6800.
 	if perf.UnrealizedCents != 6800 {
 		t.Fatalf("unrealized = %d, want 6800", perf.UnrealizedCents)
 	}
-	// Total = realized + unrealized = 9300.
-	if perf.TotalCents != 9300 {
-		t.Fatalf("total = %d, want 9300", perf.TotalCents)
+	// Total = realized + unrealized = 12300.
+	if perf.TotalCents != 12300 {
+		t.Fatalf("total = %d, want 12300", perf.TotalCents)
 	}
 	if perf.Currency != "CNY" {
 		t.Fatalf("currency = %s, want CNY", perf.Currency)
 	}
 	// totalPct = total/costBasis×100; costBasis = CNY 10000 + USD 19500×7 = 146500.
-	// totalPct = 9300/146500×100 ≈ 6.348.
-	if perf.TotalPct < 6.3 || perf.TotalPct > 6.4 {
-		t.Fatalf("total pct = %.4f, want ~6.35", perf.TotalPct)
+	// totalPct = 12300/146500×100 ≈ 8.396.
+	if perf.TotalPct < 8.3 || perf.TotalPct > 8.5 {
+		t.Fatalf("total pct = %.4f, want ~8.40", perf.TotalPct)
 	}
 }
 
