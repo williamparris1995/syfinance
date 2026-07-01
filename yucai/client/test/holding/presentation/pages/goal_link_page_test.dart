@@ -1,13 +1,14 @@
-// Task 10 — widget tests for GoalLinkPage(投资目标关联 · ⏳D 全空态)。
+// Task 11 — widget tests for GoalLinkPage(holding-D · goal 接真填)。
 //
 // 验证(对齐 brief):
-//   - **⏳D goal 区空态**(本页核心):holding.proto 无 goal RPC →
-//     概览头(总数/超中/落后)显示 ⏳ 占位 + goal 列表区显示
-//     「⏳D 待后端 · holding-backed goals 数据源待 goal.proto」空态。
-//   - **关联 holding 选择**(✅ holdings 已加载):从 HoldingLoaded.holdings
-//     渲染 holding 行(symbol + 市值),点击触发 ⏳D 提示。
-//   - 空/Loading/Error 状态:HoldingLoading → 圆圈;
-//     HoldingError(isPendingBackend) → 整页 ⏳;真业务错误 → 错误文案。
+//   - **真数据**:listInvestmentGoals → Right([2 goals,1 linked to holding.accountId,
+//     1 other account])→ 客户端 filter 后渲染 1 goal + 概览头(总数1/超前或落后)+
+//     该 holding 贡献占比。
+//   - **空态**:Right([])或全属他账户 → 「该账户暂无投资目标」。
+//   - **错误态**:Left(ServerFailure)→ 错误空态(displayMessage)。
+//   - **关联 holding 选择**:同账户 holdings 渲染行(symbol + 市值),当前 holding 标记。
+import 'dart:async';
+
 import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -16,6 +17,7 @@ import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
+import 'package:yucai_client/holding/domain/entities/goal_view_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
@@ -25,6 +27,7 @@ class _MockHoldingRepo extends Mock implements HoldingRepository {}
 
 Holding _holding({
   String id = 'h1',
+  String accountId = 'a1',
   String symbol = 'AAPL',
   String name = 'Apple Inc.',
   SecurityType type = SecurityType.stock,
@@ -33,7 +36,7 @@ Holding _holding({
 }) =>
     Holding(
       id: id,
-      accountId: 'a1',
+      accountId: accountId,
       securityId: 's1',
       securityName: name,
       securitySymbol: symbol,
@@ -47,13 +50,35 @@ Holding _holding({
       currency: currency,
     );
 
-/// harness:注入 HoldingBloc(mock repo)。listHoldings 由 [holdingsResult]
-/// 控制(Right([holdings]) 成功 / Left(failure) ⏳ 降级路径)。
-Widget _harness({required _MockHoldingRepo repo}) {
+GoalView _goal({
+  String id = 'g1',
+  String name = '退休金',
+  String? linkedAccountId = 'a1',
+  int targetCents = 20000000, // ¥200,000.00
+  int currentCents = 12000000, // ¥120,000.00
+  double progressPct = 60.0,
+  bool isCompleted = false,
+}) =>
+    GoalView(
+      id: id,
+      name: name,
+      targetCents: targetCents,
+      currentCents: currentCents,
+      progressPct: progressPct,
+      linkedAccountId: linkedAccountId,
+      isCompleted: isCompleted,
+    );
+
+/// harness:注入 HoldingBloc(mock repo,供 picker 的 listHoldings)+ 直接传
+/// [holding] 与 [goalRepo](goal 区 FutureBuilder 调 listInvestmentGoals)。
+Widget _harness({
+  required _MockHoldingRepo repo,
+  required Holding holding,
+}) {
   return MaterialApp(
     home: BlocProvider<HoldingBloc>(
       create: (_) => HoldingBloc(repo),
-      child: const GoalLinkPage(),
+      child: GoalLinkPage(holding: holding, goalRepo: repo),
     ),
   );
 }
@@ -64,7 +89,7 @@ void _stubHoldings(_MockHoldingRepo repo, List<Holding> holdings) {
 }
 
 void main() {
-  // 高视口:让 ListView 一次性构建全部子项(概览 + goal 区 + picker + API note),
+  // 高视口:让 ListView 一次性构建全部子项(概览 + goal 卡片 + picker + impl note),
   // 避免懒加载导致底部子项断言失败。
   Future<void> setViewport(WidgetTester t) async {
     t.view.physicalSize = const Size(800, 1800);
@@ -73,105 +98,186 @@ void main() {
     addTearDown(t.view.resetDevicePixelRatio);
   }
 
-  testWidgets('renders ⏳D goal empty state in overview + goal list region '
-      'when holdings loaded', (t) async {
+  testWidgets(
+      'renders filtered goals + overview + contribution when goals loaded',
+      (t) async {
     await setViewport(t);
-    // 核心断言:holdings ✅ 加载,但 goal 区因 proto 无 goal RPC 恒为 ⏳D 空态。
     final repo = _MockHoldingRepo();
+    // listInvestmentGoals 返回 2 个 investment goal:1 个 linked 到 holding.accountId,
+    // 1 个属他账户(客户端 filter 应只渲染前者)。
+    when(() => repo.listInvestmentGoals()).thenAnswer((_) async => dartz.Right([
+          _goal(
+              id: 'g1',
+              name: '退休金',
+              linkedAccountId: 'a1', // == holding.accountId
+              targetCents: 20000000,
+              currentCents: 12000000,
+              progressPct: 60.0),
+          _goal(
+              id: 'g2',
+              name: '换车基金',
+              linkedAccountId: 'a2', // 他账户 → 被 filter 掉
+              progressPct: 90.0),
+        ]));
     _stubHoldings(repo, [_holding()]);
 
-    await t.pumpWidget(_harness(repo: repo));
+    await t.pumpWidget(_harness(
+      repo: repo,
+      holding: _holding(marketValueCents: 10000000), // $100,000.00
+    ));
     await t.pumpAndSettle();
 
-    // ① 概览头 3 列 ⏳ 占位(无 goal 数据,显示 —)。
+    // ① 概览头:总数=1 / 落后=1(progress 60% < 80%)。
     expect(find.byKey(const ValueKey('goalOverviewTotal')), findsOneWidget);
-    expect(find.byKey(const ValueKey('goalOverviewOver')), findsOneWidget);
+    expect(find.text('1'), findsWidgets); // total=1, behind=1
     expect(find.byKey(const ValueKey('goalOverviewBehind')), findsOneWidget);
-    expect(find.text('—'), findsNWidgets(3));
 
-    // ② goal 列表区 ⏳D 空态(hourglass + 标题 + 文案)。
-    expect(find.byKey(const ValueKey('goalPendingIcon')), findsOneWidget);
-    expect(find.byKey(const ValueKey('goalPendingTitle')), findsOneWidget);
-    expect(find.text('⏳D 待后端'), findsOneWidget);
-    expect(find.byKey(const ValueKey('goalPendingHint1')), findsOneWidget);
-    expect(find.text('holding-backed goals 数据源待 goal.proto'), findsOneWidget);
-
-    // ④ API 标注(⏳ D 徽标容器可见)。
-    expect(find.byKey(const ValueKey('apiNote')), findsOneWidget);
+    // ② goal 卡片:只渲染 g1(g2 被 client filter 掉)。
+    expect(find.byKey(const ValueKey('goalRow-g1')), findsOneWidget);
+    expect(find.byKey(const ValueKey('goalRow-g2')), findsNothing);
+    expect(find.text('退休金'), findsOneWidget);
+    expect(find.byKey(const ValueKey('goalRowName-g1')), findsOneWidget);
+    // 进度 60.0%。
+    expect(find.byKey(const ValueKey('goalRowPct-g1')), findsOneWidget);
+    expect(find.text('60.0%'), findsOneWidget);
+    // 该 holding 贡献占比 = 10000000 / 20000000 * 100 = 50.0%。
+    expect(find.byKey(const ValueKey('goalRowContribution-g1')), findsOneWidget);
+    expect(find.text('50.0%'), findsOneWidget);
+    // current / target(元)渲染。
+    expect(find.byKey(const ValueKey('goalRowCurrent-g1')), findsOneWidget);
+    expect(find.byKey(const ValueKey('goalRowTarget-g1')), findsOneWidget);
+    expect(find.byKey(const ValueKey('goalRowBar-g1')), findsOneWidget);
   });
 
-  testWidgets('renders holding picker rows from loaded holdings (✅)',
+  testWidgets('overview buckets: over(>=100) / onTrack(80-100) / behind(<80)',
       (t) async {
-    // 关联 holding 选择可用 holdings(ListHoldings ✅)。
+    await setViewport(t);
     final repo = _MockHoldingRepo();
+    when(() => repo.listInvestmentGoals()).thenAnswer((_) async => dartz.Right([
+          _goal(id: 'g1', progressPct: 120.0), // 超前
+          _goal(id: 'g2', progressPct: 90.0), // 持平
+          _goal(id: 'g3', progressPct: 50.0), // 落后
+        ]));
+    _stubHoldings(repo, [_holding()]);
+
+    await t.pumpWidget(_harness(repo: repo, holding: _holding()));
+    await t.pumpAndSettle();
+
+    // 总数 3 / 超前 1 / 持平 1 / 落后 1。
+    final total = find.descendant(
+      of: find.byKey(const ValueKey('goalOverviewTotal')),
+      matching: find.text('3'),
+    );
+    final over = find.descendant(
+      of: find.byKey(const ValueKey('goalOverviewOver')),
+      matching: find.text('1'),
+    );
+    final onTrack = find.descendant(
+      of: find.byKey(const ValueKey('goalOverviewOnTrack')),
+      matching: find.text('1'),
+    );
+    final behind = find.descendant(
+      of: find.byKey(const ValueKey('goalOverviewBehind')),
+      matching: find.text('1'),
+    );
+    expect(total, findsOneWidget);
+    expect(over, findsOneWidget);
+    expect(onTrack, findsOneWidget);
+    expect(behind, findsOneWidget);
+  });
+
+  testWidgets('empty goals → 该账户暂无投资目标 empty state', (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    when(() => repo.listInvestmentGoals())
+        .thenAnswer((_) async => const dartz.Right([]));
+    _stubHoldings(repo, [_holding()]);
+
+    await t.pumpWidget(_harness(repo: repo, holding: _holding()));
+    await t.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('goalEmptyIcon')), findsOneWidget);
+    expect(find.byKey(const ValueKey('goalEmptyTitle')), findsOneWidget);
+    expect(find.text('该账户暂无投资目标'), findsOneWidget);
+    // 无 goal 卡片渲染。
+    expect(find.byKey(const ValueKey('goalRow-g1')), findsNothing);
+  });
+
+  testWidgets('goals all linked to other account → empty state (client filter)',
+      (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    when(() => repo.listInvestmentGoals()).thenAnswer((_) async => dartz.Right([
+          _goal(id: 'g1', linkedAccountId: 'a2'), // 他账户
+        ]));
+    _stubHoldings(repo, [_holding()]); // holding.accountId = a1
+
+    await t.pumpWidget(_harness(repo: repo, holding: _holding()));
+    await t.pumpAndSettle();
+
+    // 客户端 filter 后无 goal → 空态。
+    expect(find.text('该账户暂无投资目标'), findsOneWidget);
+    expect(find.byKey(const ValueKey('goalRow-g1')), findsNothing);
+  });
+
+  testWidgets('Left(failure) → error state with displayMessage', (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    when(() => repo.listInvestmentGoals()).thenAnswer((_) async =>
+        const dartz.Left(ServerFailure('goal service down')));
+    _stubHoldings(repo, [_holding()]);
+
+    await t.pumpWidget(_harness(repo: repo, holding: _holding()));
+    await t.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('goalErrorIcon')), findsOneWidget);
+    expect(find.byKey(const ValueKey('goalErrorTitle')), findsOneWidget);
+    expect(find.text('加载失败'), findsOneWidget);
+    // ServerFailure 无 displayMessage override → 直接返回 message。
+    expect(find.byKey(const ValueKey('goalErrorMessage')), findsOneWidget);
+    expect(find.text('goal service down'), findsOneWidget);
+  });
+
+  testWidgets('renders same-account holdings picker with current holding marked',
+      (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    when(() => repo.listInvestmentGoals())
+        .thenAnswer((_) async => const dartz.Right([]));
     _stubHoldings(repo, [
-      _holding(id: 'h1', symbol: 'AAPL', name: 'Apple Inc.', marketValueCents: 1750000),
-      _holding(id: 'h2', symbol: 'MSFT', name: 'Microsoft', marketValueCents: 3200000),
+      _holding(id: 'h1', symbol: 'AAPL', accountId: 'a1', marketValueCents: 1750000),
+      _holding(id: 'h2', symbol: 'MSFT', accountId: 'a1', marketValueCents: 3200000),
+      _holding(id: 'h3', symbol: 'BABA', accountId: 'a2', marketValueCents: 9900000),
     ]);
 
-    await t.pumpWidget(_harness(repo: repo));
+    await t.pumpWidget(_harness(repo: repo, holding: _holding(id: 'h1')));
     await t.pumpAndSettle();
 
-    // 关联选择区标题 + ✅ holdings 徽标。
-    expect(find.text('关联持仓选择'), findsOneWidget);
-    expect(find.byKey(const ValueKey('pickerHint')), findsOneWidget);
-    // 两行 holding 渲染(symbol + 市值)。
+    // 同账户(a1)的两行渲染;a2 的 BABA 被 client filter 掉。
     expect(find.byKey(const ValueKey('holdingRow-h1')), findsOneWidget);
     expect(find.byKey(const ValueKey('holdingRow-h2')), findsOneWidget);
+    expect(find.byKey(const ValueKey('holdingRow-h3')), findsNothing);
     expect(find.text('AAPL'), findsOneWidget);
     expect(find.text('MSFT'), findsOneWidget);
-    // 按市值降序:MSFT(3200000) 在前。
-    expect(find.byKey(const ValueKey('holdingRowMv-h1')), findsOneWidget);
-    expect(find.byKey(const ValueKey('holdingRowMv-h2')), findsOneWidget);
+    expect(find.text('BABA'), findsNothing);
+    // 当前 holding 标记。
+    expect(find.text('当前'), findsOneWidget);
   });
 
-  testWidgets('tapping a holding row shows ⏳D goal-backend snackbar', (t) async {
-    // holdings ✅ 可选,但 goal 端 ⏳D → 点击提示关联待后端(诚实降级)。
-    final repo = _MockHoldingRepo();
-    _stubHoldings(repo, [_holding(id: 'h1', symbol: 'AAPL')]);
-
-    await t.pumpWidget(_harness(repo: repo));
-    await t.pumpAndSettle();
-
-    await t.tap(find.byKey(const ValueKey('holdingRow-h1')));
-    await t.pumpAndSettle();
-
-    // SnackBar 提示关联目标待 goal.proto。
-    expect(find.textContaining('关联目标 ⏳D 待 goal.proto'), findsOneWidget);
-  });
-
-  testWidgets('empty holdings list shows picker empty state', (t) async {
-    final repo = _MockHoldingRepo();
-    _stubHoldings(repo, const []);
-
-    await t.pumpWidget(_harness(repo: repo));
-    await t.pumpAndSettle();
-
-    // goal 区仍 ⏳D 空态。
-    expect(find.text('⏳D 待后端'), findsOneWidget);
-    // 关联选择区空态(无可关联持仓)。
-    expect(find.byKey(const ValueKey('pickerEmptyIcon')), findsOneWidget);
-    expect(find.byKey(const ValueKey('pickerEmptyTitle')), findsOneWidget);
-    expect(find.text('暂无可关联持仓'), findsOneWidget);
-  });
-
-  testWidgets('HoldingError(listHoldings fail) shows real business error state',
+  testWidgets('loading state shows circular indicator before future resolves',
       (t) async {
-    // listHoldings fail → HoldingError(非 isPendingBackend,bloc _onLoadHoldings
-    // 对 listHoldings fail 不标 isPendingBackend;仅 detail trades 才标)。
-    // → 错误文案 + displayMessage(ServerFailure → 网络错误：...)。
+    await setViewport(t);
     final repo = _MockHoldingRepo();
-    when(() => repo.listHoldings(accountId: any(named: 'accountId')))
-        .thenAnswer((_) async =>
-            const dartz.Left(ServerFailure('network disconnected')));
+    // 永不完成的 future → 卡在 loading。
+    final completer = Completer<dartz.Either<Failure, List<GoalView>>>();
+    when(() => repo.listInvestmentGoals())
+        .thenAnswer((_) => completer.future);
+    _stubHoldings(repo, [_holding()]);
 
-    await t.pumpWidget(_harness(repo: repo));
-    await t.pumpAndSettle();
+    await t.pumpWidget(_harness(repo: repo, holding: _holding()));
+    await t.pump();
 
-    expect(find.text('加载失败'), findsOneWidget);
-    // ServerFailure 用默认 displayMessage = message(无 override)。
-    expect(find.text('network disconnected'), findsOneWidget);
-    // goal 区局部空态此时不渲染(整页错误态)。
-    expect(find.byKey(const ValueKey('goalPendingTitle')), findsNothing);
+    expect(find.byKey(const ValueKey('goalLoading')), findsOneWidget);
+    expect(find.text('加载投资目标…'), findsOneWidget);
   });
 }

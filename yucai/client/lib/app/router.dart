@@ -29,6 +29,7 @@ import 'package:yucai_client/debt/presentation/pages/debts_page.dart';
 import 'package:yucai_client/debt/presentation/pages/receivable_detail_page.dart';
 import 'package:yucai_client/debt/presentation/pages/receivable_form_page.dart';
 import 'package:yucai_client/debt/presentation/pages/receivables_page.dart';
+import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_event.dart';
@@ -438,28 +439,52 @@ GoRouter buildRouter(AuthBloc authBloc) {
                   ),
                   GoRoute(
                     path: 'goals',
-                    // 目标关联(Task 10):holding.proto 无 goal RPC,整页 ⏳D 空态,
-                    // 仅关联 holding 选择可从已加载 holdings 渲染。
-                    builder: (_, __) => MultiBlocProvider(
-                      providers: [
-                        BlocProvider<HoldingBloc>(
-                          create: (_) {
-                            final b = HoldingBloc(getIt<HoldingRepository>());
-                            b.add(const LoadHoldingsRequested());
-                            return b;
-                          },
+                    // 目标关联(holding-D,Task 11):从 holding 详情进,extra 传
+                    // holding(含 accountId + marketValueCents);goal 区走
+                    // GoalLinkPage.goalRepo.listInvestmentGoals + 客户端 filter
+                    // linked_account=holding.accountId。
+                    builder: (_, state) {
+                      final holding = state.extra is Map
+                          ? (state.extra as Map)['holding'] as Holding?
+                          : null;
+                      return MultiBlocProvider(
+                        providers: [
+                          BlocProvider<HoldingBloc>(
+                            create: (_) {
+                              final b = HoldingBloc(getIt<HoldingRepository>());
+                              b.add(const LoadHoldingsRequested());
+                              return b;
+                            },
+                          ),
+                          BlocProvider<CurrencyBloc>(
+                            create: (_) {
+                              final b = getIt<CurrencyBloc>();
+                              b.add(const LoadCurrenciesRequested());
+                              b.add(const LoadPreferencesRequested());
+                              return b;
+                            },
+                          ),
+                        ],
+                        child: GoalLinkPage(
+                          // 持仓未传(开发期保护):退化用一个空 holding 占位,UI 仍可
+                          // 渲染(goal 区 loading → 空/数据)。生产路径应恒传 holding。
+                          holding: holding ??
+                              const Holding(
+                                id: '',
+                                accountId: '',
+                                securityId: '',
+                                securityName: '',
+                                securitySymbol: '',
+                                quantity: 0,
+                                avgCostCents: 0,
+                                marketValueCents: 0,
+                                unrealizedPnlCents: 0,
+                                version: 0,
+                              ),
+                          goalRepo: getIt<HoldingRepository>(),
                         ),
-                        BlocProvider<CurrencyBloc>(
-                          create: (_) {
-                            final b = getIt<CurrencyBloc>();
-                            b.add(const LoadCurrenciesRequested());
-                            b.add(const LoadPreferencesRequested());
-                            return b;
-                          },
-                        ),
-                      ],
-                      child: const GoalLinkPage(),
-                    ),
+                      );
+                    },
                   ),
                   GoRoute(
                     path: 'trade',
