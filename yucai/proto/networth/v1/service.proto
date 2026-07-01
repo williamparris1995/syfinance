@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package yucai.networth.v1;
+
+option go_package = "github.com/yucai/server/internal/proto/networth/v1";
+
+// NetWorthService aggregates account balances + holding market value − debt
+// remaining for a tenant, 折算 to a configurable base currency via the CNY-base
+// rate_history cross rate.
+service NetWorthService {
+  // GetNetWorth returns the tenant's total assets, total liabilities and net
+  // worth (assets − liabilities), all converted to base_currency (empty/CNY →
+  // CNY). Best-effort: a failing source port is logged and skipped; the
+  // remaining sources still contribute.
+  rpc GetNetWorth(GetNetWorthRequest) returns (GetNetWorthResponse);
+}
+
+message GetNetWorthRequest {
+  // base_currency is the target currency to 折算 into. Empty (or "CNY") means
+  // no conversion — sources sum raw. Users may set their preferred base (e.g.
+  // "USD"); the server resolves the CNY→base cross rate server-side.
+  string base_currency = 1;
+}
+
+message GetNetWorthResponse {
+  int64 total_assets_cents = 1;
+  int64 total_liabilities_cents = 2;
+  int64 net_worth_cents = 3;
+  string currency = 4;
+}
