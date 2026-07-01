@@ -993,11 +993,21 @@ func (s *Service) GetHoldingPerformance(ctx context.Context, holdingID uuid.UUID
 	// Realized for this holding: Σ trade.realized where trade.securityID = holding.securityID
 	// within the same (tenant, account), 折算 to base.
 	realized, _ := s.aggregateRealizedForSecurity(ctx, h.TenantID, &h.AccountID, &h.SecurityID, base)
-	// Unrealized (current).
-	unrealized := h.UnrealizedPnL(sec.CurrentPriceCents)
+	// Unrealized (current), 折算 to base (mirrors GetPortfolioPerformance/currentUnrealizedInBase
+	// so TotalCents is base+base, not base+原币 — spec §4.4 + I-1).
+	rateBase := 1.0
+	if s.rateRepo != nil {
+		rateBase, _ = s.rateRepo.FindRate(ctx, base, time.Now())
+	}
+	rateFrom := 1.0
+	if s.rateRepo != nil && sec.CurrencyCode != "" {
+		rateFrom, _ = s.rateRepo.FindRate(ctx, sec.CurrencyCode, time.Now())
+	}
+	unrealizedRaw := h.UnrealizedPnL(sec.CurrentPriceCents)
+	unrealized := currencydomain.ConvertToBase(unrealizedRaw, rateFrom, rateBase)
 	return &HoldingPerformance{
 		PricePoints: pts, RealizedCents: realized, UnrealizedCents: unrealized,
-		TotalCents: realized + unrealized, Currency: sec.CurrencyCode,
+		TotalCents: realized + unrealized, Currency: base,
 	}, nil
 }
 

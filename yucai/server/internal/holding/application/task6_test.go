@@ -553,6 +553,56 @@ func TestGetHoldingPerformancePriceCurveAndRealized(t *testing.T) {
 	}
 }
 
+// TestGetHoldingPerformanceCurrencyConversion locks in the I-1 fix: when
+// baseCurrency != holding security currency, unrealized PnL is 折算 to base
+// (not left in 原币) and Currency == base. Concretely: USD-base, a CNY
+// holding with unrealized 6800 cents (CNY) and rate USD=7.0, CNY=1.0 →
+// unrealized in base(USD) = round(6800 * 1.0 / 7.0) = 971. Currency == "USD".
+// TotalCents = realized(base) + unrealized(base) — both in USD, no mixing.
+func TestGetHoldingPerformanceCurrencyConversion(t *testing.T) {
+	tenantID, accountID := uuid.New(), uuid.New()
+	secID, holdingID := uuid.New(), uuid.New()
+	secRepo := newFullSecRepo([]secSeed{
+		{ID: secID, Symbol: "600519", Exchange: "SSE", Type: domain.SecurityTypeStock, Currency: "CNY", CurrentPriceCents: 168},
+	})
+	hr := newMemHoldingRepo()
+	hr.SaveOrUpdate(context.Background(), &domain.Holding{
+		ID: holdingID, TenantID: tenantID, AccountID: accountID, SecurityID: secID,
+		Quantity: 100, AvgCostCents: 100,
+	})
+	phRepo := newMemPriceHistoryRepo(nil)
+	tr := &memTradeRepo{
+		saved: []*domain.HoldingTransaction{
+			// CNY-realized 3000 → base(USD) = round(3000*1.0/7.0) = 429.
+			{TenantID: tenantID, AccountID: accountID, SecurityID: secID,
+				TradeType: domain.TradeTypeSell, RealizedPnLCents: 3000, TradeDate: time.Now()},
+		},
+	}
+	svc := NewService(secRepo, hr, tr)
+	svc.SetPriceHistoryRepository(phRepo)
+	svc.SetRateHistoryRepository(&fakeRateRepo{rateByCode: map[string]float64{"USD": 7.0, "CNY": 1.0}})
+
+	perf, err := svc.GetHoldingPerformance(context.Background(), holdingID, "DAY", "USD")
+	if err != nil {
+		t.Fatalf("GetHoldingPerformance error: %v", err)
+	}
+	if perf.Currency != "USD" {
+		t.Fatalf("currency = %s, want USD (base, not security 原币)", perf.Currency)
+	}
+	// unrealized raw = (168−100)×100 = 6800 CNY → base(USD) = round(6800/7) = 971.
+	if perf.UnrealizedCents != 971 {
+		t.Fatalf("unrealized = %d, want 971 (6800 CNY / 7.0 → USD)", perf.UnrealizedCents)
+	}
+	// realized 3000 CNY → base(USD) = round(3000/7) = 429 (see convertTradeToBase).
+	if perf.RealizedCents != 429 {
+		t.Fatalf("realized = %d, want 429 (3000 CNY / 7.0 → USD)", perf.RealizedCents)
+	}
+	// total = both in USD: 429 + 971 = 1400 (no unit mixing).
+	if perf.TotalCents != 1400 {
+		t.Fatalf("total = %d, want 1400 (realized+unrealized both in USD base)", perf.TotalCents)
+	}
+}
+
 // TestAnnualizedPctSimple verifies the simple annualization formula on a
 // synthetic holding whose created_at is 365.25 days ago.
 func TestAnnualizedPctSimple(t *testing.T) {
