@@ -95,7 +95,10 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 
 	// Budget module
 	budgetRepo := provideBudgetRepo(budgetClient)
-	budgetService := provideBudgetService(budgetRepo)
+	// txnService (declared in the Transaction module above) backs budget's
+	// entryFunc port — SpendingByAccount provides read-time actuals (D-budget
+	// Task 4).
+	budgetService := provideBudgetService(budgetRepo, txnService)
 	budgetHandler := provideBudgetHandler(budgetService)
 
 	// Debt module

@@ -284,8 +284,15 @@ func provideBudgetEntClient(cfg *config.Config) (*budgetent.Client, error) {
 func provideBudgetRepo(client *budgetent.Client) *budgetrepo.BudgetRepository {
 	return budgetrepo.NewBudgetRepository(client)
 }
-func provideBudgetService(repo *budgetrepo.BudgetRepository) *budgetapp.Service {
-	return budgetapp.NewService(repo, nil) // entryFunc nil for now, actuals computed via integration
+// provideBudgetService wires budget's entryFunc to the real transaction
+// spending totals. budget application does NOT import transaction (function-
+// injection port pattern, mirroring D-currency's networth and D-goal's
+// AccountMarketValueSource); wire injects a closure that delegates to
+// txnSvc.SpendingByAccount. Before Task 4 entryFunc was nil, so actuals read 0.
+func provideBudgetService(repo *budgetrepo.BudgetRepository, txnSvc *txnapp.Service) *budgetapp.Service {
+	return budgetapp.NewService(repo, func(ctx context.Context, accountID uuid.UUID, from, to time.Time) (int64, int64, error) {
+		return txnSvc.SpendingByAccount(ctx, accountID, from, to)
+	})
 }
 func provideBudgetHandler(svc *budgetapp.Service) *budgetgrpc.BudgetHandler {
 	return budgetgrpc.NewBudgetHandler(svc)
