@@ -100,7 +100,9 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 
 	// Debt module
 	debtRepo := provideDebtRepo(debtClient)
-	debtService := provideDebtService(debtRepo)
+	// accountRepo is injected into debtService so SumRemainingByCurrency can
+	// resolve each debt's currency from its parent account (D-currency Task 8).
+	debtService := provideDebtService(debtRepo, accountRepo)
 	debtHandler := provideDebtHandler(debtService, txnService, accountRepo)
 
 	// Goal module
@@ -147,6 +149,15 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	goalService := provideGoalService(goalRepo, holdingService)
 	goalHandler := provideGoalHandler(goalService)
 
+	// Networth module: aggregates account balances + holding market value −
+	// debt remaining, 折算 to a base currency via CNY-base rate_history cross
+	// rates. The three application Services satisfy the source ports
+	// structurally (Sum*ByCurrency, D-currency Task 5); currencyRateHistoryRepo
+	// is reused from the Holding module above (declared there for the
+	// holdingRateAdapter). log is nil → service falls back to slog.Default().
+	networthService := provideNetWorthService(accountService, holdingService, debtService, currencyRateHistoryRepo, nil)
+	networthHandler := provideNetWorthHandler(networthService)
+
 	// Backup module
 	backupRepo := provideBackupRepo(backupClient)
 	localCloudProvider := provideLocalCloudProvider(cfg)
@@ -187,6 +198,6 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	// gRPC server
 	grpcSrv := provideGRPCServer(ts)
 
-	app := NewApp(cfg, log, grpcSrv, tenantRepo, userRepo, accountService, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler, holdingHandler, holdingService, backupHandler, syncHandler, currencyHandler, currencyScheduler, currencyService, priceScheduler, snapshotScheduler, goalScheduler)
+	app := NewApp(cfg, log, grpcSrv, tenantRepo, userRepo, accountService, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler, holdingHandler, holdingService, backupHandler, syncHandler, currencyHandler, currencyScheduler, currencyService, priceScheduler, snapshotScheduler, goalScheduler, networthHandler)
 	return app, nil
 }

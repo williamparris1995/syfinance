@@ -30,6 +30,7 @@ import (
 	syncpb "github.com/yucai/server/internal/proto/sync/v1"
 	currencyapp "github.com/yucai/server/internal/currency/application"
 	currencypb "github.com/yucai/server/internal/proto/currency/v1"
+	networthpb "github.com/yucai/server/internal/proto/networth/v1"
 	"github.com/yucai/server/pkg/config"
 	"github.com/yucai/server/wire"
 )
@@ -113,6 +114,7 @@ func main() {
 	backuppb.RegisterBackupServiceServer(app.GRPCServer, app.BackupHandler)
 	syncpb.RegisterSyncServiceServer(app.GRPCServer, app.SyncHandler)
 	currencypb.RegisterCurrencyServiceServer(app.GRPCServer, app.CurrencyHandler)
+	networthpb.RegisterNetWorthServiceServer(app.GRPCServer, app.NetWorthHandler)
 
 	// Start gRPC server
 	addr := fmt.Sprintf(":%s", cfg.GRPCPort)

@@ -3,6 +3,7 @@ package wire
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
@@ -34,8 +35,11 @@ import (
 	currencyrepo "github.com/yucai/server/internal/currency/adapter/driven/repository"
 	currencygrpc "github.com/yucai/server/internal/currency/adapter/driving/grpc"
 	currencyapp "github.com/yucai/server/internal/currency/application"
+	currencydomain "github.com/yucai/server/internal/currency/domain"
 	currencyent "github.com/yucai/server/internal/currency/ent"
 	"github.com/yucai/server/internal/currency/scheduler"
+	networthgrpc "github.com/yucai/server/internal/networth/adapter/driving/grpc"
+	networthapp "github.com/yucai/server/internal/networth/application"
 	debtrepo "github.com/yucai/server/internal/debt/adapter/driven/repository"
 	debtgrpc "github.com/yucai/server/internal/debt/adapter/driving/grpc"
 	debtapp "github.com/yucai/server/internal/debt/application"
@@ -302,8 +306,16 @@ func provideDebtEntClient(cfg *config.Config) (*debtent.Client, error) {
 func provideDebtRepo(client *debtent.Client) *debtrepo.DebtRepository {
 	return debtrepo.NewDebtRepository(client)
 }
-func provideDebtService(repo *debtrepo.DebtRepository) *debtapp.Service {
-	return debtapp.NewService(repo)
+// provideDebtService constructs the debt service and injects the account
+// lookup used by SumRemainingByCurrency to resolve each debt's currency from
+// its parent account (DebtDetails has no CurrencyCode field). Without this,
+// every debt bucket defaults to CNY — D-currency Task 8 wire requirement.
+// *accountrepo.AccountRepository structurally satisfies debtapp.AccountLookup
+// (FindByID(ctx, tenantID, id) (*accountdomain.Account, error) — exact match).
+func provideDebtService(repo *debtrepo.DebtRepository, accountRepo *accountrepo.AccountRepository) *debtapp.Service {
+	svc := debtapp.NewService(repo)
+	svc.SetAccountLookup(accountRepo)
+	return svc
 }
 func provideDebtHandler(svc *debtapp.Service, txnSvc *txnapp.Service, accountLookup txnapp.AccountLookup) *debtgrpc.DebtHandler {
 	return debtgrpc.NewDebtHandler(svc, txnSvc, accountLookup)
@@ -646,6 +658,34 @@ func provideSnapshotScheduler(svc *holdingapp.Service, src holdingscheduler.Inte
 func provideGoalScheduler(svc *goalapp.Service, tenantRepo *authrepo.TenantRepository) *goalscheduler.Scheduler {
 	src := tenantIntervalSource{tr: tenantRepo}
 	return goalscheduler.NewScheduler(svc, tenantRepo, src, 1*time.Hour, nil)
+}
+
+// Networth providers
+//
+// provideNetWorthService wires the three source ports (account/holding/debt
+// application Services — each structurally implements the corresponding networth
+// domain port via its Sum*ByCurrency method, D-currency Task 5) plus the
+// currency RateHistoryRepository (CNY-base rates for cross-currency conversion).
+// *currencyrepo.RateHistoryRepository structurally satisfies
+// currencydomain.RateHistoryRepository (FindRate/FindRange/Save — exact match),
+// so no adapter is needed (unlike holding, which needs the slice→map adapter).
+// log is passed as nil: networth application.Service falls back to slog.Default()
+// (already configured by provideLogger via logger.Setup at the top of InitializeApp).
+func provideNetWorthService(
+	accountSvc *accountapp.Service,
+	holdingSvc *holdingapp.Service,
+	debtSvc *debtapp.Service,
+	rateRepo currencydomain.RateHistoryRepository,
+	log *slog.Logger,
+) *networthapp.Service {
+	return networthapp.NewService(accountSvc, holdingSvc, debtSvc, rateRepo, log)
+}
+
+// provideNetWorthHandler wraps the networth application Service in its gRPC
+// adapter. Registered on the gRPC server in main.go via
+// pb.RegisterNetWorthServiceServer (D-currency Task 6).
+func provideNetWorthHandler(svc *networthapp.Service) *networthgrpc.NetWorthHandler {
+	return networthgrpc.NewNetWorthHandler(svc)
 }
 
 func provideGRPCServer(ts *authjwt.TokenService) *GRPCServer {
