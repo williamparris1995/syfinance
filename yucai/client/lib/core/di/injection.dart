@@ -1,3 +1,4 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 import 'package:uuid/uuid.dart';
@@ -16,6 +17,13 @@ final getIt = GetIt.instance;
 Future<void> configureDependencies() async {
   // 1. Manual registration: the gRPC construction cycle.
   getIt.registerSingleton<AppConfig>(AppConfig.fromEnvironment());
+
+  // 1a. FlutterSecureStorage is a third-party type (no @module in this app),
+  //     so register it manually. CurrencySettings (@LazySingleton) constructor-
+  //     injects it; resolving it here before getIt.init() lets the generated
+  //     factory find it. TokenStorage uses its own FlutterSecureStorage instance
+  //     created internally, so this registration is dedicated to CurrencySettings.
+  getIt.registerSingleton<FlutterSecureStorage>(const FlutterSecureStorage());
 
   final tokenStorage = TokenStorage();
   getIt.registerSingleton<TokenStorage>(tokenStorage);

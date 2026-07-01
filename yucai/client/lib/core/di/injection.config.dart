@@ -9,6 +9,7 @@
 // coverage:ignore-file
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
+import 'package:flutter_secure_storage/flutter_secure_storage.dart' as _i558;
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
 
@@ -35,6 +36,7 @@ import '../../auth/domain/usecases/register_usecase.dart' as _i246;
 import '../../auth/presentation/bloc/auth_bloc.dart' as _i946;
 import '../../currency/data/currency_remote_ds.dart' as _i386;
 import '../../currency/data/currency_repository_impl.dart' as _i254;
+import '../../currency/data/currency_settings.dart' as _i61;
 import '../../currency/data/mappers/currency_mapper.dart' as _i380;
 import '../../currency/domain/repositories/currency_repository.dart' as _i108;
 import '../../currency/presentation/bloc/currency_bloc.dart' as _i284;
@@ -98,6 +100,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i763.AuthRetryCaller>(),
         gh<_i994.AccountMapper>(),
       ),
+    );
+    gh.lazySingleton<_i61.CurrencySettings>(
+      () => _i61.CurrencySettings(gh<_i558.FlutterSecureStorage>()),
     );
     gh.lazySingleton<_i937.AuthRepository>(
       () => _i648.AuthRepositoryImpl(
