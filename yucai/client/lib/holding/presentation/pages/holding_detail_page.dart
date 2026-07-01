@@ -8,7 +8,7 @@
 //   ④ 交易历史(ListHoldingTransactions ⏳ → isPendingBackend 空态 + "⏳ 待后端";
 //             trades 非空 → buy/sell/dividend/split 筛选 + 列表)
 //   ⑤ 配置占比环图(复用 HoldingPieChart,单持仓切片 = 该持仓占自身 100%)
-//   ⑥ 关联目标卡(goal ⏳ 空态,holding.proto 无 goal RPC)
+//   ⑥ 关联目标卡(导航入口 → /holdings/goals · GoalLinkPage Task 11 接真)
 //   ⑦ 操作按钮(buy/sell/dividend/split → trade_sheet_page)
 //
 // 照搬御财 debt_detail_page.dart:StatefulWidget + initState dispatch
@@ -155,7 +155,7 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
         const SizedBox(height: 16),
         _allocationCard(h),
         const SizedBox(height: 16),
-        _goalCard(),
+        _goalCard(h),
       ],
     );
   }
@@ -895,72 +895,51 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
     );
   }
 
-  // ───────────────────────── ⑥ 关联目标 ─────────────────────────
+  // ───────────────────────── ⑥ 关联目标(导航入口 → /holdings/goals) ─────
 
-  /// 关联目标卡(⏳ 空态)。holding.proto 无 goal RPC → 始终显示空态
-  /// 「⏳ 关联目标待后端」。Task 10 真接入后改为 goal 数据驱动。
-  Widget _goalCard() {
+  /// 关联目标卡(导航入口)。点击 → push `/holdings/goals`,extra 注入 holding。
+  /// Task 11(D-goal)已实现 GoalLinkPage(真 listInvestmentGoals + 占比/进度),
+  /// 此处为详情页的进入入口(替换原 ⏳D 空态存根)。
+  Widget _goalCard(Holding h) {
     return DataCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      key: const ValueKey('detailGoalCard'),
+      onTap: () => context.push('/holdings/goals', extra: {'holding': h}),
+      child: Row(
         children: [
-          Row(
-            children: [
-              const Icon(LucideIcons.gem, size: 14, color: AppColors.accent),
-              const SizedBox(width: 6),
-              const Text('关联目标',
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: AppTypography.displayFamily,
-                      fontFamilyFallback: AppTypography.displayFallback)),
-              const SizedBox(width: 8),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.accentSoft,
-                  borderRadius: BorderRadius.circular(9999),
-                ),
-                child: const Text('⏳ D',
-                    style: TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.accentHover)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
           Container(
-            padding: const EdgeInsets.symmetric(vertical: 22),
-            decoration: const BoxDecoration(
-              color: Color(0xFFFBFAF6),
-              borderRadius: BorderRadius.all(Radius.circular(AppRadius.sm)),
-              border: Border.fromBorderSide(BorderSide(color: AppColors.border)),
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.accentSoft,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(LucideIcons.hourglass,
-                      key: ValueKey('detailGoalEmpty'),
-                      size: 22,
-                      color: AppColors.muted),
-                  const SizedBox(height: 6),
-                  const Text('⏳ 关联目标待后端',
-                      key: ValueKey('detailGoalPendingTitle'),
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.fg)),
-                  const SizedBox(height: 3),
-                  const Text('holding.proto 无 goal RPC · 投资目标关联待接入',
-                      style: TextStyle(
-                          fontSize: 11.5, color: AppColors.muted)),
-                ],
-              ),
+            child: const Icon(LucideIcons.gem,
+                key: ValueKey('detailGoalIcon'),
+                size: 18,
+                color: AppColors.accent),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('关联目标',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: AppTypography.displayFamily,
+                        fontFamilyFallback: AppTypography.displayFallback)),
+                SizedBox(height: 3),
+                Text('查看本持仓目标进度',
+                    key: ValueKey('detailGoalSubtitle'),
+                    style: TextStyle(fontSize: 12.5, color: AppColors.muted)),
+              ],
             ),
           ),
+          const Icon(LucideIcons.chevronRight,
+              key: ValueKey('detailGoalChevron'),
+              size: 18,
+              color: AppColors.muted),
         ],
       ),
     );

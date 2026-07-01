@@ -13,6 +13,7 @@ import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
@@ -273,7 +274,8 @@ void main() {
     expect(find.byKey(const ValueKey('actBtn-split')), findsOneWidget);
   });
 
-  testWidgets('renders allocation pie + goal ⏳ empty state', (t) async {
+  testWidgets('renders allocation pie + goal nav card (Task 11: 接导航入口)',
+      (t) async {
     await setViewport(t);
     final repo = _MockHoldingRepo();
     final holding = _holding();
@@ -290,10 +292,67 @@ void main() {
     // ⑤ 配置占比:type 标签。
     expect(find.text('配置占比'), findsOneWidget);
     expect(find.byKey(const ValueKey('detailAllocType')), findsOneWidget);
-    // ⑥ 关联目标 ⏳ 空态(holding.proto 无 goal RPC)。
+    // ⑥ 关联目标卡(导航入口 → /holdings/goals,Task 11 接真替换 ⏳D 存根)。
     expect(find.text('关联目标'), findsOneWidget);
-    expect(find.byKey(const ValueKey('detailGoalPendingTitle')), findsOneWidget);
-    expect(find.text('⏳ 关联目标待后端'), findsOneWidget);
+    expect(find.byKey(const ValueKey('detailGoalCard')), findsOneWidget);
+    expect(find.byKey(const ValueKey('detailGoalSubtitle')), findsOneWidget);
+    expect(find.text('查看本持仓目标进度'), findsOneWidget);
+    expect(find.byKey(const ValueKey('detailGoalChevron')), findsOneWidget);
+    // 原 ⏳D 存根内容应已彻底移除。
+    expect(find.byKey(const ValueKey('detailGoalPendingTitle')), findsNothing);
+    expect(find.text('⏳ 关联目标待后端'), findsNothing);
+    expect(find.text('⏳ D'), findsNothing);
+  });
+
+  // Task 11(D-goal):详情页 _goalCard 是 GoalLinkPage 的进入入口。
+  // 点击 → push '/holdings/goals' + extra={'holding': holding}。
+  // 用 GoRouter harness 验证导航(plain MaterialApp 无 GoRouter 祖先时
+  // context.push 会 assert-fail,故此处包一层带 stub 路由的 router)。
+  testWidgets('tapping 关联目标 card pushes /holdings/goals with holding extra',
+      (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    final holding = _holding();
+    _stubHolding(repo, holding);
+    _stubCurve(repo);
+    when(() => repo.listHoldingTransactions(
+            accountId: any(named: 'accountId'),
+            securityId: any(named: 'securityId')))
+        .thenAnswer((_) async => dartz.Right(_trades));
+
+    Object? pushedExtra;
+    final router = GoRouter(
+      initialLocation: '/holdings/${holding.id}',
+      routes: [
+        // 字面量 goals 路由必须先于 :id 通配,否则 "goals" 会被 :id 捕获。
+        GoRoute(
+          path: '/holdings/goals',
+          builder: (_, state) {
+            pushedExtra = state.extra;
+            return const Scaffold(body: Center(child: Text('GOAL_LINK_STUB')));
+          },
+        ),
+        GoRoute(
+          path: '/holdings/:id',
+          builder: (_, __) => BlocProvider<HoldingBloc>(
+            create: (_) => HoldingBloc(repo),
+            child: HoldingDetailPage(id: holding.id),
+          ),
+        ),
+      ],
+    );
+
+    await t.pumpWidget(MaterialApp.router(routerConfig: router));
+    await t.pumpAndSettle();
+
+    await t.ensureVisible(find.byKey(const ValueKey('detailGoalCard')));
+    await t.tap(find.byKey(const ValueKey('detailGoalCard')));
+    await t.pumpAndSettle();
+
+    // 导航发生:GoalLinkPage stub 文案出现 + extra 携带 holding。
+    expect(find.text('GOAL_LINK_STUB'), findsOneWidget);
+    expect(pushedExtra, isA<Map<String, dynamic>>());
+    expect((pushedExtra as Map<String, dynamic>)['holding'], same(holding));
   });
 
   testWidgets('curve range tab switch updates selected range', (t) async {
