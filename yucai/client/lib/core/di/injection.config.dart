@@ -34,6 +34,9 @@ import '../../auth/domain/usecases/logout_usecase.dart' as _i231;
 import '../../auth/domain/usecases/refresh_token_usecase.dart' as _i752;
 import '../../auth/domain/usecases/register_usecase.dart' as _i246;
 import '../../auth/presentation/bloc/auth_bloc.dart' as _i946;
+import '../../budget/data/budget_remote_ds.dart' as _i749;
+import '../../budget/data/budget_repository_impl.dart' as _i364;
+import '../../budget/domain/repositories/budget_repository.dart' as _i665;
 import '../../currency/data/currency_remote_ds.dart' as _i386;
 import '../../currency/data/currency_repository_impl.dart' as _i254;
 import '../../currency/data/currency_settings.dart' as _i61;
@@ -111,6 +114,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i382.TokenStorage>(),
       ),
     );
+    gh.lazySingleton<_i749.BudgetRemoteDataSource>(
+      () => _i749.BudgetRemoteDataSource(
+        gh<_i160.GrpcClient>(),
+        gh<_i763.AuthRetryCaller>(),
+      ),
+    );
     gh.lazySingleton<_i243.DebtRemoteDataSource>(
       () => _i243.DebtRemoteDataSource(
         gh<_i160.GrpcClient>(),
@@ -157,6 +166,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i620.HoldingRemoteDataSource>(),
         gh<_i616.GoalViewDataSource>(),
       ),
+    );
+    gh.lazySingleton<_i665.BudgetRepository>(
+      () => _i364.BudgetRepositoryImpl(gh<_i749.BudgetRemoteDataSource>()),
     );
     gh.lazySingleton<_i270.AccountRepository>(
       () => _i725.AccountRepositoryImpl(gh<_i414.AccountRemoteDataSource>()),
