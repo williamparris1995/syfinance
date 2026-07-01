@@ -4,15 +4,18 @@ import 'package:grpc/grpc.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/holding/data/goal_view_ds.dart';
 import 'package:yucai_client/holding/data/holding_remote_ds.dart';
 import 'package:yucai_client/holding/data/holding_repository_impl.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
 
 class _MockRemote extends Mock implements HoldingRemoteDataSource {}
+class _MockGoalViewDs extends Mock implements GoalViewDataSource {}
 
 void main() {
   late _MockRemote remote;
+  late _MockGoalViewDs goalViewDs;
   late HoldingRepositoryImpl repo;
 
   final sampleHolding = Holding(
@@ -52,7 +55,8 @@ void main() {
 
   setUp(() {
     remote = _MockRemote();
-    repo = HoldingRepositoryImpl(remote);
+    goalViewDs = _MockGoalViewDs();
+    repo = HoldingRepositoryImpl(remote, goalViewDs);
     registerFallbackValue(SecurityType.stock);
   });
 

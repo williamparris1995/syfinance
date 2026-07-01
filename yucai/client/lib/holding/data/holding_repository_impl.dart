@@ -3,7 +3,9 @@ import 'package:grpc/grpc.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/holding/data/goal_view_ds.dart';
 import 'package:yucai_client/holding/data/holding_remote_ds.dart';
+import 'package:yucai_client/holding/domain/entities/goal_view_entity.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/entities/performance_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
@@ -11,9 +13,10 @@ import 'package:yucai_client/holding/domain/value_objects.dart';
 
 @LazySingleton(as: HoldingRepository)
 class HoldingRepositoryImpl implements HoldingRepository {
-  HoldingRepositoryImpl(this._remote);
+  HoldingRepositoryImpl(this._remote, this._goalViewDs);
 
   final HoldingRemoteDataSource _remote;
+  final GoalViewDataSource _goalViewDs;
 
   // —— 查询 ——
   @override
@@ -174,6 +177,11 @@ class HoldingRepositoryImpl implements HoldingRepository {
             holdingId: holdingId,
             range: range,
           ));
+
+  // —— 投资目标关联(Task 10,holding-D 跨模块 goal gRPC)——
+  @override
+  Future<Either<Failure, List<GoalView>>> listInvestmentGoals() =>
+      _guard(() => _goalViewDs.listInvestmentGoals());
 
   // Maps thrown GrpcError/exceptions to Failure, wrapping the op in Either.
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {

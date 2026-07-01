@@ -1,5 +1,6 @@
 import 'package:dartz/dartz.dart';
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/holding/domain/entities/goal_view_entity.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/entities/performance_entity.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
@@ -16,8 +17,9 @@ import 'package:yucai_client/holding/domain/value_objects.dart';
 ///   非 ratioFrom/ratioTo 整数对。
 /// - recordDividend / recordSplit 含 accountId(proto field 1)。
 ///
-/// holding.proto **无** goal RPC / DTO → 本接口不含 goal 方法
-/// (goal 数据源待定 ⏳,Task 10 空态用;GoalLink 为纯前端展示模型)。
+/// holding.proto **无** goal RPC / DTO;holding 关联 goal 的场景(投资目标
+/// 下拉)走跨模块 goal gRPC(GoalViewDataSource),repo 暴露 listInvestmentGoals
+/// 透传 GoalView 列表(客户端 filter linked_account 留 Task 11)。
 abstract class HoldingRepository {
   // —— 查询 ——
   Future<Either<Failure, List<Holding>>> listHoldings({String? accountId});
@@ -97,4 +99,9 @@ abstract class HoldingRepository {
     required String holdingId,
     required String range,
   });
+
+  // —— 投资目标关联(Task 10,holding-D 跨模块 goal gRPC)——
+  /// 取所有 investment goals(server 按 type=INVESTMENT filter)。
+  /// 调用方按 linked_account 客户端 filter(首批,investment goals 少)。
+  Future<Either<Failure, List<GoalView>>> listInvestmentGoals();
 }
