@@ -680,3 +680,137 @@ func TestAggregateRealizedDefaultBaseCNY(t *testing.T) {
 		t.Fatalf("aggregateRealized('') = %d, want 1000 (default CNY, no conversion)", got)
 	}
 }
+
+// --- D-currency Task 3: GetPortfolioPerformance baseCurrency switch ---
+
+// TestGetPortfolioPerformanceBaseCurrency verifies the portfolio performance
+// foot is 折算 to the configured baseCurrency via the CNY-base cross rate
+// (ConvertToBase). seed: a CNY holding (mv=10000/day, cost 10000, unrealized
+// 6800) + a USD holding (mv=5000/day, cost 19500, unrealized 0); rates
+// USD=7.0, CNY=1.0. Tests three base configurations:
+//
+//   - base=CNY:  portfolio point=450.00, realized=5500, unrealized=6800,
+//     costBasis=146500, Currency="CNY".
+//   - base=USD:  CNY holding cross-rate 折算 (÷7) + USD holding raw;
+//     portfolio point≈64.29, realized=786, unrealized=971, costBasis=20929,
+//     Currency="USD".
+//   - base="":   defaults to CNY, Currency="CNY".
+//
+// This exercises the full base-switching path (samplePortfolioInBase,
+// currentUnrealizedInBase, currentCostBasisInBase, aggregateRealized) and the
+// Currency=base assertion (non-hardcoded CNY).
+func TestGetPortfolioPerformanceBaseCurrency(t *testing.T) {
+	tenantID, accountID := uuid.New(), uuid.New()
+	cnySecID, usdSecID, cnyHoldingID, usdHoldingID := uuid.New(), uuid.New(), uuid.New(), uuid.New()
+	secRepo := newFullSecRepo([]secSeed{
+		{ID: cnySecID, Symbol: "600519", Exchange: "SSE", Type: domain.SecurityTypeStock, Currency: "CNY", CurrentPriceCents: 168},
+		{ID: usdSecID, Symbol: "AAPL", Exchange: "NASDAQ", Type: domain.SecurityTypeStock, Currency: "USD", CurrentPriceCents: 19500},
+	})
+	day1 := truncateToDate(time.Now().AddDate(0, 0, -1))
+	day2 := truncateToDate(time.Now())
+	snapRepo := &memSnapshotRepo{
+		saved: []domain.HoldingSnapshot{
+			{TenantID: tenantID, HoldingID: cnyHoldingID, SecurityID: cnySecID, AccountID: accountID,
+				SnapshotDate: day1, MarketValueCents: 10000, CurrencyCode: "CNY"},
+			{TenantID: tenantID, HoldingID: cnyHoldingID, SecurityID: cnySecID, AccountID: accountID,
+				SnapshotDate: day2, MarketValueCents: 10000, CurrencyCode: "CNY"},
+			{TenantID: tenantID, HoldingID: usdHoldingID, SecurityID: usdSecID, AccountID: accountID,
+				SnapshotDate: day1, MarketValueCents: 5000, CurrencyCode: "USD"},
+			{TenantID: tenantID, HoldingID: usdHoldingID, SecurityID: usdSecID, AccountID: accountID,
+				SnapshotDate: day2, MarketValueCents: 5000, CurrencyCode: "USD"},
+		},
+	}
+	hr := newMemHoldingRepo()
+	hr.SaveOrUpdate(context.Background(), &domain.Holding{
+		ID: cnyHoldingID, TenantID: tenantID, AccountID: accountID, SecurityID: cnySecID,
+		Quantity: 100, AvgCostCents: 100, CreatedAt: time.Now().AddDate(0, 0, -1),
+	})
+	hr.SaveOrUpdate(context.Background(), &domain.Holding{
+		ID: usdHoldingID, TenantID: tenantID, AccountID: accountID, SecurityID: usdSecID,
+		Quantity: 1, AvgCostCents: 19500, CreatedAt: time.Now().AddDate(0, 0, -1),
+	})
+	tr := &memTradeRepo{
+		saved: []*domain.HoldingTransaction{
+			{TenantID: tenantID, AccountID: accountID, SecurityID: cnySecID,
+				TradeType: domain.TradeTypeSell, RealizedPnLCents: 2000, TradeDate: time.Now()},
+			{TenantID: tenantID, AccountID: accountID, SecurityID: usdSecID,
+				TradeType: domain.TradeTypeDividend, AmountCents: 500, TradeDate: time.Now()},
+		},
+	}
+	rateRepo := &fakeRateRepo{rateByCode: map[string]float64{"USD": 7.0, "CNY": 1.0}}
+
+	newSvc := func() *Service {
+		svc := NewService(secRepo, hr, tr)
+		svc.SetSnapshotRepository(snapRepo)
+		svc.SetRateHistoryRepository(rateRepo)
+		return svc
+	}
+
+	// --- base = CNY (direct: CNY raw, USD ×7) ---
+	perfCNY, err := newSvc().GetPortfolioPerformance(context.Background(), tenantID, &accountID, "DAY", false, "CNY")
+	if err != nil {
+		t.Fatalf("GetPortfolioPerformance(CNY) error: %v", err)
+	}
+	if perfCNY.Currency != "CNY" {
+		t.Fatalf("base=CNY: Currency = %s, want CNY", perfCNY.Currency)
+	}
+	for i, p := range perfCNY.PortfolioPoints {
+		if p.Value != 450.00 {
+			t.Fatalf("base=CNY: portfolio point[%d] = %.2f, want 450.00", i, p.Value)
+		}
+	}
+	if perfCNY.RealizedCents != 5500 {
+		t.Fatalf("base=CNY: realized = %d, want 5500", perfCNY.RealizedCents)
+	}
+	if perfCNY.UnrealizedCents != 6800 {
+		t.Fatalf("base=CNY: unrealized = %d, want 6800", perfCNY.UnrealizedCents)
+	}
+	if perfCNY.TotalCents != 12300 {
+		t.Fatalf("base=CNY: total = %d, want 12300", perfCNY.TotalCents)
+	}
+
+	// --- base = USD (cross-rate via CNY base: CNY ÷7, USD raw) ---
+	// CNY holding mv 10000 → ConvertToBase(10000, 1.0, 7.0) = 1429.
+	// USD holding mv 5000 → ConvertToBase(5000, 7.0, 7.0) = 5000. point = 6429/100 = 64.29.
+	perfUSD, err := newSvc().GetPortfolioPerformance(context.Background(), tenantID, &accountID, "DAY", false, "USD")
+	if err != nil {
+		t.Fatalf("GetPortfolioPerformance(USD) error: %v", err)
+	}
+	if perfUSD.Currency != "USD" {
+		t.Fatalf("base=USD: Currency = %s, want USD", perfUSD.Currency)
+	}
+	for i, p := range perfUSD.PortfolioPoints {
+		if p.Value != 64.29 {
+			t.Fatalf("base=USD: portfolio point[%d] = %.2f, want 64.29", i, p.Value)
+		}
+	}
+	// realized: CNY sell 2000 → ConvertToBase(2000,1.0,7.0) = 286; USD div 500 →
+	// ConvertToBase(500,7.0,7.0) = 500. total = 786.
+	if perfUSD.RealizedCents != 786 {
+		t.Fatalf("base=USD: realized = %d, want 786 (286 CNY折算 + 500 USD raw)", perfUSD.RealizedCents)
+	}
+	// unrealized: CNY 6800 → ConvertToBase(6800,1.0,7.0) = 971; USD 0 → 0.
+	if perfUSD.UnrealizedCents != 971 {
+		t.Fatalf("base=USD: unrealized = %d, want 971", perfUSD.UnrealizedCents)
+	}
+	// costBasis: CNY 10000 → 1429; USD 19500 → 19500. total = 20929.
+	// totalPct = (786+971)/20929 × 100 ≈ 8.39.
+	if perfUSD.TotalCents != 1757 {
+		t.Fatalf("base=USD: total = %d, want 1757 (786 + 971)", perfUSD.TotalCents)
+	}
+	if perfUSD.TotalPct < 8.0 || perfUSD.TotalPct > 9.0 {
+		t.Fatalf("base=USD: totalPct = %.4f, want ~8.39", perfUSD.TotalPct)
+	}
+
+	// --- base = "" → default CNY ---
+	perfDef, err := newSvc().GetPortfolioPerformance(context.Background(), tenantID, &accountID, "DAY", false, "")
+	if err != nil {
+		t.Fatalf("GetPortfolioPerformance('') error: %v", err)
+	}
+	if perfDef.Currency != "CNY" {
+		t.Fatalf("base='': Currency = %s, want CNY (default)", perfDef.Currency)
+	}
+	if perfDef.RealizedCents != perfCNY.RealizedCents {
+		t.Fatalf("base='': realized = %d, want %d (same as CNY base)", perfDef.RealizedCents, perfCNY.RealizedCents)
+	}
+}

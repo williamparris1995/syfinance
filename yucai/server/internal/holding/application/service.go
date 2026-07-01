@@ -636,11 +636,18 @@ func (s *Service) BackfillPriceHistory(ctx context.Context, rangeName string) (i
 	return backfilled, nil
 }
 
-// GetPortfolioPerformance builds the portfolio CNY curve + realized/unrealized
-// + annualized + optional CSI300 benchmark.
-func (s *Service) GetPortfolioPerformance(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID, rangeName string, withBenchmark bool) (*PortfolioPerformance, error) {
+// GetPortfolioPerformance builds the portfolio base-currency curve +
+// realized/unrealized + annualized + optional CSI300 benchmark. baseCurrency
+// configures the reporting currency (default "CNY" when empty): all components
+// (curve sample, realized, unrealized, cost basis) are 折算 to base via the
+// CNY-base cross rate (ConvertToBase); out.Currency reflects base.
+func (s *Service) GetPortfolioPerformance(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID, rangeName string, withBenchmark bool, baseCurrency string) (*PortfolioPerformance, error) {
 	if s.snapshotRepo == nil {
 		return nil, fmt.Errorf("portfolio perf: snapshot repo not configured")
+	}
+	base := baseCurrency
+	if base == "" {
+		base = "CNY"
 	}
 	from, to, granularity := curveWindow(rangeName)
 	snaps, err := s.snapshotRepo.FindSnapshots(ctx, tenantID, from, to, accountID, nil)
@@ -648,14 +655,14 @@ func (s *Service) GetPortfolioPerformance(ctx context.Context, tenantID uuid.UUI
 		return nil, fmt.Errorf("portfolio perf: find snapshots: %w", err)
 	}
 	// Sample by granularity: group snapshots by day/month/year bucket, take last per bucket.
-	portPts := s.samplePortfolioCNY(snaps, granularity)
-	// Realized: Σ sell realized + Σ dividend (from trades), 折算 to base (CNY).
-	realized, _ := s.aggregateRealized(ctx, tenantID, accountID, "CNY")
-	// Unrealized (current): Σ current holding unrealized (CNY折算).
-	unrealized := s.currentUnrealizedCNY(ctx, tenantID, accountID)
+	portPts := s.samplePortfolioInBase(snaps, granularity, base)
+	// Realized: Σ sell realized + Σ dividend (from trades), 折算 to base.
+	realized, _ := s.aggregateRealized(ctx, tenantID, accountID, base)
+	// Unrealized (current): Σ current holding unrealized, 折算 to base.
+	unrealized := s.currentUnrealizedInBase(ctx, tenantID, accountID, base)
 	total := realized + unrealized
-	// Cost basis (current): Σ qty×avgCost (CNY) — for total %.
-	costBasis := s.currentCostBasisCNY(ctx, tenantID, accountID)
+	// Cost basis (current): Σ qty×avgCost, 折算 to base — for total %.
+	costBasis := s.currentCostBasisInBase(ctx, tenantID, accountID, base)
 	totalPct := 0.0
 	if costBasis != 0 {
 		totalPct = float64(total) / float64(costBasis) * 100
@@ -663,7 +670,7 @@ func (s *Service) GetPortfolioPerformance(ctx context.Context, tenantID uuid.UUI
 	annualized := s.annualizedPct(ctx, total, costBasis, tenantID)
 	out := &PortfolioPerformance{
 		PortfolioPoints: portPts, RealizedCents: realized, UnrealizedCents: unrealized,
-		TotalCents: total, AnnualizedPct: annualized, TotalPct: totalPct, Currency: "CNY",
+		TotalCents: total, AnnualizedPct: annualized, TotalPct: totalPct, Currency: base,
 	}
 	if withBenchmark {
 		out.BenchmarkName = "沪深300"
@@ -672,11 +679,20 @@ func (s *Service) GetPortfolioPerformance(ctx context.Context, tenantID uuid.UUI
 	return out, nil
 }
 
-// samplePortfolioCNY groups snapshots by granularity bucket (day/month/year),
-// takes the last snapshot per holding per bucket, sums to portfolio market
-// value per bucket date,折算 each holding's original currency to CNY via rate
-// history. CNY holdings assume rate=1.0.
-func (s *Service) samplePortfolioCNY(snaps []domain.HoldingSnapshot, granularity string) []CurvePointDTO {
+// samplePortfolioInBase groups snapshots by granularity bucket
+// (day/month/year), takes the last snapshot per holding per bucket, sums to
+// portfolio market value per bucket date,折算 each holding's original currency
+// to baseCurrency via CNY-base cross rate (ConvertToBase). baseCurrency
+// defaults to CNY when empty; holdings whose currency equals base stay raw.
+func (s *Service) samplePortfolioInBase(snaps []domain.HoldingSnapshot, granularity string, baseCurrency string) []CurvePointDTO {
+	base := baseCurrency
+	if base == "" {
+		base = "CNY"
+	}
+	rateBase := 1.0
+	if s.rateRepo != nil {
+		rateBase, _ = s.rateRepo.FindRate(context.Background(), base, time.Now())
+	}
 	// bucket key = truncated date; collect last snapshot per (holding, bucket).
 	type key struct {
 		holding uuid.UUID
@@ -690,14 +706,15 @@ func (s *Service) samplePortfolioCNY(snaps []domain.HoldingSnapshot, granularity
 			last[k] = sn
 		}
 	}
-	// sum market value per bucket date,折算 each holding's currency to CNY.
+	// sum market value per bucket date,折算 each holding's currency to base.
 	byDate := map[time.Time]int64{}
 	for _, sn := range last {
-		rate := 1.0
-		if s.rateRepo != nil && sn.CurrencyCode != "CNY" {
-			rate, _ = s.rateRepo.FindRate(context.Background(), sn.CurrencyCode, sn.SnapshotDate)
+		rateFrom := 1.0
+		if s.rateRepo != nil && sn.CurrencyCode != "" {
+			rateFrom, _ = s.rateRepo.FindRate(context.Background(), sn.CurrencyCode, sn.SnapshotDate)
 		}
-		byDate[bucketOf(sn.SnapshotDate, granularity)] += int64(float64(sn.MarketValueCents) * rate)
+		converted := currencydomain.ConvertToBase(sn.MarketValueCents, rateFrom, rateBase)
+		byDate[bucketOf(sn.SnapshotDate, granularity)] += converted
 	}
 	// sorted points (double value in 元).
 	dates := make([]time.Time, 0, len(byDate))
@@ -751,7 +768,7 @@ func (s *Service) aggregateRealized(ctx context.Context, tenantID uuid.UUID, acc
 			if tr.TradeType == domain.TradeTypeDividend {
 				amount = tr.AmountCents // dividend as realized income
 			}
-			sum += s.convertTradeToBase(ctx, amount, tr.SecurityID, tr.TradeDate, rateBase)
+			sum += s.convertTradeToBase(ctx, amount, tr.SecurityID, tr.TradeDate, rateBase, base)
 		}
 		if res.NextPageToken == "" || len(res.Items) == 0 {
 			break
@@ -784,7 +801,7 @@ func (s *Service) aggregateRealizedForSecurity(ctx context.Context, tenantID uui
 			if tr.TradeType == domain.TradeTypeDividend {
 				amount = tr.AmountCents
 			}
-			sum += s.convertTradeToBase(ctx, amount, tr.SecurityID, tr.TradeDate, rateBase)
+			sum += s.convertTradeToBase(ctx, amount, tr.SecurityID, tr.TradeDate, rateBase, base)
 		}
 		if res.NextPageToken == "" || len(res.Items) == 0 {
 			break
@@ -795,10 +812,11 @@ func (s *Service) aggregateRealizedForSecurity(ctx context.Context, tenantID uui
 }
 
 // convertTradeToBase 折算 a single trade amount to base, looking up the
-// security's currency code + the from-rate at tradeDate (照 samplePortfolioCNY /
-// currentUnrealizedCNY 模式). Missing security or rate → 1.0 (graceful, no
-// conversion).
-func (s *Service) convertTradeToBase(ctx context.Context, amount int64, securityID uuid.UUID, tradeDate time.Time, rateBase float64) int64 {
+// security's currency code + the from-rate at tradeDate (照 samplePortfolioInBase
+// / currentUnrealizedInBase 模式). Missing security or rate → 1.0 (graceful, no
+// conversion). If the security's currency equals base, the amount is returned
+// unchanged (same currency, no conversion needed).
+func (s *Service) convertTradeToBase(ctx context.Context, amount int64, securityID uuid.UUID, tradeDate time.Time, rateBase float64, base string) int64 {
 	if amount == 0 || s.rateRepo == nil {
 		return amount
 	}
@@ -806,16 +824,25 @@ func (s *Service) convertTradeToBase(ctx context.Context, amount int64, security
 	if err != nil || sec == nil {
 		return amount // security missing → no conversion (best-effort)
 	}
-	if sec.CurrencyCode == "" || sec.CurrencyCode == "CNY" {
-		return amount // base currency, no conversion needed
+	if sec.CurrencyCode == "" || sec.CurrencyCode == base {
+		return amount // same currency as base, no conversion needed
 	}
 	rateFrom, _ := s.rateRepo.FindRate(ctx, sec.CurrencyCode, tradeDate)
 	return currencydomain.ConvertToBase(amount, rateFrom, rateBase)
 }
 
-// currentUnrealizedCNY sums the current unrealized P&L across all holdings,
-// 折算 each holding's currency to CNY via rate history (CNY=1.0).
-func (s *Service) currentUnrealizedCNY(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID) int64 {
+// currentUnrealizedInBase sums the current unrealized P&L across all holdings,
+// 折算 each holding's currency to baseCurrency via CNY-base cross rate
+// (ConvertToBase). baseCurrency defaults to CNY when empty (rate=1.0).
+func (s *Service) currentUnrealizedInBase(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID, baseCurrency string) int64 {
+	base := baseCurrency
+	if base == "" {
+		base = "CNY"
+	}
+	rateBase := 1.0
+	if s.rateRepo != nil {
+		rateBase, _ = s.rateRepo.FindRate(ctx, base, time.Now())
+	}
 	var sum int64
 	page := domain.PageRequest{PageSize: 100}
 	for {
@@ -829,11 +856,11 @@ func (s *Service) currentUnrealizedCNY(ctx context.Context, tenantID uuid.UUID, 
 				continue
 			}
 			pnl := h.UnrealizedPnL(sec.CurrentPriceCents)
-			rate := 1.0
-			if s.rateRepo != nil && sec.CurrencyCode != "CNY" {
-				rate, _ = s.rateRepo.FindRate(ctx, sec.CurrencyCode, time.Now())
+			rateFrom := 1.0
+			if s.rateRepo != nil && sec.CurrencyCode != "" {
+				rateFrom, _ = s.rateRepo.FindRate(ctx, sec.CurrencyCode, time.Now())
 			}
-			sum += int64(float64(pnl) * rate)
+			sum += currencydomain.ConvertToBase(pnl, rateFrom, rateBase)
 		}
 		if res.NextPageToken == "" || len(res.Items) == 0 {
 			break
@@ -843,9 +870,18 @@ func (s *Service) currentUnrealizedCNY(ctx context.Context, tenantID uuid.UUID, 
 	return sum
 }
 
-// currentCostBasisCNY sums the current cost basis (qty × avgCost) across all
-// holdings,折算 each holding's currency to CNY via rate history (CNY=1.0).
-func (s *Service) currentCostBasisCNY(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID) int64 {
+// currentCostBasisInBase sums the current cost basis (qty × avgCost) across all
+// holdings,折算 each holding's currency to baseCurrency via CNY-base cross rate
+// (ConvertToBase). baseCurrency defaults to CNY when empty (rate=1.0).
+func (s *Service) currentCostBasisInBase(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID, baseCurrency string) int64 {
+	base := baseCurrency
+	if base == "" {
+		base = "CNY"
+	}
+	rateBase := 1.0
+	if s.rateRepo != nil {
+		rateBase, _ = s.rateRepo.FindRate(ctx, base, time.Now())
+	}
 	var sum int64
 	page := domain.PageRequest{PageSize: 100}
 	for {
@@ -859,11 +895,11 @@ func (s *Service) currentCostBasisCNY(ctx context.Context, tenantID uuid.UUID, a
 				continue
 			}
 			basis := int64(math.Round(float64(h.AvgCostCents) * h.Quantity))
-			rate := 1.0
-			if s.rateRepo != nil && sec.CurrencyCode != "CNY" {
-				rate, _ = s.rateRepo.FindRate(ctx, sec.CurrencyCode, time.Now())
+			rateFrom := 1.0
+			if s.rateRepo != nil && sec.CurrencyCode != "" {
+				rateFrom, _ = s.rateRepo.FindRate(ctx, sec.CurrencyCode, time.Now())
 			}
-			sum += int64(float64(basis) * rate)
+			sum += currencydomain.ConvertToBase(basis, rateFrom, rateBase)
 		}
 		if res.NextPageToken == "" || len(res.Items) == 0 {
 			break
@@ -923,9 +959,18 @@ func (s *Service) benchmarkCurve(ctx context.Context, rangeName string) []CurveP
 
 // GetHoldingPerformance builds a single-holding curve (original-currency price
 // from price_history) + this holding's realized + current unrealized.
-func (s *Service) GetHoldingPerformance(ctx context.Context, holdingID uuid.UUID, rangeName string) (*HoldingPerformance, error) {
+// baseCurrency configures the foot reporting currency (default "CNY" when
+// empty): realized is 折算 to base via aggregateRealizedForSecurity. The price
+// curve stays in the security's original currency (single-holding display);
+// unrealized is left in original currency for the same reason. out.Currency
+// reflects the security's original currency (curve/foot currency).
+func (s *Service) GetHoldingPerformance(ctx context.Context, holdingID uuid.UUID, rangeName string, baseCurrency string) (*HoldingPerformance, error) {
 	if s.priceHistoryRepo == nil {
 		return nil, fmt.Errorf("holding perf: price history repo not configured")
+	}
+	base := baseCurrency
+	if base == "" {
+		base = "CNY"
 	}
 	from, to, _ := curveWindow(rangeName)
 	h, err := s.holdingRepo.FindByID(ctx, holdingID)
@@ -946,8 +991,8 @@ func (s *Service) GetHoldingPerformance(ctx context.Context, holdingID uuid.UUID
 		pts = append(pts, CurvePointDTO{Time: p.PriceDate, Value: float64(p.PriceCents) / 100.0})
 	}
 	// Realized for this holding: Σ trade.realized where trade.securityID = holding.securityID
-	// within the same (tenant, account), 折算 to base (CNY).
-	realized, _ := s.aggregateRealizedForSecurity(ctx, h.TenantID, &h.AccountID, &h.SecurityID, "CNY")
+	// within the same (tenant, account), 折算 to base.
+	realized, _ := s.aggregateRealizedForSecurity(ctx, h.TenantID, &h.AccountID, &h.SecurityID, base)
 	// Unrealized (current).
 	unrealized := h.UnrealizedPnL(sec.CurrentPriceCents)
 	return &HoldingPerformance{

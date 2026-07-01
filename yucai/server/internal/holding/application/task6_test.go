@@ -417,7 +417,7 @@ func TestGetPortfolioPerformanceSamplesAndConverts(t *testing.T) {
 	svc.SetSnapshotRepository(snapRepo)
 	svc.SetRateHistoryRepository(&fakeRateRepo{rateByCode: map[string]float64{"USD": 7.0}})
 
-	perf, err := svc.GetPortfolioPerformance(context.Background(), tenantID, &accountID, "DAY", false)
+	perf, err := svc.GetPortfolioPerformance(context.Background(), tenantID, &accountID, "DAY", false, "CNY")
 	if err != nil {
 		t.Fatalf("GetPortfolioPerformance error: %v", err)
 	}
@@ -474,7 +474,7 @@ func TestGetPortfolioPerformanceWithBenchmark(t *testing.T) {
 	svc.SetSnapshotRepository(&memSnapshotRepo{})             // no snapshots → empty portfolio curve
 	svc.SetPriceHistoryRepository(phRepo)
 
-	perf, err := svc.GetPortfolioPerformance(context.Background(), tenantID, &accountID, "DAY", true)
+	perf, err := svc.GetPortfolioPerformance(context.Background(), tenantID, &accountID, "DAY", true, "CNY")
 	if err != nil {
 		t.Fatalf("GetPortfolioPerformance error: %v", err)
 	}
@@ -527,7 +527,7 @@ func TestGetHoldingPerformancePriceCurveAndRealized(t *testing.T) {
 	svc := NewService(secRepo, hr, tr)
 	svc.SetPriceHistoryRepository(phRepo)
 
-	perf, err := svc.GetHoldingPerformance(context.Background(), holdingID, "DAY")
+	perf, err := svc.GetHoldingPerformance(context.Background(), holdingID, "DAY", "CNY")
 	if err != nil {
 		t.Fatalf("GetHoldingPerformance error: %v", err)
 	}
