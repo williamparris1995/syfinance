@@ -32,6 +32,8 @@ class BudgetDTO extends $pb.GeneratedMessage {
     $fixnum.Int64? version,
     $2.Timestamp? createdAt,
     $2.Timestamp? updatedAt,
+    $fixnum.Int64? totalActualCents,
+    $core.double? usagePct,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -43,6 +45,8 @@ class BudgetDTO extends $pb.GeneratedMessage {
     if (version != null) result.version = version;
     if (createdAt != null) result.createdAt = createdAt;
     if (updatedAt != null) result.updatedAt = updatedAt;
+    if (totalActualCents != null) result.totalActualCents = totalActualCents;
+    if (usagePct != null) result.usagePct = usagePct;
     return result;
   }
 
@@ -71,6 +75,8 @@ class BudgetDTO extends $pb.GeneratedMessage {
         subBuilder: $2.Timestamp.create)
     ..aOM<$2.Timestamp>(9, _omitFieldNames ? '' : 'updatedAt',
         subBuilder: $2.Timestamp.create)
+    ..aInt64(10, _omitFieldNames ? '' : 'totalActualCents')
+    ..aD(11, _omitFieldNames ? '' : 'usagePct')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -175,6 +181,24 @@ class BudgetDTO extends $pb.GeneratedMessage {
   void clearUpdatedAt() => $_clearField(9);
   @$pb.TagNumber(9)
   $2.Timestamp ensureUpdatedAt() => $_ensure(8);
+
+  @$pb.TagNumber(10)
+  $fixnum.Int64 get totalActualCents => $_getI64(9);
+  @$pb.TagNumber(10)
+  set totalActualCents($fixnum.Int64 value) => $_setInt64(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasTotalActualCents() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearTotalActualCents() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.double get usagePct => $_getN(10);
+  @$pb.TagNumber(11)
+  set usagePct($core.double value) => $_setDouble(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasUsagePct() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearUsagePct() => $_clearField(11);
 }
 
 class BudgetItemDTO extends $pb.GeneratedMessage {

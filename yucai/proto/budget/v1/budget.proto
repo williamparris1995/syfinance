@@ -30,6 +30,8 @@ message BudgetDTO {
   int64 version = 7;
   google.protobuf.Timestamp created_at = 8;
   google.protobuf.Timestamp updated_at = 9;
+  int64 total_actual_cents = 10;  // D-budget: read-time computed actuals (list page progress)
+  double usage_pct = 11;          // D-budget: total_actual/total_amount %
 }
 
 message BudgetItemDTO {

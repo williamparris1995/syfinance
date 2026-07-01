@@ -48,6 +48,14 @@ const BudgetDTO$json = {
       '6': '.google.protobuf.Timestamp',
       '10': 'updatedAt'
     },
+    {
+      '1': 'total_actual_cents',
+      '3': 10,
+      '4': 1,
+      '5': 3,
+      '10': 'totalActualCents'
+    },
+    {'1': 'usage_pct', '3': 11, '4': 1, '5': 1, '10': 'usagePct'},
   ],
 };
 
@@ -58,7 +66,9 @@ final $typed_data.Uint8List budgetDTODescriptor = $convert.base64Decode(
     'ZW50cxIjCg1jdXJyZW5jeV9jb2RlGAUgASgJUgxjdXJyZW5jeUNvZGUSGwoJaXNfYWN0aXZlGA'
     'YgASgIUghpc0FjdGl2ZRIYCgd2ZXJzaW9uGAcgASgDUgd2ZXJzaW9uEjkKCmNyZWF0ZWRfYXQY'
     'CCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wUgljcmVhdGVkQXQSOQoKdXBkYXRlZF'
-    '9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBSCXVwZGF0ZWRBdA==');
+    '9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBSCXVwZGF0ZWRBdBIsChJ0b3Rh'
+    'bF9hY3R1YWxfY2VudHMYCiABKANSEHRvdGFsQWN0dWFsQ2VudHMSGwoJdXNhZ2VfcGN0GAsgAS'
+    'gBUgh1c2FnZVBjdA==');
 
 @$core.Deprecated('Use budgetItemDTODescriptor instead')
 const BudgetItemDTO$json = {
