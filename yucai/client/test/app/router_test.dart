@@ -10,6 +10,7 @@
 // getIt<TransactionRepository>() resolves. AccountRepository is registered too
 // because TransactionFormPage / TransactionDetailPage read it.
 import 'package:dartz/dartz.dart' as dartz;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -41,6 +42,7 @@ import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/pages/debts_page.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
+import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/debt/presentation/pages/receivables_page.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
@@ -55,6 +57,16 @@ class _MockLogin extends Mock implements LoginUseCase {}
 class _MockRegister extends Mock implements RegisterUseCase {}
 class _MockProfile extends Mock implements GetProfileUseCase {}
 class _MockLogout extends Mock implements LogoutUseCase {}
+
+class _FakeCurrencySettings extends Fake implements CurrencySettings {
+  final ValueNotifier<String> _notifier = ValueNotifier<String>('CNY');
+  @override
+  ValueListenable<String> get listenable => _notifier;
+  @override
+  String get value => 'CNY';
+  @override
+  Future<String> getBaseCurrency() async => 'CNY';
+}
 
 /// Fake CurrencyBloc — DebtDetailPage / DebtsPage / ReceivablesPage /
 /// ReceivableDetailPage all context.watch it for preferred-currency conversion.
@@ -90,6 +102,10 @@ void main() {
     getIt.registerSingleton<TransactionRepository>(txnRepo);
     getIt.registerSingleton<DebtRepository>(debtRepo);
     getIt.registerSingleton<HoldingRepository>(holdingRepo);
+    // HomePage reads CurrencySettings from getIt (Task 12 D-currency +
+    // cross-page refresh listener in initState). Register a fake so the home
+    // branch resolves without pulling in the full DI graph.
+    getIt.registerSingleton<CurrencySettings>(_FakeCurrencySettings());
     // Routes create a fresh CurrencyBloc via getIt<CurrencyBloc>() (router.dart
     // /debts, /debts/:id, /receivables, /receivables/:id, /accounts, /settings).
     // Register a factory returning a fake so those route builders resolve;

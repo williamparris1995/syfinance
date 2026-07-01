@@ -116,8 +116,8 @@ class SettingsPage extends StatelessWidget {
   }
 
   /// 本位币切换(Task 12 D-currency):持久化到 CurrencySettings.setBaseCurrency
-  /// → toast 提示「下次进入收益统计/详情即生效」。不直接刷新当前页(home /
-  /// performance / detail 在各自 initState 读 baseCurrency,下次进入即用新值)。
+  /// → notifier 通知所有打开页面(home / performance / detail)立即用新值重取
+  /// → toast 提示「已更新」。
   Future<void> _onBaseCurrencyChanged(
     BuildContext context,
     String code,
@@ -127,7 +127,7 @@ class SettingsPage extends StatelessWidget {
       await settings.setBaseCurrency(code);
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('本位币已更新，下次进入收益统计即生效')),
+        const SnackBar(content: Text('本位币已更新')),
       );
     } catch (e) {
       if (!context.mounted) return;
@@ -322,10 +322,9 @@ class _BaseCurrencyDropdown extends StatelessWidget {
                 ))
             .toList();
 
-    return FutureBuilder<String>(
-      future: settings.getBaseCurrency(),
-      builder: (context, snap) {
-        final base = snap.data ?? CurrencySettings.defaultBaseCurrency;
+    return ValueListenableBuilder<String>(
+      valueListenable: settings.listenable,
+      builder: (context, base, _) {
         // base 不在选项内 → 回退到首个(DropdownButton.value 必须是 items 之一)。
         final value = codes.contains(base) ? base : codes.first;
         return SizedBox(

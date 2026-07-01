@@ -32,9 +32,22 @@ func TestConvertToBaseMissingRateFallback(t *testing.T) {
 }
 
 func TestConvertToBaseRounding(t *testing.T) {
-	// 34.80 × 7 / 1 = 243.6 → round 244(浮点防护)
-	got := ConvertToBase(3480, 7.0, 1.0) // 3480 cents × 7 = 24360
-	if got != 24360 {
-		t.Fatalf("rounding: got %d, want 24360", got)
+	// math.Round rounds half away from zero. Cover the .5 boundary the
+	// previous version of this test missed (it used 3480×7=24360, an exact
+	// integer that never exercised rounding).
+	// 5 × 1.0 / 2.0 = 2.5 → 3 (positive half rounds up)
+	got := ConvertToBase(5, 1.0, 2.0)
+	if got != 3 {
+		t.Fatalf("positive .5: got %d, want 3", got)
+	}
+	// -5 × 1.0 / 2.0 = -2.5 → -3 (negative half rounds down — unrealized loss)
+	got = ConvertToBase(-5, 1.0, 2.0)
+	if got != -3 {
+		t.Fatalf("negative .5: got %d, want -3", got)
+	}
+	// 7 × 1.0 / 2.0 = 3.5 → 4 (confirm boundary is consistent, not a one-off)
+	got = ConvertToBase(7, 1.0, 2.0)
+	if got != 4 {
+		t.Fatalf("positive .5 (3.5): got %d, want 4", got)
 	}
 }

@@ -36,9 +36,12 @@ func (h *NetWorthHandler) GetNetWorth(ctx context.Context, req *pb.GetNetWorthRe
 		return nil, status.Error(codes.Unauthenticated, err.Error())
 	}
 
+	// The service is best-effort (failing source ports are logged and skipped
+	// internally), so this branch is effectively unreachable; map defensively
+	// rather than drop the error on the floor.
 	res, err := h.service.GetNetWorth(ctx, tenantID, req.GetBaseCurrency())
 	if err != nil {
-		return nil, mapError(err)
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return &pb.GetNetWorthResponse{
@@ -52,25 +55,4 @@ func (h *NetWorthHandler) GetNetWorth(ctx context.Context, req *pb.GetNetWorthRe
 func getTenantID(ctx context.Context) (uuid.UUID, error) {
 	_, tenantID, err := authgrpc.GetUserAndTenantIDFromContext(ctx)
 	return tenantID, err
-}
-
-func mapError(err error) error {
-	msg := err.Error()
-	switch {
-	case contains(msg, "not found"):
-		return status.Error(codes.NotFound, msg)
-	case contains(msg, "invalid"), contains(msg, "must"):
-		return status.Error(codes.InvalidArgument, msg)
-	default:
-		return status.Error(codes.Internal, msg)
-	}
-}
-
-func contains(s, sub string) bool {
-	for i := 0; i <= len(s)-len(sub); i++ {
-		if s[i:i+len(sub)] == sub {
-			return true
-		}
-	}
-	return false
 }

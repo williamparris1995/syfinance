@@ -689,10 +689,7 @@ func (s *Service) samplePortfolioInBase(snaps []domain.HoldingSnapshot, granular
 	if base == "" {
 		base = "CNY"
 	}
-	rateBase := 1.0
-	if s.rateRepo != nil {
-		rateBase, _ = s.rateRepo.FindRate(context.Background(), base, time.Now())
-	}
+	rateBase := s.rateForBase(context.Background(), base)
 	// bucket key = truncated date; collect last snapshot per (holding, bucket).
 	type key struct {
 		holding uuid.UUID
@@ -709,10 +706,7 @@ func (s *Service) samplePortfolioInBase(snaps []domain.HoldingSnapshot, granular
 	// sum market value per bucket date,折算 each holding's currency to base.
 	byDate := map[time.Time]int64{}
 	for _, sn := range last {
-		rateFrom := 1.0
-		if s.rateRepo != nil && sn.CurrencyCode != "" {
-			rateFrom, _ = s.rateRepo.FindRate(context.Background(), sn.CurrencyCode, sn.SnapshotDate)
-		}
+		rateFrom := s.rateForCode(context.Background(), sn.CurrencyCode, sn.SnapshotDate)
 		converted := currencydomain.ConvertToBase(sn.MarketValueCents, rateFrom, rateBase)
 		byDate[bucketOf(sn.SnapshotDate, granularity)] += converted
 	}
@@ -752,10 +746,7 @@ func (s *Service) aggregateRealized(ctx context.Context, tenantID uuid.UUID, acc
 	if base == "" {
 		base = "CNY"
 	}
-	rateBase := 1.0
-	if s.rateRepo != nil {
-		rateBase, _ = s.rateRepo.FindRate(ctx, base, time.Now())
-	}
+	rateBase := s.rateForBase(ctx, base)
 	var sum int64
 	page := domain.PageRequest{PageSize: 200}
 	for {
@@ -785,10 +776,7 @@ func (s *Service) aggregateRealizedForSecurity(ctx context.Context, tenantID uui
 	if base == "" {
 		base = "CNY"
 	}
-	rateBase := 1.0
-	if s.rateRepo != nil {
-		rateBase, _ = s.rateRepo.FindRate(ctx, base, time.Now())
-	}
+	rateBase := s.rateForBase(ctx, base)
 	var sum int64
 	page := domain.PageRequest{PageSize: 200}
 	for {
@@ -811,6 +799,25 @@ func (s *Service) aggregateRealizedForSecurity(ctx context.Context, tenantID uui
 	return sum, nil
 }
 
+// rateForCode returns the CNY-base rate for [code] at [date] (1 unit of code
+// = X CNY), or 1.0 when rateRepo is unset, [code] is empty, or the rate is
+// missing — the graceful-fallback idiom repeated across D-currency. Used as
+// rateFrom in ConvertToBase(amount, rateFrom, rateBase).
+func (s *Service) rateForCode(ctx context.Context, code string, date time.Time) float64 {
+	if s.rateRepo == nil || code == "" {
+		return 1.0
+	}
+	r, _ := s.rateRepo.FindRate(ctx, code, date)
+	return r
+}
+
+// rateForBase returns the current CNY-base rate for the base currency [base]
+// (the denominator in cross-rate ConvertToBase). 1.0 fallback when rateRepo is
+// unset or the rate is missing.
+func (s *Service) rateForBase(ctx context.Context, base string) float64 {
+	return s.rateForCode(ctx, base, time.Now())
+}
+
 // convertTradeToBase 折算 a single trade amount to base, looking up the
 // security's currency code + the from-rate at tradeDate (照 samplePortfolioInBase
 // / currentUnrealizedInBase 模式). Missing security or rate → 1.0 (graceful, no
@@ -827,7 +834,7 @@ func (s *Service) convertTradeToBase(ctx context.Context, amount int64, security
 	if sec.CurrencyCode == "" || sec.CurrencyCode == base {
 		return amount // same currency as base, no conversion needed
 	}
-	rateFrom, _ := s.rateRepo.FindRate(ctx, sec.CurrencyCode, tradeDate)
+	rateFrom := s.rateForCode(ctx, sec.CurrencyCode, tradeDate)
 	return currencydomain.ConvertToBase(amount, rateFrom, rateBase)
 }
 
@@ -839,10 +846,7 @@ func (s *Service) currentUnrealizedInBase(ctx context.Context, tenantID uuid.UUI
 	if base == "" {
 		base = "CNY"
 	}
-	rateBase := 1.0
-	if s.rateRepo != nil {
-		rateBase, _ = s.rateRepo.FindRate(ctx, base, time.Now())
-	}
+	rateBase := s.rateForBase(ctx, base)
 	var sum int64
 	page := domain.PageRequest{PageSize: 100}
 	for {
@@ -856,10 +860,7 @@ func (s *Service) currentUnrealizedInBase(ctx context.Context, tenantID uuid.UUI
 				continue
 			}
 			pnl := h.UnrealizedPnL(sec.CurrentPriceCents)
-			rateFrom := 1.0
-			if s.rateRepo != nil && sec.CurrencyCode != "" {
-				rateFrom, _ = s.rateRepo.FindRate(ctx, sec.CurrencyCode, time.Now())
-			}
+			rateFrom := s.rateForCode(ctx, sec.CurrencyCode, time.Now())
 			sum += currencydomain.ConvertToBase(pnl, rateFrom, rateBase)
 		}
 		if res.NextPageToken == "" || len(res.Items) == 0 {
@@ -878,10 +879,7 @@ func (s *Service) currentCostBasisInBase(ctx context.Context, tenantID uuid.UUID
 	if base == "" {
 		base = "CNY"
 	}
-	rateBase := 1.0
-	if s.rateRepo != nil {
-		rateBase, _ = s.rateRepo.FindRate(ctx, base, time.Now())
-	}
+	rateBase := s.rateForBase(ctx, base)
 	var sum int64
 	page := domain.PageRequest{PageSize: 100}
 	for {
@@ -895,10 +893,7 @@ func (s *Service) currentCostBasisInBase(ctx context.Context, tenantID uuid.UUID
 				continue
 			}
 			basis := int64(math.Round(float64(h.AvgCostCents) * h.Quantity))
-			rateFrom := 1.0
-			if s.rateRepo != nil && sec.CurrencyCode != "" {
-				rateFrom, _ = s.rateRepo.FindRate(ctx, sec.CurrencyCode, time.Now())
-			}
+			rateFrom := s.rateForCode(ctx, sec.CurrencyCode, time.Now())
 			sum += currencydomain.ConvertToBase(basis, rateFrom, rateBase)
 		}
 		if res.NextPageToken == "" || len(res.Items) == 0 {
@@ -995,14 +990,8 @@ func (s *Service) GetHoldingPerformance(ctx context.Context, holdingID uuid.UUID
 	realized, _ := s.aggregateRealizedForSecurity(ctx, h.TenantID, &h.AccountID, &h.SecurityID, base)
 	// Unrealized (current), 折算 to base (mirrors GetPortfolioPerformance/currentUnrealizedInBase
 	// so TotalCents is base+base, not base+原币 — spec §4.4 + I-1).
-	rateBase := 1.0
-	if s.rateRepo != nil {
-		rateBase, _ = s.rateRepo.FindRate(ctx, base, time.Now())
-	}
-	rateFrom := 1.0
-	if s.rateRepo != nil && sec.CurrencyCode != "" {
-		rateFrom, _ = s.rateRepo.FindRate(ctx, sec.CurrencyCode, time.Now())
-	}
+	rateBase := s.rateForBase(ctx, base)
+	rateFrom := s.rateForCode(ctx, sec.CurrencyCode, time.Now())
 	unrealizedRaw := h.UnrealizedPnL(sec.CurrentPriceCents)
 	unrealized := currencydomain.ConvertToBase(unrealizedRaw, rateFrom, rateBase)
 	return &HoldingPerformance{

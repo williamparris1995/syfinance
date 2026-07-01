@@ -12,6 +12,7 @@
 import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
@@ -34,8 +35,16 @@ class _MockHoldingRepo extends Mock implements HoldingRepository {}
 /// getIt<CurrencySettings>().getBaseCurrency() in _loadCurve → passed to
 /// LoadHoldingCurveRequested → getHoldingPerformance(baseCurrency:).
 class _FakeCurrencySettings extends Fake implements CurrencySettings {
-  _FakeCurrencySettings(this._base);
+  _FakeCurrencySettings(this._base) : _notifier = ValueNotifier<String>(_base);
   final String _base;
+  final ValueNotifier<String> _notifier;
+
+  @override
+  ValueListenable<String> get listenable => _notifier;
+
+  @override
+  String get value => _base;
+
   @override
   Future<String> getBaseCurrency() async => _base;
 }

@@ -37,6 +37,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     context.read<AccountBloc>().add(LoadAccountsRequested());
     _loadNetWorth();
+    _currencySettings.listenable.addListener(_onBaseChanged);
   }
 
   void _loadNetWorth() {
@@ -44,6 +45,20 @@ class _HomePageState extends State<HomePage> {
       final base = await _currencySettings.getBaseCurrency();
       return _netWorthDs.getNetWorth(baseCurrency: base);
     }();
+  }
+
+  // Cross-page refresh: base currency changed in settings → re-fetch net worth
+  // with the new reporting currency (setState rebuilds the FutureBuilder).
+  void _onBaseChanged() {
+    if (!mounted) return;
+    _loadNetWorth();
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _currencySettings.listenable.removeListener(_onBaseChanged);
+    super.dispose();
   }
 
   List<Account> _accountsOf(AccountState state) {

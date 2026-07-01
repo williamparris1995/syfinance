@@ -10,6 +10,7 @@ import 'package:yucai_client/core/di/injection.config.dart';
 import 'package:yucai_client/core/network/auth_interceptor.dart';
 import 'package:yucai_client/core/network/auth_retry.dart';
 import 'package:yucai_client/core/network/grpc_client.dart';
+import 'package:yucai_client/currency/data/currency_settings.dart';
 
 final getIt = GetIt.instance;
 
@@ -19,13 +20,14 @@ Future<void> configureDependencies() async {
   getIt.registerSingleton<AppConfig>(AppConfig.fromEnvironment());
 
   // 1a. FlutterSecureStorage is a third-party type (no @module in this app),
-  //     so register it manually. CurrencySettings (@LazySingleton) constructor-
-  //     injects it; resolving it here before getIt.init() lets the generated
-  //     factory find it. TokenStorage uses its own FlutterSecureStorage instance
-  //     created internally, so this registration is dedicated to CurrencySettings.
+  //     so register a single shared instance manually. CurrencySettings
+  //     (@LazySingleton) constructor-injects it; resolving it here before
+  //     getIt.init() lets the generated factory find it. TokenStorage reuses the
+  //     same instance (its constructor accepts an optional backend for tests),
+  //     so the app backs onto one secure-storage backend instead of two.
   getIt.registerSingleton<FlutterSecureStorage>(const FlutterSecureStorage());
 
-  final tokenStorage = TokenStorage();
+  final tokenStorage = TokenStorage(backend: getIt<FlutterSecureStorage>());
   getIt.registerSingleton<TokenStorage>(tokenStorage);
 
   final authInterceptor = AuthInterceptor();
@@ -40,6 +42,11 @@ Future<void> configureDependencies() async {
   // 2. Injectable resolves the leaf services (UserMapper, AuthRemoteDataSource,
   //    AuthRepositoryImpl, use cases) via constructor injection.
   getIt.init();
+
+  // 2a. Sync the persisted base currency into CurrencySettings' notifier so
+  //     pages reading it (home/performance/detail) start with the right value
+  //     and can listen for changes (cross-page refresh).
+  await getIt<CurrencySettings>().load();
 
   // 3. Wire the retry refresher: performs RefreshToken, returns success bool.
   final refreshTokenUseCase = getIt<RefreshTokenUseCase>();

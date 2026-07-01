@@ -13,6 +13,7 @@ import 'dart:async';
 import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
@@ -34,8 +35,16 @@ class _MockHoldingRepo extends Mock implements HoldingRepository {}
 /// performance_page initState 经 getIt<CurrencySettings>().getBaseCurrency() 读 base,
 /// 透传到 LoadPortfolioPerformanceRequested → getPortfolioPerformance(baseCurrency:)。
 class _FakeCurrencySettings extends Fake implements CurrencySettings {
-  _FakeCurrencySettings(this._base);
+  _FakeCurrencySettings(this._base) : _notifier = ValueNotifier<String>(_base);
   final String _base;
+  final ValueNotifier<String> _notifier;
+
+  @override
+  ValueListenable<String> get listenable => _notifier;
+
+  @override
+  String get value => _base;
+
   @override
   Future<String> getBaseCurrency() async => _base;
 }

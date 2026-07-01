@@ -91,6 +91,7 @@ class _PerformancePageState extends State<PerformancePage> {
     context.read<HoldingBloc>().add(const LoadHoldingsRequested());
     // 折算本位币解析后再 dispatch 组合收益曲线(base 透传到 server)。
     _loadPortfolio();
+    _currencySettings.listenable.addListener(_onBaseChanged);
   }
 
   /// 读 CurrencySettings base 后 dispatch 组合收益曲线。range 默认 DAY。
@@ -103,6 +104,19 @@ class _PerformancePageState extends State<PerformancePage> {
       range: range,
       baseCurrency: base,
     ));
+  }
+
+  // Cross-page refresh: base currency changed in settings → re-dispatch the
+  // portfolio curve with the current range and new reporting currency.
+  void _onBaseChanged() {
+    if (!mounted) return;
+    _loadPortfolio(range: rangeName(_curveRange));
+  }
+
+  @override
+  void dispose() {
+    _currencySettings.listenable.removeListener(_onBaseChanged);
+    super.dispose();
   }
 
   @override

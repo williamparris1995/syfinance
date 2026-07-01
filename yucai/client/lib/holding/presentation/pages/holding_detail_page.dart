@@ -87,6 +87,7 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
     // Task 13:拉单持仓价格曲线(server getHoldingPerformance)。
     // baseCurrency 异步解析后 dispatch(range 默认 DAY;tab 切换时重发)。
     _loadCurve();
+    _currencySettings.listenable.addListener(_onBaseChanged);
   }
 
   /// 读 CurrencySettings base 后 dispatch 单持仓曲线。range 默认 DAY。
@@ -100,6 +101,19 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
       range: range,
       baseCurrency: base,
     ));
+  }
+
+  // Cross-page refresh: base currency changed in settings → re-dispatch this
+  // holding's curve with the current range and new reporting currency.
+  void _onBaseChanged() {
+    if (!mounted) return;
+    _loadCurve(range: rangeName(_curveRange));
+  }
+
+  @override
+  void dispose() {
+    _currencySettings.listenable.removeListener(_onBaseChanged);
+    super.dispose();
   }
 
   @override

@@ -9,6 +9,7 @@
 // TransactionBloc from getIt, so we register minimal mock-driven instances
 // before pumping. AuthBloc is seeded Authenticated to clear the auth guard.
 import 'package:dartz/dartz.dart' as dartz;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,6 +17,7 @@ import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
+import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/account/domain/usecases/create_account_usecase.dart';
 import 'package:yucai_client/account/domain/usecases/delete_account_usecase.dart';
 import 'package:yucai_client/account/domain/usecases/get_account_usecase.dart';
@@ -41,6 +43,16 @@ class _MockRegister extends Mock implements RegisterUseCase {}
 class _MockProfile extends Mock implements GetProfileUseCase {}
 class _MockLogout extends Mock implements LogoutUseCase {}
 
+class _FakeCurrencySettings extends Fake implements CurrencySettings {
+  final ValueNotifier<String> _notifier = ValueNotifier<String>('CNY');
+  @override
+  ValueListenable<String> get listenable => _notifier;
+  @override
+  String get value => 'CNY';
+  @override
+  Future<String> getBaseCurrency() async => 'CNY';
+}
+
 void main() {
   final getIt = GetIt.instance;
 
@@ -54,6 +66,9 @@ void main() {
     final txnRepo = _MockTxnRepo();
     getIt.registerSingleton<AccountRepository>(accountRepo);
     getIt.registerSingleton<TransactionRepository>(txnRepo);
+    // HomePage reads CurrencySettings from getIt (cross-page refresh listener
+    // in initState); register a fake so the home branch resolves.
+    getIt.registerSingleton<CurrencySettings>(_FakeCurrencySettings());
 
     // AccountBloc is constructed by the route via getIt<AccountBloc>() (factory
     // in production via injectable). Register a factory here that wires the

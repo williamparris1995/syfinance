@@ -11,6 +11,7 @@
 // CurrencySettings.setBaseCurrency('USD') + surfaces a snackbar.
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
@@ -30,9 +31,16 @@ class _MockAuthRemote extends Mock implements AuthRemoteDataSource {}
 /// (Task 12 D-currency picker). getBaseCurrency drives the FutureBuilder value
 /// of the base dropdown; setBaseCurrency captures the code the user picked.
 class _FakeCurrencySettings extends Fake implements CurrencySettings {
-  _FakeCurrencySettings(this._base);
+  _FakeCurrencySettings(this._base) : _notifier = ValueNotifier<String>(_base);
   String _base;
   final List<String> setCalls = [];
+  final ValueNotifier<String> _notifier;
+
+  @override
+  ValueListenable<String> get listenable => _notifier;
+
+  @override
+  String get value => _base;
 
   @override
   Future<String> getBaseCurrency() async => _base;
@@ -41,6 +49,7 @@ class _FakeCurrencySettings extends Fake implements CurrencySettings {
   Future<void> setBaseCurrency(String code) async {
     _base = code;
     setCalls.add(code);
+    _notifier.value = code;
   }
 }
 

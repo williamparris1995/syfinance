@@ -56,5 +56,45 @@ void main() {
           .thenAnswer((_) async => 'JPY');
       expect(await settings.getBaseCurrency(), 'JPY');
     });
+
+    // --- Reactive base currency (cross-page refresh) ---
+
+    test('value defaults to CNY before load', () {
+      // Notifier starts at the default; load() syncs the persisted value.
+      expect(settings.value, 'CNY');
+    });
+
+    test('load syncs the persisted base currency into value', () async {
+      when(() => backend.read(key: any(named: 'key')))
+          .thenAnswer((_) async => 'USD');
+      expect(settings.value, 'CNY'); // before load
+      await settings.load();
+      expect(settings.value, 'USD');
+    });
+
+    test('setBaseCurrency notifies listeners with the new code', () async {
+      when(() => backend.write(key: any(named: 'key'), value: any(named: 'value')))
+          .thenAnswer((_) async {});
+
+      final fired = <String>[];
+      settings.listenable.addListener(() => fired.add(settings.value));
+
+      await settings.setBaseCurrency('USD');
+
+      expect(settings.value, 'USD');
+      expect(fired, ['USD']);
+    });
+
+    test('load is idempotent (second call is a no-op)', () async {
+      var calls = 0;
+      when(() => backend.read(key: any(named: 'key'))).thenAnswer((_) async {
+        calls++;
+        return 'USD';
+      });
+      await settings.load();
+      await settings.load();
+      expect(calls, 1);
+      expect(settings.value, 'USD');
+    });
   });
 }
