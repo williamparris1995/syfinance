@@ -13,10 +13,12 @@ import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/entities/performance_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
@@ -26,6 +28,17 @@ import 'package:yucai_client/holding/presentation/pages/holding_detail_page.dart
 import 'package:yucai_client/holding/presentation/widgets/perf_curve_chart.dart';
 
 class _MockHoldingRepo extends Mock implements HoldingRepository {}
+
+/// Fake CurrencySettings — returns a fixed base currency code (Task 12
+/// D-currency). HoldingDetailPage field-init reads
+/// getIt<CurrencySettings>().getBaseCurrency() in _loadCurve → passed to
+/// LoadHoldingCurveRequested → getHoldingPerformance(baseCurrency:).
+class _FakeCurrencySettings extends Fake implements CurrencySettings {
+  _FakeCurrencySettings(this._base);
+  final String _base;
+  @override
+  Future<String> getBaseCurrency() async => _base;
+}
 
 Holding _holding({
   String id = 'h1',
@@ -79,10 +92,22 @@ HoldingTransaction _tx({
 /// harness:注入 HoldingBloc(mock repo)。listHoldings 固定返回 [holding];
 /// listHoldingTransactions 由 [tradesResult] 控制(Right(trades) 成功路径 /
 /// Left(failure) ⏳ 降级路径)。
+///
+/// Task 12 D-currency:HoldingDetailPage field-init 经
+/// getIt<CurrencySettings>() 读 base(透传 getHoldingPerformance),故 harness
+/// 注册 fake(base 默认 CNY)。[baseCurrency] 让 D-currency 专项测试可注入 USD。
 Widget _harness({
   required _MockHoldingRepo repo,
   required Holding holding,
+  String baseCurrency = 'CNY',
 }) {
+  final getIt = GetIt.instance;
+  // setUp 已注册默认 CNY;非默认 base 时替换为指定 code(D-currency 专项测试)。
+  if (getIt.isRegistered<CurrencySettings>()) {
+    getIt.unregister<CurrencySettings>();
+  }
+  getIt.registerSingleton<CurrencySettings>(
+      _FakeCurrencySettings(baseCurrency));
   return MaterialApp(
     home: BlocProvider<HoldingBloc>(
       create: (_) => HoldingBloc(repo),
@@ -99,6 +124,7 @@ void _stubHolding(_MockHoldingRepo repo, Holding holding) {
 /// Task 13:曲线 stub。默认空(HoldingPerformance 空曲线)—— detail 页
 /// LoadHoldingCurveRequested 在 initState 触发,需 stub 否则 MissingDummyError。
 /// [points] / [realizedCents] 非空时模拟 server 真数据。
+/// 含 baseCurrency named param(Task 12 D-currency;stub 用 any(named:) 兼容)。
 void _stubCurve(
   _MockHoldingRepo repo, {
   List<PerfPoint> points = const [],
@@ -107,6 +133,7 @@ void _stubCurve(
   when(() => repo.getHoldingPerformance(
         holdingId: any(named: 'holdingId'),
         range: any(named: 'range'),
+        baseCurrency: any(named: 'baseCurrency'),
       )).thenAnswer((_) async => dartz.Right(HoldingPerformance(
         pricePoints: points,
         realizedCents: realizedCents,
@@ -125,6 +152,23 @@ final _trades = [
 ];
 
 void main() {
+  final getIt = GetIt.instance;
+
+  setUp(() {
+    getIt.reset();
+    // Task 12 D-currency:HoldingDetailPage field-init 经 getIt 读 base。
+    // 全局注册 fake(默认 CNY);_harness [baseCurrency] 覆盖仅 D-currency 专项
+    // 测试需(它在 pumpWidget 前 unregister + 重注册 USD)。
+    getIt.registerSingleton<CurrencySettings>(
+        _FakeCurrencySettings('CNY'));
+  });
+
+  tearDown(() {
+    if (getIt.isRegistered<CurrencySettings>()) {
+      getIt.unregister<CurrencySettings>();
+    }
+  });
+
   // 高视口:desktop 表 + sticky action bar 全可见。
   Future<void> setViewport(WidgetTester t) async {
     t.view.physicalSize = const Size(1200, 1600);
@@ -320,6 +364,12 @@ void main() {
             securityId: any(named: 'securityId')))
         .thenAnswer((_) async => dartz.Right(_trades));
 
+    // 本测试用 GoRouter harness(非 _harness),setUp 已注册 CurrencySettings
+    // fake;防御性确认注册(D-currency: HoldingDetailPage field-init 经 getIt 读 base)。
+    if (!getIt.isRegistered<CurrencySettings>()) {
+      getIt.registerSingleton<CurrencySettings>(_FakeCurrencySettings('CNY'));
+    }
+
     Object? pushedExtra;
     final router = GoRouter(
       initialLocation: '/holdings/${holding.id}',
@@ -405,5 +455,38 @@ void main() {
     // ⑥ realized:server FIFO 5000 cents($50.00)→ foot「已实现」cell 渲染。
     // foot realized 用 fmtRaw(无符号),故 $50.00。
     expect(find.text('\$50.00'), findsWidgets);
+  });
+
+  // Task 12 D-currency:detail page field-init 从 CurrencySettings 读 base →
+  // 透传到 getHoldingPerformance(baseCurrency:)。验证非默认 base(USD)被传入。
+  testWidgets(
+      'Task 12 D-currency: passes baseCurrency (USD) to getHoldingPerformance',
+      (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    final holding = _holding();
+    _stubHolding(repo, holding);
+    _stubCurve(repo);
+    when(() => repo.listHoldingTransactions(
+            accountId: any(named: 'accountId'),
+            securityId: any(named: 'securityId')))
+        .thenAnswer((_) async => dartz.Right(_trades));
+
+    // harness 注册 baseCurrency=USD 的 CurrencySettings fake。
+    await t.pumpWidget(_harness(repo: repo, holding: holding, baseCurrency: 'USD'));
+    await t.pumpAndSettle();
+
+    // initState _loadCurve 读 base 后 dispatch → repo 收到 baseCurrency='USD'。
+    verify(() => repo.getHoldingPerformance(
+          holdingId: any(named: 'holdingId'),
+          range: any(named: 'range'),
+          baseCurrency: 'USD',
+        )).called(greaterThanOrEqualTo(1));
+    // 绝未以默认空串调用(暴露 base 未透传回归)。
+    verifyNever(() => repo.getHoldingPerformance(
+          holdingId: any(named: 'holdingId'),
+          range: any(named: 'range'),
+          baseCurrency: '',
+        ));
   });
 }

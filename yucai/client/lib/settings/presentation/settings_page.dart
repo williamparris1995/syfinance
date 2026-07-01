@@ -4,29 +4,41 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/currency/data/currency_settings.dart';
+import 'package:yucai_client/currency/domain/entities/currency_entity.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_event.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
 
-/// 设置页 —— 偏好货币 + 汇率同步频率。
+/// 设置页 —— 偏好货币 + 本位币 + 汇率同步频率。
 ///
 /// 读 [CurrencyBloc] 的 currencies 列表 + 当前 preferred / interval，
 /// onChange → [AuthRemoteDataSource.updatePreferences] → 成功 toast +
 /// `LoadPreferencesRequested` 刷新。
 ///
+/// 本位币(Task 12 D-currency):读 [CurrencySettings.getBaseCurrency],
+/// onChange → [CurrencySettings.setBaseCurrency] 持久化 → toast 提示
+/// 「重启或刷新生效」(performance/detail/home 下次进入即用新本位币折算)。
+///
 /// 御财 token：surface card (`AppColors.surface` + `AppRadius.lgBorder` +
 /// `AppSpacing.md`)；dropdown 选中色 `AppColors.accent`。
 class SettingsPage extends StatelessWidget {
   /// 生产用默认 getIt 实例；测试可注入 mock。
-  const SettingsPage({super.key, AuthRemoteDataSource? authRemote})
-      : _authRemote = authRemote;
+  const SettingsPage({
+    super.key,
+    AuthRemoteDataSource? authRemote,
+    CurrencySettings? currencySettings,
+  })  : _authRemote = authRemote,
+        _currencySettings = currencySettings;
 
   final AuthRemoteDataSource? _authRemote;
+  final CurrencySettings? _currencySettings;
 
   @override
   Widget build(BuildContext context) {
     // 延迟到 build 取 getIt，避免测试构造时未配置 DI 就崩溃；显式注入优先。
     final ds = _authRemote ?? getIt<AuthRemoteDataSource>();
+    final settings = _currencySettings ?? getIt<CurrencySettings>();
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
@@ -69,6 +81,19 @@ class SettingsPage extends StatelessWidget {
                               height: 1, color: AppColors.border),
                           const SizedBox(height: AppSpacing.md),
                           _PreferenceRow(
+                            label: '本位币',
+                            description: '持仓收益折算币种（净资产 / 收益统计）',
+                            control: _BaseCurrencyDropdown(
+                              currencies: state.currencies,
+                              settings: settings,
+                              onChanged: (code) =>
+                                  _onBaseCurrencyChanged(context, code),
+                            ),
+                          ),
+                          const Divider(
+                              height: 1, color: AppColors.border),
+                          const SizedBox(height: AppSpacing.md),
+                          _PreferenceRow(
                             label: '汇率同步频率',
                             description: '多久从汇率源拉取一次最新汇率',
                             control: _IntervalDropdown(
@@ -88,6 +113,28 @@ class SettingsPage extends StatelessWidget {
         },
       ),
     );
+  }
+
+  /// 本位币切换(Task 12 D-currency):持久化到 CurrencySettings.setBaseCurrency
+  /// → toast 提示「下次进入收益统计/详情即生效」。不直接刷新当前页(home /
+  /// performance / detail 在各自 initState 读 baseCurrency,下次进入即用新值)。
+  Future<void> _onBaseCurrencyChanged(
+    BuildContext context,
+    String code,
+  ) async {
+    final settings = _currencySettings ?? getIt<CurrencySettings>();
+    try {
+      await settings.setBaseCurrency(code);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('本位币已更新，下次进入收益统计即生效')),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('更新失败：$e')),
+      );
+    }
   }
 
   Future<void> _onCurrencyChanged(
@@ -228,6 +275,75 @@ class _CurrencyDropdown extends StatelessWidget {
           if (v != null) onChanged(v);
         },
       ),
+    );
+  }
+}
+
+/// 本位币 dropdown(Task 12 D-currency)。当前值从 CurrencySettings 异步读
+/// (FutureBuilder);选项来自 [currencies](currency 模块 ListCurrencies 结果,
+/// 经 CurrencyBloc.state.currencies 注入)。onChange → 持久化(CurrencySettings
+/// .setBaseCurrency)+ 调用方刷新触发。
+///
+/// currencies 为空(加载失败)→ fallback 硬编码列表(CNY/USD/EUR/JPY/GBP/HKD),
+/// 保证用户始终可切换(对齐 brief「CNY/USD/EUR/...」)。当前 base 不在选项内
+/// → 回退到列表首个(DropdownButton value 必须是 items 之一,否则断言)。
+class _BaseCurrencyDropdown extends StatelessWidget {
+  const _BaseCurrencyDropdown({
+    required this.currencies,
+    required this.settings,
+    required this.onChanged,
+  });
+
+  final List<Currency> currencies;
+  final CurrencySettings settings;
+  final ValueChanged<String> onChanged;
+
+  static const _fallbackCodes = ['CNY', 'USD', 'EUR', 'JPY', 'GBP', 'HKD'];
+
+  @override
+  Widget build(BuildContext context) {
+    // currencies 空时用硬编码 fallback(仅 code,无 name/symbol);非空时用
+    // 服务端返回的完整列表(code + name)。
+    final codes = currencies.isEmpty
+        ? _fallbackCodes
+        : currencies.map((c) => c.code).toList();
+    final items = currencies.isEmpty
+        ? _fallbackCodes
+            .map((code) => DropdownMenuItem<String>(
+                  value: code,
+                  child: Text(code, style: const TextStyle(fontSize: 14)),
+                ))
+            .toList()
+        : currencies
+            .map((c) => DropdownMenuItem<String>(
+                  value: c.code,
+                  child: Text('${c.code} · ${c.name}',
+                      style: const TextStyle(fontSize: 14)),
+                ))
+            .toList();
+
+    return FutureBuilder<String>(
+      future: settings.getBaseCurrency(),
+      builder: (context, snap) {
+        final base = snap.data ?? CurrencySettings.defaultBaseCurrency;
+        // base 不在选项内 → 回退到首个(DropdownButton.value 必须是 items 之一)。
+        final value = codes.contains(base) ? base : codes.first;
+        return SizedBox(
+          width: 200,
+          child: DropdownButton<String>(
+            value: value,
+            items: items,
+            isExpanded: true,
+            underline: const SizedBox(),
+            dropdownColor: AppColors.surface,
+            icon: const Icon(Icons.expand_more,
+                color: AppColors.accent, size: 20),
+            onChanged: (v) {
+              if (v != null) onChanged(v);
+            },
+          ),
+        );
+      },
     );
   }
 }

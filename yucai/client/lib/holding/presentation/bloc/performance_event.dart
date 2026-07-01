@@ -19,10 +19,17 @@ abstract class PerformanceEvent extends Equatable {
 ///
 /// [range] 大写英文串('DAY'/'MONTH'/'YEAR',默认 DAY)。
 /// [accountId] 可选账户过滤(组合级默认全账户)。
+/// [baseCurrency] 折算本位币(ISO code,Task 12 D-currency;来自
+/// CurrencySettings.getBaseCurrency(),空/CNY → server 不折算)。
 class LoadPortfolioPerformanceRequested extends PerformanceEvent {
-  const LoadPortfolioPerformanceRequested({this.range = 'DAY', this.accountId});
+  const LoadPortfolioPerformanceRequested({
+    this.range = 'DAY',
+    this.accountId,
+    this.baseCurrency = '',
+  });
   final String range;
   final String? accountId;
+  final String baseCurrency;
   @override
-  List<Object?> get props => [range, accountId];
+  List<Object?> get props => [range, accountId, baseCurrency];
 }

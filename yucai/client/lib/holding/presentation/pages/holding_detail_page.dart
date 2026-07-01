@@ -39,9 +39,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
+import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
@@ -72,15 +74,32 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
   /// 此处仅做 loading 态展示对齐 A-od dh-refresh spinning)。
   bool _refreshing = false;
 
+  /// 折算本位币(Task 12 D-currency)。从 CurrencySettings.getBaseCurrency()
+  /// 异步读(CNY default);resolve 后透传到 LoadHoldingCurveRequested →
+  /// getHoldingPerformance → proto base_currency。range tab 切换时复用已解析值。
+  final CurrencySettings _currencySettings = getIt<CurrencySettings>();
+  String _baseCurrency = '';
+
   @override
   void initState() {
     super.initState();
     context.read<HoldingBloc>().add(LoadDetailRequested(widget.id));
     // Task 13:拉单持仓价格曲线(server getHoldingPerformance)。
-    // range 默认 DAY;range tab 切换时 _curveCard 重发。
-    context
-        .read<HoldingBloc>()
-        .add(LoadHoldingCurveRequested(holdingId: widget.id));
+    // baseCurrency 异步解析后 dispatch(range 默认 DAY;tab 切换时重发)。
+    _loadCurve();
+  }
+
+  /// 读 CurrencySettings base 后 dispatch 单持仓曲线。range 默认 DAY。
+  Future<void> _loadCurve({String range = 'DAY'}) async {
+    final base = await _currencySettings.getBaseCurrency();
+    if (!mounted) return;
+    setState(() => _baseCurrency = base);
+    if (!mounted) return;
+    context.read<HoldingBloc>().add(LoadHoldingCurveRequested(
+      holdingId: widget.id,
+      range: range,
+      baseCurrency: base,
+    ));
   }
 
   @override
@@ -442,7 +461,10 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
         onRangeChange: (r) {
           setState(() => _curveRange = r);
           context.read<HoldingBloc>().add(LoadHoldingCurveRequested(
-              holdingId: h.id, range: rangeName(r)));
+            holdingId: h.id,
+            range: rangeName(r),
+            baseCurrency: _baseCurrency,
+          ));
         },
         foot: PerfCurveFoot(
           unrealizedCents: unrealized,

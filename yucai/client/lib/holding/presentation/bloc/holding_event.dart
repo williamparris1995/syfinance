@@ -247,10 +247,18 @@ class RefreshPricesRequested extends HoldingEvent {
 /// getHoldingPerformance(Task 12)。range 大写英文串('DAY'/'MONTH'/'YEAR'),
 /// **不可传 PerfRange.label**(中文)。由 detail 页 PerfRange enum 经
 /// rangeName() 映射后传入。
+///
+/// [baseCurrency] 折算本位币(ISO code,Task 12 D-currency;来自
+/// CurrencySettings.getBaseCurrency(),空/CNY → server 不折算)。
 class LoadHoldingCurveRequested extends HoldingEvent {
-  const LoadHoldingCurveRequested({required this.holdingId, this.range = 'DAY'});
+  const LoadHoldingCurveRequested({
+    required this.holdingId,
+    this.range = 'DAY',
+    this.baseCurrency = '',
+  });
   final String holdingId;
   final String range;
+  final String baseCurrency;
   @override
-  List<Object?> get props => [holdingId, range];
+  List<Object?> get props => [holdingId, range, baseCurrency];
 }

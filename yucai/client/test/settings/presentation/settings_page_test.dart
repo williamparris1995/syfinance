@@ -3,13 +3,21 @@
 // emits currencies [CNY, USD, EUR] + preferred=CNY + interval=8, asserts the
 // dropdown renders the current preferred code, and that selecting USD invokes
 // AuthRemoteDataSource.updatePreferences('USD', 8) + reloads preferences.
+//
+// Task 12 D-currency — base currency picker tests: SettingsPage now also reads
+// CurrencySettings (via getIt) for the base-currency row. The harness must
+// register a fake CurrencySettings; tests assert the dropdown renders the
+// current base (CNY · Chinese Yuan) and that selecting USD calls
+// CurrencySettings.setBaseCurrency('USD') + surfaces a snackbar.
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/currency/domain/entities/currency_entity.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_event.dart';
@@ -17,6 +25,24 @@ import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
 import 'package:yucai_client/settings/presentation/settings_page.dart';
 
 class _MockAuthRemote extends Mock implements AuthRemoteDataSource {}
+
+/// Fake CurrencySettings — fixed base code + records setBaseCurrency calls
+/// (Task 12 D-currency picker). getBaseCurrency drives the FutureBuilder value
+/// of the base dropdown; setBaseCurrency captures the code the user picked.
+class _FakeCurrencySettings extends Fake implements CurrencySettings {
+  _FakeCurrencySettings(this._base);
+  String _base;
+  final List<String> setCalls = [];
+
+  @override
+  Future<String> getBaseCurrency() async => _base;
+
+  @override
+  Future<void> setBaseCurrency(String code) async {
+    _base = code;
+    setCalls.add(code);
+  }
+}
 
 /// Minimal CurrencyBloc stub: holds a fixed state and records dispatched events
 /// so the test can assert LoadPreferencesRequested was re-dispatched after an
@@ -57,8 +83,20 @@ const _currencies = <Currency>[
       isActive: true),
 ];
 
-Widget _harness(CurrencyState state, AuthRemoteDataSource authRemote) {
+/// Harness: injects a mocked CurrencyBloc (fixed state) + registers a fake
+/// CurrencySettings in getIt (Task 12 D-currency — the page reads it via
+/// `getIt<CurrencySettings>()` at build time). Returns the fake so the test
+/// can assert setBaseCurrency calls.
+Widget _harness(
+  CurrencyState state,
+  AuthRemoteDataSource authRemote,
+  _FakeCurrencySettings currencySettings,
+) {
   final bloc = _StubCurrencyBloc(state);
+  final getIt = GetIt.instance;
+  if (!getIt.isRegistered<CurrencySettings>()) {
+    getIt.registerSingleton<CurrencySettings>(currencySettings);
+  }
   return MaterialApp(
     home: BlocProvider<CurrencyBloc>.value(
       value: bloc,
@@ -68,11 +106,20 @@ Widget _harness(CurrencyState state, AuthRemoteDataSource authRemote) {
 }
 
 void main() {
+  final getIt = GetIt.instance;
   late _MockAuthRemote authRemote;
+  late _FakeCurrencySettings currencySettings;
 
   setUp(() {
     authRemote = _MockAuthRemote();
+    currencySettings = _FakeCurrencySettings('CNY');
     registerFallbackValue(const LoadPreferencesRequested());
+  });
+
+  tearDown(() {
+    if (getIt.isRegistered<CurrencySettings>()) {
+      getIt.unregister<CurrencySettings>();
+    }
   });
 
   testWidgets('dropdown shows current preferred currency code (CNY)', (t) async {
@@ -82,7 +129,7 @@ void main() {
       intervalHours: 8,
       status: CurrencyStatus.loaded,
     );
-    await t.pumpWidget(_harness(state, authRemote));
+    await t.pumpWidget(_harness(state, authRemote, currencySettings));
     await t.pumpAndSettle();
 
     // The DropdownButton's selected value renders as a Text widget containing
@@ -101,11 +148,11 @@ void main() {
     when(() => authRemote.updatePreferences(any<String>(), any<int>()))
         .thenAnswer((_) async {});
 
-    await t.pumpWidget(_harness(state, authRemote));
+    await t.pumpWidget(_harness(state, authRemote, currencySettings));
     await t.pumpAndSettle();
 
     // Tap the currency dropdown to open the menu.
-    await t.tap(find.byType(DropdownButton<String>));
+    await t.tap(find.byType(DropdownButton<String>).first);
     await t.pumpAndSettle();
 
     // Select the USD menu item.
@@ -126,7 +173,7 @@ void main() {
     when(() => authRemote.updatePreferences(any<String>(), any<int>()))
         .thenAnswer((_) async {});
 
-    await t.pumpWidget(_harness(state, authRemote));
+    await t.pumpWidget(_harness(state, authRemote, currencySettings));
     await t.pumpAndSettle();
 
     // The interval selector is the second DropdownButton<int>.
@@ -148,7 +195,7 @@ void main() {
       intervalHours: 8,
       status: CurrencyStatus.loaded,
     );
-    await t.pumpWidget(_harness(state, authRemote));
+    await t.pumpWidget(_harness(state, authRemote, currencySettings));
     await t.pumpAndSettle();
 
     // The page content sits in a Container whose decoration color is surface.
@@ -159,5 +206,62 @@ void main() {
           (w.decoration as BoxDecoration).color == AppColors.surface,
     );
     expect(surfaceCards, findsWidgets);
+  });
+
+  // Task 12 D-currency — base currency picker tests. The page renders a third
+  // preference row whose dropdown reads CurrencySettings.getBaseCurrency()
+  // (FutureBuilder) for the current value and calls setBaseCurrency on change.
+  // Currencies list feeds the items; switching → persist + snackbar. Brief
+  // specifies "切换 → setBaseCurrency + 刷新".
+  testWidgets(
+      'Task 12 D-currency: base dropdown shows current base (CNY · Chinese Yuan)',
+      (t) async {
+    const state = CurrencyState(
+      currencies: _currencies,
+      preferred: 'CNY',
+      intervalHours: 8,
+      status: CurrencyStatus.loaded,
+    );
+    await t.pumpWidget(_harness(state, authRemote, currencySettings));
+    await t.pumpAndSettle();
+
+    // The base dropdown is the second DropdownButton<String>. Its FutureBuilder
+    // resolves base='CNY' → selected item renders 'CNY · Chinese Yuan'.
+    final baseDropdown = find.byType(DropdownButton<String>).at(1);
+    expect(
+      find.descendant(
+        of: baseDropdown,
+        matching: find.textContaining('CNY · Chinese Yuan'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+      'Task 12 D-currency: selecting USD calls setBaseCurrency(USD) + snackbar',
+      (t) async {
+    const state = CurrencyState(
+      currencies: _currencies,
+      preferred: 'CNY',
+      intervalHours: 8,
+      status: CurrencyStatus.loaded,
+    );
+    await t.pumpWidget(_harness(state, authRemote, currencySettings));
+    await t.pumpAndSettle();
+
+    // Open the base-currency dropdown (second DropdownButton<String>).
+    await t.tap(find.byType(DropdownButton<String>).at(1));
+    await t.pumpAndSettle();
+
+    // Pick the USD menu item. Menu items use the same 'code · name' format.
+    await t.tap(find.textContaining('USD · US Dollar').last);
+    await t.pumpAndSettle();
+
+    // Persisted via CurrencySettings.setBaseCurrency('USD').
+    expect(currencySettings.setCalls, ['USD']);
+    // Brief: 刷新 (refresh) — surfaced as a snackbar telling the user the new
+    // base takes effect on next visit to performance/detail.
+    expect(find.byType(SnackBar), findsOneWidget);
+    expect(find.textContaining('本位币已更新'), findsOneWidget);
   });
 }

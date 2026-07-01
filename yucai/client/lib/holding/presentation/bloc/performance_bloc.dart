@@ -32,6 +32,7 @@ class PerformanceBloc extends Bloc<PerformanceEvent, PerformanceState> {
       range: event.range,
       accountId: event.accountId,
       includeBenchmark: true,
+      baseCurrency: event.baseCurrency,
     );
     result.fold(
       (f) => emit(PerformanceError(f.displayMessage)),

@@ -259,16 +259,23 @@ class HoldingRemoteDataSource {
   /// 组合收益曲线 + 盈亏明细。range 取 'DAY'/'MONTH'/'YEAR'
   /// (对齐 PerfRange,mapper curveRangeToProto 折叠未知值为 DAY)。
   /// includeBenchmark=true 时 server 回填 benchmarkPoints + benchmarkName。
+  ///
+  /// [baseCurrency] 折算本位币(ISO 4217 code,来自 CurrencySettings.getBaseCurrency();
+  /// Task 12 D-currency)。空串/CNY → server 不折算;USD 等 → server 解析交叉汇率
+  /// 折算(realized 盈亏 / marketValue 均折到 base)。对齐 proto field 4
+  /// `base_currency`(GetPortfolioPerformanceRequest)。
   Future<PortfolioPerformance> getPortfolioPerformance({
     required String range,
     String? accountId,
     bool includeBenchmark = false,
+    String baseCurrency = '',
   }) async {
     return _retry.call(() async {
       final req = pb.GetPortfolioPerformanceRequest(
         accountId: accountId ?? '',
         range: curveRangeToProto(range),
         includeBenchmark: includeBenchmark,
+        baseCurrency: baseCurrency,
       );
       final res = await _client.getPortfolioPerformance(req);
       return portfolioResponseToEntity(res);
@@ -276,15 +283,22 @@ class HoldingRemoteDataSource {
   }
 
   /// 单持仓价格曲线 + 盈亏明细。range 同上。
+  ///
+  /// [baseCurrency] 折算本位币(Task 12 D-currency,来自
+  /// CurrencySettings.getBaseCurrency())。空串/CNY → 不折算;USD 等 → server
+  /// 解析交叉汇率折算(realized FIFO 盈亏折到 base)。对齐 proto field 3
+  /// `base_currency`(GetHoldingPerformanceRequest)。
   Future<HoldingPerformance> getHoldingPerformance({
     required String holdingId,
     required String range,
+    String baseCurrency = '',
   }) async {
     return _retry.call(() async {
       final res = await _client.getHoldingPerformance(
         pb.GetHoldingPerformanceRequest(
           holdingId: holdingId,
           range: curveRangeToProto(range),
+          baseCurrency: baseCurrency,
         ),
       );
       return holdingResponseToEntity(res);

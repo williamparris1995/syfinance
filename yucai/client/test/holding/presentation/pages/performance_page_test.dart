@@ -14,9 +14,11 @@ import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/entities/performance_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
@@ -27,6 +29,16 @@ import 'package:yucai_client/holding/presentation/pages/performance_page.dart';
 import 'package:yucai_client/holding/presentation/widgets/perf_curve_chart.dart';
 
 class _MockHoldingRepo extends Mock implements HoldingRepository {}
+
+/// Fake CurrencySettings — returns a fixed base currency code (Task 12 D-currency)。
+/// performance_page initState 经 getIt<CurrencySettings>().getBaseCurrency() 读 base,
+/// 透传到 LoadPortfolioPerformanceRequested → getPortfolioPerformance(baseCurrency:)。
+class _FakeCurrencySettings extends Fake implements CurrencySettings {
+  _FakeCurrencySettings(this._base);
+  final String _base;
+  @override
+  Future<String> getBaseCurrency() async => _base;
+}
 
 Holding _holding({
   String id = 'h1',
@@ -56,9 +68,16 @@ Holding _holding({
 
 /// harness:注入 HoldingBloc + PerformanceBloc(mock repo)。
 /// listHoldings / getPortfolioPerformance 由 stub 控制。
+/// [baseCurrency] 注册 CurrencySettings fake(Task 12 D-currency;默认 CNY)。
 Widget _harness({
   required _MockHoldingRepo repo,
+  String baseCurrency = 'CNY',
 }) {
+  final getIt = GetIt.instance;
+  if (!getIt.isRegistered<CurrencySettings>()) {
+    getIt.registerSingleton<CurrencySettings>(
+        _FakeCurrencySettings(baseCurrency));
+  }
   return MaterialApp(
     home: MultiBlocProvider(
       providers: [
@@ -78,16 +97,30 @@ void _stubHoldings(_MockHoldingRepo repo, List<Holding> holdings) {
 /// 默认 perf stub:Left → PerformanceError(非 Loaded),各 ⏳C 空态分支激活
 /// (曲线空 / realized「⏳C 待后端」/ 年化「⏳」/ 基准 mock)。对齐旧 degrade 断言。
 /// 页面不为 perf error 显示整页错误(仅 HoldingError 才整页错误)。
+/// 含 baseCurrency named param(Task 12 D-currency;stub 用 any(named:) 兼容)。
 void _stubPerfEmpty(_MockHoldingRepo repo) {
   when(() => repo.getPortfolioPerformance(
         range: any(named: 'range'),
         accountId: any(named: 'accountId'),
         includeBenchmark: any(named: 'includeBenchmark'),
+        baseCurrency: any(named: 'baseCurrency'),
       )).thenAnswer((_) async =>
       const dartz.Left(ServerFailure('perf not implemented')));
 }
 
 void main() {
+  final getIt = GetIt.instance;
+
+  setUp(() {
+    getIt.reset();
+  });
+
+  tearDown(() {
+    if (getIt.isRegistered<CurrencySettings>()) {
+      getIt.unregister<CurrencySettings>();
+    }
+  });
+
   Future<void> setViewport(WidgetTester t) async {
     t.view.physicalSize = const Size(1200, 1600);
     t.view.devicePixelRatio = 1.0;
@@ -271,6 +304,7 @@ void main() {
           range: any(named: 'range'),
           accountId: any(named: 'accountId'),
           includeBenchmark: any(named: 'includeBenchmark'),
+          baseCurrency: any(named: 'baseCurrency'),
         )).thenAnswer((_) async => dartz.Right(PortfolioPerformance(
           portfolioPoints: [
             PerfPoint(time: DateTime(2026, 6, 1), value: 100),
@@ -329,5 +363,35 @@ void main() {
     await t.pumpAndSettle();
 
     expect(find.text('boom'), findsOneWidget);
+  });
+
+  // Task 12 D-currency:performance_page initState 从 CurrencySettings 读 base →
+  // 透传到 getPortfolioPerformance(baseCurrency:)。验证非默认 base(USD)被传入。
+  testWidgets(
+      'Task 12 D-currency: passes baseCurrency (USD) to getPortfolioPerformance',
+      (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    _stubHoldings(repo, [_holding()]);
+    _stubPerfEmpty(repo);
+
+    // harness 注册 baseCurrency=USD 的 CurrencySettings fake。
+    await t.pumpWidget(_harness(repo: repo, baseCurrency: 'USD'));
+    await t.pumpAndSettle();
+
+    // initState 读 base 后 dispatch → repo 收到 baseCurrency='USD'。
+    verify(() => repo.getPortfolioPerformance(
+          range: any(named: 'range'),
+          accountId: any(named: 'accountId'),
+          includeBenchmark: any(named: 'includeBenchmark'),
+          baseCurrency: 'USD',
+        )).called(greaterThanOrEqualTo(1));
+    // 绝未以默认空串调用(暴露 base 未透传回归)。
+    verifyNever(() => repo.getPortfolioPerformance(
+          range: any(named: 'range'),
+          accountId: any(named: 'accountId'),
+          includeBenchmark: any(named: 'includeBenchmark'),
+          baseCurrency: '',
+        ));
   });
 }

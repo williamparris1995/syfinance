@@ -86,18 +86,22 @@ abstract class HoldingRepository {
   // —— 价格批量同步(Task 9 新增,server 拉行情)——
   Future<Either<Failure, SyncPricesResult>> syncPrices();
 
-  // —— 收益曲线(Task 12,holding-C 新增)——
+  // —— 收益曲线(Task 12,holding-C 新增;Task 12 D-currency 加 baseCurrency)——
   /// 组合收益曲线 + 盈亏明细。range 取 'DAY'/'MONTH'/'YEAR'。
+  /// [baseCurrency] 折算本位币(ISO code,来自 CurrencySettings;空/CNY 不折算)。
   Future<Either<Failure, PortfolioPerformance>> getPortfolioPerformance({
     required String range,
     String? accountId,
     bool includeBenchmark = false,
+    String baseCurrency = '',
   });
 
   /// 单持仓价格曲线 + 盈亏明细。
+  /// [baseCurrency] 折算本位币(ISO code,来自 CurrencySettings;空/CNY 不折算)。
   Future<Either<Failure, HoldingPerformance>> getHoldingPerformance({
     required String holdingId,
     required String range,
+    String baseCurrency = '',
   });
 
   // —— 投资目标关联(Task 10,holding-D 跨模块 goal gRPC)——

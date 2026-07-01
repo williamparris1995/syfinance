@@ -155,27 +155,31 @@ class HoldingRepositoryImpl implements HoldingRepository {
   Future<Either<Failure, SyncPricesResult>> syncPrices() =>
       _guard(() => _remote.syncPrices());
 
-  // —— 收益曲线(Task 12,holding-C 新增)——
+  // —— 收益曲线(Task 12,holding-C 新增;Task 12 D-currency 加 baseCurrency)——
   @override
   Future<Either<Failure, PortfolioPerformance>> getPortfolioPerformance({
     required String range,
     String? accountId,
     bool includeBenchmark = false,
+    String baseCurrency = '',
   }) =>
       _guard(() => _remote.getPortfolioPerformance(
             range: range,
             accountId: accountId,
             includeBenchmark: includeBenchmark,
+            baseCurrency: baseCurrency,
           ));
 
   @override
   Future<Either<Failure, HoldingPerformance>> getHoldingPerformance({
     required String holdingId,
     required String range,
+    String baseCurrency = '',
   }) =>
       _guard(() => _remote.getHoldingPerformance(
             holdingId: holdingId,
             range: range,
+            baseCurrency: baseCurrency,
           ));
 
   // —— 投资目标关联(Task 10,holding-D 跨模块 goal gRPC)——

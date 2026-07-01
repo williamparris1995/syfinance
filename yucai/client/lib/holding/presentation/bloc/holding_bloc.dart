@@ -347,6 +347,7 @@ class HoldingBloc extends Bloc<HoldingEvent, HoldingState> {
     final result = await _repo.getHoldingPerformance(
       holdingId: event.holdingId,
       range: event.range,
+      baseCurrency: event.baseCurrency,
     );
     final current = state is HoldingDetailLoaded
         ? state as HoldingDetailLoaded

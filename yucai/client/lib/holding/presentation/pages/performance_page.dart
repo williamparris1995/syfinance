@@ -32,8 +32,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
+import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
@@ -75,15 +77,32 @@ class _PerformancePageState extends State<PerformancePage> {
   /// 切换时同时派发 LoadPortfolioPerformanceRequested(range 大写串)重拉曲线。
   PerfRange _curveRange = PerfRange.day;
 
+  /// 折算本位币(Task 12 D-currency)。从 CurrencySettings.getBaseCurrency()
+  /// 异步读(CNY default);resolve 后 dispatch 组合收益曲线(透传 base 到
+  /// proto base_currency)。HoldingBloc 列表加载与 baseCurrency 无关(前端
+  /// 聚合 unrealized 不折算),故立即 dispatch。
+  final CurrencySettings _currencySettings = getIt<CurrencySettings>();
+  String _baseCurrency = '';
+
   @override
   void initState() {
     super.initState();
     // 确保持仓列表就绪(贡献/概览头用,前端聚合;列表页先访问则 bloc 复用)。
     context.read<HoldingBloc>().add(const LoadHoldingsRequested());
-    // Task 13:拉组合收益曲线 + 盈亏明细(server 真数据,默认 DAY)。
-    context
-        .read<PerformanceBloc>()
-        .add(const LoadPortfolioPerformanceRequested());
+    // 折算本位币解析后再 dispatch 组合收益曲线(base 透传到 server)。
+    _loadPortfolio();
+  }
+
+  /// 读 CurrencySettings base 后 dispatch 组合收益曲线。range 默认 DAY。
+  Future<void> _loadPortfolio({String range = 'DAY'}) async {
+    final base = await _currencySettings.getBaseCurrency();
+    if (!mounted) return;
+    setState(() => _baseCurrency = base);
+    if (!mounted) return;
+    context.read<PerformanceBloc>().add(LoadPortfolioPerformanceRequested(
+      range: range,
+      baseCurrency: base,
+    ));
   }
 
   @override
@@ -250,12 +269,13 @@ class _PerformancePageState extends State<PerformancePage> {
   Widget _curveCard(HoldingLoaded state, String currency, PerformanceState perf) {
     final unrealized = _sumUnrealized(state.holdings);
     final loaded = perf is PerformanceLoaded ? perf.performance : null;
-    // range tab 切换:更新本地 + 派发 PerformanceBloc 重拉曲线。
+    // range tab 切换:更新本地 + 派发 PerformanceBloc 重拉曲线(带已解析的 baseCurrency)。
     void onRange(PerfRange r) {
       setState(() => _curveRange = r);
-      context
-          .read<PerformanceBloc>()
-          .add(LoadPortfolioPerformanceRequested(range: rangeName(r)));
+      context.read<PerformanceBloc>().add(LoadPortfolioPerformanceRequested(
+        range: rangeName(r),
+        baseCurrency: _baseCurrency,
+      ));
     }
 
     return DataCard(
