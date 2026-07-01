@@ -37,6 +37,7 @@ import '../../auth/presentation/bloc/auth_bloc.dart' as _i946;
 import '../../budget/data/budget_remote_ds.dart' as _i749;
 import '../../budget/data/budget_repository_impl.dart' as _i364;
 import '../../budget/domain/repositories/budget_repository.dart' as _i665;
+import '../../budget/presentation/bloc/budget_bloc.dart' as _i763;
 import '../../currency/data/currency_remote_ds.dart' as _i386;
 import '../../currency/data/currency_repository_impl.dart' as _i254;
 import '../../currency/data/currency_settings.dart' as _i61;
@@ -224,6 +225,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i1051.DeleteAccountUseCase>(),
         gh<_i726.UpdateAccountUseCase>(),
       ),
+    );
+    gh.factory<_i763.BudgetBloc>(
+      () => _i763.BudgetBloc(gh<_i665.BudgetRepository>()),
     );
     gh.factory<_i803.AccountBloc>(
       () => _i803.AccountBloc(
