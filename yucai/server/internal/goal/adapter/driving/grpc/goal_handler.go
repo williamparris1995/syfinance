@@ -209,9 +209,18 @@ func (h *GoalHandler) ListGoals(ctx context.Context, req *pb.ListGoalsRequest) (
 	// For simplicity, pass nil (all) unless explicitly set
 	_ = completed
 
+	// D-goal: filter by type. UNSPECIFIED (proto default 0) means "all goals"
+	// → pass nil GoalType. Any concrete type maps to the domain enum by NAME.
+	var goalType *domain.GoalType
+	if req.GetGoalType() != pb.GoalType_GOAL_TYPE_UNSPECIFIED {
+		gt := protoToGoalType(req.GetGoalType())
+		goalType = &gt
+	}
+
 	result, err := h.service.ListGoals(ctx, application.ListGoalsRequest{
 		TenantID:  tenantID,
 		Completed: completed,
+		GoalType:  goalType,
 		Page:      pageReq,
 	})
 	if err != nil {
@@ -226,6 +235,27 @@ func (h *GoalHandler) ListGoals(ctx context.Context, req *pb.ListGoalsRequest) (
 	return &pb.ListGoalsResponse{
 		Goals: goals,
 		Page:  &commonpb.PageResponse{NextPageToken: result.NextPageToken, TotalCount: result.TotalCount},
+	}, nil
+}
+
+// SyncInvestmentGoals recomputes current_amount for the caller's investment
+// goals from their linked investment account's Σ holdings market value (manual
+// trigger; the scheduler does this for all tenants automatically). This is the
+// real handler replacing UnimplementedGoalServiceServer.SyncInvestmentGoals
+// (Task 6 proto-only stub returned codes.Unimplemented at runtime).
+// Per-tenant: only the current caller's goals are synced.
+func (h *GoalHandler) SyncInvestmentGoals(ctx context.Context, _ *pb.SyncInvestmentGoalsRequest) (*pb.SyncInvestmentGoalsResponse, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	count, err := h.service.SyncInvestmentGoals(ctx, tenantID)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.SyncInvestmentGoalsResponse{
+		SyncedCount: int32(count),
+		SyncedAt:    timestamppb.Now(),
 	}, nil
 }
 
