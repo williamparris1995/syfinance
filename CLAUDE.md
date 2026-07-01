@@ -1,157 +1,79 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+御财(YuCai)— 个人理财桌面应用。**Go 后端**(DDD + gRPC + ent)+ **Flutter 客户端**(flutter_bloc + injectable)。本地优先,Postgres(podman 容器 dev)。
 
-## Project Overview
-
-Personal finance desktop app (double-entry bookkeeping, Chinese accounting standards) built with **Tauri 2.x** (Rust backend + React frontend). Offline-first with local SQLite storage. Package manager: **pnpm**.
-
-## Commands
-
-### Frontend
-- `pnpm dev` — Vite dev server (port 5173)
-- `pnpm build` — Production build to `dist/`
-- `pnpm type-check` — TypeScript check (`tsc --noEmit`)
-- `pnpm lint` / `pnpm lint:fix` — ESLint on `src/`
-- `npx vitest run` — Run frontend tests (single test: `npx vitest run path/to/test`)
-- `pnpm vitest` — Watch mode
-
-### Backend (Rust)
-- `make check` — Format + clippy + custom quality checks (run before committing)
-- `make test` — `cargo test` (single test: `cd src-tauri && cargo test test_name`)
-- `make build` — `cargo build`
-- `make fix` — Auto-fix with `cargo fmt` + `cargo clippy --fix`
-- `make ci` — Full CI: check + test + build
-
-### Full Validation
-- `pnpm validate` — Runs **everything**: type-check + lint + cargo fmt + cargo clippy + python quality validators. Use this as the single pre-push check.
-
-### Full app
-- `pnpm tauri dev` — Run Tauri in development mode (launches both Vite and Rust)
-- `pnpm tauri build` — Production build (MSI installer in `src-tauri/target/release/bundle/`)
-
-## Architecture
-
-### Rust Backend (src-tauri/) — Domain-Driven Design
+## 项目结构
 
 ```
-src/
-  domain/          # Aggregates, Value Objects, Repository traits
-    aggregates/    # Account, Transaction, Debt, Budget, Goal, Tag, Holding, TransactionTemplate, Reminder
-    repositories/  # Trait definitions (AccountRepository, TransactionRepository, etc.)
-    value_objects/ # Money, Currency, TransactionEntry, VersionVector, BudgetItem, etc.
-  application/     # Business logic services + DTOs
-  infrastructure/  # SQLite repos, encryption, notifications, reminders, sync, backup
-  presentation/
-    api/           # Axum REST routes (sync endpoints, port 3000)
-    tauri_commands/# Tauri IPC handlers (primary frontend↔backend channel)
+yucai/
+  server/           # Go 后端(internal/ DDD 四层 + ent + wire)
+  client/           # Flutter 客户端(lib/ DDD 四层 + flutter_bloc + getIt)
+proto/              # proto3 定义(gen Go + Dart stub)
+docs/superpowers/   # brainstorm / specs / plans(SDD 工作流)
+design-output/      # OD 原型(holding + accounts-responsive)
 ```
 
-Frontend communicates with Rust primarily through **Tauri IPC** (`invoke()` calls). Axum REST API on port 3000 handles device registration and sync operations.
+## 命令
 
-### React Frontend (src/)
+### server(Go, `yucai/server/`)
+- `go test ./...` — 全量测
+- `go build ./...` — build
+- 单包:`go test ./internal/budget/... -count=1`
+- rebuild exe:`go build -o bin/server.exe ./cmd/server`
 
-- **Routing**: TanStack Router (file-based) with auth guard — unregistered devices redirect to `/onboarding`
-- **Data fetching**: TanStack React Query (5min stale time, 30min GC)
-- **Forms**: react-hook-form + Zod validation
-- **UI**: shadcn/ui (base-nova) + Radix primitives + Tailwind CSS
-- **i18n**: i18next (English + Chinese), ESLint enforces `i18next/no-literal-string` — all user-visible text must use `t()`. Exempt paths: `src/components/ui/**` (shadcn) and test files.
-- **State**: No global client store. Server state via React Query, auth via Tauri Store plugin
+### client(Flutter, `yucai/client/`)
+- `flutter test` — 全量测(基线:3 预存 fail account/debt/transaction_detail_page_test,account redesign 漂移,非各模块引入)
+- `flutter analyze` — 分析(基线 22 error 全 `*.pbserver.dart`,客户端未用)
+- `flutter build windows --debug` — build
+- `dart run build_runner build --delete-conflicting-outputs` — DI 注入重生成(injectable)
 
-### Key Patterns
+### proto 改后重生成 stub
+- Go:`cd yucai/server && buf generate --template buf.gen.go.yaml`(无网 fallback:本地 protoc + protoc-gen-go/-grpc,手修 `package <name>v1`)
+- Dart:`cd yucai && make gen-dart`(**protoc_plugin 必须 25.0.0**;21.x 生成 protobuf 4.x 旧 API → analyze 暴增)
 
-- **Path alias**: `@/*` maps to `./src/*` in both TS and Vite
-- **Tauri IPC wrapper**: `src/lib/tauri.ts` provides `invokeTauri()` with type-safe command wrappers in `src/lib/tauri/` (20 domain modules; only `account` and `prepaid` re-exported from index — others imported directly)
-- **Database**: SQLite via SQLx with migrations in `src-tauri/migrations/` (dated SQL files, e.g. `20260407_initial_schema.sql`). Foreign keys enabled on production pool, disabled during migrations. Monetary amounts stored as INTEGER cents.
-- **Soft delete**: `deleted_at` timestamp (tombstone pattern)
-- **Background schedulers**: Sync, reminders, prepaid alerts — all run as Tokio tasks every 5 min
-- **Encryption**: AES-GCM + PBKDF2 + OS keychain for sensitive data
-- **Full-text search**: SQLite FTS5 indexes for accounts, transactions, debts, goals, tags — rebuilt on startup
-- **Cloud backup**: WebDAV, Dropbox, Google Drive, OneDrive providers (in `infrastructure/backup/`)
+### dev 运行(详见 memory `yucai-dev-env`)
+- podman 容器 `yucai-pg`(DB 用户/密码/库名 = `yucai`,**非** `yucai_dev`)
+- server(bash run_in_background,绝对路径 cd):`export DATABASE_URL='postgresql://yucai:yucai@localhost:5432/yucai?sslmode=disable' && export JWT_SECRET='...' && export GRPC_PORT=9090 && ./bin/server.exe`
+- client:`flutter run -d windows`(JIT;release 卡 accessibility_bridge 循环,用 debug)
 
-## Rust Coding Standards (Mandatory)
+## 架构
 
-See `docs/CODING_STANDARDS.md` for full details. Violations fail CI.
+### server(`yucai/server/internal/`)— DDD 四层
+- `domain/` — aggregates + value objects + repository **interfaces**(account/transaction/debt/budget/goal/holding/currency/tag/template/sync/backup/...)
+- `application/` — 业务服务 + DTO
+- `infrastructure/`(adapter/driven)— ent repos + schedulers + 加密 + 同步
+- `presentation/`(adapter/driving)— gRPC handlers
 
-1. **Use ORM** — no hardcoded SQL field names in queries (note: project uses SQLx directly, not SeaORM; `docs/CODING_STANDARDS.md` references SeaORM but the codebase uses `sqlx::query_as!`)
-2. **Use `tracing`** — `println!` is banned (enforced by clippy.toml)
-3. **Use `serde`** for enums — no hardcoded string matching
-4. **Log errors with context** — always include operation name and error details
-5. **Max 5 function arguments** (enforced by clippy.toml)
+**跨模块 port 模式**:消费模块不 import 生产模块,走函数/接口注入(照 networth 3 port / D-goal AccountMarketValueSource / budget entryFunc 闭包)。
+**account-as-category + 双账**:`TransactionType` Income/Expense/**Transfer**(asset→asset)。budget item = expense 账户(category);transfer 不涉 expense → 自动排除。
 
-Validate: `make check` or `python3 scripts/validate_code_quality.py`
+### client(`yucai/client/lib/`)— DDD 四层
+- `domain/`(entities + repositories abstract)
+- `data/`(remote_ds + repository_impl;GrpcClient + AuthRetryCaller `_retry`)
+- `presentation/`(bloc + pages)
+- `core/`(di injection + network grpc_client + error failures)
 
-## Testing
+`flutter_bloc` + `injectable`(`@LazySingleton` / `@Injectable`)+ `getIt`。**中文 UI 直写**(非 i18next `t()`,与旧 Tauri 项目不同)。lucide icons。
 
-- **Frontend**: Vitest + jsdom + Testing Library. Setup (`vitest.setup.ts`) mocks `react-i18next` with real `en.json` translations and mocks `window.matchMedia`. Tests in `src/__tests__/`, `src/components/__tests__/`, `src/hooks/__tests__/`, `src/pages/__tests__/`.
-- **Backend**: Rust integration tests in `src-tauri/tests/` (14 test files). Uses proptest for property-based testing.
+## 关键约束(Mandatory)
 
-## i18n
+1. **English 结构化日志** — slog(`slog.Error("op", "key", val)`)/ `console.error`,**无 CJK 在 log 串**
+2. **wire 工具链坏** — `wire_gen.go` **手改**(镜像现有 provider 声明顺序,消费方在依赖方之后声明),不跑 wire CLI(详见 memory `yucai-wire-handmaintained`)
+3. **复用第一** — 新模块照现有 holding/debt DDD 范式;先查 `lib/` + `hooks/` + `components/` 复用,不重复
+4. **DDD 边界** — domain → application → infrastructure → presentation;跨模块走 port(不跨层 import)
+5. **proto regen** — protoc_plugin **25.0.0**(Dart);改 proto 后 Go + Dart stub 都要 regen
+6. **interface 加方法** — grep 全 implementer(**含 test fake**);implementer 跑**全量 suite** 非 scoped(否则跨包 fake 漏改致 build fail)
+7. **路由优先级** — 静态子路由(`/new` `/edit`)必须在 `/:id` 前(否则 "new" 被当 :id)
 
-- Locales: `src/i18n/locales/en.json` and `zh.json`
-- ESLint rule `i18next/no-literal-string` means **no raw English/Chinese strings in JSX** — always use `t('key')`
-- When adding UI text, add keys to both locale files
+## 测试
+- server:Go 单测 + 集成测(enttest SQLite)+ e2e(grpcurl,需 auth token)
+- client:widget test(mocktail `Mock`/`Fake`;pump 而非 pumpAndSettle 当有永不完成的 Future)
+- 预存 fail:account/debt/transaction_detail_page_test(account 模块 redesign 漂移,非各模块引入,out-of-scope)
 
-## Database
+## 工作流(SDD)
+- 创造性工作(新功能/模块)走 brainstorming → spec(`docs/superpowers/specs/`)→ plan(`docs/superpowers/plans/`)→ subagent-driven 实现
+- UI 原型用 **Open Design**(MCP `open-design`),不手写 HTML 中间步骤(详见 memory `od-prototype-to-flutter`)
+- progress ledger:`.superpowers/sdd/progress.md`(gitignored,本地)
 
-- Location: `%APPDATA%/finance-app/finance.db` (Windows)
-- Logs: `%APPDATA%/finance-app/logs/` (daily rolling files via `tracing_appender`)
-- Migrations run automatically on first launch
-- Add new migrations as dated SQL files in `src-tauri/migrations/` (format: `YYYYMMDD_description.sql`)
-
-## Incomplete Features (as of Phase 1)
-
-- PostgreSQL sync (repos exist but not wired up)
-- Notification delivery (scheduling works, delivery incomplete)
-- See `LIMITATIONS.md` for full list
-
-## AI Generation Constraints
-
-Three rules enforced by validation tooling (`make check-quality`) and ESLint.
-
-### 1. Modular Design, Reuse First (SHOULD)
-
-Before creating new modules, check existing ones for reuse:
-- Frontend: `src/lib/tauri/`, `src/components/ui/`, `src/hooks/`
-- Backend: `src-tauri/src/application/services/`, `src-tauri/src/domain/`
-- Follow DDD layer boundaries (domain -> application -> infrastructure -> presentation)
-
-### 2. English Structured Logs (SHOULD)
-
-All log output must use English structured format. CJK characters in log statements are flagged by `log_validator.py`.
-
-Rust:
-```rust
-info!(account_id = %id, "Creating account");
-error!(operation = "delete_transaction", error = %e, "Failed to delete");
-```
-
-TypeScript:
-```typescript
-console.error("[AccountService] Failed to create account", error);
-```
-
-### 3. i18n for UI, const for Non-UI (FORBIDDEN to hardcode in UI)
-
-- **User-visible JSX text**: Must use `t('key')` -- no hardcoded strings (enforced by ESLint `i18next/no-literal-string` + `const_validator.py`)
-- **Non-display constants**: `const STATUS = "active"` is acceptable for error codes, config values, API paths
-- **Avoid circular references**: const strings must not create reference loops with i18n keys
-
-Validation: `pnpm lint` (ESLint) + `make check-quality` (Python validators)
-## System Architecture
-- This project leverages the Open Design system connected via the `open-design` MCP server.
-- Locally managed assets are stored in `./design-output/`.
-
-## Reusable Workflow Skills
-When triggered by specific instructions, execute these precise steps:
-
-### Skill: /generate-ui [brief]
-1. Read the user's layout requirement from the [brief].
-2. Invoke the `open-design` MCP tool to create a new design context.
-3. Generate the UI components inside the design canvas using Tailwind CSS / React standards.
-4. Output the compiled artifacts into the local workspace.
-
-### Skill: /export-ppt [topic]
-1. Fetch design themes from `DESIGN.md`.
-2. Call the Open Design daemon to compile slide layouts.
-3. Save the resulting file as a `.pptx` in the project root.
+## 相关 memory
+`yucai-dev-env`(dev 环境)/ `yucai-wire-handmaintained`(wire 手改)/ `od-prototype-to-flutter`(OD→Flutter 工作流)/ `holding-asset-management-todo`(holding 系统状态)

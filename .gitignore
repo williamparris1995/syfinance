@@ -1,31 +1,38 @@
-node_modules/
-dist/
-coverage/
-.turbo/
-.vite/
-.tauri/
-src-tauri/target/
-src-tauri/*.lock
-src-tauri/.cargo/
-pnpm-lock.yaml
+# === Go (yucai/server) ===
+yucai/server/*.exe
+yucai/server/bin/
+yucai/server/tmp/
+*.test
+*.out
+
+# === Flutter (yucai/client) ===
+yucai/client/.dart_tool/
+yucai/client/.flutter-plugins
+yucai/client/.flutter-plugins-dependencies
+yucai/client/.packages
+yucai/client/build/
+yucai/client/.pub-cache/
+yucai/client/.pub/
+yucai/client/coverage/
+yucai/client/lib/proto/**/*.freezed.dart
+
+# === proto gen scratch ===
+graphify-out/cache/
+
+# === IDE / OS ===
+.vscode/
+.idea/
 *.log
 .DS_Store
 Thumbs.db
-graphify-out/cache/
 
-# yucai build 产物（不提交 binary）
-yucai/server/*.exe
-yucai/server/bin/
-
-# 调试输出
-accounts-list
-
-# superpowers session scratch（brainstorm / sdd ledger / review package，含 .last-token —— 不提交）
+# === superpowers session scratch（brainstorm / sdd ledger / review package / task brief — 本地,不提交）===
 .superpowers/
 
-# GUI 验证截图（三端响应式 + app 截图，验证产物）
-/app-responsive.png
-/app-txn-mobile.png
-/detail-desktop-1200
-/detail-mobile-375
-/detail-tablet-800
+# === 调试输出 / 截图 ===
+*.png
+!design-output/**/*.png
+accounts-list
+detail-*
+form-overview
+home

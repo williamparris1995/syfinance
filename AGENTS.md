@@ -1,91 +1,16 @@
-## Coding Standards
+# AGENTS.md
 
-**CRITICAL**: All generated Rust code MUST follow `docs/CODING_STANDARDS.md`
+御财(YuCai)个人理财 — Go 后端(DDD + gRPC + ent)+ Flutter 客户端(flutter_bloc)。代码在 `yucai/server/` + `yucai/client/`。
 
-### Mandatory Rules (Will Fail CI)
+**完整项目指南见 [CLAUDE.md](CLAUDE.md)**(架构 / 命令 / 约束 / 工作流)。
 
-1. **Use ORM (SeaORM)** - NO hardcoded SQL field names
-   ```rust
-   ❌ sqlx::query!("SELECT id, title FROM reminders")
-   ✅ Reminders::find().all(&db).await?
-   ```
+## 快速命令
+- server:`cd yucai/server && go test ./... && go build ./...`
+- client:`cd yucai/client && flutter test && flutter analyze`
+- proto regen:`cd yucai && make gen-dart`(protoc_plugin 25.0.0)
 
-2. **Use tracing, NOT println!**
-   ```rust
-   ❌ println!("Error: {}", e);
-   ✅ error!(error = %e, "Failed to process");
-   ```
-
-3. **Use serde for enums, NO hardcoded strings**
-   ```rust
-   ❌ match s { "LOW" => Ok(Self::Low), ... }
-   ✅ #[derive(Serialize, Deserialize)]
-      #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-      pub enum Priority { Low, Normal, High, Urgent }
-   ```
-
-4. **All errors must be logged with context**
-   ```rust
-   ❌ Err(e) => return Err(MyError::Failed)
-   ✅ Err(e) => {
-          error!(operation = "do_something", error = %e, "Failed");
-          return Err(MyError::Failed);
-      }
-   ```
-
-### Validation
-
-Before committing, run:
-```bash
-make check  # Runs format, clippy, and custom quality checks
-```
-
-Or manually:
-```bash
-cd src-tauri
-cargo fmt -- --check
-cargo clippy -- -D warnings
-python3 ../scripts/validate_code_quality.py
-```
-
-### Reference
-
-Full standards: `docs/CODING_STANDARDS.md`
-
----
-## Always Do
-
-- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
-- **MUST run `detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows. For regression review, compare against the default branch: `detect_changes({scope: "compare", base_ref: "main"})`.
-- **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
-- When exploring unfamiliar code, use `query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
-- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `context({name: "symbolName"})`.
-
-## Never Do
-
-- NEVER edit a function, class, or method without first running `impact` on it.
-- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
-- NEVER rename symbols with find-and-replace — use `rename` which understands the call graph.
-- NEVER commit changes without running `detect_changes()` to check affected scope.
-
-## Resources
-
-| Resource | Use for |
-|----------|---------|
-| `gitnexus://repo/syfinance/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/syfinance/clusters` | All functional areas |
-| `gitnexus://repo/syfinance/processes` | All execution flows |
-| `gitnexus://repo/syfinance/process/{name}` | Step-by-step execution trace |
-
-## CLI
-
-| Task | Read this skill file |
-|------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
-
-<!-- gitnexus:end -->
+## 关键约束(详 CLAUDE.md)
+- English 结构化日志(无 CJK 在 log 串)
+- `wire_gen.go` 手改(工具链坏,不跑 wire CLI)
+- 跨模块 port 模式(消费方不 import 生产方)
+- DDD 四层边界 + 复用第一(照 holding/debt 范式)
