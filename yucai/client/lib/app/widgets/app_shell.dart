@@ -87,6 +87,8 @@ class AppShell extends StatelessWidget {
         return '债权管理';
       case 5:
         return '持仓管理';
+      case 6:
+        return '预算管理';
       default:
         return '御财';
     }
@@ -120,7 +122,7 @@ const _navGroups = <_NavGroup>[
   ]),
   _NavGroup('财务', [
     _NavItem('账户管理', Icons.account_balance_wallet_outlined, 1),
-    _NavItem('预算管理', Icons.savings_outlined, null),
+    _NavItem('预算管理', Icons.savings_outlined, 6, route: '/budgets'),
     _NavItem('目标追踪', Icons.flag_outlined, null),
   ]),
   _NavGroup('交易', [

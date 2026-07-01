@@ -35,6 +35,10 @@ import 'package:yucai_client/auth/domain/usecases/logout_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/register_usecase.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
+import 'package:yucai_client/budget/domain/entities/budget_entity.dart';
+import 'package:yucai_client/budget/domain/repositories/budget_repository.dart';
+import 'package:yucai_client/budget/presentation/bloc/budget_bloc.dart';
+import 'package:yucai_client/budget/presentation/pages/budget_list_page.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
@@ -53,6 +57,7 @@ class _MockAccountRepo extends Mock implements AccountRepository {}
 class _MockTxnRepo extends Mock implements TransactionRepository {}
 class _MockDebtRepo extends Mock implements DebtRepository {}
 class _MockHoldingRepo extends Mock implements HoldingRepository {}
+class _MockBudgetRepo extends Mock implements BudgetRepository {}
 class _MockLogin extends Mock implements LoginUseCase {}
 class _MockRegister extends Mock implements RegisterUseCase {}
 class _MockProfile extends Mock implements GetProfileUseCase {}
@@ -98,10 +103,12 @@ void main() {
     final txnRepo = _MockTxnRepo();
     final debtRepo = _MockDebtRepo();
     final holdingRepo = _MockHoldingRepo();
+    final budgetRepo = _MockBudgetRepo();
     getIt.registerSingleton<AccountRepository>(accountRepo);
     getIt.registerSingleton<TransactionRepository>(txnRepo);
     getIt.registerSingleton<DebtRepository>(debtRepo);
     getIt.registerSingleton<HoldingRepository>(holdingRepo);
+    getIt.registerSingleton<BudgetRepository>(budgetRepo);
     // HomePage reads CurrencySettings from getIt (Task 12 D-currency +
     // cross-page refresh listener in initState). Register a fake so the home
     // branch resolves without pulling in the full DI graph.
@@ -151,6 +158,21 @@ void main() {
     // any /holdings navigation doesn't hit an unstubbed call.
     when(() => holdingRepo.listHoldings(accountId: any(named: 'accountId')))
         .thenAnswer((_) async => const dartz.Right([]));
+    // /budgets branch builder (router.dart) creates BudgetBloc via
+    // getIt<BudgetBloc>() (factory, Task 7 @injectable). Register a factory
+    // wired to the mocked BudgetRepository (mirrors AccountBloc factory above)
+    // so /budgets, /budgets/new, /budgets/:id, /budgets/:id/edit all resolve.
+    getIt.registerFactory<BudgetBloc>(() => BudgetBloc(budgetRepo));
+    // /budgets branch root fires LoadListRequested on entry; stub globally so
+    // any /budgets/* navigation (incl. /budgets/new, /budgets/:id) doesn't hit
+    // an unstubbed listBudgets call (the list page also re-dispatches in
+    // initState, both no-ops against an empty Right).
+    when(() => budgetRepo.listBudgets(activeOnly: any(named: 'activeOnly')))
+        .thenAnswer((_) async => const dartz.Right([]));
+    // /budgets/:id dispatches LoadDetailRequested(id); stub getBudget so the
+    // detail/form pages don't hit an unstubbed call.
+    when(() => budgetRepo.getBudget(any()))
+        .thenAnswer((_) async => dartz.Right(_budget()));
   });
 
   Widget app(GoRouter router, AuthBloc authBloc) => MaterialApp.router(
@@ -215,14 +237,14 @@ void main() {
         '/transactions/t-42');
   });
 
-  test('router has six StatefulShell branches '
-      '(home/accounts/transactions/debts/receivables/holdings)', () {
+  test('router has seven StatefulShell branches '
+      '(home/accounts/transactions/debts/receivables/holdings/budgets)', () {
     final router = buildRouter(_seededAuthBloc());
     final shell = router.configuration.routes
         .whereType<StatefulShellRoute>()
         .first;
-    expect(shell.branches.length, 6,
-        reason: 'holdings branch (index 5) must be registered');
+    expect(shell.branches.length, 7,
+        reason: 'budget branch (index 6) must be registered');
   });
 
   testWidgets(
@@ -247,6 +269,84 @@ void main() {
 
     expect(router.routerDelegate.currentConfiguration.uri.toString(),
         '/holdings');
+  });
+
+  testWidgets('/budgets resolves inside the budget branch and renders '
+      'BudgetListPage', (tester) async {
+    // 宽屏(>=1100)显示侧栏,避免底栏 7-destination 拥挤测试干扰。
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/budgets');
+    await tester.pumpWidget(app(router, authBloc));
+    // Don't pumpAndSettle: BudgetListPage 月份切换 + post-frame 在 stripped
+    // harness 可能持续 schedule frames。几次 pump 足够 router 解析。
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(), '/budgets');
+    // Branch 6 of StatefulShellRoute renders the budget list page.
+    expect(find.byType(BudgetListPage), findsOneWidget);
+  });
+
+  testWidgets('/budgets/new resolves to the budget form route (create mode)',
+      (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/budgets/new');
+    await tester.pumpWidget(app(router, authBloc));
+    // Don't pumpAndSettle: BudgetFormPage._loadAccounts 是 async,在 stripped
+    // harness 里可能持续 schedule。几次 pump 足够 router 解析。
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/budgets/new');
+  });
+
+  testWidgets('/budgets/:id resolves to the budget detail route',
+      (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/budgets/b-42');
+    await tester.pumpWidget(app(router, authBloc));
+    // Don't pumpAndSettle: BudgetDetailPage initState dispatch +
+    // post-frame 在 stripped harness 可能持续 schedule。
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/budgets/b-42');
+  });
+
+  testWidgets('sidebar 预算管理 tap navigates to /budgets (branch 6)',
+      (tester) async {
+    // 宽屏(>=1100)显示侧栏。侧栏「预算管理」项 branchIndex=6 + route='/budgets',
+    // route 优先 → context.go('/budgets')。验证它真切换到 branch 6。
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/home');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('预算管理'), findsOneWidget);
+    await tester.tap(find.text('预算管理'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(), '/budgets');
   });
 
   testWidgets('/debts resolves inside the debt branch and renders DebtsPage',
@@ -449,4 +549,14 @@ Transaction _txn() => Transaction(
         TransactionEntry(accountId: 'a1', debitCents: 100, creditCents: 0),
         TransactionEntry(accountId: 'a2', debitCents: 0, creditCents: 100),
       ],
+    );
+
+BudgetView _budget() => const BudgetView(
+      id: 'b1',
+      name: '7月家庭预算',
+      month: '2026-07',
+      currencyCode: 'CNY',
+      totalAmountCents: 1000000,
+      totalActualCents: 400000,
+      usagePct: 40.0,
     );

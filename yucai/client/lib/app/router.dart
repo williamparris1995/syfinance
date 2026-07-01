@@ -13,6 +13,12 @@ import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/pages/account_detail_page.dart';
 import 'package:yucai_client/account/presentation/pages/accounts_page.dart';
 import 'package:yucai_client/app/widgets/app_shell.dart';
+import 'package:yucai_client/budget/presentation/bloc/budget_bloc.dart';
+import 'package:yucai_client/budget/presentation/bloc/budget_event.dart'
+    as budget_event;
+import 'package:yucai_client/budget/presentation/pages/budget_detail_page.dart';
+import 'package:yucai_client/budget/presentation/pages/budget_form_page.dart';
+import 'package:yucai_client/budget/presentation/pages/budget_list_page.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/auth/presentation/pages/home_page.dart';
@@ -75,6 +81,7 @@ GoRouter buildRouter(AuthBloc authBloc) {
           state.matchedLocation.startsWith('/debts') ||
           state.matchedLocation.startsWith('/receivables') ||
           state.matchedLocation.startsWith('/holdings') ||
+          state.matchedLocation.startsWith('/budgets') ||
           state.matchedLocation.startsWith('/settings');
 
       if (isLoading) return null;
@@ -545,6 +552,73 @@ GoRouter buildRouter(AuthBloc authBloc) {
                       ],
                       child: HoldingDetailPage(id: state.pathParameters['id']!),
                     ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // 预算管理（branch 6）：对齐 /holdings /debts 模板。列表/详情页
+          // provide BudgetBloc（factory 注册，Task 7）。子路由顺序：静态 `/new`
+          // 必须在 `/:id` 前（GoRouter 匹配优先级，否则被 :id 捕获；与 holdings
+          // branch 一致）。
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/budgets',
+                // 列表页：路由层 provide BudgetBloc，进入即拉 LoadListRequested
+                //（BudgetListPage.initState 也会 dispatch 同样事件，双重保险：
+                // 路由层先发，页面 initState 再发一次幂等）。
+                builder: (_, __) => BlocProvider<BudgetBloc>(
+                  create: (_) {
+                    final b = getIt<BudgetBloc>();
+                    b.add(const budget_event.LoadListRequested());
+                    return b;
+                  },
+                  child: const BudgetListPage(),
+                ),
+                routes: [
+                  // 静态子路由（必须在 :id 前）。
+                  GoRoute(
+                    path: 'new',
+                    // 创建表单：BudgetFormPage(budgetId: null) = 创建模式。
+                    // 表单 _loadAccounts 读 GetIt<AccountRepository>（已注册），
+                    // 创建模式不读 BudgetBloc（_isEdit == false），但 BlocConsumer
+                    // 在树里需要 BlocProvider 祖先 → provide 一个独立实例。
+                    builder: (_, __) => BlocProvider<BudgetBloc>(
+                      create: (_) => getIt<BudgetBloc>(),
+                      child: const BudgetFormPage(),
+                    ),
+                  ),
+                  GoRoute(
+                    path: ':id',
+                    // 详情页：独立 BudgetBloc，进入即 LoadDetailRequested(id)。
+                    builder: (_, state) => BlocProvider<BudgetBloc>(
+                      create: (_) {
+                        final id = state.pathParameters['id']!;
+                        final b = getIt<BudgetBloc>();
+                        b.add(budget_event.LoadDetailRequested(id));
+                        return b;
+                      },
+                      child: BudgetDetailPage(id: state.pathParameters['id']!),
+                    ),
+                    routes: [
+                      GoRoute(
+                        path: 'edit',
+                        // 编辑表单：BudgetFormPage(budgetId: id) = 编辑模式，
+                        // _loadExisting 会 context.read<BudgetBloc>() → provide。
+                        builder: (_, state) => BlocProvider<BudgetBloc>(
+                          create: (_) {
+                            final id = state.pathParameters['id']!;
+                            final b = getIt<BudgetBloc>();
+                            b.add(budget_event.LoadDetailRequested(id));
+                            return b;
+                          },
+                          child: BudgetFormPage(
+                            budgetId: state.pathParameters['id'],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
