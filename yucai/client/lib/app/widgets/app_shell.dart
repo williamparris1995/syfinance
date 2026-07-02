@@ -226,7 +226,10 @@ class _Sidebar extends StatelessWidget {
                           ? GoRouterState.of(context)
                               .matchedLocation
                               .startsWith(item.route!)
-                          : item.branchIndex == currentIndex,
+                          : item.branchIndex == currentIndex &&
+                              !GoRouterState.of(context)
+                                  .matchedLocation
+                                  .startsWith('/categories'),
                       onTap: item.branchIndex == null && item.route == null
                           ? null
                           : () {
