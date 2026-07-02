@@ -68,15 +68,15 @@ class _BudgetListPageState extends State<BudgetListPage> {
                 fontWeight: FontWeight.w600,
                 fontFamily: AppTypography.displayFamily,
                 fontFamilyFallback: AppTypography.displayFallback)),
-        actions: [
-          // 新建 action(lucide plus icon)。对齐 brief:push '/budgets/new'。
-          IconButton(
-            key: const ValueKey('budgetNewAction'),
-            tooltip: '新建',
-            icon: const Icon(LucideIcons.plus, size: 20),
-            onPressed: () => context.push('/budgets/new'),
-          ),
-        ],
+      ),
+      // 创建预算 FAB(对齐 debts/receivables/holdings 等其他 list 页范式:
+      // 金色背景 + 白色 add icon,heroTag: null 禁 Hero —— indexedStack 保活多
+      // branch 时避免与其它 branch FAB 共用默认 Hero tag 冲突)。
+      floatingActionButton: FloatingActionButton(
+        heroTag: null,
+        onPressed: () => context.push('/budgets/new'),
+        backgroundColor: AppColors.accent,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
       body: BlocBuilder<BudgetBloc, BudgetState>(
         builder: (context, state) {

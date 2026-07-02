@@ -67,15 +67,15 @@ class _GoalListPageState extends State<GoalListPage> {
                 fontWeight: FontWeight.w600,
                 fontFamily: AppTypography.displayFamily,
                 fontFamilyFallback: AppTypography.displayFallback)),
-        actions: [
-          // 新建 action(lucide plus icon)。对齐 brief:push '/goals/new'。
-          IconButton(
-            key: const ValueKey('goalNewAction'),
-            tooltip: '新建',
-            icon: const Icon(LucideIcons.plus, size: 20),
-            onPressed: () => context.push('/goals/new'),
-          ),
-        ],
+      ),
+      // 创建目标 FAB(对齐 debts/receivables/holdings 等其他 list 页范式:
+      // 金色背景 + 白色 add icon,heroTag: null 禁 Hero —— indexedStack 保活多
+      // branch 时避免与其它 branch FAB 共用默认 Hero tag 冲突)。
+      floatingActionButton: FloatingActionButton(
+        heroTag: null,
+        onPressed: () => context.push('/goals/new'),
+        backgroundColor: AppColors.accent,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
       body: BlocBuilder<GoalBloc, GoalState>(
         builder: (context, state) {
