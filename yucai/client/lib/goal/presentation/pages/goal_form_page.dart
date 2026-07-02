@@ -8,8 +8,8 @@
 //   · debtPayoff → 选 1 债务(DebtRepository.list);目标额自动 = 剩余本金,只读
 // 共通:name + target + deadline。
 //
-// **Phase 1 单选 picker**:选 1 账户 / 1 债务,提交时 list = [单选]。
-// GoalView 已多账户(Task 10 linkedAccountIds list),Phase 3 升级多选。
+// **Phase 3 多选 picker**:选 N 账户 / N 债务,提交时 list = _linkedIds。
+// GoalView 已多账户(Task 10 linkedAccountIds list)。
 //
 // - [goalId] == null:创建模式(dispatch CreateGoalRequested)。
 // - [goalId] != null:编辑模式。dispatch LoadDetailRequested 拉现有 → 预填 →
@@ -59,9 +59,9 @@ class _GoalFormPageState extends State<GoalFormPage> {
   /// 当前选中的目标类型。null = 创建模式尚未选(编辑模式从 loaded goal 预填)。
   GoalType? _type;
 
-  /// 单选关联 id。Investment/Savings 存 accountId;DebtPayoff 存 debtId。
-  /// 提交时:list = [id] (Phase 1 单选;Phase 3 多选升级)。
-  String? _linkedId;
+  /// 多选关联 id Set。Investment/Savings 存 accountIds;DebtPayoff 存 debtIds。
+  /// 提交时:list = _linkedIds.toList() (Phase 3 多选)。
+  final Set<String> _linkedIds = {};
 
   /// deadline。默认当月起 +1 年(对齐 OD 原型 6-12 个月紧急备用金场景)。
   late DateTime _deadline;
@@ -133,18 +133,19 @@ class _GoalFormPageState extends State<GoalFormPage> {
       _nameCtrl.text = g.name;
       _targetCtrl.text = (g.targetAmountCents / 100).toStringAsFixed(2);
       _deadline = g.deadline ?? _deadline;
-      // 单选预填:取 list 第 1 个(Phase 1 单选契约;GoalView 已多账户,但编辑
-      // 表单 Phase 1 只回填第 1 个;Phase 3 多选时此处需升级)。
+      // 多选预填:回填全 list(不只 first)。Phase 3 多选契约。
       if (g.type == GoalType.debtPayoff) {
-        _linkedId = g.linkedDebtIds.isNotEmpty ? g.linkedDebtIds.first : null;
+        _linkedIds.addAll(g.linkedDebtIds);
       } else {
-        _linkedId = g.linkedAccountIds.isNotEmpty ? g.linkedAccountIds.first : null;
+        _linkedIds.addAll(g.linkedAccountIds);
       }
-      // DebtPayoff 目标额应 = 债务剩余本金;若已加载债务,同步只读 target 显示。
-      if (g.type == GoalType.debtPayoff && _linkedId != null) {
-        final d = _allDebts.where((x) => x.id == _linkedId).firstOrNull;
-        if (d != null) {
-          _targetCtrl.text = (d.remainingPrincipalCents / 100).toStringAsFixed(2);
+      // DebtPayoff 目标额应 = 债务剩余本金合计(只读)。多债务场景下取合计;
+      // 单债务时 = 该债务剩余本金(向后兼容 Phase 1 测试)。
+      if (g.type == GoalType.debtPayoff && _linkedIds.isNotEmpty) {
+        final selected = _allDebts.where((x) => _linkedIds.contains(x.id));
+        if (selected.isNotEmpty) {
+          final sum = selected.fold<int>(0, (a, d) => a + d.remainingPrincipalCents);
+          _targetCtrl.text = (sum / 100).toStringAsFixed(2);
         }
       }
       setState(() {});
@@ -177,7 +178,7 @@ class _GoalFormPageState extends State<GoalFormPage> {
     final day = now.day > maxDay ? maxDay : now.day;
     setState(() {
       _type = t.goalType;
-      _linkedId = null; // 切 type 清关联(对齐 _selectType 行为)。
+      _linkedIds.clear(); // 切 type 清关联(对齐 _selectType 行为)。
       _nameCtrl.text = t.name;
       _targetCtrl.text = (t.targetAmountCents / 100).toStringAsFixed(2);
       _deadline = DateTime(year, month, day);
@@ -190,7 +191,7 @@ class _GoalFormPageState extends State<GoalFormPage> {
     setState(() {
       _type = t;
       // 切 type → 清空关联 + 重置 target(DebtPayoff 的 target 由债务选择驱动)。
-      _linkedId = null;
+      _linkedIds.clear();
       if (t == GoalType.debtPayoff) {
         _targetCtrl.clear();
       }
@@ -223,7 +224,7 @@ class _GoalFormPageState extends State<GoalFormPage> {
     if (_nameCtrl.text.trim().isEmpty) return false;
     final amt = double.tryParse(_targetCtrl.text);
     if (amt == null || amt <= 0) return false;
-    if (_linkedId == null || _linkedId!.isEmpty) return false;
+    if (_linkedIds.isEmpty) return false;
     return true;
   }
 
@@ -247,7 +248,7 @@ class _GoalFormPageState extends State<GoalFormPage> {
       } else if (double.tryParse(_targetCtrl.text) == null ||
           (double.tryParse(_targetCtrl.text) ?? 0) <= 0) {
         AppToast.show(context, '目标金额需大于 0', type: ToastType.warning);
-      } else if (_linkedId == null) {
+      } else if (_linkedIds.isEmpty) {
         AppToast.show(
           context,
           _type == GoalType.debtPayoff ? '请选择关联债务' : '请选择关联账户',
@@ -264,11 +265,11 @@ class _GoalFormPageState extends State<GoalFormPage> {
     final targetCents = ((double.tryParse(_targetCtrl.text) ?? 0) * 100).round();
     final deadlineIso =
         '${_deadline.year}-${_deadline.month.toString().padLeft(2, '0')}-${_deadline.day.toString().padLeft(2, '0')}';
-    // Phase 1 单选:list = [单选]。Phase 3 多选升级时此处改为累积 list。
+    // Phase 3 多选:list = _linkedIds。account(debtPayoff 时空)/ debt(其他时空)。
     final accountIds = _type == GoalType.debtPayoff
         ? <String>[]
-        : <String>[_linkedId!];
-    final debtIds = _type == GoalType.debtPayoff ? <String>[_linkedId!] : <String>[];
+        : _linkedIds.toList();
+    final debtIds = _type == GoalType.debtPayoff ? _linkedIds.toList() : <String>[];
 
     if (_isEdit) {
       bloc.add(UpdateGoalRequested(
@@ -603,57 +604,83 @@ class _GoalFormPageState extends State<GoalFormPage> {
   }
 
   Widget _accountPicker(bool submitting) {
-    // 单选 account dropdown(Phase 1)。Phase 3 升级多选(chip 多选)。
+    // Phase 3 多选:CheckboxListTile(对齐 brief Step 2)。tap → toggle _linkedIds。
     final accounts = _filteredAccounts;
-    return DropdownButtonFormField<String>(
+    return InputDecorator(
       key: const ValueKey('accountPicker'),
       decoration: InputDecoration(
         labelText: _type == GoalType.investment ? '关联投资账户' : '关联储蓄账户',
+        hintText: _pickersLoading
+            ? '加载中…'
+            : accounts.isEmpty
+                ? '无可用账户'
+                : '选择账户(可多选)',
       ),
-      value: _linkedId,
-      items: [
-        for (final a in accounts)
-          DropdownMenuItem(
-            key: ValueKey('accountOption_${a.id}'),
-            value: a.id,
-            child: Text(a.name),
-          ),
-      ],
-      hint: Text(_pickersLoading ? '加载中…' : '选择账户'),
-      onChanged: submitting
-          ? null
-          : (v) => setState(() => _linkedId = v),
+      child: Column(
+        children: [
+          for (final a in accounts)
+            CheckboxListTile(
+              key: ValueKey('accountOption_${a.id}'),
+              value: _linkedIds.contains(a.id),
+              onChanged: submitting
+                  ? null
+                  : (v) => setState(() =>
+                      v! ? _linkedIds.add(a.id) : _linkedIds.remove(a.id)),
+              title: Text(a.name),
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+            ),
+        ],
+      ),
     );
   }
 
   Widget _debtPicker(bool submitting) {
-    // 单选 debt dropdown(Phase 1)。选债务 → 自动填 target = 剩余本金(只读)。
-    return DropdownButtonFormField<String>(
+    // Phase 3 多选:CheckboxListTile。选债务 → target = 剩余本金合计(只读)。
+    void toggleDebt(String id, bool add) {
+      setState(() {
+        if (add) {
+          _linkedIds.add(id);
+        } else {
+          _linkedIds.remove(id);
+        }
+        // 自动填 target = 已选债务剩余本金合计(只读,对齐 OD 原型)。
+        if (_linkedIds.isEmpty) {
+          _targetCtrl.clear();
+        } else {
+          final sum = _allDebts
+              .where((x) => _linkedIds.contains(x.id))
+              .fold<int>(0, (a, d) => a + d.remainingPrincipalCents);
+          _targetCtrl.text = (sum / 100).toStringAsFixed(2);
+        }
+      });
+    }
+
+    return InputDecorator(
       key: const ValueKey('debtPicker'),
-      decoration: const InputDecoration(labelText: '关联债务'),
-      value: _linkedId,
-      items: [
-        for (final d in _allDebts)
-          DropdownMenuItem(
-            key: ValueKey('debtOption_${d.id}'),
-            value: d.id,
-            child: Text(d.counterparty),
-          ),
-      ],
-      hint: Text(_pickersLoading ? '加载中…' : '选择债务'),
-      onChanged: submitting
-          ? null
-          : (v) {
-              setState(() {
-                _linkedId = v;
-                // 自动填 target = 剩余本金(只读,对齐 OD 原型)。
-                final d = _allDebts.where((x) => x.id == v).firstOrNull;
-                if (d != null) {
-                  _targetCtrl.text =
-                      (d.remainingPrincipalCents / 100).toStringAsFixed(2);
-                }
-              });
-            },
+      decoration: InputDecoration(
+        labelText: '关联债务',
+        hintText: _pickersLoading
+            ? '加载中…'
+            : _allDebts.isEmpty
+                ? '无可用债务'
+                : '选择债务(可多选)',
+      ),
+      child: Column(
+        children: [
+          for (final d in _allDebts)
+            CheckboxListTile(
+              key: ValueKey('debtOption_${d.id}'),
+              value: _linkedIds.contains(d.id),
+              onChanged: submitting ? null : (v) => toggleDebt(d.id, v!),
+              title: Text(d.counterparty),
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+            ),
+        ],
+      ),
     );
   }
 

@@ -1,6 +1,7 @@
 // Task 13 — widget tests for GoalFormPage
 // (type picker 切动态字段 + account/debt picker filter by type + 提交 dispatch
 //  CreateGoalRequested/UpdateGoalRequested + 校验禁用)。
+// Task 2 (Phase 3):picker 单选 → 多选(CheckboxListTile),_linkedIds Set。
 //
 // 对齐 budget_form_page_test harness:mocktail GoalRepository +
 // AccountRepository + DebtRepository → 真实 GoalBloc。表单页 initState 走
@@ -9,9 +10,10 @@
 // **KEY assertions**(load-bearing):
 //   - investment type picker 只列 investment 类别账户(排除 expense/savings/asset)
 //   - savings type picker 只列 asset 类(排除 investment 类别),排除 expense
-//   - debtPayoff type picker 列 debts + 选债务自动填 target = 剩余本金
-//   - 提交 CreateGoalRequested(name/type/target/deadline/linkedAccountIds=[单选])
+//   - debtPayoff type picker 列 debts + 选债务自动填 target = 剩余本金合计
+//   - 提交 CreateGoalRequested(name/type/target/deadline/linkedAccountIds 多选)
 //   - name 空 / target ≤0 / 关联未选 → 提交禁用(_canSubmit 兜底 + dispatch 拦截)
+//   - 多选 toggle 2 accounts → linkedAccountIds 含 2;编辑模式预填全 list
 import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -88,14 +90,25 @@ Account _account({
       status: AccountStatus.active,
     );
 
-/// seed:1 expense + 1 savings(asset,savings 类别)+ 1 investment(asset,investment 类别)。
+/// seed:1 expense + 2 savings(asset,savings 类别)+ 2 investment(asset,investment 类别)。
+/// 多账户种子(Task 2 多选测试:2 savings / 2 investment)。
 List<Account> _seedAccounts() => [
       _account(id: 'exp-1', name: '餐饮', type: AccountType.expense),
       _account(
           id: 'sav-1', name: '招行储蓄', type: AccountType.asset, category: AccountCategory.savings),
       _account(
+          id: 'sav-2',
+          name: '工行定存',
+          type: AccountType.asset,
+          category: AccountCategory.savings),
+      _account(
           id: 'inv-1',
           name: '股票账户',
+          type: AccountType.asset,
+          category: AccountCategory.investment),
+      _account(
+          id: 'inv-2',
+          name: '基金账户',
           type: AccountType.asset,
           category: AccountCategory.investment),
     ];
@@ -281,12 +294,10 @@ void main() {
       await t.tap(find.byKey(const ValueKey('typeOption_investment')));
       await t.pumpAndSettle();
 
-      // 打开 accountPicker dropdown。
-      await t.tap(find.byKey(const ValueKey('accountPicker')));
-      await t.pumpAndSettle();
-
-      // 只出现 investment 账户(股票账户)。load-bearing。
+      // 多选 picker:CheckboxListTile 直接渲染(无需打开 dropdown)。
+      // 只出现 investment 账户(股票账户 + 基金账户)。load-bearing。
       expect(find.text('股票账户'), findsOneWidget);
+      expect(find.text('基金账户'), findsOneWidget);
       expect(find.text('招行储蓄'), findsNothing, reason: 'savings 类别不应出现');
       expect(find.text('餐饮'), findsNothing, reason: 'expense 账户不应出现');
     });
@@ -312,11 +323,9 @@ void main() {
       await t.tap(find.byKey(const ValueKey('typeOption_savings')));
       await t.pumpAndSettle();
 
-      await t.tap(find.byKey(const ValueKey('accountPicker')));
-      await t.pumpAndSettle();
-
-      // savings 账户出现,investment 排除,expense 排除。load-bearing。
+      // 多选 picker:直接渲染。savings 账户出现,investment 排除,expense 排除。
       expect(find.text('招行储蓄'), findsOneWidget);
+      expect(find.text('工行定存'), findsOneWidget);
       expect(find.text('股票账户'), findsNothing, reason: 'investment 类别应排除');
       expect(find.text('餐饮'), findsNothing, reason: 'expense 账户应排除');
     });
@@ -340,9 +349,7 @@ void main() {
       await t.tap(find.byKey(const ValueKey('typeOption_debtPayoff')));
       await t.pumpAndSettle();
 
-      await t.tap(find.byKey(const ValueKey('debtPicker')));
-      await t.pumpAndSettle();
-
+      // 多选 picker:直接渲染 debts。
       expect(find.text('花呗'), findsOneWidget);
       expect(find.text('房贷'), findsOneWidget);
     });
@@ -368,9 +375,7 @@ void main() {
       await t.pumpAndSettle();
 
       // 选花呗(remaining 500000 cents = ¥5000.00)。
-      await t.tap(find.byKey(const ValueKey('debtPicker')));
-      await t.pumpAndSettle();
-      await t.tap(find.text('花呗').last);
+      await t.tap(find.byKey(const ValueKey('debtOption_debt-1')));
       await t.pumpAndSettle();
 
       // targetField 自动填 5000.00。
@@ -437,10 +442,8 @@ void main() {
       await t.enterText(find.byKey(const ValueKey('nameField')), '紧急备用金');
       // 填 target。
       await t.enterText(find.byKey(const ValueKey('targetField')), '60000');
-      // 选 sav-1。
-      await t.tap(find.byKey(const ValueKey('accountPicker')));
-      await t.pumpAndSettle();
-      await t.tap(find.text('招行储蓄').last);
+      // 多选 picker:选 sav-1(CheckboxListTile)。
+      await t.tap(find.byKey(const ValueKey('accountOption_sav-1')));
       await t.pumpAndSettle();
 
       // 提交。
@@ -454,7 +457,7 @@ void main() {
       expect(capturedName, '紧急备用金');
       expect(capturedType, GoalType.savings);
       expect(capturedTarget, 6000000); // 60000 * 100
-      // Phase 1 单选:list = [单选]。
+      // Phase 3 多选:list = _linkedIds(此处单选场景 [sav-1])。
       expect(capturedAccountIds, ['sav-1']);
       // 排空 pop 链。
       await t.pump(const Duration(seconds: 2));
@@ -500,10 +503,8 @@ void main() {
       await t.tap(find.byKey(const ValueKey('typeOption_debtPayoff')));
       await t.pumpAndSettle();
       await t.enterText(find.byKey(const ValueKey('nameField')), '清花呗');
-      // 选 debt-1(花呗)→ target 自动 5000.00。
-      await t.tap(find.byKey(const ValueKey('debtPicker')));
-      await t.pumpAndSettle();
-      await t.tap(find.text('花呗').last);
+      // 选 debt-1(花呗)→ target 自动 5000.00。多选 CheckboxListTile。
+      await t.tap(find.byKey(const ValueKey('debtOption_debt-1')));
       await t.pumpAndSettle();
 
       await t.ensureVisible(find.text('确认创建'));
@@ -554,9 +555,7 @@ void main() {
       await t.tap(find.byKey(const ValueKey('typeOption_investment')));
       await t.pumpAndSettle();
       await t.enterText(find.byKey(const ValueKey('targetField')), '200000');
-      await t.tap(find.byKey(const ValueKey('accountPicker')));
-      await t.pumpAndSettle();
-      await t.tap(find.text('股票账户').last);
+      await t.tap(find.byKey(const ValueKey('accountOption_inv-1')));
       await t.pumpAndSettle();
 
       await t.ensureVisible(find.text('确认创建'));
@@ -607,9 +606,7 @@ void main() {
       await t.enterText(find.byKey(const ValueKey('nameField')), '备用金');
       // target 留 0(或非法值)。
       await t.enterText(find.byKey(const ValueKey('targetField')), '0');
-      await t.tap(find.byKey(const ValueKey('accountPicker')));
-      await t.pumpAndSettle();
-      await t.tap(find.text('招行储蓄').last);
+      await t.tap(find.byKey(const ValueKey('accountOption_sav-1')));
       await t.pumpAndSettle();
 
       await t.ensureVisible(find.text('确认创建'));
@@ -726,8 +723,14 @@ void main() {
         ),
         findsOneWidget,
       );
-      // savings type 被选中(accountPicker 出现,且 sav-1 在 dropdown 选中)。
+      // savings type 被选中(accountPicker 出现,且 sav-1 CheckboxListTile 勾选)。
       expect(find.byKey(const ValueKey('accountPicker')), findsOneWidget);
+      final sav1Tile = find
+          .byKey(const ValueKey('accountOption_sav-1'))
+          .evaluate()
+          .single
+          .widget as CheckboxListTile;
+      expect(sav1Tile.value, true, reason: '编辑模式预填:sav-1 应被勾选');
       // 提交按钮文案 = 保存修改。
       expect(find.text('保存修改'), findsOneWidget);
     });
@@ -982,6 +985,254 @@ void main() {
       // 编辑模式不显模板区。
       expect(find.text('从模板开始'), findsNothing);
       expect(find.byKey(const ValueKey('goalTemplate_应急基金')), findsNothing);
+    });
+  });
+
+  // ───────────── group: 多账户/多债务多选 (Task 2 / Phase 3) ─────────────
+
+  group('多账户/多债务多选 (Task 2)', () {
+    testWidgets('savings:多选 toggle 2 accounts → 两个 CheckboxListTile 勾选',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final goalRepo = _MockGoalRepo();
+      final accountRepo = _MockAccountRepo();
+      final debtRepo = _MockDebtRepo();
+      stubPickers(accountRepo, debtRepo);
+      await t.pumpWidget(_harness(
+        goalRepo: goalRepo,
+        accountRepo: accountRepo,
+        debtRepo: debtRepo,
+        initialDeadline: DateTime(2027, 1, 1),
+      ));
+      await t.pumpAndSettle();
+
+      await t.tap(find.byKey(const ValueKey('typeOption_savings')));
+      await t.pumpAndSettle();
+
+      // 初始:sav-1 / sav-2 都未勾选。
+      CheckboxListTile tileOf(String k) => find
+          .byKey(ValueKey('accountOption_$k'))
+          .evaluate()
+          .single
+          .widget as CheckboxListTile;
+      expect(tileOf('sav-1').value, false);
+      expect(tileOf('sav-2').value, false);
+
+      // toggle 两个。
+      await t.tap(find.byKey(const ValueKey('accountOption_sav-1')));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('accountOption_sav-2')));
+      await t.pumpAndSettle();
+
+      expect(tileOf('sav-1').value, true);
+      expect(tileOf('sav-2').value, true);
+
+      // 再 tap sav-1 → 取消(多选 toggle)。
+      await t.tap(find.byKey(const ValueKey('accountOption_sav-1')));
+      await t.pumpAndSettle();
+      expect(tileOf('sav-1').value, false);
+      expect(tileOf('sav-2').value, true);
+    });
+
+    testWidgets('savings:多选 2 accounts 提交 → linkedAccountIds 含 2',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final goalRepo = _MockGoalRepo();
+      final accountRepo = _MockAccountRepo();
+      final debtRepo = _MockDebtRepo();
+      stubPickers(accountRepo, debtRepo);
+
+      List<String>? capturedAccountIds;
+      when(() => goalRepo.createGoal(
+            name: any(named: 'name'),
+            type: any(named: 'type'),
+            targetAmountCents: any(named: 'targetAmountCents'),
+            deadline: any(named: 'deadline'),
+            linkedAccountIds: any(named: 'linkedAccountIds'),
+            linkedDebtIds: any(named: 'linkedDebtIds'),
+          )).thenAnswer((inv) {
+        capturedAccountIds =
+            inv.namedArguments[#linkedAccountIds] as List<String>;
+        return Future.value(dartz.Right(_stubCreated()));
+      });
+      when(() => goalRepo.listGoals(type: any(named: 'type')))
+          .thenAnswer((_) async => const dartz.Right([]));
+
+      await t.pumpWidget(_harness(
+        goalRepo: goalRepo,
+        accountRepo: accountRepo,
+        debtRepo: debtRepo,
+        initialDeadline: DateTime(2027, 1, 1),
+      ));
+      await t.pumpAndSettle();
+
+      await t.tap(find.byKey(const ValueKey('typeOption_savings')));
+      await t.pumpAndSettle();
+      await t.enterText(find.byKey(const ValueKey('nameField')), '备用金');
+      await t.enterText(find.byKey(const ValueKey('targetField')), '60000');
+      await t.tap(find.byKey(const ValueKey('accountOption_sav-1')));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('accountOption_sav-2')));
+      await t.pumpAndSettle();
+
+      await t.ensureVisible(find.text('确认创建'));
+      await t.tap(find.text('确认创建'));
+      for (var i = 0; i < 10 && capturedAccountIds == null; i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+
+      // load-bearing:多选 → linkedAccountIds 含 2 accounts(顺序与 Set 一致)。
+      expect(capturedAccountIds, isNotNull);
+      expect(capturedAccountIds!.toSet(), {'sav-1', 'sav-2'});
+      await t.pump(const Duration(seconds: 2));
+      await t.pumpAndSettle();
+    });
+
+    testWidgets('debtPayoff:多选 2 debts → linkedDebtIds 含 2 + target=合计',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final goalRepo = _MockGoalRepo();
+      final accountRepo = _MockAccountRepo();
+      final debtRepo = _MockDebtRepo();
+      stubPickers(accountRepo, debtRepo);
+
+      List<String>? capturedDebtIds;
+      int? capturedTarget;
+      when(() => goalRepo.createGoal(
+            name: any(named: 'name'),
+            type: any(named: 'type'),
+            targetAmountCents: any(named: 'targetAmountCents'),
+            deadline: any(named: 'deadline'),
+            linkedAccountIds: any(named: 'linkedAccountIds'),
+            linkedDebtIds: any(named: 'linkedDebtIds'),
+          )).thenAnswer((inv) {
+        capturedDebtIds = inv.namedArguments[#linkedDebtIds] as List<String>;
+        capturedTarget = inv.namedArguments[#targetAmountCents] as int;
+        return Future.value(dartz.Right(_stubCreated()));
+      });
+      when(() => goalRepo.listGoals(type: any(named: 'type')))
+          .thenAnswer((_) async => const dartz.Right([]));
+
+      await t.pumpWidget(_harness(
+        goalRepo: goalRepo,
+        accountRepo: accountRepo,
+        debtRepo: debtRepo,
+        initialDeadline: DateTime(2027, 1, 1),
+      ));
+      await t.pumpAndSettle();
+
+      await t.tap(find.byKey(const ValueKey('typeOption_debtPayoff')));
+      await t.pumpAndSettle();
+      await t.enterText(find.byKey(const ValueKey('nameField')), '清债');
+      // 选 debt-1(花呗 500000)+ debt-2(房贷 80000000)。
+      await t.tap(find.byKey(const ValueKey('debtOption_debt-1')));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('debtOption_debt-2')));
+      await t.pumpAndSettle();
+
+      // target = 合计 500000 + 80000000 = 80500000 cents = ¥805000.00。
+      expect(
+        find.ancestor(
+          of: find.text('805000.00'),
+          matching: find.byKey(const ValueKey('targetField')),
+        ),
+        findsOneWidget,
+        reason: '多债务 target 应 = 剩余本金合计 ¥805000.00',
+      );
+
+      await t.ensureVisible(find.text('确认创建'));
+      await t.tap(find.text('确认创建'));
+      for (var i = 0; i < 10 && capturedDebtIds == null; i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+
+      expect(capturedDebtIds!.toSet(), {'debt-1', 'debt-2'});
+      expect(capturedTarget, 80500000);
+      await t.pump(const Duration(seconds: 2));
+      await t.pumpAndSettle();
+    });
+
+    testWidgets('编辑模式预填全:2 accounts 都回填勾选', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final goalRepo = _MockGoalRepo();
+      final accountRepo = _MockAccountRepo();
+      final debtRepo = _MockDebtRepo();
+      stubPickers(accountRepo, debtRepo);
+      when(() => goalRepo.getGoal('g1')).thenAnswer((_) async => const dartz.Right(
+                GoalView(
+              id: 'g1',
+              name: '多账户目标',
+              type: GoalType.savings,
+              targetAmountCents: 6000000,
+              deadline: null,
+              linkedAccountIds: ['sav-1', 'sav-2'], // 多账户
+            ),
+          ));
+
+      await t.pumpWidget(_harness(
+        goalRepo: goalRepo,
+        accountRepo: accountRepo,
+        debtRepo: debtRepo,
+        goalId: 'g1',
+      ));
+      await t.pumpAndSettle();
+
+      // load-bearing:2 accounts 都回填(不只 first)。
+      CheckboxListTile tileOf(String k) => find
+          .byKey(ValueKey('accountOption_$k'))
+          .evaluate()
+          .single
+          .widget as CheckboxListTile;
+      expect(tileOf('sav-1').value, true, reason: 'sav-1 应预填勾选');
+      expect(tileOf('sav-2').value, true, reason: 'sav-2 应预填勾选(不只 first)');
+    });
+
+    testWidgets('切 type savings → debtPayoff → _linkedIds 清空', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final goalRepo = _MockGoalRepo();
+      final accountRepo = _MockAccountRepo();
+      final debtRepo = _MockDebtRepo();
+      stubPickers(accountRepo, debtRepo);
+      await t.pumpWidget(_harness(
+        goalRepo: goalRepo,
+        accountRepo: accountRepo,
+        debtRepo: debtRepo,
+        initialDeadline: DateTime(2027, 1, 1),
+      ));
+      await t.pumpAndSettle();
+
+      await t.tap(find.byKey(const ValueKey('typeOption_savings')));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('accountOption_sav-1')));
+      await t.pumpAndSettle();
+
+      // 切到 debtPayoff → accountPicker 消失,_linkedIds 清空。
+      await t.tap(find.byKey(const ValueKey('typeOption_debtPayoff')));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('accountPicker')), findsNothing);
+      expect(find.byKey(const ValueKey('debtPicker')), findsOneWidget);
+
+      // 选 debt-1,确保不会带 sav-1(已清)。
+      await t.tap(find.byKey(const ValueKey('debtOption_debt-1')));
+      await t.pumpAndSettle();
+      final debt1Tile = find
+          .byKey(const ValueKey('debtOption_debt-1'))
+          .evaluate()
+          .single
+          .widget as CheckboxListTile;
+      expect(debt1Tile.value, true);
+      // sav-1 CheckboxListTile 不在 tree(accountPicker 已消失)。
+      expect(find.byKey(const ValueKey('accountOption_sav-1')), findsNothing);
     });
   });
 }
