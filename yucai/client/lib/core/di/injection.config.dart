@@ -51,6 +51,7 @@ import '../../debt/presentation/bloc/debt_bloc.dart' as _i383;
 import '../../goal/data/goal_remote_ds.dart' as _i628;
 import '../../goal/data/goal_repository_impl.dart' as _i425;
 import '../../goal/domain/repositories/goal_repository.dart' as _i835;
+import '../../goal/presentation/bloc/goal_bloc.dart' as _i703;
 import '../../holding/data/goal_view_ds.dart' as _i616;
 import '../../holding/data/holding_remote_ds.dart' as _i620;
 import '../../holding/data/holding_repository_impl.dart' as _i427;
@@ -185,6 +186,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i270.AccountRepository>(
       () => _i725.AccountRepositoryImpl(gh<_i414.AccountRemoteDataSource>()),
+    );
+    gh.factory<_i703.GoalBloc>(
+      () => _i703.GoalBloc(gh<_i835.GoalRepository>()),
     );
     gh.factory<_i922.GetProfileUseCase>(
       () => _i922.GetProfileUseCase(gh<_i937.AuthRepository>()),
