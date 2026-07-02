@@ -343,9 +343,26 @@ func provideGoalEntClient(cfg *config.Config) (*goalent.Client, error) {
 func provideGoalRepo(client *goalent.Client) *goalrepo.GoalRepository {
 	return goalrepo.NewGoalRepository(client)
 }
-func provideGoalService(repo *goalrepo.GoalRepository, mvSource goaldomain.AccountMarketValueSource) *goalapp.Service {
+// provideGoalService wires the three goal-progress source ports:
+//   - mvSource (Investment goals): *holdingapp.Service structurally implements
+//     AccountMarketValueSource.GetAccountsMarketValue.
+//   - balSource (Savings goals): *accountapp.Service structurally implements
+//     AccountBalanceSource.GetAccountsBalance.
+//   - debtSource (DebtPayoff goals): *debtapp.Service structurally implements
+//     DebtProgressSource.GetDebtsPaid.
+//
+// Each is injected via its setter (NewService signature unchanged). Task 6 wires
+// all three; Task 8 owns this provider but the signature is final for wire_gen.
+func provideGoalService(
+	repo *goalrepo.GoalRepository,
+	mvSource goaldomain.AccountMarketValueSource,
+	balSource goaldomain.AccountBalanceSource,
+	debtSource goaldomain.DebtProgressSource,
+) *goalapp.Service {
 	svc := goalapp.NewService(repo)
-	svc.SetAccountMarketValueSource(mvSource) // *holdingapp.Service structurally implements AccountMarketValueSource (GetAccountMarketValue)
+	svc.SetAccountMarketValueSource(mvSource)
+	svc.SetAccountBalanceSource(balSource)
+	svc.SetDebtProgressSource(debtSource)
 	return svc
 }
 func provideGoalHandler(svc *goalapp.Service) *goalgrpc.GoalHandler {
@@ -657,7 +674,7 @@ func provideSnapshotScheduler(svc *holdingapp.Service, src holdingscheduler.Inte
 }
 
 // provideGoalScheduler builds the goal progress scheduler. *goalapp.Service
-// implements goalscheduler.GoalSyncer via SyncInvestmentGoals. The
+// implements goalscheduler.GoalSyncer via SyncAllGoals (all goal types). The
 // *authrepo.TenantRepository structurally satisfies goalscheduler.TenantLister
 // (FindAllIDs, C Task 7). For IntervalSource the repo is wrapped in
 // tenantIntervalSource (FindAllIntervalHours → MinIntervalHours), reusing the

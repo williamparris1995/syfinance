@@ -9,63 +9,92 @@ import (
 	"github.com/yucai/server/internal/goal/domain"
 )
 
-// --- D-goal Task 3: SyncInvestmentGoals test doubles ---
+// --- D-goal Task 6: SyncAllGoals test doubles ---
 
-// tenantID is a stable tenant used across SyncInvestmentGoals tests.
+// tenantID is a stable tenant used across SyncAllGoals tests.
 var tenantID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 
-// acct1 / acct2 are stable investment accounts referenced by seeded goals.
+// acct1 / acct2 / debt1 are stable investment/savings/debt IDs referenced by seeded goals.
 var (
 	acct1 = uuid.MustParse("00000000-0000-0000-0000-000000000010")
 	acct2 = uuid.MustParse("00000000-0000-0000-0000-000000000020")
+	debt1 = uuid.MustParse("00000000-0000-0000-0000-000000000030")
 )
 
 func ptrUUID(id uuid.UUID) *uuid.UUID { return &id }
 
-// seedGoal describes a goal to seed into the fake repo for a SyncInvestmentGoals
-// test. Name is the human key used by currentFor/isCompleted helpers.
+// seedGoal describes a goal to seed into the fake repo for a SyncAllGoals test.
 type seedGoal struct {
 	Name          string // used as lookup key in helpers
 	Type          domain.GoalType
 	Target        int64
 	LinkedAccount *uuid.UUID // single account convenience; converted to []uuid.UUID
+	LinkedDebt    *uuid.UUID // single debt convenience; converted to []uuid.UUID
 	// IsCompleted pre-marks the goal completed (for the skip-completed test).
 	IsCompleted bool
 }
 
-// fakeAccountMarketValueSource is a test double for domain.AccountMarketValueSource.
-type fakeAccountMarketValueSource struct {
-	// mv maps accountID → market value cents to return.
-	mv map[uuid.UUID]int64
-	// errOn maps accountID → error (simulate holding service failure).
-	errOn map[uuid.UUID]error
+// --- multi-account ports test doubles (Task 6) ---
+
+// stubMV is a test double for domain.AccountMarketValueSource returning a fixed v.
+type stubMV struct {
+	v   int64
+	err error
 }
 
-func (f *fakeAccountMarketValueSource) GetAccountMarketValue(_ context.Context, _, accountID uuid.UUID) (int64, error) {
-	if f.errOn != nil {
-		if e, ok := f.errOn[accountID]; ok {
-			return 0, e
-		}
+func (s stubMV) GetAccountsMarketValue(context.Context, uuid.UUID, []uuid.UUID) (int64, error) {
+	if s.err != nil {
+		return 0, s.err
 	}
-	return f.mv[accountID], nil
+	return s.v, nil
 }
 
-// fakeGoalRepo is an in-memory GoalRepository for SyncInvestmentGoals tests.
-// FindAll / Update drive the sync path; other methods panic since they are not
-// exercised here. Goals are keyed by Name (stable test lookup).
+// stubBal is a test double for domain.AccountBalanceSource returning a fixed v.
+type stubBal struct {
+	v   int64
+	err error
+}
+
+func (s stubBal) GetAccountsBalance(context.Context, uuid.UUID, []uuid.UUID) (int64, error) {
+	if s.err != nil {
+		return 0, s.err
+	}
+	return s.v, nil
+}
+
+// stubDebt is a test double for domain.DebtProgressSource returning a fixed v.
+type stubDebt struct {
+	v   int64
+	err error
+}
+
+func (s stubDebt) GetDebtsPaid(context.Context, uuid.UUID, []uuid.UUID) (int64, error) {
+	if s.err != nil {
+		return 0, s.err
+	}
+	return s.v, nil
+}
+
+// fakeGoalRepo is an in-memory GoalRepository for SyncAllGoals tests. FindAll /
+// Update / WriteSnapshot drive the sync path; other methods panic since they
+// are not exercised here. Goals are keyed by Name (stable test lookup).
 type fakeGoalRepo struct {
-	byName map[string]*domain.Goal
-	order  []string // stable iteration order
+	byName    map[string]*domain.Goal
+	order     []string // stable iteration order
+	snapshots []*domain.Goal // goals passed to WriteSnapshot (in call order)
 }
 
 func newFakeGoalRepo(seeds []seedGoal) *fakeGoalRepo {
 	r := &fakeGoalRepo{byName: map[string]*domain.Goal{}}
 	for _, s := range seeds {
-		var accs []uuid.UUID
+		var accs, debts []uuid.UUID
 		if s.LinkedAccount != nil {
 			accs = []uuid.UUID{*s.LinkedAccount}
 		}
-		g, err := domain.NewGoal(tenantID, s.Name, s.Type, s.Target, "CNY", nil, accs, nil, "")
+		if s.LinkedDebt != nil {
+			debts = []uuid.UUID{*s.LinkedDebt}
+		}
+		g, err := domain.NewGoal(tenantID, s.Name, s.Type, s.Target, "CNY", nil, accs, debts, "")
 		if err != nil {
 			panic(err)
 		}
@@ -88,19 +117,22 @@ func (r *fakeGoalRepo) isCompleted(name string) bool {
 	return r.byName[name].IsCompleted
 }
 
+// snapshotCount returns how many WriteSnapshot calls were made for the named goal.
+func (r *fakeGoalRepo) snapshotCount() int { return len(r.snapshots) }
+
 func (fakeGoalRepo) Save(context.Context, *domain.Goal) error {
-	panic("not used in SyncInvestmentGoals test")
+	panic("not used in SyncAllGoals test")
 }
 func (fakeGoalRepo) FindByID(context.Context, uuid.UUID, uuid.UUID) (*domain.Goal, error) {
-	panic("not used in SyncInvestmentGoals test")
+	panic("not used in SyncAllGoals test")
 }
 func (fakeGoalRepo) Delete(context.Context, uuid.UUID, uuid.UUID) error {
-	panic("not used in SyncInvestmentGoals test")
+	panic("not used in SyncAllGoals test")
 }
 
 // FindAll returns seeded goals as a single page, optionally filtered by
-// tenantID and goalType (mirrors Task 1 FindAll semantics). completed is ignored
-// here since the sync always passes nil for it.
+// tenantID and goalType. completed is ignored here since the sync always passes
+// nil for it.
 func (r *fakeGoalRepo) FindAll(_ context.Context, tid uuid.UUID, _ *bool, goalType *domain.GoalType, _ domain.PageRequest) (*domain.PaginatedResult[domain.Goal], error) {
 	items := make([]domain.Goal, 0, len(r.order))
 	for _, name := range r.order {
@@ -122,8 +154,6 @@ func (r *fakeGoalRepo) FindAll(_ context.Context, tid uuid.UUID, _ *bool, goalTy
 
 // Update persists the goal back into the fake map (mutates the stored copy).
 func (r *fakeGoalRepo) Update(_ context.Context, g *domain.Goal) error {
-	// Locate the stored entry by ID and replace it so later currentFor/isCompleted
-	// reads reflect SetCurrentAmount/MarkCompleted.
 	for name, stored := range r.byName {
 		if stored.ID == g.ID {
 			cp := *g
@@ -132,6 +162,13 @@ func (r *fakeGoalRepo) Update(_ context.Context, g *domain.Goal) error {
 		}
 	}
 	return errors.New("goal not found")
+}
+
+// WriteSnapshot records the goal for snapshot assertion (upsert is the repo's
+// concern in prod; here we just track calls).
+func (r *fakeGoalRepo) WriteSnapshot(_ context.Context, g *domain.Goal) error {
+	r.snapshots = append(r.snapshots, g)
+	return nil
 }
 
 // newTestServiceWithGoals builds a Service backed by a fake goal repo seeded
@@ -145,101 +182,118 @@ func newTestServiceWithGoals(t *testing.T, seeds []seedGoal) (*fakeGoalRepo, *Se
 
 // --- tests ---
 
-func TestSyncInvestmentGoalsUpdatesMvAndCompletes(t *testing.T) {
-	// seed goals: g1 investment linked_account=acct1 target=100000,
-	//             g2 investment linked_account=acct2 target=200000,
-	//             g3 savings (not investment, must be skipped).
-	// fakeAccountMarketValueSource.mv: acct1=60000, acct2=200000.
-	// SyncInvestmentGoals → g1.current=60000 (not completed), g2.current=200000 (auto-completed),
-	//                      g3 untouched (savings). returns synced=2.
+// TestSyncAllGoalsThreeTypeBranches verifies SyncAllGoals fans out across all
+// three goal types: Investment→mv(50000), Savings→balance(30000),
+// DebtPayoff→paid(20000). Each goal's current_amount is updated + a snapshot is
+// written. Returns synced count = 3.
+func TestSyncAllGoalsThreeTypeBranches(t *testing.T) {
 	repo, svc := newTestServiceWithGoals(t, []seedGoal{
-		{Name: "g1", Type: domain.GoalTypeInvestment, LinkedAccount: ptrUUID(acct1), Target: 100000},
-		{Name: "g2", Type: domain.GoalTypeInvestment, LinkedAccount: ptrUUID(acct2), Target: 200000},
-		{Name: "g3", Type: domain.GoalTypeSavings, LinkedAccount: ptrUUID(acct1), Target: 50000},
+		{Name: "inv", Type: domain.GoalTypeInvestment, LinkedAccount: ptrUUID(acct1), Target: 100000},
+		{Name: "sav", Type: domain.GoalTypeSavings, LinkedAccount: ptrUUID(acct2), Target: 100000},
+		{Name: "debt", Type: domain.GoalTypeDebtPayoff, LinkedDebt: ptrUUID(debt1), Target: 100000},
 	})
-	svc.SetAccountMarketValueSource(&fakeAccountMarketValueSource{
-		mv: map[uuid.UUID]int64{acct1: 60000, acct2: 200000},
+	svc.SetAccountMarketValueSource(stubMV{v: 50000}) // Investment → 50000
+	svc.SetAccountBalanceSource(stubBal{v: 30000})    // Savings → 30000
+	svc.SetDebtProgressSource(stubDebt{v: 20000})     // DebtPayoff → 20000
+
+	n, err := svc.SyncAllGoals(context.Background(), tenantID)
+	if err != nil {
+		t.Fatalf("SyncAllGoals unexpected error: %v", err)
+	}
+	if n != 3 {
+		t.Fatalf("synced = %d, want 3 (inv+sav+debt)", n)
+	}
+	if got := repo.currentFor("inv"); got != 50000 {
+		t.Fatalf("investment current = %d, want 50000", got)
+	}
+	if got := repo.currentFor("sav"); got != 30000 {
+		t.Fatalf("savings current = %d, want 30000", got)
+	}
+	if got := repo.currentFor("debt"); got != 20000 {
+		t.Fatalf("debtpayoff current = %d, want 20000", got)
+	}
+	// snapshot written once per synced goal (3).
+	if got := repo.snapshotCount(); got != 3 {
+		t.Fatalf("snapshot writes = %d, want 3", got)
+	}
+}
+
+// TestSyncAllGoalsCompletesAtTarget verifies Investment goal auto-completes when
+// mv reaches target.
+func TestSyncAllGoalsCompletesAtTarget(t *testing.T) {
+	repo, svc := newTestServiceWithGoals(t, []seedGoal{
+		{Name: "inv", Type: domain.GoalTypeInvestment, LinkedAccount: ptrUUID(acct1), Target: 100000},
 	})
-	count, err := svc.SyncInvestmentGoals(context.Background(), tenantID)
+	svc.SetAccountMarketValueSource(stubMV{v: 100000})
+	n, err := svc.SyncAllGoals(context.Background(), tenantID)
+	if err != nil || n != 1 {
+		t.Fatalf("sync: n=%d err=%v", n, err)
+	}
+	if !repo.isCompleted("inv") {
+		t.Fatal("investment should auto-complete at target 100000")
+	}
+}
+
+// TestSyncAllGoalsSkipsCompleted verifies already-completed goals are skipped
+// (mv may fluctuate; we don't un-complete). Their current must NOT be re-set.
+func TestSyncAllGoalsSkipsCompleted(t *testing.T) {
+	repo, svc := newTestServiceWithGoals(t, []seedGoal{
+		{Name: "done", Type: domain.GoalTypeInvestment, LinkedAccount: ptrUUID(acct1), Target: 100000, IsCompleted: true},
+		{Name: "open", Type: domain.GoalTypeInvestment, LinkedAccount: ptrUUID(acct2), Target: 200000},
+	})
+	svc.SetAccountMarketValueSource(stubMV{v: 99999})
+	n, err := svc.SyncAllGoals(context.Background(), tenantID)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if count != 2 {
-		t.Fatalf("synced = %d, want 2 (g1+g2 investment, g3 savings skipped)", count)
+	if n != 1 {
+		t.Fatalf("synced = %d, want 1 (completed skipped)", n)
 	}
-	if got := repo.currentFor("g1"); got != 60000 {
-		t.Fatalf("g1 current = %d, want 60000", got)
+	if got := repo.currentFor("done"); got != 0 {
+		t.Fatalf("completed goal must be skipped, current got %d", got)
 	}
-	if !repo.isCompleted("g2") {
-		t.Fatal("g2 should auto-complete at target 200000")
-	}
-	if got := repo.currentFor("g3"); got != 0 {
-		t.Fatalf("g3 (savings) must be untouched, got current %d", got)
+	if !repo.isCompleted("done") {
+		t.Fatal("done must remain completed")
 	}
 }
 
-func TestSyncInvestmentGoalsContinuesPastHoldingError(t *testing.T) {
-	// acct1 holding service fails, acct2 ok. g1 skipped (logged), g2 synced. count=1.
+// TestSyncAllGoalsContinuesPastPortError verifies a per-goal port error is
+// logged and skipped, not fatal — remaining goals still sync.
+func TestSyncAllGoalsContinuesPastPortError(t *testing.T) {
 	repo, svc := newTestServiceWithGoals(t, []seedGoal{
-		{Name: "g1", Type: domain.GoalTypeInvestment, LinkedAccount: ptrUUID(acct1), Target: 100000},
-		{Name: "g2", Type: domain.GoalTypeInvestment, LinkedAccount: ptrUUID(acct2), Target: 200000},
+		{Name: "inv", Type: domain.GoalTypeInvestment, LinkedAccount: ptrUUID(acct1), Target: 100000},
+		{Name: "sav", Type: domain.GoalTypeSavings, LinkedAccount: ptrUUID(acct2), Target: 200000},
 	})
-	svc.SetAccountMarketValueSource(&fakeAccountMarketValueSource{
-		mv:    map[uuid.UUID]int64{acct1: 60000, acct2: 200000},
-		errOn: map[uuid.UUID]error{acct1: errors.New("holding service 500")},
-	})
-	count, err := svc.SyncInvestmentGoals(context.Background(), tenantID)
+	// Investment port errors; savings port ok. inv skipped, sav synced.
+	svc.SetAccountMarketValueSource(stubMV{err: errors.New("holding service 500")})
+	svc.SetAccountBalanceSource(stubBal{v: 200000})
+	n, err := svc.SyncAllGoals(context.Background(), tenantID)
 	if err != nil {
-		t.Fatalf("SyncInvestmentGoals must not abort on per-goal mv error: %v", err)
+		t.Fatalf("per-goal port error must not abort batch: %v", err)
 	}
-	if count != 1 {
-		t.Fatalf("synced = %d, want 1 (g2 ok, g1 errored)", count)
+	if n != 1 {
+		t.Fatalf("synced = %d, want 1 (inv errored, sav ok)", n)
 	}
-	// g1 errored → untouched at 0; g2 updated to 200000 and auto-completed.
-	if got := repo.currentFor("g1"); got != 0 {
-		t.Fatalf("g1 should stay 0 after error, got %d", got)
+	if got := repo.currentFor("inv"); got != 0 {
+		t.Fatalf("inv should stay 0 after error, got %d", got)
 	}
-	if got := repo.currentFor("g2"); got != 200000 {
-		t.Fatalf("g2 should be updated to 200000, got %d", got)
+	if got := repo.currentFor("sav"); got != 200000 {
+		t.Fatalf("sav should be updated to 200000, got %d", got)
 	}
 }
 
-func TestSyncInvestmentGoalsSkipsCompleted(t *testing.T) {
-	// g1 already completed (pre-seeded) → skipped, current untouched (not re-set to mv).
-	// g2 open investment → synced. count=1.
-	repo, svc := newTestServiceWithGoals(t, []seedGoal{
-		{Name: "g1", Type: domain.GoalTypeInvestment, LinkedAccount: ptrUUID(acct1), Target: 100000, IsCompleted: true},
-		{Name: "g2", Type: domain.GoalTypeInvestment, LinkedAccount: ptrUUID(acct2), Target: 200000},
-	})
-	svc.SetAccountMarketValueSource(&fakeAccountMarketValueSource{
-		mv: map[uuid.UUID]int64{acct1: 99999, acct2: 200000},
-	})
-	count, err := svc.SyncInvestmentGoals(context.Background(), tenantID)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if count != 1 {
-		t.Fatalf("synced = %d, want 1 (completed g1 skipped, g2 synced)", count)
-	}
-	// g1 was completed before sync → must NOT be re-touched (current stays 0, not 99999).
-	if got := repo.currentFor("g1"); got != 0 {
-		t.Fatalf("completed g1 must be skipped, current got %d", got)
-	}
-	if !repo.isCompleted("g1") {
-		t.Fatal("g1 must remain completed")
-	}
-	if got := repo.currentFor("g2"); got != 200000 {
-		t.Fatalf("g2 current = %d, want 200000", got)
-	}
-}
-
-func TestSyncInvestmentGoalsWithoutSourceErrors(t *testing.T) {
-	// Defensive: SetAccountMarketValueSource never called → SyncInvestmentGoals
-	// errors clearly instead of nil-dereferencing. Wire always injects.
+// TestSyncAllGoalsNilPortSkipsType verifies a goal whose port is not configured
+// (nil) is skipped without error — wire always injects in prod but tests may not.
+func TestSyncAllGoalsNilPortSkipsType(t *testing.T) {
 	_, svc := newTestServiceWithGoals(t, []seedGoal{
-		{Name: "g1", Type: domain.GoalTypeInvestment, LinkedAccount: ptrUUID(acct1), Target: 100000},
+		{Name: "inv", Type: domain.GoalTypeInvestment, LinkedAccount: ptrUUID(acct1), Target: 100000},
 	})
-	if _, err := svc.SyncInvestmentGoals(context.Background(), tenantID); err == nil {
-		t.Fatal("SyncInvestmentGoals without mv source must error")
+	// No SetAccountMarketValueSource → mvSrc nil → inv skipped, synced=0.
+	n, err := svc.SyncAllGoals(context.Background(), tenantID)
+	if err != nil {
+		t.Fatalf("nil port must not error: %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("synced = %d, want 0 (mv port nil → all skipped)", n)
 	}
 }

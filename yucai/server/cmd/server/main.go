@@ -81,10 +81,10 @@ func main() {
 	// Exits when schedCtx is cancelled during shutdown.
 	go app.SnapshotScheduler.Start(schedCtx)
 
-	// Start goal progress scheduler. Performs an immediate SyncInvestmentGoals
-	// (Σ holding mv → investment goal.current_amount), then re-syncs at most
-	// once per tenant's rate_sync_interval_hours. Exits when schedCtx is
-	// cancelled during shutdown.
+	// Start goal progress scheduler. Performs an immediate SyncAllGoals
+	// (Σ per-type progress → goal.current_amount + daily snapshot), then
+	// re-syncs at most once per tenant's rate_sync_interval_hours. Exits when
+	// schedCtx is cancelled during shutdown.
 	go app.GoalScheduler.Start(schedCtx)
 
 	// Backfill security price history on first launch (empty-table gate inside

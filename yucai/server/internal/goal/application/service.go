@@ -11,8 +11,10 @@ import (
 
 // Service orchestrates goal operations.
 type Service struct {
-	repo     domain.GoalRepository
-	mvSource domain.AccountMarketValueSource // D-goal: injected via setter; nil = SyncInvestmentGoals errors
+	repo    domain.GoalRepository
+	mvSrc   domain.AccountMarketValueSource // nil = Investment goals skipped (best-effort)
+	balSrc  domain.AccountBalanceSource     // nil = Savings goals skipped
+	debtSrc domain.DebtProgressSource        // nil = DebtPayoff goals skipped
 }
 
 // NewService creates a new goal application service.
@@ -157,63 +159,76 @@ func (s *Service) ListGoals(ctx context.Context, req ListGoalsRequest) (*ListGoa
 }
 
 // SetAccountMarketValueSource injects the holding market-value source used by
-// SyncInvestmentGoals. Called by wire after construction (NewService signature
-// unchanged). *holding/application.Service implements this port structurally.
+// SyncAllGoals for Investment goals. Called by wire after construction
+// (NewService signature unchanged). *holding/application.Service implements
+// this port structurally.
 func (s *Service) SetAccountMarketValueSource(src domain.AccountMarketValueSource) {
-	s.mvSource = src
+	s.mvSrc = src
 }
 
-// SyncInvestmentGoals recomputes current_amount for every investment goal from
-// its linked investment account's Σ holdings market value. Best-effort: a goal
-// whose mv lookup fails is logged and skipped without aborting the batch.
-// Already-completed goals are skipped (mv may fluctuate; we don't un-complete).
-// Implements goal/scheduler.GoalSyncer.
-func (s *Service) SyncInvestmentGoals(ctx context.Context, tenantID uuid.UUID) (int, error) {
-	if s.mvSource == nil {
-		return 0, fmt.Errorf("sync investment goals: market value source not configured")
-	}
-	investment := domain.GoalTypeInvestment
+// SetAccountBalanceSource injects the account-balance source used by
+// SyncAllGoals for Savings goals. *account/application.Service implements this
+// port structurally.
+func (s *Service) SetAccountBalanceSource(src domain.AccountBalanceSource) {
+	s.balSrc = src
+}
+
+// SetDebtProgressSource injects the debt-progress source used by SyncAllGoals
+// for DebtPayoff goals. *debt/application.Service implements this port
+// structurally.
+func (s *Service) SetDebtProgressSource(src domain.DebtProgressSource) {
+	s.debtSrc = src
+}
+
+// SyncAllGoals recomputes current_amount for every goal by type and writes a
+// daily snapshot. Per-goal branching:
+//   - Investment → mvSrc.GetAccountsMarketValue(LinkedAccountIDs)
+//   - Savings    → balSrc.GetAccountsBalance(LinkedAccountIDs)
+//   - DebtPayoff → debtSrc.GetDebtsPaid(LinkedDebtIDs)
+//
+// Best-effort: a goal whose port is nil, has no links, whose port call fails,
+// or whose Update fails is logged and skipped without aborting the batch.
+// Already-completed goals are skipped (mv/balance may fluctuate; we don't
+// un-complete). Snapshot write failures are warned, not fatal (the current
+// value is already persisted via Update). Implements goal/scheduler.GoalSyncer.
+func (s *Service) SyncAllGoals(ctx context.Context, tenantID uuid.UUID) (int, error) {
 	synced := 0
 	page := domain.PageRequest{PageSize: 100}
 	for {
-		result, err := s.repo.FindAll(ctx, tenantID, nil, &investment, page)
+		result, err := s.repo.FindAll(ctx, tenantID, nil, nil, page)
 		if err != nil {
-			return synced, fmt.Errorf("sync investment goals: list: %w", err)
+			return synced, fmt.Errorf("sync all goals: list: %w", err)
 		}
 		for _, g := range result.Items {
 			if err := ctx.Err(); err != nil {
 				return synced, err
 			}
-			if g.IsCompleted || g.GoalType != domain.GoalTypeInvestment || len(g.LinkedAccountIDs) == 0 {
+			if g.IsCompleted {
 				continue
 			}
-			// Sum market value across all linked investment accounts.
-			var total int64
-			var mvErr error
-			for _, accID := range g.LinkedAccountIDs {
-				mv, err := s.mvSource.GetAccountMarketValue(ctx, tenantID, accID)
-				if err != nil {
-					mvErr = err
-					slog.Warn("goal sync: holding mv failed, skip account",
-						slog.String("goal_id", g.ID.String()),
-						slog.String("account_id", accID.String()),
-						slog.String("error", err.Error()),
-						slog.String("operation", "SyncInvestmentGoals"))
-					break
-				}
-				total += mv
-			}
-			if mvErr != nil {
+			cur, perr := s.computeGoalProgress(ctx, tenantID, &g)
+			if perr != nil {
+				slog.Error("goal sync: port failed",
+					slog.String("goal_id", g.ID.String()),
+					slog.String("type", g.GoalType.String()),
+					slog.String("error", perr.Error()),
+					slog.String("operation", "SyncAllGoals"))
 				continue
 			}
-			g.SetCurrentAmount(total)
+			g.SetCurrentAmount(cur)
 			g.IncrementVersion()
 			if err := s.repo.Update(ctx, &g); err != nil {
-				slog.Warn("goal sync: update failed",
+				slog.Error("goal sync: update failed",
 					slog.String("goal_id", g.ID.String()),
 					slog.String("error", err.Error()),
-					slog.String("operation", "SyncInvestmentGoals"))
+					slog.String("operation", "SyncAllGoals"))
 				continue
+			}
+			if err := s.repo.WriteSnapshot(ctx, &g); err != nil {
+				slog.Warn("goal sync: snapshot write failed",
+					slog.String("goal_id", g.ID.String()),
+					slog.String("error", err.Error()),
+					slog.String("operation", "SyncAllGoals"))
 			}
 			synced++
 		}
@@ -223,4 +238,29 @@ func (s *Service) SyncInvestmentGoals(ctx context.Context, tenantID uuid.UUID) (
 		page.PageToken = result.NextPageToken
 	}
 	return synced, nil
+}
+
+// computeGoalProgress dispatches to the per-type port and returns the current
+// progress (cents). Returns an error when the port is nil for the goal's type,
+// the goal has no links, or the port call fails — the caller logs and skips.
+func (s *Service) computeGoalProgress(ctx context.Context, tenantID uuid.UUID, g *domain.Goal) (int64, error) {
+	switch g.GoalType {
+	case domain.GoalTypeInvestment:
+		if s.mvSrc == nil || len(g.LinkedAccountIDs) == 0 {
+			return 0, fmt.Errorf("investment goal: market-value source not configured or no linked accounts")
+		}
+		return s.mvSrc.GetAccountsMarketValue(ctx, tenantID, g.LinkedAccountIDs)
+	case domain.GoalTypeSavings:
+		if s.balSrc == nil || len(g.LinkedAccountIDs) == 0 {
+			return 0, fmt.Errorf("savings goal: balance source not configured or no linked accounts")
+		}
+		return s.balSrc.GetAccountsBalance(ctx, tenantID, g.LinkedAccountIDs)
+	case domain.GoalTypeDebtPayoff:
+		if s.debtSrc == nil || len(g.LinkedDebtIDs) == 0 {
+			return 0, fmt.Errorf("debtpayoff goal: debt source not configured or no linked debts")
+		}
+		return s.debtSrc.GetDebtsPaid(ctx, tenantID, g.LinkedDebtIDs)
+	default:
+		return 0, fmt.Errorf("unknown goal type: %s", g.GoalType.String())
+	}
 }

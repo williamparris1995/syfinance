@@ -24,10 +24,10 @@ type TenantLister interface {
 	FindAllIDs(ctx context.Context) ([]uuid.UUID, error)
 }
 
-// GoalSyncer recomputes investment-goal progress for one tenant. Implemented
-// by goal/application.Service.SyncInvestmentGoals.
+// GoalSyncer recomputes goal progress for one tenant (all goal types).
+// Implemented by goal/application.Service.SyncAllGoals.
 type GoalSyncer interface {
-	SyncInvestmentGoals(ctx context.Context, tenantID uuid.UUID) (int, error)
+	SyncAllGoals(ctx context.Context, tenantID uuid.UUID) (int, error)
 }
 
 // Scheduler periodically fans out GoalSyncer across all tenants, gated by
@@ -97,7 +97,7 @@ func (s *Scheduler) doSync(ctx context.Context) (int, error) {
 		if err := ctx.Err(); err != nil {
 			return total, err
 		}
-		count, err := s.syncer.SyncInvestmentGoals(ctx, tid)
+		count, err := s.syncer.SyncAllGoals(ctx, tid)
 		if err != nil {
 			s.log.Error("goal sync: tenant failed, continue", "tenant_id", tid.String(), "error", err, "operation", "GoalScheduler")
 			continue

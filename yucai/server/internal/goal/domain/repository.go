@@ -20,23 +20,24 @@ type PaginatedResult[T any] = struct {
 }
 
 // GoalRepository defines the port for Goal persistence.
+//
+// Save/Update/FindByID/FindAll read+write the goal's multi-account links
+// (goal_account_links + goal_debt_links, Task 6). WriteSnapshot upserts a daily
+// progress snapshot keyed by (tenant_id, goal_id, snapshot_date) — same-day
+// re-runs overwrite current_amount_cents rather than duplicating rows.
 type GoalRepository interface {
 	Save(ctx context.Context, goal *Goal) error
 	FindByID(ctx context.Context, tenantID, id uuid.UUID) (*Goal, error)
 	FindAll(ctx context.Context, tenantID uuid.UUID, completed *bool, goalType *GoalType, page PageRequest) (*PaginatedResult[Goal], error)
 	Update(ctx context.Context, goal *Goal) error
 	Delete(ctx context.Context, tenantID, id uuid.UUID) error
+	WriteSnapshot(ctx context.Context, goal *Goal) error
 }
 
-// AccountMarketValueSource reports market value of holdings under given accounts
-// (Investment goal). Implemented by holding/application.Service
+// AccountMarketValueSource reports Σ market value of holdings under the given
+// accounts (Investment goal). Implemented by holding/application.Service
 // (structural type — goal does not import holding).
-//
-// Two methods:
-//   - GetAccountMarketValue: single-account (D-goal SyncInvestmentGoals, removed Task 6).
-//   - GetAccountsMarketValue: multi-account Σ mv (SyncAllGoals, Task 6).
 type AccountMarketValueSource interface {
-	GetAccountMarketValue(ctx context.Context, tenantID, accountID uuid.UUID) (int64, error)
 	GetAccountsMarketValue(ctx context.Context, tenantID uuid.UUID, accountIDs []uuid.UUID) (int64, error)
 }
 

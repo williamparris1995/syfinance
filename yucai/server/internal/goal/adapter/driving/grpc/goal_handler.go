@@ -238,18 +238,18 @@ func (h *GoalHandler) ListGoals(ctx context.Context, req *pb.ListGoalsRequest) (
 	}, nil
 }
 
-// SyncInvestmentGoals recomputes current_amount for the caller's investment
-// goals from their linked investment account's Σ holdings market value (manual
+// SyncInvestmentGoals recomputes current_amount for the caller's goals (all
+// types: Investment/Savings/DebtPayoff) from their linked sources (manual
 // trigger; the scheduler does this for all tenants automatically). This is the
 // real handler replacing UnimplementedGoalServiceServer.SyncInvestmentGoals
-// (Task 6 proto-only stub returned codes.Unimplemented at runtime).
-// Per-tenant: only the current caller's goals are synced.
+// (the proto method name is kept for client compatibility; the underlying
+// service call is SyncAllGoals). Per-tenant: only the current caller's goals.
 func (h *GoalHandler) SyncInvestmentGoals(ctx context.Context, _ *pb.SyncInvestmentGoalsRequest) (*pb.SyncInvestmentGoalsResponse, error) {
 	tenantID, err := getTenantID(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, err.Error())
 	}
-	count, err := h.service.SyncInvestmentGoals(ctx, tenantID)
+	count, err := h.service.SyncAllGoals(ctx, tenantID)
 	if err != nil {
 		return nil, mapError(err)
 	}

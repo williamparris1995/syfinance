@@ -36,7 +36,7 @@ type mockGoalSyncer struct {
 	errOn     map[uuid.UUID]error // simulate per-tenant error
 }
 
-func (m *mockGoalSyncer) SyncInvestmentGoals(_ context.Context, tenantID uuid.UUID) (int, error) {
+func (m *mockGoalSyncer) SyncAllGoals(_ context.Context, tenantID uuid.UUID) (int, error) {
 	m.calls.Add(1)
 	if m.errOn != nil {
 		if e, ok := m.errOn[tenantID]; ok {
@@ -58,7 +58,7 @@ func TestStartRunsOnceImmediately(t *testing.T) {
 
 	// Immediate doSync fans out across both tenants (2 calls).
 	if !waitForCalls(syncer, 2, 50*time.Millisecond) {
-		t.Fatalf("SyncInvestmentGoals not fanned out within 50ms; calls=%d", syncer.calls.Load())
+		t.Fatalf("SyncAllGoals not fanned out within 50ms; calls=%d", syncer.calls.Load())
 	}
 }
 

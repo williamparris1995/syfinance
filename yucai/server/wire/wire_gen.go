@@ -148,8 +148,11 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	holdingHandler := provideHoldingHandler(holdingService, txnService, accountRepo)
 
 	// Goal module (continued): holdingService is the AccountMarketValueSource
-	// port for SyncInvestmentGoals — constructed here so it is in scope.
-	goalService := provideGoalService(goalRepo, holdingService)
+	// port (Investment goals), accountService is the AccountBalanceSource port
+	// (Savings goals), debtService is the DebtProgressSource port (DebtPayoff
+	// goals). All three are constructed above and in scope. SyncAllGoals fans
+	// out by goal type — Task 6.
+	goalService := provideGoalService(goalRepo, holdingService, accountService, debtService)
 	goalHandler := provideGoalHandler(goalService)
 
 	// Networth module: aggregates account balances + holding market value −
@@ -188,7 +191,7 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	// snapshotScheduler reuses intervalSource (like priceScheduler). The
 	// holding service implements Snapshotter via SnapshotAllHoldings.
 	snapshotScheduler := provideSnapshotScheduler(holdingService, intervalSource)
-	// goalScheduler fans out SyncInvestmentGoals across tenants. Reuses the
+	// goalScheduler fans out SyncAllGoals across tenants. Reuses the
 	// tenantIntervalSource adapter (MinIntervalHours) + tenantRepo (TenantLister).
 	goalScheduler := provideGoalScheduler(goalService, tenantRepo)
 

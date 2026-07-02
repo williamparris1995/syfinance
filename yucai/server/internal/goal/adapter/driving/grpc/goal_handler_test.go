@@ -68,12 +68,15 @@ func (r *fakeRepo) Update(_ context.Context, g *domain.Goal) error {
 
 func (r *fakeRepo) Delete(context.Context, uuid.UUID, uuid.UUID) error { return nil }
 
-// fakeMVSource returns a fixed market value per account.
+// WriteSnapshot is a no-op for the handler test (the service calls it after Update).
+func (r *fakeRepo) WriteSnapshot(context.Context, *domain.Goal) error { return nil }
+
+// fakeMVSource returns a fixed market value across accounts (multi-account port).
 type fakeMVSource struct {
 	mv int64
 }
 
-func (s *fakeMVSource) GetAccountMarketValue(context.Context, uuid.UUID, uuid.UUID) (int64, error) {
+func (s *fakeMVSource) GetAccountsMarketValue(context.Context, uuid.UUID, []uuid.UUID) (int64, error) {
 	return s.mv, nil
 }
 
