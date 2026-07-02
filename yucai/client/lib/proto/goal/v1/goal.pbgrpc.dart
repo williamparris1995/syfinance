@@ -96,6 +96,13 @@ class GoalServiceClient extends $grpc.Client {
     return $createUnaryCall(_$syncInvestmentGoals, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.GoalResponse> cloneGoal(
+    $0.CloneGoalRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$cloneGoal, request, options: options);
+  }
+
   // method descriptors
 
   static final _$createGoal =
@@ -143,6 +150,11 @@ class GoalServiceClient extends $grpc.Client {
       '/yucai.goal.v1.GoalService/SyncInvestmentGoals',
       ($0.SyncInvestmentGoalsRequest value) => value.writeToBuffer(),
       $0.SyncInvestmentGoalsResponse.fromBuffer);
+  static final _$cloneGoal =
+      $grpc.ClientMethod<$0.CloneGoalRequest, $0.GoalResponse>(
+          '/yucai.goal.v1.GoalService/CloneGoal',
+          ($0.CloneGoalRequest value) => value.writeToBuffer(),
+          $0.GoalResponse.fromBuffer);
 }
 
 @$pb.GrpcServiceName('yucai.goal.v1.GoalService')
@@ -218,6 +230,13 @@ abstract class GoalServiceBase extends $grpc.Service {
         ($core.List<$core.int> value) =>
             $0.SyncInvestmentGoalsRequest.fromBuffer(value),
         ($0.SyncInvestmentGoalsResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.CloneGoalRequest, $0.GoalResponse>(
+        'CloneGoal',
+        cloneGoal_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.CloneGoalRequest.fromBuffer(value),
+        ($0.GoalResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.GoalResponse> createGoal_Pre($grpc.ServiceCall $call,
@@ -292,4 +311,12 @@ abstract class GoalServiceBase extends $grpc.Service {
 
   $async.Future<$0.SyncInvestmentGoalsResponse> syncInvestmentGoals(
       $grpc.ServiceCall call, $0.SyncInvestmentGoalsRequest request);
+
+  $async.Future<$0.GoalResponse> cloneGoal_Pre($grpc.ServiceCall $call,
+      $async.Future<$0.CloneGoalRequest> $request) async {
+    return cloneGoal($call, await $request);
+  }
+
+  $async.Future<$0.GoalResponse> cloneGoal(
+      $grpc.ServiceCall call, $0.CloneGoalRequest request);
 }

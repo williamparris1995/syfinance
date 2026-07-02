@@ -42,6 +42,8 @@ class GoalDTO extends $pb.GeneratedMessage {
     $fixnum.Int64? version,
     $2.Timestamp? createdAt,
     $2.Timestamp? updatedAt,
+    $core.Iterable<$core.String>? linkedAccountIds,
+    $core.Iterable<$core.String>? linkedDebtIds,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -61,6 +63,9 @@ class GoalDTO extends $pb.GeneratedMessage {
     if (version != null) result.version = version;
     if (createdAt != null) result.createdAt = createdAt;
     if (updatedAt != null) result.updatedAt = updatedAt;
+    if (linkedAccountIds != null)
+      result.linkedAccountIds.addAll(linkedAccountIds);
+    if (linkedDebtIds != null) result.linkedDebtIds.addAll(linkedDebtIds);
     return result;
   }
 
@@ -98,6 +103,8 @@ class GoalDTO extends $pb.GeneratedMessage {
         subBuilder: $2.Timestamp.create)
     ..aOM<$2.Timestamp>(16, _omitFieldNames ? '' : 'updatedAt',
         subBuilder: $2.Timestamp.create)
+    ..pPS(17, _omitFieldNames ? '' : 'linkedAccountIds')
+    ..pPS(18, _omitFieldNames ? '' : 'linkedDebtIds')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -269,6 +276,12 @@ class GoalDTO extends $pb.GeneratedMessage {
   void clearUpdatedAt() => $_clearField(16);
   @$pb.TagNumber(16)
   $2.Timestamp ensureUpdatedAt() => $_ensure(15);
+
+  @$pb.TagNumber(17)
+  $pb.PbList<$core.String> get linkedAccountIds => $_getList(16);
+
+  @$pb.TagNumber(18)
+  $pb.PbList<$core.String> get linkedDebtIds => $_getList(17);
 }
 
 class CreateGoalRequest extends $pb.GeneratedMessage {
@@ -280,6 +293,8 @@ class CreateGoalRequest extends $pb.GeneratedMessage {
     $core.String? deadline,
     $core.String? linkedAccountId,
     $core.String? notes,
+    $core.Iterable<$core.String>? linkedAccountIds,
+    $core.Iterable<$core.String>? linkedDebtIds,
   }) {
     final result = create();
     if (name != null) result.name = name;
@@ -289,6 +304,9 @@ class CreateGoalRequest extends $pb.GeneratedMessage {
     if (deadline != null) result.deadline = deadline;
     if (linkedAccountId != null) result.linkedAccountId = linkedAccountId;
     if (notes != null) result.notes = notes;
+    if (linkedAccountIds != null)
+      result.linkedAccountIds.addAll(linkedAccountIds);
+    if (linkedDebtIds != null) result.linkedDebtIds.addAll(linkedDebtIds);
     return result;
   }
 
@@ -313,6 +331,8 @@ class CreateGoalRequest extends $pb.GeneratedMessage {
     ..aOS(5, _omitFieldNames ? '' : 'deadline')
     ..aOS(6, _omitFieldNames ? '' : 'linkedAccountId')
     ..aOS(7, _omitFieldNames ? '' : 'notes')
+    ..pPS(8, _omitFieldNames ? '' : 'linkedAccountIds')
+    ..pPS(9, _omitFieldNames ? '' : 'linkedDebtIds')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -396,6 +416,12 @@ class CreateGoalRequest extends $pb.GeneratedMessage {
   $core.bool hasNotes() => $_has(6);
   @$pb.TagNumber(7)
   void clearNotes() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $pb.PbList<$core.String> get linkedAccountIds => $_getList(7);
+
+  @$pb.TagNumber(9)
+  $pb.PbList<$core.String> get linkedDebtIds => $_getList(8);
 }
 
 class UpdateGoalRequest extends $pb.GeneratedMessage {
@@ -406,6 +432,8 @@ class UpdateGoalRequest extends $pb.GeneratedMessage {
     $core.String? deadline,
     $core.String? notes,
     $fixnum.Int64? version,
+    $core.Iterable<$core.String>? linkedAccountIds,
+    $core.Iterable<$core.String>? linkedDebtIds,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -414,6 +442,9 @@ class UpdateGoalRequest extends $pb.GeneratedMessage {
     if (deadline != null) result.deadline = deadline;
     if (notes != null) result.notes = notes;
     if (version != null) result.version = version;
+    if (linkedAccountIds != null)
+      result.linkedAccountIds.addAll(linkedAccountIds);
+    if (linkedDebtIds != null) result.linkedDebtIds.addAll(linkedDebtIds);
     return result;
   }
 
@@ -436,6 +467,8 @@ class UpdateGoalRequest extends $pb.GeneratedMessage {
     ..aOS(4, _omitFieldNames ? '' : 'deadline')
     ..aOS(5, _omitFieldNames ? '' : 'notes')
     ..aInt64(6, _omitFieldNames ? '' : 'version')
+    ..pPS(7, _omitFieldNames ? '' : 'linkedAccountIds')
+    ..pPS(8, _omitFieldNames ? '' : 'linkedDebtIds')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -510,6 +543,102 @@ class UpdateGoalRequest extends $pb.GeneratedMessage {
   $core.bool hasVersion() => $_has(5);
   @$pb.TagNumber(6)
   void clearVersion() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $pb.PbList<$core.String> get linkedAccountIds => $_getList(6);
+
+  @$pb.TagNumber(8)
+  $pb.PbList<$core.String> get linkedDebtIds => $_getList(7);
+}
+
+class CloneGoalRequest extends $pb.GeneratedMessage {
+  factory CloneGoalRequest({
+    $core.String? sourceGoalId,
+    $fixnum.Int64? targetAmountCents,
+    $core.String? deadline,
+    $core.String? name,
+  }) {
+    final result = create();
+    if (sourceGoalId != null) result.sourceGoalId = sourceGoalId;
+    if (targetAmountCents != null) result.targetAmountCents = targetAmountCents;
+    if (deadline != null) result.deadline = deadline;
+    if (name != null) result.name = name;
+    return result;
+  }
+
+  CloneGoalRequest._();
+
+  factory CloneGoalRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory CloneGoalRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'CloneGoalRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.goal.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'sourceGoalId')
+    ..aInt64(2, _omitFieldNames ? '' : 'targetAmountCents')
+    ..aOS(3, _omitFieldNames ? '' : 'deadline')
+    ..aOS(4, _omitFieldNames ? '' : 'name')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CloneGoalRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CloneGoalRequest copyWith(void Function(CloneGoalRequest) updates) =>
+      super.copyWith((message) => updates(message as CloneGoalRequest))
+          as CloneGoalRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static CloneGoalRequest create() => CloneGoalRequest._();
+  @$core.override
+  CloneGoalRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static CloneGoalRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<CloneGoalRequest>(create);
+  static CloneGoalRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get sourceGoalId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set sourceGoalId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSourceGoalId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSourceGoalId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get targetAmountCents => $_getI64(1);
+  @$pb.TagNumber(2)
+  set targetAmountCents($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasTargetAmountCents() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearTargetAmountCents() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get deadline => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set deadline($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasDeadline() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearDeadline() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get name => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set name($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasName() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearName() => $_clearField(4);
 }
 
 class UpdateProgressRequest extends $pb.GeneratedMessage {

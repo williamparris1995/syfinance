@@ -99,6 +99,14 @@ const GoalDTO$json = {
       '6': '.google.protobuf.Timestamp',
       '10': 'updatedAt'
     },
+    {
+      '1': 'linked_account_ids',
+      '3': 17,
+      '4': 3,
+      '5': 9,
+      '10': 'linkedAccountIds'
+    },
+    {'1': 'linked_debt_ids', '3': 18, '4': 3, '5': 9, '10': 'linkedDebtIds'},
   ],
 };
 
@@ -116,7 +124,8 @@ final $typed_data.Uint8List goalDTODescriptor = $convert.base64Decode(
     'luZ19jZW50cxgNIAEoA1IOcmVtYWluaW5nQ2VudHMSGAoHdmVyc2lvbhgOIAEoA1IHdmVyc2lv'
     'bhI5CgpjcmVhdGVkX2F0GA8gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFIJY3JlYX'
     'RlZEF0EjkKCnVwZGF0ZWRfYXQYECABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wUgl1'
-    'cGRhdGVkQXQ=');
+    'cGRhdGVkQXQSLAoSbGlua2VkX2FjY291bnRfaWRzGBEgAygJUhBsaW5rZWRBY2NvdW50SWRzEi'
+    'YKD2xpbmtlZF9kZWJ0X2lkcxgSIAMoCVINbGlua2VkRGVidElkcw==');
 
 @$core.Deprecated('Use createGoalRequestDescriptor instead')
 const CreateGoalRequest$json = {
@@ -142,6 +151,14 @@ const CreateGoalRequest$json = {
     {'1': 'deadline', '3': 5, '4': 1, '5': 9, '10': 'deadline'},
     {'1': 'linked_account_id', '3': 6, '4': 1, '5': 9, '10': 'linkedAccountId'},
     {'1': 'notes', '3': 7, '4': 1, '5': 9, '10': 'notes'},
+    {
+      '1': 'linked_account_ids',
+      '3': 8,
+      '4': 3,
+      '5': 9,
+      '10': 'linkedAccountIds'
+    },
+    {'1': 'linked_debt_ids', '3': 9, '4': 3, '5': 9, '10': 'linkedDebtIds'},
   ],
 };
 
@@ -151,7 +168,9 @@ final $typed_data.Uint8List createGoalRequestDescriptor = $convert.base64Decode(
     'EoDjIXLnl1Y2FpLmdvYWwudjEuR29hbFR5cGVSCGdvYWxUeXBlEi4KE3RhcmdldF9hbW91bnRf'
     'Y2VudHMYAyABKANSEXRhcmdldEFtb3VudENlbnRzEiMKDWN1cnJlbmN5X2NvZGUYBCABKAlSDG'
     'N1cnJlbmN5Q29kZRIaCghkZWFkbGluZRgFIAEoCVIIZGVhZGxpbmUSKgoRbGlua2VkX2FjY291'
-    'bnRfaWQYBiABKAlSD2xpbmtlZEFjY291bnRJZBIUCgVub3RlcxgHIAEoCVIFbm90ZXM=');
+    'bnRfaWQYBiABKAlSD2xpbmtlZEFjY291bnRJZBIUCgVub3RlcxgHIAEoCVIFbm90ZXMSLAoSbG'
+    'lua2VkX2FjY291bnRfaWRzGAggAygJUhBsaW5rZWRBY2NvdW50SWRzEiYKD2xpbmtlZF9kZWJ0'
+    'X2lkcxgJIAMoCVINbGlua2VkRGVidElkcw==');
 
 @$core.Deprecated('Use updateGoalRequestDescriptor instead')
 const UpdateGoalRequest$json = {
@@ -169,6 +188,14 @@ const UpdateGoalRequest$json = {
     {'1': 'deadline', '3': 4, '4': 1, '5': 9, '10': 'deadline'},
     {'1': 'notes', '3': 5, '4': 1, '5': 9, '10': 'notes'},
     {'1': 'version', '3': 6, '4': 1, '5': 3, '10': 'version'},
+    {
+      '1': 'linked_account_ids',
+      '3': 7,
+      '4': 3,
+      '5': 9,
+      '10': 'linkedAccountIds'
+    },
+    {'1': 'linked_debt_ids', '3': 8, '4': 3, '5': 9, '10': 'linkedDebtIds'},
   ],
 };
 
@@ -177,7 +204,31 @@ final $typed_data.Uint8List updateGoalRequestDescriptor = $convert.base64Decode(
     'ChFVcGRhdGVHb2FsUmVxdWVzdBIOCgJpZBgBIAEoCVICaWQSEgoEbmFtZRgCIAEoCVIEbmFtZR'
     'IuChN0YXJnZXRfYW1vdW50X2NlbnRzGAMgASgDUhF0YXJnZXRBbW91bnRDZW50cxIaCghkZWFk'
     'bGluZRgEIAEoCVIIZGVhZGxpbmUSFAoFbm90ZXMYBSABKAlSBW5vdGVzEhgKB3ZlcnNpb24YBi'
-    'ABKANSB3ZlcnNpb24=');
+    'ABKANSB3ZlcnNpb24SLAoSbGlua2VkX2FjY291bnRfaWRzGAcgAygJUhBsaW5rZWRBY2NvdW50'
+    'SWRzEiYKD2xpbmtlZF9kZWJ0X2lkcxgIIAMoCVINbGlua2VkRGVidElkcw==');
+
+@$core.Deprecated('Use cloneGoalRequestDescriptor instead')
+const CloneGoalRequest$json = {
+  '1': 'CloneGoalRequest',
+  '2': [
+    {'1': 'source_goal_id', '3': 1, '4': 1, '5': 9, '10': 'sourceGoalId'},
+    {
+      '1': 'target_amount_cents',
+      '3': 2,
+      '4': 1,
+      '5': 3,
+      '10': 'targetAmountCents'
+    },
+    {'1': 'deadline', '3': 3, '4': 1, '5': 9, '10': 'deadline'},
+    {'1': 'name', '3': 4, '4': 1, '5': 9, '10': 'name'},
+  ],
+};
+
+/// Descriptor for `CloneGoalRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List cloneGoalRequestDescriptor = $convert.base64Decode(
+    'ChBDbG9uZUdvYWxSZXF1ZXN0EiQKDnNvdXJjZV9nb2FsX2lkGAEgASgJUgxzb3VyY2VHb2FsSW'
+    'QSLgoTdGFyZ2V0X2Ftb3VudF9jZW50cxgCIAEoA1IRdGFyZ2V0QW1vdW50Q2VudHMSGgoIZGVh'
+    'ZGxpbmUYAyABKAlSCGRlYWRsaW5lEhIKBG5hbWUYBCABKAlSBG5hbWU=');
 
 @$core.Deprecated('Use updateProgressRequestDescriptor instead')
 const UpdateProgressRequest$json = {

@@ -18,6 +18,7 @@ service GoalService {
   rpc GetGoal(GetGoalRequest) returns (GoalDetailResponse);
   rpc ListGoals(ListGoalsRequest) returns (ListGoalsResponse);
   rpc SyncInvestmentGoals(SyncInvestmentGoalsRequest) returns (SyncInvestmentGoalsResponse);
+  rpc CloneGoal(CloneGoalRequest) returns (GoalResponse);
 }
 
 enum GoalType {
@@ -44,6 +45,8 @@ message GoalDTO {
   int64 version = 14;
   google.protobuf.Timestamp created_at = 15;
   google.protobuf.Timestamp updated_at = 16;
+  repeated string linked_account_ids = 17;  // 多账户(D-goal/Task 8: replaces single linked_account_id=8, kept for back-compat)
+  repeated string linked_debt_ids = 18;     // DebtPayoff 多债务
 }
 
 message CreateGoalRequest {
@@ -52,8 +55,10 @@ message CreateGoalRequest {
   int64 target_amount_cents = 3;
   string currency_code = 4;
   string deadline = 5;
-  string linked_account_id = 6;
+  string linked_account_id = 6;  // 单账户(legacy, 兼容期保留)
   string notes = 7;
+  repeated string linked_account_ids = 8;  // 多账户(D-goal/Task 8)
+  repeated string linked_debt_ids = 9;     // DebtPayoff 多债务
 }
 
 message UpdateGoalRequest {
@@ -63,6 +68,15 @@ message UpdateGoalRequest {
   string deadline = 4;
   string notes = 5;
   int64 version = 6;
+  repeated string linked_account_ids = 7;  // 多账户(D-goal/Task 8)
+  repeated string linked_debt_ids = 8;     // DebtPayoff 多债务
+}
+
+message CloneGoalRequest {
+  string source_goal_id = 1;
+  int64 target_amount_cents = 2;  // 0 = 继承 source
+  string deadline = 3;            // 空 = 继承 source
+  string name = 4;                // 空 = 继承 source
 }
 
 message UpdateProgressRequest {

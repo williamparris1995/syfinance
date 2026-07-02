@@ -29,6 +29,7 @@ const (
 	GoalService_GetGoal_FullMethodName             = "/yucai.goal.v1.GoalService/GetGoal"
 	GoalService_ListGoals_FullMethodName           = "/yucai.goal.v1.GoalService/ListGoals"
 	GoalService_SyncInvestmentGoals_FullMethodName = "/yucai.goal.v1.GoalService/SyncInvestmentGoals"
+	GoalService_CloneGoal_FullMethodName           = "/yucai.goal.v1.GoalService/CloneGoal"
 )
 
 // GoalServiceClient is the client API for GoalService service.
@@ -44,6 +45,7 @@ type GoalServiceClient interface {
 	GetGoal(ctx context.Context, in *GetGoalRequest, opts ...grpc.CallOption) (*GoalDetailResponse, error)
 	ListGoals(ctx context.Context, in *ListGoalsRequest, opts ...grpc.CallOption) (*ListGoalsResponse, error)
 	SyncInvestmentGoals(ctx context.Context, in *SyncInvestmentGoalsRequest, opts ...grpc.CallOption) (*SyncInvestmentGoalsResponse, error)
+	CloneGoal(ctx context.Context, in *CloneGoalRequest, opts ...grpc.CallOption) (*GoalResponse, error)
 }
 
 type goalServiceClient struct {
@@ -144,6 +146,16 @@ func (c *goalServiceClient) SyncInvestmentGoals(ctx context.Context, in *SyncInv
 	return out, nil
 }
 
+func (c *goalServiceClient) CloneGoal(ctx context.Context, in *CloneGoalRequest, opts ...grpc.CallOption) (*GoalResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GoalResponse)
+	err := c.cc.Invoke(ctx, GoalService_CloneGoal_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GoalServiceServer is the server API for GoalService service.
 // All implementations must embed UnimplementedGoalServiceServer
 // for forward compatibility.
@@ -157,6 +169,7 @@ type GoalServiceServer interface {
 	GetGoal(context.Context, *GetGoalRequest) (*GoalDetailResponse, error)
 	ListGoals(context.Context, *ListGoalsRequest) (*ListGoalsResponse, error)
 	SyncInvestmentGoals(context.Context, *SyncInvestmentGoalsRequest) (*SyncInvestmentGoalsResponse, error)
+	CloneGoal(context.Context, *CloneGoalRequest) (*GoalResponse, error)
 	mustEmbedUnimplementedGoalServiceServer()
 }
 
@@ -193,6 +206,9 @@ func (UnimplementedGoalServiceServer) ListGoals(context.Context, *ListGoalsReque
 }
 func (UnimplementedGoalServiceServer) SyncInvestmentGoals(context.Context, *SyncInvestmentGoalsRequest) (*SyncInvestmentGoalsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SyncInvestmentGoals not implemented")
+}
+func (UnimplementedGoalServiceServer) CloneGoal(context.Context, *CloneGoalRequest) (*GoalResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CloneGoal not implemented")
 }
 func (UnimplementedGoalServiceServer) mustEmbedUnimplementedGoalServiceServer() {}
 func (UnimplementedGoalServiceServer) testEmbeddedByValue()                     {}
@@ -377,6 +393,24 @@ func _GoalService_SyncInvestmentGoals_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GoalService_CloneGoal_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CloneGoalRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoalServiceServer).CloneGoal(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GoalService_CloneGoal_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoalServiceServer).CloneGoal(ctx, req.(*CloneGoalRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GoalService_ServiceDesc is the grpc.ServiceDesc for GoalService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -419,6 +453,10 @@ var GoalService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SyncInvestmentGoals",
 			Handler:    _GoalService_SyncInvestmentGoals_Handler,
+		},
+		{
+			MethodName: "CloneGoal",
+			Handler:    _GoalService_CloneGoal_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
