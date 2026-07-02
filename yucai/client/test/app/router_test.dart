@@ -188,6 +188,11 @@ void main() {
         .thenAnswer((_) async => const dartz.Right([]));
     when(() => goalRepo.getGoal(any()))
         .thenAnswer((_) async => dartz.Right(_goal()));
+    when(() => goalRepo.getProgressHistory(
+            goalId: any(named: 'goalId'),
+            from: any(named: 'from'),
+            to: any(named: 'to')))
+        .thenAnswer((_) async => const dartz.Right([]));
   });
 
   Widget app(GoRouter router, AuthBloc authBloc) => MaterialApp.router(
