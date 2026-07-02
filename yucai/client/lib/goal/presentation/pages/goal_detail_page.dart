@@ -24,14 +24,21 @@
 // context.read<GoalBloc>().add(LoadDetailRequested(id))。
 //
 // 无 i18n(中文硬编码,御财惯例;与 budget/holding 列表页一致)。
+import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:yucai_client/account/domain/entities/account_entity.dart';
+import 'package:yucai_client/account/domain/repositories/account_repository.dart';
+import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
+import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
+import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/goal/domain/entities/goal_entity.dart';
 import 'package:yucai_client/goal/presentation/bloc/goal_bloc.dart';
 import 'package:yucai_client/goal/presentation/bloc/goal_event.dart';
@@ -48,10 +55,46 @@ class GoalDetailPage extends StatefulWidget {
 }
 
 class _GoalDetailPageState extends State<GoalDetailPage> {
+  /// account/debt id→name 映射(Phase 1.5:真名 lookup 替 #id 占位)。
+  /// FutureBuilder 包关联卡 region;best-effort(lookup fail/未命中 → #id 回退)。
+  /// 在 initState 启动,与 GoalBloc 并行(不阻塞 goal 渲染)。
+  late final Future<_NameMaps> _nameMapsFuture = _lookupNames();
+
   @override
   void initState() {
     super.initState();
     context.read<GoalBloc>().add(LoadDetailRequested(widget.id));
+  }
+
+  /// 并行 fetch account + debt list → 返 (accountMap, debtMap)。
+  /// 任一失败 → 对应 map 为空(关联卡回退 #id)。永不 throw。
+  Future<_NameMaps> _lookupNames() async {
+    Map<String, String> accountMap = const {};
+    Map<String, String> debtMap = const {};
+    try {
+      final results = await Future.wait([
+        GetIt.instance<AccountRepository>().list(),
+        GetIt.instance<DebtRepository>().list(),
+      ]);
+      final accountResult =
+          results[0] as dartz.Either<Failure, List<Account>>;
+      final debtResult = results[1] as dartz.Either<Failure, List<Debt>>;
+      accountMap = accountResult.fold(
+        (_) => const <String, String>{},
+        (accounts) => {
+          for (final a in accounts) a.id: a.name,
+        },
+      );
+      debtMap = debtResult.fold(
+        (_) => const <String, String>{},
+        (debts) => {
+          for (final d in debts) d.id: d.counterparty,
+        },
+      );
+    } catch (_) {
+      // best-effort:保持空 map,关联卡回退 #id。
+    }
+    return _NameMaps(accountMap: accountMap, debtMap: debtMap);
   }
 
   @override
@@ -318,7 +361,9 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
 
   // ───────────────────────── ② 关联实体卡 ─────────────────────────
 
-  /// 关联账户/债务列表(account/debt name lookup defer:显 id 占位;空显「暂无关联」)。
+  /// 关联账户/债务列表(Phase 1.5:FutureBuilder 查 account/debt name → 真名;
+  /// best-effort(lookup fail/未命中 → `账户 #id`/`债务 #id` 回退,不崩);
+  /// 空显「暂无关联」)。lookup 与 GoalBloc 并行,不阻塞 goal 渲染。
   Widget _linkedCard(GoalView g) {
     final accounts = g.linkedAccountIds;
     final debts = g.linkedDebtIds;
@@ -343,24 +388,36 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                     style: TextStyle(fontSize: 12.5, color: AppColors.muted)),
               ),
             )
-          else ...[
-            for (final id in accounts)
-              _LinkedRow(
-                key: ValueKey('goalDetailLinkedAccount_$id'),
-                icon: LucideIcons.wallet,
-                label: '关联账户',
-                name: '账户 #$id',
-                iconColor: AppColors.accent,
-              ),
-            for (final id in debts)
-              _LinkedRow(
-                key: ValueKey('goalDetailLinkedDebt_$id'),
-                icon: LucideIcons.creditCard,
-                label: '关联债务',
-                name: '债务 #$id',
-                iconColor: AppColors.negative,
-              ),
-          ],
+          else
+            FutureBuilder<_NameMaps>(
+              future: _nameMapsFuture,
+              builder: (context, snapshot) {
+                final maps = snapshot.data;
+                final accountMap = maps?.accountMap ?? const <String, String>{};
+                final debtMap = maps?.debtMap ?? const <String, String>{};
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final id in accounts)
+                      _LinkedRow(
+                        key: ValueKey('goalDetailLinkedAccount_$id'),
+                        icon: LucideIcons.wallet,
+                        label: '关联账户',
+                        name: accountMap[id] ?? '账户 #$id',
+                        iconColor: AppColors.accent,
+                      ),
+                    for (final id in debts)
+                      _LinkedRow(
+                        key: ValueKey('goalDetailLinkedDebt_$id'),
+                        icon: LucideIcons.creditCard,
+                        label: '关联债务',
+                        name: debtMap[id] ?? '债务 #$id',
+                        iconColor: AppColors.negative,
+                      ),
+                  ],
+                );
+              },
+            ),
         ],
       ),
     );
@@ -518,6 +575,15 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
 }
 
 // ───────────────────────── 私有 widgets ─────────────────────────
+
+/// 关联实体 name lookup 结果(Phase 1.5):id→name 映射。
+/// accountMap:accountId → Account.name;debtMap:debtId → Debt.counterparty。
+/// lookup 失败/未命中时 map 为空,关联卡回退 `账户 #id`/`债务 #id`。
+class _NameMaps {
+  const _NameMaps({required this.accountMap, required this.debtMap});
+  final Map<String, String> accountMap;
+  final Map<String, String> debtMap;
+}
 
 /// 「key value」一行 meta 文字(vColor 非空时高亮加粗)。
 class _MetaKV extends StatelessWidget {

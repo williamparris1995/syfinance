@@ -1,10 +1,13 @@
 // Task 14 — widget tests for GoalDetailPage(header + linked + contribute +
 // complete/delete/clone/edit + trend placeholder)。
 //
+// Phase 1.5:关联卡 account/debt name lookup(mocktail AccountRepository +
+// DebtRepository,通过 GetIt 注册;seed 已知 name → 验真名显示;Left → 回退 #id)。
+//
 // 驱动真实 GoalBloc(mocktail GoalRepository),seed GoalDetailLoaded。
 // 验证(对齐 brief + budget detail_test 范式):
 //   - header:Name + 类型徽章 + 进度环(UsagePct%)+ current/target + 还差 + deadline。
-//   - 关联列表:linkedAccountIds / linkedDebtIds 显占位;空显「暂无关联」。
+//   - 关联列表:linkedAccountIds / linkedDebtIds resolve 真名(Phase 1.5);空显「暂无关联」。
 //   - 趋势占位:Text「趋势曲线 Phase 2」+ Phase 2 badge。
 //   - loading → CircularProgressIndicator;error → message。
 //   - 手动贡献 dialog:输入金额 → dispatch RecordContributionRequested。
@@ -21,10 +24,17 @@ import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:yucai_client/account/domain/entities/account_entity.dart';
+import 'package:yucai_client/account/domain/repositories/account_repository.dart';
+import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
+import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
+import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/goal/domain/entities/goal_entity.dart';
 import 'package:yucai_client/goal/domain/repositories/goal_repository.dart';
 import 'package:yucai_client/goal/presentation/bloc/goal_bloc.dart';
@@ -32,6 +42,39 @@ import 'package:yucai_client/goal/presentation/bloc/goal_event.dart';
 import 'package:yucai_client/goal/presentation/pages/goal_detail_page.dart';
 
 class _MockRepo extends Mock implements GoalRepository {}
+class _MockAccountRepo extends Mock implements AccountRepository {}
+class _MockDebtRepo extends Mock implements DebtRepository {}
+
+/// 测试用 Account(seed name 供关联卡 resolve 真名)。
+Account _account({required String id, required String name}) => Account(
+      id: id,
+      name: name,
+      accountType: AccountType.asset,
+      category: AccountCategory.savings,
+      currencyCode: 'CNY',
+      initialBalanceCents: 0,
+      currentBalanceCents: 0,
+      ownership: Ownership.personal,
+      status: AccountStatus.active,
+      version: 1,
+    );
+
+/// 测试用 Debt(seed counterparty 供关联卡 resolve 真名)。
+Debt _debt({required String id, required String counterparty}) => Debt(
+      id: id,
+      accountId: 'acc-debt',
+      counterparty: counterparty,
+      type: DebtType.borrowedIn,
+      interestRate: 5.0,
+      amortization: AmortizationMethod.equalPrincipalInterest,
+      startDate: DateTime(2026, 1, 1),
+      dueDate: DateTime(2027, 1, 1),
+      totalPrincipalCents: 100000,
+      remainingPrincipalCents: 100000,
+      version: 1,
+      createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
+    );
 
 GoalView _goal({
   required String id,
@@ -58,8 +101,34 @@ GoalView _goal({
       isCompleted: isCompleted,
     );
 
-/// harness:注入 GoalBloc(mock repo)。getGoal(any()) 固定返回 [goal]。
-Widget _harness({required _MockRepo repo, required GoalView goal}) {
+/// harness:注入 GoalBloc(mock repo)+ 注册 Account/Debt repo(Phase 1.5
+/// 关联卡 name lookup 经 GetIt)。getGoal(any()) 固定返回 [goal]。
+/// accountRepo/debtRepo 默认 null → 注册返回空 list 的 mock(关联卡回退 #id);
+/// 传入自定义 repo 时由测试方自行 stub list()(harness 不覆盖)。
+Widget _harness({
+  required _MockRepo repo,
+  required GoalView goal,
+  _MockAccountRepo? accountRepo,
+  _MockDebtRepo? debtRepo,
+}) {
+  final getIt = GetIt.instance;
+  if (getIt.isRegistered<AccountRepository>()) getIt.unregister<AccountRepository>();
+  if (getIt.isRegistered<DebtRepository>()) getIt.unregister<DebtRepository>();
+  // 默认注册返回空 list 的 mock(lookup 未命中 → 回退 #id)。
+  // 自定义 repo 由调用方 stub,harness 不覆盖(mocktail: 后 stub 覆盖前,
+  // 但调用方 stub 在 pumpWidget 前 → harness 不会重 stub 自定义 repo)。
+  final ar = accountRepo ?? _MockAccountRepo();
+  final dr = debtRepo ?? _MockDebtRepo();
+  if (accountRepo == null) {
+    when(() => ar.list())
+        .thenAnswer((_) async => const dartz.Right(<Account>[]));
+  }
+  if (debtRepo == null) {
+    when(() => dr.list())
+        .thenAnswer((_) async => const dartz.Right(<Debt>[]));
+  }
+  getIt.registerSingleton<AccountRepository>(ar);
+  getIt.registerSingleton<DebtRepository>(dr);
   return MaterialApp(
     home: BlocProvider<GoalBloc>(
       create: (_) => GoalBloc(repo),
@@ -74,6 +143,11 @@ void _stubDetail(_MockRepo repo, GoalView goal) {
 
 void main() {
   const desktop = Size(1400, 900);
+
+  // 每个测试前重置 GetIt(防止上个测试注册的 singleton 泄漏)。
+  setUp(() {
+    GetIt.instance.reset();
+  });
 
   final goal = _goal(
     id: 'g1',
@@ -139,19 +213,79 @@ void main() {
   });
 
   group('linked entities', () {
-    testWidgets('renders linked account + debt placeholder rows', (t) async {
+    testWidgets('resolves real account + debt names via repos (Phase 1.5)',
+        (t) async {
       setDesktop(t);
       final repo = _MockRepo();
       registerFallbackValue(const LoadListRequested());
       _stubDetail(repo, goal);
 
-      await t.pumpWidget(_harness(repo: repo, goal: goal));
+      // seed account a1=招商储蓄 + debt d1=花呗 → 关联卡显真名。
+      final accountRepo = _MockAccountRepo();
+      final debtRepo = _MockDebtRepo();
+      when(() => accountRepo.list()).thenAnswer((_) async =>
+          dartz.Right(<Account>[_account(id: 'a1', name: '招商储蓄')]));
+      when(() => debtRepo.list()).thenAnswer((_) async =>
+          dartz.Right(<Debt>[_debt(id: 'd1', counterparty: '花呗')]));
+
+      await t.pumpWidget(_harness(
+        repo: repo,
+        goal: goal,
+        accountRepo: accountRepo,
+        debtRepo: debtRepo,
+      ));
       await t.pumpAndSettle();
 
       expect(find.byKey(const ValueKey('goalDetailLinkedTitle')), findsOneWidget);
-      // account #a1 + debt #d1 占位(brief:account name lookup defer)。
+      // Phase 1.5:resolve 真名(account.name / debt.counterparty),不再 #id 占位。
+      expect(find.text('招商储蓄'), findsOneWidget);
+      expect(find.text('花呗'), findsOneWidget);
+      expect(find.text('账户 #a1'), findsNothing);
+      expect(find.text('债务 #d1'), findsNothing);
+    });
+
+    testWidgets('best-effort fallback to #id when lookup returns empty list',
+        (t) async {
+      setDesktop(t);
+      final repo = _MockRepo();
+      registerFallbackValue(const LoadListRequested());
+      _stubDetail(repo, goal);
+      // 默认 harness 注册返回空 list 的 repo → 未命中 → 回退 #id。
+
+      await t.pumpWidget(_harness(repo: repo, goal: goal));
+      await t.pumpAndSettle();
+
       expect(find.text('账户 #a1'), findsOneWidget);
       expect(find.text('债务 #d1'), findsOneWidget);
+    });
+
+    testWidgets('best-effort fallback to #id when lookup fails (Left)',
+        (t) async {
+      setDesktop(t);
+      final repo = _MockRepo();
+      registerFallbackValue(const LoadListRequested());
+      _stubDetail(repo, goal);
+
+      final accountRepo = _MockAccountRepo();
+      final debtRepo = _MockDebtRepo();
+      // repo 抛 Left(ServerFailure)→ map 空 → 回退 #id。
+      when(() => accountRepo.list()).thenAnswer((_) async =>
+          const dartz.Left<Failure, List<Account>>(ServerFailure('网络错误')));
+      when(() => debtRepo.list()).thenAnswer((_) async =>
+          const dartz.Left<Failure, List<Debt>>(ServerFailure('网络错误')));
+
+      await t.pumpWidget(_harness(
+        repo: repo,
+        goal: goal,
+        accountRepo: accountRepo,
+        debtRepo: debtRepo,
+      ));
+      await t.pumpAndSettle();
+
+      expect(find.text('账户 #a1'), findsOneWidget);
+      expect(find.text('债务 #d1'), findsOneWidget);
+      // 不崩(无异常 widget)。
+      expect(find.byType(FlutterError), findsNothing);
     });
 
     testWidgets('shows 暂无关联 when no linked accounts/debts', (t) async {
