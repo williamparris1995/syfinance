@@ -48,6 +48,9 @@ import '../../debt/data/debt_remote_ds.dart' as _i243;
 import '../../debt/data/debt_repository_impl.dart' as _i1060;
 import '../../debt/domain/repositories/debt_repository.dart' as _i670;
 import '../../debt/presentation/bloc/debt_bloc.dart' as _i383;
+import '../../goal/data/goal_remote_ds.dart' as _i628;
+import '../../goal/data/goal_repository_impl.dart' as _i425;
+import '../../goal/domain/repositories/goal_repository.dart' as _i835;
 import '../../holding/data/goal_view_ds.dart' as _i616;
 import '../../holding/data/holding_remote_ds.dart' as _i620;
 import '../../holding/data/holding_repository_impl.dart' as _i427;
@@ -127,6 +130,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i763.AuthRetryCaller>(),
       ),
     );
+    gh.lazySingleton<_i628.GoalRemoteDataSource>(
+      () => _i628.GoalRemoteDataSource(
+        gh<_i160.GrpcClient>(),
+        gh<_i763.AuthRetryCaller>(),
+      ),
+    );
     gh.lazySingleton<_i616.GoalViewDataSource>(
       () => _i616.GoalViewDataSource(
         gh<_i160.GrpcClient>(),
@@ -167,6 +176,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i620.HoldingRemoteDataSource>(),
         gh<_i616.GoalViewDataSource>(),
       ),
+    );
+    gh.lazySingleton<_i835.GoalRepository>(
+      () => _i425.GoalRepositoryImpl(gh<_i628.GoalRemoteDataSource>()),
     );
     gh.lazySingleton<_i665.BudgetRepository>(
       () => _i364.BudgetRepositoryImpl(gh<_i749.BudgetRemoteDataSource>()),
