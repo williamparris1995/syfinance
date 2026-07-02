@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=820">
+<title>御财 · 预算管理 — Tablet</title>
+
+<!-- ======================================================================
+     BudgetListPage · Tablet (820 · 单栏 AppBar + 卡片列表)
+     ----------------------------------------------------------------------------
+     spec §5 (1): 月份切换 + 月度预算卡片 + AppBar 新建(tablet 单栏)
+     API 标注: ListBudgets(active_only?) / CreateBudget / CloneBudgetToMonth
+     数据源: window.BUDGETS / window.budgetView / window.budgetStats (mock-data.js)
+     ====================================================================== -->
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app-bar">
+  <div class="brand-mark">御</div>
+  <div class="ab-title">预算管理</div>
+  <button class="icon-btn" title="搜索"><span id="iconSearch"></span></button>
+  <button class="icon-btn" title="新建" onclick="location.href='budget-form-tablet.html'"><span id="iconAdd"></span></button>
+</div>
+
+<div class="page-pad">
+  <!-- API 标注条 -->
+  <div class="api-note">
+    <span class="an-badge">API</span>
+    <span id="apiNoteIcon"></span>
+    <div><strong>ListBudgets(active_only?)</strong> → BudgetDTO 列表(total_actual / usage_pct read-time)。</div>
+  </div>
+
+  <!-- 月份切换器 -->
+  <div class="month-switcher">
+    <button class="ms-btn" id="msPrev"><span id="msPrevIcon"></span></button>
+    <span class="ms-val" id="msVal">2026-07</span>
+    <button class="ms-btn" id="msNext"><span id="msNextIcon"></span></button>
+  </div>
+
+  <!-- 统计条 -->
+  <section class="stat-strip" id="statStrip"></section>
+
+  <div id="groups"></div>
+</div>
+
+<script src="mock-data.js"></script>
+<script>
+(function () {
+  var icon = window.icon;
+  var fmtCNY = window.fmtCNY;
+  var fmtCNYShort = window.fmtCNYShort;
+  document.getElementById('iconSearch').innerHTML = icon('search');
+  document.getElementById('iconAdd').innerHTML = icon('plus');
+  document.getElementById('msPrevIcon').innerHTML = icon('chevron-left');
+  document.getElementById('msNextIcon').innerHTML = icon('chevron-right');
+  document.getElementById('msPrev').innerHTML = icon('chevron-left');
+  document.getElementById('msNext').innerHTML = icon('chevron-right');
+  document.getElementById('apiNoteIcon').innerHTML = icon('info');
+
+  var selectedMonth = '2026-07';
+  function shiftMonth(yyyyMm, delta) {
+    var p = yyyyMm.split('-'); var y = parseInt(p[0],10), m = parseInt(p[1],10); var nm = m + delta;
+    while (nm<1){nm+=12;y-=1;} while(nm>12){nm-=12;y+=1;} return y+'-'+String(nm).padStart(2,'0');
+  }
+
+  function render() {
+    document.getElementById('msVal').textContent = selectedMonth;
+    var st = window.budgetStats(selectedMonth);
+    var stats = [
+      { label: '总数', icon: 'wallet',    val: st.total, cls: '' },
+      { label: '超支', icon: 'alert-triangle', val: st.over, cls: 'down' },
+      { label: '正常', icon: 'check-circle', val: st.normal, cls: 'up' },
+      { label: '使用率', icon: 'percent', val: st.avgUsage.toFixed(1) + '%', cls: st.avgUsage>100?'down':'gold' },
+    ];
+    document.getElementById('statStrip').innerHTML = stats.map(function (s) {
+      return '<div class="ss-cell"><div class="ss-label">' + icon(s.icon) + s.label + '</div>'
+        + '<div class="ss-val ' + (s.cls||'') + '">' + s.val + '</div></div>';
+    }).join('');
+
+    var list = window.BUDGETS.filter(function (b) { return b.month === selectedMonth; });
+    var html;
+    if (list.length === 0) {
+      html = '<div class="empty"><div class="empty-ico">' + icon('wallet') + '</div>'
+        + '<div class="empty-title">' + selectedMonth + ' 还没有预算</div>'
+        + '<div class="empty-text">点击右上「+」创建本月预算</div></div>';
+    } else {
+      html = '<div class="budget-grid cols-1">' + list.map(renderCard).join('') + '</div>';
+    }
+    document.getElementById('groups').innerHTML = html;
+    document.querySelectorAll('.budget-card').forEach(function (c) {
+      c.addEventListener('click', function () { location.href = 'budget-detail-tablet.html?id=' + c.dataset.id; });
+    });
+  }
+
+  function renderCard(b) {
+    var v = window.budgetView(b.id);
+    var ringColor = v.over ? 'var(--over)' : 'var(--gold)';
+    var ringStyle = window.ringGradient(v.pctCapped, ringColor);
+    var pillCls = v.over ? 'over' : 'normal';
+    var remainLabel = v.over ? '超支 ' + fmtCNY(Math.abs(v.remaining)) : '剩余 ' + fmtCNY(v.remaining);
+    var remainCls = v.over ? 'over' : 'under';
+    return '<div class="budget-card ' + v.status + '" data-id="' + b.id + '">'
+      + '<div class="bc-top"><div class="bc-title-row">'
+      +   '<div class="bc-name">' + icon('wallet') + b.name + '</div>'
+      +   '<div class="bc-month">' + icon('calendar') + b.month + '</div></div>'
+      +   '<span class="usage-pill ' + pillCls + '">' + icon('percent','icon-sm') + b.usage_pct.toFixed(1) + '%</span>'
+      + '</div><div class="bc-body"><div class="bc-ring">'
+      +   '<div class="progress-ring ring-md" style="background:' + ringStyle + '"><div class="pr-hole"><span class="pr-pct">' + b.usage_pct.toFixed(0) + '%</span></div></div>'
+      + '</div><div class="bc-nums">'
+      +   '<div class="bc-actual ' + (v.over?'over':'') + '">' + fmtCNY(b.total_actual_cents) + '<span class="cc">CNY</span></div>'
+      +   '<div class="bc-total">预算 ' + fmtCNY(b.total_amount_cents) + '</div>'
+      + '</div></div><div class="bc-foot">'
+      +   '<span class="bc-foot-item ' + remainCls + '">' + icon(v.over?'alert-triangle':'check-circle') + remainLabel + '</span>'
+      +   '<span class="bc-foot-item">' + icon('pie-chart') + (b.items?b.items.length:0) + ' 项</span>'
+      + '</div></div>';
+  }
+
+  document.getElementById('msPrev').addEventListener('click', function(){ selectedMonth = shiftMonth(selectedMonth,-1); render(); });
+  document.getElementById('msNext').addEventListener('click', function(){ selectedMonth = shiftMonth(selectedMonth,1); render(); });
+  render();
+})();
+</script>
+</body>
+</html>

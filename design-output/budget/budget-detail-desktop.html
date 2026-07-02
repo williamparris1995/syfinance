@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>御财 · 预算详情 — Desktop</title>
+
+<!-- ======================================================================
+     BudgetDetailPage · Desktop (≥1024px · 1440 · 侧栏 + 主区)
+     ----------------------------------------------------------------------------
+     spec §5 (3): 头(Name+Month+总进度环 conic+Remaining+UsagePct) + per-item 列表
+       (category 账户名 + Planned + Actual + 进度条 + 占比% + 超支标记)+ 编辑/删/完成 actions
+     API 标注(对照 proto BudgetService RPC):
+       · GetBudget(id) → BudgetDetailDTO(budget + items + total_actual + total_remaining + usage_pct) ✅
+       · ComputeBudgetActuals(budget_id) read-time actuals 计算            ✅ 已实现
+       · DeleteBudget(id)                                                   ✅ 已实现
+       · AddBudgetItem / RemoveBudgetItem(编辑走逐条改,无 UpdateBudget)   ✅ 已实现
+       · CloneBudgetToMonth(source_id, target_month, name) 复制到下月       ✅ 已实现
+     数据源: window.BUDGETS / window.budgetView (mock-data.js);默认展示 b1(超支)
+     进度环: conic-gradient(超支满格红,usage_pct 不限 100 但 ring 视觉 clamp)
+     ====================================================================== -->
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="desk-shell">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">御</div>
+      <div class="brand-name">御财<span> · 预算</span></div>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-sec-label">预算管理</div>
+      <div class="nav-item"><span id="navWallet"></span>全部预算</div>
+      <div class="nav-item active"><span id="navDetail"></span>预算详情</div>
+    </div>
+    <div class="sidebar-foot">
+      actuals 由 ComputeBudgetActuals read-time 计算
+    </div>
+  </aside>
+
+  <main class="desk-main">
+    <header class="topbar-d">
+      <div class="tb-left">
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="icon-btn" onclick="location.href='budget-list-desktop.html'" title="返回"><span id="backIcon"></span></button>
+          <h1 id="titleName">预算详情</h1>
+        </div>
+        <div class="tb-sub" id="titleSub">月度预算 · per-item 实际/计划对比</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost" id="copyBtn"><span id="copyIcon"></span>复制到下月</button>
+        <button class="btn btn-ghost" id="editBtn"><span id="editIcon"></span>编辑</button>
+        <button class="btn btn-danger" id="delBtn"><span id="delIcon"></span>删除</button>
+      </div>
+    </header>
+
+    <!-- API 标注条 -->
+    <div class="api-note">
+      <span class="an-badge">API</span>
+      <span id="apiNoteIcon"></span>
+      <div>
+        <strong>GetBudget(id)</strong> → BudgetDetailDTO(budget + items + total_actual + total_remaining + usage_pct)。
+        actuals 为 read-time computed(<strong>ComputeBudgetActuals</strong> 按当月该 item.account 对应 transactions 聚合)。
+        编辑走 <strong>AddBudgetItem</strong> / <strong>RemoveBudgetItem</strong>(无单 RPC UpdateBudget);复制到下月走 <strong>CloneBudgetToMonth</strong>。
+      </div>
+    </div>
+
+    <div id="detailBody"></div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast" style="display:none"><span id="toastIco"></span><span id="toastMsg"></span></div>
+
+<script src="mock-data.js"></script>
+<script>
+(function () {
+  var icon = window.icon;
+  var fmtCNY = window.fmtCNY;
+
+  document.getElementById('navWallet').innerHTML = icon('wallet');
+  document.getElementById('navDetail').innerHTML = icon('pie-chart');
+  document.getElementById('backIcon').innerHTML = icon('arrow-left');
+  document.getElementById('copyIcon').innerHTML = icon('copy', 'icon-sm');
+  document.getElementById('editIcon').innerHTML = icon('pencil', 'icon-sm');
+  document.getElementById('delIcon').innerHTML = icon('trash-2', 'icon-sm');
+  document.getElementById('apiNoteIcon').innerHTML = icon('info');
+  document.getElementById('toastIco').innerHTML = icon('check-circle');
+
+  var qs = new URLSearchParams(location.search);
+  var id = qs.get('id') || 'b1';
+  var v = window.budgetView(id);
+  if (!v) { id = 'b1'; v = window.budgetView(id); }
+  var b = v.b;
+
+  document.getElementById('titleName').textContent = b.name;
+  document.getElementById('titleSub').textContent = b.month + ' · ' + b.currency_code + ' · ' + (b.items ? b.items.length : 0) + ' 项分类';
+
+  /* hero */
+  var ringColor = v.over ? 'var(--over)' : 'var(--gold)';
+  var ringStyle = window.ringGradient(v.pctCapped, ringColor);
+  var pillCls = v.over ? 'over' : 'normal';
+  var remainPill = v.over
+    ? '<span class="pill-num urgent">' + icon('alert-triangle', 'icon-sm') + '超支 ' + fmtCNY(Math.abs(v.remaining)) + '</span>'
+    : '<span class="pill-num">' + icon('check-circle', 'icon-sm') + '剩余 ' + fmtCNY(v.remaining) + '</span>';
+
+  var html = '<div class="detail-hero ' + (v.over ? 'behind' : 'completed') + '" style="margin-bottom:20px">'
+    +   '<div class="progress-ring ring-lg" style="background:' + ringStyle + '">'
+    +     '<div class="pr-hole"><span class="pr-pct" style="color:' + (v.over ? 'var(--over)' : 'var(--fg-strong)') + '">' + b.usage_pct.toFixed(1) + '%</span>'
+    +     '<span class="pr-label">使用率</span></div>'
+    +   '</div>'
+    +   '<div class="dh-info">'
+    +     '<div class="dh-name">' + icon('wallet') + b.name
+    +       '<span class="status-pill ' + (v.over ? 'behind' : 'completed') + '">' + (v.over ? icon('alert-triangle') + '超支' : icon('check-circle') + '正常') + '</span>'
+    +       '<span class="status-pill ontrack">' + icon('calendar', 'icon-sm') + b.month + '</span>'
+    +     '</div>'
+    +     '<div class="dh-vals">'
+    +       '<span class="dh-current ' + (v.over ? '' : '') + '" style="' + (v.over ? 'color:var(--over)' : '') + '">' + fmtCNY(b.total_actual_cents) + '<span class="cc">CNY</span></span>'
+    +       '<span class="dh-sep">/</span>'
+    +       '<span class="dh-target">' + fmtCNY(b.total_amount_cents) + '</span>'
+    +     '</div>'
+    +     '<div class="dh-remain">' + remainPill
+    +       '<span style="color:var(--muted);margin-left:8px">总使用率 ' + icon('percent', 'icon-sm') + b.usage_pct.toFixed(1) + '%</span>'
+    +       (b.note ? '<span style="color:var(--muted);margin-left:8px">' + icon('info', 'icon-sm') + b.note + '</span>' : '')
+    +     '</div>'
+    +   '</div>'
+    + '</div>';
+
+  /* items table */
+  var sorted = v.items.slice().sort(function (a, c) { return c.it.actual_amount_cents - a.it.actual_amount_cents; });
+  html += '<div class="card">'
+    +   '<div class="card-head"><div class="card-title">' + icon('pie-chart') + '分类明细(per-item actual / planned)</div>'
+    +   '<div class="card-sub">按实际支出降序 · 占比相对 totalActual</div></div>'
+    +   '<div style="padding:6px 8px 10px">'
+    +     '<table class="item-table">'
+    +       '<thead><tr>'
+    +         '<th>分类账户</th>'
+    +         '<th class="num">计划</th>'
+    +         '<th class="num">实际</th>'
+    +         '<th>进度(actual/planned)</th>'
+    +         '<th class="num">占比</th>'
+    +         '<th class="num">剩余/超支</th>'
+    +       '</tr></thead><tbody>';
+  sorted.forEach(function (iv) {
+    var it = iv.it, acc = iv.acc;
+    var accName = it.account_name || (acc ? acc.name : '分类账户');
+    var accIcon = acc ? acc.icon : 'wallet';
+    html += '<tr>'
+      +   '<td><div class="it-cat ' + (iv.over ? 'over' : '') + '">'
+      +     '<span class="it-ico">' + icon(accIcon) + '</span>'
+      +     '<div><div class="it-name">' + accName + '</div>'
+      +     (it.notes ? '<div class="it-note">' + it.notes + '</div>' : '') + '</div>'
+      +   '</div></td>'
+      +   '<td class="num">' + fmtCNY(it.planned_amount_cents) + '</td>'
+      +   '<td class="num ' + (iv.over ? 'amt-over' : '') + '">' + fmtCNY(it.actual_amount_cents) + '</td>'
+      +   '<td><div class="it-bar-wrap"><div class="it-bar ' + (iv.over ? 'over' : '') + '"><div class="it-bar-fill" style="width:' + iv.pctCapped + '%"></div></div>'
+      +     '<div class="it-bar-meta ' + (iv.over ? 'over' : '') + '"><span>' + iv.pct.toFixed(1) + '%</span>'
+      +     (iv.over ? '<span class="over-tag">' + icon('alert-triangle') + '超 ' + fmtCNY(Math.abs(iv.remain)) + '</span>' : '') + '</div></div></td>'
+      +   '<td class="num">' + iv.share.toFixed(1) + '%</td>'
+      +   '<td class="num ' + (iv.over ? 'amt-over' : '') + '">' + (iv.remain >= 0 ? fmtCNY(iv.remain) : '-' + fmtCNY(Math.abs(iv.remain))) + '</td>'
+      + '</tr>';
+  });
+  html += '</tbody></table></div></div>';
+
+  /* action row */
+  html += '<div class="action-row" style="margin-top:18px">'
+    +   '<button class="btn btn-gold" id="actEdit">' + icon('pencil', 'icon-sm') + '编辑预算</button>'
+    +   '<button class="btn" id="actClone">' + icon('copy', 'icon-sm') + '复制到 2026-08</button>'
+    +   '<button class="btn btn-ghost" id="actComplete">' + icon('check-circle', 'icon-sm') + '完成本月</button>'
+    +   '<button class="btn btn-danger" id="actDel">' + icon('trash-2', 'icon-sm') + '删除预算</button>'
+    + '</div>';
+
+  document.getElementById('detailBody').innerHTML = html;
+
+  function toast(msg) {
+    document.getElementById('toastMsg').textContent = msg;
+    document.getElementById('toast').style.display = 'inline-flex';
+    setTimeout(function () { document.getElementById('toast').style.display = 'none'; }, 1800);
+  }
+  document.getElementById('editBtn').addEventListener('click', function () { location.href = 'budget-edit-desktop.html?id=' + id; });
+  document.getElementById('actEdit').addEventListener('click', function () { location.href = 'budget-edit-desktop.html?id=' + id; });
+  document.getElementById('copyBtn').addEventListener('click', function () { toast('已复制到 2026-08(CloneBudgetToMonth)'); });
+  document.getElementById('actClone').addEventListener('click', function () { toast('已复制到 2026-08'); });
+  document.getElementById('actComplete').addEventListener('click', function () { toast('已标记本月完成'); });
+  document.getElementById('delBtn').addEventListener('click', function () { if (confirm('删除此预算?')) { toast('已删除(DeleteBudget)'); } });
+  document.getElementById('actDel').addEventListener('click', function () { if (confirm('删除此预算?')) { toast('已删除'); } });
+})();
+</script>
+</body>
+</html>

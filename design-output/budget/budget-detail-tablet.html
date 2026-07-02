@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=820">
+<title>御财 · 预算详情 — Tablet</title>
+
+<!-- ======================================================================
+     BudgetDetailPage · Tablet (820 · 单栏 AppBar + hero + items 表)
+     ----------------------------------------------------------------------------
+     spec §5 (3): 头(进度环+Remaining+UsagePct) + per-item 表 + actions
+     API 标注: GetBudget(id) → BudgetDetailDTO / ComputeBudgetActuals / DeleteBudget
+     数据源: window.BUDGETS / window.budgetView (mock-data.js);默认 b1
+     ====================================================================== -->
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app-bar">
+  <button class="icon-btn" onclick="location.href='budget-list-tablet.html'"><span id="backIcon"></span></button>
+  <div class="ab-title" id="abTitle">预算详情</div>
+  <button class="icon-btn" id="editBtn" title="编辑"><span id="editIcon"></span></button>
+  <button class="icon-btn" id="delBtn" title="删除" style="color:var(--over)"><span id="delIcon"></span></button>
+</div>
+
+<div class="page-pad">
+  <div class="api-note">
+    <span class="an-badge">API</span>
+    <span id="apiNoteIcon"></span>
+    <div><strong>GetBudget(id)</strong> → BudgetDetailDTO(budget + items + total_actual + usage_pct)。</div>
+  </div>
+  <div id="detailBody"></div>
+</div>
+
+<div class="toast" id="toast" style="display:none"><span id="toastIco"></span><span id="toastMsg"></span></div>
+
+<script src="mock-data.js"></script>
+<script>
+(function () {
+  var icon = window.icon;
+  var fmtCNY = window.fmtCNY;
+  document.getElementById('backIcon').innerHTML = icon('arrow-left');
+  document.getElementById('editIcon').innerHTML = icon('pencil');
+  document.getElementById('delIcon').innerHTML = icon('trash-2');
+  document.getElementById('apiNoteIcon').innerHTML = icon('info');
+  document.getElementById('toastIco').innerHTML = icon('check-circle');
+
+  var qs = new URLSearchParams(location.search);
+  var id = qs.get('id') || 'b1';
+  var v = window.budgetView(id); if (!v) { id='b1'; v=window.budgetView(id); }
+  var b = v.b;
+  document.getElementById('abTitle').textContent = b.name;
+
+  var ringColor = v.over ? 'var(--over)' : 'var(--gold)';
+  var ringStyle = window.ringGradient(v.pctCapped, ringColor);
+  var remainPill = v.over
+    ? '<span class="pill-num urgent">' + icon('alert-triangle','icon-sm') + '超支 ' + fmtCNY(Math.abs(v.remaining)) + '</span>'
+    : '<span class="pill-num">' + icon('check-circle','icon-sm') + '剩余 ' + fmtCNY(v.remaining) + '</span>';
+
+  var html = '<div class="detail-hero ' + (v.over?'behind':'completed') + '" style="margin-bottom:16px">'
+    + '<div class="progress-ring ring-lg" style="background:' + ringStyle + '">'
+    +   '<div class="pr-hole"><span class="pr-pct" style="color:' + (v.over?'var(--over)':'var(--fg-strong)') + '">' + b.usage_pct.toFixed(1) + '%</span><span class="pr-label">使用率</span></div>'
+    + '</div><div class="dh-info">'
+    +   '<div class="dh-name">' + icon('wallet') + b.name
+    +     '<span class="status-pill ' + (v.over?'behind':'completed') + '">' + (v.over?icon('alert-triangle')+'超支':icon('check-circle')+'正常') + '</span>'
+    +     '<span class="status-pill ontrack">' + icon('calendar','icon-sm') + b.month + '</span></div>'
+    +   '<div class="dh-vals"><span class="dh-current" style="' + (v.over?'color:var(--over)':'') + '">' + fmtCNY(b.total_actual_cents) + '<span class="cc">CNY</span></span>'
+    +     '<span class="dh-sep">/</span><span class="dh-target">' + fmtCNY(b.total_amount_cents) + '</span></div>'
+    +   '<div class="dh-remain">' + remainPill + '<span style="color:var(--muted);margin-left:8px">' + icon('percent','icon-sm') + b.usage_pct.toFixed(1) + '%</span></div>'
+    + '</div></div>';
+
+  var sorted = v.items.slice().sort(function(a,c){return c.it.actual_amount_cents-a.it.actual_amount_cents;});
+  html += '<div class="card"><div class="card-head"><div class="card-title">' + icon('pie-chart') + '分类明细</div></div>'
+    + '<div style="padding:6px 8px 10px"><table class="item-table"><thead><tr>'
+    + '<th>分类</th><th class="num">实际/计划</th><th>进度</th></tr></thead><tbody>';
+  sorted.forEach(function (iv) {
+    var it = iv.it, acc = iv.acc;
+    var accName = it.account_name || (acc?acc.name:'分类账户');
+    var accIcon = acc?acc.icon:'wallet';
+    html += '<tr><td><div class="it-cat ' + (iv.over?'over':'') + '"><span class="it-ico">' + icon(accIcon) + '</span>'
+      + '<div><div class="it-name">' + accName + '</div>'
+      + '<div class="it-note" style="font-family:var(--font-mono)">' + fmtCNY(it.actual_amount_cents) + ' / ' + fmtCNY(it.planned_amount_cents) + '</div></div></div></td>'
+    + '<td class="num ' + (iv.over?'amt-over':'') + '">' + iv.pct.toFixed(0) + '%</td>'
+    + '<td><div class="it-bar-wrap"><div class="it-bar ' + (iv.over?'over':'') + '"><div class="it-bar-fill" style="width:' + iv.pctCapped + '%"></div></div>'
+      + (iv.over?'<div class="it-bar-meta over"><span class="over-tag">' + icon('alert-triangle') + '超 ' + fmtCNY(Math.abs(iv.remain)) + '</span></div>':'') + '</div></td>'
+    + '</tr>';
+  });
+  html += '</tbody></table></div></div>';
+
+  html += '<div class="action-row" style="margin-top:14px">'
+    + '<button class="btn" style="flex:1" id="actClone">' + icon('copy','icon-sm') + '复制到下月</button>'
+    + '<button class="btn btn-ghost" style="flex:1" id="actComplete">' + icon('check-circle','icon-sm') + '完成本月</button>'
+    + '</div>';
+
+  document.getElementById('detailBody').innerHTML = html;
+
+  function toast(m){ document.getElementById('toastMsg').textContent=m; document.getElementById('toast').style.display='inline-flex';
+    setTimeout(function(){document.getElementById('toast').style.display='none';},1800); }
+  document.getElementById('editBtn').addEventListener('click', function(){ location.href='budget-edit-tablet.html?id='+id; });
+  document.getElementById('delBtn').addEventListener('click', function(){ if(confirm('删除此预算?')){toast('已删除(DeleteBudget)');} });
+  document.getElementById('actClone').addEventListener('click', function(){ toast('已复制到 2026-08'); });
+  document.getElementById('actComplete').addEventListener('click', function(){ toast('已标记完成'); });
+})();
+</script>
+</body>
+</html>

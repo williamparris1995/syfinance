@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>御财 · 编辑预算 — Desktop</title>
+
+<!-- ======================================================================
+     BudgetEditPage · Desktop (≥1024px · 1440 · 复用 Form 布局,预填)
+     ----------------------------------------------------------------------------
+     spec §5 (4): 复用 Form 布局,预填 b1(日常开销预算 2026-07)4 items。
+     API 标注(对照 proto BudgetService RPC):
+       · GetBudget(id) → BudgetDetailDTO(回填表单)              ✅ 已实现
+       · AddBudgetItem / RemoveBudgetItem(逐条改,budget 无 UpdateBudget) ✅
+         —— 编辑模式:已存在 item 删用 RemoveBudgetItem;新 item 加用 AddBudgetItem;
+            改 planned_amount_cents = RemoveBudgetItem + AddBudgetItem 两步
+       · 月份不可改(budget 月份为周期标识,改月 = CloneBudgetToMonth 新建)
+     数据源: window.BUDGETS(b1) / window.EXPENSE_ACCOUNTS (mock-data.js)
+     ====================================================================== -->
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="desk-shell">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">御</div>
+      <div class="brand-name">御财<span> · 预算</span></div>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-sec-label">预算管理</div>
+      <div class="nav-item"><span id="navWallet"></span>全部预算</div>
+      <div class="nav-item active"><span id="navEdit"></span>编辑预算</div>
+    </div>
+    <div class="sidebar-foot">
+      编辑走 AddBudgetItem / RemoveBudgetItem 逐条改
+    </div>
+  </aside>
+
+  <main class="desk-main">
+    <header class="topbar-d">
+      <div class="tb-left">
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="icon-btn" onclick="location.href='budget-detail-desktop.html?id=b1'" title="返回"><span id="backIcon"></span></button>
+          <h1 id="titleName">编辑预算</h1>
+        </div>
+        <div class="tb-sub" id="titleSub">预填模式 · 走 AddBudgetItem / RemoveBudgetItem 逐条改</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost" onclick="location.href='budget-detail-desktop.html?id=b1'"><span id="cancelIcon"></span>取消</button>
+        <button class="btn btn-gold" id="saveBtn"><span id="saveIcon"></span>保存修改</button>
+      </div>
+    </header>
+
+    <!-- API 标注条 -->
+    <div class="api-note">
+      <span class="an-badge">API</span>
+      <span id="apiNoteIcon"></span>
+      <div>
+        <strong>编辑模式</strong>:budget 无单 RPC UpdateBudget —— 已存在 item 改 planned 走
+        <strong>RemoveBudgetItem</strong> + <strong>AddBudgetItem</strong> 两步;新加 item 走 AddBudgetItem;删 item 走 RemoveBudgetItem。
+        <strong>月份不可改</strong>(月份为周期标识,改月需 CloneBudgetToMonth 新建)。
+      </div>
+    </div>
+
+    <div class="form-shell">
+      <div class="form-card">
+
+        <div class="form-section-title"><span id="secInfo"></span>基本信息</div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">预算名称 <span class="req">*</span></label>
+            <input class="form-control" type="text" value="日常开销预算" id="inpName">
+          </div>
+          <div class="form-group">
+            <label class="form-label">月份 <span class="req">*</span></label>
+            <div class="month-input" style="opacity:.6;cursor:not-allowed"><span id="mpCal"></span>2026-07<span class="acc-caret" style="margin-left:auto"><span id="mpLock"></span></span></div>
+            <div class="form-hint" style="color:var(--down)"><span id="lockIco"></span>月份为周期标识,不可改;改月请用「复制到下月」</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">货币</label>
+          <input class="form-control" type="text" value="CNY (人民币)" disabled>
+        </div>
+
+        <div class="form-section-title" style="margin-top:18px"><span id="secItems"></span>预算条目(分类账户 + 计划金额)</div>
+        <div class="picker-list" id="itemRows" style="border:none"></div>
+        <div style="margin-top:10px">
+          <button class="item-add-btn" id="addItemBtn"><span id="addIco"></span>添加条目</button>
+        </div>
+
+        <div class="form-hint" style="margin-top:16px;padding:10px 14px;background:var(--surface-2);border-radius:var(--r-sm)">
+          <span id="hintIco"></span>
+          注:actual 为 read-time computed,编辑界面不改 actual(由 server 按当月 transactions 聚合)。
+          此处只改 planned_amount_cents / 增删 item / 改备注。
+        </div>
+
+        <div class="action-row" style="margin-top:24px;justify-content:flex-end">
+          <button class="btn btn-ghost" onclick="location.href='budget-detail-desktop.html?id=b1'">取消</button>
+          <button class="btn btn-gold" id="saveBtn2"><span id="saveIcon2"></span>保存修改</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast" style="display:none"><span id="toastIco"></span><span id="toastMsg"></span></div>
+
+<script src="mock-data.js"></script>
+<script>
+(function () {
+  var icon = window.icon;
+  document.getElementById('navWallet').innerHTML = icon('wallet');
+  document.getElementById('navEdit').innerHTML = icon('pencil');
+  document.getElementById('backIcon').innerHTML = icon('arrow-left');
+  document.getElementById('cancelIcon').innerHTML = icon('x');
+  document.getElementById('saveIcon').innerHTML = icon('check', 'icon-sm');
+  document.getElementById('saveIcon2').innerHTML = icon('check', 'icon-sm');
+  document.getElementById('apiNoteIcon').innerHTML = icon('info');
+  document.getElementById('secInfo').innerHTML = icon('info');
+  document.getElementById('mpCal').innerHTML = icon('calendar');
+  document.getElementById('mpLock').innerHTML = icon('x');
+  document.getElementById('lockIco').innerHTML = icon('alert-triangle');
+  document.getElementById('secItems').innerHTML = icon('pie-chart');
+  document.getElementById('addIco').innerHTML = icon('plus', 'icon-sm');
+  document.getElementById('hintIco').innerHTML = icon('info');
+  document.getElementById('toastIco').innerHTML = icon('check-circle');
+
+  /* 预填 b1 的 4 items */
+  var b = window.BUDGETS.find(function (x) { return x.id === 'b1'; });
+  var rows = b.items.map(function (it) {
+    var acc = window.accountById(it.account_id);
+    return { acc: acc, planned: it.planned_amount_cents, notes: it.notes || '' };
+  });
+
+  function renderRows() {
+    var html = rows.map(function (r, idx) {
+      var acc = r.acc;
+      return '<div class="item-row" data-idx="' + idx + '">'
+        + '<div class="ir-acc"><div class="acc-select">'
+        +   '<span class="acc-ico">' + icon(acc ? acc.icon : 'wallet') + '</span>'
+        +   '<span>' + (acc ? acc.name : '选择分类账户') + '</span>'
+        +   '<span class="acc-caret">' + icon('chevron-down') + '</span>'
+        + '</div></div>'
+        + '<div class="ir-amt"><div class="input-prefix"><span class="ip-pre">¥</span>'
+        +   '<input class="form-control mono" type="text" value="' + (r.planned / 100).toFixed(2) + '"></div></div>'
+        + '<button class="icon-btn ir-rm" data-rm="' + idx + '" title="移除">' + icon('trash-2', 'icon-sm') + '</button>'
+        + '</div>';
+    }).join('');
+    document.getElementById('itemRows').innerHTML = html;
+    document.querySelectorAll('[data-rm]').forEach(function (b2) {
+      b2.addEventListener('click', function () { rows.splice(parseInt(b2.dataset.rm, 10), 1); renderRows(); });
+    });
+  }
+  renderRows();
+
+  document.getElementById('addItemBtn').addEventListener('click', function () {
+    var used = rows.map(function (r) { return r.acc ? r.acc.id : null; });
+    var next = window.EXPENSE_ACCOUNTS.find(function (a) { return used.indexOf(a.id) === -1; });
+    rows.push({ acc: next || null, planned: 0, notes: '' });
+    renderRows();
+  });
+
+  function toast(msg) {
+    document.getElementById('toastMsg').textContent = msg;
+    document.getElementById('toast').style.display = 'inline-flex';
+    setTimeout(function () { document.getElementById('toast').style.display = 'none'; }, 1800);
+  }
+  document.getElementById('saveBtn').addEventListener('click', function () {
+    toast('已保存(AddBudgetItem / RemoveBudgetItem 逐条同步)');
+  });
+  document.getElementById('saveBtn2').addEventListener('click', function () {
+    toast('已保存(AddBudgetItem / RemoveBudgetItem 逐条同步)');
+  });
+})();
+</script>
+</body>
+</html>

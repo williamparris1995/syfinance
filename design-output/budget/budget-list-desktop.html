@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>御财 · 预算管理 — Desktop</title>
+
+<!-- ======================================================================
+     BudgetListPage · Desktop (≥1024px · 1440 · 侧栏 + 主区)
+     ----------------------------------------------------------------------------
+     spec §5 (1): 月份切换(← 2026-07 →)+ 月度预算卡片(Name + 总进度环 conic +
+       TotalActual/TotalAmount + UsagePct% + 超支红 #c0392b / 正常金)+ AppBar 新建
+     API 标注(对照 proto budget/v1 BudgetService RPC):
+       · ListBudgets(active_only?)                              ✅ 已实现
+       · CreateBudget(name, month, currency_code, items[])      ✅ 已实现
+       · CloneBudgetToMonth(source_id, target_month, name)      ✅ 已实现
+       · ComputeBudgetActuals(budget_id) read-time actuals      ✅ 已实现
+     数据源: window.BUDGETS / window.budgetView / window.budgetStats (mock-data.js)
+     进度环: conic-gradient(window.ringGradient,同 goal holding donut 风格)
+     total_actual / usage_pct 为 read-time computed mock 快照
+     ====================================================================== -->
+<link rel="stylesheet" href="styles.css">
+<style>
+  .desk-main { min-height: 900px; }
+</style>
+</head>
+<body>
+
+<div class="desk-shell">
+
+  <!-- ============ 左侧固定侧栏 ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">御</div>
+      <div class="brand-name">御财<span> · 预算</span></div>
+    </div>
+
+    <div class="nav-sec">
+      <div class="nav-sec-label">预算管理</div>
+      <div class="nav-item active"><span id="navWallet"></span>全部预算<span class="nav-cnt" id="navAllCnt">3</span></div>
+      <div class="nav-item"><span id="navOver"></span>超支<span class="nav-cnt" id="navOverCnt">1</span></div>
+      <div class="nav-item"><span id="navNormal"></span>正常<span class="nav-cnt" id="navNormalCnt">2</span></div>
+    </div>
+
+    <div class="nav-sec">
+      <div class="nav-sec-label">快捷</div>
+      <div class="nav-item"><span id="navCal"></span>本月预算</div>
+      <div class="nav-item"><span id="navCopy"></span>复制到下月</div>
+    </div>
+
+    <div class="sidebar-foot">
+      数据更新于 2026-07-01<br>actuals 为 read-time computed 快照
+    </div>
+  </aside>
+
+  <!-- ============ 主区 ============ -->
+  <main class="desk-main">
+
+    <header class="topbar-d">
+      <div class="tb-left">
+        <h1>预算管理</h1>
+        <div class="tb-sub">月度预算 · 按月切换 · 共 <span class="mono" id="countAll">3</span> 个预算(当前月份)</div>
+      </div>
+      <div class="topbar-actions">
+        <div class="search">
+          <span id="iconSearch"></span>
+          <input type="text" placeholder="搜索预算名 / 备注">
+        </div>
+        <button class="icon-btn" title="刷新" id="iconRefreshBtn"></button>
+        <button class="btn btn-gold" id="addBtn">
+          <span id="addIcon" class="icon icon-sm"></span>新建预算
+        </button>
+      </div>
+    </header>
+
+    <!-- API 标注条 -->
+    <div class="api-note">
+      <span class="an-badge">API</span>
+      <span id="apiNoteIcon"></span>
+      <div>
+        <strong>ListBudgets(active_only?)</strong> → 返回 BudgetDTO 列表(含 total_actual_cents / usage_pct read-time computed);
+        月份切换为前端 filter by month。<strong>CreateBudget</strong> / <strong>CloneBudgetToMonth</strong> 用于新建与复制。
+      </div>
+    </div>
+
+    <!-- 月份切换器 -->
+    <div class="month-switcher">
+      <button class="ms-btn" id="msPrev"><span id="msPrevIcon"></span></button>
+      <span class="ms-val" id="msVal">2026-07</span>
+      <button class="ms-btn" id="msNext"><span id="msNextIcon"></span></button>
+    </div>
+
+    <!-- 概览统计条(API: 前端从 ListBudgets 按 month 聚合) -->
+    <section class="stat-strip" id="statStrip"></section>
+
+    <!-- 主体:预算卡片网格 -->
+    <div id="groups"></div>
+
+  </main>
+</div>
+
+<script src="mock-data.js"></script>
+<script>
+(function () {
+  var icon = window.icon;
+  var fmtCNY = window.fmtCNY;
+  var fmtCNYShort = window.fmtCNYShort;
+
+  var CURRENT_MONTH = '2026-07';
+  var selectedMonth = CURRENT_MONTH;
+
+  /* —— 顶栏 / 侧栏 icons —— */
+  document.getElementById('iconSearch').innerHTML = icon('search');
+  document.getElementById('iconRefreshBtn').innerHTML = icon('refresh-cw');
+  document.getElementById('addIcon').innerHTML = icon('plus');
+  document.getElementById('navWallet').innerHTML = icon('wallet');
+  document.getElementById('navOver').innerHTML = icon('alert-triangle');
+  document.getElementById('navNormal').innerHTML = icon('check-circle');
+  document.getElementById('navCal').innerHTML = icon('calendar');
+  document.getElementById('navCopy').innerHTML = icon('copy');
+  document.getElementById('msPrevIcon').innerHTML = icon('chevron-left');
+  document.getElementById('msNextIcon').innerHTML = icon('chevron-right');
+  document.getElementById('apiNoteIcon').innerHTML = icon('info');
+  document.getElementById('msPrev').innerHTML = icon('chevron-left');
+  document.getElementById('msNext').innerHTML = icon('chevron-right');
+
+  document.getElementById('addBtn').addEventListener('click', function () {
+    location.href = 'budget-form-desktop.html';
+  });
+
+  /* shift month helper */
+  function shiftMonth(yyyyMm, delta) {
+    var parts = yyyyMm.split('-');
+    var y = parseInt(parts[0], 10), m = parseInt(parts[1], 10);
+    var nm = m + delta;
+    while (nm < 1) { nm += 12; y -= 1; }
+    while (nm > 12) { nm -= 12; y += 1; }
+    return y + '-' + String(nm).padStart(2, '0');
+  }
+
+  function render() {
+    document.getElementById('msVal').textContent = selectedMonth;
+
+    var st = window.budgetStats(selectedMonth);
+    document.getElementById('countAll').textContent = st.total;
+    document.getElementById('navAllCnt').textContent = st.total;
+    document.getElementById('navOverCnt').textContent = st.over;
+    document.getElementById('navNormalCnt').textContent = st.normal;
+
+    /* stat strip */
+    var stats = [
+      { label: '本月预算', icon: 'wallet',       val: st.total,  sub: '当前月份', cls: '' },
+      { label: '超支',     icon: 'alert-triangle',val: st.over,   sub: '实际 > 预算', cls: 'down' },
+      { label: '正常',     icon: 'check-circle',  val: st.normal, sub: '实际 ≤ 预算', cls: 'up' },
+      { label: '月度支出', icon: 'coins',         val: fmtCNYShort(st.totalActual), sub: '本月实际合计', cls: 'gold' },
+      { label: '平均使用率',icon: 'percent',       val: st.avgUsage.toFixed(1) + '%', sub: fmtCNYShort(st.totalActual) + ' / ' + fmtCNYShort(st.totalAmount), cls: st.avgUsage > 100 ? 'down' : 'gold' },
+    ];
+    document.getElementById('statStrip').innerHTML = stats.map(function (s) {
+      return '<div class="ss-cell">'
+        +   '<div class="ss-label">' + icon(s.icon) + s.label + '</div>'
+        +   '<div class="ss-val ' + (s.cls || '') + '">' + s.val + '</div>'
+        +   '<div class="ss-sub">' + s.sub + '</div>'
+        + '</div>';
+    }).join('');
+
+    /* cards */
+    var list = window.BUDGETS.filter(function (b) { return b.month === selectedMonth; });
+    var html;
+    if (list.length === 0) {
+      html = '<div class="empty"><div class="empty-ico">' + icon('wallet') + '</div>'
+        + '<div class="empty-title">' + selectedMonth + ' 还没有预算</div>'
+        + '<div class="empty-text">切换月份或点击右上「新建预算」开始</div>'
+        + '<button class="btn btn-gold" onclick="location.href=\'budget-form-desktop.html\'">' + icon('plus', 'icon-sm') + '新建本月预算</button></div>';
+    } else {
+      html = '<div class="budget-grid cols-2">' + list.map(renderCard).join('') + '</div>';
+    }
+    document.getElementById('groups').innerHTML = html;
+
+    document.querySelectorAll('.budget-card').forEach(function (c) {
+      c.addEventListener('click', function () {
+        location.href = 'budget-detail-desktop.html?id=' + c.dataset.id;
+      });
+    });
+  }
+
+  function renderCard(b) {
+    var v = window.budgetView(b.id);
+    var ringColor = v.over ? 'var(--over)' : 'var(--gold)';
+    var ringStyle = window.ringGradient(v.pctCapped, ringColor);
+    var pillCls = v.over ? 'over' : 'normal';
+    var remainLabel = v.over ? '超支 ' + fmtCNY(Math.abs(v.remaining)) : '剩余 ' + fmtCNY(v.remaining);
+    var remainCls = v.over ? 'over' : 'under';
+    var remainIcon = v.over ? 'alert-triangle' : 'check-circle';
+
+    return '<div class="budget-card ' + v.status + '" data-id="' + b.id + '">'
+      +   '<div class="bc-top">'
+      +     '<div class="bc-title-row">'
+      +       '<div class="bc-name">' + icon('wallet') + b.name + '</div>'
+      +       '<div class="bc-month">' + icon('calendar') + b.month + '</div>'
+      +     '</div>'
+      +     '<div class="bc-actions-top">'
+      +       '<span class="usage-pill ' + pillCls + '">' + icon('percent', 'icon-sm') + b.usage_pct.toFixed(1) + '%</span>'
+      +     '</div>'
+      +   '</div>'
+      +   '<div class="bc-body">'
+      +     '<div class="bc-ring">'
+      +       '<div class="progress-ring ring-md" style="background:' + ringStyle + '">'
+      +         '<div class="pr-hole"><span class="pr-pct">' + b.usage_pct.toFixed(0) + '%</span></div>'
+      +       '</div>'
+      +     '</div>'
+      +     '<div class="bc-nums">'
+      +       '<div class="bc-actual ' + (v.over ? 'over' : '') + '">' + fmtCNY(b.total_actual_cents) + '<span class="cc">CNY</span></div>'
+      +       '<div class="bc-total">预算 ' + fmtCNY(b.total_amount_cents) + '</div>'
+      +     '</div>'
+      +   '</div>'
+      +   '<div class="bc-foot">'
+      +     '<span class="bc-foot-item ' + remainCls + '">' + icon(remainIcon) + remainLabel + '</span>'
+      +     '<span class="bc-foot-item">' + icon('pie-chart') + (b.items ? b.items.length : 0) + ' 项分类</span>'
+      +   '</div>'
+      + '</div>';
+  }
+
+  document.getElementById('msPrev').addEventListener('click', function () {
+    selectedMonth = shiftMonth(selectedMonth, -1); render();
+  });
+  document.getElementById('msNext').addEventListener('click', function () {
+    selectedMonth = shiftMonth(selectedMonth, 1); render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

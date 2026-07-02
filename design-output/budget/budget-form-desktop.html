@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>御财 · 新建预算 — Desktop</title>
+
+<!-- ======================================================================
+     BudgetFormPage · Desktop (≥1024px · 1440 · 侧栏 + 主区 窄栏表单)
+     ----------------------------------------------------------------------------
+     spec §5 (2): type 无(budget 单 type) + month picker(yyyy-MM) + CurrencyCode
+       + Items 编辑(account picker 只列 expense 账户 + PlannedAmount + 增删 item,≥1)
+     API 标注(对照 proto BudgetService RPC):
+       · CreateBudget(name, month, currency_code, items[BudgetItemInput])   ✅ 已实现
+         BudgetItemInput = { account_id, planned_amount_cents, notes }
+       · AddBudgetItem / RemoveBudgetItem(编辑模式逐条改,budget 无 UpdateBudget)
+       · ListBudgets 路径无 expense account 列表,account picker 走 Account 服务
+         filter type=expense(对照 account domain)
+     数据源: window.EXPENSE_ACCOUNTS / window.BUDGET_TEMPLATES (mock-data.js)
+     ====================================================================== -->
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="desk-shell">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">御</div>
+      <div class="brand-name">御财<span> · 预算</span></div>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-sec-label">预算管理</div>
+      <div class="nav-item"><span id="navWallet"></span>全部预算</div>
+      <div class="nav-item active"><span id="navPlus"></span>新建预算</div>
+    </div>
+    <div class="sidebar-foot">
+      表单字段对齐 CreateBudgetRequest
+    </div>
+  </aside>
+
+  <main class="desk-main">
+    <header class="topbar-d">
+      <div class="tb-left">
+        <h1>新建预算</h1>
+        <div class="tb-sub">设定月度预算 · 选择分类账户 + 计划金额 · 保存后自动计算 actuals</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost" onclick="location.href='budget-list-desktop.html'"><span id="cancelIcon"></span>取消</button>
+        <button class="btn btn-gold" id="saveBtn"><span id="saveIcon"></span>保存预算</button>
+      </div>
+    </header>
+
+    <!-- API 标注条 -->
+    <div class="api-note">
+      <span class="an-badge">API</span>
+      <span id="apiNoteIcon"></span>
+      <div>
+        <strong>CreateBudget(name, month, currency_code, items[])</strong> — items 为
+        BudgetItemInput { account_id, planned_amount_cents, notes } 数组(≥1)。仅 expense 账户(category)
+        可被选为预算分类。保存后 server read-time 调 <strong>ComputeBudgetActuals</strong> 回填 total_actual / usage_pct。
+      </div>
+    </div>
+
+    <div class="form-shell">
+      <div class="form-card">
+
+        <!-- 基本信息 -->
+        <div class="form-section-title"><span id="secInfo"></span>基本信息</div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">预算名称 <span class="req">*</span></label>
+            <input class="form-control" type="text" placeholder="如:日常开销预算" value="日常开销预算">
+          </div>
+          <div class="form-group">
+            <label class="form-label">月份 <span class="req">*</span></label>
+            <div class="month-input" id="monthPick"><span id="mpCal"></span>2026-07<span class="acc-caret" style="margin-left:auto"><span id="mpCaret"></span></span></div>
+            <div class="form-hint">月份为预算所属周期(yyyy-MM),保存后不可改</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">货币</label>
+          <input class="form-control" type="text" value="CNY (人民币)" disabled>
+          <div class="form-hint">单预算单货币,与账户货币一致;多货币折算为后续 D-currency 范围</div>
+        </div>
+
+        <!-- 模板快捷 -->
+        <div class="form-section-title" style="margin-top:8px"><span id="secTpl"></span>从模板开始(可选)</div>
+        <div class="template-chips" id="tplChips"></div>
+
+        <!-- Items 编辑 -->
+        <div class="form-section-title" style="margin-top:18px"><span id="secItems"></span>预算条目(分类账户 + 计划金额)<span style="color:var(--down);font-size:12px;margin-left:6px">至少 1 项</span></div>
+        <div class="picker-list" id="itemRows" style="border:none">
+          <!-- item rows injected -->
+        </div>
+        <div style="margin-top:10px">
+          <button class="item-add-btn" id="addItemBtn"><span id="addIco"></span>添加条目</button>
+        </div>
+
+        <div class="form-hint" style="margin-top:16px;padding:10px 14px;background:var(--surface-2);border-radius:var(--r-sm)">
+          <span id="hintInfo"></span>
+          account picker 仅列出 <strong>expense 账户</strong>(category 分类账户);planned_amount_cents 单位为分。
+          保存后 actual 由 server 按当月该账户 transactions 自动汇总。
+        </div>
+
+        <!-- 底部操作 -->
+        <div class="action-row" style="margin-top:24px;justify-content:flex-end">
+          <button class="btn btn-ghost" onclick="location.href='budget-list-desktop.html'">取消</button>
+          <button class="btn btn-gold" id="saveBtn2"><span id="saveIcon2"></span>保存预算</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast" style="display:none"><span id="toastIco"></span><span id="toastMsg">已保存</span></div>
+
+<script src="mock-data.js"></script>
+<script>
+(function () {
+  var icon = window.icon;
+  document.getElementById('navWallet').innerHTML = icon('wallet');
+  document.getElementById('navPlus').innerHTML = icon('plus');
+  document.getElementById('cancelIcon').innerHTML = icon('x');
+  document.getElementById('saveIcon').innerHTML = icon('check', 'icon-sm');
+  document.getElementById('saveIcon2').innerHTML = icon('check', 'icon-sm');
+  document.getElementById('apiNoteIcon').innerHTML = icon('info');
+  document.getElementById('secInfo').innerHTML = icon('info');
+  document.getElementById('mpCal').innerHTML = icon('calendar');
+  document.getElementById('mpCaret').innerHTML = icon('chevron-down');
+  document.getElementById('secTpl').innerHTML = icon('copy');
+  document.getElementById('secItems').innerHTML = icon('pie-chart');
+  document.getElementById('addIco').innerHTML = icon('plus', 'icon-sm');
+  document.getElementById('hintInfo').innerHTML = icon('info');
+  document.getElementById('toastIco').innerHTML = icon('check-circle');
+
+  /* templates */
+  var tplHtml = window.BUDGET_TEMPLATES.map(function (t) {
+    return '<span class="tpl-chip">' + icon(t.icon) + t.name + '<span style="color:var(--muted-2);font-size:11px;margin-left:4px">— ' + t.desc + '</span></span>';
+  }).join('');
+  document.getElementById('tplChips').innerHTML = tplHtml;
+
+  /* default 4 rows(日常模板:餐饮/交通/购物/日用) */
+  var defaultAccs = ['ea1', 'ea2', 'ea3', 'ea4'];
+  var rows = defaultAccs.map(function (aid, i) {
+    var acc = window.accountById(aid);
+    return { acc: acc, planned: [380000, 120000, 150000, 150000][i] };
+  });
+
+  function renderRows() {
+    var html = rows.map(function (r, idx) {
+      var acc = r.acc;
+      return '<div class="item-row" data-idx="' + idx + '">'
+        + '<div class="ir-acc"><div class="acc-select">'
+        +   '<span class="acc-ico">' + icon(acc ? acc.icon : 'wallet') + '</span>'
+        +   '<span>' + (acc ? acc.name : '选择分类账户') + '</span>'
+        +   '<span class="acc-caret">' + icon('chevron-down') + '</span>'
+        + '</div></div>'
+        + '<div class="ir-amt"><div class="input-prefix"><span class="ip-pre">¥</span>'
+        +   '<input class="form-control mono" type="text" value="' + (r.planned / 100).toFixed(2) + '" placeholder="0.00"></div></div>'
+        + '<button class="icon-btn ir-rm" data-rm="' + idx + '" title="移除">' + icon('trash-2', 'icon-sm') + '</button>'
+        + '</div>';
+    }).join('');
+    document.getElementById('itemRows').innerHTML = html;
+
+    document.querySelectorAll('[data-rm]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        rows.splice(parseInt(b.dataset.rm, 10), 1); renderRows();
+      });
+    });
+  }
+  renderRows();
+
+  document.getElementById('addItemBtn').addEventListener('click', function () {
+    var used = rows.map(function (r) { return r.acc ? r.acc.id : null; });
+    var next = window.EXPENSE_ACCOUNTS.find(function (a) { return used.indexOf(a.id) === -1; });
+    rows.push({ acc: next || null, planned: 0 });
+    renderRows();
+  });
+
+  function toast(msg) {
+    document.getElementById('toastMsg').textContent = msg;
+    document.getElementById('toast').style.display = 'inline-flex';
+    setTimeout(function () { document.getElementById('toast').style.display = 'none'; }, 1800);
+  }
+  document.getElementById('saveBtn').addEventListener('click', function () {
+    if (rows.length < 1) { toast('至少需要 1 个预算条目'); return; }
+    toast('预算已保存(CreateBudget)');
+  });
+  document.getElementById('saveBtn2').addEventListener('click', function () {
+    if (rows.length < 1) { toast('至少需要 1 个预算条目'); return; }
+    toast('预算已保存(CreateBudget)');
+  });
+})();
+</script>
+</body>
+</html>
