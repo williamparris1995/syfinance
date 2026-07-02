@@ -45,7 +45,7 @@ message GoalDTO {
   int64 version = 14;
   google.protobuf.Timestamp created_at = 15;
   google.protobuf.Timestamp updated_at = 16;
-  repeated string linked_account_ids = 17;  // 多账户(D-goal/Task 8: replaces single linked_account_id=8, kept for back-compat)
+  repeated string linked_account_ids = 17;  // 多账户(D-goal/Task 8: replaces single linked_account_id=6, kept for back-compat)
   repeated string linked_debt_ids = 18;     // DebtPayoff 多债务
 }
 

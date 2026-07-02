@@ -349,7 +349,7 @@ class _GoalFormPageState extends State<GoalFormPage> {
     final selected = _type == t;
     return InkWell(
       key: ValueKey('typeOption_${meta.key}'),
-      onTap: submitting ? null : () => _selectType(t),
+      onTap: (submitting || _isEdit) ? null : () => _selectType(t),
       borderRadius: AppRadius.lgBorder,
       child: Container(
         width: 200,
