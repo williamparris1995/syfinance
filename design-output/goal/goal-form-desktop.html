@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>御财 · 新建目标 — Desktop</title>
+
+<!-- ======================================================================
+     GoalFormPage · Desktop (新建,1440 · 侧栏 + 主区 + 左步骤指示器)
+     ----------------------------------------------------------------------------
+     spec §5.3 (2): type picker → 动态字段(Investment/Savings 选账户
+       / DebtPayoff 选债务)+ target + deadline + "从模板"快捷
+     动态字段:
+       · savings:    名称 + 目标金额 + 截止日期 + 关联账户 picker + 月供
+       · debt_payoff:名称 + 关联债务 picker(目标额自动=剩余本金,只读)+ 截止 + 月还
+       · investment: 名称 + 目标金额 + 截止 + 关联持仓 picker + 月定投
+     API 标注:
+       · CreateGoal(target_cents, deadline, type, linked_account_ids/debt_id)   ✅ 已实现
+       · ListAccounts / ListDebts / ListHoldings(picker 数据源)                  ✅ 已实现
+       · 多账户 picker                                                           ⏳ Phase 3
+     数据源: window.ACCOUNTS / window.DEBTS / window.HOLDINGS / window.GOAL_TEMPLATES
+     ====================================================================== -->
+<link rel="stylesheet" href="styles.css">
+<style>
+  .desk-main { min-height: 900px; }
+  .form-layout { display: grid; grid-template-columns: 200px 1fr; gap: 28px; }
+  .form-side { position: sticky; top: 0; align-self: start; }
+  .form-side .form-step-indicator { flex-direction: column; align-items: stretch; gap: 0; margin: 0; }
+  .form-side .fsi-step { padding: 12px 10px; border-radius: 8px; }
+  .form-side .fsi-line { display: none; }
+  .form-side .fsi-step.active { background: var(--accent-soft); }
+  .form-main { max-width: 720px; }
+</style>
+</head>
+<body>
+
+<div class="desk-shell">
+
+  <!-- ============ 左侧固定侧栏 ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">御</div>
+      <div class="brand-name">御财<span> · 目标</span></div>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-sec-label">目标管理</div>
+      <div class="nav-item"><span id="navTarget"></span>全部目标<span class="nav-cnt">8</span></div>
+      <div class="nav-item"><span id="navCheck"></span>已完成<span class="nav-cnt">3</span></div>
+      <div class="nav-item"><span id="navClock"></span>进行中<span class="nav-cnt">5</span></div>
+    </div>
+    <div class="sidebar-foot">v1.0 · 御财目标<br>Path B fallback</div>
+  </aside>
+
+  <!-- ============ 主区 ============ -->
+  <main class="desk-main">
+    <header class="topbar-d">
+      <div class="tb-left">
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer;margin-bottom:4px" onclick="location.href='goal-list-desktop.html'">
+          <span id="backIcon"></span>返回目标列表
+        </div>
+        <h1>新建目标</h1>
+        <div class="tb-sub">3 步创建 · 选类型 → 填详情 → 确认</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost" onclick="location.href='goal-list-desktop.html'">取消</button>
+        <button class="btn btn-gold" id="saveBtn"><span id="saveIcon" class="icon icon-sm"></span>创建目标</button>
+      </div>
+    </header>
+
+    <div class="form-layout">
+      <!-- 左步骤指示器 -->
+      <div class="form-side">
+        <div class="form-step-indicator" id="stepIndicator">
+          <div class="fsi-step active" data-s="1"><span class="fsi-num">1</span>选择类型</div>
+          <div class="fsi-step" data-s="2"><span class="fsi-num">2</span>填写详情</div>
+          <div class="fsi-step" data-s="3"><span class="fsi-num">3</span>确认创建</div>
+        </div>
+      </div>
+
+      <!-- 主表单 -->
+      <div class="form-main">
+        <!-- Step 1: 类型选择 -->
+        <div class="form-card" id="step1">
+          <h3 style="margin-bottom:6px">选择目标类型</h3>
+          <div class="card-sub" style="margin-bottom:18px">不同类型关联不同资产,进度计算方式各异</div>
+
+          <div class="type-picker cols-3" id="typePicker"></div>
+
+          <div style="margin-top:22px;padding-top:18px;border-top:1px dashed var(--border)">
+            <div class="form-label" style="margin-bottom:10px"><span id="tplIcon"></span>从模板快捷创建</div>
+            <div class="template-chips" id="templateChips"></div>
+          </div>
+
+          <div style="display:flex;justify-content:flex-end;margin-top:24px">
+            <button class="btn btn-gold" id="next1">下一步 <span id="next1Icon"></span></button>
+          </div>
+        </div>
+
+        <!-- Step 2: 动态字段 -->
+        <div class="form-card" id="step2" style="display:none">
+          <h3 style="margin-bottom:6px" id="step2Title">填写详情</h3>
+          <div class="card-sub" style="margin-bottom:18px" id="step2Sub"></div>
+          <div id="step2Body"></div>
+          <div style="display:flex;justify-content:space-between;margin-top:24px">
+            <button class="btn btn-ghost" id="back2"><span id="back2Icon"></span>上一步</button>
+            <button class="btn btn-gold" id="next2">下一步 <span id="next2Icon"></span></button>
+          </div>
+        </div>
+
+        <!-- Step 3: 确认 -->
+        <div class="form-card" id="step3" style="display:none">
+          <h3 style="margin-bottom:6px">确认目标信息</h3>
+          <div class="card-sub" style="margin-bottom:18px">核对无误后点击「创建目标」</div>
+          <div id="confirmBody"></div>
+          <div style="display:flex;justify-content:space-between;margin-top:24px">
+            <button class="btn btn-ghost" id="back3"><span id="back3Icon"></span>上一步</button>
+            <button class="btn btn-gold" id="createBtn"><span id="createIcon" class="icon icon-sm"></span>创建目标</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="mock-data.js"></script>
+<script>
+(function () {
+  var icon = window.icon;
+  var fmtCNY = window.fmtCNY;
+
+  /* icons */
+  document.getElementById('navTarget').innerHTML = icon('target');
+  document.getElementById('navCheck').innerHTML = icon('check-circle');
+  document.getElementById('navClock').innerHTML = icon('clock');
+  document.getElementById('backIcon').innerHTML = icon('arrow-left');
+  document.getElementById('saveIcon').innerHTML = icon('check');
+  document.getElementById('tplIcon').innerHTML = icon('gem');
+  document.getElementById('next1Icon').innerHTML = icon('chevron-right');
+  document.getElementById('next2Icon').innerHTML = icon('chevron-right');
+  document.getElementById('back2Icon').innerHTML = icon('chevron-left');
+  document.getElementById('back3Icon').innerHTML = icon('chevron-left');
+  document.getElementById('createIcon').innerHTML = icon('check');
+
+  /* state */
+  var state = { step: 1, type: null, name: '', target_cents: 0, deadline: '',
+                linked_account_id: null, linked_debt_id: null, backing_holding_id: null,
+                monthly_contribution_cents: 0, note: '' };
+
+  /* —— Step 1: type picker —— */
+  var types = ['savings', 'debt_payoff', 'investment'];
+  document.getElementById('typePicker').innerHTML = types.map(function (k) {
+    var t = window.GOAL_TYPES[k];
+    return '<button class="type-option" data-type="' + k + '">'
+      +   '<div class="to-icon ' + (k === 'savings' ? 'savings' : k === 'debt_payoff' ? 'debt' : 'investment') + '">' + icon(t.icon) + '</div>'
+      +   '<div class="to-name">' + t.label + '</div>'
+      +   '<div class="to-desc">' + t.desc + '</div>'
+      + '</button>';
+  }).join('');
+  document.querySelectorAll('.type-option').forEach(function (o) {
+    o.addEventListener('click', function () {
+      document.querySelectorAll('.type-option').forEach(function (x) { x.classList.remove('selected'); });
+      o.classList.add('selected');
+      state.type = o.dataset.type;
+    });
+  });
+
+  /* templates */
+  document.getElementById('templateChips').innerHTML = window.GOAL_TEMPLATES.map(function (t) {
+    return '<button class="tpl-chip" data-tpl="' + t.key + '">' + icon(t.icon) + t.name + '</button>';
+  }).join('');
+  document.querySelectorAll('.tpl-chip').forEach(function (c) {
+    c.addEventListener('click', function () {
+      var tpl = window.GOAL_TEMPLATES.find(function (x) { return x.key === c.dataset.tpl; });
+      state.type = tpl.type;
+      state.name = tpl.name;
+      state.target_cents = tpl.target_cents;
+      state.monthly_contribution_cents = tpl.monthly;
+      /* 选 type + 跳 step2 */
+      document.querySelectorAll('.type-option').forEach(function (x) {
+        x.classList.toggle('selected', x.dataset.type === tpl.type);
+      });
+      goStep(2);
+    });
+  });
+
+  document.getElementById('next1').addEventListener('click', function () {
+    if (!state.type) {
+      flashToast('请先选择目标类型', true);
+      return;
+    }
+    goStep(2);
+  });
+
+  /* —— Step 2: 动态字段 —— */
+  function renderStep2() {
+    var meta = window.GOAL_TYPES[state.type];
+    document.getElementById('step2Title').innerHTML = icon(meta.icon) + meta.label + ' · 详情';
+    document.getElementById('step2Sub').textContent = meta.desc;
+
+    var body = '';
+    /* 名称 */
+    body += '<div class="form-group"><label class="form-label">目标名称 <span class="req">*</span></label>'
+      + '<input class="form-control" id="f_name" placeholder="例:紧急备用金" value="' + (state.name || '') + '"></div>';
+
+    if (state.type === 'debt_payoff') {
+      /* 关联债务 picker (目标额自动 = 剩余本金, 只读) */
+      body += '<div class="form-group"><label class="form-label">关联债务 <span class="req">*</span></label>'
+        + '<div class="form-hint" style="margin-bottom:8px">目标金额 = 债务剩余本金(自动)</div>'
+        + '<div class="picker-list" id="debtPicker">' + window.DEBTS.map(function (d) {
+            var sel = state.linked_debt_id === d.id;
+            return '<div class="picker-row' + (sel ? ' selected' : '') + '" data-id="' + d.id + '" data-amt="' + d.remaining_principal_cents + '">'
+              + '<span class="pr-radio">' + icon('check') + '</span>'
+              + '<div class="pr-info"><span class="pr-name">' + d.name + '</span>'
+              + '<span class="pr-sub">原 ' + fmtCNY(d.original_principal_cents) + ' · APR ' + d.apr + '%</span></div>'
+              + '<span class="pr-val">剩 ' + fmtCNY(d.remaining_principal_cents) + '</span></div>';
+          }).join('') + '</div></div>';
+      /* 目标额(只读) */
+      body += '<div class="form-group"><label class="form-label">目标金额 <span class="req">*</span></label>'
+        + '<div class="input-prefix"><span class="ip-pre">¥</span><input class="form-control" id="f_target" readonly value="' + (state.target_cents / 100).toFixed(2) + '"></div>'
+        + '<div class="form-hint">债务清偿目标 = 剩余本金,不可改</div></div>';
+    } else if (state.type === 'savings') {
+      body += '<div class="form-group"><label class="form-label">目标金额 <span class="req">*</span></label>'
+        + '<div class="input-prefix"><span class="ip-pre">¥</span><input class="form-control mono" id="f_target" type="number" placeholder="60000" value="' + (state.target_cents ? (state.target_cents / 100) : '') + '"></div></div>';
+      body += '<div class="form-group"><label class="form-label">关联账户 <span class="req">*</span></label>'
+        + '<div class="picker-list" id="acctPicker">' + window.ACCOUNTS.map(function (a) {
+            var sel = state.linked_account_id === a.id;
+            return '<div class="picker-row' + (sel ? ' selected' : '') + '" data-id="' + a.id + '">'
+              + '<span class="pr-radio">' + icon('check') + '</span>'
+              + '<div class="pr-info"><span class="pr-name">' + a.name + '</span>'
+              + '<span class="pr-sub">' + a.type + ' · ' + a.number + '</span></div>'
+              + '<span class="pr-val">' + fmtCNY(a.balance_cents) + '</span></div>';
+          }).join('') + '</div></div>';
+    } else { /* investment */
+      body += '<div class="form-group"><label class="form-label">目标金额 <span class="req">*</span></label>'
+        + '<div class="input-prefix"><span class="ip-pre">¥</span><input class="form-control mono" id="f_target" type="number" placeholder="200000" value="' + (state.target_cents ? (state.target_cents / 100) : '') + '"></div></div>';
+      body += '<div class="form-group"><label class="form-label">关联持仓 <span class="req">*</span></label>'
+        + '<div class="picker-list" id="holdPicker">' + window.HOLDINGS.map(function (h) {
+            var sel = state.backing_holding_id === h.id;
+            return '<div class="picker-row' + (sel ? ' selected' : '') + '" data-id="' + h.id + '">'
+              + '<span class="pr-radio">' + icon('check') + '</span>'
+              + '<div class="pr-info"><span class="pr-name mono">' + h.symbol + '</span>'
+              + '<span class="pr-sub">' + h.name + '</span></div>'
+              + '<span class="pr-val">' + fmtCNY(h.market_value_cents) + '</span></div>';
+          }).join('') + '</div></div>';
+    }
+
+    /* 截止日期 */
+    body += '<div class="form-group"><label class="form-label">截止日期 <span class="req">*</span></label>'
+      + '<input class="form-control" id="f_deadline" type="date" value="' + (state.deadline || '') + '"></div>';
+
+    /* 月供(debt_payoff / savings / investment 都有) */
+    var monthlyLabel = state.type === 'debt_payoff' ? '月还款额' : (state.type === 'investment' ? '月定投额' : '月储蓄额');
+    body += '<div class="form-group"><label class="form-label">' + monthlyLabel + '(可选)</label>'
+      + '<div class="input-prefix"><span class="ip-pre">¥</span><input class="form-control mono" id="f_monthly" type="number" placeholder="2000" value="' + (state.monthly_contribution_cents ? (state.monthly_contribution_cents / 100) : '') + '"></div>'
+      + '<div class="form-hint">用于预计达成时间推算(剩余目标 / 月供)</div></div>';
+
+    /* 备注 */
+    body += '<div class="form-group"><label class="form-label">备注(可选)</label>'
+      + '<textarea class="form-control" id="f_note" rows="2" placeholder="如:6 个月生活费">' + (state.note || '') + '</textarea></div>';
+
+    document.getElementById('step2Body').innerHTML = body;
+
+    /* bind pickers */
+    bindPicker('#acctPicker', function (id) { state.linked_account_id = id; });
+    bindPicker('#debtPicker', function (id, amt) {
+      state.linked_debt_id = id;
+      state.target_cents = parseInt(amt, 10);
+      document.getElementById('f_target').value = (state.target_cents / 100).toFixed(2);
+      renderStep2();
+    });
+    bindPicker('#holdPicker', function (id) { state.backing_holding_id = id; });
+
+    /* inputs */
+    var nameEl = document.getElementById('f_name');
+    if (nameEl) nameEl.addEventListener('input', function () { state.name = nameEl.value; });
+    var tgtEl = document.getElementById('f_target');
+    if (tgtEl && !tgtEl.readOnly) tgtEl.addEventListener('input', function () { state.target_cents = Math.round(parseFloat(tgtEl.value || 0) * 100); });
+    var dlEl = document.getElementById('f_deadline');
+    if (dlEl) dlEl.addEventListener('input', function () { state.deadline = dlEl.value; });
+    var moEl = document.getElementById('f_monthly');
+    if (moEl) moEl.addEventListener('input', function () { state.monthly_contribution_cents = Math.round(parseFloat(moEl.value || 0) * 100); });
+    var noteEl = document.getElementById('f_note');
+    if (noteEl) noteEl.addEventListener('input', function () { state.note = noteEl.value; });
+  }
+
+  function bindPicker(sel, cb) {
+    var box = document.querySelector(sel);
+    if (!box) return;
+    box.querySelectorAll('.picker-row').forEach(function (r) {
+      r.addEventListener('click', function () {
+        box.querySelectorAll('.picker-row').forEach(function (x) { x.classList.remove('selected'); });
+        r.classList.add('selected');
+        cb(r.dataset.id, r.dataset.amt);
+      });
+    });
+  }
+
+  document.getElementById('back2').addEventListener('click', function () { goStep(1); });
+  document.getElementById('next2').addEventListener('click', function () {
+    if (!state.name) { flashToast('请填写目标名称', true); return; }
+    if (!state.target_cents || state.target_cents <= 0) { flashToast('请填写目标金额', true); return; }
+    if (state.type !== 'debt_payoff' && !state.linked_account_id && !state.backing_holding_id) {
+      flashToast('请选择关联' + (state.type === 'savings' ? '账户' : '持仓'), true); return;
+    }
+    if (state.type === 'debt_payoff' && !state.linked_debt_id) { flashToast('请选择关联债务', true); return; }
+    if (!state.deadline) { flashToast('请选择截止日期', true); return; }
+    goStep(3);
+  });
+
+  /* —— Step 3: 确认 —— */
+  function renderStep3() {
+    var meta = window.GOAL_TYPES[state.type];
+    var linkedLabel = '';
+    if (state.type === 'savings') {
+      var a = window.ACCOUNTS.find(function (x) { return x.id === state.linked_account_id; });
+      linkedLabel = a ? (a.name + ' · ' + fmtCNY(a.balance_cents)) : '—';
+    } else if (state.type === 'debt_payoff') {
+      var d = window.DEBTS.find(function (x) { return x.id === state.linked_debt_id; });
+      linkedLabel = d ? (d.name + ' · 剩 ' + fmtCNY(d.remaining_principal_cents)) : '—';
+    } else {
+      var h = window.HOLDINGS.find(function (x) { return x.id === state.backing_holding_id; });
+      linkedLabel = h ? (h.symbol + ' · ' + fmtCNY(h.market_value_cents)) : '—';
+    }
+    /* 预计达成 */
+    var eta = '需手动';
+    if (state.monthly_contribution_cents > 0) {
+      var needMonths = Math.ceil(state.target_cents / state.monthly_contribution_cents);
+      var base = new Date('2026-06-30');
+      var etaD = new Date(base.getFullYear(), base.getMonth() + needMonths, 1);
+      eta = etaD.getFullYear() + '-' + String(etaD.getMonth() + 1).padStart(2, '0');
+    }
+    var rows = [
+      { k: '类型', v: '<span class="type-chip ' + meta.chipCls + '"><span class="tc-dot"></span>' + meta.label + '</span>' },
+      { k: '名称', v: state.name },
+      { k: '目标金额', v: '<span class="mono">' + fmtCNY(state.target_cents) + '</span>' },
+      { k: '截止日期', v: state.deadline },
+      { k: '关联' + (state.type === 'savings' ? '账户' : state.type === 'debt_payoff' ? '债务' : '持仓'), v: linkedLabel },
+      { k: '月供', v: state.monthly_contribution_cents > 0 ? '<span class="mono">' + fmtCNY(state.monthly_contribution_cents) + '/月</span>' : '无' },
+      { k: '预计达成', v: eta },
+      { k: '备注', v: state.note || '—' },
+    ];
+    document.getElementById('confirmBody').innerHTML = '<table style="width:100%;font-size:13.5px">'
+      + rows.map(function (r) {
+          return '<tr><td style="padding:10px 12px;color:var(--muted);width:140px;vertical-align:top">' + r.k + '</td>'
+            + '<td style="padding:10px 12px;color:var(--fg-strong);font-weight:500">' + r.v + '</td></tr>';
+        }).join('') + '</table>';
+  }
+
+  document.getElementById('back3').addEventListener('click', function () { goStep(2); });
+  document.getElementById('createBtn').addEventListener('click', function () {
+    flashToast('✅ 已创建目标「' + state.name + '」(mock · API: CreateGoal)', false);
+    setTimeout(function () { location.href = 'goal-list-desktop.html'; }, 1500);
+  });
+  document.getElementById('saveBtn').addEventListener('click', function () {
+    if (state.step < 3) { goStep(state.step + 1); return; }
+    document.getElementById('createBtn').click();
+  });
+
+  /* —— 步骤切换 —— */
+  function goStep(n) {
+    state.step = n;
+    ['step1', 'step2', 'step3'].forEach(function (id, i) {
+      document.getElementById(id).style.display = (i + 1 === n) ? '' : 'none';
+    });
+    document.querySelectorAll('#stepIndicator .fsi-step').forEach(function (s) {
+      var sn = parseInt(s.dataset.s, 10);
+      s.classList.toggle('active', sn === n);
+      s.classList.toggle('done', sn < n);
+      if (sn < n) s.querySelector('.fsi-num').innerHTML = icon('check');
+      else s.querySelector('.fsi-num').textContent = sn;
+    });
+    if (n === 2) renderStep2();
+    if (n === 3) renderStep3();
+  }
+
+  function flashToast(msg, isErr) {
+    var t = document.createElement('div');
+    t.className = 'toast';
+    t.innerHTML = icon(isErr ? 'alert-triangle' : 'check-circle') + msg;
+    if (isErr) t.style.background = 'var(--down)';
+    document.body.appendChild(t);
+    setTimeout(function () { t.remove(); }, 1800);
+  }
+})();
+</script>
+</body>
+</html>

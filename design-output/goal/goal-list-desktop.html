@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>御财 · 目标管理 — Desktop</title>
+
+<!-- ======================================================================
+     GoalListPage · Desktop (≥1024px · 1440 · 侧栏 + 主区)
+     ----------------------------------------------------------------------------
+     spec §5.3 (1): 全部 goals(3 type 混合卡片 + 进度环 + 类型徽章
+       Savings/DebtPayoff/Investment + deadline 倒计时 + 完成/进行中分组)+ AppBar 新建
+     API 标注(对照 spec §5.2 RPC):
+       · ListGoals(tenant_id, completed?, goal_type?)                    ✅ 已实现
+       · CreateGoal                                                        ✅ 已实现
+       · CloneGoal(DuplicateGoal)                                          ✅ 已实现
+       · GetGoalProgressHistory(goal_id, from, to) — 趋势曲线              ⏳ Phase 2
+     数据源: window.GOALS / window.goalView / window.goalStats (mock-data.js)
+     进度环: conic-gradient(window.ringGradient,同 holding donut 风格)
+     current_cents 为 mock 快照,A-flutter 接真 Phase 1 server 按 backing 推进
+     ====================================================================== -->
+<link rel="stylesheet" href="styles.css">
+<style>
+  .desk-main { min-height: 900px; }
+  .goal-card .gc-more { opacity: 0; transition: opacity .15s; }
+  .goal-card:hover .gc-more { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="desk-shell">
+
+  <!-- ============ 左侧固定侧栏 ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">御</div>
+      <div class="brand-name">御财<span> · 目标</span></div>
+    </div>
+
+    <div class="nav-sec">
+      <div class="nav-sec-label">目标管理</div>
+      <div class="nav-item active"><span id="navTarget"></span>全部目标<span class="nav-cnt" id="navAllCnt">8</span></div>
+      <div class="nav-item"><span id="navCheck"></span>已完成<span class="nav-cnt" id="navDoneCnt">3</span></div>
+      <div class="nav-item"><span id="navClock"></span>进行中<span class="nav-cnt" id="navDoingCnt">5</span></div>
+    </div>
+
+    <div class="nav-sec">
+      <div class="nav-sec-label">类型筛选</div>
+      <div class="nav-item"><span id="navPig"></span>储蓄目标<span class="nav-cnt">3</span></div>
+      <div class="nav-item"><span id="navCard"></span>债务清偿<span class="nav-cnt">3</span></div>
+      <div class="nav-item"><span id="navTrend"></span>投资目标<span class="nav-cnt">2</span></div>
+    </div>
+
+    <div class="sidebar-foot">
+      数据更新于 2026-06-30<br>current_cents 为 mock 快照
+    </div>
+  </aside>
+
+  <!-- ============ 主区 ============ -->
+  <main class="desk-main">
+
+    <header class="topbar-d">
+      <div class="tb-left">
+        <h1>目标管理</h1>
+        <div class="tb-sub">3 type 混合 · 储蓄 / 债务清偿 / 投资 · 共 <span class="mono" id="countAll">8</span> 个目标</div>
+      </div>
+      <div class="topbar-actions">
+        <div class="search">
+          <span id="iconSearch"></span>
+          <input type="text" placeholder="搜索目标名 / 备注">
+        </div>
+        <button class="icon-btn" title="刷新" id="iconRefreshBtn"></button>
+        <button class="btn btn-gold" id="addBtn">
+          <span id="addIcon" class="icon icon-sm"></span>新建目标
+        </button>
+      </div>
+    </header>
+
+    <!-- 概览统计条(API: 前端从 ListGoals 聚合) -->
+    <section class="stat-strip" id="statStrip"></section>
+
+    <!-- 主体:进行中 + 已完成 分组 -->
+    <div id="groups"></div>
+
+  </main>
+</div>
+
+<script src="mock-data.js"></script>
+<script>
+(function () {
+  var icon = window.icon;
+  var fmtCNY = window.fmtCNY;
+  var fmtCNYShort = window.fmtCNYShort;
+
+  /* —— 顶栏 / 侧栏 icons —— */
+  document.getElementById('iconSearch').innerHTML = icon('search');
+  document.getElementById('iconRefreshBtn').innerHTML = icon('refresh-cw');
+  document.getElementById('addIcon').innerHTML = icon('plus');
+  document.getElementById('navTarget').innerHTML = icon('target');
+  document.getElementById('navCheck').innerHTML = icon('check-circle');
+  document.getElementById('navClock').innerHTML = icon('clock');
+  document.getElementById('navPig').innerHTML = icon('piggy-bank');
+  document.getElementById('navCard').innerHTML = icon('credit-card');
+  document.getElementById('navTrend').innerHTML = icon('trending-up');
+
+  document.getElementById('addBtn').addEventListener('click', function () {
+    location.href = 'goal-form-desktop.html';
+  });
+
+  /* —— 概览统计 —— */
+  var st = window.goalStats();
+  document.getElementById('countAll').textContent = st.total;
+  document.getElementById('navAllCnt').textContent = st.total;
+  document.getElementById('navDoneCnt').textContent = st.completed;
+  document.getElementById('navDoingCnt').textContent = st.ontrack + st.behind;
+
+  var stats = [
+    { label: '目标总数',   icon: 'target',   val: st.total, sub: '3 type 混合', cls: '' },
+    { label: '已完成',     icon: 'check-circle', val: st.completed, sub: '已达成 / pct≥100%', cls: 'up' },
+    { label: '进行中',     icon: 'trending-up',  val: st.ontrack,  sub: '月供节奏预计 deadline 前达成', cls: 'gold' },
+    { label: '落后',       icon: 'alert-triangle', val: st.behind, sub: '需加码或延期', cls: 'down' },
+    { label: '综合达成',   icon: 'percent',  val: st.pct.toFixed(1) + '%', sub: fmtCNYShort(st.totalCurrent) + ' / ' + fmtCNYShort(st.totalTarget), cls: 'gold' },
+  ];
+  document.getElementById('statStrip').innerHTML = stats.map(function (s) {
+    return '<div class="ss-cell">'
+      +   '<div class="ss-label">' + icon(s.icon) + s.label + '</div>'
+      +   '<div class="ss-val ' + (s.cls || '') + '">' + s.val + '</div>'
+      +   '<div class="ss-sub">' + s.sub + '</div>'
+      + '</div>';
+  }).join('');
+
+  /* —— 分组渲染 —— */
+  var STATUS_LABEL = { completed: '已完成', ontrack: '进行中', behind: '落后' };
+  var STATUS_ICON  = { completed: 'check-circle', ontrack: 'trending-up', behind: 'alert-triangle' };
+
+  function renderCard(g) {
+    var v = window.goalView(g.id);
+    var typeMeta = v.typeMeta;
+    var ringColor = typeMeta.color;
+    if (v.status === 'behind') ringColor = 'var(--down)';
+    if (v.status === 'completed') ringColor = 'var(--up)';
+    var ringStyle = window.ringGradient(v.pct, ringColor);
+
+    var daysLeftTxt = v.completed ? '已达成' : (v.daysLeft > 365 ? Math.round(v.daysLeft / 30) + ' 个月' : v.daysLeft + ' 天');
+    var urgent = !v.completed && v.daysLeft <= 90 && v.status === 'behind';
+
+    return '<div class="goal-card ' + v.status + '" data-id="' + g.id + '">'
+      +   '<div class="gc-top">'
+      +     '<div class="gc-title-row">'
+      +       '<div class="gc-name">' + icon(typeMeta.icon) + g.name + '</div>'
+      +       '<div class="gc-note">' + (g.note || '') + '</div>'
+      +     '</div>'
+      +     '<div class="gc-actions-top">'
+      +       '<span class="type-chip ' + typeMeta.chipCls + '"><span class="tc-dot"></span>' + typeMeta.label + '</span>'
+      +       '<span class="status-pill ' + v.status + '">' + icon(STATUS_ICON[v.status]) + STATUS_LABEL[v.status] + '</span>'
+      +     '</div>'
+      +   '</div>'
+      +   '<div class="gc-body">'
+      +     '<div class="gc-ring">'
+      +       '<div class="progress-ring ring-md" style="background:' + ringStyle + '">'
+      +         '<div class="pr-hole"><span class="pr-pct">' + v.pct.toFixed(0) + '%</span></div>'
+      +       '</div>'
+      +     '</div>'
+      +     '<div class="gc-nums">'
+      +       '<div class="gc-current">' + fmtCNY(g.current_cents) + '<span class="cc">CNY</span></div>'
+      +       '<div class="gc-target">目标 ' + fmtCNY(g.target_cents) + '</div>'
+      +     '</div>'
+      +   '</div>'
+      +   '<div class="gc-foot">'
+      +     '<span class="gc-foot-item ' + (urgent ? 'urgent' : '') + '">' + icon('calendar') + '距 ' + g.deadline + ' 还剩 ' + daysLeftTxt + '</span>'
+      +     '<span class="gc-foot-item">' + icon('coins') + (g.monthly_contribution_cents > 0 ? fmtCNY(g.monthly_contribution_cents) + '/月' : '无定投') + '</span>'
+      +   '</div>'
+      + '</div>';
+  }
+
+  function renderGroup(title, iconKey, goals, statusKey) {
+    if (goals.length === 0) return '';
+    return '<div class="section-group">'
+      +   '<div class="sg-head">'
+      +     '<div class="sg-title">' + icon(iconKey) + title + '</div>'
+      +     '<span class="sg-count">' + goals.length + '</span>'
+      +     '<span class="sg-toggle">' + icon('chevron-down') + '折叠</span>'
+      +   '</div>'
+      +   '<div class="goal-grid cols-3">' + goals.map(renderCard).join('') + '</div>'
+      + '</div>';
+  }
+
+  var inProgress = window.GOALS.filter(function (g) { return !window.goalView(g.id).completed; });
+  var completed  = window.GOALS.filter(function (g) { return window.goalView(g.id).completed; });
+
+  var html = '';
+  if (inProgress.length > 0) html += renderGroup('进行中', 'clock', inProgress, 'doing');
+  if (completed.length > 0)  html += renderGroup('已完成', 'check-circle', completed, 'done');
+  if (html === '') {
+    html = '<div class="empty"><div class="empty-ico">' + icon('target') + '</div>'
+      + '<div class="empty-title">还没有目标</div>'
+      + '<div class="empty-text">点击右上「新建目标」开始攒钱 / 还债 / 投资</div>'
+      + '<button class="btn btn-gold" onclick="location.href=\'goal-form-desktop.html\'">' + icon('plus', 'icon-sm') + '新建第一个目标</button></div>';
+  }
+  document.getElementById('groups').innerHTML = html;
+
+  /* —— 卡片点击 → detail —— */
+  document.querySelectorAll('.goal-card').forEach(function (c) {
+    c.addEventListener('click', function () {
+      location.href = 'goal-detail-desktop.html?id=' + c.dataset.id;
+    });
+  });
+
+  /* —— 折叠 —— */
+  document.querySelectorAll('.sg-toggle').forEach(function (t) {
+    t.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var grid = t.closest('.section-group').querySelector('.goal-grid');
+      grid.style.display = grid.style.display === 'none' ? '' : 'none';
+    });
+  });
+})();
+</script>
+</body>
+</html>

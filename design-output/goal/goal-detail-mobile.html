@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<title>御财 · 目标详情 — Mobile</title>
+
+<!-- ======================================================================
+     GoalDetailPage · Mobile (390 · 紧凑 AppBar + 单列堆叠 + 小进度环)
+     spec §5.3 (3) · 同 desktop,布局: hero(小环横向) + 卡片堆叠
+     API 同 goal-detail-desktop.html(GetGoal ✅ / RecordContribution ⏳ / CloneGoal ✅)
+     ====================================================================== -->
+<link rel="stylesheet" href="styles.css">
+<style>
+  body { background: var(--bg); }
+  .page-pad { padding: 12px; gap: 12px; }
+  /* mobile hero: 横向(环 + 信息),小环 */
+  .detail-hero { flex-direction: row; padding: 16px; gap: 14px; text-align: left; align-items: center; }
+  .dh-current { font-size: 22px; }
+  .dh-target { font-size: 13px; }
+  .dh-name { font-size: 16px; flex-wrap: wrap; gap: 6px; }
+  .dh-remain { font-size: 11.5px; gap: 4px; }
+  .linked-card { padding: 12px 14px; gap: 10px; }
+  .lc-icon { width: 34px; height: 34px; }
+  .lc-icon .icon { width: 18px; height: 18px; }
+  .lc-name { font-size: 13px; }
+  .lc-val { font-size: 13px; }
+  .contrib-table th, .contrib-table td { padding: 8px 10px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<header class="app-bar">
+  <span style="cursor:pointer;color:var(--muted)" onclick="location.href='goal-list-mobile.html'"><span id="backIcon"></span></span>
+  <div class="ab-title" id="pageTitle">目标详情</div>
+  <button class="icon-btn" title="编辑" onclick="location.href='goal-edit-mobile.html?id=' + (new URLSearchParams(location.search).get('id')||'g1')"><span id="editIcon"></span></button>
+</header>
+
+<div class="page-pad">
+  <section class="detail-hero" id="detailHero"></section>
+  <section id="linkedCard"></section>
+  <div class="card" id="contribCard"></div>
+  <div id="trendCard"></div>
+  <div class="action-row" id="actionRow"></div>
+</div>
+
+<script src="mock-data.js"></script>
+<script>
+(function () {
+  var icon = window.icon;
+  var fmtCNY = window.fmtCNY;
+  document.getElementById('backIcon').innerHTML = icon('arrow-left');
+  document.getElementById('editIcon').innerHTML = icon('pencil');
+
+  var qs = new URLSearchParams(location.search);
+  var GOAL_ID = qs.get('id') || 'g1';
+  var g = window.GOALS.find(function (x) { return x.id === GOAL_ID; }) || window.GOALS[0];
+  var v = window.goalView(g.id);
+  var meta = v.typeMeta;
+  document.getElementById('pageTitle').textContent = g.name;
+
+  var ringColor = v.status === 'completed' ? 'var(--up)' : (v.status === 'behind' ? 'var(--down)' : meta.color);
+  var ringStyle = window.ringGradient(v.pct, ringColor);
+  var remainCents = Math.max(0, g.target_cents - g.current_cents);
+  document.getElementById('detailHero').className = 'detail-hero ' + v.status;
+  document.getElementById('detailHero').innerHTML =
+      '<div class="progress-ring ring-md" style="background:' + ringStyle + '"><div class="pr-hole"><span class="pr-pct">' + v.pct.toFixed(0) + '%</span></div></div>'
+    + '<div class="dh-info">'
+    +   '<div class="dh-name"><span class="type-chip ' + meta.chipCls + '"><span class="tc-dot"></span>' + meta.label + '</span>'
+    +     '<span class="status-pill ' + v.status + '">' + (v.completed ? '已完成' : v.status === 'behind' ? '落后' : '进行中') + '</span></div>'
+    +   '<div class="dh-vals"><span class="dh-current">' + fmtCNY(g.current_cents) + '</span><span class="dh-sep">/</span><span class="dh-target">' + fmtCNY(g.target_cents) + '</span></div>'
+    +   '<div class="dh-remain"><span class="pill-num">差 ' + fmtCNY(remainCents) + '</span><span>' + icon('calendar') + v.daysLeft + '天</span></div>'
+    + '</div>';
+
+  var linkedHtml = '';
+  if (v.linkedType === 'account') { var a = v.linked;
+    linkedHtml = '<div class="linked-card"><div class="lc-icon account">' + icon('wallet') + '</div><div class="lc-info"><span class="lc-label">账户</span><span class="lc-name">' + a.name + '</span></div><div class="lc-val">' + fmtCNY(a.balance_cents) + '</div></div>';
+  } else if (v.linkedType === 'debt') { var d = v.linked;
+    linkedHtml = '<div class="linked-card"><div class="lc-icon debt">' + icon('credit-card') + '</div><div class="lc-info"><span class="lc-label">债务</span><span class="lc-name">' + d.name + '</span></div><div class="lc-val">剩 ' + fmtCNY(d.remaining_principal_cents) + '</div></div>';
+  } else if (v.linkedType === 'holding') { var h = v.linked;
+    linkedHtml = '<div class="linked-card"><div class="lc-icon holding">' + icon('trending-up') + '</div><div class="lc-info"><span class="lc-label">持仓</span><span class="lc-name mono">' + h.symbol + '</span></div><div class="lc-val">' + fmtCNY(h.market_value_cents) + '</div></div>';
+  }
+  document.getElementById('linkedCard').innerHTML = linkedHtml;
+
+  var contribs = window.CONTRIBUTIONS[g.id] || [];
+  var cb = '<div class="card-head"><div class="card-title" style="font-size:13px"><span>' + icon('coins') + '</span>贡献记录</div><span class="card-sub">⏳ Phase 1</span></div>';
+  if (contribs.length === 0) {
+    cb += '<div class="empty" style="padding:18px"><div class="empty-text" style="font-size:12px">暂无贡献</div></div>';
+  } else {
+    cb += '<table class="contrib-table"><thead><tr><th>日期</th><th class="num">金额</th></tr></thead><tbody>'
+      + contribs.slice(0, 4).map(function (c) { return '<tr><td>' + c.date + '</td><td class="num amt-pos">+' + fmtCNY(c.amount_cents) + '</td></tr>'; }).join('')
+      + '</tbody></table>';
+  }
+  document.getElementById('contribCard').innerHTML = cb;
+
+  document.getElementById('trendCard').innerHTML =
+      '<div class="card" style="padding:14px"><div class="card-title" style="font-size:13px;margin-bottom:8px"><span>' + icon('trending-up') + '</span>趋势曲线</div>'
+    + '<div class="tp-badge">Phase 2</div></div>';
+
+  var actHtml = '';
+  if (!v.completed) actHtml += '<button class="btn btn-gold btn-sm" style="flex:1;justify-content:center">' + icon('check-circle', 'icon-sm') + '完成</button>';
+  actHtml += '<button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center" onclick="location.href=\'goal-edit-mobile.html?id=' + g.id + '\'">' + icon('pencil', 'icon-sm') + '编辑</button>';
+  actHtml += '<button class="btn btn-danger btn-sm" style="flex:1;justify-content:center">' + icon('trash-2', 'icon-sm') + '删除</button>';
+  document.getElementById('actionRow').innerHTML = actHtml;
+})();
+</script>
+</body>
+</html>

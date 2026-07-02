@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<title>御财 · 编辑目标 — Mobile</title>
+
+<!-- ======================================================================
+     GoalEditPage · Mobile (390 · 紧凑 AppBar + 单列表单,预填 g1)
+     spec §5.3 (4) · 同 desktop edit,布局: 单列垂直堆叠
+     API 同 goal-edit-desktop.html(UpdateGoal ✅ / DeleteGoal ✅)
+     ====================================================================== -->
+<link rel="stylesheet" href="styles.css">
+<style>
+  body { background: var(--bg); }
+  .page-pad { padding: 12px; gap: 12px; }
+  .form-card { padding: 14px; }
+  .danger-link { display: inline-flex; align-items: center; gap: 5px; color: var(--down); font-size: 12.5px; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<header class="app-bar">
+  <span style="cursor:pointer;color:var(--muted)" onclick="location.href='goal-detail-mobile.html?id=' + (new URLSearchParams(location.search).get('id')||'g1')"><span id="backIcon"></span></span>
+  <div class="ab-title" id="pageTitle">编辑</div>
+  <button class="btn btn-gold btn-sm" id="saveBtn"><span id="saveIcon" class="icon icon-sm"></span>保存</button>
+</header>
+
+<div class="page-pad">
+  <div class="form-card">
+    <div class="form-group">
+      <label class="form-label">类型(不可改)</label>
+      <div id="typeLocked"></div>
+    </div>
+    <div id="editBody"></div>
+    <div style="padding-top:12px;border-top:1px dashed var(--border);margin-top:6px">
+      <span class="danger-link" id="delLink"><span id="delIcon"></span>删除此目标</span>
+    </div>
+  </div>
+</div>
+
+<script src="mock-data.js"></script>
+<script>
+(function () {
+  var icon = window.icon;
+  var fmtCNY = window.fmtCNY;
+  document.getElementById('backIcon').innerHTML = icon('arrow-left');
+  document.getElementById('saveIcon').innerHTML = icon('check');
+  document.getElementById('delIcon').innerHTML = icon('trash-2');
+
+  var qs = new URLSearchParams(location.search);
+  var g = window.GOALS.find(function (x) { return x.id === (qs.get('id') || 'g1'); }) || window.GOALS[0];
+  var meta = window.GOAL_TYPES[g.type];
+  document.getElementById('pageTitle').textContent = '编辑';
+
+  document.getElementById('typeLocked').innerHTML =
+    '<div style="display:inline-flex;align-items:center;gap:8px;padding:8px 12px;background:var(--accent-soft);border-radius:var(--r-sm);font-size:12.5px">'
+    + '<span style="color:' + meta.color + '">' + icon(meta.icon) + '</span>'
+    + '<strong style="color:var(--fg-strong)">' + meta.label + '</strong>'
+    + '<span style="color:var(--muted);font-size:11px">(锁定)</span></div>';
+
+  var body = '<div class="form-group"><label class="form-label">名称 <span class="req">*</span></label><input class="form-control" id="f_name" value="' + g.name + '"></div>';
+  if (g.type === 'debt_payoff') {
+    body += '<div class="form-group"><label class="form-label">目标(=剩余本金)</label><div class="input-prefix"><span class="ip-pre">¥</span><input class="form-control mono" readonly value="' + (g.target_cents / 100).toFixed(2) + '"></div></div>';
+  } else {
+    body += '<div class="form-group"><label class="form-label">目标金额</label><div class="input-prefix"><span class="ip-pre">¥</span><input class="form-control mono" id="f_target" type="number" value="' + (g.target_cents / 100) + '"></div></div>';
+    if (g.type === 'savings') {
+      body += '<div class="form-group"><label class="form-label">关联账户</label><div class="picker-list" id="acctPicker">' + window.ACCOUNTS.map(function (a) { var sel = a.id === g.linked_account_id; return '<div class="picker-row' + (sel ? ' selected' : '') + '" data-id="' + a.id + '"><span class="pr-radio">' + icon('check') + '</span><div class="pr-info"><span class="pr-name">' + a.name + '</span></div><span class="pr-val">' + fmtCNY(a.balance_cents) + '</span></div>'; }).join('') + '</div></div>';
+    } else {
+      body += '<div class="form-group"><label class="form-label">关联持仓</label><div class="picker-list" id="holdPicker">' + window.HOLDINGS.map(function (h) { var sel = h.id === g.backing_holding_id; return '<div class="picker-row' + (sel ? ' selected' : '') + '" data-id="' + h.id + '"><span class="pr-radio">' + icon('check') + '</span><div class="pr-info"><span class="pr-name mono">' + h.symbol + '</span></div><span class="pr-val">' + fmtCNY(h.market_value_cents) + '</span></div>'; }).join('') + '</div></div>';
+    }
+  }
+  body += '<div class="form-group"><label class="form-label">截止</label><input class="form-control" id="f_deadline" type="date" value="' + g.deadline + '"></div>';
+  var ml = g.type === 'debt_payoff' ? '月还' : (g.type === 'investment' ? '月定投' : '月存');
+  body += '<div class="form-group"><label class="form-label">' + ml + '</label><div class="input-prefix"><span class="ip-pre">¥</span><input class="form-control mono" id="f_monthly" type="number" value="' + (g.monthly_contribution_cents / 100) + '"></div></div>';
+  body += '<div class="form-group"><label class="form-label">备注</label><textarea class="form-control" id="f_note" rows="2">' + (g.note || '') + '</textarea></div>';
+  document.getElementById('editBody').innerHTML = body;
+
+  var ap = document.querySelector('#acctPicker'); if (ap) ap.querySelectorAll('.picker-row').forEach(function (r) { r.onclick = function () { ap.querySelectorAll('.picker-row').forEach(function (x) { x.classList.remove('selected'); }); r.classList.add('selected'); }; });
+  var hp = document.querySelector('#holdPicker'); if (hp) hp.querySelectorAll('.picker-row').forEach(function (r) { r.onclick = function () { hp.querySelectorAll('.picker-row').forEach(function (x) { x.classList.remove('selected'); }); r.classList.add('selected'); }; });
+
+  function flash(msg, ok) { var t = document.createElement('div'); t.className = 'toast'; t.innerHTML = icon(ok === false ? 'alert-triangle' : 'check-circle') + msg; if (ok === false) t.style.background = 'var(--down)'; document.body.appendChild(t); setTimeout(function () { t.remove(); }, 1800); }
+  document.getElementById('saveBtn').onclick = function () { var name = document.getElementById('f_name').value.trim(); if (!name) { flash('请填名称', false); return; } flash('已保存「' + name + '」(mock)', true); setTimeout(function () { location.href = 'goal-detail-mobile.html?id=' + g.id; }, 1400); };
+  document.getElementById('delLink').onclick = function () { if (confirm('删除「' + g.name + '」?')) { flash('已删除', true); setTimeout(function () { location.href = 'goal-list-mobile.html'; }, 1200); } };
+})();
+</script>
+</body>
+</html>

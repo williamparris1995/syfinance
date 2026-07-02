@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<title>御财 · 目标管理 — Mobile</title>
+
+<!-- ======================================================================
+     GoalListPage · Mobile (390px · 顶部 AppBar + 单列卡片)
+     spec §5.3 (1) · 同 desktop 逻辑,布局: 紧凑 AppBar + 概览(横滑) + 单列卡片
+     API 同 goal-list-desktop.html(ListGoals ✅ / CreateGoal ✅ / CloneGoal ✅)
+     ====================================================================== -->
+<link rel="stylesheet" href="styles.css">
+<style>
+  body { background: var(--bg); }
+  .app-bar .brand-mark { display: none; }
+  .ab-title { font-size: 16px; }
+  .page-pad { padding: 12px; gap: 12px; }
+  /* 概览横滑 */
+  .stat-strip { flex-wrap: nowrap; overflow-x: auto; }
+  .stat-strip .ss-cell { flex: 0 0 auto; min-width: 100px; padding: 10px 12px; }
+  .ss-val { font-size: 18px; }
+  .goal-card { padding: 14px; gap: 10px; }
+  .gc-current { font-size: 16px; }
+  .gc-name { font-size: 14px; }
+  .search { display: none; }
+</style>
+</head>
+<body>
+
+<!-- 顶部 AppBar -->
+<header class="app-bar">
+  <div class="ab-title">目标</div>
+  <button class="icon-btn" title="搜索" id="iconSearchBtn"></button>
+  <button class="btn btn-gold btn-sm" id="addBtn"><span id="addIcon" class="icon icon-sm"></span>新建</button>
+</header>
+
+<div class="page-pad">
+  <!-- 概览统计(横滑) -->
+  <section class="stat-strip" id="statStrip"></section>
+
+  <!-- 主体分组 -->
+  <div id="groups"></div>
+</div>
+
+<script src="mock-data.js"></script>
+<script>
+(function () {
+  var icon = window.icon;
+  var fmtCNY = window.fmtCNY;
+  var fmtCNYShort = window.fmtCNYShort;
+
+  document.getElementById('addIcon').innerHTML = icon('plus');
+  document.getElementById('iconSearchBtn').innerHTML = icon('search');
+  document.getElementById('addBtn').addEventListener('click', function () {
+    location.href = 'goal-form-mobile.html';
+  });
+
+  var st = window.goalStats();
+  var stats = [
+    { label: '总数',   icon: 'target',   val: st.total, cls: '' },
+    { label: '完成',   icon: 'check-circle', val: st.completed, cls: 'up' },
+    { label: '进行',   icon: 'trending-up',  val: st.ontrack,  cls: 'gold' },
+    { label: '落后',   icon: 'alert-triangle', val: st.behind, cls: 'down' },
+    { label: '达成%',  icon: 'percent',  val: st.pct.toFixed(0) + '%', cls: 'gold' },
+  ];
+  document.getElementById('statStrip').innerHTML = stats.map(function (s) {
+    return '<div class="ss-cell"><div class="ss-label">' + icon(s.icon) + s.label + '</div>'
+      + '<div class="ss-val ' + (s.cls || '') + '">' + s.val + '</div></div>';
+  }).join('');
+
+  var STATUS_LABEL = { completed: '已完成', ontrack: '进行中', behind: '落后' };
+  var STATUS_ICON  = { completed: 'check-circle', ontrack: 'trending-up', behind: 'alert-triangle' };
+
+  function renderCard(g) {
+    var v = window.goalView(g.id);
+    var typeMeta = v.typeMeta;
+    var ringColor = typeMeta.color;
+    if (v.status === 'behind') ringColor = 'var(--down)';
+    if (v.status === 'completed') ringColor = 'var(--up)';
+    var ringStyle = window.ringGradient(v.pct, ringColor);
+    var daysLeftTxt = v.completed ? '已达成' : (v.daysLeft > 365 ? Math.round(v.daysLeft / 30) + ' 个月' : v.daysLeft + ' 天');
+    var urgent = !v.completed && v.daysLeft <= 90 && v.status === 'behind';
+
+    return '<div class="goal-card ' + v.status + '" data-id="' + g.id + '">'
+      +   '<div class="gc-top">'
+      +     '<div class="gc-title-row">'
+      +       '<div class="gc-name">' + icon(typeMeta.icon) + g.name + '</div>'
+      +     '</div>'
+      +     '<span class="status-pill ' + v.status + '">' + icon(STATUS_ICON[v.status]) + STATUS_LABEL[v.status] + '</span>'
+      +   '</div>'
+      +   '<div class="gc-body">'
+      +     '<div class="gc-ring"><div class="progress-ring ring-sm" style="background:' + ringStyle + '"><div class="pr-hole"><span class="pr-pct">' + v.pct.toFixed(0) + '%</span></div></div></div>'
+      +     '<div class="gc-nums"><div class="gc-current">' + fmtCNY(g.current_cents) + '<span class="cc">CNY</span></div>'
+      +       '<div class="gc-target"><span class="type-chip ' + typeMeta.chipCls + '" style="margin-right:6px"><span class="tc-dot"></span>' + typeMeta.label + '</span>目标 ' + fmtCNY(g.target_cents) + '</div></div>'
+      +   '</div>'
+      +   '<div class="gc-foot">'
+      +     '<span class="gc-foot-item ' + (urgent ? 'urgent' : '') + '">' + icon('calendar') + '剩 ' + daysLeftTxt + '</span>'
+      +     '<span class="gc-foot-item">' + icon('coins') + (g.monthly_contribution_cents > 0 ? fmtCNY(g.monthly_contribution_cents) + '/月' : '无定投') + '</span>'
+      +   '</div>'
+      + '</div>';
+  }
+
+  function renderGroup(title, iconKey, goals) {
+    if (goals.length === 0) return '';
+    return '<div class="section-group">'
+      +   '<div class="sg-head"><div class="sg-title">' + icon(iconKey) + title + '</div><span class="sg-count">' + goals.length + '</span>'
+      +   '<span class="sg-toggle">' + icon('chevron-down') + '折叠</span></div>'
+      +   '<div class="goal-grid cols-1">' + goals.map(renderCard).join('') + '</div>'
+      + '</div>';
+  }
+
+  var inProgress = window.GOALS.filter(function (g) { return !window.goalView(g.id).completed; });
+  var completed  = window.GOALS.filter(function (g) { return window.goalView(g.id).completed; });
+
+  var html = '';
+  if (inProgress.length > 0) html += renderGroup('进行中', 'clock', inProgress);
+  if (completed.length > 0)  html += renderGroup('已完成', 'check-circle', completed);
+  if (html === '') {
+    html = '<div class="empty"><div class="empty-ico">' + icon('target') + '</div><div class="empty-title">还没有目标</div>'
+      + '<div class="empty-text">点击右上「新建」开始攒钱 / 还债 / 投资</div>'
+      + '<button class="btn btn-gold" onclick="location.href=\'goal-form-mobile.html\'">' + icon('plus', 'icon-sm') + '新建第一个目标</button></div>';
+  }
+  document.getElementById('groups').innerHTML = html;
+
+  document.querySelectorAll('.goal-card').forEach(function (c) {
+    c.addEventListener('click', function () { location.href = 'goal-detail-mobile.html?id=' + c.dataset.id; });
+  });
+  document.querySelectorAll('.sg-toggle').forEach(function (t) {
+    t.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var grid = t.closest('.section-group').querySelector('.goal-grid');
+      grid.style.display = grid.style.display === 'none' ? '' : 'none';
+    });
+  });
+})();
+</script>
+</body>
+</html>

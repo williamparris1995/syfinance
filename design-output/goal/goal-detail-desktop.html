@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>御财 · 目标详情 — Desktop</title>
+
+<!-- ======================================================================
+     GoalDetailPage · Desktop (1440 · 侧栏 + 主区,以 g1 紧急备用金为例)
+     ----------------------------------------------------------------------------
+     spec §5.3 (3): 进度环 + 关联账户/债务列表 + 手动记贡献区
+       + 完成/删除/复制/编辑 actions + 趋势曲线区(占位 Phase 2)
+     API 标注(对照 spec §5.2):
+       · GetGoal(id)                                              ✅ 已实现
+       · RecordContribution(goal_id, amount, date, note)         ⏳ Phase 1
+       · MarkGoalCompleted(id)                                    ⏳ Phase 1
+       · CloneGoal(id)(DuplicateGoal)                             ✅ 已实现
+       · UpdateGoal / DeleteGoal                                  ✅ 已实现
+       · GetGoalProgressHistory(id, from, to) — 趋势曲线          ⏳ Phase 2
+     数据源: window.GOALS[id] / window.goalView / window.CONTRIBUTIONS
+     ====================================================================== -->
+<link rel="stylesheet" href="styles.css">
+<style>
+  .desk-main { min-height: 900px; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .detail-hero { padding: 28px; gap: 36px; }
+</style>
+</head>
+<body>
+
+<div class="desk-shell">
+
+  <!-- ============ 侧栏 ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">御</div>
+      <div class="brand-name">御财<span> · 目标</span></div>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-sec-label">目标管理</div>
+      <div class="nav-item active"><span id="navTarget"></span>全部目标<span class="nav-cnt">8</span></div>
+      <div class="nav-item"><span id="navCheck"></span>已完成<span class="nav-cnt">3</span></div>
+      <div class="nav-item"><span id="navClock"></span>进行中<span class="nav-cnt">5</span></div>
+    </div>
+    <div class="sidebar-foot">v1.0 · 御财目标<br>Path B fallback</div>
+  </aside>
+
+  <!-- ============ 主区 ============ -->
+  <main class="desk-main">
+    <header class="topbar-d">
+      <div class="tb-left">
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer;margin-bottom:4px" onclick="location.href='goal-list-desktop.html'">
+          <span id="backIcon"></span>返回目标列表
+        </div>
+        <h1 id="pageTitle">目标详情</h1>
+        <div class="tb-sub" id="pageSub"></div>
+      </div>
+      <div class="topbar-actions">
+        <button class="icon-btn" title="编辑" id="editBtn"><span id="editIcon"></span></button>
+        <button class="icon-btn" title="复制目标" id="dupBtn"><span id="dupIcon"></span></button>
+        <button class="icon-btn" title="删除" id="delBtn" style="color:var(--down)"><span id="delIcon"></span></button>
+      </div>
+    </header>
+
+    <!-- 头部 hero(大进度环) -->
+    <section class="detail-hero" id="detailHero"></section>
+
+    <!-- 关联实体卡 -->
+    <section id="linkedCard"></section>
+
+    <!-- 两列:手动贡献 + 趋势占位 -->
+    <section class="detail-grid">
+      <div class="card" id="contribCard"></div>
+      <div id="trendCard"></div>
+    </section>
+
+    <!-- 操作栏 -->
+    <section class="card" style="padding:16px 18px">
+      <div class="card-title" style="margin-bottom:12px"><span id="actIcon"></span>操作</div>
+      <div class="action-row" id="actionRow"></div>
+    </section>
+
+  </main>
+</div>
+
+<script src="mock-data.js"></script>
+<script>
+(function () {
+  var icon = window.icon;
+  var fmtCNY = window.fmtCNY;
+
+  /* icons */
+  document.getElementById('navTarget').innerHTML = icon('target');
+  document.getElementById('navCheck').innerHTML = icon('check-circle');
+  document.getElementById('navClock').innerHTML = icon('clock');
+  document.getElementById('backIcon').innerHTML = icon('arrow-left');
+  document.getElementById('editIcon').innerHTML = icon('pencil');
+  document.getElementById('dupIcon').innerHTML = icon('copy');
+  document.getElementById('delIcon').innerHTML = icon('trash-2');
+  document.getElementById('actIcon').innerHTML = icon('flag');
+
+  /* 取 id(?id= 默认 g1) */
+  var qs = new URLSearchParams(location.search);
+  var GOAL_ID = qs.get('id') || 'g1';
+  var g = window.GOALS.find(function (x) { return x.id === GOAL_ID; }) || window.GOALS[0];
+  var v = window.goalView(g.id);
+  var meta = v.typeMeta;
+
+  document.getElementById('pageTitle').textContent = g.name;
+  document.getElementById('pageSub').innerHTML = meta.label + ' · ' + g.deadline + ' · 创建于 ' + g.created_at;
+
+  /* —— hero(大进度环)—— */
+  var ringColor = v.status === 'completed' ? 'var(--up)' : (v.status === 'behind' ? 'var(--down)' : meta.color);
+  var ringStyle = window.ringGradient(v.pct, ringColor);
+  var remainCents = Math.max(0, g.target_cents - g.current_cents);
+  var urgent = !v.completed && v.daysLeft <= 90 && v.status === 'behind';
+
+  document.getElementById('detailHero').className = 'detail-hero ' + v.status;
+  document.getElementById('detailHero').innerHTML =
+      '<div class="progress-ring ring-lg" style="background:' + ringStyle + '">'
+    +   '<div class="pr-hole"><span class="pr-pct">' + v.pct.toFixed(1) + '%</span><span class="pr-label">已达成</span></div>'
+    + '</div>'
+    + '<div class="dh-info">'
+    +   '<div class="dh-name">' + icon(meta.icon) + g.name
+    +     '<span class="type-chip ' + meta.chipCls + '"><span class="tc-dot"></span>' + meta.label + '</span>'
+    +     '<span class="status-pill ' + v.status + '">' + icon(v.status === 'completed' ? 'check-circle' : v.status === 'behind' ? 'alert-triangle' : 'trending-up') + (v.completed ? '已完成' : v.status === 'behind' ? '落后' : '进行中') + '</span>'
+    +   '</div>'
+    +   '<div class="dh-vals">'
+    +     '<span class="dh-current">' + fmtCNY(g.current_cents) + '<span class="cc">CNY</span></span>'
+    +     '<span class="dh-sep">/</span>'
+    +     '<span class="dh-target">' + fmtCNY(g.target_cents) + '</span>'
+    +   '</div>'
+    +   '<div class="dh-remain">'
+    +     (v.completed ? '<span class="pill-num">已达成目标</span>' : '')
+    +     '<span class="pill-num' + (urgent ? ' urgent' : '') + '">还差 ' + fmtCNY(remainCents) + '</span>'
+    +     '<span>' + icon('calendar') + '距 ' + g.deadline + ' 还剩 <strong style="color:' + (urgent ? 'var(--down)' : 'var(--fg-strong)') + '">' + v.daysLeft + '</strong> 天</span>'
+    +     (v.eta !== '已达成' && v.eta !== '需手动' ? '<span>' + icon('flag') + '预计 ' + v.eta + ' 达成</span>' : '')
+    +   '</div>'
+    + '</div>';
+
+  /* —— 关联实体卡 —— */
+  var linkedHtml = '';
+  if (v.linkedType === 'account') {
+    var a = v.linked;
+    var contribPct = a && g.target_cents > 0 ? Math.min(100, (a.balance_cents / g.target_cents) * 100) : 0;
+    linkedHtml = '<div class="linked-card"><div class="lc-icon account">' + icon('wallet') + '</div>'
+      + '<div class="lc-info"><span class="lc-label">关联账户</span><span class="lc-name">' + a.name + '</span>'
+      + '<span class="lc-meta">' + a.type + ' · ' + a.number + ' · 占目标 ' + contribPct.toFixed(0) + '%</span></div>'
+      + '<div class="lc-val">' + fmtCNY(a.balance_cents) + '<span class="cc">CNY</span></div></div>';
+  } else if (v.linkedType === 'debt') {
+    var d = v.linked;
+    var paidPct = d && d.original_principal_cents > 0 ? ((d.original_principal_cents - d.remaining_principal_cents) / d.original_principal_cents) * 100 : 0;
+    linkedHtml = '<div class="linked-card"><div class="lc-icon debt">' + icon('credit-card') + '</div>'
+      + '<div class="lc-info"><span class="lc-label">关联债务</span><span class="lc-name">' + d.name + '</span>'
+      + '<span class="lc-meta">APR ' + d.apr + '% · 已还 ' + paidPct.toFixed(0) + '%</span></div>'
+      + '<div class="lc-val">剩 ' + fmtCNY(d.remaining_principal_cents) + '<span class="cc">CNY</span></div></div>';
+  } else if (v.linkedType === 'holding') {
+    var h = v.linked;
+    var upPct = h && h.today_pct >= 0;
+    linkedHtml = '<div class="linked-card"><div class="lc-icon holding">' + icon('trending-up') + '</div>'
+      + '<div class="lc-info"><span class="lc-label">关联持仓</span><span class="lc-name mono">' + h.symbol + ' · ' + h.name + '</span>'
+      + '<span class="lc-meta">今日 <span class="' + (upPct ? 'pnl-up' : 'pnl-down') + '" style="color:' + (upPct ? 'var(--up)' : 'var(--down)') + '">' + (upPct ? '+' : '') + h.today_pct + '%</span></span></div>'
+      + '<div class="lc-val">' + fmtCNY(h.market_value_cents) + '<span class="cc">CNY</span></div></div>';
+  }
+  document.getElementById('linkedCard').innerHTML = linkedHtml;
+
+  /* —— 手动记贡献(可折叠)—— */
+  var contribs = window.CONTRIBUTIONS[g.id] || [];
+  var contribBody =
+      '<div class="card-head"><div class="card-title"><span>' + icon('coins') + '</span>手动记贡献</div>'
+    +   '<span class="card-sub">RecordContribution · ⏳ Phase 1 · ' + contribs.length + ' 条</span></div>'
+    + '<div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">'
+    +   '<input class="form-control" type="date" style="width:auto;flex:0 0 140px" value="2026-06-30">'
+    +   '<div class="input-prefix" style="flex:1;min-width:120px"><span class="ip-pre">¥</span><input class="form-control mono" type="number" placeholder="2000" id="contribAmt"></div>'
+    +   '<input class="form-control" placeholder="备注" style="flex:1;min-width:120px">'
+    +   '<button class="btn btn-gold btn-sm" id="contribAdd">' + icon('plus', 'icon-sm') + '记一笔</button>'
+    + '</div>'
+    + (contribs.length === 0
+        ? '<div class="empty" style="padding:24px"><div class="empty-text">暂无贡献记录</div></div>'
+        : '<table class="contrib-table"><thead><tr><th>日期</th><th>金额</th><th>备注</th><th>来源</th></tr></thead><tbody>'
+          + contribs.map(function (c) {
+              return '<tr><td>' + c.date + '</td>'
+                + '<td class="num amt-pos">+' + fmtCNY(c.amount_cents) + '</td>'
+                + '<td>' + (c.note || '—') + '</td>'
+                + '<td><span class="status-pill ontrack" style="font-size:10px">' + c.source + '</span></td></tr>';
+            }).join('') + '</tbody></table>');
+  document.getElementById('contribCard').innerHTML = contribBody;
+
+  /* —— 趋势曲线占位(Phase 2)—— */
+  document.getElementById('trendCard').innerHTML =
+      '<div class="card" style="height:100%"><div class="card-head"><div class="card-title"><span>' + icon('trending-up') + '</span>目标进度趋势</div>'
+    +   '<span class="card-sub">GetGoalProgressHistory · ⏳ Phase 2</span></div></div>'
+    + '<div class="trend-placeholder" style="margin-top:8px">'
+    +   '<div class="tp-icon">' + icon('trending-up') + '</div>'
+    +   '<div class="tp-title">趋势曲线即将上线</div>'
+    +   '<div class="tp-text">每日 progress snapshot 将绘制曲线(照 holding perf curve)</div>'
+    +   '<div class="tp-badge">Phase 2</div>'
+    + '</div>';
+
+  /* —— 操作栏 —— */
+  var actHtml = '';
+  if (!v.completed) {
+    actHtml += '<button class="btn btn-gold" id="completeBtn">' + icon('check-circle', 'icon-sm') + '标记完成</button>';
+  } else {
+    actHtml += '<button class="btn btn-ghost" disabled>' + icon('check', 'icon-sm') + '已完成</button>';
+  }
+  actHtml += '<button class="btn btn-ghost" id="editBtn2">' + icon('pencil', 'icon-sm') + '编辑目标</button>';
+  actHtml += '<button class="btn btn-ghost" id="dupBtn2">' + icon('copy', 'icon-sm') + '复制目标</button>';
+  actHtml += '<button class="btn btn-danger" id="delBtn2">' + icon('trash-2', 'icon-sm') + '删除</button>';
+  document.getElementById('actionRow').innerHTML = actHtml;
+
+  /* —— 事件 —— */
+  function flash(msg, ok) {
+    var t = document.createElement('div'); t.className = 'toast';
+    t.innerHTML = icon(ok === false ? 'alert-triangle' : 'check-circle') + msg;
+    if (ok === false) t.style.background = 'var(--down)';
+    document.body.appendChild(t); setTimeout(function () { t.remove(); }, 1800);
+  }
+  function goEdit() { location.href = 'goal-edit-desktop.html?id=' + g.id; }
+  document.getElementById('editBtn').onclick = goEdit;
+  document.getElementById('editBtn2').onclick = goEdit;
+  document.getElementById('dupBtn').onclick = function () { flash('已复制目标「' + g.name + ' 副本」(mock · CloneGoal)', true); };
+  document.getElementById('dupBtn2').onclick = function () { flash('已复制目标「' + g.name + ' 副本」(mock · CloneGoal)', true); };
+  document.getElementById('delBtn').onclick = function () { if (confirm('确认删除「' + g.name + '」?')) { flash('已删除(mock)', true); setTimeout(function () { location.href = 'goal-list-desktop.html'; }, 1200); } };
+  document.getElementById('delBtn2').onclick = function () { document.getElementById('delBtn').click(); };
+  var cb = document.getElementById('completeBtn');
+  if (cb) cb.onclick = function () { flash('已标记完成「' + g.name + '」(mock · MarkGoalCompleted)', true); };
+  var ca = document.getElementById('contribAdd');
+  if (ca) ca.onclick = function () {
+    var amt = document.getElementById('contribAmt');
+    if (!amt.value || parseFloat(amt.value) <= 0) { flash('请填金额', false); return; }
+    flash('已记贡献 ¥' + parseFloat(amt.value).toFixed(2) + '(mock · RecordContribution)', true);
+  };
+})();
+</script>
+</body>
+</html>

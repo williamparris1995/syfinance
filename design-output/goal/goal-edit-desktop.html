@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>御财 · 编辑目标 — Desktop</title>
+
+<!-- ======================================================================
+     GoalEditPage · Desktop (1440 · 复用 Form 布局,预填 g1,type 置灰只读)
+     ----------------------------------------------------------------------------
+     spec §5.3 (4): 编辑复用 GoalFormPage 布局。差异:
+       · 标题 "编辑目标"
+       · type 不可改(置灰显示当前 type,仅展示不切换)
+       · 所有字段预填 goal 数据(g1 紧急备用金)
+       · 顶部多「删除目标」红色链接(带确认)
+       · 底部按钮:取消 / 保存修改(金色)
+     API 标注:
+       · UpdateGoal(id, target_cents, deadline, ...)                  ✅ 已实现
+       · DeleteGoal(id)                                                ✅ 已实现
+     数据源: window.GOALS[id](默认 g1,query ?id= 指定)
+     ====================================================================== -->
+<link rel="stylesheet" href="styles.css">
+<style>
+  .desk-main { min-height: 900px; }
+  .form-layout { display: grid; grid-template-columns: 200px 1fr; gap: 28px; }
+  .danger-link { display: inline-flex; align-items: center; gap: 5px; color: var(--down);
+    font-size: 12.5px; cursor: pointer; padding: 6px 0; }
+  .danger-link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="desk-shell">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">御</div>
+      <div class="brand-name">御财<span> · 目标</span></div>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-sec-label">目标管理</div>
+      <div class="nav-item"><span id="navTarget"></span>全部目标<span class="nav-cnt">8</span></div>
+      <div class="nav-item"><span id="navCheck"></span>已完成<span class="nav-cnt">3</span></div>
+      <div class="nav-item"><span id="navClock"></span>进行中<span class="nav-cnt">5</span></div>
+    </div>
+    <div class="sidebar-foot">v1.0 · 御财目标</div>
+  </aside>
+
+  <main class="desk-main">
+    <header class="topbar-d">
+      <div class="tb-left">
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer;margin-bottom:4px" onclick="location.href='goal-detail-desktop.html?id=' + (new URLSearchParams(location.search).get('id')||'g1')">
+          <span id="backIcon"></span>返回目标详情
+        </div>
+        <h1>编辑目标</h1>
+        <div class="tb-sub" id="pageSub">type 不可改 · 改完点保存</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost" onclick="history.back()">取消</button>
+        <button class="btn btn-gold" id="saveBtn"><span id="saveIcon" class="icon icon-sm"></span>保存修改</button>
+      </div>
+    </header>
+
+    <div class="form-layout">
+      <div class="form-side">
+        <div style="padding:12px 10px;background:var(--accent-soft);border-radius:8px;font-size:12px;color:var(--gold-deep);line-height:1.6">
+          <span id="tipIcon"></span><strong>编辑模式</strong><br>
+          type 已锁定(g1=savings),改 type 需删除重建。关联切换后 current_cents 由 Phase 1 server 重算。
+        </div>
+        <div style="margin-top:14px">
+          <span class="danger-link" id="delLink"><span id="delIcon"></span>删除此目标</span>
+        </div>
+      </div>
+
+      <div class="form-main">
+        <div class="form-card">
+          <h3 style="margin-bottom:6px" id="formTitle">编辑 — 紧急备用金</h3>
+          <div class="card-sub" style="margin-bottom:18px">所有字段已预填,可修改后保存</div>
+
+          <!-- type(只读置灰) -->
+          <div class="form-group">
+            <label class="form-label">目标类型(不可改)</label>
+            <div id="typeLocked"></div>
+            <div class="form-hint">改 type 需删除目标重建(避免 current_cents 语义冲突)</div>
+          </div>
+
+          <div id="editBody"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="mock-data.js"></script>
+<script>
+(function () {
+  var icon = window.icon;
+  var fmtCNY = window.fmtCNY;
+  document.getElementById('navTarget').innerHTML = icon('target');
+  document.getElementById('navCheck').innerHTML = icon('check-circle');
+  document.getElementById('navClock').innerHTML = icon('clock');
+  document.getElementById('backIcon').innerHTML = icon('arrow-left');
+  document.getElementById('saveIcon').innerHTML = icon('check');
+  document.getElementById('tipIcon').innerHTML = icon('info');
+  document.getElementById('delIcon').innerHTML = icon('trash-2');
+
+  var qs = new URLSearchParams(location.search);
+  var GOAL_ID = qs.get('id') || 'g1';
+  var g = window.GOALS.find(function (x) { return x.id === GOAL_ID; }) || window.GOALS[0];
+  var meta = window.GOAL_TYPES[g.type];
+
+  document.getElementById('formTitle').innerHTML = '编辑 — ' + g.name;
+  document.getElementById('pageSub').textContent = meta.label + ' · type 不可改 · 改完点保存';
+
+  /* type 锁定(只读展示) */
+  document.getElementById('typeLocked').innerHTML =
+      '<div class="type-option selected" style="cursor:default;opacity:.85">'
+    +   '<div class="to-icon ' + (g.type === 'savings' ? 'savings' : g.type === 'debt_payoff' ? 'debt' : 'investment') + '">' + icon(meta.icon) + '</div>'
+    +   '<div class="to-name">' + meta.label + '</div>'
+    +   '<div class="to-desc">' + meta.desc + '</div>'
+    + '</div>';
+
+  /* 动态字段(预填) */
+  var body = '<div class="form-group"><label class="form-label">目标名称 <span class="req">*</span></label>'
+    + '<input class="form-control" id="f_name" value="' + g.name + '"></div>';
+
+  if (g.type === 'debt_payoff') {
+    var d = window.DEBTS.find(function (x) { return x.id === g.linked_debt_id; }) || window.DEBTS[0];
+    body += '<div class="form-group"><label class="form-label">关联债务</label><div class="picker-list"><div class="picker-row selected"><span class="pr-radio">' + icon('check') + '</span><div class="pr-info"><span class="pr-name">' + d.name + '</span><span class="pr-sub">APR ' + d.apr + '%</span></div><span class="pr-val">剩 ' + fmtCNY(d.remaining_principal_cents) + '</span></div></div></div>';
+    body += '<div class="form-group"><label class="form-label">目标金额(=剩余本金)</label><div class="input-prefix"><span class="ip-pre">¥</span><input class="form-control mono" readonly value="' + (g.target_cents / 100).toFixed(2) + '"></div></div>';
+  } else if (g.type === 'savings') {
+    body += '<div class="form-group"><label class="form-label">目标金额 <span class="req">*</span></label><div class="input-prefix"><span class="ip-pre">¥</span><input class="form-control mono" id="f_target" type="number" value="' + (g.target_cents / 100) + '"></div></div>';
+    body += '<div class="form-group"><label class="form-label">关联账户</label>'
+      + '<div class="picker-list" id="acctPicker">' + window.ACCOUNTS.map(function (a) {
+          var sel = a.id === g.linked_account_id;
+          return '<div class="picker-row' + (sel ? ' selected' : '') + '" data-id="' + a.id + '"><span class="pr-radio">' + icon('check') + '</span><div class="pr-info"><span class="pr-name">' + a.name + '</span><span class="pr-sub">' + a.type + ' · ' + a.number + '</span></div><span class="pr-val">' + fmtCNY(a.balance_cents) + '</span></div>';
+        }).join('') + '</div></div>';
+  } else {
+    body += '<div class="form-group"><label class="form-label">目标金额 <span class="req">*</span></label><div class="input-prefix"><span class="ip-pre">¥</span><input class="form-control mono" id="f_target" type="number" value="' + (g.target_cents / 100) + '"></div></div>';
+    body += '<div class="form-group"><label class="form-label">关联持仓</label>'
+      + '<div class="picker-list" id="holdPicker">' + window.HOLDINGS.map(function (h) {
+          var sel = h.id === g.backing_holding_id;
+          return '<div class="picker-row' + (sel ? ' selected' : '') + '" data-id="' + h.id + '"><span class="pr-radio">' + icon('check') + '</span><div class="pr-info"><span class="pr-name mono">' + h.symbol + '</span><span class="pr-sub">' + h.name + '</span></div><span class="pr-val">' + fmtCNY(h.market_value_cents) + '</span></div>';
+        }).join('') + '</div></div>';
+  }
+
+  body += '<div class="form-group"><label class="form-label">截止日期 <span class="req">*</span></label><input class="form-control" id="f_deadline" type="date" value="' + g.deadline + '"></div>';
+  var ml = g.type === 'debt_payoff' ? '月还款额' : (g.type === 'investment' ? '月定投额' : '月储蓄额');
+  body += '<div class="form-group"><label class="form-label">' + ml + '(可选)</label><div class="input-prefix"><span class="ip-pre">¥</span><input class="form-control mono" id="f_monthly" type="number" value="' + (g.monthly_contribution_cents / 100) + '"></div></div>';
+  body += '<div class="form-group"><label class="form-label">备注</label><textarea class="form-control" id="f_note" rows="2">' + (g.note || '') + '</textarea></div>';
+
+  document.getElementById('editBody').innerHTML = body;
+
+  /* picker 切换(mock) */
+  var ap = document.querySelector('#acctPicker');
+  if (ap) ap.querySelectorAll('.picker-row').forEach(function (r) { r.onclick = function () { ap.querySelectorAll('.picker-row').forEach(function (x) { x.classList.remove('selected'); }); r.classList.add('selected'); }; });
+  var hp = document.querySelector('#holdPicker');
+  if (hp) hp.querySelectorAll('.picker-row').forEach(function (r) { r.onclick = function () { hp.querySelectorAll('.picker-row').forEach(function (x) { x.classList.remove('selected'); }); r.classList.add('selected'); }; });
+
+  function flash(msg, ok) { var t = document.createElement('div'); t.className = 'toast'; t.innerHTML = icon(ok === false ? 'alert-triangle' : 'check-circle') + msg; if (ok === false) t.style.background = 'var(--down)'; document.body.appendChild(t); setTimeout(function () { t.remove(); }, 1800); }
+
+  document.getElementById('saveBtn').onclick = function () {
+    var name = document.getElementById('f_name').value.trim();
+    if (!name) { flash('请填写名称', false); return; }
+    flash('已保存「' + name + '」修改(mock · UpdateGoal)', true);
+    setTimeout(function () { location.href = 'goal-detail-desktop.html?id=' + g.id; }, 1400);
+  };
+  document.getElementById('delLink').onclick = function () {
+    if (confirm('确认删除目标「' + g.name + '」?此操作不可撤销。')) {
+      flash('已删除(mock · DeleteGoal)', true);
+      setTimeout(function () { location.href = 'goal-list-desktop.html'; }, 1200);
+    }
+  };
+})();
+</script>
+</body>
+</html>
