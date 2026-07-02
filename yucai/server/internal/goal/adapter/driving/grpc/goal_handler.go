@@ -43,13 +43,13 @@ func (h *GoalHandler) CreateGoal(ctx context.Context, req *pb.CreateGoalRequest)
 		deadline = &d
 	}
 
-	var linkedAccountIDs []uuid.UUID
-	if req.LinkedAccountId != "" {
-		aid, err := uuid.Parse(req.LinkedAccountId)
-		if err != nil {
-			return nil, status.Error(codes.InvalidArgument, "invalid linked_account_id")
-		}
-		linkedAccountIDs = []uuid.UUID{aid}
+	linkedAccountIDs, err := parseMultiIDs(req.LinkedAccountIds, req.LinkedAccountId)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid linked_account_ids")
+	}
+	linkedDebtIDs, err := parseMultiIDs(req.LinkedDebtIds, "")
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid linked_debt_ids")
 	}
 
 	resp, err := h.service.CreateGoal(ctx, application.CreateGoalRequest{
@@ -60,6 +60,7 @@ func (h *GoalHandler) CreateGoal(ctx context.Context, req *pb.CreateGoalRequest)
 		CurrencyCode:      req.CurrencyCode,
 		Deadline:          deadline,
 		LinkedAccountIDs:  linkedAccountIDs,
+		LinkedDebtIDs:     linkedDebtIDs,
 		Notes:             req.Notes,
 	})
 	if err != nil {
@@ -259,6 +260,36 @@ func (h *GoalHandler) SyncInvestmentGoals(ctx context.Context, _ *pb.SyncInvestm
 	}, nil
 }
 
+// CloneGoal duplicates an existing goal with overridden target/deadline/name.
+// Replaces UnimplementedGoalServiceServer.CloneGoal. Per-tenant: the source
+// goal must belong to the caller. Overrides follow the domain.Clone rules
+// (target ≤0 → keep source, deadline "" → drop, name "" → keep source).
+func (h *GoalHandler) CloneGoal(ctx context.Context, req *pb.CloneGoalRequest) (*pb.GoalResponse, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	sourceID, err := uuid.Parse(req.GetSourceGoalId())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid source_goal_id")
+	}
+
+	var deadline *time.Time
+	if req.GetDeadline() != "" {
+		t, err := parseDate(req.GetDeadline())
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid deadline")
+		}
+		deadline = &t
+	}
+
+	dto, err := h.service.CloneGoal(ctx, tenantID, sourceID, req.GetTargetAmountCents(), deadline, req.GetName())
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.GoalResponse{Goal: goalToProto(*dto)}, nil
+}
+
 func goalToProto(g application.GoalDTO) *pb.GoalDTO {
 	p := &pb.GoalDTO{
 		Id:                 g.ID.String(),
@@ -278,10 +309,23 @@ func goalToProto(g application.GoalDTO) *pb.GoalDTO {
 	if g.Deadline != nil {
 		p.Deadline = timestamppb.New(*g.Deadline)
 	}
-	// proto carries a single linked_account_id; surface the first linked account
-	// (multi-account proto field lands in a later task).
+	// Multi-account (D-goal/Task 8): surface every linked account + debt. The
+	// legacy single linked_account_id field is kept populated with the first
+	// linked account for back-compat with older clients.
 	if len(g.LinkedAccountIDs) > 0 {
-		p.LinkedAccountId = g.LinkedAccountIDs[0].String()
+		ids := make([]string, len(g.LinkedAccountIDs))
+		for i, id := range g.LinkedAccountIDs {
+			ids[i] = id.String()
+		}
+		p.LinkedAccountIds = ids
+		p.LinkedAccountId = ids[0]
+	}
+	if len(g.LinkedDebtIDs) > 0 {
+		ids := make([]string, len(g.LinkedDebtIDs))
+		for i, id := range g.LinkedDebtIDs {
+			ids[i] = id.String()
+		}
+		p.LinkedDebtIds = ids
 	}
 	if g.CompletedAt != nil {
 		p.CompletedAt = timestamppb.New(*g.CompletedAt)
@@ -317,6 +361,32 @@ func goalTypeToProto(gt domain.GoalType) pb.GoalType {
 
 func parseDate(s string) (time.Time, error) {
 	return time.Parse("2006-01-02", s)
+}
+
+// parseMultiIDs parses the repeated multi-ID proto field into UUIDs, falling
+// back to the single legacy field (legacySingle) when the repeated field is
+// empty (back-compat with older clients that still send linked_account_id=8).
+// Returns nil for an empty input; returns an error on any malformed ID.
+func parseMultiIDs(multi []string, legacySingle string) ([]uuid.UUID, error) {
+	if len(multi) == 0 {
+		if legacySingle == "" {
+			return nil, nil
+		}
+		id, err := uuid.Parse(legacySingle)
+		if err != nil {
+			return nil, err
+		}
+		return []uuid.UUID{id}, nil
+	}
+	ids := make([]uuid.UUID, 0, len(multi))
+	for _, s := range multi {
+		id, err := uuid.Parse(s)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
 }
 
 func getTenantID(ctx context.Context) (uuid.UUID, error) {

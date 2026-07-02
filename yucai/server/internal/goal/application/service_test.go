@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/goal/domain"
@@ -295,5 +296,127 @@ func TestSyncAllGoalsNilPortSkipsType(t *testing.T) {
 	}
 	if n != 0 {
 		t.Fatalf("synced = %d, want 0 (mv port nil → all skipped)", n)
+	}
+}
+
+// --- D-goal Task 8: CloneGoal + multi-account CreateGoal ---
+
+// cloneRepo is an in-memory GoalRepository focused on the CloneGoal path
+// (FindByID + Save) and the multi-account CreateGoal path (Save). Other methods
+// are no-ops; FindAll/Update/WriteSnapshot are intentionally unused here.
+type cloneRepo struct {
+	byID map[uuid.UUID]*domain.Goal
+	saved []*domain.Goal // goals passed to Save, in call order
+}
+
+func newCloneRepo(seed *domain.Goal) *cloneRepo {
+	r := &cloneRepo{byID: map[uuid.UUID]*domain.Goal{}}
+	if seed != nil {
+		cp := *seed
+		r.byID[seed.ID] = &cp
+	}
+	return r
+}
+
+func (r *cloneRepo) Save(_ context.Context, g *domain.Goal) error {
+	r.saved = append(r.saved, g)
+	cp := *g
+	r.byID[g.ID] = &cp
+	return nil
+}
+func (r *cloneRepo) FindByID(_ context.Context, _ uuid.UUID, id uuid.UUID) (*domain.Goal, error) {
+	g, ok := r.byID[id]
+	if !ok {
+		return nil, errors.New("goal not found")
+	}
+	cp := *g
+	return &cp, nil
+}
+func (r *cloneRepo) FindAll(context.Context, uuid.UUID, *bool, *domain.GoalType, domain.PageRequest) (*domain.PaginatedResult[domain.Goal], error) {
+	panic("not used in CloneGoal/CreateGoal test")
+}
+func (r *cloneRepo) Update(context.Context, *domain.Goal) error { panic("not used") }
+func (r *cloneRepo) Delete(context.Context, uuid.UUID, uuid.UUID) error { return nil }
+func (r *cloneRepo) WriteSnapshot(context.Context, *domain.Goal) error { return nil }
+
+// TestCloneGoal verifies CloneGoal deep-copies the source into a new entity with
+// reset progress, an overridden target, and the linked account/debt IDs carried
+// over. The clone gets a fresh ID (≠ source) and Save is called exactly once.
+func TestCloneGoal(t *testing.T) {
+	src, err := domain.NewGoal(tenantID, "orig", domain.GoalTypeInvestment, 100000, "CNY", nil,
+		[]uuid.UUID{acct1, acct2}, nil, "notes")
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	repo := newCloneRepo(src)
+	svc := NewService(repo)
+
+	dto, err := svc.CloneGoal(context.Background(), tenantID, src.ID, 200000, nil, "cloned")
+	if err != nil {
+		t.Fatalf("CloneGoal error: %v", err)
+	}
+	if len(repo.saved) != 1 {
+		t.Fatalf("Save calls = %d, want 1", len(repo.saved))
+	}
+	if dto.ID == src.ID {
+		t.Fatal("clone must have a fresh ID, got source ID")
+	}
+	if dto.TargetAmountCents != 200000 {
+		t.Errorf("clone target = %d, want 200000", dto.TargetAmountCents)
+	}
+	if dto.Name != "cloned" {
+		t.Errorf("clone name = %q, want \"cloned\"", dto.Name)
+	}
+	if dto.CurrentAmountCents != 0 {
+		t.Errorf("clone current = %d, want 0 (reset)", dto.CurrentAmountCents)
+	}
+	if len(dto.LinkedAccountIDs) != 2 || dto.LinkedAccountIDs[0] != acct1 || dto.LinkedAccountIDs[1] != acct2 {
+		t.Errorf("clone linked accounts = %v, want [acct1, acct2]", dto.LinkedAccountIDs)
+	}
+}
+
+// TestCloneGoalSourceNotFound verifies a missing source surfaces a not-found error.
+func TestCloneGoalSourceNotFound(t *testing.T) {
+	repo := newCloneRepo(nil)
+	svc := NewService(repo)
+	_, err := svc.CloneGoal(context.Background(), tenantID, uuid.New(), 0, nil, "")
+	if err == nil {
+		t.Fatal("expected error for missing source, got nil")
+	}
+}
+
+// TestCreateGoalMultiAccount verifies CreateGoal persists a goal carrying every
+// linked account + debt ID supplied (multi-account signature, Task 3/8).
+func TestCreateGoalMultiAccount(t *testing.T) {
+	repo := newCloneRepo(nil)
+	svc := NewService(repo)
+	deadline := time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	dto, err := svc.CreateGoal(context.Background(), CreateGoalRequest{
+		TenantID:          tenantID,
+		Name:              "retire",
+		GoalType:          domain.GoalTypeDebtPayoff,
+		TargetAmountCents: 500000,
+		CurrencyCode:      "CNY",
+		Deadline:          &deadline,
+		LinkedAccountIDs:  []uuid.UUID{acct1},
+		LinkedDebtIDs:     []uuid.UUID{debt1},
+		Notes:             "multi",
+	})
+	if err != nil {
+		t.Fatalf("CreateGoal error: %v", err)
+	}
+	if len(dto.LinkedAccountIDs) != 1 || dto.LinkedAccountIDs[0] != acct1 {
+		t.Errorf("dto linked accounts = %v, want [acct1]", dto.LinkedAccountIDs)
+	}
+	if len(dto.LinkedDebtIDs) != 1 || dto.LinkedDebtIDs[0] != debt1 {
+		t.Errorf("dto linked debts = %v, want [debt1]", dto.LinkedDebtIDs)
+	}
+	if len(repo.saved) != 1 {
+		t.Fatalf("Save calls = %d, want 1", len(repo.saved))
+	}
+	saved := repo.saved[0]
+	if len(saved.LinkedDebtIDs) != 1 || saved.LinkedDebtIDs[0] != debt1 {
+		t.Errorf("saved linked debts = %v, want [debt1]", saved.LinkedDebtIDs)
 	}
 }

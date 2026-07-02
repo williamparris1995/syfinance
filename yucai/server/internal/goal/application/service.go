@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/goal/domain"
@@ -44,6 +45,26 @@ func (s *Service) CreateGoal(ctx context.Context, req CreateGoalRequest) (*GoalD
 	}
 
 	dto := GoalToDTO(goal)
+	return &dto, nil
+}
+
+// CloneGoal duplicates an existing goal into a fresh row with reset progress.
+// The caller may override targetAmountCents (≤0 → keep source), deadline
+// (nil → drop), and name ("" → keep source). Linked account/debt IDs are
+// deep-copied by domain.Clone. The cloned goal is saved as a new entity.
+func (s *Service) CloneGoal(ctx context.Context, tenantID, sourceID uuid.UUID, targetAmountCents int64, deadline *time.Time, name string) (*GoalDTO, error) {
+	src, err := s.repo.FindByID(ctx, tenantID, sourceID)
+	if err != nil {
+		return nil, fmt.Errorf("source goal not found: %w", err)
+	}
+	cloned, err := src.Clone(tenantID, targetAmountCents, deadline, name)
+	if err != nil {
+		return nil, fmt.Errorf("clone goal: %w", err)
+	}
+	if err := s.repo.Save(ctx, cloned); err != nil {
+		return nil, fmt.Errorf("save cloned goal: %w", err)
+	}
+	dto := GoalToDTO(cloned)
 	return &dto, nil
 }
 

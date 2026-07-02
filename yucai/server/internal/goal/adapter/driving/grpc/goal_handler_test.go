@@ -30,15 +30,24 @@ type fakeRepo struct {
 	goals    []*domain.Goal           // working set (mutated by Update)
 	listedGT *domain.GoalType         // last GoalType arg passed to FindAll
 	updated  []*domain.Goal           // goals persisted by Update
+	saved    []*domain.Goal           // goals persisted by Save (CreateGoal/CloneGoal)
 }
 
 func (r *fakeRepo) Save(_ context.Context, g *domain.Goal) error {
+	r.saved = append(r.saved, g)
 	r.goals = append(r.goals, g)
 	return nil
 }
 
-func (r *fakeRepo) FindByID(context.Context, uuid.UUID, uuid.UUID) (*domain.Goal, error) {
-	return nil, errors.New("not found")
+func (r *fakeRepo) FindByID(_ context.Context, _ uuid.UUID, id uuid.UUID) (*domain.Goal, error) {
+	// return a deep copy so callers can mutate without touching the stored slice
+	for _, g := range r.goals {
+		if g.ID == id {
+			cp := *g
+			return &cp, nil
+		}
+	}
+	return nil, errors.New("goal not found")
 }
 
 // FindAll honors the goalType filter (nil = all) and records the arg.
@@ -209,5 +218,127 @@ func TestProtoGoalTypeMapping(t *testing.T) {
 		if got := goalTypeToProto(c.dom); got != c.proto {
 			t.Errorf("goalTypeToProto(%v) = %v, want %v", c.dom, got, c.proto)
 		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// D-goal Task 8: GoalHandler.CloneGoal + CreateGoal multi-account mapping
+// ---------------------------------------------------------------------------
+
+// TestCloneGoal verifies the handler parses the source_goal_id, drives
+// application.CloneGoal, and returns the cloned DTO with a fresh ID and the
+// overridden target/name. The source goal's linked accounts are carried over.
+func TestCloneGoal(t *testing.T) {
+	tenantID := uuid.New()
+	src := newInvestmentGoal(tenantID, uuid.New()) // target 1_000_000, 1 linked acct
+	repo := &fakeRepo{goals: []*domain.Goal{src}}
+	svc := application.NewService(repo)
+	h := NewGoalHandler(svc)
+
+	resp, err := h.CloneGoal(withTenant(tenantID), &pb.CloneGoalRequest{
+		SourceGoalId:      src.ID.String(),
+		TargetAmountCents: 2_000_000,
+		Name:              "cloned",
+	})
+	if err != nil {
+		t.Fatalf("CloneGoal error: %v", err)
+	}
+	g := resp.GetGoal()
+	if g.GetId() == src.ID.String() {
+		t.Error("clone must have a fresh ID, got source ID")
+	}
+	if g.GetTargetAmountCents() != 2_000_000 {
+		t.Errorf("clone target = %d, want 2000000", g.GetTargetAmountCents())
+	}
+	if g.GetName() != "cloned" {
+		t.Errorf("clone name = %q, want \"cloned\"", g.GetName())
+	}
+	// Multi-account: linked_account_ids carries the source's account over.
+	if len(g.GetLinkedAccountIds()) != 1 {
+		t.Errorf("clone linked_account_ids = %v, want 1 id", g.GetLinkedAccountIds())
+	}
+}
+
+// TestCloneGoal_InvalidSourceID verifies an unparseable source_goal_id surfaces
+// InvalidArgument (not Internal).
+func TestCloneGoal_InvalidSourceID(t *testing.T) {
+	svc := application.NewService(&fakeRepo{})
+	h := NewGoalHandler(svc)
+	_, err := h.CloneGoal(withTenant(uuid.New()), &pb.CloneGoalRequest{
+		SourceGoalId: "not-a-uuid",
+	})
+	st, ok := status.FromError(err)
+	if !ok {
+		t.Fatalf("expected gRPC status error, got %T", err)
+	}
+	if st.Code().String() != "InvalidArgument" {
+		t.Errorf("error code = %v, want InvalidArgument", st.Code())
+	}
+}
+
+// TestCreateGoalMultiAccount verifies CreateGoal reads the repeated
+// linked_account_ids / linked_debt_ids proto fields (Task 8) and forwards them
+// to the service. Both DebtPayoff debts and multiple accounts are exercised.
+func TestCreateGoalMultiAccount(t *testing.T) {
+	tenantID := uuid.New()
+	acct1, acct2, debt1 := uuid.New(), uuid.New(), uuid.New()
+	repo := &fakeRepo{}
+	svc := application.NewService(repo)
+	h := NewGoalHandler(svc)
+
+	resp, err := h.CreateGoal(withTenant(tenantID), &pb.CreateGoalRequest{
+		Name:               "payoff",
+		GoalType:           pb.GoalType_GOAL_TYPE_DEBT_PAYOFF,
+		TargetAmountCents:  500_000,
+		CurrencyCode:       "CNY",
+		LinkedAccountIds:   []string{acct1.String(), acct2.String()},
+		LinkedDebtIds:      []string{debt1.String()},
+	})
+	if err != nil {
+		t.Fatalf("CreateGoal error: %v", err)
+	}
+	g := resp.GetGoal()
+	// Multi-account surfaced on the response DTO.
+	if len(g.GetLinkedAccountIds()) != 2 {
+		t.Errorf("response linked_account_ids = %v, want 2", g.GetLinkedAccountIds())
+	}
+	if len(g.GetLinkedDebtIds()) != 1 {
+		t.Errorf("response linked_debt_ids = %v, want 1", g.GetLinkedDebtIds())
+	}
+	// The persisted goal carries the multi-account links too.
+	if len(repo.saved) != 1 {
+		t.Fatalf("Save calls = %d, want 1", len(repo.saved))
+	}
+	saved := repo.saved[0]
+	if len(saved.LinkedAccountIDs) != 2 || saved.LinkedAccountIDs[0] != acct1 || saved.LinkedAccountIDs[1] != acct2 {
+		t.Errorf("saved linked accounts = %v, want [acct1, acct2]", saved.LinkedAccountIDs)
+	}
+	if len(saved.LinkedDebtIDs) != 1 || saved.LinkedDebtIDs[0] != debt1 {
+		t.Errorf("saved linked debts = %v, want [debt1]", saved.LinkedDebtIDs)
+	}
+}
+
+// TestCreateGoalLegacySingleAccount verifies the legacy single linked_account_id
+// field is still honored when the repeated field is empty (back-compat).
+func TestCreateGoalLegacySingleAccount(t *testing.T) {
+	tenantID := uuid.New()
+	acct := uuid.New()
+	repo := &fakeRepo{}
+	svc := application.NewService(repo)
+	h := NewGoalHandler(svc)
+
+	resp, err := h.CreateGoal(withTenant(tenantID), &pb.CreateGoalRequest{
+		Name:              "legacy",
+		GoalType:          pb.GoalType_GOAL_TYPE_SAVINGS,
+		TargetAmountCents: 100_000,
+		CurrencyCode:      "CNY",
+		LinkedAccountId:   acct.String(), // legacy single field
+	})
+	if err != nil {
+		t.Fatalf("CreateGoal error: %v", err)
+	}
+	g := resp.GetGoal()
+	if len(g.GetLinkedAccountIds()) != 1 || g.GetLinkedAccountIds()[0] != acct.String() {
+		t.Errorf("response linked_account_ids = %v, want [%s]", g.GetLinkedAccountIds(), acct)
 	}
 }
