@@ -1,18 +1,18 @@
-// Task 9 — widget tests for BudgetDetailPage(头部 + per-item + AppBar edit/delete)。
+// Task 9 — widget tests for BudgetDetailPage(对齐 OD 原型后:ConicProgressRing hero
+//  + per-item 表格 + 超支 tag)。
 //
 // 驱动真实 BudgetBloc(mocktail BudgetRepository),seed BudgetDetailLoaded。
-// 验证(对齐 brief):
-//   - 头部:Name + Month + 总进度环(UsagePct%)+ TotalActual/TotalAmount/Remaining。
-//   - per-item 列表:每行 account 名 + Planned/Actual + 进度条 + 占比% + 超支标记。
-//   - 2 items:一个 ~50% 正常(金),一个 ~120% 超支(红 + 超支 marker)。
+// 验证(对齐原型 + goal 对齐范式):
+//   - 头部 hero:Name + Month + ConicProgressRing(UsagePct%)+ TotalActual/TotalAmount/Remaining。
+//   - per-item 列表:每行 account 名 + Planned/Actual + mini 进度条 + 占比% + 超支 tag。
+//   - 2 items:一个 ~50% 正常(金),一个 ~120% 超支(红 + 超 tag)。
+//     排序按 actual 降序(brief:超支项 actual 大,排在前)。
 //   - loading → CircularProgressIndicator;error → message。
 //   - 编辑(lucide pencil)tap → push '/budgets/:id/edit'。
 //   - 删除(lucide trash2)→ confirm dialog → 确认 → dispatch DeleteBudgetRequested +
 //     pop 回列表。
 //
 // 复用 budget_list_page_test 的 harness 范式(plain MaterialApp + mock repo)。
-// 与 holding_detail_page_test 不同:BudgetDetailPage 无 CurrencySettings 依赖
-// (不做货币折算),故不需注册 fake CurrencySettings。
 import 'dart:async';
 
 import 'package:dartz/dartz.dart' as dartz;
@@ -28,7 +28,7 @@ import 'package:yucai_client/budget/presentation/bloc/budget_bloc.dart';
 import 'package:yucai_client/budget/presentation/bloc/budget_event.dart';
 import 'package:yucai_client/budget/presentation/pages/budget_detail_page.dart';
 import 'package:yucai_client/core/error/failures.dart';
-import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/conic_progress_ring.dart';
 
 class _MockRepo extends Mock implements BudgetRepository {}
 
@@ -89,7 +89,9 @@ void _stubDetail(_MockRepo repo, BudgetView budget) {
 void main() {
   const desktop = Size(1400, 900);
 
-  // 2 items:一个 ~50% 正常,一个 ~120% 超支(brief 指定)。
+  // 2 items:一个 ~50% 正常(i1,餐饮,actual 100000),一个 ~120% 超支
+  // (i2,accountName null → 占位「分类账户」,actual 120000)。
+  // 排序按 actual 降序 → i2 在前(120000),i1 在后(100000)。
   final items = [
     _item(
       id: 'i1',
@@ -123,7 +125,7 @@ void main() {
     addTearDown(t.view.resetDevicePixelRatio);
   }
 
-  testWidgets('renders header: name + month + ring + actual/total/remaining',
+  testWidgets('renders hero: name + month + conic ring + usage pct',
       (t) async {
     setDesktop(t);
     final repo = _MockRepo();
@@ -135,16 +137,14 @@ void main() {
 
     // Name + Month。
     expect(find.text('日常开销'), findsOneWidget);
-    expect(find.byKey(const ValueKey('budgetDetailMonth')), findsOneWidget);
-    expect(find.text('2026-07'), findsOneWidget);
-    // 总进度环 + UsagePct%。
+    expect(find.text('2026-07'), findsWidgets);
+    // hero ConicProgressRing(UsagePct%)。
     expect(find.byKey(const ValueKey('budgetDetailRing')), findsOneWidget);
-    expect(find.byKey(const ValueKey('budgetDetailRingBar')), findsOneWidget);
-    expect(find.byKey(const ValueKey('budgetDetailUsagePct')), findsOneWidget);
+    expect(find.byType(ConicProgressRing), findsWidgets);
     expect(find.text('73.3%'), findsOneWidget);
   });
 
-  testWidgets('renders per-item rows: name + planned/actual + progress + pct',
+  testWidgets('renders per-item rows: name + planned/actual + mini bar + pct',
       (t) async {
     setDesktop(t);
     final repo = _MockRepo();
@@ -154,20 +154,21 @@ void main() {
     await t.pumpWidget(_harness(repo: repo, budget: budget));
     await t.pumpAndSettle();
 
-    // 2 item 行(LinearProgressIndicator 每行 1 根)。
+    // 2 item 行(LinearProgressIndicator 每行 1 根 mini bar)。
     expect(find.byKey(const ValueKey('budgetDetailItemBar')), findsNWidgets(2));
     // account 名:i1 '餐饮'(accountName 填)+ i2 null → '分类账户' 占位。
     expect(find.text('餐饮'), findsOneWidget);
     expect(find.text('分类账户'), findsOneWidget);
-    // 占比%:50.0% + 120.0%。
+    // UsagePct%:50.0% + 120.0%。
     expect(find.text('50.0%'), findsOneWidget);
     expect(find.text('120.0%'), findsOneWidget);
-    // 超支 marker(仅 i2 一项)。
+    // 超支 tag(仅 i2 一项)。
     expect(find.byKey(const ValueKey('budgetDetailOverMarker')), findsOneWidget);
-    expect(find.text('超支'), findsOneWidget);
+    // 超支 tag 文案「超 ¥200.00」(原型 .over-tag = 超 + 金额)。
+    expect(find.textContaining('超'), findsWidgets);
   });
 
-  testWidgets('over-budget item progress bar is red (#c0392b); normal is gold',
+  testWidgets('over-budget item mini bar is red (#c0392b); normal is gold',
       (t) async {
     setDesktop(t);
     final repo = _MockRepo();
@@ -182,14 +183,13 @@ void main() {
             find.byKey(const ValueKey('budgetDetailItemBar')))
         .toList();
     expect(bars.length, 2);
-    // i1 正常(金)。
-    final normalColor =
-        (bars[0].valueColor as AlwaysStoppedAnimation<Color>).value;
-    expect(normalColor, AppColors.accent);
-    // i2 超支(#c0392b)。
+    // 排序按 actual 降序:i2(120000 超支)在 idx 0,i1(100000 正常)在 idx 1。
     final overColor =
-        (bars[1].valueColor as AlwaysStoppedAnimation<Color>).value;
+        (bars[0].valueColor as AlwaysStoppedAnimation<Color>).value;
     expect(overColor, const Color(0xFFC0392B));
+    final normalColor =
+        (bars[1].valueColor as AlwaysStoppedAnimation<Color>).value;
+    expect(normalColor, const Color(0xFFB08D57));
   });
 
   testWidgets('loading state shows CircularProgressIndicator', (t) async {

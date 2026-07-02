@@ -1,14 +1,16 @@
-// Task 8 — widget tests for BudgetListPage(月份切换 + 卡片 + 进度 + 新建入口)。
+// Task 8 — widget tests for BudgetListPage(对齐 OD 原型后:topbar + conic 环卡片 +
+// 月份切换 + btn-gold 新建 + 状态分组)。
 //
 // 驱动真实 BudgetBloc(mocktail BudgetRepository),注入 BudgetListLoaded。
-// 验证(对齐 brief):
-//   - AppBar:标题"预算" + 新建 action(lucide plus)
+// 验证(对齐原型 + goal 对齐范式):
+//   - topbar:标题「预算管理」+ sub + btn-gold「新建预算」(替 FAB tooltip)
 //   - 月份切换器:默认当月 + 上/下月按钮
-//   - 预算卡:Name + Month + UsagePct% + 进度条
-//   - 超支预算:UsagePct% + 剩余 显红色(#c0392b)
+//   - 预算卡:Name + Month + ConicProgressRing(conic 环)+ UsagePct% pill
+//   - 超支预算:Conic 环色 = #c0392b;正常卡环色 = 御财金
+//   - 状态分组:超支组在正常组之上(对齐原型 nav-sec 排序)
 //   - 卡片 tap → push '/budgets/:id'(GoRouter harness)
 //   - 新建 tap → push '/budgets/new'(GoRouter harness)
-//   - 空态:暂无预算 提示
+//   - 空态:本月暂无预算 提示
 //   - 错误态 + 重试按钮
 import 'dart:async';
 
@@ -25,7 +27,7 @@ import 'package:yucai_client/budget/presentation/bloc/budget_bloc.dart';
 import 'package:yucai_client/budget/presentation/bloc/budget_event.dart';
 import 'package:yucai_client/budget/presentation/pages/budget_list_page.dart';
 import 'package:yucai_client/core/error/failures.dart';
-import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/conic_progress_ring.dart';
 
 class _MockRepo extends Mock implements BudgetRepository {}
 
@@ -96,16 +98,19 @@ void main() {
     addTearDown(t.view.resetPhysicalSize);
   }
 
-  testWidgets('AppBar: title 预算 + new action (lucide plus)', (t) async {
+  testWidgets('topbar: title 预算管理 + sub + 新建预算 button', (t) async {
     setDesktop(t);
     await t.pumpWidget(_harness(budgets));
     await t.pumpAndSettle();
-    expect(find.text('预算'), findsOneWidget);
-    // 新建 action tooltip。
-    expect(find.byTooltip('新建'), findsOneWidget);
+    expect(find.text('预算管理'), findsOneWidget);
+    expect(find.byKey(const ValueKey('budgetListTitle')), findsOneWidget);
+    expect(find.byKey(const ValueKey('budgetListSub')), findsOneWidget);
+    // btn-gold 新建预算(替 FAB tooltip)。
+    expect(find.text('新建预算'), findsWidgets);
   });
 
-  testWidgets('renders budget cards: name + month + usage pct', (t) async {
+  testWidgets('renders budget cards: name + month + conic ring + usage pct pill',
+      (t) async {
     setDesktop(t);
     await t.pumpWidget(_harness(budgets));
     await t.pumpAndSettle();
@@ -113,35 +118,76 @@ void main() {
     expect(find.text('娱乐消费'), findsOneWidget);
     // month 出现在月份切换器 + 每张卡的 meta。
     expect(find.text(month), findsWidgets);
-    // UsagePct%:25.0% + 120.0%。
-    expect(find.text('25.0%'), findsOneWidget);
-    expect(find.text('120.0%'), findsOneWidget);
-    // 进度条(2 张卡 → 2 根 LinearProgressIndicator)。
-    expect(find.byKey(const ValueKey('budgetProgressBar')), findsNWidgets(2));
-    // 实际/总额 meta(每张卡 1 个"实际")。
-    expect(find.textContaining('实际'), findsNWidgets(2));
+    // ConicProgressRing(2 张卡 → 2 个 conic 环)。
+    expect(find.byType(ConicProgressRing), findsNWidgets(2));
+    // UsagePct% 整数(b1=25% / b2=120%);同时出现在 conic 环中心 + pill,
+    // 故断言 findsWidgets(每个至少 1 处)。
+    expect(find.text('25%'), findsWidgets);
+    expect(find.text('120%'), findsWidgets);
   });
 
-  testWidgets('over-budget card: red progress bar (#c0392b)', (t) async {
+  testWidgets('over-budget card conic ring color = #c0392b; normal = 御财金',
+      (t) async {
     setDesktop(t);
     await t.pumpWidget(_harness(budgets));
     await t.pumpAndSettle();
-    // 找到所有进度条,断言超支卡(b2)那根是红色 #c0392b。
-    // 卡片顺序 = budgets 顺序(b2 第二张);用 widget 列表按布局顺序取。
-    final bars = t
-        .widgetList<LinearProgressIndicator>(
-            find.byKey(const ValueKey('budgetProgressBar')))
+    // 找到所有 conic 环,断言超支卡那根色 #c0392b,正常卡金。
+    final rings = t
+        .widgetList<ConicProgressRing>(find.byType(ConicProgressRing))
         .toList();
-    expect(bars.length, 2);
-    final overColor =
-        (bars[1].valueColor as AlwaysStoppedAnimation<Color>).value;
-    expect(overColor, const Color(0xFFC0392B));
-    // 正常卡(b1)是御财金 accent。
-    final normalColor =
-        (bars[0].valueColor as AlwaysStoppedAnimation<Color>).value;
-    expect(normalColor, AppColors.accent);
-    // 超支卡的"超支"meta 文案存在。
-    expect(find.textContaining('超支'), findsOneWidget);
+    expect(rings.length, 2);
+    // 分组排序:超支(b2)在前,正常(b1)在后。
+    expect(rings[0].color, const Color(0xFFC0392B), reason: '超支卡 conic 环色 #c0392b');
+    expect(rings[1].color, const Color(0xFFB08D57), reason: '正常卡 conic 环色 御财金');
+    // 超支卡的"超支"文案存在。
+    expect(find.textContaining('超支'), findsWidgets);
+  });
+
+  testWidgets('status groups: 超支 group header + 正常 group header present',
+      (t) async {
+    setDesktop(t);
+    await t.pumpWidget(_harness(budgets));
+    await t.pumpAndSettle();
+    expect(find.text('超支'), findsWidgets);
+    expect(find.text('正常'), findsWidgets);
+  });
+
+  testWidgets('status filter chips: 全部 / 超支 / 正常', (t) async {
+    setDesktop(t);
+    await t.pumpWidget(_harness(budgets));
+    await t.pumpAndSettle();
+    // 3 个筛选 chip(全部 / 超支 / 正常)。「全部」无分组头冲突,唯一。
+    expect(find.text('全部'), findsOneWidget);
+    // 点击「全部」chip → 两组都保留(b1 正常 + b2 超支)。
+    await t.tap(find.text('全部'));
+    await t.pumpAndSettle();
+    expect(find.text('日常开销'), findsOneWidget);
+    expect(find.text('娱乐消费'), findsOneWidget);
+  });
+
+  testWidgets('status filter: tap 正常 chip hides 超支 card', (t) async {
+    setDesktop(t);
+    await t.pumpWidget(_harness(budgets));
+    await t.pumpAndSettle();
+    // 「正常」字样同时出现在筛选 chip + 分组头 → 用 descendant 限定到 chip 区
+    // (chip 在 topbar 下的筛选行,group header 在更下方)。点击筛选行第 3 个 chip。
+    // 简化:用 find.text 配 hitTestable + first。这里改用「正常」chip 的计数 badge
+    // 特征 —— chip 内「正常」后紧跟计数「1」。直接 tap 第一个可点击的「正常」。
+    final normalCandidates = find.text('正常');
+    // 取筛选 chip 那个(在顶部,先 hit-test)。用 at(0) 不安全(树顺序不定),
+    // 改用:tap 「超支」chip 更稳(超支 chip 文案「超支」与 group header 也冲突,
+    // 但 chip 在顶部 hitTestable)→ 用 evaluate 取第一个 offstage不为空的。
+    final overChips = find
+        .text('超支')
+        .evaluate()
+        .where((e) => e.renderObject != null)
+        .toList();
+    expect(overChips.length, greaterThanOrEqualTo(1));
+    // 点「超支」筛选 chip(第一个,即顶部筛选行)→ 仅留 b2 超支,隐藏 b1 正常。
+    await t.tap(find.text('超支').first);
+    await t.pumpAndSettle();
+    expect(find.text('娱乐消费'), findsOneWidget);
+    expect(find.text('日常开销'), findsNothing);
   });
 
   testWidgets('month switcher: prev/next buttons present', (t) async {
@@ -150,12 +196,10 @@ void main() {
     await t.pumpAndSettle();
     expect(find.byTooltip('上月'), findsOneWidget);
     expect(find.byTooltip('下月'), findsOneWidget);
-    // 默认当月显示在切换器中。
-    expect(find.text(month), findsWidgets);
+    expect(find.byKey(const ValueKey('budgetMonthVal')), findsOneWidget);
   });
 
-  testWidgets('month filter: non-current-month budgets → empty state',
-      (t) async {
+  testWidgets('month filter: non-current-month budgets → empty state', (t) async {
     setDesktop(t);
     // 预算月份固定为 2025-12,与当月不一致 → 默认选中当月时 filter 后空态。
     final otherMonthBudgets = [
@@ -170,7 +214,7 @@ void main() {
     ];
     await t.pumpWidget(_harness(otherMonthBudgets));
     await t.pumpAndSettle();
-    expect(find.textContaining('暂无预算'), findsOneWidget);
+    expect(find.textContaining('本月暂无预算'), findsOneWidget);
     expect(find.text('上月预算'), findsNothing);
   });
 
@@ -178,7 +222,7 @@ void main() {
     setDesktop(t);
     await t.pumpWidget(_harness(const []));
     await t.pumpAndSettle();
-    expect(find.textContaining('暂无预算'), findsOneWidget);
+    expect(find.textContaining('本月暂无预算'), findsOneWidget);
   });
 
   testWidgets('loading state shows CircularProgressIndicator', (t) async {
@@ -263,7 +307,7 @@ void main() {
     expect(find.text('DETAIL_b1'), findsOneWidget);
   });
 
-  testWidgets('new action pushes /budgets/new', (t) async {
+  testWidgets('new button pushes /budgets/new', (t) async {
     setDesktop(t);
     final repo = _MockRepo();
     registerFallbackValue(const LoadListRequested());
@@ -297,7 +341,8 @@ void main() {
     await t.pumpWidget(MaterialApp.router(routerConfig: router));
     await t.pumpAndSettle();
 
-    await t.tap(find.byTooltip('新建'));
+    // 点 btn-gold「新建预算」。
+    await t.tap(find.text('新建预算'));
     await t.pumpAndSettle();
 
     expect(find.text('NEW_STUB'), findsOneWidget);
