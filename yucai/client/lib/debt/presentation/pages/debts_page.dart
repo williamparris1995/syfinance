@@ -58,7 +58,10 @@ class _DebtsPageState extends State<DebtsPage> {
     return Scaffold(
       backgroundColor: AppColors.bg,
       // 创建债务 FAB(所有断点,空状态 + 有数据都可创建)。
+      // heroTag: null 禁 Hero —— indexedStack 保活多 branch 时避免与其它 branch
+      // FAB 共用默认 Hero tag 冲突(参见 fab-hero-fix)。
       floatingActionButton: FloatingActionButton(
+        heroTag: null,
         onPressed: () => context.push('/debts/new'),
         backgroundColor: AppColors.accent,
         child: const Icon(Icons.add, color: Colors.white),

@@ -130,7 +130,10 @@ class _TransactionsViewState extends State<_TransactionsView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
+      // heroTag: null 禁 Hero —— indexedStack 保活多 branch 时避免与其它 branch
+      // FAB 共用默认 Hero tag 冲突(参见 fab-hero-fix)。
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: null,
         onPressed: _openCreateForm,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text('新增交易',
