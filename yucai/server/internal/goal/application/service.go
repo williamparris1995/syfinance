@@ -29,7 +29,8 @@ func (s *Service) CreateGoal(ctx context.Context, req CreateGoalRequest) (*GoalD
 		req.TargetAmountCents,
 		req.CurrencyCode,
 		req.Deadline,
-		req.LinkedAccountID,
+		req.LinkedAccountIDs,
+		req.LinkedDebtIDs,
 		req.Notes,
 	)
 	if err != nil {
@@ -183,19 +184,29 @@ func (s *Service) SyncInvestmentGoals(ctx context.Context, tenantID uuid.UUID) (
 			if err := ctx.Err(); err != nil {
 				return synced, err
 			}
-			if g.IsCompleted || g.GoalType != domain.GoalTypeInvestment || g.LinkedAccountID == nil {
+			if g.IsCompleted || g.GoalType != domain.GoalTypeInvestment || len(g.LinkedAccountIDs) == 0 {
 				continue
 			}
-			mv, err := s.mvSource.GetAccountMarketValue(ctx, tenantID, *g.LinkedAccountID)
-			if err != nil {
-				slog.Warn("goal sync: holding mv failed, skip goal",
-					slog.String("goal_id", g.ID.String()),
-					slog.String("account_id", g.LinkedAccountID.String()),
-					slog.String("error", err.Error()),
-					slog.String("operation", "SyncInvestmentGoals"))
+			// Sum market value across all linked investment accounts.
+			var total int64
+			var mvErr error
+			for _, accID := range g.LinkedAccountIDs {
+				mv, err := s.mvSource.GetAccountMarketValue(ctx, tenantID, accID)
+				if err != nil {
+					mvErr = err
+					slog.Warn("goal sync: holding mv failed, skip account",
+						slog.String("goal_id", g.ID.String()),
+						slog.String("account_id", accID.String()),
+						slog.String("error", err.Error()),
+						slog.String("operation", "SyncInvestmentGoals"))
+					break
+				}
+				total += mv
+			}
+			if mvErr != nil {
 				continue
 			}
-			g.SetCurrentAmount(mv)
+			g.SetCurrentAmount(total)
 			g.IncrementVersion()
 			if err := s.repo.Update(ctx, &g); err != nil {
 				slog.Warn("goal sync: update failed",

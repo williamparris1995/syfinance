@@ -53,6 +53,7 @@ func TestGoalCRUD(t *testing.T) {
 		GoalType:          domain.GoalTypeSavings,
 		TargetAmountCents: 10000000,
 		CurrencyCode:      "CNY",
+		LinkedAccountIDs:  []uuid.UUID{uuid.New()},
 		Notes:             "6 months expenses",
 	})
 	if err != nil {
@@ -126,6 +127,7 @@ func TestGoalProgress(t *testing.T) {
 		GoalType:          domain.GoalTypeSavings,
 		TargetAmountCents: 1000000,
 		CurrencyCode:      "CNY",
+		LinkedAccountIDs:  []uuid.UUID{uuid.New()},
 	})
 
 	// Add progress
@@ -177,7 +179,7 @@ func TestGoalSyncFromAccount(t *testing.T) {
 		GoalType:          domain.GoalTypeSavings,
 		TargetAmountCents: 20000000,
 		CurrencyCode:      "CNY",
-		LinkedAccountID:   &linkedAccountID,
+		LinkedAccountIDs:  []uuid.UUID{linkedAccountID},
 	})
 
 	// Sync with account balance of 15,000,000 cents
@@ -206,6 +208,7 @@ func TestGoalOverdue(t *testing.T) {
 		GoalType:          domain.GoalTypeSavings,
 		TargetAmountCents: 1000000,
 		CurrencyCode:      "CNY",
+		LinkedAccountIDs:  []uuid.UUID{uuid.New()},
 		Deadline:          &past,
 	})
 	if err != nil {
@@ -240,6 +243,7 @@ func TestGoalTenantIsolation(t *testing.T) {
 		GoalType:          domain.GoalTypeSavings,
 		TargetAmountCents: 500000,
 		CurrencyCode:      "CNY",
+		LinkedAccountIDs:  []uuid.UUID{uuid.New()},
 	})
 
 	result, _ := svc.ListGoals(ctx, application.ListGoalsRequest{

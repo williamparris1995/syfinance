@@ -9,14 +9,15 @@ import (
 
 // CreateGoalRequest holds input for creating a goal.
 type CreateGoalRequest struct {
-	TenantID           uuid.UUID
-	Name               string
-	GoalType           domain.GoalType
-	TargetAmountCents  int64
-	CurrencyCode       string
-	Deadline           *time.Time
-	LinkedAccountID    *uuid.UUID
-	Notes              string
+	TenantID          uuid.UUID
+	Name              string
+	GoalType          domain.GoalType
+	TargetAmountCents int64
+	CurrencyCode      string
+	Deadline          *time.Time
+	LinkedAccountIDs  []uuid.UUID // Investment/Savings: ≥1; DebtPayoff: may be nil
+	LinkedDebtIDs     []uuid.UUID // DebtPayoff: ≥1; others: may be nil
+	Notes             string
 }
 
 // UpdateGoalRequest holds input for updating a goal.
@@ -55,7 +56,8 @@ type GoalDTO struct {
 	CurrentAmountCents int64
 	CurrencyCode       string
 	Deadline           *time.Time
-	LinkedAccountID    *uuid.UUID
+	LinkedAccountIDs   []uuid.UUID
+	LinkedDebtIDs      []uuid.UUID
 	Notes              string
 	IsCompleted        bool
 	CompletedAt        *time.Time
@@ -83,9 +85,10 @@ func GoalToDTO(g *domain.Goal) GoalDTO {
 		TargetAmountCents:  g.TargetAmountCents,
 		CurrentAmountCents: g.CurrentAmountCents,
 		CurrencyCode:       g.CurrencyCode,
-		Deadline:           g.Deadline,
-		LinkedAccountID:    g.LinkedAccountID,
-		Notes:              g.Notes,
+		Deadline:          g.Deadline,
+		LinkedAccountIDs:  g.LinkedAccountIDs,
+		LinkedDebtIDs:     g.LinkedDebtIDs,
+		Notes:             g.Notes,
 		IsCompleted:        g.IsCompleted,
 		CompletedAt:        g.CompletedAt,
 		ProgressPct:        g.ProgressPct(),

@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewGoal_Valid(t *testing.T) {
-	g, err := NewGoal(uuid.New(), "Emergency Fund", GoalTypeSavings, 10000000, "CNY", nil, nil, "")
+	g, err := NewGoal(uuid.New(), "Emergency Fund", GoalTypeSavings, 10000000, "CNY", nil, []uuid.UUID{uuid.New()}, nil, "")
 	if err != nil {
 		t.Fatalf("NewGoal failed: %v", err)
 	}
@@ -24,28 +24,28 @@ func TestNewGoal_Valid(t *testing.T) {
 }
 
 func TestNewGoal_EmptyName(t *testing.T) {
-	_, err := NewGoal(uuid.New(), "  ", GoalTypeSavings, 100000, "CNY", nil, nil, "")
+	_, err := NewGoal(uuid.New(), "  ", GoalTypeSavings, 100000, "CNY", nil, []uuid.UUID{uuid.New()}, nil, "")
 	if err == nil {
 		t.Error("expected error for empty name")
 	}
 }
 
 func TestNewGoal_NonPositiveTarget(t *testing.T) {
-	_, err := NewGoal(uuid.New(), "Test", GoalTypeSavings, 0, "CNY", nil, nil, "")
+	_, err := NewGoal(uuid.New(), "Test", GoalTypeSavings, 0, "CNY", nil, []uuid.UUID{uuid.New()}, nil, "")
 	if err == nil {
 		t.Error("expected error for zero target")
 	}
 }
 
 func TestNewGoal_UnspecifiedType(t *testing.T) {
-	_, err := NewGoal(uuid.New(), "Test", GoalType(0), 100000, "CNY", nil, nil, "")
+	_, err := NewGoal(uuid.New(), "Test", GoalType(0), 100000, "CNY", nil, []uuid.UUID{uuid.New()}, nil, "")
 	if err == nil {
 		t.Error("expected error for unspecified type")
 	}
 }
 
 func TestGoal_AddProgress(t *testing.T) {
-	g, _ := NewGoal(uuid.New(), "Savings", GoalTypeSavings, 100000, "CNY", nil, nil, "")
+	g, _ := NewGoal(uuid.New(), "Savings", GoalTypeSavings, 100000, "CNY", nil, []uuid.UUID{uuid.New()}, nil, "")
 
 	completed := g.AddProgress(60000)
 	if completed {
@@ -57,7 +57,7 @@ func TestGoal_AddProgress(t *testing.T) {
 }
 
 func TestGoal_AutoComplete(t *testing.T) {
-	g, _ := NewGoal(uuid.New(), "Savings", GoalTypeSavings, 100000, "CNY", nil, nil, "")
+	g, _ := NewGoal(uuid.New(), "Savings", GoalTypeSavings, 100000, "CNY", nil, []uuid.UUID{uuid.New()}, nil, "")
 
 	completed := g.AddProgress(100000)
 	if !completed {
@@ -72,7 +72,7 @@ func TestGoal_AutoComplete(t *testing.T) {
 }
 
 func TestGoal_AutoCompleteExceedTarget(t *testing.T) {
-	g, _ := NewGoal(uuid.New(), "Savings", GoalTypeSavings, 100000, "CNY", nil, nil, "")
+	g, _ := NewGoal(uuid.New(), "Savings", GoalTypeSavings, 100000, "CNY", nil, []uuid.UUID{uuid.New()}, nil, "")
 
 	completed := g.AddProgress(150000)
 	if !completed {
@@ -84,7 +84,7 @@ func TestGoal_AutoCompleteExceedTarget(t *testing.T) {
 }
 
 func TestGoal_ProgressPct(t *testing.T) {
-	g, _ := NewGoal(uuid.New(), "Savings", GoalTypeSavings, 100000, "CNY", nil, nil, "")
+	g, _ := NewGoal(uuid.New(), "Savings", GoalTypeSavings, 100000, "CNY", nil, []uuid.UUID{uuid.New()}, nil, "")
 	g.CurrentAmountCents = 75000
 	if pct := g.ProgressPct(); pct != 75.0 {
 		t.Errorf("expected 75%%, got %f", pct)
@@ -92,7 +92,7 @@ func TestGoal_ProgressPct(t *testing.T) {
 }
 
 func TestGoal_RemainingAmount(t *testing.T) {
-	g, _ := NewGoal(uuid.New(), "Savings", GoalTypeSavings, 100000, "CNY", nil, nil, "")
+	g, _ := NewGoal(uuid.New(), "Savings", GoalTypeSavings, 100000, "CNY", nil, []uuid.UUID{uuid.New()}, nil, "")
 	g.CurrentAmountCents = 30000
 	if rem := g.RemainingAmount(); rem != 70000 {
 		t.Errorf("expected 70000, got %d", rem)
@@ -100,7 +100,7 @@ func TestGoal_RemainingAmount(t *testing.T) {
 }
 
 func TestGoal_RemainingAmount_Negative(t *testing.T) {
-	g, _ := NewGoal(uuid.New(), "Savings", GoalTypeSavings, 100000, "CNY", nil, nil, "")
+	g, _ := NewGoal(uuid.New(), "Savings", GoalTypeSavings, 100000, "CNY", nil, []uuid.UUID{uuid.New()}, nil, "")
 	g.CurrentAmountCents = 150000
 	if rem := g.RemainingAmount(); rem != 0 {
 		t.Errorf("expected 0 when over target, got %d", rem)
@@ -109,7 +109,7 @@ func TestGoal_RemainingAmount_Negative(t *testing.T) {
 
 func TestGoal_IsOverdue(t *testing.T) {
 	past := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	g, _ := NewGoal(uuid.New(), "Savings", GoalTypeSavings, 100000, "CNY", &past, nil, "")
+	g, _ := NewGoal(uuid.New(), "Savings", GoalTypeSavings, 100000, "CNY", &past, []uuid.UUID{uuid.New()}, nil, "")
 	if !g.IsOverdue() {
 		t.Error("should be overdue")
 	}
@@ -117,7 +117,7 @@ func TestGoal_IsOverdue(t *testing.T) {
 
 func TestGoal_IsOverdue_Completed(t *testing.T) {
 	past := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	g, _ := NewGoal(uuid.New(), "Savings", GoalTypeSavings, 100000, "CNY", &past, nil, "")
+	g, _ := NewGoal(uuid.New(), "Savings", GoalTypeSavings, 100000, "CNY", &past, []uuid.UUID{uuid.New()}, nil, "")
 	g.MarkCompleted()
 	if g.IsOverdue() {
 		t.Error("completed goal should not be overdue")
@@ -125,23 +125,31 @@ func TestGoal_IsOverdue_Completed(t *testing.T) {
 }
 
 func TestGoal_IsOverdue_NoDeadline(t *testing.T) {
-	g, _ := NewGoal(uuid.New(), "Savings", GoalTypeSavings, 100000, "CNY", nil, nil, "")
+	g, _ := NewGoal(uuid.New(), "Savings", GoalTypeSavings, 100000, "CNY", nil, []uuid.UUID{uuid.New()}, nil, "")
 	if g.IsOverdue() {
 		t.Error("no deadline should not be overdue")
 	}
 }
 
 func TestGoal_LinkAccount(t *testing.T) {
-	g, _ := NewGoal(uuid.New(), "Savings", GoalTypeSavings, 100000, "CNY", nil, nil, "")
+	g, _ := NewGoal(uuid.New(), "Savings", GoalTypeSavings, 100000, "CNY", nil, []uuid.UUID{uuid.New()}, nil, "")
 	accountID := uuid.New()
 	g.LinkAccount(accountID)
-	if g.LinkedAccountID == nil || *g.LinkedAccountID != accountID {
+	// LinkAccount appends; new id present in LinkedAccountIDs.
+	found := false
+	for _, id := range g.LinkedAccountIDs {
+		if id == accountID {
+			found = true
+			break
+		}
+	}
+	if !found {
 		t.Error("account not linked correctly")
 	}
 }
 
 func TestGoal_IncrementVersion(t *testing.T) {
-	g, _ := NewGoal(uuid.New(), "Savings", GoalTypeSavings, 100000, "CNY", nil, nil, "")
+	g, _ := NewGoal(uuid.New(), "Savings", GoalTypeSavings, 100000, "CNY", nil, []uuid.UUID{uuid.New()}, nil, "")
 	before := g.Version
 	g.IncrementVersion()
 	if g.Version != before+1 {

@@ -40,8 +40,10 @@ func (r *GoalRepository) Save(ctx context.Context, g *domain.Goal) error {
 	if g.Deadline != nil {
 		create.SetDeadline(*g.Deadline)
 	}
-	if g.LinkedAccountID != nil {
-		create.SetLinkedAccountID(*g.LinkedAccountID)
+	// ent schema still has a single linked_account_id column (multi-account link
+	// tables land in a later task). Persist the first linked account for now.
+	if len(g.LinkedAccountIDs) > 0 {
+		create.SetLinkedAccountID(g.LinkedAccountIDs[0])
 	}
 	if g.CompletedAt != nil {
 		create.SetCompletedAt(*g.CompletedAt)
@@ -138,8 +140,9 @@ func (r *GoalRepository) Update(ctx context.Context, g *domain.Goal) error {
 	} else {
 		update.ClearDeadline()
 	}
-	if g.LinkedAccountID != nil {
-		update.SetLinkedAccountID(*g.LinkedAccountID)
+	// ent schema still single-column: persist/clear first linked account.
+	if len(g.LinkedAccountIDs) > 0 {
+		update.SetLinkedAccountID(g.LinkedAccountIDs[0])
 	} else {
 		update.ClearLinkedAccountID()
 	}
@@ -167,7 +170,7 @@ func (r *GoalRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) err
 }
 
 func toDomainGoal(g *goalent.Goal) *domain.Goal {
-	return &domain.Goal{
+	dg := &domain.Goal{
 		ID:                 g.ID,
 		TenantID:           g.TenantID,
 		Name:               g.Name,
@@ -176,7 +179,6 @@ func toDomainGoal(g *goalent.Goal) *domain.Goal {
 		CurrentAmountCents: g.CurrentAmountCents,
 		CurrencyCode:       g.CurrencyCode,
 		Deadline:           g.Deadline,
-		LinkedAccountID:    g.LinkedAccountID,
 		Notes:              g.Notes,
 		IsCompleted:        g.IsCompleted,
 		CompletedAt:        g.CompletedAt,
@@ -184,6 +186,11 @@ func toDomainGoal(g *goalent.Goal) *domain.Goal {
 		CreatedAt:          g.CreatedAt,
 		UpdatedAt:          g.UpdatedAt,
 	}
+	// ent single-column → domain slice (first element only until link tables land).
+	if g.LinkedAccountID != nil {
+		dg.LinkedAccountIDs = []uuid.UUID{*g.LinkedAccountID}
+	}
+	return dg
 }
 
 // Compile-time check.

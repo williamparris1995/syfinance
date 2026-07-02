@@ -17,7 +17,8 @@ type Goal struct {
 	CurrentAmountCents int64
 	CurrencyCode       string
 	Deadline           *time.Time
-	LinkedAccountID    *uuid.UUID
+	LinkedAccountIDs   []uuid.UUID // Investment + Savings goals link 1+ accounts
+	LinkedDebtIDs      []uuid.UUID // DebtPayoff goals link 1+ debts
 	Notes              string
 	IsCompleted        bool
 	CompletedAt        *time.Time
@@ -27,6 +28,9 @@ type Goal struct {
 }
 
 // NewGoal creates a validated Goal.
+//
+// linkedAccountIDs is required (≥1) for Investment/Savings goals; linkedDebtIDs
+// is required (≥1) for DebtPayoff goals. The corresponding unused slice may be nil.
 func NewGoal(
 	tenantID uuid.UUID,
 	name string,
@@ -34,7 +38,8 @@ func NewGoal(
 	targetAmountCents int64,
 	currencyCode string,
 	deadline *time.Time,
-	linkedAccountID *uuid.UUID,
+	linkedAccountIDs []uuid.UUID,
+	linkedDebtIDs []uuid.UUID,
 	notes string,
 ) (*Goal, error) {
 	name = trimSpace(name)
@@ -50,6 +55,17 @@ func NewGoal(
 	if currencyCode == "" {
 		currencyCode = "CNY"
 	}
+	// 按 type 校验关联
+	switch goalType {
+	case GoalTypeInvestment, GoalTypeSavings:
+		if len(linkedAccountIDs) == 0 {
+			return nil, fmt.Errorf("%s goal requires at least 1 linked account", goalType)
+		}
+	case GoalTypeDebtPayoff:
+		if len(linkedDebtIDs) == 0 {
+			return nil, fmt.Errorf("debtpayoff goal requires at least 1 linked debt")
+		}
+	}
 
 	now := time.Now()
 	return &Goal{
@@ -61,13 +77,30 @@ func NewGoal(
 		CurrentAmountCents: 0,
 		CurrencyCode:       currencyCode,
 		Deadline:           deadline,
-		LinkedAccountID:    linkedAccountID,
+		LinkedAccountIDs:   linkedAccountIDs,
+		LinkedDebtIDs:      linkedDebtIDs,
 		Notes:              notes,
 		IsCompleted:        false,
 		Version:            1,
 		CreatedAt:          now,
 		UpdatedAt:          now,
 	}, nil
+}
+
+// Clone duplicates the goal into a new tenant (or the same tenant) with a fresh
+// ID and reset progress. Caller may override targetAmountCents (≤0 → keep src),
+// deadline (nil → drop), and name ("" → keep src). Linked account/debt IDs are
+// deep-copied so the clone shares no slice header with the source.
+func (g *Goal) Clone(newTenantID uuid.UUID, targetAmountCents int64, deadline *time.Time, name string) (*Goal, error) {
+	if name == "" {
+		name = g.Name
+	}
+	if targetAmountCents <= 0 {
+		targetAmountCents = g.TargetAmountCents
+	}
+	accs := append([]uuid.UUID(nil), g.LinkedAccountIDs...)
+	debts := append([]uuid.UUID(nil), g.LinkedDebtIDs...)
+	return NewGoal(newTenantID, name, g.GoalType, targetAmountCents, g.CurrencyCode, deadline, accs, debts, g.Notes)
 }
 
 // AddProgress adds amount to the current progress.
@@ -132,9 +165,15 @@ func (g *Goal) IsOverdue() bool {
 	return time.Now().After(*g.Deadline)
 }
 
-// LinkAccount associates the goal with an account for progress syncing.
+// LinkAccount associates the goal with an additional account for progress
+// syncing (idempotent: a repeated id is not appended twice).
 func (g *Goal) LinkAccount(accountID uuid.UUID) {
-	g.LinkedAccountID = &accountID
+	for _, id := range g.LinkedAccountIDs {
+		if id == accountID {
+			return
+		}
+	}
+	g.LinkedAccountIDs = append(g.LinkedAccountIDs, accountID)
 	g.UpdatedAt = time.Now()
 }
 

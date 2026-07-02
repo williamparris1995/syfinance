@@ -86,16 +86,15 @@ func withTenant(tenantID uuid.UUID) context.Context {
 // newInvestmentGoal builds a persisted-style investment goal (we bypass NewGoal
 // to avoid validator constraints on test fixtures; fields set explicitly).
 func newInvestmentGoal(tenantID uuid.UUID, linkedAccount uuid.UUID) *domain.Goal {
-	la := linkedAccount
 	return &domain.Goal{
-		ID:              uuid.New(),
-		TenantID:        tenantID,
-		Name:            "Retire early",
-		GoalType:        domain.GoalTypeInvestment,
+		ID:                uuid.New(),
+		TenantID:          tenantID,
+		Name:              "Retire early",
+		GoalType:          domain.GoalTypeInvestment,
 		TargetAmountCents: 1_000_000,
-		CurrencyCode:    "CNY",
-		LinkedAccountID: &la,
-		Version:         1,
+		CurrencyCode:      "CNY",
+		LinkedAccountIDs:  []uuid.UUID{linkedAccount},
+		Version:           1,
 	}
 }
 

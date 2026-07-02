@@ -55,10 +55,19 @@ func sanitize(s string) string {
 }
 
 // seedGoal creates and persists a goal of the given type for the given tenant.
-// Returns the persisted *domain.Goal so tests can assert on it.
+// Investment/Savings goals get one linked account; DebtPayoff gets one linked
+// debt (so the new type-based validator is satisfied). Returns the persisted
+// *domain.Goal so tests can assert on it.
 func seedGoal(t *testing.T, ctx context.Context, repo domain.GoalRepository, tenantID uuid.UUID, gt domain.GoalType, name string) *domain.Goal {
 	t.Helper()
-	g, err := domain.NewGoal(tenantID, name, gt, 100000, "CNY", nil, nil, "")
+	var accs, debts []uuid.UUID
+	switch gt {
+	case domain.GoalTypeInvestment, domain.GoalTypeSavings:
+		accs = []uuid.UUID{uuid.New()}
+	case domain.GoalTypeDebtPayoff:
+		debts = []uuid.UUID{uuid.New()}
+	}
+	g, err := domain.NewGoal(tenantID, name, gt, 100000, "CNY", nil, accs, debts, "")
 	if err != nil {
 		t.Fatalf("NewGoal: %v", err)
 	}

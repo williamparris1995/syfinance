@@ -43,13 +43,13 @@ func (h *GoalHandler) CreateGoal(ctx context.Context, req *pb.CreateGoalRequest)
 		deadline = &d
 	}
 
-	var linkedAccountID *uuid.UUID
+	var linkedAccountIDs []uuid.UUID
 	if req.LinkedAccountId != "" {
 		aid, err := uuid.Parse(req.LinkedAccountId)
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, "invalid linked_account_id")
 		}
-		linkedAccountID = &aid
+		linkedAccountIDs = []uuid.UUID{aid}
 	}
 
 	resp, err := h.service.CreateGoal(ctx, application.CreateGoalRequest{
@@ -59,7 +59,7 @@ func (h *GoalHandler) CreateGoal(ctx context.Context, req *pb.CreateGoalRequest)
 		TargetAmountCents: req.TargetAmountCents,
 		CurrencyCode:      req.CurrencyCode,
 		Deadline:          deadline,
-		LinkedAccountID:   linkedAccountID,
+		LinkedAccountIDs:  linkedAccountIDs,
 		Notes:             req.Notes,
 	})
 	if err != nil {
@@ -278,8 +278,10 @@ func goalToProto(g application.GoalDTO) *pb.GoalDTO {
 	if g.Deadline != nil {
 		p.Deadline = timestamppb.New(*g.Deadline)
 	}
-	if g.LinkedAccountID != nil {
-		p.LinkedAccountId = g.LinkedAccountID.String()
+	// proto carries a single linked_account_id; surface the first linked account
+	// (multi-account proto field lands in a later task).
+	if len(g.LinkedAccountIDs) > 0 {
+		p.LinkedAccountId = g.LinkedAccountIDs[0].String()
 	}
 	if g.CompletedAt != nil {
 		p.CompletedAt = timestamppb.New(*g.CompletedAt)

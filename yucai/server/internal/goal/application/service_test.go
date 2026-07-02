@@ -25,10 +25,10 @@ func ptrUUID(id uuid.UUID) *uuid.UUID { return &id }
 // seedGoal describes a goal to seed into the fake repo for a SyncInvestmentGoals
 // test. Name is the human key used by currentFor/isCompleted helpers.
 type seedGoal struct {
-	Name         string // used as lookup key in helpers
-	Type         domain.GoalType
-	Target       int64
-	LinkedAccount *uuid.UUID
+	Name          string // used as lookup key in helpers
+	Type          domain.GoalType
+	Target        int64
+	LinkedAccount *uuid.UUID // single account convenience; converted to []uuid.UUID
 	// IsCompleted pre-marks the goal completed (for the skip-completed test).
 	IsCompleted bool
 }
@@ -61,7 +61,11 @@ type fakeGoalRepo struct {
 func newFakeGoalRepo(seeds []seedGoal) *fakeGoalRepo {
 	r := &fakeGoalRepo{byName: map[string]*domain.Goal{}}
 	for _, s := range seeds {
-		g, err := domain.NewGoal(tenantID, s.Name, s.Type, s.Target, "CNY", nil, s.LinkedAccount, "")
+		var accs []uuid.UUID
+		if s.LinkedAccount != nil {
+			accs = []uuid.UUID{*s.LinkedAccount}
+		}
+		g, err := domain.NewGoal(tenantID, s.Name, s.Type, s.Target, "CNY", nil, accs, nil, "")
 		if err != nil {
 			panic(err)
 		}
