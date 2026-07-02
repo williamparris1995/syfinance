@@ -1,8 +1,32 @@
+// 预算表单页(创建 + 编辑)。消费 BudgetBloc + AccountRepository。
+//
+// 设计源(OD 原型):design-output/budget/budget-form-{desktop,tablet,mobile}.html
+//  + styles.css + mock-data.js。**大 UI 对齐原型**(2026-07,照 budget list/detail
+//  对齐范式):
+//   - topbar:title「新建预算」/「编辑预算」+ sub + 返回 icon-btn + 取消 ghost +
+//     btn-gold 提交(替底部 ElevatedButton,原型顶部 + 底部都有,Flutter 取 topbar)。
+//   - 基本信息:Name TextField + Month picker(yyyy-MM,点击弹 showDatePicker)+
+//     Currency(只读显示 CNY,原型 disabled input,单预算单货币)。
+//   - Items 编辑:每 item = expense account picker chips 化(替 DropdownButton,
+//     只列 AccountType.expense 账户=category)+ PlannedAmount TextField + 删按钮。
+//     "+ 加项"按钮(≥1 item)。对齐原型 item-row 布局(account select + ¥amt + trash)。
+//   - 空校验:name 空 / items 0 / planned ≤0 → 禁用 btn-gold 提交。
+//
+// - [budgetId] == null:创建模式(dispatch CreateBudgetRequested)。
+// - [budgetId] != null:编辑模式。MVP 简化 = 加载现有 → 预填 → 提交 delete 旧 +
+//   create 新(对齐 task brief「MVP: 编辑 = 删旧 + 重建 defer 增量」)。增量
+//   AddItem/RemoveItem 留待后续(budget 无 UpdateBudget RPC)。
+//
+// 御财设计语言(复用 AppColors/AppTypography/lucide + 本地 _GoldButton,与
+//  budget_list_page 一致):御财金 #b08d57 btn-gold。
+//
+// 无 i18n(中文硬编码,御财惯例;与 budget/holding/goal 表单页一致)。
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
@@ -13,19 +37,8 @@ import 'package:yucai_client/budget/presentation/bloc/budget_event.dart';
 import 'package:yucai_client/budget/presentation/bloc/budget_state.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
-import 'package:yucai_client/core/widgets/form_section.dart';
 
-/// 预算表单页(创建 + 编辑)。复用 AccountRepository list 拉账户,客户端
-/// filter `accountType == expense` —— account-as-category 模型下,expense
-/// 账户即「支出分类」(餐饮/交通...),其余(asset/investment/wallet)不可预算。
-///
-/// - [budgetId] == null:创建模式(dispatch CreateBudgetRequested)。
-/// - [budgetId] != null:编辑模式。MVP 简化 = 加载现有预算 → 预填 → 提交时
-///   先 delete 旧预算(DeleteBudgetRequested)再 create 新预算
-///   (CreateBudgetRequested)。增量 AddItem/RemoveItem 留待后续(对齐 task
-///   brief 的「MVP 简化: 编辑 = 删旧 + 重建 defer 增量」决策)。
-///
-/// 可选 [initialMonth] 供测试 seed 月份(默认当月),避免驱动 picker。
+/// 预算表单页(创建 + 编辑)。
 class BudgetFormPage extends StatefulWidget {
   const BudgetFormPage({
     super.key,
@@ -55,7 +68,6 @@ class _ItemRow {
 }
 
 class _BudgetFormPageState extends State<BudgetFormPage> {
-  final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
 
   /// 月份(yyyy-MM)。默认当月。
@@ -74,10 +86,10 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
   /// 编辑模式加载到的现有预算(null = 创建 / 加载中)。
   BudgetView? _existingBudget;
 
-  bool get _isEdit => widget.budgetId != null;
+  /// 编辑模式 delete→recreate 的 BudgetListLoaded 计数(2 次 = delete + create)。
+  int _editCreateCount = 0;
 
-  /// 默认货币下拉选项(MVP 简单:常见币种)。
-  static const _currencies = <String>['CNY', 'USD', 'HKD', 'EUR', 'JPY'];
+  bool get _isEdit => widget.budgetId != null;
 
   @override
   void initState() {
@@ -106,8 +118,9 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
   }
 
   Future<void> _loadAccounts() async {
-    // 对齐 debt_form_page._loadAccounts:GetIt<AccountRepository>().list(),
-    // 客户端 filter `accountType == expense`(KEY —— 排除 asset/investment/wallet)。
+    // GetIt<AccountRepository>().list(),客户端 filter `accountType == expense`
+    // (KEY —— 排除 asset/investment/wallet,account-as-category 模型下 expense
+    // 账户即「支出分类」:餐饮/交通...)。
     try {
       final repo = GetIt.instance<AccountRepository>();
       final result = await repo.list();
@@ -125,7 +138,6 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
   }
 
   Future<void> _loadExisting() async {
-    // 编辑模式:dispatch LoadDetailRequested 拉取现有预算 → 预填表单。
     if (widget.budgetId == null) return;
     if (!mounted) return;
     context.read<BudgetBloc>().add(LoadDetailRequested(widget.budgetId!));
@@ -151,8 +163,8 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
       return;
     }
     // 提交成功:BudgetListLoaded 是 create/delete 成功后的刷新信号。
-    // 编辑模式 delete→recreate 会触发 2 次 BudgetListLoaded(delete 一次,
-    // create 一次);用 _editCreateCount 等到第 2 次才 pop,避免 delete 后误 pop。
+    // 编辑模式 delete→recreate 会触发 2 次 BudgetListLoaded;用 _editCreateCount
+    // 等到第 2 次才 pop,避免 delete 后误 pop。
     if (_submitted && state is BudgetListLoaded) {
       if (_isEdit) {
         _editCreateCount++;
@@ -167,13 +179,10 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
     }
   }
 
-  /// 编辑模式 delete→recreate 的 BudgetListLoaded 计数(2 次 = delete + create)。
-  int _editCreateCount = 0;
-
   void _addItemRow() => setState(() => _rows.add(_ItemRow()));
 
   void _removeItemRow(int i) {
-    // 至少保留 0 行?domain 要求 ≥1,但 UI 允许全删以禁用提交(由 _canSubmit 兜底)。
+    // UI 允许全删以禁用提交(由 _canSubmit 兜底)。
     setState(() {
       _rows[i].dispose();
       _rows.removeAt(i);
@@ -181,7 +190,7 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
   }
 
   Future<void> _pickMonth() async {
-    // 简单 YYYY-MM picker:复用 showDatePicker 取一个日期,转 yyyy-MM(日忽略)。
+    // YYYY-MM picker:复用 showDatePicker 取一个日期,转 yyyy-MM(日忽略)。
     final parts = _month.split('-');
     final initial = DateTime(
       int.tryParse(parts.first) ?? DateTime.now().year,
@@ -197,36 +206,48 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
     );
     if (picked != null) {
       setState(() {
-        _month =
-            '${picked.year}-${picked.month.toString().padLeft(2, '0')}';
+        _month = '${picked.year}-${picked.month.toString().padLeft(2, '0')}';
       });
     }
   }
 
-  Future<void> _submit() async {
-    if (_nameCtrl.text.trim().isEmpty) {
-      AppToast.show(context, '请填写预算名称', type: ToastType.warning);
-      return;
-    }
-    if (_rows.isEmpty) {
-      AppToast.show(context, '请至少添加一个预算项', type: ToastType.warning);
-      return;
-    }
-    for (var i = 0; i < _rows.length; i++) {
-      final r = _rows[i];
-      if (r.accountId == null || r.accountId!.isEmpty) {
-        AppToast.show(context, '第 ${i + 1} 项未选择分类', type: ToastType.warning);
-        return;
-      }
-      final amt = double.tryParse(r.plannedAmountCtrl.text);
-      if (amt == null || amt < 0) {
-        AppToast.show(context, '第 ${i + 1} 项计划金额无效', type: ToastType.warning);
-        return;
-      }
-    }
+  // ───────────────────────── 校验 / 提交 ─────────────────────────
 
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    _formKey.currentState?.save();
+  bool get _canSubmit {
+    if (_nameCtrl.text.trim().isEmpty) return false;
+    if (_rows.isEmpty) return false;
+    for (final r in _rows) {
+      if (r.accountId == null || r.accountId!.isEmpty) return false;
+      final amt = double.tryParse(r.plannedAmountCtrl.text);
+      if (amt == null || amt <= 0) return false;
+    }
+    return true;
+  }
+
+  void _submit() {
+    if (!_canSubmit) {
+      // 友好提示:逐项诊断。
+      if (_nameCtrl.text.trim().isEmpty) {
+        AppToast.show(context, '请填写预算名称', type: ToastType.warning);
+      } else if (_rows.isEmpty) {
+        AppToast.show(context, '请至少添加一个预算项', type: ToastType.warning);
+      } else {
+        for (var i = 0; i < _rows.length; i++) {
+          final r = _rows[i];
+          if (r.accountId == null || r.accountId!.isEmpty) {
+            AppToast.show(context, '第 ${i + 1} 项未选择分类', type: ToastType.warning);
+            return;
+          }
+          final amt = double.tryParse(r.plannedAmountCtrl.text);
+          if (amt == null || amt <= 0) {
+            AppToast.show(context, '第 ${i + 1} 项计划金额需大于 0',
+                type: ToastType.warning);
+            return;
+          }
+        }
+      }
+      return;
+    }
     _submitted = true;
 
     final items = _rows
@@ -239,10 +260,9 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
             ))
         .toList();
 
-    // 在 await / dispatch 前捕获 bloc(避免跨 async gap 用 BuildContext)。
+    // 在 dispatch 前捕获 bloc(避免跨 async gap 用 BuildContext)。
     final bloc = context.read<BudgetBloc>();
-    // 编辑模式 MVP:删旧 + 重建(对齐 brief 决策)。delete 与 create 顺序入队,
-    // 两次 BudgetListLoaded 后才 pop(_onBudgetStateChanged 用计数兜底)。
+    // 编辑模式 MVP:删旧 + 重建(对齐 brief 决策)。
     if (_isEdit) {
       bloc.add(DeleteBudgetRequested(widget.budgetId!));
     }
@@ -258,165 +278,425 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      appBar: AppBar(
-        leading: BackButton(onPressed: () => Navigator.of(context).pop()),
-        title: Text(_isEdit ? '编辑预算' : '新建预算'),
-      ),
       body: BlocConsumer<BudgetBloc, BudgetState>(
         listenWhen: (prev, curr) =>
             curr is BudgetDetailLoaded || curr is BudgetListLoaded,
         listener: _onBudgetStateChanged,
         builder: (context, state) {
           final submitting = state is BudgetLoading;
-          // 编辑模式未加载完(_existingBudget == null)→ 显示 loading。
+          // 编辑模式未加载完(_existingBudget == null)→ loading。
           if (_isEdit && _existingBudget == null) {
             return const Center(child: CircularProgressIndicator());
           }
-          return AbsorbPointer(
-            absorbing: submitting,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xl),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 760),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        FormSection(
-                          title: '1 · 基本信息',
-                          children: _basicInfoFields(),
+          final canSubmit = _canSubmit;
+          return Column(
+            children: [
+              _topbar(submitting, canSubmit),
+              Expanded(
+                child: AbsorbPointer(
+                  absorbing: submitting,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.lg,
+                        AppSpacing.sm, AppSpacing.lg, AppSpacing.xl),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 760),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _basicInfoSection(),
+                            const SizedBox(height: AppSpacing.lg),
+                            _itemsSectionHeader(),
+                            const SizedBox(height: AppSpacing.sm),
+                            _itemsEditor(submitting),
+                            const SizedBox(height: AppSpacing.sm),
+                            _addItemButton(submitting),
+                            const SizedBox(height: AppSpacing.xl),
+                            _bottomActions(submitting, canSubmit),
+                          ],
                         ),
-                        const SizedBox(height: AppSpacing.lg),
-                        FormSection(
-                          title: '2 · 预算项(按支出分类)',
-                          children: _itemsEditor(submitting),
-                        ),
-                        const SizedBox(height: AppSpacing.xl),
-                        FormActions(
-                          submitLabel: _isEdit ? '保存修改' : '确认创建',
-                          submitting: submitting,
-                          onSubmit: _submit,
-                          onCancel: () => Navigator.of(context).pop(),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
+            ],
           );
         },
       ),
     );
   }
 
-  // ----- 基本信息:Name + Month + Currency -----
-  List<Widget> _basicInfoFields() {
-    return [
-      TextFormField(
-        key: const ValueKey('nameField'),
-        controller: _nameCtrl,
-        decoration: const InputDecoration(
-          labelText: '预算名称',
-          hintText: '如 7 月家庭预算',
-        ),
-        validator: (v) =>
-            (v == null || v.trim().isEmpty) ? '请输入预算名称' : null,
-      ),
-      const SizedBox(height: AppSpacing.md),
-      FormRow(children: [
-        // 月份 picker(点击弹 showDatePicker,取 yyyy-MM)。
-        InkWell(
-          key: const ValueKey('monthPicker'),
-          onTap: _pickMonth,
-          child: InputDecorator(
-            decoration: const InputDecoration(
-              labelText: '预算月份',
-              suffixIcon:
-                  Icon(Icons.calendar_today_outlined, size: 18),
-            ),
-            child: Text(
-              _month,
-              style: TextStyle(
-                color: _month.isEmpty ? AppColors.muted : AppColors.fg,
-              ),
+  // ───────────────────────── topbar(对齐原型 topbar-d) ─────────────────────────
+
+  Widget _topbar(bool submitting, bool canSubmit) {
+    return Material(
+      color: AppColors.bg,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1200),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 返回 icon-btn(替 AppBar BackButton)。
+                IconButton(
+                  key: const ValueKey('budgetFormBack'),
+                  tooltip: '返回',
+                  icon: const Icon(LucideIcons.arrowLeft, size: 18),
+                  color: AppColors.muted,
+                  onPressed: submitting
+                      ? null
+                      : () => Navigator.of(context).pop(),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                // left:title + sub。
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _isEdit ? '编辑预算' : '新建预算',
+                        key: const ValueKey('budgetFormTitle'),
+                        style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: AppTypography.displayFamily,
+                            fontFamilyFallback:
+                                AppTypography.displayFallback),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '设定月度预算 · 选择分类账户 + 计划金额 · 保存后自动计算 actuals',
+                        key: const ValueKey('budgetFormSub'),
+                        style: const TextStyle(
+                            fontSize: 12.5, color: AppColors.muted),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                // actions:取消 ghost + btn-gold 提交。
+                if (!submitting)
+                  TextButton(
+                    key: const ValueKey('budgetFormCancel'),
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('取消'),
+                  ),
+                const SizedBox(width: AppSpacing.xs),
+                _GoldButton(
+                  key: const ValueKey('budgetFormSubmit'),
+                  icon: LucideIcons.check,
+                  label: _isEdit ? '保存修改' : '保存预算',
+                  onPressed: _submit,
+                  disabled: submitting || !canSubmit,
+                  loading: submitting,
+                ),
+              ],
             ),
           ),
         ),
-        // 货币下拉(MVP 简单:常驻币种)。
-        DropdownButtonFormField<String>(
-          key: const ValueKey('currencyDropdown'),
-          decoration: const InputDecoration(labelText: '货币'),
-          value: _currencyCode,
-          items: [
-            for (final c in _currencies)
-              DropdownMenuItem(value: c, child: Text(c)),
-          ],
-          onChanged: (v) {
-            if (v != null) setState(() => _currencyCode = v);
-          },
-        ),
-      ]),
-    ];
+      ),
+    );
   }
 
-  // ----- Items 编辑器(account dropdown 只列 expense 账户) -----
-  List<Widget> _itemsEditor(bool submitting) {
-    return [
-      for (var i = 0; i < _rows.length; i++)
-        Padding(
-          key: ValueKey('itemRow-$i'),
-          padding: EdgeInsets.only(bottom: i < _rows.length - 1 ? AppSpacing.md : 0),
-          child: FormRow(children: [
-            // account dropdown —— 只列 expense 账户(KEY)。
-            DropdownButtonFormField<String>(
-              key: ValueKey('itemAccount-$i'),
-              decoration: const InputDecoration(labelText: '支出分类'),
-              value: _rows[i].accountId,
-              items: [
-                for (final a in _expenseAccounts)
-                  DropdownMenuItem(value: a.id, child: Text(a.name)),
-              ],
-              hint: Text(_accountsLoading ? '加载中…' : '选择分类'),
-              onChanged: submitting
-                  ? null
-                  : (v) => setState(() => _rows[i].accountId = v),
-            ),
-            TextFormField(
-              key: ValueKey('itemAmount-$i'),
-              controller: _rows[i].plannedAmountCtrl,
-              decoration: const InputDecoration(
-                labelText: '计划金额',
-                prefixText: '¥ ',
-                hintText: '0.00',
+  // ───────────────────────── 基本信息(对齐原型 form-section) ─────────────────────────
+
+  Widget _basicInfoSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('基本信息', LucideIcons.info),
+        const SizedBox(height: AppSpacing.sm),
+        // Name + Month 横排。
+        Wrap(
+          spacing: AppSpacing.md,
+          runSpacing: AppSpacing.md,
+          children: [
+            SizedBox(
+              width: 320,
+              child: TextField(
+                key: const ValueKey('nameField'),
+                controller: _nameCtrl,
+                decoration: const InputDecoration(
+                  labelText: '预算名称 *',
+                  hintText: '如:日常开销预算',
+                ),
               ),
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              onChanged: (_) => setState(() {}),
             ),
-            // 删除按钮。
-            IconButton(
-              key: ValueKey('itemRemove-$i'),
-              icon: const Icon(Icons.remove_circle_outline, size: 20),
-              tooltip: '删除此预算项',
-              onPressed: submitting ? null : () => _removeItemRow(i),
+            SizedBox(
+              width: 200,
+              child: InkWell(
+                key: const ValueKey('monthPicker'),
+                onTap: _pickMonth,
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: '月份 *',
+                    suffixIcon:
+                        Icon(Icons.calendar_today_outlined, size: 18),
+                  ),
+                  child: Text(
+                    _month,
+                    style: TextStyle(
+                      color:
+                          _month.isEmpty ? AppColors.muted : AppColors.fg,
+                    ),
+                  ),
+                ),
+              ),
             ),
-          ]),
+          ],
         ),
-      const SizedBox(height: AppSpacing.sm),
-      // + 加项
-      Align(
-        alignment: Alignment.centerLeft,
-        child: TextButton.icon(
-          key: const ValueKey('addItemButton'),
-          onPressed: submitting ? null : _addItemRow,
-          icon: const Icon(Icons.add, size: 18),
-          label: const Text('加项'),
+        const SizedBox(height: AppSpacing.md),
+        // 货币(只读显示,原型 disabled input,单预算单货币)。
+        SizedBox(
+          width: 320,
+          child: TextField(
+            key: const ValueKey('currencyField'),
+            controller: TextEditingController(text: '$_currencyCode (人民币)'),
+            readOnly: true,
+            enabled: false,
+            decoration: const InputDecoration(
+              labelText: '货币',
+              helperText: '单预算单货币,与账户货币一致',
+            ),
+          ),
         ),
+      ],
+    );
+  }
+
+  // ───────────────────────── Items 编辑器 ─────────────────────────
+
+  Widget _sectionTitle(String text, IconData icon) => Row(
+        children: [
+          Icon(icon, size: 16, color: AppColors.accent),
+          const SizedBox(width: 6),
+          Text(text,
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.fg,
+                  fontFamily: AppTypography.displayFamily,
+                  fontFamilyFallback: AppTypography.displayFallback)),
+        ],
+      );
+
+  Widget _itemsSectionHeader() {
+    return Row(
+      children: [
+        Icon(LucideIcons.listChecks, size: 16, color: AppColors.accent),
+        const SizedBox(width: 6),
+        const Text('预算条目(分类账户 + 计划金额)',
+            style: TextStyle(
+                fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.fg)),
+        const SizedBox(width: 6),
+        const Text('至少 1 项',
+            style: TextStyle(fontSize: 12, color: AppColors.negative)),
+      ],
+    );
+  }
+
+  Widget _itemsEditor(bool submitting) {
+    if (_rows.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+        child: Text('暂无条目,点击下方「添加条目」开始',
+            style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+      );
+    }
+    return Column(
+      children: [
+        for (var i = 0; i < _rows.length; i++)
+          Padding(
+            key: ValueKey('itemRow-$i'),
+            padding: EdgeInsets.only(
+                bottom: i < _rows.length - 1 ? AppSpacing.md : 0),
+            child: _itemRowCard(i, submitting),
+          ),
+      ],
+    );
+  }
+
+  Widget _itemRowCard(int i, bool submitting) {
+    final row = _rows[i];
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppRadius.lgBorder,
+        border: Border.all(color: AppColors.border),
       ),
-    ];
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // account picker chips(替 DropdownButton,对齐原型 chips)。
+          _accountChips(i, row, submitting),
+          const SizedBox(height: AppSpacing.md),
+          // 计划金额 + 删除按钮。
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  key: ValueKey('itemAmount-$i'),
+                  controller: row.plannedAmountCtrl,
+                  decoration: const InputDecoration(
+                    labelText: '计划金额',
+                    prefixText: '¥ ',
+                    hintText: '0.00',
+                  ),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              IconButton(
+                key: ValueKey('itemRemove-$i'),
+                icon: const Icon(LucideIcons.trash2, size: 18),
+                color: AppColors.negative,
+                tooltip: '移除条目',
+                onPressed: submitting ? null : () => _removeItemRow(i),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// expense account picker chips(替 DropdownButton)。每 account 一 chip,
+  /// 选中 = accent 金底;只列 expense 账户(_expenseAccounts 已 filter)。
+  Widget _accountChips(int i, _ItemRow row, bool submitting) {
+    if (_accountsLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
+        child: Text('加载分类中…',
+            style: TextStyle(color: AppColors.muted, fontSize: 12)),
+      );
+    }
+    if (_expenseAccounts.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
+        child: Text('暂无支出分类账户(需先创建 expense 账户)',
+            style: TextStyle(color: AppColors.muted, fontSize: 12)),
+      );
+    }
+    return Wrap(
+      key: ValueKey('itemAccount-$i'),
+      spacing: AppSpacing.xs,
+      runSpacing: AppSpacing.xs,
+      children: [
+        for (final a in _expenseAccounts) _accountChip(a, row, submitting),
+      ],
+    );
+  }
+
+  Widget _accountChip(Account a, _ItemRow row, bool submitting) {
+    final selected = row.accountId == a.id;
+    return ChoiceChip(
+      key: ValueKey('itemAccountChip_${a.id}'),
+      label: Text(a.name),
+      selected: selected,
+      selectedColor: AppColors.accent.withValues(alpha: 0.15),
+      backgroundColor: AppColors.surface,
+      side: BorderSide(
+          color: selected ? AppColors.accent : AppColors.border, width: 1),
+      labelStyle: TextStyle(
+        fontSize: 12.5,
+        fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+        color: selected ? AppColors.accent : AppColors.fg,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9999)),
+      onSelected: submitting
+          ? null
+          : (_) => setState(() {
+                row.accountId = selected ? null : a.id;
+              }),
+    );
+  }
+
+  Widget _addItemButton(bool submitting) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        key: const ValueKey('addItemButton'),
+        onPressed: submitting ? null : _addItemRow,
+        icon: const Icon(LucideIcons.plus, size: 16),
+        label: const Text('添加条目'),
+      ),
+    );
+  }
+
+  Widget _bottomActions(bool submitting, bool canSubmit) {
+    // 底部也放一组操作(对齐原型 action-row,与 topbar btn-gold 双入口)。
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        TextButton(
+          key: const ValueKey('budgetFormCancelBottom'),
+          onPressed: submitting ? null : () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        _GoldButton(
+          key: const ValueKey('budgetFormSubmitBottom'),
+          icon: LucideIcons.check,
+          label: _isEdit ? '保存修改' : '保存预算',
+          onPressed: _submit,
+          disabled: submitting || !canSubmit,
+          loading: submitting,
+        ),
+      ],
+    );
+  }
+}
+
+// ───────────────────────── btn-gold(对齐原型 .btn-gold) ─────────────────────────
+
+/// 金色背景 + 白文字 + 圆角按钮(对齐 OD 原型 .btn-gold)。本地 copy,与
+/// budget_list_page._GoldButton 同款(提取共享 widget 留待后续,避免本次 form
+/// 对齐 PR 扩散到 list/detail)。
+class _GoldButton extends StatelessWidget {
+  const _GoldButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.disabled = false,
+    this.loading = false,
+  });
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+  final bool disabled;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: disabled ? null : onPressed,
+      icon: loading
+          ? const SizedBox(
+              height: 16,
+              width: 16,
+              child:
+                  CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+          : Icon(icon, size: 16, color: Colors.white),
+      label: Text(label,
+          key: ValueKey('goldBtnLabel_$label'),
+          style: const TextStyle(color: Colors.white, fontSize: 13)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.accent,
+        foregroundColor: Colors.white,
+        disabledBackgroundColor: AppColors.accent.withValues(alpha: 0.4),
+        disabledForegroundColor: Colors.white70,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.smBorder),
+      ),
+    );
   }
 }
