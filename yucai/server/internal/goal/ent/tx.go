@@ -14,6 +14,12 @@ type Tx struct {
 	config
 	// Goal is the client for interacting with the Goal builders.
 	Goal *GoalClient
+	// GoalAccountLinks is the client for interacting with the GoalAccountLinks builders.
+	GoalAccountLinks *GoalAccountLinksClient
+	// GoalDebtLinks is the client for interacting with the GoalDebtLinks builders.
+	GoalDebtLinks *GoalDebtLinksClient
+	// GoalProgressSnapshot is the client for interacting with the GoalProgressSnapshot builders.
+	GoalProgressSnapshot *GoalProgressSnapshotClient
 
 	// lazily loaded.
 	client     *Client
@@ -146,6 +152,9 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.Goal = NewGoalClient(tx.config)
+	tx.GoalAccountLinks = NewGoalAccountLinksClient(tx.config)
+	tx.GoalDebtLinks = NewGoalDebtLinksClient(tx.config)
+	tx.GoalProgressSnapshot = NewGoalProgressSnapshotClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

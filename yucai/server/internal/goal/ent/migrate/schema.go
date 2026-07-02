@@ -44,9 +44,109 @@ var (
 			},
 		},
 	}
+	// GoalAccountLinksColumns holds the columns for the "goal_account_links" table.
+	GoalAccountLinksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID, Comment: "FK to tenants table — data isolation boundary"},
+		{Name: "goal_id", Type: field.TypeUUID},
+		{Name: "account_id", Type: field.TypeUUID},
+	}
+	// GoalAccountLinksTable holds the schema information for the "goal_account_links" table.
+	GoalAccountLinksTable = &schema.Table{
+		Name:       "goal_account_links",
+		Columns:    GoalAccountLinksColumns,
+		PrimaryKey: []*schema.Column{GoalAccountLinksColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "goalaccountlinks_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{GoalAccountLinksColumns[1]},
+			},
+			{
+				Name:    "goalaccountlinks_tenant_id_goal_id_account_id",
+				Unique:  true,
+				Columns: []*schema.Column{GoalAccountLinksColumns[1], GoalAccountLinksColumns[2], GoalAccountLinksColumns[3]},
+			},
+			{
+				Name:    "goalaccountlinks_tenant_id_goal_id",
+				Unique:  false,
+				Columns: []*schema.Column{GoalAccountLinksColumns[1], GoalAccountLinksColumns[2]},
+			},
+		},
+	}
+	// GoalDebtLinksColumns holds the columns for the "goal_debt_links" table.
+	GoalDebtLinksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID, Comment: "FK to tenants table — data isolation boundary"},
+		{Name: "goal_id", Type: field.TypeUUID},
+		{Name: "debt_id", Type: field.TypeUUID},
+	}
+	// GoalDebtLinksTable holds the schema information for the "goal_debt_links" table.
+	GoalDebtLinksTable = &schema.Table{
+		Name:       "goal_debt_links",
+		Columns:    GoalDebtLinksColumns,
+		PrimaryKey: []*schema.Column{GoalDebtLinksColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "goaldebtlinks_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{GoalDebtLinksColumns[1]},
+			},
+			{
+				Name:    "goaldebtlinks_tenant_id_goal_id_debt_id",
+				Unique:  true,
+				Columns: []*schema.Column{GoalDebtLinksColumns[1], GoalDebtLinksColumns[2], GoalDebtLinksColumns[3]},
+			},
+			{
+				Name:    "goaldebtlinks_tenant_id_goal_id",
+				Unique:  false,
+				Columns: []*schema.Column{GoalDebtLinksColumns[1], GoalDebtLinksColumns[2]},
+			},
+		},
+	}
+	// GoalProgressSnapshotsColumns holds the columns for the "goal_progress_snapshots" table.
+	GoalProgressSnapshotsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID, Comment: "FK to tenants table — data isolation boundary"},
+		{Name: "goal_id", Type: field.TypeUUID},
+		{Name: "snapshot_date", Type: field.TypeTime},
+		{Name: "current_amount_cents", Type: field.TypeInt64, Comment: "goal progress at snapshot_date, original currency"},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// GoalProgressSnapshotsTable holds the schema information for the "goal_progress_snapshots" table.
+	GoalProgressSnapshotsTable = &schema.Table{
+		Name:       "goal_progress_snapshots",
+		Columns:    GoalProgressSnapshotsColumns,
+		PrimaryKey: []*schema.Column{GoalProgressSnapshotsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "goalprogresssnapshot_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{GoalProgressSnapshotsColumns[1]},
+			},
+			{
+				Name:    "goalprogresssnapshot_tenant_id_goal_id_snapshot_date",
+				Unique:  true,
+				Columns: []*schema.Column{GoalProgressSnapshotsColumns[1], GoalProgressSnapshotsColumns[2], GoalProgressSnapshotsColumns[3]},
+			},
+			{
+				Name:    "goalprogresssnapshot_tenant_id_snapshot_date",
+				Unique:  false,
+				Columns: []*schema.Column{GoalProgressSnapshotsColumns[1], GoalProgressSnapshotsColumns[3]},
+			},
+			{
+				Name:    "goalprogresssnapshot_tenant_id_goal_id",
+				Unique:  false,
+				Columns: []*schema.Column{GoalProgressSnapshotsColumns[1], GoalProgressSnapshotsColumns[2]},
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		GoalsTable,
+		GoalAccountLinksTable,
+		GoalDebtLinksTable,
+		GoalProgressSnapshotsTable,
 	}
 )
 

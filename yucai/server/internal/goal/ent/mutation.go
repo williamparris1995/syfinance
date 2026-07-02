@@ -13,6 +13,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/goal/ent/goal"
+	"github.com/yucai/server/internal/goal/ent/goalaccountlinks"
+	"github.com/yucai/server/internal/goal/ent/goaldebtlinks"
+	"github.com/yucai/server/internal/goal/ent/goalprogresssnapshot"
 	"github.com/yucai/server/internal/goal/ent/predicate"
 )
 
@@ -25,7 +28,10 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeGoal = "Goal"
+	TypeGoal                 = "Goal"
+	TypeGoalAccountLinks     = "GoalAccountLinks"
+	TypeGoalDebtLinks        = "GoalDebtLinks"
+	TypeGoalProgressSnapshot = "GoalProgressSnapshot"
 )
 
 // GoalMutation represents an operation that mutates the Goal nodes in the graph.
@@ -1241,4 +1247,1468 @@ func (m *GoalMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *GoalMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Goal edge %s", name)
+}
+
+// GoalAccountLinksMutation represents an operation that mutates the GoalAccountLinks nodes in the graph.
+type GoalAccountLinksMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *uuid.UUID
+	tenant_id     *uuid.UUID
+	goal_id       *uuid.UUID
+	account_id    *uuid.UUID
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*GoalAccountLinks, error)
+	predicates    []predicate.GoalAccountLinks
+}
+
+var _ ent.Mutation = (*GoalAccountLinksMutation)(nil)
+
+// goalaccountlinksOption allows management of the mutation configuration using functional options.
+type goalaccountlinksOption func(*GoalAccountLinksMutation)
+
+// newGoalAccountLinksMutation creates new mutation for the GoalAccountLinks entity.
+func newGoalAccountLinksMutation(c config, op Op, opts ...goalaccountlinksOption) *GoalAccountLinksMutation {
+	m := &GoalAccountLinksMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeGoalAccountLinks,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withGoalAccountLinksID sets the ID field of the mutation.
+func withGoalAccountLinksID(id uuid.UUID) goalaccountlinksOption {
+	return func(m *GoalAccountLinksMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *GoalAccountLinks
+		)
+		m.oldValue = func(ctx context.Context) (*GoalAccountLinks, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().GoalAccountLinks.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withGoalAccountLinks sets the old GoalAccountLinks of the mutation.
+func withGoalAccountLinks(node *GoalAccountLinks) goalaccountlinksOption {
+	return func(m *GoalAccountLinksMutation) {
+		m.oldValue = func(context.Context) (*GoalAccountLinks, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m GoalAccountLinksMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m GoalAccountLinksMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of GoalAccountLinks entities.
+func (m *GoalAccountLinksMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *GoalAccountLinksMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *GoalAccountLinksMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().GoalAccountLinks.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *GoalAccountLinksMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *GoalAccountLinksMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the GoalAccountLinks entity.
+// If the GoalAccountLinks object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GoalAccountLinksMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *GoalAccountLinksMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetGoalID sets the "goal_id" field.
+func (m *GoalAccountLinksMutation) SetGoalID(u uuid.UUID) {
+	m.goal_id = &u
+}
+
+// GoalID returns the value of the "goal_id" field in the mutation.
+func (m *GoalAccountLinksMutation) GoalID() (r uuid.UUID, exists bool) {
+	v := m.goal_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGoalID returns the old "goal_id" field's value of the GoalAccountLinks entity.
+// If the GoalAccountLinks object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GoalAccountLinksMutation) OldGoalID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGoalID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGoalID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGoalID: %w", err)
+	}
+	return oldValue.GoalID, nil
+}
+
+// ResetGoalID resets all changes to the "goal_id" field.
+func (m *GoalAccountLinksMutation) ResetGoalID() {
+	m.goal_id = nil
+}
+
+// SetAccountID sets the "account_id" field.
+func (m *GoalAccountLinksMutation) SetAccountID(u uuid.UUID) {
+	m.account_id = &u
+}
+
+// AccountID returns the value of the "account_id" field in the mutation.
+func (m *GoalAccountLinksMutation) AccountID() (r uuid.UUID, exists bool) {
+	v := m.account_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountID returns the old "account_id" field's value of the GoalAccountLinks entity.
+// If the GoalAccountLinks object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GoalAccountLinksMutation) OldAccountID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountID: %w", err)
+	}
+	return oldValue.AccountID, nil
+}
+
+// ResetAccountID resets all changes to the "account_id" field.
+func (m *GoalAccountLinksMutation) ResetAccountID() {
+	m.account_id = nil
+}
+
+// Where appends a list predicates to the GoalAccountLinksMutation builder.
+func (m *GoalAccountLinksMutation) Where(ps ...predicate.GoalAccountLinks) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the GoalAccountLinksMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *GoalAccountLinksMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.GoalAccountLinks, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *GoalAccountLinksMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *GoalAccountLinksMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (GoalAccountLinks).
+func (m *GoalAccountLinksMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *GoalAccountLinksMutation) Fields() []string {
+	fields := make([]string, 0, 3)
+	if m.tenant_id != nil {
+		fields = append(fields, goalaccountlinks.FieldTenantID)
+	}
+	if m.goal_id != nil {
+		fields = append(fields, goalaccountlinks.FieldGoalID)
+	}
+	if m.account_id != nil {
+		fields = append(fields, goalaccountlinks.FieldAccountID)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *GoalAccountLinksMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case goalaccountlinks.FieldTenantID:
+		return m.TenantID()
+	case goalaccountlinks.FieldGoalID:
+		return m.GoalID()
+	case goalaccountlinks.FieldAccountID:
+		return m.AccountID()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *GoalAccountLinksMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case goalaccountlinks.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case goalaccountlinks.FieldGoalID:
+		return m.OldGoalID(ctx)
+	case goalaccountlinks.FieldAccountID:
+		return m.OldAccountID(ctx)
+	}
+	return nil, fmt.Errorf("unknown GoalAccountLinks field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *GoalAccountLinksMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case goalaccountlinks.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case goalaccountlinks.FieldGoalID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGoalID(v)
+		return nil
+	case goalaccountlinks.FieldAccountID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown GoalAccountLinks field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *GoalAccountLinksMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *GoalAccountLinksMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *GoalAccountLinksMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown GoalAccountLinks numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *GoalAccountLinksMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *GoalAccountLinksMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *GoalAccountLinksMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown GoalAccountLinks nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *GoalAccountLinksMutation) ResetField(name string) error {
+	switch name {
+	case goalaccountlinks.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case goalaccountlinks.FieldGoalID:
+		m.ResetGoalID()
+		return nil
+	case goalaccountlinks.FieldAccountID:
+		m.ResetAccountID()
+		return nil
+	}
+	return fmt.Errorf("unknown GoalAccountLinks field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *GoalAccountLinksMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *GoalAccountLinksMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *GoalAccountLinksMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *GoalAccountLinksMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *GoalAccountLinksMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *GoalAccountLinksMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *GoalAccountLinksMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown GoalAccountLinks unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *GoalAccountLinksMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown GoalAccountLinks edge %s", name)
+}
+
+// GoalDebtLinksMutation represents an operation that mutates the GoalDebtLinks nodes in the graph.
+type GoalDebtLinksMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *uuid.UUID
+	tenant_id     *uuid.UUID
+	goal_id       *uuid.UUID
+	debt_id       *uuid.UUID
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*GoalDebtLinks, error)
+	predicates    []predicate.GoalDebtLinks
+}
+
+var _ ent.Mutation = (*GoalDebtLinksMutation)(nil)
+
+// goaldebtlinksOption allows management of the mutation configuration using functional options.
+type goaldebtlinksOption func(*GoalDebtLinksMutation)
+
+// newGoalDebtLinksMutation creates new mutation for the GoalDebtLinks entity.
+func newGoalDebtLinksMutation(c config, op Op, opts ...goaldebtlinksOption) *GoalDebtLinksMutation {
+	m := &GoalDebtLinksMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeGoalDebtLinks,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withGoalDebtLinksID sets the ID field of the mutation.
+func withGoalDebtLinksID(id uuid.UUID) goaldebtlinksOption {
+	return func(m *GoalDebtLinksMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *GoalDebtLinks
+		)
+		m.oldValue = func(ctx context.Context) (*GoalDebtLinks, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().GoalDebtLinks.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withGoalDebtLinks sets the old GoalDebtLinks of the mutation.
+func withGoalDebtLinks(node *GoalDebtLinks) goaldebtlinksOption {
+	return func(m *GoalDebtLinksMutation) {
+		m.oldValue = func(context.Context) (*GoalDebtLinks, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m GoalDebtLinksMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m GoalDebtLinksMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of GoalDebtLinks entities.
+func (m *GoalDebtLinksMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *GoalDebtLinksMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *GoalDebtLinksMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().GoalDebtLinks.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *GoalDebtLinksMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *GoalDebtLinksMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the GoalDebtLinks entity.
+// If the GoalDebtLinks object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GoalDebtLinksMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *GoalDebtLinksMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetGoalID sets the "goal_id" field.
+func (m *GoalDebtLinksMutation) SetGoalID(u uuid.UUID) {
+	m.goal_id = &u
+}
+
+// GoalID returns the value of the "goal_id" field in the mutation.
+func (m *GoalDebtLinksMutation) GoalID() (r uuid.UUID, exists bool) {
+	v := m.goal_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGoalID returns the old "goal_id" field's value of the GoalDebtLinks entity.
+// If the GoalDebtLinks object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GoalDebtLinksMutation) OldGoalID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGoalID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGoalID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGoalID: %w", err)
+	}
+	return oldValue.GoalID, nil
+}
+
+// ResetGoalID resets all changes to the "goal_id" field.
+func (m *GoalDebtLinksMutation) ResetGoalID() {
+	m.goal_id = nil
+}
+
+// SetDebtID sets the "debt_id" field.
+func (m *GoalDebtLinksMutation) SetDebtID(u uuid.UUID) {
+	m.debt_id = &u
+}
+
+// DebtID returns the value of the "debt_id" field in the mutation.
+func (m *GoalDebtLinksMutation) DebtID() (r uuid.UUID, exists bool) {
+	v := m.debt_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDebtID returns the old "debt_id" field's value of the GoalDebtLinks entity.
+// If the GoalDebtLinks object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GoalDebtLinksMutation) OldDebtID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDebtID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDebtID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDebtID: %w", err)
+	}
+	return oldValue.DebtID, nil
+}
+
+// ResetDebtID resets all changes to the "debt_id" field.
+func (m *GoalDebtLinksMutation) ResetDebtID() {
+	m.debt_id = nil
+}
+
+// Where appends a list predicates to the GoalDebtLinksMutation builder.
+func (m *GoalDebtLinksMutation) Where(ps ...predicate.GoalDebtLinks) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the GoalDebtLinksMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *GoalDebtLinksMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.GoalDebtLinks, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *GoalDebtLinksMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *GoalDebtLinksMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (GoalDebtLinks).
+func (m *GoalDebtLinksMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *GoalDebtLinksMutation) Fields() []string {
+	fields := make([]string, 0, 3)
+	if m.tenant_id != nil {
+		fields = append(fields, goaldebtlinks.FieldTenantID)
+	}
+	if m.goal_id != nil {
+		fields = append(fields, goaldebtlinks.FieldGoalID)
+	}
+	if m.debt_id != nil {
+		fields = append(fields, goaldebtlinks.FieldDebtID)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *GoalDebtLinksMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case goaldebtlinks.FieldTenantID:
+		return m.TenantID()
+	case goaldebtlinks.FieldGoalID:
+		return m.GoalID()
+	case goaldebtlinks.FieldDebtID:
+		return m.DebtID()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *GoalDebtLinksMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case goaldebtlinks.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case goaldebtlinks.FieldGoalID:
+		return m.OldGoalID(ctx)
+	case goaldebtlinks.FieldDebtID:
+		return m.OldDebtID(ctx)
+	}
+	return nil, fmt.Errorf("unknown GoalDebtLinks field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *GoalDebtLinksMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case goaldebtlinks.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case goaldebtlinks.FieldGoalID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGoalID(v)
+		return nil
+	case goaldebtlinks.FieldDebtID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDebtID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown GoalDebtLinks field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *GoalDebtLinksMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *GoalDebtLinksMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *GoalDebtLinksMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown GoalDebtLinks numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *GoalDebtLinksMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *GoalDebtLinksMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *GoalDebtLinksMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown GoalDebtLinks nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *GoalDebtLinksMutation) ResetField(name string) error {
+	switch name {
+	case goaldebtlinks.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case goaldebtlinks.FieldGoalID:
+		m.ResetGoalID()
+		return nil
+	case goaldebtlinks.FieldDebtID:
+		m.ResetDebtID()
+		return nil
+	}
+	return fmt.Errorf("unknown GoalDebtLinks field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *GoalDebtLinksMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *GoalDebtLinksMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *GoalDebtLinksMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *GoalDebtLinksMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *GoalDebtLinksMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *GoalDebtLinksMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *GoalDebtLinksMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown GoalDebtLinks unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *GoalDebtLinksMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown GoalDebtLinks edge %s", name)
+}
+
+// GoalProgressSnapshotMutation represents an operation that mutates the GoalProgressSnapshot nodes in the graph.
+type GoalProgressSnapshotMutation struct {
+	config
+	op                      Op
+	typ                     string
+	id                      *uuid.UUID
+	tenant_id               *uuid.UUID
+	goal_id                 *uuid.UUID
+	snapshot_date           *time.Time
+	current_amount_cents    *int64
+	addcurrent_amount_cents *int64
+	created_at              *time.Time
+	clearedFields           map[string]struct{}
+	done                    bool
+	oldValue                func(context.Context) (*GoalProgressSnapshot, error)
+	predicates              []predicate.GoalProgressSnapshot
+}
+
+var _ ent.Mutation = (*GoalProgressSnapshotMutation)(nil)
+
+// goalprogresssnapshotOption allows management of the mutation configuration using functional options.
+type goalprogresssnapshotOption func(*GoalProgressSnapshotMutation)
+
+// newGoalProgressSnapshotMutation creates new mutation for the GoalProgressSnapshot entity.
+func newGoalProgressSnapshotMutation(c config, op Op, opts ...goalprogresssnapshotOption) *GoalProgressSnapshotMutation {
+	m := &GoalProgressSnapshotMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeGoalProgressSnapshot,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withGoalProgressSnapshotID sets the ID field of the mutation.
+func withGoalProgressSnapshotID(id uuid.UUID) goalprogresssnapshotOption {
+	return func(m *GoalProgressSnapshotMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *GoalProgressSnapshot
+		)
+		m.oldValue = func(ctx context.Context) (*GoalProgressSnapshot, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().GoalProgressSnapshot.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withGoalProgressSnapshot sets the old GoalProgressSnapshot of the mutation.
+func withGoalProgressSnapshot(node *GoalProgressSnapshot) goalprogresssnapshotOption {
+	return func(m *GoalProgressSnapshotMutation) {
+		m.oldValue = func(context.Context) (*GoalProgressSnapshot, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m GoalProgressSnapshotMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m GoalProgressSnapshotMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of GoalProgressSnapshot entities.
+func (m *GoalProgressSnapshotMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *GoalProgressSnapshotMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *GoalProgressSnapshotMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().GoalProgressSnapshot.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *GoalProgressSnapshotMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *GoalProgressSnapshotMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the GoalProgressSnapshot entity.
+// If the GoalProgressSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GoalProgressSnapshotMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *GoalProgressSnapshotMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetGoalID sets the "goal_id" field.
+func (m *GoalProgressSnapshotMutation) SetGoalID(u uuid.UUID) {
+	m.goal_id = &u
+}
+
+// GoalID returns the value of the "goal_id" field in the mutation.
+func (m *GoalProgressSnapshotMutation) GoalID() (r uuid.UUID, exists bool) {
+	v := m.goal_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGoalID returns the old "goal_id" field's value of the GoalProgressSnapshot entity.
+// If the GoalProgressSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GoalProgressSnapshotMutation) OldGoalID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGoalID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGoalID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGoalID: %w", err)
+	}
+	return oldValue.GoalID, nil
+}
+
+// ResetGoalID resets all changes to the "goal_id" field.
+func (m *GoalProgressSnapshotMutation) ResetGoalID() {
+	m.goal_id = nil
+}
+
+// SetSnapshotDate sets the "snapshot_date" field.
+func (m *GoalProgressSnapshotMutation) SetSnapshotDate(t time.Time) {
+	m.snapshot_date = &t
+}
+
+// SnapshotDate returns the value of the "snapshot_date" field in the mutation.
+func (m *GoalProgressSnapshotMutation) SnapshotDate() (r time.Time, exists bool) {
+	v := m.snapshot_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSnapshotDate returns the old "snapshot_date" field's value of the GoalProgressSnapshot entity.
+// If the GoalProgressSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GoalProgressSnapshotMutation) OldSnapshotDate(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSnapshotDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSnapshotDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSnapshotDate: %w", err)
+	}
+	return oldValue.SnapshotDate, nil
+}
+
+// ResetSnapshotDate resets all changes to the "snapshot_date" field.
+func (m *GoalProgressSnapshotMutation) ResetSnapshotDate() {
+	m.snapshot_date = nil
+}
+
+// SetCurrentAmountCents sets the "current_amount_cents" field.
+func (m *GoalProgressSnapshotMutation) SetCurrentAmountCents(i int64) {
+	m.current_amount_cents = &i
+	m.addcurrent_amount_cents = nil
+}
+
+// CurrentAmountCents returns the value of the "current_amount_cents" field in the mutation.
+func (m *GoalProgressSnapshotMutation) CurrentAmountCents() (r int64, exists bool) {
+	v := m.current_amount_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrentAmountCents returns the old "current_amount_cents" field's value of the GoalProgressSnapshot entity.
+// If the GoalProgressSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GoalProgressSnapshotMutation) OldCurrentAmountCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrentAmountCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrentAmountCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrentAmountCents: %w", err)
+	}
+	return oldValue.CurrentAmountCents, nil
+}
+
+// AddCurrentAmountCents adds i to the "current_amount_cents" field.
+func (m *GoalProgressSnapshotMutation) AddCurrentAmountCents(i int64) {
+	if m.addcurrent_amount_cents != nil {
+		*m.addcurrent_amount_cents += i
+	} else {
+		m.addcurrent_amount_cents = &i
+	}
+}
+
+// AddedCurrentAmountCents returns the value that was added to the "current_amount_cents" field in this mutation.
+func (m *GoalProgressSnapshotMutation) AddedCurrentAmountCents() (r int64, exists bool) {
+	v := m.addcurrent_amount_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCurrentAmountCents resets all changes to the "current_amount_cents" field.
+func (m *GoalProgressSnapshotMutation) ResetCurrentAmountCents() {
+	m.current_amount_cents = nil
+	m.addcurrent_amount_cents = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *GoalProgressSnapshotMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *GoalProgressSnapshotMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the GoalProgressSnapshot entity.
+// If the GoalProgressSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GoalProgressSnapshotMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *GoalProgressSnapshotMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the GoalProgressSnapshotMutation builder.
+func (m *GoalProgressSnapshotMutation) Where(ps ...predicate.GoalProgressSnapshot) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the GoalProgressSnapshotMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *GoalProgressSnapshotMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.GoalProgressSnapshot, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *GoalProgressSnapshotMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *GoalProgressSnapshotMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (GoalProgressSnapshot).
+func (m *GoalProgressSnapshotMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *GoalProgressSnapshotMutation) Fields() []string {
+	fields := make([]string, 0, 5)
+	if m.tenant_id != nil {
+		fields = append(fields, goalprogresssnapshot.FieldTenantID)
+	}
+	if m.goal_id != nil {
+		fields = append(fields, goalprogresssnapshot.FieldGoalID)
+	}
+	if m.snapshot_date != nil {
+		fields = append(fields, goalprogresssnapshot.FieldSnapshotDate)
+	}
+	if m.current_amount_cents != nil {
+		fields = append(fields, goalprogresssnapshot.FieldCurrentAmountCents)
+	}
+	if m.created_at != nil {
+		fields = append(fields, goalprogresssnapshot.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *GoalProgressSnapshotMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case goalprogresssnapshot.FieldTenantID:
+		return m.TenantID()
+	case goalprogresssnapshot.FieldGoalID:
+		return m.GoalID()
+	case goalprogresssnapshot.FieldSnapshotDate:
+		return m.SnapshotDate()
+	case goalprogresssnapshot.FieldCurrentAmountCents:
+		return m.CurrentAmountCents()
+	case goalprogresssnapshot.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *GoalProgressSnapshotMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case goalprogresssnapshot.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case goalprogresssnapshot.FieldGoalID:
+		return m.OldGoalID(ctx)
+	case goalprogresssnapshot.FieldSnapshotDate:
+		return m.OldSnapshotDate(ctx)
+	case goalprogresssnapshot.FieldCurrentAmountCents:
+		return m.OldCurrentAmountCents(ctx)
+	case goalprogresssnapshot.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown GoalProgressSnapshot field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *GoalProgressSnapshotMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case goalprogresssnapshot.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case goalprogresssnapshot.FieldGoalID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGoalID(v)
+		return nil
+	case goalprogresssnapshot.FieldSnapshotDate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSnapshotDate(v)
+		return nil
+	case goalprogresssnapshot.FieldCurrentAmountCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrentAmountCents(v)
+		return nil
+	case goalprogresssnapshot.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown GoalProgressSnapshot field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *GoalProgressSnapshotMutation) AddedFields() []string {
+	var fields []string
+	if m.addcurrent_amount_cents != nil {
+		fields = append(fields, goalprogresssnapshot.FieldCurrentAmountCents)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *GoalProgressSnapshotMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case goalprogresssnapshot.FieldCurrentAmountCents:
+		return m.AddedCurrentAmountCents()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *GoalProgressSnapshotMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case goalprogresssnapshot.FieldCurrentAmountCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCurrentAmountCents(v)
+		return nil
+	}
+	return fmt.Errorf("unknown GoalProgressSnapshot numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *GoalProgressSnapshotMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *GoalProgressSnapshotMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *GoalProgressSnapshotMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown GoalProgressSnapshot nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *GoalProgressSnapshotMutation) ResetField(name string) error {
+	switch name {
+	case goalprogresssnapshot.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case goalprogresssnapshot.FieldGoalID:
+		m.ResetGoalID()
+		return nil
+	case goalprogresssnapshot.FieldSnapshotDate:
+		m.ResetSnapshotDate()
+		return nil
+	case goalprogresssnapshot.FieldCurrentAmountCents:
+		m.ResetCurrentAmountCents()
+		return nil
+	case goalprogresssnapshot.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown GoalProgressSnapshot field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *GoalProgressSnapshotMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *GoalProgressSnapshotMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *GoalProgressSnapshotMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *GoalProgressSnapshotMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *GoalProgressSnapshotMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *GoalProgressSnapshotMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *GoalProgressSnapshotMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown GoalProgressSnapshot unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *GoalProgressSnapshotMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown GoalProgressSnapshot edge %s", name)
 }

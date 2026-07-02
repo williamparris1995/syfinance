@@ -8,3 +8,12 @@ import (
 
 // Goal is the predicate function for goal builders.
 type Goal func(*sql.Selector)
+
+// GoalAccountLinks is the predicate function for goalaccountlinks builders.
+type GoalAccountLinks func(*sql.Selector)
+
+// GoalDebtLinks is the predicate function for goaldebtlinks builders.
+type GoalDebtLinks func(*sql.Selector)
+
+// GoalProgressSnapshot is the predicate function for goalprogresssnapshot builders.
+type GoalProgressSnapshot func(*sql.Selector)

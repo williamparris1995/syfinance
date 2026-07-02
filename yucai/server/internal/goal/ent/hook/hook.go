@@ -21,6 +21,42 @@ func (f GoalFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.GoalMutation", m)
 }
 
+// The GoalAccountLinksFunc type is an adapter to allow the use of ordinary
+// function as GoalAccountLinks mutator.
+type GoalAccountLinksFunc func(context.Context, *ent.GoalAccountLinksMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f GoalAccountLinksFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.GoalAccountLinksMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.GoalAccountLinksMutation", m)
+}
+
+// The GoalDebtLinksFunc type is an adapter to allow the use of ordinary
+// function as GoalDebtLinks mutator.
+type GoalDebtLinksFunc func(context.Context, *ent.GoalDebtLinksMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f GoalDebtLinksFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.GoalDebtLinksMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.GoalDebtLinksMutation", m)
+}
+
+// The GoalProgressSnapshotFunc type is an adapter to allow the use of ordinary
+// function as GoalProgressSnapshot mutator.
+type GoalProgressSnapshotFunc func(context.Context, *ent.GoalProgressSnapshotMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f GoalProgressSnapshotFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.GoalProgressSnapshotMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.GoalProgressSnapshotMutation", m)
+}
+
 // Condition is a hook condition function.
 type Condition func(context.Context, ent.Mutation) bool
 

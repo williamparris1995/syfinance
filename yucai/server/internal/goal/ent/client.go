@@ -16,6 +16,9 @@ import (
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"github.com/yucai/server/internal/goal/ent/goal"
+	"github.com/yucai/server/internal/goal/ent/goalaccountlinks"
+	"github.com/yucai/server/internal/goal/ent/goaldebtlinks"
+	"github.com/yucai/server/internal/goal/ent/goalprogresssnapshot"
 )
 
 // Client is the client that holds all ent builders.
@@ -25,6 +28,12 @@ type Client struct {
 	Schema *migrate.Schema
 	// Goal is the client for interacting with the Goal builders.
 	Goal *GoalClient
+	// GoalAccountLinks is the client for interacting with the GoalAccountLinks builders.
+	GoalAccountLinks *GoalAccountLinksClient
+	// GoalDebtLinks is the client for interacting with the GoalDebtLinks builders.
+	GoalDebtLinks *GoalDebtLinksClient
+	// GoalProgressSnapshot is the client for interacting with the GoalProgressSnapshot builders.
+	GoalProgressSnapshot *GoalProgressSnapshotClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -37,6 +46,9 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.Goal = NewGoalClient(c.config)
+	c.GoalAccountLinks = NewGoalAccountLinksClient(c.config)
+	c.GoalDebtLinks = NewGoalDebtLinksClient(c.config)
+	c.GoalProgressSnapshot = NewGoalProgressSnapshotClient(c.config)
 }
 
 type (
@@ -127,9 +139,12 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:    ctx,
-		config: cfg,
-		Goal:   NewGoalClient(cfg),
+		ctx:                  ctx,
+		config:               cfg,
+		Goal:                 NewGoalClient(cfg),
+		GoalAccountLinks:     NewGoalAccountLinksClient(cfg),
+		GoalDebtLinks:        NewGoalDebtLinksClient(cfg),
+		GoalProgressSnapshot: NewGoalProgressSnapshotClient(cfg),
 	}, nil
 }
 
@@ -147,9 +162,12 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:    ctx,
-		config: cfg,
-		Goal:   NewGoalClient(cfg),
+		ctx:                  ctx,
+		config:               cfg,
+		Goal:                 NewGoalClient(cfg),
+		GoalAccountLinks:     NewGoalAccountLinksClient(cfg),
+		GoalDebtLinks:        NewGoalDebtLinksClient(cfg),
+		GoalProgressSnapshot: NewGoalProgressSnapshotClient(cfg),
 	}, nil
 }
 
@@ -179,12 +197,18 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	c.Goal.Use(hooks...)
+	c.GoalAccountLinks.Use(hooks...)
+	c.GoalDebtLinks.Use(hooks...)
+	c.GoalProgressSnapshot.Use(hooks...)
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	c.Goal.Intercept(interceptors...)
+	c.GoalAccountLinks.Intercept(interceptors...)
+	c.GoalDebtLinks.Intercept(interceptors...)
+	c.GoalProgressSnapshot.Intercept(interceptors...)
 }
 
 // Mutate implements the ent.Mutator interface.
@@ -192,6 +216,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *GoalMutation:
 		return c.Goal.mutate(ctx, m)
+	case *GoalAccountLinksMutation:
+		return c.GoalAccountLinks.mutate(ctx, m)
+	case *GoalDebtLinksMutation:
+		return c.GoalDebtLinks.mutate(ctx, m)
+	case *GoalProgressSnapshotMutation:
+		return c.GoalProgressSnapshot.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -330,12 +360,411 @@ func (c *GoalClient) mutate(ctx context.Context, m *GoalMutation) (Value, error)
 	}
 }
 
+// GoalAccountLinksClient is a client for the GoalAccountLinks schema.
+type GoalAccountLinksClient struct {
+	config
+}
+
+// NewGoalAccountLinksClient returns a client for the GoalAccountLinks from the given config.
+func NewGoalAccountLinksClient(c config) *GoalAccountLinksClient {
+	return &GoalAccountLinksClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `goalaccountlinks.Hooks(f(g(h())))`.
+func (c *GoalAccountLinksClient) Use(hooks ...Hook) {
+	c.hooks.GoalAccountLinks = append(c.hooks.GoalAccountLinks, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `goalaccountlinks.Intercept(f(g(h())))`.
+func (c *GoalAccountLinksClient) Intercept(interceptors ...Interceptor) {
+	c.inters.GoalAccountLinks = append(c.inters.GoalAccountLinks, interceptors...)
+}
+
+// Create returns a builder for creating a GoalAccountLinks entity.
+func (c *GoalAccountLinksClient) Create() *GoalAccountLinksCreate {
+	mutation := newGoalAccountLinksMutation(c.config, OpCreate)
+	return &GoalAccountLinksCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of GoalAccountLinks entities.
+func (c *GoalAccountLinksClient) CreateBulk(builders ...*GoalAccountLinksCreate) *GoalAccountLinksCreateBulk {
+	return &GoalAccountLinksCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *GoalAccountLinksClient) MapCreateBulk(slice any, setFunc func(*GoalAccountLinksCreate, int)) *GoalAccountLinksCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &GoalAccountLinksCreateBulk{err: fmt.Errorf("calling to GoalAccountLinksClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*GoalAccountLinksCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &GoalAccountLinksCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for GoalAccountLinks.
+func (c *GoalAccountLinksClient) Update() *GoalAccountLinksUpdate {
+	mutation := newGoalAccountLinksMutation(c.config, OpUpdate)
+	return &GoalAccountLinksUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *GoalAccountLinksClient) UpdateOne(gal *GoalAccountLinks) *GoalAccountLinksUpdateOne {
+	mutation := newGoalAccountLinksMutation(c.config, OpUpdateOne, withGoalAccountLinks(gal))
+	return &GoalAccountLinksUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *GoalAccountLinksClient) UpdateOneID(id uuid.UUID) *GoalAccountLinksUpdateOne {
+	mutation := newGoalAccountLinksMutation(c.config, OpUpdateOne, withGoalAccountLinksID(id))
+	return &GoalAccountLinksUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for GoalAccountLinks.
+func (c *GoalAccountLinksClient) Delete() *GoalAccountLinksDelete {
+	mutation := newGoalAccountLinksMutation(c.config, OpDelete)
+	return &GoalAccountLinksDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *GoalAccountLinksClient) DeleteOne(gal *GoalAccountLinks) *GoalAccountLinksDeleteOne {
+	return c.DeleteOneID(gal.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *GoalAccountLinksClient) DeleteOneID(id uuid.UUID) *GoalAccountLinksDeleteOne {
+	builder := c.Delete().Where(goalaccountlinks.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &GoalAccountLinksDeleteOne{builder}
+}
+
+// Query returns a query builder for GoalAccountLinks.
+func (c *GoalAccountLinksClient) Query() *GoalAccountLinksQuery {
+	return &GoalAccountLinksQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeGoalAccountLinks},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a GoalAccountLinks entity by its id.
+func (c *GoalAccountLinksClient) Get(ctx context.Context, id uuid.UUID) (*GoalAccountLinks, error) {
+	return c.Query().Where(goalaccountlinks.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *GoalAccountLinksClient) GetX(ctx context.Context, id uuid.UUID) *GoalAccountLinks {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *GoalAccountLinksClient) Hooks() []Hook {
+	return c.hooks.GoalAccountLinks
+}
+
+// Interceptors returns the client interceptors.
+func (c *GoalAccountLinksClient) Interceptors() []Interceptor {
+	return c.inters.GoalAccountLinks
+}
+
+func (c *GoalAccountLinksClient) mutate(ctx context.Context, m *GoalAccountLinksMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&GoalAccountLinksCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&GoalAccountLinksUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&GoalAccountLinksUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&GoalAccountLinksDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown GoalAccountLinks mutation op: %q", m.Op())
+	}
+}
+
+// GoalDebtLinksClient is a client for the GoalDebtLinks schema.
+type GoalDebtLinksClient struct {
+	config
+}
+
+// NewGoalDebtLinksClient returns a client for the GoalDebtLinks from the given config.
+func NewGoalDebtLinksClient(c config) *GoalDebtLinksClient {
+	return &GoalDebtLinksClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `goaldebtlinks.Hooks(f(g(h())))`.
+func (c *GoalDebtLinksClient) Use(hooks ...Hook) {
+	c.hooks.GoalDebtLinks = append(c.hooks.GoalDebtLinks, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `goaldebtlinks.Intercept(f(g(h())))`.
+func (c *GoalDebtLinksClient) Intercept(interceptors ...Interceptor) {
+	c.inters.GoalDebtLinks = append(c.inters.GoalDebtLinks, interceptors...)
+}
+
+// Create returns a builder for creating a GoalDebtLinks entity.
+func (c *GoalDebtLinksClient) Create() *GoalDebtLinksCreate {
+	mutation := newGoalDebtLinksMutation(c.config, OpCreate)
+	return &GoalDebtLinksCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of GoalDebtLinks entities.
+func (c *GoalDebtLinksClient) CreateBulk(builders ...*GoalDebtLinksCreate) *GoalDebtLinksCreateBulk {
+	return &GoalDebtLinksCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *GoalDebtLinksClient) MapCreateBulk(slice any, setFunc func(*GoalDebtLinksCreate, int)) *GoalDebtLinksCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &GoalDebtLinksCreateBulk{err: fmt.Errorf("calling to GoalDebtLinksClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*GoalDebtLinksCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &GoalDebtLinksCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for GoalDebtLinks.
+func (c *GoalDebtLinksClient) Update() *GoalDebtLinksUpdate {
+	mutation := newGoalDebtLinksMutation(c.config, OpUpdate)
+	return &GoalDebtLinksUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *GoalDebtLinksClient) UpdateOne(gdl *GoalDebtLinks) *GoalDebtLinksUpdateOne {
+	mutation := newGoalDebtLinksMutation(c.config, OpUpdateOne, withGoalDebtLinks(gdl))
+	return &GoalDebtLinksUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *GoalDebtLinksClient) UpdateOneID(id uuid.UUID) *GoalDebtLinksUpdateOne {
+	mutation := newGoalDebtLinksMutation(c.config, OpUpdateOne, withGoalDebtLinksID(id))
+	return &GoalDebtLinksUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for GoalDebtLinks.
+func (c *GoalDebtLinksClient) Delete() *GoalDebtLinksDelete {
+	mutation := newGoalDebtLinksMutation(c.config, OpDelete)
+	return &GoalDebtLinksDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *GoalDebtLinksClient) DeleteOne(gdl *GoalDebtLinks) *GoalDebtLinksDeleteOne {
+	return c.DeleteOneID(gdl.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *GoalDebtLinksClient) DeleteOneID(id uuid.UUID) *GoalDebtLinksDeleteOne {
+	builder := c.Delete().Where(goaldebtlinks.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &GoalDebtLinksDeleteOne{builder}
+}
+
+// Query returns a query builder for GoalDebtLinks.
+func (c *GoalDebtLinksClient) Query() *GoalDebtLinksQuery {
+	return &GoalDebtLinksQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeGoalDebtLinks},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a GoalDebtLinks entity by its id.
+func (c *GoalDebtLinksClient) Get(ctx context.Context, id uuid.UUID) (*GoalDebtLinks, error) {
+	return c.Query().Where(goaldebtlinks.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *GoalDebtLinksClient) GetX(ctx context.Context, id uuid.UUID) *GoalDebtLinks {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *GoalDebtLinksClient) Hooks() []Hook {
+	return c.hooks.GoalDebtLinks
+}
+
+// Interceptors returns the client interceptors.
+func (c *GoalDebtLinksClient) Interceptors() []Interceptor {
+	return c.inters.GoalDebtLinks
+}
+
+func (c *GoalDebtLinksClient) mutate(ctx context.Context, m *GoalDebtLinksMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&GoalDebtLinksCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&GoalDebtLinksUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&GoalDebtLinksUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&GoalDebtLinksDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown GoalDebtLinks mutation op: %q", m.Op())
+	}
+}
+
+// GoalProgressSnapshotClient is a client for the GoalProgressSnapshot schema.
+type GoalProgressSnapshotClient struct {
+	config
+}
+
+// NewGoalProgressSnapshotClient returns a client for the GoalProgressSnapshot from the given config.
+func NewGoalProgressSnapshotClient(c config) *GoalProgressSnapshotClient {
+	return &GoalProgressSnapshotClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `goalprogresssnapshot.Hooks(f(g(h())))`.
+func (c *GoalProgressSnapshotClient) Use(hooks ...Hook) {
+	c.hooks.GoalProgressSnapshot = append(c.hooks.GoalProgressSnapshot, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `goalprogresssnapshot.Intercept(f(g(h())))`.
+func (c *GoalProgressSnapshotClient) Intercept(interceptors ...Interceptor) {
+	c.inters.GoalProgressSnapshot = append(c.inters.GoalProgressSnapshot, interceptors...)
+}
+
+// Create returns a builder for creating a GoalProgressSnapshot entity.
+func (c *GoalProgressSnapshotClient) Create() *GoalProgressSnapshotCreate {
+	mutation := newGoalProgressSnapshotMutation(c.config, OpCreate)
+	return &GoalProgressSnapshotCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of GoalProgressSnapshot entities.
+func (c *GoalProgressSnapshotClient) CreateBulk(builders ...*GoalProgressSnapshotCreate) *GoalProgressSnapshotCreateBulk {
+	return &GoalProgressSnapshotCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *GoalProgressSnapshotClient) MapCreateBulk(slice any, setFunc func(*GoalProgressSnapshotCreate, int)) *GoalProgressSnapshotCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &GoalProgressSnapshotCreateBulk{err: fmt.Errorf("calling to GoalProgressSnapshotClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*GoalProgressSnapshotCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &GoalProgressSnapshotCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for GoalProgressSnapshot.
+func (c *GoalProgressSnapshotClient) Update() *GoalProgressSnapshotUpdate {
+	mutation := newGoalProgressSnapshotMutation(c.config, OpUpdate)
+	return &GoalProgressSnapshotUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *GoalProgressSnapshotClient) UpdateOne(gps *GoalProgressSnapshot) *GoalProgressSnapshotUpdateOne {
+	mutation := newGoalProgressSnapshotMutation(c.config, OpUpdateOne, withGoalProgressSnapshot(gps))
+	return &GoalProgressSnapshotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *GoalProgressSnapshotClient) UpdateOneID(id uuid.UUID) *GoalProgressSnapshotUpdateOne {
+	mutation := newGoalProgressSnapshotMutation(c.config, OpUpdateOne, withGoalProgressSnapshotID(id))
+	return &GoalProgressSnapshotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for GoalProgressSnapshot.
+func (c *GoalProgressSnapshotClient) Delete() *GoalProgressSnapshotDelete {
+	mutation := newGoalProgressSnapshotMutation(c.config, OpDelete)
+	return &GoalProgressSnapshotDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *GoalProgressSnapshotClient) DeleteOne(gps *GoalProgressSnapshot) *GoalProgressSnapshotDeleteOne {
+	return c.DeleteOneID(gps.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *GoalProgressSnapshotClient) DeleteOneID(id uuid.UUID) *GoalProgressSnapshotDeleteOne {
+	builder := c.Delete().Where(goalprogresssnapshot.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &GoalProgressSnapshotDeleteOne{builder}
+}
+
+// Query returns a query builder for GoalProgressSnapshot.
+func (c *GoalProgressSnapshotClient) Query() *GoalProgressSnapshotQuery {
+	return &GoalProgressSnapshotQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeGoalProgressSnapshot},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a GoalProgressSnapshot entity by its id.
+func (c *GoalProgressSnapshotClient) Get(ctx context.Context, id uuid.UUID) (*GoalProgressSnapshot, error) {
+	return c.Query().Where(goalprogresssnapshot.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *GoalProgressSnapshotClient) GetX(ctx context.Context, id uuid.UUID) *GoalProgressSnapshot {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *GoalProgressSnapshotClient) Hooks() []Hook {
+	return c.hooks.GoalProgressSnapshot
+}
+
+// Interceptors returns the client interceptors.
+func (c *GoalProgressSnapshotClient) Interceptors() []Interceptor {
+	return c.inters.GoalProgressSnapshot
+}
+
+func (c *GoalProgressSnapshotClient) mutate(ctx context.Context, m *GoalProgressSnapshotMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&GoalProgressSnapshotCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&GoalProgressSnapshotUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&GoalProgressSnapshotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&GoalProgressSnapshotDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown GoalProgressSnapshot mutation op: %q", m.Op())
+	}
+}
+
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Goal []ent.Hook
+		Goal, GoalAccountLinks, GoalDebtLinks, GoalProgressSnapshot []ent.Hook
 	}
 	inters struct {
-		Goal []ent.Interceptor
+		Goal, GoalAccountLinks, GoalDebtLinks, GoalProgressSnapshot []ent.Interceptor
 	}
 )

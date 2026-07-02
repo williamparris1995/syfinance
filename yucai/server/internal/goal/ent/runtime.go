@@ -7,6 +7,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/goal/ent/goal"
+	"github.com/yucai/server/internal/goal/ent/goalaccountlinks"
+	"github.com/yucai/server/internal/goal/ent/goaldebtlinks"
+	"github.com/yucai/server/internal/goal/ent/goalprogresssnapshot"
 	"github.com/yucai/server/internal/goal/ent/schema"
 )
 
@@ -54,4 +57,26 @@ func init() {
 	goalDescID := goalFields[0].Descriptor()
 	// goal.DefaultID holds the default value on creation for the id field.
 	goal.DefaultID = goalDescID.Default.(func() uuid.UUID)
+	goalaccountlinksFields := schema.GoalAccountLinks{}.Fields()
+	_ = goalaccountlinksFields
+	// goalaccountlinksDescID is the schema descriptor for id field.
+	goalaccountlinksDescID := goalaccountlinksFields[0].Descriptor()
+	// goalaccountlinks.DefaultID holds the default value on creation for the id field.
+	goalaccountlinks.DefaultID = goalaccountlinksDescID.Default.(func() uuid.UUID)
+	goaldebtlinksFields := schema.GoalDebtLinks{}.Fields()
+	_ = goaldebtlinksFields
+	// goaldebtlinksDescID is the schema descriptor for id field.
+	goaldebtlinksDescID := goaldebtlinksFields[0].Descriptor()
+	// goaldebtlinks.DefaultID holds the default value on creation for the id field.
+	goaldebtlinks.DefaultID = goaldebtlinksDescID.Default.(func() uuid.UUID)
+	goalprogresssnapshotFields := schema.GoalProgressSnapshot{}.Fields()
+	_ = goalprogresssnapshotFields
+	// goalprogresssnapshotDescCreatedAt is the schema descriptor for created_at field.
+	goalprogresssnapshotDescCreatedAt := goalprogresssnapshotFields[4].Descriptor()
+	// goalprogresssnapshot.DefaultCreatedAt holds the default value on creation for the created_at field.
+	goalprogresssnapshot.DefaultCreatedAt = goalprogresssnapshotDescCreatedAt.Default.(func() time.Time)
+	// goalprogresssnapshotDescID is the schema descriptor for id field.
+	goalprogresssnapshotDescID := goalprogresssnapshotFields[0].Descriptor()
+	// goalprogresssnapshot.DefaultID holds the default value on creation for the id field.
+	goalprogresssnapshot.DefaultID = goalprogresssnapshotDescID.Default.(func() uuid.UUID)
 }
