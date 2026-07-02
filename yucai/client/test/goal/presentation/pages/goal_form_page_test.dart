@@ -874,4 +874,114 @@ void main() {
           reason: 'UpdateGoalRequested 成功(GoalDetailLoaded)后应 pop');
     });
   });
+
+  // ───────────── group: 模板快捷区 (Task 1) ─────────────
+
+  group('模板快捷区 (Task 1)', () {
+    testWidgets('创建模式显 4 模板 chips(应急基金/买房首付/教育金/退休金)',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final goalRepo = _MockGoalRepo();
+      final accountRepo = _MockAccountRepo();
+      final debtRepo = _MockDebtRepo();
+      stubPickers(accountRepo, debtRepo);
+      await t.pumpWidget(_harness(
+        goalRepo: goalRepo,
+        accountRepo: accountRepo,
+        debtRepo: debtRepo,
+        initialDeadline: DateTime(2027, 1, 1),
+      ));
+      await t.pumpAndSettle();
+
+      // 4 模板 chip 都存在。「从模板开始」标题也在。
+      expect(find.text('从模板开始'), findsOneWidget);
+      expect(find.byKey(const ValueKey('goalTemplate_应急基金')), findsOneWidget);
+      expect(find.byKey(const ValueKey('goalTemplate_买房首付')), findsOneWidget);
+      expect(find.byKey(const ValueKey('goalTemplate_教育金')), findsOneWidget);
+      expect(find.byKey(const ValueKey('goalTemplate_退休金')), findsOneWidget);
+    });
+
+    testWidgets('tap 应急基金 → type=savings + name=应急基金 + target=80000.00',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final goalRepo = _MockGoalRepo();
+      final accountRepo = _MockAccountRepo();
+      final debtRepo = _MockDebtRepo();
+      stubPickers(accountRepo, debtRepo);
+      await t.pumpWidget(_harness(
+        goalRepo: goalRepo,
+        accountRepo: accountRepo,
+        debtRepo: debtRepo,
+        initialDeadline: DateTime(2027, 1, 1),
+      ));
+      await t.pumpAndSettle();
+
+      await t.tap(find.byKey(const ValueKey('goalTemplate_应急基金')));
+      await t.pumpAndSettle();
+
+      // type picker: savings 选项被选中(已应用 accent 边框)。accountPicker 出现
+      // (savings type → detail 区显字段)。
+      expect(find.byKey(const ValueKey('accountPicker')), findsOneWidget,
+          reason: '应急基金 = savings type,detail 区应显 accountPicker');
+
+      // name 回填「应急基金」。
+      expect(
+        find.ancestor(
+          of: find.text('应急基金'),
+          matching: find.byKey(const ValueKey('nameField')),
+        ),
+        findsOneWidget,
+        reason: '应急基金模板应预填 name',
+      );
+
+      // target 回填 80000.00(8000000 cents / 100)。
+      expect(
+        find.ancestor(
+          of: find.text('80000.00'),
+          matching: find.byKey(const ValueKey('targetField')),
+        ),
+        findsOneWidget,
+        reason: '应急基金模板应预填 target ¥80000.00',
+      );
+
+      // 模板区隐藏了(_type != null 后)。
+      expect(find.text('从模板开始'), findsNothing,
+          reason: '选模板后 _type 已设,模板区应隐藏');
+    });
+
+    testWidgets('编辑模式不显模板区', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final goalRepo = _MockGoalRepo();
+      final accountRepo = _MockAccountRepo();
+      final debtRepo = _MockDebtRepo();
+      stubPickers(accountRepo, debtRepo);
+      when(() => goalRepo.getGoal('g1')).thenAnswer((_) async => const dartz.Right(
+                GoalView(
+              id: 'g1',
+              name: '旧目标',
+              type: GoalType.savings,
+              targetAmountCents: 6000000,
+              linkedAccountIds: ['sav-1'],
+            ),
+          ));
+
+      await t.pumpWidget(_harness(
+        goalRepo: goalRepo,
+        accountRepo: accountRepo,
+        debtRepo: debtRepo,
+        goalId: 'g1',
+      ));
+      await t.pumpAndSettle();
+
+      // 编辑模式不显模板区。
+      expect(find.text('从模板开始'), findsNothing);
+      expect(find.byKey(const ValueKey('goalTemplate_应急基金')), findsNothing);
+    });
+  });
 }

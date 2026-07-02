@@ -29,6 +29,7 @@ import 'package:yucai_client/core/widgets/form_section.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/goal/domain/entities/goal_entity.dart';
+import 'package:yucai_client/goal/domain/goal_template.dart';
 import 'package:yucai_client/goal/presentation/bloc/goal_bloc.dart';
 import 'package:yucai_client/goal/presentation/bloc/goal_event.dart';
 import 'package:yucai_client/goal/presentation/bloc/goal_state.dart';
@@ -159,6 +160,28 @@ class _GoalFormPageState extends State<GoalFormPage> {
       _submitted = false;
       Navigator.of(context).pop(true);
     }
+  }
+
+  // ───────────────────────── 模板预填 ─────────────────────────
+
+  /// 模板 tap → 预填 type/name/target/deadline(关联账户/债务仍手选)。
+  /// deadline = 今天 + deadlineMonths(月对齐;clamp 到月末避免溢出,例如 1/31 +1 月 → 2/28)。
+  void _applyTemplate(GoalTemplate t) {
+    final now = DateTime.now();
+    // 月对齐:day 先 clamp,避免月底溢出(DateTime 构造溢出会抛异常)。
+    final targetMonth = now.month + t.deadlineMonths;
+    final year = now.year + (targetMonth - 1) ~/ 12;
+    final month = ((targetMonth - 1) % 12) + 1;
+    // 当月最大天数 clamp(处理 31 号 + N 月 落在 30/28 月的情况)。
+    final maxDay = DateTime(year, month + 1, 0).day;
+    final day = now.day > maxDay ? maxDay : now.day;
+    setState(() {
+      _type = t.goalType;
+      _linkedId = null; // 切 type 清关联(对齐 _selectType 行为)。
+      _nameCtrl.text = t.name;
+      _targetCtrl.text = (t.targetAmountCents / 100).toStringAsFixed(2);
+      _deadline = DateTime(year, month, day);
+    });
   }
 
   // ───────────────────────── type 切换 ─────────────────────────
@@ -299,6 +322,11 @@ class _GoalFormPageState extends State<GoalFormPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // 创建模式 + type 未选 → 显模板快捷区(对齐 spec §11 ④)。
+                        if (!_isEdit && _type == null) ...[
+                          _templateSection(),
+                          const SizedBox(height: AppSpacing.lg),
+                        ],
                         FormSection(
                           title: '1 · 选择类型',
                           children: [_typePicker(submitting)],
@@ -378,6 +406,81 @@ class _GoalFormPageState extends State<GoalFormPage> {
       children: [
         for (final t in GoalType.values) _typeOption(t, submitting),
       ],
+    );
+  }
+
+  // ───────────────────────── 模板区 ─────────────────────────
+
+  Widget _templateSection() {
+    return FormSection(
+      title: '从模板开始',
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(bottom: AppSpacing.sm),
+          child: Text(
+            '选择常用目标模板,快速预填(关联账户/债务仍需手选)',
+            style: TextStyle(fontSize: 12, color: AppColors.muted),
+          ),
+        ),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            for (final t in kGoalTemplates) _templateChip(t),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// 模板 chip:御财金边框 + lucide icon + name + description。
+  Widget _templateChip(GoalTemplate t) {
+    return InkWell(
+      key: ValueKey('goalTemplate_${t.name}'),
+      onTap: () => _applyTemplate(t),
+      borderRadius: AppRadius.smBorder,
+      child: Container(
+        width: 230,
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: AppColors.accentSoft.withValues(alpha: 0.5),
+          borderRadius: AppRadius.smBorder,
+          border: Border.all(color: AppColors.accent, width: 1.2),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.accent.withValues(alpha: 0.12),
+                borderRadius: AppRadius.smBorder,
+              ),
+              child: Icon(t.icon, size: 18, color: AppColors.accent),
+            ),
+            const SizedBox(width: AppSpacing.xs + 2),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(t.name,
+                      style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: AppTypography.displayFamily,
+                          fontFamilyFallback: AppTypography.displayFallback,
+                          color: AppColors.fg)),
+                  const SizedBox(height: 2),
+                  Text(t.description,
+                      style: const TextStyle(
+                          fontSize: 11, color: AppColors.muted)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
