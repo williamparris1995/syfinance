@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -32,6 +33,10 @@ type GoalRepository interface {
 	Update(ctx context.Context, goal *Goal) error
 	Delete(ctx context.Context, tenantID, id uuid.UUID) error
 	WriteSnapshot(ctx context.Context, goal *Goal) error
+	// FindSnapshotRange returns progress snapshots for goalID in [from, to]
+	// (snapshot_date between from and to inclusive), ordered by date asc.
+	// Phase 2 trend-curve data source for GetGoalProgressHistory.
+	FindSnapshotRange(ctx context.Context, tenantID, goalID uuid.UUID, from, to time.Time) ([]ProgressPoint, error)
 }
 
 // AccountMarketValueSource reports Σ market value of holdings under the given

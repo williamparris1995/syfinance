@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
@@ -27,10 +28,10 @@ import (
 // fakeRepo implements domain.GoalRepository with in-memory slices. FindAll
 // records the goalType filter it received so the ListGoals test can assert it.
 type fakeRepo struct {
-	goals    []*domain.Goal           // working set (mutated by Update)
-	listedGT *domain.GoalType         // last GoalType arg passed to FindAll
-	updated  []*domain.Goal           // goals persisted by Update
-	saved    []*domain.Goal           // goals persisted by Save (CreateGoal/CloneGoal)
+	goals    []*domain.Goal   // working set (mutated by Update)
+	listedGT *domain.GoalType // last GoalType arg passed to FindAll
+	updated  []*domain.Goal   // goals persisted by Update
+	saved    []*domain.Goal   // goals persisted by Save (CreateGoal/CloneGoal)
 }
 
 func (r *fakeRepo) Save(_ context.Context, g *domain.Goal) error {
@@ -79,6 +80,12 @@ func (r *fakeRepo) Delete(context.Context, uuid.UUID, uuid.UUID) error { return 
 
 // WriteSnapshot is a no-op for the handler test (the service calls it after Update).
 func (r *fakeRepo) WriteSnapshot(context.Context, *domain.Goal) error { return nil }
+
+// FindSnapshotRange is a no-op stub for the Phase 2 interface method
+// (GetGoalProgressHistory handler is not exercised here; returns empty).
+func (r *fakeRepo) FindSnapshotRange(context.Context, uuid.UUID, uuid.UUID, time.Time, time.Time) ([]domain.ProgressPoint, error) {
+	return nil, nil
+}
 
 // fakeMVSource returns a fixed market value across accounts (multi-account port).
 type fakeMVSource struct {
@@ -287,12 +294,12 @@ func TestCreateGoalMultiAccount(t *testing.T) {
 	h := NewGoalHandler(svc)
 
 	resp, err := h.CreateGoal(withTenant(tenantID), &pb.CreateGoalRequest{
-		Name:               "payoff",
-		GoalType:           pb.GoalType_GOAL_TYPE_DEBT_PAYOFF,
-		TargetAmountCents:  500_000,
-		CurrencyCode:       "CNY",
-		LinkedAccountIds:   []string{acct1.String(), acct2.String()},
-		LinkedDebtIds:      []string{debt1.String()},
+		Name:              "payoff",
+		GoalType:          pb.GoalType_GOAL_TYPE_DEBT_PAYOFF,
+		TargetAmountCents: 500_000,
+		CurrencyCode:      "CNY",
+		LinkedAccountIds:  []string{acct1.String(), acct2.String()},
+		LinkedDebtIds:     []string{debt1.String()},
 	})
 	if err != nil {
 		t.Fatalf("CreateGoal error: %v", err)

@@ -19,6 +19,7 @@ service GoalService {
   rpc ListGoals(ListGoalsRequest) returns (ListGoalsResponse);
   rpc SyncInvestmentGoals(SyncInvestmentGoalsRequest) returns (SyncInvestmentGoalsResponse);
   rpc CloneGoal(CloneGoalRequest) returns (GoalResponse);
+  rpc GetGoalProgressHistory(GetGoalProgressHistoryRequest) returns (GetGoalProgressHistoryResponse);
 }
 
 enum GoalType {
@@ -108,4 +109,22 @@ message SyncInvestmentGoalsRequest {}
 message SyncInvestmentGoalsResponse {
   int32 synced_count = 1;
   google.protobuf.Timestamp synced_at = 2;
+}
+
+// Phase 2: goal progress history (trend-curve data source).
+
+message GetGoalProgressHistoryRequest {
+  string goal_id = 1;
+  google.protobuf.Timestamp from = 2;
+  google.protobuf.Timestamp to = 3;
+}
+
+// ProgressPoint is one daily snapshot of a goal's progress.
+message ProgressPoint {
+  google.protobuf.Timestamp date = 1;
+  int64 current_amount_cents = 2;
+}
+
+message GetGoalProgressHistoryResponse {
+  repeated ProgressPoint points = 1;
 }

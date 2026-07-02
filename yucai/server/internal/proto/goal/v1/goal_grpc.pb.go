@@ -20,16 +20,17 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	GoalService_CreateGoal_FullMethodName          = "/yucai.goal.v1.GoalService/CreateGoal"
-	GoalService_UpdateGoal_FullMethodName          = "/yucai.goal.v1.GoalService/UpdateGoal"
-	GoalService_UpdateGoalProgress_FullMethodName  = "/yucai.goal.v1.GoalService/UpdateGoalProgress"
-	GoalService_CompleteGoal_FullMethodName        = "/yucai.goal.v1.GoalService/CompleteGoal"
-	GoalService_DeleteGoal_FullMethodName          = "/yucai.goal.v1.GoalService/DeleteGoal"
-	GoalService_SyncGoalProgress_FullMethodName    = "/yucai.goal.v1.GoalService/SyncGoalProgress"
-	GoalService_GetGoal_FullMethodName             = "/yucai.goal.v1.GoalService/GetGoal"
-	GoalService_ListGoals_FullMethodName           = "/yucai.goal.v1.GoalService/ListGoals"
-	GoalService_SyncInvestmentGoals_FullMethodName = "/yucai.goal.v1.GoalService/SyncInvestmentGoals"
-	GoalService_CloneGoal_FullMethodName           = "/yucai.goal.v1.GoalService/CloneGoal"
+	GoalService_CreateGoal_FullMethodName             = "/yucai.goal.v1.GoalService/CreateGoal"
+	GoalService_UpdateGoal_FullMethodName             = "/yucai.goal.v1.GoalService/UpdateGoal"
+	GoalService_UpdateGoalProgress_FullMethodName     = "/yucai.goal.v1.GoalService/UpdateGoalProgress"
+	GoalService_CompleteGoal_FullMethodName           = "/yucai.goal.v1.GoalService/CompleteGoal"
+	GoalService_DeleteGoal_FullMethodName             = "/yucai.goal.v1.GoalService/DeleteGoal"
+	GoalService_SyncGoalProgress_FullMethodName       = "/yucai.goal.v1.GoalService/SyncGoalProgress"
+	GoalService_GetGoal_FullMethodName                = "/yucai.goal.v1.GoalService/GetGoal"
+	GoalService_ListGoals_FullMethodName              = "/yucai.goal.v1.GoalService/ListGoals"
+	GoalService_SyncInvestmentGoals_FullMethodName    = "/yucai.goal.v1.GoalService/SyncInvestmentGoals"
+	GoalService_CloneGoal_FullMethodName              = "/yucai.goal.v1.GoalService/CloneGoal"
+	GoalService_GetGoalProgressHistory_FullMethodName = "/yucai.goal.v1.GoalService/GetGoalProgressHistory"
 )
 
 // GoalServiceClient is the client API for GoalService service.
@@ -46,6 +47,7 @@ type GoalServiceClient interface {
 	ListGoals(ctx context.Context, in *ListGoalsRequest, opts ...grpc.CallOption) (*ListGoalsResponse, error)
 	SyncInvestmentGoals(ctx context.Context, in *SyncInvestmentGoalsRequest, opts ...grpc.CallOption) (*SyncInvestmentGoalsResponse, error)
 	CloneGoal(ctx context.Context, in *CloneGoalRequest, opts ...grpc.CallOption) (*GoalResponse, error)
+	GetGoalProgressHistory(ctx context.Context, in *GetGoalProgressHistoryRequest, opts ...grpc.CallOption) (*GetGoalProgressHistoryResponse, error)
 }
 
 type goalServiceClient struct {
@@ -156,6 +158,16 @@ func (c *goalServiceClient) CloneGoal(ctx context.Context, in *CloneGoalRequest,
 	return out, nil
 }
 
+func (c *goalServiceClient) GetGoalProgressHistory(ctx context.Context, in *GetGoalProgressHistoryRequest, opts ...grpc.CallOption) (*GetGoalProgressHistoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetGoalProgressHistoryResponse)
+	err := c.cc.Invoke(ctx, GoalService_GetGoalProgressHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GoalServiceServer is the server API for GoalService service.
 // All implementations must embed UnimplementedGoalServiceServer
 // for forward compatibility.
@@ -170,6 +182,7 @@ type GoalServiceServer interface {
 	ListGoals(context.Context, *ListGoalsRequest) (*ListGoalsResponse, error)
 	SyncInvestmentGoals(context.Context, *SyncInvestmentGoalsRequest) (*SyncInvestmentGoalsResponse, error)
 	CloneGoal(context.Context, *CloneGoalRequest) (*GoalResponse, error)
+	GetGoalProgressHistory(context.Context, *GetGoalProgressHistoryRequest) (*GetGoalProgressHistoryResponse, error)
 	mustEmbedUnimplementedGoalServiceServer()
 }
 
@@ -209,6 +222,9 @@ func (UnimplementedGoalServiceServer) SyncInvestmentGoals(context.Context, *Sync
 }
 func (UnimplementedGoalServiceServer) CloneGoal(context.Context, *CloneGoalRequest) (*GoalResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CloneGoal not implemented")
+}
+func (UnimplementedGoalServiceServer) GetGoalProgressHistory(context.Context, *GetGoalProgressHistoryRequest) (*GetGoalProgressHistoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetGoalProgressHistory not implemented")
 }
 func (UnimplementedGoalServiceServer) mustEmbedUnimplementedGoalServiceServer() {}
 func (UnimplementedGoalServiceServer) testEmbeddedByValue()                     {}
@@ -411,6 +427,24 @@ func _GoalService_CloneGoal_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GoalService_GetGoalProgressHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetGoalProgressHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoalServiceServer).GetGoalProgressHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GoalService_GetGoalProgressHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoalServiceServer).GetGoalProgressHistory(ctx, req.(*GetGoalProgressHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GoalService_ServiceDesc is the grpc.ServiceDesc for GoalService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -457,6 +491,10 @@ var GoalService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CloneGoal",
 			Handler:    _GoalService_CloneGoal_Handler,
+		},
+		{
+			MethodName: "GetGoalProgressHistory",
+			Handler:    _GoalService_GetGoalProgressHistory_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -85,10 +85,10 @@ func GoalToDTO(g *domain.Goal) GoalDTO {
 		TargetAmountCents:  g.TargetAmountCents,
 		CurrentAmountCents: g.CurrentAmountCents,
 		CurrencyCode:       g.CurrencyCode,
-		Deadline:          g.Deadline,
-		LinkedAccountIDs:  g.LinkedAccountIDs,
-		LinkedDebtIDs:     g.LinkedDebtIDs,
-		Notes:             g.Notes,
+		Deadline:           g.Deadline,
+		LinkedAccountIDs:   g.LinkedAccountIDs,
+		LinkedDebtIDs:      g.LinkedDebtIDs,
+		Notes:              g.Notes,
 		IsCompleted:        g.IsCompleted,
 		CompletedAt:        g.CompletedAt,
 		ProgressPct:        g.ProgressPct(),
@@ -97,4 +97,12 @@ func GoalToDTO(g *domain.Goal) GoalDTO {
 		CreatedAt:          g.CreatedAt,
 		UpdatedAt:          g.UpdatedAt,
 	}
+}
+
+// ProgressPointDTO is one point in a goal's progress-history trend curve (a
+// daily snapshot). Returned by GetGoalProgressHistory. Date is the snapshot_date
+// (UTC midnight); CurrentAmountCents is the goal's progress at that point.
+type ProgressPointDTO struct {
+	Date               time.Time
+	CurrentAmountCents int64
 }

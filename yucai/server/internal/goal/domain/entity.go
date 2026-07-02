@@ -27,6 +27,14 @@ type Goal struct {
 	UpdatedAt          time.Time
 }
 
+// ProgressPoint is one point in a goal's progress history (a daily snapshot).
+// Returned by GoalRepository.FindSnapshotRange for the trend-curve data source
+// (Phase 2 GetGoalProgressHistory RPC). Date is the snapshot_date (UTC midnight).
+type ProgressPoint struct {
+	Date               time.Time
+	CurrentAmountCents int64
+}
+
 // NewGoal creates a validated Goal.
 //
 // linkedAccountIDs is required (≥1) for Investment/Savings goals; linkedDebtIDs

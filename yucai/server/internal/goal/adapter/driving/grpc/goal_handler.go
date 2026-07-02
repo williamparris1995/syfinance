@@ -4,12 +4,12 @@ import (
 	"context"
 	"time"
 
-	pb "github.com/yucai/server/internal/proto/goal/v1"
-	commonpb "github.com/yucai/server/internal/proto/common/v1"
 	"github.com/google/uuid"
 	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
 	"github.com/yucai/server/internal/goal/application"
 	"github.com/yucai/server/internal/goal/domain"
+	commonpb "github.com/yucai/server/internal/proto/common/v1"
+	pb "github.com/yucai/server/internal/proto/goal/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -288,6 +288,34 @@ func (h *GoalHandler) CloneGoal(ctx context.Context, req *pb.CloneGoalRequest) (
 		return nil, mapError(err)
 	}
 	return &pb.GoalResponse{Goal: goalToProto(*dto)}, nil
+}
+
+// GetGoalProgressHistory returns the daily progress-snapshot series for a goal
+// in [from, to], ordered by date asc (trend-curve data source). Replaces the
+// Unimplemented default generated for the Phase 2 RPC.
+func (h *GoalHandler) GetGoalProgressHistory(ctx context.Context, req *pb.GetGoalProgressHistoryRequest) (*pb.GetGoalProgressHistoryResponse, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	goalID, err := uuid.Parse(req.GetGoalId())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid goal_id")
+	}
+	from := req.GetFrom().AsTime()
+	to := req.GetTo().AsTime()
+	pts, err := h.service.GetGoalProgressHistory(ctx, tenantID, goalID, from, to)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	pbPts := make([]*pb.ProgressPoint, len(pts))
+	for i, p := range pts {
+		pbPts[i] = &pb.ProgressPoint{
+			Date:               timestamppb.New(p.Date),
+			CurrentAmountCents: p.CurrentAmountCents,
+		}
+	}
+	return &pb.GetGoalProgressHistoryResponse{Points: pbPts}, nil
 }
 
 func goalToProto(g application.GoalDTO) *pb.GoalDTO {

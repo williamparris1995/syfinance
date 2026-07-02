@@ -260,6 +260,33 @@ func (r *GoalRepository) WriteSnapshot(ctx context.Context, g *domain.Goal) erro
 	return nil
 }
 
+// FindSnapshotRange returns progress snapshots for goalID in [from, to]
+// (snapshot_date between from and to inclusive), ordered by date asc. Phase 2
+// trend-curve data source (GetGoalProgressHistory RPC). Tenant scoping is
+// mandatory (snapshots are tenant-owned).
+func (r *GoalRepository) FindSnapshotRange(ctx context.Context, tenantID, goalID uuid.UUID, from, to time.Time) ([]domain.ProgressPoint, error) {
+	snapshots, err := r.client.GoalProgressSnapshot.Query().
+		Where(
+			goalprogresssnapshot.TenantIDEQ(tenantID),
+			goalprogresssnapshot.GoalIDEQ(goalID),
+			goalprogresssnapshot.SnapshotDateGTE(from),
+			goalprogresssnapshot.SnapshotDateLTE(to),
+		).
+		Order(goalent.Asc(goalprogresssnapshot.FieldSnapshotDate)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("find goal snapshot range: %w", err)
+	}
+	pts := make([]domain.ProgressPoint, len(snapshots))
+	for i, s := range snapshots {
+		pts[i] = domain.ProgressPoint{
+			Date:               s.SnapshotDate,
+			CurrentAmountCents: s.CurrentAmountCents,
+		}
+	}
+	return pts, nil
+}
+
 // --- multi-account link helpers ---
 
 // replaceAccountLinks deletes all account links for the goal then re-inserts

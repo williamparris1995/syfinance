@@ -15,7 +15,7 @@ type Service struct {
 	repo    domain.GoalRepository
 	mvSrc   domain.AccountMarketValueSource // nil = Investment goals skipped (best-effort)
 	balSrc  domain.AccountBalanceSource     // nil = Savings goals skipped
-	debtSrc domain.DebtProgressSource        // nil = DebtPayoff goals skipped
+	debtSrc domain.DebtProgressSource       // nil = DebtPayoff goals skipped
 }
 
 // NewService creates a new goal application service.
@@ -76,6 +76,21 @@ func (s *Service) GetGoal(ctx context.Context, tenantID, id uuid.UUID) (*GoalDTO
 	}
 	dto := GoalToDTO(goal)
 	return &dto, nil
+}
+
+// GetGoalProgressHistory returns progress snapshots for goalID in [from, to],
+// ordered by date asc. Phase 2 trend-curve data source (Flutter goal detail
+// chart). Reads the goal_progress_snapshot rows written daily by SyncAllGoals.
+func (s *Service) GetGoalProgressHistory(ctx context.Context, tenantID, goalID uuid.UUID, from, to time.Time) ([]ProgressPointDTO, error) {
+	pts, err := s.repo.FindSnapshotRange(ctx, tenantID, goalID, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("goal progress history: %w", err)
+	}
+	dtos := make([]ProgressPointDTO, len(pts))
+	for i, p := range pts {
+		dtos[i] = ProgressPointDTO{Date: p.Date, CurrentAmountCents: p.CurrentAmountCents}
+	}
+	return dtos, nil
 }
 
 // UpdateGoal updates a goal's mutable fields.

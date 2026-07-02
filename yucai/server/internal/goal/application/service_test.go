@@ -79,10 +79,13 @@ func (s stubDebt) GetDebtsPaid(context.Context, uuid.UUID, []uuid.UUID) (int64, 
 // fakeGoalRepo is an in-memory GoalRepository for SyncAllGoals tests. FindAll /
 // Update / WriteSnapshot drive the sync path; other methods panic since they
 // are not exercised here. Goals are keyed by Name (stable test lookup).
+// progressPoints (Phase 2) is the fixed slice returned by FindSnapshotRange
+// for the GetGoalProgressHistory test.
 type fakeGoalRepo struct {
-	byName    map[string]*domain.Goal
-	order     []string // stable iteration order
-	snapshots []*domain.Goal // goals passed to WriteSnapshot (in call order)
+	byName         map[string]*domain.Goal
+	order          []string               // stable iteration order
+	snapshots      []*domain.Goal         // goals passed to WriteSnapshot (in call order)
+	progressPoints []domain.ProgressPoint // returned by FindSnapshotRange (Phase 2)
 }
 
 func newFakeGoalRepo(seeds []seedGoal) *fakeGoalRepo {
@@ -170,6 +173,13 @@ func (r *fakeGoalRepo) Update(_ context.Context, g *domain.Goal) error {
 func (r *fakeGoalRepo) WriteSnapshot(_ context.Context, g *domain.Goal) error {
 	r.snapshots = append(r.snapshots, g)
 	return nil
+}
+
+// FindSnapshotRange returns the seeded progressPoints slice (Phase 2
+// GetGoalProgressHistory test). Range/tenant/goal filtering is not exercised
+// here — the test seeds exactly the points it expects back.
+func (r *fakeGoalRepo) FindSnapshotRange(_ context.Context, _ uuid.UUID, _ uuid.UUID, _ time.Time, _ time.Time) ([]domain.ProgressPoint, error) {
+	return r.progressPoints, nil
 }
 
 // newTestServiceWithGoals builds a Service backed by a fake goal repo seeded
@@ -305,7 +315,7 @@ func TestSyncAllGoalsNilPortSkipsType(t *testing.T) {
 // (FindByID + Save) and the multi-account CreateGoal path (Save). Other methods
 // are no-ops; FindAll/Update/WriteSnapshot are intentionally unused here.
 type cloneRepo struct {
-	byID map[uuid.UUID]*domain.Goal
+	byID  map[uuid.UUID]*domain.Goal
 	saved []*domain.Goal // goals passed to Save, in call order
 }
 
@@ -335,9 +345,12 @@ func (r *cloneRepo) FindByID(_ context.Context, _ uuid.UUID, id uuid.UUID) (*dom
 func (r *cloneRepo) FindAll(context.Context, uuid.UUID, *bool, *domain.GoalType, domain.PageRequest) (*domain.PaginatedResult[domain.Goal], error) {
 	panic("not used in CloneGoal/CreateGoal test")
 }
-func (r *cloneRepo) Update(context.Context, *domain.Goal) error { panic("not used") }
+func (r *cloneRepo) Update(context.Context, *domain.Goal) error         { panic("not used") }
 func (r *cloneRepo) Delete(context.Context, uuid.UUID, uuid.UUID) error { return nil }
-func (r *cloneRepo) WriteSnapshot(context.Context, *domain.Goal) error { return nil }
+func (r *cloneRepo) WriteSnapshot(context.Context, *domain.Goal) error  { return nil }
+func (r *cloneRepo) FindSnapshotRange(context.Context, uuid.UUID, uuid.UUID, time.Time, time.Time) ([]domain.ProgressPoint, error) {
+	return nil, nil
+}
 
 // TestCloneGoal verifies CloneGoal deep-copies the source into a new entity with
 // reset progress, an overridden target, and the linked account/debt IDs carried
@@ -418,5 +431,28 @@ func TestCreateGoalMultiAccount(t *testing.T) {
 	saved := repo.saved[0]
 	if len(saved.LinkedDebtIDs) != 1 || saved.LinkedDebtIDs[0] != debt1 {
 		t.Errorf("saved linked debts = %v, want [debt1]", saved.LinkedDebtIDs)
+	}
+}
+
+// --- Phase 2 Task 1: GetGoalProgressHistory ---
+
+// TestGetGoalProgressHistory verifies the service reads back the progress-point
+// range from the repo (FindSnapshotRange) and maps it 1:1 to DTOs. The repo
+// double here is the inline closure-style stub returning a fixed slice; the
+// shared fakeGoalRepo is exercised by the SyncAllGoals tests above and its
+// FindSnapshotRange stub is covered there.
+func TestGetGoalProgressHistory(t *testing.T) {
+	repo := &fakeGoalRepo{
+		progressPoints: []domain.ProgressPoint{
+			{Date: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), CurrentAmountCents: 100000},
+			{Date: time.Date(2026, 7, 2, 0, 0, 0, 0, time.UTC), CurrentAmountCents: 200000},
+		},
+	}
+	svc := NewService(repo)
+	from := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)
+	pts, err := svc.GetGoalProgressHistory(context.Background(), uuid.New(), uuid.New(), from, to)
+	if err != nil || len(pts) != 2 || pts[0].CurrentAmountCents != 100000 {
+		t.Fatalf("history: pts=%v err=%v", pts, err)
 	}
 }
