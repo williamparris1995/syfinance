@@ -47,4 +47,12 @@ abstract class GoalRepository {
     String? deadline,
     String? name,
   });
+
+  /// 目标进度历史(server scheduler 每日 actuals 快照,Task 3 趋势曲线消费)。
+  /// from / to 为闭区间时间戳,proto Timestamp 序列化。
+  Future<Either<Failure, List<GoalProgressPoint>>> getProgressHistory({
+    required String goalId,
+    required DateTime from,
+    required DateTime to,
+  });
 }

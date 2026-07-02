@@ -1,5 +1,6 @@
 import 'package:fixnum/fixnum.dart';
 import 'package:injectable/injectable.dart';
+import 'package:protobuf/well_known_types/google/protobuf/timestamp.pb.dart' as tspb;
 
 import 'package:yucai_client/core/network/auth_retry.dart';
 import 'package:yucai_client/core/network/grpc_client.dart';
@@ -13,9 +14,10 @@ import 'package:yucai_client/proto/common/v1/pagination.pb.dart' as common;
 /// HoldingRemoteDataSource / DebtRemoteDataSource: every RPC is wrapped in
 /// AuthRetryCaller so a 401 triggers a transparent refresh + single retry.
 ///
-/// 8 RPCs + CloneGoal: createGoal / updateGoal / updateGoalProgress
-/// (recordContribution) / completeGoal / deleteGoal / getGoal / listGoals /
-/// syncGoalProgress / cloneGoal。前端仅消费前 8 + CloneGoal;syncGoalProgress /
+/// 8 RPCs + CloneGoal + GetGoalProgressHistory: createGoal / updateGoal /
+/// updateGoalProgress (recordContribution) / completeGoal / deleteGoal /
+/// getGoal / listGoals / syncGoalProgress / cloneGoal / getGoalProgressHistory。
+/// 前端消费前 8 + CloneGoal + GetGoalProgressHistory;syncGoalProgress /
 /// syncInvestmentGoals 为 server scheduler 内部用,DS 不暴露。
 ///
 /// Mapper notes(参照 holding mapper + budget ds 模式):
@@ -59,6 +61,23 @@ class GoalRemoteDataSource {
     return _retry.call(() async {
       final res = await _client.getGoal(pb.GetGoalRequest(id: id));
       return goalDtoToView(res.goal);
+    });
+  }
+
+  // —— 进度历史(server scheduler 每日 actuals 快照,Task 3 趋势曲线消费)——
+  Future<List<GoalProgressPoint>> getProgressHistory({
+    required String goalId,
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    return _retry.call(() async {
+      final res = await _client.getGoalProgressHistory(
+          pb.GetGoalProgressHistoryRequest(
+        goalId: goalId,
+        from: tspb.Timestamp.fromDateTime(from),
+        to: tspb.Timestamp.fromDateTime(to),
+      ));
+      return res.points.map(progressPointToView).toList();
     });
   }
 
@@ -206,3 +225,13 @@ pb.GoalType goalTypeToProto(GoalType t) {
       return pb.GoalType.GOAL_TYPE_INVESTMENT;
   }
 }
+
+/// proto ProgressPoint → GoalProgressPoint。
+///
+/// Timestamp → DateTime(Int64 epoch → DateTime,参照 goalDtoToView 的 deadline
+/// 转换);Int64 → int via `.toInt()`(参照 currentAmountCents 转换)。date 必填
+/// (server 总会写时间戳,无 has-guard 需要)。
+GoalProgressPoint progressPointToView(pb.ProgressPoint p) => GoalProgressPoint(
+      date: p.date.toDateTime(),
+      currentAmountCents: p.currentAmountCents.toInt(),
+    );

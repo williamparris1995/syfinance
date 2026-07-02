@@ -293,6 +293,95 @@ void main() {
     });
   });
 
+  group('getProgressHistory mapper + request wiring', () {
+    test('progressPointToView maps Timestamp → DateTime + Int64 → int', () {
+      // proto ProgressPoint: date Timestamp + currentAmountCents Int64
+      // → domain GoalProgressPoint: date DateTime + currentAmountCents int.
+      final p = pb.ProgressPoint(
+        date: tspb.Timestamp.fromDateTime(DateTime.utc(2026, 7, 1)),
+        currentAmountCents: Int64(750000),
+      );
+      final view = progressPointToView(p);
+      expect(view, isA<GoalProgressPoint>());
+      expect(view.date, DateTime.utc(2026, 7, 1)); // Timestamp → DateTime
+      expect(view.currentAmountCents, 750000); // Int64 → int
+    });
+
+    test('progressPointToView maps a multi-point series (daily snapshots)', () {
+      // Task 3 趋势曲线消费 List<GoalProgressPoint>;mapper 在 list 上展开。
+      final pts = [
+        pb.ProgressPoint(
+          date: tspb.Timestamp.fromDateTime(DateTime.utc(2026, 6, 29)),
+          currentAmountCents: Int64(100000),
+        ),
+        pb.ProgressPoint(
+          date: tspb.Timestamp.fromDateTime(DateTime.utc(2026, 6, 30)),
+          currentAmountCents: Int64(250000),
+        ),
+        pb.ProgressPoint(
+          date: tspb.Timestamp.fromDateTime(DateTime.utc(2026, 7, 1)),
+          currentAmountCents: Int64(400000),
+        ),
+      ];
+      final views = pts.map(progressPointToView).toList();
+      expect(views.length, 3);
+      expect(views.first.date.day, 29);
+      expect(views.last.date.day, 1);
+      expect(views[1].currentAmountCents, 250000);
+    });
+
+    test('progressPointToView: unset Int64 currentAmountCents defaults to 0', () {
+      // proto unset Int64 → 0;mapper surfaces as 0 (matches GoalView semantics).
+      final p = pb.ProgressPoint(
+        date: tspb.Timestamp.fromDateTime(DateTime.utc(2026, 7, 1)),
+      );
+      expect(progressPointToView(p).currentAmountCents, 0);
+    });
+
+    test('GetGoalProgressHistoryRequest wires goalId + from/to Timestamps', () {
+      // DS maps caller DateTime → proto Timestamp via fromDateTime.
+      final req = pb.GetGoalProgressHistoryRequest(
+        goalId: 'g-1',
+        from: tspb.Timestamp.fromDateTime(DateTime.utc(2026, 6, 1)),
+        to: tspb.Timestamp.fromDateTime(DateTime.utc(2026, 7, 1)),
+      );
+      expect(req.goalId, 'g-1');
+      expect(req.from.toDateTime(), DateTime.utc(2026, 6, 1));
+      expect(req.to.toDateTime(), DateTime.utc(2026, 7, 1));
+    });
+
+    test('GetGoalProgressHistoryResponse.points maps via progressPointToView', () {
+      // DS does res.points.map(progressPointToView).toList() — verify on a
+      // response carrying 2 points.
+      final resp = pb.GetGoalProgressHistoryResponse(points: [
+        pb.ProgressPoint(
+          date: tspb.Timestamp.fromDateTime(DateTime.utc(2026, 6, 30)),
+          currentAmountCents: Int64(100000),
+        ),
+        pb.ProgressPoint(
+          date: tspb.Timestamp.fromDateTime(DateTime.utc(2026, 7, 1)),
+          currentAmountCents: Int64(200000),
+        ),
+      ]);
+      final views = resp.points.map(progressPointToView).toList();
+      expect(views.length, 2);
+      expect(views.last.date, DateTime.utc(2026, 7, 1));
+      expect(views.last.currentAmountCents, 200000);
+    });
+
+    test('GoalProgressPoint Equatable props compare date + amount', () {
+      final a = progressPointToView(pb.ProgressPoint(
+        date: tspb.Timestamp.fromDateTime(DateTime.utc(2026, 7, 1)),
+        currentAmountCents: Int64(100000),
+      ));
+      final b = progressPointToView(pb.ProgressPoint(
+        date: tspb.Timestamp.fromDateTime(DateTime.utc(2026, 7, 1)),
+        currentAmountCents: Int64(100000),
+      ));
+      expect(a, b); // same props → equal
+    });
+  });
+
   test('GoalRemoteDataSource is constructible with GrpcClient + retry', () {
     // The DS constructor eagerly builds a GoalServiceClient from
     // GrpcClient.channel + authInterceptor — stub both so construction succeeds.

@@ -65,3 +65,24 @@ class GoalView extends Equatable {
         isCompleted,
       ];
 }
+
+/// 目标进度历史点(对齐 proto ProgressPoint)。
+///
+/// 一条 = 一个日期的目标当前金额快照(server scheduler 每日计算 actuals 后落
+/// 库)。Task 3 趋势曲线消费:横轴 date,纵轴 currentAmountCents。
+///
+/// Mapper:proto Timestamp → DateTime,proto Int64 → int(参照 goalDtoToView
+/// 的 currentAmountCents 转换)。date 必填(server 总会写时间戳);currentAmountCents
+/// 默认 0(proto unset Int64 → 0)。
+class GoalProgressPoint extends Equatable {
+  const GoalProgressPoint({
+    required this.date,
+    required this.currentAmountCents,
+  });
+
+  final DateTime date; // 快照日期(proto Timestamp → DateTime)
+  final int currentAmountCents; // 当日当前金额(分,Int64 → int)
+
+  @override
+  List<Object?> get props => [date, currentAmountCents];
+}

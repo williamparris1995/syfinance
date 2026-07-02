@@ -100,6 +100,14 @@ class GoalRepositoryImpl implements GoalRepository {
             name: name,
           ));
 
+  @override
+  Future<Either<Failure, List<GoalProgressPoint>>> getProgressHistory({
+    required String goalId,
+    required DateTime from,
+    required DateTime to,
+  }) =>
+      _guard(() => _remote.getProgressHistory(goalId: goalId, from: from, to: to));
+
   // Maps thrown GrpcError/exceptions to Failure, wrapping the op in Either.
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {
     try {
