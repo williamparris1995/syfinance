@@ -1039,6 +1039,27 @@ func (s *Service) GetAccountMarketValue(ctx context.Context, tenantID, accountID
 	return total, nil
 }
 
+// GetAccountsMarketValue returns Σ market value across multiple accounts
+// (multi-account port for goal SyncAllGoals, Task 6). Implements
+// goal/domain.AccountMarketValueSource.GetAccountsMarketValue (structural).
+//
+// Thin delegation to GetAccountMarketValue; Task 5 may replace with a batched
+// impl. Empty accountIDs returns 0 (no accounts → no mv).
+func (s *Service) GetAccountsMarketValue(ctx context.Context, tenantID uuid.UUID, accountIDs []uuid.UUID) (int64, error) {
+	var total int64
+	for _, accID := range accountIDs {
+		if err := ctx.Err(); err != nil {
+			return total, err
+		}
+		mv, err := s.GetAccountMarketValue(ctx, tenantID, accID)
+		if err != nil {
+			return total, fmt.Errorf("accounts market value: account %s: %w", accID, err)
+		}
+		total += mv
+	}
+	return total, nil
+}
+
 // SumMarketValueByCurrency sums the current market value (qty × current price)
 // of every holding for a tenant, grouped by the security's CurrencyCode.
 // Implements networth/domain.HoldingMarketValueSource (structural — networth

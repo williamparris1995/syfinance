@@ -28,9 +28,26 @@ type GoalRepository interface {
 	Delete(ctx context.Context, tenantID, id uuid.UUID) error
 }
 
-// AccountMarketValueSource reports the market value of an account's holdings
-// (Σ qty × current price). Implemented by holding/application.Service
+// AccountMarketValueSource reports market value of holdings under given accounts
+// (Investment goal). Implemented by holding/application.Service
 // (structural type — goal does not import holding).
+//
+// Two methods:
+//   - GetAccountMarketValue: single-account (D-goal SyncInvestmentGoals, removed Task 6).
+//   - GetAccountsMarketValue: multi-account Σ mv (SyncAllGoals, Task 6).
 type AccountMarketValueSource interface {
 	GetAccountMarketValue(ctx context.Context, tenantID, accountID uuid.UUID) (int64, error)
+	GetAccountsMarketValue(ctx context.Context, tenantID uuid.UUID, accountIDs []uuid.UUID) (int64, error)
+}
+
+// AccountBalanceSource reports Σ current balance of the given asset accounts
+// (Savings goal). Implemented by account/application.Service.
+type AccountBalanceSource interface {
+	GetAccountsBalance(ctx context.Context, tenantID uuid.UUID, accountIDs []uuid.UUID) (int64, error)
+}
+
+// DebtProgressSource reports Σ paid amount (original − remaining) of the given
+// debts (DebtPayoff goal). Implemented by debt/application.Service.
+type DebtProgressSource interface {
+	GetDebtsPaid(ctx context.Context, tenantID uuid.UUID, debtIDs []uuid.UUID) (int64, error)
 }
