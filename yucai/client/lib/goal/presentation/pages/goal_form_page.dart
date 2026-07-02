@@ -312,11 +312,47 @@ class _GoalFormPageState extends State<GoalFormPage> {
                               : _detailFields(submitting),
                         ),
                         const SizedBox(height: AppSpacing.xl),
-                        FormActions(
-                          submitLabel: _isEdit ? '保存修改' : '确认创建',
-                          submitting: submitting,
-                          onSubmit: _submit,
-                          onCancel: () => Navigator.of(context).pop(),
+                        // 对齐 OD 原型 .btn-gold:金色提交 + 取消 ghost。
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(
+                              onPressed: submitting
+                                  ? null
+                                  : () => Navigator.of(context).pop(),
+                              child: const Text('取消'),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            ElevatedButton.icon(
+                              key: const ValueKey('goalFormSubmit'),
+                              onPressed: submitting ? null : _submit,
+                              icon: submitting
+                                  ? const SizedBox(
+                                      height: 16,
+                                      width: 16,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white))
+                                  : const Icon(Icons.check,
+                                      size: 16, color: Colors.white),
+                              label: Text(
+                                _isEdit ? '保存修改' : '确认创建',
+                                key: ValueKey(
+                                    'goalFormSubmitLabel_${_isEdit ? 'edit' : 'create'}'),
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 13),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.accent,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 18, vertical: 12),
+                                shape: const RoundedRectangleBorder(
+                                    borderRadius: AppRadius.smBorder),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -333,8 +369,9 @@ class _GoalFormPageState extends State<GoalFormPage> {
   // ───────────────────────── type picker ─────────────────────────
 
   Widget _typePicker(bool submitting) {
-    // 对齐 OD 原型:3 单选卡(savings 金 piggyBank / debtPayoff 红 creditCard /
-    // investment 绿 trendingUp)。Phase 1 简化为单选按钮卡(无 step 跳转)。
+    // 对齐 OD 原型 .type-picker:3 卡片(savings 金 piggyBank / debtPayoff 红
+    // creditCard / investment 绿 trendingUp)+ 大图标方块 + 名称 + 描述。
+    // Phase 1 简化为单选卡(无 step 跳转)。
     return Wrap(
       spacing: AppSpacing.md,
       runSpacing: AppSpacing.md,
@@ -352,7 +389,7 @@ class _GoalFormPageState extends State<GoalFormPage> {
       onTap: (submitting || _isEdit) ? null : () => _selectType(t),
       borderRadius: AppRadius.lgBorder,
       child: Container(
-        width: 200,
+        width: 220,
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
           color: selected ? meta.color.withValues(alpha: 0.08) : AppColors.surface,
@@ -365,20 +402,27 @@ class _GoalFormPageState extends State<GoalFormPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(meta.icon, size: 18, color: meta.color),
-                const SizedBox(width: 6),
-                Text(meta.label,
-                    style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: selected ? meta.color : AppColors.fg)),
-              ],
+            // 大图标方块(对齐原型 .to-icon 带色底)。
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: meta.color.withValues(alpha: 0.12),
+                borderRadius: AppRadius.smBorder,
+              ),
+              child: Icon(meta.icon, size: 22, color: meta.color),
             ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(meta.label,
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: AppTypography.displayFamily,
+                    fontFamilyFallback: AppTypography.displayFallback,
+                    color: selected ? meta.color : AppColors.fg)),
             const SizedBox(height: 4),
             Text(meta.desc,
-                style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                style: const TextStyle(fontSize: 11.5, color: AppColors.muted)),
           ],
         ),
       ),

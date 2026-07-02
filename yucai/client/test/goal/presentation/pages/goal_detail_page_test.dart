@@ -181,10 +181,9 @@ void main() {
       // Name + 类型徽章。
       expect(find.text('紧急备用金'), findsOneWidget);
       expect(find.text('储蓄目标'), findsOneWidget);
-      // 进度环 + UsagePct%。
+      // 进度环(ConicProgressRing)+ UsagePct%。
       expect(find.byKey(const ValueKey('goalDetailRing')), findsOneWidget);
-      expect(find.byKey(const ValueKey('goalDetailRingBar')), findsOneWidget);
-      expect(find.byKey(const ValueKey('goalDetailUsagePct')), findsOneWidget);
+      expect(find.byKey(const ValueKey('conicRingPct')), findsOneWidget);
       expect(find.text('40.0%'), findsOneWidget);
       // 还差(600000 - 240000 = 360000 → ¥3,600.00)。
       expect(find.textContaining('3,600.00'), findsOneWidget);

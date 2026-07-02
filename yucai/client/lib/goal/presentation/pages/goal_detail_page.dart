@@ -35,6 +35,7 @@ import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/conic_progress_ring.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
@@ -237,10 +238,11 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
 
   // ───────────────────────── ① 头部 hero 卡 ─────────────────────────
 
-  /// Name + 类型徽章 + 状态 pill + 大进度环 + current/target + 还差 + deadline 倒计时。
+  /// Name + 类型徽章 + 状态 pill + 大 ConicProgressRing + current/target + 还差 +
+  /// deadline 倒计时。对齐 OD 原型 .detail-hero:大进度环(lg)+ 左 status 色条。
   Widget _headerCard(GoalView g) {
     final meta = _typeMeta(g.type);
-    final pct = g.progressPct; // 0..100(可能 >100)
+    final pct = g.progressPct;
     final ringValue = (pct / 100).clamp(0.0, 1.0);
     final pctLabel = '${pct.toStringAsFixed(1)}%';
     final currency = g.currencyCode;
@@ -253,108 +255,111 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
     final ringColor = g.isCompleted
         ? AppColors.positive
         : (isUrgent ? AppColors.negative : meta.color);
+    final accentColor = g.isCompleted
+        ? AppColors.positive
+        : (isUrgent ? AppColors.negative : AppColors.accent);
 
     final remaining = g.remainingCents > 0 ? g.remainingCents : 0;
 
     return DataCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 顶部:Name + 类型徽章 + 状态 pill。
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              Text(g.name,
-                  key: const ValueKey('goalDetailName'),
-                  style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: AppTypography.displayFamily,
-                      fontFamilyFallback: AppTypography.displayFallback)),
-              _TypeChip(meta: meta),
-              _StatusPill(isCompleted: g.isCompleted, isUrgent: isUrgent),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          // 中部:大进度环(左)+ current/target + 还差(右)。
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _progressRing(ringValue, pctLabel, ringColor),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _MetaKV(
-                      k: '当前 / 目标',
-                      v:
-                          '${_fmtSymbol(g.currentAmountCents, currency)} / ${_fmtSymbol(g.targetAmountCents, currency)}',
-                    ),
-                    const SizedBox(height: 8),
-                    _MetaKV(
-                      k: g.isCompleted ? '已达成' : '还差',
-                      v: g.isCompleted
-                          ? _fmtSymbol(g.targetAmountCents, currency)
-                          : _fmtSymbol(remaining, currency),
-                      vColor: g.isCompleted ? AppColors.positive : AppColors.fg,
-                    ),
-                  ],
-                ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 左侧 status 色条(对齐原型 .detail-hero border-left 4px)。
+            Container(
+              width: 4,
+              margin: const EdgeInsets.only(right: AppSpacing.md),
+              decoration: BoxDecoration(
+                color: accentColor,
+                borderRadius: BorderRadius.circular(2),
               ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          // 底部:deadline 倒计时。
-          Row(
-            children: [
-              const Icon(LucideIcons.calendar, size: 13, color: AppColors.muted),
-              const SizedBox(width: 4),
-              Text(
-                _deadlineText(g, daysLeft),
-                key: const ValueKey('goalDetailDeadline'),
-                style: TextStyle(
-                    fontSize: 12,
-                    color: isUrgent ? AppColors.negative : AppColors.muted,
-                    fontWeight: isUrgent ? FontWeight.w600 : FontWeight.w400),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 圆形大进度环:外环进度 + 中心 pct%。对齐 budget detail ring 尺寸(92)。
-  Widget _progressRing(double value, String pctLabel, Color color) {
-    return SizedBox(
-      key: const ValueKey('goalDetailRing'),
-      width: 92,
-      height: 92,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          SizedBox(
-            width: 92,
-            height: 92,
-            child: CircularProgressIndicator(
-              key: const ValueKey('goalDetailRingBar'),
-              value: value,
-              strokeWidth: 8,
-              backgroundColor: AppColors.border,
-              valueColor: AlwaysStoppedAnimation<Color>(color),
             ),
-          ),
-          Text(pctLabel,
-              key: const ValueKey('goalDetailUsagePct'),
-              style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                  fontFeatures: AppTypography.tabularFigures)),
-        ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 顶部:Name + 类型徽章 + 状态 pill。
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      Text(g.name,
+                          key: const ValueKey('goalDetailName'),
+                          style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: AppTypography.displayFamily,
+                              fontFamilyFallback: AppTypography.displayFallback)),
+                      _TypeChip(meta: meta),
+                      _StatusPill(
+                          isCompleted: g.isCompleted, isUrgent: isUrgent),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  // 中部:大 ConicProgressRing(左)+ current/target + 还差(右)。
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      ConicProgressRing(
+                        key: const ValueKey('goalDetailRing'),
+                        progress: ringValue,
+                        color: ringColor,
+                        pctLabel: pctLabel,
+                        subLabel: g.isCompleted ? '已达成' : null,
+                        size: ConicRingSize.lg,
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _MetaKV(
+                              k: '当前 / 目标',
+                              v:
+                                  '${_fmtSymbol(g.currentAmountCents, currency)} / ${_fmtSymbol(g.targetAmountCents, currency)}',
+                            ),
+                            const SizedBox(height: 8),
+                            _MetaKV(
+                              k: g.isCompleted ? '已达成' : '还差',
+                              v: g.isCompleted
+                                  ? _fmtSymbol(g.targetAmountCents, currency)
+                                  : _fmtSymbol(remaining, currency),
+                              vColor: g.isCompleted
+                                  ? AppColors.positive
+                                  : AppColors.fg,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  // 底部:deadline 倒计时。
+                  Row(
+                    children: [
+                      const Icon(LucideIcons.calendar,
+                          size: 13, color: AppColors.muted),
+                      const SizedBox(width: 4),
+                      Text(
+                        _deadlineText(g, daysLeft),
+                        key: const ValueKey('goalDetailDeadline'),
+                        style: TextStyle(
+                            fontSize: 12,
+                            color:
+                                isUrgent ? AppColors.negative : AppColors.muted,
+                            fontWeight: isUrgent
+                                ? FontWeight.w600
+                                : FontWeight.w400),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,26 +1,26 @@
 // 目标列表页(goal 模块入口)。消费 Task 11 GoalBloc + Task 10 GoalView。
 //
-// 设计源(OD 原型 Task 1):design-output/goal/goal-list-{desktop,tablet,mobile}.html
-//  + styles.css + mock-data.js。布局对齐原型:3 type 混合卡片 + 类型徽章 +
-//  进度环 + deadline 倒计时 + 完成/进行中分组 + AppBar 新建。
+// 设计源(OD 原型):design-output/goal/goal-list-{desktop,tablet,mobile}.html
+//  + styles.css + mock-data.js。**大 UI 对齐原型**(2026-07):
+//   - topbar:title + sub(共 N 个)+ 刷新 icon-btn + btn-gold「新建目标」。
+//   - 类型筛选 chips:全部 / 储蓄 / 债务清偿 / 投资(原型 nav-sec 类型筛选)。
+//   - 完成/进行中 分组(原型 section-group)+ 计数 badge。
+//   - ConicProgressRing 卡片(原型 progress-ring conic-gradient)+ 类型徽章 +
+//     current/target + deadline 倒计时 + 左侧 status 色条(原型 goal-card 左 border)。
 //
-// 对齐御财设计语言 + 照搬 budget BudgetListPage / holding 列表页范式(顶栏 +
-// 卡片列表 + AppBar 新建):
-//  - AppColors:御财金 #b08d57(accent,savings)/ 盈绿 #2d8a6e(positive,
-//    investment + completed)/ 亏红 #c4544d(negative,debtPayoff + 落后/紧急)。
+// 御财设计语言(复用 AppColors/AppTypography/lucide):
+//  - 御财金 #b08d57(savings + btn-gold)/ 盈绿 #2d8a6e(investment + completed)/
+//    亏红 #c4544d(debtPayoff + 落后/紧急)。
 //  - 类型徽章(GOAL_TYPES 对齐 mock-data.js):
 //      savings    → 储蓄目标 / piggyBank  / accent(金)
 //      debtPayoff → 债务清偿 / creditCard / negative(红)
 //      investment → 投资目标 / trendingUp / positive(绿)
-//  - 进度环:CircularProgressIndicator(value=progressPct clamp[0,1]),
-//    完成色 positive、进行中按 type 色、落后(剩余天数≤90 且 pct<70%)色 negative。
-//  - 倒计时:deadline - now 天数;>365 显示"X 个月";完成显"已达成";无 deadline
-//    显"无截止"。
-//  - 分组:进行中(未完成,deadline 升序)+ 已完成(isCompleted,按完成近度)。
+//  - 进度环:ConicProgressRing(progress=clamp[0,1]);完成色 positive、进行中按
+//    type 色、落后(daysLeft≤90 且 pct<70%)色 negative。
+//  - 倒计时:deadline - now 天数;>365 显「X 个月」;完成显「已达成」。
 //
-// 路由:本页由路由层(Task 11)注入 BlocProvider<GoalBloc>;此处
-// context.watch<GoalBloc>()。卡片 tap → context.push('/goals/:id');
-// AppBar 新建 → push '/goals/new'。
+// 路由:本页由路由层注入 BlocProvider<GoalBloc>;卡片 tap →
+//  context.push('/goals/:id');新建 → push '/goals/new'。
 //
 // 无 i18n(中文硬编码,御财惯例;与 budget/holding 列表页一致)。
 import 'package:flutter/material.dart';
@@ -29,6 +29,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/conic_progress_ring.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/goal/domain/entities/goal_entity.dart';
@@ -36,7 +37,7 @@ import 'package:yucai_client/goal/presentation/bloc/goal_bloc.dart';
 import 'package:yucai_client/goal/presentation/bloc/goal_event.dart';
 import 'package:yucai_client/goal/presentation/bloc/goal_state.dart';
 
-/// 目标列表页。对齐御财 list 卡片范式(顶栏 + 分组卡片 + 新建入口)。
+/// 目标列表页。对齐 OD 原型:topbar + 类型筛选 chips + 分组卡片 + btn-gold 新建。
 class GoalListPage extends StatefulWidget {
   const GoalListPage({super.key});
 
@@ -44,66 +45,228 @@ class GoalListPage extends StatefulWidget {
   State<GoalListPage> createState() => _GoalListPageState();
 }
 
+/// 类型筛选枚举(对齐原型 nav-sec 类型筛选 + 全部)。
+enum _TypeFilter { all, savings, debtPayoff, investment }
+
 class _GoalListPageState extends State<GoalListPage> {
+  _TypeFilter _typeFilter = _TypeFilter.all;
+
   @override
   void initState() {
     super.initState();
-    // 拉取全部目标(type=null 不过滤)。对齐 brief:列表页混合展示 3 type。
     context.read<GoalBloc>().add(const LoadListRequested());
+  }
+
+  /// 按 `_typeFilter` 过滤 goals(all = 不过滤)。
+  List<GoalView> _applyTypeFilter(List<GoalView> goals) {
+    switch (_typeFilter) {
+      case _TypeFilter.all:
+        return goals;
+      case _TypeFilter.savings:
+        return goals.where((g) => g.type == GoalType.savings).toList();
+      case _TypeFilter.debtPayoff:
+        return goals.where((g) => g.type == GoalType.debtPayoff).toList();
+      case _TypeFilter.investment:
+        return goals.where((g) => g.type == GoalType.investment).toList();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      appBar: AppBar(
-        backgroundColor: AppColors.bg,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: false,
-        title: const Text('目标',
-            style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                fontFamily: AppTypography.displayFamily,
-                fontFamilyFallback: AppTypography.displayFallback)),
-      ),
-      // 创建目标 FAB(对齐 debts/receivables/holdings 等其他 list 页范式:
-      // 金色背景 + 白色 add icon,heroTag: null 禁 Hero —— indexedStack 保活多
-      // branch 时避免与其它 branch FAB 共用默认 Hero tag 冲突)。
-      floatingActionButton: FloatingActionButton(
-        heroTag: null,
-        onPressed: () => context.push('/goals/new'),
-        backgroundColor: AppColors.accent,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
       body: BlocBuilder<GoalBloc, GoalState>(
         builder: (context, state) {
-          if (state is GoalLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (state is GoalError) {
-            return _errorState(state.message);
-          }
-          if (state is GoalListLoaded) {
-            final goals = state.goals;
-            if (goals.isEmpty) return _emptyState();
-            // 分组:进行中(未完成)+ 已完成。对齐 OD 原型 groups 渲染。
-            final inProgress = goals.where((g) => !g.isCompleted).toList()
-              ..sort(_byDeadlineAsc);
-            final completed = goals.where((g) => g.isCompleted).toList();
-            return _groups(inProgress, completed);
-          }
-          // GoalInitial / GoalDetailLoaded(详情态,不应出现在列表页)→ 兜底 loading。
-          return const Center(child: CircularProgressIndicator());
+          // topbar 永远显示(标题 + sub + 刷新 + 新建),body 三态切换。
+          return Column(
+            children: [
+              _topbar(state),
+              Expanded(child: _body(state)),
+            ],
+          );
         },
       ),
     );
   }
 
+  // ───────────────────────── topbar(对齐原型 topbar-d) ─────────────────────────
+
+  Widget _topbar(GoalState state) {
+    final count = state is GoalListLoaded ? state.goals.length : 0;
+    return Material(
+      color: AppColors.bg,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1200),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // left:title + sub。
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('目标',
+                          key: ValueKey('goalListTitle'),
+                          style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: AppTypography.displayFamily,
+                              fontFamilyFallback:
+                                  AppTypography.displayFallback)),
+                      const SizedBox(height: 4),
+                      Text(
+                        '储蓄 / 债务清偿 / 投资 · 共 $count 个目标',
+                        key: const ValueKey('goalListSub'),
+                        style: const TextStyle(
+                            fontSize: 12.5, color: AppColors.muted),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                // actions:刷新 icon-btn + btn-gold 新建。
+                IconButton(
+                  key: const ValueKey('goalListRefresh'),
+                  tooltip: '刷新',
+                  icon: const Icon(LucideIcons.refreshCw, size: 18),
+                  color: AppColors.muted,
+                  onPressed: () => context
+                      .read<GoalBloc>()
+                      .add(const LoadListRequested()),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                _GoldButton(
+                  key: const ValueKey('goalListAdd'),
+                  icon: Icons.add,
+                  label: '新建目标',
+                  tooltip: '新建',
+                  onPressed: () => context.push('/goals/new'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ───────────────────────── body(loading/error/loaded) ─────────────────────────
+
+  Widget _body(GoalState state) {
+    if (state is GoalLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (state is GoalError) {
+      return _errorState(state.message);
+    }
+    if (state is GoalListLoaded) {
+      final goals = state.goals;
+      if (goals.isEmpty) return _emptyState();
+      return _content(goals);
+    }
+    return const Center(child: CircularProgressIndicator());
+  }
+
+  // ───────────────────────── 主内容(类型筛选 + 分组) ─────────────────────────
+
+  Widget _content(List<GoalView> allGoals) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.xl),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _typeFilterRow(allGoals),
+              const SizedBox(height: AppSpacing.sm),
+              _groups(_applyTypeFilter(allGoals)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 类型筛选 chips(对齐原型 nav-sec 类型筛选:全部 / 储蓄 / 债务 / 投资)。
+  Widget _typeFilterRow(List<GoalView> allGoals) {
+    int count(GoalType t) =>
+        allGoals.where((g) => g.type == t).length;
+    final chips = <_FilterChipData>[
+      _FilterChipData(_TypeFilter.all, '全部', allGoals.length, null),
+      _FilterChipData(
+          _TypeFilter.savings, '储蓄', count(GoalType.savings), GoalType.savings),
+      _FilterChipData(_TypeFilter.debtPayoff, '债务清偿',
+          count(GoalType.debtPayoff), GoalType.debtPayoff),
+      _FilterChipData(_TypeFilter.investment, '投资',
+          count(GoalType.investment), GoalType.investment),
+    ];
+    return Wrap(
+      spacing: AppSpacing.xs,
+      runSpacing: AppSpacing.xs,
+      children: [
+        for (final c in chips)
+          _FilterChip(
+            data: c,
+            selected: _typeFilter == c.value,
+            onTap: () => setState(() => _typeFilter = c.value),
+          ),
+      ],
+    );
+  }
+
+  /// 分组(对齐原型 section-group:进行中 + 已完成)。
+  Widget _groups(List<GoalView> goals) {
+    final inProgress = goals.where((g) => !g.isCompleted).toList()
+      ..sort(_byDeadlineAsc);
+    final completed = goals.where((g) => g.isCompleted).toList();
+    if (inProgress.isEmpty && completed.isEmpty) {
+      // 类型筛选下无匹配。
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+        child: Center(
+          child: Text('该类型下无目标',
+              style: TextStyle(color: AppColors.muted, fontSize: 13)),
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (inProgress.isNotEmpty) ...[
+          _GroupHeader(
+              title: '进行中',
+              icon: LucideIcons.clock,
+              count: inProgress.length),
+          const SizedBox(height: AppSpacing.sm),
+          for (var i = 0; i < inProgress.length; i++) ...[
+            _GoalCard(goal: inProgress[i]),
+            if (i < inProgress.length - 1) const SizedBox(height: AppSpacing.sm),
+          ],
+          if (completed.isNotEmpty) const SizedBox(height: AppSpacing.lg),
+        ],
+        if (completed.isNotEmpty) ...[
+          _GroupHeader(
+              title: '已完成',
+              icon: LucideIcons.checkCircle2,
+              count: completed.length),
+          const SizedBox(height: AppSpacing.sm),
+          for (var i = 0; i < completed.length; i++) ...[
+            _GoalCard(goal: completed[i]),
+            if (i < completed.length - 1) const SizedBox(height: AppSpacing.sm),
+          ],
+        ],
+      ],
+    );
+  }
+
   // ───────────────────────── 分组排序 ─────────────────────────
 
-  /// 按 deadline 升序(无 deadline 排末尾)。用于进行中分组:紧迫的在前。
   int _byDeadlineAsc(GoalView a, GoalView b) {
     final da = a.deadline;
     final db = b.deadline;
@@ -130,11 +293,18 @@ class _GoalListPageState extends State<GoalListPage> {
             child: const Icon(LucideIcons.target, size: 30, color: AppColors.accent),
           ),
           const SizedBox(height: AppSpacing.md),
-          const Text('还没有目标', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const Text('还没有目标',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
           const Text(
-            '点击右上角「+」开始攒钱 / 还债 / 投资',
+            '点击右上「新建目标」开始攒钱 / 还债 / 投资',
             style: TextStyle(color: AppColors.muted, fontSize: 14),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _GoldButton(
+            icon: Icons.add,
+            label: '新建第一个目标',
+            onPressed: () => context.push('/goals/new'),
           ),
         ],
       ),
@@ -150,70 +320,140 @@ class _GoalListPageState extends State<GoalListPage> {
           children: [
             const Icon(Icons.error_outline, size: 40, color: AppColors.negative),
             const SizedBox(height: 12),
-            const Text('加载失败', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            const Text('加载失败',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             Text(message,
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: AppColors.muted, fontSize: 13)),
             const SizedBox(height: AppSpacing.md),
-            FilledButton.icon(
+            _GoldButton(
+              icon: Icons.refresh,
+              label: '重试',
               onPressed: () =>
                   context.read<GoalBloc>().add(const LoadListRequested()),
-              icon: const Icon(Icons.refresh, size: 16),
-              label: const Text('重试'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                foregroundColor: Colors.white,
-              ),
             ),
           ],
         ),
       ),
     );
   }
+}
 
-  // ───────────────────────── 分组列表 ─────────────────────────
+// ───────────────────────── 类型筛选 chip ─────────────────────────
 
-  Widget _groups(List<GoalView> inProgress, List<GoalView> completed) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xl),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1200),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+class _FilterChipData {
+  const _FilterChipData(this.value, this.label, this.count, this.type);
+  final _TypeFilter value;
+  final String label;
+  final int count;
+  final GoalType? type; // null = all;非空 → 用于 chip icon
+}
+
+class _FilterChip extends StatefulWidget {
+  const _FilterChip({
+    required this.data,
+    required this.selected,
+    required this.onTap,
+  });
+  final _FilterChipData data;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  State<_FilterChip> createState() => _FilterChipState();
+}
+
+class _FilterChipState extends State<_FilterChip> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = widget.selected;
+    final typeMeta = widget.data.type != null ? _typeMeta(widget.data.type!) : null;
+    final iconColor = typeMeta?.color ?? AppColors.accent;
+    final bg = selected
+        ? AppColors.accent
+        : (_hover ? AppColors.surfaceAlt : AppColors.surface);
+    final fg = selected ? Colors.white : AppColors.muted;
+    final border = selected ? AppColors.accent : AppColors.border;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: bg,
+            border: Border.all(color: border),
+            borderRadius: BorderRadius.circular(99),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              if (inProgress.isNotEmpty) ...[
-                _GroupHeader(
-                  title: '进行中',
-                  icon: LucideIcons.clock,
-                  count: inProgress.length,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                for (var i = 0; i < inProgress.length; i++) ...[
-                  _GoalCard(goal: inProgress[i]),
-                  if (i < inProgress.length - 1) const SizedBox(height: AppSpacing.sm),
-                ],
-                if (completed.isNotEmpty) const SizedBox(height: AppSpacing.lg),
+              if (typeMeta != null) ...[
+                Icon(typeMeta.icon,
+                    size: 13, color: selected ? Colors.white : iconColor),
+                const SizedBox(width: 5),
               ],
-              if (completed.isNotEmpty) ...[
-                _GroupHeader(
-                  title: '已完成',
-                  icon: LucideIcons.checkCircle2,
-                  count: completed.length,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                for (var i = 0; i < completed.length; i++) ...[
-                  _GoalCard(goal: completed[i]),
-                  if (i < completed.length - 1) const SizedBox(height: AppSpacing.sm),
-                ],
-              ],
+              Text(widget.data.label,
+                  style: TextStyle(
+                      color: fg,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500)),
+              const SizedBox(width: 5),
+              Text('${widget.data.count}',
+                  style: TextStyle(
+                      color: selected ? Colors.white : AppColors.muted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      fontFeatures: AppTypography.tabularFigures)),
             ],
           ),
         ),
       ),
     );
+  }
+}
+
+// ───────────────────────── btn-gold(对齐原型 .btn-gold) ─────────────────────────
+
+/// 金色背景 + 白文字 + 圆角按钮(对齐 OD 原型 .btn-gold)。
+class _GoldButton extends StatelessWidget {
+  const _GoldButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.tooltip,
+  });
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+  final String? tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final btn = ElevatedButton.icon(
+      key: super.key,
+      onPressed: onPressed,
+      icon: Icon(icon, size: 16, color: Colors.white),
+      label: Text(label,
+          key: ValueKey('goldBtnLabel_$label'),
+          style: const TextStyle(color: Colors.white, fontSize: 13)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.accent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.smBorder),
+      ),
+    );
+    return tooltip == null ? btn : Tooltip(message: tooltip!, child: btn);
   }
 }
 
@@ -259,8 +499,8 @@ class _GroupHeader extends StatelessWidget {
 
 // ───────────────────────── 目标卡 ─────────────────────────
 
-/// 单目标卡:Name + 类型徽章 + 进度环(UsagePct)+ target/current + deadline 倒计时。
-/// 点击 → 详情页('/goals/:id',路由 Task 11 接)。
+/// 单目标卡:Name + 类型徽章 + ConicProgressRing + target/current + deadline 倒计时 +
+/// 左侧 status 色条(对齐原型 .goal-card.ontrack/.behind/.completed border-left)。
 class _GoalCard extends StatelessWidget {
   const _GoalCard({required this.goal});
   final GoalView goal;
@@ -268,7 +508,7 @@ class _GoalCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final meta = _typeMeta(goal.type);
-    final pct = goal.progressPct; // 0..100(可能 >100,超目标)
+    final pct = goal.progressPct;
     final ringValue = (pct / 100).clamp(0.0, 1.0);
     final pctLabel = '${pct.toStringAsFixed(0)}%';
 
@@ -278,93 +518,128 @@ class _GoalCard extends StatelessWidget {
         daysLeft <= 90 &&
         ringValue < 0.7;
 
-    // 进度环色:完成 → positive;落后紧急 → negative;否则按 type 色。
     final ringColor = goal.isCompleted
         ? AppColors.positive
         : (isUrgent ? AppColors.negative : meta.color);
+    // 左侧 status 色条(对齐原型 .goal-card border-left)。
+    final accentColor = goal.isCompleted
+        ? AppColors.positive
+        : (isUrgent ? AppColors.negative : AppColors.accent);
 
     return DataCard(
       key: ValueKey('goalCard_${goal.id}'),
       onTap: () => context.push('/goals/${goal.id}'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 顶部:Name + 类型徽章。
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(goal.name,
-                        style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: AppTypography.displayFamily,
-                            fontFamilyFallback: AppTypography.displayFallback)),
-                    if (goal.notes != null && goal.notes!.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Text(goal.notes!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 11.5, color: AppColors.muted)),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 左侧 status 色条。
+            Container(
+              width: 3,
+              margin: const EdgeInsets.only(right: AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: accentColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 顶部:Name + 类型徽章。
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(goal.name,
+                                style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    fontFamily: AppTypography.displayFamily,
+                                    fontFamilyFallback:
+                                        AppTypography.displayFallback)),
+                            if (goal.notes != null &&
+                                goal.notes!.isNotEmpty) ...[
+                              const SizedBox(height: 3),
+                              Text(goal.notes!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontSize: 11.5,
+                                      color: AppColors.muted)),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _TypeChip(meta: meta),
                     ],
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  // 中部:ConicProgressRing(左)+ current/target(右)。
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      ConicProgressRing(
+                        key: const ValueKey('goalRing'),
+                        progress: ringValue,
+                        color: ringColor,
+                        pctLabel: pctLabel,
+                        size: ConicRingSize.md,
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _fmtSymbol(
+                                  goal.currentAmountCents, goal.currencyCode),
+                              style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  fontFeatures: AppTypography.tabularFigures),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '目标 ${_fmtSymbol(goal.targetAmountCents, goal.currencyCode)}',
+                              style: const TextStyle(
+                                  fontSize: 12.5,
+                                  color: AppColors.muted,
+                                  fontFeatures: AppTypography.tabularFigures),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  // 底部:deadline 倒计时。
+                  Row(
+                    children: [
+                      const Icon(LucideIcons.calendar,
+                          size: 13, color: AppColors.muted),
+                      const SizedBox(width: 4),
+                      Text(
+                        _deadlineText(goal, daysLeft),
+                        style: TextStyle(
+                            fontSize: 12,
+                            color:
+                                isUrgent ? AppColors.negative : AppColors.muted,
+                            fontWeight: isUrgent
+                                ? FontWeight.w600
+                                : FontWeight.w400),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              _TypeChip(meta: meta),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          // 中部:进度环(左)+ current/target(右)。
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _ProgressRing(value: ringValue, pctLabel: pctLabel, color: ringColor),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _fmtSymbol(goal.currentAmountCents, goal.currencyCode),
-                      style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          fontFeatures: AppTypography.tabularFigures),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '目标 ${_fmtSymbol(goal.targetAmountCents, goal.currencyCode)}',
-                      style: const TextStyle(
-                          fontSize: 12.5,
-                          color: AppColors.muted,
-                          fontFeatures: AppTypography.tabularFigures),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          // 底部:deadline 倒计时。
-          Row(
-            children: [
-              const Icon(LucideIcons.calendar, size: 13, color: AppColors.muted),
-              const SizedBox(width: 4),
-              Text(
-                _deadlineText(goal, daysLeft),
-                style: TextStyle(
-                    fontSize: 12,
-                    color: isUrgent ? AppColors.negative : AppColors.muted,
-                    fontWeight: isUrgent ? FontWeight.w600 : FontWeight.w400),
-              ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -395,51 +670,6 @@ class _TypeChip extends StatelessWidget {
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                   color: meta.color)),
-        ],
-      ),
-    );
-  }
-}
-
-// ───────────────────────── 进度环 ─────────────────────────
-
-class _ProgressRing extends StatelessWidget {
-  const _ProgressRing({
-    required this.value,
-    required this.pctLabel,
-    required this.color,
-  });
-  final double value; // clamp[0,1]
-  final String pctLabel;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      key: const ValueKey('goalRing'),
-      width: 64,
-      height: 64,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          SizedBox(
-            width: 64,
-            height: 64,
-            child: CircularProgressIndicator(
-              key: const ValueKey('goalRingBar'),
-              value: value,
-              strokeWidth: 6,
-              backgroundColor: AppColors.border,
-              valueColor: AlwaysStoppedAnimation<Color>(color),
-            ),
-          ),
-          Text(pctLabel,
-              key: const ValueKey('goalRingPct'),
-              style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                  fontFeatures: AppTypography.tabularFigures)),
         ],
       ),
     );
@@ -491,20 +721,14 @@ _TypeMeta _typeMeta(GoalType type) {
 
 // ───────────────────────── deadline 倒计时 ─────────────────────────
 
-/// deadline 距今天数(截至当日 0 点;null = 无 deadline)。负数表示已过。
 int? _daysLeft(DateTime? deadline) {
   if (deadline == null) return null;
-  final now = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+  final now =
+      DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
   final d = DateTime(deadline.year, deadline.month, deadline.day);
   return d.difference(now).inDays;
 }
 
-/// 倒计时文案。对齐 OD 原型:
-///  - 完成 → "已达成"
-///  - 无 deadline → "无截止日期"
-///  - >365 天 → "X 个月"
-///  - ≤0(已过)→ "已逾期 X 天"
-///  - 否则 → "剩 X 天"
 String _deadlineText(GoalView goal, int? daysLeft) {
   if (goal.isCompleted) return '已达成';
   if (daysLeft == null) return '无截止日期';
@@ -515,8 +739,6 @@ String _deadlineText(GoalView goal, int? daysLeft) {
 
 // ───────────────────────── helpers ─────────────────────────
 
-/// 千分位 + 两位小数 + 货币符号前缀(对齐 budget/holding/debt 页 _fmtSymbol,
-/// 复用 currency_currency_convert.dart 的 currencySymbol)。
 String _fmtSymbol(int cents, String currencyCode) {
   final sign = cents < 0 ? '-' : '';
   final abs = cents.abs();
