@@ -151,6 +151,32 @@ func (s *Service) SumRemainingByCurrency(ctx context.Context, tenantID uuid.UUID
 	return byCur, nil
 }
 
+// GetDebtsPaid returns Σ paid amount (TotalPrincipalCents − RemainingPrincipal)
+// of the given debts (DebtPayoff goal progress source). Implements
+// goal/domain.DebtProgressSource (structural — goal does not import debt).
+//
+// Best-effort: a debt that is missing or fails to load is skipped + logged, not
+// fatal — the remaining debts still contribute (mirrors holding
+// GetAccountMarketValue's skip-missing-security pattern). Tenant scoping is
+// enforced by the repo's FindByID. Empty debtIDs returns 0.
+func (s *Service) GetDebtsPaid(ctx context.Context, tenantID uuid.UUID, debtIDs []uuid.UUID) (int64, error) {
+	var sum int64
+	for _, id := range debtIDs {
+		if err := ctx.Err(); err != nil {
+			return sum, err
+		}
+		d, err := s.repo.FindByID(ctx, tenantID, id)
+		if err != nil || d == nil {
+			slog.Warn("goal debt: missing, skip",
+				slog.String("debt_id", id.String()),
+				slog.String("operation", "GetDebtsPaid"))
+			continue
+		}
+		sum += d.TotalPrincipalCents - d.RemainingPrincipal()
+	}
+	return sum, nil
+}
+
 // debtCurrencyCode resolves a debt's currency from its parent account. Falls
 // back to CNY when accountLookup is nil or the lookup fails (best-effort,
 // logged — a missing currency must not drop the debt's principal from the sum).

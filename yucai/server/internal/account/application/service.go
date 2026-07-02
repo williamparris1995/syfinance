@@ -335,6 +335,32 @@ func (s *Service) SumBalancesByCurrency(ctx context.Context, tenantID uuid.UUID)
 	return byCur, nil
 }
 
+// GetAccountsBalance returns Σ CurrentBalanceCents of the given accounts
+// (Savings goal progress source). Implements goal/domain.AccountBalanceSource
+// (structural — goal does not import account).
+//
+// Best-effort: an account that is missing or fails to load is skipped + logged,
+// not fatal — the remaining accounts still contribute (mirrors holding
+// GetAccountMarketValue's skip-missing-security pattern). Tenant scoping is
+// enforced by the repo's FindByID. Empty accountIDs returns 0.
+func (s *Service) GetAccountsBalance(ctx context.Context, tenantID uuid.UUID, accountIDs []uuid.UUID) (int64, error) {
+	var sum int64
+	for _, id := range accountIDs {
+		if err := ctx.Err(); err != nil {
+			return sum, err
+		}
+		a, err := s.accountRepo.FindByID(ctx, tenantID, id)
+		if err != nil || a == nil {
+			slog.Warn("goal balance: account missing, skip",
+				slog.String("account_id", id.String()),
+				slog.String("operation", "GetAccountsBalance"))
+			continue
+		}
+		sum += a.CurrentBalanceCents
+	}
+	return sum, nil
+}
+
 // Unimplemented command/query handler stubs (service handles orchestration directly).
 // These satisfy the CQRS bus interface requirements.
 

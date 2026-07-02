@@ -1043,8 +1043,11 @@ func (s *Service) GetAccountMarketValue(ctx context.Context, tenantID, accountID
 // (multi-account port for goal SyncAllGoals, Task 6). Implements
 // goal/domain.AccountMarketValueSource.GetAccountsMarketValue (structural).
 //
-// Thin delegation to GetAccountMarketValue; Task 5 may replace with a batched
-// impl. Empty accountIDs returns 0 (no accounts → no mv).
+// Thin delegation to GetAccountMarketValue per account. Best-effort: an account
+// whose market-value query fails (e.g. listing error) is skipped + logged, not
+// fatal — the remaining accounts still contribute (mirrors the skip-missing
+// pattern used by the account/debt goal ports and by GetAccountMarketValue's
+// per-holding security skip). Empty accountIDs returns 0.
 func (s *Service) GetAccountsMarketValue(ctx context.Context, tenantID uuid.UUID, accountIDs []uuid.UUID) (int64, error) {
 	var total int64
 	for _, accID := range accountIDs {
@@ -1053,7 +1056,10 @@ func (s *Service) GetAccountsMarketValue(ctx context.Context, tenantID uuid.UUID
 		}
 		mv, err := s.GetAccountMarketValue(ctx, tenantID, accID)
 		if err != nil {
-			return total, fmt.Errorf("accounts market value: account %s: %w", accID, err)
+			slog.Warn("goal mv: account error, skip",
+				slog.String("account_id", accID.String()),
+				slog.String("operation", "GetAccountsMarketValue"))
+			continue
 		}
 		total += mv
 	}
