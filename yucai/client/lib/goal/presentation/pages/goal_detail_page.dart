@@ -25,6 +25,7 @@
 //
 // 无 i18n(中文硬编码,御财惯例;与 budget/holding 列表页一致)。
 import 'package:dartz/dartz.dart' as dartz;
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
@@ -41,6 +42,7 @@ import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/goal/domain/entities/goal_entity.dart';
+import 'package:yucai_client/goal/domain/repositories/goal_repository.dart';
 import 'package:yucai_client/goal/presentation/bloc/goal_bloc.dart';
 import 'package:yucai_client/goal/presentation/bloc/goal_event.dart';
 import 'package:yucai_client/goal/presentation/bloc/goal_state.dart';
@@ -60,6 +62,15 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
   /// FutureBuilder 包关联卡 region;best-effort(lookup fail/未命中 → #id 回退)。
   /// 在 initState 启动,与 GoalBloc 并行(不阻塞 goal 渲染)。
   late final Future<_NameMaps> _nameMapsFuture = _lookupNames();
+
+  /// 目标进度历史(近 30 天,server scheduler 每日 actuals 快照)。
+  /// FutureBuilder 包趋势卡 region;best-effort(失败/空 → 空态),不阻塞 goal 渲染。
+  late final Future<dartz.Either<Failure, List<GoalProgressPoint>>> _historyFuture =
+      GetIt.instance<GoalRepository>().getProgressHistory(
+    goalId: widget.id,
+    from: DateTime.now().subtract(const Duration(days: 30)),
+    to: DateTime.now(),
+  );
 
   @override
   void initState() {
@@ -227,7 +238,7 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                 const SizedBox(height: AppSpacing.sm),
                 _linkedCard(g),
                 const SizedBox(height: AppSpacing.sm),
-                _trendPlaceholderCard(),
+                _trendCard(g),
               ],
             ),
           ),
@@ -428,11 +439,12 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
     );
   }
 
-  // ───────────────────────── ④ 趋势曲线占位卡 ─────────────────────────
+  // ───────────────────────── ④ 趋势曲线卡(fl_chart LineChart) ─────────────────────────
 
-  /// 趋势曲线占位(Phase 2 才接 snapshot + fl_chart;本 task 留占位区,
-  /// 对齐 OD 原型 trendCard 的 Phase 2 占位)。
-  Widget _trendPlaceholderCard() {
+  /// 目标进度趋势卡(替 Phase 1 占位):FutureBuilder 包 getProgressHistory(近
+  /// 30 天)→ fl_chart LineChart(御财金 current_amount_cents 曲线 + target 虚线
+  /// 基线)。loading/error/empty 三态,不阻塞 goal 主体渲染。
+  Widget _trendCard(GoalView g) {
     return DataCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -455,7 +467,7 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                   color: AppColors.accentSoft,
                   borderRadius: BorderRadius.circular(9999),
                 ),
-                child: const Text('Phase 2',
+                child: const Text('近 30 天',
                     key: ValueKey('goalDetailTrendBadge'),
                     style: TextStyle(
                         fontSize: 11,
@@ -465,33 +477,29 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Column(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: AppColors.accentSoft,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(LucideIcons.trendingUp,
-                        size: 22, color: AppColors.accent),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text('趋势曲线即将上线',
-                      style: TextStyle(
-                          fontSize: 13.5, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  // 占位文案(brief 指定「趋势曲线 Phase 2」显式文本)。
-                  const Text('趋势曲线 Phase 2',
-                      key: ValueKey('goalDetailTrendPlaceholder'),
-                      style: TextStyle(fontSize: 12, color: AppColors.muted)),
-                ],
-              ),
-            ),
+          FutureBuilder<dartz.Either<Failure, List<GoalProgressPoint>>>(
+            future: _historyFuture,
+            builder: (context, snap) {
+              if (snap.connectionState != ConnectionState.done) {
+                return const _TrendLoading();
+              }
+              // 加载失败 → 空态(空态文案区分「错误」/「无数据」,统一空态 UI)。
+              final result = snap.data;
+              final points = result?.fold(
+                    (_) => const <GoalProgressPoint>[],
+                    (pts) => pts,
+              ) ??
+                  const <GoalProgressPoint>[];
+              if (points.isEmpty) {
+                return const _TrendEmpty(
+                    key: ValueKey('goalDetailTrendEmpty'));
+              }
+              return _TrendChart(
+                key: const ValueKey('goalDetailTrendChart'),
+                points: points,
+                targetCents: g.targetAmountCents,
+              );
+            },
           ),
         ],
       ),
@@ -580,6 +588,154 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
 }
 
 // ───────────────────────── 私有 widgets ─────────────────────────
+
+/// 目标进度趋势曲线(fl_chart 1.x LineChart,照 holding perf_curve_chart API)。
+///
+/// 横轴 = points 索引(0..n-1,按 date 升序),纵轴 = current_amount_cents(分,
+/// 映射到 chart Y)。御财金主曲线 + 半透明面积填充;target 虚线基线(若提供且 > 0)。
+///
+/// fl_chart 1.x API(非 0.69):公开 `LineChart` 类、`LineChartBarData(color:` 单数、
+/// `.withValues(alpha:)`、`LineChartData(extraLinesData:)`。
+class _TrendChart extends StatelessWidget {
+  const _TrendChart({
+    super.key,
+    required this.points,
+    this.targetCents,
+  });
+
+  /// 已按 date 升序的进度点(调用方保证 length >= 1)。
+  final List<GoalProgressPoint> points;
+
+  /// 目标金额(分),>0 时画虚线基线。null/0 不画。
+  final int? targetCents;
+
+  @override
+  Widget build(BuildContext context) {
+    // 仅 1 点:画不出曲线 → 退化为空态(对齐 brief「snapshot 数据稀疏」)。
+    if (points.length < 2) {
+      return const SizedBox(
+        height: 168,
+        child: _TrendEmpty(key: ValueKey('goalDetailTrendEmpty')),
+      );
+    }
+    return SizedBox(
+      height: 168,
+      child: LineChart(
+        LineChartData(
+          titlesData: const FlTitlesData(show: false),
+          gridData: const FlGridData(show: false),
+          borderData: FlBorderData(show: false),
+          lineTouchData: const LineTouchData(enabled: false),
+          clipData: const FlClipData.all(),
+          minX: 0,
+          maxX: (points.length - 1).toDouble(),
+          minY: _minY(),
+          maxY: _maxY(),
+          extraLinesData: _targetLine(),
+          lineBarsData: [
+            LineChartBarData(
+              spots: [
+                for (var i = 0; i < points.length; i++)
+                  FlSpot(i.toDouble(),
+                      points[i].currentAmountCents.toDouble()),
+              ],
+              isCurved: true,
+              color: AppColors.accent, // 御财金
+              barWidth: 1.8,
+              isStrokeCapRound: true,
+              dotData: const FlDotData(show: false),
+              belowBarData: BarAreaData(
+                show: true,
+                color: AppColors.accent.withValues(alpha: 0.16),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Y 轴下界:取 points 最小值(留少量 padding),与 0 取小,避免负值溢出。
+  double _minY() {
+    final minVal = points
+        .map((p) => p.currentAmountCents.toDouble())
+        .reduce((a, b) => a < b ? a : b);
+    final padded = minVal - (minVal.abs() * 0.04 + 1);
+    return padded < 0 ? 0 : padded;
+  }
+
+  /// Y 轴上界:取 points 最大值与 target 的较大值,留 8% padding 顶端呼吸。
+  double _maxY() {
+    final maxVal = points
+        .map((p) => p.currentAmountCents.toDouble())
+        .reduce((a, b) => a > b ? a : b);
+    final top = (targetCents != null && targetCents! > maxVal)
+        ? targetCents!.toDouble()
+        : maxVal;
+    return top + (top.abs() * 0.08 + 1);
+  }
+
+  /// target 虚线基线(对齐 OD 原型 .target-line dashed)。
+  /// 仅 targetCents > 0 时绘制,横跨 [0, maxX]。
+  ExtraLinesData? _targetLine() {
+    if (targetCents == null || targetCents! <= 0) return null;
+    return ExtraLinesData(
+      extraLinesOnTop: true,
+      horizontalLines: [
+        HorizontalLine(
+          y: targetCents!.toDouble(),
+          color: AppColors.muted.withValues(alpha: 0.6),
+          strokeWidth: 1,
+          dashArray: [5, 4],
+        ),
+      ],
+    );
+  }
+}
+
+/// 趋势空态:「暂无趋势数据(scheduler 每日记录)」。加载失败 + 无数据共用。
+class _TrendEmpty extends StatelessWidget {
+  const _TrendEmpty({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFBFAF6),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        border:
+            Border.all(color: AppColors.border.withValues(alpha: 0.7)),
+      ),
+      child: const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(LucideIcons.trendingUp, size: 22, color: AppColors.muted),
+            SizedBox(height: 6),
+            Text('暂无趋势数据',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            SizedBox(height: 2),
+            Text('(scheduler 每日记录)',
+                style: TextStyle(fontSize: 11.5, color: AppColors.muted)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 趋势 loading 占位(固定高度 SizedBox,保持卡尺寸不抖动)。
+class _TrendLoading extends StatelessWidget {
+  const _TrendLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      height: 168,
+      child: Center(child: CircularProgressIndicator()),
+    );
+  }
+}
 
 /// 关联实体 name lookup 结果(Phase 1.5):id→name 映射。
 /// accountMap:accountId → Account.name;debtMap:debtId → Debt.counterparty。

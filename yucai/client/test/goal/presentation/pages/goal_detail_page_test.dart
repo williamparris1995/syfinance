@@ -21,6 +21,7 @@
 import 'dart:async';
 
 import 'package:dartz/dartz.dart' as dartz;
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -105,6 +106,10 @@ GoalView _goal({
 /// 关联卡 name lookup 经 GetIt)。getGoal(any()) 固定返回 [goal]。
 /// accountRepo/debtRepo 默认 null → 注册返回空 list 的 mock(关联卡回退 #id);
 /// 传入自定义 repo 时由测试方自行 stub list()(harness 不覆盖)。
+/// Task 3:GoalDetailPage initState 经 GetIt 拉 GoalRepository.getProgressHistory
+/// → harness 注册 [repo] 本身为 GoalRepository,并 stub 默认空 history(测试方可
+/// 重 stub 为真实 points)。updater 注册 GoalRepository(与 detail page lazy
+/// _historyFuture 取的 GetIt 同一容器)。
 Widget _harness({
   required _MockRepo repo,
   required GoalView goal,
@@ -129,6 +134,9 @@ Widget _harness({
   }
   getIt.registerSingleton<AccountRepository>(ar);
   getIt.registerSingleton<DebtRepository>(dr);
+  // 注册 [repo] 为 GoalRepository + 默认空 history(GoRouter harness 测试方
+  // 用 _registerGoalRepo 自行注册)。
+  _registerGoalRepo(repo);
   return MaterialApp(
     home: BlocProvider<GoalBloc>(
       create: (_) => GoalBloc(repo),
@@ -139,6 +147,31 @@ Widget _harness({
 
 void _stubDetail(_MockRepo repo, GoalView goal) {
   when(() => repo.getGoal(any())).thenAnswer((_) async => dartz.Right(goal));
+}
+
+/// 注册 [repo] 为 GoalRepository 到 GetIt(供 detail page lazy
+/// _historyFuture 拉),并 stub 默认空 history(测试方可重 stub)。
+/// GoRouter harness 测试未走 _harness → 手动调用此函数。
+void _registerGoalRepo(_MockRepo repo) {
+  final getIt = GetIt.instance;
+  if (getIt.isRegistered<GoalRepository>()) {
+    getIt.unregister<GoalRepository>();
+  }
+  getIt.registerSingleton<GoalRepository>(repo);
+  when(() => repo.getProgressHistory(
+          goalId: any(named: 'goalId'),
+          from: any(named: 'from'),
+          to: any(named: 'to')))
+      .thenAnswer((_) async => const dartz.Right(<GoalProgressPoint>[]));
+}
+
+/// stub getProgressHistory(任何 goalId/from/to)返回 [points]。
+void _stubHistory(_MockRepo repo, List<GoalProgressPoint> points) {
+  when(() => repo.getProgressHistory(
+          goalId: any(named: 'goalId'),
+          from: any(named: 'from'),
+          to: any(named: 'to')))
+      .thenAnswer((_) async => dartz.Right(points));
 }
 
 void main() {
@@ -301,21 +334,105 @@ void main() {
     });
   });
 
-  group('trend placeholder', () {
-    testWidgets('renders 趋势曲线 Phase 2 placeholder + badge', (t) async {
+  group('trend chart', () {
+    testWidgets('renders fl_chart LineChart when history has points', (t) async {
       setDesktop(t);
       final repo = _MockRepo();
       registerFallbackValue(const LoadListRequested());
       _stubDetail(repo, goal);
+      final app = _harness(repo: repo, goal: goal);
+      // harness 注册 GoalRepository + 默认空 history stub;此处重 stub 为真实 3 点
+      // (mocktail 后 stub 覆盖前,在 pumpWidget 前重 stub → _historyFuture 用新值)。
+      _stubHistory(repo, [
+        GoalProgressPoint(
+            date: DateTime(2026, 6, 1), currentAmountCents: 100000),
+        GoalProgressPoint(
+            date: DateTime(2026, 6, 15), currentAmountCents: 180000),
+        GoalProgressPoint(
+            date: DateTime(2026, 6, 30), currentAmountCents: 240000),
+      ]);
+
+      await t.pumpWidget(app);
+      await t.pumpAndSettle();
+
+      // 御财金近 30 天 badge(替 Phase 1 占位的 Phase 2 badge)。
+      expect(find.byKey(const ValueKey('goalDetailTrendBadge')), findsOneWidget);
+      expect(find.text('近 30 天'), findsOneWidget);
+      // 占位文本已移除(Phase 1 退场)。
+      expect(find.text('趋势曲线 Phase 2'), findsNothing);
+      expect(find.byKey(const ValueKey('goalDetailTrendPlaceholder')),
+          findsNothing);
+      // fl_chart LineChart 渲染。
+      expect(find.byType(LineChart), findsOneWidget);
+      expect(find.byKey(const ValueKey('goalDetailTrendChart')), findsOneWidget);
+    });
+
+    testWidgets('shows empty state when history is empty', (t) async {
+      setDesktop(t);
+      final repo = _MockRepo();
+      registerFallbackValue(const LoadListRequested());
+      _stubDetail(repo, goal);
+      // harness 默认 stub 空 history → 直接 pumpWidget 即可验空态。
 
       await t.pumpWidget(_harness(repo: repo, goal: goal));
       await t.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('goalDetailTrendPlaceholder')),
-          findsOneWidget);
-      expect(find.text('趋势曲线 Phase 2'), findsOneWidget);
-      expect(find.byKey(const ValueKey('goalDetailTrendBadge')), findsOneWidget);
-      expect(find.text('Phase 2'), findsOneWidget);
+      // 空态文案 + 空 LineChart(不应有)。
+      expect(find.byKey(const ValueKey('goalDetailTrendEmpty')), findsOneWidget);
+      expect(find.text('暂无趋势数据'), findsOneWidget);
+      expect(find.text('(scheduler 每日记录)'), findsOneWidget);
+      expect(find.byType(LineChart), findsNothing);
+    });
+
+    testWidgets('shows empty state when history repo returns Left (failure)',
+        (t) async {
+      setDesktop(t);
+      final repo = _MockRepo();
+      registerFallbackValue(const LoadListRequested());
+      _stubDetail(repo, goal);
+      final app = _harness(repo: repo, goal: goal);
+      // 重 stub 返 Left(ServerFailure)→ 空态(不崩)。
+      when(() => repo.getProgressHistory(
+              goalId: any(named: 'goalId'),
+              from: any(named: 'from'),
+              to: any(named: 'to')))
+          .thenAnswer((_) async =>
+              const dartz.Left<Failure, List<GoalProgressPoint>>(
+                  ServerFailure('history 读取失败')));
+
+      await t.pumpWidget(app);
+      await t.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('goalDetailTrendEmpty')), findsOneWidget);
+      expect(find.text('暂无趋势数据'), findsOneWidget);
+      expect(find.byType(LineChart), findsNothing);
+    });
+
+    testWidgets('shows loading indicator before history resolves', (t) async {
+      setDesktop(t);
+      final repo = _MockRepo();
+      registerFallbackValue(const LoadListRequested());
+      _stubDetail(repo, goal);
+      final app = _harness(repo: repo, goal: goal);
+      // 重 stub getProgressHistory 永不 resolve → 停留 loading 态。
+      final completer =
+          Completer<dartz.Either<Failure, List<GoalProgressPoint>>>();
+      when(() => repo.getProgressHistory(
+              goalId: any(named: 'goalId'),
+              from: any(named: 'from'),
+              to: any(named: 'to')))
+          .thenAnswer((_) => completer.future);
+
+      await t.pumpWidget(app);
+      await t.pump(); // 不 settle(等 history future)。
+
+      // 趋势区 loading:goal detail loaded 后历史 FutureBuilder 仍 pending。
+      // (bloc getGoal 已 Right 同步 → goal 主体渲染;history 还在 pending。)
+      // 至少有一个 CircularProgressIndicator(可能 detail loading 或 trend loading)。
+      expect(find.byType(CircularProgressIndicator), findsWidgets);
+
+      completer.complete(const dartz.Right(<GoalProgressPoint>[]));
+      await t.pumpAndSettle();
     });
   });
 
@@ -444,6 +561,9 @@ void main() {
       final repo = _MockRepo();
       registerFallbackValue(const LoadListRequested());
       _stubDetail(repo, goal);
+      // detail page initState 经 GetIt 拉 GoalRepository(GoRouter harness 未
+      // 走 _harness → 手动注册 + stub 空 history)。
+      _registerGoalRepo(repo);
 
       String? pushed;
       final router = GoRouter(
@@ -487,6 +607,9 @@ void main() {
           .thenAnswer((_) async => const dartz.Right(null));
       when(() => repo.listGoals(type: any(named: 'type')))
           .thenAnswer((_) async => const dartz.Right([]));
+      // detail page initState 经 GetIt 拉 GoalRepository(GoRouter harness 未
+      // 走 _harness → 手动注册 + stub 空 history)。
+      _registerGoalRepo(repo);
 
       // GoRouter harness:list → detail 删除后 pop 回 list。
       final router = GoRouter(
