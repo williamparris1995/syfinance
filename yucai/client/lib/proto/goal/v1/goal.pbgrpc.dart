@@ -103,6 +103,15 @@ class GoalServiceClient extends $grpc.Client {
     return $createUnaryCall(_$cloneGoal, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.GetGoalProgressHistoryResponse>
+      getGoalProgressHistory(
+    $0.GetGoalProgressHistoryRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$getGoalProgressHistory, request,
+        options: options);
+  }
+
   // method descriptors
 
   static final _$createGoal =
@@ -155,6 +164,11 @@ class GoalServiceClient extends $grpc.Client {
           '/yucai.goal.v1.GoalService/CloneGoal',
           ($0.CloneGoalRequest value) => value.writeToBuffer(),
           $0.GoalResponse.fromBuffer);
+  static final _$getGoalProgressHistory = $grpc.ClientMethod<
+          $0.GetGoalProgressHistoryRequest, $0.GetGoalProgressHistoryResponse>(
+      '/yucai.goal.v1.GoalService/GetGoalProgressHistory',
+      ($0.GetGoalProgressHistoryRequest value) => value.writeToBuffer(),
+      $0.GetGoalProgressHistoryResponse.fromBuffer);
 }
 
 @$pb.GrpcServiceName('yucai.goal.v1.GoalService')
@@ -237,6 +251,15 @@ abstract class GoalServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.CloneGoalRequest.fromBuffer(value),
         ($0.GoalResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetGoalProgressHistoryRequest,
+            $0.GetGoalProgressHistoryResponse>(
+        'GetGoalProgressHistory',
+        getGoalProgressHistory_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.GetGoalProgressHistoryRequest.fromBuffer(value),
+        ($0.GetGoalProgressHistoryResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.GoalResponse> createGoal_Pre($grpc.ServiceCall $call,
@@ -319,4 +342,13 @@ abstract class GoalServiceBase extends $grpc.Service {
 
   $async.Future<$0.GoalResponse> cloneGoal(
       $grpc.ServiceCall call, $0.CloneGoalRequest request);
+
+  $async.Future<$0.GetGoalProgressHistoryResponse> getGoalProgressHistory_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.GetGoalProgressHistoryRequest> $request) async {
+    return getGoalProgressHistory($call, await $request);
+  }
+
+  $async.Future<$0.GetGoalProgressHistoryResponse> getGoalProgressHistory(
+      $grpc.ServiceCall call, $0.GetGoalProgressHistoryRequest request);
 }

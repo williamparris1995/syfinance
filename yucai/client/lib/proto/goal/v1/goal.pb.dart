@@ -1295,6 +1295,216 @@ class SyncInvestmentGoalsResponse extends $pb.GeneratedMessage {
   $2.Timestamp ensureSyncedAt() => $_ensure(1);
 }
 
+class GetGoalProgressHistoryRequest extends $pb.GeneratedMessage {
+  factory GetGoalProgressHistoryRequest({
+    $core.String? goalId,
+    $2.Timestamp? from,
+    $2.Timestamp? to,
+  }) {
+    final result = create();
+    if (goalId != null) result.goalId = goalId;
+    if (from != null) result.from = from;
+    if (to != null) result.to = to;
+    return result;
+  }
+
+  GetGoalProgressHistoryRequest._();
+
+  factory GetGoalProgressHistoryRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory GetGoalProgressHistoryRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GetGoalProgressHistoryRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.goal.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'goalId')
+    ..aOM<$2.Timestamp>(2, _omitFieldNames ? '' : 'from',
+        subBuilder: $2.Timestamp.create)
+    ..aOM<$2.Timestamp>(3, _omitFieldNames ? '' : 'to',
+        subBuilder: $2.Timestamp.create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetGoalProgressHistoryRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetGoalProgressHistoryRequest copyWith(
+          void Function(GetGoalProgressHistoryRequest) updates) =>
+      super.copyWith(
+              (message) => updates(message as GetGoalProgressHistoryRequest))
+          as GetGoalProgressHistoryRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetGoalProgressHistoryRequest create() =>
+      GetGoalProgressHistoryRequest._();
+  @$core.override
+  GetGoalProgressHistoryRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static GetGoalProgressHistoryRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetGoalProgressHistoryRequest>(create);
+  static GetGoalProgressHistoryRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get goalId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set goalId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasGoalId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearGoalId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $2.Timestamp get from => $_getN(1);
+  @$pb.TagNumber(2)
+  set from($2.Timestamp value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasFrom() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearFrom() => $_clearField(2);
+  @$pb.TagNumber(2)
+  $2.Timestamp ensureFrom() => $_ensure(1);
+
+  @$pb.TagNumber(3)
+  $2.Timestamp get to => $_getN(2);
+  @$pb.TagNumber(3)
+  set to($2.Timestamp value) => $_setField(3, value);
+  @$pb.TagNumber(3)
+  $core.bool hasTo() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearTo() => $_clearField(3);
+  @$pb.TagNumber(3)
+  $2.Timestamp ensureTo() => $_ensure(2);
+}
+
+/// ProgressPoint is one daily snapshot of a goal's progress.
+class ProgressPoint extends $pb.GeneratedMessage {
+  factory ProgressPoint({
+    $2.Timestamp? date,
+    $fixnum.Int64? currentAmountCents,
+  }) {
+    final result = create();
+    if (date != null) result.date = date;
+    if (currentAmountCents != null)
+      result.currentAmountCents = currentAmountCents;
+    return result;
+  }
+
+  ProgressPoint._();
+
+  factory ProgressPoint.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory ProgressPoint.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ProgressPoint',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.goal.v1'),
+      createEmptyInstance: create)
+    ..aOM<$2.Timestamp>(1, _omitFieldNames ? '' : 'date',
+        subBuilder: $2.Timestamp.create)
+    ..aInt64(2, _omitFieldNames ? '' : 'currentAmountCents')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ProgressPoint clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ProgressPoint copyWith(void Function(ProgressPoint) updates) =>
+      super.copyWith((message) => updates(message as ProgressPoint))
+          as ProgressPoint;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static ProgressPoint create() => ProgressPoint._();
+  @$core.override
+  ProgressPoint createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static ProgressPoint getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ProgressPoint>(create);
+  static ProgressPoint? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $2.Timestamp get date => $_getN(0);
+  @$pb.TagNumber(1)
+  set date($2.Timestamp value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasDate() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearDate() => $_clearField(1);
+  @$pb.TagNumber(1)
+  $2.Timestamp ensureDate() => $_ensure(0);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get currentAmountCents => $_getI64(1);
+  @$pb.TagNumber(2)
+  set currentAmountCents($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasCurrentAmountCents() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearCurrentAmountCents() => $_clearField(2);
+}
+
+class GetGoalProgressHistoryResponse extends $pb.GeneratedMessage {
+  factory GetGoalProgressHistoryResponse({
+    $core.Iterable<ProgressPoint>? points,
+  }) {
+    final result = create();
+    if (points != null) result.points.addAll(points);
+    return result;
+  }
+
+  GetGoalProgressHistoryResponse._();
+
+  factory GetGoalProgressHistoryResponse.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory GetGoalProgressHistoryResponse.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GetGoalProgressHistoryResponse',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.goal.v1'),
+      createEmptyInstance: create)
+    ..pPM<ProgressPoint>(1, _omitFieldNames ? '' : 'points',
+        subBuilder: ProgressPoint.create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetGoalProgressHistoryResponse clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetGoalProgressHistoryResponse copyWith(
+          void Function(GetGoalProgressHistoryResponse) updates) =>
+      super.copyWith(
+              (message) => updates(message as GetGoalProgressHistoryResponse))
+          as GetGoalProgressHistoryResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetGoalProgressHistoryResponse create() =>
+      GetGoalProgressHistoryResponse._();
+  @$core.override
+  GetGoalProgressHistoryResponse createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static GetGoalProgressHistoryResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetGoalProgressHistoryResponse>(create);
+  static GetGoalProgressHistoryResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<ProgressPoint> get points => $_getList(0);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

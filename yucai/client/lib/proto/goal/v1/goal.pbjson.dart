@@ -422,3 +422,83 @@ final $typed_data.Uint8List syncInvestmentGoalsResponseDescriptor =
         'ChtTeW5jSW52ZXN0bWVudEdvYWxzUmVzcG9uc2USIQoMc3luY2VkX2NvdW50GAEgASgFUgtzeW'
         '5jZWRDb3VudBI3CglzeW5jZWRfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1w'
         'UghzeW5jZWRBdA==');
+
+@$core.Deprecated('Use getGoalProgressHistoryRequestDescriptor instead')
+const GetGoalProgressHistoryRequest$json = {
+  '1': 'GetGoalProgressHistoryRequest',
+  '2': [
+    {'1': 'goal_id', '3': 1, '4': 1, '5': 9, '10': 'goalId'},
+    {
+      '1': 'from',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'from'
+    },
+    {
+      '1': 'to',
+      '3': 3,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'to'
+    },
+  ],
+};
+
+/// Descriptor for `GetGoalProgressHistoryRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getGoalProgressHistoryRequestDescriptor =
+    $convert.base64Decode(
+        'Ch1HZXRHb2FsUHJvZ3Jlc3NIaXN0b3J5UmVxdWVzdBIXCgdnb2FsX2lkGAEgASgJUgZnb2FsSW'
+        'QSLgoEZnJvbRgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBSBGZyb20SKgoCdG8Y'
+        'AyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wUgJ0bw==');
+
+@$core.Deprecated('Use progressPointDescriptor instead')
+const ProgressPoint$json = {
+  '1': 'ProgressPoint',
+  '2': [
+    {
+      '1': 'date',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'date'
+    },
+    {
+      '1': 'current_amount_cents',
+      '3': 2,
+      '4': 1,
+      '5': 3,
+      '10': 'currentAmountCents'
+    },
+  ],
+};
+
+/// Descriptor for `ProgressPoint`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List progressPointDescriptor = $convert.base64Decode(
+    'Cg1Qcm9ncmVzc1BvaW50Ei4KBGRhdGUYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW'
+    '1wUgRkYXRlEjAKFGN1cnJlbnRfYW1vdW50X2NlbnRzGAIgASgDUhJjdXJyZW50QW1vdW50Q2Vu'
+    'dHM=');
+
+@$core.Deprecated('Use getGoalProgressHistoryResponseDescriptor instead')
+const GetGoalProgressHistoryResponse$json = {
+  '1': 'GetGoalProgressHistoryResponse',
+  '2': [
+    {
+      '1': 'points',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.yucai.goal.v1.ProgressPoint',
+      '10': 'points'
+    },
+  ],
+};
+
+/// Descriptor for `GetGoalProgressHistoryResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getGoalProgressHistoryResponseDescriptor =
+    $convert.base64Decode(
+        'Ch5HZXRHb2FsUHJvZ3Jlc3NIaXN0b3J5UmVzcG9uc2USNAoGcG9pbnRzGAEgAygLMhwueXVjYW'
+        'kuZ29hbC52MS5Qcm9ncmVzc1BvaW50UgZwb2ludHM=');
