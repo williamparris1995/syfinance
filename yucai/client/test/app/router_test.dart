@@ -45,6 +45,9 @@ import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/pages/debts_page.dart';
+import 'package:yucai_client/goal/domain/entities/goal_entity.dart';
+import 'package:yucai_client/goal/domain/repositories/goal_repository.dart';
+import 'package:yucai_client/goal/presentation/pages/goal_list_page.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/debt/presentation/pages/receivables_page.dart';
@@ -58,6 +61,7 @@ class _MockTxnRepo extends Mock implements TransactionRepository {}
 class _MockDebtRepo extends Mock implements DebtRepository {}
 class _MockHoldingRepo extends Mock implements HoldingRepository {}
 class _MockBudgetRepo extends Mock implements BudgetRepository {}
+class _MockGoalRepo extends Mock implements GoalRepository {}
 class _MockLogin extends Mock implements LoginUseCase {}
 class _MockRegister extends Mock implements RegisterUseCase {}
 class _MockProfile extends Mock implements GetProfileUseCase {}
@@ -104,11 +108,13 @@ void main() {
     final debtRepo = _MockDebtRepo();
     final holdingRepo = _MockHoldingRepo();
     final budgetRepo = _MockBudgetRepo();
+    final goalRepo = _MockGoalRepo();
     getIt.registerSingleton<AccountRepository>(accountRepo);
     getIt.registerSingleton<TransactionRepository>(txnRepo);
     getIt.registerSingleton<DebtRepository>(debtRepo);
     getIt.registerSingleton<HoldingRepository>(holdingRepo);
     getIt.registerSingleton<BudgetRepository>(budgetRepo);
+    getIt.registerSingleton<GoalRepository>(goalRepo);
     // HomePage reads CurrencySettings from getIt (Task 12 D-currency +
     // cross-page refresh listener in initState). Register a fake so the home
     // branch resolves without pulling in the full DI graph.
@@ -173,6 +179,15 @@ void main() {
     // detail/form pages don't hit an unstubbed call.
     when(() => budgetRepo.getBudget(any()))
         .thenAnswer((_) async => dartz.Right(_budget()));
+    // /goals branch builder (router.dart) creates GoalBloc via
+    // GoalBloc(getIt<GoalRepository>()) (Task 11 @injectable, 但路由直接 new 而非
+    // getIt<GoalBloc>(), 故只需注册 repo,不需注册 GoalBloc factory)。stub listGoals
+    // + getGoal 让 /goals, /goals/new, /goals/:id, /goals/:id/edit 全 resolve。
+    when(() => goalRepo.listGoals(
+            type: any(named: 'type'), completed: any(named: 'completed')))
+        .thenAnswer((_) async => const dartz.Right([]));
+    when(() => goalRepo.getGoal(any()))
+        .thenAnswer((_) async => dartz.Right(_goal()));
   });
 
   Widget app(GoRouter router, AuthBloc authBloc) => MaterialApp.router(
@@ -237,14 +252,15 @@ void main() {
         '/transactions/t-42');
   });
 
-  test('router has seven StatefulShell branches '
-      '(home/accounts/transactions/debts/receivables/holdings/budgets)', () {
+  test('router has eight StatefulShell branches '
+      '(home/accounts/transactions/debts/receivables/holdings/budgets/goals)',
+      () {
     final router = buildRouter(_seededAuthBloc());
     final shell = router.configuration.routes
         .whereType<StatefulShellRoute>()
         .first;
-    expect(shell.branches.length, 7,
-        reason: 'budget branch (index 6) must be registered');
+    expect(shell.branches.length, 8,
+        reason: 'goal branch (index 7) must be registered');
   });
 
   testWidgets(
@@ -347,6 +363,83 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(router.routerDelegate.currentConfiguration.uri.toString(), '/budgets');
+  });
+
+  testWidgets('/goals resolves inside the goal branch and renders GoalListPage',
+      (tester) async {
+    // 宽屏(>=1100)显示侧栏,避免底栏拥挤测试干扰。
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/goals');
+    await tester.pumpWidget(app(router, authBloc));
+    // Don't pumpAndSettle: GoalListPage initState dispatch + post-frame 在 stripped
+    // harness 可能持续 schedule。几次 pump 足够 router 解析。
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(), '/goals');
+    // Branch 7 of StatefulShellRoute renders the goal list page.
+    expect(find.byType(GoalListPage), findsOneWidget);
+  });
+
+  testWidgets('/goals/new resolves to the goal form route (create mode)',
+      (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/goals/new');
+    await tester.pumpWidget(app(router, authBloc));
+    // Don't pumpAndSettle: GoalFormPage._loadAccounts/_loadDebts 是 async,在 stripped
+    // harness 里可能持续 schedule。几次 pump 足够 router 解析。
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/goals/new');
+  });
+
+  testWidgets('/goals/:id resolves to the goal detail route', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/goals/g-42');
+    await tester.pumpWidget(app(router, authBloc));
+    // Don't pumpAndSettle: GoalDetailPage initState dispatch +
+    // post-frame 在 stripped harness 可能持续 schedule。
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/goals/g-42');
+  });
+
+  testWidgets('sidebar 目标追踪 tap navigates to /goals (branch 7)',
+      (tester) async {
+    // 宽屏(>=1100)显示侧栏。侧栏「目标追踪」项 branchIndex=7 + route='/goals',
+    // route 优先 → context.go('/goals')。验证它真切换到 branch 7。
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/home');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('目标追踪'), findsOneWidget);
+    await tester.tap(find.text('目标追踪'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(), '/goals');
   });
 
   testWidgets('/debts resolves inside the debt branch and renders DebtsPage',
@@ -559,4 +652,13 @@ BudgetView _budget() => const BudgetView(
       totalAmountCents: 1000000,
       totalActualCents: 400000,
       usagePct: 40.0,
+    );
+
+GoalView _goal() => const GoalView(
+      id: 'g1',
+      name: '应急基金',
+      type: GoalType.savings,
+      targetAmountCents: 6000000,
+      currentAmountCents: 1200000,
+      currencyCode: 'CNY',
     );

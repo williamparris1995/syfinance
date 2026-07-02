@@ -35,6 +35,12 @@ import 'package:yucai_client/debt/presentation/pages/debts_page.dart';
 import 'package:yucai_client/debt/presentation/pages/receivable_detail_page.dart';
 import 'package:yucai_client/debt/presentation/pages/receivable_form_page.dart';
 import 'package:yucai_client/debt/presentation/pages/receivables_page.dart';
+import 'package:yucai_client/goal/domain/repositories/goal_repository.dart';
+import 'package:yucai_client/goal/presentation/bloc/goal_bloc.dart';
+import 'package:yucai_client/goal/presentation/bloc/goal_event.dart' as goal_event;
+import 'package:yucai_client/goal/presentation/pages/goal_detail_page.dart';
+import 'package:yucai_client/goal/presentation/pages/goal_form_page.dart';
+import 'package:yucai_client/goal/presentation/pages/goal_list_page.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
@@ -82,6 +88,7 @@ GoRouter buildRouter(AuthBloc authBloc) {
           state.matchedLocation.startsWith('/receivables') ||
           state.matchedLocation.startsWith('/holdings') ||
           state.matchedLocation.startsWith('/budgets') ||
+          state.matchedLocation.startsWith('/goals') ||
           state.matchedLocation.startsWith('/settings');
 
       if (isLoading) return null;
@@ -615,6 +622,73 @@ GoRouter buildRouter(AuthBloc authBloc) {
                           },
                           child: BudgetFormPage(
                             budgetId: state.pathParameters['id'],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // 目标管理（branch 7）：对齐 /budgets 模板。列表/详情/表单页
+          // provide GoalBloc（factory 注册，Task 11）。子路由顺序：静态 `/new`
+          // 必须在 `/:id` 前（GoRouter 匹配优先级，否则被 :id 捕获；与 budgets
+          // branch 一致）。
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/goals',
+                // 列表页：路由层 provide GoalBloc，进入即拉 LoadListRequested
+                //（GoalListPage.initState 也会 dispatch 同样事件，双重保险：
+                // 路由层先发，页面 initState 再发一次幂等）。
+                builder: (_, __) => BlocProvider<GoalBloc>(
+                  create: (_) {
+                    final b = GoalBloc(getIt<GoalRepository>());
+                    b.add(const goal_event.LoadListRequested());
+                    return b;
+                  },
+                  child: const GoalListPage(),
+                ),
+                routes: [
+                  // 静态子路由（必须在 :id 前）。
+                  GoRoute(
+                    path: 'new',
+                    // 创建表单：GoalFormPage(goalId: null) = 创建模式。
+                    // 表单 _loadAccounts 读 GetIt<AccountRepository>，_loadDebts
+                    // 读 GetIt<DebtRepository>（均注册）。创建模式不读 GoalBloc，
+                    // 但 BlocConsumer 在树里需要 BlocProvider 祖先 → provide 独立实例。
+                    builder: (_, __) => BlocProvider<GoalBloc>(
+                      create: (_) => GoalBloc(getIt<GoalRepository>()),
+                      child: const GoalFormPage(),
+                    ),
+                  ),
+                  GoRoute(
+                    path: ':id',
+                    // 详情页：独立 GoalBloc，进入即 LoadDetailRequested(id)。
+                    builder: (_, state) => BlocProvider<GoalBloc>(
+                      create: (_) {
+                        final id = state.pathParameters['id']!;
+                        final b = GoalBloc(getIt<GoalRepository>());
+                        b.add(goal_event.LoadDetailRequested(id));
+                        return b;
+                      },
+                      child: GoalDetailPage(id: state.pathParameters['id']!),
+                    ),
+                    routes: [
+                      GoRoute(
+                        path: 'edit',
+                        // 编辑表单：GoalFormPage(goalId: id) = 编辑模式，
+                        // _loadExisting 会 context.read<GoalBloc>() → provide。
+                        builder: (_, state) => BlocProvider<GoalBloc>(
+                          create: (_) {
+                            final id = state.pathParameters['id']!;
+                            final b = GoalBloc(getIt<GoalRepository>());
+                            b.add(goal_event.LoadDetailRequested(id));
+                            return b;
+                          },
+                          child: GoalFormPage(
+                            goalId: state.pathParameters['id'],
                           ),
                         ),
                       ),
