@@ -3,11 +3,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
+import 'package:yucai_client/debt/domain/entities/receivables_summary.dart';
+import 'package:yucai_client/debt/domain/repositories/receivables_summary_repository.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
@@ -32,6 +35,9 @@ class ReceivablesPage extends StatefulWidget {
 class _ReceivablesPageState extends State<ReceivablesPage> {
   // 列表筛选:默认「进行中」(隐藏已结清,对齐行业实践——已结清属历史,不占主列表)。
   _ListFilter _filter = _ListFilter.active;
+  // 应收汇总(server 端 Task 7 算,nextPayment* / trend / overdue 等)。
+  // null = 加载中 / 失败;stat strip/trend 显 loading/—(不阻塞列表)。
+  ReceivablesSummary? _summary;
 
   @override
   void initState() {
@@ -40,6 +46,14 @@ class _ReceivablesPageState extends State<ReceivablesPage> {
     context
         .read<DebtBloc>()
         .add(const LoadDebtsRequested(typeFilter: DebtType.borrowedOut));
+    _loadSummary();
+  }
+
+  Future<void> _loadSummary() async {
+    final repo = getIt<ReceivablesSummaryRepository>();
+    final result = await repo.fetch();
+    if (!mounted) return;
+    result.fold((_) => null, (s) => setState(() => _summary = s));
   }
 
   List<Debt> _debtsOf(DebtState state) {
@@ -158,7 +172,11 @@ class _ReceivablesPageState extends State<ReceivablesPage> {
                 overallRatio: overallRatio,
                 preferred: preferred,
                 nextCollectDate: nextCollectDate,
+                summary: _summary,
               ),
+              const SizedBox(height: AppSpacing.md),
+              // L2: stat strip(summary 驱动)。null → loading 占位,不阻塞列表。
+              _StatStrip(summary: _summary, preferred: preferred),
               const SizedBox(height: AppSpacing.lg),
               _SectionHead(count: debts.length),
               const SizedBox(height: AppSpacing.sm),
@@ -168,6 +186,11 @@ class _ReceivablesPageState extends State<ReceivablesPage> {
                     debts.where((d) => d.remainingPrincipalCents > 0).length,
                 settledCount:
                     debts.where((d) => d.remainingPrincipalCents <= 0).length,
+                overdueCount: debts
+                    .where((d) =>
+                        d.remainingPrincipalCents > 0 &&
+                        d.dueDate.isBefore(DateTime.now()))
+                    .length,
                 onChanged: (f) => setState(() => _filter = f),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -201,6 +224,7 @@ class _OverviewCard extends StatelessWidget {
     required this.overallRatio,
     required this.preferred,
     this.nextCollectDate,
+    this.summary,
   });
 
   final int totalRemaining; // 总剩余应收(preferred 口径)
@@ -213,6 +237,9 @@ class _OverviewCard extends StatelessWidget {
   // 注:Debt 实体无 per-payment next date(下次收款期在 DebtDetail.schedule),
   // 用 dueDate 近似;标 label「下次收款」与 brief 对齐(最早到期日)。
   final DateTime? nextCollectDate;
+  // L4 summary(server-side 计算的 trend / 待收利息 / 下次收款精确字段)。
+  // null = 加载中,相关区块显占位;列表与基础 overview 不依赖它。
+  final ReceivablesSummary? summary;
 
   @override
   Widget build(BuildContext context) {
@@ -277,8 +304,28 @@ class _OverviewCard extends StatelessWidget {
               _kv('在追债权', '$count 笔'),
               if (nextCollectDate != null)
                 _kv('下次收款', _fmtDate(nextCollectDate!)),
+              // L4 trend(较上月本金变化)。null/0 时不渲染。
+              if (summary != null && summary!.principalTrendCents != 0)
+                _trendKv('较上月', summary!.principalTrendCents, preferred),
             ],
           ),
+          const SizedBox(height: 6),
+          // L4 breakdown:剩余应收下「含待收利息 ¥X」。null → 不渲染。
+          if (summary != null && summary!.pendingInterestCents > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                '含待收利息 ${_fmtSymbol(summary!.pendingInterestCents, preferred)}',
+                style: const TextStyle(
+                    fontSize: 11.5,
+                    color: AppColors.muted,
+                    fontFeatures: AppTypography.tabularFigures),
+              ),
+            ),
+          const SizedBox(height: 14),
+          // L4 foot callout:下次收款精确字段(summary 驱动,带对方/期数/金额 + CTA)。
+          if (summary != null && summary!.nextPaymentDate != null)
+            _NextCollectCallout(summary: summary!, preferred: preferred),
           const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -356,8 +403,25 @@ class _OverviewCard extends StatelessWidget {
               _kv('已收', _fmtSymbol(totalCollected, preferred)),
               if (nextCollectDate != null)
                 _kv('下次收款', _fmtDate(nextCollectDate!)),
+              if (summary != null && summary!.principalTrendCents != 0)
+                _trendKv('较上月', summary!.principalTrendCents, preferred),
             ],
           ),
+          const SizedBox(height: 6),
+          if (summary != null && summary!.pendingInterestCents > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                '含待收利息 ${_fmtSymbol(summary!.pendingInterestCents, preferred)}',
+                style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.muted,
+                    fontFeatures: AppTypography.tabularFigures),
+              ),
+            ),
+          const SizedBox(height: 10),
+          if (summary != null && summary!.nextPaymentDate != null)
+            _NextCollectCallout(summary: summary!, preferred: preferred),
           const SizedBox(height: 14),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -401,6 +465,200 @@ class _OverviewCard extends StatelessWidget {
                   color: AppColors.fg,
                   fontWeight: FontWeight.w600,
                   fontFeatures: AppTypography.tabularFigures)),
+        ],
+      ),
+    );
+  }
+
+  /// L4 trend kv:正绿负红 + 显式 +/- 符号。brief「较上月」(本金趋势)。
+  Widget _trendKv(String k, int cents, String preferred) {
+    final isUp = cents > 0;
+    final color =
+        isUp ? AppColors.positive : const Color(0xFFC4544D);
+    final v = _fmtSymbol(cents, preferred);
+    return Text.rich(
+      TextSpan(
+        style: const TextStyle(fontSize: 13, color: AppColors.muted),
+        children: [
+          TextSpan(text: '$k '),
+          TextSpan(
+              text: v,
+              style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: AppTypography.tabularFigures)),
+        ],
+      ),
+    );
+  }
+}
+
+/// L4 foot callout:下次收款精确字段(对方 + 期数 + 金额 + CTA「查看收款计划」)。
+/// summary 驱动(nextPaymentDate/Amount/Counterparty/PeriodNo)。
+class _NextCollectCallout extends StatelessWidget {
+  const _NextCollectCallout({required this.summary, required this.preferred});
+  final ReceivablesSummary summary;
+  final String preferred;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F4ED),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: const Color(0xFFE9E2D2), width: 1),
+      ),
+      child: Row(
+        children: [
+          const Icon(LucideIcons.calendarClock,
+              size: 16, color: AppColors.accent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '下次收款 · 第 ${summary.nextPaymentPeriodNo} 期',
+                  style: const TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.muted,
+                      fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 2),
+                Text.rich(
+                  TextSpan(
+                    style: const TextStyle(
+                        fontSize: 13.5,
+                        color: AppColors.fg,
+                        fontFeatures: AppTypography.tabularFigures),
+                    children: [
+                      TextSpan(
+                          text:
+                              '${_fmtDate(summary.nextPaymentDate!)} · ${summary.nextPaymentCounterparty} · '),
+                      TextSpan(
+                          text: _fmtSymbol(
+                              summary.nextPaymentAmountCents, preferred),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.accentHover)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          // CTA → push detail(Task 10 接路由)。targetId 取 nextPaymentCounterparty
+          // 无对应 id,故 CTA 仅占位文本按钮;真正的「查看收款计划」在详情页 schedule。
+          TextButton(
+            onPressed: () {},
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.accentHover,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: const Size(0, 0),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text('查看收款计划',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ───────────────────────── L2 stat strip(4-card) ─────────────────────────
+
+/// L2:4-card stat strip(对齐 OD .stats-row)。summary 驱动;null → loading 占位。
+/// - 笔数 / 已收本息(绿) / 待收利息 / 逾期应收(红 + 笔数)
+class _StatStrip extends StatelessWidget {
+  const _StatStrip({required this.summary, required this.preferred});
+  final ReceivablesSummary? summary;
+  final String preferred;
+
+  @override
+  Widget build(BuildContext context) {
+    if (summary == null) {
+      // loading:占位 —(不阻塞列表;高度对齐真实卡避免抖动)。
+      return LayoutBuilder(
+        builder: (ctx, c) => _grid(const [
+          _StatCard('债权笔数', '—'),
+          _StatCard('已收本息', '—'),
+          _StatCard('待收利息', '—'),
+          _StatCard('逾期应收', '—'),
+        ], c.maxWidth),
+      );
+    }
+    final s = summary!;
+    return LayoutBuilder(
+      builder: (ctx, c) => _grid([
+        _StatCard('债权笔数', '${s.count}', sub: '私人·商业·亲友'),
+        _StatCard('已收本息', _fmtSymbol(s.totalCollectedCents, preferred),
+            color: AppColors.positive),
+        _StatCard('待收利息', _fmtSymbol(s.pendingInterestCents, preferred)),
+        _StatCard('逾期应收', _fmtSymbol(s.overdueAmountCents, preferred),
+            color: AppColors.negative, sub: '${s.overdueCount} 笔'),
+      ], c.maxWidth),
+    );
+  }
+
+  Widget _grid(List<Widget> cards, double maxWidth) {
+    // 4 卡始终并排(Row + Expanded 自适应宽度);mobile 上每卡略窄但仍可读。
+    return Row(
+      children: [
+        for (var i = 0; i < cards.length; i++) ...[
+          Expanded(child: cards[i]),
+          if (i < cards.length - 1) const SizedBox(width: 12),
+        ],
+      ],
+    );
+  }
+}
+
+/// 单张 stat 卡(对齐 OD .stat)。label / value(大字 mono)/ sub(可选小字)。
+class _StatCard extends StatelessWidget {
+  const _StatCard(this.label, this.value, {this.color, this.sub});
+  final String label;
+  final String value;
+  final Color? color;
+  final String? sub;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 11,
+                  letterSpacing: 0.4,
+                  color: AppColors.muted,
+                  fontWeight: FontWeight.w500)),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: color ?? AppColors.fg,
+              letterSpacing: -0.1,
+              fontFeatures: AppTypography.tabularFigures,
+            ),
+          ),
+          if (sub != null) ...[
+            const SizedBox(height: 3),
+            Text(sub!,
+                style: const TextStyle(
+                    fontSize: 11, color: AppColors.muted)),
+          ],
         ],
       ),
     );
@@ -474,9 +732,9 @@ class _ReceivableList extends StatelessWidget {
             crossAxisCount: cols,
             mainAxisSpacing: gap,
             crossAxisSpacing: gap,
-            // 固定卡片高度(与 _DebtCard 同口径:counterparty + mid +
-            // progress + meta + actions)。到期 yyyy-MM-dd 比 yyyy-M 略宽 → 348。
-            mainAxisExtent: 348,
+            // 固定卡片高度。窄卡含 avatar+name / 剩余应收 / 进度 / meta3(Wrap 窄卡换行)
+            // / foot callout / actions(L1 + L3 增容 + meta 换行余量)→ 440。
+            mainAxisExtent: 440,
           ),
           itemCount: debts.length,
           itemBuilder: (_, i) =>
@@ -503,52 +761,97 @@ class _ReceivableCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width <= Breakpoints.mobileUpper;
     final isSettled = debt.remainingPrincipalCents <= 0;
-    final card = isMobile ? _compactCard(context) : _fullCard(context);
+    // 卡片自宽选布局:mobile 屏 → 紧凑;宽卡(单列 desktop / tablet 双列)→ 横向 row;
+    // 窄卡(≥3 列 desktop grid,单卡 < ~560px)→ 竖向 full(避免横向 row 溢出)。
+    final Widget card;
+    if (isMobile) {
+      card = _compactCard(context);
+    } else {
+      card = LayoutBuilder(
+        builder: (ctx, c) =>
+            c.maxWidth >= 560 ? _fullCard(context) : _narrowFullCard(context),
+      );
+    }
     // 已结清债权整卡淡化,突出"已完成"特殊状态。
     return isSettled ? Opacity(opacity: 0.6, child: card) : card;
   }
 
+  /// desktop/tablet 宽卡(单列或 2 列):L3 横向 4-col row。
   Widget _fullCard(BuildContext context) {
     final badge = _badgeFor(debt);
     final isOverdue = debt.dueDate.isBefore(DateTime.now());
     final isSettled = debt.remainingPrincipalCents <= 0;
+    // L3 foot:下次收款(debt.nextPaymentDate 驱动;非空才渲染)。
+    final hasNext = debt.nextPaymentDate != null &&
+        !isSettled &&
+        debt.nextPaymentAmountCents > 0;
     return DataCard(
       onTap: () => context.push('/receivables/${debt.id}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // row1:债务人 + badge(+ 已结清/逾期)
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 8,
-            runSpacing: 4,
-            children: [
-              Text(debt.counterparty,
-                  style: const TextStyle(
-                      fontSize: 16.5,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: AppTypography.displayFamily,
-                      fontFamilyFallback: AppTypography.displayFallback)),
-              _Badge(label: badge.label, fg: badge.fg, bg: badge.bg),
-              if (isSettled)
-                const _Badge(
-                    label: '已结清 ✓',
-                    fg: AppColors.positive,
-                    bg: Color(0x1A2D8A6E)) // rgba(45,138,110,.10)
-              else if (isOverdue)
-                const _Badge(
-                    label: '逾期',
-                    fg: AppColors.negative,
-                    bg: Color(0x1AC4544D) // rgba(196,84,77,.10)
-                    ),
-            ],
-          ),
-          const SizedBox(height: 9),
-          // mid:剩余应收 + 进度
+          // L3 横向 4-col row:col1 avatar+name+badge | col2 剩余应收大字 |
+          // col3 收回进度+已收 | col4 meta2(利率/到期/摊还)
           Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // col1: avatar + name + badge(+ 已结清/逾期)
               Expanded(
+                flex: 3,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // L1: 44px avatar tile(首字 + 类型色)。
+                    _ReceivableAvatar(
+                      initial: debt.counterparty.characters.isEmpty
+                          ? '?'
+                          : debt.counterparty.characters.first,
+                      color: _avatarColorFor(debt),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(debt.counterparty,
+                              style: const TextStyle(
+                                  fontSize: 16.5,
+                                  fontWeight: FontWeight.w600,
+                                  fontFamily: AppTypography.displayFamily,
+                                  fontFamilyFallback:
+                                      AppTypography.displayFallback)),
+                          const SizedBox(height: 5),
+                          Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              _Badge(
+                                  label: badge.label,
+                                  fg: badge.fg,
+                                  bg: badge.bg),
+                              if (isSettled)
+                                const _Badge(
+                                    label: '已结清 ✓',
+                                    fg: AppColors.positive,
+                                    bg: Color(0x1A2D8A6E))
+                              else if (isOverdue)
+                                const _Badge(
+                                    label: '逾期',
+                                    fg: AppColors.negative,
+                                    bg: Color(0x1AC4544D)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              // col2: 剩余应收大字。
+              Expanded(
+                flex: 2,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -561,7 +864,7 @@ class _ReceivableCard extends StatelessWidget {
                     Text(
                       _fmtSymbol(debt.remainingPrincipalCents, preferred),
                       style: const TextStyle(
-                        fontSize: 27,
+                        fontSize: 22,
                         fontWeight: FontWeight.w600,
                         letterSpacing: -0.15,
                         fontFeatures: AppTypography.tabularFigures,
@@ -570,14 +873,144 @@ class _ReceivableCard extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(width: 12),
+              // col3: 收回进度 + 已收金额。
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _ProgressRow(ratio: debt.progressRatio, thin: true),
+                    const SizedBox(height: 6),
+                    Text(
+                      '已收 ${_fmtSymbol(debt.totalPrincipalCents - debt.remainingPrincipalCents, preferred)}',
+                      style: const TextStyle(
+                          fontSize: 11.5,
+                          color: AppColors.muted,
+                          fontFeatures: AppTypography.tabularFigures),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              // col4: meta2 利率 / 到期 / 摊还。
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _MetaItem(
+                        icon: LucideIcons.percent,
+                        text: '${debt.interestRate.toStringAsFixed(2)}%'),
+                    const SizedBox(height: 5),
+                    _MetaItem(
+                        icon: LucideIcons.calendar,
+                        text: '到期 ${_fmtDate(debt.dueDate)}'),
+                    const SizedBox(height: 5),
+                    _MetaItem(
+                        icon: LucideIcons.lineChart,
+                        text: _amortLabel(debt.amortization)),
+                  ],
+                ),
+              ),
             ],
+          ),
+          const SizedBox(height: 12),
+          // L3 foot callout:下次收款(debt.nextPayment*)+ 逾期天数 + 收款 CTA。
+          if (hasNext || isOverdue && !isSettled) ...[
+            _CardFootCallout(
+              debt: debt,
+              preferred: preferred,
+              hasNext: hasNext,
+              isOverdue: isOverdue,
+            ),
+            const SizedBox(height: 8),
+          ],
+          const Spacer(),
+          _actionBar(debt, context),
+        ],
+      ),
+    );
+  }
+
+  /// desktop ≥3 列 grid 窄卡:竖向 avatar+name+badge → 剩余应收 → 进度 → meta → foot。
+  /// (横向 4-col row 在窄卡溢出,故竖向 fallback。仍含 L1 avatar + L3 foot callout。)
+  Widget _narrowFullCard(BuildContext context) {
+    final badge = _badgeFor(debt);
+    final isOverdue = debt.dueDate.isBefore(DateTime.now());
+    final isSettled = debt.remainingPrincipalCents <= 0;
+    final hasNext = debt.nextPaymentDate != null &&
+        !isSettled &&
+        debt.nextPaymentAmountCents > 0;
+    return DataCard(
+      onTap: () => context.push('/receivables/${debt.id}'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _ReceivableAvatar(
+                initial: debt.counterparty.characters.isEmpty
+                    ? '?'
+                    : debt.counterparty.characters.first,
+                color: _avatarColorFor(debt),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(debt.counterparty,
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: AppTypography.displayFamily,
+                            fontFamilyFallback:
+                                AppTypography.displayFallback)),
+                    const SizedBox(height: 5),
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        _Badge(
+                            label: badge.label, fg: badge.fg, bg: badge.bg),
+                        if (isSettled)
+                          const _Badge(
+                              label: '已结清 ✓',
+                              fg: AppColors.positive,
+                              bg: Color(0x1A2D8A6E))
+                        else if (isOverdue)
+                          const _Badge(
+                              label: '逾期',
+                              fg: AppColors.negative,
+                              bg: Color(0x1AC4544D)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Text('剩余应收',
+              style: TextStyle(
+                  fontSize: 10.5, letterSpacing: 0.5, color: AppColors.muted)),
+          const SizedBox(height: 4),
+          Text(
+            _fmtSymbol(debt.remainingPrincipalCents, preferred),
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.15,
+              fontFeatures: AppTypography.tabularFigures,
+            ),
           ),
           const SizedBox(height: 9),
           _ProgressRow(ratio: debt.progressRatio),
           const SizedBox(height: 10),
-          // meta:利率 / 到期 / 摊还
           Wrap(
-            spacing: 14,
+            spacing: 12,
             runSpacing: 5,
             children: [
               _MetaItem(
@@ -591,7 +1024,15 @@ class _ReceivableCard extends StatelessWidget {
                   text: _amortLabel(debt.amortization)),
             ],
           ),
-          // Spacer 占据剩余高度,把操作栏推到卡片底部(对齐 _DebtCard 模式)。
+          if (hasNext || isOverdue && !isSettled) ...[
+            const SizedBox(height: 10),
+            _CardFootCallout(
+              debt: debt,
+              preferred: preferred,
+              hasNext: hasNext,
+              isOverdue: isOverdue,
+            ),
+          ],
           const Spacer(),
           _actionBar(debt, context),
         ],
@@ -599,11 +1040,14 @@ class _ReceivableCard extends StatelessWidget {
     );
   }
 
-  /// mobile 紧凑卡(对齐 receivables-mobile.html .rcv)。
+  /// mobile 紧凑卡(对齐 receivables-mobile.html .rcv;L1 加 avatar)。
   Widget _compactCard(BuildContext context) {
     final badge = _badgeFor(debt);
     final isOverdue = debt.dueDate.isBefore(DateTime.now());
     final isSettled = debt.remainingPrincipalCents <= 0;
+    final hasNext = debt.nextPaymentDate != null &&
+        !isSettled &&
+        debt.nextPaymentAmountCents > 0;
     // mobile 列表用 Column 自适应高度,无 Spacer(unbounded 高度下 Spacer 报错)。
     return DataCard(
       onTap: () => context.push('/receivables/${debt.id}'),
@@ -612,6 +1056,14 @@ class _ReceivableCard extends StatelessWidget {
         children: [
           Row(
             children: [
+              // L1: 36px avatar(mobile 略小)。
+              _ReceivableAvatar(
+                initial: debt.counterparty.characters.isEmpty
+                    ? '?'
+                    : debt.counterparty.characters.first,
+                color: _avatarColorFor(debt),
+              ),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -681,6 +1133,15 @@ class _ReceivableCard extends StatelessWidget {
                   text: '到期 ${_fmtDate(debt.dueDate)}'),
             ],
           ),
+          if (hasNext || isOverdue && !isSettled) ...[
+            const SizedBox(height: 10),
+            _CardFootCallout(
+              debt: debt,
+              preferred: preferred,
+              hasNext: hasNext,
+              isOverdue: isOverdue,
+            ),
+          ],
           const SizedBox(height: 10),
           _actionBar(debt, context),
         ],
@@ -931,13 +1392,180 @@ class _Badge extends StatelessWidget {
             decoration: BoxDecoration(color: fg, shape: BoxShape.circle),
           ),
           const SizedBox(width: 5),
-          Text(label,
-              style: TextStyle(
-                  color: fg, fontSize: 11.5, fontWeight: FontWeight.w600)),
+          // Flexible + ellipsis:窄卡(mobile / 3-col grid)下 _Badge 被挤时
+          // 文本省略而非整 Row 溢出(避免 test framework 把 overflow 当 fail)。
+          Flexible(
+            child: Text(label,
+                softWrap: false,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    color: fg, fontSize: 11.5, fontWeight: FontWeight.w600)),
+          ),
         ],
       ),
     );
   }
+}
+
+// ───────────────────────── L1 avatar tile + L3 foot callout ─────────────────────────
+
+/// L1:44px avatar tile。债务人首字 + 类型色背景(对齐 OD .avatar)。
+/// 类型色:_avatarColorFor 推断(商业蓝 / 亲友绿 / 私人金 / 其他灰)。
+class _ReceivableAvatar extends StatelessWidget {
+  const _ReceivableAvatar({required this.initial, required this.color});
+  final String initial;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.25), width: 1),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: color,
+          fontFamily: AppTypography.displayFamily,
+          fontFamilyFallback: AppTypography.displayFallback,
+        ),
+      ),
+    );
+  }
+}
+
+/// L3 foot callout(单卡):下次收款 + 逾期天数 + 收款 CTA。
+/// - hasNext(debt.nextPayment* 非空)→ 显「下次收款 · 第 N 期 · 日期 · 金额」+「收款」CTA。
+/// - isOverdue && !settled → 显「逾期 N 天」红色提示。
+class _CardFootCallout extends StatelessWidget {
+  const _CardFootCallout({
+    required this.debt,
+    required this.preferred,
+    required this.hasNext,
+    required this.isOverdue,
+  });
+  final Debt debt;
+  final String preferred;
+  final bool hasNext;
+  final bool isOverdue;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final overdueDays = isOverdue
+        ? now.difference(debt.dueDate).inDays
+        : 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F4ED),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: const Color(0xFFE9E2D2), width: 1),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            hasNext ? LucideIcons.calendarClock : LucideIcons.alertTriangle,
+            size: 15,
+            color: isOverdue && !hasNext ? AppColors.negative : AppColors.accent,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (hasNext)
+                  Text.rich(
+                    TextSpan(
+                      style: const TextStyle(
+                          fontSize: 12.5,
+                          color: AppColors.fg,
+                          fontFeatures: AppTypography.tabularFigures),
+                      children: [
+                        const TextSpan(
+                            text: '下次收款 · ',
+                            style: TextStyle(
+                                color: AppColors.muted,
+                                fontWeight: FontWeight.w500)),
+                        TextSpan(
+                            text:
+                                '第 ${debt.nextPaymentPeriodNo} 期 · ${_fmtDate(debt.nextPaymentDate!)}'),
+                        TextSpan(
+                            text:
+                                ' · ${_fmtSymbol(debt.nextPaymentAmountCents, preferred)}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.accentHover)),
+                      ],
+                    ),
+                  )
+                else
+                  Text('逾期 $overdueDays 天',
+                      style: const TextStyle(
+                          fontSize: 12.5,
+                          color: AppColors.negative,
+                          fontWeight: FontWeight.w600)),
+                if (hasNext && isOverdue) ...[
+                  const SizedBox(height: 2),
+                  Text('含逾期 $overdueDays 天',
+                      style: const TextStyle(
+                          fontSize: 11, color: AppColors.negative)),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          // 收款 CTA → push detail(列表不知哪期收款,跳详情页 schedule 处理)。
+          TextButton.icon(
+            onPressed: () => context.push('/receivables/${debt.id}'),
+            icon: const Icon(LucideIcons.handCoins, size: 14),
+            label: const Text('收款',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.accentHover,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              minimumSize: const Size(0, 0),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Avatar 类型色推断(对齐 _inferBadge 语义:商业蓝 / 亲友绿 / 私人金 / 其他灰)。
+/// subtype 持久化(中性金);fallback 走 _inferBadge 同口径,加 other gray 兜底。
+Color _avatarColorFor(Debt debt) {
+  if (debt.subtype.isNotEmpty) {
+    return AppColors.accentHover; // 中性金(与 _badgeFor 持久化分支一致)
+  }
+  final s = debt.counterparty.toLowerCase();
+  if (debt.counterparty.contains('公司') ||
+      debt.counterparty.contains('企业') ||
+      debt.counterparty.contains('商') ||
+      s.contains('biz') ||
+      s.contains('business')) {
+    return const Color(0xFF3A6695); // 商业蓝
+  }
+  if (debt.counterparty.contains('亲友') ||
+      debt.counterparty.contains('家人') ||
+      s.contains('family') ||
+      s.contains('friend')) {
+    return AppColors.positive; // 亲友绿
+  }
+  if (debt.counterparty.contains('信用卡') || s.contains('credit')) {
+    return AppColors.negative; // 信用卡红
+  }
+  // 其他(无明确关键字)→ gray,区别于「私人借款」的金色。
+  return const Color(0xFF7A776E);
 }
 
 // ───────────────────────── helpers ─────────────────────────
@@ -977,8 +1605,9 @@ String _fmtSymbol(int cents, String currencyCode) {
 
 // ───────────────────────── 列表筛选(全部/进行中/已结清)+ 排序 ─────────────────────────
 
-/// 列表筛选:默认「进行中」(隐藏已结清)。「全部」含已结清,「已结清」只看历史。
-enum _ListFilter { all, active, settled }
+/// 列表筛选:默认「进行中」(隐藏已结清)。「全部」含已结清,「已结清」只看历史,
+/// 「逾期」只看 dueDate < now && !settled(L4 新增)。
+enum _ListFilter { all, active, settled, overdue }
 
 /// 列表排序:未结清在前(按到期升序 —— 逾期因 dueDate 早自然靠前),已结清沉底。
 int _compareReceivable(Debt a, Debt b) {
@@ -997,20 +1626,24 @@ bool _matchesListFilter(Debt d, _ListFilter f) {
       return !settled;
     case _ListFilter.settled:
       return settled;
+    case _ListFilter.overdue:
+      return !settled && d.dueDate.isBefore(DateTime.now());
   }
 }
 
-/// 列表筛选 segmented(全部/进行中/已结清 + 各自计数)。复用详情页 schedule 筛选样式。
+/// 列表筛选 segmented(全部/进行中/已结清/逾期 + 各自计数,L4 加逾期 tab)。
 class _ListFilterSegmented extends StatelessWidget {
   const _ListFilterSegmented({
     required this.filter,
     required this.activeCount,
     required this.settledCount,
+    required this.overdueCount,
     required this.onChanged,
   });
   final _ListFilter filter;
   final int activeCount;
   final int settledCount;
+  final int overdueCount;
   final ValueChanged<_ListFilter> onChanged;
 
   @override
@@ -1019,6 +1652,7 @@ class _ListFilterSegmented extends StatelessWidget {
       (_ListFilter.all, '全部'),
       (_ListFilter.active, '进行中'),
       (_ListFilter.settled, '已结清'),
+      (_ListFilter.overdue, '逾期'),
     ];
     return Container(
       padding: const EdgeInsets.all(4),
@@ -1026,8 +1660,10 @@ class _ListFilterSegmented extends StatelessWidget {
         color: const Color(0xFFEFECE5),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      // Wrap 替代 Row(4-seg 在窄 mobile 可能换行,避免溢出)。
+      child: Wrap(
+        spacing: 0,
+        runSpacing: 0,
         children: [
           for (final (f, label) in segments) _segment(f, label),
         ],
@@ -1040,6 +1676,7 @@ class _ListFilterSegmented extends StatelessWidget {
     final count = switch (f) {
       _ListFilter.active => activeCount,
       _ListFilter.settled => settledCount,
+      _ListFilter.overdue => overdueCount,
       _ListFilter.all => activeCount + settledCount,
     };
     return InkWell(

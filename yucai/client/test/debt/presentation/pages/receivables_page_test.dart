@@ -1,29 +1,38 @@
-// Task 7 — TDD widget tests for ReceivablesPage (债权列表 + 三端响应式 + progress)。
+// Task 9 — widget tests for ReceivablesPage(债权列表 OD 对齐 L1-L4)。
 //
-// _OverviewCard + _ReceivableCard 私有,故测试通过公开 ReceivablesPage 驱动:
-// 用 mocktail 的 DebtRepository 构造真实 DebtBloc,注入 DebtsLoaded 状态。
-// 验证(BorrowedOut 语义 = 应收 / 收款,非 负债 / 还款):
-//   - 总应收概览:总应收 / 剩余应收 / 本金收回进度 progress bar
-//   - 债权卡:债务人 counterparty / 类型 badge / 剩余应收 / 收回进度 progress / 利率 / 到期
-//   - 列表无「收款」按钮(收款在详情页 schedule 行内处理)
-//   - 三端 viewport:mobile 单列 Column / tablet 2 列 / desktop ≥3 列 GridView
+// _OverviewCard / _StatStrip / _ReceivableCard 私有,故测试通过公开 ReceivablesPage
+// 驱动:用 mocktail DebtRepository 构造真实 DebtBloc + getIt 注册 mock
+// ReceivablesSummaryRepository(返回固定 summary),注入 DebtsLoaded 状态。
+// 验(L1-L4 OD 对齐):
+//   - L1: avatar tile 渲染(债务人首字)
+//   - L2: stat strip 4 卡(笔数 / 已收本息 / 待收利息 / 逾期应收)
+//   - L3: 横向 row foot callout(下次收款 · 第 N 期 + 收款 CTA)
+//   - L4: overview trend(较上月)+ 含待收利息 breakdown + 下次收款 callout
+//   - L4: 筛选 4-seg(全部/进行中/已结清/逾期)
+//   - 三端 viewport 仍:mobile 单列 Column / tablet 2 列 / desktop ≥3 列 GridView
 import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
+import 'package:yucai_client/debt/domain/entities/receivables_summary.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
+import 'package:yucai_client/debt/domain/repositories/receivables_summary_repository.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
 import 'package:yucai_client/debt/presentation/pages/receivables_page.dart';
 
 class _MockRepo extends Mock implements DebtRepository {}
+
+class _MockSummaryRepo extends Mock implements ReceivablesSummaryRepository {}
 
 /// Fake CurrencyBloc(与 debts_page_test 同模式)。
 class _FakeCurrencyBloc extends Fake implements CurrencyBloc {
@@ -43,6 +52,9 @@ Debt _debt({
   required DateTime dueDate,
   required int totalPrincipalCents,
   required int remainingPrincipalCents,
+  DateTime? nextPaymentDate,
+  int nextPaymentAmountCents = 0,
+  int nextPaymentPeriodNo = 0,
 }) =>
     Debt(
       id: id,
@@ -57,10 +69,45 @@ Debt _debt({
       version: 1,
       createdAt: DateTime(2026, 1, 1),
       updatedAt: DateTime(2026, 1, 1),
+      nextPaymentDate: nextPaymentDate,
+      nextPaymentAmountCents: nextPaymentAmountCents,
+      nextPaymentPeriodNo: nextPaymentPeriodNo,
     );
 
-Widget _harness(List<Debt> debts) {
+ReceivablesSummary _summary({
+  int totalPrincipalCents = 15000000,
+  int totalRemainingCents = 10574200,
+  int totalCollectedCents = 4425800,
+  int pendingInterestCents = 320000,
+  int count = 2,
+  int overdueCount = 0,
+  int overdueAmountCents = 0,
+  int principalTrendCents = 0,
+  int remainingTrendCents = 0,
+  DateTime? nextPaymentDate,
+  int nextPaymentAmountCents = 0,
+  String nextPaymentCounterparty = '',
+  int nextPaymentPeriodNo = 0,
+}) =>
+    ReceivablesSummary(
+      totalPrincipalCents: totalPrincipalCents,
+      totalRemainingCents: totalRemainingCents,
+      totalCollectedCents: totalCollectedCents,
+      pendingInterestCents: pendingInterestCents,
+      count: count,
+      overdueCount: overdueCount,
+      overdueAmountCents: overdueAmountCents,
+      principalTrendCents: principalTrendCents,
+      remainingTrendCents: remainingTrendCents,
+      nextPaymentDate: nextPaymentDate,
+      nextPaymentAmountCents: nextPaymentAmountCents,
+      nextPaymentCounterparty: nextPaymentCounterparty,
+      nextPaymentPeriodNo: nextPaymentPeriodNo,
+    );
+
+Widget _harness(List<Debt> debts, {ReceivablesSummary? summary}) {
   final repo = _MockRepo();
+  final summaryRepo = _MockSummaryRepo();
   registerFallbackValue(const CreateDebtParams(
     accountId: '',
     counterparty: '',
@@ -73,6 +120,16 @@ Widget _harness(List<Debt> debts) {
   // mock 对任意 typeFilter 返回 debts(页面会带 borrowedOut 过滤拉取)。
   when(() => repo.list(typeFilter: any(named: 'typeFilter')))
       .thenAnswer((_) async => dartz.Right(debts));
+  // summary mock:default 返回固定 summary;null 传则模拟失败(Left)。
+  if (summary != null) {
+    when(() => summaryRepo.fetch())
+        .thenAnswer((_) async => dartz.Right(summary));
+  } else {
+    when(() => summaryRepo.fetch())
+        .thenAnswer((_) async => const dartz.Left(ServerFailure('summary load failed')));
+  }
+  // getIt 注册 mock summary repo(页面 initState 走 getIt<ReceivablesSummaryRepository>())。
+  GetIt.instance.registerSingleton<ReceivablesSummaryRepository>(summaryRepo);
   return MaterialApp(
     home: MultiBlocProvider(
       providers: [
@@ -86,7 +143,9 @@ Widget _harness(List<Debt> debts) {
 }
 
 void main() {
-  // desktop 宽视口,确保完整布局(概览 + 卡片)。
+  // 每个 test 后重置 getIt,避免重复注册 summaryRepo。
+  tearDown(() => GetIt.instance.reset());
+
   const desktop = Size(1400, 900);
   const tablet = Size(900, 1200);
   const mobile = Size(390, 844);
@@ -100,6 +159,9 @@ void main() {
       dueDate: DateTime(2026, 8, 15),
       totalPrincipalCents: 5000000, // 5 万
       remainingPrincipalCents: 3000000, // 剩 3 万 → 已收 40%
+      nextPaymentDate: DateTime(2026, 8, 15),
+      nextPaymentAmountCents: 250000,
+      nextPaymentPeriodNo: 5,
     ),
     _debt(
       id: 'r2',
@@ -112,28 +174,23 @@ void main() {
     ),
   ];
 
-  testWidgets('overview: 总应收 + 剩余应收 + 本金收回进度 progress bar',
-      (t) async {
+  testWidgets('overview: 总应收 + 剩余应收 + 本金收回进度 progress bar', (t) async {
     t.view.physicalSize = desktop;
     t.view.devicePixelRatio = 1.0;
     addTearDown(t.view.resetPhysicalSize);
     await t.pumpWidget(_harness(receivables));
     await t.pumpAndSettle();
-    // 概览标签:应收语义(非 负债/还款)
     expect(find.textContaining('总应收'), findsWidgets);
     expect(find.textContaining('剩余应收'), findsWidgets);
     expect(find.textContaining('本金收回进度'), findsWidgets);
-    // 概览的 LinearProgressIndicator 存在。
     expect(find.byType(LinearProgressIndicator), findsWidgets);
     // 总应收 = sum(total) = 500 万 + 1000 万 = ¥150,000.00
     expect(find.textContaining('¥150,000.00'), findsWidgets);
-    // 误用「负债/总负债」不应出现 —— 语义互斥校验。
     expect(find.text('总负债'), findsNothing);
     expect(find.textContaining('剩余本金'), findsNothing);
   });
 
-  testWidgets('overview: 收回进度 ratio = totalCollected/totalPrincipal',
-      (t) async {
+  testWidgets('overview: 收回进度 ratio = totalCollected/totalPrincipal', (t) async {
     t.view.physicalSize = desktop;
     t.view.devicePixelRatio = 1.0;
     addTearDown(t.view.resetPhysicalSize);
@@ -144,6 +201,152 @@ void main() {
     expect(find.textContaining('29.5%'), findsWidgets);
   });
 
+  testWidgets('L1: avatar tile 渲染债务人首字', (t) async {
+    t.view.physicalSize = desktop;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    await t.pumpWidget(_harness(receivables));
+    await t.pumpAndSettle();
+    // 张三 / 李四 的 avatar 首字渲染(各 1)。
+    expect(find.text('张'), findsOneWidget);
+    expect(find.text('李'), findsOneWidget);
+  });
+
+  testWidgets('L2: stat strip 4 卡(笔数 / 已收本息 / 待收利息 / 逾期应收)',
+      (t) async {
+    t.view.physicalSize = desktop;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    final s = _summary(
+      totalCollectedCents: 4425800,
+      pendingInterestCents: 320000,
+      overdueCount: 1,
+      overdueAmountCents: 7574200,
+      count: 2,
+    );
+    await t.pumpWidget(_harness(receivables, summary: s));
+    await t.pumpAndSettle();
+    // 4 个 label 渲染。
+    expect(find.text('债权笔数'), findsOneWidget);
+    expect(find.text('已收本息'), findsOneWidget);
+    expect(find.text('待收利息'), findsOneWidget);
+    expect(find.text('逾期应收'), findsOneWidget);
+    // 值:count=2 / 已收 ¥44,258.00(overview 累计已收也显此值,故 ≥2)/
+    // 待收利息 ¥3,200.00 / 逾期 1 笔。
+    expect(find.text('2'), findsWidgets);
+    expect(find.textContaining('¥44,258.00'), findsWidgets);
+    expect(find.textContaining('¥3,200.00'), findsWidgets);
+    expect(find.text('1 笔'), findsOneWidget);
+  });
+
+  testWidgets('L2: summary null → stat strip 显 —(loading,不阻塞列表)', (t) async {
+    t.view.physicalSize = desktop;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    await t.pumpWidget(_harness(receivables, summary: null));
+    await t.pumpAndSettle();
+    // 4 卡 label 渲染 + 值显 —(loading 占位)。
+    expect(find.text('已收本息'), findsOneWidget);
+    expect(find.text('—'), findsNWidgets(4));
+    // 列表仍渲染(张三 / 李四)。
+    expect(find.text('张三'), findsOneWidget);
+    expect(find.text('李四'), findsOneWidget);
+  });
+
+  testWidgets('L3: 横向 row foot callout(下次收款 · 第 N 期 + 收款 CTA)',
+      (t) async {
+    t.view.physicalSize = desktop;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    await t.pumpWidget(_harness(receivables));
+    await t.pumpAndSettle();
+    // r1 有 nextPayment(第 5 期 · 2026-08-15 · ¥2,500.00)→ foot callout 渲染。
+    expect(find.textContaining('下次收款'), findsWidgets);
+    expect(find.textContaining('第 5 期'), findsOneWidget);
+    expect(find.textContaining('¥2,500.00'), findsOneWidget);
+    // 收款 CTA(列表 row foot 内,L3 重引入)。
+    expect(find.text('收款'), findsWidgets);
+  });
+
+  testWidgets('L4: overview trend(较上月)+ 含待收利息 breakdown', (t) async {
+    t.view.physicalSize = desktop;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    final s = _summary(
+      principalTrendCents: 500000, // +¥5,000.00 较上月
+      pendingInterestCents: 320000,
+    );
+    await t.pumpWidget(_harness(receivables, summary: s));
+    await t.pumpAndSettle();
+    // trend:较上月 +¥5,000.00(正绿)。
+    expect(find.textContaining('较上月'), findsOneWidget);
+    expect(find.textContaining('¥5,000.00'), findsOneWidget);
+    // breakdown:含待收利息 ¥3,200.00
+    expect(find.textContaining('含待收利息'), findsOneWidget);
+  });
+
+  testWidgets('L4: overview 下次收款 callout(对方 + 期数 + 查看收款计划 CTA)',
+      (t) async {
+    t.view.physicalSize = desktop;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    final s = _summary(
+      nextPaymentDate: DateTime(2026, 8, 15),
+      nextPaymentAmountCents: 250000,
+      nextPaymentCounterparty: '张三',
+      nextPaymentPeriodNo: 5,
+    );
+    await t.pumpWidget(_harness(receivables, summary: s));
+    await t.pumpAndSettle();
+    // overview foot callout:第 5 期 + 张三 + ¥2,500.00 + CTA。
+    expect(find.textContaining('第 5 期'), findsWidgets);
+    expect(find.text('查看收款计划'), findsOneWidget);
+  });
+
+  testWidgets('L4: 筛选 4-seg(全部/进行中/已结清/逾期)+ 逾期 tab 过滤',
+      (t) async {
+    t.view.physicalSize = desktop;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    final mixed = [
+      ...receivables, // r1 张三(到期 2026-08-15 未来)/ r2 李四(到期 2027 未来)
+      _debt(
+        id: 's1',
+        counterparty: '赵六',
+        interestRate: 0.00,
+        amortization: AmortizationMethod.lumpSum,
+        dueDate: DateTime(2025, 1, 1), // 过去 → 逾期
+        totalPrincipalCents: 5000000,
+        remainingPrincipalCents: 0, // 已结清(已结清优先,不算逾期)
+      ),
+      _debt(
+        id: 'o1',
+        counterparty: '王五',
+        interestRate: 5.00,
+        amortization: AmortizationMethod.lumpSum,
+        dueDate: DateTime(2025, 6, 1), // 过去 + 未结清 → 逾期
+        totalPrincipalCents: 8000000,
+        remainingPrincipalCents: 4000000,
+      ),
+    ];
+    await t.pumpWidget(_harness(mixed));
+    await t.pumpAndSettle();
+    // segmented:全部 4 / 进行中 3(张三/李四/王五)/ 已结清 1 / 逾期 1(王五)。
+    expect(find.text('全部 4'), findsOneWidget);
+    expect(find.text('进行中 3'), findsOneWidget);
+    expect(find.text('已结清 1'), findsOneWidget);
+    expect(find.text('逾期 1'), findsOneWidget);
+    // 默认进行中 → 王五(逾期但未结清)仍显示(进行中 = !settled)。
+    expect(find.text('王五'), findsOneWidget);
+    // 切「逾期」→ 只王五,张三/李四/赵六 排除。
+    await t.tap(find.byKey(const ValueKey('listFilter-逾期')));
+    await t.pumpAndSettle();
+    expect(find.text('王五'), findsOneWidget);
+    expect(find.text('张三'), findsNothing);
+    expect(find.text('李四'), findsNothing);
+    expect(find.text('赵六'), findsNothing);
+  });
+
   testWidgets('receivable card: 债务人 + 剩余应收 + 利率 + 到期', (t) async {
     t.view.physicalSize = desktop;
     t.view.devicePixelRatio = 1.0;
@@ -152,22 +355,15 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('张三'), findsOneWidget);
     expect(find.text('李四'), findsOneWidget);
-    // 剩余应收(r1 = ¥30,000.00)
     expect(find.textContaining('¥30,000.00'), findsOneWidget);
     expect(find.textContaining('剩余应收'), findsWidgets);
-    // 利率
     expect(find.textContaining('0.00%'), findsOneWidget);
     expect(find.textContaining('8.00%'), findsOneWidget);
-    // 到期(yyyy-MM-dd)。r1 的 2026-08-15 同时是 overview「下次收款」(最早到期)
-    // 与 r1 卡「到期」→ 出现 2 次;r2 的 2027-02-15 仅在 r2 卡 → 1 次。
-    expect(find.textContaining('2026-08-15'), findsNWidgets(2));
+    expect(find.textContaining('2026-08-15'), findsWidgets);
     expect(find.textContaining('2027-02-15'), findsOneWidget);
-    // 下次收款 = min(dueDate) = 2026-08-15(r1 最早到期)—— 概览行
-    expect(find.textContaining('下次收款'), findsWidgets);
   });
 
-  testWidgets('receivable card: 收回进度 progress bar 用金色 accent',
-      (t) async {
+  testWidgets('receivable card: 收回进度 progress bar 用金色 accent', (t) async {
     t.view.physicalSize = desktop;
     t.view.devicePixelRatio = 1.0;
     addTearDown(t.view.resetPhysicalSize);
@@ -181,21 +377,6 @@ void main() {
     );
     expect((cardBar.valueColor as AlwaysStoppedAnimation<Color?>?)?.value,
         AppColors.accent);
-  });
-
-  testWidgets('receivable card: 列表无「收款」按钮(收款在详情页处理)', (t) async {
-    t.view.physicalSize = desktop;
-    t.view.devicePixelRatio = 1.0;
-    addTearDown(t.view.resetPhysicalSize);
-    await t.pumpWidget(_harness(receivables));
-    await t.pumpAndSettle();
-    // 收款按钮已从列表移除(详情页 schedule 行内确认收款)。
-    expect(find.text('收款'), findsNothing);
-    // 详情 / 更多 按钮仍在。
-    expect(find.text('详情'), findsNWidgets(2));
-    expect(find.text('更多'), findsNWidgets(2));
-    // 误用「记账」不应出现。
-    expect(find.text('记账'), findsNothing);
   });
 
   testWidgets('已结清: 默认「进行中」隐藏,切「全部」显示「已结清 ✓」badge', (t) async {
@@ -213,14 +394,11 @@ void main() {
     );
     await t.pumpWidget(_harness([settled]));
     await t.pumpAndSettle();
-    // 默认「进行中」→ 已结清不在列表。
     expect(find.text('赵六'), findsNothing);
-    // 切「全部」→ 已结清卡显示 + 精确 badge「已结清 ✓」(区别于 segmented「已结清 1」)。
     await t.tap(find.byKey(const ValueKey('listFilter-全部')));
     await t.pumpAndSettle();
     expect(find.text('赵六'), findsOneWidget);
     expect(find.text('已结清 ✓'), findsOneWidget);
-    // 已结清优先,不显示逾期 badge。
     expect(find.text('逾期'), findsNothing);
   });
 
@@ -229,7 +407,7 @@ void main() {
     t.view.devicePixelRatio = 1.0;
     addTearDown(t.view.resetPhysicalSize);
     final mixed = [
-      ...receivables, // r1 张三 / r2 李四(进行中)
+      ...receivables,
       _debt(
         id: 's1',
         counterparty: '赵六',
@@ -237,19 +415,17 @@ void main() {
         amortization: AmortizationMethod.lumpSum,
         dueDate: DateTime(2025, 1, 1),
         totalPrincipalCents: 5000000,
-        remainingPrincipalCents: 0, // 已结清
+        remainingPrincipalCents: 0,
       ),
     ];
     await t.pumpWidget(_harness(mixed));
     await t.pumpAndSettle();
-    // segmented 计数:全部 3 / 进行中 2 / 已结清 1。
     expect(find.text('全部 3'), findsOneWidget);
     expect(find.text('进行中 2'), findsOneWidget);
     expect(find.text('已结清 1'), findsOneWidget);
-    // 默认进行中 → 赵六(已结清)不显示,张三/李四显示。
+    expect(find.text('逾期 0'), findsOneWidget);
     expect(find.text('赵六'), findsNothing);
     expect(find.text('张三'), findsOneWidget);
-    // 切「已结清」→ 只赵六,张三/李四排除。
     await t.tap(find.byKey(const ValueKey('listFilter-已结清')));
     await t.pumpAndSettle();
     expect(find.text('赵六'), findsOneWidget);
@@ -265,6 +441,9 @@ void main() {
     expect(find.byType(GridView), findsNothing);
     expect(find.text('张三'), findsOneWidget);
     expect(find.text('李四'), findsOneWidget);
+    // mobile 卡也含 avatar(L1)。
+    expect(find.text('张'), findsOneWidget);
+    expect(find.text('李'), findsOneWidget);
   });
 
   testWidgets('tablet: 2-column GridView', (t) async {
@@ -323,6 +502,7 @@ void main() {
   testWidgets('LoadDebtsRequested(typeFilter: borrowedOut) dispatched on init',
       (t) async {
     final repo = _MockRepo();
+    final summaryRepo = _MockSummaryRepo();
     registerFallbackValue(const CreateDebtParams(
       accountId: '',
       counterparty: '',
@@ -338,6 +518,9 @@ void main() {
       calls.add(inv.namedArguments[#typeFilter] as DebtType?);
       return const dartz.Right([]);
     });
+    when(() => summaryRepo.fetch())
+        .thenAnswer((_) async => dartz.Right(_summary()));
+    GetIt.instance.registerSingleton<ReceivablesSummaryRepository>(summaryRepo);
     await t.pumpWidget(MaterialApp(
       home: MultiBlocProvider(
         providers: [
@@ -349,7 +532,6 @@ void main() {
       ),
     ));
     await t.pumpAndSettle();
-    // 页面必须以 borrowedOut 过滤拉取(非 null / 非 borrowedIn)。
     expect(calls, isNotEmpty);
     expect(calls.last, DebtType.borrowedOut);
   });
