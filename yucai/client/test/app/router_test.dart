@@ -42,7 +42,9 @@ import 'package:yucai_client/budget/presentation/pages/budget_list_page.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
+import 'package:yucai_client/debt/domain/entities/receivables_summary.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
+import 'package:yucai_client/debt/domain/repositories/receivables_summary_repository.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/pages/debts_page.dart';
 import 'package:yucai_client/goal/domain/entities/goal_entity.dart';
@@ -59,6 +61,7 @@ import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart
 class _MockAccountRepo extends Mock implements AccountRepository {}
 class _MockTxnRepo extends Mock implements TransactionRepository {}
 class _MockDebtRepo extends Mock implements DebtRepository {}
+class _MockSummaryRepo extends Mock implements ReceivablesSummaryRepository {}
 class _MockHoldingRepo extends Mock implements HoldingRepository {}
 class _MockBudgetRepo extends Mock implements BudgetRepository {}
 class _MockGoalRepo extends Mock implements GoalRepository {}
@@ -109,12 +112,35 @@ void main() {
     final holdingRepo = _MockHoldingRepo();
     final budgetRepo = _MockBudgetRepo();
     final goalRepo = _MockGoalRepo();
+    final summaryRepo = _MockSummaryRepo();
     getIt.registerSingleton<AccountRepository>(accountRepo);
     getIt.registerSingleton<TransactionRepository>(txnRepo);
     getIt.registerSingleton<DebtRepository>(debtRepo);
     getIt.registerSingleton<HoldingRepository>(holdingRepo);
     getIt.registerSingleton<BudgetRepository>(budgetRepo);
     getIt.registerSingleton<GoalRepository>(goalRepo);
+    // /receivables branch root (ReceivablesPage initState, Task 9) reads
+    // ReceivablesSummaryRepository via getIt to fetch the summary panel.
+    // Register a stubbed mock returning an empty summary so /receivables,
+    // /receivables/:id, /receivables/new all resolve without throwing
+    // `ReceivablesSummaryRepository is not registered`.
+    getIt.registerSingleton<ReceivablesSummaryRepository>(summaryRepo);
+    when(() => summaryRepo.fetch()).thenAnswer((_) async => const dartz.Right(
+          ReceivablesSummary(
+            totalPrincipalCents: 0,
+            totalRemainingCents: 0,
+            totalCollectedCents: 0,
+            pendingInterestCents: 0,
+            count: 0,
+            overdueCount: 0,
+            overdueAmountCents: 0,
+            principalTrendCents: 0,
+            remainingTrendCents: 0,
+            nextPaymentAmountCents: 0,
+            nextPaymentCounterparty: '',
+            nextPaymentPeriodNo: 0,
+          ),
+        ));
     // HomePage reads CurrencySettings from getIt (Task 12 D-currency +
     // cross-page refresh listener in initState). Register a fake so the home
     // branch resolves without pulling in the full DI graph.
