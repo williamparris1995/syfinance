@@ -20,13 +20,14 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	DebtService_CreateDebt_FullMethodName          = "/yucai.debt.v1.DebtService/CreateDebt"
-	DebtService_UpdateDebt_FullMethodName          = "/yucai.debt.v1.DebtService/UpdateDebt"
-	DebtService_DeleteDebt_FullMethodName          = "/yucai.debt.v1.DebtService/DeleteDebt"
-	DebtService_RecordPayment_FullMethodName       = "/yucai.debt.v1.DebtService/RecordPayment"
-	DebtService_GetDebt_FullMethodName             = "/yucai.debt.v1.DebtService/GetDebt"
-	DebtService_ListDebts_FullMethodName           = "/yucai.debt.v1.DebtService/ListDebts"
-	DebtService_GetUpcomingPayments_FullMethodName = "/yucai.debt.v1.DebtService/GetUpcomingPayments"
+	DebtService_CreateDebt_FullMethodName            = "/yucai.debt.v1.DebtService/CreateDebt"
+	DebtService_UpdateDebt_FullMethodName            = "/yucai.debt.v1.DebtService/UpdateDebt"
+	DebtService_DeleteDebt_FullMethodName            = "/yucai.debt.v1.DebtService/DeleteDebt"
+	DebtService_RecordPayment_FullMethodName         = "/yucai.debt.v1.DebtService/RecordPayment"
+	DebtService_GetDebt_FullMethodName               = "/yucai.debt.v1.DebtService/GetDebt"
+	DebtService_ListDebts_FullMethodName             = "/yucai.debt.v1.DebtService/ListDebts"
+	DebtService_GetUpcomingPayments_FullMethodName   = "/yucai.debt.v1.DebtService/GetUpcomingPayments"
+	DebtService_GetReceivablesSummary_FullMethodName = "/yucai.debt.v1.DebtService/GetReceivablesSummary"
 )
 
 // DebtServiceClient is the client API for DebtService service.
@@ -40,6 +41,7 @@ type DebtServiceClient interface {
 	GetDebt(ctx context.Context, in *GetDebtRequest, opts ...grpc.CallOption) (*DebtDetailResponse, error)
 	ListDebts(ctx context.Context, in *ListDebtsRequest, opts ...grpc.CallOption) (*ListDebtsResponse, error)
 	GetUpcomingPayments(ctx context.Context, in *GetUpcomingPaymentsRequest, opts ...grpc.CallOption) (*ListDebtsResponse, error)
+	GetReceivablesSummary(ctx context.Context, in *GetReceivablesSummaryRequest, opts ...grpc.CallOption) (*ReceivablesSummaryResponse, error)
 }
 
 type debtServiceClient struct {
@@ -120,6 +122,16 @@ func (c *debtServiceClient) GetUpcomingPayments(ctx context.Context, in *GetUpco
 	return out, nil
 }
 
+func (c *debtServiceClient) GetReceivablesSummary(ctx context.Context, in *GetReceivablesSummaryRequest, opts ...grpc.CallOption) (*ReceivablesSummaryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReceivablesSummaryResponse)
+	err := c.cc.Invoke(ctx, DebtService_GetReceivablesSummary_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DebtServiceServer is the server API for DebtService service.
 // All implementations must embed UnimplementedDebtServiceServer
 // for forward compatibility.
@@ -131,6 +143,7 @@ type DebtServiceServer interface {
 	GetDebt(context.Context, *GetDebtRequest) (*DebtDetailResponse, error)
 	ListDebts(context.Context, *ListDebtsRequest) (*ListDebtsResponse, error)
 	GetUpcomingPayments(context.Context, *GetUpcomingPaymentsRequest) (*ListDebtsResponse, error)
+	GetReceivablesSummary(context.Context, *GetReceivablesSummaryRequest) (*ReceivablesSummaryResponse, error)
 	mustEmbedUnimplementedDebtServiceServer()
 }
 
@@ -161,6 +174,9 @@ func (UnimplementedDebtServiceServer) ListDebts(context.Context, *ListDebtsReque
 }
 func (UnimplementedDebtServiceServer) GetUpcomingPayments(context.Context, *GetUpcomingPaymentsRequest) (*ListDebtsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetUpcomingPayments not implemented")
+}
+func (UnimplementedDebtServiceServer) GetReceivablesSummary(context.Context, *GetReceivablesSummaryRequest) (*ReceivablesSummaryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetReceivablesSummary not implemented")
 }
 func (UnimplementedDebtServiceServer) mustEmbedUnimplementedDebtServiceServer() {}
 func (UnimplementedDebtServiceServer) testEmbeddedByValue()                     {}
@@ -309,6 +325,24 @@ func _DebtService_GetUpcomingPayments_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DebtService_GetReceivablesSummary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetReceivablesSummaryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DebtServiceServer).GetReceivablesSummary(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DebtService_GetReceivablesSummary_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DebtServiceServer).GetReceivablesSummary(ctx, req.(*GetReceivablesSummaryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DebtService_ServiceDesc is the grpc.ServiceDesc for DebtService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -343,6 +377,10 @@ var DebtService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetUpcomingPayments",
 			Handler:    _DebtService_GetUpcomingPayments_Handler,
+		},
+		{
+			MethodName: "GetReceivablesSummary",
+			Handler:    _DebtService_GetReceivablesSummary_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

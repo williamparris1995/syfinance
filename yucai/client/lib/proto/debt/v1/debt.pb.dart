@@ -40,6 +40,13 @@ class DebtDTO extends $pb.GeneratedMessage {
     $2.Timestamp? updatedAt,
     DebtType? debtType,
     $core.String? subtype,
+    $core.String? contact,
+    $core.String? contractRef,
+    $core.String? collectionAccountId,
+    $core.String? nextPaymentDate,
+    $fixnum.Int64? nextPaymentAmountCents,
+    $core.int? nextPaymentPeriodNo,
+    $fixnum.Int64? remainingTrendCents,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -59,6 +66,17 @@ class DebtDTO extends $pb.GeneratedMessage {
     if (updatedAt != null) result.updatedAt = updatedAt;
     if (debtType != null) result.debtType = debtType;
     if (subtype != null) result.subtype = subtype;
+    if (contact != null) result.contact = contact;
+    if (contractRef != null) result.contractRef = contractRef;
+    if (collectionAccountId != null)
+      result.collectionAccountId = collectionAccountId;
+    if (nextPaymentDate != null) result.nextPaymentDate = nextPaymentDate;
+    if (nextPaymentAmountCents != null)
+      result.nextPaymentAmountCents = nextPaymentAmountCents;
+    if (nextPaymentPeriodNo != null)
+      result.nextPaymentPeriodNo = nextPaymentPeriodNo;
+    if (remainingTrendCents != null)
+      result.remainingTrendCents = remainingTrendCents;
     return result;
   }
 
@@ -93,6 +111,13 @@ class DebtDTO extends $pb.GeneratedMessage {
     ..aE<DebtType>(13, _omitFieldNames ? '' : 'debtType',
         enumValues: DebtType.values)
     ..aOS(14, _omitFieldNames ? '' : 'subtype')
+    ..aOS(15, _omitFieldNames ? '' : 'contact')
+    ..aOS(16, _omitFieldNames ? '' : 'contractRef')
+    ..aOS(17, _omitFieldNames ? '' : 'collectionAccountId')
+    ..aOS(18, _omitFieldNames ? '' : 'nextPaymentDate')
+    ..aInt64(19, _omitFieldNames ? '' : 'nextPaymentAmountCents')
+    ..aI(20, _omitFieldNames ? '' : 'nextPaymentPeriodNo')
+    ..aInt64(21, _omitFieldNames ? '' : 'remainingTrendCents')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -242,6 +267,69 @@ class DebtDTO extends $pb.GeneratedMessage {
   $core.bool hasSubtype() => $_has(13);
   @$pb.TagNumber(14)
   void clearSubtype() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $core.String get contact => $_getSZ(14);
+  @$pb.TagNumber(15)
+  set contact($core.String value) => $_setString(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasContact() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearContact() => $_clearField(15);
+
+  @$pb.TagNumber(16)
+  $core.String get contractRef => $_getSZ(15);
+  @$pb.TagNumber(16)
+  set contractRef($core.String value) => $_setString(15, value);
+  @$pb.TagNumber(16)
+  $core.bool hasContractRef() => $_has(15);
+  @$pb.TagNumber(16)
+  void clearContractRef() => $_clearField(16);
+
+  @$pb.TagNumber(17)
+  $core.String get collectionAccountId => $_getSZ(16);
+  @$pb.TagNumber(17)
+  set collectionAccountId($core.String value) => $_setString(16, value);
+  @$pb.TagNumber(17)
+  $core.bool hasCollectionAccountId() => $_has(16);
+  @$pb.TagNumber(17)
+  void clearCollectionAccountId() => $_clearField(17);
+
+  @$pb.TagNumber(18)
+  $core.String get nextPaymentDate => $_getSZ(17);
+  @$pb.TagNumber(18)
+  set nextPaymentDate($core.String value) => $_setString(17, value);
+  @$pb.TagNumber(18)
+  $core.bool hasNextPaymentDate() => $_has(17);
+  @$pb.TagNumber(18)
+  void clearNextPaymentDate() => $_clearField(18);
+
+  @$pb.TagNumber(19)
+  $fixnum.Int64 get nextPaymentAmountCents => $_getI64(18);
+  @$pb.TagNumber(19)
+  set nextPaymentAmountCents($fixnum.Int64 value) => $_setInt64(18, value);
+  @$pb.TagNumber(19)
+  $core.bool hasNextPaymentAmountCents() => $_has(18);
+  @$pb.TagNumber(19)
+  void clearNextPaymentAmountCents() => $_clearField(19);
+
+  @$pb.TagNumber(20)
+  $core.int get nextPaymentPeriodNo => $_getIZ(19);
+  @$pb.TagNumber(20)
+  set nextPaymentPeriodNo($core.int value) => $_setSignedInt32(19, value);
+  @$pb.TagNumber(20)
+  $core.bool hasNextPaymentPeriodNo() => $_has(19);
+  @$pb.TagNumber(20)
+  void clearNextPaymentPeriodNo() => $_clearField(20);
+
+  @$pb.TagNumber(21)
+  $fixnum.Int64 get remainingTrendCents => $_getI64(20);
+  @$pb.TagNumber(21)
+  set remainingTrendCents($fixnum.Int64 value) => $_setInt64(20, value);
+  @$pb.TagNumber(21)
+  $core.bool hasRemainingTrendCents() => $_has(20);
+  @$pb.TagNumber(21)
+  void clearRemainingTrendCents() => $_clearField(21);
 }
 
 class PaymentEntryDTO extends $pb.GeneratedMessage {
@@ -457,6 +545,9 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
     DebtType? debtType,
     $core.String? subtype,
     $core.String? sourceAccountId,
+    $core.String? contact,
+    $core.String? contractRef,
+    $core.String? collectionAccountId,
   }) {
     final result = create();
     if (accountId != null) result.accountId = accountId;
@@ -471,6 +562,10 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
     if (debtType != null) result.debtType = debtType;
     if (subtype != null) result.subtype = subtype;
     if (sourceAccountId != null) result.sourceAccountId = sourceAccountId;
+    if (contact != null) result.contact = contact;
+    if (contractRef != null) result.contractRef = contractRef;
+    if (collectionAccountId != null)
+      result.collectionAccountId = collectionAccountId;
     return result;
   }
 
@@ -499,6 +594,9 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
         enumValues: DebtType.values)
     ..aOS(9, _omitFieldNames ? '' : 'subtype')
     ..aOS(10, _omitFieldNames ? '' : 'sourceAccountId')
+    ..aOS(11, _omitFieldNames ? '' : 'contact')
+    ..aOS(12, _omitFieldNames ? '' : 'contractRef')
+    ..aOS(13, _omitFieldNames ? '' : 'collectionAccountId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -611,6 +709,33 @@ class CreateDebtRequest extends $pb.GeneratedMessage {
   $core.bool hasSourceAccountId() => $_has(9);
   @$pb.TagNumber(10)
   void clearSourceAccountId() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.String get contact => $_getSZ(10);
+  @$pb.TagNumber(11)
+  set contact($core.String value) => $_setString(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasContact() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearContact() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.String get contractRef => $_getSZ(11);
+  @$pb.TagNumber(12)
+  set contractRef($core.String value) => $_setString(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasContractRef() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearContractRef() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $core.String get collectionAccountId => $_getSZ(12);
+  @$pb.TagNumber(13)
+  set collectionAccountId($core.String value) => $_setString(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasCollectionAccountId() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearCollectionAccountId() => $_clearField(13);
 }
 
 class UpdateDebtRequest extends $pb.GeneratedMessage {
@@ -619,12 +744,19 @@ class UpdateDebtRequest extends $pb.GeneratedMessage {
     $core.String? counterparty,
     $core.double? interestRate,
     $fixnum.Int64? version,
+    $core.String? contact,
+    $core.String? contractRef,
+    $core.String? collectionAccountId,
   }) {
     final result = create();
     if (id != null) result.id = id;
     if (counterparty != null) result.counterparty = counterparty;
     if (interestRate != null) result.interestRate = interestRate;
     if (version != null) result.version = version;
+    if (contact != null) result.contact = contact;
+    if (contractRef != null) result.contractRef = contractRef;
+    if (collectionAccountId != null)
+      result.collectionAccountId = collectionAccountId;
     return result;
   }
 
@@ -645,6 +777,9 @@ class UpdateDebtRequest extends $pb.GeneratedMessage {
     ..aOS(2, _omitFieldNames ? '' : 'counterparty')
     ..aD(3, _omitFieldNames ? '' : 'interestRate')
     ..aInt64(4, _omitFieldNames ? '' : 'version')
+    ..aOS(5, _omitFieldNames ? '' : 'contact')
+    ..aOS(6, _omitFieldNames ? '' : 'contractRef')
+    ..aOS(7, _omitFieldNames ? '' : 'collectionAccountId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -701,6 +836,33 @@ class UpdateDebtRequest extends $pb.GeneratedMessage {
   $core.bool hasVersion() => $_has(3);
   @$pb.TagNumber(4)
   void clearVersion() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get contact => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set contact($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasContact() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearContact() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get contractRef => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set contractRef($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasContractRef() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearContractRef() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get collectionAccountId => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set collectionAccountId($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasCollectionAccountId() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearCollectionAccountId() => $_clearField(7);
 }
 
 class DeleteDebtRequest extends $pb.GeneratedMessage {
@@ -1260,6 +1422,315 @@ class DebtDetailResponse extends $pb.GeneratedMessage {
   void clearDebt() => $_clearField(1);
   @$pb.TagNumber(1)
   DebtDetailDTO ensureDebt() => $_ensure(0);
+}
+
+class GetReceivablesSummaryRequest extends $pb.GeneratedMessage {
+  factory GetReceivablesSummaryRequest() => create();
+
+  GetReceivablesSummaryRequest._();
+
+  factory GetReceivablesSummaryRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory GetReceivablesSummaryRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GetReceivablesSummaryRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.debt.v1'),
+      createEmptyInstance: create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetReceivablesSummaryRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetReceivablesSummaryRequest copyWith(
+          void Function(GetReceivablesSummaryRequest) updates) =>
+      super.copyWith(
+              (message) => updates(message as GetReceivablesSummaryRequest))
+          as GetReceivablesSummaryRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetReceivablesSummaryRequest create() =>
+      GetReceivablesSummaryRequest._();
+  @$core.override
+  GetReceivablesSummaryRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static GetReceivablesSummaryRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetReceivablesSummaryRequest>(create);
+  static GetReceivablesSummaryRequest? _defaultInstance;
+}
+
+class ReceivablesSummaryDTO extends $pb.GeneratedMessage {
+  factory ReceivablesSummaryDTO({
+    $fixnum.Int64? totalPrincipalCents,
+    $fixnum.Int64? totalRemainingCents,
+    $fixnum.Int64? totalCollectedCents,
+    $fixnum.Int64? pendingInterestCents,
+    $core.int? count,
+    $core.int? overdueCount,
+    $fixnum.Int64? overdueAmountCents,
+    $fixnum.Int64? principalTrendCents,
+    $fixnum.Int64? remainingTrendCents,
+    $core.String? nextPaymentDate,
+    $fixnum.Int64? nextPaymentAmountCents,
+    $core.String? nextPaymentCounterparty,
+    $core.int? nextPaymentPeriodNo,
+  }) {
+    final result = create();
+    if (totalPrincipalCents != null)
+      result.totalPrincipalCents = totalPrincipalCents;
+    if (totalRemainingCents != null)
+      result.totalRemainingCents = totalRemainingCents;
+    if (totalCollectedCents != null)
+      result.totalCollectedCents = totalCollectedCents;
+    if (pendingInterestCents != null)
+      result.pendingInterestCents = pendingInterestCents;
+    if (count != null) result.count = count;
+    if (overdueCount != null) result.overdueCount = overdueCount;
+    if (overdueAmountCents != null)
+      result.overdueAmountCents = overdueAmountCents;
+    if (principalTrendCents != null)
+      result.principalTrendCents = principalTrendCents;
+    if (remainingTrendCents != null)
+      result.remainingTrendCents = remainingTrendCents;
+    if (nextPaymentDate != null) result.nextPaymentDate = nextPaymentDate;
+    if (nextPaymentAmountCents != null)
+      result.nextPaymentAmountCents = nextPaymentAmountCents;
+    if (nextPaymentCounterparty != null)
+      result.nextPaymentCounterparty = nextPaymentCounterparty;
+    if (nextPaymentPeriodNo != null)
+      result.nextPaymentPeriodNo = nextPaymentPeriodNo;
+    return result;
+  }
+
+  ReceivablesSummaryDTO._();
+
+  factory ReceivablesSummaryDTO.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory ReceivablesSummaryDTO.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReceivablesSummaryDTO',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.debt.v1'),
+      createEmptyInstance: create)
+    ..aInt64(1, _omitFieldNames ? '' : 'totalPrincipalCents')
+    ..aInt64(2, _omitFieldNames ? '' : 'totalRemainingCents')
+    ..aInt64(3, _omitFieldNames ? '' : 'totalCollectedCents')
+    ..aInt64(4, _omitFieldNames ? '' : 'pendingInterestCents')
+    ..aI(5, _omitFieldNames ? '' : 'count')
+    ..aI(6, _omitFieldNames ? '' : 'overdueCount')
+    ..aInt64(7, _omitFieldNames ? '' : 'overdueAmountCents')
+    ..aInt64(8, _omitFieldNames ? '' : 'principalTrendCents')
+    ..aInt64(9, _omitFieldNames ? '' : 'remainingTrendCents')
+    ..aOS(10, _omitFieldNames ? '' : 'nextPaymentDate')
+    ..aInt64(11, _omitFieldNames ? '' : 'nextPaymentAmountCents')
+    ..aOS(12, _omitFieldNames ? '' : 'nextPaymentCounterparty')
+    ..aI(13, _omitFieldNames ? '' : 'nextPaymentPeriodNo')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReceivablesSummaryDTO clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReceivablesSummaryDTO copyWith(
+          void Function(ReceivablesSummaryDTO) updates) =>
+      super.copyWith((message) => updates(message as ReceivablesSummaryDTO))
+          as ReceivablesSummaryDTO;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static ReceivablesSummaryDTO create() => ReceivablesSummaryDTO._();
+  @$core.override
+  ReceivablesSummaryDTO createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static ReceivablesSummaryDTO getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReceivablesSummaryDTO>(create);
+  static ReceivablesSummaryDTO? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get totalPrincipalCents => $_getI64(0);
+  @$pb.TagNumber(1)
+  set totalPrincipalCents($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTotalPrincipalCents() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTotalPrincipalCents() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get totalRemainingCents => $_getI64(1);
+  @$pb.TagNumber(2)
+  set totalRemainingCents($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasTotalRemainingCents() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearTotalRemainingCents() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get totalCollectedCents => $_getI64(2);
+  @$pb.TagNumber(3)
+  set totalCollectedCents($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasTotalCollectedCents() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearTotalCollectedCents() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get pendingInterestCents => $_getI64(3);
+  @$pb.TagNumber(4)
+  set pendingInterestCents($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasPendingInterestCents() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearPendingInterestCents() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.int get count => $_getIZ(4);
+  @$pb.TagNumber(5)
+  set count($core.int value) => $_setSignedInt32(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasCount() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearCount() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.int get overdueCount => $_getIZ(5);
+  @$pb.TagNumber(6)
+  set overdueCount($core.int value) => $_setSignedInt32(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasOverdueCount() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearOverdueCount() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $fixnum.Int64 get overdueAmountCents => $_getI64(6);
+  @$pb.TagNumber(7)
+  set overdueAmountCents($fixnum.Int64 value) => $_setInt64(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasOverdueAmountCents() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearOverdueAmountCents() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $fixnum.Int64 get principalTrendCents => $_getI64(7);
+  @$pb.TagNumber(8)
+  set principalTrendCents($fixnum.Int64 value) => $_setInt64(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasPrincipalTrendCents() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearPrincipalTrendCents() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $fixnum.Int64 get remainingTrendCents => $_getI64(8);
+  @$pb.TagNumber(9)
+  set remainingTrendCents($fixnum.Int64 value) => $_setInt64(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasRemainingTrendCents() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearRemainingTrendCents() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.String get nextPaymentDate => $_getSZ(9);
+  @$pb.TagNumber(10)
+  set nextPaymentDate($core.String value) => $_setString(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasNextPaymentDate() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearNextPaymentDate() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $fixnum.Int64 get nextPaymentAmountCents => $_getI64(10);
+  @$pb.TagNumber(11)
+  set nextPaymentAmountCents($fixnum.Int64 value) => $_setInt64(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasNextPaymentAmountCents() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearNextPaymentAmountCents() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.String get nextPaymentCounterparty => $_getSZ(11);
+  @$pb.TagNumber(12)
+  set nextPaymentCounterparty($core.String value) => $_setString(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasNextPaymentCounterparty() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearNextPaymentCounterparty() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $core.int get nextPaymentPeriodNo => $_getIZ(12);
+  @$pb.TagNumber(13)
+  set nextPaymentPeriodNo($core.int value) => $_setSignedInt32(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasNextPaymentPeriodNo() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearNextPaymentPeriodNo() => $_clearField(13);
+}
+
+class ReceivablesSummaryResponse extends $pb.GeneratedMessage {
+  factory ReceivablesSummaryResponse({
+    ReceivablesSummaryDTO? summary,
+  }) {
+    final result = create();
+    if (summary != null) result.summary = summary;
+    return result;
+  }
+
+  ReceivablesSummaryResponse._();
+
+  factory ReceivablesSummaryResponse.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory ReceivablesSummaryResponse.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReceivablesSummaryResponse',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.debt.v1'),
+      createEmptyInstance: create)
+    ..aOM<ReceivablesSummaryDTO>(1, _omitFieldNames ? '' : 'summary',
+        subBuilder: ReceivablesSummaryDTO.create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReceivablesSummaryResponse clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReceivablesSummaryResponse copyWith(
+          void Function(ReceivablesSummaryResponse) updates) =>
+      super.copyWith(
+              (message) => updates(message as ReceivablesSummaryResponse))
+          as ReceivablesSummaryResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static ReceivablesSummaryResponse create() => ReceivablesSummaryResponse._();
+  @$core.override
+  ReceivablesSummaryResponse createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static ReceivablesSummaryResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReceivablesSummaryResponse>(create);
+  static ReceivablesSummaryResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  ReceivablesSummaryDTO get summary => $_getN(0);
+  @$pb.TagNumber(1)
+  set summary(ReceivablesSummaryDTO value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSummary() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSummary() => $_clearField(1);
+  @$pb.TagNumber(1)
+  ReceivablesSummaryDTO ensureSummary() => $_ensure(0);
 }
 
 const $core.bool _omitFieldNames =

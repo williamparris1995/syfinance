@@ -141,6 +141,13 @@ type DebtDTO struct {
 	UpdatedAt               *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	DebtType                DebtType               `protobuf:"varint,13,opt,name=debt_type,json=debtType,proto3,enum=yucai.debt.v1.DebtType" json:"debt_type,omitempty"`
 	Subtype                 string                 `protobuf:"bytes,14,opt,name=subtype,proto3" json:"subtype,omitempty"`
+	Contact                 string                 `protobuf:"bytes,15,opt,name=contact,proto3" json:"contact,omitempty"`
+	ContractRef             string                 `protobuf:"bytes,16,opt,name=contract_ref,json=contractRef,proto3" json:"contract_ref,omitempty"`
+	CollectionAccountId     string                 `protobuf:"bytes,17,opt,name=collection_account_id,json=collectionAccountId,proto3" json:"collection_account_id,omitempty"`
+	NextPaymentDate         string                 `protobuf:"bytes,18,opt,name=next_payment_date,json=nextPaymentDate,proto3" json:"next_payment_date,omitempty"`
+	NextPaymentAmountCents  int64                  `protobuf:"varint,19,opt,name=next_payment_amount_cents,json=nextPaymentAmountCents,proto3" json:"next_payment_amount_cents,omitempty"`
+	NextPaymentPeriodNo     int32                  `protobuf:"varint,20,opt,name=next_payment_period_no,json=nextPaymentPeriodNo,proto3" json:"next_payment_period_no,omitempty"`
+	RemainingTrendCents     int64                  `protobuf:"varint,21,opt,name=remaining_trend_cents,json=remainingTrendCents,proto3" json:"remaining_trend_cents,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -271,6 +278,55 @@ func (x *DebtDTO) GetSubtype() string {
 		return x.Subtype
 	}
 	return ""
+}
+
+func (x *DebtDTO) GetContact() string {
+	if x != nil {
+		return x.Contact
+	}
+	return ""
+}
+
+func (x *DebtDTO) GetContractRef() string {
+	if x != nil {
+		return x.ContractRef
+	}
+	return ""
+}
+
+func (x *DebtDTO) GetCollectionAccountId() string {
+	if x != nil {
+		return x.CollectionAccountId
+	}
+	return ""
+}
+
+func (x *DebtDTO) GetNextPaymentDate() string {
+	if x != nil {
+		return x.NextPaymentDate
+	}
+	return ""
+}
+
+func (x *DebtDTO) GetNextPaymentAmountCents() int64 {
+	if x != nil {
+		return x.NextPaymentAmountCents
+	}
+	return 0
+}
+
+func (x *DebtDTO) GetNextPaymentPeriodNo() int32 {
+	if x != nil {
+		return x.NextPaymentPeriodNo
+	}
+	return 0
+}
+
+func (x *DebtDTO) GetRemainingTrendCents() int64 {
+	if x != nil {
+		return x.RemainingTrendCents
+	}
+	return 0
 }
 
 type PaymentEntryDTO struct {
@@ -438,9 +494,12 @@ type CreateDebtRequest struct {
 	Subtype             string                 `protobuf:"bytes,9,opt,name=subtype,proto3" json:"subtype,omitempty"`
 	// borrowedOut 双写:借出资金的来源账户(cash asset)。borrowedOut 必填;
 	// borrowedIn 忽略(不双写)。空字符串 = 不双写。
-	SourceAccountId string `protobuf:"bytes,10,opt,name=source_account_id,json=sourceAccountId,proto3" json:"source_account_id,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	SourceAccountId     string `protobuf:"bytes,10,opt,name=source_account_id,json=sourceAccountId,proto3" json:"source_account_id,omitempty"`
+	Contact             string `protobuf:"bytes,11,opt,name=contact,proto3" json:"contact,omitempty"`
+	ContractRef         string `protobuf:"bytes,12,opt,name=contract_ref,json=contractRef,proto3" json:"contract_ref,omitempty"`
+	CollectionAccountId string `protobuf:"bytes,13,opt,name=collection_account_id,json=collectionAccountId,proto3" json:"collection_account_id,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *CreateDebtRequest) Reset() {
@@ -543,14 +602,38 @@ func (x *CreateDebtRequest) GetSourceAccountId() string {
 	return ""
 }
 
+func (x *CreateDebtRequest) GetContact() string {
+	if x != nil {
+		return x.Contact
+	}
+	return ""
+}
+
+func (x *CreateDebtRequest) GetContractRef() string {
+	if x != nil {
+		return x.ContractRef
+	}
+	return ""
+}
+
+func (x *CreateDebtRequest) GetCollectionAccountId() string {
+	if x != nil {
+		return x.CollectionAccountId
+	}
+	return ""
+}
+
 type UpdateDebtRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Counterparty  string                 `protobuf:"bytes,2,opt,name=counterparty,proto3" json:"counterparty,omitempty"`
-	InterestRate  float64                `protobuf:"fixed64,3,opt,name=interest_rate,json=interestRate,proto3" json:"interest_rate,omitempty"`
-	Version       int64                  `protobuf:"varint,4,opt,name=version,proto3" json:"version,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Id                  string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Counterparty        string                 `protobuf:"bytes,2,opt,name=counterparty,proto3" json:"counterparty,omitempty"`
+	InterestRate        float64                `protobuf:"fixed64,3,opt,name=interest_rate,json=interestRate,proto3" json:"interest_rate,omitempty"`
+	Version             int64                  `protobuf:"varint,4,opt,name=version,proto3" json:"version,omitempty"`
+	Contact             string                 `protobuf:"bytes,5,opt,name=contact,proto3" json:"contact,omitempty"`
+	ContractRef         string                 `protobuf:"bytes,6,opt,name=contract_ref,json=contractRef,proto3" json:"contract_ref,omitempty"`
+	CollectionAccountId string                 `protobuf:"bytes,7,opt,name=collection_account_id,json=collectionAccountId,proto3" json:"collection_account_id,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *UpdateDebtRequest) Reset() {
@@ -609,6 +692,27 @@ func (x *UpdateDebtRequest) GetVersion() int64 {
 		return x.Version
 	}
 	return 0
+}
+
+func (x *UpdateDebtRequest) GetContact() string {
+	if x != nil {
+		return x.Contact
+	}
+	return ""
+}
+
+func (x *UpdateDebtRequest) GetContractRef() string {
+	if x != nil {
+		return x.ContractRef
+	}
+	return ""
+}
+
+func (x *UpdateDebtRequest) GetCollectionAccountId() string {
+	if x != nil {
+		return x.CollectionAccountId
+	}
+	return ""
 }
 
 type DeleteDebtRequest struct {
@@ -1047,11 +1151,231 @@ func (x *DebtDetailResponse) GetDebt() *DebtDetailDTO {
 	return nil
 }
 
+type GetReceivablesSummaryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetReceivablesSummaryRequest) Reset() {
+	*x = GetReceivablesSummaryRequest{}
+	mi := &file_debt_v1_debt_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetReceivablesSummaryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetReceivablesSummaryRequest) ProtoMessage() {}
+
+func (x *GetReceivablesSummaryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_debt_v1_debt_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetReceivablesSummaryRequest.ProtoReflect.Descriptor instead.
+func (*GetReceivablesSummaryRequest) Descriptor() ([]byte, []int) {
+	return file_debt_v1_debt_proto_rawDescGZIP(), []int{14}
+}
+
+type ReceivablesSummaryDTO struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	TotalPrincipalCents     int64                  `protobuf:"varint,1,opt,name=total_principal_cents,json=totalPrincipalCents,proto3" json:"total_principal_cents,omitempty"`
+	TotalRemainingCents     int64                  `protobuf:"varint,2,opt,name=total_remaining_cents,json=totalRemainingCents,proto3" json:"total_remaining_cents,omitempty"`
+	TotalCollectedCents     int64                  `protobuf:"varint,3,opt,name=total_collected_cents,json=totalCollectedCents,proto3" json:"total_collected_cents,omitempty"`
+	PendingInterestCents    int64                  `protobuf:"varint,4,opt,name=pending_interest_cents,json=pendingInterestCents,proto3" json:"pending_interest_cents,omitempty"`
+	Count                   int32                  `protobuf:"varint,5,opt,name=count,proto3" json:"count,omitempty"`
+	OverdueCount            int32                  `protobuf:"varint,6,opt,name=overdue_count,json=overdueCount,proto3" json:"overdue_count,omitempty"`
+	OverdueAmountCents      int64                  `protobuf:"varint,7,opt,name=overdue_amount_cents,json=overdueAmountCents,proto3" json:"overdue_amount_cents,omitempty"`
+	PrincipalTrendCents     int64                  `protobuf:"varint,8,opt,name=principal_trend_cents,json=principalTrendCents,proto3" json:"principal_trend_cents,omitempty"`
+	RemainingTrendCents     int64                  `protobuf:"varint,9,opt,name=remaining_trend_cents,json=remainingTrendCents,proto3" json:"remaining_trend_cents,omitempty"`
+	NextPaymentDate         string                 `protobuf:"bytes,10,opt,name=next_payment_date,json=nextPaymentDate,proto3" json:"next_payment_date,omitempty"`
+	NextPaymentAmountCents  int64                  `protobuf:"varint,11,opt,name=next_payment_amount_cents,json=nextPaymentAmountCents,proto3" json:"next_payment_amount_cents,omitempty"`
+	NextPaymentCounterparty string                 `protobuf:"bytes,12,opt,name=next_payment_counterparty,json=nextPaymentCounterparty,proto3" json:"next_payment_counterparty,omitempty"`
+	NextPaymentPeriodNo     int32                  `protobuf:"varint,13,opt,name=next_payment_period_no,json=nextPaymentPeriodNo,proto3" json:"next_payment_period_no,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *ReceivablesSummaryDTO) Reset() {
+	*x = ReceivablesSummaryDTO{}
+	mi := &file_debt_v1_debt_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReceivablesSummaryDTO) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReceivablesSummaryDTO) ProtoMessage() {}
+
+func (x *ReceivablesSummaryDTO) ProtoReflect() protoreflect.Message {
+	mi := &file_debt_v1_debt_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReceivablesSummaryDTO.ProtoReflect.Descriptor instead.
+func (*ReceivablesSummaryDTO) Descriptor() ([]byte, []int) {
+	return file_debt_v1_debt_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ReceivablesSummaryDTO) GetTotalPrincipalCents() int64 {
+	if x != nil {
+		return x.TotalPrincipalCents
+	}
+	return 0
+}
+
+func (x *ReceivablesSummaryDTO) GetTotalRemainingCents() int64 {
+	if x != nil {
+		return x.TotalRemainingCents
+	}
+	return 0
+}
+
+func (x *ReceivablesSummaryDTO) GetTotalCollectedCents() int64 {
+	if x != nil {
+		return x.TotalCollectedCents
+	}
+	return 0
+}
+
+func (x *ReceivablesSummaryDTO) GetPendingInterestCents() int64 {
+	if x != nil {
+		return x.PendingInterestCents
+	}
+	return 0
+}
+
+func (x *ReceivablesSummaryDTO) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *ReceivablesSummaryDTO) GetOverdueCount() int32 {
+	if x != nil {
+		return x.OverdueCount
+	}
+	return 0
+}
+
+func (x *ReceivablesSummaryDTO) GetOverdueAmountCents() int64 {
+	if x != nil {
+		return x.OverdueAmountCents
+	}
+	return 0
+}
+
+func (x *ReceivablesSummaryDTO) GetPrincipalTrendCents() int64 {
+	if x != nil {
+		return x.PrincipalTrendCents
+	}
+	return 0
+}
+
+func (x *ReceivablesSummaryDTO) GetRemainingTrendCents() int64 {
+	if x != nil {
+		return x.RemainingTrendCents
+	}
+	return 0
+}
+
+func (x *ReceivablesSummaryDTO) GetNextPaymentDate() string {
+	if x != nil {
+		return x.NextPaymentDate
+	}
+	return ""
+}
+
+func (x *ReceivablesSummaryDTO) GetNextPaymentAmountCents() int64 {
+	if x != nil {
+		return x.NextPaymentAmountCents
+	}
+	return 0
+}
+
+func (x *ReceivablesSummaryDTO) GetNextPaymentCounterparty() string {
+	if x != nil {
+		return x.NextPaymentCounterparty
+	}
+	return ""
+}
+
+func (x *ReceivablesSummaryDTO) GetNextPaymentPeriodNo() int32 {
+	if x != nil {
+		return x.NextPaymentPeriodNo
+	}
+	return 0
+}
+
+type ReceivablesSummaryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Summary       *ReceivablesSummaryDTO `protobuf:"bytes,1,opt,name=summary,proto3" json:"summary,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReceivablesSummaryResponse) Reset() {
+	*x = ReceivablesSummaryResponse{}
+	mi := &file_debt_v1_debt_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReceivablesSummaryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReceivablesSummaryResponse) ProtoMessage() {}
+
+func (x *ReceivablesSummaryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_debt_v1_debt_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReceivablesSummaryResponse.ProtoReflect.Descriptor instead.
+func (*ReceivablesSummaryResponse) Descriptor() ([]byte, []int) {
+	return file_debt_v1_debt_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ReceivablesSummaryResponse) GetSummary() *ReceivablesSummaryDTO {
+	if x != nil {
+		return x.Summary
+	}
+	return nil
+}
+
 var File_debt_v1_debt_proto protoreflect.FileDescriptor
 
 const file_debt_v1_debt_proto_rawDesc = "" +
 	"\n" +
-	"\x12debt/v1/debt.proto\x12\ryucai.debt.v1\x1a\x1acommon/v1/pagination.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdf\x04\n" +
+	"\x12debt/v1/debt.proto\x12\ryucai.debt.v1\x1a\x1acommon/v1/pagination.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa0\a\n" +
 	"\aDebtDTO\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -1071,7 +1395,14 @@ const file_debt_v1_debt_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x124\n" +
 	"\tdebt_type\x18\r \x01(\x0e2\x17.yucai.debt.v1.DebtTypeR\bdebtType\x12\x18\n" +
-	"\asubtype\x18\x0e \x01(\tR\asubtype\"\x8f\x02\n" +
+	"\asubtype\x18\x0e \x01(\tR\asubtype\x12\x18\n" +
+	"\acontact\x18\x0f \x01(\tR\acontact\x12!\n" +
+	"\fcontract_ref\x18\x10 \x01(\tR\vcontractRef\x122\n" +
+	"\x15collection_account_id\x18\x11 \x01(\tR\x13collectionAccountId\x12*\n" +
+	"\x11next_payment_date\x18\x12 \x01(\tR\x0fnextPaymentDate\x129\n" +
+	"\x19next_payment_amount_cents\x18\x13 \x01(\x03R\x16nextPaymentAmountCents\x123\n" +
+	"\x16next_payment_period_no\x18\x14 \x01(\x05R\x13nextPaymentPeriodNo\x122\n" +
+	"\x15remaining_trend_cents\x18\x15 \x01(\x03R\x13remainingTrendCents\"\x8f\x02\n" +
 	"\x0fPaymentEntryDTO\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fpayment_date\x18\x02 \x01(\tR\vpaymentDate\x12'\n" +
@@ -1085,7 +1416,7 @@ const file_debt_v1_debt_proto_rawDesc = "" +
 	"\x0etransaction_id\x18\b \x01(\tR\rtransactionId\"w\n" +
 	"\rDebtDetailDTO\x12*\n" +
 	"\x04debt\x18\x01 \x01(\v2\x16.yucai.debt.v1.DebtDTOR\x04debt\x12:\n" +
-	"\bschedule\x18\x02 \x03(\v2\x1e.yucai.debt.v1.PaymentEntryDTOR\bschedule\"\xb9\x03\n" +
+	"\bschedule\x18\x02 \x03(\v2\x1e.yucai.debt.v1.PaymentEntryDTOR\bschedule\"\xaa\x04\n" +
 	"\x11CreateDebtRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\"\n" +
@@ -1099,12 +1430,18 @@ const file_debt_v1_debt_proto_rawDesc = "" +
 	"\tdebt_type\x18\b \x01(\x0e2\x17.yucai.debt.v1.DebtTypeR\bdebtType\x12\x18\n" +
 	"\asubtype\x18\t \x01(\tR\asubtype\x12*\n" +
 	"\x11source_account_id\x18\n" +
-	" \x01(\tR\x0fsourceAccountId\"\x86\x01\n" +
+	" \x01(\tR\x0fsourceAccountId\x12\x18\n" +
+	"\acontact\x18\v \x01(\tR\acontact\x12!\n" +
+	"\fcontract_ref\x18\f \x01(\tR\vcontractRef\x122\n" +
+	"\x15collection_account_id\x18\r \x01(\tR\x13collectionAccountId\"\xf7\x01\n" +
 	"\x11UpdateDebtRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\"\n" +
 	"\fcounterparty\x18\x02 \x01(\tR\fcounterparty\x12#\n" +
 	"\rinterest_rate\x18\x03 \x01(\x01R\finterestRate\x12\x18\n" +
-	"\aversion\x18\x04 \x01(\x03R\aversion\"#\n" +
+	"\aversion\x18\x04 \x01(\x03R\aversion\x12\x18\n" +
+	"\acontact\x18\x05 \x01(\tR\acontact\x12!\n" +
+	"\fcontract_ref\x18\x06 \x01(\tR\vcontractRef\x122\n" +
+	"\x15collection_account_id\x18\a \x01(\tR\x13collectionAccountId\"#\n" +
 	"\x11DeleteDebtRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x83\x01\n" +
 	"\x14RecordPaymentRequest\x12\x17\n" +
@@ -1129,7 +1466,25 @@ const file_debt_v1_debt_proto_rawDesc = "" +
 	"\fDebtResponse\x12*\n" +
 	"\x04debt\x18\x01 \x01(\v2\x16.yucai.debt.v1.DebtDTOR\x04debt\"F\n" +
 	"\x12DebtDetailResponse\x120\n" +
-	"\x04debt\x18\x01 \x01(\v2\x1c.yucai.debt.v1.DebtDetailDTOR\x04debt*\x9a\x01\n" +
+	"\x04debt\x18\x01 \x01(\v2\x1c.yucai.debt.v1.DebtDetailDTOR\x04debt\"\x1e\n" +
+	"\x1cGetReceivablesSummaryRequest\"\x96\x05\n" +
+	"\x15ReceivablesSummaryDTO\x122\n" +
+	"\x15total_principal_cents\x18\x01 \x01(\x03R\x13totalPrincipalCents\x122\n" +
+	"\x15total_remaining_cents\x18\x02 \x01(\x03R\x13totalRemainingCents\x122\n" +
+	"\x15total_collected_cents\x18\x03 \x01(\x03R\x13totalCollectedCents\x124\n" +
+	"\x16pending_interest_cents\x18\x04 \x01(\x03R\x14pendingInterestCents\x12\x14\n" +
+	"\x05count\x18\x05 \x01(\x05R\x05count\x12#\n" +
+	"\roverdue_count\x18\x06 \x01(\x05R\foverdueCount\x120\n" +
+	"\x14overdue_amount_cents\x18\a \x01(\x03R\x12overdueAmountCents\x122\n" +
+	"\x15principal_trend_cents\x18\b \x01(\x03R\x13principalTrendCents\x122\n" +
+	"\x15remaining_trend_cents\x18\t \x01(\x03R\x13remainingTrendCents\x12*\n" +
+	"\x11next_payment_date\x18\n" +
+	" \x01(\tR\x0fnextPaymentDate\x129\n" +
+	"\x19next_payment_amount_cents\x18\v \x01(\x03R\x16nextPaymentAmountCents\x12:\n" +
+	"\x19next_payment_counterparty\x18\f \x01(\tR\x17nextPaymentCounterparty\x123\n" +
+	"\x16next_payment_period_no\x18\r \x01(\x05R\x13nextPaymentPeriodNo\"\\\n" +
+	"\x1aReceivablesSummaryResponse\x12>\n" +
+	"\asummary\x18\x01 \x01(\v2$.yucai.debt.v1.ReceivablesSummaryDTOR\asummary*\x9a\x01\n" +
 	"\x12AmortizationMethod\x12\x1c\n" +
 	"\x18AMORTIZATION_UNSPECIFIED\x10\x00\x12)\n" +
 	"%AMORTIZATION_EQUAL_PRINCIPAL_INTEREST\x10\x01\x12 \n" +
@@ -1138,7 +1493,7 @@ const file_debt_v1_debt_proto_rawDesc = "" +
 	"\bDebtType\x12\x19\n" +
 	"\x15DEBT_TYPE_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15DEBT_TYPE_BORROWED_IN\x10\x01\x12\x1a\n" +
-	"\x16DEBT_TYPE_BORROWED_OUT\x10\x022\xcc\x04\n" +
+	"\x16DEBT_TYPE_BORROWED_OUT\x10\x022\xbd\x05\n" +
 	"\vDebtService\x12K\n" +
 	"\n" +
 	"CreateDebt\x12 .yucai.debt.v1.CreateDebtRequest\x1a\x1b.yucai.debt.v1.DebtResponse\x12K\n" +
@@ -1149,7 +1504,8 @@ const file_debt_v1_debt_proto_rawDesc = "" +
 	"\rRecordPayment\x12#.yucai.debt.v1.RecordPaymentRequest\x1a$.yucai.debt.v1.RecordPaymentResponse\x12K\n" +
 	"\aGetDebt\x12\x1d.yucai.debt.v1.GetDebtRequest\x1a!.yucai.debt.v1.DebtDetailResponse\x12N\n" +
 	"\tListDebts\x12\x1f.yucai.debt.v1.ListDebtsRequest\x1a .yucai.debt.v1.ListDebtsResponse\x12b\n" +
-	"\x13GetUpcomingPayments\x12).yucai.debt.v1.GetUpcomingPaymentsRequest\x1a .yucai.debt.v1.ListDebtsResponseB\xab\x01\n" +
+	"\x13GetUpcomingPayments\x12).yucai.debt.v1.GetUpcomingPaymentsRequest\x1a .yucai.debt.v1.ListDebtsResponse\x12o\n" +
+	"\x15GetReceivablesSummary\x12+.yucai.debt.v1.GetReceivablesSummaryRequest\x1a).yucai.debt.v1.ReceivablesSummaryResponseB\xab\x01\n" +
 	"\x11com.yucai.debt.v1B\tDebtProtoP\x01Z5github.com/yucai/server/internal/proto/debt/v1;debtv1\xa2\x02\x03YDX\xaa\x02\rYucai.Debt.V1\xca\x02\rYucai\\Debt\\V1\xe2\x02\x19Yucai\\Debt\\V1\\GPBMetadata\xea\x02\x0fYucai::Debt::V1b\x06proto3"
 
 var (
@@ -1165,64 +1521,70 @@ func file_debt_v1_debt_proto_rawDescGZIP() []byte {
 }
 
 var file_debt_v1_debt_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_debt_v1_debt_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_debt_v1_debt_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_debt_v1_debt_proto_goTypes = []any{
-	(AmortizationMethod)(0),            // 0: yucai.debt.v1.AmortizationMethod
-	(DebtType)(0),                      // 1: yucai.debt.v1.DebtType
-	(*DebtDTO)(nil),                    // 2: yucai.debt.v1.DebtDTO
-	(*PaymentEntryDTO)(nil),            // 3: yucai.debt.v1.PaymentEntryDTO
-	(*DebtDetailDTO)(nil),              // 4: yucai.debt.v1.DebtDetailDTO
-	(*CreateDebtRequest)(nil),          // 5: yucai.debt.v1.CreateDebtRequest
-	(*UpdateDebtRequest)(nil),          // 6: yucai.debt.v1.UpdateDebtRequest
-	(*DeleteDebtRequest)(nil),          // 7: yucai.debt.v1.DeleteDebtRequest
-	(*RecordPaymentRequest)(nil),       // 8: yucai.debt.v1.RecordPaymentRequest
-	(*RecordPaymentResponse)(nil),      // 9: yucai.debt.v1.RecordPaymentResponse
-	(*GetDebtRequest)(nil),             // 10: yucai.debt.v1.GetDebtRequest
-	(*ListDebtsRequest)(nil),           // 11: yucai.debt.v1.ListDebtsRequest
-	(*ListDebtsResponse)(nil),          // 12: yucai.debt.v1.ListDebtsResponse
-	(*GetUpcomingPaymentsRequest)(nil), // 13: yucai.debt.v1.GetUpcomingPaymentsRequest
-	(*DebtResponse)(nil),               // 14: yucai.debt.v1.DebtResponse
-	(*DebtDetailResponse)(nil),         // 15: yucai.debt.v1.DebtDetailResponse
-	(*timestamppb.Timestamp)(nil),      // 16: google.protobuf.Timestamp
-	(*v1.PageRequest)(nil),             // 17: yucai.common.v1.PageRequest
-	(*v1.PageResponse)(nil),            // 18: yucai.common.v1.PageResponse
-	(*emptypb.Empty)(nil),              // 19: google.protobuf.Empty
+	(AmortizationMethod)(0),              // 0: yucai.debt.v1.AmortizationMethod
+	(DebtType)(0),                        // 1: yucai.debt.v1.DebtType
+	(*DebtDTO)(nil),                      // 2: yucai.debt.v1.DebtDTO
+	(*PaymentEntryDTO)(nil),              // 3: yucai.debt.v1.PaymentEntryDTO
+	(*DebtDetailDTO)(nil),                // 4: yucai.debt.v1.DebtDetailDTO
+	(*CreateDebtRequest)(nil),            // 5: yucai.debt.v1.CreateDebtRequest
+	(*UpdateDebtRequest)(nil),            // 6: yucai.debt.v1.UpdateDebtRequest
+	(*DeleteDebtRequest)(nil),            // 7: yucai.debt.v1.DeleteDebtRequest
+	(*RecordPaymentRequest)(nil),         // 8: yucai.debt.v1.RecordPaymentRequest
+	(*RecordPaymentResponse)(nil),        // 9: yucai.debt.v1.RecordPaymentResponse
+	(*GetDebtRequest)(nil),               // 10: yucai.debt.v1.GetDebtRequest
+	(*ListDebtsRequest)(nil),             // 11: yucai.debt.v1.ListDebtsRequest
+	(*ListDebtsResponse)(nil),            // 12: yucai.debt.v1.ListDebtsResponse
+	(*GetUpcomingPaymentsRequest)(nil),   // 13: yucai.debt.v1.GetUpcomingPaymentsRequest
+	(*DebtResponse)(nil),                 // 14: yucai.debt.v1.DebtResponse
+	(*DebtDetailResponse)(nil),           // 15: yucai.debt.v1.DebtDetailResponse
+	(*GetReceivablesSummaryRequest)(nil), // 16: yucai.debt.v1.GetReceivablesSummaryRequest
+	(*ReceivablesSummaryDTO)(nil),        // 17: yucai.debt.v1.ReceivablesSummaryDTO
+	(*ReceivablesSummaryResponse)(nil),   // 18: yucai.debt.v1.ReceivablesSummaryResponse
+	(*timestamppb.Timestamp)(nil),        // 19: google.protobuf.Timestamp
+	(*v1.PageRequest)(nil),               // 20: yucai.common.v1.PageRequest
+	(*v1.PageResponse)(nil),              // 21: yucai.common.v1.PageResponse
+	(*emptypb.Empty)(nil),                // 22: google.protobuf.Empty
 }
 var file_debt_v1_debt_proto_depIdxs = []int32{
 	0,  // 0: yucai.debt.v1.DebtDTO.amortization_method:type_name -> yucai.debt.v1.AmortizationMethod
-	16, // 1: yucai.debt.v1.DebtDTO.created_at:type_name -> google.protobuf.Timestamp
-	16, // 2: yucai.debt.v1.DebtDTO.updated_at:type_name -> google.protobuf.Timestamp
+	19, // 1: yucai.debt.v1.DebtDTO.created_at:type_name -> google.protobuf.Timestamp
+	19, // 2: yucai.debt.v1.DebtDTO.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 3: yucai.debt.v1.DebtDTO.debt_type:type_name -> yucai.debt.v1.DebtType
 	2,  // 4: yucai.debt.v1.DebtDetailDTO.debt:type_name -> yucai.debt.v1.DebtDTO
 	3,  // 5: yucai.debt.v1.DebtDetailDTO.schedule:type_name -> yucai.debt.v1.PaymentEntryDTO
 	0,  // 6: yucai.debt.v1.CreateDebtRequest.amortization_method:type_name -> yucai.debt.v1.AmortizationMethod
 	1,  // 7: yucai.debt.v1.CreateDebtRequest.debt_type:type_name -> yucai.debt.v1.DebtType
 	3,  // 8: yucai.debt.v1.RecordPaymentResponse.entry:type_name -> yucai.debt.v1.PaymentEntryDTO
-	17, // 9: yucai.debt.v1.ListDebtsRequest.page:type_name -> yucai.common.v1.PageRequest
+	20, // 9: yucai.debt.v1.ListDebtsRequest.page:type_name -> yucai.common.v1.PageRequest
 	1,  // 10: yucai.debt.v1.ListDebtsRequest.type_filter:type_name -> yucai.debt.v1.DebtType
 	2,  // 11: yucai.debt.v1.ListDebtsResponse.debts:type_name -> yucai.debt.v1.DebtDTO
-	18, // 12: yucai.debt.v1.ListDebtsResponse.page:type_name -> yucai.common.v1.PageResponse
+	21, // 12: yucai.debt.v1.ListDebtsResponse.page:type_name -> yucai.common.v1.PageResponse
 	2,  // 13: yucai.debt.v1.DebtResponse.debt:type_name -> yucai.debt.v1.DebtDTO
 	4,  // 14: yucai.debt.v1.DebtDetailResponse.debt:type_name -> yucai.debt.v1.DebtDetailDTO
-	5,  // 15: yucai.debt.v1.DebtService.CreateDebt:input_type -> yucai.debt.v1.CreateDebtRequest
-	6,  // 16: yucai.debt.v1.DebtService.UpdateDebt:input_type -> yucai.debt.v1.UpdateDebtRequest
-	7,  // 17: yucai.debt.v1.DebtService.DeleteDebt:input_type -> yucai.debt.v1.DeleteDebtRequest
-	8,  // 18: yucai.debt.v1.DebtService.RecordPayment:input_type -> yucai.debt.v1.RecordPaymentRequest
-	10, // 19: yucai.debt.v1.DebtService.GetDebt:input_type -> yucai.debt.v1.GetDebtRequest
-	11, // 20: yucai.debt.v1.DebtService.ListDebts:input_type -> yucai.debt.v1.ListDebtsRequest
-	13, // 21: yucai.debt.v1.DebtService.GetUpcomingPayments:input_type -> yucai.debt.v1.GetUpcomingPaymentsRequest
-	14, // 22: yucai.debt.v1.DebtService.CreateDebt:output_type -> yucai.debt.v1.DebtResponse
-	14, // 23: yucai.debt.v1.DebtService.UpdateDebt:output_type -> yucai.debt.v1.DebtResponse
-	19, // 24: yucai.debt.v1.DebtService.DeleteDebt:output_type -> google.protobuf.Empty
-	9,  // 25: yucai.debt.v1.DebtService.RecordPayment:output_type -> yucai.debt.v1.RecordPaymentResponse
-	15, // 26: yucai.debt.v1.DebtService.GetDebt:output_type -> yucai.debt.v1.DebtDetailResponse
-	12, // 27: yucai.debt.v1.DebtService.ListDebts:output_type -> yucai.debt.v1.ListDebtsResponse
-	12, // 28: yucai.debt.v1.DebtService.GetUpcomingPayments:output_type -> yucai.debt.v1.ListDebtsResponse
-	22, // [22:29] is the sub-list for method output_type
-	15, // [15:22] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	17, // 15: yucai.debt.v1.ReceivablesSummaryResponse.summary:type_name -> yucai.debt.v1.ReceivablesSummaryDTO
+	5,  // 16: yucai.debt.v1.DebtService.CreateDebt:input_type -> yucai.debt.v1.CreateDebtRequest
+	6,  // 17: yucai.debt.v1.DebtService.UpdateDebt:input_type -> yucai.debt.v1.UpdateDebtRequest
+	7,  // 18: yucai.debt.v1.DebtService.DeleteDebt:input_type -> yucai.debt.v1.DeleteDebtRequest
+	8,  // 19: yucai.debt.v1.DebtService.RecordPayment:input_type -> yucai.debt.v1.RecordPaymentRequest
+	10, // 20: yucai.debt.v1.DebtService.GetDebt:input_type -> yucai.debt.v1.GetDebtRequest
+	11, // 21: yucai.debt.v1.DebtService.ListDebts:input_type -> yucai.debt.v1.ListDebtsRequest
+	13, // 22: yucai.debt.v1.DebtService.GetUpcomingPayments:input_type -> yucai.debt.v1.GetUpcomingPaymentsRequest
+	16, // 23: yucai.debt.v1.DebtService.GetReceivablesSummary:input_type -> yucai.debt.v1.GetReceivablesSummaryRequest
+	14, // 24: yucai.debt.v1.DebtService.CreateDebt:output_type -> yucai.debt.v1.DebtResponse
+	14, // 25: yucai.debt.v1.DebtService.UpdateDebt:output_type -> yucai.debt.v1.DebtResponse
+	22, // 26: yucai.debt.v1.DebtService.DeleteDebt:output_type -> google.protobuf.Empty
+	9,  // 27: yucai.debt.v1.DebtService.RecordPayment:output_type -> yucai.debt.v1.RecordPaymentResponse
+	15, // 28: yucai.debt.v1.DebtService.GetDebt:output_type -> yucai.debt.v1.DebtDetailResponse
+	12, // 29: yucai.debt.v1.DebtService.ListDebts:output_type -> yucai.debt.v1.ListDebtsResponse
+	12, // 30: yucai.debt.v1.DebtService.GetUpcomingPayments:output_type -> yucai.debt.v1.ListDebtsResponse
+	18, // 31: yucai.debt.v1.DebtService.GetReceivablesSummary:output_type -> yucai.debt.v1.ReceivablesSummaryResponse
+	24, // [24:32] is the sub-list for method output_type
+	16, // [16:24] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_debt_v1_debt_proto_init() }
@@ -1236,7 +1598,7 @@ func file_debt_v1_debt_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_debt_v1_debt_proto_rawDesc), len(file_debt_v1_debt_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   14,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

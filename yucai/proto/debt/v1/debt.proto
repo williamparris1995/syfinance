@@ -16,6 +16,7 @@ service DebtService {
   rpc GetDebt(GetDebtRequest) returns (DebtDetailResponse);
   rpc ListDebts(ListDebtsRequest) returns (ListDebtsResponse);
   rpc GetUpcomingPayments(GetUpcomingPaymentsRequest) returns (ListDebtsResponse);
+  rpc GetReceivablesSummary(GetReceivablesSummaryRequest) returns (ReceivablesSummaryResponse);
 }
 
 enum AmortizationMethod {
@@ -46,6 +47,13 @@ message DebtDTO {
   google.protobuf.Timestamp updated_at = 12;
   DebtType debt_type = 13;
   string subtype = 14;
+  string contact = 15;
+  string contract_ref = 16;
+  string collection_account_id = 17;
+  string next_payment_date = 18;
+  int64 next_payment_amount_cents = 19;
+  int32 next_payment_period_no = 20;
+  int64 remaining_trend_cents = 21;
 }
 
 message PaymentEntryDTO {
@@ -77,6 +85,9 @@ message CreateDebtRequest {
   // borrowedOut 双写:借出资金的来源账户(cash asset)。borrowedOut 必填;
   // borrowedIn 忽略(不双写)。空字符串 = 不双写。
   string source_account_id = 10;
+  string contact = 11;
+  string contract_ref = 12;
+  string collection_account_id = 13;
 }
 
 message UpdateDebtRequest {
@@ -84,6 +95,9 @@ message UpdateDebtRequest {
   string counterparty = 2;
   double interest_rate = 3;
   int64 version = 4;
+  string contact = 5;
+  string contract_ref = 6;
+  string collection_account_id = 7;
 }
 
 message DeleteDebtRequest { string id = 1; }
@@ -117,3 +131,23 @@ message GetUpcomingPaymentsRequest {
 
 message DebtResponse { DebtDTO debt = 1; }
 message DebtDetailResponse { DebtDetailDTO debt = 1; }
+
+message GetReceivablesSummaryRequest {}
+
+message ReceivablesSummaryDTO {
+  int64 total_principal_cents = 1;
+  int64 total_remaining_cents = 2;
+  int64 total_collected_cents = 3;
+  int64 pending_interest_cents = 4;
+  int32 count = 5;
+  int32 overdue_count = 6;
+  int64 overdue_amount_cents = 7;
+  int64 principal_trend_cents = 8;
+  int64 remaining_trend_cents = 9;
+  string next_payment_date = 10;
+  int64 next_payment_amount_cents = 11;
+  string next_payment_counterparty = 12;
+  int32 next_payment_period_no = 13;
+}
+
+message ReceivablesSummaryResponse { ReceivablesSummaryDTO summary = 1; }

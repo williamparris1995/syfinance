@@ -105,6 +105,43 @@ const DebtDTO$json = {
       '10': 'debtType'
     },
     {'1': 'subtype', '3': 14, '4': 1, '5': 9, '10': 'subtype'},
+    {'1': 'contact', '3': 15, '4': 1, '5': 9, '10': 'contact'},
+    {'1': 'contract_ref', '3': 16, '4': 1, '5': 9, '10': 'contractRef'},
+    {
+      '1': 'collection_account_id',
+      '3': 17,
+      '4': 1,
+      '5': 9,
+      '10': 'collectionAccountId'
+    },
+    {
+      '1': 'next_payment_date',
+      '3': 18,
+      '4': 1,
+      '5': 9,
+      '10': 'nextPaymentDate'
+    },
+    {
+      '1': 'next_payment_amount_cents',
+      '3': 19,
+      '4': 1,
+      '5': 3,
+      '10': 'nextPaymentAmountCents'
+    },
+    {
+      '1': 'next_payment_period_no',
+      '3': 20,
+      '4': 1,
+      '5': 5,
+      '10': 'nextPaymentPeriodNo'
+    },
+    {
+      '1': 'remaining_trend_cents',
+      '3': 21,
+      '4': 1,
+      '5': 3,
+      '10': 'remainingTrendCents'
+    },
   ],
 };
 
@@ -120,7 +157,13 @@ final $typed_data.Uint8List debtDTODescriptor = $convert.base64Decode(
     'Vyc2lvbhgKIAEoA1IHdmVyc2lvbhI5CgpjcmVhdGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3Rv'
     'YnVmLlRpbWVzdGFtcFIJY3JlYXRlZEF0EjkKCnVwZGF0ZWRfYXQYDCABKAsyGi5nb29nbGUucH'
     'JvdG9idWYuVGltZXN0YW1wUgl1cGRhdGVkQXQSNAoJZGVidF90eXBlGA0gASgOMhcueXVjYWku'
-    'ZGVidC52MS5EZWJ0VHlwZVIIZGVidFR5cGUSGAoHc3VidHlwZRgOIAEoCVIHc3VidHlwZQ==');
+    'ZGVidC52MS5EZWJ0VHlwZVIIZGVidFR5cGUSGAoHc3VidHlwZRgOIAEoCVIHc3VidHlwZRIYCg'
+    'djb250YWN0GA8gASgJUgdjb250YWN0EiEKDGNvbnRyYWN0X3JlZhgQIAEoCVILY29udHJhY3RS'
+    'ZWYSMgoVY29sbGVjdGlvbl9hY2NvdW50X2lkGBEgASgJUhNjb2xsZWN0aW9uQWNjb3VudElkEi'
+    'oKEW5leHRfcGF5bWVudF9kYXRlGBIgASgJUg9uZXh0UGF5bWVudERhdGUSOQoZbmV4dF9wYXlt'
+    'ZW50X2Ftb3VudF9jZW50cxgTIAEoA1IWbmV4dFBheW1lbnRBbW91bnRDZW50cxIzChZuZXh0X3'
+    'BheW1lbnRfcGVyaW9kX25vGBQgASgFUhNuZXh0UGF5bWVudFBlcmlvZE5vEjIKFXJlbWFpbmlu'
+    'Z190cmVuZF9jZW50cxgVIAEoA1ITcmVtYWluaW5nVHJlbmRDZW50cw==');
 
 @$core.Deprecated('Use paymentEntryDTODescriptor instead')
 const PaymentEntryDTO$json = {
@@ -214,6 +257,15 @@ const CreateDebtRequest$json = {
       '5': 9,
       '10': 'sourceAccountId'
     },
+    {'1': 'contact', '3': 11, '4': 1, '5': 9, '10': 'contact'},
+    {'1': 'contract_ref', '3': 12, '4': 1, '5': 9, '10': 'contractRef'},
+    {
+      '1': 'collection_account_id',
+      '3': 13,
+      '4': 1,
+      '5': 9,
+      '10': 'collectionAccountId'
+    },
   ],
 };
 
@@ -226,7 +278,9 @@ final $typed_data.Uint8List createDebtRequestDescriptor = $convert.base64Decode(
     'BSABKAlSCXN0YXJ0RGF0ZRIZCghkdWVfZGF0ZRgGIAEoCVIHZHVlRGF0ZRIyChV0b3RhbF9wcm'
     'luY2lwYWxfY2VudHMYByABKANSE3RvdGFsUHJpbmNpcGFsQ2VudHMSNAoJZGVidF90eXBlGAgg'
     'ASgOMhcueXVjYWkuZGVidC52MS5EZWJ0VHlwZVIIZGVidFR5cGUSGAoHc3VidHlwZRgJIAEoCV'
-    'IHc3VidHlwZRIqChFzb3VyY2VfYWNjb3VudF9pZBgKIAEoCVIPc291cmNlQWNjb3VudElk');
+    'IHc3VidHlwZRIqChFzb3VyY2VfYWNjb3VudF9pZBgKIAEoCVIPc291cmNlQWNjb3VudElkEhgK'
+    'B2NvbnRhY3QYCyABKAlSB2NvbnRhY3QSIQoMY29udHJhY3RfcmVmGAwgASgJUgtjb250cmFjdF'
+    'JlZhIyChVjb2xsZWN0aW9uX2FjY291bnRfaWQYDSABKAlSE2NvbGxlY3Rpb25BY2NvdW50SWQ=');
 
 @$core.Deprecated('Use updateDebtRequestDescriptor instead')
 const UpdateDebtRequest$json = {
@@ -236,6 +290,15 @@ const UpdateDebtRequest$json = {
     {'1': 'counterparty', '3': 2, '4': 1, '5': 9, '10': 'counterparty'},
     {'1': 'interest_rate', '3': 3, '4': 1, '5': 1, '10': 'interestRate'},
     {'1': 'version', '3': 4, '4': 1, '5': 3, '10': 'version'},
+    {'1': 'contact', '3': 5, '4': 1, '5': 9, '10': 'contact'},
+    {'1': 'contract_ref', '3': 6, '4': 1, '5': 9, '10': 'contractRef'},
+    {
+      '1': 'collection_account_id',
+      '3': 7,
+      '4': 1,
+      '5': 9,
+      '10': 'collectionAccountId'
+    },
   ],
 };
 
@@ -243,7 +306,9 @@ const UpdateDebtRequest$json = {
 final $typed_data.Uint8List updateDebtRequestDescriptor = $convert.base64Decode(
     'ChFVcGRhdGVEZWJ0UmVxdWVzdBIOCgJpZBgBIAEoCVICaWQSIgoMY291bnRlcnBhcnR5GAIgAS'
     'gJUgxjb3VudGVycGFydHkSIwoNaW50ZXJlc3RfcmF0ZRgDIAEoAVIMaW50ZXJlc3RSYXRlEhgK'
-    'B3ZlcnNpb24YBCABKANSB3ZlcnNpb24=');
+    'B3ZlcnNpb24YBCABKANSB3ZlcnNpb24SGAoHY29udGFjdBgFIAEoCVIHY29udGFjdBIhCgxjb2'
+    '50cmFjdF9yZWYYBiABKAlSC2NvbnRyYWN0UmVmEjIKFWNvbGxlY3Rpb25fYWNjb3VudF9pZBgH'
+    'IAEoCVITY29sbGVjdGlvbkFjY291bnRJZA==');
 
 @$core.Deprecated('Use deleteDebtRequestDescriptor instead')
 const DeleteDebtRequest$json = {
@@ -418,3 +483,134 @@ const DebtDetailResponse$json = {
 final $typed_data.Uint8List debtDetailResponseDescriptor = $convert.base64Decode(
     'ChJEZWJ0RGV0YWlsUmVzcG9uc2USMAoEZGVidBgBIAEoCzIcLnl1Y2FpLmRlYnQudjEuRGVidE'
     'RldGFpbERUT1IEZGVidA==');
+
+@$core.Deprecated('Use getReceivablesSummaryRequestDescriptor instead')
+const GetReceivablesSummaryRequest$json = {
+  '1': 'GetReceivablesSummaryRequest',
+};
+
+/// Descriptor for `GetReceivablesSummaryRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getReceivablesSummaryRequestDescriptor =
+    $convert.base64Decode('ChxHZXRSZWNlaXZhYmxlc1N1bW1hcnlSZXF1ZXN0');
+
+@$core.Deprecated('Use receivablesSummaryDTODescriptor instead')
+const ReceivablesSummaryDTO$json = {
+  '1': 'ReceivablesSummaryDTO',
+  '2': [
+    {
+      '1': 'total_principal_cents',
+      '3': 1,
+      '4': 1,
+      '5': 3,
+      '10': 'totalPrincipalCents'
+    },
+    {
+      '1': 'total_remaining_cents',
+      '3': 2,
+      '4': 1,
+      '5': 3,
+      '10': 'totalRemainingCents'
+    },
+    {
+      '1': 'total_collected_cents',
+      '3': 3,
+      '4': 1,
+      '5': 3,
+      '10': 'totalCollectedCents'
+    },
+    {
+      '1': 'pending_interest_cents',
+      '3': 4,
+      '4': 1,
+      '5': 3,
+      '10': 'pendingInterestCents'
+    },
+    {'1': 'count', '3': 5, '4': 1, '5': 5, '10': 'count'},
+    {'1': 'overdue_count', '3': 6, '4': 1, '5': 5, '10': 'overdueCount'},
+    {
+      '1': 'overdue_amount_cents',
+      '3': 7,
+      '4': 1,
+      '5': 3,
+      '10': 'overdueAmountCents'
+    },
+    {
+      '1': 'principal_trend_cents',
+      '3': 8,
+      '4': 1,
+      '5': 3,
+      '10': 'principalTrendCents'
+    },
+    {
+      '1': 'remaining_trend_cents',
+      '3': 9,
+      '4': 1,
+      '5': 3,
+      '10': 'remainingTrendCents'
+    },
+    {
+      '1': 'next_payment_date',
+      '3': 10,
+      '4': 1,
+      '5': 9,
+      '10': 'nextPaymentDate'
+    },
+    {
+      '1': 'next_payment_amount_cents',
+      '3': 11,
+      '4': 1,
+      '5': 3,
+      '10': 'nextPaymentAmountCents'
+    },
+    {
+      '1': 'next_payment_counterparty',
+      '3': 12,
+      '4': 1,
+      '5': 9,
+      '10': 'nextPaymentCounterparty'
+    },
+    {
+      '1': 'next_payment_period_no',
+      '3': 13,
+      '4': 1,
+      '5': 5,
+      '10': 'nextPaymentPeriodNo'
+    },
+  ],
+};
+
+/// Descriptor for `ReceivablesSummaryDTO`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List receivablesSummaryDTODescriptor = $convert.base64Decode(
+    'ChVSZWNlaXZhYmxlc1N1bW1hcnlEVE8SMgoVdG90YWxfcHJpbmNpcGFsX2NlbnRzGAEgASgDUh'
+    'N0b3RhbFByaW5jaXBhbENlbnRzEjIKFXRvdGFsX3JlbWFpbmluZ19jZW50cxgCIAEoA1ITdG90'
+    'YWxSZW1haW5pbmdDZW50cxIyChV0b3RhbF9jb2xsZWN0ZWRfY2VudHMYAyABKANSE3RvdGFsQ2'
+    '9sbGVjdGVkQ2VudHMSNAoWcGVuZGluZ19pbnRlcmVzdF9jZW50cxgEIAEoA1IUcGVuZGluZ0lu'
+    'dGVyZXN0Q2VudHMSFAoFY291bnQYBSABKAVSBWNvdW50EiMKDW92ZXJkdWVfY291bnQYBiABKA'
+    'VSDG92ZXJkdWVDb3VudBIwChRvdmVyZHVlX2Ftb3VudF9jZW50cxgHIAEoA1ISb3ZlcmR1ZUFt'
+    'b3VudENlbnRzEjIKFXByaW5jaXBhbF90cmVuZF9jZW50cxgIIAEoA1ITcHJpbmNpcGFsVHJlbm'
+    'RDZW50cxIyChVyZW1haW5pbmdfdHJlbmRfY2VudHMYCSABKANSE3JlbWFpbmluZ1RyZW5kQ2Vu'
+    'dHMSKgoRbmV4dF9wYXltZW50X2RhdGUYCiABKAlSD25leHRQYXltZW50RGF0ZRI5ChluZXh0X3'
+    'BheW1lbnRfYW1vdW50X2NlbnRzGAsgASgDUhZuZXh0UGF5bWVudEFtb3VudENlbnRzEjoKGW5l'
+    'eHRfcGF5bWVudF9jb3VudGVycGFydHkYDCABKAlSF25leHRQYXltZW50Q291bnRlcnBhcnR5Ej'
+    'MKFm5leHRfcGF5bWVudF9wZXJpb2Rfbm8YDSABKAVSE25leHRQYXltZW50UGVyaW9kTm8=');
+
+@$core.Deprecated('Use receivablesSummaryResponseDescriptor instead')
+const ReceivablesSummaryResponse$json = {
+  '1': 'ReceivablesSummaryResponse',
+  '2': [
+    {
+      '1': 'summary',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.yucai.debt.v1.ReceivablesSummaryDTO',
+      '10': 'summary'
+    },
+  ],
+};
+
+/// Descriptor for `ReceivablesSummaryResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List receivablesSummaryResponseDescriptor =
+    $convert.base64Decode(
+        'ChpSZWNlaXZhYmxlc1N1bW1hcnlSZXNwb25zZRI+CgdzdW1tYXJ5GAEgASgLMiQueXVjYWkuZG'
+        'VidC52MS5SZWNlaXZhYmxlc1N1bW1hcnlEVE9SB3N1bW1hcnk=');

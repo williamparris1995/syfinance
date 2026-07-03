@@ -82,6 +82,13 @@ class DebtServiceClient extends $grpc.Client {
     return $createUnaryCall(_$getUpcomingPayments, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.ReceivablesSummaryResponse> getReceivablesSummary(
+    $0.GetReceivablesSummaryRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$getReceivablesSummary, request, options: options);
+  }
+
   // method descriptors
 
   static final _$createDebt =
@@ -119,6 +126,11 @@ class DebtServiceClient extends $grpc.Client {
           '/yucai.debt.v1.DebtService/GetUpcomingPayments',
           ($0.GetUpcomingPaymentsRequest value) => value.writeToBuffer(),
           $0.ListDebtsResponse.fromBuffer);
+  static final _$getReceivablesSummary = $grpc.ClientMethod<
+          $0.GetReceivablesSummaryRequest, $0.ReceivablesSummaryResponse>(
+      '/yucai.debt.v1.DebtService/GetReceivablesSummary',
+      ($0.GetReceivablesSummaryRequest value) => value.writeToBuffer(),
+      $0.ReceivablesSummaryResponse.fromBuffer);
 }
 
 @$pb.GrpcServiceName('yucai.debt.v1.DebtService')
@@ -179,6 +191,15 @@ abstract class DebtServiceBase extends $grpc.Service {
         ($core.List<$core.int> value) =>
             $0.GetUpcomingPaymentsRequest.fromBuffer(value),
         ($0.ListDebtsResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetReceivablesSummaryRequest,
+            $0.ReceivablesSummaryResponse>(
+        'GetReceivablesSummary',
+        getReceivablesSummary_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.GetReceivablesSummaryRequest.fromBuffer(value),
+        ($0.ReceivablesSummaryResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.DebtResponse> createDebt_Pre($grpc.ServiceCall $call,
@@ -238,4 +259,13 @@ abstract class DebtServiceBase extends $grpc.Service {
 
   $async.Future<$0.ListDebtsResponse> getUpcomingPayments(
       $grpc.ServiceCall call, $0.GetUpcomingPaymentsRequest request);
+
+  $async.Future<$0.ReceivablesSummaryResponse> getReceivablesSummary_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.GetReceivablesSummaryRequest> $request) async {
+    return getReceivablesSummary($call, await $request);
+  }
+
+  $async.Future<$0.ReceivablesSummaryResponse> getReceivablesSummary(
+      $grpc.ServiceCall call, $0.GetReceivablesSummaryRequest request);
 }
