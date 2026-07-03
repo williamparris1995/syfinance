@@ -67,6 +67,7 @@ client(Flutter DDD)
 8. **路由优先级**:静态 `/new` `/edit` 在 `/:id` 前(receivables 路由已接入,不改)
 9. **flutter analyze 基线 22 error**(全 pbserver)+ 3 预存 fail(account/debt/transaction_detail_page,非本 spec 引入)
 10. **每 task commit**(中文 conventional `feat(holding-receivables-...): ...`)
+11. **多币种 — 不硬编码符号/币种字符串**(用户强调):所有货币显示走 `currencySymbol(code)`(禁裸 `¥`/`$`);币种字符串走变量(preferred / Debt.currencyCode / 集中常量 `kBaseCurrency`),禁散落 `'CNY'` 硬编码。summary/snapshot/trend 金额折算到 preferred(复用 D-currency `convertToBase` / rate 基础设施)。**Debt 当前无 currencyCode(假设 CNY)**:实现用 `toPreferredCents(cents, debt.currencyCode ?? 'CNY', rates, preferred)` 为未来多币种留口,集中常量不散落;snapshot 存原币 cents(server trend 按原币算),client 折算 preferred 显示。
 
 ---
 
@@ -86,6 +87,7 @@ message DebtDTO {
   string next_payment_date = 18;          // 下次收款日(最早 !paid entry,server 算)
   int64 next_payment_amount_cents = 19;   // 下次收款金额
   int32 next_payment_period_no = 20;      // 下次收款期次号(1-based)
+  int64 remaining_trend_cents = 21;       // 剩余应收 trend(本月 vs 上月 snapshot,负=减少;detail hero delta,server per-debt 算)
 }
 ```
 
@@ -293,7 +295,7 @@ final int nextPaymentPeriodNo;        // 默认 0
 - **D3**:body 加右侧 side panel(grid-2:左 schedule / 右 side)— 收款账户卡(收款至 collectionAccountId 解析账户名 / 应收账户 accountId)+ 借款信息卡(债务人/contact/借出/到期/摊还/contract_ref)
 - **D4**:确认收款触发改 OD 行内 link-btn 样式(`_scheduleAction` 已是 link 样式 ✓)— `RecordPayment(from_account_id = debt.collectionAccountId)`,**无 dialog 直接 dispatch + toast**;若 collectionAccountId 为空 fallback 弹 dialog(防御)
 
-**per-debt trend 数据源**:为简化,DebtDTO 可再加 `remaining_trend_cents` 字段(server 从 snapshot 算 per-debt)— **或** detail 单独不显 delta(本次接受 detail delta 用 schedule 算"本月已收"近似)。**plan 决策点**:推荐 DebtDTO 加 `remaining_trend_cents`(21)(server per-debt snapshot trend 算法已有,多 1 字段成本低,信息准确)。
+**per-debt trend 数据源**:DebtDTO.`remaining_trend_cents`(21,server 从 snapshot 算 per-debt 本月 vs 上月)— detail hero delta 直接读此字段。**已 resolved**(见 A1)。
 
 ### B6. `receivable_form_page.dart`(F1-F2 + 3 字段输入)
 - **F1**:`_RadioChip` 升级为 `_RadioCard`(32px icon tile + label + 可选 desc);类型 4(私人/商业/亲友/其他,icon)+ 摊还 3(等额本息"每期合计相同"/等额本金"本金相同 利息递减"/一次性"到期一次结清",icon + desc)
@@ -371,7 +373,7 @@ final int nextPaymentPeriodNo;        // 默认 0
 
 1. **debt(borrowedIn)模块 UI 对齐**(差距报告 debt #4)— 本次仅确保 debt 模块因 entity/proto 扩展不崩,UI 对齐是单独 ticket
 2. **debt 模块也用 snapshot trend 显**(本次 receivable 用,debt 后续)
-3. **DebtDTO 加 `remaining_trend_cents`(21)** — B5 D1 的 open 决策点,plan 时定(推荐加,detail delta 准确;不加则 detail delta 用"本月已收"近似)
+3. ~~DebtDTO 加 `remaining_trend_cents`(21)~~ — **已 resolved**:加 field 21(A1),detail hero delta 用 server per-debt snapshot trend,准确
 4. **per-account 收款账户历史**(collection_account_id 仅持久化默认值,不记每次收款实际入账账户 — RecordPayment 仍可被用户在 detail 临时改,但行内确认用默认)
 5. **3 预存 fail**(account/debt/transaction_detail_page — out-of-scope,D-currency item6 已证)
 6. **OD 原型 mobile step wizard vs Flutter 现状**:Flutter form mobile 有 3-step wizard,OD mobile 是单列堆叠 — 本次保留 Flutter step wizard(更友好),仅 desktop/tablet 对齐 OD 双列
