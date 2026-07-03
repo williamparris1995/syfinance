@@ -1308,12 +1308,16 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
   /// 收款语义：别人还我 → 钱进我的收款账户。proto RecordPayment 沿用
   /// （debt_id + schedule_entry_id + from_account_id），仅 label 不同。
   void _openRecordPayment(PaymentEntry e) {
+    // 多币种:dialog amount-box 走 _fmtSymbol(cents, preferred),与主路径
+    // detail page 一致(避免 preferred=USD 时 dialog ¥ vs 主页面 $)。
+    final preferred = context.read<CurrencyBloc>().state.preferred;
     showDialog<void>(
       context: context,
       builder: (dctx) => _ConfirmReceiptDialog(
         entry: e,
         accounts: _accounts,
         debtId: widget.id,
+        preferred: preferred,
         onSubmit: (toAccountId) {
           Navigator.pop(dctx);
           setState(() => _recordPending = true);
@@ -1447,12 +1451,16 @@ class _ConfirmReceiptDialog extends StatefulWidget {
     required this.accounts,
     required this.debtId,
     required this.onSubmit,
+    required this.preferred,
   });
 
   final PaymentEntry entry;
   final List<Account> accounts;
   final String debtId;
   final void Function(String toAccountId) onSubmit;
+  /// 多币种(Global #11):amount-box 走 _fmtSymbol(cents, preferred),
+  /// 与主路径 detail page 一致(避免 dialog ¥ vs 主页面 $ 不一致)。
+  final String preferred;
 
   @override
   State<_ConfirmReceiptDialog> createState() => _ConfirmReceiptDialogState();
@@ -1492,15 +1500,12 @@ class _ConfirmReceiptDialogState extends State<_ConfirmReceiptDialog> {
               ),
               child: Row(
                 children: [
-                  const Text('¥',
-                      style: TextStyle(
-                          color: AppColors.accent,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600)),
-                  const SizedBox(width: 8),
+                  // 多币种:走 _fmtSymbol(cents, preferred),符号已含千分位+前缀
+                  // (与主路径 detail page / hero / schedule 一致,Global #11)。
                   Text(
-                    '${widget.entry.totalCents ~/ 100}.${(widget.entry.totalCents % 100).toString().padLeft(2, '0')}',
+                    _fmtSymbol(widget.entry.totalCents, widget.preferred),
                     style: const TextStyle(
+                        color: AppColors.accent,
                         fontSize: 22,
                         fontWeight: FontWeight.w600,
                         fontFeatures: AppTypography.tabularFigures),
@@ -1575,6 +1580,22 @@ class _ConfirmReceiptDialogState extends State<_ConfirmReceiptDialog> {
     final m = d.month.toString().padLeft(2, '0');
     final day = d.day.toString().padLeft(2, '0');
     return '${d.year}-$m-$day';
+  }
+
+  /// 千分位 + 两位小数 + 货币符号前缀(与 _ReceivableDetailPageState._fmtSymbol
+  /// 同语义,独立定义以避跨 State 类依赖)。多币种(Global #11)。
+  String _fmtSymbol(int cents, String currencyCode) {
+    final sign = cents < 0 ? '-' : '';
+    final abs = cents.abs();
+    final yuan = abs ~/ 100;
+    final fen = (abs % 100).toString().padLeft(2, '0');
+    final s = yuan.toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return '$sign${currencySymbol(currencyCode)}$buf.$fen';
   }
 
   String _fmtBalance(int cents) {
