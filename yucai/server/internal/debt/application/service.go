@@ -288,8 +288,10 @@ func (s *Service) GetUpcomingPayments(ctx context.Context, tenantID uuid.UUID, d
 //   - PrincipalTrendCents     Σ (this_month_total − last_month_total)
 //   - RemainingTrendCents     Σ (this_month_remaining − last_month_remaining)
 //   "This month" = [monthStart(now), monthStart(now)+1mo); "last month" =
-//   [monthStart(now)-1mo, monthStart(now)). Per-debt: a debt missing one side
-//   contributes that side as 0 (degenerate); debts missing both are 0.
+//   [monthStart(now)-1mo, monthStart(now)). Per-debt: the trend is Σ only over
+//   debts that have a snapshot in BOTH months; a debt missing either side's
+//   snapshot is skipped (no valid baseline — we do not fabricate a delta by
+//   treating the missing side as 0).
 //
 // NextPayment* are the globally earliest unpaid entry across every receivable's
 // schedule (ties broken by first-debt-seen), with the host debt's counterparty

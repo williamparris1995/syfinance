@@ -141,9 +141,9 @@ type UpcomingPaymentsResult struct {
 //   - RemainingTrendCents = Σ (this_month_remaining − last_month_remaining)
 //     → negative = principal collected back; positive = balance grew (more lent).
 //
-// Debts without a snapshot in a given month contribute 0 for that month (the
-// other month's value is still used as the delta baseline when only one side
-// exists; when neither exists the delta is 0).
+// The trend is Σ only over debts that have a snapshot in BOTH months; a debt
+// missing either month's snapshot contributes nothing (no valid baseline, we
+// do not fabricate a delta by treating the missing side as 0).
 type ReceivablesSummaryDTO struct {
 	TotalPrincipalCents   int64
 	TotalRemainingCents   int64

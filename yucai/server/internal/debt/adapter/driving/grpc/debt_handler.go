@@ -104,15 +104,25 @@ func (h *DebtHandler) CreateDebt(ctx context.Context, req *pb.CreateDebtRequest)
 		ContractRef:         req.ContractRef,
 	}
 	if debtType == domain.BorrowedOut {
-		// Collection account = where repayments land. Prefer an explicit
-		// collection_account_id on the request; otherwise default to the cash
-		// source (the asset the principal was lent out of), since the same
-		// account typically receives repayments.
+		// Collection account = where repayments land.
+		//
+		// Spec B6 (create-debt form): collection_account_id defaults to the
+		// cash source (source_account_id) when the request omits it — the
+		// receivable is paid back into the same asset account the principal
+		// was lent out of, which is the common case. The handler mirrors that
+		// form default so a direct RPC caller with no collection_account_id
+		// gets the same behavior as the UI.
+		//
+		// A malformed (non-empty, non-UUID) collection_account_id is rejected
+		// with InvalidArgument — we never silently fall back to the source,
+		// mirroring UpdateDebt's parse handling below.
 		coll := sourceAccountID
 		if req.CollectionAccountId != "" {
-			if parsed, perr := uuid.Parse(req.CollectionAccountId); perr == nil {
-				coll = parsed
+			parsed, perr := uuid.Parse(req.CollectionAccountId)
+			if perr != nil {
+				return nil, status.Error(codes.InvalidArgument, "invalid collection_account_id")
 			}
+			coll = parsed
 		}
 		appReq.CollectionAccountID = &coll
 	}

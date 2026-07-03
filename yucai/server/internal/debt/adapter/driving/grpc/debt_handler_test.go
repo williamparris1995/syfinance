@@ -973,3 +973,52 @@ func TestCreateDebt_SourceNotFound_Rejects(t *testing.T) {
 		t.Errorf("error code: got %v, want NotFound", err)
 	}
 }
+
+// TestCreateDebt_BorrowedOut_CollectionDefaultsToSource: spec B6 — when the
+// request omits collection_account_id, the handler defaults the collection
+// account to the cash source (source_account_id), so a direct RPC caller
+// matches the create-debt form's behavior.
+func TestCreateDebt_BorrowedOut_CollectionDefaultsToSource(t *testing.T) {
+	h, tenantID, sourceAccID, debtAccID, _, _, debtRepo :=
+		setupCreateDebtHarness(t)
+
+	req := newBorrowedOutCreateReq(debtAccID.String(), sourceAccID.String())
+	// collection_account_id intentionally left empty → must default to source.
+	resp, err := h.CreateDebt(ctxWithTenant(tenantID), req)
+	if err != nil {
+		t.Fatalf("CreateDebt: %v", err)
+	}
+	if resp == nil || resp.Debt == nil {
+		t.Fatal("CreateDebt returned empty debt")
+	}
+
+	d, ok := debtRepo.byID[uuid.MustParse(resp.Debt.Id)]
+	if !ok {
+		t.Fatalf("created debt not found in repo: id=%s", resp.Debt.Id)
+	}
+	if d.CollectionAccountID == nil {
+		t.Fatal("CollectionAccountID is nil; expected default = source")
+	}
+	if *d.CollectionAccountID != sourceAccID {
+		t.Errorf("CollectionAccountID default: got %s, want source %s",
+			*d.CollectionAccountID, sourceAccID)
+	}
+}
+
+// TestCreateDebt_BorrowedOut_MalformedCollection_Rejects: a non-empty, non-UUID
+// collection_account_id must NOT silently fall back to the source — it is
+// rejected with InvalidArgument, mirroring UpdateDebt's parse handling.
+func TestCreateDebt_BorrowedOut_MalformedCollection_Rejects(t *testing.T) {
+	h, tenantID, sourceAccID, debtAccID, txnRepo, _, debtRepo :=
+		setupCreateDebtHarness(t)
+
+	req := newBorrowedOutCreateReq(debtAccID.String(), sourceAccID.String())
+	req.CollectionAccountId = "not-a-uuid"
+	resp, err := h.CreateDebt(ctxWithTenant(tenantID), req)
+
+	requireNoDebtAndNoTxn(t, resp, err, debtRepo, txnRepo)
+	st, ok := status.FromError(err)
+	if !ok || st.Code() != codes.InvalidArgument {
+		t.Errorf("error code: got %v, want InvalidArgument", err)
+	}
+}
