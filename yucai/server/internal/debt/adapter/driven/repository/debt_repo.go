@@ -36,6 +36,9 @@ func (r *DebtRepository) Save(ctx context.Context, d *domain.DebtDetails) error 
 		SetTotalPrincipalCents(d.TotalPrincipalCents).
 		SetDebtType(d.DebtType.String()).
 		SetSubtype(d.Subtype).
+		SetContact(d.Contact).
+		SetContractRef(d.ContractRef).
+		SetNillableCollectionAccountID(d.CollectionAccountID).
 		SetVersion(d.Version).
 		SetCreatedAt(d.CreatedAt).
 		SetUpdatedAt(d.UpdatedAt).
@@ -169,6 +172,9 @@ func (r *DebtRepository) Update(ctx context.Context, d *domain.DebtDetails) erro
 		Where(debtdetails.Version(d.Version - 1)).
 		SetCounterparty(d.Counterparty).
 		SetInterestRate(d.InterestRate).
+		SetContact(d.Contact).
+		SetContractRef(d.ContractRef).
+		SetNillableCollectionAccountID(d.CollectionAccountID).
 		SetVersion(d.Version).
 		SetUpdatedAt(d.UpdatedAt).
 		Save(ctx)
@@ -247,6 +253,9 @@ func toDomainDebt(dd *debtent.DebtDetails, entries []*debtent.PaymentSchedule) *
 		TotalPrincipalCents: dd.TotalPrincipalCents,
 		DebtType:            domain.ParseDebtType(dd.DebtType),
 		Subtype:             dd.Subtype,
+		Contact:             dd.Contact,
+		ContractRef:         dd.ContractRef,
+		CollectionAccountID: dd.CollectionAccountID,
 		Schedule:            schedule,
 		Version:             dd.Version,
 		CreatedAt:           dd.CreatedAt,
