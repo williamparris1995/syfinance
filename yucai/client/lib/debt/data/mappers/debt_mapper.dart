@@ -28,6 +28,19 @@ class DebtMapper {
       type: debtTypeFromProto(dto.debtType),
       // subtype 是纯 String,与 proto 直传,无名称映射(区别于 DebtType)。
       subtype: dto.subtype,
+      // receivables 对齐字段(Task 8):cents 为 proto Int64(getter),`.toInt()`
+      // 转 domain int(对齐 holding/budget mapper);collectionAccountId 空串 → null;
+      // nextPaymentDate 空串 → null,非空用 tryParse(date-only string 解析失败
+      // 不抛,落 null,与可空语义一致)。
+      contact: dto.contact,
+      contractRef: dto.contractRef,
+      collectionAccountId:
+          dto.collectionAccountId.isEmpty ? null : dto.collectionAccountId,
+      nextPaymentDate:
+          dto.nextPaymentDate.isEmpty ? null : DateTime.tryParse(dto.nextPaymentDate),
+      nextPaymentAmountCents: dto.nextPaymentAmountCents.toInt(),
+      nextPaymentPeriodNo: dto.nextPaymentPeriodNo,
+      remainingTrendCents: dto.remainingTrendCents.toInt(),
     );
   }
 

@@ -17,6 +17,13 @@ class Debt extends Equatable {
     required this.updatedAt,
     this.type = DebtType.borrowedIn,
     this.subtype = '',
+    this.contact = '',
+    this.contractRef = '',
+    this.collectionAccountId,
+    this.nextPaymentDate,
+    this.nextPaymentAmountCents = 0,
+    this.nextPaymentPeriodNo = 0,
+    this.remainingTrendCents = 0,
   });
 
   final String id;
@@ -39,6 +46,17 @@ class Debt extends Equatable {
   /// 默认 '' 以保持既有调用点(data mapper / 测试)无需改动即可编译。
   final String subtype;
 
+  /// 应收/负债追踪字段(receivables 对齐,Task 8)。全部带默认值,
+  /// 既有 borrowedIn seed / 测试调用点不传也编译过。borrowedIn 侧数据空/0,
+  /// mapper 直传空/0,自动适配。
+  final String contact; // 联系人/对方
+  final String contractRef; // 合同/借条编号
+  final String? collectionAccountId; // 回款关联账户('' → null)
+  final DateTime? nextPaymentDate; // 下一期还款日(date-only string → DateTime)
+  final int nextPaymentAmountCents; // 下一期还款金额(本+利)
+  final int nextPaymentPeriodNo; // 下一期期数
+  final int remainingTrendCents; // 剩余趋势(用于图表/预警,服务端算)
+
   /// 已还比例 (total-remaining)/total,0~1。total=0 时 0。
   double get progressRatio => totalPrincipalCents <= 0
       ? 0
@@ -46,7 +64,29 @@ class Debt extends Equatable {
           totalPrincipalCents;
 
   @override
-  List<Object?> get props => [id, version];
+  List<Object?> get props => [
+        id,
+        version,
+        accountId,
+        counterparty,
+        interestRate,
+        amortization,
+        startDate,
+        dueDate,
+        totalPrincipalCents,
+        remainingPrincipalCents,
+        createdAt,
+        updatedAt,
+        type,
+        subtype,
+        contact,
+        contractRef,
+        collectionAccountId,
+        nextPaymentDate,
+        nextPaymentAmountCents,
+        nextPaymentPeriodNo,
+        remainingTrendCents,
+      ];
 }
 
 class PaymentEntry extends Equatable {

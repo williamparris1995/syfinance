@@ -46,7 +46,11 @@ import '../../currency/domain/repositories/currency_repository.dart' as _i108;
 import '../../currency/presentation/bloc/currency_bloc.dart' as _i284;
 import '../../debt/data/debt_remote_ds.dart' as _i243;
 import '../../debt/data/debt_repository_impl.dart' as _i1060;
+import '../../debt/data/receivables_summary_data_source.dart' as _i536;
+import '../../debt/data/receivables_summary_repository_impl.dart' as _i31;
 import '../../debt/domain/repositories/debt_repository.dart' as _i670;
+import '../../debt/domain/repositories/receivables_summary_repository.dart'
+    as _i322;
 import '../../debt/presentation/bloc/debt_bloc.dart' as _i383;
 import '../../goal/data/goal_remote_ds.dart' as _i628;
 import '../../goal/data/goal_repository_impl.dart' as _i425;
@@ -131,6 +135,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i763.AuthRetryCaller>(),
       ),
     );
+    gh.lazySingleton<_i536.ReceivablesSummaryDataSource>(
+      () => _i536.ReceivablesSummaryDataSource(
+        gh<_i160.GrpcClient>(),
+        gh<_i763.AuthRetryCaller>(),
+      ),
+    );
     gh.lazySingleton<_i628.GoalRemoteDataSource>(
       () => _i628.GoalRemoteDataSource(
         gh<_i160.GrpcClient>(),
@@ -160,6 +170,11 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i383.DebtBloc>(
       () => _i383.DebtBloc(gh<_i670.DebtRepository>()),
+    );
+    gh.lazySingleton<_i322.ReceivablesSummaryRepository>(
+      () => _i31.ReceivablesSummaryRepositoryImpl(
+        gh<_i536.ReceivablesSummaryDataSource>(),
+      ),
     );
     gh.factory<_i284.CurrencyBloc>(
       () => _i284.CurrencyBloc(

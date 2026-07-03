@@ -164,7 +164,6 @@ void main() {
       // proto 未设置 subtype 时,DebtDTO.subtype 默认 '',domain 应同步为 ''。
       expect(DebtMapper.toDomain(baseDto()).subtype, '');
     });
-
     test('CreateDebtRequest carries subtype verbatim from caller', () {
       // 远端 ds 把调用方传入的 subtype 字符串原样写入 CreateDebtRequest.subtype;
       // 这里直接验证 proto 字段级 round-trip(mapper 无 create-helper,故在
@@ -173,6 +172,81 @@ void main() {
       expect(req.subtype, DebtSubtypes.creditCard);
       final empty = pb.CreateDebtRequest()..subtype = '';
       expect(empty.subtype, '');
+    });
+  });
+
+  // receivables 对齐字段(Task 8):7 字段映射 + 默认值 + Int64/空处理。
+  group('receivables tracking fields (Task 8)', () {
+    pb.DebtDTO baseDto() => pb.DebtDTO()
+      ..id = 'r1'
+      ..accountId = 'a1'
+      ..counterparty = '张三'
+      ..interestRate = 5.0
+      ..amortizationMethod =
+          pb.AmortizationMethod.AMORTIZATION_EQUAL_PRINCIPAL_INTEREST
+      ..startDate = '2024-01-01'
+      ..dueDate = '2025-01-01'
+      ..totalPrincipalCents = $fixnum.Int64(100000)
+      ..remainingPrincipalCents = $fixnum.Int64(80000)
+      ..version = $fixnum.Int64(1);
+
+    test('toDomain maps 7 new fields verbatim when all set', () {
+      final dto = baseDto()
+        ..contact = '李四'
+        ..contractRef = 'HT-2024-001'
+        ..collectionAccountId = 'acc-recv'
+        ..nextPaymentDate = '2026-08-01'
+        ..nextPaymentAmountCents = $fixnum.Int64(25000)
+        ..nextPaymentPeriodNo = 3
+        ..remainingTrendCents = $fixnum.Int64(75000);
+      final d = DebtMapper.toDomain(dto);
+      expect(d.contact, '李四');
+      expect(d.contractRef, 'HT-2024-001');
+      expect(d.collectionAccountId, 'acc-recv');
+      expect(d.nextPaymentDate, DateTime(2026, 8, 1));
+      expect(d.nextPaymentAmountCents, 25000);
+      expect(d.nextPaymentPeriodNo, 3);
+      expect(d.remainingTrendCents, 75000);
+    });
+
+    test('Int64 cents -> int (no Int64 leak)', () {
+      final dto = baseDto()
+        ..nextPaymentAmountCents = $fixnum.Int64(25000)
+        ..remainingTrendCents = $fixnum.Int64(75000);
+      final d = DebtMapper.toDomain(dto);
+      expect(d.nextPaymentAmountCents, isA<int>());
+      expect(d.remainingTrendCents, isA<int>());
+    });
+
+    test('empty collectionAccountId -> null', () {
+      expect(
+          DebtMapper.toDomain(baseDto()..collectionAccountId = '')
+              .collectionAccountId,
+          isNull);
+    });
+
+    test('empty nextPaymentDate -> null', () {
+      expect(DebtMapper.toDomain(baseDto()..nextPaymentDate = '').nextPaymentDate,
+          isNull);
+    });
+
+    test('malformed nextPaymentDate -> null (tryParse, not throw)', () {
+      expect(
+          DebtMapper.toDomain(baseDto()..nextPaymentDate = 'garbage')
+              .nextPaymentDate,
+          isNull);
+    });
+
+    test('unset fields default: empty String / null / 0', () {
+      // 不设新字段,proto 默认 '' / 0 / 空 Int64 → domain 默认值。
+      final d = DebtMapper.toDomain(baseDto());
+      expect(d.contact, '');
+      expect(d.contractRef, '');
+      expect(d.collectionAccountId, isNull);
+      expect(d.nextPaymentDate, isNull);
+      expect(d.nextPaymentAmountCents, 0);
+      expect(d.nextPaymentPeriodNo, 0);
+      expect(d.remainingTrendCents, 0);
     });
   });
 }
