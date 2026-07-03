@@ -85,7 +85,11 @@ func (h *DebtHandler) CreateDebt(ctx context.Context, req *pb.CreateDebtRequest)
 		}
 	}
 
-	resp, err := h.service.CreateDebt(ctx, application.CreateDebtRequest{
+	// Build the application request. For BorrowedOut the cash source (validated
+	// above) doubles as the collection account — every repayment the receivable
+	// absorbs lands back in that account. Contact/ContractRef pass through
+	// verbatim.
+	appReq := application.CreateDebtRequest{
 		TenantID:            tenantID,
 		AccountID:           accountID,
 		Counterparty:        req.Counterparty,
@@ -96,7 +100,24 @@ func (h *DebtHandler) CreateDebt(ctx context.Context, req *pb.CreateDebtRequest)
 		TotalPrincipalCents: req.TotalPrincipalCents,
 		DebtType:            debtType,
 		Subtype:             req.Subtype,
-	})
+		Contact:             req.Contact,
+		ContractRef:         req.ContractRef,
+	}
+	if debtType == domain.BorrowedOut {
+		// Collection account = where repayments land. Prefer an explicit
+		// collection_account_id on the request; otherwise default to the cash
+		// source (the asset the principal was lent out of), since the same
+		// account typically receives repayments.
+		coll := sourceAccountID
+		if req.CollectionAccountId != "" {
+			if parsed, perr := uuid.Parse(req.CollectionAccountId); perr == nil {
+				coll = parsed
+			}
+		}
+		appReq.CollectionAccountID = &coll
+	}
+
+	resp, err := h.service.CreateDebt(ctx, appReq)
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -211,12 +232,24 @@ func (h *DebtHandler) UpdateDebt(ctx context.Context, req *pb.UpdateDebtRequest)
 		return nil, status.Error(codes.InvalidArgument, "invalid id")
 	}
 
+	// Contact, ContractRef and CollectionAccountID pass through verbatim.
+	var collectionAccountID *uuid.UUID
+	if req.CollectionAccountId != "" {
+		parsed, err := uuid.Parse(req.CollectionAccountId)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid collection_account_id")
+		}
+		collectionAccountID = &parsed
+	}
 	resp, err := h.service.UpdateDebt(ctx, application.UpdateDebtRequest{
-		TenantID:     tenantID,
-		ID:           id,
-		Counterparty: req.Counterparty,
-		InterestRate: req.InterestRate,
-		Version:      req.Version,
+		TenantID:            tenantID,
+		ID:                  id,
+		Counterparty:        req.Counterparty,
+		InterestRate:        req.InterestRate,
+		Version:             req.Version,
+		Contact:             req.Contact,
+		ContractRef:         req.ContractRef,
+		CollectionAccountID: collectionAccountID,
 	})
 	if err != nil {
 		return nil, mapError(err)
@@ -544,7 +577,7 @@ func (h *DebtHandler) GetUpcomingPayments(ctx context.Context, req *pb.GetUpcomi
 }
 
 func debtToProto(d application.DebtDTO) *pb.DebtDTO {
-	return &pb.DebtDTO{
+	p := &pb.DebtDTO{
 		Id:                      d.ID.String(),
 		AccountId:               d.AccountID.String(),
 		Counterparty:            d.Counterparty,
@@ -555,11 +588,20 @@ func debtToProto(d application.DebtDTO) *pb.DebtDTO {
 		TotalPrincipalCents:     d.TotalPrincipalCents,
 		DebtType:                debtTypeToProto(d.DebtType),
 		Subtype:                 d.Subtype,
+		Contact:                 d.Contact,
+		ContractRef:             d.ContractRef,
+		NextPaymentDate:         d.NextPaymentDate,
+		NextPaymentAmountCents:  d.NextPaymentAmountCents,
+		NextPaymentPeriodNo:     d.NextPaymentPeriodNo,
 		RemainingPrincipalCents: d.RemainingPrincipal,
 		Version:                 d.Version,
 		CreatedAt:               timestamppb.New(d.CreatedAt),
 		UpdatedAt:               timestamppb.New(d.UpdatedAt),
 	}
+	if d.CollectionAccountID != nil {
+		p.CollectionAccountId = d.CollectionAccountID.String()
+	}
+	return p
 }
 
 func entryToProto(e application.PaymentEntryDTO) *pb.PaymentEntryDTO {

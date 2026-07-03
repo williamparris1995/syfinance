@@ -31,12 +31,19 @@ type CreateDebtRequest struct {
 }
 
 // UpdateDebtRequest holds input for updating a debt.
+// Contact, ContractRef and CollectionAccountID pass through to the aggregate
+// (Task 5 receivables alignment). They mirror CreateDebtRequest semantics: an
+// empty Contact/ContractRef clears the field, and a nil CollectionAccountID
+// clears it.
 type UpdateDebtRequest struct {
-	TenantID     uuid.UUID
-	ID           uuid.UUID
-	Counterparty string
-	InterestRate float64
-	Version      int64
+	TenantID            uuid.UUID
+	ID                  uuid.UUID
+	Counterparty        string
+	InterestRate        float64
+	Version             int64
+	Contact             string
+	ContractRef         string
+	CollectionAccountID *uuid.UUID
 }
 
 // RecordPaymentRequest holds input for recording a payment.
@@ -56,25 +63,34 @@ type ListDebtsRequest struct {
 }
 
 // DebtDTO is the data transfer object.
+//
+// NextPayment* fields are derived from the schedule: the earliest !paid entry
+// (sorted by PaymentDate ascending) populates NextPaymentDate ("2006-01-02"
+// formatted), NextPaymentAmountCents (its TotalCents) and NextPaymentPeriodNo
+// (1-based schedule index). When every entry is paid (or the schedule is empty)
+// these fields are zero-valued.
 type DebtDTO struct {
-	ID                  uuid.UUID
-	TenantID            uuid.UUID
-	AccountID           uuid.UUID
-	Counterparty        string
-	InterestRate        float64
-	AmortizationMethod  domain.AmortizationMethod
-	StartDate           time.Time
-	DueDate             time.Time
-	TotalPrincipalCents int64
-	DebtType            domain.DebtType
-	Subtype             string
-	Contact             string
-	ContractRef         string
-	CollectionAccountID *uuid.UUID
-	RemainingPrincipal  int64
-	Version             int64
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
+	ID                    uuid.UUID
+	TenantID              uuid.UUID
+	AccountID             uuid.UUID
+	Counterparty          string
+	InterestRate          float64
+	AmortizationMethod    domain.AmortizationMethod
+	StartDate             time.Time
+	DueDate               time.Time
+	TotalPrincipalCents   int64
+	DebtType              domain.DebtType
+	Subtype               string
+	Contact               string
+	ContractRef           string
+	CollectionAccountID   *uuid.UUID
+	NextPaymentDate       string // "2006-01-02" of earliest unpaid entry; "" when none
+	NextPaymentAmountCents int64
+	NextPaymentPeriodNo   int32 // 1-based schedule index of earliest unpaid entry; 0 when none
+	RemainingPrincipal    int64
+	Version               int64
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
 }
 
 // PaymentEntryDTO is the DTO for a payment schedule entry.
@@ -114,28 +130,86 @@ type UpcomingPaymentsResult struct {
 	Entries []PaymentEntryDTO
 }
 
-// DebtToDTO converts domain DebtDetails to DTO.
+// ReceivablesSummaryDTO aggregates every receivable (BorrowedOut debt) for a
+// tenant, used by the receivables dashboard. All amounts are in cents and in
+// the original debt currency (server does no FX conversion; the client converts
+// to the user's preferred currency in Task 9).
+//
+// Trend fields compare this month's snapshot against last month's per debt:
+//   - PrincipalTrendCents = Σ (this_month_total_principal − last_month_total_principal)
+//     → month-over-month new lending (positive = lent more out).
+//   - RemainingTrendCents = Σ (this_month_remaining − last_month_remaining)
+//     → negative = principal collected back; positive = balance grew (more lent).
+//
+// Debts without a snapshot in a given month contribute 0 for that month (the
+// other month's value is still used as the delta baseline when only one side
+// exists; when neither exists the delta is 0).
+type ReceivablesSummaryDTO struct {
+	TotalPrincipalCents   int64
+	TotalRemainingCents   int64
+	TotalCollectedCents   int64
+	PendingInterestCents  int64
+	Count                 int32
+	OverdueCount          int32
+	OverdueAmountCents    int64
+	PrincipalTrendCents   int64
+	RemainingTrendCents   int64
+	NextPaymentDate       string // "2006-01-02" of globally earliest unpaid entry; "" when none
+	NextPaymentAmountCents int64
+	NextPaymentCounterparty string
+	NextPaymentPeriodNo   int32
+}
+
+// DebtToDTO converts domain DebtDetails to DTO. Populates NextPayment* fields
+// from the earliest unpaid schedule entry (sorted by PaymentDate ascending).
 func DebtToDTO(d *domain.DebtDetails) DebtDTO {
-	return DebtDTO{
-		ID:                  d.ID,
-		TenantID:            d.TenantID,
-		AccountID:           d.AccountID,
-		Counterparty:        d.Counterparty,
-		InterestRate:        d.InterestRate,
-		AmortizationMethod:  d.AmortizationMethod,
-		StartDate:           d.StartDate,
-		DueDate:             d.DueDate,
-		TotalPrincipalCents: d.TotalPrincipalCents,
-		DebtType:            d.DebtType,
-		Subtype:             d.Subtype,
-		Contact:             d.Contact,
-		ContractRef:         d.ContractRef,
-		CollectionAccountID: d.CollectionAccountID,
-		RemainingPrincipal:  d.RemainingPrincipal(),
-		Version:             d.Version,
-		CreatedAt:           d.CreatedAt,
-		UpdatedAt:           d.UpdatedAt,
+	dto := DebtDTO{
+		ID:                   d.ID,
+		TenantID:             d.TenantID,
+		AccountID:            d.AccountID,
+		Counterparty:         d.Counterparty,
+		InterestRate:         d.InterestRate,
+		AmortizationMethod:   d.AmortizationMethod,
+		StartDate:            d.StartDate,
+		DueDate:              d.DueDate,
+		TotalPrincipalCents:  d.TotalPrincipalCents,
+		DebtType:             d.DebtType,
+		Subtype:              d.Subtype,
+		Contact:              d.Contact,
+		ContractRef:          d.ContractRef,
+		CollectionAccountID:  d.CollectionAccountID,
+		RemainingPrincipal:   d.RemainingPrincipal(),
+		Version:              d.Version,
+		CreatedAt:            d.CreatedAt,
+		UpdatedAt:            d.UpdatedAt,
 	}
+
+	// Find earliest unpaid entry by PaymentDate. The amortization calculator
+	// emits entries in chronological order, but we sort defensively so a
+	// hand-built schedule (e.g. in tests) is handled the same way.
+	type entryIdx struct {
+		idx int
+		e   domain.PaymentScheduleEntry
+	}
+	var unpaid []entryIdx
+	for i := range d.Schedule {
+		if !d.Schedule[i].Paid {
+			unpaid = append(unpaid, entryIdx{i, d.Schedule[i]})
+		}
+	}
+	if len(unpaid) > 0 {
+		earliest := unpaid[0]
+		for _, u := range unpaid[1:] {
+			if u.e.PaymentDate.Before(earliest.e.PaymentDate) {
+				earliest = u
+			}
+		}
+		dto.NextPaymentDate = earliest.e.PaymentDate.Format("2006-01-02")
+		dto.NextPaymentAmountCents = earliest.e.TotalCents
+		dto.NextPaymentPeriodNo = int32(earliest.idx + 1) // 1-based
+	}
+
+	return dto
 }
 
 // DebtToDetailDTO converts domain DebtDetails to detail DTO.

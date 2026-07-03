@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
 	accountdomain "github.com/yucai/server/internal/account/domain"
@@ -24,11 +25,13 @@ type AccountLookup interface {
 type Service struct {
 	repo          domain.DebtRepository
 	accountLookup AccountLookup // optional: resolves per-debt currency; nil = default CNY
+	snapshotRepo  domain.DebtSnapshotRepository // optional: progress snapshots; nil = SyncAllDebts is a noop
+	now           func() time.Time              // injectable clock; defaults to time.Now
 }
 
 // NewService creates a new debt application service.
 func NewService(repo domain.DebtRepository) *Service {
-	return &Service{repo: repo}
+	return &Service{repo: repo, now: time.Now}
 }
 
 // SetAccountLookup injects the account lookup used by SumRemainingByCurrency to
@@ -37,8 +40,30 @@ func NewService(repo domain.DebtRepository) *Service {
 // callers are not broken). nil = every debt bucketed under CNY.
 func (s *Service) SetAccountLookup(l AccountLookup) { s.accountLookup = l }
 
+// SetSnapshotRepo injects the snapshot repository used by GetReceivablesSummary
+// (trend computation) and SyncAllDebts (snapshot writes). Called by wire after
+// construction so NewService's signature stays unchanged. nil = SyncAllDebts is
+// a noop and trend fields are 0. Mirrors goal SetAccountMarketValueSource.
+func (s *Service) SetSnapshotRepo(r domain.DebtSnapshotRepository) { s.snapshotRepo = r }
+
+// SetNow injects a clock for deterministic testing. Production callers leave
+// the default (time.Now).
+func (s *Service) SetNow(f func() time.Time) {
+	if f == nil {
+		f = time.Now
+	}
+	s.now = f
+}
+
 // CreateDebt validates, generates schedule, and persists a new debt.
+// Receivables (DebtType=BorrowedOut) must carry a CollectionAccountID: every
+// repayment a receivable absorbs must land in a concrete asset account, so a
+// missing collection account is rejected here (not in the domain constructor,
+// which stays valid for both debt shapes). Borrowed-in debts ignore the field.
 func (s *Service) CreateDebt(ctx context.Context, req CreateDebtRequest) (*DebtDTO, error) {
+	if req.DebtType == domain.BorrowedOut && req.CollectionAccountID == nil {
+		return nil, fmt.Errorf("create debt: receivable requires collection account")
+	}
 	debt, err := domain.NewDebtDetails(
 		req.TenantID, req.AccountID,
 		req.Counterparty,
@@ -79,6 +104,9 @@ func (s *Service) UpdateDebt(ctx context.Context, req UpdateDebtRequest) (*DebtD
 
 	debt.Counterparty = req.Counterparty
 	debt.InterestRate = req.InterestRate
+	debt.Contact = req.Contact
+	debt.ContractRef = req.ContractRef
+	debt.CollectionAccountID = req.CollectionAccountID
 	debt.IncrementVersion()
 
 	if err := s.repo.Update(ctx, debt); err != nil {
@@ -243,4 +271,201 @@ func (s *Service) GetUpcomingPayments(ctx context.Context, tenantID uuid.UUID, d
 		dtos[i] = entryToDTO(e)
 	}
 	return &UpcomingPaymentsResult{Entries: dtos}, nil
+}
+
+// GetReceivablesSummary aggregates every receivable (DebtType=BorrowedOut) for
+// a tenant into a single dashboard snapshot. The repo filters BorrowedOut for
+// us; Borrowed-in debts are excluded.
+//
+// Aggregates (over the schedule of each receivable):
+//   - TotalPrincipalCents     Σ TotalPrincipalCents
+//   - TotalRemainingCents     Σ RemainingPrincipal() (total − paid principal)
+//   - TotalCollectedCents     Σ (TotalPrincipalCents − RemainingPrincipal)
+//   - PendingInterestCents    Σ interest of every unpaid schedule entry
+//   - OverdueCount/Amount     Σ unpaid entries whose PaymentDate < now
+//
+// Trend (snapshotRepo, this month vs last month):
+//   - PrincipalTrendCents     Σ (this_month_total − last_month_total)
+//   - RemainingTrendCents     Σ (this_month_remaining − last_month_remaining)
+//   "This month" = [monthStart(now), monthStart(now)+1mo); "last month" =
+//   [monthStart(now)-1mo, monthStart(now)). Per-debt: a debt missing one side
+//   contributes that side as 0 (degenerate); debts missing both are 0.
+//
+// NextPayment* are the globally earliest unpaid entry across every receivable's
+// schedule (ties broken by first-debt-seen), with the host debt's counterparty
+// and 1-based schedule index.
+//
+// When snapshotRepo is nil, the trend fields are 0 (still a valid summary).
+func (s *Service) GetReceivablesSummary(ctx context.Context, tenantID uuid.UUID) (*ReceivablesSummaryDTO, error) {
+	out := domain.BorrowedOut
+	result, err := s.repo.FindAll(ctx, tenantID, domain.PageRequest{PageSize: 1000}, &out)
+	if err != nil {
+		return nil, fmt.Errorf("receivables summary: list: %w", err)
+	}
+	debts := result.Items
+	// Paginate defensively (a tenant is unlikely to exceed 1000 receivables).
+	for result.NextPageToken != "" && len(result.Items) > 0 {
+		page := domain.PageRequest{PageSize: 1000, PageToken: result.NextPageToken}
+		result, err = s.repo.FindAll(ctx, tenantID, page, &out)
+		if err != nil {
+			return nil, fmt.Errorf("receivables summary: list page: %w", err)
+		}
+		debts = append(debts, result.Items...)
+	}
+
+	now := s.now()
+	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	lastMonthStart := monthStart.AddDate(0, -1, 0)
+	nextMonthStart := monthStart.AddDate(0, 1, 0)
+
+	summary := &ReceivablesSummaryDTO{}
+
+	// next_payment tracking: earliest unpaid entry across all receivables.
+	var haveNext bool
+	var nextDate time.Time
+	var nextAmount int64
+	var nextCounterparty string
+	var nextPeriodNo int32
+
+	debtIDs := make([]uuid.UUID, 0, len(debts))
+	for i := range debts {
+		d := &debts[i]
+		debtIDs = append(debtIDs, d.ID)
+
+		remaining := d.RemainingPrincipal()
+		collected := d.TotalPrincipalCents - remaining
+
+		summary.TotalPrincipalCents += d.TotalPrincipalCents
+		summary.TotalRemainingCents += remaining
+		summary.TotalCollectedCents += collected
+
+		for j := range d.Schedule {
+			e := &d.Schedule[j]
+			if e.Paid {
+				continue
+			}
+			summary.PendingInterestCents += e.InterestCents
+			if e.PaymentDate.Before(now) {
+				summary.OverdueCount++
+				summary.OverdueAmountCents += e.TotalCents
+			}
+			// earliest unpaid globally (by PaymentDate)
+			if !haveNext || e.PaymentDate.Before(nextDate) {
+				haveNext = true
+				nextDate = e.PaymentDate
+				nextAmount = e.TotalCents
+				nextCounterparty = d.Counterparty
+				nextPeriodNo = int32(j + 1) // 1-based schedule index
+			}
+		}
+	}
+	summary.Count = int32(len(debts))
+
+	if haveNext {
+		summary.NextPaymentDate = nextDate.Format("2006-01-02")
+		summary.NextPaymentAmountCents = nextAmount
+		summary.NextPaymentCounterparty = nextCounterparty
+		summary.NextPaymentPeriodNo = nextPeriodNo
+	}
+
+	// Trend via snapshots (nil snapshotRepo → trend stays 0).
+	if s.snapshotRepo != nil && len(debtIDs) > 0 {
+		snaps, err := s.snapshotRepo.FindSnapshotRange(ctx, tenantID, debtIDs, lastMonthStart, nextMonthStart)
+		if err != nil {
+			slog.Warn("receivables summary: snapshot range failed, trend zeroed",
+				slog.String("error", err.Error()),
+				slog.String("operation", "GetReceivablesSummary"))
+		} else {
+			// index by (debtID, in-this-month?) → latest snapshot per bucket per debt.
+			thisMonthByDebt := map[uuid.UUID]domain.DebtProgressSnapshot{}
+			lastMonthByDebt := map[uuid.UUID]domain.DebtProgressSnapshot{}
+			for _, sn := range snaps {
+				if !sn.SnapshotDate.Before(monthStart) && sn.SnapshotDate.Before(nextMonthStart) {
+					// this month — keep latest (snapshot_date asc from repo assumed; last wins).
+					thisMonthByDebt[sn.DebtID] = sn
+				} else if !sn.SnapshotDate.Before(lastMonthStart) && sn.SnapshotDate.Before(monthStart) {
+					lastMonthByDebt[sn.DebtID] = sn
+				}
+			}
+			// Trend per debt only when both months are present — a debt with a
+			// snapshot in only one month (e.g. newly created this month, or
+			// stale / never-snapshotted last month) has no valid baseline, so
+			// it contributes 0 rather than skewing the delta.
+			for id, thisM := range thisMonthByDebt {
+				lastM, ok := lastMonthByDebt[id]
+				if !ok {
+					continue
+				}
+				summary.PrincipalTrendCents += thisM.TotalPrincipalCents - lastM.TotalPrincipalCents
+				summary.RemainingTrendCents += thisM.RemainingCents - lastM.RemainingCents
+			}
+		}
+	}
+
+	return summary, nil
+}
+
+// SyncAllDebts recomputes each debt's remaining/paid totals and writes a daily
+// DebtProgressSnapshot. Scheduler operator (mirrors goal SyncAllGoals). Iterates
+// every debt regardless of direction (snapshot is direction-agnostic).
+//
+// Best-effort: a per-debt snapshot save failure is logged and skipped without
+// aborting the batch — return value is the number of debts snapshotted
+// successfully. When snapshotRepo is nil the call is a noop returning (0, nil).
+// The snapshot date is truncated to the day so the repo's UNIQUE constraint
+// collapses same-day writes into a single upsert.
+func (s *Service) SyncAllDebts(ctx context.Context, tenantID uuid.UUID) (int, error) {
+	if s.snapshotRepo == nil {
+		return 0, nil
+	}
+
+	result, err := s.repo.FindAll(ctx, tenantID, domain.PageRequest{PageSize: 1000}, nil)
+	if err != nil {
+		return 0, fmt.Errorf("sync all debts: list: %w", err)
+	}
+	debts := result.Items
+	for result.NextPageToken != "" && len(result.Items) > 0 {
+		page := domain.PageRequest{PageSize: 1000, PageToken: result.NextPageToken}
+		result, err = s.repo.FindAll(ctx, tenantID, page, nil)
+		if err != nil {
+			return 0, fmt.Errorf("sync all debts: list page: %w", err)
+		}
+		debts = append(debts, result.Items...)
+	}
+
+	today := truncateToDate(s.now())
+	count := 0
+	for i := range debts {
+		if err := ctx.Err(); err != nil {
+			return count, err
+		}
+		d := &debts[i]
+		remaining := d.RemainingPrincipal()
+		paidTotal := d.TotalPrincipalCents - remaining
+		snap := &domain.DebtProgressSnapshot{
+			ID:                  uuid.New(),
+			TenantID:            tenantID,
+			DebtID:              d.ID,
+			SnapshotDate:        today,
+			TotalPrincipalCents: d.TotalPrincipalCents,
+			RemainingCents:      remaining,
+			PaidTotalCents:      paidTotal,
+			CreatedAt:           s.now(),
+		}
+		if err := s.snapshotRepo.SaveSnapshot(ctx, snap); err != nil {
+			slog.Warn("debt sync: snapshot save failed, skip",
+				slog.String("debt_id", d.ID.String()),
+				slog.String("error", err.Error()),
+				slog.String("operation", "SyncAllDebts"))
+			continue
+		}
+		count++
+	}
+	return count, nil
+}
+
+// truncateToDate zeros the time-of-day so two snapshots on the same day collapse
+// into a single row via the repo's UNIQUE(tenant_id, debt_id, snapshot_date).
+func truncateToDate(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 }
