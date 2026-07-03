@@ -235,6 +235,7 @@ func TestListDebts_TypeFilter_PassedThroughAndApplied(t *testing.T) {
 			time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 			time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
 			100000, dt, "",
+			"", "", nil,
 		)
 		repo.byID[d.ID] = d
 	}

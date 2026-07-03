@@ -18,6 +18,7 @@ func TestNewDebtDetails_Valid(t *testing.T) {
 		10000000, // 100,000 yuan in cents
 		DebtTypeUnspecified,
 		"",
+		"", "", nil,
 	)
 	if err != nil {
 		t.Fatalf("NewDebtDetails failed: %v", err)
@@ -43,6 +44,7 @@ func TestNewDebtDetails_EmptyCounterparty(t *testing.T) {
 		100000,
 		DebtTypeUnspecified,
 		"",
+		"", "", nil,
 	)
 	if err == nil {
 		t.Error("expected error for empty counterparty")
@@ -58,6 +60,7 @@ func TestNewDebtDetails_NonPositivePrincipal(t *testing.T) {
 		0,
 		DebtTypeUnspecified,
 		"",
+		"", "", nil,
 	)
 	if err == nil {
 		t.Error("expected error for zero principal")
@@ -73,6 +76,7 @@ func TestNewDebtDetails_NegativeInterestRate(t *testing.T) {
 		100000,
 		DebtTypeUnspecified,
 		"",
+		"", "", nil,
 	)
 	if err == nil {
 		t.Error("expected error for negative interest rate")
@@ -88,6 +92,7 @@ func TestNewDebtDetails_DueDateBeforeStartDate(t *testing.T) {
 		100000,
 		DebtTypeUnspecified,
 		"",
+		"", "", nil,
 	)
 	if err == nil {
 		t.Error("expected error for due date before start date")
@@ -103,6 +108,7 @@ func TestLumpSumSchedule(t *testing.T) {
 		12000000, // 120,000 yuan
 		DebtTypeUnspecified,
 		"",
+		"", "", nil,
 	)
 	entries := d.GenerateSchedule()
 	if len(entries) != 1 {
@@ -131,6 +137,7 @@ func TestEqualPrincipalSchedule(t *testing.T) {
 		12000000, // 120,000 yuan, 6 months
 		DebtTypeUnspecified,
 		"",
+		"", "", nil,
 	)
 	entries := d.GenerateSchedule()
 	if len(entries) != 6 {
@@ -165,6 +172,7 @@ func TestEqualPrincipalInterestSchedule(t *testing.T) {
 		12000000, // 120,000 yuan, 6 months
 		DebtTypeUnspecified,
 		"",
+		"", "", nil,
 	)
 	entries := d.GenerateSchedule()
 	if len(entries) != 6 {
@@ -201,6 +209,7 @@ func TestZeroInterestRate(t *testing.T) {
 		900000, // 9,000 yuan, 3 months
 		DebtTypeUnspecified,
 		"",
+		"", "", nil,
 	)
 	entries := d.GenerateSchedule()
 	if len(entries) != 3 {
@@ -225,6 +234,7 @@ func TestMarkPaid(t *testing.T) {
 		1000000,
 		DebtTypeUnspecified,
 		"",
+		"", "", nil,
 	)
 	d.GenerateSchedule()
 	entryID := d.Schedule[0].ID
@@ -254,6 +264,7 @@ func TestMarkPaid_EntryNotFound(t *testing.T) {
 		1000000,
 		DebtTypeUnspecified,
 		"",
+		"", "", nil,
 	)
 	err := d.MarkPaid(uuid.New(), uuid.New())
 	if err == nil {
@@ -270,6 +281,7 @@ func TestRemainingPrincipal(t *testing.T) {
 		900000, // 3 months
 		DebtTypeUnspecified,
 		"",
+		"", "", nil,
 	)
 	d.GenerateSchedule()
 
@@ -294,6 +306,7 @@ func TestTermInMonths(t *testing.T) {
 		1000000,
 		DebtTypeUnspecified,
 		"",
+		"", "", nil,
 	)
 	if months := d.TermInMonths(); months != 6 {
 		t.Errorf("expected 6 months, got %d", months)
@@ -309,6 +322,7 @@ func TestIncrementVersion(t *testing.T) {
 		1000000,
 		DebtTypeUnspecified,
 		"",
+		"", "", nil,
 	)
 	before := d.Version
 	d.IncrementVersion()
@@ -384,6 +398,7 @@ func TestNewDebtDetails_SubtypeRoundTrips(t *testing.T) {
 				time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
 				1000000, DebtTypeUnspecified,
 				tc.subtype,
+				"", "", nil,
 			)
 			if err != nil {
 				t.Fatalf("NewDebtDetails failed: %v", err)

@@ -247,7 +247,7 @@ func setupRecordPaymentHarness(t *testing.T, debtType domain.DebtType) (
 	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	due := time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC)
 	debt, err := domain.NewDebtDetails(tenantID, debtAccID, "counterparty", 5.0,
-		domain.AmortizationLumpSum, start, due, 1_000_00, debtType, "")
+		domain.AmortizationLumpSum, start, due, 1_000_00, debtType, "", "", "", nil)
 	if err != nil {
 		t.Fatalf("seed debt: %v", err)
 	}

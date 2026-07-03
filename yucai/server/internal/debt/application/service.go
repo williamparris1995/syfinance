@@ -48,6 +48,9 @@ func (s *Service) CreateDebt(ctx context.Context, req CreateDebtRequest) (*DebtD
 		req.TotalPrincipalCents,
 		req.DebtType,
 		req.Subtype,
+		req.Contact,
+		req.ContractRef,
+		req.CollectionAccountID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create debt: %w", err)

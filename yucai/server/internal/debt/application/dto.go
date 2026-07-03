@@ -10,6 +10,10 @@ import (
 // CreateDebtRequest holds input for creating a debt.
 // Subtype is a plain string persisted verbatim; pass a DebtSubtype* /
 // ReceivableSubtype* const (or "" when unspecified).
+// Contact and ContractRef are optional free-form metadata (pass "" when
+// unspecified). CollectionAccountID is the asset account a receivable's
+// repayments land in; nil for borrowed-in debts (the receivable-required
+// check lives here in application.CreateDebt, not in the domain constructor).
 type CreateDebtRequest struct {
 	TenantID            uuid.UUID
 	AccountID           uuid.UUID
@@ -21,6 +25,9 @@ type CreateDebtRequest struct {
 	TotalPrincipalCents int64
 	DebtType            domain.DebtType
 	Subtype             string
+	Contact             string
+	ContractRef         string
+	CollectionAccountID *uuid.UUID
 }
 
 // UpdateDebtRequest holds input for updating a debt.
@@ -61,6 +68,9 @@ type DebtDTO struct {
 	TotalPrincipalCents int64
 	DebtType            domain.DebtType
 	Subtype             string
+	Contact             string
+	ContractRef         string
+	CollectionAccountID *uuid.UUID
 	RemainingPrincipal  int64
 	Version             int64
 	CreatedAt           time.Time
@@ -118,6 +128,9 @@ func DebtToDTO(d *domain.DebtDetails) DebtDTO {
 		TotalPrincipalCents: d.TotalPrincipalCents,
 		DebtType:            d.DebtType,
 		Subtype:             d.Subtype,
+		Contact:             d.Contact,
+		ContractRef:         d.ContractRef,
+		CollectionAccountID: d.CollectionAccountID,
 		RemainingPrincipal:  d.RemainingPrincipal(),
 		Version:             d.Version,
 		CreatedAt:           d.CreatedAt,

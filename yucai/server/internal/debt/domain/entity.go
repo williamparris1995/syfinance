@@ -9,21 +9,24 @@ import (
 
 // DebtDetails is the aggregate root for debt/loan tracking.
 type DebtDetails struct {
-	ID                  uuid.UUID
-	TenantID            uuid.UUID
-	AccountID           uuid.UUID
-	Counterparty        string
-	InterestRate        float64
-	AmortizationMethod  AmortizationMethod
-	StartDate           time.Time
-	DueDate             time.Time
-	TotalPrincipalCents int64
-	DebtType            DebtType
-	Subtype             string
-	Schedule            []PaymentScheduleEntry
-	Version             int64
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
+	ID                   uuid.UUID
+	TenantID             uuid.UUID
+	AccountID            uuid.UUID
+	Counterparty         string
+	InterestRate         float64
+	AmortizationMethod   AmortizationMethod
+	StartDate            time.Time
+	DueDate              time.Time
+	TotalPrincipalCents  int64
+	DebtType             DebtType
+	Subtype              string
+	Contact              string
+	ContractRef          string
+	CollectionAccountID  *uuid.UUID
+	Schedule             []PaymentScheduleEntry
+	Version              int64
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
 }
 
 // PaymentScheduleEntry represents a single payment in the amortization schedule.
@@ -42,6 +45,11 @@ type PaymentScheduleEntry struct {
 // NewDebtDetails creates a validated DebtDetails aggregate.
 // subtype is a plain string persisted verbatim (no enum mapping); pass "" when
 // unspecified. Use the DebtSubtype* / ReceivableSubtype* consts for known keys.
+// contact and contractRef are optional free-form metadata (no validation);
+// pass "" when unspecified. collectionAccountID is the asset account a
+// receivable's repayments land in; pass nil for borrowed-in debts (the
+// receivable-required check lives in application CreateDebt, not here, so the
+// domain constructor stays valid for both debt shapes).
 func NewDebtDetails(
 	tenantID, accountID uuid.UUID,
 	counterparty string,
@@ -51,6 +59,9 @@ func NewDebtDetails(
 	totalPrincipalCents int64,
 	debtType DebtType,
 	subtype string,
+	contact string,
+	contractRef string,
+	collectionAccountID *uuid.UUID,
 ) (*DebtDetails, error) {
 	counterparty = trimSpace(counterparty)
 	if counterparty == "" {
@@ -84,6 +95,9 @@ func NewDebtDetails(
 		TotalPrincipalCents: totalPrincipalCents,
 		DebtType:            debtType,
 		Subtype:             subtype,
+		Contact:             contact,
+		ContractRef:         contractRef,
+		CollectionAccountID: collectionAccountID,
 		Version:             1,
 		CreatedAt:           now,
 		UpdatedAt:           now,

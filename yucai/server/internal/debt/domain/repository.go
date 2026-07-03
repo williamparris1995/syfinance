@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -27,4 +28,15 @@ type DebtRepository interface {
 	Update(ctx context.Context, debt *DebtDetails) error
 	Delete(ctx context.Context, tenantID, id uuid.UUID) error
 	FindUpcomingPayments(ctx context.Context, tenantID uuid.UUID, daysAhead int) ([]PaymentScheduleEntry, error)
+}
+
+// DebtSnapshotRepository is the persistence port for DebtProgressSnapshot rows.
+// Kept as a separate interface (rather than methods on DebtRepository) so adding
+// snapshot persistence does not force every existing DebtRepository
+// implementer (and test fake) to grow — mirrors the holding snapshot-repo
+// split. Implementers are added in Task 4 (ent repo).
+type DebtSnapshotRepository interface {
+	SaveSnapshot(ctx context.Context, snap *DebtProgressSnapshot) error
+	FindLatestByDebt(ctx context.Context, tenantID, debtID uuid.UUID, asOf time.Time) (*DebtProgressSnapshot, error)
+	FindSnapshotRange(ctx context.Context, tenantID uuid.UUID, debtIDs []uuid.UUID, from, to time.Time) ([]DebtProgressSnapshot, error)
 }
