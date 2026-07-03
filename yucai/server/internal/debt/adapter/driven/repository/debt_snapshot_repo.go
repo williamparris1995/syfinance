@@ -29,7 +29,7 @@ func NewDebtSnapshotRepository(client *debtent.Client) domain.DebtSnapshotReposi
 // insert, and on UNIQUE(tenant_id, debt_id, snapshot_date) violation fall
 // back to update. This keeps same-day re-runs idempotent.
 func (r *DebtSnapshotRepository) SaveSnapshot(ctx context.Context, snap *domain.DebtProgressSnapshot) error {
-	err := r.client.DebtProgressSnapshot.Create().
+	createErr := r.client.DebtProgressSnapshot.Create().
 		SetID(snap.ID).
 		SetTenantID(snap.TenantID).
 		SetDebtID(snap.DebtID).
@@ -38,11 +38,18 @@ func (r *DebtSnapshotRepository) SaveSnapshot(ctx context.Context, snap *domain.
 		SetRemainingPrincipalCents(snap.RemainingCents).
 		SetPaidTotalCents(snap.PaidTotalCents).
 		Exec(ctx)
-	if err == nil {
+	if createErr == nil {
 		return nil
 	}
-	// Fallback: a row already exists for this (tenant, debt, date) — update it.
-	rows, err := r.client.DebtProgressSnapshot.Update().
+	// Only a UNIQUE(tenant_id, debt_id, snapshot_date) conflict justifies a
+	// fallback update — any other create error (FK violation, NOT NULL, DB
+	// connection drop, etc.) must surface verbatim, never be swallowed into
+	// the update path (canonical pattern: holding C Task10 / price_history_repo).
+	if !debtent.IsConstraintError(createErr) {
+		return fmt.Errorf("save debt snapshot: %w", createErr)
+	}
+	// Conflict on UNIQUE(tenant_id, debt_id, snapshot_date) — update the row.
+	rows, updateErr := r.client.DebtProgressSnapshot.Update().
 		Where(
 			debtprogresssnapshot.TenantIDEQ(snap.TenantID),
 			debtprogresssnapshot.DebtIDEQ(snap.DebtID),
@@ -52,13 +59,13 @@ func (r *DebtSnapshotRepository) SaveSnapshot(ctx context.Context, snap *domain.
 		SetRemainingPrincipalCents(snap.RemainingCents).
 		SetPaidTotalCents(snap.PaidTotalCents).
 		Save(ctx)
-	if err != nil {
-		return fmt.Errorf("upsert debt snapshot: %w", err)
+	if updateErr != nil {
+		return fmt.Errorf("upsert debt snapshot: %w", updateErr)
 	}
 	if rows == 0 {
-		// Insert failed for a non-conflict reason (e.g. constraint other than
-		// the unique index); surface the original create error.
-		return fmt.Errorf("save debt snapshot: %w", err)
+		// No row matched yet the create reported a constraint error — the row
+		// was inserted by a concurrent transaction between the two calls.
+		// Treat as success (the constraint guarantees a row now exists).
 	}
 	return nil
 }
