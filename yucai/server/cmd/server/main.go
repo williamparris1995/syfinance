@@ -87,6 +87,13 @@ func main() {
 	// schedCtx is cancelled during shutdown.
 	go app.GoalScheduler.Start(schedCtx)
 
+	// Start debt snapshot scheduler. Performs an immediate SyncAllDebts
+	// (Σ remaining/paid per BorrowedOut debt → debt_progress_snapshot), then
+	// re-syncs at most once per tenant's rate_sync_interval_hours. The snapshots
+	// feed GetReceivablesSummary's month-over-month trend. Exits when schedCtx
+	// is cancelled during shutdown.
+	go app.DebtScheduler.Start(schedCtx)
+
 	// Backfill security price history on first launch (empty-table gate inside
 	// BackfillPriceHistory), async so it never blocks startup. Pulls Sina daily
 	// K-line for A-share holdings + CSI300 at YEAR depth (1200 bars ≈ 5 years).

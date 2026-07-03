@@ -557,6 +557,51 @@ func (h *DebtHandler) ListDebts(ctx context.Context, req *pb.ListDebtsRequest) (
 	}, nil
 }
 
+// GetReceivablesSummary aggregates every receivable (DebtType=BorrowedOut) for
+// the caller's tenant: total/remaining/collected principal, overdue count +
+// amount, pending interest, month-over-month principal/remaining trend (from
+// debt_progress_snapshot rows written by the scheduler), and the globally
+// earliest unpaid entry as next_payment. Replaces
+// UnimplementedDebtServiceServer.GetReceivablesSummary.
+//
+// Per-tenant: only the caller's receivables are aggregated. The trend is Σ over
+// debts that have a snapshot in BOTH this month and last month; the scheduler
+// (Task 6) writes those snapshots, so the trend stays 0 until snapshots exist.
+// Mirrors the goal SyncInvestmentGoals handler pattern (getTenantID → service
+// call → wrap DTO in the response).
+func (h *DebtHandler) GetReceivablesSummary(ctx context.Context, _ *pb.GetReceivablesSummaryRequest) (*pb.ReceivablesSummaryResponse, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	dto, err := h.service.GetReceivablesSummary(ctx, tenantID)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &pb.ReceivablesSummaryResponse{Summary: summaryToProto(*dto)}, nil
+}
+
+// summaryToProto maps the application ReceivablesSummaryDTO to the proto
+// ReceivablesSummaryDTO. Fields map 1:1 (same names/types); this is the single
+// place that translation happens so the wire stays application→proto.
+func summaryToProto(s application.ReceivablesSummaryDTO) *pb.ReceivablesSummaryDTO {
+	return &pb.ReceivablesSummaryDTO{
+		TotalPrincipalCents:     s.TotalPrincipalCents,
+		TotalRemainingCents:     s.TotalRemainingCents,
+		TotalCollectedCents:     s.TotalCollectedCents,
+		PendingInterestCents:    s.PendingInterestCents,
+		Count:                   s.Count,
+		OverdueCount:            s.OverdueCount,
+		OverdueAmountCents:      s.OverdueAmountCents,
+		PrincipalTrendCents:     s.PrincipalTrendCents,
+		RemainingTrendCents:     s.RemainingTrendCents,
+		NextPaymentDate:         s.NextPaymentDate,
+		NextPaymentAmountCents:  s.NextPaymentAmountCents,
+		NextPaymentCounterparty: s.NextPaymentCounterparty,
+		NextPaymentPeriodNo:     s.NextPaymentPeriodNo,
+	}
+}
+
 // GetUpcomingPayments returns payments due within daysAhead.
 func (h *DebtHandler) GetUpcomingPayments(ctx context.Context, req *pb.GetUpcomingPaymentsRequest) (*pb.ListDebtsResponse, error) {
 	tenantID, err := getTenantID(ctx)

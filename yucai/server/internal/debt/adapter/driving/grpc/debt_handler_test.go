@@ -131,11 +131,53 @@ func (r *fakeDebtRepo) Update(_ context.Context, d *domain.DebtDetails) error {
 func (r *fakeDebtRepo) Delete(context.Context, uuid.UUID, uuid.UUID) error {
 	panic("unexpected Delete call")
 }
-func (r *fakeDebtRepo) FindAll(context.Context, uuid.UUID, domain.PageRequest, *domain.DebtType) (*domain.PaginatedResult[domain.DebtDetails], error) {
-	panic("unexpected FindAll call")
+// FindAll returns every stored debt for the tenant, optionally filtered by
+// DebtType. Used by GetReceivablesSummary (which fetches BorrowedOut only).
+// Implemented as a real scan (not panic) so the summary handler test can drive
+// the real application Service end-to-end without a separate fake.
+func (r *fakeDebtRepo) FindAll(_ context.Context, tenantID uuid.UUID, _ domain.PageRequest, typeFilter *domain.DebtType) (*domain.PaginatedResult[domain.DebtDetails], error) {
+	out := &domain.PaginatedResult[domain.DebtDetails]{}
+	for _, d := range r.byID {
+		if d.TenantID != tenantID {
+			continue
+		}
+		if typeFilter != nil && d.DebtType != *typeFilter {
+			continue
+		}
+		c := *d
+		out.Items = append(out.Items, c)
+	}
+	out.TotalCount = int32(len(out.Items))
+	return out, nil
 }
 func (r *fakeDebtRepo) FindUpcomingPayments(context.Context, uuid.UUID, int) ([]domain.PaymentScheduleEntry, error) {
 	panic("unexpected FindUpcomingPayments call")
+}
+
+// fakeDebtSnapshotRepo is an in-memory DebtSnapshotRepository used by the
+// GetReceivablesSummary handler test to seed month-pair snapshots and assert
+// the trend flows through. FindLatestByDebt is not exercised by the summary
+// path; SaveSnapshot stores but is unused for the read-only summary test.
+type fakeDebtSnapshotRepo struct {
+	rangeOut map[uuid.UUID][]domain.DebtProgressSnapshot
+}
+
+func newFakeDebtSnapshotRepo() *fakeDebtSnapshotRepo {
+	return &fakeDebtSnapshotRepo{rangeOut: make(map[uuid.UUID][]domain.DebtProgressSnapshot)}
+}
+
+func (r *fakeDebtSnapshotRepo) SaveSnapshot(_ context.Context, snap *domain.DebtProgressSnapshot) error {
+	return nil
+}
+func (r *fakeDebtSnapshotRepo) FindLatestByDebt(context.Context, uuid.UUID, uuid.UUID, time.Time) (*domain.DebtProgressSnapshot, error) {
+	panic("unexpected FindLatestByDebt call")
+}
+func (r *fakeDebtSnapshotRepo) FindSnapshotRange(_ context.Context, _ uuid.UUID, debtIDs []uuid.UUID, _, _ time.Time) ([]domain.DebtProgressSnapshot, error) {
+	var out []domain.DebtProgressSnapshot
+	for _, id := range debtIDs {
+		out = append(out, r.rangeOut[id]...)
+	}
+	return out, nil
 }
 
 // fakeAccountLookup implements txnApp.AccountLookup and returns copies of
@@ -1020,5 +1062,175 @@ func TestCreateDebt_BorrowedOut_MalformedCollection_Rejects(t *testing.T) {
 	st, ok := status.FromError(err)
 	if !ok || st.Code() != codes.InvalidArgument {
 		t.Errorf("error code: got %v, want InvalidArgument", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// GetReceivablesSummary handler tests (Task 7)
+//
+// Drives the real application Service + a fake snapshot repo end-to-end through
+// the handler, asserting (1) borrowed_in debts are excluded, (2) totals +
+// overdue + next_payment are aggregated correctly, and (3) the month-pair
+// snapshot trend flows through summaryToProto into the response DTO.
+// ---------------------------------------------------------------------------
+
+// setupReceivablesSummaryHarness wires a DebtHandler backed by a fake debt repo
+// (two borrowed_out receivables + one borrowed_in that must be excluded) and a
+// fake snapshot repo seeded with this-month + last-month snapshots per debt.
+// Returns the handler + tenant so the test can call GetReceivablesSummary.
+func setupReceivablesSummaryHarness(t *testing.T) (h *DebtHandler, tenantID uuid.UUID) {
+	t.Helper()
+	tenantID = uuid.New()
+	debtRepo := newFakeDebtRepo()
+
+	// Debt A: principal 1_000_00, entry 1 (Jan) paid principal 200_00, entry 2
+	// (Feb, unpaid, overdue as of now=Jun). Remaining = 800_00. Global next
+	// payment is debtA's Feb entry (earlier than debtB's Jul).
+	now := time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC)
+	debtA, err := domain.NewDebtDetails(tenantID, uuid.New(), "Alice", 0,
+		domain.AmortizationLumpSum,
+		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
+		1_000_00, domain.BorrowedOut, "", "AliceContact", "", nil)
+	if err != nil {
+		t.Fatalf("seed debtA: %v", err)
+	}
+	debtA.Schedule = []domain.PaymentScheduleEntry{
+		{ID: uuid.New(), PaymentDate: time.Date(2026, 1, 31, 0, 0, 0, 0, time.UTC), PrincipalCents: 200_00, InterestCents: 50_00, TotalCents: 250_00, Paid: true, PaidCents: 250_00},
+		// Index 1 → NextPaymentPeriodNo = 2 (1-based schedule index).
+		{ID: uuid.New(), PaymentDate: time.Date(2026, 2, 28, 0, 0, 0, 0, time.UTC), PrincipalCents: 200_00, InterestCents: 40_00, TotalCents: 240_00, Paid: false},
+		{ID: uuid.New(), PaymentDate: time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC), PrincipalCents: 200_00, InterestCents: 30_00, TotalCents: 230_00, Paid: false},
+	}
+	debtA.Version = 1
+	debtRepo.byID[debtA.ID] = debtA
+
+	// Debt B: principal 500_00, all unpaid, next entry in Jul. Remaining = 500_00.
+	debtB, err := domain.NewDebtDetails(tenantID, uuid.New(), "Bob", 0,
+		domain.AmortizationLumpSum,
+		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
+		500_00, domain.BorrowedOut, "", "", "", nil)
+	if err != nil {
+		t.Fatalf("seed debtB: %v", err)
+	}
+	debtB.Schedule = []domain.PaymentScheduleEntry{
+		// Index 0 → NextPaymentPeriodNo = 1 (not the global next, so not asserted).
+		{ID: uuid.New(), PaymentDate: time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC), PrincipalCents: 250_00, InterestCents: 10_00, TotalCents: 260_00, Paid: false},
+	}
+	debtB.Version = 1
+	debtRepo.byID[debtB.ID] = debtB
+
+	// Debt C: borrowed_in — must be excluded from the receivables summary.
+	debtC, err := domain.NewDebtDetails(tenantID, uuid.New(), "Bank", 0,
+		domain.AmortizationLumpSum,
+		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
+		9_000_00, domain.BorrowedIn, "", "", "", nil)
+	if err != nil {
+		t.Fatalf("seed debtC: %v", err)
+	}
+	debtC.Version = 1
+	debtRepo.byID[debtC.ID] = debtC
+
+	// Snapshots: this month + last month for both receivables (so the trend Σ
+	// has a valid baseline for each debt).
+	snapRepo := newFakeDebtSnapshotRepo()
+	monthStart := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	lastMonthStart := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+	snapRepo.rangeOut[debtA.ID] = []domain.DebtProgressSnapshot{
+		{DebtID: debtA.ID, SnapshotDate: lastMonthStart, TotalPrincipalCents: 1_000_00, RemainingCents: 1_000_00},
+		{DebtID: debtA.ID, SnapshotDate: monthStart, TotalPrincipalCents: 1_000_00, RemainingCents: 800_00},
+	}
+	snapRepo.rangeOut[debtB.ID] = []domain.DebtProgressSnapshot{
+		{DebtID: debtB.ID, SnapshotDate: lastMonthStart, TotalPrincipalCents: 500_00, RemainingCents: 500_00},
+		{DebtID: debtB.ID, SnapshotDate: monthStart, TotalPrincipalCents: 500_00, RemainingCents: 500_00},
+	}
+
+	svc := application.NewService(debtRepo)
+	svc.SetSnapshotRepo(snapRepo)
+	svc.SetNow(func() time.Time { return now })
+	h = NewDebtHandler(svc, nil, nil)
+	return
+}
+
+// TestGetReceivablesSummary_ReturnsSummary drives the real service end-to-end
+// and asserts the response carries the aggregated totals, the excluded
+// borrowed_in debt, the overdue entry, and the snapshot-driven trend.
+func TestGetReceivablesSummary_ReturnsSummary(t *testing.T) {
+	h, tenantID := setupReceivablesSummaryHarness(t)
+
+	resp, err := h.GetReceivablesSummary(ctxWithTenant(tenantID), &pb.GetReceivablesSummaryRequest{})
+	if err != nil {
+		t.Fatalf("GetReceivablesSummary: %v", err)
+	}
+	if resp == nil || resp.Summary == nil {
+		t.Fatal("expected non-nil response.Summary")
+	}
+	s := resp.Summary
+
+	// Count: only the two borrowed_out receivables; debtC (borrowed_in) excluded.
+	if s.Count != 2 {
+		t.Errorf("Count: got %d, want 2 (borrowed_in excluded)", s.Count)
+	}
+	// Total principal = 1_000_00 + 500_00 = 1_500_00.
+	if s.TotalPrincipalCents != 1_500_00 {
+		t.Errorf("TotalPrincipalCents: got %d, want 150000", s.TotalPrincipalCents)
+	}
+	// Total remaining = 800_00 (debtA) + 500_00 (debtB) = 1_300_00.
+	if s.TotalRemainingCents != 1_300_00 {
+		t.Errorf("TotalRemainingCents: got %d, want 130000", s.TotalRemainingCents)
+	}
+	// Collected = 200_00 (debtA's paid entry principal).
+	if s.TotalCollectedCents != 200_00 {
+		t.Errorf("TotalCollectedCents: got %d, want 20000", s.TotalCollectedCents)
+	}
+	// Overdue: debtA's Feb entry (unpaid, due before now=Jun). One entry, total 240_00.
+	if s.OverdueCount != 1 {
+		t.Errorf("OverdueCount: got %d, want 1", s.OverdueCount)
+	}
+	if s.OverdueAmountCents != 240_00 {
+		t.Errorf("OverdueAmountCents: got %d, want 24000", s.OverdueAmountCents)
+	}
+	// Next payment = debtA's Feb entry (earliest unpaid globally).
+	if s.NextPaymentDate != "2026-02-28" {
+		t.Errorf("NextPaymentDate: got %q, want 2026-02-28", s.NextPaymentDate)
+	}
+	if s.NextPaymentAmountCents != 240_00 {
+		t.Errorf("NextPaymentAmountCents: got %d, want 24000", s.NextPaymentAmountCents)
+	}
+	if s.NextPaymentCounterparty != "Alice" {
+		t.Errorf("NextPaymentCounterparty: got %q, want Alice", s.NextPaymentCounterparty)
+	}
+	if s.NextPaymentPeriodNo != 2 {
+		t.Errorf("NextPaymentPeriodNo: got %d, want 2", s.NextPaymentPeriodNo)
+	}
+	// Principal trend = 0 (both debts: this month total == last month total).
+	if s.PrincipalTrendCents != 0 {
+		t.Errorf("PrincipalTrendCents: got %d, want 0", s.PrincipalTrendCents)
+	}
+	// Remaining trend = (800_00 - 1000_00) + (500_00 - 500_00) = -200_00.
+	if s.RemainingTrendCents != -200_00 {
+		t.Errorf("RemainingTrendCents: got %d, want -20000", s.RemainingTrendCents)
+	}
+}
+
+// TestGetReceivablesSummary_Unauthenticated asserts the handler rejects a
+// context without a tenant_id with Unauthenticated, mirroring every other
+// per-tenant RPC in this handler.
+func TestGetReceivablesSummary_Unauthenticated(t *testing.T) {
+	h, _ := setupReceivablesSummaryHarness(t)
+
+	// Plain background context carries no tenant_id.
+	resp, err := h.GetReceivablesSummary(context.Background(), &pb.GetReceivablesSummaryRequest{})
+
+	if err == nil {
+		t.Fatal("expected Unauthenticated error, got nil")
+	}
+	if resp != nil {
+		t.Errorf("expected nil response on auth failure, got %+v", resp)
+	}
+	st, ok := status.FromError(err)
+	if !ok || st.Code() != codes.Unauthenticated {
+		t.Errorf("error code: got %v, want Unauthenticated", err)
 	}
 }

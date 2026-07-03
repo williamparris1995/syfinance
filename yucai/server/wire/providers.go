@@ -43,6 +43,8 @@ import (
 	debtrepo "github.com/yucai/server/internal/debt/adapter/driven/repository"
 	debtgrpc "github.com/yucai/server/internal/debt/adapter/driving/grpc"
 	debtapp "github.com/yucai/server/internal/debt/application"
+	debtdomain "github.com/yucai/server/internal/debt/domain"
+	debtscheduler "github.com/yucai/server/internal/debt/scheduler"
 	debtent "github.com/yucai/server/internal/debt/ent"
 	goalrepo "github.com/yucai/server/internal/goal/adapter/driven/repository"
 	goalgrpc "github.com/yucai/server/internal/goal/adapter/driving/grpc"
@@ -313,15 +315,26 @@ func provideDebtEntClient(cfg *config.Config) (*debtent.Client, error) {
 func provideDebtRepo(client *debtent.Client) *debtrepo.DebtRepository {
 	return debtrepo.NewDebtRepository(client)
 }
+// provideDebtSnapshotRepo builds the debt progress-snapshot repository used by
+// GetReceivablesSummary (trend) and the DebtScheduler (SyncAllDebts writes).
+// Returns the domain interface (not the concrete repo) so the application
+// service depends on the port, not the ent adapter (mirrors holding's
+// snapshot-repo split — see Task 4 repo).
+func provideDebtSnapshotRepo(client *debtent.Client) debtdomain.DebtSnapshotRepository {
+	return debtrepo.NewDebtSnapshotRepository(client)
+}
 // provideDebtService constructs the debt service and injects the account
 // lookup used by SumRemainingByCurrency to resolve each debt's currency from
 // its parent account (DebtDetails has no CurrencyCode field). Without this,
 // every debt bucket defaults to CNY — D-currency Task 8 wire requirement.
+// snapshotRepo is injected so GetReceivablesSummary can compute the
+// month-over-month trend and SyncAllDebts can persist snapshots (Task 7).
 // *accountrepo.AccountRepository structurally satisfies debtapp.AccountLookup
 // (FindByID(ctx, tenantID, id) (*accountdomain.Account, error) — exact match).
-func provideDebtService(repo *debtrepo.DebtRepository, accountRepo *accountrepo.AccountRepository) *debtapp.Service {
+func provideDebtService(repo *debtrepo.DebtRepository, accountRepo *accountrepo.AccountRepository, snapshotRepo debtdomain.DebtSnapshotRepository) *debtapp.Service {
 	svc := debtapp.NewService(repo)
 	svc.SetAccountLookup(accountRepo)
+	svc.SetSnapshotRepo(snapshotRepo)
 	return svc
 }
 func provideDebtHandler(svc *debtapp.Service, txnSvc *txnapp.Service, accountLookup txnapp.AccountLookup) *debtgrpc.DebtHandler {
@@ -682,6 +695,18 @@ func provideSnapshotScheduler(svc *holdingapp.Service, src holdingscheduler.Inte
 func provideGoalScheduler(svc *goalapp.Service, tenantRepo *authrepo.TenantRepository) *goalscheduler.Scheduler {
 	src := tenantIntervalSource{tr: tenantRepo}
 	return goalscheduler.NewScheduler(svc, tenantRepo, src, 1*time.Hour, nil)
+}
+
+// provideDebtScheduler builds the debt snapshot-sync scheduler (Task 6/7).
+// *debtapp.Service implements debtscheduler.DebtSyncer via its SyncAllDebts
+// method (Σ remaining/paid per debt → debt_progress_snapshot). The
+// *authrepo.TenantRepository structurally satisfies debtscheduler.TenantLister
+// (FindAllIDs). For IntervalSource the repo is wrapped in tenantIntervalSource
+// (FindAllIntervalHours → MinIntervalHours), reusing the same adapter as the
+// currency/price/snapshot/goal schedulers. tick is 1h in prod.
+func provideDebtScheduler(svc *debtapp.Service, tenantRepo *authrepo.TenantRepository) *debtscheduler.Scheduler {
+	src := tenantIntervalSource{tr: tenantRepo}
+	return debtscheduler.NewScheduler(svc, tenantRepo, src, 1*time.Hour, nil)
 }
 
 // Networth providers
