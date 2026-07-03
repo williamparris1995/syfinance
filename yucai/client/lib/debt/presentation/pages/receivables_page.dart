@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
@@ -60,7 +61,7 @@ class _ReceivablesPageState extends State<ReceivablesPage> {
         heroTag: null,
         onPressed: () => context.push('/receivables/new'),
         backgroundColor: AppColors.accent,
-        child: const Icon(Icons.add, color: Colors.white),
+        child: const Icon(LucideIcons.plus, color: Colors.white),
       ),
       body: BlocBuilder<DebtBloc, DebtState>(
         builder: (context, state) {
@@ -87,7 +88,7 @@ class _ReceivablesPageState extends State<ReceivablesPage> {
               color: AppColors.accentSoft,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.handshake_outlined,
+            child: const Icon(LucideIcons.handshake,
                 size: 30, color: AppColors.accent),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -99,7 +100,7 @@ class _ReceivablesPageState extends State<ReceivablesPage> {
           const SizedBox(height: AppSpacing.lg),
           FilledButton.icon(
             onPressed: () => context.push('/receivables/new'),
-            icon: const Icon(Icons.add),
+            icon: const Icon(LucideIcons.plus),
             label: const Text('创建债权'),
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.accent,
@@ -240,7 +241,7 @@ class _OverviewCard extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.handshake, size: 14, color: AppColors.accent),
+              Icon(LucideIcons.handshake, size: 14, color: AppColors.accent),
               SizedBox(width: 7),
               Text('RECEIVABLES OVERVIEW · 债权总览',
                   style: TextStyle(
@@ -323,7 +324,7 @@ class _OverviewCard extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.handshake, size: 14, color: AppColors.accent),
+              Icon(LucideIcons.handshake, size: 14, color: AppColors.accent),
               SizedBox(width: 7),
               Text('债权总览',
                   style: TextStyle(fontSize: 11, color: AppColors.muted)),
@@ -580,13 +581,13 @@ class _ReceivableCard extends StatelessWidget {
             runSpacing: 5,
             children: [
               _MetaItem(
-                  icon: Icons.percent,
+                  icon: LucideIcons.percent,
                   text: '${debt.interestRate.toStringAsFixed(2)}%'),
               _MetaItem(
-                  icon: Icons.event_outlined,
+                  icon: LucideIcons.calendar,
                   text: '到期 ${_fmtDate(debt.dueDate)}'),
               _MetaItem(
-                  icon: Icons.show_chart,
+                  icon: LucideIcons.lineChart,
                   text: _amortLabel(debt.amortization)),
             ],
           ),
@@ -676,7 +677,7 @@ class _ReceivableCard extends StatelessWidget {
           Row(
             children: [
               _MetaItem(
-                  icon: Icons.event_outlined,
+                  icon: LucideIcons.calendar,
                   text: '到期 ${_fmtDate(debt.dueDate)}'),
             ],
           ),
@@ -702,12 +703,12 @@ class _ReceivableCard extends StatelessWidget {
       child: Row(
         children: [
           _ActionBtn(
-            icon: Icons.info_outline,
+            icon: LucideIcons.info,
             label: '详情',
             onTap: (_) => context.push('/receivables/${debt.id}'),
           ),
           _ActionBtn(
-            icon: Icons.more_horiz,
+            icon: LucideIcons.moreHorizontal,
             label: '更多',
             onTap: (_) => _showMoreMenu(context),
           ),
@@ -724,7 +725,7 @@ class _ReceivableCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.edit_outlined, color: AppColors.muted),
+              leading: const Icon(LucideIcons.pencil, color: AppColors.muted),
               title: const Text('编辑债权'),
               onTap: () {
                 Navigator.pop(sctx);
@@ -733,7 +734,7 @@ class _ReceivableCard extends StatelessWidget {
             ),
             ListTile(
               leading:
-                  const Icon(Icons.delete_outline, color: AppColors.negative),
+                  const Icon(LucideIcons.trash2, color: AppColors.negative),
               title: const Text('删除债权',
                   style: TextStyle(color: AppColors.negative)),
               onTap: () {

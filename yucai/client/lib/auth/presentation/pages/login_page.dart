@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_event.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
@@ -68,8 +69,8 @@ class _LoginPageState extends State<LoginPage> {
                         labelText: '密码',
                         suffixIcon: IconButton(
                           icon: Icon(_obscurePassword
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined),
+                              ? LucideIcons.eye
+                              : LucideIcons.eyeOff),
                           onPressed: () => setState(
                               () => _obscurePassword = !_obscurePassword),
                           tooltip: _obscurePassword ? '显示密码' : '隐藏密码',

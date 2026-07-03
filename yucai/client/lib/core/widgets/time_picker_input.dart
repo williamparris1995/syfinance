@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
 
@@ -39,7 +40,7 @@ class TimePickerInput extends StatelessWidget {
     return InputDecorator(
       decoration: InputDecoration(
         labelText: label,
-        suffixIcon: const Icon(Icons.access_time, size: 18),
+        suffixIcon: const Icon(LucideIcons.clock, size: 18),
       ),
       child: InkWell(
         onTap: () async {

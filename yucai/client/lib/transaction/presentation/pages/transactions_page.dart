@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
@@ -18,6 +19,7 @@ import 'package:yucai_client/transaction/presentation/pages/transaction_form_pag
 import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
 import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.dart';
 import 'package:yucai_client/transaction/presentation/widgets/summary_card.dart';
+import 'package:yucai_client/transaction/presentation/widgets/txn_category_icon.dart';
 
 /// 交易列表页。对齐 OD 原型 `yucai-transaction-trisize-9d3e/transactions.html`：
 ///   - 页头：H1 + 副标题（月份 · 共 N 笔）+ 导出按钮 + 新增交易
@@ -135,7 +137,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
       floatingActionButton: FloatingActionButton.extended(
         heroTag: null,
         onPressed: _openCreateForm,
-        icon: const Icon(Icons.add, color: Colors.white),
+        icon: const Icon(LucideIcons.plus, color: Colors.white),
         label: const Text('新增交易',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
         backgroundColor: AppColors.accent,
@@ -500,7 +502,7 @@ class _CreateButton extends StatelessWidget {
           child: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.add, size: 15, color: Colors.white),
+              Icon(LucideIcons.plus, size: 15, color: Colors.white),
               SizedBox(width: 6),
               Text('新增交易',
                   style: TextStyle(
@@ -535,7 +537,7 @@ class _ExportButton extends StatelessWidget {
           child: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.download_outlined, size: 15, color: AppColors.muted),
+              Icon(LucideIcons.download, size: 15, color: AppColors.muted),
               SizedBox(width: 6),
               Text('导出',
                   style: TextStyle(
@@ -746,6 +748,7 @@ class _TxTableRow extends StatelessWidget {
                 description: txn.description,
                 flavour: flavour,
                 secondary: _secondaryLine(cell),
+                category: cell.categoryAccount,
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -875,7 +878,7 @@ class _TransferAccounts extends StatelessWidget {
         Flexible(child: _AccountTag(label: fromLabel, account: null)),
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 4),
-          child: Icon(Icons.arrow_forward, size: 14, color: AppColors.muted),
+          child: Icon(LucideIcons.arrowRight, size: 14, color: AppColors.muted),
         ),
         Flexible(child: _AccountTag(label: toLabel, account: null)),
       ],
@@ -889,17 +892,19 @@ class _TxMain extends StatelessWidget {
     required this.description,
     required this.flavour,
     required this.secondary,
+    this.category,
   });
 
   final String description;
   final TxnFlavour flavour;
   final String secondary;
+  final Account? category;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _TxIconBox(flavour: flavour),
+        _TxIconBox(flavour: flavour, category: category),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Column(
@@ -930,19 +935,30 @@ class _TxMain extends StatelessWidget {
 }
 
 class _TxIconBox extends StatelessWidget {
-  const _TxIconBox({required this.flavour});
+  const _TxIconBox({required this.flavour, this.category});
   final TxnFlavour flavour;
+  final Account? category;
 
   (Color, Color, IconData) get _styling {
+    // icon 对齐 OD thin-stroke per-category lucide（餐饮 utensils / 购物
+    // shopping-bag / 交通 car / 工资 banknote …），未细化 → flavour 默认。
     switch (flavour) {
       case TxnFlavour.income:
-        return (AppColors.positive, const Color(0x1A2D8A6E), Icons.call_received);
+        return (
+          AppColors.positive,
+          const Color(0x1A2D8A6E),
+          txnCategoryIcon(flavour, category),
+        );
       case TxnFlavour.expense:
-        return (AppColors.negative, const Color(0x1AC4544D), Icons.call_made);
+        return (
+          AppColors.negative,
+          const Color(0x1AC4544D),
+          txnCategoryIcon(flavour, category),
+        );
       case TxnFlavour.transfer:
-        return (AppColors.accent, AppColors.accentSoft, Icons.swap_horiz);
+        return (AppColors.accent, AppColors.accentSoft, LucideIcons.arrowLeftRight);
       case TxnFlavour.compound:
-        return (AppColors.accent, AppColors.accentSoft, Icons.receipt_outlined);
+        return (AppColors.accent, AppColors.accentSoft, LucideIcons.receipt);
     }
   }
 
@@ -1058,7 +1074,7 @@ class _RowOpMenu extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: const Padding(
           padding: EdgeInsets.all(4),
-          child: Icon(Icons.more_horiz, size: 16, color: AppColors.muted),
+          child: Icon(LucideIcons.moreHorizontal, size: 16, color: AppColors.muted),
         ),
       ),
     );
@@ -1309,7 +1325,7 @@ class _MobileTxnCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            _TxIconBox(flavour: flavour),
+            _TxIconBox(flavour: flavour, category: _categoryAccount),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
@@ -1338,7 +1354,7 @@ class _MobileTxnCard extends StatelessWidget {
                                 .accountId)),
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 2),
-                          child: Icon(Icons.arrow_forward,
+                          child: Icon(LucideIcons.arrowRight,
                               size: 14, color: AppColors.muted),
                         ),
                         _AccountTag(
@@ -1452,7 +1468,7 @@ class _LoadMoreControl extends StatelessWidget {
                 width: 14,
                 height: 14,
                 child: CircularProgressIndicator(strokeWidth: 2))
-            : const Icon(Icons.expand_more, size: 18),
+            : const Icon(LucideIcons.chevronDown, size: 18),
         label: Text(loading ? '加载中…' : '加载更多'),
       ),
     );
@@ -1474,7 +1490,7 @@ class _EmptyListHint extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.receipt_long_outlined,
+            const Icon(LucideIcons.receipt,
                 size: 36, color: AppColors.muted),
             const SizedBox(height: 12),
             const Text('本月暂无交易',
@@ -1509,7 +1525,7 @@ class _ErrorView extends StatelessWidget {
         Center(
           child: Column(
             children: [
-              const Icon(Icons.error_outline,
+              const Icon(LucideIcons.alertCircle,
                   size: 40, color: AppColors.negative),
               const SizedBox(height: AppSpacing.md),
               Text(message,
@@ -1521,7 +1537,7 @@ class _ErrorView extends StatelessWidget {
                 children: [
                   OutlinedButton.icon(
                     onPressed: onRetry,
-                    icon: const Icon(Icons.refresh, size: 16),
+                    icon: const Icon(LucideIcons.refreshCw, size: 16),
                     label: const Text('重试'),
                   ),
                   _CreateButton(onPressed: onCreate),
@@ -1783,12 +1799,12 @@ class _MobileAppBar extends StatelessWidget {
           const Spacer(),
           IconButton(
             tooltip: '搜索',
-            icon: const Icon(Icons.search, size: 21),
+            icon: const Icon(LucideIcons.search, size: 21),
             onPressed: () {}, // 搜索本期占位(P2 search)
           ),
           IconButton(
             tooltip: '筛选',
-            icon: const Icon(Icons.tune, size: 21),
+            icon: const Icon(LucideIcons.slidersHorizontal, size: 21),
             onPressed: onFilter,
           ),
         ],
@@ -1865,7 +1881,7 @@ class _MobileHeaderState extends State<MobileHeader> {
             children: [
               IconButton(
                 tooltip: '上一月',
-                icon: const Icon(Icons.chevron_left, size: 20),
+                icon: const Icon(LucideIcons.chevronLeft, size: 20),
                 onPressed: () => _shift(-1),
               ),
               Column(
@@ -1882,7 +1898,7 @@ class _MobileHeaderState extends State<MobileHeader> {
               ),
               IconButton(
                 tooltip: '下一月',
-                icon: const Icon(Icons.chevron_right, size: 20),
+                icon: const Icon(LucideIcons.chevronRight, size: 20),
                 onPressed: () => _shift(1),
               ),
             ],
@@ -1923,8 +1939,8 @@ class _MobileHeaderState extends State<MobileHeader> {
                               color: AppColors.muted, fontSize: 12.5)),
                       Icon(
                         _expanded
-                            ? Icons.keyboard_arrow_up
-                            : Icons.keyboard_arrow_down,
+                            ? LucideIcons.chevronUp
+                            : LucideIcons.chevronDown,
                         size: 16,
                         color: AppColors.muted,
                       ),

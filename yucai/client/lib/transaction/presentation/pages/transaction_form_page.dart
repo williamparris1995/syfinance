@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
@@ -104,11 +105,11 @@ extension TxnTypeX on TxnType {
   IconData get icon {
     switch (this) {
       case TxnType.expense:
-        return Icons.south_east;
+        return LucideIcons.arrowDownLeft;
       case TxnType.income:
-        return Icons.north_east;
+        return LucideIcons.arrowUpRight;
       case TxnType.transfer:
-        return Icons.swap_horiz;
+        return LucideIcons.arrowLeftRight;
     }
   }
 }
@@ -297,9 +298,9 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
   }
 
   static const _typeOptions = <TypeOption<TxnType>>[
-    TypeOption(TxnType.expense, '支出', Icons.south_east),
-    TypeOption(TxnType.income, '收入', Icons.north_east),
-    TypeOption(TxnType.transfer, '转账', Icons.swap_horiz),
+    TypeOption(TxnType.expense, '支出', LucideIcons.arrowDownLeft),
+    TypeOption(TxnType.income, '收入', LucideIcons.arrowUpRight),
+    TypeOption(TxnType.transfer, '转账', LucideIcons.arrowLeftRight),
   ];
 
   @override
@@ -614,7 +615,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.lock_outline, size: 16, color: AppColors.muted),
+          const Icon(LucideIcons.lock, size: 16, color: AppColors.muted),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

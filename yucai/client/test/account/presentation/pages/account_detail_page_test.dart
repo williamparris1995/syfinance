@@ -1370,12 +1370,10 @@ void main() {
     expect(find.byIcon(LucideIcons.arrowDownLeft), findsNothing);
   });
 
-  testWidgets('recent txn icon: transfer → lucide creditCard', (tester) async {
+  testWidgets('recent txn icon: transfer → lucide arrowLeftRight', (tester) async {
     // 两端 asset → flavour=transfer。
-    // Task 6 响应式：默认 800×600 → tablet → AppBar 转账 IconButton 用
-    // LucideIcons.arrowLeftRight，本测试断言该 icon findsNothing（行内 transfer
-    // 应显 creditCard 而非 arrowLeftRight），需 pin desktop 视口（1200，AppBar
-    // 走 TextButton 分支不再渲染 arrowLeftRight）。
+    // OD thin-stroke lucide：transfer 用 arrowLeftRight（对齐 OD 转账语义）。
+    // 需 pin desktop 视口（1200）以走 TextButton 分支。
     tester.view.physicalSize = const Size(1200, 1400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -1414,9 +1412,9 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
 
-    expect(find.byIcon(LucideIcons.creditCard), findsOneWidget,
-        reason: 'transfer 应显示 creditCard icon');
-    expect(find.byIcon(LucideIcons.arrowLeftRight), findsNothing);
+    expect(find.byIcon(LucideIcons.arrowLeftRight), findsOneWidget,
+        reason: 'transfer 应显示 arrowLeftRight icon（对齐 OD）');
+    expect(find.byIcon(LucideIcons.creditCard), findsNothing);
   });
 
   // ───── Final-review #4: hero-pick「已绑定实名 · 银行直连」gate ─────

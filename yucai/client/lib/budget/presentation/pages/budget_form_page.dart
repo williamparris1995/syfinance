@@ -435,7 +435,7 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
                   decoration: const InputDecoration(
                     labelText: '月份 *',
                     suffixIcon:
-                        Icon(Icons.calendar_today_outlined, size: 18),
+                        Icon(LucideIcons.calendar, size: 18),
                   ),
                   child: Text(
                     _month,

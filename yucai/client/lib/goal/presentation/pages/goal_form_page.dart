@@ -19,6 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
@@ -362,7 +363,7 @@ class _GoalFormPageState extends State<GoalFormPage> {
                                       child: CircularProgressIndicator(
                                           strokeWidth: 2,
                                           color: Colors.white))
-                                  : const Icon(Icons.check,
+                                  : const Icon(LucideIcons.check,
                                       size: 16, color: Colors.white),
                               label: Text(
                                 _isEdit ? '保存修改' : '确认创建',
@@ -590,7 +591,7 @@ class _GoalFormPageState extends State<GoalFormPage> {
         child: InputDecorator(
           decoration: const InputDecoration(
             labelText: '截止日期',
-            suffixIcon: Icon(Icons.calendar_today_outlined, size: 18),
+            suffixIcon: Icon(LucideIcons.calendar, size: 18),
           ),
           child: Text(
             '${_deadline.year}-${_deadline.month.toString().padLeft(2, '0')}-${_deadline.day.toString().padLeft(2, '0')}',
@@ -718,7 +719,7 @@ _TypeMeta _typeMeta(GoalType type) {
         key: 'savings',
         label: '储蓄目标',
         desc: '为购房、教育、备用金等攒钱',
-        icon: Icons.savings,
+        icon: LucideIcons.piggyBank,
         color: AppColors.accent,
       );
     case GoalType.debtPayoff:
@@ -726,7 +727,7 @@ _TypeMeta _typeMeta(GoalType type) {
         key: 'debtPayoff',
         label: '债务清偿',
         desc: '清偿贷款、信用卡等负债',
-        icon: Icons.credit_card,
+        icon: LucideIcons.creditCard,
         color: AppColors.negative,
       );
     case GoalType.investment:
@@ -734,7 +735,7 @@ _TypeMeta _typeMeta(GoalType type) {
         key: 'investment',
         label: '投资目标',
         desc: '为投资组合设定市值目标',
-        icon: Icons.trending_up,
+        icon: LucideIcons.trendingUp,
         color: AppColors.positive,
       );
   }

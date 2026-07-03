@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
@@ -305,7 +306,7 @@ class _NetWorthCard extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.account_balance_wallet_outlined,
+                      Icon(LucideIcons.wallet,
                           size: 13, color: const Color(0xFF6FCF9A)),
                       const SizedBox(width: 4),
                       Text('共 $accountCount 个账户',
@@ -427,10 +428,10 @@ class _QuickActions extends StatelessWidget {
   Widget build(BuildContext context) {
     // 严格匹配原型四格：记一笔 / 转账 / 买入投资 / 生成报表（均未上线）。
     const actions = <(IconData, String)>[
-      (Icons.add, '记一笔'),
-      (Icons.swap_horiz, '转账'),
-      (Icons.trending_up, '买入投资'),
-      (Icons.insert_chart_outlined, '生成报表'),
+      (LucideIcons.plus, '记一笔'),
+      (LucideIcons.arrowLeftRight, '转账'),
+      (LucideIcons.trendingUp, '买入投资'),
+      (LucideIcons.barChart3, '生成报表'),
     ];
     return LayoutBuilder(builder: (context, c) {
       final cols = c.maxWidth > 820 ? 4 : 2;
@@ -599,7 +600,7 @@ class _Panel extends StatelessWidget {
             child: Center(
               child: Column(
                 children: [
-                  Icon(Icons.inbox_outlined,
+                  Icon(LucideIcons.inbox,
                       size: 28, color: AppColors.muted.withValues(alpha: 0.5)),
                   const SizedBox(height: 8),
                   Text(emptyHint,

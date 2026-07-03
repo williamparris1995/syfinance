@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
@@ -31,24 +32,25 @@ Color categoryColor(AccountCategory c) {
 
 /// category → 图标（accounts_page + account_detail_page 共用）。
 IconData categoryIcon(AccountCategory c) {
+  // 对齐 OD thin-stroke lucide baseline + account_detail_page 既有映射。
   switch (c) {
     case AccountCategory.savings:
-      return Icons.account_balance_wallet_outlined;
+      return LucideIcons.landmark;
     case AccountCategory.creditCard:
-      return Icons.credit_card_outlined;
+      return LucideIcons.creditCard;
     case AccountCategory.investment:
-      return Icons.trending_up;
+      return LucideIcons.trendingUp;
     case AccountCategory.fixedDeposit:
-      return Icons.hourglass_bottom;
+      return LucideIcons.hourglass;
     case AccountCategory.goldFx:
-      return Icons.diamond_outlined;
+      return LucideIcons.gem;
     case AccountCategory.realEstate:
-      return Icons.home_outlined;
+      return LucideIcons.building2;
     case AccountCategory.loan:
-      return Icons.request_quote_outlined;
+      return LucideIcons.landmark;
     case AccountCategory.otherAsset:
-      return Icons.inventory_2_outlined;
+      return LucideIcons.wallet;
     case AccountCategory.otherLiability:
-      return Icons.pending_actions;
+      return LucideIcons.wallet;
   }
 }

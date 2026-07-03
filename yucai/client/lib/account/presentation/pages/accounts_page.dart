@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
@@ -347,7 +348,7 @@ class _AccountsPageState extends State<AccountsPage> with RouteAware {
                     color: AppColors.accentSoft,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Icon(Icons.account_balance_wallet_outlined,
+                  child: const Icon(LucideIcons.wallet,
                       size: 30, color: AppColors.accent),
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -600,7 +601,7 @@ class _AccountsHeader extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: AppColors.accent,
                 ),
-                child: const Icon(Icons.add, color: Colors.white, size: 20),
+                child: const Icon(LucideIcons.plus, color: Colors.white, size: 20),
               ),
             ),
           ),
@@ -737,7 +738,7 @@ class _NewAccountButtonState extends State<_NewAccountButton> {
           child: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.add, size: 18, color: Colors.white), // .pl 18 w400
+              Icon(LucideIcons.plus, size: 18, color: Colors.white), // .pl 18 w400
               SizedBox(width: 7), // gap:7px
               Text('新建账户',
                   style: TextStyle(
@@ -1459,28 +1460,28 @@ class _AccountCardState extends State<_AccountCard> {
       child: Row(
         children: [
           _actionBtn(
-            icon: Icons.info_outline,
+            icon: LucideIcons.info,
             label: '详情',
             onTap: () => context.go('/accounts/${a.id}'),
           ),
           _actionBtn(
-            icon: Icons.edit_outlined,
+            icon: LucideIcons.pencil,
             label: '编辑',
             onTap: widget.onEdit,
           ),
           _actionBtn(
-            icon: Icons.post_add,
+            icon: LucideIcons.filePlus,
             label: '记账',
             onTap: () => _recordTxn(context),
           ),
           _actionBtn(
-            icon: Icons.swap_horiz,
+            icon: LucideIcons.arrowLeftRight,
             label: '转账',
             onTap: () => _recordTxn(context, initialType: TxnType.transfer),
           ),
           // 更多：内嵌 PopupMenuButton，复用长按菜单条目。
           _actionBtn(
-            icon: Icons.more_horiz,
+            icon: LucideIcons.moreHorizontal,
             label: '更多',
             onTap: () => _showQuickMenu(context),
             isLast: true,

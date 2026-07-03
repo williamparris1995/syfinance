@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
 
@@ -128,11 +129,11 @@ class _ToastViewState extends State<_ToastView>
   _ToastStyle _style(ToastType t) {
     switch (t) {
       case ToastType.success:
-        return const _ToastStyle(AppColors.positive, Icons.check_circle_rounded);
+        return const _ToastStyle(AppColors.positive, LucideIcons.circleCheck);
       case ToastType.error:
-        return const _ToastStyle(AppColors.negative, Icons.error_outline_rounded);
+        return const _ToastStyle(AppColors.negative, LucideIcons.circleAlert);
       case ToastType.warning:
-        return const _ToastStyle(Color(0xFFCF9B3A), Icons.warning_amber_rounded);
+        return const _ToastStyle(Color(0xFFCF9B3A), LucideIcons.triangleAlert);
     }
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
 
@@ -48,7 +49,7 @@ class FilterBar<T> extends StatelessWidget {
               decoration: InputDecoration(
                 hintText: searchHint ?? '搜索',
                 isDense: true,
-                prefixIcon: const Icon(Icons.search,
+                prefixIcon: const Icon(LucideIcons.search,
                     size: 18, color: AppColors.muted),
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

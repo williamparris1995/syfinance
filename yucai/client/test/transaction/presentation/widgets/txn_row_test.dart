@@ -9,6 +9,7 @@
 // accountId → name and decide asset-vs-category by AccountType.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
@@ -71,7 +72,7 @@ void main() {
 
       expect(find.text('招商银行'), findsOneWidget);
       expect(find.text('余额宝'), findsOneWidget);
-      expect(find.byIcon(Icons.arrow_forward), findsOneWidget);
+      expect(find.byIcon(LucideIcons.arrowRight), findsOneWidget);
     });
 
     testWidgets('mobile card副行 shows from → to', (tester) async {
@@ -101,7 +102,7 @@ void main() {
 
       expect(find.text('现金'), findsOneWidget);
       expect(find.text('支付宝'), findsOneWidget);
-      expect(find.byIcon(Icons.arrow_forward), findsOneWidget);
+      expect(find.byIcon(LucideIcons.arrowRight), findsOneWidget);
     });
   });
 
@@ -139,7 +140,7 @@ void main() {
       // 分类 chip 显示分类 label（餐饮账户的 category label）。
       expect(find.text('储蓄'), findsOneWidget);
       // 非转账无箭头。
-      expect(find.byIcon(Icons.arrow_forward), findsNothing);
+      expect(find.byIcon(LucideIcons.arrowRight), findsNothing);
     });
   });
 }

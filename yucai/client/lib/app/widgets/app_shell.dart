@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_event.dart';
@@ -120,28 +121,27 @@ class _NavGroup {
 
 const _navGroups = <_NavGroup>[
   _NavGroup('概览', [
-    _NavItem('仪表盘', Icons.dashboard_outlined, 0),
+    _NavItem('仪表盘', LucideIcons.layoutDashboard, 0),
   ]),
   _NavGroup('财务', [
-    _NavItem('账户管理', Icons.account_balance_wallet_outlined, 1),
-    _NavItem('预算管理', Icons.savings_outlined, 6, route: '/budgets'),
-    _NavItem('目标追踪', Icons.flag_outlined, 7, route: '/goals'),
+    _NavItem('账户管理', LucideIcons.wallet, 1),
+    _NavItem('预算管理', LucideIcons.piggyBank, 6, route: '/budgets'),
+    _NavItem('目标追踪', LucideIcons.target, 7, route: '/goals'),
   ]),
   _NavGroup('交易', [
-    _NavItem('分类管理', Icons.category_outlined, null, route: '/categories'),
+    _NavItem('分类管理', LucideIcons.tags, null, route: '/categories'),
   ]),
   _NavGroup('投资', [
-    _NavItem('投资组合', Icons.show_chart_outlined, 5, route: '/holdings'),
-    _NavItem('交易记录', Icons.receipt_long_outlined, 2),
+    _NavItem('投资组合', LucideIcons.lineChart, 5, route: '/holdings'),
+    _NavItem('交易记录', LucideIcons.receipt, 2),
   ]),
   _NavGroup('借贷', [
-    _NavItem('债务管理', Icons.account_balance_wallet_outlined, 3,
-        route: '/debts'),
-    _NavItem('债权管理', Icons.call_made_outlined, 4, route: '/receivables'),
+    _NavItem('债务管理', LucideIcons.landmark, 3, route: '/debts'),
+    _NavItem('债权管理', LucideIcons.arrowUpRight, 4, route: '/receivables'),
   ]),
   _NavGroup('工具', [
-    _NavItem('报表分析', Icons.bar_chart_outlined, null),
-    _NavItem('设置', Icons.settings_outlined, null, route: '/settings'),
+    _NavItem('报表分析', LucideIcons.barChart, null),
+    _NavItem('设置', LucideIcons.settings, null, route: '/settings'),
   ]),
 ];
 
@@ -176,7 +176,7 @@ class _Sidebar extends StatelessWidget {
                   color: AppColors.accent,
                   borderRadius: BorderRadius.circular(9),
                 ),
-                child: const Icon(Icons.diamond_outlined,
+                child: const Icon(LucideIcons.gem,
                     color: Colors.white, size: 18),
               ),
               const SizedBox(width: 10),
@@ -277,7 +277,7 @@ class _Sidebar extends StatelessWidget {
               ),
               IconButton(
                 tooltip: '退出登录',
-                icon: const Icon(Icons.logout,
+                icon: const Icon(LucideIcons.logOut,
                     color: AppColors.sidebarFg, size: 18),
                 onPressed: onLogout,
               ),
@@ -421,7 +421,7 @@ class _TopBar extends StatelessWidget {
               decoration: InputDecoration(
                 hintText: '搜索交易、账户…',
                 isDense: true,
-                prefixIcon: const Icon(Icons.search,
+                prefixIcon: const Icon(LucideIcons.search,
                     size: 18, color: AppColors.muted),
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -431,14 +431,14 @@ class _TopBar extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         IconButton(
           tooltip: '通知',
-          icon: const Icon(Icons.notifications_none_outlined,
+          icon: const Icon(LucideIcons.bell,
               color: AppColors.muted),
           onPressed: () {},
         ),
         if (!compact)
           IconButton(
             tooltip: '设置',
-            icon: const Icon(Icons.settings_outlined,
+            icon: const Icon(LucideIcons.settings,
                 color: AppColors.muted),
             onPressed: () => context.go('/settings'),
           ),
@@ -479,19 +479,19 @@ class _BottomNav extends StatelessWidget {
       },
       destinations: const [
         NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined), label: '仪表盘'),
+            icon: Icon(LucideIcons.layoutDashboard), label: '仪表盘'),
         NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined), label: '交易'),
+            icon: Icon(LucideIcons.receipt), label: '交易'),
         NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet_outlined),
+            icon: Icon(LucideIcons.wallet),
             label: '账户'),
         NavigationDestination(
-            icon: Icon(Icons.credit_card_outlined), label: '债务'),
+            icon: Icon(LucideIcons.landmark), label: '债务'),
         NavigationDestination(
-            icon: Icon(Icons.call_made_outlined), label: '债权'),
+            icon: Icon(LucideIcons.arrowUpRight), label: '债权'),
         NavigationDestination(
-            icon: Icon(Icons.show_chart_outlined), label: '持仓'),
-        NavigationDestination(icon: Icon(Icons.logout), label: '退出'),
+            icon: Icon(LucideIcons.lineChart), label: '持仓'),
+        NavigationDestination(icon: Icon(LucideIcons.logOut), label: '退出'),
       ],
     );
   }

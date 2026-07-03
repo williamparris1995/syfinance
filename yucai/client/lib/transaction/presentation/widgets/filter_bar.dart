@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.dart';
@@ -255,7 +256,7 @@ class _ResetButton extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.refresh, size: 14, color: fg),
+              Icon(LucideIcons.refreshCw, size: 14, color: fg),
               const SizedBox(width: 4),
               Text('重置',
                   style: TextStyle(

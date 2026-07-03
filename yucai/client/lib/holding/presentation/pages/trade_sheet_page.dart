@@ -31,6 +31,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
@@ -574,7 +575,7 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
       key: const ValueKey('dateField'),
       decoration: const InputDecoration(
         labelText: '交易日期',
-        suffixIcon: Icon(Icons.calendar_today_outlined, size: 18),
+        suffixIcon: Icon(LucideIcons.calendar, size: 18),
       ),
       child: InkWell(
         onTap: () async {
@@ -618,7 +619,7 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
         ),
         child: const Row(
           children: [
-            Icon(Icons.info_outline, size: 16, color: AppColors.accent),
+            Icon(LucideIcons.info, size: 16, color: AppColors.accent),
             SizedBox(width: 8),
             Expanded(
               child: Text('无现金流 · 仅调整持有量与成本',
@@ -717,7 +718,7 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
             const SizedBox(height: 4),
             const Row(
               children: [
-                Icon(Icons.warning_amber_rounded,
+                Icon(LucideIcons.alertTriangle,
                     size: 13, color: AppColors.negative),
                 SizedBox(width: 4),
                 Text('余额不足 · fail-fast 预览',
@@ -791,10 +792,10 @@ class _TypeSegmented extends StatelessWidget {
   final ValueChanged<TradeType> onSelect;
 
   static const _meta = <TradeType, (String, IconData)>{
-    TradeType.buy: ('买入', Icons.arrow_downward),
-    TradeType.sell: ('卖出', Icons.arrow_upward),
-    TradeType.dividend: ('分红', Icons.attach_money),
-    TradeType.split: ('拆分', Icons.call_split),
+    TradeType.buy: ('买入', LucideIcons.arrowDownCircle),
+    TradeType.sell: ('卖出', LucideIcons.arrowUpCircle),
+    TradeType.dividend: ('分红', LucideIcons.coins),
+    TradeType.split: ('拆分', LucideIcons.gitMerge),
   };
 
   @override

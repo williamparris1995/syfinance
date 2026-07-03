@@ -60,7 +60,7 @@ class _HoldingsPageState extends State<HoldingsPage> {
         heroTag: null,
         onPressed: () => context.push('/holdings/new'),
         backgroundColor: AppColors.accent,
-        child: const Icon(Icons.add, color: Colors.white),
+        child: const Icon(LucideIcons.plus, color: Colors.white),
       ),
       body: BlocBuilder<HoldingBloc, HoldingState>(
         builder: (context, state) {
@@ -118,7 +118,7 @@ class _HoldingsPageState extends State<HoldingsPage> {
               color: AppColors.accentSoft,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.pie_chart_outline,
+            child: const Icon(LucideIcons.pieChart,
                 size: 30, color: AppColors.accent),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -144,7 +144,7 @@ class _HoldingsPageState extends State<HoldingsPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 40, color: AppColors.negative),
+            const Icon(LucideIcons.alertCircle, size: 40, color: AppColors.negative),
             const SizedBox(height: 12),
             const Text('加载失败',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
@@ -395,23 +395,23 @@ class _StatGrid extends StatelessWidget {
         final cards = <Widget>[
           _StatCard(
             label: '总市值',
-            icon: Icons.account_balance_wallet_outlined,
+            icon: LucideIcons.wallet,
             value: _fmtSymbol(totalMv, preferred),
           ),
           _StatCard(
             label: '总成本',
-            icon: Icons.account_balance_outlined,
+            icon: LucideIcons.banknote,
             value: _fmtSymbol(totalCost, preferred),
           ),
           _StatCard(
             label: '总盈亏',
-            icon: up ? Icons.trending_up : Icons.trending_down,
+            icon: up ? LucideIcons.trendingUp : LucideIcons.trendingDown,
             value: pnlText,
             valueColor: pnlColor,
           ),
           _StatCard(
             label: '收益率',
-            icon: Icons.percent,
+            icon: LucideIcons.percent,
             value: pctText,
             valueColor: pnlColor,
           ),
@@ -794,7 +794,7 @@ class _HoldingCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                        up ? Icons.trending_up : Icons.trending_down,
+                        up ? LucideIcons.trendingUp : LucideIcons.trendingDown,
                         size: 13,
                         color: pnlColor),
                     const SizedBox(width: 3),

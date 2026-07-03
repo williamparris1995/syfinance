@@ -20,6 +20,7 @@ import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
+import 'package:yucai_client/transaction/presentation/widgets/txn_category_icon.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_event.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_state.dart';
 import 'package:yucai_client/transaction/presentation/pages/transaction_form_page.dart';
@@ -176,7 +177,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
                   ],
                   PopupMenuButton<String>(
                     tooltip: '更多操作',
-                    icon: const Icon(Icons.more_horiz,
+                    icon: const Icon(LucideIcons.moreHorizontal,
                         size: 18, color: AppColors.muted),
                     itemBuilder: (_) => [
                       const PopupMenuItem(
@@ -1084,7 +1085,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
       children: [
         IconButton(
           tooltip: '上一页',
-          icon: const Icon(Icons.chevron_left, size: 20, color: AppColors.muted),
+          icon: const Icon(LucideIcons.chevronLeft, size: 20, color: AppColors.muted),
           onPressed: _recentPage > 0
               ? () => setState(() => _recentPage--)
               : null,
@@ -1093,7 +1094,7 @@ class _AccountDetailPageState extends State<AccountDetailPage> {
             style: const TextStyle(color: AppColors.muted, fontSize: 12)),
         IconButton(
           tooltip: '下一页',
-          icon: const Icon(Icons.chevron_right, size: 20, color: AppColors.muted),
+          icon: const Icon(LucideIcons.chevronRight, size: 20, color: AppColors.muted),
           onPressed: _recentPage < pageCount - 1
               ? () => setState(() => _recentPage++)
               : null,
@@ -1799,53 +1800,9 @@ class _TxnTypeIcon extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
       ),
       alignment: Alignment.center,
-      child: Icon(_iconFor(flavour, categoryAccount),
+      child: Icon(txnCategoryIcon(flavour, categoryAccount),
           size: 18, color: Colors.white),
     );
-  }
-
-  /// 按 flavour 选基础 icon，expense/income 再按 categoryAccount.name 细化
-  /// 到更贴合的分类 icon（本 app 模型里 income/expense 账户即分类，name 是
-  /// 分类名如「餐饮」「工资」）。未匹配到细化的 → flavour 默认 icon。
-  IconData _iconFor(TxnFlavour f, Account? category) {
-    final name = category?.name ?? '';
-    switch (f) {
-      case TxnFlavour.income:
-        if (_contains(name, ['工资', '薪', 'salary'])) return LucideIcons.banknote;
-        if (_contains(name, ['利息', '收益', 'interest'])) {
-          return LucideIcons.percent;
-        }
-        return LucideIcons.coins;
-      case TxnFlavour.expense:
-        if (_contains(name, ['餐', '食', '饭', 'food', 'meal'])) {
-          return LucideIcons.utensils;
-        }
-        if (_contains(name, ['购', '商', '购物', 'shop', 'shopping'])) {
-          return LucideIcons.shoppingBag;
-        }
-        if (_contains(name, ['车', '交通', '出行', 'transport', 'taxi', 'bus'])) {
-          return LucideIcons.car;
-        }
-        if (_contains(name, ['娱乐', '游戏', 'entertainment', 'game'])) {
-          return LucideIcons.gamepad2;
-        }
-        if (_contains(name, ['医', '药', 'health', 'medical'])) {
-          return LucideIcons.heartPulse;
-        }
-        return LucideIcons.receipt;
-      case TxnFlavour.transfer:
-      case TxnFlavour.compound:
-        return LucideIcons.creditCard;
-    }
-  }
-
-  /// 大小写不敏感的包含匹配（中文不区分大小写但保留调用语义）。
-  bool _contains(String haystack, List<String> needles) {
-    final lower = haystack.toLowerCase();
-    for (final n in needles) {
-      if (lower.contains(n.toLowerCase())) return true;
-    }
-    return false;
   }
 }
 

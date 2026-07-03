@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
@@ -310,9 +311,9 @@ class _DetailContent extends StatelessWidget {
             const Text('快捷操作',
                 style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: AppSpacing.md),
-            _actionBtn(context, '编辑', Icons.edit_outlined),
-            _actionBtn(context, '复制', Icons.copy_outlined),
-            _actionBtn(context, '删除', Icons.delete_outline),
+            _actionBtn(context, '编辑', LucideIcons.pencil),
+            _actionBtn(context, '复制', LucideIcons.copy),
+            _actionBtn(context, '删除', LucideIcons.trash2),
           ],
         ),
       );

@@ -20,6 +20,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
@@ -107,7 +108,7 @@ class _SecurityPageState extends State<SecurityPage> {
         key: const ValueKey('createFab'),
         onPressed: () => _openCreateSheet(context),
         backgroundColor: AppColors.accent,
-        child: const Icon(Icons.add, color: Colors.white),
+        child: const Icon(LucideIcons.plus, color: Colors.white),
       ),
       body: BlocBuilder<HoldingBloc, HoldingState>(
         builder: (context, state) {
@@ -181,7 +182,7 @@ class _SecurityPageState extends State<SecurityPage> {
       controller: _searchCtrl,
       decoration: InputDecoration(
         hintText: '搜索 symbol / 名称…',
-        prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.muted),
+        prefixIcon: const Icon(LucideIcons.search, size: 18, color: AppColors.muted),
         filled: true,
         fillColor: AppColors.surface,
         border: OutlineInputBorder(
@@ -236,7 +237,7 @@ class _SecurityPageState extends State<SecurityPage> {
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(
-              Icons.layers_outlined,
+              LucideIcons.layers,
               size: 30,
               color: AppColors.accent,
             ),
@@ -264,7 +265,7 @@ class _SecurityPageState extends State<SecurityPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(
-              Icons.error_outline,
+              LucideIcons.alertCircle,
               size: 36,
               color: AppColors.negative,
             ),
@@ -330,7 +331,7 @@ class _AppBar extends StatelessWidget {
           tooltip: '刷新列表',
           onPressed: () =>
               context.read<HoldingBloc>().add(const LoadSecuritiesRequested()),
-          icon: const Icon(Icons.refresh, color: AppColors.muted),
+          icon: const Icon(LucideIcons.refreshCw, color: AppColors.muted),
         ),
       ],
     );
@@ -355,7 +356,7 @@ class _SyncDisabledBanner extends StatelessWidget {
       child: Row(
         children: [
           const Icon(
-            Icons.lock_outline,
+            LucideIcons.lock,
             size: 16,
             color: AppColors.accentHover,
           ),
@@ -531,12 +532,12 @@ class _SecurityCard extends StatelessWidget {
           runSpacing: 4,
           children: [
             _MetaItem(
-              icon: Icons.account_balance_outlined,
+              icon: LucideIcons.landmark,
               text: security.exchange?.isNotEmpty == true
                   ? security.exchange!
                   : '—',
             ),
-            _MetaItem(icon: Icons.payments_outlined, text: security.currency),
+            _MetaItem(icon: LucideIcons.coins, text: security.currency),
           ],
         ),
         const SizedBox(height: 10),
@@ -670,7 +671,7 @@ class _SecurityCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  Icons.lock_outline,
+                  LucideIcons.lock,
                   size: 13,
                   color: AppColors.muted.withValues(alpha: 0.6),
                 ),
@@ -723,7 +724,7 @@ class _EditPriceBtn extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                Icons.edit_outlined,
+                LucideIcons.pencil,
                 size: 15,
                 color: submitting ? AppColors.muted : AppColors.accent,
               ),
@@ -967,7 +968,7 @@ class _CreateSecuritySheetState extends State<CreateSecuritySheet> {
                     onPressed: _saving
                         ? null
                         : () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close, color: AppColors.muted),
+                    icon: const Icon(LucideIcons.x, color: AppColors.muted),
                   ),
                 ],
               ),

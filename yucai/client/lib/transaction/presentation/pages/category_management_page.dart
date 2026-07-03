@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/transaction/presentation/bloc/category_bloc.dart';
@@ -114,7 +115,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
             child: FilledButton.icon(
               onPressed: () => _openEditor(null),
-              icon: const Icon(Icons.add, size: 18),
+              icon: const Icon(LucideIcons.plus, size: 18),
               label: const Text('新建分类'),
             ),
           ),
@@ -185,7 +186,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
               index: i,
               child: const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 4),
-                child: Icon(Icons.drag_indicator, size: 18, color: AppColors.muted),
+                child: Icon(LucideIcons.gripVertical, size: 18, color: AppColors.muted),
               ),
             ),
           ),
@@ -354,7 +355,7 @@ class _CategoryRow extends StatelessWidget {
           IconButton(
             key: CategoryManagementPage.deleteKey(item.id),
             tooltip: '删除分类',
-            icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.negative),
+            icon: const Icon(LucideIcons.trash2, size: 20, color: AppColors.negative),
             onPressed: item.isSystem
                 ? null
                 : () async {
@@ -656,7 +657,7 @@ class _ColorPicker extends StatelessWidget {
                   ),
                 ),
                 child: hex.toUpperCase() == value.toUpperCase()
-                    ? const Icon(Icons.check, size: 16, color: Colors.white)
+                    ? const Icon(LucideIcons.check, size: 16, color: Colors.white)
                     : null,
               ),
             ),
@@ -689,7 +690,7 @@ Widget _iconContent(String icon, String color, double size) {
   final isEmoji = icon.isNotEmpty && icon.runes.first > 0x2000;
   return isEmoji
       ? Text(icon, style: TextStyle(fontSize: size * 0.9))
-      : Icon(Icons.label_outline, size: size, color: _colorOf(color));
+      : Icon(LucideIcons.tag, size: size, color: _colorOf(color));
 }
 
 Color _colorOf(String hex) {

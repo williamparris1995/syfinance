@@ -149,7 +149,7 @@ class _BudgetListPageState extends State<BudgetListPage> {
                 const SizedBox(width: AppSpacing.xs),
                 _GoldButton(
                   key: const ValueKey('budgetListAdd'),
-                  icon: Icons.add,
+                  icon: LucideIcons.plus,
                   label: '新建预算',
                   tooltip: '新建',
                   onPressed: () => context.push('/budgets/new'),
@@ -348,7 +348,7 @@ class _BudgetListPageState extends State<BudgetListPage> {
           ),
           const SizedBox(height: AppSpacing.md),
           _GoldButton(
-            icon: Icons.add,
+            icon: LucideIcons.plus,
             label: '新建本月预算',
             onPressed: () => context.push('/budgets/new'),
           ),
@@ -364,7 +364,7 @@ class _BudgetListPageState extends State<BudgetListPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 40, color: AppColors.negative),
+            const Icon(LucideIcons.alertCircle, size: 40, color: AppColors.negative),
             const SizedBox(height: 12),
             const Text('加载失败',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
@@ -374,7 +374,7 @@ class _BudgetListPageState extends State<BudgetListPage> {
                 style: const TextStyle(color: AppColors.muted, fontSize: 13)),
             const SizedBox(height: AppSpacing.md),
             _GoldButton(
-              icon: Icons.refresh,
+              icon: LucideIcons.refreshCw,
               label: '重试',
               onPressed: () =>
                   context.read<BudgetBloc>().add(const LoadListRequested()),

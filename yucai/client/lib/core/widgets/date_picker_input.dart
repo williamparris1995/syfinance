@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
 
@@ -18,7 +19,7 @@ class DatePickerInput extends FormField<DateTime> {
                 labelText: label,
                 errorText: state.errorText,
                 suffixIcon:
-                    const Icon(Icons.calendar_today_outlined, size: 18),
+                    const Icon(LucideIcons.calendar, size: 18),
               ),
               child: InkWell(
                 onTap: () async {

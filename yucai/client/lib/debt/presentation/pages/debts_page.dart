@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/di/injection.dart';
 
@@ -64,7 +65,7 @@ class _DebtsPageState extends State<DebtsPage> {
         heroTag: null,
         onPressed: () => context.push('/debts/new'),
         backgroundColor: AppColors.accent,
-        child: const Icon(Icons.add, color: Colors.white),
+        child: const Icon(LucideIcons.plus, color: Colors.white),
       ),
       body: BlocBuilder<DebtBloc, DebtState>(
         builder: (context, state) {
@@ -91,7 +92,7 @@ class _DebtsPageState extends State<DebtsPage> {
               color: AppColors.accentSoft,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.account_balance_outlined,
+            child: const Icon(LucideIcons.landmark,
                 size: 30, color: AppColors.accent),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -103,7 +104,7 @@ class _DebtsPageState extends State<DebtsPage> {
           const SizedBox(height: AppSpacing.lg),
           FilledButton.icon(
             onPressed: () => context.push('/debts/new'),
-            icon: const Icon(Icons.add),
+            icon: const Icon(LucideIcons.plus),
             label: const Text('创建债务'),
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.accent,
@@ -244,7 +245,7 @@ class _OverviewCard extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.account_balance, size: 14, color: AppColors.accent),
+              Icon(LucideIcons.landmark, size: 14, color: AppColors.accent),
               SizedBox(width: 7),
               Text('DEBT OVERVIEW · 总债务概览',
                   style: TextStyle(
@@ -327,7 +328,7 @@ class _OverviewCard extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.account_balance, size: 14, color: AppColors.accent),
+              Icon(LucideIcons.landmark, size: 14, color: AppColors.accent),
               SizedBox(width: 7),
               Text('总债务概览',
                   style: TextStyle(fontSize: 11, color: AppColors.muted)),
@@ -578,13 +579,13 @@ class _DebtCard extends StatelessWidget {
             runSpacing: 5,
             children: [
               _MetaItem(
-                  icon: Icons.percent,
+                  icon: LucideIcons.percent,
                   text: '${debt.interestRate.toStringAsFixed(2)}%'),
               _MetaItem(
-                  icon: Icons.event_outlined,
+                  icon: LucideIcons.calendar,
                   text: '到期 ${_fmtDate(debt.dueDate)}'),
               _MetaItem(
-                  icon: Icons.show_chart,
+                  icon: LucideIcons.lineChart,
                   text: _amortLabel(debt.amortization)),
             ],
           ),
@@ -671,7 +672,7 @@ class _DebtCard extends StatelessWidget {
           Row(
             children: [
               _MetaItem(
-                  icon: Icons.event_outlined,
+                  icon: LucideIcons.calendar,
                   text: '到期 ${_fmtDate(debt.dueDate)}'),
             ],
           ),
@@ -697,12 +698,12 @@ class _DebtCard extends StatelessWidget {
       child: Row(
         children: [
           _ActionBtn(
-            icon: Icons.info_outline,
+            icon: LucideIcons.info,
             label: '详情',
             onTap: (_) => context.push('/debts/${debt.id}'),
           ),
           _ActionBtn(
-            icon: Icons.edit_outlined,
+            icon: LucideIcons.pencil,
             label: '编辑',
             onTap: (_) => Navigator.of(context).push<bool>(
               MaterialPageRoute(
@@ -715,7 +716,7 @@ class _DebtCard extends StatelessWidget {
             ),
           ),
           _ActionBtn(
-            icon: Icons.delete_outline,
+            icon: LucideIcons.trash2,
             label: '删除',
             onTap: (_) async {
               final ok = await showDialog<bool>(

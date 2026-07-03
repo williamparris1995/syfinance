@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
@@ -303,15 +304,15 @@ class _AccountFormPageState extends State<AccountFormPage> {
   }
 
   static const _categoryOptions = <TypeOption<AccountCategory>>[
-    TypeOption(AccountCategory.savings, '储蓄', Icons.account_balance_wallet_outlined),
-    TypeOption(AccountCategory.creditCard, '信用卡', Icons.credit_card_outlined),
-    TypeOption(AccountCategory.investment, '投资', Icons.trending_up),
-    TypeOption(AccountCategory.fixedDeposit, '定期', Icons.hourglass_bottom),
-    TypeOption(AccountCategory.goldFx, '黄金外汇', Icons.diamond_outlined),
-    TypeOption(AccountCategory.realEstate, '固定资产', Icons.home_outlined),
-    TypeOption(AccountCategory.loan, '贷款', Icons.request_quote_outlined),
-    TypeOption(AccountCategory.otherAsset, '其他资产', Icons.inventory_2_outlined),
-    TypeOption(AccountCategory.otherLiability, '其他负债', Icons.pending_actions),
+    TypeOption(AccountCategory.savings, '储蓄', LucideIcons.landmark),
+    TypeOption(AccountCategory.creditCard, '信用卡', LucideIcons.creditCard),
+    TypeOption(AccountCategory.investment, '投资', LucideIcons.trendingUp),
+    TypeOption(AccountCategory.fixedDeposit, '定期', LucideIcons.hourglass),
+    TypeOption(AccountCategory.goldFx, '黄金外汇', LucideIcons.gem),
+    TypeOption(AccountCategory.realEstate, '固定资产', LucideIcons.building2),
+    TypeOption(AccountCategory.loan, '贷款', LucideIcons.landmark),
+    TypeOption(AccountCategory.otherAsset, '其他资产', LucideIcons.wallet),
+    TypeOption(AccountCategory.otherLiability, '其他负债', LucideIcons.wallet),
   ];
 
   @override

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
@@ -216,7 +217,7 @@ class _BalanceBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(balanced ? Icons.check_circle_outline : Icons.error_outline,
+          Icon(balanced ? LucideIcons.checkCircle2 : LucideIcons.alertCircle,
               size: 14, color: color),
           const SizedBox(width: 4),
           Text(label,

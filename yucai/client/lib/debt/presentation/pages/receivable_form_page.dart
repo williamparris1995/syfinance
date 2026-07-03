@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
@@ -764,7 +765,7 @@ class _StepIndicator extends StatelessWidget {
           ),
           alignment: Alignment.center,
           child: done
-              ? const Icon(Icons.check, size: 14, color: Colors.white)
+              ? const Icon(LucideIcons.check, size: 14, color: Colors.white)
               : Text(
                   '${_labels.indexOf(label) + 1}',
                   style: TextStyle(
@@ -851,7 +852,7 @@ class _DateField extends StatelessWidget {
     return InputDecorator(
       decoration: InputDecoration(
         labelText: label,
-        suffixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
+        suffixIcon: const Icon(LucideIcons.calendar, size: 18),
       ),
       child: InkWell(
         onTap: () async {

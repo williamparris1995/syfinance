@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
@@ -208,7 +209,7 @@ class _TransferAccounts extends StatelessWidget {
         Flexible(child: _AccountChip(label: fromLabel)),
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 4),
-          child: Icon(Icons.arrow_forward, size: 14, color: AppColors.muted),
+          child: Icon(LucideIcons.arrowRight, size: 14, color: AppColors.muted),
         ),
         Flexible(child: _AccountChip(label: toLabel)),
       ],
@@ -397,7 +398,7 @@ class _MobileRow extends StatelessWidget {
                         Flexible(child: _AccountChip(label: cell.fromLabel)),
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 4),
-                          child: Icon(Icons.arrow_forward,
+                          child: Icon(LucideIcons.arrowRight,
                               size: 14, color: AppColors.muted),
                         ),
                         Flexible(child: _AccountChip(label: cell.toLabel)),

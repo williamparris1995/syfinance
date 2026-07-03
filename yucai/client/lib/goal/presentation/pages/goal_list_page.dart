@@ -141,7 +141,7 @@ class _GoalListPageState extends State<GoalListPage> {
                 const SizedBox(width: AppSpacing.xs),
                 _GoldButton(
                   key: const ValueKey('goalListAdd'),
-                  icon: Icons.add,
+                  icon: LucideIcons.plus,
                   label: '新建目标',
                   tooltip: '新建',
                   onPressed: () => context.push('/goals/new'),
@@ -302,7 +302,7 @@ class _GoalListPageState extends State<GoalListPage> {
           ),
           const SizedBox(height: AppSpacing.md),
           _GoldButton(
-            icon: Icons.add,
+            icon: LucideIcons.plus,
             label: '新建第一个目标',
             onPressed: () => context.push('/goals/new'),
           ),
@@ -318,7 +318,7 @@ class _GoalListPageState extends State<GoalListPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 40, color: AppColors.negative),
+            const Icon(LucideIcons.alertCircle, size: 40, color: AppColors.negative),
             const SizedBox(height: 12),
             const Text('加载失败',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
@@ -328,7 +328,7 @@ class _GoalListPageState extends State<GoalListPage> {
                 style: const TextStyle(color: AppColors.muted, fontSize: 13)),
             const SizedBox(height: AppSpacing.md),
             _GoldButton(
-              icon: Icons.refresh,
+              icon: LucideIcons.refreshCw,
               label: '重试',
               onPressed: () =>
                   context.read<GoalBloc>().add(const LoadListRequested()),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/core/di/injection.dart';
@@ -269,7 +270,7 @@ class _CurrencyDropdown extends StatelessWidget {
         underline: const SizedBox(),
         // 御财金强调选中态：通过 dropdownColor + iconColor 表达。
         dropdownColor: AppColors.surface,
-        icon: const Icon(Icons.expand_more,
+        icon: const Icon(LucideIcons.chevronDown,
             color: AppColors.accent, size: 20),
         onChanged: (v) {
           if (v != null) onChanged(v);
@@ -335,7 +336,7 @@ class _BaseCurrencyDropdown extends StatelessWidget {
             isExpanded: true,
             underline: const SizedBox(),
             dropdownColor: AppColors.surface,
-            icon: const Icon(Icons.expand_more,
+            icon: const Icon(LucideIcons.chevronDown,
                 color: AppColors.accent, size: 20),
             onChanged: (v) {
               if (v != null) onChanged(v);
@@ -373,7 +374,7 @@ class _IntervalDropdown extends StatelessWidget {
         isExpanded: true,
         underline: const SizedBox(),
         dropdownColor: AppColors.surface,
-        icon: const Icon(Icons.expand_more,
+        icon: const Icon(LucideIcons.chevronDown,
             color: AppColors.accent, size: 20),
         onChanged: (h) {
           if (h != null) onChanged(h);
