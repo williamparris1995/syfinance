@@ -16,6 +16,7 @@ import (
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"github.com/yucai/server/internal/debt/ent/debtdetails"
+	"github.com/yucai/server/internal/debt/ent/debtprogresssnapshot"
 	"github.com/yucai/server/internal/debt/ent/paymentschedule"
 )
 
@@ -26,6 +27,8 @@ type Client struct {
 	Schema *migrate.Schema
 	// DebtDetails is the client for interacting with the DebtDetails builders.
 	DebtDetails *DebtDetailsClient
+	// DebtProgressSnapshot is the client for interacting with the DebtProgressSnapshot builders.
+	DebtProgressSnapshot *DebtProgressSnapshotClient
 	// PaymentSchedule is the client for interacting with the PaymentSchedule builders.
 	PaymentSchedule *PaymentScheduleClient
 }
@@ -40,6 +43,7 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.DebtDetails = NewDebtDetailsClient(c.config)
+	c.DebtProgressSnapshot = NewDebtProgressSnapshotClient(c.config)
 	c.PaymentSchedule = NewPaymentScheduleClient(c.config)
 }
 
@@ -131,10 +135,11 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:             ctx,
-		config:          cfg,
-		DebtDetails:     NewDebtDetailsClient(cfg),
-		PaymentSchedule: NewPaymentScheduleClient(cfg),
+		ctx:                  ctx,
+		config:               cfg,
+		DebtDetails:          NewDebtDetailsClient(cfg),
+		DebtProgressSnapshot: NewDebtProgressSnapshotClient(cfg),
+		PaymentSchedule:      NewPaymentScheduleClient(cfg),
 	}, nil
 }
 
@@ -152,10 +157,11 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:             ctx,
-		config:          cfg,
-		DebtDetails:     NewDebtDetailsClient(cfg),
-		PaymentSchedule: NewPaymentScheduleClient(cfg),
+		ctx:                  ctx,
+		config:               cfg,
+		DebtDetails:          NewDebtDetailsClient(cfg),
+		DebtProgressSnapshot: NewDebtProgressSnapshotClient(cfg),
+		PaymentSchedule:      NewPaymentScheduleClient(cfg),
 	}, nil
 }
 
@@ -185,6 +191,7 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	c.DebtDetails.Use(hooks...)
+	c.DebtProgressSnapshot.Use(hooks...)
 	c.PaymentSchedule.Use(hooks...)
 }
 
@@ -192,6 +199,7 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	c.DebtDetails.Intercept(interceptors...)
+	c.DebtProgressSnapshot.Intercept(interceptors...)
 	c.PaymentSchedule.Intercept(interceptors...)
 }
 
@@ -200,6 +208,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *DebtDetailsMutation:
 		return c.DebtDetails.mutate(ctx, m)
+	case *DebtProgressSnapshotMutation:
+		return c.DebtProgressSnapshot.mutate(ctx, m)
 	case *PaymentScheduleMutation:
 		return c.PaymentSchedule.mutate(ctx, m)
 	default:
@@ -340,6 +350,139 @@ func (c *DebtDetailsClient) mutate(ctx context.Context, m *DebtDetailsMutation) 
 	}
 }
 
+// DebtProgressSnapshotClient is a client for the DebtProgressSnapshot schema.
+type DebtProgressSnapshotClient struct {
+	config
+}
+
+// NewDebtProgressSnapshotClient returns a client for the DebtProgressSnapshot from the given config.
+func NewDebtProgressSnapshotClient(c config) *DebtProgressSnapshotClient {
+	return &DebtProgressSnapshotClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `debtprogresssnapshot.Hooks(f(g(h())))`.
+func (c *DebtProgressSnapshotClient) Use(hooks ...Hook) {
+	c.hooks.DebtProgressSnapshot = append(c.hooks.DebtProgressSnapshot, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `debtprogresssnapshot.Intercept(f(g(h())))`.
+func (c *DebtProgressSnapshotClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DebtProgressSnapshot = append(c.inters.DebtProgressSnapshot, interceptors...)
+}
+
+// Create returns a builder for creating a DebtProgressSnapshot entity.
+func (c *DebtProgressSnapshotClient) Create() *DebtProgressSnapshotCreate {
+	mutation := newDebtProgressSnapshotMutation(c.config, OpCreate)
+	return &DebtProgressSnapshotCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of DebtProgressSnapshot entities.
+func (c *DebtProgressSnapshotClient) CreateBulk(builders ...*DebtProgressSnapshotCreate) *DebtProgressSnapshotCreateBulk {
+	return &DebtProgressSnapshotCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DebtProgressSnapshotClient) MapCreateBulk(slice any, setFunc func(*DebtProgressSnapshotCreate, int)) *DebtProgressSnapshotCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DebtProgressSnapshotCreateBulk{err: fmt.Errorf("calling to DebtProgressSnapshotClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DebtProgressSnapshotCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DebtProgressSnapshotCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for DebtProgressSnapshot.
+func (c *DebtProgressSnapshotClient) Update() *DebtProgressSnapshotUpdate {
+	mutation := newDebtProgressSnapshotMutation(c.config, OpUpdate)
+	return &DebtProgressSnapshotUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DebtProgressSnapshotClient) UpdateOne(dps *DebtProgressSnapshot) *DebtProgressSnapshotUpdateOne {
+	mutation := newDebtProgressSnapshotMutation(c.config, OpUpdateOne, withDebtProgressSnapshot(dps))
+	return &DebtProgressSnapshotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DebtProgressSnapshotClient) UpdateOneID(id uuid.UUID) *DebtProgressSnapshotUpdateOne {
+	mutation := newDebtProgressSnapshotMutation(c.config, OpUpdateOne, withDebtProgressSnapshotID(id))
+	return &DebtProgressSnapshotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for DebtProgressSnapshot.
+func (c *DebtProgressSnapshotClient) Delete() *DebtProgressSnapshotDelete {
+	mutation := newDebtProgressSnapshotMutation(c.config, OpDelete)
+	return &DebtProgressSnapshotDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DebtProgressSnapshotClient) DeleteOne(dps *DebtProgressSnapshot) *DebtProgressSnapshotDeleteOne {
+	return c.DeleteOneID(dps.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DebtProgressSnapshotClient) DeleteOneID(id uuid.UUID) *DebtProgressSnapshotDeleteOne {
+	builder := c.Delete().Where(debtprogresssnapshot.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DebtProgressSnapshotDeleteOne{builder}
+}
+
+// Query returns a query builder for DebtProgressSnapshot.
+func (c *DebtProgressSnapshotClient) Query() *DebtProgressSnapshotQuery {
+	return &DebtProgressSnapshotQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDebtProgressSnapshot},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a DebtProgressSnapshot entity by its id.
+func (c *DebtProgressSnapshotClient) Get(ctx context.Context, id uuid.UUID) (*DebtProgressSnapshot, error) {
+	return c.Query().Where(debtprogresssnapshot.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DebtProgressSnapshotClient) GetX(ctx context.Context, id uuid.UUID) *DebtProgressSnapshot {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *DebtProgressSnapshotClient) Hooks() []Hook {
+	return c.hooks.DebtProgressSnapshot
+}
+
+// Interceptors returns the client interceptors.
+func (c *DebtProgressSnapshotClient) Interceptors() []Interceptor {
+	return c.inters.DebtProgressSnapshot
+}
+
+func (c *DebtProgressSnapshotClient) mutate(ctx context.Context, m *DebtProgressSnapshotMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DebtProgressSnapshotCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DebtProgressSnapshotUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DebtProgressSnapshotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DebtProgressSnapshotDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown DebtProgressSnapshot mutation op: %q", m.Op())
+	}
+}
+
 // PaymentScheduleClient is a client for the PaymentSchedule schema.
 type PaymentScheduleClient struct {
 	config
@@ -476,9 +619,9 @@ func (c *PaymentScheduleClient) mutate(ctx context.Context, m *PaymentScheduleMu
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		DebtDetails, PaymentSchedule []ent.Hook
+		DebtDetails, DebtProgressSnapshot, PaymentSchedule []ent.Hook
 	}
 	inters struct {
-		DebtDetails, PaymentSchedule []ent.Interceptor
+		DebtDetails, DebtProgressSnapshot, PaymentSchedule []ent.Interceptor
 	}
 )

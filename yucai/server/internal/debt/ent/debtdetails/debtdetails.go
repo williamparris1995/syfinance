@@ -36,6 +36,12 @@ const (
 	FieldSubtype = "subtype"
 	// FieldVersion holds the string denoting the version field in the database.
 	FieldVersion = "version"
+	// FieldContact holds the string denoting the contact field in the database.
+	FieldContact = "contact"
+	// FieldContractRef holds the string denoting the contract_ref field in the database.
+	FieldContractRef = "contract_ref"
+	// FieldCollectionAccountID holds the string denoting the collection_account_id field in the database.
+	FieldCollectionAccountID = "collection_account_id"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -58,6 +64,9 @@ var Columns = []string{
 	FieldDebtType,
 	FieldSubtype,
 	FieldVersion,
+	FieldContact,
+	FieldContractRef,
+	FieldCollectionAccountID,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -79,6 +88,10 @@ var (
 	DefaultSubtype string
 	// DefaultVersion holds the default value on creation for the "version" field.
 	DefaultVersion int64
+	// DefaultContact holds the default value on creation for the "contact" field.
+	DefaultContact string
+	// DefaultContractRef holds the default value on creation for the "contract_ref" field.
+	DefaultContractRef string
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -150,6 +163,21 @@ func BySubtype(opts ...sql.OrderTermOption) OrderOption {
 // ByVersion orders the results by the version field.
 func ByVersion(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldVersion, opts...).ToFunc()
+}
+
+// ByContact orders the results by the contact field.
+func ByContact(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldContact, opts...).ToFunc()
+}
+
+// ByContractRef orders the results by the contract_ref field.
+func ByContractRef(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldContractRef, opts...).ToFunc()
+}
+
+// ByCollectionAccountID orders the results by the collection_account_id field.
+func ByCollectionAccountID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCollectionAccountID, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

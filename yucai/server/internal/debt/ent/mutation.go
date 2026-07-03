@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/debt/ent/debtdetails"
+	"github.com/yucai/server/internal/debt/ent/debtprogresssnapshot"
 	"github.com/yucai/server/internal/debt/ent/paymentschedule"
 	"github.com/yucai/server/internal/debt/ent/predicate"
 )
@@ -26,8 +27,9 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeDebtDetails     = "DebtDetails"
-	TypePaymentSchedule = "PaymentSchedule"
+	TypeDebtDetails          = "DebtDetails"
+	TypeDebtProgressSnapshot = "DebtProgressSnapshot"
+	TypePaymentSchedule      = "PaymentSchedule"
 )
 
 // DebtDetailsMutation represents an operation that mutates the DebtDetails nodes in the graph.
@@ -50,6 +52,9 @@ type DebtDetailsMutation struct {
 	subtype                  *string
 	version                  *int64
 	addversion               *int64
+	contact                  *string
+	contract_ref             *string
+	collection_account_id    *uuid.UUID
 	created_at               *time.Time
 	updated_at               *time.Time
 	clearedFields            map[string]struct{}
@@ -618,6 +623,127 @@ func (m *DebtDetailsMutation) ResetVersion() {
 	m.addversion = nil
 }
 
+// SetContact sets the "contact" field.
+func (m *DebtDetailsMutation) SetContact(s string) {
+	m.contact = &s
+}
+
+// Contact returns the value of the "contact" field in the mutation.
+func (m *DebtDetailsMutation) Contact() (r string, exists bool) {
+	v := m.contact
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContact returns the old "contact" field's value of the DebtDetails entity.
+// If the DebtDetails object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DebtDetailsMutation) OldContact(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContact is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContact requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContact: %w", err)
+	}
+	return oldValue.Contact, nil
+}
+
+// ResetContact resets all changes to the "contact" field.
+func (m *DebtDetailsMutation) ResetContact() {
+	m.contact = nil
+}
+
+// SetContractRef sets the "contract_ref" field.
+func (m *DebtDetailsMutation) SetContractRef(s string) {
+	m.contract_ref = &s
+}
+
+// ContractRef returns the value of the "contract_ref" field in the mutation.
+func (m *DebtDetailsMutation) ContractRef() (r string, exists bool) {
+	v := m.contract_ref
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContractRef returns the old "contract_ref" field's value of the DebtDetails entity.
+// If the DebtDetails object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DebtDetailsMutation) OldContractRef(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContractRef is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContractRef requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContractRef: %w", err)
+	}
+	return oldValue.ContractRef, nil
+}
+
+// ResetContractRef resets all changes to the "contract_ref" field.
+func (m *DebtDetailsMutation) ResetContractRef() {
+	m.contract_ref = nil
+}
+
+// SetCollectionAccountID sets the "collection_account_id" field.
+func (m *DebtDetailsMutation) SetCollectionAccountID(u uuid.UUID) {
+	m.collection_account_id = &u
+}
+
+// CollectionAccountID returns the value of the "collection_account_id" field in the mutation.
+func (m *DebtDetailsMutation) CollectionAccountID() (r uuid.UUID, exists bool) {
+	v := m.collection_account_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCollectionAccountID returns the old "collection_account_id" field's value of the DebtDetails entity.
+// If the DebtDetails object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DebtDetailsMutation) OldCollectionAccountID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCollectionAccountID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCollectionAccountID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCollectionAccountID: %w", err)
+	}
+	return oldValue.CollectionAccountID, nil
+}
+
+// ClearCollectionAccountID clears the value of the "collection_account_id" field.
+func (m *DebtDetailsMutation) ClearCollectionAccountID() {
+	m.collection_account_id = nil
+	m.clearedFields[debtdetails.FieldCollectionAccountID] = struct{}{}
+}
+
+// CollectionAccountIDCleared returns if the "collection_account_id" field was cleared in this mutation.
+func (m *DebtDetailsMutation) CollectionAccountIDCleared() bool {
+	_, ok := m.clearedFields[debtdetails.FieldCollectionAccountID]
+	return ok
+}
+
+// ResetCollectionAccountID resets all changes to the "collection_account_id" field.
+func (m *DebtDetailsMutation) ResetCollectionAccountID() {
+	m.collection_account_id = nil
+	delete(m.clearedFields, debtdetails.FieldCollectionAccountID)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *DebtDetailsMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -724,7 +850,7 @@ func (m *DebtDetailsMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DebtDetailsMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 16)
 	if m.tenant_id != nil {
 		fields = append(fields, debtdetails.FieldTenantID)
 	}
@@ -757,6 +883,15 @@ func (m *DebtDetailsMutation) Fields() []string {
 	}
 	if m.version != nil {
 		fields = append(fields, debtdetails.FieldVersion)
+	}
+	if m.contact != nil {
+		fields = append(fields, debtdetails.FieldContact)
+	}
+	if m.contract_ref != nil {
+		fields = append(fields, debtdetails.FieldContractRef)
+	}
+	if m.collection_account_id != nil {
+		fields = append(fields, debtdetails.FieldCollectionAccountID)
 	}
 	if m.created_at != nil {
 		fields = append(fields, debtdetails.FieldCreatedAt)
@@ -794,6 +929,12 @@ func (m *DebtDetailsMutation) Field(name string) (ent.Value, bool) {
 		return m.Subtype()
 	case debtdetails.FieldVersion:
 		return m.Version()
+	case debtdetails.FieldContact:
+		return m.Contact()
+	case debtdetails.FieldContractRef:
+		return m.ContractRef()
+	case debtdetails.FieldCollectionAccountID:
+		return m.CollectionAccountID()
 	case debtdetails.FieldCreatedAt:
 		return m.CreatedAt()
 	case debtdetails.FieldUpdatedAt:
@@ -829,6 +970,12 @@ func (m *DebtDetailsMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldSubtype(ctx)
 	case debtdetails.FieldVersion:
 		return m.OldVersion(ctx)
+	case debtdetails.FieldContact:
+		return m.OldContact(ctx)
+	case debtdetails.FieldContractRef:
+		return m.OldContractRef(ctx)
+	case debtdetails.FieldCollectionAccountID:
+		return m.OldCollectionAccountID(ctx)
 	case debtdetails.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case debtdetails.FieldUpdatedAt:
@@ -919,6 +1066,27 @@ func (m *DebtDetailsMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetVersion(v)
 		return nil
+	case debtdetails.FieldContact:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContact(v)
+		return nil
+	case debtdetails.FieldContractRef:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContractRef(v)
+		return nil
+	case debtdetails.FieldCollectionAccountID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCollectionAccountID(v)
+		return nil
 	case debtdetails.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -1001,7 +1169,11 @@ func (m *DebtDetailsMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *DebtDetailsMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(debtdetails.FieldCollectionAccountID) {
+		fields = append(fields, debtdetails.FieldCollectionAccountID)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -1014,6 +1186,11 @@ func (m *DebtDetailsMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *DebtDetailsMutation) ClearField(name string) error {
+	switch name {
+	case debtdetails.FieldCollectionAccountID:
+		m.ClearCollectionAccountID()
+		return nil
+	}
 	return fmt.Errorf("unknown DebtDetails nullable field %s", name)
 }
 
@@ -1053,6 +1230,15 @@ func (m *DebtDetailsMutation) ResetField(name string) error {
 		return nil
 	case debtdetails.FieldVersion:
 		m.ResetVersion()
+		return nil
+	case debtdetails.FieldContact:
+		m.ResetContact()
+		return nil
+	case debtdetails.FieldContractRef:
+		m.ResetContractRef()
+		return nil
+	case debtdetails.FieldCollectionAccountID:
+		m.ResetCollectionAccountID()
 		return nil
 	case debtdetails.FieldCreatedAt:
 		m.ResetCreatedAt()
@@ -1110,6 +1296,764 @@ func (m *DebtDetailsMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *DebtDetailsMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown DebtDetails edge %s", name)
+}
+
+// DebtProgressSnapshotMutation represents an operation that mutates the DebtProgressSnapshot nodes in the graph.
+type DebtProgressSnapshotMutation struct {
+	config
+	op                           Op
+	typ                          string
+	id                           *uuid.UUID
+	tenant_id                    *uuid.UUID
+	debt_id                      *uuid.UUID
+	snapshot_date                *time.Time
+	total_principal_cents        *int64
+	addtotal_principal_cents     *int64
+	remaining_principal_cents    *int64
+	addremaining_principal_cents *int64
+	paid_total_cents             *int64
+	addpaid_total_cents          *int64
+	created_at                   *time.Time
+	clearedFields                map[string]struct{}
+	done                         bool
+	oldValue                     func(context.Context) (*DebtProgressSnapshot, error)
+	predicates                   []predicate.DebtProgressSnapshot
+}
+
+var _ ent.Mutation = (*DebtProgressSnapshotMutation)(nil)
+
+// debtprogresssnapshotOption allows management of the mutation configuration using functional options.
+type debtprogresssnapshotOption func(*DebtProgressSnapshotMutation)
+
+// newDebtProgressSnapshotMutation creates new mutation for the DebtProgressSnapshot entity.
+func newDebtProgressSnapshotMutation(c config, op Op, opts ...debtprogresssnapshotOption) *DebtProgressSnapshotMutation {
+	m := &DebtProgressSnapshotMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeDebtProgressSnapshot,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withDebtProgressSnapshotID sets the ID field of the mutation.
+func withDebtProgressSnapshotID(id uuid.UUID) debtprogresssnapshotOption {
+	return func(m *DebtProgressSnapshotMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *DebtProgressSnapshot
+		)
+		m.oldValue = func(ctx context.Context) (*DebtProgressSnapshot, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().DebtProgressSnapshot.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withDebtProgressSnapshot sets the old DebtProgressSnapshot of the mutation.
+func withDebtProgressSnapshot(node *DebtProgressSnapshot) debtprogresssnapshotOption {
+	return func(m *DebtProgressSnapshotMutation) {
+		m.oldValue = func(context.Context) (*DebtProgressSnapshot, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m DebtProgressSnapshotMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m DebtProgressSnapshotMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of DebtProgressSnapshot entities.
+func (m *DebtProgressSnapshotMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *DebtProgressSnapshotMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *DebtProgressSnapshotMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().DebtProgressSnapshot.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *DebtProgressSnapshotMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *DebtProgressSnapshotMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the DebtProgressSnapshot entity.
+// If the DebtProgressSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DebtProgressSnapshotMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *DebtProgressSnapshotMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetDebtID sets the "debt_id" field.
+func (m *DebtProgressSnapshotMutation) SetDebtID(u uuid.UUID) {
+	m.debt_id = &u
+}
+
+// DebtID returns the value of the "debt_id" field in the mutation.
+func (m *DebtProgressSnapshotMutation) DebtID() (r uuid.UUID, exists bool) {
+	v := m.debt_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDebtID returns the old "debt_id" field's value of the DebtProgressSnapshot entity.
+// If the DebtProgressSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DebtProgressSnapshotMutation) OldDebtID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDebtID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDebtID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDebtID: %w", err)
+	}
+	return oldValue.DebtID, nil
+}
+
+// ResetDebtID resets all changes to the "debt_id" field.
+func (m *DebtProgressSnapshotMutation) ResetDebtID() {
+	m.debt_id = nil
+}
+
+// SetSnapshotDate sets the "snapshot_date" field.
+func (m *DebtProgressSnapshotMutation) SetSnapshotDate(t time.Time) {
+	m.snapshot_date = &t
+}
+
+// SnapshotDate returns the value of the "snapshot_date" field in the mutation.
+func (m *DebtProgressSnapshotMutation) SnapshotDate() (r time.Time, exists bool) {
+	v := m.snapshot_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSnapshotDate returns the old "snapshot_date" field's value of the DebtProgressSnapshot entity.
+// If the DebtProgressSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DebtProgressSnapshotMutation) OldSnapshotDate(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSnapshotDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSnapshotDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSnapshotDate: %w", err)
+	}
+	return oldValue.SnapshotDate, nil
+}
+
+// ResetSnapshotDate resets all changes to the "snapshot_date" field.
+func (m *DebtProgressSnapshotMutation) ResetSnapshotDate() {
+	m.snapshot_date = nil
+}
+
+// SetTotalPrincipalCents sets the "total_principal_cents" field.
+func (m *DebtProgressSnapshotMutation) SetTotalPrincipalCents(i int64) {
+	m.total_principal_cents = &i
+	m.addtotal_principal_cents = nil
+}
+
+// TotalPrincipalCents returns the value of the "total_principal_cents" field in the mutation.
+func (m *DebtProgressSnapshotMutation) TotalPrincipalCents() (r int64, exists bool) {
+	v := m.total_principal_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalPrincipalCents returns the old "total_principal_cents" field's value of the DebtProgressSnapshot entity.
+// If the DebtProgressSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DebtProgressSnapshotMutation) OldTotalPrincipalCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalPrincipalCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalPrincipalCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalPrincipalCents: %w", err)
+	}
+	return oldValue.TotalPrincipalCents, nil
+}
+
+// AddTotalPrincipalCents adds i to the "total_principal_cents" field.
+func (m *DebtProgressSnapshotMutation) AddTotalPrincipalCents(i int64) {
+	if m.addtotal_principal_cents != nil {
+		*m.addtotal_principal_cents += i
+	} else {
+		m.addtotal_principal_cents = &i
+	}
+}
+
+// AddedTotalPrincipalCents returns the value that was added to the "total_principal_cents" field in this mutation.
+func (m *DebtProgressSnapshotMutation) AddedTotalPrincipalCents() (r int64, exists bool) {
+	v := m.addtotal_principal_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTotalPrincipalCents resets all changes to the "total_principal_cents" field.
+func (m *DebtProgressSnapshotMutation) ResetTotalPrincipalCents() {
+	m.total_principal_cents = nil
+	m.addtotal_principal_cents = nil
+}
+
+// SetRemainingPrincipalCents sets the "remaining_principal_cents" field.
+func (m *DebtProgressSnapshotMutation) SetRemainingPrincipalCents(i int64) {
+	m.remaining_principal_cents = &i
+	m.addremaining_principal_cents = nil
+}
+
+// RemainingPrincipalCents returns the value of the "remaining_principal_cents" field in the mutation.
+func (m *DebtProgressSnapshotMutation) RemainingPrincipalCents() (r int64, exists bool) {
+	v := m.remaining_principal_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRemainingPrincipalCents returns the old "remaining_principal_cents" field's value of the DebtProgressSnapshot entity.
+// If the DebtProgressSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DebtProgressSnapshotMutation) OldRemainingPrincipalCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRemainingPrincipalCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRemainingPrincipalCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRemainingPrincipalCents: %w", err)
+	}
+	return oldValue.RemainingPrincipalCents, nil
+}
+
+// AddRemainingPrincipalCents adds i to the "remaining_principal_cents" field.
+func (m *DebtProgressSnapshotMutation) AddRemainingPrincipalCents(i int64) {
+	if m.addremaining_principal_cents != nil {
+		*m.addremaining_principal_cents += i
+	} else {
+		m.addremaining_principal_cents = &i
+	}
+}
+
+// AddedRemainingPrincipalCents returns the value that was added to the "remaining_principal_cents" field in this mutation.
+func (m *DebtProgressSnapshotMutation) AddedRemainingPrincipalCents() (r int64, exists bool) {
+	v := m.addremaining_principal_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRemainingPrincipalCents resets all changes to the "remaining_principal_cents" field.
+func (m *DebtProgressSnapshotMutation) ResetRemainingPrincipalCents() {
+	m.remaining_principal_cents = nil
+	m.addremaining_principal_cents = nil
+}
+
+// SetPaidTotalCents sets the "paid_total_cents" field.
+func (m *DebtProgressSnapshotMutation) SetPaidTotalCents(i int64) {
+	m.paid_total_cents = &i
+	m.addpaid_total_cents = nil
+}
+
+// PaidTotalCents returns the value of the "paid_total_cents" field in the mutation.
+func (m *DebtProgressSnapshotMutation) PaidTotalCents() (r int64, exists bool) {
+	v := m.paid_total_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPaidTotalCents returns the old "paid_total_cents" field's value of the DebtProgressSnapshot entity.
+// If the DebtProgressSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DebtProgressSnapshotMutation) OldPaidTotalCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPaidTotalCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPaidTotalCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPaidTotalCents: %w", err)
+	}
+	return oldValue.PaidTotalCents, nil
+}
+
+// AddPaidTotalCents adds i to the "paid_total_cents" field.
+func (m *DebtProgressSnapshotMutation) AddPaidTotalCents(i int64) {
+	if m.addpaid_total_cents != nil {
+		*m.addpaid_total_cents += i
+	} else {
+		m.addpaid_total_cents = &i
+	}
+}
+
+// AddedPaidTotalCents returns the value that was added to the "paid_total_cents" field in this mutation.
+func (m *DebtProgressSnapshotMutation) AddedPaidTotalCents() (r int64, exists bool) {
+	v := m.addpaid_total_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPaidTotalCents resets all changes to the "paid_total_cents" field.
+func (m *DebtProgressSnapshotMutation) ResetPaidTotalCents() {
+	m.paid_total_cents = nil
+	m.addpaid_total_cents = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *DebtProgressSnapshotMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *DebtProgressSnapshotMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the DebtProgressSnapshot entity.
+// If the DebtProgressSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DebtProgressSnapshotMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *DebtProgressSnapshotMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the DebtProgressSnapshotMutation builder.
+func (m *DebtProgressSnapshotMutation) Where(ps ...predicate.DebtProgressSnapshot) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the DebtProgressSnapshotMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *DebtProgressSnapshotMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.DebtProgressSnapshot, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *DebtProgressSnapshotMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *DebtProgressSnapshotMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (DebtProgressSnapshot).
+func (m *DebtProgressSnapshotMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *DebtProgressSnapshotMutation) Fields() []string {
+	fields := make([]string, 0, 7)
+	if m.tenant_id != nil {
+		fields = append(fields, debtprogresssnapshot.FieldTenantID)
+	}
+	if m.debt_id != nil {
+		fields = append(fields, debtprogresssnapshot.FieldDebtID)
+	}
+	if m.snapshot_date != nil {
+		fields = append(fields, debtprogresssnapshot.FieldSnapshotDate)
+	}
+	if m.total_principal_cents != nil {
+		fields = append(fields, debtprogresssnapshot.FieldTotalPrincipalCents)
+	}
+	if m.remaining_principal_cents != nil {
+		fields = append(fields, debtprogresssnapshot.FieldRemainingPrincipalCents)
+	}
+	if m.paid_total_cents != nil {
+		fields = append(fields, debtprogresssnapshot.FieldPaidTotalCents)
+	}
+	if m.created_at != nil {
+		fields = append(fields, debtprogresssnapshot.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *DebtProgressSnapshotMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case debtprogresssnapshot.FieldTenantID:
+		return m.TenantID()
+	case debtprogresssnapshot.FieldDebtID:
+		return m.DebtID()
+	case debtprogresssnapshot.FieldSnapshotDate:
+		return m.SnapshotDate()
+	case debtprogresssnapshot.FieldTotalPrincipalCents:
+		return m.TotalPrincipalCents()
+	case debtprogresssnapshot.FieldRemainingPrincipalCents:
+		return m.RemainingPrincipalCents()
+	case debtprogresssnapshot.FieldPaidTotalCents:
+		return m.PaidTotalCents()
+	case debtprogresssnapshot.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *DebtProgressSnapshotMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case debtprogresssnapshot.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case debtprogresssnapshot.FieldDebtID:
+		return m.OldDebtID(ctx)
+	case debtprogresssnapshot.FieldSnapshotDate:
+		return m.OldSnapshotDate(ctx)
+	case debtprogresssnapshot.FieldTotalPrincipalCents:
+		return m.OldTotalPrincipalCents(ctx)
+	case debtprogresssnapshot.FieldRemainingPrincipalCents:
+		return m.OldRemainingPrincipalCents(ctx)
+	case debtprogresssnapshot.FieldPaidTotalCents:
+		return m.OldPaidTotalCents(ctx)
+	case debtprogresssnapshot.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown DebtProgressSnapshot field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DebtProgressSnapshotMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case debtprogresssnapshot.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case debtprogresssnapshot.FieldDebtID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDebtID(v)
+		return nil
+	case debtprogresssnapshot.FieldSnapshotDate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSnapshotDate(v)
+		return nil
+	case debtprogresssnapshot.FieldTotalPrincipalCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalPrincipalCents(v)
+		return nil
+	case debtprogresssnapshot.FieldRemainingPrincipalCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRemainingPrincipalCents(v)
+		return nil
+	case debtprogresssnapshot.FieldPaidTotalCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPaidTotalCents(v)
+		return nil
+	case debtprogresssnapshot.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown DebtProgressSnapshot field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *DebtProgressSnapshotMutation) AddedFields() []string {
+	var fields []string
+	if m.addtotal_principal_cents != nil {
+		fields = append(fields, debtprogresssnapshot.FieldTotalPrincipalCents)
+	}
+	if m.addremaining_principal_cents != nil {
+		fields = append(fields, debtprogresssnapshot.FieldRemainingPrincipalCents)
+	}
+	if m.addpaid_total_cents != nil {
+		fields = append(fields, debtprogresssnapshot.FieldPaidTotalCents)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *DebtProgressSnapshotMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case debtprogresssnapshot.FieldTotalPrincipalCents:
+		return m.AddedTotalPrincipalCents()
+	case debtprogresssnapshot.FieldRemainingPrincipalCents:
+		return m.AddedRemainingPrincipalCents()
+	case debtprogresssnapshot.FieldPaidTotalCents:
+		return m.AddedPaidTotalCents()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DebtProgressSnapshotMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case debtprogresssnapshot.FieldTotalPrincipalCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTotalPrincipalCents(v)
+		return nil
+	case debtprogresssnapshot.FieldRemainingPrincipalCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRemainingPrincipalCents(v)
+		return nil
+	case debtprogresssnapshot.FieldPaidTotalCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPaidTotalCents(v)
+		return nil
+	}
+	return fmt.Errorf("unknown DebtProgressSnapshot numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *DebtProgressSnapshotMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *DebtProgressSnapshotMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *DebtProgressSnapshotMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown DebtProgressSnapshot nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *DebtProgressSnapshotMutation) ResetField(name string) error {
+	switch name {
+	case debtprogresssnapshot.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case debtprogresssnapshot.FieldDebtID:
+		m.ResetDebtID()
+		return nil
+	case debtprogresssnapshot.FieldSnapshotDate:
+		m.ResetSnapshotDate()
+		return nil
+	case debtprogresssnapshot.FieldTotalPrincipalCents:
+		m.ResetTotalPrincipalCents()
+		return nil
+	case debtprogresssnapshot.FieldRemainingPrincipalCents:
+		m.ResetRemainingPrincipalCents()
+		return nil
+	case debtprogresssnapshot.FieldPaidTotalCents:
+		m.ResetPaidTotalCents()
+		return nil
+	case debtprogresssnapshot.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown DebtProgressSnapshot field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *DebtProgressSnapshotMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *DebtProgressSnapshotMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *DebtProgressSnapshotMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *DebtProgressSnapshotMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *DebtProgressSnapshotMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *DebtProgressSnapshotMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *DebtProgressSnapshotMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown DebtProgressSnapshot unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *DebtProgressSnapshotMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown DebtProgressSnapshot edge %s", name)
 }
 
 // PaymentScheduleMutation represents an operation that mutates the PaymentSchedule nodes in the graph.

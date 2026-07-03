@@ -40,6 +40,12 @@ type DebtDetails struct {
 	Subtype string `json:"subtype,omitempty"`
 	// Version holds the value of the "version" field.
 	Version int64 `json:"version,omitempty"`
+	// Contact person for this debt/receivable
+	Contact string `json:"contact,omitempty"`
+	// Contract / agreement reference
+	ContractRef string `json:"contract_ref,omitempty"`
+	// FK to Account — collection account for receivables (borrowed_out)
+	CollectionAccountID *uuid.UUID `json:"collection_account_id,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -52,11 +58,13 @@ func (*DebtDetails) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case debtdetails.FieldCollectionAccountID:
+			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case debtdetails.FieldInterestRate:
 			values[i] = new(sql.NullFloat64)
 		case debtdetails.FieldTotalPrincipalCents, debtdetails.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case debtdetails.FieldCounterparty, debtdetails.FieldAmortizationMethod, debtdetails.FieldDebtType, debtdetails.FieldSubtype:
+		case debtdetails.FieldCounterparty, debtdetails.FieldAmortizationMethod, debtdetails.FieldDebtType, debtdetails.FieldSubtype, debtdetails.FieldContact, debtdetails.FieldContractRef:
 			values[i] = new(sql.NullString)
 		case debtdetails.FieldStartDate, debtdetails.FieldDueDate, debtdetails.FieldCreatedAt, debtdetails.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -149,6 +157,25 @@ func (dd *DebtDetails) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				dd.Version = value.Int64
 			}
+		case debtdetails.FieldContact:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field contact", values[i])
+			} else if value.Valid {
+				dd.Contact = value.String
+			}
+		case debtdetails.FieldContractRef:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field contract_ref", values[i])
+			} else if value.Valid {
+				dd.ContractRef = value.String
+			}
+		case debtdetails.FieldCollectionAccountID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field collection_account_id", values[i])
+			} else if value.Valid {
+				dd.CollectionAccountID = new(uuid.UUID)
+				*dd.CollectionAccountID = *value.S.(*uuid.UUID)
+			}
 		case debtdetails.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -229,6 +256,17 @@ func (dd *DebtDetails) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("version=")
 	builder.WriteString(fmt.Sprintf("%v", dd.Version))
+	builder.WriteString(", ")
+	builder.WriteString("contact=")
+	builder.WriteString(dd.Contact)
+	builder.WriteString(", ")
+	builder.WriteString("contract_ref=")
+	builder.WriteString(dd.ContractRef)
+	builder.WriteString(", ")
+	if v := dd.CollectionAccountID; v != nil {
+		builder.WriteString("collection_account_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(dd.CreatedAt.Format(time.ANSIC))

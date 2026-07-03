@@ -14,6 +14,8 @@ type Tx struct {
 	config
 	// DebtDetails is the client for interacting with the DebtDetails builders.
 	DebtDetails *DebtDetailsClient
+	// DebtProgressSnapshot is the client for interacting with the DebtProgressSnapshot builders.
+	DebtProgressSnapshot *DebtProgressSnapshotClient
 	// PaymentSchedule is the client for interacting with the PaymentSchedule builders.
 	PaymentSchedule *PaymentScheduleClient
 
@@ -148,6 +150,7 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.DebtDetails = NewDebtDetailsClient(tx.config)
+	tx.DebtProgressSnapshot = NewDebtProgressSnapshotClient(tx.config)
 	tx.PaymentSchedule = NewPaymentScheduleClient(tx.config)
 }
 

@@ -110,6 +110,21 @@ func Version(v int64) predicate.DebtDetails {
 	return predicate.DebtDetails(sql.FieldEQ(FieldVersion, v))
 }
 
+// Contact applies equality check predicate on the "contact" field. It's identical to ContactEQ.
+func Contact(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldContact, v))
+}
+
+// ContractRef applies equality check predicate on the "contract_ref" field. It's identical to ContractRefEQ.
+func ContractRef(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldContractRef, v))
+}
+
+// CollectionAccountID applies equality check predicate on the "collection_account_id" field. It's identical to CollectionAccountIDEQ.
+func CollectionAccountID(v uuid.UUID) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldCollectionAccountID, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.DebtDetails {
 	return predicate.DebtDetails(sql.FieldEQ(FieldCreatedAt, v))
@@ -658,6 +673,186 @@ func VersionLT(v int64) predicate.DebtDetails {
 // VersionLTE applies the LTE predicate on the "version" field.
 func VersionLTE(v int64) predicate.DebtDetails {
 	return predicate.DebtDetails(sql.FieldLTE(FieldVersion, v))
+}
+
+// ContactEQ applies the EQ predicate on the "contact" field.
+func ContactEQ(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldContact, v))
+}
+
+// ContactNEQ applies the NEQ predicate on the "contact" field.
+func ContactNEQ(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNEQ(FieldContact, v))
+}
+
+// ContactIn applies the In predicate on the "contact" field.
+func ContactIn(vs ...string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldIn(FieldContact, vs...))
+}
+
+// ContactNotIn applies the NotIn predicate on the "contact" field.
+func ContactNotIn(vs ...string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNotIn(FieldContact, vs...))
+}
+
+// ContactGT applies the GT predicate on the "contact" field.
+func ContactGT(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGT(FieldContact, v))
+}
+
+// ContactGTE applies the GTE predicate on the "contact" field.
+func ContactGTE(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGTE(FieldContact, v))
+}
+
+// ContactLT applies the LT predicate on the "contact" field.
+func ContactLT(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLT(FieldContact, v))
+}
+
+// ContactLTE applies the LTE predicate on the "contact" field.
+func ContactLTE(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLTE(FieldContact, v))
+}
+
+// ContactContains applies the Contains predicate on the "contact" field.
+func ContactContains(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldContains(FieldContact, v))
+}
+
+// ContactHasPrefix applies the HasPrefix predicate on the "contact" field.
+func ContactHasPrefix(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldHasPrefix(FieldContact, v))
+}
+
+// ContactHasSuffix applies the HasSuffix predicate on the "contact" field.
+func ContactHasSuffix(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldHasSuffix(FieldContact, v))
+}
+
+// ContactEqualFold applies the EqualFold predicate on the "contact" field.
+func ContactEqualFold(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEqualFold(FieldContact, v))
+}
+
+// ContactContainsFold applies the ContainsFold predicate on the "contact" field.
+func ContactContainsFold(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldContainsFold(FieldContact, v))
+}
+
+// ContractRefEQ applies the EQ predicate on the "contract_ref" field.
+func ContractRefEQ(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldContractRef, v))
+}
+
+// ContractRefNEQ applies the NEQ predicate on the "contract_ref" field.
+func ContractRefNEQ(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNEQ(FieldContractRef, v))
+}
+
+// ContractRefIn applies the In predicate on the "contract_ref" field.
+func ContractRefIn(vs ...string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldIn(FieldContractRef, vs...))
+}
+
+// ContractRefNotIn applies the NotIn predicate on the "contract_ref" field.
+func ContractRefNotIn(vs ...string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNotIn(FieldContractRef, vs...))
+}
+
+// ContractRefGT applies the GT predicate on the "contract_ref" field.
+func ContractRefGT(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGT(FieldContractRef, v))
+}
+
+// ContractRefGTE applies the GTE predicate on the "contract_ref" field.
+func ContractRefGTE(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGTE(FieldContractRef, v))
+}
+
+// ContractRefLT applies the LT predicate on the "contract_ref" field.
+func ContractRefLT(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLT(FieldContractRef, v))
+}
+
+// ContractRefLTE applies the LTE predicate on the "contract_ref" field.
+func ContractRefLTE(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLTE(FieldContractRef, v))
+}
+
+// ContractRefContains applies the Contains predicate on the "contract_ref" field.
+func ContractRefContains(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldContains(FieldContractRef, v))
+}
+
+// ContractRefHasPrefix applies the HasPrefix predicate on the "contract_ref" field.
+func ContractRefHasPrefix(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldHasPrefix(FieldContractRef, v))
+}
+
+// ContractRefHasSuffix applies the HasSuffix predicate on the "contract_ref" field.
+func ContractRefHasSuffix(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldHasSuffix(FieldContractRef, v))
+}
+
+// ContractRefEqualFold applies the EqualFold predicate on the "contract_ref" field.
+func ContractRefEqualFold(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEqualFold(FieldContractRef, v))
+}
+
+// ContractRefContainsFold applies the ContainsFold predicate on the "contract_ref" field.
+func ContractRefContainsFold(v string) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldContainsFold(FieldContractRef, v))
+}
+
+// CollectionAccountIDEQ applies the EQ predicate on the "collection_account_id" field.
+func CollectionAccountIDEQ(v uuid.UUID) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldEQ(FieldCollectionAccountID, v))
+}
+
+// CollectionAccountIDNEQ applies the NEQ predicate on the "collection_account_id" field.
+func CollectionAccountIDNEQ(v uuid.UUID) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNEQ(FieldCollectionAccountID, v))
+}
+
+// CollectionAccountIDIn applies the In predicate on the "collection_account_id" field.
+func CollectionAccountIDIn(vs ...uuid.UUID) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldIn(FieldCollectionAccountID, vs...))
+}
+
+// CollectionAccountIDNotIn applies the NotIn predicate on the "collection_account_id" field.
+func CollectionAccountIDNotIn(vs ...uuid.UUID) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNotIn(FieldCollectionAccountID, vs...))
+}
+
+// CollectionAccountIDGT applies the GT predicate on the "collection_account_id" field.
+func CollectionAccountIDGT(v uuid.UUID) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGT(FieldCollectionAccountID, v))
+}
+
+// CollectionAccountIDGTE applies the GTE predicate on the "collection_account_id" field.
+func CollectionAccountIDGTE(v uuid.UUID) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldGTE(FieldCollectionAccountID, v))
+}
+
+// CollectionAccountIDLT applies the LT predicate on the "collection_account_id" field.
+func CollectionAccountIDLT(v uuid.UUID) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLT(FieldCollectionAccountID, v))
+}
+
+// CollectionAccountIDLTE applies the LTE predicate on the "collection_account_id" field.
+func CollectionAccountIDLTE(v uuid.UUID) predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldLTE(FieldCollectionAccountID, v))
+}
+
+// CollectionAccountIDIsNil applies the IsNil predicate on the "collection_account_id" field.
+func CollectionAccountIDIsNil() predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldIsNull(FieldCollectionAccountID))
+}
+
+// CollectionAccountIDNotNil applies the NotNil predicate on the "collection_account_id" field.
+func CollectionAccountIDNotNil() predicate.DebtDetails {
+	return predicate.DebtDetails(sql.FieldNotNull(FieldCollectionAccountID))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

@@ -190,6 +190,54 @@ func (ddu *DebtDetailsUpdate) AddVersion(i int64) *DebtDetailsUpdate {
 	return ddu
 }
 
+// SetContact sets the "contact" field.
+func (ddu *DebtDetailsUpdate) SetContact(s string) *DebtDetailsUpdate {
+	ddu.mutation.SetContact(s)
+	return ddu
+}
+
+// SetNillableContact sets the "contact" field if the given value is not nil.
+func (ddu *DebtDetailsUpdate) SetNillableContact(s *string) *DebtDetailsUpdate {
+	if s != nil {
+		ddu.SetContact(*s)
+	}
+	return ddu
+}
+
+// SetContractRef sets the "contract_ref" field.
+func (ddu *DebtDetailsUpdate) SetContractRef(s string) *DebtDetailsUpdate {
+	ddu.mutation.SetContractRef(s)
+	return ddu
+}
+
+// SetNillableContractRef sets the "contract_ref" field if the given value is not nil.
+func (ddu *DebtDetailsUpdate) SetNillableContractRef(s *string) *DebtDetailsUpdate {
+	if s != nil {
+		ddu.SetContractRef(*s)
+	}
+	return ddu
+}
+
+// SetCollectionAccountID sets the "collection_account_id" field.
+func (ddu *DebtDetailsUpdate) SetCollectionAccountID(u uuid.UUID) *DebtDetailsUpdate {
+	ddu.mutation.SetCollectionAccountID(u)
+	return ddu
+}
+
+// SetNillableCollectionAccountID sets the "collection_account_id" field if the given value is not nil.
+func (ddu *DebtDetailsUpdate) SetNillableCollectionAccountID(u *uuid.UUID) *DebtDetailsUpdate {
+	if u != nil {
+		ddu.SetCollectionAccountID(*u)
+	}
+	return ddu
+}
+
+// ClearCollectionAccountID clears the value of the "collection_account_id" field.
+func (ddu *DebtDetailsUpdate) ClearCollectionAccountID() *DebtDetailsUpdate {
+	ddu.mutation.ClearCollectionAccountID()
+	return ddu
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (ddu *DebtDetailsUpdate) SetUpdatedAt(t time.Time) *DebtDetailsUpdate {
 	ddu.mutation.SetUpdatedAt(t)
@@ -284,6 +332,18 @@ func (ddu *DebtDetailsUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := ddu.mutation.AddedVersion(); ok {
 		_spec.AddField(debtdetails.FieldVersion, field.TypeInt64, value)
+	}
+	if value, ok := ddu.mutation.Contact(); ok {
+		_spec.SetField(debtdetails.FieldContact, field.TypeString, value)
+	}
+	if value, ok := ddu.mutation.ContractRef(); ok {
+		_spec.SetField(debtdetails.FieldContractRef, field.TypeString, value)
+	}
+	if value, ok := ddu.mutation.CollectionAccountID(); ok {
+		_spec.SetField(debtdetails.FieldCollectionAccountID, field.TypeUUID, value)
+	}
+	if ddu.mutation.CollectionAccountIDCleared() {
+		_spec.ClearField(debtdetails.FieldCollectionAccountID, field.TypeUUID)
 	}
 	if value, ok := ddu.mutation.UpdatedAt(); ok {
 		_spec.SetField(debtdetails.FieldUpdatedAt, field.TypeTime, value)
@@ -469,6 +529,54 @@ func (dduo *DebtDetailsUpdateOne) AddVersion(i int64) *DebtDetailsUpdateOne {
 	return dduo
 }
 
+// SetContact sets the "contact" field.
+func (dduo *DebtDetailsUpdateOne) SetContact(s string) *DebtDetailsUpdateOne {
+	dduo.mutation.SetContact(s)
+	return dduo
+}
+
+// SetNillableContact sets the "contact" field if the given value is not nil.
+func (dduo *DebtDetailsUpdateOne) SetNillableContact(s *string) *DebtDetailsUpdateOne {
+	if s != nil {
+		dduo.SetContact(*s)
+	}
+	return dduo
+}
+
+// SetContractRef sets the "contract_ref" field.
+func (dduo *DebtDetailsUpdateOne) SetContractRef(s string) *DebtDetailsUpdateOne {
+	dduo.mutation.SetContractRef(s)
+	return dduo
+}
+
+// SetNillableContractRef sets the "contract_ref" field if the given value is not nil.
+func (dduo *DebtDetailsUpdateOne) SetNillableContractRef(s *string) *DebtDetailsUpdateOne {
+	if s != nil {
+		dduo.SetContractRef(*s)
+	}
+	return dduo
+}
+
+// SetCollectionAccountID sets the "collection_account_id" field.
+func (dduo *DebtDetailsUpdateOne) SetCollectionAccountID(u uuid.UUID) *DebtDetailsUpdateOne {
+	dduo.mutation.SetCollectionAccountID(u)
+	return dduo
+}
+
+// SetNillableCollectionAccountID sets the "collection_account_id" field if the given value is not nil.
+func (dduo *DebtDetailsUpdateOne) SetNillableCollectionAccountID(u *uuid.UUID) *DebtDetailsUpdateOne {
+	if u != nil {
+		dduo.SetCollectionAccountID(*u)
+	}
+	return dduo
+}
+
+// ClearCollectionAccountID clears the value of the "collection_account_id" field.
+func (dduo *DebtDetailsUpdateOne) ClearCollectionAccountID() *DebtDetailsUpdateOne {
+	dduo.mutation.ClearCollectionAccountID()
+	return dduo
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (dduo *DebtDetailsUpdateOne) SetUpdatedAt(t time.Time) *DebtDetailsUpdateOne {
 	dduo.mutation.SetUpdatedAt(t)
@@ -593,6 +701,18 @@ func (dduo *DebtDetailsUpdateOne) sqlSave(ctx context.Context) (_node *DebtDetai
 	}
 	if value, ok := dduo.mutation.AddedVersion(); ok {
 		_spec.AddField(debtdetails.FieldVersion, field.TypeInt64, value)
+	}
+	if value, ok := dduo.mutation.Contact(); ok {
+		_spec.SetField(debtdetails.FieldContact, field.TypeString, value)
+	}
+	if value, ok := dduo.mutation.ContractRef(); ok {
+		_spec.SetField(debtdetails.FieldContractRef, field.TypeString, value)
+	}
+	if value, ok := dduo.mutation.CollectionAccountID(); ok {
+		_spec.SetField(debtdetails.FieldCollectionAccountID, field.TypeUUID, value)
+	}
+	if dduo.mutation.CollectionAccountIDCleared() {
+		_spec.ClearField(debtdetails.FieldCollectionAccountID, field.TypeUUID)
 	}
 	if value, ok := dduo.mutation.UpdatedAt(); ok {
 		_spec.SetField(debtdetails.FieldUpdatedAt, field.TypeTime, value)

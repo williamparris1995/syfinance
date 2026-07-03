@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/yucai/server/internal/debt/ent/debtdetails"
+	"github.com/yucai/server/internal/debt/ent/debtprogresssnapshot"
 	"github.com/yucai/server/internal/debt/ent/paymentschedule"
 )
 
@@ -74,8 +75,9 @@ var (
 func checkColumn(table, column string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			debtdetails.Table:     debtdetails.ValidColumn,
-			paymentschedule.Table: paymentschedule.ValidColumn,
+			debtdetails.Table:          debtdetails.ValidColumn,
+			debtprogresssnapshot.Table: debtprogresssnapshot.ValidColumn,
+			paymentschedule.Table:      paymentschedule.ValidColumn,
 		})
 	})
 	return columnCheck(table, column)

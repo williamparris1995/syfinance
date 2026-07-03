@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/debt/ent/debtdetails"
+	"github.com/yucai/server/internal/debt/ent/debtprogresssnapshot"
 	"github.com/yucai/server/internal/debt/ent/paymentschedule"
 	"github.com/yucai/server/internal/debt/ent/schema"
 )
@@ -29,12 +30,20 @@ func init() {
 	debtdetailsDescVersion := debtdetailsFields[10].Descriptor()
 	// debtdetails.DefaultVersion holds the default value on creation for the version field.
 	debtdetails.DefaultVersion = debtdetailsDescVersion.Default.(int64)
+	// debtdetailsDescContact is the schema descriptor for contact field.
+	debtdetailsDescContact := debtdetailsFields[11].Descriptor()
+	// debtdetails.DefaultContact holds the default value on creation for the contact field.
+	debtdetails.DefaultContact = debtdetailsDescContact.Default.(string)
+	// debtdetailsDescContractRef is the schema descriptor for contract_ref field.
+	debtdetailsDescContractRef := debtdetailsFields[12].Descriptor()
+	// debtdetails.DefaultContractRef holds the default value on creation for the contract_ref field.
+	debtdetails.DefaultContractRef = debtdetailsDescContractRef.Default.(string)
 	// debtdetailsDescCreatedAt is the schema descriptor for created_at field.
-	debtdetailsDescCreatedAt := debtdetailsFields[11].Descriptor()
+	debtdetailsDescCreatedAt := debtdetailsFields[14].Descriptor()
 	// debtdetails.DefaultCreatedAt holds the default value on creation for the created_at field.
 	debtdetails.DefaultCreatedAt = debtdetailsDescCreatedAt.Default.(func() time.Time)
 	// debtdetailsDescUpdatedAt is the schema descriptor for updated_at field.
-	debtdetailsDescUpdatedAt := debtdetailsFields[12].Descriptor()
+	debtdetailsDescUpdatedAt := debtdetailsFields[15].Descriptor()
 	// debtdetails.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	debtdetails.DefaultUpdatedAt = debtdetailsDescUpdatedAt.Default.(func() time.Time)
 	// debtdetails.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -43,6 +52,16 @@ func init() {
 	debtdetailsDescID := debtdetailsFields[0].Descriptor()
 	// debtdetails.DefaultID holds the default value on creation for the id field.
 	debtdetails.DefaultID = debtdetailsDescID.Default.(func() uuid.UUID)
+	debtprogresssnapshotFields := schema.DebtProgressSnapshot{}.Fields()
+	_ = debtprogresssnapshotFields
+	// debtprogresssnapshotDescCreatedAt is the schema descriptor for created_at field.
+	debtprogresssnapshotDescCreatedAt := debtprogresssnapshotFields[6].Descriptor()
+	// debtprogresssnapshot.DefaultCreatedAt holds the default value on creation for the created_at field.
+	debtprogresssnapshot.DefaultCreatedAt = debtprogresssnapshotDescCreatedAt.Default.(func() time.Time)
+	// debtprogresssnapshotDescID is the schema descriptor for id field.
+	debtprogresssnapshotDescID := debtprogresssnapshotFields[0].Descriptor()
+	// debtprogresssnapshot.DefaultID holds the default value on creation for the id field.
+	debtprogresssnapshot.DefaultID = debtprogresssnapshotDescID.Default.(func() uuid.UUID)
 	paymentscheduleFields := schema.PaymentSchedule{}.Fields()
 	_ = paymentscheduleFields
 	// paymentscheduleDescPrincipalCents is the schema descriptor for principal_cents field.

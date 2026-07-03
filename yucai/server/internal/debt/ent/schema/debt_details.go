@@ -52,6 +52,20 @@ func (DebtDetails) Fields() []ent.Field {
 			Comment("debt subtype key: mortgage/auto_loan/credit_card/family/other (borrowedIn); personal/business/family/other (borrowedOut)"),
 		field.Int64("version").
 			Default(1),
+		// Receivables align (Task 2): 3 nullable contact/contract/collection fields.
+		// contact/contract_ref: free-text, default empty string (optional but non-null column).
+		// collection_account_id: FK to Account (collection account for receivables),
+		//   optional + nillable (NULL when unset).
+		field.String("contact").
+			Default("").
+			Comment("Contact person for this debt/receivable"),
+		field.String("contract_ref").
+			Default("").
+			Comment("Contract / agreement reference"),
+		field.UUID("collection_account_id", uuid.UUID{}).
+			Optional().
+			Nillable().
+			Comment("FK to Account — collection account for receivables (borrowed_out)"),
 		field.Time("created_at").
 			Default(time.Now).
 			Immutable(),

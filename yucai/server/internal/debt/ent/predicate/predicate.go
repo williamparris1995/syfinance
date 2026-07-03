@@ -9,5 +9,8 @@ import (
 // DebtDetails is the predicate function for debtdetails builders.
 type DebtDetails func(*sql.Selector)
 
+// DebtProgressSnapshot is the predicate function for debtprogresssnapshot builders.
+type DebtProgressSnapshot func(*sql.Selector)
+
 // PaymentSchedule is the predicate function for paymentschedule builders.
 type PaymentSchedule func(*sql.Selector)

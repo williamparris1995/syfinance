@@ -111,6 +111,48 @@ func (ddc *DebtDetailsCreate) SetNillableVersion(i *int64) *DebtDetailsCreate {
 	return ddc
 }
 
+// SetContact sets the "contact" field.
+func (ddc *DebtDetailsCreate) SetContact(s string) *DebtDetailsCreate {
+	ddc.mutation.SetContact(s)
+	return ddc
+}
+
+// SetNillableContact sets the "contact" field if the given value is not nil.
+func (ddc *DebtDetailsCreate) SetNillableContact(s *string) *DebtDetailsCreate {
+	if s != nil {
+		ddc.SetContact(*s)
+	}
+	return ddc
+}
+
+// SetContractRef sets the "contract_ref" field.
+func (ddc *DebtDetailsCreate) SetContractRef(s string) *DebtDetailsCreate {
+	ddc.mutation.SetContractRef(s)
+	return ddc
+}
+
+// SetNillableContractRef sets the "contract_ref" field if the given value is not nil.
+func (ddc *DebtDetailsCreate) SetNillableContractRef(s *string) *DebtDetailsCreate {
+	if s != nil {
+		ddc.SetContractRef(*s)
+	}
+	return ddc
+}
+
+// SetCollectionAccountID sets the "collection_account_id" field.
+func (ddc *DebtDetailsCreate) SetCollectionAccountID(u uuid.UUID) *DebtDetailsCreate {
+	ddc.mutation.SetCollectionAccountID(u)
+	return ddc
+}
+
+// SetNillableCollectionAccountID sets the "collection_account_id" field if the given value is not nil.
+func (ddc *DebtDetailsCreate) SetNillableCollectionAccountID(u *uuid.UUID) *DebtDetailsCreate {
+	if u != nil {
+		ddc.SetCollectionAccountID(*u)
+	}
+	return ddc
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (ddc *DebtDetailsCreate) SetCreatedAt(t time.Time) *DebtDetailsCreate {
 	ddc.mutation.SetCreatedAt(t)
@@ -200,6 +242,14 @@ func (ddc *DebtDetailsCreate) defaults() {
 		v := debtdetails.DefaultVersion
 		ddc.mutation.SetVersion(v)
 	}
+	if _, ok := ddc.mutation.Contact(); !ok {
+		v := debtdetails.DefaultContact
+		ddc.mutation.SetContact(v)
+	}
+	if _, ok := ddc.mutation.ContractRef(); !ok {
+		v := debtdetails.DefaultContractRef
+		ddc.mutation.SetContractRef(v)
+	}
 	if _, ok := ddc.mutation.CreatedAt(); !ok {
 		v := debtdetails.DefaultCreatedAt()
 		ddc.mutation.SetCreatedAt(v)
@@ -248,6 +298,12 @@ func (ddc *DebtDetailsCreate) check() error {
 	}
 	if _, ok := ddc.mutation.Version(); !ok {
 		return &ValidationError{Name: "version", err: errors.New(`ent: missing required field "DebtDetails.version"`)}
+	}
+	if _, ok := ddc.mutation.Contact(); !ok {
+		return &ValidationError{Name: "contact", err: errors.New(`ent: missing required field "DebtDetails.contact"`)}
+	}
+	if _, ok := ddc.mutation.ContractRef(); !ok {
+		return &ValidationError{Name: "contract_ref", err: errors.New(`ent: missing required field "DebtDetails.contract_ref"`)}
 	}
 	if _, ok := ddc.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "DebtDetails.created_at"`)}
@@ -333,6 +389,18 @@ func (ddc *DebtDetailsCreate) createSpec() (*DebtDetails, *sqlgraph.CreateSpec) 
 	if value, ok := ddc.mutation.Version(); ok {
 		_spec.SetField(debtdetails.FieldVersion, field.TypeInt64, value)
 		_node.Version = value
+	}
+	if value, ok := ddc.mutation.Contact(); ok {
+		_spec.SetField(debtdetails.FieldContact, field.TypeString, value)
+		_node.Contact = value
+	}
+	if value, ok := ddc.mutation.ContractRef(); ok {
+		_spec.SetField(debtdetails.FieldContractRef, field.TypeString, value)
+		_node.ContractRef = value
+	}
+	if value, ok := ddc.mutation.CollectionAccountID(); ok {
+		_spec.SetField(debtdetails.FieldCollectionAccountID, field.TypeUUID, value)
+		_node.CollectionAccountID = &value
 	}
 	if value, ok := ddc.mutation.CreatedAt(); ok {
 		_spec.SetField(debtdetails.FieldCreatedAt, field.TypeTime, value)

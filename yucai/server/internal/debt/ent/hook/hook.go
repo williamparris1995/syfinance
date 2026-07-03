@@ -21,6 +21,18 @@ func (f DebtDetailsFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DebtDetailsMutation", m)
 }
 
+// The DebtProgressSnapshotFunc type is an adapter to allow the use of ordinary
+// function as DebtProgressSnapshot mutator.
+type DebtProgressSnapshotFunc func(context.Context, *ent.DebtProgressSnapshotMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DebtProgressSnapshotFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DebtProgressSnapshotMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DebtProgressSnapshotMutation", m)
+}
+
 // The PaymentScheduleFunc type is an adapter to allow the use of ordinary
 // function as PaymentSchedule mutator.
 type PaymentScheduleFunc func(context.Context, *ent.PaymentScheduleMutation) (ent.Value, error)

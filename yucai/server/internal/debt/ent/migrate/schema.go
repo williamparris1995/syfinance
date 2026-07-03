@@ -22,6 +22,9 @@ var (
 		{Name: "debt_type", Type: field.TypeString, Comment: "borrowed_in(我借入) / borrowed_out(我借出/债权)", Default: "borrowed_in"},
 		{Name: "subtype", Type: field.TypeString, Comment: "debt subtype key: mortgage/auto_loan/credit_card/family/other (borrowedIn); personal/business/family/other (borrowedOut)", Default: ""},
 		{Name: "version", Type: field.TypeInt64, Default: 1},
+		{Name: "contact", Type: field.TypeString, Comment: "Contact person for this debt/receivable", Default: ""},
+		{Name: "contract_ref", Type: field.TypeString, Comment: "Contract / agreement reference", Default: ""},
+		{Name: "collection_account_id", Type: field.TypeUUID, Nullable: true, Comment: "FK to Account — collection account for receivables (borrowed_out)"},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
@@ -40,6 +43,45 @@ var (
 				Name:    "debtdetails_tenant_id_account_id",
 				Unique:  true,
 				Columns: []*schema.Column{DebtDetailsColumns[1], DebtDetailsColumns[2]},
+			},
+		},
+	}
+	// DebtProgressSnapshotsColumns holds the columns for the "debt_progress_snapshots" table.
+	DebtProgressSnapshotsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID, Comment: "FK to tenants table — data isolation boundary"},
+		{Name: "debt_id", Type: field.TypeUUID, Comment: "FK to DebtDetails"},
+		{Name: "snapshot_date", Type: field.TypeTime},
+		{Name: "total_principal_cents", Type: field.TypeInt64, Comment: "debt total principal at snapshot_date, original currency"},
+		{Name: "remaining_principal_cents", Type: field.TypeInt64, Comment: "remaining principal at snapshot_date, original currency"},
+		{Name: "paid_total_cents", Type: field.TypeInt64, Comment: "cumulative paid (principal+interest) at snapshot_date, original currency"},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// DebtProgressSnapshotsTable holds the schema information for the "debt_progress_snapshots" table.
+	DebtProgressSnapshotsTable = &schema.Table{
+		Name:       "debt_progress_snapshots",
+		Columns:    DebtProgressSnapshotsColumns,
+		PrimaryKey: []*schema.Column{DebtProgressSnapshotsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "debtprogresssnapshot_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{DebtProgressSnapshotsColumns[1]},
+			},
+			{
+				Name:    "debtprogresssnapshot_tenant_id_debt_id_snapshot_date",
+				Unique:  true,
+				Columns: []*schema.Column{DebtProgressSnapshotsColumns[1], DebtProgressSnapshotsColumns[2], DebtProgressSnapshotsColumns[3]},
+			},
+			{
+				Name:    "debtprogresssnapshot_tenant_id_snapshot_date",
+				Unique:  false,
+				Columns: []*schema.Column{DebtProgressSnapshotsColumns[1], DebtProgressSnapshotsColumns[3]},
+			},
+			{
+				Name:    "debtprogresssnapshot_tenant_id_debt_id",
+				Unique:  false,
+				Columns: []*schema.Column{DebtProgressSnapshotsColumns[1], DebtProgressSnapshotsColumns[2]},
 			},
 		},
 	}
@@ -76,6 +118,7 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		DebtDetailsTable,
+		DebtProgressSnapshotsTable,
 		PaymentSchedulesTable,
 	}
 )
