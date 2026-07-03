@@ -318,7 +318,10 @@ void main() {
         dueDate: DateTime(2027, 6, 15),
       ));
       await t.pumpAndSettle();
+      await t.ensureVisible(find.byKey(const ValueKey('amortization-lumpSum')));
+      await t.pumpAndSettle();
       await t.tap(find.byKey(const ValueKey('amortization-lumpSum')));
+      await t.pump();
       await fillForm(t);
       expect(find.textContaining('到期总额'), findsWidgets);
       expect(find.byKey(const ValueKey('previewRow-01'), skipOffstage: false),
@@ -379,7 +382,10 @@ void main() {
               totalPrincipalCents: any(named: 'totalPrincipalCents'),
               type: any(named: 'type'),
               subtype: any(named: 'subtype'),
-              sourceAccountId: any(named: 'sourceAccountId'))).thenAnswer((inv) {
+              sourceAccountId: any(named: 'sourceAccountId'),
+              contact: any(named: 'contact'),
+              contractRef: any(named: 'contractRef'),
+              collectionAccountId: any(named: 'collectionAccountId'))).thenAnswer((inv) {
         capturedType = inv.namedArguments[#type] as DebtType?;
         capturedSubtype = inv.namedArguments[#subtype] as String?;
         return Future.value(dartz.Right(_emptyDetail().debt));
@@ -400,6 +406,10 @@ void main() {
       await t.enterText(find.byKey(const ValueKey('principalField')), '100000');
       await t.enterText(find.byKey(const ValueKey('rateField')), '8.0');
       // 切到「亲友」子类型（const key），验证 key 透传到 repo.create。
+      // Task 11 后表单加 3 字段 → type cards 下移,需 ensureVisible 再 tap。
+      await t.ensureVisible(
+          find.byKey(ValueKey('receivableType-${ReceivableSubtypes.family}')));
+      await t.pumpAndSettle();
       await t.tap(find.byKey(ValueKey('receivableType-${ReceivableSubtypes.family}')));
       await t.pump();
       // desktop: FormActions「创建债权」
@@ -451,7 +461,10 @@ void main() {
               totalPrincipalCents: any(named: 'totalPrincipalCents'),
               type: any(named: 'type'),
               subtype: any(named: 'subtype'),
-              sourceAccountId: any(named: 'sourceAccountId'))).thenAnswer((inv) {
+              sourceAccountId: any(named: 'sourceAccountId'),
+              contact: any(named: 'contact'),
+              contractRef: any(named: 'contractRef'),
+              collectionAccountId: any(named: 'collectionAccountId'))).thenAnswer((inv) {
         capturedSource = inv.namedArguments[#sourceAccountId] as String?;
         capturedAccount = inv.namedArguments[#accountId] as String?;
         return Future.value(dartz.Right(_emptyDetail().debt));
@@ -570,7 +583,10 @@ void main() {
               id: any(named: 'id'),
               counterparty: any(named: 'counterparty'),
               interestRate: any(named: 'interestRate'),
-              version: any(named: 'version'))).thenAnswer((_) {
+              version: any(named: 'version'),
+              contact: any(named: 'contact'),
+              contractRef: any(named: 'contractRef'),
+              collectionAccountId: any(named: 'collectionAccountId'))).thenAnswer((_) {
         updated = true;
         return Future.value(dartz.Right(existingDebt(counterparty: '已改')));
       });
@@ -681,6 +697,312 @@ void main() {
       await t.pumpAndSettle();
       expect(find.textContaining('借出本金'), findsOneWidget);
       expect(find.byKey(const ValueKey('prevStepButton')), findsOneWidget);
+    });
+  });
+
+  // ====================================================================
+  // Task 11 — form 对齐 OD:radio cards / preview 2×2 sum grid /
+  // contact+contract+collection 字段输入 + 提交透传。
+  // ====================================================================
+  group('Task 11: radio cards / sum grid / 应收追踪字段', () {
+    testWidgets('债权类型 4 卡渲染 icon + label(私人/商业/亲友/其他)', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer(
+          (_) async => dartz.Right([_receivableAccount()]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(debtRepo: debtRepo, accountRepo: accountRepo));
+      await t.pumpAndSettle();
+
+      // 4 个 _RadioCard 节点存在(每个含 1 个 Icon widget + label text)。
+      for (final key in ReceivableSubtypes.all) {
+        final card = find.byKey(ValueKey('receivableType-$key'));
+        expect(card, findsOneWidget);
+        expect(find.descendant(of: card, matching: find.byType(Icon)),
+            findsOneWidget);
+        expect(
+            find.descendant(
+                of: card, matching: find.text(ReceivableSubtypes.labels[key]!)),
+            findsOneWidget);
+      }
+    });
+
+    testWidgets('摊还 3 卡渲染 icon + label + desc(每期合计相同 等)', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer(
+          (_) async => dartz.Right([_receivableAccount()]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(debtRepo: debtRepo, accountRepo: accountRepo));
+      await t.pumpAndSettle();
+
+      // 等额本息卡:icon + label「等额本息」+ desc「每期合计相同」均渲染。
+      final epiCard =
+          find.byKey(const ValueKey('amortization-equalPrincipalInterest'));
+      expect(epiCard, findsOneWidget);
+      expect(find.descendant(of: epiCard, matching: find.byType(Icon)),
+          findsOneWidget);
+      expect(find.descendant(of: epiCard, matching: find.text('等额本息')),
+          findsOneWidget);
+      expect(find.descendant(of: epiCard, matching: find.text('每期合计相同')),
+          findsOneWidget);
+      // 等额本金 desc。
+      expect(
+          find.descendant(
+              of: find.byKey(const ValueKey('amortization-equalPrincipal')),
+              matching: find.text('本金相同 利息递减')),
+          findsOneWidget);
+      // 一次性 desc。
+      expect(
+          find.descendant(
+              of: find.byKey(const ValueKey('amortization-lumpSum')),
+              matching: find.text('到期一次结清')),
+          findsOneWidget);
+    });
+
+    testWidgets('preview 2×2 sum grid 渲染(月供/期供 + 总利息收入 + 期数 + 总还款)',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer(
+          (_) async => dartz.Right([_receivableAccount()]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        startDate: DateTime(2026, 6, 15),
+        dueDate: DateTime(2027, 6, 15),
+      ));
+      await t.pumpAndSettle();
+      await t.enterText(find.byKey(const ValueKey('principalField')), '100000');
+      await t.enterText(find.byKey(const ValueKey('rateField')), '8.0');
+      await t.pump();
+
+      // sum grid 存在 + 4 个标签。
+      expect(find.byKey(const ValueKey('previewSumGrid')), findsOneWidget);
+      expect(find.text('月供 / 期供'), findsOneWidget);
+      expect(find.text('总利息收入'), findsOneWidget);
+      expect(find.text('期数'), findsOneWidget);
+      expect(find.text('总还款（本息）'), findsOneWidget);
+      // 期数 cell 含「12 期」。
+      expect(find.textContaining('12 期'), findsOneWidget);
+    });
+
+    testWidgets('contact / contract_ref / collection_account_id 字段渲染 + 输入',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right([
+            _receivableAccount(id: 'recv-1'),
+            _sourceAccount(id: 'src-1'),
+          ]));
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        sourceAccountId: 'src-1',
+      ));
+      await t.pumpAndSettle();
+
+      // 3 字段渲染。
+      expect(find.byKey(const ValueKey('contactField')), findsOneWidget);
+      expect(find.byKey(const ValueKey('contractRefField')), findsOneWidget);
+      expect(find.byKey(const ValueKey('collectionAccountDropdown')),
+          findsOneWidget);
+
+      // 输入自由文本。
+      await t.enterText(find.byKey(const ValueKey('contactField')), '13800000000');
+      await t.enterText(
+          find.byKey(const ValueKey('contractRefField')), 'IOU-2026-001');
+      await t.pump();
+      // collection 默认 = 来源账户(initState 预设 'src-1')—— 不需交互即非空。
+      expect(
+          find.descendant(
+              of: find.byKey(const ValueKey('collectionAccountDropdown')),
+              matching: find.textContaining('招商银行储蓄')),
+          findsWidgets);
+    });
+
+    testWidgets(
+        'submit 透传 contact + contractRef + collectionAccountId 到 repo.create',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      registerFallbackValue(const CreateDebtParams(
+        accountId: '',
+        counterparty: '',
+        interestRate: 0,
+        amortizationIndex: 0,
+        startDateOption: null,
+        dueDateOption: null,
+        totalPrincipalCents: 0,
+      ));
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right([
+            _receivableAccount(id: 'recv-1'),
+            _sourceAccount(id: 'src-1'),
+            _sourceAccount(id: 'src-2', name: '工商银行储蓄'),
+          ]));
+      String? capturedContact;
+      String? capturedContractRef;
+      String? capturedCollection;
+      when(() => debtRepo.create(
+              accountId: any(named: 'accountId'),
+              counterparty: any(named: 'counterparty'),
+              interestRate: any(named: 'interestRate'),
+              amortizationIndex: any(named: 'amortizationIndex'),
+              startDate: any(named: 'startDate'),
+              dueDate: any(named: 'dueDate'),
+              totalPrincipalCents: any(named: 'totalPrincipalCents'),
+              type: any(named: 'type'),
+              subtype: any(named: 'subtype'),
+              sourceAccountId: any(named: 'sourceAccountId'),
+              contact: any(named: 'contact'),
+              contractRef: any(named: 'contractRef'),
+              collectionAccountId: any(named: 'collectionAccountId'))).thenAnswer((inv) {
+        capturedContact = inv.namedArguments[#contact] as String?;
+        capturedContractRef = inv.namedArguments[#contractRef] as String?;
+        capturedCollection = inv.namedArguments[#collectionAccountId] as String?;
+        return Future.value(dartz.Right(_emptyDetail().debt));
+      });
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        startDate: DateTime(2026, 6, 15),
+        dueDate: DateTime(2027, 6, 15),
+        accountId: 'recv-1',
+        sourceAccountId: 'src-1',
+      ));
+      await t.pumpAndSettle();
+
+      await t.enterText(find.byKey(const ValueKey('counterpartyField')), '李四');
+      await t.enterText(find.byKey(const ValueKey('principalField')), '100000');
+      await t.enterText(find.byKey(const ValueKey('rateField')), '8.0');
+      await t.enterText(find.byKey(const ValueKey('contactField')), '13800000000');
+      await t.enterText(
+          find.byKey(const ValueKey('contractRefField')), 'IOU-2026-001');
+      // 改 collection 到 src-2(验证用户选择覆盖默认)。打开 dropdown overlay 后,
+      // overlay 中「工商银行储蓄」选项唯一(非选中值不重复渲染)。表单较长,
+      // collection dropdown 可能超出桌面视口 → 先 ensureVisible 再 tap。
+      await t.ensureVisible(
+          find.byKey(const ValueKey('collectionAccountDropdown')));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('collectionAccountDropdown')));
+      await t.pumpAndSettle();
+      await t.tap(find.text('工商银行储蓄'));
+      await t.pumpAndSettle();
+
+      final submitFinder =
+          find.byKey(const ValueKey('submitButton')).evaluate().isNotEmpty
+              ? find.byKey(const ValueKey('submitButton'))
+              : find.text('创建债权');
+      await t.ensureVisible(submitFinder);
+      await t.tap(submitFinder);
+      for (var i = 0;
+          i < 20 && (capturedContact == null || capturedCollection == null);
+          i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+      // 关键断言:3 字段透传到 repo.create。
+      expect(capturedContact, '13800000000');
+      expect(capturedContractRef, 'IOU-2026-001');
+      expect(capturedCollection, 'src-2');
+      await t.pump(const Duration(seconds: 4));
+      await t.pumpAndSettle();
+    });
+
+    testWidgets('collection 创建模式必填(空 → toast 拦截,repo.create 不调用)',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final debtRepo = _MockDebtRepo();
+      final accountRepo = _MockAccountRepo();
+      registerFallbackValue(const CreateDebtParams(
+        accountId: '',
+        counterparty: '',
+        interestRate: 0,
+        amortizationIndex: 0,
+        startDateOption: null,
+        dueDateOption: null,
+        totalPrincipalCents: 0,
+      ));
+      when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right([
+            _receivableAccount(id: 'recv-1'),
+            // 仅 receivable,无 source/collection 候选 → dropdown 空。
+          ]));
+      var createCalled = false;
+      when(() => debtRepo.create(
+              accountId: any(named: 'accountId'),
+              counterparty: any(named: 'counterparty'),
+              interestRate: any(named: 'interestRate'),
+              amortizationIndex: any(named: 'amortizationIndex'),
+              startDate: any(named: 'startDate'),
+              dueDate: any(named: 'dueDate'),
+              totalPrincipalCents: any(named: 'totalPrincipalCents'),
+              type: any(named: 'type'),
+              subtype: any(named: 'subtype'),
+              sourceAccountId: any(named: 'sourceAccountId'),
+              contact: any(named: 'contact'),
+              contractRef: any(named: 'contractRef'),
+              collectionAccountId: any(named: 'collectionAccountId'))).thenAnswer((_) {
+        createCalled = true;
+        return Future.value(dartz.Right(_emptyDetail().debt));
+      });
+      when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
+          .thenAnswer((_) async => const dartz.Right([]));
+      await t.pumpWidget(_harness(
+        debtRepo: debtRepo,
+        accountRepo: accountRepo,
+        startDate: DateTime(2026, 6, 15),
+        dueDate: DateTime(2027, 6, 15),
+        accountId: 'recv-1',
+        // 不传 sourceAccountId → collection 默认 null。
+      ));
+      await t.pumpAndSettle();
+
+      await t.enterText(find.byKey(const ValueKey('counterpartyField')), '李四');
+      await t.enterText(find.byKey(const ValueKey('principalField')), '100000');
+      await t.enterText(find.byKey(const ValueKey('rateField')), '8.0');
+      final submitFinder =
+          find.byKey(const ValueKey('submitButton')).evaluate().isNotEmpty
+              ? find.byKey(const ValueKey('submitButton'))
+              : find.text('创建债权');
+      await t.ensureVisible(submitFinder);
+      await t.tap(submitFinder);
+      await t.pump();
+      // 校验:提交被拦截(source/collection 均空 → 两个前置校验之一先拦截),
+      // repo.create 未调用。本测试验证「collection 创建模式必填」语义:
+      // 由于 collection 默认 = source(见 initState),source 空 → collection 空,
+      // 任一前置校验失败都会阻止 create。关键断言是 createCalled == false。
+      expect(createCalled, isFalse);
+      expect(
+          find.textContaining('请选择借出来源账户').evaluate().isNotEmpty ||
+              find.textContaining('请选择回款关联账户').evaluate().isNotEmpty,
+          isTrue);
+      // AppToast 用 3s Timer 自动消失 —— 被拦截的提交不 pop,toast 留屏,
+      // 需 pump 过 3s 让 Timer 完成否则「Timer pending」断言失败。
+      await t.pump(const Duration(seconds: 4));
     });
   });
 }

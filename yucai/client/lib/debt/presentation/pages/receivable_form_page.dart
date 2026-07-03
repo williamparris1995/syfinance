@@ -68,6 +68,9 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
   final _counterpartyCtrl = TextEditingController();
   final _principalCtrl = TextEditingController();
   final _rateCtrl = TextEditingController();
+  // 应收追踪字段(Task 11):联系方式 / 合同借据编号(可选自由文本)。
+  final _contactCtrl = TextEditingController();
+  final _contractRefCtrl = TextEditingController();
 
   /// 债权子类型 key（ReceivableSubtypes.personal / business / family / other）。
   /// 存 **key**（非中文 label）—— 判断用 const，UI 显示 labels[key]。提交时
@@ -80,6 +83,11 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
   String? _accountId;
   /// borrowedOut 双写:借出资金来源账户（cash asset,非应收）。null = 未选。
   String? _sourceAccountId;
+  /// 回款关联账户(应收收回本息计入的 asset 账户)。null = 未选。
+  /// 与 _accountId(关联应收账户)区分:_accountId 是 receivable 自身挂账的
+  /// otherAsset 账户;collectionAccountId 是回款流入的现金/储蓄账户(可空,
+  /// 后续收款记录时再指定)。对齐 proto DebtDTO.collection_account_id。
+  String? _collectionAccountId;
   DateTime? _startDate;
   DateTime? _dueDate;
 
@@ -121,12 +129,20 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
       _accountId = e.accountId;
       // 子类型 key 预填（空 → business 默认，避免 const 判断落空）。
       _subtypeKey = e.subtype.isEmpty ? ReceivableSubtypes.business : e.subtype;
+      // 应收追踪字段(Task 11):contact / contractRef / collectionAccountId
+      // 预填,使编辑模式可见当前值。空 collectionAccountId(null)→ dropdown 无选中。
+      _contactCtrl.text = e.contact;
+      _contractRefCtrl.text = e.contractRef;
+      _collectionAccountId = e.collectionAccountId;
     } else {
       // 创建模式：测试 seed 参数。
       _startDate = widget.initialStartDate;
       _dueDate = widget.initialDueDate;
       _accountId = widget.initialAccountId;
       _sourceAccountId = widget.initialSourceAccountId;
+      // collectionAccountId 创建模式默认 = 来源账户(借出资金同账户回款,
+      // 常见场景);用户可改。null = 未选 → submit 时校验拦截。
+      _collectionAccountId = _sourceAccountId;
     }
     _loadAccounts();
     _loadSourceAccounts();
@@ -140,6 +156,8 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
     _counterpartyCtrl.dispose();
     _principalCtrl.dispose();
     _rateCtrl.dispose();
+    _contactCtrl.dispose();
+    _contractRefCtrl.dispose();
     super.dispose();
   }
 
@@ -342,6 +360,12 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
       AppToast.show(context, '请选择借出来源账户', type: ToastType.warning);
       return;
     }
+    // 回款关联账户:创建模式必填(对齐服务端 borrowedOut 强制 collection_account_id;
+    // 若空,服务端 application 层会拒绝,这里前置拦截给出更友好的中文 toast)。
+    if (!_isEdit && (_collectionAccountId == null || _collectionAccountId!.isEmpty)) {
+      AppToast.show(context, '请选择回款关联账户', type: ToastType.warning);
+      return;
+    }
 
     if (!(_formKey.currentState?.validate() ?? false)) return;
     _formKey.currentState?.save();
@@ -349,19 +373,24 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
     final principalCents = (principal * 100).round();
     final e = _existing;
     if (e != null) {
-      // 编辑模式：UpdateDebtParams 仅含 id / counterparty / interestRate / version
-      // （对齐 debt_event.dart 签名 —— 后端暂不支持改本金/摊还/日期）。
-      // type 保持 borrowedOut（债权编辑仍是债权，无需重传 type）。
+      // 编辑模式:UpdateDebtParams 回传 id / counterparty / interestRate / version
+      // + Task 11 应收追踪字段(contact / contractRef / collectionAccountId)。
+      // 后端暂不支持改本金/摊还/日期;type 保持 borrowedOut(债权编辑仍是债权)。
       context.read<DebtBloc>().add(UpdateDebtRequested(UpdateDebtParams(
             id: e.id,
             counterparty: _counterpartyCtrl.text.trim(),
             interestRate: rate,
             version: e.version,
+            contact: _contactCtrl.text.trim(),
+            contractRef: _contractRefCtrl.text.trim(),
+            collectionAccountId: _collectionAccountId,
           )));
     } else {
       // 创建模式：type 显式 borrowedOut（Task 6 的 CreateDebtParams.type）。
       // 这是从 DebtFormPage 的关键差异 —— 后者走默认 borrowedIn。
       // subtype 来自 _subtypeKey（const key），透传到 params.subtype（Task 6）。
+      // Task 11:contact / contractRef / collectionAccountId 透传(应收追踪字段)。
+      // collectionAccountId 已在上方校验非空(创建模式必填)。
       context.read<DebtBloc>().add(CreateDebtRequested(CreateDebtParams(
             accountId: _accountId!,
             counterparty: _counterpartyCtrl.text.trim(),
@@ -373,6 +402,9 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
             type: DebtType.borrowedOut,
             subtype: _subtypeKey,
             sourceAccountId: _sourceAccountId,
+            contact: _contactCtrl.text.trim(),
+            contractRef: _contractRefCtrl.text.trim(),
+            collectionAccountId: _collectionAccountId,
           )));
     }
   }
@@ -541,12 +573,13 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
               letterSpacing: 0.8)),
       const SizedBox(height: AppSpacing.sm),
       Wrap(
-        spacing: AppSpacing.xs,
-        runSpacing: AppSpacing.xs,
+        spacing: AppSpacing.sm,
+        runSpacing: AppSpacing.sm,
         children: [
           for (final key in ReceivableSubtypes.all)
-            _RadioChip(
+            _RadioCard(
               key: ValueKey('receivableType-$key'),
+              icon: _receivableTypeIcon(key),
               label: ReceivableSubtypes.labels[key]!,
               selected: _subtypeKey == key,
               onTap: () => setState(() => _subtypeKey = key),
@@ -585,6 +618,49 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
           onChanged: (v) => setState(() => _sourceAccountId = v),
           validator: (v) => v == null || v.isEmpty ? '请选择借出来源账户' : null,
         ),
+      const SizedBox(height: AppSpacing.md),
+      // 应收追踪字段(Task 11 对齐 OD):联系方式(可选自由文本)。
+      TextFormField(
+        key: const ValueKey('contactField'),
+        controller: _contactCtrl,
+        decoration: const InputDecoration(
+          labelText: '联系方式',
+          hintText: '电话 / 邮箱（可选）',
+        ),
+      ),
+      const SizedBox(height: AppSpacing.md),
+      // 合同/借据编号(可选自由文本)。
+      TextFormField(
+        key: const ValueKey('contractRefField'),
+        controller: _contractRefCtrl,
+        decoration: const InputDecoration(
+          labelText: '合同 / 借据编号',
+          hintText: '借条编号 / 合同号（可选）',
+        ),
+      ),
+      const SizedBox(height: AppSpacing.md),
+      // 回款关联账户(收回本息计入的 asset 账户)。复用 _sourceAccounts 候选
+      // (asset 非 otherAsset:储蓄/投资等)—— 回款流入现金账户,与借出资金来源
+      // 同池。创建模式必填(对齐 OD + 服务端 borrowedOut 强制 collection_account_id);
+      // 编辑模式可改(UpdateDebt 透传)。默认 = 来源账户(initState 预设),用户可改。
+      // 注:若改用「所有 asset active 列表」(含 otherAsset),下拉会包含应收账户
+      // 自身,语义混乱 → 限定流动资产池更合理。
+      DropdownButtonFormField<String>(
+        key: const ValueKey('collectionAccountDropdown'),
+        value: _collectionAccountId,
+        decoration: const InputDecoration(labelText: '回款关联账户'),
+        items: [
+          for (final a in _sourceAccounts)
+            DropdownMenuItem(value: a.id, child: Text(a.name)),
+        ],
+        hint: const Text('选择回款账户（收回本息计入）'),
+        onChanged: (v) => setState(() => _collectionAccountId = v),
+        // 不在 dropdown validator 强制必填:编辑模式 collection 可为 null
+        // (解除关联),创建模式的必填校验在 _submit() 前置 _collectionAccountId
+        // 判空 + AppToast 拦截(给出更友好的中文提示,且服务端 application 层
+        // 对 borrowedOut 二次强制)。validator 强制必填会让编辑模式(预填 null)
+        // 的 form.validate() 始终失败。
+      ),
     ];
   }
 
@@ -624,13 +700,15 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
               letterSpacing: 0.8)),
       const SizedBox(height: AppSpacing.sm),
       Wrap(
-        spacing: AppSpacing.xs,
-        runSpacing: AppSpacing.xs,
+        spacing: AppSpacing.sm,
+        runSpacing: AppSpacing.sm,
         children: [
           for (final m in _amortizations)
-            _RadioChip(
+            _RadioCard(
               key: ValueKey('amortization-${m.name}'),
+              icon: _amortizationIcon(m),
               label: _amortizationLabel(m),
+              desc: _amortizationDesc(m),
               selected: _amortization == m,
               onTap: () => setState(() => _amortization = m),
             ),
@@ -788,45 +866,89 @@ class _StepIndicator extends StatelessWidget {
   }
 }
 
-/// 单选 chip（债权类型 / 摊还方法）。复用 TypeTabs 视觉（金选中态）。
-class _RadioChip extends StatelessWidget {
-  const _RadioChip({
+/// 单选卡(债权类型 4 / 摊还方法 3)。对齐 OD .radio:32px icon tile(选中金实心)
+/// + label + 可选 desc。复用 TypeTabs 金选中态视觉。
+///
+/// 与旧 `_RadioChip` 的差异:加 32px icon tile(选中 gold 实心,未选 gold-soft
+/// 描边),可选 desc(摊还方法用),卡内纵向居中。类型 4 卡 desc == null(仅 icon +
+/// label),摊还 3 卡 desc 非空(等额本息「每期合计相同」等)。
+class _RadioCard extends StatelessWidget {
+  const _RadioCard({
     super.key,
+    required this.icon,
     required this.label,
+    this.desc,
     required this.selected,
     required this.onTap,
   });
 
+  final IconData icon;
   final String label;
+  final String? desc;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final bg =
-        selected ? AppColors.accentSoft : AppColors.surface;
-    final fg = selected ? AppColors.accentHover : AppColors.muted;
-    final border = selected ? AppColors.accent : AppColors.border;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: bg,
-            border: Border.all(color: border),
-            borderRadius: AppRadius.smBorder,
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: fg,
-              fontSize: 13,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+    final cardBg = selected ? const Color(0xFFFBF7EF) : AppColors.surface;
+    final cardBorder = selected ? AppColors.accent : AppColors.border;
+    // icon tile:选中金实心(白图标),未选 gold-soft 底 + gold-press 图标。
+    final tileBg =
+        selected ? AppColors.accent : AppColors.accentSoft;
+    final tileFg = selected ? Colors.white : AppColors.accentHover;
+    final labelColor = selected ? AppColors.accentHover : AppColors.fg;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(11),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        decoration: BoxDecoration(
+          color: cardBg,
+          border: Border.all(color: cardBorder, width: selected ? 1.4 : 1),
+          borderRadius: BorderRadius.circular(11),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppColors.accent.withValues(alpha: 0.12),
+                    blurRadius: 0,
+                    spreadRadius: 3,
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: tileBg,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, size: 17, color: tileFg),
             ),
-          ),
+            const SizedBox(height: 7),
+            Text(label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: labelColor,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                )),
+            if (desc != null) ...[
+              const SizedBox(height: 2),
+              Text(desc!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 10.5,
+                    height: 1.3,
+                  )),
+            ],
+          ],
         ),
       ),
     );
@@ -959,33 +1081,88 @@ class _CollectionPreview extends StatelessWidget {
           ),
           if (p != null) ...[
             const SizedBox(height: AppSpacing.sm),
-            Wrap(
-              spacing: 7,
-              runSpacing: 4,
-              children: [
-                _tag('期数 ${p.n} 期'),
-                _tag('总利息收入 ${_fmtYuan(p.totalInterest)}'),
-                _tag('总收款 ${_fmtYuan(p.totalPayment)}'),
-              ],
-            ),
+            _sumGrid(p),
           ],
         ],
       ),
     );
   }
 
-  Widget _tag(String text) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-        decoration: BoxDecoration(
-          color: const Color(0x12FFFFFF),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Text(text,
-            style: const TextStyle(
-                color: Color(0xFFC9CCD2),
-                fontSize: 11,
-                fontFeatures: AppTypography.tabularFigures)),
-      );
+  /// 2×2 汇总网格(对齐 OD .pv-sum):月供/期供(gold) / 总利息收入(green) /
+  /// 期数 / 总还款(本息)(gold)。替代旧 `_tag` 文字标签 —— 数字 + 标签更清晰。
+  /// 深色卡内嵌:cell 半透明白底 + 分隔线,与下方 rows 视觉一致。
+  ///
+  /// 多币种(Task 11 concern):`_fmtYuan` 硬编 ¥。本预览是深色实时计算卡,
+  /// 金额符号暂保留 ¥(对齐 OD 原型惯例 + 多数 receivable 用例为本币)。
+  /// 若后续需多币种,把 `_fmtYuan` 改 currencySymbol(preferred currency code)
+  /// 并在此注入 CurrencyBloc —— 见 task-11-report.md concerns。
+  Widget _sumGrid(_Preview p) {
+    return Container(
+      key: const ValueKey('previewSumGrid'),
+      margin: const EdgeInsets.only(top: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: const Color(0x0EFFFFFF),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0x12FFFFFF)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                  child: _sumCell('月供 / 期供', _fmtYuan(p.headlineAmount),
+                      valueColor: const Color(0xFFE8C894))),
+              Container(
+                  width: 1,
+                  height: 38,
+                  color: const Color(0x12FFFFFF)),
+              Expanded(
+                child: _sumCell('总利息收入', _fmtYuan(p.totalInterest),
+                    valueColor: const Color(0xFF7FC9A8)),
+              ),
+            ],
+          ),
+          Container(height: 1, color: const Color(0x12FFFFFF)),
+          Row(
+            children: [
+              Expanded(child: _sumCell('期数', '${p.n} 期')),
+              Container(
+                  width: 1, height: 38, color: const Color(0x12FFFFFF)),
+              Expanded(
+                child: _sumCell('总还款（本息）', _fmtYuan(p.totalPayment),
+                    valueColor: const Color(0xFFE8C894)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sumCell(String label, String value, {Color? valueColor}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: const TextStyle(
+                  color: Color(0xFF9AA0A8),
+                  fontSize: 10,
+                  letterSpacing: 0.4)),
+          const SizedBox(height: 4),
+          Text(value,
+              style: TextStyle(
+                color: valueColor ?? Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.01,
+                fontFeatures: AppTypography.tabularFigures,
+              )),
+        ],
+      ),
+    );
+  }
 
   Widget _table(_Preview p) {
     return Padding(
@@ -1141,6 +1318,46 @@ String _amortizationLabel(AmortizationMethod m) {
       return '等额本金';
     case AmortizationMethod.lumpSum:
       return '一次性';
+  }
+}
+
+/// 摊还方法 icon(对齐 OD .radio .ri svg:趋势上升 / 柱状递减 / 圆环)。
+IconData _amortizationIcon(AmortizationMethod m) {
+  switch (m) {
+    case AmortizationMethod.equalPrincipalInterest:
+      return LucideIcons.trendingUp;
+    case AmortizationMethod.equalPrincipal:
+      return LucideIcons.barChart3;
+    case AmortizationMethod.lumpSum:
+      return LucideIcons.circle;
+  }
+}
+
+/// 摊还方法 desc(对齐 OD .radio .rd 文案)。type 卡无 desc,仅摊还 3 卡用。
+String _amortizationDesc(AmortizationMethod m) {
+  switch (m) {
+    case AmortizationMethod.equalPrincipalInterest:
+      return '每期合计相同';
+    case AmortizationMethod.equalPrincipal:
+      return '本金相同 利息递减';
+    case AmortizationMethod.lumpSum:
+      return '到期一次结清';
+  }
+}
+
+/// 债权类型 icon(对齐 OD .radio .ri svg:私人 user / 商业 briefcase /
+/// 亲友 users / 其他 helpCircle)。key 来自 ReceivableSubtypes const。
+IconData _receivableTypeIcon(String key) {
+  switch (key) {
+    case ReceivableSubtypes.personal:
+      return LucideIcons.user;
+    case ReceivableSubtypes.business:
+      return LucideIcons.briefcase;
+    case ReceivableSubtypes.family:
+      return LucideIcons.users;
+    case ReceivableSubtypes.other:
+    default:
+      return LucideIcons.helpCircle;
   }
 }
 

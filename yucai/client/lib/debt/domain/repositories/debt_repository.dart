@@ -18,12 +18,18 @@ abstract class DebtRepository {
     required DebtType type,
     String subtype = '',
     String? sourceAccountId,
+    String contact = '',
+    String contractRef = '',
+    String? collectionAccountId,
   });
   Future<Either<Failure, Debt>> update({
     required String id,
     required String counterparty,
     required double interestRate,
     required int version,
+    String contact = '',
+    String contractRef = '',
+    String? collectionAccountId,
   });
   Future<Either<Failure, void>> delete(String id);
   Future<Either<Failure, PaymentEntry>> recordPayment({

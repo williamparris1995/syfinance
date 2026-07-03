@@ -143,6 +143,9 @@ void main() {
             type: any(named: 'type'),
             subtype: any(named: 'subtype'),
             sourceAccountId: any(named: 'sourceAccountId'),
+            contact: any(named: 'contact'),
+            contractRef: any(named: 'contractRef'),
+            collectionAccountId: any(named: 'collectionAccountId'),
           )).thenAnswer((_) async => Right(sample));
       when(() => repo.list(typeFilter: any(named: 'typeFilter')))
           .thenAnswer((_) async => Right([sample]));
@@ -171,6 +174,9 @@ void main() {
             type: DebtType.borrowedOut,
             subtype: any(named: 'subtype'),
             sourceAccountId: any(named: 'sourceAccountId'),
+            contact: any(named: 'contact'),
+            contractRef: any(named: 'contractRef'),
+            collectionAccountId: any(named: 'collectionAccountId'),
           )).thenAnswer((_) async => Right(sample));
       when(() => repo.list(typeFilter: any(named: 'typeFilter')))
           .thenAnswer((_) async => const Right([]));
@@ -199,6 +205,9 @@ void main() {
             type: DebtType.borrowedOut,
             subtype: any(named: 'subtype'),
             sourceAccountId: any(named: 'sourceAccountId'),
+            contact: any(named: 'contact'),
+            contractRef: any(named: 'contractRef'),
+            collectionAccountId: any(named: 'collectionAccountId'),
           )).called(1);
     },
   );
@@ -219,6 +228,9 @@ void main() {
             type: any(named: 'type'),
             subtype: 'mortgage',
             sourceAccountId: any(named: 'sourceAccountId'),
+            contact: any(named: 'contact'),
+            contractRef: any(named: 'contractRef'),
+            collectionAccountId: any(named: 'collectionAccountId'),
           )).thenAnswer((_) async => Right(sample));
       when(() => repo.list(typeFilter: any(named: 'typeFilter')))
           .thenAnswer((_) async => const Right([]));
@@ -248,6 +260,9 @@ void main() {
             type: any(named: 'type'),
             subtype: 'mortgage',
             sourceAccountId: any(named: 'sourceAccountId'),
+            contact: any(named: 'contact'),
+            contractRef: any(named: 'contractRef'),
+            collectionAccountId: any(named: 'collectionAccountId'),
           )).called(1);
     },
   );
@@ -260,6 +275,9 @@ void main() {
             counterparty: any(named: 'counterparty'),
             interestRate: any(named: 'interestRate'),
             version: any(named: 'version'),
+            contact: any(named: 'contact'),
+            contractRef: any(named: 'contractRef'),
+            collectionAccountId: any(named: 'collectionAccountId'),
           )).thenAnswer((_) async => Right(sample));
       when(() => repo.list(typeFilter: any(named: 'typeFilter')))
           .thenAnswer((_) async => Right([sample]));
@@ -330,6 +348,9 @@ void main() {
             type: any(named: 'type'),
             subtype: any(named: 'subtype'),
             sourceAccountId: any(named: 'sourceAccountId'),
+            contact: any(named: 'contact'),
+            contractRef: any(named: 'contractRef'),
+            collectionAccountId: any(named: 'collectionAccountId'),
           )).thenAnswer((_) async => Right(sample));
       when(() => repo.list(typeFilter: DebtType.borrowedOut))
           .thenAnswer((_) async => Right([sample]));
@@ -363,6 +384,9 @@ void main() {
             counterparty: any(named: 'counterparty'),
             interestRate: any(named: 'interestRate'),
             version: any(named: 'version'),
+            contact: any(named: 'contact'),
+            contractRef: any(named: 'contractRef'),
+            collectionAccountId: any(named: 'collectionAccountId'),
           )).thenAnswer((_) async => Right(sample));
       when(() => repo.list(typeFilter: DebtType.borrowedOut))
           .thenAnswer((_) async => Right([sample]));

@@ -363,7 +363,10 @@ void main() {
               totalPrincipalCents: any(named: 'totalPrincipalCents'),
               type: any(named: 'type'),
               subtype: any(named: 'subtype'),
-              sourceAccountId: any(named: 'sourceAccountId')))
+              sourceAccountId: any(named: 'sourceAccountId'),
+              contact: any(named: 'contact'),
+              contractRef: any(named: 'contractRef'),
+              collectionAccountId: any(named: 'collectionAccountId')))
           .thenAnswer((inv) {
         created = true;
         return Future.value(dartz.Right(_emptyDetail().debt));
@@ -489,7 +492,10 @@ void main() {
               id: any(named: 'id'),
               counterparty: any(named: 'counterparty'),
               interestRate: any(named: 'interestRate'),
-              version: any(named: 'version'))).thenAnswer((_) {
+              version: any(named: 'version'),
+              contact: any(named: 'contact'),
+              contractRef: any(named: 'contractRef'),
+              collectionAccountId: any(named: 'collectionAccountId'))).thenAnswer((_) {
         updated = true;
         return Future.value(dartz.Right(existingDebt(counterparty: '已改')));
       });
@@ -798,7 +804,10 @@ void main() {
               totalPrincipalCents: any(named: 'totalPrincipalCents'),
               type: any(named: 'type'),
               subtype: any(named: 'subtype'),
-              sourceAccountId: any(named: 'sourceAccountId'))).thenAnswer((inv) {
+              sourceAccountId: any(named: 'sourceAccountId'),
+              contact: any(named: 'contact'),
+              contractRef: any(named: 'contractRef'),
+              collectionAccountId: any(named: 'collectionAccountId'))).thenAnswer((inv) {
         capturedSubtype = inv.namedArguments[#subtype] as String?;
         return Future.value(dartz.Right(_emptyDetail().debt));
       });

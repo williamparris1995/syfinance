@@ -72,6 +72,9 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
       type: p.type,
       subtype: p.subtype,
       sourceAccountId: p.sourceAccountId,
+      contact: p.contact,
+      contractRef: p.contractRef,
+      collectionAccountId: p.collectionAccountId,
     );
     result.fold(
       (failure) => emit(DebtError(failure.displayMessage, last: _last)),
@@ -91,6 +94,9 @@ class DebtBloc extends Bloc<DebtEvent, DebtState> {
       counterparty: p.counterparty,
       interestRate: p.interestRate,
       version: p.version,
+      contact: p.contact,
+      contractRef: p.contractRef,
+      collectionAccountId: p.collectionAccountId,
     );
     result.fold(
       (failure) => emit(DebtError(failure.displayMessage, last: _last)),

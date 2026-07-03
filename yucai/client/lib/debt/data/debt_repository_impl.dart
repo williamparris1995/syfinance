@@ -34,6 +34,9 @@ class DebtRepositoryImpl implements DebtRepository {
     required DebtType type,
     String subtype = '',
     String? sourceAccountId,
+    String contact = '',
+    String contractRef = '',
+    String? collectionAccountId,
   }) =>
       _guard(() => _remote.create(
             accountId: accountId,
@@ -46,6 +49,9 @@ class DebtRepositoryImpl implements DebtRepository {
             type: type,
             subtype: subtype,
             sourceAccountId: sourceAccountId,
+            contact: contact,
+            contractRef: contractRef,
+            collectionAccountId: collectionAccountId,
           ));
 
   @override
@@ -54,12 +60,18 @@ class DebtRepositoryImpl implements DebtRepository {
     required String counterparty,
     required double interestRate,
     required int version,
+    String contact = '',
+    String contractRef = '',
+    String? collectionAccountId,
   }) =>
       _guard(() => _remote.update(
             id: id,
             counterparty: counterparty,
             interestRate: interestRate,
             version: version,
+            contact: contact,
+            contractRef: contractRef,
+            collectionAccountId: collectionAccountId,
           ));
 
   @override

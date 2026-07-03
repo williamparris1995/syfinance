@@ -38,6 +38,9 @@ class CreateDebtParams extends Equatable {
     this.type = DebtType.borrowedIn,
     this.subtype = '',
     this.sourceAccountId,
+    this.contact = '',
+    this.contractRef = '',
+    this.collectionAccountId,
   });
   final String accountId;
   final String counterparty;
@@ -54,6 +57,13 @@ class CreateDebtParams extends Equatable {
   /// borrowedOut 双写:借出资金的来源账户(cash asset)。borrowedOut 必填;
   /// borrowedIn 忽略(不双写)。null → 空字符串 → 不双写。
   final String? sourceAccountId;
+  /// 应收/负债追踪字段(receivables 对齐,Task 11)。全部带默认值,
+  /// 既有 debts_page/debt_form_page 调用点不传也编译过。
+  /// contact / contractRef 可选自由文本;collectionAccountId 为应收的回款
+  /// 关联账户(borrowedOut 必填,服务端 application 层强制)。
+  final String contact;
+  final String contractRef;
+  final String? collectionAccountId;
 
   @override
   List<Object?> get props => [
@@ -67,6 +77,9 @@ class CreateDebtParams extends Equatable {
         type,
         subtype,
         sourceAccountId,
+        contact,
+        contractRef,
+        collectionAccountId,
       ];
 }
 
@@ -83,14 +96,25 @@ class UpdateDebtParams extends Equatable {
     required this.counterparty,
     required this.interestRate,
     required this.version,
+    this.contact = '',
+    this.contractRef = '',
+    this.collectionAccountId,
   });
   final String id;
   final String counterparty;
   final double interestRate;
   final int version;
+  /// 应收/负债追踪字段(receivables 对齐,Task 11)。全部带默认值,
+  /// 既有 debts_page/debt_form_page 编辑调用点不传也编译过。
+  /// 与服务端 UpdateDebt 语义一致:空 Contact/ContractRef 清字段,
+  /// nil CollectionAccountID 解除关联。
+  final String contact;
+  final String contractRef;
+  final String? collectionAccountId;
 
   @override
-  List<Object?> get props => [id, counterparty, interestRate, version];
+  List<Object?> get props =>
+      [id, counterparty, interestRate, version, contact, contractRef, collectionAccountId];
 }
 
 class UpdateDebtRequested extends DebtEvent {

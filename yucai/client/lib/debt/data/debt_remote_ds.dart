@@ -70,6 +70,9 @@ class DebtRemoteDataSource {
     required DebtType type,
     String subtype = '',
     String? sourceAccountId,
+    String contact = '',
+    String contractRef = '',
+    String? collectionAccountId,
   }) async {
     return _retry.call(() async {
       final res = await _client.createDebt(pb.CreateDebtRequest(
@@ -88,6 +91,11 @@ class DebtRemoteDataSource {
         // source_account_id:borrowedOut 双写资金来源(cash asset);borrowedIn
         // 或未选 → '' → 后端不双写。
         sourceAccountId: sourceAccountId ?? '',
+        // receivables 对齐字段(Task 11):自由文本直传 + collection_account_id
+        // 空串 = 未关联(borrowedOut 服务端强制,客户端 form 已先校验)。
+        contact: contact,
+        contractRef: contractRef,
+        collectionAccountId: collectionAccountId ?? '',
       ));
       return DebtMapper.toDomain(res.debt);
     });
@@ -98,6 +106,9 @@ class DebtRemoteDataSource {
     required String counterparty,
     required double interestRate,
     required int version,
+    String contact = '',
+    String contractRef = '',
+    String? collectionAccountId,
   }) async {
     return _retry.call(() async {
       final res = await _client.updateDebt(pb.UpdateDebtRequest(
@@ -105,6 +116,11 @@ class DebtRemoteDataSource {
         counterparty: counterparty,
         interestRate: interestRate,
         version: Int64(version),
+        // receivables 对齐字段(Task 11):空字符串清字段,collection_account_id
+        // 空串 = 解除关联(对齐服务端 UpdateDebt 语义)。
+        contact: contact,
+        contractRef: contractRef,
+        collectionAccountId: collectionAccountId ?? '',
       ));
       return DebtMapper.toDomain(res.debt);
     });
