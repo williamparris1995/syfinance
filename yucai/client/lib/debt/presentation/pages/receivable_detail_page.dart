@@ -139,23 +139,18 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
           ? const EdgeInsets.fromLTRB(16, 14, 16, 60)
           : const EdgeInsets.fromLTRB(36, 24, 36, 70),
       children: [
-        if (showSide)
-          // desktop 双列:Row 内 左 expanded(hero+stats+schedule)+ 右 320 side。
+        if (showSide) ...[
+          // OD 对齐:.hero + .stats5 全宽铺满;仅 .grid-2(schedule + side panel)双列。
+          _hero(detail.debt, preferred, detail),
+          const SizedBox(height: 18),
+          _statsRow(detail, preferred),
+          const SizedBox(height: 18),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _hero(detail.debt, preferred, detail),
-                    const SizedBox(height: 18),
-                    _statsRow(detail, preferred),
-                    const SizedBox(height: 18),
-                    _scheduleSection(
-                        detail.schedule, detail.debt, isMobile, preferred),
-                  ],
-                ),
+                child: _scheduleSection(
+                    detail.schedule, detail.debt, isMobile, preferred),
               ),
               const SizedBox(width: 18),
               SizedBox(
@@ -163,8 +158,8 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
                 child: _sidePanel(detail, preferred),
               ),
             ],
-          )
-        else ...[
+          ),
+        ] else ...[
           _hero(detail.debt, preferred, detail),
           const SizedBox(height: 18),
           _statsRow(detail, preferred),

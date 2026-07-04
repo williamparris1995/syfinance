@@ -308,7 +308,7 @@ class _OverviewCard extends StatelessWidget {
               children: [
                 // cell1:总借出本金 + trend
                 Expanded(
-                  flex: 13,
+                  flex: 6, // OD .ov-grid 1.2fr(cell1=cell2)
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -330,7 +330,7 @@ class _OverviewCard extends StatelessWidget {
                 const SizedBox(width: 28),
                 // cell2:剩余应收(本金)+ breakdown
                 Expanded(
-                  flex: 10,
+                  flex: 6, // OD 1.2fr(=cell1)
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -379,7 +379,7 @@ class _OverviewCard extends StatelessWidget {
                 const SizedBox(width: 28),
                 // cell3:本金收回进度(head + pct + bar + meta)
                 Expanded(
-                  flex: 10,
+                  flex: 5, // OD 1fr
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -1094,7 +1094,7 @@ class _ReceivableCard extends StatelessWidget {
             children: [
               // col1: avatar + name + badge(+ 已结清/逾期)
               Expanded(
-                flex: 3,
+                flex: 16, // OD .rcv-main 1.6fr(col1 最宽)
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -1140,6 +1140,15 @@ class _ReceivableCard extends StatelessWidget {
                                     bg: Color(0x1AC4544D)),
                             ],
                           ),
+                          // OD .rcv-meta:借出 ¥X · startDate · 摊还
+                          const SizedBox(height: 4),
+                          Text(
+                            '借出 ${_fmtSymbol(debt.totalPrincipalCents, preferred)} · ${_fmtDate(debt.startDate)} · ${_amortLabel(debt.amortization)}',
+                            style: const TextStyle(
+                                fontSize: 11.5,
+                                color: AppColors.muted,
+                                fontFeatures: AppTypography.tabularFigures),
+                          ),
                         ],
                       ),
                     ),
@@ -1149,7 +1158,7 @@ class _ReceivableCard extends StatelessWidget {
               const SizedBox(width: 12),
               // col2: 剩余应收大字(OD .rcv-amt 23px w700)。
               Expanded(
-                flex: 2,
+                flex: 9, // OD .9fr
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1174,7 +1183,7 @@ class _ReceivableCard extends StatelessWidget {
               const SizedBox(width: 12),
               // col3: 收回进度 + 已收金额。
               Expanded(
-                flex: 2,
+                flex: 11, // OD 1.1fr(次宽:bar+已收)
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1193,7 +1202,7 @@ class _ReceivableCard extends StatelessWidget {
               const SizedBox(width: 12),
               // col4: meta2 利率 / 到期 / 摊还。
               Expanded(
-                flex: 2,
+                flex: 9, // OD .9fr
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
