@@ -921,13 +921,17 @@ class _RadioCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(11),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 120),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        // OD `.radio label{padding:13px 6px;border-radius:11px}`
+        // → vertical 13 / horizontal 6。
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 13),
         decoration: BoxDecoration(
           color: cardBg,
           border: Border.all(color: cardBorder, width: selected ? 1.4 : 1),
           borderRadius: BorderRadius.circular(11),
           boxShadow: selected
               ? [
+                  // OD `:checked box-shadow 0 0 0 3px rgba(gold,.12)`
+                  // → spreadRadius 3 blur 0(0 0 0 = ring,等同 OD 写法)。
                   BoxShadow(
                     color: AppColors.accent.withValues(alpha: 0.12),
                     blurRadius: 0,
@@ -1018,8 +1022,21 @@ class _DateField extends StatelessWidget {
   }
 }
 
-/// 深色实时预览卡（对齐 OD .preview）。preview == null → 空态。
-/// Label 收款语义：收款计划预览 / 收回本金 / 利息收入。
+/// 实时收款计划预览卡(对齐 OD `.pv-card`)。
+///
+/// **OD 结构**(receivable-form.html):
+/// - `.pv-card`:white surface + border + radius 14 + shadow-sm + clip
+/// - `.pv-head`:dark gradient(`linear-gradient(135deg,#1f2126,#24201a)`)
+///   + `::after` radial gold glow(rgba(176,141,87,.3) → transparent 65%)
+///   + padding 16/18;title(check icon + serif 收款计划预览)+ sub。
+///   **仅 head 深色** —— body/sum/tbl/foot 均在 white surface 上。
+/// - `.pv-sum`:2×2 grid gap 1px(用 border 当 grid 线)+ 每格 white surface
+///   + padding 12/16;`.k`(label 10.5px muted uppercase)+ `.v`(value 16px w700)。
+///   绿色 `.v` 给 `总利息收入`;其余 `.v` 默认 fg。`.cur`(货币符号 gold 11px)前缀。
+/// - `.pv-tbl`:header 10px uppercase muted,td 12.5px,right-aligned `.num`。
+/// - `.pv-foot`:surface-2 + border-top,padding 11/16,gold info icon + 11px muted。
+///
+/// preview == null → 空态。Label 收款语义:收款计划预览 / 收回本金 / 利息收入。
 class _CollectionPreview extends StatelessWidget {
   const _CollectionPreview({required this.title, required this.preview});
 
@@ -1030,122 +1047,164 @@ class _CollectionPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       key: const ValueKey('amortizationPreview'),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1F2228), Color(0xFF262A31)],
-        ),
+      // OD .pv-card:white surface + border + radius lg + shadow-sm + clip。
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border.all(color: AppColors.border),
         borderRadius: AppRadius.lgBorder,
-        boxShadow: [
+        boxShadow: const [
+          // OD --shadow-sm。
           BoxShadow(
-              color: Color(0x17000000), blurRadius: 34, offset: Offset(0, 10)),
+              color: Color(0x0A1C1E21), blurRadius: 3, offset: Offset(0, 1)),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _header(),
-          if (preview == null) _empty() else _table(preview!),
-          _foot(),
+          _head(),
+          if (preview == null) _empty() else _body(preview!),
         ],
       ),
     );
   }
 
-  Widget _header() {
+  /// OD `.pv-head`:dark gradient + radial gold glow ::after + padding 16/18。
+  /// title(check icon + serif 收款计划预览)+ sub(11.5px muted light)。
+  Widget _head() {
     final p = preview;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.md),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0x12FFFFFF))),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('LIVE PREVIEW · 收款计划预览',
-              style: TextStyle(
-                  color: Color(0xFF9AA0A8),
-                  fontSize: 10.5,
-                  letterSpacing: 2,
-                  fontFamily: AppTypography.displayFamily)),
-          const SizedBox(height: 7),
-          Text(title,
-              key: const ValueKey('previewTitle'),
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: AppTypography.displayFamily)),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(p == null ? '' : p.label,
-                  style: const TextStyle(
-                      color: Color(0xFF9AA0A8), fontSize: 11.5)),
-              const SizedBox(width: 8),
-              Text(
-                p == null ? '—' : _fmtYuan(p.headlineAmount),
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.01,
-                    fontFeatures: AppTypography.tabularFigures),
+    return Stack(
+      children: [
+        // base:dark gradient(OD `linear-gradient(135deg,#1f2126,#24201a)`)。
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF1F2126), Color(0xFF24201A)],
               ),
+            ),
+          ),
+        ),
+        // ::after radial glow(右上,OD `radial-gradient(circle,rgba(176,141,87,.3),transparent 65%)`)。
+        Positioned(
+          top: -40,
+          right: -30,
+          child: IgnorePointer(
+            child: Container(
+              width: 180,
+              height: 140,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                // radial:用 radialGradient 在透明圆里画 gold → transparent。
+                gradient: RadialGradient(
+                  colors: [
+                    const Color(0xFFB08D57).withValues(alpha: 0.30),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.65],
+                ),
+              ),
+            ),
+          ),
+        ),
+        // 内容层( Positioned.fill 让内容在 glow 之上)。
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(LucideIcons.checkCircle,
+                      size: 16, color: Color(0xFFD9B878)),
+                  const SizedBox(width: 8),
+                  Text('收款计划预览',
+                      key: const ValueKey('previewTitle'),
+                      style: const TextStyle(
+                          color: Color(0xFFF7F1E6),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: AppTypography.displayFamily,
+                          fontFamilyFallback:
+                              AppTypography.displayFallback)),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text('按当前本金 · 利率 · 摊还方法实时计算',
+                  style: const TextStyle(
+                      color: Color(0xFFA8A59A), fontSize: 11.5)),
+              const SizedBox(height: 14),
+              // headline:label + 大字 amt(gold-press)。
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(p == null ? '' : p.label,
+                      style: const TextStyle(
+                          color: Color(0xFFA8A59A), fontSize: 11.5)),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        p == null ? '—' : _fmtYuan(p.headlineAmount),
+                        style: const TextStyle(
+                            color: Color(0xFFD9B878),
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.01,
+                            fontFeatures: AppTypography.tabularFigures),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (p != null) ...[
+                const SizedBox(height: 4),
+                Text(title,
+                    style: const TextStyle(
+                        color: Color(0xFFA8A59A), fontSize: 11)),
+              ],
             ],
           ),
-          if (p != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            _sumGrid(p),
-          ],
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  /// 2×2 汇总网格(对齐 OD .pv-sum):月供/期供(gold) / 总利息收入(green) /
-  /// 期数 / 总还款(本息)(gold)。替代旧 `_tag` 文字标签 —— 数字 + 标签更清晰。
-  /// 深色卡内嵌:cell 半透明白底 + 分隔线,与下方 rows 视觉一致。
+  /// 2×2 汇总网格(对齐 OD `.pv-sum`)。grid 1px gap 用 border 线实现。
+  /// cell:white surface + padding 12/16;`.k` label 10.5px uppercase / `.v` 16px w700。
+  /// 总利息收入 green;月供/总还款 默认 fg(OD 不染色)。
   Widget _sumGrid(_Preview p) {
     return Container(
       key: const ValueKey('previewSumGrid'),
-      margin: const EdgeInsets.only(top: AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: const Color(0x0EFFFFFF),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0x12FFFFFF)),
+      // OD `.pv-sum{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border)}`
+      // → 容器 bg = border 色,cells 白底,gap 1px 自然显 border 线。
+      decoration: const BoxDecoration(
+        color: AppColors.border,
+        border: Border(top: BorderSide(color: AppColors.border, width: 1)),
       ),
       child: Column(
         children: [
           Row(
             children: [
-              Expanded(
-                  child: _sumCell('月供 / 期供', _fmtYuan(p.headlineAmount),
-                      valueColor: const Color(0xFFE8C894))),
-              Container(
-                  width: 1,
-                  height: 38,
-                  color: const Color(0x12FFFFFF)),
+              Expanded(child: _sumCell('月供 / 期供', _fmtYuan(p.headlineAmount))),
+              Container(width: 1, color: AppColors.border),
               Expanded(
                 child: _sumCell('总利息收入', _fmtYuan(p.totalInterest),
-                    valueColor: const Color(0xFF7FC9A8)),
+                    valueColor: AppColors.positive),
               ),
             ],
           ),
-          Container(height: 1, color: const Color(0x12FFFFFF)),
+          Container(height: 1, color: AppColors.border),
           Row(
             children: [
               Expanded(child: _sumCell('期数', '${p.n} 期')),
-              Container(
-                  width: 1, height: 38, color: const Color(0x12FFFFFF)),
-              Expanded(
-                child: _sumCell('总还款（本息）', _fmtYuan(p.totalPayment),
-                    valueColor: const Color(0xFFE8C894)),
-              ),
+              Container(width: 1, color: AppColors.border),
+              Expanded(child: _sumCell('总还款（本息）', _fmtYuan(p.totalPayment))),
             ],
           ),
         ],
@@ -1154,21 +1213,23 @@ class _CollectionPreview extends StatelessWidget {
   }
 
   Widget _sumCell(String label, String value, {Color? valueColor}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    return Container(
+      color: AppColors.surface,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
               style: const TextStyle(
-                  color: Color(0xFF9AA0A8),
-                  fontSize: 10,
-                  letterSpacing: 0.4)),
+                  color: AppColors.muted,
+                  fontSize: 10.5,
+                  letterSpacing: 0.4,
+                  fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
           Text(value,
               style: TextStyle(
-                color: valueColor ?? Colors.white,
-                fontSize: 15,
+                color: valueColor ?? AppColors.fg,
+                fontSize: 16,
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.01,
                 fontFeatures: AppTypography.tabularFigures,
@@ -1178,44 +1239,74 @@ class _CollectionPreview extends StatelessWidget {
     );
   }
 
-  Widget _table(_Preview p) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Column(
-        children: [
-          // header row
-          const Padding(
-            padding:
-                EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 8),
-            child: Row(
-              children: [
-                Expanded(
-                    flex: 4,
-                    child: Text('期次 / 收款日',
-                        style: TextStyle(
-                            color: Color(0xFF6F747C),
-                            fontSize: 10,
-                            letterSpacing: 1,
-                            fontFeatures: AppTypography.tabularFigures))),
-                Expanded(
-                    flex: 5,
-                    child: Text('收回本金 / 利息收入',
-                        style: TextStyle(
-                            color: Color(0xFF6F747C),
-                            fontSize: 10,
-                            letterSpacing: 1))),
-                Expanded(
-                    flex: 4,
-                    child: Text('合计',
-                        textAlign: TextAlign.right,
-                        style: TextStyle(
-                            color: Color(0xFF6F747C),
-                            fontSize: 10,
-                            letterSpacing: 1))),
-              ],
-            ),
+  /// `.pv-body`:padding 14/16;`.pv-tbl` 表(header 10px uppercase muted / td 12.5px)。
+  Widget _body(_Preview p) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _sumGrid(p),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('收款计划（前 5 期）',
+                  style: TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 11,
+                      letterSpacing: 0.5,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              _tblHeader(),
+              for (final row in p.rows) _row(row),
+            ],
           ),
-          for (final row in p.rows) _row(row),
+        ),
+        _foot(),
+      ],
+    );
+  }
+
+  Widget _tblHeader() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+              flex: 5,
+              child: Text('期次 / 收款日',
+                  style: TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 10,
+                      letterSpacing: 0.3,
+                      fontWeight: FontWeight.w600))),
+          Expanded(
+              flex: 3,
+              child: Text('收回本金',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 10,
+                      letterSpacing: 0.3,
+                      fontWeight: FontWeight.w600))),
+          Expanded(
+              flex: 3,
+              child: Text('利息',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 10,
+                      letterSpacing: 0.3,
+                      fontWeight: FontWeight.w600))),
+          Expanded(
+              flex: 3,
+              child: Text('合计',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 10,
+                      letterSpacing: 0.3,
+                      fontWeight: FontWeight.w600))),
         ],
       ),
     );
@@ -1228,53 +1319,54 @@ class _CollectionPreview extends StatelessWidget {
         '${r.date.year}-${r.date.month.toString().padLeft(2, '0')}-${r.date.day.toString().padLeft(2, '0')}';
     return Container(
       key: ValueKey('previewRow-${r.index.toString().padLeft(2, '0')}'),
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(vertical: 7),
       decoration: const BoxDecoration(
-          border:
-              Border(bottom: BorderSide(color: Color(0x0DFFFFFF)))),
+          border: Border(top: BorderSide(color: AppColors.border, width: 1))),
       child: Row(
         children: [
-          Expanded(
-            flex: 4,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(idx,
-                    style: const TextStyle(
-                        color: Color(0xFF6F747C),
-                        fontSize: 11,
-                        fontFeatures: AppTypography.tabularFigures)),
-                Text(date,
-                    style: const TextStyle(
-                        color: Color(0xFF9AA0A8), fontSize: 10)),
-              ],
-            ),
-          ),
           Expanded(
             flex: 5,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_fmtYuan(r.principal),
+                Text(idx,
                     style: const TextStyle(
-                        color: Colors.white,
+                        color: AppColors.fg,
                         fontSize: 12.5,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                         fontFeatures: AppTypography.tabularFigures)),
-                Text('利息收入 ${_fmtYuan(r.interest)}',
+                Text(date,
                     style: const TextStyle(
-                        color: Color(0xFF9AA0A8), fontSize: 10.5)),
+                        color: AppColors.muted, fontSize: 11.5)),
               ],
             ),
           ),
           Expanded(
-            flex: 4,
+            flex: 3,
+            child: Text(_fmtYuan(r.principal),
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                    color: AppColors.fg,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: AppTypography.tabularFigures)),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(_fmtYuan(r.interest),
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                    color: AppColors.positive,
+                    fontSize: 12.5,
+                    fontFeatures: AppTypography.tabularFigures)),
+          ),
+          Expanded(
+            flex: 3,
             child: Text(_fmtYuan(total),
                 textAlign: TextAlign.right,
                 style: const TextStyle(
-                    color: Color(0xFFE8C894),
-                    fontSize: 13,
+                    color: AppColors.fg,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w600,
                     fontFeatures: AppTypography.tabularFigures)),
           ),
@@ -1284,38 +1376,44 @@ class _CollectionPreview extends StatelessWidget {
   }
 
   Widget _empty() {
-    return const Padding(
-      key: ValueKey('previewEmpty'),
-      padding: EdgeInsets.symmetric(
+    return Padding(
+      key: const ValueKey('previewEmpty'),
+      padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg, vertical: AppSpacing.xl),
-      child: Center(
+      child: const Center(
         child: Text(
           '填写借出本金与借出/到期日期后\n实时生成收款计划',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Color(0xFF7A7E85), fontSize: 12.5, height: 1.6),
+          style: TextStyle(color: AppColors.muted, fontSize: 12.5, height: 1.6),
         ),
       ),
     );
   }
 
+  /// OD `.pv-foot`:surface-2 + border-top + padding 11/16;gold info icon + 11px muted。
   Widget _foot() {
     final p = preview;
     return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg, vertical: AppSpacing.sm + 2),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
       decoration: const BoxDecoration(
-          border:
-              Border(top: BorderSide(color: Color(0x12FFFFFF)))),
+          color: AppColors.surfaceAlt,
+          border: Border(top: BorderSide(color: AppColors.border, width: 1))),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text('前 5 期预览 · 实际以收款为准',
-              style: TextStyle(color: Color(0xFF9AA0A8), fontSize: 11.5)),
-          Text('年化 ${p == null ? '—' : '${p.annualRate.toStringAsFixed(1)}%'}',
-              style: const TextStyle(
-                  color: Color(0xFFE8C894),
-                  fontSize: 11.5,
-                  fontFeatures: AppTypography.tabularFigures)),
+          const Icon(LucideIcons.info,
+              size: 13, color: AppColors.accent),
+          const SizedBox(width: 6),
+          const Expanded(
+            child: Text('预览按当前参数实时计算 · 实际以创建后收款记录为准',
+                style: TextStyle(color: AppColors.muted, fontSize: 11)),
+          ),
+          if (p != null)
+            Text('年化 ${p.annualRate.toStringAsFixed(1)}%',
+                style: const TextStyle(
+                    color: AppColors.accentHover,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: AppTypography.tabularFigures)),
         ],
       ),
     );

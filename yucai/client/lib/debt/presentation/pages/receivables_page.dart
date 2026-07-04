@@ -825,86 +825,138 @@ class _StatStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (summary == null) {
-      // loading:占位 —(不阻塞列表;高度对齐真实卡避免抖动)。
+      // loading:占位 —(不阻塞列表;高度对齐真实卡避免抖动)。icon 与真实卡一致。
       return LayoutBuilder(
-        builder: (ctx, c) => _grid(const [
-          _StatCard('债权笔数', '—'),
-          _StatCard('已收本息', '—'),
-          _StatCard('待收利息', '—'),
-          _StatCard('逾期应收', '—'),
+        builder: (ctx, c) => _grid([
+          const _StatCard('债权笔数', '—', icon: LucideIcons.layers),
+          const _StatCard('已收本息', '—', icon: LucideIcons.trendingUp),
+          const _StatCard('待收利息', '—', icon: LucideIcons.clock),
+          const _StatCard('逾期应收', '—', icon: LucideIcons.triangleAlert),
         ], c.maxWidth),
       );
     }
     final s = summary!;
+    // OD `.stat-strip` 4 卡各带独立 svg icon(对齐 receivables.html):
+    //   笔数 → lucide layers / 已收本息 → trending-up(绿) /
+    //   待收利息 → clock / 逾期应收 → triangle-alert(红)
     return LayoutBuilder(
       builder: (ctx, c) => _grid([
-        _StatCard('债权笔数', '${s.count}', sub: '私人·商业·亲友'),
+        _StatCard('债权笔数', '${s.count}',
+            sub: '私人·商业·亲友', icon: LucideIcons.layers),
         _StatCard('已收本息', _fmtSymbol(s.totalCollectedCents, preferred),
-            color: AppColors.positive),
-        _StatCard('待收利息', _fmtSymbol(s.pendingInterestCents, preferred)),
+            color: AppColors.positive, icon: LucideIcons.trendingUp),
+        _StatCard('待收利息', _fmtSymbol(s.pendingInterestCents, preferred),
+            icon: LucideIcons.clock),
         _StatCard('逾期应收', _fmtSymbol(s.overdueAmountCents, preferred),
-            color: AppColors.negative, sub: '${s.overdueCount} 笔'),
+            color: AppColors.negative,
+            sub: '${s.overdueCount} 笔',
+            icon: LucideIcons.triangleAlert),
       ], c.maxWidth),
     );
   }
 
   Widget _grid(List<Widget> cards, double maxWidth) {
-    // 4 卡始终并排(Row + Expanded 自适应宽度);mobile 上每卡略窄但仍可读。
+    // OD `.stat-strip{grid-template-columns:repeat(4,1fr);gap:14px}`:
+    // 4 卡始终并排(Row + Expanded 自适应宽度);gap 14 对齐 OD。
     return Row(
       children: [
         for (var i = 0; i < cards.length; i++) ...[
           Expanded(child: cards[i]),
-          if (i < cards.length - 1) const SizedBox(width: 12),
+          if (i < cards.length - 1) const SizedBox(width: 14),
         ],
       ],
     );
   }
 }
 
-/// 单张 stat 卡(对齐 OD .stat)。label / value(大字 mono)/ sub(可选小字)。
-class _StatCard extends StatelessWidget {
-  const _StatCard(this.label, this.value, {this.color, this.sub});
+/// 单张 stat 卡(对齐 OD `.stat`)。
+/// - padding 16/18(horizontal 18 / vertical 16)
+/// - radius lg(14)、border + shadow-sm
+/// - `:hover` translateY(-2) + shadow-md(MouseRegion + AnimatedContainer)
+/// - label 12px muted + 可选 svg icon(14px)
+/// - val 22px w700
+/// - sub 11.5px muted
+class _StatCard extends StatefulWidget {
+  const _StatCard(this.label, this.value, {this.color, this.sub, this.icon});
   final String label;
   final String value;
   final Color? color;
   final String? sub;
+  final IconData? icon;
+
+  @override
+  State<_StatCard> createState() => _StatCardState();
+}
+
+class _StatCardState extends State<_StatCard> {
+  bool _hover = false;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 11,
-                  letterSpacing: 0.4,
-                  color: AppColors.muted,
-                  fontWeight: FontWeight.w500)),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: color ?? AppColors.fg,
-              letterSpacing: -0.1,
-              fontFeatures: AppTypography.tabularFigures,
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        transform: Matrix4.translationValues(0, _hover ? -2 : 0, 0),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          boxShadow: [
+            // OD --shadow-sm(默认)/ --shadow-md(hover)
+            BoxShadow(
+              color: const Color(0x0A1C1E21),
+              blurRadius: _hover ? 28 : 2,
+              offset: _hover ? const Offset(0, 10) : const Offset(0, 1),
             ),
-          ),
-          if (sub != null) ...[
-            const SizedBox(height: 3),
-            Text(sub!,
-                style: const TextStyle(
-                    fontSize: 11, color: AppColors.muted)),
+            if (_hover)
+              BoxShadow(
+                color: const Color(0x0D1C1E21),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
           ],
-        ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // OD .stat-label:12px muted + svg icon(14px fg-subtle)。
+            Row(
+              children: [
+                if (widget.icon != null) ...[
+                  Icon(widget.icon, size: 14, color: AppColors.muted),
+                  const SizedBox(width: 7),
+                ],
+                Flexible(
+                  child: Text(widget.label,
+                      style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.muted,
+                          fontWeight: FontWeight.w500)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 7),
+            Text(
+              widget.value,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: widget.color ?? AppColors.fg,
+                letterSpacing: -0.1,
+                fontFeatures: AppTypography.tabularFigures,
+              ),
+            ),
+            if (widget.sub != null) ...[
+              const SizedBox(height: 3),
+              Text(widget.sub!,
+                  style: const TextStyle(
+                      fontSize: 11.5, color: AppColors.muted)),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -1058,9 +1110,10 @@ class _ReceivableCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // OD .rcv-name:15.5px w600 serif。
                           Text(debt.counterparty,
                               style: const TextStyle(
-                                  fontSize: 16.5,
+                                  fontSize: 15.5,
                                   fontWeight: FontWeight.w600,
                                   fontFamily: AppTypography.displayFamily,
                                   fontFamilyFallback:
@@ -1094,7 +1147,7 @@ class _ReceivableCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              // col2: 剩余应收大字。
+              // col2: 剩余应收大字(OD .rcv-amt 23px w700)。
               Expanded(
                 flex: 2,
                 child: Column(
@@ -1109,8 +1162,8 @@ class _ReceivableCard extends StatelessWidget {
                     Text(
                       _fmtSymbol(debt.remainingPrincipalCents, preferred),
                       style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 23,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: -0.15,
                         fontFeatures: AppTypography.tabularFigures,
                       ),
@@ -1207,7 +1260,7 @@ class _ReceivableCard extends StatelessWidget {
                   children: [
                     Text(debt.counterparty,
                         style: const TextStyle(
-                            fontSize: 16,
+                            fontSize: 15.5,
                             fontWeight: FontWeight.w600,
                             fontFamily: AppTypography.displayFamily,
                             fontFamilyFallback:
@@ -1622,18 +1675,19 @@ class _Badge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // OD `.badge`:11px w600 + `.dotb` 6px 圆点 + pill(radius 20) + padding 2/9。
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(9999),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 5,
-            height: 5,
+            width: 6,
+            height: 6,
             decoration: BoxDecoration(color: fg, shape: BoxShape.circle),
           ),
           const SizedBox(width: 5),
@@ -1644,7 +1698,7 @@ class _Badge extends StatelessWidget {
                 softWrap: false,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    color: fg, fontSize: 11.5, fontWeight: FontWeight.w600)),
+                    color: fg, fontSize: 11, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -1654,8 +1708,10 @@ class _Badge extends StatelessWidget {
 
 // ───────────────────────── L1 avatar tile + L3 foot callout ─────────────────────────
 
-/// L1:44px avatar tile。债务人首字 + 类型色背景(对齐 OD .avatar)。
-/// 类型色:_avatarColorFor 推断(商业蓝 / 亲友绿 / 私人金 / 其他灰)。
+/// L1:44px avatar tile。债务人首字 + 类型色 solid 背景(对齐 OD .rcv-avatar)。
+/// OD:`.rcv-avatar{width:44px;height:44px;border-radius:12px;background:gold-soft;
+///     color:gold-press;font-family:serif;font-weight:700;font-size:19px}`(无 border)。
+/// 类型色:_avatarColorFor 推断(商业蓝 / 亲友绿 / 私人金 / 其他灰);bg 用 alpha-soft。
 class _ReceivableAvatar extends StatelessWidget {
   const _ReceivableAvatar({required this.initial, required this.color});
   final String initial;
@@ -1667,16 +1723,16 @@ class _ReceivableAvatar extends StatelessWidget {
       width: 44,
       height: 44,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        // OD .rcv-avatar:gold-soft(solid);用 color alpha 0.14 作 soft 变体。
+        color: color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.25), width: 1),
       ),
       alignment: Alignment.center,
       child: Text(
         initial,
         style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
+          fontSize: 19,
+          fontWeight: FontWeight.w700,
           color: color,
           fontFamily: AppTypography.displayFamily,
           fontFamilyFallback: AppTypography.displayFallback,
@@ -1900,14 +1956,16 @@ class _ListFilterSegmented extends StatelessWidget {
       (_ListFilter.overdue, '逾期'),
     ];
     return Container(
-      padding: const EdgeInsets.all(4),
+      // OD `.seg`:bg #efede6 + border + radius 10 + padding 3 + gap 2。
+      padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFECE5),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        color: const Color(0xFFEFEDE6),
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(10),
       ),
       // Wrap 替代 Row(4-seg 在窄 mobile 可能换行,避免溢出)。
       child: Wrap(
-        spacing: 0,
+        spacing: 2,
         runSpacing: 0,
         children: [
           for (final (f, label) in segments) _segment(f, label),
@@ -1924,33 +1982,56 @@ class _ListFilterSegmented extends StatelessWidget {
       _ListFilter.overdue => overdueCount,
       _ListFilter.all => activeCount + settledCount,
     };
+    // OD `.seg button`:padding 6/13 + `.cnt`(mono 11px pill bg rgba(0,0,0,.06))。
     return InkWell(
       key: ValueKey('listFilter-$label'),
       onTap: () => onChanged(f),
-      borderRadius: BorderRadius.circular(7),
+      borderRadius: BorderRadius.circular(8),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 120),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
         decoration: BoxDecoration(
           color: active ? AppColors.surface : Colors.transparent,
-          borderRadius: BorderRadius.circular(7),
+          borderRadius: BorderRadius.circular(8),
           boxShadow: active
               ? const [
                   BoxShadow(
-                      color: Color(0x0F1C1E21),
+                      color: Color(0x1A1C1E21),
                       blurRadius: 3,
                       offset: Offset(0, 1))
                 ]
               : const [],
         ),
-        child: Text(
-          '$label $count',
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-            color: active ? AppColors.accentHover : const Color(0xFF54585F),
-            fontFeatures: AppTypography.tabularFigures,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                  color: active ? AppColors.fg : AppColors.muted,
+                )),
+            const SizedBox(width: 6),
+            // OD `.seg button .cnt`:mono 11px pill bg。
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              decoration: BoxDecoration(
+                color: active
+                    ? AppColors.accentSoft
+                    : const Color(0x0F000000),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: active ? AppColors.accentHover : AppColors.muted,
+                  fontFeatures: AppTypography.tabularFigures,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

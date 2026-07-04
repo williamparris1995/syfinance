@@ -19,6 +19,7 @@ import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_state.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
@@ -333,11 +334,16 @@ void main() {
     ];
     await t.pumpWidget(_harness(mixed));
     await t.pumpAndSettle();
-    // segmented:全部 4 / 进行中 3(张三/李四/王五)/ 已结清 1 / 逾期 1(王五)。
-    expect(find.text('全部 4'), findsOneWidget);
-    expect(find.text('进行中 3'), findsOneWidget);
-    expect(find.text('已结清 1'), findsOneWidget);
-    expect(find.text('逾期 1'), findsOneWidget);
+    // OD `.seg` label 与 `.cnt` pill 拆 2 个 Text(label + count)。
+    // label 在 segment 内(descendant of listFilter-$label key);王五卡也含
+    // 「逾期」badge,故用 descendant 限定到 segment 范围避免重复匹配。
+    for (final l in const ['全部', '进行中', '已结清', '逾期']) {
+      expect(
+          find.descendant(
+              of: find.byKey(ValueKey('listFilter-$l')),
+              matching: find.text(l)),
+          findsOneWidget);
+    }
     // 默认进行中 → 王五(逾期但未结清)仍显示(进行中 = !settled)。
     expect(find.text('王五'), findsOneWidget);
     // 切「逾期」→ 只王五,张三/李四/赵六 排除。
@@ -401,7 +407,12 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('赵六'), findsOneWidget);
     expect(find.text('已结清 ✓'), findsOneWidget);
-    expect(find.text('逾期'), findsNothing);
+    // 「逾期」badge 不应出现在赵六卡内(segment label「逾期」在 seg bar,
+    // 不在卡内 → 用 descendant of DataCard 限定)。
+    expect(
+        find.descendant(
+            of: find.byType(DataCard), matching: find.text('逾期')),
+        findsNothing);
   });
 
   testWidgets('筛选 segmented: 计数 + 切换(默认进行中隐藏已结清)', (t) async {
@@ -422,10 +433,14 @@ void main() {
     ];
     await t.pumpWidget(_harness(mixed));
     await t.pumpAndSettle();
-    expect(find.text('全部 3'), findsOneWidget);
-    expect(find.text('进行中 2'), findsOneWidget);
-    expect(find.text('已结清 1'), findsOneWidget);
-    expect(find.text('逾期 0'), findsOneWidget);
+    // OD `.seg` label + `.cnt` 拆 2 Text → label 在 segment 内(避免与卡 badge 重名)。
+    for (final l in const ['全部', '进行中', '已结清', '逾期']) {
+      expect(
+          find.descendant(
+              of: find.byKey(ValueKey('listFilter-$l')),
+              matching: find.text(l)),
+          findsOneWidget);
+    }
     expect(find.text('赵六'), findsNothing);
     expect(find.text('张三'), findsOneWidget);
     await t.tap(find.byKey(const ValueKey('listFilter-已结清')));
