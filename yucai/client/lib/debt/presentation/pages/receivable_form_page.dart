@@ -11,6 +11,7 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/form_section.dart';
+import 'package:yucai_client/core/widgets/gold_amount.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
@@ -1197,20 +1198,47 @@ class _CollectionPreview extends StatelessWidget {
         children: [
           Row(
             children: [
-              Expanded(child: _sumCell('月供 / 期供', _fmtYuan(p.headlineAmount))),
+              Expanded(
+                  child: _sumCell(
+                      '月供 / 期供',
+                      GoldAmount(
+                          cents: (p.headlineAmount * 100).round(),
+                          preferred: 'CNY',
+                          numSize: 16,
+                          showFen: false))),
               Container(width: 1, color: AppColors.border),
               Expanded(
-                child: _sumCell('总利息收入', _fmtYuan(p.totalInterest),
-                    valueColor: AppColors.positive),
+                child: _sumCell(
+                    '总利息收入',
+                    GoldAmount(
+                        cents: (p.totalInterest * 100).round(),
+                        preferred: 'CNY',
+                        numSize: 16,
+                        numColor: AppColors.positive,
+                        showFen: false)),
               ),
             ],
           ),
           Container(height: 1, color: AppColors.border),
           Row(
             children: [
-              Expanded(child: _sumCell('期数', '${p.n} 期')),
+              Expanded(
+                  child: _sumCell(
+                      '期数',
+                      Text('${p.n} 期',
+                          style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              fontFeatures: AppTypography.tabularFigures)))),
               Container(width: 1, color: AppColors.border),
-              Expanded(child: _sumCell('总还款（本息）', _fmtYuan(p.totalPayment))),
+              Expanded(
+                  child: _sumCell(
+                      '总还款（本息）',
+                      GoldAmount(
+                          cents: (p.totalPayment * 100).round(),
+                          preferred: 'CNY',
+                          numSize: 16,
+                          showFen: false))),
             ],
           ),
         ],
@@ -1218,7 +1246,7 @@ class _CollectionPreview extends StatelessWidget {
     );
   }
 
-  Widget _sumCell(String label, String value, {Color? valueColor}) {
+  Widget _sumCell(String label, Widget value) {
     return Container(
       color: AppColors.surface,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1232,14 +1260,7 @@ class _CollectionPreview extends StatelessWidget {
                   letterSpacing: 0.4,
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
-          Text(value,
-              style: TextStyle(
-                color: valueColor ?? AppColors.fg,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.01,
-                fontFeatures: AppTypography.tabularFigures,
-              )),
+          value,
         ],
       ),
     );

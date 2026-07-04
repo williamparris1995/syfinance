@@ -10,6 +10,7 @@ import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
+import 'package:yucai_client/core/widgets/gold_amount.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
@@ -288,18 +289,18 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
           ),
         ),
         const SizedBox(height: 6),
-        Text(
+        GoldAmount(
           key: const ValueKey('heroRemaining'),
-          _fmtSymbol(debt.remainingPrincipalCents, preferred),
-          style: TextStyle(
-            fontSize: isMobile ? 34 : 46,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.4,
-            color: Colors.white,
-            fontFeatures: AppTypography.tabularFigures,
-            fontFamily: AppTypography.displayFamily,
-            fontFamilyFallback: AppTypography.displayFallback,
-          ),
+          cents: debt.remainingPrincipalCents,
+          preferred: preferred,
+          curSize: isMobile ? 16 : 22,
+          numSize: isMobile ? 34 : 46,
+          numWeight: FontWeight.w600,
+          numLetterSpacing: -0.4,
+          numColor: Colors.white,
+          curColor: const Color(0xFFD9B878),
+          numFontFamily: AppTypography.displayFamily,
+          numFontFamilyFallback: AppTypography.displayFallback,
         ),
         // delta pill:remainingTrendCents 负=减少=收回 绿;正=增加 红;0 不显。
         if (debt.remainingTrendCents != 0) ...[
@@ -1111,6 +1112,7 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
+                        color: AppColors.accent,
                         fontFamily: AppTypography.displayFamily,
                         fontFamilyFallback: AppTypography.displayFallback,
                       )),
@@ -1119,6 +1121,20 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
               const SizedBox(height: 14),
               _sideRow('收款至', collectionName ?? '未设置'),
               _sideRow('应收账户', receivableName ?? '—'),
+              const SizedBox(height: 14),
+              // OD .gold-btn「+ 登记一笔收款」side panel CTA(点击提示去 schedule 确认)
+              FilledButton.icon(
+                onPressed: () => AppToast.show(
+                    context, '请在下方收款计划逐期确认收款',
+                    type: ToastType.warning),
+                icon: const Icon(LucideIcons.plus, size: 14),
+                label: const Text('登记一笔收款'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(36),
+                ),
+              ),
             ],
           ),
         ),
@@ -1138,6 +1154,7 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
+                        color: AppColors.accent,
                         fontFamily: AppTypography.displayFamily,
                         fontFamilyFallback: AppTypography.displayFallback,
                       )),

@@ -6,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
+import 'package:yucai_client/core/widgets/gold_amount.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
@@ -1168,14 +1169,12 @@ class _ReceivableCard extends StatelessWidget {
                             letterSpacing: 0.5,
                             color: AppColors.muted)),
                     const SizedBox(height: 4),
-                    Text(
-                      _fmtSymbol(debt.remainingPrincipalCents, preferred),
-                      style: const TextStyle(
-                        fontSize: 23,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.15,
-                        fontFeatures: AppTypography.tabularFigures,
-                      ),
+                    GoldAmount(
+                      cents: debt.remainingPrincipalCents,
+                      preferred: preferred,
+                      curSize: 14,
+                      numSize: 23,
+                      numLetterSpacing: -0.15,
                     ),
                   ],
                 ),
@@ -1774,10 +1773,11 @@ class _CardFootCallout extends StatelessWidget {
         : 0;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7F4ED),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: const Color(0xFFE9E2D2), width: 1),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFBFAF6), // OD .rcv-foot bg(卡底通栏条,非独立 callout)
+        border: Border(
+          top: BorderSide(color: AppColors.border, width: 1),
+        ),
       ),
       child: Row(
         children: [
