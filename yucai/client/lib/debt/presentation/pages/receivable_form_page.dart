@@ -672,9 +672,9 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
         TextFormField(
           key: const ValueKey('principalField'),
           controller: _principalCtrl,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: '借出本金',
-            prefixText: '¥ ',
+            prefixText: '${currencySymbol('CNY')} ',
             hintText: '0.00',
           ),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
