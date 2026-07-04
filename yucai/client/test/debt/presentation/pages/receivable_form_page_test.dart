@@ -167,8 +167,9 @@ void main() {
       // 借出本金：字段 label + 空态文案「填写借出本金与…」均含 → findsWidgets。
       expect(find.textContaining('借出本金'), findsWidgets);
       expect(find.textContaining('收款计划预览'), findsWidgets);
-      expect(find.textContaining('借出日期'), findsOneWidget);
-      // 到期日期：字段 label + section 标题「3 · 借出与到期日期」均含 → findsWidgets。
+      // 借出日期:字段 label + section sub「借出日期 · 到期日期 · 决定期数」均含 → findsWidgets。
+      expect(find.textContaining('借出日期'), findsWidgets);
+      // 到期日期：字段 label + section sub「借出日期 · 到期日期 · 决定期数」均含 → findsWidgets。
       expect(find.textContaining('到期日期'), findsWidgets);
       expect(find.textContaining('关联应收账户'), findsWidgets);
     });

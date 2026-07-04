@@ -249,11 +249,19 @@ class _OverviewCard extends StatelessWidget {
     );
   }
 
-  /// desktop/tablet 三栏概览(对齐 receivables.html .ov)。
+  /// desktop/tablet 概览(对齐 receivables.html .ov):
+  ///  - ov-top:左 title(handshake + 「债权总览」serif)+ 右 ov-when(📅 截至日期 · N 笔在追)
+  ///  - ov-grid **3-col**(1.3fr 1fr 1fr · gap 28):
+  ///    cell1 总借出本金 + trend「较上月 +¥X」绿;
+  ///    cell2 剩余应收(本金)+ breakdown「含待收利息 ¥X · 合计 ¥X」;
+  ///    cell3 本金收回进度(head + pct + bar + meta「已收 · 待收」)
+  ///  - ov-foot:左「📅 下次收款 date · 对方 第N期 · ¥X · 待收 pill」+ 右「查看收款计划 →」
   Widget _desktop(BuildContext context) {
     final pct = (overallRatio * 100).toStringAsFixed(1);
+    final now = DateTime.now();
+    final activeCount = count;
+    // cell3「待收 = totalRemaining」;cell2/3 meta 已收/待收金额。
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
       decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border.all(color: AppColors.border),
@@ -263,204 +271,247 @@ class _OverviewCard extends StatelessWidget {
               color: Color(0x0A1C1E21), blurRadius: 16, offset: Offset(0, 4)),
         ],
       ),
+      // clipAncestors 让 ::before 金色 radial 渐变(右上)被卡圆角裁掉。
+      clipBehavior: Clip.antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Row(
-            children: [
-              Icon(LucideIcons.handshake, size: 14, color: AppColors.accent),
-              SizedBox(width: 7),
-              Text('RECEIVABLES OVERVIEW · 债权总览',
-                  style: TextStyle(
-                      fontSize: 11,
-                      letterSpacing: 1.5,
-                      color: AppColors.muted)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const Text('总应收',
-              style: TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF54585F),
-                  fontFamily: AppTypography.displayFamily,
-                  fontFamilyFallback: AppTypography.displayFallback)),
-          const SizedBox(height: 4),
-          Text(
-            _fmtSymbol(totalPrincipal, preferred),
-            style: const TextStyle(
-              fontSize: 40,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -0.4,
-              fontFeatures: AppTypography.tabularFigures,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 22,
-            runSpacing: 4,
-            children: [
-              _kv('剩余应收', _fmtSymbol(totalRemaining, preferred)),
-              _kv('累计已收', _fmtSymbol(totalCollected, preferred)),
-              _kv('在追债权', '$count 笔'),
-              if (nextCollectDate != null)
-                _kv('下次收款', _fmtDate(nextCollectDate!)),
-              // L4 trend(较上月本金变化)。null/0 时不渲染。
-              if (summary != null && summary!.principalTrendCents != 0)
-                _trendKv('较上月', summary!.principalTrendCents, preferred),
-            ],
-          ),
-          const SizedBox(height: 6),
-          // L4 breakdown:剩余应收下「含待收利息 ¥X」。null → 不渲染。
-          if (summary != null && summary!.pendingInterestCents > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(
-                '含待收利息 ${_fmtSymbol(summary!.pendingInterestCents, preferred)}',
-                style: const TextStyle(
-                    fontSize: 11.5,
-                    color: AppColors.muted,
-                    fontFeatures: AppTypography.tabularFigures),
-              ),
-            ),
-          const SizedBox(height: 14),
-          // L4 foot callout:下次收款精确字段(summary 驱动,带对方/期数/金额 + CTA)。
-          if (summary != null && summary!.nextPaymentDate != null)
-            _NextCollectCallout(summary: summary!, preferred: preferred),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('本金收回进度',
-                  style: TextStyle(fontSize: 12, color: AppColors.muted)),
-              Text('$pct%',
+          // ── ov-top ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(LucideIcons.handshake, size: 16, color: AppColors.accent),
+                const SizedBox(width: 8),
+                Text('债权总览',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontFamily: AppTypography.displayFamily,
+                        fontFamilyFallback: AppTypography.displayFallback)),
+                const Spacer(),
+                Icon(LucideIcons.calendarDays, size: 13, color: AppColors.muted),
+                const SizedBox(width: 5),
+                Text(
+                  '截至 ${_fmtDate(now)} · $activeCount 笔在追',
                   style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.accentHover,
-                      fontFeatures: AppTypography.tabularFigures)),
-            ],
-          ),
-          const SizedBox(height: 7),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(9999),
-            child: LinearProgressIndicator(
-              value: overallRatio,
-              minHeight: 9,
-              backgroundColor: const Color(0xFFE9E5DB),
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(AppColors.accent),
+                      fontSize: 12, color: AppColors.muted),
+                ),
+              ],
             ),
           ),
+          // ── ov-grid(3-col)──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 18, 24, 14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // cell1:总借出本金 + trend
+                Expanded(
+                  flex: 13,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('总借出本金',
+                          style: TextStyle(
+                              fontSize: 11,
+                              letterSpacing: 0.7,
+                              color: AppColors.muted)),
+                      const SizedBox(height: 4),
+                      _bigAmt(totalPrincipal, preferred),
+                      if (summary != null &&
+                          summary!.principalTrendCents != 0) ...[
+                        const SizedBox(height: 6),
+                        _trendLine(summary!.principalTrendCents, preferred),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 28),
+                // cell2:剩余应收(本金)+ breakdown
+                Expanded(
+                  flex: 10,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('剩余应收（本金）',
+                          style: TextStyle(
+                              fontSize: 11,
+                              letterSpacing: 0.7,
+                              color: AppColors.muted)),
+                      const SizedBox(height: 4),
+                      _bigAmt(totalRemaining, preferred),
+                      if (summary != null &&
+                          summary!.pendingInterestCents > 0) ...[
+                        const SizedBox(height: 6),
+                        Text.rich(
+                          TextSpan(
+                            style: const TextStyle(
+                                fontSize: 12, color: AppColors.muted),
+                            children: [
+                              const TextSpan(text: '含待收利息 '),
+                              TextSpan(
+                                  text: _fmtSymbol(
+                                      summary!.pendingInterestCents, preferred),
+                                  style: const TextStyle(
+                                      color: AppColors.fg,
+                                      fontWeight: FontWeight.w600,
+                                      fontFeatures:
+                                          AppTypography.tabularFigures)),
+                              const TextSpan(text: ' · 合计 '),
+                              TextSpan(
+                                  text: _fmtSymbol(
+                                      totalRemaining +
+                                          summary!.pendingInterestCents,
+                                      preferred),
+                                  style: const TextStyle(
+                                      color: AppColors.fg,
+                                      fontWeight: FontWeight.w600,
+                                      fontFeatures:
+                                          AppTypography.tabularFigures)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 28),
+                // cell3:本金收回进度(head + pct + bar + meta)
+                Expanded(
+                  flex: 10,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          const Flexible(
+                            child: Text('本金收回进度',
+                                softWrap: false,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: 12.5, color: AppColors.muted)),
+                          ),
+                          Text('$pct%',
+                              style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.accentHover,
+                                  fontFeatures: AppTypography.tabularFigures)),
+                        ],
+                      ),
+                      const SizedBox(height: 7),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(9999),
+                        child: LinearProgressIndicator(
+                          value: overallRatio,
+                          minHeight: 12,
+                          backgroundColor: const Color(0xFFECE9E1),
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                              AppColors.accent),
+                        ),
+                      ),
+                      const SizedBox(height: 7),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(
+                            child: _metaPair('已收',
+                                _fmtSymbol(totalCollected, preferred)),
+                          ),
+                          Flexible(
+                            child: _metaPair('待收',
+                                _fmtSymbol(totalRemaining, preferred)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // ── ov-foot:下次收款 + 查看收款计划 CTA ──
+          // summary 驱动(精确对方/期数/金额);summary null 时 fall back nextCollectDate。
+          if (summary != null && summary!.nextPaymentDate != null)
+            _OvFoot(summary: summary!, preferred: preferred)
+          else if (nextCollectDate != null)
+            _OvFootFallback(
+                date: nextCollectDate!, preferred: preferred),
         ],
       ),
     );
   }
 
-  /// mobile 紧凑概览(对齐 receivables-mobile.html .ov)。
-  Widget _mobile(BuildContext context) {
-    final pct = (overallRatio * 100).toStringAsFixed(1);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
-        borderRadius: AppRadius.lgBorder,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(LucideIcons.handshake, size: 14, color: AppColors.accent),
-              SizedBox(width: 7),
-              Text('债权总览',
-                  style: TextStyle(fontSize: 11, color: AppColors.muted)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const Text('总应收',
-              style: TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF54585F),
-                  fontFamily: AppTypography.displayFamily,
-                  fontFamilyFallback: AppTypography.displayFallback)),
-          const SizedBox(height: 4),
-          Text(
-            _fmtSymbol(totalPrincipal, preferred),
+  /// ov-amt-num:大字 amt(30px serif-bold)+ 金色 cur 前缀。
+  /// FittedBox 包数值:窄卡(mobile / desktop ≤1180 单列)下不溢出,按需整体缩放
+  /// (字号/字距同比缩,不像 ellipsis 截断数字)。
+  Widget _bigAmt(int cents, String preferred) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Text(currencySymbol(preferred),
             style: const TextStyle(
-              fontSize: 27,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -0.4,
-              fontFeatures: AppTypography.tabularFigures,
-            ),
-          ),
-          const SizedBox(height: 9),
-          Wrap(
-            spacing: 22,
-            runSpacing: 4,
-            children: [
-              _kv('剩余', _fmtSymbol(totalRemaining, preferred)),
-              _kv('已收', _fmtSymbol(totalCollected, preferred)),
-              if (nextCollectDate != null)
-                _kv('下次收款', _fmtDate(nextCollectDate!)),
-              if (summary != null && summary!.principalTrendCents != 0)
-                _trendKv('较上月', summary!.principalTrendCents, preferred),
-            ],
-          ),
-          const SizedBox(height: 6),
-          if (summary != null && summary!.pendingInterestCents > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(
-                '含待收利息 ${_fmtSymbol(summary!.pendingInterestCents, preferred)}',
-                style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.muted,
-                    fontFeatures: AppTypography.tabularFigures),
+                fontSize: 20,
+                color: AppColors.accent,
+                fontWeight: FontWeight.w700)),
+        const SizedBox(width: 2),
+        Flexible(
+          fit: FlexFit.loose,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              _fmtAmtNoSymbol(cents),
+              style: const TextStyle(
+                fontSize: 30,
+                fontWeight: FontWeight.w700,
+                color: AppColors.fg,
+                letterSpacing: -0.2,
+                fontFeatures: AppTypography.tabularFigures,
               ),
             ),
-          const SizedBox(height: 10),
-          if (summary != null && summary!.nextPaymentDate != null)
-            _NextCollectCallout(summary: summary!, preferred: preferred),
-          const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('本金收回 · $count 笔在追',
-                  style:
-                      const TextStyle(fontSize: 12, color: AppColors.muted)),
-              Text('$pct%',
-                  style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.accentHover,
-                      fontFeatures: AppTypography.tabularFigures)),
-            ],
           ),
-          const SizedBox(height: 7),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(9999),
-            child: LinearProgressIndicator(
-              value: overallRatio,
-              minHeight: 9,
-              backgroundColor: const Color(0xFFE9E5DB),
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(AppColors.accent),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _kv(String k, String v) {
+  /// trend line:正绿「+¥X」/ 负红「-¥X」(对齐 OD `<b style="color:green">+¥100,000</b>`)。
+  Widget _trendLine(int cents, String preferred) {
+    final isUp = cents > 0;
+    final color = isUp ? AppColors.positive : const Color(0xFFC4544D);
+    final sign = isUp ? '+' : '-';
+    final abs = cents.abs();
     return Text.rich(
       TextSpan(
-        style: const TextStyle(fontSize: 13, color: AppColors.muted),
+        style: const TextStyle(fontSize: 12, color: AppColors.muted),
         children: [
-          TextSpan(text: '$k '),
+          const TextSpan(text: '较上月 '),
           TextSpan(
-              text: v,
+              text: '$sign${_fmtSymbol(abs, preferred)}',
+              style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: AppTypography.tabularFigures)),
+        ],
+      ),
+    );
+  }
+
+  /// ov-prog-meta 单格:「lbl <b>amt</b>」。
+  Widget _metaPair(String lbl, String amt) {
+    return Text.rich(
+      TextSpan(
+        style: const TextStyle(fontSize: 11.5, color: AppColors.muted),
+        children: [
+          TextSpan(text: '$lbl '),
+          TextSpan(
+              text: amt,
               style: const TextStyle(
                   color: AppColors.fg,
                   fontWeight: FontWeight.w600,
@@ -470,97 +521,291 @@ class _OverviewCard extends StatelessWidget {
     );
   }
 
-  /// L4 trend kv:正绿负红 + 显式 +/- 符号。brief「较上月」(本金趋势)。
-  Widget _trendKv(String k, int cents, String preferred) {
-    final isUp = cents > 0;
-    final color =
-        isUp ? AppColors.positive : const Color(0xFFC4544D);
-    final v = _fmtSymbol(cents, preferred);
-    return Text.rich(
-      TextSpan(
-        style: const TextStyle(fontSize: 13, color: AppColors.muted),
+  /// mobile 紧凑概览(对齐 receivables.html @media ≤1180 .ov-grid 单列):
+  /// 同 desktop 三段(ov-top + ov-grid 单列堆叠 + ov-foot),间距/字号收紧。
+  Widget _mobile(BuildContext context) {
+    final pct = (overallRatio * 100).toStringAsFixed(1);
+    final now = DateTime.now();
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border.all(color: AppColors.border),
+        borderRadius: AppRadius.lgBorder,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextSpan(text: '$k '),
-          TextSpan(
-              text: v,
-              style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                  fontFeatures: AppTypography.tabularFigures)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 7,
+              runSpacing: 4,
+              children: [
+                const Icon(LucideIcons.handshake,
+                    size: 14, color: AppColors.accent),
+                Text('债权总览',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontFamily: AppTypography.displayFamily,
+                        fontFamilyFallback: AppTypography.displayFallback)),
+                const SizedBox(width: 8),
+                Icon(LucideIcons.calendarDays, size: 12, color: AppColors.muted),
+                Text('截至 ${_fmtDate(now)} · $count 笔',
+                    style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('总借出本金',
+                    style: TextStyle(
+                        fontSize: 10.5, color: AppColors.muted)),
+                const SizedBox(height: 3),
+                _bigAmt(totalPrincipal, preferred),
+                if (summary != null &&
+                    summary!.principalTrendCents != 0) ...[
+                  const SizedBox(height: 5),
+                  _trendLine(summary!.principalTrendCents, preferred),
+                ],
+                const SizedBox(height: 14),
+                const Text('剩余应收（本金）',
+                    style: TextStyle(fontSize: 10.5, color: AppColors.muted)),
+                const SizedBox(height: 3),
+                _bigAmt(totalRemaining, preferred),
+                if (summary != null &&
+                    summary!.pendingInterestCents > 0) ...[
+                  const SizedBox(height: 5),
+                  Text.rich(
+                    TextSpan(
+                      style: const TextStyle(
+                          fontSize: 11.5, color: AppColors.muted),
+                      children: [
+                        const TextSpan(text: '含待收利息 '),
+                        TextSpan(
+                            text: _fmtSymbol(
+                                summary!.pendingInterestCents, preferred),
+                            style: const TextStyle(
+                                color: AppColors.fg,
+                                fontWeight: FontWeight.w600,
+                                fontFeatures: AppTypography.tabularFigures)),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    const Text('本金收回进度',
+                        style: TextStyle(fontSize: 12, color: AppColors.muted)),
+                    Text('$pct%',
+                        style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.accentHover,
+                            fontFeatures: AppTypography.tabularFigures)),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(9999),
+                  child: LinearProgressIndicator(
+                    value: overallRatio,
+                    minHeight: 10,
+                    backgroundColor: const Color(0xFFECE9E1),
+                    valueColor:
+                        const AlwaysStoppedAnimation<Color>(AppColors.accent),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: _metaPair(
+                          '已收', _fmtSymbol(totalCollected, preferred)),
+                    ),
+                    Flexible(
+                      child: _metaPair(
+                          '待收', _fmtSymbol(totalRemaining, preferred)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          if (summary != null && summary!.nextPaymentDate != null)
+            _OvFoot(summary: summary!, preferred: preferred, compact: true)
+          else if (nextCollectDate != null)
+            _OvFootFallback(
+                date: nextCollectDate!, preferred: preferred, compact: true),
         ],
       ),
     );
   }
 }
 
-/// L4 foot callout:下次收款精确字段(对方 + 期数 + 金额 + CTA「查看收款计划」)。
+/// 千分位 + 两位小数(无货币符号,对齐 OD `.ov-amt-num .mono` 数字部分)。
+String _fmtAmtNoSymbol(int cents) {
+  final sign = cents < 0 ? '-' : '';
+  final abs = cents.abs();
+  final yuan = abs ~/ 100;
+  final fen = (abs % 100).toString().padLeft(2, '0');
+  final s = yuan.toString();
+  final buf = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+    buf.write(s[i]);
+  }
+  return '$sign$buf.$fen';
+}
+
+/// ov-foot(对齐 receivables.html .ov-foot):flex-wrap row。
+///  - 左 ov-next:📅 + 「下次收款 <date> · 对方 第N期 · ¥X」+ 待收 pill
+///  - 右:gold-soft btn「查看收款计划 →」
 /// summary 驱动(nextPaymentDate/Amount/Counterparty/PeriodNo)。
-class _NextCollectCallout extends StatelessWidget {
-  const _NextCollectCallout({required this.summary, required this.preferred});
+class _OvFoot extends StatelessWidget {
+  const _OvFoot({required this.summary, required this.preferred, this.compact = false});
   final ReceivablesSummary summary;
   final String preferred;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7F4ED),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: const Color(0xFFE9E2D2), width: 1),
+      padding: EdgeInsets.symmetric(
+          horizontal: compact ? 18 : 24, vertical: compact ? 10 : 13),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFBFAF6), // --surface-2
+        border: Border(top: BorderSide(color: AppColors.border, width: 1)),
       ),
-      child: Row(
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 12,
+        runSpacing: 8,
         children: [
-          const Icon(LucideIcons.calendarClock,
-              size: 16, color: AppColors.accent),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '下次收款 · 第 ${summary.nextPaymentPeriodNo} 期',
-                  style: const TextStyle(
-                      fontSize: 12.5,
-                      color: AppColors.muted,
-                      fontWeight: FontWeight.w500),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(LucideIcons.calendarClock,
+                  size: compact ? 14 : 15, color: AppColors.accent),
+              SizedBox(width: compact ? 7 : 9),
+              Text.rich(
+                TextSpan(
+                  style: TextStyle(
+                      fontSize: compact ? 12 : 13, color: AppColors.muted),
+                  children: [
+                    const TextSpan(text: '下次收款 '),
+                    TextSpan(
+                        text: _fmtDate(summary.nextPaymentDate!),
+                        style: const TextStyle(
+                            color: AppColors.fg,
+                            fontWeight: FontWeight.w600,
+                            fontFeatures: AppTypography.tabularFigures)),
+                    TextSpan(
+                        text:
+                            ' · ${summary.nextPaymentCounterparty} 第${summary.nextPaymentPeriodNo}期 · '),
+                    TextSpan(
+                        text: _fmtSymbol(
+                            summary.nextPaymentAmountCents, preferred),
+                        style: const TextStyle(
+                            color: AppColors.fg,
+                            fontWeight: FontWeight.w600,
+                            fontFeatures: AppTypography.tabularFigures)),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text.rich(
-                  TextSpan(
-                    style: const TextStyle(
-                        fontSize: 13.5,
-                        color: AppColors.fg,
-                        fontFeatures: AppTypography.tabularFigures),
-                    children: [
-                      TextSpan(
-                          text:
-                              '${_fmtDate(summary.nextPaymentDate!)} · ${summary.nextPaymentCounterparty} · '),
-                      TextSpan(
-                          text: _fmtSymbol(
-                              summary.nextPaymentAmountCents, preferred),
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.accentHover)),
-                    ],
-                  ),
+              ),
+              const SizedBox(width: 7),
+              // 待收 pill(对齐 OD .st.st-pending)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0EEE8),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-              ],
-            ),
+                child: const Text('待收',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.muted)),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          // CTA → push detail(Task 10 接路由)。targetId 取 nextPaymentCounterparty
-          // 无对应 id,故 CTA 仅占位文本按钮;真正的「查看收款计划」在详情页 schedule。
+          // CTA「查看收款计划」(gold-soft btn)。
           TextButton(
             onPressed: () {},
             style: TextButton.styleFrom(
               foregroundColor: AppColors.accentHover,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              backgroundColor: AppColors.accentSoft,
+              padding: EdgeInsets.symmetric(
+                  horizontal: compact ? 10 : 12, vertical: 6),
               minimumSize: const Size(0, 0),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text('查看收款计划',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Text('查看收款计划',
+                    style:
+                        TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                SizedBox(width: 4),
+                Icon(LucideIcons.chevronRight, size: 14),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// ov-foot fallback:summary 未到位(无精确对方/期数/金额),只显下次收款日期。
+class _OvFootFallback extends StatelessWidget {
+  const _OvFootFallback({required this.date, required this.preferred, this.compact = false});
+  final DateTime date;
+  final String preferred;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+          horizontal: compact ? 18 : 24, vertical: compact ? 10 : 13),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFBFAF6),
+        border: Border(top: BorderSide(color: AppColors.border, width: 1)),
+      ),
+      child: Row(
+        children: [
+          Icon(LucideIcons.calendarClock,
+              size: compact ? 14 : 15, color: AppColors.accent),
+          SizedBox(width: compact ? 7 : 9),
+          Text.rich(
+            TextSpan(
+              style: TextStyle(
+                  fontSize: compact ? 12 : 13, color: AppColors.muted),
+              children: [
+                const TextSpan(text: '下次收款 '),
+                TextSpan(
+                    text: _fmtDate(date),
+                    style: const TextStyle(
+                        color: AppColors.fg,
+                        fontWeight: FontWeight.w600,
+                        fontFeatures: AppTypography.tabularFigures)),
+              ],
+            ),
           ),
         ],
       ),

@@ -530,15 +530,33 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
   }
 
   // ----- 表单列（desktop / tablet） -----
+  // OD 对齐 receivable-form.html .sec-head(金方块 sec-num + serif sec-title +
+  // 右对齐 sec-sub)。receivable 专用 _ODFormSection,不改动 shared FormSection
+  // (account/debt form 仍用 §3.3 大写小字 + Divider)。
   Widget _formColumn() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        FormSection(title: '1 · 基本信息', children: _basicInfoFields()),
+        _ODFormSection(
+          num: '1',
+          title: '基本信息',
+          sub: '债务人 · 类型 · 关联账户',
+          children: _basicInfoFields(),
+        ),
         const SizedBox(height: AppSpacing.lg),
-        FormSection(title: '2 · 金额与利率', children: _amountRateFields()),
+        _ODFormSection(
+          num: '2',
+          title: '金额与利率',
+          sub: '本金 · 年利率 · 摊还方法',
+          children: _amountRateFields(),
+        ),
         const SizedBox(height: AppSpacing.lg),
-        FormSection(title: '3 · 借出与到期日期', children: _dateFields()),
+        _ODFormSection(
+          num: '3',
+          title: '日期',
+          sub: '借出日期 · 到期日期 · 决定期数',
+          children: _dateFields(),
+        ),
         const SizedBox(height: AppSpacing.xl),
         FormActions(
           submitLabel: _isEdit ? '保存' : '创建债权',
@@ -1371,4 +1389,88 @@ String _fmtYuan(double v, [String currencyCode = 'CNY']) {
     buf.write(s[i]);
   }
   return '$sign${currencySymbol(currencyCode)}$buf';
+}
+
+/// OD 对齐 receivable-form.html `.sec-head`:
+///  - 26×26 金(#b08d57)圆角 8 sec-num + 白字数字(mono 12.5 w700)
+///  - sec-title serif 16px
+///  - sec-sub 12px muted,margin-left:auto(右对齐)
+///  - flex row + gap 11 + margin-bottom 18 + padding-bottom 14 + border-bottom
+/// receivable 专用,不改动 shared FormSection(account/debt form 仍用 §3.3)。
+class _ODFormSection extends StatelessWidget {
+  const _ODFormSection({
+    required this.num,
+    required this.title,
+    required this.sub,
+    required this.children,
+    this.fieldSpacing = AppSpacing.md,
+  });
+
+  final String num;
+  final String title;
+  final String sub;
+  final List<Widget> children;
+  final double fieldSpacing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // sec-head:flex row, gap 11, mb 18, pb 14, border-bottom
+        Container(
+          padding: const EdgeInsets.only(bottom: 14),
+          decoration: const BoxDecoration(
+            border:
+                Border(bottom: BorderSide(color: AppColors.border, width: 1)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // sec-num:26×26 金色 圆角 8 + 白字(mono 12.5 w700)
+              Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: AppColors.accent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  num,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    fontFeatures: AppTypography.tabularFigures,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 11),
+              // sec-title:serif 16px
+              Text(title,
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontFamily: AppTypography.displayFamily,
+                      fontFamilyFallback: AppTypography.displayFallback)),
+              const SizedBox(width: 11),
+              // sec-sub:右对齐(margin-left:auto)
+              Expanded(
+                child: Text(sub,
+                    textAlign: TextAlign.end,
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.muted)),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        // 字段列(同 FormSection fieldSpacing)
+        for (var i = 0; i < children.length; i++) ...[
+          children[i],
+          if (i < children.length - 1) SizedBox(height: fieldSpacing),
+        ],
+      ],
+    );
+  }
 }

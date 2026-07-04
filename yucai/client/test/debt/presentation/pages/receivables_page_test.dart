@@ -174,18 +174,20 @@ void main() {
     ),
   ];
 
-  testWidgets('overview: 总应收 + 剩余应收 + 本金收回进度 progress bar', (t) async {
+  testWidgets('overview: 总借出本金 + 剩余应收 + 本金收回进度 progress bar', (t) async {
     t.view.physicalSize = desktop;
     t.view.devicePixelRatio = 1.0;
     addTearDown(t.view.resetPhysicalSize);
     await t.pumpWidget(_harness(receivables));
     await t.pumpAndSettle();
-    expect(find.textContaining('总应收'), findsWidgets);
+    // OD .ov 3-col grid:cell1 总借出本金 / cell2 剩余应收（本金）/ cell3 本金收回进度。
+    expect(find.textContaining('总借出本金'), findsOneWidget);
     expect(find.textContaining('剩余应收'), findsWidgets);
     expect(find.textContaining('本金收回进度'), findsWidgets);
     expect(find.byType(LinearProgressIndicator), findsWidgets);
-    // 总应收 = sum(total) = 500 万 + 1000 万 = ¥150,000.00
-    expect(find.textContaining('¥150,000.00'), findsWidgets);
+    // cell1 大字总借出本金 = sum(total) = 500 万 + 1000 万 = 150,000.00
+    // (OD .ov-amt-num 把 cur 与数字拆 span,故只匹配数字部分)。
+    expect(find.textContaining('150,000.00'), findsWidgets);
     expect(find.text('总负债'), findsNothing);
     expect(find.textContaining('剩余本金'), findsNothing);
   });
