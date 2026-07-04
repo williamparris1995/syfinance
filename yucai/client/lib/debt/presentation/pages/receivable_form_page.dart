@@ -449,18 +449,24 @@ class _ReceivableFormPageState extends State<ReceivableFormPage> {
 
   // ----- desktop / tablet：双列（表单 | 预览） -----
   Widget _wideLayout(bool submitting) {
+    // IntrinsicHeight 包 Row:SingleChildScrollView(vertical)给 Row 无限纵向,
+    // CrossAxisAlignment.start 下 Expanded child 依赖 intrinsic 高度;
+    // _CollectionPreview(含 Stack)在无限纵向下 intrinsic 计算为 0 → 不渲染。
+    // IntrinsicHeight 让 Row 取 form 列 intrinsic 高度(bounded),preview 才渲染。
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xl),
       child: Form(
         key: _formKey,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(flex: 16, child: _formColumn()),
-            const SizedBox(width: AppSpacing.lg),
-            Expanded(flex: 10, child: _previewColumn()),
-          ],
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 16, child: _formColumn()),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(flex: 10, child: _previewColumn()),
+            ],
+          ),
         ),
       ),
     );
