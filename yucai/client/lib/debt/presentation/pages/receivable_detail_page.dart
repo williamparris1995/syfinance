@@ -1547,7 +1547,7 @@ class _ConfirmReceiptDialogState extends State<_ConfirmReceiptDialog> {
                         DropdownMenuItem(
                           value: a.id,
                           child: Text(
-                              '${a.name}（余额 ${_fmtBalance(a.currentBalanceCents)}）'),
+                              '${a.name}（余额 ${_fmtBalance(a.currentBalanceCents, a.currencyCode)}）'),
                         ),
                     ],
               onChanged: (v) {
@@ -1598,12 +1598,18 @@ class _ConfirmReceiptDialogState extends State<_ConfirmReceiptDialog> {
     return '$sign${currencySymbol(currencyCode)}$buf.$fen';
   }
 
-  String _fmtBalance(int cents) {
+  String _fmtBalance(int cents, String currencyCode) {
     final sign = cents < 0 ? '-' : '';
     final abs = cents.abs();
     final yuan = abs ~/ 100;
     final fen = (abs % 100).toString().padLeft(2, '0');
-    return '$sign¥$yuan.$fen';
+    final s = yuan.toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return '$sign${currencySymbol(currencyCode)}$buf.$fen';
   }
 }
 

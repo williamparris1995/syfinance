@@ -11,6 +11,7 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/form_section.dart';
+import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
@@ -1091,11 +1092,6 @@ class _CollectionPreview extends StatelessWidget {
   /// 2×2 汇总网格(对齐 OD .pv-sum):月供/期供(gold) / 总利息收入(green) /
   /// 期数 / 总还款(本息)(gold)。替代旧 `_tag` 文字标签 —— 数字 + 标签更清晰。
   /// 深色卡内嵌:cell 半透明白底 + 分隔线,与下方 rows 视觉一致。
-  ///
-  /// 多币种(Task 11 concern):`_fmtYuan` 硬编 ¥。本预览是深色实时计算卡,
-  /// 金额符号暂保留 ¥(对齐 OD 原型惯例 + 多数 receivable 用例为本币)。
-  /// 若后续需多币种,把 `_fmtYuan` 改 currencySymbol(preferred currency code)
-  /// 并在此注入 CurrencyBloc —— 见 task-11-report.md concerns。
   Widget _sumGrid(_Preview p) {
     return Container(
       key: const ValueKey('previewSumGrid'),
@@ -1361,8 +1357,10 @@ IconData _receivableTypeIcon(String key) {
   }
 }
 
-/// 元（double）→ ¥ + 千分位 + 0 小数（对齐 OD fmt：Math.round + toLocaleString）。
-String _fmtYuan(double v) {
+/// 元（double）→ currencySymbol + 千分位 + 0 小数（对齐 OD fmt：Math.round +
+/// toLocaleString）。currencyCode 默认 'CNY'：debt 创建假设 CNY 原币，preview
+/// 显原币非折算 preferred（与 receivables_page._fmtSymbol 同源 currencySymbol）。
+String _fmtYuan(double v, [String currencyCode = 'CNY']) {
   final n = v.round();
   final sign = n < 0 ? '-' : '';
   final abs = n.abs();
@@ -1372,5 +1370,5 @@ String _fmtYuan(double v) {
     if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
     buf.write(s[i]);
   }
-  return '$sign¥$buf';
+  return '$sign${currencySymbol(currencyCode)}$buf';
 }
