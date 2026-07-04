@@ -1112,13 +1112,10 @@ class _ReceivableCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // OD .rcv-name:15.5px w600 serif。
+                          // OD .rcv-name:14px w600 non-serif(非 serif)。
                           Text(debt.counterparty,
                               style: const TextStyle(
-                                  fontSize: 15.5,
-                                  fontWeight: FontWeight.w600,
-                                  fontFamily: AppTypography.displayFamily,
-                                  fontFamilyFallback:
-                                      AppTypography.displayFallback)),
+                                  fontSize: 14, fontWeight: FontWeight.w600)),
                           const SizedBox(height: 5),
                           Wrap(
                             crossAxisAlignment: WrapCrossAlignment.center,
@@ -1165,16 +1162,16 @@ class _ReceivableCard extends StatelessWidget {
                   children: [
                     const Text('剩余应收',
                         style: TextStyle(
-                            fontSize: 10.5,
+                            fontSize: 9.5,
                             letterSpacing: 0.5,
                             color: AppColors.muted)),
                     const SizedBox(height: 4),
                     GoldAmount(
                       cents: debt.remainingPrincipalCents,
                       preferred: preferred,
-                      curSize: 14,
-                      numSize: 23,
-                      numLetterSpacing: -0.15,
+                      curSize: 13,
+                      numSize: 19, // OD .rcv-amt 19px
+                      numLetterSpacing: -0.1,
                     ),
                   ],
                 ),
@@ -1188,34 +1185,26 @@ class _ReceivableCard extends StatelessWidget {
                   children: [
                     _ProgressRow(ratio: debt.progressRatio, thin: true),
                     const SizedBox(height: 6),
-                    Text(
-                      '已收 ${_fmtSymbol(debt.totalPrincipalCents - debt.remainingPrincipalCents, preferred)}',
-                      style: const TextStyle(
-                          fontSize: 11.5,
-                          color: AppColors.muted,
-                          fontFeatures: AppTypography.tabularFigures),
-                    ),
+                    _MetaKv(
+                        '已收',
+                        _fmtSymbol(
+                            debt.totalPrincipalCents -
+                                debt.remainingPrincipalCents,
+                            preferred)),
                   ],
                 ),
               ),
               const SizedBox(width: 12),
-              // col4: meta2 利率 / 到期 / 摊还。
+              // col4: meta2 年利率 / 到期日(OD .rcv-meta2 label-value space-between;
+              // 摊还在 col1 meta 已显,这里不重复)。
               Expanded(
                 flex: 9, // OD .9fr
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _MetaItem(
-                        icon: LucideIcons.percent,
-                        text: '${debt.interestRate.toStringAsFixed(2)}%'),
+                    _MetaKv('年利率', '${debt.interestRate.toStringAsFixed(2)}%'),
                     const SizedBox(height: 5),
-                    _MetaItem(
-                        icon: LucideIcons.calendar,
-                        text: '到期 ${_fmtDate(debt.dueDate)}'),
-                    const SizedBox(height: 5),
-                    _MetaItem(
-                        icon: LucideIcons.lineChart,
-                        text: _amortLabel(debt.amortization)),
+                    _MetaKv('到期日', _fmtDate(debt.dueDate)),
                   ],
                 ),
               ),
@@ -1533,10 +1522,10 @@ class _ProgressRow extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text('收回进度',
-                style: TextStyle(fontSize: 11.5, color: AppColors.muted)),
+                style: TextStyle(fontSize: 10.5, color: AppColors.muted)),
             Text('$pct%',
                 style: const TextStyle(
-                    fontSize: 11.5,
+                    fontSize: 10.5,
                     fontWeight: FontWeight.w600,
                     color: AppColors.accentHover,
                     fontFeatures: AppTypography.tabularFigures)),
@@ -1547,7 +1536,7 @@ class _ProgressRow extends StatelessWidget {
           borderRadius: BorderRadius.circular(9999),
           child: LinearProgressIndicator(
             value: ratio,
-            minHeight: thin ? 6 : 9,
+            minHeight: thin ? 8 : 9, // OD .bar 8px
             backgroundColor: const Color(0xFFE9E5DB),
             valueColor:
                 const AlwaysStoppedAnimation<Color>(AppColors.accent),
@@ -1574,6 +1563,31 @@ class _MetaItem extends StatelessWidget {
             style: const TextStyle(
                 fontSize: 12.5,
                 color: AppColors.muted,
+                fontFeatures: AppTypography.tabularFigures)),
+      ],
+    );
+  }
+}
+
+/// OD .rcv-meta2:label + value space-between(10.5px,label muted / value fg w600)。
+/// 用于 desktop item card col3 已收 / col4 年利率·到期日(OD 行级 label-value 对)。
+class _MetaKv extends StatelessWidget {
+  const _MetaKv(this.label, this.value);
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label,
+            style: const TextStyle(fontSize: 10.5, color: AppColors.muted)),
+        Text(value,
+            style: const TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.fg,
                 fontFeatures: AppTypography.tabularFigures)),
       ],
     );
@@ -1728,18 +1742,18 @@ class _ReceivableAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 44,
-      height: 44,
+      width: 42,
+      height: 42,
       decoration: BoxDecoration(
-        // OD .rcv-avatar:gold-soft(solid);用 color alpha 0.14 作 soft 变体。
+        // OD .avatar:42px radius 11 solid 浅底;color alpha 0.14 ≈ OD 浅色实色。
         color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(11),
       ),
       alignment: Alignment.center,
       child: Text(
         initial,
         style: TextStyle(
-          fontSize: 19,
+          fontSize: 18,
           fontWeight: FontWeight.w700,
           color: color,
           fontFamily: AppTypography.displayFamily,
