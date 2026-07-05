@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:yucai_client/app/route_observer.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/di/injection.dart';
@@ -33,7 +34,7 @@ class DebtsPage extends StatefulWidget {
   State<DebtsPage> createState() => _DebtsPageState();
 }
 
-class _DebtsPageState extends State<DebtsPage> {
+class _DebtsPageState extends State<DebtsPage> with RouteAware {
   // 列表筛选:默认「进行中」(隐藏已结清,对齐 receivables_page)。
   _ListFilter _filter = _ListFilter.active;
 
@@ -45,6 +46,29 @@ class _DebtsPageState extends State<DebtsPage> {
     context
         .read<DebtBloc>()
         .add(const LoadDebtsRequested(typeFilter: DebtType.borrowedIn));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 详情页确认还款/编辑后 pop 回来时 didPopNext 触发,重新拉列表(同 receivables_page)。
+    routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    // 从详情返回:债务数据可能已变(确认还款/编辑),重新拉列表。
+    if (mounted) {
+      context
+          .read<DebtBloc>()
+          .add(const LoadDebtsRequested(typeFilter: DebtType.borrowedIn));
+    }
   }
 
   List<Debt> _debtsOf(DebtState state) {
