@@ -604,8 +604,9 @@ void main() {
       addTearDown(t.view.resetPhysicalSize);
       await t.pumpWidget(_harness(detail: _detail()));
       await t.pumpAndSettle();
-      // 页面标题
-      expect(find.text('收款详情'), findsOneWidget);
+      // 页面标题:OD detail 无 AppBar title(透明 AppBar 只 back icon)。
+      // 「收款详情」「债务详情」均不应作为 AppBar title 出现。
+      expect(find.text('收款详情'), findsNothing);
       expect(find.text('债务详情'), findsNothing);
       // schedule 标题(D3 双列:schedule offstage,skipOffstage:false)
       expect(find.text('收款计划', skipOffstage: false), findsOneWidget);

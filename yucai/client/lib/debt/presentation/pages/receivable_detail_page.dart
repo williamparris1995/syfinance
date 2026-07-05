@@ -83,14 +83,22 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
   }
 
   Widget _scaffold() {
+    // 顶部导航/返回:OD detail 顶部无 AppBar/无 title/无 back-link(.hero 直贴页顶)。
+    // app 需返回导航 → 折中:透明 AppBar(extendBodyBehindAppBar:true 让 hero 铺到顶),
+    // 只显 back icon(无 title/无 bg),icon 在 hero 深色渐变上 → 白色可读。
     return Scaffold(
       backgroundColor: AppColors.bg,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.fg,
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: BackButton(onPressed: () => context.pop()),
-        title: const Text('收款详情'),
+        scrolledUnderElevation: 0,
+        foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(LucideIcons.arrowLeft, color: Colors.white, size: 20),
+          onPressed: () => context.pop(),
+          tooltip: '返回',
+        ),
       ),
       body: BlocListener<DebtBloc, DebtState>(
         // 仅在 确认收款 写操作进行中时，对终态反应。
@@ -134,11 +142,14 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     final isMobile = w <= 720; // ≤720 mobile（与 debt_detail_page 对齐）
     // D3:desktop(>1080)双列带 side panel;tablet/mobile 单列(side panel 下移)。
     final showSide = w > 1080;
+    // 透明 AppBar(extendBodyBehindAppBar)hero 直铺页顶 → body 顶部需让出
+    // AppBar 高(kToolbarHeight 56)+ 状态栏,避免 hero 内容压在 back icon 下。
+    final topPad = MediaQuery.of(context).padding.top + kToolbarHeight;
 
     return ListView(
       padding: isMobile
-          ? const EdgeInsets.fromLTRB(16, 14, 16, 60)
-          : const EdgeInsets.fromLTRB(36, 24, 36, 70),
+          ? EdgeInsets.fromLTRB(16, 14 + topPad, 16, 60)
+          : EdgeInsets.fromLTRB(36, 24 + topPad, 36, 70),
       children: [
         if (showSide) ...[
           // OD 对齐:.hero + .stats5 全宽铺满;仅 .grid-2(schedule + side panel)双列。
@@ -220,19 +231,6 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     final heroMain = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        InkWell(
-          onTap: () => context.pop(),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(LucideIcons.arrowLeft, size: 15, color: Color(0xFF9AA0A8)),
-              SizedBox(width: 6),
-              Text('返回债权管理',
-                  style: TextStyle(fontSize: 12.5, color: Color(0xFF9AA0A8))),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
         Row(
           children: [
             avatarTile,
@@ -357,10 +355,8 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     return ClipRRect(
       borderRadius: AppRadius.lgBorder,
       child: Container(
-        // OD .hero padding 18px(对齐原型,改前 30/28 偏大)。
-        padding: isMobile
-            ? const EdgeInsets.all(18)
-            : const EdgeInsets.fromLTRB(28, 18, 28, 20),
+        // OD .hero padding 18px(原型四面均 18,对齐 OD)。
+        padding: const EdgeInsets.all(18),
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -663,7 +659,8 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     ];
     final w = MediaQuery.of(context).size.width;
     final isTablet = w <= 900;
-    // OD .stats5 grid repeat(5,1fr) gap 9 等宽等高(改前 gap 13)。
+    // OD .stats5 grid repeat(5,1fr) gap 9 等宽等高(对齐 OD .stat padding 11/12,
+    // .sl 10.5 / .sv 17 / .ss 9.5)。mainAxisExtent 116 容下 sub 2-line wrap。
     // GridView.count 已强制等宽(flex 1fr),固定 mainAxisExtent 强制等高。
     return GridView.count(
       key: const ValueKey('statsRow'),
@@ -672,7 +669,7 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
       crossAxisCount: isTablet ? 2 : 5,
       mainAxisSpacing: 9,
       crossAxisSpacing: 9,
-      mainAxisExtent: 168,
+      mainAxisExtent: 116,
       children: [for (final s in stats) _StatCard(data: s)],
     );
   }
@@ -856,13 +853,14 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
         borderRadius: BorderRadius.circular(AppRadius.sm),
         child: Table(
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+        // OD 4 列(期次/日期 | 本金 | 利息 | 合计) + 行末「确认收款」link-btn 操作列。
+        // 状态不再单独成列:逾期行 bg #fdf8f7 + 合计列 ⚠ 红 表达(对齐 OD)。
         columnWidths: const {
           0: FlexColumnWidth(1.4),
           1: FlexColumnWidth(1),
           2: FlexColumnWidth(1),
           3: FlexColumnWidth(1),
           4: IntrinsicColumnWidth(),
-          5: IntrinsicColumnWidth(),
         },
         children: [
           TableRow(
@@ -875,7 +873,6 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
               _tableHeader('收回本金', align: TextAlign.right),
               _tableHeader('利息收入', align: TextAlign.right),
               _tableHeader('合计', align: TextAlign.right),
-              _tableHeader('状态', align: TextAlign.center),
               _tableHeader('操作', align: TextAlign.center),
             ],
           ),
@@ -905,39 +902,42 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
   TableRow _scheduleRow(
       PaymentEntry e, Debt debt, int idx, int total, String preferred) {
     final isLast = idx == total;
+    final isOverdue = e.status == PaymentStatus.overdue && !e.paid;
     const border = BorderSide(color: Color(0xFFEFECE5));
+    // OD 逾期行 bg #fdf8f7(合计列 ⚠ 红;期数红)。
     return TableRow(
       decoration: BoxDecoration(
+        color: isOverdue ? const Color(0xFFFDF8F7) : null,
         border: isLast ? null : const Border(bottom: border),
       ),
       children: [
-        // 期次 + 收款日
+        // 期次 + 收款日(逾期 → 期数红)。
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('第 $idx 期',
-                  style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.muted,
+              Text('$idx',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: isOverdue ? AppColors.negative : AppColors.fg,
                       fontFeatures: AppTypography.tabularFigures)),
               const SizedBox(height: 2),
               Text(_fmtDate(e.paymentDate),
                   style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 12,
+                      color: AppColors.muted,
                       fontFeatures: AppTypography.tabularFigures)),
             ],
           ),
         ),
-        _cellRight(_fmtSymbol(e.principalCents, preferred)),
-        _cellRight(_fmtSymbol(e.interestCents, preferred)),
-        _cellRight(_fmtSymbol(e.totalCents, preferred), bold: true),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          child: Center(child: _statusBadge(e)),
-        ),
+        _cellRight(_fmtSymbol(e.principalCents, preferred),
+            color: AppColors.muted),
+        _cellRight(_fmtSymbol(e.interestCents, preferred),
+            color: AppColors.muted),
+        // 合计:逾期 → 红 + ⚠;正常 bold。
+        _totalCell(_fmtSymbol(e.totalCents, preferred), isOverdue),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 14),
           child: Center(child: _scheduleAction(e, debt, preferred)),
@@ -946,7 +946,38 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     );
   }
 
-  Widget _cellRight(String text, {bool bold = false}) {
+  /// 合计单元格:逾期 → 红字 + ⚠;正常 → bold fg(对齐 OD 合计列)。
+  /// narrow 列(tablet/≤900)金额 + ⚠ Row 可能水平溢出 → Flexible 让 Text shrink。
+  Widget _totalCell(String text, bool isOverdue) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(text,
+                textAlign: TextAlign.right,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: isOverdue ? AppColors.negative : AppColors.fg,
+                  fontFeatures: AppTypography.tabularFigures,
+                )),
+          ),
+          if (isOverdue) ...[
+            const SizedBox(width: 4),
+            const Icon(LucideIcons.alertTriangle,
+                size: 13, color: AppColors.negative),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _cellRight(String text, {bool bold = false, Color? color}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Text(text,
@@ -954,6 +985,7 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
+            color: color,
             fontFeatures: AppTypography.tabularFigures,
           )),
     );
@@ -1418,7 +1450,7 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DataCard(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1429,13 +1461,13 @@ class _StatCard extends StatelessWidget {
               Expanded(
                 child: Text(data.label,
                     style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 10.5,
                         color: AppColors.muted,
                         letterSpacing: 0.5)),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 7),
           Text(data.value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -1446,12 +1478,12 @@ class _StatCard extends StatelessWidget {
                 color: data.valueColor ?? AppColors.fg,
                 fontFeatures: AppTypography.tabularFigures,
               )),
-          const SizedBox(height: 5),
+          const SizedBox(height: 4),
           Text(data.sub,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                  fontSize: 11.5,
+                  fontSize: 10,
                   color: AppColors.muted,
                   fontFeatures: AppTypography.tabularFigures)),
         ],

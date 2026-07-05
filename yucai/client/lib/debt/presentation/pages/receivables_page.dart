@@ -1939,7 +1939,16 @@ class _CardFootCallout extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6),
-          // 收款 CTA → push detail(列表不知哪期收款,跳详情页 schedule 处理)。
+          // 收款 CTA → push detail。
+          // 决策:保留 push detail(不弹 list-side dialog)。理由:
+          //  1. 列表 Debt DTO 无 schedule entries / 无 _accounts,直接收款需拉 detail
+          //     + 选账户 → 重复 detail page _ConfirmReceiptDialog 逻辑(跨文件重构,
+          //     超出本次 receivable_detail_page 单文件改动范围)。
+          //  2. OD 原型 list 收款按钮无 list-side dialog 设计;收款确认落点在 detail
+          //     schedule 行内(D4 行内 link-btn)。push detail 符合 OD 落点。
+          //  3. detail page D4 行内确认已优化(collection 已配置 → 1 tap + toast,无 dialog)。
+          // 后续 follow-up:如需 list-side 快速收款,抽 _ConfirmReceiptDialog 到
+          // core/widgets + 列表预拉 schedule(nextPayment_* 已在 DTO)。
           TextButton.icon(
             onPressed: () => context.push('/receivables/${debt.id}'),
             icon: const Icon(LucideIcons.handCoins, size: 14),
