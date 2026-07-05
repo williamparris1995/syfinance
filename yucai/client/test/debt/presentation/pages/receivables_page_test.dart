@@ -463,19 +463,18 @@ void main() {
     expect(find.text('李'), findsOneWidget);
   });
 
-  testWidgets('tablet: 2-column GridView', (t) async {
+  testWidgets('tablet: single-column (no GridView, OD .rcv 垂直堆叠)', (t) async {
     t.view.physicalSize = tablet;
     t.view.devicePixelRatio = 1.0;
     addTearDown(t.view.resetPhysicalSize);
     await t.pumpWidget(_harness(receivables));
     await t.pumpAndSettle();
-    final grid = t.widget<GridView>(find.byType(GridView).first);
-    final delegate =
-        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
-    expect(delegate.crossAxisCount, 2);
+    expect(find.byType(GridView), findsNothing);
+    expect(find.text('张三'), findsOneWidget);
+    expect(find.text('李四'), findsOneWidget);
   });
 
-  testWidgets('desktop: GridView with >=3 columns', (t) async {
+  testWidgets('desktop: single-column (no GridView, OD .rcv 垂直堆叠)', (t) async {
     t.view.physicalSize = desktop;
     t.view.devicePixelRatio = 1.0;
     addTearDown(t.view.resetPhysicalSize);
@@ -492,10 +491,11 @@ void main() {
       ),
     ]));
     await t.pumpAndSettle();
-    final grid = t.widget<GridView>(find.byType(GridView).first);
-    final delegate =
-        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
-    expect(delegate.crossAxisCount, greaterThanOrEqualTo(3));
+    // OD list 单列垂直堆叠(横向 row 卡),非网格。
+    expect(find.byType(GridView), findsNothing);
+    expect(find.text('张三'), findsOneWidget);
+    expect(find.text('李四'), findsOneWidget);
+    expect(find.text('王五'), findsOneWidget);
   });
 
   testWidgets('FAB present (创建债权)', (t) async {

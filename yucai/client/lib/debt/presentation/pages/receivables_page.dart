@@ -788,23 +788,56 @@ class _OvFootFallback extends StatelessWidget {
         color: Color(0xFFFBFAF6),
         border: Border(top: BorderSide(color: AppColors.border, width: 1)),
       ),
-      child: Row(
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 12,
+        runSpacing: 8,
         children: [
-          Icon(LucideIcons.calendarClock,
-              size: compact ? 14 : 15, color: AppColors.accent),
-          SizedBox(width: compact ? 7 : 9),
-          Text.rich(
-            TextSpan(
-              style: TextStyle(
-                  fontSize: compact ? 12 : 13, color: AppColors.muted),
-              children: [
-                const TextSpan(text: '下次收款 '),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(LucideIcons.calendarClock,
+                  size: compact ? 14 : 15, color: AppColors.accent),
+              SizedBox(width: compact ? 7 : 9),
+              Text.rich(
                 TextSpan(
-                    text: _fmtDate(date),
-                    style: const TextStyle(
-                        color: AppColors.fg,
-                        fontWeight: FontWeight.w600,
-                        fontFeatures: AppTypography.tabularFigures)),
+                  style: TextStyle(
+                      fontSize: compact ? 12 : 13, color: AppColors.muted),
+                  children: [
+                    const TextSpan(text: '下次收款 '),
+                    TextSpan(
+                        text: _fmtDate(date),
+                        style: const TextStyle(
+                            color: AppColors.fg,
+                            fontWeight: FontWeight.w600,
+                            fontFeatures: AppTypography.tabularFigures)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          // CTA「查看收款计划」(同 _OvFoot,summary 未到位也显)。
+          TextButton(
+            onPressed: () {},
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.accentHover,
+              backgroundColor: AppColors.accentSoft,
+              padding: EdgeInsets.symmetric(
+                  horizontal: compact ? 10 : 12, vertical: 6),
+              minimumSize: const Size(0, 0),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Text('查看收款计划',
+                    style:
+                        TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                SizedBox(width: 4),
+                Icon(LucideIcons.chevronRight, size: 14),
               ],
             ),
           ),
@@ -999,46 +1032,17 @@ class _ReceivableList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // mobile 单列 Column / tablet 2 列 / desktop auto-fill(≥3) GridView,
-    // 对齐 debts_page._DebtList 的三断点模式(基于容器宽度)。
-    return LayoutBuilder(
-      builder: (context, c) {
-        const gap = 14.0;
-        if (c.maxWidth < Breakpoints.mobileUpper) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var i = 0; i < debts.length; i++) ...[
-                _ReceivableCard(debt: debts[i], preferred: preferred),
-                if (i < debts.length - 1) const SizedBox(height: gap),
-              ],
-            ],
-          );
-        }
-        int cols;
-        if (c.maxWidth < Breakpoints.desktopLower) {
-          cols = 2;
-        } else {
-          const colWidth = 280.0;
-          cols = ((c.maxWidth + gap) / (colWidth + gap)).floor();
-          if (cols < 1) cols = 1;
-        }
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: cols,
-            mainAxisSpacing: gap,
-            crossAxisSpacing: gap,
-            // 固定卡片高度。窄卡含 avatar+name / 剩余应收 / 进度 / meta3(Wrap 窄卡换行)
-            // / foot callout / actions(L1 + L3 增容 + meta 换行余量)→ 440。
-            mainAxisExtent: 440,
-          ),
-          itemCount: debts.length,
-          itemBuilder: (_, i) =>
-              _ReceivableCard(debt: debts[i], preferred: preferred),
-        );
-      },
+    // OD list:单列垂直堆叠(.rcv margin-top 10),横向 row 卡按时间顺序排列。
+    // (非网格 — 每行一张卡,对齐 OD .rcv;desktop 宽卡走 _fullCard 横向 4-col)
+    const gap = 10.0; // OD .rcv margin-top 10
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < debts.length; i++) ...[
+          _ReceivableCard(debt: debts[i], preferred: preferred),
+          if (i < debts.length - 1) const SizedBox(height: gap),
+        ],
+      ],
     );
   }
 }
