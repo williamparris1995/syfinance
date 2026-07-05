@@ -1121,13 +1121,16 @@ class _ReceivableCard extends StatelessWidget {
         debt.nextPaymentAmountCents > 0;
     return DataCard(
       onTap: () => context.push('/receivables/${debt.id}'),
-      onLongPress: () => _showMoreMenu(context), // OD 无底部 bar,更多功能移 long-press
+      onLongPress: () => _showMoreMenu(context),
+      padding: EdgeInsets.zero, // OD .rcv 无整体 padding,main/foot 各自(foot 贴边)
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // L3 横向 4-col row:col1 avatar+name+badge | col2 剩余应收大字 |
           // col3 收回进度+已收 | col4 meta2(利率/到期/摊还)
-          Row(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 13, 16, 13), // OD .rcv-main 13/16
+            child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // col1: avatar + name + badge(+ 已结清/逾期)
@@ -1246,9 +1249,9 @@ class _ReceivableCard extends StatelessWidget {
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 12),
-          // L3 foot:OD .rcv-foot 总显(左:下次收款/逾期/到期 + 右:详情/收款 CTA)。
+            ), // Row 闭合(Padding child)
+          ), // Padding(main)闭合
+          // L3 foot:OD .rcv-foot 总显(左:下次收款/逾期/到期 + 右:详情/收款 CTA)。贴卡底(border-top 分隔)。
           _CardFootCallout(
             debt: debt,
             preferred: preferred,

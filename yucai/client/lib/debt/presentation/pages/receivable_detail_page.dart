@@ -246,10 +246,11 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
                     spacing: 10,
                     runSpacing: 6,
                     children: [
+                      // OD .h-name 18px(改前 23px 偏大)。
                       Text(
                         debt.counterparty,
                         style: const TextStyle(
-                          fontSize: 23,
+                          fontSize: 18,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
                           letterSpacing: 0.01,
@@ -278,23 +279,25 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
             ),
           ],
         ),
+        // OD .h-amt-l 10px uppercase letter-spacing .08em(改前 11px/letterSpacing 2)。
         const SizedBox(height: 22),
         const Text(
           'REMAINING RECEIVABLE · 剩余应收（本金）',
           style: TextStyle(
-            fontSize: 11,
-            letterSpacing: 2,
+            fontSize: 10,
+            letterSpacing: 0.8,
             color: Color(0xFF9AA0A8),
             fontFeatures: AppTypography.tabularFigures,
           ),
         ),
         const SizedBox(height: 6),
+        // OD .h-amt 38px white + cur 金 #d9b878(改前 numSize 46 偏大)。
         GoldAmount(
           key: const ValueKey('heroRemaining'),
           cents: debt.remainingPrincipalCents,
           preferred: preferred,
-          curSize: isMobile ? 16 : 22,
-          numSize: isMobile ? 34 : 46,
+          curSize: isMobile ? 16 : 20,
+          numSize: isMobile ? 32 : 38,
           numWeight: FontWeight.w600,
           numLetterSpacing: -0.4,
           numColor: Colors.white,
@@ -354,9 +357,10 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     return ClipRRect(
       borderRadius: AppRadius.lgBorder,
       child: Container(
+        // OD .hero padding 18px(对齐原型,改前 30/28 偏大)。
         padding: isMobile
-            ? const EdgeInsets.fromLTRB(22, 22, 22, 24)
-            : const EdgeInsets.fromLTRB(30, 28, 30, 30),
+            ? const EdgeInsets.all(18)
+            : const EdgeInsets.fromLTRB(28, 18, 28, 20),
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -479,17 +483,17 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
   }
 
   /// hero 右侧 4-tile(年利率/月供/到期日/已收期数)。
+  /// OD .h-side grid 1fr 1fr gap 8(改前 gap 10/mainAxisExtent 78)。
   Widget _heroSide(Debt debt, String preferred, int paidCount, int total) {
     return GridView.count(
       key: const ValueKey('heroSide'),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisCount: 2,
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      // 固定行高(label 10.5 + gap 3 + value 15(可换行至 2 行)+ padding 8*2)。
-      mainAxisExtent: 78,
-      childAspectRatio: 1.7,
+      mainAxisSpacing: 8,
+      crossAxisSpacing: 8,
+      mainAxisExtent: 76,
+      childAspectRatio: 1.55,
       children: [
         _heroTile('年利率', '${debt.interestRate.toStringAsFixed(2)}%'),
         _heroTile('月供', _fmtSymbol(_approxMonthly(debt), preferred)),
@@ -501,7 +505,7 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
 
   Widget _heroTile(String label, String value) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.045),
         border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
@@ -515,7 +519,7 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
           Text(
             label,
             style: const TextStyle(
-              fontSize: 10.5,
+              fontSize: 10,
               color: Color(0xFF8F8D83),
               letterSpacing: 0.6,
             ),
@@ -523,8 +527,10 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
           const SizedBox(height: 3),
           Text(
             value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 15,
+              fontSize: 14.5,
               fontWeight: FontWeight.w600,
               color: Color(0xFFF3EFEA),
               fontFeatures: AppTypography.tabularFigures,
@@ -657,13 +663,15 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     ];
     final w = MediaQuery.of(context).size.width;
     final isTablet = w <= 900;
+    // OD .stats5 grid repeat(5,1fr) gap 9 等宽等高(改前 gap 13)。
+    // GridView.count 已强制等宽(flex 1fr),固定 mainAxisExtent 强制等高。
     return GridView.count(
       key: const ValueKey('statsRow'),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisCount: isTablet ? 2 : 5,
-      mainAxisSpacing: 13,
-      crossAxisSpacing: 13,
+      mainAxisSpacing: 9,
+      crossAxisSpacing: 9,
       mainAxisExtent: 168,
       children: [for (final s in stats) _StatCard(data: s)],
     );
