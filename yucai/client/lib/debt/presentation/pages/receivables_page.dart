@@ -180,7 +180,7 @@ class _ReceivablesPageState extends State<ReceivablesPage> {
               _StatStrip(summary: _summary, preferred: preferred),
               const SizedBox(height: AppSpacing.lg),
               _SectionHead(count: debts.length),
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.md),
               _ListFilterSegmented(
                 filter: _filter,
                 activeCount:
@@ -878,9 +878,13 @@ class _StatStrip extends StatelessWidget {
         _StatCard('债权笔数', '${s.count}',
             sub: '私人·商业·亲友', icon: LucideIcons.layers),
         _StatCard('已收本息', _fmtSymbol(s.totalCollectedCents, preferred),
-            color: AppColors.positive, icon: LucideIcons.trendingUp),
+            color: AppColors.positive,
+            icon: LucideIcons.trendingUp,
+            sub: (s.totalCollectedCents + s.totalRemainingCents) > 0
+                ? '${(s.totalCollectedCents * 100 / (s.totalCollectedCents + s.totalRemainingCents)).toStringAsFixed(1)}% 已收回'
+                : '暂无'),
         _StatCard('待收利息', _fmtSymbol(s.pendingInterestCents, preferred),
-            icon: LucideIcons.clock),
+            icon: LucideIcons.clock, sub: '${s.count} 笔在追'),
         _StatCard('逾期应收', _fmtSymbol(s.overdueAmountCents, preferred),
             color: AppColors.negative,
             sub: '${s.overdueCount} 笔',
@@ -892,13 +896,17 @@ class _StatStrip extends StatelessWidget {
   Widget _grid(List<Widget> cards, double maxWidth) {
     // OD `.stat-strip{grid-template-columns:repeat(4,1fr);gap:14px}`:
     // 4 卡始终并排(Row + Expanded 自适应宽度);gap 14 对齐 OD。
-    return Row(
-      children: [
-        for (var i = 0; i < cards.length; i++) ...[
-          Expanded(child: cards[i]),
-          if (i < cards.length - 1) const SizedBox(width: 14),
+    // IntrinsicHeight + stretch:4 卡等高(对齐 OD .stats repeat(4,1fr) 等高)。
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < cards.length; i++) ...[
+            Expanded(child: cards[i]),
+            if (i < cards.length - 1) const SizedBox(width: 14),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
