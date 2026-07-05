@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:yucai_client/app/route_observer.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/di/injection.dart';
@@ -33,7 +34,7 @@ class ReceivablesPage extends StatefulWidget {
   State<ReceivablesPage> createState() => _ReceivablesPageState();
 }
 
-class _ReceivablesPageState extends State<ReceivablesPage> {
+class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
   // 列表筛选:默认「进行中」(隐藏已结清,对齐行业实践——已结清属历史,不占主列表)。
   _ListFilter _filter = _ListFilter.active;
   // 应收汇总(server 端 Task 7 算,nextPayment* / trend / overdue 等)。
@@ -48,6 +49,31 @@ class _ReceivablesPageState extends State<ReceivablesPage> {
         .read<DebtBloc>()
         .add(const LoadDebtsRequested(typeFilter: DebtType.borrowedOut));
     _loadSummary();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 订阅全局 RouteObserver:详情页确认收款/编辑后 pop 回来时 didPopNext 触发,
+    // 重新拉列表——详情页用独立 DebtBloc,收款只刷新它自己的 bloc,列表不会自动更新。
+    routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    // 从详情返回:债权数据可能已变(确认收款/编辑),重新拉列表 + summary。
+    if (mounted) {
+      context
+          .read<DebtBloc>()
+          .add(const LoadDebtsRequested(typeFilter: DebtType.borrowedOut));
+      _loadSummary();
+    }
   }
 
   Future<void> _loadSummary() async {
