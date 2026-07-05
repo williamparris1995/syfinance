@@ -174,25 +174,36 @@ class _ReceivablesPageState extends State<ReceivablesPage> {
                 preferred: preferred,
                 nextCollectDate: nextCollectDate,
                 summary: _summary,
+                firstReceivableId: debts.isEmpty ? null : debts.first.id,
               ),
               const SizedBox(height: AppSpacing.md),
               // L2: stat strip(summary 驱动)。null → loading 占位,不阻塞列表。
               _StatStrip(summary: _summary, preferred: preferred),
               const SizedBox(height: AppSpacing.lg),
-              _SectionHead(count: debts.length),
-              const SizedBox(height: AppSpacing.md),
-              _ListFilterSegmented(
-                filter: _filter,
-                activeCount:
-                    debts.where((d) => d.remainingPrincipalCents > 0).length,
-                settledCount:
-                    debts.where((d) => d.remainingPrincipalCents <= 0).length,
-                overdueCount: debts
-                    .where((d) =>
-                        d.remainingPrincipalCents > 0 &&
-                        d.dueDate.isBefore(DateTime.now()))
-                    .length,
-                onChanged: (f) => setState(() => _filter = f),
+              // OD .sec-h + .seg 同行(标题左 + tab 右侧)。
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  _SectionHead(count: debts.length),
+                  const Spacer(),
+                  Flexible(
+                    child: _ListFilterSegmented(
+                      filter: _filter,
+                      activeCount: debts
+                          .where((d) => d.remainingPrincipalCents > 0)
+                          .length,
+                      settledCount: debts
+                          .where((d) => d.remainingPrincipalCents <= 0)
+                          .length,
+                      overdueCount: debts
+                          .where((d) =>
+                              d.remainingPrincipalCents > 0 &&
+                              d.dueDate.isBefore(DateTime.now()))
+                          .length,
+                      onChanged: (f) => setState(() => _filter = f),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: AppSpacing.sm),
               if (filtered.isEmpty)
@@ -226,6 +237,7 @@ class _OverviewCard extends StatelessWidget {
     required this.preferred,
     this.nextCollectDate,
     this.summary,
+    this.firstReceivableId,
   });
 
   final int totalRemaining; // 总剩余应收(preferred 口径)
@@ -241,6 +253,8 @@ class _OverviewCard extends StatelessWidget {
   // L4 summary(server-side 计算的 trend / 待收利息 / 下次收款精确字段)。
   // null = 加载中,相关区块显占位;列表与基础 overview 不依赖它。
   final ReceivablesSummary? summary;
+  // 首债 id(ov-foot CTA「查看收款计划」跳 detail 看收款 schedule)。
+  final String? firstReceivableId;
 
   @override
   Widget build(BuildContext context) {
@@ -438,10 +452,10 @@ class _OverviewCard extends StatelessWidget {
           // ── ov-foot:下次收款 + 查看收款计划 CTA ──
           // summary 驱动(精确对方/期数/金额);summary null 时 fall back nextCollectDate。
           if (summary != null && summary!.nextPaymentDate != null)
-            _OvFoot(summary: summary!, preferred: preferred)
+            _OvFoot(summary: summary!, preferred: preferred, firstReceivableId: firstReceivableId)
           else if (nextCollectDate != null)
             _OvFootFallback(
-                date: nextCollectDate!, preferred: preferred),
+                date: nextCollectDate!, preferred: preferred, firstReceivableId: firstReceivableId),
         ],
       ),
     );
@@ -673,10 +687,11 @@ String _fmtAmtNoSymbol(int cents) {
 ///  - 右:gold-soft btn「查看收款计划 →」
 /// summary 驱动(nextPaymentDate/Amount/Counterparty/PeriodNo)。
 class _OvFoot extends StatelessWidget {
-  const _OvFoot({required this.summary, required this.preferred, this.compact = false});
+  const _OvFoot({required this.summary, required this.preferred, this.compact = false, this.firstReceivableId});
   final ReceivablesSummary summary;
   final String preferred;
   final bool compact;
+  final String? firstReceivableId;
 
   @override
   Widget build(BuildContext context) {
@@ -744,7 +759,11 @@ class _OvFoot extends StatelessWidget {
           ),
           // CTA「查看收款计划」(gold-soft btn)。
           TextButton(
-            onPressed: () {},
+            onPressed: () {
+              if (firstReceivableId != null) {
+                context.push('/receivables/$firstReceivableId');
+              }
+            },
             style: TextButton.styleFrom(
               foregroundColor: AppColors.accentHover,
               backgroundColor: AppColors.accentSoft,
@@ -774,10 +793,11 @@ class _OvFoot extends StatelessWidget {
 
 /// ov-foot fallback:summary 未到位(无精确对方/期数/金额),只显下次收款日期。
 class _OvFootFallback extends StatelessWidget {
-  const _OvFootFallback({required this.date, required this.preferred, this.compact = false});
+  const _OvFootFallback({required this.date, required this.preferred, this.compact = false, this.firstReceivableId});
   final DateTime date;
   final String preferred;
   final bool compact;
+  final String? firstReceivableId;
 
   @override
   Widget build(BuildContext context) {
@@ -819,7 +839,11 @@ class _OvFootFallback extends StatelessWidget {
           ),
           // CTA「查看收款计划」(同 _OvFoot,summary 未到位也显)。
           TextButton(
-            onPressed: () {},
+            onPressed: () {
+              if (firstReceivableId != null) {
+                context.push('/receivables/$firstReceivableId');
+              }
+            },
             style: TextButton.styleFrom(
               foregroundColor: AppColors.accentHover,
               backgroundColor: AppColors.accentSoft,
