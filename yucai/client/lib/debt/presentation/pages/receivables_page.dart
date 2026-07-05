@@ -1085,6 +1085,7 @@ class _ReceivableCard extends StatelessWidget {
         debt.nextPaymentAmountCents > 0;
     return DataCard(
       onTap: () => context.push('/receivables/${debt.id}'),
+      onLongPress: () => _showMoreMenu(context), // OD 无底部 bar,更多功能移 long-press
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1112,16 +1113,16 @@ class _ReceivableCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // OD .rcv-name:15.5px w600 serif。
-                          // OD .rcv-name:14px w600 non-serif(非 serif)。
-                          Text(debt.counterparty,
-                              style: const TextStyle(
-                                  fontSize: 14, fontWeight: FontWeight.w600)),
-                          const SizedBox(height: 5),
+                          // OD .rcv-name:flex wrap,name + 类型 badge 同行(gap 7)。
                           Wrap(
                             crossAxisAlignment: WrapCrossAlignment.center,
-                            spacing: 6,
+                            spacing: 7,
                             runSpacing: 4,
                             children: [
+                              Text(debt.counterparty,
+                                  style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600)),
                               _Badge(
                                   label: badge.label,
                                   fg: badge.fg,
@@ -1221,8 +1222,6 @@ class _ReceivableCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
           ],
-          const Spacer(),
-          _actionBar(debt, context),
         ],
       ),
     );
@@ -1786,9 +1785,9 @@ class _CardFootCallout extends StatelessWidget {
         ? now.difference(debt.dueDate).inDays
         : 0;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9), // OD .rcv-foot 9/16
       decoration: const BoxDecoration(
-        color: Color(0xFFFBFAF6), // OD .rcv-foot bg(卡底通栏条,非独立 callout)
+        color: Color(0xFFFBFAF6), // OD .rcv-foot bg(卡底通栏条)
         border: Border(
           top: BorderSide(color: AppColors.border, width: 1),
         ),
