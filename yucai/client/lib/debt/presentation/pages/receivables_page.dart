@@ -1224,16 +1224,13 @@ class _ReceivableCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          // L3 foot callout:下次收款(debt.nextPayment*)+ 逾期天数 + 收款 CTA。
-          if (hasNext || isOverdue && !isSettled) ...[
-            _CardFootCallout(
-              debt: debt,
-              preferred: preferred,
-              hasNext: hasNext,
-              isOverdue: isOverdue,
-            ),
-            const SizedBox(height: 8),
-          ],
+          // L3 foot:OD .rcv-foot 总显(左:下次收款/逾期/到期 + 右:详情/收款 CTA)。
+          _CardFootCallout(
+            debt: debt,
+            preferred: preferred,
+            hasNext: hasNext,
+            isOverdue: isOverdue,
+          ),
         ],
       ),
     );
@@ -1807,7 +1804,9 @@ class _CardFootCallout extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            hasNext ? LucideIcons.calendarClock : LucideIcons.alertTriangle,
+            hasNext
+                ? LucideIcons.calendarClock
+                : (isOverdue ? LucideIcons.alertTriangle : LucideIcons.clock),
             size: 15,
             color: isOverdue && !hasNext ? AppColors.negative : AppColors.accent,
           ),
@@ -1841,12 +1840,28 @@ class _CardFootCallout extends StatelessWidget {
                       ],
                     ),
                   )
-                else
+                else if (isOverdue)
                   Text('逾期 $overdueDays 天',
                       style: const TextStyle(
                           fontSize: 12.5,
                           color: AppColors.negative,
-                          fontWeight: FontWeight.w600)),
+                          fontWeight: FontWeight.w600))
+                else
+                  // 正常(无 nextPayment + 未逾期):显「待收款」状态(到期日在 col4)。
+                  Text.rich(
+                    TextSpan(
+                      style: const TextStyle(
+                          fontSize: 12.5, color: AppColors.muted),
+                      children: [
+                        const TextSpan(text: '状态 '),
+                        TextSpan(
+                            text: '待收款',
+                            style: const TextStyle(
+                                color: AppColors.fg,
+                                fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
                 if (hasNext && isOverdue) ...[
                   const SizedBox(height: 2),
                   Text('含逾期 $overdueDays 天',
@@ -1857,6 +1872,20 @@ class _CardFootCallout extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
+          // 详情按钮(OD .rcv-foot「详情」)。
+          TextButton.icon(
+            onPressed: () => context.push('/receivables/${debt.id}'),
+            icon: const Icon(LucideIcons.info, size: 14),
+            label: const Text('详情',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.muted,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              minimumSize: const Size(0, 0),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+          const SizedBox(width: 6),
           // 收款 CTA → push detail(列表不知哪期收款,跳详情页 schedule 处理)。
           TextButton.icon(
             onPressed: () => context.push('/receivables/${debt.id}'),
