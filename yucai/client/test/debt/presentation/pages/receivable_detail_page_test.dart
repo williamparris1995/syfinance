@@ -332,6 +332,61 @@ void main() {
     });
   });
 
+  // 用户要 schedule tabs(之前移除过,现恢复 _filterSegmented + 4 段 全部/待收/已收/逾期)。
+  group('筛选 (segmented)', () {
+    testWidgets('renders 4 filter segments 全部/待收/已收/逾期', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness(detail: _detail()));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('filterSegment-全部'), skipOffstage: false),
+          findsOneWidget);
+      expect(find.byKey(const ValueKey('filterSegment-待收'), skipOffstage: false),
+          findsOneWidget);
+      expect(find.byKey(const ValueKey('filterSegment-已收'), skipOffstage: false),
+          findsOneWidget);
+      expect(find.byKey(const ValueKey('filterSegment-逾期'), skipOffstage: false),
+          findsOneWidget);
+    });
+
+    testWidgets('tap 已收 → 仅显示 2 已收期次', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness(detail: _detail()));
+      await t.pumpAndSettle();
+      // 滚到 schedule 区(segmented 在表上方)。
+      final scrollable = pageScrollable();
+      await t.drag(scrollable, const Offset(0, -600));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('filterSegment-已收')));
+      await t.pumpAndSettle();
+      // 已收 = e1/e2(2026-03-15/2026-04-15)2 期;待收/逾期期次日期不出现。
+      expect(find.textContaining('2026-03-15', skipOffstage: false), findsWidgets);
+      expect(find.textContaining('2026-04-15', skipOffstage: false), findsWidgets);
+      expect(find.textContaining('2026-06-15', skipOffstage: false), findsNothing);
+      expect(find.textContaining('2026-07-15', skipOffstage: false), findsNothing);
+    });
+
+    testWidgets('tap 逾期 → 仅显示 1 逾期期次', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      await t.pumpWidget(_harness(detail: _detail()));
+      await t.pumpAndSettle();
+      final scrollable = pageScrollable();
+      await t.drag(scrollable, const Offset(0, -600));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('filterSegment-逾期')));
+      await t.pumpAndSettle();
+      // 逾期 = e3(2026-06-15)1 期;其他期次日期不出现。
+      expect(find.textContaining('2026-06-15', skipOffstage: false), findsWidgets);
+      expect(find.textContaining('2026-03-15', skipOffstage: false), findsNothing);
+      expect(find.textContaining('2026-07-15', skipOffstage: false), findsNothing);
+    });
+  });
+
   group('确认收款 (RecordPayment) — D4 行内', () {
     testWidgets(
         'collection 已配置 → tap 确认收款 直接 dispatch RecordPayment (无 dialog)',

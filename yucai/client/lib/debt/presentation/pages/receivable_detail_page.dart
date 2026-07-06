@@ -43,8 +43,9 @@ class ReceivableDetailPage extends StatefulWidget {
 }
 
 class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
-  /// schedule 筛选状态。OD 原型无 tabs(只 sec-h + table),固定 all 全显。
-  final _ScheduleFilter _filter = _ScheduleFilter.all;
+  /// schedule 筛选状态。OD .seg 风格 segmented(全部/待收/已收/逾期),
+  /// setState 切换;默认 all 全显。
+  _ScheduleFilter _filter = _ScheduleFilter.all;
 
   /// 全量收款账户缓存（accountId → Account），供 确认收款 选择 to_account。
   /// initState 异步拉取（直接走 repository，不经 DebtBloc）。
@@ -153,9 +154,9 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
         if (showSide) ...[
           // OD 对齐:.hero + .stats5 全宽铺满;仅 .grid-2(schedule + side panel)双列。
           _hero(detail.debt, preferred, detail),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           _statsRow(detail, preferred),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -172,9 +173,9 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
           ),
         ] else ...[
           _hero(detail.debt, preferred, detail),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           _statsRow(detail, preferred),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           _scheduleSection(detail.schedule, detail.debt, isMobile, preferred),
           const SizedBox(height: 18),
           _sidePanel(detail, preferred),
@@ -230,6 +231,10 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     final heroMain = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 面包屑(用户要,OD 原型无):「债权管理」(可点回 /receivables) > 当前
+        // counterparty(只首段,长名截断)。深色 hero 上用 muted light 文字。
+        _breadcrumb(context, debt.counterparty),
+        const SizedBox(height: 14),
         Row(
           children: [
             avatarTile,
@@ -425,6 +430,45 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
           ],
         ),
       ),
+    );
+  }
+
+  /// 面包屑(用户要,OD 原型无):深色 hero 顶部,「债权管理」(可点 → /receivables)
+  /// + chevron + 当前 counterparty(不可点,长名截断)。muted light 文字。
+  Widget _breadcrumb(BuildContext context, String counterparty) {
+    const muted = Color(0xFFA8A59A);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: () => context.go('/receivables'),
+          child: const Text(
+            '债权管理',
+            style: TextStyle(
+              fontSize: 12,
+              letterSpacing: 0.3,
+              color: muted,
+            ),
+          ),
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 6),
+          child: Icon(LucideIcons.chevronRight, size: 12, color: muted),
+        ),
+        Flexible(
+          child: Text(
+            counterparty,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 12,
+              letterSpacing: 0.3,
+              color: muted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -700,6 +744,10 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
             ],
           ),
           const SizedBox(height: 14),
+          // OD .seg 风格筛选(全部/待收/已收/逾期)。用户要 schedule tabs
+          // (之前移除过,现恢复)。setState 切换 → _filteredSchedule 重过滤。
+          _filterSegmented(),
+          const SizedBox(height: 14),
           // 列表（desktop/tablet 表 / mobile 卡）。OD schedule 无 tabs(只 sec-h + table)。
           _filteredSchedule(schedule).isEmpty
               ? const Padding(
@@ -782,6 +830,54 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     }
   }
 
+  /// OD .seg 风格筛选 segmented(bg #EFECE5 + radius AppRadius.sm + padding 4)。
+  /// 4 段:全部/待收/已收/逾期。setState 切换,active 段白底 + accent 文字。
+  Widget _filterSegmented() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFECE5),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Row(
+        children: [
+          Expanded(child: _filterSeg(_ScheduleFilter.all, '全部')),
+          Expanded(child: _filterSeg(_ScheduleFilter.pending, '待收')),
+          Expanded(child: _filterSeg(_ScheduleFilter.paid, '已收')),
+          Expanded(child: _filterSeg(_ScheduleFilter.overdue, '逾期')),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterSeg(_ScheduleFilter f, String label) {
+    final active = _filter == f;
+    final fg =
+        active ? AppColors.accentHover : AppColors.muted;
+    return InkWell(
+      key: ValueKey('filterSegment-$label'),
+      onTap: () => setState(() => _filter = f),
+      borderRadius: BorderRadius.circular(AppRadius.sm - 2),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: active ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppRadius.sm - 2),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+            color: fg,
+          ),
+        ),
+      ),
+    );
+  }
+
   /// desktop/tablet 表（对齐 OD table）：期次/收款日 + 收回本金 + 利息收入 +
   /// 合计 + 状态 badge + 操作（确认收款/已确认）。
   Widget _scheduleTable(List<PaymentEntry> schedule, Debt debt, String preferred) {
@@ -795,13 +891,14 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
         borderRadius: BorderRadius.circular(AppRadius.sm),
         child: Table(
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        // OD 4 列(期次/日期 | 本金 | 利息 | 合计) + 行末「确认收款」link-btn 操作列。
+        // OD 4 列(期次/日期 | 本金 | 利息 | 合计) + 行末「确认收款」紧凑 link。
         // 状态不再单独成列:逾期行 bg #fdf8f7 + 合计列 ⚠ 红 表达(对齐 OD)。
+        // 列宽等宽(本金/利息/合计 各 1;期次 1.4),操作放合计 cell 行末(无独立操作列)。
         columnWidths: const {
           0: FlexColumnWidth(1.4),
           1: FlexColumnWidth(1),
           2: FlexColumnWidth(1),
-          3: FlexColumnWidth(1.3), // 合计列稍宽(含行末操作 link,对齐 OD)
+          3: FlexColumnWidth(1),
         },
         children: [
           TableRow(
@@ -876,12 +973,11 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
             color: AppColors.muted),
         _cellRight(_fmtSymbol(e.interestCents, preferred),
             color: AppColors.muted),
-        // 合计 + 行末操作(对齐 OD 4 列:合计列含行末「确认收款」link,无独立操作列)。
+        // 合计 + 行末操作(对齐 OD 4 列:合计列含行末「确认收款」紧凑 link,无独立操作列)。
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
             children: [
               if (isOverdue) ...[
                 const Icon(LucideIcons.alertTriangle,
@@ -896,7 +992,7 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
                         color: isOverdue ? AppColors.negative : AppColors.fg,
                         fontFeatures: AppTypography.tabularFigures)),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               _scheduleAction(e, debt, preferred),
             ],
           ),
@@ -1201,10 +1297,10 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
       return const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(LucideIcons.check, size: 13, color: AppColors.positive),
+          Icon(LucideIcons.check, size: 12, color: AppColors.positive),
           SizedBox(width: 4),
           Text('已确认',
-              style: TextStyle(fontSize: 12, color: AppColors.muted)),
+              style: TextStyle(fontSize: 11, color: AppColors.muted)),
         ],
       );
     }
@@ -1213,54 +1309,28 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
         debt.collectionAccountId != null && debt.collectionAccountId!.isNotEmpty;
 
     // D4 行内:collection 已配置 → 直接确认 + toast(无 dialog)。
-    if (hasCollection) {
-      return OutlinedButton.icon(
-        onPressed: () => _confirmInline(e, debt.collectionAccountId!, preferred),
-        icon: Icon(LucideIcons.check,
-            size: 13, color: overdue ? Colors.white : null),
-        label: const Text('确认收款'),
-        style: overdue
-            ? OutlinedButton.styleFrom(
-                backgroundColor: AppColors.negative,
-                foregroundColor: Colors.white,
-                side: const BorderSide(color: AppColors.negative),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 13, vertical: 5),
-                minimumSize: const Size(0, 30),
-                textStyle: const TextStyle(fontSize: 12),
-              )
-            : OutlinedButton.styleFrom(
-                foregroundColor: AppColors.accentHover,
-                side: const BorderSide(color: AppColors.border),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 13, vertical: 5),
-                minimumSize: const Size(0, 30),
-                textStyle: const TextStyle(fontSize: 12),
-              ),
-      );
-    }
-
-    // fallback:collection 为空(legacy)→ 弹 dialog 选收款账户。
-    return OutlinedButton.icon(
-      onPressed: () => _openRecordPayment(e),
+    // 紧凑 TextButton.icon(padding h8 v4,fontSize 11);逾期仍红底白字。
+    final onPressed = hasCollection
+        ? () => _confirmInline(e, debt.collectionAccountId!, preferred)
+        : () => _openRecordPayment(e);
+    return TextButton.icon(
+      onPressed: onPressed,
       icon: Icon(LucideIcons.check,
-          size: 13, color: overdue ? Colors.white : null),
+          size: 12, color: overdue ? Colors.white : AppColors.accentHover),
       label: const Text('确认收款'),
       style: overdue
-          ? OutlinedButton.styleFrom(
+          ? TextButton.styleFrom(
               backgroundColor: AppColors.negative,
               foregroundColor: Colors.white,
-              side: const BorderSide(color: AppColors.negative),
-              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 5),
-              minimumSize: const Size(0, 30),
-              textStyle: const TextStyle(fontSize: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: const Size(0, 26),
+              textStyle: const TextStyle(fontSize: 11),
             )
-          : OutlinedButton.styleFrom(
+          : TextButton.styleFrom(
               foregroundColor: AppColors.accentHover,
-              side: const BorderSide(color: AppColors.border),
-              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 5),
-              minimumSize: const Size(0, 30),
-              textStyle: const TextStyle(fontSize: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: const Size(0, 26),
+              textStyle: const TextStyle(fontSize: 11),
             ),
     );
   }
