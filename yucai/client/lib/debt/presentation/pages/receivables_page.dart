@@ -212,22 +212,20 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
                 children: [
                   _SectionHead(count: debts.length),
                   const Spacer(),
-                  Flexible(
-                    child: _ListFilterSegmented(
-                      filter: _filter,
-                      activeCount: debts
-                          .where((d) => d.remainingPrincipalCents > 0)
-                          .length,
-                      settledCount: debts
-                          .where((d) => d.remainingPrincipalCents <= 0)
-                          .length,
-                      overdueCount: debts
-                          .where((d) =>
-                              d.remainingPrincipalCents > 0 &&
-                              d.dueDate.isBefore(DateTime.now()))
-                          .length,
-                      onChanged: (f) => setState(() => _filter = f),
-                    ),
+                  _ListFilterSegmented(
+                    filter: _filter,
+                    activeCount: debts
+                        .where((d) => d.remainingPrincipalCents > 0)
+                        .length,
+                    settledCount: debts
+                        .where((d) => d.remainingPrincipalCents <= 0)
+                        .length,
+                    overdueCount: debts
+                        .where((d) =>
+                            d.remainingPrincipalCents > 0 &&
+                            d.dueDate.isBefore(DateTime.now()))
+                        .length,
+                    onChanged: (f) => setState(() => _filter = f),
                   ),
                 ],
               ),
@@ -363,7 +361,8 @@ class _OverviewCard extends StatelessWidget {
                       if (summary != null &&
                           summary!.principalTrendCents != 0) ...[
                         const SizedBox(height: 6),
-                        _trendLine(summary!.principalTrendCents, preferred),
+                        _trendLine(summary!.principalTrendCents, preferred,
+                            summary!.newCountThisMonth),
                       ],
                     ],
                   ),
@@ -523,7 +522,7 @@ class _OverviewCard extends StatelessWidget {
   }
 
   /// trend line:正绿「+¥X」/ 负红「-¥X」(对齐 OD `<b style="color:green">+¥100,000</b>`)。
-  Widget _trendLine(int cents, String preferred) {
+  Widget _trendLine(int cents, String preferred, int newCount) {
     final isUp = cents > 0;
     final color = isUp ? AppColors.positive : const Color(0xFFC4544D);
     final sign = isUp ? '+' : '-';
@@ -539,6 +538,8 @@ class _OverviewCard extends StatelessWidget {
                   color: color,
                   fontWeight: FontWeight.w600,
                   fontFeatures: AppTypography.tabularFigures)),
+          // 加分项:OD「· 新增 N 笔」(本月新借出笔数,> 0 才显)。
+          if (newCount > 0) TextSpan(text: ' · 新增 $newCount 笔'),
         ],
       ),
     );
@@ -611,7 +612,8 @@ class _OverviewCard extends StatelessWidget {
                 if (summary != null &&
                     summary!.principalTrendCents != 0) ...[
                   const SizedBox(height: 5),
-                  _trendLine(summary!.principalTrendCents, preferred),
+                  _trendLine(summary!.principalTrendCents, preferred,
+                      summary!.newCountThisMonth),
                 ],
                 const SizedBox(height: 14),
                 const Text('剩余应收（本金）',
@@ -1864,64 +1866,52 @@ class _CardFootCallout extends StatelessWidget {
             color: isOverdue && !hasNext ? AppColors.negative : AppColors.accent,
           ),
           const SizedBox(width: 10),
+          // 单行 callout(对齐 OD .rcv-next 单行 flex-wrap;「含逾期」并入主行,
+          // 不另起 Column 行,避免与右侧按钮垂直错位)。
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (hasNext)
-                  Text.rich(
+            child: Text.rich(
+              TextSpan(
+                style: const TextStyle(
+                    fontSize: 12.5,
+                    color: AppColors.fg,
+                    fontFeatures: AppTypography.tabularFigures),
+                children: [
+                  if (hasNext) ...[
+                    const TextSpan(
+                        text: '下次收款 · ',
+                        style: TextStyle(
+                            color: AppColors.muted,
+                            fontWeight: FontWeight.w500)),
                     TextSpan(
-                      style: const TextStyle(
-                          fontSize: 12.5,
-                          color: AppColors.fg,
-                          fontFeatures: AppTypography.tabularFigures),
-                      children: [
-                        const TextSpan(
-                            text: '下次收款 · ',
-                            style: TextStyle(
-                                color: AppColors.muted,
-                                fontWeight: FontWeight.w500)),
-                        TextSpan(
-                            text:
-                                '第 ${debt.nextPaymentPeriodNo} 期 · ${_fmtDate(debt.nextPaymentDate!)}'),
-                        TextSpan(
-                            text:
-                                ' · ${_fmtSymbol(debt.nextPaymentAmountCents, preferred)}',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.accentHover)),
-                      ],
-                    ),
-                  )
-                else if (isOverdue)
-                  Text('逾期 $overdueDays 天',
-                      style: const TextStyle(
-                          fontSize: 12.5,
-                          color: AppColors.negative,
-                          fontWeight: FontWeight.w600))
-                else
-                  // 正常(无 nextPayment + 未逾期):显「待收款」状态(到期日在 col4)。
-                  Text.rich(
+                        text:
+                            '第 ${debt.nextPaymentPeriodNo} 期 · ${_fmtDate(debt.nextPaymentDate!)}'),
                     TextSpan(
-                      style: const TextStyle(
-                          fontSize: 12.5, color: AppColors.muted),
-                      children: [
-                        const TextSpan(text: '状态 '),
-                        TextSpan(
-                            text: '待收款',
-                            style: const TextStyle(
-                                color: AppColors.fg,
-                                fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  ),
-                if (hasNext && isOverdue) ...[
-                  const SizedBox(height: 2),
-                  Text('含逾期 $overdueDays 天',
-                      style: const TextStyle(
-                          fontSize: 11, color: AppColors.negative)),
+                        text:
+                            ' · ${_fmtSymbol(debt.nextPaymentAmountCents, preferred)}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.accentHover)),
+                    if (isOverdue)
+                      TextSpan(
+                          text: ' · 含逾期 $overdueDays 天',
+                          style: const TextStyle(
+                              fontSize: 11, color: AppColors.negative)),
+                  ] else if (isOverdue)
+                    TextSpan(
+                        text: '逾期 $overdueDays 天',
+                        style: const TextStyle(
+                            color: AppColors.negative,
+                            fontWeight: FontWeight.w600))
+                  else ...[
+                    const TextSpan(
+                        text: '状态 ', style: TextStyle(color: AppColors.muted)),
+                    TextSpan(
+                        text: '待收款',
+                        style: const TextStyle(
+                            color: AppColors.fg, fontWeight: FontWeight.w600)),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -1933,6 +1923,8 @@ class _CardFootCallout extends StatelessWidget {
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             style: TextButton.styleFrom(
               foregroundColor: AppColors.muted,
+              backgroundColor: AppColors.surface, // OD .btn-ghost
+              side: const BorderSide(color: AppColors.border), // OD .btn-ghost border
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               minimumSize: const Size(0, 0),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -1956,6 +1948,7 @@ class _CardFootCallout extends StatelessWidget {
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             style: TextButton.styleFrom(
               foregroundColor: AppColors.accentHover,
+              backgroundColor: const Color(0xFFF3EBDD), // OD .btn-soft gold-soft
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               minimumSize: const Size(0, 0),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -2082,6 +2075,8 @@ class _ListFilterSegmented extends StatelessWidget {
     ];
     return Container(
       // OD `.seg`:bg #efede6 + border + radius 10 + padding 3 + gap 2。
+      // 紧凑 border 只包 tabs(不撑满);Row 里 Spacer 推本容器到行末(对齐
+      // OD .list-head space-between:标题左 · tabs 右)。
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: const Color(0xFFEFEDE6),
@@ -2090,6 +2085,7 @@ class _ListFilterSegmented extends StatelessWidget {
       ),
       // Wrap 替代 Row(4-seg 在窄 mobile 可能换行,避免溢出)。
       child: Wrap(
+        alignment: WrapAlignment.end, // OD .list-head space-between → tabs 贴右
         spacing: 2,
         runSpacing: 0,
         children: [

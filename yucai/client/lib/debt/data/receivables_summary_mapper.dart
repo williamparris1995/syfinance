@@ -27,5 +27,6 @@ ReceivablesSummary receivablesSummaryDtoToEntity(pb.ReceivablesSummaryDTO dto) {
     nextPaymentAmountCents: dto.nextPaymentAmountCents.toInt(),
     nextPaymentCounterparty: dto.nextPaymentCounterparty,
     nextPaymentPeriodNo: dto.nextPaymentPeriodNo,
+    newCountThisMonth: dto.newCountThisMonth,
   );
 }

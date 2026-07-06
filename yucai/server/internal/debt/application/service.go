@@ -284,14 +284,21 @@ func (s *Service) GetUpcomingPayments(ctx context.Context, tenantID uuid.UUID, d
 //   - PendingInterestCents    Σ interest of every unpaid schedule entry
 //   - OverdueCount/Amount     Σ unpaid entries whose PaymentDate < now
 //
-// Trend (snapshotRepo, this month vs last month):
-//   - PrincipalTrendCents     Σ (this_month_total − last_month_total)
+// Trend:
+//   - PrincipalTrendCents     Σ TotalPrincipalCents of receivables with
+//                             created_at in [monthStart, nextMonthStart) — i.e.
+//                             new lending this month. totalPrincipal only grows
+//                             with new debts, so month-over-month delta ≡ new
+//                             lending; computed from created_at (cold-start
+//                             safe, no snapshot history needed).
+//   - NewCountThisMonth       count of receivables created this month.
 //   - RemainingTrendCents     Σ (this_month_remaining − last_month_remaining)
-//   "This month" = [monthStart(now), monthStart(now)+1mo); "last month" =
-//   [monthStart(now)-1mo, monthStart(now)). Per-debt: the trend is Σ only over
-//   debts that have a snapshot in BOTH months; a debt missing either side's
-//   snapshot is skipped (no valid baseline — we do not fabricate a delta by
-//   treating the missing side as 0).
+//                             via snapshotRepo. "This month" = [monthStart(now),
+//                             monthStart(now)+1mo); "last month" = [monthStart
+//                             (now)-1mo, monthStart(now)). Per-debt: Σ only over
+//                             debts with a snapshot in BOTH months; a debt
+//                             missing either side's snapshot is skipped (no valid
+//                             baseline). nil snapshotRepo → 0.
 //
 // NextPayment* are the globally earliest unpaid entry across every receivable's
 // schedule (ties broken by first-debt-seen), with the host debt's counterparty
@@ -341,6 +348,15 @@ func (s *Service) GetReceivablesSummary(ctx context.Context, tenantID uuid.UUID)
 		summary.TotalRemainingCents += remaining
 		summary.TotalCollectedCents += collected
 
+		// Principal trend: new lending this month (created_at in this month).
+		// totalPrincipal only grows with new debts, so month-over-month delta
+		// ≡ new lending — computable from created_at without snapshot history
+		// (cold-start safe). See dto.go ReceivablesSummaryDTO trend notes.
+		if !d.CreatedAt.Before(monthStart) && d.CreatedAt.Before(nextMonthStart) {
+			summary.PrincipalTrendCents += d.TotalPrincipalCents
+			summary.NewCountThisMonth++
+		}
+
 		for j := range d.Schedule {
 			e := &d.Schedule[j]
 			if e.Paid {
@@ -370,11 +386,13 @@ func (s *Service) GetReceivablesSummary(ctx context.Context, tenantID uuid.UUID)
 		summary.NextPaymentPeriodNo = nextPeriodNo
 	}
 
-	// Trend via snapshots (nil snapshotRepo → trend stays 0).
+	// Remaining trend via snapshots (principal trend is computed above from
+	// created_at; remaining depends on payments so it still needs snapshot
+	// history). nil snapshotRepo → remaining trend stays 0.
 	if s.snapshotRepo != nil && len(debtIDs) > 0 {
 		snaps, err := s.snapshotRepo.FindSnapshotRange(ctx, tenantID, debtIDs, lastMonthStart, nextMonthStart)
 		if err != nil {
-			slog.Warn("receivables summary: snapshot range failed, trend zeroed",
+			slog.Warn("receivables summary: snapshot range failed, remaining trend zeroed",
 				slog.String("error", err.Error()),
 				slog.String("operation", "GetReceivablesSummary"))
 		} else {
@@ -389,16 +407,14 @@ func (s *Service) GetReceivablesSummary(ctx context.Context, tenantID uuid.UUID)
 					lastMonthByDebt[sn.DebtID] = sn
 				}
 			}
-			// Trend per debt only when both months are present — a debt with a
-			// snapshot in only one month (e.g. newly created this month, or
-			// stale / never-snapshotted last month) has no valid baseline, so
-			// it contributes 0 rather than skewing the delta.
+			// Remaining trend per debt only when both months are present — a
+			// debt snapshotted in only one month has no valid baseline, so it
+			// contributes 0 rather than skewing the delta.
 			for id, thisM := range thisMonthByDebt {
 				lastM, ok := lastMonthByDebt[id]
 				if !ok {
 					continue
 				}
-				summary.PrincipalTrendCents += thisM.TotalPrincipalCents - lastM.TotalPrincipalCents
 				summary.RemainingTrendCents += thisM.RemainingCents - lastM.RemainingCents
 			}
 		}

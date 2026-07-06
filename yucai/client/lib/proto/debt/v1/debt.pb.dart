@@ -1480,6 +1480,7 @@ class ReceivablesSummaryDTO extends $pb.GeneratedMessage {
     $fixnum.Int64? nextPaymentAmountCents,
     $core.String? nextPaymentCounterparty,
     $core.int? nextPaymentPeriodNo,
+    $core.int? newCountThisMonth,
   }) {
     final result = create();
     if (totalPrincipalCents != null)
@@ -1505,6 +1506,7 @@ class ReceivablesSummaryDTO extends $pb.GeneratedMessage {
       result.nextPaymentCounterparty = nextPaymentCounterparty;
     if (nextPaymentPeriodNo != null)
       result.nextPaymentPeriodNo = nextPaymentPeriodNo;
+    if (newCountThisMonth != null) result.newCountThisMonth = newCountThisMonth;
     return result;
   }
 
@@ -1534,6 +1536,7 @@ class ReceivablesSummaryDTO extends $pb.GeneratedMessage {
     ..aInt64(11, _omitFieldNames ? '' : 'nextPaymentAmountCents')
     ..aOS(12, _omitFieldNames ? '' : 'nextPaymentCounterparty')
     ..aI(13, _omitFieldNames ? '' : 'nextPaymentPeriodNo')
+    ..aI(14, _omitFieldNames ? '' : 'newCountThisMonth')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1672,6 +1675,17 @@ class ReceivablesSummaryDTO extends $pb.GeneratedMessage {
   $core.bool hasNextPaymentPeriodNo() => $_has(12);
   @$pb.TagNumber(13)
   void clearNextPaymentPeriodNo() => $_clearField(13);
+
+  /// Count of receivables newly created this month (created_at in current month).
+  /// Drives the "较上月 +¥X · 新增 N 笔" trend line on the list overview.
+  @$pb.TagNumber(14)
+  $core.int get newCountThisMonth => $_getIZ(13);
+  @$pb.TagNumber(14)
+  set newCountThisMonth($core.int value) => $_setSignedInt32(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasNewCountThisMonth() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearNewCountThisMonth() => $_clearField(14);
 }
 
 class ReceivablesSummaryResponse extends $pb.GeneratedMessage {

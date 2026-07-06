@@ -576,6 +576,13 @@ const ReceivablesSummaryDTO$json = {
       '5': 5,
       '10': 'nextPaymentPeriodNo'
     },
+    {
+      '1': 'new_count_this_month',
+      '3': 14,
+      '4': 1,
+      '5': 5,
+      '10': 'newCountThisMonth'
+    },
   ],
 };
 
@@ -592,7 +599,8 @@ final $typed_data.Uint8List receivablesSummaryDTODescriptor = $convert.base64Dec
     'dHMSKgoRbmV4dF9wYXltZW50X2RhdGUYCiABKAlSD25leHRQYXltZW50RGF0ZRI5ChluZXh0X3'
     'BheW1lbnRfYW1vdW50X2NlbnRzGAsgASgDUhZuZXh0UGF5bWVudEFtb3VudENlbnRzEjoKGW5l'
     'eHRfcGF5bWVudF9jb3VudGVycGFydHkYDCABKAlSF25leHRQYXltZW50Q291bnRlcnBhcnR5Ej'
-    'MKFm5leHRfcGF5bWVudF9wZXJpb2Rfbm8YDSABKAVSE25leHRQYXltZW50UGVyaW9kTm8=');
+    'MKFm5leHRfcGF5bWVudF9wZXJpb2Rfbm8YDSABKAVSE25leHRQYXltZW50UGVyaW9kTm8SLwoU'
+    'bmV3X2NvdW50X3RoaXNfbW9udGgYDiABKAVSEW5ld0NvdW50VGhpc01vbnRo');
 
 @$core.Deprecated('Use receivablesSummaryResponseDescriptor instead')
 const ReceivablesSummaryResponse$json = {

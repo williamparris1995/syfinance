@@ -1,6 +1,6 @@
 // ReceivablesSummary entity(receivables 对齐,Task 8)—— 应收债权汇总只读视图。
 //
-// 字段对齐 debt.proto ReceivablesSummaryDTO(13 字段)。cents 字段为 int
+// 字段对齐 debt.proto ReceivablesSummaryDTO(14 字段)。cents 字段为 int
 // (proto Int64 经 mapper `.toInt()`,对齐 holding/budget mapper 的 Int64→int
 // 惯例);nextPaymentDate 为可空 DateTime(proto date-only string,空串 → null)。
 //
@@ -25,6 +25,7 @@ class ReceivablesSummary extends Equatable {
     required this.nextPaymentAmountCents,
     required this.nextPaymentCounterparty,
     required this.nextPaymentPeriodNo,
+    this.newCountThisMonth = 0,
   });
 
   /// 本金总额(借出累计)。
@@ -48,10 +49,11 @@ class ReceivablesSummary extends Equatable {
   /// 逾期总额(分)。
   final int overdueAmountCents;
 
-  /// 本金趋势(用于图表,服务端快照计算)。
+  /// 本月新借出本金(created_at 在当月的 borrowedOut 的 totalPrincipal Σ;
+  /// 服务端 created_at 算,非快照,冷启动安全)。
   final int principalTrendCents;
 
-  /// 剩余趋势(用于图表/预警,服务端算)。
+  /// 剩余趋势(用于图表/预警,服务端快照算)。
   final int remainingTrendCents;
 
   /// 下一期回款日(date-only string 解析后的 DateTime;null = 无计划)。
@@ -65,6 +67,9 @@ class ReceivablesSummary extends Equatable {
 
   /// 下一期期数。
   final int nextPaymentPeriodNo;
+
+  /// 本月新增债权笔数(created_at 在当月的 borrowedOut 数;drives trend「新增 N 笔」)。
+  final int newCountThisMonth;
 
   /// 已收比例(0~1)。totalCollected 相对 (totalCollected + totalRemaining)。
   /// 分母 ≤0 时 0(避免除零)。
@@ -88,5 +93,6 @@ class ReceivablesSummary extends Equatable {
         nextPaymentAmountCents,
         nextPaymentCounterparty,
         nextPaymentPeriodNo,
+        newCountThisMonth,
       ];
 }

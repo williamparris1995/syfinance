@@ -445,6 +445,7 @@ func TestGetReceivablesSummary(t *testing.T) {
 		Counterparty:        "Alice",
 		TotalPrincipalCents: 1_000_00,
 		DebtType:            domain.BorrowedOut,
+		CreatedAt:           time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC), // this month
 		Contact:             "AliceContact",
 		Schedule: []domain.PaymentScheduleEntry{
 			mkEntry(time.Date(2026, 1, 31, 0, 0, 0, 0, time.UTC), 200_00, 50_00, true),
@@ -462,6 +463,7 @@ func TestGetReceivablesSummary(t *testing.T) {
 		Counterparty:        "Bob",
 		TotalPrincipalCents: 500_00,
 		DebtType:            domain.BorrowedOut,
+		CreatedAt:           time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC), // last month
 		Schedule: []domain.PaymentScheduleEntry{
 			mkEntry(time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC), 250_00, 10_00, false),
 			mkEntry(time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC), 250_00, 5_00, false),
@@ -526,12 +528,17 @@ func TestGetReceivablesSummary(t *testing.T) {
 		t.Errorf("OverdueAmountCents = %d, want 240000 (debtA Feb total 200+40)", summary.OverdueAmountCents)
 	}
 
-	// Trend: this month vs last month for receivables.
-	// principal_trend = Σ (this_month_principal - last_month_principal) = (1000-1000)+(500-500) = 0
-	// remaining_trend = Σ (this_month_remaining - last_month_remaining) = (800-1000)+(no this-month-snapshot for B → skip)
-	//                  = -200_00 (debtA reduced = collected)
-	if summary.PrincipalTrendCents != 0 {
-		t.Errorf("PrincipalTrendCents = %d, want 0", summary.PrincipalTrendCents)
+	// Trend:
+	// principal_trend = Σ total_principal of receivables created this month
+	// (debtA created 2026-06-10 this month; debtB created 2026-05-10 last month
+	// → only debtA counts) = 1_000_00. new_count_this_month = 1.
+	// remaining_trend = Σ (this_month_remaining - last_month_remaining) via snapshot
+	// = (800-1000) + (no this-month-snapshot for B → skip) = -200_00 (debtA collected).
+	if summary.PrincipalTrendCents != 1_000_00 {
+		t.Errorf("PrincipalTrendCents = %d, want 100000 (debtA new this month)", summary.PrincipalTrendCents)
+	}
+	if summary.NewCountThisMonth != 1 {
+		t.Errorf("NewCountThisMonth = %d, want 1 (debtA)", summary.NewCountThisMonth)
 	}
 	if summary.RemainingTrendCents != -200_00 {
 		t.Errorf("RemainingTrendCents = %d, want -200000", summary.RemainingTrendCents)

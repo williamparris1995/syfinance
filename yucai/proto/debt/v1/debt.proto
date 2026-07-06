@@ -148,6 +148,9 @@ message ReceivablesSummaryDTO {
   int64 next_payment_amount_cents = 11;
   string next_payment_counterparty = 12;
   int32 next_payment_period_no = 13;
+  // Count of receivables newly created this month (created_at in current month).
+  // Drives the "较上月 +¥X · 新增 N 笔" trend line on the list overview.
+  int32 new_count_this_month = 14;
 }
 
 message ReceivablesSummaryResponse { ReceivablesSummaryDTO summary = 1; }

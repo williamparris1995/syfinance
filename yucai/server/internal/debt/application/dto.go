@@ -135,15 +135,22 @@ type UpcomingPaymentsResult struct {
 // the original debt currency (server does no FX conversion; the client converts
 // to the user's preferred currency in Task 9).
 //
-// Trend fields compare this month's snapshot against last month's per debt:
-//   - PrincipalTrendCents = Σ (this_month_total_principal − last_month_total_principal)
-//     → month-over-month new lending (positive = lent more out).
+// Trend:
+//   - PrincipalTrendCents = Σ total_principal of receivables created this month
+//     (created_at in [monthStart, nextMonthStart)). totalPrincipal only grows
+//     with new debts, so month-over-month delta ≡ new lending — computed
+//     directly from created_at (cold-start safe: no snapshot history needed,
+//     unlike the prior snapshot-delta approach which stayed 0 until a debt had
+//     snapshots in BOTH months).
 //   - RemainingTrendCents = Σ (this_month_remaining − last_month_remaining)
-//     → negative = principal collected back; positive = balance grew (more lent).
+//     → negative = principal collected back. Remaining depends on payments, so
+//     it still uses snapshot history (nil snapshotRepo → 0).
+//   - NewCountThisMonth = count of receivables created this month (drives the
+//     "新增 N 笔" suffix on the principal trend line).
 //
-// The trend is Σ only over debts that have a snapshot in BOTH months; a debt
-// missing either month's snapshot contributes nothing (no valid baseline, we
-// do not fabricate a delta by treating the missing side as 0).
+// The remaining trend is Σ only over debts with a snapshot in BOTH months; a
+// debt missing either month's snapshot contributes nothing (no valid baseline,
+// we do not fabricate a delta by treating the missing side as 0).
 type ReceivablesSummaryDTO struct {
 	TotalPrincipalCents   int64
 	TotalRemainingCents   int64
@@ -158,6 +165,7 @@ type ReceivablesSummaryDTO struct {
 	NextPaymentAmountCents int64
 	NextPaymentCounterparty string
 	NextPaymentPeriodNo   int32
+	NewCountThisMonth     int32
 }
 
 // DebtToDTO converts domain DebtDetails to DTO. Populates NextPayment* fields

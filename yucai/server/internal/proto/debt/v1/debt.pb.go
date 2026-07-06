@@ -1202,8 +1202,11 @@ type ReceivablesSummaryDTO struct {
 	NextPaymentAmountCents  int64                  `protobuf:"varint,11,opt,name=next_payment_amount_cents,json=nextPaymentAmountCents,proto3" json:"next_payment_amount_cents,omitempty"`
 	NextPaymentCounterparty string                 `protobuf:"bytes,12,opt,name=next_payment_counterparty,json=nextPaymentCounterparty,proto3" json:"next_payment_counterparty,omitempty"`
 	NextPaymentPeriodNo     int32                  `protobuf:"varint,13,opt,name=next_payment_period_no,json=nextPaymentPeriodNo,proto3" json:"next_payment_period_no,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	// Count of receivables newly created this month (created_at in current month).
+	// Drives the "较上月 +¥X · 新增 N 笔" trend line on the list overview.
+	NewCountThisMonth int32 `protobuf:"varint,14,opt,name=new_count_this_month,json=newCountThisMonth,proto3" json:"new_count_this_month,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ReceivablesSummaryDTO) Reset() {
@@ -1323,6 +1326,13 @@ func (x *ReceivablesSummaryDTO) GetNextPaymentCounterparty() string {
 func (x *ReceivablesSummaryDTO) GetNextPaymentPeriodNo() int32 {
 	if x != nil {
 		return x.NextPaymentPeriodNo
+	}
+	return 0
+}
+
+func (x *ReceivablesSummaryDTO) GetNewCountThisMonth() int32 {
+	if x != nil {
+		return x.NewCountThisMonth
 	}
 	return 0
 }
@@ -1467,7 +1477,7 @@ const file_debt_v1_debt_proto_rawDesc = "" +
 	"\x04debt\x18\x01 \x01(\v2\x16.yucai.debt.v1.DebtDTOR\x04debt\"F\n" +
 	"\x12DebtDetailResponse\x120\n" +
 	"\x04debt\x18\x01 \x01(\v2\x1c.yucai.debt.v1.DebtDetailDTOR\x04debt\"\x1e\n" +
-	"\x1cGetReceivablesSummaryRequest\"\x96\x05\n" +
+	"\x1cGetReceivablesSummaryRequest\"\xc7\x05\n" +
 	"\x15ReceivablesSummaryDTO\x122\n" +
 	"\x15total_principal_cents\x18\x01 \x01(\x03R\x13totalPrincipalCents\x122\n" +
 	"\x15total_remaining_cents\x18\x02 \x01(\x03R\x13totalRemainingCents\x122\n" +
@@ -1482,7 +1492,8 @@ const file_debt_v1_debt_proto_rawDesc = "" +
 	" \x01(\tR\x0fnextPaymentDate\x129\n" +
 	"\x19next_payment_amount_cents\x18\v \x01(\x03R\x16nextPaymentAmountCents\x12:\n" +
 	"\x19next_payment_counterparty\x18\f \x01(\tR\x17nextPaymentCounterparty\x123\n" +
-	"\x16next_payment_period_no\x18\r \x01(\x05R\x13nextPaymentPeriodNo\"\\\n" +
+	"\x16next_payment_period_no\x18\r \x01(\x05R\x13nextPaymentPeriodNo\x12/\n" +
+	"\x14new_count_this_month\x18\x0e \x01(\x05R\x11newCountThisMonth\"\\\n" +
 	"\x1aReceivablesSummaryResponse\x12>\n" +
 	"\asummary\x18\x01 \x01(\v2$.yucai.debt.v1.ReceivablesSummaryDTOR\asummary*\x9a\x01\n" +
 	"\x12AmortizationMethod\x12\x1c\n" +

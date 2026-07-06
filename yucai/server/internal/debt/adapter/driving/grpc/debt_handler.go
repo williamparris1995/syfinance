@@ -599,6 +599,7 @@ func summaryToProto(s application.ReceivablesSummaryDTO) *pb.ReceivablesSummaryD
 		NextPaymentAmountCents:  s.NextPaymentAmountCents,
 		NextPaymentCounterparty: s.NextPaymentCounterparty,
 		NextPaymentPeriodNo:     s.NextPaymentPeriodNo,
+		NewCountThisMonth:       s.NewCountThisMonth,
 	}
 }
 
