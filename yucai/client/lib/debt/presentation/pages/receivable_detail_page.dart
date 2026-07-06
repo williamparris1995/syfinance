@@ -43,8 +43,8 @@ class ReceivableDetailPage extends StatefulWidget {
 }
 
 class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
-  /// schedule 筛选状态（全部/待收/已收/逾期）。默认「全部」。
-  _ScheduleFilter _filter = _ScheduleFilter.all;
+  /// schedule 筛选状态。OD 原型无 tabs(只 sec-h + table),固定 all 全显。
+  final _ScheduleFilter _filter = _ScheduleFilter.all;
 
   /// 全量收款账户缓存（accountId → Account），供 确认收款 选择 to_account。
   /// initState 异步拉取（直接走 repository，不经 DebtBloc）。
@@ -142,14 +142,13 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     final isMobile = w <= 720; // ≤720 mobile（与 debt_detail_page 对齐）
     // D3:desktop(>1080)双列带 side panel;tablet/mobile 单列(side panel 下移)。
     final showSide = w > 1080;
-    // 透明 AppBar(extendBodyBehindAppBar)hero 直铺页顶 → body 顶部需让出
-    // AppBar 高(kToolbarHeight 56)+ 状态栏,避免 hero 内容压在 back icon 下。
-    final topPad = MediaQuery.of(context).padding.top + kToolbarHeight;
+    // 透明 AppBar(extendBodyBehindAppBar)hero 直铺页顶 → ListView top 0,
+    // hero padding top 让出 back icon 空间(避免压)。
 
     return ListView(
       padding: isMobile
-          ? EdgeInsets.fromLTRB(16, 14 + topPad, 16, 60)
-          : EdgeInsets.fromLTRB(36, 24 + topPad, 36, 70),
+          ? const EdgeInsets.fromLTRB(16, 14, 16, 60)
+          : const EdgeInsets.fromLTRB(36, 0, 36, 70),
       children: [
         if (showSide) ...[
           // OD 对齐:.hero + .stats5 全宽铺满;仅 .grid-2(schedule + side panel)双列。
@@ -355,8 +354,10 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     return ClipRRect(
       borderRadius: AppRadius.lgBorder,
       child: Container(
-        // OD .hero padding 18px(原型四面均 18,对齐 OD)。
-        padding: const EdgeInsets.all(18),
+        // OD .hero padding 18px(四面均 18);top 额外让 back icon 空间
+        // (status + kToolbarHeight + 18,透明 AppBar 浮 hero 上)。
+        padding: EdgeInsets.fromLTRB(
+            18, MediaQuery.of(context).padding.top + kToolbarHeight + 18, 18, 18),
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -699,10 +700,7 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
             ],
           ),
           const SizedBox(height: 14),
-          // 筛选 segmented（全部/待收/已收/逾期）。
-          _filterSegmented(),
-          const SizedBox(height: 14),
-          // 列表（desktop/tablet 表 / mobile 卡）。
+          // 列表（desktop/tablet 表 / mobile 卡）。OD schedule 无 tabs(只 sec-h + table)。
           _filteredSchedule(schedule).isEmpty
               ? const Padding(
                   padding: EdgeInsets.all(24),
@@ -769,62 +767,6 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
   }
 
   /// 筛选 segmented（对齐 OD .seg：全部/待收/已收/逾期）。
-  Widget _filterSegmented() {
-    const segments = [
-      (_ScheduleFilter.all, '全部'),
-      (_ScheduleFilter.pending, '待收'),
-      (_ScheduleFilter.paid, '已收'),
-      (_ScheduleFilter.overdue, '逾期'),
-    ];
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEFECE5),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final (f, label) in segments)
-            _filterSegment(f, label),
-        ],
-      ),
-    );
-  }
-
-  Widget _filterSegment(_ScheduleFilter f, String label) {
-    final active = f == _filter;
-    return InkWell(
-      key: ValueKey('filterSegment-$label'),
-      onTap: () => setState(() => _filter = f),
-      borderRadius: BorderRadius.circular(7),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: active ? AppColors.surface : Colors.transparent,
-          borderRadius: BorderRadius.circular(7),
-          boxShadow: active
-              ? const [
-                  BoxShadow(
-                      color: Color(0x0F1C1E21),
-                      blurRadius: 3,
-                      offset: Offset(0, 1))
-                ]
-              : const [],
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-            color: active ? AppColors.accentHover : const Color(0xFF54585F),
-          ),
-        ),
-      ),
-    );
-  }
-
   List<PaymentEntry> _filteredSchedule(List<PaymentEntry> schedule) {
     switch (_filter) {
       case _ScheduleFilter.all:
@@ -859,8 +801,7 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
           0: FlexColumnWidth(1.4),
           1: FlexColumnWidth(1),
           2: FlexColumnWidth(1),
-          3: FlexColumnWidth(1),
-          4: IntrinsicColumnWidth(),
+          3: FlexColumnWidth(1.3), // 合计列稍宽(含行末操作 link,对齐 OD)
         },
         children: [
           TableRow(
@@ -873,7 +814,6 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
               _tableHeader('收回本金', align: TextAlign.right),
               _tableHeader('利息收入', align: TextAlign.right),
               _tableHeader('合计', align: TextAlign.right),
-              _tableHeader('操作', align: TextAlign.center),
             ],
           ),
           for (var i = 0; i < entries.length; i++)
@@ -936,44 +876,32 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
             color: AppColors.muted),
         _cellRight(_fmtSymbol(e.interestCents, preferred),
             color: AppColors.muted),
-        // 合计:逾期 → 红 + ⚠;正常 bold。
-        _totalCell(_fmtSymbol(e.totalCents, preferred), isOverdue),
+        // 合计 + 行末操作(对齐 OD 4 列:合计列含行末「确认收款」link,无独立操作列)。
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          child: Center(child: _scheduleAction(e, debt, preferred)),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isOverdue) ...[
+                const Icon(LucideIcons.alertTriangle,
+                    size: 13, color: AppColors.negative),
+                const SizedBox(width: 4),
+              ],
+              Flexible(
+                child: Text(_fmtSymbol(e.totalCents, preferred),
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: isOverdue ? AppColors.negative : AppColors.fg,
+                        fontFeatures: AppTypography.tabularFigures)),
+              ),
+              const SizedBox(width: 12),
+              _scheduleAction(e, debt, preferred),
+            ],
+          ),
         ),
       ],
-    );
-  }
-
-  /// 合计单元格:逾期 → 红字 + ⚠;正常 → bold fg(对齐 OD 合计列)。
-  /// narrow 列(tablet/≤900)金额 + ⚠ Row 可能水平溢出 → Flexible 让 Text shrink。
-  Widget _totalCell(String text, bool isOverdue) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Flexible(
-            child: Text(text,
-                textAlign: TextAlign.right,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: isOverdue ? AppColors.negative : AppColors.fg,
-                  fontFeatures: AppTypography.tabularFigures,
-                )),
-          ),
-          if (isOverdue) ...[
-            const SizedBox(width: 4),
-            const Icon(LucideIcons.alertTriangle,
-                size: 13, color: AppColors.negative),
-          ],
-        ],
-      ),
     );
   }
 

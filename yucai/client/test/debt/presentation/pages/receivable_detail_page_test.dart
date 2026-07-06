@@ -332,49 +332,6 @@ void main() {
     });
   });
 
-  group('筛选 (segmented)', () {
-    testWidgets('renders 全部/待收/已收/逾期 filter segments', (t) async {
-      t.view.physicalSize = desktop;
-      t.view.devicePixelRatio = 1.0;
-      addTearDown(t.view.resetPhysicalSize);
-      await t.pumpWidget(_harness(detail: _detail()));
-      await t.pumpAndSettle();
-      // 4 个筛选 segment（by ValueKey，避开状态 badge/sum-pill 同名文字）
-      expect(find.byKey(const ValueKey('filterSegment-全部')), findsOneWidget);
-      expect(find.byKey(const ValueKey('filterSegment-待收')), findsOneWidget);
-      expect(find.byKey(const ValueKey('filterSegment-已收')), findsOneWidget);
-      expect(find.byKey(const ValueKey('filterSegment-逾期')), findsOneWidget);
-    });
-
-    testWidgets('tap 已收 filters to paid-only entries', (t) async {
-      t.view.physicalSize = desktop;
-      t.view.devicePixelRatio = 1.0;
-      addTearDown(t.view.resetPhysicalSize);
-      await t.pumpWidget(_harness(detail: _detail()));
-      await t.pumpAndSettle();
-      await t.tap(find.byKey(const ValueKey('filterSegment-已收')));
-      await t.pumpAndSettle();
-      // 已收 entry 2 个；待收/逾期被过滤。「已确认」仍 2 个；「确认收款」应为 0。
-      // (schedule offstage,skipOffstage:false)
-      expect(find.text('已确认', skipOffstage: false), findsNWidgets(2));
-      expect(
-          find.textContaining('确认收款', skipOffstage: false), findsNothing);
-    });
-
-    testWidgets('tap 逾期 filters to overdue-only entry', (t) async {
-      t.view.physicalSize = desktop;
-      t.view.devicePixelRatio = 1.0;
-      addTearDown(t.view.resetPhysicalSize);
-      await t.pumpWidget(_harness(detail: _detail()));
-      await t.pumpAndSettle();
-      await t.tap(find.byKey(const ValueKey('filterSegment-逾期')));
-      await t.pumpAndSettle();
-      // 只剩 1 个逾期 entry → 1 个确认收款按钮(offstage → skipOffstage:false)
-      expect(find.textContaining('确认收款', skipOffstage: false), findsOneWidget);
-      expect(find.text('已确认', skipOffstage: false), findsNothing);
-    });
-  });
-
   group('确认收款 (RecordPayment) — D4 行内', () {
     testWidgets(
         'collection 已配置 → tap 确认收款 直接 dispatch RecordPayment (无 dialog)',
