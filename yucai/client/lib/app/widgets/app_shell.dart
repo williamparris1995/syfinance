@@ -10,6 +10,53 @@ import 'package:yucai_client/auth/presentation/bloc/auth_event.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 
+/// Branch 元数据:面包屑(section › page)+ list 页创建按钮(label + route)。
+/// [_TopBar] 按 branchIndex 取 meta,按 location 区分 list(显创建按钮)vs
+/// detail/form/new/edit(不显)。对齐 OD .topbar(面包屑 .crumbs + 创建 .btn-primary)。
+({String section, String page, String rootPath, String? createLabel, String? createRoute})
+    _branchMetaOf(int index) {
+  switch (index) {
+    case 0:
+      return (section: '', page: '仪表盘', rootPath: '/home', createLabel: null, createRoute: null);
+    case 1:
+      // accounts 无 /accounts/new route(client 创建入口待 account 模块补全);
+      // topbar 暂不显创建按钮,避免 push 不存在路由。
+      return (section: '财务', page: '账户管理', rootPath: '/accounts', createLabel: null, createRoute: null);
+    case 2:
+      return (
+        section: '财务', page: '交易管理', rootPath: '/transactions',
+        createLabel: '新增交易', createRoute: '/transactions/new',
+      );
+    case 3:
+      return (
+        section: '财务', page: '债务管理', rootPath: '/debts',
+        createLabel: '新增债务', createRoute: '/debts/new',
+      );
+    case 4:
+      return (
+        section: '财务', page: '债权管理', rootPath: '/receivables',
+        createLabel: '创建债权', createRoute: '/receivables/new',
+      );
+    case 5:
+      return (
+        section: '财务', page: '持仓管理', rootPath: '/holdings',
+        createLabel: '买入持仓', createRoute: '/holdings/trade',
+      );
+    case 6:
+      return (
+        section: '财务', page: '预算管理', rootPath: '/budgets',
+        createLabel: '新建预算', createRoute: '/budgets/new',
+      );
+    case 7:
+      return (
+        section: '规划', page: '目标管理', rootPath: '/goals',
+        createLabel: '新建目标', createRoute: '/goals/new',
+      );
+    default:
+      return (section: '', page: '御财', rootPath: '/', createLabel: null, createRoute: null);
+  }
+}
+
 /// 应用外壳（侧边栏 + 顶栏 + 内容区）。
 /// 由 [StatefulShellRoute] 驱动：[navigationShell] 切换各功能分支，
 /// 侧栏/顶栏在整个受保护区域内保持挂载、状态不丢失。
@@ -23,7 +70,7 @@ class AppShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthBloc>().state;
     final userName = auth is Authenticated ? auth.user.displayName : '御财用户';
-    final title = _branchTitle(navigationShell.currentIndex);
+    final location = GoRouterState.of(context).uri.toString();
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -44,7 +91,10 @@ class AppShell extends StatelessWidget {
                 Expanded(
                   child: Column(
                     children: [
-                      _TopBar(title: title),
+                      _TopBar(
+                        branchIndex: navigationShell.currentIndex,
+                        location: location,
+                      ),
                       const Divider(height: 1, color: AppColors.border),
                       Expanded(child: navigationShell),
                     ],
@@ -59,7 +109,11 @@ class AppShell extends StatelessWidget {
           backgroundColor: AppColors.bg,
           appBar: PreferredSize(
             preferredSize: const Size.fromHeight(56),
-            child: _TopBar(title: title, compact: true),
+            child: _TopBar(
+              branchIndex: navigationShell.currentIndex,
+              location: location,
+              compact: true,
+            ),
           ),
           body: navigationShell,
           bottomNavigationBar: _BottomNav(
@@ -74,28 +128,7 @@ class AppShell extends StatelessWidget {
     );
   }
 
-  String _branchTitle(int index) {
-    switch (index) {
-      case 0:
-        return '仪表盘';
-      case 1:
-        return '账户管理';
-      case 2:
-        return '交易管理';
-      case 3:
-        return '债务管理';
-      case 4:
-        return '债权管理';
-      case 5:
-        return '持仓管理';
-      case 6:
-        return '预算管理';
-      case 7:
-        return '目标管理';
-      default:
-        return '御财';
-    }
-  }
+  // branch 元数据(面包屑 section › page + list 页创建按钮)见顶层 _branchMetaOf。
 }
 
 // ───────────────────────── 侧边栏 ─────────────────────────
@@ -388,13 +421,21 @@ class _NavItemTileState extends State<_NavItemTile> {
 // ───────────────────────── 顶栏 ─────────────────────────
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.title, this.compact = false});
+  const _TopBar({
+    required this.branchIndex,
+    required this.location,
+    this.compact = false,
+  });
 
-  final String title;
+  final int branchIndex;
+  final String location;
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final meta = _branchMetaOf(branchIndex);
+    // 创建按钮仅 list 页显(location == rootPath;detail/form/new/edit 不显)。
+    final showCreate = meta.createLabel != null && location == meta.rootPath;
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
@@ -404,45 +445,111 @@ class _TopBar extends StatelessWidget {
           // OD .topbar: rgba(247,246,242,.85)
           color: const Color(0xFFF7F6F2).withValues(alpha: 0.85),
           child: Row(children: [
-        Text(title,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: AppColors.fg,
-              fontFamily: AppTypography.displayFamily,
-              fontFamilyFallback: AppTypography.displayFallback,
-            )),
-        const Spacer(),
-        if (!compact)
-          SizedBox(
-            width: 220,
-            child: TextField(
-              style: const TextStyle(fontSize: 14),
-              decoration: InputDecoration(
-                hintText: '搜索交易、账户…',
-                isDense: true,
-                prefixIcon: const Icon(LucideIcons.search,
-                    size: 18, color: AppColors.muted),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            // 面包屑:section › page(对齐 OD .crumbs)。
+            _BreadCrumb(section: meta.section, page: meta.page),
+            const Spacer(),
+            // 创建按钮(list 页,对齐 OD .topbar .btn-primary gold)。
+            if (showCreate) ...[
+              _TopBarCreate(label: meta.createLabel!, route: meta.createRoute!),
+              const SizedBox(width: AppSpacing.sm),
+            ],
+            if (!compact)
+              SizedBox(
+                width: 220,
+                child: TextField(
+                  style: const TextStyle(fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: '搜索交易、账户…',
+                    isDense: true,
+                    prefixIcon: const Icon(LucideIcons.search,
+                        size: 18, color: AppColors.muted),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                  ),
+                ),
               ),
+            const SizedBox(width: AppSpacing.sm),
+            IconButton(
+              tooltip: '通知',
+              icon: const Icon(LucideIcons.bell, color: AppColors.muted),
+              onPressed: () {},
             ),
-          ),
-        const SizedBox(width: AppSpacing.sm),
-        IconButton(
-          tooltip: '通知',
-          icon: const Icon(LucideIcons.bell,
-              color: AppColors.muted),
-          onPressed: () {},
+            if (!compact)
+              IconButton(
+                tooltip: '设置',
+                icon: const Icon(LucideIcons.settings, color: AppColors.muted),
+                onPressed: () => context.go('/settings'),
+              ),
+          ]),
         ),
-        if (!compact)
-          IconButton(
-            tooltip: '设置',
-            icon: const Icon(LucideIcons.settings,
-                color: AppColors.muted),
-            onPressed: () => context.go('/settings'),
+      ),
+    );
+  }
+}
+
+/// 面包屑:section › page(section 空 → 仅 page,如仪表盘)。对齐 OD .crumbs。
+class _BreadCrumb extends StatelessWidget {
+  const _BreadCrumb({required this.section, required this.page});
+  final String section;
+  final String page;
+
+  @override
+  Widget build(BuildContext context) {
+    final pageStyle = TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
+      color: AppColors.fg,
+      fontFamily: AppTypography.displayFamily,
+      fontFamilyFallback: AppTypography.displayFallback,
+    );
+    if (section.isEmpty) {
+      return Text(page, style: pageStyle);
+    }
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Text(section,
+          style: const TextStyle(fontSize: 14, color: AppColors.muted)),
+      const SizedBox(width: 6),
+      const Icon(LucideIcons.chevronRight, size: 14, color: AppColors.muted),
+      const SizedBox(width: 6),
+      Text(page, style: pageStyle),
+    ]);
+  }
+}
+
+/// topbar 创建按钮(gold,对齐 OD .btn-primary)。push 到 create route。
+class _TopBarCreate extends StatelessWidget {
+  const _TopBarCreate({required this.label, required this.route});
+  final String label;
+  final String route;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => context.push(route),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.accent,
+            borderRadius: AppRadius.smBorder,
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x33B08D57),
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
-      ]),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(LucideIcons.plus, size: 15, color: Colors.white),
+            const SizedBox(width: 6),
+            Text(label,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600)),
+          ]),
         ),
       ),
     );

@@ -53,15 +53,7 @@ class _HoldingsPageState extends State<HoldingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      // FAB:添加持仓 / 交易(对齐原型 .fab;表单页 Task 7 接,占位导航 /holdings/new)。
-      // heroTag: null 禁 Hero —— indexedStack 保活多 branch 时避免与其它 branch
-      // FAB 共用默认 Hero tag 冲突(参见 fab-hero-fix)。
-      floatingActionButton: FloatingActionButton(
-        heroTag: null,
-        onPressed: () => context.push('/holdings/new'),
-        backgroundColor: AppColors.accent,
-        child: const Icon(LucideIcons.plus, color: Colors.white),
-      ),
+      // 创建入口移至全局 _TopBar(app_shell 路由感知创建按钮 /holdings/new)。
       body: BlocBuilder<HoldingBloc, HoldingState>(
         builder: (context, state) {
           // 优先从 last 恢复背景(Error/Submitting 携带上次成功)。

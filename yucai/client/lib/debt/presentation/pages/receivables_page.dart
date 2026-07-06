@@ -98,12 +98,7 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
       // 路由 /receivables/new 由 Task 10 接入;此处仅字符串引用,编译无依赖。
       // heroTag: null 禁 Hero —— indexedStack 保活多 branch 时避免与其它 branch
       // FAB 共用默认 Hero tag 冲突(参见 fab-hero-fix)。
-      floatingActionButton: FloatingActionButton(
-        heroTag: null,
-        onPressed: () => context.push('/receivables/new'),
-        backgroundColor: AppColors.accent,
-        child: const Icon(LucideIcons.plus, color: Colors.white),
-      ),
+      // 创建入口移至全局 _TopBar(app_shell,路由感知创建按钮);emptyState 仍保留引导。
       body: BlocBuilder<DebtBloc, DebtState>(
         builder: (context, state) {
           final debts = _debtsOf(state);
@@ -206,29 +201,43 @@ class _ReceivablesPageState extends State<ReceivablesPage> with RouteAware {
               // L2: stat strip(summary 驱动)。null → loading 占位,不阻塞列表。
               _StatStrip(summary: _summary, preferred: preferred),
               const SizedBox(height: AppSpacing.lg),
-              // OD .sec-h + .seg 同行(标题左 + tab 右侧)。
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  _SectionHead(count: debts.length),
-                  const Spacer(),
-                  _ListFilterSegmented(
-                    filter: _filter,
-                    activeCount: debts
-                        .where((d) => d.remainingPrincipalCents > 0)
-                        .length,
-                    settledCount: debts
-                        .where((d) => d.remainingPrincipalCents <= 0)
-                        .length,
-                    overdueCount: debts
-                        .where((d) =>
-                            d.remainingPrincipalCents > 0 &&
-                            d.dueDate.isBefore(DateTime.now()))
-                        .length,
-                    onChanged: (f) => setState(() => _filter = f),
-                  ),
-                ],
-              ),
+              // list-head:宽屏 标题左 + tabs 右(OD .list-head space-between);
+              // 窄屏(<560)标题上 + tabs 下(避免 4-seg + 标题横向溢出)。
+              Builder(builder: (context) {
+                final segmented = _ListFilterSegmented(
+                  filter: _filter,
+                  activeCount:
+                      debts.where((d) => d.remainingPrincipalCents > 0).length,
+                  settledCount:
+                      debts.where((d) => d.remainingPrincipalCents <= 0).length,
+                  overdueCount: debts
+                      .where((d) =>
+                          d.remainingPrincipalCents > 0 &&
+                          d.dueDate.isBefore(DateTime.now()))
+                      .length,
+                  onChanged: (f) => setState(() => _filter = f),
+                );
+                return LayoutBuilder(builder: (context, c) {
+                  if (c.maxWidth >= 560) {
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        _SectionHead(count: debts.length),
+                        const Spacer(),
+                        segmented,
+                      ],
+                    );
+                  }
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _SectionHead(count: debts.length),
+                      const SizedBox(height: AppSpacing.sm),
+                      segmented,
+                    ],
+                  );
+                });
+              }),
               const SizedBox(height: AppSpacing.sm),
               if (filtered.isEmpty)
                 const Padding(

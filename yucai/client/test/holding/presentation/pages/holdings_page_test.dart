@@ -232,14 +232,6 @@ void main() {
     expect(find.textContaining('还没有持仓'), findsOneWidget);
   });
 
-  testWidgets('FAB present (添加持仓)', (t) async {
-    t.view.physicalSize = mobile;
-    t.view.devicePixelRatio = 1.0;
-    addTearDown(t.view.resetPhysicalSize);
-    await t.pumpWidget(_harness(holdings));
-    await t.pumpAndSettle();
-    expect(find.byType(FloatingActionButton), findsOneWidget);
-  });
 
   testWidgets('mobile: StatCard 2x2 grid (GridView)', (t) async {
     t.view.physicalSize = mobile;

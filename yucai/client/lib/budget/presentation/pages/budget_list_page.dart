@@ -146,14 +146,6 @@ class _BudgetListPageState extends State<BudgetListPage> {
                       .read<BudgetBloc>()
                       .add(const LoadListRequested()),
                 ),
-                const SizedBox(width: AppSpacing.xs),
-                _GoldButton(
-                  key: const ValueKey('budgetListAdd'),
-                  icon: LucideIcons.plus,
-                  label: '新建预算',
-                  tooltip: '新建',
-                  onPressed: () => context.push('/budgets/new'),
-                ),
               ],
             ),
           ),

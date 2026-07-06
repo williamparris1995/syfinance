@@ -223,14 +223,6 @@ void main() {
     expect(delegate.crossAxisCount, greaterThanOrEqualTo(3));
   });
 
-  testWidgets('FAB present (创建债务)', (t) async {
-    t.view.physicalSize = mobile;
-    t.view.devicePixelRatio = 1.0;
-    addTearDown(t.view.resetPhysicalSize);
-    await t.pumpWidget(_harness(debts));
-    await t.pumpAndSettle();
-    expect(find.byType(FloatingActionButton), findsOneWidget);
-  });
 
   testWidgets('empty state when no debts', (t) async {
     t.view.physicalSize = desktop;

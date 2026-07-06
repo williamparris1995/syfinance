@@ -82,15 +82,7 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      // 创建债务 FAB(所有断点,空状态 + 有数据都可创建)。
-      // heroTag: null 禁 Hero —— indexedStack 保活多 branch 时避免与其它 branch
-      // FAB 共用默认 Hero tag 冲突(参见 fab-hero-fix)。
-      floatingActionButton: FloatingActionButton(
-        heroTag: null,
-        onPressed: () => context.push('/debts/new'),
-        backgroundColor: AppColors.accent,
-        child: const Icon(LucideIcons.plus, color: Colors.white),
-      ),
+      // 创建入口移至全局 _TopBar(app_shell 路由感知创建按钮);emptyState 仍保留引导。
       body: BlocBuilder<DebtBloc, DebtState>(
         builder: (context, state) {
           final debts = _debtsOf(state);

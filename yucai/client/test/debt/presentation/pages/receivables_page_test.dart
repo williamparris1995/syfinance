@@ -498,14 +498,6 @@ void main() {
     expect(find.text('王五'), findsOneWidget);
   });
 
-  testWidgets('FAB present (创建债权)', (t) async {
-    t.view.physicalSize = mobile;
-    t.view.devicePixelRatio = 1.0;
-    addTearDown(t.view.resetPhysicalSize);
-    await t.pumpWidget(_harness(receivables));
-    await t.pumpAndSettle();
-    expect(find.byType(FloatingActionButton), findsOneWidget);
-  });
 
   testWidgets('empty state when no receivables', (t) async {
     t.view.physicalSize = desktop;

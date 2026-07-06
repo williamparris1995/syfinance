@@ -138,14 +138,6 @@ class _GoalListPageState extends State<GoalListPage> {
                       .read<GoalBloc>()
                       .add(const LoadListRequested()),
                 ),
-                const SizedBox(width: AppSpacing.xs),
-                _GoldButton(
-                  key: const ValueKey('goalListAdd'),
-                  icon: LucideIcons.plus,
-                  label: '新建目标',
-                  tooltip: '新建',
-                  onPressed: () => context.push('/goals/new'),
-                ),
               ],
             ),
           ),

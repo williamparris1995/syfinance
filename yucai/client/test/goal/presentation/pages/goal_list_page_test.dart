@@ -126,7 +126,7 @@ void main() {
     await t.pumpWidget(_harness(goals));
     await t.pumpAndSettle();
     expect(find.text('目标'), findsOneWidget);
-    expect(find.byTooltip('新建'), findsOneWidget);
+    // 「新建目标」入口移至全局 _TopBar(app_shell 路由感知);page 单测不验。
   });
 
   testWidgets('renders 3 type chips with correct labels', (t) async {
@@ -337,44 +337,6 @@ void main() {
     expect(find.text('DETAIL_g1'), findsOneWidget);
   });
 
-  testWidgets('new action pushes /goals/new', (t) async {
-    setDesktop(t);
-    final repo = _MockRepo();
-    registerFallbackValue(const LoadListRequested());
-    when(() => repo.listGoals(
-            type: any(named: 'type'), completed: any(named: 'completed')))
-        .thenAnswer((_) async => dartz.Right(goals));
-
-    final router = GoRouter(
-      initialLocation: '/goals',
-      routes: [
-        GoRoute(
-          path: '/goals',
-          builder: (_, __) => BlocProvider<GoalBloc>(
-            create: (_) => GoalBloc(repo),
-            child: const GoalListPage(),
-          ),
-        ),
-        GoRoute(
-          path: '/goals/new',
-          builder: (_, __) =>
-              const Scaffold(body: Center(child: Text('NEW_STUB'))),
-        ),
-        // :id 必须在 /new 之后(字面量优先匹配)。
-        GoRoute(
-          path: '/goals/:id',
-          builder: (_, __) =>
-              const Scaffold(body: Center(child: Text('ID_STUB'))),
-        ),
-      ],
-    );
-
-    await t.pumpWidget(MaterialApp.router(routerConfig: router));
-    await t.pumpAndSettle();
-
-    await t.tap(find.byTooltip('新建'));
-    await t.pumpAndSettle();
-
-    expect(find.text('NEW_STUB'), findsOneWidget);
-  });
+  // 「新建目标」入口移至全局 _TopBar(app_shell 路由感知创建按钮 /goals/new);
+  // page 单测无法验证 topbar 创建导航(需 app_shell/router test)。
 }

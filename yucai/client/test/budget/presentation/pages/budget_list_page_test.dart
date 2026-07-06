@@ -105,8 +105,8 @@ void main() {
     expect(find.text('预算管理'), findsOneWidget);
     expect(find.byKey(const ValueKey('budgetListTitle')), findsOneWidget);
     expect(find.byKey(const ValueKey('budgetListSub')), findsOneWidget);
-    // btn-gold 新建预算(替 FAB tooltip)。
-    expect(find.text('新建预算'), findsWidgets);
+    // 「新建预算」入口移至全局 _TopBar(app_shell 路由感知创建按钮);
+    // emptyState 仍保留创建引导(空数据场景)。
   });
 
   testWidgets('renders budget cards: name + month + conic ring + usage pct pill',
@@ -307,44 +307,6 @@ void main() {
     expect(find.text('DETAIL_b1'), findsOneWidget);
   });
 
-  testWidgets('new button pushes /budgets/new', (t) async {
-    setDesktop(t);
-    final repo = _MockRepo();
-    registerFallbackValue(const LoadListRequested());
-    when(() => repo.listBudgets(activeOnly: any(named: 'activeOnly')))
-        .thenAnswer((_) async => dartz.Right(budgets));
-
-    final router = GoRouter(
-      initialLocation: '/budgets',
-      routes: [
-        GoRoute(
-          path: '/budgets',
-          builder: (_, __) => BlocProvider<BudgetBloc>(
-            create: (_) => BudgetBloc(repo),
-            child: const BudgetListPage(),
-          ),
-        ),
-        GoRoute(
-          path: '/budgets/new',
-          builder: (_, __) =>
-              const Scaffold(body: Center(child: Text('NEW_STUB'))),
-        ),
-        // :id 必须在 /new 之后(字面量优先匹配)。
-        GoRoute(
-          path: '/budgets/:id',
-          builder: (_, __) =>
-              const Scaffold(body: Center(child: Text('ID_STUB'))),
-        ),
-      ],
-    );
-
-    await t.pumpWidget(MaterialApp.router(routerConfig: router));
-    await t.pumpAndSettle();
-
-    // 点 btn-gold「新建预算」。
-    await t.tap(find.text('新建预算'));
-    await t.pumpAndSettle();
-
-    expect(find.text('NEW_STUB'), findsOneWidget);
-  });
+  // 「新建预算」入口移至全局 _TopBar(app_shell 路由感知创建按钮 /budgets/new);
+  // page 单测无法验证 topbar 创建导航(需 app_shell/router test)。
 }

@@ -132,16 +132,8 @@ class _TransactionsViewState extends State<_TransactionsView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      // heroTag: null 禁 Hero —— indexedStack 保活多 branch 时避免与其它 branch
-      // FAB 共用默认 Hero tag 冲突(参见 fab-hero-fix)。
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: null,
-        onPressed: _openCreateForm,
-        icon: const Icon(LucideIcons.plus, color: Colors.white),
-        label: const Text('新增交易',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-        backgroundColor: AppColors.accent,
-      ),
+      // 创建入口移至全局 _TopBar(app_shell 路由感知创建按钮 /transactions/new);
+      // emptyState 仍保留 _openCreateForm 引导。
       body: BlocConsumer<TransactionBloc, TransactionState>(
         listener: (context, state) {
           // 错误态统一在 builder 内的 _ErrorView 展示（含重试按钮），
@@ -476,8 +468,6 @@ class _Header extends StatelessWidget {
           ),
         ),
         _ExportButton(onPressed: onExport),
-        const SizedBox(width: AppSpacing.sm),
-        _CreateButton(onPressed: onCreate),
       ],
     );
   }
