@@ -84,23 +84,11 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
   }
 
   Widget _scaffold() {
-    // 顶部导航/返回:OD detail 顶部无 AppBar/无 title/无 back-link(.hero 直贴页顶)。
-    // app 需返回导航 → 折中:透明 AppBar(extendBodyBehindAppBar:true 让 hero 铺到顶),
-    // 只显 back icon(无 title/无 bg),icon 在 hero 深色渐变上 → 白色可读。
+    // 专属 detail topbar(面包屑 name + 编辑/更多,对齐 OD .topbar)。全局 _TopBar
+    // 在 receivable detail 隐藏(app_shell _isReceivableDetail);hero 不再铺顶
+    // (去 extendBodyBehindAppBar + 透明 AppBar),topbar 在 body Column 顶。
     return Scaffold(
       backgroundColor: AppColors.bg,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft, color: Colors.white, size: 20),
-          onPressed: () => context.pop(),
-          tooltip: '返回',
-        ),
-      ),
       body: BlocListener<DebtBloc, DebtState>(
         // 仅在 确认收款 写操作进行中时，对终态反应。
         listenWhen: (p, c) =>
@@ -108,9 +96,7 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
         listener: (context, state) {
           if (state is DebtDetailLoaded) {
             setState(() => _recordPending = false);
-            // Task 4 (ccs): RecordPayment 双写后 server 端收款账户余额已变,
-            // 重新拉账户列表刷新收款账户 picker 余额(依赖 _accounts 的
-            // currentBalanceCents)。
+            // RecordPayment 双写后 server 端收款账户余额已变,重拉账户刷新 picker。
             _loadAccounts();
             AppToast.show(context, '已确认收款', type: ToastType.success);
           } else if (state is DebtError) {
@@ -120,16 +106,28 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
         },
         child: BlocBuilder<DebtBloc, DebtState>(
           builder: (context, state) {
-            if (state is DebtLoading) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (state is DebtError) {
-              return Center(child: Text(state.message));
-            }
-            if (state is DebtDetailLoaded) {
-              return _body(state.detail);
-            }
-            return const SizedBox.shrink();
+            final loaded = state is DebtDetailLoaded ? state.detail : null;
+            final debt = loaded?.debt;
+            return Column(
+              children: [
+                _DetailTopBar(
+                  counterparty: debt?.counterparty,
+                  onBack: () => context.pop(),
+                  onEdit: debt != null
+                      ? () => context.push('/receivables/${debt.id}/edit')
+                      : null,
+                ),
+                Expanded(
+                  child: state is DebtLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : state is DebtError
+                          ? Center(child: Text(state.message))
+                          : loaded != null
+                              ? _body(loaded)
+                              : const SizedBox.shrink(),
+                ),
+              ],
+            );
           },
         ),
       ),
@@ -231,10 +229,7 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     final heroMain = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 面包屑(用户要,OD 原型无):「债权管理」(可点回 /receivables) > 当前
-        // counterparty(只首段,长名截断)。深色 hero 上用 muted light 文字。
-        _breadcrumb(context, debt.counterparty),
-        const SizedBox(height: 14),
+        // 面包屑移至专属 _DetailTopBar(全局 _TopBar 在 detail 隐藏);hero 从 avatar 起。
         Row(
           children: [
             avatarTile,
@@ -433,44 +428,7 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     );
   }
 
-  /// 面包屑(用户要,OD 原型无):深色 hero 顶部,「债权管理」(可点 → /receivables)
-  /// + chevron + 当前 counterparty(不可点,长名截断)。muted light 文字。
-  Widget _breadcrumb(BuildContext context, String counterparty) {
-    const muted = Color(0xFFA8A59A);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        InkWell(
-          onTap: () => context.go('/receivables'),
-          child: const Text(
-            '债权管理',
-            style: TextStyle(
-              fontSize: 12,
-              letterSpacing: 0.3,
-              color: muted,
-            ),
-          ),
-        ),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 6),
-          child: Icon(LucideIcons.chevronRight, size: 12, color: muted),
-        ),
-        Flexible(
-          child: Text(
-            counterparty,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12,
-              letterSpacing: 0.3,
-              color: muted,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  // 面包屑移至专属 _DetailTopBar(全局 _TopBar 在 detail 隐藏);此 method 已删。
 
   /// delta pill:remainingTrendCents(负=减少=收回 绿 pill ↓;正=增加 红 pill ↑)。
   Widget _deltaPill(int trendCents, String preferred, int paidCount, int total) {
@@ -1702,4 +1660,75 @@ _BadgeStyle _inferBadge(String counterparty) {
 class _BadgeStyle {
   const _BadgeStyle({required this.label});
   final String label;
+}
+
+/// receivable detail 专属 topbar:返回 + 面包屑「债权管理 › name」+ 编辑/更多 icon-btn。
+/// 对齐 OD .topbar(detail);全局 _TopBar 在 receivable detail 隐藏(app_shell)。
+class _DetailTopBar extends StatelessWidget {
+  const _DetailTopBar({this.counterparty, required this.onBack, this.onEdit});
+
+  final String? counterparty;
+  final VoidCallback onBack;
+  final VoidCallback? onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final iconStyle = IconButton.styleFrom(
+      backgroundColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      hoverColor: AppColors.accentSoft.withValues(alpha: 0.4),
+      padding: EdgeInsets.zero,
+      minimumSize: const Size(36, 36),
+    );
+    return Container(
+      height: 56,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      decoration: const BoxDecoration(
+        color: Color(0xFFF7F6F2),
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      child: Row(children: [
+        IconButton(
+          tooltip: '返回',
+          icon: const Icon(LucideIcons.arrowLeft, size: 20, color: AppColors.muted),
+          style: iconStyle,
+          onPressed: onBack,
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        InkWell(
+          onTap: () => context.go('/receivables'),
+          child: const Text('债权管理',
+              style: TextStyle(fontSize: 14, color: AppColors.muted)),
+        ),
+        const SizedBox(width: 6),
+        const Icon(LucideIcons.chevronRight, size: 14, color: AppColors.muted),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(counterparty ?? '…',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.fg)),
+        ),
+        const Spacer(),
+        if (onEdit != null)
+          IconButton(
+            tooltip: '编辑',
+            icon: const Icon(LucideIcons.pencil, size: 18, color: AppColors.muted),
+            style: iconStyle,
+            onPressed: onEdit,
+          ),
+        IconButton(
+          tooltip: '更多',
+          icon: const Icon(LucideIcons.moreHorizontal,
+              size: 20, color: AppColors.muted),
+          style: iconStyle,
+          onPressed: () =>
+              AppToast.show(context, '更多菜单待接入', type: ToastType.warning),
+        ),
+      ]),
+    );
+  }
 }

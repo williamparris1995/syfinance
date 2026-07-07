@@ -59,6 +59,15 @@ import 'package:yucai_client/core/theme/app_design.dart';
   }
 }
 
+/// receivable detail(/receivables/:id,非 new/edit)用专属 topbar,全局 _TopBar 隐藏。
+bool _isReceivableDetail(String location) {
+  if (!location.startsWith('/receivables/')) return false;
+  final segs = location.split('/');
+  if (segs.length != 3) return false; // /receivables/:id(2 段后)
+  final last = segs[2];
+  return last != 'new' && last != 'edit';
+}
+
 /// 应用外壳（侧边栏 + 顶栏 + 内容区）。
 /// 由 [StatefulShellRoute] 驱动：[navigationShell] 切换各功能分支，
 /// 侧栏/顶栏在整个受保护区域内保持挂载、状态不丢失。
@@ -73,6 +82,8 @@ class AppShell extends StatelessWidget {
     final auth = context.watch<AuthBloc>().state;
     final userName = auth is Authenticated ? auth.user.displayName : '御财用户';
     final location = GoRouterState.of(context).uri.toString();
+    // receivable detail 用专属 topbar(面包屑 name + 编辑/更多),隐藏全局 _TopBar。
+    final hideTopBar = _isReceivableDetail(location);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -91,16 +102,18 @@ class AppShell extends StatelessWidget {
                 ),
                 const VerticalDivider(width: 1, color: AppColors.border),
                 Expanded(
-                  child: Column(
-                    children: [
-                      _TopBar(
-                        branchIndex: navigationShell.currentIndex,
-                        location: location,
-                      ),
-                      const Divider(height: 1, color: AppColors.border),
-                      Expanded(child: navigationShell),
-                    ],
-                  ),
+                  child: hideTopBar
+                      ? navigationShell
+                      : Column(
+                          children: [
+                            _TopBar(
+                              branchIndex: navigationShell.currentIndex,
+                              location: location,
+                            ),
+                            const Divider(height: 1, color: AppColors.border),
+                            Expanded(child: navigationShell),
+                          ],
+                        ),
                 ),
               ],
             ),
@@ -109,14 +122,16 @@ class AppShell extends StatelessWidget {
         // 窄屏：底部导航 + 简化顶栏
         return Scaffold(
           backgroundColor: AppColors.bg,
-          appBar: PreferredSize(
-            preferredSize: const Size.fromHeight(56),
-            child: _TopBar(
-              branchIndex: navigationShell.currentIndex,
-              location: location,
-              compact: true,
-            ),
-          ),
+          appBar: hideTopBar
+              ? null
+              : PreferredSize(
+                  preferredSize: const Size.fromHeight(56),
+                  child: _TopBar(
+                    branchIndex: navigationShell.currentIndex,
+                    location: location,
+                    compact: true,
+                  ),
+                ),
           body: navigationShell,
           bottomNavigationBar: _BottomNav(
             currentIndex: navigationShell.currentIndex,
