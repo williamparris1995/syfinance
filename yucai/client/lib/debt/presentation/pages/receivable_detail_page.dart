@@ -672,7 +672,7 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
       crossAxisCount: isTablet ? 2 : 5,
       mainAxisSpacing: 9,
       crossAxisSpacing: 9,
-      mainAxisExtent: 116,
+      mainAxisExtent: 128,
       children: [for (final s in stats) _StatCard(data: s)],
     );
   }
@@ -685,26 +685,29 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // sec-head：标题 + sum-pills（已收/待收/逾期 计数）。
-          // mobile 窄屏标题+pills 会溢出 → 用 Wrap 自动换行。
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            runSpacing: 8,
+          // OD .panel-head:左(panel-title + mini-stats),右(filter seg)。
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Text('收款计划',
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: AppTypography.displayFamily,
-                      fontFamilyFallback: AppTypography.displayFallback)),
-              _sumPills(schedule),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('收款计划',
+                        style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: AppTypography.displayFamily,
+                            fontFamilyFallback: AppTypography.displayFallback)),
+                    const SizedBox(height: 9),
+                    _sumPills(schedule),
+                  ],
+                ),
+              ),
+              _filterSegmented(),
             ],
           ),
-          const SizedBox(height: 14),
-          // OD .seg 风格筛选(全部/待收/已收/逾期)。用户要 schedule tabs
-          // (之前移除过,现恢复)。setState 切换 → _filteredSchedule 重过滤。
-          _filterSegmented(),
           const SizedBox(height: 14),
           // 列表（desktop/tablet 表 / mobile 卡）。OD schedule 无 tabs(只 sec-h + table)。
           _filteredSchedule(schedule).isEmpty
@@ -1406,7 +1409,7 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DataCard(
-      padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+      padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1417,18 +1420,16 @@ class _StatCard extends StatelessWidget {
               Expanded(
                 child: Text(data.label,
                     style: const TextStyle(
-                        fontSize: 10.5,
-                        color: AppColors.muted,
-                        letterSpacing: 0.5)),
+                        fontSize: 11.5, color: AppColors.muted)),
               ),
             ],
           ),
-          const SizedBox(height: 7),
+          const SizedBox(height: 6),
           Text(data.value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 17,
+                fontSize: 19,
                 fontWeight: FontWeight.w600,
                 letterSpacing: -0.01,
                 color: data.valueColor ?? AppColors.fg,
