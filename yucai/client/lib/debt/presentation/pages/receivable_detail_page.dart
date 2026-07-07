@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
@@ -89,6 +90,89 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     // (去 extendBodyBehindAppBar + 透明 AppBar),topbar 在 body Column 顶。
     return Scaffold(
       backgroundColor: AppColors.bg,
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFF7F6F2),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        foregroundColor: AppColors.muted,
+        toolbarHeight: 64, // OD .topbar height 64
+        automaticallyImplyLeading: false, // OD detail topbar 无 back(面包屑「债权管理」可点回)
+        titleSpacing: 28, // 与 body content horizontal padding 28 对齐(OD .topbar padding 0 28)
+        title: BlocBuilder<DebtBloc, DebtState>(
+          builder: (context, state) {
+            final debt = state is DebtDetailLoaded ? state.detail.debt : null;
+            return Row(mainAxisSize: MainAxisSize.min, children: [
+              InkWell(
+                onTap: () => context.go('/receivables'),
+                child: const Text('债权管理',
+                    style: TextStyle(fontSize: 13, color: AppColors.muted)),
+              ),
+              const SizedBox(width: 8),
+              const Icon(LucideIcons.chevronRight,
+                  size: 14, color: AppColors.muted),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(debt?.counterparty ?? '…',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.fg)),
+              ),
+            ]);
+          },
+        ),
+        actions: [
+          // actions 整体右 padding 12(每 IconButton 内已含 tap-target padding,
+          // 视觉右侧 ≈ screen - 28,与 content padding 28 对齐)。
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                BlocBuilder<DebtBloc, DebtState>(
+                  builder: (context, state) {
+                    final debt = state is DebtDetailLoaded
+                        ? state.detail.debt
+                        : null;
+                    return IconButton(
+                      tooltip: '编辑',
+                      icon: const Icon(LucideIcons.pencil,
+                          size: 17, color: AppColors.muted),
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppColors.surface,
+                        side: const BorderSide(color: AppColors.border),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        minimumSize: const Size(38, 38),
+                      ),
+                      onPressed: debt != null
+                          ? () => context.push('/receivables/${debt.id}/edit')
+                          : null,
+                    );
+                  },
+                ),
+                const SizedBox(width: 8), // 编辑/更多 间隔(OD .topbar gap 14)
+                IconButton(
+                  tooltip: '更多',
+                  icon: const Icon(LucideIcons.moreHorizontal,
+                      size: 17, color: AppColors.muted),
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.surface,
+                    side: const BorderSide(color: AppColors.border),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    minimumSize: const Size(38, 38),
+                  ),
+                  onPressed: () => AppToast.show(context, '更多菜单待接入',
+                      type: ToastType.warning),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
       body: BlocListener<DebtBloc, DebtState>(
         // 仅在 确认收款 写操作进行中时，对终态反应。
         listenWhen: (p, c) =>
@@ -106,28 +190,16 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
         },
         child: BlocBuilder<DebtBloc, DebtState>(
           builder: (context, state) {
-            final loaded = state is DebtDetailLoaded ? state.detail : null;
-            final debt = loaded?.debt;
-            return Column(
-              children: [
-                _DetailTopBar(
-                  counterparty: debt?.counterparty,
-                  onBack: () => context.pop(),
-                  onEdit: debt != null
-                      ? () => context.push('/receivables/${debt.id}/edit')
-                      : null,
-                ),
-                Expanded(
-                  child: state is DebtLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : state is DebtError
-                          ? Center(child: Text(state.message))
-                          : loaded != null
-                              ? _body(loaded)
-                              : const SizedBox.shrink(),
-                ),
-              ],
-            );
+            if (state is DebtLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (state is DebtError) {
+              return Center(child: Text(state.message));
+            }
+            if (state is DebtDetailLoaded) {
+              return _body(state.detail);
+            }
+            return const SizedBox.shrink();
           },
         ),
       ),
@@ -147,7 +219,7 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     return ListView(
       padding: isMobile
           ? const EdgeInsets.fromLTRB(16, 14, 16, 60)
-          : const EdgeInsets.fromLTRB(36, 0, 36, 70),
+          : const EdgeInsets.fromLTRB(28, 0, 28, 70),
       children: [
         if (showSide) ...[
           // OD 对齐:.hero + .stats5 全宽铺满;仅 .grid-2(schedule + side panel)双列。
@@ -243,11 +315,11 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
                     spacing: 10,
                     runSpacing: 6,
                     children: [
-                      // OD .h-name 18px(改前 23px 偏大)。
+                      // OD .hero-name 23px serif。
                       Text(
                         debt.counterparty,
                         style: const TextStyle(
-                          fontSize: 18,
+                          fontSize: 23,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
                           letterSpacing: 0.01,
@@ -261,16 +333,22 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    '借出 ${_fmtSymbol(debt.totalPrincipalCents, preferred)} · '
-                    '${_fmtDate(debt.startDate)} · ${_amortLabel(debt.amortization)} · '
-                    '$total 期',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: const Color(0xFFA8A59A),
-                      fontFeatures: AppTypography.tabularFigures,
-                    ),
-                  ),
+                  Builder(builder: (context) {
+                    // OD .hero-sub 含「关联账户 <b>账户名</b>」, accountId 在 _accounts
+                    // 中查名(对齐 OD .hero-sub)。
+                    final accountName = _lookupAccountName(debt.accountId);
+                    return Text(
+                      '借出 ${_fmtSymbol(debt.totalPrincipalCents, preferred)} · '
+                      '${_fmtDate(debt.startDate)} · ${_amortLabel(debt.amortization)} · '
+                      '$total 期'
+                      '${accountName == null ? '' : ' · 关联账户 $accountName'}',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: Color(0xFFA8A59A),
+                        fontFeatures: AppTypography.tabularFigures,
+                      ),
+                    );
+                  }),
                 ],
               ),
             ),
@@ -279,71 +357,87 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
         // OD .h-amt-l 10px uppercase letter-spacing .08em(改前 11px/letterSpacing 2)。
         const SizedBox(height: 22),
         const Text(
-          'REMAINING RECEIVABLE · 剩余应收（本金）',
+          '剩余应收（本金）',
           style: TextStyle(
-            fontSize: 10,
-            letterSpacing: 0.8,
+            fontSize: 11,
             color: Color(0xFF9AA0A8),
             fontFeatures: AppTypography.tabularFigures,
           ),
         ),
         const SizedBox(height: 6),
-        // OD .h-amt 38px white + cur 金 #d9b878(改前 numSize 46 偏大)。
+        // OD .hero-amt-num 46px white + .cur 28 金 #d9b878。
         GoldAmount(
           key: const ValueKey('heroRemaining'),
           cents: debt.remainingPrincipalCents,
           preferred: preferred,
-          curSize: isMobile ? 16 : 20,
-          numSize: isMobile ? 32 : 38,
-          numWeight: FontWeight.w600,
+          curSize: isMobile ? 18 : 28,
+          numSize: isMobile ? 34 : 46,
+          numWeight: FontWeight.w700,
           numLetterSpacing: -0.4,
           numColor: Colors.white,
           curColor: const Color(0xFFD9B878),
           numFontFamily: AppTypography.displayFamily,
           numFontFamilyFallback: AppTypography.displayFallback,
         ),
-        // delta pill:remainingTrendCents 负=减少=收回 绿;正=增加 红;0 不显。
-        if (debt.remainingTrendCents != 0) ...[
-          const SizedBox(height: 11),
-          _deltaPill(debt.remainingTrendCents, preferred, paidCount, total),
-        ],
+        // OD .hero-delta「↓¥X 较上月减少 · 已收回 3/12 期」总显:
+        //   - 「已收回 N/M 期」总显(数据现成 paidCount/total,不依赖 trendCents)
+        //   - trend pill(↓¥X 较上月减少/增加)仅 remainingTrendCents != 0 时附。
+        // 拆分:冷启动 trendCents=0 也能显示「已收回 N/M 期」,避免空区。
+        const SizedBox(height: 11),
+        _deltaArea(debt.remainingTrendCents, preferred, paidCount, total),
         const SizedBox(height: 14),
-        // hero-prog-meta:已收/剩余 文案。mobile 窄屏两段会溢出 → 用 Wrap 自动换行。
-        Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          runSpacing: 4,
-          children: [
-            Text(
-              '已收本金 ${_fmtSymbol(debt.totalPrincipalCents - debt.remainingPrincipalCents, preferred)}',
-              style: const TextStyle(
-                fontSize: 11.5,
-                color: Color(0xFFA8A59A),
-                fontFeatures: AppTypography.tabularFigures,
+        // OD .hero-prog:.bar.lg 13px,渐变金 #c9a86b→#e0c489 + glow。
+        // LinearProgressIndicator(test finder)+ ShaderMask 金渐变 + ClipRRect 圆角(OD .bar radius 9999)。
+        ClipRRect(
+          key: const ValueKey('heroProgress'),
+          borderRadius: BorderRadius.circular(9999),
+          child: SizedBox(
+            width: double.infinity,
+            height: 13,
+            child: ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [Color(0xFFC9A86B), Color(0xFFE0C489)],
+              ).createShader(bounds),
+              blendMode: BlendMode.srcIn,
+              child: LinearProgressIndicator(
+                value: ratio,
+                minHeight: 13,
+                backgroundColor: Colors.white.withValues(alpha: 0.12),
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
               ),
             ),
-            Text(
-              '剩余 ${_fmtSymbol(debt.remainingPrincipalCents, preferred)} · 收回 $pct%',
-              style: const TextStyle(
-                fontSize: 11.5,
-                color: Color(0xFFE7DFCA),
-                fontWeight: FontWeight.w600,
-                fontFeatures: AppTypography.tabularFigures,
+          ),
+        ),
+        const SizedBox(height: 8),
+        // hero-prog-meta:已收(左)/ 剩余(右)两端同行(OD .hero-prog-meta space-between)。
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Flexible(
+              child: Text(
+                '已收本金 ${_fmtSymbol(debt.totalPrincipalCents - debt.remainingPrincipalCents, preferred)}',
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  color: Color(0xFFA8A59A),
+                  fontFeatures: AppTypography.tabularFigures,
+                ),
+              ),
+            ),
+            Flexible(
+              child: Text(
+                '剩余 ${_fmtSymbol(debt.remainingPrincipalCents, preferred)} · 收回 $pct%',
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  color: Color(0xFFE7DFCA),
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: AppTypography.tabularFigures,
+                ),
               ),
             ),
           ],
-        ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(9999),
-          child: LinearProgressIndicator(
-            key: const ValueKey('heroProgress'),
-            value: ratio,
-            minHeight: 9,
-            backgroundColor: Colors.white.withValues(alpha: 0.10),
-            valueColor: AlwaysStoppedAnimation<Color>(
-              const Color(0xFFB08D57).withValues(alpha: 0.9),
-            ),
-          ),
         ),
       ],
     );
@@ -354,10 +448,9 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     return ClipRRect(
       borderRadius: AppRadius.lgBorder,
       child: Container(
-        // OD .hero padding 18px(四面均 18);top 额外让 back icon 空间
-        // (status + kToolbarHeight + 18,透明 AppBar 浮 hero 上)。
-        padding: EdgeInsets.fromLTRB(
-            18, MediaQuery.of(context).padding.top + kToolbarHeight + 18, 18, 18),
+        // OD .hero padding 28px 30px(垂直 28,水平 30)。AppBar 已占顶,hero 在 body
+        // 不需 padding.top+kToolbarHeight 让位。
+        padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 30),
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -430,47 +523,20 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
 
   // 面包屑移至专属 _DetailTopBar(全局 _TopBar 在 detail 隐藏);此 method 已删。
 
-  /// delta pill:remainingTrendCents(负=减少=收回 绿 pill ↓;正=增加 红 pill ↑)。
-  Widget _deltaPill(int trendCents, String preferred, int paidCount, int total) {
-    final decreasing = trendCents < 0; // 负 = 较上月减少(收回,绿)
-    final abs = trendCents.abs();
-    final fg = decreasing ? const Color(0xFF7FC9A8) : const Color(0xFFE29A93);
-    final bg = decreasing
-        ? const Color(0x332D8A6E)
-        : const Color(0x33C4544D);
-    final icon = decreasing ? LucideIcons.arrowDown : LucideIcons.arrowUp;
-    final verb = decreasing ? '减少' : '增加';
+  /// delta 区(对齐 OD .hero-delta):总显「已收回 N/M 期」(数据现成,不依赖
+  /// trendCents,避免冷启动 snapshot 时 delta 区空白);trendCents != 0 时附
+  /// 「↓¥X 较上月减少/增加」pill(绿=减少/收回,红=增加)。
+  Widget _deltaArea(int trendCents, String preferred, int paidCount, int total) {
     return Wrap(
       crossAxisAlignment: WrapCrossAlignment.center,
       spacing: 8,
       runSpacing: 4,
       children: [
-        Container(
-          key: const ValueKey('heroDelta'),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(9999),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 12, color: fg),
-              const SizedBox(width: 4),
-              Text(
-                _fmtSymbol(abs, preferred),
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: fg,
-                  fontFeatures: AppTypography.tabularFigures,
-                ),
-              ),
-            ],
-          ),
-        ),
+        if (trendCents != 0) _trendPill(trendCents, preferred),
         Text(
-          '较上月$verb · 已收回 $paidCount / $total 期',
+          trendCents != 0
+              ? '较上月${trendCents < 0 ? '减少' : '增加'} · 已收回 $paidCount / $total 期'
+              : '已收回 $paidCount / $total 期',
           style: const TextStyle(
             fontSize: 12.5,
             color: Color(0xFFBCB9AD),
@@ -481,17 +547,52 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     );
   }
 
+  /// trend pill:remainingTrendCents(负=减少=收回 绿 pill ↓;正=增加 红 pill ↑)。
+  Widget _trendPill(int trendCents, String preferred) {
+    final decreasing = trendCents < 0; // 负 = 较上月减少(收回,绿)
+    final abs = trendCents.abs();
+    final fg = decreasing ? const Color(0xFF7FC9A8) : const Color(0xFFE29A93);
+    final bg = decreasing
+        ? const Color(0x332D8A6E)
+        : const Color(0x33C4544D);
+    final icon = decreasing ? LucideIcons.arrowDown : LucideIcons.arrowUp;
+    return Container(
+      key: const ValueKey('heroDelta'),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(9999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: fg),
+          const SizedBox(width: 4),
+          Text(
+            _fmtSymbol(abs, preferred),
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: fg,
+              fontFeatures: AppTypography.tabularFigures,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// hero 右侧 4-tile(年利率/月供/到期日/已收期数)。
-  /// OD .h-side grid 1fr 1fr gap 8(改前 gap 10/mainAxisExtent 78)。
+  /// OD .hero-side grid 1fr 1fr gap 10;.hero-tile padding 12 14,lbl 10.5,val 16。
   Widget _heroSide(Debt debt, String preferred, int paidCount, int total) {
     return GridView.count(
       key: const ValueKey('heroSide'),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisCount: 2,
-      mainAxisSpacing: 8,
-      crossAxisSpacing: 8,
-      mainAxisExtent: 76,
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      mainAxisExtent: 72,
       childAspectRatio: 1.55,
       children: [
         _heroTile('年利率', '${debt.interestRate.toStringAsFixed(2)}%'),
@@ -504,7 +605,7 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
 
   Widget _heroTile(String label, String value) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.045),
         border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
@@ -518,18 +619,18 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
           Text(
             label,
             style: const TextStyle(
-              fontSize: 10,
+              fontSize: 10.5,
               color: Color(0xFF8F8D83),
               letterSpacing: 0.6,
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           Text(
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 14.5,
+              fontSize: 16,
               fontWeight: FontWeight.w600,
               color: Color(0xFFF3EFEA),
               fontFeatures: AppTypography.tabularFigures,
@@ -615,13 +716,23 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
         schedule.where((e) => e.paid).fold<int>(0, (s, e) => s + e.interestCents);
     final paidTotal = paidPrincipal + paidInterest;
     final unpaidEntries = schedule.where((e) => !e.paid);
-    final pendingTotal =
-        unpaidEntries.fold<int>(0, (s, e) => s + e.totalCents);
+    final pendingPrincipal =
+        unpaidEntries.fold<int>(0, (s, e) => s + e.principalCents);
+    final pendingInterest =
+        unpaidEntries.fold<int>(0, (s, e) => s + e.interestCents);
+    final pendingTotal = pendingPrincipal + pendingInterest;
     final overdueEntries =
         schedule.where((e) => e.status == PaymentStatus.overdue && !e.paid);
     final overdueTotal =
         overdueEntries.fold<int>(0, (s, e) => s + e.totalCents);
     final overdueCount = overdueEntries.length;
+    // OD 逾期 sub「第 N 期 · 逾期 X 天」:取最早逾期 entry 算逾期天数。
+    final daysOverdue = overdueEntries.isEmpty
+        ? 0
+        : DateTime.now().difference(overdueEntries.first.paymentDate).inDays;
+    final overdueSub = overdueCount > 0
+        ? '$overdueCount 期 · 逾期 $daysOverdue 天'
+        : '无逾期';
 
     final stats = <_StatCardData>[
       _StatCardData(
@@ -634,16 +745,18 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
         label: '已收合计',
         icon: LucideIcons.check,
         value: _fmtSymbol(paidTotal, preferred),
-        // sub 紧凑:本/利 分行(max 2 行,适配窄 StatCard)。
-        sub: '本 ${_fmtSymbol(paidPrincipal, preferred)} · '
-            '利 ${_fmtSymbol(paidInterest, preferred)}',
+        // OD sub「本金 24,258 + 利息 1,839」。
+        sub: '本金 ${_fmtSymbol(paidPrincipal, preferred)} + '
+            '利息 ${_fmtSymbol(paidInterest, preferred)}',
         valueColor: AppColors.positive,
       ),
       _StatCardData(
         label: '待收合计',
         icon: LucideIcons.clock,
         value: _fmtSymbol(pendingTotal, preferred),
-        sub: '剩本 ${_fmtSymbol(debt.remainingPrincipalCents, preferred)}',
+        // OD sub「本金 75,742 + 利息 2,547」。
+        sub: '本金 ${_fmtSymbol(pendingPrincipal, preferred)} + '
+            '利息 ${_fmtSymbol(pendingInterest, preferred)}',
       ),
       _StatCardData(
         label: '累计利息收入',
@@ -656,23 +769,22 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
         label: '逾期应收',
         icon: LucideIcons.alertCircle,
         value: _fmtSymbol(overdueTotal, preferred),
-        sub: overdueCount > 0 ? '$overdueCount 期 · 待催收' : '无逾期',
+        sub: overdueSub,
         valueColor: overdueCount > 0 ? AppColors.negative : null,
       ),
     ];
     final w = MediaQuery.of(context).size.width;
     final isTablet = w <= 900;
-    // OD .stats5 grid repeat(5,1fr) gap 9 等宽等高(对齐 OD .stat padding 11/12,
-    // .sl 10.5 / .sv 17 / .ss 9.5)。mainAxisExtent 116 容下 sub 2-line wrap。
-    // GridView.count 已强制等宽(flex 1fr),固定 mainAxisExtent 强制等高。
+    // OD .stats5 grid repeat(5,1fr) gap 13 等宽等高;.stat padding 15/16,val 19,sub 11。
+    // mainAxisExtent 128 容下 sub 2-line wrap。
     return GridView.count(
       key: const ValueKey('statsRow'),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisCount: isTablet ? 2 : 5,
-      mainAxisSpacing: 9,
-      crossAxisSpacing: 9,
-      mainAxisExtent: 128,
+      mainAxisSpacing: 13,
+      crossAxisSpacing: 13,
+      mainAxisExtent: 140,
       children: [for (final s in stats) _StatCard(data: s)],
     );
   }
@@ -685,29 +797,44 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // OD .panel-head:左(panel-title + mini-stats),右(filter seg)。
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Flexible(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          // OD .panel-head:左(panel-title + mini-stats),右(filter seg 贴右)。
+          // desktop/tablet:Row[Expanded(Column[title+sumPills]), filter] 让 filter
+          // 通过 Expanded 推到最右(对齐 OD .panel-head flex space-between)。
+          // mobile:Wrap 让 filter seg 自动换行(窄屏 4 段+count badge 宽于屏)。
+          isMobile
+              ? Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  runSpacing: 10,
                   children: [
-                    const Text('收款计划',
-                        style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: AppTypography.displayFamily,
-                            fontFamilyFallback: AppTypography.displayFallback)),
-                    const SizedBox(height: 9),
-                    _sumPills(schedule),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _panelTitle(),
+                        const SizedBox(height: 9),
+                        _sumPills(schedule),
+                      ],
+                    ),
+                    _filterSegmented(schedule, isMobile),
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _panelTitle(),
+                          const SizedBox(height: 9),
+                          _sumPills(schedule),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    _filterSegmented(schedule, isMobile),
                   ],
                 ),
-              ),
-              _filterSegmented(),
-            ],
-          ),
           const SizedBox(height: 14),
           // 列表（desktop/tablet 表 / mobile 卡）。OD schedule 无 tabs(只 sec-h + table)。
           _filteredSchedule(schedule).isEmpty
@@ -726,7 +853,8 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     );
   }
 
-  /// sum-pills：已收(绿)/待收(中性)/逾期(红) 计数（对齐 OD .mini-stats）。
+  /// sum-pills：已收(绿)/待收(中性)/逾期(红) 计数（对齐 OD .mini-stats .g/.n/.r
+  /// ——彩色软底 pill,非边框 pill）。
   Widget _sumPills(List<PaymentEntry> schedule) {
     final paid = schedule.where((e) => e.status == PaymentStatus.paid).length;
     final pending =
@@ -737,31 +865,23 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
       spacing: 8,
       runSpacing: 4,
       children: [
-        _pill('已收', paid, AppColors.positive, const Color(0xFF2D8A6E)),
-        _pill('待收', pending, const Color(0xFF54585F), const Color(0xFFBDB8AA)),
-        _pill('逾期', overdue, AppColors.negative, const Color(0xFFC4544D)),
+        _pill('已收', paid, AppColors.positive, const Color(0xFFE6F1ED)),
+        _pill('待收', pending, const Color(0xFF8A8780), const Color(0xFFF0EEE8)),
+        _pill('逾期', overdue, AppColors.negative, const Color(0xFFF6E7E5)),
       ],
     );
   }
 
-  Widget _pill(
-      String label, int count, Color fg, Color dot) {
+  Widget _pill(String label, int count, Color fg, Color bg) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
+        color: bg,
         borderRadius: BorderRadius.circular(9999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 5),
           Text(label, style: TextStyle(fontSize: 12, color: fg)),
           const SizedBox(width: 4),
           Text('$count',
@@ -791,55 +911,115 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     }
   }
 
-  /// OD .seg 风格筛选 segmented(bg #EFECE5 + radius AppRadius.sm + padding 4)。
-  /// 4 段:全部/待收/已收/逾期。setState 切换,active 段白底 + accent 文字。
-  Widget _filterSegmented() {
+  /// OD .panel-title 17 serif + svg 17 gold(calendar-check)。
+  Widget _panelTitle() {
+    return const Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(LucideIcons.calendarCheck, size: 17, color: AppColors.accent),
+        SizedBox(width: 8),
+        Text('收款计划',
+            style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                fontFamily: AppTypography.displayFamily,
+                fontFamilyFallback: AppTypography.displayFallback)),
+      ],
+    );
+  }
+
+  /// OD .seg 风格筛选 segmented(bg #EFECE5 + radius AppRadius.sm + padding 3)。
+  /// 4 段:全部/待收/已收/逾期,每段 label + .cnt 计数 badge(active 用 gold-soft)。
+  /// mobile: 紧凑(horizontal padding 10 + 隐 count badge)以适配窄屏。
+  Widget _filterSegmented(List<PaymentEntry> schedule, bool isMobile) {
+    final paid = schedule.where((e) => e.status == PaymentStatus.paid).length;
+    final pending =
+        schedule.where((e) => e.status == PaymentStatus.pending).length;
+    final overdue =
+        schedule.where((e) => e.status == PaymentStatus.overdue).length;
     return Container(
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: const Color(0xFFEFECE5),
+        border: Border.all(color: AppColors.border),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(child: _filterSeg(_ScheduleFilter.all, '全部')),
-          Expanded(child: _filterSeg(_ScheduleFilter.pending, '待收')),
-          Expanded(child: _filterSeg(_ScheduleFilter.paid, '已收')),
-          Expanded(child: _filterSeg(_ScheduleFilter.overdue, '逾期')),
+          _filterSeg(_ScheduleFilter.all, '全部', schedule.length, isMobile),
+          _filterSeg(_ScheduleFilter.pending, '待收', pending, isMobile),
+          _filterSeg(_ScheduleFilter.paid, '已收', paid, isMobile),
+          _filterSeg(_ScheduleFilter.overdue, '逾期', overdue, isMobile),
         ],
       ),
     );
   }
 
-  Widget _filterSeg(_ScheduleFilter f, String label) {
+  Widget _filterSeg(_ScheduleFilter f, String label, int count, bool isMobile) {
     final active = _filter == f;
-    final fg =
-        active ? AppColors.accentHover : AppColors.muted;
+    final fg = active ? AppColors.fg : AppColors.muted;
     return InkWell(
       key: ValueKey('filterSegment-$label'),
       onTap: () => setState(() => _filter = f),
       borderRadius: BorderRadius.circular(AppRadius.sm - 2),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(vertical: 6),
+        padding: EdgeInsets.symmetric(
+            horizontal: isMobile ? 10 : 13, vertical: 6),
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: active ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(AppRadius.sm - 2),
+          boxShadow: active
+              ? [
+                  const BoxShadow(
+                    color: Color(0x1A1C1E21),
+                    blurRadius: 3,
+                    offset: Offset(0, 1),
+                  ),
+                ]
+              : null,
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-            color: fg,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                color: fg,
+              ),
+            ),
+            if (!isMobile) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                decoration: BoxDecoration(
+                  color: active
+                      ? AppColors.accentSoft
+                      : const Color(0x10000000),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                    color: active ? AppColors.accentHover : AppColors.muted,
+                    fontFeatures: AppTypography.tabularFigures,
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
   }
 
-  /// desktop/tablet 表（对齐 OD table）：期次/收款日 + 收回本金 + 利息收入 +
+  /// desktop/tablet 表（对齐 OD table 6 列）：期次/收款日 + 收回本金 + 利息收入 +
   /// 合计 + 状态 badge + 操作（确认收款/已确认）。
   Widget _scheduleTable(List<PaymentEntry> schedule, Debt debt, String preferred) {
     final entries = _filteredSchedule(schedule);
@@ -852,14 +1032,15 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
         borderRadius: BorderRadius.circular(AppRadius.sm),
         child: Table(
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        // OD 4 列(期次/日期 | 本金 | 利息 | 合计) + 行末「确认收款」紧凑 link。
-        // 状态不再单独成列:逾期行 bg #fdf8f7 + 合计列 ⚠ 红 表达(对齐 OD)。
-        // 列宽等宽(本金/利息/合计 各 1;期次 1.4),操作放合计 cell 行末(无独立操作列)。
+        // OD 6 列:期次/日期(1.6)| 本金(1) | 利息(1) | 合计(1) | 状态(auto) | 操作(auto)。
+        // 操作列 link-btn 紧凑;状态列 badge 紧凑。IntrinsicColumnWidth 自适应。
         columnWidths: const {
-          0: FlexColumnWidth(1.4),
+          0: FlexColumnWidth(1.6),
           1: FlexColumnWidth(1),
           2: FlexColumnWidth(1),
           3: FlexColumnWidth(1),
+          4: IntrinsicColumnWidth(),
+          5: IntrinsicColumnWidth(),
         },
         children: [
           TableRow(
@@ -872,6 +1053,8 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
               _tableHeader('收回本金', align: TextAlign.right),
               _tableHeader('利息收入', align: TextAlign.right),
               _tableHeader('合计', align: TextAlign.right),
+              _tableHeader('状态', align: TextAlign.left),
+              _tableHeader('操作', align: TextAlign.right),
             ],
           ),
           for (var i = 0; i < entries.length; i++)
@@ -901,61 +1084,63 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
       PaymentEntry e, Debt debt, int idx, int total, String preferred) {
     final isLast = idx == total;
     final isOverdue = e.status == PaymentStatus.overdue && !e.paid;
+    final isPaid = e.paid;
     const border = BorderSide(color: Color(0xFFEFECE5));
-    // OD 逾期行 bg #fdf8f7(合计列 ⚠ 红;期数红)。
+    // OD tbody tr.paid bg #fafdfb td muted;tbody tr.overdue bg #fdf8f7。
+    final rowBg = isPaid
+        ? const Color(0xFFFAFDFB)
+        : (isOverdue ? const Color(0xFFFDF8F7) : null);
+    // paid 行金额/日期文字弱化(对齐 OD tbody tr.paid td color muted)。
+    final cellFg = isPaid ? AppColors.muted : AppColors.fg;
     return TableRow(
       decoration: BoxDecoration(
-        color: isOverdue ? const Color(0xFFFDF8F7) : null,
+        color: rowBg,
         border: isLast ? null : const Border(bottom: border),
       ),
       children: [
         // 期次 + 收款日(逾期 → 期数红)。
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('$idx',
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: isOverdue ? AppColors.negative : AppColors.fg,
-                      fontFeatures: AppTypography.tabularFigures)),
-              const SizedBox(height: 2),
-              Text(_fmtDate(e.paymentDate),
-                  style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.muted,
-                      fontFeatures: AppTypography.tabularFigures)),
+              Row(
+                children: [
+                  Text('$idx',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: isOverdue
+                              ? AppColors.negative
+                              : cellFg,
+                          fontFeatures: AppTypography.tabularFigures)),
+                  const SizedBox(width: 6),
+                  Text(_fmtDate(e.paymentDate),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.muted,
+                          fontFeatures: AppTypography.tabularFigures)),
+                ],
+              ),
             ],
           ),
         ),
         _cellRight(_fmtSymbol(e.principalCents, preferred),
-            color: AppColors.muted),
-        _cellRight(_fmtSymbol(e.interestCents, preferred),
-            color: AppColors.muted),
-        // 合计 + 行末操作(对齐 OD 4 列:合计列含行末「确认收款」紧凑 link,无独立操作列)。
+            color: cellFg, bold: true),
+        _cellRight(_fmtSymbol(e.interestCents, preferred), color: cellFg),
+        _cellRight(_fmtSymbol(e.totalCents, preferred),
+            color: isOverdue ? AppColors.negative : cellFg, bold: true),
+        // 状态 badge(对齐 OD .st-paid/.st-pending/.st-overdue)。
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              if (isOverdue) ...[
-                const Icon(LucideIcons.alertTriangle,
-                    size: 13, color: AppColors.negative),
-                const SizedBox(width: 4),
-              ],
-              Flexible(
-                child: Text(_fmtSymbol(e.totalCents, preferred),
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: isOverdue ? AppColors.negative : AppColors.fg,
-                        fontFeatures: AppTypography.tabularFigures)),
-              ),
-              const SizedBox(width: 8),
-              _scheduleAction(e, debt, preferred),
-            ],
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          child: _statusBadge(e),
+        ),
+        // 操作列(右对齐):确认收款 link-btn / 已确认 标记。
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: _scheduleAction(e, debt, preferred),
           ),
         ),
       ],
@@ -1118,7 +1303,43 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     final debt = detail.debt;
     // 收款账户名 lookup:collectionAccountId / accountId(应收账户)在 _accounts。
     final collectionName = _lookupAccountName(debt.collectionAccountId);
+    final collectionTail = _lookupAccountTail(debt.collectionAccountId);
     final receivableName = _lookupAccountName(debt.accountId);
+    // 收款账户行集(OD 顺序:收款至/账户尾号/应收账户),尾号仅在有 tail 时渲染。
+    final collectionRows = <_SideRowData>[
+      _SideRowData(k: '收款至', v: collectionName ?? '未设置'),
+      if (collectionTail != null)
+        _SideRowData(k: '账户尾号', v: '**** $collectionTail', mono: true),
+      _SideRowData(k: '应收账户', v: receivableName ?? '—'),
+    ];
+    // 借款信息行集。
+    // 联系方式:可点击拨号(IntentResolver tel:);合同:可点击查看(viewContract)。
+    final hasContact = debt.contact.isNotEmpty;
+    final contractRef = debt.contractRef;
+    final hasContract = contractRef.isNotEmpty;
+    // 合同名后缀:若 contractRef 无 .ext 后缀且像文件名(含 - 或 _),显示时附 .pdf。
+    final contractDisplay = hasContract
+        ? (RegExp(r'\.[A-Za-z0-9]{2,5}$').hasMatch(contractRef)
+            ? contractRef
+            : '$contractRef.pdf')
+        : '—';
+    final loanRows = <_SideRowData>[
+      _SideRowData(k: '债务人', v: debt.counterparty),
+      _SideRowData(
+          k: '联系方式',
+          v: hasContact ? debt.contact : '—',
+          mono: true,
+          onTap: hasContact ? () => _launchTel(debt.contact) : null),
+      _SideRowData(k: '借出日期', v: _fmtDate(debt.startDate), mono: true),
+      _SideRowData(k: '到期日期', v: _fmtDate(debt.dueDate), mono: true),
+      _SideRowData(k: '摊还方法', v: _amortLabel(debt.amortization)),
+      _SideRowData(
+        k: '合同/借据',
+        v: contractDisplay,
+        valueColor: hasContract ? AppColors.accentHover : null,
+        onTap: hasContract ? () => _viewContract(contractRef) : null,
+      ),
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1129,35 +1350,27 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Icon(LucideIcons.shieldCheck, size: 16, color: AppColors.accent),
-                  const SizedBox(width: 8),
-                  const Text('收款账户',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.accent,
-                        fontFamily: AppTypography.displayFamily,
-                        fontFamilyFallback: AppTypography.displayFallback,
-                      )),
-                ],
-              ),
+              _sideHeader(LucideIcons.shieldCheck, '收款账户'),
               const SizedBox(height: 14),
-              _sideRow('收款至', collectionName ?? '未设置'),
-              _sideRow('应收账户', receivableName ?? '—'),
+              _sideRows(collectionRows),
               const SizedBox(height: 14),
-              // OD .gold-btn「+ 登记一笔收款」side panel CTA(点击提示去 schedule 确认)
-              FilledButton.icon(
+              // OD .btn-ghost.btn-block「+ 登记一笔收款」(非 gold fill)。
+              // 保留引导 toast(下方 schedule 逐期确认)。
+              OutlinedButton.icon(
                 onPressed: () => AppToast.show(
                     context, '请在下方收款计划逐期确认收款',
                     type: ToastType.warning),
                 icon: const Icon(LucideIcons.plus, size: 14),
                 label: const Text('登记一笔收款'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size.fromHeight(36),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.fg,
+                  backgroundColor: AppColors.surface,
+                  side: const BorderSide(color: AppColors.border),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  minimumSize: const Size.fromHeight(34),
+                  textStyle: const TextStyle(
+                      fontSize: 12.5, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -1171,31 +1384,9 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Icon(LucideIcons.info, size: 16, color: AppColors.accent),
-                  const SizedBox(width: 8),
-                  const Text('借款信息',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.accent,
-                        fontFamily: AppTypography.displayFamily,
-                        fontFamilyFallback: AppTypography.displayFallback,
-                      )),
-                ],
-              ),
+              _sideHeader(LucideIcons.info, '借款信息'),
               const SizedBox(height: 14),
-              _sideRow('债务人', debt.counterparty),
-              _sideRow('联系方式', debt.contact.isEmpty ? '—' : debt.contact),
-              _sideRow('借出日期', _fmtDate(debt.startDate)),
-              _sideRow('到期日期', _fmtDate(debt.dueDate)),
-              _sideRow('摊还方法', _amortLabel(debt.amortization)),
-              _sideRow(
-                '合同/借据',
-                debt.contractRef.isEmpty ? '—' : debt.contractRef,
-                valueColor: debt.contractRef.isEmpty ? null : AppColors.accentHover,
-              ),
+              _sideRows(loanRows),
             ],
           ),
         ),
@@ -1203,39 +1394,128 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     );
   }
 
-  /// side panel 行:k/v 对齐,底部虚线分隔(对齐 OD .rl dashed border)。
-  Widget _sideRow(String k, String v, {Color? valueColor}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 11),
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: AppColors.border, width: 1),
-        ),
+  /// side card 标题(OD .side-card h4:serif 15 + svg 16 gold;文字色 fg)。
+  Widget _sideHeader(IconData icon, String title) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: AppColors.accent),
+        const SizedBox(width: 8),
+        Text(title,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppColors.fg,
+              fontFamily: AppTypography.displayFamily,
+              fontFamilyFallback: AppTypography.displayFallback,
+            )),
+      ],
+    );
+  }
+
+  /// side card 行集合(每行底部 dashed 分隔,末行无 border,对齐 OD .rl:last-child)。
+  Widget _sideRows(List<_SideRowData> rows) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < rows.length; i++) ...[
+          _sideRow(rows[i]),
+          if (i < rows.length - 1)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 0),
+              child: _DashedDivider(),
+            ),
+        ],
+      ],
+    );
+  }
+
+  /// side panel 单行(对齐 OD .rl padding 11 0,k muted / v 600)。
+  /// data.onTap != null 时 value 文字可点击(InkWell 包 Text,hover 金色下划线)。
+  Widget _sideRow(_SideRowData data) {
+    final valueText = Text(
+      data.v,
+      textAlign: TextAlign.right,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: data.valueColor ?? AppColors.fg,
+        decoration: data.onTap != null ? TextDecoration.underline : null,
+        decorationColor: data.valueColor ?? AppColors.accentHover,
+        fontFamily: data.mono ? AppTypography.displayFamily : null,
+        fontFamilyFallback: data.mono ? AppTypography.displayFallback : null,
+        fontFeatures: AppTypography.tabularFigures,
       ),
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 11),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Flexible(
-            child: Text(k,
+            child: Text(data.k,
                 style: const TextStyle(fontSize: 13, color: AppColors.muted)),
           ),
           const SizedBox(width: 16),
           Flexible(
-            child: Text(
-              v,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: valueColor ?? AppColors.fg,
-                fontFeatures: AppTypography.tabularFigures,
-              ),
-            ),
+            child: data.onTap == null
+                ? valueText
+                : InkWell(
+                    onTap: data.onTap,
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: valueText,
+                    ),
+                  ),
           ),
         ],
       ),
     );
+  }
+
+  /// 拨打 tel:link(url_launcher)。Windows 无 tel: handler,fallback toast。
+  /// try/catch 包裹避免 url_launcher 在 test 环境抛 MissingPluginException。
+  Future<void> _launchTel(String contact) async {
+    final uri = Uri.parse('tel:$contact');
+    try {
+      final ok = await launchUrl(uri);
+      if (!ok) {
+        if (mounted) {
+          AppToast.show(context, '拨打 $contact(无 tel handler,请手动)',
+              type: ToastType.warning);
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        AppToast.show(context, '拨打 $contact(系统不支持 tel:)',
+            type: ToastType.warning);
+      }
+    }
+  }
+
+  /// 查看合同/借据。若 contractRef 是 URL → launchUrl;否则 toast
+  /// 「查看合同待接入」(御财本地无文件 viewer;后续可加 attachment 模块)。
+  Future<void> _viewContract(String contractRef) async {
+    final isUrl = Uri.tryParse(contractRef)?.hasAbsolutePath == true &&
+        (contractRef.startsWith('http://') ||
+            contractRef.startsWith('https://') ||
+            contractRef.startsWith('file://'));
+    if (isUrl) {
+      try {
+        final ok = await launchUrl(Uri.parse(contractRef));
+        if (!ok && mounted) {
+          AppToast.show(context, '无法打开合同链接', type: ToastType.warning);
+        }
+      } catch (_) {
+        if (mounted) {
+          AppToast.show(context, '无法打开合同链接', type: ToastType.warning);
+        }
+      }
+    } else if (mounted) {
+      AppToast.show(context, '查看合同「$contractRef」待接入',
+          type: ToastType.warning);
+    }
   }
 
   /// 从 _accounts 缓存按 id 解析账户名(_accounts 含 inactive 时仍可解析;
@@ -1244,6 +1524,15 @@ class _ReceivableDetailPageState extends State<ReceivableDetailPage> {
     if (id == null || id.isEmpty) return null;
     for (final a in _accounts) {
       if (a.id == id) return a.name;
+    }
+    return null;
+  }
+
+  /// 从 _accounts 缓存按 id 解析账户尾号(对齐 OD .rl「账户尾号 ****XXXX」)。
+  String? _lookupAccountTail(String? id) {
+    if (id == null || id.isEmpty) return null;
+    for (final a in _accounts) {
+      if (a.id == id && a.cardNumberTail.isNotEmpty) return a.cardNumberTail;
     }
     return null;
   }
@@ -1401,6 +1690,78 @@ class _StatCardData {
   final Color? valueColor;
 }
 
+/// side panel 行数据(k/v/可选 mono/可选 valueColor/可选 onTap clickable)。
+class _SideRowData {
+  const _SideRowData({
+    required this.k,
+    required this.v,
+    this.mono = false,
+    this.valueColor,
+    this.onTap,
+  });
+  final String k;
+  final String v;
+  final bool mono;
+  final Color? valueColor;
+  /// 非空时 value 文字可点击(InkWell 包 Text)。
+  final VoidCallback? onTap;
+}
+
+/// side panel 行间 dashed 分隔线(对齐 OD .rl border-bottom:1px dashed)。
+/// Flutter 无内置 dashed border,用 CustomPainter 画水平虚线。
+class _DashedDivider extends StatelessWidget {
+  const _DashedDivider({this.color = AppColors.border, this.dashWidth = 4, this.gapWidth = 3});
+  final Color color;
+  final double dashWidth;
+  final double gapWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: const Size(double.infinity, 1),
+      painter: _DashedLinePainter(
+        color: color,
+        dashWidth: dashWidth,
+        gapWidth: gapWidth,
+      ),
+    );
+  }
+}
+
+class _DashedLinePainter extends CustomPainter {
+  const _DashedLinePainter({
+    required this.color,
+    required this.dashWidth,
+    required this.gapWidth,
+  });
+  final Color color;
+  final double dashWidth;
+  final double gapWidth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke;
+    var x = 0.0;
+    while (x < size.width) {
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset((x + dashWidth).clamp(0, size.width), 0),
+        paint,
+      );
+      x += dashWidth + gapWidth;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedLinePainter oldDelegate) =>
+      oldDelegate.color != color ||
+      oldDelegate.dashWidth != dashWidth ||
+      oldDelegate.gapWidth != gapWidth;
+}
+
 /// StatCard（对齐 OD .stat：金 icon + label + value + sub,value 可 good/warn 色）。
 class _StatCard extends StatelessWidget {
   const _StatCard({required this.data});
@@ -1440,7 +1801,7 @@ class _StatCard extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                  fontSize: 10,
+                  fontSize: 11,
                   color: AppColors.muted,
                   fontFeatures: AppTypography.tabularFigures)),
         ],

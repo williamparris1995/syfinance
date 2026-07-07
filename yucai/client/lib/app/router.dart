@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -27,6 +28,7 @@ import 'package:yucai_client/auth/presentation/pages/register_page.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
+import 'package:yucai_client/debt/presentation/bloc/debt_state.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/pages/debt_detail_page.dart';
@@ -376,6 +378,53 @@ GoRouter buildRouter(AuthBloc authBloc) {
                       ],
                       child: ReceivableDetailPage(id: state.pathParameters['id']!),
                     ),
+                    routes: [
+                      GoRoute(
+                        path: 'edit',
+                        // 编辑表单:ReceivableFormPage(existing: debt) edit mode。
+                        // LoadDebtRequested 后 DebtDetailLoaded 时构造 FormPage 预填,
+                        // 对齐 /budgets/:id/edit 模式。DebtBloc 由本 route provide,
+                        // 表单提交走 UpdateDebtRequested。
+                        builder: (_, state) => MultiBlocProvider(
+                          providers: [
+                            BlocProvider<DebtBloc>(
+                              create: (_) {
+                                final b = DebtBloc(getIt<DebtRepository>());
+                                b.add(LoadDebtRequested(
+                                    state.pathParameters['id']!));
+                                return b;
+                              },
+                            ),
+                            BlocProvider<CurrencyBloc>(
+                              create: (_) {
+                                final b = getIt<CurrencyBloc>();
+                                b.add(const LoadCurrenciesRequested());
+                                b.add(const LoadPreferencesRequested());
+                                return b;
+                              },
+                            ),
+                          ],
+                          child: BlocBuilder<DebtBloc, DebtState>(
+                            builder: (ctx, st) {
+                              if (st is DebtDetailLoaded) {
+                                return ReceivableFormPage(
+                                    existing: st.detail.debt);
+                              }
+                              if (st is DebtError) {
+                                return Scaffold(
+                                  body: Center(
+                                      child: Text('加载失败：${st.message}')),
+                                );
+                              }
+                              return const Scaffold(
+                                body: Center(
+                                    child: CircularProgressIndicator()),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

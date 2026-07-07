@@ -102,18 +102,18 @@ class AppShell extends StatelessWidget {
                 ),
                 const VerticalDivider(width: 1, color: AppColors.border),
                 Expanded(
-                  child: hideTopBar
-                      ? navigationShell
-                      : Column(
-                          children: [
-                            _TopBar(
-                              branchIndex: navigationShell.currentIndex,
-                              location: location,
-                            ),
-                            const Divider(height: 1, color: AppColors.border),
-                            Expanded(child: navigationShell),
-                          ],
+                  child: Column(
+                    children: [
+                      if (!hideTopBar)
+                        _TopBar(
+                          branchIndex: navigationShell.currentIndex,
+                          location: location,
                         ),
+                      if (!hideTopBar)
+                        const Divider(height: 1, color: AppColors.border),
+                      Expanded(child: navigationShell),
+                    ],
+                  ),
                 ),
               ],
             ),
