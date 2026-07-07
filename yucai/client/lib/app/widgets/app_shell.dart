@@ -448,41 +448,61 @@ class _TopBar extends StatelessWidget {
             // 面包屑:section › page(对齐 OD .crumbs)。
             _BreadCrumb(section: meta.section, page: meta.page),
             const Spacer(),
-            // 创建按钮(list 页,对齐 OD .topbar .btn-primary gold)。
-            if (showCreate) ...[
-              _TopBarCreate(label: meta.createLabel!, route: meta.createRoute!),
-              const SizedBox(width: AppSpacing.sm),
-            ],
             if (!compact)
               SizedBox(
                 width: 220,
                 child: TextField(
-                  style: const TextStyle(fontSize: 14),
+                  style: const TextStyle(fontSize: 13),
                   decoration: InputDecoration(
                     hintText: '搜索交易、账户…',
                     isDense: true,
                     prefixIcon: const Icon(LucideIcons.search,
-                        size: 18, color: AppColors.muted),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
+                        size: 16, color: AppColors.muted),
+                    prefixIconConstraints:
+                        const BoxConstraints(minWidth: 32, minHeight: 32),
+                    // 高度收紧(vertical 6 + isDense),对齐 OD .tb-search 紧凑。
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   ),
                 ),
               ),
-            const SizedBox(width: AppSpacing.sm),
-            IconButton(
-              tooltip: '通知',
-              icon: const Icon(LucideIcons.bell, color: AppColors.muted),
-              onPressed: () {},
-            ),
+            if (!compact) const SizedBox(width: AppSpacing.sm),
+            _TopBarIcon(LucideIcons.bell, '通知', () {}),
             if (!compact)
-              IconButton(
-                tooltip: '设置',
-                icon: const Icon(LucideIcons.settings, color: AppColors.muted),
-                onPressed: () => context.go('/settings'),
-              ),
+              _TopBarIcon(
+                  LucideIcons.settings, '设置', () => context.go('/settings')),
+            // 创建按钮(list 页,对齐 OD .topbar .btn-primary gold)—— 最右。
+            if (showCreate) ...[
+              const SizedBox(width: AppSpacing.sm),
+              _TopBarCreate(label: meta.createLabel!, route: meta.createRoute!),
+            ],
           ]),
         ),
       ),
+    );
+  }
+}
+
+/// topbar 图标按钮(通知/设置):透明底(去默认 fill/highlight 白底),hover accentSoft。
+class _TopBarIcon extends StatelessWidget {
+  const _TopBarIcon(this.icon, this.tooltip, this.onTap);
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: tooltip,
+      icon: Icon(icon, size: 20, color: AppColors.muted),
+      style: IconButton.styleFrom(
+        backgroundColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        hoverColor: AppColors.accentSoft.withValues(alpha: 0.4),
+        padding: EdgeInsets.zero,
+        minimumSize: const Size(36, 36),
+      ),
+      onPressed: onTap,
     );
   }
 }
