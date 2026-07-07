@@ -283,15 +283,15 @@ void main() {
         '/transactions/t-42');
   });
 
-  test('router has eight StatefulShell branches '
-      '(home/accounts/transactions/debts/receivables/holdings/budgets/goals)',
+  test('router has nine StatefulShell branches '
+      '(home/accounts/transactions/debts/receivables/holdings/budgets/goals/settings)',
       () {
     final router = buildRouter(_seededAuthBloc());
     final shell = router.configuration.routes
         .whereType<StatefulShellRoute>()
         .first;
-    expect(shell.branches.length, 8,
-        reason: 'goal branch (index 7) must be registered');
+    expect(shell.branches.length, 9,
+        reason: 'settings branch (index 8) must be registered');
   });
 
   testWidgets(

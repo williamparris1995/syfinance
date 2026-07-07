@@ -698,25 +698,29 @@ GoRouter buildRouter(AuthBloc authBloc) {
               ),
             ],
           ),
+          // 设置作为 shell branch 8(集成 sidebar/topbar 体系;独立 CurrencyBloc
+          // 进入即拉 currencies + preferences 渲染 dropdown)。
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/settings',
+                builder: (_, __) => MultiBlocProvider(
+                  providers: [
+                    BlocProvider<CurrencyBloc>(
+                      create: (_) {
+                        final b = getIt<CurrencyBloc>();
+                        b.add(const LoadCurrenciesRequested());
+                        b.add(const LoadPreferencesRequested());
+                        return b;
+                      },
+                    ),
+                  ],
+                  child: const SettingsPage(),
+                ),
+              ),
+            ],
+          ),
         ],
-      ),
-      // 设置页：顶层路由（非 shell 分支），从侧栏「设置」直接进入。
-      // 独立 CurrencyBloc 实例，进入即拉取 currencies + preferences 渲染 dropdown。
-      GoRoute(
-        path: '/settings',
-        builder: (_, __) => MultiBlocProvider(
-          providers: [
-            BlocProvider<CurrencyBloc>(
-              create: (_) {
-                final b = getIt<CurrencyBloc>();
-                b.add(const LoadCurrenciesRequested());
-                b.add(const LoadPreferencesRequested());
-                return b;
-              },
-            ),
-          ],
-          child: const SettingsPage(),
-        ),
       ),
     ],
     initialLocation: '/home',

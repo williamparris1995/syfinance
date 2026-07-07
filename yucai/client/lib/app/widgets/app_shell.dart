@@ -52,6 +52,8 @@ import 'package:yucai_client/core/theme/app_design.dart';
         section: '规划', page: '目标管理', rootPath: '/goals',
         createLabel: '新建目标', createRoute: '/goals/new',
       );
+    case 8:
+      return (section: '系统', page: '设置', rootPath: '/settings', createLabel: null, createRoute: null);
     default:
       return (section: '', page: '御财', rootPath: '/', createLabel: null, createRoute: null);
   }
@@ -174,7 +176,7 @@ const _navGroups = <_NavGroup>[
   ]),
   _NavGroup('工具', [
     _NavItem('报表分析', LucideIcons.barChart, null),
-    _NavItem('设置', LucideIcons.settings, null, route: '/settings'),
+    _NavItem('设置', LucideIcons.settings, 8),
   ]),
 ];
 

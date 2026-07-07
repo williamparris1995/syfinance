@@ -42,10 +42,8 @@ class SettingsPage extends StatelessWidget {
     final settings = _currencySettings ?? getIt<CurrencySettings>();
     return Scaffold(
       backgroundColor: AppColors.bg,
-      appBar: AppBar(
-        leading: BackButton(onPressed: () => Navigator.of(context).pop()),
-        title: const Text('设置'),
-      ),
+      // 无 AppBar:shell branch 8,topbar 已显面包屑「系统 › 设置」;sidebar 切换
+      // (不 pop,原 BackButton pop 在 branch 内栈空 → 黑屏)。
       body: BlocBuilder<CurrencyBloc, CurrencyState>(
         builder: (context, state) {
           return SingleChildScrollView(
