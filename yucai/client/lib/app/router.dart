@@ -309,6 +309,43 @@ GoRouter buildRouter(AuthBloc authBloc) {
                       ],
                       child: DebtDetailPage(id: state.pathParameters['id']!),
                     ),
+                    routes: [
+                      GoRoute(
+                        path: 'edit',
+                        // 编辑表单:DebtFormPage(existing: debt) edit mode,
+                        // 对齐 /receivables/:id/edit 模式。DebtBloc 由本 route provide,
+                        // 表单提交走 UpdateDebtRequested。
+                        builder: (_, state) => MultiBlocProvider(
+                          providers: [
+                            BlocProvider<DebtBloc>(
+                              create: (_) {
+                                final b = DebtBloc(getIt<DebtRepository>());
+                                b.add(LoadDebtRequested(
+                                    state.pathParameters['id']!));
+                                return b;
+                              },
+                            ),
+                            BlocProvider<CurrencyBloc>(
+                              create: (_) {
+                                final b = getIt<CurrencyBloc>();
+                                b.add(const LoadCurrenciesRequested());
+                                b.add(const LoadPreferencesRequested());
+                                return b;
+                              },
+                            ),
+                          ],
+                          child: BlocBuilder<DebtBloc, DebtState>(
+                            builder: (ctx, st) {
+                              if (st is DebtDetailLoaded) {
+                                return DebtFormPage(existing: st.detail.debt);
+                              }
+                              return const Center(
+                                  child: CircularProgressIndicator());
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
