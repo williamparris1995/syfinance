@@ -24,7 +24,8 @@ import 'package:yucai_client/transaction/presentation/widgets/txn_category_icon.
 /// OD `detail-transaction.html` 三栏 + 同分类近期：
 ///   - **page-head**:返回链接 + h1(交易名) + 编辑 btn-primary(gold) + 更多 menu。
 ///   - **col1 交易概要**:大金额(¥ + 42px mono + chip) + TX-id + meta-list
-///     (交易日期/描述/支付方式/备注/对账状态)。
+///     (交易日期/支付方式/备注/对账状态)。OD meta-list **无「描述」行**(描述
+///     即 h1 标题,不重复);「标签」行待 DTO 加 tags 后补。
 ///   - **col2 复式分录**:[JournalEntry] 借/贷 + 借贷平衡 + 会计等式 explainer。
 ///   - **col3 快捷操作**:qa-items(编辑/复制/查看账单/删除[danger])。
 ///   - **同分类近期交易**:rel-list(per-category lucide icon + 名称/日期/金额)。
@@ -200,6 +201,14 @@ String _primaryAssetAccountId(Transaction txn) {
     if (e.creditCents > 0) return e.accountId;
   }
   return txn.entries.isNotEmpty ? txn.entries.first.accountId : '';
+}
+
+/// 首条非空 entry note（rel-row sub 的可选描述后缀）。
+String _firstNoteOf(Transaction txn) {
+  for (final e in txn.entries) {
+    if (e.note.isNotEmpty) return e.note;
+  }
+  return '';
 }
 
 class _DetailContent extends StatelessWidget {
@@ -710,9 +719,16 @@ String _formatDateLine(DateTime d, DateTime? time) {
 String _formatDateShort(DateTime d) =>
     '${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}';
 
-/// OD meta-list:6 行 KV。御财模型无 merchant/tag/reconciled 独立字段 ——
-/// 商户/描述复用 description、标签行仅在 entry.note 命中时展示备注、对账状态
-/// 固定「待对账」（模块未接入，诚实占位）。
+/// OD meta-list:6 行 KV（交易日期/商户/支付方式/备注/标签/对账状态）。
+/// 御财模型对齐情况：
+///   - **交易日期/支付方式/备注/对账状态**:已对齐（备注取 entry.note）。
+///   - **描述/商户**:OD meta-list **无「描述」行**——交易名/描述即 page-head
+///     h1 标题，不在 meta-list 重复（detail 4fix gap 1）。御财无独立 merchant
+///     字段，故也不单列「商户」行。
+///   - **标签（chip tags）**:TransactionDTO/EntryDTO **无 tags 字段**
+///     （proto 确认），无法诚实展示 → DEFER，待 proto 加 tags 后补行（detail
+///     4fix gap 2，不硬造占位 chip）。
+///   - **对账状态**:模块未接入，固定「待对账」诚实占位。
 class _MetaList extends StatelessWidget {
   const _MetaList({
     required this.txn,
@@ -732,10 +748,12 @@ class _MetaList extends StatelessWidget {
           ? const TransactionEntry(accountId: '', debitCents: 0, creditCents: 0)
           : txn.entries.first,
     ).note;
+    // TODO(transaction-detail-4fix gap2): OD meta-list 有「标签」行(chip tags)，
+    // 但 TransactionDTO/EntryDTO 当前无 tags 字段（见 proto/transaction/v1）。
+    // 待 proto 加 tags 后，在此插入 _MetaRow('标签', chipTags) 一行。
     final rows = <_MetaRow>[
       _MetaRow('交易日期', _formatDateLine(txn.transactionDate, txn.transactionTime),
           mono: true),
-      _MetaRow('描述', txn.description.isEmpty ? '—' : txn.description),
       _MetaRow('支付方式', paymentAccountName.isEmpty ? '—' : paymentAccountName),
       _MetaRow('备注', note.isEmpty ? '—' : note),
       _MetaRow('对账状态', '待对账', valueColor: AppColors.muted),
@@ -825,6 +843,8 @@ class _GoldButton extends StatelessWidget {
 }
 
 /// 更多菜单（⋯ → 复制/标记已对账/导出凭证/删除）。用 PopupMenu。
+/// 触发器对齐 OD `.btn.icon-only`:38×38 white bg + border + radius（detail
+/// 4fix gap 3)——原先透明无框,与 OD btn 样式不一致。
 class _MoreMenu extends StatelessWidget {
   const _MoreMenu({required this.isDeleting, required this.txn});
   final bool isDeleting;
@@ -834,7 +854,6 @@ class _MoreMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     return PopupMenuButton<String>(
       tooltip: '更多',
-      icon: const Icon(LucideIcons.moreHorizontal, size: 18, color: AppColors.muted),
       shape: RoundedRectangleBorder(borderRadius: AppRadius.smBorder),
       itemBuilder: (ctx) => [
         _item('copy', '复制交易', LucideIcons.copy, AppColors.fg),
@@ -859,6 +878,19 @@ class _MoreMenu extends StatelessWidget {
             break;
         }
       },
+      // 用 child(非 icon)承接自定义触发器:OD .btn.icon-only 样式。
+      child: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: Border.all(color: AppColors.border),
+          borderRadius: AppRadius.smBorder,
+        ),
+        alignment: Alignment.center,
+        child: const Icon(LucideIcons.moreHorizontal,
+            size: 18, color: AppColors.fg),
+      ),
     );
   }
 
@@ -1014,9 +1046,19 @@ class _RecentRow extends StatelessWidget {
       categoryAccount = accountOf(categoryId);
     }
     final flavour = inferFlavour(txn);
-    final icon = txnCategoryIcon(flavour, categoryAccount);
+    // per-category lucide,叠加交易描述匹配 → 同分类不同商户名也能差异化 icon
+    // (detail 4fix gap4,对齐 OD rel-row per-merchant icon)。
+    final icon = txnCategoryIcon(flavour, categoryAccount,
+        description: txn.description);
+    // icon 色 + 金额色 按 type 区分(支出红 / 收入绿 / 转账灰):amountColorOf
+    // 依分录账户类型推断(income→positive / expense→negative / 仅 asset→fg)。
     final amountColor = amountColorOf(txn, accountTypeOf);
-    final sub = categoryAccount?.name ?? nameOf(categoryId);
+    // 账户显示(detail 4fix gap4):OD rel-row sub 含支付方式/账户名(资产账户),
+    // 而非分类名(分类已由 panel 标题「同分类近期交易」+ icon 表达)。取主资产
+    // 腿(贷方)账户名,若有 entry note 追加在后。
+    final paymentName = nameOf(_primaryAssetAccountId(txn));
+    final note = _firstNoteOf(txn);
+    final sub = note.isEmpty ? paymentName : '$paymentName · $note';
 
     return InkWell(
       onTap: () => context.push('/transactions/${txn.id}'),

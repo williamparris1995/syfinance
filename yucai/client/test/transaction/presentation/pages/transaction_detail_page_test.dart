@@ -3,10 +3,12 @@
 // Asserts the page mirrors yucai-transaction-trisize-9d3e / detail-transaction.html:
 //   - page-head: 返回 link + h1 (description) + 编辑 (gold) + 更多 menu.
 //   - col1 交易概要: 大金额 (42px mono) + chip (支出/收入) + meta-list
-//     (交易日期 / 描述 / 支付方式 / 备注 / 对账状态). TX-id present.
+//     (交易日期 / 支付方式 / 备注 / 对账状态). OD **无「描述」行**(描述即 h1),
+//     「标签」行待 DTO 加 tags 后补(detail 4fix gap1+gap2). TX-id present.
 //   - col2 复式分录: JournalEntry 借/贷 + 借贷平衡 badge + 会计等式 explainer.
 //   - col3 快捷操作: qa-items (编辑交易 / 复制交易 / 查看账单 / 删除交易[danger]).
-//   - 同分类近期交易: rel-list (per-category lucide icon + 名称/日期/金额).
+//   - 同分类近期交易: rel-list (per-category lucide icon + 名称/账户/日期/金额,
+//     icon+金额色 按 type 区分;sub 显示支付账户名 — detail 4fix gap4).
 //   - Three breakpoints render without crashing.
 //   - Amount colour follows the touched account types.
 //   - initState self-drives the load.
@@ -15,6 +17,7 @@ import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
@@ -71,7 +74,8 @@ Transaction _transfer() => Transaction(
       ],
     );
 
-Transaction _recent(String id, int amount) => Transaction(
+Transaction _recent(String id, int amount, {String assetId = 'acc-cmb'}) =>
+    Transaction(
       id: id,
       transactionDate: _date,
       description: '早餐 $id',
@@ -79,7 +83,7 @@ Transaction _recent(String id, int amount) => Transaction(
         TransactionEntry(
             accountId: 'exp-food', debitCents: amount, creditCents: 0),
         TransactionEntry(
-            accountId: 'acc-cmb', debitCents: 0, creditCents: amount),
+            accountId: assetId, debitCents: 0, creditCents: amount),
       ],
     );
 
@@ -114,7 +118,9 @@ void main() {
     when(() => txnRepo.list(any())).thenAnswer((_) async => dartz.Right(
             ListTransactionsResult(transactions: [
           _recent('r1', 1500),
-          _recent('r2', 2200),
+          // r2 用不同支付账户(支付宝),让 detail 4fix gap4 的「rel-row sub
+          // 显示支付账户名」有独立可断言信号(支付宝仅出现在 r2 sub)。
+          _recent('r2', 2200, assetId: 'acc-ali'),
         ], nextPageToken: '')));
     when(() => acctRepo.list()).thenAnswer((_) async => dartz.Right([
           _account('exp-food', '餐饮', AccountType.expense),
@@ -186,6 +192,10 @@ void main() {
     expect(find.text('招商银行'), findsWidgets);
     expect(find.text('对账状态'), findsOneWidget);
     expect(find.text('待对账'), findsOneWidget);
+    // detail 4fix gap1: OD meta-list 无「描述」行(描述即 h1,不在 meta-list 重复)。
+    expect(find.text('描述'), findsNothing);
+    // detail 4fix gap3: 更多按钮触发器(OD .btn.icon-only 白底+框)仍在。
+    expect(find.byIcon(LucideIcons.moreHorizontal), findsOneWidget);
 
     // Journal: account names resolved + balance + accounting-equation.
     expect(find.text('餐饮'), findsWidgets);
@@ -201,6 +211,9 @@ void main() {
     // Recent same-account transactions.
     expect(find.text('早餐 r1'), findsOneWidget);
     expect(find.text('早餐 r2'), findsOneWidget);
+    // detail 4fix gap4: rel-row sub 现显示支付账户名(非分类名)。r2 用支付宝,
+    // 「支付宝」仅出现在 r2 的 sub → findsOneWidget 锁定账户显示已落地。
+    expect(find.text('支付宝'), findsOneWidget);
 
     // OD removed the legacy placeholder zones — assert they're gone.
     expect(find.text('AA 分摊'), findsNothing);
