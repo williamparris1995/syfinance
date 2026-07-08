@@ -372,11 +372,19 @@ class _Content extends StatelessWidget {
   }
 
   Future<List<Account>> _loadAccounts(BuildContext context) async {
-    // router /transactions 只 provide TransactionBloc,不 provide AccountRepository。
-    // 直接从 getIt 拿(注册于 DI),避免 context.read<AccountRepository?>() 返回 null
-    // 导致 accounts=[] → 交易卡全显示 #id + 分类 chip 隐藏。
+    // 优先从树里读 RepositoryProvider<AccountRepository>（测试 harness 走这条）；
+    // 路由层未 provide 时回退 getIt（生产路径）。与 detail 页同模式。
+    AccountRepository? repo;
     try {
-      final repo = GetIt.instance<AccountRepository>();
+      repo = RepositoryProvider.of<AccountRepository>(context);
+    } catch (_) {
+      repo = null;
+    }
+    try {
+      repo ??= GetIt.instance<AccountRepository>();
+    } catch (_) {}
+    if (repo == null) return const [];
+    try {
       final result = await repo.list();
       return result.fold((_) => const [], (list) => list);
     } catch (_) {
@@ -458,9 +466,15 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('交易记录',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600)),
+              const Text('交易管理',
+                  style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: AppTypography.displayFamily,
+                      fontFamilyFallback: AppTypography.displayFallback)),
               const SizedBox(height: 4),
+              // OD sub：「2026年6月 · 共 47 笔交易 · 已对账 45 笔」。已对账笔数
+              // 无数据源（backend 未返回 reconciled 计数）→ defer，仅展示月份+笔数。
               Text('$monthLabel · 共 $count 笔',
                   style: const TextStyle(
                       color: AppColors.muted, fontSize: 12)),
@@ -894,7 +908,8 @@ class _TxMain extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _TxIconBox(flavour: flavour, category: category),
+        _TxIconBox(
+            flavour: flavour, category: category, description: description),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Column(
@@ -925,25 +940,27 @@ class _TxMain extends StatelessWidget {
 }
 
 class _TxIconBox extends StatelessWidget {
-  const _TxIconBox({required this.flavour, this.category});
+  const _TxIconBox({required this.flavour, this.category, this.description = ''});
   final TxnFlavour flavour;
   final Account? category;
+  final String description;
 
   (Color, Color, IconData) get _styling {
     // icon 对齐 OD thin-stroke per-category lucide（餐饮 utensils / 购物
-    // shopping-bag / 交通 car / 工资 banknote …），未细化 → flavour 默认。
+    // shopping-bag / 交通 car / 工资 banknote …）；传入 description 让同名分类
+    // 下不同商户也能差异化（餐饮+星巴克 → coffee，餐饮+望江楼 → utensils）。
     switch (flavour) {
       case TxnFlavour.income:
         return (
           AppColors.positive,
           const Color(0x1A2D8A6E),
-          txnCategoryIcon(flavour, category),
+          txnCategoryIcon(flavour, category, description: description),
         );
       case TxnFlavour.expense:
         return (
           AppColors.negative,
           const Color(0x1AC4544D),
-          txnCategoryIcon(flavour, category),
+          txnCategoryIcon(flavour, category, description: description),
         );
       case TxnFlavour.transfer:
         return (AppColors.accent, AppColors.accentSoft, LucideIcons.arrowLeftRight);
@@ -1315,7 +1332,10 @@ class _MobileTxnCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            _TxIconBox(flavour: flavour, category: _categoryAccount),
+            _TxIconBox(
+                flavour: flavour,
+                category: _categoryAccount,
+                description: txn.description),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(

@@ -121,10 +121,10 @@ void main() {
     expect(find.text('记一笔'), findsOneWidget);
     expect(find.text('交易类型'), findsOneWidget);
     expect(find.text('支出'), findsWidgets);
-    expect(find.text('金额'), findsWidgets);
+    expect(find.textContaining('金额'), findsWidgets);
     expect(find.text('+50'), findsOneWidget);
     expect(find.text('清零'), findsOneWidget);
-    expect(find.text('详情'), findsOneWidget);
+    expect(find.textContaining('详情'), findsOneWidget);
     expect(find.text('标签 · 待 Tags 模块'), findsOneWidget);
     expect(find.text('保存'), findsOneWidget);
     // JournalEntry present (single column).
@@ -189,7 +189,7 @@ void main() {
     await tester.tap(find.text('+50'));
     await tester.pump();
     final amountField =
-        tester.widget<TextFormField>(find.widgetWithText(TextFormField, '金额').first);
+        tester.widget<TextFormField>(find.byKey(const ValueKey('hero_amount')));
     expect((amountField.controller!.text), '50.00');
   });
 

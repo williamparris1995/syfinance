@@ -311,9 +311,10 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    // 分类 chip:expense 账户 category.label
-    expect(find.text('其他资产'), findsWidgets,
-        reason: 'mobile 交易卡右侧应渲染分类 chip (账户 category label)');
+    // 分类 chip：显示账户名(餐饮)而非 category.label(其他资产)——对齐 OD
+    // category name(account-as-category：expense 账户名即分类名)。
+    expect(find.text('餐饮'), findsWidgets,
+        reason: 'mobile 交易卡右侧应渲染分类 chip (账户名,对齐 OD category name)');
     // HH:MM 时间(transactionTime 09:05,副行显示「· 09:05」)
     expect(find.textContaining(RegExp(r'\d{2}:\d{2}')), findsWidgets,
         reason: 'mobile 副行应显示 HH:MM');

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -7,12 +8,10 @@ import 'package:yucai_client/account/domain/repositories/account_repository.dart
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
-import 'package:yucai_client/core/widgets/amount_input.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/date_picker_input.dart';
 import 'package:yucai_client/core/widgets/form_section.dart';
 import 'package:yucai_client/core/widgets/time_picker_input.dart';
-import 'package:yucai_client/core/widgets/type_tabs.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_form_bloc.dart';
@@ -442,12 +441,6 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
     }
   }
 
-  static const _typeOptions = <TypeOption<TxnType>>[
-    TypeOption(TxnType.expense, '支出', LucideIcons.arrowDownLeft),
-    TypeOption(TxnType.income, '收入', LucideIcons.arrowUpRight),
-    TypeOption(TxnType.transfer, '转账', LucideIcons.arrowLeftRight),
-  ];
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -484,6 +477,11 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
             accountNameOf: (id) => accounts
                 .firstWhere((a) => a.id == id, orElse: () => _anon(id))
                 .name,
+            // 注入账户类型 → JournalEntry 副标显示「资产账户·Asset」/
+            // 「费用账户·Expense」(对齐 OD pv-row acc span)。
+            accountTypeOf: (id) => accounts
+                .firstWhere((a) => a.id == id, orElse: () => _anon(id))
+                .accountType,
           );
 
           return AbsorbPointer(
@@ -562,15 +560,15 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('交易类型',
+            // 交易类型（OD TypeTabs：colored dot + label + sub-caption）
+            const Text('交易类型',
                 style: TextStyle(
                     color: AppColors.muted,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.8)),
             const SizedBox(height: AppSpacing.sm),
-            TypeTabs<TxnType>(
-              options: _typeOptions,
+            _FormTypeTabs(
               selected: _type,
               onChanged: (v) => setState(() {
                 _type = v;
@@ -580,46 +578,33 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
               }),
             ),
             const SizedBox(height: AppSpacing.lg),
-            const Divider(height: 1, color: AppColors.border),
-            const SizedBox(height: AppSpacing.lg),
 
-            // 金额 + 快捷 chips
-            FormSection(
-              title: '金额',
-              children: [
-                AmountInput(
-                  controller: _amountCtrl,
-                  label: '金额',
-                  validator: (v) {
-                    final cents =
-                        ((double.tryParse(v ?? '') ?? 0) * 100).round();
-                    return cents <= 0 ? '金额必须大于 0' : null;
-                  },
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Wrap(
-                  spacing: AppSpacing.xs,
-                  runSpacing: AppSpacing.xs,
-                  children: [
-                    _quickChip('+50', () => _addQuick(5000)),
-                    _quickChip('+100', () => _addQuick(10000)),
-                    _quickChip('+500', () => _addQuick(50000)),
-                    _quickChip('+1000', () => _addQuick(100000)),
-                    _quickChip('清零', _clearAmount, isClear: true),
-                  ],
-                ),
-              ],
+            // OD hero amount panel：¥ + 46px mono + quick chips
+            _HeroAmount(
+              controller: _amountCtrl,
+              validator: (v) {
+                final cents =
+                    ((double.tryParse(v ?? '') ?? 0) * 100).round();
+                return cents <= 0 ? '金额必须大于 0' : null;
+              },
+              onQuickAdd: _addQuick,
+              onClear: _clearAmount,
             ),
             const SizedBox(height: AppSpacing.lg),
 
-            // 账户 / 分类（按类型切换）
-            ..._accountCategorySections(
-                assetAccounts, expenseAccounts, incomeAccounts),
+            // 1 账户与分类（numbered section）
+            _NumberedSection(
+              number: 1,
+              title: '账户与分类',
+              children: _accountCategoryFields(
+                  assetAccounts, expenseAccounts, incomeAccounts, accounts),
+            ),
             const SizedBox(height: AppSpacing.lg),
 
-            // 日期 / 时间 / 交易对象 / 备注
-            FormSection(
-              title: '详情',
+            // 2 交易详情（numbered section）
+            _NumberedSection(
+              number: 2,
+              title: '交易详情',
               children: [
                 // 交易日期 + 交易时间并排（Task 5）。时间默认当前时刻，
                 // 用户不调整即记「此刻」，等价旧行为。
@@ -658,12 +643,10 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
                     hintText: '可选',
                   ),
                 ),
+                // 标签占位（YAGNI：Tags 模块未实装，纯占位 UI）
+                _tagsPlaceholder(),
               ],
             ),
-            const SizedBox(height: AppSpacing.lg),
-
-            // 标签占位（YAGNI：Tags 模块未实装，纯占位 UI）
-            _tagsPlaceholder(),
             if (inlineError != null) ...[
               const SizedBox(height: AppSpacing.md),
               Text(inlineError,
@@ -682,59 +665,87 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
     );
   }
 
-  /// 按当前类型构造账户/分类分区。
-  /// - 支出：资产账户 + expense 分类
-  /// - 收入：资产账户 + income 分类
-  /// - 转账：转出资产账户 + 转入资产账户
-  List<Widget> _accountCategorySections(
+  /// 按当前类型构造账户/分类字段（填入「1 账户与分类」numbered section）。
+  /// - 支出：转出账户(asset) + 支出分类(expense)
+  /// - 收入：转入账户(asset) + 收入分类(income)
+  /// - 转账：转出账户(asset) + 转入账户(asset)
+  ///
+  /// 每个字段 = 标签 + 类型 tag(资产/费用/收入) + 下拉 + 余额 hint。
+  /// 字段间距由 [_NumberedSection.fieldSpacing] 统一控制。
+  List<Widget> _accountCategoryFields(
     List<Account> assetAccounts,
     List<Account> expenseAccounts,
     List<Account> incomeAccounts,
+    List<Account> allAccounts,
   ) {
     switch (_type) {
       case TxnType.expense:
         // account-as-category：支出 = 借支出分类(Expense) + 贷转出账户(Asset)。
-        // 两个字段必须明确区分「资产账户（钱从哪出）」与「支出分类（算什么
-        // 类，如餐饮/交通，来自分类管理）」，避免用户误以为只需选一个账户。
         return [
-          _accountSection('转出账户', '如招商银行、现金', assetAccounts,
-              _assetAccountId, (v) => setState(() => _assetAccountId = v)),
-          const SizedBox(height: AppSpacing.lg),
-          _accountSection('支出分类', '如餐饮、交通', expenseAccounts,
-              _categoryAccountId, (v) => setState(() => _categoryAccountId = v)),
+          _accountField('转出账户', '如招商银行、现金', assetAccounts,
+              _assetAccountId, (v) => setState(() => _assetAccountId = v),
+              allAccounts: allAccounts),
+          _accountField('支出分类', '如餐饮、交通', expenseAccounts,
+              _categoryAccountId, (v) => setState(() => _categoryAccountId = v),
+              allAccounts: allAccounts),
         ];
       case TxnType.income:
         return [
-          _accountSection('转入账户', '如招商银行、现金', assetAccounts,
-              _assetAccountId, (v) => setState(() => _assetAccountId = v)),
-          const SizedBox(height: AppSpacing.lg),
-          _accountSection('收入分类', '如工资、理财收益', incomeAccounts,
-              _categoryAccountId, (v) => setState(() => _categoryAccountId = v)),
+          _accountField('转入账户', '如招商银行、现金', assetAccounts,
+              _assetAccountId, (v) => setState(() => _assetAccountId = v),
+              allAccounts: allAccounts),
+          _accountField('收入分类', '如工资、理财收益', incomeAccounts,
+              _categoryAccountId, (v) => setState(() => _categoryAccountId = v),
+              allAccounts: allAccounts),
         ];
       case TxnType.transfer:
         return [
-          _accountSection('转出账户', '钱从哪来', assetAccounts, _assetAccountId,
-              (v) => setState(() => _assetAccountId = v)),
-          const SizedBox(height: AppSpacing.lg),
-          _accountSection('转入账户', '钱到哪去', assetAccounts, _toAccountId,
+          _accountField('转出账户', '钱从哪来', assetAccounts, _assetAccountId,
+              (v) => setState(() => _assetAccountId = v),
+              allAccounts: allAccounts),
+          _accountField('转入账户', '钱到哪去', assetAccounts, _toAccountId,
               (v) => setState(() => _toAccountId = v),
-              excludeId: _assetAccountId),
+              excludeId: _assetAccountId, allAccounts: allAccounts),
         ];
     }
   }
 
-  Widget _accountSection(
+  /// 单个账户字段：标签 + 类型 tag + 下拉 + 余额 hint（对齐 OD field + bal-hint）。
+  Widget _accountField(
     String title,
     String hint,
     List<Account> options,
     String? selected,
     ValueChanged<String?> onChanged, {
     String? excludeId,
+    required List<Account> allAccounts,
   }) {
     final items = options.where((a) => a.id != excludeId).toList();
-    return FormSection(
-      title: title,
+    // 选中账户（用于余额 hint）—— 从 allAccounts 查（selected 可能不在 items
+    // 里，如被 excludeId 排除的转账对侧）。
+    Account? selectedAcct;
+    if (selected != null) {
+      for (final a in allAccounts) {
+        if (a.id == selected) {
+          selectedAcct = a;
+          break;
+        }
+      }
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // OD field>label：标题 + tag(资产/费用/收入)
+        Row(
+          children: [
+            Text(title,
+                style: const TextStyle(
+                    color: AppColors.muted, fontSize: 12.5)),
+            const SizedBox(width: 6),
+            _accountFieldTag(options),
+          ],
+        ),
+        const SizedBox(height: 7),
         DropdownButtonFormField<String>(
           value: (selected != null && items.any((a) => a.id == selected))
               ? selected
@@ -746,7 +757,83 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
           onChanged: onChanged,
           validator: (v) => (v == null || v.isEmpty) ? '请选择$title' : null,
         ),
+        _balanceHint(selectedAcct),
       ],
+    );
+  }
+
+  /// OD field>label .tag：资产(灰) / 费用·收入(金)。按 options 推断类型。
+  Widget _accountFieldTag(List<Account> options) {
+    if (options.isEmpty) return const SizedBox.shrink();
+    final type = options.first.accountType;
+    final String label;
+    final bool isAsset;
+    switch (type) {
+      case AccountType.asset:
+        label = '资产';
+        isAsset = true;
+        break;
+      case AccountType.expense:
+        label = '费用';
+        isAsset = false;
+        break;
+      case AccountType.income:
+        label = '收入';
+        isAsset = false;
+        break;
+      default:
+        return const SizedBox.shrink();
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: isAsset ? const Color(0xFFEEF0F3) : AppColors.accentSoft,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(label,
+          style: TextStyle(
+              color: isAsset ? const Color(0xFF56606B) : AppColors.accent,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0.5)),
+    );
+  }
+
+  /// OD bal-hint：资产账户「当前余额 ¥X」；expense「累计支出」/ income「累计收入」
+  /// （lifetime，来自 currentBalanceCents）。
+  /// OD 原型用「本月已支出/已入账」—— 月度分类汇总 backend 未返回，defer；
+  /// 此处用累计值近似，保留 hint 语义（用户可感知账户余额/分类量级）。
+  Widget _balanceHint(Account? acct) {
+    if (acct == null) return const SizedBox.shrink();
+    final cents = acct.currentBalanceCents;
+    final String label;
+    switch (acct.accountType) {
+      case AccountType.asset:
+        label = '当前余额';
+        break;
+      case AccountType.expense:
+        label = '累计支出';
+        break;
+      case AccountType.income:
+        label = '累计收入';
+        break;
+      default:
+        return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        children: [
+          Text('$label ',
+              style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+          Text(_fmtCents(cents),
+              style: const TextStyle(
+                  color: AppColors.fg,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  fontFeatures: AppTypography.tabularFigures)),
+        ],
+      ),
     );
   }
 
@@ -773,26 +860,314 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
     );
   }
 
-  Widget _quickChip(String label, VoidCallback onTap, {bool isClear = false}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isClear ? AppColors.surfaceAlt : AppColors.accentSoft,
-          border: Border.all(
-              color: isClear ? AppColors.border : AppColors.accent),
-          borderRadius: BorderRadius.circular(99),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isClear ? AppColors.muted : AppColors.accentHover,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
+}
+
+// ───────────────────────── OD 对齐组件 ─────────────────────────
+
+/// 分 → 「¥1,234.56」（千分位 + 两位小数）。表单余额 hint 用。
+String _fmtCents(int cents) {
+  final abs = cents.abs();
+  final yuan = abs ~/ 100;
+  final frac = (abs % 100).toString().padLeft(2, '0');
+  final yuanStr = yuan.toString().replaceAllMapped(
+      RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},');
+  return '¥$yuanStr.$frac';
+}
+
+/// OD type tabs：三等宽分段，每段 = colored dot + 标签 + sub-caption。
+/// 支出(红·花出去的钱) / 收入(绿·收进来的钱) / 转账(金·账户间划转)。
+class _FormTypeTabs extends StatelessWidget {
+  const _FormTypeTabs({required this.selected, required this.onChanged});
+
+  final TxnType selected;
+  final ValueChanged<TxnType> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.bg,
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(11),
+      ),
+      child: Row(
+        children: [
+          for (final t in TxnType.values)
+            Expanded(
+              child: _TypeTab(
+                type: t,
+                selected: selected == t,
+                onTap: () => onChanged(t),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TypeTab extends StatefulWidget {
+  const _TypeTab({
+    required this.type,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final TxnType type;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  State<_TypeTab> createState() => _TypeTabState();
+}
+
+class _TypeTabState extends State<_TypeTab> {
+  bool _hover = false;
+
+  (Color, String) get _styling {
+    switch (widget.type) {
+      case TxnType.expense:
+        return (AppColors.negative, '花出去的钱');
+      case TxnType.income:
+        return (AppColors.positive, '收进来的钱');
+      case TxnType.transfer:
+        return (AppColors.accent, '账户间划转');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final (dotColor, sub) = _styling;
+    final selected = widget.selected;
+    final fg = selected ? AppColors.fg : AppColors.muted;
+    final subColor = selected ? AppColors.muted : const Color(0xFFA8A298);
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppColors.surface
+                : (_hover ? AppColors.surfaceAlt : Colors.transparent),
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: selected
+                ? const [
+                    BoxShadow(
+                        color: Color(0x14000000),
+                        blurRadius: 3,
+                        offset: Offset(0, 1))
+                  ]
+                : null,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: selected ? dotColor : subColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(widget.type.label,
+                      style: TextStyle(
+                          color: fg,
+                          fontSize: 14,
+                          fontWeight:
+                              selected ? FontWeight.w600 : FontWeight.w500)),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(sub, style: TextStyle(color: subColor, fontSize: 11)),
+            ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// OD hero amount panel：label「交易金额」+ ¥(serif 30px) + 46px mono 输入 +
+/// quick chips(+50/+100/+500/+1,000/清零)。
+class _HeroAmount extends StatelessWidget {
+  const _HeroAmount({
+    required this.controller,
+    this.validator,
+    this.onQuickAdd,
+    this.onClear,
+  });
+
+  final TextEditingController controller;
+  final String? Function(String?)? validator;
+  final void Function(int yuanCents)? onQuickAdd;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
+      decoration: BoxDecoration(
+        color: AppColors.bg,
+        border: Border.all(color: AppColors.border),
+        borderRadius: AppRadius.lgBorder,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('交易金额',
+              style: TextStyle(
+                  color: AppColors.muted, fontSize: 12, letterSpacing: 0.6)),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              const Text('¥',
+                  style: TextStyle(
+                      fontFamily: AppTypography.displayFamily,
+                      fontFamilyFallback: AppTypography.displayFallback,
+                      fontSize: 30,
+                      color: AppColors.muted)),
+              Expanded(
+                child: TextFormField(
+                  key: const ValueKey('hero_amount'),
+                  controller: controller,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'^-?\d*\.?\d*')),
+                  ],
+                  style: const TextStyle(
+                    fontSize: 46,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.02,
+                    fontFeatures: AppTypography.tabularFigures,
+                    color: AppColors.fg,
+                  ),
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    hintText: '0.00',
+                    hintStyle: TextStyle(
+                        color: Color(0xFFA8A298),
+                        fontSize: 46,
+                        fontWeight: FontWeight.w500),
+                    contentPadding: EdgeInsets.zero,
+                    isDense: true,
+                  ),
+                  validator: validator,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _chip('+50', () => onQuickAdd?.call(5000)),
+              _chip('+100', () => onQuickAdd?.call(10000)),
+              _chip('+500', () => onQuickAdd?.call(50000)),
+              _chip('+1,000', () => onQuickAdd?.call(100000)),
+              _chip('清零', onClear, isClear: true),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _chip(String label, VoidCallback? onTap, {bool isClear = false}) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isClear ? AppColors.muted : AppColors.fg,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              fontFeatures: AppTypography.tabularFigures,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// OD numbered section：序号 badge(金浅底) + 标题 + 字段列。
+/// 对齐原型「1 账户与分类」「2 交易详情」。
+class _NumberedSection extends StatelessWidget {
+  const _NumberedSection({
+    required this.number,
+    required this.title,
+    required this.children,
+  });
+
+  final int number;
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 18,
+              height: 18,
+              decoration: BoxDecoration(
+                color: AppColors.accentSoft,
+                borderRadius: BorderRadius.circular(5),
+              ),
+              alignment: Alignment.center,
+              child: Text('$number',
+                  style: const TextStyle(
+                      color: AppColors.accent,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      fontFeatures: AppTypography.tabularFigures)),
+            ),
+            const SizedBox(width: 8),
+            Text(title,
+                style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 1)),
+          ],
+        ),
+        const SizedBox(height: 14),
+        for (var i = 0; i < children.length; i++) ...[
+          children[i],
+          if (i < children.length - 1) const SizedBox(height: AppSpacing.md),
+        ],
+      ],
     );
   }
 }
