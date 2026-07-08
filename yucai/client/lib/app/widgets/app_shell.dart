@@ -173,17 +173,17 @@ const _navGroups = <_NavGroup>[
   _NavGroup('概览', [
     _NavItem('仪表盘', LucideIcons.layoutDashboard, 0),
   ]),
-  _NavGroup('财务', [
+  _NavGroup('资产', [
     _NavItem('账户管理', LucideIcons.wallet, 1),
-    _NavItem('预算管理', LucideIcons.piggyBank, 6, route: '/budgets'),
-    _NavItem('目标追踪', LucideIcons.target, 7, route: '/goals'),
+    _NavItem('投资组合', LucideIcons.lineChart, 5, route: '/holdings'),
   ]),
   _NavGroup('交易', [
+    _NavItem('交易记录', LucideIcons.receipt, 2),
     _NavItem('分类管理', LucideIcons.tags, null, route: '/categories'),
   ]),
-  _NavGroup('投资', [
-    _NavItem('投资组合', LucideIcons.lineChart, 5, route: '/holdings'),
-    _NavItem('交易记录', LucideIcons.receipt, 2),
+  _NavGroup('规划', [
+    _NavItem('预算管理', LucideIcons.piggyBank, 6, route: '/budgets'),
+    _NavItem('目标追踪', LucideIcons.target, 7, route: '/goals'),
   ]),
   _NavGroup('借贷', [
     _NavItem('债务管理', LucideIcons.landmark, 3, route: '/debts'),
