@@ -1,0 +1,1626 @@
+import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import 'package:yucai_client/account/domain/entities/account_entity.dart';
+import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/app_toast.dart';
+import 'package:yucai_client/core/widgets/data_card.dart';
+import 'package:yucai_client/core/widgets/debt_list_widgets.dart';
+import 'package:yucai_client/core/widgets/debt_view_semantics.dart';
+import 'package:yucai_client/core/widgets/gold_amount.dart';
+import 'package:yucai_client/currency/domain/currency_convert.dart';
+import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
+import 'package:yucai_client/debt/domain/value_objects.dart';
+
+/// 共享的 debt / receivable **详情页** 组件(结构样式两侧完全一致,差异由
+/// [DebtViewSemantics] 注入)。包含:
+///  - [DebtDetailHero]       深色金渐变 hero(avatar + name + badges + 剩余 + delta + progress + 4-tile side)
+///  - [DebtDetailStatsRow]   5-stat 金额维度 grid(借出/借款本金 + 已收/已还合计 + 待收/待还合计 + 累计利息 + 逾期)
+///  - [DebtDetailSchedule]   schedule panel(panel-head + sum-pills + filter + 表/卡 + 行内确认)
+///  - [DebtDetailSidePanel]  side panel(收款/还款账户卡 + 借款信息卡)
+///  - [DebtRecordDialog]     RecordPayment / 确认收款 dialog
+///  - 小件:[DebtDashedDivider] / status badge / sum pills
+///
+/// 同一组件实例 + 不同 [DebtViewSemantics] = debt 与 receivable 详情页结构样式
+/// 真正一致(镜像),仅文案/颜色语义不同。
+
+// ───────────────────────── Hero ─────────────────────────
+
+/// 深色金渐变 Hero(对齐 OD .hero)。desktop(>1080)双列(heroMain + heroSide 4-tile);
+/// tablet/mobile(≤1080)单列(主块在上,4-tile 在下)。
+///
+/// 两侧共用:剩余应收/本金、delta(减少=绿)、progress、年利率/月供/到期日/已收/已还期数。
+/// [badgeLabel] / [avatarColor] / [accountName] 由调用方按自身 subtype 集合与账户缓存推断。
+class DebtDetailHero extends StatelessWidget {
+  const DebtDetailHero({
+    super.key,
+    required this.sem,
+    required this.debt,
+    required this.preferred,
+    required this.paidCount,
+    required this.total,
+    required this.badgeLabel,
+    required this.avatarColor,
+    this.accountName,
+  });
+
+  final DebtViewSemantics sem;
+  final Debt debt;
+  final String preferred;
+  final int paidCount;
+  final int total;
+  final String badgeLabel;
+  final Color avatarColor;
+  /// hero-sub「关联账户 X」的账户名;null → 不附「关联账户」段。
+  final String? accountName;
+
+  @override
+  Widget build(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+    final isMobile = w <= 720;
+    final isNarrow = w <= 1080;
+    final ratio = debt.progressRatio;
+    final pct = (ratio * 100).toStringAsFixed(1);
+    final isSettled = debt.remainingPrincipalCents <= 0;
+    final initial = debt.counterparty.isNotEmpty
+        ? debt.counterparty.characters.first
+        : '?';
+
+    final avatarTile = Container(
+      key: const ValueKey('heroAvatar'),
+      width: 50,
+      height: 50,
+      decoration: BoxDecoration(
+        color: avatarColor.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: avatarColor.withValues(alpha: 0.55), width: 1),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: TextStyle(
+          color: _lighten(avatarColor),
+          fontSize: 22,
+          fontWeight: FontWeight.w700,
+          fontFamily: AppTypography.displayFamily,
+          fontFamilyFallback: AppTypography.displayFallback,
+        ),
+      ),
+    );
+
+    final heroMain = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            avatarTile,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 10,
+                    runSpacing: 6,
+                    children: [
+                      Text(
+                        debt.counterparty,
+                        style: const TextStyle(
+                          fontSize: 23,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          letterSpacing: 0.01,
+                          height: 1.15,
+                          fontFamily: AppTypography.displayFamily,
+                          fontFamilyFallback: AppTypography.displayFallback,
+                        ),
+                      ),
+                      _heroBadge(badgeLabel),
+                      if (isSettled) _heroBadge('已结清 ✓'),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${sem.cardMetaLentLabel} ${sharedFmtSymbol(debt.totalPrincipalCents, preferred)} · '
+                    '${sharedFmtDate(debt.startDate)} · ${sharedAmortLabel(debt.amortization)} · '
+                    '$total 期'
+                    '${accountName == null ? '' : ' · 关联账户 $accountName'}',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: Color(0xFFA8A59A),
+                      fontFeatures: AppTypography.tabularFigures,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 22),
+        Text(
+          sem.detailHeroRemainingLabel,
+          style: const TextStyle(
+            fontSize: 11,
+            color: Color(0xFF9AA0A8),
+            fontFeatures: AppTypography.tabularFigures,
+          ),
+        ),
+        const SizedBox(height: 6),
+        GoldAmount(
+          key: const ValueKey('heroRemaining'),
+          cents: debt.remainingPrincipalCents,
+          preferred: preferred,
+          curSize: isMobile ? 18 : 28,
+          numSize: isMobile ? 34 : 46,
+          numWeight: FontWeight.w700,
+          numLetterSpacing: -0.4,
+          numColor: Colors.white,
+          curColor: const Color(0xFFD9B878),
+          numFontFamily: AppTypography.displayFamily,
+          numFontFamilyFallback: AppTypography.displayFallback,
+        ),
+        const SizedBox(height: 11),
+        _deltaArea(debt.remainingTrendCents),
+        const SizedBox(height: 14),
+        ClipRRect(
+          key: const ValueKey('heroProgress'),
+          borderRadius: BorderRadius.circular(9999),
+          child: SizedBox(
+            width: double.infinity,
+            height: 13,
+            child: ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [Color(0xFFC9A86B), Color(0xFFE0C489)],
+              ).createShader(bounds),
+              blendMode: BlendMode.srcIn,
+              child: LinearProgressIndicator(
+                value: ratio,
+                minHeight: 13,
+                backgroundColor: Colors.white.withValues(alpha: 0.12),
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Flexible(
+              child: Text(
+                '${sem.detailHeroPaidProgCollected} ${sharedFmtSymbol(debt.totalPrincipalCents - debt.remainingPrincipalCents, preferred)}',
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  color: Color(0xFFA8A59A),
+                  fontFeatures: AppTypography.tabularFigures,
+                ),
+              ),
+            ),
+            Flexible(
+              child: Text(
+                '剩余 ${sharedFmtSymbol(debt.remainingPrincipalCents, preferred)} · ${sem.detailHeroPaidProgRemaining} $pct%',
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  color: Color(0xFFE7DFCA),
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: AppTypography.tabularFigures,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+
+    final heroSide = _heroSide();
+
+    return ClipRRect(
+      borderRadius: AppRadius.lgBorder,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 30),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF1F2126), Color(0xFF24201A), Color(0xFF1C1E21)],
+          ),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: -70,
+              right: -50,
+              child: Container(
+                width: 360,
+                height: 360,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      AppColors.accent.withValues(alpha: 0.34),
+                      AppColors.accent.withValues(alpha: 0.06),
+                      Colors.transparent,
+                    ],
+                    stops: const [0.0, 0.5, 0.7],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: -90,
+              left: 80,
+              child: Container(
+                width: 280,
+                height: 240,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      AppColors.accent.withValues(alpha: 0.13),
+                      Colors.transparent,
+                    ],
+                    stops: const [0.0, 0.7],
+                  ),
+                ),
+              ),
+            ),
+            isNarrow
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      heroMain,
+                      const SizedBox(height: 22),
+                      heroSide,
+                    ],
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(flex: 16, child: heroMain),
+                      const SizedBox(width: 34),
+                      Expanded(flex: 10, child: heroSide),
+                    ],
+                  ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// delta 区:总显「已收回/已还 N/M 期」;trendCents != 0 时附 trend pill(减少=绿)。
+  Widget _deltaArea(int trendCents) {
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      runSpacing: 4,
+      children: [
+        if (trendCents != 0) _trendPill(trendCents),
+        Text(
+          trendCents != 0
+              ? '较上月${trendCents < 0 ? '减少' : '增加'} · ${sem.detailHeroPaidCountLabel} $paidCount / $total 期'
+              : '${sem.detailHeroPaidCountLabel} $paidCount / $total 期',
+          style: const TextStyle(
+            fontSize: 12.5,
+            color: Color(0xFFBCB9AD),
+            fontFeatures: AppTypography.tabularFigures,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// trend pill:负=减少=绿 pill ↓;正=增加=红 pill ↑。两侧「剩余减少 = 好 = 绿」同向。
+  Widget _trendPill(int trendCents) {
+    final decreasing = trendCents < 0;
+    final abs = trendCents.abs();
+    final fg = decreasing ? const Color(0xFF7FC9A8) : const Color(0xFFE29A93);
+    final bg = decreasing
+        ? const Color(0x332D8A6E)
+        : const Color(0x33C4544D);
+    final icon = decreasing ? LucideIcons.arrowDown : LucideIcons.arrowUp;
+    return Container(
+      key: const ValueKey('heroDelta'),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(9999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: fg),
+          const SizedBox(width: 4),
+          Text(
+            sharedFmtSymbol(abs, preferred),
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: fg,
+              fontFeatures: AppTypography.tabularFigures,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// hero 右侧 4-tile:年利率 / 月供 / 到期日 / 已收·已还期数。
+  Widget _heroSide() {
+    return GridView.count(
+      key: const ValueKey('heroSide'),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      mainAxisExtent: 72,
+      childAspectRatio: 1.55,
+      children: [
+        _heroTile('年利率', '${debt.interestRate.toStringAsFixed(2)}%'),
+        _heroTile('月供', sharedFmtSymbol(_approxMonthly(debt), preferred)),
+        _heroTile('到期日', sharedFmtDate(debt.dueDate)),
+        _heroTile(sem.isReceivable ? '已收期数' : '已还期数',
+            '$paidCount / $total'),
+      ],
+    );
+  }
+
+  Widget _heroTile(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.045),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+        borderRadius: BorderRadius.circular(11),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10.5,
+              color: Color(0xFF8F8D83),
+              letterSpacing: 0.6,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFFF3EFEA),
+              fontFeatures: AppTypography.tabularFigures,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _heroBadge(String label) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+        decoration: BoxDecoration(
+          color: AppColors.accent.withValues(alpha: 0.22),
+          borderRadius: BorderRadius.circular(9999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 5,
+              height: 5,
+              decoration: const BoxDecoration(
+                  color: Color(0xFFD9B97E), shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 5),
+            Text(label,
+                style: const TextStyle(
+                    color: Color(0xFFD9B97E),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.2)),
+          ],
+        ),
+      );
+
+  /// avatar tile 文字色:类型色浅化(深色 hero 底上可读)。
+  static Color _lighten(Color c) {
+    final r = c.r;
+    final g = c.g;
+    final b = c.b;
+    final nr = ((r * 255 + (255 - r * 255) * 0.45)).round().clamp(0, 255);
+    final ng = ((g * 255 + (255 - g * 255) * 0.45)).round().clamp(0, 255);
+    final nb = ((b * 255 + (255 - b * 255) * 0.45)).round().clamp(0, 255);
+    return Color.fromARGB(255, nr, ng, nb);
+  }
+
+  /// 近似月供(Debt 实体无 monthly 字段;摊还方法粗估)。
+  static int _approxMonthly(Debt debt) {
+    if (debt.amortization == AmortizationMethod.lumpSum) {
+      return debt.totalPrincipalCents;
+    }
+    final months = (debt.dueDate.year - debt.startDate.year) * 12 +
+        (debt.dueDate.month - debt.startDate.month);
+    if (months <= 0) return 0;
+    return debt.totalPrincipalCents ~/ months;
+  }
+}
+
+// ───────────────────────── 5-stat StatsRow ─────────────────────────
+
+/// 从 [DebtDetail] 的 schedule 聚合 5 张金额维度 stat 卡(两侧共用 = 镜像):
+///  本金 / 已收·已还合计 / 待收·待还合计 / 累计利息收入·还息 / 逾期应收·应付。
+/// 颜色语义由 [DebtViewSemantics.interestIncomeColor] / [pendingPrincipalColor] 决定。
+List<DebtStatCardData> buildDebtDetailStats(
+    DebtDetail detail, String preferred, DebtViewSemantics sem) {
+  final debt = detail.debt;
+  final schedule = detail.schedule;
+  final paidPrincipal =
+      schedule.where((e) => e.paid).fold<int>(0, (s, e) => s + e.principalCents);
+  final paidInterest =
+      schedule.where((e) => e.paid).fold<int>(0, (s, e) => s + e.interestCents);
+  final paidTotal = paidPrincipal + paidInterest;
+  final unpaidEntries = schedule.where((e) => !e.paid);
+  final pendingPrincipal =
+      unpaidEntries.fold<int>(0, (s, e) => s + e.principalCents);
+  final pendingInterest =
+      unpaidEntries.fold<int>(0, (s, e) => s + e.interestCents);
+  final pendingTotal = pendingPrincipal + pendingInterest;
+  final overdueEntries =
+      schedule.where((e) => e.status == PaymentStatus.overdue && !e.paid);
+  final overdueTotal = overdueEntries.fold<int>(0, (s, e) => s + e.totalCents);
+  final overdueCount = overdueEntries.length;
+  final daysOverdue = overdueEntries.isEmpty
+      ? 0
+      : DateTime.now().difference(overdueEntries.first.paymentDate).inDays;
+  final overdueSub =
+      overdueCount > 0 ? '$overdueCount 期 · 逾期 $daysOverdue 天' : '无逾期';
+  final paidBreakdown = sem.statPaidBreakdownPattern
+      .replaceAll('{p}', sharedFmtSymbol(paidPrincipal, preferred))
+      .replaceAll('{i}', sharedFmtSymbol(paidInterest, preferred));
+  final pendingBreakdown = sem.statPendingBreakdownPattern
+      .replaceAll('{p}', sharedFmtSymbol(pendingPrincipal, preferred))
+      .replaceAll('{i}', sharedFmtSymbol(pendingInterest, preferred));
+
+  return <DebtStatCardData>[
+    DebtStatCardData(
+      label: sem.statPrincipalLabel,
+      icon: LucideIcons.banknote,
+      value: sharedFmtSymbol(debt.totalPrincipalCents, preferred),
+      sub: '${sharedFmtDate(debt.startDate)} 放款',
+    ),
+    DebtStatCardData(
+      label: sem.statPaidTotalLabel,
+      icon: LucideIcons.check,
+      value: sharedFmtSymbol(paidTotal, preferred),
+      sub: paidBreakdown,
+      valueColor: AppColors.positive,
+    ),
+    DebtStatCardData(
+      label: sem.statPendingTotalLabel,
+      icon: LucideIcons.clock,
+      value: sharedFmtSymbol(pendingTotal, preferred),
+      sub: pendingBreakdown,
+      valueColor: sem.pendingPrincipalColor == AppColors.fg
+          ? null
+          : sem.pendingPrincipalColor,
+    ),
+    DebtStatCardData(
+      label: sem.statInterestLabel,
+      icon: LucideIcons.trendingUp,
+      value: sharedFmtSymbol(paidInterest, preferred),
+      sub: '年化 ${debt.interestRate.toStringAsFixed(2)}%',
+      valueColor: paidInterest > 0 ? sem.interestIncomeColor : null,
+    ),
+    DebtStatCardData(
+      label: sem.statOverdueTotalLabel,
+      icon: LucideIcons.alertCircle,
+      value: sharedFmtSymbol(overdueTotal, preferred),
+      sub: overdueSub,
+      valueColor: overdueCount > 0 ? AppColors.negative : null,
+    ),
+  ];
+}
+
+class DebtStatCardData {
+  const DebtStatCardData({
+    required this.label,
+    required this.icon,
+    required this.value,
+    required this.sub,
+    this.valueColor,
+  });
+  final String label;
+  final IconData icon;
+  final String value;
+  final String sub;
+  final Color? valueColor;
+}
+
+/// 5 StatCards 金额维度 grid(对齐 OD .stats grid 5 列)。desktop 5 列 / tablet-mobile 2 列。
+/// 调用方构建 5 个 [DebtStatCardData](本金 / 已收·已还合计 / 待收·待还合计 / 累计利息 / 逾期)。
+class DebtDetailStatsRow extends StatelessWidget {
+  const DebtDetailStatsRow({super.key, required this.stats});
+  final List<DebtStatCardData> stats;
+
+  @override
+  Widget build(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+    final isTablet = w <= 900;
+    return GridView.count(
+      key: const ValueKey('statsRow'),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: isTablet ? 2 : 5,
+      mainAxisSpacing: 13,
+      crossAxisSpacing: 13,
+      mainAxisExtent: 140,
+      children: [for (final s in stats) _StatCard(data: s)],
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({required this.data});
+  final DebtStatCardData data;
+
+  @override
+  Widget build(BuildContext context) {
+    return DataCard(
+      padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(data.icon, size: 13, color: AppColors.accent),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(data.label,
+                    style: const TextStyle(
+                        fontSize: 11.5, color: AppColors.muted)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(data.value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 19,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.01,
+                color: data.valueColor ?? AppColors.fg,
+                fontFeatures: AppTypography.tabularFigures,
+              )),
+          const SizedBox(height: 4),
+          Text(data.sub,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.muted,
+                  fontFeatures: AppTypography.tabularFigures)),
+        ],
+      ),
+    );
+  }
+}
+
+// ───────────────────────── Schedule ─────────────────────────
+
+/// schedule 筛选枚举(全部/待收·待还/已收·已还/逾期)。
+enum DebtScheduleFilter { all, pending, paid, overdue }
+
+/// schedule section(panel-head + sum-pills + filter + 表/卡 + 行内确认)。
+///
+/// 行内确认(D4):[collectionAccountId] 非空 → [onConfirmInline] 直接 dispatch(无 dialog);
+/// 否则 → [onOpenDialog] 弹 dialog。两侧同结构,文案/颜色由 [sem] 注入。
+class DebtDetailSchedule extends StatefulWidget {
+  const DebtDetailSchedule({
+    super.key,
+    required this.sem,
+    required this.schedule,
+    required this.debt,
+    required this.preferred,
+    required this.isMobile,
+    required this.collectionAccountId,
+    required this.onConfirmInline,
+    required this.onOpenDialog,
+  });
+
+  final DebtViewSemantics sem;
+  final List<PaymentEntry> schedule;
+  final Debt debt;
+  final String preferred;
+  final bool isMobile;
+  final String? collectionAccountId;
+  final void Function(PaymentEntry entry) onConfirmInline;
+  final void Function(PaymentEntry entry) onOpenDialog;
+
+  @override
+  State<DebtDetailSchedule> createState() => _DebtDetailScheduleState();
+}
+
+class _DebtDetailScheduleState extends State<DebtDetailSchedule> {
+  DebtScheduleFilter _filter = DebtScheduleFilter.all;
+
+  List<PaymentEntry> get _filtered => switch (_filter) {
+        DebtScheduleFilter.all => widget.schedule,
+        DebtScheduleFilter.pending =>
+          widget.schedule.where((e) => e.status == PaymentStatus.pending).toList(),
+        DebtScheduleFilter.paid =>
+          widget.schedule.where((e) => e.status == PaymentStatus.paid).toList(),
+        DebtScheduleFilter.overdue => widget.schedule
+            .where((e) => e.status == PaymentStatus.overdue)
+            .toList(),
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final sem = widget.sem;
+    return DataCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          widget.isMobile
+              ? Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  runSpacing: 10,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _panelTitle(sem),
+                        const SizedBox(height: 9),
+                        _sumPills(widget.schedule, sem),
+                      ],
+                    ),
+                    _filterSegmented(sem),
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _panelTitle(sem),
+                          const SizedBox(height: 9),
+                          _sumPills(widget.schedule, sem),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    _filterSegmented(sem),
+                  ],
+                ),
+          const SizedBox(height: 14),
+          if (_filtered.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(
+                child: Text('该筛选下无期次',
+                    style: TextStyle(color: AppColors.muted, fontSize: 12)),
+              ),
+            )
+          else if (widget.isMobile)
+            _scheduleCardList()
+          else
+            _scheduleTable(),
+        ],
+      ),
+    );
+  }
+
+  Widget _panelTitle(DebtViewSemantics sem) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(sem.scheduleTitleIcon, size: 17, color: AppColors.accent),
+        const SizedBox(width: 8),
+        Text(sem.scheduleTitle,
+            style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                fontFamily: AppTypography.displayFamily,
+                fontFamilyFallback: AppTypography.displayFallback)),
+      ],
+    );
+  }
+
+  Widget _sumPills(List<PaymentEntry> schedule, DebtViewSemantics sem) {
+    final paid = schedule.where((e) => e.status == PaymentStatus.paid).length;
+    final pending =
+        schedule.where((e) => e.status == PaymentStatus.pending).length;
+    final overdue =
+        schedule.where((e) => e.status == PaymentStatus.overdue).length;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 4,
+      children: [
+        _pill(sem.sumPaidLabel, paid, AppColors.positive, const Color(0xFFE6F1ED)),
+        _pill(sem.sumPendingLabel, pending, const Color(0xFF8A8780),
+            const Color(0xFFF0EEE8)),
+        _pill(sem.statusOverdueLabel, overdue, AppColors.negative,
+            const Color(0xFFF6E7E5)),
+      ],
+    );
+  }
+
+  Widget _pill(String label, int count, Color fg, Color bg) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(9999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: TextStyle(fontSize: 12, color: fg)),
+          const SizedBox(width: 4),
+          Text('$count',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: fg,
+                  fontFeatures: AppTypography.tabularFigures)),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterSegmented(DebtViewSemantics sem) {
+    final paid =
+        widget.schedule.where((e) => e.status == PaymentStatus.paid).length;
+    final pending =
+        widget.schedule.where((e) => e.status == PaymentStatus.pending).length;
+    final overdue =
+        widget.schedule.where((e) => e.status == PaymentStatus.overdue).length;
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFECE5),
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _filterSeg(DebtScheduleFilter.all, '全部', widget.schedule.length, sem),
+          _filterSeg(DebtScheduleFilter.pending, sem.sumPendingLabel, pending, sem),
+          _filterSeg(DebtScheduleFilter.paid, sem.sumPaidLabel, paid, sem),
+          _filterSeg(DebtScheduleFilter.overdue, sem.statusOverdueLabel, overdue,
+              sem),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterSeg(
+      DebtScheduleFilter f, String label, int count, DebtViewSemantics sem) {
+    final active = _filter == f;
+    final fg = active ? AppColors.fg : AppColors.muted;
+    return InkWell(
+      key: ValueKey('filterSegment-$label'),
+      onTap: () => setState(() => _filter = f),
+      borderRadius: BorderRadius.circular(AppRadius.sm - 2),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: EdgeInsets.symmetric(
+            horizontal: widget.isMobile ? 10 : 13, vertical: 6),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: active ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppRadius.sm - 2),
+          boxShadow: active
+              ? [
+                  const BoxShadow(
+                    color: Color(0x1A1C1E21),
+                    blurRadius: 3,
+                    offset: Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                color: fg,
+              ),
+            ),
+            if (!widget.isMobile) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                decoration: BoxDecoration(
+                  color: active
+                      ? AppColors.accentSoft
+                      : const Color(0x10000000),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                    color: active ? AppColors.accentHover : AppColors.muted,
+                    fontFeatures: AppTypography.tabularFigures,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _scheduleTable() {
+    final sem = widget.sem;
+    final entries = _filtered;
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        child: Table(
+          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+          columnWidths: const {
+            0: FlexColumnWidth(1.6),
+            1: FlexColumnWidth(1),
+            2: FlexColumnWidth(1),
+            3: FlexColumnWidth(1),
+            4: IntrinsicColumnWidth(),
+            5: IntrinsicColumnWidth(),
+          },
+          children: [
+            TableRow(
+              decoration: const BoxDecoration(
+                color: Color(0xFFFBFAF6),
+                border: Border(bottom: BorderSide(color: AppColors.border)),
+              ),
+              children: [
+                _tableHeader(sem.tableCol1Header, align: TextAlign.left),
+                _tableHeader(sem.tableCol2Header, align: TextAlign.right),
+                _tableHeader(sem.tableCol3Header, align: TextAlign.right),
+                _tableHeader('合计', align: TextAlign.right),
+                _tableHeader('状态', align: TextAlign.left),
+                _tableHeader('操作', align: TextAlign.right),
+              ],
+            ),
+            for (var i = 0; i < entries.length; i++)
+              _scheduleRow(entries[i], i + 1, entries.length),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _tableHeader(String label, {required TextAlign align}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      child: Text(label,
+          textAlign: align,
+          style: const TextStyle(
+            fontSize: 11,
+            letterSpacing: 1,
+            fontWeight: FontWeight.w600,
+            color: AppColors.muted,
+            fontFeatures: AppTypography.tabularFigures,
+          )),
+    );
+  }
+
+  TableRow _scheduleRow(PaymentEntry e, int idx, int total) {
+    final isLast = idx == total;
+    final isOverdue = e.status == PaymentStatus.overdue && !e.paid;
+    final isPaid = e.paid;
+    const border = BorderSide(color: Color(0xFFEFECE5));
+    final rowBg = isPaid
+        ? const Color(0xFFFAFDFB)
+        : (isOverdue ? const Color(0xFFFDF8F7) : null);
+    final cellFg = isPaid ? AppColors.muted : AppColors.fg;
+    final sem = widget.sem;
+    return TableRow(
+      decoration: BoxDecoration(
+        color: rowBg,
+        border: isLast ? null : const Border(bottom: border),
+      ),
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          child: Row(
+            children: [
+              Text('$idx',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: isOverdue ? AppColors.negative : cellFg,
+                      fontFeatures: AppTypography.tabularFigures)),
+              const SizedBox(width: 6),
+              Text(sharedFmtDate(e.paymentDate),
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.muted,
+                      fontFeatures: AppTypography.tabularFigures)),
+            ],
+          ),
+        ),
+        _cellRight(sharedFmtSymbol(e.principalCents, widget.preferred),
+            color: cellFg, bold: true),
+        _cellRight(sharedFmtSymbol(e.interestCents, widget.preferred),
+            color: cellFg),
+        _cellRight(sharedFmtSymbol(e.totalCents, widget.preferred),
+            color: isOverdue ? AppColors.negative : cellFg, bold: true),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          child: _statusBadge(e, sem),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: _scheduleAction(e),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _cellRight(String text, {bool bold = false, Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Text(text,
+          textAlign: TextAlign.right,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
+            color: color,
+            fontFeatures: AppTypography.tabularFigures,
+          )),
+    );
+  }
+
+  Widget _scheduleCardList() {
+    final entries = _filtered;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < entries.length; i++) ...[
+          _scheduleCard(entries[i], i + 1),
+          if (i < entries.length - 1) const SizedBox(height: 10),
+        ],
+      ],
+    );
+  }
+
+  Widget _scheduleCard(PaymentEntry e, int idx) {
+    final sem = widget.sem;
+    final status = e.status;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+      decoration: BoxDecoration(
+        color: status == PaymentStatus.overdue
+            ? const Color(0x08C4544D)
+            : AppColors.surface,
+        border: Border.all(
+            color: status == PaymentStatus.overdue
+                ? const Color(0x33C4544D)
+                : AppColors.border),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: Text('第 $idx 期 · ${sharedFmtDate(e.paymentDate)}',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        fontFeatures: AppTypography.tabularFigures)),
+              ),
+              _statusBadge(e, sem),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                  child: _cardAmtCell(sem.tableCol2Header,
+                      sharedFmtSymbol(e.principalCents, widget.preferred))),
+              Expanded(
+                  child: _cardAmtCell(sem.tableCol3Header,
+                      sharedFmtSymbol(e.interestCents, widget.preferred))),
+              Expanded(
+                  child: _cardAmtCell(
+                      '合计', sharedFmtSymbol(e.totalCents, widget.preferred),
+                      total: true)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [_scheduleAction(e)],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _cardAmtCell(String k, String v, {bool total = false}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(k, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+        const SizedBox(height: 2),
+        Text(v,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: total ? FontWeight.w600 : FontWeight.w400,
+                color: AppColors.fg,
+                fontFeatures: AppTypography.tabularFigures)),
+      ],
+    );
+  }
+
+  Widget _statusBadge(PaymentEntry e, DebtViewSemantics sem) {
+    final (label, fg, bg, icon) = switch (e.status) {
+      PaymentStatus.paid => (
+          sem.statusPaidLabel,
+          AppColors.positive,
+          const Color(0x1A2D8A6E),
+          LucideIcons.check
+        ),
+      PaymentStatus.pending => (
+          sem.statusPendingLabel,
+          const Color(0xFF54585F),
+          const Color(0xFFF1EFE9),
+          null
+        ),
+      PaymentStatus.overdue => (
+          sem.statusOverdueLabel,
+          AppColors.negative,
+          const Color(0x1AC4544D),
+          LucideIcons.alertCircle
+        ),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+          color: bg, borderRadius: BorderRadius.circular(9999)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 13, color: fg),
+            const SizedBox(width: 5),
+          ],
+          Text(label,
+              style: TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w600, color: fg)),
+        ],
+      ),
+    );
+  }
+
+  /// 操作列:已收·已还 → 「已确认/已结清」;待收·待还/逾期 → 行内确认(collection
+  /// 已配置)或 dialog fallback。
+  Widget _scheduleAction(PaymentEntry e) {
+    final sem = widget.sem;
+    if (e.paid) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(sem.isReceivable ? LucideIcons.check : LucideIcons.check,
+              size: 12, color: AppColors.positive),
+          const SizedBox(width: 4),
+          Text(sem.schedulePaidLabel,
+              style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+        ],
+      );
+    }
+    final overdue = e.status == PaymentStatus.overdue;
+    final hasCollection = widget.collectionAccountId != null &&
+        widget.collectionAccountId!.isNotEmpty;
+    final onPressed = hasCollection
+        ? () => widget.onConfirmInline(e)
+        : () => widget.onOpenDialog(e);
+    return TextButton.icon(
+      onPressed: onPressed,
+      icon: Icon(LucideIcons.check,
+          size: 12, color: overdue ? Colors.white : AppColors.accentHover),
+      label: Text(sem.scheduleActionLabel),
+      style: overdue
+          ? TextButton.styleFrom(
+              backgroundColor: AppColors.negative,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: const Size(0, 26),
+              textStyle: const TextStyle(fontSize: 11),
+            )
+          : TextButton.styleFrom(
+              foregroundColor: AppColors.accentHover,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: const Size(0, 26),
+              textStyle: const TextStyle(fontSize: 11),
+            ),
+    );
+  }
+}
+
+// ───────────────────────── Side Panel ─────────────────────────
+
+class DebtSideRowData {
+  const DebtSideRowData({
+    required this.k,
+    required this.v,
+    this.mono = false,
+    this.valueColor,
+    this.onTap,
+  });
+  final String k;
+  final String v;
+  final bool mono;
+  final Color? valueColor;
+  final VoidCallback? onTap;
+}
+
+/// side panel(对齐 OD .side-card):收款·还款账户卡 + 借款信息卡。
+/// desktop(>1080)与 main Row 并列;mobile/窄屏追加到下方。
+/// 两侧同结构,文案/标签由 [sem] 注入。账户名/尾号由调用方 lookup 传入。
+class DebtDetailSidePanel extends StatelessWidget {
+  const DebtDetailSidePanel({
+    super.key,
+    required this.sem,
+    required this.debt,
+    required this.preferred,
+    required this.collectionName,
+    required this.collectionTail,
+    required this.receivableName,
+  });
+
+  final DebtViewSemantics sem;
+  final Debt debt;
+  final String preferred;
+  /// 收款·还款账户名(lookup 自账户缓存);null → 「未设置」。
+  final String? collectionName;
+  /// 收款·还款账户尾号;null → 不显「账户尾号」行。
+  final String? collectionTail;
+  /// 应收·负债账户名;null → 「—」。
+  final String? receivableName;
+
+  @override
+  Widget build(BuildContext context) {
+    final collectionRows = <DebtSideRowData>[
+      DebtSideRowData(k: sem.sideCollectionToLabel, v: collectionName ?? '未设置'),
+      if (collectionTail != null)
+        DebtSideRowData(
+            k: '账户尾号', v: '**** $collectionTail', mono: true),
+      DebtSideRowData(k: sem.sideReceivableAccountLabel, v: receivableName ?? '—'),
+    ];
+
+    final hasContact = debt.contact.isNotEmpty;
+    final contractRef = debt.contractRef;
+    final hasContract = contractRef.isNotEmpty;
+    final contractDisplay = hasContract
+        ? (RegExp(r'\.[A-Za-z0-9]{2,5}$').hasMatch(contractRef)
+            ? contractRef
+            : '$contractRef.pdf')
+        : '—';
+    final loanRows = <DebtSideRowData>[
+      DebtSideRowData(k: sem.sideCounterpartyLabel, v: debt.counterparty),
+      DebtSideRowData(
+          k: '联系方式',
+          v: hasContact ? debt.contact : '—',
+          mono: true,
+          onTap: hasContact ? () => _launchTel(context, debt.contact) : null),
+      DebtSideRowData(k: sem.sideLentDateLabel, v: sharedFmtDate(debt.startDate), mono: true),
+      DebtSideRowData(k: '到期日期', v: sharedFmtDate(debt.dueDate), mono: true),
+      DebtSideRowData(k: '摊还方法', v: sharedAmortLabel(debt.amortization)),
+      DebtSideRowData(
+        k: '合同/借据',
+        v: contractDisplay,
+        valueColor: hasContract ? AppColors.accentHover : null,
+        onTap: hasContract ? () => _viewContract(context, contractRef) : null,
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DataCard(
+          key: const ValueKey('sideCollectionCard'),
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sideHeader(sem.sideCollectionIcon, sem.sideCollectionCardTitle),
+              const SizedBox(height: 14),
+              _sideRows(collectionRows),
+              const SizedBox(height: 14),
+              OutlinedButton.icon(
+                onPressed: () => AppToast.show(context, sem.sideRegisterToast,
+                    type: ToastType.warning),
+                icon: const Icon(LucideIcons.plus, size: 14),
+                label: Text(sem.sideRegisterBtnLabel),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.fg,
+                  backgroundColor: AppColors.surface,
+                  side: const BorderSide(color: AppColors.border),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  minimumSize: const Size.fromHeight(34),
+                  textStyle: const TextStyle(
+                      fontSize: 12.5, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        DataCard(
+          key: const ValueKey('sideLoanCard'),
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sideHeader(LucideIcons.info, '借款信息'),
+              const SizedBox(height: 14),
+              _sideRows(loanRows),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _sideHeader(IconData icon, String title) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: AppColors.accent),
+        const SizedBox(width: 8),
+        Text(title,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppColors.fg,
+              fontFamily: AppTypography.displayFamily,
+              fontFamilyFallback: AppTypography.displayFallback,
+            )),
+      ],
+    );
+  }
+
+  Widget _sideRows(List<DebtSideRowData> rows) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < rows.length; i++) ...[
+          _sideRow(rows[i]),
+          if (i < rows.length - 1)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 0),
+              child: DebtDashedDivider(),
+            ),
+        ],
+      ],
+    );
+  }
+
+  Widget _sideRow(DebtSideRowData data) {
+    final valueText = Text(
+      data.v,
+      textAlign: TextAlign.right,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: data.valueColor ?? AppColors.fg,
+        decoration: data.onTap != null ? TextDecoration.underline : null,
+        decorationColor: data.valueColor ?? AppColors.accentHover,
+        fontFamily: data.mono ? AppTypography.displayFamily : null,
+        fontFamilyFallback: data.mono ? AppTypography.displayFallback : null,
+        fontFeatures: AppTypography.tabularFigures,
+      ),
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 11),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Flexible(
+            child: Text(data.k,
+                style: const TextStyle(fontSize: 13, color: AppColors.muted)),
+          ),
+          const SizedBox(width: 16),
+          Flexible(
+            child: data.onTap == null
+                ? valueText
+                : InkWell(
+                    onTap: data.onTap,
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: valueText,
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _launchTel(BuildContext context, String contact) async {
+    final uri = Uri.parse('tel:$contact');
+    try {
+      final ok = await launchUrl(uri);
+      if (!ok) {
+        if (context.mounted) {
+          AppToast.show(context, '拨打 $contact(无 tel handler,请手动)',
+              type: ToastType.warning);
+        }
+      }
+    } catch (_) {
+      if (context.mounted) {
+        AppToast.show(context, '拨打 $contact(系统不支持 tel:)',
+            type: ToastType.warning);
+      }
+    }
+  }
+
+  Future<void> _viewContract(BuildContext context, String contractRef) async {
+    final isUrl = Uri.tryParse(contractRef)?.hasAbsolutePath == true &&
+        (contractRef.startsWith('http://') ||
+            contractRef.startsWith('https://') ||
+            contractRef.startsWith('file://'));
+    if (isUrl) {
+      try {
+        final ok = await launchUrl(Uri.parse(contractRef));
+        if (!ok && context.mounted) {
+          AppToast.show(context, '无法打开合同链接', type: ToastType.warning);
+        }
+      } catch (_) {
+        if (context.mounted) {
+          AppToast.show(context, '无法打开合同链接', type: ToastType.warning);
+        }
+      }
+    } else if (context.mounted) {
+      AppToast.show(context, '查看合同「$contractRef」待接入',
+          type: ToastType.warning);
+    }
+  }
+}
+
+/// side panel 行间 dashed 分隔线(对齐 OD .rl border-bottom:1px dashed)。
+class DebtDashedDivider extends StatelessWidget {
+  const DebtDashedDivider({
+    super.key,
+    this.color = AppColors.border,
+    this.dashWidth = 4,
+    this.gapWidth = 3,
+  });
+  final Color color;
+  final double dashWidth;
+  final double gapWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: const Size(double.infinity, 1),
+      painter: _DashedLinePainter(
+        color: color,
+        dashWidth: dashWidth,
+        gapWidth: gapWidth,
+      ),
+    );
+  }
+}
+
+class _DashedLinePainter extends CustomPainter {
+  const _DashedLinePainter({
+    required this.color,
+    required this.dashWidth,
+    required this.gapWidth,
+  });
+  final Color color;
+  final double dashWidth;
+  final double gapWidth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke;
+    var x = 0.0;
+    while (x < size.width) {
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset((x + dashWidth).clamp(0, size.width), 0),
+        paint,
+      );
+      x += dashWidth + gapWidth;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedLinePainter oldDelegate) =>
+      oldDelegate.color != color ||
+      oldDelegate.dashWidth != dashWidth ||
+      oldDelegate.gapWidth != gapWidth;
+}
+
+// ───────────────────────── RecordPayment / 确认收款 dialog ─────────────────────────
+
+/// RecordPayment / 确认收款 dialog(对齐 OD .modal):金额(只读 amount-box)+
+/// 账户下拉 + 确认。两侧同结构,文案由 [sem] 注入。
+class DebtRecordDialog extends StatefulWidget {
+  const DebtRecordDialog({
+    super.key,
+    required this.sem,
+    required this.entry,
+    required this.accounts,
+    required this.preferred,
+    required this.onSubmit,
+  });
+
+  final DebtViewSemantics sem;
+  final PaymentEntry entry;
+  final List<Account> accounts;
+  final String preferred;
+  final void Function(String accountId) onSubmit;
+
+  @override
+  State<DebtRecordDialog> createState() => _DebtRecordDialogState();
+}
+
+class _DebtRecordDialogState extends State<DebtRecordDialog> {
+  late String _selectedAccountId;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedAccountId =
+        widget.accounts.isNotEmpty ? widget.accounts.first.id : '';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sem = widget.sem;
+    return AlertDialog(
+      title: Text(sem.dialogTitle),
+      content: SizedBox(
+        width: 440,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(sem.dialogAmountLabel,
+                style: const TextStyle(fontSize: 12, color: Color(0xFF54585F))),
+            const SizedBox(height: 7),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.accentSoft,
+                border: Border.all(color: const Color(0xFFE8DCC2)),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    sharedFmtSymbol(widget.entry.totalCents, widget.preferred),
+                    style: const TextStyle(
+                        color: AppColors.accent,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                        fontFeatures: AppTypography.tabularFigures),
+                  ),
+                  const Spacer(),
+                  Text(
+                      '期次 · ${sharedFmtDate(widget.entry.paymentDate)}',
+                      style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.accentHover,
+                          fontFeatures: AppTypography.tabularFigures)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(sem.dialogAccountLabel,
+                style: const TextStyle(fontSize: 12, color: Color(0xFF54585F))),
+            const SizedBox(height: 7),
+            DropdownButtonFormField<String>(
+              value: _selectedAccountId.isEmpty ? null : _selectedAccountId,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+              items: widget.accounts.isEmpty
+                  ? const [
+                      DropdownMenuItem(
+                        value: '',
+                        child: Text('无可用账户'),
+                      )
+                    ]
+                  : [
+                      for (final a in widget.accounts)
+                        DropdownMenuItem(
+                          value: a.id,
+                          child: Text(
+                              '${a.name}（余额 ${_fmtBalance(a.currentBalanceCents, a.currencyCode)}）'),
+                        ),
+                    ],
+              onChanged: (v) {
+                if (v != null) setState(() => _selectedAccountId = v);
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('取消'),
+        ),
+        ElevatedButton(
+          onPressed: _selectedAccountId.isEmpty
+              ? null
+              : () => widget.onSubmit(_selectedAccountId),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.accent,
+            foregroundColor: Colors.white,
+          ),
+          child: Text(sem.dialogSubmitLabel),
+        ),
+      ],
+    );
+  }
+
+  static String _fmtBalance(int cents, String currencyCode) {
+    final sign = cents < 0 ? '-' : '';
+    final abs = cents.abs();
+    final yuan = abs ~/ 100;
+    final fen = (abs % 100).toString().padLeft(2, '0');
+    final s = yuan.toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return '$sign${currencySymbol(currencyCode)}$buf.$fen';
+  }
+}

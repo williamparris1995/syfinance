@@ -185,6 +185,14 @@ void main() {
   const tablet = Size(900, 1200);
   const mobile = Size(390, 844);
 
+  // 镜像 receivables 后 schedule 在 ListView 下方(可能离屏)。锁定页面根 Scrollable。
+  Finder pageScrollable() => find
+      .descendant(
+        of: find.byType(DebtDetailPage),
+        matching: find.byType(Scrollable),
+      )
+      .first;
+
   group('Hero', () {
     testWidgets('renders counterparty + 剩余本金 + progress bar', (t) async {
       t.view.physicalSize = desktop;
@@ -192,11 +200,12 @@ void main() {
       addTearDown(t.view.resetPhysicalSize);
       await t.pumpWidget(_harness(detail: _detail()));
       await t.pumpAndSettle();
-      // counterparty（hero-name）
-      expect(find.textContaining('招商银行'), findsOneWidget);
+      // counterparty（hero-name + side panel 债权方 → 多处）
+      expect(find.textContaining('招商银行'), findsWidgets);
       // 剩余本金标签 + 值（2,1000,000 cents = ¥2,100,000.00）
+      //   hero GoldAmount + hero-prog-meta「剩余 ¥…」→ findsWidgets。
       expect(find.textContaining('剩余本金'), findsWidgets);
-      expect(find.textContaining('¥2,100,000.00'), findsOneWidget);
+      expect(find.textContaining('¥2,100,000.00'), findsWidgets);
       // Hero progress bar 存在（LinearProgressIndicator）
       expect(find.byType(LinearProgressIndicator), findsWidgets);
     });
@@ -213,27 +222,37 @@ void main() {
   });
 
   group('StatRow', () {
-    testWidgets('renders 5 StatCards: 本金/利率/到期/摊还/已还期数', (t) async {
+    testWidgets(
+        'renders 5 amount-dimension StatCards (mirror receivables): '
+        '借款本金/已还合计/待还合计/累计还息/逾期应付', (t) async {
       t.view.physicalSize = desktop;
       t.view.devicePixelRatio = 1.0;
       addTearDown(t.view.resetPhysicalSize);
       await t.pumpWidget(_harness(detail: _detail()));
       await t.pumpAndSettle();
-      // 借款本金 = ¥2,800,000.00
+      // 5-stat 镜像 receivables 金额维度(非 旧的 本金/利率/到期/摊还/期数)。
+      // 借款本金 = ¥2,800,000.00(stat value + hero-sub「借款 ¥…」→ findsWidgets)
       expect(find.textContaining('借款本金'), findsOneWidget);
-      expect(find.textContaining('¥2,800,000.00'), findsOneWidget);
-      // 年利率 4.10%
-      expect(find.textContaining('年利率'), findsOneWidget);
-      expect(find.textContaining('4.10%'), findsOneWidget);
-      // 到期日 2051-06-15
-      expect(find.textContaining('到期日'), findsOneWidget);
-      expect(find.textContaining('2051-06-15'), findsWidgets);
-      // 摊还方法 等额本息
-      expect(find.textContaining('摊还方法'), findsOneWidget);
-      expect(find.text('等额本息'), findsWidgets);
-      // 已还期数 2 / 5
-      expect(find.textContaining('已还期数'), findsOneWidget);
-      expect(find.textContaining('2'), findsWidgets);
+      expect(find.textContaining('¥2,800,000.00'), findsWidgets);
+      // 已还合计 = paidTotal = 2,706,200 → ¥27,062.00
+      //   (巧合:逾期应付 = 2 逾期期次合计 也 = ¥27,062.00 → findsWidgets)
+      expect(find.textContaining('已还合计'), findsOneWidget);
+      expect(find.textContaining('¥27,062.00'), findsWidgets);
+      // 待还合计 = pendingTotal = 4,059,300 → ¥40,593.00
+      expect(find.textContaining('待还合计'), findsOneWidget);
+      expect(find.textContaining('¥40,593.00'), findsOneWidget);
+      // 累计还息 = paidInterest = 1,898,800 → ¥18,988.00(成本 = 红)
+      //   (也出现在 已还合计 sub「本金 ¥8,074.00 + 利息 ¥18,988.00」→ findsWidgets)
+      expect(find.textContaining('累计还息'), findsOneWidget);
+      expect(find.textContaining('¥18,988.00'), findsWidgets);
+      // 逾期应付 标签渲染(具体金额随 now 漂移,仅断言 label)
+      expect(find.textContaining('逾期应付'), findsOneWidget);
+      // 年利率 / 到期日 / 已还期数 移至 hero-side 4-tile(镜像 receivables)。
+      expect(find.text('年利率'), findsOneWidget);
+      expect(find.text('到期日'), findsOneWidget);
+      expect(find.text('已还期数'), findsOneWidget);
+      // 利率值 4.10%(hero-side 年利率 tile + 累计还息 sub「年化 4.10%」→ 多处)
+      expect(find.textContaining('4.10%'), findsWidgets);
     });
   });
 
@@ -244,9 +263,9 @@ void main() {
       addTearDown(t.view.resetPhysicalSize);
       await t.pumpWidget(_harness(detail: _detail()));
       await t.pumpAndSettle();
-      // 表头
+      // 表头(镜像 receivables:期次/还款日 · 应还本金 · 利息 · 合计)
       expect(find.text('期次 / 还款日'), findsOneWidget);
-      expect(find.text('本金'), findsWidgets);
+      expect(find.textContaining('应还本金'), findsWidgets);
       expect(find.text('利息'), findsWidgets);
       expect(find.text('合计'), findsWidgets);
       // 5 期日期均渲染
@@ -259,16 +278,16 @@ void main() {
       expect(find.text('逾期'), findsWidgets);
     });
 
-    testWidgets('待还/逾期 entries show 记账 button, 已还 shows 已结清',
+    testWidgets('待还/逾期 entries show 立即记账 button, 已还 shows 已结清',
         (t) async {
       t.view.physicalSize = desktop;
       t.view.devicePixelRatio = 1.0;
       addTearDown(t.view.resetPhysicalSize);
       await t.pumpWidget(_harness(detail: _detail()));
       await t.pumpAndSettle();
-      // 3 个待还/逾期 + 2 个已还 = 「记账」按钮 3 个（逾期 + 待还×2 待还期，
-      // 注意本测试 schedule 有 1 逾期 + 2 待还 = 3 个未还 entry）
-      expect(find.text('记账'), findsNWidgets(3));
+      // 镜像 receivables:行内 action label = 立即记账(debt sem.scheduleActionLabel)。
+      // 1 逾期 + 2 待还 = 3 个未还 entry → 3 个「立即记账」按钮;2 已还 → 2「已结清」。
+      expect(find.text('立即记账'), findsNWidgets(3));
       expect(find.text('已结清'), findsNWidgets(2));
     });
 
@@ -280,12 +299,14 @@ void main() {
       await t.pumpAndSettle();
       // mobile 不渲染表头
       expect(find.text('期次 / 还款日'), findsNothing);
-      // 卡列表内容在可滚动 ListView 中，可能位于视口外 —— skipOffstage:false
-      // 让 finder 覆盖离屏 widget（Hero + StatRow 占满首屏）。
-      expect(find.textContaining('2026-04-01', skipOffstage: false),
-          findsOneWidget);
-      expect(find.textContaining('2026-07-01', skipOffstage: false),
-          findsOneWidget);
+      // 卡列表在 ListView 下方,滚动到「还款计划」构建 schedule 卡。
+      await t.scrollUntilVisible(
+        find.text('还款计划'),
+        200,
+        scrollable: pageScrollable(),
+      );
+      expect(find.textContaining('2026-04-01'), findsOneWidget);
+      expect(find.textContaining('2026-07-01'), findsWidgets);
     });
   });
 
@@ -312,9 +333,9 @@ void main() {
       // 点筛选 segmented 的「已还」（by ValueKey 区分，避开状态 badge）
       await t.tap(find.byKey(const ValueKey('filterSegment-已还')));
       await t.pumpAndSettle();
-      // 已还 entry 2 个；待还/逾期被过滤。「已结清」仍 2 个；「记账」按钮应为 0。
+      // 已还 entry 2 个；待还/逾期被过滤。「已结清」仍 2 个；「立即记账」应为 0。
       expect(find.text('已结清'), findsNWidgets(2));
-      expect(find.text('记账'), findsNothing);
+      expect(find.text('立即记账'), findsNothing);
     });
 
     testWidgets('tap 逾期 filters to overdue-only entry', (t) async {
@@ -332,13 +353,13 @@ void main() {
       final expectedOverdue = detail.schedule
           .where((e) => !e.paid && e.paymentDate.isBefore(now))
           .length;
-      expect(find.text('记账'), findsNWidgets(expectedOverdue));
+      expect(find.text('立即记账'), findsNWidgets(expectedOverdue));
       expect(find.text('已结清'), findsNothing);
     });
   });
 
   group('RecordPayment', () {
-    testWidgets('tap 记账 opens from_account picker dialog', (t) async {
+    testWidgets('tap 立即记账 opens from_account picker dialog', (t) async {
       t.view.physicalSize = desktop;
       t.view.devicePixelRatio = 1.0;
       addTearDown(t.view.resetPhysicalSize);
@@ -351,12 +372,17 @@ void main() {
         accounts: accounts,
       ));
       await t.pumpAndSettle();
-      // 点第一个「记账」按钮（待还/逾期期次）
-      await t.tap(find.text('立即记账'));
+      // 镜像 receivables:立即记账 在 schedule 行内(页面下方),先滚出再点。
+      final scrollable = pageScrollable();
+      await t.drag(scrollable, const Offset(0, -600));
       await t.pumpAndSettle();
-      // 弹出 RecordPayment 对话框
-      expect(find.textContaining('记录还款'), findsOneWidget);
-      // from_account 选择存在
+      await t.ensureVisible(find.text('立即记账').first);
+      await t.pumpAndSettle();
+      await t.tap(find.text('立即记账').first);
+      await t.pumpAndSettle();
+      // 弹出 dialog(镜像 receivables:标题「确认记账」,debt sem.dialogTitle)。
+      expect(find.textContaining('确认记账'), findsWidgets);
+      // from_account 选择存在(debt sem.dialogAccountLabel 含「从账户」)
       expect(find.textContaining('从账户'), findsOneWidget);
       // 至少一个账户选项
       expect(find.textContaining('招商银行储蓄卡'), findsWidgets);
@@ -387,15 +413,10 @@ void main() {
           (_) async => dartz.Right([_assetAccount(id: 'acct-1')]));
       GetIt.instance.registerSingleton<AccountRepository>(accountRepo);
 
-      late DebtBloc bloc;
       await t.pumpWidget(MaterialApp(
         home: MultiBlocProvider(
           providers: [
-            BlocProvider<DebtBloc>(
-                create: (_) {
-                  bloc = DebtBloc(debtRepo);
-                  return bloc;
-                }),
+            BlocProvider<DebtBloc>(create: (_) => DebtBloc(debtRepo)),
             BlocProvider<CurrencyBloc>.value(
                 value: _FakeCurrencyBloc(const CurrencyState())),
           ],
@@ -403,26 +424,26 @@ void main() {
         ),
       ));
       await t.pumpAndSettle();
-      await t.tap(find.text('立即记账'));
+      final scrollable = pageScrollable();
+      await t.drag(scrollable, const Offset(0, -600));
       await t.pumpAndSettle();
-      // 确认记账 → dispatch RecordPaymentRequested → bloc 异步 recordPayment
-      // 成功后会再 add LoadDebtRequested（链式刷新）→ repo.get。逐帧 pump 让
-      // 微任务链推进，直到 recordPayment 被调用（recorded 置 true）。
-      await t.tap(find.text('确认记账'));
+      await t.ensureVisible(find.text('立即记账').first);
+      await t.pumpAndSettle();
+      await t.tap(find.text('立即记账').first);
+      await t.pumpAndSettle();
+      // 确认记账(dialog 标题 + 按钮同词 → 用 ElevatedButton 精确锁定 submit 按钮)
+      await t.tap(find.widgetWithText(ElevatedButton, '确认记账'));
       for (var i = 0; i < 10 && !recorded; i++) {
         await t.pump(const Duration(milliseconds: 50));
       }
       expect(recorded, isTrue);
-      // 成功后 BlocListener 弹 AppToast（3 秒自动消失 Timer）。在 fake_async
-      // 下推进 >3s 让 Timer 触发 _dismiss，否则 teardown 报 timersPending。
       await t.pump(const Duration(seconds: 4));
       await t.pumpAndSettle();
     });
 
     // Task 4 (ccs): RecordPayment 双写后 server 端 account 余额已变,详情页
-    // 必须重新拉 account 列表(from_account picker 余额 + 信用卡 StatRow 利用率
-    // 依赖 _accounts/_allAccounts 的 currentBalanceCents)。验证:list() 在
-    // initState 调用一次后,RecordPayment 成功(DebtDetailLoaded)再被调用。
+    // 必须重新拉 account 列表。验证:list() 在 initState 调用一次后,RecordPayment
+    // 成功(DebtDetailLoaded)再被调用。
     testWidgets(
         'RecordPayment success re-fetches account balances (double-write refresh)',
         (t) async {
@@ -442,7 +463,6 @@ void main() {
               fromAccountId: any(named: 'fromAccountId')))
           .thenAnswer(
               (_) async => dartz.Right(detail.schedule.first));
-      // 计数 list() 调用次数:initState 一次,RecordPayment 成功后应再来一次。
       var listCalls = 0;
       when(() => accountRepo.list()).thenAnswer((_) async {
         listCalls++;
@@ -461,19 +481,19 @@ void main() {
         ),
       ));
       await t.pumpAndSettle();
-      // initState 已拉取一次账户列表。
       expect(listCalls, 1);
-      // 点记账 → 确认 → RecordPayment 成功 → DebtDetailLoaded →
-      // BlocListener 应触发 account 余额刷新(list() 再调一次)。
-      await t.tap(find.text('立即记账'));
+      final scrollable = pageScrollable();
+      await t.drag(scrollable, const Offset(0, -600));
       await t.pumpAndSettle();
-      await t.tap(find.text('确认记账'));
-      // 推进微任务链直到 RecordPayment 成功 + listener 触发 account reload。
+      await t.ensureVisible(find.text('立即记账').first);
+      await t.pumpAndSettle();
+      await t.tap(find.text('立即记账').first);
+      await t.pumpAndSettle();
+      await t.tap(find.widgetWithText(ElevatedButton, '确认记账'));
       for (var i = 0; i < 20 && listCalls < 2; i++) {
         await t.pump(const Duration(milliseconds: 50));
       }
       expect(listCalls, greaterThanOrEqualTo(2));
-      // AppToast Timer(3s)推进避免 teardown 报 timersPending。
       await t.pump(const Duration(seconds: 4));
       await t.pumpAndSettle();
     });
@@ -486,7 +506,8 @@ void main() {
       addTearDown(t.view.resetPhysicalSize);
       await t.pumpWidget(_harness(detail: _detail()));
       await t.pumpAndSettle();
-      expect(find.text('期次 / 还款日'), findsOneWidget);
+      // D3 双列:schedule 在 ListView 下方,skipOffstage:false 覆盖离屏 widget。
+      expect(find.text('期次 / 还款日', skipOffstage: false), findsOneWidget);
     });
 
     testWidgets('tablet: table layout (≤900 still uses table until mobile)',
@@ -497,7 +518,8 @@ void main() {
       await t.pumpWidget(_harness(detail: _detail()));
       await t.pumpAndSettle();
       // tablet 仍用表（mobile 断点 720 以下才切卡）
-      expect(find.textContaining('2026-04-01'), findsWidgets);
+      expect(
+          find.textContaining('2026-04-01', skipOffstage: false), findsWidgets);
     });
 
     testWidgets('mobile: card list layout', (t) async {
@@ -507,8 +529,14 @@ void main() {
       await t.pumpWidget(_harness(detail: _detail()));
       await t.pumpAndSettle();
       expect(find.text('期次 / 还款日'), findsNothing);
-      // 卡列表仍渲染每期
-      expect(find.textContaining('本金'), findsWidgets);
+      // 卡列表在 ListView 下方,滚动到「还款计划」构建 schedule 卡。
+      await t.scrollUntilVisible(
+        find.text('还款计划'),
+        200,
+        scrollable: pageScrollable(),
+      );
+      // 卡列表仍渲染每期(镜像 receivables:列名 应还本金)
+      expect(find.textContaining('应还本金'), findsWidgets);
     });
   });
 

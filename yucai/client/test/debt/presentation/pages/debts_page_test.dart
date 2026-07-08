@@ -109,18 +109,18 @@ void main() {
     ),
   ];
 
-  testWidgets('overview: 总负债 + 总剩余本金 + progress bar', (t) async {
+  testWidgets('overview: 总借款本金 + 剩余待还 + progress bar', (t) async {
     t.view.physicalSize = desktop;
     t.view.devicePixelRatio = 1.0;
     addTearDown(t.view.resetPhysicalSize);
     await t.pumpWidget(_harness(debts));
     await t.pumpAndSettle();
-    // 概览标签
-    expect(find.textContaining('总负债'), findsWidgets);
-    expect(find.textContaining('总剩余本金'), findsWidgets);
-    // 概览的 LinearProgressIndicator（整体还清进度）存在。
+    // 镜像 receivables 后,概览标签:总借款本金 / 剩余待还（本金）/ 本金还清进度。
+    expect(find.textContaining('总借款本金'), findsWidgets);
+    expect(find.textContaining('剩余待还'), findsWidgets);
+    // 概览的 LinearProgressIndicator（本金还清进度）存在。
     expect(find.byType(LinearProgressIndicator), findsWidgets);
-    // 总负债 = sum(remaining) = 2.1 亿 + 800 万 = ¥2,180,000.00
+    // 剩余待还 = sum(remaining) = 2.1 亿 + 800 万 = ¥2,180,000.00
     expect(find.textContaining('¥2,180,000.00'), findsWidgets);
   });
 
@@ -189,19 +189,21 @@ void main() {
     expect(find.text('建设银行'), findsOneWidget);
   });
 
-  testWidgets('tablet: 2-column GridView', (t) async {
+  testWidgets('tablet: single-column Column (mirror receivables, no GridView)',
+      (t) async {
     t.view.physicalSize = tablet;
     t.view.devicePixelRatio = 1.0;
     addTearDown(t.view.resetPhysicalSize);
     await t.pumpWidget(_harness(debts));
     await t.pumpAndSettle();
-    final grid = t.widget<GridView>(find.byType(GridView).first);
-    final delegate =
-        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
-    expect(delegate.crossAxisCount, 2);
+    // 镜像 receivables:始终单列 Column(无 GridView)。
+    expect(find.byType(GridView), findsNothing);
+    expect(find.text('招商银行'), findsOneWidget);
+    expect(find.text('建设银行'), findsOneWidget);
   });
 
-  testWidgets('desktop: GridView with >=3 columns', (t) async {
+  testWidgets('desktop: single-column (mirror receivables, no GridView)',
+      (t) async {
     t.view.physicalSize = desktop;
     t.view.devicePixelRatio = 1.0;
     addTearDown(t.view.resetPhysicalSize);
@@ -218,10 +220,11 @@ void main() {
       ),
     ]));
     await t.pumpAndSettle();
-    final grid = t.widget<GridView>(find.byType(GridView).first);
-    final delegate =
-        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
-    expect(delegate.crossAxisCount, greaterThanOrEqualTo(3));
+    // 镜像 receivables:始终单列 Column(无 GridView),3 张卡均渲染。
+    expect(find.byType(GridView), findsNothing);
+    expect(find.text('招商银行'), findsOneWidget);
+    expect(find.text('建设银行'), findsOneWidget);
+    expect(find.text('招行信用卡'), findsOneWidget);
   });
 
 
