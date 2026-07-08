@@ -150,7 +150,8 @@ void main() {
     expect(find.textContaining('剩余本金'), findsWidgets);
     // 利率
     expect(find.textContaining('4.10%'), findsOneWidget);
-    expect(find.textContaining('5.20%'), findsOneWidget);
+    // 5.20%:d2 卡 meta + 雪崩法 banner(取最高利率 = 建设银行 5.20%)→ findsWidgets。
+    expect(find.textContaining('5.20%'), findsWidgets);
     // 到期（yyyy-MM-dd）—— 卡片 meta 行
     expect(find.textContaining('2051-06-01'), findsOneWidget);
     // 2027-03-01 出现两次：overview「下次还款」+ d2 卡「到期」

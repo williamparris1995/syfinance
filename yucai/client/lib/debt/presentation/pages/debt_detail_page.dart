@@ -143,7 +143,7 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
           ? const EdgeInsets.fromLTRB(16, 14, 16, 60)
           : const EdgeInsets.fromLTRB(36, 24, 36, 70),
       children: [
-        _hero(detail.debt, preferred),
+        _hero(detail, preferred),
         const SizedBox(height: 18),
         _statsRow(detail, preferred),
         // 信用卡债务(subtype==creditCard)追加 StatRow 信用卡区:
@@ -162,14 +162,23 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
   // ───────────────────────── Hero ─────────────────────────
 
   /// 深色金渐变 Hero（对齐 OD .hero + account_detail_page._hero）。
-  /// counterparty + 类型 badge + 剩余本金（大字）+ progress bar + 已还期次。
-  Widget _hero(Debt debt, String preferred) {
+  /// D1:hero-top 左(name + 剩余本金 + progress)+ 右(inline 编辑/立即记账 actions);
+  ///     delta-chip(剩余本金减少 = 绿/正面,欠款在减少)。counterparty + 类型 badge +
+  ///     剩余本金(大字)+ progress bar + delta + 已还期次。
+  Widget _hero(DebtDetail detail, String preferred) {
+    final debt = detail.debt;
     final isMobile = MediaQuery.of(context).size.width <= 720;
     final ratio = debt.progressRatio;
     final pct = (ratio * 100).toStringAsFixed(1);
     // 类型 badge 优先用持久化 subtype label(Task 9);subtype 空时 fallback
     // counterparty 关键字推断(legacy 债务兼容)。
     final badge = _badgeLabel(debt);
+    // delta + inline action:用 schedule 算 paidCount + 首个未还期(立即记账落点)。
+    final paidCount = detail.schedule.where((e) => e.paid).length;
+    final total = detail.schedule.length;
+    final firstUnpaid = detail.schedule
+        .cast<PaymentEntry?>()
+        .firstWhere((e) => e != null && !e.paid, orElse: () => null);
     // 已还期数 / 总期数（schedule 总期数未知 —— 用 debt 维度近似：用 progressRatio
     // 不直接给期次，故 hero-prog 文案显「还清进度」+ 百分比，对齐 OD）。
     return ClipRRect(
@@ -208,20 +217,42 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // back-link（对齐 OD .back-link）。
-                InkWell(
-                  onTap: () => context.pop(),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(LucideIcons.arrowLeft,
-                          size: 15, color: Color(0xFF9AA0A8)),
-                      SizedBox(width: 6),
-                      Text('返回债务管理',
-                          style:
-                              TextStyle(fontSize: 12.5, color: Color(0xFF9AA0A8))),
-                    ],
-                  ),
+                // hero-top:flex row —— 左 back-link,右 inline actions(编辑/立即记账),
+                // 对齐 OD .hero-top space-between(name 左 · hero-actions 右)。
+                Row(
+                  children: [
+                    InkWell(
+                      onTap: () => context.pop(),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(LucideIcons.arrowLeft,
+                              size: 15, color: Color(0xFF9AA0A8)),
+                          SizedBox(width: 6),
+                          Text('返回债务管理',
+                              style: TextStyle(
+                                  fontSize: 12.5, color: Color(0xFF9AA0A8))),
+                        ],
+                      ),
+                    ),
+                    const Spacer(),
+                    // inline 编辑 → /debts/:id/edit(router provide DebtBloc)。
+                    _heroAction(
+                      label: '编辑',
+                      icon: LucideIcons.pencil,
+                      onTap: () => context.push('/debts/${debt.id}/edit'),
+                    ),
+                    const SizedBox(width: 8),
+                    // 立即记账 → 弹首个未还期 RecordPayment(无未还期则禁用)。
+                    _heroAction(
+                      label: '立即记账',
+                      icon: LucideIcons.penLine,
+                      gold: true,
+                      onTap: firstUnpaid == null
+                          ? null
+                          : () => _openRecordPayment(firstUnpaid),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 // hero-name：counterparty + 类型 badge + acct meta。
@@ -315,6 +346,11 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 14),
+                // D1 delta-chip:剩余本金减少 = 欠款减少 = 绿/正面(debt 语义)。
+                // remainingTrendCents 由 server 算;冷启动 0 时仅显「已还 N/M 期」。
+                _deltaChip(
+                    debt.remainingTrendCents, preferred, paidCount, total),
               ],
             ),
           ],
@@ -349,6 +385,107 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
           ],
         ),
       );
+
+  /// hero inline action btn(对齐 OD .btn-on-dark / .btn-gold)。
+  /// gold=true → 金实心(立即记账);否则半透明白底(编辑)。onTap=null → 禁用。
+  Widget _heroAction({
+    required String label,
+    required IconData icon,
+    required VoidCallback? onTap,
+    bool gold = false,
+  }) {
+    return MouseRegion(
+      cursor: onTap == null
+          ? SystemMouseCursors.basic
+          : SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+          decoration: BoxDecoration(
+            color: gold
+                ? AppColors.accent
+                : Colors.white.withValues(alpha: 0.08),
+            border: Border.all(
+              color: gold
+                  ? AppColors.accent
+                  : Colors.white.withValues(alpha: 0.14),
+              width: 1,
+            ),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 14, color: Colors.white),
+              const SizedBox(width: 6),
+              Text(label,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12.5,
+                    fontWeight: gold ? FontWeight.w600 : FontWeight.w500,
+                  )),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// delta-chip(对齐 OD .delta-chip):剩余本金减少 = 欠款减少 = 绿/正面。
+  /// remainingTrendCents:负=减少(绿 ↓)/ 正=增加(红 ↑)/ 0 不显。
+  /// debt 语义与 receivable 同向(剩余减少 = 好 = 绿),复用同套色。
+  Widget _deltaChip(int trendCents, String preferred, int paidCount, int total) {
+    final decreasing = trendCents < 0; // 负 = 剩余减少(欠款减少,绿)
+    final abs = trendCents.abs();
+    final fg = decreasing ? const Color(0xFF7FD4B8) : const Color(0xFFE29A93);
+    final bg = decreasing
+        ? const Color(0x332D8A6E)
+        : const Color(0x33C4544D);
+    final icon = decreasing ? LucideIcons.arrowDown : LucideIcons.arrowUp;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        if (trendCents != 0)
+          Container(
+            key: const ValueKey('heroDelta'),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(9999),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 12, color: fg),
+                const SizedBox(width: 4),
+                Text(
+                  _fmtSymbol(abs, preferred),
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: fg,
+                    fontFeatures: AppTypography.tabularFigures,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        Text(
+          trendCents != 0
+              ? '较上月${decreasing ? '减少' : '增加'} · 已还 $paidCount / $total 期'
+              : '已还 $paidCount / $total 期',
+          style: const TextStyle(
+            fontSize: 12.5,
+            color: Color(0xFFBCB9AD),
+            fontFeatures: AppTypography.tabularFigures,
+          ),
+        ),
+      ],
+    );
+  }
 
   // ───────────────────────── StatRow ─────────────────────────
 
@@ -388,8 +525,10 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
         label: '已还期数',
         icon: LucideIcons.check,
         value: '$paidCount / $total',
-        sub: '累计 ${detail.schedule.where((e) => e.paid).fold<int>(0,
-            (s, e) => s + e.interestCents) ~/ 100 > 0 ? "已还" : "暂无"}',
+        sub: '累计还息 ${_fmtSymbol(
+            detail.schedule.where((e) => e.paid).fold<int>(0,
+                (s, e) => s + e.interestCents),
+            preferred)}',
       ),
     ];
     final w = MediaQuery.of(context).size.width;
@@ -1100,12 +1239,21 @@ class _RecordPaymentDialog extends StatefulWidget {
 
 class _RecordPaymentDialogState extends State<_RecordPaymentDialog> {
   late String _selectedAccountId;
+  /// 还款日期(默认 = 当期应还日,对齐 OD .split 还款日期 input)。
+  /// proto RecordPayment 未携带 date —— UI 收集,后续 proto 扩展后透传(defer)。
+  late DateTime _paymentDate;
+  /// 还款方式(银行自动扣款/手动转账/柜台还款,对齐 OD .split 还款方式 select)。
+  /// 同上:UI 收集,proto 未携带(defer)。
+  String _paymentMethod = '银行自动扣款';
+
+  static const _methods = ['银行自动扣款', '手动转账', '柜台还款'];
 
   @override
   void initState() {
     super.initState();
     _selectedAccountId =
         widget.accounts.isNotEmpty ? widget.accounts.first.id : '';
+    _paymentDate = widget.entry.paymentDate;
   }
 
   @override
@@ -1188,6 +1336,95 @@ class _RecordPaymentDialogState extends State<_RecordPaymentDialog> {
               onChanged: (v) {
                 if (v != null) setState(() => _selectedAccountId = v);
               },
+            ),
+            const SizedBox(height: 16),
+            // D9 split:还款日期 date picker + 还款方式 select(对齐 OD .split)。
+            // proto RecordPayment 未携带 date/method —— UI 收集,defer 到 proto 扩展。
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 还款日期
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('还款日期',
+                          style: TextStyle(
+                              fontSize: 12, color: Color(0xFF54585F))),
+                      const SizedBox(height: 7),
+                      InkWell(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: _paymentDate,
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2100),
+                          );
+                          if (picked != null) {
+                            setState(() => _paymentDate = picked);
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: AppColors.border),
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(LucideIcons.calendar,
+                                  size: 15, color: AppColors.muted),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${_paymentDate.year}-${_paymentDate.month.toString().padLeft(2, '0')}-${_paymentDate.day.toString().padLeft(2, '0')}',
+                                style: const TextStyle(
+                                    fontSize: 13,
+                                    fontFeatures:
+                                        AppTypography.tabularFigures),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // 还款方式
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('还款方式',
+                          style: TextStyle(
+                              fontSize: 12, color: Color(0xFF54585F))),
+                      const SizedBox(height: 7),
+                      DropdownButtonFormField<String>(
+                        value: _paymentMethod,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(AppRadius.sm),
+                            borderSide:
+                                const BorderSide(color: AppColors.border),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          isDense: true,
+                        ),
+                        items: [
+                          for (final m in _methods)
+                            DropdownMenuItem(value: m, child: Text(m)),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) setState(() => _paymentMethod = v);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),

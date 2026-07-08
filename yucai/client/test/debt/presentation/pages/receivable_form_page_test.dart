@@ -257,8 +257,9 @@ void main() {
           .thenAnswer((_) async => const dartz.Right([]));
       await t.pumpWidget(_harness(debtRepo: debtRepo, accountRepo: accountRepo));
       await t.pumpAndSettle();
-      // 打开关联应收账户 dropdown
-      await t.tap(find.textContaining('关联应收账户').first);
+      // 打开关联应收账户 dropdown(OD 块标签在 input 上方,tap label 不开 dropdown;
+      // 改 tap dropdown widget 本身,by key)。
+      await t.tap(find.byKey(const ValueKey('accountDropdown')));
       await t.pumpAndSettle();
       // 应收账户列出
       expect(find.textContaining('应收账款-商业'), findsWidgets);
@@ -295,7 +296,12 @@ void main() {
       await t.pumpAndSettle();
       await fillForm(t);
       expect(find.byKey(const ValueKey('previewTitle')), findsOneWidget);
-      expect(find.textContaining('每期收款'), findsWidgets);
+      // shared AmortizationPreview:headline label「每期收款」(receivable 语义,
+      // 与 debt form「月供」区分)。tags 包含「期数 N 期」。
+      expect(find.text('每期收款'), findsOneWidget);
+      // 精确匹配 tag「期数 12 期」(date hint「期数 12 期（按月）」也含此串 →
+      // find.text 精确而非 containing,只命中 tag)。
+      expect(find.text('期数 12 期'), findsOneWidget);
       for (var i = 1; i <= 5; i++) {
         final k = 'previewRow-${i.toString().padLeft(2, '0')}';
         expect(find.byKey(ValueKey(k), skipOffstage: false), findsOneWidget);
@@ -324,7 +330,8 @@ void main() {
       await t.tap(find.byKey(const ValueKey('amortization-lumpSum')));
       await t.pump();
       await fillForm(t);
-      expect(find.textContaining('到期总额'), findsWidgets);
+      // shared AmortizationPreview:lumpSum headline label = 到期总额。
+      expect(find.text('到期总额'), findsOneWidget);
       expect(find.byKey(const ValueKey('previewRow-01'), skipOffstage: false),
           findsOneWidget);
       expect(find.byKey(const ValueKey('previewRow-02'), skipOffstage: false),
@@ -769,7 +776,7 @@ void main() {
           findsOneWidget);
     });
 
-    testWidgets('preview 2×2 sum grid 渲染(月供/期供 + 总利息收入 + 期数 + 总还款)',
+    testWidgets('preview tags 渲染(每期收款 + 期数 + 总利息 + 总还款)',
         (t) async {
       t.view.physicalSize = desktop;
       t.view.devicePixelRatio = 1.0;
@@ -791,14 +798,16 @@ void main() {
       await t.enterText(find.byKey(const ValueKey('rateField')), '8.0');
       await t.pump();
 
-      // sum grid 存在 + 4 个标签。
-      expect(find.byKey(const ValueKey('previewSumGrid')), findsOneWidget);
-      expect(find.text('月供 / 期供'), findsOneWidget);
-      expect(find.text('总利息收入'), findsOneWidget);
-      expect(find.text('期数'), findsOneWidget);
-      expect(find.text('总还款（本息）'), findsOneWidget);
-      // 期数 cell 含「12 期」。
-      expect(find.textContaining('12 期'), findsOneWidget);
+      // shared AmortizationPreview:header headline label + 3 个 tag(期数 /
+      // 总利息 / 总还款)。receivable headline = 「每期收款」。
+      expect(find.text('每期收款'), findsOneWidget);
+      // 精确匹配 tag「期数 12 期」(date hint 也含此串 → find.text 精确)。
+      expect(find.text('期数 12 期'), findsOneWidget);
+      expect(find.textContaining('总利息'), findsOneWidget);
+      expect(find.textContaining('总还款'), findsOneWidget);
+      // table 三列 header 收款语义(date + 收回本金 + 合计)。
+      expect(find.text('期次 / 收款日'), findsOneWidget);
+      expect(find.text('收回本金 / 利息'), findsOneWidget);
     });
 
     testWidgets('contact / contract_ref / collection_account_id 字段渲染 + 输入',

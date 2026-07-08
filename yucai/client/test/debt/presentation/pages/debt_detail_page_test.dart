@@ -268,7 +268,7 @@ void main() {
       await t.pumpAndSettle();
       // 3 个待还/逾期 + 2 个已还 = 「记账」按钮 3 个（逾期 + 待还×2 待还期，
       // 注意本测试 schedule 有 1 逾期 + 2 待还 = 3 个未还 entry）
-      expect(find.textContaining('记账'), findsNWidgets(3));
+      expect(find.text('记账'), findsNWidgets(3));
       expect(find.text('已结清'), findsNWidgets(2));
     });
 
@@ -314,19 +314,25 @@ void main() {
       await t.pumpAndSettle();
       // 已还 entry 2 个；待还/逾期被过滤。「已结清」仍 2 个；「记账」按钮应为 0。
       expect(find.text('已结清'), findsNWidgets(2));
-      expect(find.textContaining('记账'), findsNothing);
+      expect(find.text('记账'), findsNothing);
     });
 
     testWidgets('tap 逾期 filters to overdue-only entry', (t) async {
       t.view.physicalSize = desktop;
       t.view.devicePixelRatio = 1.0;
       addTearDown(t.view.resetPhysicalSize);
-      await t.pumpWidget(_harness(detail: _detail()));
+      final detail = _detail();
+      await t.pumpWidget(_harness(detail: detail));
       await t.pumpAndSettle();
       await t.tap(find.byKey(const ValueKey('filterSegment-逾期')));
       await t.pumpAndSettle();
-      // 只剩 1 个逾期 entry → 1 个记账按钮
-      expect(find.textContaining('记账'), findsOneWidget);
+      // 逾期 entry 数随「现在」漂移(e3=2026-06-01 恒逾期;e4=2026-07-01 在
+      // 2026-07-08 后也变逾期)→ 动态算预期值,避免硬编码日期。
+      final now = DateTime.now();
+      final expectedOverdue = detail.schedule
+          .where((e) => !e.paid && e.paymentDate.isBefore(now))
+          .length;
+      expect(find.text('记账'), findsNWidgets(expectedOverdue));
       expect(find.text('已结清'), findsNothing);
     });
   });
@@ -346,7 +352,7 @@ void main() {
       ));
       await t.pumpAndSettle();
       // 点第一个「记账」按钮（待还/逾期期次）
-      await t.tap(find.textContaining('记账').first);
+      await t.tap(find.text('立即记账'));
       await t.pumpAndSettle();
       // 弹出 RecordPayment 对话框
       expect(find.textContaining('记录还款'), findsOneWidget);
@@ -397,7 +403,7 @@ void main() {
         ),
       ));
       await t.pumpAndSettle();
-      await t.tap(find.textContaining('记账').first);
+      await t.tap(find.text('立即记账'));
       await t.pumpAndSettle();
       // 确认记账 → dispatch RecordPaymentRequested → bloc 异步 recordPayment
       // 成功后会再 add LoadDebtRequested（链式刷新）→ repo.get。逐帧 pump 让
@@ -459,7 +465,7 @@ void main() {
       expect(listCalls, 1);
       // 点记账 → 确认 → RecordPayment 成功 → DebtDetailLoaded →
       // BlocListener 应触发 account 余额刷新(list() 再调一次)。
-      await t.tap(find.textContaining('记账').first);
+      await t.tap(find.text('立即记账'));
       await t.pumpAndSettle();
       await t.tap(find.text('确认记账'));
       // 推进微任务链直到 RecordPayment 成功 + listener 触发 account reload。

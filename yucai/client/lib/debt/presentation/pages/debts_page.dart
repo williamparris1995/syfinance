@@ -179,6 +179,21 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
                 preferred: preferred,
                 nextPaymentDate: nextPaymentDate,
               ),
+              const SizedBox(height: AppSpacing.md),
+              // L2:4-stat strip(对齐 OD .stats-row,本地算 —— debt 无 summary repo)。
+              // 笔数 / 总本金 / 已还本息 / 待还本金(逾期笔数附在待还 sub)。
+              _StatStrip(
+                count: debts.length,
+                totalPrincipal: totalPrincipal,
+                totalRepaid: totalRepaid,
+                totalRemaining: totalRemaining,
+                overdueCount: debts
+                    .where((d) =>
+                        d.remainingPrincipalCents > 0 &&
+                        d.dueDate.isBefore(DateTime.now()))
+                    .length,
+                preferred: preferred,
+              ),
               const SizedBox(height: AppSpacing.lg),
               _SectionHead(count: debts.length),
               const SizedBox(height: AppSpacing.sm),
@@ -188,6 +203,11 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
                     debts.where((d) => d.remainingPrincipalCents > 0).length,
                 settledCount:
                     debts.where((d) => d.remainingPrincipalCents <= 0).length,
+                overdueCount: debts
+                    .where((d) =>
+                        d.remainingPrincipalCents > 0 &&
+                        d.dueDate.isBefore(DateTime.now()))
+                    .length,
                 onChanged: (f) => setState(() => _filter = f),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -202,6 +222,11 @@ class _DebtsPageState extends State<DebtsPage> with RouteAware {
                 )
               else
                 _DebtList(debts: filtered, preferred: preferred),
+              const SizedBox(height: AppSpacing.lg),
+              // 雪崩法 advice banner(对齐 OD .empty-hint —— 可选,OD 有)。
+              // 建议优先还利率最高的债务。仅当 ≥2 笔在途债务时显(单笔无意义)。
+              if (debts.where((d) => d.remainingPrincipalCents > 0).length >= 2)
+                _AvalancheBanner(debts: debts),
             ],
           ),
         ),
@@ -427,6 +452,145 @@ class _OverviewCard extends StatelessWidget {
   }
 }
 
+// ───────────────────────── L2 stat strip(4-card) ─────────────────────────
+
+/// L2:4-card stat strip(对齐 OD debts.html .stats-row)。本地算(debt 无 summary
+/// repo):笔数 / 总本金 / 已还本息 / 待还本金(逾期笔数附在待还 sub)。
+class _StatStrip extends StatelessWidget {
+  const _StatStrip({
+    required this.count,
+    required this.totalPrincipal,
+    required this.totalRepaid,
+    required this.totalRemaining,
+    required this.overdueCount,
+    required this.preferred,
+  });
+  final int count;
+  final int totalPrincipal;
+  final int totalRepaid;
+  final int totalRemaining;
+  final int overdueCount;
+  final String preferred;
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = [
+      _StatCard(
+          label: '债务笔数', value: '$count', sub: '在途负债', icon: LucideIcons.layers),
+      _StatCard(
+          label: '总借款本金',
+          value: _fmtSymbol(totalPrincipal, preferred),
+          icon: LucideIcons.banknote,
+          sub: '原始本金合计'),
+      _StatCard(
+          label: '累计已还本息',
+          value: _fmtSymbol(totalRepaid, preferred),
+          icon: LucideIcons.trendingUp,
+          color: AppColors.positive,
+          sub: totalPrincipal > 0
+              ? '${(totalRepaid * 100 / totalPrincipal).toStringAsFixed(1)}% 已还'
+              : '暂无'),
+      _StatCard(
+          label: '待还本金',
+          value: _fmtSymbol(totalRemaining, preferred),
+          icon: LucideIcons.clock,
+          color: overdueCount > 0 ? AppColors.negative : null,
+          sub: overdueCount > 0 ? '含 $overdueCount 笔逾期' : '$count 笔待还'),
+    ];
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < cards.length; i++) ...[
+            Expanded(child: cards[i]),
+            if (i < cards.length - 1) const SizedBox(width: 14),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// 单张 stat 卡(对齐 OD .stat:hover translateY + shadow)。
+class _StatCard extends StatefulWidget {
+  const _StatCard({
+    required this.label,
+    required this.value,
+    this.color,
+    this.sub,
+    this.icon,
+  });
+  final String label;
+  final String value;
+  final Color? color;
+  final String? sub;
+  final IconData? icon;
+
+  @override
+  State<_StatCard> createState() => _StatCardState();
+}
+
+class _StatCardState extends State<_StatCard> {
+  bool _hover = false;
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        transform: Matrix4.translationValues(0, _hover ? -2 : 0, 0),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0x0A1C1E21),
+              blurRadius: _hover ? 28 : 2,
+              offset: _hover ? const Offset(0, 10) : const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              if (widget.icon != null) ...[
+                Icon(widget.icon, size: 14, color: AppColors.muted),
+                const SizedBox(width: 7),
+              ],
+              Flexible(
+                child: Text(widget.label,
+                    style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.muted,
+                        fontWeight: FontWeight.w500)),
+              ),
+            ]),
+            const SizedBox(height: 7),
+            Text(widget.value,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: widget.color ?? AppColors.fg,
+                  letterSpacing: -0.1,
+                  fontFeatures: AppTypography.tabularFigures,
+                )),
+            if (widget.sub != null) ...[
+              const SizedBox(height: 3),
+              Text(widget.sub!,
+                  style: const TextStyle(
+                      fontSize: 11.5, color: AppColors.muted)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ───────────────────────── 区头 ─────────────────────────
 
 class _SectionHead extends StatelessWidget {
@@ -494,9 +658,9 @@ class _DebtList extends StatelessWidget {
             crossAxisCount: cols,
             mainAxisSpacing: gap,
             crossAxisSpacing: gap,
-            // 固定卡片高度（与内容宽无关），覆盖最高卡（counterparty + mid +
-            // progress + meta + actions）。到期 yyyy-MM-dd 比 yyyy-M 略宽 → 348。
-            mainAxisExtent: 348,
+            // 固定卡片高度(含 L3 foot callout:avatar + name + mid + progress +
+            // meta + foot + actions)。foot callout 增高 → 400。
+            mainAxisExtent: 400,
           ),
           itemCount: debts.length,
           itemBuilder: (_, i) =>
@@ -528,6 +692,12 @@ class _DebtCard extends StatelessWidget {
   Widget _fullCard(BuildContext context) {
     final badge = _badgeFor(debt);
     final isOverdue = debt.dueDate.isBefore(DateTime.now());
+    final isSettled = debt.remainingPrincipalCents <= 0;
+    // L3 foot:下次还款(debt.nextPaymentDate 驱动;非空才显 callout)。
+    final hasNext = debt.nextPaymentDate != null &&
+        !isSettled &&
+        debt.nextPaymentAmountCents > 0;
+    final showFoot = hasNext || (isOverdue && !isSettled);
     // 无 DataCard.onTap：操作栏按钮（详情/记账）负责导航，避免外层
     // GestureDetector 吞掉内层 _ActionBtn 的 tap（对齐 account card 模式 ——
     // account card 仅靠 _hoverActionBar 按钮跳转，card 本身不整体可点）。
@@ -536,25 +706,41 @@ class _DebtCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // row1：counterparty + badge（+ 逾期红 badge）
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 8,
-            runSpacing: 4,
+          // row1：avatar tile + counterparty + badge（+ 逾期红 badge）
+          // L1 avatar(对齐 receivables):42px 圆角 tile,counterparty 首字 + 类型色。
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(debt.counterparty,
-                  style: const TextStyle(
-                      fontSize: 16.5,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: AppTypography.displayFamily,
-                      fontFamilyFallback: AppTypography.displayFallback)),
-              _Badge(label: badge.label, fg: badge.fg, bg: badge.bg),
-              if (isOverdue)
-                const _Badge(
-                    label: '逾期',
-                    fg: AppColors.negative,
-                    bg: Color(0x1AC4544D) // rgba(196,84,77,.10)
-                    ),
+              _DebtAvatar(
+                initial: debt.counterparty.characters.isEmpty
+                    ? '?'
+                    : debt.counterparty.characters.first,
+                color: _avatarColorFor(debt),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    Text(debt.counterparty,
+                        style: const TextStyle(
+                            fontSize: 16.5,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: AppTypography.displayFamily,
+                            fontFamilyFallback:
+                                AppTypography.displayFallback)),
+                    _Badge(label: badge.label, fg: badge.fg, bg: badge.bg),
+                    if (isOverdue)
+                      const _Badge(
+                          label: '逾期',
+                          fg: AppColors.negative,
+                          bg: Color(0x1AC4544D) // rgba(196,84,77,.10)
+                          ),
+                  ],
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 9),
@@ -605,6 +791,16 @@ class _DebtCard extends StatelessWidget {
                   text: _amortLabel(debt.amortization)),
             ],
           ),
+          // L3 foot callout:下次还款 / 逾期(仅 !settled 时显)。
+          if (showFoot) ...[
+            const SizedBox(height: 10),
+            _CardFootCallout(
+              debt: debt,
+              preferred: preferred,
+              hasNext: hasNext,
+              isOverdue: isOverdue,
+            ),
+          ],
           // Spacer 占据剩余高度，把操作栏推到卡片底部（对齐 account card
           // _fullCard 的 const Spacer() + _hoverActionBar 模式）。GridView
           // mainAxisExtent 固定卡高时，矮卡中部内容上方留白而非底部。
@@ -954,6 +1150,209 @@ class _Badge extends StatelessWidget {
   }
 }
 
+// ───────────────────────── 雪崩法 advice banner ─────────────────────────
+
+/// 雪崩法 advice banner(对齐 OD debts.html .empty-hint):建议优先还利率最高的债务。
+/// 仅 ≥2 笔在途债务时显。取利率最高的在途债务名 + 利率作为示例。
+class _AvalancheBanner extends StatelessWidget {
+  const _AvalancheBanner({required this.debts});
+  final List<Debt> debts;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = debts.where((d) => d.remainingPrincipalCents > 0).toList();
+    if (active.length < 2) return const SizedBox.shrink();
+    final top = ([...active]..sort((a, b) => b.interestRate.compareTo(a.interestRate))).first;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.accentSoft,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        border: Border.all(color: const Color(0xFFDDCBA6), width: 1),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(LucideIcons.info, size: 16, color: AppColors.accentHover),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                style: const TextStyle(
+                    fontSize: 12.5, color: Color(0xFF7C6A47), height: 1.5),
+                children: [
+                  const TextSpan(
+                      text: '建议采用「雪崩法」优先偿还利率最高的 ',
+                      style: TextStyle(fontWeight: FontWeight.w500)),
+                  TextSpan(
+                      text: '${top.counterparty}(${top.interestRate.toStringAsFixed(2)}%)',
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  const TextSpan(
+                      text: ',可在相同月供下节省更多利息。',
+                      style: TextStyle(fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ───────────────────────── L1 avatar tile + L3 foot callout ─────────────────────────
+
+/// L1:42px avatar tile。债权方(贷款机构/银行名)首字 + 类型色 solid 浅底
+/// (对齐 receivables _ReceivableAvatar)。类型色:_avatarColorFor 推断
+/// (房贷金 / 车贷灰蓝 / 信用卡红 / 亲友绿 / 其他灰)。
+class _DebtAvatar extends StatelessWidget {
+  const _DebtAvatar({required this.initial, required this.color});
+  final String initial;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(11),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: color,
+          fontFamily: AppTypography.displayFamily,
+          fontFamilyFallback: AppTypography.displayFallback,
+        ),
+      ),
+    );
+  }
+}
+
+/// Avatar 类型色推断(对齐 _badgeFor 语义:房贷金 / 车贷灰蓝 / 信用卡红 /
+/// 亲友绿 / 其他灰)。subtype 持久化(中性金);fallback 走关键字推断。
+Color _avatarColorFor(Debt debt) {
+  if (debt.subtype.isNotEmpty) {
+    return AppColors.accentHover; // 中性金(与 _badgeFor 持久化分支一致)
+  }
+  final s = debt.counterparty.toLowerCase();
+  if (debt.counterparty.contains('房') || s.contains('mortgage')) {
+    return AppColors.accentHover; // 房贷金
+  }
+  if (debt.counterparty.contains('车') || s.contains('car')) {
+    return const Color(0xFF56606B); // 车贷灰蓝
+  }
+  if (debt.counterparty.contains('信用卡') || s.contains('credit')) {
+    return AppColors.negative; // 信用卡红
+  }
+  if (debt.counterparty.contains('亲友') ||
+      debt.counterparty.contains('借') ||
+      s.contains('friend')) {
+    return AppColors.positive; // 亲友绿
+  }
+  return const Color(0xFF7A776E); // 其他灰
+}
+
+/// L3 foot callout(单卡):下次还款 / 逾期 提示行(对齐 OD .dc-next)。
+/// debt 语义:下次还款(debt.nextPaymentDate 驱动)/ 逾期 N 天 / 待还。
+class _CardFootCallout extends StatelessWidget {
+  const _CardFootCallout({
+    required this.debt,
+    required this.preferred,
+    required this.hasNext,
+    required this.isOverdue,
+  });
+  final Debt debt;
+  final String preferred;
+  final bool hasNext;
+  final bool isOverdue;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final overdueDays =
+        isOverdue ? now.difference(debt.dueDate).inDays : 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFBFAF6),
+        border: Border(
+          top: BorderSide(color: AppColors.border, width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            hasNext
+                ? LucideIcons.calendarClock
+                : (isOverdue
+                    ? LucideIcons.alertTriangle
+                    : LucideIcons.clock),
+            size: 15,
+            color: isOverdue && !hasNext
+                ? AppColors.negative
+                : AppColors.accent,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                style: const TextStyle(
+                    fontSize: 12.5,
+                    color: AppColors.fg,
+                    fontFeatures: AppTypography.tabularFigures),
+                children: [
+                  if (hasNext) ...[
+                    const TextSpan(
+                        text: '下次还款 · ',
+                        style: TextStyle(
+                            color: AppColors.muted,
+                            fontWeight: FontWeight.w500)),
+                    TextSpan(
+                        text:
+                            '第 ${debt.nextPaymentPeriodNo} 期 · ${_fmtDate(debt.nextPaymentDate!)}'),
+                    TextSpan(
+                        text:
+                            ' · ${_fmtSymbol(debt.nextPaymentAmountCents, preferred)}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.accentHover)),
+                    if (isOverdue)
+                      TextSpan(
+                          text: ' · 含逾期 $overdueDays 天',
+                          style: const TextStyle(
+                              fontSize: 11, color: AppColors.negative)),
+                  ] else if (isOverdue)
+                    TextSpan(
+                        text: '逾期 $overdueDays 天',
+                        style: const TextStyle(
+                            color: AppColors.negative,
+                            fontWeight: FontWeight.w600))
+                  else ...[
+                    const TextSpan(
+                        text: '状态 ',
+                        style: TextStyle(color: AppColors.muted)),
+                    TextSpan(
+                        text: '待还款',
+                        style: const TextStyle(
+                            color: AppColors.fg,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ───────────────────────── helpers ─────────────────────────
 
 String _amortLabel(AmortizationMethod m) {
@@ -992,7 +1391,8 @@ String _fmtSymbol(int cents, String currencyCode) {
 // ───────────────────────── 列表筛选(全部/进行中/已结清)+ 排序 ─────────────────────────
 
 /// 列表筛选:默认「进行中」(隐藏已结清)。对齐 receivables_page._ListFilter。
-enum _ListFilter { all, active, settled }
+/// L4 加 逾期 tab(对齐 OD .tabs 全部/待还/逾期/已结清)。
+enum _ListFilter { all, active, settled, overdue }
 
 /// 列表排序:未结清在前(按到期升序 —— 逾期因 dueDate 早自然靠前),已结清沉底。
 int _compareDebt(Debt a, Debt b) {
@@ -1011,20 +1411,25 @@ bool _matchesListFilter(Debt d, _ListFilter f) {
       return !settled;
     case _ListFilter.settled:
       return settled;
+    case _ListFilter.overdue:
+      return !settled && d.dueDate.isBefore(DateTime.now());
   }
 }
 
-/// 列表筛选 segmented(全部/进行中/已结清 + 各自计数)。复用详情页 schedule 筛选样式。
+/// 列表筛选 segmented(全部/进行中/逾期/已结清 + 各自计数,L4 加逾期)。
+/// 复用详情页 schedule 筛选样式。
 class _ListFilterSegmented extends StatelessWidget {
   const _ListFilterSegmented({
     required this.filter,
     required this.activeCount,
     required this.settledCount,
+    required this.overdueCount,
     required this.onChanged,
   });
   final _ListFilter filter;
   final int activeCount;
   final int settledCount;
+  final int overdueCount;
   final ValueChanged<_ListFilter> onChanged;
 
   @override
@@ -1032,6 +1437,7 @@ class _ListFilterSegmented extends StatelessWidget {
     const segments = [
       (_ListFilter.all, '全部'),
       (_ListFilter.active, '进行中'),
+      (_ListFilter.overdue, '逾期'),
       (_ListFilter.settled, '已结清'),
     ];
     return Container(
@@ -1040,8 +1446,10 @@ class _ListFilterSegmented extends StatelessWidget {
         color: const Color(0xFFEFECE5),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Wrap(
+        // Wrap 替代 Row:4 段在窄屏可能换行,避免溢出(对齐 receivables _seg)。
+        spacing: 2,
+        runSpacing: 0,
         children: [
           for (final (f, label) in segments) _segment(f, label),
         ],
@@ -1054,6 +1462,7 @@ class _ListFilterSegmented extends StatelessWidget {
     final count = switch (f) {
       _ListFilter.active => activeCount,
       _ListFilter.settled => settledCount,
+      _ListFilter.overdue => overdueCount,
       _ListFilter.all => activeCount + settledCount,
     };
     return InkWell(

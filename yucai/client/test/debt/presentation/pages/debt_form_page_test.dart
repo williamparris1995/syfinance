@@ -158,9 +158,10 @@ void main() {
       expect(find.textContaining('债权方'), findsWidgets);
       expect(find.textContaining('债务类型'), findsWidgets);
       expect(find.textContaining('关联账户'), findsWidgets);
-      expect(find.textContaining('借款本金'), findsOneWidget);
-      expect(find.textContaining('年利率'), findsOneWidget);
-      expect(find.textContaining('摊还方法'), findsOneWidget);
+      // OD section sub「本金 · 年利率 · 摊还方法」+ 字段 label 同名 → findsWidgets。
+      expect(find.textContaining('借款本金'), findsWidgets);
+      expect(find.textContaining('年利率'), findsWidgets);
+      expect(find.textContaining('摊还方法'), findsWidgets);
       expect(find.textContaining('起始日期'), findsOneWidget);
       expect(find.textContaining('到期日期'), findsOneWidget);
     });
@@ -220,8 +221,9 @@ void main() {
       await t.pumpWidget(
           _harness(debtRepo: debtRepo, accountRepo: accountRepo));
       await t.pumpAndSettle();
-      // tap the 关联账户 dropdown to open menu
-      await t.tap(find.textContaining('关联账户').first);
+      // tap the 关联账户 dropdown to open menu(OD 字段 label 不再可点,
+      // 用 dropdown 自身的 ValueKey 命中 DropdownButtonFormField)。
+      await t.tap(find.byKey(const ValueKey('accountDropdown')));
       await t.pumpAndSettle();
       expect(find.textContaining('招行房贷'), findsWidgets);
       expect(find.textContaining('建行车贷'), findsWidgets);

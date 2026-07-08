@@ -11,8 +11,9 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/account/presentation/pages/account_form_page.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/amortization_preview.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
-import 'package:yucai_client/core/widgets/form_section.dart';
+import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/value_objects.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
@@ -20,17 +21,21 @@ import 'package:yucai_client/debt/presentation/bloc/debt_event.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_state.dart';
 import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.dart';
 
-/// 债务表单页（创建 + 编辑模式）。对齐 OD 原型 debt-form.html / tablet / mobile：
+/// 债务表单页（创建 + 编辑模式）。对齐 OD 原型 debt-form.html / tablet / mobile。
 ///
-/// 提交 → dispatch [CreateDebtRequested] / [UpdateDebtRequested] → 成功后 pop 回 debts_page。
-/// DebtBloc 通过 router provide（Task 9）；本页 `context.read<DebtBloc>()`。
+/// 结构对齐 [ReceivableFormPage]（已 OD 对齐的骨架）：OD `.sec` 分区卡 +
+/// `_RadioCard`（icon + label + desc）+ `AmortizationPreview` 深色实时预览 +
+/// `_actionsCard`（sticky footer actionbar）。文案/字段/数据按 **debt 语义**
+/// （借入）：债权方 / 借款本金 / 月供 / 还款计划 / 创建债务。
 ///
-/// - [existing] == null：创建模式（dispatch CreateDebtRequested）。
-/// - [existing] != null：编辑模式（预填字段，dispatch UpdateDebtRequested）。
-///   对齐 `account_form_page.dart` 的 existing edit 模式。
+/// debt 专属(区别于 receivable):
+///  - type 默认 `DebtType.borrowedIn`（不渲染方向选择器）。
+///  - 关联账户 = liability loan/credit_card 账户（我欠别人的负债侧）。
+///  - subtype = DebtSubtypes（房贷/车贷/信用卡/亲友借款/其他）。
+///  - 信用卡子类型 → 信用卡信息区（账单日/还款日/额度/年费，回写 account）。
 ///
-/// 可选 [initialStartDate] / [initialDueDate] / [initialAccountId] 供测试
-/// 直接 seed 表单状态，避免在 widget test 里驱动 showDatePicker（仅创建模式生效）。
+/// 提交 → dispatch [CreateDebtRequested] / [UpdateDebtRequested] → 成功后 pop。
+/// DebtBloc 由 router provide；本页 `context.read<DebtBloc>()`。
 class DebtFormPage extends StatefulWidget {
   const DebtFormPage({
     super.key,
@@ -40,7 +45,6 @@ class DebtFormPage extends StatefulWidget {
     this.initialAccountId,
   });
 
-  /// 编辑模式传入的现有 Debt；null = 创建模式。
   final Debt? existing;
   final DateTime? initialStartDate;
   final DateTime? initialDueDate;
@@ -57,32 +61,24 @@ class _DebtFormPageState extends State<DebtFormPage> {
   final _rateCtrl = TextEditingController();
 
   // ---- 信用卡信息区字段（subtype == DebtSubtypes.creditCard 时显示）。
-  // 字段来自关联的 credit_card account；用户编辑后 _ccDirty 置 true，
-  // 提交时回写 AccountRepository.update。
   final _ccBillingDayCtrl = TextEditingController();
   final _ccRepaymentDayCtrl = TextEditingController();
   final _ccLimitCtrl = TextEditingController();
   final _ccAnnualFeeCtrl = TextEditingController();
   bool _ccDirty = false;
 
-  /// 债务子类型 key（DebtSubtypes.mortgage / autoLoan / creditCard / family /
-  /// other）。存 **key**（非中文 label）—— 判断用 const，UI 显示 labels[key]。
+  /// 债务子类型 key（DebtSubtypes.*）。存 key —— 判断用 const，UI 显示 labels[key]。
   String _subtypeKey = DebtSubtypes.mortgage;
   AmortizationMethod _amortization = AmortizationMethod.equalPrincipalInterest;
 
-  /// 关联 loan 账户。null = 未选。
   String? _accountId;
   DateTime? _startDate;
   DateTime? _dueDate;
 
-  /// 全部 liability 账户（含 credit_card / loan / 其他负债）。
-  /// 显示时按 subtype 过滤（_visibleAccounts）。
   List<Account> _accounts = const [];
   bool _accountsLoading = true;
 
-  /// mobile step wizard 当前步（0/1/2）。
   int _step = 0;
-
   bool _submitted = false;
 
   Debt? get _existing => widget.existing;
@@ -99,30 +95,22 @@ class _DebtFormPageState extends State<DebtFormPage> {
     super.initState();
     final e = _existing;
     if (e != null) {
-      // 编辑模式：预填所有可编辑字段（counterparty / 本金 / 利率 / 摊还 / 日期 /
-      // 关联账户 / 子类型）。对齐 account_form_page 的 existing 预填。UpdateDebtParams
-      // 仅回传 counterparty + interestRate + version，其余字段仅供预览一致性展示。
       _counterpartyCtrl.text = e.counterparty;
-      _principalCtrl.text =
-          (e.totalPrincipalCents / 100).toStringAsFixed(2);
+      _principalCtrl.text = (e.totalPrincipalCents / 100).toStringAsFixed(2);
       _rateCtrl.text = e.interestRate.toString();
       _amortization = e.amortization;
       _startDate = e.startDate;
       _dueDate = e.dueDate;
       _accountId = e.accountId;
-      // 子类型 key 预填（空 → mortgage 默认，避免 const 判断落空）。
       _subtypeKey = e.subtype.isEmpty ? DebtSubtypes.mortgage : e.subtype;
     } else {
-      // 创建模式：测试 seed 参数。
       _startDate = widget.initialStartDate;
       _dueDate = widget.initialDueDate;
       _accountId = widget.initialAccountId;
     }
     _loadAccounts();
-    // 输入变化即重算预览（principal/rate/dates/amortization 都是 setState 触发）。
     _principalCtrl.addListener(() => setState(() {}));
     _rateCtrl.addListener(() => setState(() {}));
-    // 信用卡字段编辑 → 标脏，提交时回写 account。
     void markCcDirty() => _ccDirty = true;
     _ccBillingDayCtrl.addListener(markCcDirty);
     _ccRepaymentDayCtrl.addListener(markCcDirty);
@@ -143,19 +131,15 @@ class _DebtFormPageState extends State<DebtFormPage> {
   }
 
   Future<void> _loadAccounts() async {
-    // 对齐 transactions_page._loadAccounts：getIt<AccountRepository>()，
-    // 避免依赖 router provide。
     try {
       final repo = GetIt.instance<AccountRepository>();
       final result = await repo.list();
       final list = result.fold((_) => const <Account>[], (l) => l);
-      // 仅关联 loan / 其他负债 账户（债务挂载的负债侧账户）。
       if (!mounted) return;
       setState(() {
         _accounts =
             list.where((a) => a.accountType == AccountType.liability).toList();
         _accountsLoading = false;
-        // 账户加载后若已有选中账户（编辑模式 / 测试 seed），回填信用卡字段。
         _refillCreditCardFields();
       });
     } catch (_) {
@@ -166,26 +150,20 @@ class _DebtFormPageState extends State<DebtFormPage> {
 
   // ===================== 子类型 / 信用卡区 helpers =====================
 
-  /// 当前是否信用卡子类型（const 判断，禁裸字符串）。
   bool get _isCreditCard => _subtypeKey == DebtSubtypes.creditCard;
 
-  /// 按 subtype 过滤的可选账户。信用卡子类型 → 仅 credit_card category；
-  /// 其他子类型 → 全部 liability（loan / 其他负债 / 信用卡均可挂载）。
   List<Account> get _visibleAccounts => _isCreditCard
       ? _accounts
           .where((a) => a.category == AccountCategory.creditCard)
           .toList()
       : _accounts;
 
-  /// 当前选中的账户（可能不在 _visibleAccounts 内 —— 如编辑模式旧账户）。
   Account? get _selectedAccount =>
       _accounts.where((a) => a.id == _accountId).cast<Account?>().firstWhere(
             (_) => true,
             orElse: () => null,
           );
 
-  /// 用选中账户的信用卡字段回填 4 个 controller（不触发 _ccDirty，因为这是
-  /// 程序化回填而非用户编辑）。账户切换 / 加载完成时调用。
   void _refillCreditCardFields() {
     final a = _selectedAccount;
     if (a == null) return;
@@ -198,11 +176,9 @@ class _DebtFormPageState extends State<DebtFormPage> {
             a.creditAnnualFeeCents! > 0
         ? (a.creditAnnualFeeCents! / 100).toStringAsFixed(2)
         : '';
-    // 程序化回填不算用户编辑 —— 复位脏标记（listener 已先触发）。
     _ccDirty = false;
   }
 
-  /// 账户下拉 onChange：写回 _accountId + 回填信用卡字段。
   void _onAccountChanged(String? v) {
     setState(() {
       _accountId = v;
@@ -210,8 +186,6 @@ class _DebtFormPageState extends State<DebtFormPage> {
     });
   }
 
-  /// 提交时若信用卡字段有变 → 回写关联 credit_card account（best-effort）。
-  /// 失败仅 log，不阻塞债务创建（对齐 data 层 getIt 模式）。
   Future<void> _persistCreditCardFieldsIfNeeded() async {
     if (!_isCreditCard || !_ccDirty) return;
     final a = _selectedAccount;
@@ -229,14 +203,10 @@ class _DebtFormPageState extends State<DebtFormPage> {
         creditLimitCents: limitCents,
         creditAnnualFeeCents: annualFeeCents,
       ));
-    } catch (_) {
-      // best-effort：账户更新失败不阻断债务提交。
-    }
+    } catch (_) {}
     _ccDirty = false;
   }
 
-  /// 「请先创建信用卡账户」提示 → 跳转 AccountFormPage（对齐 router 的
-  /// BlocProvider<AccountBloc>(getIt) 模式，见 router.dart /accounts）。
   Future<void> _goCreateCreditCardAccount() async {
     final ctx = context;
     await Navigator.of(ctx).push(
@@ -247,7 +217,6 @@ class _DebtFormPageState extends State<DebtFormPage> {
         ),
       ),
     );
-    // 返回后重新拉账户列表（用户可能刚创建了信用卡账户）。
     if (!mounted) return;
     setState(() => _accountsLoading = true);
     _loadAccounts();
@@ -255,32 +224,30 @@ class _DebtFormPageState extends State<DebtFormPage> {
 
   // ===================== 摊还预览（client-side） =====================
 
-  /// 月数 = (due - start) 的整月差。due ≤ start → 0。
   int _monthsBetween(DateTime? a, DateTime? b) {
     if (a == null || b == null) return 0;
     final m = (b.year - a.year) * 12 + (b.month - a.month);
     return m <= 0 ? 0 : m;
   }
 
-  /// 摊还预览数据。P≤0 或日期不全 → null（空态）。
-  _Preview? _computePreview() {
+  AmortizationPreviewData? _computePreview() {
     final p = double.tryParse(_principalCtrl.text) ?? 0;
     final annualRate = double.tryParse(_rateCtrl.text) ?? 0;
     final n = _monthsBetween(_startDate, _dueDate);
     if (p <= 0 || _startDate == null || _dueDate == null || n <= 0) return null;
 
-    final r = annualRate / 100 / 12; // 月利率
+    final r = annualRate / 100 / 12;
     switch (_amortization) {
       case AmortizationMethod.equalPrincipalInterest:
         final pow = _pow(1 + r, n);
         final monthly = r > 0 ? p * r * pow / (pow - 1) : p / n;
-        final rows = <_PreviewRow>[];
+        final rows = <AmortizationPreviewRow>[];
         var bal = p;
         for (var i = 1; i <= (n < 5 ? n : 5); i++) {
           final interest = bal * r;
           final principal = monthly - interest;
           bal -= principal;
-          rows.add(_PreviewRow(
+          rows.add(AmortizationPreviewRow(
             index: i,
             date: _addMonths(_startDate!, i - 1),
             principal: principal,
@@ -288,7 +255,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
           ));
         }
         final totalInterestAll = monthly * n - p;
-        return _Preview(
+        return AmortizationPreviewData(
           label: '月供',
           headlineAmount: monthly,
           rows: rows,
@@ -299,19 +266,18 @@ class _DebtFormPageState extends State<DebtFormPage> {
         );
       case AmortizationMethod.equalPrincipal:
         final monthlyPrincipal = p / n;
-        final rows = <_PreviewRow>[];
+        final rows = <AmortizationPreviewRow>[];
         var bal = p;
         for (var i = 1; i <= (n < 5 ? n : 5); i++) {
           final interest = bal * r;
           bal -= monthlyPrincipal;
-          rows.add(_PreviewRow(
+          rows.add(AmortizationPreviewRow(
             index: i,
             date: _addMonths(_startDate!, i - 1),
             principal: monthlyPrincipal,
             interest: interest,
           ));
         }
-        // 总利息：遍历全期（n 可能较大，但 N≤数百万 O(n) 可接受）。
         var b = p;
         var totalInterest = 0.0;
         for (var i = 0; i < n; i++) {
@@ -319,7 +285,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
           b -= monthlyPrincipal;
         }
         final firstMonthly = monthlyPrincipal + p * r;
-        return _Preview(
+        return AmortizationPreviewData(
           label: '首月供',
           headlineAmount: firstMonthly,
           rows: rows,
@@ -329,19 +295,18 @@ class _DebtFormPageState extends State<DebtFormPage> {
           annualRate: annualRate,
         );
       case AmortizationMethod.lumpSum:
-        // 到期一次性还本付息。
         final years = n / 12;
         final interest = p * annualRate / 100 * years;
-        final rows = <_PreviewRow>[];
-        // 1 行（到期）。
-        rows.add(_PreviewRow(
-          index: 1,
-          date: _addMonths(_startDate!, n),
-          principal: p,
-          interest: interest,
-          isDue: true,
-        ));
-        return _Preview(
+        final rows = <AmortizationPreviewRow>[
+          AmortizationPreviewRow(
+            index: 1,
+            date: _addMonths(_startDate!, n),
+            principal: p,
+            interest: interest,
+            isDue: true,
+          ),
+        ];
+        return AmortizationPreviewData(
           label: '到期总额',
           headlineAmount: p + interest,
           rows: rows,
@@ -361,14 +326,12 @@ class _DebtFormPageState extends State<DebtFormPage> {
     return r;
   }
 
-  DateTime _addMonths(DateTime d, int months) {
-    return DateTime(d.year, d.month + months, d.day);
-  }
+  DateTime _addMonths(DateTime d, int months) =>
+      DateTime(d.year, d.month + months, d.day);
 
   // ===================== 提交 =====================
 
   Future<void> _submit() async {
-    // 显式校验必要字段并 toast 提示（避免空 submit 无反应）。
     if (_counterpartyCtrl.text.trim().isEmpty) {
       AppToast.show(context, '请填写债权方', type: ToastType.warning);
       return;
@@ -404,32 +367,27 @@ class _DebtFormPageState extends State<DebtFormPage> {
     _formKey.currentState?.save();
     _submitted = true;
     final principalCents = (principal * 100).round();
-    // 在 await 前捕获 bloc，避免跨 async gap 用 BuildContext（lint）。
     final bloc = context.read<DebtBloc>();
-    // 信用卡字段回写 account（best-effort，先于债务提交）。
     await _persistCreditCardFieldsIfNeeded();
     final e = _existing;
     if (e != null) {
-      // 编辑模式：UpdateDebtParams 仅含 id / counterparty / interestRate / version
-      // （对齐 debt_event.dart 签名 —— 后端暂不支持改本金/摊还/日期）。
       bloc.add(UpdateDebtRequested(UpdateDebtParams(
-            id: e.id,
-            counterparty: _counterpartyCtrl.text.trim(),
-            interestRate: rate,
-            version: e.version,
-          )));
+        id: e.id,
+        counterparty: _counterpartyCtrl.text.trim(),
+        interestRate: rate,
+        version: e.version,
+      )));
     } else {
-      // 创建模式：CreateDebtParams 带 subtype（_subtypeKey 存的是 const key）。
       bloc.add(CreateDebtRequested(CreateDebtParams(
-            accountId: _accountId!,
-            counterparty: _counterpartyCtrl.text.trim(),
-            interestRate: rate,
-            amortizationIndex: _amortization.index,
-            startDateOption: _startDate,
-            dueDateOption: _dueDate,
-            totalPrincipalCents: principalCents,
-            subtype: _subtypeKey,
-          )));
+        accountId: _accountId!,
+        counterparty: _counterpartyCtrl.text.trim(),
+        interestRate: rate,
+        amortizationIndex: _amortization.index,
+        startDateOption: _startDate,
+        dueDateOption: _dueDate,
+        totalPrincipalCents: principalCents,
+        subtype: _subtypeKey,
+      )));
     }
   }
 
@@ -444,7 +402,12 @@ class _DebtFormPageState extends State<DebtFormPage> {
       backgroundColor: AppColors.bg,
       appBar: AppBar(
         leading: BackButton(onPressed: () => Navigator.of(context).pop()),
-        title: Text(_isEdit ? '编辑债务' : '新建债务'),
+        title: Breakpoints.of(context) == Breakpoint.mobile
+            ? Text(_isEdit ? '编辑债务' : '新建债务')
+            : const SizedBox.shrink(),
+        backgroundColor: AppColors.bg,
+        elevation: 0,
+        scrolledUnderElevation: 0,
       ),
       body: BlocListener<DebtBloc, DebtState>(
         listenWhen: (prev, curr) =>
@@ -472,19 +435,33 @@ class _DebtFormPageState extends State<DebtFormPage> {
 
   // ----- desktop / tablet：双列（表单 | 预览） -----
   Widget _wideLayout(bool submitting) {
+    final isDesktop = Breakpoints.of(context) == Breakpoint.desktop;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xl),
-      child: Form(
-        key: _formKey,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(flex: 16, child: _formColumn()),
-            const SizedBox(width: AppSpacing.lg),
-            Expanded(flex: 10, child: _previewColumn()),
-          ],
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _pageHead(),
+          const SizedBox(height: AppSpacing.md),
+          Form(
+            key: _formKey,
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                      flex: isDesktop ? 1 : 16, child: _formColumn()),
+                  const SizedBox(width: AppSpacing.md),
+                  if (isDesktop)
+                    SizedBox(width: 372, child: _previewColumn())
+                  else
+                    Expanded(flex: 10, child: _previewColumn()),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -517,6 +494,34 @@ class _DebtFormPageState extends State<DebtFormPage> {
     );
   }
 
+  /// OD `.page-head`:serif 26px 标题(新建/编辑债务)+ sub 13px muted。
+  Widget _pageHead({bool compact = false}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _isEdit ? '编辑债务' : '新建债务',
+          style: TextStyle(
+            fontFamily: AppTypography.displayFamily,
+            fontFamilyFallback: AppTypography.displayFallback,
+            fontSize: compact ? 20 : 26,
+            letterSpacing: -0.01,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        if (!compact) ...[
+          const SizedBox(height: 5),
+          Text(
+            _isEdit
+                ? '编辑这笔债务 · 调整债权方 / 利率 / 关联账户'
+                : '记录一笔借款 · 我欠别人的钱 · 自动生成还款计划',
+            style: const TextStyle(color: AppColors.muted, fontSize: 13),
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _stepActions(bool submitting) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -539,6 +544,11 @@ class _DebtFormPageState extends State<DebtFormPage> {
           FilledButton(
             key: const ValueKey('submitButton'),
             onPressed: submitting ? null : _submit,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: AppColors.accent.withValues(alpha: 0.5),
+            ),
             child: submitting
                 ? const SizedBox(
                     height: 18,
@@ -546,7 +556,7 @@ class _DebtFormPageState extends State<DebtFormPage> {
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: Colors.white),
                   )
-                : Text(_isEdit ? '保存修改' : '确认创建'),
+                : Text(_isEdit ? '保存' : '创建债务'),
           ),
       ],
     );
@@ -557,94 +567,154 @@ class _DebtFormPageState extends State<DebtFormPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        FormSection(title: '1 · 基本信息', children: _basicInfoFields()),
-        const SizedBox(height: AppSpacing.lg),
-        FormSection(title: '2 · 金额与利率', children: _amountRateFields()),
-        const SizedBox(height: AppSpacing.lg),
-        FormSection(title: '3 · 借款日期', children: _dateFields()),
-        const SizedBox(height: AppSpacing.xl),
-        FormActions(
-          submitLabel: _isEdit ? '保存修改' : '确认创建',
-          submitting: false,
-          onSubmit: _submit,
-          onCancel: () => Navigator.of(context).pop(),
+        _ODFormSection(
+          num: '1',
+          title: '基本信息',
+          sub: '债权方 · 类型 · 关联账户',
+          children: _basicInfoFields(),
         ),
+        const SizedBox(height: 16),
+        _ODFormSection(
+          num: '2',
+          title: '金额与利率',
+          sub: '本金 · 年利率 · 摊还方法',
+          children: _amountRateFields(),
+        ),
+        const SizedBox(height: 16),
+        _ODFormSection(
+          num: '3',
+          title: '借款日期',
+          sub: '起止日期决定还款期数',
+          children: _dateFields(),
+        ),
+        const SizedBox(height: 16),
+        _actionsCard(),
       ],
+    );
+  }
+
+  /// OD `.actions`:独立白卡(surface + border + radius 14 + shadow-sm + padding
+  /// 16/22),flex-end,gap 10。`.btn-ghost`(取消)+ `.btn-primary`(创建债务 gold)。
+  Widget _actionsCard() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border.all(color: AppColors.border),
+        borderRadius: AppRadius.lgBorder,
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x0A1C1E21), blurRadius: 3, offset: Offset(0, 1)),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          OutlinedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.fg,
+              backgroundColor: AppColors.surface,
+              side: const BorderSide(color: AppColors.border),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              textStyle: const TextStyle(
+                  fontSize: 13.5, fontWeight: FontWeight.w600),
+            ),
+            child: const Text('取消'),
+          ),
+          const SizedBox(width: 10),
+          FilledButton.icon(
+            key: const ValueKey('submitButton'),
+            onPressed: _submit,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              textStyle: const TextStyle(
+                  fontSize: 13.5, fontWeight: FontWeight.w600),
+            ),
+            icon: const Icon(LucideIcons.check, size: 16),
+            label: Text(_isEdit ? '保存' : '创建债务'),
+          ),
+        ],
+      ),
     );
   }
 
   // ----- 字段：基本信息（Step 1） -----
   List<Widget> _basicInfoFields() {
     return [
-      TextFormField(
-        key: const ValueKey('counterpartyField'),
-        controller: _counterpartyCtrl,
-        decoration: const InputDecoration(
-          labelText: '债权方 / 借出方',
-          hintText: '如 招商银行 / 张三',
+      _ODGrid2(children: [
+        _ODField(
+          label: '债权方 / 借出方',
+          required: true,
+          hint: '向谁借的钱',
+          child: TextFormField(
+            key: const ValueKey('counterpartyField'),
+            controller: _counterpartyCtrl,
+            decoration: _odDec(hint: '如 招商银行 / 张三'),
+            validator: (v) => _required(v, '债权方'),
+          ),
         ),
-        validator: (v) => _required(v, '债权方'),
-      ),
-      const SizedBox(height: AppSpacing.md),
-      // 债务子类型（5 卡）—— 选项来自 DebtSubtypes.all（const），禁硬编码字符串。
-      // ValueKey / selected / onTap 全部基于 key（_subtypeKey 存 key）。
-      const Text('债务类型',
-          style: TextStyle(
-              color: AppColors.muted,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8)),
-      const SizedBox(height: AppSpacing.sm),
-      Wrap(
-        spacing: AppSpacing.xs,
-        runSpacing: AppSpacing.xs,
-        children: [
-          for (final key in DebtSubtypes.all)
-            _RadioChip(
-              key: ValueKey('debtType-$key'),
-              label: DebtSubtypes.labels[key]!,
-              selected: _subtypeKey == key,
-              // 编辑模式:UpdateDebtParams 不携带 subtype(后端不支持改),
-              // 故 chips 只读显示当前 subtype,不可点击(避免误以为可改)。
-              // 创建模式:可交互。
-              onTap: _isEdit
-                  ? null
-                  : () => setState(() {
-                        _subtypeKey = key;
-                        // 切到/切离信用卡时复位信用卡字段脏标记与回填
-                        //（_visibleAccounts 随 _isCreditCard 变化,若当前选中账户
-                        // 不再可见,_accountId 保留 —— 编辑模式旧账户仍可读字段）。
-                        _refillCreditCardFields();
-                      }),
-            ),
-        ],
+        _ODField(
+          label: _isCreditCard ? '关联信用卡账户' : '关联账户',
+          required: true,
+          hint: '债务挂载的 Loan 账户',
+          child: DropdownButtonFormField<String>(
+            key: const ValueKey('accountDropdown'),
+            value: _accountId,
+            isExpanded: true,
+            decoration: _odDec(
+                hint: _accountsLoading
+                    ? '加载中…'
+                    : (_isCreditCard ? '选择信用卡账户' : '选择 Loan 账户')),
+            items: [
+              for (final a in _visibleAccounts)
+                DropdownMenuItem(value: a.id, child: Text(a.name)),
+            ],
+            onChanged: _onAccountChanged,
+            validator: (v) => v == null || v.isEmpty ? '请选择关联账户' : null,
+          ),
+        ),
+      ]),
+      // 债务类型(5 卡):OD .radio-row.c5。icon + label(无 desc,对齐 OD 类型卡)。
+      _ODField(
+        label: '债务类型',
+        required: true,
+        child: _ResponsiveRadioRow(
+          children: [
+            for (final key in DebtSubtypes.all)
+              _RadioCard(
+                key: ValueKey('debtType-$key'),
+                icon: _debtTypeIcon(key),
+                label: DebtSubtypes.labels[key]!,
+                selected: _subtypeKey == key,
+                // 编辑模式:UpdateDebtParams 不携带 subtype,chips 只读显示。
+                onTap: _isEdit
+                    ? null
+                    : () => setState(() {
+                          _subtypeKey = key;
+                          _refillCreditCardFields();
+                        }),
+              ),
+          ],
+        ),
       ),
       if (_isEdit)
         const Padding(
           key: ValueKey('subtypeReadonlyHint'),
-          padding: EdgeInsets.only(top: AppSpacing.xs),
+          padding: EdgeInsets.only(top: 4),
           child: Text(
             '编辑模式不可更改债务类型',
             style: TextStyle(color: AppColors.muted, fontSize: 11),
           ),
         ),
-      const SizedBox(height: AppSpacing.md),
-      // 关联账户下拉：信用卡子类型 → 仅 credit_card；其他 → 全部 liability。
-      DropdownButtonFormField<String>(
-        key: const ValueKey('accountDropdown'),
-        decoration: InputDecoration(
-            labelText: _isCreditCard ? '关联信用卡账户' : '关联账户'),
-        value: _accountId,
-        items: [
-          for (final a in _visibleAccounts)
-            DropdownMenuItem(value: a.id, child: Text(a.name)),
-        ],
-        hint: Text(_accountsLoading
-            ? '加载中…'
-            : (_isCreditCard ? '选择信用卡账户' : '选择 Loan 账户')),
-        onChanged: _onAccountChanged,
-        validator: (v) => v == null || v.isEmpty ? '请选择关联账户' : null,
-      ),
       // 信用卡子类型 + 无 credit_card 账户 → 提示去账户管理创建。
       if (_isCreditCard && _visibleAccounts.isEmpty && !_accountsLoading)
         Padding(
@@ -661,17 +731,15 @@ class _DebtFormPageState extends State<DebtFormPage> {
             ),
           ),
         ),
-      // 信用卡信息区（仅 subtype == DebtSubtypes.creditCard）。
+      // 信用卡信息区(仅 subtype == DebtSubtypes.creditCard)。
       if (_isCreditCard) ...[
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.md),
         ..._creditCardFields(),
       ],
     ];
   }
 
   // ----- 字段：信用卡信息（账单日 / 还款日 / 额度 / 年费） -----
-  // 字段来自关联 credit_card account，TextEditingController 预填 + 可编辑。
-  // 提交时若 _ccDirty → AccountRepository.update 回写。
   List<Widget> _creditCardFields() {
     return [
       const Text('💳 信用卡信息',
@@ -682,46 +750,32 @@ class _DebtFormPageState extends State<DebtFormPage> {
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8)),
       const SizedBox(height: AppSpacing.sm),
-      FormRow(children: [
+      _ODGrid2(children: [
         TextFormField(
           key: const ValueKey('ccBillingDayField'),
           controller: _ccBillingDayCtrl,
-          decoration: const InputDecoration(
-            labelText: '账单日',
-            hintText: '1-31',
-          ),
+          decoration: _odDec(hint: '账单日 1-31'),
           keyboardType: TextInputType.number,
         ),
         TextFormField(
           key: const ValueKey('ccRepaymentDayField'),
           controller: _ccRepaymentDayCtrl,
-          decoration: const InputDecoration(
-            labelText: '还款日',
-            hintText: '1-31',
-          ),
+          decoration: _odDec(hint: '还款日 1-31'),
           keyboardType: TextInputType.number,
         ),
       ]),
       const SizedBox(height: AppSpacing.sm),
-      FormRow(children: [
+      _ODGrid2(children: [
         TextFormField(
           key: const ValueKey('ccLimitField'),
           controller: _ccLimitCtrl,
-          decoration: const InputDecoration(
-            labelText: '信用额度',
-            prefixText: '¥ ',
-            hintText: '0.00',
-          ),
+          decoration: _odDec(prefix: '${currencySymbol('CNY')} ', hint: '信用额度 0.00'),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
         ),
         TextFormField(
           key: const ValueKey('ccAnnualFeeField'),
           controller: _ccAnnualFeeCtrl,
-          decoration: const InputDecoration(
-            labelText: '年费',
-            prefixText: '¥ ',
-            hintText: '0.00',
-          ),
+          decoration: _odDec(prefix: '${currencySymbol('CNY')} ', hint: '年费 0.00'),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
         ),
       ]),
@@ -731,69 +785,84 @@ class _DebtFormPageState extends State<DebtFormPage> {
   // ----- 字段：金额利率（Step 2） -----
   List<Widget> _amountRateFields() {
     return [
-      FormRow(children: [
-        TextFormField(
-          key: const ValueKey('principalField'),
-          controller: _principalCtrl,
-          decoration: const InputDecoration(
-            labelText: '借款本金',
-            prefixText: '¥ ',
-            hintText: '0.00',
+      _ODGrid2(children: [
+        _ODField(
+          label: '借款本金',
+          required: true,
+          child: TextFormField(
+            key: const ValueKey('principalField'),
+            controller: _principalCtrl,
+            decoration:
+                _odDec(prefix: '${currencySymbol('CNY')} ', hint: '0.00'),
+            style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.fg,
+                fontFeatures: AppTypography.tabularFigures),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            validator: (v) => _required(v, '借款本金'),
           ),
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          validator: (v) => _required(v, '借款本金'),
         ),
-        TextFormField(
-          key: const ValueKey('rateField'),
-          controller: _rateCtrl,
-          decoration: const InputDecoration(
-            labelText: '年利率',
-            suffixText: '%',
-            hintText: '0.0',
+        _ODField(
+          label: '年利率',
+          required: true,
+          hint: '亲友无息借款可填 0',
+          child: TextFormField(
+            key: const ValueKey('rateField'),
+            controller: _rateCtrl,
+            decoration: _odDec(suffix: '%', hint: '0.0'),
+            style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.fg,
+                fontFeatures: AppTypography.tabularFigures),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            validator: (v) => _required(v, '年利率'),
           ),
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          validator: (v) => _required(v, '年利率'),
         ),
       ]),
-      const SizedBox(height: AppSpacing.md),
-      const Text('摊还方法',
-          style: TextStyle(
-              color: AppColors.muted,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8)),
-      const SizedBox(height: AppSpacing.sm),
-      Wrap(
-        spacing: AppSpacing.xs,
-        runSpacing: AppSpacing.xs,
-        children: [
-          for (final m in _amortizations)
-            _RadioChip(
-              key: ValueKey('amortization-${m.name}'),
-              label: _amortizationLabel(m),
-              selected: _amortization == m,
-              onTap: () => setState(() => _amortization = m),
-            ),
-        ],
+      // 摊还方法(3 卡 + desc):OD .radio-row.c3。
+      _ODField(
+        label: '摊还方法',
+        required: true,
+        child: _ResponsiveRadioRow(
+          children: [
+            for (final m in _amortizations)
+              _RadioCard(
+                key: ValueKey('amortization-${m.name}'),
+                icon: _amortizationIcon(m),
+                label: _amortizationLabel(m),
+                desc: _amortizationDesc(m),
+                selected: _amortization == m,
+                onTap: () => setState(() => _amortization = m),
+              ),
+          ],
+        ),
       ),
     ];
   }
 
   // ----- 字段：日期（Step 3） -----
   List<Widget> _dateFields() {
+    final periods = _monthsBetween(_startDate, _dueDate);
     return [
-      FormRow(children: [
-        _DateField(
-          key: const ValueKey('startDatePicker'),
+      _ODGrid2(children: [
+        _ODField(
           label: '起始日期',
-          value: _startDate,
-          onChanged: (d) => setState(() => _startDate = d),
+          required: true,
+          child: _ODDateField(
+            key: const ValueKey('startDatePicker'),
+            value: _startDate,
+            onChanged: (d) => setState(() => _startDate = d),
+          ),
         ),
-        _DateField(
-          key: const ValueKey('dueDatePicker'),
+        _ODField(
           label: '到期日期',
-          value: _dueDate,
-          onChanged: (d) => setState(() => _dueDate = d),
+          required: true,
+          hint: periods > 0 ? '期数 $periods 期（按月）' : null,
+          child: _ODDateField(
+            key: const ValueKey('dueDatePicker'),
+            value: _dueDate,
+            onChanged: (d) => setState(() => _dueDate = d),
+          ),
         ),
       ]),
     ];
@@ -802,10 +871,12 @@ class _DebtFormPageState extends State<DebtFormPage> {
   // ----- 预览列 -----
   Widget _previewColumn() {
     final preview = _computePreview();
-    // 预览标题展示子类型 label（中文）—— _subtypeKey 存 key，labels[key] 取显示。
     final subtypeLabel = DebtSubtypes.labels[_subtypeKey] ?? '';
-    return _AmortizationPreview(
+    return AmortizationPreview(
       title: '$_counterpartyOrDefault · $subtypeLabel',
+      sectionLabel: 'LIVE PREVIEW · 还款计划预览',
+      emptyHint: '填写借款本金与起止日期后\n实时生成还款计划',
+      footNote: '前 5 期预览 · 实际以放款为准',
       preview: preview,
     );
   }
@@ -817,41 +888,6 @@ class _DebtFormPageState extends State<DebtFormPage> {
 }
 
 // ===================== 私有 widgets =====================
-
-/// 摊还预览数据。
-class _Preview {
-  const _Preview({
-    required this.label,
-    required this.headlineAmount,
-    required this.rows,
-    required this.n,
-    required this.totalInterest,
-    required this.totalPayment,
-    required this.annualRate,
-  });
-  final String label; // 月供 / 首月供 / 到期总额
-  final double headlineAmount;
-  final List<_PreviewRow> rows; // 前 5 期（lumpSum = 1 期）
-  final int n; // 总期数
-  final double totalInterest;
-  final double totalPayment;
-  final double annualRate;
-}
-
-class _PreviewRow {
-  const _PreviewRow({
-    required this.index,
-    required this.date,
-    required this.principal,
-    required this.interest,
-    this.isDue = false,
-  });
-  final int index;
-  final DateTime date;
-  final double principal;
-  final double interest;
-  final bool isDue;
-}
 
 /// mobile step wizard 顶部进度指示（3 圆点 + 连线）。
 class _StepIndicator extends StatelessWidget {
@@ -927,76 +963,196 @@ class _StepIndicator extends StatelessWidget {
   }
 }
 
-/// 单选 chip（债务类型 / 摊还方法）。复用 TypeTabs 视觉（金选中态）。
-/// [onTap] == null → 禁用态（只读显示，无 hover cursor / 无 tap），
-/// 用于编辑模式下 subtype 不可更改的场景。
-class _RadioChip extends StatelessWidget {
-  const _RadioChip({
+/// 单选卡(债务类型 5 / 摊还方法 3)。对齐 OD .radio:32px icon tile(选中金实心)
+/// + label + 可选 desc。复用 TypeTabs 金选中态视觉。
+/// [onTap] == null → 禁用态(只读显示,编辑模式 subtype 不可更改)。
+class _RadioCard extends StatelessWidget {
+  const _RadioCard({
     super.key,
+    required this.icon,
     required this.label,
+    this.desc,
     required this.selected,
     required this.onTap,
   });
 
+  final IconData icon;
   final String label;
+  final String? desc;
   final bool selected;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final disabled = onTap == null;
-    final bg = selected ? AppColors.accentSoft : AppColors.surface;
-    final fg = selected
-        ? AppColors.accentHover
-        : (disabled ? AppColors.muted.withValues(alpha: 0.6) : AppColors.muted);
-    final border = selected ? AppColors.accent : AppColors.border;
-    return MouseRegion(
-      cursor: disabled ? SystemMouseCursors.basic : SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: bg,
-            border: Border.all(color: border),
-            borderRadius: AppRadius.smBorder,
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: fg,
-              fontSize: 13,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+    final cardBg = selected ? const Color(0xFFFBF7EF) : AppColors.surface;
+    final cardBorder = selected ? AppColors.accent : AppColors.border;
+    final tileBg = selected ? AppColors.accent : AppColors.accentSoft;
+    final tileFg = selected ? Colors.white : AppColors.accentHover;
+    final labelColor = disabled
+        ? AppColors.muted.withValues(alpha: 0.7)
+        : (selected ? AppColors.accentHover : AppColors.fg);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(11),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 13),
+        decoration: BoxDecoration(
+          color: cardBg,
+          border: Border.all(color: cardBorder, width: selected ? 1.4 : 1),
+          borderRadius: BorderRadius.circular(11),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppColors.accent.withValues(alpha: 0.12),
+                    blurRadius: 0,
+                    spreadRadius: 3,
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: tileBg,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, size: 17, color: tileFg),
             ),
-          ),
+            const SizedBox(height: 7),
+            Text(label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: labelColor,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                )),
+            if (desc != null) ...[
+              const SizedBox(height: 2),
+              Text(desc!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 10.5,
+                    height: 1.3,
+                  )),
+            ],
+          ],
         ),
       ),
     );
   }
 }
 
-/// 日期字段（点击弹 showDatePicker）。不继承 DatePickerInput 是为了加 ValueKey
-/// 与 onChanged 回写 state（DatePickerInput 用 onSaved，需 form.save 触发）。
-class _DateField extends StatelessWidget {
-  const _DateField({
-    super.key,
+/// OD `.field`:label 上方块标签(12.5 w600 fg + req 红 `*`)+ input + 可选 hint。
+class _ODField extends StatelessWidget {
+  const _ODField({
     required this.label,
-    required this.value,
-    required this.onChanged,
+    required this.child,
+    this.required = false,
+    this.hint,
   });
 
   final String label;
+  final Widget child;
+  final bool required;
+  final String? hint;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 7),
+          child: Text.rich(
+            TextSpan(
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.fg,
+              ),
+              children: [
+                TextSpan(text: label),
+                if (required)
+                  const TextSpan(
+                      text: ' *', style: TextStyle(color: AppColors.negative)),
+              ],
+            ),
+          ),
+        ),
+        child,
+        if (hint != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(hint!,
+                style: const TextStyle(
+                    color: AppColors.muted, fontSize: 11.5, height: 1.4)),
+          ),
+      ],
+    );
+  }
+}
+
+/// OD `.input`/`.select` InputDecoration 工厂。
+InputDecoration _odDec({
+  String? hint,
+  String? prefix,
+  String? suffix,
+}) {
+  return InputDecoration(
+    hintText: hint,
+    hintStyle: const TextStyle(color: AppColors.muted, fontSize: 14),
+    prefixText: prefix,
+    prefixStyle: const TextStyle(
+        color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 14),
+    suffixText: suffix,
+    suffixStyle: const TextStyle(color: AppColors.muted, fontSize: 13),
+    isDense: true,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+    filled: true,
+    fillColor: AppColors.surface,
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: AppColors.border, width: 1),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: AppColors.accent, width: 1),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: AppColors.negative, width: 1),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: AppColors.negative, width: 1),
+    ),
+    errorStyle: const TextStyle(color: AppColors.negative, fontSize: 11.5),
+  );
+}
+
+/// OD `.input[type=date]`:label 由 _ODField 提供,本控件仅渲染带边框的日期行。
+class _ODDateField extends StatelessWidget {
+  const _ODDateField({super.key, required this.value, required this.onChanged});
+
   final DateTime? value;
   final ValueChanged<DateTime> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return InputDecorator(
-      decoration: InputDecoration(
-        labelText: label,
-        suffixIcon: const Icon(LucideIcons.calendar, size: 18),
-      ),
+    final has = value != null;
+    final text = has
+        ? '${value!.year}-${value!.month.toString().padLeft(2, '0')}-${value!.day.toString().padLeft(2, '0')}'
+        : '请选择日期';
+    return Material(
+      color: Colors.transparent,
       child: InkWell(
         onTap: () async {
           final picked = await showDatePicker(
@@ -1007,12 +1163,29 @@ class _DateField extends StatelessWidget {
           );
           if (picked != null) onChanged(picked);
         },
-        child: Text(
-          value == null
-              ? '请选择日期'
-              : '${value!.year}-${value!.month.toString().padLeft(2, '0')}-${value!.day.toString().padLeft(2, '0')}',
-          style: TextStyle(
-            color: value == null ? AppColors.muted : AppColors.fg,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            border: Border.all(color: AppColors.border, width: 1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  text,
+                  style: TextStyle(
+                    color: has ? AppColors.fg : AppColors.muted,
+                    fontSize: 14,
+                    fontFeatures: AppTypography.tabularFigures,
+                  ),
+                ),
+              ),
+              const Icon(LucideIcons.calendar, size: 16, color: AppColors.muted),
+            ],
           ),
         ),
       ),
@@ -1020,253 +1193,145 @@ class _DateField extends StatelessWidget {
   }
 }
 
-/// 深色实时预览卡（对齐 OD .preview）。preview == null → 空态。
-class _AmortizationPreview extends StatelessWidget {
-  const _AmortizationPreview({required this.title, required this.preview});
+/// OD `.grid-2c`(2 等宽列 gap 14)。mobile → Column 垂直堆叠。
+class _ODGrid2 extends StatelessWidget {
+  const _ODGrid2({required this.children, this.spacing = 14});
 
+  final List<Widget> children;
+  final double spacing;
+
+  @override
+  Widget build(BuildContext context) {
+    if (children.length <= 1) return children.first;
+    if (Breakpoints.of(context) == Breakpoint.mobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var i = 0; i < children.length; i++) ...[
+            children[i],
+            if (i < children.length - 1) const SizedBox(height: 18),
+          ],
+        ],
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < children.length; i++) ...[
+          if (i > 0) SizedBox(width: spacing),
+          Expanded(child: children[i]),
+        ],
+      ],
+    );
+  }
+}
+
+/// OD `.radio-row.c4`/`.c3` 等宽列(gap 9)。mobile → Wrap(自然宽 + 自动换行)。
+/// 不用 LayoutBuilder —— wide layout 用 IntrinsicHeight 包 Row(preview Stack
+/// 需 bounded 高度),LayoutBuilder 在 IntrinsicHeight 下会抛异常。
+class _ResponsiveRadioRow extends StatelessWidget {
+  const _ResponsiveRadioRow({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    const gap = 9.0;
+    if (Breakpoints.of(context) == Breakpoint.mobile) {
+      return Wrap(spacing: gap, runSpacing: gap, children: children);
+    }
+    final n = children.length;
+    return Row(
+      children: [
+        for (var i = 0; i < n; i++) ...[
+          if (i > 0) const SizedBox(width: gap),
+          Expanded(child: children[i]),
+        ],
+      ],
+    );
+  }
+}
+
+/// OD `.sec` + `.sec-head` 分区卡(对齐 receivable_form _ODFormSection)。
+class _ODFormSection extends StatelessWidget {
+  const _ODFormSection({
+    required this.num,
+    required this.title,
+    required this.sub,
+    required this.children,
+    this.fieldSpacing = 18,
+  });
+
+  final String num;
   final String title;
-  final _Preview? preview;
+  final String sub;
+  final List<Widget> children;
+  final double fieldSpacing;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      key: const ValueKey('amortizationPreview'),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1F2228), Color(0xFF262A31)],
-        ),
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border.all(color: AppColors.border),
         borderRadius: AppRadius.lgBorder,
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-              color: Color(0x17000000), blurRadius: 34, offset: Offset(0, 10)),
+              color: Color(0x0A1C1E21), blurRadius: 3, offset: Offset(0, 1)),
         ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _header(),
-          if (preview == null) _empty() else _table(preview!),
-          _foot(),
-        ],
-      ),
-    );
-  }
-
-  Widget _header() {
-    final p = preview;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.md),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0x12FFFFFF))),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('LIVE PREVIEW · 还款计划预览',
-              style: TextStyle(
-                  color: Color(0xFF9AA0A8),
-                  fontSize: 10.5,
-                  letterSpacing: 2,
-                  fontFamily: AppTypography.displayFamily)),
-          const SizedBox(height: 7),
-          Text(title,
-              key: const ValueKey('previewTitle'),
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: AppTypography.displayFamily)),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(p == null ? '' : p.label,
-                  style: const TextStyle(
-                      color: Color(0xFF9AA0A8), fontSize: 11.5)),
-              const SizedBox(width: 8),
-              Text(
-                p == null ? '—' : _fmtYuan(p.headlineAmount),
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.01,
-                    fontFeatures: AppTypography.tabularFigures),
-              ),
-            ],
-          ),
-          if (p != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Wrap(
-              spacing: 7,
-              runSpacing: 4,
-              children: [
-                _tag('期数 ${p.n} 期'),
-                _tag('总利息 ${_fmtYuan(p.totalInterest)}'),
-                _tag('总还款 ${_fmtYuan(p.totalPayment)}'),
-              ],
+          Container(
+            padding: const EdgeInsets.only(bottom: 14),
+            decoration: const BoxDecoration(
+              border: Border(
+                  bottom: BorderSide(color: AppColors.border, width: 1)),
             ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _tag(String text) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-        decoration: BoxDecoration(
-          color: const Color(0x12FFFFFF),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Text(text,
-            style: const TextStyle(
-                color: Color(0xFFC9CCD2),
-                fontSize: 11,
-                fontFeatures: AppTypography.tabularFigures)),
-      );
-
-  Widget _table(_Preview p) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Column(
-        children: [
-          // header row
-          const Padding(
-            padding:
-                EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 8),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: AppColors.accent,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    num,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      fontFeatures: AppTypography.tabularFigures,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 11),
+                Text(title,
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontFamily: AppTypography.displayFamily,
+                        fontFamilyFallback: AppTypography.displayFallback)),
+                const SizedBox(width: 11),
                 Expanded(
-                    flex: 4,
-                    child: Text('期次 / 还款日',
-                        style: TextStyle(
-                            color: Color(0xFF6F747C),
-                            fontSize: 10,
-                            letterSpacing: 1,
-                            fontFeatures: AppTypography.tabularFigures))),
-                Expanded(
-                    flex: 5,
-                    child: Text('本金 / 利息',
-                        style: TextStyle(
-                            color: Color(0xFF6F747C),
-                            fontSize: 10,
-                            letterSpacing: 1))),
-                Expanded(
-                    flex: 4,
-                    child: Text('合计',
-                        textAlign: TextAlign.right,
-                        style: TextStyle(
-                            color: Color(0xFF6F747C),
-                            fontSize: 10,
-                            letterSpacing: 1))),
+                  child: Text(sub,
+                      textAlign: TextAlign.end,
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.muted)),
+                ),
               ],
             ),
           ),
-          for (final row in p.rows) _row(row),
-        ],
-      ),
-    );
-  }
-
-  Widget _row(_PreviewRow r) {
-    final idx = r.isDue ? '到期' : r.index.toString().padLeft(2, '0');
-    final total = r.principal + r.interest;
-    final date =
-        '${r.date.year}-${r.date.month.toString().padLeft(2, '0')}-${r.date.day.toString().padLeft(2, '0')}';
-    return Container(
-      key: ValueKey('previewRow-${r.index.toString().padLeft(2, '0')}'),
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
-      decoration: const BoxDecoration(
-          border:
-              Border(bottom: BorderSide(color: Color(0x0DFFFFFF)))),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 4,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(idx,
-                    style: const TextStyle(
-                        color: Color(0xFF6F747C),
-                        fontSize: 11,
-                        fontFeatures: AppTypography.tabularFigures)),
-                Text(date,
-                    style: const TextStyle(
-                        color: Color(0xFF9AA0A8), fontSize: 10)),
-              ],
-            ),
-          ),
-          Expanded(
-            flex: 5,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(_fmtYuan(r.principal),
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w500,
-                        fontFeatures: AppTypography.tabularFigures)),
-                Text('利息 ${_fmtYuan(r.interest)}',
-                    style: const TextStyle(
-                        color: Color(0xFF9AA0A8), fontSize: 10.5)),
-              ],
-            ),
-          ),
-          Expanded(
-            flex: 4,
-            child: Text(_fmtYuan(total),
-                textAlign: TextAlign.right,
-                style: const TextStyle(
-                    color: Color(0xFFE8C894),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    fontFeatures: AppTypography.tabularFigures)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _empty() {
-    return const Padding(
-      key: ValueKey('previewEmpty'),
-      padding: EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg, vertical: AppSpacing.xl),
-      child: Center(
-        child: Text(
-          '填写本金与起止日期后\n实时生成还款计划',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Color(0xFF7A7E85), fontSize: 12.5, height: 1.6),
-        ),
-      ),
-    );
-  }
-
-  Widget _foot() {
-    final p = preview;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg, vertical: AppSpacing.sm + 2),
-      decoration: const BoxDecoration(
-          border:
-              Border(top: BorderSide(color: Color(0x12FFFFFF)))),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Text('前 5 期预览 · 实际以放款为准',
-              style: TextStyle(color: Color(0xFF9AA0A8), fontSize: 11.5)),
-          Text('年化 ${p == null ? '—' : '${p.annualRate.toStringAsFixed(1)}%'}',
-              style: const TextStyle(
-                  color: Color(0xFFE8C894),
-                  fontSize: 11.5,
-                  fontFeatures: AppTypography.tabularFigures)),
+          const SizedBox(height: 18),
+          for (var i = 0; i < children.length; i++) ...[
+            children[i],
+            if (i < children.length - 1) SizedBox(height: fieldSpacing),
+          ],
         ],
       ),
     );
@@ -1282,20 +1347,47 @@ String _amortizationLabel(AmortizationMethod m) {
     case AmortizationMethod.equalPrincipal:
       return '等额本金';
     case AmortizationMethod.lumpSum:
-      return '一次性';
+      return '一次性还本付息';
   }
 }
 
-/// 元（double）→ ¥ + 千分位 + 0 小数（对齐 OD fmt：Math.round + toLocaleString）。
-String _fmtYuan(double v) {
-  final n = v.round();
-  final sign = n < 0 ? '-' : '';
-  final abs = n.abs();
-  final s = abs.toString();
-  final buf = StringBuffer();
-  for (var i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
-    buf.write(s[i]);
+/// 摊还方法 icon(对齐 OD .radio svg:趋势上升 / 柱状递减 / 圆环)。
+IconData _amortizationIcon(AmortizationMethod m) {
+  switch (m) {
+    case AmortizationMethod.equalPrincipalInterest:
+      return LucideIcons.trendingUp;
+    case AmortizationMethod.equalPrincipal:
+      return LucideIcons.barChart3;
+    case AmortizationMethod.lumpSum:
+      return LucideIcons.circle;
   }
-  return '$sign¥$buf';
+}
+
+/// 摊还方法 desc(对齐 OD .radio .rd 文案)。
+String _amortizationDesc(AmortizationMethod m) {
+  switch (m) {
+    case AmortizationMethod.equalPrincipalInterest:
+      return '月供恒定 前期利息多';
+    case AmortizationMethod.equalPrincipal:
+      return '月供递减 总利息更少';
+    case AmortizationMethod.lumpSum:
+      return '到期还本付息 无月供';
+  }
+}
+
+/// 债务类型 icon(对齐 OD debt-form.html .radio svg:home/car/creditCard/users/help)。
+IconData _debtTypeIcon(String key) {
+  switch (key) {
+    case DebtSubtypes.mortgage:
+      return LucideIcons.home;
+    case DebtSubtypes.autoLoan:
+      return LucideIcons.car;
+    case DebtSubtypes.creditCard:
+      return LucideIcons.creditCard;
+    case DebtSubtypes.family:
+      return LucideIcons.users;
+    case DebtSubtypes.other:
+    default:
+      return LucideIcons.helpCircle;
+  }
 }
