@@ -128,7 +128,7 @@ void main() {
     expect(find.text('标签 · 待 Tags 模块'), findsOneWidget);
     expect(find.text('保存'), findsOneWidget);
     // JournalEntry present (single column).
-    expect(find.text('分录'), findsOneWidget);
+    expect(find.textContaining('分笔明细'), findsOneWidget);
   });
 
   testWidgets('mobile & tablet are single-column (no side-by-side Row of form+preview)',
@@ -138,14 +138,14 @@ void main() {
     // no Row that directly contains both as expanded children. We assert by
     // confirming both exist and the form is rendered above preview (y_form < y_preview).
     final formCenter = tester.getCenter(find.text('交易类型'));
-    final journalCenter = tester.getCenter(find.text('分录'));
+    final journalCenter = tester.getCenter(find.textContaining('分笔明细'));
     expect(formCenter.dy, lessThan(journalCenter.dy));
   });
 
   testWidgets('tablet (1024) single-column like mobile', (tester) async {
     await pumpPage(tester, 1024);
     final formCenter = tester.getCenter(find.text('交易类型'));
-    final journalCenter = tester.getCenter(find.text('分录'));
+    final journalCenter = tester.getCenter(find.textContaining('分笔明细'));
     expect(formCenter.dy, lessThan(journalCenter.dy));
   });
 
@@ -154,7 +154,7 @@ void main() {
     await pumpPage(tester, 1440);
     // In desktop two-column mode the form center.x < preview center.x.
     final formCenter = tester.getCenter(find.text('交易类型'));
-    final journalCenter = tester.getCenter(find.text('分录'));
+    final journalCenter = tester.getCenter(find.textContaining('分笔明细'));
     expect(formCenter.dx, lessThan(journalCenter.dx));
   });
 

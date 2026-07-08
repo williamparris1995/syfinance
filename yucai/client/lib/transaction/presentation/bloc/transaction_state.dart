@@ -126,3 +126,18 @@ class TransactionDetailError extends TransactionState {
   @override
   List<Object?> get props => [message];
 }
+
+/// Delete in flight (Task 3.2 CRUD). The detail page disables its actions
+/// while this is the state so a double-tap can't fire two `delete` RPCs.
+class TransactionDeleting extends TransactionState {
+  const TransactionDeleting(this.previous);
+  final Transaction previous;
+  @override
+  List<Object?> get props => [previous];
+}
+
+/// Delete succeeded (Task 3.2 CRUD). The detail page listens for this and
+/// pops with `true` so the originating list refreshes.
+class TransactionDeleted extends TransactionState {
+  const TransactionDeleted();
+}

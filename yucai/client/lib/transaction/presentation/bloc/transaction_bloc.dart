@@ -28,6 +28,7 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
     on<LoadMoreTransactionsRequested>(_onLoadMore);
     on<RetryTransactionsRequested>(_onRetry);
     on<LoadTransactionDetail>(_onLoadDetail);
+    on<DeleteTransactionRequested>(_onDelete);
     on<LoadSummaryRequested>(_onLoadSummary);
   }
 
@@ -279,6 +280,22 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
         final recent = await _recentSameAccount(txn, event.id);
         emit(TransactionDetailLoaded(transaction: txn, recent: recent));
       },
+    );
+  }
+
+  /// Delete handler (Task 3.2 CRUD). Emits [TransactionDeleting] (carrying the
+  /// prior transaction so the UI can keep rendering it greyed-out) then either
+  /// [TransactionDeleted] (page pops) or [TransactionDetailError].
+  Future<void> _onDelete(
+      DeleteTransactionRequested event, Emitter<TransactionState> emit) async {
+    final prior = state is TransactionDetailLoaded
+        ? (state as TransactionDetailLoaded).transaction
+        : null;
+    if (prior != null) emit(TransactionDeleting(prior));
+    final result = await _txnRepo.delete(event.id);
+    result.fold(
+      (failure) => emit(TransactionDetailError(failure.displayMessage)),
+      (_) => emit(const TransactionDeleted()),
     );
   }
 

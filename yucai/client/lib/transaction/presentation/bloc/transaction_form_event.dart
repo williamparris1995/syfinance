@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
+
 /// Events for [TransactionFormBloc].
 ///
 /// The form is single-purpose: record one 记一笔. Three flavors mirror the
@@ -115,4 +117,30 @@ class RecordTransferRequested extends TransactionFormEvent {
         note,
         transactionTime,
       ];
+}
+
+/// Update an existing transaction (edit mode). Caller supplies the full
+/// replacement [entries] (balanced) + [version] for optimistic concurrency.
+/// The bloc maps this to [TransactionRepository.update]. Only the common
+/// 2-entry case (SimpleExpense/Income/Transfer shape) is routed here from the
+/// form; compound multi-entry txns aren't representable in the 3-tab form and
+/// are gated at the route.
+class UpdateTransactionRequested extends TransactionFormEvent {
+  const UpdateTransactionRequested({
+    required this.id,
+    required this.version,
+    required this.transactionDate,
+    required this.entries,
+    this.description = '',
+  });
+
+  final String id;
+  final int version;
+  final DateTime transactionDate;
+  final List<TransactionEntry> entries;
+  final String description;
+
+  @override
+  List<Object?> get props =>
+      [id, version, transactionDate, entries, description];
 }

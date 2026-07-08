@@ -44,6 +44,7 @@ class TransactionFormPage extends StatelessWidget {
     this.bloc,
     this.initialAccountId,
     this.initialType,
+    this.existing,
   });
 
   final TransactionFormBloc? bloc;
@@ -56,6 +57,12 @@ class TransactionFormPage extends StatelessWidget {
   /// 预选交易类型 tab。null 默认支出。
   final TxnType? initialType;
 
+  /// 编辑模式：传入既有交易则预填金额/描述/日期/类型/账户，提交走
+  /// [UpdateTransactionRequested]（[TransactionRepository.update]）。null =
+  /// 创建模式（默认）。仅支持 2-entry 的 SimpleExpense/Income/Transfer 形态；
+  /// 复合多分录交易在路由层拦截，不进入此表单。
+  final Transaction? existing;
+
   @override
   Widget build(BuildContext context) {
     final injected = bloc;
@@ -65,6 +72,7 @@ class TransactionFormPage extends StatelessWidget {
         child: _TransactionFormView(
           initialAccountId: initialAccountId,
           initialType: initialType,
+          existing: existing,
         ),
       );
     }
@@ -82,6 +90,7 @@ class TransactionFormPage extends StatelessWidget {
       child: _TransactionFormView(
         initialAccountId: initialAccountId,
         initialType: initialType,
+        existing: existing,
       ),
     );
   }
@@ -115,10 +124,15 @@ extension TxnTypeX on TxnType {
 }
 
 class _TransactionFormView extends StatefulWidget {
-  const _TransactionFormView({this.initialAccountId, this.initialType});
+  const _TransactionFormView({
+    this.initialAccountId,
+    this.initialType,
+    this.existing,
+  });
 
   final String? initialAccountId;
   final TxnType? initialType;
+  final Transaction? existing;
 
   @override
   State<_TransactionFormView> createState() => _TransactionFormViewState();
@@ -141,11 +155,78 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
   String? _categoryAccountId; // 支出→expense 账户；收入→income 账户
   String? _toAccountId; // 转账：转入账户
 
+  /// 编辑模式（widget.existing != null 时设置）。非空 → _submit 走
+  /// UpdateTransactionRequested 而非 RecordXxx。
+  String? _existingId;
+  int _existingVersion = 0;
+  bool _appliedExistingInference = false;
+
+  bool get _isEdit => _existingId != null;
+
   @override
   void initState() {
     super.initState();
     _type = widget.initialType ?? TxnType.expense;
     _assetAccountId = widget.initialAccountId;
+    final ex = widget.existing;
+    if (ex != null) {
+      _existingId = ex.id;
+      _existingVersion = ex.version;
+      _amountCtrl.text = (ex.totalDebitCents / 100).toStringAsFixed(2);
+      _payeeCtrl.text = ex.description;
+      _date = ex.transactionDate;
+      if (ex.transactionTime != null) {
+        _time = TimeOfDay.fromDateTime(ex.transactionTime!);
+      }
+      _inferTypeAndAccountsFromExisting(ex);
+    }
+  }
+
+  /// 编辑模式预填类型 + 账户：需要账户类型元数据来区分
+  /// expense/income/transfer，故从 getIt 单独拉一次账户列表做推断（表单
+  /// bloc 仍独立加载下拉选项）。失败/无类型时退化为按 entry 顺序占位。
+  Future<void> _inferTypeAndAccountsFromExisting(Transaction t) async {
+    List<Account> accounts = const [];
+    try {
+      final repo = getIt<AccountRepository>();
+      final result = await repo.list();
+      result.fold((_) {}, (list) => accounts = list);
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() => _applyInference(t, accounts));
+  }
+
+  void _applyInference(Transaction t, List<Account> accounts) {
+    if (_appliedExistingInference) return;
+    _appliedExistingInference = true;
+    AccountType? typeOf(String id) =>
+        accounts.firstWhere((a) => a.id == id, orElse: () => _anon(id)).accountType;
+    // 借/贷腿
+    TransactionEntry? dr, cr;
+    for (final e in t.entries) {
+      if (dr == null && e.debitCents > 0) dr = e;
+      if (cr == null && e.creditCents > 0) cr = e;
+    }
+    final drType = dr == null ? null : typeOf(dr.accountId);
+    final crType = cr == null ? null : typeOf(cr.accountId);
+    if (drType == AccountType.expense && crType == AccountType.asset) {
+      _type = TxnType.expense;
+      _categoryAccountId = dr!.accountId;
+      _assetAccountId = cr!.accountId;
+    } else if (drType == AccountType.asset && crType == AccountType.income) {
+      _type = TxnType.income;
+      _assetAccountId = dr!.accountId;
+      _categoryAccountId = cr!.accountId;
+    } else if (drType == AccountType.asset && crType == AccountType.asset) {
+      _type = TxnType.transfer;
+      _toAccountId = dr!.accountId; // 转入 = 借方
+      _assetAccountId = cr!.accountId; // 转出 = 贷方
+    } else if (dr != null && cr != null) {
+      // 未知类型组合 → 退化为支出 tab + 借/贷账户占位（用户手动修正）。
+      _type = TxnType.expense;
+      _categoryAccountId = dr.accountId;
+      _assetAccountId = cr.accountId;
+    }
   }
 
   @override
@@ -171,12 +252,76 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
     setState(() => _amountCtrl.clear());
   }
 
+  /// 编辑模式提交用的替换分录（balanced 2-entry，按当前类型 + 选中账户 +
+  /// 金额构造）。与 `_previewEntries` 同构但不附 note（update 走原始分录）。
+  List<TransactionEntry> _buildEntries() {
+    final amt = _amountCents;
+    switch (_type) {
+      case TxnType.expense:
+        return [
+          TransactionEntry(
+              accountId: _categoryAccountId ?? '',
+              debitCents: amt,
+              creditCents: 0),
+          TransactionEntry(
+              accountId: _assetAccountId ?? '',
+              debitCents: 0,
+              creditCents: amt),
+        ];
+      case TxnType.income:
+        return [
+          TransactionEntry(
+              accountId: _assetAccountId ?? '',
+              debitCents: amt,
+              creditCents: 0),
+          TransactionEntry(
+              accountId: _categoryAccountId ?? '',
+              debitCents: 0,
+              creditCents: amt),
+        ];
+      case TxnType.transfer:
+        return [
+          TransactionEntry(
+              accountId: _toAccountId ?? '',
+              debitCents: amt,
+              creditCents: 0),
+          TransactionEntry(
+              accountId: _assetAccountId ?? '',
+              debitCents: 0,
+              creditCents: amt),
+        ];
+    }
+  }
+
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
     _formKey.currentState!.save();
 
     final bloc = context.read<TransactionFormBloc>();
     final transactionTime = _transactionTimeRfc3339();
+    // 编辑模式：构造替换分录 → UpdateTransactionRequested（走 repo.update，
+    // 服务端先冲销旧余额再应用新分录 + version 乐观锁）。
+    if (_isEdit) {
+      switch (_type) {
+        case TxnType.expense:
+          if (_assetAccountId == null || _categoryAccountId == null) return;
+          break;
+        case TxnType.income:
+          if (_assetAccountId == null || _categoryAccountId == null) return;
+          break;
+        case TxnType.transfer:
+          if (_assetAccountId == null || _toAccountId == null) return;
+          break;
+      }
+      bloc.add(UpdateTransactionRequested(
+        id: _existingId!,
+        version: _existingVersion,
+        transactionDate: _date,
+        description: _payeeCtrl.text.trim(),
+        entries: _buildEntries(),
+      ));
+      return;
+    }
     switch (_type) {
       case TxnType.expense:
         if (_assetAccountId == null || _categoryAccountId == null) return;
@@ -309,7 +454,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
       backgroundColor: AppColors.bg,
       appBar: AppBar(
         leading: BackButton(onPressed: () => Navigator.of(context).pop()),
-        title: const Text('记一笔'),
+        title: Text(_isEdit ? '编辑交易' : '记一笔'),
       ),
       body: BlocConsumer<TransactionFormBloc, TransactionFormState>(
         listenWhen: (prev, curr) =>
@@ -526,7 +671,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
             ],
             const SizedBox(height: AppSpacing.xl),
             FormActions(
-              submitLabel: '保存',
+              submitLabel: _isEdit ? '保存修改' : '保存',
               submitting: submitting,
               onSubmit: _submit,
               onCancel: () => Navigator.of(context).pop(),

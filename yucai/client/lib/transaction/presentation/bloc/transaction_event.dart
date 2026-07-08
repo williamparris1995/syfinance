@@ -65,6 +65,21 @@ class LoadTransactionDetail extends TransactionEvent {
 /// This is a parallel concern to the list lifecycle — the page emits it on
 /// init and on filter change, and the state holds summary independently of the
 /// list states so a summary failure doesn't blank the list (and vice versa).
+/// Delete the transaction currently shown on the detail page (Task 3.2 CRUD).
+///
+/// Emits `TransactionDeleting` → `TransactionDeleted` (page pops + signals the
+/// list to refresh) or `TransactionDetailError`. Backed by
+/// [TransactionRepository.delete], which the server implements as a
+/// balance-reversing soft-delete.
+class DeleteTransactionRequested extends TransactionEvent {
+  const DeleteTransactionRequested(this.id);
+
+  final String id;
+
+  @override
+  List<Object?> get props => [id];
+}
+
 class LoadSummaryRequested extends TransactionEvent {
   const LoadSummaryRequested({
     required this.year,

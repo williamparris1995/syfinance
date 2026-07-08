@@ -21,6 +21,7 @@ class TransactionFormBloc
     on<RecordExpenseRequested>(_onExpense);
     on<RecordIncomeRequested>(_onIncome);
     on<RecordTransferRequested>(_onTransfer);
+    on<UpdateTransactionRequested>(_onUpdate);
   }
 
   final TransactionRepository _txnRepo;
@@ -92,6 +93,25 @@ class TransactionFormBloc
       transactionTime: e.transactionTime,
     );
     final result = await _txnRepo.recordTransfer(params);
+    result.fold(
+      (failure) => emit(TransactionFormReady(
+          accounts: accounts, error: failure.displayMessage)),
+      (_) => emit(TransactionFormSuccess()),
+    );
+  }
+
+  Future<void> _onUpdate(
+      UpdateTransactionRequested e, Emitter<TransactionFormState> emit) async {
+    final accounts = _readyAccounts;
+    emit(TransactionFormSubmitting(accounts));
+    final params = UpdateTransactionParams(
+      id: e.id,
+      version: e.version,
+      transactionDate: e.transactionDate,
+      description: e.description,
+      entries: e.entries,
+    );
+    final result = await _txnRepo.update(params);
     result.fold(
       (failure) => emit(TransactionFormReady(
           accounts: accounts, error: failure.displayMessage)),

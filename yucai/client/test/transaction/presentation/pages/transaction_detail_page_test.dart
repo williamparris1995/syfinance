@@ -1,22 +1,16 @@
-// TDD three-size widget test for TransactionDetailPage (Task 3.2).
+// OD-aligned widget test for TransactionDetailPage (detail OD alignment).
 //
-// Asserts:
-//   - LoadTransactionDetail{id} dispatches repo.getById + same-account recent
-//     list, emitting TransactionDetailLoaded carrying both.
-//   - Detail page renders the journal entries via JournalEntry:
-//       * account name from injected accountNameOf (餐饮 / 招商银行)
-//       * 「借贷平衡」badge when balanced
-//   - Summary shows amount + description + date.
-//   - Recent same-account transactions render as a list.
-//   - Three placeholder zones (AA 分摊 / 同商户 / 预算联动) show with 🔒.
-//   - Quick actions (编辑 / 复制 / 删除) present in AppBar.
-//   - Three breakpoints render distinct layouts without crashing.
-//   - Amount colour follows the touched account types (Task 3.2 fix):
-//       * expense account touched  → 支出红 (AppColors.negative)
-//       * income  account touched  → 收入绿 (AppColors.positive)
-//       * asset-only (transfer)    → 中性色 (AppColors.fg)
-//   - initState self-drives the load (dispatches LoadTransactionDetail even
-//     when the parent harness does not).
+// Asserts the page mirrors yucai-transaction-trisize-9d3e / detail-transaction.html:
+//   - page-head: 返回 link + h1 (description) + 编辑 (gold) + 更多 menu.
+//   - col1 交易概要: 大金额 (42px mono) + chip (支出/收入) + meta-list
+//     (交易日期 / 描述 / 支付方式 / 备注 / 对账状态). TX-id present.
+//   - col2 复式分录: JournalEntry 借/贷 + 借贷平衡 badge + 会计等式 explainer.
+//   - col3 快捷操作: qa-items (编辑交易 / 复制交易 / 查看账单 / 删除交易[danger]).
+//   - 同分类近期交易: rel-list (per-category lucide icon + 名称/日期/金额).
+//   - Three breakpoints render without crashing.
+//   - Amount colour follows the touched account types.
+//   - initState self-drives the load.
+//   - Delete qa-item → confirm dialog → DeleteTransactionRequested → repo.delete.
 import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -52,7 +46,6 @@ Transaction _expense() => Transaction(
     );
 
 /// SimpleIncome (复式记账的收入交易): 借 asset / 贷 income。
-/// Prior heuristic (inferFlavour == compound ? 红 : 绿) mis-coloured this red.
 Transaction _income() => Transaction(
       id: 't1',
       transactionDate: _date,
@@ -102,12 +95,9 @@ Account _account(String id, String name, AccountType type) => Account(
       status: AccountStatus.active,
     );
 
-Widget _harness({required Widget child, required Size size}) {
+Widget _harness({required Widget child}) {
   return MaterialApp(
-    home: MediaQuery(
-      data: MediaQueryData(size: size),
-      child: Scaffold(body: child),
-    ),
+    home: Scaffold(body: child),
   );
 }
 
@@ -132,12 +122,15 @@ void main() {
           _account('acc-ali', '支付宝', AccountType.asset),
           _account('inc-salary', '工资', AccountType.income),
         ]));
+    // Default delete stub (overridden in the delete test).
+    when(() => txnRepo.delete(any()))
+        .thenAnswer((_) async => dartz.Right(null));
   });
 
-  /// Pumps the page. By default the harness pre-dispatches
-  /// LoadTransactionDetail (mirrors how list pages navigate in with the event
-  /// already in flight). Pass [selfDriveOnly] = true to NOT pre-dispatch and
-  /// verify initState triggers the load itself.
+  /// Pumps the page. By default pre-dispatches LoadTransactionDetail (mirrors
+  /// how list pages navigate in with the event already in flight). Pass
+  /// [selfDriveOnly] = true to NOT pre-dispatch and verify initState triggers
+  /// the load itself.
   Future<void> pumpPage(
     WidgetTester tester,
     Size size, {
@@ -148,8 +141,13 @@ void main() {
       when(() => txnRepo.getById(any()))
           .thenAnswer((_) async => dartz.Right(txnOverride()));
     }
+    // Set the real view size so layout constraints match the breakpoint
+    // (MediaQuery.size alone makes ResponsiveLayout pick the right branch but
+    // leaves layout constraints at the binding default 800x600 → squeezed cols).
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(_harness(
-      size: size,
       child: MultiRepositoryProvider(
         providers: [
           RepositoryProvider<AccountRepository>.value(value: acctRepo),
@@ -170,64 +168,69 @@ void main() {
   }
 
   testWidgets(
-      'desktop (1440): renders journal entry 餐饮/招商银行 + 平衡 badge + 3 placeholders + recent list',
+      'desktop (1440): OD layout — summary meta-list + journal balance/formula + qa-items + recent',
       (tester) async {
     await pumpPage(tester, const Size(1440, 900));
 
-    // Summary: description + amount.
-    expect(find.text('晚餐 餐厅'), findsOneWidget);
-    expect(find.textContaining('380'), findsWidgets);
+    // page-head: 返回 link + h1 title (description).
+    expect(find.text('返回'), findsOneWidget);
+    expect(find.text('晚餐 餐厅'), findsWidgets);
 
-    // Journal entry: both account names resolved via injected accountNameOf.
-    expect(find.text('餐饮'), findsWidgets);
+    // Summary: big amount body (42px) + 支出 chip + TX-id.
+    expect(find.textContaining('380'), findsWidgets);
+    expect(find.text('支出'), findsOneWidget);
+    expect(find.textContaining('TX-'), findsOneWidget);
+
+    // meta-list: 支付方式 resolves to asset account; 对账状态 placeholder.
+    expect(find.text('支付方式'), findsOneWidget);
     expect(find.text('招商银行'), findsWidgets);
-    // Balanced badge.
-    expect(find.text('借贷平衡'), findsOneWidget);
+    expect(find.text('对账状态'), findsOneWidget);
+    expect(find.text('待对账'), findsOneWidget);
+
+    // Journal: account names resolved + balance + accounting-equation.
+    expect(find.text('餐饮'), findsWidgets);
+    expect(find.textContaining('借贷平衡'), findsOneWidget);
+    expect(find.textContaining('会计等式'), findsOneWidget);
+
+    // Quick actions qa-items.
+    expect(find.text('编辑交易'), findsOneWidget);
+    expect(find.text('复制交易'), findsOneWidget);
+    expect(find.text('查看账单'), findsOneWidget);
+    expect(find.text('删除交易'), findsOneWidget);
 
     // Recent same-account transactions.
     expect(find.text('早餐 r1'), findsOneWidget);
     expect(find.text('早餐 r2'), findsOneWidget);
 
-    // Three placeholder zones.
-    expect(find.text('AA 分摊'), findsOneWidget);
-    expect(find.text('同商户交易'), findsOneWidget);
-    expect(find.text('预算联动'), findsOneWidget);
-    // Locked marker present (3 zones).
-    expect(find.text('🔒'), findsNWidgets(3));
-
-    // Quick actions: app bar (编辑/复制/删除) + quick-actions card (编辑/复制/删除).
-    // Each appears twice; assert at least one of each.
-    expect(find.text('编辑'), findsWidgets);
-    expect(find.text('复制'), findsWidgets);
-    expect(find.text('删除'), findsWidgets);
+    // OD removed the legacy placeholder zones — assert they're gone.
+    expect(find.text('AA 分摊'), findsNothing);
+    expect(find.text('同商户交易'), findsNothing);
+    expect(find.text('预算联动'), findsNothing);
   });
 
   testWidgets('tablet (1024): renders without crashing', (tester) async {
     await pumpPage(tester, const Size(1024, 768));
-    expect(find.text('晚餐 餐厅'), findsOneWidget);
-    expect(find.text('借贷平衡'), findsOneWidget);
+    expect(find.text('晚餐 餐厅'), findsWidgets);
+    expect(find.textContaining('借贷平衡'), findsOneWidget);
   });
 
   testWidgets('mobile (390): renders stacked cards without crashing',
       (tester) async {
     await pumpPage(tester, const Size(390, 844));
-    expect(find.text('晚餐 餐厅'), findsOneWidget);
-    expect(find.text('借贷平衡'), findsOneWidget);
+    expect(find.text('晚餐 餐厅'), findsWidgets);
+    expect(find.textContaining('借贷平衡'), findsOneWidget);
   });
 
-  // ───────────────── Amount colour by account type (Task 3.2 fix) ─────────
+  // ───────────────── Amount colour by account type ─────────
 
-  /// Finds the summary amount Text widget (large display number in the
-  /// summary card) and returns its colour.
+  /// Finds the summary big-amount Text (the 42px mono number) and returns its
+  /// colour. The OD layout splits ¥ (20px) from the number (42px), so match on
+  /// the large-font Text.
   Color? summaryAmountColor(WidgetTester tester) {
-    final amountPattern = RegExp(r'^¥\s');
     Color? found;
     tester.widgetList<Text>(find.byType(Text)).forEach((t) {
       if (found != null) return;
-      final data = t.data ?? '';
-      if (amountPattern.hasMatch(data) &&
-          (t.style?.fontSize ?? 0) >= 28 &&
-          t.style?.color != null) {
+      if ((t.style?.fontSize ?? 0) >= 40 && t.style?.color != null) {
         found = t.style!.color;
       }
     });
@@ -237,7 +240,6 @@ void main() {
   testWidgets('amount colour: expense transaction → 支出红 (negative)',
       (tester) async {
     await pumpPage(tester, const Size(1440, 900));
-    // Expense touches exp-food (AccountType.expense) → red.
     expect(summaryAmountColor(tester), AppColors.negative);
   });
 
@@ -248,7 +250,6 @@ void main() {
       const Size(1440, 900),
       txnOverride: _income,
     );
-    // Income touches inc-salary (AccountType.income) → green.
     expect(summaryAmountColor(tester), AppColors.positive);
   });
 
@@ -259,23 +260,43 @@ void main() {
       const Size(1440, 900),
       txnOverride: _transfer,
     );
-    // Both legs are asset accounts → neutral (fg).
     expect(summaryAmountColor(tester), AppColors.fg);
   });
 
-  // ───────────────── initState self-drive (Task 3.2 fix) ─────────────────
+  // ───────────────── initState self-drive ─────────────────
 
   testWidgets(
       'initState dispatches LoadTransactionDetail (self-drive on real route)',
       (tester) async {
-    // Pump WITHOUT pre-dispatching — the page must trigger the load itself.
     await pumpPage(tester, const Size(1440, 900), selfDriveOnly: true);
-
-    // The repo.getById must have been called (proves the bloc event fired).
     verify(() => txnRepo.getById('t1')).called(1);
-
-    // And the page reached the loaded state (renders description, not blank).
-    expect(find.text('晚餐 餐厅'), findsOneWidget);
+    expect(find.text('晚餐 餐厅'), findsWidgets);
     expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
+  // ───────────────── Delete CRUD (Task 3.2) ─────────────────
+
+  testWidgets(
+      'delete qa-item → confirm dialog → DeleteTransactionRequested → repo.delete',
+      (tester) async {
+    await pumpPage(tester, const Size(1440, 900));
+
+    // Tap the 删除交易 qa-item → opens confirm dialog.
+    await tester.tap(find.text('删除交易'));
+    await tester.pumpAndSettle();
+    // Dialog body is unique (qa-item row has no such text).
+    expect(find.textContaining('将生成一条冲销分录'), findsOneWidget);
+
+    // Tap the dialog 删除 button → dispatches DeleteTransactionRequested.
+    // The dialog button is the only '删除' Text (qa-item is '删除交易').
+    await tester.tap(find.text('删除'));
+    await tester.pumpAndSettle();
+
+    // repo.delete invoked once with the txn id.
+    verify(() => txnRepo.delete('t1')).called(1);
+
+    // Drain the 3s AppToast timer the success listener schedules (otherwise the
+    // binding's timersPending invariant fails the test).
+    await tester.pumpAndSettle(const Duration(seconds: 4));
   });
 }

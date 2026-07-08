@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/app/route_observer.dart';
 import 'package:yucai_client/account/domain/usecases/create_account_usecase.dart';
@@ -26,6 +27,7 @@ import 'package:yucai_client/auth/presentation/pages/home_page.dart';
 import 'package:yucai_client/auth/presentation/pages/login_page.dart';
 import 'package:yucai_client/auth/presentation/pages/register_page.dart';
 import 'package:yucai_client/core/di/injection.dart';
+import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_bloc.dart';
 import 'package:yucai_client/debt/presentation/bloc/debt_state.dart';
@@ -62,6 +64,7 @@ import 'package:yucai_client/transaction/domain/repositories/transaction_reposit
 import 'package:yucai_client/transaction/presentation/bloc/category_bloc.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_event.dart';
+import 'package:yucai_client/transaction/presentation/bloc/transaction_state.dart';
 import 'package:yucai_client/transaction/presentation/pages/category_management_page.dart';
 import 'package:yucai_client/transaction/presentation/pages/transaction_detail_page.dart';
 import 'package:yucai_client/transaction/presentation/pages/transaction_form_page.dart';
@@ -223,6 +226,53 @@ GoRouter buildRouter(AuthBloc authBloc) {
                       child: TransactionDetailPage(
                           id: state.pathParameters['id']!),
                     ),
+                    routes: [
+                      GoRoute(
+                        path: 'edit',
+                        // 编辑：独立 TransactionBloc 加载该交易，Loaded 后用
+                        // TransactionFormPage(existing:) edit 模式渲染（提交走
+                        // UpdateTransactionRequested → repo.update）。复合多分录
+                        //（>2 / 不平衡）三栏表单无法表达 → 提示页，避免 update 丢分录。
+                        builder: (context, state) =>
+                            BlocProvider<TransactionBloc>(
+                          create: (_) {
+                            final b = TransactionBloc(
+                                getIt<TransactionRepository>());
+                            b.add(LoadTransactionDetail(
+                                state.pathParameters['id']!));
+                            return b;
+                          },
+                          child: BlocBuilder<TransactionBloc,
+                              TransactionState>(
+                            buildWhen: (p, c) =>
+                                c is TransactionDetailLoading ||
+                                c is TransactionDetailLoaded ||
+                                c is TransactionDetailError,
+                            builder: (ctx, st) {
+                              if (st is TransactionDetailLoaded) {
+                                final txn = st.transaction;
+                                if (txn.entries.length != 2 ||
+                                    !txn.isBalanced) {
+                                  return _compoundTxnEditNotice(ctx);
+                                }
+                                return TransactionFormPage(existing: txn);
+                              }
+                              if (st is TransactionDetailError) {
+                                return Scaffold(
+                                  backgroundColor: AppColors.bg,
+                                  body: Center(
+                                      child: Text('加载失败：${st.message}')),
+                                );
+                              }
+                              return const Scaffold(
+                                body: Center(
+                                    child: CircularProgressIndicator()),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -810,6 +860,46 @@ GoRouter buildRouter(AuthBloc authBloc) {
       ),
     ],
     initialLocation: '/home',
+  );
+}
+
+/// 复合多分录交易（>2 entry 或不平衡）编辑提示页 —— 三栏表单（SimpleExpense/
+/// Income/Transfer）只能表达 2-entry 形态，对复合分录强行 update 会丢分录。
+/// 在 form-page 支持任意分录编辑前，路由层拦截并提示用户。
+Scaffold _compoundTxnEditNotice(BuildContext context) {
+  return Scaffold(
+    backgroundColor: AppColors.bg,
+    body: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(LucideIcons.info, size: 32, color: AppColors.accent),
+              const SizedBox(height: AppSpacing.sm),
+              const Text('该交易为复合分录',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.fg)),
+              const SizedBox(height: 6),
+              const Text(
+                '多分录交易暂不支持在表单中编辑，以免修改时丢失分录行。可在详情页删除后重新记一笔。',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.muted, fontSize: 13),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('返回'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
   );
 }
 
