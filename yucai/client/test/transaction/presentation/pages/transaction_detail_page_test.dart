@@ -5,10 +5,11 @@
 //   - col1 交易概要: 大金额 (42px mono) + chip (支出/收入) + meta-list
 //     (交易日期 / 支付方式 / 备注 / 对账状态). OD **无「描述」行**(描述即 h1),
 //     「标签」行待 DTO 加 tags 后补(detail 4fix gap1+gap2). TX-id present.
-//   - col2 复式分录: JournalEntry 借/贷 + 借贷平衡 badge + 会计等式 explainer.
+//   - col2 复式分录: JournalEntry 借/贷 side + acc+类型副标 + amt + je-bal
+//     (借方/贷方合计) + je-foot(借贷平衡 差额) + je-formula(会计等式).
 //   - col3 快捷操作: qa-items (编辑交易 / 复制交易 / 查看账单 / 删除交易[danger]).
-//   - 同分类近期交易: rel-list (per-category lucide icon + 名称/账户/日期/金额,
-//     icon+金额色 按 type 区分;sub 显示支付账户名 — detail 4fix gap4).
+//   - 同分类近期交易: rel-list (type icon: arrowDownLeft/Up/LeftRight + 名称/
+//     账户/日期/金额,icon+金额色 按 type 区分;sub 显示支付账户名).
 //   - Three breakpoints render without crashing.
 //   - Amount colour follows the touched account types.
 //   - initState self-drives the load.
@@ -197,10 +198,21 @@ void main() {
     // detail 4fix gap3: 更多按钮触发器(OD .btn.icon-only 白底+框)仍在。
     expect(find.byIcon(LucideIcons.moreHorizontal), findsOneWidget);
 
-    // Journal: account names resolved + balance + accounting-equation.
+    // Journal (OD col2 复式分录): card-title + DOUBLE-ENTRY + 借/贷 rows with
+    // account-type subtitles + je-bal(借方/贷方合计) + je-foot(借贷平衡 差额)
+    // + je-formula(会计等式 explainer)。
+    expect(find.textContaining('分笔明细'), findsOneWidget);
+    expect(find.text('DOUBLE-ENTRY'), findsOneWidget);
     expect(find.text('餐饮'), findsWidgets);
+    expect(find.text('费用账户 · Expense'), findsOneWidget);
+    expect(find.text('招商银行'), findsWidgets);
+    expect(find.text('资产账户 · Asset'), findsOneWidget);
+    expect(find.text('借方合计'), findsOneWidget);
+    expect(find.text('贷方合计'), findsOneWidget);
     expect(find.textContaining('借贷平衡'), findsOneWidget);
+    expect(find.textContaining('借贷差额'), findsOneWidget);
     expect(find.textContaining('会计等式'), findsOneWidget);
+    expect(find.textContaining('权益等式始终保持平衡'), findsOneWidget);
 
     // Quick actions qa-items.
     expect(find.text('编辑交易'), findsOneWidget);
@@ -214,6 +226,9 @@ void main() {
     // detail 4fix gap4: rel-row sub 现显示支付账户名(非分类名)。r2 用支付宝,
     // 「支付宝」仅出现在 r2 的 sub → findsOneWidget 锁定账户显示已落地。
     expect(find.text('支付宝'), findsOneWidget);
+    // rel-list type icon(用户要求按 type 区分,非 per-category):r1/r2 均为支出
+    // → arrowDownLeft(红)。2 行 → 2 个 icon(主交易 summary 不用此 icon)。
+    expect(find.byIcon(LucideIcons.arrowDownLeft), findsNWidgets(2));
 
     // OD removed the legacy placeholder zones — assert they're gone.
     expect(find.text('AA 分摊'), findsNothing);

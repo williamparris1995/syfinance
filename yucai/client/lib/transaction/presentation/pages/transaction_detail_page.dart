@@ -17,7 +17,6 @@ import 'package:yucai_client/transaction/presentation/bloc/transaction_event.dar
 import 'package:yucai_client/transaction/presentation/bloc/transaction_state.dart';
 import 'package:yucai_client/transaction/presentation/widgets/journal_entry.dart';
 import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.dart';
-import 'package:yucai_client/transaction/presentation/widgets/txn_category_icon.dart';
 
 /// 交易详情页（Task 3.2 + OD detail 对齐）。
 ///
@@ -1030,33 +1029,36 @@ class _RecentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 分类账户 = 非 asset 腿（expense/income），否则回落首条。
-    Account? categoryAccount;
-    String categoryId = '';
+    // icon 按 type 区分(用户明确要求,非 per-category):任一分录账户 = Expense →
+    // 支出(arrowDownLeft 红);Income → 收入(arrowUpLeft 绿);仅 Asset →
+    // 转账(arrowLeftRight 灰)。icon 背景色 + 金额色 同步按 type。
+    bool hasExpense = false;
+    bool hasIncome = false;
     for (final e in txn.entries) {
       final t = accountTypeOf(e.accountId);
-      if (t == AccountType.expense || t == AccountType.income) {
-        categoryId = e.accountId;
-        categoryAccount = accountOf(e.accountId);
-        break;
+      if (t == AccountType.expense) {
+        hasExpense = true;
+      } else if (t == AccountType.income) {
+        hasIncome = true;
       }
     }
-    if (categoryId.isEmpty && txn.entries.isNotEmpty) {
-      categoryId = txn.entries.first.accountId;
-      categoryAccount = accountOf(categoryId);
+    final IconData typeIcon;
+    final Color typeColor;
+    if (hasExpense) {
+      typeIcon = LucideIcons.arrowDownLeft;
+      typeColor = AppColors.negative;
+    } else if (hasIncome) {
+      typeIcon = LucideIcons.arrowUpLeft;
+      typeColor = AppColors.positive;
+    } else {
+      typeIcon = LucideIcons.arrowLeftRight;
+      typeColor = AppColors.muted;
     }
-    final flavour = inferFlavour(txn);
-    // per-category lucide,叠加交易描述匹配 → 同分类不同商户名也能差异化 icon
-    // (detail 4fix gap4,对齐 OD rel-row per-merchant icon)。
-    final icon = txnCategoryIcon(flavour, categoryAccount,
-        description: txn.description);
-    // icon 色 + 金额色 按 type 区分(支出红 / 收入绿 / 转账灰):amountColorOf
-    // 依分录账户类型推断(income→positive / expense→negative / 仅 asset→fg)。
-    final amountColor = amountColorOf(txn, accountTypeOf);
-    // 账户显示(detail 4fix gap4):OD rel-row sub 含支付方式/账户名(资产账户),
-    // 而非分类名(分类已由 panel 标题「同分类近期交易」+ icon 表达)。取主资产
-    // 腿(贷方)账户名,若有 entry note 追加在后。
-    final paymentName = nameOf(_primaryAssetAccountId(txn));
+    // 账户显示(用户要求,OD rel-row 无账户):sub 显示支付账户名(主资产腿/贷方),
+    // 若有 entry note 追加在后,如「招商银行 · 部门聚餐」。
+    final paymentAccountId = _primaryAssetAccountId(txn);
+    final paymentName =
+        accountOf(paymentAccountId)?.name ?? nameOf(paymentAccountId);
     final note = _firstNoteOf(txn);
     final sub = note.isEmpty ? paymentName : '$paymentName · $note';
 
@@ -1070,11 +1072,11 @@ class _RecentRow extends StatelessWidget {
               width: 34,
               height: 34,
               decoration: BoxDecoration(
-                color: amountColor.withValues(alpha: 0.10),
+                color: typeColor.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(9),
               ),
               alignment: Alignment.center,
-              child: Icon(icon, size: 16, color: amountColor),
+              child: Icon(typeIcon, size: 16, color: typeColor),
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
@@ -1114,7 +1116,7 @@ class _RecentRow extends StatelessWidget {
                 _formatCents(txn.totalDebitCents, '¥'),
                 textAlign: TextAlign.right,
                 style: TextStyle(
-                  color: amountColor,
+                  color: typeColor,
                   fontSize: 14.5,
                   fontWeight: FontWeight.w500,
                   fontFeatures: AppTypography.tabularFigures,
