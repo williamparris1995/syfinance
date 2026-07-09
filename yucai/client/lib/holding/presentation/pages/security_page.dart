@@ -1,9 +1,9 @@
 // Security 主数据管理页(列表 / 搜索 / 创建 / 价格管理)。消费 Task 4 HoldingBloc。
 //
 // 对齐 A-od 设计源:
-//  - security-mobile.html(主布局):顶栏 + 搜索框 + 自动同步未启用提示条 +
+//  - security-mobile.html(主布局):顶栏 + 搜索框 + 行情源 provider bar +
 //    证券列表卡(symbol/name/type/exchange/currency/现价)+ 行内「改价」+
-//    FAB 创建 sheet(symbol/name/type/exchange/currency)+ ⏳B 自动同步开关 disabled。
+//    FAB 创建 sheet(symbol/name/type/exchange/currency)。
 //  - styles.css:御财金 #b08d57 / 米白底 / accentSoft 提示条。
 //
 // 照搬御财 debt 列表页模板(debts_page.dart):BlocBuilder<HoldingBloc,HoldingState>
@@ -12,10 +12,11 @@
 // 数据流:LoadSecuritiesRequested → HoldingLoaded.securities 列表;
 //   SearchSecuritiesRequested(query)(300ms debounce)→ 后端搜索;
 //   CreateSecurityRequested(SecurityParams)→ 创建后 bloc 自刷新 securities;
-//   UpdatePriceRequested(id, priceCents)→ 改价后 bloc 自刷新。
+//   UpdatePriceRequested(id, priceCents)→ 改价后 bloc 自刷新;
+//   RefreshPricesRequested → repo.syncPrices(server SinaProvider)→ 自刷新。
 //
-// ⏳B 标注:自动行情同步是后端 B 子项目未实现,UI 显示开关但 disabled + 标注
-//   "⏳ 待后端"(对齐 A-od 原型 disabled 状态 + spec)。无 i18n(中文硬编码)。
+// provider bar:server B-sync 已实现(scheduler + SinaProvider + SyncPrices),
+//   provider 链固定 → 行情源只读 chip「新浪财经」+ 上次同步时间 + 手动刷新。无 i18n(中文硬编码)。
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -149,7 +150,7 @@ class _SecurityPageState extends State<SecurityPage> {
               const SizedBox(height: AppSpacing.md),
               _searchField(),
               const SizedBox(height: AppSpacing.md),
-              _SyncDisabledBanner(),
+              const _ProviderBar(),
               const SizedBox(height: AppSpacing.lg),
               _SectionHead(count: securities.length),
               const SizedBox(height: AppSpacing.sm),
@@ -338,59 +339,68 @@ class _AppBar extends StatelessWidget {
   }
 }
 
-// ───────────────────────── ⏳B 自动同步未启用提示条 ─────────────────────────
+// ───────────────────────── 行情源 + 同步状态条 ─────────────────────────
 
-/// 自动同步未启用提示条(对齐原型 .card.lock 提示条)。⏳B 子项目:scheduler +
-/// 行情 API 未实现,开关永久 disabled + 标注「⏳ 待后端」。
-class _SyncDisabledBanner extends StatelessWidget {
+/// 行情源 + 同步状态条(对齐 OD provider bar)。
+/// server B-sync 已实现(scheduler + SinaProvider + SyncPrices),provider 链
+/// 固定(client 不可选)→ 行情源只读 chip「新浪财经」+ 上次同步时间 + 手动刷新。
+class _ProviderBar extends StatelessWidget {
+  const _ProviderBar();
+
+  static const _providerName = '新浪财经'; // 对齐 server price_history.Source="sina"
+
   @override
   Widget build(BuildContext context) {
+    final state = context.watch<HoldingBloc>().state;
+    final synced = state is HoldingLoaded ? state.lastPriceSyncedAt : null;
+    final syncing = state is HoldingSubmitting;
     return Container(
-      key: const ValueKey('syncBanner'),
+      key: const ValueKey('providerBar'),
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
       decoration: BoxDecoration(
         color: AppColors.accentSoft,
         border: Border.all(color: AppColors.accentSoft),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
-      child: Row(
-        children: [
-          const Icon(
-            LucideIcons.lock,
-            size: 16,
-            color: AppColors.accentHover,
+      child: Row(children: [
+        const Icon(LucideIcons.globe, size: 16, color: AppColors.accentHover),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text.rich(TextSpan(children: [
+                const TextSpan(text: '自动同步 · 行情源 ',
+                    style: TextStyle(fontSize: 11.5, color: AppColors.muted)),
+                TextSpan(text: _providerName,
+                    style: const TextStyle(
+                        fontSize: 11.5, fontWeight: FontWeight.w600,
+                        color: AppColors.accentHover)),
+              ])),
+              Text(synced == null ? '尚未同步' : '上次同步 ${_fmtTime(synced)}',
+                  style: const TextStyle(fontSize: 10.5, color: AppColors.muted)),
+            ],
           ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                Text(
-                  '自动同步未启用',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.accentHover,
-                  ),
-                ),
-                Text(
-                  '⏳ 待后端 · B 子项目:scheduler + 行情 API',
-                  style: TextStyle(fontSize: 10.5, color: AppColors.muted),
-                ),
-              ],
-            ),
-          ),
-          // disabled 开关(对齐原型 disabled toggle;不可切换,纯视觉占位)。
-          Switch.adaptive(
-            key: const ValueKey('syncToggle'),
-            value: false,
-            onChanged: null, // ⏳B disabled:true
-            activeTrackColor: AppColors.accent,
-          ),
-        ],
-      ),
+        ),
+        IconButton(
+          key: const ValueKey('providerRefresh'),
+          tooltip: '刷新价格',
+          onPressed: syncing
+              ? null
+              : () => context.read<HoldingBloc>().add(const RefreshPricesRequested()),
+          icon: syncing
+              ? const SizedBox(width: 14, height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              : const Icon(LucideIcons.refreshCw, size: 16, color: AppColors.accentHover),
+        ),
+      ]),
     );
+  }
+
+  String _fmtTime(DateTime t) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(t.hour)}:${two(t.minute)}';
   }
 }
 

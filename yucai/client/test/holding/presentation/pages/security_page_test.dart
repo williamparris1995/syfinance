@@ -1,8 +1,10 @@
 // Task 7 — widget tests for SecurityPage(列表 / 搜索 / 创建 / 价格管理)。
+// Task 2(late-align)— provider bar 替换旧 sync-disabled banner。
 //
 // 验证(对齐 brief + A-od security-mobile.html):
 //   - 列表渲染:symbol / name / type 中文标签 / exchange / currency / 现价。
-//   - 自动同步开关 disabled(⏳B 子项目)+ ⏳ 提示条文案。
+//   - provider bar:行情源「新浪财经」只读 chip + 上次同步时间 + 手动刷新
+//     (去 Switch;刷新触发 RefreshPricesRequested → repo.syncPrices)。
 //   - 搜索:输入触发 SearchSecuritiesRequested(后端 repo.searchSecurities 被调)。
 //   - 创建表单:填 symbol/name/exchange → 提交触发 CreateSecurityRequested
 //     (repo.createSecurity 被调,参数对齐 SecurityParams)。
@@ -82,6 +84,13 @@ void _stubRepo(
         id: any(named: 'id'),
         priceCents: any(named: 'priceCents'),
       )).thenAnswer((_) async => const dartz.Right(null));
+  // provider bar 手动刷新价格(RefreshPricesRequested → repo.syncPrices)。
+  when(() => repo.syncPrices()).thenAnswer((_) async => dartz.Right(
+        SyncPricesResult(
+          syncedCount: 2,
+          syncedAt: DateTime(2026, 7, 9, 15, 7),
+        ),
+      ));
 }
 
 void main() {
@@ -161,19 +170,32 @@ void main() {
     expect(find.text('USD'), findsWidgets);
   });
 
-  testWidgets('shows ⏳B sync-disabled banner + disabled toggle', (t) async {
+  testWidgets(
+      'provider bar: 显示新浪财经 + 无 Switch + 刷新触发 RefreshPricesRequested',
+      (t) async {
     await setViewport(t);
     _stubRepo(repo, securities: sample);
     await t.pumpWidget(_harness(repo: repo));
     await t.pumpAndSettle();
 
-    expect(find.text('自动同步未启用'), findsOneWidget);
-    expect(find.textContaining('⏳ 待后端'), findsOneWidget);
-    // 开关 disabled(onChanged: null)。
-    final sw = find.byKey(const ValueKey('syncToggle'));
-    expect(sw, findsOneWidget);
-    final widget = t.widget<Switch>(sw);
-    expect(widget.onChanged, isNull);
+    // 行情源条存在 + 新浪财经只读 chip + 刷新按钮。
+    expect(find.byKey(const ValueKey('providerBar')), findsOneWidget);
+    expect(find.textContaining('新浪财经'), findsOneWidget);
+    expect(find.byKey(const ValueKey('providerRefresh')), findsOneWidget);
+    // 已去 Switch(旧 syncToggle 不再存在)。
+    expect(find.byType(Switch), findsNothing);
+
+    // 初始未同步 → 「尚未同步」。
+    expect(find.textContaining('尚未同步'), findsOneWidget);
+
+    // 点刷新 → repo.syncPrices 被调(即 RefreshPricesRequested 端到端落地)。
+    verifyNever(() => repo.syncPrices());
+    await t.tap(find.byKey(const ValueKey('providerRefresh')));
+    await t.pumpAndSettle();
+    verify(() => repo.syncPrices()).called(1);
+
+    // 刷新后显示「上次同步 HH:mm」(stub syncedAt = 2026-07-09 15:07)。
+    expect(find.textContaining('上次同步 15:07'), findsOneWidget);
   });
 
   testWidgets('empty state when no securities', (t) async {
