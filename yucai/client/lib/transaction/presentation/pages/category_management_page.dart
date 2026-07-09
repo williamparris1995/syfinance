@@ -185,12 +185,12 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
     return const [];
   }
 
-  /// 父分类候选:同 type 顶级分类(无 parentId),排除当前编辑项与系统预置
-  ///(系统预置不作自定义父级)。深度限 2 级。
+  /// 父分类候选:同 type 顶级分类(无 parentId),排除当前编辑项。
+  /// 系统预置(餐饮/交通 等)可作父级(OD:咖啡/外卖 归属餐饮)。深度限 2 级。
   List<CategoryItem> _parentCandidates(CategoryState state, String? selfId) {
     final items = _itemsOf(state);
     return items
-        .where((c) => c.parentId.isEmpty && c.id != selfId && !c.isSystem)
+        .where((c) => c.parentId.isEmpty && c.id != selfId)
         .toList();
   }
 }
