@@ -178,11 +178,27 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
   }
 
   List<CategoryItem> _itemsOf(CategoryState state) {
-    if (state is CategoryLoaded) return state.categories;
-    if (state is CategoryLoading) return state.categories;
-    if (state is CategorySubmitting) return state.categories;
-    if (state is CategoryError) return state.categories;
-    return const [];
+    final raw = state is CategoryLoaded
+        ? state.categories
+        : state is CategoryLoading
+            ? state.categories
+            : state is CategorySubmitting
+                ? state.categories
+                : state is CategoryError
+                    ? state.categories
+                    : const <CategoryItem>[];
+    // 层级排序:父分类 + 其子分类紧跟(对齐 OD cat-row 顺序)
+    if (raw.isEmpty) return raw;
+    final tops = raw.where((c) => c.parentId.isEmpty).toList();
+    final subs = raw.where((c) => c.parentId.isNotEmpty).toList();
+    final result = <CategoryItem>[];
+    for (final t in tops) {
+      result.add(t);
+      result.addAll(subs.where((s) => s.parentId == t.id));
+    }
+    // 孤儿子分类(父不在当前列表)追加末尾
+    result.addAll(subs.where((s) => !tops.any((t) => t.id == s.parentId)));
+    return result;
   }
 
   /// tabs count:从 CategoryLoaded 的全量计数取(非当前 type tab 也显正确数);
