@@ -178,3 +178,71 @@ func newAccountWithSortOrder(tenantID uuid.UUID, name string, at domain.AccountT
 	a.SortOrder = sortOrder
 	return a
 }
+
+// TestUpdate_PersistsParentID verifies the Update method writes ParentID to the
+// DB. Previously Update omitted SetParentID, so the service's in-memory
+// assignment (account.ParentID = req.ParentID) was lost on persist — the RPC
+// response showed the new parent (in-memory) but the DB stayed empty.
+func TestUpdate_PersistsParentID(t *testing.T) {
+	client := setupAccountTestDB(t)
+	repo := repository.NewAccountRepository(client)
+	tenantID := uuid.New()
+
+	parent := saveAccount(t, repo, tenantID, "餐饮", domain.AccountTypeExpense)
+	child := saveAccount(t, repo, tenantID, "咖啡", domain.AccountTypeExpense)
+
+	// Simulate the service flow: load → set ParentID → increment version → update.
+	child.ParentID = &parent.ID
+	child.IncrementVersion()
+	if err := repo.Update(context.Background(), child); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	reloaded, err := repo.FindByID(context.Background(), tenantID, child.ID)
+	if err != nil {
+		t.Fatalf("FindByID: %v", err)
+	}
+	if reloaded.ParentID == nil {
+		t.Fatal("ParentID is nil after Update; Update did not persist parent_id")
+	}
+	if *reloaded.ParentID != parent.ID {
+		t.Errorf("ParentID = %v, want %v", *reloaded.ParentID, parent.ID)
+	}
+}
+
+// TestUpdate_PreservesParentIDWhenUnchanged verifies Update does not clobber an
+// existing ParentID when the field is left untouched (service keeps the loaded
+// value; repo must re-write it, not drop it).
+func TestUpdate_PreservesParentIDWhenUnchanged(t *testing.T) {
+	client := setupAccountTestDB(t)
+	repo := repository.NewAccountRepository(client)
+	tenantID := uuid.New()
+
+	parent := saveAccount(t, repo, tenantID, "餐饮", domain.AccountTypeExpense)
+	child := saveAccount(t, repo, tenantID, "咖啡", domain.AccountTypeExpense)
+
+	// First update: set the parent.
+	child.ParentID = &parent.ID
+	child.IncrementVersion()
+	if err := repo.Update(context.Background(), child); err != nil {
+		t.Fatalf("Update (set parent): %v", err)
+	}
+
+	// Second update: rename only, ParentID untouched (service would keep it).
+	child.Name = "拿铁"
+	child.IncrementVersion()
+	if err := repo.Update(context.Background(), child); err != nil {
+		t.Fatalf("Update (rename): %v", err)
+	}
+
+	reloaded, err := repo.FindByID(context.Background(), tenantID, child.ID)
+	if err != nil {
+		t.Fatalf("FindByID: %v", err)
+	}
+	if reloaded.ParentID == nil || *reloaded.ParentID != parent.ID {
+		t.Errorf("ParentID lost after rename update; got %v, want %v", reloaded.ParentID, parent.ID)
+	}
+	if reloaded.Name != "拿铁" {
+		t.Errorf("Name = %q, want 拿铁", reloaded.Name)
+	}
+}

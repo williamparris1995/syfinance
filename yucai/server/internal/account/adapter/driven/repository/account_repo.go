@@ -195,6 +195,7 @@ func (r *AccountRepository) Update(ctx context.Context, a *domain.Account) error
 		SetInstitution(a.Institution).
 		SetCreditLimitCents(a.CreditLimitCents).
 		SetStatus(accountent.Status(a.Status.String())). // 关闭/归档状态须持久化（否则 status 变更不落库）
+		SetNillableParentID(a.ParentID). // 二级分类父级须持久化（否则编辑改父分类不落库；service 已加载现有值，nil=保持/清除）
 		SetCardNumberTail(a.CardNumberTail).
 		SetNotes(a.Notes).
 		SetNillableOpeningDate(a.OpeningDate).
