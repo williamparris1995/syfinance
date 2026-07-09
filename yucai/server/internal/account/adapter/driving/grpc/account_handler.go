@@ -85,8 +85,17 @@ func (h *AccountHandler) CreateAccount(ctx context.Context, req *pb.CreateAccoun
 		return nil, status.Error(codes.InvalidArgument, "name is required")
 	}
 
+	var parentID *uuid.UUID
+	if req.ParentId != "" {
+		pid, err := uuid.Parse(req.ParentId)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid parent_id")
+		}
+		parentID = &pid
+	}
 	resp, err := h.service.CreateAccount(ctx, application.CreateAccountRequest{
 		TenantID:                 tenantID,
+		ParentID:                 parentID,
 		Name:                     req.Name,
 		AccountType:              protoToAccountType(req.AccountType),
 		Category:                 protoToAccountCategory(req.Category),
