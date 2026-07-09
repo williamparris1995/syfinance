@@ -182,6 +182,8 @@ const _navGroups = <_NavGroup>[
   _NavGroup('资产', [
     _NavItem('账户管理', LucideIcons.wallet, 1),
     _NavItem('投资组合', LucideIcons.lineChart, 5, route: '/holdings'),
+    _NavItem('Security 管理', LucideIcons.layers, null, route: '/holdings/security'),
+    _NavItem('收益统计', LucideIcons.percent, null, route: '/holdings/performance'),
   ]),
   _NavGroup('交易', [
     _NavItem('交易记录', LucideIcons.receipt, 2),
