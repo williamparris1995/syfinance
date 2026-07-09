@@ -17,6 +17,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
+import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
@@ -384,5 +385,55 @@ void main() {
           tradeDate: any(named: 'tradeDate'),
           notes: any(named: 'notes'),
         )).called(1);
+  });
+
+  // Task 3(late-align)— 类型色:seg selected 按 TradeType 上色
+  // (buy=金/sell=红/dividend=绿/split=蓝灰),split preview 蓝灰 soft 背景。
+  // 对齐 OD design-output/holding/styles.css:524-527。
+  testWidgets('seg selected chip color: buy=accent (金)', (t) async {
+    await setViewport(t);
+    await t.pumpWidget(_harness(
+      securities: securities,
+      accounts: accounts,
+      initialType: TradeType.buy,
+    ));
+    await t.pumpAndSettle();
+    final chip = t.widget<AnimatedContainer>(
+      find.ancestor(
+          of: find.text('买入'), matching: find.byType(AnimatedContainer)),
+    );
+    final decor = chip.decoration as BoxDecoration;
+    expect(decor.color, AppColors.accent);
+  });
+
+  testWidgets('seg selected chip color: sell=negative (红)', (t) async {
+    await setViewport(t);
+    await t.pumpWidget(_harness(
+      securities: securities,
+      accounts: accounts,
+      initialType: TradeType.sell,
+    ));
+    await t.pumpAndSettle();
+    final chip = t.widget<AnimatedContainer>(
+      find.ancestor(
+          of: find.text('卖出'), matching: find.byType(AnimatedContainer)),
+    );
+    final decor = chip.decoration as BoxDecoration;
+    expect(decor.color, AppColors.negative);
+  });
+
+  testWidgets('split preview uses 蓝灰 soft background', (t) async {
+    await t.pumpWidget(_harness(
+      securities: securities,
+      accounts: accounts,
+      initialType: TradeType.split,
+      initialSecurityId: 's1',
+      initialAccountId: 'a1',
+    ));
+    await t.pumpAndSettle();
+    final preview =
+        t.widget<Container>(find.byKey(const ValueKey('splitPreview')));
+    final decor = preview.decoration as BoxDecoration;
+    expect(decor.color, const Color(0xFFE7EAEF)); // _kSplitSoft
   });
 }

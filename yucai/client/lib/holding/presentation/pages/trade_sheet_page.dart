@@ -45,6 +45,40 @@ import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_event.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_state.dart';
 
+// OD 类型色(design-output/holding/styles.css:524-527)。
+// buy=金 / sell=红 / dividend=绿 / split=蓝灰;soft 为各色浅背景。
+// split 色无 AppColors 对应,故局部常量(_kSplitColor/_kSplitSoft)。
+const _kSplitColor = Color(0xFF6B7A8F);
+const _kSplitSoft = Color(0xFFE7EAEF);
+
+/// 类型主色:seg selected 底色 + 金额数字色(对齐 OD amt-row.t-{type})。
+Color _tradeTypeColor(TradeType t) {
+  switch (t) {
+    case TradeType.buy:
+      return AppColors.accent; // 金
+    case TradeType.sell:
+      return AppColors.negative; // 红
+    case TradeType.dividend:
+      return AppColors.positive; // 绿
+    case TradeType.split:
+      return _kSplitColor; // 蓝灰
+  }
+}
+
+/// 类型浅背景色:容器 soft 底色(对齐 OD *-soft)。
+Color _tradeTypeSoft(TradeType t) {
+  switch (t) {
+    case TradeType.buy:
+      return AppColors.accentSoft;
+    case TradeType.sell:
+      return AppColors.negative.withValues(alpha: 0.10);
+    case TradeType.dividend:
+      return AppColors.positive.withValues(alpha: 0.10);
+    case TradeType.split:
+      return _kSplitSoft;
+  }
+}
+
 /// 交易 Sheet(统一 buy/sell/dividend/split form)。
 ///
 /// 4 类型 segmented(字段随 [TradeType] 切换)。security 选择从 HoldingBloc
@@ -614,16 +648,16 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
         key: const ValueKey('splitPreview'),
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
-          color: AppColors.accentSoft,
+          color: _tradeTypeSoft(TradeType.split),
           borderRadius: BorderRadius.circular(8),
         ),
         child: const Row(
           children: [
-            Icon(LucideIcons.info, size: 16, color: AppColors.accent),
+            Icon(LucideIcons.info, size: 16, color: _kSplitColor),
             SizedBox(width: 8),
             Expanded(
               child: Text('无现金流 · 仅调整持有量与成本',
-                  style: TextStyle(fontSize: 12, color: AppColors.accentHover)),
+                  style: TextStyle(fontSize: 12, color: AppColors.muted)),
             ),
           ],
         ),
@@ -636,11 +670,8 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
         : _type == TradeType.sell
             ? '卖出净额(扣费用)'
             : '分红总额';
-    final amtColor = _type == TradeType.buy
-        ? AppColors.negative
-        : _type == TradeType.sell
-            ? AppColors.positive
-            : AppColors.accent;
+    // amtColor:类型色(对齐 OD amt-row.t-{type},资金流向语义让位类型色)。
+    final amtColor = _tradeTypeColor(_type);
 
     return Container(
       key: const ValueKey('livePreview'),
@@ -786,20 +817,20 @@ class _TradeSheetPageState extends State<TradeSheetPage> {
 // ───────────────────────── 私有 widgets ─────────────────────────
 
 /// 4 类型 segmented(buy/sell/dividend/split)。对齐 A-od type-cards。
+/// selected 底色按 [_tradeTypeColor] 上色(buy=金/sell=红/dividend=绿/split=蓝灰)。
 class _TypeSegmented extends StatelessWidget {
   const _TypeSegmented({required this.current, required this.onSelect});
   final TradeType current;
   final ValueChanged<TradeType> onSelect;
 
-  static const _meta = <TradeType, (String, IconData)>{
-    TradeType.buy: ('买入', LucideIcons.arrowDownCircle),
-    TradeType.sell: ('卖出', LucideIcons.arrowUpCircle),
-    TradeType.dividend: ('分红', LucideIcons.coins),
-    TradeType.split: ('拆分', LucideIcons.gitMerge),
-  };
-
   @override
   Widget build(BuildContext context) {
+    const labels = <TradeType, (String, IconData)>{
+      TradeType.buy: ('买入', LucideIcons.arrowDownCircle),
+      TradeType.sell: ('卖出', LucideIcons.arrowUpCircle),
+      TradeType.dividend: ('分红', LucideIcons.coins),
+      TradeType.split: ('拆分', LucideIcons.gitMerge),
+    };
     return Wrap(
       spacing: AppSpacing.xs,
       runSpacing: AppSpacing.xs,
@@ -807,8 +838,9 @@ class _TypeSegmented extends StatelessWidget {
         for (final t in TradeType.values)
           _TypeChip(
             key: ValueKey('typeChip-${t.name}'),
-            label: _meta[t]!.$1,
-            icon: _meta[t]!.$2,
+            type: t,
+            label: labels[t]!.$1,
+            icon: labels[t]!.$2,
             selected: t == current,
             onTap: () => onSelect(t),
           ),
@@ -820,11 +852,13 @@ class _TypeSegmented extends StatelessWidget {
 class _TypeChip extends StatelessWidget {
   const _TypeChip({
     super.key,
+    required this.type,
     required this.label,
     required this.icon,
     required this.selected,
     required this.onTap,
   });
+  final TradeType type;
   final String label;
   final IconData icon;
   final bool selected;
@@ -832,9 +866,10 @@ class _TypeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = selected ? AppColors.accent : AppColors.surface;
+    final color = _tradeTypeColor(type);
+    final bg = selected ? color : AppColors.surface;
     final fg = selected ? Colors.white : AppColors.muted;
-    final border = selected ? AppColors.accent : AppColors.border;
+    final border = selected ? color : AppColors.border;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
