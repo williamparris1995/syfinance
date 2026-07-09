@@ -68,6 +68,12 @@ bool _isReceivableDetail(String location) {
   return last != 'new' && last != 'edit';
 }
 
+/// 分类管理页(/categories)用专属 OD 风格 topbar(crumb + h1 + sub + 导入模板 +
+/// 新建分类),全局 _TopBar 隐藏 —— 与 receivable detail 同模式。分类管理位于
+/// transactions branch 内,但 branch 元数据为「交易管理」,面包屑会失真;且 OD
+/// topbar 富含操作按钮(导入模板/新建),非 shell topbar 可表达。
+bool _isCategoryManagement(String location) => location == '/categories';
+
 /// 应用外壳（侧边栏 + 顶栏 + 内容区）。
 /// 由 [StatefulShellRoute] 驱动：[navigationShell] 切换各功能分支，
 /// 侧栏/顶栏在整个受保护区域内保持挂载、状态不丢失。
@@ -82,8 +88,8 @@ class AppShell extends StatelessWidget {
     final auth = context.watch<AuthBloc>().state;
     final userName = auth is Authenticated ? auth.user.displayName : '御财用户';
     final location = GoRouterState.of(context).uri.toString();
-    // receivable detail 用专属 topbar(面包屑 name + 编辑/更多),隐藏全局 _TopBar。
-    final hideTopBar = _isReceivableDetail(location);
+    // receivable detail / 分类管理 用专属 topbar,隐藏全局 _TopBar。
+    final hideTopBar = _isReceivableDetail(location) || _isCategoryManagement(location);
 
     return LayoutBuilder(
       builder: (context, constraints) {

@@ -1,15 +1,17 @@
-// TDD three-size widget test for CategoryManagementPage.
+// TDD three-size widget test for CategoryManagementPage (OD-aligned).
 //
 // Asserts御财 responsive breakpoints drive three distinct edit surfaces:
 //   - 390   → mobile  → edit form opens as a bottom sheet
 //   - 1024  → tablet  → edit form opens as an end-drawer
 //   - 1440  → desktop → left list + right edit panel always visible
 //
-// Plus:
+// Plus (OD alignment):
 //   - type tabs (支出分类 / 收入分类) switch the loaded type
-//   - the category list shows icon + name + 系统标记 for preset categories
-//   - the delete affordance is disabled for system (preset) categories
+//   - the category list shows emoji + name + 系统标记 for preset categories
+//   - the editor delete affordance is disabled for system (preset) categories
 //   - the 新建分类 entry exists and opens the edit surface
+//   - icon grid + color palette selectors (click-to-pick)
+//   - picking icon + color then save dispatches values via CreateAccountParams
 //
 // The bloc is wired via BlocProvider with mocked use-cases; no DI / no gRPC.
 import 'package:dartz/dartz.dart' as dartz;
@@ -115,14 +117,8 @@ void main() {
     await pumpPage(tester, const Size(1440, 900));
     expect(find.text('餐饮'), findsOneWidget);
     expect(find.text('支出分类'), findsWidgets);
-    // AppBar 新建按钮（descendant of AppBar action FilledButton.icon label）。
-    expect(
-      find.descendant(
-        of: find.byType(AppBar),
-        matching: find.text('新建分类'),
-      ),
-      findsOneWidget,
-    );
+    // 新建分类 button in custom topbar.
+    expect(find.byKey(CategoryManagementPage.newCategoryKey), findsOneWidget);
     // 系统标记出现在 preset 分类行。
     expect(find.text('系统'), findsOneWidget);
     // 右侧编辑面板在 desktop 常驻。
@@ -133,7 +129,7 @@ void main() {
       (tester) async {
     await pumpPage(tester, const Size(1024, 768));
     expect(find.text('餐饮'), findsOneWidget);
-    await tester.tap(find.text('新建分类'));
+    await tester.tap(find.byKey(CategoryManagementPage.newCategoryKey));
     await tester.pumpAndSettle();
     // 抽屉内的编辑表单。
     expect(find.byKey(CategoryManagementPage.editPanelKey), findsOneWidget);
@@ -143,28 +139,26 @@ void main() {
       (tester) async {
     await pumpPage(tester, const Size(390, 844));
     expect(find.text('餐饮'), findsOneWidget);
-    await tester.tap(find.text('新建分类'));
+    await tester.tap(find.byKey(CategoryManagementPage.newCategoryKey));
     await tester.pumpAndSettle();
     expect(find.byKey(CategoryManagementPage.editPanelKey), findsOneWidget);
   });
 
-  testWidgets('system category row disables delete',
-      (tester) async {
+  testWidgets('system category editor disables delete', (tester) async {
     await pumpPage(tester, const Size(1440, 900));
-    // 餐饮 is preset → delete disabled (onPressed null).
-    final btn = tester.widget<IconButton>(find.descendant(
-      of: find.byKey(CategoryManagementPage.rowKey('e1')),
-      matching: find.byKey(CategoryManagementPage.deleteKey('e1')),
-    ));
-    expect(btn.onPressed, isNull);
-    // Tapping the system delete must NOT call the delete use-case.
-    await tester.tap(find.byKey(CategoryManagementPage.deleteKey('e1')));
+    // 餐饮(e1) is preset → system. Tap its row to open the editor.
+    await tester.tap(find.byKey(CategoryManagementPage.rowKey('e1')));
+    await tester.pumpAndSettle();
+    // Delete button exists; tapping it must NOT call the delete use-case
+    // (disabled for system presets).
+    expect(find.byKey(CategoryManagementPage.editorDeleteKey), findsOneWidget);
+    await tester.tap(find.byKey(CategoryManagementPage.editorDeleteKey),
+        warnIfMissed: false);
     await tester.pump();
     verifyNever(() => deleteUc.call('e1'));
   });
 
-  testWidgets('type tab switches to income and reloads',
-      (tester) async {
+  testWidgets('type tab switches to income and reloads', (tester) async {
     when(() => listUc.call()).thenAnswer((_) async => dartz.Right(<Account>[
           ..._expenseAccounts,
           _cat('i1', '工资', AccountType.income),
@@ -174,53 +168,57 @@ void main() {
     verify(() => listUc.call()).called(greaterThanOrEqualTo(1));
     expect(find.text('餐饮'), findsOneWidget);
 
-    // Tap 收入分类 tab.
-    await tester.tap(find.text('收入分类'));
+    // Tap 收入分类 tab (first occurrence = the tab, not the seg-readonly).
+    await tester.tap(find.text('收入分类').first);
     await tester.pumpAndSettle();
     expect(find.text('工资'), findsOneWidget);
     expect(find.text('餐饮'), findsNothing);
   });
 
   testWidgets('edit panel shows icon grid and color palette selectors '
-      '(click-to-pick, not manual text input)',
-      (tester) async {
+      '(click-to-pick, not manual text input)', (tester) async {
     await pumpPage(tester, const Size(1440, 900));
     // Icon picker: preset emoji chips present and clickable.
     expect(find.byKey(const ValueKey('icon_pick_🥢')), findsOneWidget);
     expect(find.byKey(const ValueKey('icon_pick_🚌')), findsOneWidget);
     // Color picker: preset swatches present and clickable.
     expect(find.byKey(const ValueKey('color_pick_#B08D57')), findsOneWidget);
-    expect(find.byKey(const ValueKey('color_pick_#3B82F6')), findsOneWidget);
+    expect(find.byKey(const ValueKey('color_pick_#4A7FC4')), findsOneWidget);
     // No manual icon/color TextFields (the old TextEditingController inputs).
     expect(find.text('图标（名称）'), findsNothing);
     expect(find.text('颜色（hex）'), findsNothing);
     // Parent dropdown exists with the default top-level option.
-    expect(find.text('父分类（二级）'), findsOneWidget);
-    expect(find.text('无（一级分类）'), findsOneWidget);
+    expect(find.text('父分类'), findsWidgets);
+    expect(find.text('无（顶级分类）'), findsOneWidget);
   });
 
   testWidgets('clicking an icon + color then save dispatches the picked '
       'values through CreateAccountParams', (tester) async {
     await pumpPage(tester, const Size(1440, 900));
-    // Enter a name (the first TextField in the panel).
+    // Enter a name (the first TextField in the panel = 分类名称).
     await tester.enterText(find.byType(TextField).first, '测试分类');
-    // Pick an icon chip and a color swatch.
+    // Pick an icon chip and a color swatch (ensureVisible first — the editor
+    // body scrolls and the pickers may be below the fold).
+    await tester.ensureVisible(find.byKey(const ValueKey('icon_pick_🚌')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('icon_pick_🚌')));
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('color_pick_#3B82F6')));
-    await tester.pump();
-    // Save (desktop default panel is in 新建 mode). The save button sits below
-    // the default test surface; scroll it into view first.
-    await tester.ensureVisible(find.text('确认创建'));
+    await tester.ensureVisible(find.byKey(const ValueKey('color_pick_#4A7FC4')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('确认创建'), warnIfMissed: false);
+    await tester.tap(find.byKey(const ValueKey('color_pick_#4A7FC4')));
+    await tester.pump();
+    // Save (desktop default panel is in 新建 mode → create).
+    await tester.ensureVisible(find.byKey(CategoryManagementPage.saveKey));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(CategoryManagementPage.saveKey),
+        warnIfMissed: false);
     await tester.pumpAndSettle();
 
     final captured = verify(() => createUc.call(captureAny())).captured.single
         as CreateAccountParams;
     expect(captured.icon, '🚌');
-    expect(captured.color, '#3B82F6');
-    // Default parent is '' (一级分类) → empty parentId.
+    expect(captured.color, '#4A7FC4');
+    // Default parent is '' (顶级分类) → empty parentId.
     expect(captured.parentId, '');
   });
 }
