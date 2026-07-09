@@ -45,6 +45,7 @@ import 'package:yucai_client/holding/presentation/bloc/holding_state.dart';
 import 'package:yucai_client/holding/presentation/bloc/performance_bloc.dart';
 import 'package:yucai_client/holding/presentation/bloc/performance_event.dart';
 import 'package:yucai_client/holding/presentation/bloc/performance_state.dart';
+import 'package:yucai_client/holding/presentation/widgets/holding_module_nav.dart';
 import 'package:yucai_client/holding/presentation/widgets/holding_pie_chart.dart';
 import 'package:yucai_client/holding/presentation/widgets/perf_curve_chart.dart';
 
@@ -129,9 +130,13 @@ class _PerformancePageState extends State<PerformancePage> {
         elevation: 0,
         title: const Text('收益统计'),
       ),
-      body: BlocBuilder<HoldingBloc, HoldingState>(
-        builder: (context, state) {
-          if (state is HoldingLoading) {
+      body: Column(
+        children: [
+          const HoldingModuleNav(),
+          Expanded(
+            child: BlocBuilder<HoldingBloc, HoldingState>(
+              builder: (context, state) {
+                if (state is HoldingLoading) {
             return const Center(child: CircularProgressIndicator());
           }
           if (state is HoldingLoaded) {
@@ -153,7 +158,10 @@ class _PerformancePageState extends State<PerformancePage> {
           }
           // HoldingInitial / HoldingSubmitting(无 last)→ 空占位。
           return const SizedBox.shrink();
-        },
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

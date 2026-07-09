@@ -33,6 +33,7 @@ import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_event.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_state.dart';
+import 'package:yucai_client/holding/presentation/widgets/holding_module_nav.dart';
 
 /// Security 主数据管理页。对齐 A-od security-mobile.html。
 ///
@@ -111,9 +112,13 @@ class _SecurityPageState extends State<SecurityPage> {
         backgroundColor: AppColors.accent,
         child: const Icon(LucideIcons.plus, color: Colors.white),
       ),
-      body: BlocBuilder<HoldingBloc, HoldingState>(
-        builder: (context, state) {
-          final securities = _securitiesOf(state);
+      body: Column(
+        children: [
+          const HoldingModuleNav(),
+          Expanded(
+            child: BlocBuilder<HoldingBloc, HoldingState>(
+              builder: (context, state) {
+                final securities = _securitiesOf(state);
           final loading = state is HoldingLoading && securities.isEmpty;
           final isPendingBackend =
               state is HoldingError && state.isPendingBackend;
@@ -127,7 +132,10 @@ class _SecurityPageState extends State<SecurityPage> {
           }
           if (securities.isEmpty) return _emptyState(pending: isPendingBackend);
           return _content(securities, state);
-        },
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

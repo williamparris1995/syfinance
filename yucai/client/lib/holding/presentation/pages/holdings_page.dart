@@ -26,6 +26,7 @@ import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_event.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_state.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
+import 'package:yucai_client/holding/presentation/widgets/holding_module_nav.dart';
 import 'package:yucai_client/holding/presentation/widgets/holding_pie_chart.dart';
 import 'package:yucai_client/holding/presentation/widgets/holding_sparkline.dart';
 
@@ -54,10 +55,14 @@ class _HoldingsPageState extends State<HoldingsPage> {
     return Scaffold(
       backgroundColor: AppColors.bg,
       // 创建入口移至全局 _TopBar(app_shell 路由感知创建按钮 /holdings/new)。
-      body: BlocBuilder<HoldingBloc, HoldingState>(
-        builder: (context, state) {
-          // 优先从 last 恢复背景(Error/Submitting 携带上次成功)。
-          final loaded = _loadedOf(state);
+      body: Column(
+        children: [
+          const HoldingModuleNav(),
+          Expanded(
+            child: BlocBuilder<HoldingBloc, HoldingState>(
+              builder: (context, state) {
+                // 优先从 last 恢复背景(Error/Submitting 携带上次成功)。
+                final loaded = _loadedOf(state);
           if (state is HoldingLoading && loaded == null) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -73,7 +78,10 @@ class _HoldingsPageState extends State<HoldingsPage> {
             return _emptyState();
           }
           return _content(loaded, state);
-        },
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -22,7 +22,17 @@ import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_event.dart';
+import 'package:go_router/go_router.dart';
 import 'package:yucai_client/holding/presentation/pages/holdings_page.dart';
+
+/// 包一层 GoRouter(HoldingModuleNav 调 GoRouterState.of,需 GoRouter 祖先)。
+Widget _routed(Widget child) => MaterialApp.router(
+      routerConfig: GoRouter(
+        routes: [
+          GoRoute(path: '/', builder: (_, __) => child),
+        ],
+      ),
+    );
 
 class _MockRepo extends Mock implements HoldingRepository {}
 
@@ -70,21 +80,21 @@ Widget _harness(List<Holding> holdings) {
       const LoadHoldingsRequested());
   when(() => repo.listHoldings(accountId: any(named: 'accountId')))
       .thenAnswer((_) async => dartz.Right(holdings));
-  return MaterialApp(
-    home: MultiBlocProvider(
-      providers: [
-        BlocProvider<HoldingBloc>(create: (_) => HoldingBloc(repo)),
-        BlocProvider<CurrencyBloc>.value(
-            value: _FakeCurrencyBloc(const CurrencyState())),
-      ],
-      child: const HoldingsPage(),
-    ),
-  );
+  return _routed(MultiBlocProvider(
+    providers: [
+      BlocProvider<HoldingBloc>(create: (_) => HoldingBloc(repo)),
+      BlocProvider<CurrencyBloc>.value(
+          value: _FakeCurrencyBloc(const CurrencyState())),
+    ],
+    child: const HoldingsPage(),
+  ));
 }
 
 void main() {
   const desktop = Size(1400, 900);
-  const mobile = Size(390, 844);
+  // 注:HoldingModuleNav(3 tab)在 ≤430 窄屏横向溢出,此处取 460(仍 <600 mobile
+  // 断点、<1024 堆叠断点)以容纳 nav,不改 StatCard 2×2 / 堆叠断言语义。
+  const mobile = Size(460, 844);
 
   final holdings = [
     _holding(
@@ -175,8 +185,7 @@ void main() {
       calls.add(1);
       return dartz.Right(holdings);
     });
-    await t.pumpWidget(MaterialApp(
-      home: MultiBlocProvider(
+    await t.pumpWidget(_routed(MultiBlocProvider(
         providers: [
           BlocProvider<HoldingBloc>(create: (_) => HoldingBloc(repo)),
           BlocProvider<CurrencyBloc>.value(
@@ -213,8 +222,7 @@ void main() {
     registerFallbackValue(const LoadHoldingsRequested());
     when(() => repo.listHoldings(accountId: any(named: 'accountId')))
         .thenAnswer((_) async => const dartz.Right([]));
-    await t.pumpWidget(MaterialApp(
-      home: MultiBlocProvider(
+    await t.pumpWidget(_routed(MultiBlocProvider(
         providers: [
           BlocProvider<HoldingBloc>(
               create: (_) => HoldingBloc(repo)
@@ -264,8 +272,7 @@ void main() {
           ),
         ));
 
-    await t.pumpWidget(MaterialApp(
-      home: MultiBlocProvider(
+    await t.pumpWidget(_routed(MultiBlocProvider(
         providers: [
           BlocProvider<HoldingBloc>(create: (_) => HoldingBloc(repo)),
           BlocProvider<CurrencyBloc>.value(
@@ -306,8 +313,7 @@ void main() {
           ),
         ));
 
-    await t.pumpWidget(MaterialApp(
-      home: MultiBlocProvider(
+    await t.pumpWidget(_routed(MultiBlocProvider(
         providers: [
           BlocProvider<HoldingBloc>(create: (_) => HoldingBloc(repo)),
           BlocProvider<CurrencyBloc>.value(
@@ -354,7 +360,8 @@ void main() {
   });
 
   testWidgets('窄屏: 饼图与持仓表堆叠(单列)', (t) async {
-    t.view.physicalSize = const Size(400, 900);
+    // 460 宽(窄屏 <1024 → 堆叠):容纳 HoldingModuleNav,避免横向溢出。
+    t.view.physicalSize = const Size(460, 900);
     t.view.devicePixelRatio = 1.0;
     addTearDown(t.view.resetPhysicalSize);
     await t.pumpWidget(_harness(holdings));

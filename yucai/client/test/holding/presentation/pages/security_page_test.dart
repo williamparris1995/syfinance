@@ -21,7 +21,17 @@ import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:yucai_client/holding/presentation/pages/security_page.dart';
+
+/// 包一层 GoRouter(HoldingModuleNav 调 GoRouterState.of,需 GoRouter 祖先)。
+Widget _routed(Widget child) => MaterialApp.router(
+      routerConfig: GoRouter(
+        routes: [
+          GoRoute(path: '/', builder: (_, __) => child),
+        ],
+      ),
+    );
 
 class _MockRepo extends Mock implements HoldingRepository {}
 
@@ -49,12 +59,10 @@ Security _sec({
 Widget _harness({
   required _MockRepo repo,
 }) {
-  return MaterialApp(
-    home: BlocProvider<HoldingBloc>(
-      create: (_) => HoldingBloc(repo),
-      child: const SecurityPage(),
-    ),
-  );
+  return _routed(BlocProvider<HoldingBloc>(
+    create: (_) => HoldingBloc(repo),
+    child: const SecurityPage(),
+  ));
 }
 
 /// 公用 repo stub:listSecurities / searchSecurities / 业务事件成功路径。

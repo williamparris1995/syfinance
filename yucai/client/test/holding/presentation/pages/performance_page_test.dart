@@ -26,8 +26,18 @@ import 'package:yucai_client/holding/domain/repositories/holding_repository.dart
 import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
 import 'package:yucai_client/holding/presentation/bloc/performance_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:yucai_client/holding/presentation/pages/performance_page.dart';
 import 'package:yucai_client/holding/presentation/widgets/perf_curve_chart.dart';
+
+/// 包一层 GoRouter(HoldingModuleNav 调 GoRouterState.of,需 GoRouter 祖先)。
+Widget _routed(Widget child) => MaterialApp.router(
+      routerConfig: GoRouter(
+        routes: [
+          GoRoute(path: '/', builder: (_, __) => child),
+        ],
+      ),
+    );
 
 class _MockHoldingRepo extends Mock implements HoldingRepository {}
 
@@ -87,15 +97,13 @@ Widget _harness({
     getIt.registerSingleton<CurrencySettings>(
         _FakeCurrencySettings(baseCurrency));
   }
-  return MaterialApp(
-    home: MultiBlocProvider(
-      providers: [
-        BlocProvider<HoldingBloc>(create: (_) => HoldingBloc(repo)),
-        BlocProvider<PerformanceBloc>(create: (_) => PerformanceBloc(repo)),
-      ],
-      child: const PerformancePage(),
-    ),
-  );
+  return _routed(MultiBlocProvider(
+    providers: [
+      BlocProvider<HoldingBloc>(create: (_) => HoldingBloc(repo)),
+      BlocProvider<PerformanceBloc>(create: (_) => PerformanceBloc(repo)),
+    ],
+    child: const PerformancePage(),
+  ));
 }
 
 void _stubHoldings(_MockHoldingRepo repo, List<Holding> holdings) {
