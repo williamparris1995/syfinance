@@ -591,6 +591,13 @@ class _PerformancePageState extends State<PerformancePage> {
                 cumulative >= 0 ? AppColors.positive : AppColors.negative,
             key: const ValueKey('annualCumulative'),
           ),
+          // ⑤ bench-mini(loaded 有数据时渲染;无 benchmarkPoints 内部降级)。
+          if (loaded != null && loaded.annualizedPct != 0)
+            _BenchmarkMiniBar(
+              myAnnualized: loaded.annualizedPct,
+              benchmarkPoints: loaded.benchmarkPoints,
+              benchmarkName: loaded.benchmarkName,
+            ),
         ],
       ),
     );
@@ -969,5 +976,132 @@ class _PerformancePageState extends State<PerformancePage> {
       buf.write(s[i]);
     }
     return buf.toString();
+  }
+}
+
+/// ⑤ 基准对比 mini 条(对齐 OD .bench-mini):我的组合 vs 基准 中线对比 + 超额。
+/// 数据:myAnnualized(server annualizedPct)+ benchmarkPoints(纯前端近似累计%/年化)。
+/// benchmarkPoints < 2 → 降级(只显我的年化,无超额)。
+class _BenchmarkMiniBar extends StatelessWidget {
+  const _BenchmarkMiniBar({
+    required this.myAnnualized,
+    required this.benchmarkPoints,
+    required this.benchmarkName,
+  });
+  final double myAnnualized;
+  final List<PerfPoint> benchmarkPoints;
+  final String benchmarkName;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasBench = benchmarkPoints.length >= 2;
+    final name = benchmarkName.isNotEmpty ? benchmarkName : '沪深300';
+    return Container(
+      key: const ValueKey('benchmarkMiniBar'),
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceAlt,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(children: [
+            const Icon(LucideIcons.barChart3, size: 13, color: AppColors.muted),
+            const SizedBox(width: 5),
+            Text('对比基准 $name · 近似',
+                style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+          ]),
+          const SizedBox(height: 8),
+          _row('我的组合', myAnnualized, isMine: true),
+          if (hasBench) ...[
+            const SizedBox(height: 6),
+            _row(name, _benchAnnualized(), isMine: false),
+            const SizedBox(height: 6),
+            _deltaRow(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  double _benchCumulative() {
+    final first = benchmarkPoints.first.value;
+    final last = benchmarkPoints.last.value;
+    return first != 0 ? (last - first) / first * 100 : 0.0;
+  }
+
+  double _benchAnnualized() {
+    final cum = _benchCumulative();
+    final days = benchmarkPoints.last.time.difference(benchmarkPoints.first.time).inDays;
+    final years = days / 365;
+    return years < 1 ? cum : cum / years; // 年数 < 1 不放大(避免短期失真)
+  }
+
+  Widget _deltaRow() {
+    final delta = myAnnualized - _benchAnnualized();
+    return Padding(
+      padding: const EdgeInsets.only(left: 60),
+      child: Row(children: [
+        const Text('超额', style: TextStyle(fontSize: 11, color: AppColors.muted)),
+        const Spacer(),
+        Text(
+          '${delta >= 0 ? '+' : ''}${delta.toStringAsFixed(1)}%',
+          style: TextStyle(
+            fontSize: 12, fontWeight: FontWeight.w600,
+            color: delta >= 0 ? AppColors.positive : AppColors.negative,
+            fontFeatures: AppTypography.tabularFigures,
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _row(String label, double pct, {required bool isMine}) {
+    final pos = pct >= 0;
+    final fill = isMine ? (pos ? AppColors.accent : AppColors.negative) : AppColors.muted;
+    final valColor = pos ? AppColors.positive : AppColors.negative;
+    return Row(children: [
+      SizedBox(width: 56, child: Text(label,
+          style: const TextStyle(fontSize: 11, color: AppColors.muted))),
+      const SizedBox(width: 6),
+      Expanded(child: _track(pos, pct.abs(), fill)),
+      const SizedBox(width: 6),
+      SizedBox(width: 52, child: Text(
+        '${pos ? '+' : ''}${pct.toStringAsFixed(1)}%',
+        textAlign: TextAlign.right,
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+            color: valColor, fontFeatures: AppTypography.tabularFigures),
+      )),
+    ]);
+  }
+
+  /// 中线对比条:track 底 + 中线(mid)+ fill 从中线向右(pos)/左(neg)。
+  Widget _track(bool pos, double absPct, Color fill) {
+    final w = (absPct.clamp(0, 50) / 100); // fill 占 track 宽比例(最大 50%)
+    return LayoutBuilder(builder: (ctx, c) {
+      final mid = c.maxWidth / 2;
+      final fillW = w * c.maxWidth;
+      return SizedBox(
+        height: 8,
+        child: Stack(children: [
+          // track 底
+          Positioned.fill(child: Container(
+            decoration: BoxDecoration(color: AppColors.bg,
+                borderRadius: BorderRadius.circular(4)),
+          )),
+          // 中线
+          Positioned(left: mid - 0.5, top: 0, bottom: 0,
+              child: Container(width: 1, color: AppColors.border)),
+          // fill:pos 从中线右,neg 从中线左
+          Positioned(
+            left: pos ? mid : mid - fillW,
+            top: 0, bottom: 0, width: fillW,
+            child: Container(color: fill),
+          ),
+        ]),
+      );
+    });
   }
 }

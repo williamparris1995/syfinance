@@ -403,4 +403,65 @@ void main() {
           baseCurrency: '',
         ));
   });
+
+  // Task 1 bench-mini(⑤ 基准对比条):有 benchmarkPoints → 中线条 + 超额。
+  // 对齐 OD .bench-mini:我的组合 vs 基准 中线对比条 + 超额数值。
+  testWidgets('bench-mini 渲染:有 benchmarkPoints → 中线条 + 超额', (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    _stubHoldings(repo, [_holding(unrealizedPnlCents: 250000)]);
+    when(() => repo.getPortfolioPerformance(
+          range: any(named: 'range'),
+          accountId: any(named: 'accountId'),
+          includeBenchmark: any(named: 'includeBenchmark'),
+          baseCurrency: any(named: 'baseCurrency'),
+        )).thenAnswer((_) async => dartz.Right(PortfolioPerformance(
+              realizedCents: 100,
+              unrealizedCents: 200,
+              totalCents: 300,
+              annualizedPct: 12.3,
+              totalPct: 8.0,
+              benchmarkName: '沪深300',
+              benchmarkPoints: [
+                PerfPoint(time: DateTime(2026, 1, 1), value: 100),
+                PerfPoint(time: DateTime(2026, 7, 1), value: 105.4),
+              ],
+            )));
+
+    await t.pumpWidget(_harness(repo: repo));
+    await t.pumpAndSettle();
+
+    // bench-mini 容器存在。
+    expect(find.byKey(const ValueKey('benchmarkMiniBar')), findsOneWidget);
+    // 我的年化 +12.3%(同时出现在 ④ annualValue 与 bench-mini 我的组合行)。
+    expect(find.text('+12.3%'), findsWidgets);
+    // 超额行渲染。
+    expect(find.textContaining('超额'), findsOneWidget);
+  });
+
+  // Task 1 bench-mini 降级:无 benchmarkPoints → 容器渲染但无超额行。
+  testWidgets('bench-mini 降级:无 benchmarkPoints → 不渲染超额', (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    _stubHoldings(repo, [_holding(unrealizedPnlCents: 250000)]);
+    when(() => repo.getPortfolioPerformance(
+          range: any(named: 'range'),
+          accountId: any(named: 'accountId'),
+          includeBenchmark: any(named: 'includeBenchmark'),
+          baseCurrency: any(named: 'baseCurrency'),
+        )).thenAnswer((_) async => dartz.Right(PortfolioPerformance(
+              realizedCents: 0,
+              unrealizedCents: 0,
+              totalCents: 0,
+              annualizedPct: 5.0,
+              benchmarkPoints: const [],
+            )));
+
+    await t.pumpWidget(_harness(repo: repo));
+    await t.pumpAndSettle();
+
+    // 容器仍渲染(我的组合行在),但无 benchmarkPoints → 无超额行。
+    expect(find.byKey(const ValueKey('benchmarkMiniBar')), findsOneWidget);
+    expect(find.textContaining('超额'), findsNothing);
+  });
 }
