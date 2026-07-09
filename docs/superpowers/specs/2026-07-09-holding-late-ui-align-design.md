@@ -115,15 +115,16 @@ client(Flutter DDD,仅 presentation + 必要 data)
 
 ### 组件
 按 `TradeType` 给三处上色(对齐 OD `.t-{type}`):
-- seg 4 按钮:选中态 buy=绿 / sell=红 / dividend=金 / split=紫(底色 soft + 边框 + 文字)
-- amount 预览条(`amt-row`):背景 per-type soft + 数值 per-type strong
-- 余额 fail-fast 预览(`bal-preview`):buy/sell 维持现有 ok/fail,色随 type 微调
+- seg 4 按钮:选中态按**类型色**(buy=金 / sell=红 / dividend=绿 / split=蓝灰,见下色板;底色 + 白字)
+- amount 预览条(`amt-row`):数值按类型色(现 amtColor 是资金流向色 → 改类型色)
+- 余额 fail-fast 预览(`bal-preview`):维持现有 ok/fail 资金流向语义(红=不足),不改
 
-### 色板(实现时对齐 `design-output/holding/styles.css`)
-- buy = up-green(`--up` / soft `--up-soft`)
-- sell = down-red(`--down` / soft)
-- dividend = gold(`--gold` / `--accent-soft`)
-- split = 紫(OD `.t-split`,从 styles.css 取确切值)
+### 色板(对齐 `design-output/holding/styles.css:524-527` OD type 色 — **类型标识色,非资金流向色**)
+- buy = `--buy #b08d57`(金)= `AppColors.accent`
+- sell = `--sell #c4544d`(红)= `AppColors.negative`
+- dividend = `--dividend #2d8a6e`(绿)= `AppColors.positive`
+- split = `--split #6b7a8f`(蓝灰)= 新常量(AppColors 无,holding 局部 `const _kSplitColor = Color(0xFF6B7A8F)` + soft `Color(0xFFE7EAEF)`)
+- soft 底:buy `--buy-soft #f3ebdd`=`accentSoft`;sell/dividend/split soft 用对应色 `withValues(alpha: 0.10)`
 
 ### 数据流
 纯 presentation,`TradeType` 已有(`_type`),数据 / proto 不变。
