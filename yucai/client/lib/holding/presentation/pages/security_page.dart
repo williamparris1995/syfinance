@@ -664,7 +664,7 @@ class _SecurityCard extends StatelessWidget {
     );
   }
 
-  /// 卡片底栏:⏳B 自动同步 disabled 标签 + 「改价」按钮。
+  /// 卡片底栏:「改价」按钮(右对齐)。同步状态由页顶 _ProviderBar 统一展示。
   Widget _cardFooter(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(top: 11),
@@ -674,28 +674,6 @@ class _SecurityCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // ⏳B 自动同步 disabled(行内,与原型 .sync-cell.disabled 一致)。
-          Tooltip(
-            message: '⏳ 待后端 · B 子项目',
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  LucideIcons.lock,
-                  size: 13,
-                  color: AppColors.muted.withValues(alpha: 0.6),
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  '自动同步',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: AppColors.muted.withValues(alpha: 0.7),
-                  ),
-                ),
-              ],
-            ),
-          ),
           const Spacer(),
           _EditPriceBtn(security: security, submitting: submitting),
         ],
