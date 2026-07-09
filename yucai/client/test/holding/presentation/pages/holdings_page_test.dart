@@ -327,4 +327,51 @@ void main() {
     // 刷新后显示 "上次更新 09:07"(DateTime 9:7 → HH:mm padded)。
     expect(find.text('上次更新 09:07'), findsOneWidget);
   });
+
+  // Task 4 — desktop desk-grid:饼图(_AllocCard)与持仓表(_HoldingList)并排
+  // (对齐 OD .desk-grid 320px 1fr)。desktop ≥1024 → Row 并排;窄屏堆叠单列。
+  testWidgets('desktop: 饼图与持仓表并排(desk-grid)', (t) async {
+    t.view.physicalSize = const Size(1440, 900);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    await t.pumpWidget(_harness(holdings));
+    await t.pumpAndSettle();
+
+    // ValueKeys 存在(实现标记)。
+    expect(find.byKey(const ValueKey('allocCard')), findsOneWidget);
+    expect(find.byKey(const ValueKey('holdingList')), findsOneWidget);
+
+    // desktop:AllocCard 与 HoldingList 共同 Row 祖先(并排)。
+    final allocRows = t.widgetList<Row>(find.ancestor(
+      of: find.byKey(const ValueKey('allocCard')),
+      matching: find.byType(Row),
+    )).toList();
+    final listRows = t.widgetList<Row>(find.ancestor(
+      of: find.byKey(const ValueKey('holdingList')),
+      matching: find.byType(Row),
+    )).toList();
+    expect(allocRows.any((r) => listRows.contains(r)), isTrue);
+  });
+
+  testWidgets('窄屏: 饼图与持仓表堆叠(单列)', (t) async {
+    t.view.physicalSize = const Size(400, 900);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    await t.pumpWidget(_harness(holdings));
+    await t.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('allocCard')), findsOneWidget);
+    expect(find.byKey(const ValueKey('holdingList')), findsOneWidget);
+
+    // 窄屏:无共同 Row 祖先(堆叠单列)。
+    final allocRows = t.widgetList<Row>(find.ancestor(
+      of: find.byKey(const ValueKey('allocCard')),
+      matching: find.byType(Row),
+    )).toList();
+    final listRows = t.widgetList<Row>(find.ancestor(
+      of: find.byKey(const ValueKey('holdingList')),
+      matching: find.byType(Row),
+    )).toList();
+    expect(allocRows.any((r) => listRows.contains(r)), isFalse);
+  });
 }

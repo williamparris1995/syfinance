@@ -204,25 +204,54 @@ class _HoldingsPageState extends State<HoldingsPage> {
                 preferred: preferred,
               ),
               const SizedBox(height: AppSpacing.lg),
-              // 资产配置饼图(对齐 .m-alloc)。
-              _AllocCard(slices: _slicesByType(loaded.holdings, toPreferred)),
-              const SizedBox(height: AppSpacing.lg),
-              // chips 筛选(对齐 .m-chips)。
-              _ChipsRow(
-                holdings: loaded.holdings,
-                active: loaded.typeFilter,
-                onSelect: (t) => context
-                    .read<HoldingBloc>()
-                    .add(LoadHoldingsRequested(typeFilter: t)),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              _SectionHead(count: loaded.holdings.length),
-              const SizedBox(height: AppSpacing.sm),
-              _HoldingList(
-                holdings: _filtered(loaded),
-                preferred: preferred,
-                toPreferred: toPreferred,
-              ),
+              // desk-grid:desktop(≥1024)饼图‖持仓表 并排;窄屏堆叠(对齐 OD
+              // .desk-grid 320px 1fr)。_StatGrid(4 横排 desktop)维持不动。
+              LayoutBuilder(builder: (ctx, c) {
+                final isDesktop = c.maxWidth >= 1024;
+                final pie = _AllocCard(
+                  key: const ValueKey('allocCard'),
+                  slices: _slicesByType(loaded.holdings, toPreferred),
+                );
+                final tableGroup = Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _ChipsRow(
+                      holdings: loaded.holdings,
+                      active: loaded.typeFilter,
+                      onSelect: (t) => context
+                          .read<HoldingBloc>()
+                          .add(LoadHoldingsRequested(typeFilter: t)),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _SectionHead(count: loaded.holdings.length),
+                    const SizedBox(height: AppSpacing.sm),
+                    _HoldingList(
+                      key: const ValueKey('holdingList'),
+                      holdings: _filtered(loaded),
+                      preferred: preferred,
+                      toPreferred: toPreferred,
+                    ),
+                  ],
+                );
+                if (!isDesktop) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      pie,
+                      const SizedBox(height: AppSpacing.lg),
+                      tableGroup,
+                    ],
+                  );
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(width: 320, child: pie),
+                    const SizedBox(width: AppSpacing.lg),
+                    Expanded(child: tableGroup),
+                  ],
+                );
+              }),
               const SizedBox(height: AppSpacing.lg),
               // 多币种汇总(对齐 .m-currency)。
               _CurrencyBar(
@@ -493,7 +522,7 @@ class _StatCard extends StatelessWidget {
 // ───────────────────────── 资产配置 ─────────────────────────
 
 class _AllocCard extends StatelessWidget {
-  const _AllocCard({required this.slices});
+  const _AllocCard({super.key, required this.slices});
   final List<HoldingSlice> slices;
 
   @override
@@ -638,6 +667,7 @@ class _SectionHead extends StatelessWidget {
 
 class _HoldingList extends StatelessWidget {
   const _HoldingList({
+    super.key,
     required this.holdings,
     required this.preferred,
     required this.toPreferred,
