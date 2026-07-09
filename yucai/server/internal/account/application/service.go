@@ -117,6 +117,9 @@ func (s *Service) UpdateAccount(ctx context.Context, req UpdateAccountRequest) (
 	if req.SortOrder != nil {
 		account.SetSortOrder(*req.SortOrder)
 	}
+	if req.ParentID != nil {
+		account.ParentID = req.ParentID
+	}
 	account.IncrementVersion()
 
 	if err := s.accountRepo.Update(ctx, account); err != nil {

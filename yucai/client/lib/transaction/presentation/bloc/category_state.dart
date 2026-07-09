@@ -110,11 +110,20 @@ class CategoryLoading extends CategoryState {
 }
 
 class CategoryLoaded extends CategoryState {
-  const CategoryLoaded({required this.type, required this.categories});
+  const CategoryLoaded({
+    required this.type,
+    required this.categories,
+    this.expenseCount = 0,
+    this.incomeCount = 0,
+  });
   final CategoryType type;
   final List<CategoryItem> categories;
+  /// 全量账户按 type 分类的计数(非当前 type tab 也显正确数)。
+  /// 由 _onLoad 从 _list.call() 返的全 accounts 算;categories 只含当前 type。
+  final int expenseCount;
+  final int incomeCount;
   @override
-  List<Object?> get props => [type, categories];
+  List<Object?> get props => [type, categories, expenseCount, incomeCount];
 }
 
 class CategorySubmitting extends CategoryState {

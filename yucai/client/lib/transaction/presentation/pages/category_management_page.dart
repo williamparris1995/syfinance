@@ -185,6 +185,16 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
     return const [];
   }
 
+  /// tabs count:从 CategoryLoaded 的全量计数取(非当前 type tab 也显正确数);
+  /// loading/submitting/error 退化为当前 type 的 items.length(旧行为)。
+  int _countOf(CategoryState s, CategoryType type) {
+    if (s is CategoryLoaded) {
+      return type == CategoryType.expense ? s.expenseCount : s.incomeCount;
+    }
+    final items = _itemsOf(s);
+    return _type == type ? items.length : 0;
+  }
+
   /// 父分类候选:同 type 顶级分类(无 parentId),排除当前编辑项。
   /// 系统预置(餐饮/交通 等)可作父级(OD:咖啡/外卖 归属餐饮)。深度限 2 级。
   List<CategoryItem> _parentCandidates(CategoryState state, String? selfId) {
@@ -573,18 +583,12 @@ class _DesktopBody extends StatelessWidget {
       builder: (context, bState) {
         final items = state._itemsOf(bState);
         final loading = bState is CategoryLoading;
-        // counts: 当前 type 用 items.length;对方 type 占位 0(避免额外 RPC,
-        // type 切换后即准确)。
         return Column(
           children: [
             _UnderlineTabs(
               type: state._type,
-              expenseCount: state._type == CategoryType.expense
-                  ? items.length
-                  : 0,
-              incomeCount: state._type == CategoryType.income
-                  ? items.length
-                  : 0,
+              expenseCount: state._countOf(bState, CategoryType.expense),
+              incomeCount: state._countOf(bState, CategoryType.income),
               onChanged: state._switchType,
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -653,8 +657,8 @@ class _TabletBody extends StatelessWidget {
           children: [
             _UnderlineTabs(
               type: state._type,
-              expenseCount: state._type == CategoryType.expense ? items.length : 0,
-              incomeCount: state._type == CategoryType.income ? items.length : 0,
+              expenseCount: state._countOf(bState, CategoryType.expense),
+              incomeCount: state._countOf(bState, CategoryType.income),
               onChanged: state._switchType,
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -694,8 +698,8 @@ class _MobileBody extends StatelessWidget {
           children: [
             _SegmentedTabs(
               type: state._type,
-              expenseCount: state._type == CategoryType.expense ? items.length : 0,
-              incomeCount: state._type == CategoryType.income ? items.length : 0,
+              expenseCount: state._countOf(bState, CategoryType.expense),
+              incomeCount: state._countOf(bState, CategoryType.income),
               onChanged: state._switchType,
             ),
             _MobileSummaryCard(

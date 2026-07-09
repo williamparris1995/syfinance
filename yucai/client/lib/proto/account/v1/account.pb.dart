@@ -1426,6 +1426,7 @@ class UpdateAccountRequest extends $pb.GeneratedMessage {
     $fixnum.Int64? loanRemainingCents,
     $fixnum.Int64? loanMonthlyCents,
     $2.Timestamp? loanNextPaymentDate,
+    $core.String? parentId,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -1474,6 +1475,7 @@ class UpdateAccountRequest extends $pb.GeneratedMessage {
     if (loanMonthlyCents != null) result.loanMonthlyCents = loanMonthlyCents;
     if (loanNextPaymentDate != null)
       result.loanNextPaymentDate = loanNextPaymentDate;
+    if (parentId != null) result.parentId = parentId;
     return result;
   }
 
@@ -1532,6 +1534,7 @@ class UpdateAccountRequest extends $pb.GeneratedMessage {
     ..aInt64(34, _omitFieldNames ? '' : 'loanMonthlyCents')
     ..aOM<$2.Timestamp>(35, _omitFieldNames ? '' : 'loanNextPaymentDate',
         subBuilder: $2.Timestamp.create)
+    ..aOS(36, _omitFieldNames ? '' : 'parentId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1877,6 +1880,18 @@ class UpdateAccountRequest extends $pb.GeneratedMessage {
   void clearLoanNextPaymentDate() => $_clearField(35);
   @$pb.TagNumber(35)
   $2.Timestamp ensureLoanNextPaymentDate() => $_ensure(34);
+
+  /// Optional sub-category parent. nil/empty = unchanged (top-level if setting
+  /// for the first time). Mirrors CreateAccountRequest.parent_id so the category
+  /// edit path (which rides on UpdateAccount) can persist parent changes.
+  @$pb.TagNumber(36)
+  $core.String get parentId => $_getSZ(35);
+  @$pb.TagNumber(36)
+  set parentId($core.String value) => $_setString(35, value);
+  @$pb.TagNumber(36)
+  $core.bool hasParentId() => $_has(35);
+  @$pb.TagNumber(36)
+  void clearParentId() => $_clearField(36);
 }
 
 class DeleteAccountRequest extends $pb.GeneratedMessage {

@@ -93,6 +93,60 @@ void main() {
       // preset name 餐饮 → isSystem true
       expect(state.categories.first.isSystem, isTrue);
       expect(state.categories.last.isSystem, isFalse);
+      // Bug 2: both type counts derived from full accounts (2 expense + 1
+      // income), not just the selected type.
+      expect(state.expenseCount, 2);
+      expect(state.incomeCount, 1);
+    },
+  );
+
+  blocTest<CategoryBloc, CategoryState>(
+    'Load income keeps expense count visible on the non-selected tab',
+    build: () {
+      when(() => listUc.call())
+          .thenAnswer((_) async => Right([...expenseAccounts, ...incomeAccounts]));
+      return CategoryBloc(listUc, createUc, deleteUc, updateUc);
+    },
+    act: (b) => b.add(const LoadCategoriesRequested(CategoryType.income)),
+    wait: const Duration(milliseconds: 100),
+    verify: (bloc) {
+      final state = bloc.state as CategoryLoaded;
+      expect(state.type, CategoryType.income);
+      // categories filtered to income only (1), but counts cover both types.
+      expect(state.categories.length, 1);
+      expect(state.expenseCount, 2);
+      expect(state.incomeCount, 1);
+    },
+  );
+
+  blocTest<CategoryBloc, CategoryState>(
+    'Save edit dispatches UpdateAccountParams with parentId (Bug 1)',
+    build: () {
+      when(() => updateUc.call(any()))
+          .thenAnswer((_) async => Right(expenseAccounts.first));
+      when(() => listUc.call())
+          .thenAnswer((_) async => Right(expenseAccounts));
+      return CategoryBloc(listUc, createUc, deleteUc, updateUc);
+    },
+    seed: () => CategoryLoaded(
+      type: CategoryType.expense,
+      categories: expenseAccounts.map((a) => CategoryItem.fromAccount(a)).toList(),
+    ),
+    act: (b) => b.add(SaveCategoryRequested(
+      type: CategoryType.expense,
+      name: '外卖',
+      id: 'e2',
+      version: 1,
+      icon: 'utensils',
+      color: '#FF6B6B',
+      parentId: 'e1',
+    )),
+    wait: const Duration(milliseconds: 150),
+    verify: (bloc) {
+      final captured = verify(() => updateUc.call(captureAny())).captured.single
+          as UpdateAccountParams;
+      expect(captured.id, 'e2');
+      expect(captured.parentId, 'e1');
     },
   );
 

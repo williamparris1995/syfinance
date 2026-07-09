@@ -204,6 +204,10 @@ message UpdateAccountRequest {
   optional int64 loan_remaining_cents = 33;
   optional int64 loan_monthly_cents = 34;
   google.protobuf.Timestamp loan_next_payment_date = 35;
+  // Optional sub-category parent. nil/empty = unchanged (top-level if setting
+  // for the first time). Mirrors CreateAccountRequest.parent_id so the category
+  // edit path (which rides on UpdateAccount) can persist parent changes.
+  optional string parent_id = 36;
 }
 
 message DeleteAccountRequest {

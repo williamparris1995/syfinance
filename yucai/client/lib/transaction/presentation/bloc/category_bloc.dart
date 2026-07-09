@@ -63,7 +63,20 @@ class CategoryBloc extends Bloc<CategoryEvent, CategoryState> {
           type: event.type, categories: _last)),
       (accounts) {
         final items = _filterAndMap(accounts, event.type);
-        emit(CategoryLoaded(type: event.type, categories: items));
+        // 两 type count 从全 accounts 算(非当前 type tab 也显正确数);
+        // categories 只含当前 type(显示用)。
+        final expenseCount = accounts
+            .where((a) => a.accountType == AccountType.expense)
+            .length;
+        final incomeCount = accounts
+            .where((a) => a.accountType == AccountType.income)
+            .length;
+        emit(CategoryLoaded(
+          type: event.type,
+          categories: items,
+          expenseCount: expenseCount,
+          incomeCount: incomeCount,
+        ));
       },
     );
   }
@@ -98,8 +111,8 @@ class CategoryBloc extends Bloc<CategoryEvent, CategoryState> {
         name: event.name,
         icon: event.icon,
         color: event.color,
-        // parentId flows into the proto only on Create; UpdateAccountRequest
-        // has no parentId field (see account_remote_ds.dart).
+        // parentId 现已走 UpdateAccountRequest.field 36(account-as-category
+        // 分类编辑改父分类,见 account_remote_ds.dart update)。
         parentId: event.parentId,
       );
       final result = await _update.call(params);
@@ -137,7 +150,14 @@ class CategoryBloc extends Bloc<CategoryEvent, CategoryState> {
     final moved = items.removeAt(from);
     if (to > items.length) return;
     items.insert(to, moved);
-    emit(CategoryLoaded(type: _currentType, categories: items));
+    // 重排不改 count,沿用上一 state 的计数。
+    final prev = state;
+    emit(CategoryLoaded(
+      type: _currentType,
+      categories: items,
+      expenseCount: prev is CategoryLoaded ? prev.expenseCount : 0,
+      incomeCount: prev is CategoryLoaded ? prev.incomeCount : 0,
+    ));
   }
 
   List<CategoryItem> _filterAndMap(List<Account> accounts, CategoryType type) {

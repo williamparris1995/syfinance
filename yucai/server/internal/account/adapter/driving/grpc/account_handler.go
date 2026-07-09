@@ -229,6 +229,15 @@ func (h *AccountHandler) UpdateAccount(ctx context.Context, req *pb.UpdateAccoun
 		return nil, status.Error(codes.InvalidArgument, "invalid account id")
 	}
 
+	var parentID *uuid.UUID
+	if req.ParentId != nil && *req.ParentId != "" {
+		pid, err := uuid.Parse(*req.ParentId)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid parent_id")
+		}
+		parentID = &pid
+	}
+
 	resp, err := h.service.UpdateAccount(ctx, application.UpdateAccountRequest{
 		TenantID:                 tenantID,
 		AccountID:                accountID,
@@ -265,6 +274,7 @@ func (h *AccountHandler) UpdateAccount(ctx context.Context, req *pb.UpdateAccoun
 		LoanRemainingCents:       req.LoanRemainingCents,
 		LoanMonthlyCents:         req.LoanMonthlyCents,
 		LoanNextPaymentDate:      ts(req.LoanNextPaymentDate),
+		ParentID:                 parentID,
 		Version:                  req.Version,
 	})
 	if err != nil {

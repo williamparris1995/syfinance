@@ -1187,8 +1187,12 @@ type UpdateAccountRequest struct {
 	LoanRemainingCents       *int64                 `protobuf:"varint,33,opt,name=loan_remaining_cents,json=loanRemainingCents,proto3,oneof" json:"loan_remaining_cents,omitempty"`
 	LoanMonthlyCents         *int64                 `protobuf:"varint,34,opt,name=loan_monthly_cents,json=loanMonthlyCents,proto3,oneof" json:"loan_monthly_cents,omitempty"`
 	LoanNextPaymentDate      *timestamppb.Timestamp `protobuf:"bytes,35,opt,name=loan_next_payment_date,json=loanNextPaymentDate,proto3" json:"loan_next_payment_date,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	// Optional sub-category parent. nil/empty = unchanged (top-level if setting
+	// for the first time). Mirrors CreateAccountRequest.parent_id so the category
+	// edit path (which rides on UpdateAccount) can persist parent changes.
+	ParentId      *string `protobuf:"bytes,36,opt,name=parent_id,json=parentId,proto3,oneof" json:"parent_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateAccountRequest) Reset() {
@@ -1464,6 +1468,13 @@ func (x *UpdateAccountRequest) GetLoanNextPaymentDate() *timestamppb.Timestamp {
 		return x.LoanNextPaymentDate
 	}
 	return nil
+}
+
+func (x *UpdateAccountRequest) GetParentId() string {
+	if x != nil && x.ParentId != nil {
+		return *x.ParentId
+	}
+	return ""
 }
 
 type DeleteAccountRequest struct {
@@ -2049,7 +2060,7 @@ const file_account_v1_account_proto_rawDesc = "" +
 	"\x06status\x18\x03 \x01(\x0e2\x1f.yucai.account.v1.AccountStatusR\x06status\"\x83\x01\n" +
 	"\x14ListAccountsResponse\x128\n" +
 	"\baccounts\x18\x01 \x03(\v2\x1c.yucai.account.v1.AccountDTOR\baccounts\x121\n" +
-	"\x04page\x18\x02 \x01(\v2\x1d.yucai.common.v1.PageResponseR\x04page\"\xf8\x11\n" +
+	"\x04page\x18\x02 \x01(\v2\x1d.yucai.common.v1.PageResponseR\x04page\"\xa8\x12\n" +
 	"\x14UpdateAccountRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -2088,7 +2099,8 @@ const file_account_v1_account_proto_rawDesc = "" +
 	"\x13loan_original_cents\x18  \x01(\x03H\x13R\x11loanOriginalCents\x88\x01\x01\x125\n" +
 	"\x14loan_remaining_cents\x18! \x01(\x03H\x14R\x12loanRemainingCents\x88\x01\x01\x121\n" +
 	"\x12loan_monthly_cents\x18\" \x01(\x03H\x15R\x10loanMonthlyCents\x88\x01\x01\x12O\n" +
-	"\x16loan_next_payment_date\x18# \x01(\v2\x1a.google.protobuf.TimestampR\x13loanNextPaymentDateB\t\n" +
+	"\x16loan_next_payment_date\x18# \x01(\v2\x1a.google.protobuf.TimestampR\x13loanNextPaymentDate\x12 \n" +
+	"\tparent_id\x18$ \x01(\tH\x16R\bparentId\x88\x01\x01B\t\n" +
 	"\a_statusB\x13\n" +
 	"\x11_card_number_tailB\b\n" +
 	"\x06_notesB\x10\n" +
@@ -2110,7 +2122,9 @@ const file_account_v1_account_proto_rawDesc = "" +
 	"\x19_estate_depreciation_rateB\x16\n" +
 	"\x14_loan_original_centsB\x17\n" +
 	"\x15_loan_remaining_centsB\x15\n" +
-	"\x13_loan_monthly_cents\"&\n" +
+	"\x13_loan_monthly_centsB\f\n" +
+	"\n" +
+	"_parent_id\"&\n" +
 	"\x14DeleteAccountRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"I\n" +
 	"\x0fAccountResponse\x126\n" +

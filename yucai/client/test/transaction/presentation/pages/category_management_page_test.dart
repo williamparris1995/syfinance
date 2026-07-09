@@ -221,4 +221,63 @@ void main() {
     // Default parent is '' (顶级分类) → empty parentId.
     expect(captured.parentId, '');
   });
+
+  // Bug 2: tabs count for the non-selected type must reflect the real total
+  // (not 0). Loads 2 expense + 1 income; with expense selected, the income
+  // tab still shows count 1.
+  testWidgets('tabs show real count for the non-selected type (Bug 2)',
+      (tester) async {
+    when(() => listUc.call()).thenAnswer((_) async => dartz.Right(<Account>[
+          ..._expenseAccounts,
+          _cat('i1', '工资', AccountType.income),
+        ]));
+    await pumpPage(tester, const Size(1440, 900));
+    // Expense tab count = 2.
+    final expenseTab = find.ancestor(
+      of: find.text('支出分类').first,
+      matching: find.byType(GestureDetector),
+    ).first;
+    expect(find.descendant(of: expenseTab, matching: find.text('2')),
+        findsOneWidget);
+    // Income tab count = 1 (non-selected, but real — not 0).
+    final incomeTab = find.ancestor(
+      of: find.text('收入分类').first,
+      matching: find.byType(GestureDetector),
+    ).first;
+    expect(find.descendant(of: incomeTab, matching: find.text('1')),
+        findsOneWidget);
+  });
+
+  // Bug 1: editing a category must carry parentId through to UpdateAccountParams
+  // (proto UpdateAccountRequest.parent_id now exists). We edit a sub-category
+  // (already has a parent) and save without touching the dropdown — the editor
+  // hydrates _parentId from the item and dispatches it. Changing the parent via
+  // the dropdown is covered by the bloc test (SaveCategoryRequested.parentId).
+  testWidgets('editing a sub-category dispatches parentId via UpdateAccountParams '
+      '(Bug 1)', (tester) async {
+    final e3WithParent = Account(
+      id: 'e3', name: '外卖', accountType: AccountType.expense,
+      category: AccountCategory.savings, currencyCode: 'CNY',
+      initialBalanceCents: 0, currentBalanceCents: 0,
+      ownership: Ownership.personal, status: AccountStatus.active,
+      parentId: 'e1',
+    );
+    when(() => listUc.call()).thenAnswer(
+        (_) async => dartz.Right(<Account>[..._expenseAccounts, e3WithParent]));
+    await pumpPage(tester, const Size(1440, 900));
+    // Open editor for e3 (外卖, a sub-category of e1 餐饮).
+    await tester.tap(find.byKey(CategoryManagementPage.rowKey('e3')));
+    await tester.pumpAndSettle();
+    // Save without changing anything — parentId should be preserved.
+    await tester.ensureVisible(find.byKey(CategoryManagementPage.saveKey));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(CategoryManagementPage.saveKey),
+        warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    final captured = verify(() => updateUc.call(captureAny())).captured.single
+        as UpdateAccountParams;
+    expect(captured.id, 'e3');
+    expect(captured.parentId, 'e1');
+  });
 }

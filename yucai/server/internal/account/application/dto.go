@@ -89,6 +89,7 @@ type UpdateAccountRequest struct {
 	LoanMonthlyCents         *int64
 	LoanNextPaymentDate      *time.Time
 	SortOrder                *int // nil = 不更新；分类重排时由 ReorderCategories 设置
+	ParentID                 *uuid.UUID // nil = 不更新；分类编辑改父分类走 UpdateAccount 路径
 	Version                  int64
 }
 

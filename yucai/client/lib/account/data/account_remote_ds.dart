@@ -89,9 +89,10 @@ class AccountRemoteDataSource {
         institution: params.institution,
         creditLimitCents: Int64(params.creditLimitCents),
       );
-      // NOTE: proto UpdateAccountRequest has no parentId field; editing a
-      // category's parent is not persistable via the account update path
-      // (CategoryService.UpdateCategoryRequest does — not wired here).
+      // proto3 optional parent_id (field 36): set only when non-empty so the
+      // server treats absent/empty as "unchanged". Powers category edit's
+      // parent change (account-as-category rides the UpdateAccount RPC).
+      if (params.parentId.isNotEmpty) req.parentId = params.parentId;
       if (params.status != null) req.status = params.status!.toProto();
       _applyUpdateFields(req, params);
       final res = await _client.updateAccount(req);
