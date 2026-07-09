@@ -99,10 +99,8 @@ client(Flutter DDD,仅 presentation + 必要 data)
 - 上次同步时间 `lastPriceSyncedAt`(格式化「HH:mm」/「刚刚 / N 分钟前」)
 - 手动价格刷新按钮(`RefreshPricesRequested`,icon refreshCw)— 与现有 `refreshBtn`(列表重载)区分或合并
 
-### ⚠️ 决策点(待用户确认)
-现有 `Switch.adaptive`(disabled)是 B 未实现时的占位。B 已实现后 scheduler 后台跑(client 不可控启停)。**Switch 去留**:
-- **(推荐)去掉 Switch** — scheduler 后台跑非 client 控,假开关误导
-- 保留 Switch disabled + 文案改「自动同步已启用」— 视觉占位对齐 OD
+### 决策(已确认 2026-07-09)
+现有 `Switch.adaptive`(disabled)是 B 未实现时的占位。B 已实现后 scheduler 后台跑(client 不可控启停)。**去掉 Switch**(scheduler 后台跑非 client 控,假开关误导)。
 
 ### 数据流
 全从 `HoldingLoaded`(security_page 已 `BlocProvider<HoldingBloc>`):`lastPriceSyncedAt`(已有)+ `RefreshPricesRequested`(已有 event);行情源「新浪财经」client 常量(对齐 `price_history.Source="sina"`),非 RPC。**不动 server / proto**。
