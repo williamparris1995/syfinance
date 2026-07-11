@@ -70,6 +70,17 @@ import 'package:yucai_client/transaction/presentation/pages/transaction_detail_p
 import 'package:yucai_client/transaction/presentation/pages/transaction_form_page.dart';
 import 'package:yucai_client/transaction/presentation/pages/transactions_page.dart';
 import 'package:yucai_client/transaction/presentation/widgets/filter_bar.dart';
+import 'package:yucai_client/core/widgets/sub_menu_shell.dart';
+
+/// holding 模块二级导航 items（对齐 OD holding 模块侧栏,4 独立页两组）。
+/// 详情 /holdings/:id 与操作 /holdings/trade、/holdings/new 不入此列表
+/// （详情从属列表 → 高亮「持仓列表」;操作型是 sheet）。
+const _holdingNavItems = <SubMenuItem>[
+  SubMenuItem(label: '持仓列表', icon: LucideIcons.trendingUp, route: '/holdings', group: '持仓管理'),
+  SubMenuItem(label: 'Security 管理', icon: LucideIcons.layers, route: '/holdings/security', group: '持仓管理'),
+  SubMenuItem(label: '收益统计', icon: LucideIcons.percent, route: '/holdings/performance', group: '统计 & 目标'),
+  SubMenuItem(label: '投资目标', icon: LucideIcons.target, route: '/holdings/goals', group: '统计 & 目标'),
+];
 
 /// Builds the app router. Reads auth state to guard routes.
 ///
@@ -517,39 +528,44 @@ GoRouter buildRouter(AuthBloc authBloc) {
               ),
             ],
           ),
-          // 持仓管理（branch 5）：对齐 /debts /receivables 模板。
-          // 列表页 provide HoldingBloc（factory 注册）+ CurrencyBloc（多币种换算）。
-          // ⚠️ 子路由顺序：静态路径(security/performance/goals/trade/new)必须在
-          //    :id 之前(GoRouter 匹配优先级,否则被 :id 捕获)。
+          // 持仓管理（branch 5）：对齐 OD holding 模块侧栏(二级导航)。
+          // ShellRoute(SubMenuShell) 包 4 主页 + :id(详情),侧栏常驻路由感知高亮;
+          // trade/new 是操作 sheet,放 ShellRoute 外(渲染时不带侧栏,context.push 覆盖)。
+          // ⚠️ 静态路径(security/performance/goals/trade/new)在 :id 前(匹配优先级)。
           StatefulShellBranch(
             routes: [
-              GoRoute(
-                path: '/holdings',
-                builder: (_, __) => MultiBlocProvider(
-                  providers: [
-                    BlocProvider<HoldingBloc>(
-                      create: (_) {
-                        final b = HoldingBloc(getIt<HoldingRepository>());
-                        b.add(const LoadHoldingsRequested());
-                        return b;
-                      },
-                    ),
-                    BlocProvider<CurrencyBloc>(
-                      create: (_) {
-                        final b = getIt<CurrencyBloc>();
-                        b.add(const LoadCurrenciesRequested());
-                        b.add(const LoadPreferencesRequested());
-                        return b;
-                      },
-                    ),
-                  ],
-                  child: const HoldingsPage(),
+              ShellRoute(
+                builder: (context, state, child) => SubMenuShell(
+                  items: _holdingNavItems,
+                  child: child,
                 ),
                 routes: [
-                  // 静态子路由(必须在 :id 前)。
                   GoRoute(
-                    path: 'security',
-                    // Security 管理(Task 7):独立 HoldingBloc,进入即拉证券主数据。
+                    path: '/holdings',
+                    builder: (_, __) => MultiBlocProvider(
+                      providers: [
+                        BlocProvider<HoldingBloc>(
+                          create: (_) {
+                            final b = HoldingBloc(getIt<HoldingRepository>());
+                            b.add(const LoadHoldingsRequested());
+                            return b;
+                          },
+                        ),
+                        BlocProvider<CurrencyBloc>(
+                          create: (_) {
+                            final b = getIt<CurrencyBloc>();
+                            b.add(const LoadCurrenciesRequested());
+                            b.add(const LoadPreferencesRequested());
+                            return b;
+                          },
+                        ),
+                      ],
+                      child: const HoldingsPage(),
+                    ),
+                  ),
+                  GoRoute(
+                    path: '/holdings/security',
+                    // Security 管理:独立 HoldingBloc,进入即拉证券主数据。
                     builder: (_, __) => BlocProvider<HoldingBloc>(
                       create: (_) {
                         final b = HoldingBloc(getIt<HoldingRepository>());
@@ -560,9 +576,8 @@ GoRouter buildRouter(AuthBloc authBloc) {
                     ),
                   ),
                   GoRoute(
-                    path: 'performance',
-                    // 收益统计(Task 9 列表数据 + Task 13 收益曲线 PerformanceBloc)。
-                    // PerformanceBloc 进入即拉组合曲线/盈亏明细(initState dispatch)。
+                    path: '/holdings/performance',
+                    // 收益统计:PerformanceBloc 进入即拉组合曲线/盈亏明细。
                     builder: (_, __) => MultiBlocProvider(
                       providers: [
                         BlocProvider<HoldingBloc>(
@@ -588,11 +603,8 @@ GoRouter buildRouter(AuthBloc authBloc) {
                     ),
                   ),
                   GoRoute(
-                    path: 'goals',
-                    // 目标关联(holding-D,Task 11):从 holding 详情进,extra 传
-                    // holding(含 accountId + marketValueCents);goal 区走
-                    // GoalLinkPage.goalRepo.listInvestmentGoals + 客户端 filter
-                    // linked_account=holding.accountId。
+                    path: '/holdings/goals',
+                    // 目标关联:extra 传 holding(含 accountId + marketValueCents)。
                     builder: (_, state) {
                       final holding = state.extra is Map
                           ? (state.extra as Map)['holding'] as Holding?
@@ -616,8 +628,6 @@ GoRouter buildRouter(AuthBloc authBloc) {
                           ),
                         ],
                         child: GoalLinkPage(
-                          // 持仓未传(开发期保护):退化用一个空 holding 占位,UI 仍可
-                          // 渲染(goal 区 loading → 空/数据)。生产路径应恒传 holding。
                           holding: holding ??
                               const Holding(
                                 id: '',
@@ -637,43 +647,8 @@ GoRouter buildRouter(AuthBloc authBloc) {
                     },
                   ),
                   GoRoute(
-                    path: 'trade',
-                    // 交易 Sheet(Task 6,modal/sheet):接收 extra:{type}
-                    // (TradeType.name 预选 buy/sell/dividend/split)。
-                    builder: (_, state) {
-                      final typeArg = state.extra is Map
-                          ? (state.extra as Map)['type'] as String?
-                          : null;
-                      final initialType = TradeType.values.firstWhere(
-                        (t) => t.name == typeArg,
-                        orElse: () => TradeType.buy,
-                      );
-                      return BlocProvider<HoldingBloc>(
-                        create: (_) {
-                          final b = HoldingBloc(getIt<HoldingRepository>());
-                          b.add(const LoadSecuritiesRequested());
-                          return b;
-                        },
-                        child: TradeSheetPage(initialType: initialType),
-                      );
-                    },
-                  ),
-                  GoRoute(
-                    path: 'new',
-                    // FAB「+」(holdings_page)→ trade sheet 默认 buy(对齐 Task 5
-                    // 用的 /holdings/new 路径,映射到创建/买入流程)。
-                    builder: (_, __) => BlocProvider<HoldingBloc>(
-                      create: (_) {
-                        final b = HoldingBloc(getIt<HoldingRepository>());
-                        b.add(const LoadSecuritiesRequested());
-                        return b;
-                      },
-                      child: const TradeSheetPage(),
-                    ),
-                  ),
-                  GoRoute(
-                    path: ':id',
-                    // 详情(Task 8):独立 HoldingBloc,进入即 LoadDetailRequested(id)。
+                    path: '/holdings/:id',
+                    // 详情(Task 8):侧栏高亮「持仓列表」(详情从属列表)。
                     builder: (_, state) => MultiBlocProvider(
                       providers: [
                         BlocProvider<HoldingBloc>(
@@ -697,6 +672,38 @@ GoRouter buildRouter(AuthBloc authBloc) {
                     ),
                   ),
                 ],
+              ),
+              // 操作 sheet(ShellRoute 外,context.push 覆盖,不带侧栏)。
+              GoRoute(
+                path: '/holdings/trade',
+                builder: (_, state) {
+                  final typeArg = state.extra is Map
+                      ? (state.extra as Map)['type'] as String?
+                      : null;
+                  final initialType = TradeType.values.firstWhere(
+                    (t) => t.name == typeArg,
+                    orElse: () => TradeType.buy,
+                  );
+                  return BlocProvider<HoldingBloc>(
+                    create: (_) {
+                      final b = HoldingBloc(getIt<HoldingRepository>());
+                      b.add(const LoadSecuritiesRequested());
+                      return b;
+                    },
+                    child: TradeSheetPage(initialType: initialType),
+                  );
+                },
+              ),
+              GoRoute(
+                path: '/holdings/new',
+                builder: (_, __) => BlocProvider<HoldingBloc>(
+                  create: (_) {
+                    final b = HoldingBloc(getIt<HoldingRepository>());
+                    b.add(const LoadSecuritiesRequested());
+                    return b;
+                  },
+                  child: const TradeSheetPage(),
+                ),
               ),
             ],
           ),
