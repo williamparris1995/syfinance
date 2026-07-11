@@ -24,7 +24,7 @@ import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yucai_client/holding/presentation/pages/security_page.dart';
 
-/// 包一层 GoRouter(HoldingModuleNav 调 GoRouterState.of,需 GoRouter 祖先)。
+/// 包一层 GoRouter(security_page 其他部分仍可能用 GoRouterState.of,保留祖先)。
 Widget _routed(Widget child) => MaterialApp.router(
       routerConfig: GoRouter(
         routes: [

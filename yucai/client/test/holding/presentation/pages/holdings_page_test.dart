@@ -25,7 +25,7 @@ import 'package:yucai_client/holding/presentation/bloc/holding_event.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yucai_client/holding/presentation/pages/holdings_page.dart';
 
-/// 包一层 GoRouter(HoldingModuleNav 调 GoRouterState.of,需 GoRouter 祖先)。
+/// 包一层 GoRouter(holdings_page 其他部分仍可能用 GoRouterState.of,保留祖先)。
 Widget _routed(Widget child) => MaterialApp.router(
       routerConfig: GoRouter(
         routes: [
@@ -92,8 +92,8 @@ Widget _harness(List<Holding> holdings) {
 
 void main() {
   const desktop = Size(1400, 900);
-  // 注:HoldingModuleNav(3 tab)在 ≤430 窄屏横向溢出,此处取 460(仍 <600 mobile
-  // 断点、<1024 堆叠断点)以容纳 nav,不改 StatCard 2×2 / 堆叠断言语义。
+  // 注:窄屏 460(<600 mobile 断点、<1024 堆叠断点)用于触发 StatCard 2×2 堆叠
+  // 与饼图/持仓表堆叠布局,不改断言语义。
   const mobile = Size(460, 844);
 
   final holdings = [
@@ -360,7 +360,7 @@ void main() {
   });
 
   testWidgets('窄屏: 饼图与持仓表堆叠(单列)', (t) async {
-    // 460 宽(窄屏 <1024 → 堆叠):容纳 HoldingModuleNav,避免横向溢出。
+    // 460 宽(窄屏 <1024 → 堆叠):验证饼图与持仓表单列堆叠。
     t.view.physicalSize = const Size(460, 900);
     t.view.devicePixelRatio = 1.0;
     addTearDown(t.view.resetPhysicalSize);

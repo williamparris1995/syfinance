@@ -45,7 +45,6 @@ import 'package:yucai_client/holding/presentation/bloc/holding_state.dart';
 import 'package:yucai_client/holding/presentation/bloc/performance_bloc.dart';
 import 'package:yucai_client/holding/presentation/bloc/performance_event.dart';
 import 'package:yucai_client/holding/presentation/bloc/performance_state.dart';
-import 'package:yucai_client/holding/presentation/widgets/holding_module_nav.dart';
 import 'package:yucai_client/holding/presentation/widgets/holding_pie_chart.dart';
 import 'package:yucai_client/holding/presentation/widgets/perf_curve_chart.dart';
 
@@ -132,7 +131,6 @@ class _PerformancePageState extends State<PerformancePage> {
       ),
       body: Column(
         children: [
-          const HoldingModuleNav(),
           Expanded(
             child: BlocBuilder<HoldingBloc, HoldingState>(
               builder: (context, state) {

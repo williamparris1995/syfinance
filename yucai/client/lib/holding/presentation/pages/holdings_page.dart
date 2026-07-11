@@ -26,7 +26,6 @@ import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_event.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_state.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
-import 'package:yucai_client/holding/presentation/widgets/holding_module_nav.dart';
 import 'package:yucai_client/holding/presentation/widgets/holding_pie_chart.dart';
 import 'package:yucai_client/holding/presentation/widgets/holding_sparkline.dart';
 
@@ -57,7 +56,6 @@ class _HoldingsPageState extends State<HoldingsPage> {
       // 创建入口移至全局 _TopBar(app_shell 路由感知创建按钮 /holdings/new)。
       body: Column(
         children: [
-          const HoldingModuleNav(),
           Expanded(
             child: BlocBuilder<HoldingBloc, HoldingState>(
               builder: (context, state) {

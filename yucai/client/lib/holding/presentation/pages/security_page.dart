@@ -33,7 +33,6 @@ import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_event.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_state.dart';
-import 'package:yucai_client/holding/presentation/widgets/holding_module_nav.dart';
 
 /// Security 主数据管理页。对齐 A-od security-mobile.html。
 ///
@@ -114,7 +113,6 @@ class _SecurityPageState extends State<SecurityPage> {
       ),
       body: Column(
         children: [
-          const HoldingModuleNav(),
           Expanded(
             child: BlocBuilder<HoldingBloc, HoldingState>(
               builder: (context, state) {
