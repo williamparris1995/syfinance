@@ -50,7 +50,10 @@ import 'package:yucai_client/debt/presentation/pages/debts_page.dart';
 import 'package:yucai_client/goal/domain/entities/goal_entity.dart';
 import 'package:yucai_client/goal/domain/repositories/goal_repository.dart';
 import 'package:yucai_client/goal/presentation/pages/goal_list_page.dart';
+import 'package:yucai_client/holding/domain/entities/performance_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
+import 'package:yucai_client/holding/presentation/pages/holding_detail_page.dart';
+import 'package:yucai_client/holding/presentation/pages/trade_sheet_page.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/debt/presentation/pages/receivables_page.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
@@ -190,6 +193,23 @@ void main() {
     // any /holdings navigation doesn't hit an unstubbed call.
     when(() => holdingRepo.listHoldings(accountId: any(named: 'accountId')))
         .thenAnswer((_) async => const dartz.Right([]));
+    // /holdings/trade + /holdings/new routes dispatch LoadSecuritiesRequested
+    // (TradeSheetPage 证券选择器);stub globally so trade/new navigation doesn't
+    // hit an unstubbed listSecurities call.
+    when(() => holdingRepo.listSecurities(type: any(named: 'type')))
+        .thenAnswer((_) async => const dartz.Right([]));
+    // /holdings/:id detail dispatches LoadHoldingCurveRequested →
+    // getHoldingPerformance;stub globally so detail navigation doesn't hit an
+    // unstubbed call (empty curve, page renders loading/error state fine).
+    when(() => holdingRepo.getHoldingPerformance(
+            holdingId: any(named: 'holdingId'),
+            range: any(named: 'range'),
+            baseCurrency: any(named: 'baseCurrency')))
+        .thenAnswer((_) async => const dartz.Right(HoldingPerformance(
+              realizedCents: 0,
+              unrealizedCents: 0,
+              totalCents: 0,
+            )));
     // /budgets branch builder (router.dart) creates BudgetBloc via
     // getIt<BudgetBloc>() (factory, Task 7 @injectable). Register a factory
     // wired to the mocked BudgetRepository (mirrors AccountBloc factory above)
@@ -600,6 +620,71 @@ void main() {
 
     expect(router.routerDelegate.currentConfiguration.uri.toString(),
         '/login');
+  });
+
+  // Regression: /holdings/trade 和 /holdings/new 是 branch 级静态路由(声明在
+  // ShellRoute 前),必须优先于 ShellRoute 内的 /holdings/:id 参数匹配。否则
+  // GoRouter 14.6.1 first-complete-match + 深度优先会把 ShellRoute 先尝试 →
+  // 递归到 /holdings/:id 把 'trade'/'new' 当 :id 吃掉,渲染 HoldingDetailPage
+  // 而非 TradeSheetPage,trade 录入流程整条断。这组测试固化声明顺序。
+  testWidgets(
+      '/holdings/trade resolves to TradeSheetPage (not caught by :id)',
+      (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/holdings/trade');
+    await tester.pumpWidget(app(router, authBloc));
+    // Don't pumpAndSettle: TradeSheetPage._loadSourceAccounts 是 async,在 stripped
+    // harness 里可能持续 schedule。几次 pump 足够 router 解析 + 首帧渲染。
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/holdings/trade');
+    // 关键断言:渲染的是 TradeSheetPage(操作 sheet),而非 HoldingDetailPage。
+    expect(find.byType(TradeSheetPage), findsOneWidget);
+    expect(find.byType(HoldingDetailPage), findsNothing);
+  });
+
+  testWidgets(
+      '/holdings/new resolves to TradeSheetPage (not caught by :id)',
+      (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/holdings/new');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/holdings/new');
+    expect(find.byType(TradeSheetPage), findsOneWidget);
+    expect(find.byType(HoldingDetailPage), findsNothing);
+  });
+
+  testWidgets('/holdings/:id still resolves to HoldingDetailPage '
+      '(param route unaffected by trade/new reorder)', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    final authBloc = _seededAuthBloc();
+    final router = buildRouter(authBloc);
+    router.go('/holdings/abc-123');
+    await tester.pumpWidget(app(router, authBloc));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(),
+        '/holdings/abc-123');
+    // 非保留字的真实 id 仍命中详情页(ShellRoute 内 :id),未被 trade/new 抢占。
+    expect(find.byType(HoldingDetailPage), findsOneWidget);
+    expect(find.byType(TradeSheetPage), findsNothing);
   });
 }
 

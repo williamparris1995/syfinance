@@ -531,9 +531,44 @@ GoRouter buildRouter(AuthBloc authBloc) {
           // 持仓管理（branch 5）：对齐 OD holding 模块侧栏(二级导航)。
           // ShellRoute(SubMenuShell) 包 4 主页 + :id(详情),侧栏常驻路由感知高亮;
           // trade/new 是操作 sheet,放 ShellRoute 外(渲染时不带侧栏,context.push 覆盖)。
-          // ⚠️ 静态路径(security/performance/goals/trade/new)在 :id 前(匹配优先级)。
+          // 声明顺序:trade/new 在 ShellRoute 前(branch 级,静态优先于 ShellRoute 内
+          // /holdings/:id 参数,否则 GoRouter first-complete-match 把 trade/new 当 :id
+          // 捕获);security/performance/goals 在 ShellRoute 内 :id 前(同 list 顺序)。
           StatefulShellBranch(
             routes: [
+              // 操作 sheet(声明在 ShellRoute 前 → 静态优先于 /holdings/:id 参数;
+              // 渲染时不带 SubMenuShell 侧栏,context.push 覆盖)。
+              GoRoute(
+                path: '/holdings/trade',
+                builder: (_, state) {
+                  final typeArg = state.extra is Map
+                      ? (state.extra as Map)['type'] as String?
+                      : null;
+                  final initialType = TradeType.values.firstWhere(
+                    (t) => t.name == typeArg,
+                    orElse: () => TradeType.buy,
+                  );
+                  return BlocProvider<HoldingBloc>(
+                    create: (_) {
+                      final b = HoldingBloc(getIt<HoldingRepository>());
+                      b.add(const LoadSecuritiesRequested());
+                      return b;
+                    },
+                    child: TradeSheetPage(initialType: initialType),
+                  );
+                },
+              ),
+              GoRoute(
+                path: '/holdings/new',
+                builder: (_, __) => BlocProvider<HoldingBloc>(
+                  create: (_) {
+                    final b = HoldingBloc(getIt<HoldingRepository>());
+                    b.add(const LoadSecuritiesRequested());
+                    return b;
+                  },
+                  child: const TradeSheetPage(),
+                ),
+              ),
               ShellRoute(
                 builder: (context, state, child) => SubMenuShell(
                   items: _holdingNavItems,
@@ -672,38 +707,6 @@ GoRouter buildRouter(AuthBloc authBloc) {
                     ),
                   ),
                 ],
-              ),
-              // 操作 sheet(ShellRoute 外,context.push 覆盖,不带侧栏)。
-              GoRoute(
-                path: '/holdings/trade',
-                builder: (_, state) {
-                  final typeArg = state.extra is Map
-                      ? (state.extra as Map)['type'] as String?
-                      : null;
-                  final initialType = TradeType.values.firstWhere(
-                    (t) => t.name == typeArg,
-                    orElse: () => TradeType.buy,
-                  );
-                  return BlocProvider<HoldingBloc>(
-                    create: (_) {
-                      final b = HoldingBloc(getIt<HoldingRepository>());
-                      b.add(const LoadSecuritiesRequested());
-                      return b;
-                    },
-                    child: TradeSheetPage(initialType: initialType),
-                  );
-                },
-              ),
-              GoRoute(
-                path: '/holdings/new',
-                builder: (_, __) => BlocProvider<HoldingBloc>(
-                  create: (_) {
-                    final b = HoldingBloc(getIt<HoldingRepository>());
-                    b.add(const LoadSecuritiesRequested());
-                    return b;
-                  },
-                  child: const TradeSheetPage(),
-                ),
               ),
             ],
           ),
