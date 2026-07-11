@@ -8,8 +8,12 @@
 //   - D-goal account 级:goal.linked_account_id 关联 investment account,
 //     progress = Σ 该账户下 holdings mv(server 算 current_amount_cents)。
 //
-// 构造:从 holding 详情进,接收 holding(含 accountId + marketValueCents,供
-//   贡献占比计算)。goalRepo(HoldingRepository)注入便于 widget test。
+// 构造两条入口:
+//   - holding 详情 push extra(有效 holding,accountId 非空)→ filter linked_account,
+//     显「持仓市值 vs 目标额 · SYMBOL」+ 贡献占比 + 同账户持仓 picker。
+//   - sidebar context.go('/holdings/goals') 无 extra(router 兜底空 Holding,
+//     accountId='')→ 不 filter,显全部投资目标(跨账户总览),通用 header,
+//     无贡献占比 / picker。goalRepo(HoldingRepository)注入便于 widget test。
 //
 // 对齐 A-od 设计源 goal-link-{desktop,tablet,mobile}.html:
 //   ① 概览头(达成统计:总数 / 超前(≥100%) / 持平(80-100%) / 落后(<80%),3 列紧凑)
@@ -64,6 +68,12 @@ class GoalLinkPage extends StatefulWidget {
 
 class _GoalLinkPageState extends State<GoalLinkPage> {
   late Future<Either<Failure, List<GoalView>>> _goalsFuture;
+
+  /// holding 是否有效(accountId 非空)。
+  /// 有效(从 holding 详情 push extra)→ filter linked_account == holding.accountId;
+  /// 空(从 sidebar context.go('/holdings/goals') 无 extra,router 兜底空 Holding)
+  ///   → 不 filter,显示全部投资目标(跨账户总览),header 用通用标题。
+  bool get _hasHolding => widget.holding.accountId.isNotEmpty;
 
   @override
   void initState() {
@@ -134,9 +144,12 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
         // ① + ② goal 区(FutureBuilder 接真)。
         _goalsFutureRegion(),
         const SizedBox(height: 12),
-        // ③ 关联 holding 选择(同账户 holdings 渲染)。
-        _holdingPickerRegion(holdings),
-        const SizedBox(height: 14),
+        // ③ 关联 holding 选择(仅有效 holding:同账户 holdings 渲染;
+        //   跨账户总览无 account 上下文,跳过)。
+        if (_hasHolding) ...[
+          _holdingPickerRegion(holdings),
+          const SizedBox(height: 14),
+        ],
         // ④ 实现说明(account 级 goal + 贡献口径)。
         _implNote(),
       ],
@@ -144,6 +157,8 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
   }
 
   /// 页面顶部说明(对齐 A-od topbar sub:持仓市值 vs 目标额)。
+  /// 空 holding(从 sidebar 进)→ 通用标题「投资目标(跨账户总览)」,
+  /// 不显具体 securitySymbol(空 symbol 会让 header 显「· 」占位)。
   Widget _header() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -152,7 +167,9 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
         const SizedBox(width: 6),
         Expanded(
           child: Text(
-            '持仓市值 vs 目标额 · ${widget.holding.securitySymbol}',
+            _hasHolding
+                ? '持仓市值 vs 目标额 · ${widget.holding.securitySymbol}'
+                : '投资目标(跨账户总览)',
             style: const TextStyle(fontSize: 12.5, color: AppColors.muted),
           ),
         ),
@@ -175,10 +192,14 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
         return snapshot.data!.fold(
           (f) => _goalError(f.displayMessage),
           (allInvestmentGoals) {
-            // 客户端 filter linked_account == holding.accountId。
-            final goals = allInvestmentGoals
-                .where((g) => g.linkedAccountId == widget.holding.accountId)
-                .toList();
+            // 有效 holding(accountId 非空)→ 客户端 filter linked_account;
+            // 空 holding(从 sidebar 进)→ 不 filter,显示全部投资目标(跨账户)。
+            final goals = _hasHolding
+                ? allInvestmentGoals
+                    .where(
+                        (g) => g.linkedAccountId == widget.holding.accountId)
+                    .toList()
+                : allInvestmentGoals;
             if (goals.isEmpty) {
               return _goalEmptyCard();
             }
@@ -234,8 +255,11 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
     );
   }
 
-  /// goal 列表空态(该账户暂无投资目标)。
+  /// goal 列表空态。有效 holding → 「该账户暂无投资目标」;
+  /// 空 holding(跨账户)→ 「暂无投资目标」。
   Widget _goalEmptyCard() {
+    final title = _hasHolding ? '该账户暂无投资目标' : '暂无投资目标';
+    final hint = _hasHolding ? '在目标页新建目标并关联本投资账户' : '在目标页新建目标并关联投资账户';
     return DataCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Column(
@@ -251,28 +275,27 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
               border:
                   Border.fromBorderSide(BorderSide(color: AppColors.border)),
             ),
-            child: const Center(
+            child: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(LucideIcons.inbox,
+                  const Icon(LucideIcons.inbox,
                       key: ValueKey('goalEmptyIcon'),
                       size: 28,
                       color: AppColors.muted),
-                  SizedBox(height: 8),
-                  Text('该账户暂无投资目标',
-                      key: ValueKey('goalEmptyTitle'),
-                      style: TextStyle(
+                  const SizedBox(height: 8),
+                  Text(title,
+                      key: const ValueKey('goalEmptyTitle'),
+                      style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: AppColors.fg)),
-                  SizedBox(height: 4),
-                  Text(
-                    '在目标页新建目标并关联本投资账户',
-                    key: ValueKey('goalEmptyHint'),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 11.5, color: AppColors.muted),
-                  ),
+                  const SizedBox(height: 4),
+                  Text(hint,
+                      key: const ValueKey('goalEmptyHint'),
+                      textAlign: TextAlign.center,
+                      style:
+                          const TextStyle(fontSize: 11.5, color: AppColors.muted)),
                 ],
               ),
             ),
@@ -522,38 +545,44 @@ class _GoalLinkPageState extends State<GoalLinkPage> {
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          // 该 holding 贡献占比。
-          Row(
-            children: [
-              const Icon(LucideIcons.pieChart, size: 11, color: AppColors.muted),
-              const SizedBox(width: 4),
-              Text('${widget.holding.securitySymbol} 贡献 ',
-                  style: const TextStyle(
-                      fontSize: 10.5, color: AppColors.muted)),
-              Text('$contributionPct%',
-                  key: ValueKey('goalRowContribution-${g.id}'),
-                  style: const TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.accent)),
-              const SizedBox(width: 6),
-              if (g.isCompleted)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: AppColors.positive.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Text('已完成',
-                      style: TextStyle(
-                          fontSize: 9.5,
+          // 该 holding 贡献占比(仅有效 holding;跨账户总览无单 holding 贡献口径,
+          // 仍保留「已完成」标记)。
+          if (_hasHolding || g.isCompleted) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                if (_hasHolding) ...[
+                  const Icon(LucideIcons.pieChart,
+                      size: 11, color: AppColors.muted),
+                  const SizedBox(width: 4),
+                  Text('${widget.holding.securitySymbol} 贡献 ',
+                      style: const TextStyle(
+                          fontSize: 10.5, color: AppColors.muted)),
+                  Text('$contributionPct%',
+                      key: ValueKey('goalRowContribution-${g.id}'),
+                      style: const TextStyle(
+                          fontSize: 10.5,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.positive)),
-                ),
-            ],
-          ),
+                          color: AppColors.accent)),
+                  const SizedBox(width: 6),
+                ],
+                if (g.isCompleted)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: AppColors.positive.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text('已完成',
+                        style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.positive)),
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
     );

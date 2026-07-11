@@ -220,6 +220,88 @@ void main() {
     expect(find.byKey(const ValueKey('goalRow-g1')), findsNothing);
   });
 
+  // sidebar 入口:context.go('/holdings/goals') 无 extra → router 兜底空 Holding
+  // (accountId='')。此时不应 filter,显示全部投资目标(跨账户总览)。
+  testWidgets(
+      'empty holding (sidebar entry, accountId="") → shows ALL goals across accounts, no filter',
+      (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    when(() => repo.listInvestmentGoals()).thenAnswer((_) async => dartz.Right([
+          _goal(id: 'g1', name: '退休金', linkedAccountId: 'a1', progressPct: 60.0),
+          _goal(id: 'g2', name: '换车基金', linkedAccountId: 'a2', progressPct: 90.0),
+          _goal(id: 'g3', name: '教育金', linkedAccountId: 'a3', progressPct: 110.0),
+        ]));
+    // 空 holding(accountId='')→ 同账户 picker 无意义,但 repo 仍需 stub。
+    _stubHoldings(repo, [_holding(accountId: 'a1')]);
+
+    // 镜像 router.dart 兜底空 Holding(accountId='', securitySymbol='')。
+    const emptyHolding = Holding(
+      id: '',
+      accountId: '',
+      securityId: '',
+      securityName: '',
+      securitySymbol: '',
+      quantity: 0,
+      avgCostCents: 0,
+      marketValueCents: 0,
+      unrealizedPnlCents: 0,
+      version: 0,
+    );
+
+    await t.pumpWidget(
+        _harness(repo: repo, holding: emptyHolding));
+    await t.pumpAndSettle();
+
+    // 不 filter:3 个跨账户 goal 全部渲染。
+    expect(find.byKey(const ValueKey('goalRow-g1')), findsOneWidget);
+    expect(find.byKey(const ValueKey('goalRow-g2')), findsOneWidget);
+    expect(find.byKey(const ValueKey('goalRow-g3')), findsOneWidget);
+    // 概览头总数 = 3。
+    expect(
+        find.descendant(
+            of: find.byKey(const ValueKey('goalOverviewTotal')),
+            matching: find.text('3')),
+        findsOneWidget);
+    // 通用 header(不显具体 securitySymbol 的「· 」占位)。
+    expect(find.text('投资目标(跨账户总览)'), findsOneWidget);
+    // 跨账户总览无贡献口径 → 不显贡献占比 key。
+    expect(find.byKey(const ValueKey('goalRowContribution-g1')), findsNothing);
+    // 跨账户无 account 上下文 → 不显同账户持仓 picker。
+    expect(find.text('同账户持仓'), findsNothing);
+  });
+
+  testWidgets(
+      'empty holding (sidebar entry) with no goals → generic empty state (no 该账户)',
+      (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    when(() => repo.listInvestmentGoals())
+        .thenAnswer((_) async => const dartz.Right([]));
+    _stubHoldings(repo, const []);
+
+    const emptyHolding = Holding(
+      id: '',
+      accountId: '',
+      securityId: '',
+      securityName: '',
+      securitySymbol: '',
+      quantity: 0,
+      avgCostCents: 0,
+      marketValueCents: 0,
+      unrealizedPnlCents: 0,
+      version: 0,
+    );
+
+    await t.pumpWidget(_harness(repo: repo, holding: emptyHolding));
+    await t.pumpAndSettle();
+
+    // 跨账户空态:通用文案,不显「该账户」。
+    expect(find.text('暂无投资目标'), findsOneWidget);
+    expect(find.text('该账户暂无投资目标'), findsNothing);
+    expect(find.byKey(const ValueKey('goalEmptyIcon')), findsOneWidget);
+  });
+
   testWidgets('Left(failure) → error state with displayMessage', (t) async {
     await setViewport(t);
     final repo = _MockHoldingRepo();

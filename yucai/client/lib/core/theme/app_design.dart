@@ -23,9 +23,15 @@ class AppColors {
   // 侧边栏深色体系
   static const sidebar = Color(0xFF1C1E21);
   static const sidebarFg = Color(0xFFB8B5AD); // 侧栏次级文字
-  static const sidebarActive = Color(0xFF2A2D31); // 激活项背景
+  static const sidebarActive = Color(0xFF2A2D31); // 激活项背景(全局侧栏)
   static const sidebarHover = Color(0xFF26292C);
   static const sidebarDivider = Color(0xFF33363A);
+
+  // 子侧栏(模块内二级导航 SubMenuShell)深色体系。
+  // subSidebar 略浅于全局 sidebar(#1C1E21,每通道 +0x06 同系区分);
+  // subSidebarActive 比 subSidebar 更浅 → selected tile 凸起(避免选中反相)。
+  static const subSidebar = Color(0xFF222427);
+  static const subSidebarActive = Color(0xFF2C2F33);
 }
 
 /// 间距体系：xs:6 sm:12 md:20 lg:28 xl:40。

@@ -5,7 +5,8 @@
 // items 配置驱动,各模块按需复用(holding 首批接入)。
 // 对齐 Apple HIG「sidebar within a tab」(≤2 层:全局 L1 + 模块 L2)。
 //
-// 视觉:方案 A 统一深色 — 子侧栏 #2C2C31(略浅于全局 #26262a 同系区分),
+// 视觉:方案 A 统一深色 — 子侧栏 AppColors.subSidebar(全局 sidebar #1C1E21 略浅,
+// 同系区分);selected tile 用 AppColors.subSidebarActive(更浅 → 凸起,避免选中反相)。
 // 高亮 left-border accent + 选中底色(复用 app_shell._NavItemTile 模式)。
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -82,7 +83,7 @@ class SubMenuSidebar extends StatelessWidget {
     final groups = <String?>[...{for (final i in items) i.group}];
     return Container(
       width: 180,
-      color: const Color(0xFF2C2C31), // 方案 A:略浅于全局侧栏 #26262a,同系区分
+      color: AppColors.subSidebar, // 方案 A:全局 sidebar(#1C1E21)略浅,同系区分
       child: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         children: [
@@ -130,7 +131,7 @@ class _SidebarTileState extends State<_SidebarTile> {
   Widget build(BuildContext context) {
     final selected = widget.selected;
     final bg = selected
-        ? AppColors.sidebarActive
+        ? AppColors.subSidebarActive
         : (_hover ? AppColors.sidebarHover : Colors.transparent);
     final fg = selected ? Colors.white : (_hover ? Colors.white : AppColors.sidebarFg);
     final iconColor =
