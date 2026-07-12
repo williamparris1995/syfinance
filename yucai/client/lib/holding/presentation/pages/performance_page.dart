@@ -45,6 +45,7 @@ import 'package:yucai_client/holding/presentation/bloc/holding_state.dart';
 import 'package:yucai_client/holding/presentation/bloc/performance_bloc.dart';
 import 'package:yucai_client/holding/presentation/bloc/performance_event.dart';
 import 'package:yucai_client/holding/presentation/bloc/performance_state.dart';
+import 'package:yucai_client/holding/presentation/widgets/holding_module_tabs.dart';
 import 'package:yucai_client/holding/presentation/widgets/holding_pie_chart.dart';
 import 'package:yucai_client/holding/presentation/widgets/perf_curve_chart.dart';
 
@@ -123,14 +124,11 @@ class _PerformancePageState extends State<PerformancePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.fg,
-        elevation: 0,
-        title: const Text('收益统计'),
-      ),
       body: Column(
         children: [
+          // 模块内 tab(Task 2 HoldingModuleTabs,收益统计 active 金下划线)。
+          // 固定于内容区顶部常驻,不随滚动消失(对齐 Task 3-4 holdings/security 模式)。
+          const HoldingModuleTabs(),
           Expanded(
             child: BlocBuilder<HoldingBloc, HoldingState>(
               builder: (context, state) {
@@ -177,8 +175,10 @@ class _PerformancePageState extends State<PerformancePage> {
           ? const EdgeInsets.fromLTRB(16, 14, 16, 24)
           : const EdgeInsets.fromLTRB(36, 24, 36, 24),
       children: [
-        _perfHeader(state, currency),
-        const SizedBox(height: 16),
+        _pageHead(state, currency),
+        const SizedBox(height: 18),
+        _statRow(state, currency, perf),
+        const SizedBox(height: 18),
         _curveCard(state, currency, perf),
         const SizedBox(height: 16),
         _splitCard(state, currency, perf),
@@ -194,83 +194,201 @@ class _PerformancePageState extends State<PerformancePage> {
     );
   }
 
-  // ───────────────────────── ① 概览头 ─────────────────────────
+  // ───────────────────────── ① 页头(page-head + 4-stat 行)─────────────────────────
 
-  /// 总收益(CNY)+ 收益率 pill + 成本/市值 sub(对齐 A-od perf-header)。
-  Widget _perfHeader(HoldingLoaded state, String currency) {
+  /// 页头(对齐 OD v2 .page-head):h1 衬线「收益统计」+ sub
+  /// 「总市值 ¥X · 总盈亏 ±¥X (±X%) · 基准 沪深300」。
+  /// 大数字下放 _statRow 4 卡;此处仅标题 + 概要 sub(对齐 OD .page-title)。
+  Widget _pageHead(HoldingLoaded state, String currency) {
     final unrealized = _sumUnrealized(state.holdings);
     final up = unrealized >= 0;
     final totalCost = state.summary.totalCostCents;
     final totalMkt = state.summary.totalMarketValueCents;
     // 收益率 = unrealized / totalCost(成本为 0 → 0%)。
     final pnlPct = totalCost > 0 ? (unrealized / totalCost) * 100 : 0.0;
-    return DataCard(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+    final pnlColor = up ? AppColors.positive : AppColors.negative;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // h1 衬线「收益统计」(对齐 OD .page-title h1 font-display serif 26px)。
+        const Text(
+          '收益统计',
+          key: ValueKey('perfHeaderLabel'),
+          style: TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w600,
+            fontFamily: AppTypography.displayFamily,
+            fontFamilyFallback: AppTypography.displayFallback,
+            color: AppColors.fg,
+            height: 1.15,
+            letterSpacing: 0.2,
+          ),
+        ),
+        const SizedBox(height: 6),
+        // sub:总市值 · 总盈亏 ±¥X (±X%) · 基准 沪深300(对齐 OD .page-title .sub;
+        // b 元素加粗 fg,盈亏值/pct 染绿红)。Wrap 兼容窄屏折行。
+        DefaultTextStyle(
+          style: const TextStyle(
+              fontSize: 13, color: AppColors.muted, height: 1.6),
+          child: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            runSpacing: 4,
+            children: [
+              const Text('总市值 '),
+              Text(
+                _fmtRaw(totalMkt, currency),
+                key: const ValueKey('perfHeaderMv'),
+                style: const TextStyle(
+                    color: AppColors.fg,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: AppTypography.tabularFigures),
+              ),
+              const Text('   ·   总盈亏 '),
+              Text(
+                _fmtSigned(unrealized, currency),
+                key: const ValueKey('perfTotalPnl'),
+                style: TextStyle(
+                    color: pnlColor,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: AppTypography.tabularFigures),
+              ),
+              const Text(' ('),
+              Text(
+                '${pnlPct >= 0 ? '+' : ''}${pnlPct.toStringAsFixed(2)}%',
+                key: const ValueKey('perfPnlPct'),
+                style: TextStyle(
+                    color: pnlColor,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: AppTypography.tabularFigures),
+              ),
+              const Text(')   ·   基准 沪深300'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 4 统计卡(对齐 OD v2 .stat-row):总市值 / 总成本 / 总盈亏(色) / 年化(中性)。
+  /// 盈亏色仅「总盈亏」值与 delta;年化计数中性(brief「年化计数中性」→ fg,不染盈亏色)。
+  Widget _statRow(HoldingLoaded state, String currency, PerformanceState perf) {
+    final unrealized = _sumUnrealized(state.holdings);
+    final up = unrealized >= 0;
+    final pnlColor = up ? AppColors.positive : AppColors.negative;
+    final totalCost = state.summary.totalCostCents;
+    final totalMkt = state.summary.totalMarketValueCents;
+    final pnlPct = totalCost > 0 ? (unrealized / totalCost) * 100 : 0.0;
+    final loaded = perf is PerformanceLoaded ? perf.performance : null;
+    final hasAnnualized = loaded != null && loaded.annualizedPct != 0;
+    return LayoutBuilder(
+      builder: (ctx, c) {
+        final isMobile = c.maxWidth < 600;
+        final tiles = <Widget>[
+          _statTile(
+            key: const ValueKey('perfStatMv'),
+            label: '总市值',
+            value: _fmtRaw(totalMkt, currency),
+            delta: '持仓市值合计',
+          ),
+          _statTile(
+            key: const ValueKey('perfStatCost'),
+            label: '总成本',
+            value: _fmtRaw(totalCost, currency),
+            delta: '持仓投入合计',
+          ),
+          _statTile(
+            key: const ValueKey('perfStatPnl'),
+            label: '总盈亏',
+            value: _fmtSigned(unrealized, currency),
+            valueColor: pnlColor,
+            delta: '${pnlPct >= 0 ? '+' : ''}${pnlPct.toStringAsFixed(2)}%',
+            deltaColor: pnlColor,
+          ),
+          _statTile(
+            key: const ValueKey('perfStatAnnual'),
+            label: '年化收益',
+            value: hasAnnualized
+                ? '${loaded.annualizedPct >= 0 ? '+' : ''}${loaded.annualizedPct.toStringAsFixed(1)}%'
+                : '⏳',
+            // 年化计数中性(brief):不染盈亏色,用 fg(有数据)/ muted(⏳)。
+            valueColor: hasAnnualized ? AppColors.fg : AppColors.muted,
+            delta: hasAnnualized
+                ? '累计 ${pnlPct >= 0 ? '+' : ''}${pnlPct.toStringAsFixed(1)}%'
+                : '⏳C 待后端',
+          ),
+        ];
+        if (isMobile) {
+          // 窄屏 2×2(对齐 OD 移动端 stat-row 折行)。
+          return Column(
+            children: [
+              for (var i = 0; i < tiles.length; i += 2) ...[
                 Row(
                   children: [
-                    const Icon(LucideIcons.trendingUp,
-                        size: 14, color: AppColors.muted),
-                    const SizedBox(width: 5),
-                    Text('总收益（$currency）',
-                        key: const ValueKey('perfHeaderLabel'),
-                        style: const TextStyle(
-                            fontSize: 12, color: AppColors.muted)),
+                    Expanded(child: tiles[i]),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(child: tiles[i + 1]),
                   ],
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  _fmtSigned(unrealized, currency),
-                  key: const ValueKey('perfTotalPnl'),
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w600,
-                    color: up ? AppColors.positive : AppColors.negative,
-                    fontFeatures: AppTypography.tabularFigures,
-                    fontFamily: AppTypography.displayFamily,
-                    fontFamilyFallback: AppTypography.displayFallback,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '成本 ${_fmtRaw(totalCost, currency)} · 市值 ${_fmtRaw(totalMkt, currency)}',
-                  key: const ValueKey('perfHeaderSub'),
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.muted),
-                ),
+                if (i + 2 < tiles.length)
+                  const SizedBox(height: AppSpacing.sm),
               ],
+            ],
+          );
+        }
+        return Row(
+          children: [
+            for (var i = 0; i < tiles.length; i++) ...[
+              Expanded(child: tiles[i]),
+              if (i < tiles.length - 1) const SizedBox(width: AppSpacing.sm),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  /// 单统计卡(对齐 OD .stat:label 12px muted / value 22px mono tabular /
+  /// delta 12px)。FittedBox 保证窄屏长金额不溢出。
+  Widget _statTile({
+    required Key key,
+    required String label,
+    required String value,
+    required String delta,
+    Color? valueColor,
+    Color? deltaColor,
+  }) {
+    return DataCard(
+      key: key,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label,
+              style:
+                  const TextStyle(fontSize: 12, color: AppColors.muted)),
+          const SizedBox(height: 7),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.3,
+                color: valueColor ?? AppColors.fg,
+                fontFeatures: AppTypography.tabularFigures,
+              ),
             ),
           ),
-          const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: (up ? AppColors.positive : AppColors.negative)
-                  .withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(9999),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(up ? LucideIcons.trendingUp : LucideIcons.trendingDown,
-                    size: 14,
-                    color: up ? AppColors.positive : AppColors.negative),
-                const SizedBox(width: 4),
-                Text(
-                  '${pnlPct >= 0 ? '+' : ''}${pnlPct.toStringAsFixed(2)}%',
-                  key: const ValueKey('perfPnlPct'),
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: up ? AppColors.positive : AppColors.negative,
-                      fontFeatures: AppTypography.tabularFigures),
-                ),
-              ],
+          const SizedBox(height: 5),
+          Text(
+            delta,
+            style: TextStyle(
+              fontSize: 12,
+              color: deltaColor ?? AppColors.muted,
+              fontFeatures: AppTypography.tabularFigures,
             ),
           ),
         ],

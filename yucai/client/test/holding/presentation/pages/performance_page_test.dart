@@ -145,6 +145,24 @@ void main() {
     addTearDown(t.view.resetDevicePixelRatio);
   }
 
+  // Task 5:页内 tab(HoldingModuleTabs)常驻顶部,「收益统计」当前 active。
+  testWidgets('Task 5: renders HoldingModuleTabs with 收益统计 active', (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    _stubHoldings(repo, [_holding()]);
+    _stubPerfEmpty(repo);
+
+    await t.pumpWidget(_harness(repo: repo));
+    await t.pumpAndSettle();
+
+    // 4 个 tab 文案均渲染(横向 tab 常驻顶部)。
+    expect(find.text('持仓列表'), findsOneWidget);
+    expect(find.text('Security 管理'), findsOneWidget);
+    // 「收益统计」既是 tab 项(当前 active)又是 page-head h1 → findsNWidgets(2)。
+    expect(find.text('收益统计'), findsNWidgets(2));
+    expect(find.text('投资目标'), findsOneWidget);
+  });
+
   testWidgets('renders overview header with summed unrealized + pct',
       (t) async {
     await setViewport(t);
