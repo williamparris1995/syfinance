@@ -490,4 +490,67 @@ void main() {
     expect(find.byKey(const ValueKey('benchmarkMiniBar')), findsOneWidget);
     expect(find.textContaining('超额'), findsNothing);
   });
+
+  // Task 7 XIRR:annualizedPct 非空 → 渲染全期 XIRR 数值 + 区间 XIRR 副标注。
+  testWidgets(
+      'Task 7: renders full + range XIRR when annualizedPct non-null', (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    _stubHoldings(repo, [_holding(unrealizedPnlCents: 250000)]);
+    when(() => repo.getPortfolioPerformance(
+          range: any(named: 'range'),
+          accountId: any(named: 'accountId'),
+          includeBenchmark: any(named: 'includeBenchmark'),
+          baseCurrency: any(named: 'baseCurrency'),
+        )).thenAnswer((_) async => dartz.Right(PortfolioPerformance(
+              realizedCents: 0,
+              unrealizedCents: 0,
+              totalCents: 0,
+              annualizedPct: 8.5,
+              rangeAnnualizedPct: 12.3,
+            )));
+
+    await t.pumpWidget(_harness(repo: repo));
+    await t.pumpAndSettle();
+
+    // 全期 XIRR +8.5%(annualValue key 节点)。
+    expect(t.widget<Text>(find.byKey(const ValueKey('annualValue'))).data,
+        '+8.5%');
+    // 区间 XIRR 副标注渲染:含「区间」+「+12.3%」。
+    expect(find.byKey(const ValueKey('annualRangeSub')), findsOneWidget);
+    expect(
+        t.widget<Text>(find.byKey(const ValueKey('annualRangeSub'))).data,
+        contains('12.3%'));
+    expect(
+        t.widget<Text>(find.byKey(const ValueKey('annualRangeSub'))).data,
+        contains('区间'));
+  });
+
+  // Task 7 XIRR 降级:annualizedPct null → annualValue 显「—」,无区间副标注。
+  testWidgets('Task 7: renders — when annualizedPct null (degraded)', (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    _stubHoldings(repo, [_holding(unrealizedPnlCents: 250000)]);
+    when(() => repo.getPortfolioPerformance(
+          range: any(named: 'range'),
+          accountId: any(named: 'accountId'),
+          includeBenchmark: any(named: 'includeBenchmark'),
+          baseCurrency: any(named: 'baseCurrency'),
+        )).thenAnswer((_) async => const dartz.Right(PortfolioPerformance(
+              realizedCents: 0,
+              unrealizedCents: 0,
+              totalCents: 0,
+              annualizedPct: null,
+            )));
+
+    await t.pumpWidget(_harness(repo: repo));
+    await t.pumpAndSettle();
+
+    // null → annualValue 显「—」(降级),非数字。
+    expect(t.widget<Text>(find.byKey(const ValueKey('annualValue'))).data, '—');
+    // 区间副标注不渲染(因 rangeAnnualizedPct 亦 null)。
+    expect(find.byKey(const ValueKey('annualRangeSub')), findsNothing);
+    // bench-mini 亦不渲染(因 annualizedPct null,无对比基线)。
+    expect(find.byKey(const ValueKey('benchmarkMiniBar')), findsNothing);
+  });
 }

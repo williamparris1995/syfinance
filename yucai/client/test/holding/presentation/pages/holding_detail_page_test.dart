@@ -133,11 +133,14 @@ void _stubHolding(_MockHoldingRepo repo, Holding holding) {
 /// Task 13:曲线 stub。默认空(HoldingPerformance 空曲线)—— detail 页
 /// LoadHoldingCurveRequested 在 initState 触发,需 stub 否则 MissingDummyError。
 /// [points] / [realizedCents] 非空时模拟 server 真数据。
+/// [annualizedPct] / [rangeAnnualizedPct] Task 7 XIRR(全期/区间,可空)。
 /// 含 baseCurrency named param(Task 12 D-currency;stub 用 any(named:) 兼容)。
 void _stubCurve(
   _MockHoldingRepo repo, {
   List<PerfPoint> points = const [],
   int realizedCents = 0,
+  double? annualizedPct,
+  double? rangeAnnualizedPct,
 }) {
   when(() => repo.getHoldingPerformance(
         holdingId: any(named: 'holdingId'),
@@ -148,6 +151,8 @@ void _stubCurve(
         realizedCents: realizedCents,
         unrealizedCents: 0,
         totalCents: realizedCents,
+        annualizedPct: annualizedPct,
+        rangeAnnualizedPct: rangeAnnualizedPct,
       )));
 }
 
@@ -179,8 +184,10 @@ void main() {
   });
 
   // 高视口:desktop 表 + sticky action bar 全可见。
+  // Task 7:1600 → 2400(XIRR 卡加入后 content 变长,goal card 顶部在 1600
+  // 视口下被 sticky action bar 遮挡,tap 失败)。
   Future<void> setViewport(WidgetTester t) async {
-    t.view.physicalSize = const Size(1200, 1600);
+    t.view.physicalSize = const Size(1200, 2400);
     t.view.devicePixelRatio = 1.0;
     addTearDown(t.view.resetPhysicalSize);
     addTearDown(t.view.resetDevicePixelRatio);
@@ -497,5 +504,57 @@ void main() {
           range: any(named: 'range'),
           baseCurrency: '',
         ));
+  });
+
+  // Task 7 XIRR:detail 曲线 foot 区附 XIRR 行(全期 + 区间),null → 「—」。
+  testWidgets(
+      'Task 7: detail renders XIRR row (full + range) when annualizedPct non-null',
+      (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    final holding = _holding();
+    _stubHolding(repo, holding);
+    _stubCurve(repo,
+        annualizedPct: 8.5,
+        rangeAnnualizedPct: 12.3,
+        points: [
+          PerfPoint(time: DateTime(2026, 6, 1), value: 100),
+          PerfPoint(time: DateTime(2026, 6, 30), value: 120),
+        ]);
+    when(() => repo.listHoldingTransactions(
+          accountId: any(named: 'accountId'),
+          securityId: any(named: 'securityId'),
+        )).thenAnswer((_) async => dartz.Right(_trades));
+
+    await t.pumpWidget(_harness(repo: repo, holding: holding));
+    await t.pumpAndSettle();
+
+    // XIRR 行容器渲染 + 全期数值 + 区间数值。
+    expect(find.byKey(const ValueKey('detailXirrCard')), findsOneWidget);
+    expect(find.textContaining('8.5%'), findsWidgets);
+    expect(find.textContaining('12.3%'), findsOneWidget);
+  });
+
+  testWidgets('Task 7: detail shows — when holdingAnnualizedPct null (degraded)',
+      (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    final holding = _holding();
+    _stubHolding(repo, holding);
+    _stubCurve(repo); // 默认 annualizedPct/rangeAnnualizedPct null
+    when(() => repo.listHoldingTransactions(
+          accountId: any(named: 'accountId'),
+          securityId: any(named: 'securityId'),
+        )).thenAnswer((_) async => dartz.Right(_trades));
+
+    await t.pumpWidget(_harness(repo: repo, holding: holding));
+    await t.pumpAndSettle();
+
+    // XIRR 卡仍渲染但数值显「—」(null 降级)。
+    expect(find.byKey(const ValueKey('detailXirrCard')), findsOneWidget);
+    expect(t.widget<Text>(find.byKey(const ValueKey('detailXirrFull'))).data,
+        '—');
+    expect(t.widget<Text>(find.byKey(const ValueKey('detailXirrRange'))).data,
+        '—');
   });
 }

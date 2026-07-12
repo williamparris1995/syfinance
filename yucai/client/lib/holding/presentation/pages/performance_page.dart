@@ -279,7 +279,8 @@ class _PerformancePageState extends State<PerformancePage> {
     final totalMkt = state.summary.totalMarketValueCents;
     final pnlPct = totalCost > 0 ? (unrealized / totalCost) * 100 : 0.0;
     final loaded = perf is PerformanceLoaded ? perf.performance : null;
-    final hasAnnualized = loaded != null && loaded.annualizedPct != 0;
+    // Task 7:年化降级信号现为 null(非 0);旧 `!= 0` 把缺数据的 0 误判成有效。
+    final hasAnnualized = loaded != null && loaded.annualizedPct != null;
     return LayoutBuilder(
       builder: (ctx, c) {
         final isMobile = c.maxWidth < 600;
@@ -308,7 +309,7 @@ class _PerformancePageState extends State<PerformancePage> {
             key: const ValueKey('perfStatAnnual'),
             label: '年化收益',
             value: hasAnnualized
-                ? '${loaded.annualizedPct >= 0 ? '+' : ''}${loaded.annualizedPct.toStringAsFixed(1)}%'
+                ? '${loaded.annualizedPct! >= 0 ? '+' : ''}${loaded.annualizedPct!.toStringAsFixed(1)}%'
                 : '⏳',
             // 年化计数中性(brief):不染盈亏色,用 fg(有数据)/ muted(⏳)。
             valueColor: hasAnnualized ? AppColors.fg : AppColors.muted,
@@ -658,11 +659,16 @@ class _PerformancePageState extends State<PerformancePage> {
     final totalCost = state.summary.totalCostCents;
     final cumulative = totalCost > 0 ? (unrealized / totalCost) * 100 : 0.0;
     final loaded = perf is PerformanceLoaded ? perf.performance : null;
-    // ④ 年化:server annualizedPct(有数据 → 渲染;无 → ⏳ 占位)。
-    final hasAnnualized = loaded != null && loaded.annualizedPct != 0;
+    // ④ 年化(XIRR 全期):Task 7 降级信号改为 null(非 0)。null → 显「—」。
+    final hasAnnualized = loaded != null && loaded.annualizedPct != null;
     final annualValue = hasAnnualized
-        ? '${loaded.annualizedPct >= 0 ? '+' : ''}${loaded.annualizedPct.toStringAsFixed(1)}%'
-        : '⏳';
+        ? '${loaded.annualizedPct! >= 0 ? '+' : ''}${loaded.annualizedPct!.toStringAsFixed(1)}%'
+        : '—';
+    // Task 7 区间 XIRR 副标注(rangeAnnualizedPct 可独立于全期:全期可能因数据
+    // 不足 null,但区间有值;反之亦然)。null → 不渲染副标注。
+    final rangeSub = loaded?.rangeAnnualizedPct != null
+        ? '区间 ${loaded!.rangeAnnualizedPct! >= 0 ? '+' : ''}${loaded.rangeAnnualizedPct!.toStringAsFixed(1)}%'
+        : null;
     // ⑤ 基准名:server benchmarkName(有)/「⏳C mock」(无)。
     final hasBenchmark = loaded != null && loaded.benchmarkName.isNotEmpty;
     final benchLabel = hasBenchmark
@@ -694,16 +700,17 @@ class _PerformancePageState extends State<PerformancePage> {
             ],
           ),
           const SizedBox(height: 12),
-          // ④ 年化行:server annualizedPct(无 → ⏳ 占位)。
+          // ④ 年化行(XIRR 全期):server annualizedPct(无 → 「—」)+ 区间副标注。
           _annualRow(
             icon: LucideIcons.percent,
             label: '年化',
             value: annualValue,
             valueColor: hasAnnualized
-                ? (loaded.annualizedPct >= 0
+                ? (loaded.annualizedPct! >= 0
                     ? AppColors.positive
                     : AppColors.negative)
                 : AppColors.muted,
+            sub: rangeSub,
             key: const ValueKey('annualValue'),
           ),
           // 累计行:✅ 从 holdings 算(unrealized/totalCost)。
@@ -716,9 +723,9 @@ class _PerformancePageState extends State<PerformancePage> {
             key: const ValueKey('annualCumulative'),
           ),
           // ⑤ bench-mini(loaded 有数据时渲染;无 benchmarkPoints 内部降级)。
-          if (loaded != null && loaded.annualizedPct != 0)
+          if (loaded != null && loaded.annualizedPct != null)
             _BenchmarkMiniBar(
-              myAnnualized: loaded.annualizedPct,
+              myAnnualized: loaded.annualizedPct!,
               benchmarkPoints: loaded.benchmarkPoints,
               benchmarkName: loaded.benchmarkName,
             ),
@@ -727,11 +734,14 @@ class _PerformancePageState extends State<PerformancePage> {
     );
   }
 
+  /// 年化行(icon + label + value/可选 sub 副标注)。
+  /// Task 7:`sub` 用于区间 XIRR 副标注(小字 muted,value 下方右对齐)。
   Widget _annualRow({
     required IconData icon,
     required String label,
     required String value,
     required Color valueColor,
+    String? sub,
     Key? key,
   }) {
     return Container(
@@ -741,7 +751,7 @@ class _PerformancePageState extends State<PerformancePage> {
               bottom: BorderSide(
                   color: Color(0xFFEFECE5), style: BorderStyle.solid))),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.baseline,
+        crossAxisAlignment: CrossAxisAlignment.center,
         textBaseline: TextBaseline.alphabetic,
         children: [
           Icon(icon, size: 14, color: AppColors.muted),
@@ -749,13 +759,26 @@ class _PerformancePageState extends State<PerformancePage> {
           Text(label,
               style: const TextStyle(fontSize: 13, color: AppColors.fg)),
           const Spacer(),
-          Text(value,
-              key: key,
-              style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: valueColor,
-                  fontFeatures: AppTypography.tabularFigures)),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(value,
+                  key: key,
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: valueColor,
+                      fontFeatures: AppTypography.tabularFigures)),
+              if (sub != null)
+                Text(sub,
+                    key: const ValueKey('annualRangeSub'),
+                    style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.muted,
+                        fontFeatures: AppTypography.tabularFigures)),
+            ],
+          ),
         ],
       ),
     );

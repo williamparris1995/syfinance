@@ -358,9 +358,18 @@ class HoldingBloc extends Bloc<HoldingEvent, HoldingState> {
           : HoldingError(f.displayMessage, last: _last)),
       (perf) {
         if (current == null) return; // 无 current 态:无承载,忽略(不应发生)。
-        emit(current.copyWith(
+        // Task 7:直接构造(非 copyWith)—— range 切换时 server 可能返回 null
+        // XIRR(数据不足/不同 range 算不出),copyWith 的 `??` 会错误保留上一个
+        // range 的非 null 值。这里每次都用 server 最新值覆盖(包括 null)。
+        emit(HoldingDetailLoaded(
+          holding: current.holding,
+          trades: current.trades,
+          pnlBreakdown: current.pnlBreakdown,
+          isPendingBackend: current.isPendingBackend,
           holdingCurve: perf.pricePoints,
           holdingCurveRealizedCents: perf.realizedCents,
+          holdingAnnualizedPct: perf.annualizedPct,
+          holdingRangeAnnualizedPct: perf.rangeAnnualizedPct,
         ));
       },
     );

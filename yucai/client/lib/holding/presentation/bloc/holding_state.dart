@@ -69,6 +69,9 @@ class HoldingLoaded extends HoldingState {
 /// Task 13(holding-C)新增:`holdingCurve` / `holdingCurveRealizedCents`
 /// 来自 server getHoldingPerformance(pricePoints + realizedCents,FIFO)。
 /// 可空 —— LoadHoldingCurveRequested 未发 / fail 时为 null,UI 走空态。
+///
+/// Task 7 XIRR 新增:`holdingAnnualizedPct`(全期 XIRR,原币)+ `holdingRangeAnnualizedPct`
+/// (区间 XIRR,随 range tab)。均可空 —— server 未算/数据不足 → null → UI 显「—」。
 class HoldingDetailLoaded extends HoldingState {
   const HoldingDetailLoaded({
     required this.holding,
@@ -77,6 +80,8 @@ class HoldingDetailLoaded extends HoldingState {
     this.isPendingBackend = false,
     this.holdingCurve,
     this.holdingCurveRealizedCents,
+    this.holdingAnnualizedPct,
+    this.holdingRangeAnnualizedPct,
   });
   final Holding holding;
   final List<HoldingTransaction> trades;
@@ -87,15 +92,29 @@ class HoldingDetailLoaded extends HoldingState {
   final List<PerfPoint>? holdingCurve;
   /// server FIFO realized(cents)。null → foot realized 不渲染(避免 0 误导)。
   final int? holdingCurveRealizedCents;
+  /// 全期 XIRR(server annualizedPct,原币)。null → XIRR 行显「—」。
+  final double? holdingAnnualizedPct;
+  /// 区间 XIRR(server rangeAnnualizedPct,随 range tab)。null → 副标注省。
+  final double? holdingRangeAnnualizedPct;
 
   @override
-  List<Object?> get props =>
-      [holding, trades, pnlBreakdown, isPendingBackend, holdingCurve, holdingCurveRealizedCents];
+  List<Object?> get props => [
+        holding,
+        trades,
+        pnlBreakdown,
+        isPendingBackend,
+        holdingCurve,
+        holdingCurveRealizedCents,
+        holdingAnnualizedPct,
+        holdingRangeAnnualizedPct,
+      ];
 
   /// 保留现有字段,仅覆盖曲线相关(LoadHoldingCurveRequested 成功后用)。
   HoldingDetailLoaded copyWith({
     List<PerfPoint>? holdingCurve,
     int? holdingCurveRealizedCents,
+    double? holdingAnnualizedPct,
+    double? holdingRangeAnnualizedPct,
   }) =>
       HoldingDetailLoaded(
         holding: holding,
@@ -105,6 +124,10 @@ class HoldingDetailLoaded extends HoldingState {
         holdingCurve: holdingCurve ?? this.holdingCurve,
         holdingCurveRealizedCents:
             holdingCurveRealizedCents ?? this.holdingCurveRealizedCents,
+        holdingAnnualizedPct:
+            holdingAnnualizedPct ?? this.holdingAnnualizedPct,
+        holdingRangeAnnualizedPct:
+            holdingRangeAnnualizedPct ?? this.holdingRangeAnnualizedPct,
       );
 }
 
