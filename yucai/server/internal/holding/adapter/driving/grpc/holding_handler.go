@@ -294,6 +294,13 @@ func (h *HoldingHandler) GetPortfolioPerformance(ctx context.Context, req *pb.Ge
 	if err != nil {
 		return nil, mapError(err)
 	}
+	// AnnualizedPct is nullable (*float64, nil = degraded). Proto field is
+	// float64 — nil maps to 0.0 (same display as pre-XIRR). Task 4 will add a
+	// proto-side nullable wrapper if the API needs to distinguish nil vs 0.
+	var annualizedPct float64
+	if perf.AnnualizedPct != nil {
+		annualizedPct = *perf.AnnualizedPct
+	}
 	return &pb.PortfolioPerformanceResponse{
 		PortfolioPoints: curvePointsToProto(perf.PortfolioPoints),
 		BenchmarkPoints: curvePointsToProto(perf.BenchmarkPoints),
@@ -301,7 +308,7 @@ func (h *HoldingHandler) GetPortfolioPerformance(ctx context.Context, req *pb.Ge
 		RealizedCents:   perf.RealizedCents,
 		UnrealizedCents: perf.UnrealizedCents,
 		TotalCents:      perf.TotalCents,
-		AnnualizedPct:   perf.AnnualizedPct,
+		AnnualizedPct:   annualizedPct,
 		TotalPct:        perf.TotalPct,
 		Currency:        perf.Currency,
 	}, nil
