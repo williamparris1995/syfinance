@@ -46,25 +46,33 @@ class FormSection extends StatelessWidget {
     required this.title,
     required this.children,
     this.fieldSpacing = AppSpacing.md,
+    this.trailing,
   });
 
   final String title;
   final List<Widget> children;
   final double fieldSpacing;
+  final Widget? trailing; // 可选 title 右侧 widget(如 badge);默认 null 不破坏现有调用
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            color: AppColors.muted,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.8,
-          ),
+        Row(
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                color: AppColors.muted,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const Spacer(),
+            if (trailing != null) trailing!,
+          ],
         ),
         const SizedBox(height: AppSpacing.sm),
         const Divider(height: 1, color: AppColors.border),

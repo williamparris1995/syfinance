@@ -32,4 +32,20 @@ void main() {
     expect(AccountCategory.realEstate.accountType, AccountType.asset);
     expect(AccountCategory.otherAsset.accountType, AccountType.asset);
   });
+
+  test('AccountCategory.example 9 类非空 + 含示例文本', () {
+    expect(AccountCategory.values.length, 9);
+    expect(AccountCategory.savings.example, '招行储蓄卡、工行活期');
+    expect(AccountCategory.creditCard.example, '招行 Visa、中信万事达');
+    expect(AccountCategory.investment.example, '华泰证券、蚂蚁财富');
+    expect(AccountCategory.fixedDeposit.example, '招行大额存单');
+    expect(AccountCategory.goldFx.example, '实物黄金、美元 USD');
+    expect(AccountCategory.realEstate.example, '朝阳区房产');
+    expect(AccountCategory.loan.example, '招行房贷');
+    expect(AccountCategory.otherAsset.example, '公积金账户');
+    expect(AccountCategory.otherLiability.example, '亲友借款');
+    for (final c in AccountCategory.values) {
+      expect(c.example.isNotEmpty, true, reason: '$c.example 非空');
+    }
+  });
 }

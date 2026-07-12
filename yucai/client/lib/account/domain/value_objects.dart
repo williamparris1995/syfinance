@@ -148,4 +148,19 @@ extension AccountCategoryX on AccountCategory {
         return AccountType.asset;
     }
   }
+
+  /// 该 category 的示例账户(对齐 OD cat-hint 的"示例"部分)。
+  String get example {
+    switch (this) {
+      case AccountCategory.savings: return '招行储蓄卡、工行活期';
+      case AccountCategory.creditCard: return '招行 Visa、中信万事达';
+      case AccountCategory.investment: return '华泰证券、蚂蚁财富';
+      case AccountCategory.fixedDeposit: return '招行大额存单';
+      case AccountCategory.goldFx: return '实物黄金、美元 USD';
+      case AccountCategory.realEstate: return '朝阳区房产';
+      case AccountCategory.loan: return '招行房贷';
+      case AccountCategory.otherAsset: return '公积金账户';
+      case AccountCategory.otherLiability: return '亲友借款';
+    }
+  }
 }
