@@ -147,8 +147,9 @@ type kLineItem struct {
 // (CN_MarketDataService.getKLineData). datalen is the number of bars requested
 // (DAY 30 / MONTH 250 / YEAR 1200). The response is a JSONP-wrapped UTF-8 JSON
 // array (NOT GBK, unlike the realtime hq.sinajs.cn endpoint). Only SSE/SZSE
-// (and the sh000300 benchmark) are covered; other exchanges return ErrNoSource.
-// Router does not route history — the backfill service calls Sina directly.
+// (and the sh000300 benchmark) are covered; other exchanges return ErrNoSource
+// so HistoricalRouter falls through to YahooProvider. The backfill service
+// calls this via HistoricalRouter (s.historicalProvider), not Sina directly.
 func (p *SinaProvider) FetchHistory(ctx context.Context, v PriceView, datalen int) ([]HistoryPoint, error) {
 	listKey, ok := sinaListKey(v.Exchange, v.Symbol)
 	if !ok {

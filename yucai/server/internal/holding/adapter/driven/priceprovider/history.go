@@ -11,9 +11,11 @@ type HistoryPoint struct {
 	PriceCents int64
 }
 
-// HistoricalProvider fetches daily K-line history for backfill. Only
-// SinaProvider implements this (A-share + CSI300). The application calls it
-// directly (not via Router) during backfill; non-covered exchanges return
+// HistoricalProvider fetches daily K-line history for backfill. Implementers:
+// SinaProvider (A-share SSE/SZSE + CSI300), YahooProvider (non A-share fallback,
+// e.g. US/global), and HistoricalRouter which routes to the first covering
+// provider (Sina → Yahoo). The application calls this via HistoricalRouter
+// (wire-injected) during backfill; exchanges no provider covers return
 // ErrNoSource. datalen is the requested number of bars (DAY 30 / MONTH 250 /
 // YEAR 1200).
 type HistoricalProvider interface {
