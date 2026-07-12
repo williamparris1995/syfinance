@@ -13,6 +13,7 @@ import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/core/error/failures.dart';
@@ -22,6 +23,7 @@ import 'package:yucai_client/holding/domain/repositories/holding_repository.dart
 import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
 import 'package:yucai_client/holding/presentation/pages/goal_link_page.dart';
+import 'package:yucai_client/holding/presentation/widgets/holding_module_tabs.dart';
 
 class _MockHoldingRepo extends Mock implements HoldingRepository {}
 
@@ -71,14 +73,23 @@ GoalView _goal({
 
 /// harness:注入 HoldingBloc(mock repo,供 picker 的 listHoldings)+ 直接传
 /// [holding] 与 [goalRepo](goal 区 FutureBuilder 调 listInvestmentGoals)。
+/// 包一层 GoRouter(goal_link_page 顶部 HoldingModuleTabs 调 GoRouterState.of,
+/// 需 GoRouter 祖先;对齐 Task 3-5 holdings/security/performance 测试模式)。
 Widget _harness({
   required _MockHoldingRepo repo,
   required Holding holding,
 }) {
-  return MaterialApp(
-    home: BlocProvider<HoldingBloc>(
-      create: (_) => HoldingBloc(repo),
-      child: GoalLinkPage(holding: holding, goalRepo: repo),
+  return MaterialApp.router(
+    routerConfig: GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (_, __) => BlocProvider<HoldingBloc>(
+            create: (_) => HoldingBloc(repo),
+            child: GoalLinkPage(holding: holding, goalRepo: repo),
+          ),
+        ),
+      ],
     ),
   );
 }
@@ -263,8 +274,10 @@ void main() {
             of: find.byKey(const ValueKey('goalOverviewTotal')),
             matching: find.text('3')),
         findsOneWidget);
-    // 通用 header(不显具体 securitySymbol 的「· 」占位)。
-    expect(find.text('投资目标(跨账户总览)'), findsOneWidget);
+    // 通用 sub(对齐 OD v2 .page-title .sub:跨账户总览片段;不显具体
+    // securitySymbol 的「· 」占位)。Task 6 sub 改 Wrap 多 Text 片段 →
+    // 用 textContaining 匹配「跨账户总览」片段。
+    expect(find.textContaining('跨账户总览'), findsOneWidget);
     // 跨账户总览无贡献口径 → 不显贡献占比 key。
     expect(find.byKey(const ValueKey('goalRowContribution-g1')), findsNothing);
     // 跨账户无 account 上下文 → 不显同账户持仓 picker。
@@ -361,5 +374,43 @@ void main() {
 
     expect(find.byKey(const ValueKey('goalLoading')), findsOneWidget);
     expect(find.text('加载投资目标…'), findsOneWidget);
+  });
+
+  // Task 6:页内 tab(HoldingModuleTabs)常驻顶部,「投资目标」当前 active。
+  // 也出现在 h1 + active tab → ≥2 widgets。
+  testWidgets(
+      'Task 6: renders HoldingModuleTabs with 投资目标 active + page-head h1',
+      (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    when(() => repo.listInvestmentGoals())
+        .thenAnswer((_) async => const dartz.Right([]));
+    _stubHoldings(repo, const []);
+
+    // 空 holding(sidebar 入口)→ tab 「投资目标」应 active。
+    const emptyHolding = Holding(
+      id: '',
+      accountId: '',
+      securityId: '',
+      securityName: '',
+      securitySymbol: '',
+      quantity: 0,
+      avgCostCents: 0,
+      marketValueCents: 0,
+      unrealizedPnlCents: 0,
+      version: 0,
+    );
+
+    await t.pumpWidget(_harness(repo: repo, holding: emptyHolding));
+    await t.pumpAndSettle();
+
+    // HoldingModuleTabs 渲染(对齐 Task 3-5 模式)。
+    expect(find.byType(HoldingModuleTabs), findsOneWidget);
+    // 4 tab labels(对齐 OD .tabs:持仓列表/Security 管理/收益统计/投资目标)。
+    expect(find.text('Security 管理'), findsOneWidget);
+    expect(find.text('收益统计'), findsOneWidget);
+    // page-head h1 衬线「投资目标」(对齐 OD .page-title h1 serif 26)。
+    expect(find.byKey(const ValueKey('goalHeaderH1')), findsOneWidget);
+    expect(find.text('投资目标'), findsWidgets);
   });
 }
