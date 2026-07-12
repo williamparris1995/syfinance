@@ -22,6 +22,7 @@ import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_event.dart';
+import 'package:yucai_client/holding/presentation/widgets/holding_module_tabs.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yucai_client/holding/presentation/pages/holdings_page.dart';
 
@@ -127,10 +128,28 @@ void main() {
     addTearDown(t.view.resetPhysicalSize);
     await t.pumpWidget(_harness(holdings));
     await t.pumpAndSettle();
-    expect(find.text('持仓'), findsOneWidget);
-    // 2 只 + 总市值 204500 + 30000 → ¥204,500.00(marketValueCents 合计)
-    expect(find.textContaining('2 只'), findsOneWidget);
+    // h1 衬线「持仓列表」(对齐 OD .page-title h1)。也出现在 active tab,故 ≥1。
+    expect(find.text('持仓列表'), findsWidgets);
+    // sub:共 2 只 · 跨 2 个账户 · CNY 视图(对齐 OD .sub;h1/h2 各异 accountId)。
+    expect(find.textContaining('共 2 只'), findsOneWidget);
+    expect(find.textContaining('跨 2 个账户'), findsOneWidget);
+    // 总市值 204500 + 30000 → ¥204,500.00(marketValueCents 合计,StatCard +
+    // CurrencyBar 展示)。
     expect(find.textContaining('¥204,500.00'), findsWidgets);
+  });
+
+  // Task 3 — 页内 tab(HoldingModuleTabs):4 格金下划线,持仓列表 active。
+  testWidgets('module tabs rendered (HoldingModuleTabs, 4 labels)', (t) async {
+    t.view.physicalSize = desktop;
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.resetPhysicalSize);
+    await t.pumpWidget(_harness(holdings));
+    await t.pumpAndSettle();
+    expect(find.byType(HoldingModuleTabs), findsOneWidget);
+    // 4 tab labels(对齐 OD .tabs:持仓列表/Security 管理/收益统计/投资目标)。
+    expect(find.text('Security 管理'), findsOneWidget);
+    expect(find.text('收益统计'), findsOneWidget);
+    expect(find.text('投资目标'), findsOneWidget);
   });
 
   testWidgets('StatCard: 总市值 / 总成本 / 总盈亏 / 收益率', (t) async {

@@ -26,6 +26,7 @@ import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_event.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_state.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
+import 'package:yucai_client/holding/presentation/widgets/holding_module_tabs.dart';
 import 'package:yucai_client/holding/presentation/widgets/holding_pie_chart.dart';
 import 'package:yucai_client/holding/presentation/widgets/holding_sparkline.dart';
 
@@ -56,6 +57,10 @@ class _HoldingsPageState extends State<HoldingsPage> {
       // 创建入口移至全局 _TopBar(app_shell 路由感知创建按钮 /holdings/new)。
       body: Column(
         children: [
+          // 模块内 tab(Task 2 HoldingModuleTabs,持仓列表 active 金下划线)。
+          // 固定于内容区顶部,不随滚动消失(OD .tabs 位于 page-head 下,这里置
+          // 顶以保留模块导航常驻;page-head(_TopBar)随内容滚动)。
+          const HoldingModuleTabs(),
           Expanded(
             child: BlocBuilder<HoldingBloc, HoldingState>(
               builder: (context, state) {
@@ -198,7 +203,12 @@ class _HoldingsPageState extends State<HoldingsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _TopBar(count: loaded.holdings.length, totalCents: sumMvPreferred, preferred: preferred),
+              _TopBar(
+                count: loaded.holdings.length,
+                accountCount:
+                    loaded.holdings.map((h) => h.accountId).toSet().length,
+                preferred: preferred,
+              ),
               const SizedBox(height: AppSpacing.lg),
               // StatCard 2×2(对齐 .m-stats)。
               _StatGrid(
@@ -301,9 +311,13 @@ class _HoldingsPageState extends State<HoldingsPage> {
 // ───────────────────────── 顶栏 ─────────────────────────
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.count, required this.totalCents, required this.preferred});
+  const _TopBar({
+    required this.count,
+    required this.accountCount,
+    required this.preferred,
+  });
   final int count;
-  final int totalCents;
+  final int accountCount;
   final String preferred;
 
   @override
@@ -316,15 +330,29 @@ class _TopBar extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('持仓',
-                  style: Theme.of(context).textTheme.headlineMedium),
-              const SizedBox(height: 4),
+              // h1 衬线「持仓列表」(对齐 OD .page-title h1 font-display serif)。
+              const Text(
+                '持仓列表',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: AppTypography.displayFamily,
+                  fontFamilyFallback: AppTypography.displayFallback,
+                  color: AppColors.fg,
+                  height: 1.15,
+                  letterSpacing: 0.2,
+                ),
+              ),
+              const SizedBox(height: 5),
+              // sub:共 N 只 · 跨 M 个账户 · CURRENCY 视图(对齐 OD .page-title
+              // .sub;总额交由 StatCard / CurrencyBar 展示,这里不重复)。
               Text(
-                '$count 只 · ${_fmtSymbol(totalCents, preferred)}',
+                '共 $count 只 · 跨 $accountCount 个账户 · $preferred 视图',
                 style: const TextStyle(
-                    color: AppColors.muted,
-                    fontSize: 14,
-                    fontFeatures: AppTypography.tabularFigures),
+                  color: AppColors.muted,
+                  fontSize: 13,
+                  fontFeatures: AppTypography.tabularFigures,
+                ),
               ),
             ],
           ),
@@ -444,15 +472,15 @@ class _StatGrid extends StatelessWidget {
           ),
         ];
         if (isMobile) {
-          // 2×2 网格(对齐 .m-stats 移动端)。childAspectRatio 较矮 + 卡内
-          // FittedBox 保证窄屏不溢出。
+          // 2×2 网格(对齐 .m-stats 移动端)。childAspectRatio 2.2 容纳 gold-soft
+          // icon container(30px,对齐 OD .stat-icon);卡内 FittedBox 保证窄屏不溢出。
           return GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             crossAxisCount: 2,
             mainAxisSpacing: AppSpacing.sm,
             crossAxisSpacing: AppSpacing.sm,
-            childAspectRatio: 2.4,
+            childAspectRatio: 2.2,
             children: cards,
           );
         }
@@ -492,17 +520,27 @@ class _StatCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: 13, color: AppColors.muted),
-              const SizedBox(width: 5),
+              // gold-soft icon bg(对齐 OD .stat-icon:30×30 圆角 8 金浅底 +
+              // gold-deep 图标色)。御财金点缀,非盈亏色。
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: AppColors.accentSoft,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 16, color: AppColors.accentHover),
+              ),
+              const SizedBox(width: 8),
               Flexible(
                 child: Text(label,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        fontSize: 11, color: AppColors.muted)),
+                        fontSize: 12.5, color: AppColors.muted)),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           // FittedBox + 紧凑 padding:窄屏(2 列 mobile,卡高 ~37px)下数值
           // 按 scaleDown 缩放,避免 Column 垂直溢出。
           FittedBox(
@@ -933,11 +971,13 @@ class _CurrencyBar extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
+          // 合计金色强调(对齐 OD .ccy-col.total .v color:gold-deep)。
           Text(_fmtSymbol(totalCents, preferred),
               style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w600,
                   letterSpacing: -0.2,
+                  color: AppColors.accentHover,
                   fontFeatures: AppTypography.tabularFigures)),
           const SizedBox(height: 10),
           Wrap(
