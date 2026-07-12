@@ -752,7 +752,6 @@ class _PerformancePageState extends State<PerformancePage> {
                   color: Color(0xFFEFECE5), style: BorderStyle.solid))),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
-        textBaseline: TextBaseline.alphabetic,
         children: [
           Icon(icon, size: 14, color: AppColors.muted),
           const SizedBox(width: 7),

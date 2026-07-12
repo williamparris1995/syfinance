@@ -184,8 +184,10 @@ void main() {
   });
 
   // 高视口:desktop 表 + sticky action bar 全可见。
-  // Task 7:1600 → 2400(XIRR 卡加入后 content 变长,goal card 顶部在 1600
-  // 视口下被 sticky action bar 遮挡,tap 失败)。
+  // Task 7:1600 → 2400(XIRR 卡加入后 content 变长,在 1600 视口下需要滚动,
+  // ensureVisible 的 alignment policy 无法对齐 goal card;调大至 2400 让整页
+  // content 不需滚动避开)。注:production 布局正常(ListView 90px bottom
+  // padding − ~55px sticky bar = 35px clearance,goal card 可点)。
   Future<void> setViewport(WidgetTester t) async {
     t.view.physicalSize = const Size(1200, 2400);
     t.view.devicePixelRatio = 1.0;
@@ -531,7 +533,10 @@ void main() {
 
     // XIRR 行容器渲染 + 全期数值 + 区间数值。
     expect(find.byKey(const ValueKey('detailXirrCard')), findsOneWidget);
-    expect(find.textContaining('8.5%'), findsWidgets);
+    expect(find.byKey(const ValueKey('detailXirrFull')), findsOneWidget);
+    expect(
+        t.widget<Text>(find.byKey(const ValueKey('detailXirrFull'))).data,
+        '+8.5%');
     expect(find.textContaining('12.3%'), findsOneWidget);
   });
 

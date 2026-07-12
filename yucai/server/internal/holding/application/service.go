@@ -977,7 +977,7 @@ func (s *Service) GetHoldingPerformance(ctx context.Context, holdingID uuid.UUID
 	// (rebuilt from price_history endpoint). Both degrade independently to nil.
 	fullXirr, _ := s.holdingXIRR(ctx, holdingID, base)
 	rangeStart, _, _ := curveWindow(rangeName)
-	rng := s.computeHoldingRangeXIRR(ctx, *h, *sec, tradesForHolding(ctx, s, *h), rangeStart, fullXirr)
+	rng := s.computeHoldingRangeXIRR(ctx, *h, *sec, s.tradesForHolding(ctx, *h), rangeStart, fullXirr)
 	return &HoldingPerformance{
 		PricePoints: pts, RealizedCents: realized, UnrealizedCents: unrealized,
 		TotalCents: realized + unrealized, AnnualizedPct: fullXirr, RangeAnnualizedPct: rng,
@@ -988,7 +988,7 @@ func (s *Service) GetHoldingPerformance(ctx context.Context, holdingID uuid.UUID
 // tradesForHolding pages through every trade for one holding (account+security).
 // Shared by computeHoldingRangeXIRR (range XIRR rebuild) and any helper that
 // needs this holding's cash-flow stream in original currency.
-func tradesForHolding(ctx context.Context, s *Service, h domain.Holding) []domain.HoldingTransaction {
+func (s *Service) tradesForHolding(ctx context.Context, h domain.Holding) []domain.HoldingTransaction {
 	res, _ := s.tradeRepo.FindAll(ctx, h.TenantID, &h.AccountID, &h.SecurityID, domain.PageRequest{PageSize: 500})
 	if res == nil {
 		return nil

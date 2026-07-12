@@ -510,25 +510,19 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('XIRR 收益率',
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          fontFamily: AppTypography.displayFamily,
-                          fontFamilyFallback: AppTypography.displayFallback)),
-                  const SizedBox(height: 2),
-                  const Text('内部收益率(原币)· 数据不足时显示 —',
-                      key: ValueKey('detailXirrSub'),
-                      style: TextStyle(fontSize: 11.5, color: AppColors.muted)),
-                ],
-              ),
+              const Text('XIRR 收益率',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: AppTypography.displayFamily,
+                      fontFamilyFallback: AppTypography.displayFallback)),
+              const SizedBox(height: 2),
+              const Text('内部收益率(原币)· 数据不足时显示 —',
+                  key: ValueKey('detailXirrSub'),
+                  style: TextStyle(fontSize: 11.5, color: AppColors.muted)),
             ],
           ),
           const SizedBox(height: 12),
