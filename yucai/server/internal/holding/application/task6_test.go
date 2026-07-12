@@ -603,28 +603,8 @@ func TestGetHoldingPerformanceCurrencyConversion(t *testing.T) {
 	}
 }
 
-// TestAnnualizedPctSimple verifies the simple annualization formula on a
-// synthetic holding whose created_at is 365.25 days ago.
-func TestAnnualizedPctSimple(t *testing.T) {
-	tenantID, accountID := uuid.New(), uuid.New()
-	secID, hID := uuid.New(), uuid.New()
-	secRepo := newFullSecRepo([]secSeed{
-		{ID: secID, Symbol: "X", Exchange: "SSE", Type: domain.SecurityTypeStock, Currency: "CNY", CurrentPriceCents: 100},
-	})
-	hr := newMemHoldingRepo()
-	hr.SaveOrUpdate(context.Background(), &domain.Holding{
-		ID: hID, TenantID: tenantID, AccountID: accountID, SecurityID: secID,
-		Quantity: 10, AvgCostCents: 100,
-		// 365.25 days ago → years ≈ 1.0.
-		CreatedAt: time.Now().AddDate(-1, 0, 0),
-	})
-	svc := NewService(secRepo, hr, &memTradeRepo{})
-
-	// total = 1000, costBasis = 1000 → totalReturn = 1.0; years ≈ 1.0.
-	// annualized ≈ 1.0/1.0×100 = 100%. (AddDate(-1,0,0) ≈ 365 days < 365.25, so
-	// years slightly < 1 → annualized slightly > 100.)
-	got := svc.annualizedPct(context.Background(), 1000, 1000, tenantID)
-	if got < 99.5 || got > 101 {
-		t.Fatalf("annualized = %.4f, want ~100", got)
-	}
-}
+// TestAnnualizedPctSimple was removed in Task 4 — the simple-annualization
+// helper `annualizedPct` is retired now that GetPortfolioPerformance fills
+// AnnualizedPct from portfolioXIRR (money-weighted XIRR replaces the legacy
+// totalReturn/years formula). The full-period XIRR is covered by
+// TestGetPortfolioPerformanceFillsXIRR + TestPortfolioXIRRFullPeriodCNY.

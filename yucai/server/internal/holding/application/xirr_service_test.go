@@ -135,6 +135,33 @@ func TestHoldingXIRROriginalCurrency(t *testing.T) {
 	}
 }
 
+// GetPortfolioPerformance wires portfolioXIRR.full → AnnualizedPct and
+// portfolioXIRR.range → RangeAnnualizedPct. This test (Task 4 Step 1) verifies
+// the full XIRR is filled (non-nil) when a buy trade + current price exist.
+// snapshotRepo is seeded empty so the snapshot nil-guard passes but the curve
+// stays empty; XIRR runs through tradeRepo + holdingRepo + priceHistoryRepo.
+func TestGetPortfolioPerformanceFillsXIRR(t *testing.T) {
+	secID := uuid.New()
+	tenant := uuid.New()
+	svc := &Service{
+		securityRepo: &fakeSecurityRepoByID{sec: domain.Security{ID: secID, CurrencyCode: "CNY", CurrentPriceCents: 12000}},
+		holdingRepo:  &fakeHoldingRepoSingle{h: domain.Holding{TenantID: tenant, SecurityID: secID, Quantity: 100, AvgCostCents: 10000}},
+		tradeRepo: &fakeTradeRepo{items: []domain.HoldingTransaction{
+			{TradeType: domain.TradeTypeBuy, Quantity: 100, AmountCents: 1000000, SecurityID: secID, TradeDate: mustDate2("2020-01-01")},
+		}},
+		priceHistoryRepo: &fakePriceRepo{priceCents: 10000},
+		rateRepo:         &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
+		snapshotRepo:     &memSnapshotRepo{},
+	}
+	out, err := svc.GetPortfolioPerformance(context.Background(), tenant, nil, "MONTH", false, "CNY")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if out.AnnualizedPct == nil {
+		t.Error("AnnualizedPct nil, want non-nil (full XIRR)")
+	}
+}
+
 // 无 trade → nil(降级,不造假)。
 func TestPortfolioXIRRNoTrades(t *testing.T) {
 	svc := &Service{

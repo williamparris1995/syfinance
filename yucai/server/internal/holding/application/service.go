@@ -667,12 +667,15 @@ func (s *Service) GetPortfolioPerformance(ctx context.Context, tenantID uuid.UUI
 	if costBasis != 0 {
 		totalPct = float64(total) / float64(costBasis) * 100
 	}
-	// Task 3: AnnualizedPct temporarily nil (DTO is now *float64). Task 4 wires
-	// the real XIRR value via portfolioXIRR; the legacy simple-annualization
-	// helper (s.annualizedPct) is retired once XIRR is plugged in.
+	// XIRR (Task 4): full-period (money-weighted, all cash flows) + range
+	// (window = `from` from curveWindow). Degrades to nil independently when
+	// historical prices are missing or there are no trades. Replaces the legacy
+	// simple-annualization helper (annualizedPct, retired).
+	fullXirr, rangeXirr, _ := s.portfolioXIRR(ctx, tenantID, accountID, base, from)
 	out := &PortfolioPerformance{
 		PortfolioPoints: portPts, RealizedCents: realized, UnrealizedCents: unrealized,
-		TotalCents: total, AnnualizedPct: nil, TotalPct: totalPct, Currency: base,
+		TotalCents: total, AnnualizedPct: fullXirr, RangeAnnualizedPct: rangeXirr,
+		TotalPct: totalPct, Currency: base,
 	}
 	if withBenchmark {
 		out.BenchmarkName = "沪深300"
@@ -906,32 +909,6 @@ func (s *Service) currentCostBasisInBase(ctx context.Context, tenantID uuid.UUID
 	return sum
 }
 
-// annualizedPct annualizes total return over the holding period (earliest
-// holding created_at → now). Returns 0 if period < 1 day or costBasis 0.
-// Simple annualization (totalReturn / years × 100) — not CAGR (first batch).
-func (s *Service) annualizedPct(ctx context.Context, total, costBasis int64, tenantID uuid.UUID) float64 {
-	if costBasis == 0 {
-		return 0
-	}
-	page := domain.PageRequest{PageSize: 200}
-	earliest := time.Now()
-	res, err := s.holdingRepo.FindAll(ctx, tenantID, nil, page)
-	if err != nil || len(res.Items) == 0 {
-		return 0
-	}
-	for _, h := range res.Items {
-		if h.CreatedAt.Before(earliest) {
-			earliest = h.CreatedAt
-		}
-	}
-	years := time.Since(earliest).Hours() / 24 / 365.25
-	if years < 1.0/365.25 {
-		return 0
-	}
-	totalReturn := float64(total) / float64(costBasis) // fraction
-	return totalReturn / years * 100
-}
-
 // benchmarkCurve returns CSI300 (000300) price history as curve points (元).
 // Empty if the security is not seeded or has no history.
 func (s *Service) benchmarkCurve(ctx context.Context, rangeName string) []CurvePointDTO {
@@ -996,10 +973,76 @@ func (s *Service) GetHoldingPerformance(ctx context.Context, holdingID uuid.UUID
 	rateFrom := s.rateForCode(ctx, sec.CurrencyCode, time.Now())
 	unrealizedRaw := h.UnrealizedPnL(sec.CurrentPriceCents)
 	unrealized := currencydomain.ConvertToBase(unrealizedRaw, rateFrom, rateBase)
+	// XIRR (Task 4): full-period (original currency, no conversion) + range
+	// (rebuilt from price_history endpoint). Both degrade independently to nil.
+	fullXirr, _ := s.holdingXIRR(ctx, holdingID, base)
+	rangeStart, _, _ := curveWindow(rangeName)
+	rng := s.computeHoldingRangeXIRR(ctx, *h, *sec, tradesForHolding(ctx, s, *h), rangeStart, fullXirr)
 	return &HoldingPerformance{
 		PricePoints: pts, RealizedCents: realized, UnrealizedCents: unrealized,
-		TotalCents: realized + unrealized, Currency: base,
+		TotalCents: realized + unrealized, AnnualizedPct: fullXirr, RangeAnnualizedPct: rng,
+		Currency: base,
 	}, nil
+}
+
+// tradesForHolding pages through every trade for one holding (account+security).
+// Shared by computeHoldingRangeXIRR (range XIRR rebuild) and any helper that
+// needs this holding's cash-flow stream in original currency.
+func tradesForHolding(ctx context.Context, s *Service, h domain.Holding) []domain.HoldingTransaction {
+	res, _ := s.tradeRepo.FindAll(ctx, h.TenantID, &h.AccountID, &h.SecurityID, domain.PageRequest{PageSize: 500})
+	if res == nil {
+		return nil
+	}
+	return res.Items
+}
+
+// computeHoldingRangeXIRR computes the single-holding range XIRR in original
+// currency. rangeStart is the window start (from curveWindow). Cash flows:
+// opening market value (qty_at_date × price_at_or_before rangeStart) as outflow,
+// in-range trades ± fee/sign, and current terminal market value.
+// Degrades independently:
+//   - qty==0 at rangeStart (rangeStart before first buy) → fallback (full XIRR)
+//   - price_history missing at rangeStart → nil (cannot rebuild opening MV)
+//   - XIRR fails to converge → nil
+//
+// `fallback` is provided by the caller (full-period XIRR) so the range path
+// degrades gracefully to the full-period value when there is nothing to compute.
+func (s *Service) computeHoldingRangeXIRR(ctx context.Context, h domain.Holding, sec domain.Security, trades []domain.HoldingTransaction, rangeStart time.Time, fallback *float64) *float64 {
+	qty := domain.QtyAtDate(trades, rangeStart)
+	if qty == 0 {
+		return fallback // rangeStart before first buy → degrade to full
+	}
+	price, ok := s.priceAtOrBefore(ctx, h.SecurityID, rangeStart)
+	if !ok {
+		return nil // history missing → degrade
+	}
+	startMV := int64(math.Round(qty * float64(price)))
+	terminal := h.MarketValue(sec.CurrentPriceCents)
+	cfs := []domain.CashFlow{{Date: rangeStart, Amount: -float64(startMV)}}
+	for _, tr := range trades {
+		if !tr.TradeDate.After(rangeStart) {
+			continue
+		}
+		var signed int64
+		switch tr.TradeType {
+		case domain.TradeTypeBuy:
+			signed = -(tr.AmountCents + tr.FeeCents)
+		case domain.TradeTypeSell:
+			signed = tr.AmountCents - tr.FeeCents
+		case domain.TradeTypeDividend:
+			signed = tr.AmountCents
+		case domain.TradeTypeSplit:
+			continue
+		default:
+			continue
+		}
+		cfs = append(cfs, domain.CashFlow{Date: tr.TradeDate, Amount: float64(signed)})
+	}
+	cfs = append(cfs, domain.CashFlow{Date: time.Now(), Amount: float64(terminal)})
+	if r, e := domain.XIRR(cfs); e == nil {
+		return ptrFloat(r)
+	}
+	return nil
 }
 
 // --- XIRR orchestration (Task 3): portfolioXIRR / holdingXIRR + helpers ---
