@@ -69,3 +69,43 @@ func TestXIRRSimpleGrowth(t *testing.T) {
 		t.Errorf("XIRR = %.6f, want ~0.20", rate)
 	}
 }
+
+func TestQtyAtDateReplay(t *testing.T) {
+	trades := []HoldingTransaction{
+		{TradeType: TradeTypeBuy, Quantity: 100, TradeDate: mustDate("2020-01-10")},
+		{TradeType: TradeTypeBuy, Quantity: 50, TradeDate: mustDate("2020-03-01")},
+		{TradeType: TradeTypeSell, Quantity: 30, TradeDate: mustDate("2020-06-01")},
+		{TradeType: TradeTypeSplit, Quantity: 2, TradeDate: mustDate("2020-09-01")}, // ratio=2
+	}
+	tests := []struct {
+		name string
+		date string
+		want float64
+	}{
+		{"before any buy", "2020-01-01", 0},
+		{"after first buy (strict <)", "2020-01-10", 0}, // rangeStart 当天归入期间
+		{"after two buys", "2020-04-01", 150},
+		{"after sell", "2020-07-01", 120},
+		{"after split (×2)", "2020-10-01", 240},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := QtyAtDate(trades, mustDate(tt.date))
+			if got != tt.want {
+				t.Errorf("QtyAtDate(%s) = %v, want %v", tt.date, got, tt.want)
+			}
+		})
+	}
+}
+
+// Dividend 不影响 qty。
+func TestQtyAtDateDividendNoOp(t *testing.T) {
+	trades := []HoldingTransaction{
+		{TradeType: TradeTypeBuy, Quantity: 100, TradeDate: mustDate("2020-01-10")},
+		{TradeType: TradeTypeDividend, Quantity: 100, TradeDate: mustDate("2020-06-01")},
+	}
+	got := QtyAtDate(trades, mustDate("2020-07-01"))
+	if got != 100 {
+		t.Errorf("QtyAtDate with dividend = %v, want 100", got)
+	}
+}

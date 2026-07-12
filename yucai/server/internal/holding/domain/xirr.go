@@ -110,3 +110,30 @@ func XIRR(cashflows []CashFlow) (float64, error) {
 	}
 	return 0, ErrNoSolution
 }
+
+// QtyAtDate 按 transaction 时间序回放,返回 date 开盘前持有的份额
+// (严格 TradeDate < date —— date 当天的 trade 归入区间期间现金流)。
+// Buy 加、Sell 减、Split 按 Quantity(=ratio)乘当前累计、Dividend 跳过
+// (现金分红不碰持仓)。供区间 XIRR 的期初市值重建用。
+func QtyAtDate(trades []HoldingTransaction, date time.Time) float64 {
+	sorted := make([]HoldingTransaction, len(trades))
+	copy(sorted, trades)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].TradeDate.Before(sorted[j].TradeDate) })
+	qty := 0.0
+	for _, t := range sorted {
+		if !t.TradeDate.Before(date) {
+			break
+		}
+		switch t.TradeType {
+		case TradeTypeBuy:
+			qty += t.Quantity
+		case TradeTypeSell:
+			qty -= t.Quantity
+		case TradeTypeSplit:
+			qty *= t.Quantity
+		case TradeTypeDividend:
+			// no-op
+		}
+	}
+	return qty
+}
