@@ -26,7 +26,8 @@ class PortfolioPerformance extends Equatable {
     required this.realizedCents,
     required this.unrealizedCents,
     required this.totalCents,
-    this.annualizedPct = 0,
+    this.annualizedPct, // double?(全期 XIRR,null=降级)
+    this.rangeAnnualizedPct, // double?(区间 XIRR)
     this.totalPct = 0,
     this.currency = 'CNY',
   });
@@ -37,7 +38,8 @@ class PortfolioPerformance extends Equatable {
   final int realizedCents;
   final int unrealizedCents;
   final int totalCents;
-  final double annualizedPct;
+  final double? annualizedPct;
+  final double? rangeAnnualizedPct;
   final double totalPct;
   final String currency;
 
@@ -50,6 +52,7 @@ class PortfolioPerformance extends Equatable {
         unrealizedCents,
         totalCents,
         annualizedPct,
+        rangeAnnualizedPct,
         totalPct,
         currency,
       ];
@@ -65,6 +68,8 @@ class HoldingPerformance extends Equatable {
     required this.realizedCents,
     required this.unrealizedCents,
     required this.totalCents,
+    this.annualizedPct, // double?(全期 XIRR 原币)
+    this.rangeAnnualizedPct, // double?(区间 XIRR 原币)
     this.currency = 'CNY',
   });
 
@@ -72,6 +77,8 @@ class HoldingPerformance extends Equatable {
   final int realizedCents;
   final int unrealizedCents;
   final int totalCents;
+  final double? annualizedPct;
+  final double? rangeAnnualizedPct;
   final String currency;
 
   @override
@@ -80,6 +87,8 @@ class HoldingPerformance extends Equatable {
         realizedCents,
         unrealizedCents,
         totalCents,
+        annualizedPct,
+        rangeAnnualizedPct,
         currency,
       ];
 }

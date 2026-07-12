@@ -1997,6 +1997,7 @@ class PortfolioPerformanceResponse extends $pb.GeneratedMessage {
     $core.double? annualizedPct,
     $core.double? totalPct,
     $core.String? currency,
+    $core.double? rangeAnnualizedPct,
   }) {
     final result = create();
     if (portfolioPoints != null) result.portfolioPoints.addAll(portfolioPoints);
@@ -2008,6 +2009,8 @@ class PortfolioPerformanceResponse extends $pb.GeneratedMessage {
     if (annualizedPct != null) result.annualizedPct = annualizedPct;
     if (totalPct != null) result.totalPct = totalPct;
     if (currency != null) result.currency = currency;
+    if (rangeAnnualizedPct != null)
+      result.rangeAnnualizedPct = rangeAnnualizedPct;
     return result;
   }
 
@@ -2036,6 +2039,7 @@ class PortfolioPerformanceResponse extends $pb.GeneratedMessage {
     ..aD(7, _omitFieldNames ? '' : 'annualizedPct')
     ..aD(8, _omitFieldNames ? '' : 'totalPct')
     ..aOS(9, _omitFieldNames ? '' : 'currency')
+    ..aD(10, _omitFieldNames ? '' : 'rangeAnnualizedPct')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2128,6 +2132,15 @@ class PortfolioPerformanceResponse extends $pb.GeneratedMessage {
   $core.bool hasCurrency() => $_has(8);
   @$pb.TagNumber(9)
   void clearCurrency() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.double get rangeAnnualizedPct => $_getN(9);
+  @$pb.TagNumber(10)
+  set rangeAnnualizedPct($core.double value) => $_setDouble(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasRangeAnnualizedPct() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearRangeAnnualizedPct() => $_clearField(10);
 }
 
 class GetHoldingPerformanceRequest extends $pb.GeneratedMessage {
@@ -2222,6 +2235,8 @@ class HoldingPerformanceResponse extends $pb.GeneratedMessage {
     $fixnum.Int64? unrealizedCents,
     $fixnum.Int64? totalCents,
     $core.String? currency,
+    $core.double? annualizedPct,
+    $core.double? rangeAnnualizedPct,
   }) {
     final result = create();
     if (pricePoints != null) result.pricePoints.addAll(pricePoints);
@@ -2229,6 +2244,9 @@ class HoldingPerformanceResponse extends $pb.GeneratedMessage {
     if (unrealizedCents != null) result.unrealizedCents = unrealizedCents;
     if (totalCents != null) result.totalCents = totalCents;
     if (currency != null) result.currency = currency;
+    if (annualizedPct != null) result.annualizedPct = annualizedPct;
+    if (rangeAnnualizedPct != null)
+      result.rangeAnnualizedPct = rangeAnnualizedPct;
     return result;
   }
 
@@ -2252,6 +2270,8 @@ class HoldingPerformanceResponse extends $pb.GeneratedMessage {
     ..aInt64(3, _omitFieldNames ? '' : 'unrealizedCents')
     ..aInt64(4, _omitFieldNames ? '' : 'totalCents')
     ..aOS(5, _omitFieldNames ? '' : 'currency')
+    ..aD(6, _omitFieldNames ? '' : 'annualizedPct')
+    ..aD(7, _omitFieldNames ? '' : 'rangeAnnualizedPct')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2313,6 +2333,24 @@ class HoldingPerformanceResponse extends $pb.GeneratedMessage {
   $core.bool hasCurrency() => $_has(4);
   @$pb.TagNumber(5)
   void clearCurrency() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.double get annualizedPct => $_getN(5);
+  @$pb.TagNumber(6)
+  set annualizedPct($core.double value) => $_setDouble(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasAnnualizedPct() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearAnnualizedPct() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.double get rangeAnnualizedPct => $_getN(6);
+  @$pb.TagNumber(7)
+  set rangeAnnualizedPct($core.double value) => $_setDouble(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasRangeAnnualizedPct() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearRangeAnnualizedPct() => $_clearField(7);
 }
 
 class BackfillPriceHistoryRequest extends $pb.GeneratedMessage {

@@ -657,9 +657,30 @@ const PortfolioPerformanceResponse$json = {
     {'1': 'realized_cents', '3': 4, '4': 1, '5': 3, '10': 'realizedCents'},
     {'1': 'unrealized_cents', '3': 5, '4': 1, '5': 3, '10': 'unrealizedCents'},
     {'1': 'total_cents', '3': 6, '4': 1, '5': 3, '10': 'totalCents'},
-    {'1': 'annualized_pct', '3': 7, '4': 1, '5': 1, '10': 'annualizedPct'},
+    {
+      '1': 'annualized_pct',
+      '3': 7,
+      '4': 1,
+      '5': 1,
+      '9': 0,
+      '10': 'annualizedPct',
+      '17': true
+    },
     {'1': 'total_pct', '3': 8, '4': 1, '5': 1, '10': 'totalPct'},
     {'1': 'currency', '3': 9, '4': 1, '5': 9, '10': 'currency'},
+    {
+      '1': 'range_annualized_pct',
+      '3': 10,
+      '4': 1,
+      '5': 1,
+      '9': 1,
+      '10': 'rangeAnnualizedPct',
+      '17': true
+    },
+  ],
+  '8': [
+    {'1': '_annualized_pct'},
+    {'1': '_range_annualized_pct'},
   ],
 };
 
@@ -670,9 +691,11 @@ final $typed_data.Uint8List portfolioPerformanceResponseDescriptor = $convert.ba
     'aG1hcmtfcG9pbnRzGAIgAygLMhwueXVjYWkuaG9sZGluZy52MS5DdXJ2ZVBvaW50Ug9iZW5jaG'
     '1hcmtQb2ludHMSJQoOYmVuY2htYXJrX25hbWUYAyABKAlSDWJlbmNobWFya05hbWUSJQoOcmVh'
     'bGl6ZWRfY2VudHMYBCABKANSDXJlYWxpemVkQ2VudHMSKQoQdW5yZWFsaXplZF9jZW50cxgFIA'
-    'EoA1IPdW5yZWFsaXplZENlbnRzEh8KC3RvdGFsX2NlbnRzGAYgASgDUgp0b3RhbENlbnRzEiUK'
-    'DmFubnVhbGl6ZWRfcGN0GAcgASgBUg1hbm51YWxpemVkUGN0EhsKCXRvdGFsX3BjdBgIIAEoAV'
-    'IIdG90YWxQY3QSGgoIY3VycmVuY3kYCSABKAlSCGN1cnJlbmN5');
+    'EoA1IPdW5yZWFsaXplZENlbnRzEh8KC3RvdGFsX2NlbnRzGAYgASgDUgp0b3RhbENlbnRzEioK'
+    'DmFubnVhbGl6ZWRfcGN0GAcgASgBSABSDWFubnVhbGl6ZWRQY3SIAQESGwoJdG90YWxfcGN0GA'
+    'ggASgBUgh0b3RhbFBjdBIaCghjdXJyZW5jeRgJIAEoCVIIY3VycmVuY3kSNQoUcmFuZ2VfYW5u'
+    'dWFsaXplZF9wY3QYCiABKAFIAVIScmFuZ2VBbm51YWxpemVkUGN0iAEBQhEKD19hbm51YWxpem'
+    'VkX3BjdEIXChVfcmFuZ2VfYW5udWFsaXplZF9wY3Q=');
 
 @$core.Deprecated('Use getHoldingPerformanceRequestDescriptor instead')
 const GetHoldingPerformanceRequest$json = {
@@ -714,6 +737,28 @@ const HoldingPerformanceResponse$json = {
     {'1': 'unrealized_cents', '3': 3, '4': 1, '5': 3, '10': 'unrealizedCents'},
     {'1': 'total_cents', '3': 4, '4': 1, '5': 3, '10': 'totalCents'},
     {'1': 'currency', '3': 5, '4': 1, '5': 9, '10': 'currency'},
+    {
+      '1': 'annualized_pct',
+      '3': 6,
+      '4': 1,
+      '5': 1,
+      '9': 0,
+      '10': 'annualizedPct',
+      '17': true
+    },
+    {
+      '1': 'range_annualized_pct',
+      '3': 7,
+      '4': 1,
+      '5': 1,
+      '9': 1,
+      '10': 'rangeAnnualizedPct',
+      '17': true
+    },
+  ],
+  '8': [
+    {'1': '_annualized_pct'},
+    {'1': '_range_annualized_pct'},
   ],
 };
 
@@ -723,7 +768,9 @@ final $typed_data.Uint8List holdingPerformanceResponseDescriptor = $convert.base
     'NhaS5ob2xkaW5nLnYxLkN1cnZlUG9pbnRSC3ByaWNlUG9pbnRzEiUKDnJlYWxpemVkX2NlbnRz'
     'GAIgASgDUg1yZWFsaXplZENlbnRzEikKEHVucmVhbGl6ZWRfY2VudHMYAyABKANSD3VucmVhbG'
     'l6ZWRDZW50cxIfCgt0b3RhbF9jZW50cxgEIAEoA1IKdG90YWxDZW50cxIaCghjdXJyZW5jeRgF'
-    'IAEoCVIIY3VycmVuY3k=');
+    'IAEoCVIIY3VycmVuY3kSKgoOYW5udWFsaXplZF9wY3QYBiABKAFIAFINYW5udWFsaXplZFBjdI'
+    'gBARI1ChRyYW5nZV9hbm51YWxpemVkX3BjdBgHIAEoAUgBUhJyYW5nZUFubnVhbGl6ZWRQY3SI'
+    'AQFCEQoPX2FubnVhbGl6ZWRfcGN0QhcKFV9yYW5nZV9hbm51YWxpemVkX3BjdA==');
 
 @$core.Deprecated('Use backfillPriceHistoryRequestDescriptor instead')
 const BackfillPriceHistoryRequest$json = {

@@ -199,7 +199,8 @@ PortfolioPerformance portfolioResponseToEntity(
       realizedCents: r.realizedCents.toInt(),
       unrealizedCents: r.unrealizedCents.toInt(),
       totalCents: r.totalCents.toInt(),
-      annualizedPct: r.annualizedPct,
+      annualizedPct: r.hasAnnualizedPct() ? r.annualizedPct : null,
+      rangeAnnualizedPct: r.hasRangeAnnualizedPct() ? r.rangeAnnualizedPct : null,
       totalPct: r.totalPct,
       currency: r.currency,
     );
@@ -211,6 +212,8 @@ HoldingPerformance holdingResponseToEntity(pb.HoldingPerformanceResponse r) =>
       realizedCents: r.realizedCents.toInt(),
       unrealizedCents: r.unrealizedCents.toInt(),
       totalCents: r.totalCents.toInt(),
+      annualizedPct: r.hasAnnualizedPct() ? r.annualizedPct : null,
+      rangeAnnualizedPct: r.hasRangeAnnualizedPct() ? r.rangeAnnualizedPct : null,
       currency: r.currency,
     );
 
