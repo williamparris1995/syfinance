@@ -118,7 +118,7 @@ func XIRR(cashflows []CashFlow) (float64, error) {
 func QtyAtDate(trades []HoldingTransaction, date time.Time) float64 {
 	sorted := make([]HoldingTransaction, len(trades))
 	copy(sorted, trades)
-	sort.Slice(sorted, func(i, j int) bool { return sorted[i].TradeDate.Before(sorted[j].TradeDate) })
+	sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].TradeDate.Before(sorted[j].TradeDate) })
 	qty := 0.0
 	for _, t := range sorted {
 		if !t.TradeDate.Before(date) {

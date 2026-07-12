@@ -524,7 +524,7 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                           fontFamily: AppTypography.displayFamily,
                           fontFamilyFallback: AppTypography.displayFallback)),
                   const SizedBox(height: 2),
-                  const Text('内部收益率(原币)· null = 数据不足',
+                  const Text('内部收益率(原币)· 数据不足时显示 —',
                       key: ValueKey('detailXirrSub'),
                       style: TextStyle(fontSize: 11.5, color: AppColors.muted)),
                 ],
