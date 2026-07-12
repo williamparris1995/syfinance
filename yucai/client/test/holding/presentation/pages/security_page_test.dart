@@ -21,6 +21,7 @@ import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
+import 'package:yucai_client/holding/presentation/widgets/holding_module_tabs.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yucai_client/holding/presentation/pages/security_page.dart';
 
@@ -188,7 +189,9 @@ void main() {
 
     // 行情源条存在 + 新浪财经只读 chip + 刷新按钮。
     expect(find.byKey(const ValueKey('providerBar')), findsOneWidget);
-    expect(find.textContaining('新浪财经'), findsOneWidget);
+    // 「新浪财经」既出现在 page-head sub 又在 provider bar(对齐 OD .page-title
+    // .sub + .provider-bar 双处展示)。
+    expect(find.textContaining('新浪财经'), findsWidgets);
     expect(find.byKey(const ValueKey('providerRefresh')), findsOneWidget);
     // 已去 Switch(旧 syncToggle 不再存在)。
     expect(find.byType(Switch), findsNothing);
@@ -348,5 +351,60 @@ void main() {
           exchange: any(named: 'exchange'),
           currency: any(named: 'currency'),
         ));
+  });
+
+  // ─── Task 4:页内 tab + OD page-head 对齐 + 类型 chips ───
+
+  testWidgets('module tabs rendered (HoldingModuleTabs, 4 labels)', (t) async {
+    await setViewport(t);
+    _stubRepo(repo, securities: sample);
+    await t.pumpWidget(_harness(repo: repo));
+    await t.pumpAndSettle();
+
+    expect(find.byType(HoldingModuleTabs), findsOneWidget);
+    // 4 tab labels(对齐 OD .tabs)。「Security 管理」既在 active tab 又在 h1。
+    expect(find.text('持仓列表'), findsOneWidget);
+    expect(find.text('收益统计'), findsOneWidget);
+    expect(find.text('投资目标'), findsOneWidget);
+    expect(find.text('Security 管理'), findsWidgets);
+  });
+
+  testWidgets('page-head: h1 serif + sub 共 N 个证券 · 行情源 新浪财经', (t) async {
+    await setViewport(t);
+    _stubRepo(repo, securities: sample);
+    await t.pumpWidget(_harness(repo: repo));
+    await t.pumpAndSettle();
+
+    // sub:共 3 个证券 + 行情源 新浪财经(新浪财经 同时出现在 _ProviderBar,
+    // 故 findsWidgets)。
+    expect(find.textContaining('共 3 个证券'), findsOneWidget);
+    expect(find.textContaining('新浪财经'), findsWidgets);
+  });
+
+  testWidgets('type chips filter list client-side (全部 / 单类型 回切)',
+      (t) async {
+    await setViewport(t);
+    _stubRepo(repo, securities: sample);
+    await t.pumpWidget(_harness(repo: repo));
+    await t.pumpAndSettle();
+
+    // 初始:全部 3 个,3 个 symbol 都在。
+    expect(find.text('AAPL'), findsOneWidget);
+    expect(find.text('510300'), findsOneWidget);
+    expect(find.text('GFUND'), findsOneWidget);
+
+    // 点「ETF 1」chip → 仅剩 ETF(510300),其他消失。
+    await t.tap(find.text('ETF 1'));
+    await t.pumpAndSettle();
+    expect(find.text('510300'), findsOneWidget);
+    expect(find.text('AAPL'), findsNothing);
+    expect(find.text('GFUND'), findsNothing);
+
+    // 点「全部 3」chip → 恢复全量。
+    await t.tap(find.text('全部 3'));
+    await t.pumpAndSettle();
+    expect(find.text('AAPL'), findsOneWidget);
+    expect(find.text('510300'), findsOneWidget);
+    expect(find.text('GFUND'), findsOneWidget);
   });
 }

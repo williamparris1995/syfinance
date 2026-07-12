@@ -33,6 +33,7 @@ import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_bloc.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_event.dart';
 import 'package:yucai_client/holding/presentation/bloc/holding_state.dart';
+import 'package:yucai_client/holding/presentation/widgets/holding_module_tabs.dart';
 
 /// Security 主数据管理页。对齐 A-od security-mobile.html。
 ///
@@ -49,6 +50,9 @@ class SecurityPage extends StatefulWidget {
 class _SecurityPageState extends State<SecurityPage> {
   final _searchCtrl = TextEditingController();
   Timer? _debounce;
+  // 类型筛选 chip(对齐 OD .chips 全部/股票/ETF/基金 + count)。前端过滤,
+  // 不走 backend:保持 chip 计数稳定(全量始终可见),交互零延迟。
+  SecurityType? _typeFilter;
 
   @override
   void initState() {
@@ -113,6 +117,9 @@ class _SecurityPageState extends State<SecurityPage> {
       ),
       body: Column(
         children: [
+          // 模块内 tab(Task 2 HoldingModuleTabs,Security 管理 active 金下划线)。
+          // 固定于内容区顶部常驻,不随滚动消失(对齐 Task 3 holdings_page 模式)。
+          const HoldingModuleTabs(),
           Expanded(
             child: BlocBuilder<HoldingBloc, HoldingState>(
               builder: (context, state) {
@@ -139,6 +146,11 @@ class _SecurityPageState extends State<SecurityPage> {
   }
 
   Widget _content(List<Security> securities, HoldingState state) {
+    // 类型 chip 前端过滤(对齐 OD .chips)。`securities`(全量)用于 chip 计数 +
+    // 顶栏 N;`filtered` 用于列表/区头计数。
+    final filtered = _typeFilter == null
+        ? securities
+        : securities.where((s) => s.securityType == _typeFilter).toList();
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
@@ -152,16 +164,24 @@ class _SecurityPageState extends State<SecurityPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _AppBar(count: securities.length),
+              _PageHead(count: securities.length),
               const SizedBox(height: AppSpacing.md),
               _searchField(),
               const SizedBox(height: AppSpacing.md),
               const _ProviderBar(),
+              const SizedBox(height: AppSpacing.md),
+              // 类型筛选 chips(对齐 OD .chips:全部/股票/ETF/基金 + count)。
+              // 前端过滤,计数来自全量 securities(稳定不随筛选消失)。
+              _ChipsRow(
+                securities: securities,
+                active: _typeFilter,
+                onSelect: (t) => setState(() => _typeFilter = t),
+              ),
               const SizedBox(height: AppSpacing.lg),
-              _SectionHead(count: securities.length),
+              _SectionHead(count: filtered.length),
               const SizedBox(height: AppSpacing.sm),
-              // 搜索后空结果 → 友好空态(对齐原型 .search-empty)。
-              if (securities.isEmpty)
+              // 筛选 / 搜索后空结果 → 友好空态(对齐原型 .search-empty)。
+              if (filtered.isEmpty)
                 const Padding(
                   padding: EdgeInsets.all(24),
                   child: Center(
@@ -173,7 +193,7 @@ class _SecurityPageState extends State<SecurityPage> {
                 )
               else
                 _SecurityList(
-                  securities: securities,
+                  securities: filtered,
                   submitting: state is HoldingSubmitting,
                 ),
             ],
@@ -301,38 +321,61 @@ class _SecurityPageState extends State<SecurityPage> {
   }
 }
 
-// ───────────────────────── 顶栏 ─────────────────────────
+// ───────────────────────── 页头(对齐 OD .page-head) ─────────────────────────
 
-class _AppBar extends StatelessWidget {
-  const _AppBar({required this.count});
+class _PageHead extends StatelessWidget {
+  const _PageHead({required this.count});
   final int count;
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                'Security',
+              // h1 衬线「Security 管理」(对齐 OD .page-title h1 font-display serif)。
+              const Text(
+                'Security 管理',
                 style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
                   fontFamily: AppTypography.displayFamily,
                   fontFamilyFallback: AppTypography.displayFallback,
+                  color: AppColors.fg,
+                  height: 1.15,
+                  letterSpacing: 0.2,
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                '证券字典 · 价格管理 · 共 $count 个',
-                style: const TextStyle(fontSize: 12.5, color: AppColors.muted),
+              const SizedBox(height: 5),
+              // sub:共 N 个证券 · 行情源 新浪财经(对齐 OD .page-title .sub;
+              // 同步时间交由 _ProviderBar 单独展示避免冗余,provider 名金色强调)。
+              Text.rich(
+                TextSpan(
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 13,
+                    fontFeatures: AppTypography.tabularFigures,
+                  ),
+                  children: [
+                    TextSpan(text: '共 $count 个证券 · 行情源 '),
+                    const TextSpan(
+                      text: '新浪财经',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.accentHover,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
         ),
-        // 刷新按钮(对齐原型 btn-refresh;⏳B 自动刷新未实现,这里手动重载列表)。
+        // 刷新列表按钮(对齐 OD .icon-btn refresh-cw;⏳B 自动刷新未启用,手动重载)。
         IconButton(
           key: const ValueKey('refreshBtn'),
           tooltip: '刷新列表',
@@ -341,6 +384,100 @@ class _AppBar extends StatelessWidget {
           icon: const Icon(LucideIcons.refreshCw, color: AppColors.muted),
         ),
       ],
+    );
+  }
+}
+
+// ───────────────────────── 类型筛选 chips(对齐 OD .chips) ─────────────────────────
+
+/// 类型筛选 chip 行。复用 holdings_page._ChipsRow 模式(同模块视觉一致:
+/// active = 御财金实底 + 白字;非 active = 白底 + 灰字)。前端过滤,计数来自
+/// 全量 [securities](不随筛选消失),保证「全部 N」始终可见。
+class _ChipsRow extends StatelessWidget {
+  const _ChipsRow({
+    required this.securities,
+    required this.active,
+    required this.onSelect,
+  });
+
+  final List<Security> securities;
+  final SecurityType? active;
+  final ValueChanged<SecurityType?> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    // 全部 + 出现过的 type(对齐 OD .chips 全部/股票/ETF/基金 + count)。
+    final present = <SecurityType>{};
+    for (final s in securities) {
+      present.add(s.securityType);
+    }
+    final entries = <(SecurityType?, String, int)>[
+      (null, '全部', securities.length),
+      for (final t in SecurityType.values)
+        if (present.contains(t))
+          (
+            t,
+            _typeLabel(t),
+            securities.where((s) => s.securityType == t).length,
+          ),
+    ];
+
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: entries.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (_, i) {
+          final (type, label, cnt) = entries[i];
+          return _Chip(
+            label: '$label $cnt',
+            active: type == active,
+            onTap: () => onSelect(type),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  const _Chip({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: active ? AppColors.accent : AppColors.surface,
+      borderRadius: BorderRadius.circular(9999),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(9999),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(9999),
+            border: Border.all(
+              color: active ? AppColors.accent : AppColors.border,
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+              color: active ? Colors.white : AppColors.fg,
+              fontFeatures: AppTypography.tabularFigures,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
