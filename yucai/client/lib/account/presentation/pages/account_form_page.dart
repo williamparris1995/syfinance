@@ -34,6 +34,7 @@ class AccountFormPage extends StatefulWidget {
 class _AccountFormPageState extends State<AccountFormPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
+  final _notesCtrl = TextEditingController();
   final _bundle = CategoryFieldBundle();
   String _currency = 'CNY';
   AccountCategory _category = AccountCategory.savings;
@@ -91,11 +92,13 @@ class _AccountFormPageState extends State<AccountFormPage> {
     _bundle.fixedMaturityDate = e.fixedMaturityDate;
     _bundle.estatePurchaseDate = e.estatePurchaseDate;
     _bundle.loanNextPaymentDate = e.loanNextPaymentDate;
+    _notesCtrl.text = e.notes;
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _notesCtrl.dispose();
     _bundle.dispose();
     super.dispose();
   }
@@ -208,6 +211,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
       name: _nameCtrl.text.trim(),
       institution: _bundle.institutionCtrl.text.trim(),
       cardNumberTail: _bundle.cardNumberTailCtrl.text.trim(),
+      notes: _notesCtrl.text.trim(),
       // M1: creditLimitCents 非 optional 标量，必须无条件回传（预填防清零）。
       creditLimitCents: _yuanToCents(_bundle.creditLimitCtrl) ?? 0,
       interestRate: rate,
@@ -254,6 +258,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
       currencyCode: _currency,
       initialBalanceCents: _initialCentsForCreate(_category, primary),
       ownership: _ownership,
+      notes: _notesCtrl.text.trim(),
       institution: _bundle.institutionCtrl.text.trim(),
       cardNumberTail: _bundle.cardNumberTailCtrl.text.trim(),
       creditLimitCents: _yuanToCents(_bundle.creditLimitCtrl) ?? 0,
@@ -301,6 +306,25 @@ class _AccountFormPageState extends State<AccountFormPage> {
       default:
         return primary;
     }
+  }
+
+  /// 动态标题右侧的资产/负债 badge（对齐 OD dynTitle pill）。
+  Widget _kindBadge(AccountCategory c) {
+    final isAsset = c.accountType != AccountType.liability;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.accentSoft,
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Text(
+        isAsset ? '资产' : '负债',
+        style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: AppColors.accentHover),
+      ),
+    );
   }
 
   static const _categoryOptions = <TypeOption<AccountCategory>>[
@@ -368,10 +392,41 @@ class _AccountFormPageState extends State<AccountFormPage> {
                           },
                         ),
                         const SizedBox(height: AppSpacing.sm),
-                        Text(_category.description,
-                            style: const TextStyle(
-                                color: AppColors.muted, fontSize: 12)),
-                        const SizedBox(height: AppSpacing.lg),
+                        Container(
+                          margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 11),
+                          decoration: BoxDecoration(
+                            color: AppColors.accentSoft,
+                            border: Border.all(color: const Color(0xFFE8DCC4)),
+                            borderRadius: BorderRadius.circular(9),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(LucideIcons.info,
+                                  size: 15, color: AppColors.accent),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text.rich(
+                                  TextSpan(children: [
+                                    TextSpan(text: '${_category.description}  '),
+                                    const TextSpan(
+                                        text: '示例:',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.accentHover)),
+                                    TextSpan(text: _category.example),
+                                  ]),
+                                  style: const TextStyle(
+                                      color: Color(0xFF7A6433),
+                                      fontSize: 13,
+                                      height: 1.55),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         const Divider(height: 1, color: AppColors.border),
                         const SizedBox(height: AppSpacing.lg),
                         FormSection(
@@ -419,8 +474,22 @@ class _AccountFormPageState extends State<AccountFormPage> {
                         const SizedBox(height: AppSpacing.lg),
                         FormSection(
                           title: '${_category.label}信息',
+                          trailing: _kindBadge(_category),
                           children: categoryFieldsWidget(_category, _bundle,
                               currencySymbol: currencySymbolOf(_currency)),
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        FormSection(
+                          title: '备注',
+                          children: [
+                            TextFormField(
+                              controller: _notesCtrl,
+                              maxLines: 3,
+                              decoration: const InputDecoration(
+                                hintText: '补充说明,如账户用途、关联卡片、还款提醒等(可选)',
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: AppSpacing.xl),
                         FormActions(
