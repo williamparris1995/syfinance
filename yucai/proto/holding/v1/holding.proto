@@ -189,9 +189,10 @@ message PortfolioPerformanceResponse {
   int64 realized_cents = 4;
   int64 unrealized_cents = 5;
   int64 total_cents = 6;
-  double annualized_pct = 7;
+  optional double annualized_pct = 7;        // 全期 XIRR 年化%(nil=降级)
   double total_pct = 8;
   string currency = 9;
+  optional double range_annualized_pct = 10; // 区间 XIRR 年化%(随 CurveRange)
 }
 
 message GetHoldingPerformanceRequest {
@@ -208,6 +209,8 @@ message HoldingPerformanceResponse {
   int64 unrealized_cents = 3;
   int64 total_cents = 4;
   string currency = 5;
+  optional double annualized_pct = 6;       // 全期 XIRR(原币)
+  optional double range_annualized_pct = 7; // 区间 XIRR(原币)
 }
 
 message BackfillPriceHistoryRequest {

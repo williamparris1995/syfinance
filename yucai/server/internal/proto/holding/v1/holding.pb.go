@@ -1648,18 +1648,19 @@ func (x *GetPortfolioPerformanceRequest) GetBaseCurrency() string {
 }
 
 type PortfolioPerformanceResponse struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	PortfolioPoints []*CurvePoint          `protobuf:"bytes,1,rep,name=portfolio_points,json=portfolioPoints,proto3" json:"portfolio_points,omitempty"`
-	BenchmarkPoints []*CurvePoint          `protobuf:"bytes,2,rep,name=benchmark_points,json=benchmarkPoints,proto3" json:"benchmark_points,omitempty"`
-	BenchmarkName   string                 `protobuf:"bytes,3,opt,name=benchmark_name,json=benchmarkName,proto3" json:"benchmark_name,omitempty"`
-	RealizedCents   int64                  `protobuf:"varint,4,opt,name=realized_cents,json=realizedCents,proto3" json:"realized_cents,omitempty"`
-	UnrealizedCents int64                  `protobuf:"varint,5,opt,name=unrealized_cents,json=unrealizedCents,proto3" json:"unrealized_cents,omitempty"`
-	TotalCents      int64                  `protobuf:"varint,6,opt,name=total_cents,json=totalCents,proto3" json:"total_cents,omitempty"`
-	AnnualizedPct   float64                `protobuf:"fixed64,7,opt,name=annualized_pct,json=annualizedPct,proto3" json:"annualized_pct,omitempty"`
-	TotalPct        float64                `protobuf:"fixed64,8,opt,name=total_pct,json=totalPct,proto3" json:"total_pct,omitempty"`
-	Currency        string                 `protobuf:"bytes,9,opt,name=currency,proto3" json:"currency,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	PortfolioPoints    []*CurvePoint          `protobuf:"bytes,1,rep,name=portfolio_points,json=portfolioPoints,proto3" json:"portfolio_points,omitempty"`
+	BenchmarkPoints    []*CurvePoint          `protobuf:"bytes,2,rep,name=benchmark_points,json=benchmarkPoints,proto3" json:"benchmark_points,omitempty"`
+	BenchmarkName      string                 `protobuf:"bytes,3,opt,name=benchmark_name,json=benchmarkName,proto3" json:"benchmark_name,omitempty"`
+	RealizedCents      int64                  `protobuf:"varint,4,opt,name=realized_cents,json=realizedCents,proto3" json:"realized_cents,omitempty"`
+	UnrealizedCents    int64                  `protobuf:"varint,5,opt,name=unrealized_cents,json=unrealizedCents,proto3" json:"unrealized_cents,omitempty"`
+	TotalCents         int64                  `protobuf:"varint,6,opt,name=total_cents,json=totalCents,proto3" json:"total_cents,omitempty"`
+	AnnualizedPct      *float64               `protobuf:"fixed64,7,opt,name=annualized_pct,json=annualizedPct,proto3,oneof" json:"annualized_pct,omitempty"` // 全期 XIRR 年化%(nil=降级)
+	TotalPct           float64                `protobuf:"fixed64,8,opt,name=total_pct,json=totalPct,proto3" json:"total_pct,omitempty"`
+	Currency           string                 `protobuf:"bytes,9,opt,name=currency,proto3" json:"currency,omitempty"`
+	RangeAnnualizedPct *float64               `protobuf:"fixed64,10,opt,name=range_annualized_pct,json=rangeAnnualizedPct,proto3,oneof" json:"range_annualized_pct,omitempty"` // 区间 XIRR 年化%(随 CurveRange)
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *PortfolioPerformanceResponse) Reset() {
@@ -1735,8 +1736,8 @@ func (x *PortfolioPerformanceResponse) GetTotalCents() int64 {
 }
 
 func (x *PortfolioPerformanceResponse) GetAnnualizedPct() float64 {
-	if x != nil {
-		return x.AnnualizedPct
+	if x != nil && x.AnnualizedPct != nil {
+		return *x.AnnualizedPct
 	}
 	return 0
 }
@@ -1753,6 +1754,13 @@ func (x *PortfolioPerformanceResponse) GetCurrency() string {
 		return x.Currency
 	}
 	return ""
+}
+
+func (x *PortfolioPerformanceResponse) GetRangeAnnualizedPct() float64 {
+	if x != nil && x.RangeAnnualizedPct != nil {
+		return *x.RangeAnnualizedPct
+	}
+	return 0
 }
 
 type GetHoldingPerformanceRequest struct {
@@ -1818,14 +1826,16 @@ func (x *GetHoldingPerformanceRequest) GetBaseCurrency() string {
 }
 
 type HoldingPerformanceResponse struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	PricePoints     []*CurvePoint          `protobuf:"bytes,1,rep,name=price_points,json=pricePoints,proto3" json:"price_points,omitempty"`
-	RealizedCents   int64                  `protobuf:"varint,2,opt,name=realized_cents,json=realizedCents,proto3" json:"realized_cents,omitempty"`
-	UnrealizedCents int64                  `protobuf:"varint,3,opt,name=unrealized_cents,json=unrealizedCents,proto3" json:"unrealized_cents,omitempty"`
-	TotalCents      int64                  `protobuf:"varint,4,opt,name=total_cents,json=totalCents,proto3" json:"total_cents,omitempty"`
-	Currency        string                 `protobuf:"bytes,5,opt,name=currency,proto3" json:"currency,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	PricePoints        []*CurvePoint          `protobuf:"bytes,1,rep,name=price_points,json=pricePoints,proto3" json:"price_points,omitempty"`
+	RealizedCents      int64                  `protobuf:"varint,2,opt,name=realized_cents,json=realizedCents,proto3" json:"realized_cents,omitempty"`
+	UnrealizedCents    int64                  `protobuf:"varint,3,opt,name=unrealized_cents,json=unrealizedCents,proto3" json:"unrealized_cents,omitempty"`
+	TotalCents         int64                  `protobuf:"varint,4,opt,name=total_cents,json=totalCents,proto3" json:"total_cents,omitempty"`
+	Currency           string                 `protobuf:"bytes,5,opt,name=currency,proto3" json:"currency,omitempty"`
+	AnnualizedPct      *float64               `protobuf:"fixed64,6,opt,name=annualized_pct,json=annualizedPct,proto3,oneof" json:"annualized_pct,omitempty"`                  // 全期 XIRR(原币)
+	RangeAnnualizedPct *float64               `protobuf:"fixed64,7,opt,name=range_annualized_pct,json=rangeAnnualizedPct,proto3,oneof" json:"range_annualized_pct,omitempty"` // 区间 XIRR(原币)
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *HoldingPerformanceResponse) Reset() {
@@ -1891,6 +1901,20 @@ func (x *HoldingPerformanceResponse) GetCurrency() string {
 		return x.Currency
 	}
 	return ""
+}
+
+func (x *HoldingPerformanceResponse) GetAnnualizedPct() float64 {
+	if x != nil && x.AnnualizedPct != nil {
+		return *x.AnnualizedPct
+	}
+	return 0
+}
+
+func (x *HoldingPerformanceResponse) GetRangeAnnualizedPct() float64 {
+	if x != nil && x.RangeAnnualizedPct != nil {
+		return *x.RangeAnnualizedPct
+	}
+	return 0
 }
 
 type BackfillPriceHistoryRequest struct {
@@ -2122,7 +2146,7 @@ const file_holding_v1_holding_proto_rawDesc = "" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x122\n" +
 	"\x05range\x18\x02 \x01(\x0e2\x1c.yucai.holding.v1.CurveRangeR\x05range\x12+\n" +
 	"\x11include_benchmark\x18\x03 \x01(\bR\x10includeBenchmark\x12#\n" +
-	"\rbase_currency\x18\x04 \x01(\tR\fbaseCurrency\"\xaa\x03\n" +
+	"\rbase_currency\x18\x04 \x01(\tR\fbaseCurrency\"\x92\x04\n" +
 	"\x1cPortfolioPerformanceResponse\x12G\n" +
 	"\x10portfolio_points\x18\x01 \x03(\v2\x1c.yucai.holding.v1.CurvePointR\x0fportfolioPoints\x12G\n" +
 	"\x10benchmark_points\x18\x02 \x03(\v2\x1c.yucai.holding.v1.CurvePointR\x0fbenchmarkPoints\x12%\n" +
@@ -2130,22 +2154,30 @@ const file_holding_v1_holding_proto_rawDesc = "" +
 	"\x0erealized_cents\x18\x04 \x01(\x03R\rrealizedCents\x12)\n" +
 	"\x10unrealized_cents\x18\x05 \x01(\x03R\x0funrealizedCents\x12\x1f\n" +
 	"\vtotal_cents\x18\x06 \x01(\x03R\n" +
-	"totalCents\x12%\n" +
-	"\x0eannualized_pct\x18\a \x01(\x01R\rannualizedPct\x12\x1b\n" +
+	"totalCents\x12*\n" +
+	"\x0eannualized_pct\x18\a \x01(\x01H\x00R\rannualizedPct\x88\x01\x01\x12\x1b\n" +
 	"\ttotal_pct\x18\b \x01(\x01R\btotalPct\x12\x1a\n" +
-	"\bcurrency\x18\t \x01(\tR\bcurrency\"\x96\x01\n" +
+	"\bcurrency\x18\t \x01(\tR\bcurrency\x125\n" +
+	"\x14range_annualized_pct\x18\n" +
+	" \x01(\x01H\x01R\x12rangeAnnualizedPct\x88\x01\x01B\x11\n" +
+	"\x0f_annualized_pctB\x17\n" +
+	"\x15_range_annualized_pct\"\x96\x01\n" +
 	"\x1cGetHoldingPerformanceRequest\x12\x1d\n" +
 	"\n" +
 	"holding_id\x18\x01 \x01(\tR\tholdingId\x122\n" +
 	"\x05range\x18\x02 \x01(\x0e2\x1c.yucai.holding.v1.CurveRangeR\x05range\x12#\n" +
-	"\rbase_currency\x18\x03 \x01(\tR\fbaseCurrency\"\xec\x01\n" +
+	"\rbase_currency\x18\x03 \x01(\tR\fbaseCurrency\"\xfb\x02\n" +
 	"\x1aHoldingPerformanceResponse\x12?\n" +
 	"\fprice_points\x18\x01 \x03(\v2\x1c.yucai.holding.v1.CurvePointR\vpricePoints\x12%\n" +
 	"\x0erealized_cents\x18\x02 \x01(\x03R\rrealizedCents\x12)\n" +
 	"\x10unrealized_cents\x18\x03 \x01(\x03R\x0funrealizedCents\x12\x1f\n" +
 	"\vtotal_cents\x18\x04 \x01(\x03R\n" +
 	"totalCents\x12\x1a\n" +
-	"\bcurrency\x18\x05 \x01(\tR\bcurrency\"Q\n" +
+	"\bcurrency\x18\x05 \x01(\tR\bcurrency\x12*\n" +
+	"\x0eannualized_pct\x18\x06 \x01(\x01H\x00R\rannualizedPct\x88\x01\x01\x125\n" +
+	"\x14range_annualized_pct\x18\a \x01(\x01H\x01R\x12rangeAnnualizedPct\x88\x01\x01B\x11\n" +
+	"\x0f_annualized_pctB\x17\n" +
+	"\x15_range_annualized_pct\"Q\n" +
 	"\x1bBackfillPriceHistoryRequest\x122\n" +
 	"\x05range\x18\x01 \x01(\x0e2\x1c.yucai.holding.v1.CurveRangeR\x05range\"I\n" +
 	"\x1cBackfillPriceHistoryResponse\x12)\n" +
@@ -2307,6 +2339,8 @@ func file_holding_v1_holding_proto_init() {
 	if File_holding_v1_holding_proto != nil {
 		return
 	}
+	file_holding_v1_holding_proto_msgTypes[22].OneofWrappers = []any{}
+	file_holding_v1_holding_proto_msgTypes[24].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

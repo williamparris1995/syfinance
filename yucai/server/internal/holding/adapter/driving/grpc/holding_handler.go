@@ -294,23 +294,20 @@ func (h *HoldingHandler) GetPortfolioPerformance(ctx context.Context, req *pb.Ge
 	if err != nil {
 		return nil, mapError(err)
 	}
-	// AnnualizedPct is nullable (*float64, nil = degraded). Proto field is
-	// float64 — nil maps to 0.0 (same display as pre-XIRR). Task 4 will add a
-	// proto-side nullable wrapper if the API needs to distinguish nil vs 0.
-	var annualizedPct float64
-	if perf.AnnualizedPct != nil {
-		annualizedPct = *perf.AnnualizedPct
-	}
+	// AnnualizedPct / RangeAnnualizedPct are *float64 (nil = degraded XIRR).
+	// Proto optional (Task 5) accepts the pointer directly — nil round-trips
+	// as field-absent across the wire, distinguishing degraded vs 0.0%.
 	return &pb.PortfolioPerformanceResponse{
-		PortfolioPoints: curvePointsToProto(perf.PortfolioPoints),
-		BenchmarkPoints: curvePointsToProto(perf.BenchmarkPoints),
-		BenchmarkName:   perf.BenchmarkName,
-		RealizedCents:   perf.RealizedCents,
-		UnrealizedCents: perf.UnrealizedCents,
-		TotalCents:      perf.TotalCents,
-		AnnualizedPct:   annualizedPct,
-		TotalPct:        perf.TotalPct,
-		Currency:        perf.Currency,
+		PortfolioPoints:    curvePointsToProto(perf.PortfolioPoints),
+		BenchmarkPoints:    curvePointsToProto(perf.BenchmarkPoints),
+		BenchmarkName:      perf.BenchmarkName,
+		RealizedCents:      perf.RealizedCents,
+		UnrealizedCents:    perf.UnrealizedCents,
+		TotalCents:         perf.TotalCents,
+		AnnualizedPct:      perf.AnnualizedPct,
+		RangeAnnualizedPct: perf.RangeAnnualizedPct,
+		TotalPct:           perf.TotalPct,
+		Currency:           perf.Currency,
 	}, nil
 }
 
@@ -329,11 +326,13 @@ func (h *HoldingHandler) GetHoldingPerformance(ctx context.Context, req *pb.GetH
 		return nil, mapError(err)
 	}
 	return &pb.HoldingPerformanceResponse{
-		PricePoints:     curvePointsToProto(perf.PricePoints),
-		RealizedCents:   perf.RealizedCents,
-		UnrealizedCents: perf.UnrealizedCents,
-		TotalCents:      perf.TotalCents,
-		Currency:        perf.Currency,
+		PricePoints:        curvePointsToProto(perf.PricePoints),
+		RealizedCents:      perf.RealizedCents,
+		UnrealizedCents:    perf.UnrealizedCents,
+		TotalCents:         perf.TotalCents,
+		Currency:           perf.Currency,
+		AnnualizedPct:      perf.AnnualizedPct,
+		RangeAnnualizedPct: perf.RangeAnnualizedPct,
 	}, nil
 }
 
