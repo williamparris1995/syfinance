@@ -635,12 +635,16 @@ func providePriceHistoryRepo(client *holdingent.Client) *holdingsec.PriceHistory
 	return holdingsec.NewPriceHistoryRepository(client)
 }
 
-// provideHistoricalProvider builds the daily K-line history provider. The same
-// SinaProvider that serves live A-share prices also implements HistoricalProvider
-// (FetchHistory), so backfill reuses it. Wire injects it directly into the
-// holding service (not via Router) — backfill wants A-share/CSI300 coverage only.
+// provideHistoricalProvider builds the daily K-line history provider as a
+// HistoricalRouter: SinaProvider first (A-share SSE/SZSE + CSI300), then
+// YahooProvider fallback (US/OTC/global non-A-share). Wire injects the router
+// into the holding service; BackfillPriceHistory calls FetchHistory which the
+// router routes. ErrNoSource from Sina falls through to Yahoo.
 func provideHistoricalProvider() priceprovider.HistoricalProvider {
-	return priceprovider.NewSinaProvider()
+	return priceprovider.NewHistoricalRouter(
+		priceprovider.NewSinaProvider(),
+		priceprovider.NewYahooProvider(),
+	)
 }
 
 // provideCurrencyRateHistoryRepo builds the currency rate-history repository.
