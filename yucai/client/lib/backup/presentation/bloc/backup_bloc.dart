@@ -20,7 +20,7 @@ class BackupBloc extends Bloc<BackupEvent, BackupState> {
   List<Backup> _last = const [];
 
   Future<void> _onLoad(LoadBackupsRequested event, Emitter<BackupState> emit) async {
-    emit(BackupLoading());
+    emit(BackupLoading(_last));
     final result = await _repo.list();
     result.fold(
       (failure) => emit(BackupError(failure.displayMessage, last: _last)),

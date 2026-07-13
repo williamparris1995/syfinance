@@ -76,4 +76,22 @@ void main() {
 
     verify(() => repo.create(encrypted: true)).called(1);
   });
+
+  // I-1 regression: 操作失败必须反馈 SnackBar（列表非空时 _errorState 不显示，
+  // 唯一反馈路径是 BlocListener → SnackBar）。
+  testWidgets('create failure shows SnackBar with error message', (t) async {
+    final repo = _MockRepo();
+    when(() => repo.list()).thenAnswer((_) async => const Right([_sample]));
+    when(() => repo.create(encrypted: true))
+        .thenAnswer((_) async => const Left(ServerFailure('创建失败')));
+    await t.pumpWidget(_harness(repo));
+    await t.pumpAndSettle(); // 列表加载完成
+
+    await t.tap(find.text('立即备份'));
+    await t.pumpAndSettle(); // encrypted dialog 弹出
+    await t.tap(find.widgetWithText(FilledButton, '加密'));
+    await t.pumpAndSettle(); // create 失败 → BackupError → SnackBar
+
+    expect(find.text('创建失败'), findsOneWidget);
+  });
 }

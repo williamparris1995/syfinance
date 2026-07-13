@@ -61,54 +61,58 @@ class _BackupPageState extends State<BackupPage> {
   /// RestoreBackupRequest{backupId, password}：非加密传空串。
   Future<void> _showRestoreDialog(Backup backup) async {
     final passwordController = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dctx) => AlertDialog(
-        title: const Text('恢复备份'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '⚠️ 恢复将覆盖当前所有数据，此操作不可逆，确定？',
-              style: TextStyle(color: AppColors.negative),
-            ),
-            if (backup.encrypted) ...[
-              const SizedBox(height: AppSpacing.md),
+    try {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (dctx) => AlertDialog(
+          title: const Text('恢复备份'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               const Text(
-                '恢复加密备份，请输入密码：',
-                style: TextStyle(color: AppColors.muted, fontSize: 13),
+                '⚠️ 恢复将覆盖当前所有数据，此操作不可逆，确定？',
+                style: TextStyle(color: AppColors.negative),
               ),
-              const SizedBox(height: AppSpacing.xs),
-              TextField(
-                controller: passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: '密码',
-                  isDense: true,
+              if (backup.encrypted) ...[
+                const SizedBox(height: AppSpacing.md),
+                const Text(
+                  '恢复加密备份，请输入密码：',
+                  style: TextStyle(color: AppColors.muted, fontSize: 13),
                 ),
-              ),
+                const SizedBox(height: AppSpacing.xs),
+                TextField(
+                  controller: passwordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: '密码',
+                    isDense: true,
+                  ),
+                ),
+              ],
             ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dctx, false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dctx, true),
+              child: const Text('确认恢复'),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dctx, false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dctx, true),
-            child: const Text('确认恢复'),
-          ),
-        ],
-      ),
-    );
-    if (ok == true && mounted) {
-      final pwd = backup.encrypted ? passwordController.text : '';
-      context.read<BackupBloc>().add(
-            RestoreBackupRequested(id: backup.id, password: pwd),
-          );
+      );
+      if (ok == true && mounted) {
+        final pwd = backup.encrypted ? passwordController.text : '';
+        context.read<BackupBloc>().add(
+              RestoreBackupRequested(id: backup.id, password: pwd),
+            );
+      }
+    } finally {
+      passwordController.dispose();
     }
   }
 
@@ -137,12 +141,14 @@ class _BackupPageState extends State<BackupPage> {
     }
   }
 
-  /// 当前要显示的列表：Loaded 直取；Submitting/Error/ActionSuccess 取 last；
-  /// Loading/Initial 取空。
+  /// 当前要显示的列表：Loaded 直取；Loading/Submitting/Error/ActionSuccess
+  /// 取 last（避免刷新/操作时列表闪烁）；Initial 取空。
   List<Backup> _listOf(BackupState state) {
     switch (state) {
       case BackupsLoaded(:final backups):
         return backups;
+      case BackupLoading(:final last):
+        return last;
       case BackupSubmitting(:final last):
         return last;
       case BackupActionSuccess(:final last):
@@ -159,11 +165,19 @@ class _BackupPageState extends State<BackupPage> {
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: BlocListener<BackupBloc, BackupState>(
-        listenWhen: (prev, curr) => curr is BackupActionSuccess,
+        listenWhen: (prev, curr) =>
+            curr is BackupActionSuccess ||
+            (curr is BackupError && curr.last.isNotEmpty),
         listener: (ctx, state) {
+          String? msg;
           if (state is BackupActionSuccess) {
+            msg = state.message;
+          } else if (state is BackupError) {
+            msg = state.message;
+          }
+          if (msg != null) {
             ScaffoldMessenger.of(ctx).showSnackBar(
-              SnackBar(content: Text(state.message)),
+              SnackBar(content: Text(msg)),
             );
           }
         },

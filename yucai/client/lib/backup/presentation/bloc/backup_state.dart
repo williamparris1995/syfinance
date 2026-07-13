@@ -10,7 +10,14 @@ abstract class BackupState extends Equatable {
 
 class BackupInitial extends BackupState {}
 
-class BackupLoading extends BackupState {}
+/// 列表刷新中 —— 保留 last list 供 UI 继续显示（避免操作成功触发 LoadBackupsRequested
+/// 时，全屏 spinner 闪烁、列表消失）。首载 last 为空 → UI 走 isFirstLoad spinner。
+class BackupLoading extends BackupState {
+  const BackupLoading([this.last = const []]);
+  final List<Backup> last;
+  @override
+  List<Object?> get props => [last];
+}
 
 class BackupsLoaded extends BackupState {
   const BackupsLoaded(this.backups);

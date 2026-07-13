@@ -23,10 +23,6 @@ const _sample = Backup(
 );
 
 void main() {
-  setUpAll(() {
-    registerFallbackValue(LoadBackupsRequested());
-  });
-
   blocTest<BackupBloc, BackupState>(
     'load success emits Loading → Loaded',
     build: () {
@@ -107,6 +103,21 @@ void main() {
           .having((s) => s.message, 'message', '恢复成功,请重启应用'),
       isA<BackupLoading>(),
       const BackupsLoaded([_sample]),
+    ],
+  );
+
+  blocTest<BackupBloc, BackupState>(
+    'create failure emits Submitting → Error',
+    build: () {
+      final repo = _MockRepo();
+      when(() => repo.create(encrypted: true))
+          .thenAnswer((_) async => const Left(ServerFailure('创建失败')));
+      return BackupBloc(repo);
+    },
+    act: (b) => b.add(const CreateBackupRequested(true)),
+    expect: () => [
+      isA<BackupSubmitting>(),
+      isA<BackupError>().having((s) => s.message, 'message', '创建失败'),
     ],
   );
 }
