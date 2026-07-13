@@ -49,6 +49,17 @@ func (r *fakeBudgetRepo) Delete(ctx context.Context, tenantID, id uuid.UUID) err
 	return r.err
 }
 
+func (r *fakeBudgetRepo) FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]domain.Budget, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+	return []domain.Budget{}, nil
+}
+
+func (r *fakeBudgetRepo) DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error {
+	return r.err
+}
+
 func TestGetBudgetComputesActualsReadTime(t *testing.T) {
 	repo := &fakeBudgetRepo{budget: &domain.Budget{
 		ID: uuid.New(), Month: "2026-07", CurrencyCode: "CNY",

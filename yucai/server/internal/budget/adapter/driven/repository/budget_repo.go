@@ -212,6 +212,70 @@ func (r *BudgetRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) e
 	return nil
 }
 
+// FindAllForBackup returns all non-deleted budgets for a tenant (with items,
+// no pagination) for backup export. Items are loaded in a single batched query
+// (WHERE budget_id IN (...)) to avoid the N+1 that FindAll incurs per row.
+func (r *BudgetRepository) FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]domain.Budget, error) {
+	results, err := r.client.Budget.Query().
+		Where(
+			budget.TenantID(tenantID),
+			budget.DeletedAtIsNil(),
+		).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("backup find budgets: %w", err)
+	}
+	if len(results) == 0 {
+		return []domain.Budget{}, nil
+	}
+
+	budgetIDs := make([]uuid.UUID, len(results))
+	for i, b := range results {
+		budgetIDs[i] = b.ID
+	}
+	itemRows, err := r.client.BudgetItem.Query().
+		Where(budgetitem.BudgetIDIn(budgetIDs...)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("backup load budget items: %w", err)
+	}
+	itemsByBudget := make(map[uuid.UUID][]*budgetent.BudgetItem, len(results))
+	for _, it := range itemRows {
+		itemsByBudget[it.BudgetID] = append(itemsByBudget[it.BudgetID], it)
+	}
+
+	out := make([]domain.Budget, len(results))
+	for i, b := range results {
+		out[i] = *toDomainBudget(b, itemsByBudget[b.ID])
+	}
+	return out, nil
+}
+
+// DeleteByTenant hard-deletes all budgets and their items for a tenant.
+// Items have no tenant_id (scoped via budget_id FK), so collect budget IDs first,
+// delete items, then delete budgets. Used by backup Import's purge step.
+func (r *BudgetRepository) DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error {
+	budgetIDs, err := r.client.Budget.Query().
+		Where(budget.TenantID(tenantID)).
+		IDs(ctx)
+	if err != nil {
+		return fmt.Errorf("backup collect budget ids: %w", err)
+	}
+	if len(budgetIDs) > 0 {
+		if _, err := r.client.BudgetItem.Delete().
+			Where(budgetitem.BudgetIDIn(budgetIDs...)).
+			Exec(ctx); err != nil {
+			return fmt.Errorf("backup purge budget items: %w", err)
+		}
+	}
+	if _, err := r.client.Budget.Delete().
+		Where(budget.TenantID(tenantID)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("backup purge budgets: %w", err)
+	}
+	return nil
+}
+
 func toDomainBudget(b *budgetent.Budget, items []*budgetent.BudgetItem) *domain.Budget {
 	domainItems := make([]domain.BudgetItem, len(items))
 	for i, item := range items {

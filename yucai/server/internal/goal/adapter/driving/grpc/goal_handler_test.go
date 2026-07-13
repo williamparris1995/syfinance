@@ -87,6 +87,13 @@ func (r *fakeRepo) FindSnapshotRange(context.Context, uuid.UUID, uuid.UUID, time
 	return nil, nil
 }
 
+// FindAllForBackup + DeleteByTenant are no-op stubs for the backup interface
+// methods (backup export/purge paths are not exercised in handler tests).
+func (r *fakeRepo) FindAllForBackup(context.Context, uuid.UUID) ([]domain.Goal, error) {
+	return nil, nil
+}
+func (r *fakeRepo) DeleteByTenant(context.Context, uuid.UUID) error { return nil }
+
 // fakeMVSource returns a fixed market value across accounts (multi-account port).
 type fakeMVSource struct {
 	mv int64

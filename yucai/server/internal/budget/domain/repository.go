@@ -15,6 +15,13 @@ type BudgetRepository interface {
 	FindAll(ctx context.Context, tenantID uuid.UUID, activeOnly bool, page PageRequest) (*PaginatedResult[Budget], error)
 	Update(ctx context.Context, budget *Budget) error
 	Delete(ctx context.Context, tenantID, id uuid.UUID) error
+	// FindAllForBackup returns all non-deleted budgets for a tenant (no
+	// pagination, includes items) for backup export. Mirrors account/transaction
+	// backup ports.
+	FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]Budget, error)
+	// DeleteByTenant hard-deletes all budgets and their items for a tenant.
+	// Used by backup Import's purge step (items first, then budgets, FK order).
+	DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error
 }
 
 // PageRequest for cursor-based pagination.

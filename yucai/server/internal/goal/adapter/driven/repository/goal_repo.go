@@ -287,6 +287,71 @@ func (r *GoalRepository) FindSnapshotRange(ctx context.Context, tenantID, goalID
 	return pts, nil
 }
 
+// FindAllForBackup returns all goals for a tenant (no pagination, with
+// multi-account + multi-debt links) for backup export. Account + debt links
+// are loaded in two batched queries (one per link table) to avoid N+1.
+// goal_progress_snapshot rows are derived (recomputed daily) and excluded.
+func (r *GoalRepository) FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]domain.Goal, error) {
+	results, err := r.client.Goal.Query().
+		Where(goal.TenantID(tenantID)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("backup find goals: %w", err)
+	}
+	if len(results) == 0 {
+		return []domain.Goal{}, nil
+	}
+
+	goalIDs := make([]uuid.UUID, len(results))
+	for i, g := range results {
+		goalIDs[i] = g.ID
+	}
+	accByGoal, err := r.loadAccountLinks(ctx, tenantID, goalIDs)
+	if err != nil {
+		return nil, err
+	}
+	debtByGoal, err := r.loadDebtLinks(ctx, tenantID, goalIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]domain.Goal, len(results))
+	for i, g := range results {
+		dg := toDomainGoalBase(g)
+		dg.LinkedAccountIDs = accByGoal[g.ID]
+		dg.LinkedDebtIDs = debtByGoal[g.ID]
+		// Fallback: if link table empty but legacy column set, use it (mirrors FindAll).
+		if len(dg.LinkedAccountIDs) == 0 && g.LinkedAccountID != nil {
+			dg.LinkedAccountIDs = []uuid.UUID{*g.LinkedAccountID}
+		}
+		out[i] = *dg
+	}
+	return out, nil
+}
+
+// DeleteByTenant hard-deletes all goals and their account/debt links for a
+// tenant. Link tables carry their own tenant_id, so they can be deleted directly
+// (no goal-ID collection needed); goals are deleted last. Snapshots are left
+// for the scheduler to recompute (derived data, out of backup scope).
+func (r *GoalRepository) DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error {
+	if _, err := r.client.GoalAccountLinks.Delete().
+		Where(goalaccountlinks.TenantIDEQ(tenantID)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("backup purge goal account links: %w", err)
+	}
+	if _, err := r.client.GoalDebtLinks.Delete().
+		Where(goaldebtlinks.TenantIDEQ(tenantID)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("backup purge goal debt links: %w", err)
+	}
+	if _, err := r.client.Goal.Delete().
+		Where(goal.TenantID(tenantID)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("backup purge goals: %w", err)
+	}
+	return nil
+}
+
 // --- multi-account link helpers ---
 
 // replaceAccountLinks deletes all account links for the goal then re-inserts

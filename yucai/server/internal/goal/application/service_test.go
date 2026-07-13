@@ -133,6 +133,12 @@ func (fakeGoalRepo) FindByID(context.Context, uuid.UUID, uuid.UUID) (*domain.Goa
 func (fakeGoalRepo) Delete(context.Context, uuid.UUID, uuid.UUID) error {
 	panic("not used in SyncAllGoals test")
 }
+func (fakeGoalRepo) FindAllForBackup(context.Context, uuid.UUID) ([]domain.Goal, error) {
+	panic("not used in SyncAllGoals test")
+}
+func (fakeGoalRepo) DeleteByTenant(context.Context, uuid.UUID) error {
+	panic("not used in SyncAllGoals test")
+}
 
 // FindAll returns seeded goals as a single page, optionally filtered by
 // tenantID and goalType. completed is ignored here since the sync always passes
@@ -345,8 +351,12 @@ func (r *cloneRepo) FindByID(_ context.Context, _ uuid.UUID, id uuid.UUID) (*dom
 func (r *cloneRepo) FindAll(context.Context, uuid.UUID, *bool, *domain.GoalType, domain.PageRequest) (*domain.PaginatedResult[domain.Goal], error) {
 	panic("not used in CloneGoal/CreateGoal test")
 }
+func (r *cloneRepo) FindAllForBackup(context.Context, uuid.UUID) ([]domain.Goal, error) {
+	panic("not used in CloneGoal/CreateGoal test")
+}
 func (r *cloneRepo) Update(context.Context, *domain.Goal) error         { panic("not used") }
 func (r *cloneRepo) Delete(context.Context, uuid.UUID, uuid.UUID) error { return nil }
+func (r *cloneRepo) DeleteByTenant(context.Context, uuid.UUID) error    { return nil }
 func (r *cloneRepo) WriteSnapshot(context.Context, *domain.Goal) error  { return nil }
 func (r *cloneRepo) FindSnapshotRange(context.Context, uuid.UUID, uuid.UUID, time.Time, time.Time) ([]domain.ProgressPoint, error) {
 	return nil, nil

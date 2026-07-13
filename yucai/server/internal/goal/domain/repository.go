@@ -37,6 +37,15 @@ type GoalRepository interface {
 	// (snapshot_date between from and to inclusive), ordered by date asc.
 	// Phase 2 trend-curve data source for GetGoalProgressHistory.
 	FindSnapshotRange(ctx context.Context, tenantID, goalID uuid.UUID, from, to time.Time) ([]ProgressPoint, error)
+	// FindAllForBackup returns all goals for a tenant (no pagination, with
+	// multi-account + multi-debt links) for backup export. Mirrors
+	// account/transaction/budget backup ports. Snapshots are derived data
+	// (recomputed by the daily scheduler) and are intentionally excluded.
+	FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]Goal, error)
+	// DeleteByTenant hard-deletes all goals and their account/debt links for a
+	// tenant. Used by backup Import's purge step (links first, then goals, FK
+	// order; links carry their own tenant_id so no ID collection is needed).
+	DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error
 }
 
 // AccountMarketValueSource reports Σ market value of holdings under the given
