@@ -185,6 +185,7 @@ func (x *BackupDTO) GetCreatedAt() *timestamppb.Timestamp {
 type CreateBackupRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Encrypted     bool                   `protobuf:"varint,1,opt,name=encrypted,proto3" json:"encrypted,omitempty"`
+	Password      *string                `protobuf:"bytes,2,opt,name=password,proto3,oneof" json:"password,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -224,6 +225,13 @@ func (x *CreateBackupRequest) GetEncrypted() bool {
 		return x.Encrypted
 	}
 	return false
+}
+
+func (x *CreateBackupRequest) GetPassword() string {
+	if x != nil && x.Password != nil {
+		return *x.Password
+	}
+	return ""
 }
 
 type RestoreBackupRequest struct {
@@ -805,9 +813,11 @@ const file_backup_v1_backup_proto_rawDesc = "" +
 	"\tencrypted\x18\x06 \x01(\bR\tencrypted\x12\x12\n" +
 	"\x04auto\x18\a \x01(\bR\x04auto\x129\n" +
 	"\n" +
-	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"3\n" +
+	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"a\n" +
 	"\x13CreateBackupRequest\x12\x1c\n" +
-	"\tencrypted\x18\x01 \x01(\bR\tencrypted\"O\n" +
+	"\tencrypted\x18\x01 \x01(\bR\tencrypted\x12\x1f\n" +
+	"\bpassword\x18\x02 \x01(\tH\x00R\bpassword\x88\x01\x01B\v\n" +
+	"\t_password\"O\n" +
 	"\x14RestoreBackupRequest\x12\x1b\n" +
 	"\tbackup_id\x18\x01 \x01(\tR\bbackupId\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\"\x83\x01\n" +
@@ -936,6 +946,7 @@ func file_backup_v1_backup_proto_init() {
 	if File_backup_v1_backup_proto != nil {
 		return
 	}
+	file_backup_v1_backup_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

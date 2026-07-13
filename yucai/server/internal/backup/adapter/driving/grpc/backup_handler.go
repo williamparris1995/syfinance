@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"errors"
 
 	pb "github.com/yucai/server/internal/proto/backup/v1"
 	commonpb "github.com/yucai/server/internal/proto/common/v1"
@@ -33,11 +34,11 @@ func (h *BackupHandler) CreateBackup(ctx context.Context, req *pb.CreateBackupRe
 		return nil, err
 	}
 
-	// NOTE: CreateBackupRequest has no password field yet (proto unchanged per
-	// "零 schema/proto" constraint of Task 8). Plaintext backups work via gRPC;
-	// encrypted backups require a password and are reachable only through the
-	// application layer until the proto gains a password field.
-	result, err := h.service.CreateBackup(ctx, tenantID, req.Encrypted, "")
+	password := ""
+	if req.Password != nil {
+		password = *req.Password
+	}
+	result, err := h.service.CreateBackup(ctx, tenantID, req.Encrypted, password)
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -248,5 +249,12 @@ func parseUUID(s string) uuid.UUID {
 }
 
 func mapError(err error) error {
-	return status.Errorf(codes.Internal, "backup service error: %v", err)
+	switch {
+	case errors.Is(err, domain.ErrPasswordRequired),
+		errors.Is(err, domain.ErrPasswordOnPlaintext),
+		errors.Is(err, domain.ErrWrongPassword):
+		return status.Error(codes.InvalidArgument, err.Error())
+	default:
+		return status.Errorf(codes.Internal, "backup service error: %v", err)
+	}
 }

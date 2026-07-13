@@ -39,7 +39,10 @@ message BackupDTO {
   google.protobuf.Timestamp created_at = 8;
 }
 
-message CreateBackupRequest { bool encrypted = 1; }
+message CreateBackupRequest {
+  bool encrypted = 1;
+  optional string password = 2;
+}
 
 message RestoreBackupRequest {
   string backup_id = 1;

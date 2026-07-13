@@ -169,9 +169,11 @@ class BackupDTO extends $pb.GeneratedMessage {
 class CreateBackupRequest extends $pb.GeneratedMessage {
   factory CreateBackupRequest({
     $core.bool? encrypted,
+    $core.String? password,
   }) {
     final result = create();
     if (encrypted != null) result.encrypted = encrypted;
+    if (password != null) result.password = password;
     return result;
   }
 
@@ -190,6 +192,7 @@ class CreateBackupRequest extends $pb.GeneratedMessage {
           const $pb.PackageName(_omitMessageNames ? '' : 'yucai.backup.v1'),
       createEmptyInstance: create)
     ..aOB(1, _omitFieldNames ? '' : 'encrypted')
+    ..aOS(2, _omitFieldNames ? '' : 'password')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -219,6 +222,15 @@ class CreateBackupRequest extends $pb.GeneratedMessage {
   $core.bool hasEncrypted() => $_has(0);
   @$pb.TagNumber(1)
   void clearEncrypted() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get password => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set password($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPassword() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPassword() => $_clearField(2);
 }
 
 class RestoreBackupRequest extends $pb.GeneratedMessage {

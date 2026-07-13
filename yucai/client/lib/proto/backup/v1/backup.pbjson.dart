@@ -78,13 +78,25 @@ const CreateBackupRequest$json = {
   '1': 'CreateBackupRequest',
   '2': [
     {'1': 'encrypted', '3': 1, '4': 1, '5': 8, '10': 'encrypted'},
+    {
+      '1': 'password',
+      '3': 2,
+      '4': 1,
+      '5': 9,
+      '9': 0,
+      '10': 'password',
+      '17': true
+    },
+  ],
+  '8': [
+    {'1': '_password'},
   ],
 };
 
 /// Descriptor for `CreateBackupRequest`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List createBackupRequestDescriptor =
-    $convert.base64Decode(
-        'ChNDcmVhdGVCYWNrdXBSZXF1ZXN0EhwKCWVuY3J5cHRlZBgBIAEoCFIJZW5jcnlwdGVk');
+final $typed_data.Uint8List createBackupRequestDescriptor = $convert.base64Decode(
+    'ChNDcmVhdGVCYWNrdXBSZXF1ZXN0EhwKCWVuY3J5cHRlZBgBIAEoCFIJZW5jcnlwdGVkEh8KCH'
+    'Bhc3N3b3JkGAIgASgJSABSCHBhc3N3b3JkiAEBQgsKCV9wYXNzd29yZA==');
 
 @$core.Deprecated('Use restoreBackupRequestDescriptor instead')
 const RestoreBackupRequest$json = {
