@@ -131,6 +131,7 @@ func (r *fakeDebtRepo) Update(_ context.Context, d *domain.DebtDetails) error {
 func (r *fakeDebtRepo) Delete(context.Context, uuid.UUID, uuid.UUID) error {
 	panic("unexpected Delete call")
 }
+
 // FindAll returns every stored debt for the tenant, optionally filtered by
 // DebtType. Used by GetReceivablesSummary (which fetches BorrowedOut only).
 // Implemented as a real scan (not panic) so the summary handler test can drive
@@ -152,6 +153,12 @@ func (r *fakeDebtRepo) FindAll(_ context.Context, tenantID uuid.UUID, _ domain.P
 }
 func (r *fakeDebtRepo) FindUpcomingPayments(context.Context, uuid.UUID, int) ([]domain.PaymentScheduleEntry, error) {
 	panic("unexpected FindUpcomingPayments call")
+}
+func (r *fakeDebtRepo) FindAllForBackup(context.Context, uuid.UUID) ([]domain.DebtDetails, error) {
+	panic("unexpected FindAllForBackup call")
+}
+func (r *fakeDebtRepo) DeleteByTenant(context.Context, uuid.UUID) error {
+	panic("unexpected DeleteByTenant call")
 }
 
 // fakeDebtSnapshotRepo is an in-memory DebtSnapshotRepository used by the
@@ -235,6 +242,12 @@ func (r *recordingTxnRepo) TransactionSummary(context.Context, txnDomain.Summary
 }
 func (r *recordingTxnRepo) SumEntryTotalsByAccount(context.Context, uuid.UUID, time.Time, time.Time) (int64, int64, error) {
 	panic("unexpected SumEntryTotalsByAccount call")
+}
+func (r *recordingTxnRepo) FindAllForBackup(context.Context, uuid.UUID) ([]txnDomain.Transaction, error) {
+	panic("unexpected FindAllForBackup call")
+}
+func (r *recordingTxnRepo) DeleteByTenant(context.Context, uuid.UUID) error {
+	panic("unexpected DeleteByTenant call")
 }
 
 // mutatingBalanceUpdater applies each entry's (debit - credit) to the matching
@@ -504,6 +517,12 @@ func (r *failingTxnRepo) TransactionSummary(context.Context, txnDomain.SummarySc
 }
 func (r *failingTxnRepo) SumEntryTotalsByAccount(context.Context, uuid.UUID, time.Time, time.Time) (int64, int64, error) {
 	panic("unexpected SumEntryTotalsByAccount call")
+}
+func (r *failingTxnRepo) FindAllForBackup(context.Context, uuid.UUID) ([]txnDomain.Transaction, error) {
+	panic("unexpected FindAllForBackup call")
+}
+func (r *failingTxnRepo) DeleteByTenant(context.Context, uuid.UUID) error {
+	panic("unexpected DeleteByTenant call")
 }
 
 // ---------------------------------------------------------------------------

@@ -31,6 +31,14 @@ type TransactionRepository interface {
 	// total). Transfers are asset→asset flows that never touch Expense accounts,
 	// so they are excluded automatically — no TransactionType filter is applied.
 	SumEntryTotalsByAccount(ctx context.Context, accountID uuid.UUID, from, to time.Time) (debitTotal, creditTotal int64, err error)
+	// FindAllForBackup returns every non-deleted transaction for a tenant with
+	// its entries eager-loaded (single batched query, no pagination). Used by
+	// the backup exporter to serialize a tenant's full transaction graph.
+	FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]Transaction, error)
+	// DeleteByTenant hard-deletes every transaction belonging to the tenant,
+	// removing child transaction_entries first (FK ordering). Used by the backup
+	// exporter's Purge step before a restore.
+	DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error
 }
 
 // TransactionType classifies a transaction by its economic effect for the
@@ -144,7 +152,7 @@ type MonthlySummary struct {
 type SummaryScope struct {
 	TenantID  uuid.UUID
 	Year      int
-	Month     int // 1-12 (ignored when Scope == ScopeYear)
+	Month     int  // 1-12 (ignored when Scope == ScopeYear)
 	Day       *int // 1-31, used only when Scope == ScopeDay
 	Scope     Scope
 	AccountID *uuid.UUID

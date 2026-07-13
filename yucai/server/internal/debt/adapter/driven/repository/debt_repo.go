@@ -201,6 +201,88 @@ func (r *DebtRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) err
 	return nil
 }
 
+// FindAllForBackup returns every debt for a tenant with its payment schedule
+// eager-loaded in a single batched query (loadSchedulesByDebt, avoiding the N+1
+// read that the per-debt FindAll loop would incur). Backup export is the only
+// caller; it serializes the full debt graph without paging. Unlike the main
+// FindAll, debts here carry no soft-delete concept, so all rows are returned.
+func (r *DebtRepository) FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]domain.DebtDetails, error) {
+	results, err := r.client.DebtDetails.Query().
+		Where(debtdetails.TenantID(tenantID)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("query debts for backup: %w", err)
+	}
+
+	debtIDs := make([]uuid.UUID, len(results))
+	for i, d := range results {
+		debtIDs[i] = d.ID
+	}
+	scheduleByDebt, err := r.loadSchedulesByDebt(ctx, debtIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	debts := make([]domain.DebtDetails, len(results))
+	for i, d := range results {
+		debts[i] = *toDomainDebt(d, scheduleByDebt[d.ID])
+	}
+	return debts, nil
+}
+
+// loadSchedulesByDebt fetches all payment schedules for the given debt IDs in a
+// single query and groups them by debt_id, ordered by payment_date for stable
+// output. Returns an empty map (not nil) when there are no debts, and ensures
+// every requested debt has a non-nil slice (consistent with FindByID/FindAll).
+func (r *DebtRepository) loadSchedulesByDebt(ctx context.Context, debtIDs []uuid.UUID) (map[uuid.UUID][]*debtent.PaymentSchedule, error) {
+	out := make(map[uuid.UUID][]*debtent.PaymentSchedule)
+	if len(debtIDs) == 0 {
+		return out, nil
+	}
+	entries, err := r.client.PaymentSchedule.Query().
+		Where(paymentschedule.DebtIDIn(debtIDs...)).
+		Order(debtent.Asc(paymentschedule.FieldPaymentDate)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("batch load schedules: %w", err)
+	}
+	for _, e := range entries {
+		out[e.DebtID] = append(out[e.DebtID], e)
+	}
+	for _, id := range debtIDs {
+		if out[id] == nil {
+			out[id] = []*debtent.PaymentSchedule{}
+		}
+	}
+	return out, nil
+}
+
+// DeleteByTenant hard-deletes every debt for a tenant. Child payment_schedules
+// are deleted first because they reference debts via debt_id and have no
+// tenant_id column of their own (scope by the tenant's debt IDs). Used by the
+// backup exporter's Purge step.
+func (r *DebtRepository) DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error {
+	debtIDs, err := r.client.DebtDetails.Query().
+		Where(debtdetails.TenantID(tenantID)).
+		IDs(ctx)
+	if err != nil {
+		return fmt.Errorf("list debt ids for purge: %w", err)
+	}
+	if len(debtIDs) > 0 {
+		if _, err := r.client.PaymentSchedule.Delete().
+			Where(paymentschedule.DebtIDIn(debtIDs...)).
+			Exec(ctx); err != nil {
+			return fmt.Errorf("purge payment schedules: %w", err)
+		}
+	}
+	if _, err := r.client.DebtDetails.Delete().
+		Where(debtdetails.TenantID(tenantID)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("purge debts: %w", err)
+	}
+	return nil
+}
+
 // FindUpcomingPayments returns unpaid schedule entries due within daysAhead.
 func (r *DebtRepository) FindUpcomingPayments(ctx context.Context, tenantID uuid.UUID, daysAhead int) ([]domain.PaymentScheduleEntry, error) {
 	now := time.Now()

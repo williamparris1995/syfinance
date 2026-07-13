@@ -9,11 +9,10 @@ import (
 
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	_ "modernc.org/sqlite"
 	accountdomain "github.com/yucai/server/internal/account/domain"
 	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
-	holdingsec "github.com/yucai/server/internal/holding/adapter/driven/repository"
 	"github.com/yucai/server/internal/holding/adapter/driven/priceprovider"
+	holdingsec "github.com/yucai/server/internal/holding/adapter/driven/repository"
 	"github.com/yucai/server/internal/holding/application"
 	"github.com/yucai/server/internal/holding/domain"
 	holdingent "github.com/yucai/server/internal/holding/ent"
@@ -22,6 +21,7 @@ import (
 	txnDomain "github.com/yucai/server/internal/transaction/domain"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	_ "modernc.org/sqlite"
 )
 
 // TestBuildTradeEntries_Buy: buy 复式 = credit from_account(现金−) + debit holding account(投资+)。
@@ -135,6 +135,12 @@ func (r *recordingTxnRepo) TransactionSummary(context.Context, txnDomain.Summary
 }
 func (r *recordingTxnRepo) SumEntryTotalsByAccount(context.Context, uuid.UUID, time.Time, time.Time) (int64, int64, error) {
 	panic("unexpected SumEntryTotalsByAccount call")
+}
+func (r *recordingTxnRepo) FindAllForBackup(context.Context, uuid.UUID) ([]txnDomain.Transaction, error) {
+	panic("unexpected FindAllForBackup call")
+}
+func (r *recordingTxnRepo) DeleteByTenant(context.Context, uuid.UUID) error {
+	panic("unexpected DeleteByTenant call")
 }
 
 // mutatingBalanceUpdater applies each entry's (debit - credit) to the matching
@@ -645,8 +651,8 @@ func TestGetPortfolioPerformanceBaseCurrencyPassthrough(t *testing.T) {
 	}
 
 	resp, err := h.GetPortfolioPerformance(ctx, &pb.GetPortfolioPerformanceRequest{
-		AccountId:   accountID.String(),
-		Range:       pb.CurveRange_CURVE_RANGE_DAY,
+		AccountId:    accountID.String(),
+		Range:        pb.CurveRange_CURVE_RANGE_DAY,
 		BaseCurrency: "USD",
 	})
 	if err != nil {
@@ -706,4 +712,3 @@ func TestGetPortfolioPerformanceBaseCurrencyDefaultsCNY(t *testing.T) {
 // the response Currency stays the security's currency. Changing that is out of
 // scope for Task 7 (deferred to final review). The existing
 // TestGetHoldingPerformanceReturnsCurve covers the CNY-default path.
-

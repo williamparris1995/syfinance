@@ -87,6 +87,27 @@ func (m *mockDebtRepo) Delete(_ context.Context, _ uuid.UUID, id uuid.UUID) erro
 func (m *mockDebtRepo) FindUpcomingPayments(_ context.Context, _ uuid.UUID, _ int) ([]domain.PaymentScheduleEntry, error) {
 	return nil, nil
 }
+func (m *mockDebtRepo) FindAllForBackup(_ context.Context, tenantID uuid.UUID) ([]domain.DebtDetails, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := []domain.DebtDetails{}
+	for _, d := range m.byID {
+		if d.TenantID == tenantID {
+			out = append(out, *d)
+		}
+	}
+	return out, nil
+}
+func (m *mockDebtRepo) DeleteByTenant(_ context.Context, tenantID uuid.UUID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for id, d := range m.byID {
+		if d.TenantID == tenantID {
+			delete(m.byID, id)
+		}
+	}
+	return nil
+}
 
 var _ domain.DebtRepository = (*mockDebtRepo)(nil)
 

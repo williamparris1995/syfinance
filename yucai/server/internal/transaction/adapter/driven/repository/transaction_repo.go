@@ -446,6 +446,59 @@ func (r *TransactionRepository) Update(ctx context.Context, tx *domain.Transacti
 	return nil
 }
 
+// FindAllForBackup returns every non-deleted transaction for a tenant with its
+// entries eager-loaded in a single batched query (reuses loadEntriesByTransaction,
+// avoiding the N+1 read that a per-transaction loop would incur). Backup export
+// is the only caller; it serializes the full transaction graph without paging.
+func (r *TransactionRepository) FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]domain.Transaction, error) {
+	results, err := r.client.Transaction.Query().
+		Where(
+			transaction.TenantID(tenantID),
+			transaction.DeletedAtIsNil(),
+		).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("query transactions for backup: %w", err)
+	}
+
+	entriesByTxn, err := r.loadEntriesByTransaction(ctx, results)
+	if err != nil {
+		return nil, err
+	}
+
+	txns := make([]domain.Transaction, len(results))
+	for i, t := range results {
+		txns[i] = *toDomainTransaction(t, entriesByTxn[t.ID])
+	}
+	return txns, nil
+}
+
+// DeleteByTenant hard-deletes every transaction for a tenant. Child
+// transaction_entries are deleted first because they reference transactions via
+// transaction_id and have no tenant_id column of their own (scope by the
+// tenant's transaction IDs). Used by the backup exporter's Purge step.
+func (r *TransactionRepository) DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error {
+	txnIDs, err := r.client.Transaction.Query().
+		Where(transaction.TenantID(tenantID)).
+		IDs(ctx)
+	if err != nil {
+		return fmt.Errorf("list transaction ids for purge: %w", err)
+	}
+	if len(txnIDs) > 0 {
+		if _, err := r.client.TransactionEntry.Delete().
+			Where(txnentryent.TransactionIDIn(txnIDs...)).
+			Exec(ctx); err != nil {
+			return fmt.Errorf("purge transaction entries: %w", err)
+		}
+	}
+	if _, err := r.client.Transaction.Delete().
+		Where(transaction.TenantID(tenantID)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("purge transactions: %w", err)
+	}
+	return nil
+}
+
 // TransactionSummary aggregates a tenant's income/expense flows for a period
 // selected by scope.Scope, broken down by bucket (day/month/single) and by
 // Income/Expense account (the account-as-category breakdown). It runs a single

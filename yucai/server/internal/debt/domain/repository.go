@@ -28,6 +28,14 @@ type DebtRepository interface {
 	Update(ctx context.Context, debt *DebtDetails) error
 	Delete(ctx context.Context, tenantID, id uuid.UUID) error
 	FindUpcomingPayments(ctx context.Context, tenantID uuid.UUID, daysAhead int) ([]PaymentScheduleEntry, error)
+	// FindAllForBackup returns every debt for a tenant with its payment schedule
+	// eager-loaded (single batched query, no pagination). Used by the backup
+	// exporter to serialize a tenant's full debt graph.
+	FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]DebtDetails, error)
+	// DeleteByTenant hard-deletes every debt belonging to the tenant, removing
+	// child payment_schedules first (FK ordering). Used by the backup exporter's
+	// Purge step before a restore.
+	DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error
 }
 
 // DebtSnapshotRepository is the persistence port for DebtProgressSnapshot rows.

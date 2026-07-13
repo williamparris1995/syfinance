@@ -108,6 +108,12 @@ func (r *recordingTxnRepo) TransactionSummary(context.Context, domain.SummarySco
 func (r *recordingTxnRepo) SumEntryTotalsByAccount(context.Context, uuid.UUID, time.Time, time.Time) (int64, int64, error) {
 	panic("unexpected SumEntryTotalsByAccount call")
 }
+func (r *recordingTxnRepo) FindAllForBackup(context.Context, uuid.UUID) ([]domain.Transaction, error) {
+	panic("unexpected FindAllForBackup call")
+}
+func (r *recordingTxnRepo) DeleteByTenant(context.Context, uuid.UUID) error {
+	panic("unexpected DeleteByTenant call")
+}
 
 // recentTxnRepo is a TransactionRepository whose FindRecentByAccount returns a
 // canned result (and records its args) so the service-level thin-wrapper test
@@ -146,6 +152,12 @@ func (r *recentTxnRepo) TransactionSummary(context.Context, domain.SummaryScope)
 }
 func (r *recentTxnRepo) SumEntryTotalsByAccount(context.Context, uuid.UUID, time.Time, time.Time) (int64, int64, error) {
 	panic("unexpected SumEntryTotalsByAccount call")
+}
+func (r *recentTxnRepo) FindAllForBackup(context.Context, uuid.UUID) ([]domain.Transaction, error) {
+	panic("unexpected FindAllForBackup call")
+}
+func (r *recentTxnRepo) DeleteByTenant(context.Context, uuid.UUID) error {
+	panic("unexpected DeleteByTenant call")
 }
 
 // sumByAccountTxnRepo is a TransactionRepository whose SumEntryTotalsByAccount
@@ -186,6 +198,12 @@ func (r *sumByAccountTxnRepo) SumEntryTotalsByAccount(_ context.Context, account
 	r.gotFrom = from
 	r.gotTo = to
 	return r.debitTotal, r.creditTotal, r.err
+}
+func (r *sumByAccountTxnRepo) FindAllForBackup(context.Context, uuid.UUID) ([]domain.Transaction, error) {
+	panic("unexpected FindAllForBackup call")
+}
+func (r *sumByAccountTxnRepo) DeleteByTenant(context.Context, uuid.UUID) error {
+	panic("unexpected DeleteByTenant call")
 }
 
 // --- Helpers ---
