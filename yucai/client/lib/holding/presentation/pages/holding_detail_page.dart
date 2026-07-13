@@ -493,18 +493,21 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
     );
   }
 
-  // ───────────────────────── ③b XIRR(Task 7)─────────────────────────
+  // ───────────────────────── ③b XIRR(Task 7)+ TWR(Task 6)─────────────
 
-  /// XIRR 收益率卡(单持仓原币口径)。数据来自 HoldingDetailLoaded:
-  /// - 全期 `holdingAnnualizedPct`(server HoldingPerformance.annualizedPct)
-  /// - 区间 `holdingRangeAnnualizedPct`(随 range tab)
-  /// null → 显「—」(server 未算/数据不足;e.g. 仅 1 笔交易 XIRR 无解)。
+  /// 年化收益率卡(单持仓原币口径,双维度)。数据来自 HoldingDetailLoaded:
+  /// - 资金加权(全期)`holdingAnnualizedPct`(server HoldingPerformance.annualizedPct)
+  /// - 资金加权(区间)`holdingRangeAnnualizedPct`(随 range tab)
+  /// - 时间加权(全期)`holdingTwrAnnualizedPct`(server twrAnnualizedPct)
+  /// null → 显「—」(server 未算/数据不足;e.g. 仅 1 笔交易 XIRR/TWR 无解)。
   /// 模式对齐 performance_page `_annualRow`(数值 + 副标注)。
   Widget _xirrCard(HoldingDetailLoaded detail) {
     final full = detail.holdingAnnualizedPct;
     final range = detail.holdingRangeAnnualizedPct;
+    final twr = detail.holdingTwrAnnualizedPct;
     final hasFull = full != null;
     final hasRange = range != null;
+    final hasTwr = twr != null;
     return DataCard(
       key: const ValueKey('detailXirrCard'),
       child: Column(
@@ -513,22 +516,22 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('XIRR 收益率',
+              const Text('年化收益率',
                   style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                       fontFamily: AppTypography.displayFamily,
                       fontFamilyFallback: AppTypography.displayFallback)),
               const SizedBox(height: 2),
-              const Text('内部收益率(原币)· 数据不足时显示 —',
+              const Text('资金加权(XIRR)+ 时间加权(TWR)· 数据不足时显示 —',
                   key: ValueKey('detailXirrSub'),
                   style: TextStyle(fontSize: 11.5, color: AppColors.muted)),
             ],
           ),
           const SizedBox(height: 12),
-          // 全期 XIRR(主位)。
+          // 资金加权 · 全期(主位)。
           _xirrRow(
-            label: '全期',
+            label: '资金加权 · 全期',
             value: hasFull
                 ? '${full >= 0 ? '+' : ''}${full.toStringAsFixed(1)}%'
                 : '—',
@@ -537,9 +540,9 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                 : AppColors.muted,
             key: const ValueKey('detailXirrFull'),
           ),
-          // 区间 XIRR(副位,随 range tab;null → 「—」)。
+          // 资金加权 · 区间(副位,随 range tab;null → 「—」)。
           _xirrRow(
-            label: '区间',
+            label: '资金加权 · 区间',
             value: hasRange
                 ? '${range >= 0 ? '+' : ''}${range.toStringAsFixed(1)}%'
                 : '—',
@@ -547,6 +550,17 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                 ? (range >= 0 ? AppColors.positive : AppColors.negative)
                 : AppColors.muted,
             key: const ValueKey('detailXirrRange'),
+          ),
+          // 时间加权 · 全期(Task 6 TWR;null → 「—」)。
+          _xirrRow(
+            label: '时间加权 · 全期',
+            value: hasTwr
+                ? '${twr >= 0 ? '+' : ''}${twr.toStringAsFixed(1)}%'
+                : '—',
+            valueColor: hasTwr
+                ? (twr >= 0 ? AppColors.positive : AppColors.negative)
+                : AppColors.muted,
+            key: const ValueKey('detailXirrTwr'),
           ),
         ],
       ),

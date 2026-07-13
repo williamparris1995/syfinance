@@ -26,8 +26,9 @@ class PortfolioPerformance extends Equatable {
     required this.realizedCents,
     required this.unrealizedCents,
     required this.totalCents,
-    this.annualizedPct, // double?(全期 XIRR,null=降级)
-    this.rangeAnnualizedPct, // double?(区间 XIRR)
+    this.annualizedPct, // double?(全期 XIRR 资金加权,null=降级)
+    this.rangeAnnualizedPct, // double?(区间 XIRR 资金加权)
+    this.twrAnnualizedPct, // double?(全期 TWR 时间加权,null=降级)
     this.totalPct = 0,
     this.currency = 'CNY',
   });
@@ -40,6 +41,9 @@ class PortfolioPerformance extends Equatable {
   final int totalCents;
   final double? annualizedPct;
   final double? rangeAnnualizedPct;
+  /// 全期 TWR(时间加权年化)。null=server 未算/数据不足 → UI 显「—」。
+  /// 与 [annualizedPct](XIRR 资金加权)并列,提供双维度收益视角。
+  final double? twrAnnualizedPct;
   final double totalPct;
   final String currency;
 
@@ -53,6 +57,7 @@ class PortfolioPerformance extends Equatable {
         totalCents,
         annualizedPct,
         rangeAnnualizedPct,
+        twrAnnualizedPct,
         totalPct,
         currency,
       ];
@@ -68,8 +73,9 @@ class HoldingPerformance extends Equatable {
     required this.realizedCents,
     required this.unrealizedCents,
     required this.totalCents,
-    this.annualizedPct, // double?(全期 XIRR 原币)
-    this.rangeAnnualizedPct, // double?(区间 XIRR 原币)
+    this.annualizedPct, // double?(全期 XIRR 原币 资金加权)
+    this.rangeAnnualizedPct, // double?(区间 XIRR 原币 资金加权)
+    this.twrAnnualizedPct, // double?(全期 TWR 原币 时间加权)
     this.currency = 'CNY',
   });
 
@@ -79,6 +85,9 @@ class HoldingPerformance extends Equatable {
   final int totalCents;
   final double? annualizedPct;
   final double? rangeAnnualizedPct;
+  /// 全期 TWR(时间加权年化,原币)。null=server 未算/数据不足 → UI 显「—」。
+  /// 与 [annualizedPct](XIRR 资金加权)并列,提供双维度收益视角。
+  final double? twrAnnualizedPct;
   final String currency;
 
   @override
@@ -89,6 +98,7 @@ class HoldingPerformance extends Equatable {
         totalCents,
         annualizedPct,
         rangeAnnualizedPct,
+        twrAnnualizedPct,
         currency,
       ];
 }

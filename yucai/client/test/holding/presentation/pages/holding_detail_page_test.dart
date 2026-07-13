@@ -134,6 +134,7 @@ void _stubHolding(_MockHoldingRepo repo, Holding holding) {
 /// LoadHoldingCurveRequested 在 initState 触发,需 stub 否则 MissingDummyError。
 /// [points] / [realizedCents] 非空时模拟 server 真数据。
 /// [annualizedPct] / [rangeAnnualizedPct] Task 7 XIRR(全期/区间,可空)。
+/// [twrAnnualizedPct] Task 6 TWR(全期 时间加权,可空)。
 /// 含 baseCurrency named param(Task 12 D-currency;stub 用 any(named:) 兼容)。
 void _stubCurve(
   _MockHoldingRepo repo, {
@@ -141,6 +142,7 @@ void _stubCurve(
   int realizedCents = 0,
   double? annualizedPct,
   double? rangeAnnualizedPct,
+  double? twrAnnualizedPct,
 }) {
   when(() => repo.getHoldingPerformance(
         holdingId: any(named: 'holdingId'),
@@ -153,6 +155,7 @@ void _stubCurve(
         totalCents: realizedCents,
         annualizedPct: annualizedPct,
         rangeAnnualizedPct: rangeAnnualizedPct,
+        twrAnnualizedPct: twrAnnualizedPct,
       )));
 }
 
@@ -561,5 +564,78 @@ void main() {
         '—');
     expect(t.widget<Text>(find.byKey(const ValueKey('detailXirrRange'))).data,
         '—');
+  });
+
+  // Task 6 TWR(时间加权):detail 卡新增 TWR 行,twrAnnualizedPct 非空 → 渲染数值。
+  testWidgets(
+      'Task 6: detail renders TWR row when twrAnnualizedPct non-null (dual-metric)',
+      (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    final holding = _holding();
+    _stubHolding(repo, holding);
+    _stubCurve(repo,
+        annualizedPct: 8.5,
+        rangeAnnualizedPct: 12.3,
+        twrAnnualizedPct: 7.2,
+        points: [
+          PerfPoint(time: DateTime(2026, 6, 1), value: 100),
+          PerfPoint(time: DateTime(2026, 6, 30), value: 120),
+        ]);
+    when(() => repo.listHoldingTransactions(
+          accountId: any(named: 'accountId'),
+          securityId: any(named: 'securityId'),
+        )).thenAnswer((_) async => dartz.Right(_trades));
+
+    await t.pumpWidget(_harness(repo: repo, holding: holding));
+    await t.pumpAndSettle();
+
+    // 卡标题改为「年化收益率」(双维度),label 含「资金加权」+「时间加权」。
+    expect(find.text('年化收益率'), findsOneWidget);
+    expect(find.text('资金加权 · 全期'), findsOneWidget);
+    expect(find.text('资金加权 · 区间'), findsOneWidget);
+    expect(find.text('时间加权 · 全期'), findsOneWidget);
+    // XIRR 全期 +8.5%(detailXirrFull key 节点)。
+    expect(
+        t.widget<Text>(find.byKey(const ValueKey('detailXirrFull'))).data,
+        '+8.5%');
+    // TWR 全期 +7.2%(detailXirrTwr key 节点)。
+    expect(
+        t.widget<Text>(find.byKey(const ValueKey('detailXirrTwr'))).data,
+        '+7.2%');
+  });
+
+  // Task 6 TWR 降级:twrAnnualizedPct null → TWR 行显「—」(独立于 XIRR)。
+  testWidgets(
+      'Task 6: detail shows — when twrAnnualizedPct null (TWR degraded, XIRR intact)',
+      (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    final holding = _holding();
+    _stubHolding(repo, holding);
+    _stubCurve(repo,
+        annualizedPct: 8.5,
+        rangeAnnualizedPct: 12.3,
+        // twrAnnualizedPct 故意省 → null(TWR 降级,但 XIRR 仍正常)。
+        points: [
+          PerfPoint(time: DateTime(2026, 6, 1), value: 100),
+          PerfPoint(time: DateTime(2026, 6, 30), value: 120),
+        ]);
+    when(() => repo.listHoldingTransactions(
+          accountId: any(named: 'accountId'),
+          securityId: any(named: 'securityId'),
+        )).thenAnswer((_) async => dartz.Right(_trades));
+
+    await t.pumpWidget(_harness(repo: repo, holding: holding));
+    await t.pumpAndSettle();
+
+    // XIRR 仍正常:全期 +8.5% / 区间 +12.3%。
+    expect(
+        t.widget<Text>(find.byKey(const ValueKey('detailXirrFull'))).data,
+        '+8.5%');
+    // TWR 行渲染但显「—」(null 降级)。
+    expect(find.text('时间加权 · 全期'), findsOneWidget);
+    expect(
+        t.widget<Text>(find.byKey(const ValueKey('detailXirrTwr'))).data, '—');
   });
 }

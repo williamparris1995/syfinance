@@ -659,7 +659,7 @@ class _PerformancePageState extends State<PerformancePage> {
     final totalCost = state.summary.totalCostCents;
     final cumulative = totalCost > 0 ? (unrealized / totalCost) * 100 : 0.0;
     final loaded = perf is PerformanceLoaded ? perf.performance : null;
-    // ④ 年化(XIRR 全期):Task 7 降级信号改为 null(非 0)。null → 显「—」。
+    // ④ 年化(XIRR 全期 资金加权):Task 7 降级信号改为 null(非 0)。null → 显「—」。
     final hasAnnualized = loaded != null && loaded.annualizedPct != null;
     final annualValue = hasAnnualized
         ? '${loaded.annualizedPct! >= 0 ? '+' : ''}${loaded.annualizedPct!.toStringAsFixed(1)}%'
@@ -669,6 +669,11 @@ class _PerformancePageState extends State<PerformancePage> {
     final rangeSub = loaded?.rangeAnnualizedPct != null
         ? '区间 ${loaded!.rangeAnnualizedPct! >= 0 ? '+' : ''}${loaded.rangeAnnualizedPct!.toStringAsFixed(1)}%'
         : null;
+    // Task 6 TWR(时间加权 全期):null → 显「—」(server 未算/数据不足)。
+    final hasTwr = loaded != null && loaded.twrAnnualizedPct != null;
+    final twrValue = hasTwr
+        ? '${loaded.twrAnnualizedPct! >= 0 ? '+' : ''}${loaded.twrAnnualizedPct!.toStringAsFixed(1)}%'
+        : '—';
     // ⑤ 基准名:server benchmarkName(有)/「⏳C mock」(无)。
     final hasBenchmark = loaded != null && loaded.benchmarkName.isNotEmpty;
     final benchLabel = hasBenchmark
@@ -700,10 +705,10 @@ class _PerformancePageState extends State<PerformancePage> {
             ],
           ),
           const SizedBox(height: 12),
-          // ④ 年化行(XIRR 全期):server annualizedPct(无 → 「—」)+ 区间副标注。
+          // ④ 年化行(XIRR 全期 资金加权):server annualizedPct(无 → 「—」)+ 区间副标注。
           _annualRow(
             icon: LucideIcons.percent,
-            label: '年化',
+            label: '资金加权',
             value: annualValue,
             valueColor: hasAnnualized
                 ? (loaded.annualizedPct! >= 0
@@ -712,6 +717,18 @@ class _PerformancePageState extends State<PerformancePage> {
                 : AppColors.muted,
             sub: rangeSub,
             key: const ValueKey('annualValue'),
+          ),
+          // Task 6 TWR(时间加权 全期):server twrAnnualizedPct(无 → 「—」)。
+          _annualRow(
+            icon: LucideIcons.timer,
+            label: '时间加权',
+            value: twrValue,
+            valueColor: hasTwr
+                ? (loaded.twrAnnualizedPct! >= 0
+                    ? AppColors.positive
+                    : AppColors.negative)
+                : AppColors.muted,
+            key: const ValueKey('annualTwrValue'),
           ),
           // 累计行:✅ 从 holdings 算(unrealized/totalCost)。
           _annualRow(

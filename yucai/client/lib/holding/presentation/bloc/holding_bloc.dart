@@ -370,6 +370,7 @@ class HoldingBloc extends Bloc<HoldingEvent, HoldingState> {
           holdingCurveRealizedCents: perf.realizedCents,
           holdingAnnualizedPct: perf.annualizedPct,
           holdingRangeAnnualizedPct: perf.rangeAnnualizedPct,
+          holdingTwrAnnualizedPct: perf.twrAnnualizedPct,
         ));
       },
     );

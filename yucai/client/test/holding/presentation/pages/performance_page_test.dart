@@ -553,4 +553,70 @@ void main() {
     // bench-mini 亦不渲染(因 annualizedPct null,无对比基线)。
     expect(find.byKey(const ValueKey('benchmarkMiniBar')), findsNothing);
   });
+
+  // Task 6 TWR(时间加权):twrAnnualizedPct 非空 → annualTwrValue 渲染数值。
+  // 与 XIRR(资金加权)并列,XIRR label 改为「资金加权」。
+  testWidgets(
+      'Task 6: renders TWR row when twrAnnualizedPct non-null (dual-metric)',
+      (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    _stubHoldings(repo, [_holding(unrealizedPnlCents: 250000)]);
+    when(() => repo.getPortfolioPerformance(
+          range: any(named: 'range'),
+          accountId: any(named: 'accountId'),
+          includeBenchmark: any(named: 'includeBenchmark'),
+          baseCurrency: any(named: 'baseCurrency'),
+        )).thenAnswer((_) async => const dartz.Right(PortfolioPerformance(
+              realizedCents: 0,
+              unrealizedCents: 0,
+              totalCents: 0,
+              annualizedPct: 8.5,
+              twrAnnualizedPct: 7.2,
+            )));
+
+    await t.pumpWidget(_harness(repo: repo));
+    await t.pumpAndSettle();
+
+    // 资金加权(XIRR)+8.5%(annualValue key 节点,label 改为「资金加权」)。
+    expect(find.text('资金加权'), findsOneWidget);
+    expect(t.widget<Text>(find.byKey(const ValueKey('annualValue'))).data,
+        '+8.5%');
+    // 时间加权(TWR)+7.2%(annualTwrValue key 节点)。
+    expect(find.text('时间加权'), findsOneWidget);
+    expect(t.widget<Text>(find.byKey(const ValueKey('annualTwrValue'))).data,
+        '+7.2%');
+  });
+
+  // Task 6 TWR 降级:twrAnnualizedPct null → annualTwrValue 显「—」(独立于 XIRR)。
+  testWidgets(
+      'Task 6: renders — when twrAnnualizedPct null (TWR degraded, XIRR intact)',
+      (t) async {
+    await setViewport(t);
+    final repo = _MockHoldingRepo();
+    _stubHoldings(repo, [_holding(unrealizedPnlCents: 250000)]);
+    when(() => repo.getPortfolioPerformance(
+          range: any(named: 'range'),
+          accountId: any(named: 'accountId'),
+          includeBenchmark: any(named: 'includeBenchmark'),
+          baseCurrency: any(named: 'baseCurrency'),
+        )).thenAnswer((_) async => const dartz.Right(PortfolioPerformance(
+              realizedCents: 0,
+              unrealizedCents: 0,
+              totalCents: 0,
+              annualizedPct: 8.5,
+              // twrAnnualizedPct 故意省 → null(TWR 降级,但 XIRR 仍正常)。
+            )));
+
+    await t.pumpWidget(_harness(repo: repo));
+    await t.pumpAndSettle();
+
+    // XIRR 仍正常:+8.5%(资金加权行)。
+    expect(t.widget<Text>(find.byKey(const ValueKey('annualValue'))).data,
+        '+8.5%');
+    // TWR 行渲染但显「—」(null 降级)。
+    expect(find.text('时间加权'), findsOneWidget);
+    expect(t.widget<Text>(find.byKey(const ValueKey('annualTwrValue'))).data,
+        '—');
+  });
 }

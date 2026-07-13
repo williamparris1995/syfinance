@@ -72,6 +72,9 @@ class HoldingLoaded extends HoldingState {
 ///
 /// Task 7 XIRR 新增:`holdingAnnualizedPct`(全期 XIRR,原币)+ `holdingRangeAnnualizedPct`
 /// (区间 XIRR,随 range tab)。均可空 —— server 未算/数据不足 → null → UI 显「—」。
+///
+/// Task 6(twr)新增:`holdingTwrAnnualizedPct`(全期 TWR 时间加权,原币)。
+/// 可空 —— server 未算/数据不足 → null → UI 显「—」。与 XIRR(资金加权)并列。
 class HoldingDetailLoaded extends HoldingState {
   const HoldingDetailLoaded({
     required this.holding,
@@ -82,6 +85,7 @@ class HoldingDetailLoaded extends HoldingState {
     this.holdingCurveRealizedCents,
     this.holdingAnnualizedPct,
     this.holdingRangeAnnualizedPct,
+    this.holdingTwrAnnualizedPct,
   });
   final Holding holding;
   final List<HoldingTransaction> trades;
@@ -92,10 +96,12 @@ class HoldingDetailLoaded extends HoldingState {
   final List<PerfPoint>? holdingCurve;
   /// server FIFO realized(cents)。null → foot realized 不渲染(避免 0 误导)。
   final int? holdingCurveRealizedCents;
-  /// 全期 XIRR(server annualizedPct,原币)。null → XIRR 行显「—」。
+  /// 全期 XIRR(server annualizedPct,原币 资金加权)。null → XIRR 行显「—」。
   final double? holdingAnnualizedPct;
   /// 区间 XIRR(server rangeAnnualizedPct,随 range tab)。null → 副标注省。
   final double? holdingRangeAnnualizedPct;
+  /// 全期 TWR(server twrAnnualizedPct,原币 时间加权)。null → TWR 行显「—」。
+  final double? holdingTwrAnnualizedPct;
 
   @override
   List<Object?> get props => [
@@ -107,6 +113,7 @@ class HoldingDetailLoaded extends HoldingState {
         holdingCurveRealizedCents,
         holdingAnnualizedPct,
         holdingRangeAnnualizedPct,
+        holdingTwrAnnualizedPct,
       ];
 
   /// 保留现有字段,仅覆盖曲线相关(LoadHoldingCurveRequested 成功后用)。
@@ -115,6 +122,7 @@ class HoldingDetailLoaded extends HoldingState {
     int? holdingCurveRealizedCents,
     double? holdingAnnualizedPct,
     double? holdingRangeAnnualizedPct,
+    double? holdingTwrAnnualizedPct,
   }) =>
       HoldingDetailLoaded(
         holding: holding,
@@ -128,6 +136,8 @@ class HoldingDetailLoaded extends HoldingState {
             holdingAnnualizedPct ?? this.holdingAnnualizedPct,
         holdingRangeAnnualizedPct:
             holdingRangeAnnualizedPct ?? this.holdingRangeAnnualizedPct,
+        holdingTwrAnnualizedPct:
+            holdingTwrAnnualizedPct ?? this.holdingTwrAnnualizedPct,
       );
 }
 
