@@ -674,10 +674,13 @@ func (s *Service) GetPortfolioPerformance(ctx context.Context, tenantID uuid.UUI
 	// historical prices are missing or there are no trades. Replaces the legacy
 	// simple-annualization helper (annualizedPct, retired).
 	fullXirr, rangeXirr, _ := s.portfolioXIRR(ctx, tenantID, accountID, base, from)
+	// TWR (Task 4): full-period time-weighted annualized %, degrades to nil
+	// independently of XIRR (insufficient sub-periods or missing prices).
+	twr, _ := s.portfolioTWR(ctx, tenantID, accountID, base)
 	out := &PortfolioPerformance{
 		PortfolioPoints: portPts, RealizedCents: realized, UnrealizedCents: unrealized,
 		TotalCents: total, AnnualizedPct: fullXirr, RangeAnnualizedPct: rangeXirr,
-		TotalPct: totalPct, Currency: base,
+		TwrAnnualizedPct: twr, TotalPct: totalPct, Currency: base,
 	}
 	if withBenchmark {
 		out.BenchmarkName = "沪深300"
@@ -980,10 +983,13 @@ func (s *Service) GetHoldingPerformance(ctx context.Context, holdingID uuid.UUID
 	fullXirr, _ := s.holdingXIRR(ctx, holdingID, base)
 	rangeStart, _, _ := curveWindow(rangeName)
 	rng := s.computeHoldingRangeXIRR(ctx, *h, *sec, s.tradesForHolding(ctx, *h), rangeStart, fullXirr)
+	// TWR (Task 4): full-period time-weighted annualized % in original currency,
+	// degrades to nil independently of XIRR.
+	twr, _ := s.holdingTWR(ctx, holdingID)
 	return &HoldingPerformance{
 		PricePoints: pts, RealizedCents: realized, UnrealizedCents: unrealized,
 		TotalCents: realized + unrealized, AnnualizedPct: fullXirr, RangeAnnualizedPct: rng,
-		Currency: base,
+		TwrAnnualizedPct: twr, Currency: base,
 	}, nil
 }
 
@@ -1105,9 +1111,25 @@ func (s *Service) marketValueAtDate(ctx context.Context, tenantID uuid.UUID, acc
 // BV_before(t_i) = qty@(trade 前)× price@(t_i)  → AsOf(t_i, t_i)
 // BV_after(t_i)  = qty@(trade 后)× price@(t_i)  → AsOf(t_i+1day, t_i)
 // ok=false if any holding's price missing (caller degrades).
+//
+// Thin wrapper: hoists trades once then delegates to
+// marketValueAtDateAsOfWithTrades. Callers that walk many as-of dates
+// (portfolioTWR's cashFlowDay loop) already hoist trades and call
+// marketValueAtDateAsOfWithTrades directly to avoid re-fetching
+// allTradesForTenant per cashFlowDay (Task 3 review Important #1 perf fix:
+// N days × M holdings → ~5000 repo round trips on a 10-year portfolio).
 func (s *Service) marketValueAtDateAsOf(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID, qtyAsOf, priceAsOf time.Time, rateBase float64, base string) (int64, bool) {
-	// Trades are invariant across holding pages — hoist once.
 	secTrades, _ := s.allTradesForTenant(ctx, tenantID, accountID)
+	return s.marketValueAtDateAsOfWithTrades(ctx, secTrades, tenantID, accountID, qtyAsOf, priceAsOf, rateBase, base)
+}
+
+// marketValueAtDateAsOfWithTrades is the trades-injected core of
+// marketValueAtDateAsOf. The caller hoists allTradesForTenant once and passes
+// the slice so the cashFlowDay loop in portfolioTWR doesn't re-fetch trades
+// per iteration. Result is byte-identical to marketValueAtDateAsOf for the
+// same (trades, as-of) inputs — XIRR's marketValueAtDate → marketValueAtDateAsOf
+// delegation chain stays transparent.
+func (s *Service) marketValueAtDateAsOfWithTrades(ctx context.Context, secTrades []domain.HoldingTransaction, tenantID uuid.UUID, accountID *uuid.UUID, qtyAsOf, priceAsOf time.Time, rateBase float64, base string) (int64, bool) {
 	var sum int64
 	page := domain.PageRequest{PageSize: 100}
 	for {
@@ -1223,11 +1245,15 @@ func (s *Service) portfolioTWR(ctx context.Context, tenantID uuid.UUID, accountI
 	subPeriods := make([]domain.SubPeriodReturn, 0, len(cashFlowDays)-1)
 	var prevAfterCF float64
 	for i, day := range cashFlowDays {
-		BV_before, ok := s.marketValueAtDateAsOf(ctx, tenantID, accountID, day, day, rateBase, base)
+		// Pass the hoisted `trades` slice (Task 3 review Important #1 perf fix):
+		// marketValueAtDateAsOfWithTrades skips the per-call allTradesForTenant
+		// fetch that marketValueAtDateAsOf would do — N cashFlowDays × 2 calls
+		// → 2N round trips avoided. Trades are invariant across the loop.
+		BV_before, ok := s.marketValueAtDateAsOfWithTrades(ctx, trades, tenantID, accountID, day, day, rateBase, base)
 		if !ok {
 			return nil, nil // price 缺 → 降级
 		}
-		BV_after, ok := s.marketValueAtDateAsOf(ctx, tenantID, accountID, day.AddDate(0, 0, 1), day, rateBase, base)
+		BV_after, ok := s.marketValueAtDateAsOfWithTrades(ctx, trades, tenantID, accountID, day.AddDate(0, 0, 1), day, rateBase, base)
 		if !ok {
 			return nil, nil
 		}
