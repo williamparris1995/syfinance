@@ -1659,6 +1659,7 @@ type PortfolioPerformanceResponse struct {
 	TotalPct           float64                `protobuf:"fixed64,8,opt,name=total_pct,json=totalPct,proto3" json:"total_pct,omitempty"`
 	Currency           string                 `protobuf:"bytes,9,opt,name=currency,proto3" json:"currency,omitempty"`
 	RangeAnnualizedPct *float64               `protobuf:"fixed64,10,opt,name=range_annualized_pct,json=rangeAnnualizedPct,proto3,oneof" json:"range_annualized_pct,omitempty"` // 区间 XIRR 年化%(随 CurveRange)
+	TwrAnnualizedPct   *float64               `protobuf:"fixed64,11,opt,name=twr_annualized_pct,json=twrAnnualizedPct,proto3,oneof" json:"twr_annualized_pct,omitempty"`       // TWR 时间加权年化%(全期,nil=降级)
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -1763,6 +1764,13 @@ func (x *PortfolioPerformanceResponse) GetRangeAnnualizedPct() float64 {
 	return 0
 }
 
+func (x *PortfolioPerformanceResponse) GetTwrAnnualizedPct() float64 {
+	if x != nil && x.TwrAnnualizedPct != nil {
+		return *x.TwrAnnualizedPct
+	}
+	return 0
+}
+
 type GetHoldingPerformanceRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	HoldingId string                 `protobuf:"bytes,1,opt,name=holding_id,json=holdingId,proto3" json:"holding_id,omitempty"`
@@ -1834,6 +1842,7 @@ type HoldingPerformanceResponse struct {
 	Currency           string                 `protobuf:"bytes,5,opt,name=currency,proto3" json:"currency,omitempty"`
 	AnnualizedPct      *float64               `protobuf:"fixed64,6,opt,name=annualized_pct,json=annualizedPct,proto3,oneof" json:"annualized_pct,omitempty"`                  // 全期 XIRR(原币)
 	RangeAnnualizedPct *float64               `protobuf:"fixed64,7,opt,name=range_annualized_pct,json=rangeAnnualizedPct,proto3,oneof" json:"range_annualized_pct,omitempty"` // 区间 XIRR(原币)
+	TwrAnnualizedPct   *float64               `protobuf:"fixed64,8,opt,name=twr_annualized_pct,json=twrAnnualizedPct,proto3,oneof" json:"twr_annualized_pct,omitempty"`       // TWR(原币,全期,nil=降级)
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -1913,6 +1922,13 @@ func (x *HoldingPerformanceResponse) GetAnnualizedPct() float64 {
 func (x *HoldingPerformanceResponse) GetRangeAnnualizedPct() float64 {
 	if x != nil && x.RangeAnnualizedPct != nil {
 		return *x.RangeAnnualizedPct
+	}
+	return 0
+}
+
+func (x *HoldingPerformanceResponse) GetTwrAnnualizedPct() float64 {
+	if x != nil && x.TwrAnnualizedPct != nil {
+		return *x.TwrAnnualizedPct
 	}
 	return 0
 }
@@ -2146,7 +2162,7 @@ const file_holding_v1_holding_proto_rawDesc = "" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x122\n" +
 	"\x05range\x18\x02 \x01(\x0e2\x1c.yucai.holding.v1.CurveRangeR\x05range\x12+\n" +
 	"\x11include_benchmark\x18\x03 \x01(\bR\x10includeBenchmark\x12#\n" +
-	"\rbase_currency\x18\x04 \x01(\tR\fbaseCurrency\"\x92\x04\n" +
+	"\rbase_currency\x18\x04 \x01(\tR\fbaseCurrency\"\xdc\x04\n" +
 	"\x1cPortfolioPerformanceResponse\x12G\n" +
 	"\x10portfolio_points\x18\x01 \x03(\v2\x1c.yucai.holding.v1.CurvePointR\x0fportfolioPoints\x12G\n" +
 	"\x10benchmark_points\x18\x02 \x03(\v2\x1c.yucai.holding.v1.CurvePointR\x0fbenchmarkPoints\x12%\n" +
@@ -2159,14 +2175,16 @@ const file_holding_v1_holding_proto_rawDesc = "" +
 	"\ttotal_pct\x18\b \x01(\x01R\btotalPct\x12\x1a\n" +
 	"\bcurrency\x18\t \x01(\tR\bcurrency\x125\n" +
 	"\x14range_annualized_pct\x18\n" +
-	" \x01(\x01H\x01R\x12rangeAnnualizedPct\x88\x01\x01B\x11\n" +
+	" \x01(\x01H\x01R\x12rangeAnnualizedPct\x88\x01\x01\x121\n" +
+	"\x12twr_annualized_pct\x18\v \x01(\x01H\x02R\x10twrAnnualizedPct\x88\x01\x01B\x11\n" +
 	"\x0f_annualized_pctB\x17\n" +
-	"\x15_range_annualized_pct\"\x96\x01\n" +
+	"\x15_range_annualized_pctB\x15\n" +
+	"\x13_twr_annualized_pct\"\x96\x01\n" +
 	"\x1cGetHoldingPerformanceRequest\x12\x1d\n" +
 	"\n" +
 	"holding_id\x18\x01 \x01(\tR\tholdingId\x122\n" +
 	"\x05range\x18\x02 \x01(\x0e2\x1c.yucai.holding.v1.CurveRangeR\x05range\x12#\n" +
-	"\rbase_currency\x18\x03 \x01(\tR\fbaseCurrency\"\xfb\x02\n" +
+	"\rbase_currency\x18\x03 \x01(\tR\fbaseCurrency\"\xc5\x03\n" +
 	"\x1aHoldingPerformanceResponse\x12?\n" +
 	"\fprice_points\x18\x01 \x03(\v2\x1c.yucai.holding.v1.CurvePointR\vpricePoints\x12%\n" +
 	"\x0erealized_cents\x18\x02 \x01(\x03R\rrealizedCents\x12)\n" +
@@ -2175,9 +2193,11 @@ const file_holding_v1_holding_proto_rawDesc = "" +
 	"totalCents\x12\x1a\n" +
 	"\bcurrency\x18\x05 \x01(\tR\bcurrency\x12*\n" +
 	"\x0eannualized_pct\x18\x06 \x01(\x01H\x00R\rannualizedPct\x88\x01\x01\x125\n" +
-	"\x14range_annualized_pct\x18\a \x01(\x01H\x01R\x12rangeAnnualizedPct\x88\x01\x01B\x11\n" +
+	"\x14range_annualized_pct\x18\a \x01(\x01H\x01R\x12rangeAnnualizedPct\x88\x01\x01\x121\n" +
+	"\x12twr_annualized_pct\x18\b \x01(\x01H\x02R\x10twrAnnualizedPct\x88\x01\x01B\x11\n" +
 	"\x0f_annualized_pctB\x17\n" +
-	"\x15_range_annualized_pct\"Q\n" +
+	"\x15_range_annualized_pctB\x15\n" +
+	"\x13_twr_annualized_pct\"Q\n" +
 	"\x1bBackfillPriceHistoryRequest\x122\n" +
 	"\x05range\x18\x01 \x01(\x0e2\x1c.yucai.holding.v1.CurveRangeR\x05range\"I\n" +
 	"\x1cBackfillPriceHistoryResponse\x12)\n" +

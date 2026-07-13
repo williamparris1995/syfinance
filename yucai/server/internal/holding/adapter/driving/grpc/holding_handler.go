@@ -306,6 +306,7 @@ func (h *HoldingHandler) GetPortfolioPerformance(ctx context.Context, req *pb.Ge
 		TotalCents:         perf.TotalCents,
 		AnnualizedPct:      perf.AnnualizedPct,
 		RangeAnnualizedPct: perf.RangeAnnualizedPct,
+		TwrAnnualizedPct:   perf.TwrAnnualizedPct,
 		TotalPct:           perf.TotalPct,
 		Currency:           perf.Currency,
 	}, nil
@@ -333,6 +334,7 @@ func (h *HoldingHandler) GetHoldingPerformance(ctx context.Context, req *pb.GetH
 		Currency:           perf.Currency,
 		AnnualizedPct:      perf.AnnualizedPct,
 		RangeAnnualizedPct: perf.RangeAnnualizedPct,
+		TwrAnnualizedPct:   perf.TwrAnnualizedPct,
 	}, nil
 }
 

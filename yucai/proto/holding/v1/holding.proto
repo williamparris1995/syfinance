@@ -193,6 +193,7 @@ message PortfolioPerformanceResponse {
   double total_pct = 8;
   string currency = 9;
   optional double range_annualized_pct = 10; // 区间 XIRR 年化%(随 CurveRange)
+  optional double twr_annualized_pct = 11;   // TWR 时间加权年化%(全期,nil=降级)
 }
 
 message GetHoldingPerformanceRequest {
@@ -211,6 +212,7 @@ message HoldingPerformanceResponse {
   string currency = 5;
   optional double annualized_pct = 6;       // 全期 XIRR(原币)
   optional double range_annualized_pct = 7; // 区间 XIRR(原币)
+  optional double twr_annualized_pct = 8;   // TWR(原币,全期,nil=降级)
 }
 
 message BackfillPriceHistoryRequest {

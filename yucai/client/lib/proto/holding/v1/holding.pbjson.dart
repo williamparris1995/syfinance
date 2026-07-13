@@ -677,10 +677,20 @@ const PortfolioPerformanceResponse$json = {
       '10': 'rangeAnnualizedPct',
       '17': true
     },
+    {
+      '1': 'twr_annualized_pct',
+      '3': 11,
+      '4': 1,
+      '5': 1,
+      '9': 2,
+      '10': 'twrAnnualizedPct',
+      '17': true
+    },
   ],
   '8': [
     {'1': '_annualized_pct'},
     {'1': '_range_annualized_pct'},
+    {'1': '_twr_annualized_pct'},
   ],
 };
 
@@ -694,8 +704,9 @@ final $typed_data.Uint8List portfolioPerformanceResponseDescriptor = $convert.ba
     'EoA1IPdW5yZWFsaXplZENlbnRzEh8KC3RvdGFsX2NlbnRzGAYgASgDUgp0b3RhbENlbnRzEioK'
     'DmFubnVhbGl6ZWRfcGN0GAcgASgBSABSDWFubnVhbGl6ZWRQY3SIAQESGwoJdG90YWxfcGN0GA'
     'ggASgBUgh0b3RhbFBjdBIaCghjdXJyZW5jeRgJIAEoCVIIY3VycmVuY3kSNQoUcmFuZ2VfYW5u'
-    'dWFsaXplZF9wY3QYCiABKAFIAVIScmFuZ2VBbm51YWxpemVkUGN0iAEBQhEKD19hbm51YWxpem'
-    'VkX3BjdEIXChVfcmFuZ2VfYW5udWFsaXplZF9wY3Q=');
+    'dWFsaXplZF9wY3QYCiABKAFIAVIScmFuZ2VBbm51YWxpemVkUGN0iAEBEjEKEnR3cl9hbm51YW'
+    'xpemVkX3BjdBgLIAEoAUgCUhB0d3JBbm51YWxpemVkUGN0iAEBQhEKD19hbm51YWxpemVkX3Bj'
+    'dEIXChVfcmFuZ2VfYW5udWFsaXplZF9wY3RCFQoTX3R3cl9hbm51YWxpemVkX3BjdA==');
 
 @$core.Deprecated('Use getHoldingPerformanceRequestDescriptor instead')
 const GetHoldingPerformanceRequest$json = {
@@ -755,10 +766,20 @@ const HoldingPerformanceResponse$json = {
       '10': 'rangeAnnualizedPct',
       '17': true
     },
+    {
+      '1': 'twr_annualized_pct',
+      '3': 8,
+      '4': 1,
+      '5': 1,
+      '9': 2,
+      '10': 'twrAnnualizedPct',
+      '17': true
+    },
   ],
   '8': [
     {'1': '_annualized_pct'},
     {'1': '_range_annualized_pct'},
+    {'1': '_twr_annualized_pct'},
   ],
 };
 
@@ -770,7 +791,9 @@ final $typed_data.Uint8List holdingPerformanceResponseDescriptor = $convert.base
     'l6ZWRDZW50cxIfCgt0b3RhbF9jZW50cxgEIAEoA1IKdG90YWxDZW50cxIaCghjdXJyZW5jeRgF'
     'IAEoCVIIY3VycmVuY3kSKgoOYW5udWFsaXplZF9wY3QYBiABKAFIAFINYW5udWFsaXplZFBjdI'
     'gBARI1ChRyYW5nZV9hbm51YWxpemVkX3BjdBgHIAEoAUgBUhJyYW5nZUFubnVhbGl6ZWRQY3SI'
-    'AQFCEQoPX2FubnVhbGl6ZWRfcGN0QhcKFV9yYW5nZV9hbm51YWxpemVkX3BjdA==');
+    'AQESMQoSdHdyX2FubnVhbGl6ZWRfcGN0GAggASgBSAJSEHR3ckFubnVhbGl6ZWRQY3SIAQFCEQ'
+    'oPX2FubnVhbGl6ZWRfcGN0QhcKFV9yYW5nZV9hbm51YWxpemVkX3BjdEIVChNfdHdyX2FubnVh'
+    'bGl6ZWRfcGN0');
 
 @$core.Deprecated('Use backfillPriceHistoryRequestDescriptor instead')
 const BackfillPriceHistoryRequest$json = {
