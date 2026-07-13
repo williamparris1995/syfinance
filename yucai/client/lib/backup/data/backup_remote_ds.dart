@@ -38,12 +38,13 @@ class BackupRemoteDataSource {
     });
   }
 
-  /// CreateBackup：encrypted 由用户 dialog 选（CreateBackupRequest 仅 encrypted
-  /// bool，proto 无 password 字段）。
-  Future<Backup> create({required bool encrypted}) async {
+  /// CreateBackup：encrypted 由用户 dialog 选；加密时 password 必填。
+  /// CreateBackupRequest{encrypted, password}：非加密传空串。
+  Future<Backup> create({required bool encrypted, String password = ''}) async {
     return _retry.call(() async {
-      final res = await _client
-          .createBackup(pb.CreateBackupRequest(encrypted: encrypted));
+      final req = pb.CreateBackupRequest(encrypted: encrypted);
+      if (password.isNotEmpty) req.password = password;
+      final res = await _client.createBackup(req);
       return BackupMapper.toDomain(res.backup);
     });
   }

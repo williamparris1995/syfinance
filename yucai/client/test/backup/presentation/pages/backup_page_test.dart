@@ -58,11 +58,12 @@ void main() {
     expect(find.text('重试'), findsOneWidget);
   });
 
-  testWidgets('create dialog dispatches CreateBackupRequested(encrypted)',
+  testWidgets(
+      'create dialog 加密路径 dispatches CreateBackupRequested(encrypted, password)',
       (t) async {
     final repo = _MockRepo();
     when(() => repo.list()).thenAnswer((_) async => const Right([_sample]));
-    when(() => repo.create(encrypted: true))
+    when(() => repo.create(encrypted: true, password: 'pw'))
         .thenAnswer((_) async => const Right(_sample));
     await t.pumpWidget(_harness(repo));
     await t.pumpAndSettle(); // 列表加载完成
@@ -72,9 +73,14 @@ void main() {
     expect(find.text('是否加密备份文件？'), findsOneWidget);
 
     await t.tap(find.widgetWithText(FilledButton, '加密'));
+    await t.pumpAndSettle(); // password dialog 弹出
+    expect(find.text('加密备份'), findsOneWidget);
+
+    await t.enterText(find.byType(TextField), 'pw');
+    await t.tap(find.widgetWithText(FilledButton, '确认'));
     await t.pumpAndSettle(); // create → refresh
 
-    verify(() => repo.create(encrypted: true)).called(1);
+    verify(() => repo.create(encrypted: true, password: 'pw')).called(1);
   });
 
   // I-1 regression: 操作失败必须反馈 SnackBar（列表非空时 _errorState 不显示，
@@ -82,7 +88,7 @@ void main() {
   testWidgets('create failure shows SnackBar with error message', (t) async {
     final repo = _MockRepo();
     when(() => repo.list()).thenAnswer((_) async => const Right([_sample]));
-    when(() => repo.create(encrypted: true))
+    when(() => repo.create(encrypted: true, password: 'pw'))
         .thenAnswer((_) async => const Left(ServerFailure('创建失败')));
     await t.pumpWidget(_harness(repo));
     await t.pumpAndSettle(); // 列表加载完成
@@ -90,6 +96,9 @@ void main() {
     await t.tap(find.text('立即备份'));
     await t.pumpAndSettle(); // encrypted dialog 弹出
     await t.tap(find.widgetWithText(FilledButton, '加密'));
+    await t.pumpAndSettle(); // password dialog 弹出
+    await t.enterText(find.byType(TextField), 'pw');
+    await t.tap(find.widgetWithText(FilledButton, '确认'));
     await t.pumpAndSettle(); // create 失败 → BackupError → SnackBar
 
     expect(find.text('创建失败'), findsOneWidget);

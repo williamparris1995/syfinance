@@ -53,12 +53,12 @@ void main() {
     'create success emits Submitting → ActionSuccess → Loading → Loaded',
     build: () {
       final repo = _MockRepo();
-      when(() => repo.create(encrypted: true))
+      when(() => repo.create(encrypted: true, password: 'pw'))
           .thenAnswer((_) async => const Right(_sample));
       when(() => repo.list()).thenAnswer((_) async => const Right([_sample]));
       return BackupBloc(repo);
     },
-    act: (b) => b.add(const CreateBackupRequested(true)),
+    act: (b) => b.add(const CreateBackupRequested(true, 'pw')),
     wait: const Duration(milliseconds: 50),
     expect: () => [
       isA<BackupSubmitting>(),
@@ -110,11 +110,11 @@ void main() {
     'create failure emits Submitting → Error',
     build: () {
       final repo = _MockRepo();
-      when(() => repo.create(encrypted: true))
+      when(() => repo.create(encrypted: true, password: 'pw'))
           .thenAnswer((_) async => const Left(ServerFailure('创建失败')));
       return BackupBloc(repo);
     },
-    act: (b) => b.add(const CreateBackupRequested(true)),
+    act: (b) => b.add(const CreateBackupRequested(true, 'pw')),
     expect: () => [
       isA<BackupSubmitting>(),
       isA<BackupError>().having((s) => s.message, 'message', '创建失败'),

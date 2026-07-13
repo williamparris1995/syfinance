@@ -36,7 +36,8 @@ class BackupBloc extends Bloc<BackupEvent, BackupState> {
     Emitter<BackupState> emit,
   ) async {
     emit(BackupSubmitting(_last));
-    final result = await _repo.create(encrypted: event.encrypted);
+    final result =
+        await _repo.create(encrypted: event.encrypted, password: event.password);
     result.fold(
       (failure) => emit(BackupError(failure.displayMessage, last: _last)),
       (_) {

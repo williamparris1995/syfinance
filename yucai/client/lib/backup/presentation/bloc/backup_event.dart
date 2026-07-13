@@ -9,10 +9,11 @@ abstract class BackupEvent extends Equatable {
 class LoadBackupsRequested extends BackupEvent {}
 
 class CreateBackupRequested extends BackupEvent {
-  const CreateBackupRequested(this.encrypted);
+  const CreateBackupRequested(this.encrypted, this.password);
   final bool encrypted;
+  final String password;
   @override
-  List<Object?> get props => [encrypted];
+  List<Object?> get props => [encrypted, password];
 }
 
 class DeleteBackupRequested extends BackupEvent {

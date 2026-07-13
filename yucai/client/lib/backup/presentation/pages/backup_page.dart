@@ -28,7 +28,8 @@ class _BackupPageState extends State<BackupPage> {
   }
 
   /// 创建备份：encrypted 三选 dialog（取消 / 不加密 / 加密）。
-  /// CreateBackupRequest 仅 encrypted bool（proto 无 password 字段）。
+  /// 加密时第二步收 password（TextField obscureText，空则 SnackBar 提示）。
+  /// CreateBackupRequest{encrypted, password}：非加密传空串。
   void _showCreateDialog() {
     showDialog<bool>(
       context: context,
@@ -50,10 +51,47 @@ class _BackupPageState extends State<BackupPage> {
           ),
         ],
       ),
-    ).then((encrypted) {
-      if (encrypted != null && mounted) {
-        context.read<BackupBloc>().add(CreateBackupRequested(encrypted));
+    ).then((encrypted) async {
+      if (encrypted == null || !mounted) return; // 取消
+      String password = '';
+      if (encrypted) {
+        // 加密:第二步收 password
+        final ctrl = TextEditingController();
+        final ok = await showDialog<bool>(
+          context: context,
+          builder: (dctx) => AlertDialog(
+            title: const Text('加密备份'),
+            content: TextField(
+              controller: ctrl,
+              obscureText: true,
+              decoration: const InputDecoration(
+                hintText: '密码',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dctx, false),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dctx, true),
+                child: const Text('确认'),
+              ),
+            ],
+          ),
+        );
+        if (ok != true || !mounted) return;
+        password = ctrl.text;
+        if (password.isEmpty) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('密码不能为空')));
+          return;
+        }
       }
+      if (!mounted) return;
+      context.read<BackupBloc>().add(CreateBackupRequested(encrypted, password));
     });
   }
 

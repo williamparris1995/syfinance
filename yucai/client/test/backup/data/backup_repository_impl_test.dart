@@ -61,10 +61,10 @@ void main() {
 
   group('BackupRepositoryImpl.create', () {
     test('success returns Right(Backup)', () async {
-      when(() => remote.create(encrypted: true))
+      when(() => remote.create(encrypted: true, password: 'pw'))
           .thenAnswer((_) async => _sample);
       final repo = BackupRepositoryImpl(remote);
-      final result = await repo.create(encrypted: true);
+      final result = await repo.create(encrypted: true, password: 'pw');
       expect(result.isRight(), true);
     });
   });

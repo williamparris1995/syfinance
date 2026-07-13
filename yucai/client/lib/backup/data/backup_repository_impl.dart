@@ -17,8 +17,11 @@ class BackupRepositoryImpl implements BackupRepository {
   Future<Either<Failure, List<Backup>>> list() => _guard(_remote.list);
 
   @override
-  Future<Either<Failure, Backup>> create({required bool encrypted}) =>
-      _guard(() => _remote.create(encrypted: encrypted));
+  Future<Either<Failure, Backup>> create({
+    required bool encrypted,
+    String password = '',
+  }) =>
+      _guard(() => _remote.create(encrypted: encrypted, password: password));
 
   @override
   Future<Either<Failure, void>> restore({
