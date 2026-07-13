@@ -28,6 +28,12 @@ func (r *pagedHoldingRepo) FindByAccountAndSecurity(context.Context, uuid.UUID, 
 func (r *pagedHoldingRepo) FindByID(context.Context, uuid.UUID) (*domain.Holding, error) {
 	panic("not used")
 }
+func (r *pagedHoldingRepo) FindAllForBackup(context.Context, uuid.UUID) ([]domain.Holding, []domain.HoldingTransaction, error) {
+	panic("not used")
+}
+func (r *pagedHoldingRepo) DeleteByTenant(context.Context, uuid.UUID) error {
+	panic("not used")
+}
 func (r *pagedHoldingRepo) FindAll(_ context.Context, tenantID uuid.UUID, accountID *uuid.UUID, page domain.PageRequest) (*domain.PaginatedResult[domain.Holding], error) {
 	// Filter by tenant + optional account.
 	filtered := make([]domain.Holding, 0, len(r.all))

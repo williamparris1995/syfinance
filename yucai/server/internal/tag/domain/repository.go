@@ -30,4 +30,13 @@ type TagRepository interface {
 	AddTagToTransaction(ctx context.Context, tagID, transactionID uuid.UUID) error
 	RemoveTagFromTransaction(ctx context.Context, tagID, transactionID uuid.UUID) error
 	FindByTransaction(ctx context.Context, tenantID, transactionID uuid.UUID) ([]Tag, error)
+	// FindAllForBackup returns every non-soft-deleted tag for a tenant. Used by
+	// backup. Soft-deleted tags are excluded (mirror account/transaction
+	// semantics); the purge path hard-deletes all rows including soft-deleted.
+	FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]Tag, error)
+	// DeleteByTenant hard-deletes every tag for a tenant (including soft-deleted
+	// rows) and also removes the tenant's transaction_tag junction rows pointing
+	// at those tags (the junction has no tenant_id column, only tag_id, so the
+	// tag IDs are collected first to scope the junction cleanup).
+	DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error
 }

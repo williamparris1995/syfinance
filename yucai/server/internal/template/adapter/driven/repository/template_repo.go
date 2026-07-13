@@ -192,28 +192,55 @@ func (r *TemplateRepository) Delete(ctx context.Context, tenantID, id uuid.UUID)
 
 func toDomainTemplate(t *tmplent.TransactionTemplate) *domain.TransactionTemplate {
 	return &domain.TransactionTemplate{
-		ID:                  t.ID,
-		TenantID:            t.TenantID,
-		Name:                t.Name,
-		Description:         t.Description,
-		AmountCents:         t.AmountCents,
-		Direction:           domain.ParseTemplateDirection(t.Direction),
+		ID:                   t.ID,
+		TenantID:             t.TenantID,
+		Name:                 t.Name,
+		Description:          t.Description,
+		AmountCents:          t.AmountCents,
+		Direction:            domain.ParseTemplateDirection(t.Direction),
 		SourceAccountID:      t.SourceAccountID,
 		DestinationAccountID: t.DestinationAccountID,
-		Cycle:               domain.ParseTemplateCycle(t.Cycle),
-		CycleDays:           t.CycleDays,
-		BillingDay:          t.BillingDay,
-		NextDate:            t.NextDate,
-		StartDate:           t.StartDate,
-		EndDate:             t.EndDate,
-		AutoRecord:          t.AutoRecord,
-		Paused:              t.Paused,
-		LastTransactionID:   t.LastTransactionID,
-		Category:            t.Category,
-		Version:             t.Version,
-		CreatedAt:           t.CreatedAt,
-		UpdatedAt:           t.UpdatedAt,
+		Cycle:                domain.ParseTemplateCycle(t.Cycle),
+		CycleDays:            t.CycleDays,
+		BillingDay:           t.BillingDay,
+		NextDate:             t.NextDate,
+		StartDate:            t.StartDate,
+		EndDate:              t.EndDate,
+		AutoRecord:           t.AutoRecord,
+		Paused:               t.Paused,
+		LastTransactionID:    t.LastTransactionID,
+		Category:             t.Category,
+		Version:              t.Version,
+		CreatedAt:            t.CreatedAt,
+		UpdatedAt:            t.UpdatedAt,
 	}
+}
+
+// FindAllForBackup returns every template for a tenant without pagination.
+// Templates have no DeletedAt column (Delete is hard), so no soft-delete filter
+// is applied — every row is returned.
+func (r *TemplateRepository) FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]domain.TransactionTemplate, error) {
+	results, err := r.client.TransactionTemplate.Query().
+		Where(transactiontemplate.TenantID(tenantID)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("backup query templates: %w", err)
+	}
+	templates := make([]domain.TransactionTemplate, len(results))
+	for i, t := range results {
+		templates[i] = *toDomainTemplate(t)
+	}
+	return templates, nil
+}
+
+// DeleteByTenant hard-deletes every template for a tenant.
+func (r *TemplateRepository) DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error {
+	if _, err := r.client.TransactionTemplate.Delete().
+		Where(transactiontemplate.TenantID(tenantID)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("delete templates: %w", err)
+	}
+	return nil
 }
 
 var _ domain.TemplateRepository = (*TemplateRepository)(nil)

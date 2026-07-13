@@ -8,6 +8,7 @@ import (
 	"github.com/yucai/server/internal/holding/domain"
 	holdingent "github.com/yucai/server/internal/holding/ent"
 	"github.com/yucai/server/internal/holding/ent/holding"
+	"github.com/yucai/server/internal/holding/ent/holdingtransaction"
 )
 
 // HoldingRepository implements domain.HoldingRepository.
@@ -113,6 +114,53 @@ func toDomainHolding(h *holdingent.Holding) *domain.Holding {
 		AvgCostCents: h.AvgCostCents, Version: h.Version,
 		CreatedAt: h.CreatedAt, UpdatedAt: h.UpdatedAt,
 	}
+}
+
+// FindAllForBackup returns every holding for a tenant plus every holding
+// transaction (trade ledger row) for the same tenant. Two tenant-scoped queries
+// (no per-holding N+1). Holdings have no soft-delete column; transactions are
+// append-only (no delete at all) — both are returned in full.
+func (r *HoldingRepository) FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]domain.Holding, []domain.HoldingTransaction, error) {
+	holdingRows, err := r.client.Holding.Query().
+		Where(holding.TenantID(tenantID)).
+		All(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("backup query holdings: %w", err)
+	}
+	holdings := make([]domain.Holding, len(holdingRows))
+	for i, h := range holdingRows {
+		holdings[i] = *toDomainHolding(h)
+	}
+
+	tradeRows, err := r.client.HoldingTransaction.Query().
+		Where(holdingtransaction.TenantID(tenantID)).
+		All(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("backup query holding transactions: %w", err)
+	}
+	trades := make([]domain.HoldingTransaction, len(tradeRows))
+	for i, tr := range tradeRows {
+		trades[i] = *toDomainTrade(tr)
+	}
+	return holdings, trades, nil
+}
+
+// DeleteByTenant hard-deletes all of a tenant's holding data. Holding
+// transactions first (logically child of holdings — linked by tenant+account+
+// security, no ent FK), then holdings. Both are tenant-scoped so no ID
+// collection is needed.
+func (r *HoldingRepository) DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error {
+	if _, err := r.client.HoldingTransaction.Delete().
+		Where(holdingtransaction.TenantID(tenantID)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("delete holding transactions: %w", err)
+	}
+	if _, err := r.client.Holding.Delete().
+		Where(holding.TenantID(tenantID)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("delete holdings: %w", err)
+	}
+	return nil
 }
 
 var _ domain.HoldingRepository = (*HoldingRepository)(nil)

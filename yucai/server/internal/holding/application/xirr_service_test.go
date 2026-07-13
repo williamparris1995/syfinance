@@ -56,6 +56,12 @@ func (r *fakeHoldingRepoSingle) FindByID(_ context.Context, _ uuid.UUID) (*domai
 func (r *fakeHoldingRepoSingle) FindAll(_ context.Context, _ uuid.UUID, _ *uuid.UUID, _ domain.PageRequest) (*domain.PaginatedResult[domain.Holding], error) {
 	return &domain.PaginatedResult[domain.Holding]{Items: []domain.Holding{r.h}}, nil
 }
+func (r *fakeHoldingRepoSingle) FindAllForBackup(_ context.Context, _ uuid.UUID) ([]domain.Holding, []domain.HoldingTransaction, error) {
+	panic("not used in XIRR test")
+}
+func (r *fakeHoldingRepoSingle) DeleteByTenant(_ context.Context, _ uuid.UUID) error {
+	panic("not used in XIRR test")
+}
 
 // fakeTradeRepo serves in-memory trades (tenant/account/security-insensitive
 // for test simplicity — XIRR only reads Items).

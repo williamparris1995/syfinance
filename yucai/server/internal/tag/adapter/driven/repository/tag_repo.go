@@ -203,6 +203,53 @@ func toDomainTag(t *tagent.Tag) *domain.Tag {
 	}
 }
 
+// FindAllForBackup returns every non-soft-deleted tag for a tenant (no
+// pagination). Soft-deleted tags are excluded, mirroring account/transaction
+// backup semantics — only live business data is backed up.
+func (r *TagRepository) FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]domain.Tag, error) {
+	results, err := r.client.Tag.Query().
+		Where(
+			tag.TenantID(tenantID),
+			tag.DeletedAtIsNil(),
+		).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("backup query tags: %w", err)
+	}
+	tags := make([]domain.Tag, len(results))
+	for i, t := range results {
+		tags[i] = *toDomainTag(t)
+	}
+	return tags, nil
+}
+
+// DeleteByTenant hard-deletes every tag for a tenant (including soft-deleted
+// rows) and the transaction_tag junction rows referencing those tags. The
+// junction table has no tenant_id column (only tag_id + transaction_id), so the
+// tenant's tag IDs are collected first and used to scope the junction cleanup.
+// Ordering: junction rows first (logically child of tags), then tags.
+func (r *TagRepository) DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error {
+	tagIDs, err := r.client.Tag.Query().
+		Where(tag.TenantID(tenantID)).
+		IDs(ctx)
+	if err != nil {
+		return fmt.Errorf("collect tag IDs for delete: %w", err)
+	}
+	if len(tagIDs) > 0 {
+		if _, err := r.client.TransactionTag.Delete().
+			Where(transactiontag.TagIDIn(tagIDs...)).
+			Exec(ctx); err != nil {
+			return fmt.Errorf("delete transaction_tag junction: %w", err)
+		}
+	}
+	if _, err := r.client.Tag.Delete().
+		Where(tag.TenantID(tenantID)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("delete tags: %w", err)
+	}
+	return nil
+}
+
 // Compile-time check.
 var _ domain.TagRepository = (*TagRepository)(nil)
 

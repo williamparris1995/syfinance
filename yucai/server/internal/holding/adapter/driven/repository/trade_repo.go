@@ -27,6 +27,7 @@ func (r *TradeRepository) Save(ctx context.Context, tr *domain.HoldingTransactio
 		SetTradeType(tr.TradeType.String()).
 		SetQuantity(tr.Quantity).SetPriceCents(tr.PriceCents).
 		SetAmountCents(tr.AmountCents).SetFeeCents(tr.FeeCents).
+		SetRealizedPnlCents(tr.RealizedPnLCents).
 		SetTradeDate(tr.TradeDate).SetNotes(tr.Notes).
 		SetCreatedAt(tr.CreatedAt)
 	if tr.TransactionID != nil {
@@ -81,7 +82,8 @@ func toDomainTrade(tr *holdingent.HoldingTransaction) *domain.HoldingTransaction
 		SecurityID: tr.SecurityID, TradeType: domain.ParseTradeType(tr.TradeType),
 		Quantity: tr.Quantity, PriceCents: tr.PriceCents,
 		AmountCents: tr.AmountCents, FeeCents: tr.FeeCents,
-		TradeDate: tr.TradeDate, TransactionID: tr.TransactionID,
+		RealizedPnLCents: tr.RealizedPnlCents,
+		TradeDate:        tr.TradeDate, TransactionID: tr.TransactionID,
 		Notes: tr.Notes, CreatedAt: tr.CreatedAt,
 	}
 }

@@ -139,6 +139,12 @@ func (nilHoldingRepo) FindByID(context.Context, uuid.UUID) (*domain.Holding, err
 func (nilHoldingRepo) FindAll(context.Context, uuid.UUID, *uuid.UUID, domain.PageRequest) (*domain.PaginatedResult[domain.Holding], error) {
 	panic("not used in SyncPrices test")
 }
+func (nilHoldingRepo) FindAllForBackup(context.Context, uuid.UUID) ([]domain.Holding, []domain.HoldingTransaction, error) {
+	panic("not used in SyncPrices test")
+}
+func (nilHoldingRepo) DeleteByTenant(context.Context, uuid.UUID) error {
+	panic("not used in SyncPrices test")
+}
 
 type nilTradeRepo struct{}
 
@@ -279,6 +285,15 @@ func (r *memHoldingRepo) FindAll(_ context.Context, tenantID uuid.UUID, accountI
 		items = append(items, *h)
 	}
 	return &domain.PaginatedResult[domain.Holding]{Items: items, TotalCount: int32(len(items))}, nil
+}
+
+// FindAllForBackup / DeleteByTenant are backup-only; not exercised by holding
+// application tests, so they panic to surface accidental coupling.
+func (r *memHoldingRepo) FindAllForBackup(_ context.Context, _ uuid.UUID) ([]domain.Holding, []domain.HoldingTransaction, error) {
+	panic("not used in holding application tests")
+}
+func (r *memHoldingRepo) DeleteByTenant(_ context.Context, _ uuid.UUID) error {
+	panic("not used in holding application tests")
 }
 
 // memTradeRepo is an in-memory TradeRepository that records saved trades.

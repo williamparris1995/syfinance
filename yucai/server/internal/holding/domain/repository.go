@@ -36,6 +36,15 @@ type HoldingRepository interface {
 	FindByAccountAndSecurity(ctx context.Context, tenantID, accountID, securityID uuid.UUID) (*Holding, error)
 	FindByID(ctx context.Context, holdingID uuid.UUID) (*Holding, error)
 	FindAll(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID, page PageRequest) (*PaginatedResult[Holding], error)
+	// FindAllForBackup returns every non-deleted holding for a tenant plus every
+	// holding transaction (trade ledger) for the same tenant. Two separate queries
+	// (batch) rather than per-holding loads to avoid N+1. Used by backup/exporter.
+	FindAllForBackup(ctx context.Context, tenantID uuid.UUID) (holdings []Holding, transactions []HoldingTransaction, err error)
+	// DeleteByTenant hard-deletes all of a tenant's holding data: holding
+	// transactions first (logically child of holdings, same tenant scope), then
+	// holdings. There is no ent FK between them (linked by tenant+account+
+	// security), but the ordering preserves data hygiene.
+	DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error
 }
 
 // TradeRepository defines persistence for holding transactions.
