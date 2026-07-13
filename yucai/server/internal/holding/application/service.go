@@ -1202,6 +1202,67 @@ func (s *Service) portfolioXIRR(ctx context.Context, tenantID uuid.UUID, account
 	return full, rng, nil
 }
 
+// portfolioTWR computes portfolio-level full-period TWR (base-converted, GIPS
+// sub-period chaining). Degrades to nil on insufficient data or missing prices.
+// subPeriods start from i>0 (first buy's BV_after is the initial BeginValue,
+// avoiding divide-by-zero on empty pre-buy position — see spec risk #4).
+func (s *Service) portfolioTWR(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID, baseCurrency string) (*float64, error) {
+	base := baseCurrency
+	if base == "" {
+		base = "CNY"
+	}
+	rateBase := s.rateForBase(ctx, base)
+	trades, _ := s.allTradesForTenant(ctx, tenantID, accountID)
+	if len(trades) == 0 {
+		return nil, nil
+	}
+	cashFlowDays := uniqueSortedTradeDates(trades)
+	if len(cashFlowDays) < 2 {
+		return nil, nil // 需 ≥2 现金流日才有子区间
+	}
+	subPeriods := make([]domain.SubPeriodReturn, 0, len(cashFlowDays)-1)
+	var prevAfterCF float64
+	for i, day := range cashFlowDays {
+		BV_before, ok := s.marketValueAtDateAsOf(ctx, tenantID, accountID, day, day, rateBase, base)
+		if !ok {
+			return nil, nil // price 缺 → 降级
+		}
+		BV_after, ok := s.marketValueAtDateAsOf(ctx, tenantID, accountID, day.AddDate(0, 0, 1), day, rateBase, base)
+		if !ok {
+			return nil, nil
+		}
+		if i > 0 {
+			subPeriods = append(subPeriods, domain.SubPeriodReturn{BeginValueAfterCF: prevAfterCF, EndValueBeforeCF: float64(BV_before)})
+		}
+		prevAfterCF = float64(BV_after)
+	}
+	if len(subPeriods) == 0 {
+		return nil, nil
+	}
+	finalValue := s.currentMarketValueInBase(ctx, tenantID, accountID, base)
+	totalDays := int(time.Since(cashFlowDays[0]).Hours() / 24)
+	rate, err := domain.TWR(subPeriods, float64(finalValue), prevAfterCF, totalDays)
+	if err != nil {
+		return nil, nil
+	}
+	return ptrFloat(rate), nil
+}
+
+// uniqueSortedTradeDates extracts unique trade_date values sorted ascending.
+func uniqueSortedTradeDates(trades []domain.HoldingTransaction) []time.Time {
+	seen := map[time.Time]bool{}
+	days := make([]time.Time, 0, len(trades))
+	for _, t := range trades {
+		d := t.TradeDate.Truncate(24 * time.Hour)
+		if !seen[d] {
+			seen[d] = true
+			days = append(days, d)
+		}
+	}
+	sort.Slice(days, func(i, j int) bool { return days[i].Before(days[j]) })
+	return days
+}
+
 // holdingXIRR computes single-holding full-period XIRR (original currency, no
 // conversion). Degrades to nil. Range XIRR is computed separately by Task 4's
 // computeHoldingRangeXIRR (needs price_history endpoint rebuild).
@@ -1244,6 +1305,53 @@ func (s *Service) holdingXIRR(ctx context.Context, holdingID uuid.UUID, baseCurr
 		full = ptrFloat(r)
 	}
 	return full, nil
+}
+
+// holdingTWR computes single-holding full-period TWR (original currency, no
+// conversion). Degrades to nil.
+func (s *Service) holdingTWR(ctx context.Context, holdingID uuid.UUID) (*float64, error) {
+	h, err := s.holdingRepo.FindByID(ctx, holdingID)
+	if err != nil {
+		return nil, fmt.Errorf("holding twr: find holding: %w", err)
+	}
+	sec, err := s.securityRepo.FindByID(ctx, h.SecurityID)
+	if err != nil || sec == nil {
+		return nil, nil
+	}
+	trades := s.tradesForHolding(ctx, *h)
+	if len(trades) < 2 {
+		return nil, nil
+	}
+	cashFlowDays := uniqueSortedTradeDates(trades)
+	if len(cashFlowDays) < 2 {
+		return nil, nil
+	}
+	subPeriods := make([]domain.SubPeriodReturn, 0, len(cashFlowDays)-1)
+	var prevAfterCF float64
+	for i, day := range cashFlowDays {
+		qtyBefore := domain.QtyAtDate(trades, day)
+		price, ok := s.priceAtOrBefore(ctx, h.SecurityID, day)
+		if !ok {
+			return nil, nil
+		}
+		BV_before := float64(qtyBefore) * float64(price)
+		qtyAfter := domain.QtyAtDate(trades, day.AddDate(0, 0, 1))
+		BV_after := float64(qtyAfter) * float64(price)
+		if i > 0 {
+			subPeriods = append(subPeriods, domain.SubPeriodReturn{BeginValueAfterCF: prevAfterCF, EndValueBeforeCF: BV_before})
+		}
+		prevAfterCF = BV_after
+	}
+	if len(subPeriods) == 0 {
+		return nil, nil
+	}
+	finalValue := float64(h.MarketValue(sec.CurrentPriceCents)) // 原币
+	totalDays := int(time.Since(cashFlowDays[0]).Hours() / 24)
+	rate, err := domain.TWR(subPeriods, finalValue, prevAfterCF, totalDays)
+	if err != nil {
+		return nil, nil
+	}
+	return ptrFloat(rate), nil
 }
 
 // priceAtOrBefore returns the security's nearest price_history entry on or

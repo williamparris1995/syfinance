@@ -36,3 +36,73 @@ func TestMarketValueAtDateAsOfQtyPriceSeparation(t *testing.T) {
 		t.Errorf("qty after buy × price@buyDay: MV = %d ok=%v, want 1000000/true", mv1, ok)
 	}
 }
+
+// portfolioTWR:1 holding(buy 100@100元 day0,price 恒 10000)→ 全期 TWR。
+// 单子区间(BV_after day0=1000000, no later CF)→ 子区间空? 需 ≥2 cashFlowDays。
+// 本测:2 buy(buy day0 + buy day1)→ 1 子区间。
+func TestPortfolioTWRSimple(t *testing.T) {
+	secID := uuid.New()
+	day0 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	day1 := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
+	svc := &Service{
+		securityRepo: &fakeSecurityRepoByID{sec: domain.Security{ID: secID, CurrencyCode: "CNY", CurrentPriceCents: 10000}},
+		holdingRepo:  &fakeHoldingRepoSingle{h: domain.Holding{SecurityID: secID, Quantity: 200}},
+		tradeRepo: &fakeTradeRepo{items: []domain.HoldingTransaction{
+			{TradeType: domain.TradeTypeBuy, Quantity: 100, AmountCents: 1000000, SecurityID: secID, TradeDate: day0},
+			{TradeType: domain.TradeTypeBuy, Quantity: 100, AmountCents: 1000000, SecurityID: secID, TradeDate: day1},
+		}},
+		priceHistoryRepo: &fakePriceRepo{priceCents: 10000},
+		rateRepo:         &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
+	}
+	twr, err := svc.portfolioTWR(context.Background(), uuid.Nil, nil, "CNY")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if twr == nil {
+		t.Fatal("portfolioTWR nil, want non-nil (price constant → TWR ~0)")
+	}
+	// price 恒定(10000),无市场变化 → TWR ≈ 0(只有现金流,无收益)
+	if *twr > 0.01 || *twr < -0.01 {
+		t.Errorf("TWR = %v, want ~0 (constant price)", *twr)
+	}
+}
+
+// holdingTWR:单 holding(原币,不折算)
+func TestHoldingTWROriginalCurrency(t *testing.T) {
+	secID := uuid.New()
+	holdID := uuid.New()
+	accID := uuid.New()
+	day0 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	day1 := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
+	svc := &Service{
+		securityRepo: &fakeSecurityRepoByID{sec: domain.Security{ID: secID, CurrencyCode: "CNY", CurrentPriceCents: 11000}},
+		holdingRepo:  &fakeHoldingRepoSingle{h: domain.Holding{ID: holdID, AccountID: accID, SecurityID: secID, Quantity: 100}},
+		tradeRepo: &fakeTradeRepo{items: []domain.HoldingTransaction{
+			{TradeType: domain.TradeTypeBuy, Quantity: 100, AmountCents: 1000000, SecurityID: secID, TradeDate: day0, AccountID: accID},
+			// day1 无 trade → 不切子区间;用 2 buy 切
+			{TradeType: domain.TradeTypeBuy, Quantity: 0, AmountCents: 0, SecurityID: secID, TradeDate: day1, AccountID: accID},
+		}},
+		priceHistoryRepo: &fakePriceRepo{priceCents: 10000},
+		rateRepo:         &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
+	}
+	twr, err := svc.holdingTWR(context.Background(), holdID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if twr == nil {
+		t.Fatal("holdingTWR nil, want non-nil")
+	}
+}
+
+// 无 trade → nil
+func TestPortfolioTWRNoTrades(t *testing.T) {
+	svc := &Service{
+		securityRepo: &fakeSecurityRepoByID{}, holdingRepo: &fakeHoldingRepoSingle{},
+		tradeRepo: &fakeTradeRepo{items: nil}, priceHistoryRepo: &fakePriceRepo{priceCents: 0},
+		rateRepo: &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
+	}
+	twr, err := svc.portfolioTWR(context.Background(), uuid.Nil, nil, "CNY")
+	if err != nil || twr != nil {
+		t.Errorf("no trades: twr=%v err=%v, want nil/nil", twr, err)
+	}
+}
