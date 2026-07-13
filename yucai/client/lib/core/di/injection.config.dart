@@ -34,6 +34,10 @@ import '../../auth/domain/usecases/logout_usecase.dart' as _i231;
 import '../../auth/domain/usecases/refresh_token_usecase.dart' as _i752;
 import '../../auth/domain/usecases/register_usecase.dart' as _i246;
 import '../../auth/presentation/bloc/auth_bloc.dart' as _i946;
+import '../../backup/data/backup_remote_ds.dart' as _i877;
+import '../../backup/data/backup_repository_impl.dart' as _i594;
+import '../../backup/domain/repositories/backup_repository.dart' as _i335;
+import '../../backup/presentation/bloc/backup_bloc.dart' as _i852;
 import '../../budget/data/budget_remote_ds.dart' as _i749;
 import '../../budget/data/budget_repository_impl.dart' as _i364;
 import '../../budget/domain/repositories/budget_repository.dart' as _i665;
@@ -123,6 +127,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i382.TokenStorage>(),
       ),
     );
+    gh.lazySingleton<_i877.BackupRemoteDataSource>(
+      () => _i877.BackupRemoteDataSource(
+        gh<_i160.GrpcClient>(),
+        gh<_i763.AuthRetryCaller>(),
+      ),
+    );
     gh.lazySingleton<_i749.BudgetRemoteDataSource>(
       () => _i749.BudgetRemoteDataSource(
         gh<_i160.GrpcClient>(),
@@ -205,6 +215,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i703.GoalBloc>(
       () => _i703.GoalBloc(gh<_i835.GoalRepository>()),
     );
+    gh.lazySingleton<_i335.BackupRepository>(
+      () => _i594.BackupRepositoryImpl(gh<_i877.BackupRemoteDataSource>()),
+    );
     gh.factory<_i922.GetProfileUseCase>(
       () => _i922.GetProfileUseCase(gh<_i937.AuthRepository>()),
     );
@@ -256,6 +269,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i1051.DeleteAccountUseCase>(),
         gh<_i726.UpdateAccountUseCase>(),
       ),
+    );
+    gh.factory<_i852.BackupBloc>(
+      () => _i852.BackupBloc(gh<_i335.BackupRepository>()),
     );
     gh.factory<_i763.BudgetBloc>(
       () => _i763.BudgetBloc(gh<_i665.BudgetRepository>()),

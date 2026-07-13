@@ -60,6 +60,8 @@ import 'package:yucai_client/holding/domain/value_objects.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_event.dart';
 import 'package:yucai_client/settings/presentation/settings_page.dart';
+import 'package:yucai_client/backup/presentation/bloc/backup_bloc.dart';
+import 'package:yucai_client/backup/presentation/pages/backup_page.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/presentation/bloc/category_bloc.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
@@ -845,6 +847,17 @@ GoRouter buildRouter(AuthBloc authBloc) {
                   ],
                   child: const SettingsPage(),
                 ),
+                // 本地备份子页：静态路径「backup」，无 :id 冲突；BackupBloc
+                // 在路由 builder 层 provide（对齐 budgets branch 模式）。
+                routes: [
+                  GoRoute(
+                    path: 'backup',
+                    builder: (_, __) => BlocProvider<BackupBloc>(
+                      create: (_) => getIt<BackupBloc>(),
+                      child: const BackupPage(),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

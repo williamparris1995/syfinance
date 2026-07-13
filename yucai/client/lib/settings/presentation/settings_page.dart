@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
@@ -102,6 +103,15 @@ class SettingsPage extends StatelessWidget {
                             ),
                           ),
                         ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    _SettingsCard(
+                      child: _NavRow(
+                        icon: LucideIcons.databaseBackup,
+                        label: '本地备份',
+                        description: '导出 / 恢复数据备份文件',
+                        onTap: () => context.push('/settings/backup'),
                       ),
                     ),
                   ],
@@ -377,6 +387,59 @@ class _IntervalDropdown extends StatelessWidget {
         onChanged: (h) {
           if (h != null) onChanged(h);
         },
+      ),
+    );
+  }
+}
+
+/// 导航型设置行：整行可点 → push 子页（settings 页内第一个导航 tile，
+/// 确立「卡片 tile → 子页」范式）。对齐 _PreferenceRow 视觉，但 control
+/// 为 chevron right + 整行 onTap。
+class _NavRow extends StatelessWidget {
+  const _NavRow({
+    required this.icon,
+    required this.label,
+    required this.description,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String description;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: AppRadius.smBorder,
+      child: Row(
+        children: [
+          Icon(icon, color: AppColors.accent, size: 20),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: AppColors.fg,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          const Icon(LucideIcons.chevronRight,
+              color: AppColors.muted, size: 20),
+        ],
       ),
     );
   }
