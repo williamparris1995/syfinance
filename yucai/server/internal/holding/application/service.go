@@ -1093,7 +1093,19 @@ func (s *Service) currentMarketValueInBase(ctx context.Context, tenantID uuid.UU
 // marketValueAtDate rebuilds the portfolio market value (base cents) at [date]
 // using historical prices + QtyAtDate. Any holding missing a historical price
 // yields ok=false (caller degrades range XIRR).
+//
+// Thin delegate to marketValueAtDateAsOf(date, date): XIRR's single-as-of
+// semantics (qty and price read at the same instant) is the AsOf(t,t) case.
 func (s *Service) marketValueAtDate(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID, date time.Time, rateBase float64, base string) (int64, bool) {
+	return s.marketValueAtDateAsOf(ctx, tenantID, accountID, date, date, rateBase, base)
+}
+
+// marketValueAtDateAsOf rebuilds portfolio market value (base cents) with
+// SEPARATE qty as-of [qtyAsOf] and price as-of [priceAsOf]. TWR needs this:
+// BV_before(t_i) = qty@(trade 前)× price@(t_i)  → AsOf(t_i, t_i)
+// BV_after(t_i)  = qty@(trade 后)× price@(t_i)  → AsOf(t_i+1day, t_i)
+// ok=false if any holding's price missing (caller degrades).
+func (s *Service) marketValueAtDateAsOf(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID, qtyAsOf, priceAsOf time.Time, rateBase float64, base string) (int64, bool) {
 	// Trades are invariant across holding pages — hoist once.
 	secTrades, _ := s.allTradesForTenant(ctx, tenantID, accountID)
 	var sum int64
@@ -1108,16 +1120,16 @@ func (s *Service) marketValueAtDate(ctx context.Context, tenantID uuid.UUID, acc
 			if err != nil || sec == nil {
 				return 0, false
 			}
-			qty := domain.QtyAtDate(filterTradesBySecurity(secTrades, h.SecurityID), date)
+			qty := domain.QtyAtDate(filterTradesBySecurity(secTrades, h.SecurityID), qtyAsOf)
 			if qty == 0 {
 				continue
 			}
-			price, ok := s.priceAtOrBefore(ctx, h.SecurityID, date)
+			price, ok := s.priceAtOrBefore(ctx, h.SecurityID, priceAsOf)
 			if !ok {
 				return 0, false // history missing (US stocks/OTC) → degrade
 			}
 			mv := int64(math.Round(qty * float64(price)))
-			rateFrom := s.rateForCode(ctx, sec.CurrencyCode, date)
+			rateFrom := s.rateForCode(ctx, sec.CurrencyCode, priceAsOf)
 			sum += currencydomain.ConvertToBase(mv, rateFrom, rateBase)
 		}
 		if res.NextPageToken == "" || len(res.Items) == 0 {

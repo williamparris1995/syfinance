@@ -69,10 +69,19 @@ func (r *fakeTradeRepo) FindAll(_ context.Context, _ uuid.UUID, _, _ *uuid.UUID,
 }
 
 // fakePriceRepo returns one fixed price for any (security,date ≤ query).
+// Both FindBySecurity and FindAtOrBefore honor priceCents so priceAtOrBefore
+// (which routes through FindBySecurity) sees a valid history entry.
 type fakePriceRepo struct{ priceCents int64 }
 
-func (r *fakePriceRepo) FindBySecurity(_ context.Context, _ uuid.UUID, _, _ time.Time) ([]domain.SecurityPriceHistory, error) {
-	return nil, nil
+func (r *fakePriceRepo) FindBySecurity(_ context.Context, securityID uuid.UUID, _, _ time.Time) ([]domain.SecurityPriceHistory, error) {
+	if r.priceCents == 0 {
+		return nil, nil
+	}
+	return []domain.SecurityPriceHistory{{
+		SecurityID: securityID,
+		PriceDate:  time.Unix(0, 0),
+		PriceCents: r.priceCents,
+	}}, nil
 }
 func (r *fakePriceRepo) FindAtOrBefore(_ context.Context, _ uuid.UUID, _ time.Time) (int64, bool) {
 	return r.priceCents, true
