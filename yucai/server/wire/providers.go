@@ -495,7 +495,7 @@ func provideBackupService(repo *backuprepo.BackupRepository, localProvider *back
 	cloudProviders := map[domain.BackupProvider]backupapp.CloudProvider{
 		domain.BackupProviderLocal: localProvider,
 	}
-	return backupapp.NewService(repo, cloudProviders)
+	return backupapp.NewService(repo, cloudProviders, nil)
 }
 func provideBackupHandler(svc *backupapp.Service) *backupgrpc.BackupHandler {
 	return backupgrpc.NewBackupHandler(svc)

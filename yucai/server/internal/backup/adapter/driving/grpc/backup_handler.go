@@ -33,7 +33,11 @@ func (h *BackupHandler) CreateBackup(ctx context.Context, req *pb.CreateBackupRe
 		return nil, err
 	}
 
-	result, err := h.service.CreateBackup(ctx, tenantID, req.Encrypted)
+	// NOTE: CreateBackupRequest has no password field yet (proto unchanged per
+	// "零 schema/proto" constraint of Task 8). Plaintext backups work via gRPC;
+	// encrypted backups require a password and are reachable only through the
+	// application layer until the proto gains a password field.
+	result, err := h.service.CreateBackup(ctx, tenantID, req.Encrypted, "")
 	if err != nil {
 		return nil, mapError(err)
 	}

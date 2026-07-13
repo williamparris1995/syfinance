@@ -15,6 +15,7 @@ import (
 type Service struct {
 	repo           domain.BackupRepository
 	cloudProviders map[domain.BackupProvider]CloudProvider
+	ports          []domain.TenantDataPort
 }
 
 // CloudProvider is the port interface for cloud backup providers.
@@ -25,21 +26,65 @@ type CloudProvider interface {
 	TestConnection(ctx context.Context) error
 }
 
-// NewService creates a new backup application service.
-func NewService(repo domain.BackupRepository, cloudProviders map[domain.BackupProvider]CloudProvider) *Service {
-	return &Service{repo: repo, cloudProviders: cloudProviders}
+// NewService creates a new backup application service. ports is the ordered list
+// of tenant data ports (exporters) aggregated into each backup; nil/empty means
+// CreateBackup produces an envelope with no modules (wired in Task 10).
+func NewService(repo domain.BackupRepository, cloudProviders map[domain.BackupProvider]CloudProvider, ports []domain.TenantDataPort) *Service {
+	return &Service{repo: repo, cloudProviders: cloudProviders, ports: ports}
 }
 
-// CreateBackup creates a new backup record.
-func (s *Service) CreateBackup(ctx context.Context, tenantID uuid.UUID, encrypted bool) (*BackupDTO, error) {
+// CreateBackup serializes tenant data → optionally encrypts → Upload →
+// Finalize (sha256/size) → Save.
+func (s *Service) CreateBackup(ctx context.Context, tenantID uuid.UUID, encrypted bool, password string) (*BackupDTO, error) {
+	if encrypted && password == "" {
+		return nil, domain.ErrPasswordRequired
+	}
+	if !encrypted && password != "" {
+		return nil, domain.ErrPasswordOnPlaintext
+	}
+
+	// 1. Aggregate each module's Export → envelope.
+	envelope := domain.BackupEnvelope{
+		Version:   1,
+		TenantID:  tenantID,
+		CreatedAt: time.Now(),
+		Modules:   map[string]json.RawMessage{},
+	}
+	for _, p := range s.ports {
+		raw, err := p.Export(ctx, tenantID)
+		if err != nil {
+			return nil, fmt.Errorf("export %s: %w", p.Name(), err)
+		}
+		envelope.Modules[p.Name()] = raw
+	}
+	data, err := json.Marshal(envelope)
+	if err != nil {
+		return nil, fmt.Errorf("marshal envelope: %w", err)
+	}
+
+	// 2. Optional encryption.
+	if encrypted {
+		data, err = domain.Encrypt(data, password)
+		if err != nil {
+			return nil, fmt.Errorf("encrypt backup: %w", err)
+		}
+	}
+
+	// 3. Backup record + Upload + Finalize (checksum/size inline).
 	backup, err := domain.NewBackup(tenantID, domain.BackupProviderLocal, encrypted)
 	if err != nil {
 		return nil, fmt.Errorf("create backup: %w", err)
 	}
-	// Compute placeholder checksum and size for the new record
-	// Real data serialization happens when the backup is actually written
-	backup.Checksum = ""
-	backup.SizeBytes = 0
+	provider, ok := s.cloudProviders[domain.BackupProviderLocal]
+	if !ok {
+		return nil, fmt.Errorf("local provider not configured")
+	}
+	if err := provider.Upload(ctx, backup.Filename, data); err != nil {
+		return nil, fmt.Errorf("upload backup: %w", err)
+	}
+	hash := sha256.Sum256(data)
+	backup.Checksum = fmt.Sprintf("%x", hash)
+	backup.SizeBytes = int64(len(data))
 
 	if err := s.repo.Save(ctx, backup); err != nil {
 		return nil, fmt.Errorf("save backup: %w", err)
@@ -49,35 +94,93 @@ func (s *Service) CreateBackup(ctx context.Context, tenantID uuid.UUID, encrypte
 	return &dto, nil
 }
 
-// FinalizeBackup computes checksum and size from serialized data.
-func (s *Service) FinalizeBackup(ctx context.Context, tenantID, backupID uuid.UUID, data []byte) (*BackupDTO, error) {
+// RestoreBackup downloads → decrypts → deserializes → per-module Purge + Import
+// (non-cross-module atomic). Restore order: Purge dependents first, account
+// last; Import account first, then dependents.
+func (s *Service) RestoreBackup(ctx context.Context, tenantID uuid.UUID, backupID uuid.UUID, password string) error {
 	backup, err := s.repo.FindByID(ctx, tenantID, backupID)
-	if err != nil {
-		return nil, fmt.Errorf("find backup: %w", err)
-	}
-
-	// Compute SHA-256 checksum
-	hash := sha256.Sum256(data)
-	backup.Checksum = fmt.Sprintf("%x", hash)
-	backup.SizeBytes = int64(len(data))
-
-	if err := s.repo.Update(ctx, backup); err != nil {
-		return nil, fmt.Errorf("update backup: %w", err)
-	}
-
-	dto := BackupToDTO(backup)
-	return &dto, nil
-}
-
-// RestoreBackup restores data from a backup record.
-func (s *Service) RestoreBackup(ctx context.Context, tenantID, backupID uuid.UUID, password string) error {
-	_, err := s.repo.FindByID(ctx, tenantID, backupID)
 	if err != nil {
 		return fmt.Errorf("find backup: %w", err)
 	}
-	// TODO: Implement actual restore logic — deserialize backup data,
-	// optionally decrypt with password, and apply to database.
+	provider, ok := s.cloudProviders[domain.BackupProviderLocal]
+	if !ok {
+		return fmt.Errorf("local provider not configured")
+	}
+	data, err := provider.Download(ctx, backup.Filename)
+	if err != nil {
+		return fmt.Errorf("download backup: %w", err)
+	}
+
+	// Decrypt if encrypted.
+	if backup.Encrypted {
+		if password == "" {
+			return domain.ErrPasswordRequired
+		}
+		data, err = domain.Decrypt(data, password)
+		if err != nil {
+			return err // ErrWrongPassword
+		}
+	} else if domain.IsEncrypted(data) {
+		return domain.ErrWrongPassword // plaintext backup but file carries magic — anomalous
+	}
+
+	// Deserialize envelope.
+	var envelope domain.BackupEnvelope
+	if err := json.Unmarshal(data, &envelope); err != nil {
+		return fmt.Errorf("unmarshal envelope: %w", err)
+	}
+
+	// Purge (dependents first, account last — see Global Constraints Purge order).
+	for _, p := range s.orderedPortsForPurge() {
+		if err := p.Purge(ctx, tenantID); err != nil {
+			return fmt.Errorf("purge %s: %w", p.Name(), err)
+		}
+	}
+	// Import (account first, then dependents).
+	for _, p := range s.orderedPortsForImport() {
+		raw, ok := envelope.Modules[p.Name()]
+		if !ok {
+			continue // older backup may lack this module
+		}
+		if err := p.Import(ctx, tenantID, raw); err != nil {
+			return fmt.Errorf("import %s: %w", p.Name(), err)
+		}
+	}
 	return nil
+}
+
+// orderedPortsForPurge returns ports in dependency order (account last).
+func (s *Service) orderedPortsForPurge() []domain.TenantDataPort {
+	var rest []domain.TenantDataPort
+	var account domain.TenantDataPort
+	for _, p := range s.ports {
+		if p.Name() == "account" {
+			account = p
+		} else {
+			rest = append(rest, p)
+		}
+	}
+	if account != nil {
+		rest = append(rest, account)
+	}
+	return rest
+}
+
+// orderedPortsForImport returns ports in dependency order (account first).
+func (s *Service) orderedPortsForImport() []domain.TenantDataPort {
+	var account domain.TenantDataPort
+	var rest []domain.TenantDataPort
+	for _, p := range s.ports {
+		if p.Name() == "account" {
+			account = p
+		} else {
+			rest = append(rest, p)
+		}
+	}
+	if account != nil {
+		return append([]domain.TenantDataPort{account}, rest...)
+	}
+	return rest
 }
 
 // ListBackups returns paginated backups for a tenant.
@@ -99,10 +202,21 @@ func (s *Service) ListBackups(ctx context.Context, tenantID uuid.UUID, provider 
 	}, nil
 }
 
-// DeleteBackup removes a backup record.
+// DeleteBackup removes the backup file + metadata.
 func (s *Service) DeleteBackup(ctx context.Context, tenantID, backupID uuid.UUID) error {
+	backup, err := s.repo.FindByID(ctx, tenantID, backupID)
+	if err != nil {
+		return fmt.Errorf("find backup: %w", err)
+	}
+	provider, ok := s.cloudProviders[domain.BackupProviderLocal]
+	if !ok {
+		return fmt.Errorf("local provider not configured")
+	}
+	if err := provider.Delete(ctx, backup.Filename); err != nil {
+		return fmt.Errorf("delete backup file: %w", err)
+	}
 	if err := s.repo.Delete(ctx, tenantID, backupID); err != nil {
-		return fmt.Errorf("delete backup: %w", err)
+		return fmt.Errorf("delete backup record: %w", err)
 	}
 	return nil
 }
@@ -164,27 +278,4 @@ func (s *Service) SaveCloudSettings(ctx context.Context, settings CloudSettings)
 func (s *Service) GetCloudSettings(ctx context.Context, tenantID uuid.UUID) (*CloudSettings, error) {
 	// TODO: Read from backup_settings table when schema is added
 	return &CloudSettings{TenantID: tenantID}, nil
-}
-
-// SerializeBackupData is a helper that serializes tenant data to JSON bytes.
-func SerializeBackupData(data map[string]interface{}) ([]byte, error) {
-	return json.Marshal(data)
-}
-
-// DeserializeBackupData restores data from JSON bytes.
-func DeserializeBackupData(raw []byte) (map[string]interface{}, error) {
-	var data map[string]interface{}
-	if err := json.Unmarshal(raw, &data); err != nil {
-		return nil, fmt.Errorf("deserialize backup: %w", err)
-	}
-	return data, nil
-}
-
-// FormatBackupFilename generates a timestamped filename.
-func FormatBackupFilename(t time.Time, encrypted bool) string {
-	suffix := ".json"
-	if encrypted {
-		suffix = ".enc"
-	}
-	return fmt.Sprintf("backup_%s%s", t.Format("20060102_150405"), suffix)
 }

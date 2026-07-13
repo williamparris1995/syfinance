@@ -70,11 +70,15 @@ func NewBackup(tenantID uuid.UUID, provider BackupProvider, encrypted bool) (*Ba
 		return nil, fmt.Errorf("provider must be specified")
 	}
 	now := time.Now()
+	suffix := ".json"
+	if encrypted {
+		suffix = ".enc"
+	}
 	return &Backup{
 		ID:        uuid.New(),
 		TenantID:  tenantID,
 		Provider:  provider,
-		Filename:  fmt.Sprintf("backup_%s.enc", now.Format("20060102_150405")),
+		Filename:  fmt.Sprintf("backup_%s%s", now.Format("20060102_150405"), suffix),
 		Encrypted: encrypted,
 		Version:   1,
 		CreatedAt: now,
