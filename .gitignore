@@ -36,3 +36,6 @@ accounts-list
 detail-*
 form-overview
 home
+
+# server backup runtime artifacts (LocalProvider output, contains tenant data)
+yucai/server/backups/
