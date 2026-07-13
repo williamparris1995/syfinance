@@ -22,6 +22,7 @@ import (
 	authent "github.com/yucai/server/internal/auth/ent"
 	authjwt "github.com/yucai/server/internal/auth/infrastructure/jwt"
 	backupcloud "github.com/yucai/server/internal/backup/adapter/driven/cloud"
+	"github.com/yucai/server/internal/backup/adapter/driven/exporter"
 	backuprepo "github.com/yucai/server/internal/backup/adapter/driven/repository"
 	backupgrpc "github.com/yucai/server/internal/backup/adapter/driving/grpc"
 	backupapp "github.com/yucai/server/internal/backup/application"
@@ -491,11 +492,51 @@ func provideBackupRepo(client *backupent.Client) *backuprepo.BackupRepository {
 func provideLocalCloudProvider(cfg *config.Config) *backupcloud.LocalProvider {
 	return backupcloud.NewLocalProvider(cfg.BackupDir)
 }
-func provideBackupService(repo *backuprepo.BackupRepository, localProvider *backupcloud.LocalProvider) *backupapp.Service {
+func provideBackupService(repo *backuprepo.BackupRepository, localProvider *backupcloud.LocalProvider, ports []domain.TenantDataPort) *backupapp.Service {
 	cloudProviders := map[domain.BackupProvider]backupapp.CloudProvider{
 		domain.BackupProviderLocal: localProvider,
 	}
-	return backupapp.NewService(repo, cloudProviders, nil)
+	return backupapp.NewService(repo, cloudProviders, ports)
+}
+
+// provideBackupExporters 聚合各模块 TenantDataPort(Purge 顺序:依赖模块在前,account 最后;
+// Service 内 orderedPortsForPurge/Import 再按 Name 排序,这里顺序仅声明)。
+func provideBackupExporters(
+	account *exporter.AccountExporter,
+	transaction *exporter.TransactionExporter,
+	debt *exporter.DebtExporter,
+	budget *exporter.BudgetExporter,
+	goal *exporter.GoalExporter,
+	holding *exporter.HoldingExporter,
+	template *exporter.TemplateExporter,
+	tag *exporter.TagExporter,
+) []domain.TenantDataPort {
+	return []domain.TenantDataPort{account, transaction, debt, budget, goal, holding, template, tag}
+}
+
+func provideAccountExporter(repo *accountrepo.AccountRepository) *exporter.AccountExporter {
+	return exporter.NewAccountExporter(repo)
+}
+func provideTransactionExporter(repo *txnrepo.TransactionRepository) *exporter.TransactionExporter {
+	return exporter.NewTransactionExporter(repo)
+}
+func provideDebtExporter(repo *debtrepo.DebtRepository) *exporter.DebtExporter {
+	return exporter.NewDebtExporter(repo)
+}
+func provideBudgetExporter(repo *budgetrepo.BudgetRepository) *exporter.BudgetExporter {
+	return exporter.NewBudgetExporter(repo)
+}
+func provideGoalExporter(repo *goalrepo.GoalRepository) *exporter.GoalExporter {
+	return exporter.NewGoalExporter(repo)
+}
+func provideHoldingExporter(repo *holdingsec.HoldingRepository, trades *holdingsec.TradeRepository) *exporter.HoldingExporter {
+	return exporter.NewHoldingExporter(repo, trades)
+}
+func provideTemplateExporter(repo *tmplrepo.TemplateRepository) *exporter.TemplateExporter {
+	return exporter.NewTemplateExporter(repo)
+}
+func provideTagExporter(repo *tagrepo.TagRepository) *exporter.TagExporter {
+	return exporter.NewTagExporter(repo)
 }
 func provideBackupHandler(svc *backupapp.Service) *backupgrpc.BackupHandler {
 	return backupgrpc.NewBackupHandler(svc)

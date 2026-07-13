@@ -172,7 +172,20 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	// Backup module
 	backupRepo := provideBackupRepo(backupClient)
 	localCloudProvider := provideLocalCloudProvider(cfg)
-	backupService := provideBackupService(backupRepo, localCloudProvider)
+	// TenantDataPort exporters (8 modules). Each exporter consumes its module's
+	// repo (declared above in scope); HoldingExporter is dual-port (holdingRepo
+	// + tradeRepo). provideBackupExporters aggregates them into a
+	// []TenantDataPort for the backup Service.
+	accountExporter := provideAccountExporter(accountRepo)
+	txnExporter := provideTransactionExporter(txnRepo)
+	debtExporter := provideDebtExporter(debtRepo)
+	budgetExporter := provideBudgetExporter(budgetRepo)
+	goalExporter := provideGoalExporter(goalRepo)
+	holdingExporter := provideHoldingExporter(holdingRepo, tradeRepo)
+	templateExporter := provideTemplateExporter(templateRepo)
+	tagExporter := provideTagExporter(tagRepo)
+	backupExporters := provideBackupExporters(accountExporter, txnExporter, debtExporter, budgetExporter, goalExporter, holdingExporter, templateExporter, tagExporter)
+	backupService := provideBackupService(backupRepo, localCloudProvider, backupExporters)
 	backupHandler := provideBackupHandler(backupService)
 
 	// Sync module
