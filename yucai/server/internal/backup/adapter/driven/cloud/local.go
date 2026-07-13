@@ -43,3 +43,22 @@ func (p *LocalProvider) TestConnection(ctx context.Context) error {
 	os.Remove(testPath)
 	return nil
 }
+
+// Download reads a backup file from the local filesystem.
+func (p *LocalProvider) Download(ctx context.Context, filename string) ([]byte, error) {
+	path := filepath.Join(p.baseDir, filename)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read backup file: %w", err)
+	}
+	return data, nil
+}
+
+// Delete removes a backup file. Missing file is not an error.
+func (p *LocalProvider) Delete(ctx context.Context, filename string) error {
+	path := filepath.Join(p.baseDir, filename)
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("delete backup file: %w", err)
+	}
+	return nil
+}

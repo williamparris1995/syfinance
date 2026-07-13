@@ -3,6 +3,7 @@ package cloud
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -68,4 +69,14 @@ func (p *WebDAVProvider) TestConnection(ctx context.Context) error {
 		return fmt.Errorf("webdav connection failed: status %d", resp.StatusCode)
 	}
 	return nil
+}
+
+// Download is a stub — WebDAV download is deferred with cloud backup support.
+func (p *WebDAVProvider) Download(ctx context.Context, filename string) ([]byte, error) {
+	return nil, errors.New("webdav download not implemented (deferred with cloud backup)")
+}
+
+// Delete is a stub — WebDAV delete is deferred with cloud backup support.
+func (p *WebDAVProvider) Delete(ctx context.Context, filename string) error {
+	return errors.New("webdav delete not implemented (deferred with cloud backup)")
 }

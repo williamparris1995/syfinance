@@ -20,6 +20,8 @@ type Service struct {
 // CloudProvider is the port interface for cloud backup providers.
 type CloudProvider interface {
 	Upload(ctx context.Context, filename string, data []byte) error
+	Download(ctx context.Context, filename string) ([]byte, error)
+	Delete(ctx context.Context, filename string) error
 	TestConnection(ctx context.Context) error
 }
 
