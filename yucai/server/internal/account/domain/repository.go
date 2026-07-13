@@ -52,6 +52,12 @@ type AccountRepository interface {
 	FindByAccountType(ctx context.Context, tenantID uuid.UUID, accountType AccountType) ([]Account, error)
 	Update(ctx context.Context, account *Account) error
 	SoftDelete(ctx context.Context, tenantID, id uuid.UUID) error
+	// FindAllForBackup returns all non-deleted accounts for a tenant (no
+	// pagination, includes category accounts) for backup export.
+	FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]Account, error)
+	// DeleteByTenant hard-deletes all accounts for a tenant (restore purge,
+	// includes categories). Used by backup Import to clear before re-import.
+	DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error
 }
 
 // ChartRepository defines the port for ChartOfAccount persistence.

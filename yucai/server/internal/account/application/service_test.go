@@ -96,6 +96,29 @@ func (m *mockAccountRepo) SoftDelete(_ context.Context, tenantID, id uuid.UUID) 
 	return nil
 }
 
+func (m *mockAccountRepo) FindAllForBackup(_ context.Context, tenantID uuid.UUID) ([]domain.Account, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var out []domain.Account
+	for _, a := range m.byID {
+		if a.TenantID == tenantID {
+			out = append(out, *a)
+		}
+	}
+	return out, nil
+}
+
+func (m *mockAccountRepo) DeleteByTenant(_ context.Context, tenantID uuid.UUID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for id, a := range m.byID {
+		if a.TenantID == tenantID {
+			delete(m.byID, id)
+		}
+	}
+	return nil
+}
+
 type mockChartRepo struct{}
 
 func newMockChartRepo() *mockChartRepo { return &mockChartRepo{} }

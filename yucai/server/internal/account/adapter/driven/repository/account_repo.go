@@ -248,6 +248,37 @@ func (r *AccountRepository) SoftDelete(ctx context.Context, tenantID, id uuid.UU
 	return nil
 }
 
+// FindAllForBackup returns all non-deleted accounts for a tenant (no pagination,
+// includes category accounts) for backup export.
+func (r *AccountRepository) FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]domain.Account, error) {
+	results, err := r.client.Account.Query().
+		Where(
+			accountent.TenantID(tenantID),
+			accountent.DeletedAtIsNil(),
+		).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("backup find accounts: %w", err)
+	}
+	out := make([]domain.Account, len(results))
+	for i, a := range results {
+		out[i] = *toDomainAccount(a)
+	}
+	return out, nil
+}
+
+// DeleteByTenant hard-deletes all accounts (including categories) for a tenant.
+// Used by backup Import's purge step to clear before re-import.
+func (r *AccountRepository) DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error {
+	_, err := r.client.Account.Delete().
+		Where(accountent.TenantID(tenantID)).
+		Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("backup purge accounts: %w", err)
+	}
+	return nil
+}
+
 func toDomainAccount(a *ent.Account) *domain.Account {
 	result := &domain.Account{
 		ID:                       a.ID,

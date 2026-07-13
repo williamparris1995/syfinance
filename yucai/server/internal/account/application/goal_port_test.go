@@ -40,6 +40,12 @@ func (e *errAccountRepo) Update(ctx context.Context, a *domain.Account) error {
 func (e *errAccountRepo) SoftDelete(ctx context.Context, tenantID, id uuid.UUID) error {
 	return e.inner.SoftDelete(ctx, tenantID, id)
 }
+func (e *errAccountRepo) FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]domain.Account, error) {
+	return e.inner.FindAllForBackup(ctx, tenantID)
+}
+func (e *errAccountRepo) DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error {
+	return e.inner.DeleteByTenant(ctx, tenantID)
+}
 
 var _ domain.AccountRepository = (*errAccountRepo)(nil)
 

@@ -117,6 +117,24 @@ func (m *filterAccountRepo) SoftDelete(_ context.Context, _, id uuid.UUID) error
 	delete(m.byID, id)
 	return nil
 }
+func (m *filterAccountRepo) FindAllForBackup(_ context.Context, tenantID uuid.UUID) ([]domain.Account, error) {
+	var out []domain.Account
+	for _, a := range m.byID {
+		if a.TenantID == tenantID {
+			c := *a
+			out = append(out, c)
+		}
+	}
+	return out, nil
+}
+func (m *filterAccountRepo) DeleteByTenant(_ context.Context, tenantID uuid.UUID) error {
+	for id, a := range m.byID {
+		if a.TenantID == tenantID {
+			delete(m.byID, id)
+		}
+	}
+	return nil
+}
 
 var _ domain.AccountRepository = (*filterAccountRepo)(nil)
 
