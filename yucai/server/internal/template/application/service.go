@@ -207,6 +207,7 @@ func (s *Service) RecordTransaction(ctx context.Context, tenantID, templateID uu
 
 	tmpl.LastTransactionID = &txnID
 	tmpl.NextDate = domain.AdvanceNextDate(tmpl.NextDate, tmpl.Cycle, tmpl.CycleDays)
+	tmpl.IncrementVersion()
 	tmpl.UpdatedAt = time.Now()
 
 	if err := s.repo.Update(ctx, tmpl); err != nil {
