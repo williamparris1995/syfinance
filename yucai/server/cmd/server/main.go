@@ -94,6 +94,14 @@ func main() {
 	// is cancelled during shutdown.
 	go app.DebtScheduler.Start(schedCtx)
 
+	// Start template auto-record scheduler. Performs an immediate pass that
+	// records a transaction for every due auto-record template (cross-tenant
+	// via repo.FindDue: not paused + NextDate<=today + AutoRecord=true), then
+	// re-runs every 24h. No IntervalSource gate — autoRecord is idempotent per
+	// day (RecordTransaction advances NextDate past today). Exits when schedCtx
+	// is cancelled during shutdown.
+	go app.TemplateScheduler.Start(schedCtx)
+
 	// Backfill security price history on first launch (empty-table gate inside
 	// BackfillPriceHistory), async so it never blocks startup. Pulls Sina daily
 	// K-line for A-share holdings + CSI300 at YEAR depth (1200 bars ≈ 5 years).

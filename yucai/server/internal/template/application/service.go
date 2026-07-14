@@ -140,6 +140,28 @@ func (s *Service) ListTemplates(ctx context.Context, req ListTemplatesRequest) (
 	}, nil
 }
 
+// FindDueForAutoRecord returns templates due for automatic recording across all
+// tenants: not paused, NextDate <= today, AND AutoRecord enabled. Wraps the
+// cross-tenant repo.FindDue (which already filters paused + NextDate) and adds
+// the AutoRecord policy filter in-memory (autoRecord is a scheduler-policy
+// concern, not a domain-repo concern — FindDue stays usable for a future manual
+// "record all due" button that should include non-auto templates). Used by the
+// TemplateScheduler; safe to call multiple times per day (RecordTransaction
+// advances NextDate past today, so the second call finds nothing due).
+func (s *Service) FindDueForAutoRecord(ctx context.Context, today time.Time) ([]domain.TransactionTemplate, error) {
+	templates, err := s.repo.FindDue(ctx, today)
+	if err != nil {
+		return nil, fmt.Errorf("find due templates: %w", err)
+	}
+	filtered := make([]domain.TransactionTemplate, 0, len(templates))
+	for i := range templates {
+		if templates[i].AutoRecord {
+			filtered = append(filtered, templates[i])
+		}
+	}
+	return filtered, nil
+}
+
 // RecordResult is the outcome of recording a transaction from a template.
 type RecordResult struct {
 	TransactionID uuid.UUID

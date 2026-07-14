@@ -72,6 +72,7 @@ import (
 	tmplgrpc "github.com/yucai/server/internal/template/adapter/driving/grpc"
 	tmplapp "github.com/yucai/server/internal/template/application"
 	tmplent "github.com/yucai/server/internal/template/ent"
+	tmplscheduler "github.com/yucai/server/internal/template/scheduler"
 	txnbalance "github.com/yucai/server/internal/transaction/adapter/driven/balance"
 	txnrepo "github.com/yucai/server/internal/transaction/adapter/driven/repository"
 	txngrpc "github.com/yucai/server/internal/transaction/adapter/driving/grpc"
@@ -420,15 +421,33 @@ func provideTemplateEntClient(cfg *config.Config) (*tmplent.Client, error) {
 func provideTemplateRepo(client *tmplent.Client) *tmplrepo.TemplateRepository {
 	return tmplrepo.NewTemplateRepository(client)
 }
-func provideTemplateService(repo *tmplrepo.TemplateRepository) *tmplapp.Service {
-	// recorder is nil here for Task 4 (build green); Task 5 wires the real
-	// TransactionRecorderAdapter via a provider + wire_gen hand-edit, mirroring
-	// the backup server's nil→adapter two-step. CRUD is unaffected; only
-	// RecordTransaction requires the recorder (it errors if nil).
-	return tmplapp.NewService(repo, nil)
+
+// provideTransactionRecorderAdapter builds the template/domain.TransactionRecorder
+// adapter backed by the transaction application Service. The adapter translates
+// a RecordRequest into SimpleExpense/SimpleIncome/SimpleTransfer calls. DDD port
+// pattern: template domain defines the port, transaction/application implements
+// it, wire injects it here (mirrors backup TenantDataPort → exporter adapter).
+func provideTransactionRecorderAdapter(txnSvc *txnapp.Service) *txnapp.TransactionRecorderAdapter {
+	return txnapp.NewTransactionRecorderAdapter(txnSvc)
+}
+
+// provideTemplateService wires the real TransactionRecorderAdapter into the
+// template Service (Task 5 fills the Task 4 nil placeholder). CRUD is
+// unaffected; RecordTransaction now works end-to-end.
+func provideTemplateService(repo *tmplrepo.TemplateRepository, recorder *txnapp.TransactionRecorderAdapter) *tmplapp.Service {
+	return tmplapp.NewService(repo, recorder)
 }
 func provideTemplateHandler(svc *tmplapp.Service) *tmplgrpc.TemplateHandler {
 	return tmplgrpc.NewTemplateHandler(svc)
+}
+
+// provideTemplateScheduler builds the daily auto-record scheduler. The template
+// *application.Service implements scheduler.AutoRecorder via
+// FindDueForAutoRecord (cross-tenant fan-out via repo.FindDue, no TenantLister)
+// + RecordTransaction. tick is 24h in prod; no IntervalSource gate — autoRecord
+// is idempotent per day (RecordTransaction advances NextDate past today).
+func provideTemplateScheduler(svc *tmplapp.Service) *tmplscheduler.Scheduler {
+	return tmplscheduler.NewScheduler(svc, 24*time.Hour, nil)
 }
 
 // Holding providers

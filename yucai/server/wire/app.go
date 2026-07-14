@@ -15,6 +15,7 @@ import (
 	holdingscheduler "github.com/yucai/server/internal/holding/scheduler"
 	goalscheduler "github.com/yucai/server/internal/goal/scheduler"
 	debtscheduler "github.com/yucai/server/internal/debt/scheduler"
+	tmplscheduler "github.com/yucai/server/internal/template/scheduler"
 	networthgrpc "github.com/yucai/server/internal/networth/adapter/driving/grpc"
 	backupgrpc "github.com/yucai/server/internal/backup/adapter/driving/grpc"
 	syncgrpc "github.com/yucai/server/internal/sync/adapter/driving/grpc"
@@ -53,6 +54,7 @@ type App struct {
 	SnapshotScheduler  *holdingscheduler.SnapshotScheduler
 	GoalScheduler      *goalscheduler.Scheduler
 	DebtScheduler      *debtscheduler.Scheduler
+	TemplateScheduler  *tmplscheduler.Scheduler
 	NetWorthHandler    *networthgrpc.NetWorthHandler
 }
 
@@ -83,6 +85,7 @@ func NewApp(
 	snapshotScheduler *holdingscheduler.SnapshotScheduler,
 	goalScheduler *goalscheduler.Scheduler,
 	debtScheduler *debtscheduler.Scheduler,
+	templateScheduler *tmplscheduler.Scheduler,
 	networthHandler *networthgrpc.NetWorthHandler,
 ) *App {
 	return &App{
@@ -111,6 +114,7 @@ func NewApp(
 		SnapshotScheduler:  snapshotScheduler,
 		GoalScheduler:      goalScheduler,
 		DebtScheduler:      debtScheduler,
+		TemplateScheduler:  templateScheduler,
 		NetWorthHandler:    networthHandler,
 	}
 }
