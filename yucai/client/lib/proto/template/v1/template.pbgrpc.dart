@@ -90,6 +90,13 @@ class TransactionTemplateServiceClient extends $grpc.Client {
         options: options);
   }
 
+  $grpc.ResponseFuture<$0.RecordTransactionResponse> recordTransaction(
+    $0.RecordTemplateRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$recordTransaction, request, options: options);
+  }
+
   // method descriptors
 
   static final _$createTransactionTemplate = $grpc.ClientMethod<
@@ -127,6 +134,11 @@ class TransactionTemplateServiceClient extends $grpc.Client {
       '/yucai.template.v1.TransactionTemplateService/ListTransactionTemplates',
       ($0.ListTemplatesRequest value) => value.writeToBuffer(),
       $0.ListTemplatesResponse.fromBuffer);
+  static final _$recordTransaction = $grpc.ClientMethod<
+          $0.RecordTemplateRequest, $0.RecordTransactionResponse>(
+      '/yucai.template.v1.TransactionTemplateService/RecordTransaction',
+      ($0.RecordTemplateRequest value) => value.writeToBuffer(),
+      $0.RecordTransactionResponse.fromBuffer);
 }
 
 @$pb.GrpcServiceName('yucai.template.v1.TransactionTemplateService')
@@ -195,6 +207,15 @@ abstract class TransactionTemplateServiceBase extends $grpc.Service {
             ($core.List<$core.int> value) =>
                 $0.ListTemplatesRequest.fromBuffer(value),
             ($0.ListTemplatesResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.RecordTemplateRequest,
+            $0.RecordTransactionResponse>(
+        'RecordTransaction',
+        recordTransaction_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.RecordTemplateRequest.fromBuffer(value),
+        ($0.RecordTransactionResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.TemplateResponse> createTransactionTemplate_Pre(
@@ -258,4 +279,13 @@ abstract class TransactionTemplateServiceBase extends $grpc.Service {
 
   $async.Future<$0.ListTemplatesResponse> listTransactionTemplates(
       $grpc.ServiceCall call, $0.ListTemplatesRequest request);
+
+  $async.Future<$0.RecordTransactionResponse> recordTransaction_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.RecordTemplateRequest> $request) async {
+    return recordTransaction($call, await $request);
+  }
+
+  $async.Future<$0.RecordTransactionResponse> recordTransaction(
+      $grpc.ServiceCall call, $0.RecordTemplateRequest request);
 }

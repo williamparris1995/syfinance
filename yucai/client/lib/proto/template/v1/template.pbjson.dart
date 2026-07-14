@@ -335,3 +335,38 @@ const TemplateResponse$json = {
 final $typed_data.Uint8List templateResponseDescriptor = $convert.base64Decode(
     'ChBUZW1wbGF0ZVJlc3BvbnNlEjoKCHRlbXBsYXRlGAEgASgLMh4ueXVjYWkudGVtcGxhdGUudj'
     'EuVGVtcGxhdGVEVE9SCHRlbXBsYXRl');
+
+@$core.Deprecated('Use recordTemplateRequestDescriptor instead')
+const RecordTemplateRequest$json = {
+  '1': 'RecordTemplateRequest',
+  '2': [
+    {'1': 'template_id', '3': 1, '4': 1, '5': 9, '10': 'templateId'},
+  ],
+};
+
+/// Descriptor for `RecordTemplateRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List recordTemplateRequestDescriptor = $convert.base64Decode(
+    'ChVSZWNvcmRUZW1wbGF0ZVJlcXVlc3QSHwoLdGVtcGxhdGVfaWQYASABKAlSCnRlbXBsYXRlSW'
+    'Q=');
+
+@$core.Deprecated('Use recordTransactionResponseDescriptor instead')
+const RecordTransactionResponse$json = {
+  '1': 'RecordTransactionResponse',
+  '2': [
+    {'1': 'transaction_id', '3': 1, '4': 1, '5': 9, '10': 'transactionId'},
+    {
+      '1': 'next_date',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Timestamp',
+      '10': 'nextDate'
+    },
+  ],
+};
+
+/// Descriptor for `RecordTransactionResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List recordTransactionResponseDescriptor = $convert.base64Decode(
+    'ChlSZWNvcmRUcmFuc2FjdGlvblJlc3BvbnNlEiUKDnRyYW5zYWN0aW9uX2lkGAEgASgJUg10cm'
+    'Fuc2FjdGlvbklkEjcKCW5leHRfZGF0ZRgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3Rh'
+    'bXBSCG5leHREYXRl');

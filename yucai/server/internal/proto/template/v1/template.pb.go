@@ -899,6 +899,102 @@ func (x *TemplateResponse) GetTemplate() *TemplateDTO {
 	return nil
 }
 
+type RecordTemplateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TemplateId    string                 `protobuf:"bytes,1,opt,name=template_id,json=templateId,proto3" json:"template_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordTemplateRequest) Reset() {
+	*x = RecordTemplateRequest{}
+	mi := &file_template_v1_template_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordTemplateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordTemplateRequest) ProtoMessage() {}
+
+func (x *RecordTemplateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_template_v1_template_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordTemplateRequest.ProtoReflect.Descriptor instead.
+func (*RecordTemplateRequest) Descriptor() ([]byte, []int) {
+	return file_template_v1_template_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *RecordTemplateRequest) GetTemplateId() string {
+	if x != nil {
+		return x.TemplateId
+	}
+	return ""
+}
+
+type RecordTransactionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TransactionId string                 `protobuf:"bytes,1,opt,name=transaction_id,json=transactionId,proto3" json:"transaction_id,omitempty"`
+	NextDate      *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=next_date,json=nextDate,proto3" json:"next_date,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordTransactionResponse) Reset() {
+	*x = RecordTransactionResponse{}
+	mi := &file_template_v1_template_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordTransactionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordTransactionResponse) ProtoMessage() {}
+
+func (x *RecordTransactionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_template_v1_template_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordTransactionResponse.ProtoReflect.Descriptor instead.
+func (*RecordTransactionResponse) Descriptor() ([]byte, []int) {
+	return file_template_v1_template_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *RecordTransactionResponse) GetTransactionId() string {
+	if x != nil {
+		return x.TransactionId
+	}
+	return ""
+}
+
+func (x *RecordTransactionResponse) GetNextDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.NextDate
+	}
+	return nil
+}
+
 var File_template_v1_template_proto protoreflect.FileDescriptor
 
 const file_template_v1_template_proto_rawDesc = "" +
@@ -978,7 +1074,13 @@ const file_template_v1_template_proto_rawDesc = "" +
 	"\ttemplates\x18\x01 \x03(\v2\x1e.yucai.template.v1.TemplateDTOR\ttemplates\x121\n" +
 	"\x04page\x18\x02 \x01(\v2\x1d.yucai.common.v1.PageResponseR\x04page\"N\n" +
 	"\x10TemplateResponse\x12:\n" +
-	"\btemplate\x18\x01 \x01(\v2\x1e.yucai.template.v1.TemplateDTOR\btemplate*s\n" +
+	"\btemplate\x18\x01 \x01(\v2\x1e.yucai.template.v1.TemplateDTOR\btemplate\"8\n" +
+	"\x15RecordTemplateRequest\x12\x1f\n" +
+	"\vtemplate_id\x18\x01 \x01(\tR\n" +
+	"templateId\"{\n" +
+	"\x19RecordTransactionResponse\x12%\n" +
+	"\x0etransaction_id\x18\x01 \x01(\tR\rtransactionId\x127\n" +
+	"\tnext_date\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bnextDate*s\n" +
 	"\x11TemplateDirection\x12\x19\n" +
 	"\x15DIRECTION_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11DIRECTION_EXPENSE\x10\x01\x12\x14\n" +
@@ -989,7 +1091,7 @@ const file_template_v1_template_proto_rawDesc = "" +
 	"\fCYCLE_WEEKLY\x10\x01\x12\x11\n" +
 	"\rCYCLE_MONTHLY\x10\x02\x12\x10\n" +
 	"\fCYCLE_YEARLY\x10\x03\x12\x10\n" +
-	"\fCYCLE_CUSTOM\x10\x042\xfe\x05\n" +
+	"\fCYCLE_CUSTOM\x10\x042\xeb\x06\n" +
 	"\x1aTransactionTemplateService\x12j\n" +
 	"\x19CreateTransactionTemplate\x12(.yucai.template.v1.CreateTemplateRequest\x1a#.yucai.template.v1.TemplateResponse\x12j\n" +
 	"\x19UpdateTransactionTemplate\x12(.yucai.template.v1.UpdateTemplateRequest\x1a#.yucai.template.v1.TemplateResponse\x12]\n" +
@@ -997,7 +1099,8 @@ const file_template_v1_template_proto_rawDesc = "" +
 	"\x18PauseTransactionTemplate\x12'.yucai.template.v1.PauseTemplateRequest\x1a#.yucai.template.v1.TemplateResponse\x12j\n" +
 	"\x19ResumeTransactionTemplate\x12(.yucai.template.v1.ResumeTemplateRequest\x1a#.yucai.template.v1.TemplateResponse\x12d\n" +
 	"\x16GetTransactionTemplate\x12%.yucai.template.v1.GetTemplateRequest\x1a#.yucai.template.v1.TemplateResponse\x12m\n" +
-	"\x18ListTransactionTemplates\x12'.yucai.template.v1.ListTemplatesRequest\x1a(.yucai.template.v1.ListTemplatesResponseB\xcb\x01\n" +
+	"\x18ListTransactionTemplates\x12'.yucai.template.v1.ListTemplatesRequest\x1a(.yucai.template.v1.ListTemplatesResponse\x12k\n" +
+	"\x11RecordTransaction\x12(.yucai.template.v1.RecordTemplateRequest\x1a,.yucai.template.v1.RecordTransactionResponseB\xcb\x01\n" +
 	"\x15com.yucai.template.v1B\rTemplateProtoP\x01Z=github.com/yucai/server/internal/proto/template/v1;templatev1\xa2\x02\x03YTX\xaa\x02\x11Yucai.Template.V1\xca\x02\x11Yucai\\Template\\V1\xe2\x02\x1dYucai\\Template\\V1\\GPBMetadata\xea\x02\x13Yucai::Template::V1b\x06proto3"
 
 var (
@@ -1013,56 +1116,61 @@ func file_template_v1_template_proto_rawDescGZIP() []byte {
 }
 
 var file_template_v1_template_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_template_v1_template_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_template_v1_template_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_template_v1_template_proto_goTypes = []any{
-	(TemplateDirection)(0),        // 0: yucai.template.v1.TemplateDirection
-	(TemplateCycle)(0),            // 1: yucai.template.v1.TemplateCycle
-	(*TemplateDTO)(nil),           // 2: yucai.template.v1.TemplateDTO
-	(*CreateTemplateRequest)(nil), // 3: yucai.template.v1.CreateTemplateRequest
-	(*UpdateTemplateRequest)(nil), // 4: yucai.template.v1.UpdateTemplateRequest
-	(*DeleteTemplateRequest)(nil), // 5: yucai.template.v1.DeleteTemplateRequest
-	(*PauseTemplateRequest)(nil),  // 6: yucai.template.v1.PauseTemplateRequest
-	(*ResumeTemplateRequest)(nil), // 7: yucai.template.v1.ResumeTemplateRequest
-	(*GetTemplateRequest)(nil),    // 8: yucai.template.v1.GetTemplateRequest
-	(*ListTemplatesRequest)(nil),  // 9: yucai.template.v1.ListTemplatesRequest
-	(*ListTemplatesResponse)(nil), // 10: yucai.template.v1.ListTemplatesResponse
-	(*TemplateResponse)(nil),      // 11: yucai.template.v1.TemplateResponse
-	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
-	(*v1.PageRequest)(nil),        // 13: yucai.common.v1.PageRequest
-	(*v1.PageResponse)(nil),       // 14: yucai.common.v1.PageResponse
-	(*emptypb.Empty)(nil),         // 15: google.protobuf.Empty
+	(TemplateDirection)(0),            // 0: yucai.template.v1.TemplateDirection
+	(TemplateCycle)(0),                // 1: yucai.template.v1.TemplateCycle
+	(*TemplateDTO)(nil),               // 2: yucai.template.v1.TemplateDTO
+	(*CreateTemplateRequest)(nil),     // 3: yucai.template.v1.CreateTemplateRequest
+	(*UpdateTemplateRequest)(nil),     // 4: yucai.template.v1.UpdateTemplateRequest
+	(*DeleteTemplateRequest)(nil),     // 5: yucai.template.v1.DeleteTemplateRequest
+	(*PauseTemplateRequest)(nil),      // 6: yucai.template.v1.PauseTemplateRequest
+	(*ResumeTemplateRequest)(nil),     // 7: yucai.template.v1.ResumeTemplateRequest
+	(*GetTemplateRequest)(nil),        // 8: yucai.template.v1.GetTemplateRequest
+	(*ListTemplatesRequest)(nil),      // 9: yucai.template.v1.ListTemplatesRequest
+	(*ListTemplatesResponse)(nil),     // 10: yucai.template.v1.ListTemplatesResponse
+	(*TemplateResponse)(nil),          // 11: yucai.template.v1.TemplateResponse
+	(*RecordTemplateRequest)(nil),     // 12: yucai.template.v1.RecordTemplateRequest
+	(*RecordTransactionResponse)(nil), // 13: yucai.template.v1.RecordTransactionResponse
+	(*timestamppb.Timestamp)(nil),     // 14: google.protobuf.Timestamp
+	(*v1.PageRequest)(nil),            // 15: yucai.common.v1.PageRequest
+	(*v1.PageResponse)(nil),           // 16: yucai.common.v1.PageResponse
+	(*emptypb.Empty)(nil),             // 17: google.protobuf.Empty
 }
 var file_template_v1_template_proto_depIdxs = []int32{
 	0,  // 0: yucai.template.v1.TemplateDTO.direction:type_name -> yucai.template.v1.TemplateDirection
 	1,  // 1: yucai.template.v1.TemplateDTO.cycle:type_name -> yucai.template.v1.TemplateCycle
-	12, // 2: yucai.template.v1.TemplateDTO.created_at:type_name -> google.protobuf.Timestamp
-	12, // 3: yucai.template.v1.TemplateDTO.updated_at:type_name -> google.protobuf.Timestamp
+	14, // 2: yucai.template.v1.TemplateDTO.created_at:type_name -> google.protobuf.Timestamp
+	14, // 3: yucai.template.v1.TemplateDTO.updated_at:type_name -> google.protobuf.Timestamp
 	0,  // 4: yucai.template.v1.CreateTemplateRequest.direction:type_name -> yucai.template.v1.TemplateDirection
 	1,  // 5: yucai.template.v1.CreateTemplateRequest.cycle:type_name -> yucai.template.v1.TemplateCycle
 	1,  // 6: yucai.template.v1.UpdateTemplateRequest.cycle:type_name -> yucai.template.v1.TemplateCycle
-	13, // 7: yucai.template.v1.ListTemplatesRequest.page:type_name -> yucai.common.v1.PageRequest
+	15, // 7: yucai.template.v1.ListTemplatesRequest.page:type_name -> yucai.common.v1.PageRequest
 	2,  // 8: yucai.template.v1.ListTemplatesResponse.templates:type_name -> yucai.template.v1.TemplateDTO
-	14, // 9: yucai.template.v1.ListTemplatesResponse.page:type_name -> yucai.common.v1.PageResponse
+	16, // 9: yucai.template.v1.ListTemplatesResponse.page:type_name -> yucai.common.v1.PageResponse
 	2,  // 10: yucai.template.v1.TemplateResponse.template:type_name -> yucai.template.v1.TemplateDTO
-	3,  // 11: yucai.template.v1.TransactionTemplateService.CreateTransactionTemplate:input_type -> yucai.template.v1.CreateTemplateRequest
-	4,  // 12: yucai.template.v1.TransactionTemplateService.UpdateTransactionTemplate:input_type -> yucai.template.v1.UpdateTemplateRequest
-	5,  // 13: yucai.template.v1.TransactionTemplateService.DeleteTransactionTemplate:input_type -> yucai.template.v1.DeleteTemplateRequest
-	6,  // 14: yucai.template.v1.TransactionTemplateService.PauseTransactionTemplate:input_type -> yucai.template.v1.PauseTemplateRequest
-	7,  // 15: yucai.template.v1.TransactionTemplateService.ResumeTransactionTemplate:input_type -> yucai.template.v1.ResumeTemplateRequest
-	8,  // 16: yucai.template.v1.TransactionTemplateService.GetTransactionTemplate:input_type -> yucai.template.v1.GetTemplateRequest
-	9,  // 17: yucai.template.v1.TransactionTemplateService.ListTransactionTemplates:input_type -> yucai.template.v1.ListTemplatesRequest
-	11, // 18: yucai.template.v1.TransactionTemplateService.CreateTransactionTemplate:output_type -> yucai.template.v1.TemplateResponse
-	11, // 19: yucai.template.v1.TransactionTemplateService.UpdateTransactionTemplate:output_type -> yucai.template.v1.TemplateResponse
-	15, // 20: yucai.template.v1.TransactionTemplateService.DeleteTransactionTemplate:output_type -> google.protobuf.Empty
-	11, // 21: yucai.template.v1.TransactionTemplateService.PauseTransactionTemplate:output_type -> yucai.template.v1.TemplateResponse
-	11, // 22: yucai.template.v1.TransactionTemplateService.ResumeTransactionTemplate:output_type -> yucai.template.v1.TemplateResponse
-	11, // 23: yucai.template.v1.TransactionTemplateService.GetTransactionTemplate:output_type -> yucai.template.v1.TemplateResponse
-	10, // 24: yucai.template.v1.TransactionTemplateService.ListTransactionTemplates:output_type -> yucai.template.v1.ListTemplatesResponse
-	18, // [18:25] is the sub-list for method output_type
-	11, // [11:18] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	14, // 11: yucai.template.v1.RecordTransactionResponse.next_date:type_name -> google.protobuf.Timestamp
+	3,  // 12: yucai.template.v1.TransactionTemplateService.CreateTransactionTemplate:input_type -> yucai.template.v1.CreateTemplateRequest
+	4,  // 13: yucai.template.v1.TransactionTemplateService.UpdateTransactionTemplate:input_type -> yucai.template.v1.UpdateTemplateRequest
+	5,  // 14: yucai.template.v1.TransactionTemplateService.DeleteTransactionTemplate:input_type -> yucai.template.v1.DeleteTemplateRequest
+	6,  // 15: yucai.template.v1.TransactionTemplateService.PauseTransactionTemplate:input_type -> yucai.template.v1.PauseTemplateRequest
+	7,  // 16: yucai.template.v1.TransactionTemplateService.ResumeTransactionTemplate:input_type -> yucai.template.v1.ResumeTemplateRequest
+	8,  // 17: yucai.template.v1.TransactionTemplateService.GetTransactionTemplate:input_type -> yucai.template.v1.GetTemplateRequest
+	9,  // 18: yucai.template.v1.TransactionTemplateService.ListTransactionTemplates:input_type -> yucai.template.v1.ListTemplatesRequest
+	12, // 19: yucai.template.v1.TransactionTemplateService.RecordTransaction:input_type -> yucai.template.v1.RecordTemplateRequest
+	11, // 20: yucai.template.v1.TransactionTemplateService.CreateTransactionTemplate:output_type -> yucai.template.v1.TemplateResponse
+	11, // 21: yucai.template.v1.TransactionTemplateService.UpdateTransactionTemplate:output_type -> yucai.template.v1.TemplateResponse
+	17, // 22: yucai.template.v1.TransactionTemplateService.DeleteTransactionTemplate:output_type -> google.protobuf.Empty
+	11, // 23: yucai.template.v1.TransactionTemplateService.PauseTransactionTemplate:output_type -> yucai.template.v1.TemplateResponse
+	11, // 24: yucai.template.v1.TransactionTemplateService.ResumeTransactionTemplate:output_type -> yucai.template.v1.TemplateResponse
+	11, // 25: yucai.template.v1.TransactionTemplateService.GetTransactionTemplate:output_type -> yucai.template.v1.TemplateResponse
+	10, // 26: yucai.template.v1.TransactionTemplateService.ListTransactionTemplates:output_type -> yucai.template.v1.ListTemplatesResponse
+	13, // 27: yucai.template.v1.TransactionTemplateService.RecordTransaction:output_type -> yucai.template.v1.RecordTransactionResponse
+	20, // [20:28] is the sub-list for method output_type
+	12, // [12:20] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_template_v1_template_proto_init() }
@@ -1076,7 +1184,7 @@ func file_template_v1_template_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_template_v1_template_proto_rawDesc), len(file_template_v1_template_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   10,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -16,6 +16,7 @@ service TransactionTemplateService {
   rpc ResumeTransactionTemplate(ResumeTemplateRequest) returns (TemplateResponse);
   rpc GetTransactionTemplate(GetTemplateRequest) returns (TemplateResponse);
   rpc ListTransactionTemplates(ListTemplatesRequest) returns (ListTemplatesResponse);
+  rpc RecordTransaction(RecordTemplateRequest) returns (RecordTransactionResponse);
 }
 
 enum TemplateDirection {
@@ -100,3 +101,10 @@ message ListTemplatesResponse {
 }
 
 message TemplateResponse { TemplateDTO template = 1; }
+
+message RecordTemplateRequest { string template_id = 1; }
+
+message RecordTransactionResponse {
+  string transaction_id = 1;
+  google.protobuf.Timestamp next_date = 2;
+}

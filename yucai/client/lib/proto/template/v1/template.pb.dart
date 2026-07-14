@@ -1088,6 +1088,133 @@ class TemplateResponse extends $pb.GeneratedMessage {
   TemplateDTO ensureTemplate() => $_ensure(0);
 }
 
+class RecordTemplateRequest extends $pb.GeneratedMessage {
+  factory RecordTemplateRequest({
+    $core.String? templateId,
+  }) {
+    final result = create();
+    if (templateId != null) result.templateId = templateId;
+    return result;
+  }
+
+  RecordTemplateRequest._();
+
+  factory RecordTemplateRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory RecordTemplateRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RecordTemplateRequest',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.template.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'templateId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RecordTemplateRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RecordTemplateRequest copyWith(
+          void Function(RecordTemplateRequest) updates) =>
+      super.copyWith((message) => updates(message as RecordTemplateRequest))
+          as RecordTemplateRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static RecordTemplateRequest create() => RecordTemplateRequest._();
+  @$core.override
+  RecordTemplateRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static RecordTemplateRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RecordTemplateRequest>(create);
+  static RecordTemplateRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get templateId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set templateId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTemplateId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTemplateId() => $_clearField(1);
+}
+
+class RecordTransactionResponse extends $pb.GeneratedMessage {
+  factory RecordTransactionResponse({
+    $core.String? transactionId,
+    $2.Timestamp? nextDate,
+  }) {
+    final result = create();
+    if (transactionId != null) result.transactionId = transactionId;
+    if (nextDate != null) result.nextDate = nextDate;
+    return result;
+  }
+
+  RecordTransactionResponse._();
+
+  factory RecordTransactionResponse.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory RecordTransactionResponse.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RecordTransactionResponse',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.template.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'transactionId')
+    ..aOM<$2.Timestamp>(2, _omitFieldNames ? '' : 'nextDate',
+        subBuilder: $2.Timestamp.create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RecordTransactionResponse clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RecordTransactionResponse copyWith(
+          void Function(RecordTransactionResponse) updates) =>
+      super.copyWith((message) => updates(message as RecordTransactionResponse))
+          as RecordTransactionResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static RecordTransactionResponse create() => RecordTransactionResponse._();
+  @$core.override
+  RecordTransactionResponse createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static RecordTransactionResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RecordTransactionResponse>(create);
+  static RecordTransactionResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get transactionId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set transactionId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTransactionId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTransactionId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $2.Timestamp get nextDate => $_getN(1);
+  @$pb.TagNumber(2)
+  set nextDate($2.Timestamp value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasNextDate() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearNextDate() => $_clearField(2);
+  @$pb.TagNumber(2)
+  $2.Timestamp ensureNextDate() => $_ensure(1);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

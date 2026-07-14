@@ -27,6 +27,7 @@ const (
 	TransactionTemplateService_ResumeTransactionTemplate_FullMethodName = "/yucai.template.v1.TransactionTemplateService/ResumeTransactionTemplate"
 	TransactionTemplateService_GetTransactionTemplate_FullMethodName    = "/yucai.template.v1.TransactionTemplateService/GetTransactionTemplate"
 	TransactionTemplateService_ListTransactionTemplates_FullMethodName  = "/yucai.template.v1.TransactionTemplateService/ListTransactionTemplates"
+	TransactionTemplateService_RecordTransaction_FullMethodName         = "/yucai.template.v1.TransactionTemplateService/RecordTransaction"
 )
 
 // TransactionTemplateServiceClient is the client API for TransactionTemplateService service.
@@ -40,6 +41,7 @@ type TransactionTemplateServiceClient interface {
 	ResumeTransactionTemplate(ctx context.Context, in *ResumeTemplateRequest, opts ...grpc.CallOption) (*TemplateResponse, error)
 	GetTransactionTemplate(ctx context.Context, in *GetTemplateRequest, opts ...grpc.CallOption) (*TemplateResponse, error)
 	ListTransactionTemplates(ctx context.Context, in *ListTemplatesRequest, opts ...grpc.CallOption) (*ListTemplatesResponse, error)
+	RecordTransaction(ctx context.Context, in *RecordTemplateRequest, opts ...grpc.CallOption) (*RecordTransactionResponse, error)
 }
 
 type transactionTemplateServiceClient struct {
@@ -120,6 +122,16 @@ func (c *transactionTemplateServiceClient) ListTransactionTemplates(ctx context.
 	return out, nil
 }
 
+func (c *transactionTemplateServiceClient) RecordTransaction(ctx context.Context, in *RecordTemplateRequest, opts ...grpc.CallOption) (*RecordTransactionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RecordTransactionResponse)
+	err := c.cc.Invoke(ctx, TransactionTemplateService_RecordTransaction_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TransactionTemplateServiceServer is the server API for TransactionTemplateService service.
 // All implementations must embed UnimplementedTransactionTemplateServiceServer
 // for forward compatibility.
@@ -131,6 +143,7 @@ type TransactionTemplateServiceServer interface {
 	ResumeTransactionTemplate(context.Context, *ResumeTemplateRequest) (*TemplateResponse, error)
 	GetTransactionTemplate(context.Context, *GetTemplateRequest) (*TemplateResponse, error)
 	ListTransactionTemplates(context.Context, *ListTemplatesRequest) (*ListTemplatesResponse, error)
+	RecordTransaction(context.Context, *RecordTemplateRequest) (*RecordTransactionResponse, error)
 	mustEmbedUnimplementedTransactionTemplateServiceServer()
 }
 
@@ -161,6 +174,9 @@ func (UnimplementedTransactionTemplateServiceServer) GetTransactionTemplate(cont
 }
 func (UnimplementedTransactionTemplateServiceServer) ListTransactionTemplates(context.Context, *ListTemplatesRequest) (*ListTemplatesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListTransactionTemplates not implemented")
+}
+func (UnimplementedTransactionTemplateServiceServer) RecordTransaction(context.Context, *RecordTemplateRequest) (*RecordTransactionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RecordTransaction not implemented")
 }
 func (UnimplementedTransactionTemplateServiceServer) mustEmbedUnimplementedTransactionTemplateServiceServer() {
 }
@@ -310,6 +326,24 @@ func _TransactionTemplateService_ListTransactionTemplates_Handler(srv interface{
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TransactionTemplateService_RecordTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RecordTemplateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransactionTemplateServiceServer).RecordTransaction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TransactionTemplateService_RecordTransaction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransactionTemplateServiceServer).RecordTransaction(ctx, req.(*RecordTemplateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // TransactionTemplateService_ServiceDesc is the grpc.ServiceDesc for TransactionTemplateService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -344,6 +378,10 @@ var TransactionTemplateService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListTransactionTemplates",
 			Handler:    _TransactionTemplateService_ListTransactionTemplates_Handler,
+		},
+		{
+			MethodName: "RecordTransaction",
+			Handler:    _TransactionTemplateService_RecordTransaction_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
