@@ -528,5 +528,3 @@ class _TxnTagChips extends StatelessWidget {
     );
   }
 }
-
-/// `#RRGGBB` → [Color] 解析见共享 [tagColor](../../../tag/domain/tag_color.dart)。

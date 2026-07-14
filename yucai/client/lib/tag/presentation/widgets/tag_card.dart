@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
+import 'package:yucai_client/tag/domain/tag_color.dart';
 
 /// 单条标签 card:color 圆点 + name + edit/delete icon。复用 DataCard。
 class TagCard extends StatelessWidget {
@@ -18,7 +19,7 @@ class TagCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
-  Color get _color => Color(int.parse(tag.color.substring(1), radix: 16) + 0xFF000000);
+  Color get _color => tagColor(tag.color);
 
   @override
   Widget build(BuildContext context) {

@@ -896,8 +896,6 @@ class _DetailTagChips extends StatelessWidget {
   }
 }
 
-/// `#RRGGBB` → [Color] 解析见共享 [tagColor]（tag/domain/tag_color.dart）。
-
 /// gold 实心按钮（page-head 编辑）。
 class _GoldButton extends StatelessWidget {
   const _GoldButton({required this.label, required this.icon, this.onTap});
