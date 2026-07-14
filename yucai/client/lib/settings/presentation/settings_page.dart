@@ -125,6 +125,15 @@ class SettingsPage extends StatelessWidget {
                             description: '管理交易标签(名称/颜色)',
                             onTap: () => context.push('/settings/tags'),
                           ),
+                          const Divider(
+                              height: 1, color: AppColors.border),
+                          const SizedBox(height: AppSpacing.md),
+                          _NavRow(
+                            icon: LucideIcons.calendarClock,
+                            label: '周期模板',
+                            description: '管理周期交易模板',
+                            onTap: () => context.push('/settings/templates'),
+                          ),
                         ],
                       ),
                     ),

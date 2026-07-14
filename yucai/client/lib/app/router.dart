@@ -64,6 +64,8 @@ import 'package:yucai_client/backup/presentation/bloc/backup_bloc.dart';
 import 'package:yucai_client/backup/presentation/pages/backup_page.dart';
 import 'package:yucai_client/tag/presentation/bloc/tag_bloc.dart';
 import 'package:yucai_client/tag/presentation/pages/tag_page.dart';
+import 'package:yucai_client/template/presentation/bloc/template_bloc.dart';
+import 'package:yucai_client/template/presentation/pages/template_page.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/presentation/bloc/category_bloc.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
@@ -866,6 +868,15 @@ GoRouter buildRouter(AuthBloc authBloc) {
                     builder: (_, __) => BlocProvider<TagBloc>(
                       create: (_) => getIt<TagBloc>(),
                       child: const TagPage(),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'templates',
+                    // 周期模板子页：静态路径「templates」，无 :id 冲突；TemplateBloc
+                    // 在路由 builder 层 provide（对齐 backup / tags 子路由模式）。
+                    builder: (_, __) => BlocProvider<TemplateBloc>(
+                      create: (_) => getIt<TemplateBloc>(),
+                      child: const TemplatePage(),
                     ),
                   ),
                 ],

@@ -71,6 +71,10 @@ import '../../tag/data/tag_remote_ds.dart' as _i648;
 import '../../tag/data/tag_repository_impl.dart' as _i603;
 import '../../tag/domain/repositories/tag_repository.dart' as _i585;
 import '../../tag/presentation/bloc/tag_bloc.dart' as _i847;
+import '../../template/data/template_remote_ds.dart' as _i889;
+import '../../template/data/template_repository_impl.dart' as _i554;
+import '../../template/domain/repositories/template_repository.dart' as _i74;
+import '../../template/presentation/bloc/template_bloc.dart' as _i933;
 import '../../transaction/data/mappers/transaction_mapper.dart' as _i667;
 import '../../transaction/data/transaction_remote_ds.dart' as _i666;
 import '../../transaction/data/transaction_repository_impl.dart' as _i733;
@@ -185,6 +189,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i763.AuthRetryCaller>(),
       ),
     );
+    gh.lazySingleton<_i889.TemplateRemoteDataSource>(
+      () => _i889.TemplateRemoteDataSource(
+        gh<_i160.GrpcClient>(),
+        gh<_i763.AuthRetryCaller>(),
+      ),
+    );
     gh.lazySingleton<_i670.DebtRepository>(
       () => _i1060.DebtRepositoryImpl(gh<_i243.DebtRemoteDataSource>()),
     );
@@ -219,6 +229,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i665.BudgetRepository>(
       () => _i364.BudgetRepositoryImpl(gh<_i749.BudgetRemoteDataSource>()),
     );
+    gh.lazySingleton<_i74.TemplateRepository>(
+      () => _i554.TemplateRepositoryImpl(gh<_i889.TemplateRemoteDataSource>()),
+    );
     gh.lazySingleton<_i270.AccountRepository>(
       () => _i725.AccountRepositoryImpl(gh<_i414.AccountRemoteDataSource>()),
     );
@@ -245,6 +258,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i246.RegisterUseCase>(
       () => _i246.RegisterUseCase(gh<_i937.AuthRepository>()),
+    );
+    gh.factory<_i933.TemplateBloc>(
+      () => _i933.TemplateBloc(gh<_i74.TemplateRepository>()),
     );
     gh.factory<_i946.AuthBloc>(
       () => _i946.AuthBloc(
