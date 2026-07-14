@@ -107,11 +107,25 @@ class SettingsPage extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.md),
                     _SettingsCard(
-                      child: _NavRow(
-                        icon: LucideIcons.databaseBackup,
-                        label: '本地备份',
-                        description: '导出 / 恢复数据备份文件',
-                        onTap: () => context.push('/settings/backup'),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _NavRow(
+                            icon: LucideIcons.databaseBackup,
+                            label: '本地备份',
+                            description: '导出 / 恢复数据备份文件',
+                            onTap: () => context.push('/settings/backup'),
+                          ),
+                          const Divider(
+                              height: 1, color: AppColors.border),
+                          const SizedBox(height: AppSpacing.md),
+                          _NavRow(
+                            icon: LucideIcons.tag,
+                            label: '标签管理',
+                            description: '管理交易标签(名称/颜色)',
+                            onTap: () => context.push('/settings/tags'),
+                          ),
+                        ],
                       ),
                     ),
                   ],

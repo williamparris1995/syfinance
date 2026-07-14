@@ -62,6 +62,8 @@ import 'package:yucai_client/currency/presentation/bloc/currency_event.dart';
 import 'package:yucai_client/settings/presentation/settings_page.dart';
 import 'package:yucai_client/backup/presentation/bloc/backup_bloc.dart';
 import 'package:yucai_client/backup/presentation/pages/backup_page.dart';
+import 'package:yucai_client/tag/presentation/bloc/tag_bloc.dart';
+import 'package:yucai_client/tag/presentation/pages/tag_page.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/presentation/bloc/category_bloc.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
@@ -855,6 +857,15 @@ GoRouter buildRouter(AuthBloc authBloc) {
                     builder: (_, __) => BlocProvider<BackupBloc>(
                       create: (_) => getIt<BackupBloc>(),
                       child: const BackupPage(),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'tags',
+                    // 标签管理子页：静态路径「tags」，无 :id 冲突；TagBloc
+                    // 在路由 builder 层 provide（对齐 backup 子路由模式）。
+                    builder: (_, __) => BlocProvider<TagBloc>(
+                      create: (_) => getIt<TagBloc>(),
+                      child: const TagPage(),
                     ),
                   ),
                 ],
