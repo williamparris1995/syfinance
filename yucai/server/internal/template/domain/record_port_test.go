@@ -10,7 +10,7 @@ import (
 
 func TestAdvanceNextDate_Weekly(t *testing.T) {
 	current := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
-	got := advanceNextDate(current, CycleWeekly, 0)
+	got := AdvanceNextDate(current, CycleWeekly, 0)
 	want := time.Date(2026, 1, 22, 0, 0, 0, 0, time.UTC)
 	if !got.Equal(want) {
 		t.Errorf("weekly: expected %v, got %v", want, got)
@@ -19,7 +19,7 @@ func TestAdvanceNextDate_Weekly(t *testing.T) {
 
 func TestAdvanceNextDate_Monthly(t *testing.T) {
 	current := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
-	got := advanceNextDate(current, CycleMonthly, 0)
+	got := AdvanceNextDate(current, CycleMonthly, 0)
 	want := time.Date(2026, 2, 15, 0, 0, 0, 0, time.UTC)
 	if !got.Equal(want) {
 		t.Errorf("monthly: expected %v, got %v", want, got)
@@ -28,7 +28,7 @@ func TestAdvanceNextDate_Monthly(t *testing.T) {
 
 func TestAdvanceNextDate_Yearly(t *testing.T) {
 	current := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
-	got := advanceNextDate(current, CycleYearly, 0)
+	got := AdvanceNextDate(current, CycleYearly, 0)
 	want := time.Date(2027, 1, 15, 0, 0, 0, 0, time.UTC)
 	if !got.Equal(want) {
 		t.Errorf("yearly: expected %v, got %v", want, got)
@@ -37,7 +37,7 @@ func TestAdvanceNextDate_Yearly(t *testing.T) {
 
 func TestAdvanceNextDate_Custom(t *testing.T) {
 	current := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
-	got := advanceNextDate(current, CycleCustom, 10)
+	got := AdvanceNextDate(current, CycleCustom, 10)
 	want := time.Date(2026, 1, 25, 0, 0, 0, 0, time.UTC)
 	if !got.Equal(want) {
 		t.Errorf("custom: expected %v, got %v", want, got)
@@ -47,7 +47,7 @@ func TestAdvanceNextDate_Custom(t *testing.T) {
 func TestAdvanceNextDate_CustomZeroDays(t *testing.T) {
 	// custom with cycleDays=0 → no advance (+0 days)
 	current := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
-	got := advanceNextDate(current, CycleCustom, 0)
+	got := AdvanceNextDate(current, CycleCustom, 0)
 	if !got.Equal(current) {
 		t.Errorf("custom zero days: expected unchanged %v, got %v", current, got)
 	}
@@ -56,7 +56,7 @@ func TestAdvanceNextDate_CustomZeroDays(t *testing.T) {
 func TestAdvanceNextDate_Unspecified(t *testing.T) {
 	// unspecified / zero cycle → unchanged (no advance)
 	current := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
-	got := advanceNextDate(current, 0, 0)
+	got := AdvanceNextDate(current, 0, 0)
 	if !got.Equal(current) {
 		t.Errorf("unspecified: expected unchanged %v, got %v", current, got)
 	}

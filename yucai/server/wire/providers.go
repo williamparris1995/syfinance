@@ -421,7 +421,11 @@ func provideTemplateRepo(client *tmplent.Client) *tmplrepo.TemplateRepository {
 	return tmplrepo.NewTemplateRepository(client)
 }
 func provideTemplateService(repo *tmplrepo.TemplateRepository) *tmplapp.Service {
-	return tmplapp.NewService(repo)
+	// recorder is nil here for Task 4 (build green); Task 5 wires the real
+	// TransactionRecorderAdapter via a provider + wire_gen hand-edit, mirroring
+	// the backup server's nil→adapter two-step. CRUD is unaffected; only
+	// RecordTransaction requires the recorder (it errors if nil).
+	return tmplapp.NewService(repo, nil)
 }
 func provideTemplateHandler(svc *tmplapp.Service) *tmplgrpc.TemplateHandler {
 	return tmplgrpc.NewTemplateHandler(svc)

@@ -193,6 +193,29 @@ func (h *TemplateHandler) ListTransactionTemplates(ctx context.Context, req *pb.
 	}, nil
 }
 
+// RecordTransaction instantiates a template as a double-entry transaction,
+// returning the new transaction ID and the template's next scheduled date.
+func (h *TemplateHandler) RecordTransaction(ctx context.Context, req *pb.RecordTemplateRequest) (*pb.RecordTransactionResponse, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	id, err := uuid.Parse(req.TemplateId)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid template_id")
+	}
+
+	resp, err := h.service.RecordTransaction(ctx, tenantID, id)
+	if err != nil {
+		return nil, mapError(err)
+	}
+
+	return &pb.RecordTransactionResponse{
+		TransactionId: resp.TransactionID.String(),
+		NextDate:      timestamppb.New(resp.NextDate),
+	}, nil
+}
+
 func templateToProto(t application.TemplateDTO) *pb.TemplateDTO {
 	p := &pb.TemplateDTO{
 		Id:              t.ID.String(),
@@ -297,6 +320,8 @@ func mapError(err error) error {
 		return status.Error(codes.InvalidArgument, msg)
 	case contains(msg, "optimistic lock"):
 		return status.Error(codes.Aborted, msg)
+	case contains(msg, "paused"):
+		return status.Error(codes.FailedPrecondition, msg)
 	default:
 		return status.Error(codes.Internal, msg)
 	}

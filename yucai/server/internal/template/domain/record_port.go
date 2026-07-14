@@ -2,19 +2,25 @@ package domain
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-// advanceNextDate 推进模板的 next_date 到下一个周期。
+// ErrTemplatePaused is returned when attempting to record a transaction from a
+// paused template. Sentinel value so the application layer (and callers) can
+// distinguish a paused rejection from other record failures.
+var ErrTemplatePaused = errors.New("template is paused")
+
+// AdvanceNextDate 推进模板的 next_date 到下一个周期。
 // 纯函数:根据 cycle 在 current 基础上叠加一个周期。
 //   - CycleWeekly  → +7 天
 //   - CycleMonthly → +1 月
 //   - CycleYearly  → +1 年
 //   - CycleCustom  → +cycleDays 天
 //   - 未指定(0/未知)→ 不变(返回 current)
-func advanceNextDate(current time.Time, cycle TemplateCycle, cycleDays int32) time.Time {
+func AdvanceNextDate(current time.Time, cycle TemplateCycle, cycleDays int32) time.Time {
 	switch cycle {
 	case CycleWeekly:
 		return current.AddDate(0, 0, 7)

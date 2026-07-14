@@ -42,7 +42,7 @@ func setupTemplateTestDB(t *testing.T) *tmplent.Client {
 func TestTemplateCRUD(t *testing.T) {
 	client := setupTemplateTestDB(t)
 	repo := tmplrepo.NewTemplateRepository(client)
-	svc := application.NewService(repo)
+	svc := application.NewService(repo, nil)
 	ctx := context.Background()
 	tenantID := uuid.New()
 
@@ -112,7 +112,7 @@ func TestTemplateCRUD(t *testing.T) {
 func TestTemplatePauseResume(t *testing.T) {
 	client := setupTemplateTestDB(t)
 	repo := tmplrepo.NewTemplateRepository(client)
-	svc := application.NewService(repo)
+	svc := application.NewService(repo, nil)
 	ctx := context.Background()
 	tenantID := uuid.New()
 
@@ -160,7 +160,7 @@ func TestTemplatePauseResume(t *testing.T) {
 func TestTemplateIsDue(t *testing.T) {
 	client := setupTemplateTestDB(t)
 	repo := tmplrepo.NewTemplateRepository(client)
-	svc := application.NewService(repo)
+	svc := application.NewService(repo, nil)
 	ctx := context.Background()
 
 	resp, _ := svc.CreateTemplate(ctx, application.CreateTemplateRequest{
@@ -183,7 +183,7 @@ func TestTemplateIsDue(t *testing.T) {
 func TestTemplateAdvanceToNext(t *testing.T) {
 	client := setupTemplateTestDB(t)
 	repo := tmplrepo.NewTemplateRepository(client)
-	svc := application.NewService(repo)
+	svc := application.NewService(repo, nil)
 	ctx := context.Background()
 
 	resp, _ := svc.CreateTemplate(ctx, application.CreateTemplateRequest{
@@ -231,7 +231,7 @@ func TestTemplateMonthEndClamping(t *testing.T) {
 func TestTemplateTenantIsolation(t *testing.T) {
 	client := setupTemplateTestDB(t)
 	repo := tmplrepo.NewTemplateRepository(client)
-	svc := application.NewService(repo)
+	svc := application.NewService(repo, nil)
 	ctx := context.Background()
 	tenantA := uuid.New()
 	tenantB := uuid.New()
