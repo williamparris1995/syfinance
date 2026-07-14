@@ -42,9 +42,18 @@ class TransactionFormSubmitting extends TransactionFormState {
   List<Object?> get props => [accounts];
 }
 
-/// Record succeeded → the page pops. Carries the resulting transaction so a
-/// caller (list page) could refresh.
-class TransactionFormSuccess extends TransactionFormState {}
+/// Record succeeded → the page pops. Carries the resulting transaction id so
+/// the page can run post-save side effects (e.g. tag attach/detach diff).
+class TransactionFormSuccess extends TransactionFormState {
+  const TransactionFormSuccess({this.transactionId});
+
+  /// Newly-created or updated transaction id. Null only if the repo failed to
+  /// surface one (defensive); tag sync is skipped in that case.
+  final String? transactionId;
+
+  @override
+  List<Object?> get props => [transactionId];
+}
 
 /// Account load failed (terminal). Submit failures do NOT use this — they
 /// fall back to [TransactionFormReady] with an error so the form stays editable.

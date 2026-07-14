@@ -11,6 +11,8 @@ import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/date_picker_input.dart';
 import 'package:yucai_client/core/widgets/time_picker_input.dart';
+import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
+import 'package:yucai_client/tag/domain/repositories/tag_repository.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_form_bloc.dart';
@@ -34,8 +36,8 @@ import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.
 /// 账户、收入→income 账户）。服务端 FindByAccountType 未在客户端 stub 中生成，
 /// 故这里走 list() 客户端过滤 —— 同结果。
 ///
-/// 标签区域为占位 UI（🔒 待 Tags 模块）：对齐 OD chip-row 形态（4 chips 本地
-/// toggle），不实装持久化。
+/// 标签 chip-row：真 tag 多选 + 持久化（ListTags 加载、编辑预选 GetTransactionTags、
+/// 保存 diff → AddTag/RemoveTag）。色取自 [Tag.color]。
 ///
 /// [bloc] 可选注入：生产留空，页面自建（触发账户加载）；测试传入预构造 bloc。
 /// [initialAccountId] / [initialType]：从账户入口进入时预选账户 + 默认类型。
@@ -129,9 +131,10 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
   String? _categoryAccountId; // 支出→expense 账户；收入→income 账户
   String? _toAccountId; // 转账：转入账户
 
-  /// 标签 chip-row 占位（🔒 待 Tags 模块）：本地 toggle，不持久化。
-  final Set<String> _tags = {};
-  static const _tagOptions = ['日常', '出差', '请客', '报销'];
+  /// 真 tag chip-row 状态:当前选中 IDs + ListTags 全量 + 编辑模式原始快照(diff 基准)。
+  Set<String> _selectedTagIds = {}; // 多选 toggle 的当前选中集合
+  Set<String> _originalTagIds = {}; // 编辑模式:_loadTransactionTags 缓存,save diff 基准
+  List<Tag> _allTags = const []; // ListTags 加载的可用 tag(驱动 chip-row 渲染)
 
   String? _existingId;
   int _existingVersion = 0;
@@ -144,6 +147,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
     super.initState();
     _type = widget.initialType ?? TxnType.expense;
     _assetAccountId = widget.initialAccountId;
+    _loadTags();
     final ex = widget.existing;
     if (ex != null) {
       _existingId = ex.id;
@@ -155,6 +159,53 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
         _time = TimeOfDay.fromDateTime(ex.transactionTime!);
       }
       _inferTypeAndAccountsFromExisting(ex);
+      _loadTransactionTags(ex.id);
+    }
+  }
+
+  /// ListTags → _allTags(驱动 chip-row 渲染)。失败静默降级(空 list → chip-row 不渲染)。
+  Future<void> _loadTags() async {
+    try {
+      final result = await getIt<TagRepository>().list();
+      result.fold((_) {}, (tags) {
+        if (mounted) setState(() => _allTags = tags);
+      });
+    } catch (_) {}
+  }
+
+  /// 编辑模式:GetTransactionTags → _selectedTagIds(预选) + _originalTagIds(diff 基准)。
+  Future<void> _loadTransactionTags(String txnId) async {
+    try {
+      final result = await getIt<TagRepository>().getTransactionTags(txnId);
+      result.fold((_) {}, (tags) {
+        final ids = tags.map((t) => t.id).toSet();
+        if (mounted) {
+          setState(() {
+            _selectedTagIds = ids;
+            _originalTagIds = {...ids};
+          });
+        }
+      });
+    } catch (_) {}
+  }
+
+  /// 同步 tag diff:[existingTagIds](原始) vs _selectedTagIds(当前) → AddTag/RemoveTag。
+  /// 新建 transaction 传 existingTagIds={} → 全部 _selectedTagIds 为新增。
+  /// 单次 RPC 失败静默(已持久化 transaction 不回滚;tag 为附属 metadata)。
+  Future<void> _syncTags(String txnId,
+      {required Set<String> existingTagIds}) async {
+    final repo = getIt<TagRepository>();
+    final toAdd = _selectedTagIds.difference(existingTagIds);
+    final toRemove = existingTagIds.difference(_selectedTagIds);
+    for (final tagId in toAdd) {
+      try {
+        await repo.addTagToTransaction(tagId: tagId, transactionId: txnId);
+      } catch (_) {}
+    }
+    for (final tagId in toRemove) {
+      try {
+        await repo.removeTagFromTransaction(tagId: tagId, transactionId: txnId);
+      } catch (_) {}
     }
   }
 
@@ -237,12 +288,12 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
     setState(() => _amountCtrl.clear());
   }
 
-  void _toggleTag(String tag) {
+  void _toggleTag(String tagId) {
     setState(() {
-      if (_tags.contains(tag)) {
-        _tags.remove(tag);
+      if (_selectedTagIds.contains(tagId)) {
+        _selectedTagIds.remove(tagId);
       } else {
-        _tags.add(tag);
+        _selectedTagIds.add(tagId);
       }
     });
   }
@@ -422,9 +473,19 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
       body: BlocConsumer<TransactionFormBloc, TransactionFormState>(
         listenWhen: (prev, curr) =>
             curr is TransactionFormSuccess || curr is TransactionFormError,
-        listener: (context, state) {
+        listener: (context, state) async {
           if (state is TransactionFormSuccess) {
-            Navigator.of(context).pop(true);
+            // transaction 已持久化 → 同步 tag diff(AddTag/RemoveTag)后再 pop。
+            // 新建:_originalTagIds 为空(全部选中为新增);编辑:_originalTagIds
+            // 为加载时快照。txnId 来自 bloc success(create 拿新 id / update 用 e.id)。
+            final navigator = Navigator.of(context);
+            final txnId = state.transactionId;
+            if (txnId != null) {
+              await _syncTags(txnId,
+                  existingTagIds:
+                      _isEdit ? _originalTagIds : const <String>{});
+            }
+            if (mounted) navigator.pop(true);
           } else if (state is TransactionFormError) {
             AppToast.show(context, state.message, type: ToastType.error);
           }
@@ -858,30 +919,27 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        // 标签 chip-row（OD .tag-row —— 占位，🔒 待 Tags 模块）
+        // 标签 chip-row（OD .tag-row —— 真 tag 多选 + 持久化）
         _tagsChipRow(),
       ],
     );
   }
 
-  /// OD .tag-row：4 chip（日常/出差/请客/报销）multi-select toggle + 锁标。
-  /// 本地状态 toggle，不持久化（Tags 模块未实装）。
+  /// OD .tag-row：真 tag multi-select toggle。chip 背景/边框/文字色取自
+  /// [Tag.color](#RRGGBB)；选中 = 实色背景 + ✓，未选 = 透明背景 + 彩色边框。
+  /// _allTags 为空(ListTags 失败/无 tag)→ 整行不渲染(降级)。
   Widget _tagsChipRow() {
+    if (_allTags.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          children: [
-            const Text('标签',
+          children: const [
+            Text('标签',
                 style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
-            const SizedBox(width: 6),
-            const Text('（可多选）',
+            SizedBox(width: 6),
+            Text('（可多选）',
                 style: TextStyle(color: Color(0xFFA8A298), fontSize: 12)),
-            const SizedBox(width: 6),
-            const Icon(LucideIcons.lock, size: 12, color: AppColors.muted),
-            const SizedBox(width: 4),
-            const Text('待 Tags 模块',
-                style: TextStyle(color: AppColors.muted, fontSize: 11)),
           ],
         ),
         const SizedBox(height: 8),
@@ -889,11 +947,11 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
           spacing: 8,
           runSpacing: 8,
           children: [
-            for (final tag in _tagOptions)
-              _TagChip(
-                label: tag,
-                on: _tags.contains(tag),
-                onTap: () => _toggleTag(tag),
+            for (final tag in _allTags)
+              _RealTagChip(
+                tag: tag,
+                on: _selectedTagIds.contains(tag.id),
+                onTap: () => _toggleTag(tag.id),
               ),
           ],
         ),
@@ -1376,20 +1434,22 @@ class _NumberedSection extends StatelessWidget {
   }
 }
 
-/// OD .tag（card2 标签 chip-row 单元）：on/off toggle，on = 金浅底 + ✓。
-class _TagChip extends StatelessWidget {
-  const _TagChip({
-    required this.label,
+/// OD .tag（card2 标签 chip-row 单元）：on/off toggle，色取自 [Tag.color]。
+/// on = 实色背景 + 白字 + ✓；off = 透明背景 + 彩色边框/文字。
+class _RealTagChip extends StatelessWidget {
+  const _RealTagChip({
+    required this.tag,
     required this.on,
     required this.onTap,
   });
 
-  final String label;
+  final Tag tag;
   final bool on;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final c = _tagColor(tag.color);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
@@ -1399,9 +1459,8 @@ class _TagChip extends StatelessWidget {
           duration: const Duration(milliseconds: 120),
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
           decoration: BoxDecoration(
-            color: on ? AppColors.accentSoft : AppColors.surface,
-            border: Border.all(
-                color: on ? const Color(0xFFE0D2B6) : AppColors.border),
+            color: on ? c : Colors.transparent,
+            border: Border.all(color: c),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1410,14 +1469,14 @@ class _TagChip extends StatelessWidget {
               if (on) ...[
                 const Text('✓',
                     style: TextStyle(
-                        color: AppColors.accent,
+                        color: Colors.white,
                         fontSize: 11,
                         fontWeight: FontWeight.w600)),
                 const SizedBox(width: 6),
               ],
-              Text(label,
+              Text(tag.name,
                   style: TextStyle(
-                    color: on ? const Color(0xFF7A5F33) : AppColors.fg,
+                    color: on ? Colors.white : c,
                     fontSize: 13,
                   )),
             ],
@@ -1425,6 +1484,16 @@ class _TagChip extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// `#RRGGBB` → [Color]。解析失败(或无 # 前缀)→ 回退 [AppColors.accent]。
+Color _tagColor(String hex) {
+  try {
+    final s = hex.startsWith('#') ? hex.substring(1) : hex;
+    return Color(int.parse(s, radix: 16) + 0xFF000000);
+  } catch (_) {
+    return AppColors.accent;
   }
 }
 

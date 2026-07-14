@@ -54,7 +54,7 @@ class TransactionFormBloc
     result.fold(
       (failure) => emit(TransactionFormReady(
           accounts: accounts, error: failure.displayMessage)),
-      (_) => emit(TransactionFormSuccess()),
+      (txn) => emit(TransactionFormSuccess(transactionId: txn.id)),
     );
   }
 
@@ -75,7 +75,7 @@ class TransactionFormBloc
     result.fold(
       (failure) => emit(TransactionFormReady(
           accounts: accounts, error: failure.displayMessage)),
-      (_) => emit(TransactionFormSuccess()),
+      (txn) => emit(TransactionFormSuccess(transactionId: txn.id)),
     );
   }
 
@@ -96,7 +96,7 @@ class TransactionFormBloc
     result.fold(
       (failure) => emit(TransactionFormReady(
           accounts: accounts, error: failure.displayMessage)),
-      (_) => emit(TransactionFormSuccess()),
+      (txn) => emit(TransactionFormSuccess(transactionId: txn.id)),
     );
   }
 
@@ -115,7 +115,7 @@ class TransactionFormBloc
     result.fold(
       (failure) => emit(TransactionFormReady(
           accounts: accounts, error: failure.displayMessage)),
-      (_) => emit(TransactionFormSuccess()),
+      (_) => emit(TransactionFormSuccess(transactionId: e.id)),
     );
   }
 
