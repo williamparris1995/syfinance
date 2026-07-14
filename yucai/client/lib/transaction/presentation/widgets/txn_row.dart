@@ -3,7 +3,10 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
+import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
+import 'package:yucai_client/tag/domain/repositories/tag_repository.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.dart';
@@ -20,7 +23,7 @@ import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.
 ///
 /// 账户解析优先用 [accounts]（accountId → Account）。若未提供则退化为
 /// [accountNameOf]，再退化为账号短 id。
-class TxnRow extends StatelessWidget {
+class TxnRow extends StatefulWidget {
   const TxnRow({
     super.key,
     required this.txn,
@@ -71,11 +74,51 @@ class TxnRow extends StatelessWidget {
   }
 
   @override
+  State<TxnRow> createState() => _TxnRowState();
+}
+
+/// 持有 per-card tag 缓存：initState 加载一次 GetTransactionTags，rebuild
+/// 不重查。didUpdateWidget 在 element 复用(LV.builder 回收)且 txn id 变化时
+/// 重新拉取。失败/空 → `_tags = []` 降级，列表照常渲染不阻塞。
+class _TxnRowState extends State<TxnRow> {
+  List<Tag> _tags = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTags();
+  }
+
+  @override
+  void didUpdateWidget(covariant TxnRow old) {
+    super.didUpdateWidget(old);
+    // ListView.builder 元素复用时，State 可能被套到不同 txn 上 —— id 变了就重拉。
+    if (old.txn.id != widget.txn.id) {
+      _loadTags();
+    }
+  }
+
+  Future<void> _loadTags() async {
+    final txnId = widget.txn.id;
+    try {
+      final result = await getIt<TagRepository>().getTransactionTags(txnId);
+      if (!mounted || widget.txn.id != txnId) return;
+      result.fold(
+        (_) => setState(() => _tags = const []),
+        (tags) => setState(() => _tags = tags),
+      );
+    } catch (_) {
+      if (!mounted || widget.txn.id != txnId) return;
+      setState(() => _tags = const []);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final bp = _resolve(context);
+    final bp = widget._resolve(context);
     return bp == Breakpoint.mobile
-        ? _MobileRow(txn: txn, row: this)
-        : _TableRow(txn: txn, row: this);
+        ? _MobileRow(txn: widget.txn, row: widget, tags: _tags)
+        : _TableRow(txn: widget.txn, row: widget, tags: _tags);
   }
 }
 
@@ -274,9 +317,10 @@ _AccountCellContent _resolveAccountCell(TxnRow row) {
 }
 
 class _TableRow extends StatelessWidget {
-  const _TableRow({required this.txn, required this.row});
+  const _TableRow({required this.txn, required this.row, this.tags = const []});
   final Transaction txn;
   final TxnRow row;
+  final List<Tag> tags;
 
   @override
   Widget build(BuildContext context) {
@@ -301,11 +345,21 @@ class _TableRow extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               flex: 3,
-              child: Text(
-                txn.description.isEmpty ? '(无描述)' : txn.description,
-                style:
-                    const TextStyle(color: AppColors.fg, fontSize: 14),
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    txn.description.isEmpty ? '(无描述)' : txn.description,
+                    style:
+                        const TextStyle(color: AppColors.fg, fontSize: 14),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (tags.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    _TxnTagChips(tags: tags),
+                  ],
+                ],
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -349,9 +403,10 @@ class _TableRow extends StatelessWidget {
 }
 
 class _MobileRow extends StatelessWidget {
-  const _MobileRow({required this.txn, required this.row});
+  const _MobileRow({required this.txn, required this.row, this.tags = const []});
   final Transaction txn;
   final TxnRow row;
+  final List<Tag> tags;
 
   @override
   Widget build(BuildContext context) {
@@ -410,6 +465,10 @@ class _MobileRow extends StatelessWidget {
                       style: const TextStyle(
                           color: AppColors.muted, fontSize: 12),
                     ),
+                  if (tags.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    _TxnTagChips(tags: tags),
+                  ],
                 ],
               ),
             ),
@@ -426,5 +485,43 @@ class _MobileRow extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// 列表 card 内的 tag chip 行：紧凑小号 chip,背景取 tag.color 0.15 alpha +
+/// 同色文字。空列表(失败/无 tag)由调用方不渲染本组件,这里不再 guard。
+class _TxnTagChips extends StatelessWidget {
+  const _TxnTagChips({required this.tags});
+  final List<Tag> tags;
+
+  Widget _chip(Tag t) {
+    final c = _tagColor(t.color);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(t.name, style: TextStyle(color: c, fontSize: 10)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 4,
+      runSpacing: 2,
+      children: [for (final t in tags) _chip(t)],
+    );
+  }
+}
+
+/// `#RRGGBB` → [Color]。解析失败 → 回退 [AppColors.accent](对齐 form_page)。
+Color _tagColor(String hex) {
+  try {
+    final s = hex.startsWith('#') ? hex.substring(1) : hex;
+    return Color(int.parse(s, radix: 16) + 0xFF000000);
+  } catch (_) {
+    return AppColors.accent;
   }
 }

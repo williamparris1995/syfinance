@@ -18,6 +18,7 @@ import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -25,6 +26,8 @@ import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
+import 'package:yucai_client/tag/domain/repositories/tag_repository.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
@@ -34,6 +37,7 @@ import 'package:yucai_client/transaction/presentation/pages/transaction_detail_p
 
 class _FakeTxnRepo extends Mock implements TransactionRepository {}
 class _FakeAcctRepo extends Mock implements AccountRepository {}
+class _FakeTagRepo extends Mock implements TagRepository {}
 
 final DateTime _date = DateTime(2026, 6, 19);
 
@@ -107,13 +111,20 @@ Widget _harness({required Widget child}) {
 }
 
 void main() {
+  final getIt = GetIt.instance;
   late _FakeTxnRepo txnRepo;
   late _FakeAcctRepo acctRepo;
+  late _FakeTagRepo tagRepo;
 
   setUp(() {
+    // allowReassignment (no reset()) — see transaction_form_page_test note.
+    getIt.allowReassignment = true;
     txnRepo = _FakeTxnRepo();
     acctRepo = _FakeAcctRepo();
+    tagRepo = _FakeTagRepo();
+    getIt.registerSingleton<TagRepository>(tagRepo);
     registerFallbackValue(ListTransactionsParams());
+    registerFallbackValue('');
     when(() => txnRepo.getById(any()))
         .thenAnswer((_) async => dartz.Right(_expense()));
     when(() => txnRepo.list(any())).thenAnswer((_) async => dartz.Right(
@@ -129,6 +140,9 @@ void main() {
           _account('acc-ali', '支付宝', AccountType.asset),
           _account('inc-salary', '工资', AccountType.income),
         ]));
+    // Default: no tags → 标签 row shows '—'. Overridden in the tag test.
+    when(() => tagRepo.getTransactionTags(any()))
+        .thenAnswer((_) async => dartz.Right(<Tag>[]));
     // Default delete stub (overridden in the delete test).
     when(() => txnRepo.delete(any()))
         .thenAnswer((_) async => dartz.Right(null));
@@ -326,5 +340,34 @@ void main() {
     // Drain the 3s AppToast timer the success listener schedules (otherwise the
     // binding's timersPending invariant fails the test).
     await tester.pumpAndSettle(const Duration(seconds: 4));
+  });
+
+  // ───────────────── Tag chip row (Task 6) ─────────────────
+
+  testWidgets(
+      'meta-list 标签 row: GetTransactionTags chips render (read-only, non-toggle)',
+      (tester) async {
+    final tags = <Tag>[
+      const Tag(id: 'tg-a', name: '日常', color: '#3B82F6', version: 1),
+      const Tag(id: 'tg-b', name: '出差', color: '#EF4444', version: 1),
+    ];
+    when(() => tagRepo.getTransactionTags(any()))
+        .thenAnswer((_) async => dartz.Right(tags));
+
+    await pumpPage(tester, const Size(1440, 900));
+
+    // 标签 row label present.
+    expect(find.text('标签'), findsOneWidget);
+    // Both tag names render as chips in the meta-list.
+    expect(find.text('日常'), findsOneWidget);
+    expect(find.text('出差'), findsOneWidget);
+  });
+
+  testWidgets('meta-list 标签 row: empty tags → "—" placeholder', (tester) async {
+    // Default setUp stub returns [] → 标签 row shows '—'.
+    await pumpPage(tester, const Size(1440, 900));
+
+    expect(find.text('标签'), findsOneWidget);
+    expect(find.text('—'), findsWidgets);
   });
 }

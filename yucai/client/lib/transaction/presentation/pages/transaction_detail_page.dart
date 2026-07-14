@@ -10,6 +10,8 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
+import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
+import 'package:yucai_client/tag/domain/repositories/tag_repository.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
@@ -24,7 +26,7 @@ import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.
 ///   - **page-head**:返回链接 + h1(交易名) + 编辑 btn-primary(gold) + 更多 menu。
 ///   - **col1 交易概要**:大金额(¥ + 42px mono + chip) + TX-id + meta-list
 ///     (交易日期/支付方式/备注/对账状态)。OD meta-list **无「描述」行**(描述
-///     即 h1 标题,不重复);「标签」行待 DTO 加 tags 后补。
+///     即 h1 标题,不重复);「标签」行由 initState 并发 GetTransactionTags 渲染。
 ///   - **col2 复式分录**:[JournalEntry] 借/贷 + 借贷平衡 + 会计等式 explainer。
 ///   - **col3 快捷操作**:qa-items(编辑/复制/查看账单/删除[danger])。
 ///   - **同分类近期交易**:rel-list(per-category lucide icon + 名称/日期/金额)。
@@ -43,6 +45,7 @@ class TransactionDetailPage extends StatefulWidget {
 
 class _TransactionDetailPageState extends State<TransactionDetailPage> {
   List<Account> _accounts = const [];
+  List<Tag> _tags = const [];
 
   @override
   void initState() {
@@ -51,6 +54,25 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
     // real route entry renders blank (no parent dispatches).
     context.read<TransactionBloc>().add(LoadTransactionDetail(widget.id));
     _loadAccounts();
+    _loadTags();
+  }
+
+  /// 标签行:GetTransactionTags(widget.id) → _tags。失败/空 → `_tags = []`(标签
+  /// 行显示 '—')。不再 DEFER 等 proto TransactionDTO.tags(client 并发查询即可)。
+  Future<void> _loadTags() async {
+    final txnId = widget.id;
+    TagRepository? repo;
+    try {
+      repo = GetIt.instance<TagRepository>();
+    } catch (_) {
+      repo = null;
+    }
+    if (repo == null) return;
+    try {
+      final result = await repo.getTransactionTags(txnId);
+      if (!mounted) return;
+      result.fold((_) {}, (tags) => setState(() => _tags = tags));
+    } catch (_) {}
   }
 
   Future<void> _loadAccounts() async {
@@ -138,6 +160,7 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
                 accountNameOf: _accountNameOf,
                 accountTypeOf: _accountTypeOf,
                 accountOf: _accountOf,
+                tags: _tags,
               ),
             );
           }
@@ -218,6 +241,7 @@ class _DetailContent extends StatelessWidget {
     required this.accountNameOf,
     required this.accountTypeOf,
     required this.accountOf,
+    this.tags = const [],
   });
 
   final Transaction txn;
@@ -226,6 +250,7 @@ class _DetailContent extends StatelessWidget {
   final String Function(String accountId) accountNameOf;
   final AccountType? Function(String accountId) accountTypeOf;
   final Account? Function(String accountId) accountOf;
+  final List<Tag> tags;
 
   @override
   Widget build(BuildContext context) {
@@ -391,6 +416,7 @@ class _DetailContent extends StatelessWidget {
             txn: txn,
             accountNameOf: accountNameOf,
             paymentAccountName: accountNameOf(_primaryAssetAccountId(txn)),
+            tags: tags,
           ),
         ],
       ),
@@ -724,20 +750,21 @@ String _formatDateShort(DateTime d) =>
 ///   - **描述/商户**:OD meta-list **无「描述」行**——交易名/描述即 page-head
 ///     h1 标题，不在 meta-list 重复（detail 4fix gap 1）。御财无独立 merchant
 ///     字段，故也不单列「商户」行。
-///   - **标签（chip tags）**:TransactionDTO/EntryDTO **无 tags 字段**
-///     （proto 确认），无法诚实展示 → DEFER，待 proto 加 tags 后补行（detail
-///     4fix gap 2，不硬造占位 chip）。
+///   - **标签（chip tags）**:page initState 并发 GetTransactionTags → chip 行
+///     （不依赖 proto TransactionDTO.tags,失败/空显示 '—'）。
 ///   - **对账状态**:模块未接入，固定「待对账」诚实占位。
 class _MetaList extends StatelessWidget {
   const _MetaList({
     required this.txn,
     required this.accountNameOf,
     required this.paymentAccountName,
+    this.tags = const [],
   });
 
   final Transaction txn;
   final String Function(String accountId) accountNameOf;
   final String paymentAccountName;
+  final List<Tag> tags;
 
   @override
   Widget build(BuildContext context) {
@@ -747,14 +774,22 @@ class _MetaList extends StatelessWidget {
           ? const TransactionEntry(accountId: '', debitCents: 0, creditCents: 0)
           : txn.entries.first,
     ).note;
-    // TODO(transaction-detail-4fix gap2): OD meta-list 有「标签」行(chip tags)，
-    // 但 TransactionDTO/EntryDTO 当前无 tags 字段（见 proto/transaction/v1）。
-    // 待 proto 加 tags 后，在此插入 _MetaRow('标签', chipTags) 一行。
-    final rows = <_MetaRow>[
+    // 标签行:tags 非空 → chip 行;空 → '—'(对齐 OD meta-list label/value 样式)。
+    final Widget tagRow = tags.isEmpty
+        ? const _MetaRow('标签', '—', valueColor: AppColors.muted)
+        : _MetaRowWidget(
+            label: '标签',
+            child: Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: _DetailTagChips(tags: tags),
+            ),
+          );
+    final rows = <Widget>[
       _MetaRow('交易日期', _formatDateLine(txn.transactionDate, txn.transactionTime),
           mono: true),
       _MetaRow('支付方式', paymentAccountName.isEmpty ? '—' : paymentAccountName),
       _MetaRow('备注', note.isEmpty ? '—' : note),
+      tagRow,
       _MetaRow('对账状态', '待对账', valueColor: AppColors.muted),
     ];
     return Column(
@@ -802,6 +837,71 @@ class _MetaRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// [_MetaRow] 的 Widget-value 变体:label 同样 80px 灰,右侧放任意 child
+/// (用于标签行的 chip wrap)。对齐 _MetaRow 布局/间距。
+class _MetaRowWidget extends StatelessWidget {
+  const _MetaRowWidget({required this.label, required this.child});
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 11),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(label,
+                style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(child: child),
+        ],
+      ),
+    );
+  }
+}
+
+/// 详情标签行 chip wrap:只读(非 toggle),背景取 tag.color 0.15 alpha + 同色
+/// 文字。比列表(_TxnTagChips)略大,适配详情 meta-list 阅读字号。
+class _DetailTagChips extends StatelessWidget {
+  const _DetailTagChips({required this.tags});
+  final List<Tag> tags;
+
+  Widget _chip(Tag t) {
+    final c = _detailTagColor(t.color);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(7),
+      ),
+      child: Text(t.name, style: TextStyle(color: c, fontSize: 12)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [for (final t in tags) _chip(t)],
+    );
+  }
+}
+
+/// `#RRGGBB` → [Color]。解析失败 → 回退 [AppColors.accent]。
+Color _detailTagColor(String hex) {
+  try {
+    final s = hex.startsWith('#') ? hex.substring(1) : hex;
+    return Color(int.parse(s, radix: 16) + 0xFF000000);
+  } catch (_) {
+    return AppColors.accent;
   }
 }
 
