@@ -142,6 +142,12 @@ func TestRecordTransaction_Expense_Success(t *testing.T) {
 	if !repo.updated.NextDate.Equal(wantNext) {
 		t.Errorf("persisted next date: want %v, got %v", wantNext, repo.updated.NextDate)
 	}
+
+	// IncrementVersion must be invoked on record (T10 optimistic-lock invariant).
+	// newTestTemplate starts at Version=1; one record bumps it to 2.
+	if repo.updated.Version != 2 {
+		t.Errorf("Version = %d, want 2 (IncrementVersion after record)", repo.updated.Version)
+	}
 }
 
 func TestRecordTransaction_Transfer_DestinationPassed(t *testing.T) {
