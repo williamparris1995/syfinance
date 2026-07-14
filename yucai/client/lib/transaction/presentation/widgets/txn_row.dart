@@ -7,11 +7,17 @@ import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
 import 'package:yucai_client/tag/domain/repositories/tag_repository.dart';
+import 'package:yucai_client/tag/domain/tag_color.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/widgets/responsive_layout.dart';
 
 /// 交易列表行。
+///
+/// **StatefulWidget**（非纯 layout row）：[_TxnRowState] 在 initState 为每张
+/// card 缓存一次 GetTransactionTags 结果（[_tags]），rebuild 不重查；ListView
+/// 元素复用时 didUpdateWidget 按 txn id 变化重拉并清 stale chips。失败/空 →
+/// `_tags = []` 降级，列表照常渲染不阻塞。
 ///
 /// - Desktop/Tablet：表格行 —— 日期 | 描述 | 分类 | 金额（借/贷方向染色）
 /// - Mobile：卡片 —— 上行描述+日期，下行分类 chip + 金额
@@ -92,8 +98,11 @@ class _TxnRowState extends State<TxnRow> {
   @override
   void didUpdateWidget(covariant TxnRow old) {
     super.didUpdateWidget(old);
-    // ListView.builder 元素复用时，State 可能被套到不同 txn 上 —— id 变了就重拉。
+    // ListView.builder 元素复用时，State 可能被套到不同 txn 上 —— id 变了先清 stale
+    // chips 再重拉，避复用前几帧把 A 的 tags 渲染在 B 描述下（async id guard 防
+    // stale *data* 写回，但 stale *display* 仍残留，故这里同步清空）。
     if (old.txn.id != widget.txn.id) {
+      setState(() => _tags = const []);
       _loadTags();
     }
   }
@@ -104,12 +113,16 @@ class _TxnRowState extends State<TxnRow> {
       final result = await getIt<TagRepository>().getTransactionTags(txnId);
       if (!mounted || widget.txn.id != txnId) return;
       result.fold(
-        (_) => setState(() => _tags = const []),
+        (_) {
+          // 失败降级：仅当当前持有 tags 时才 setState 清空，避 _tags 已是 const []
+          // （初始值 / didUpdateWidget 已清）时无谓 rebuild。
+          if (_tags.isNotEmpty) setState(() => _tags = const []);
+        },
         (tags) => setState(() => _tags = tags),
       );
     } catch (_) {
       if (!mounted || widget.txn.id != txnId) return;
-      setState(() => _tags = const []);
+      if (_tags.isNotEmpty) setState(() => _tags = const []);
     }
   }
 
@@ -495,7 +508,7 @@ class _TxnTagChips extends StatelessWidget {
   final List<Tag> tags;
 
   Widget _chip(Tag t) {
-    final c = _tagColor(t.color);
+    final c = tagColor(t.color);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
@@ -516,12 +529,4 @@ class _TxnTagChips extends StatelessWidget {
   }
 }
 
-/// `#RRGGBB` → [Color]。解析失败 → 回退 [AppColors.accent](对齐 form_page)。
-Color _tagColor(String hex) {
-  try {
-    final s = hex.startsWith('#') ? hex.substring(1) : hex;
-    return Color(int.parse(s, radix: 16) + 0xFF000000);
-  } catch (_) {
-    return AppColors.accent;
-  }
-}
+/// `#RRGGBB` → [Color] 解析见共享 [tagColor](../../../tag/domain/tag_color.dart)。

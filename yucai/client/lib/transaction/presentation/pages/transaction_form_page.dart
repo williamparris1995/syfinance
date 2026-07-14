@@ -13,6 +13,7 @@ import 'package:yucai_client/core/widgets/date_picker_input.dart';
 import 'package:yucai_client/core/widgets/time_picker_input.dart';
 import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
 import 'package:yucai_client/tag/domain/repositories/tag_repository.dart';
+import 'package:yucai_client/tag/domain/tag_color.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_form_bloc.dart';
@@ -1449,7 +1450,7 @@ class _RealTagChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = _tagColor(tag.color);
+    final c = tagColor(tag.color);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
@@ -1487,15 +1488,7 @@ class _RealTagChip extends StatelessWidget {
   }
 }
 
-/// `#RRGGBB` → [Color]。解析失败(或无 # 前缀)→ 回退 [AppColors.accent]。
-Color _tagColor(String hex) {
-  try {
-    final s = hex.startsWith('#') ? hex.substring(1) : hex;
-    return Color(int.parse(s, radix: 16) + 0xFF000000);
-  } catch (_) {
-    return AppColors.accent;
-  }
-}
+/// `#RRGGBB` → [Color] 解析见共享 [tagColor]（tag/domain/tag_color.dart）。
 
 // ───────────────────────── RIGHT: 复式分录预览（live） ─────────────────────────
 

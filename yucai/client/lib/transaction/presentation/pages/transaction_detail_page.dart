@@ -12,6 +12,7 @@ import 'package:yucai_client/core/widgets/app_toast.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
 import 'package:yucai_client/tag/domain/entities/tag_entity.dart';
 import 'package:yucai_client/tag/domain/repositories/tag_repository.dart';
+import 'package:yucai_client/tag/domain/tag_color.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
@@ -874,7 +875,7 @@ class _DetailTagChips extends StatelessWidget {
   final List<Tag> tags;
 
   Widget _chip(Tag t) {
-    final c = _detailTagColor(t.color);
+    final c = tagColor(t.color);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -895,15 +896,7 @@ class _DetailTagChips extends StatelessWidget {
   }
 }
 
-/// `#RRGGBB` → [Color]。解析失败 → 回退 [AppColors.accent]。
-Color _detailTagColor(String hex) {
-  try {
-    final s = hex.startsWith('#') ? hex.substring(1) : hex;
-    return Color(int.parse(s, radix: 16) + 0xFF000000);
-  } catch (_) {
-    return AppColors.accent;
-  }
-}
+/// `#RRGGBB` → [Color] 解析见共享 [tagColor]（tag/domain/tag_color.dart）。
 
 /// gold 实心按钮（page-head 编辑）。
 class _GoldButton extends StatelessWidget {
