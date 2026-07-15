@@ -476,4 +476,31 @@ void main() {
     // /reports builder 渲染 'reports_page'。
     expect(find.text('reports_page'), findsOneWidget);
   });
+
+  // 快捷操作其余 3 tile(记一笔/转账→/transactions/new,买入投资→/holdings/new)
+  // 补测 — Task 5 仅测 /reports;转账与记一笔同路由,测记一笔即可代表。
+
+  testWidgets('快捷操作:点「记一笔」→ 导航 /transactions/new', (t) async {
+    final observer = _MockNavigatorObserver();
+    await t.pumpWidget(_routerHarness(observer));
+    await t.pumpAndSettle();
+
+    await t.ensureVisible(find.text('记一笔'));
+    await t.tap(find.text('记一笔'));
+    await t.pumpAndSettle();
+
+    expect(find.text('txn_new'), findsOneWidget);
+  });
+
+  testWidgets('快捷操作:点「买入投资」→ 导航 /holdings/new', (t) async {
+    final observer = _MockNavigatorObserver();
+    await t.pumpWidget(_routerHarness(observer));
+    await t.pumpAndSettle();
+
+    await t.ensureVisible(find.text('买入投资'));
+    await t.tap(find.text('买入投资'));
+    await t.pumpAndSettle();
+
+    expect(find.text('holdings_new'), findsOneWidget);
+  });
 }
