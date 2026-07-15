@@ -6,6 +6,7 @@ import 'package:yucai_client/account/domain/repositories/account_repository.dart
 import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/utils/date_format.dart';
 import 'package:yucai_client/template/domain/entities/template_entity.dart';
 
 /// 表单收集结果(创建/编辑共用)。Dialog 提交时回调给宿主页派发对应 Bloc event。
@@ -133,10 +134,6 @@ class _TemplateFormState extends State<TemplateForm> {
     if (s == null || s.isEmpty) return null;
     return DateTime.tryParse(s);
   }
-
-  String _dateStr(DateTime? d) => d == null
-      ? ''
-      : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   int get _amountCents =>
       ((double.tryParse(_amountCtrl.text.replaceAll(',', '')) ?? 0) * 100)
@@ -311,7 +308,7 @@ class _TemplateFormState extends State<TemplateForm> {
                   label: '账单日(1-28)',
                   child: _dropdown<int>(
                     value: _billingDay,
-                    enabled: true,
+                    enabled: !_isEdit,
                     items: [
                       for (var d = 1; d <= 28; d++) (d, '$d 日'),
                     ],
@@ -423,7 +420,7 @@ class _TemplateFormState extends State<TemplateForm> {
   }) {
     final hasValue = value != null && accounts.any((a) => a.id == value);
     return DropdownButtonFormField<String>(
-      value: hasValue ? value : null,
+      initialValue: hasValue ? value : null,
       isExpanded: true,
       decoration: _inputDeco(hint: hint),
       items: accounts
@@ -466,7 +463,7 @@ class _TemplateFormState extends State<TemplateForm> {
               : const Icon(LucideIcons.calendar, size: 16, color: AppColors.muted),
         ),
         child: Text(
-          value == null ? '选择日期' : _dateStr(value),
+          value == null ? '选择日期' : formatDate(value),
           style: TextStyle(
             color: value == null ? AppColors.muted : AppColors.fg,
             fontSize: 13.5,
@@ -483,7 +480,7 @@ class _TemplateFormState extends State<TemplateForm> {
     required ValueChanged<T> onChanged,
   }) {
     return DropdownButtonFormField<T>(
-      value: value,
+      initialValue: value,
       isExpanded: true,
       decoration: _inputDeco(),
       items: items

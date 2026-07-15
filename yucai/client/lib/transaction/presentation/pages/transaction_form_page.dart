@@ -193,22 +193,33 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
   /// 同步 tag diff:[existingTagIds](原始) vs _selectedTagIds(当前) → AddTag/RemoveTag。
   /// 新建 transaction 传 existingTagIds={} → 全部 _selectedTagIds 为新增。
   /// 单次 RPC 失败不回滚(transaction 已持久化,tag 为附属 metadata);repo 方法
-  /// 返回 Either<Failure, void>(不抛),fold Left 侧 debugPrint 便于诊断网络中断等
-  /// 静默丢失场景(follow-up 再加 user toast)。
+  /// 返回 Either<Failure, void>(不抛),fold Left 侧 debugPrint 便于诊断 + 汇总
+  /// 一次 user-facing warning toast([AppToast] 走 root overlay,页面 pop 后仍可见)。
   Future<void> _syncTags(String txnId,
       {required Set<String> existingTagIds}) async {
     final repo = getIt<TagRepository>();
     final toAdd = _selectedTagIds.difference(existingTagIds);
     final toRemove = existingTagIds.difference(_selectedTagIds);
+    bool anyFailed = false;
     for (final tagId in toAdd) {
       final result =
           await repo.addTagToTransaction(tagId: tagId, transactionId: txnId);
-      result.fold((f) => debugPrint('tag sync add failed: $f'), (_) {});
+      result.fold((f) {
+        anyFailed = true;
+        debugPrint('tag sync add failed: $f');
+      }, (_) {});
     }
     for (final tagId in toRemove) {
       final result = await repo.removeTagFromTransaction(
           tagId: tagId, transactionId: txnId);
-      result.fold((f) => debugPrint('tag sync remove failed: $f'), (_) {});
+      result.fold((f) {
+        anyFailed = true;
+        debugPrint('tag sync remove failed: $f');
+      }, (_) {});
+    }
+    if (anyFailed && mounted) {
+      AppToast.show(context, '交易已保存,但部分标签同步失败',
+          type: ToastType.warning);
     }
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
+import 'package:yucai_client/core/utils/date_format.dart';
 import 'package:yucai_client/template/domain/repositories/template_repository.dart';
 import 'package:yucai_client/template/presentation/bloc/template_event.dart';
 import 'package:yucai_client/template/presentation/bloc/template_state.dart';
@@ -142,14 +143,10 @@ class TemplateBloc extends Bloc<TemplateEvent, TemplateState> {
         final next = recordResult.nextDate;
         final msg = next == null
             ? '已记录'
-            : '已记录(下次 ${_formatDate(next)})';
+            : '已记录(下次 ${formatDate(next)})';
         emit(TemplateActionSuccess(msg));
         add(LoadTemplatesRequested());
       },
     );
   }
 }
-
-/// date-only 格式化(跟随 accounts_page.dart 风格,无 intl 依赖)。
-String _formatDate(DateTime d) =>
-    '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';

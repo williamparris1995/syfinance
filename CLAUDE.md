@@ -22,7 +22,7 @@ design-output/      # OD 原型(holding + accounts-responsive)
 - rebuild exe:`go build -o bin/server.exe ./cmd/server`
 
 ### client(Flutter, `yucai/client/`)
-- `flutter test` — 全量测(基线:3 预存 fail account/debt/transaction_detail_page_test,account redesign 漂移,非各模块引入)
+- `flutter test` — 全量测(基线:1 预存 fail account_detail_page_test 仅,account redesign 漂移;debt/transaction_detail_page_test 已修)
 - `flutter analyze` — 分析(基线 22 error 全 `*.pbserver.dart`,客户端未用)
 - `flutter build windows --debug` — build
 - `dart run build_runner build --delete-conflicting-outputs` — DI 注入重生成(injectable)
@@ -68,7 +68,7 @@ design-output/      # OD 原型(holding + accounts-responsive)
 ## 测试
 - server:Go 单测 + 集成测(enttest SQLite)+ e2e(grpcurl,需 auth token)
 - client:widget test(mocktail `Mock`/`Fake`;pump 而非 pumpAndSettle 当有永不完成的 Future)
-- 预存 fail:account/debt/transaction_detail_page_test(account 模块 redesign 漂移,非各模块引入,out-of-scope)
+- 预存 fail:account_detail_page_test 仅(account redesign 漂移;debt/transaction_detail_page_test 已修),out-of-scope
 
 ## 工作流(SDD)
 - 创造性工作(新功能/模块)走 brainstorming → spec(`docs/superpowers/specs/`)→ plan(`docs/superpowers/plans/`)→ subagent-driven 实现

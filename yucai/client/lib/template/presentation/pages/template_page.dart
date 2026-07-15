@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/utils/date_format.dart';
 import 'package:yucai_client/template/domain/entities/template_entity.dart';
 import 'package:yucai_client/template/presentation/bloc/template_bloc.dart';
 import 'package:yucai_client/template/presentation/bloc/template_event.dart';
@@ -63,8 +64,8 @@ class _TemplatePageState extends State<TemplatePage> {
         cycle: r.cycle,
         cycleDays: r.cycleDays,
         billingDay: r.billingDay,
-        startDate: _dateStr(r.startDate),
-        endDate: _dateStr(r.endDate),
+        startDate: r.startDate == null ? null : formatDate(r.startDate),
+        endDate: r.endDate == null ? null : formatDate(r.endDate),
         autoRecord: r.autoRecord,
         category: r.category,
       );
@@ -78,13 +79,9 @@ class _TemplatePageState extends State<TemplatePage> {
         amountCents: r.amountCents,
         cycle: r.cycle,
         cycleDays: r.cycleDays,
-        endDate: _dateStr(r.endDate),
+        endDate: r.endDate == null ? null : formatDate(r.endDate),
         autoRecord: r.autoRecord,
       );
-
-  String? _dateStr(DateTime? d) => d == null
-      ? null
-      : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   Future<void> _showDeleteConfirm(Template t) async {
     final ok = await showDialog<bool>(
