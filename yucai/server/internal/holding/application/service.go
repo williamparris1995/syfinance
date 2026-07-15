@@ -674,13 +674,16 @@ func (s *Service) GetPortfolioPerformance(ctx context.Context, tenantID uuid.UUI
 	// historical prices are missing or there are no trades. Replaces the legacy
 	// simple-annualization helper (annualizedPct, retired).
 	fullXirr, rangeXirr, _ := s.portfolioXIRR(ctx, tenantID, accountID, base, from)
-	// TWR (Task 4): full-period time-weighted annualized %, degrades to nil
-	// independently of XIRR (insufficient sub-periods or missing prices).
-	twr, _ := s.portfolioTWR(ctx, tenantID, accountID, base)
+	// TWR (Task 4): full-period time-weighted annualized % + range (window =
+	// `from` from curveWindow, same rangeStart XIRR uses). Degrades to nil
+	// independently of XIRR (insufficient sub-periods or missing prices); range
+	// degrades independently of full (rangeStart outside [first, last] cashFlowDay
+	// or empty opening position).
+	fullTwr, rangeTwr, _ := s.portfolioTWR(ctx, tenantID, accountID, base, from)
 	out := &PortfolioPerformance{
 		PortfolioPoints: portPts, RealizedCents: realized, UnrealizedCents: unrealized,
 		TotalCents: total, AnnualizedPct: fullXirr, RangeAnnualizedPct: rangeXirr,
-		TwrAnnualizedPct: twr, TotalPct: totalPct, Currency: base,
+		TwrAnnualizedPct: fullTwr, RangeTwrAnnualizedPct: rangeTwr, TotalPct: totalPct, Currency: base,
 	}
 	if withBenchmark {
 		out.BenchmarkName = "沪深300"
@@ -1273,10 +1276,15 @@ func (s *Service) computeTWR(ctx context.Context, tenantID uuid.UUID, accountID 
 	return ptrFloat(rate), nil
 }
 
-// portfolioTWR computes full-period TWR for the portfolio (base currency).
-// Full period = rangeStart = first trade date (cashFlowDays[0]). Degrades to
-// nil on insufficient data or missing prices.
-func (s *Service) portfolioTWR(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID, baseCurrency string) (*float64, error) {
+// portfolioTWR computes full-period + range TWR (base currency), mirroring
+// portfolioXIRR(full, rng).
+//   full: rangeStart = first trade date (cashFlowDays[0]) — byte-identical to
+//         the pre-Task-2 portfolioTWR (computeTWR full-period special case).
+//   rng:  rangeStart = curveWindow(rangeName).from (passed by caller).
+// Returns (nil, nil, nil) on insufficient data; full + rng degrade independently
+// (range degrades when rangeStart is outside [first, last] cashFlowDay or the
+// opening position is empty, but full still resolves).
+func (s *Service) portfolioTWR(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID, baseCurrency string, rangeStart time.Time) (full, rng *float64, err error) {
 	base := baseCurrency
 	if base == "" {
 		base = "CNY"
@@ -1284,13 +1292,15 @@ func (s *Service) portfolioTWR(ctx context.Context, tenantID uuid.UUID, accountI
 	rateBase := s.rateForBase(ctx, base)
 	trades, _ := s.allTradesForTenant(ctx, tenantID, accountID)
 	if len(trades) == 0 {
-		return nil, nil
+		return nil, nil, nil
 	}
 	cashFlowDays := uniqueSortedTradeDates(trades)
 	if len(cashFlowDays) < 2 {
-		return nil, nil
+		return nil, nil, nil
 	}
-	return s.computeTWR(ctx, tenantID, accountID, base, rateBase, trades, cashFlowDays, cashFlowDays[0])
+	full, _ = s.computeTWR(ctx, tenantID, accountID, base, rateBase, trades, cashFlowDays, cashFlowDays[0])
+	rng, _ = s.computeTWR(ctx, tenantID, accountID, base, rateBase, trades, cashFlowDays, rangeStart)
+	return full, rng, nil
 }
 
 // uniqueSortedTradeDates extracts unique trade_date values sorted ascending.

@@ -149,11 +149,12 @@ type PortfolioPerformance struct {
 	RealizedCents      int64    // Σ sell FIFO realized + dividend, CNY
 	UnrealizedCents    int64    // current portfolio unrealized, CNY
 	TotalCents         int64    // realized + unrealized
-	AnnualizedPct      *float64 // 全期 XIRR 年化%(nil=降级)
-	RangeAnnualizedPct *float64 // 区间 XIRR 年化%(随 CurveRange,nil=降级)
-	TwrAnnualizedPct   *float64 // TWR 时间加权年化%(全期,nil=降级)
-	TotalPct           float64  // cumulative return %
-	Currency           string   // "CNY"
+	AnnualizedPct        *float64 // 全期 XIRR 年化%(nil=降级)
+	RangeAnnualizedPct   *float64 // 区间 XIRR 年化%(随 CurveRange,nil=降级)
+	TwrAnnualizedPct     *float64 // TWR 时间加权年化%(全期,nil=降级)
+	RangeTwrAnnualizedPct *float64 // 区间 TWR 时间加权年化%(随 CurveRange,nil=降级/区间不足)
+	TotalPct             float64  // cumulative return %
+	Currency             string   // "CNY"
 }
 
 // HoldingPerformance is the single-holding curve + foot.

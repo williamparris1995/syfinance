@@ -39,7 +39,8 @@ func TestMarketValueAtDateAsOfQtyPriceSeparation(t *testing.T) {
 
 // portfolioTWR:1 holding(buy 100@100元 day0,price 恒 10000)→ 全期 TWR。
 // 单子区间(BV_after day0=1000000, no later CF)→ 子区间空? 需 ≥2 cashFlowDays。
-// 本测:2 buy(buy day0 + buy day1)→ 1 子区间。
+// 本测:2 buy(buy day0 + buy day1)→ 1 子区间。Task 2 起返 (full, rng);
+// rangeStart=cashFlowDays[0] → rng 用同一起点 → 与 full 等价(byte-identical Task 1)。
 func TestPortfolioTWRSimple(t *testing.T) {
 	secID := uuid.New()
 	day0 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -54,16 +55,24 @@ func TestPortfolioTWRSimple(t *testing.T) {
 		priceHistoryRepo: &fakePriceRepo{priceCents: 10000},
 		rateRepo:         &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
 	}
-	twr, err := svc.portfolioTWR(context.Background(), uuid.Nil, nil, "CNY")
+	// rangeStart = day0 = cashFlowDays[0] → rng 走与 full 相同的 computeTWR 调用。
+	full, rng, err := svc.portfolioTWR(context.Background(), uuid.Nil, nil, "CNY", day0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if twr == nil {
-		t.Fatal("portfolioTWR nil, want non-nil (price constant → TWR ~0)")
+	if full == nil {
+		t.Fatal("portfolioTWR full nil, want non-nil (price constant → TWR ~0)")
 	}
 	// price 恒定(10000),无市场变化 → TWR ≈ 0(只有现金流,无收益)
-	if *twr > 0.01 || *twr < -0.01 {
-		t.Errorf("TWR = %v, want ~0 (constant price)", *twr)
+	if *full > 0.01 || *full < -0.01 {
+		t.Errorf("full TWR = %v, want ~0 (constant price)", *full)
+	}
+	// rangeStart == cashFlowDays[0] → rng 必须等价 full(同一 computeTWR 入参)。
+	if rng == nil {
+		t.Fatal("portfolioTWR rng nil when rangeStart == cashFlowDays[0], want non-nil (== full)")
+	}
+	if diff := *rng - *full; diff > 1e-9 || diff < -1e-9 {
+		t.Errorf("rng (%v) != full (%v) when rangeStart == cashFlowDays[0]", *rng, *full)
 	}
 }
 
@@ -94,15 +103,126 @@ func TestHoldingTWROriginalCurrency(t *testing.T) {
 	}
 }
 
-// 无 trade → nil
+// 无 trade → nil(full + rng 双降级,不造假)。
 func TestPortfolioTWRNoTrades(t *testing.T) {
 	svc := &Service{
 		securityRepo: &fakeSecurityRepoByID{}, holdingRepo: &fakeHoldingRepoSingle{},
 		tradeRepo: &fakeTradeRepo{items: nil}, priceHistoryRepo: &fakePriceRepo{priceCents: 0},
 		rateRepo: &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
 	}
-	twr, err := svc.portfolioTWR(context.Background(), uuid.Nil, nil, "CNY")
-	if err != nil || twr != nil {
-		t.Errorf("no trades: twr=%v err=%v, want nil/nil", twr, err)
+	full, rng, err := svc.portfolioTWR(context.Background(), uuid.Nil, nil, "CNY", mustDate2("2020-06-01"))
+	if err != nil || full != nil || rng != nil {
+		t.Errorf("no trades: full=%v rng=%v err=%v, want nil/nil/nil", full, rng, err)
+	}
+}
+
+// TestPortfolioTWRRange:3 buy(day0/day1/day2)+ price 恒 10000 → full + rng 都解出。
+// rangeStart=day1 落在 [day0, day2] 内,day2 是 effectiveDay(严格 after day1)→ rng 非空。
+// price 恒定 → 无市场变化 → full ≈ 0 且 rng ≈ 0(子区间 HPR=1.0,finalValue/lastAfter=1.0)。
+// 手算区间 TWR(cashFlowDays=[day0,day1,day2],rangeStart=day1):
+//
+//	effectiveDays=[day2]; begin=qty@day2 × price@day1=300×10000=3,000,000
+//	  (qty@day2 含 day0+day1+day2 三笔 buy,但 computeTWR begin 用 qtyAsOf=rangeStart+1d=day2)
+//	sub1: Begin=3,000,000(初始 prevAfter), End=BV_before(day2)=qty@day2 × price@day2=300×10000=3,000,000 → HPR=1.0
+//	lastAfter=BV_after(day2)=qty@day3 × price@day2=300×10000=3,000,000
+//	finalValue=300×10000=3,000,000 → finalValue/lastAfter=1.0
+//	cumulative=1.0×1.0−1=0 → annualized=0(无论 totalDays)。故 rng=0 ✓
+func TestPortfolioTWRRange(t *testing.T) {
+	secID := uuid.New()
+	day0 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	day1 := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
+	day2 := time.Date(2020, 1, 3, 0, 0, 0, 0, time.UTC)
+	svc := &Service{
+		securityRepo: &fakeSecurityRepoByID{sec: domain.Security{ID: secID, CurrencyCode: "CNY", CurrentPriceCents: 10000}},
+		holdingRepo:  &fakeHoldingRepoSingle{h: domain.Holding{SecurityID: secID, Quantity: 300}},
+		tradeRepo: &fakeTradeRepo{items: []domain.HoldingTransaction{
+			{TradeType: domain.TradeTypeBuy, Quantity: 100, AmountCents: 1000000, SecurityID: secID, TradeDate: day0},
+			{TradeType: domain.TradeTypeBuy, Quantity: 100, AmountCents: 1000000, SecurityID: secID, TradeDate: day1},
+			{TradeType: domain.TradeTypeBuy, Quantity: 100, AmountCents: 1000000, SecurityID: secID, TradeDate: day2},
+		}},
+		priceHistoryRepo: &fakePriceRepo{priceCents: 10000},
+		rateRepo:         &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
+	}
+	full, rng, err := svc.portfolioTWR(context.Background(), uuid.Nil, nil, "CNY", day1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if full == nil {
+		t.Fatal("full nil, want non-nil (≥2 cashFlowDays, price history present)")
+	}
+	if rng == nil {
+		t.Fatal("rng nil for rangeStart=day1 (1 effectiveDay [day2]), want non-nil")
+	}
+	// price 恒定 → full 与 rng 都 ≈ 0。
+	if *full > 0.01 || *full < -0.01 {
+		t.Errorf("full TWR = %v, want ~0 (constant price)", *full)
+	}
+	if *rng > 0.01 || *rng < -0.01 {
+		t.Errorf("range TWR = %v, want ~0 (constant price)", *rng)
+	}
+}
+
+// TestPortfolioTWRRangeDegradeLate:rangeStart = 最后 cashFlowDay(day2)→ 无 effectiveDay
+// (没有任何 cashFlowDay 严格 after day2)→ computeTWR 返 ErrInsufficientPeriods → rng nil。
+// full 仍解出(rangeStart=cashFlowDays[0]=day0,不依赖 rangeStart 参数)。
+func TestPortfolioTWRRangeDegradeLate(t *testing.T) {
+	secID := uuid.New()
+	day0 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	day1 := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
+	day2 := time.Date(2020, 1, 3, 0, 0, 0, 0, time.UTC)
+	svc := &Service{
+		securityRepo: &fakeSecurityRepoByID{sec: domain.Security{ID: secID, CurrencyCode: "CNY", CurrentPriceCents: 10000}},
+		holdingRepo:  &fakeHoldingRepoSingle{h: domain.Holding{SecurityID: secID, Quantity: 300}},
+		tradeRepo: &fakeTradeRepo{items: []domain.HoldingTransaction{
+			{TradeType: domain.TradeTypeBuy, Quantity: 100, AmountCents: 1000000, SecurityID: secID, TradeDate: day0},
+			{TradeType: domain.TradeTypeBuy, Quantity: 100, AmountCents: 1000000, SecurityID: secID, TradeDate: day1},
+			{TradeType: domain.TradeTypeBuy, Quantity: 100, AmountCents: 1000000, SecurityID: secID, TradeDate: day2},
+		}},
+		priceHistoryRepo: &fakePriceRepo{priceCents: 10000},
+		rateRepo:         &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
+	}
+	// rangeStart = day2(末笔)→ effectiveDays 空 → rng 降级;full 仍走 cashFlowDays[0]。
+	full, rng, err := svc.portfolioTWR(context.Background(), uuid.Nil, nil, "CNY", day2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if full == nil {
+		t.Fatal("full nil, want non-nil (full-period independent of rangeStart)")
+	}
+	if rng != nil {
+		t.Errorf("rng = %v, want nil (rangeStart=last cashFlowDay → 0 effectiveDays)", *rng)
+	}
+}
+
+// TestPortfolioTWRRangeDegradeEarly:rangeStart < 首笔 trade → 区间初空仓
+// (qty@(rangeStart+1d)=0 → begin MV=0 → 首子区间 BeginValueAfterCF=0 → ErrZeroValue)→ rng nil。
+// full 仍解出(rangeStart=cashFlowDays[0],day0 buy 后有持仓)。
+func TestPortfolioTWRRangeDegradeEarly(t *testing.T) {
+	secID := uuid.New()
+	day0 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	day1 := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
+	day2 := time.Date(2020, 1, 3, 0, 0, 0, 0, time.UTC)
+	// rangeStart 早于 day0 两天 → rangeStart+1d = day0 前一天 → qty=0(空仓)。
+	rangeStart := day0.AddDate(0, 0, -2)
+	svc := &Service{
+		securityRepo: &fakeSecurityRepoByID{sec: domain.Security{ID: secID, CurrencyCode: "CNY", CurrentPriceCents: 10000}},
+		holdingRepo:  &fakeHoldingRepoSingle{h: domain.Holding{SecurityID: secID, Quantity: 300}},
+		tradeRepo: &fakeTradeRepo{items: []domain.HoldingTransaction{
+			{TradeType: domain.TradeTypeBuy, Quantity: 100, AmountCents: 1000000, SecurityID: secID, TradeDate: day0},
+			{TradeType: domain.TradeTypeBuy, Quantity: 100, AmountCents: 1000000, SecurityID: secID, TradeDate: day1},
+			{TradeType: domain.TradeTypeBuy, Quantity: 100, AmountCents: 1000000, SecurityID: secID, TradeDate: day2},
+		}},
+		priceHistoryRepo: &fakePriceRepo{priceCents: 10000},
+		rateRepo:         &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
+	}
+	full, rng, err := svc.portfolioTWR(context.Background(), uuid.Nil, nil, "CNY", rangeStart)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if full == nil {
+		t.Fatal("full nil, want non-nil (full-period independent of rangeStart)")
+	}
+	if rng != nil {
+		t.Errorf("rng = %v, want nil (rangeStart < first trade → empty opening position → ErrZeroValue)", *rng)
 	}
 }
