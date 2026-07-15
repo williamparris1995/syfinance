@@ -7,6 +7,9 @@ import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/core/widgets/data_card.dart';
+import 'package:yucai_client/report/presentation/widgets/category_breakdown_pie.dart';
+import 'package:yucai_client/report/presentation/widgets/income_expense_trend_chart.dart';
+import 'package:yucai_client/report/presentation/widgets/monthly_comparison_bar.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 
@@ -33,17 +36,38 @@ class ReportPage extends StatefulWidget {
 class _ReportPageState extends State<ReportPage> {
   SummaryScope _scope = SummaryScope.month;
   late Future<Either<Failure, MonthlySummary>> _future;
+  /// 近 6 月月度对比数据（与 period tab 无关，故独立加载一次，不复载）。
+  late Future<List<MonthlySummary>> _monthlyComparison;
 
   @override
   void initState() {
     super.initState();
     _future = _load();
+    _monthlyComparison = _loadMonthlyComparison();
   }
 
   Future<Either<Failure, MonthlySummary>> _load() {
     final now = DateTime.now();
     return getIt<TransactionRepository>()
         .summary(now.year, now.month, scope: _scope);
+  }
+
+  /// 并发拉取近 6 个月 summary（month scope）。各月独立 Either；任一失败折叠为
+  /// 跳过（drop），全失败 → 空列表 → 月度对比 chart 自身空态。
+  Future<List<MonthlySummary>> _loadMonthlyComparison() async {
+    final now = DateTime.now();
+    final futures = <Future<Either<Failure, MonthlySummary>>>[];
+    for (var i = 5; i >= 0; i--) {
+      // DateTime(y, m-i) 自动处理跨年（month<=0 → 前一年 12 月等）。
+      final d = DateTime(now.year, now.month - i);
+      futures.add(getIt<TransactionRepository>()
+          .summary(d.year, d.month, scope: SummaryScope.month));
+    }
+    final results = await Future.wait(futures);
+    return [
+      for (final r in results)
+        r.fold<MonthlySummary?>((_) => null, (s) => s),
+    ].whereType<MonthlySummary>().toList();
   }
 
   void _switchScope(SummaryScope s) {
@@ -115,22 +139,39 @@ class _ReportPageState extends State<ReportPage> {
             children: [
               _SummaryStrip(summary: summary, periodLabel: periodLabel),
               const SizedBox(height: AppSpacing.md),
-              const _PlaceholderSection(
+              _ChartSection(
                 title: '收支趋势',
-                hint: '趋势图待实现',
-                icon: LucideIcons.trendingUp,
+                child: IncomeExpenseTrendChart(
+                  byDay: summary.byDay,
+                  scope: summary.scope ?? _scope,
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
-              const _PlaceholderSection(
-                title: '分类占比',
-                hint: '分类图待实现',
-                icon: LucideIcons.pieChart,
+              _ChartSection(
+                title: '支出分类占比',
+                child: CategoryBreakdownPie(
+                  slices: aggregateCategorySlices(summary),
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
-              const _PlaceholderSection(
-                title: '月度对比',
-                hint: '对比图待实现',
-                icon: LucideIcons.barChart3,
+              _ChartSection(
+                title: '近 6 月对比',
+                child: FutureBuilder<List<MonthlySummary>>(
+                  future: _monthlyComparison,
+                  builder: (context, snap) {
+                    if (snap.connectionState != ConnectionState.done) {
+                      return const SizedBox(
+                        height: 220,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                              color: AppColors.muted),
+                        ),
+                      );
+                    }
+                    final months = snap.data ?? const [];
+                    return MonthlyComparisonBar(months: months);
+                  },
+                ),
               ),
             ],
           ),
@@ -368,20 +409,14 @@ class _StatTile extends StatelessWidget {
   }
 }
 
-// ───────────────────────── 图表占位 section（Task 3 实现） ────────────────
+// ───────────────────────── 图表 section（DataCard 包标题 + child） ─────────
 
-/// 单个图表占位：DataCard 包标题 + 居中占位（图标 + 提示文案）。
-/// Task 3 把 [hint] 区换为真实 fl_chart 图表（LineChart/PieChart/BarChart）。
-class _PlaceholderSection extends StatelessWidget {
-  const _PlaceholderSection({
-    required this.title,
-    required this.hint,
-    required this.icon,
-  });
+/// 单个图表 section：DataCard 包标题 + 分隔线 + 任意 chart widget。
+class _ChartSection extends StatelessWidget {
+  const _ChartSection({required this.title, required this.child});
 
   final String title;
-  final String hint;
-  final IconData icon;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
@@ -394,23 +429,8 @@ class _PlaceholderSection extends StatelessWidget {
                   fontSize: 17, fontWeight: FontWeight.w600)),
           const SizedBox(height: AppSpacing.sm),
           const Divider(height: 1, color: AppColors.border),
-          SizedBox(
-            height: 220,
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon,
-                      size: 32,
-                      color: AppColors.muted.withValues(alpha: 0.5)),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(hint,
-                      style: const TextStyle(
-                          color: AppColors.muted, fontSize: 13)),
-                ],
-              ),
-            ),
-          ),
+          const SizedBox(height: AppSpacing.sm),
+          child,
         ],
       ),
     );
