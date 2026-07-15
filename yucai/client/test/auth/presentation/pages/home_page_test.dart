@@ -18,6 +18,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:yucai_client/account/domain/entities/account_entity.dart';
@@ -271,6 +272,72 @@ Account _catAccount(AccountCategory cat, {int balance = 800000}) => Account(
       status: AccountStatus.active,
     );
 
+class _MockNavigatorObserver extends Mock implements NavigatorObserver {}
+
+/// 快捷操作 onTap 需 router(context.go)。独立 harness(MaterialApp.router +
+/// GoRouter + MockNavigatorObserver),不复用 _harness(隔离,避免与 NetWorth
+/// harness 的 MaterialApp 冲突)。mock 注册对齐 _harness(空数据)。
+Widget _routerHarness(_MockNavigatorObserver observer) {
+  final getIt = GetIt.instance;
+  getIt.registerSingleton<NetWorthDataSource>(_FakeNetWorthDs(() async => _view()));
+  getIt.registerSingleton<CurrencySettings>(_FakeCurrencySettings('CNY'));
+
+  final accountRepo = _MockAccountRepo();
+  when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right(<Account>[]));
+  final accountBloc = AccountBloc(
+    ListAccountsUseCase(accountRepo),
+    CreateAccountUseCase(accountRepo),
+    DeleteAccountUseCase(accountRepo),
+    GetAccountUseCase(accountRepo),
+    UpdateAccountUseCase(accountRepo),
+  );
+
+  final txnRepo = _MockTxnRepo();
+  when(() => txnRepo.list(any())).thenAnswer(
+    (_) async => dartz.Right(const ListTransactionsResult(transactions: [])),
+  );
+  getIt.registerSingleton<TransactionRepository>(txnRepo);
+
+  final debtRepo = _MockDebtRepo();
+  when(() => debtRepo.upcomingPayments(any()))
+      .thenAnswer((_) async => dartz.Right(<Debt>[]));
+  getIt.registerSingleton<DebtRepository>(debtRepo);
+
+  final holdingRepo = _MockHoldingRepo();
+  when(() => holdingRepo.listHoldings())
+      .thenAnswer((_) async => dartz.Right(<Holding>[]));
+  getIt.registerSingleton<HoldingRepository>(holdingRepo);
+
+  final router = GoRouter(
+    initialLocation: '/home',
+    observers: [observer],
+    routes: [
+      GoRoute(
+          path: '/home',
+          builder: (_, __) => const HomePage()),
+      GoRoute(
+          path: '/transactions/new',
+          builder: (_, __) => const Scaffold(body: Center(child: Text('txn_new')))),
+      GoRoute(
+          path: '/holdings/new',
+          builder: (_, __) => const Scaffold(body: Center(child: Text('holdings_new')))),
+      GoRoute(
+          path: '/reports',
+          builder: (_, __) => const Scaffold(body: Center(child: Text('reports_page')))),
+    ],
+  );
+  return MaterialApp.router(
+    routerConfig: router,
+    builder: (context, child) => MultiBlocProvider(
+      providers: [
+        BlocProvider<AuthBloc>.value(value: _SeededAuthedBloc()),
+        BlocProvider<AccountBloc>.value(value: accountBloc),
+      ],
+      child: child!,
+    ),
+  );
+}
+
 void main() {
   final getIt = GetIt.instance;
 
@@ -392,5 +459,21 @@ void main() {
 
     expect(find.text('招商银行房贷'), findsOneWidget);
     expect(find.text('暂无待办账单'), findsNothing);
+  });
+
+  // ───────────────────── Task 5: 快捷操作 onTap(router harness) ─────────────────────
+
+  testWidgets('快捷操作:点「生成报表」→ 导航 /reports', (t) async {
+    final observer = _MockNavigatorObserver();
+    await t.pumpWidget(_routerHarness(observer));
+    await t.pumpAndSettle();
+
+    // 默认 800x600 surface 下快捷操作 tile 在视口外,先滚入再 tap。
+    await t.ensureVisible(find.text('生成报表'));
+    await t.tap(find.text('生成报表'));
+    await t.pumpAndSettle();
+
+    // /reports builder 渲染 'reports_page'。
+    expect(find.text('reports_page'), findsOneWidget);
   });
 }
