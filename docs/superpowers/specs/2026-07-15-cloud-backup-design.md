@@ -1,7 +1,8 @@
 # 云备份 WebDAV · 设计 spec
 
 - **日期**: 2026-07-15
-- **状态**: spec(brainstorm 产物,待用户审 → writing-plans)
+- **状态**: ❌ **已取消**(cancelled 2026-07-15)— 御财本地优先(server Go gRPC + Postgres 本地部署),不需云盘备份;多设备同步同理由取消。**本文件保留作决策记录,勿实现。** 详见 memory `holding-asset-management-todo`(backup/sync decompose 段)。
+- ~~原状态: spec(brainstorm 产物,待用户审 → writing-plans)~~
 - **分支**: `holding-asset-management`
 - **范围**: 云备份 client UI + server 填骨架(WebDAV real impl + backup_settings schema + cloud 4 RPC 填充)。backup/sync decompose 第二子项目(本地备份 done,云备份本 spec;多设备同步后续独立 spec)
 - **前置**: 本地备份 client+server 已完成(e2e 三 bug 修复确认)。template 完整已完成。
