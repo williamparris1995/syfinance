@@ -50,16 +50,6 @@ Widget _harness(TransactionRepository repo) {
   return const MaterialApp(home: ReportPage());
 }
 
-/// 跨 RichText 文本查找(对齐 home_page_test 范式)。
-Finder _textContaining(String needle) => find.byWidgetPredicate((w) {
-      if (w is Text) {
-        return (w.data ?? '').contains(needle) ||
-            (w.textSpan?.toPlainText() ?? '').contains(needle);
-      }
-      if (w is RichText) return w.text.toPlainText().contains(needle);
-      return false;
-    });
-
 void main() {
   final getIt = GetIt.instance;
 
