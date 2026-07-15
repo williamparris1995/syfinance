@@ -712,3 +712,137 @@ func TestGetPortfolioPerformanceBaseCurrencyDefaultsCNY(t *testing.T) {
 // the response Currency stays the security's currency. Changing that is out of
 // scope for Task 7 (deferred to final review). The existing
 // TestGetHoldingPerformanceReturnsCurve covers the CNY-default path.
+
+// ---------------------------------------------------------------------------
+// Portfolio TWR field-mapping handler tests (range-TWR Task 3)
+//
+// Task 3 adds proto field 12 (range_twr_annualized_pct) and the handler now
+// copies perf.RangeTwrAnnualizedPct through to the proto response. These tests
+// pin the mapper behavior: nil stays nil (degraded → field-absent across the
+// wire, which is what distinguishes "degraded" from a real 0.0% on the client),
+// and non-nil values map through faithfully. The TWR math itself is exercised
+// in application/twr_service_test.go; here we only assert the handler mapping.
+// ---------------------------------------------------------------------------
+
+// TestGetPortfolioPerformanceTwrFieldsNilWhenNoTrades: with snapshots but NO
+// trades, portfolioTWR short-circuits to (nil, nil) (len(trades)==0). The
+// handler must leave both TwrAnnualizedPct and RangeTwrAnnualizedPct unset on
+// the proto response.
+func TestGetPortfolioPerformanceTwrFieldsNilWhenNoTrades(t *testing.T) {
+	h, tenantID, accountID, holdRepo, snapRepo, _ := setupPerfHarness(t)
+	ctx := ctxWithTenant(tenantID)
+
+	sec, err := h.CreateSecurity(ctx, &pb.CreateSecurityRequest{
+		Symbol: "600519", Name: "Kweichow Moutai",
+		SecurityType: pb.SecurityType_SECURITY_TYPE_STOCK, CurrencyCode: "CNY",
+	})
+	if err != nil {
+		t.Fatalf("CreateSecurity: %v", err)
+	}
+	secID := uuid.MustParse(sec.Security.Id)
+	holdingID := uuid.New()
+	if err := holdRepo.SaveOrUpdate(ctx, &domain.Holding{
+		ID: holdingID, TenantID: tenantID, AccountID: accountID, SecurityID: secID,
+		Quantity: 100, AvgCostCents: 100, CreatedAt: time.Now().AddDate(0, 0, -2),
+	}); err != nil {
+		t.Fatalf("seed holding: %v", err)
+	}
+	if err := snapRepo.Save(ctx, domain.HoldingSnapshot{
+		ID: uuid.New(), TenantID: tenantID, HoldingID: holdingID, SecurityID: secID, AccountID: accountID,
+		SnapshotDate: truncateToDateUTC(time.Now()), MarketValueCents: 10000, CurrencyCode: "CNY",
+	}); err != nil {
+		t.Fatalf("seed snapshot: %v", err)
+	}
+
+	resp, err := h.GetPortfolioPerformance(ctx, &pb.GetPortfolioPerformanceRequest{
+		AccountId: accountID.String(),
+		Range:     pb.CurveRange_CURVE_RANGE_DAY,
+	})
+	if err != nil {
+		t.Fatalf("GetPortfolioPerformance: %v", err)
+	}
+	if resp.TwrAnnualizedPct != nil {
+		t.Errorf("TwrAnnualizedPct = %v, want nil (no trades → degraded)", resp.TwrAnnualizedPct)
+	}
+	if resp.RangeTwrAnnualizedPct != nil {
+		t.Errorf("RangeTwrAnnualizedPct = %v, want nil (no trades → degraded)", resp.RangeTwrAnnualizedPct)
+	}
+}
+
+// TestGetPortfolioPerformanceRangeTwrMapsThrough: with ≥2 buys on distinct days
+// + price history, portfolioTWR resolves non-nil for both full and range, and
+// the handler copies both through. DAY rangeStart = today-30d; the opening buy
+// at -32d (before rangeStart → non-zero opening position) plus the effective buy
+// at -10d (after rangeStart → ≥1 effectiveDay) make the range resolve. Constant
+// price → TWR ≈ 0. We cross-check against the service DTO to assert the value
+// is copied faithfully (guards field-swap/drop) without replicating TWR math.
+func TestGetPortfolioPerformanceRangeTwrMapsThrough(t *testing.T) {
+	h, tenantID, accountID, _, _, phRepo := setupPerfHarness(t)
+	ctx := ctxWithTenant(tenantID)
+
+	sec, err := h.CreateSecurity(ctx, &pb.CreateSecurityRequest{
+		Symbol: "600519", Name: "Kweichow Moutai",
+		SecurityType: pb.SecurityType_SECURITY_TYPE_STOCK, CurrencyCode: "CNY",
+	})
+	if err != nil {
+		t.Fatalf("CreateSecurity: %v", err)
+	}
+	secID := uuid.MustParse(sec.Security.Id)
+	// currentPrice feeds finalValue (currentMarketValueInBase uses security.CurrentPriceCents).
+	if _, err := h.UpdateSecurityPrice(ctx, &pb.UpdatePriceRequest{
+		SecurityId: sec.Security.Id, PriceCents: 10000,
+	}); err != nil {
+		t.Fatalf("UpdateSecurityPrice: %v", err)
+	}
+
+	// Opening buy before DAY rangeStart + effective buy after it → range resolves.
+	dayOpen := truncateToDateUTC(time.Now().AddDate(0, 0, -32))
+	dayEff := truncateToDateUTC(time.Now().AddDate(0, 0, -10))
+	for _, d := range []time.Time{dayOpen, dayEff} {
+		if _, err := h.BuyHolding(ctx, &pb.HoldingTradeRequest{
+			AccountId:     accountID.String(),
+			SecurityId:    sec.Security.Id,
+			FromAccountId: uuid.New().String(),
+			Quantity:      10, PriceCents: 10000,
+			TradeDate: d.Format("2006-01-02"),
+		}); err != nil {
+			t.Fatalf("BuyHolding %s: %v", d.Format("2006-01-02"), err)
+		}
+	}
+	// Price history at the two cashFlowDays (forward-fill covers rangeStart+1d
+	// and effectiveDay+1d as-of lookups in computeTWR).
+	if err := phRepo.SaveAll(ctx, []domain.SecurityPriceHistory{
+		{ID: uuid.New(), SecurityID: secID, PriceDate: dayOpen, PriceCents: 10000, CurrencyCode: "CNY", Source: "test"},
+		{ID: uuid.New(), SecurityID: secID, PriceDate: dayEff, PriceCents: 10000, CurrencyCode: "CNY", Source: "test"},
+	}); err != nil {
+		t.Fatalf("seed price history: %v", err)
+	}
+
+	resp, err := h.GetPortfolioPerformance(ctx, &pb.GetPortfolioPerformanceRequest{
+		AccountId: accountID.String(),
+		Range:     pb.CurveRange_CURVE_RANGE_DAY,
+	})
+	if err != nil {
+		t.Fatalf("GetPortfolioPerformance: %v", err)
+	}
+	if resp.TwrAnnualizedPct == nil {
+		t.Fatal("TwrAnnualizedPct nil, want non-nil (2 cashFlowDays + price history present)")
+	}
+	if resp.RangeTwrAnnualizedPct == nil {
+		t.Fatal("RangeTwrAnnualizedPct nil, want non-nil (opening -32d + effective -10d straddle DAY rangeStart -30d)")
+	}
+
+	// Cross-check: handler response matches the service DTO value (same seed →
+	// same deterministic value; proves the field is copied, not dropped/swapped).
+	acct := accountID
+	dto, err := h.service.GetPortfolioPerformance(ctx, tenantID, &acct, "DAY", false, "")
+	if err != nil {
+		t.Fatalf("service GetPortfolioPerformance: %v", err)
+	}
+	if dto.RangeTwrAnnualizedPct == nil {
+		t.Fatal("service DTO RangeTwrAnnualizedPct nil, expected non-nil")
+	}
+	if got, want := *resp.RangeTwrAnnualizedPct, *dto.RangeTwrAnnualizedPct; got != want {
+		t.Errorf("RangeTwrAnnualizedPct = %v, want %v (service DTO)", got, want)
+	}
+}

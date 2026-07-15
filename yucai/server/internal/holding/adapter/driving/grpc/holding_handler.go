@@ -298,17 +298,18 @@ func (h *HoldingHandler) GetPortfolioPerformance(ctx context.Context, req *pb.Ge
 	// Proto optional (Task 5) accepts the pointer directly — nil round-trips
 	// as field-absent across the wire, distinguishing degraded vs 0.0%.
 	return &pb.PortfolioPerformanceResponse{
-		PortfolioPoints:    curvePointsToProto(perf.PortfolioPoints),
-		BenchmarkPoints:    curvePointsToProto(perf.BenchmarkPoints),
-		BenchmarkName:      perf.BenchmarkName,
-		RealizedCents:      perf.RealizedCents,
-		UnrealizedCents:    perf.UnrealizedCents,
-		TotalCents:         perf.TotalCents,
-		AnnualizedPct:      perf.AnnualizedPct,
-		RangeAnnualizedPct: perf.RangeAnnualizedPct,
-		TwrAnnualizedPct:   perf.TwrAnnualizedPct,
-		TotalPct:           perf.TotalPct,
-		Currency:           perf.Currency,
+		PortfolioPoints:       curvePointsToProto(perf.PortfolioPoints),
+		BenchmarkPoints:       curvePointsToProto(perf.BenchmarkPoints),
+		BenchmarkName:         perf.BenchmarkName,
+		RealizedCents:         perf.RealizedCents,
+		UnrealizedCents:       perf.UnrealizedCents,
+		TotalCents:            perf.TotalCents,
+		AnnualizedPct:         perf.AnnualizedPct,
+		RangeAnnualizedPct:    perf.RangeAnnualizedPct,
+		TwrAnnualizedPct:      perf.TwrAnnualizedPct,
+		RangeTwrAnnualizedPct: perf.RangeTwrAnnualizedPct,
+		TotalPct:              perf.TotalPct,
+		Currency:              perf.Currency,
 	}, nil
 }
 

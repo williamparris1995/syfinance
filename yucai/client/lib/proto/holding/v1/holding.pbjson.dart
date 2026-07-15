@@ -686,11 +686,21 @@ const PortfolioPerformanceResponse$json = {
       '10': 'twrAnnualizedPct',
       '17': true
     },
+    {
+      '1': 'range_twr_annualized_pct',
+      '3': 12,
+      '4': 1,
+      '5': 1,
+      '9': 3,
+      '10': 'rangeTwrAnnualizedPct',
+      '17': true
+    },
   ],
   '8': [
     {'1': '_annualized_pct'},
     {'1': '_range_annualized_pct'},
     {'1': '_twr_annualized_pct'},
+    {'1': '_range_twr_annualized_pct'},
   ],
 };
 
@@ -705,8 +715,10 @@ final $typed_data.Uint8List portfolioPerformanceResponseDescriptor = $convert.ba
     'DmFubnVhbGl6ZWRfcGN0GAcgASgBSABSDWFubnVhbGl6ZWRQY3SIAQESGwoJdG90YWxfcGN0GA'
     'ggASgBUgh0b3RhbFBjdBIaCghjdXJyZW5jeRgJIAEoCVIIY3VycmVuY3kSNQoUcmFuZ2VfYW5u'
     'dWFsaXplZF9wY3QYCiABKAFIAVIScmFuZ2VBbm51YWxpemVkUGN0iAEBEjEKEnR3cl9hbm51YW'
-    'xpemVkX3BjdBgLIAEoAUgCUhB0d3JBbm51YWxpemVkUGN0iAEBQhEKD19hbm51YWxpemVkX3Bj'
-    'dEIXChVfcmFuZ2VfYW5udWFsaXplZF9wY3RCFQoTX3R3cl9hbm51YWxpemVkX3BjdA==');
+    'xpemVkX3BjdBgLIAEoAUgCUhB0d3JBbm51YWxpemVkUGN0iAEBEjwKGHJhbmdlX3R3cl9hbm51'
+    'YWxpemVkX3BjdBgMIAEoAUgDUhVyYW5nZVR3ckFubnVhbGl6ZWRQY3SIAQFCEQoPX2FubnVhbG'
+    'l6ZWRfcGN0QhcKFV9yYW5nZV9hbm51YWxpemVkX3BjdEIVChNfdHdyX2FubnVhbGl6ZWRfcGN0'
+    'QhsKGV9yYW5nZV90d3JfYW5udWFsaXplZF9wY3Q=');
 
 @$core.Deprecated('Use getHoldingPerformanceRequestDescriptor instead')
 const GetHoldingPerformanceRequest$json = {

@@ -1999,6 +1999,7 @@ class PortfolioPerformanceResponse extends $pb.GeneratedMessage {
     $core.String? currency,
     $core.double? rangeAnnualizedPct,
     $core.double? twrAnnualizedPct,
+    $core.double? rangeTwrAnnualizedPct,
   }) {
     final result = create();
     if (portfolioPoints != null) result.portfolioPoints.addAll(portfolioPoints);
@@ -2013,6 +2014,8 @@ class PortfolioPerformanceResponse extends $pb.GeneratedMessage {
     if (rangeAnnualizedPct != null)
       result.rangeAnnualizedPct = rangeAnnualizedPct;
     if (twrAnnualizedPct != null) result.twrAnnualizedPct = twrAnnualizedPct;
+    if (rangeTwrAnnualizedPct != null)
+      result.rangeTwrAnnualizedPct = rangeTwrAnnualizedPct;
     return result;
   }
 
@@ -2043,6 +2046,7 @@ class PortfolioPerformanceResponse extends $pb.GeneratedMessage {
     ..aOS(9, _omitFieldNames ? '' : 'currency')
     ..aD(10, _omitFieldNames ? '' : 'rangeAnnualizedPct')
     ..aD(11, _omitFieldNames ? '' : 'twrAnnualizedPct')
+    ..aD(12, _omitFieldNames ? '' : 'rangeTwrAnnualizedPct')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2153,6 +2157,15 @@ class PortfolioPerformanceResponse extends $pb.GeneratedMessage {
   $core.bool hasTwrAnnualizedPct() => $_has(10);
   @$pb.TagNumber(11)
   void clearTwrAnnualizedPct() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.double get rangeTwrAnnualizedPct => $_getN(11);
+  @$pb.TagNumber(12)
+  set rangeTwrAnnualizedPct($core.double value) => $_setDouble(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasRangeTwrAnnualizedPct() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearRangeTwrAnnualizedPct() => $_clearField(12);
 }
 
 class GetHoldingPerformanceRequest extends $pb.GeneratedMessage {
