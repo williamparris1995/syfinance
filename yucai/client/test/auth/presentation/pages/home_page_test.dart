@@ -45,7 +45,11 @@ import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/entities/net_worth_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
+import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
+import 'package:yucai_client/holding/domain/value_objects.dart' as holding_vo;
+import 'package:yucai_client/debt/domain/value_objects.dart' as debt_vo;
+import 'package:yucai_client/holding/presentation/widgets/holding_pie_chart.dart';
 
 class _MockLogin extends Mock implements LoginUseCase {}
 class _MockRegister extends Mock implements RegisterUseCase {}
@@ -141,17 +145,19 @@ NetWorthView _view({
 Widget _harness({
   required Future<NetWorthView> Function() netWorthResult,
   required String baseCurrency,
+  List<Account>? accounts,
+  List<Transaction> txns = const [],
+  List<Holding> holdings = const [],
+  List<Debt> debts = const [],
 }) {
   final getIt = GetIt.instance;
   getIt.registerSingleton<NetWorthDataSource>(_FakeNetWorthDs(netWorthResult));
   getIt.registerSingleton<CurrencySettings>(_FakeCurrencySettings(baseCurrency));
 
+  // accounts: null → 默认 1 笔储蓄(维持现有 NetWorth test 的流动资产断言)。
+  final accs = accounts ?? [_account()];
   final accountRepo = _MockAccountRepo();
-  // 提供一笔储蓄账户(1200000 cents)→ _SummaryRow 流动资产 = ¥12,000.00
-  // (维持既有断言;A1 拆分从 accounts 算而非 assetTotal)。
-  when(() => accountRepo.list()).thenAnswer(
-    (_) async => dartz.Right([_account()]),
-  );
+  when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right(accs));
 
   final accountBloc = AccountBloc(
     ListAccountsUseCase(accountRepo),
@@ -161,22 +167,23 @@ Widget _harness({
     UpdateAccountUseCase(accountRepo),
   );
 
-  // 仪表盘 3 个面板经 getIt 直接拉仓储(占位修复):注册空结果 mock,
-  // 面板渲染空态。lazySingleton 注册对齐 injection.config.dart。
+  // 近期交易 panel。
   final txnRepo = _MockTxnRepo();
   when(() => txnRepo.list(any())).thenAnswer(
-    (_) async => dartz.Right(const ListTransactionsResult(transactions: [])),
+    (_) async => dartz.Right(ListTransactionsResult(transactions: txns)),
   );
   getIt.registerSingleton<TransactionRepository>(txnRepo);
 
+  // 即将到期 panel。
   final debtRepo = _MockDebtRepo();
   when(() => debtRepo.upcomingPayments(any()))
-      .thenAnswer((_) async => dartz.Right(<Debt>[]));
+      .thenAnswer((_) async => dartz.Right(debts));
   getIt.registerSingleton<DebtRepository>(debtRepo);
 
+  // 资产配置 panel(HoldingBloc 内部 getIt<HoldingRepository>)。
   final holdingRepo = _MockHoldingRepo();
   when(() => holdingRepo.listHoldings())
-      .thenAnswer((_) async => dartz.Right(<Holding>[]));
+      .thenAnswer((_) async => dartz.Right(holdings));
   getIt.registerSingleton<HoldingRepository>(holdingRepo);
 
   final authBloc = _SeededAuthedBloc();
