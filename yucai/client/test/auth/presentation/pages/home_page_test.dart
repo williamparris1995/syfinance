@@ -272,12 +272,11 @@ Account _catAccount(AccountCategory cat, {int balance = 800000}) => Account(
       status: AccountStatus.active,
     );
 
-class _MockNavigatorObserver extends Mock implements NavigatorObserver {}
-
 /// 快捷操作 onTap 需 router(context.go)。独立 harness(MaterialApp.router +
-/// GoRouter + MockNavigatorObserver),不复用 _harness(隔离,避免与 NetWorth
-/// harness 的 MaterialApp 冲突)。mock 注册对齐 _harness(空数据)。
-Widget _routerHarness(_MockNavigatorObserver observer) {
+/// GoRouter),不复用 _harness(隔离,避免与 NetWorth harness 的 MaterialApp
+/// 冲突)。mock 注册对齐 _harness(空数据)。导航验证靠 find.text(目标路由
+/// builder 渲染),无需 NavigatorObserver。
+Widget _routerHarness() {
   final getIt = GetIt.instance;
   getIt.registerSingleton<NetWorthDataSource>(_FakeNetWorthDs(() async => _view()));
   getIt.registerSingleton<CurrencySettings>(_FakeCurrencySettings('CNY'));
@@ -310,7 +309,6 @@ Widget _routerHarness(_MockNavigatorObserver observer) {
 
   final router = GoRouter(
     initialLocation: '/home',
-    observers: [observer],
     routes: [
       GoRoute(
           path: '/home',
@@ -464,8 +462,7 @@ void main() {
   // ───────────────────── Task 5: 快捷操作 onTap(router harness) ─────────────────────
 
   testWidgets('快捷操作:点「生成报表」→ 导航 /reports', (t) async {
-    final observer = _MockNavigatorObserver();
-    await t.pumpWidget(_routerHarness(observer));
+    await t.pumpWidget(_routerHarness());
     await t.pumpAndSettle();
 
     // 默认 800x600 surface 下快捷操作 tile 在视口外,先滚入再 tap。
@@ -481,8 +478,7 @@ void main() {
   // 补测 — Task 5 仅测 /reports;转账与记一笔同路由,测记一笔即可代表。
 
   testWidgets('快捷操作:点「记一笔」→ 导航 /transactions/new', (t) async {
-    final observer = _MockNavigatorObserver();
-    await t.pumpWidget(_routerHarness(observer));
+    await t.pumpWidget(_routerHarness());
     await t.pumpAndSettle();
 
     await t.ensureVisible(find.text('记一笔'));
@@ -493,8 +489,7 @@ void main() {
   });
 
   testWidgets('快捷操作:点「买入投资」→ 导航 /holdings/new', (t) async {
-    final observer = _MockNavigatorObserver();
-    await t.pumpWidget(_routerHarness(observer));
+    await t.pumpWidget(_routerHarness());
     await t.pumpAndSettle();
 
     await t.ensureVisible(find.text('买入投资'));
