@@ -1224,10 +1224,58 @@ func (s *Service) portfolioXIRR(ctx context.Context, tenantID uuid.UUID, account
 	return full, rng, nil
 }
 
-// portfolioTWR computes portfolio-level full-period TWR (base-converted, GIPS
-// sub-period chaining). Degrades to nil on insufficient data or missing prices.
-// subPeriods start from i>0 (first buy's BV_after is the initial BeginValue,
-// avoiding divide-by-zero on empty pre-buy position — see spec risk #4).
+// computeTWR computes GIPS TWR over [rangeStart, now] using sub-period chaining.
+// Generalized from portfolioTWR: full-period is rangeStart=cashFlowDays[0] (a
+// special case — byte-identical to the original portfolioTWR). Returns nil on
+// insufficient data or missing prices (degrade, mirrors portfolioTWR).
+//
+//	effectiveDays = cashFlowDays strictly after rangeStart (sub-period endpoints)
+//	begin = BV_after(rangeStart) = qty@rangeStart+1d × price@rangeStart
+//	subPeriods[i] = {Begin: prevAfter, End: BV_before(day_i)}
+//	finalValue = current market value; totalDays = rangeStart→now
+func (s *Service) computeTWR(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID, base string, rateBase float64, trades []domain.HoldingTransaction, cashFlowDays []time.Time, rangeStart time.Time) (*float64, error) {
+	var effectiveDays []time.Time
+	for _, d := range cashFlowDays {
+		if d.After(rangeStart) {
+			effectiveDays = append(effectiveDays, d)
+		}
+	}
+	if len(effectiveDays) == 0 {
+		return nil, nil
+	}
+	beginAfter, ok := s.marketValueAtDateAsOfWithTrades(ctx, trades, tenantID, accountID, rangeStart.AddDate(0, 0, 1), rangeStart, rateBase, base)
+	if !ok {
+		return nil, nil
+	}
+	prevAfter := float64(beginAfter)
+	subPeriods := make([]domain.SubPeriodReturn, 0, len(effectiveDays))
+	for _, day := range effectiveDays {
+		bvBefore, ok := s.marketValueAtDateAsOfWithTrades(ctx, trades, tenantID, accountID, day, day, rateBase, base)
+		if !ok {
+			return nil, nil
+		}
+		subPeriods = append(subPeriods, domain.SubPeriodReturn{
+			BeginValueAfterCF: prevAfter,
+			EndValueBeforeCF:  float64(bvBefore),
+		})
+		bvAfter, ok := s.marketValueAtDateAsOfWithTrades(ctx, trades, tenantID, accountID, day.AddDate(0, 0, 1), day, rateBase, base)
+		if !ok {
+			return nil, nil
+		}
+		prevAfter = float64(bvAfter)
+	}
+	finalValue := s.currentMarketValueInBase(ctx, tenantID, accountID, base)
+	totalDays := int(time.Since(rangeStart).Hours() / 24)
+	rate, err := domain.TWR(subPeriods, float64(finalValue), prevAfter, totalDays)
+	if err != nil {
+		return nil, nil
+	}
+	return ptrFloat(rate), nil
+}
+
+// portfolioTWR computes full-period TWR for the portfolio (base currency).
+// Full period = rangeStart = first trade date (cashFlowDays[0]). Degrades to
+// nil on insufficient data or missing prices.
 func (s *Service) portfolioTWR(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID, baseCurrency string) (*float64, error) {
 	base := baseCurrency
 	if base == "" {
@@ -1240,38 +1288,9 @@ func (s *Service) portfolioTWR(ctx context.Context, tenantID uuid.UUID, accountI
 	}
 	cashFlowDays := uniqueSortedTradeDates(trades)
 	if len(cashFlowDays) < 2 {
-		return nil, nil // 需 ≥2 现金流日才有子区间
-	}
-	subPeriods := make([]domain.SubPeriodReturn, 0, len(cashFlowDays)-1)
-	var prevAfterCF float64
-	for i, day := range cashFlowDays {
-		// Pass the hoisted `trades` slice (Task 3 review Important #1 perf fix):
-		// marketValueAtDateAsOfWithTrades skips the per-call allTradesForTenant
-		// fetch that marketValueAtDateAsOf would do — N cashFlowDays × 2 calls
-		// → 2N round trips avoided. Trades are invariant across the loop.
-		BV_before, ok := s.marketValueAtDateAsOfWithTrades(ctx, trades, tenantID, accountID, day, day, rateBase, base)
-		if !ok {
-			return nil, nil // price 缺 → 降级
-		}
-		BV_after, ok := s.marketValueAtDateAsOfWithTrades(ctx, trades, tenantID, accountID, day.AddDate(0, 0, 1), day, rateBase, base)
-		if !ok {
-			return nil, nil
-		}
-		if i > 0 {
-			subPeriods = append(subPeriods, domain.SubPeriodReturn{BeginValueAfterCF: prevAfterCF, EndValueBeforeCF: float64(BV_before)})
-		}
-		prevAfterCF = float64(BV_after)
-	}
-	if len(subPeriods) == 0 {
 		return nil, nil
 	}
-	finalValue := s.currentMarketValueInBase(ctx, tenantID, accountID, base)
-	totalDays := int(time.Since(cashFlowDays[0]).Hours() / 24)
-	rate, err := domain.TWR(subPeriods, float64(finalValue), prevAfterCF, totalDays)
-	if err != nil {
-		return nil, nil
-	}
-	return ptrFloat(rate), nil
+	return s.computeTWR(ctx, tenantID, accountID, base, rateBase, trades, cashFlowDays, cashFlowDays[0])
 }
 
 // uniqueSortedTradeDates extracts unique trade_date values sorted ascending.
