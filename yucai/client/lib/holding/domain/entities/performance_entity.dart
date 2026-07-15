@@ -29,6 +29,7 @@ class PortfolioPerformance extends Equatable {
     this.annualizedPct, // double?(全期 XIRR 资金加权,null=降级)
     this.rangeAnnualizedPct, // double?(区间 XIRR 资金加权)
     this.twrAnnualizedPct, // double?(全期 TWR 时间加权,null=降级)
+    this.rangeTwrAnnualizedPct, // double?(区间 TWR 时间加权,null=降级/区间不足)
     this.totalPct = 0,
     this.currency = 'CNY',
   });
@@ -44,6 +45,10 @@ class PortfolioPerformance extends Equatable {
   /// 全期 TWR(时间加权年化)。null=server 未算/数据不足 → UI 显「—」。
   /// 与 [annualizedPct](XIRR 资金加权)并列,提供双维度收益视角。
   final double? twrAnnualizedPct;
+  /// 区间 TWR(时间加权年化,随 CurveRange)。null=server 未算/区间不足 →
+  /// UI 不渲染区间副标注。与 [twrAnnualizedPct](全期 TWR)并列,镜像
+  /// [rangeAnnualizedPct](区间 XIRR)的区间维度。
+  final double? rangeTwrAnnualizedPct;
   final double totalPct;
   final String currency;
 
@@ -58,6 +63,7 @@ class PortfolioPerformance extends Equatable {
         annualizedPct,
         rangeAnnualizedPct,
         twrAnnualizedPct,
+        rangeTwrAnnualizedPct,
         totalPct,
         currency,
       ];

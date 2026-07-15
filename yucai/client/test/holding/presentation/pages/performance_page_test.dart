@@ -619,4 +619,77 @@ void main() {
     expect(t.widget<Text>(find.byKey(const ValueKey('annualTwrValue'))).data,
         '—');
   });
+
+  // range TWR Task 4:rangeTwrAnnualizedPct 非空 → 时间加权行渲染区间 TWR 副标注
+  // (对齐资金加权行的区间 XIRR 副标注模式)。值沿用现有约定(percentage,
+  // toStringAsFixed(1)):5.4 → "区间 +5.4%"。
+  testWidgets(
+    'range TWR: renders 区间 sub when rangeTwrAnnualizedPct non-null',
+    (t) async {
+      await setViewport(t);
+      final repo = _MockHoldingRepo();
+      _stubHoldings(repo, [_holding(unrealizedPnlCents: 250000)]);
+      when(() => repo.getPortfolioPerformance(
+            range: any(named: 'range'),
+            accountId: any(named: 'accountId'),
+            includeBenchmark: any(named: 'includeBenchmark'),
+            baseCurrency: any(named: 'baseCurrency'),
+          )).thenAnswer((_) async => const dartz.Right(PortfolioPerformance(
+                realizedCents: 0,
+                unrealizedCents: 0,
+                totalCents: 0,
+                annualizedPct: 8.5,
+                twrAnnualizedPct: 7.2,
+                rangeTwrAnnualizedPct: 5.4,
+              )));
+
+      await t.pumpWidget(_harness(repo: repo));
+      await t.pumpAndSettle();
+
+      // 全期 TWR +7.2%(annualTwrValue key 节点)。
+      expect(t.widget<Text>(find.byKey(const ValueKey('annualTwrValue'))).data,
+          '+7.2%');
+      // 区间 TWR 副标注渲染(annualRangeTwrSub key):含「区间」+「+5.4%」。
+      expect(find.byKey(const ValueKey('annualRangeTwrSub')), findsOneWidget);
+      expect(
+          t.widget<Text>(find.byKey(const ValueKey('annualRangeTwrSub'))).data,
+          contains('区间'));
+      expect(
+          t.widget<Text>(find.byKey(const ValueKey('annualRangeTwrSub'))).data,
+          contains('+5.4%'));
+    },
+  );
+
+  // range TWR Task 4 降级:rangeTwrAnnualizedPct null → 不渲染区间 TWR 副标注
+  // (全期 TWR 仍正常,区间独立降级,镜像 range XIRR null → 无副标注)。
+  testWidgets(
+    'range TWR: no 区间 sub when rangeTwrAnnualizedPct null (range degraded)',
+    (t) async {
+      await setViewport(t);
+      final repo = _MockHoldingRepo();
+      _stubHoldings(repo, [_holding(unrealizedPnlCents: 250000)]);
+      when(() => repo.getPortfolioPerformance(
+            range: any(named: 'range'),
+            accountId: any(named: 'accountId'),
+            includeBenchmark: any(named: 'includeBenchmark'),
+            baseCurrency: any(named: 'baseCurrency'),
+          )).thenAnswer((_) async => const dartz.Right(PortfolioPerformance(
+                realizedCents: 0,
+                unrealizedCents: 0,
+                totalCents: 0,
+                annualizedPct: 8.5,
+                twrAnnualizedPct: 7.2,
+                // rangeTwrAnnualizedPct 故意省 → null(区间 TWR 降级,全期 TWR 正常)。
+              )));
+
+      await t.pumpWidget(_harness(repo: repo));
+      await t.pumpAndSettle();
+
+      // 全期 TWR 仍正常:+7.2%。
+      expect(t.widget<Text>(find.byKey(const ValueKey('annualTwrValue'))).data,
+          '+7.2%');
+      // 区间 TWR 副标注不渲染(null 降级)。
+      expect(find.byKey(const ValueKey('annualRangeTwrSub')), findsNothing);
+    },
+  );
 }

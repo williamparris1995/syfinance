@@ -674,6 +674,11 @@ class _PerformancePageState extends State<PerformancePage> {
     final twrValue = hasTwr
         ? '${loaded.twrAnnualizedPct! >= 0 ? '+' : ''}${loaded.twrAnnualizedPct!.toStringAsFixed(1)}%'
         : '—';
+    // range TWR(时间加权 区间)副标注:镜像 range XIRR 副标注(rangeSub)的区间维度,
+    // 对齐现有格式(percentage,toStringAsFixed(1),带「区间」前缀)。null → 不渲染。
+    final rangeTwrSub = loaded?.rangeTwrAnnualizedPct != null
+        ? '区间 ${loaded!.rangeTwrAnnualizedPct! >= 0 ? '+' : ''}${loaded.rangeTwrAnnualizedPct!.toStringAsFixed(1)}%'
+        : null;
     // ⑤ 基准名:server benchmarkName(有)/「⏳C mock」(无)。
     final hasBenchmark = loaded != null && loaded.benchmarkName.isNotEmpty;
     final benchLabel = hasBenchmark
@@ -719,6 +724,7 @@ class _PerformancePageState extends State<PerformancePage> {
             key: const ValueKey('annualValue'),
           ),
           // Task 6 TWR(时间加权 全期):server twrAnnualizedPct(无 → 「—」)。
+          // range TWR(区间)副标注:对齐资金加权行的区间 XIRR 副标注模式。
           _annualRow(
             icon: LucideIcons.timer,
             label: '时间加权',
@@ -728,6 +734,8 @@ class _PerformancePageState extends State<PerformancePage> {
                     ? AppColors.positive
                     : AppColors.negative)
                 : AppColors.muted,
+            sub: rangeTwrSub,
+            subKey: const ValueKey('annualRangeTwrSub'),
             key: const ValueKey('annualTwrValue'),
           ),
           // 累计行:✅ 从 holdings 算(unrealized/totalCost)。
@@ -753,12 +761,15 @@ class _PerformancePageState extends State<PerformancePage> {
 
   /// 年化行(icon + label + value/可选 sub 副标注)。
   /// Task 7:`sub` 用于区间 XIRR 副标注(小字 muted,value 下方右对齐)。
+  /// range TWR Task 4:第二个 sub(区间 TWR 副标注),需独立 `subKey` 区分
+  /// (否则两 sub 共用 annualRangeSub key → duplicate key,find.byKey 模糊)。
   Widget _annualRow({
     required IconData icon,
     required String label,
     required String value,
     required Color valueColor,
     String? sub,
+    Key? subKey,
     Key? key,
   }) {
     return Container(
@@ -788,7 +799,7 @@ class _PerformancePageState extends State<PerformancePage> {
                       fontFeatures: AppTypography.tabularFigures)),
               if (sub != null)
                 Text(sub,
-                    key: const ValueKey('annualRangeSub'),
+                    key: subKey ?? const ValueKey('annualRangeSub'),
                     style: const TextStyle(
                         fontSize: 11,
                         color: AppColors.muted,

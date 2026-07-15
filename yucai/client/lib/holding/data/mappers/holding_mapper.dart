@@ -202,6 +202,8 @@ PortfolioPerformance portfolioResponseToEntity(
       annualizedPct: r.hasAnnualizedPct() ? r.annualizedPct : null,
       rangeAnnualizedPct: r.hasRangeAnnualizedPct() ? r.rangeAnnualizedPct : null,
       twrAnnualizedPct: r.hasTwrAnnualizedPct() ? r.twrAnnualizedPct : null,
+      rangeTwrAnnualizedPct:
+          r.hasRangeTwrAnnualizedPct() ? r.rangeTwrAnnualizedPct : null,
       totalPct: r.totalPct,
       currency: r.currency,
     );
