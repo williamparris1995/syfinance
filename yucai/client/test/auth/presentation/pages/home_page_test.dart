@@ -214,6 +214,63 @@ Finder _textContaining(String needle) => find.byWidgetPredicate(
       },
     );
 
+// ───────────────────── Task 4: 5 panel 非空态 fixture helpers ─────────────────────
+
+Transaction _txn({String desc = '咖啡消费', int debit = 2500}) => Transaction(
+      id: 't1',
+      transactionDate: DateTime(2026, 7, 1),
+      description: desc,
+      entries: [
+        TransactionEntry(accountId: 'a1', debitCents: debit, creditCents: 0),
+      ],
+    );
+
+Holding _holding(
+        {holding_vo.SecurityType type = holding_vo.SecurityType.stock,
+        int mv = 500000}) =>
+    Holding(
+      id: 'h1',
+      accountId: 'a1',
+      securityId: 's1',
+      securityName: '贵州茅台',
+      securitySymbol: '600519',
+      quantity: 10,
+      avgCostCents: 50000,
+      marketValueCents: mv,
+      unrealizedPnlCents: 0,
+      version: 1,
+      securityType: type,
+    );
+
+Debt _debt({String name = '招商银行', int amt = 300000}) => Debt(
+      id: 'd1',
+      accountId: 'a1',
+      counterparty: name,
+      interestRate: 4.5,
+      amortization: debt_vo.AmortizationMethod.equalPrincipalInterest,
+      startDate: DateTime(2026, 1, 1),
+      dueDate: DateTime(2030, 1, 1),
+      totalPrincipalCents: 1000000,
+      remainingPrincipalCents: 900000,
+      version: 1,
+      createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
+      nextPaymentDate: DateTime(2026, 8, 1),
+      nextPaymentAmountCents: amt,
+    );
+
+Account _catAccount(AccountCategory cat, {int balance = 800000}) => Account(
+      id: 'a-${cat.name}',
+      name: 'test',
+      accountType: cat.accountType,
+      category: cat,
+      currencyCode: 'CNY',
+      initialBalanceCents: balance,
+      currentBalanceCents: balance,
+      ownership: Ownership.personal,
+      status: AccountStatus.active,
+    );
+
 void main() {
   final getIt = GetIt.instance;
 
@@ -279,5 +336,61 @@ void main() {
 
     // FutureBuilder error → _NetWorthCard error=true → '加载失败'。
     expect(_textContaining('加载失败'), findsWidgets);
+  });
+
+  // ───────────────────── Task 4: 5 panel 非空态测试 ─────────────────────
+
+  testWidgets('投资/固定资产:汇总非零(非 ¥ 0.00)', (t) async {
+    await t.pumpWidget(_harness(
+      netWorthResult: () async => _view(),
+      baseCurrency: 'CNY',
+      accounts: [
+        _catAccount(AccountCategory.investment, balance: 1200000),
+        _catAccount(AccountCategory.fixedDeposit, balance: 500000),
+      ],
+    ));
+    await t.pumpAndSettle();
+
+    expect(find.text('投资资产'), findsOneWidget);
+    expect(find.text('固定资产'), findsOneWidget);
+    // 投资 1200000 cents = ¥12,000.00;固定 500000 = ¥5,000.00(grouped 整数部分)。
+    expect(_textContaining('12,000'), findsWidgets);
+    expect(_textContaining('5,000'), findsWidgets);
+  });
+
+  testWidgets('近期交易非空:显示交易描述(非「暂无交易记录」)', (t) async {
+    await t.pumpWidget(_harness(
+      netWorthResult: () async => _view(),
+      baseCurrency: 'CNY',
+      txns: [_txn(desc: '星巴克拿铁')],
+    ));
+    await t.pumpAndSettle();
+
+    expect(find.text('星巴克拿铁'), findsOneWidget);
+    expect(find.text('暂无交易记录'), findsNothing);
+  });
+
+  testWidgets('资产配置非空:渲染 HoldingPieChart(非「暂无持仓数据」)', (t) async {
+    await t.pumpWidget(_harness(
+      netWorthResult: () async => _view(),
+      baseCurrency: 'CNY',
+      holdings: [_holding()],
+    ));
+    await t.pumpAndSettle();
+
+    expect(find.byType(HoldingPieChart), findsOneWidget);
+    expect(find.text('暂无持仓数据'), findsNothing);
+  });
+
+  testWidgets('即将到期非空:显示债权方(非「暂无待办账单」)', (t) async {
+    await t.pumpWidget(_harness(
+      netWorthResult: () async => _view(),
+      baseCurrency: 'CNY',
+      debts: [_debt(name: '招商银行房贷')],
+    ));
+    await t.pumpAndSettle();
+
+    expect(find.text('招商银行房贷'), findsOneWidget);
+    expect(find.text('暂无待办账单'), findsNothing);
   });
 }
