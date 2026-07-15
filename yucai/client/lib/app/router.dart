@@ -66,6 +66,7 @@ import 'package:yucai_client/tag/presentation/bloc/tag_bloc.dart';
 import 'package:yucai_client/tag/presentation/pages/tag_page.dart';
 import 'package:yucai_client/template/presentation/bloc/template_bloc.dart';
 import 'package:yucai_client/template/presentation/pages/template_page.dart';
+import 'package:yucai_client/report/presentation/pages/report_page.dart';
 import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
 import 'package:yucai_client/transaction/presentation/bloc/category_bloc.dart';
 import 'package:yucai_client/transaction/presentation/bloc/transaction_bloc.dart';
@@ -100,6 +101,7 @@ GoRouter buildRouter(AuthBloc authBloc) {
           state.matchedLocation.startsWith('/holdings') ||
           state.matchedLocation.startsWith('/budgets') ||
           state.matchedLocation.startsWith('/goals') ||
+          state.matchedLocation.startsWith('/reports') ||
           state.matchedLocation.startsWith('/settings');
 
       if (isLoading) return null;
@@ -884,6 +886,14 @@ GoRouter buildRouter(AuthBloc authBloc) {
             ],
           ),
         ],
+      ),
+      // 报表分析（顶层路由，shell 外）：自带顶栏（返回 + 标题 + 月/年
+      // period segmented），不挂 StatefulShellRoute 分支。对齐 /categories
+      // 「custom route 非 branch」模式，但 /reports 不归属任一 branch，故置于
+      // branches 外（与 /login /register 同级）。Task 3 在 ReportPage 内补 3 图表。
+      GoRoute(
+        path: '/reports',
+        builder: (_, __) => const ReportPage(),
       ),
     ],
     initialLocation: '/home',

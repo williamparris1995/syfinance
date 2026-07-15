@@ -477,12 +477,12 @@ class _QuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 严格匹配原型四格：记一笔 / 转账 / 买入投资 / 生成报表。
-    // 转账 → 交易表单(内选 transfer);生成报表暂跳交易列表(报表页 Part B)。
+    // 转账 → 交易表单(内选 transfer);生成报表 → /reports(Task 2 报表分析页)。
     final actions = <(IconData, String, String)>[
       (LucideIcons.plus, '记一笔', '/transactions/new'),
       (LucideIcons.arrowLeftRight, '转账', '/transactions/new'),
       (LucideIcons.trendingUp, '买入投资', '/holdings/new'),
-      (LucideIcons.barChart3, '生成报表', '/transactions'),
+      (LucideIcons.barChart3, '生成报表', '/reports'),
     ];
     return LayoutBuilder(builder: (context, c) {
       final cols = c.maxWidth > 820 ? 4 : 2;

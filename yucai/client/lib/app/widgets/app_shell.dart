@@ -196,7 +196,7 @@ const _navGroups = <_NavGroup>[
     _NavItem('债权管理', LucideIcons.arrowUpRight, 4, route: '/receivables'),
   ]),
   _NavGroup('工具', [
-    _NavItem('报表分析', LucideIcons.barChart, null),
+    _NavItem('报表分析', LucideIcons.barChart, null, route: '/reports'),
     _NavItem('设置', LucideIcons.settings, 8),
   ]),
 ];
