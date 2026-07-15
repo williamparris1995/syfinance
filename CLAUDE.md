@@ -22,7 +22,7 @@ design-output/      # OD 原型(holding + accounts-responsive)
 - rebuild exe:`go build -o bin/server.exe ./cmd/server`
 
 ### client(Flutter, `yucai/client/`)
-- `flutter test` — 全量测(基线:**7 预存 fail / 3 文件** — account_detail_page_test(2)+ receivable_detail_page_test(2)+ router_test(3),全 redesign 漂移 out-of-scope)
+- `flutter test` — 全量测(基线:**4 预存 fail / 3 文件** — account_detail_page_test(1)+ app_shell_test(1)+ receivable_detail_page_test(2),test drift out-of-scope)
 - `flutter analyze` — 分析(基线 22 error 全 `*.pbserver.dart`,客户端未用)
 - `flutter build windows --debug` — build
 - `dart run build_runner build --delete-conflicting-outputs` — DI 注入重生成(injectable)
@@ -68,7 +68,7 @@ design-output/      # OD 原型(holding + accounts-responsive)
 ## 测试
 - server:Go 单测 + 集成测(enttest SQLite)+ e2e(grpcurl,需 auth token)
 - client:widget test(mocktail `Mock`/`Fake`;pump 而非 pumpAndSettle 当有永不完成的 Future)
-- 预存 fail:**7 测 / 3 文件**(全 redesign 漂移,test 断言过时非 bug,out-of-scope):account_detail_page_test(收支统计 cards/hero 字段网格)+ receivable_detail_page_test(StatRow D2/筛选逾期)+ router_test(sidebar 导航 /holdings /budgets /goals)
+- 预存 fail:**4 测 / 3 文件**(test drift,断言过时非生产 bug,out-of-scope):account_detail_page_test(收支统计交易数 — 时间 scope 漂移,fixture txn 日期 vs `_txnCountInScope` 当前月)+ app_shell_test(topbar BackDropFilter)+ receivable_detail_page_test(StatRow "1 期" + 筛选日期 — redesign 漂移)。注:原 router_test 3 sidebar 导航 fail 已修 `5d3e8f0`(dashboard `68508b2` mock 回归,真 bug)
 
 ## 工作流(SDD)
 - 创造性工作(新功能/模块)走 brainstorming → spec(`docs/superpowers/specs/`)→ plan(`docs/superpowers/plans/`)→ subagent-driven 实现
