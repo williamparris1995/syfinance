@@ -78,9 +78,8 @@ void main() {
     await t.pumpAndSettle();
 
     // 汇总条 4 stat label。
-    expect(find.text('收入'), findsOneWidget);
-    expect(find.text('支出'), findsOneWidget);
     expect(find.text('结余'), findsOneWidget);
+    expect(find.text('日均'), findsOneWidget);
     // 3 section 标题。
     expect(find.text('收支趋势'), findsOneWidget);
     expect(find.text('支出分类占比'), findsOneWidget);
