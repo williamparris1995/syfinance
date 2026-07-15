@@ -172,6 +172,11 @@ void main() {
     // any /debts/* navigation (including /debts/new) doesn't hit a null return.
     when(() => debtRepo.list(typeFilter: any(named: 'typeFilter')))
         .thenAnswer((_) async => const dartz.Right([]));
+    // HomePage _UpcomingPaymentsPanel (dashboard 占位修复 commit 68508b2) reads
+    // getIt<DebtRepository>().upcomingPayments(days) at build time; stub globally
+    // so /home navigation doesn't hit an unstubbed null → Future type error.
+    when(() => debtRepo.upcomingPayments(any()))
+        .thenAnswer((_) async => const dartz.Right([]));
     when(() => txnRepo.list(any())).thenAnswer(
         (_) async => dartz.Right(const ListTransactionsResult(
             transactions: [], nextPageToken: '')));
