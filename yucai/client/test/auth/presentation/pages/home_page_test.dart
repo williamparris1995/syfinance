@@ -20,12 +20,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:yucai_client/account/domain/entities/account_entity.dart';
 import 'package:yucai_client/account/domain/repositories/account_repository.dart';
 import 'package:yucai_client/account/domain/usecases/create_account_usecase.dart';
 import 'package:yucai_client/account/domain/usecases/delete_account_usecase.dart';
 import 'package:yucai_client/account/domain/usecases/get_account_usecase.dart';
 import 'package:yucai_client/account/domain/usecases/list_accounts_usecase.dart';
 import 'package:yucai_client/account/domain/usecases/update_account_usecase.dart';
+import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/auth/domain/entities/user_entity.dart';
 import 'package:yucai_client/auth/domain/usecases/get_profile_usecase.dart';
@@ -36,8 +38,14 @@ import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/auth/presentation/pages/home_page.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
+import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
+import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
 import 'package:yucai_client/holding/data/networth_ds.dart';
+import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/entities/net_worth_entity.dart';
+import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
+import 'package:yucai_client/transaction/domain/repositories/transaction_repository.dart';
+import 'package:yucai_client/transaction/domain/value_objects.dart';
 
 class _MockLogin extends Mock implements LoginUseCase {}
 class _MockRegister extends Mock implements RegisterUseCase {}
@@ -73,6 +81,31 @@ class _FakeCurrencySettings extends Fake implements CurrencySettings {
 }
 
 class _MockAccountRepo extends Mock implements AccountRepository {}
+
+/// HomePage 仪表盘现在(占位修复)直接经 getIt 拉 TransactionRepository /
+/// DebtRepository(lazySingleton)+ 构造 HoldingBloc(getIt<HoldingRepository>)。
+/// 这些 mock 返回空结果,让 3 个面板渲染空态而不崩。
+class _MockTxnRepo extends Mock implements TransactionRepository {}
+class _MockDebtRepo extends Mock implements DebtRepository {}
+class _MockHoldingRepo extends Mock implements HoldingRepository {}
+
+/// 构造一笔账户(默认储蓄/1200000 cents)驱动 _SummaryRow 流动资产拆分。
+Account _account({
+  int balance = 1200000,
+  AccountCategory category = AccountCategory.savings,
+}) {
+  return Account(
+    id: 'a-${category.name}',
+    name: 'test',
+    accountType: category.accountType,
+    category: category,
+    currencyCode: 'CNY',
+    initialBalanceCents: balance,
+    currentBalanceCents: balance,
+    ownership: Ownership.personal,
+    status: AccountStatus.active,
+  );
+}
 
 /// AuthBloc seeded Authenticated (HomePage watches state for display name).
 class _SeededAuthedBloc extends AuthBloc {
@@ -114,7 +147,11 @@ Widget _harness({
   getIt.registerSingleton<CurrencySettings>(_FakeCurrencySettings(baseCurrency));
 
   final accountRepo = _MockAccountRepo();
-  when(() => accountRepo.list()).thenAnswer((_) async => dartz.Right([]));
+  // 提供一笔储蓄账户(1200000 cents)→ _SummaryRow 流动资产 = ¥12,000.00
+  // (维持既有断言;A1 拆分从 accounts 算而非 assetTotal)。
+  when(() => accountRepo.list()).thenAnswer(
+    (_) async => dartz.Right([_account()]),
+  );
 
   final accountBloc = AccountBloc(
     ListAccountsUseCase(accountRepo),
@@ -123,6 +160,24 @@ Widget _harness({
     GetAccountUseCase(accountRepo),
     UpdateAccountUseCase(accountRepo),
   );
+
+  // 仪表盘 3 个面板经 getIt 直接拉仓储(占位修复):注册空结果 mock,
+  // 面板渲染空态。lazySingleton 注册对齐 injection.config.dart。
+  final txnRepo = _MockTxnRepo();
+  when(() => txnRepo.list(any())).thenAnswer(
+    (_) async => dartz.Right(const ListTransactionsResult(transactions: [])),
+  );
+  getIt.registerSingleton<TransactionRepository>(txnRepo);
+
+  final debtRepo = _MockDebtRepo();
+  when(() => debtRepo.upcomingPayments(any()))
+      .thenAnswer((_) async => dartz.Right(<Debt>[]));
+  getIt.registerSingleton<DebtRepository>(debtRepo);
+
+  final holdingRepo = _MockHoldingRepo();
+  when(() => holdingRepo.listHoldings())
+      .thenAnswer((_) async => dartz.Right(<Holding>[]));
+  getIt.registerSingleton<HoldingRepository>(holdingRepo);
 
   final authBloc = _SeededAuthedBloc();
   return MaterialApp(
@@ -154,6 +209,11 @@ Finder _textContaining(String needle) => find.byWidgetPredicate(
 
 void main() {
   final getIt = GetIt.instance;
+
+  setUpAll(() {
+    // mocktail any() 需要非原始类型的 fallback 值。
+    registerFallbackValue(const ListTransactionsParams());
+  });
 
   setUp(() {
     getIt.reset();
