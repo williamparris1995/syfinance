@@ -134,6 +134,7 @@ func (r *memPriceHistoryRepo) Save(_ context.Context, p domain.SecurityPriceHist
 	r.upsertAll([]domain.SecurityPriceHistory{p})
 	return nil
 }
+
 // upsertAll inserts new (securityID, priceDate) keys and updates price/source
 // for keys already present.
 func (r *memPriceHistoryRepo) upsertAll(ph []domain.SecurityPriceHistory) {
@@ -471,7 +472,7 @@ func TestGetPortfolioPerformanceWithBenchmark(t *testing.T) {
 		{SecurityID: csiID, PriceDate: truncateToDate(time.Now()), PriceCents: 3800},
 	}
 	svc := NewService(secRepo, hr, &memTradeRepo{})
-	svc.SetSnapshotRepository(&memSnapshotRepo{})             // no snapshots → empty portfolio curve
+	svc.SetSnapshotRepository(&memSnapshotRepo{}) // no snapshots → empty portfolio curve
 	svc.SetPriceHistoryRepository(phRepo)
 
 	perf, err := svc.GetPortfolioPerformance(context.Background(), tenantID, &accountID, "DAY", true, "CNY")

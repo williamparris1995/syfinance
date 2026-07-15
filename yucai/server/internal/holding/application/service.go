@@ -502,14 +502,14 @@ func (s *Service) SnapshotHoldings(ctx context.Context, tenantID uuid.UUID) (int
 				continue
 			}
 			snap := domain.HoldingSnapshot{
-				TenantID:          h.TenantID,
-				HoldingID:         h.ID,
-				SecurityID:        h.SecurityID,
-				AccountID:         h.AccountID,
-				SnapshotDate:      today,
-				MarketValueCents:  h.MarketValue(sec.CurrentPriceCents),
+				TenantID:           h.TenantID,
+				HoldingID:          h.ID,
+				SecurityID:         h.SecurityID,
+				AccountID:          h.AccountID,
+				SnapshotDate:       today,
+				MarketValueCents:   h.MarketValue(sec.CurrentPriceCents),
 				UnrealizedPnlCents: h.UnrealizedPnL(sec.CurrentPriceCents),
-				CurrencyCode:      sec.CurrencyCode,
+				CurrencyCode:       sec.CurrencyCode,
 			}
 			if err := s.snapshotRepo.Save(ctx, snap); err != nil {
 				slog.Warn("holding snapshot: save failed",
@@ -1278,9 +1278,11 @@ func (s *Service) computeTWR(ctx context.Context, tenantID uuid.UUID, accountID 
 
 // portfolioTWR computes full-period + range TWR (base currency), mirroring
 // portfolioXIRR(full, rng).
-//   full: rangeStart = first trade date (cashFlowDays[0]) — byte-identical to
-//         the pre-Task-2 portfolioTWR (computeTWR full-period special case).
-//   rng:  rangeStart = curveWindow(rangeName).from (passed by caller).
+//
+//	full: rangeStart = first trade date (cashFlowDays[0]) — byte-identical to
+//	      the pre-Task-2 portfolioTWR (computeTWR full-period special case).
+//	rng:  rangeStart = curveWindow(rangeName).from (passed by caller).
+//
 // Returns (nil, nil, nil) on insufficient data; full + rng degrade independently
 // (range degrades when rangeStart is outside [first, last] cashFlowDay or the
 // opening position is empty, but full still resolves).
