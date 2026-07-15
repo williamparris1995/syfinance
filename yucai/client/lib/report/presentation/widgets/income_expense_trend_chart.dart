@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/report/presentation/widgets/chart_helpers.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 
 /// 收支趋势折线图。逐日收入 + 支出双线。
@@ -102,9 +103,9 @@ class IncomeExpenseTrendChart extends StatelessWidget {
   Widget _legend() {
     return const Row(
       children: [
-        _LegendDot(color: AppColors.positive, label: '收入'),
+        LegendDot(color: AppColors.positive, label: '收入'),
         SizedBox(width: AppSpacing.md),
-        _LegendDot(color: AppColors.negative, label: '支出'),
+        LegendDot(color: AppColors.negative, label: '支出'),
       ],
     );
   }
@@ -112,7 +113,7 @@ class IncomeExpenseTrendChart extends StatelessWidget {
   // ───────────────────────── chart ─────────────────────────
 
   Widget _chart(List<_DayPoint> points) {
-    final maxY = _niceMax([
+    final maxY = niceMax([
       for (final p in points) p.income.toDouble() / 100,
       for (final p in points) p.expense.toDouble() / 100,
     ]);
@@ -222,7 +223,7 @@ class IncomeExpenseTrendChart extends StatelessWidget {
 
   Widget _leftTitle(double value) {
     if (value <= 0) return const SizedBox.shrink();
-    return Text(_compactYuan(value),
+    return Text(compactYuan(value),
         style: const TextStyle(
             fontSize: 10.5,
             color: AppColors.muted,
@@ -257,7 +258,7 @@ class IncomeExpenseTrendChart extends StatelessWidget {
               ),
             ),
             TextSpan(
-              text: '¥${_fmtYuan(spot.y)}\n',
+              text: '¥${fmtYuan(spot.y)}\n',
               style: const TextStyle(
                   color: AppColors.sidebarFg,
                   fontSize: 11,
@@ -308,78 +309,8 @@ class _DayPoint {
   final int expense; // 分
 }
 
-class _LegendDot extends StatelessWidget {
-  const _LegendDot({required this.color, required this.label});
-  final Color color;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 9,
-          height: 9,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 6),
-        Text(label,
-            style: const TextStyle(fontSize: 12, color: AppColors.fg)),
-      ],
-    );
-  }
-}
-
 /// X 轴标签稀疏步长（≤7 点全显；否则约 6 个标签）。
 int _xLabelStep(int count) {
   if (count <= 7) return 1;
   return (count / 6).ceil();
-}
-
-/// 取数据最大值并向上取整到「好看」的刻度（1/2/5 × 10^n）。
-double _niceMax(List<double> vals) {
-  final max = vals.isEmpty || vals.reduce((a, b) => a > b ? a : b) <= 0
-      ? 100.0
-      : vals.reduce((a, b) => a > b ? a : b);
-  if (max <= 0) return 100;
-  final pow = mathPow10(max);
-  final n = max / pow;
-  final nice = n <= 1 ? 1 : (n <= 2 ? 2 : (n <= 5 ? 5 : 10));
-  return nice * pow;
-}
-
-double mathPow10(double v) {
-  var p = 1.0;
-  while (p * 10 <= v) {
-    p *= 10;
-  }
-  return p;
-}
-
-/// Y 轴 / tooltip 紧凑金额（元）：<10000 直显千分位；≥10000 用「万」。
-String _compactYuan(double yuan) {
-  if (yuan >= 10000) {
-    final wan = yuan / 10000;
-    return '${wan.toStringAsFixed(wan >= 100 ? 0 : 1)}万';
-  }
-  return _groupInt(yuan.round());
-}
-
-String _fmtYuan(double yuan) {
-  if (yuan >= 10000) {
-    final wan = yuan / 10000;
-    return '${wan.toStringAsFixed(2)}万';
-  }
-  return '${_groupInt(yuan.round())}.${((yuan * 100) % 100).round().toString().padLeft(2, '0')}';
-}
-
-String _groupInt(int n) {
-  final s = n.abs().toString();
-  final buf = StringBuffer();
-  for (var i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
-    buf.write(s[i]);
-  }
-  return buf.toString();
 }

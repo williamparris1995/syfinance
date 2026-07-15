@@ -17,6 +17,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/report/presentation/widgets/chart_helpers.dart';
 import 'package:yucai_client/transaction/domain/value_objects.dart';
 
 /// 分类筛选：消费 [aggregateCategorySlices] 时按 accountType 拆 income/expense。
@@ -249,15 +250,5 @@ class _LegendRow extends StatelessWidget {
 
 String _fmtCents(int cents) {
   final yuan = cents.abs() ~/ 100;
-  return '¥${_group(yuan)}';
-}
-
-String _group(int n) {
-  final s = n.toString();
-  final buf = StringBuffer();
-  for (var i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
-    buf.write(s[i]);
-  }
-  return buf.toString();
+  return '¥${groupInt(yuan)}';
 }
