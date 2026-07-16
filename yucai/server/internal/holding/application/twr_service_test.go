@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -335,4 +336,110 @@ func TestPortfolioTWRSharedCacheReducesLookups(t *testing.T) {
 		t.Errorf("FindBySecurity calls=%d, want %d (shared cache: range's 3 BV lookups hit; without cache would be %d)",
 			prices.calls, withCache, withoutCache)
 	}
+}
+
+// TestPortfolioTWRCacheBenchmark scales TestPortfolioTWRSharedCacheReducesLookups
+// to a realistic portfolio (N=10 cashFlowDays × M=5 holdings) and verifies the
+// request-scoped mvCache still turns the range computeTWR into pure cache hits.
+//
+// Fixture:
+//   - M=5 distinct securities (CNY) + 5 holdings (one per security, qty grows via buys)
+//   - N=10 cashFlowDays [day0..day9]; 5 buys per day (one per security) → 50 trades
+//   - rangeStart=day5 so the range window is a strict subset of the full window
+//
+// cachedMV unique-key math (cache key = accountID|qtyAsOf|priceAsOf; per computeTWR
+// the begin lookup + 2 per effectiveDay):
+//
+//	full  (rangeStart=day0, effectiveDays=[day1..day9], 9): 1 + 2×9 = 19 unique keys
+//	range (rangeStart=day5, effectiveDays=[day6..day9], 4): 1 + 2×4 =  9 unique keys
+//	  └ range ⊂ full: every range key is one full already populated
+//	     (range.begin=(day6,day5)=full.bvAfter(day5); each range bvBefore/bvAfter
+//	     matches the same cashFlowDay's full bvBefore/bvAfter) → 9/9 hits
+//
+// Each cachedMV MISS calls marketValueAtDateAsOfWithTrades which loops the M
+// holdings and calls priceAtOrBefore → FindBySecurity once per non-zero-qty
+// holding, i.e. M calls per miss. currentMarketValueInBase (finalValue) uses
+// Security.CurrentPriceCents, not priceAtOrBefore, so it adds 0 FindBySecurity
+// calls.
+//
+//	without cache: (19 + 9) × M = 28 × 5 = 140 FindBySecurity calls
+//	with cache:    19          × M = 19 × 5 =  95 FindBySecurity calls (45 saved, 32%)
+func TestPortfolioTWRCacheBenchmark(t *testing.T) {
+	const (
+		nCashFlowDays = 10
+		mHoldings     = 5
+		rangeDayIdx   = 5 // rangeStart = day[5] → range ⊂ full
+	)
+
+	// M distinct securities + M holdings (same account, tenant-pass-through).
+	accountID := uuid.New()
+	secIDs := make([]uuid.UUID, mHoldings)
+	for i := range secIDs {
+		secIDs[i] = uuid.New()
+	}
+	securities := make([]secSeed, mHoldings)
+	for i, id := range secIDs {
+		securities[i] = secSeed{
+			ID: id, Symbol: "S" + strconv.Itoa(i), Exchange: "TEST",
+			Type: domain.SecurityTypeStock, Currency: "CNY", CurrentPriceCents: 10000,
+		}
+	}
+	secRepo := newFullSecRepo(securities)
+
+	hr := newMemHoldingRepo()
+	for _, id := range secIDs {
+		hr.SaveOrUpdate(context.Background(), &domain.Holding{
+			ID: uuid.New(), TenantID: uuid.Nil, AccountID: accountID,
+			SecurityID: id, Quantity: 100, AvgCostCents: 10000,
+		})
+	}
+
+	// N=10 cashFlowDays × M=5 buys/day (qty 100, amount 1_000_000 each). Every
+	// security accumulates qty on every day so each holding contributes a
+	// FindBySecurity call per marketValueAtDateAsOfWithTrades invocation.
+	days := make([]time.Time, nCashFlowDays)
+	trades := make([]domain.HoldingTransaction, 0, nCashFlowDays*mHoldings)
+	for d := 0; d < nCashFlowDays; d++ {
+		day := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, d)
+		days[d] = day
+		for _, id := range secIDs {
+			trades = append(trades, domain.HoldingTransaction{
+				ID: uuid.New(), TenantID: uuid.Nil, AccountID: accountID,
+				TradeType: domain.TradeTypeBuy, Quantity: 100, AmountCents: 1000000,
+				SecurityID: id, TradeDate: day,
+			})
+		}
+	}
+
+	prices := &countingPriceRepo{fakePriceRepo: &fakePriceRepo{priceCents: 10000}}
+	svc := &Service{
+		securityRepo:     secRepo,
+		holdingRepo:      hr,
+		tradeRepo:        &fakeTradeRepo{items: trades},
+		priceHistoryRepo: prices,
+		rateRepo:         &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
+	}
+
+	full, rng, err := svc.portfolioTWR(context.Background(), uuid.Nil, nil, "CNY", days[rangeDayIdx])
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if full == nil || rng == nil {
+		t.Fatalf("expected full and rng non-nil, got full=%v rng=%v", full, rng)
+	}
+
+	// Per-miss cost = M FindBySecurity calls (one per non-zero-qty holding).
+	const (
+		fullUniqueKeys = 1 + 2*(nCashFlowDays-1)            // 1 begin + 2×9 effectiveDays = 19
+		rngUniqueKeys  = 1 + 2*(nCashFlowDays-1-rangeDayIdx) // 1 begin + 2×4 effectiveDays = 9
+		withoutCache   = (fullUniqueKeys + rngUniqueKeys) * mHoldings // 28 × 5 = 140
+		withCache      = fullUniqueKeys * mHoldings                   // 19 × 5 = 95 (range 9/9 hit)
+	)
+	if got := prices.calls; got != withCache {
+		t.Errorf("FindBySecurity calls=%d, want %d (shared cache at scale: range's %d BV lookups all hit; "+
+			"without cache would be %d — %.0f%% saved)", got, withCache, rngUniqueKeys, withoutCache,
+			100.0*float64(withoutCache-withCache)/float64(withoutCache))
+	}
+	t.Logf("N=%d cashFlowDays × M=%d holdings: FindBySecurity calls with cache=%d, without=%d (%.0f%% saved by range⊂full cache hits)",
+		nCashFlowDays, mHoldings, withCache, withoutCache, 100.0*float64(withoutCache-withCache)/float64(withoutCache))
 }
