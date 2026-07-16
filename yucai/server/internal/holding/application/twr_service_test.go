@@ -521,8 +521,9 @@ func (r *splitPriceRepo) Exists(_ context.Context, _ uuid.UUID) (bool, error)   
 // GIPS hand-math (split day must NOT seed a sub-period):
 //	cashFlowDays = [day0, day2]                       (day1 pure split excluded)
 //	BV_after(day0)  = QtyAtDate(day1)×price(day0)   = 100×10000 = 1,000,000 (pre-split)
-//	BV_before(day2) = QtyAtDate(day2)×price(day2)   = 200×6000  = 1,200,000 (post-split; replay split 100×2)
-//	subPeriod HPR   = 1,200,000 / 1,000,000 = 1.2   → +20% real gain, NO phantom split HPR.
+//	BV_before(day2) = QtyAtDate(day2)×price(day2)   = 200×5000  = 1,000,000 (post-split raw price; replay split 100×2)
+//	subPeriod HPR   = 1,000,000 / 1,000,000 = 1.0   → in-period flat (BV equal at raw prices)
+//	finalValue/lastAfterCF = (150×6000)/(150×5000) = 900,000/750,000 = 1.2 → cumulative +20% (current ¥60 > lastAfterCF basis ¥50), NO phantom split HPR.
 //
 // Bug (split day as cut point) pairs one price with cross-scale qty at day1:
 //	BV_before(day1)=100×5000=500,000 (pre-split qty × post-split price) → phantom −50% HPR

@@ -1351,7 +1351,6 @@ func (s *Service) portfolioTWR(ctx context.Context, tenantID uuid.UUID, accountI
 	return full, rng, nil
 }
 
-// uniqueSortedTradeDates extracts unique trade_date values sorted ascending.
 // uniqueSortedTradeDates extracts unique trade_date values (day-truncated,
 // sorted ascending) that are TWR cash-flow days — days with at least one
 // buy/sell/dividend. Pure-split days are excluded: a split is a non-cash-flow
