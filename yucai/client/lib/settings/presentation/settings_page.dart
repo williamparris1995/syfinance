@@ -120,6 +120,15 @@ class SettingsPage extends StatelessWidget {
                               height: 1, color: AppColors.border),
                           const SizedBox(height: AppSpacing.md),
                           _NavRow(
+                            icon: LucideIcons.timer,
+                            label: '自动备份',
+                            description: '配置服务端定时备份（开关 + 频率）',
+                            onTap: () => context.push('/settings/backup/auto'),
+                          ),
+                          const Divider(
+                              height: 1, color: AppColors.border),
+                          const SizedBox(height: AppSpacing.md),
+                          _NavRow(
                             icon: LucideIcons.tag,
                             label: '标签管理',
                             description: '管理交易标签(名称/颜色)',

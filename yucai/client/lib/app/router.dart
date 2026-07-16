@@ -61,7 +61,9 @@ import 'package:yucai_client/currency/presentation/bloc/currency_bloc.dart';
 import 'package:yucai_client/currency/presentation/bloc/currency_event.dart';
 import 'package:yucai_client/settings/presentation/settings_page.dart';
 import 'package:yucai_client/backup/presentation/bloc/backup_bloc.dart';
+import 'package:yucai_client/backup/presentation/bloc/backup_settings_bloc.dart';
 import 'package:yucai_client/backup/presentation/pages/backup_page.dart';
+import 'package:yucai_client/backup/presentation/pages/backup_settings_page.dart';
 import 'package:yucai_client/tag/presentation/bloc/tag_bloc.dart';
 import 'package:yucai_client/tag/presentation/pages/tag_page.dart';
 import 'package:yucai_client/template/presentation/bloc/template_bloc.dart';
@@ -862,6 +864,20 @@ GoRouter buildRouter(AuthBloc authBloc) {
                       create: (_) => getIt<BackupBloc>(),
                       child: const BackupPage(),
                     ),
+                    routes: [
+                      GoRoute(
+                        path: 'auto',
+                        // 自动备份配置子页（P1 Task 5）：静态路径「auto」，
+                        // 在 /settings/backup 下，无 :id 冲突。BackupSettingsBloc
+                        // 在路由 builder 层 provide（对齐 backup / tags / templates
+                        // 子路由模式）。
+                        builder: (_, __) =>
+                            BlocProvider<BackupSettingsBloc>(
+                          create: (_) => getIt<BackupSettingsBloc>(),
+                          child: const BackupSettingsPage(),
+                        ),
+                      ),
+                    ],
                   ),
                   GoRoute(
                     path: 'tags',

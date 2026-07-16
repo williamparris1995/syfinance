@@ -38,6 +38,7 @@ import '../../backup/data/backup_remote_ds.dart' as _i877;
 import '../../backup/data/backup_repository_impl.dart' as _i594;
 import '../../backup/domain/repositories/backup_repository.dart' as _i335;
 import '../../backup/presentation/bloc/backup_bloc.dart' as _i852;
+import '../../backup/presentation/bloc/backup_settings_bloc.dart' as _i86;
 import '../../budget/data/budget_remote_ds.dart' as _i749;
 import '../../budget/data/budget_repository_impl.dart' as _i364;
 import '../../budget/domain/repositories/budget_repository.dart' as _i665;
@@ -302,6 +303,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i852.BackupBloc>(
       () => _i852.BackupBloc(gh<_i335.BackupRepository>()),
+    );
+    gh.factory<_i86.BackupSettingsBloc>(
+      () => _i86.BackupSettingsBloc(gh<_i335.BackupRepository>()),
     );
     gh.factory<_i763.BudgetBloc>(
       () => _i763.BudgetBloc(gh<_i665.BudgetRepository>()),

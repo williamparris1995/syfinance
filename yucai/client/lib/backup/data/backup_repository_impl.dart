@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:yucai_client/backup/data/backup_remote_ds.dart';
 import 'package:yucai_client/backup/domain/entities/backup_entity.dart';
+import 'package:yucai_client/backup/domain/entities/backup_settings_entity.dart';
 import 'package:yucai_client/backup/domain/repositories/backup_repository.dart';
 import 'package:yucai_client/core/error/failures.dart';
 
@@ -33,6 +34,14 @@ class BackupRepositoryImpl implements BackupRepository {
   @override
   Future<Either<Failure, void>> delete(String id) =>
       _guard(() => _remote.delete(id));
+
+  @override
+  Future<Either<Failure, BackupSettings>> getCloudSettings() =>
+      _guard(_remote.getCloudSettings);
+
+  @override
+  Future<Either<Failure, void>> saveCloudSettings(BackupSettings settings) =>
+      _guard(() => _remote.saveCloudSettings(settings));
 
   /// 统一 try/Either 包装（对齐 AuthRepositoryImpl 模式）。
   /// 401 不单独映射：AuthRetryCaller 已在 remote_ds 透明刷新；若仍到此处说明

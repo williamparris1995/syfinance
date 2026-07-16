@@ -1,7 +1,11 @@
 import 'package:injectable/injectable.dart';
+import 'package:protobuf/well_known_types/google/protobuf/empty.pb.dart'
+    as empty;
 
 import 'package:yucai_client/backup/data/mappers/backup_mapper.dart';
+import 'package:yucai_client/backup/data/mappers/backup_settings_mapper.dart';
 import 'package:yucai_client/backup/domain/entities/backup_entity.dart';
+import 'package:yucai_client/backup/domain/entities/backup_settings_entity.dart';
 import 'package:yucai_client/core/network/auth_retry.dart';
 import 'package:yucai_client/core/network/grpc_client.dart';
 import 'package:yucai_client/proto/backup/v1/backup.pb.dart' as pb;
@@ -12,7 +16,8 @@ import 'package:yucai_client/proto/common/v1/pagination.pb.dart' as common;
 /// 对齐 DebtRemoteDataSource：每个 RPC 用 AuthRetryCaller 包装，401 时透明
 /// 刷新 + 重试一次。
 ///
-/// 4 个本地 RPC：list / create / restore / delete。
+/// 6 个 RPC：list / create / restore / delete（本地备份）+
+/// getCloudSettings / saveCloudSettings（P1 Task 5 自动备份配置）。
 @LazySingleton()
 class BackupRemoteDataSource {
   BackupRemoteDataSource(this._grpcClient, this._retry) {
@@ -61,6 +66,29 @@ class BackupRemoteDataSource {
   Future<void> delete(String id) async {
     return _retry.call(() async {
       await _client.deleteBackup(pb.DeleteBackupRequest(id: id));
+    });
+  }
+
+  /// GetCloudSettings：拉 tenant 的 AutoBackup 配置（P1 Task 5）。
+  /// 服务端在 tenant 无配置行时返回零值（autoBackup=false, interval=0），
+  /// mapper 会把 interval=0 fallback 到 24h。
+  Future<BackupSettings> getCloudSettings() async {
+    return _retry.call(() async {
+      final res = await _client.getCloudSettings(empty.Empty());
+      return BackupSettingsMapper.toDomain(res.settings);
+    });
+  }
+
+  /// SaveCloudSettings：保存 AutoBackup 配置（P1 Task 5）。
+  /// mapper 只填 AutoBackup + interval 两字段；server 仅持久化这两个字段
+  /// （其他 provider/webdav/oauth 字段服务端当前不存，发零值是幂等 noop）。
+  Future<void> saveCloudSettings(BackupSettings settings) async {
+    return _retry.call(() async {
+      await _client.saveCloudSettings(
+        pb.SaveCloudSettingsRequest(
+          settings: BackupSettingsMapper.toProto(settings),
+        ),
+      );
     });
   }
 }
