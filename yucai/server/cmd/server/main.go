@@ -102,6 +102,14 @@ func main() {
 	// is cancelled during shutdown.
 	go app.TemplateScheduler.Start(schedCtx)
 
+	// Start auto-backup scheduler. Performs an immediate backup pass that fans
+	// out across tenants and, per tenant, creates one auto=true backup when
+	// AutoBackup is on and at least AutoBackupIntervalHours have elapsed since
+	// that tenant's last backup (unconfigured tenants are skipped — defaults
+	// applied in Service.AutoBackupSettings). Re-runs every 1h. Exits when
+	// schedCtx is cancelled during shutdown.
+	go app.BackupScheduler.Start(schedCtx)
+
 	// Backfill security price history on first launch (empty-table gate inside
 	// BackfillPriceHistory), async so it never blocks startup. Pulls Sina daily
 	// K-line for A-share holdings + CSI300 at YEAR depth (1200 bars ≈ 5 years).

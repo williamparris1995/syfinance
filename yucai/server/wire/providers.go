@@ -28,6 +28,7 @@ import (
 	backupapp "github.com/yucai/server/internal/backup/application"
 	"github.com/yucai/server/internal/backup/domain"
 	backupent "github.com/yucai/server/internal/backup/ent"
+	backupscheduler "github.com/yucai/server/internal/backup/scheduler"
 	budgetrepo "github.com/yucai/server/internal/budget/adapter/driven/repository"
 	budgetgrpc "github.com/yucai/server/internal/budget/adapter/driving/grpc"
 	budgetapp "github.com/yucai/server/internal/budget/application"
@@ -778,6 +779,19 @@ func provideGoalScheduler(svc *goalapp.Service, tenantRepo *authrepo.TenantRepos
 func provideDebtScheduler(svc *debtapp.Service, tenantRepo *authrepo.TenantRepository) *debtscheduler.Scheduler {
 	src := tenantIntervalSource{tr: tenantRepo}
 	return debtscheduler.NewScheduler(svc, tenantRepo, src, 1*time.Hour, nil)
+}
+
+// provideBackupScheduler builds the auto-backup scheduler (P1). *backupapp.Service
+// structurally satisfies both backupscheduler.BackupCreator (CreateBackup —
+// creates one auto=true backup for a tenant) and backupscheduler.AutoBackupSource
+// (AutoBackupSettings — reads the tenant's AutoBackup flag + interval with
+// scheduler-safe defaults applied), so the same *Service is passed for both
+// ports. The *authrepo.TenantRepository structurally satisfies
+// backupscheduler.TenantLister (FindAllIDs), reusing the same port the goal/
+// debt schedulers consume. tick is 1h in prod (the per-tenant AutoBackupInterval
+// Hours gate is enforced inside doSync, not via a global IntervalSource).
+func provideBackupScheduler(svc *backupapp.Service, tenantRepo *authrepo.TenantRepository) *backupscheduler.Scheduler {
+	return backupscheduler.NewScheduler(svc, tenantRepo, svc, 1*time.Hour, nil)
 }
 
 // Networth providers

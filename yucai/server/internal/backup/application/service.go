@@ -323,3 +323,28 @@ func (s *Service) GetCloudSettings(ctx context.Context, tenantID uuid.UUID) (*Cl
 		AutoBackupIntervalHours: stored.AutoBackupIntervalHours,
 	}, nil
 }
+
+// AutoBackupSettings reads a tenant's auto-backup config for the scheduler
+// (scheduler.AutoBackupSource port). It wraps BackupSettingsRepository.
+// GetByTenant and applies scheduler-safe defaults: an unconfigured tenant
+// (no settings row) reports auto=false with a 1h interval, and any configured
+// interval below 1h is clamped up to 1h so the scheduler never hot-loops
+// (Task 3 concern 3). *Service thus satisfies scheduler.AutoBackupSource
+// structurally alongside scheduler.BackupCreator (CreateBackup).
+func (s *Service) AutoBackupSettings(ctx context.Context, tenantID uuid.UUID) (bool, int32, error) {
+	settings, err := s.settingsRepo.GetByTenant(ctx, tenantID)
+	if err != nil {
+		return false, 0, err
+	}
+	if settings == nil {
+		// Unconfigured → auto off, 1h default (scheduler treats this as "skip").
+		return false, 1, nil
+	}
+	interval := settings.AutoBackupIntervalHours
+	if interval < 1 {
+		// Enforce min 1h: a misconfigured sub-hour interval must not spin the
+		// scheduler faster than the 1h prod tick cadence.
+		interval = 1
+	}
+	return settings.AutoBackup, interval, nil
+}

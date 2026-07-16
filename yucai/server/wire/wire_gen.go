@@ -227,6 +227,11 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	// template (cross-tenant via repo.FindDue). templateService was declared in
 	// the Template module above and structurally implements scheduler.AutoRecorder.
 	templateScheduler := provideTemplateScheduler(templateService)
+	// backupScheduler fans out auto-backup creation across tenants (per-tenant
+	// AutoBackupSettings gate). backupService was declared in the Backup module
+	// above and structurally implements both BackupCreator (CreateBackup) and
+	// AutoBackupSource (AutoBackupSettings); tenantRepo is TenantLister.
+	backupScheduler := provideBackupScheduler(backupService, tenantRepo)
 
 	// Auth service (depends on currencyRepo via the CurrencyCodeChecker port,
 	// so it must be wired after the Currency module).
@@ -237,6 +242,6 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	// gRPC server
 	grpcSrv := provideGRPCServer(ts)
 
-	app := NewApp(cfg, log, grpcSrv, tenantRepo, userRepo, accountService, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler, holdingHandler, holdingService, backupHandler, syncHandler, currencyHandler, currencyScheduler, currencyService, priceScheduler, snapshotScheduler, goalScheduler, debtScheduler, templateScheduler, networthHandler)
+	app := NewApp(cfg, log, grpcSrv, tenantRepo, userRepo, accountService, authHandler, accountHandler, txnHandler, budgetHandler, debtHandler, goalHandler, tagHandler, templateHandler, holdingHandler, holdingService, backupHandler, syncHandler, currencyHandler, currencyScheduler, currencyService, priceScheduler, snapshotScheduler, goalScheduler, debtScheduler, templateScheduler, backupScheduler, networthHandler)
 	return app, nil
 }
