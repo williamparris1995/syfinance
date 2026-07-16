@@ -8,3 +8,6 @@ import (
 
 // Backup is the predicate function for backup builders.
 type Backup func(*sql.Selector)
+
+// BackupSettings is the predicate function for backupsettings builders.
+type BackupSettings func(*sql.Selector)

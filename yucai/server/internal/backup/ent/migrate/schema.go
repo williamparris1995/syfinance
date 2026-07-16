@@ -35,9 +35,30 @@ var (
 			},
 		},
 	}
+	// BackupSettingsColumns holds the columns for the "backup_settings" table.
+	BackupSettingsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID, Comment: "FK to tenants table — data isolation boundary"},
+		{Name: "auto_backup", Type: field.TypeBool, Default: false},
+		{Name: "auto_backup_interval_hours", Type: field.TypeInt32, Default: 24},
+	}
+	// BackupSettingsTable holds the schema information for the "backup_settings" table.
+	BackupSettingsTable = &schema.Table{
+		Name:       "backup_settings",
+		Columns:    BackupSettingsColumns,
+		PrimaryKey: []*schema.Column{BackupSettingsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "backupsettings_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{BackupSettingsColumns[1]},
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		BackupsTable,
+		BackupSettingsTable,
 	}
 )
 

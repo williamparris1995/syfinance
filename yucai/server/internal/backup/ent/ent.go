@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/yucai/server/internal/backup/ent/backup"
+	"github.com/yucai/server/internal/backup/ent/backupsettings"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -73,7 +74,8 @@ var (
 func checkColumn(table, column string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			backup.Table: backup.ValidColumn,
+			backup.Table:         backup.ValidColumn,
+			backupsettings.Table: backupsettings.ValidColumn,
 		})
 	})
 	return columnCheck(table, column)

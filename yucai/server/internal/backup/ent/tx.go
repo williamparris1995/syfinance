@@ -14,6 +14,8 @@ type Tx struct {
 	config
 	// Backup is the client for interacting with the Backup builders.
 	Backup *BackupClient
+	// BackupSettings is the client for interacting with the BackupSettings builders.
+	BackupSettings *BackupSettingsClient
 
 	// lazily loaded.
 	client     *Client
@@ -146,6 +148,7 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.Backup = NewBackupClient(tx.config)
+	tx.BackupSettings = NewBackupSettingsClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/backup/ent/backup"
+	"github.com/yucai/server/internal/backup/ent/backupsettings"
 	"github.com/yucai/server/internal/backup/ent/predicate"
 )
 
@@ -25,7 +26,8 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeBackup = "Backup"
+	TypeBackup         = "Backup"
+	TypeBackupSettings = "BackupSettings"
 )
 
 // BackupMutation represents an operation that mutates the Backup nodes in the graph.
@@ -913,4 +915,480 @@ func (m *BackupMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *BackupMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Backup edge %s", name)
+}
+
+// BackupSettingsMutation represents an operation that mutates the BackupSettings nodes in the graph.
+type BackupSettingsMutation struct {
+	config
+	op                            Op
+	typ                           string
+	id                            *uuid.UUID
+	tenant_id                     *uuid.UUID
+	auto_backup                   *bool
+	auto_backup_interval_hours    *int32
+	addauto_backup_interval_hours *int32
+	clearedFields                 map[string]struct{}
+	done                          bool
+	oldValue                      func(context.Context) (*BackupSettings, error)
+	predicates                    []predicate.BackupSettings
+}
+
+var _ ent.Mutation = (*BackupSettingsMutation)(nil)
+
+// backupsettingsOption allows management of the mutation configuration using functional options.
+type backupsettingsOption func(*BackupSettingsMutation)
+
+// newBackupSettingsMutation creates new mutation for the BackupSettings entity.
+func newBackupSettingsMutation(c config, op Op, opts ...backupsettingsOption) *BackupSettingsMutation {
+	m := &BackupSettingsMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeBackupSettings,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withBackupSettingsID sets the ID field of the mutation.
+func withBackupSettingsID(id uuid.UUID) backupsettingsOption {
+	return func(m *BackupSettingsMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *BackupSettings
+		)
+		m.oldValue = func(ctx context.Context) (*BackupSettings, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().BackupSettings.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withBackupSettings sets the old BackupSettings of the mutation.
+func withBackupSettings(node *BackupSettings) backupsettingsOption {
+	return func(m *BackupSettingsMutation) {
+		m.oldValue = func(context.Context) (*BackupSettings, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m BackupSettingsMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m BackupSettingsMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of BackupSettings entities.
+func (m *BackupSettingsMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *BackupSettingsMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *BackupSettingsMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().BackupSettings.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *BackupSettingsMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *BackupSettingsMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the BackupSettings entity.
+// If the BackupSettings object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupSettingsMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *BackupSettingsMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetAutoBackup sets the "auto_backup" field.
+func (m *BackupSettingsMutation) SetAutoBackup(b bool) {
+	m.auto_backup = &b
+}
+
+// AutoBackup returns the value of the "auto_backup" field in the mutation.
+func (m *BackupSettingsMutation) AutoBackup() (r bool, exists bool) {
+	v := m.auto_backup
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoBackup returns the old "auto_backup" field's value of the BackupSettings entity.
+// If the BackupSettings object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupSettingsMutation) OldAutoBackup(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoBackup is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoBackup requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoBackup: %w", err)
+	}
+	return oldValue.AutoBackup, nil
+}
+
+// ResetAutoBackup resets all changes to the "auto_backup" field.
+func (m *BackupSettingsMutation) ResetAutoBackup() {
+	m.auto_backup = nil
+}
+
+// SetAutoBackupIntervalHours sets the "auto_backup_interval_hours" field.
+func (m *BackupSettingsMutation) SetAutoBackupIntervalHours(i int32) {
+	m.auto_backup_interval_hours = &i
+	m.addauto_backup_interval_hours = nil
+}
+
+// AutoBackupIntervalHours returns the value of the "auto_backup_interval_hours" field in the mutation.
+func (m *BackupSettingsMutation) AutoBackupIntervalHours() (r int32, exists bool) {
+	v := m.auto_backup_interval_hours
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoBackupIntervalHours returns the old "auto_backup_interval_hours" field's value of the BackupSettings entity.
+// If the BackupSettings object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupSettingsMutation) OldAutoBackupIntervalHours(ctx context.Context) (v int32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoBackupIntervalHours is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoBackupIntervalHours requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoBackupIntervalHours: %w", err)
+	}
+	return oldValue.AutoBackupIntervalHours, nil
+}
+
+// AddAutoBackupIntervalHours adds i to the "auto_backup_interval_hours" field.
+func (m *BackupSettingsMutation) AddAutoBackupIntervalHours(i int32) {
+	if m.addauto_backup_interval_hours != nil {
+		*m.addauto_backup_interval_hours += i
+	} else {
+		m.addauto_backup_interval_hours = &i
+	}
+}
+
+// AddedAutoBackupIntervalHours returns the value that was added to the "auto_backup_interval_hours" field in this mutation.
+func (m *BackupSettingsMutation) AddedAutoBackupIntervalHours() (r int32, exists bool) {
+	v := m.addauto_backup_interval_hours
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAutoBackupIntervalHours resets all changes to the "auto_backup_interval_hours" field.
+func (m *BackupSettingsMutation) ResetAutoBackupIntervalHours() {
+	m.auto_backup_interval_hours = nil
+	m.addauto_backup_interval_hours = nil
+}
+
+// Where appends a list predicates to the BackupSettingsMutation builder.
+func (m *BackupSettingsMutation) Where(ps ...predicate.BackupSettings) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the BackupSettingsMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *BackupSettingsMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.BackupSettings, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *BackupSettingsMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *BackupSettingsMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (BackupSettings).
+func (m *BackupSettingsMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *BackupSettingsMutation) Fields() []string {
+	fields := make([]string, 0, 3)
+	if m.tenant_id != nil {
+		fields = append(fields, backupsettings.FieldTenantID)
+	}
+	if m.auto_backup != nil {
+		fields = append(fields, backupsettings.FieldAutoBackup)
+	}
+	if m.auto_backup_interval_hours != nil {
+		fields = append(fields, backupsettings.FieldAutoBackupIntervalHours)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *BackupSettingsMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case backupsettings.FieldTenantID:
+		return m.TenantID()
+	case backupsettings.FieldAutoBackup:
+		return m.AutoBackup()
+	case backupsettings.FieldAutoBackupIntervalHours:
+		return m.AutoBackupIntervalHours()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *BackupSettingsMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case backupsettings.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case backupsettings.FieldAutoBackup:
+		return m.OldAutoBackup(ctx)
+	case backupsettings.FieldAutoBackupIntervalHours:
+		return m.OldAutoBackupIntervalHours(ctx)
+	}
+	return nil, fmt.Errorf("unknown BackupSettings field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *BackupSettingsMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case backupsettings.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case backupsettings.FieldAutoBackup:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoBackup(v)
+		return nil
+	case backupsettings.FieldAutoBackupIntervalHours:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoBackupIntervalHours(v)
+		return nil
+	}
+	return fmt.Errorf("unknown BackupSettings field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *BackupSettingsMutation) AddedFields() []string {
+	var fields []string
+	if m.addauto_backup_interval_hours != nil {
+		fields = append(fields, backupsettings.FieldAutoBackupIntervalHours)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *BackupSettingsMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case backupsettings.FieldAutoBackupIntervalHours:
+		return m.AddedAutoBackupIntervalHours()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *BackupSettingsMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case backupsettings.FieldAutoBackupIntervalHours:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAutoBackupIntervalHours(v)
+		return nil
+	}
+	return fmt.Errorf("unknown BackupSettings numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *BackupSettingsMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *BackupSettingsMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *BackupSettingsMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown BackupSettings nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *BackupSettingsMutation) ResetField(name string) error {
+	switch name {
+	case backupsettings.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case backupsettings.FieldAutoBackup:
+		m.ResetAutoBackup()
+		return nil
+	case backupsettings.FieldAutoBackupIntervalHours:
+		m.ResetAutoBackupIntervalHours()
+		return nil
+	}
+	return fmt.Errorf("unknown BackupSettings field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *BackupSettingsMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *BackupSettingsMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *BackupSettingsMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *BackupSettingsMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *BackupSettingsMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *BackupSettingsMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *BackupSettingsMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown BackupSettings unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *BackupSettingsMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown BackupSettings edge %s", name)
 }

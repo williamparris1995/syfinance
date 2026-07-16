@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/backup/ent/backup"
+	"github.com/yucai/server/internal/backup/ent/backupsettings"
 	"github.com/yucai/server/internal/backup/ent/schema"
 )
 
@@ -54,4 +55,18 @@ func init() {
 	backupDescID := backupFields[0].Descriptor()
 	// backup.DefaultID holds the default value on creation for the id field.
 	backup.DefaultID = backupDescID.Default.(func() uuid.UUID)
+	backupsettingsFields := schema.BackupSettings{}.Fields()
+	_ = backupsettingsFields
+	// backupsettingsDescAutoBackup is the schema descriptor for auto_backup field.
+	backupsettingsDescAutoBackup := backupsettingsFields[1].Descriptor()
+	// backupsettings.DefaultAutoBackup holds the default value on creation for the auto_backup field.
+	backupsettings.DefaultAutoBackup = backupsettingsDescAutoBackup.Default.(bool)
+	// backupsettingsDescAutoBackupIntervalHours is the schema descriptor for auto_backup_interval_hours field.
+	backupsettingsDescAutoBackupIntervalHours := backupsettingsFields[2].Descriptor()
+	// backupsettings.DefaultAutoBackupIntervalHours holds the default value on creation for the auto_backup_interval_hours field.
+	backupsettings.DefaultAutoBackupIntervalHours = backupsettingsDescAutoBackupIntervalHours.Default.(int32)
+	// backupsettingsDescID is the schema descriptor for id field.
+	backupsettingsDescID := backupsettingsFields[0].Descriptor()
+	// backupsettings.DefaultID holds the default value on creation for the id field.
+	backupsettings.DefaultID = backupsettingsDescID.Default.(func() uuid.UUID)
 }

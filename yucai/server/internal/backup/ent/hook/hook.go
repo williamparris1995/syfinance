@@ -21,6 +21,18 @@ func (f BackupFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, erro
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BackupMutation", m)
 }
 
+// The BackupSettingsFunc type is an adapter to allow the use of ordinary
+// function as BackupSettings mutator.
+type BackupSettingsFunc func(context.Context, *ent.BackupSettingsMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BackupSettingsFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BackupSettingsMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BackupSettingsMutation", m)
+}
+
 // Condition is a hook condition function.
 type Condition func(context.Context, ent.Mutation) bool
 
