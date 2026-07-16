@@ -1352,15 +1352,24 @@ func (s *Service) portfolioTWR(ctx context.Context, tenantID uuid.UUID, accountI
 }
 
 // uniqueSortedTradeDates extracts unique trade_date values sorted ascending.
+// uniqueSortedTradeDates extracts unique trade_date values (day-truncated,
+// sorted ascending) that are TWR cash-flow days — days with at least one
+// buy/sell/dividend. Pure-split days are excluded: a split is a non-cash-flow
+// event (market-value-neutral under GIPS), so it must not seed a TWR sub-period,
+// or BV_before/after would pair one price with cross-scale (pre-/post-split)
+// quantities → phantom HPR. The split trade stays in trades so QtyAtDate replay
+// folds the ratio into the BV of the adjacent cash-flow days.
 func uniqueSortedTradeDates(trades []domain.HoldingTransaction) []time.Time {
-	seen := map[time.Time]bool{}
-	days := make([]time.Time, 0, len(trades))
+	hasCashFlow := map[time.Time]bool{}
 	for _, t := range trades {
-		d := t.TradeDate.Truncate(24 * time.Hour)
-		if !seen[d] {
-			seen[d] = true
-			days = append(days, d)
+		if t.TradeType == domain.TradeTypeSplit {
+			continue
 		}
+		hasCashFlow[t.TradeDate.Truncate(24*time.Hour)] = true
+	}
+	days := make([]time.Time, 0, len(hasCashFlow))
+	for d := range hasCashFlow {
+		days = append(days, d)
 	}
 	sort.Slice(days, func(i, j int) bool { return days[i].Before(days[j]) })
 	return days

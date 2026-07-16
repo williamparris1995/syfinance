@@ -443,3 +443,47 @@ func TestPortfolioTWRCacheBenchmark(t *testing.T) {
 	t.Logf("N=%d cashFlowDays × M=%d holdings: FindBySecurity calls with cache=%d, without=%d (%.0f%% saved by range⊂full cache hits)",
 		nCashFlowDays, mHoldings, withCache, withoutCache, 100.0*float64(withoutCache-withCache)/float64(withoutCache))
 }
+
+// TestUniqueSortedTradeDatesExcludesPureSplitDay: a day with only a split trade
+// is NOT a cash-flow day (split is market-value-neutral, non-cash-flow) → must
+// not seed a TWR sub-period. The split trade stays in trades for QtyAtDate replay.
+func TestUniqueSortedTradeDatesExcludesPureSplitDay(t *testing.T) {
+	secID := uuid.New()
+	day0 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	day1 := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
+	day2 := time.Date(2020, 1, 3, 0, 0, 0, 0, time.UTC)
+	// buy day0, split day1 (pure split day), sell day2.
+	trades := []domain.HoldingTransaction{
+		{TradeType: domain.TradeTypeBuy, Quantity: 100, SecurityID: secID, TradeDate: day0},
+		{TradeType: domain.TradeTypeSplit, Quantity: 2, SecurityID: secID, TradeDate: day1},
+		{TradeType: domain.TradeTypeSell, Quantity: 50, SecurityID: secID, TradeDate: day2},
+	}
+	days := uniqueSortedTradeDates(trades)
+	// day1 (pure split) excluded; day0 (buy) + day2 (sell) kept.
+	if len(days) != 2 {
+		t.Fatalf("len(days)=%d, want 2 (pure split day excluded); days=%v", len(days), days)
+	}
+	if !days[0].Equal(day0) || !days[1].Equal(day2) {
+		t.Errorf("days=%v, want [day0, day2] (day1 pure split excluded)", days)
+	}
+}
+
+// TestUniqueSortedTradeDatesKeepsSplitPlusBuyDay: split+buy same day → the buy
+// makes it a cash-flow day, so the day is kept (split folded via QtyAtDate).
+func TestUniqueSortedTradeDatesKeepsSplitPlusBuyDay(t *testing.T) {
+	secID := uuid.New()
+	day0 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	day1 := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
+	trades := []domain.HoldingTransaction{
+		{TradeType: domain.TradeTypeBuy, Quantity: 100, SecurityID: secID, TradeDate: day0},
+		{TradeType: domain.TradeTypeSplit, Quantity: 2, SecurityID: secID, TradeDate: day1},
+		{TradeType: domain.TradeTypeBuy, Quantity: 50, SecurityID: secID, TradeDate: day1}, // split+buy same day
+	}
+	days := uniqueSortedTradeDates(trades)
+	if len(days) != 2 {
+		t.Fatalf("len(days)=%d, want 2 (day1 has buy → kept); days=%v", len(days), days)
+	}
+	if !days[1].Equal(day1) {
+		t.Errorf("days=%v, want day1 kept (split+buy same day is a cash-flow day)", days)
+	}
+}
