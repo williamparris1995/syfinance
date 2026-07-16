@@ -7,7 +7,7 @@ import (
 )
 
 func TestNewBackup_Valid(t *testing.T) {
-	b, err := NewBackup(uuid.New(), BackupProviderLocal, false)
+	b, err := NewBackup(uuid.New(), BackupProviderLocal, false, false)
 	if err != nil {
 		t.Fatalf("NewBackup failed: %v", err)
 	}
@@ -20,9 +20,26 @@ func TestNewBackup_Valid(t *testing.T) {
 }
 
 func TestNewBackup_NoProvider(t *testing.T) {
-	_, err := NewBackup(uuid.New(), BackupProvider(0), false)
+	_, err := NewBackup(uuid.New(), BackupProvider(0), false, false)
 	if err == nil {
 		t.Error("expected error for no provider")
+	}
+}
+
+func TestNewBackup_AutoFlag(t *testing.T) {
+	b1, err := NewBackup(uuid.New(), BackupProviderLocal, false, true)
+	if err != nil {
+		t.Fatalf("NewBackup auto=true: %v", err)
+	}
+	if !b1.Auto {
+		t.Error("Auto=false, want true (auto flag not propagated)")
+	}
+	b2, err := NewBackup(uuid.New(), BackupProviderLocal, false, false)
+	if err != nil {
+		t.Fatalf("NewBackup auto=false: %v", err)
+	}
+	if b2.Auto {
+		t.Error("Auto=true, want false")
 	}
 }
 

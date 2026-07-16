@@ -65,7 +65,7 @@ type Backup struct {
 	UpdatedAt  time.Time
 }
 
-func NewBackup(tenantID uuid.UUID, provider BackupProvider, encrypted bool) (*Backup, error) {
+func NewBackup(tenantID uuid.UUID, provider BackupProvider, encrypted bool, auto bool) (*Backup, error) {
 	if provider == 0 {
 		return nil, fmt.Errorf("provider must be specified")
 	}
@@ -80,6 +80,7 @@ func NewBackup(tenantID uuid.UUID, provider BackupProvider, encrypted bool) (*Ba
 		Provider:  provider,
 		Filename:  fmt.Sprintf("backup_%s%s", now.Format("20060102_150405"), suffix),
 		Encrypted: encrypted,
+		Auto:      auto,
 		Version:   1,
 		CreatedAt: now,
 		UpdatedAt: now,

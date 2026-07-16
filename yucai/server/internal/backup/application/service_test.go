@@ -145,7 +145,7 @@ func TestCreateBackupPlaintext(t *testing.T) {
 	port := newFakePort("account", []byte(`[{"name":"Cash"}]`))
 	svc, repo, prov := newTestService([]domain.TenantDataPort{port})
 
-	dto, err := svc.CreateBackup(context.Background(), tenantID, false, "")
+	dto, err := svc.CreateBackup(context.Background(), tenantID, false, "", false)
 	if err != nil {
 		t.Fatalf("CreateBackup: %v", err)
 	}
@@ -183,7 +183,7 @@ func TestCreateBackupEncryptedNoPassword(t *testing.T) {
 	port := newFakePort("account", []byte(`[]`))
 	svc, repo, prov := newTestService([]domain.TenantDataPort{port})
 
-	_, err := svc.CreateBackup(context.Background(), uuid.New(), true, "")
+	_, err := svc.CreateBackup(context.Background(), uuid.New(), true, "", false)
 	if !errors.Is(err, domain.ErrPasswordRequired) {
 		t.Fatalf("err = %v, want ErrPasswordRequired", err)
 	}
@@ -201,7 +201,7 @@ func TestCreateBackupPlaintextWithPassword(t *testing.T) {
 	port := newFakePort("account", []byte(`[]`))
 	svc, _, prov := newTestService([]domain.TenantDataPort{port})
 
-	_, err := svc.CreateBackup(context.Background(), uuid.New(), false, "leak")
+	_, err := svc.CreateBackup(context.Background(), uuid.New(), false, "leak", false)
 	if !errors.Is(err, domain.ErrPasswordOnPlaintext) {
 		t.Fatalf("err = %v, want ErrPasswordOnPlaintext", err)
 	}
@@ -219,7 +219,7 @@ func TestRestoreBackupRoundtrip(t *testing.T) {
 	port := newFakePort("account", original)
 	svc, repo, _ := newTestService([]domain.TenantDataPort{port})
 
-	dto, err := svc.CreateBackup(context.Background(), tenantID, false, "")
+	dto, err := svc.CreateBackup(context.Background(), tenantID, false, "", false)
 	if err != nil {
 		t.Fatalf("CreateBackup: %v", err)
 	}
@@ -254,7 +254,7 @@ func TestRestoreBackupEncryptedRoundtrip(t *testing.T) {
 	port := newFakePort("account", original)
 	svc, repo, prov := newTestService([]domain.TenantDataPort{port})
 
-	dto, err := svc.CreateBackup(context.Background(), tenantID, true, "correct-horse")
+	dto, err := svc.CreateBackup(context.Background(), tenantID, true, "correct-horse", false)
 	if err != nil {
 		t.Fatalf("CreateBackup: %v", err)
 	}
@@ -291,7 +291,7 @@ func TestRestoreBackupWrongPassword(t *testing.T) {
 	port := newFakePort("account", live)
 	svc, repo, _ := newTestService([]domain.TenantDataPort{port})
 
-	dto, err := svc.CreateBackup(context.Background(), tenantID, true, "pw1")
+	dto, err := svc.CreateBackup(context.Background(), tenantID, true, "pw1", false)
 	if err != nil {
 		t.Fatalf("CreateBackup: %v", err)
 	}
@@ -318,7 +318,7 @@ func TestRestoreBackupEncryptedMissingPassword(t *testing.T) {
 	port := newFakePort("account", live)
 	svc, _, _ := newTestService([]domain.TenantDataPort{port})
 
-	dto, err := svc.CreateBackup(context.Background(), tenantID, true, "pw1")
+	dto, err := svc.CreateBackup(context.Background(), tenantID, true, "pw1", false)
 	if err != nil {
 		t.Fatalf("CreateBackup: %v", err)
 	}
@@ -338,7 +338,7 @@ func TestDeleteBackupRemovesFileAndRecord(t *testing.T) {
 	port := newFakePort("account", []byte(`[]`))
 	svc, repo, prov := newTestService([]domain.TenantDataPort{port})
 
-	dto, err := svc.CreateBackup(context.Background(), tenantID, false, "")
+	dto, err := svc.CreateBackup(context.Background(), tenantID, false, "", false)
 	if err != nil {
 		t.Fatalf("CreateBackup: %v", err)
 	}

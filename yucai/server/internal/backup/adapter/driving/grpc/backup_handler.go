@@ -38,7 +38,7 @@ func (h *BackupHandler) CreateBackup(ctx context.Context, req *pb.CreateBackupRe
 	if req.Password != nil {
 		password = *req.Password
 	}
-	result, err := h.service.CreateBackup(ctx, tenantID, req.Encrypted, password)
+	result, err := h.service.CreateBackup(ctx, tenantID, req.Encrypted, password, false)
 	if err != nil {
 		return nil, mapError(err)
 	}

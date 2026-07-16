@@ -35,7 +35,7 @@ func NewService(repo domain.BackupRepository, cloudProviders map[domain.BackupPr
 
 // CreateBackup serializes tenant data → optionally encrypts → Upload →
 // Finalize (sha256/size) → Save.
-func (s *Service) CreateBackup(ctx context.Context, tenantID uuid.UUID, encrypted bool, password string) (*BackupDTO, error) {
+func (s *Service) CreateBackup(ctx context.Context, tenantID uuid.UUID, encrypted bool, password string, auto bool) (*BackupDTO, error) {
 	if encrypted && password == "" {
 		return nil, domain.ErrPasswordRequired
 	}
@@ -71,7 +71,7 @@ func (s *Service) CreateBackup(ctx context.Context, tenantID uuid.UUID, encrypte
 	}
 
 	// 3. Backup record + Upload + Finalize (checksum/size inline).
-	backup, err := domain.NewBackup(tenantID, domain.BackupProviderLocal, encrypted)
+	backup, err := domain.NewBackup(tenantID, domain.BackupProviderLocal, encrypted, auto)
 	if err != nil {
 		return nil, fmt.Errorf("create backup: %w", err)
 	}
