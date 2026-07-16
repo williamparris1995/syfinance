@@ -68,10 +68,9 @@ func newFakePort(name string, data []byte) *fakePort {
 
 func (p *fakePort) Name() string { return p.name }
 func (p *fakePort) Export(_ context.Context, _ uuid.UUID) (json.RawMessage, error) {
-	// Real tenant-data modules always emit valid JSON (empty state = "[]"), never
-	// nil. Normalize so the fake emulates production behavior: this matters for
-	// the pre-restore safety backup, which Exports current state before any
-	// restore — a nil Export would break envelope marshaling.
+	// Real tenant-data modules always emit valid JSON (empty state = "[]", per
+	// exporter test convention); normalize so the fake emulates production
+	// behavior (nil would serialize to "null", masking empty-state semantics).
 	if len(p.data) == 0 {
 		return json.RawMessage("[]"), nil
 	}
@@ -411,8 +410,14 @@ func (p *failingImportPort) Import(_ context.Context, _ uuid.UUID, _ json.RawMes
 }
 
 // failingExportPort's Export always errors (inject pre-restore creation failure
-// to verify RestoreBackup returns error WITHOUT purging any data).
-type failingExportPort struct{ name string }
+// to verify RestoreBackup returns error WITHOUT purging any data). purgeCalled
+// records whether Purge ran, so TestRestoreBackupPreRestoreCreateFailsNoPurge
+// can assert restoreNoSafety (which contains Purge) is never reached when the
+// pre-restore safety backup fails to create.
+type failingExportPort struct {
+	name        string
+	purgeCalled bool
+}
 
 func (p *failingExportPort) Name() string { return p.name }
 func (p *failingExportPort) Export(_ context.Context, _ uuid.UUID) (json.RawMessage, error) {
@@ -421,7 +426,10 @@ func (p *failingExportPort) Export(_ context.Context, _ uuid.UUID) (json.RawMess
 func (p *failingExportPort) Import(_ context.Context, _ uuid.UUID, _ json.RawMessage) error {
 	return nil
 }
-func (p *failingExportPort) Purge(_ context.Context, _ uuid.UUID) error { return nil }
+func (p *failingExportPort) Purge(_ context.Context, _ uuid.UUID) error {
+	p.purgeCalled = true
+	return nil
+}
 
 // TestRestoreBackupSuccessDeletesPreRestore: successful restore removes the
 // auto-created pre-restore safety backup (list keeps only the source backup).
@@ -461,6 +469,11 @@ func TestRestoreBackupFailureLeavesPreRestore(t *testing.T) {
 		t.Fatal("RestoreBackup: want error (import injected failure), got nil")
 	}
 	list, _ := svc.ListBackups(context.Background(), tenantID, nil, domain.PageRequest{PageSize: 100})
+	// Exactly two backups: src + the pre-restore safety (guards against "left
+	// many" regressions, e.g. a retry loop creating duplicates).
+	if len(list.Backups) != 2 {
+		t.Errorf("backups count = %d, want 2 (src + pre-restore safety)", len(list.Backups))
+	}
 	var preRestore *BackupDTO
 	for i := range list.Backups {
 		if list.Backups[i].Auto {
@@ -469,6 +482,20 @@ func TestRestoreBackupFailureLeavesPreRestore(t *testing.T) {
 	}
 	if preRestore == nil {
 		t.Fatal("pre-restore safety backup (Auto=true) not found after failed restore; want it retained for recovery")
+	}
+	// src must still exist (guards against "src deleted on failure" regression).
+	srcExists := false
+	for i := range list.Backups {
+		if list.Backups[i].ID == src.ID {
+			srcExists = true
+		}
+	}
+	if !srcExists {
+		t.Error("source backup missing after failed restore; want it retained alongside pre-restore safety")
+	}
+	// pre-restore must be a distinct new backup, not src itself.
+	if preRestore.ID == src.ID {
+		t.Error("pre-restore backup ID == src ID; want distinct backups")
 	}
 }
 
@@ -495,5 +522,13 @@ func TestRestoreBackupPreRestoreCreateFailsNoPurge(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "pre-restore safety backup") {
 		t.Errorf("error=%v, want pre-restore safety backup failure", err)
+	}
+	// Structural guarantee: when the pre-restore safety backup fails to create,
+	// RestoreBackup must NOT proceed into restoreNoSafety (which contains the
+	// Purge step). Guards against RestoreBackup being mis-reordered into
+	// "restore first, then CreateBackup" — that would purge data with no safety
+	// net, and the error-only assertion above would still pass (false negative).
+	if port.purgeCalled {
+		t.Error("Purge must not run when pre-restore creation fails")
 	}
 }
