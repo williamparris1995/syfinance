@@ -1468,6 +1468,12 @@ func (s *Service) holdingTWR(ctx context.Context, holdingID uuid.UUID) (*float64
 // priceAtOrBefore returns the security's nearest price_history entry on or
 // before [date] (forward-fill). Returns ok=false when priceHistoryRepo is nil
 // or no entry covers the date.
+//
+// Split correctness: post-split BV relies on a raw price entry dated on/after
+// the split day. A stale pre-split entry surviving a fetch gap across a split
+// would pair post-split qty with pre-split price → 2× overstatement (the mirror
+// of the cashFlowDays split-day bug fixed by excluding pure-split days). Price
+// storage freshness is the providers' concern (out of scope per spec §3).
 func (s *Service) priceAtOrBefore(ctx context.Context, securityID uuid.UUID, date time.Time) (int64, bool) {
 	if s.priceHistoryRepo == nil {
 		return 0, false
