@@ -133,13 +133,54 @@ func (r *fakeRepo) Delete(_ context.Context, _ uuid.UUID, id uuid.UUID) error {
 	return nil
 }
 
+// fakeSettingsRepo is an in-memory BackupSettingsRepository. It mirrors the
+// real repo's upsert-by-tenant semantics so service-level SaveCloudSettings/
+// GetCloudSettings tests exercise the same contract without a DB.
+type fakeSettingsRepo struct {
+	mu    sync.Mutex
+	store map[uuid.UUID]*domain.BackupSettings
+}
+
+func newFakeSettingsRepo() *fakeSettingsRepo {
+	return &fakeSettingsRepo{store: map[uuid.UUID]*domain.BackupSettings{}}
+}
+
+func (r *fakeSettingsRepo) Save(_ context.Context, s *domain.BackupSettings) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	cp := *s
+	r.store[s.TenantID] = &cp
+	return nil
+}
+
+func (r *fakeSettingsRepo) GetByTenant(_ context.Context, tenantID uuid.UUID) (*domain.BackupSettings, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	s, ok := r.store[tenantID]
+	if !ok {
+		return nil, nil // unconfigured → Service returns defaults
+	}
+	cp := *s
+	return &cp, nil
+}
+
 // newTestService wires a Service with fake repo/provider and the given ports.
+// The settings repo is wired with a fresh fake but discarded — tests that need
+// to assert on settings persistence should call newTestServiceWithSettings.
 func newTestService(ports []domain.TenantDataPort) (*Service, *fakeRepo, *fakeProvider) {
+	svc, repo, prov, _ := newTestServiceWithSettings(ports)
+	return svc, repo, prov
+}
+
+// newTestServiceWithSettings is like newTestService but also returns the fake
+// settings repo so SaveCloudSettings/GetCloudSettings tests can assert on it.
+func newTestServiceWithSettings(ports []domain.TenantDataPort) (*Service, *fakeRepo, *fakeProvider, *fakeSettingsRepo) {
 	repo := newFakeRepo()
+	settingsRepo := newFakeSettingsRepo()
 	prov := newFakeProvider()
 	cloud := map[domain.BackupProvider]CloudProvider{domain.BackupProviderLocal: prov}
-	svc := NewService(repo, cloud, ports)
-	return svc, repo, prov
+	svc := NewService(repo, settingsRepo, cloud, ports)
+	return svc, repo, prov, settingsRepo
 }
 
 // --- tests ---
@@ -530,5 +571,95 @@ func TestRestoreBackupPreRestoreCreateFailsNoPurge(t *testing.T) {
 	// net, and the error-only assertion above would still pass (false negative).
 	if port.purgeCalled {
 		t.Error("Purge must not run when pre-restore creation fails")
+	}
+}
+
+// TestSaveCloudSettings_PersistsAutoBackupFields verifies SaveCloudSettings
+// forwards the auto-backup portion of CloudSettings to the settings repo
+// (upsert-by-tenant contract — only AutoBackup + Interval are stored today;
+// provider/credential fields remain deferred).
+func TestSaveCloudSettings_PersistsAutoBackupFields(t *testing.T) {
+	tenantID := uuid.New()
+	svc, _, _, settingsRepo := newTestServiceWithSettings(nil)
+
+	err := svc.SaveCloudSettings(context.Background(), CloudSettings{
+		TenantID:                tenantID,
+		AutoBackup:              true,
+		AutoBackupIntervalHours: 12,
+	})
+	if err != nil {
+		t.Fatalf("SaveCloudSettings: %v", err)
+	}
+
+	stored, err := settingsRepo.GetByTenant(context.Background(), tenantID)
+	if err != nil {
+		t.Fatalf("GetByTenant: %v", err)
+	}
+	if stored == nil {
+		t.Fatal("expected stored settings, got nil")
+	}
+	if !stored.AutoBackup {
+		t.Errorf("AutoBackup = false, want true")
+	}
+	if stored.AutoBackupIntervalHours != 12 {
+		t.Errorf("AutoBackupIntervalHours = %d, want 12", stored.AutoBackupIntervalHours)
+	}
+}
+
+// TestGetCloudSettings_ReturnsDefaultsWhenUnconfigured verifies that a tenant
+// with no persisted row gets zero-valued defaults (AutoBackup=false, 0h) rather
+// than an error — the client treats this as "auto-backup off".
+func TestGetCloudSettings_ReturnsDefaultsWhenUnconfigured(t *testing.T) {
+	tenantID := uuid.New()
+	svc, _, _, _ := newTestServiceWithSettings(nil)
+
+	got, err := svc.GetCloudSettings(context.Background(), tenantID)
+	if err != nil {
+		t.Fatalf("GetCloudSettings: %v", err)
+	}
+	if got.TenantID != tenantID {
+		t.Errorf("TenantID = %v, want %v", got.TenantID, tenantID)
+	}
+	if got.AutoBackup {
+		t.Errorf("AutoBackup = true, want false (default)")
+	}
+	if got.AutoBackupIntervalHours != 0 {
+		t.Errorf("AutoBackupIntervalHours = %d, want 0 (default)", got.AutoBackupIntervalHours)
+	}
+}
+
+// TestGetCloudSettings_ReturnsPersistedValues verifies the round-trip:
+// SaveCloudSettings then GetCloudSettings returns the stored auto-backup
+// fields (and that a second Save upserts rather than failing).
+func TestGetCloudSettings_ReturnsPersistedValues(t *testing.T) {
+	tenantID := uuid.New()
+	svc, _, _, _ := newTestServiceWithSettings(nil)
+
+	// First save — create path.
+	if err := svc.SaveCloudSettings(context.Background(), CloudSettings{
+		TenantID:                tenantID,
+		AutoBackup:              true,
+		AutoBackupIntervalHours: 6,
+	}); err != nil {
+		t.Fatalf("first SaveCloudSettings: %v", err)
+	}
+	// Second save — upsert path (row already exists for this tenant).
+	if err := svc.SaveCloudSettings(context.Background(), CloudSettings{
+		TenantID:                tenantID,
+		AutoBackup:              false,
+		AutoBackupIntervalHours: 48,
+	}); err != nil {
+		t.Fatalf("second SaveCloudSettings (upsert): %v", err)
+	}
+
+	got, err := svc.GetCloudSettings(context.Background(), tenantID)
+	if err != nil {
+		t.Fatalf("GetCloudSettings: %v", err)
+	}
+	if got.AutoBackup {
+		t.Errorf("AutoBackup = true, want false (upserted value)")
+	}
+	if got.AutoBackupIntervalHours != 48 {
+		t.Errorf("AutoBackupIntervalHours = %d, want 48 (upserted value)", got.AutoBackupIntervalHours)
 	}
 }

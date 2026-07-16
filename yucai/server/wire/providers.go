@@ -512,14 +512,17 @@ func provideBackupEntClient(cfg *config.Config) (*backupent.Client, error) {
 func provideBackupRepo(client *backupent.Client) *backuprepo.BackupRepository {
 	return backuprepo.NewBackupRepository(client)
 }
+func provideBackupSettingsRepo(client *backupent.Client) *backuprepo.BackupSettingsRepository {
+	return backuprepo.NewBackupSettingsRepository(client)
+}
 func provideLocalCloudProvider(cfg *config.Config) *backupcloud.LocalProvider {
 	return backupcloud.NewLocalProvider(cfg.BackupDir)
 }
-func provideBackupService(repo *backuprepo.BackupRepository, localProvider *backupcloud.LocalProvider, ports []domain.TenantDataPort) *backupapp.Service {
+func provideBackupService(repo *backuprepo.BackupRepository, settingsRepo *backuprepo.BackupSettingsRepository, localProvider *backupcloud.LocalProvider, ports []domain.TenantDataPort) *backupapp.Service {
 	cloudProviders := map[domain.BackupProvider]backupapp.CloudProvider{
 		domain.BackupProviderLocal: localProvider,
 	}
-	return backupapp.NewService(repo, cloudProviders, ports)
+	return backupapp.NewService(repo, settingsRepo, cloudProviders, ports)
 }
 
 // provideBackupExporters 聚合各模块 TenantDataPort(Purge 顺序:依赖模块在前,account 最后;

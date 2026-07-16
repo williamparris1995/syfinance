@@ -175,6 +175,9 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 
 	// Backup module
 	backupRepo := provideBackupRepo(backupClient)
+	// backupSettingsRepo persists per-tenant auto-backup preferences (P1
+	// auto-backup scheduler — SaveCloudSettings/GetCloudSettings upsert by tenant).
+	backupSettingsRepo := provideBackupSettingsRepo(backupClient)
 	localCloudProvider := provideLocalCloudProvider(cfg)
 	// TenantDataPort exporters (8 modules). Each exporter consumes its module's
 	// repo (declared above in scope); HoldingExporter is dual-port (holdingRepo
@@ -189,7 +192,7 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	templateExporter := provideTemplateExporter(templateRepo)
 	tagExporter := provideTagExporter(tagRepo)
 	backupExporters := provideBackupExporters(accountExporter, txnExporter, debtExporter, budgetExporter, goalExporter, holdingExporter, templateExporter, tagExporter)
-	backupService := provideBackupService(backupRepo, localCloudProvider, backupExporters)
+	backupService := provideBackupService(backupRepo, backupSettingsRepo, localCloudProvider, backupExporters)
 	backupHandler := provideBackupHandler(backupService)
 
 	// Sync module

@@ -15,6 +15,7 @@ import (
 // Service orchestrates backup operations.
 type Service struct {
 	repo           domain.BackupRepository
+	settingsRepo   domain.BackupSettingsRepository
 	cloudProviders map[domain.BackupProvider]CloudProvider
 	ports          []domain.TenantDataPort
 }
@@ -30,8 +31,9 @@ type CloudProvider interface {
 // NewService creates a new backup application service. ports is the ordered list
 // of tenant data ports (exporters) aggregated into each backup; nil/empty means
 // CreateBackup produces an envelope with no modules (wired in Task 10).
-func NewService(repo domain.BackupRepository, cloudProviders map[domain.BackupProvider]CloudProvider, ports []domain.TenantDataPort) *Service {
-	return &Service{repo: repo, cloudProviders: cloudProviders, ports: ports}
+// settingsRepo persists per-tenant cloud/auto-backup preferences.
+func NewService(repo domain.BackupRepository, settingsRepo domain.BackupSettingsRepository, cloudProviders map[domain.BackupProvider]CloudProvider, ports []domain.TenantDataPort) *Service {
+	return &Service{repo: repo, settingsRepo: settingsRepo, cloudProviders: cloudProviders, ports: ports}
 }
 
 // CreateBackup serializes tenant data → optionally encrypts → Upload →
@@ -293,14 +295,31 @@ type CloudSettings struct {
 	AutoBackupIntervalHours int32
 }
 
-// SaveCloudSettings stores cloud settings for a tenant.
+// SaveCloudSettings persists the auto-backup portion of the cloud settings for
+// a tenant (upsert by tenant). Provider/credential fields are still deferred —
+// only AutoBackup + AutoBackupIntervalHours are stored today.
 func (s *Service) SaveCloudSettings(ctx context.Context, settings CloudSettings) error {
-	// TODO: Persist to a backup_settings table when schema is added
-	return nil
+	return s.settingsRepo.Save(ctx, &domain.BackupSettings{
+		TenantID:                settings.TenantID,
+		AutoBackup:              settings.AutoBackup,
+		AutoBackupIntervalHours: settings.AutoBackupIntervalHours,
+	})
 }
 
-// GetCloudSettings retrieves cloud settings for a tenant.
+// GetCloudSettings retrieves cloud settings for a tenant. When no row exists
+// yet (tenant never configured), returns a zero-valued CloudSettings seeded
+// with the tenant ID — callers see defaults (AutoBackup=false, 24h interval).
 func (s *Service) GetCloudSettings(ctx context.Context, tenantID uuid.UUID) (*CloudSettings, error) {
-	// TODO: Read from backup_settings table when schema is added
-	return &CloudSettings{TenantID: tenantID}, nil
+	stored, err := s.settingsRepo.GetByTenant(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("load cloud settings: %w", err)
+	}
+	if stored == nil {
+		return &CloudSettings{TenantID: tenantID}, nil
+	}
+	return &CloudSettings{
+		TenantID:                tenantID,
+		AutoBackup:              stored.AutoBackup,
+		AutoBackupIntervalHours: stored.AutoBackupIntervalHours,
+	}, nil
 }
