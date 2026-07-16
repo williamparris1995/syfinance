@@ -487,3 +487,158 @@ func TestUniqueSortedTradeDatesKeepsSplitPlusBuyDay(t *testing.T) {
 		t.Errorf("days=%v, want day1 kept (split+buy same day is a cash-flow day)", days)
 	}
 }
+
+// splitPriceRepo serves raw (unadjusted) prices that jump across a split:
+// preSplitCents strictly before splitDay, postSplitCents on/after splitDay.
+// Mirrors how Sina (不复权) and Yahoo (quote.close raw, not adjclose) store
+// split-jumping raw prices — the root cause of the TWR split-day BV cross-scale
+// bug (one price paired with pre-/post-split quantities).
+type splitPriceRepo struct {
+	splitDay       time.Time
+	preSplitCents  int64
+	postSplitCents int64
+}
+
+func (r *splitPriceRepo) FindBySecurity(ctx context.Context, securityID uuid.UUID, from, to time.Time) ([]domain.SecurityPriceHistory, error) {
+	// preSplit entry predates any buy day (one year before split) so priceAtOrBefore
+	// returns preSplit for every date strictly before splitDay, postSplit on/after.
+	return []domain.SecurityPriceHistory{
+		{PriceDate: r.splitDay.AddDate(-1, 0, 0), PriceCents: r.preSplitCents},
+		{PriceDate: r.splitDay, PriceCents: r.postSplitCents},
+	}, nil
+}
+
+// No-op stubs to satisfy domain.PriceHistoryRepository (only FindBySecurity is
+// exercised by the TWR path; mirrors fakePriceRepo's no-op pattern verbatim).
+// NOTE: brief omitted these; added as required compile fix — see task-2-report.
+func (r *splitPriceRepo) SaveAll(_ context.Context, _ []domain.SecurityPriceHistory) error { return nil }
+func (r *splitPriceRepo) Save(_ context.Context, _ domain.SecurityPriceHistory) error      { return nil }
+func (r *splitPriceRepo) Exists(_ context.Context, _ uuid.UUID) (bool, error)              { return true, nil }
+
+// TestHoldingTWRSplitNoPhantomHPR: buy 100@¥100(day0) → split 1:2(day1) →
+// sell 50@¥60(day2); raw price jumps 10000→5000 across split; current ¥60.
+//
+// GIPS hand-math (split day must NOT seed a sub-period):
+//	cashFlowDays = [day0, day2]                       (day1 pure split excluded)
+//	BV_after(day0)  = QtyAtDate(day1)×price(day0)   = 100×10000 = 1,000,000 (pre-split)
+//	BV_before(day2) = QtyAtDate(day2)×price(day2)   = 200×6000  = 1,200,000 (post-split; replay split 100×2)
+//	subPeriod HPR   = 1,200,000 / 1,000,000 = 1.2   → +20% real gain, NO phantom split HPR.
+//
+// Bug (split day as cut point) pairs one price with cross-scale qty at day1:
+//	BV_before(day1)=100×5000=500,000 (pre-split qty × post-split price) → phantom −50% HPR
+//	→ cumulative ≈ −40% (negative). Fix → positive TWR. Assert TWR > 0 to lock the fix.
+func TestHoldingTWRSplitNoPhantomHPR(t *testing.T) {
+	secID := uuid.New()
+	holdID := uuid.New()
+	accID := uuid.New()
+	day0 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	day1 := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
+	day2 := time.Date(2020, 1, 3, 0, 0, 0, 0, time.UTC)
+	svc := &Service{
+		securityRepo: &fakeSecurityRepoByID{sec: domain.Security{ID: secID, CurrencyCode: "CNY", CurrentPriceCents: 6000}},
+		holdingRepo:  &fakeHoldingRepoSingle{h: domain.Holding{ID: holdID, AccountID: accID, SecurityID: secID, Quantity: 150}},
+		tradeRepo: &fakeTradeRepo{items: []domain.HoldingTransaction{
+			{TradeType: domain.TradeTypeBuy, Quantity: 100, AmountCents: 1000000, SecurityID: secID, TradeDate: day0, AccountID: accID},
+			{TradeType: domain.TradeTypeSplit, Quantity: 2, SecurityID: secID, TradeDate: day1, AccountID: accID},
+			{TradeType: domain.TradeTypeSell, Quantity: 50, AmountCents: 300000, SecurityID: secID, TradeDate: day2, AccountID: accID},
+		}},
+		priceHistoryRepo: &splitPriceRepo{splitDay: day1, preSplitCents: 10000, postSplitCents: 5000},
+		rateRepo:         &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
+	}
+	twr, err := svc.holdingTWR(context.Background(), holdID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if twr == nil {
+		t.Fatal("holdingTWR nil, want non-nil (split folded; 2 cash-flow days day0/day2)")
+	}
+	// Real gain (current ¥60 > post-split cost basis ¥50) → positive TWR.
+	// Bug (split as cut point) yields negative TWR (phantom −50% HPR at split day).
+	if *twr <= 0 {
+		t.Errorf("holdingTWR = %v, want > 0 (split must not seed phantom HPR; +20%% real gain)", *twr)
+	}
+}
+
+// TestHoldingTWRSplitLastNeutral: split is the LAST trade. cashFlowDays exclude
+// the pure-split day2 → [day0, day1]. lastAfterCF comes from day1 (pre-split
+// scale: 50 × ¥100); finalValue is post-split (100 × ¥50). Split market-value
+// neutrality (50×10000 == 100×5000) must connect the two scales → cumulative 0%.
+//
+// GIPS hand-math:
+//	cashFlowDays = [day0, day1]                          (day2 pure split excluded)
+//	BV_after(day0) = QtyAtDate(day1)×price(day0)       = 100×10000 = 1,000,000
+//	subPeriod [day0→day1]: Begin=1,000,000, End=BV_before(day1)=100×10000=1,000,000 → HPR=1.0
+//	lastAfterCF = BV_after(day1) = QtyAtDate(day2)×price(day1) = 50×10000 = 500,000 (pre-split)
+//	finalValue  = 100(post-split)×5000 = 500,000
+//	cumulative = 1.0 × 500,000/500,000 − 1 = 0  ✓
+//
+// Bug (day2 as cut point): BV_before(day2)=50×5000=250,000 (pre qty × post price)
+// → phantom HPR 0.5 → cumulative ≈ −50%. Assert |TWR|<0.01 to lock neutrality.
+func TestHoldingTWRSplitLastNeutral(t *testing.T) {
+	secID := uuid.New()
+	holdID := uuid.New()
+	accID := uuid.New()
+	day0 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	day1 := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
+	day2 := time.Date(2020, 1, 3, 0, 0, 0, 0, time.UTC)
+	svc := &Service{
+		securityRepo: &fakeSecurityRepoByID{sec: domain.Security{ID: secID, CurrencyCode: "CNY", CurrentPriceCents: 5000}},
+		holdingRepo:  &fakeHoldingRepoSingle{h: domain.Holding{ID: holdID, AccountID: accID, SecurityID: secID, Quantity: 100}},
+		tradeRepo: &fakeTradeRepo{items: []domain.HoldingTransaction{
+			{TradeType: domain.TradeTypeBuy, Quantity: 100, AmountCents: 1000000, SecurityID: secID, TradeDate: day0, AccountID: accID},
+			{TradeType: domain.TradeTypeSell, Quantity: 50, AmountCents: 500000, SecurityID: secID, TradeDate: day1, AccountID: accID},
+			{TradeType: domain.TradeTypeSplit, Quantity: 2, SecurityID: secID, TradeDate: day2, AccountID: accID},
+		}},
+		priceHistoryRepo: &splitPriceRepo{splitDay: day2, preSplitCents: 10000, postSplitCents: 5000},
+		rateRepo:         &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
+	}
+	twr, err := svc.holdingTWR(context.Background(), holdID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if twr == nil {
+		t.Fatal("holdingTWR nil, want non-nil (split folded; 2 cash-flow days day0/day1)")
+	}
+	// Split last + market-value-neutral current (¥50) → cumulative 0%.
+	// Bug (split as cut point) → strongly negative (phantom HPR). Assert ~0.
+	if *twr > 0.01 || *twr < -0.01 {
+		t.Errorf("holdingTWR = %v, want ~0 (split last, market-value-neutral; bug would be strongly negative)", *twr)
+	}
+}
+
+// TestPortfolioTWRSplitNoPhantomHPR: same scenario at portfolio level — split
+// must not seed a phantom sub-period in computeTWR either. rangeStart=day0 →
+// rng == full (byte-identical, mirrors TestPortfolioTWRSimple). Both must be > 0.
+func TestPortfolioTWRSplitNoPhantomHPR(t *testing.T) {
+	secID := uuid.New()
+	day0 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	day1 := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
+	day2 := time.Date(2020, 1, 3, 0, 0, 0, 0, time.UTC)
+	svc := &Service{
+		securityRepo: &fakeSecurityRepoByID{sec: domain.Security{ID: secID, CurrencyCode: "CNY", CurrentPriceCents: 6000}},
+		holdingRepo:  &fakeHoldingRepoSingle{h: domain.Holding{SecurityID: secID, Quantity: 150}},
+		tradeRepo: &fakeTradeRepo{items: []domain.HoldingTransaction{
+			{TradeType: domain.TradeTypeBuy, Quantity: 100, AmountCents: 1000000, SecurityID: secID, TradeDate: day0},
+			{TradeType: domain.TradeTypeSplit, Quantity: 2, SecurityID: secID, TradeDate: day1},
+			{TradeType: domain.TradeTypeSell, Quantity: 50, AmountCents: 300000, SecurityID: secID, TradeDate: day2},
+		}},
+		priceHistoryRepo: &splitPriceRepo{splitDay: day1, preSplitCents: 10000, postSplitCents: 5000},
+		rateRepo:         &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
+	}
+	full, rng, err := svc.portfolioTWR(context.Background(), uuid.Nil, nil, "CNY", day0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if full == nil {
+		t.Fatal("portfolioTWR full nil, want non-nil (split folded; 2 cash-flow days)")
+	}
+	if *full <= 0 {
+		t.Errorf("portfolioTWR full = %v, want > 0 (split must not seed phantom HPR)", *full)
+	}
+	if rng == nil {
+		t.Fatal("portfolioTWR rng nil when rangeStart == cashFlowDays[0], want non-nil (== full)")
+	}
+	if diff := *rng - *full; diff > 1e-9 || diff < -1e-9 {
+		t.Errorf("rng (%v) != full (%v) when rangeStart == cashFlowDays[0]", *rng, *full)
+	}
+}
