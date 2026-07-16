@@ -226,3 +226,113 @@ func TestPortfolioTWRRangeDegradeEarly(t *testing.T) {
 		t.Errorf("rng = %v, want nil (rangeStart < first trade → empty opening position → ErrZeroValue)", *rng)
 	}
 }
+
+// countingPriceRepo wraps fakePriceRepo and counts FindBySecurity calls.
+// marketValueAtDateAsOfWithTrades → priceAtOrBefore → FindBySecurity per holding,
+// so for the 1-holding test setup each market-value evaluation = 1 FindBySecurity
+// call. Used to prove the request-scoped mvCache turns repeat lookups into hits.
+type countingPriceRepo struct {
+	*fakePriceRepo
+	calls int
+}
+
+func (r *countingPriceRepo) FindBySecurity(ctx context.Context, securityID uuid.UUID, from, to time.Time) ([]domain.SecurityPriceHistory, error) {
+	r.calls++
+	return r.fakePriceRepo.FindBySecurity(ctx, securityID, from, to)
+}
+
+// TestCachedMVMemoizes: cache miss computes + stores; cache hit returns the
+// stored (val, ok) without re-calling the repo. Different key → new miss.
+func TestCachedMVMemoizes(t *testing.T) {
+	secID := uuid.New()
+	day0 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	day1 := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
+	prices := &countingPriceRepo{fakePriceRepo: &fakePriceRepo{priceCents: 10000}}
+	svc := &Service{
+		securityRepo:     &fakeSecurityRepoByID{sec: domain.Security{ID: secID, CurrencyCode: "CNY"}},
+		holdingRepo:      &fakeHoldingRepoSingle{h: domain.Holding{SecurityID: secID, Quantity: 100}},
+		tradeRepo:        &fakeTradeRepo{items: []domain.HoldingTransaction{{TradeType: domain.TradeTypeBuy, Quantity: 100, SecurityID: secID, TradeDate: day0}}},
+		priceHistoryRepo: prices,
+		rateRepo:         &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
+	}
+	trades, _ := svc.allTradesForTenant(context.Background(), uuid.Nil, nil)
+	cache := mvCache{}
+
+	// Miss: computes (qty@day1=100 × price@day0=10000 = 1,000,000) and stores.
+	v1, ok1 := svc.cachedMV(context.Background(), cache, trades, uuid.Nil, nil, day1, day0, 1.0, "CNY")
+	if !ok1 || v1 != 1000000 {
+		t.Fatalf("first call (miss): v=%d ok=%v, want 1000000/true", v1, ok1)
+	}
+	if prices.calls != 1 {
+		t.Fatalf("after miss: FindBySecurity calls=%d, want 1", prices.calls)
+	}
+	if len(cache) != 1 {
+		t.Errorf("cache size=%d after one miss, want 1", len(cache))
+	}
+
+	// Hit: same key → returns cached (val, ok), no new repo call.
+	v2, ok2 := svc.cachedMV(context.Background(), cache, trades, uuid.Nil, nil, day1, day0, 1.0, "CNY")
+	if v2 != v1 || ok2 != ok1 {
+		t.Errorf("hit: v=%d ok=%v, want cached (%d, %v)", v2, ok2, v1, ok1)
+	}
+	if prices.calls != 1 {
+		t.Errorf("after hit: FindBySecurity calls=%d, want still 1 (hit must not recompute)", prices.calls)
+	}
+	if len(cache) != 1 {
+		t.Errorf("cache size=%d after hit, want still 1 (hit must not grow cache)", len(cache))
+	}
+
+	// Different priceAsOf → new key → miss.
+	v3, ok3 := svc.cachedMV(context.Background(), cache, trades, uuid.Nil, nil, day1, day1, 1.0, "CNY")
+	if !ok3 || v3 != 1000000 {
+		t.Errorf("second key (miss): v=%d ok=%v, want 1000000/true", v3, ok3)
+	}
+	if prices.calls != 2 {
+		t.Errorf("after second key: FindBySecurity calls=%d, want 2", prices.calls)
+	}
+	if len(cache) != 2 {
+		t.Errorf("cache size=%d after second miss, want 2", len(cache))
+	}
+}
+
+// TestPortfolioTWRSharedCacheReducesLookups: with rangeStart=day1 (range ⊂ full,
+// same setup as TestPortfolioTWRRange), the range computeTWR's 3 BV lookups are
+// all keys the full computeTWR already populated. So the shared cache saves
+// exactly 3 FindBySecurity calls (8 → 5). Proves the cache is both shared and
+// transparent (the regression tests above already prove results are byte-identical).
+func TestPortfolioTWRSharedCacheReducesLookups(t *testing.T) {
+	secID := uuid.New()
+	day0 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	day1 := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
+	day2 := time.Date(2020, 1, 3, 0, 0, 0, 0, time.UTC)
+	prices := &countingPriceRepo{fakePriceRepo: &fakePriceRepo{priceCents: 10000}}
+	svc := &Service{
+		securityRepo: &fakeSecurityRepoByID{sec: domain.Security{ID: secID, CurrencyCode: "CNY", CurrentPriceCents: 10000}},
+		holdingRepo:  &fakeHoldingRepoSingle{h: domain.Holding{SecurityID: secID, Quantity: 300}},
+		tradeRepo: &fakeTradeRepo{items: []domain.HoldingTransaction{
+			{TradeType: domain.TradeTypeBuy, Quantity: 100, AmountCents: 1000000, SecurityID: secID, TradeDate: day0},
+			{TradeType: domain.TradeTypeBuy, Quantity: 100, AmountCents: 1000000, SecurityID: secID, TradeDate: day1},
+			{TradeType: domain.TradeTypeBuy, Quantity: 100, AmountCents: 1000000, SecurityID: secID, TradeDate: day2},
+		}},
+		priceHistoryRepo: prices,
+		rateRepo:         &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
+	}
+	// rangeStart = day1 → range computeTWR is a strict subset of full (rangeStart=day0).
+	full, rng, err := svc.portfolioTWR(context.Background(), uuid.Nil, nil, "CNY", day1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if full == nil || rng == nil {
+		t.Fatalf("expected full and rng non-nil, got full=%v rng=%v", full, rng)
+	}
+	// Full computeTWR issues 5 unique BV lookups; range would add 3 more without
+	// sharing (begin + day2 bvBefore/bvAfter). Shared cache → range's 3 are hits.
+	const (
+		withoutCache = 8 // 5 (full) + 3 (range, no sharing)
+		withCache    = 5 // 5 unique keys; 3 range lookups hit
+	)
+	if prices.calls != withCache {
+		t.Errorf("FindBySecurity calls=%d, want %d (shared cache: range's 3 BV lookups hit; without cache would be %d)",
+			prices.calls, withCache, withoutCache)
+	}
+}

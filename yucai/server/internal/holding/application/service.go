@@ -1227,6 +1227,44 @@ func (s *Service) portfolioXIRR(ctx context.Context, tenantID uuid.UUID, account
 	return full, rng, nil
 }
 
+// mvCacheKey identifies a cached market-value computation within one request.
+// tenantID/rateBase/base are fixed inside portfolioTWR (single base per request),
+// so they are not part of the key.
+type mvCacheKey struct {
+	accountID uuid.UUID // nil (portfolio-level) → uuid.Nil; specific account → *accountID
+	qtyAsOf   time.Time
+	priceAsOf time.Time
+}
+
+// mvCache memoizes marketValueAtDateAsOfWithTrades results within one portfolioTWR
+// call so full + range computeTWR share BV(day) (range ⊂ full). Both val and ok
+// (ok=false = price missing → degrade) are cached to avoid recomputing misses.
+type mvCache map[mvCacheKey]struct {
+	val int64
+	ok  bool
+}
+
+// cachedMV is a memoizing wrapper around marketValueAtDateAsOfWithTrades. On cache
+// hit it returns the cached (val, ok); on miss it computes, stores, and returns.
+// Transparent: identical results to a direct marketValueAtDateAsOfWithTrades call.
+func (s *Service) cachedMV(ctx context.Context, cache mvCache, trades []domain.HoldingTransaction,
+	tenantID uuid.UUID, accountID *uuid.UUID, qtyAsOf, priceAsOf time.Time, rateBase float64, base string) (int64, bool) {
+	ac := uuid.Nil
+	if accountID != nil {
+		ac = *accountID
+	}
+	key := mvCacheKey{accountID: ac, qtyAsOf: qtyAsOf, priceAsOf: priceAsOf}
+	if v, hit := cache[key]; hit {
+		return v.val, v.ok
+	}
+	val, ok := s.marketValueAtDateAsOfWithTrades(ctx, trades, tenantID, accountID, qtyAsOf, priceAsOf, rateBase, base)
+	cache[key] = struct {
+		val int64
+		ok  bool
+	}{val, ok}
+	return val, ok
+}
+
 // computeTWR computes GIPS TWR over [rangeStart, now] using sub-period chaining.
 // Generalized from portfolioTWR: full-period is rangeStart=cashFlowDays[0] (a
 // special case — byte-identical to the original portfolioTWR). Returns nil on
@@ -1236,7 +1274,11 @@ func (s *Service) portfolioXIRR(ctx context.Context, tenantID uuid.UUID, account
 //	begin = BV_after(rangeStart) = qty@rangeStart+1d × price@rangeStart
 //	subPeriods[i] = {Begin: prevAfter, End: BV_before(day_i)}
 //	finalValue = current market value; totalDays = rangeStart→now
-func (s *Service) computeTWR(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID, base string, rateBase float64, trades []domain.HoldingTransaction, cashFlowDays []time.Time, rangeStart time.Time) (*float64, error) {
+//
+// cache memoizes marketValueAtDateAsOfWithTrades results across calls sharing the
+// same BV(day) (e.g. portfolioTWR's full + range computeTWR). Transparent: a nil
+// or empty cache is functionally identical to no caching.
+func (s *Service) computeTWR(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID, base string, rateBase float64, trades []domain.HoldingTransaction, cashFlowDays []time.Time, rangeStart time.Time, cache mvCache) (*float64, error) {
 	var effectiveDays []time.Time
 	for _, d := range cashFlowDays {
 		if d.After(rangeStart) {
@@ -1246,14 +1288,14 @@ func (s *Service) computeTWR(ctx context.Context, tenantID uuid.UUID, accountID 
 	if len(effectiveDays) == 0 {
 		return nil, nil
 	}
-	beginAfter, ok := s.marketValueAtDateAsOfWithTrades(ctx, trades, tenantID, accountID, rangeStart.AddDate(0, 0, 1), rangeStart, rateBase, base)
+	beginAfter, ok := s.cachedMV(ctx, cache, trades, tenantID, accountID, rangeStart.AddDate(0, 0, 1), rangeStart, rateBase, base)
 	if !ok {
 		return nil, nil
 	}
 	prevAfter := float64(beginAfter)
 	subPeriods := make([]domain.SubPeriodReturn, 0, len(effectiveDays))
 	for _, day := range effectiveDays {
-		bvBefore, ok := s.marketValueAtDateAsOfWithTrades(ctx, trades, tenantID, accountID, day, day, rateBase, base)
+		bvBefore, ok := s.cachedMV(ctx, cache, trades, tenantID, accountID, day, day, rateBase, base)
 		if !ok {
 			return nil, nil
 		}
@@ -1261,7 +1303,7 @@ func (s *Service) computeTWR(ctx context.Context, tenantID uuid.UUID, accountID 
 			BeginValueAfterCF: prevAfter,
 			EndValueBeforeCF:  float64(bvBefore),
 		})
-		bvAfter, ok := s.marketValueAtDateAsOfWithTrades(ctx, trades, tenantID, accountID, day.AddDate(0, 0, 1), day, rateBase, base)
+		bvAfter, ok := s.cachedMV(ctx, cache, trades, tenantID, accountID, day.AddDate(0, 0, 1), day, rateBase, base)
 		if !ok {
 			return nil, nil
 		}
@@ -1300,8 +1342,12 @@ func (s *Service) portfolioTWR(ctx context.Context, tenantID uuid.UUID, accountI
 	if len(cashFlowDays) < 2 {
 		return nil, nil, nil
 	}
-	full, _ = s.computeTWR(ctx, tenantID, accountID, base, rateBase, trades, cashFlowDays, cashFlowDays[0])
-	rng, _ = s.computeTWR(ctx, tenantID, accountID, base, rateBase, trades, cashFlowDays, rangeStart)
+	// Request-scoped cache: full + range computeTWR share BV(day) for any
+	// cashFlowDay inside the range window (range ⊂ full). Rebuilt per call so
+	// there's no cross-request state. Transparent — byte-identical results.
+	cache := mvCache{}
+	full, _ = s.computeTWR(ctx, tenantID, accountID, base, rateBase, trades, cashFlowDays, cashFlowDays[0], cache)
+	rng, _ = s.computeTWR(ctx, tenantID, accountID, base, rateBase, trades, cashFlowDays, rangeStart, cache)
 	return full, rng, nil
 }
 
