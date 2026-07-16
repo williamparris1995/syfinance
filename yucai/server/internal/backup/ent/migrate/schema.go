@@ -53,6 +53,11 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{BackupSettingsColumns[1]},
 			},
+			{
+				Name:    "backupsettings_tenant_id_unique",
+				Unique:  true,
+				Columns: []*schema.Column{BackupSettingsColumns[1]},
+			},
 		},
 	}
 	// Tables holds all the tables in the schema.
