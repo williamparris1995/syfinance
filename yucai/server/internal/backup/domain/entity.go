@@ -78,7 +78,7 @@ func NewBackup(tenantID uuid.UUID, provider BackupProvider, encrypted bool, auto
 		ID:        uuid.New(),
 		TenantID:  tenantID,
 		Provider:  provider,
-		Filename:  fmt.Sprintf("backup_%s%s", now.Format("20060102_150405"), suffix),
+		Filename:  fmt.Sprintf("backup_%s_%s%s", now.Format("20060102_150405"), uuid.New().String()[:8], suffix),
 		Encrypted: encrypted,
 		Auto:      auto,
 		Version:   1,

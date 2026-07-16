@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -94,10 +95,34 @@ func (s *Service) CreateBackup(ctx context.Context, tenantID uuid.UUID, encrypte
 	return &dto, nil
 }
 
-// RestoreBackup downloads → decrypts → deserializes → per-module Purge + Import
-// (non-cross-module atomic). Restore order: Purge dependents first, account
-// last; Import account first, then dependents.
+// RestoreBackup downloads → decrypts → per-module Purge + Import.
+// Before purging, auto-creates a pre-restore safety backup (unencrypted,
+// Auto=true → client shows「自动」badge); on success it is removed, on
+// failure/crash it remains so the user can recover the pre-restore state.
+// Pragmatic substitute for cross-module DB atomicity (each module has its own
+// ent client/driver; shared *sql.Tx would need architecture-wide refactor).
 func (s *Service) RestoreBackup(ctx context.Context, tenantID uuid.UUID, backupID uuid.UUID, password string) error {
+	// 1. Safety net: auto-create a pre-restore backup BEFORE touching any data.
+	preRestore, err := s.CreateBackup(ctx, tenantID, false, "", true)
+	if err != nil {
+		return fmt.Errorf("pre-restore safety backup: %w", err)
+	}
+
+	// 2. Restore (download/decrypt/purge/import — the original logic).
+	restoreErr := s.restoreNoSafety(ctx, tenantID, backupID, password)
+
+	// 3. On success, remove the safety net (best-effort). On failure, leave it.
+	if restoreErr == nil {
+		if delErr := s.DeleteBackup(ctx, tenantID, preRestore.ID); delErr != nil {
+			slog.Error("pre-restore safety cleanup failed", "backup_id", preRestore.ID, "err", delErr)
+		}
+	}
+	return restoreErr
+}
+
+// restoreNoSafety holds the pre-safety-net restore logic (download/decrypt/
+// purge/import). Extracted from RestoreBackup so the safety net can wrap it.
+func (s *Service) restoreNoSafety(ctx context.Context, tenantID uuid.UUID, backupID uuid.UUID, password string) error {
 	backup, err := s.repo.FindByID(ctx, tenantID, backupID)
 	if err != nil {
 		return fmt.Errorf("find backup: %w", err)
@@ -130,7 +155,7 @@ func (s *Service) RestoreBackup(ctx context.Context, tenantID uuid.UUID, backupI
 		return fmt.Errorf("unmarshal envelope: %w", err)
 	}
 
-	// Purge (dependents first, account last — see Global Constraints Purge order).
+	// Purge (dependents first, account last).
 	for _, p := range s.orderedPortsForPurge() {
 		if err := p.Purge(ctx, tenantID); err != nil {
 			return fmt.Errorf("purge %s: %w", p.Name(), err)

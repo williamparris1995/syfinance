@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 
@@ -67,6 +68,13 @@ func newFakePort(name string, data []byte) *fakePort {
 
 func (p *fakePort) Name() string { return p.name }
 func (p *fakePort) Export(_ context.Context, _ uuid.UUID) (json.RawMessage, error) {
+	// Real tenant-data modules always emit valid JSON (empty state = "[]"), never
+	// nil. Normalize so the fake emulates production behavior: this matters for
+	// the pre-restore safety backup, which Exports current state before any
+	// restore — a nil Export would break envelope marshaling.
+	if len(p.data) == 0 {
+		return json.RawMessage("[]"), nil
+	}
 	cp := make(json.RawMessage, len(p.data))
 	copy(cp, p.data)
 	return cp, nil
@@ -392,4 +400,100 @@ func names(ps []domain.TenantDataPort) string {
 		out += p.Name()
 	}
 	return out
+}
+
+// failingImportPort wraps fakePort but Import always errors (inject restore failure
+// to verify pre-restore safety backup is retained for recovery).
+type failingImportPort struct{ *fakePort }
+
+func (p *failingImportPort) Import(_ context.Context, _ uuid.UUID, _ json.RawMessage) error {
+	return errors.New("import injected failure")
+}
+
+// failingExportPort's Export always errors (inject pre-restore creation failure
+// to verify RestoreBackup returns error WITHOUT purging any data).
+type failingExportPort struct{ name string }
+
+func (p *failingExportPort) Name() string { return p.name }
+func (p *failingExportPort) Export(_ context.Context, _ uuid.UUID) (json.RawMessage, error) {
+	return nil, errors.New("export injected failure")
+}
+func (p *failingExportPort) Import(_ context.Context, _ uuid.UUID, _ json.RawMessage) error {
+	return nil
+}
+func (p *failingExportPort) Purge(_ context.Context, _ uuid.UUID) error { return nil }
+
+// TestRestoreBackupSuccessDeletesPreRestore: successful restore removes the
+// auto-created pre-restore safety backup (list keeps only the source backup).
+func TestRestoreBackupSuccessDeletesPreRestore(t *testing.T) {
+	port := newFakePort("account", []byte(`{"a":1}`))
+	svc, _, _ := newTestService([]domain.TenantDataPort{port})
+	tenantID := uuid.New()
+
+	src, err := svc.CreateBackup(context.Background(), tenantID, false, "", false)
+	if err != nil {
+		t.Fatalf("CreateBackup src: %v", err)
+	}
+	if err := svc.RestoreBackup(context.Background(), tenantID, src.ID, ""); err != nil {
+		t.Fatalf("RestoreBackup: %v", err)
+	}
+	list, err := svc.ListBackups(context.Background(), tenantID, nil, domain.PageRequest{PageSize: 100})
+	if err != nil {
+		t.Fatalf("ListBackups: %v", err)
+	}
+	if len(list.Backups) != 1 || list.Backups[0].ID != src.ID {
+		t.Errorf("after successful restore, backups=%v, want only src (pre-restore safety deleted)", list.Backups)
+	}
+}
+
+// TestRestoreBackupFailureLeavesPreRestore: failed restore (Import injected error)
+// leaves the pre-restore safety backup (Auto=true) so the user can recover.
+func TestRestoreBackupFailureLeavesPreRestore(t *testing.T) {
+	port := &failingImportPort{newFakePort("account", []byte(`{"a":1}`))}
+	svc, _, _ := newTestService([]domain.TenantDataPort{port})
+	tenantID := uuid.New()
+
+	src, err := svc.CreateBackup(context.Background(), tenantID, false, "", false)
+	if err != nil {
+		t.Fatalf("CreateBackup src: %v", err)
+	}
+	if err := svc.RestoreBackup(context.Background(), tenantID, src.ID, ""); err == nil {
+		t.Fatal("RestoreBackup: want error (import injected failure), got nil")
+	}
+	list, _ := svc.ListBackups(context.Background(), tenantID, nil, domain.PageRequest{PageSize: 100})
+	var preRestore *BackupDTO
+	for i := range list.Backups {
+		if list.Backups[i].Auto {
+			preRestore = &list.Backups[i]
+		}
+	}
+	if preRestore == nil {
+		t.Fatal("pre-restore safety backup (Auto=true) not found after failed restore; want it retained for recovery")
+	}
+}
+
+// TestRestoreBackupPreRestoreCreateFailsNoPurge: if the pre-restore safety
+// backup itself fails to create (Export injected error), RestoreBackup returns
+// an error WITHOUT having purged any data (original data safe).
+func TestRestoreBackupPreRestoreCreateFailsNoPurge(t *testing.T) {
+	port := &failingExportPort{name: "account"}
+	svc, repo, prov := newTestService([]domain.TenantDataPort{port})
+	tenantID := uuid.New()
+
+	// Seed a source backup to restore (bypass CreateBackup, which would fail on
+	// the failingExportPort). Upload dummy payload for Download.
+	backup, err := domain.NewBackup(tenantID, domain.BackupProviderLocal, false, false)
+	if err != nil {
+		t.Fatalf("NewBackup: %v", err)
+	}
+	_ = prov.Upload(context.Background(), backup.Filename, []byte(`{"version":1,"tenant_id":"`+tenantID.String()+`","modules":{}}`))
+	_ = repo.Save(context.Background(), backup)
+
+	err = svc.RestoreBackup(context.Background(), tenantID, backup.ID, "")
+	if err == nil {
+		t.Fatal("RestoreBackup: want error (pre-restore export fails), got nil")
+	}
+	if !strings.Contains(err.Error(), "pre-restore safety backup") {
+		t.Errorf("error=%v, want pre-restore safety backup failure", err)
+	}
 }
