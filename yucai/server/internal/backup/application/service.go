@@ -138,6 +138,13 @@ func (s *Service) restoreNoSafety(ctx context.Context, tenantID uuid.UUID, backu
 		return fmt.Errorf("download backup: %w", err)
 	}
 
+	// 校验密文完整性(防传输/存储损坏 + 静默篡改)。checksum 创建时对加密后
+	// 数据算,此处对下载的密文算 sha256 比对;空 checksum = 数据不完整。
+	got := sha256.Sum256(data)
+	if backup.Checksum == "" || fmt.Sprintf("%x", got) != backup.Checksum {
+		return domain.ErrChecksumMismatch
+	}
+
 	// Decrypt if encrypted.
 	if backup.Encrypted {
 		if password == "" {

@@ -628,6 +628,69 @@ func TestGetCloudSettings_ReturnsDefaultsWhenUnconfigured(t *testing.T) {
 	}
 }
 
+// TestRestoreBackupChecksumMismatchRejects:篡改 provider 上的备份文件内容
+// → restoreNoSafety 的 checksum 校验失败 → ErrChecksumMismatch;校验在 purge 前
+// (live data 保留);pre-restore safety backup 保留(restore 失败 → 不删 safety)。
+func TestRestoreBackupChecksumMismatchRejects(t *testing.T) {
+	tenantID := uuid.New()
+	live := []byte(`[{"name":"Keep"}]`)
+	port := newFakePort("account", live)
+	svc, repo, prov := newTestService([]domain.TenantDataPort{port})
+
+	dto, err := svc.CreateBackup(context.Background(), tenantID, false, "", false)
+	if err != nil {
+		t.Fatalf("CreateBackup: %v", err)
+	}
+
+	// 篡改 provider 上的文件(翻一字节,checksum 不再匹配)。
+	original := prov.files[dto.Filename]
+	tampered := make([]byte, len(original))
+	copy(tampered, original)
+	if len(tampered) > 0 {
+		tampered[0] ^= 0xff
+	}
+	prov.files[dto.Filename] = tampered
+
+	err = svc.RestoreBackup(context.Background(), tenantID, dto.ID, "")
+	if !errors.Is(err, domain.ErrChecksumMismatch) {
+		t.Fatalf("err = %v, want ErrChecksumMismatch", err)
+	}
+	// live data 未 purge(checksum 校验在 purge 前)。
+	if string(port.data) != string(live) {
+		t.Fatalf("port data purged on checksum mismatch: got %s, want %s", port.data, live)
+	}
+	// pre-restore safety backup 保留(restore 失败 → 不删 safety)。
+	list, _ := svc.ListBackups(context.Background(), tenantID, nil, domain.PageRequest{PageSize: 100})
+	if len(list.Backups) != 2 { // src + pre-restore safety
+		t.Errorf("backups count = %d, want 2 (src + pre-restore safety retained)", len(list.Backups))
+	}
+	// src record 完好。
+	if _, err := repo.FindByID(context.Background(), tenantID, dto.ID); err != nil {
+		t.Fatalf("src backup record missing: %v", err)
+	}
+}
+
+// TestRestoreBackupEmptyChecksumRejects:空 checksum(数据不完整)→ ErrChecksumMismatch。
+func TestRestoreBackupEmptyChecksumRejects(t *testing.T) {
+	tenantID := uuid.New()
+	port := newFakePort("account", []byte(`[{"name":"X"}]`))
+	svc, repo, _ := newTestService([]domain.TenantDataPort{port})
+
+	dto, err := svc.CreateBackup(context.Background(), tenantID, false, "", false)
+	if err != nil {
+		t.Fatalf("CreateBackup: %v", err)
+	}
+	// 手动清空 checksum(模拟不完整记录)。
+	b, _ := repo.FindByID(context.Background(), tenantID, dto.ID)
+	b.Checksum = ""
+	_ = repo.Save(context.Background(), b)
+
+	err = svc.RestoreBackup(context.Background(), tenantID, dto.ID, "")
+	if !errors.Is(err, domain.ErrChecksumMismatch) {
+		t.Fatalf("err = %v, want ErrChecksumMismatch (empty checksum)", err)
+	}
+}
+
 // TestGetCloudSettings_ReturnsPersistedValues verifies the round-trip:
 // SaveCloudSettings then GetCloudSettings returns the stored auto-backup
 // fields (and that a second Save upserts rather than failing).

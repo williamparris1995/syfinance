@@ -250,6 +250,8 @@ func parseUUID(s string) uuid.UUID {
 
 func mapError(err error) error {
 	switch {
+	case errors.Is(err, domain.ErrChecksumMismatch):
+		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, domain.ErrPasswordRequired),
 		errors.Is(err, domain.ErrPasswordOnPlaintext),
 		errors.Is(err, domain.ErrWrongPassword):

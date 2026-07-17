@@ -34,4 +34,5 @@ type BackupEnvelope struct {
 var (
 	ErrPasswordRequired    = errors.New("password required for encrypted backup")
 	ErrPasswordOnPlaintext = errors.New("password not allowed for plaintext backup")
+	ErrChecksumMismatch    = errors.New("backup checksum mismatch")
 )
