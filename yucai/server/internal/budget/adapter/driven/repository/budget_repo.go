@@ -161,44 +161,65 @@ func (r *BudgetRepository) FindAll(ctx context.Context, tenantID uuid.UUID, acti
 	}, nil
 }
 
-// Update persists changes to a budget (optimistic lock via version) and
-// fully replaces its items (delete-all-then-insert). M1 fix: now persists
-// CurrencyCode (was missing) and checks the delete-items error (was ignored).
+// Update persists changes to a budget atomically (ent tx: delete old items +
+// insert new items + update budget) with optimistic locking. A version
+// conflict (concurrent edit since the caller's FindByID) returns an
+// "optimistic lock: ..." error with NO "not found" substring, so budget
+// mapError routes it to codes.Aborted (not codes.NotFound — the switch checks
+// "not found" before "optimistic lock"). All callers (AddBudgetItem /
+// RemoveBudgetItem / UpdateBudget / ComputeActuals) share this path, so all
+// inherit atomicity + correct conflict mapping.
 func (r *BudgetRepository) Update(ctx context.Context, b *domain.Budget) error {
-	// Delete old items (FIX: previously the error was discarded).
-	if _, err := r.client.BudgetItem.Delete().
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("begin budget tx: %w", err)
+	}
+
+	// Delete old items (tx-scoped).
+	if _, err := tx.BudgetItem.Delete().
 		Where(budgetitem.BudgetID(b.ID)).
 		Exec(ctx); err != nil {
+		_ = tx.Rollback()
 		return fmt.Errorf("delete old budget items: %w", err)
 	}
 
-	// Insert new items (full replace — item IDs change, budget ID stable).
+	// Insert new items (tx-scoped, full replace — item IDs change, budget ID stable).
 	for _, item := range b.Items {
-		_, err := r.client.BudgetItem.Create().
+		if _, err := tx.BudgetItem.Create().
 			SetID(item.ID).
 			SetBudgetID(item.BudgetID).
 			SetAccountID(item.AccountID).
 			SetPlannedAmountCents(item.PlannedAmountCents).
 			SetActualAmountCents(item.ActualAmountCents).
 			SetNotes(item.Notes).
-			Save(ctx)
-		if err != nil {
+			Save(ctx); err != nil {
+			_ = tx.Rollback()
 			return fmt.Errorf("insert budget item: %w", err)
 		}
 	}
 
-	// Update budget (FIX: added SetCurrencyCode — currency edits now persist).
-	_, err := r.client.Budget.UpdateOneID(b.ID).
-		Where(budget.Version(b.Version - 1)). // optimistic lock
+	// Update budget (tx-scoped, optimistic lock WHERE version = v-1).
+	if _, err := tx.Budget.UpdateOneID(b.ID).
+		Where(budget.Version(b.Version - 1)).
 		SetName(b.Name).
-		SetCurrencyCode(b.CurrencyCode). // FIX: previously missing
+		SetCurrencyCode(b.CurrencyCode).
 		SetTotalAmountCents(b.TotalAmountCents).
 		SetIsActive(b.IsActive).
 		SetVersion(b.Version).
 		SetUpdatedAt(b.UpdatedAt).
-		Save(ctx)
-	if err != nil {
+		Save(ctx); err != nil {
+		_ = tx.Rollback()
+		if budgetent.IsNotFound(err) {
+			// WHERE matched 0 rows — budget was modified concurrently since
+			// FindByID (caller confirmed existence). Pure phrasing, no "not
+			// found", so mapError -> codes.Aborted (refresh-and-retry signal).
+			return fmt.Errorf("optimistic lock: budget %s was modified concurrently, refresh and retry", b.ID)
+		}
 		return fmt.Errorf("update budget: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit budget tx: %w", err)
 	}
 	return nil
 }

@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"entgo.io/ent/dialect"
@@ -369,5 +370,91 @@ func TestBudgetRepoUpdate_OptimisticLock(t *testing.T) {
 	err := repo.Update(ctx, &stale)
 	if err == nil {
 		t.Fatal("optimistic lock: expected error on stale version, got nil")
+	}
+}
+
+// TestBudgetRepoUpdate_TxAtomicOnOptimisticLock verifies that when the budget
+// UPDATE fails the optimistic lock (WHERE version mismatch), the preceding
+// items delete+insert are rolled back — the whole Update is atomic. Under the
+// pre-fix non-transactional repo, items would be left in the new state while
+// the budget row stayed old.
+func TestBudgetRepoUpdate_TxAtomicOnOptimisticLock(t *testing.T) {
+	client := setupBudgetTestDB(t)
+	repo := budgetrepo.NewBudgetRepository(client)
+	ctx := context.Background()
+	tenantID := uuid.New()
+
+	origAcc := uuid.New()
+	b, err := budgetdomain.NewBudget(tenantID, "B", "2026-05", "CNY",
+		[]budgetdomain.BudgetItem{{AccountID: origAcc, PlannedAmountCents: 10000}})
+	if err != nil {
+		t.Fatalf("NewBudget: %v", err)
+	}
+	if err := repo.Save(ctx, b); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	// Force optimistic-lock failure: bump version past what the DB has so the
+	// WHERE Version(stale.Version-1) predicate matches 0 rows.
+	stale := *b
+	stale.Update("B2", "USD", []budgetdomain.BudgetItem{
+		{AccountID: uuid.New(), PlannedAmountCents: 20000},
+	})
+	stale.Version = b.Version + 2 // WHERE Version(b.Version+1) != DB b.Version -> NotFound
+	if err := repo.Update(ctx, &stale); err == nil {
+		t.Fatal("expected optimistic lock error, got nil")
+	}
+
+	// TX atomicity: the items delete+insert must have rolled back — FindByID
+	// should still see the ORIGINAL single item, not the replacement.
+	got, err := repo.FindByID(ctx, tenantID, b.ID)
+	if err != nil {
+		t.Fatalf("FindByID after failed update: %v", err)
+	}
+	if len(got.Items) != 1 {
+		t.Fatalf("tx did not roll back items: got %d items, want 1 (original)", len(got.Items))
+	}
+	if got.Items[0].AccountID != origAcc {
+		t.Errorf("item account after rollback: got %s, want %s (original)", got.Items[0].AccountID, origAcc)
+	}
+	if got.TotalAmountCents != 10000 {
+		t.Errorf("total after rollback: got %d, want 10000 (original)", got.TotalAmountCents)
+	}
+	if got.Name != "B" || got.CurrencyCode != "CNY" {
+		t.Errorf("budget fields changed despite rollback: name=%q currency=%q", got.Name, got.CurrencyCode)
+	}
+}
+
+// TestBudgetRepoUpdate_OptimisticLockErrMapping verifies the optimistic-lock
+// error is phrased so budget mapError routes it to codes.Aborted (not
+// codes.NotFound): the message MUST contain "optimistic lock" and MUST NOT
+// contain "not found" (mapError checks "not found" before "optimistic lock").
+func TestBudgetRepoUpdate_OptimisticLockErrMapping(t *testing.T) {
+	client := setupBudgetTestDB(t)
+	repo := budgetrepo.NewBudgetRepository(client)
+	ctx := context.Background()
+	tenantID := uuid.New()
+
+	b, err := budgetdomain.NewBudget(tenantID, "B", "2026-05", "CNY",
+		[]budgetdomain.BudgetItem{{AccountID: uuid.New(), PlannedAmountCents: 10000}})
+	if err != nil {
+		t.Fatalf("NewBudget: %v", err)
+	}
+	if err := repo.Save(ctx, b); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	stale := *b
+	stale.Update("B2", "CNY", []budgetdomain.BudgetItem{{AccountID: uuid.New(), PlannedAmountCents: 20000}})
+	stale.Version = b.Version + 2
+	err = repo.Update(ctx, &stale)
+	if err == nil {
+		t.Fatal("expected optimistic lock error, got nil")
+	}
+	if !strings.Contains(err.Error(), "optimistic lock") {
+		t.Errorf("err missing 'optimistic lock' phrase (mapError needs it for Aborted): %q", err.Error())
+	}
+	if strings.Contains(err.Error(), "not found") {
+		t.Errorf("err leaks 'not found' (mapError would route to codes.NotFound, not Aborted): %q", err.Error())
 	}
 }
