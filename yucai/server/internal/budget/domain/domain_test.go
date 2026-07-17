@@ -140,6 +140,64 @@ func TestBudget_IncrementVersion(t *testing.T) {
 	}
 }
 
+func TestBudget_Update(t *testing.T) {
+	b, err := NewBudget(uuid.New(), "原预算", "2026-05", "CNY", []BudgetItem{
+		{AccountID: uuid.New(), PlannedAmountCents: 50000},
+	})
+	if err != nil {
+		t.Fatalf("NewBudget: %v", err)
+	}
+	origID := b.ID
+	origMonth := b.Month
+	origVersion := b.Version
+
+	err = b.Update("改名", "USD", []BudgetItem{
+		{AccountID: uuid.New(), PlannedAmountCents: 30000},
+		{AccountID: uuid.New(), PlannedAmountCents: 20000},
+	})
+	if err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	if b.Name != "改名" {
+		t.Errorf("name: got %q, want 改名", b.Name)
+	}
+	if b.CurrencyCode != "USD" {
+		t.Errorf("currency: got %q, want USD", b.CurrencyCode)
+	}
+	if len(b.Items) != 2 {
+		t.Fatalf("items: got %d, want 2 (full replace)", len(b.Items))
+	}
+	for _, it := range b.Items {
+		if it.BudgetID != origID {
+			t.Errorf("item BudgetID: got %s, want %s", it.BudgetID, origID)
+		}
+		if it.ID == uuid.Nil {
+			t.Error("item ID not assigned")
+		}
+	}
+	if b.TotalAmountCents != 50000 {
+		t.Errorf("total: got %d, want 50000 (30000+20000)", b.TotalAmountCents)
+	}
+	if b.Version != origVersion+1 {
+		t.Errorf("version: got %d, want %d (bumped)", b.Version, origVersion+1)
+	}
+	if b.Month != origMonth {
+		t.Errorf("month mutated: got %s, want %s (immutable)", b.Month, origMonth)
+	}
+	if b.ID != origID {
+		t.Errorf("ID mutated: got %s, want %s (stable)", b.ID, origID)
+	}
+
+	// Validation: empty name → err
+	if err := b.Update("   ", "USD", []BudgetItem{{AccountID: uuid.New(), PlannedAmountCents: 100}}); err == nil {
+		t.Error("empty name: expected error, got nil")
+	}
+	// Validation: empty items → err
+	if err := b.Update("ok", "USD", []BudgetItem{}); err == nil {
+		t.Error("empty items: expected error, got nil")
+	}
+}
+
 func TestMonthRange(t *testing.T) {
 	from, to := monthRange("2026-02")
 	if from.Day() != 1 {

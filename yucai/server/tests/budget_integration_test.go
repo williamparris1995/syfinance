@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	budgetrepo "github.com/yucai/server/internal/budget/adapter/driven/repository"
 	"github.com/yucai/server/internal/budget/application"
+	budgetdomain "github.com/yucai/server/internal/budget/domain"
 	budgetent "github.com/yucai/server/internal/budget/ent"
 )
 
@@ -221,5 +222,88 @@ func TestBudgetTenantIsolation(t *testing.T) {
 	}
 	if result.TotalCount != 0 {
 		t.Errorf("tenant B should see 0 budgets, got %d", result.TotalCount)
+	}
+}
+
+// TestBudgetRepoUpdate verifies the repo persists CurrencyCode on Update
+// (M1 fix: previously dropped) and fully replaces items + honors the
+// optimistic-lock version predicate. Exercises repo.Update directly (no
+// service.UpdateBudget yet — added in Task 2).
+func TestBudgetRepoUpdate(t *testing.T) {
+	client := setupBudgetTestDB(t)
+	repo := budgetrepo.NewBudgetRepository(client)
+	ctx := context.Background()
+	tenantID := uuid.New()
+
+	b, err := budgetdomain.NewBudget(tenantID, "原预算", "2026-05", "CNY", []budgetdomain.BudgetItem{
+		{AccountID: uuid.New(), PlannedAmountCents: 50000},
+	})
+	if err != nil {
+		t.Fatalf("NewBudget: %v", err)
+	}
+	if err := repo.Save(ctx, b); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	versionBefore := b.Version
+
+	// Edit in place: change currency + replace items (1 → 2).
+	if err := b.Update("改名", "USD", []budgetdomain.BudgetItem{
+		{AccountID: uuid.New(), PlannedAmountCents: 30000},
+		{AccountID: uuid.New(), PlannedAmountCents: 20000},
+	}); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	if err := repo.Update(ctx, b); err != nil {
+		t.Fatalf("repo.Update: %v", err)
+	}
+
+	got, err := repo.FindByID(ctx, tenantID, b.ID)
+	if err != nil {
+		t.Fatalf("FindByID: %v", err)
+	}
+	if got.CurrencyCode != "USD" {
+		t.Errorf("currency persisted: got %q, want USD (M1 fix)", got.CurrencyCode)
+	}
+	if got.Name != "改名" {
+		t.Errorf("name: got %q, want 改名", got.Name)
+	}
+	if len(got.Items) != 2 {
+		t.Errorf("items replaced: got %d, want 2", len(got.Items))
+	}
+	if got.TotalAmountCents != 50000 {
+		t.Errorf("total: got %d, want 50000", got.TotalAmountCents)
+	}
+	if got.Version != versionBefore+1 {
+		t.Errorf("version bumped: got %d, want %d", got.Version, versionBefore+1)
+	}
+	if got.Month != "2026-05" {
+		t.Errorf("month mutated: got %s, want 2026-05 (immutable)", got.Month)
+	}
+}
+
+// TestBudgetRepoUpdate_OptimisticLock verifies a stale version is rejected:
+// a second Update built from the pre-bump version must fail to match the
+// WHERE version predicate.
+func TestBudgetRepoUpdate_OptimisticLock(t *testing.T) {
+	client := setupBudgetTestDB(t)
+	repo := budgetrepo.NewBudgetRepository(client)
+	ctx := context.Background()
+	tenantID := uuid.New()
+
+	b, _ := budgetdomain.NewBudget(tenantID, "B", "2026-05", "CNY",
+		[]budgetdomain.BudgetItem{{AccountID: uuid.New(), PlannedAmountCents: 10000}})
+	repo.Save(ctx, b)
+
+	// Stale snapshot: simulate a concurrent edit by bumping version once more
+	// than the predicate expects. domain.Update sets Version = v+1; repo WHERE
+	// matches v. If we manually set Version = v+2 without a real intervening
+	// write, WHERE v+1 finds no row → error.
+	stale := *b
+	stale.Update("B2", "CNY", []budgetdomain.BudgetItem{{AccountID: uuid.New(), PlannedAmountCents: 20000}})
+	// Now corrupt: pretend version is one ahead of what DB has.
+	stale.Version = b.Version + 2 // repo WHERE Version(stale.Version-1) = v+1, DB still v → no match
+	err := repo.Update(ctx, &stale)
+	if err == nil {
+		t.Fatal("optimistic lock: expected error on stale version, got nil")
 	}
 }

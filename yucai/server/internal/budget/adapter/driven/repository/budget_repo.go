@@ -161,14 +161,18 @@ func (r *BudgetRepository) FindAll(ctx context.Context, tenantID uuid.UUID, acti
 	}, nil
 }
 
-// Update persists changes to a budget (optimistic lock).
+// Update persists changes to a budget (optimistic lock via version) and
+// fully replaces its items (delete-all-then-insert). M1 fix: now persists
+// CurrencyCode (was missing) and checks the delete-items error (was ignored).
 func (r *BudgetRepository) Update(ctx context.Context, b *domain.Budget) error {
-	// Delete old items
-	r.client.BudgetItem.Delete().
+	// Delete old items (FIX: previously the error was discarded).
+	if _, err := r.client.BudgetItem.Delete().
 		Where(budgetitem.BudgetID(b.ID)).
-		Exec(ctx)
+		Exec(ctx); err != nil {
+		return fmt.Errorf("delete old budget items: %w", err)
+	}
 
-	// Insert new items
+	// Insert new items (full replace — item IDs change, budget ID stable).
 	for _, item := range b.Items {
 		_, err := r.client.BudgetItem.Create().
 			SetID(item.ID).
@@ -183,10 +187,11 @@ func (r *BudgetRepository) Update(ctx context.Context, b *domain.Budget) error {
 		}
 	}
 
-	// Update budget
+	// Update budget (FIX: added SetCurrencyCode — currency edits now persist).
 	_, err := r.client.Budget.UpdateOneID(b.ID).
-		Where(budget.Version(b.Version - 1)).
+		Where(budget.Version(b.Version - 1)). // optimistic lock
 		SetName(b.Name).
+		SetCurrencyCode(b.CurrencyCode). // FIX: previously missing
 		SetTotalAmountCents(b.TotalAmountCents).
 		SetIsActive(b.IsActive).
 		SetVersion(b.Version).

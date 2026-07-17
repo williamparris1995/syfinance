@@ -111,6 +111,36 @@ func (b *Budget) UpdateItemAmount(itemID uuid.UUID, newAmount int64) error {
 	return fmt.Errorf("budget item %s not found", itemID)
 }
 
+// Update replaces editable fields (name, currency, items) in place. Month is
+// immutable (budget identity). Validates like NewBudget (name non-empty,
+// items ≥ 1), reassigns item IDs/BudgetID, recomputes TotalAmountCents, and
+// bumps the optimistic-lock version. Items are fully replaced — the repo
+// deletes old items and inserts new ones, so item IDs change but the budget
+// ID stays stable (the whole point of M1: no delete+recreate of the budget).
+func (b *Budget) Update(name, currencyCode string, items []BudgetItem) error {
+	name = trimAndCheck(name)
+	if name == "" {
+		return fmt.Errorf("budget name must not be empty")
+	}
+	if len(items) == 0 {
+		return fmt.Errorf("budget must have at least 1 item")
+	}
+	var total int64
+	for i := range items {
+		if items[i].ID == uuid.Nil {
+			items[i].ID = uuid.New()
+		}
+		items[i].BudgetID = b.ID
+		total += items[i].PlannedAmountCents
+	}
+	b.Name = name
+	b.CurrencyCode = currencyCode
+	b.Items = items
+	b.TotalAmountCents = total
+	b.IncrementVersion()
+	return nil
+}
+
 // TotalActual returns the sum of all items' actual amounts.
 func (b *Budget) TotalActual() int64 {
 	var total int64
