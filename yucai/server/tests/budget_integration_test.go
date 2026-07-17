@@ -42,7 +42,7 @@ func setupBudgetTestService(t *testing.T) *application.Service {
 	t.Helper()
 	client := setupBudgetTestDB(t)
 	repo := budgetrepo.NewBudgetRepository(client)
-	return application.NewService(repo, nil)
+	return application.NewService(repo, nil, nil)
 }
 
 func TestBudgetCRUD(t *testing.T) {

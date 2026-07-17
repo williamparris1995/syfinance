@@ -13,15 +13,30 @@ import (
 // EntryTotalsFunc fetches debit/credit totals for an account in a date range.
 type EntryTotalsFunc func(ctx context.Context, accountID uuid.UUID, from, to time.Time) (debitTotal, creditTotal int64, err error)
 
-// Service orchestrates budget operations.
-type Service struct {
-	repo      domain.BudgetRepository
-	entryFunc EntryTotalsFunc
+// EntryTotals is one account's debit/credit over a period (budget-local copy
+// of transaction.AccountTotals — budget does not import transaction domain).
+type EntryTotals struct {
+	DebitCents  int64
+	CreditCents int64
 }
 
-// NewService creates a new budget application service.
-func NewService(repo domain.BudgetRepository, entryFunc EntryTotalsFunc) *Service {
-	return &Service{repo: repo, entryFunc: entryFunc}
+// EntryTotalsMonthFunc returns debit/credit totals grouped by account_id for
+// [from, to], tenant-scoped. Batch port for read-time actuals (replaces the
+// per-item EntryTotalsFunc for ListBudgets/GetBudget*). nil → actuals stay 0.
+type EntryTotalsMonthFunc func(ctx context.Context, tenantID uuid.UUID, from, to time.Time) (map[uuid.UUID]EntryTotals, error)
+
+// Service orchestrates budget operations.
+type Service struct {
+	repo           domain.BudgetRepository
+	entryFunc      EntryTotalsFunc      // single-account (ComputeActuals persist RPC)
+	entryMonthFunc EntryTotalsMonthFunc // batch (read-time actuals: ListBudgets/GetBudget*)
+}
+
+// NewService creates a new budget application service. entryFunc backs the
+// persist-path ComputeActuals (per-item); entryMonthFunc backs read-time
+// actuals (one query per month). Either may be nil (graceful: actuals stay 0).
+func NewService(repo domain.BudgetRepository, entryFunc EntryTotalsFunc, entryMonthFunc EntryTotalsMonthFunc) *Service {
+	return &Service{repo: repo, entryFunc: entryFunc, entryMonthFunc: entryMonthFunc}
 }
 
 // CreateBudget validates and persists a new budget.
@@ -76,9 +91,9 @@ func (s *Service) ListBudgets(ctx context.Context, req ListBudgetsRequest) (*Lis
 	if err != nil {
 		return nil, fmt.Errorf("list budgets: %w", err)
 	}
+	s.computeActualsReadTimeBatch(ctx, req.TenantID, result.Items)
 	dtos := make([]BudgetDTO, len(result.Items))
 	for i, b := range result.Items {
-		s.computeActualsReadTime(ctx, &b) // D-budget: read-time actuals
 		dtos[i] = BudgetToDTO(&b)
 	}
 	return &ListBudgetsResult{
@@ -193,25 +208,69 @@ func monthRange(month string) (time.Time, time.Time) {
 	return from, to
 }
 
-// computeActualsReadTime fills each item's ActualAmountCents via entryFunc without persisting
-// (avoids version thrash on every view). nil entryFunc -> actuals stay 0, no panic.
-// Per-item err -> that item set to 0 + slog (best-effort), error is NOT propagated.
+// computeActualsReadTime fills each item's ActualAmountCents via one batch
+// month query (entryMonthFunc), not per-item. nil entryMonthFunc → actuals 0.
+// err → all items 0 + slog (best-effort, NOT propagated).
 // actual = debit - credit (spending - refunds = net spend).
 func (s *Service) computeActualsReadTime(ctx context.Context, b *domain.Budget) {
-	if s.entryFunc == nil {
+	if s.entryMonthFunc == nil {
 		return // actuals stay 0 (stored value or zero)
 	}
 	from, to := monthRange(b.Month)
-	for i := range b.Items {
-		debit, credit, err := s.entryFunc(ctx, b.Items[i].AccountID, from, to)
-		if err != nil {
-			slog.Error("budget actuals: entryFunc failed",
-				"operation", "budget.computeActualsReadTime",
-				"budget_id", b.ID.String(), "item_id", b.Items[i].ID.String(),
-				"error", err.Error())
+	totals, err := s.entryMonthFunc(ctx, b.TenantID, from, to)
+	if err != nil {
+		slog.Error("budget actuals: entryMonthFunc failed",
+			"operation", "budget.computeActualsReadTime",
+			"budget_id", b.ID.String(), "error", err.Error())
+		for i := range b.Items {
 			b.Items[i].ActualAmountCents = 0
+		}
+		return
+	}
+	for i := range b.Items {
+		if t, ok := totals[b.Items[i].AccountID]; ok {
+			b.Items[i].ActualAmountCents = t.DebitCents - t.CreditCents
+		} else {
+			b.Items[i].ActualAmountCents = 0
+		}
+	}
+}
+
+// computeActualsReadTimeBatch fills actuals for many budgets with one query
+// per distinct month (vs N×M per-item). nil entryMonthFunc → no-op. A failed
+// month is cached as nil so it is not retried; its items stay 0. ListBudgets
+// passes its tenantID (already tenant-scoped by FindAll).
+func (s *Service) computeActualsReadTimeBatch(ctx context.Context, tenantID uuid.UUID, budgets []domain.Budget) {
+	if s.entryMonthFunc == nil {
+		return
+	}
+	monthCache := map[string]map[uuid.UUID]EntryTotals{}
+	for i := range budgets {
+		month := budgets[i].Month
+		if _, cached := monthCache[month]; cached {
 			continue
 		}
-		b.Items[i].ActualAmountCents = debit - credit
+		from, to := monthRange(month)
+		totals, err := s.entryMonthFunc(ctx, tenantID, from, to)
+		if err != nil {
+			slog.Error("budget actuals batch: entryMonthFunc failed",
+				"operation", "budget.computeActualsReadTimeBatch",
+				"month", month, "error", err.Error())
+			monthCache[month] = nil // mark attempted (items stay 0, no retry)
+			continue
+		}
+		monthCache[month] = totals
+	}
+	for i := range budgets {
+		totals := monthCache[budgets[i].Month]
+		for j := range budgets[i].Items {
+			if totals != nil {
+				if t, ok := totals[budgets[i].Items[j].AccountID]; ok {
+					budgets[i].Items[j].ActualAmountCents = t.DebitCents - t.CreditCents
+					continue
+				}
+			}
+			budgets[i].Items[j].ActualAmountCents = 0
+		}
 	}
 }
