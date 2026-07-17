@@ -913,6 +913,52 @@ func (r *TransactionRepository) SumEntryTotalsByAccount(ctx context.Context, acc
 	return debitTotal, creditTotal, nil
 }
 
+// SumEntryTotalsByMonth sums debit_cents and credit_cents of all entries whose
+// transaction's date falls in [from, to], tenant-scoped, grouped by account_id.
+// One map entry per account with activity in the range. Used by budget batch
+// actuals: a single query per month replaces N×M per-item
+// SumEntryTotalsByAccount calls. Like SumEntryTotalsByAccount the
+// transactions/transaction_entries ent modules declare no edge, so the JOIN
+// runs over the shared *sql.DB and placeholders are rebound for PostgreSQL
+// (pgx does not rewrite '?').
+func (r *TransactionRepository) SumEntryTotalsByMonth(ctx context.Context, tenantID uuid.UUID, from, to time.Time) (map[uuid.UUID]domain.AccountTotals, error) {
+	if r.rawDB == nil {
+		return nil, fmt.Errorf("sum entry totals by month requires the underlying *sql.DB (rawDB is nil)")
+	}
+
+	q := `
+		SELECT
+			e.account_id,
+			COALESCE(SUM(e.debit_cents), 0),
+			COALESCE(SUM(e.credit_cents), 0)
+		FROM ` + transactionEntryTable + ` e
+		JOIN ` + transactionTable + ` t ON t.id = e.transaction_id
+		WHERE t.tenant_id = ?
+		  AND t.deleted_at IS NULL
+		  AND t.transaction_date >= ?
+		  AND t.transaction_date <= ?
+		GROUP BY e.account_id
+	`
+	q = rebindPlaceholders(q, r.rawDialect)
+
+	rows, err := r.rawDB.QueryContext(ctx, q, tenantID, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("sum entry totals by month: %w", err)
+	}
+	defer rows.Close()
+
+	out := make(map[uuid.UUID]domain.AccountTotals)
+	for rows.Next() {
+		var accID uuid.UUID
+		var debit, credit int64
+		if err := rows.Scan(&accID, &debit, &credit); err != nil {
+			return nil, fmt.Errorf("scan entry totals by month: %w", err)
+		}
+		out[accID] = domain.AccountTotals{DebitCents: debit, CreditCents: credit}
+	}
+	return out, rows.Err()
+}
+
 func toDomainTransaction(t *txnent.Transaction, entries []*txnent.TransactionEntry) *domain.Transaction {
 	domainEntries := make([]domain.TransactionEntry, len(entries))
 	for i, e := range entries {

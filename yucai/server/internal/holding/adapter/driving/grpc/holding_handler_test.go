@@ -136,6 +136,9 @@ func (r *recordingTxnRepo) TransactionSummary(context.Context, txnDomain.Summary
 func (r *recordingTxnRepo) SumEntryTotalsByAccount(context.Context, uuid.UUID, time.Time, time.Time) (int64, int64, error) {
 	panic("unexpected SumEntryTotalsByAccount call")
 }
+func (r *recordingTxnRepo) SumEntryTotalsByMonth(context.Context, uuid.UUID, time.Time, time.Time) (map[uuid.UUID]txnDomain.AccountTotals, error) {
+	panic("unexpected SumEntryTotalsByMonth call")
+}
 func (r *recordingTxnRepo) FindAllForBackup(context.Context, uuid.UUID) ([]txnDomain.Transaction, error) {
 	panic("unexpected FindAllForBackup call")
 }

@@ -108,6 +108,9 @@ func (r *recordingTxnRepo) TransactionSummary(context.Context, domain.SummarySco
 func (r *recordingTxnRepo) SumEntryTotalsByAccount(context.Context, uuid.UUID, time.Time, time.Time) (int64, int64, error) {
 	panic("unexpected SumEntryTotalsByAccount call")
 }
+func (r *recordingTxnRepo) SumEntryTotalsByMonth(context.Context, uuid.UUID, time.Time, time.Time) (map[uuid.UUID]domain.AccountTotals, error) {
+	panic("unexpected SumEntryTotalsByMonth call")
+}
 func (r *recordingTxnRepo) FindAllForBackup(context.Context, uuid.UUID) ([]domain.Transaction, error) {
 	panic("unexpected FindAllForBackup call")
 }
@@ -153,6 +156,9 @@ func (r *recentTxnRepo) TransactionSummary(context.Context, domain.SummaryScope)
 func (r *recentTxnRepo) SumEntryTotalsByAccount(context.Context, uuid.UUID, time.Time, time.Time) (int64, int64, error) {
 	panic("unexpected SumEntryTotalsByAccount call")
 }
+func (r *recentTxnRepo) SumEntryTotalsByMonth(context.Context, uuid.UUID, time.Time, time.Time) (map[uuid.UUID]domain.AccountTotals, error) {
+	panic("unexpected SumEntryTotalsByMonth call")
+}
 func (r *recentTxnRepo) FindAllForBackup(context.Context, uuid.UUID) ([]domain.Transaction, error) {
 	panic("unexpected FindAllForBackup call")
 }
@@ -170,6 +176,9 @@ type sumByAccountTxnRepo struct {
 	debitTotal   int64
 	creditTotal  int64
 	err          error
+	// SumEntryTotalsByMonth canned result (budget batch port).
+	monthTotals map[uuid.UUID]domain.AccountTotals
+	gotTenantID uuid.UUID
 }
 
 func (r *sumByAccountTxnRepo) Save(context.Context, *domain.Transaction) error {
@@ -198,6 +207,12 @@ func (r *sumByAccountTxnRepo) SumEntryTotalsByAccount(_ context.Context, account
 	r.gotFrom = from
 	r.gotTo = to
 	return r.debitTotal, r.creditTotal, r.err
+}
+func (r *sumByAccountTxnRepo) SumEntryTotalsByMonth(_ context.Context, tenantID uuid.UUID, from, to time.Time) (map[uuid.UUID]domain.AccountTotals, error) {
+	r.gotTenantID = tenantID
+	r.gotFrom = from
+	r.gotTo = to
+	return r.monthTotals, r.err
 }
 func (r *sumByAccountTxnRepo) FindAllForBackup(context.Context, uuid.UUID) ([]domain.Transaction, error) {
 	panic("unexpected FindAllForBackup call")

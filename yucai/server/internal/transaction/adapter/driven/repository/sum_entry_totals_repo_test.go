@@ -156,3 +156,113 @@ func TestSumEntryTotalsByAccount_EmptyReturnsZero(t *testing.T) {
 		t.Errorf("empty account: got debit=%d credit=%d, want 0/0", debit, credit)
 	}
 }
+
+// TestSumEntryTotalsByMonth_GroupsByAccount verifies the repo returns one
+// debit/credit total per account for entries in [from, to]. Budget batch
+// actuals consume this: one query per month fills every item (replaces N×M
+// per-item SumEntryTotalsByAccount calls).
+func TestSumEntryTotalsByMonth_GroupsByAccount(t *testing.T) {
+	f, txnRepo := newSumRepoFixture(t)
+
+	jan10 := time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC)
+	// Food expense ¥500 (debit on expense, credit on asset).
+	recordTxn(t, txnRepo, f.tenantID, jan10, "lunch",
+		expenseEntries(f.expenseAcc.ID, f.assetAcc.ID, 50000))
+	// Salary income ¥10000 (debit on asset, credit on income).
+	recordTxn(t, txnRepo, f.tenantID, jan10, "salary",
+		incomeEntries(f.assetAcc.ID, f.incomeAcc.ID, 1000000))
+
+	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC)
+	totals, err := txnRepo.SumEntryTotalsByMonth(context.Background(), f.tenantID, from, to)
+	if err != nil {
+		t.Fatalf("SumEntryTotalsByMonth: %v", err)
+	}
+	// Expense account: debit 50000 (spend), credit 0.
+	if got := totals[f.expenseAcc.ID]; got.DebitCents != 50000 || got.CreditCents != 0 {
+		t.Errorf("expense account: got debit=%d credit=%d, want 50000/0", got.DebitCents, got.CreditCents)
+	}
+	// Income account: credit 1000000 (salary), debit 0.
+	if got := totals[f.incomeAcc.ID]; got.DebitCents != 0 || got.CreditCents != 1000000 {
+		t.Errorf("income account: got debit=%d credit=%d, want 0/1000000", got.DebitCents, got.CreditCents)
+	}
+	// Asset account legs: debit=salary leg 1000000, credit=lunch leg 50000.
+	if got := totals[f.assetAcc.ID]; got.DebitCents != 1000000 || got.CreditCents != 50000 {
+		t.Errorf("asset account: got debit=%d credit=%d, want 1000000/50000", got.DebitCents, got.CreditCents)
+	}
+}
+
+// TestSumEntryTotalsByMonth_TenantScopedAndDateFiltered verifies both the
+// tenant_id WHERE and the date window: a February entry and another tenant's
+// January entry do not contribute (even when the entry's account_id matches).
+func TestSumEntryTotalsByMonth_TenantScopedAndDateFiltered(t *testing.T) {
+	f, txnRepo := newSumRepoFixture(t)
+
+	jan10 := time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC)
+	feb10 := time.Date(2026, 2, 10, 0, 0, 0, 0, time.UTC)
+	// In-window January spend by the fixture tenant.
+	recordTxn(t, txnRepo, f.tenantID, jan10, "lunch",
+		expenseEntries(f.expenseAcc.ID, f.assetAcc.ID, 50000))
+	// Out-of-window February spend by the fixture tenant (date filter excludes).
+	recordTxn(t, txnRepo, f.tenantID, feb10, "feb lunch",
+		expenseEntries(f.expenseAcc.ID, f.assetAcc.ID, 99999))
+	// January spend by ANOTHER tenant on the same expense account (tenant filter
+	// excludes — the whole txn is dropped despite matching account_id).
+	recordTxn(t, txnRepo, uuid.New(), jan10, "other-tenant lunch",
+		expenseEntries(f.expenseAcc.ID, f.assetAcc.ID, 77777))
+
+	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC)
+	totals, err := txnRepo.SumEntryTotalsByMonth(context.Background(), f.tenantID, from, to)
+	if err != nil {
+		t.Fatalf("SumEntryTotalsByMonth: %v", err)
+	}
+	if got := totals[f.expenseAcc.ID]; got.DebitCents != 50000 {
+		t.Errorf("expense debit: got %d, want 50000 (feb/other-tenant leaked)", got.DebitCents)
+	}
+}
+
+// TestSumEntryTotalsByMonth_ExcludesSoftDeleted verifies that soft-deleted
+// transactions do not contribute (same deleted_at IS NULL guard as
+// SumEntryTotalsByAccount).
+func TestSumEntryTotalsByMonth_ExcludesSoftDeleted(t *testing.T) {
+	f, txnRepo := newSumRepoFixture(t)
+
+	date := time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC)
+	recordTxn(t, txnRepo, f.tenantID, date, "live",
+		expenseEntries(f.expenseAcc.ID, f.assetAcc.ID, 50000))
+	deleted := recordTxn(t, txnRepo, f.tenantID, date, "deleted",
+		expenseEntries(f.expenseAcc.ID, f.assetAcc.ID, 30000))
+	if err := txnRepo.SoftDelete(context.Background(), f.tenantID, deleted.ID); err != nil {
+		t.Fatalf("soft delete: %v", err)
+	}
+
+	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC)
+	totals, err := txnRepo.SumEntryTotalsByMonth(context.Background(), f.tenantID, from, to)
+	if err != nil {
+		t.Fatalf("SumEntryTotalsByMonth: %v", err)
+	}
+	if got := totals[f.expenseAcc.ID]; got.DebitCents != 50000 {
+		t.Errorf("expense debit: got %d, want 50000 (soft-deleted leaked)", got.DebitCents)
+	}
+}
+
+// TestSumEntryTotalsByMonth_EmptyReturnsEmptyMap verifies that a tenant/month
+// with no activity returns an empty (non-nil) map, not an error.
+func TestSumEntryTotalsByMonth_EmptyReturnsEmptyMap(t *testing.T) {
+	_, txnRepo := newSumRepoFixture(t)
+
+	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC)
+	totals, err := txnRepo.SumEntryTotalsByMonth(context.Background(), uuid.New(), from, to)
+	if err != nil {
+		t.Fatalf("SumEntryTotalsByMonth empty: %v", err)
+	}
+	if totals == nil {
+		t.Fatal("empty result: got nil map, want non-nil empty map")
+	}
+	if len(totals) != 0 {
+		t.Errorf("empty tenant: got %d accounts, want 0", len(totals))
+	}
+}

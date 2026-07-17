@@ -8,6 +8,14 @@ import (
 	"github.com/google/uuid"
 )
 
+// AccountTotals is one account's debit/credit totals over a period. Returned
+// by SumEntryTotalsByMonth (grouped by account_id) so budget batch actuals can
+// fill every item from a single query instead of one query per item.
+type AccountTotals struct {
+	DebitCents  int64
+	CreditCents int64
+}
+
 // TransactionRepository defines the port for Transaction persistence.
 type TransactionRepository interface {
 	Save(ctx context.Context, tx *Transaction) error
@@ -31,6 +39,14 @@ type TransactionRepository interface {
 	// total). Transfers are asset→asset flows that never touch Expense accounts,
 	// so they are excluded automatically — no TransactionType filter is applied.
 	SumEntryTotalsByAccount(ctx context.Context, accountID uuid.UUID, from, to time.Time) (debitTotal, creditTotal int64, err error)
+	// SumEntryTotalsByMonth returns debit/credit totals grouped by account_id
+	// for entries whose transaction_date is in [from, to], tenant-scoped. One
+	// map entry per account with activity in the range. Used by budget batch
+	// actuals: a single query per month replaces N×M per-item
+	// SumEntryTotalsByAccount calls. Transfers are asset→asset flows that never
+	// touch Expense accounts, so they are excluded automatically — no
+	// TransactionType filter is applied.
+	SumEntryTotalsByMonth(ctx context.Context, tenantID uuid.UUID, from, to time.Time) (map[uuid.UUID]AccountTotals, error)
 	// FindAllForBackup returns every non-deleted transaction for a tenant with
 	// its entries eager-loaded (single batched query, no pagination). Used by
 	// the backup exporter to serialize a tenant's full transaction graph.
