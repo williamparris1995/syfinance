@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	currencydomain "github.com/yucai/server/internal/currency/domain"
+
 	"github.com/yucai/server/internal/budget/domain"
 )
 
@@ -28,15 +30,31 @@ type EntryTotalsMonthFunc func(ctx context.Context, tenantID uuid.UUID, from, to
 // Service orchestrates budget operations.
 type Service struct {
 	repo           domain.BudgetRepository
-	entryFunc      EntryTotalsFunc      // single-account (ComputeActuals persist RPC)
-	entryMonthFunc EntryTotalsMonthFunc // batch (read-time actuals: ListBudgets/GetBudget*)
+	entryFunc      EntryTotalsFunc                      // single-account (ComputeActuals persist RPC)
+	entryMonthFunc EntryTotalsMonthFunc                 // batch (read-time actuals: ListBudgets/GetBudget*)
+	rateRepo       currencydomain.RateHistoryRepository // M3: nil → no conversion (raw account-currency cents)
+	accountCur     domain.AccountCurrencySource         // M3: nil → no conversion (raw account-currency cents)
 }
 
 // NewService creates a new budget application service. entryFunc backs the
 // persist-path ComputeActuals (per-item); entryMonthFunc backs read-time
 // actuals (one query per month). Either may be nil (graceful: actuals stay 0).
-func NewService(repo domain.BudgetRepository, entryFunc EntryTotalsFunc, entryMonthFunc EntryTotalsMonthFunc) *Service {
-	return &Service{repo: repo, entryFunc: entryFunc, entryMonthFunc: entryMonthFunc}
+// rateRepo + accountCur drive M3 multi-currency actuals conversion (nil → M2
+// raw behavior, no conversion); both wired in Task 2.
+func NewService(
+	repo domain.BudgetRepository,
+	entryFunc EntryTotalsFunc,
+	entryMonthFunc EntryTotalsMonthFunc,
+	rateRepo currencydomain.RateHistoryRepository,
+	accountCur domain.AccountCurrencySource,
+) *Service {
+	return &Service{
+		repo:           repo,
+		entryFunc:      entryFunc,
+		entryMonthFunc: entryMonthFunc,
+		rateRepo:       rateRepo,
+		accountCur:     accountCur,
+	}
 }
 
 // CreateBudget validates and persists a new budget.
@@ -239,7 +257,9 @@ func monthRange(month string) (time.Time, time.Time) {
 // computeActualsReadTime fills each item's ActualAmountCents via one batch
 // month query (entryMonthFunc), not per-item. nil entryMonthFunc → actuals 0.
 // err → all items 0 + slog (best-effort, NOT propagated).
-// actual = debit - credit (spending - refunds = net spend).
+// actual = debit - credit (spending - refunds = net spend), 折算 to budget
+// currency when rateRepo + accountCur are both non-nil (M3). nil ports → M2
+// raw behavior (account-currency cents, no conversion).
 func (s *Service) computeActualsReadTime(ctx context.Context, b *domain.Budget) {
 	if s.entryMonthFunc == nil {
 		return // actuals stay 0 (stored value or zero)
@@ -255,50 +275,106 @@ func (s *Service) computeActualsReadTime(ctx context.Context, b *domain.Budget) 
 		}
 		return
 	}
+	curMap := s.accountCurrencies(ctx, b.TenantID)
+	rateBase := s.budgetRate(ctx, b.CurrencyCode, to)
 	for i := range b.Items {
-		if t, ok := totals[b.Items[i].AccountID]; ok {
-			b.Items[i].ActualAmountCents = t.DebitCents - t.CreditCents
-		} else {
-			b.Items[i].ActualAmountCents = 0
-		}
+		raw := accountNet(totals, b.Items[i].AccountID)
+		b.Items[i].ActualAmountCents = s.convertToBudget(ctx, raw, b.Items[i].AccountID, b.CurrencyCode, curMap, rateBase, to)
 	}
 }
 
 // computeActualsReadTimeBatch fills actuals for many budgets with one query
 // per distinct month (vs N×M per-item). nil entryMonthFunc → no-op. A failed
 // month is cached as nil so it is not retried; its items stay 0. ListBudgets
-// passes its tenantID (already tenant-scoped by FindAll).
+// passes its tenantID (already tenant-scoped by FindAll). curMap is fetched
+// once per tenant; rateBase is per (budget currency, month-end). nil ports →
+// M2 raw behavior (account-currency cents, no conversion).
 func (s *Service) computeActualsReadTimeBatch(ctx context.Context, tenantID uuid.UUID, budgets []domain.Budget) {
 	if s.entryMonthFunc == nil {
 		return
 	}
+	curMap := s.accountCurrencies(ctx, tenantID)
 	monthCache := map[string]map[uuid.UUID]EntryTotals{}
 	for i := range budgets {
 		month := budgets[i].Month
-		if _, cached := monthCache[month]; cached {
-			continue
+		if _, cached := monthCache[month]; !cached {
+			from, to := monthRange(month)
+			totals, err := s.entryMonthFunc(ctx, tenantID, from, to)
+			if err != nil {
+				slog.Error("budget actuals batch: entryMonthFunc failed",
+					"operation", "budget.computeActualsReadTimeBatch",
+					"month", month, "error", err.Error())
+				monthCache[month] = nil // mark attempted (items stay 0, no retry)
+				continue
+			}
+			monthCache[month] = totals
 		}
-		from, to := monthRange(month)
-		totals, err := s.entryMonthFunc(ctx, tenantID, from, to)
-		if err != nil {
-			slog.Error("budget actuals batch: entryMonthFunc failed",
-				"operation", "budget.computeActualsReadTimeBatch",
-				"month", month, "error", err.Error())
-			monthCache[month] = nil // mark attempted (items stay 0, no retry)
-			continue
-		}
-		monthCache[month] = totals
-	}
-	for i := range budgets {
+		to, _ := monthRange(budgets[i].Month)
+		rateBase := s.budgetRate(ctx, budgets[i].CurrencyCode, to)
 		totals := monthCache[budgets[i].Month]
 		for j := range budgets[i].Items {
-			if totals != nil {
-				if t, ok := totals[budgets[i].Items[j].AccountID]; ok {
-					budgets[i].Items[j].ActualAmountCents = t.DebitCents - t.CreditCents
-					continue
-				}
-			}
-			budgets[i].Items[j].ActualAmountCents = 0
+			raw := accountNet(totals, budgets[i].Items[j].AccountID)
+			budgets[i].Items[j].ActualAmountCents = s.convertToBudget(ctx, raw, budgets[i].Items[j].AccountID, budgets[i].CurrencyCode, curMap, rateBase, to)
 		}
 	}
+}
+
+// accountCurrencies fetches account_id -> currency_code for the tenant (nil
+// accountCur → nil map, conversion skipped). Logged on err, not fatal.
+func (s *Service) accountCurrencies(ctx context.Context, tenantID uuid.UUID) map[uuid.UUID]string {
+	if s.accountCur == nil {
+		return nil
+	}
+	m, err := s.accountCur.CurrencyCodes(ctx, tenantID)
+	if err != nil {
+		slog.Warn("budget actuals: account currency lookup failed, skipping conversion",
+			"operation", "budget.computeActuals", "error", err.Error())
+		return nil
+	}
+	return m
+}
+
+// budgetRate fetches the budget currency → CNY rate at the given time (nil
+// rateRepo → 1.0, no conversion; err/zero → 1.0 fallback).
+func (s *Service) budgetRate(ctx context.Context, budgetCur string, at time.Time) float64 {
+	if s.rateRepo == nil {
+		return 1.0
+	}
+	r, err := s.rateRepo.FindRate(ctx, budgetCur, at)
+	if err != nil || r == 0 {
+		return 1.0
+	}
+	return r
+}
+
+// convertToBudget 折算 raw (account currency) cents to budget currency cents.
+// nil infra / unknown account currency / same currency / missing rate → raw
+// (best-effort, 照 networth toBase).
+func (s *Service) convertToBudget(ctx context.Context, raw int64, accountID uuid.UUID, budgetCur string, curMap map[uuid.UUID]string, rateBase float64, at time.Time) int64 {
+	if raw == 0 || s.rateRepo == nil || s.accountCur == nil {
+		return raw
+	}
+	accCode, ok := curMap[accountID]
+	if !ok || accCode == "" || accCode == budgetCur {
+		return raw // same currency → no conversion
+	}
+	rateFrom, err := s.rateRepo.FindRate(ctx, accCode, at)
+	if err != nil || rateFrom == 0 {
+		slog.Warn("budget actuals: rate missing, using raw account-currency cents",
+			"operation", "budget.computeActuals",
+			"account_currency", accCode, "budget_currency", budgetCur)
+		return raw
+	}
+	return currencydomain.ConvertToBase(raw, rateFrom, rateBase)
+}
+
+// accountNet returns debit−credit for an account from the month totals map.
+func accountNet(totals map[uuid.UUID]EntryTotals, accountID uuid.UUID) int64 {
+	if totals == nil {
+		return 0
+	}
+	if t, ok := totals[accountID]; ok {
+		return t.DebitCents - t.CreditCents
+	}
+	return 0
 }

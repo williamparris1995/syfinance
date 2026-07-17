@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	currencydomain "github.com/yucai/server/internal/currency/domain"
+
 	"github.com/yucai/server/internal/budget/domain"
 )
 
@@ -78,7 +80,7 @@ func TestGetBudgetComputesActualsReadTime(t *testing.T) {
 	entryMonthFunc := func(ctx context.Context, tenantID uuid.UUID, from, to time.Time) (map[uuid.UUID]EntryTotals, error) {
 		return map[uuid.UUID]EntryTotals{budget.Items[0].AccountID: {DebitCents: 50000, CreditCents: 0}}, nil
 	}
-	svc := NewService(repo, nil, entryMonthFunc)
+	svc := NewService(repo, nil, entryMonthFunc, nil, nil)
 
 	dto, err := svc.GetBudgetByMonth(context.Background(), uuid.New(), "2026-07")
 	if err != nil {
@@ -102,7 +104,7 @@ func TestGetBudgetActualsNilEntryFuncFallback(t *testing.T) {
 		Items: []domain.BudgetItem{{AccountID: uuid.New(), PlannedAmountCents: 100000}},
 		TotalAmountCents: 100000,
 	}}
-	svc := NewService(repo, nil, nil) // nil entryMonthFunc
+	svc := NewService(repo, nil, nil, nil, nil) // nil entryMonthFunc
 	dto, err := svc.GetBudgetByMonth(context.Background(), uuid.New(), "2026-07")
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
@@ -121,7 +123,7 @@ func TestGetBudgetActualsEntryFuncErrGraceful(t *testing.T) {
 	entryMonthFunc := func(ctx context.Context, tenantID uuid.UUID, from, to time.Time) (map[uuid.UUID]EntryTotals, error) {
 		return nil, fmt.Errorf("boom")
 	}
-	svc := NewService(repo, nil, entryMonthFunc)
+	svc := NewService(repo, nil, entryMonthFunc, nil, nil)
 	dto, err := svc.GetBudgetByMonth(context.Background(), uuid.New(), "2026-07")
 	if err != nil {
 		t.Fatalf("should not propagate entryMonthFunc err: %v", err)
@@ -143,7 +145,7 @@ func TestGetBudgetByIDComputesActuals(t *testing.T) {
 	entryMonthFunc := func(ctx context.Context, tenantID uuid.UUID, from, to time.Time) (map[uuid.UUID]EntryTotals, error) {
 		return map[uuid.UUID]EntryTotals{budget.Items[0].AccountID: {DebitCents: 30000, CreditCents: 10000}}, nil // net 20000
 	}
-	svc := NewService(repo, nil, entryMonthFunc)
+	svc := NewService(repo, nil, entryMonthFunc, nil, nil)
 	dto, err := svc.GetBudget(context.Background(), uuid.New(), uuid.New())
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
@@ -168,7 +170,7 @@ func TestListBudgetsComputesActuals(t *testing.T) {
 	entryMonthFunc := func(ctx context.Context, tenantID uuid.UUID, from, to time.Time) (map[uuid.UUID]EntryTotals, error) {
 		return map[uuid.UUID]EntryTotals{budget.Items[0].AccountID: {DebitCents: 80000, CreditCents: 0}}, nil
 	}
-	svc := NewService(repo, nil, entryMonthFunc)
+	svc := NewService(repo, nil, entryMonthFunc, nil, nil)
 	res, err := svc.ListBudgets(context.Background(), ListBudgetsRequest{TenantID: uuid.New()})
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
@@ -199,7 +201,7 @@ func TestListBudgets_BatchOneQueryPerDistinctMonth(t *testing.T) {
 		{ID: uuid.New(), TenantID: tenantID, Month: "2026-07", Items: []domain.BudgetItem{{ID: uuid.New(), AccountID: uuid.New()}}},
 		{ID: uuid.New(), TenantID: tenantID, Month: "2026-06", Items: []domain.BudgetItem{{ID: uuid.New(), AccountID: uuid.New()}}},
 	}}
-	svc := NewService(repo, nil, entryMonthFunc)
+	svc := NewService(repo, nil, entryMonthFunc, nil, nil)
 
 	_, err := svc.ListBudgets(context.Background(), ListBudgetsRequest{TenantID: tenantID})
 	if err != nil {
@@ -238,7 +240,7 @@ func TestListBudgets_BatchFillsActualsFromMap(t *testing.T) {
 			{ID: uuid.New(), AccountID: noDataAcc}, // no entry → stays 0
 		}},
 	}}
-	svc := NewService(repo, nil, entryMonthFunc)
+	svc := NewService(repo, nil, entryMonthFunc, nil, nil)
 
 	res, err := svc.ListBudgets(context.Background(), ListBudgetsRequest{TenantID: tenantID})
 	if err != nil {
@@ -252,5 +254,112 @@ func TestListBudgets_BatchFillsActualsFromMap(t *testing.T) {
 	}
 	if got := res.Budgets[0].Items[2].ActualAmountCents; got != 0 {
 		t.Errorf("no-data item actual: got %d, want 0", got)
+	}
+}
+
+// --- M3 multi-currency conversion tests (fake rateRepo/accountCur ports) ---
+
+// fakeAccountCur implements domain.AccountCurrencySource from a static map.
+type fakeAccountCur struct {
+	codes map[uuid.UUID]string
+	err   error
+}
+
+func (f *fakeAccountCur) CurrencyCodes(_ context.Context, _ uuid.UUID) (map[uuid.UUID]string, error) {
+	return f.codes, f.err
+}
+
+// fakeRateRepo implements currencydomain.RateHistoryRepository from a static
+// code->rate map (照 networth fakeRateRepo). Missing code -> 1.0.
+type fakeRateRepo struct {
+	rates map[string]float64
+}
+
+func (r *fakeRateRepo) FindRate(_ context.Context, code string, _ time.Time) (float64, error) {
+	if v, ok := r.rates[code]; ok {
+		return v, nil
+	}
+	return 1.0, nil
+}
+
+func (r *fakeRateRepo) FindRange(_ context.Context, _ string, _, _ time.Time) ([]currencydomain.RateHistory, error) {
+	return nil, nil
+}
+
+func (r *fakeRateRepo) Save(_ context.Context, _ currencydomain.RateHistory) error { return nil }
+
+// TestComputeActuals_MultiCurrencyConverts verifies M3: a budget in CNY with
+// an item on a USD account has its actuals (USD cents) converted to CNY via
+// ConvertToBase (usdCents × rateUSD / rateCNY).
+func TestComputeActuals_MultiCurrencyConverts(t *testing.T) {
+	usdAcc := uuid.New()
+	budget := &domain.Budget{
+		TenantID: uuid.New(), Month: "2026-07", CurrencyCode: "CNY",
+		Items: []domain.BudgetItem{{ID: uuid.New(), AccountID: usdAcc}},
+	}
+	repo := &fakeBudgetRepo{budget: budget}
+	// entryMonthFunc returns 10000 USD cents (debit) on the USD account.
+	entryMonthFunc := func(ctx context.Context, tenantID uuid.UUID, from, to time.Time) (map[uuid.UUID]EntryTotals, error) {
+		return map[uuid.UUID]EntryTotals{usdAcc: {DebitCents: 10000, CreditCents: 0}}, nil
+	}
+	accountCur := &fakeAccountCur{codes: map[uuid.UUID]string{usdAcc: "USD"}}
+	rateRepo := &fakeRateRepo{rates: map[string]float64{"CNY": 1.0, "USD": 7.0}} // 1 USD = 7 CNY
+	svc := NewService(repo, nil, entryMonthFunc, rateRepo, accountCur)
+
+	dto, err := svc.GetBudgetByMonth(context.Background(), budget.TenantID, "2026-07")
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	// 10000 USD × 7 / 1 = 70000 CNY
+	if got := dto.Budget.Items[0].ActualAmountCents; got != 70000 {
+		t.Errorf("multi-currency actual: got %d, want 70000 (10000 USD × 7)", got)
+	}
+}
+
+// TestComputeActuals_SameCurrencyNoConvert verifies the optimization: when the
+// item's account currency == budget currency, no conversion happens (raw cents).
+func TestComputeActuals_SameCurrencyNoConvert(t *testing.T) {
+	cnyAcc := uuid.New()
+	budget := &domain.Budget{
+		TenantID: uuid.New(), Month: "2026-07", CurrencyCode: "CNY",
+		Items: []domain.BudgetItem{{ID: uuid.New(), AccountID: cnyAcc}},
+	}
+	repo := &fakeBudgetRepo{budget: budget}
+	entryMonthFunc := func(ctx context.Context, tenantID uuid.UUID, from, to time.Time) (map[uuid.UUID]EntryTotals, error) {
+		return map[uuid.UUID]EntryTotals{cnyAcc: {DebitCents: 50000, CreditCents: 0}}, nil
+	}
+	accountCur := &fakeAccountCur{codes: map[uuid.UUID]string{cnyAcc: "CNY"}}
+	rateRepo := &fakeRateRepo{rates: map[string]float64{"CNY": 1.0}}
+	svc := NewService(repo, nil, entryMonthFunc, rateRepo, accountCur)
+
+	dto, err := svc.GetBudgetByMonth(context.Background(), budget.TenantID, "2026-07")
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if got := dto.Budget.Items[0].ActualAmountCents; got != 50000 {
+		t.Errorf("same-currency actual: got %d, want 50000 (raw, no conversion)", got)
+	}
+}
+
+// TestComputeActuals_NilPortsRawBehavior verifies nil rateRepo/accountCur
+// preserves M2 behavior (no conversion, raw account-currency cents).
+func TestComputeActuals_NilPortsRawBehavior(t *testing.T) {
+	usdAcc := uuid.New()
+	budget := &domain.Budget{
+		TenantID: uuid.New(), Month: "2026-07", CurrencyCode: "CNY",
+		Items: []domain.BudgetItem{{ID: uuid.New(), AccountID: usdAcc}},
+	}
+	repo := &fakeBudgetRepo{budget: budget}
+	entryMonthFunc := func(ctx context.Context, tenantID uuid.UUID, from, to time.Time) (map[uuid.UUID]EntryTotals, error) {
+		return map[uuid.UUID]EntryTotals{usdAcc: {DebitCents: 10000, CreditCents: 0}}, nil
+	}
+	svc := NewService(repo, nil, entryMonthFunc, nil, nil) // nil ports
+
+	dto, err := svc.GetBudgetByMonth(context.Background(), budget.TenantID, "2026-07")
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if got := dto.Budget.Items[0].ActualAmountCents; got != 10000 {
+		t.Errorf("nil-port actual: got %d, want 10000 (M2 raw, no conversion)", got)
 	}
 }

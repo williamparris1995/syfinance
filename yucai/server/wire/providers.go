@@ -296,6 +296,11 @@ func provideBudgetRepo(client *budgetent.Client) *budgetrepo.BudgetRepository {
 // D-goal's AccountMarketValueSource); wire injects closures that delegate to
 // txnSvc.SpendingByAccount / SpendingByAccountByMonth. Before Task 4
 // entryFunc was nil, so actuals read 0.
+//
+// M3 (Task 1): rateRepo + accountCur passed as nil,nil → M2 raw actuals
+// behavior (no multi-currency conversion). Signature is UNCHANGED (repo +
+// txnSvc) so wire_gen.go is NOT touched; Task 2 wires the real ports and
+// regenerates wire_gen.go accordingly.
 func provideBudgetService(repo *budgetrepo.BudgetRepository, txnSvc *txnapp.Service) *budgetapp.Service {
 	return budgetapp.NewService(repo,
 		func(ctx context.Context, accountID uuid.UUID, from, to time.Time) (int64, int64, error) {
@@ -312,6 +317,7 @@ func provideBudgetService(repo *budgetrepo.BudgetRepository, txnSvc *txnapp.Serv
 			}
 			return out, nil
 		},
+		nil, nil, // M3 Task 1: rateRepo, accountCur — nil preserves M2 raw actuals; Task 2 wires real ports
 	)
 }
 func provideBudgetHandler(svc *budgetapp.Service) *budgetgrpc.BudgetHandler {
