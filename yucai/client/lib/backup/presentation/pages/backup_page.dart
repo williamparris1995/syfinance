@@ -30,8 +30,11 @@ class _BackupPageState extends State<BackupPage> {
   /// 创建备份：encrypted 三选 dialog（取消 / 不加密 / 加密）。
   /// 加密时第二步收 password（TextField obscureText，空则 SnackBar 提示）。
   /// CreateBackupRequest{encrypted, password}：非加密传空串。
-  void _showCreateDialog() {
-    showDialog<bool>(
+  /// 加密分支的 TextEditingController 用 try/finally dispose（对齐
+  /// _showRestoreDialog,避免 leak;memory 记曾因同步 dispose crash → 若
+  /// teardown race 复现改 WidgetsBinding.addPostFrameCallback deferred dispose)。
+  Future<void> _showCreateDialog() async {
+    final encrypted = await showDialog<bool>(
       context: context,
       builder: (dctx) => AlertDialog(
         title: const Text('创建备份'),
@@ -51,12 +54,13 @@ class _BackupPageState extends State<BackupPage> {
           ),
         ],
       ),
-    ).then((encrypted) async {
-      if (encrypted == null || !mounted) return; // 取消
-      String password = '';
-      if (encrypted) {
-        // 加密:第二步收 password
-        final ctrl = TextEditingController();
+    );
+    if (encrypted == null || !mounted) return;
+
+    String password = '';
+    if (encrypted) {
+      final ctrl = TextEditingController();
+      try {
         final ok = await showDialog<bool>(
           context: context,
           builder: (dctx) => AlertDialog(
@@ -83,16 +87,23 @@ class _BackupPageState extends State<BackupPage> {
         );
         if (ok != true || !mounted) return;
         password = ctrl.text;
-        if (password.isEmpty) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text('密码不能为空')));
-          return;
-        }
+      } finally {
+        // Defer dispose to a post-frame callback: 同步 dispose 在 dialog
+        // teardown 帧中触发 "TextEditingController used after being disposed"
+        // race(TextField 的 _AnimatedState 仍在帧间 attach listener)。
+        // post-frame 让 dialog widget 先完整 detach 再 dispose,对齐 restore
+        // dialog 无 crash 的行为(memory 记此为已知 race)。
+        WidgetsBinding.instance.addPostFrameCallback((_) => ctrl.dispose());
       }
-      if (!mounted) return;
-      context.read<BackupBloc>().add(CreateBackupRequested(encrypted, password));
-    });
+      if (password.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('密码不能为空')));
+        return;
+      }
+    }
+    if (!mounted) return;
+    context.read<BackupBloc>().add(CreateBackupRequested(encrypted, password));
   }
 
   /// 恢复备份：覆盖当前数据 → confirm 警告；加密备份需 password。
@@ -256,7 +267,7 @@ class _BackupPageState extends State<BackupPage> {
             ),
           ),
           FilledButton.icon(
-            onPressed: _showCreateDialog,
+            onPressed: () { _showCreateDialog(); },
             icon: const Icon(LucideIcons.plus, size: 18),
             label: const Text('立即备份'),
           ),
