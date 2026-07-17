@@ -559,3 +559,43 @@ func TestSpendingByAccount_PropagatesRepoError(t *testing.T) {
 		t.Fatal("expected error to propagate, got nil")
 	}
 }
+
+// TestSpendingByAccountByMonth_DelegatesToRepo verifies the service method is a
+// pure thin wrapper: it forwards tenantID/from/to to the repo and returns the
+// repo's canned map unchanged.
+func TestSpendingByAccountByMonth_DelegatesToRepo(t *testing.T) {
+	acc := uuid.New()
+	canned := map[uuid.UUID]domain.AccountTotals{acc: {DebitCents: 50000, CreditCents: 5000}}
+	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC)
+	tenantID := uuid.New()
+
+	repo := &sumByAccountTxnRepo{monthTotals: canned}
+	svc := NewService(repo, newMockAccountRepo(), noopBalanceUpdater{})
+
+	got, err := svc.SpendingByAccountByMonth(context.Background(), tenantID, from, to)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if repo.gotTenantID != tenantID {
+		t.Errorf("tenantID: got %s, want %s", repo.gotTenantID, tenantID)
+	}
+	if !repo.gotFrom.Equal(from) || !repo.gotTo.Equal(to) {
+		t.Errorf("range: got %s..%s, want %s..%s", repo.gotFrom, repo.gotTo, from, to)
+	}
+	if got[acc].DebitCents != 50000 || got[acc].CreditCents != 5000 {
+		t.Errorf("canned map not forwarded: got debit=%d credit=%d, want 50000/5000", got[acc].DebitCents, got[acc].CreditCents)
+	}
+}
+
+// TestSpendingByAccountByMonth_PropagatesRepoError verifies a repo error is
+// wrapped and returned (not swallowed).
+func TestSpendingByAccountByMonth_PropagatesRepoError(t *testing.T) {
+	repo := &sumByAccountTxnRepo{err: fmt.Errorf("boom")}
+	svc := NewService(repo, newMockAccountRepo(), noopBalanceUpdater{})
+
+	_, err := svc.SpendingByAccountByMonth(context.Background(), uuid.New(), time.Time{}, time.Time{})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}

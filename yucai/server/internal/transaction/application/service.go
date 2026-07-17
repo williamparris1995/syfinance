@@ -122,6 +122,18 @@ func (s *Service) SpendingByAccount(ctx context.Context, accountID uuid.UUID, fr
 	return debit, credit, nil
 }
 
+// SpendingByAccountByMonth returns debit/credit totals grouped by account_id
+// for [from, to], tenant-scoped. Budget batch actuals port: one query per
+// month replaces N×M per-item SpendingByAccount calls across a budget list.
+// Thin wrapper: delegates to the repository and wraps errors.
+func (s *Service) SpendingByAccountByMonth(ctx context.Context, tenantID uuid.UUID, from, to time.Time) (map[uuid.UUID]domain.AccountTotals, error) {
+	totals, err := s.txnRepo.SumEntryTotalsByMonth(ctx, tenantID, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("spending by account by month: %w", err)
+	}
+	return totals, nil
+}
+
 // TransactionSummary returns the income/expense summary for a tenant over a
 // period selected by scope (DAY/MONTH/YEAR), optionally narrowed to a single
 // account (the account_detail view). It delegates aggregation to the repository
