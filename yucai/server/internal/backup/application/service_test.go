@@ -780,3 +780,53 @@ func TestRestoreBackupLegacyFormatRejects(t *testing.T) {
 		t.Fatalf("err = %v, want ErrBackupFormatOutdated", err)
 	}
 }
+
+// TestRestoreBackupMultiModuleRoundtrip:8 模块(模拟 account..tag)经 gzip +
+// encrypt + checksum + pre-restore safety 全流程,验证 restore 后各模块数据各自
+// 还原到 backup 快照(关联字段如 linked_account_id/category 在各模块 JSON 内
+// 随 restore 还原,顺序由 orderedPortsForImport 保证 account 先 import)。
+func TestRestoreBackupMultiModuleRoundtrip(t *testing.T) {
+	tenantID := uuid.New()
+	modules := map[string][]byte{
+		"account":     []byte(`[{"id":"a1","name":"Cash"}]`),
+		"transaction": []byte(`[{"id":"t1","desc":"buy","account_id":"a1"}]`),
+		"debt":        []byte(`[{"id":"d1","account_id":"a1"}]`),
+		"budget":      []byte(`[{"id":"b1","category":"a1"}]`),
+		"goal":        []byte(`[{"id":"g1","linked_account_id":"a1"}]`),
+		"holding":     []byte(`[{"id":"h1","from_account_id":"a1"}]`),
+		"template":    []byte(`[{"id":"tp1","category":"a1"}]`),
+		"tag":         []byte(`[{"id":"tg1","name":"vip"}]`),
+	}
+	var ports []domain.TenantDataPort
+	var fakes []*fakePort
+	originals := map[string][]byte{}
+	for name, data := range modules {
+		fp := newFakePort(name, data)
+		fakes = append(fakes, fp)
+		ports = append(ports, fp)
+		originals[name] = data
+	}
+	svc, _, _ := newTestService(ports)
+
+	// 加密备份(覆盖 gzip + encrypt + checksum 全链路)。
+	dto, err := svc.CreateBackup(context.Background(), tenantID, true, "pw", false)
+	if err != nil {
+		t.Fatalf("CreateBackup: %v", err)
+	}
+
+	// mutate 所有模块(模拟数据漂移)。
+	for _, fp := range fakes {
+		fp.data = []byte(`[{"mutated":true}]`)
+	}
+
+	if err := svc.RestoreBackup(context.Background(), tenantID, dto.ID, "pw"); err != nil {
+		t.Fatalf("RestoreBackup: %v", err)
+	}
+
+	// 各模块还原到 original(关联字段在 JSON 内随还原)。
+	for _, fp := range fakes {
+		if string(fp.data) != string(originals[fp.name]) {
+			t.Errorf("module %q after restore = %s, want %s", fp.name, fp.data, originals[fp.name])
+		}
+	}
+}
