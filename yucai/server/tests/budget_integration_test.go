@@ -346,33 +346,6 @@ func TestBudgetUpdate(t *testing.T) {
 	}
 }
 
-// TestBudgetRepoUpdate_OptimisticLock verifies a stale version is rejected:
-// a second Update built from the pre-bump version must fail to match the
-// WHERE version predicate.
-func TestBudgetRepoUpdate_OptimisticLock(t *testing.T) {
-	client := setupBudgetTestDB(t)
-	repo := budgetrepo.NewBudgetRepository(client)
-	ctx := context.Background()
-	tenantID := uuid.New()
-
-	b, _ := budgetdomain.NewBudget(tenantID, "B", "2026-05", "CNY",
-		[]budgetdomain.BudgetItem{{AccountID: uuid.New(), PlannedAmountCents: 10000}})
-	repo.Save(ctx, b)
-
-	// Stale snapshot: simulate a concurrent edit by bumping version once more
-	// than the predicate expects. domain.Update sets Version = v+1; repo WHERE
-	// matches v. If we manually set Version = v+2 without a real intervening
-	// write, WHERE v+1 finds no row → error.
-	stale := *b
-	stale.Update("B2", "CNY", []budgetdomain.BudgetItem{{AccountID: uuid.New(), PlannedAmountCents: 20000}})
-	// Now corrupt: pretend version is one ahead of what DB has.
-	stale.Version = b.Version + 2 // repo WHERE Version(stale.Version-1) = v+1, DB still v → no match
-	err := repo.Update(ctx, &stale)
-	if err == nil {
-		t.Fatal("optimistic lock: expected error on stale version, got nil")
-	}
-}
-
 // TestBudgetRepoUpdate_TxAtomicOnOptimisticLock verifies that when the budget
 // UPDATE fails the optimistic lock (WHERE version mismatch), the preceding
 // items delete+insert are rolled back — the whole Update is atomic. Under the

@@ -202,7 +202,7 @@ func (r *BudgetRepository) Update(ctx context.Context, b *domain.Budget) error {
 	if _, err := tx.Budget.UpdateOneID(b.ID).
 		Where(budget.Version(b.Version - 1)).
 		SetName(b.Name).
-		SetCurrencyCode(b.CurrencyCode).
+		SetCurrencyCode(b.CurrencyCode). // M1 fix: currency edits previously not persisted
 		SetTotalAmountCents(b.TotalAmountCents).
 		SetIsActive(b.IsActive).
 		SetVersion(b.Version).

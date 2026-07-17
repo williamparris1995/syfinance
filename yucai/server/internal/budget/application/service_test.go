@@ -7,9 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	currencydomain "github.com/yucai/server/internal/currency/domain"
-
 	"github.com/yucai/server/internal/budget/domain"
+	currencydomain "github.com/yucai/server/internal/currency/domain"
 )
 
 // fakeBudgetRepo is an in-memory BudgetRepository for testing.
@@ -100,8 +99,8 @@ func TestGetBudgetComputesActualsReadTime(t *testing.T) {
 
 func TestGetBudgetActualsNilEntryFuncFallback(t *testing.T) {
 	repo := &fakeBudgetRepo{budget: &domain.Budget{
-		Month: "2026-07",
-		Items: []domain.BudgetItem{{AccountID: uuid.New(), PlannedAmountCents: 100000}},
+		Month:            "2026-07",
+		Items:            []domain.BudgetItem{{AccountID: uuid.New(), PlannedAmountCents: 100000}},
 		TotalAmountCents: 100000,
 	}}
 	svc := NewService(repo, nil, nil, nil, nil) // nil entryMonthFunc
@@ -116,8 +115,8 @@ func TestGetBudgetActualsNilEntryFuncFallback(t *testing.T) {
 
 func TestGetBudgetActualsEntryFuncErrGraceful(t *testing.T) {
 	repo := &fakeBudgetRepo{budget: &domain.Budget{
-		Month: "2026-07",
-		Items: []domain.BudgetItem{{AccountID: uuid.New(), PlannedAmountCents: 100000}},
+		Month:            "2026-07",
+		Items:            []domain.BudgetItem{{AccountID: uuid.New(), PlannedAmountCents: 100000}},
 		TotalAmountCents: 100000,
 	}}
 	entryMonthFunc := func(ctx context.Context, tenantID uuid.UUID, from, to time.Time) (map[uuid.UUID]EntryTotals, error) {

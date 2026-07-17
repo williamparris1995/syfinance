@@ -7,9 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	currencydomain "github.com/yucai/server/internal/currency/domain"
-
 	"github.com/yucai/server/internal/budget/domain"
+	currencydomain "github.com/yucai/server/internal/currency/domain"
 )
 
 // EntryTotalsFunc fetches debit/credit totals for an account in a date range.
@@ -294,17 +293,27 @@ func (s *Service) computeActualsReadTimeBatch(ctx context.Context, tenantID uuid
 		return
 	}
 	curMap := s.accountCurrencies(ctx, tenantID)
-	monthCache := map[string]map[uuid.UUID]EntryTotals{}
+	// Cache both totals and month-end (to) per distinct month so monthRange is
+	// computed once per month, not twice (rateBase + convertToBudget reuse it).
+	// A failed month is cached with nil totals + valid to (mark attempted, no
+	// retry) — its items stay 0.
+	type monthData struct {
+		totals map[uuid.UUID]EntryTotals
+		to     time.Time
+	}
+	monthCache := map[string]monthData{}
 	for i := range budgets {
 		month := budgets[i].Month
-		if _, cached := monthCache[month]; !cached {
+		md, ok := monthCache[month]
+		if !ok {
 			from, to := monthRange(month)
 			totals, err := s.entryMonthFunc(ctx, tenantID, from, to)
 			if err != nil {
 				slog.Error("budget actuals batch: entryMonthFunc failed",
 					"operation", "budget.computeActualsReadTimeBatch",
 					"month", month, "error", err.Error())
-				monthCache[month] = nil // mark attempted (no retry)
+				md = monthData{totals: nil, to: to} // mark attempted (no retry)
+				monthCache[month] = md
 				// Zero-fill budget i's items: the continue below skips this
 				// budget's fill loop, so without this the FIRST budget for a
 				// failed month would keep its stored (possibly non-zero)
@@ -315,14 +324,13 @@ func (s *Service) computeActualsReadTimeBatch(ctx context.Context, tenantID uuid
 				}
 				continue
 			}
-			monthCache[month] = totals
+			md = monthData{totals: totals, to: to}
+			monthCache[month] = md
 		}
-		to, _ := monthRange(budgets[i].Month)
-		rateBase := s.budgetRate(ctx, budgets[i].CurrencyCode, to)
-		totals := monthCache[budgets[i].Month]
+		rateBase := s.budgetRate(ctx, budgets[i].CurrencyCode, md.to)
 		for j := range budgets[i].Items {
-			raw := accountNet(totals, budgets[i].Items[j].AccountID)
-			budgets[i].Items[j].ActualAmountCents = s.convertToBudget(ctx, raw, budgets[i].Items[j].AccountID, budgets[i].CurrencyCode, curMap, rateBase, to)
+			raw := accountNet(md.totals, budgets[i].Items[j].AccountID)
+			budgets[i].Items[j].ActualAmountCents = s.convertToBudget(ctx, raw, budgets[i].Items[j].AccountID, budgets[i].CurrencyCode, curMap, rateBase, md.to)
 		}
 	}
 }
