@@ -29,6 +29,7 @@ const (
 	BudgetService_RemoveBudgetItem_FullMethodName     = "/yucai.budget.v1.BudgetService/RemoveBudgetItem"
 	BudgetService_ComputeBudgetActuals_FullMethodName = "/yucai.budget.v1.BudgetService/ComputeBudgetActuals"
 	BudgetService_CloneBudgetToMonth_FullMethodName   = "/yucai.budget.v1.BudgetService/CloneBudgetToMonth"
+	BudgetService_UpdateBudget_FullMethodName         = "/yucai.budget.v1.BudgetService/UpdateBudget"
 )
 
 // BudgetServiceClient is the client API for BudgetService service.
@@ -44,6 +45,7 @@ type BudgetServiceClient interface {
 	RemoveBudgetItem(ctx context.Context, in *RemoveBudgetItemRequest, opts ...grpc.CallOption) (*BudgetResponse, error)
 	ComputeBudgetActuals(ctx context.Context, in *ComputeActualsRequest, opts ...grpc.CallOption) (*BudgetResponse, error)
 	CloneBudgetToMonth(ctx context.Context, in *CloneBudgetRequest, opts ...grpc.CallOption) (*BudgetResponse, error)
+	UpdateBudget(ctx context.Context, in *UpdateBudgetRequest, opts ...grpc.CallOption) (*BudgetResponse, error)
 }
 
 type budgetServiceClient struct {
@@ -144,6 +146,16 @@ func (c *budgetServiceClient) CloneBudgetToMonth(ctx context.Context, in *CloneB
 	return out, nil
 }
 
+func (c *budgetServiceClient) UpdateBudget(ctx context.Context, in *UpdateBudgetRequest, opts ...grpc.CallOption) (*BudgetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BudgetResponse)
+	err := c.cc.Invoke(ctx, BudgetService_UpdateBudget_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BudgetServiceServer is the server API for BudgetService service.
 // All implementations must embed UnimplementedBudgetServiceServer
 // for forward compatibility.
@@ -157,6 +169,7 @@ type BudgetServiceServer interface {
 	RemoveBudgetItem(context.Context, *RemoveBudgetItemRequest) (*BudgetResponse, error)
 	ComputeBudgetActuals(context.Context, *ComputeActualsRequest) (*BudgetResponse, error)
 	CloneBudgetToMonth(context.Context, *CloneBudgetRequest) (*BudgetResponse, error)
+	UpdateBudget(context.Context, *UpdateBudgetRequest) (*BudgetResponse, error)
 	mustEmbedUnimplementedBudgetServiceServer()
 }
 
@@ -193,6 +206,9 @@ func (UnimplementedBudgetServiceServer) ComputeBudgetActuals(context.Context, *C
 }
 func (UnimplementedBudgetServiceServer) CloneBudgetToMonth(context.Context, *CloneBudgetRequest) (*BudgetResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CloneBudgetToMonth not implemented")
+}
+func (UnimplementedBudgetServiceServer) UpdateBudget(context.Context, *UpdateBudgetRequest) (*BudgetResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateBudget not implemented")
 }
 func (UnimplementedBudgetServiceServer) mustEmbedUnimplementedBudgetServiceServer() {}
 func (UnimplementedBudgetServiceServer) testEmbeddedByValue()                       {}
@@ -377,6 +393,24 @@ func _BudgetService_CloneBudgetToMonth_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BudgetService_UpdateBudget_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateBudgetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BudgetServiceServer).UpdateBudget(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BudgetService_UpdateBudget_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BudgetServiceServer).UpdateBudget(ctx, req.(*UpdateBudgetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BudgetService_ServiceDesc is the grpc.ServiceDesc for BudgetService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -419,6 +453,10 @@ var BudgetService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CloneBudgetToMonth",
 			Handler:    _BudgetService_CloneBudgetToMonth_Handler,
+		},
+		{
+			MethodName: "UpdateBudget",
+			Handler:    _BudgetService_UpdateBudget_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

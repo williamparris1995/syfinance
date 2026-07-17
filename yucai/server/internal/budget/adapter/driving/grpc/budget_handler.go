@@ -142,6 +142,41 @@ func (h *BudgetHandler) DeleteBudget(ctx context.Context, req *pb.DeleteBudgetRe
 	return &emptypb.Empty{}, nil
 }
 
+// UpdateBudget edits a budget in place (no delete+recreate).
+func (h *BudgetHandler) UpdateBudget(ctx context.Context, req *pb.UpdateBudgetRequest) (*pb.BudgetResponse, error) {
+	tenantID, err := getTenantID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	budgetID, err := uuid.Parse(req.Id)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid id")
+	}
+	items := make([]application.BudgetItemInput, len(req.Items))
+	for i, item := range req.Items {
+		aid, err := uuid.Parse(item.AccountId)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid account_id in item %d", i)
+		}
+		items[i] = application.BudgetItemInput{
+			AccountID:          aid,
+			PlannedAmountCents: item.PlannedAmountCents,
+			Notes:              item.Notes,
+		}
+	}
+	resp, err := h.service.UpdateBudget(ctx, application.UpdateBudgetRequest{
+		TenantID:     tenantID,
+		BudgetID:     budgetID,
+		Name:         req.Name,
+		CurrencyCode: req.CurrencyCode,
+		Items:        items,
+	})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.BudgetResponse{Budget: budgetToProto(*resp)}, nil
+}
+
 // AddBudgetItem adds an item to a budget.
 func (h *BudgetHandler) AddBudgetItem(ctx context.Context, req *pb.AddBudgetItemRequest) (*pb.BudgetResponse, error) {
 	tenantID, err := getTenantID(ctx)

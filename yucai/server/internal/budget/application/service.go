@@ -108,6 +108,34 @@ func (s *Service) DeleteBudget(ctx context.Context, tenantID, id uuid.UUID) erro
 	return s.repo.Delete(ctx, tenantID, id)
 }
 
+// UpdateBudget edits a budget's name/currency/items in place (no ID change,
+// no delete+recreate). Month is immutable. Optimistic lock: domain.Update
+// bumps version (v→v+1), repo.Update matches WHERE version = v-1, so a
+// concurrent edit since FindByID is rejected. Read-time actuals are not
+// recomputed here (next GetBudget computes them via the M2 batch path).
+func (s *Service) UpdateBudget(ctx context.Context, req UpdateBudgetRequest) (*BudgetDTO, error) {
+	budget, err := s.repo.FindByID(ctx, req.TenantID, req.BudgetID)
+	if err != nil {
+		return nil, fmt.Errorf("budget not found: %w", err)
+	}
+	items := make([]domain.BudgetItem, len(req.Items))
+	for i, input := range req.Items {
+		items[i] = domain.BudgetItem{
+			AccountID:          input.AccountID,
+			PlannedAmountCents: input.PlannedAmountCents,
+			Notes:              input.Notes,
+		}
+	}
+	if err := budget.Update(req.Name, req.CurrencyCode, items); err != nil {
+		return nil, fmt.Errorf("update budget: %w", err)
+	}
+	if err := s.repo.Update(ctx, budget); err != nil {
+		return nil, fmt.Errorf("persist budget: %w", err)
+	}
+	dto := BudgetToDTO(budget)
+	return &dto, nil
+}
+
 // AddBudgetItem adds an item to an existing budget.
 func (s *Service) AddBudgetItem(ctx context.Context, req AddBudgetItemRequest) (*BudgetDTO, error) {
 	budget, err := s.repo.FindByID(ctx, req.TenantID, req.BudgetID)

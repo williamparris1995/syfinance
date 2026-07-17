@@ -18,6 +18,7 @@ service BudgetService {
   rpc RemoveBudgetItem(RemoveBudgetItemRequest) returns (BudgetResponse);
   rpc ComputeBudgetActuals(ComputeActualsRequest) returns (BudgetResponse);
   rpc CloneBudgetToMonth(CloneBudgetRequest) returns (BudgetResponse);
+  rpc UpdateBudget(UpdateBudgetRequest) returns (BudgetResponse);
 }
 
 message BudgetDTO {
@@ -97,6 +98,18 @@ message CloneBudgetRequest {
   string source_budget_id = 1;
   string target_month = 2;
   string name = 3;
+}
+
+// UpdateBudgetRequest edits a budget's editable fields in place (no ID change,
+// no delete+recreate). Month is immutable (budget identity); not present here.
+// items is a full replacement (old items deleted, new inserted — item IDs
+// change, budget ID stable). No client version: optimistic lock is server-side
+// (repo WHERE version = v-1), matching AddBudgetItem/RemoveBudgetItem.
+message UpdateBudgetRequest {
+  string id = 1;
+  string name = 2;
+  string currency_code = 3;
+  repeated BudgetItemInput items = 4;
 }
 
 message BudgetResponse { BudgetDTO budget = 1; }

@@ -281,6 +281,70 @@ func TestBudgetRepoUpdate(t *testing.T) {
 	}
 }
 
+// TestBudgetUpdate verifies the full UpdateBudget service path: edits a
+// budget in place (name + currency + items full replace), budget ID stable,
+// month immutable, version bumped + persisted. Replaces the client form's
+// old delete+recreate (which changed the ID).
+func TestBudgetUpdate(t *testing.T) {
+	svc := setupBudgetTestService(t)
+	ctx := context.Background()
+	tenantID := uuid.New()
+
+	created, err := svc.CreateBudget(ctx, application.CreateBudgetRequest{
+		TenantID: tenantID, Name: "原预算", Month: "2026-05", CurrencyCode: "CNY",
+		Items: []application.BudgetItemInput{
+			{AccountID: uuid.New(), PlannedAmountCents: 50000},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateBudget: %v", err)
+	}
+	id := created.ID
+	versionBefore := created.Version
+
+	updated, err := svc.UpdateBudget(ctx, application.UpdateBudgetRequest{
+		TenantID: tenantID, BudgetID: id,
+		Name: "改名", CurrencyCode: "USD",
+		Items: []application.BudgetItemInput{
+			{AccountID: uuid.New(), PlannedAmountCents: 30000},
+			{AccountID: uuid.New(), PlannedAmountCents: 20000},
+		},
+	})
+	if err != nil {
+		t.Fatalf("UpdateBudget: %v", err)
+	}
+	if updated.ID != id {
+		t.Errorf("ID changed: got %s, want %s (delete+recreate regression)", updated.ID, id)
+	}
+	if updated.Name != "改名" {
+		t.Errorf("name: got %s, want 改名", updated.Name)
+	}
+	if updated.CurrencyCode != "USD" {
+		t.Errorf("currency: got %s, want USD", updated.CurrencyCode)
+	}
+	if len(updated.Items) != 2 {
+		t.Errorf("items: got %d, want 2", len(updated.Items))
+	}
+	if updated.TotalAmountCents != 50000 {
+		t.Errorf("total: got %d, want 50000", updated.TotalAmountCents)
+	}
+	if updated.Version != versionBefore+1 {
+		t.Errorf("version: got %d, want %d", updated.Version, versionBefore+1)
+	}
+
+	// Persisted (re-fetch by the same ID — would fail under delete+recreate).
+	got, err := svc.GetBudget(ctx, tenantID, id)
+	if err != nil {
+		t.Fatalf("GetBudget after update: %v", err)
+	}
+	if got.Budget.CurrencyCode != "USD" {
+		t.Errorf("persisted currency: got %s, want USD", got.Budget.CurrencyCode)
+	}
+	if got.Budget.Month != "2026-05" {
+		t.Errorf("month mutated: got %s, want 2026-05 (immutable)", got.Budget.Month)
+	}
+}
+
 // TestBudgetRepoUpdate_OptimisticLock verifies a stale version is rejected:
 // a second Update built from the pre-bump version must fail to match the
 // WHERE version predicate.

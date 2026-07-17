@@ -32,6 +32,15 @@ type AddBudgetItemRequest struct {
 	Notes              string
 }
 
+// UpdateBudgetRequest holds input for editing a budget in place (M1).
+type UpdateBudgetRequest struct {
+	TenantID     uuid.UUID
+	BudgetID     uuid.UUID
+	Name         string
+	CurrencyCode string
+	Items        []BudgetItemInput
+}
+
 // RemoveBudgetItemRequest holds input for removing a budget item.
 type RemoveBudgetItemRequest struct {
 	TenantID uuid.UUID

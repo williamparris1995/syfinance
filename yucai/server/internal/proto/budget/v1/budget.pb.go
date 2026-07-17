@@ -896,6 +896,79 @@ func (x *CloneBudgetRequest) GetName() string {
 	return ""
 }
 
+// UpdateBudgetRequest edits a budget's editable fields in place (no ID change,
+// no delete+recreate). Month is immutable (budget identity); not present here.
+// items is a full replacement (old items deleted, new inserted — item IDs
+// change, budget ID stable). No client version: optimistic lock is server-side
+// (repo WHERE version = v-1), matching AddBudgetItem/RemoveBudgetItem.
+type UpdateBudgetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	CurrencyCode  string                 `protobuf:"bytes,3,opt,name=currency_code,json=currencyCode,proto3" json:"currency_code,omitempty"`
+	Items         []*BudgetItemInput     `protobuf:"bytes,4,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateBudgetRequest) Reset() {
+	*x = UpdateBudgetRequest{}
+	mi := &file_budget_v1_budget_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateBudgetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateBudgetRequest) ProtoMessage() {}
+
+func (x *UpdateBudgetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_budget_v1_budget_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateBudgetRequest.ProtoReflect.Descriptor instead.
+func (*UpdateBudgetRequest) Descriptor() ([]byte, []int) {
+	return file_budget_v1_budget_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *UpdateBudgetRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *UpdateBudgetRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UpdateBudgetRequest) GetCurrencyCode() string {
+	if x != nil {
+		return x.CurrencyCode
+	}
+	return ""
+}
+
+func (x *UpdateBudgetRequest) GetItems() []*BudgetItemInput {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
 type BudgetResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Budget        *BudgetDTO             `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
@@ -905,7 +978,7 @@ type BudgetResponse struct {
 
 func (x *BudgetResponse) Reset() {
 	*x = BudgetResponse{}
-	mi := &file_budget_v1_budget_proto_msgTypes[14]
+	mi := &file_budget_v1_budget_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -917,7 +990,7 @@ func (x *BudgetResponse) String() string {
 func (*BudgetResponse) ProtoMessage() {}
 
 func (x *BudgetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_budget_v1_budget_proto_msgTypes[14]
+	mi := &file_budget_v1_budget_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -930,7 +1003,7 @@ func (x *BudgetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BudgetResponse.ProtoReflect.Descriptor instead.
 func (*BudgetResponse) Descriptor() ([]byte, []int) {
-	return file_budget_v1_budget_proto_rawDescGZIP(), []int{14}
+	return file_budget_v1_budget_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *BudgetResponse) GetBudget() *BudgetDTO {
@@ -949,7 +1022,7 @@ type BudgetDetailResponse struct {
 
 func (x *BudgetDetailResponse) Reset() {
 	*x = BudgetDetailResponse{}
-	mi := &file_budget_v1_budget_proto_msgTypes[15]
+	mi := &file_budget_v1_budget_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -961,7 +1034,7 @@ func (x *BudgetDetailResponse) String() string {
 func (*BudgetDetailResponse) ProtoMessage() {}
 
 func (x *BudgetDetailResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_budget_v1_budget_proto_msgTypes[15]
+	mi := &file_budget_v1_budget_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -974,7 +1047,7 @@ func (x *BudgetDetailResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BudgetDetailResponse.ProtoReflect.Descriptor instead.
 func (*BudgetDetailResponse) Descriptor() ([]byte, []int) {
-	return file_budget_v1_budget_proto_rawDescGZIP(), []int{15}
+	return file_budget_v1_budget_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *BudgetDetailResponse) GetBudget() *BudgetDetailDTO {
@@ -1055,11 +1128,16 @@ const file_budget_v1_budget_proto_rawDesc = "" +
 	"\x12CloneBudgetRequest\x12(\n" +
 	"\x10source_budget_id\x18\x01 \x01(\tR\x0esourceBudgetId\x12!\n" +
 	"\ftarget_month\x18\x02 \x01(\tR\vtargetMonth\x12\x12\n" +
-	"\x04name\x18\x03 \x01(\tR\x04name\"D\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\"\x96\x01\n" +
+	"\x13UpdateBudgetRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12#\n" +
+	"\rcurrency_code\x18\x03 \x01(\tR\fcurrencyCode\x126\n" +
+	"\x05items\x18\x04 \x03(\v2 .yucai.budget.v1.BudgetItemInputR\x05items\"D\n" +
 	"\x0eBudgetResponse\x122\n" +
 	"\x06budget\x18\x01 \x01(\v2\x1a.yucai.budget.v1.BudgetDTOR\x06budget\"P\n" +
 	"\x14BudgetDetailResponse\x128\n" +
-	"\x06budget\x18\x01 \x01(\v2 .yucai.budget.v1.BudgetDetailDTOR\x06budget2\xbf\x06\n" +
+	"\x06budget\x18\x01 \x01(\v2 .yucai.budget.v1.BudgetDetailDTOR\x06budget2\x96\a\n" +
 	"\rBudgetService\x12U\n" +
 	"\fCreateBudget\x12$.yucai.budget.v1.CreateBudgetRequest\x1a\x1f.yucai.budget.v1.BudgetResponse\x12U\n" +
 	"\tGetBudget\x12!.yucai.budget.v1.GetBudgetRequest\x1a%.yucai.budget.v1.BudgetDetailResponse\x12c\n" +
@@ -1069,7 +1147,8 @@ const file_budget_v1_budget_proto_rawDesc = "" +
 	"\rAddBudgetItem\x12%.yucai.budget.v1.AddBudgetItemRequest\x1a\x1f.yucai.budget.v1.BudgetResponse\x12]\n" +
 	"\x10RemoveBudgetItem\x12(.yucai.budget.v1.RemoveBudgetItemRequest\x1a\x1f.yucai.budget.v1.BudgetResponse\x12_\n" +
 	"\x14ComputeBudgetActuals\x12&.yucai.budget.v1.ComputeActualsRequest\x1a\x1f.yucai.budget.v1.BudgetResponse\x12Z\n" +
-	"\x12CloneBudgetToMonth\x12#.yucai.budget.v1.CloneBudgetRequest\x1a\x1f.yucai.budget.v1.BudgetResponseB\xbb\x01\n" +
+	"\x12CloneBudgetToMonth\x12#.yucai.budget.v1.CloneBudgetRequest\x1a\x1f.yucai.budget.v1.BudgetResponse\x12U\n" +
+	"\fUpdateBudget\x12$.yucai.budget.v1.UpdateBudgetRequest\x1a\x1f.yucai.budget.v1.BudgetResponseB\xbb\x01\n" +
 	"\x13com.yucai.budget.v1B\vBudgetProtoP\x01Z9github.com/yucai/server/internal/proto/budget/v1;budgetv1\xa2\x02\x03YBX\xaa\x02\x0fYucai.Budget.V1\xca\x02\x0fYucai\\Budget\\V1\xe2\x02\x1bYucai\\Budget\\V1\\GPBMetadata\xea\x02\x11Yucai::Budget::V1b\x06proto3"
 
 var (
@@ -1084,7 +1163,7 @@ func file_budget_v1_budget_proto_rawDescGZIP() []byte {
 	return file_budget_v1_budget_proto_rawDescData
 }
 
-var file_budget_v1_budget_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_budget_v1_budget_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_budget_v1_budget_proto_goTypes = []any{
 	(*BudgetDTO)(nil),               // 0: yucai.budget.v1.BudgetDTO
 	(*BudgetItemDTO)(nil),           // 1: yucai.budget.v1.BudgetItemDTO
@@ -1100,47 +1179,51 @@ var file_budget_v1_budget_proto_goTypes = []any{
 	(*RemoveBudgetItemRequest)(nil), // 11: yucai.budget.v1.RemoveBudgetItemRequest
 	(*ComputeActualsRequest)(nil),   // 12: yucai.budget.v1.ComputeActualsRequest
 	(*CloneBudgetRequest)(nil),      // 13: yucai.budget.v1.CloneBudgetRequest
-	(*BudgetResponse)(nil),          // 14: yucai.budget.v1.BudgetResponse
-	(*BudgetDetailResponse)(nil),    // 15: yucai.budget.v1.BudgetDetailResponse
-	(*timestamppb.Timestamp)(nil),   // 16: google.protobuf.Timestamp
-	(*v1.PageRequest)(nil),          // 17: yucai.common.v1.PageRequest
-	(*v1.PageResponse)(nil),         // 18: yucai.common.v1.PageResponse
-	(*emptypb.Empty)(nil),           // 19: google.protobuf.Empty
+	(*UpdateBudgetRequest)(nil),     // 14: yucai.budget.v1.UpdateBudgetRequest
+	(*BudgetResponse)(nil),          // 15: yucai.budget.v1.BudgetResponse
+	(*BudgetDetailResponse)(nil),    // 16: yucai.budget.v1.BudgetDetailResponse
+	(*timestamppb.Timestamp)(nil),   // 17: google.protobuf.Timestamp
+	(*v1.PageRequest)(nil),          // 18: yucai.common.v1.PageRequest
+	(*v1.PageResponse)(nil),         // 19: yucai.common.v1.PageResponse
+	(*emptypb.Empty)(nil),           // 20: google.protobuf.Empty
 }
 var file_budget_v1_budget_proto_depIdxs = []int32{
-	16, // 0: yucai.budget.v1.BudgetDTO.created_at:type_name -> google.protobuf.Timestamp
-	16, // 1: yucai.budget.v1.BudgetDTO.updated_at:type_name -> google.protobuf.Timestamp
+	17, // 0: yucai.budget.v1.BudgetDTO.created_at:type_name -> google.protobuf.Timestamp
+	17, // 1: yucai.budget.v1.BudgetDTO.updated_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: yucai.budget.v1.BudgetDetailDTO.budget:type_name -> yucai.budget.v1.BudgetDTO
 	1,  // 3: yucai.budget.v1.BudgetDetailDTO.items:type_name -> yucai.budget.v1.BudgetItemDTO
 	4,  // 4: yucai.budget.v1.CreateBudgetRequest.items:type_name -> yucai.budget.v1.BudgetItemInput
-	17, // 5: yucai.budget.v1.ListBudgetsRequest.page:type_name -> yucai.common.v1.PageRequest
+	18, // 5: yucai.budget.v1.ListBudgetsRequest.page:type_name -> yucai.common.v1.PageRequest
 	0,  // 6: yucai.budget.v1.ListBudgetsResponse.budgets:type_name -> yucai.budget.v1.BudgetDTO
-	18, // 7: yucai.budget.v1.ListBudgetsResponse.page:type_name -> yucai.common.v1.PageResponse
-	0,  // 8: yucai.budget.v1.BudgetResponse.budget:type_name -> yucai.budget.v1.BudgetDTO
-	2,  // 9: yucai.budget.v1.BudgetDetailResponse.budget:type_name -> yucai.budget.v1.BudgetDetailDTO
-	3,  // 10: yucai.budget.v1.BudgetService.CreateBudget:input_type -> yucai.budget.v1.CreateBudgetRequest
-	5,  // 11: yucai.budget.v1.BudgetService.GetBudget:input_type -> yucai.budget.v1.GetBudgetRequest
-	6,  // 12: yucai.budget.v1.BudgetService.GetBudgetByMonth:input_type -> yucai.budget.v1.GetBudgetByMonthRequest
-	7,  // 13: yucai.budget.v1.BudgetService.ListBudgets:input_type -> yucai.budget.v1.ListBudgetsRequest
-	9,  // 14: yucai.budget.v1.BudgetService.DeleteBudget:input_type -> yucai.budget.v1.DeleteBudgetRequest
-	10, // 15: yucai.budget.v1.BudgetService.AddBudgetItem:input_type -> yucai.budget.v1.AddBudgetItemRequest
-	11, // 16: yucai.budget.v1.BudgetService.RemoveBudgetItem:input_type -> yucai.budget.v1.RemoveBudgetItemRequest
-	12, // 17: yucai.budget.v1.BudgetService.ComputeBudgetActuals:input_type -> yucai.budget.v1.ComputeActualsRequest
-	13, // 18: yucai.budget.v1.BudgetService.CloneBudgetToMonth:input_type -> yucai.budget.v1.CloneBudgetRequest
-	14, // 19: yucai.budget.v1.BudgetService.CreateBudget:output_type -> yucai.budget.v1.BudgetResponse
-	15, // 20: yucai.budget.v1.BudgetService.GetBudget:output_type -> yucai.budget.v1.BudgetDetailResponse
-	15, // 21: yucai.budget.v1.BudgetService.GetBudgetByMonth:output_type -> yucai.budget.v1.BudgetDetailResponse
-	8,  // 22: yucai.budget.v1.BudgetService.ListBudgets:output_type -> yucai.budget.v1.ListBudgetsResponse
-	19, // 23: yucai.budget.v1.BudgetService.DeleteBudget:output_type -> google.protobuf.Empty
-	14, // 24: yucai.budget.v1.BudgetService.AddBudgetItem:output_type -> yucai.budget.v1.BudgetResponse
-	14, // 25: yucai.budget.v1.BudgetService.RemoveBudgetItem:output_type -> yucai.budget.v1.BudgetResponse
-	14, // 26: yucai.budget.v1.BudgetService.ComputeBudgetActuals:output_type -> yucai.budget.v1.BudgetResponse
-	14, // 27: yucai.budget.v1.BudgetService.CloneBudgetToMonth:output_type -> yucai.budget.v1.BudgetResponse
-	19, // [19:28] is the sub-list for method output_type
-	10, // [10:19] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	19, // 7: yucai.budget.v1.ListBudgetsResponse.page:type_name -> yucai.common.v1.PageResponse
+	4,  // 8: yucai.budget.v1.UpdateBudgetRequest.items:type_name -> yucai.budget.v1.BudgetItemInput
+	0,  // 9: yucai.budget.v1.BudgetResponse.budget:type_name -> yucai.budget.v1.BudgetDTO
+	2,  // 10: yucai.budget.v1.BudgetDetailResponse.budget:type_name -> yucai.budget.v1.BudgetDetailDTO
+	3,  // 11: yucai.budget.v1.BudgetService.CreateBudget:input_type -> yucai.budget.v1.CreateBudgetRequest
+	5,  // 12: yucai.budget.v1.BudgetService.GetBudget:input_type -> yucai.budget.v1.GetBudgetRequest
+	6,  // 13: yucai.budget.v1.BudgetService.GetBudgetByMonth:input_type -> yucai.budget.v1.GetBudgetByMonthRequest
+	7,  // 14: yucai.budget.v1.BudgetService.ListBudgets:input_type -> yucai.budget.v1.ListBudgetsRequest
+	9,  // 15: yucai.budget.v1.BudgetService.DeleteBudget:input_type -> yucai.budget.v1.DeleteBudgetRequest
+	10, // 16: yucai.budget.v1.BudgetService.AddBudgetItem:input_type -> yucai.budget.v1.AddBudgetItemRequest
+	11, // 17: yucai.budget.v1.BudgetService.RemoveBudgetItem:input_type -> yucai.budget.v1.RemoveBudgetItemRequest
+	12, // 18: yucai.budget.v1.BudgetService.ComputeBudgetActuals:input_type -> yucai.budget.v1.ComputeActualsRequest
+	13, // 19: yucai.budget.v1.BudgetService.CloneBudgetToMonth:input_type -> yucai.budget.v1.CloneBudgetRequest
+	14, // 20: yucai.budget.v1.BudgetService.UpdateBudget:input_type -> yucai.budget.v1.UpdateBudgetRequest
+	15, // 21: yucai.budget.v1.BudgetService.CreateBudget:output_type -> yucai.budget.v1.BudgetResponse
+	16, // 22: yucai.budget.v1.BudgetService.GetBudget:output_type -> yucai.budget.v1.BudgetDetailResponse
+	16, // 23: yucai.budget.v1.BudgetService.GetBudgetByMonth:output_type -> yucai.budget.v1.BudgetDetailResponse
+	8,  // 24: yucai.budget.v1.BudgetService.ListBudgets:output_type -> yucai.budget.v1.ListBudgetsResponse
+	20, // 25: yucai.budget.v1.BudgetService.DeleteBudget:output_type -> google.protobuf.Empty
+	15, // 26: yucai.budget.v1.BudgetService.AddBudgetItem:output_type -> yucai.budget.v1.BudgetResponse
+	15, // 27: yucai.budget.v1.BudgetService.RemoveBudgetItem:output_type -> yucai.budget.v1.BudgetResponse
+	15, // 28: yucai.budget.v1.BudgetService.ComputeBudgetActuals:output_type -> yucai.budget.v1.BudgetResponse
+	15, // 29: yucai.budget.v1.BudgetService.CloneBudgetToMonth:output_type -> yucai.budget.v1.BudgetResponse
+	15, // 30: yucai.budget.v1.BudgetService.UpdateBudget:output_type -> yucai.budget.v1.BudgetResponse
+	21, // [21:31] is the sub-list for method output_type
+	11, // [11:21] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_budget_v1_budget_proto_init() }
@@ -1154,7 +1237,7 @@ func file_budget_v1_budget_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_budget_v1_budget_proto_rawDesc), len(file_budget_v1_budget_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
