@@ -95,10 +95,22 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 
 	// Budget module
 	budgetRepo := provideBudgetRepo(budgetClient)
+	// currencyRateHistoryRepo is declared here (early) because Budget, Holding,
+	// and Networth all consume it; currencyClient was declared above with the
+	// other ent clients. Budget (M3) uses it for actuals multi-currency
+	// conversion (ConvertToBase); Holding wraps it in holdingRateAdapter;
+	// Networth passes it directly (structural satisfaction).
+	currencyRateHistoryRepo := provideCurrencyRateHistoryRepo(currencyClient)
+	// accountCurSource bridges the account repo to budget's
+	// AccountCurrencySource port (accountRepo declared in the Account module
+	// above). Resolves account_id -> currency_code for M3 conversion.
+	accountCurSource := provideAccountCurrencySource(accountRepo)
 	// txnService (declared in the Transaction module above) backs budget's
-	// entryFunc port — SpendingByAccount provides read-time actuals (D-budget
-	// Task 4).
-	budgetService := provideBudgetService(budgetRepo, txnService)
+	// entryFunc/entryMonthFunc ports — SpendingByAccount[/ByMonth] provides
+	// read-time actuals (D-budget Task 4). currencyRateHistoryRepo +
+	// accountCurSource (M3) enable multi-currency conversion to the budget's
+	// currency.
+	budgetService := provideBudgetService(budgetRepo, txnService, currencyRateHistoryRepo, accountCurSource)
 	budgetHandler := provideBudgetHandler(budgetService)
 
 	// Debt module
@@ -142,13 +154,13 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	holdingRepo := provideHoldingRepo(holdingClient)
 	tradeRepo := provideTradeRepo(holdingClient)
 	// C-repos + historical provider for the holding service (lots/snapshots/
-	// price-history). currencyRateHistoryRepo feeds the holdingRateAdapter
-	// (currencyClient was declared above with the other ent clients).
+	// price-history). currencyRateHistoryRepo is reused from the Budget module
+	// above (declared early for shared consumers) — it feeds the
+	// holdingRateAdapter here.
 	lotRepo := provideLotRepo(holdingClient)
 	snapshotRepo := provideSnapshotRepo(holdingClient)
 	priceHistoryRepo := providePriceHistoryRepo(holdingClient)
 	historicalProvider := provideHistoricalProvider()
-	currencyRateHistoryRepo := provideCurrencyRateHistoryRepo(currencyClient)
 	holdingRateRepo := provideHoldingRateRepo(currencyRateHistoryRepo)
 	// tenantRepo (declared in the Auth module above) satisfies holding's
 	// TenantLister port via its FindAllIDs method — cross-tenant fan-out for
@@ -168,8 +180,9 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	// debt remaining, 折算 to a base currency via CNY-base rate_history cross
 	// rates. The three application Services satisfy the source ports
 	// structurally (Sum*ByCurrency, D-currency Task 5); currencyRateHistoryRepo
-	// is reused from the Holding module above (declared there for the
-	// holdingRateAdapter). log is nil → service falls back to slog.Default().
+	// is reused from the Budget module above (declared early for shared
+	// consumers — also feeds the holdingRateAdapter). log is nil → service
+	// falls back to slog.Default().
 	networthService := provideNetWorthService(accountService, holdingService, debtService, currencyRateHistoryRepo, nil)
 	networthHandler := provideNetWorthHandler(networthService)
 
@@ -206,8 +219,8 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	// Currency module
 	currencyRepo := provideCurrencyRepo(currencyClient)
 	exchangeRateProvider := provideExchangeRateProvider()
-	// currencyRateHistoryRepo was declared in the Holding module above (it
-	// feeds the holdingRateAdapter there); reuse it here directly.
+	// currencyRateHistoryRepo was declared in the Budget module above (shared
+	// early for Budget/Holding/Networth/Currency consumers); reuse it here.
 	currencyService := provideCurrencyService(currencyRepo, exchangeRateProvider, currencyRateHistoryRepo)
 	currencyHandler := provideCurrencyHandler(currencyService)
 	intervalSource := provideIntervalSource(tenantRepo)

@@ -32,6 +32,7 @@ import (
 	budgetrepo "github.com/yucai/server/internal/budget/adapter/driven/repository"
 	budgetgrpc "github.com/yucai/server/internal/budget/adapter/driving/grpc"
 	budgetapp "github.com/yucai/server/internal/budget/application"
+	budgetdomain "github.com/yucai/server/internal/budget/domain"
 	budgetent "github.com/yucai/server/internal/budget/ent"
 	"github.com/yucai/server/internal/currency/adapter/driven/exchangerate"
 	currencyrepo "github.com/yucai/server/internal/currency/adapter/driven/repository"
@@ -289,19 +290,44 @@ func provideBudgetEntClient(cfg *config.Config) (*budgetent.Client, error) {
 func provideBudgetRepo(client *budgetent.Client) *budgetrepo.BudgetRepository {
 	return budgetrepo.NewBudgetRepository(client)
 }
-// provideBudgetService wires budget's entryFunc (per-item, ComputeActuals
-// persist) and entryMonthFunc (batch, read-time actuals) to the real
-// transaction spending totals. budget application does NOT import transaction
-// (function-injection port pattern, mirroring D-currency's networth and
-// D-goal's AccountMarketValueSource); wire injects closures that delegate to
-// txnSvc.SpendingByAccount / SpendingByAccountByMonth. Before Task 4
-// entryFunc was nil, so actuals read 0.
-//
-// M3 (Task 1): rateRepo + accountCur passed as nil,nil → M2 raw actuals
-// behavior (no multi-currency conversion). Signature is UNCHANGED (repo +
-// txnSvc) so wire_gen.go is NOT touched; Task 2 wires the real ports and
-// regenerates wire_gen.go accordingly.
-func provideBudgetService(repo *budgetrepo.BudgetRepository, txnSvc *txnapp.Service) *budgetapp.Service {
+// accountCurrencyAdapter bridges the account repo to budget's
+// AccountCurrencySource port (budget does not import account domain — mirrors
+// holdingRateAdapter). CurrencyCodes lists tenant accounts (FindAllForBackup,
+// no pagination) and builds account_id -> currency_code. Used by M3 actuals
+// conversion to resolve each budget item's account currency before ConvertToBase.
+type accountCurrencyAdapter struct{ inner *accountrepo.AccountRepository }
+
+func (a *accountCurrencyAdapter) CurrencyCodes(ctx context.Context, tenantID uuid.UUID) (map[uuid.UUID]string, error) {
+	accounts, err := a.inner.FindAllForBackup(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("account currencies: %w", err)
+	}
+	out := make(map[uuid.UUID]string, len(accounts))
+	for _, acc := range accounts {
+		out[acc.ID] = acc.CurrencyCode
+	}
+	return out, nil
+}
+
+// provideAccountCurrencySource wraps the account repo in the AccountCurrencySource
+// adapter so it satisfies budget's domain port (wire-side bridge).
+func provideAccountCurrencySource(accRepo *accountrepo.AccountRepository) budgetdomain.AccountCurrencySource {
+	return &accountCurrencyAdapter{inner: accRepo}
+}
+
+// provideBudgetService wires budget's ports: M2 entryFunc/entryMonthFunc
+// (per-item ComputeActuals persist + batch read-time actuals, delegating to
+// txnSvc.SpendingByAccount[/ByMonth]) + M3 rateRepo/accountCur (multi-currency
+// conversion to the budget's currency). budget application does NOT import
+// transaction/account/currency domain (port pattern, mirrors networth); wire
+// injects closures + structural/adapter ports. Before M3 Task 2 rateRepo +
+// accountCur were nil → M2 raw actuals behavior (no conversion).
+func provideBudgetService(
+	repo *budgetrepo.BudgetRepository,
+	txnSvc *txnapp.Service,
+	rateRepo currencydomain.RateHistoryRepository,
+	accountCur budgetdomain.AccountCurrencySource,
+) *budgetapp.Service {
 	return budgetapp.NewService(repo,
 		func(ctx context.Context, accountID uuid.UUID, from, to time.Time) (int64, int64, error) {
 			return txnSvc.SpendingByAccount(ctx, accountID, from, to)
@@ -317,7 +343,8 @@ func provideBudgetService(repo *budgetrepo.BudgetRepository, txnSvc *txnapp.Serv
 			}
 			return out, nil
 		},
-		nil, nil, // M3 Task 1: rateRepo, accountCur — nil preserves M2 raw actuals; Task 2 wires real ports
+		rateRepo,   // M3: CNY-base rate history for ConvertToBase
+		accountCur, // M3: account_id -> currency_code resolver
 	)
 }
 func provideBudgetHandler(svc *budgetapp.Service) *budgetgrpc.BudgetHandler {
