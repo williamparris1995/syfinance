@@ -70,7 +70,7 @@ func NewBackup(tenantID uuid.UUID, provider BackupProvider, encrypted bool, auto
 		return nil, fmt.Errorf("provider must be specified")
 	}
 	now := time.Now()
-	suffix := ".json"
+	suffix := ".json.gz"
 	if encrypted {
 		suffix = ".enc"
 	}

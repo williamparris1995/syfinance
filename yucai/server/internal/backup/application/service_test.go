@@ -1,7 +1,9 @@
 package application
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -206,9 +208,9 @@ func TestCreateBackupPlaintext(t *testing.T) {
 	if dto.Encrypted {
 		t.Fatalf("Encrypted = true, want false")
 	}
-	// filename suffix .json
-	if got := dto.Filename[len(dto.Filename)-5:]; got != ".json" {
-		t.Fatalf("Filename suffix = %q, want \".json\"", got)
+	// filename suffix .json.gz(明文 gzip 压缩)
+	if got := dto.Filename[len(dto.Filename)-8:]; got != ".json.gz" {
+		t.Fatalf("Filename suffix = %q, want \".json.gz\"", got)
 	}
 	// file uploaded
 	if _, ok := prov.files[dto.Filename]; !ok {
@@ -724,5 +726,57 @@ func TestGetCloudSettings_ReturnsPersistedValues(t *testing.T) {
 	}
 	if got.AutoBackupIntervalHours != 48 {
 		t.Errorf("AutoBackupIntervalHours = %d, want 48 (upserted value)", got.AutoBackupIntervalHours)
+	}
+}
+
+// TestCreateBackupGzipCompresses:plaintext 备份上传的 bytes 是 gzip(magic
+// 0x1f 0x8b),且 Decompress 能还原出含 module key 的 envelope。
+func TestCreateBackupGzipCompresses(t *testing.T) {
+	tenantID := uuid.New()
+	// 100 个重复对象的 JSON 数组(高压缩比验证 gzip;bytes.Repeat 带 trailing
+	// comma,wrap 进 [] 并去末尾逗号构成合法 JSON — json.RawMessage 被 json.Marshal
+	// compact 校验,原始 brief 数据 `{"name":"Cash"},` * 100 不合法会被拒)。
+	parts := bytes.Repeat([]byte(`{"name":"Cash"},`), 100)
+	data := append(append([]byte{'['}, bytes.TrimSuffix(parts, []byte{','})...), ']')
+	port := newFakePort("account", data)
+	svc, _, prov := newTestService([]domain.TenantDataPort{port})
+
+	dto, err := svc.CreateBackup(context.Background(), tenantID, false, "", false)
+	if err != nil {
+		t.Fatalf("CreateBackup: %v", err)
+	}
+	uploaded := prov.files[dto.Filename]
+	if len(uploaded) < 2 || uploaded[0] != 0x1f || uploaded[1] != 0x8b {
+		t.Fatalf("uploaded bytes not gzip: first two = %x, want 1f8b", uploaded[:2])
+	}
+	raw, err := domain.Decompress(uploaded)
+	if err != nil {
+		t.Fatalf("Decompress uploaded: %v", err)
+	}
+	if !bytes.Contains(raw, []byte(`"account"`)) {
+		t.Fatalf("decompressed payload missing module key: %s", raw)
+	}
+}
+
+// TestRestoreBackupLegacyFormatRejects:手动构造旧格式(未 gzip)backup,算
+// 正确 checksum 让 checksum 校验通过 → 走到 Decompress → ErrBackupFormatOutdated。
+func TestRestoreBackupLegacyFormatRejects(t *testing.T) {
+	tenantID := uuid.New()
+	port := newFakePort("account", []byte(`[]`))
+	svc, repo, prov := newTestService([]domain.TenantDataPort{port})
+
+	backup, err := domain.NewBackup(tenantID, domain.BackupProviderLocal, false, false)
+	if err != nil {
+		t.Fatalf("NewBackup: %v", err)
+	}
+	legacy := []byte(`{"version":1,"tenant_id":"` + tenantID.String() + `","modules":{"account":[]}}`)
+	sum := sha256.Sum256(legacy)
+	backup.Checksum = fmt.Sprintf("%x", sum)
+	_ = prov.Upload(context.Background(), backup.Filename, legacy)
+	_ = repo.Save(context.Background(), backup)
+
+	err = svc.RestoreBackup(context.Background(), tenantID, backup.ID, "")
+	if !errors.Is(err, domain.ErrBackupFormatOutdated) {
+		t.Fatalf("err = %v, want ErrBackupFormatOutdated", err)
 	}
 }

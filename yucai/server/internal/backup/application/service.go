@@ -65,6 +65,11 @@ func (s *Service) CreateBackup(ctx context.Context, tenantID uuid.UUID, encrypte
 		return nil, fmt.Errorf("marshal envelope: %w", err)
 	}
 
+	// gzip 压缩(encrypt 内层,checksum 仍对最外层密文)。
+	if data, err = domain.Compress(data); err != nil {
+		return nil, fmt.Errorf("compress backup: %w", err)
+	}
+
 	// 2. Optional encryption.
 	if encrypted {
 		data, err = domain.Encrypt(data, password)
@@ -156,6 +161,11 @@ func (s *Service) restoreNoSafety(ctx context.Context, tenantID uuid.UUID, backu
 		}
 	} else if domain.IsEncrypted(data) {
 		return domain.ErrWrongPassword // plaintext backup but file carries magic — anomalous
+	}
+
+	// gunzip(encrypt 内层,decrypt 后;旧格式 → ErrBackupFormatOutdated)。
+	if data, err = domain.Decompress(data); err != nil {
+		return err
 	}
 
 	// Deserialize envelope.

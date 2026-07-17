@@ -54,7 +54,7 @@ func TestBackupProvider_RoundTrip(t *testing.T) {
 }
 
 // TestNewBackup_FilenameUnique locks in the UUID-short-suffix filename scheme
-// (backup_<YYYYMMDD>_<HHMMSS>_<uuid8>.{json,enc}). The uuid8 suffix is what
+// (backup_<YYYYMMDD>_<HHMMSS>_<uuid8>.{json.gz,enc}). The uuid8 suffix is what
 // roots out same-second collisions: two NewBackup calls within one second must
 // produce distinct filenames. This is a regression guard for the pre-restore
 // safety net, which creates a backup that frequently lands in the same second
@@ -62,10 +62,10 @@ func TestBackupProvider_RoundTrip(t *testing.T) {
 // the first file and silently lose data. Do not simplify the filename back to a
 // bare timestamp.
 func TestNewBackup_FilenameUnique(t *testing.T) {
-	re := regexp.MustCompile(`^backup_\d{8}_\d{6}_[0-9a-f]{8}\.(json|enc)$`)
+	re := regexp.MustCompile(`^backup_\d{8}_\d{6}_[0-9a-f]{8}\.(json\.gz|enc)$`)
 	b1, _ := NewBackup(uuid.New(), BackupProviderLocal, false, false)
 	if !re.MatchString(b1.Filename) {
-		t.Errorf("filename %q does not match backup_<YYYYMMDD>_<HHMMSS>_<uuid8>.{json,enc}", b1.Filename)
+		t.Errorf("filename %q does not match backup_<YYYYMMDD>_<HHMMSS>_<uuid8>.{json.gz,enc}", b1.Filename)
 	}
 	seen := map[string]bool{}
 	for i := 0; i < 20; i++ {
