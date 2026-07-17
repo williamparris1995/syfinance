@@ -11,6 +11,7 @@ class BudgetBloc extends Bloc<BudgetEvent, BudgetState> {
     on<LoadListRequested>(_onLoadList);
     on<LoadDetailRequested>(_onLoadDetail);
     on<CreateBudgetRequested>(_onCreate);
+    on<UpdateBudgetRequested>(_onUpdate);
     on<DeleteBudgetRequested>(_onDelete);
     on<AddItemRequested>(_onAddItem);
     on<RemoveItemRequested>(_onRemoveItem);
@@ -47,6 +48,29 @@ class BudgetBloc extends Bloc<BudgetEvent, BudgetState> {
     result.fold(
       (failure) => emit(BudgetError(failure.displayMessage)),
       (_) => add(const LoadListRequested()),
+    );
+  }
+
+  /// updateBudget 返回 BudgetDTO(无 items),重新拉完整 budget 回填 items
+  /// (照 _onAddItem/_onRemoveItem)。edit 成功 → BudgetDetailLoaded(带新数据,
+  /// form 据此 pop 返回 detail 页)。
+  Future<void> _onUpdate(UpdateBudgetRequested event, Emitter<BudgetState> emit) async {
+    emit(BudgetLoading());
+    final result = await _repo.updateBudget(
+      id: event.budgetId,
+      name: event.name,
+      currencyCode: event.currencyCode,
+      items: event.items,
+    );
+    await result.fold(
+      (failure) async => emit(BudgetError(failure.displayMessage)),
+      (_) async {
+        final detail = await _repo.getBudget(event.budgetId);
+        detail.fold(
+          (failure) => emit(BudgetError(failure.displayMessage)),
+          (budget) => emit(BudgetDetailLoaded(budget)),
+        );
+      },
     );
   }
 

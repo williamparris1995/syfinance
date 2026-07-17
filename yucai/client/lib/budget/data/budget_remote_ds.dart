@@ -13,8 +13,8 @@ import 'package:yucai_client/proto/common/v1/pagination.pb.dart' as common;
 /// DebtRemoteDataSource: every RPC is wrapped in AuthRetryCaller so a 401
 /// triggers a transparent refresh + single retry.
 ///
-/// 7 RPCs: createBudget / getBudget / getBudgetByMonth / listBudgets /
-/// deleteBudget / addBudgetItem / removeBudgetItem.
+/// 8 RPCs: createBudget / getBudget / getBudgetByMonth / listBudgets /
+/// deleteBudget / addBudgetItem / removeBudgetItem / updateBudget.
 ///
 /// Mapper notes:
 /// - Int64 → int via `.toInt()` (mirror holding mapper).
@@ -118,6 +118,32 @@ class BudgetRemoteDataSource {
       final res = await _client.removeBudgetItem(pb.RemoveBudgetItemRequest(
         budgetId: budgetId,
         itemId: itemId,
+      ));
+      return budgetDtoToView(res.budget);
+    });
+  }
+
+  /// 编辑预算(整体 name+currency+items 原地更新,不删旧重建)。
+  /// 返回 BudgetResponse.budget(BudgetDTO 无 items)—— 调用方(bloc)
+  /// 成功后重新 getBudget 回填 items,照 addItem/removeItem 范式。
+  Future<BudgetView> updateBudget({
+    required String id,
+    required String name,
+    required String currencyCode,
+    required List<({String accountId, int plannedAmountCents, String? notes})> items,
+  }) async {
+    return _retry.call(() async {
+      final res = await _client.updateBudget(pb.UpdateBudgetRequest(
+        id: id,
+        name: name,
+        currencyCode: currencyCode,
+        items: items
+            .map((i) => pb.BudgetItemInput(
+                  accountId: i.accountId,
+                  plannedAmountCents: Int64(i.plannedAmountCents),
+                  notes: i.notes ?? '',
+                ))
+            .toList(),
       ));
       return budgetDtoToView(res.budget);
     });

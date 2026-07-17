@@ -347,6 +347,30 @@ final $typed_data.Uint8List cloneBudgetRequestDescriptor = $convert.base64Decode
     'VkZ2V0SWQSIQoMdGFyZ2V0X21vbnRoGAIgASgJUgt0YXJnZXRNb250aBISCgRuYW1lGAMgASgJ'
     'UgRuYW1l');
 
+@$core.Deprecated('Use updateBudgetRequestDescriptor instead')
+const UpdateBudgetRequest$json = {
+  '1': 'UpdateBudgetRequest',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 9, '10': 'id'},
+    {'1': 'name', '3': 2, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'currency_code', '3': 3, '4': 1, '5': 9, '10': 'currencyCode'},
+    {
+      '1': 'items',
+      '3': 4,
+      '4': 3,
+      '5': 11,
+      '6': '.yucai.budget.v1.BudgetItemInput',
+      '10': 'items'
+    },
+  ],
+};
+
+/// Descriptor for `UpdateBudgetRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List updateBudgetRequestDescriptor = $convert.base64Decode(
+    'ChNVcGRhdGVCdWRnZXRSZXF1ZXN0Eg4KAmlkGAEgASgJUgJpZBISCgRuYW1lGAIgASgJUgRuYW'
+    '1lEiMKDWN1cnJlbmN5X2NvZGUYAyABKAlSDGN1cnJlbmN5Q29kZRI2CgVpdGVtcxgEIAMoCzIg'
+    'Lnl1Y2FpLmJ1ZGdldC52MS5CdWRnZXRJdGVtSW5wdXRSBWl0ZW1z');
+
 @$core.Deprecated('Use budgetResponseDescriptor instead')
 const BudgetResponse$json = {
   '1': 'BudgetResponse',

@@ -67,6 +67,20 @@ class BudgetRepositoryImpl implements BudgetRepository {
             itemId: itemId,
           ));
 
+  @override
+  Future<Either<Failure, BudgetView>> updateBudget({
+    required String id,
+    required String name,
+    required String currencyCode,
+    required List<({String accountId, int plannedAmountCents, String? notes})> items,
+  }) =>
+      _guard(() => _remote.updateBudget(
+            id: id,
+            name: name,
+            currencyCode: currencyCode,
+            items: items,
+          ));
+
   // Maps thrown GrpcError/exceptions to Failure, wrapping the op in Either.
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() op) async {
     try {

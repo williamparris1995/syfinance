@@ -40,6 +40,24 @@ class CreateBudgetRequested extends BudgetEvent {
   List<Object?> get props => [name, month, currencyCode, items];
 }
 
+/// 编辑预算(整体 name+currency+items 原地更新,不删旧重建)。
+/// month 不可改(budget 身份);items 全量替换。
+class UpdateBudgetRequested extends BudgetEvent {
+  const UpdateBudgetRequested({
+    required this.budgetId,
+    required this.name,
+    required this.currencyCode,
+    required this.items,
+  });
+  final String budgetId;
+  final String name;
+  final String currencyCode;
+  final List<({String accountId, int plannedAmountCents, String? notes})> items;
+
+  @override
+  List<Object?> get props => [budgetId, name, currencyCode, items];
+}
+
 /// 删除预算(软删)。
 class DeleteBudgetRequested extends BudgetEvent {
   const DeleteBudgetRequested(this.id);

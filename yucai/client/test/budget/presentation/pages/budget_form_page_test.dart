@@ -13,7 +13,8 @@
 //   - + 添加条目 / 删除按钮
 //   - 提交 CreateBudgetRequested(repo.createBudget 被调用)
 //   - 空 items / 空 name / 未选分类 / planned ≤0 禁用 btn-gold 提交
-//   - 编辑模式:预填 + 提交 = delete + create + 第 2 次 BudgetListLoaded 才 pop
+//   - 编辑模式:预填 + 提交 = UpdateBudgetRequested(非 delete+recreate)+
+//     update 后 BudgetDetailLoaded → pop + month picker disabled(AbsorbPointer)
 import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -379,7 +380,8 @@ void main() {
       expect(find.text('保存修改'), findsWidgets);
     });
 
-    testWidgets('编辑模式提交 = delete + create(verifyInOrder)', (t) async {
+    testWidgets('编辑模式提交 = UpdateBudgetRequested(非 delete+recreate)',
+        (t) async {
       t.view.physicalSize = desktop;
       t.view.devicePixelRatio = 1.0;
       addTearDown(t.view.resetPhysicalSize);
@@ -389,24 +391,22 @@ void main() {
           .thenAnswer((_) async => dartz.Right(_seedAccounts()));
       when(() => budgetRepo.getBudget('b1'))
           .thenAnswer((_) async => dartz.Right(_existingBudget()));
-      when(() => budgetRepo.deleteBudget('b1'))
-          .thenAnswer((_) async => const dartz.Right(null));
       List<({String accountId, int plannedAmountCents, String? notes})>?
           capturedItems;
-      String? capturedCreateName;
-      when(() => budgetRepo.createBudget(
+      String? capturedName;
+      String? capturedCurrency;
+      when(() => budgetRepo.updateBudget(
+            id: any(named: 'id'),
             name: any(named: 'name'),
-            month: any(named: 'month'),
             currencyCode: any(named: 'currencyCode'),
             items: any(named: 'items'),
           )).thenAnswer((inv) {
-        capturedCreateName = inv.namedArguments[#name] as String;
+        capturedName = inv.namedArguments[#name] as String;
+        capturedCurrency = inv.namedArguments[#currencyCode] as String;
         capturedItems = inv.namedArguments[#items]
             as List<({String accountId, int plannedAmountCents, String? notes})>?;
         return Future.value(dartz.Right(_emptyBudget()));
       });
-      when(() => budgetRepo.listBudgets(activeOnly: any(named: 'activeOnly')))
-          .thenAnswer((_) async => const dartz.Right([]));
       await t.pumpWidget(_harness(
         budgetRepo: budgetRepo,
         accountRepo: accountRepo,
@@ -421,24 +421,29 @@ void main() {
         await t.pump(const Duration(milliseconds: 50));
       }
 
-      verifyInOrder([
-        () => budgetRepo.deleteBudget('b1'),
-        () => budgetRepo.createBudget(
-              name: any(named: 'name'),
-              month: any(named: 'month'),
-              currencyCode: any(named: 'currencyCode'),
-              items: any(named: 'items'),
-            ),
-      ]);
-      expect(capturedCreateName, '新预算');
+      // 关键:edit 提交 dispatch UpdateBudgetRequested(非 delete+create)。
+      verifyNever(() => budgetRepo.deleteBudget(any()));
+      verifyNever(() => budgetRepo.createBudget(
+            name: any(named: 'name'),
+            month: any(named: 'month'),
+            currencyCode: any(named: 'currencyCode'),
+            items: any(named: 'items'),
+          ));
+      verify(() => budgetRepo.updateBudget(
+            id: 'b1',
+            name: '新预算',
+            currencyCode: 'CNY',
+            items: any(named: 'items'),
+          )).called(1);
+      expect(capturedName, '新预算');
+      expect(capturedCurrency, 'CNY');
       expect(capturedItems, isNotNull);
       expect(capturedItems!.length, 1);
       expect(capturedItems!.first.accountId, 'exp-1');
       expect(capturedItems!.first.plannedAmountCents, 50000); // 500.00 * 100
-      await t.pumpAndSettle();
     });
 
-    testWidgets('编辑模式 第 2 次 BudgetListLoaded 才 pop', (t) async {
+    testWidgets('编辑模式 BudgetDetailLoaded(update 后)后 pop', (t) async {
       t.view.physicalSize = desktop;
       t.view.devicePixelRatio = 1.0;
       addTearDown(t.view.resetPhysicalSize);
@@ -471,48 +476,67 @@ void main() {
       }
       expect(find.text('编辑预算'), findsOneWidget);
       expect(find.text('500.00'), findsOneWidget, reason: '预填应完成');
+      expect(observer.popCount, 0, reason: '加载预填不应 pop');
 
       await t.enterText(find.byKey(const ValueKey('nameField')), '新预算2');
       await t.ensureVisible(find.text('保存修改').first);
       await t.tap(find.text('保存修改').first);
       await t.pump();
 
-      final deletes =
-          bloc.dispatched.whereType<DeleteBudgetRequested>().toList();
-      final creates =
-          bloc.dispatched.whereType<CreateBudgetRequested>().toList();
-      expect(deletes.length, 1);
-      expect(deletes.single.id, 'b1');
-      expect(creates.length, 1);
-      expect(creates.single.name, '新预算2');
-      expect(
-        bloc.dispatched.indexOf(deletes.single) <
-            bloc.dispatched.indexOf(creates.single),
-        isTrue,
-        reason: '编辑模式提交应先 dispatch Delete 再 Create',
-      );
+      // 关键:edit 提交只 dispatch UpdateBudgetRequested(无 Delete / Create)。
+      final updates =
+          bloc.dispatched.whereType<UpdateBudgetRequested>().toList();
+      expect(updates.length, 1);
+      expect(updates.single.budgetId, 'b1');
+      expect(updates.single.name, '新预算2');
+      expect(bloc.dispatched.whereType<DeleteBudgetRequested>(), isEmpty);
+      expect(bloc.dispatched.whereType<CreateBudgetRequested>(), isEmpty);
 
-      bloc.emitState(const BudgetListLoaded([BudgetView(
-        id: 'after-delete',
-        name: 'reload-1',
-        month: '2026-06',
-        currencyCode: 'CNY',
-        totalAmountCents: 0,
-      )]));
+      // update 后 bloc 重拉 detail → BudgetDetailLoaded → form pop。
+      // 注:不再有「第 1 次 BudgetListLoaded 不 pop」的竞态。
+      // BudgetLoading 先打破 Equatable 去重(照真实 _onUpdate 流)。
+      bloc.emitState(BudgetLoading());
       await t.pump();
-      expect(observer.popCount, 0,
-          reason: 'delete 的 reload(第1次 BudgetListLoaded)不应 pop');
-
-      bloc.emitState(const BudgetListLoaded([BudgetView(
-        id: 'after-create',
-        name: 'reload-2',
-        month: '2026-06',
-        currencyCode: 'CNY',
-        totalAmountCents: 0,
-      )]));
+      bloc.emitState(BudgetDetailLoaded(_updatedBudget()));
       await t.pump();
       expect(observer.popCount, greaterThanOrEqualTo(1),
-          reason: 'create 的 reload(第2次 BudgetListLoaded)后应 pop');
+          reason: 'BudgetDetailLoaded(update 后)应立即 pop');
+    });
+
+    testWidgets('编辑模式 month picker 不可点(AbsorbPointer)', (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final budgetRepo = _MockBudgetRepo();
+      final accountRepo = _MockAccountRepo();
+      when(() => accountRepo.list())
+          .thenAnswer((_) async => dartz.Right(_seedAccounts()));
+      when(() => budgetRepo.getBudget('b1'))
+          .thenAnswer((_) async => dartz.Right(_existingBudget()));
+      await t.pumpWidget(_harness(
+        budgetRepo: budgetRepo,
+        accountRepo: accountRepo,
+        budgetId: 'b1',
+      ));
+      await t.pumpAndSettle();
+
+      // month picker 有 2 层 AbsorbPointer 祖先:global(submitting,不吸收)+
+      // month(_isEdit,吸收)。验证至少一个 absorbing。
+      final absorbers = find.ancestor(
+          of: find.byKey(const ValueKey('monthPicker')),
+          matching: find.byType(AbsorbPointer));
+      final absorbing = t
+          .widgetList<AbsorbPointer>(absorbers)
+          .any((a) => a.absorbing);
+      expect(absorbing, isTrue,
+          reason: 'edit 模式 month picker 应被内层 AbsorbPointer 吸收点击');
+
+      // 视觉灰显:Opacity 0.5(month picker 旁)。
+      final opacity = t.widget<Opacity>(
+          find.ancestor(
+              of: find.byKey(const ValueKey('monthPicker')),
+              matching: find.byType(Opacity)));
+      expect(opacity.opacity, 0.5);
     });
   });
 }
@@ -528,6 +552,24 @@ BudgetView _emptyBudget() => const BudgetView(
 BudgetView _existingBudget() => const BudgetView(
       id: 'b1',
       name: '旧预算',
+      month: '2026-06',
+      currencyCode: 'CNY',
+      totalAmountCents: 50000,
+      items: [
+        BudgetItemView(
+          id: 'bi-1',
+          accountId: 'exp-1',
+          accountName: '餐饮',
+          plannedAmountCents: 50000,
+          actualAmountCents: 0,
+        ),
+      ],
+    );
+
+/// update 成功后 bloc 重拉的 detail(名字更新,反映 UpdateBudget 生效)。
+BudgetView _updatedBudget() => const BudgetView(
+      id: 'b1',
+      name: '新预算2',
       month: '2026-06',
       currencyCode: 'CNY',
       totalAmountCents: 50000,

@@ -13,9 +13,9 @@
 //   - 空校验:name 空 / items 0 / planned ≤0 → 禁用 btn-gold 提交。
 //
 // - [budgetId] == null:创建模式(dispatch CreateBudgetRequested)。
-// - [budgetId] != null:编辑模式。MVP 简化 = 加载现有 → 预填 → 提交 delete 旧 +
-//   create 新(对齐 task brief「MVP: 编辑 = 删旧 + 重建 defer 增量」)。增量
-//   AddItem/RemoveItem 留待后续(budget 无 UpdateBudget RPC)。
+// - [budgetId] != null:编辑模式。加载现有 → 预填 → 提交 UpdateBudgetRequested
+//   (整体原地更新 name+currency+items,budget ID 不变;month 锁,budget 身份)。
+//   成功后 bloc 重拉 detail → BudgetDetailLoaded → form pop 返回详情页。
 //
 // 御财设计语言(复用 AppColors/AppTypography/lucide + 本地 _GoldButton,与
 //  budget_list_page 一致):御财金 #b08d57 btn-gold。
@@ -85,9 +85,6 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
 
   /// 编辑模式加载到的现有预算(null = 创建 / 加载中)。
   BudgetView? _existingBudget;
-
-  /// 编辑模式 delete→recreate 的 BudgetListLoaded 计数(2 次 = delete + create)。
-  int _editCreateCount = 0;
 
   bool get _isEdit => widget.budgetId != null;
 
@@ -162,20 +159,16 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
       setState(() {});
       return;
     }
-    // 提交成功:BudgetListLoaded 是 create/delete 成功后的刷新信号。
-    // 编辑模式 delete→recreate 会触发 2 次 BudgetListLoaded;用 _editCreateCount
-    // 等到第 2 次才 pop,避免 delete 后误 pop。
-    if (_submitted && state is BudgetListLoaded) {
-      if (_isEdit) {
-        _editCreateCount++;
-        if (_editCreateCount >= 2) {
-          _submitted = false;
-          Navigator.of(context).pop(true);
-        }
-      } else {
-        _submitted = false;
-        Navigator.of(context).pop(true);
-      }
+    // 提交成功:edit → BudgetDetailLoaded(update 后重拉);create → BudgetListLoaded。
+    // (旧 delete+recreate 触发 2 次 BudgetListLoaded + _editCreateCount 计数 —— 已删。)
+    if (_submitted && _isEdit && state is BudgetDetailLoaded) {
+      _submitted = false;
+      Navigator.of(context).pop(true);
+      return;
+    }
+    if (_submitted && !_isEdit && state is BudgetListLoaded) {
+      _submitted = false;
+      Navigator.of(context).pop(true);
     }
   }
 
@@ -262,16 +255,23 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
 
     // 在 dispatch 前捕获 bloc(避免跨 async gap 用 BuildContext)。
     final bloc = context.read<BudgetBloc>();
-    // 编辑模式 MVP:删旧 + 重建(对齐 brief 决策)。
     if (_isEdit) {
-      bloc.add(DeleteBudgetRequested(widget.budgetId!));
+      // 编辑模式:原地 UpdateBudget(不再 delete+recreate —— budget ID 不变、
+      // 原子、无 _editCreateCount 竞态 hack)。
+      bloc.add(UpdateBudgetRequested(
+        budgetId: widget.budgetId!,
+        name: _nameCtrl.text.trim(),
+        currencyCode: _currencyCode,
+        items: items,
+      ));
+    } else {
+      bloc.add(CreateBudgetRequested(
+        name: _nameCtrl.text.trim(),
+        month: _month,
+        currencyCode: _currencyCode,
+        items: items,
+      ));
     }
-    bloc.add(CreateBudgetRequested(
-      name: _nameCtrl.text.trim(),
-      month: _month,
-      currencyCode: _currencyCode,
-      items: items,
-    ));
   }
 
   @override
@@ -428,20 +428,27 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
             ),
             SizedBox(
               width: 200,
-              child: InkWell(
-                key: const ValueKey('monthPicker'),
-                onTap: _pickMonth,
-                child: InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: '月份 *',
-                    suffixIcon:
-                        Icon(LucideIcons.calendar, size: 18),
-                  ),
-                  child: Text(
-                    _month,
-                    style: TextStyle(
-                      color:
-                          _month.isEmpty ? AppColors.muted : AppColors.fg,
+              child: AbsorbPointer(
+                // edit 时 month 不可改(budget 身份 —— 不可逆,改月=换预算)。
+                absorbing: _isEdit,
+                child: Opacity(
+                  opacity: _isEdit ? 0.5 : 1.0,
+                  child: InkWell(
+                    key: const ValueKey('monthPicker'),
+                    onTap: _pickMonth,
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: '月份 *',
+                        suffixIcon:
+                            Icon(LucideIcons.calendar, size: 18),
+                      ),
+                      child: Text(
+                        _month,
+                        style: TextStyle(
+                          color:
+                              _month.isEmpty ? AppColors.muted : AppColors.fg,
+                        ),
+                      ),
                     ),
                   ),
                 ),

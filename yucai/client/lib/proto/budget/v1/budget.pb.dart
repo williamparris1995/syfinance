@@ -1181,6 +1181,97 @@ class CloneBudgetRequest extends $pb.GeneratedMessage {
   void clearName() => $_clearField(3);
 }
 
+/// UpdateBudgetRequest edits a budget's editable fields in place (no ID change,
+/// no delete+recreate). Month is immutable (budget identity); not present here.
+/// items is a full replacement (old items deleted, new inserted — item IDs
+/// change, budget ID stable). No client version: optimistic lock is server-side
+/// (repo WHERE version = v-1), matching AddBudgetItem/RemoveBudgetItem.
+class UpdateBudgetRequest extends $pb.GeneratedMessage {
+  factory UpdateBudgetRequest({
+    $core.String? id,
+    $core.String? name,
+    $core.String? currencyCode,
+    $core.Iterable<BudgetItemInput>? items,
+  }) {
+    final result = create();
+    if (id != null) result.id = id;
+    if (name != null) result.name = name;
+    if (currencyCode != null) result.currencyCode = currencyCode;
+    if (items != null) result.items.addAll(items);
+    return result;
+  }
+
+  UpdateBudgetRequest._();
+
+  factory UpdateBudgetRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory UpdateBudgetRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'UpdateBudgetRequest',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.budget.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'id')
+    ..aOS(2, _omitFieldNames ? '' : 'name')
+    ..aOS(3, _omitFieldNames ? '' : 'currencyCode')
+    ..pPM<BudgetItemInput>(4, _omitFieldNames ? '' : 'items',
+        subBuilder: BudgetItemInput.create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  UpdateBudgetRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  UpdateBudgetRequest copyWith(void Function(UpdateBudgetRequest) updates) =>
+      super.copyWith((message) => updates(message as UpdateBudgetRequest))
+          as UpdateBudgetRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static UpdateBudgetRequest create() => UpdateBudgetRequest._();
+  @$core.override
+  UpdateBudgetRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static UpdateBudgetRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<UpdateBudgetRequest>(create);
+  static UpdateBudgetRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get id => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set id($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get name => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set name($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasName() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearName() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get currencyCode => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set currencyCode($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasCurrencyCode() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearCurrencyCode() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $pb.PbList<BudgetItemInput> get items => $_getList(3);
+}
+
 class BudgetResponse extends $pb.GeneratedMessage {
   factory BudgetResponse({
     BudgetDTO? budget,

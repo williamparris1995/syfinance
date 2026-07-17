@@ -32,4 +32,10 @@ abstract class BudgetRepository {
     required String budgetId,
     required String itemId,
   });
+  Future<Either<Failure, BudgetView>> updateBudget({
+    required String id,
+    required String name,
+    required String currencyCode,
+    required List<({String accountId, int plannedAmountCents, String? notes})> items,
+  });
 }

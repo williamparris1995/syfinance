@@ -193,6 +193,74 @@ void main() {
     },
   );
 
+  // —— UpdateBudgetRequested: 关键 — updateBudget 返回无 items 的 BudgetView,
+  // bloc 必须重新 getBudget 取完整 detail(含 items),emit BudgetDetailLoaded
+  // (form 据此 pop 返回 detail 页,而非旧 delete+recreate 的 BudgetListLoaded)。——
+
+  blocTest<BudgetBloc, BudgetState>(
+    'UpdateBudgetRequested re-fetches detail via getBudget (emits BudgetDetailLoaded)',
+    build: () {
+      when(() => repo.updateBudget(
+            id: any(named: 'id'),
+            name: any(named: 'name'),
+            currencyCode: any(named: 'currencyCode'),
+            items: any(named: 'items'),
+          )).thenAnswer((_) async => Right(sampleBudgetListItem)); // 无 items
+      when(() => repo.getBudget(any()))
+          .thenAnswer((_) async => Right(sampleBudgetDetail)); // 含 items
+      return BudgetBloc(repo);
+    },
+    act: (b) => b.add(const UpdateBudgetRequested(
+      budgetId: 'b1',
+      name: 'June (renamed)',
+      currencyCode: 'CNY',
+      items: createItems,
+    )),
+    wait: const Duration(milliseconds: 150),
+    expect: () => [
+      BudgetLoading(),
+      BudgetDetailLoaded(sampleBudgetDetail),
+    ],
+    verify: (b) {
+      // 关键:updateBudget 用对 id,且后续 getBudget 回填 items。
+      verify(() => repo.updateBudget(
+            id: 'b1',
+            name: 'June (renamed)',
+            currencyCode: 'CNY',
+            items: createItems,
+          )).called(1);
+      verify(() => repo.getBudget('b1')).called(1);
+    },
+  );
+
+  blocTest<BudgetBloc, BudgetState>(
+    'UpdateBudgetRequested failure (updateBudget) emits BudgetError without getBudget',
+    build: () {
+      when(() => repo.updateBudget(
+            id: any(named: 'id'),
+            name: any(named: 'name'),
+            currencyCode: any(named: 'currencyCode'),
+            items: any(named: 'items'),
+          )).thenAnswer((_) async => const Left(ServerFailure('update fail')));
+      return BudgetBloc(repo);
+    },
+    act: (b) => b.add(const UpdateBudgetRequested(
+      budgetId: 'b1',
+      name: 'June (renamed)',
+      currencyCode: 'CNY',
+      items: createItems,
+    )),
+    wait: const Duration(milliseconds: 150),
+    expect: () => [
+      BudgetLoading(),
+      isA<BudgetError>().having((s) => s.message, 'message', 'update fail'),
+    ],
+    verify: (b) {
+      // updateBudget fail 时不应再调 getBudget。
+      verifyNever(() => repo.getBudget(any()));
+    },
+  );
+
   // —— DeleteBudgetRequested ——
 
   blocTest<BudgetBloc, BudgetState>(

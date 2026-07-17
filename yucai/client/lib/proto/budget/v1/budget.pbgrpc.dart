@@ -96,6 +96,13 @@ class BudgetServiceClient extends $grpc.Client {
     return $createUnaryCall(_$cloneBudgetToMonth, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.BudgetResponse> updateBudget(
+    $0.UpdateBudgetRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$updateBudget, request, options: options);
+  }
+
   // method descriptors
 
   static final _$createBudget =
@@ -142,6 +149,11 @@ class BudgetServiceClient extends $grpc.Client {
       $grpc.ClientMethod<$0.CloneBudgetRequest, $0.BudgetResponse>(
           '/yucai.budget.v1.BudgetService/CloneBudgetToMonth',
           ($0.CloneBudgetRequest value) => value.writeToBuffer(),
+          $0.BudgetResponse.fromBuffer);
+  static final _$updateBudget =
+      $grpc.ClientMethod<$0.UpdateBudgetRequest, $0.BudgetResponse>(
+          '/yucai.budget.v1.BudgetService/UpdateBudget',
+          ($0.UpdateBudgetRequest value) => value.writeToBuffer(),
           $0.BudgetResponse.fromBuffer);
 }
 
@@ -226,6 +238,14 @@ abstract class BudgetServiceBase extends $grpc.Service {
         ($core.List<$core.int> value) =>
             $0.CloneBudgetRequest.fromBuffer(value),
         ($0.BudgetResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.UpdateBudgetRequest, $0.BudgetResponse>(
+        'UpdateBudget',
+        updateBudget_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.UpdateBudgetRequest.fromBuffer(value),
+        ($0.BudgetResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.BudgetResponse> createBudget_Pre($grpc.ServiceCall $call,
@@ -302,4 +322,12 @@ abstract class BudgetServiceBase extends $grpc.Service {
 
   $async.Future<$0.BudgetResponse> cloneBudgetToMonth(
       $grpc.ServiceCall call, $0.CloneBudgetRequest request);
+
+  $async.Future<$0.BudgetResponse> updateBudget_Pre($grpc.ServiceCall $call,
+      $async.Future<$0.UpdateBudgetRequest> $request) async {
+    return updateBudget($call, await $request);
+  }
+
+  $async.Future<$0.BudgetResponse> updateBudget(
+      $grpc.ServiceCall call, $0.UpdateBudgetRequest request);
 }
