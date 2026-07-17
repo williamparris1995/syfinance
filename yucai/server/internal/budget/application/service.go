@@ -304,7 +304,15 @@ func (s *Service) computeActualsReadTimeBatch(ctx context.Context, tenantID uuid
 				slog.Error("budget actuals batch: entryMonthFunc failed",
 					"operation", "budget.computeActualsReadTimeBatch",
 					"month", month, "error", err.Error())
-				monthCache[month] = nil // mark attempted (items stay 0, no retry)
+				monthCache[month] = nil // mark attempted (no retry)
+				// Zero-fill budget i's items: the continue below skips this
+				// budget's fill loop, so without this the FIRST budget for a
+				// failed month would keep its stored (possibly non-zero)
+				// ActualAmountCents while subsequent budgets hit cached nil → 0.
+				// Mirrors M2's invariant: all items of a failed month → 0.
+				for j := range budgets[i].Items {
+					budgets[i].Items[j].ActualAmountCents = 0
+				}
 				continue
 			}
 			monthCache[month] = totals

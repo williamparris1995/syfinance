@@ -257,6 +257,36 @@ func TestListBudgets_BatchFillsActualsFromMap(t *testing.T) {
 	}
 }
 
+// TestListBudgets_BatchErrZeroesAllItemsOfFailedMonth verifies the M2 invariant
+// restored after M3's single-loop restructure: when entryMonthFunc fails for a
+// month, ALL budgets with that month (including the first) get every item's
+// ActualAmountCents zeroed (not just the 2nd+ budgets).
+func TestListBudgets_BatchErrZeroesAllItemsOfFailedMonth(t *testing.T) {
+	tenantID := uuid.New()
+	entryMonthFunc := func(ctx context.Context, tid uuid.UUID, from, to time.Time) (map[uuid.UUID]EntryTotals, error) {
+		return nil, fmt.Errorf("boom")
+	}
+	repo := &fakeBudgetRepo{all: []domain.Budget{
+		{ID: uuid.New(), TenantID: tenantID, Month: "2026-07",
+			Items: []domain.BudgetItem{{ID: uuid.New(), AccountID: uuid.New(), ActualAmountCents: 99999}}}, // first budget, non-zero stored
+		{ID: uuid.New(), TenantID: tenantID, Month: "2026-07",
+			Items: []domain.BudgetItem{{ID: uuid.New(), AccountID: uuid.New(), ActualAmountCents: 88888}}}, // second budget
+	}}
+	svc := NewService(repo, nil, entryMonthFunc, nil, nil)
+
+	res, err := svc.ListBudgets(context.Background(), ListBudgetsRequest{TenantID: tenantID})
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	for i, b := range res.Budgets {
+		for j, it := range b.Items {
+			if it.ActualAmountCents != 0 {
+				t.Errorf("budget[%d].items[%d].actual: got %d, want 0 (failed month must zero ALL budgets incl first)", i, j, it.ActualAmountCents)
+			}
+		}
+	}
+}
+
 // --- M3 multi-currency conversion tests (fake rateRepo/accountCur ports) ---
 
 // fakeAccountCur implements domain.AccountCurrencySource from a static map.
