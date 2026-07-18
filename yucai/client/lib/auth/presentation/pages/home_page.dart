@@ -41,6 +41,19 @@ import 'package:yucai_client/transaction/domain/value_objects.dart';
 /// 资产配置 + 即将到期）。净资产经 NetWorthService.GetNetWorth 折算到本位币
 /// (server-side:账户余额 + 持仓市值 − 负债余额);未接入模块(交易、账单)以
 /// 空态呈现,不伪造数字。
+
+/// 千分位分组(1234567 → "1,234,567")。home_page 多处共用(净资产大卡 /
+/// 收支卡 _formatCents / prog-amt),top-level 消除 3 处重复定义(M1 defer)。
+String _groupThousands(int n) {
+  final s = n.toString();
+  final buf = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+    buf.write(s[i]);
+  }
+  return buf.toString();
+}
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -157,16 +170,6 @@ class _HomePageState extends State<HomePage> {
     return '$prefix${currencySymbol(currency)}$grouped.$fen';
   }
 
-  String _groupThousands(int n) {
-    final s = n.toString();
-    final buf = StringBuffer();
-    for (var i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
-
   String _greeting(int hour) {
     if (hour < 6) return '夜深了';
     if (hour < 12) return '早上好';
@@ -236,7 +239,7 @@ class _HomePageState extends State<HomePage> {
                           builder: (ctx, snap) => snap.data != null
                               ? Padding(
                                   padding: const EdgeInsets.only(
-                                      top: AppSpacing.md),
+                                      top: AppSpacing.sm + 4), // OD .flow gap=16(M3)
                                   child: _IncomeExpenseCard(
                                     summary: snap.data!,
                                     currency: currency,
@@ -251,7 +254,7 @@ class _HomePageState extends State<HomePage> {
                                   snap.data != null)
                               ? Padding(
                                   padding: const EdgeInsets.only(
-                                      top: AppSpacing.md),
+                                      top: AppSpacing.sm + 4), // OD 16(M3)
                                   child: _BudgetCard(
                                     budget: snap.data!,
                                     currency: currency,
@@ -266,7 +269,7 @@ class _HomePageState extends State<HomePage> {
                                   snap.data!.isNotEmpty)
                               ? Padding(
                                   padding: const EdgeInsets.only(
-                                      top: AppSpacing.md),
+                                      top: AppSpacing.sm + 4), // OD 16(M3)
                                   child: _GoalCard(
                                     goals: snap.data!,
                                     currency: currency,
@@ -454,15 +457,6 @@ class _NetWorthCard extends StatelessWidget {
     );
   }
 
-  String _groupThousands(int n) {
-    final s = n.toString();
-    final buf = StringBuffer();
-    for (var i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
 }
 
 // ───────────────────────── 摘要卡:本月收支 / 预算 / 目标 ─────────────────
@@ -472,6 +466,13 @@ class _NetWorthCard extends StatelessWidget {
 
 const Color _kIncomeColor = Color(0xFF4A9D6E);
 const Color _kExpenseColor = Color(0xFFD4726E);
+
+/// 摘要卡阴影(对齐 OD `--shadow-card` 双层:0 1px 2px rgba(31,32,36,.05) +
+/// 0 1px 1px rgba(31,32,36,.02))。3 摘要卡共用(M2 提取消重复)。
+const List<BoxShadow> _kCardShadow = [
+  BoxShadow(color: Color(0x0D1F2024), blurRadius: 2, offset: Offset(0, 1)),
+  BoxShadow(color: Color(0x051F2024), blurRadius: 1, offset: Offset(0, 1)),
+];
 
 /// 2 · 本月收支(OD `.ie-*`)。两行 dot+label+amt,dashed 分隔;底部 serif 结余。
 ///
@@ -498,13 +499,7 @@ class _IncomeExpenseCard extends StatelessWidget {
         color: AppColors.surface,
         border: Border.all(color: AppColors.border),
         borderRadius: AppRadius.smBorder,
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D1F2024),
-            blurRadius: 2,
-            offset: Offset(0, 1),
-          ),
-        ],
+        boxShadow: _kCardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -644,13 +639,7 @@ class _BudgetCard extends StatelessWidget {
         color: AppColors.surface,
         border: Border.all(color: AppColors.border),
         borderRadius: AppRadius.smBorder,
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D1F2024),
-            blurRadius: 2,
-            offset: Offset(0, 1),
-          ),
-        ],
+        boxShadow: _kCardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -658,6 +647,7 @@ class _BudgetCard extends StatelessWidget {
           _CardHead(
             label: '本月预算',
             period: '已用 ${budget.usagePct.round()}%',
+            periodColor: over ? _kExpenseColor : null, // 超支标红(M4)
           ),
           const SizedBox(height: AppSpacing.sm),
           _ProgAmt(
@@ -735,13 +725,7 @@ class _GoalCard extends StatelessWidget {
         color: AppColors.surface,
         border: Border.all(color: AppColors.border),
         borderRadius: AppRadius.smBorder,
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D1F2024),
-            blurRadius: 2,
-            offset: Offset(0, 1),
-          ),
-        ],
+        boxShadow: _kCardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -779,9 +763,11 @@ class _GoalCard extends StatelessWidget {
 // ─── 共享子 widget(摘录自 OD .card-head / .prog-amt / .progress) ───
 
 class _CardHead extends StatelessWidget {
-  const _CardHead({required this.label, required this.period});
+  const _CardHead({required this.label, required this.period, this.periodColor});
   final String label;
   final String period;
+  /// period 文字色(可选);null → 默认 muted。预算卡超支时传支出红(M4)。
+  final Color? periodColor;
 
   @override
   Widget build(BuildContext context) {
@@ -797,7 +783,7 @@ class _CardHead extends StatelessWidget {
         Text(period,
             style: TextStyle(
                 fontSize: 11,
-                color: AppColors.muted,
+                color: periodColor ?? AppColors.muted,
                 fontFeatures: AppTypography.tabularFigures)),
       ],
     );
@@ -871,15 +857,6 @@ class _ProgAmt extends StatelessWidget {
     );
   }
 
-  String _groupThousands(int n) {
-    final s = n.toString();
-    final buf = StringBuffer();
-    for (var i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
 }
 
 /// 8px pill 进度条(OD `.progress`)。[value] 为 0–100 百分比,clamp 在此。

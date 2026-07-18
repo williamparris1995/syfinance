@@ -749,6 +749,22 @@ void main() {
     expect(_textContaining('¥1,000'), findsWidgets);
   });
 
+  testWidgets('预算卡:超支 → header period「已用%」标红(M4)', (t) async {
+    await t.pumpWidget(_harness(
+      netWorthResult: () async => _view(),
+      baseCurrency: 'CNY',
+      budget: _budget(actual: 900000, planned: 800000), // 112.5% 超支
+    ));
+    await t.pumpAndSettle();
+
+    // 超支:header period 颜色 = 支出红(_kExpenseColor=0xFFD4726E),非默认
+    // muted —— 超支信号在 header period 也体现(不止 footer 文案)。
+    final period = find.byWidgetPredicate(
+        (w) => w is Text && (w.data ?? '').startsWith('已用'));
+    expect(period, findsOneWidget);
+    expect(t.widget<Text>(period).style?.color, const Color(0xFFD4726E));
+  });
+
   testWidgets('目标卡:已完成(current>=target)→ footLeft 显「目标已达成」(I4)',
       (t) async {
     await t.pumpWidget(_harness(
