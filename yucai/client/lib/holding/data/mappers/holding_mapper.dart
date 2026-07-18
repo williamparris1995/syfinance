@@ -204,6 +204,9 @@ PortfolioPerformance portfolioResponseToEntity(
       twrAnnualizedPct: r.hasTwrAnnualizedPct() ? r.twrAnnualizedPct : null,
       rangeTwrAnnualizedPct:
           r.hasRangeTwrAnnualizedPct() ? r.rangeTwrAnnualizedPct : null,
+      cagrAnnualizedPct: r.hasCagrAnnualizedPct() ? r.cagrAnnualizedPct : null,
+      rangeCagrAnnualizedPct:
+          r.hasRangeCagrAnnualizedPct() ? r.rangeCagrAnnualizedPct : null,
       totalPct: r.totalPct,
       currency: r.currency,
     );
@@ -218,6 +221,9 @@ HoldingPerformance holdingResponseToEntity(pb.HoldingPerformanceResponse r) =>
       annualizedPct: r.hasAnnualizedPct() ? r.annualizedPct : null,
       rangeAnnualizedPct: r.hasRangeAnnualizedPct() ? r.rangeAnnualizedPct : null,
       twrAnnualizedPct: r.hasTwrAnnualizedPct() ? r.twrAnnualizedPct : null,
+      cagrAnnualizedPct: r.hasCagrAnnualizedPct() ? r.cagrAnnualizedPct : null,
+      rangeCagrAnnualizedPct:
+          r.hasRangeCagrAnnualizedPct() ? r.rangeCagrAnnualizedPct : null,
       currency: r.currency,
     );
 

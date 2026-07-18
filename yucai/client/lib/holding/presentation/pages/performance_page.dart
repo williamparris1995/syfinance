@@ -421,6 +421,11 @@ class _PerformancePageState extends State<PerformancePage> {
       child: PerfCurveChart(
         // ① 组合曲线 points(server portfolioPoints;Loading/Error → 空 → 空态)。
         points: loaded?.portfolioPoints ?? const [],
+        // ⑤ 基准曲线(server benchmarkPoints;>= 2 点才显第二线 + 图例)。
+        benchmarkPoints: loaded?.benchmarkPoints ?? const [],
+        benchmarkName: loaded != null && loaded.benchmarkName.isNotEmpty
+            ? loaded.benchmarkName
+            : '沪深300',
         range: _curveRange,
         onRangeChange: onRange,
         emptyHint: '⏳C 收益快照待后端',
@@ -679,6 +684,17 @@ class _PerformancePageState extends State<PerformancePage> {
     final rangeTwrSub = loaded?.rangeTwrAnnualizedPct != null
         ? '区间 ${loaded!.rangeTwrAnnualizedPct! >= 0 ? '+' : ''}${loaded.rangeTwrAnnualizedPct!.toStringAsFixed(1)}%'
         : null;
+    // Task 2 C CAGR(复合年化 全期):null → 显「—」(server 未算/数据不足)。
+    // 与 XIRR(资金加权)+ TWR(时间加权)并列,提供三维度收益视角。
+    final hasCagr = loaded != null && loaded.cagrAnnualizedPct != null;
+    final cagrValue = hasCagr
+        ? '${loaded.cagrAnnualizedPct! >= 0 ? '+' : ''}${loaded.cagrAnnualizedPct!.toStringAsFixed(1)}%'
+        : '—';
+    // range CAGR(复合年化 区间)副标注:镜像 range XIRR/range TWR 模式。
+    // null → 不渲染区间副标注。
+    final rangeCagrSub = loaded?.rangeCagrAnnualizedPct != null
+        ? '区间 ${loaded!.rangeCagrAnnualizedPct! >= 0 ? '+' : ''}${loaded.rangeCagrAnnualizedPct!.toStringAsFixed(1)}%'
+        : null;
     // ⑤ 基准名:server benchmarkName(有)/「⏳C mock」(无)。
     final hasBenchmark = loaded != null && loaded.benchmarkName.isNotEmpty;
     final benchLabel = hasBenchmark
@@ -737,6 +753,21 @@ class _PerformancePageState extends State<PerformancePage> {
             sub: rangeTwrSub,
             subKey: const ValueKey('annualRangeTwrSub'),
             key: const ValueKey('annualTwrValue'),
+          ),
+          // Task 2 C CAGR(复合年化 全期):server cagrAnnualizedPct(无 → 「—」)。
+          // range CAGR(区间)副标注:镜像资金加权/时间加权区间副标注模式。
+          _annualRow(
+            icon: LucideIcons.lineChart,
+            label: '复合年化',
+            value: cagrValue,
+            valueColor: hasCagr
+                ? (loaded.cagrAnnualizedPct! >= 0
+                    ? AppColors.positive
+                    : AppColors.negative)
+                : AppColors.muted,
+            sub: rangeCagrSub,
+            subKey: const ValueKey('annualRangeCagrSub'),
+            key: const ValueKey('annualCagrValue'),
           ),
           // 累计行:✅ 从 holdings 算(unrealized/totalCost)。
           _annualRow(

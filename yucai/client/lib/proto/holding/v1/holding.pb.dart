@@ -2000,6 +2000,8 @@ class PortfolioPerformanceResponse extends $pb.GeneratedMessage {
     $core.double? rangeAnnualizedPct,
     $core.double? twrAnnualizedPct,
     $core.double? rangeTwrAnnualizedPct,
+    $core.double? cagrAnnualizedPct,
+    $core.double? rangeCagrAnnualizedPct,
   }) {
     final result = create();
     if (portfolioPoints != null) result.portfolioPoints.addAll(portfolioPoints);
@@ -2016,6 +2018,9 @@ class PortfolioPerformanceResponse extends $pb.GeneratedMessage {
     if (twrAnnualizedPct != null) result.twrAnnualizedPct = twrAnnualizedPct;
     if (rangeTwrAnnualizedPct != null)
       result.rangeTwrAnnualizedPct = rangeTwrAnnualizedPct;
+    if (cagrAnnualizedPct != null) result.cagrAnnualizedPct = cagrAnnualizedPct;
+    if (rangeCagrAnnualizedPct != null)
+      result.rangeCagrAnnualizedPct = rangeCagrAnnualizedPct;
     return result;
   }
 
@@ -2047,6 +2052,8 @@ class PortfolioPerformanceResponse extends $pb.GeneratedMessage {
     ..aD(10, _omitFieldNames ? '' : 'rangeAnnualizedPct')
     ..aD(11, _omitFieldNames ? '' : 'twrAnnualizedPct')
     ..aD(12, _omitFieldNames ? '' : 'rangeTwrAnnualizedPct')
+    ..aD(13, _omitFieldNames ? '' : 'cagrAnnualizedPct')
+    ..aD(14, _omitFieldNames ? '' : 'rangeCagrAnnualizedPct')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2166,6 +2173,24 @@ class PortfolioPerformanceResponse extends $pb.GeneratedMessage {
   $core.bool hasRangeTwrAnnualizedPct() => $_has(11);
   @$pb.TagNumber(12)
   void clearRangeTwrAnnualizedPct() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $core.double get cagrAnnualizedPct => $_getN(12);
+  @$pb.TagNumber(13)
+  set cagrAnnualizedPct($core.double value) => $_setDouble(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasCagrAnnualizedPct() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearCagrAnnualizedPct() => $_clearField(13);
+
+  @$pb.TagNumber(14)
+  $core.double get rangeCagrAnnualizedPct => $_getN(13);
+  @$pb.TagNumber(14)
+  set rangeCagrAnnualizedPct($core.double value) => $_setDouble(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasRangeCagrAnnualizedPct() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearRangeCagrAnnualizedPct() => $_clearField(14);
 }
 
 class GetHoldingPerformanceRequest extends $pb.GeneratedMessage {
@@ -2263,6 +2288,8 @@ class HoldingPerformanceResponse extends $pb.GeneratedMessage {
     $core.double? annualizedPct,
     $core.double? rangeAnnualizedPct,
     $core.double? twrAnnualizedPct,
+    $core.double? cagrAnnualizedPct,
+    $core.double? rangeCagrAnnualizedPct,
   }) {
     final result = create();
     if (pricePoints != null) result.pricePoints.addAll(pricePoints);
@@ -2274,6 +2301,9 @@ class HoldingPerformanceResponse extends $pb.GeneratedMessage {
     if (rangeAnnualizedPct != null)
       result.rangeAnnualizedPct = rangeAnnualizedPct;
     if (twrAnnualizedPct != null) result.twrAnnualizedPct = twrAnnualizedPct;
+    if (cagrAnnualizedPct != null) result.cagrAnnualizedPct = cagrAnnualizedPct;
+    if (rangeCagrAnnualizedPct != null)
+      result.rangeCagrAnnualizedPct = rangeCagrAnnualizedPct;
     return result;
   }
 
@@ -2300,6 +2330,8 @@ class HoldingPerformanceResponse extends $pb.GeneratedMessage {
     ..aD(6, _omitFieldNames ? '' : 'annualizedPct')
     ..aD(7, _omitFieldNames ? '' : 'rangeAnnualizedPct')
     ..aD(8, _omitFieldNames ? '' : 'twrAnnualizedPct')
+    ..aD(9, _omitFieldNames ? '' : 'cagrAnnualizedPct')
+    ..aD(10, _omitFieldNames ? '' : 'rangeCagrAnnualizedPct')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2388,6 +2420,24 @@ class HoldingPerformanceResponse extends $pb.GeneratedMessage {
   $core.bool hasTwrAnnualizedPct() => $_has(7);
   @$pb.TagNumber(8)
   void clearTwrAnnualizedPct() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.double get cagrAnnualizedPct => $_getN(8);
+  @$pb.TagNumber(9)
+  set cagrAnnualizedPct($core.double value) => $_setDouble(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasCagrAnnualizedPct() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearCagrAnnualizedPct() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.double get rangeCagrAnnualizedPct => $_getN(9);
+  @$pb.TagNumber(10)
+  set rangeCagrAnnualizedPct($core.double value) => $_setDouble(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasRangeCagrAnnualizedPct() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearRangeCagrAnnualizedPct() => $_clearField(10);
 }
 
 class BackfillPriceHistoryRequest extends $pb.GeneratedMessage {

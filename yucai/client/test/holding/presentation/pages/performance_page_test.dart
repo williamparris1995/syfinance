@@ -692,4 +692,122 @@ void main() {
       expect(find.byKey(const ValueKey('annualRangeTwrSub')), findsNothing);
     },
   );
+
+  // Task 2 C CAGR(复合年化 全期):cagrAnnualizedPct 非空 → annualCagrValue 渲染数值。
+  // 与 XIRR(资金加权)+ TWR(时间加权)并列,3 tile 收益视角。
+  testWidgets(
+    'Task 2 C: renders CAGR row when cagrAnnualizedPct non-null (triple-metric)',
+    (t) async {
+      await setViewport(t);
+      final repo = _MockHoldingRepo();
+      _stubHoldings(repo, [_holding(unrealizedPnlCents: 250000)]);
+      when(() => repo.getPortfolioPerformance(
+            range: any(named: 'range'),
+            accountId: any(named: 'accountId'),
+            includeBenchmark: any(named: 'includeBenchmark'),
+            baseCurrency: any(named: 'baseCurrency'),
+          )).thenAnswer((_) async => const dartz.Right(PortfolioPerformance(
+                realizedCents: 0,
+                unrealizedCents: 0,
+                totalCents: 0,
+                annualizedPct: 8.5,
+                twrAnnualizedPct: 7.2,
+                cagrAnnualizedPct: 6.5,
+                rangeCagrAnnualizedPct: 4.1,
+              )));
+
+      await t.pumpWidget(_harness(repo: repo));
+      await t.pumpAndSettle();
+
+      // 复合年化(CAGR)+6.5%(annualCagrValue key 节点)。
+      expect(find.text('复合年化'), findsOneWidget);
+      expect(t.widget<Text>(find.byKey(const ValueKey('annualCagrValue'))).data,
+          '+6.5%');
+      // 区间 CAGR 副标注渲染(annualRangeCagrSub key):含「区间」+「+4.1%」。
+      expect(find.byKey(const ValueKey('annualRangeCagrSub')), findsOneWidget);
+      expect(
+          t.widget<Text>(find.byKey(const ValueKey('annualRangeCagrSub'))).data,
+          contains('区间'));
+      expect(
+          t.widget<Text>(find.byKey(const ValueKey('annualRangeCagrSub'))).data,
+          contains('+4.1%'));
+    },
+  );
+
+  // Task 2 C CAGR 降级:cagrAnnualizedPct null → annualCagrValue 显「—」
+  // (独立于 XIRR/TWR,镜像 TWR null → 「—」模式)。
+  testWidgets(
+    'Task 2 C: renders — when cagrAnnualizedPct null (CAGR degraded)',
+    (t) async {
+      await setViewport(t);
+      final repo = _MockHoldingRepo();
+      _stubHoldings(repo, [_holding(unrealizedPnlCents: 250000)]);
+      when(() => repo.getPortfolioPerformance(
+            range: any(named: 'range'),
+            accountId: any(named: 'accountId'),
+            includeBenchmark: any(named: 'includeBenchmark'),
+            baseCurrency: any(named: 'baseCurrency'),
+          )).thenAnswer((_) async => const dartz.Right(PortfolioPerformance(
+                realizedCents: 0,
+                unrealizedCents: 0,
+                totalCents: 0,
+                annualizedPct: 8.5,
+                twrAnnualizedPct: 7.2,
+                // cagrAnnualizedPct 故意省 → null(CAGR 降级,但 XIRR/TWR 仍正常)。
+              )));
+
+      await t.pumpWidget(_harness(repo: repo));
+      await t.pumpAndSettle();
+
+      // XIRR/TWR 仍正常:+8.5% / +7.2%。
+      expect(t.widget<Text>(find.byKey(const ValueKey('annualValue'))).data,
+          '+8.5%');
+      expect(t.widget<Text>(find.byKey(const ValueKey('annualTwrValue'))).data,
+          '+7.2%');
+      // CAGR 行渲染但显「—」(null 降级)。
+      expect(find.text('复合年化'), findsOneWidget);
+      expect(t.widget<Text>(find.byKey(const ValueKey('annualCagrValue'))).data,
+          '—');
+      // 区间 CAGR 副标注不渲染(null 降级)。
+      expect(find.byKey(const ValueKey('annualRangeCagrSub')), findsNothing);
+    },
+  );
+
+  // Task 2 C benchmark⑤ 曲线:benchmarkPoints >= 2 → PerfCurveChart 收到
+  // benchmarkPoints + 渲染图例(组合 / 基准名)。验证 benchmark 透传到 chart。
+  testWidgets(
+    'Task 2 C: passes benchmarkPoints to PerfCurveChart (legend renders)',
+    (t) async {
+      await setViewport(t);
+      final repo = _MockHoldingRepo();
+      _stubHoldings(repo, [_holding(unrealizedPnlCents: 250000)]);
+      when(() => repo.getPortfolioPerformance(
+            range: any(named: 'range'),
+            accountId: any(named: 'accountId'),
+            includeBenchmark: any(named: 'includeBenchmark'),
+            baseCurrency: any(named: 'baseCurrency'),
+          )).thenAnswer((_) async => dartz.Right(PortfolioPerformance(
+                portfolioPoints: [
+                  PerfPoint(time: DateTime(2026, 6, 1), value: 100),
+                  PerfPoint(time: DateTime(2026, 6, 30), value: 120),
+                ],
+                realizedCents: 0,
+                unrealizedCents: 0,
+                totalCents: 0,
+                benchmarkName: '沪深300',
+                benchmarkPoints: [
+                  PerfPoint(time: DateTime(2026, 6, 1), value: 1000),
+                  PerfPoint(time: DateTime(2026, 6, 30), value: 1050),
+                ],
+              )));
+
+      await t.pumpWidget(_harness(repo: repo));
+      await t.pumpAndSettle();
+
+      // 图例渲染(benchmarkPoints >= 2 → _hasBenchmark)。
+      expect(find.byKey(const ValueKey('perfCurveLegend')), findsOneWidget);
+      expect(find.text('组合'), findsOneWidget);
+      expect(find.text('沪深300'), findsOneWidget);
+    },
+  );
 }

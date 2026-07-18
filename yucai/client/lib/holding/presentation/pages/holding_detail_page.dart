@@ -499,15 +499,18 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
   /// - 资金加权(全期)`holdingAnnualizedPct`(server HoldingPerformance.annualizedPct)
   /// - 资金加权(区间)`holdingRangeAnnualizedPct`(随 range tab)
   /// - 时间加权(全期)`holdingTwrAnnualizedPct`(server twrAnnualizedPct)
-  /// null → 显「—」(server 未算/数据不足;e.g. 仅 1 笔交易 XIRR/TWR 无解)。
+  /// - 复合年化(全期)`holdingCagrAnnualizedPct`(server cagrAnnualizedPct,price-based)
+  /// null → 显「—」(server 未算/数据不足;e.g. 仅 1 笔交易 XIRR/TWR/CAGR 无解)。
   /// 模式对齐 performance_page `_annualRow`(数值 + 副标注)。
   Widget _xirrCard(HoldingDetailLoaded detail) {
     final full = detail.holdingAnnualizedPct;
     final range = detail.holdingRangeAnnualizedPct;
     final twr = detail.holdingTwrAnnualizedPct;
+    final cagr = detail.holdingCagrAnnualizedPct;
     final hasFull = full != null;
     final hasRange = range != null;
     final hasTwr = twr != null;
+    final hasCagr = cagr != null;
     return DataCard(
       key: const ValueKey('detailXirrCard'),
       child: Column(
@@ -523,7 +526,7 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                       fontFamily: AppTypography.displayFamily,
                       fontFamilyFallback: AppTypography.displayFallback)),
               const SizedBox(height: 2),
-              const Text('资金加权(XIRR)+ 时间加权(TWR)· 数据不足时显示 —',
+              const Text('资金加权(XIRR)+ 时间加权(TWR)+ 复合年化(CAGR)· 数据不足时显示 —',
                   key: ValueKey('detailXirrSub'),
                   style: TextStyle(fontSize: 11.5, color: AppColors.muted)),
             ],
@@ -561,6 +564,17 @@ class _HoldingDetailPageState extends State<HoldingDetailPage> {
                 ? (twr >= 0 ? AppColors.positive : AppColors.negative)
                 : AppColors.muted,
             key: const ValueKey('detailXirrTwr'),
+          ),
+          // 复合年化 · 全期(Task 2 C CAGR price-based;null → 「—」)。
+          _xirrRow(
+            label: '复合年化 · 全期',
+            value: hasCagr
+                ? '${cagr >= 0 ? '+' : ''}${cagr.toStringAsFixed(1)}%'
+                : '—',
+            valueColor: hasCagr
+                ? (cagr >= 0 ? AppColors.positive : AppColors.negative)
+                : AppColors.muted,
+            key: const ValueKey('detailXirrCagr'),
           ),
         ],
       ),

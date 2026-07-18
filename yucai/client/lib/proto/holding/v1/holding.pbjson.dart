@@ -695,12 +695,32 @@ const PortfolioPerformanceResponse$json = {
       '10': 'rangeTwrAnnualizedPct',
       '17': true
     },
+    {
+      '1': 'cagr_annualized_pct',
+      '3': 13,
+      '4': 1,
+      '5': 1,
+      '9': 4,
+      '10': 'cagrAnnualizedPct',
+      '17': true
+    },
+    {
+      '1': 'range_cagr_annualized_pct',
+      '3': 14,
+      '4': 1,
+      '5': 1,
+      '9': 5,
+      '10': 'rangeCagrAnnualizedPct',
+      '17': true
+    },
   ],
   '8': [
     {'1': '_annualized_pct'},
     {'1': '_range_annualized_pct'},
     {'1': '_twr_annualized_pct'},
     {'1': '_range_twr_annualized_pct'},
+    {'1': '_cagr_annualized_pct'},
+    {'1': '_range_cagr_annualized_pct'},
   ],
 };
 
@@ -716,9 +736,12 @@ final $typed_data.Uint8List portfolioPerformanceResponseDescriptor = $convert.ba
     'ggASgBUgh0b3RhbFBjdBIaCghjdXJyZW5jeRgJIAEoCVIIY3VycmVuY3kSNQoUcmFuZ2VfYW5u'
     'dWFsaXplZF9wY3QYCiABKAFIAVIScmFuZ2VBbm51YWxpemVkUGN0iAEBEjEKEnR3cl9hbm51YW'
     'xpemVkX3BjdBgLIAEoAUgCUhB0d3JBbm51YWxpemVkUGN0iAEBEjwKGHJhbmdlX3R3cl9hbm51'
-    'YWxpemVkX3BjdBgMIAEoAUgDUhVyYW5nZVR3ckFubnVhbGl6ZWRQY3SIAQFCEQoPX2FubnVhbG'
-    'l6ZWRfcGN0QhcKFV9yYW5nZV9hbm51YWxpemVkX3BjdEIVChNfdHdyX2FubnVhbGl6ZWRfcGN0'
-    'QhsKGV9yYW5nZV90d3JfYW5udWFsaXplZF9wY3Q=');
+    'YWxpemVkX3BjdBgMIAEoAUgDUhVyYW5nZVR3ckFubnVhbGl6ZWRQY3SIAQESMwoTY2Fncl9hbm'
+    '51YWxpemVkX3BjdBgNIAEoAUgEUhFjYWdyQW5udWFsaXplZFBjdIgBARI+ChlyYW5nZV9jYWdy'
+    'X2FubnVhbGl6ZWRfcGN0GA4gASgBSAVSFnJhbmdlQ2FnckFubnVhbGl6ZWRQY3SIAQFCEQoPX2'
+    'FubnVhbGl6ZWRfcGN0QhcKFV9yYW5nZV9hbm51YWxpemVkX3BjdEIVChNfdHdyX2FubnVhbGl6'
+    'ZWRfcGN0QhsKGV9yYW5nZV90d3JfYW5udWFsaXplZF9wY3RCFgoUX2NhZ3JfYW5udWFsaXplZF'
+    '9wY3RCHAoaX3JhbmdlX2NhZ3JfYW5udWFsaXplZF9wY3Q=');
 
 @$core.Deprecated('Use getHoldingPerformanceRequestDescriptor instead')
 const GetHoldingPerformanceRequest$json = {
@@ -787,11 +810,31 @@ const HoldingPerformanceResponse$json = {
       '10': 'twrAnnualizedPct',
       '17': true
     },
+    {
+      '1': 'cagr_annualized_pct',
+      '3': 9,
+      '4': 1,
+      '5': 1,
+      '9': 3,
+      '10': 'cagrAnnualizedPct',
+      '17': true
+    },
+    {
+      '1': 'range_cagr_annualized_pct',
+      '3': 10,
+      '4': 1,
+      '5': 1,
+      '9': 4,
+      '10': 'rangeCagrAnnualizedPct',
+      '17': true
+    },
   ],
   '8': [
     {'1': '_annualized_pct'},
     {'1': '_range_annualized_pct'},
     {'1': '_twr_annualized_pct'},
+    {'1': '_cagr_annualized_pct'},
+    {'1': '_range_cagr_annualized_pct'},
   ],
 };
 
@@ -803,9 +846,12 @@ final $typed_data.Uint8List holdingPerformanceResponseDescriptor = $convert.base
     'l6ZWRDZW50cxIfCgt0b3RhbF9jZW50cxgEIAEoA1IKdG90YWxDZW50cxIaCghjdXJyZW5jeRgF'
     'IAEoCVIIY3VycmVuY3kSKgoOYW5udWFsaXplZF9wY3QYBiABKAFIAFINYW5udWFsaXplZFBjdI'
     'gBARI1ChRyYW5nZV9hbm51YWxpemVkX3BjdBgHIAEoAUgBUhJyYW5nZUFubnVhbGl6ZWRQY3SI'
-    'AQESMQoSdHdyX2FubnVhbGl6ZWRfcGN0GAggASgBSAJSEHR3ckFubnVhbGl6ZWRQY3SIAQFCEQ'
-    'oPX2FubnVhbGl6ZWRfcGN0QhcKFV9yYW5nZV9hbm51YWxpemVkX3BjdEIVChNfdHdyX2FubnVh'
-    'bGl6ZWRfcGN0');
+    'AQESMQoSdHdyX2FubnVhbGl6ZWRfcGN0GAggASgBSAJSEHR3ckFubnVhbGl6ZWRQY3SIAQESMw'
+    'oTY2Fncl9hbm51YWxpemVkX3BjdBgJIAEoAUgDUhFjYWdyQW5udWFsaXplZFBjdIgBARI+Chly'
+    'YW5nZV9jYWdyX2FubnVhbGl6ZWRfcGN0GAogASgBSARSFnJhbmdlQ2FnckFubnVhbGl6ZWRQY3'
+    'SIAQFCEQoPX2FubnVhbGl6ZWRfcGN0QhcKFV9yYW5nZV9hbm51YWxpemVkX3BjdEIVChNfdHdy'
+    'X2FubnVhbGl6ZWRfcGN0QhYKFF9jYWdyX2FubnVhbGl6ZWRfcGN0QhwKGl9yYW5nZV9jYWdyX2'
+    'FubnVhbGl6ZWRfcGN0');
 
 @$core.Deprecated('Use backfillPriceHistoryRequestDescriptor instead')
 const BackfillPriceHistoryRequest$json = {

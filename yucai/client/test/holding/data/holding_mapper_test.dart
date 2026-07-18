@@ -358,6 +358,8 @@ void main() {
         annualizedPct: 12.5,
         totalPct: 8.0,
         currency: 'CNY',
+        cagrAnnualizedPct: 9.4,
+        rangeCagrAnnualizedPct: 3.2,
       );
       final e = portfolioResponseToEntity(res);
       expect(e, isA<PortfolioPerformance>());
@@ -368,6 +370,9 @@ void main() {
       expect(e.unrealizedCents, 200);
       expect(e.totalCents, 1000);
       expect(e.annualizedPct, 12.5);
+      // Task 2 C CAGR 全期 + 区间(proto optional → domain double?)。
+      expect(e.cagrAnnualizedPct, 9.4);
+      expect(e.rangeCagrAnnualizedPct, 3.2);
       expect(e.totalPct, 8.0);
       expect(e.currency, 'CNY');
       // 第一个点时间/值透传(Timestamp→DateTime + double)
@@ -387,6 +392,8 @@ void main() {
         unrealizedCents: $fixnum.Int64(-500),
         totalCents: $fixnum.Int64(-500),
         currency: 'CNY',
+        cagrAnnualizedPct: 7.1,
+        rangeCagrAnnualizedPct: 2.4,
       );
       final e = holdingResponseToEntity(res);
       expect(e.pricePoints.length, 1);
@@ -394,6 +401,36 @@ void main() {
       expect(e.realizedCents, 0);
       expect(e.unrealizedCents, -500); // 可负
       expect(e.totalCents, -500);
+      // Task 2 C CAGR price-based(全期 + 区间,proto optional → domain double?)。
+      expect(e.cagrAnnualizedPct, 7.1);
+      expect(e.rangeCagrAnnualizedPct, 2.4);
+    });
+
+    test(
+        'Task 2 C: cagrAnnualizedPct/rangeCagrAnnualizedPct absent → null (degraded)',
+        () {
+      // proto optional 字段未设 → hasCagrAnnualizedPct() == false → mapper 返 null。
+      // 对齐 XIRR/TWR nil 降级:UI 显「—」/区间副标注省。
+      final res = pb.PortfolioPerformanceResponse(
+        realizedCents: $fixnum.Int64(0),
+        unrealizedCents: $fixnum.Int64(0),
+        totalCents: $fixnum.Int64(0),
+      );
+      final e = portfolioResponseToEntity(res);
+      expect(e.cagrAnnualizedPct, isNull);
+      expect(e.rangeCagrAnnualizedPct, isNull);
+      // XIRR/TWR 亦 null(回归)。
+      expect(e.annualizedPct, isNull);
+      expect(e.twrAnnualizedPct, isNull);
+
+      final hRes = pb.HoldingPerformanceResponse(
+        realizedCents: $fixnum.Int64(0),
+        unrealizedCents: $fixnum.Int64(0),
+        totalCents: $fixnum.Int64(0),
+      );
+      final h = holdingResponseToEntity(hRes);
+      expect(h.cagrAnnualizedPct, isNull);
+      expect(h.rangeCagrAnnualizedPct, isNull);
     });
 
     test('curveRangeToProto: DAY/MONTH/YEAR by NAME + 未知折叠 DAY', () {

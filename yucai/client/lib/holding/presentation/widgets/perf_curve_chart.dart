@@ -91,8 +91,11 @@ class PerfCurveFoot {
 
 /// 收益曲线 widget。
 ///
-/// [points] 已按时间升序(调用方负责);内部按 value 归一化到 [0,1] 后绘制
-/// (与 holding_sparkline 同策略,保证跨标的视觉可比)。少于 2 点 → 空态。
+/// [points] 已按时间升序(调用方负责);内部按 value **rebase 100**(起点=100,
+/// 相对增长)后绘制 —— 量纲归一化:portfolio 元 vs benchmark 点位 rebase 后斜率
+/// 可比(同一起点对比相对增长,而非 min-max 自归一)。少于 2 点 → 空态。
+/// [benchmarkPoints] 可选基准(如 CSI300)曲线,非空时绘制第二线(灰虚线),
+/// 并渲染图例(组合/基准名);[benchmarkName] 基准名(默认「沪深300」)。
 /// [onRangeChange] 区间 tab 切换回调(详情页内联切换 + Task 9 复用)。
 class PerfCurveChart extends StatelessWidget {
   const PerfCurveChart({
@@ -103,6 +106,8 @@ class PerfCurveChart extends StatelessWidget {
     this.onRangeChange,
     this.height = 168,
     this.emptyHint = '⏳ 行情快照待后端',
+    this.benchmarkPoints = const [],
+    this.benchmarkName = '沪深300',
   });
 
   final List<PerfPoint> points;
@@ -112,6 +117,10 @@ class PerfCurveChart extends StatelessWidget {
   final double height;
   /// 空态提示文案(默认 ⏳ 降级,Task 9 可覆盖)。
   final String emptyHint;
+  /// 可选基准曲线点(如 CSI300)。length >= 2 才绘制第二线 + 图例;< 2 视为无基准。
+  final List<PerfPoint> benchmarkPoints;
+  /// 基准名(图例「┄ {benchmarkName}」)。默认「沪深300」。
+  final String benchmarkName;
 
   @override
   Widget build(BuildContext context) {
@@ -119,6 +128,10 @@ class PerfCurveChart extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _head(),
+        if (_hasBenchmark) ...[
+          const SizedBox(height: 8),
+          _legend(),
+        ],
         const SizedBox(height: 12),
         SizedBox(
           height: height,
@@ -131,6 +144,9 @@ class PerfCurveChart extends StatelessWidget {
       ],
     );
   }
+
+  /// 是否渲染基准线 + 图例(benchmarkPoints >= 2;1 点 _rebase100 退化为平线无意义)。
+  bool get _hasBenchmark => benchmarkPoints.length >= 2;
 
   // ───────────────────────── head ─────────────────────────
 
@@ -216,15 +232,16 @@ class PerfCurveChart extends StatelessWidget {
 
   // ───────────────────────── chart ─────────────────────────
 
-  /// 涨跌色:末值 >= 首值 → 盈绿;否则亏红(对齐 A-od curve.up ? up : down)。
-  bool get _up {
-    if (points.length < 2) return true;
-    return points.last.value >= points.first.value;
-  }
-
   Widget _chart() {
-    final color = _up ? AppColors.positive : AppColors.negative;
-    final spots = _spots();
+    final portSpots = _rebase100(points);
+    final benchSpots = _hasBenchmark ? _rebase100(benchmarkPoints) : const <FlSpot>[];
+    // Y range:两 series 合并 min/max(100 附近,而非固定 0-1)。
+    // 退化(空 series)→ fallback 0-200(_rebase100 至少返回 2 个 100 平线点,
+    // 故实际不会触发,但保持防零除的稳健兜底)。
+    final all = [...portSpots, ...benchSpots];
+    final ys = all.map((s) => s.y).toList()..sort();
+    final minY = ys.isEmpty ? 0.0 : ys.first;
+    final maxY = ys.isEmpty ? 200.0 : ys.last;
     return LineChart(
       LineChartData(
         titlesData: const FlTitlesData(show: false),
@@ -233,40 +250,104 @@ class PerfCurveChart extends StatelessWidget {
         lineTouchData: const LineTouchData(enabled: false),
         clipData: const FlClipData.all(),
         minX: 0,
-        maxX: (spots.length - 1).toDouble().clamp(0, double.infinity),
-        minY: 0,
-        maxY: 1,
+        maxX: (portSpots.length - 1).toDouble().clamp(0, double.infinity),
+        minY: minY,
+        maxY: maxY == minY ? minY + 1 : maxY,
         lineBarsData: [
+          // 组合金实线(rebase 100,起点=100,相对增长)。
           LineChartBarData(
-            spots: spots,
+            spots: portSpots,
             isCurved: true,
-            color: color,
+            color: AppColors.accent,
             barWidth: 1.8,
             isStrokeCapRound: true,
             dotData: const FlDotData(show: false),
             belowBarData: BarAreaData(
               show: true,
-              color: color.withValues(alpha: 0.16),
+              color: AppColors.accent.withValues(alpha: 0.16),
             ),
+          ),
+          // 基准灰虚线(rebase 100,与组合同起点对比相对增长)。
+          if (_hasBenchmark)
+            LineChartBarData(
+              spots: benchSpots,
+              isCurved: true,
+              color: const Color(0xFF8A8A8A),
+              barWidth: 1.4,
+              isStrokeCapRound: true,
+              dotData: const FlDotData(show: false),
+              dashArray: [4, 3],
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// points → rebase 100(起点=100,相对增长)。startPoint=0 → 100 平线(防除零)。
+  /// 量纲归一化:portfolio 元 vs benchmark 点位 都 rebase 后斜率可比。
+  /// <=1 点 → 2 个 100 平线点(避免 LineChart 单点不可绘;调用方已 < 2 显空态)。
+  List<FlSpot> _rebase100(List<PerfPoint> pts) {
+    if (pts.length <= 1) {
+      return const [FlSpot(0, 100), FlSpot(1, 100)];
+    }
+    final start = pts.first.value;
+    if (start == 0) {
+      return [
+        for (var i = 0; i < pts.length; i++) FlSpot(i.toDouble(), 100),
+      ];
+    }
+    return [
+      for (var i = 0; i < pts.length; i++)
+        FlSpot(i.toDouble(), pts[i].value / start * 100),
+    ];
+  }
+
+  /// 图例:━ 组合(金)/ ┄ {benchmarkName}(灰虚线)。
+  /// 仅 _hasBenchmark 时渲染(head 下方,chart 上方)。
+  Widget _legend() {
+    return Padding(
+      key: const ValueKey('perfCurveLegend'),
+      padding: const EdgeInsets.only(top: 0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          _legendItem(
+            color: AppColors.accent,
+            label: '组合',
+            dashed: false,
+          ),
+          const SizedBox(width: 14),
+          _legendItem(
+            color: const Color(0xFF8A8A8A),
+            label: benchmarkName,
+            dashed: true,
           ),
         ],
       ),
     );
   }
 
-  /// points → 归一化 [0,1] FlSpot(x=索引)。全相等退化为 0.5 平线(避免除零)。
-  List<FlSpot> _spots() {
-    if (points.length <= 1) {
-      return const [FlSpot(0, 0.5), FlSpot(1, 0.5)];
-    }
-    final vals = points.map((p) => p.value).toList(growable: false);
-    final min = vals.reduce((a, b) => a < b ? a : b);
-    final max = vals.reduce((a, b) => a > b ? a : b);
-    final span = max - min;
-    return [
-      for (var i = 0; i < vals.length; i++)
-        FlSpot(i.toDouble(), span == 0 ? 0.5 : (vals[i] - min) / span),
-    ];
+  Widget _legendItem({
+    required Color color,
+    required String label,
+    required bool dashed,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 18,
+          height: 2,
+          child: CustomPaint(
+            painter: _LegendLinePainter(color: color, dashed: dashed),
+          ),
+        ),
+        const SizedBox(width: 5),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 11, color: AppColors.muted)),
+      ],
+    );
   }
 
   // ───────────────────────── empty ─────────────────────────
@@ -406,4 +487,36 @@ String _grouped(int cents) {
     buf.write(s[i]);
   }
   return buf.toString();
+}
+
+/// 图例线段 painter:实线(组合金)/ 虚线(基准灰)。
+/// 18×2 的小线段,与 chart LineChartBarData 视觉一致(dashed=true 时 4-3 dash)。
+class _LegendLinePainter extends CustomPainter {
+  const _LegendLinePainter({required this.color, required this.dashed});
+  final Color color;
+  final bool dashed;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    if (!dashed) {
+      canvas.drawLine(Offset.zero, Offset(size.width, 0), paint);
+      return;
+    }
+    // 虚线:4 on / 3 off(对齐 LineChartBarData dashArray: [4, 3] 视觉)。
+    const on = 4.0, off = 3.0;
+    var x = 0.0;
+    while (x < size.width) {
+      final end = (x + on).clamp(0.0, size.width);
+      canvas.drawLine(Offset(x, 0), Offset(end, 0), paint);
+      x += on + off;
+    }
+  }
+
+  @override
+  bool shouldRepaint(_LegendLinePainter old) =>
+      old.color != color || old.dashed != dashed;
 }
