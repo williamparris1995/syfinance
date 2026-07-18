@@ -39,3 +39,33 @@ func TestGoalClone(t *testing.T) {
 		t.Fatalf("clone: err=%v cloned=%+v", err, cloned)
 	}
 }
+
+// TestGoal_UpdateLinks verifies UpdateLinks is a full-replace setter for linked
+// account + debt IDs and does NOT bump the optimistic-lock version (UpdateGoal
+// owns the single IncrementVersion so one update = one version bump).
+func TestGoal_UpdateLinks(t *testing.T) {
+	acc1, acc2, debt1 := uuid.New(), uuid.New(), uuid.New()
+	g := &Goal{Version: 1, LinkedAccountIDs: []uuid.UUID{uuid.New()}, LinkedDebtIDs: []uuid.UUID{uuid.New()}}
+	wantVersion := g.Version
+
+	// set: full-replace of prior links.
+	g.UpdateLinks([]uuid.UUID{acc1, acc2}, []uuid.UUID{debt1})
+	if len(g.LinkedAccountIDs) != 2 || g.LinkedAccountIDs[0] != acc1 || g.LinkedAccountIDs[1] != acc2 {
+		t.Errorf("LinkedAccountIDs: got %v, want [%s %s]", g.LinkedAccountIDs, acc1, acc2)
+	}
+	if len(g.LinkedDebtIDs) != 1 || g.LinkedDebtIDs[0] != debt1 {
+		t.Errorf("LinkedDebtIDs: got %v, want [%s]", g.LinkedDebtIDs, debt1)
+	}
+	if g.Version != wantVersion {
+		t.Errorf("version after set: got %d, want %d (UpdateLinks must not bump)", g.Version, wantVersion)
+	}
+
+	// full-replace: nil clears the prior links (not append).
+	g.UpdateLinks(nil, nil)
+	if len(g.LinkedAccountIDs) != 0 || len(g.LinkedDebtIDs) != 0 {
+		t.Errorf("clear: got accounts=%v debts=%v, want empty", g.LinkedAccountIDs, g.LinkedDebtIDs)
+	}
+	if g.Version != wantVersion {
+		t.Errorf("version after clear: got %d, want %d (UpdateLinks must not bump)", g.Version, wantVersion)
+	}
+}

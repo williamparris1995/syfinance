@@ -108,7 +108,8 @@ func (s *Service) UpdateGoal(ctx context.Context, req UpdateGoalRequest) (*GoalD
 	goal.TargetAmountCents = req.TargetAmountCents
 	goal.Deadline = req.Deadline
 	goal.Notes = req.Notes
-	goal.IncrementVersion()
+	goal.UpdateLinks(req.LinkedAccountIDs, req.LinkedDebtIDs) // M2: full-replace links (setter, no version bump)
+	goal.IncrementVersion()                                   // 统一 version bump (现状已有,保留)
 
 	if err := s.repo.Update(ctx, goal); err != nil {
 		return nil, fmt.Errorf("update goal: %w", err)

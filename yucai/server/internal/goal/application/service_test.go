@@ -127,8 +127,14 @@ func (r *fakeGoalRepo) snapshotCount() int { return len(r.snapshots) }
 func (fakeGoalRepo) Save(context.Context, *domain.Goal) error {
 	panic("not used in SyncAllGoals test")
 }
-func (fakeGoalRepo) FindByID(context.Context, uuid.UUID, uuid.UUID) (*domain.Goal, error) {
-	panic("not used in SyncAllGoals test")
+func (r *fakeGoalRepo) FindByID(_ context.Context, _ uuid.UUID, id uuid.UUID) (*domain.Goal, error) {
+	for _, g := range r.byName {
+		if g.ID == id {
+			cp := *g
+			return &cp, nil
+		}
+	}
+	return nil, errors.New("goal not found")
 }
 func (fakeGoalRepo) Delete(context.Context, uuid.UUID, uuid.UUID) error {
 	panic("not used in SyncAllGoals test")
@@ -441,6 +447,53 @@ func TestCreateGoalMultiAccount(t *testing.T) {
 	saved := repo.saved[0]
 	if len(saved.LinkedDebtIDs) != 1 || saved.LinkedDebtIDs[0] != debt1 {
 		t.Errorf("saved linked debts = %v, want [debt1]", saved.LinkedDebtIDs)
+	}
+}
+
+// --- M2 Task 1: UpdateGoal linked accounts/debts ---
+
+// TestUpdateGoal_ChangesLinks verifies UpdateGoal persists a full-replace of
+// linked accounts/debts: the fake repo stores back the goal passed to Update,
+// so asserting on repo.byName["g"] confirms the new links reached repo.Update
+// (which replaceAccountLinks/replaceDebtLinks them in prod). Version is bumped
+// exactly once (UpdateLinks is a no-bump setter; UpdateGoal owns IncrementVersion).
+func TestUpdateGoal_ChangesLinks(t *testing.T) {
+	acc1, acc2, debt1 := uuid.New(), uuid.New(), uuid.New()
+	repo, svc := newTestServiceWithGoals(t, []seedGoal{
+		{Name: "g", Type: domain.GoalTypeSavings, LinkedAccount: ptrUUID(uuid.New()), Target: 100000},
+	})
+	seed := repo.byName["g"]
+	wantVersion := seed.Version + 1
+
+	dto, err := svc.UpdateGoal(context.Background(), UpdateGoalRequest{
+		TenantID:          tenantID,
+		ID:                seed.ID,
+		Version:           seed.Version,
+		Name:              "g",
+		TargetAmountCents: 100000,
+		LinkedAccountIDs:  []uuid.UUID{acc1, acc2},
+		LinkedDebtIDs:     []uuid.UUID{debt1},
+	})
+	if err != nil {
+		t.Fatalf("UpdateGoal: %v", err)
+	}
+	// DTO carries the new links (full-replace).
+	if len(dto.LinkedAccountIDs) != 2 || dto.LinkedAccountIDs[0] != acc1 || dto.LinkedAccountIDs[1] != acc2 {
+		t.Errorf("dto linked accounts = %v, want [%s %s]", dto.LinkedAccountIDs, acc1, acc2)
+	}
+	if len(dto.LinkedDebtIDs) != 1 || dto.LinkedDebtIDs[0] != debt1 {
+		t.Errorf("dto linked debts = %v, want [%s]", dto.LinkedDebtIDs, debt1)
+	}
+	if dto.Version != wantVersion {
+		t.Errorf("dto version = %d, want %d (single IncrementVersion)", dto.Version, wantVersion)
+	}
+	// Repo received goal with new links (full-replace of the seeded single link).
+	got := repo.byName["g"]
+	if len(got.LinkedAccountIDs) != 2 || got.LinkedAccountIDs[0] != acc1 || got.LinkedAccountIDs[1] != acc2 {
+		t.Errorf("repo linked accounts = %v, want [%s %s]", got.LinkedAccountIDs, acc1, acc2)
+	}
+	if len(got.LinkedDebtIDs) != 1 || got.LinkedDebtIDs[0] != debt1 {
+		t.Errorf("repo linked debts = %v, want [%s]", got.LinkedDebtIDs, debt1)
 	}
 }
 

@@ -29,6 +29,8 @@ type UpdateGoalRequest struct {
 	Deadline          *time.Time
 	Notes             string
 	Version           int64
+	LinkedAccountIDs []uuid.UUID // M2: full-replace linked accounts (nil clears)
+	LinkedDebtIDs    []uuid.UUID // M2: full-replace linked debts (nil clears)
 }
 
 // UpdateProgressRequest holds input for updating goal progress.

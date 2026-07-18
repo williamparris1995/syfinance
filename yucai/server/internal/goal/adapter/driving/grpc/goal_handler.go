@@ -89,6 +89,24 @@ func (h *GoalHandler) UpdateGoal(ctx context.Context, req *pb.UpdateGoalRequest)
 		deadline = &d
 	}
 
+	// M2: linked accounts/debts (proto UpdateGoalRequest field 7/8).
+	accountIDs := make([]uuid.UUID, 0, len(req.LinkedAccountIds))
+	for i, a := range req.LinkedAccountIds {
+		id, err := uuid.Parse(a)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid linked_account_ids[%d]: %v", i, err)
+		}
+		accountIDs = append(accountIDs, id)
+	}
+	debtIDs := make([]uuid.UUID, 0, len(req.LinkedDebtIds))
+	for i, d := range req.LinkedDebtIds {
+		id, err := uuid.Parse(d)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid linked_debt_ids[%d]: %v", i, err)
+		}
+		debtIDs = append(debtIDs, id)
+	}
+
 	resp, err := h.service.UpdateGoal(ctx, application.UpdateGoalRequest{
 		TenantID:          tenantID,
 		ID:                id,
@@ -97,6 +115,8 @@ func (h *GoalHandler) UpdateGoal(ctx context.Context, req *pb.UpdateGoalRequest)
 		Deadline:          deadline,
 		Notes:             req.Notes,
 		Version:           req.Version,
+		LinkedAccountIDs:  accountIDs, // M2
+		LinkedDebtIDs:     debtIDs,    // M2
 	})
 	if err != nil {
 		return nil, mapError(err)

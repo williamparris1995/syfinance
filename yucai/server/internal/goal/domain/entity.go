@@ -185,6 +185,14 @@ func (g *Goal) LinkAccount(accountID uuid.UUID) {
 	g.UpdatedAt = time.Now()
 }
 
+// UpdateLinks replaces the goal's linked account + debt IDs (full-replace,
+// mirrors CreateGoal's link setup). Does NOT bump version — UpdateGoal owns
+// the version bump so a single UpdateGoal call = single IncrementVersion.
+func (g *Goal) UpdateLinks(accountIDs, debtIDs []uuid.UUID) {
+	g.LinkedAccountIDs = accountIDs
+	g.LinkedDebtIDs = debtIDs
+}
+
 // IncrementVersion bumps the optimistic lock version.
 func (g *Goal) IncrementVersion() {
 	g.Version++
