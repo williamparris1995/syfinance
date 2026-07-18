@@ -38,9 +38,14 @@ import 'package:yucai_client/auth/domain/usecases/register_usecase.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/auth/presentation/pages/home_page.dart';
+import 'package:yucai_client/budget/domain/entities/budget_entity.dart';
+import 'package:yucai_client/budget/domain/repositories/budget_repository.dart';
+import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
+import 'package:yucai_client/goal/domain/entities/goal_entity.dart';
+import 'package:yucai_client/goal/domain/repositories/goal_repository.dart';
 import 'package:yucai_client/holding/data/networth_ds.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/entities/net_worth_entity.dart';
@@ -93,6 +98,11 @@ class _MockAccountRepo extends Mock implements AccountRepository {}
 class _MockTxnRepo extends Mock implements TransactionRepository {}
 class _MockDebtRepo extends Mock implements DebtRepository {}
 class _MockHoldingRepo extends Mock implements HoldingRepository {}
+
+/// 3 摘要卡(P0-1)新增:BudgetRepository + GoalRepository mock。默认 stub 在
+/// _harness / _routerHarness 中,返回 Left / 空列表(隐藏对应卡)。
+class _MockBudgetRepo extends Mock implements BudgetRepository {}
+class _MockGoalRepo extends Mock implements GoalRepository {}
 
 /// 构造一笔账户(默认储蓄/1200000 cents)驱动 _SummaryRow 流动资产拆分。
 Account _account({
@@ -150,6 +160,9 @@ Widget _harness({
   List<Transaction> txns = const [],
   List<Holding> holdings = const [],
   List<Debt> debts = const [],
+  MonthlySummary? summary,
+  BudgetView? budget,
+  List<GoalView> goals = const [],
 }) {
   final getIt = GetIt.instance;
   getIt.registerSingleton<NetWorthDataSource>(_FakeNetWorthDs(netWorthResult));
@@ -173,6 +186,14 @@ Widget _harness({
   when(() => txnRepo.list(any())).thenAnswer(
     (_) async => dartz.Right(ListTransactionsResult(transactions: txns)),
   );
+  // 3 摘要卡 income/expense:summary 默认零值(显示 ¥0.00 卡,不致隐藏)。
+  when(() => txnRepo.summary(any(), any(),
+          accountId: any(named: 'accountId'),
+          scope: any(named: 'scope'),
+          day: any(named: 'day')))
+      .thenAnswer((_) async => dartz.Right(
+            summary ?? const MonthlySummary(year: 2026, month: 7),
+          ));
   getIt.registerSingleton<TransactionRepository>(txnRepo);
 
   // 即将到期 panel。
@@ -186,6 +207,22 @@ Widget _harness({
   when(() => holdingRepo.listHoldings())
       .thenAnswer((_) async => dartz.Right(holdings));
   getIt.registerSingleton<HoldingRepository>(holdingRepo);
+
+  // 3 摘要卡预算:budget==null(默认)→ Left(对齐生产 server 当月无 budget 的
+  // 404 NotFound 语义)→ home_page fold 到 null → 隐藏卡;budget 提供 → Right。
+  final budgetRepo = _MockBudgetRepo();
+  when(() => budgetRepo.getBudgetByMonth(any())).thenAnswer((_) async =>
+      budget == null
+          ? dartz.Left(const ServerFailure('not found'))
+          : dartz.Right(budget));
+  getIt.registerSingleton<BudgetRepository>(budgetRepo);
+
+  // 3 摘要卡目标:goals(默认空)→ 隐藏卡。
+  final goalRepo = _MockGoalRepo();
+  when(() => goalRepo.listGoals(
+          type: any(named: 'type'), completed: any(named: 'completed')))
+      .thenAnswer((_) async => dartz.Right(goals));
+  getIt.registerSingleton<GoalRepository>(goalRepo);
 
   final authBloc = _SeededAuthedBloc();
   return MaterialApp(
@@ -272,6 +309,63 @@ Account _catAccount(AccountCategory cat, {int balance = 800000}) => Account(
       status: AccountStatus.active,
     );
 
+// ───────────────────── P0-1: 3 摘要卡 fixture helpers ─────────────────────
+
+/// 月度收支 summary fixture(单位:分)。income 850000 = ¥8,500.00;expense
+/// 520000 = ¥5,200.00;net 自动 = income − expense。
+MonthlySummary _summary({
+  int income = 850000,
+  int expense = 520000,
+  int year = 2026,
+  int month = 7,
+}) =>
+    MonthlySummary(
+      year: year,
+      month: month,
+      incomeCents: income,
+      expenseCents: expense,
+      netCents: income - expense,
+    );
+
+/// 预算 fixture(单位:分)。actual 520000=¥5,200 / planned 800000=¥8,000 →
+/// usagePct = 65%。month 必须为当前月以触发 budget card 的 footer "还剩 N 天"
+/// 文案(对齐 _BudgetCard._monthDaysLeft 逻辑)。
+BudgetView _budget({
+  int actual = 520000,
+  int planned = 800000,
+  String month = '2026-07',
+  String name = '7 月日常预算',
+}) =>
+    BudgetView(
+      id: 'b1',
+      name: name,
+      month: month,
+      currencyCode: 'CNY',
+      totalAmountCents: planned,
+      totalActualCents: actual,
+      // usagePct 在 entity 上是派生 getter,但构造器入参显式传入。构造器默认 0,
+      // 故显式计算一遍与 entity getter 一致。
+      usagePct: planned == 0 ? 0 : actual / planned * 100,
+    );
+
+/// 目标 fixture。current 420000=¥4,200 / target 1000000=¥10,000 → progressPct
+/// = 42%。deadline 设为 2027-03-15 触发 "预计 2027 年 3 月达成" 文案。
+GoalView _goal({
+  String name = '存款目标',
+  int current = 420000,
+  int target = 1000000,
+  DateTime? deadline,
+}) =>
+    GoalView(
+      id: 'g1',
+      name: name,
+      type: GoalType.savings,
+      targetAmountCents: target,
+      currentAmountCents: current,
+      currencyCode: 'CNY',
+      deadline: deadline ?? DateTime(2027, 3, 15),
+    );
+
 /// 快捷操作 onTap 需 router(context.go)。独立 harness(MaterialApp.router +
 /// GoRouter),不复用 _harness(隔离,避免与 NetWorth harness 的 MaterialApp
 /// 冲突)。mock 注册对齐 _harness(空数据)。导航验证靠 find.text(目标路由
@@ -295,6 +389,14 @@ Widget _routerHarness() {
   when(() => txnRepo.list(any())).thenAnswer(
     (_) async => dartz.Right(const ListTransactionsResult(transactions: [])),
   );
+  // 3 摘要卡 income/expense summary 默认零值(_routerHarness 不驱动摘要卡
+  // 断言,仅需 stub 避免 null Future 崩溃)。
+  when(() => txnRepo.summary(any(), any(),
+          accountId: any(named: 'accountId'),
+          scope: any(named: 'scope'),
+          day: any(named: 'day')))
+      .thenAnswer((_) async =>
+          const dartz.Right(MonthlySummary(year: 2026, month: 7)));
   getIt.registerSingleton<TransactionRepository>(txnRepo);
 
   final debtRepo = _MockDebtRepo();
@@ -306,6 +408,18 @@ Widget _routerHarness() {
   when(() => holdingRepo.listHoldings())
       .thenAnswer((_) async => dartz.Right(<Holding>[]));
   getIt.registerSingleton<HoldingRepository>(holdingRepo);
+
+  // 3 摘要卡 budget/goals 默认 Left/空 → 隐藏卡(_routerHarness 不驱动断言)。
+  final budgetRepo = _MockBudgetRepo();
+  when(() => budgetRepo.getBudgetByMonth(any()))
+      .thenAnswer((_) async => const dartz.Left(ServerFailure('not found')));
+  getIt.registerSingleton<BudgetRepository>(budgetRepo);
+
+  final goalRepo = _MockGoalRepo();
+  when(() => goalRepo.listGoals(
+          type: any(named: 'type'), completed: any(named: 'completed')))
+      .thenAnswer((_) async => const dartz.Right(<GoalView>[]));
+  getIt.registerSingleton<GoalRepository>(goalRepo);
 
   final router = GoRouter(
     initialLocation: '/home',
@@ -342,6 +456,8 @@ void main() {
   setUpAll(() {
     // mocktail any() 需要非原始类型的 fallback 值。
     registerFallbackValue(const ListTransactionsParams());
+    // 3 摘要卡 summary stub 的 scope 命名参数也需要 fallback。
+    registerFallbackValue(SummaryScope.month);
   });
 
   setUp(() {
@@ -497,5 +613,119 @@ void main() {
     await t.pumpAndSettle();
 
     expect(find.text('holdings_new'), findsOneWidget);
+  });
+
+  // ───────────────────── P0-1: 3 摘要卡(income/expense · budget · goal) ─────────────────────
+
+  testWidgets('收支卡:summary 非零 → 显示 收入/支出/结余(¥8,500 / ¥5,200 / ¥3,300)',
+      (t) async {
+    await t.pumpWidget(_harness(
+      netWorthResult: () async => _view(),
+      baseCurrency: 'CNY',
+      summary: _summary(),
+    ));
+    await t.pumpAndSettle();
+
+    expect(find.text('本月收支'), findsOneWidget);
+    expect(find.text('收入'), findsOneWidget);
+    expect(find.text('支出'), findsOneWidget);
+    expect(find.text('本月结余'), findsOneWidget);
+    // 8,500 / 5,200 / 3,300 grouped 整数部分。RichText/Text 混合,_textContaining
+    // 兼容两者。
+    expect(_textContaining('8,500'), findsWidgets);
+    expect(_textContaining('5,200'), findsWidgets);
+    expect(_textContaining('3,300'), findsWidgets);
+    // 默认无 budget / 无 goals → 预算/目标卡应隐藏。
+    expect(find.text('本月预算'), findsNothing);
+    expect(find.text('目标进度'), findsNothing);
+  });
+
+  testWidgets('收支卡:summary 默认零值 → 仍渲染卡(¥0.00,fold 路径)', (t) async {
+    // 不传 summary:_harness 默认 Right(MonthlySummary(year:2026, month:7)) 零值,
+    // home_page fold 表达式同款将 Left 也映射到零值 —— 二者等价走同一渲染路径。
+    await t.pumpWidget(_harness(
+      netWorthResult: () async => _view(),
+      baseCurrency: 'CNY',
+    ));
+    await t.pumpAndSettle();
+
+    expect(find.text('本月收支'), findsOneWidget);
+    // 零 summary → 收入/支出/结余 全 ¥0.00;不崩。
+    expect(_textContaining('0.00'), findsWidgets);
+  });
+
+  testWidgets('预算卡:budget 提供 → 显示 已用%/¥actual/planned/剩余', (t) async {
+    await t.pumpWidget(_harness(
+      netWorthResult: () async => _view(),
+      baseCurrency: 'CNY',
+      budget: _budget(),
+    ));
+    await t.pumpAndSettle();
+
+    expect(find.text('本月预算'), findsOneWidget);
+    // 65% = 520000/800000*100 round。
+    expect(find.text('已用 65%'), findsOneWidget);
+    // 5,200 / 8,000 grouped(实际显示为 prog-amt:¥5,200 / ¥8,000)。
+    expect(_textContaining('5,200'), findsWidgets);
+    expect(_textContaining('8,000'), findsWidgets);
+    // 剩余 = 800000 − 520000 = 280000 = ¥2,800。
+    expect(_textContaining('2,800'), findsWidgets);
+  });
+
+  testWidgets('预算卡:默认(无 budget)→ 隐藏(无「本月预算」label)', (t) async {
+    await t.pumpWidget(_harness(
+      netWorthResult: () async => _view(),
+      baseCurrency: 'CNY',
+    ));
+    await t.pumpAndSettle();
+
+    expect(find.text('本月预算'), findsNothing);
+  });
+
+  testWidgets('目标卡:goals 提供 → 显示 顶级目标名/¥current/target/pct', (t) async {
+    await t.pumpWidget(_harness(
+      netWorthResult: () async => _view(),
+      baseCurrency: 'CNY',
+      goals: [_goal(name: '买房首付')],
+    ));
+    await t.pumpAndSettle();
+
+    expect(find.text('目标进度'), findsOneWidget);
+    expect(find.text('买房首付'), findsOneWidget);
+    // 42% = 420000/1000000*100 round。
+    expect(_textContaining('42%'), findsWidgets);
+    // 4,200 / 10,000 grouped + 5,800 差额。
+    expect(_textContaining('4,200'), findsWidgets);
+    expect(_textContaining('10,000'), findsWidgets);
+    expect(_textContaining('5,800'), findsWidgets);
+    // deadline 2027-03-15 → "预计 2027 年 3 月达成"。
+    expect(_textContaining('2027'), findsWidgets);
+  });
+
+  testWidgets('目标卡:默认(空 goals)→ 隐藏(无「目标进度」label)', (t) async {
+    await t.pumpWidget(_harness(
+      netWorthResult: () async => _view(),
+      baseCurrency: 'CNY',
+    ));
+    await t.pumpAndSettle();
+
+    expect(find.text('目标进度'), findsNothing);
+  });
+
+  testWidgets('降级:summary+budget+goals 全 fail/空 → 仅渲染收支卡零值,无 crash',
+      (t) async {
+    // summary 默认零值 → 收支卡渲染 ¥0。budget=null → 隐藏。goals=[] → 隐藏。
+    await t.pumpWidget(_harness(
+      netWorthResult: () async => _view(),
+      baseCurrency: 'CNY',
+    ));
+    await t.pumpAndSettle();
+
+    // 收支卡在(fold 零值);预算/目标卡隐藏。
+    expect(find.text('本月收支'), findsOneWidget);
+    expect(find.text('本月预算'), findsNothing);
+    expect(find.text('目标进度'), findsNothing);
+    // 净资产主卡仍在(降级不影响其它卡)。
+    expect(find.text('总净资产'), findsOneWidget);
   });
 }

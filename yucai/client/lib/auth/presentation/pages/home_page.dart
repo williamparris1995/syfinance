@@ -11,6 +11,8 @@ import 'package:yucai_client/account/presentation/bloc/account_event.dart';
 import 'package:yucai_client/account/presentation/bloc/account_state.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
+import 'package:yucai_client/budget/domain/entities/budget_entity.dart';
+import 'package:yucai_client/budget/domain/repositories/budget_repository.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
@@ -18,6 +20,8 @@ import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
+import 'package:yucai_client/goal/domain/entities/goal_entity.dart';
+import 'package:yucai_client/goal/domain/repositories/goal_repository.dart';
 import 'package:yucai_client/holding/data/networth_ds.dart';
 import 'package:yucai_client/holding/domain/entities/holding_entity.dart';
 import 'package:yucai_client/holding/domain/entities/net_worth_entity.dart';
@@ -46,15 +50,44 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late final NetWorthDataSource _netWorthDs = getIt<NetWorthDataSource>();
   late final CurrencySettings _currencySettings = getIt<CurrencySettings>();
+  // 3 摘要卡数据源(getIt @LazySingleton,与 _netWorthDs 同款直调)。
+  late final TransactionRepository _txnRepo = getIt<TransactionRepository>();
+  late final BudgetRepository _budgetRepo = getIt<BudgetRepository>();
+  late final GoalRepository _goalRepo = getIt<GoalRepository>();
 
   Future<NetWorthView>? _netWorthFuture;
+  // 收支 summary:fail → fold 到零值 MonthlySummary(本月无收支是有意义状态,
+  // 仍渲染 ¥0.00 卡;loading 时 hasData=false → 隐藏)。
+  Future<MonthlySummary>? _summaryFuture;
+  // 预算:null = 当月无 budget(Left/fail)→ 隐藏预算卡。
+  Future<BudgetView?>? _budgetFuture;
+  // 目标:空列表 = 无 active goal → 隐藏目标卡。
+  Future<List<GoalView>>? _goalsFuture;
 
   @override
   void initState() {
     super.initState();
     context.read<AccountBloc>().add(LoadAccountsRequested());
     _loadNetWorth();
+    _loadSummaryCards();
     _currencySettings.listenable.addListener(_onBaseChanged);
+  }
+
+  /// 3 摘要卡并发拉取(照 _loadNetWorth 模式,各 Future 独立 await,无相互
+  /// 依赖)。fail/空数据各自降级到隐藏或零值,不互相影响。
+  void _loadSummaryCards() {
+    final now = DateTime.now();
+    final monthStr =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    _summaryFuture = _txnRepo.summary(now.year, now.month).then(
+        (r) => r.fold((_) => MonthlySummary(year: now.year, month: now.month),
+            (s) => s));
+    _budgetFuture = _budgetRepo
+        .getBudgetByMonth(monthStr)
+        .then((r) => r.fold((_) => null, (b) => b));
+    _goalsFuture = _goalRepo
+        .listGoals(completed: false)
+        .then((r) => r.fold((_) => <GoalView>[], (g) => g));
   }
 
   void _loadNetWorth() {
@@ -189,6 +222,56 @@ class _HomePageState extends State<HomePage> {
                           loading: !snap.hasData && snap.connectionState !=
                               ConnectionState.done,
                           error: snap.hasError,
+                        ),
+                        // ── 3 摘要卡(本月收支 / 预算 / 目标)照 OD 原型
+                        // yucai-dashboard-home-a2fc。降级:loading/fail/无数据 →
+                        // SizedBox.shrink 隐藏(summary fold 零值除外,仍渲染 ¥0)。
+                        // 每卡 FutureBuilder 用 EdgeInsets.only(top: md) 自带
+                        // 上间距 —— 卡隐藏时零高度,_NetWorthCard 与 _SummaryRow
+                        // 之间仍有 SizedBox(md) 兜底。
+                        FutureBuilder<MonthlySummary>(
+                          future: _summaryFuture,
+                          builder: (ctx, snap) => snap.hasData
+                              ? Padding(
+                                  padding: const EdgeInsets.only(
+                                      top: AppSpacing.md),
+                                  child: _IncomeExpenseCard(
+                                    summary: snap.data!,
+                                    currency: currency,
+                                    format: _formatCents,
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                        FutureBuilder<BudgetView?>(
+                          future: _budgetFuture,
+                          builder: (ctx, snap) => (snap.hasData &&
+                                  snap.data != null)
+                              ? Padding(
+                                  padding: const EdgeInsets.only(
+                                      top: AppSpacing.md),
+                                  child: _BudgetCard(
+                                    budget: snap.data!,
+                                    currency: currency,
+                                    format: _formatCents,
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                        FutureBuilder<List<GoalView>>(
+                          future: _goalsFuture,
+                          builder: (ctx, snap) => (snap.hasData &&
+                                  snap.data!.isNotEmpty)
+                              ? Padding(
+                                  padding: const EdgeInsets.only(
+                                      top: AppSpacing.md),
+                                  child: _GoalCard(
+                                    goals: snap.data!,
+                                    currency: currency,
+                                    format: _formatCents,
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
                         ),
                         const SizedBox(height: AppSpacing.md),
                         _SummaryRow(
@@ -377,6 +460,439 @@ class _NetWorthCard extends StatelessWidget {
       buf.write(s[i]);
     }
     return buf.toString();
+  }
+}
+
+// ───────────────────────── 摘要卡:本月收支 / 预算 / 目标 ─────────────────
+// 照 OD 原型 yucai-dashboard-home-a2fc styles.css。颜色 token 略异于 AppColors:
+// OD income #4a9d6e / expense #d4726e 比 AppColors.positive/negative 更亮,贴近
+// 暖色系 bg;直接内联(对齐 OD,不污染全局 token)。accent 与 AppColors.accent 同。
+
+const Color _kIncomeColor = Color(0xFF4A9D6E);
+const Color _kExpenseColor = Color(0xFFD4726E);
+
+/// 2 · 本月收支(OD `.ie-*`)。两行 dot+label+amt,dashed 分隔;底部 serif 结余。
+///
+/// income/expense 来自 [MonthlySummary](server TransactionSummary RPC,scope=
+/// month);net = income − expense。金额走父级 [_HomePageState._formatCents]
+/// 共享格式化(千分位 + 本位币符号 + fen),收入 '+' / 支出 '−' 前缀手动拼以
+/// 始终区分方向(_formatCents 的 signed 对 0 值返 '+' 不符支出语义)。
+class _IncomeExpenseCard extends StatelessWidget {
+  const _IncomeExpenseCard({
+    required this.summary,
+    required this.currency,
+    required this.format,
+  });
+
+  final MonthlySummary summary;
+  final String currency;
+  final String Function(int cents, String currency, {bool signed}) format;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border.all(color: AppColors.border),
+        borderRadius: AppRadius.smBorder,
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D1F2024),
+            blurRadius: 2,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _CardHead(
+            label: '本月收支',
+            period: '${summary.year} 年 ${summary.month} 月',
+          ),
+          const SizedBox(height: AppSpacing.sm + 4),
+          _IeRow(
+            dotColor: _kIncomeColor,
+            name: '收入',
+            amount: '+${format(summary.incomeCents, currency)}',
+            amountColor: _kIncomeColor,
+          ),
+          _IeRow(
+            dotColor: _kExpenseColor,
+            name: '支出',
+            amount: '-${format(summary.expenseCents, currency)}',
+            amountColor: _kExpenseColor,
+          ),
+          // 底部结余分隔线 + 双栏 label/amt。
+          const Padding(
+            padding: EdgeInsets.only(top: AppSpacing.sm + 4),
+            child: Divider(height: 1, thickness: 1, color: AppColors.border),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.sm + 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                const Text('本月结余',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.fg)),
+                const Spacer(),
+                Text(
+                  format(summary.netCents, currency),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.fg,
+                    letterSpacing: -0.3,
+                    fontFamily: AppTypography.displayFamily,
+                    fontFamilyFallback: AppTypography.displayFallback,
+                    fontFeatures: AppTypography.tabularFigures,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _IeRow extends StatelessWidget {
+  const _IeRow({
+    required this.dotColor,
+    required this.name,
+    required this.amount,
+    required this.amountColor,
+  });
+  final Color dotColor;
+  final String name;
+  final String amount;
+  final Color amountColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm - 4),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            margin: const EdgeInsets.only(right: AppSpacing.sm),
+            decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+          ),
+          Expanded(
+            child: Text(name,
+                style: const TextStyle(fontSize: 13, color: AppColors.muted)),
+          ),
+          Text(
+            amount,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: amountColor,
+              fontFeatures: AppTypography.tabularFigures,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 3 · 本月预算(OD `.prog-*` + `.progress`)。progress bar accent 金;超支切红。
+///
+/// 用 [BudgetView.totalActualCents] / [BudgetView.totalAmountCents] /
+/// [BudgetView.usagePct](server actuals 计算)。foot 左右两栏:剩余/超支金额 +
+/// 当月剩余天数(仅当 budget.month 等于当前月时显示)。
+class _BudgetCard extends StatelessWidget {
+  const _BudgetCard({
+    required this.budget,
+    required this.currency,
+    required this.format,
+  });
+
+  final BudgetView budget;
+  final String currency;
+  final String Function(int cents, String currency, {bool signed}) format;
+
+  @override
+  Widget build(BuildContext context) {
+    final over = budget.isOverBudget;
+    final barColor = over ? _kExpenseColor : AppColors.accent;
+    final pct = budget.usagePct.clamp(0.0, 100.0);
+    final remaining = budget.totalRemainingCents;
+    final footLeft = over
+        ? '超支 ${format(remaining.abs(), currency)}'
+        : '剩余 ${format(remaining, currency)} 可用';
+    final footRight = _monthDaysLeft(budget.month);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border.all(color: AppColors.border),
+        borderRadius: AppRadius.smBorder,
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D1F2024),
+            blurRadius: 2,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _CardHead(
+            label: '本月预算',
+            period: '已用 ${budget.usagePct.round()}%',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _ProgAmt(
+            currentCents: budget.totalActualCents,
+            plannedCents: budget.totalAmountCents,
+            currency: currency,
+            format: format,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _ProgressBar(value: pct, color: barColor),
+          const SizedBox(height: AppSpacing.sm - 4),
+          Row(
+            children: [
+              Text(footLeft,
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.muted)),
+              const Spacer(),
+              if (footRight != null)
+                Text(footRight,
+                    style: const TextStyle(
+                        fontSize: 11, color: AppColors.muted)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 返回 budget.month 当月剩余天数的描述;非当月返回 null(footer 右栏隐藏)。
+  /// 例:本月 15 号 → "7 月还剩 16 天"。跨月/格式异常 → null。
+  String? _monthDaysLeft(String month) {
+    final now = DateTime.now();
+    if (month.length != 7) return null;
+    final yr = int.tryParse(month.substring(0, 4));
+    final mo = int.tryParse(month.substring(5, 7));
+    if (yr == null || mo == null || yr != now.year || mo != now.month) {
+      return null;
+    }
+    final lastOfMonth = DateTime(yr, mo + 1, 0).day;
+    final left = lastOfMonth - now.day;
+    return left > 0 ? '$mo 月还剩 $left 天' : '$mo 月最后一天';
+  }
+}
+
+/// 4 · 目标进度(OD `.prog-*` + `.progress-bar.goal`)。取 goals 中第一个(顶级
+/// 目标)展示;progress bar income 绿。foot 显示距目标差额 + 截止日预估。
+class _GoalCard extends StatelessWidget {
+  const _GoalCard({
+    required this.goals,
+    required this.currency,
+    required this.format,
+  });
+
+  final List<GoalView> goals;
+  final String currency;
+  final String Function(int cents, String currency, {bool signed}) format;
+
+  @override
+  Widget build(BuildContext context) {
+    // 取第一个 active goal(listGoals(completed: false) 已过滤完成的)。多目标
+    // 详情入口在 /goals;dashboard 只显概览。
+    final goal = goals.first;
+    final pct = goal.progressPct.clamp(0.0, 100.0);
+    final remaining = goal.remainingCents;
+    final footLeft = remaining > 0
+        ? '距目标还差 ${format(remaining, currency)}'
+        : '目标已达成';
+    final footRight = goal.deadline == null
+        ? null
+        : '预计 ${goal.deadline!.year} 年 ${goal.deadline!.month} 月达成';
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border.all(color: AppColors.border),
+        borderRadius: AppRadius.smBorder,
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D1F2024),
+            blurRadius: 2,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _CardHead(label: '目标进度', period: goal.name),
+          const SizedBox(height: AppSpacing.sm),
+          _ProgAmt(
+            currentCents: goal.currentAmountCents,
+            plannedCents: goal.targetAmountCents,
+            currency: currency,
+            format: format,
+            trailingPct: goal.progressPct,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _ProgressBar(value: pct, color: _kIncomeColor),
+          const SizedBox(height: AppSpacing.sm - 4),
+          Row(
+            children: [
+              Text(footLeft,
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.muted)),
+              const Spacer(),
+              if (footRight != null)
+                Text(footRight,
+                    style: const TextStyle(
+                        fontSize: 11, color: AppColors.muted)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── 共享子 widget(摘录自 OD .card-head / .prog-amt / .progress) ───
+
+class _CardHead extends StatelessWidget {
+  const _CardHead({required this.label, required this.period});
+  final String label;
+  final String period;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(label,
+            style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.fg)),
+        const Spacer(),
+        Text(period,
+            style: TextStyle(
+                fontSize: 11,
+                color: AppColors.muted,
+                fontFeatures: AppTypography.tabularFigures)),
+      ],
+    );
+  }
+}
+
+/// 预算/目标金额行(OD `.prog-amt`):¥current / planned(可选 · pct%)。
+/// 主数字 20/600 mono tabular;"¥" 前缀 13 muted," / planned" 后缀 13 muted。
+class _ProgAmt extends StatelessWidget {
+  const _ProgAmt({
+    required this.currentCents,
+    required this.plannedCents,
+    required this.currency,
+    required this.format,
+    this.trailingPct,
+  });
+
+  final int currentCents;
+  final int plannedCents;
+  final String currency;
+  final String Function(int cents, String currency, {bool signed}) format;
+  final double? trailingPct;
+
+  @override
+  Widget build(BuildContext context) {
+    // 拆出 yuan + fen 以便 ¥ 前缀(小) + 整数部分(大) + 小数部分(小,与 OD 一致)。
+    final abs = currentCents.abs();
+    final yuan = abs ~/ 100;
+    final fen = (abs % 100).toString().padLeft(2, '0');
+    final grouped = _groupThousands(yuan);
+    final neg = currentCents < 0;
+    final cur = currencySymbol(currency);
+
+    final suffix = trailingPct != null
+        ? ' / ${format(plannedCents, currency)} · ${trailingPct!.round()}%'
+        : ' / ${format(plannedCents, currency)}';
+
+    return RichText(
+      maxLines: 1,
+      text: TextSpan(
+        style: DefaultTextStyle.of(context).style,
+        children: [
+          TextSpan(
+            text: neg ? '-$cur ' : '$cur ',
+            style: const TextStyle(
+                fontSize: 13, color: AppColors.muted),
+          ),
+          TextSpan(
+            text: grouped,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: AppColors.fg,
+              fontFeatures: AppTypography.tabularFigures,
+            ),
+          ),
+          TextSpan(
+            text: '.$fen',
+            style: const TextStyle(
+                fontSize: 13, color: AppColors.muted),
+          ),
+          TextSpan(
+            text: suffix,
+            style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.muted,
+                fontWeight: FontWeight.w400),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _groupThousands(int n) {
+    final s = n.toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return buf.toString();
+  }
+}
+
+/// 8px pill 进度条(OD `.progress`)。[value] 为 0–100 百分比,clamp 在此。
+class _ProgressBar extends StatelessWidget {
+  const _ProgressBar({required this.value, required this.color});
+  final double value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(999),
+      child: LinearProgressIndicator(
+        value: value / 100,
+        minHeight: 8,
+        backgroundColor: const Color(0xFFF1EDE5),
+        valueColor: AlwaysStoppedAnimation<Color>(color),
+      ),
+    );
   }
 }
 
