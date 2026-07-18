@@ -247,6 +247,44 @@ void main() {
   );
 
   blocTest<GoalBloc, GoalState>(
+    'UpdateGoalRequested forwards linkedAccountIds/linkedDebtIds to repo (M2 Task 2)',
+    build: () {
+      when(() => repo.updateGoal(
+            id: any(named: 'id'),
+            name: any(named: 'name'),
+            targetAmountCents: any(named: 'targetAmountCents'),
+            deadline: any(named: 'deadline'),
+            linkedAccountIds: any(named: 'linkedAccountIds'),
+            linkedDebtIds: any(named: 'linkedDebtIds'),
+          )).thenAnswer((_) async => Right(sampleGoalDetail));
+      return GoalBloc(repo);
+    },
+    act: (b) => b.add(const UpdateGoalRequested(
+      id: 'g1',
+      name: '新',
+      target: 2000000,
+      linkedAccountIds: ['a-1', 'a-2'],
+      linkedDebtIds: ['d-1'],
+    )),
+    wait: const Duration(milliseconds: 150),
+    expect: () => [
+      GoalLoading(),
+      GoalDetailLoaded(sampleGoalDetail),
+    ],
+    verify: (b) {
+      // load-bearing:linked list 原样透传,无丢失/默认空。
+      verify(() => repo.updateGoal(
+            id: 'g1',
+            name: '新',
+            targetAmountCents: 2000000,
+            deadline: null,
+            linkedAccountIds: ['a-1', 'a-2'],
+            linkedDebtIds: ['d-1'],
+          )).called(1);
+    },
+  );
+
+  blocTest<GoalBloc, GoalState>(
     'UpdateGoalRequested failure emits GoalError',
     build: () {
       when(() => repo.updateGoal(

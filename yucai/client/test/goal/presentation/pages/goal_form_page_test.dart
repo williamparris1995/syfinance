@@ -876,6 +876,154 @@ void main() {
       expect(observer.popCount, greaterThanOrEqualTo(1),
           reason: 'UpdateGoalRequested 成功(GoalDetailLoaded)后应 pop');
     });
+
+    // ─── M2 Task 2:edit 预填 linked → 提交 → repo.updateGoal 透传 linked 内容 ───
+    // 与上面「编辑模式提交」测试的差异:上面用 any(named: ...) 对 linked 松匹配,
+    // 这里 pin linkedAccountIds/linkedDebtIds 的确切内容 —— 验证 prefill list
+    // 原样透传到 UpdateGoalRequest(proto field 7/8),不丢、不混 type。
+
+    testWidgets(
+        'M2 Task 2:savings 预填 linkedAccountIds=[sav-1,sav-2] → 提交不改 → repo.updateGoal called with linkedAccountIds 透传 + linkedDebtIds 空',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final goalRepo = _MockGoalRepo();
+      final accountRepo = _MockAccountRepo();
+      final debtRepo = _MockDebtRepo();
+      stubPickers(accountRepo, debtRepo);
+      when(() => goalRepo.getGoal('g1')).thenAnswer((_) async => const dartz.Right(
+                GoalView(
+              id: 'g1',
+              name: '多账户目标',
+              type: GoalType.savings,
+              targetAmountCents: 6000000,
+              deadline: null,
+              linkedAccountIds: ['sav-1', 'sav-2'],
+            ),
+          ));
+
+      List<String>? capturedAccountIds;
+      List<String>? capturedDebtIds;
+      when(() => goalRepo.updateGoal(
+            id: any(named: 'id'),
+            name: any(named: 'name'),
+            targetAmountCents: any(named: 'targetAmountCents'),
+            deadline: any(named: 'deadline'),
+            linkedAccountIds: any(named: 'linkedAccountIds'),
+            linkedDebtIds: any(named: 'linkedDebtIds'),
+          )).thenAnswer((inv) {
+        capturedAccountIds =
+            inv.namedArguments[#linkedAccountIds] as List<String>;
+        capturedDebtIds = inv.namedArguments[#linkedDebtIds] as List<String>;
+        return Future.value(const dartz.Right(GoalView(
+          id: 'g1',
+          name: '多账户目标',
+          type: GoalType.savings,
+          targetAmountCents: 6000000,
+        )));
+      });
+
+      await t.pumpWidget(_harness(
+        goalRepo: goalRepo,
+        accountRepo: accountRepo,
+        debtRepo: debtRepo,
+        goalId: 'g1',
+      ));
+      await t.pumpAndSettle();
+
+      // 不改任何字段直接提交 —— 验证预填的 linked list 原样透传。
+      await t.ensureVisible(find.text('保存修改'));
+      await t.tap(find.text('保存修改'));
+      for (var i = 0; i < 10 && capturedAccountIds == null; i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+
+      // load-bearing:savings 类型 → prefilled linkedAccountIds 全量透传,
+      // linkedDebtIds 空(form _submit 逻辑:非 debtPayoff → debtIds = [])。
+      expect(capturedAccountIds, isNotNull);
+      expect(capturedAccountIds!.toSet(), {'sav-1', 'sav-2'},
+          reason: '编辑模式预填的 linkedAccountIds 应原样透传到 updateGoal');
+      expect(capturedDebtIds, isEmpty,
+          reason: 'savings 类型 linkedDebtIds 必须为空(不混 type)');
+      await t.pumpAndSettle();
+    });
+
+    testWidgets(
+        'M2 Task 2:debtPayoff 预填 linkedDebtIds=[debt-1] → 提交不改 → repo.updateGoal called with linkedDebtIds 透传 + linkedAccountIds 空',
+        (t) async {
+      t.view.physicalSize = desktop;
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.resetPhysicalSize);
+      final goalRepo = _MockGoalRepo();
+      final accountRepo = _MockAccountRepo();
+      final debtRepo = _MockDebtRepo();
+      stubPickers(accountRepo, debtRepo);
+      when(() => goalRepo.getGoal('g1')).thenAnswer((_) async => const dartz.Right(
+                GoalView(
+              id: 'g1',
+              name: '清花呗',
+              type: GoalType.debtPayoff,
+              targetAmountCents: 500000, // ¥5000.00
+              deadline: null,
+              linkedDebtIds: ['debt-1'],
+            ),
+          ));
+
+      List<String>? capturedAccountIds;
+      List<String>? capturedDebtIds;
+      when(() => goalRepo.updateGoal(
+            id: any(named: 'id'),
+            name: any(named: 'name'),
+            targetAmountCents: any(named: 'targetAmountCents'),
+            deadline: any(named: 'deadline'),
+            linkedAccountIds: any(named: 'linkedAccountIds'),
+            linkedDebtIds: any(named: 'linkedDebtIds'),
+          )).thenAnswer((inv) {
+        capturedAccountIds =
+            inv.namedArguments[#linkedAccountIds] as List<String>;
+        capturedDebtIds = inv.namedArguments[#linkedDebtIds] as List<String>;
+        return Future.value(const dartz.Right(GoalView(
+          id: 'g1',
+          name: '清花呗',
+          type: GoalType.debtPayoff,
+          targetAmountCents: 500000,
+        )));
+      });
+
+      await t.pumpWidget(_harness(
+        goalRepo: goalRepo,
+        accountRepo: accountRepo,
+        debtRepo: debtRepo,
+        goalId: 'g1',
+      ));
+      await t.pumpAndSettle();
+
+      // debtPayoff type 锁(edit-mode _isEdit → typeOption onTap null)。
+      // debtPicker 可见 + debt-1 预填勾选。
+      expect(find.byKey(const ValueKey('debtPicker')), findsOneWidget);
+      final debt1Tile = find
+          .byKey(const ValueKey('debtOption_debt-1'))
+          .evaluate()
+          .single
+          .widget as CheckboxListTile;
+      expect(debt1Tile.value, true, reason: 'debtPayoff 预填:debt-1 应勾选');
+
+      await t.ensureVisible(find.text('保存修改'));
+      await t.tap(find.text('保存修改'));
+      for (var i = 0; i < 10 && capturedDebtIds == null; i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+
+      // load-bearing:debtPayoff 类型 → prefilled linkedDebtIds 透传,
+      // linkedAccountIds 空(form _submit:debtPayoff → accountIds = [])。
+      expect(capturedDebtIds, isNotNull);
+      expect(capturedDebtIds, ['debt-1'],
+          reason: '编辑模式预填的 linkedDebtIds 应原样透传到 updateGoal');
+      expect(capturedAccountIds, isEmpty,
+          reason: 'debtPayoff 类型 linkedAccountIds 必须为空(不混 type)');
+      await t.pumpAndSettle();
+    });
   });
 
   // ───────────── group: 模板快捷区 (Task 1) ─────────────
