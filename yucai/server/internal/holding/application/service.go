@@ -680,10 +680,16 @@ func (s *Service) GetPortfolioPerformance(ctx context.Context, tenantID uuid.UUI
 	// degrades independently of full (rangeStart outside [first, last] cashFlowDay
 	// or empty opening position).
 	fullTwr, rangeTwr, _ := s.portfolioTWR(ctx, tenantID, accountID, base, from)
+	// CAGR (Task 1): simple compound annualized (final/initial)^(365/days)-1.
+	// Full: costBasis→currentMV; range: rangeStartMV→currentMV. Independent nil
+	// degrade (照 XIRR/TWR); a third return alongside XIRR + TWR for comparison.
+	fullCagr, rangeCagr, _ := s.portfolioCAGR(ctx, tenantID, accountID, base, from)
 	out := &PortfolioPerformance{
 		PortfolioPoints: portPts, RealizedCents: realized, UnrealizedCents: unrealized,
 		TotalCents: total, AnnualizedPct: fullXirr, RangeAnnualizedPct: rangeXirr,
-		TwrAnnualizedPct: fullTwr, RangeTwrAnnualizedPct: rangeTwr, TotalPct: totalPct, Currency: base,
+		TwrAnnualizedPct: fullTwr, RangeTwrAnnualizedPct: rangeTwr,
+		CagrAnnualizedPct: fullCagr, RangeCagrAnnualizedPct: rangeCagr,
+		TotalPct: totalPct, Currency: base,
 	}
 	if withBenchmark {
 		out.BenchmarkName = "沪深300"
@@ -989,10 +995,15 @@ func (s *Service) GetHoldingPerformance(ctx context.Context, holdingID uuid.UUID
 	// TWR (Task 4): full-period time-weighted annualized % in original currency,
 	// degrades to nil independently of XIRR.
 	twr, _ := s.holdingTWR(ctx, holdingID)
+	// CAGR (Task 1): simple compound annualized (final/initial)^(365/days)-1 in
+	// original currency. Full: first price → current; range: rangeStart price →
+	// current. Independent nil degrade (照 holdingXIRR/holdingTWR).
+	fullCagr, rangeCagr, _ := s.holdingCAGR(ctx, *h, *sec, rangeStart)
 	return &HoldingPerformance{
 		PricePoints: pts, RealizedCents: realized, UnrealizedCents: unrealized,
 		TotalCents: realized + unrealized, AnnualizedPct: fullXirr, RangeAnnualizedPct: rng,
-		TwrAnnualizedPct: twr, Currency: base,
+		TwrAnnualizedPct: twr, CagrAnnualizedPct: fullCagr, RangeCagrAnnualizedPct: rangeCagr,
+		Currency: base,
 	}, nil
 }
 
@@ -1490,6 +1501,112 @@ func (s *Service) priceAtOrBefore(ctx context.Context, securityID uuid.UUID, dat
 		}
 	}
 	return latest.PriceCents, true
+}
+
+// --- CAGR orchestration: portfolioCAGR (MV-based) + holdingCAGR (price-based) ---
+// Simple compound annualized growth = (final/initial)^(365/days)-1. Unlike XIRR
+// (money-weighted, cash-flow sensitive) and TWR (time-weighted, sub-period
+// chained), CAGR compares two endpoint values only — a single ratio over the
+// elapsed calendar days. Degrades to nil independently for full + range when
+// initial<=0, days<1, or history is missing (照 XIRR/TWR nil-degrade 范式).
+
+// portfolioCAGR computes full + range portfolio CAGR (base currency, MV-based).
+//
+//	full: initial = currentCostBasisInBase, final = currentMarketValueInBase,
+//	      days = earliest holding CreatedAt → now (portfolio inception proxy).
+//	rng:  initial = marketValueAtDate(rangeStart), final = currentMarketValueInBase,
+//	      days = rangeStart → now. Degrades when range history missing.
+//
+// Both degrade independently; full + rng each fall back to nil silently.
+func (s *Service) portfolioCAGR(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID, baseCurrency string, rangeStart time.Time) (full, rng *float64, err error) {
+	base := baseCurrency
+	if base == "" {
+		base = "CNY"
+	}
+	finalMV := s.currentMarketValueInBase(ctx, tenantID, accountID, base)
+	// Full: cost basis → current market value over earliest-holding→now days.
+	costBasis := s.currentCostBasisInBase(ctx, tenantID, accountID, base)
+	earliest := s.earliestHoldingCreated(ctx, tenantID, accountID)
+	if costBasis > 0 && !earliest.IsZero() {
+		if days := int(time.Since(earliest).Hours() / 24); days >= 1 {
+			f := math.Pow(float64(finalMV)/float64(costBasis), 365.0/float64(days)) - 1
+			full = ptrFloat(f)
+		}
+	}
+	// Range: rangeStart MV → current MV over rangeStart→now days.
+	startMV, ok := s.marketValueAtDate(ctx, tenantID, accountID, rangeStart, s.rateForBase(ctx, base), base)
+	if ok && startMV > 0 {
+		if days := int(time.Since(rangeStart).Hours() / 24); days >= 1 {
+			r := math.Pow(float64(finalMV)/float64(startMV), 365.0/float64(days)) - 1
+			rng = ptrFloat(r)
+		}
+	}
+	return full, rng, nil
+}
+
+// holdingCAGR computes full + range single-holding CAGR (original currency,
+// price-based). No cash flows — purely a price ratio.
+//
+//	full: initial = first price_history row (FindBySecurity epoch→now asc first =
+//	      oldest), final = sec.CurrentPriceCents, days = first date → now.
+//	rng:  initial = priceAtOrBefore(rangeStart) (split-adjusted forward-fill),
+//	      final = sec.CurrentPriceCents, days = rangeStart → now.
+//
+// Both degrade independently to nil when initial<=0, days<1, or history missing.
+func (s *Service) holdingCAGR(ctx context.Context, h domain.Holding, sec domain.Security, rangeStart time.Time) (full, rng *float64, err error) {
+	cur := float64(sec.CurrentPriceCents)
+	if cur <= 0 {
+		return nil, nil, nil
+	}
+	// Full: first price_history row (FindBySecurity returns asc oldest-first).
+	if s.priceHistoryRepo != nil {
+		all, _ := s.priceHistoryRepo.FindBySecurity(ctx, h.SecurityID, time.Time{}, time.Now())
+		if len(all) > 0 && all[0].PriceCents > 0 {
+			first := float64(all[0].PriceCents)
+			firstDate := all[0].PriceDate
+			if !firstDate.IsZero() {
+				if days := int(time.Since(firstDate).Hours() / 24); days >= 1 {
+					f := math.Pow(cur/first, 365.0/float64(days)) - 1
+					full = ptrFloat(f)
+				}
+			}
+		}
+	}
+	// Range: priceAtOrBefore(rangeStart) → current over rangeStart→now days.
+	startPriceCents, ok := s.priceAtOrBefore(ctx, h.SecurityID, rangeStart)
+	if ok && startPriceCents > 0 {
+		if days := int(time.Since(rangeStart).Hours() / 24); days >= 1 {
+			r := math.Pow(cur/float64(startPriceCents), 365.0/float64(days)) - 1
+			rng = ptrFloat(r)
+		}
+	}
+	return full, rng, nil
+}
+
+// earliestHoldingCreated returns the earliest holding.CreatedAt across the
+// tenant (account-scoped when accountID != nil). Zero time when no holdings
+// exist or the repo errors (caller degrades — portfolioCAGR full → nil). Used
+// by portfolioCAGR as a portfolio-inception proxy for full-period day count.
+// Pages through FindAll (mirrors currentCostBasisInBase's pagination shape).
+func (s *Service) earliestHoldingCreated(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID) time.Time {
+	var earliest time.Time
+	page := domain.PageRequest{PageSize: 100}
+	for {
+		res, err := s.holdingRepo.FindAll(ctx, tenantID, accountID, page)
+		if err != nil {
+			break
+		}
+		for _, h := range res.Items {
+			if earliest.IsZero() || h.CreatedAt.Before(earliest) {
+				earliest = h.CreatedAt
+			}
+		}
+		if res.NextPageToken == "" || len(res.Items) == 0 {
+			break
+		}
+		page.PageToken = res.NextPageToken
+	}
+	return earliest
 }
 
 // filterTradesBySecurity narrows trades to one security (QtyAtDate rebuild).

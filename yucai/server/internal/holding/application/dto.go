@@ -143,29 +143,33 @@ type CurvePointDTO struct {
 // PortfolioPerformance is the portfolio-level curve + foot (Task 6 fills).
 // All monetary foot fields are CNY cents; curve points are CNY 元 (double).
 type PortfolioPerformance struct {
-	PortfolioPoints       []CurvePointDTO // CNY market value over time
-	BenchmarkPoints       []CurvePointDTO // CSI300 (empty if !include_benchmark)
-	BenchmarkName         string
-	RealizedCents         int64    // Σ sell FIFO realized + dividend, CNY
-	UnrealizedCents       int64    // current portfolio unrealized, CNY
-	TotalCents            int64    // realized + unrealized
-	AnnualizedPct         *float64 // 全期 XIRR 年化%(nil=降级)
-	RangeAnnualizedPct    *float64 // 区间 XIRR 年化%(随 CurveRange,nil=降级)
-	TwrAnnualizedPct      *float64 // TWR 时间加权年化%(全期,nil=降级)
-	RangeTwrAnnualizedPct *float64 // 区间 TWR 时间加权年化%(随 CurveRange,nil=降级/区间不足)
-	TotalPct              float64  // cumulative return %
-	Currency              string   // "CNY"
+	PortfolioPoints        []CurvePointDTO // CNY market value over time
+	BenchmarkPoints        []CurvePointDTO // CSI300 (empty if !include_benchmark)
+	BenchmarkName          string
+	RealizedCents          int64    // Σ sell FIFO realized + dividend, CNY
+	UnrealizedCents        int64    // current portfolio unrealized, CNY
+	TotalCents             int64    // realized + unrealized
+	AnnualizedPct          *float64 // 全期 XIRR 年化%(nil=降级)
+	RangeAnnualizedPct     *float64 // 区间 XIRR 年化%(随 CurveRange,nil=降级)
+	TwrAnnualizedPct       *float64 // TWR 时间加权年化%(全期,nil=降级)
+	RangeTwrAnnualizedPct  *float64 // 区间 TWR 时间加权年化%(随 CurveRange,nil=降级/区间不足)
+	CagrAnnualizedPct      *float64 // CAGR simple 复合年化(costBasis→MV,nil=降级)
+	RangeCagrAnnualizedPct *float64 // 区间 CAGR(rangeStartMV→MV,nil=降级)
+	TotalPct               float64  // cumulative return %
+	Currency               string   // "CNY"
 }
 
 // HoldingPerformance is the single-holding curve + foot.
 // Curve is original-currency price; foot fields are original currency.
 type HoldingPerformance struct {
-	PricePoints        []CurvePointDTO // original-currency price over time
-	RealizedCents      int64           // this holding's FIFO realized, original currency
-	UnrealizedCents    int64           // current holding unrealized, original currency
-	TotalCents         int64           // realized + unrealized
-	AnnualizedPct      *float64        // 全期 XIRR(原币,nil=降级)
-	RangeAnnualizedPct *float64        // 区间 XIRR(原币,nil=降级)
-	TwrAnnualizedPct   *float64        // TWR(原币,全期,nil=降级)
-	Currency           string          // original currency
+	PricePoints            []CurvePointDTO // original-currency price over time
+	RealizedCents          int64           // this holding's FIFO realized, original currency
+	UnrealizedCents        int64           // current holding unrealized, original currency
+	TotalCents             int64           // realized + unrealized
+	AnnualizedPct          *float64        // 全期 XIRR(原币,nil=降级)
+	RangeAnnualizedPct     *float64        // 区间 XIRR(原币,nil=降级)
+	TwrAnnualizedPct       *float64        // TWR(原币,全期,nil=降级)
+	CagrAnnualizedPct      *float64        // CAGR(原币,first/range-start price→current,nil=降级)
+	RangeCagrAnnualizedPct *float64        // 区间 CAGR(原币,range-start price→current,nil=降级)
+	Currency               string          // original currency
 }

@@ -5,13 +5,13 @@ import (
 	"log/slog"
 	"time"
 
-	pb "github.com/yucai/server/internal/proto/holding/v1"
-	commonpb "github.com/yucai/server/internal/proto/common/v1"
 	"github.com/google/uuid"
-	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
 	accountdomain "github.com/yucai/server/internal/account/domain"
+	authgrpc "github.com/yucai/server/internal/auth/adapter/driving/grpc"
 	"github.com/yucai/server/internal/holding/application"
 	"github.com/yucai/server/internal/holding/domain"
+	commonpb "github.com/yucai/server/internal/proto/common/v1"
+	pb "github.com/yucai/server/internal/proto/holding/v1"
 	txnApp "github.com/yucai/server/internal/transaction/application"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -34,7 +34,7 @@ func (h *HoldingHandler) CreateSecurity(ctx context.Context, req *pb.CreateSecur
 	resp, err := h.service.CreateSecurity(ctx, application.CreateSecurityRequest{
 		Symbol: req.Symbol, Name: req.Name,
 		SecurityType: protoToSecType(req.SecurityType),
-		Exchange: req.Exchange, CurrencyCode: req.CurrencyCode,
+		Exchange:     req.Exchange, CurrencyCode: req.CurrencyCode,
 	})
 	if err != nil {
 		return nil, mapError(err)
@@ -233,10 +233,12 @@ func (h *HoldingHandler) ListHoldingTransactions(ctx context.Context, req *pb.Li
 	}
 	var acctID, secID *uuid.UUID
 	if req.AccountId != "" {
-		id := parseUUID(req.AccountId); acctID = &id
+		id := parseUUID(req.AccountId)
+		acctID = &id
 	}
 	if req.SecurityId != "" {
-		id := parseUUID(req.SecurityId); secID = &id
+		id := parseUUID(req.SecurityId)
+		secID = &id
 	}
 	page := domain.PageRequest{PageSize: 20}
 	if req.Page != nil {
@@ -298,18 +300,20 @@ func (h *HoldingHandler) GetPortfolioPerformance(ctx context.Context, req *pb.Ge
 	// Proto optional (Task 5) accepts the pointer directly — nil round-trips
 	// as field-absent across the wire, distinguishing degraded vs 0.0%.
 	return &pb.PortfolioPerformanceResponse{
-		PortfolioPoints:       curvePointsToProto(perf.PortfolioPoints),
-		BenchmarkPoints:       curvePointsToProto(perf.BenchmarkPoints),
-		BenchmarkName:         perf.BenchmarkName,
-		RealizedCents:         perf.RealizedCents,
-		UnrealizedCents:       perf.UnrealizedCents,
-		TotalCents:            perf.TotalCents,
-		AnnualizedPct:         perf.AnnualizedPct,
-		RangeAnnualizedPct:    perf.RangeAnnualizedPct,
-		TwrAnnualizedPct:      perf.TwrAnnualizedPct,
-		RangeTwrAnnualizedPct: perf.RangeTwrAnnualizedPct,
-		TotalPct:              perf.TotalPct,
-		Currency:              perf.Currency,
+		PortfolioPoints:        curvePointsToProto(perf.PortfolioPoints),
+		BenchmarkPoints:        curvePointsToProto(perf.BenchmarkPoints),
+		BenchmarkName:          perf.BenchmarkName,
+		RealizedCents:          perf.RealizedCents,
+		UnrealizedCents:        perf.UnrealizedCents,
+		TotalCents:             perf.TotalCents,
+		AnnualizedPct:          perf.AnnualizedPct,
+		RangeAnnualizedPct:     perf.RangeAnnualizedPct,
+		TwrAnnualizedPct:       perf.TwrAnnualizedPct,
+		RangeTwrAnnualizedPct:  perf.RangeTwrAnnualizedPct,
+		CagrAnnualizedPct:      perf.CagrAnnualizedPct,
+		RangeCagrAnnualizedPct: perf.RangeCagrAnnualizedPct,
+		TotalPct:               perf.TotalPct,
+		Currency:               perf.Currency,
 	}, nil
 }
 
@@ -328,14 +332,16 @@ func (h *HoldingHandler) GetHoldingPerformance(ctx context.Context, req *pb.GetH
 		return nil, mapError(err)
 	}
 	return &pb.HoldingPerformanceResponse{
-		PricePoints:        curvePointsToProto(perf.PricePoints),
-		RealizedCents:      perf.RealizedCents,
-		UnrealizedCents:    perf.UnrealizedCents,
-		TotalCents:         perf.TotalCents,
-		Currency:           perf.Currency,
-		AnnualizedPct:      perf.AnnualizedPct,
-		RangeAnnualizedPct: perf.RangeAnnualizedPct,
-		TwrAnnualizedPct:   perf.TwrAnnualizedPct,
+		PricePoints:            curvePointsToProto(perf.PricePoints),
+		RealizedCents:          perf.RealizedCents,
+		UnrealizedCents:        perf.UnrealizedCents,
+		TotalCents:             perf.TotalCents,
+		Currency:               perf.Currency,
+		AnnualizedPct:          perf.AnnualizedPct,
+		RangeAnnualizedPct:     perf.RangeAnnualizedPct,
+		TwrAnnualizedPct:       perf.TwrAnnualizedPct,
+		CagrAnnualizedPct:      perf.CagrAnnualizedPct,
+		RangeCagrAnnualizedPct: perf.RangeCagrAnnualizedPct,
 	}, nil
 }
 
@@ -410,45 +416,51 @@ func tradeToProto(tr application.HoldingTransactionDTO) *pb.HoldingTransactionDT
 
 func protoToSecType(t pb.SecurityType) domain.SecurityType {
 	m := map[pb.SecurityType]domain.SecurityType{
-		pb.SecurityType_SECURITY_TYPE_STOCK: domain.SecurityTypeStock,
-		pb.SecurityType_SECURITY_TYPE_FUND:  domain.SecurityTypeFund,
-		pb.SecurityType_SECURITY_TYPE_ETF:   domain.SecurityTypeETF,
-		pb.SecurityType_SECURITY_TYPE_BOND:  domain.SecurityTypeBond,
-		pb.SecurityType_SECURITY_TYPE_GOLD:  domain.SecurityTypeGold,
+		pb.SecurityType_SECURITY_TYPE_STOCK:  domain.SecurityTypeStock,
+		pb.SecurityType_SECURITY_TYPE_FUND:   domain.SecurityTypeFund,
+		pb.SecurityType_SECURITY_TYPE_ETF:    domain.SecurityTypeETF,
+		pb.SecurityType_SECURITY_TYPE_BOND:   domain.SecurityTypeBond,
+		pb.SecurityType_SECURITY_TYPE_GOLD:   domain.SecurityTypeGold,
 		pb.SecurityType_SECURITY_TYPE_OPTION: domain.SecurityTypeOption,
-		pb.SecurityType_SECURITY_TYPE_OTHER: domain.SecurityTypeOther,
+		pb.SecurityType_SECURITY_TYPE_OTHER:  domain.SecurityTypeOther,
 	}
-	if v, ok := m[t]; ok { return v }
+	if v, ok := m[t]; ok {
+		return v
+	}
 	return domain.SecurityTypeStock
 }
 
 func secTypeToProto(t domain.SecurityType) pb.SecurityType {
 	m := map[domain.SecurityType]pb.SecurityType{
-		domain.SecurityTypeStock: pb.SecurityType_SECURITY_TYPE_STOCK,
-		domain.SecurityTypeFund:  pb.SecurityType_SECURITY_TYPE_FUND,
-		domain.SecurityTypeETF:   pb.SecurityType_SECURITY_TYPE_ETF,
-		domain.SecurityTypeBond:  pb.SecurityType_SECURITY_TYPE_BOND,
-		domain.SecurityTypeGold:  pb.SecurityType_SECURITY_TYPE_GOLD,
+		domain.SecurityTypeStock:  pb.SecurityType_SECURITY_TYPE_STOCK,
+		domain.SecurityTypeFund:   pb.SecurityType_SECURITY_TYPE_FUND,
+		domain.SecurityTypeETF:    pb.SecurityType_SECURITY_TYPE_ETF,
+		domain.SecurityTypeBond:   pb.SecurityType_SECURITY_TYPE_BOND,
+		domain.SecurityTypeGold:   pb.SecurityType_SECURITY_TYPE_GOLD,
 		domain.SecurityTypeOption: pb.SecurityType_SECURITY_TYPE_OPTION,
-		domain.SecurityTypeOther: pb.SecurityType_SECURITY_TYPE_OTHER,
+		domain.SecurityTypeOther:  pb.SecurityType_SECURITY_TYPE_OTHER,
 	}
-	if v, ok := m[t]; ok { return v }
+	if v, ok := m[t]; ok {
+		return v
+	}
 	return pb.SecurityType_SECURITY_TYPE_UNSPECIFIED
 }
 
 func tradeTypeToProto(t domain.TradeType) pb.TradeType {
 	m := map[domain.TradeType]pb.TradeType{
-		domain.TradeTypeBuy: pb.TradeType_TRADE_TYPE_BUY,
-		domain.TradeTypeSell: pb.TradeType_TRADE_TYPE_SELL,
+		domain.TradeTypeBuy:      pb.TradeType_TRADE_TYPE_BUY,
+		domain.TradeTypeSell:     pb.TradeType_TRADE_TYPE_SELL,
 		domain.TradeTypeDividend: pb.TradeType_TRADE_TYPE_DIVIDEND,
-		domain.TradeTypeSplit: pb.TradeType_TRADE_TYPE_SPLIT,
+		domain.TradeTypeSplit:    pb.TradeType_TRADE_TYPE_SPLIT,
 	}
-	if v, ok := m[t]; ok { return v }
+	if v, ok := m[t]; ok {
+		return v
+	}
 	return pb.TradeType_TRADE_TYPE_UNSPECIFIED
 }
 
 func parseDate(s string) (time.Time, error) { return time.Parse("2006-01-02", s) }
-func parseUUID(s string) uuid.UUID { id, _ := uuid.Parse(s); return id }
+func parseUUID(s string) uuid.UUID          { id, _ := uuid.Parse(s); return id }
 
 func getTenantID(ctx context.Context) (uuid.UUID, error) {
 	_, tenantID, err := authgrpc.GetUserAndTenantIDFromContext(ctx)
@@ -457,15 +469,23 @@ func getTenantID(ctx context.Context) (uuid.UUID, error) {
 
 func mapError(err error) error {
 	msg := err.Error()
-	if contains(msg, "not found") { return status.Error(codes.NotFound, msg) }
-	if contains(msg, "invalid") || contains(msg, "must") { return status.Error(codes.InvalidArgument, msg) }
-	if contains(msg, "cannot sell") { return status.Error(codes.FailedPrecondition, msg) }
+	if contains(msg, "not found") {
+		return status.Error(codes.NotFound, msg)
+	}
+	if contains(msg, "invalid") || contains(msg, "must") {
+		return status.Error(codes.InvalidArgument, msg)
+	}
+	if contains(msg, "cannot sell") {
+		return status.Error(codes.FailedPrecondition, msg)
+	}
 	return status.Error(codes.Internal, msg)
 }
 
 func contains(s, sub string) bool {
 	for i := 0; i <= len(s)-len(sub); i++ {
-		if s[i:i+len(sub)] == sub { return true }
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
 	}
 	return false
 }
