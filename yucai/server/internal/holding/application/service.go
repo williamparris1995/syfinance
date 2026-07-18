@@ -1485,6 +1485,11 @@ func (s *Service) holdingTWR(ctx context.Context, holdingID uuid.UUID) (*float64
 // would pair post-split qty with pre-split price → 2× overstatement (the mirror
 // of the cashFlowDays split-day bug fixed by excluding pure-split days). Price
 // storage freshness is the providers' concern (out of scope per spec §3).
+//
+// priceAtOrBefore scans price_history for the latest row at or before [date].
+// FindBySecurity's concrete impl sorts ASC by PriceDate, but the interface
+// contract doesn't guarantee ordering, so we iterate defensively (same reason
+// holdingCAGR scans for min-PriceDate rather than trusting all[0]).
 func (s *Service) priceAtOrBefore(ctx context.Context, securityID uuid.UUID, date time.Time) (int64, bool) {
 	if s.priceHistoryRepo == nil {
 		return 0, false
@@ -1493,7 +1498,7 @@ func (s *Service) priceAtOrBefore(ctx context.Context, securityID uuid.UUID, dat
 	if err != nil || len(ph) == 0 {
 		return 0, false
 	}
-	// Pick the latest entry ≤ date (FindBySecurity may not be sorted by date).
+	// Pick the latest entry ≤ date (defensive scan — interface doesn't guarantee order).
 	latest := ph[0]
 	for _, p := range ph {
 		if !p.PriceDate.After(date) && p.PriceDate.After(latest.PriceDate) {
@@ -1558,17 +1563,25 @@ func (s *Service) holdingCAGR(ctx context.Context, h domain.Holding, sec domain.
 	if cur <= 0 {
 		return nil, nil, nil
 	}
-	// Full: first price_history row (FindBySecurity returns asc oldest-first).
+	// Full: earliest price_history row (iterate to min PriceDate — don't rely on
+	// FindBySecurity sort order, mirror priceAtOrBefore's defensive scan).
 	if s.priceHistoryRepo != nil {
 		all, _ := s.priceHistoryRepo.FindBySecurity(ctx, h.SecurityID, time.Time{}, time.Now())
-		if len(all) > 0 && all[0].PriceCents > 0 {
-			first := float64(all[0].PriceCents)
-			firstDate := all[0].PriceDate
-			if !firstDate.IsZero() {
-				if days := int(time.Since(firstDate).Hours() / 24); days >= 1 {
-					f := math.Pow(cur/first, 365.0/float64(days)) - 1
-					full = ptrFloat(f)
-				}
+		var first float64
+		var firstDate time.Time
+		for _, p := range all {
+			if p.PriceCents <= 0 {
+				continue
+			}
+			if firstDate.IsZero() || p.PriceDate.Before(firstDate) {
+				firstDate = p.PriceDate
+				first = float64(p.PriceCents)
+			}
+		}
+		if first > 0 && !firstDate.IsZero() {
+			if days := int(time.Since(firstDate).Hours() / 24); days >= 1 {
+				f := math.Pow(cur/first, 365.0/float64(days)) - 1
+				full = ptrFloat(f)
 			}
 		}
 	}

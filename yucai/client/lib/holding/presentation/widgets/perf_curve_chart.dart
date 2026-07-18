@@ -250,7 +250,12 @@ class PerfCurveChart extends StatelessWidget {
         lineTouchData: const LineTouchData(enabled: false),
         clipData: const FlClipData.all(),
         minX: 0,
-        maxX: (portSpots.length - 1).toDouble().clamp(0, double.infinity),
+        // maxX = max(portLen, benchLen)-1:benchmark 是 raw price_history(~250 行),
+        // portfolio 是 granularity bucket(~12 月)→ benchLen > portLen 时若只取
+        // portSpots.length-1 会 clip 掉基准曲线尾部 spots。
+        maxX: ((portSpots.length > benchSpots.length ? portSpots.length : benchSpots.length) - 1)
+            .toDouble()
+            .clamp(0, double.infinity),
         minY: minY,
         maxY: maxY == minY ? minY + 1 : maxY,
         lineBarsData: [

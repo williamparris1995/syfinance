@@ -321,3 +321,54 @@ func TestPortfolioCAGRRangeDegradeEarly(t *testing.T) {
 		t.Errorf("rng = %v, want nil (rangeStart 2019-06-01 after trade but before first price 2020-01-01 → priceAtOrBefore ok=false)", *rng)
 	}
 }
+
+// --- holdingCAGR sort-safety (Fix 1: 不依赖 FindBySecurity sort order) ---
+//
+// holdingCAGR full-period 取最早 price_history 行(min PriceDate)。旧实现直接
+// 用 all[0](假设 FindBySecurity ASC oldest-first),但 interface 不保证排序;
+// 一旦换 cache / SQL DESC / test fake newest-first,all[0] 会变成最新价
+// → (cur/cur)^(...)-1 ≈ 0%。Fix 后 iterate min-PriceDate,任意顺序都正确。
+//
+// 本测用 fakePriceRepoDateAware(rows 按 newest-first 喂入)锁住 Fix:
+// 取所有 rows 的最早 PriceDate(2020-01-01, price=10000)→ cur/start=1.5
+// → CAGR > 0。若回归 all[0] 信任,会取到 2025-01-01 price=14000 → ratio 近 1
+// → CAGR ≈ 0 → 测失败。
+func TestHoldingCAGRFullPeriodReverseOrder(t *testing.T) {
+	secID := uuid.New()
+	holdID := uuid.New()
+	accID := uuid.New()
+	h := domain.Holding{ID: holdID, AccountID: accID, SecurityID: secID, Quantity: 100, AvgCostCents: 10000}
+	sec := domain.Security{ID: secID, CurrencyCode: "CNY", CurrentPriceCents: 15000}
+	// Newest-first 故意打乱:FindBySecurity 不保证 ASC。最早是 2020-01-01@10000。
+	repo := &fakePriceRepoDateAware{rows: []domain.SecurityPriceHistory{
+		{SecurityID: secID, PriceDate: mustDate2("2025-01-01"), PriceCents: 14000},
+		{SecurityID: secID, PriceDate: mustDate2("2023-01-01"), PriceCents: 12000},
+		{SecurityID: secID, PriceDate: mustDate2("2020-01-01"), PriceCents: 10000}, // ← earliest, must be picked
+		{SecurityID: secID, PriceDate: mustDate2("2024-01-01"), PriceCents: 13000},
+	}}
+	svc := &Service{
+		securityRepo:     &fakeSecurityRepoByID{sec: sec},
+		holdingRepo:      &fakeHoldingRepoSingle{h: h},
+		tradeRepo:        &fakeTradeRepo{},
+		priceHistoryRepo: repo,
+		rateRepo:         &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
+	}
+	full, _, err := svc.holdingCAGR(context.Background(), h, sec, mustDate2("2024-01-01"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if full == nil {
+		t.Fatal("full CAGR nil, want non-nil (earliest price 2020-01-01@10000 picked regardless of FindBySecurity row order)")
+	}
+	if math.IsNaN(*full) || math.IsInf(*full, 0) {
+		t.Fatalf("full CAGR not finite: %v", *full)
+	}
+	// earliest 2020-01-01@10000 → cur/first = 15000/10000 = 1.5 → CAGR > 0。
+	// 若回归 all[0] 信任(newest-first → all[0]=14000 → ratio=1.07 → 6y CAGR
+	// ≈ 1.1%/y,仍 > 0 但远低于正确值)。所以加严格的公式断言锁死 earliest 选择。
+	days := int(time.Since(mustDate2("2020-01-01")).Hours() / 24)
+	want := math.Pow(1.5, 365.0/float64(days)) - 1
+	if math.Abs(*full-want) > 1e-9 {
+		t.Errorf("full CAGR = %.10v, want %.10v (1.5^(365/%d)-1; iterate-min-PriceDate must pick 2020-01-01@10000 not all[0])", *full, want, days)
+	}
+}
