@@ -68,7 +68,7 @@ design-output/      # OD 原型(holding + accounts-responsive)
 ## 测试
 - server:Go 单测 + 集成测(enttest SQLite)+ e2e(grpcurl,需 auth token)
 - client:widget test(mocktail `Mock`/`Fake`;pump 而非 pumpAndSettle 当有永不完成的 Future)
-- 预存 fail:**4 测 / 3 文件**(test drift,断言过时非生产 bug,out-of-scope):account_detail_page_test(收支统计交易数 — 时间 scope 漂移,fixture txn 日期 vs `_txnCountInScope` 当前月)+ app_shell_test(topbar BackDropFilter)+ receivable_detail_page_test(StatRow "1 期" + 筛选日期 — redesign 漂移)。注:原 router_test 3 sidebar 导航 fail 已修 `5d3e8f0`(dashboard `68508b2` mock 回归,真 bug)
+- 预存 fail:**3 测 / 2 文件**(test drift,断言过时非生产 bug,out-of-scope):account_detail_page_test(收支统计交易数 — 时间 scope 漂移,fixture txn 日期 vs `_txnCountInScope` 当前月)+ receivable_detail_page_test(StatRow "1 期" + 筛选日期 — redesign 漂移)。注:① 原 router_test 3 sidebar 导航 fail 已修 `5d3e8f0`(dashboard `68508b2` mock 回归,真 bug);② P0-1(`d431b02`)给 home_page 加 getIt 依赖时 router_test/app_shell_test 漏注册 NetWorthDataSource 等(repo stub)→ 4 fail(app_shell 曾误标 BackdropFilter drift,实为 getIt 回归),`8f54ef9` 补齐 → 基线回 3 fail
 
 ## 工作流(SDD)
 - 创造性工作(新功能/模块)走 brainstorming → spec(`docs/superpowers/specs/`)→ plan(`docs/superpowers/plans/`)→ subagent-driven 实现
