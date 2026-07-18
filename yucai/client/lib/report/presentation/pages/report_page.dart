@@ -17,15 +17,21 @@ import 'package:yucai_client/transaction/domain/value_objects.dart';
 ///
 /// 顶层路由 /reports（StatefulShellRoute 之外，与 /login /register 同级），
 /// 故无 shell sidebar/topbar —— 本页自带顶栏（返回 chevronLeft + 标题 +
-/// 月/年 period segmented）。body 用 FutureBuilder 拉
+/// 日期选择按钮 + 月/年 period segmented）。body 用 FutureBuilder 拉
 /// [TransactionRepository.summary]（[MonthlySummary]：income/expense/net/
 /// dailyAvg + byDay + byCategory），为 Task 3 三图表预留 section 占位：
 ///   1. 收支趋势（LineChart，byDay）   — 占位「趋势图待实现」
 ///   2. 分类占比（PieChart，byCategory）— 占位「分类图待实现」
 ///   3. 月度对比（BarChart，多月）      — 占位「对比图待实现」
 ///
-/// period 切换：[SummaryScope.month]（默认，当月按日聚合）↔
-/// [SummaryScope.year]（当年按月聚合）。切换时重建 Future 重新拉取。
+/// period 切换：[SummaryScope.month]（默认，按日聚合当月）↔
+/// [SummaryScope.year]（按月聚合当年）。切换时重建 Future 重新拉取。
+///
+/// **历史日期切换**（P0-2）：[_selectedDate]（默认 `DateTime.now()`）作为
+/// summary 与近 6 月对比的「锚点」月份/年份。顶栏日期按钮触发
+/// [showDatePicker]：month scope 取年月（日忽略 → `'YYYY 年 M 月'`）；
+/// year scope 以 [DatePickerMode.year] 起步（取年 → `'YYYY 年'`）。选日期后
+/// 同时重载 summary 与月度对比，让两图对齐到同一锚点。
 class ReportPage extends StatefulWidget {
   const ReportPage({super.key});
 
@@ -35,8 +41,11 @@ class ReportPage extends StatefulWidget {
 
 class _ReportPageState extends State<ReportPage> {
   SummaryScope _scope = SummaryScope.month;
+  /// 当前选中的「锚点」日期。月 scope 只用年月；年 scope 只用年。
+  /// 默认 `DateTime.now()`（当月/当年），用户可通过顶栏 picker 切到历史。
+  DateTime _selectedDate = DateTime.now();
   late Future<Either<Failure, MonthlySummary>> _future;
-  /// 近 6 月月度对比数据（与 period tab 无关，故独立加载一次，不复载）。
+  /// 近 6 月月度对比数据（锚点月份 `_selectedDate` 往前 6 个月）。
   late Future<List<MonthlySummary>> _monthlyComparison;
 
   @override
@@ -47,19 +56,18 @@ class _ReportPageState extends State<ReportPage> {
   }
 
   Future<Either<Failure, MonthlySummary>> _load() {
-    final now = DateTime.now();
     return getIt<TransactionRepository>()
-        .summary(now.year, now.month, scope: _scope);
+        .summary(_selectedDate.year, _selectedDate.month, scope: _scope);
   }
 
-  /// 并发拉取近 6 个月 summary（month scope）。各月独立 Either；任一失败折叠为
-  /// 跳过（drop），全失败 → 空列表 → 月度对比 chart 自身空态。
+  /// 并发拉取以 [_selectedDate] 为终点的近 6 个月 summary（month scope）。
+  /// 各月独立 Either；任一失败折叠为跳过（drop），全失败 → 空列表 →
+  /// 月度对比 chart 自身空态。
   Future<List<MonthlySummary>> _loadMonthlyComparison() async {
-    final now = DateTime.now();
     final futures = <Future<Either<Failure, MonthlySummary>>>[];
     for (var i = 5; i >= 0; i--) {
       // DateTime(y, m-i) 自动处理跨年（month<=0 → 前一年 12 月等）。
-      final d = DateTime(now.year, now.month - i);
+      final d = DateTime(_selectedDate.year, _selectedDate.month - i);
       futures.add(getIt<TransactionRepository>()
           .summary(d.year, d.month, scope: SummaryScope.month));
     }
@@ -78,6 +86,33 @@ class _ReportPageState extends State<ReportPage> {
     });
   }
 
+  /// 弹出 date picker 让用户选历史日期。month scope 默认日历模式（取年月,
+  /// 日忽略）;year scope 以 year 模式起步（取年）。pick 到与当前相同的日期
+  /// 不重载（避免空刷新）。`lastDate = now` 禁选未来（报表无未来数据）。
+  Future<void> _pickDate() async {
+    final today = DateTime.now();
+    // 防 initialDate > lastDate 边界（_selectedDate 可能晚于 today 几毫秒）。
+    final initial =
+        _selectedDate.isAfter(today) ? today : _selectedDate;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2000),
+      lastDate: today,
+      initialDatePickerMode: _scope == SummaryScope.year
+          ? DatePickerMode.year
+          : DatePickerMode.day,
+      helpText: _scope == SummaryScope.year ? '选择年份' : '选择月份',
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+        _future = _load();
+        _monthlyComparison = _loadMonthlyComparison();
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -86,7 +121,9 @@ class _ReportPageState extends State<ReportPage> {
         children: [
           _ReportTopBar(
             scope: _scope,
+            selectedDate: _selectedDate,
             onScopeChanged: _switchScope,
+            onPickDate: _pickDate,
             onBack: () => context.go('/home'),
           ),
           const Divider(height: 1, color: AppColors.border),
@@ -181,18 +218,27 @@ class _ReportPageState extends State<ReportPage> {
   }
 }
 
-// ───────────────────────── 顶栏（返回 + 标题 + period segmented） ──────────
+// ───────────────────────── 顶栏（返回 + 标题 + 日期按钮 + period segmented）
 
 class _ReportTopBar extends StatelessWidget {
   const _ReportTopBar({
     required this.scope,
+    required this.selectedDate,
     required this.onScopeChanged,
+    required this.onPickDate,
     required this.onBack,
   });
 
   final SummaryScope scope;
+  final DateTime selectedDate;
   final ValueChanged<SummaryScope> onScopeChanged;
+  final VoidCallback onPickDate;
   final VoidCallback onBack;
+
+  /// 日期按钮文案。month scope → `'YYYY 年 M 月'`;year scope → `'YYYY 年'`。
+  String get _dateLabel => scope == SummaryScope.year
+      ? '${selectedDate.year} 年'
+      : '${selectedDate.year} 年 ${selectedDate.month} 月';
 
   @override
   Widget build(BuildContext context) {
@@ -227,8 +273,63 @@ class _ReportTopBar extends StatelessWidget {
           ),
         ),
         const Spacer(),
+        _DateButton(
+          key: const ValueKey('reportDateButton'),
+          label: _dateLabel,
+          onTap: onPickDate,
+        ),
+        const SizedBox(width: AppSpacing.sm),
         _PeriodSegmented(scope: scope, onChanged: onScopeChanged),
       ]),
+    );
+  }
+}
+
+/// 顶栏日期选择按钮：日历图标 + 当前选中日期文案 + 下拉箭头，点击触发
+/// [onTap]（页面弹 showDatePicker）。对齐 [_PeriodSegmented] 的 pill 风格
+/// （surface 底 + border + sm 圆角）以读作同一组控件。
+class _DateButton extends StatelessWidget {
+  const _DateButton({super.key, required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: '选择日期',
+      child: GestureDetector(
+        onTap: onTap,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: AppRadius.smBorder,
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(LucideIcons.calendar,
+                    size: 14, color: AppColors.muted),
+                const SizedBox(width: 6),
+                Text(label,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.fg,
+                    )),
+                const SizedBox(width: 4),
+                const Icon(LucideIcons.chevronDown,
+                    size: 14, color: AppColors.muted),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
