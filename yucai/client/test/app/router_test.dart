@@ -54,6 +54,9 @@ import 'package:yucai_client/holding/domain/entities/performance_entity.dart';
 import 'package:yucai_client/holding/domain/repositories/holding_repository.dart';
 import 'package:yucai_client/holding/presentation/pages/holding_detail_page.dart';
 import 'package:yucai_client/holding/presentation/pages/trade_sheet_page.dart';
+import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/holding/data/networth_ds.dart';
+import 'package:yucai_client/holding/domain/entities/net_worth_entity.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/debt/presentation/pages/receivables_page.dart';
 import 'package:yucai_client/transaction/domain/entities/transaction_entity.dart';
@@ -97,6 +100,20 @@ class _FakeCurrencyBloc extends Fake implements CurrencyBloc {
   void add(Object? event) {}
   @override
   Future<void> close() async {}
+}
+
+/// Fake NetWorthDataSource — HomePage _loadNetWorth reads getIt<NetWorthDataSource>
+/// at initState (commit 68508b2 占位修复); register a fake returning a zeroed view
+/// so /home resolves without pulling the full DI graph. Mirrors home_page_test.
+class _FakeNetWorthDs extends Fake implements NetWorthDataSource {
+  @override
+  Future<NetWorthView> getNetWorth({required String baseCurrency}) async =>
+      NetWorthView(
+        totalAssetsCents: 0,
+        totalLiabilitiesCents: 0,
+        netWorthCents: 0,
+        currency: 'CNY',
+      );
 }
 
 void main() {
@@ -148,6 +165,9 @@ void main() {
     // cross-page refresh listener in initState). Register a fake so the home
     // branch resolves without pulling in the full DI graph.
     getIt.registerSingleton<CurrencySettings>(_FakeCurrencySettings());
+    // HomePage _loadNetWorth reads getIt<NetWorthDataSource>() at initState
+    // (68508b2); register a fake so /home resolves(P0-1 摘要卡 + 既有净资产卡 都依赖)。
+    getIt.registerSingleton<NetWorthDataSource>(_FakeNetWorthDs());
     // Routes create a fresh CurrencyBloc via getIt<CurrencyBloc>() (router.dart
     // /debts, /debts/:id, /receivables, /receivables/:id, /accounts, /settings).
     // Register a factory returning a fake so those route builders resolve;
@@ -230,6 +250,11 @@ void main() {
     // detail/form pages don't hit an unstubbed call.
     when(() => budgetRepo.getBudget(any()))
         .thenAnswer((_) async => dartz.Right(_budget()));
+    // HomePage _loadSummaryCards (P0-1 dashboard 摘要卡) reads
+    // getBudgetByMonth(monthStr); stub returning Left → home_page folds to null
+    // → hides the budget card(当月无 budget,对齐生产 404 语义)。
+    when(() => budgetRepo.getBudgetByMonth(any()))
+        .thenAnswer((_) async => const dartz.Left(ServerFailure('not found')));
     // /goals branch builder (router.dart) creates GoalBloc via
     // GoalBloc(getIt<GoalRepository>()) (Task 11 @injectable, 但路由直接 new 而非
     // getIt<GoalBloc>(), 故只需注册 repo,不需注册 GoalBloc factory)。stub listGoals

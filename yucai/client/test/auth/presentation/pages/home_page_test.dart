@@ -41,6 +41,7 @@ import 'package:yucai_client/auth/presentation/pages/home_page.dart';
 import 'package:yucai_client/budget/domain/entities/budget_entity.dart';
 import 'package:yucai_client/budget/domain/repositories/budget_repository.dart';
 import 'package:yucai_client/core/error/failures.dart';
+import 'package:yucai_client/core/widgets/debt_detail_widgets.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
@@ -161,6 +162,7 @@ Widget _harness({
   List<Holding> holdings = const [],
   List<Debt> debts = const [],
   MonthlySummary? summary,
+  bool summaryFail = false,
   BudgetView? budget,
   List<GoalView> goals = const [],
 }) {
@@ -186,14 +188,17 @@ Widget _harness({
   when(() => txnRepo.list(any())).thenAnswer(
     (_) async => dartz.Right(ListTransactionsResult(transactions: txns)),
   );
-  // 3 摘要卡 income/expense:summary 默认零值(显示 ¥0.00 卡,不致隐藏)。
+  // 3 摘要卡 summary:summaryFail=true → Left(对齐生产 RPC 错误)→ home_page
+  // fold 到 null → 隐藏收支卡(I3);否则 Right(summary ?? 零值)→ 渲染(¥0 也显)。
   when(() => txnRepo.summary(any(), any(),
           accountId: any(named: 'accountId'),
           scope: any(named: 'scope'),
           day: any(named: 'day')))
-      .thenAnswer((_) async => dartz.Right(
-            summary ?? const MonthlySummary(year: 2026, month: 7),
-          ));
+      .thenAnswer((_) async => summaryFail
+          ? const dartz.Left(ServerFailure('rpc unavailable'))
+          : dartz.Right(
+              summary ?? const MonthlySummary(year: 2026, month: 7),
+            ));
   getIt.registerSingleton<TransactionRepository>(txnRepo);
 
   // 即将到期 panel。
@@ -640,9 +645,10 @@ void main() {
     expect(find.text('目标进度'), findsNothing);
   });
 
-  testWidgets('收支卡:summary 默认零值 → 仍渲染卡(¥0.00,fold 路径)', (t) async {
-    // 不传 summary:_harness 默认 Right(MonthlySummary(year:2026, month:7)) 零值,
-    // home_page fold 表达式同款将 Left 也映射到零值 —— 二者等价走同一渲染路径。
+  testWidgets('收支卡:summary 零值(Right)→ 仍渲染卡(¥0.00,本月无收支是有意义状态)',
+      (t) async {
+    // 不传 summary:_harness 默认 Right(MonthlySummary(year:2026, month:7)) 零值。
+    // I3:Right(含零值)→ 显示卡;只有 Left(RPC fail)才隐藏(见下个测试)。
     await t.pumpWidget(_harness(
       netWorthResult: () async => _view(),
       baseCurrency: 'CNY',
@@ -652,6 +658,20 @@ void main() {
     expect(find.text('本月收支'), findsOneWidget);
     // 零 summary → 收入/支出/结余 全 ¥0.00;不崩。
     expect(_textContaining('0.00'), findsWidgets);
+  });
+
+  testWidgets('收支卡:summary RPC fail(Left)→ 隐藏卡(I3:fail 不伪装成 ¥0)',
+      (t) async {
+    // summaryFail=true → txnRepo.summary 返 Left → home_page fold 到 null → 隐藏。
+    // 关键:RPC 错误不得 fold 成 ¥0 误导用户以为本月无收支。
+    await t.pumpWidget(_harness(
+      netWorthResult: () async => _view(),
+      baseCurrency: 'CNY',
+      summaryFail: true,
+    ));
+    await t.pumpAndSettle();
+
+    expect(find.text('本月收支'), findsNothing);
   });
 
   testWidgets('预算卡:budget 提供 → 显示 已用%/¥actual/planned/剩余', (t) async {
@@ -712,20 +732,82 @@ void main() {
     expect(find.text('目标进度'), findsNothing);
   });
 
-  testWidgets('降级:summary+budget+goals 全 fail/空 → 仅渲染收支卡零值,无 crash',
+  // ───────────────────── I4: 超支 / 完成态(补回归测试,行为已实现) ─────────────────────
+
+  testWidgets('预算卡:超支(actual>planned)→ footLeft 显「超支」(I4)', (t) async {
+    await t.pumpWidget(_harness(
+      netWorthResult: () async => _view(),
+      baseCurrency: 'CNY',
+      budget: _budget(actual: 900000, planned: 800000), // 112.5% 超支
+    ));
+    await t.pumpAndSettle();
+
+    expect(find.text('本月预算'), findsOneWidget);
+    // isOverBudget(900000>800000)→ bar 红 + footLeft '超支 ¥1,000'(remaining
+    // = totalAmount-totalActual = 800000-900000 = -100000,abs=100000=¥1,000.00)。
+    expect(_textContaining('超支'), findsWidgets);
+    expect(_textContaining('¥1,000'), findsWidgets);
+  });
+
+  testWidgets('目标卡:已完成(current>=target)→ footLeft 显「目标已达成」(I4)',
       (t) async {
-    // summary 默认零值 → 收支卡渲染 ¥0。budget=null → 隐藏。goals=[] → 隐藏。
+    await t.pumpWidget(_harness(
+      netWorthResult: () async => _view(),
+      baseCurrency: 'CNY',
+      goals: [_goal(current: 1000000, target: 1000000)], // 100% 完成
+    ));
+    await t.pumpAndSettle();
+
+    expect(find.text('目标进度'), findsOneWidget);
+    // remainingCents = target - current = 0 → footLeft '目标已达成'(else 分支)。
+    expect(find.text('目标已达成'), findsOneWidget);
+  });
+
+  testWidgets('降级:budget/goals 空 + summary Right 零值 → 仅收支卡显 ¥0,无 crash',
+      (t) async {
+    // summary Right(零值)→ 收支卡显 ¥0;budget=null → 隐藏;goals=[] → 隐藏。
+    // (summary Left fail 的降级见专测;此测覆盖 Right 零值 + 其余空的组合)
     await t.pumpWidget(_harness(
       netWorthResult: () async => _view(),
       baseCurrency: 'CNY',
     ));
     await t.pumpAndSettle();
 
-    // 收支卡在(fold 零值);预算/目标卡隐藏。
     expect(find.text('本月收支'), findsOneWidget);
     expect(find.text('本月预算'), findsNothing);
     expect(find.text('目标进度'), findsNothing);
     // 净资产主卡仍在(降级不影响其它卡)。
     expect(find.text('总净资产'), findsOneWidget);
+  });
+
+  testWidgets('收支卡:金额对齐 OD —— 货币符号紧贴数字无空格(I1)', (t) async {
+    await t.pumpWidget(_harness(
+      netWorthResult: () async => _view(),
+      baseCurrency: 'CNY',
+      summary: _summary(),
+    ));
+    await t.pumpAndSettle();
+
+    // OD styles.css .cur 靠 margin 留白(非空格字符);_formatCents 旧实现在 ¥ 后
+    // 多一个空格字符 → 修。income 850000 cents → '+¥8,500.00'(符号紧贴整数)。
+    // (Text 会内嵌一个 RichText 渲染节点,_textContaining 双重匹配 → findsWidgets。)
+    expect(_textContaining('+¥8,500'), findsWidgets);
+    expect(_textContaining('-¥5,200'), findsWidgets);
+    // 结余同款无空格。
+    expect(_textContaining('¥3,300'), findsWidgets);
+  });
+
+  testWidgets('收支卡:income/expense 间 dashed 虚线分隔(OD .ie-row border-bottom,I2)',
+      (t) async {
+    await t.pumpWidget(_harness(
+      netWorthResult: () async => _view(),
+      baseCurrency: 'CNY',
+      summary: _summary(),
+    ));
+    await t.pumpAndSettle();
+
+    // OD .ie-row border-bottom: 1px dashed;income/expense 两行间一条虚线分隔。
+    // 复用 core/widgets DebtDashedDivider(水平虚线 CustomPaint)。
+    expect(find.byType(DebtDashedDivider), findsOneWidget);
   });
 }

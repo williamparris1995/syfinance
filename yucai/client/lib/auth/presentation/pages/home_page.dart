@@ -16,6 +16,7 @@ import 'package:yucai_client/budget/domain/repositories/budget_repository.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/error/failures.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
+import 'package:yucai_client/core/widgets/debt_detail_widgets.dart';
 import 'package:yucai_client/currency/data/currency_settings.dart';
 import 'package:yucai_client/currency/domain/currency_convert.dart';
 import 'package:yucai_client/debt/domain/entities/debt_entity.dart';
@@ -56,9 +57,9 @@ class _HomePageState extends State<HomePage> {
   late final GoalRepository _goalRepo = getIt<GoalRepository>();
 
   Future<NetWorthView>? _netWorthFuture;
-  // 收支 summary:fail → fold 到零值 MonthlySummary(本月无收支是有意义状态,
-  // 仍渲染 ¥0.00 卡;loading 时 hasData=false → 隐藏)。
-  Future<MonthlySummary>? _summaryFuture;
+  // 收支 summary:Right(含零值)→ 渲染卡(本月无收支是有意义状态,显 ¥0);Left
+  // (RPC fail)→ null → 隐藏(fail 不 fold 成 ¥0 误导用户)。loading → 隐藏。
+  Future<MonthlySummary?>? _summaryFuture;
   // 预算:null = 当月无 budget(Left/fail)→ 隐藏预算卡。
   Future<BudgetView?>? _budgetFuture;
   // 目标:空列表 = 无 active goal → 隐藏目标卡。
@@ -79,9 +80,8 @@ class _HomePageState extends State<HomePage> {
     final now = DateTime.now();
     final monthStr =
         '${now.year}-${now.month.toString().padLeft(2, '0')}';
-    _summaryFuture = _txnRepo.summary(now.year, now.month).then(
-        (r) => r.fold((_) => MonthlySummary(year: now.year, month: now.month),
-            (s) => s));
+    _summaryFuture = _txnRepo.summary(now.year, now.month)
+        .then((r) => r.fold((_) => null, (s) => s));
     _budgetFuture = _budgetRepo
         .getBudgetByMonth(monthStr)
         .then((r) => r.fold((_) => null, (b) => b));
@@ -153,7 +153,8 @@ class _HomePageState extends State<HomePage> {
     final fen = (abs % 100).toString().padLeft(2, '0');
     final grouped = _groupThousands(yuan);
     final prefix = signed ? (neg ? '-' : '+') : (neg ? '-' : '');
-    return '$prefix${currencySymbol(currency)} $grouped.$fen';
+    // 货币符号紧贴数字(对齐 OD styles.css .cur 的 margin 留白,非空格字符)。
+    return '$prefix${currencySymbol(currency)}$grouped.$fen';
   }
 
   String _groupThousands(int n) {
@@ -225,13 +226,14 @@ class _HomePageState extends State<HomePage> {
                         ),
                         // ── 3 摘要卡(本月收支 / 预算 / 目标)照 OD 原型
                         // yucai-dashboard-home-a2fc。降级:loading/fail/无数据 →
-                        // SizedBox.shrink 隐藏(summary fold 零值除外,仍渲染 ¥0)。
+                        // SizedBox.shrink 隐藏;收支卡例外 —— summary Right(含零值)
+                        // 仍渲染 ¥0(本月无收支是有意义状态),只有 Left(RPC fail)隐藏。
                         // 每卡 FutureBuilder 用 EdgeInsets.only(top: md) 自带
                         // 上间距 —— 卡隐藏时零高度,_NetWorthCard 与 _SummaryRow
                         // 之间仍有 SizedBox(md) 兜底。
-                        FutureBuilder<MonthlySummary>(
+                        FutureBuilder<MonthlySummary?>(
                           future: _summaryFuture,
-                          builder: (ctx, snap) => snap.hasData
+                          builder: (ctx, snap) => snap.data != null
                               ? Padding(
                                   padding: const EdgeInsets.only(
                                       top: AppSpacing.md),
@@ -518,6 +520,10 @@ class _IncomeExpenseCard extends StatelessWidget {
             amount: '+${format(summary.incomeCents, currency)}',
             amountColor: _kIncomeColor,
           ),
+          // income/expense 间虚线分隔(对齐 OD .ie-row border-bottom:1px dashed
+          // var(--border-soft)=#F1EDE5;与 _ProgressBar 背景同色)。复用 core
+          // DebtDashedDivider(水平虚线 CustomPaint,Flutter 无原生 dashed border)。
+          const DebtDashedDivider(color: Color(0xFFF1EDE5)),
           _IeRow(
             dotColor: _kExpenseColor,
             name: '支出',
