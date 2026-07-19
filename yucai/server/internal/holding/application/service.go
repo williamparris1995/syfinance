@@ -27,11 +27,22 @@ type Service struct {
 	historicalProvider priceprovider.HistoricalProvider // C: backfill
 	rateRepo           domain.RateHistoryRepository     // C: portfolio curve CNY折算 (cross-module currency interface)
 	tenantLister       domain.TenantLister              // C: SnapshotAllHoldings fan-out (wire injects auth.TenantRepository)
+	nowFn              func() time.Time                 // perf e2e 注入固定评估日;默认 time.Now (nil → time.Now via now())
 }
 
 // NewService creates a new holding application service.
 func NewService(secRepo domain.SecurityRepository, hRepo domain.HoldingRepository, tRepo domain.TradeRepository) *Service {
-	return &Service{securityRepo: secRepo, holdingRepo: hRepo, tradeRepo: tRepo}
+	return &Service{securityRepo: secRepo, holdingRepo: hRepo, tradeRepo: tRepo, nowFn: time.Now}
+}
+
+// now returns the injected clock, falling back to time.Now when unset (e.g.
+// tests constructing &Service{} directly). Perf e2e injects a fixed eval date
+// via SetNow so annualized day counts (XIRR/CAGR/TWR) are deterministic.
+func (s *Service) now() time.Time {
+	if s.nowFn == nil {
+		return time.Now()
+	}
+	return s.nowFn()
 }
 
 // CreateSecurity creates a new global security.
@@ -342,7 +353,7 @@ func (s *Service) SeedSampleHoldings(ctx context.Context, tenantID, accountID uu
 	}
 	for i, sec := range result.Items {
 		qty := 50.0 + float64(i*30)
-		date := time.Now().AddDate(0, 0, -i*5)
+		date := s.now().AddDate(0, 0, -i*5)
 		if _, err := s.BuyHolding(ctx, HoldingTradeRequest{
 			TenantID:   tenantID,
 			AccountID:  accountID,
@@ -387,6 +398,14 @@ func (s *Service) SetRateHistoryRepository(r domain.RateHistoryRepository) { s.r
 // (Task 7 C). Wire binds auth's TenantRepository (its FindAllIDs satisfies
 // domain.TenantLister). nil = SnapshotAllHoldings errors.
 func (s *Service) SetTenantLister(l domain.TenantLister) { s.tenantLister = l }
+
+// SetNow overrides the clock (perf e2e injects a fixed eval date; production uses time.Now).
+func (s *Service) SetNow(f func() time.Time) {
+	if f == nil {
+		f = time.Now
+	}
+	s.nowFn = f
+}
 
 // truncateToDate clips a time to 00:00 UTC of its day, so same-day re-syncs
 // hit the same price_history row (UNIQUE(security_id, price_date) guard).
@@ -438,7 +457,7 @@ func (s *Service) SyncPrices(ctx context.Context) (int, error) {
 			// upserts the same row via UNIQUE(security_id, price_date)).
 			if s.priceHistoryRepo != nil {
 				ph := domain.SecurityPriceHistory{
-					SecurityID: sec.ID, PriceDate: truncateToDate(time.Now()),
+					SecurityID: sec.ID, PriceDate: truncateToDate(s.now()),
 					PriceCents: price, CurrencyCode: sec.CurrencyCode, Source: "sina",
 				}
 				if err := s.priceHistoryRepo.Save(ctx, ph); err != nil {
@@ -463,8 +482,8 @@ func (s *Service) SyncPrices(ctx context.Context) (int, error) {
 
 // curveWindow maps a proto CurveRange name to (from, to, granularity).
 // granularity = "day"/"month"/"year" sampling.
-func curveWindow(rangeName string) (from, to time.Time, granularity string) {
-	to = truncateToDate(time.Now())
+func (s *Service) curveWindow(rangeName string) (from, to time.Time, granularity string) {
+	to = truncateToDate(s.now())
 	switch rangeName {
 	case "MONTH":
 		return to.AddDate(0, -12, 0), to, "month"
@@ -482,7 +501,7 @@ func (s *Service) SnapshotHoldings(ctx context.Context, tenantID uuid.UUID) (int
 	if s.snapshotRepo == nil {
 		return 0, fmt.Errorf("snapshot: snapshot repo not configured")
 	}
-	today := truncateToDate(time.Now())
+	today := truncateToDate(s.now())
 	synced := 0
 	page := domain.PageRequest{PageSize: 100}
 	for {
@@ -651,7 +670,7 @@ func (s *Service) GetPortfolioPerformance(ctx context.Context, tenantID uuid.UUI
 	if base == "" {
 		base = "CNY"
 	}
-	from, to, granularity := curveWindow(rangeName)
+	from, to, granularity := s.curveWindow(rangeName)
 	snaps, err := s.snapshotRepo.FindSnapshots(ctx, tenantID, from, to, accountID, nil)
 	if err != nil {
 		return nil, fmt.Errorf("portfolio perf: find snapshots: %w", err)
@@ -834,7 +853,7 @@ func (s *Service) rateForCode(ctx context.Context, code string, date time.Time) 
 // (the denominator in cross-rate ConvertToBase). 1.0 fallback when rateRepo is
 // unset or the rate is missing.
 func (s *Service) rateForBase(ctx context.Context, base string) float64 {
-	return s.rateForCode(ctx, base, time.Now())
+	return s.rateForCode(ctx, base, s.now())
 }
 
 // convertTradeToBase 折算 a single trade amount to base, looking up the
@@ -879,7 +898,7 @@ func (s *Service) currentUnrealizedInBase(ctx context.Context, tenantID uuid.UUI
 				continue
 			}
 			pnl := h.UnrealizedPnL(sec.CurrentPriceCents)
-			rateFrom := s.rateForCode(ctx, sec.CurrencyCode, time.Now())
+			rateFrom := s.rateForCode(ctx, sec.CurrencyCode, s.now())
 			sum += currencydomain.ConvertToBase(pnl, rateFrom, rateBase)
 		}
 		if res.NextPageToken == "" || len(res.Items) == 0 {
@@ -912,7 +931,7 @@ func (s *Service) currentCostBasisInBase(ctx context.Context, tenantID uuid.UUID
 				continue
 			}
 			basis := int64(math.Round(float64(h.AvgCostCents) * h.Quantity))
-			rateFrom := s.rateForCode(ctx, sec.CurrencyCode, time.Now())
+			rateFrom := s.rateForCode(ctx, sec.CurrencyCode, s.now())
 			sum += currencydomain.ConvertToBase(basis, rateFrom, rateBase)
 		}
 		if res.NextPageToken == "" || len(res.Items) == 0 {
@@ -929,7 +948,7 @@ func (s *Service) benchmarkCurve(ctx context.Context, rangeName string) []CurveP
 	if s.priceHistoryRepo == nil {
 		return nil
 	}
-	from, to, _ := curveWindow(rangeName)
+	from, to, _ := s.curveWindow(rangeName)
 	sec, err := s.securityRepo.FindBySymbol(ctx, "000300", "SSE")
 	if err != nil || sec == nil {
 		return nil
@@ -960,7 +979,7 @@ func (s *Service) GetHoldingPerformance(ctx context.Context, holdingID uuid.UUID
 	if base == "" {
 		base = "CNY"
 	}
-	from, to, _ := curveWindow(rangeName)
+	from, to, _ := s.curveWindow(rangeName)
 	h, err := s.holdingRepo.FindByID(ctx, holdingID)
 	if err != nil {
 		return nil, fmt.Errorf("holding perf: find holding: %w", err)
@@ -984,13 +1003,13 @@ func (s *Service) GetHoldingPerformance(ctx context.Context, holdingID uuid.UUID
 	// Unrealized (current), 折算 to base (mirrors GetPortfolioPerformance/currentUnrealizedInBase
 	// so TotalCents is base+base, not base+原币 — spec §4.4 + I-1).
 	rateBase := s.rateForBase(ctx, base)
-	rateFrom := s.rateForCode(ctx, sec.CurrencyCode, time.Now())
+	rateFrom := s.rateForCode(ctx, sec.CurrencyCode, s.now())
 	unrealizedRaw := h.UnrealizedPnL(sec.CurrentPriceCents)
 	unrealized := currencydomain.ConvertToBase(unrealizedRaw, rateFrom, rateBase)
 	// XIRR (Task 4): full-period (original currency, no conversion) + range
 	// (rebuilt from price_history endpoint). Both degrade independently to nil.
 	fullXirr, _ := s.holdingXIRR(ctx, holdingID, base)
-	rangeStart, _, _ := curveWindow(rangeName)
+	rangeStart, _, _ := s.curveWindow(rangeName)
 	rng := s.computeHoldingRangeXIRR(ctx, *h, *sec, s.tradesForHolding(ctx, *h), rangeStart, fullXirr)
 	// TWR (Task 4): full-period time-weighted annualized % in original currency,
 	// degrades to nil independently of XIRR.
@@ -1060,7 +1079,7 @@ func (s *Service) computeHoldingRangeXIRR(ctx context.Context, h domain.Holding,
 		}
 		cfs = append(cfs, domain.CashFlow{Date: tr.TradeDate, Amount: float64(signed)})
 	}
-	cfs = append(cfs, domain.CashFlow{Date: time.Now(), Amount: float64(terminal)})
+	cfs = append(cfs, domain.CashFlow{Date: s.now(), Amount: float64(terminal)})
 	if r, e := domain.XIRR(cfs); e == nil {
 		return ptrFloat(r)
 	}
@@ -1220,7 +1239,7 @@ func (s *Service) portfolioXIRR(ctx context.Context, tenantID uuid.UUID, account
 	terminal := s.currentMarketValueInBase(ctx, tenantID, accountID, base)
 	// Full period: all trades + current terminal value.
 	fullCfs := append(s.collectTradeCashFlows(ctx, trades, "full", time.Time{}, rateBase, base),
-		domain.CashFlow{Date: time.Now(), Amount: float64(terminal)})
+		domain.CashFlow{Date: s.now(), Amount: float64(terminal)})
 	if r, e := domain.XIRR(fullCfs); e == nil {
 		full = ptrFloat(r)
 	}
@@ -1231,7 +1250,7 @@ func (s *Service) portfolioXIRR(ctx context.Context, tenantID uuid.UUID, account
 	}
 	rangeCfs := []domain.CashFlow{{Date: rangeStart, Amount: -float64(startMV)}}
 	rangeCfs = append(rangeCfs, s.collectTradeCashFlows(ctx, trades, "range", rangeStart, rateBase, base)...)
-	rangeCfs = append(rangeCfs, domain.CashFlow{Date: time.Now(), Amount: float64(terminal)})
+	rangeCfs = append(rangeCfs, domain.CashFlow{Date: s.now(), Amount: float64(terminal)})
 	if r, e := domain.XIRR(rangeCfs); e == nil {
 		rng = ptrFloat(r)
 	}
@@ -1321,7 +1340,7 @@ func (s *Service) computeTWR(ctx context.Context, tenantID uuid.UUID, accountID 
 		prevAfter = float64(bvAfter)
 	}
 	finalValue := s.currentMarketValueInBase(ctx, tenantID, accountID, base)
-	totalDays := int(time.Since(rangeStart).Hours() / 24)
+	totalDays := int(s.now().Sub(rangeStart).Hours() / 24)
 	rate, err := domain.TWR(subPeriods, float64(finalValue), prevAfter, totalDays)
 	if err != nil {
 		return nil, nil
@@ -1422,7 +1441,7 @@ func (s *Service) holdingXIRR(ctx context.Context, holdingID uuid.UUID, baseCurr
 		cfs = append(cfs, domain.CashFlow{Date: tr.TradeDate, Amount: float64(signed)})
 	}
 	terminal := h.MarketValue(sec.CurrentPriceCents) // original-currency market value
-	cfs = append(cfs, domain.CashFlow{Date: time.Now(), Amount: float64(terminal)})
+	cfs = append(cfs, domain.CashFlow{Date: s.now(), Amount: float64(terminal)})
 	if r, e := domain.XIRR(cfs); e == nil {
 		full = ptrFloat(r)
 	}
@@ -1468,7 +1487,7 @@ func (s *Service) holdingTWR(ctx context.Context, holdingID uuid.UUID) (*float64
 		return nil, nil
 	}
 	finalValue := float64(h.MarketValue(sec.CurrentPriceCents)) // 原币
-	totalDays := int(time.Since(cashFlowDays[0]).Hours() / 24)
+	totalDays := int(s.now().Sub(cashFlowDays[0]).Hours() / 24)
 	rate, err := domain.TWR(subPeriods, finalValue, prevAfterCF, totalDays)
 	if err != nil {
 		return nil, nil
@@ -1533,7 +1552,7 @@ func (s *Service) portfolioCAGR(ctx context.Context, tenantID uuid.UUID, account
 	costBasis := s.currentCostBasisInBase(ctx, tenantID, accountID, base)
 	earliest := s.earliestHoldingCreated(ctx, tenantID, accountID)
 	if costBasis > 0 && !earliest.IsZero() {
-		if days := int(time.Since(earliest).Hours() / 24); days >= 1 {
+		if days := int(s.now().Sub(earliest).Hours() / 24); days >= 1 {
 			f := math.Pow(float64(finalMV)/float64(costBasis), 365.0/float64(days)) - 1
 			full = ptrFloat(f)
 		}
@@ -1541,7 +1560,7 @@ func (s *Service) portfolioCAGR(ctx context.Context, tenantID uuid.UUID, account
 	// Range: rangeStart MV → current MV over rangeStart→now days.
 	startMV, ok := s.marketValueAtDate(ctx, tenantID, accountID, rangeStart, s.rateForBase(ctx, base), base)
 	if ok && startMV > 0 {
-		if days := int(time.Since(rangeStart).Hours() / 24); days >= 1 {
+		if days := int(s.now().Sub(rangeStart).Hours() / 24); days >= 1 {
 			r := math.Pow(float64(finalMV)/float64(startMV), 365.0/float64(days)) - 1
 			rng = ptrFloat(r)
 		}
@@ -1566,7 +1585,7 @@ func (s *Service) holdingCAGR(ctx context.Context, h domain.Holding, sec domain.
 	// Full: earliest price_history row (iterate to min PriceDate — don't rely on
 	// FindBySecurity sort order, mirror priceAtOrBefore's defensive scan).
 	if s.priceHistoryRepo != nil {
-		all, _ := s.priceHistoryRepo.FindBySecurity(ctx, h.SecurityID, time.Time{}, time.Now())
+		all, _ := s.priceHistoryRepo.FindBySecurity(ctx, h.SecurityID, time.Time{}, s.now())
 		var first float64
 		var firstDate time.Time
 		for _, p := range all {
@@ -1579,7 +1598,7 @@ func (s *Service) holdingCAGR(ctx context.Context, h domain.Holding, sec domain.
 			}
 		}
 		if first > 0 && !firstDate.IsZero() {
-			if days := int(time.Since(firstDate).Hours() / 24); days >= 1 {
+			if days := int(s.now().Sub(firstDate).Hours() / 24); days >= 1 {
 				f := math.Pow(cur/first, 365.0/float64(days)) - 1
 				full = ptrFloat(f)
 			}
@@ -1588,7 +1607,7 @@ func (s *Service) holdingCAGR(ctx context.Context, h domain.Holding, sec domain.
 	// Range: priceAtOrBefore(rangeStart) → current over rangeStart→now days.
 	startPriceCents, ok := s.priceAtOrBefore(ctx, h.SecurityID, rangeStart)
 	if ok && startPriceCents > 0 {
-		if days := int(time.Since(rangeStart).Hours() / 24); days >= 1 {
+		if days := int(s.now().Sub(rangeStart).Hours() / 24); days >= 1 {
 			r := math.Pow(cur/float64(startPriceCents), 365.0/float64(days)) - 1
 			rng = ptrFloat(r)
 		}
