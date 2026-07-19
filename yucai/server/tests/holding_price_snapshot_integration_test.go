@@ -138,6 +138,9 @@ func TestSyncPrices_PersistsPriceHistoryAndCurrentPrice(t *testing.T) {
 	for _, p := range ph {
 		if p.PriceCents == 15000 {
 			found = true
+			if p.Source != "fake" {
+				t.Errorf("price_history Source: got %q, want \"fake\" (FetchPrice source, not hardcoded \"sina\")", p.Source)
+			}
 			break
 		}
 	}

@@ -434,7 +434,7 @@ func (s *Service) SyncPrices(ctx context.Context) (int, error) {
 				return synced, err
 			}
 			view := priceprovider.PriceView{Symbol: sec.Symbol, Exchange: sec.Exchange, Type: sec.SecurityType}
-			price, _, err := s.priceRouter.FetchPrice(ctx, view)
+			price, source, err := s.priceRouter.FetchPrice(ctx, view)
 			if err != nil {
 				if errors.Is(err, priceprovider.ErrNoSource) {
 					continue // not covered (e.g. US stock) — keep old price
@@ -458,7 +458,7 @@ func (s *Service) SyncPrices(ctx context.Context) (int, error) {
 			if s.priceHistoryRepo != nil {
 				ph := domain.SecurityPriceHistory{
 					SecurityID: sec.ID, PriceDate: truncateToDate(s.now()),
-					PriceCents: price, CurrencyCode: sec.CurrencyCode, Source: "sina",
+					PriceCents: price, CurrencyCode: sec.CurrencyCode, Source: source,
 				}
 				if err := s.priceHistoryRepo.Save(ctx, ph); err != nil {
 					slog.Warn("holding price sync: save history failed",
