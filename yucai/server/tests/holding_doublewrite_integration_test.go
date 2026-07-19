@@ -397,3 +397,115 @@ func TestHoldingSell_QuantityInsufficient_FailFast(t *testing.T) {
 		t.Errorf("holding balance should be unchanged: got %d, want %d", gotHold.CurrentBalanceCents, buyAmount)
 	}
 }
+
+// TestLotPath_FIFOConsumeAndRealized verifies the FIFO lot path (lotRepo!=nil):
+// buy 60@10000 (lot1) + buy 40@12000 (lot2) + sell 80@13000 → FIFO consume
+// (lot1 全 60 realized (13000-10000)*60=180000 + lot2 20 realized (13000-12000)*20=20000
+// = 200000); lot1 remaining=0, lot2 remaining=20; trade.RealizedPnlCents=200000.
+//
+// realized 验走 holdClient.HoldingTransaction.Query (proto tradeToProto 不透 RealizedPnlCents).
+//
+// 注:harness 默认 from_account 仅 100000 cents,不够 60×10000+40×12000=1080000,
+// 故本 test 用 acctSvc 自建一个高余额 from_account(harness 的 fromAccID 不用).
+func TestLotPath_FIFOConsumeAndRealized(t *testing.T) {
+	h, acctSvc, tenantID, _, holdAccID, holdClient, lotRepo := setupHoldingDoubleWriteHarness(t)
+	ctx := context.Background()
+
+	// 自建高余额 from_account(60×10000 + 40×12000 = 1080000,cushion 给 2000000).
+	richFrom, err := acctSvc.CreateAccount(ctx, accountapp.CreateAccountRequest{
+		TenantID:            tenantID,
+		Name:                "现金-rich",
+		AccountType:         accountdomain.AccountTypeAsset,
+		Category:            accountdomain.AccountCategorySavings,
+		CurrencyCode:        "CNY",
+		InitialBalanceCents: 2000000,
+	})
+	if err != nil {
+		t.Fatalf("create rich from-account: %v", err)
+	}
+	fromAccID := richFrom.ID
+
+	sec, err := h.CreateSecurity(ctx, &pb.CreateSecurityRequest{
+		Symbol: "600004", Name: "Lot Path Test",
+		SecurityType: pb.SecurityType_SECURITY_TYPE_STOCK, CurrencyCode: "CNY",
+	})
+	if err != nil {
+		t.Fatalf("CreateSecurity: %v", err)
+	}
+	tradeCtx := authgrpc.WithTenantID(ctx, tenantID)
+	tradeCtx = authgrpc.WithUserID(tradeCtx, uuid.New())
+
+	// buy 60 @ 10000 (lot1).
+	if _, err := h.BuyHolding(tradeCtx, &pb.HoldingTradeRequest{
+		AccountId: holdAccID.String(), SecurityId: sec.Security.Id, FromAccountId: fromAccID.String(),
+		Quantity: 60, PriceCents: 10000, TradeDate: "2026-06-28",
+	}); err != nil {
+		t.Fatalf("BuyHolding 60@10000: %v", err)
+	}
+	// buy 40 @ 12000 (lot2).
+	if _, err := h.BuyHolding(tradeCtx, &pb.HoldingTradeRequest{
+		AccountId: holdAccID.String(), SecurityId: sec.Security.Id, FromAccountId: fromAccID.String(),
+		Quantity: 40, PriceCents: 12000, TradeDate: "2026-06-29",
+	}); err != nil {
+		t.Fatalf("BuyHolding 40@12000: %v", err)
+	}
+
+	// sell 80 @ 13000 (FIFO: lot1 全 60 + lot2 20).
+	if _, err := h.SellHolding(tradeCtx, &pb.HoldingTradeRequest{
+		AccountId: holdAccID.String(), SecurityId: sec.Security.Id, FromAccountId: fromAccID.String(),
+		Quantity: 80, PriceCents: 13000, TradeDate: "2026-06-30",
+	}); err != nil {
+		t.Fatalf("SellHolding 80@13000: %v", err)
+	}
+
+	// Verify lot FIFO consume via lotRepo.FindByHolding.
+	// 拿 holdingID (via ListHoldings).
+	list, err := h.ListHoldings(tradeCtx, &pb.ListHoldingsRequest{})
+	if err != nil || len(list.Holdings) != 1 {
+		t.Fatalf("ListHoldings: err=%v len=%d", err, len(list.Holdings))
+	}
+	holdingID := uuid.MustParse(list.Holdings[0].Id)
+	lots, err := lotRepo.FindByHolding(ctx, holdingID)
+	if err != nil {
+		t.Fatalf("lotRepo.FindByHolding: %v", err)
+	}
+	// FIFO: lot1(2026-06-28) remaining=0, lot2(2026-06-29) remaining=20.
+	var lot1Rem, lot2Rem float64
+	for _, l := range lots {
+		dayStr := l.AcquiredDate.Format("2006-01-02")
+		if dayStr == "2026-06-28" {
+			lot1Rem = l.RemainingQuantity
+		}
+		if dayStr == "2026-06-29" {
+			lot2Rem = l.RemainingQuantity
+		}
+	}
+	if lot1Rem != 0 {
+		t.Errorf("lot1 remaining: got %v, want 0 (FIFO consumed 60)", lot1Rem)
+	}
+	if lot2Rem != 20 {
+		t.Errorf("lot2 remaining: got %v, want 20 (FIFO consumed 20 of 40)", lot2Rem)
+	}
+
+	// Verify trade.RealizedPnlCents via holdClient.HoldingTransaction.Query
+	// (proto tradeToProxy 不透 RealizedPnlCents 字段). sell trade realized:
+	//   (13000-10000)*60 + (13000-12000)*20 = 180000 + 20000 = 200000.
+	trades, err := holdClient.HoldingTransaction.Query().All(ctx)
+	if err != nil {
+		t.Fatalf("query trades: %v", err)
+	}
+	var sellRealized int64
+	var sawSell bool
+	for _, tr := range trades {
+		if tr.TradeType == "sell" { // ent 字段 string,值见 domain.TradeType.String() ("buy"/"sell")
+			sawSell = true
+			sellRealized = tr.RealizedPnlCents
+		}
+	}
+	if !sawSell {
+		t.Fatal("no sell trade found among queried trades")
+	}
+	if sellRealized != 200000 {
+		t.Errorf("sell trade RealizedPnlCents: got %d, want 200000 ((13000-10000)*60 + (13000-12000)*20)", sellRealized)
+	}
+}
