@@ -316,3 +316,78 @@ func TestHoldingSell_DoubleWrite_EndToEnd(t *testing.T) {
 		}())
 	}
 }
+
+// TestHoldingSell_QuantityInsufficient_FailFast asserts that when sell quantity
+// exceeds holding position, SellHolding rejects BEFORE any trade or account
+// change is made (fail-fast): holding Quantity unchanged and balances unchanged.
+// Sell does not check from balance (validateTradeFromAccount isBuy=false); the
+// fail comes from service.SellHolding quantity check, before recordTradeTransaction.
+func TestHoldingSell_QuantityInsufficient_FailFast(t *testing.T) {
+	h, acctSvc, tenantID, fromAccID, holdAccID := setupHoldingDoubleWriteHarness(t)
+	ctx := context.Background()
+
+	sec, err := h.CreateSecurity(ctx, &pb.CreateSecurityRequest{
+		Symbol: "600003", Name: "Fail Fast",
+		SecurityType: pb.SecurityType_SECURITY_TYPE_STOCK,
+		CurrencyCode: "CNY",
+	})
+	if err != nil {
+		t.Fatalf("CreateSecurity: %v", err)
+	}
+
+	tradeCtx := authgrpc.WithTenantID(ctx, tenantID)
+	tradeCtx = authgrpc.WithUserID(tradeCtx, uuid.New())
+
+	// buy 10 qty @ 5000 → from 100000→50000, holding 0→50000.
+	const buyAmount int64 = 10 * 5000
+	if _, err := h.BuyHolding(tradeCtx, &pb.HoldingTradeRequest{
+		AccountId:     holdAccID.String(),
+		SecurityId:    sec.Security.Id,
+		FromAccountId: fromAccID.String(),
+		Quantity:      10,
+		PriceCents:    5000,
+		TradeDate:     "2026-06-28",
+	}); err != nil {
+		t.Fatalf("BuyHolding (setup): %v", err)
+	}
+
+	// sell 20 qty > holding 10 → service.SellHolding must fail.
+	_, err = h.SellHolding(tradeCtx, &pb.HoldingTradeRequest{
+		AccountId:     holdAccID.String(),
+		SecurityId:    sec.Security.Id,
+		FromAccountId: fromAccID.String(),
+		Quantity:      20,
+		PriceCents:    6000,
+		TradeDate:     "2026-06-29",
+	})
+	if err == nil {
+		t.Fatal("expected quantity-insufficient error, got nil")
+	}
+
+	// fail-fast: holding Quantity unchanged (still 10).
+	list, err := h.ListHoldings(tradeCtx, &pb.ListHoldingsRequest{})
+	if err != nil {
+		t.Fatalf("ListHoldings: %v", err)
+	}
+	if len(list.Holdings) != 1 || list.Holdings[0].Quantity != 10 {
+		t.Errorf("fail-fast: holding quantity should be unchanged (10), got len=%d", len(list.Holdings))
+	}
+
+	// fail-fast: from balance unchanged (50000 after buy).
+	gotFrom, err := acctSvc.GetAccount(ctx, tenantID, fromAccID)
+	if err != nil {
+		t.Fatalf("GetAccount from: %v", err)
+	}
+	if gotFrom.CurrentBalanceCents != 100000-buyAmount {
+		t.Errorf("from balance should be unchanged: got %d, want %d", gotFrom.CurrentBalanceCents, 100000-buyAmount)
+	}
+
+	// fail-fast: holding balance unchanged (50000 after buy).
+	gotHold, err := acctSvc.GetAccount(ctx, tenantID, holdAccID)
+	if err != nil {
+		t.Fatalf("GetAccount holding: %v", err)
+	}
+	if gotHold.CurrentBalanceCents != buyAmount {
+		t.Errorf("holding balance should be unchanged: got %d, want %d", gotHold.CurrentBalanceCents, buyAmount)
+	}
+}
