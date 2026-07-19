@@ -13,6 +13,7 @@ import (
 	"github.com/yucai/server/internal/holding/adapter/driven/priceprovider"
 	"github.com/yucai/server/internal/holding/adapter/driven/repository"
 	"github.com/yucai/server/internal/holding/application"
+	"github.com/yucai/server/internal/holding/domain"
 	holdingent "github.com/yucai/server/internal/holding/ent"
 )
 
@@ -86,4 +87,61 @@ func setupPriceSnapshotHarness(t *testing.T) (
 
 	tenantID, accountID = uuid.New(), uuid.New()
 	return svc, client, secRepo, holdRepo, snapRepo, phRepo, tenantID, accountID
+}
+
+// TestSyncPrices_PersistsPriceHistoryAndCurrentPrice drives service.SyncPrices
+// with a fake priceProvider that returns 15000 cents for "600519", then verifies
+// both the security's CurrentPriceCents is updated AND a price_history row is
+// persisted for today (the double-write SyncPrices does).
+func TestSyncPrices_PersistsPriceHistoryAndCurrentPrice(t *testing.T) {
+	svc, _, secRepo, _, _, phRepo, _, _ := setupPriceSnapshotHarness(t)
+	ctx := context.Background()
+
+	// seed security (CreateSecurityRequest has no price field; CurrentPrice defaults to 0).
+	created, err := svc.CreateSecurity(ctx, application.CreateSecurityRequest{
+		Symbol: "600519", Name: "Kweichow Moutai", SecurityType: domain.SecurityTypeStock,
+		Exchange: "SSE", CurrencyCode: "CNY",
+	})
+	if err != nil {
+		t.Fatalf("CreateSecurity: %v", err)
+	}
+	secID := created.ID
+
+	// fake price provider returns 15000 cents for 600519.
+	svc.SetPriceRouter(&fakePriceRouter{prices: map[string]int64{"600519": 15000}})
+
+	// SyncPrices must pick up the fake price and persist.
+	count, err := svc.SyncPrices(ctx)
+	if err != nil {
+		t.Fatalf("SyncPrices: %v", err)
+	}
+	if count < 1 {
+		t.Errorf("SyncPrices synced_count=%d, want >= 1", count)
+	}
+
+	// Verify security.CurrentPriceCents updated to 15000.
+	gotSec, err := secRepo.FindByID(ctx, secID)
+	if err != nil || gotSec == nil {
+		t.Fatalf("secRepo.FindByID: %v", err)
+	}
+	if gotSec.CurrentPriceCents != 15000 {
+		t.Errorf("security.CurrentPriceCents: got %d, want 15000 (SyncPrices update)", gotSec.CurrentPriceCents)
+	}
+
+	// Verify price_history persisted (today's price = 15000).
+	// SetNow injected 2021-01-01; SyncPrices writes today = truncateToDate(s.now()).
+	ph, err := phRepo.FindBySecurity(ctx, secID, time.Time{}, time.Now())
+	if err != nil {
+		t.Fatalf("phRepo.FindBySecurity: %v", err)
+	}
+	found := false
+	for _, p := range ph {
+		if p.PriceCents == 15000 {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("price_history missing 15000 entry; got %d rows", len(ph))
+	}
 }
