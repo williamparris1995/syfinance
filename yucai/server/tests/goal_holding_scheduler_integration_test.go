@@ -14,6 +14,9 @@ import (
 	accountrepo "github.com/yucai/server/internal/account/adapter/driven/repository"
 	accountdomain "github.com/yucai/server/internal/account/domain"
 	accountent "github.com/yucai/server/internal/account/ent"
+	debtapp "github.com/yucai/server/internal/debt/application"
+	debtrepo "github.com/yucai/server/internal/debt/adapter/driven/repository"
+	debtent "github.com/yucai/server/internal/debt/ent"
 	goaldomain "github.com/yucai/server/internal/goal/domain"
 	"github.com/yucai/server/internal/goal/adapter/driven/repository"
 	goalapp "github.com/yucai/server/internal/goal/application"
@@ -24,14 +27,16 @@ import (
 	holdingent "github.com/yucai/server/internal/holding/ent"
 )
 
-// setupGoalHoldingHarness wires real ent-backed account + holding + goal services
-// against ONE in-memory sqlite (3 ent clients share the same driver so cross-module
-// data is visible — mirrors setupHoldingDoubleWriteTestDB). goalSvc consumes
-// holding's GetAccountsMarketValue via structural AccountMarketValueSource port.
+// setupGoalHoldingHarness wires real ent-backed account + holding + debt + goal
+// services against ONE in-memory sqlite (4 ent clients share the same driver so
+// cross-module data is visible — mirrors setupHoldingDoubleWriteTestDB). goalSvc
+// consumes holding's GetAccountsMarketValue via structural AccountMarketValueSource
+// port, account's GetAccountsBalance via AccountBalanceSource (Savings goals), and
+// debt's progress via DebtProgressSource (DebtPayoff goals).
 func setupGoalHoldingHarness(t *testing.T) (
 	goalSvc *goalapp.Service, goalRepo *repository.GoalRepository,
 	holdSvc *holdingapp.Service, acctSvc *accountapp.Service,
-	tenantID uuid.UUID,
+	debtSvc *debtapp.Service, tenantID uuid.UUID,
 ) {
 	t.Helper()
 	db, err := sql.Open("sqlite", "file:goal_hold_dw?mode=memory")
@@ -47,6 +52,7 @@ func setupGoalHoldingHarness(t *testing.T) (
 	drv := entsql.OpenDB("sqlite3", db)
 	acctClient := accountent.NewClient(accountent.Driver(drv))
 	holdClient := holdingent.NewClient(holdingent.Driver(drv))
+	debtClient := debtent.NewClient(debtent.Driver(drv))
 	goalClient := goalent.NewClient(goalent.Driver(drv))
 
 	ctx := context.Background()
@@ -56,11 +62,16 @@ func setupGoalHoldingHarness(t *testing.T) (
 	if err := holdClient.Schema.Create(ctx); err != nil {
 		t.Fatalf("create holding schema: %v", err)
 	}
+	// debt schema before goal: goal_debt_links FK-references debt rows.
+	if err := debtClient.Schema.Create(ctx); err != nil {
+		t.Fatalf("create debt schema: %v", err)
+	}
 	if err := goalClient.Schema.Create(ctx); err != nil {
 		t.Fatalf("create goal schema: %v", err)
 	}
 	t.Cleanup(func() { acctClient.Close() })
 	t.Cleanup(func() { holdClient.Close() })
+	t.Cleanup(func() { debtClient.Close() })
 	t.Cleanup(func() { goalClient.Close() })
 
 	// account service
@@ -74,13 +85,22 @@ func setupGoalHoldingHarness(t *testing.T) (
 	tradeRepo := holdingsec.NewTradeRepository(holdClient)
 	holdSvc = holdingapp.NewService(secRepo, holdRepo, tradeRepo)
 
-	// goal service — inject holding as AccountMarketValueSource (structural)
+	// debt service
+	debtRepo := debtrepo.NewDebtRepository(debtClient)
+	debtSvc = debtapp.NewService(debtRepo)
+
+	// goal service — inject holding/account/debt as structural ports:
+	//   - AccountMarketValueSource (Investment goals)
+	//   - AccountBalanceSource (Savings goals)
+	//   - DebtProgressSource (DebtPayoff goals)
 	goalRepo = repository.NewGoalRepository(goalClient)
 	goalSvc = goalapp.NewService(goalRepo)
 	goalSvc.SetAccountMarketValueSource(holdSvc)
+	goalSvc.SetAccountBalanceSource(acctSvc)
+	goalSvc.SetDebtProgressSource(debtSvc)
 
 	tenantID = uuid.New()
-	return goalSvc, goalRepo, holdSvc, acctSvc, tenantID
+	return goalSvc, goalRepo, holdSvc, acctSvc, debtSvc, tenantID
 }
 
 // TestGoalScheduler_HoldingBackedCurrentAmount drives goalSvc.SyncAllGoals for an
@@ -91,7 +111,7 @@ func setupGoalHoldingHarness(t *testing.T) (
 // MV source = sec.CurrentPriceCents (NOT priceHistoryRepo); mv 原币不折算.
 // Expected: 100 qty × 13000 cents = 1,300,000 cents.
 func TestGoalScheduler_HoldingBackedCurrentAmount(t *testing.T) {
-	goalSvc, goalRepo, holdSvc, acctSvc, tenantID := setupGoalHoldingHarness(t)
+	goalSvc, goalRepo, holdSvc, acctSvc, _, tenantID := setupGoalHoldingHarness(t)
 	ctx := context.Background()
 
 	// seed investment account.
@@ -162,5 +182,55 @@ func TestGoalScheduler_HoldingBackedCurrentAmount(t *testing.T) {
 	if got.Items[0].CurrentAmountCents != 1300000 {
 		t.Errorf("goal.CurrentAmountCents: got %d, want 1300000 (100×13000)",
 			got.Items[0].CurrentAmountCents)
+	}
+}
+
+// TestGoalScheduler_SavingsBackedCurrentAmount verifies Savings goal progress
+// = Σ linked account CurrentBalanceCents (via balSrc.GetAccountsBalance).
+// Fixture: savings account(InitialBalance 800000) + savings goal(target 1000000)
+// → current = 800000.
+func TestGoalScheduler_SavingsBackedCurrentAmount(t *testing.T) {
+	goalSvc, goalRepo, _, acctSvc, _, tenantID := setupGoalHoldingHarness(t)
+	ctx := context.Background()
+
+	// seed savings account (InitialBalance 800000 = 8000 元).
+	acc, err := acctSvc.CreateAccount(ctx, accountapp.CreateAccountRequest{
+		TenantID:             tenantID,
+		Name:                 "储蓄账户",
+		AccountType:          accountdomain.AccountTypeAsset,
+		Category:             accountdomain.AccountCategorySavings,
+		CurrencyCode:         "CNY",
+		InitialBalanceCents:  800000,
+	})
+	if err != nil {
+		t.Fatalf("CreateAccount savings: %v", err)
+	}
+
+	// seed Savings goal (linked to savings account, target 1000000).
+	goal, err := goaldomain.NewGoal(tenantID, "储蓄目标", goaldomain.GoalTypeSavings,
+		1000000, "CNY", nil, []uuid.UUID{acc.ID}, nil, "")
+	if err != nil {
+		t.Fatalf("NewGoal savings: %v", err)
+	}
+	if err := goalRepo.Save(ctx, goal); err != nil {
+		t.Fatalf("goalRepo.Save: %v", err)
+	}
+
+	// SyncAllGoals: computeGoalProgress(Savings) → balSrc.GetAccountsBalance([acc.ID]) = 800000.
+	count, err := goalSvc.SyncAllGoals(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("SyncAllGoals: %v", err)
+	}
+	if count < 1 {
+		t.Errorf("SyncAllGoals count=%d, want >= 1", count)
+	}
+
+	// Verify goal.CurrentAmountCents = 800000.
+	got, err := goalRepo.FindAll(ctx, tenantID, nil, nil, goaldomain.PageRequest{PageSize: 10})
+	if err != nil || len(got.Items) == 0 {
+		t.Fatalf("goalRepo.FindAll: err=%v len=%d", err, len(got.Items))
+	}
+	if got.Items[0].CurrentAmountCents != 800000 {
+		t.Errorf("savings goal CurrentAmountCents: got %d, want 800000 (account balance)", got.Items[0].CurrentAmountCents)
 	}
 }
