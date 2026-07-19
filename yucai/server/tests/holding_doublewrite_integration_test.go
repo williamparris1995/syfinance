@@ -233,3 +233,86 @@ func TestHoldingBuy_InsufficientBalance_FailFast(t *testing.T) {
 			gotFrom.CurrentBalanceCents)
 	}
 }
+
+// TestHoldingSell_DoubleWrite_EndToEnd drives SellHolding through the real gRPC
+// handler wired to real ent-backed repos + BalanceUpdater, then asserts the
+// sell amount flows through to account balances (black-box: GetAccount) and
+// holding Quantity decrements.
+//
+// Expected (sell double-write, cash in from + investment out holding):
+//   - buy 10 @ 5000 builds holding: from 100000→50000, holding 0→50000, qty 10
+//   - sell 5 @ 6000 (amount 30000): from 50000→80000, holding 50000→20000, qty 10→5
+func TestHoldingSell_DoubleWrite_EndToEnd(t *testing.T) {
+	h, acctSvc, tenantID, fromAccID, holdAccID := setupHoldingDoubleWriteHarness(t)
+	ctx := context.Background()
+
+	sec, err := h.CreateSecurity(ctx, &pb.CreateSecurityRequest{
+		Symbol: "600002", Name: "Sell Test",
+		SecurityType: pb.SecurityType_SECURITY_TYPE_STOCK,
+		CurrencyCode: "CNY",
+	})
+	if err != nil {
+		t.Fatalf("CreateSecurity: %v", err)
+	}
+
+	tradeCtx := authgrpc.WithTenantID(ctx, tenantID)
+	tradeCtx = authgrpc.WithUserID(tradeCtx, uuid.New())
+
+	// buy 10 qty @ 5000 cents/share → amount 50000 (builds holding).
+	if _, err := h.BuyHolding(tradeCtx, &pb.HoldingTradeRequest{
+		AccountId:     holdAccID.String(),
+		SecurityId:    sec.Security.Id,
+		FromAccountId: fromAccID.String(),
+		Quantity:      10,
+		PriceCents:    5000,
+		TradeDate:     "2026-06-28",
+	}); err != nil {
+		t.Fatalf("BuyHolding (setup): %v", err)
+	}
+
+	// sell 5 qty @ 6000 cents/share → amount 5*6000 = 30000.
+	const sellAmount int64 = 5 * 6000
+	if _, err := h.SellHolding(tradeCtx, &pb.HoldingTradeRequest{
+		AccountId:     holdAccID.String(),
+		SecurityId:    sec.Security.Id,
+		FromAccountId: fromAccID.String(),
+		Quantity:      5,
+		PriceCents:    6000,
+		TradeDate:     "2026-06-29",
+	}); err != nil {
+		t.Fatalf("SellHolding: %v", err)
+	}
+
+	// Black-box: from balance = 50000 (after buy) + 30000 (sell cash in) = 80000.
+	gotFrom, err := acctSvc.GetAccount(ctx, tenantID, fromAccID)
+	if err != nil {
+		t.Fatalf("GetAccount from: %v", err)
+	}
+	if want := int64(50000 + sellAmount); gotFrom.CurrentBalanceCents != want {
+		t.Errorf("from balance: got %d, want %d (sell cash in)", gotFrom.CurrentBalanceCents, want)
+	}
+
+	// Black-box: holding balance = 50000 (after buy) - 30000 (investment out) = 20000.
+	gotHold, err := acctSvc.GetAccount(ctx, tenantID, holdAccID)
+	if err != nil {
+		t.Fatalf("GetAccount holding: %v", err)
+	}
+	if want := int64(50000 - sellAmount); gotHold.CurrentBalanceCents != want {
+		t.Errorf("holding balance: got %d, want %d (investment out)", gotHold.CurrentBalanceCents, want)
+	}
+
+	// holding.Quantity: 10 → 5.
+	list, err := h.ListHoldings(tradeCtx, &pb.ListHoldingsRequest{})
+	if err != nil {
+		t.Fatalf("ListHoldings: %v", err)
+	}
+	if len(list.Holdings) != 1 || list.Holdings[0].Quantity != 5 {
+		t.Errorf("holding quantity: got len=%d qty=%v, want qty=5", len(list.Holdings), func() []float64 {
+			q := make([]float64, len(list.Holdings))
+			for i, h := range list.Holdings {
+				q[i] = h.Quantity
+			}
+			return q
+		}())
+	}
+}
