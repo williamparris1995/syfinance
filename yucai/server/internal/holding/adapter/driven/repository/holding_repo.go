@@ -28,13 +28,17 @@ func (r *HoldingRepository) SaveOrUpdate(ctx context.Context, h *domain.Holding)
 		Only(ctx)
 	if err != nil {
 		// Create new
-		_, err := r.client.Holding.Create().
+		create := r.client.Holding.Create().
 			SetID(h.ID).SetTenantID(h.TenantID).
 			SetAccountID(h.AccountID).SetSecurityID(h.SecurityID).
 			SetQuantity(h.Quantity).SetAvgCostCents(h.AvgCostCents).
-			SetVersion(h.Version).SetCreatedAt(h.CreatedAt).SetUpdatedAt(h.UpdatedAt).
-			Save(ctx)
-		if err != nil {
+			SetVersion(h.Version).SetUpdatedAt(h.UpdatedAt)
+		// CreatedAt: 显式值透传;zero 时不 SetCreatedAt -> ent Default(time.Now) 生效
+		// (修 BuyHolding omit CreatedAt 致 portfolioCAGR nil bug;e2e 套件 Task 5 发现)。
+		if !h.CreatedAt.IsZero() {
+			create = create.SetCreatedAt(h.CreatedAt)
+		}
+		if _, err := create.Save(ctx); err != nil {
 			return fmt.Errorf("create holding: %w", err)
 		}
 		return nil

@@ -347,13 +347,15 @@ func TestS3_WithSplit(t *testing.T) {
 // doesn't perturb results) AND request-scoped (doesn't leak between calls).
 //
 // NOTE on fixture tweak: holdings are pre-created via the ent client with an
-// explicit CreatedAt = first-buy date. BuyHolding in the test path doesn't set
-// Holding.CreatedAt (production code does the same — ApplyBuy only bumps
-// UpdatedAt); the ent default(time.Now) is overridden by SaveOrUpdate's
-// SetCreatedAt(zeroTime). With zero CreatedAt, earliestHoldingCreated returns
-// zero → portfolioCAGR degrades to nil. Pre-creating with the right CreatedAt
-// mirrors the production state where holdings have been alive since their first
-// trade date and exercises the CAGR math end-to-end.
+// explicit CreatedAt = first-buy date. Production BuyHolding now sets
+// Holding.CreatedAt = ent time.Now (fixed via holding_repo SaveOrUpdate Create
+// IsZero fallback — see 2026-07-19-holding-createdat-bug-design.md). But
+// ent time.Now (persistence time) differs from the SetNow eval date
+// (2021-01-01): a holding bought "now" has CreatedAt > eval → earliest >
+// eval → portfolioCAGR degrades. Pre-creating with CreatedAt = first-buy
+// date simulates a "bought in the past" scenario so earliest < eval and the
+// CAGR math exercises end-to-end. Not a production-bug workaround (that is
+// fixed); it isolates the CAGR math test from ent-time-vs-eval-date timing.
 func TestS4_Portfolio_CacheTransparent(t *testing.T) {
 	svc, client, phRepo, _, tenantID, accountID := setupPerformanceHarness(t)
 	ctx := context.Background()
