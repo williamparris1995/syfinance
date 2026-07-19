@@ -97,24 +97,19 @@ func approxFloat(t *testing.T, got *float64, want float64, msg string) {
 	}
 }
 
-// TestS1_SingleHolding_Baseline: buy 100 @ ¥100 (2020-01-02) → current ¥130
-// (eval 2021-01-01, 365 天). 无 dividend/sell/split.
+// seedBaselineHolding 建一个 buy 100 @ ¥100 (2020-01-02) + current ¥130 +
+// price_history firstPrice=¥100 的基线持仓(S1 fixture 流程提取)。
 //
-// 锁定单标的计算基线:domain 包单测此前只验方向/非空,本测验证 XIRR/CAGR 在
-// 整 365 天、单笔 buy、无中断的简单情形下精确重合(0.30 ±1e-6)。
+// 返 secID + holding 供 S1/S2 复用。S2 在此基线上叠加 dividend/sell/split 等
+// 后续 trade,锁定各场景下 XIRR/TWR/CAGR 的预期行为。
 //
-// 注 1:trade date 用 2020-01-02(非 2020-01-01)— 2020 是闰年,2020-01-01 →
-// 2021-01-01 实际是 366 天(actual/365 day-count),会让 XIRR/CAGR 算成 0.299068
+// 注:trade date 用 2020-01-02(非 2020-01-01)— 2020 是闰年,2020-01-01 →
+// 2021-01-01 = 366 天(actual/365 day-count),会让 XIRR/CAGR 算成 0.299068
 // 而非 0.30。2020-01-02 → 2021-01-01 = 整 365 天,XIRR/CAGR = 0.30 精确命中。
-//
-// 注 2:TWR 在单笔 buy 时按 holdingTWR 实现降级为 nil(len(trades)<2 sentinel)。
-// 数学上单笔 buy 的 TWR = (final/initial)^(365/days) - 1 = 0.30(与 XIRR/CAGR
-// 重合),但实现需要 ≥2 个现金流日子切分子区间 — 单笔 buy 只有 1 个,降级。
-// 此处锁定当前实现行为(nil);数学闭环需 holdingTWR 补单 buy 分支(follow-up)。
-func TestS1_SingleHolding_Baseline(t *testing.T) {
-	svc, _, phRepo, holdRepo, tenantID, accountID := setupPerformanceHarness(t)
-	ctx := context.Background()
-
+func seedBaselineHolding(t *testing.T, ctx context.Context, svc *application.Service,
+	phRepo domain.PriceHistoryRepository, holdRepo domain.HoldingRepository,
+	tenantID, accountID uuid.UUID) (secID uuid.UUID, holding *domain.Holding) {
+	t.Helper()
 	// CreateSecurity 返 *SecurityDTO;price 单独 UpdateSecurityPrice(照 TestSecurityCRUD).
 	sec, err := svc.CreateSecurity(ctx, application.CreateSecurityRequest{
 		Symbol: "600519.SH", Name: "Kweichow Moutai", SecurityType: domain.SecurityTypeStock,
@@ -126,25 +121,42 @@ func TestS1_SingleHolding_Baseline(t *testing.T) {
 	if err := svc.UpdateSecurityPrice(ctx, sec.ID, 13000); err != nil { // ¥130
 		t.Fatalf("UpdateSecurityPrice: %v", err)
 	}
-	secID := sec.ID
+	secID = sec.ID
 
-	// buy 100 @ ¥100 (10000 cents) on 2020-01-02 (见上注 1:闰年避开).
-	trade, err := svc.BuyHolding(ctx, application.HoldingTradeRequest{
+	// buy 100 @ ¥100 (10000 cents) on 2020-01-02 (见上注:闰年避开).
+	if _, err := svc.BuyHolding(ctx, application.HoldingTradeRequest{
 		TenantID: tenantID, AccountID: accountID, SecurityID: secID,
 		Quantity: 100, PriceCents: 10000, TradeDate: day(t, "2020-01-02"),
-	})
-	if err != nil {
+	}); err != nil {
 		t.Fatalf("BuyHolding: %v", err)
 	}
-	_ = trade
 
 	// price_history firstPrice = ¥100 (CAGR full: firstPrice→current).
 	seedPriceHistory(t, phRepo, secID, day(t, "2020-01-02"), 10000)
 
-	holding, err := holdRepo.FindByAccountAndSecurity(ctx, tenantID, accountID, secID)
+	holding, err = holdRepo.FindByAccountAndSecurity(ctx, tenantID, accountID, secID)
 	if err != nil || holding == nil {
 		t.Fatalf("find holding: %v", err)
 	}
+	return secID, holding
+}
+
+// TestS1_SingleHolding_Baseline: buy 100 @ ¥100 (2020-01-02) → current ¥130
+// (eval 2021-01-01, 365 天). 无 dividend/sell/split.
+//
+// 锁定单标的计算基线:domain 包单测此前只验方向/非空,本测验证 XIRR/CAGR 在
+// 整 365 天、单笔 buy、无中断的简单情形下精确重合(0.30 ±1e-6)。
+//
+// 注:TWR 在单笔 buy 时按 holdingTWR 实现降级为 nil(len(trades)<2 sentinel)。
+// 数学上单笔 buy 的 TWR = (final/initial)^(365/days) - 1 = 0.30(与 XIRR/CAGR
+// 重合),但实现需要 ≥2 个现金流日子切分子区间 — 单笔 buy 只有 1 个,降级。
+// 此处锁定当前实现行为(nil);数学闭环需 holdingTWR 补单 buy 分支(follow-up)。
+func TestS1_SingleHolding_Baseline(t *testing.T) {
+	svc, _, phRepo, holdRepo, tenantID, accountID := setupPerformanceHarness(t)
+	ctx := context.Background()
+
+	_, holding := seedBaselineHolding(t, ctx, svc, phRepo, holdRepo, tenantID, accountID)
+
 	perf, err := svc.GetHoldingPerformance(ctx, holding.ID, "MONTH", "CNY")
 	if err != nil {
 		t.Fatalf("GetHoldingPerformance: %v", err)
@@ -154,11 +166,52 @@ func TestS1_SingleHolding_Baseline(t *testing.T) {
 	approxFloat(t, perf.AnnualizedPct, 0.30, "S1 full XIRR")
 	approxFloat(t, perf.CagrAnnualizedPct, 0.30, "S1 full CAGR")
 
-	// TWR:当前 holdingTWR 实现对单笔 buy(len(trades)<2)降级为 nil(见注 2).
+	// TWR:当前 holdingTWR 实现对单笔 buy(len(trades)<2)降级为 nil(见上注).
 	// 锁定该降级行为;数学上单 buy 的 TWR 应 = 0.30,实现补单 buy 分支后此处
 	// 可改 assert 0.30(follow-up,不在 Task 2 范围).
 	if perf.TwrAnnualizedPct != nil {
 		t.Errorf("S1 full TWR: got %.9f, want nil (single-buy degrade; see test comment)",
 			*perf.TwrAnnualizedPct)
+	}
+}
+
+// TestS2_WithDividend: S1 baseline + dividend ¥500 (2020-07-01).
+//
+// TWR 中性:dividend 在 QtyAtDate 是 no-op(qty 不变),BV_before==BV_after,
+// holdingTWR 子区间 HPR=1 → 链 telescoping 后 cumulative 不变 = 0.30(memory
+// split-adjusted 教训:现金流日子 BV 不变,subPeriod return=0,final link
+// 仍 finalValue/lastAfterCF = 1.30)。S2 = buy+dividend = 2 trades → 不降级。
+//
+// XIRR 增益:dividend 是真实现金流入(XIRR cash flow AmountCents=50000 cents),
+// 在 buy/terminal 之间多一个正 cash flow → IRR 上凸 > 0.30。理论值
+// =XIRR([-10000,500,13000],[2020-01-02,2020-07-01,2021-01-01]) ≈ 0.358。
+func TestS2_WithDividend(t *testing.T) {
+	svc, _, phRepo, holdRepo, tenantID, accountID := setupPerformanceHarness(t)
+	ctx := context.Background()
+
+	// S1 基线(buy 100@¥100 + current ¥130 + firstPrice ¥100).
+	secID, holding := seedBaselineHolding(t, ctx, svc, phRepo, holdRepo, tenantID, accountID)
+
+	// + dividend ¥500 (每股 ¥5 × 100) on 2020-07-01.
+	if _, err := svc.RecordDividend(ctx, application.RecordDividendRequest{
+		TenantID: tenantID, AccountID: accountID, SecurityID: secID,
+		Quantity: 100, CashPerShareCents: 500, TotalAmountCents: 50000,
+		TradeDate: day(t, "2020-07-01"),
+	}); err != nil {
+		t.Fatalf("RecordDividend: %v", err)
+	}
+
+	perf, err := svc.GetHoldingPerformance(ctx, holding.ID, "MONTH", "CNY")
+	if err != nil {
+		t.Fatalf("GetHoldingPerformance: %v", err)
+	}
+
+	// TWR 中性:dividend 切点 BV_before==BV_after → subPeriod HPR=1 → 链不变.
+	// S2 不再降级(buy+dividend = 2 trades ≥ 2),返 0.30(同 S1 cumulative).
+	approxFloat(t, perf.TwrAnnualizedPct, 0.30, "S2 TWR (dividend neutral)")
+
+	// XIRR 增益:dividend 真实现金流入 → XIRR > 0.30 (S1 baseline).
+	if perf.AnnualizedPct == nil || *perf.AnnualizedPct <= 0.30 {
+		t.Errorf("S2 XIRR = %v, want > 0.30 (dividend boost)", perf.AnnualizedPct)
 	}
 }
