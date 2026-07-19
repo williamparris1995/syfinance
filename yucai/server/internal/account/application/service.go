@@ -307,8 +307,10 @@ func (s *Service) SeedPresetCategories(ctx context.Context, tenantID uuid.UUID) 
 // account's CurrencyCode. Implements networth/domain.AccountBalanceSource
 // (structural — networth does not import account).
 //
-// Asset-only: liabilities are tracked separately via the debt module's
-// SumRemainingByCurrency; expense/income category accounts carry no balance.
+// Asset-only: liabilities (borrowed-in only) are tracked separately via the
+// debt module's SumRemainingByCurrency; receivables (borrowed-out) are tracked
+// as asset account balances via debt double-write; expense/income category
+// accounts carry no balance.
 // Best-effort per-currency: a zero-currency-code account (should not happen —
 // NewAccount defaults to CNY) is bucketed under "".
 func (s *Service) SumBalancesByCurrency(ctx context.Context, tenantID uuid.UUID) (map[string]int64, error) {

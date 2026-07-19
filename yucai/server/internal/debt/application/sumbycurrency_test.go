@@ -213,6 +213,58 @@ func TestSumRemainingByCurrency_PerAccountCurrency(t *testing.T) {
 	}
 }
 
+// seedDebtAsType builds a DebtDetails with explicit DebtType (seedDebt hardcodes BorrowedIn).
+func seedDebtAsType(t *testing.T, tenantID, accountID uuid.UUID, total, principalPaid int64, debtType domain.DebtType) *domain.DebtDetails {
+	t.Helper()
+	d, err := domain.NewDebtDetails(
+		tenantID, accountID, "Lender", 0.05, domain.AmortizationLumpSum,
+		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC),
+		total, debtType, "",
+		"", "", nil,
+	)
+	if err != nil {
+		t.Fatalf("seed debt: %v", err)
+	}
+	d.GenerateSchedule()
+	if principalPaid > 0 {
+		if len(d.Schedule) == 0 {
+			t.Fatalf("seed debt: no schedule entries")
+		}
+		d.Schedule[0].Paid = true
+		d.Schedule[0].PrincipalCents = principalPaid
+		d.Schedule[0].PaidCents = d.Schedule[0].TotalCents
+	}
+	return d
+}
+
+// TestSumRemainingByCurrency_ExcludesBorrowedOut verifies BorrowedOut receivables
+// are excluded from networth liabilities (only BorrowedIn counts). Bug root cause:
+// original FindAll typeFilter=nil counted both types.
+func TestSumRemainingByCurrency_ExcludesBorrowedOut(t *testing.T) {
+	tenant := uuid.New()
+	acc := uuid.New()
+	repo := newPagedDebtRepo()
+	// BorrowedIn: total 5000, paid 0 = 5000 remaining.
+	_ = repo.Save(context.Background(), seedDebtAsType(t, tenant, acc, 5000, 0, domain.BorrowedIn))
+	// BorrowedOut: total 3000, paid 0 = 3000 remaining (EXCLUDED from liab).
+	_ = repo.Save(context.Background(), seedDebtAsType(t, tenant, acc, 3000, 0, domain.BorrowedOut))
+	lookup := &fakeAccountLookup{byID: map[uuid.UUID]*accountdomain.Account{
+		acc: {ID: acc, CurrencyCode: "CNY"},
+	}}
+	svc := NewService(repo)
+	svc.SetAccountLookup(lookup)
+
+	got, err := svc.SumRemainingByCurrency(context.Background(), tenant)
+	if err != nil {
+		t.Fatalf("SumRemainingByCurrency: %v", err)
+	}
+	// only BorrowedIn 5000 (BorrowedOut 3000 excluded).
+	if got["CNY"] != 5000 {
+		t.Errorf("CNY remaining = %d, want 5000 (BorrowedIn only, BorrowedOut 3000 excluded)", got["CNY"])
+	}
+}
+
 // TestSumRemainingByCurrency_DefaultCNYWhenNoLookup verifies that without an
 // injected accountLookup, every debt is bucketed under CNY (app default).
 func TestSumRemainingByCurrency_DefaultCNYWhenNoLookup(t *testing.T) {

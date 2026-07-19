@@ -150,9 +150,10 @@ func (s *Service) ListDebts(ctx context.Context, req ListDebtsRequest) (*ListDeb
 	}, nil
 }
 
-// SumRemainingByCurrency sums the remaining principal of every debt for a
-// tenant, grouped by currency. Implements networth/domain.DebtSource
-// (structural — networth does not import debt).
+// SumRemainingByCurrency sums the remaining principal of every borrowed-in debt
+// for a tenant, grouped by currency. Implements networth/domain.DebtSource
+// (structural — networth does not import debt). BorrowedOut receivables are
+// excluded (they're tracked as asset account balances via debt double-write).
 //
 // Currency resolution: DebtDetails has no CurrencyCode field, so each debt's
 // currency is read from its parent account via the injected AccountLookup. When
@@ -162,8 +163,9 @@ func (s *Service) ListDebts(ctx context.Context, req ListDebtsRequest) (*ListDeb
 func (s *Service) SumRemainingByCurrency(ctx context.Context, tenantID uuid.UUID) (map[string]int64, error) {
 	byCur := map[string]int64{}
 	page := domain.PageRequest{PageSize: 100}
+	in := domain.BorrowedIn // networth liab 只含 borrowed-in;BorrowedOut receivable 已在 asset account balance via double-write
 	for {
-		result, err := s.repo.FindAll(ctx, tenantID, page, nil)
+		result, err := s.repo.FindAll(ctx, tenantID, page, &in)
 		if err != nil {
 			return nil, fmt.Errorf("sum remaining by currency: list debts: %w", err)
 		}
