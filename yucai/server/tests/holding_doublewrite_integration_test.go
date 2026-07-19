@@ -278,15 +278,19 @@ func TestHoldingSell_DoubleWrite_EndToEnd(t *testing.T) {
 
 	// sell 5 qty @ 6000 cents/share → amount 5*6000 = 30000.
 	const sellAmount int64 = 5 * 6000
-	if _, err := h.SellHolding(tradeCtx, &pb.HoldingTradeRequest{
+	resp, err := h.SellHolding(tradeCtx, &pb.HoldingTradeRequest{
 		AccountId:     holdAccID.String(),
 		SecurityId:    sec.Security.Id,
 		FromAccountId: fromAccID.String(),
 		Quantity:      5,
 		PriceCents:    6000,
 		TradeDate:     "2026-06-29",
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("SellHolding: %v", err)
+	}
+	if resp == nil || resp.Transaction == nil || resp.Transaction.Id == "" {
+		t.Fatal("SellHolding returned empty trade")
 	}
 
 	// Black-box: from balance = 50000 (after buy) + 30000 (sell cash in) = 80000.
@@ -375,8 +379,12 @@ func TestHoldingSell_QuantityInsufficient_FailFast(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListHoldings: %v", err)
 	}
-	if len(list.Holdings) != 1 || list.Holdings[0].Quantity != 10 {
-		t.Errorf("fail-fast: holding quantity should be unchanged (10), got len=%d", len(list.Holdings))
+	if len(list.Holdings) != 1 {
+		t.Fatalf("fail-fast: expected exactly 1 holding, got len=%d", len(list.Holdings))
+	}
+	if list.Holdings[0].Quantity != 10 {
+		t.Errorf("fail-fast: holding quantity should be unchanged (10), got qty=%v",
+			list.Holdings[0].Quantity)
 	}
 
 	// fail-fast: from balance unchanged (50000 after buy).
@@ -488,7 +496,7 @@ func TestLotPath_FIFOConsumeAndRealized(t *testing.T) {
 	}
 
 	// Verify trade.RealizedPnlCents via holdClient.HoldingTransaction.Query
-	// (proto tradeToProxy 不透 RealizedPnlCents 字段). sell trade realized:
+	// (proto tradeToProto 不透 RealizedPnlCents 字段). sell trade realized:
 	//   (13000-10000)*60 + (13000-12000)*20 = 180000 + 20000 = 200000.
 	trades, err := holdClient.HoldingTransaction.Query().All(ctx)
 	if err != nil {

@@ -63,7 +63,9 @@ func setupGoalHoldingHarness(t *testing.T) (
 	if err := holdClient.Schema.Create(ctx); err != nil {
 		t.Fatalf("create holding schema: %v", err)
 	}
-	// debt schema before goal: goal_debt_links FK-references debt rows.
+	// debt schema before goal: goal_debt_links has no DB-level FK to debt rows
+	// (application-level reference / logical join table only), but we still
+	// create debt first for semantic ordering.
 	if err := debtClient.Schema.Create(ctx); err != nil {
 		t.Fatalf("create debt schema: %v", err)
 	}
@@ -171,8 +173,8 @@ func TestGoalScheduler_HoldingBackedCurrentAmount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SyncAllGoals: %v", err)
 	}
-	if count < 1 {
-		t.Errorf("SyncAllGoals count=%d, want >= 1", count)
+	if count != 1 {
+		t.Errorf("SyncAllGoals count=%d, want == 1 (single investment goal per tenant)", count)
 	}
 
 	// Verify goal.CurrentAmountCents = 100 × 13000 = 1,300,000.
@@ -222,8 +224,8 @@ func TestGoalScheduler_SavingsBackedCurrentAmount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SyncAllGoals: %v", err)
 	}
-	if count < 1 {
-		t.Errorf("SyncAllGoals count=%d, want >= 1", count)
+	if count != 1 {
+		t.Errorf("SyncAllGoals count=%d, want == 1 (single savings goal per tenant)", count)
 	}
 
 	// Verify goal.CurrentAmountCents = 800000.
@@ -297,8 +299,8 @@ func TestGoalScheduler_DebtPayoffBackedCurrentAmount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SyncAllGoals: %v", err)
 	}
-	if count < 1 {
-		t.Errorf("SyncAllGoals count=%d, want >= 1", count)
+	if count != 1 {
+		t.Errorf("SyncAllGoals count=%d, want == 1 (single debtpayoff goal per tenant)", count)
 	}
 
 	// Verify goal.CurrentAmountCents = 200000.

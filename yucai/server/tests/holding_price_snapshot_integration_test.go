@@ -82,7 +82,10 @@ func setupPriceSnapshotHarness(t *testing.T) (
 	svc.SetTenantLister(&fakeTenantLister{}) // test overrides via re-set if needed
 	// rateRepo nil: CNY only.
 
-	evalTime, _ := time.Parse("2006-01-02", psEvalDate)
+	evalTime, err := time.Parse("2006-01-02", psEvalDate)
+	if err != nil {
+		t.Fatalf("parse eval date: %v", err)
+	}
 	svc.SetNow(func() time.Time { return evalTime.UTC() })
 
 	tenantID, accountID = uuid.New(), uuid.New()

@@ -68,6 +68,8 @@ func setupNetWorthHarness(t *testing.T) (
 	if err := currencyClient.Schema.Create(ctx); err != nil {
 		t.Fatalf("create currency schema: %v", err)
 	}
+	// t.Cleanup LIFO: clients close before db (correct order — registered
+	// after db at the top of the harness, so they run first on teardown).
 	t.Cleanup(func() { acctClient.Close() })
 	t.Cleanup(func() { holdClient.Close() })
 	t.Cleanup(func() { debtClient.Close() })
@@ -183,7 +185,8 @@ func TestNetWorth_MultiCurrency(t *testing.T) {
 	}
 
 	// Seed borrowed-in debt CNY 5000 under the CNY account. Lump-sum amortization
-	// emits a single entry at due date (unpaid), so RemainingPrincipal equals
+	// emits a single entry at due date; DueDate (2026-12-31) is in the future so
+	// the lump-sum entry is unpaid, and RemainingPrincipal equals
 	// TotalPrincipalCents = 5000. DebtType=BorrowedIn (money the user owes) →
 	// networth classifies under liabilities. The harness wires
 	// debt.SetAccountLookup(accountRepo), so SumRemainingByCurrency resolves this
@@ -206,6 +209,7 @@ func TestNetWorth_MultiCurrency(t *testing.T) {
 	// FindRate("USD", time.Now()); RateHistoryRepository forward-fills to the
 	// most recent RateDateLTE(now), so a past-date seed is picked up. Without
 	// this row FindRate returns 1.0 and the USD holding stays unconverted.
+	// Convention: only one rate row per currency in this test.
 	pastDate := time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC)
 	seedRate(t, currencyClient, "USD", pastDate, 7.0)
 

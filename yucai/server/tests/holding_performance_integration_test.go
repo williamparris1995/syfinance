@@ -167,8 +167,8 @@ func TestS1_SingleHolding_Baseline(t *testing.T) {
 	approxFloat(t, perf.CagrAnnualizedPct, 0.30, "S1 full CAGR")
 
 	// TWR:当前 holdingTWR 实现对单笔 buy(len(trades)<2)降级为 nil(见上注).
-	// 锁定该降级行为;数学上单 buy 的 TWR 应 = 0.30,实现补单 buy 分支后此处
-	// 可改 assert 0.30(follow-up,不在 Task 2 范围).
+	// 锁定该降级行为;数学上单 buy 的 TWR 应 = 0.30,补 holdingTWR single-buy
+	// 分支后此处可改 assert 0.30(follow-up: holdingTWR single-buy branch).
 	if perf.TwrAnnualizedPct != nil {
 		t.Errorf("S1 full TWR: got %.9f, want nil (single-buy degrade; see test comment)",
 			*perf.TwrAnnualizedPct)
@@ -343,19 +343,20 @@ func TestS3_WithSplit(t *testing.T) {
 // Cache transparency: mvCache (request-scoped map inside portfolioTWR) is
 // rebuilt per GetPortfolioPerformance call — no cross-request state. Two
 // back-to-back calls must return byte-identical *float64 (exact equality, not
-// ±1e-6) for XIRR / TWR / CAGR. Proves cache is transparent (memoization
-// doesn't perturb results) AND request-scoped (doesn't leak between calls).
+// ±1e-6) for XIRR / TWR / CAGR. XIRR/CAGR byte-identical confirms input
+// determinism; TWR byte-identical confirms cache transparency (mvCache
+// memoization doesn't perturb results) AND request-scoped (doesn't leak
+// between calls).
 //
 // NOTE on fixture tweak: holdings are pre-created via the ent client with an
-// explicit CreatedAt = first-buy date. Production BuyHolding now sets
-// Holding.CreatedAt = ent time.Now (fixed via holding_repo SaveOrUpdate Create
-// IsZero fallback — see 2026-07-19-holding-createdat-bug-design.md). But
-// ent time.Now (persistence time) differs from the SetNow eval date
-// (2021-01-01): a holding bought "now" has CreatedAt > eval → earliest >
-// eval → portfolioCAGR degrades. Pre-creating with CreatedAt = first-buy
-// date simulates a "bought in the past" scenario so earliest < eval and the
-// CAGR math exercises end-to-end. Not a production-bug workaround (that is
-// fixed); it isolates the CAGR math test from ent-time-vs-eval-date timing.
+// explicit CreatedAt = first-buy date. This exercises the CAGR math path
+// end-to-end. Production BuyHolding now sets Holding.CreatedAt (fixed via
+// holding_repo SaveOrUpdate Create IsZero fallback — see
+// 2026-07-19-holding-createdat-bug-design.md), but ent time.Now (persistence
+// time) ≠ SetNow eval date (2021-01-01): a holding bought "now" has
+// CreatedAt > eval → earliest > eval → portfolioCAGR degrades. Pre-creating
+// with CreatedAt = first-buy date isolates the CAGR math test from
+// ent-time-vs-eval-date timing (not a production-bug workaround).
 func TestS4_Portfolio_CacheTransparent(t *testing.T) {
 	svc, client, phRepo, _, tenantID, accountID := setupPerformanceHarness(t)
 	ctx := context.Background()
