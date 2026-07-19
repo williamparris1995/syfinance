@@ -16,6 +16,7 @@ import (
 	accountent "github.com/yucai/server/internal/account/ent"
 	debtapp "github.com/yucai/server/internal/debt/application"
 	debtrepo "github.com/yucai/server/internal/debt/adapter/driven/repository"
+	debtdomain "github.com/yucai/server/internal/debt/domain"
 	debtent "github.com/yucai/server/internal/debt/ent"
 	goaldomain "github.com/yucai/server/internal/goal/domain"
 	"github.com/yucai/server/internal/goal/adapter/driven/repository"
@@ -232,5 +233,81 @@ func TestGoalScheduler_SavingsBackedCurrentAmount(t *testing.T) {
 	}
 	if got.Items[0].CurrentAmountCents != 800000 {
 		t.Errorf("savings goal CurrentAmountCents: got %d, want 800000 (account balance)", got.Items[0].CurrentAmountCents)
+	}
+}
+
+// TestGoalScheduler_DebtPayoffBackedCurrentAmount verifies DebtPayoff goal progress
+// = Σ (TotalPrincipal − RemainingPrincipal) of linked debts (via debtSrc.GetDebtsPaid).
+// Fixture: debt(total 600000, EqualPrincipal 3-month term → 月 principal 200000) +
+// mark Schedule[0] paid → paid=200000, remaining=400000 + debt payoff goal
+// (target 600000) → current = 200000.
+func TestGoalScheduler_DebtPayoffBackedCurrentAmount(t *testing.T) {
+	goalSvc, goalRepo, _, _, debtSvc, tenantID := setupGoalHoldingHarness(t)
+	ctx := context.Background()
+
+	// seed debt: total 600000, EqualPrincipal, 3-month term → 月 principal 200000.
+	// AccountID is any uuid — GetDebtsPaid reads only TotalPrincipal/Remaining,
+	// never the account. BorrowedOut would require a CollectionAccountID; BorrowedIn doesn't.
+	debtDTO, err := debtSvc.CreateDebt(ctx, debtapp.CreateDebtRequest{
+		TenantID:            tenantID,
+		AccountID:           uuid.New(),
+		Counterparty:        "测试负债",
+		InterestRate:        0.05,
+		AmortizationMethod:  debtdomain.AmortizationEqualPrincipal,
+		StartDate:           time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		DueDate:             time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC), // 3-month term
+		TotalPrincipalCents: 600000,
+		DebtType:            debtdomain.BorrowedIn,
+	})
+	if err != nil {
+		t.Fatalf("CreateDebt: %v", err)
+	}
+	debtID := debtDTO.ID
+
+	// mark Schedule[0] paid → principal paid=200000, remaining=600000-200000=400000.
+	// RecordPayment is the canonical pattern (照 debt_integration_test): application
+	// layer just flips Paid + sets PaidCents + repo.Update — FromAccountID is read
+	// only by the gRPC handler (transaction double-write), unused here.
+	detail, err := debtSvc.GetDebt(ctx, tenantID, debtID)
+	if err != nil {
+		t.Fatalf("GetDebt: %v", err)
+	}
+	if _, err := debtSvc.RecordPayment(ctx, debtapp.RecordPaymentRequest{
+		TenantID:        tenantID,
+		DebtID:          debtID,
+		ScheduleEntryID: detail.Schedule[0].ID,
+		FromAccountID:   uuid.New(),
+	}); err != nil {
+		t.Fatalf("RecordPayment: %v", err)
+	}
+
+	// seed DebtPayoff goal (linked to debt, target 600000 > paid 200000 避 auto-complete).
+	goal, err := goaldomain.NewGoal(tenantID, "还款目标", goaldomain.GoalTypeDebtPayoff,
+		600000, "CNY", nil, nil, []uuid.UUID{debtID}, "")
+	if err != nil {
+		t.Fatalf("NewGoal debtpayoff: %v", err)
+	}
+	if err := goalRepo.Save(ctx, goal); err != nil {
+		t.Fatalf("goalRepo.Save: %v", err)
+	}
+
+	// SyncAllGoals: computeGoalProgress(DebtPayoff) → debtSrc.GetDebtsPaid([debtID])
+	// = TotalPrincipal − RemainingPrincipal = 600000 − 400000 = 200000.
+	count, err := goalSvc.SyncAllGoals(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("SyncAllGoals: %v", err)
+	}
+	if count < 1 {
+		t.Errorf("SyncAllGoals count=%d, want >= 1", count)
+	}
+
+	// Verify goal.CurrentAmountCents = 200000.
+	got, err := goalRepo.FindAll(ctx, tenantID, nil, nil, goaldomain.PageRequest{PageSize: 10})
+	if err != nil || len(got.Items) == 0 {
+		t.Fatalf("goalRepo.FindAll: err=%v len=%d", err, len(got.Items))
+	}
+	if got.Items[0].CurrentAmountCents != 200000 {
+		t.Errorf("debtpayoff goal CurrentAmountCents: got %d, want 200000 (600000 total − 400000 remaining)",
+			got.Items[0].CurrentAmountCents)
 	}
 }
