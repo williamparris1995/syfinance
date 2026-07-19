@@ -103,7 +103,9 @@ func (s *Service) BuyHolding(ctx context.Context, req HoldingTradeRequest) (*Hol
 
 	tradeID := uuid.New()
 	newLot := domain.HoldingLot{
-		ID: uuid.New(), TenantID: req.TenantID, HoldingID: h.ID, SecurityID: req.SecurityID,
+		// ID 留 zero(uuid.Nil)—— lot_repo SaveAll Create 分支(==Nil)走 ent Default。
+		// 修陷阱 A:原 ID: uuid.New() 非 Nil → SaveAll Update 分支(UpdateOneID)→ ent NotFound。
+		TenantID: req.TenantID, HoldingID: h.ID, SecurityID: req.SecurityID,
 		AcquiredDate: req.TradeDate, AcquiredTradeID: tradeID,
 		PriceCents: req.PriceCents, Quantity: req.Quantity, RemainingQuantity: req.Quantity,
 	}

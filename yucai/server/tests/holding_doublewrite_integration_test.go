@@ -74,6 +74,7 @@ func setupHoldingDoubleWriteHarness(t *testing.T) (
 	h *holdgrpc.HoldingHandler,
 	acctSvc accountapp.Service,
 	tenantID, fromAccID, holdAccID uuid.UUID,
+	holdClient *holdingent.Client, lotRepo *holdingsec.LotRepository,
 ) {
 	t.Helper()
 	acctClient, txnClient, holdClient := setupHoldingDoubleWriteTestDB(t)
@@ -90,6 +91,11 @@ func setupHoldingDoubleWriteHarness(t *testing.T) (
 	holdRepo := holdingsec.NewHoldingRepository(holdClient)
 	tradeRepo := holdingsec.NewTradeRepository(holdClient)
 	holdSvc := application.NewService(secRepo, holdRepo, tradeRepo)
+	// Wire FIFO lot repo so BuyHolding/SellHolding go through the lot path
+	// (production wire injects the same dependency — without it the double-write
+	// tests would silently exercise the moving-weighted fallback).
+	lotRepo = holdingsec.NewLotRepository(holdClient)
+	holdSvc.SetLotRepository(lotRepo)
 
 	h = holdgrpc.NewHoldingHandler(holdSvc, txnSvc, accountRepo)
 	tenantID = uuid.New()
@@ -131,7 +137,7 @@ func setupHoldingDoubleWriteHarness(t *testing.T) (
 //   - from_account (cash):  credit amount → asset −amount (100000 → 50000)
 //   - holding account:       debit amount → asset +amount (0 → 50000)
 func TestHoldingBuy_DoubleWrite_EndToEnd(t *testing.T) {
-	h, acctSvc, tenantID, fromAccID, holdAccID := setupHoldingDoubleWriteHarness(t)
+	h, acctSvc, tenantID, fromAccID, holdAccID, _, _ := setupHoldingDoubleWriteHarness(t)
 	ctx := context.Background()
 
 	sec, err := h.CreateSecurity(ctx, &pb.CreateSecurityRequest{
@@ -187,7 +193,7 @@ func TestHoldingBuy_DoubleWrite_EndToEnd(t *testing.T) {
 // account change is made (fail-fast): no holding is created and the from balance is
 // unchanged.
 func TestHoldingBuy_InsufficientBalance_FailFast(t *testing.T) {
-	h, acctSvc, tenantID, fromAccID, holdAccID := setupHoldingDoubleWriteHarness(t)
+	h, acctSvc, tenantID, fromAccID, holdAccID, _, _ := setupHoldingDoubleWriteHarness(t)
 	ctx := context.Background()
 
 	sec, err := h.CreateSecurity(ctx, &pb.CreateSecurityRequest{
@@ -243,7 +249,7 @@ func TestHoldingBuy_InsufficientBalance_FailFast(t *testing.T) {
 //   - buy 10 @ 5000 builds holding: from 100000→50000, holding 0→50000, qty 10
 //   - sell 5 @ 6000 (amount 30000): from 50000→80000, holding 50000→20000, qty 10→5
 func TestHoldingSell_DoubleWrite_EndToEnd(t *testing.T) {
-	h, acctSvc, tenantID, fromAccID, holdAccID := setupHoldingDoubleWriteHarness(t)
+	h, acctSvc, tenantID, fromAccID, holdAccID, _, _ := setupHoldingDoubleWriteHarness(t)
 	ctx := context.Background()
 
 	sec, err := h.CreateSecurity(ctx, &pb.CreateSecurityRequest{
@@ -323,7 +329,7 @@ func TestHoldingSell_DoubleWrite_EndToEnd(t *testing.T) {
 // Sell does not check from balance (validateTradeFromAccount isBuy=false); the
 // fail comes from service.SellHolding quantity check, before recordTradeTransaction.
 func TestHoldingSell_QuantityInsufficient_FailFast(t *testing.T) {
-	h, acctSvc, tenantID, fromAccID, holdAccID := setupHoldingDoubleWriteHarness(t)
+	h, acctSvc, tenantID, fromAccID, holdAccID, _, _ := setupHoldingDoubleWriteHarness(t)
 	ctx := context.Background()
 
 	sec, err := h.CreateSecurity(ctx, &pb.CreateSecurityRequest{
