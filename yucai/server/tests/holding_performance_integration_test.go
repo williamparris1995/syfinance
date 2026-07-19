@@ -463,3 +463,79 @@ func TestS4_Portfolio_CacheTransparent(t *testing.T) {
 	t.Logf("S4 portfolio perf: XIRR=%.9f TWR=%.9f CAGR=%.9f (call1==call2 byte-identical ✓)",
 		*perf1.AnnualizedPct, *perf1.TwrAnnualizedPct, *perf1.CagrAnnualizedPct)
 }
+
+// TestRangePeriod_XIRR_CAGR verifies range-period XIRR/CAGR (performance suite
+// only tested full). Fixture: re-SetNow(2023-01-02) avoids 2/29 (MONTH rangeStart
+// = 2022-01-02 = 365 days, 2022 non-leap); trade@2021-06-01 < rangeStart (avoids
+// QtyAtDate strict-< qty=0 degrade + holding range XIRR fallback-full 伪非空).
+//
+// Expected (single flow, 365 days):
+//   portfolio range XIRR = 0.30 (rangeCfs [{2022-01-02,-1e6},{2023-01-02,+1.3e6}])
+//   portfolio range CAGR = 0.30 ((1.3e6/1e6)^(365/365)-1)
+//   portfolio range TWR = nil (single trade, effectiveDays empty → degrade)
+//   holding range XIRR = 0.30 (qty@rangeStart=100>0, 非 fallback full; full XIRR≈0.175 over 578d)
+//   holding range CAGR = 0.30 (price ratio 10000→13000)
+func TestRangePeriod_XIRR_CAGR(t *testing.T) {
+	svc, _, phRepo, holdRepo, tenantID, accountID := setupPerformanceHarness(t)
+	ctx := context.Background()
+
+	// re-SetNow 2023-01-02 (避 2/29; rangeStart=2022-01-02 365天; trade<rangeStart).
+	eval2023, err := time.Parse("2006-01-02", "2023-01-02")
+	if err != nil {
+		t.Fatalf("parse eval 2023: %v", err)
+	}
+	svc.SetNow(func() time.Time { return eval2023.UTC() })
+
+	// seed security + current price 13000.
+	sec, err := svc.CreateSecurity(ctx, application.CreateSecurityRequest{
+		Symbol: "600519.SH", Name: "Range Test", SecurityType: domain.SecurityTypeStock,
+		Exchange: "SSE", CurrencyCode: "CNY",
+	})
+	if err != nil {
+		t.Fatalf("CreateSecurity: %v", err)
+	}
+	if err := svc.UpdateSecurityPrice(ctx, sec.ID, 13000); err != nil {
+		t.Fatalf("UpdateSecurityPrice: %v", err)
+	}
+
+	// buy 100 @ 10000 @ 2021-06-01 (< rangeStart 2022-01-02; qty@rangeStart=100).
+	if _, err := svc.BuyHolding(ctx, application.HoldingTradeRequest{
+		TenantID: tenantID, AccountID: accountID, SecurityID: sec.ID,
+		Quantity: 100, PriceCents: 10000, TradeDate: day(t, "2021-06-01"),
+	}); err != nil {
+		t.Fatalf("BuyHolding: %v", err)
+	}
+
+	// price_history seed at rangeStart 2022-01-02 (priceAtOrBefore rebuild opening MV).
+	seedPriceHistory(t, phRepo, sec.ID, day(t, "2022-01-02"), 10000)
+
+	holding, err := holdRepo.FindByAccountAndSecurity(ctx, tenantID, accountID, sec.ID)
+	if err != nil || holding == nil {
+		t.Fatalf("find holding: %v", err)
+	}
+
+	// GetHoldingPerformance + GetPortfolioPerformance (MONTH range).
+	hPerf, err := svc.GetHoldingPerformance(ctx, holding.ID, "MONTH", "CNY")
+	if err != nil {
+		t.Fatalf("GetHoldingPerformance: %v", err)
+	}
+	pPerf, err := svc.GetPortfolioPerformance(ctx, tenantID, &accountID, "MONTH", false, "CNY")
+	if err != nil {
+		t.Fatalf("GetPortfolioPerformance: %v", err)
+	}
+
+	// Portfolio range XIRR = 0.30 (rangeCfs single flow, 365 days).
+	approxFloat(t, pPerf.RangeAnnualizedPct, 0.30, "portfolio range XIRR")
+	// Portfolio range CAGR = 0.30 ((1.3e6/1e6)^(365/365)-1).
+	approxFloat(t, pPerf.RangeCagrAnnualizedPct, 0.30, "portfolio range CAGR")
+	// Portfolio range TWR = nil (single trade, effectiveDays empty → degrade).
+	if pPerf.RangeTwrAnnualizedPct != nil {
+		t.Errorf("portfolio range TWR: got %v, want nil (single trade effectiveDays=0 degrade)", *pPerf.RangeTwrAnnualizedPct)
+	}
+
+	// Holding range XIRR = 0.30 (非 fallback full; qty@rangeStart=100>0).
+	// 若 fallback full(≈0.175 over 578d)则 approxFloat 0.30 fail → 检测伪非空.
+	approxFloat(t, hPerf.RangeAnnualizedPct, 0.30, "holding range XIRR (非伪非空)")
+	// Holding range CAGR = 0.30 (price ratio 10000→13000).
+	approxFloat(t, hPerf.RangeCagrAnnualizedPct, 0.30, "holding range CAGR")
+}
