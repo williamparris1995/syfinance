@@ -145,3 +145,64 @@ func TestSyncPrices_PersistsPriceHistoryAndCurrentPrice(t *testing.T) {
 		t.Errorf("price_history missing 15000 entry; got %d rows", len(ph))
 	}
 }
+
+// TestSnapshotNow_PersistsHoldingSnapshot drives SnapshotAllHoldings
+// (cross-tenant fan-out via fakeTenantLister) and verifies a holding_snapshot
+// row is persisted with market value = qty × security.CurrentPriceCents.
+//
+// MV source: sec.CurrentPriceCents (NOT priceHistoryRepo — confirmed in service.go:529).
+// SnapshotAllHoldings requires SetTenantLister (nil → error). prod FindAll(uuid.Nil)
+// returns empty, so test seeds a real holding with the tenant ID the fake lister returns.
+func TestSnapshotNow_PersistsHoldingSnapshot(t *testing.T) {
+	svc, _, _, holdRepo, snapRepo, _, tenantID, accountID := setupPriceSnapshotHarness(t)
+	ctx := context.Background()
+
+	// Override the harness's empty fakeTenantLister with one returning our tenantID.
+	svc.SetTenantLister(&fakeTenantLister{ids: []uuid.UUID{tenantID}})
+
+	// seed security with CurrentPriceCents=13000 (MV source).
+	sec, err := svc.CreateSecurity(ctx, application.CreateSecurityRequest{
+		Symbol: "600519", Name: "Kweichow Moutai", SecurityType: domain.SecurityTypeStock,
+		Exchange: "SSE", CurrencyCode: "CNY",
+	})
+	if err != nil {
+		t.Fatalf("CreateSecurity: %v", err)
+	}
+	if err := svc.UpdateSecurityPrice(ctx, sec.ID, 13000); err != nil {
+		t.Fatalf("UpdateSecurityPrice: %v", err)
+	}
+
+	// seed holding: 100 qty under (tenantID, accountID).
+	holdingID := uuid.New()
+	if err := holdRepo.SaveOrUpdate(ctx, &domain.Holding{
+		ID: holdingID, TenantID: tenantID, AccountID: accountID, SecurityID: sec.ID,
+		Quantity: 100, AvgCostCents: 10000,
+	}); err != nil {
+		t.Fatalf("seed holding: %v", err)
+	}
+
+	// SnapshotAllHoldings (cross-tenant fan-out: fakeTenantLister → tenantID → SnapshotHoldings).
+	count, err := svc.SnapshotAllHoldings(ctx)
+	if err != nil {
+		t.Fatalf("SnapshotAllHoldings: %v", err)
+	}
+	if count < 1 {
+		t.Errorf("snapshot count=%d, want >= 1", count)
+	}
+
+	// Verify holding_snapshot persisted with MV = 100 × 13000 = 1,300,000.
+	snaps, err := snapRepo.FindSnapshots(ctx, tenantID, time.Time{}, time.Now(), &accountID, nil)
+	if err != nil {
+		t.Fatalf("snapRepo.FindSnapshots: %v", err)
+	}
+	found := false
+	for _, sn := range snaps {
+		if sn.HoldingID == holdingID && sn.MarketValueCents == 1300000 {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("holding_snapshot missing MV=1300000 for holding %s; got %d rows", holdingID, len(snaps))
+	}
+}
