@@ -215,3 +215,69 @@ func TestS2_WithDividend(t *testing.T) {
 		t.Errorf("S2 XIRR = %v, want > 0.30 (dividend boost)", perf.AnnualizedPct)
 	}
 }
+
+// TestS3_WithSplit: S2 (buy+dividend) + 2:1 split (2020-10-01).
+//
+// split 市值中性 → TWR / XIRR 与 S2 byte-identical ±1e-6(memory split-adjusted):
+//   - holdingTWR:uniqueSortedTradeDates 排除纯 split 日(split 非现金流,GIPS 市值中性);
+//     qty 变化(100→200)经 QtyAtDate replay 在相邻现金流日 BV 自然体现。
+//   - holdingXIRR:TradeTypeSplit continue(非现金流);terminal = qty_after × price_after
+//     = 200×6500 = 1.3e6 同 S2(100×13000)。
+//
+// fixture 关键:split 2:1 后 raw price ÷2(10000→5000,市值中性:100×10000=200×5000)。
+// current price split-adjusted = 6500(200×6500=1.3e6 同 S2 finalValue 100×13000)。
+//
+// 注:holdingCAGR 不在断言 —— raw firstPrice=10000 + current=6500 → 负(raw price 不
+// split-adjusted 的已知 limitation;memory split-adjusted 只修 TWR,不动 CAGR/price 存储)。
+func TestS3_WithSplit(t *testing.T) {
+	svc, _, phRepo, holdRepo, tenantID, accountID := setupPerformanceHarness(t)
+	ctx := context.Background()
+
+	// S2 baseline(harness 每 test 独立 setup → 在 S3 test 内重算 perfS2)。
+	secID, holding := seedBaselineHolding(t, ctx, svc, phRepo, holdRepo, tenantID, accountID)
+	if _, err := svc.RecordDividend(ctx, application.RecordDividendRequest{
+		TenantID: tenantID, AccountID: accountID, SecurityID: secID,
+		Quantity: 100, CashPerShareCents: 500, TotalAmountCents: 50000,
+		TradeDate: day(t, "2020-07-01"),
+	}); err != nil {
+		t.Fatalf("RecordDividend: %v", err)
+	}
+	perfS2, err := svc.GetHoldingPerformance(ctx, holding.ID, "MONTH", "CNY")
+	if err != nil {
+		t.Fatalf("GetHoldingPerformance S2: %v", err)
+	}
+	if perfS2.TwrAnnualizedPct == nil || perfS2.AnnualizedPct == nil {
+		t.Fatalf("S2 baseline: TWR/XIRR must be non-nil, got TWR=%v XIRR=%v",
+			perfS2.TwrAnnualizedPct, perfS2.AnnualizedPct)
+	}
+
+	// + 2:1 split on 2020-10-01 (qty 100→200, avgCost 10000→5000)。
+	if _, err := svc.RecordSplit(ctx, application.RecordSplitRequest{
+		TenantID: tenantID, AccountID: accountID, SecurityID: secID,
+		Ratio: 2.0, SplitDate: day(t, "2020-10-01"),
+	}); err != nil {
+		t.Fatalf("RecordSplit: %v", err)
+	}
+
+	// fixture: split 后 raw price ÷ ratio = 10000/2 = 5000(市值中性:
+	// split 前 BV 100×10000=1e6 = split 后 BV 200×5000=1e6)。
+	seedPriceHistory(t, phRepo, secID, day(t, "2020-10-02"), 5000)
+	// current price split-adjusted:200×6500=1.3e6 同 S2 finalValue(100×13000)。
+	if err := svc.UpdateSecurityPrice(ctx, secID, 6500); err != nil { // 13000/2
+		t.Fatalf("UpdateSecurityPrice post-split: %v", err)
+	}
+
+	// 重新查 holding(split 后 qty=200 / avgCost=5000 已更新)。
+	holding2, err := holdRepo.FindByAccountAndSecurity(ctx, tenantID, accountID, secID)
+	if err != nil || holding2 == nil {
+		t.Fatalf("find holding post-split: %v", err)
+	}
+	perfS3, err := svc.GetHoldingPerformance(ctx, holding2.ID, "MONTH", "CNY")
+	if err != nil {
+		t.Fatalf("GetHoldingPerformance S3: %v", err)
+	}
+
+	// split 市值中性:TWR / XIRR 与 S2 byte-identical ±1e-6。
+	approxFloat(t, perfS3.TwrAnnualizedPct, *perfS2.TwrAnnualizedPct, "S3 TWR (split neutral)")
+	approxFloat(t, perfS3.AnnualizedPct, *perfS2.AnnualizedPct, "S3 XIRR (split neutral)")
+}
