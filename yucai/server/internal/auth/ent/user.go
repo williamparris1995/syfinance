@@ -21,25 +21,40 @@ type User struct {
 	ID uuid.UUID `json:"id,omitempty"`
 	// FK to tenants table — data isolation boundary
 	TenantID uuid.UUID `json:"tenant_id,omitempty"`
-	// User email address, unique per tenant
+	// Profile email (from first OIDC identity, verified only)
 	Email string `json:"email,omitempty"`
-	// bcrypt hashed password
-	PasswordHash string `json:"-"`
 	// User-visible display name
 	DisplayName string `json:"display_name,omitempty"`
 	// URL to user avatar image
 	AvatarURL string `json:"avatar_url,omitempty"`
-	// OAuth provider name (google, apple, etc.)
-	OauthProvider string `json:"oauth_provider,omitempty"`
-	// OAuth provider user ID
-	OauthID string `json:"oauth_id,omitempty"`
 	// Role within family tenant
 	FamilyRole user.FamilyRole `json:"family_role,omitempty"`
 	// Record creation time
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// Last update time
-	UpdatedAt    time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the UserQuery when eager-loading is set.
+	Edges        UserEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// UserEdges holds the relations/edges for other nodes in the graph.
+type UserEdges struct {
+	// Identities holds the value of the identities edge.
+	Identities []*UserIdentity `json:"identities,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// IdentitiesOrErr returns the Identities value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) IdentitiesOrErr() ([]*UserIdentity, error) {
+	if e.loadedTypes[0] {
+		return e.Identities, nil
+	}
+	return nil, &NotLoadedError{edge: "identities"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -47,7 +62,7 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldEmail, user.FieldPasswordHash, user.FieldDisplayName, user.FieldAvatarURL, user.FieldOauthProvider, user.FieldOauthID, user.FieldFamilyRole:
+		case user.FieldEmail, user.FieldDisplayName, user.FieldAvatarURL, user.FieldFamilyRole:
 			values[i] = new(sql.NullString)
 		case user.FieldCreatedAt, user.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -86,12 +101,6 @@ func (u *User) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				u.Email = value.String
 			}
-		case user.FieldPasswordHash:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field password_hash", values[i])
-			} else if value.Valid {
-				u.PasswordHash = value.String
-			}
 		case user.FieldDisplayName:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field display_name", values[i])
@@ -103,18 +112,6 @@ func (u *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field avatar_url", values[i])
 			} else if value.Valid {
 				u.AvatarURL = value.String
-			}
-		case user.FieldOauthProvider:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field oauth_provider", values[i])
-			} else if value.Valid {
-				u.OauthProvider = value.String
-			}
-		case user.FieldOauthID:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field oauth_id", values[i])
-			} else if value.Valid {
-				u.OauthID = value.String
 			}
 		case user.FieldFamilyRole:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -147,6 +144,11 @@ func (u *User) Value(name string) (ent.Value, error) {
 	return u.selectValues.Get(name)
 }
 
+// QueryIdentities queries the "identities" edge of the User entity.
+func (u *User) QueryIdentities() *UserIdentityQuery {
+	return NewUserClient(u.config).QueryIdentities(u)
+}
+
 // Update returns a builder for updating this User.
 // Note that you need to call User.Unwrap() before calling this method if this User
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -176,19 +178,11 @@ func (u *User) String() string {
 	builder.WriteString("email=")
 	builder.WriteString(u.Email)
 	builder.WriteString(", ")
-	builder.WriteString("password_hash=<sensitive>")
-	builder.WriteString(", ")
 	builder.WriteString("display_name=")
 	builder.WriteString(u.DisplayName)
 	builder.WriteString(", ")
 	builder.WriteString("avatar_url=")
 	builder.WriteString(u.AvatarURL)
-	builder.WriteString(", ")
-	builder.WriteString("oauth_provider=")
-	builder.WriteString(u.OauthProvider)
-	builder.WriteString(", ")
-	builder.WriteString("oauth_id=")
-	builder.WriteString(u.OauthID)
 	builder.WriteString(", ")
 	builder.WriteString("family_role=")
 	builder.WriteString(fmt.Sprintf("%v", u.FamilyRole))

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 )
 
@@ -19,24 +20,27 @@ const (
 	FieldTenantID = "tenant_id"
 	// FieldEmail holds the string denoting the email field in the database.
 	FieldEmail = "email"
-	// FieldPasswordHash holds the string denoting the password_hash field in the database.
-	FieldPasswordHash = "password_hash"
 	// FieldDisplayName holds the string denoting the display_name field in the database.
 	FieldDisplayName = "display_name"
 	// FieldAvatarURL holds the string denoting the avatar_url field in the database.
 	FieldAvatarURL = "avatar_url"
-	// FieldOauthProvider holds the string denoting the oauth_provider field in the database.
-	FieldOauthProvider = "oauth_provider"
-	// FieldOauthID holds the string denoting the oauth_id field in the database.
-	FieldOauthID = "oauth_id"
 	// FieldFamilyRole holds the string denoting the family_role field in the database.
 	FieldFamilyRole = "family_role"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// EdgeIdentities holds the string denoting the identities edge name in mutations.
+	EdgeIdentities = "identities"
 	// Table holds the table name of the user in the database.
 	Table = "users"
+	// IdentitiesTable is the table that holds the identities relation/edge.
+	IdentitiesTable = "user_identities"
+	// IdentitiesInverseTable is the table name for the UserIdentity entity.
+	// It exists in this package in order to avoid circular dependency with the "useridentity" package.
+	IdentitiesInverseTable = "user_identities"
+	// IdentitiesColumn is the table column denoting the identities relation/edge.
+	IdentitiesColumn = "user_id"
 )
 
 // Columns holds all SQL columns for user fields.
@@ -44,11 +48,8 @@ var Columns = []string{
 	FieldID,
 	FieldTenantID,
 	FieldEmail,
-	FieldPasswordHash,
 	FieldDisplayName,
 	FieldAvatarURL,
-	FieldOauthProvider,
-	FieldOauthID,
 	FieldFamilyRole,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -65,18 +66,12 @@ func ValidColumn(column string) bool {
 }
 
 var (
-	// EmailValidator is a validator for the "email" field. It is called by the builders before save.
-	EmailValidator func(string) error
-	// PasswordHashValidator is a validator for the "password_hash" field. It is called by the builders before save.
-	PasswordHashValidator func(string) error
+	// DefaultEmail holds the default value on creation for the "email" field.
+	DefaultEmail string
 	// DisplayNameValidator is a validator for the "display_name" field. It is called by the builders before save.
 	DisplayNameValidator func(string) error
 	// DefaultAvatarURL holds the default value on creation for the "avatar_url" field.
 	DefaultAvatarURL string
-	// DefaultOauthProvider holds the default value on creation for the "oauth_provider" field.
-	DefaultOauthProvider string
-	// DefaultOauthID holds the default value on creation for the "oauth_id" field.
-	DefaultOauthID string
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -132,11 +127,6 @@ func ByEmail(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEmail, opts...).ToFunc()
 }
 
-// ByPasswordHash orders the results by the password_hash field.
-func ByPasswordHash(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPasswordHash, opts...).ToFunc()
-}
-
 // ByDisplayName orders the results by the display_name field.
 func ByDisplayName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDisplayName, opts...).ToFunc()
@@ -145,16 +135,6 @@ func ByDisplayName(opts ...sql.OrderTermOption) OrderOption {
 // ByAvatarURL orders the results by the avatar_url field.
 func ByAvatarURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAvatarURL, opts...).ToFunc()
-}
-
-// ByOauthProvider orders the results by the oauth_provider field.
-func ByOauthProvider(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOauthProvider, opts...).ToFunc()
-}
-
-// ByOauthID orders the results by the oauth_id field.
-func ByOauthID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOauthID, opts...).ToFunc()
 }
 
 // ByFamilyRole orders the results by the family_role field.
@@ -170,4 +150,25 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// ByIdentitiesCount orders the results by identities count.
+func ByIdentitiesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newIdentitiesStep(), opts...)
+	}
+}
+
+// ByIdentities orders the results by identities terms.
+func ByIdentities(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newIdentitiesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newIdentitiesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(IdentitiesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, IdentitiesTable, IdentitiesColumn),
+	)
 }

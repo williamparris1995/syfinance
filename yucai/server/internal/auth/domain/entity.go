@@ -55,46 +55,79 @@ func (t *Tenant) UpdatePreferences(preferredCurrency string, intervalHours int) 
 }
 
 // User represents an authenticated user within a tenant.
+// Authentication is exclusively via OIDC identities (UserIdentity); the User
+// row itself carries only profile state. Email may be empty when no OIDC
+// identity has supplied a verified address yet.
 type User struct {
-	ID            uuid.UUID
-	TenantID      uuid.UUID
-	Email         string
-	PasswordHash  string
-	DisplayName   string
-	AvatarURL     string
-	OAuthProvider string
-	OAuthID       string
-	FamilyRole    FamilyRole
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	Email       string
+	DisplayName string
+	AvatarURL   string
+	FamilyRole  FamilyRole
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // NewUser creates a validated User entity.
-// passwordHash should already be bcrypt-hashed before calling this.
-func NewUser(tenantID uuid.UUID, email, passwordHash, displayName string) (*User, error) {
+// email is optional (OIDC identity may not yet have supplied one); when
+// non-empty it is normalized lowercase and format-checked.
+func NewUser(tenantID uuid.UUID, email, displayName string) (*User, error) {
 	email = strings.TrimSpace(strings.ToLower(email))
-	if email == "" {
-		return nil, fmt.Errorf("email must not be empty")
-	}
-	if _, err := mail.ParseAddress(email); err != nil {
-		return nil, fmt.Errorf("invalid email format: %w", err)
+	if email != "" {
+		if _, err := mail.ParseAddress(email); err != nil {
+			return nil, fmt.Errorf("invalid email format: %w", err)
+		}
 	}
 	displayName = strings.TrimSpace(displayName)
 	if displayName == "" {
 		return nil, fmt.Errorf("display_name must not be empty")
 	}
-	if passwordHash == "" {
-		return nil, fmt.Errorf("password_hash must not be empty")
-	}
 	return &User{
-		ID:           uuid.New(),
-		TenantID:     tenantID,
-		Email:        email,
-		PasswordHash: passwordHash,
-		DisplayName:  displayName,
-		FamilyRole:   FamilyRoleOwner,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		ID:          uuid.New(),
+		TenantID:    tenantID,
+		Email:       email,
+		DisplayName: displayName,
+		FamilyRole:  FamilyRoleOwner,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}, nil
+}
+
+// UserIdentity binds an external OIDC identity (provider+subject) to a User.
+// One User may have multiple identities (one per provider). Login lookup is
+// by (provider, subject) which is globally unique.
+type UserIdentity struct {
+	ID              uuid.UUID
+	TenantID        uuid.UUID
+	UserID          uuid.UUID
+	Provider        string
+	Subject         string
+	Issuer          string
+	EmailAtProvider string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+// NewUserIdentity creates a validated UserIdentity entity.
+// provider and subject must be non-empty (they are the login key); issuer and
+// emailAtProvider are optional metadata trimmed of surrounding whitespace.
+func NewUserIdentity(tenantID, userID uuid.UUID, provider, subject, issuer, emailAtProvider string) (*UserIdentity, error) {
+	provider = strings.TrimSpace(provider)
+	subject = strings.TrimSpace(subject)
+	if provider == "" || subject == "" {
+		return nil, fmt.Errorf("provider and subject must not be empty")
+	}
+	return &UserIdentity{
+		ID:              uuid.New(),
+		TenantID:        tenantID,
+		UserID:          userID,
+		Provider:        provider,
+		Subject:         subject,
+		Issuer:          strings.TrimSpace(issuer),
+		EmailAtProvider: strings.TrimSpace(emailAtProvider),
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 	}, nil
 }
 

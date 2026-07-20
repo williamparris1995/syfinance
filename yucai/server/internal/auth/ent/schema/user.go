@@ -1,18 +1,20 @@
 package schema
 
 import (
+	"time"
+
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/entsql"
 	entschema "entgo.io/ent/schema"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
-	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/ent/schema/mixin"
-	"time"
 )
 
 // User holds the schema definition for the User entity.
-// Users belong to a tenant and authenticate via email/password or OAuth.
+// Users belong to a tenant and authenticate exclusively via OIDC identities
+// (one User may have multiple UserIdentity rows — one per provider).
 type User struct {
 	ent.Schema
 }
@@ -35,12 +37,9 @@ func (User) Fields() []ent.Field {
 			Default(uuid.New).
 			Comment("Primary key"),
 		field.String("email").
-			NotEmpty().
-			Comment("User email address, unique per tenant"),
-		field.String("password_hash").
-			NotEmpty().
-			Sensitive().
-			Comment("bcrypt hashed password"),
+			Optional().
+			Default("").
+			Comment("Profile email (from first OIDC identity, verified only)"),
 		field.String("display_name").
 			NotEmpty().
 			Comment("User-visible display name"),
@@ -48,14 +47,6 @@ func (User) Fields() []ent.Field {
 			Optional().
 			Default("").
 			Comment("URL to user avatar image"),
-		field.String("oauth_provider").
-			Optional().
-			Default("").
-			Comment("OAuth provider name (google, apple, etc.)"),
-		field.String("oauth_id").
-			Optional().
-			Default("").
-			Comment("OAuth provider user ID"),
 		field.Enum("family_role").
 			Values("owner", "admin", "member").
 			Default("owner").
@@ -72,11 +63,15 @@ func (User) Fields() []ent.Field {
 }
 
 func (User) Edges() []ent.Edge {
-	return nil
+	return []ent.Edge{
+		// StorageKey is intentionally omitted: UserIdentity declares the FK
+		// column via edge.From("user").Field("user_id").Ref("identities"),
+		// which ent resolves automatically. Re-declaring the column here
+		// triggers "should be replaced with Field(...) on its reference".
+		edge.To("identities", UserIdentity.Type),
+	}
 }
 
 func (User) Indexes() []ent.Index {
-	return []ent.Index{
-		index.Fields("tenant_id", "email").Unique(),
-	}
+	return nil
 }

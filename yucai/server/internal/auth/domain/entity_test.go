@@ -40,26 +40,23 @@ func TestNewTenant(t *testing.T) {
 
 func TestNewUser(t *testing.T) {
 	tenantID := uuid.New()
-	validHash := "$2a$10$somehash"
 
 	tests := []struct {
 		name        string
 		email       string
-		passHash    string
 		displayName string
 		wantErr     bool
 	}{
-		{"valid user", "test@example.com", validHash, "Alice", false},
-		{"empty email", "", validHash, "Alice", true},
-		{"invalid email", "not-an-email", validHash, "Alice", true},
-		{"empty display name", "test@example.com", validHash, "", true},
-		{"whitespace display name", "test@example.com", validHash, "   ", true},
-		{"empty password hash", "test@example.com", "", "Alice", true},
-		{"email normalized to lowercase", "Test@Example.COM", validHash, "Alice", false},
+		{"valid user with email", "test@example.com", "Alice", false},
+		{"valid user without email (OIDC no verified email yet)", "", "Alice", false},
+		{"invalid email", "not-an-email", "Alice", true},
+		{"empty display name", "test@example.com", "", true},
+		{"whitespace display name", "test@example.com", "   ", true},
+		{"email normalized to lowercase", "Test@Example.COM", "Alice", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewUser(tenantID, tt.email, tt.passHash, tt.displayName)
+			got, err := NewUser(tenantID, tt.email, tt.displayName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewUser() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -76,8 +73,42 @@ func TestNewUser(t *testing.T) {
 	}
 }
 
+func TestNewUserIdentity(t *testing.T) {
+	tenantID := uuid.New()
+	userID := uuid.New()
+
+	tests := []struct {
+		name            string
+		provider        string
+		subject         string
+		issuer          string
+		emailAtProvider string
+		wantErr         bool
+	}{
+		{"valid identity", "google", "sub-123", "https://accounts.google.com", "u@example.com", false},
+		{"valid identity without optional fields", "github", "sub-456", "", "", false},
+		{"empty provider", "", "sub-123", "", "", true},
+		{"empty subject", "google", "", "", "", true},
+		{"whitespace provider", "  ", "sub", "", "", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := NewUserIdentity(tenantID, userID, tt.provider, tt.subject, tt.issuer, tt.emailAtProvider)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewUserIdentity() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				if got.TenantID != tenantID || got.UserID != userID {
+					t.Error("tenant/user ID mismatch")
+				}
+			}
+		})
+	}
+}
+
 func TestUserUpdateProfile(t *testing.T) {
-	u, _ := NewUser(uuid.New(), "test@example.com", "hash", "Alice")
+	u, _ := NewUser(uuid.New(), "test@example.com", "Alice")
 	u.UpdatedAt = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC) // freeze to ensure difference
 	u.UpdateProfile("Bob", "https://avatar.url")
 	if u.DisplayName != "Bob" {

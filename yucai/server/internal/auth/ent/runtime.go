@@ -9,6 +9,7 @@ import (
 	"github.com/yucai/server/internal/auth/ent/schema"
 	"github.com/yucai/server/internal/auth/ent/tenant"
 	"github.com/yucai/server/internal/auth/ent/user"
+	"github.com/yucai/server/internal/auth/ent/useridentity"
 )
 
 // The init function reads all schema descriptors with runtime code
@@ -47,34 +48,22 @@ func init() {
 	_ = userFields
 	// userDescEmail is the schema descriptor for email field.
 	userDescEmail := userFields[1].Descriptor()
-	// user.EmailValidator is a validator for the "email" field. It is called by the builders before save.
-	user.EmailValidator = userDescEmail.Validators[0].(func(string) error)
-	// userDescPasswordHash is the schema descriptor for password_hash field.
-	userDescPasswordHash := userFields[2].Descriptor()
-	// user.PasswordHashValidator is a validator for the "password_hash" field. It is called by the builders before save.
-	user.PasswordHashValidator = userDescPasswordHash.Validators[0].(func(string) error)
+	// user.DefaultEmail holds the default value on creation for the email field.
+	user.DefaultEmail = userDescEmail.Default.(string)
 	// userDescDisplayName is the schema descriptor for display_name field.
-	userDescDisplayName := userFields[3].Descriptor()
+	userDescDisplayName := userFields[2].Descriptor()
 	// user.DisplayNameValidator is a validator for the "display_name" field. It is called by the builders before save.
 	user.DisplayNameValidator = userDescDisplayName.Validators[0].(func(string) error)
 	// userDescAvatarURL is the schema descriptor for avatar_url field.
-	userDescAvatarURL := userFields[4].Descriptor()
+	userDescAvatarURL := userFields[3].Descriptor()
 	// user.DefaultAvatarURL holds the default value on creation for the avatar_url field.
 	user.DefaultAvatarURL = userDescAvatarURL.Default.(string)
-	// userDescOauthProvider is the schema descriptor for oauth_provider field.
-	userDescOauthProvider := userFields[5].Descriptor()
-	// user.DefaultOauthProvider holds the default value on creation for the oauth_provider field.
-	user.DefaultOauthProvider = userDescOauthProvider.Default.(string)
-	// userDescOauthID is the schema descriptor for oauth_id field.
-	userDescOauthID := userFields[6].Descriptor()
-	// user.DefaultOauthID holds the default value on creation for the oauth_id field.
-	user.DefaultOauthID = userDescOauthID.Default.(string)
 	// userDescCreatedAt is the schema descriptor for created_at field.
-	userDescCreatedAt := userFields[8].Descriptor()
+	userDescCreatedAt := userFields[5].Descriptor()
 	// user.DefaultCreatedAt holds the default value on creation for the created_at field.
 	user.DefaultCreatedAt = userDescCreatedAt.Default.(func() time.Time)
 	// userDescUpdatedAt is the schema descriptor for updated_at field.
-	userDescUpdatedAt := userFields[9].Descriptor()
+	userDescUpdatedAt := userFields[6].Descriptor()
 	// user.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	user.DefaultUpdatedAt = userDescUpdatedAt.Default.(func() time.Time)
 	// user.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -83,4 +72,36 @@ func init() {
 	userDescID := userFields[0].Descriptor()
 	// user.DefaultID holds the default value on creation for the id field.
 	user.DefaultID = userDescID.Default.(func() uuid.UUID)
+	useridentityFields := schema.UserIdentity{}.Fields()
+	_ = useridentityFields
+	// useridentityDescProvider is the schema descriptor for provider field.
+	useridentityDescProvider := useridentityFields[2].Descriptor()
+	// useridentity.ProviderValidator is a validator for the "provider" field. It is called by the builders before save.
+	useridentity.ProviderValidator = useridentityDescProvider.Validators[0].(func(string) error)
+	// useridentityDescSubject is the schema descriptor for subject field.
+	useridentityDescSubject := useridentityFields[3].Descriptor()
+	// useridentity.SubjectValidator is a validator for the "subject" field. It is called by the builders before save.
+	useridentity.SubjectValidator = useridentityDescSubject.Validators[0].(func(string) error)
+	// useridentityDescIssuer is the schema descriptor for issuer field.
+	useridentityDescIssuer := useridentityFields[4].Descriptor()
+	// useridentity.DefaultIssuer holds the default value on creation for the issuer field.
+	useridentity.DefaultIssuer = useridentityDescIssuer.Default.(string)
+	// useridentityDescEmailAtProvider is the schema descriptor for email_at_provider field.
+	useridentityDescEmailAtProvider := useridentityFields[5].Descriptor()
+	// useridentity.DefaultEmailAtProvider holds the default value on creation for the email_at_provider field.
+	useridentity.DefaultEmailAtProvider = useridentityDescEmailAtProvider.Default.(string)
+	// useridentityDescCreatedAt is the schema descriptor for created_at field.
+	useridentityDescCreatedAt := useridentityFields[6].Descriptor()
+	// useridentity.DefaultCreatedAt holds the default value on creation for the created_at field.
+	useridentity.DefaultCreatedAt = useridentityDescCreatedAt.Default.(func() time.Time)
+	// useridentityDescUpdatedAt is the schema descriptor for updated_at field.
+	useridentityDescUpdatedAt := useridentityFields[7].Descriptor()
+	// useridentity.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	useridentity.DefaultUpdatedAt = useridentityDescUpdatedAt.Default.(func() time.Time)
+	// useridentity.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	useridentity.UpdateDefaultUpdatedAt = useridentityDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// useridentityDescID is the schema descriptor for id field.
+	useridentityDescID := useridentityFields[0].Descriptor()
+	// useridentity.DefaultID holds the default value on creation for the id field.
+	useridentity.DefaultID = useridentityDescID.Default.(func() uuid.UUID)
 }

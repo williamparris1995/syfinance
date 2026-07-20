@@ -28,12 +28,9 @@ var (
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID, Comment: "Primary key"},
 		{Name: "tenant_id", Type: field.TypeUUID, Comment: "FK to tenants table — data isolation boundary"},
-		{Name: "email", Type: field.TypeString, Comment: "User email address, unique per tenant"},
-		{Name: "password_hash", Type: field.TypeString, Comment: "bcrypt hashed password"},
+		{Name: "email", Type: field.TypeString, Nullable: true, Comment: "Profile email (from first OIDC identity, verified only)", Default: ""},
 		{Name: "display_name", Type: field.TypeString, Comment: "User-visible display name"},
 		{Name: "avatar_url", Type: field.TypeString, Nullable: true, Comment: "URL to user avatar image", Default: ""},
-		{Name: "oauth_provider", Type: field.TypeString, Nullable: true, Comment: "OAuth provider name (google, apple, etc.)", Default: ""},
-		{Name: "oauth_id", Type: field.TypeString, Nullable: true, Comment: "OAuth provider user ID", Default: ""},
 		{Name: "family_role", Type: field.TypeEnum, Comment: "Role within family tenant", Enums: []string{"owner", "admin", "member"}, Default: "owner"},
 		{Name: "created_at", Type: field.TypeTime, Comment: "Record creation time"},
 		{Name: "updated_at", Type: field.TypeTime, Comment: "Last update time"},
@@ -49,10 +46,48 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{UsersColumns[1]},
 			},
+		},
+	}
+	// UserIdentitiesColumns holds the columns for the "user_identities" table.
+	UserIdentitiesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID, Comment: "Primary key"},
+		{Name: "tenant_id", Type: field.TypeUUID, Comment: "FK to tenants table — data isolation boundary"},
+		{Name: "provider", Type: field.TypeString, Comment: "OIDC provider name (google, github, ...)"},
+		{Name: "subject", Type: field.TypeString, Comment: "IDP sub claim, unique per provider"},
+		{Name: "issuer", Type: field.TypeString, Nullable: true, Comment: "IDP issuer URL", Default: ""},
+		{Name: "email_at_provider", Type: field.TypeString, Nullable: true, Comment: "Email returned by this IDP", Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "user_id", Type: field.TypeUUID, Comment: "Owning user"},
+	}
+	// UserIdentitiesTable holds the schema information for the "user_identities" table.
+	UserIdentitiesTable = &schema.Table{
+		Name:       "user_identities",
+		Columns:    UserIdentitiesColumns,
+		PrimaryKey: []*schema.Column{UserIdentitiesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
 			{
-				Name:    "user_tenant_id_email",
+				Symbol:     "user_identities_users_identities",
+				Columns:    []*schema.Column{UserIdentitiesColumns[8]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "useridentity_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{UserIdentitiesColumns[1]},
+			},
+			{
+				Name:    "useridentity_provider_subject",
 				Unique:  true,
-				Columns: []*schema.Column{UsersColumns[1], UsersColumns[2]},
+				Columns: []*schema.Column{UserIdentitiesColumns[2], UserIdentitiesColumns[3]},
+			},
+			{
+				Name:    "useridentity_user_id_provider",
+				Unique:  true,
+				Columns: []*schema.Column{UserIdentitiesColumns[8], UserIdentitiesColumns[2]},
 			},
 		},
 	}
@@ -60,8 +95,10 @@ var (
 	Tables = []*schema.Table{
 		TenantsTable,
 		UsersTable,
+		UserIdentitiesTable,
 	}
 )
 
 func init() {
+	UserIdentitiesTable.ForeignKeys[0].RefTable = UsersTable
 }

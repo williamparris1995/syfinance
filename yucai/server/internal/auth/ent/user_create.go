@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/auth/ent/user"
+	"github.com/yucai/server/internal/auth/ent/useridentity"
 )
 
 // UserCreate is the builder for creating a User entity.
@@ -33,9 +34,11 @@ func (uc *UserCreate) SetEmail(s string) *UserCreate {
 	return uc
 }
 
-// SetPasswordHash sets the "password_hash" field.
-func (uc *UserCreate) SetPasswordHash(s string) *UserCreate {
-	uc.mutation.SetPasswordHash(s)
+// SetNillableEmail sets the "email" field if the given value is not nil.
+func (uc *UserCreate) SetNillableEmail(s *string) *UserCreate {
+	if s != nil {
+		uc.SetEmail(*s)
+	}
 	return uc
 }
 
@@ -55,34 +58,6 @@ func (uc *UserCreate) SetAvatarURL(s string) *UserCreate {
 func (uc *UserCreate) SetNillableAvatarURL(s *string) *UserCreate {
 	if s != nil {
 		uc.SetAvatarURL(*s)
-	}
-	return uc
-}
-
-// SetOauthProvider sets the "oauth_provider" field.
-func (uc *UserCreate) SetOauthProvider(s string) *UserCreate {
-	uc.mutation.SetOauthProvider(s)
-	return uc
-}
-
-// SetNillableOauthProvider sets the "oauth_provider" field if the given value is not nil.
-func (uc *UserCreate) SetNillableOauthProvider(s *string) *UserCreate {
-	if s != nil {
-		uc.SetOauthProvider(*s)
-	}
-	return uc
-}
-
-// SetOauthID sets the "oauth_id" field.
-func (uc *UserCreate) SetOauthID(s string) *UserCreate {
-	uc.mutation.SetOauthID(s)
-	return uc
-}
-
-// SetNillableOauthID sets the "oauth_id" field if the given value is not nil.
-func (uc *UserCreate) SetNillableOauthID(s *string) *UserCreate {
-	if s != nil {
-		uc.SetOauthID(*s)
 	}
 	return uc
 }
@@ -143,6 +118,21 @@ func (uc *UserCreate) SetNillableID(u *uuid.UUID) *UserCreate {
 	return uc
 }
 
+// AddIdentityIDs adds the "identities" edge to the UserIdentity entity by IDs.
+func (uc *UserCreate) AddIdentityIDs(ids ...uuid.UUID) *UserCreate {
+	uc.mutation.AddIdentityIDs(ids...)
+	return uc
+}
+
+// AddIdentities adds the "identities" edges to the UserIdentity entity.
+func (uc *UserCreate) AddIdentities(u ...*UserIdentity) *UserCreate {
+	ids := make([]uuid.UUID, len(u))
+	for i := range u {
+		ids[i] = u[i].ID
+	}
+	return uc.AddIdentityIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (uc *UserCreate) Mutation() *UserMutation {
 	return uc.mutation
@@ -178,17 +168,13 @@ func (uc *UserCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (uc *UserCreate) defaults() {
+	if _, ok := uc.mutation.Email(); !ok {
+		v := user.DefaultEmail
+		uc.mutation.SetEmail(v)
+	}
 	if _, ok := uc.mutation.AvatarURL(); !ok {
 		v := user.DefaultAvatarURL
 		uc.mutation.SetAvatarURL(v)
-	}
-	if _, ok := uc.mutation.OauthProvider(); !ok {
-		v := user.DefaultOauthProvider
-		uc.mutation.SetOauthProvider(v)
-	}
-	if _, ok := uc.mutation.OauthID(); !ok {
-		v := user.DefaultOauthID
-		uc.mutation.SetOauthID(v)
 	}
 	if _, ok := uc.mutation.FamilyRole(); !ok {
 		v := user.DefaultFamilyRole
@@ -212,22 +198,6 @@ func (uc *UserCreate) defaults() {
 func (uc *UserCreate) check() error {
 	if _, ok := uc.mutation.TenantID(); !ok {
 		return &ValidationError{Name: "tenant_id", err: errors.New(`ent: missing required field "User.tenant_id"`)}
-	}
-	if _, ok := uc.mutation.Email(); !ok {
-		return &ValidationError{Name: "email", err: errors.New(`ent: missing required field "User.email"`)}
-	}
-	if v, ok := uc.mutation.Email(); ok {
-		if err := user.EmailValidator(v); err != nil {
-			return &ValidationError{Name: "email", err: fmt.Errorf(`ent: validator failed for field "User.email": %w`, err)}
-		}
-	}
-	if _, ok := uc.mutation.PasswordHash(); !ok {
-		return &ValidationError{Name: "password_hash", err: errors.New(`ent: missing required field "User.password_hash"`)}
-	}
-	if v, ok := uc.mutation.PasswordHash(); ok {
-		if err := user.PasswordHashValidator(v); err != nil {
-			return &ValidationError{Name: "password_hash", err: fmt.Errorf(`ent: validator failed for field "User.password_hash": %w`, err)}
-		}
 	}
 	if _, ok := uc.mutation.DisplayName(); !ok {
 		return &ValidationError{Name: "display_name", err: errors.New(`ent: missing required field "User.display_name"`)}
@@ -294,10 +264,6 @@ func (uc *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 		_spec.SetField(user.FieldEmail, field.TypeString, value)
 		_node.Email = value
 	}
-	if value, ok := uc.mutation.PasswordHash(); ok {
-		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)
-		_node.PasswordHash = value
-	}
 	if value, ok := uc.mutation.DisplayName(); ok {
 		_spec.SetField(user.FieldDisplayName, field.TypeString, value)
 		_node.DisplayName = value
@@ -305,14 +271,6 @@ func (uc *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := uc.mutation.AvatarURL(); ok {
 		_spec.SetField(user.FieldAvatarURL, field.TypeString, value)
 		_node.AvatarURL = value
-	}
-	if value, ok := uc.mutation.OauthProvider(); ok {
-		_spec.SetField(user.FieldOauthProvider, field.TypeString, value)
-		_node.OauthProvider = value
-	}
-	if value, ok := uc.mutation.OauthID(); ok {
-		_spec.SetField(user.FieldOauthID, field.TypeString, value)
-		_node.OauthID = value
 	}
 	if value, ok := uc.mutation.FamilyRole(); ok {
 		_spec.SetField(user.FieldFamilyRole, field.TypeEnum, value)
@@ -325,6 +283,22 @@ func (uc *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := uc.mutation.UpdatedAt(); ok {
 		_spec.SetField(user.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if nodes := uc.mutation.IdentitiesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.IdentitiesTable,
+			Columns: []string{user.IdentitiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(useridentity.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }
