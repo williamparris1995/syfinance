@@ -1,0 +1,12 @@
+# Non-sensitive OIDC provider configs. Client secret is loaded from env
+# OIDC_GOOGLE_CLIENT_SECRET at server boot (never commit here).
+# Add new providers (github, authentik, ...) under providers: following the
+# same shape; the per-provider secret env var follows the pattern
+# OIDC_<NAME_UPPER>_CLIENT_SECRET.
+providers:
+  - name: google
+    display_name: "使用 Google 登录"
+    issuer: "https://accounts.google.com"
+    client_id: "REPLACE_WITH_GOOGLE_CLIENT_ID"
+    scopes: ["openid", "email", "profile"]
+    redirect_uri: "http://localhost:8080/callback"
