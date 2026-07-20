@@ -31,12 +31,13 @@ class AuthInterceptor extends ClientInterceptor {
     if (appVersion != null) metadata['x-app-version'] = appVersion!;
   }
 
-  /// These auth methods carry credentials in the request body, not the header.
-  /// gRPC method paths look like "/yucai.auth.v1.AuthService/Register".
+  /// These auth methods carry credentials in the request body, not the header,
+  /// or are pre-auth (OIDC bootstrap). gRPC method paths look like
+  /// "/yucai.auth.v1.AuthService/GetOIDCConfig".
   static bool isAuthBypassed(String method) {
-    return method.endsWith('AuthService/Register') ||
-        method.endsWith('AuthService/Login') ||
-        method.endsWith('AuthService/RefreshToken');
+    return method.endsWith('AuthService/RefreshToken') ||
+        method.endsWith('AuthService/GetOIDCConfig') ||
+        method.endsWith('AuthService/OIDCExchange');
   }
 
   /// True when a gRPC error is a 401 we could recover from via refresh.
@@ -50,7 +51,7 @@ class AuthInterceptor extends ClientInterceptor {
     ClientUnaryInvoker<Q, R> invoker,
   ) {
     final provider = (Map<String, String> metadata, String _) async {
-      // Client identity is attached on EVERY call (incl. Register/Login).
+      // Client identity is attached on EVERY call (incl. pre-auth OIDC bootstrap).
       applyIdentity(metadata);
       if (isAuthBypassed(method.path)) return;
       final tokens = await (tokenReader?.call() ?? Future.value(null));

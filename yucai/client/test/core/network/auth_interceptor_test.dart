@@ -13,10 +13,10 @@ void main() {
     expect(AuthInterceptor.shouldRetry(GrpcError.unauthenticated('expired')), isTrue);
   });
 
-  test('isAuthBypassed true for Register/Login/RefreshToken', () {
-    expect(AuthInterceptor.isAuthBypassed('/yucai.auth.v1.AuthService/Register'), isTrue);
-    expect(AuthInterceptor.isAuthBypassed('/yucai.auth.v1.AuthService/Login'), isTrue);
+  test('isAuthBypassed true for OIDC bootstrap + RefreshToken', () {
     expect(AuthInterceptor.isAuthBypassed('/yucai.auth.v1.AuthService/RefreshToken'), isTrue);
+    expect(AuthInterceptor.isAuthBypassed('/yucai.auth.v1.AuthService/GetOIDCConfig'), isTrue);
+    expect(AuthInterceptor.isAuthBypassed('/yucai.auth.v1.AuthService/OIDCExchange'), isTrue);
   });
 
   test('isAuthBypassed false for protected methods', () {
