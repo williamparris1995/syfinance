@@ -12,8 +12,9 @@ type Config struct {
 	DatabaseURL string `env:"DATABASE_URL,required"`
 	RedisURL    string `env:"REDIS_URL,default=redis://localhost:6379/0"`
 	JWTSecret   string `env:"JWT_SECRET,required"`
-	LogLevel    string `env:"LOG_LEVEL,default=info"`
-	BackupDir   string `env:"BACKUP_DIR,default=./backups"`
+	LogLevel          string `env:"LOG_LEVEL,default=info"`
+	BackupDir         string `env:"BACKUP_DIR,default=./backups"`
+	OIDCProvidersPath string `env:"OIDC_PROVIDERS_PATH,default=config/oidc_providers.yaml"`
 }
 
 // Load reads configuration from environment variables.

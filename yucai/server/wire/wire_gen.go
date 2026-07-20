@@ -71,7 +71,7 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	ts := provideTokenService(cfg)
 
 	// Account module (created before auth so its Service can back the
-	// per-tenant preset seeder injected into RegisterHandler).
+	// per-tenant preset seeder injected into OIDCExchangeHandler).
 	accountRepo := provideAccountRepo(accountClient)
 	chartRepo := provideChartRepo(accountClient)
 	accountService := provideAccountService(accountRepo, chartRepo)
@@ -81,9 +81,18 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	// Auth module
 	tenantRepo := provideTenantRepo(authClient)
 	userRepo := provideUserRepo(authClient)
+	identityRepo := provideIdentityRepo(authClient)
 	sessionStore := provideSessionStore(rdb)
-	registerHandler := provideRegisterHandler(tenantRepo, userRepo, ts, presetSeeder)
-	loginHandler := provideLoginHandler(userRepo, ts)
+	// oidcRegistry loads + discovers OIDC providers from cfg.OIDCProvidersPath.
+	// A missing/malformed yaml or failed discovery aborts startup.
+	oidcRegistry, err := provideOIDCRegistry(cfg)
+	if err != nil {
+		return nil, err
+	}
+	// oidcExchangeHandler wires OIDC code-exchange + JIT user provisioning.
+	// Depends on tenantRepo/userRepo/identityRepo (above) + presetSeeder
+	// (Account module above — seeds categories on first-login JIT tenant).
+	oidcExchangeHandler := provideOIDCExchangeHandler(oidcRegistry, userRepo, identityRepo, tenantRepo, presetSeeder)
 	refreshHandler := provideRefreshHandler(sessionStore)
 	profileHandler := provideProfileHandler(userRepo)
 
@@ -247,9 +256,10 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	backupScheduler := provideBackupScheduler(backupService, tenantRepo)
 
 	// Auth service (depends on currencyRepo via the CurrencyCodeChecker port,
-	// so it must be wired after the Currency module).
+	// so it must be wired after the Currency module). oidcExchangeHandler,
+	// oidcRegistry, identityRepo are declared in the Auth module block above.
 	currencyCodeChecker := provideCurrencyCodeChecker(currencyRepo)
-	authService := provideAuthService(tenantRepo, userRepo, ts, sessionStore, registerHandler, loginHandler, refreshHandler, profileHandler, currencyCodeChecker)
+	authService := provideAuthService(tenantRepo, userRepo, ts, sessionStore, oidcRegistry, identityRepo, oidcExchangeHandler, refreshHandler, profileHandler, currencyCodeChecker)
 	authHandler := provideAuthHandler(authService)
 
 	// gRPC server

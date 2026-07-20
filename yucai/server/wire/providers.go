@@ -21,6 +21,7 @@ import (
 	authquery "github.com/yucai/server/internal/auth/application/query"
 	authent "github.com/yucai/server/internal/auth/ent"
 	authjwt "github.com/yucai/server/internal/auth/infrastructure/jwt"
+	"github.com/yucai/server/internal/auth/infrastructure/oidc"
 	backupcloud "github.com/yucai/server/internal/backup/adapter/driven/cloud"
 	"github.com/yucai/server/internal/backup/adapter/driven/exporter"
 	backuprepo "github.com/yucai/server/internal/backup/adapter/driven/repository"
@@ -169,11 +170,31 @@ func provideTenantRepo(client *authent.Client) *authrepo.TenantRepository {
 func provideUserRepo(client *authent.Client) *authrepo.UserRepository {
 	return authrepo.NewUserRepository(client)
 }
+func provideIdentityRepo(client *authent.Client) *authrepo.IdentityRepository {
+	return authrepo.NewIdentityRepository(client)
+}
 func provideSessionStore(rdb *redis.Client) *session.RedisSessionStore {
 	return session.NewRedisSessionStore(rdb)
 }
-func provideRegisterHandler(tr *authrepo.TenantRepository, ur *authrepo.UserRepository, ts *authjwt.TokenService, seeder authcmd.PresetSeeder) *authcmd.RegisterHandler {
-	return authcmd.NewRegisterHandler(tr, ur, ts, seeder)
+
+// provideOIDCRegistry loads + discovers OIDC providers from cfg.OIDCProvidersPath.
+// Returns an error if the yaml is missing/malformed or any provider fails
+// discovery — InitializeApp surfaces it as a startup failure.
+func provideOIDCRegistry(cfg *config.Config) (*oidc.ProviderRegistry, error) {
+	return oidc.Load(context.Background(), cfg.OIDCProvidersPath)
+}
+
+// provideOIDCExchangeHandler wires the OIDC exchange handler (code → id_token →
+// just-in-time user provisioning). registry/ur/ir/tr are declared above (or in
+// the Currency module for the checker); seeder is the accountPresetSeeder below.
+func provideOIDCExchangeHandler(
+	registry *oidc.ProviderRegistry,
+	ur *authrepo.UserRepository,
+	ir *authrepo.IdentityRepository,
+	tr *authrepo.TenantRepository,
+	seeder authcmd.PresetSeeder,
+) *authcmd.OIDCExchangeHandler {
+	return authcmd.NewOIDCExchangeHandler(registry, ur, ir, tr, seeder)
 }
 
 // accountPresetSeeder adapts the account application Service to the auth
@@ -189,17 +210,29 @@ func (a accountPresetSeeder) SeedTenantPresets(ctx context.Context, tenantID uui
 func providePresetSeeder(svc *accountapp.Service) authcmd.PresetSeeder {
 	return accountPresetSeeder{svc: svc}
 }
-func provideLoginHandler(ur *authrepo.UserRepository, ts *authjwt.TokenService) *authcmd.LoginHandler {
-	return authcmd.NewLoginHandler(ur, ts)
-}
 func provideRefreshHandler(ss *session.RedisSessionStore) *authcmd.RefreshHandler {
 	return authcmd.NewRefreshHandler(ss)
 }
 func provideProfileHandler(ur *authrepo.UserRepository) *authquery.GetProfileHandler {
 	return authquery.NewGetProfileHandler(ur)
 }
-func provideAuthService(tr *authrepo.TenantRepository, ur *authrepo.UserRepository, ts *authjwt.TokenService, ss *session.RedisSessionStore, rh *authcmd.RegisterHandler, lh *authcmd.LoginHandler, fh *authcmd.RefreshHandler, ph *authquery.GetProfileHandler, checker authdomain.CurrencyCodeChecker) *authapp.Service {
-	return authapp.NewService(tr, ur, ts, ss, rh, lh, fh, ph, checker)
+// provideAuthService wires the auth application Service. Login is delegated to
+// OIDC (oidcHandler + oidcRegistry); password register/login handlers are gone.
+// checker is the cross-module CurrencyCodeChecker port (validates preferred
+// currency in UpdatePreferences).
+func provideAuthService(
+	tr *authrepo.TenantRepository,
+	ur *authrepo.UserRepository,
+	ts *authjwt.TokenService,
+	ss *session.RedisSessionStore,
+	registry *oidc.ProviderRegistry,
+	ir *authrepo.IdentityRepository,
+	oidcH *authcmd.OIDCExchangeHandler,
+	fh *authcmd.RefreshHandler,
+	ph *authquery.GetProfileHandler,
+	checker authdomain.CurrencyCodeChecker,
+) *authapp.Service {
+	return authapp.NewService(tr, ur, ts, ss, oidcH, registry, fh, ph, checker)
 }
 
 // currencyCodeChecker adapts the currency CurrencyRepository to the auth
