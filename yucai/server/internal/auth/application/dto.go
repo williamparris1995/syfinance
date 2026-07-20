@@ -2,19 +2,6 @@ package application
 
 import "github.com/google/uuid"
 
-// RegisterRequest holds the input for user registration.
-type RegisterRequest struct {
-	Email       string
-	Password    string
-	DisplayName string
-}
-
-// LoginRequest holds the input for user login.
-type LoginRequest struct {
-	Email    string
-	Password string
-}
-
 // RefreshRequest holds the input for token refresh.
 type RefreshRequest struct {
 	RefreshToken string

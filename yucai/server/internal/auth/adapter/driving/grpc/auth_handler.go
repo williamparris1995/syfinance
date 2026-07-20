@@ -24,39 +24,38 @@ func NewAuthHandler(service *application.Service) *AuthHandler {
 	return &AuthHandler{service: service}
 }
 
-// Register handles user registration.
-func (h *AuthHandler) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
-	if req.Email == "" || req.Password == "" || req.DisplayName == "" {
-		return nil, status.Error(codes.InvalidArgument, "email, password, and display_name are required")
+// GetOIDCConfig returns the enabled OIDC providers (secret-free) so the client
+// can render a picker and build its own auth URL + PKCE challenge. Auth-bypassed
+// (no Bearer) — must be reachable before login.
+func (h *AuthHandler) GetOIDCConfig(ctx context.Context, req *pb.GetOIDCConfigRequest) (*pb.GetOIDCConfigResponse, error) {
+	configs := h.service.GetOIDCConfig()
+	out := make([]*pb.OIDCProviderConfig, 0, len(configs))
+	for _, c := range configs {
+		out = append(out, &pb.OIDCProviderConfig{
+			Name:                  c.Name,
+			DisplayName:           c.DisplayName,
+			Issuer:                c.Issuer,
+			AuthorizationEndpoint: c.AuthorizationEndpoint,
+			ClientId:              c.ClientID,
+			Scopes:                c.Scopes,
+		})
 	}
-	resp, err := h.service.Register(ctx, application.RegisterRequest{
-		Email:       req.Email,
-		Password:    req.Password,
-		DisplayName: req.DisplayName,
-	})
-	if err != nil {
-		return nil, mapError(err)
-	}
-	return &pb.RegisterResponse{
-		AccessToken:  resp.AccessToken,
-		RefreshToken: resp.RefreshToken,
-		User:         dtoToProto(resp.User),
-	}, nil
+	return &pb.GetOIDCConfigResponse{Providers: out}, nil
 }
 
-// Login handles user login.
-func (h *AuthHandler) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
-	if req.Email == "" || req.Password == "" {
-		return nil, status.Error(codes.InvalidArgument, "email and password are required")
+// OIDCExchange swaps an authorization code (+ PKCE verifier) for a御财 session.
+// The handler verifies the resulting id_token, resolves or just-in-time
+// provisions the local user, then issues access/refresh tokens. Auth-bypassed
+// (no Bearer) — the verified id_token IS the authentication proof.
+func (h *AuthHandler) OIDCExchange(ctx context.Context, req *pb.OIDCExchangeRequest) (*pb.OIDCExchangeResponse, error) {
+	if req.Provider == "" || req.Code == "" || req.CodeVerifier == "" {
+		return nil, status.Error(codes.InvalidArgument, "provider, code, and code_verifier are required")
 	}
-	resp, err := h.service.Login(ctx, application.LoginRequest{
-		Email:    req.Email,
-		Password: req.Password,
-	})
+	resp, err := h.service.OIDCExchange(ctx, req.Provider, req.Code, req.CodeVerifier, req.RedirectUri)
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return &pb.LoginResponse{
+	return &pb.OIDCExchangeResponse{
 		AccessToken:  resp.AccessToken,
 		RefreshToken: resp.RefreshToken,
 		User:         dtoToProto(resp.User),

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/yucai/server/internal/shared/application/command"
 )
 
@@ -18,6 +19,19 @@ var (
 	// Per OWASP guidance, the entire session family is revoked.
 	ErrRefreshTokenReuse = errors.New("refresh token reuse detected")
 )
+
+// PresetSeeder seeds per-tenant preset data (e.g. the 10 system categories)
+// right after a tenant is created. Implemented by the account module's Service
+// via an adapter in wire, to keep auth from importing account directly
+// (preserving module boundaries: auth -> port, account -> adapter).
+type PresetSeeder interface {
+	SeedTenantPresets(ctx context.Context, tenantID uuid.UUID) error
+}
+
+// noopPresetSeeder is the default when no seeder is wired (e.g. unit tests).
+type noopPresetSeeder struct{}
+
+func (noopPresetSeeder) SeedTenantPresets(_ context.Context, _ uuid.UUID) error { return nil }
 
 // SessionStore is the port for refresh-token session management.
 //

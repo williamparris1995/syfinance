@@ -12,21 +12,25 @@ import (
 	"github.com/yucai/server/internal/auth/application/query"
 	"github.com/yucai/server/internal/auth/domain"
 	authjwt "github.com/yucai/server/internal/auth/infrastructure/jwt"
+	"github.com/yucai/server/internal/auth/infrastructure/oidc"
 )
 
 // Service orchestrates authentication operations following the industry-standard
 // access/refresh token model (RFC 6749 / RFC 6750):
 //   - Access token: short-lived JWT, self-validating via signature.
 //   - Refresh token: opaque, server-stored, rotated on each refresh with reuse detection.
+//
+// Login itself is delegated to OIDC (ProviderRegistry + OIDCExchangeHandler):
+// the server never sees a password.
 type Service struct {
-	tenantRepo      domain.TenantRepository
-	userRepo        domain.UserRepository
-	tokenService    *authjwt.TokenService
-	sessionStore    command.SessionStore
-	registerHandler *command.RegisterHandler
-	loginHandler    *command.LoginHandler
-	refreshHandler  *command.RefreshHandler
-	profileHandler  *query.GetProfileHandler
+	tenantRepo     domain.TenantRepository
+	userRepo       domain.UserRepository
+	tokenService   *authjwt.TokenService
+	sessionStore   command.SessionStore
+	oidcHandler    *command.OIDCExchangeHandler
+	oidcRegistry   *oidc.ProviderRegistry
+	refreshHandler *command.RefreshHandler
+	profileHandler *query.GetProfileHandler
 	currencyChecker domain.CurrencyCodeChecker
 }
 
@@ -36,8 +40,8 @@ func NewService(
 	userRepo domain.UserRepository,
 	tokenService *authjwt.TokenService,
 	sessionStore command.SessionStore,
-	registerHandler *command.RegisterHandler,
-	loginHandler *command.LoginHandler,
+	oidcHandler *command.OIDCExchangeHandler,
+	oidcRegistry *oidc.ProviderRegistry,
 	refreshHandler *command.RefreshHandler,
 	profileHandler *query.GetProfileHandler,
 	currencyChecker domain.CurrencyCodeChecker,
@@ -47,8 +51,8 @@ func NewService(
 		userRepo:        userRepo,
 		tokenService:    tokenService,
 		sessionStore:    sessionStore,
-		registerHandler: registerHandler,
-		loginHandler:    loginHandler,
+		oidcHandler:     oidcHandler,
+		oidcRegistry:    oidcRegistry,
 		refreshHandler:  refreshHandler,
 		profileHandler:  profileHandler,
 		currencyChecker: currencyChecker,
@@ -80,21 +84,15 @@ func (s *Service) preferredCurrencyFor(ctx context.Context, tenantID uuid.UUID) 
 	}
 	return tenant.PreferredCurrency
 }
-func (s *Service) Register(ctx context.Context, req RegisterRequest) (*AuthResponse, error) {
-	cmd := command.RegisterCommand{
-		Email:       req.Email,
-		Password:    req.Password,
-		DisplayName: req.DisplayName,
-	}
-	if err := s.registerHandler.Handle(ctx, cmd); err != nil {
-		return nil, fmt.Errorf("register: %w", err)
-	}
-
-	user, err := s.userRepo.FindByEmailGlobal(ctx, req.Email)
+// OIDCExchange handles the OIDC authorization-code exchange (code → id_token →
+// verified identity) and just-in-time provisioning of a local user when the
+// identity is new, then issues a御财 access/refresh token pair via the shared
+// issueSession helper.
+func (s *Service) OIDCExchange(ctx context.Context, provider, code, codeVerifier, redirectURI string) (*AuthResponse, error) {
+	user, err := s.oidcHandler.Exchange(ctx, provider, code, codeVerifier, redirectURI)
 	if err != nil {
-		return nil, fmt.Errorf("find user after registration: %w", err)
+		return nil, err
 	}
-
 	accessToken, refreshToken, err := s.issueSession(ctx, user)
 	if err != nil {
 		return nil, err
@@ -106,22 +104,11 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*AuthRespo
 	}, nil
 }
 
-// Login authenticates a user and returns auth tokens.
-func (s *Service) Login(ctx context.Context, req LoginRequest) (*AuthResponse, error) {
-	user, err := s.loginHandler.Authenticate(ctx, req.Email, req.Password)
-	if err != nil {
-		return nil, err
-	}
-
-	accessToken, refreshToken, err := s.issueSession(ctx, user)
-	if err != nil {
-		return nil, err
-	}
-	return &AuthResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		User:         UserToDTOWithCurrency(user, s.preferredCurrencyFor(ctx, user.TenantID)),
-	}, nil
+// GetOIDCConfig returns the non-sensitive description of every enabled OIDC
+// provider (secrets stripped by the registry) so the client can render a
+// provider picker and build the auth URL + PKCE challenge itself.
+func (s *Service) GetOIDCConfig() []oidc.ProviderConfig {
+	return s.oidcRegistry.ListConfigs()
 }
 
 // RefreshToken rotates a refresh token and returns a fresh token pair.
