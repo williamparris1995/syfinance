@@ -22,29 +22,26 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type RegisterRequest struct {
+type GetOIDCConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
-	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
-	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RegisterRequest) Reset() {
-	*x = RegisterRequest{}
+func (x *GetOIDCConfigRequest) Reset() {
+	*x = GetOIDCConfigRequest{}
 	mi := &file_auth_v1_auth_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RegisterRequest) String() string {
+func (x *GetOIDCConfigRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RegisterRequest) ProtoMessage() {}
+func (*GetOIDCConfigRequest) ProtoMessage() {}
 
-func (x *RegisterRequest) ProtoReflect() protoreflect.Message {
+func (x *GetOIDCConfigRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_auth_v1_auth_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -56,114 +53,116 @@ func (x *RegisterRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RegisterRequest.ProtoReflect.Descriptor instead.
-func (*RegisterRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetOIDCConfigRequest.ProtoReflect.Descriptor instead.
+func (*GetOIDCConfigRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_auth_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *RegisterRequest) GetEmail() string {
+type OIDCProviderConfig struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Name                  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	DisplayName           string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Issuer                string                 `protobuf:"bytes,3,opt,name=issuer,proto3" json:"issuer,omitempty"`
+	AuthorizationEndpoint string                 `protobuf:"bytes,4,opt,name=authorization_endpoint,json=authorizationEndpoint,proto3" json:"authorization_endpoint,omitempty"`
+	ClientId              string                 `protobuf:"bytes,5,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	Scopes                []string               `protobuf:"bytes,6,rep,name=scopes,proto3" json:"scopes,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *OIDCProviderConfig) Reset() {
+	*x = OIDCProviderConfig{}
+	mi := &file_auth_v1_auth_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OIDCProviderConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OIDCProviderConfig) ProtoMessage() {}
+
+func (x *OIDCProviderConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_auth_proto_msgTypes[1]
 	if x != nil {
-		return x.Email
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OIDCProviderConfig.ProtoReflect.Descriptor instead.
+func (*OIDCProviderConfig) Descriptor() ([]byte, []int) {
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *OIDCProviderConfig) GetName() string {
+	if x != nil {
+		return x.Name
 	}
 	return ""
 }
 
-func (x *RegisterRequest) GetPassword() string {
-	if x != nil {
-		return x.Password
-	}
-	return ""
-}
-
-func (x *RegisterRequest) GetDisplayName() string {
+func (x *OIDCProviderConfig) GetDisplayName() string {
 	if x != nil {
 		return x.DisplayName
 	}
 	return ""
 }
 
-type RegisterResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AccessToken   string                 `protobuf:"bytes,1,opt,name=access_token,json=accessToken,proto3" json:"access_token,omitempty"`
-	RefreshToken  string                 `protobuf:"bytes,2,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
-	User          *UserDTO               `protobuf:"bytes,3,opt,name=user,proto3" json:"user,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RegisterResponse) Reset() {
-	*x = RegisterResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RegisterResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RegisterResponse) ProtoMessage() {}
-
-func (x *RegisterResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[1]
+func (x *OIDCProviderConfig) GetIssuer() string {
 	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RegisterResponse.ProtoReflect.Descriptor instead.
-func (*RegisterResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *RegisterResponse) GetAccessToken() string {
-	if x != nil {
-		return x.AccessToken
+		return x.Issuer
 	}
 	return ""
 }
 
-func (x *RegisterResponse) GetRefreshToken() string {
+func (x *OIDCProviderConfig) GetAuthorizationEndpoint() string {
 	if x != nil {
-		return x.RefreshToken
+		return x.AuthorizationEndpoint
 	}
 	return ""
 }
 
-func (x *RegisterResponse) GetUser() *UserDTO {
+func (x *OIDCProviderConfig) GetClientId() string {
 	if x != nil {
-		return x.User
+		return x.ClientId
+	}
+	return ""
+}
+
+func (x *OIDCProviderConfig) GetScopes() []string {
+	if x != nil {
+		return x.Scopes
 	}
 	return nil
 }
 
-type LoginRequest struct {
+type GetOIDCConfigResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
-	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
+	Providers     []*OIDCProviderConfig  `protobuf:"bytes,1,rep,name=providers,proto3" json:"providers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *LoginRequest) Reset() {
-	*x = LoginRequest{}
+func (x *GetOIDCConfigResponse) Reset() {
+	*x = GetOIDCConfigResponse{}
 	mi := &file_auth_v1_auth_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *LoginRequest) String() string {
+func (x *GetOIDCConfigResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*LoginRequest) ProtoMessage() {}
+func (*GetOIDCConfigResponse) ProtoMessage() {}
 
-func (x *LoginRequest) ProtoReflect() protoreflect.Message {
+func (x *GetOIDCConfigResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_auth_v1_auth_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -175,26 +174,87 @@ func (x *LoginRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use LoginRequest.ProtoReflect.Descriptor instead.
-func (*LoginRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetOIDCConfigResponse.ProtoReflect.Descriptor instead.
+func (*GetOIDCConfigResponse) Descriptor() ([]byte, []int) {
 	return file_auth_v1_auth_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *LoginRequest) GetEmail() string {
+func (x *GetOIDCConfigResponse) GetProviders() []*OIDCProviderConfig {
 	if x != nil {
-		return x.Email
+		return x.Providers
+	}
+	return nil
+}
+
+type OIDCExchangeRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Provider      string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
+	Code          string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
+	CodeVerifier  string                 `protobuf:"bytes,3,opt,name=code_verifier,json=codeVerifier,proto3" json:"code_verifier,omitempty"`
+	RedirectUri   string                 `protobuf:"bytes,4,opt,name=redirect_uri,json=redirectUri,proto3" json:"redirect_uri,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OIDCExchangeRequest) Reset() {
+	*x = OIDCExchangeRequest{}
+	mi := &file_auth_v1_auth_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OIDCExchangeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OIDCExchangeRequest) ProtoMessage() {}
+
+func (x *OIDCExchangeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_auth_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OIDCExchangeRequest.ProtoReflect.Descriptor instead.
+func (*OIDCExchangeRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *OIDCExchangeRequest) GetProvider() string {
+	if x != nil {
+		return x.Provider
 	}
 	return ""
 }
 
-func (x *LoginRequest) GetPassword() string {
+func (x *OIDCExchangeRequest) GetCode() string {
 	if x != nil {
-		return x.Password
+		return x.Code
 	}
 	return ""
 }
 
-type LoginResponse struct {
+func (x *OIDCExchangeRequest) GetCodeVerifier() string {
+	if x != nil {
+		return x.CodeVerifier
+	}
+	return ""
+}
+
+func (x *OIDCExchangeRequest) GetRedirectUri() string {
+	if x != nil {
+		return x.RedirectUri
+	}
+	return ""
+}
+
+type OIDCExchangeResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AccessToken   string                 `protobuf:"bytes,1,opt,name=access_token,json=accessToken,proto3" json:"access_token,omitempty"`
 	RefreshToken  string                 `protobuf:"bytes,2,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
@@ -203,21 +263,21 @@ type LoginResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *LoginResponse) Reset() {
-	*x = LoginResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[3]
+func (x *OIDCExchangeResponse) Reset() {
+	*x = OIDCExchangeResponse{}
+	mi := &file_auth_v1_auth_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *LoginResponse) String() string {
+func (x *OIDCExchangeResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*LoginResponse) ProtoMessage() {}
+func (*OIDCExchangeResponse) ProtoMessage() {}
 
-func (x *LoginResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[3]
+func (x *OIDCExchangeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_auth_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -228,26 +288,26 @@ func (x *LoginResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use LoginResponse.ProtoReflect.Descriptor instead.
-func (*LoginResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{3}
+// Deprecated: Use OIDCExchangeResponse.ProtoReflect.Descriptor instead.
+func (*OIDCExchangeResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *LoginResponse) GetAccessToken() string {
+func (x *OIDCExchangeResponse) GetAccessToken() string {
 	if x != nil {
 		return x.AccessToken
 	}
 	return ""
 }
 
-func (x *LoginResponse) GetRefreshToken() string {
+func (x *OIDCExchangeResponse) GetRefreshToken() string {
 	if x != nil {
 		return x.RefreshToken
 	}
 	return ""
 }
 
-func (x *LoginResponse) GetUser() *UserDTO {
+func (x *OIDCExchangeResponse) GetUser() *UserDTO {
 	if x != nil {
 		return x.User
 	}
@@ -263,7 +323,7 @@ type RefreshTokenRequest struct {
 
 func (x *RefreshTokenRequest) Reset() {
 	*x = RefreshTokenRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[4]
+	mi := &file_auth_v1_auth_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -275,7 +335,7 @@ func (x *RefreshTokenRequest) String() string {
 func (*RefreshTokenRequest) ProtoMessage() {}
 
 func (x *RefreshTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[4]
+	mi := &file_auth_v1_auth_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -288,7 +348,7 @@ func (x *RefreshTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshTokenRequest.ProtoReflect.Descriptor instead.
 func (*RefreshTokenRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{4}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *RefreshTokenRequest) GetRefreshToken() string {
@@ -308,7 +368,7 @@ type RefreshTokenResponse struct {
 
 func (x *RefreshTokenResponse) Reset() {
 	*x = RefreshTokenResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[5]
+	mi := &file_auth_v1_auth_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -320,7 +380,7 @@ func (x *RefreshTokenResponse) String() string {
 func (*RefreshTokenResponse) ProtoMessage() {}
 
 func (x *RefreshTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[5]
+	mi := &file_auth_v1_auth_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -333,7 +393,7 @@ func (x *RefreshTokenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshTokenResponse.ProtoReflect.Descriptor instead.
 func (*RefreshTokenResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{5}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *RefreshTokenResponse) GetAccessToken() string {
@@ -358,7 +418,7 @@ type GetProfileRequest struct {
 
 func (x *GetProfileRequest) Reset() {
 	*x = GetProfileRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[6]
+	mi := &file_auth_v1_auth_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -370,7 +430,7 @@ func (x *GetProfileRequest) String() string {
 func (*GetProfileRequest) ProtoMessage() {}
 
 func (x *GetProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[6]
+	mi := &file_auth_v1_auth_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -383,7 +443,7 @@ func (x *GetProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProfileRequest.ProtoReflect.Descriptor instead.
 func (*GetProfileRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{6}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{7}
 }
 
 type GetProfileResponse struct {
@@ -395,7 +455,7 @@ type GetProfileResponse struct {
 
 func (x *GetProfileResponse) Reset() {
 	*x = GetProfileResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[7]
+	mi := &file_auth_v1_auth_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -407,7 +467,7 @@ func (x *GetProfileResponse) String() string {
 func (*GetProfileResponse) ProtoMessage() {}
 
 func (x *GetProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[7]
+	mi := &file_auth_v1_auth_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -420,7 +480,7 @@ func (x *GetProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProfileResponse.ProtoReflect.Descriptor instead.
 func (*GetProfileResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{7}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetProfileResponse) GetUser() *UserDTO {
@@ -440,7 +500,7 @@ type UpdateProfileRequest struct {
 
 func (x *UpdateProfileRequest) Reset() {
 	*x = UpdateProfileRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[8]
+	mi := &file_auth_v1_auth_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -452,7 +512,7 @@ func (x *UpdateProfileRequest) String() string {
 func (*UpdateProfileRequest) ProtoMessage() {}
 
 func (x *UpdateProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[8]
+	mi := &file_auth_v1_auth_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -465,7 +525,7 @@ func (x *UpdateProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateProfileRequest.ProtoReflect.Descriptor instead.
 func (*UpdateProfileRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{8}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *UpdateProfileRequest) GetDisplayName() string {
@@ -491,7 +551,7 @@ type UpdateProfileResponse struct {
 
 func (x *UpdateProfileResponse) Reset() {
 	*x = UpdateProfileResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[9]
+	mi := &file_auth_v1_auth_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -503,7 +563,7 @@ func (x *UpdateProfileResponse) String() string {
 func (*UpdateProfileResponse) ProtoMessage() {}
 
 func (x *UpdateProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[9]
+	mi := &file_auth_v1_auth_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -516,7 +576,7 @@ func (x *UpdateProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateProfileResponse.ProtoReflect.Descriptor instead.
 func (*UpdateProfileResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{9}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *UpdateProfileResponse) GetUser() *UserDTO {
@@ -541,7 +601,7 @@ type UserDTO struct {
 
 func (x *UserDTO) Reset() {
 	*x = UserDTO{}
-	mi := &file_auth_v1_auth_proto_msgTypes[10]
+	mi := &file_auth_v1_auth_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -553,7 +613,7 @@ func (x *UserDTO) String() string {
 func (*UserDTO) ProtoMessage() {}
 
 func (x *UserDTO) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[10]
+	mi := &file_auth_v1_auth_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -566,7 +626,7 @@ func (x *UserDTO) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserDTO.ProtoReflect.Descriptor instead.
 func (*UserDTO) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{10}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *UserDTO) GetId() string {
@@ -631,7 +691,7 @@ type TenantPreferencesDTO struct {
 
 func (x *TenantPreferencesDTO) Reset() {
 	*x = TenantPreferencesDTO{}
-	mi := &file_auth_v1_auth_proto_msgTypes[11]
+	mi := &file_auth_v1_auth_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -643,7 +703,7 @@ func (x *TenantPreferencesDTO) String() string {
 func (*TenantPreferencesDTO) ProtoMessage() {}
 
 func (x *TenantPreferencesDTO) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[11]
+	mi := &file_auth_v1_auth_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -656,7 +716,7 @@ func (x *TenantPreferencesDTO) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TenantPreferencesDTO.ProtoReflect.Descriptor instead.
 func (*TenantPreferencesDTO) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{11}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *TenantPreferencesDTO) GetPreferredCurrency() string {
@@ -681,7 +741,7 @@ type GetPreferencesRequest struct {
 
 func (x *GetPreferencesRequest) Reset() {
 	*x = GetPreferencesRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[12]
+	mi := &file_auth_v1_auth_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -693,7 +753,7 @@ func (x *GetPreferencesRequest) String() string {
 func (*GetPreferencesRequest) ProtoMessage() {}
 
 func (x *GetPreferencesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[12]
+	mi := &file_auth_v1_auth_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -706,7 +766,7 @@ func (x *GetPreferencesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPreferencesRequest.ProtoReflect.Descriptor instead.
 func (*GetPreferencesRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{12}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{13}
 }
 
 type GetPreferencesResponse struct {
@@ -718,7 +778,7 @@ type GetPreferencesResponse struct {
 
 func (x *GetPreferencesResponse) Reset() {
 	*x = GetPreferencesResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[13]
+	mi := &file_auth_v1_auth_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -730,7 +790,7 @@ func (x *GetPreferencesResponse) String() string {
 func (*GetPreferencesResponse) ProtoMessage() {}
 
 func (x *GetPreferencesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[13]
+	mi := &file_auth_v1_auth_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -743,7 +803,7 @@ func (x *GetPreferencesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPreferencesResponse.ProtoReflect.Descriptor instead.
 func (*GetPreferencesResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{13}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetPreferencesResponse) GetPreferences() *TenantPreferencesDTO {
@@ -763,7 +823,7 @@ type UpdatePreferencesRequest struct {
 
 func (x *UpdatePreferencesRequest) Reset() {
 	*x = UpdatePreferencesRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[14]
+	mi := &file_auth_v1_auth_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -775,7 +835,7 @@ func (x *UpdatePreferencesRequest) String() string {
 func (*UpdatePreferencesRequest) ProtoMessage() {}
 
 func (x *UpdatePreferencesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[14]
+	mi := &file_auth_v1_auth_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -788,7 +848,7 @@ func (x *UpdatePreferencesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatePreferencesRequest.ProtoReflect.Descriptor instead.
 func (*UpdatePreferencesRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{14}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *UpdatePreferencesRequest) GetPreferredCurrency() string {
@@ -814,7 +874,7 @@ type UpdatePreferencesResponse struct {
 
 func (x *UpdatePreferencesResponse) Reset() {
 	*x = UpdatePreferencesResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[15]
+	mi := &file_auth_v1_auth_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -826,7 +886,7 @@ func (x *UpdatePreferencesResponse) String() string {
 func (*UpdatePreferencesResponse) ProtoMessage() {}
 
 func (x *UpdatePreferencesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[15]
+	mi := &file_auth_v1_auth_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -839,7 +899,7 @@ func (x *UpdatePreferencesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatePreferencesResponse.ProtoReflect.Descriptor instead.
 func (*UpdatePreferencesResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{15}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *UpdatePreferencesResponse) GetPreferences() *TenantPreferencesDTO {
@@ -853,19 +913,23 @@ var File_auth_v1_auth_proto protoreflect.FileDescriptor
 
 const file_auth_v1_auth_proto_rawDesc = "" +
 	"\n" +
-	"\x12auth/v1/auth.proto\x12\ryucai.auth.v1\x1a\x1bgoogle/protobuf/empty.proto\"f\n" +
-	"\x0fRegisterRequest\x12\x14\n" +
-	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
-	"\bpassword\x18\x02 \x01(\tR\bpassword\x12!\n" +
-	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\"\x86\x01\n" +
-	"\x10RegisterResponse\x12!\n" +
-	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12#\n" +
-	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\x12*\n" +
-	"\x04user\x18\x03 \x01(\v2\x16.yucai.auth.v1.UserDTOR\x04user\"@\n" +
-	"\fLoginRequest\x12\x14\n" +
-	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
-	"\bpassword\x18\x02 \x01(\tR\bpassword\"\x83\x01\n" +
-	"\rLoginResponse\x12!\n" +
+	"\x12auth/v1/auth.proto\x12\ryucai.auth.v1\x1a\x1bgoogle/protobuf/empty.proto\"\x16\n" +
+	"\x14GetOIDCConfigRequest\"\xcf\x01\n" +
+	"\x12OIDCProviderConfig\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x16\n" +
+	"\x06issuer\x18\x03 \x01(\tR\x06issuer\x125\n" +
+	"\x16authorization_endpoint\x18\x04 \x01(\tR\x15authorizationEndpoint\x12\x1b\n" +
+	"\tclient_id\x18\x05 \x01(\tR\bclientId\x12\x16\n" +
+	"\x06scopes\x18\x06 \x03(\tR\x06scopes\"X\n" +
+	"\x15GetOIDCConfigResponse\x12?\n" +
+	"\tproviders\x18\x01 \x03(\v2!.yucai.auth.v1.OIDCProviderConfigR\tproviders\"\x8d\x01\n" +
+	"\x13OIDCExchangeRequest\x12\x1a\n" +
+	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x12\n" +
+	"\x04code\x18\x02 \x01(\tR\x04code\x12#\n" +
+	"\rcode_verifier\x18\x03 \x01(\tR\fcodeVerifier\x12!\n" +
+	"\fredirect_uri\x18\x04 \x01(\tR\vredirectUri\"\x8a\x01\n" +
+	"\x14OIDCExchangeResponse\x12!\n" +
 	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12#\n" +
 	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\x12*\n" +
 	"\x04user\x18\x03 \x01(\v2\x16.yucai.auth.v1.UserDTOR\x04user\":\n" +
@@ -903,10 +967,10 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x12preferred_currency\x18\x01 \x01(\tR\x11preferredCurrency\x127\n" +
 	"\x18rate_sync_interval_hours\x18\x02 \x01(\x05R\x15rateSyncIntervalHours\"b\n" +
 	"\x19UpdatePreferencesResponse\x12E\n" +
-	"\vpreferences\x18\x01 \x01(\v2#.yucai.auth.v1.TenantPreferencesDTOR\vpreferences2\xed\x04\n" +
-	"\vAuthService\x12K\n" +
-	"\bRegister\x12\x1e.yucai.auth.v1.RegisterRequest\x1a\x1f.yucai.auth.v1.RegisterResponse\x12B\n" +
-	"\x05Login\x12\x1b.yucai.auth.v1.LoginRequest\x1a\x1c.yucai.auth.v1.LoginResponse\x12W\n" +
+	"\vpreferences\x18\x01 \x01(\v2#.yucai.auth.v1.TenantPreferencesDTOR\vpreferences2\x91\x05\n" +
+	"\vAuthService\x12Z\n" +
+	"\rGetOIDCConfig\x12#.yucai.auth.v1.GetOIDCConfigRequest\x1a$.yucai.auth.v1.GetOIDCConfigResponse\x12W\n" +
+	"\fOIDCExchange\x12\".yucai.auth.v1.OIDCExchangeRequest\x1a#.yucai.auth.v1.OIDCExchangeResponse\x12W\n" +
 	"\fRefreshToken\x12\".yucai.auth.v1.RefreshTokenRequest\x1a#.yucai.auth.v1.RefreshTokenResponse\x12Q\n" +
 	"\n" +
 	"GetProfile\x12 .yucai.auth.v1.GetProfileRequest\x1a!.yucai.auth.v1.GetProfileResponse\x12Z\n" +
@@ -927,46 +991,47 @@ func file_auth_v1_auth_proto_rawDescGZIP() []byte {
 	return file_auth_v1_auth_proto_rawDescData
 }
 
-var file_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_auth_v1_auth_proto_goTypes = []any{
-	(*RegisterRequest)(nil),           // 0: yucai.auth.v1.RegisterRequest
-	(*RegisterResponse)(nil),          // 1: yucai.auth.v1.RegisterResponse
-	(*LoginRequest)(nil),              // 2: yucai.auth.v1.LoginRequest
-	(*LoginResponse)(nil),             // 3: yucai.auth.v1.LoginResponse
-	(*RefreshTokenRequest)(nil),       // 4: yucai.auth.v1.RefreshTokenRequest
-	(*RefreshTokenResponse)(nil),      // 5: yucai.auth.v1.RefreshTokenResponse
-	(*GetProfileRequest)(nil),         // 6: yucai.auth.v1.GetProfileRequest
-	(*GetProfileResponse)(nil),        // 7: yucai.auth.v1.GetProfileResponse
-	(*UpdateProfileRequest)(nil),      // 8: yucai.auth.v1.UpdateProfileRequest
-	(*UpdateProfileResponse)(nil),     // 9: yucai.auth.v1.UpdateProfileResponse
-	(*UserDTO)(nil),                   // 10: yucai.auth.v1.UserDTO
-	(*TenantPreferencesDTO)(nil),      // 11: yucai.auth.v1.TenantPreferencesDTO
-	(*GetPreferencesRequest)(nil),     // 12: yucai.auth.v1.GetPreferencesRequest
-	(*GetPreferencesResponse)(nil),    // 13: yucai.auth.v1.GetPreferencesResponse
-	(*UpdatePreferencesRequest)(nil),  // 14: yucai.auth.v1.UpdatePreferencesRequest
-	(*UpdatePreferencesResponse)(nil), // 15: yucai.auth.v1.UpdatePreferencesResponse
+	(*GetOIDCConfigRequest)(nil),      // 0: yucai.auth.v1.GetOIDCConfigRequest
+	(*OIDCProviderConfig)(nil),        // 1: yucai.auth.v1.OIDCProviderConfig
+	(*GetOIDCConfigResponse)(nil),     // 2: yucai.auth.v1.GetOIDCConfigResponse
+	(*OIDCExchangeRequest)(nil),       // 3: yucai.auth.v1.OIDCExchangeRequest
+	(*OIDCExchangeResponse)(nil),      // 4: yucai.auth.v1.OIDCExchangeResponse
+	(*RefreshTokenRequest)(nil),       // 5: yucai.auth.v1.RefreshTokenRequest
+	(*RefreshTokenResponse)(nil),      // 6: yucai.auth.v1.RefreshTokenResponse
+	(*GetProfileRequest)(nil),         // 7: yucai.auth.v1.GetProfileRequest
+	(*GetProfileResponse)(nil),        // 8: yucai.auth.v1.GetProfileResponse
+	(*UpdateProfileRequest)(nil),      // 9: yucai.auth.v1.UpdateProfileRequest
+	(*UpdateProfileResponse)(nil),     // 10: yucai.auth.v1.UpdateProfileResponse
+	(*UserDTO)(nil),                   // 11: yucai.auth.v1.UserDTO
+	(*TenantPreferencesDTO)(nil),      // 12: yucai.auth.v1.TenantPreferencesDTO
+	(*GetPreferencesRequest)(nil),     // 13: yucai.auth.v1.GetPreferencesRequest
+	(*GetPreferencesResponse)(nil),    // 14: yucai.auth.v1.GetPreferencesResponse
+	(*UpdatePreferencesRequest)(nil),  // 15: yucai.auth.v1.UpdatePreferencesRequest
+	(*UpdatePreferencesResponse)(nil), // 16: yucai.auth.v1.UpdatePreferencesResponse
 }
 var file_auth_v1_auth_proto_depIdxs = []int32{
-	10, // 0: yucai.auth.v1.RegisterResponse.user:type_name -> yucai.auth.v1.UserDTO
-	10, // 1: yucai.auth.v1.LoginResponse.user:type_name -> yucai.auth.v1.UserDTO
-	10, // 2: yucai.auth.v1.GetProfileResponse.user:type_name -> yucai.auth.v1.UserDTO
-	10, // 3: yucai.auth.v1.UpdateProfileResponse.user:type_name -> yucai.auth.v1.UserDTO
-	11, // 4: yucai.auth.v1.GetPreferencesResponse.preferences:type_name -> yucai.auth.v1.TenantPreferencesDTO
-	11, // 5: yucai.auth.v1.UpdatePreferencesResponse.preferences:type_name -> yucai.auth.v1.TenantPreferencesDTO
-	0,  // 6: yucai.auth.v1.AuthService.Register:input_type -> yucai.auth.v1.RegisterRequest
-	2,  // 7: yucai.auth.v1.AuthService.Login:input_type -> yucai.auth.v1.LoginRequest
-	4,  // 8: yucai.auth.v1.AuthService.RefreshToken:input_type -> yucai.auth.v1.RefreshTokenRequest
-	6,  // 9: yucai.auth.v1.AuthService.GetProfile:input_type -> yucai.auth.v1.GetProfileRequest
-	8,  // 10: yucai.auth.v1.AuthService.UpdateProfile:input_type -> yucai.auth.v1.UpdateProfileRequest
-	12, // 11: yucai.auth.v1.AuthService.GetPreferences:input_type -> yucai.auth.v1.GetPreferencesRequest
-	14, // 12: yucai.auth.v1.AuthService.UpdatePreferences:input_type -> yucai.auth.v1.UpdatePreferencesRequest
-	1,  // 13: yucai.auth.v1.AuthService.Register:output_type -> yucai.auth.v1.RegisterResponse
-	3,  // 14: yucai.auth.v1.AuthService.Login:output_type -> yucai.auth.v1.LoginResponse
-	5,  // 15: yucai.auth.v1.AuthService.RefreshToken:output_type -> yucai.auth.v1.RefreshTokenResponse
-	7,  // 16: yucai.auth.v1.AuthService.GetProfile:output_type -> yucai.auth.v1.GetProfileResponse
-	9,  // 17: yucai.auth.v1.AuthService.UpdateProfile:output_type -> yucai.auth.v1.UpdateProfileResponse
-	13, // 18: yucai.auth.v1.AuthService.GetPreferences:output_type -> yucai.auth.v1.GetPreferencesResponse
-	15, // 19: yucai.auth.v1.AuthService.UpdatePreferences:output_type -> yucai.auth.v1.UpdatePreferencesResponse
+	1,  // 0: yucai.auth.v1.GetOIDCConfigResponse.providers:type_name -> yucai.auth.v1.OIDCProviderConfig
+	11, // 1: yucai.auth.v1.OIDCExchangeResponse.user:type_name -> yucai.auth.v1.UserDTO
+	11, // 2: yucai.auth.v1.GetProfileResponse.user:type_name -> yucai.auth.v1.UserDTO
+	11, // 3: yucai.auth.v1.UpdateProfileResponse.user:type_name -> yucai.auth.v1.UserDTO
+	12, // 4: yucai.auth.v1.GetPreferencesResponse.preferences:type_name -> yucai.auth.v1.TenantPreferencesDTO
+	12, // 5: yucai.auth.v1.UpdatePreferencesResponse.preferences:type_name -> yucai.auth.v1.TenantPreferencesDTO
+	0,  // 6: yucai.auth.v1.AuthService.GetOIDCConfig:input_type -> yucai.auth.v1.GetOIDCConfigRequest
+	3,  // 7: yucai.auth.v1.AuthService.OIDCExchange:input_type -> yucai.auth.v1.OIDCExchangeRequest
+	5,  // 8: yucai.auth.v1.AuthService.RefreshToken:input_type -> yucai.auth.v1.RefreshTokenRequest
+	7,  // 9: yucai.auth.v1.AuthService.GetProfile:input_type -> yucai.auth.v1.GetProfileRequest
+	9,  // 10: yucai.auth.v1.AuthService.UpdateProfile:input_type -> yucai.auth.v1.UpdateProfileRequest
+	13, // 11: yucai.auth.v1.AuthService.GetPreferences:input_type -> yucai.auth.v1.GetPreferencesRequest
+	15, // 12: yucai.auth.v1.AuthService.UpdatePreferences:input_type -> yucai.auth.v1.UpdatePreferencesRequest
+	2,  // 13: yucai.auth.v1.AuthService.GetOIDCConfig:output_type -> yucai.auth.v1.GetOIDCConfigResponse
+	4,  // 14: yucai.auth.v1.AuthService.OIDCExchange:output_type -> yucai.auth.v1.OIDCExchangeResponse
+	6,  // 15: yucai.auth.v1.AuthService.RefreshToken:output_type -> yucai.auth.v1.RefreshTokenResponse
+	8,  // 16: yucai.auth.v1.AuthService.GetProfile:output_type -> yucai.auth.v1.GetProfileResponse
+	10, // 17: yucai.auth.v1.AuthService.UpdateProfile:output_type -> yucai.auth.v1.UpdateProfileResponse
+	14, // 18: yucai.auth.v1.AuthService.GetPreferences:output_type -> yucai.auth.v1.GetPreferencesResponse
+	16, // 19: yucai.auth.v1.AuthService.UpdatePreferences:output_type -> yucai.auth.v1.UpdatePreferencesResponse
 	13, // [13:20] is the sub-list for method output_type
 	6,  // [6:13] is the sub-list for method input_type
 	6,  // [6:6] is the sub-list for extension type_name
@@ -985,7 +1050,7 @@ func file_auth_v1_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_auth_proto_rawDesc), len(file_auth_v1_auth_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
