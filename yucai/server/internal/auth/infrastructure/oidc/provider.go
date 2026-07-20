@@ -34,12 +34,16 @@ type Provider struct {
 }
 
 // NewProvider runs OIDC discovery against cfg.Issuer and builds the oauth2
-// config + id_token verifier.
+// config + id_token verifier. The discovered AuthorizationEndpoint is written
+// back into the returned Provider.Config so callers (e.g. gRPC handlers in
+// Task 6) can read Provider.Config.AuthorizationEndpoint without having to
+// mirror the registry.Load writeback themselves.
 func NewProvider(ctx context.Context, cfg ProviderConfig) (*Provider, error) {
 	p, err := oidc.NewProvider(ctx, cfg.Issuer)
 	if err != nil {
 		return nil, fmt.Errorf("oidc discovery for %s: %w", cfg.Issuer, err)
 	}
+	cfg.AuthorizationEndpoint = p.Endpoint().AuthURL
 	return &Provider{
 		Config: cfg,
 		oauth2Config: &oauth2.Config{

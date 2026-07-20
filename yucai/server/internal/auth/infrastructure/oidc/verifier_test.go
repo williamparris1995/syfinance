@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -32,6 +34,11 @@ type mockIDP struct {
 	tokenClaims func() string
 	// signAlg lets a test override the algorithm advertised in discovery.
 	signAlg string
+	// receivedCodeVerifier captures the code_verifier form value from the
+	// most recent /token request. Tests assert against this to prove PKCE
+	// propagation survived the oauth2 Exchange path (regression guard against
+	// accidentally dropping the option in Provider.Exchange).
+	receivedCodeVerifier string
 }
 
 func (m *mockIDP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -49,9 +56,10 @@ func (m *mockIDP) serveToken(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad form", http.StatusBadRequest)
 		return
 	}
-	// Echo back the PKCE code_verifier so tests can assert it reached the
-	// IDP (regression guard against accidentally dropping the option).
-	_ = r.FormValue("code_verifier")
+	// Capture the PKCE code_verifier so tests can assert it reached the IDP
+	// (regression guard against accidentally dropping the option in
+	// Provider.Exchange).
+	m.receivedCodeVerifier = r.FormValue("code_verifier")
 	claims := m.tokenClaims()
 	raw := oidctest.SignIDToken(m.priv, m.keyID, m.signAlg, claims)
 	resp := map[string]any{
@@ -124,12 +132,18 @@ func defaultClaims(iss, aud, sub, email string, emailVerified bool) string {
 
 func TestVerifyIDToken_FullExchangeFlow(t *testing.T) {
 	const clientID = "yucai-test-client"
-	_, p, _ := newMockIDP(t, clientID)
+	_, p, m := newMockIDP(t, clientID)
 
 	tok, err := p.Exchange(context.Background(),
 		"fake-auth-code", "test-pkce-verifier", "")
 	if err != nil {
 		t.Fatalf("Exchange: %v", err)
+	}
+	// Regression guard: if Provider.Exchange ever drops the
+	// oauth2.SetAuthURLParam("code_verifier", ...) option, the IDP receives
+	// an empty code_verifier and PKCE protection is silently lost.
+	if m.receivedCodeVerifier != "test-pkce-verifier" {
+		t.Errorf("code_verifier at IDP = %q, want %q", m.receivedCodeVerifier, "test-pkce-verifier")
 	}
 	rawIDToken, ok := tok.Extra("id_token").(string)
 	if !ok || rawIDToken == "" {
@@ -264,6 +278,67 @@ func TestProviderRegistry_Get(t *testing.T) {
 	}
 	if _, ok := reg.Get("nonexistent"); ok {
 		t.Errorf(`Get("nonexistent") returned ok=true, want false`)
+	}
+}
+
+// TestLoad exercises registry.Load end-to-end: yaml parse,
+// OIDC_<NAME_UPPER>_CLIENT_SECRET env injection, discovery loop, and
+// AuthorizationEndpoint writeback into both Provider.Config and ListConfigs.
+// Locks the env-name convention so a future rename silently breaks the test
+// instead of breaking production at runtime.
+func TestLoad(t *testing.T) {
+	const clientID = "yucai-test-client"
+	srv, _, _ := newMockIDP(t, clientID)
+
+	// Minimal yaml pointing at the mock IDP. Provider name "testprov" maps to
+	// env var OIDC_TESTPROV_CLIENT_SECRET (convention: OIDC_<UPPER>_CLIENT_SECRET).
+	yamlContent := `providers:
+  - name: testprov
+    display_name: Test Provider
+    issuer: ` + srv.URL + `
+    client_id: ` + clientID + `
+    scopes: [openid, email, profile]
+    redirect_uri: ` + srv.URL + `/callback
+`
+	dir := t.TempDir()
+	yamlPath := filepath.Join(dir, "oidc_providers.yaml")
+	if err := os.WriteFile(yamlPath, []byte(yamlContent), 0600); err != nil {
+		t.Fatalf("write yaml: %v", err)
+	}
+
+	t.Setenv("OIDC_TESTPROV_CLIENT_SECRET", "super-secret")
+
+	reg, err := Load(context.Background(), yamlPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	p, ok := reg.Get("testprov")
+	if !ok {
+		t.Fatalf(`Get("testprov") returned ok=false, want true`)
+	}
+	// Minor 2 fix: NewProvider must writeback the discovered endpoint into
+	// Provider.Config so Task 6 handlers can read it directly without
+	// mirroring the registry.Load writeback.
+	if p.Config.AuthorizationEndpoint == "" {
+		t.Errorf(`Get("testprov").Config.AuthorizationEndpoint is empty; want discovery to populate`)
+	}
+	if p.Config.ClientSecret != "super-secret" {
+		t.Errorf("Provider.Config.ClientSecret = %q, want %q (env-injected at Load)", p.Config.ClientSecret, "super-secret")
+	}
+
+	configs := reg.ListConfigs()
+	if len(configs) != 1 {
+		t.Fatalf("ListConfigs = %d items, want 1", len(configs))
+	}
+	if configs[0].Name != "testprov" {
+		t.Errorf("ListConfigs[0].Name = %q, want %q", configs[0].Name, "testprov")
+	}
+	if configs[0].ClientSecret != "" {
+		t.Errorf("ListConfigs did not strip ClientSecret: got %q", configs[0].ClientSecret)
+	}
+	if configs[0].AuthorizationEndpoint == "" {
+		t.Errorf("ListConfigs returned empty AuthorizationEndpoint")
 	}
 }
 
