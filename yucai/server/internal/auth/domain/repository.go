@@ -35,9 +35,18 @@ type CurrencyCodeChecker interface {
 type UserRepository interface {
 	Save(ctx context.Context, user *User) error
 	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
-	// FindByEmail finds a user by email within a specific tenant.
-	FindByEmail(ctx context.Context, tenantID uuid.UUID, email string) (*User, error)
-	// FindByEmailGlobal finds a user by email across all tenants (for login).
-	FindByEmailGlobal(ctx context.Context, email string) (*User, error)
+	// FindByProviderSubject looks up a user by an OIDC identity's
+	// (provider, subject) pair. Used by the login flow to resolve an
+	// incoming IDP token to a local user row. Returns an error
+	// (wrapping ent's NotFound) when no identity matches.
+	FindByProviderSubject(ctx context.Context, provider, subject string) (*User, error)
 	Update(ctx context.Context, user *User) error
+}
+
+// IdentityRepository defines the port for UserIdentity persistence.
+type IdentityRepository interface {
+	Save(ctx context.Context, identity *UserIdentity) error
+	// FindByProviderSubject returns the identity matching the given
+	// (provider, subject) pair, or an error wrapping ent's NotFound.
+	FindByProviderSubject(ctx context.Context, provider, subject string) (*UserIdentity, error)
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/yucai/server/internal/auth/domain"
 	"github.com/yucai/server/internal/auth/ent"
 	"github.com/yucai/server/internal/auth/ent/user"
+	"github.com/yucai/server/internal/auth/ent/useridentity"
 )
 
 // UserRepository implements domain.UserRepository using entGo.
@@ -26,11 +27,8 @@ func (r *UserRepository) Save(ctx context.Context, u *domain.User) error {
 		SetID(u.ID).
 		SetTenantID(u.TenantID).
 		SetEmail(u.Email).
-		SetPasswordHash(u.PasswordHash).
 		SetDisplayName(u.DisplayName).
 		SetAvatarURL(u.AvatarURL).
-		SetOauthProvider(u.OAuthProvider).
-		SetOauthID(u.OAuthID).
 		SetFamilyRole(user.FamilyRole(u.FamilyRole.String())).
 		SetCreatedAt(u.CreatedAt).
 		SetUpdatedAt(u.UpdatedAt).
@@ -50,27 +48,16 @@ func (r *UserRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.Us
 	return toDomainUser(u), nil
 }
 
-// FindByEmail finds a user by email within a specific tenant.
-func (r *UserRepository) FindByEmail(ctx context.Context, tenantID uuid.UUID, email string) (*domain.User, error) {
+// FindByProviderSubject looks up a user via an attached OIDC identity.
+func (r *UserRepository) FindByProviderSubject(ctx context.Context, provider, subject string) (*domain.User, error) {
 	u, err := r.client.User.Query().
-		Where(
-			user.TenantID(tenantID),
-			user.Email(email),
-		).
+		Where(user.HasIdentitiesWith(
+			useridentity.Provider(provider),
+			useridentity.Subject(subject),
+		)).
 		Only(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("find user by email: %w", err)
-	}
-	return toDomainUser(u), nil
-}
-
-// FindByEmailGlobal finds a user by email across all tenants.
-func (r *UserRepository) FindByEmailGlobal(ctx context.Context, email string) (*domain.User, error) {
-	u, err := r.client.User.Query().
-		Where(user.Email(email)).
-		Only(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("find user by email globally: %w", err)
+		return nil, fmt.Errorf("find user by provider subject: %w", err)
 	}
 	return toDomainUser(u), nil
 }
@@ -90,17 +77,14 @@ func (r *UserRepository) Update(ctx context.Context, u *domain.User) error {
 
 func toDomainUser(u *ent.User) *domain.User {
 	return &domain.User{
-		ID:            u.ID,
-		TenantID:      u.TenantID,
-		Email:         u.Email,
-		PasswordHash:  u.PasswordHash,
-		DisplayName:   u.DisplayName,
-		AvatarURL:     u.AvatarURL,
-		OAuthProvider: u.OauthProvider,
-		OAuthID:       u.OauthID,
-		FamilyRole:    domain.ParseFamilyRole(string(u.FamilyRole)),
-		CreatedAt:     u.CreatedAt,
-		UpdatedAt:     u.UpdatedAt,
+		ID:          u.ID,
+		TenantID:    u.TenantID,
+		Email:       u.Email,
+		DisplayName: u.DisplayName,
+		AvatarURL:   u.AvatarURL,
+		FamilyRole:  domain.ParseFamilyRole(string(u.FamilyRole)),
+		CreatedAt:   u.CreatedAt,
+		UpdatedAt:   u.UpdatedAt,
 	}
 }
 
