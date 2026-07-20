@@ -30,9 +30,8 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/app/router.dart';
 import 'package:yucai_client/auth/domain/entities/user_entity.dart';
 import 'package:yucai_client/auth/domain/usecases/get_profile_usecase.dart';
-import 'package:yucai_client/auth/domain/usecases/login_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/logout_usecase.dart';
-import 'package:yucai_client/auth/domain/usecases/register_usecase.dart';
+import 'package:yucai_client/auth/domain/usecases/oidc_login_usecase.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/budget/domain/entities/budget_entity.dart';
@@ -71,8 +70,7 @@ class _MockSummaryRepo extends Mock implements ReceivablesSummaryRepository {}
 class _MockHoldingRepo extends Mock implements HoldingRepository {}
 class _MockBudgetRepo extends Mock implements BudgetRepository {}
 class _MockGoalRepo extends Mock implements GoalRepository {}
-class _MockLogin extends Mock implements LoginUseCase {}
-class _MockRegister extends Mock implements RegisterUseCase {}
+class _MockOidcLogin extends Mock implements OidcLoginUseCase {}
 class _MockProfile extends Mock implements GetProfileUseCase {}
 class _MockLogout extends Mock implements LogoutUseCase {}
 
@@ -725,7 +723,7 @@ AuthBloc _seededAuthBloc() => _SeededAuthedBloc();
 
 class _SeededAuthedBloc extends AuthBloc {
   _SeededAuthedBloc()
-      : super(_MockLogin(), _MockRegister(), _MockProfile(), _MockLogout()) {
+      : super(_MockOidcLogin(), _MockProfile(), _MockLogout()) {
     emit(Authenticated(_user));
   }
 }
@@ -736,7 +734,7 @@ AuthBloc _unauthBloc() => _SeededUnauthBloc();
 
 class _SeededUnauthBloc extends AuthBloc {
   _SeededUnauthBloc()
-      : super(_MockLogin(), _MockRegister(), _MockProfile(), _MockLogout()) {
+      : super(_MockOidcLogin(), _MockProfile(), _MockLogout()) {
     emit(Unauthenticated());
   }
 }

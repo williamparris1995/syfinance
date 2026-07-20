@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 import 'package:yucai_client/auth/data/mappers/user_mapper.dart';
 import 'package:yucai_client/auth/domain/entities/auth_tokens.dart';
+import 'package:yucai_client/auth/domain/entities/oidc_provider.dart';
 import 'package:yucai_client/auth/domain/entities/user_entity.dart';
 import 'package:yucai_client/core/network/auth_retry.dart';
 import 'package:yucai_client/core/network/grpc_client.dart';
@@ -24,22 +25,38 @@ class AuthRemoteDataSource {
   final UserMapper _mapper;
   late final grpc.AuthServiceClient _client;
 
-  Future<({User user, AuthTokens tokens})> register(
-      String email, String password, String displayName) async {
-    final res = await _client.register(pb.RegisterRequest()
-      ..email = email
-      ..password = password
-      ..displayName = displayName);
-    return (
-      user: _mapper.toDomain(res.user),
-      tokens: AuthTokens(accessToken: res.accessToken, refreshToken: res.refreshToken),
-    );
+  /// Fetch the OIDC providers the server advertises. Used by the login
+  /// screen and by `OidcLoginUseCase` to resolve a provider name to its
+  /// `OidcProviderConfig` (authorization endpoint, client_id, scopes).
+  Future<List<OidcProviderConfig>> getOIDCConfig() async {
+    final res = await _client.getOIDCConfig(pb.GetOIDCConfigRequest());
+    return res.providers
+        .map((p) => OidcProviderConfig(
+              name: p.name,
+              displayName: p.displayName,
+              issuer: p.issuer,
+              authorizationEndpoint: p.authorizationEndpoint,
+              clientId: p.clientId,
+              scopes: p.scopes.toList(),
+            ))
+        .toList();
   }
 
-  Future<({User user, AuthTokens tokens})> login(String email, String password) async {
-    final res = await _client.login(pb.LoginRequest()
-      ..email = email
-      ..password = password);
+  /// Exchange an OIDC authorization code (obtained by the loopback flow)
+  /// for access + refresh tokens. The server validates the PKCE verifier
+  /// and queries the provider's token endpoint itself; the client just
+  /// forwards what the authenticator captured.
+  Future<({User user, AuthTokens tokens})> oidcExchange({
+    required String provider,
+    required String code,
+    required String codeVerifier,
+    required String redirectUri,
+  }) async {
+    final res = await _client.oIDCExchange(pb.OIDCExchangeRequest()
+      ..provider = provider
+      ..code = code
+      ..codeVerifier = codeVerifier
+      ..redirectUri = redirectUri);
     return (
       user: _mapper.toDomain(res.user),
       tokens: AuthTokens(accessToken: res.accessToken, refreshToken: res.refreshToken),

@@ -3,6 +3,7 @@ import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 import 'package:uuid/uuid.dart';
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
+import 'package:yucai_client/auth/data/oidc_authenticator.dart';
 import 'package:yucai_client/auth/data/token_storage.dart';
 import 'package:yucai_client/auth/domain/usecases/refresh_token_usecase.dart';
 import 'package:yucai_client/core/config/app_config.dart';
@@ -26,6 +27,11 @@ Future<void> configureDependencies() async {
   //     same instance (its constructor accepts an optional backend for tests),
   //     so the app backs onto one secure-storage backend instead of two.
   getIt.registerSingleton<FlutterSecureStorage>(const FlutterSecureStorage());
+
+  // 1b. UrlLauncherFn (OIDC browser-launch seam) — function-type typedef, so
+  //     register the production launcher manually before getIt.init() resolves
+  //     OIDCAuthenticator. Tests bypass getIt and pass a fake directly.
+  getIt.registerSingleton<UrlLauncherFn>(defaultUrlLauncher);
 
   final tokenStorage = TokenStorage(backend: getIt<FlutterSecureStorage>());
   getIt.registerSingleton<TokenStorage>(tokenStorage);

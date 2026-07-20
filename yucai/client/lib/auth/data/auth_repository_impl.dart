@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/data/token_storage.dart';
 import 'package:yucai_client/auth/domain/entities/auth_tokens.dart';
+import 'package:yucai_client/auth/domain/entities/oidc_provider.dart';
 import 'package:yucai_client/auth/domain/entities/user_entity.dart';
 import 'package:yucai_client/auth/domain/repositories/auth_repository.dart';
 import 'package:yucai_client/core/error/failures.dart';
@@ -16,11 +17,9 @@ class AuthRepositoryImpl implements AuthRepository {
   final TokenStorage _storage;
 
   @override
-  Future<Either<Failure, User>> register(String email, String password, String displayName) async {
+  Future<Either<Failure, List<OidcProviderConfig>>> getOIDCConfig() async {
     try {
-      final result = await _remote.register(email, password, displayName);
-      await _storage.saveTokens(result.tokens);
-      return Right(result.user);
+      return Right(await _remote.getOIDCConfig());
     } on GrpcError catch (e) {
       return Left(_mapGrpcError(e));
     } catch (e) {
@@ -29,9 +28,19 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, User>> login(String email, String password) async {
+  Future<Either<Failure, User>> oidcExchange({
+    required String provider,
+    required String code,
+    required String codeVerifier,
+    required String redirectUri,
+  }) async {
     try {
-      final result = await _remote.login(email, password);
+      final result = await _remote.oidcExchange(
+        provider: provider,
+        code: code,
+        codeVerifier: codeVerifier,
+        redirectUri: redirectUri,
+      );
       await _storage.saveTokens(result.tokens);
       return Right(result.user);
     } on GrpcError catch (e) {

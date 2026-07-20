@@ -20,7 +20,7 @@ import 'auth.pb.dart' as $0;
 
 export 'auth.pb.dart';
 
-/// AuthService handles authentication, registration, and profile management.
+/// AuthService handles OIDC authentication and profile/preferences management.
 @$pb.GrpcServiceName('yucai.auth.v1.AuthService')
 class AuthServiceClient extends $grpc.Client {
   /// The hostname for this service.
@@ -33,18 +33,18 @@ class AuthServiceClient extends $grpc.Client {
 
   AuthServiceClient(super.channel, {super.options, super.interceptors});
 
-  $grpc.ResponseFuture<$0.RegisterResponse> register(
-    $0.RegisterRequest request, {
+  $grpc.ResponseFuture<$0.GetOIDCConfigResponse> getOIDCConfig(
+    $0.GetOIDCConfigRequest request, {
     $grpc.CallOptions? options,
   }) {
-    return $createUnaryCall(_$register, request, options: options);
+    return $createUnaryCall(_$getOIDCConfig, request, options: options);
   }
 
-  $grpc.ResponseFuture<$0.LoginResponse> login(
-    $0.LoginRequest request, {
+  $grpc.ResponseFuture<$0.OIDCExchangeResponse> oIDCExchange(
+    $0.OIDCExchangeRequest request, {
     $grpc.CallOptions? options,
   }) {
-    return $createUnaryCall(_$login, request, options: options);
+    return $createUnaryCall(_$oIDCExchange, request, options: options);
   }
 
   $grpc.ResponseFuture<$0.RefreshTokenResponse> refreshToken(
@@ -84,15 +84,16 @@ class AuthServiceClient extends $grpc.Client {
 
   // method descriptors
 
-  static final _$register =
-      $grpc.ClientMethod<$0.RegisterRequest, $0.RegisterResponse>(
-          '/yucai.auth.v1.AuthService/Register',
-          ($0.RegisterRequest value) => value.writeToBuffer(),
-          $0.RegisterResponse.fromBuffer);
-  static final _$login = $grpc.ClientMethod<$0.LoginRequest, $0.LoginResponse>(
-      '/yucai.auth.v1.AuthService/Login',
-      ($0.LoginRequest value) => value.writeToBuffer(),
-      $0.LoginResponse.fromBuffer);
+  static final _$getOIDCConfig =
+      $grpc.ClientMethod<$0.GetOIDCConfigRequest, $0.GetOIDCConfigResponse>(
+          '/yucai.auth.v1.AuthService/GetOIDCConfig',
+          ($0.GetOIDCConfigRequest value) => value.writeToBuffer(),
+          $0.GetOIDCConfigResponse.fromBuffer);
+  static final _$oIDCExchange =
+      $grpc.ClientMethod<$0.OIDCExchangeRequest, $0.OIDCExchangeResponse>(
+          '/yucai.auth.v1.AuthService/OIDCExchange',
+          ($0.OIDCExchangeRequest value) => value.writeToBuffer(),
+          $0.OIDCExchangeResponse.fromBuffer);
   static final _$refreshToken =
       $grpc.ClientMethod<$0.RefreshTokenRequest, $0.RefreshTokenResponse>(
           '/yucai.auth.v1.AuthService/RefreshToken',
@@ -125,20 +126,24 @@ abstract class AuthServiceBase extends $grpc.Service {
   $core.String get $name => 'yucai.auth.v1.AuthService';
 
   AuthServiceBase() {
-    $addMethod($grpc.ServiceMethod<$0.RegisterRequest, $0.RegisterResponse>(
-        'Register',
-        register_Pre,
-        false,
-        false,
-        ($core.List<$core.int> value) => $0.RegisterRequest.fromBuffer(value),
-        ($0.RegisterResponse value) => value.writeToBuffer()));
-    $addMethod($grpc.ServiceMethod<$0.LoginRequest, $0.LoginResponse>(
-        'Login',
-        login_Pre,
-        false,
-        false,
-        ($core.List<$core.int> value) => $0.LoginRequest.fromBuffer(value),
-        ($0.LoginResponse value) => value.writeToBuffer()));
+    $addMethod(
+        $grpc.ServiceMethod<$0.GetOIDCConfigRequest, $0.GetOIDCConfigResponse>(
+            'GetOIDCConfig',
+            getOIDCConfig_Pre,
+            false,
+            false,
+            ($core.List<$core.int> value) =>
+                $0.GetOIDCConfigRequest.fromBuffer(value),
+            ($0.GetOIDCConfigResponse value) => value.writeToBuffer()));
+    $addMethod(
+        $grpc.ServiceMethod<$0.OIDCExchangeRequest, $0.OIDCExchangeResponse>(
+            'OIDCExchange',
+            oIDCExchange_Pre,
+            false,
+            false,
+            ($core.List<$core.int> value) =>
+                $0.OIDCExchangeRequest.fromBuffer(value),
+            ($0.OIDCExchangeResponse value) => value.writeToBuffer()));
     $addMethod(
         $grpc.ServiceMethod<$0.RefreshTokenRequest, $0.RefreshTokenResponse>(
             'RefreshToken',
@@ -184,21 +189,23 @@ abstract class AuthServiceBase extends $grpc.Service {
         ($0.UpdatePreferencesResponse value) => value.writeToBuffer()));
   }
 
-  $async.Future<$0.RegisterResponse> register_Pre($grpc.ServiceCall $call,
-      $async.Future<$0.RegisterRequest> $request) async {
-    return register($call, await $request);
+  $async.Future<$0.GetOIDCConfigResponse> getOIDCConfig_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.GetOIDCConfigRequest> $request) async {
+    return getOIDCConfig($call, await $request);
   }
 
-  $async.Future<$0.RegisterResponse> register(
-      $grpc.ServiceCall call, $0.RegisterRequest request);
+  $async.Future<$0.GetOIDCConfigResponse> getOIDCConfig(
+      $grpc.ServiceCall call, $0.GetOIDCConfigRequest request);
 
-  $async.Future<$0.LoginResponse> login_Pre(
-      $grpc.ServiceCall $call, $async.Future<$0.LoginRequest> $request) async {
-    return login($call, await $request);
+  $async.Future<$0.OIDCExchangeResponse> oIDCExchange_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.OIDCExchangeRequest> $request) async {
+    return oIDCExchange($call, await $request);
   }
 
-  $async.Future<$0.LoginResponse> login(
-      $grpc.ServiceCall call, $0.LoginRequest request);
+  $async.Future<$0.OIDCExchangeResponse> oIDCExchange(
+      $grpc.ServiceCall call, $0.OIDCExchangeRequest request);
 
   $async.Future<$0.RefreshTokenResponse> refreshToken_Pre(
       $grpc.ServiceCall $call,

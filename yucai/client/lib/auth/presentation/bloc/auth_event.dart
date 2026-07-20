@@ -8,21 +8,14 @@ abstract class AuthEvent extends Equatable {
 
 class AppStarted extends AuthEvent {}
 
-class LoginRequested extends AuthEvent {
-  const LoginRequested({required this.email, required this.password});
-  final String email;
-  final String password;
+/// Kick off the full OIDC login flow for the named provider (e.g. "google").
+/// The bloc delegates to `OidcLoginUseCase`, which drives the loopback PKCE
+/// dance + token exchange.
+class OIDCLoginRequested extends AuthEvent {
+  const OIDCLoginRequested(this.provider);
+  final String provider;
   @override
-  List<Object?> get props => [email, password];
-}
-
-class RegisterRequested extends AuthEvent {
-  const RegisterRequested({required this.email, required this.password, required this.displayName});
-  final String email;
-  final String password;
-  final String displayName;
-  @override
-  List<Object?> get props => [email, password, displayName];
+  List<Object?> get props => [provider];
 }
 
 class LogoutRequested extends AuthEvent {}

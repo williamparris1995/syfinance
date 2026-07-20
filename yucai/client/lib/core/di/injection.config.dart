@@ -26,13 +26,13 @@ import '../../account/presentation/bloc/account_bloc.dart' as _i803;
 import '../../auth/data/auth_remote_ds.dart' as _i832;
 import '../../auth/data/auth_repository_impl.dart' as _i648;
 import '../../auth/data/mappers/user_mapper.dart' as _i102;
+import '../../auth/data/oidc_authenticator.dart' as _i871;
 import '../../auth/data/token_storage.dart' as _i382;
 import '../../auth/domain/repositories/auth_repository.dart' as _i937;
 import '../../auth/domain/usecases/get_profile_usecase.dart' as _i922;
-import '../../auth/domain/usecases/login_usecase.dart' as _i442;
 import '../../auth/domain/usecases/logout_usecase.dart' as _i231;
+import '../../auth/domain/usecases/oidc_login_usecase.dart' as _i990;
 import '../../auth/domain/usecases/refresh_token_usecase.dart' as _i752;
-import '../../auth/domain/usecases/register_usecase.dart' as _i246;
 import '../../auth/presentation/bloc/auth_bloc.dart' as _i946;
 import '../../backup/data/backup_remote_ds.dart' as _i877;
 import '../../backup/data/backup_repository_impl.dart' as _i594;
@@ -199,12 +199,21 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i670.DebtRepository>(
       () => _i1060.DebtRepositoryImpl(gh<_i243.DebtRemoteDataSource>()),
     );
+    gh.lazySingleton<_i871.OIDCAuthenticator>(
+      () => _i871.OIDCAuthenticator(launcher: gh<_i871.UrlLauncherFn>()),
+    );
     gh.factory<_i383.DebtBloc>(
       () => _i383.DebtBloc(gh<_i670.DebtRepository>()),
     );
     gh.lazySingleton<_i322.ReceivablesSummaryRepository>(
       () => _i31.ReceivablesSummaryRepositoryImpl(
         gh<_i536.ReceivablesSummaryDataSource>(),
+      ),
+    );
+    gh.factory<_i990.OidcLoginUseCase>(
+      () => _i990.OidcLoginUseCase(
+        gh<_i937.AuthRepository>(),
+        gh<_i871.OIDCAuthenticator>(),
       ),
     );
     gh.factory<_i284.CurrencyBloc>(
@@ -248,28 +257,14 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i922.GetProfileUseCase>(
       () => _i922.GetProfileUseCase(gh<_i937.AuthRepository>()),
     );
-    gh.factory<_i442.LoginUseCase>(
-      () => _i442.LoginUseCase(gh<_i937.AuthRepository>()),
-    );
     gh.factory<_i231.LogoutUseCase>(
       () => _i231.LogoutUseCase(gh<_i937.AuthRepository>()),
     );
     gh.factory<_i752.RefreshTokenUseCase>(
       () => _i752.RefreshTokenUseCase(gh<_i937.AuthRepository>()),
     );
-    gh.factory<_i246.RegisterUseCase>(
-      () => _i246.RegisterUseCase(gh<_i937.AuthRepository>()),
-    );
     gh.factory<_i933.TemplateBloc>(
       () => _i933.TemplateBloc(gh<_i74.TemplateRepository>()),
-    );
-    gh.factory<_i946.AuthBloc>(
-      () => _i946.AuthBloc(
-        gh<_i442.LoginUseCase>(),
-        gh<_i246.RegisterUseCase>(),
-        gh<_i922.GetProfileUseCase>(),
-        gh<_i231.LogoutUseCase>(),
-      ),
     );
     gh.factory<_i255.HoldingBloc>(
       () => _i255.HoldingBloc(gh<_i255.HoldingRepository>()),
@@ -292,6 +287,13 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i726.UpdateAccountUseCase>(
       () => _i726.UpdateAccountUseCase(gh<_i270.AccountRepository>()),
+    );
+    gh.factory<_i946.AuthBloc>(
+      () => _i946.AuthBloc(
+        gh<_i990.OidcLoginUseCase>(),
+        gh<_i922.GetProfileUseCase>(),
+        gh<_i231.LogoutUseCase>(),
+      ),
     );
     gh.factory<_i159.CategoryBloc>(
       () => _i159.CategoryBloc(

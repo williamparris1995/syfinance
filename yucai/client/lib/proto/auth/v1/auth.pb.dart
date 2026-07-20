@@ -16,86 +16,295 @@ import 'package:protobuf/protobuf.dart' as $pb;
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
 
-class RegisterRequest extends $pb.GeneratedMessage {
-  factory RegisterRequest({
-    $core.String? email,
-    $core.String? password,
+class GetOIDCConfigRequest extends $pb.GeneratedMessage {
+  factory GetOIDCConfigRequest() => create();
+
+  GetOIDCConfigRequest._();
+
+  factory GetOIDCConfigRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory GetOIDCConfigRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GetOIDCConfigRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.auth.v1'),
+      createEmptyInstance: create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetOIDCConfigRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetOIDCConfigRequest copyWith(void Function(GetOIDCConfigRequest) updates) =>
+      super.copyWith((message) => updates(message as GetOIDCConfigRequest))
+          as GetOIDCConfigRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetOIDCConfigRequest create() => GetOIDCConfigRequest._();
+  @$core.override
+  GetOIDCConfigRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static GetOIDCConfigRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetOIDCConfigRequest>(create);
+  static GetOIDCConfigRequest? _defaultInstance;
+}
+
+class OIDCProviderConfig extends $pb.GeneratedMessage {
+  factory OIDCProviderConfig({
+    $core.String? name,
     $core.String? displayName,
+    $core.String? issuer,
+    $core.String? authorizationEndpoint,
+    $core.String? clientId,
+    $core.Iterable<$core.String>? scopes,
   }) {
     final result = create();
-    if (email != null) result.email = email;
-    if (password != null) result.password = password;
+    if (name != null) result.name = name;
     if (displayName != null) result.displayName = displayName;
+    if (issuer != null) result.issuer = issuer;
+    if (authorizationEndpoint != null)
+      result.authorizationEndpoint = authorizationEndpoint;
+    if (clientId != null) result.clientId = clientId;
+    if (scopes != null) result.scopes.addAll(scopes);
     return result;
   }
 
-  RegisterRequest._();
+  OIDCProviderConfig._();
 
-  factory RegisterRequest.fromBuffer($core.List<$core.int> data,
+  factory OIDCProviderConfig.fromBuffer($core.List<$core.int> data,
           [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(data, registry);
-  factory RegisterRequest.fromJson($core.String json,
+  factory OIDCProviderConfig.fromJson($core.String json,
           [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromJson(json, registry);
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
-      _omitMessageNames ? '' : 'RegisterRequest',
+      _omitMessageNames ? '' : 'OIDCProviderConfig',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.auth.v1'),
       createEmptyInstance: create)
-    ..aOS(1, _omitFieldNames ? '' : 'email')
-    ..aOS(2, _omitFieldNames ? '' : 'password')
-    ..aOS(3, _omitFieldNames ? '' : 'displayName')
+    ..aOS(1, _omitFieldNames ? '' : 'name')
+    ..aOS(2, _omitFieldNames ? '' : 'displayName')
+    ..aOS(3, _omitFieldNames ? '' : 'issuer')
+    ..aOS(4, _omitFieldNames ? '' : 'authorizationEndpoint')
+    ..aOS(5, _omitFieldNames ? '' : 'clientId')
+    ..pPS(6, _omitFieldNames ? '' : 'scopes')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  RegisterRequest clone() => deepCopy();
+  OIDCProviderConfig clone() => deepCopy();
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  RegisterRequest copyWith(void Function(RegisterRequest) updates) =>
-      super.copyWith((message) => updates(message as RegisterRequest))
-          as RegisterRequest;
+  OIDCProviderConfig copyWith(void Function(OIDCProviderConfig) updates) =>
+      super.copyWith((message) => updates(message as OIDCProviderConfig))
+          as OIDCProviderConfig;
 
   @$core.override
   $pb.BuilderInfo get info_ => _i;
 
   @$core.pragma('dart2js:noInline')
-  static RegisterRequest create() => RegisterRequest._();
+  static OIDCProviderConfig create() => OIDCProviderConfig._();
   @$core.override
-  RegisterRequest createEmptyInstance() => create();
+  OIDCProviderConfig createEmptyInstance() => create();
   @$core.pragma('dart2js:noInline')
-  static RegisterRequest getDefault() => _defaultInstance ??=
-      $pb.GeneratedMessage.$_defaultFor<RegisterRequest>(create);
-  static RegisterRequest? _defaultInstance;
+  static OIDCProviderConfig getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<OIDCProviderConfig>(create);
+  static OIDCProviderConfig? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $core.String get email => $_getSZ(0);
+  $core.String get name => $_getSZ(0);
   @$pb.TagNumber(1)
-  set email($core.String value) => $_setString(0, value);
+  set name($core.String value) => $_setString(0, value);
   @$pb.TagNumber(1)
-  $core.bool hasEmail() => $_has(0);
+  $core.bool hasName() => $_has(0);
   @$pb.TagNumber(1)
-  void clearEmail() => $_clearField(1);
+  void clearName() => $_clearField(1);
 
   @$pb.TagNumber(2)
-  $core.String get password => $_getSZ(1);
+  $core.String get displayName => $_getSZ(1);
   @$pb.TagNumber(2)
-  set password($core.String value) => $_setString(1, value);
+  set displayName($core.String value) => $_setString(1, value);
   @$pb.TagNumber(2)
-  $core.bool hasPassword() => $_has(1);
+  $core.bool hasDisplayName() => $_has(1);
   @$pb.TagNumber(2)
-  void clearPassword() => $_clearField(2);
+  void clearDisplayName() => $_clearField(2);
 
   @$pb.TagNumber(3)
-  $core.String get displayName => $_getSZ(2);
+  $core.String get issuer => $_getSZ(2);
   @$pb.TagNumber(3)
-  set displayName($core.String value) => $_setString(2, value);
+  set issuer($core.String value) => $_setString(2, value);
   @$pb.TagNumber(3)
-  $core.bool hasDisplayName() => $_has(2);
+  $core.bool hasIssuer() => $_has(2);
   @$pb.TagNumber(3)
-  void clearDisplayName() => $_clearField(3);
+  void clearIssuer() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get authorizationEndpoint => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set authorizationEndpoint($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasAuthorizationEndpoint() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearAuthorizationEndpoint() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get clientId => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set clientId($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasClientId() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearClientId() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $pb.PbList<$core.String> get scopes => $_getList(5);
 }
 
-class RegisterResponse extends $pb.GeneratedMessage {
-  factory RegisterResponse({
+class GetOIDCConfigResponse extends $pb.GeneratedMessage {
+  factory GetOIDCConfigResponse({
+    $core.Iterable<OIDCProviderConfig>? providers,
+  }) {
+    final result = create();
+    if (providers != null) result.providers.addAll(providers);
+    return result;
+  }
+
+  GetOIDCConfigResponse._();
+
+  factory GetOIDCConfigResponse.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory GetOIDCConfigResponse.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GetOIDCConfigResponse',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.auth.v1'),
+      createEmptyInstance: create)
+    ..pPM<OIDCProviderConfig>(1, _omitFieldNames ? '' : 'providers',
+        subBuilder: OIDCProviderConfig.create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetOIDCConfigResponse clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetOIDCConfigResponse copyWith(
+          void Function(GetOIDCConfigResponse) updates) =>
+      super.copyWith((message) => updates(message as GetOIDCConfigResponse))
+          as GetOIDCConfigResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetOIDCConfigResponse create() => GetOIDCConfigResponse._();
+  @$core.override
+  GetOIDCConfigResponse createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static GetOIDCConfigResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetOIDCConfigResponse>(create);
+  static GetOIDCConfigResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<OIDCProviderConfig> get providers => $_getList(0);
+}
+
+class OIDCExchangeRequest extends $pb.GeneratedMessage {
+  factory OIDCExchangeRequest({
+    $core.String? provider,
+    $core.String? code,
+    $core.String? codeVerifier,
+    $core.String? redirectUri,
+  }) {
+    final result = create();
+    if (provider != null) result.provider = provider;
+    if (code != null) result.code = code;
+    if (codeVerifier != null) result.codeVerifier = codeVerifier;
+    if (redirectUri != null) result.redirectUri = redirectUri;
+    return result;
+  }
+
+  OIDCExchangeRequest._();
+
+  factory OIDCExchangeRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory OIDCExchangeRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'OIDCExchangeRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.auth.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'provider')
+    ..aOS(2, _omitFieldNames ? '' : 'code')
+    ..aOS(3, _omitFieldNames ? '' : 'codeVerifier')
+    ..aOS(4, _omitFieldNames ? '' : 'redirectUri')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  OIDCExchangeRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  OIDCExchangeRequest copyWith(void Function(OIDCExchangeRequest) updates) =>
+      super.copyWith((message) => updates(message as OIDCExchangeRequest))
+          as OIDCExchangeRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static OIDCExchangeRequest create() => OIDCExchangeRequest._();
+  @$core.override
+  OIDCExchangeRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static OIDCExchangeRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<OIDCExchangeRequest>(create);
+  static OIDCExchangeRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get provider => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set provider($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasProvider() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearProvider() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get code => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set code($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasCode() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearCode() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get codeVerifier => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set codeVerifier($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasCodeVerifier() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearCodeVerifier() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get redirectUri => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set redirectUri($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasRedirectUri() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearRedirectUri() => $_clearField(4);
+}
+
+class OIDCExchangeResponse extends $pb.GeneratedMessage {
+  factory OIDCExchangeResponse({
     $core.String? accessToken,
     $core.String? refreshToken,
     UserDTO? user,
@@ -107,17 +316,17 @@ class RegisterResponse extends $pb.GeneratedMessage {
     return result;
   }
 
-  RegisterResponse._();
+  OIDCExchangeResponse._();
 
-  factory RegisterResponse.fromBuffer($core.List<$core.int> data,
+  factory OIDCExchangeResponse.fromBuffer($core.List<$core.int> data,
           [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(data, registry);
-  factory RegisterResponse.fromJson($core.String json,
+  factory OIDCExchangeResponse.fromJson($core.String json,
           [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromJson(json, registry);
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
-      _omitMessageNames ? '' : 'RegisterResponse',
+      _omitMessageNames ? '' : 'OIDCExchangeResponse',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.auth.v1'),
       createEmptyInstance: create)
     ..aOS(1, _omitFieldNames ? '' : 'accessToken')
@@ -126,169 +335,23 @@ class RegisterResponse extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  RegisterResponse clone() => deepCopy();
+  OIDCExchangeResponse clone() => deepCopy();
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  RegisterResponse copyWith(void Function(RegisterResponse) updates) =>
-      super.copyWith((message) => updates(message as RegisterResponse))
-          as RegisterResponse;
+  OIDCExchangeResponse copyWith(void Function(OIDCExchangeResponse) updates) =>
+      super.copyWith((message) => updates(message as OIDCExchangeResponse))
+          as OIDCExchangeResponse;
 
   @$core.override
   $pb.BuilderInfo get info_ => _i;
 
   @$core.pragma('dart2js:noInline')
-  static RegisterResponse create() => RegisterResponse._();
+  static OIDCExchangeResponse create() => OIDCExchangeResponse._();
   @$core.override
-  RegisterResponse createEmptyInstance() => create();
+  OIDCExchangeResponse createEmptyInstance() => create();
   @$core.pragma('dart2js:noInline')
-  static RegisterResponse getDefault() => _defaultInstance ??=
-      $pb.GeneratedMessage.$_defaultFor<RegisterResponse>(create);
-  static RegisterResponse? _defaultInstance;
-
-  @$pb.TagNumber(1)
-  $core.String get accessToken => $_getSZ(0);
-  @$pb.TagNumber(1)
-  set accessToken($core.String value) => $_setString(0, value);
-  @$pb.TagNumber(1)
-  $core.bool hasAccessToken() => $_has(0);
-  @$pb.TagNumber(1)
-  void clearAccessToken() => $_clearField(1);
-
-  @$pb.TagNumber(2)
-  $core.String get refreshToken => $_getSZ(1);
-  @$pb.TagNumber(2)
-  set refreshToken($core.String value) => $_setString(1, value);
-  @$pb.TagNumber(2)
-  $core.bool hasRefreshToken() => $_has(1);
-  @$pb.TagNumber(2)
-  void clearRefreshToken() => $_clearField(2);
-
-  @$pb.TagNumber(3)
-  UserDTO get user => $_getN(2);
-  @$pb.TagNumber(3)
-  set user(UserDTO value) => $_setField(3, value);
-  @$pb.TagNumber(3)
-  $core.bool hasUser() => $_has(2);
-  @$pb.TagNumber(3)
-  void clearUser() => $_clearField(3);
-  @$pb.TagNumber(3)
-  UserDTO ensureUser() => $_ensure(2);
-}
-
-class LoginRequest extends $pb.GeneratedMessage {
-  factory LoginRequest({
-    $core.String? email,
-    $core.String? password,
-  }) {
-    final result = create();
-    if (email != null) result.email = email;
-    if (password != null) result.password = password;
-    return result;
-  }
-
-  LoginRequest._();
-
-  factory LoginRequest.fromBuffer($core.List<$core.int> data,
-          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
-      create()..mergeFromBuffer(data, registry);
-  factory LoginRequest.fromJson($core.String json,
-          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
-      create()..mergeFromJson(json, registry);
-
-  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
-      _omitMessageNames ? '' : 'LoginRequest',
-      package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.auth.v1'),
-      createEmptyInstance: create)
-    ..aOS(1, _omitFieldNames ? '' : 'email')
-    ..aOS(2, _omitFieldNames ? '' : 'password')
-    ..hasRequiredFields = false;
-
-  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  LoginRequest clone() => deepCopy();
-  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  LoginRequest copyWith(void Function(LoginRequest) updates) =>
-      super.copyWith((message) => updates(message as LoginRequest))
-          as LoginRequest;
-
-  @$core.override
-  $pb.BuilderInfo get info_ => _i;
-
-  @$core.pragma('dart2js:noInline')
-  static LoginRequest create() => LoginRequest._();
-  @$core.override
-  LoginRequest createEmptyInstance() => create();
-  @$core.pragma('dart2js:noInline')
-  static LoginRequest getDefault() => _defaultInstance ??=
-      $pb.GeneratedMessage.$_defaultFor<LoginRequest>(create);
-  static LoginRequest? _defaultInstance;
-
-  @$pb.TagNumber(1)
-  $core.String get email => $_getSZ(0);
-  @$pb.TagNumber(1)
-  set email($core.String value) => $_setString(0, value);
-  @$pb.TagNumber(1)
-  $core.bool hasEmail() => $_has(0);
-  @$pb.TagNumber(1)
-  void clearEmail() => $_clearField(1);
-
-  @$pb.TagNumber(2)
-  $core.String get password => $_getSZ(1);
-  @$pb.TagNumber(2)
-  set password($core.String value) => $_setString(1, value);
-  @$pb.TagNumber(2)
-  $core.bool hasPassword() => $_has(1);
-  @$pb.TagNumber(2)
-  void clearPassword() => $_clearField(2);
-}
-
-class LoginResponse extends $pb.GeneratedMessage {
-  factory LoginResponse({
-    $core.String? accessToken,
-    $core.String? refreshToken,
-    UserDTO? user,
-  }) {
-    final result = create();
-    if (accessToken != null) result.accessToken = accessToken;
-    if (refreshToken != null) result.refreshToken = refreshToken;
-    if (user != null) result.user = user;
-    return result;
-  }
-
-  LoginResponse._();
-
-  factory LoginResponse.fromBuffer($core.List<$core.int> data,
-          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
-      create()..mergeFromBuffer(data, registry);
-  factory LoginResponse.fromJson($core.String json,
-          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
-      create()..mergeFromJson(json, registry);
-
-  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
-      _omitMessageNames ? '' : 'LoginResponse',
-      package: const $pb.PackageName(_omitMessageNames ? '' : 'yucai.auth.v1'),
-      createEmptyInstance: create)
-    ..aOS(1, _omitFieldNames ? '' : 'accessToken')
-    ..aOS(2, _omitFieldNames ? '' : 'refreshToken')
-    ..aOM<UserDTO>(3, _omitFieldNames ? '' : 'user', subBuilder: UserDTO.create)
-    ..hasRequiredFields = false;
-
-  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  LoginResponse clone() => deepCopy();
-  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  LoginResponse copyWith(void Function(LoginResponse) updates) =>
-      super.copyWith((message) => updates(message as LoginResponse))
-          as LoginResponse;
-
-  @$core.override
-  $pb.BuilderInfo get info_ => _i;
-
-  @$core.pragma('dart2js:noInline')
-  static LoginResponse create() => LoginResponse._();
-  @$core.override
-  LoginResponse createEmptyInstance() => create();
-  @$core.pragma('dart2js:noInline')
-  static LoginResponse getDefault() => _defaultInstance ??=
-      $pb.GeneratedMessage.$_defaultFor<LoginResponse>(create);
-  static LoginResponse? _defaultInstance;
+  static OIDCExchangeResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<OIDCExchangeResponse>(create);
+  static OIDCExchangeResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get accessToken => $_getSZ(0);

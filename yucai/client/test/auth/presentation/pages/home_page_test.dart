@@ -32,9 +32,8 @@ import 'package:yucai_client/account/domain/value_objects.dart';
 import 'package:yucai_client/account/presentation/bloc/account_bloc.dart';
 import 'package:yucai_client/auth/domain/entities/user_entity.dart';
 import 'package:yucai_client/auth/domain/usecases/get_profile_usecase.dart';
-import 'package:yucai_client/auth/domain/usecases/login_usecase.dart';
 import 'package:yucai_client/auth/domain/usecases/logout_usecase.dart';
-import 'package:yucai_client/auth/domain/usecases/register_usecase.dart';
+import 'package:yucai_client/auth/domain/usecases/oidc_login_usecase.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/auth/presentation/pages/home_page.dart';
@@ -58,8 +57,7 @@ import 'package:yucai_client/holding/domain/value_objects.dart' as holding_vo;
 import 'package:yucai_client/debt/domain/value_objects.dart' as debt_vo;
 import 'package:yucai_client/holding/presentation/widgets/holding_pie_chart.dart';
 
-class _MockLogin extends Mock implements LoginUseCase {}
-class _MockRegister extends Mock implements RegisterUseCase {}
+class _MockOidcLogin extends Mock implements OidcLoginUseCase {}
 class _MockProfile extends Mock implements GetProfileUseCase {}
 class _MockLogout extends Mock implements LogoutUseCase {}
 
@@ -126,7 +124,7 @@ Account _account({
 /// AuthBloc seeded Authenticated (HomePage watches state for display name).
 class _SeededAuthedBloc extends AuthBloc {
   _SeededAuthedBloc()
-      : super(_MockLogin(), _MockRegister(), _MockProfile(), _MockLogout()) {
+      : super(_MockOidcLogin(), _MockProfile(), _MockLogout()) {
     emit(Authenticated(_user));
   }
 }

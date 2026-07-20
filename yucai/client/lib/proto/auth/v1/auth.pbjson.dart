@@ -15,24 +15,81 @@ import 'dart:convert' as $convert;
 import 'dart:core' as $core;
 import 'dart:typed_data' as $typed_data;
 
-@$core.Deprecated('Use registerRequestDescriptor instead')
-const RegisterRequest$json = {
-  '1': 'RegisterRequest',
+@$core.Deprecated('Use getOIDCConfigRequestDescriptor instead')
+const GetOIDCConfigRequest$json = {
+  '1': 'GetOIDCConfigRequest',
+};
+
+/// Descriptor for `GetOIDCConfigRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getOIDCConfigRequestDescriptor =
+    $convert.base64Decode('ChRHZXRPSURDQ29uZmlnUmVxdWVzdA==');
+
+@$core.Deprecated('Use oIDCProviderConfigDescriptor instead')
+const OIDCProviderConfig$json = {
+  '1': 'OIDCProviderConfig',
   '2': [
-    {'1': 'email', '3': 1, '4': 1, '5': 9, '10': 'email'},
-    {'1': 'password', '3': 2, '4': 1, '5': 9, '10': 'password'},
-    {'1': 'display_name', '3': 3, '4': 1, '5': 9, '10': 'displayName'},
+    {'1': 'name', '3': 1, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'display_name', '3': 2, '4': 1, '5': 9, '10': 'displayName'},
+    {'1': 'issuer', '3': 3, '4': 1, '5': 9, '10': 'issuer'},
+    {
+      '1': 'authorization_endpoint',
+      '3': 4,
+      '4': 1,
+      '5': 9,
+      '10': 'authorizationEndpoint'
+    },
+    {'1': 'client_id', '3': 5, '4': 1, '5': 9, '10': 'clientId'},
+    {'1': 'scopes', '3': 6, '4': 3, '5': 9, '10': 'scopes'},
   ],
 };
 
-/// Descriptor for `RegisterRequest`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List registerRequestDescriptor = $convert.base64Decode(
-    'Cg9SZWdpc3RlclJlcXVlc3QSFAoFZW1haWwYASABKAlSBWVtYWlsEhoKCHBhc3N3b3JkGAIgAS'
-    'gJUghwYXNzd29yZBIhCgxkaXNwbGF5X25hbWUYAyABKAlSC2Rpc3BsYXlOYW1l');
+/// Descriptor for `OIDCProviderConfig`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List oIDCProviderConfigDescriptor = $convert.base64Decode(
+    'ChJPSURDUHJvdmlkZXJDb25maWcSEgoEbmFtZRgBIAEoCVIEbmFtZRIhCgxkaXNwbGF5X25hbW'
+    'UYAiABKAlSC2Rpc3BsYXlOYW1lEhYKBmlzc3VlchgDIAEoCVIGaXNzdWVyEjUKFmF1dGhvcml6'
+    'YXRpb25fZW5kcG9pbnQYBCABKAlSFWF1dGhvcml6YXRpb25FbmRwb2ludBIbCgljbGllbnRfaW'
+    'QYBSABKAlSCGNsaWVudElkEhYKBnNjb3BlcxgGIAMoCVIGc2NvcGVz');
 
-@$core.Deprecated('Use registerResponseDescriptor instead')
-const RegisterResponse$json = {
-  '1': 'RegisterResponse',
+@$core.Deprecated('Use getOIDCConfigResponseDescriptor instead')
+const GetOIDCConfigResponse$json = {
+  '1': 'GetOIDCConfigResponse',
+  '2': [
+    {
+      '1': 'providers',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.yucai.auth.v1.OIDCProviderConfig',
+      '10': 'providers'
+    },
+  ],
+};
+
+/// Descriptor for `GetOIDCConfigResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getOIDCConfigResponseDescriptor = $convert.base64Decode(
+    'ChVHZXRPSURDQ29uZmlnUmVzcG9uc2USPwoJcHJvdmlkZXJzGAEgAygLMiEueXVjYWkuYXV0aC'
+    '52MS5PSURDUHJvdmlkZXJDb25maWdSCXByb3ZpZGVycw==');
+
+@$core.Deprecated('Use oIDCExchangeRequestDescriptor instead')
+const OIDCExchangeRequest$json = {
+  '1': 'OIDCExchangeRequest',
+  '2': [
+    {'1': 'provider', '3': 1, '4': 1, '5': 9, '10': 'provider'},
+    {'1': 'code', '3': 2, '4': 1, '5': 9, '10': 'code'},
+    {'1': 'code_verifier', '3': 3, '4': 1, '5': 9, '10': 'codeVerifier'},
+    {'1': 'redirect_uri', '3': 4, '4': 1, '5': 9, '10': 'redirectUri'},
+  ],
+};
+
+/// Descriptor for `OIDCExchangeRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List oIDCExchangeRequestDescriptor = $convert.base64Decode(
+    'ChNPSURDRXhjaGFuZ2VSZXF1ZXN0EhoKCHByb3ZpZGVyGAEgASgJUghwcm92aWRlchISCgRjb2'
+    'RlGAIgASgJUgRjb2RlEiMKDWNvZGVfdmVyaWZpZXIYAyABKAlSDGNvZGVWZXJpZmllchIhCgxy'
+    'ZWRpcmVjdF91cmkYBCABKAlSC3JlZGlyZWN0VXJp');
+
+@$core.Deprecated('Use oIDCExchangeResponseDescriptor instead')
+const OIDCExchangeResponse$json = {
+  '1': 'OIDCExchangeResponse',
   '2': [
     {'1': 'access_token', '3': 1, '4': 1, '5': 9, '10': 'accessToken'},
     {'1': 'refresh_token', '3': 2, '4': 1, '5': 9, '10': 'refreshToken'},
@@ -47,48 +104,11 @@ const RegisterResponse$json = {
   ],
 };
 
-/// Descriptor for `RegisterResponse`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List registerResponseDescriptor = $convert.base64Decode(
-    'ChBSZWdpc3RlclJlc3BvbnNlEiEKDGFjY2Vzc190b2tlbhgBIAEoCVILYWNjZXNzVG9rZW4SIw'
-    'oNcmVmcmVzaF90b2tlbhgCIAEoCVIMcmVmcmVzaFRva2VuEioKBHVzZXIYAyABKAsyFi55dWNh'
-    'aS5hdXRoLnYxLlVzZXJEVE9SBHVzZXI=');
-
-@$core.Deprecated('Use loginRequestDescriptor instead')
-const LoginRequest$json = {
-  '1': 'LoginRequest',
-  '2': [
-    {'1': 'email', '3': 1, '4': 1, '5': 9, '10': 'email'},
-    {'1': 'password', '3': 2, '4': 1, '5': 9, '10': 'password'},
-  ],
-};
-
-/// Descriptor for `LoginRequest`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List loginRequestDescriptor = $convert.base64Decode(
-    'CgxMb2dpblJlcXVlc3QSFAoFZW1haWwYASABKAlSBWVtYWlsEhoKCHBhc3N3b3JkGAIgASgJUg'
-    'hwYXNzd29yZA==');
-
-@$core.Deprecated('Use loginResponseDescriptor instead')
-const LoginResponse$json = {
-  '1': 'LoginResponse',
-  '2': [
-    {'1': 'access_token', '3': 1, '4': 1, '5': 9, '10': 'accessToken'},
-    {'1': 'refresh_token', '3': 2, '4': 1, '5': 9, '10': 'refreshToken'},
-    {
-      '1': 'user',
-      '3': 3,
-      '4': 1,
-      '5': 11,
-      '6': '.yucai.auth.v1.UserDTO',
-      '10': 'user'
-    },
-  ],
-};
-
-/// Descriptor for `LoginResponse`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List loginResponseDescriptor = $convert.base64Decode(
-    'Cg1Mb2dpblJlc3BvbnNlEiEKDGFjY2Vzc190b2tlbhgBIAEoCVILYWNjZXNzVG9rZW4SIwoNcm'
-    'VmcmVzaF90b2tlbhgCIAEoCVIMcmVmcmVzaFRva2VuEioKBHVzZXIYAyABKAsyFi55dWNhaS5h'
-    'dXRoLnYxLlVzZXJEVE9SBHVzZXI=');
+/// Descriptor for `OIDCExchangeResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List oIDCExchangeResponseDescriptor = $convert.base64Decode(
+    'ChRPSURDRXhjaGFuZ2VSZXNwb25zZRIhCgxhY2Nlc3NfdG9rZW4YASABKAlSC2FjY2Vzc1Rva2'
+    'VuEiMKDXJlZnJlc2hfdG9rZW4YAiABKAlSDHJlZnJlc2hUb2tlbhIqCgR1c2VyGAMgASgLMhYu'
+    'eXVjYWkuYXV0aC52MS5Vc2VyRFRPUgR1c2Vy');
 
 @$core.Deprecated('Use refreshTokenRequestDescriptor instead')
 const RefreshTokenRequest$json = {

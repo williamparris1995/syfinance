@@ -1,11 +1,12 @@
-import 'package:flutter_test/flutter_test.dart';
 import 'package:dartz/dartz.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:grpc/grpc.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:yucai_client/auth/data/auth_remote_ds.dart';
 import 'package:yucai_client/auth/data/auth_repository_impl.dart';
 import 'package:yucai_client/auth/data/token_storage.dart';
 import 'package:yucai_client/auth/domain/entities/auth_tokens.dart';
+import 'package:yucai_client/auth/domain/entities/oidc_provider.dart';
 import 'package:yucai_client/auth/domain/entities/user_entity.dart';
 import 'package:yucai_client/core/error/failures.dart';
 
@@ -25,36 +26,82 @@ void main() {
   });
 
   final user = User(
-      id: 'u1', tenantId: 't1', email: 'a@b.com', displayName: 'A', avatarUrl: '', createdAt: DateTime(2026));
+      id: 'u1',
+      tenantId: 't1',
+      email: 'a@b.com',
+      displayName: 'A',
+      avatarUrl: '',
+      createdAt: DateTime(2026));
 
-  test('login success returns Right(user) and saves tokens', () async {
-    const tokens = AuthTokens(accessToken: 'a', refreshToken: 'r');
-    when(() => remote.login('a@b.com', 'pw'))
-        .thenAnswer((_) async => (user: user, tokens: tokens));
-    when(() => storage.saveTokens(any())).thenAnswer((_) async {});
+  const tokens = AuthTokens(accessToken: 'a', refreshToken: 'r');
 
-    final result = await repo.login('a@b.com', 'pw');
+  group('getOIDCConfig', () {
+    test('success returns Right(providers)', () async {
+      final providers = [
+        OidcProviderConfig(
+          name: 'google',
+          displayName: 'Google',
+          issuer: 'https://accounts.google.com',
+          authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+          clientId: 'cid',
+          scopes: const ['openid', 'email'],
+        ),
+      ];
+      when(() => remote.getOIDCConfig()).thenAnswer((_) async => providers);
 
-    expect(result, Right<Failure, User>(user));
-    verify(() => storage.saveTokens(tokens)).called(1);
+      final result = await repo.getOIDCConfig();
+
+      expect(result, Right<Failure, List<OidcProviderConfig>>(providers));
+    });
+
+    test('GrpcError unavailable maps to NetworkFailure', () async {
+      when(() => remote.getOIDCConfig())
+          .thenThrow(GrpcError.unavailable('down'));
+
+      final result = await repo.getOIDCConfig();
+
+      expect(result.fold((l) => l, (_) => null), isA<NetworkFailure>());
+    });
   });
 
-  test('login GrpcError unauthenticated maps to AuthFailure', () async {
-    when(() => remote.login(any(), any()))
-        .thenThrow(GrpcError.unauthenticated('invalid credentials'));
+  group('oidcExchange', () {
+    test('success returns Right(user) and saves tokens', () async {
+      when(() => remote.oidcExchange(
+            provider: any(named: 'provider'),
+            code: any(named: 'code'),
+            codeVerifier: any(named: 'codeVerifier'),
+            redirectUri: any(named: 'redirectUri'),
+          )).thenAnswer((_) async => (user: user, tokens: tokens));
+      when(() => storage.saveTokens(any())).thenAnswer((_) async {});
 
-    final result = await repo.login('a@b.com', 'pw');
+      final result = await repo.oidcExchange(
+        provider: 'google',
+        code: 'c',
+        codeVerifier: 'v',
+        redirectUri: 'http://localhost:1/callback',
+      );
 
-    expect(result.isLeft(), isTrue);
-    expect(result.fold((l) => l, (_) => null), isA<AuthFailure>());
-  });
+      expect(result, Right<Failure, User>(user));
+      verify(() => storage.saveTokens(tokens)).called(1);
+    });
 
-  test('login GrpcError unavailable maps to NetworkFailure', () async {
-    when(() => remote.login(any(), any())).thenThrow(GrpcError.unavailable('down'));
+    test('GrpcError unauthenticated maps to AuthFailure', () async {
+      when(() => remote.oidcExchange(
+            provider: any(named: 'provider'),
+            code: any(named: 'code'),
+            codeVerifier: any(named: 'codeVerifier'),
+            redirectUri: any(named: 'redirectUri'),
+          )).thenThrow(GrpcError.unauthenticated('invalid'));
 
-    final result = await repo.login('a@b.com', 'pw');
+      final result = await repo.oidcExchange(
+        provider: 'google',
+        code: 'c',
+        codeVerifier: 'v',
+        redirectUri: 'http://localhost:1/callback',
+      );
 
-    expect(result.fold((l) => l, (_) => null), isA<NetworkFailure>());
+      expect(result.fold((l) => l, (_) => null), isA<AuthFailure>());
+    });
   });
 
   test('refreshToken with no stored token returns AuthFailure', () async {

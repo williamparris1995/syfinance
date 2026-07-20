@@ -1,42 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_event.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
+import 'package:yucai_client/core/theme/app_design.dart';
 
-class LoginPage extends StatefulWidget {
+/// Single-button OIDC login. Lists providers advertised by the server
+/// (currently just Google) via the auth repository; tapping a button
+/// dispatches [OIDCLoginRequested], which drives the loopback PKCE flow
+/// (see `OIDCAuthenticator` + `OidcLoginUseCase`).
+///
+/// On error the bloc emits [AuthError], surfaced here as a SnackBar.
+/// On success the router redirect (listening to the bloc stream) sends
+/// the user to `/home`.
+class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
-
-  @override
-  State<LoginPage> createState() => _LoginPageState();
-}
-
-class _LoginPageState extends State<LoginPage> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailCtrl = TextEditingController();
-  final _passwordCtrl = TextEditingController();
-  bool _obscurePassword = true;
-
-  @override
-  void dispose() {
-    _emailCtrl.dispose();
-    _passwordCtrl.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    if (!_formKey.currentState!.validate()) return;
-    context.read<AuthBloc>().add(LoginRequested(
-          email: _emailCtrl.text.trim(),
-          password: _passwordCtrl.text,
-        ));
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.bg,
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 380),
@@ -50,51 +34,43 @@ class _LoginPageState extends State<LoginPage> {
             },
             child: Padding(
               padding: const EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('登录', style: Theme.of(context).textTheme.headlineMedium),
-                    const SizedBox(height: 24),
-                    TextFormField(
-                      controller: _emailCtrl,
-                      decoration: const InputDecoration(labelText: '邮箱'),
-                      validator: (v) => (v == null || !v.contains('@')) ? '请输入有效邮箱' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _passwordCtrl,
-                      decoration: InputDecoration(
-                        labelText: '密码',
-                        suffixIcon: IconButton(
-                          icon: Icon(_obscurePassword
-                              ? LucideIcons.eye
-                              : LucideIcons.eyeOff),
-                          onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword),
-                          tooltip: _obscurePassword ? '显示密码' : '隐藏密码',
-                        ),
-                      ),
-                      obscureText: _obscurePassword,
-                      validator: (v) =>
-                          (v == null || v.isEmpty) ? '请输入密码' : null,
-                    ),
-                    const SizedBox(height: 24),
-                    BlocBuilder<AuthBloc, AuthState>(
-                      builder: (context, state) {
-                        return FilledButton(
-                          onPressed: state is AuthLoading ? null : _submit,
-                          child: const Text('登录'),
-                        );
-                      },
-                    ),
-                    TextButton(
-                      onPressed: () => context.go('/register'),
-                      child: const Text('没有账号？注册'),
-                    ),
-                  ],
-                ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '御财',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '登录以继续',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(color: AppColors.muted),
+                  ),
+                  const SizedBox(height: 32),
+                  BlocBuilder<AuthBloc, AuthState>(
+                    builder: (context, state) {
+                      final loading = state is AuthLoading;
+                      return FilledButton.icon(
+                        onPressed: loading
+                            ? null
+                            : () => context
+                                .read<AuthBloc>()
+                                .add(const OIDCLoginRequested('google')),
+                        icon: state is AuthLoading
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(LucideIcons.logIn),
+                        label: const Text('使用 Google 登录'),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
           ),

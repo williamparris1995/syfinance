@@ -25,7 +25,6 @@ import 'package:yucai_client/auth/presentation/bloc/auth_bloc.dart';
 import 'package:yucai_client/auth/presentation/bloc/auth_state.dart';
 import 'package:yucai_client/auth/presentation/pages/home_page.dart';
 import 'package:yucai_client/auth/presentation/pages/login_page.dart';
-import 'package:yucai_client/auth/presentation/pages/register_page.dart';
 import 'package:yucai_client/core/di/injection.dart';
 import 'package:yucai_client/core/theme/app_design.dart';
 import 'package:yucai_client/debt/domain/repositories/debt_repository.dart';
@@ -92,8 +91,7 @@ GoRouter buildRouter(AuthBloc authBloc) {
       final auth = authBloc.state;
       final isLoggedIn = auth is Authenticated;
       final isLoading = auth is AuthInitial || auth is AuthLoading;
-      final goingToAuth = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/register';
+      final goingToAuth = state.matchedLocation == '/login';
       final goingProtected = state.matchedLocation == '/home' ||
           state.matchedLocation.startsWith('/accounts') ||
           state.matchedLocation.startsWith('/transactions') ||
@@ -114,7 +112,6 @@ GoRouter buildRouter(AuthBloc authBloc) {
     },
     routes: [
       GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
-      GoRoute(path: '/register', builder: (_, __) => const RegisterPage()),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             AppShell(navigationShell: navigationShell),
