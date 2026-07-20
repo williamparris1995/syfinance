@@ -93,24 +93,38 @@ class OIDCAuthenticator {
 
     server.listen((HttpRequest req) async {
       final uri = req.uri;
-      await _respondAndClose(req);
-      if (uri.path != '/callback') return;
       final qp = uri.queryParameters;
+
+      // Classify the callback BEFORE responding so the browser sees an
+      // honest outcome (success vs failure) — and so error paths clean up
+      // the watchdog + server the same way the success path does.
+      if (uri.path != '/callback') {
+        // Stray probe (e.g. favicon); keep the dance alive for real callback.
+        await _respondAndClose(req, '请关闭此页面并返回御财应用。');
+        return;
+      }
       if (qp['state'] != state) {
+        await _respondAndClose(req, '登录失败，状态不匹配，请重试。');
         if (!completer.isCompleted) {
           completer.completeError(Exception('state mismatch'));
         }
+        watchdog?.cancel();
+        await server.close(force: true);
         return;
       }
       final code = qp['code'];
       if (code == null) {
+        await _respondAndClose(req, '登录失败，未收到授权码，请重试。');
         if (!completer.isCompleted) {
           completer.completeError(
             Exception('no code in callback: ${qp['error'] ?? ''}'),
           );
         }
+        watchdog?.cancel();
+        await server.close(force: true);
         return;
       }
+      await _respondAndClose(req, '登录成功，请返回御财应用。');
       if (!completer.isCompleted) {
         completer.complete(OidcAuthResult(
           code: code,
@@ -125,11 +139,11 @@ class OIDCAuthenticator {
     return completer.future;
   }
 
-  Future<void> _respondAndClose(HttpRequest req) async {
+  Future<void> _respondAndClose(HttpRequest req, String message) async {
     req.response
       ..statusCode = 200
       ..headers.contentType = ContentType.html
-      ..write('<html><body><h3>登录成功，请返回御财应用。</h3></body></html>');
+      ..write('<html><body><h3>$message</h3></body></html>');
     await req.response.close();
   }
 
