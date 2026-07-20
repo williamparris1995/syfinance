@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/yucai/server/internal/auth/domain"
+	"github.com/yucai/server/internal/auth/ent"
 	"github.com/yucai/server/internal/auth/infrastructure/oidc"
 )
 
@@ -66,9 +67,14 @@ func (h *OIDCExchangeHandler) Exchange(ctx context.Context, providerName, code, 
 
 	// Existing identity → resolve user in one query (UserRepository joins
 	// useridentity). A NotFound is the expected first-login signal; any other
-	// repository error falls through to jit provisioning defensively rather
-	// than blocking login on a transient lookup failure.
-	if existing, _ := h.userRepo.FindByProviderSubject(ctx, verified.Provider, verified.Subject); existing != nil {
+	// repository error (connection blip, timeout) is propagated so we don't
+	// silently create a duplicate tenant+user+identity for the same
+	// (provider, subject) on a transient lookup failure.
+	existing, err := h.userRepo.FindByProviderSubject(ctx, verified.Provider, verified.Subject)
+	if err != nil && !ent.IsNotFound(err) {
+		return nil, fmt.Errorf("lookup identity by provider subject: %w", err)
+	}
+	if existing != nil {
 		return existing, nil
 	}
 

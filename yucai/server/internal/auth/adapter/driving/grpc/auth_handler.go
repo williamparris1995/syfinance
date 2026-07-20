@@ -176,6 +176,15 @@ func mapError(err error) error {
 	case contains(msg, "must not be empty"), contains(msg, "invalid email"),
 		contains(msg, "must be between 1 and 168"), contains(msg, "invalid currency code"):
 		return status.Error(codes.InvalidArgument, msg)
+	case contains(msg, "unknown provider"):
+		// Client supplied a provider name we don't configure. Provider names are
+		// not sensitive (GetOIDCConfig lists them), so InvalidArgument lets the
+		// client distinguish a misconfig from an IDP-side verify failure.
+		return status.Error(codes.InvalidArgument, msg)
+	case contains(msg, "oidc verify"):
+		// id_token verification failed (bad signature, expired, wrong audience,
+		// replay). Surface as Unauthenticated so the client re-auths.
+		return status.Error(codes.Unauthenticated, msg)
 	default:
 		return status.Error(codes.Internal, msg)
 	}
