@@ -39,3 +39,6 @@ home
 
 # server backup runtime artifacts (LocalProvider output, contains tenant data)
 yucai/server/backups/
+
+# graphify knowledge-graph output (regenerable; graph.json ~36MB)
+graphify-out/
