@@ -34,10 +34,6 @@ abstract class BackupServiceBase extends $pb.GeneratedService {
       $pb.ServerContext ctx, $3.SaveCloudSettingsRequest request);
   $async.Future<$3.CloudSettingsResponse> getCloudSettings(
       $pb.ServerContext ctx, $2.Empty request);
-  $async.Future<$3.TestConnectionResponse> testCloudConnection(
-      $pb.ServerContext ctx, $3.TestConnectionRequest request);
-  $async.Future<$3.BackupResponse> uploadToCloud(
-      $pb.ServerContext ctx, $3.UploadRequest request);
 
   $pb.GeneratedMessage createRequest($core.String methodName) {
     switch (methodName) {
@@ -53,10 +49,6 @@ abstract class BackupServiceBase extends $pb.GeneratedService {
         return $3.SaveCloudSettingsRequest();
       case 'GetCloudSettings':
         return $2.Empty();
-      case 'TestCloudConnection':
-        return $3.TestConnectionRequest();
-      case 'UploadToCloud':
-        return $3.UploadRequest();
       default:
         throw $core.ArgumentError('Unknown method: $methodName');
     }
@@ -77,10 +69,6 @@ abstract class BackupServiceBase extends $pb.GeneratedService {
         return saveCloudSettings(ctx, request as $3.SaveCloudSettingsRequest);
       case 'GetCloudSettings':
         return getCloudSettings(ctx, request as $2.Empty);
-      case 'TestCloudConnection':
-        return testCloudConnection(ctx, request as $3.TestConnectionRequest);
-      case 'UploadToCloud':
-        return uploadToCloud(ctx, request as $3.UploadRequest);
       default:
         throw $core.ArgumentError('Unknown method: $methodName');
     }

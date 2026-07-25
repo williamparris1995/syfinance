@@ -1,3 +1,5 @@
+> **ℹ️ 云备份 / 多设备同步已取消 — 2026-07-25**: 本文涉及的云备份与多设备同步内容均已下架(御财 server+Postgres 已集中持久化数据,client 直连服务器,无需云盘备份或多端同步);本地备份 / auto-backup 相关描述仍然有效。
+
 # 备份与恢复模块实施计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

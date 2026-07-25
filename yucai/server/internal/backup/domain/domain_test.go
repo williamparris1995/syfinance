@@ -45,7 +45,7 @@ func TestNewBackup_AutoFlag(t *testing.T) {
 }
 
 func TestBackupProvider_RoundTrip(t *testing.T) {
-	providers := []BackupProvider{BackupProviderLocal, BackupProviderWebDAV, BackupProviderDropbox, BackupProviderGoogleDrive, BackupProviderOneDrive}
+	providers := []BackupProvider{BackupProviderLocal}
 	for _, p := range providers {
 		if ParseBackupProvider(p.String()) != p {
 			t.Errorf("round-trip failed for %v", p)

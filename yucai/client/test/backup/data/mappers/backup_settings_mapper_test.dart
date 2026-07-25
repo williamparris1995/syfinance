@@ -22,16 +22,12 @@ void main() {
   });
 
   group('BackupSettingsMapper.toProto', () {
-    test('fills only AutoBackup 两字段（其他字段保持 proto 默认零值）', () {
+    test('fills AutoBackup + intervalHours（与 service 持久化字段一一对应）', () {
       final proto = BackupSettingsMapper.toProto(
         const BackupSettings(autoBackup: true, intervalHours: 12),
       );
       expect(proto.autoBackup, true);
       expect(proto.autoBackupIntervalHours, 12);
-      // 其他字段不填，server 不持久化（service.go 注释）。
-      expect(proto.hasProvider(), false);
-      expect(proto.webdavUrl, '');
-      expect(proto.oauthToken, '');
     });
   });
 

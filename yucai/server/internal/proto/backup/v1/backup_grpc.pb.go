@@ -20,14 +20,12 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	BackupService_CreateBackup_FullMethodName        = "/yucai.backup.v1.BackupService/CreateBackup"
-	BackupService_RestoreBackup_FullMethodName       = "/yucai.backup.v1.BackupService/RestoreBackup"
-	BackupService_ListBackups_FullMethodName         = "/yucai.backup.v1.BackupService/ListBackups"
-	BackupService_DeleteBackup_FullMethodName        = "/yucai.backup.v1.BackupService/DeleteBackup"
-	BackupService_SaveCloudSettings_FullMethodName   = "/yucai.backup.v1.BackupService/SaveCloudSettings"
-	BackupService_GetCloudSettings_FullMethodName    = "/yucai.backup.v1.BackupService/GetCloudSettings"
-	BackupService_TestCloudConnection_FullMethodName = "/yucai.backup.v1.BackupService/TestCloudConnection"
-	BackupService_UploadToCloud_FullMethodName       = "/yucai.backup.v1.BackupService/UploadToCloud"
+	BackupService_CreateBackup_FullMethodName      = "/yucai.backup.v1.BackupService/CreateBackup"
+	BackupService_RestoreBackup_FullMethodName     = "/yucai.backup.v1.BackupService/RestoreBackup"
+	BackupService_ListBackups_FullMethodName       = "/yucai.backup.v1.BackupService/ListBackups"
+	BackupService_DeleteBackup_FullMethodName      = "/yucai.backup.v1.BackupService/DeleteBackup"
+	BackupService_SaveCloudSettings_FullMethodName = "/yucai.backup.v1.BackupService/SaveCloudSettings"
+	BackupService_GetCloudSettings_FullMethodName  = "/yucai.backup.v1.BackupService/GetCloudSettings"
 )
 
 // BackupServiceClient is the client API for BackupService service.
@@ -38,10 +36,12 @@ type BackupServiceClient interface {
 	RestoreBackup(ctx context.Context, in *RestoreBackupRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	ListBackups(ctx context.Context, in *ListBackupsRequest, opts ...grpc.CallOption) (*ListBackupsResponse, error)
 	DeleteBackup(ctx context.Context, in *DeleteBackupRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// SaveCloudSettings / GetCloudSettings persist per-tenant auto-backup
+	// preferences. Despite the legacy "Cloud" name, only auto-backup fields are
+	// stored — cloud backup (WebDAV/providers) was removed 2026-07-25. Name kept
+	// to minimize churn.
 	SaveCloudSettings(ctx context.Context, in *SaveCloudSettingsRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	GetCloudSettings(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CloudSettingsResponse, error)
-	TestCloudConnection(ctx context.Context, in *TestConnectionRequest, opts ...grpc.CallOption) (*TestConnectionResponse, error)
-	UploadToCloud(ctx context.Context, in *UploadRequest, opts ...grpc.CallOption) (*BackupResponse, error)
 }
 
 type backupServiceClient struct {
@@ -112,26 +112,6 @@ func (c *backupServiceClient) GetCloudSettings(ctx context.Context, in *emptypb.
 	return out, nil
 }
 
-func (c *backupServiceClient) TestCloudConnection(ctx context.Context, in *TestConnectionRequest, opts ...grpc.CallOption) (*TestConnectionResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(TestConnectionResponse)
-	err := c.cc.Invoke(ctx, BackupService_TestCloudConnection_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *backupServiceClient) UploadToCloud(ctx context.Context, in *UploadRequest, opts ...grpc.CallOption) (*BackupResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(BackupResponse)
-	err := c.cc.Invoke(ctx, BackupService_UploadToCloud_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // BackupServiceServer is the server API for BackupService service.
 // All implementations must embed UnimplementedBackupServiceServer
 // for forward compatibility.
@@ -140,10 +120,12 @@ type BackupServiceServer interface {
 	RestoreBackup(context.Context, *RestoreBackupRequest) (*emptypb.Empty, error)
 	ListBackups(context.Context, *ListBackupsRequest) (*ListBackupsResponse, error)
 	DeleteBackup(context.Context, *DeleteBackupRequest) (*emptypb.Empty, error)
+	// SaveCloudSettings / GetCloudSettings persist per-tenant auto-backup
+	// preferences. Despite the legacy "Cloud" name, only auto-backup fields are
+	// stored — cloud backup (WebDAV/providers) was removed 2026-07-25. Name kept
+	// to minimize churn.
 	SaveCloudSettings(context.Context, *SaveCloudSettingsRequest) (*emptypb.Empty, error)
 	GetCloudSettings(context.Context, *emptypb.Empty) (*CloudSettingsResponse, error)
-	TestCloudConnection(context.Context, *TestConnectionRequest) (*TestConnectionResponse, error)
-	UploadToCloud(context.Context, *UploadRequest) (*BackupResponse, error)
 	mustEmbedUnimplementedBackupServiceServer()
 }
 
@@ -171,12 +153,6 @@ func (UnimplementedBackupServiceServer) SaveCloudSettings(context.Context, *Save
 }
 func (UnimplementedBackupServiceServer) GetCloudSettings(context.Context, *emptypb.Empty) (*CloudSettingsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetCloudSettings not implemented")
-}
-func (UnimplementedBackupServiceServer) TestCloudConnection(context.Context, *TestConnectionRequest) (*TestConnectionResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method TestCloudConnection not implemented")
-}
-func (UnimplementedBackupServiceServer) UploadToCloud(context.Context, *UploadRequest) (*BackupResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method UploadToCloud not implemented")
 }
 func (UnimplementedBackupServiceServer) mustEmbedUnimplementedBackupServiceServer() {}
 func (UnimplementedBackupServiceServer) testEmbeddedByValue()                       {}
@@ -307,42 +283,6 @@ func _BackupService_GetCloudSettings_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
-func _BackupService_TestCloudConnection_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TestConnectionRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BackupServiceServer).TestCloudConnection(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: BackupService_TestCloudConnection_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BackupServiceServer).TestCloudConnection(ctx, req.(*TestConnectionRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _BackupService_UploadToCloud_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UploadRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BackupServiceServer).UploadToCloud(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: BackupService_UploadToCloud_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BackupServiceServer).UploadToCloud(ctx, req.(*UploadRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // BackupService_ServiceDesc is the grpc.ServiceDesc for BackupService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -373,14 +313,6 @@ var BackupService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetCloudSettings",
 			Handler:    _BackupService_GetCloudSettings_Handler,
-		},
-		{
-			MethodName: "TestCloudConnection",
-			Handler:    _BackupService_TestCloudConnection_Handler,
-		},
-		{
-			MethodName: "UploadToCloud",
-			Handler:    _BackupService_UploadToCloud_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

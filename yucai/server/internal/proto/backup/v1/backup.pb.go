@@ -27,12 +27,8 @@ const (
 type BackupProvider int32
 
 const (
-	BackupProvider_BACKUP_PROVIDER_UNSPECIFIED  BackupProvider = 0
-	BackupProvider_BACKUP_PROVIDER_LOCAL        BackupProvider = 1
-	BackupProvider_BACKUP_PROVIDER_WEBDAV       BackupProvider = 2
-	BackupProvider_BACKUP_PROVIDER_DROPBOX      BackupProvider = 3
-	BackupProvider_BACKUP_PROVIDER_GOOGLE_DRIVE BackupProvider = 4
-	BackupProvider_BACKUP_PROVIDER_ONE_DRIVE    BackupProvider = 5
+	BackupProvider_BACKUP_PROVIDER_UNSPECIFIED BackupProvider = 0
+	BackupProvider_BACKUP_PROVIDER_LOCAL       BackupProvider = 1
 )
 
 // Enum value maps for BackupProvider.
@@ -40,18 +36,10 @@ var (
 	BackupProvider_name = map[int32]string{
 		0: "BACKUP_PROVIDER_UNSPECIFIED",
 		1: "BACKUP_PROVIDER_LOCAL",
-		2: "BACKUP_PROVIDER_WEBDAV",
-		3: "BACKUP_PROVIDER_DROPBOX",
-		4: "BACKUP_PROVIDER_GOOGLE_DRIVE",
-		5: "BACKUP_PROVIDER_ONE_DRIVE",
 	}
 	BackupProvider_value = map[string]int32{
-		"BACKUP_PROVIDER_UNSPECIFIED":  0,
-		"BACKUP_PROVIDER_LOCAL":        1,
-		"BACKUP_PROVIDER_WEBDAV":       2,
-		"BACKUP_PROVIDER_DROPBOX":      3,
-		"BACKUP_PROVIDER_GOOGLE_DRIVE": 4,
-		"BACKUP_PROVIDER_ONE_DRIVE":    5,
+		"BACKUP_PROVIDER_UNSPECIFIED": 0,
+		"BACKUP_PROVIDER_LOCAL":       1,
 	}
 )
 
@@ -434,14 +422,12 @@ func (x *DeleteBackupRequest) GetId() string {
 	return ""
 }
 
+// CloudSettingsDTO carries per-tenant auto-backup preferences only. Cloud
+// backup fields (provider/webdav/oauth) were removed 2026-07-25; name kept.
 type CloudSettingsDTO struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
-	Provider                BackupProvider         `protobuf:"varint,1,opt,name=provider,proto3,enum=yucai.backup.v1.BackupProvider" json:"provider,omitempty"`
-	WebdavUrl               string                 `protobuf:"bytes,2,opt,name=webdav_url,json=webdavUrl,proto3" json:"webdav_url,omitempty"`
-	WebdavUsername          string                 `protobuf:"bytes,3,opt,name=webdav_username,json=webdavUsername,proto3" json:"webdav_username,omitempty"`
-	OauthToken              string                 `protobuf:"bytes,4,opt,name=oauth_token,json=oauthToken,proto3" json:"oauth_token,omitempty"`
-	AutoBackup              bool                   `protobuf:"varint,5,opt,name=auto_backup,json=autoBackup,proto3" json:"auto_backup,omitempty"`
-	AutoBackupIntervalHours int32                  `protobuf:"varint,6,opt,name=auto_backup_interval_hours,json=autoBackupIntervalHours,proto3" json:"auto_backup_interval_hours,omitempty"`
+	AutoBackup              bool                   `protobuf:"varint,1,opt,name=auto_backup,json=autoBackup,proto3" json:"auto_backup,omitempty"`
+	AutoBackupIntervalHours int32                  `protobuf:"varint,2,opt,name=auto_backup_interval_hours,json=autoBackupIntervalHours,proto3" json:"auto_backup_interval_hours,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -474,34 +460,6 @@ func (x *CloudSettingsDTO) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CloudSettingsDTO.ProtoReflect.Descriptor instead.
 func (*CloudSettingsDTO) Descriptor() ([]byte, []int) {
 	return file_backup_v1_backup_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *CloudSettingsDTO) GetProvider() BackupProvider {
-	if x != nil {
-		return x.Provider
-	}
-	return BackupProvider_BACKUP_PROVIDER_UNSPECIFIED
-}
-
-func (x *CloudSettingsDTO) GetWebdavUrl() string {
-	if x != nil {
-		return x.WebdavUrl
-	}
-	return ""
-}
-
-func (x *CloudSettingsDTO) GetWebdavUsername() string {
-	if x != nil {
-		return x.WebdavUsername
-	}
-	return ""
-}
-
-func (x *CloudSettingsDTO) GetOauthToken() string {
-	if x != nil {
-		return x.OauthToken
-	}
-	return ""
 }
 
 func (x *CloudSettingsDTO) GetAutoBackup() bool {
@@ -606,154 +564,6 @@ func (x *CloudSettingsResponse) GetSettings() *CloudSettingsDTO {
 	return nil
 }
 
-type TestConnectionRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Provider      BackupProvider         `protobuf:"varint,1,opt,name=provider,proto3,enum=yucai.backup.v1.BackupProvider" json:"provider,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *TestConnectionRequest) Reset() {
-	*x = TestConnectionRequest{}
-	mi := &file_backup_v1_backup_proto_msgTypes[9]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *TestConnectionRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*TestConnectionRequest) ProtoMessage() {}
-
-func (x *TestConnectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_backup_v1_backup_proto_msgTypes[9]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use TestConnectionRequest.ProtoReflect.Descriptor instead.
-func (*TestConnectionRequest) Descriptor() ([]byte, []int) {
-	return file_backup_v1_backup_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *TestConnectionRequest) GetProvider() BackupProvider {
-	if x != nil {
-		return x.Provider
-	}
-	return BackupProvider_BACKUP_PROVIDER_UNSPECIFIED
-}
-
-type TestConnectionResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *TestConnectionResponse) Reset() {
-	*x = TestConnectionResponse{}
-	mi := &file_backup_v1_backup_proto_msgTypes[10]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *TestConnectionResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*TestConnectionResponse) ProtoMessage() {}
-
-func (x *TestConnectionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_backup_v1_backup_proto_msgTypes[10]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use TestConnectionResponse.ProtoReflect.Descriptor instead.
-func (*TestConnectionResponse) Descriptor() ([]byte, []int) {
-	return file_backup_v1_backup_proto_rawDescGZIP(), []int{10}
-}
-
-func (x *TestConnectionResponse) GetSuccess() bool {
-	if x != nil {
-		return x.Success
-	}
-	return false
-}
-
-func (x *TestConnectionResponse) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
-}
-
-type UploadRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BackupId      string                 `protobuf:"bytes,1,opt,name=backup_id,json=backupId,proto3" json:"backup_id,omitempty"`
-	Provider      BackupProvider         `protobuf:"varint,2,opt,name=provider,proto3,enum=yucai.backup.v1.BackupProvider" json:"provider,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UploadRequest) Reset() {
-	*x = UploadRequest{}
-	mi := &file_backup_v1_backup_proto_msgTypes[11]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UploadRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UploadRequest) ProtoMessage() {}
-
-func (x *UploadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_backup_v1_backup_proto_msgTypes[11]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UploadRequest.ProtoReflect.Descriptor instead.
-func (*UploadRequest) Descriptor() ([]byte, []int) {
-	return file_backup_v1_backup_proto_rawDescGZIP(), []int{11}
-}
-
-func (x *UploadRequest) GetBackupId() string {
-	if x != nil {
-		return x.BackupId
-	}
-	return ""
-}
-
-func (x *UploadRequest) GetProvider() BackupProvider {
-	if x != nil {
-		return x.Provider
-	}
-	return BackupProvider_BACKUP_PROVIDER_UNSPECIFIED
-}
-
 type BackupResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Backup        *BackupDTO             `protobuf:"bytes,1,opt,name=backup,proto3" json:"backup,omitempty"`
@@ -763,7 +573,7 @@ type BackupResponse struct {
 
 func (x *BackupResponse) Reset() {
 	*x = BackupResponse{}
-	mi := &file_backup_v1_backup_proto_msgTypes[12]
+	mi := &file_backup_v1_backup_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -775,7 +585,7 @@ func (x *BackupResponse) String() string {
 func (*BackupResponse) ProtoMessage() {}
 
 func (x *BackupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_backup_v1_backup_proto_msgTypes[12]
+	mi := &file_backup_v1_backup_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -788,7 +598,7 @@ func (x *BackupResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BackupResponse.ProtoReflect.Descriptor instead.
 func (*BackupResponse) Descriptor() ([]byte, []int) {
-	return file_backup_v1_backup_proto_rawDescGZIP(), []int{12}
+	return file_backup_v1_backup_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *BackupResponse) GetBackup() *BackupDTO {
@@ -828,47 +638,27 @@ const file_backup_v1_backup_proto_rawDesc = "" +
 	"\abackups\x18\x01 \x03(\v2\x1a.yucai.backup.v1.BackupDTOR\abackups\x121\n" +
 	"\x04page\x18\x02 \x01(\v2\x1d.yucai.common.v1.PageResponseR\x04page\"%\n" +
 	"\x13DeleteBackupRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\x96\x02\n" +
-	"\x10CloudSettingsDTO\x12;\n" +
-	"\bprovider\x18\x01 \x01(\x0e2\x1f.yucai.backup.v1.BackupProviderR\bprovider\x12\x1d\n" +
-	"\n" +
-	"webdav_url\x18\x02 \x01(\tR\twebdavUrl\x12'\n" +
-	"\x0fwebdav_username\x18\x03 \x01(\tR\x0ewebdavUsername\x12\x1f\n" +
-	"\voauth_token\x18\x04 \x01(\tR\n" +
-	"oauthToken\x12\x1f\n" +
-	"\vauto_backup\x18\x05 \x01(\bR\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"p\n" +
+	"\x10CloudSettingsDTO\x12\x1f\n" +
+	"\vauto_backup\x18\x01 \x01(\bR\n" +
 	"autoBackup\x12;\n" +
-	"\x1aauto_backup_interval_hours\x18\x06 \x01(\x05R\x17autoBackupIntervalHours\"Y\n" +
+	"\x1aauto_backup_interval_hours\x18\x02 \x01(\x05R\x17autoBackupIntervalHours\"Y\n" +
 	"\x18SaveCloudSettingsRequest\x12=\n" +
 	"\bsettings\x18\x01 \x01(\v2!.yucai.backup.v1.CloudSettingsDTOR\bsettings\"V\n" +
 	"\x15CloudSettingsResponse\x12=\n" +
-	"\bsettings\x18\x01 \x01(\v2!.yucai.backup.v1.CloudSettingsDTOR\bsettings\"T\n" +
-	"\x15TestConnectionRequest\x12;\n" +
-	"\bprovider\x18\x01 \x01(\x0e2\x1f.yucai.backup.v1.BackupProviderR\bprovider\"L\n" +
-	"\x16TestConnectionResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"i\n" +
-	"\rUploadRequest\x12\x1b\n" +
-	"\tbackup_id\x18\x01 \x01(\tR\bbackupId\x12;\n" +
-	"\bprovider\x18\x02 \x01(\x0e2\x1f.yucai.backup.v1.BackupProviderR\bprovider\"D\n" +
+	"\bsettings\x18\x01 \x01(\v2!.yucai.backup.v1.CloudSettingsDTOR\bsettings\"D\n" +
 	"\x0eBackupResponse\x122\n" +
-	"\x06backup\x18\x01 \x01(\v2\x1a.yucai.backup.v1.BackupDTOR\x06backup*\xc6\x01\n" +
+	"\x06backup\x18\x01 \x01(\v2\x1a.yucai.backup.v1.BackupDTOR\x06backup*L\n" +
 	"\x0eBackupProvider\x12\x1f\n" +
 	"\x1bBACKUP_PROVIDER_UNSPECIFIED\x10\x00\x12\x19\n" +
-	"\x15BACKUP_PROVIDER_LOCAL\x10\x01\x12\x1a\n" +
-	"\x16BACKUP_PROVIDER_WEBDAV\x10\x02\x12\x1b\n" +
-	"\x17BACKUP_PROVIDER_DROPBOX\x10\x03\x12 \n" +
-	"\x1cBACKUP_PROVIDER_GOOGLE_DRIVE\x10\x04\x12\x1d\n" +
-	"\x19BACKUP_PROVIDER_ONE_DRIVE\x10\x052\xc4\x05\n" +
+	"\x15BACKUP_PROVIDER_LOCAL\x10\x012\x8a\x04\n" +
 	"\rBackupService\x12U\n" +
 	"\fCreateBackup\x12$.yucai.backup.v1.CreateBackupRequest\x1a\x1f.yucai.backup.v1.BackupResponse\x12N\n" +
 	"\rRestoreBackup\x12%.yucai.backup.v1.RestoreBackupRequest\x1a\x16.google.protobuf.Empty\x12X\n" +
 	"\vListBackups\x12#.yucai.backup.v1.ListBackupsRequest\x1a$.yucai.backup.v1.ListBackupsResponse\x12L\n" +
 	"\fDeleteBackup\x12$.yucai.backup.v1.DeleteBackupRequest\x1a\x16.google.protobuf.Empty\x12V\n" +
 	"\x11SaveCloudSettings\x12).yucai.backup.v1.SaveCloudSettingsRequest\x1a\x16.google.protobuf.Empty\x12R\n" +
-	"\x10GetCloudSettings\x12\x16.google.protobuf.Empty\x1a&.yucai.backup.v1.CloudSettingsResponse\x12f\n" +
-	"\x13TestCloudConnection\x12&.yucai.backup.v1.TestConnectionRequest\x1a'.yucai.backup.v1.TestConnectionResponse\x12P\n" +
-	"\rUploadToCloud\x12\x1e.yucai.backup.v1.UploadRequest\x1a\x1f.yucai.backup.v1.BackupResponseB\xbb\x01\n" +
+	"\x10GetCloudSettings\x12\x16.google.protobuf.Empty\x1a&.yucai.backup.v1.CloudSettingsResponseB\xbb\x01\n" +
 	"\x13com.yucai.backup.v1B\vBackupProtoP\x01Z9github.com/yucai/server/internal/proto/backup/v1;backupv1\xa2\x02\x03YBX\xaa\x02\x0fYucai.Backup.V1\xca\x02\x0fYucai\\Backup\\V1\xe2\x02\x1bYucai\\Backup\\V1\\GPBMetadata\xea\x02\x11Yucai::Backup::V1b\x06proto3"
 
 var (
@@ -884,7 +674,7 @@ func file_backup_v1_backup_proto_rawDescGZIP() []byte {
 }
 
 var file_backup_v1_backup_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_backup_v1_backup_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_backup_v1_backup_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_backup_v1_backup_proto_goTypes = []any{
 	(BackupProvider)(0),              // 0: yucai.backup.v1.BackupProvider
 	(*BackupDTO)(nil),                // 1: yucai.backup.v1.BackupDTO
@@ -896,49 +686,39 @@ var file_backup_v1_backup_proto_goTypes = []any{
 	(*CloudSettingsDTO)(nil),         // 7: yucai.backup.v1.CloudSettingsDTO
 	(*SaveCloudSettingsRequest)(nil), // 8: yucai.backup.v1.SaveCloudSettingsRequest
 	(*CloudSettingsResponse)(nil),    // 9: yucai.backup.v1.CloudSettingsResponse
-	(*TestConnectionRequest)(nil),    // 10: yucai.backup.v1.TestConnectionRequest
-	(*TestConnectionResponse)(nil),   // 11: yucai.backup.v1.TestConnectionResponse
-	(*UploadRequest)(nil),            // 12: yucai.backup.v1.UploadRequest
-	(*BackupResponse)(nil),           // 13: yucai.backup.v1.BackupResponse
-	(*timestamppb.Timestamp)(nil),    // 14: google.protobuf.Timestamp
-	(*v1.PageRequest)(nil),           // 15: yucai.common.v1.PageRequest
-	(*v1.PageResponse)(nil),          // 16: yucai.common.v1.PageResponse
-	(*emptypb.Empty)(nil),            // 17: google.protobuf.Empty
+	(*BackupResponse)(nil),           // 10: yucai.backup.v1.BackupResponse
+	(*timestamppb.Timestamp)(nil),    // 11: google.protobuf.Timestamp
+	(*v1.PageRequest)(nil),           // 12: yucai.common.v1.PageRequest
+	(*v1.PageResponse)(nil),          // 13: yucai.common.v1.PageResponse
+	(*emptypb.Empty)(nil),            // 14: google.protobuf.Empty
 }
 var file_backup_v1_backup_proto_depIdxs = []int32{
 	0,  // 0: yucai.backup.v1.BackupDTO.provider:type_name -> yucai.backup.v1.BackupProvider
-	14, // 1: yucai.backup.v1.BackupDTO.created_at:type_name -> google.protobuf.Timestamp
-	15, // 2: yucai.backup.v1.ListBackupsRequest.page:type_name -> yucai.common.v1.PageRequest
+	11, // 1: yucai.backup.v1.BackupDTO.created_at:type_name -> google.protobuf.Timestamp
+	12, // 2: yucai.backup.v1.ListBackupsRequest.page:type_name -> yucai.common.v1.PageRequest
 	0,  // 3: yucai.backup.v1.ListBackupsRequest.provider:type_name -> yucai.backup.v1.BackupProvider
 	1,  // 4: yucai.backup.v1.ListBackupsResponse.backups:type_name -> yucai.backup.v1.BackupDTO
-	16, // 5: yucai.backup.v1.ListBackupsResponse.page:type_name -> yucai.common.v1.PageResponse
-	0,  // 6: yucai.backup.v1.CloudSettingsDTO.provider:type_name -> yucai.backup.v1.BackupProvider
-	7,  // 7: yucai.backup.v1.SaveCloudSettingsRequest.settings:type_name -> yucai.backup.v1.CloudSettingsDTO
-	7,  // 8: yucai.backup.v1.CloudSettingsResponse.settings:type_name -> yucai.backup.v1.CloudSettingsDTO
-	0,  // 9: yucai.backup.v1.TestConnectionRequest.provider:type_name -> yucai.backup.v1.BackupProvider
-	0,  // 10: yucai.backup.v1.UploadRequest.provider:type_name -> yucai.backup.v1.BackupProvider
-	1,  // 11: yucai.backup.v1.BackupResponse.backup:type_name -> yucai.backup.v1.BackupDTO
-	2,  // 12: yucai.backup.v1.BackupService.CreateBackup:input_type -> yucai.backup.v1.CreateBackupRequest
-	3,  // 13: yucai.backup.v1.BackupService.RestoreBackup:input_type -> yucai.backup.v1.RestoreBackupRequest
-	4,  // 14: yucai.backup.v1.BackupService.ListBackups:input_type -> yucai.backup.v1.ListBackupsRequest
-	6,  // 15: yucai.backup.v1.BackupService.DeleteBackup:input_type -> yucai.backup.v1.DeleteBackupRequest
-	8,  // 16: yucai.backup.v1.BackupService.SaveCloudSettings:input_type -> yucai.backup.v1.SaveCloudSettingsRequest
-	17, // 17: yucai.backup.v1.BackupService.GetCloudSettings:input_type -> google.protobuf.Empty
-	10, // 18: yucai.backup.v1.BackupService.TestCloudConnection:input_type -> yucai.backup.v1.TestConnectionRequest
-	12, // 19: yucai.backup.v1.BackupService.UploadToCloud:input_type -> yucai.backup.v1.UploadRequest
-	13, // 20: yucai.backup.v1.BackupService.CreateBackup:output_type -> yucai.backup.v1.BackupResponse
-	17, // 21: yucai.backup.v1.BackupService.RestoreBackup:output_type -> google.protobuf.Empty
-	5,  // 22: yucai.backup.v1.BackupService.ListBackups:output_type -> yucai.backup.v1.ListBackupsResponse
-	17, // 23: yucai.backup.v1.BackupService.DeleteBackup:output_type -> google.protobuf.Empty
-	17, // 24: yucai.backup.v1.BackupService.SaveCloudSettings:output_type -> google.protobuf.Empty
-	9,  // 25: yucai.backup.v1.BackupService.GetCloudSettings:output_type -> yucai.backup.v1.CloudSettingsResponse
-	11, // 26: yucai.backup.v1.BackupService.TestCloudConnection:output_type -> yucai.backup.v1.TestConnectionResponse
-	13, // 27: yucai.backup.v1.BackupService.UploadToCloud:output_type -> yucai.backup.v1.BackupResponse
-	20, // [20:28] is the sub-list for method output_type
-	12, // [12:20] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	13, // 5: yucai.backup.v1.ListBackupsResponse.page:type_name -> yucai.common.v1.PageResponse
+	7,  // 6: yucai.backup.v1.SaveCloudSettingsRequest.settings:type_name -> yucai.backup.v1.CloudSettingsDTO
+	7,  // 7: yucai.backup.v1.CloudSettingsResponse.settings:type_name -> yucai.backup.v1.CloudSettingsDTO
+	1,  // 8: yucai.backup.v1.BackupResponse.backup:type_name -> yucai.backup.v1.BackupDTO
+	2,  // 9: yucai.backup.v1.BackupService.CreateBackup:input_type -> yucai.backup.v1.CreateBackupRequest
+	3,  // 10: yucai.backup.v1.BackupService.RestoreBackup:input_type -> yucai.backup.v1.RestoreBackupRequest
+	4,  // 11: yucai.backup.v1.BackupService.ListBackups:input_type -> yucai.backup.v1.ListBackupsRequest
+	6,  // 12: yucai.backup.v1.BackupService.DeleteBackup:input_type -> yucai.backup.v1.DeleteBackupRequest
+	8,  // 13: yucai.backup.v1.BackupService.SaveCloudSettings:input_type -> yucai.backup.v1.SaveCloudSettingsRequest
+	14, // 14: yucai.backup.v1.BackupService.GetCloudSettings:input_type -> google.protobuf.Empty
+	10, // 15: yucai.backup.v1.BackupService.CreateBackup:output_type -> yucai.backup.v1.BackupResponse
+	14, // 16: yucai.backup.v1.BackupService.RestoreBackup:output_type -> google.protobuf.Empty
+	5,  // 17: yucai.backup.v1.BackupService.ListBackups:output_type -> yucai.backup.v1.ListBackupsResponse
+	14, // 18: yucai.backup.v1.BackupService.DeleteBackup:output_type -> google.protobuf.Empty
+	14, // 19: yucai.backup.v1.BackupService.SaveCloudSettings:output_type -> google.protobuf.Empty
+	9,  // 20: yucai.backup.v1.BackupService.GetCloudSettings:output_type -> yucai.backup.v1.CloudSettingsResponse
+	15, // [15:21] is the sub-list for method output_type
+	9,  // [9:15] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_backup_v1_backup_proto_init() }
@@ -953,7 +733,7 @@ func file_backup_v1_backup_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_backup_v1_backup_proto_rawDesc), len(file_backup_v1_backup_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   13,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

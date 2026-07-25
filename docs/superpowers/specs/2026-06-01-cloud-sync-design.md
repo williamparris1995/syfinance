@@ -1,3 +1,5 @@
+> **⚠️ CANCELLED — 2026-07-25**: 多设备同步(multi-device sync)已下架。御财 server+Postgres 已集中持久化数据,client 直连服务器读写,无需额外多端同步。云备份亦同时取消。本功能从未实现,本文档保留作历史/决策记录。
+
 # Cloud Sync (Backup-Based) Design Spec
 
 **Date:** 2026-06-01

@@ -1,3 +1,5 @@
+> **ℹ️ 云备份 / 多设备同步已取消 — 2026-07-25**: 本文涉及的云备份与多设备同步内容均已下架(御财 server+Postgres 已集中持久化数据,client 直连服务器,无需云盘备份或多端同步);本地备份 / auto-backup 相关描述仍然有效。
+
 # 本地备份 UI 实施计划
 
 > **面向智能体工作者：** 必须的子技能：使用 superpowers:subagent-driven-development（推荐）或 superpowers:executing-plans 来逐个任务地实施此计划。步骤使用复选框 (`- [ ]`) 语法进行跟踪。

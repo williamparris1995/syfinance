@@ -80,8 +80,8 @@ class BackupRemoteDataSource {
   }
 
   /// SaveCloudSettings：保存 AutoBackup 配置（P1 Task 5）。
-  /// mapper 只填 AutoBackup + interval 两字段；server 仅持久化这两个字段
-  /// （其他 provider/webdav/oauth 字段服务端当前不存，发零值是幂等 noop）。
+  /// mapper 填 AutoBackup + interval 两字段，server 持久化这两个字段
+  /// （云备份 provider/webdav/oauth 字段已于 2026-07-25 从 proto 移除）。
   Future<void> saveCloudSettings(BackupSettings settings) async {
     return _retry.call(() async {
       await _client.saveCloudSettings(

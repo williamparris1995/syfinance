@@ -10,25 +10,17 @@ import (
 type BackupProvider int
 
 const (
+	// BackupProviderLocal is the only backup provider after cloud-backup removal
+	// (2026-07-25). The typed const is kept (rather than collapsing to iota) so
+	// the BackupProvider enum, CloudProvider map key, and proto mapping remain
+	// extensible if a remote provider is ever re-added.
 	BackupProviderLocal BackupProvider = iota + 1
-	BackupProviderWebDAV
-	BackupProviderDropbox
-	BackupProviderGoogleDrive
-	BackupProviderOneDrive
 )
 
 func (p BackupProvider) String() string {
 	switch p {
 	case BackupProviderLocal:
 		return "local"
-	case BackupProviderWebDAV:
-		return "webdav"
-	case BackupProviderDropbox:
-		return "dropbox"
-	case BackupProviderGoogleDrive:
-		return "google_drive"
-	case BackupProviderOneDrive:
-		return "one_drive"
 	default:
 		return "unknown"
 	}
@@ -38,14 +30,6 @@ func ParseBackupProvider(s string) BackupProvider {
 	switch s {
 	case "local":
 		return BackupProviderLocal
-	case "webdav":
-		return BackupProviderWebDAV
-	case "dropbox":
-		return BackupProviderDropbox
-	case "google_drive":
-		return BackupProviderGoogleDrive
-	case "one_drive":
-		return BackupProviderOneDrive
 	default:
 		return 0
 	}

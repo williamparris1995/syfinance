@@ -1,3 +1,5 @@
+> **⚠️ CANCELLED — 2026-07-25**: 云备份(cloud backup)已下架。御财采用 server(Go gRPC)+ Postgres 架构,client 直连服务器读写、数据已集中持久化,无需云盘备份。多设备同步(multi-device sync)亦同时取消(同因)。相关代码已移除,本文档保留作历史/决策记录。
+
 # 云备份 WebDAV · 设计 spec
 
 - **日期**: 2026-07-15

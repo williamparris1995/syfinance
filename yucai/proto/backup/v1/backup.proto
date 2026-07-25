@@ -13,19 +13,17 @@ service BackupService {
   rpc RestoreBackup(RestoreBackupRequest) returns (google.protobuf.Empty);
   rpc ListBackups(ListBackupsRequest) returns (ListBackupsResponse);
   rpc DeleteBackup(DeleteBackupRequest) returns (google.protobuf.Empty);
+  // SaveCloudSettings / GetCloudSettings persist per-tenant auto-backup
+  // preferences. Despite the legacy "Cloud" name, only auto-backup fields are
+  // stored — cloud backup (WebDAV/providers) was removed 2026-07-25. Name kept
+  // to minimize churn.
   rpc SaveCloudSettings(SaveCloudSettingsRequest) returns (google.protobuf.Empty);
   rpc GetCloudSettings(google.protobuf.Empty) returns (CloudSettingsResponse);
-  rpc TestCloudConnection(TestConnectionRequest) returns (TestConnectionResponse);
-  rpc UploadToCloud(UploadRequest) returns (BackupResponse);
 }
 
 enum BackupProvider {
   BACKUP_PROVIDER_UNSPECIFIED = 0;
   BACKUP_PROVIDER_LOCAL = 1;
-  BACKUP_PROVIDER_WEBDAV = 2;
-  BACKUP_PROVIDER_DROPBOX = 3;
-  BACKUP_PROVIDER_GOOGLE_DRIVE = 4;
-  BACKUP_PROVIDER_ONE_DRIVE = 5;
 }
 
 message BackupDTO {
@@ -61,18 +59,13 @@ message ListBackupsResponse {
 
 message DeleteBackupRequest { string id = 1; }
 
+// CloudSettingsDTO carries per-tenant auto-backup preferences only. Cloud
+// backup fields (provider/webdav/oauth) were removed 2026-07-25; name kept.
 message CloudSettingsDTO {
-  BackupProvider provider = 1;
-  string webdav_url = 2;
-  string webdav_username = 3;
-  string oauth_token = 4;
-  bool auto_backup = 5;
-  int32 auto_backup_interval_hours = 6;
+  bool auto_backup = 1;
+  int32 auto_backup_interval_hours = 2;
 }
 
 message SaveCloudSettingsRequest { CloudSettingsDTO settings = 1; }
 message CloudSettingsResponse { CloudSettingsDTO settings = 1; }
-message TestConnectionRequest { BackupProvider provider = 1; }
-message TestConnectionResponse { bool success = 1; string message = 2; }
-message UploadRequest { string backup_id = 1; BackupProvider provider = 2; }
 message BackupResponse { BackupDTO backup = 1; }

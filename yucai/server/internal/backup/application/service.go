@@ -265,49 +265,11 @@ func (s *Service) DeleteBackup(ctx context.Context, tenantID, backupID uuid.UUID
 	return nil
 }
 
-// UploadToCloud uploads a backup to the specified cloud provider.
-func (s *Service) UploadToCloud(ctx context.Context, tenantID, backupID uuid.UUID, provider domain.BackupProvider) (*BackupDTO, error) {
-	backup, err := s.repo.FindByID(ctx, tenantID, backupID)
-	if err != nil {
-		return nil, fmt.Errorf("find backup: %w", err)
-	}
-
-	cloudProvider, ok := s.cloudProviders[provider]
-	if !ok {
-		return nil, fmt.Errorf("cloud provider %s not configured", provider)
-	}
-
-	// TODO: Serialize backup data to bytes for upload
-	data := []byte{}
-
-	if err := cloudProvider.Upload(ctx, backup.Filename, data); err != nil {
-		return nil, fmt.Errorf("upload to cloud: %w", err)
-	}
-
-	dto := BackupToDTO(backup)
-	return &dto, nil
-}
-
-// TestCloudConnection tests connectivity to a cloud provider.
-func (s *Service) TestCloudConnection(ctx context.Context, provider domain.BackupProvider) (bool, string) {
-	cloudProvider, ok := s.cloudProviders[provider]
-	if !ok {
-		return false, fmt.Sprintf("provider %s not configured", provider)
-	}
-
-	if err := cloudProvider.TestConnection(ctx); err != nil {
-		return false, err.Error()
-	}
-	return true, "connection successful"
-}
-
-// CloudSettings represents cloud backup configuration for a tenant.
+// CloudSettings represents per-tenant auto-backup configuration. Despite the
+// legacy "Cloud" name (kept to minimize churn), only auto-backup fields remain
+// after cloud-backup removal (2026-07-25).
 type CloudSettings struct {
 	TenantID                uuid.UUID
-	Provider                domain.BackupProvider
-	WebDAVURL               string
-	WebDAVUsername          string
-	OAuthToken              string
 	AutoBackup              bool
 	AutoBackupIntervalHours int32
 }

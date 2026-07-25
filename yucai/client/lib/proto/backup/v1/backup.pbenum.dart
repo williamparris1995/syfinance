@@ -19,26 +19,14 @@ class BackupProvider extends $pb.ProtobufEnum {
       BackupProvider._(0, _omitEnumNames ? '' : 'BACKUP_PROVIDER_UNSPECIFIED');
   static const BackupProvider BACKUP_PROVIDER_LOCAL =
       BackupProvider._(1, _omitEnumNames ? '' : 'BACKUP_PROVIDER_LOCAL');
-  static const BackupProvider BACKUP_PROVIDER_WEBDAV =
-      BackupProvider._(2, _omitEnumNames ? '' : 'BACKUP_PROVIDER_WEBDAV');
-  static const BackupProvider BACKUP_PROVIDER_DROPBOX =
-      BackupProvider._(3, _omitEnumNames ? '' : 'BACKUP_PROVIDER_DROPBOX');
-  static const BackupProvider BACKUP_PROVIDER_GOOGLE_DRIVE =
-      BackupProvider._(4, _omitEnumNames ? '' : 'BACKUP_PROVIDER_GOOGLE_DRIVE');
-  static const BackupProvider BACKUP_PROVIDER_ONE_DRIVE =
-      BackupProvider._(5, _omitEnumNames ? '' : 'BACKUP_PROVIDER_ONE_DRIVE');
 
   static const $core.List<BackupProvider> values = <BackupProvider>[
     BACKUP_PROVIDER_UNSPECIFIED,
     BACKUP_PROVIDER_LOCAL,
-    BACKUP_PROVIDER_WEBDAV,
-    BACKUP_PROVIDER_DROPBOX,
-    BACKUP_PROVIDER_GOOGLE_DRIVE,
-    BACKUP_PROVIDER_ONE_DRIVE,
   ];
 
   static final $core.List<BackupProvider?> _byValue =
-      $pb.ProtobufEnum.$_initByValueList(values, 5);
+      $pb.ProtobufEnum.$_initByValueList(values, 1);
   static BackupProvider? valueOf($core.int value) =>
       value < 0 || value >= _byValue.length ? null : _byValue[value];
 

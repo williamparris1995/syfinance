@@ -1,3 +1,5 @@
+> **ℹ️ 历史快照 — 注**: 云备份与多设备同步已于 2026-07-25 取消(御财 server+Postgres 已集中持久化数据)。本文为时点快照,相关内容仅作历史记录。
+
 # Gap Analysis Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

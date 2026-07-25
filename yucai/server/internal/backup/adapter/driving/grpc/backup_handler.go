@@ -126,10 +126,6 @@ func (h *BackupHandler) SaveCloudSettings(ctx context.Context, req *pb.SaveCloud
 
 	settings := application.CloudSettings{
 		TenantID:                tenantID,
-		Provider:                protoToProvider(req.Settings.Provider),
-		WebDAVURL:               req.Settings.WebdavUrl,
-		WebDAVUsername:          req.Settings.WebdavUsername,
-		OAuthToken:              req.Settings.OauthToken,
 		AutoBackup:              req.Settings.AutoBackup,
 		AutoBackupIntervalHours: req.Settings.AutoBackupIntervalHours,
 	}
@@ -153,40 +149,10 @@ func (h *BackupHandler) GetCloudSettings(ctx context.Context, _ *emptypb.Empty) 
 	}
 	return &pb.CloudSettingsResponse{
 		Settings: &pb.CloudSettingsDTO{
-			Provider:                providerToProto(settings.Provider),
-			WebdavUrl:               settings.WebDAVURL,
-			WebdavUsername:          settings.WebDAVUsername,
-			OauthToken:              settings.OAuthToken,
 			AutoBackup:              settings.AutoBackup,
 			AutoBackupIntervalHours: settings.AutoBackupIntervalHours,
 		},
 	}, nil
-}
-
-// TestCloudConnection tests connectivity to a cloud provider.
-func (h *BackupHandler) TestCloudConnection(ctx context.Context, req *pb.TestConnectionRequest) (*pb.TestConnectionResponse, error) {
-	provider := protoToProvider(req.Provider)
-	success, message := h.service.TestCloudConnection(ctx, provider)
-	return &pb.TestConnectionResponse{Success: success, Message: message}, nil
-}
-
-// UploadToCloud uploads a backup to a cloud provider.
-func (h *BackupHandler) UploadToCloud(ctx context.Context, req *pb.UploadRequest) (*pb.BackupResponse, error) {
-	tenantID, err := getTenantID(ctx)
-	if err != nil {
-		return nil, err
-	}
-	backupID := parseUUID(req.BackupId)
-	if backupID == uuid.Nil {
-		return nil, status.Error(codes.InvalidArgument, "invalid backup_id")
-	}
-	provider := protoToProvider(req.Provider)
-
-	result, err := h.service.UploadToCloud(ctx, tenantID, backupID, provider)
-	if err != nil {
-		return nil, mapError(err)
-	}
-	return &pb.BackupResponse{Backup: dtoToProto(*result)}, nil
 }
 
 // --- Helpers ---
@@ -208,14 +174,6 @@ func protoToProvider(p pb.BackupProvider) domain.BackupProvider {
 	switch p {
 	case pb.BackupProvider_BACKUP_PROVIDER_LOCAL:
 		return domain.BackupProviderLocal
-	case pb.BackupProvider_BACKUP_PROVIDER_WEBDAV:
-		return domain.BackupProviderWebDAV
-	case pb.BackupProvider_BACKUP_PROVIDER_DROPBOX:
-		return domain.BackupProviderDropbox
-	case pb.BackupProvider_BACKUP_PROVIDER_GOOGLE_DRIVE:
-		return domain.BackupProviderGoogleDrive
-	case pb.BackupProvider_BACKUP_PROVIDER_ONE_DRIVE:
-		return domain.BackupProviderOneDrive
 	default:
 		return domain.BackupProvider(0)
 	}
@@ -225,14 +183,6 @@ func providerToProto(p domain.BackupProvider) pb.BackupProvider {
 	switch p {
 	case domain.BackupProviderLocal:
 		return pb.BackupProvider_BACKUP_PROVIDER_LOCAL
-	case domain.BackupProviderWebDAV:
-		return pb.BackupProvider_BACKUP_PROVIDER_WEBDAV
-	case domain.BackupProviderDropbox:
-		return pb.BackupProvider_BACKUP_PROVIDER_DROPBOX
-	case domain.BackupProviderGoogleDrive:
-		return pb.BackupProvider_BACKUP_PROVIDER_GOOGLE_DRIVE
-	case domain.BackupProviderOneDrive:
-		return pb.BackupProvider_BACKUP_PROVIDER_ONE_DRIVE
 	default:
 		return pb.BackupProvider_BACKUP_PROVIDER_UNSPECIFIED
 	}

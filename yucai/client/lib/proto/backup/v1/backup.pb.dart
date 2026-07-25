@@ -491,20 +491,14 @@ class DeleteBackupRequest extends $pb.GeneratedMessage {
   void clearId() => $_clearField(1);
 }
 
+/// CloudSettingsDTO carries per-tenant auto-backup preferences only. Cloud
+/// backup fields (provider/webdav/oauth) were removed 2026-07-25; name kept.
 class CloudSettingsDTO extends $pb.GeneratedMessage {
   factory CloudSettingsDTO({
-    BackupProvider? provider,
-    $core.String? webdavUrl,
-    $core.String? webdavUsername,
-    $core.String? oauthToken,
     $core.bool? autoBackup,
     $core.int? autoBackupIntervalHours,
   }) {
     final result = create();
-    if (provider != null) result.provider = provider;
-    if (webdavUrl != null) result.webdavUrl = webdavUrl;
-    if (webdavUsername != null) result.webdavUsername = webdavUsername;
-    if (oauthToken != null) result.oauthToken = oauthToken;
     if (autoBackup != null) result.autoBackup = autoBackup;
     if (autoBackupIntervalHours != null)
       result.autoBackupIntervalHours = autoBackupIntervalHours;
@@ -525,13 +519,8 @@ class CloudSettingsDTO extends $pb.GeneratedMessage {
       package:
           const $pb.PackageName(_omitMessageNames ? '' : 'yucai.backup.v1'),
       createEmptyInstance: create)
-    ..aE<BackupProvider>(1, _omitFieldNames ? '' : 'provider',
-        enumValues: BackupProvider.values)
-    ..aOS(2, _omitFieldNames ? '' : 'webdavUrl')
-    ..aOS(3, _omitFieldNames ? '' : 'webdavUsername')
-    ..aOS(4, _omitFieldNames ? '' : 'oauthToken')
-    ..aOB(5, _omitFieldNames ? '' : 'autoBackup')
-    ..aI(6, _omitFieldNames ? '' : 'autoBackupIntervalHours')
+    ..aOB(1, _omitFieldNames ? '' : 'autoBackup')
+    ..aI(2, _omitFieldNames ? '' : 'autoBackupIntervalHours')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -554,58 +543,22 @@ class CloudSettingsDTO extends $pb.GeneratedMessage {
   static CloudSettingsDTO? _defaultInstance;
 
   @$pb.TagNumber(1)
-  BackupProvider get provider => $_getN(0);
+  $core.bool get autoBackup => $_getBF(0);
   @$pb.TagNumber(1)
-  set provider(BackupProvider value) => $_setField(1, value);
+  set autoBackup($core.bool value) => $_setBool(0, value);
   @$pb.TagNumber(1)
-  $core.bool hasProvider() => $_has(0);
+  $core.bool hasAutoBackup() => $_has(0);
   @$pb.TagNumber(1)
-  void clearProvider() => $_clearField(1);
+  void clearAutoBackup() => $_clearField(1);
 
   @$pb.TagNumber(2)
-  $core.String get webdavUrl => $_getSZ(1);
+  $core.int get autoBackupIntervalHours => $_getIZ(1);
   @$pb.TagNumber(2)
-  set webdavUrl($core.String value) => $_setString(1, value);
+  set autoBackupIntervalHours($core.int value) => $_setSignedInt32(1, value);
   @$pb.TagNumber(2)
-  $core.bool hasWebdavUrl() => $_has(1);
+  $core.bool hasAutoBackupIntervalHours() => $_has(1);
   @$pb.TagNumber(2)
-  void clearWebdavUrl() => $_clearField(2);
-
-  @$pb.TagNumber(3)
-  $core.String get webdavUsername => $_getSZ(2);
-  @$pb.TagNumber(3)
-  set webdavUsername($core.String value) => $_setString(2, value);
-  @$pb.TagNumber(3)
-  $core.bool hasWebdavUsername() => $_has(2);
-  @$pb.TagNumber(3)
-  void clearWebdavUsername() => $_clearField(3);
-
-  @$pb.TagNumber(4)
-  $core.String get oauthToken => $_getSZ(3);
-  @$pb.TagNumber(4)
-  set oauthToken($core.String value) => $_setString(3, value);
-  @$pb.TagNumber(4)
-  $core.bool hasOauthToken() => $_has(3);
-  @$pb.TagNumber(4)
-  void clearOauthToken() => $_clearField(4);
-
-  @$pb.TagNumber(5)
-  $core.bool get autoBackup => $_getBF(4);
-  @$pb.TagNumber(5)
-  set autoBackup($core.bool value) => $_setBool(4, value);
-  @$pb.TagNumber(5)
-  $core.bool hasAutoBackup() => $_has(4);
-  @$pb.TagNumber(5)
-  void clearAutoBackup() => $_clearField(5);
-
-  @$pb.TagNumber(6)
-  $core.int get autoBackupIntervalHours => $_getIZ(5);
-  @$pb.TagNumber(6)
-  set autoBackupIntervalHours($core.int value) => $_setSignedInt32(5, value);
-  @$pb.TagNumber(6)
-  $core.bool hasAutoBackupIntervalHours() => $_has(5);
-  @$pb.TagNumber(6)
-  void clearAutoBackupIntervalHours() => $_clearField(6);
+  void clearAutoBackupIntervalHours() => $_clearField(2);
 }
 
 class SaveCloudSettingsRequest extends $pb.GeneratedMessage {
@@ -724,199 +677,6 @@ class CloudSettingsResponse extends $pb.GeneratedMessage {
   void clearSettings() => $_clearField(1);
   @$pb.TagNumber(1)
   CloudSettingsDTO ensureSettings() => $_ensure(0);
-}
-
-class TestConnectionRequest extends $pb.GeneratedMessage {
-  factory TestConnectionRequest({
-    BackupProvider? provider,
-  }) {
-    final result = create();
-    if (provider != null) result.provider = provider;
-    return result;
-  }
-
-  TestConnectionRequest._();
-
-  factory TestConnectionRequest.fromBuffer($core.List<$core.int> data,
-          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
-      create()..mergeFromBuffer(data, registry);
-  factory TestConnectionRequest.fromJson($core.String json,
-          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
-      create()..mergeFromJson(json, registry);
-
-  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
-      _omitMessageNames ? '' : 'TestConnectionRequest',
-      package:
-          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.backup.v1'),
-      createEmptyInstance: create)
-    ..aE<BackupProvider>(1, _omitFieldNames ? '' : 'provider',
-        enumValues: BackupProvider.values)
-    ..hasRequiredFields = false;
-
-  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  TestConnectionRequest clone() => deepCopy();
-  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  TestConnectionRequest copyWith(
-          void Function(TestConnectionRequest) updates) =>
-      super.copyWith((message) => updates(message as TestConnectionRequest))
-          as TestConnectionRequest;
-
-  @$core.override
-  $pb.BuilderInfo get info_ => _i;
-
-  @$core.pragma('dart2js:noInline')
-  static TestConnectionRequest create() => TestConnectionRequest._();
-  @$core.override
-  TestConnectionRequest createEmptyInstance() => create();
-  @$core.pragma('dart2js:noInline')
-  static TestConnectionRequest getDefault() => _defaultInstance ??=
-      $pb.GeneratedMessage.$_defaultFor<TestConnectionRequest>(create);
-  static TestConnectionRequest? _defaultInstance;
-
-  @$pb.TagNumber(1)
-  BackupProvider get provider => $_getN(0);
-  @$pb.TagNumber(1)
-  set provider(BackupProvider value) => $_setField(1, value);
-  @$pb.TagNumber(1)
-  $core.bool hasProvider() => $_has(0);
-  @$pb.TagNumber(1)
-  void clearProvider() => $_clearField(1);
-}
-
-class TestConnectionResponse extends $pb.GeneratedMessage {
-  factory TestConnectionResponse({
-    $core.bool? success,
-    $core.String? message,
-  }) {
-    final result = create();
-    if (success != null) result.success = success;
-    if (message != null) result.message = message;
-    return result;
-  }
-
-  TestConnectionResponse._();
-
-  factory TestConnectionResponse.fromBuffer($core.List<$core.int> data,
-          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
-      create()..mergeFromBuffer(data, registry);
-  factory TestConnectionResponse.fromJson($core.String json,
-          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
-      create()..mergeFromJson(json, registry);
-
-  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
-      _omitMessageNames ? '' : 'TestConnectionResponse',
-      package:
-          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.backup.v1'),
-      createEmptyInstance: create)
-    ..aOB(1, _omitFieldNames ? '' : 'success')
-    ..aOS(2, _omitFieldNames ? '' : 'message')
-    ..hasRequiredFields = false;
-
-  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  TestConnectionResponse clone() => deepCopy();
-  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  TestConnectionResponse copyWith(
-          void Function(TestConnectionResponse) updates) =>
-      super.copyWith((message) => updates(message as TestConnectionResponse))
-          as TestConnectionResponse;
-
-  @$core.override
-  $pb.BuilderInfo get info_ => _i;
-
-  @$core.pragma('dart2js:noInline')
-  static TestConnectionResponse create() => TestConnectionResponse._();
-  @$core.override
-  TestConnectionResponse createEmptyInstance() => create();
-  @$core.pragma('dart2js:noInline')
-  static TestConnectionResponse getDefault() => _defaultInstance ??=
-      $pb.GeneratedMessage.$_defaultFor<TestConnectionResponse>(create);
-  static TestConnectionResponse? _defaultInstance;
-
-  @$pb.TagNumber(1)
-  $core.bool get success => $_getBF(0);
-  @$pb.TagNumber(1)
-  set success($core.bool value) => $_setBool(0, value);
-  @$pb.TagNumber(1)
-  $core.bool hasSuccess() => $_has(0);
-  @$pb.TagNumber(1)
-  void clearSuccess() => $_clearField(1);
-
-  @$pb.TagNumber(2)
-  $core.String get message => $_getSZ(1);
-  @$pb.TagNumber(2)
-  set message($core.String value) => $_setString(1, value);
-  @$pb.TagNumber(2)
-  $core.bool hasMessage() => $_has(1);
-  @$pb.TagNumber(2)
-  void clearMessage() => $_clearField(2);
-}
-
-class UploadRequest extends $pb.GeneratedMessage {
-  factory UploadRequest({
-    $core.String? backupId,
-    BackupProvider? provider,
-  }) {
-    final result = create();
-    if (backupId != null) result.backupId = backupId;
-    if (provider != null) result.provider = provider;
-    return result;
-  }
-
-  UploadRequest._();
-
-  factory UploadRequest.fromBuffer($core.List<$core.int> data,
-          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
-      create()..mergeFromBuffer(data, registry);
-  factory UploadRequest.fromJson($core.String json,
-          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
-      create()..mergeFromJson(json, registry);
-
-  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
-      _omitMessageNames ? '' : 'UploadRequest',
-      package:
-          const $pb.PackageName(_omitMessageNames ? '' : 'yucai.backup.v1'),
-      createEmptyInstance: create)
-    ..aOS(1, _omitFieldNames ? '' : 'backupId')
-    ..aE<BackupProvider>(2, _omitFieldNames ? '' : 'provider',
-        enumValues: BackupProvider.values)
-    ..hasRequiredFields = false;
-
-  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  UploadRequest clone() => deepCopy();
-  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  UploadRequest copyWith(void Function(UploadRequest) updates) =>
-      super.copyWith((message) => updates(message as UploadRequest))
-          as UploadRequest;
-
-  @$core.override
-  $pb.BuilderInfo get info_ => _i;
-
-  @$core.pragma('dart2js:noInline')
-  static UploadRequest create() => UploadRequest._();
-  @$core.override
-  UploadRequest createEmptyInstance() => create();
-  @$core.pragma('dart2js:noInline')
-  static UploadRequest getDefault() => _defaultInstance ??=
-      $pb.GeneratedMessage.$_defaultFor<UploadRequest>(create);
-  static UploadRequest? _defaultInstance;
-
-  @$pb.TagNumber(1)
-  $core.String get backupId => $_getSZ(0);
-  @$pb.TagNumber(1)
-  set backupId($core.String value) => $_setString(0, value);
-  @$pb.TagNumber(1)
-  $core.bool hasBackupId() => $_has(0);
-  @$pb.TagNumber(1)
-  void clearBackupId() => $_clearField(1);
-
-  @$pb.TagNumber(2)
-  BackupProvider get provider => $_getN(1);
-  @$pb.TagNumber(2)
-  set provider(BackupProvider value) => $_setField(2, value);
-  @$pb.TagNumber(2)
-  $core.bool hasProvider() => $_has(1);
-  @$pb.TagNumber(2)
-  void clearProvider() => $_clearField(2);
 }
 
 class BackupResponse extends $pb.GeneratedMessage {

@@ -61,6 +61,10 @@ class BackupServiceClient extends $grpc.Client {
     return $createUnaryCall(_$deleteBackup, request, options: options);
   }
 
+  /// SaveCloudSettings / GetCloudSettings persist per-tenant auto-backup
+  /// preferences. Despite the legacy "Cloud" name, only auto-backup fields are
+  /// stored — cloud backup (WebDAV/providers) was removed 2026-07-25. Name kept
+  /// to minimize churn.
   $grpc.ResponseFuture<$1.Empty> saveCloudSettings(
     $0.SaveCloudSettingsRequest request, {
     $grpc.CallOptions? options,
@@ -73,20 +77,6 @@ class BackupServiceClient extends $grpc.Client {
     $grpc.CallOptions? options,
   }) {
     return $createUnaryCall(_$getCloudSettings, request, options: options);
-  }
-
-  $grpc.ResponseFuture<$0.TestConnectionResponse> testCloudConnection(
-    $0.TestConnectionRequest request, {
-    $grpc.CallOptions? options,
-  }) {
-    return $createUnaryCall(_$testCloudConnection, request, options: options);
-  }
-
-  $grpc.ResponseFuture<$0.BackupResponse> uploadToCloud(
-    $0.UploadRequest request, {
-    $grpc.CallOptions? options,
-  }) {
-    return $createUnaryCall(_$uploadToCloud, request, options: options);
   }
 
   // method descriptors
@@ -121,16 +111,6 @@ class BackupServiceClient extends $grpc.Client {
           '/yucai.backup.v1.BackupService/GetCloudSettings',
           ($1.Empty value) => value.writeToBuffer(),
           $0.CloudSettingsResponse.fromBuffer);
-  static final _$testCloudConnection =
-      $grpc.ClientMethod<$0.TestConnectionRequest, $0.TestConnectionResponse>(
-          '/yucai.backup.v1.BackupService/TestCloudConnection',
-          ($0.TestConnectionRequest value) => value.writeToBuffer(),
-          $0.TestConnectionResponse.fromBuffer);
-  static final _$uploadToCloud =
-      $grpc.ClientMethod<$0.UploadRequest, $0.BackupResponse>(
-          '/yucai.backup.v1.BackupService/UploadToCloud',
-          ($0.UploadRequest value) => value.writeToBuffer(),
-          $0.BackupResponse.fromBuffer);
 }
 
 @$pb.GrpcServiceName('yucai.backup.v1.BackupService')
@@ -186,22 +166,6 @@ abstract class BackupServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $1.Empty.fromBuffer(value),
         ($0.CloudSettingsResponse value) => value.writeToBuffer()));
-    $addMethod($grpc.ServiceMethod<$0.TestConnectionRequest,
-            $0.TestConnectionResponse>(
-        'TestCloudConnection',
-        testCloudConnection_Pre,
-        false,
-        false,
-        ($core.List<$core.int> value) =>
-            $0.TestConnectionRequest.fromBuffer(value),
-        ($0.TestConnectionResponse value) => value.writeToBuffer()));
-    $addMethod($grpc.ServiceMethod<$0.UploadRequest, $0.BackupResponse>(
-        'UploadToCloud',
-        uploadToCloud_Pre,
-        false,
-        false,
-        ($core.List<$core.int> value) => $0.UploadRequest.fromBuffer(value),
-        ($0.BackupResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.BackupResponse> createBackup_Pre($grpc.ServiceCall $call,
@@ -251,21 +215,4 @@ abstract class BackupServiceBase extends $grpc.Service {
 
   $async.Future<$0.CloudSettingsResponse> getCloudSettings(
       $grpc.ServiceCall call, $1.Empty request);
-
-  $async.Future<$0.TestConnectionResponse> testCloudConnection_Pre(
-      $grpc.ServiceCall $call,
-      $async.Future<$0.TestConnectionRequest> $request) async {
-    return testCloudConnection($call, await $request);
-  }
-
-  $async.Future<$0.TestConnectionResponse> testCloudConnection(
-      $grpc.ServiceCall call, $0.TestConnectionRequest request);
-
-  $async.Future<$0.BackupResponse> uploadToCloud_Pre(
-      $grpc.ServiceCall $call, $async.Future<$0.UploadRequest> $request) async {
-    return uploadToCloud($call, await $request);
-  }
-
-  $async.Future<$0.BackupResponse> uploadToCloud(
-      $grpc.ServiceCall call, $0.UploadRequest request);
 }
