@@ -11,8 +11,10 @@ import (
 	currencydomain "github.com/yucai/server/internal/currency/domain"
 )
 
-// EntryTotalsFunc fetches debit/credit totals for an account in a date range.
-type EntryTotalsFunc func(ctx context.Context, accountID uuid.UUID, from, to time.Time) (debitTotal, creditTotal int64, err error)
+// EntryTotalsFunc fetches debit/credit totals for an account in a date range,
+// scoped to tenantID. The tenant predicate is a defense-in-depth cross-tenant
+// guard backed by transaction_repo.SumEntryTotalsByAccount's tenant_id WHERE.
+type EntryTotalsFunc func(ctx context.Context, tenantID, accountID uuid.UUID, from, to time.Time) (debitTotal, creditTotal int64, err error)
 
 // EntryTotals is one account's debit/credit over a period (budget-local copy
 // of transaction.AccountTotals — budget does not import transaction domain).
@@ -205,7 +207,7 @@ func (s *Service) ComputeActuals(ctx context.Context, req ComputeActualsRequest)
 	svc := domain.BudgetActualsService{}
 	for i := range budget.Items {
 		err := svc.ComputeActualsForItem(ctx, &budget.Items[i], budget.Month, func(ctx context.Context, accountID uuid.UUID, from, to time.Time) (int64, int64, error) {
-			return s.entryFunc(ctx, accountID, from, to)
+			return s.entryFunc(ctx, budget.TenantID, accountID, from, to)
 		})
 		if err != nil {
 			return nil, fmt.Errorf("compute actuals for item %s: %w", budget.Items[i].ID, err)

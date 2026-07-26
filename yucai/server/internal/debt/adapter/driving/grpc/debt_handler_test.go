@@ -240,7 +240,7 @@ func (r *recordingTxnRepo) SoftDelete(context.Context, uuid.UUID, uuid.UUID) err
 func (r *recordingTxnRepo) TransactionSummary(context.Context, txnDomain.SummaryScope) (*txnDomain.MonthlySummary, error) {
 	panic("unexpected TransactionSummary call")
 }
-func (r *recordingTxnRepo) SumEntryTotalsByAccount(context.Context, uuid.UUID, time.Time, time.Time) (int64, int64, error) {
+func (r *recordingTxnRepo) SumEntryTotalsByAccount(context.Context, uuid.UUID, uuid.UUID, time.Time, time.Time) (int64, int64, error) {
 	panic("unexpected SumEntryTotalsByAccount call")
 }
 func (r *recordingTxnRepo) SumEntryTotalsByMonth(context.Context, uuid.UUID, time.Time, time.Time) (map[uuid.UUID]txnDomain.AccountTotals, error) {
@@ -518,7 +518,7 @@ func (r *failingTxnRepo) SoftDelete(context.Context, uuid.UUID, uuid.UUID) error
 func (r *failingTxnRepo) TransactionSummary(context.Context, txnDomain.SummaryScope) (*txnDomain.MonthlySummary, error) {
 	panic("unexpected TransactionSummary call")
 }
-func (r *failingTxnRepo) SumEntryTotalsByAccount(context.Context, uuid.UUID, time.Time, time.Time) (int64, int64, error) {
+func (r *failingTxnRepo) SumEntryTotalsByAccount(context.Context, uuid.UUID, uuid.UUID, time.Time, time.Time) (int64, int64, error) {
 	panic("unexpected SumEntryTotalsByAccount call")
 }
 func (r *failingTxnRepo) SumEntryTotalsByMonth(context.Context, uuid.UUID, time.Time, time.Time) (map[uuid.UUID]txnDomain.AccountTotals, error) {

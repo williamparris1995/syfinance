@@ -362,8 +362,8 @@ func provideBudgetService(
 	accountCur budgetdomain.AccountCurrencySource,
 ) *budgetapp.Service {
 	return budgetapp.NewService(repo,
-		func(ctx context.Context, accountID uuid.UUID, from, to time.Time) (int64, int64, error) {
-			return txnSvc.SpendingByAccount(ctx, accountID, from, to)
+		func(ctx context.Context, tenantID, accountID uuid.UUID, from, to time.Time) (int64, int64, error) {
+			return txnSvc.SpendingByAccount(ctx, tenantID, accountID, from, to)
 		},
 		func(ctx context.Context, tenantID uuid.UUID, from, to time.Time) (map[uuid.UUID]budgetapp.EntryTotals, error) {
 			totals, err := txnSvc.SpendingByAccountByMonth(ctx, tenantID, from, to)

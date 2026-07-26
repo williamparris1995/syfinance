@@ -33,12 +33,18 @@ type TransactionRepository interface {
 	// by day and by Income/Expense account (category). See MonthlySummary.
 	TransactionSummary(ctx context.Context, scope SummaryScope) (*MonthlySummary, error)
 	// SumEntryTotalsByAccount returns the total debit/credit cents of entries
-	// posted to accountID whose transaction_date is in [from, to]. Used by budget
-	// actuals: budget items track Expense accounts (= categories), and an item's
-	// spend is the period's debit total on its account (refunds are the credit
-	// total). Transfers are asset→asset flows that never touch Expense accounts,
-	// so they are excluded automatically — no TransactionType filter is applied.
-	SumEntryTotalsByAccount(ctx context.Context, accountID uuid.UUID, from, to time.Time) (debitTotal, creditTotal int64, err error)
+	// posted to accountID whose transaction_date is in [from, to], scoped to
+	// tenantID. Used by budget actuals: budget items track Expense accounts (=
+	// categories), and an item's spend is the period's debit total on its account
+	// (refunds are the credit total). Transfers are asset→asset flows that never
+	// touch Expense accounts, so they are excluded automatically — no
+	// TransactionType filter is applied.
+	//
+	// tenantID is a defense-in-depth cross-tenant guard: an account_id alone
+	// could otherwise match rows across tenants (account_id collision or pre-
+	// validation historical data), leaking another tenant's spend into the
+	// caller's budget actuals.
+	SumEntryTotalsByAccount(ctx context.Context, tenantID, accountID uuid.UUID, from, to time.Time) (debitTotal, creditTotal int64, err error)
 	// SumEntryTotalsByMonth returns debit/credit totals grouped by account_id
 	// for entries whose transaction_date is in [from, to], tenant-scoped. One
 	// map entry per account with activity in the range. Used by budget batch

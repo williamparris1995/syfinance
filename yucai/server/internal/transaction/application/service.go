@@ -32,6 +32,17 @@ func NewService(txnRepo domain.TransactionRepository, accountRepo AccountLookup,
 
 // RecordTransaction validates and persists a new double-entry transaction.
 func (s *Service) RecordTransaction(ctx context.Context, req RecordTransactionRequest) (*TransactionDTO, error) {
+	// Cross-tenant guard: every entry's account_id must belong to req.TenantID.
+	// Without this, a malicious caller could attach another tenant's account_id
+	// to its transaction, polluting the victim's balances and budget actuals
+	// (SumEntryTotalsByAccount sums by account_id regardless of tenant on the
+	// posting side; the entry write itself has no FK to account.tenant_id).
+	for _, e := range req.Entries {
+		if _, err := s.accountRepo.FindByID(ctx, req.TenantID, e.AccountID); err != nil {
+			return nil, fmt.Errorf("entry account %s not owned by tenant %s: %w", e.AccountID, req.TenantID, err)
+		}
+	}
+
 	entries := make([]domain.TransactionEntry, len(req.Entries))
 	for i, e := range req.Entries {
 		entries[i] = domain.TransactionEntry{
@@ -107,15 +118,20 @@ func (s *Service) ListRecentByAccount(ctx context.Context, tenantID, accountID u
 }
 
 // SpendingByAccount returns the debit/credit totals of entries posted to
-// accountID in [from, to]. Used by budget actuals: budget items track Expense
-// accounts (= categories), so an item's period spend is the debit total and
-// refunds are the credit total. Transfers are asset→asset flows that never
-// touch Expense accounts, so they are excluded automatically — no type filter.
+// accountID in [from, to], tenant-scoped. Used by budget actuals: budget items
+// track Expense accounts (= categories), so an item's period spend is the debit
+// total and refunds are the credit total. Transfers are asset→asset flows that
+// never touch Expense accounts, so they are excluded automatically — no type
+// filter.
 //
-// Signature matches budget.EntryTotalsFunc exactly so Task 4 can wire a direct
-// delegate closure. Thin wrapper: delegates to the repository and wraps errors.
-func (s *Service) SpendingByAccount(ctx context.Context, accountID uuid.UUID, from, to time.Time) (int64, int64, error) {
-	debit, credit, err := s.txnRepo.SumEntryTotalsByAccount(ctx, accountID, from, to)
+// tenantID is required defense-in-depth: even though RecordTransaction now
+// rejects cross-tenant entries at write time, historical or directly-inserted
+// rows could otherwise leak into another tenant's budget actuals through the
+// account_id-only join. Signature matches budget.EntryTotalsFunc exactly so the
+// wire delegate closure is a direct forward. Thin wrapper: delegates to the
+// repository and wraps errors.
+func (s *Service) SpendingByAccount(ctx context.Context, tenantID, accountID uuid.UUID, from, to time.Time) (int64, int64, error) {
+	debit, credit, err := s.txnRepo.SumEntryTotalsByAccount(ctx, tenantID, accountID, from, to)
 	if err != nil {
 		return 0, 0, fmt.Errorf("spending by account %s: %w", accountID, err)
 	}
@@ -189,6 +205,15 @@ func (s *Service) UpdateTransaction(ctx context.Context, req UpdateTransactionRe
 			DebitCents:         e.DebitCents,
 			CreditCents:        e.CreditCents,
 			Note:               e.Note,
+		}
+	}
+
+	// Cross-tenant guard (same as RecordTransaction): every new entry's
+	// account_id must belong to req.TenantID. ReverseBalances above already
+	// ran on the old (validated) entries; we only need to gate the new ones.
+	for _, e := range entries {
+		if _, err := s.accountRepo.FindByID(ctx, req.TenantID, e.AccountID); err != nil {
+			return nil, fmt.Errorf("entry account %s not owned by tenant %s: %w", e.AccountID, req.TenantID, err)
 		}
 	}
 

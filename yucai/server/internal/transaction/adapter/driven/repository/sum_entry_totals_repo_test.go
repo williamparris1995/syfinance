@@ -48,7 +48,7 @@ func TestSumEntryTotalsByAccount_SumsDebitAndCredit(t *testing.T) {
 	// Window covers January only.
 	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC)
-	debit, credit, err := txnRepo.SumEntryTotalsByAccount(context.Background(), f.expenseAcc.ID, from, to)
+	debit, credit, err := txnRepo.SumEntryTotalsByAccount(context.Background(), f.tenantID, f.expenseAcc.ID, from, to)
 	if err != nil {
 		t.Fatalf("SumEntryTotalsByAccount: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestSumEntryTotalsByAccount_IncludesRefundAsCredit(t *testing.T) {
 
 	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC)
-	debit, credit, err := txnRepo.SumEntryTotalsByAccount(context.Background(), f.expenseAcc.ID, from, to)
+	debit, credit, err := txnRepo.SumEntryTotalsByAccount(context.Background(), f.tenantID, f.expenseAcc.ID, from, to)
 	if err != nil {
 		t.Fatalf("SumEntryTotalsByAccount: %v", err)
 	}
@@ -107,7 +107,7 @@ func TestSumEntryTotalsByAccount_ExcludesSoftDeleted(t *testing.T) {
 
 	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC)
-	debit, _, err := txnRepo.SumEntryTotalsByAccount(context.Background(), f.expenseAcc.ID, from, to)
+	debit, _, err := txnRepo.SumEntryTotalsByAccount(context.Background(), f.tenantID, f.expenseAcc.ID, from, to)
 	if err != nil {
 		t.Fatalf("SumEntryTotalsByAccount: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestSumEntryTotalsByAccount_TransfersExcludedAutomatically(t *testing.T) {
 
 	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC)
-	debit, credit, err := txnRepo.SumEntryTotalsByAccount(context.Background(), f.expenseAcc.ID, from, to)
+	debit, credit, err := txnRepo.SumEntryTotalsByAccount(context.Background(), f.tenantID, f.expenseAcc.ID, from, to)
 	if err != nil {
 		t.Fatalf("SumEntryTotalsByAccount: %v", err)
 	}
@@ -148,12 +148,44 @@ func TestSumEntryTotalsByAccount_EmptyReturnsZero(t *testing.T) {
 
 	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC)
-	debit, credit, err := txnRepo.SumEntryTotalsByAccount(context.Background(), uuid.New(), from, to)
+	debit, credit, err := txnRepo.SumEntryTotalsByAccount(context.Background(), uuid.New(), uuid.New(), from, to)
 	if err != nil {
 		t.Fatalf("SumEntryTotalsByAccount empty: %v", err)
 	}
 	if debit != 0 || credit != 0 {
 		t.Errorf("empty account: got debit=%d credit=%d, want 0/0", debit, credit)
+	}
+}
+
+// TestSumEntryTotalsByAccount_TenantScoped verifies the cross-tenant guard: a
+// row whose account_id matches but whose tenant_id does NOT is excluded. This
+// is the defense-in-depth invariant — without the tenant predicate, an account
+// collision (or pre-validation historical data) would leak another tenant's
+// spend into this caller's total, polluting budget actuals.
+func TestSumEntryTotalsByAccount_TenantScoped(t *testing.T) {
+	f, txnRepo := newSumRepoFixture(t)
+
+	date := time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC)
+	// In-tenant spend on the fixture tenant's expense account.
+	recordTxn(t, txnRepo, f.tenantID, date, "own lunch",
+		expenseEntries(f.expenseAcc.ID, f.assetAcc.ID, 50000))
+	// Same account_id + date but posted under a DIFFERENT tenant. Defense-in-
+	// depth: even though account_id matches f.expenseAcc.ID, querying with
+	// f.tenantID must NOT count this row.
+	recordTxn(t, txnRepo, uuid.New(), date, "other-tenant lunch",
+		expenseEntries(f.expenseAcc.ID, f.assetAcc.ID, 77777))
+
+	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC)
+	debit, credit, err := txnRepo.SumEntryTotalsByAccount(context.Background(), f.tenantID, f.expenseAcc.ID, from, to)
+	if err != nil {
+		t.Fatalf("SumEntryTotalsByAccount: %v", err)
+	}
+	if debit != 50000 {
+		t.Errorf("cross-tenant leak: debit got %d, want 50000 (other-tenant row counted)", debit)
+	}
+	if credit != 0 {
+		t.Errorf("credit total: got %d, want 0", credit)
 	}
 }
 

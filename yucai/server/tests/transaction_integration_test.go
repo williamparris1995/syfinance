@@ -236,7 +236,7 @@ func TestSimpleTransfer(t *testing.T) {
 	acctSvc, txnSvc := setupTransactionTestService(t)
 	ctx := context.Background()
 	tenantID := uuid.New()
-	assetID, _, _ := createTestAccounts(t, ctx, acctSvc, tenantID)
+	assetID, _, incomeID := createTestAccounts(t, ctx, acctSvc, tenantID)
 
 	// Create second asset account (bank)
 	bank, err := acctSvc.CreateAccount(ctx, accountapp.CreateAccountRequest{
@@ -250,11 +250,15 @@ func TestSimpleTransfer(t *testing.T) {
 		t.Fatalf("create bank account: %v", err)
 	}
 
-	// Deposit into cash first
-	txnSvc.RecordTransaction(ctx, txnapp.RecordTransactionRequest{
+	// Deposit into cash first (incomeID grounds the credit leg — required by the
+	// entry ownership check; a random uuid would now be rejected as cross-tenant).
+	_, err = txnSvc.RecordTransaction(ctx, txnapp.RecordTransactionRequest{
 		TenantID: tenantID, TransactionDate: time.Now(), Description: "Initial",
-		Entries: txnapp.BuildSimpleEntries(200000, assetID, uuid.New(), ""),
+		Entries: txnapp.BuildSimpleEntries(200000, assetID, incomeID, ""),
 	})
+	if err != nil {
+		t.Fatalf("initial deposit: %v", err)
+	}
 
 	// Transfer cash → bank
 	_, err = txnSvc.SimpleTransfer(ctx, txnapp.SimpleTransferRequest{
@@ -446,5 +450,79 @@ func TestTenantIsolation(t *testing.T) {
 	})
 	if result.TotalCount != 0 {
 		t.Errorf("tenant B should see 0 transactions, got %d", result.TotalCount)
+	}
+}
+
+// TestRecordTransaction_RejectsCrossTenantEntry verifies the cross-tenant guard
+// in RecordTransaction: tenant A cannot attach tenant B's account_id as one of
+// its transaction's entries. Without this guard the entry would write through
+// (no FK from transaction_entries.account_id to account.tenant_id) and pollute
+// tenant B's balances + SumEntryTotalsByAccount budget actuals.
+func TestRecordTransaction_RejectsCrossTenantEntry(t *testing.T) {
+	acctSvc, txnSvc := setupTransactionTestService(t)
+	ctx := context.Background()
+	tenantA := uuid.New()
+	tenantB := uuid.New()
+
+	// Tenant A owns the asset account; tenant B owns the income account.
+	assetA, _ := acctSvc.CreateAccount(ctx, accountapp.CreateAccountRequest{
+		TenantID: tenantA, Name: "Cash A", AccountType: accountdomain.AccountTypeAsset,
+		Category: accountdomain.AccountCategorySavings,
+	})
+	incomeB, _ := acctSvc.CreateAccount(ctx, accountapp.CreateAccountRequest{
+		TenantID: tenantB, Name: "Salary B", AccountType: accountdomain.AccountTypeIncome,
+	})
+
+	// Tenant A attempts to credit tenant B's income account.
+	_, err := txnSvc.RecordTransaction(ctx, txnapp.RecordTransactionRequest{
+		TenantID: tenantA, TransactionDate: time.Now(), Description: "steal B's income",
+		Entries: txnapp.BuildSimpleEntries(50000, assetA.ID, incomeB.ID, ""),
+	})
+	if err == nil {
+		t.Fatal("expected cross-tenant entry rejection, got nil")
+	}
+}
+
+// TestUpdateTransaction_RejectsCrossTenantEntry verifies the same cross-tenant
+// guard applies on update: an existing in-tenant transaction cannot be edited
+// to swap in another tenant's account_id.
+func TestUpdateTransaction_RejectsCrossTenantEntry(t *testing.T) {
+	acctSvc, txnSvc := setupTransactionTestService(t)
+	ctx := context.Background()
+	tenantA := uuid.New()
+	tenantB := uuid.New()
+
+	assetA, _ := acctSvc.CreateAccount(ctx, accountapp.CreateAccountRequest{
+		TenantID: tenantA, Name: "Cash A", AccountType: accountdomain.AccountTypeAsset,
+		Category: accountdomain.AccountCategorySavings,
+	})
+	incomeA, _ := acctSvc.CreateAccount(ctx, accountapp.CreateAccountRequest{
+		TenantID: tenantA, Name: "Salary A", AccountType: accountdomain.AccountTypeIncome,
+	})
+	// Tenant B's income account — must not be attachable to A's transaction.
+	incomeB, _ := acctSvc.CreateAccount(ctx, accountapp.CreateAccountRequest{
+		TenantID: tenantB, Name: "Salary B", AccountType: accountdomain.AccountTypeIncome,
+	})
+
+	// Record a legitimate transaction under tenant A.
+	txn, err := txnSvc.RecordTransaction(ctx, txnapp.RecordTransactionRequest{
+		TenantID: tenantA, TransactionDate: time.Now(), Description: "A's salary",
+		Entries: txnapp.BuildSimpleEntries(50000, assetA.ID, incomeA.ID, ""),
+	})
+	if err != nil {
+		t.Fatalf("seed transaction: %v", err)
+	}
+
+	// Attempt to swap the income leg to tenant B's account on update.
+	_, err = txnSvc.UpdateTransaction(ctx, txnapp.UpdateTransactionRequest{
+		TenantID:        tenantA,
+		TransactionID:   txn.ID,
+		TransactionDate: time.Now(),
+		Description:     "rewrite to B's income",
+		Entries:         txnapp.BuildSimpleEntries(50000, assetA.ID, incomeB.ID, ""),
+		Version:         txn.Version,
+	})
+	if err == nil {
+		t.Fatal("expected cross-tenant entry rejection on update, got nil")
 	}
 }
