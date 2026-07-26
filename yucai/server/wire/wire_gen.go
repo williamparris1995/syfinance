@@ -6,6 +6,8 @@
 package wire
 
 import (
+	"fmt"
+
 	"github.com/yucai/server/pkg/config"
 )
 
@@ -16,55 +18,59 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	authClient, err := provideAuthEntClient(cfg)
+	// db is the single shared *sql.DB backing every ent client (and the
+	// transaction repo's raw-SQL path). Established before the first
+	// provide*EntClient call so each client wraps the same pool — the
+	// prerequisite for cross-module transactions in later tasks.
+	db, err := provideDB(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("provide db: %w", err)
+	}
+	authClient, err := provideAuthEntClient(cfg, db)
 	if err != nil {
 		return nil, err
 	}
-	accountClient, err := provideAccountEntClient(cfg)
+	accountClient, err := provideAccountEntClient(cfg, db)
 	if err != nil {
 		return nil, err
 	}
-	txnClient, err := provideTransactionEntClient(cfg)
+	txnClient, err := provideTransactionEntClient(cfg, db)
 	if err != nil {
 		return nil, err
 	}
-	txnDB, err := provideTransactionDB(cfg)
+	budgetClient, err := provideBudgetEntClient(cfg, db)
 	if err != nil {
 		return nil, err
 	}
-	budgetClient, err := provideBudgetEntClient(cfg)
+	debtClient, err := provideDebtEntClient(cfg, db)
 	if err != nil {
 		return nil, err
 	}
-	debtClient, err := provideDebtEntClient(cfg)
+	goalClient, err := provideGoalEntClient(cfg, db)
 	if err != nil {
 		return nil, err
 	}
-	goalClient, err := provideGoalEntClient(cfg)
+	tagClient, err := provideTagEntClient(cfg, db)
 	if err != nil {
 		return nil, err
 	}
-	tagClient, err := provideTagEntClient(cfg)
+	templateClient, err := provideTemplateEntClient(cfg, db)
 	if err != nil {
 		return nil, err
 	}
-	templateClient, err := provideTemplateEntClient(cfg)
+	holdingClient, err := provideHoldingEntClient(cfg, db)
 	if err != nil {
 		return nil, err
 	}
-	holdingClient, err := provideHoldingEntClient(cfg)
+	backupClient, err := provideBackupEntClient(cfg, db)
 	if err != nil {
 		return nil, err
 	}
-	backupClient, err := provideBackupEntClient(cfg)
+	syncClient, err := provideSyncEntClient(cfg, db)
 	if err != nil {
 		return nil, err
 	}
-	syncClient, err := provideSyncEntClient(cfg)
-	if err != nil {
-		return nil, err
-	}
-	currencyClient, err := provideCurrencyEntClient(cfg)
+	currencyClient, err := provideCurrencyEntClient(cfg, db)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +104,7 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	profileHandler := provideProfileHandler(userRepo)
 
 	// Transaction module
-	txnRepo := provideTransactionRepo(txnClient, txnDB)
+	txnRepo := provideTransactionRepo(txnClient, db)
 	balanceUpdater := provideBalanceUpdater(accountRepo)
 	txnService := provideTransactionService(txnRepo, accountRepo, balanceUpdater)
 	txnHandler := provideTransactionHandler(txnService)

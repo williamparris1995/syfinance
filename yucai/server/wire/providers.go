@@ -97,15 +97,24 @@ type GRPCServer struct {
 	*grpc.Server
 }
 
-// openEntDriver opens a pgx-backed *sql.DB and wraps it as an ent driver with
-// the "postgres" dialect (ent migrate needs the postgres dialect; the underlying
-// database/sql driver name is "pgx" via github.com/jackc/pgx/v5/stdlib).
-func openEntDriver(cfg *config.Config) (*entsql.Driver, error) {
+// provideDB is the single shared *sql.DB pool for the entire server — the
+// prerequisite for cross-module transactions (every ent client must be backed
+// by the same *sql.DB so a BeginTx-derived *sql.Tx can be injected into any
+// module's ent client). Replaces the 12 independent sql.Open pools previously
+// opened per ent client. Pool sizing bounds the pgx/v5/stdlib pool explicitly
+// (25 open / 5 idle / 30m lifetime).
+func provideDB(cfg *config.Config) (*sql.DB, error) {
 	db, err := sql.Open("pgx", cfg.DatabaseURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("open db: %w", err)
 	}
-	return entsql.OpenDB(dialect.Postgres, db), nil
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(30 * time.Minute)
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("ping db: %w", err)
+	}
+	return db, nil
 }
 
 // ---- Provider Functions ----
@@ -123,11 +132,8 @@ func provideRedisClient(cfg *config.Config) (*redis.Client, error) {
 	return redis.NewClient(opts), nil
 }
 
-func provideAuthEntClient(cfg *config.Config) (*authent.Client, error) {
-	drv, err := openEntDriver(cfg)
-	if err != nil {
-		return nil, err
-	}
+func provideAuthEntClient(cfg *config.Config, db *sql.DB) (*authent.Client, error) {
+	drv := entsql.OpenDB(dialect.Postgres, db)
 	client := authent.NewClient(authent.Driver(drv))
 	if err := client.Schema.Create(context.Background()); err != nil {
 		return nil, fmt.Errorf("migrate auth schema: %w", err)
@@ -135,11 +141,8 @@ func provideAuthEntClient(cfg *config.Config) (*authent.Client, error) {
 	return client, nil
 }
 
-func provideAccountEntClient(cfg *config.Config) (*accountent.Client, error) {
-	drv, err := openEntDriver(cfg)
-	if err != nil {
-		return nil, err
-	}
+func provideAccountEntClient(cfg *config.Config, db *sql.DB) (*accountent.Client, error) {
+	drv := entsql.OpenDB(dialect.Postgres, db)
 	client := accountent.NewClient(accountent.Driver(drv))
 	if err := client.Schema.Create(context.Background()); err != nil {
 		return nil, fmt.Errorf("migrate account schema: %w", err)
@@ -147,11 +150,8 @@ func provideAccountEntClient(cfg *config.Config) (*accountent.Client, error) {
 	return client, nil
 }
 
-func provideTransactionEntClient(cfg *config.Config) (*txnent.Client, error) {
-	drv, err := openEntDriver(cfg)
-	if err != nil {
-		return nil, err
-	}
+func provideTransactionEntClient(cfg *config.Config, db *sql.DB) (*txnent.Client, error) {
+	drv := entsql.OpenDB(dialect.Postgres, db)
 	client := txnent.NewClient(txnent.Driver(drv))
 	if err := client.Schema.Create(context.Background()); err != nil {
 		return nil, fmt.Errorf("migrate transaction schema: %w", err)
@@ -285,24 +285,15 @@ func provideAccountHandler(svc *accountapp.Service) *accountgrpc.AccountHandler 
 
 // Transaction providers
 func provideTransactionRepo(client *txnent.Client, db *sql.DB) *txnrepo.TransactionRepository {
-	// Production uses the "postgres" ent dialect (see openEntDriver). The repo's
-	// raw TransactionSummary SQL needs to know the dialect to pick the correct
-	// placeholder style ($N) and date extraction (timestamptz → text cast).
+	// Production uses the "postgres" ent dialect (the shared provideDB pool is
+	// wrapped via entsql.OpenDB(dialect.Postgres, db) in each ent client). The
+	// repo's raw TransactionSummary SQL needs to know the dialect to pick the
+	// correct placeholder style ($N) and date extraction (timestamptz → text
+	// cast). db is the same pool backing txnClient — the precondition for
+	// Task 4 making this repo transaction-aware.
 	return txnrepo.NewTransactionRepository(client, db).SetDialect(txnrepo.DialectPostgres)
 }
 
-// provideTransactionDB opens the *sql.DB backing the transaction ent client.
-// It is the same physical database as the ent client (same DSN via openEntDriver),
-// used by the repo's TransactionSummary raw aggregation query (which cannot be
-// expressed through ent without cross-module edges). Wire injects this into the
-// repo alongside the ent client.
-func provideTransactionDB(cfg *config.Config) (*sql.DB, error) {
-	db, err := sql.Open("pgx", cfg.DatabaseURL)
-	if err != nil {
-		return nil, fmt.Errorf("open transaction db: %w", err)
-	}
-	return db, nil
-}
 func provideBalanceUpdater(ar *accountrepo.AccountRepository) *txnbalance.BalanceUpdaterImpl {
 	return txnbalance.NewBalanceUpdater(ar)
 }
@@ -314,11 +305,8 @@ func provideTransactionHandler(svc *txnapp.Service) *txngrpc.TransactionHandler 
 }
 
 // Budget providers
-func provideBudgetEntClient(cfg *config.Config) (*budgetent.Client, error) {
-	drv, err := openEntDriver(cfg)
-	if err != nil {
-		return nil, err
-	}
+func provideBudgetEntClient(cfg *config.Config, db *sql.DB) (*budgetent.Client, error) {
+	drv := entsql.OpenDB(dialect.Postgres, db)
 	client := budgetent.NewClient(budgetent.Driver(drv))
 	if err := client.Schema.Create(context.Background()); err != nil {
 		return nil, fmt.Errorf("migrate budget schema: %w", err)
@@ -390,11 +378,8 @@ func provideBudgetHandler(svc *budgetapp.Service) *budgetgrpc.BudgetHandler {
 }
 
 // Debt providers
-func provideDebtEntClient(cfg *config.Config) (*debtent.Client, error) {
-	drv, err := openEntDriver(cfg)
-	if err != nil {
-		return nil, err
-	}
+func provideDebtEntClient(cfg *config.Config, db *sql.DB) (*debtent.Client, error) {
+	drv := entsql.OpenDB(dialect.Postgres, db)
 	client := debtent.NewClient(debtent.Driver(drv))
 	if err := client.Schema.Create(context.Background()); err != nil {
 		return nil, fmt.Errorf("migrate debt schema: %w", err)
@@ -431,11 +416,8 @@ func provideDebtHandler(svc *debtapp.Service, txnSvc *txnapp.Service, accountLoo
 }
 
 // Goal providers
-func provideGoalEntClient(cfg *config.Config) (*goalent.Client, error) {
-	drv, err := openEntDriver(cfg)
-	if err != nil {
-		return nil, err
-	}
+func provideGoalEntClient(cfg *config.Config, db *sql.DB) (*goalent.Client, error) {
+	drv := entsql.OpenDB(dialect.Postgres, db)
 	client := goalent.NewClient(goalent.Driver(drv))
 	if err := client.Schema.Create(context.Background()); err != nil {
 		return nil, fmt.Errorf("migrate goal schema: %w", err)
@@ -472,11 +454,8 @@ func provideGoalHandler(svc *goalapp.Service) *goalgrpc.GoalHandler {
 }
 
 // Tag providers
-func provideTagEntClient(cfg *config.Config) (*tagent.Client, error) {
-	drv, err := openEntDriver(cfg)
-	if err != nil {
-		return nil, err
-	}
+func provideTagEntClient(cfg *config.Config, db *sql.DB) (*tagent.Client, error) {
+	drv := entsql.OpenDB(dialect.Postgres, db)
 	client := tagent.NewClient(tagent.Driver(drv))
 	if err := client.Schema.Create(context.Background()); err != nil {
 		return nil, fmt.Errorf("migrate tag schema: %w", err)
@@ -494,11 +473,8 @@ func provideTagHandler(svc *tagapp.Service) *taggrpc.TagHandler {
 }
 
 // Template providers
-func provideTemplateEntClient(cfg *config.Config) (*tmplent.Client, error) {
-	drv, err := openEntDriver(cfg)
-	if err != nil {
-		return nil, err
-	}
+func provideTemplateEntClient(cfg *config.Config, db *sql.DB) (*tmplent.Client, error) {
+	drv := entsql.OpenDB(dialect.Postgres, db)
 	client := tmplent.NewClient(tmplent.Driver(drv))
 	if err := client.Schema.Create(context.Background()); err != nil {
 		return nil, fmt.Errorf("migrate template schema: %w", err)
@@ -538,11 +514,8 @@ func provideTemplateScheduler(svc *tmplapp.Service) *tmplscheduler.Scheduler {
 }
 
 // Holding providers
-func provideHoldingEntClient(cfg *config.Config) (*holdingent.Client, error) {
-	drv, err := openEntDriver(cfg)
-	if err != nil {
-		return nil, err
-	}
+func provideHoldingEntClient(cfg *config.Config, db *sql.DB) (*holdingent.Client, error) {
+	drv := entsql.OpenDB(dialect.Postgres, db)
 	client := holdingent.NewClient(holdingent.Driver(drv))
 	if err := client.Schema.Create(context.Background()); err != nil {
 		return nil, fmt.Errorf("migrate holding schema: %w", err)
@@ -585,11 +558,8 @@ func provideHoldingHandler(svc *holdingapp.Service, txnSvc *txnapp.Service, acco
 }
 
 // Backup providers
-func provideBackupEntClient(cfg *config.Config) (*backupent.Client, error) {
-	drv, err := openEntDriver(cfg)
-	if err != nil {
-		return nil, err
-	}
+func provideBackupEntClient(cfg *config.Config, db *sql.DB) (*backupent.Client, error) {
+	drv := entsql.OpenDB(dialect.Postgres, db)
 	client := backupent.NewClient(backupent.Driver(drv))
 	if err := client.Schema.Create(context.Background()); err != nil {
 		return nil, fmt.Errorf("migrate backup schema: %w", err)
@@ -656,11 +626,8 @@ func provideBackupHandler(svc *backupapp.Service) *backupgrpc.BackupHandler {
 }
 
 // Sync providers
-func provideSyncEntClient(cfg *config.Config) (*syncent.Client, error) {
-	drv, err := openEntDriver(cfg)
-	if err != nil {
-		return nil, err
-	}
+func provideSyncEntClient(cfg *config.Config, db *sql.DB) (*syncent.Client, error) {
+	drv := entsql.OpenDB(dialect.Postgres, db)
 	client := syncent.NewClient(syncent.Driver(drv))
 	if err := client.Schema.Create(context.Background()); err != nil {
 		return nil, fmt.Errorf("migrate sync schema: %w", err)
@@ -692,11 +659,8 @@ func provideSyncHandler(svc *syncapp.Service) *syncgrpc.SyncHandler {
 }
 
 // Currency providers
-func provideCurrencyEntClient(cfg *config.Config) (*currencyent.Client, error) {
-	drv, err := openEntDriver(cfg)
-	if err != nil {
-		return nil, err
-	}
+func provideCurrencyEntClient(cfg *config.Config, db *sql.DB) (*currencyent.Client, error) {
+	drv := entsql.OpenDB(dialect.Postgres, db)
 	client := currencyent.NewClient(currencyent.Driver(drv))
 	if err := client.Schema.Create(context.Background()); err != nil {
 		return nil, fmt.Errorf("migrate currency schema: %w", err)
