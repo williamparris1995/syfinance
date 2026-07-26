@@ -10,6 +10,7 @@ import (
 	debtent "github.com/yucai/server/internal/debt/ent"
 	"github.com/yucai/server/internal/debt/ent/debtdetails"
 	"github.com/yucai/server/internal/debt/ent/paymentschedule"
+	"github.com/yucai/server/internal/sqltx"
 )
 
 // DebtRepository implements domain.DebtRepository using entGo.
@@ -20,6 +21,21 @@ type DebtRepository struct {
 // NewDebtRepository creates a new DebtRepository.
 func NewDebtRepository(client *debtent.Client) *DebtRepository {
 	return &DebtRepository{client: client}
+}
+
+// clientFor returns the ent client appropriate for ctx: if ctx carries a tx
+// driver (injected by sqltx.WithTx) it returns a tx-bound client whose writes
+// join the outer transaction; otherwise it returns the default r.client (the
+// non-transactional path, preserving backward compatibility).
+//
+// NOTE: defined but NOT yet used by any write method. Tasks 4-7 will switch
+// each write method from r.client to r.clientFor(ctx). Until then this is a
+// no-op helper with zero behavior change.
+func (r *DebtRepository) clientFor(ctx context.Context) *debtent.Client {
+	if d, ok := sqltx.DriverFrom(ctx); ok {
+		return debtent.NewClient(debtent.Driver(d))
+	}
+	return r.client
 }
 
 // Save persists a debt and its payment schedule.

@@ -26,13 +26,21 @@ type ctxKey struct{}
 //   - fn returns err  -> Rollback (Rollback error is swallowed; fn's err is returned).
 //   - fn panics       -> Rollback, then re-panic.
 //
+// dialect is the ent dialect string of db (entgo.io/ent/dialect.SQLite =
+// "sqlite3", dialect.Postgres = "postgres", ...). It is forwarded to the wrapped
+// driver's Dialect() so ent's query/mutation builders emit the correct SQL
+// placeholder style ("?" for sqlite3, "$1" for postgres). A mismatch produces
+// SQL like "INSERT ... VALUES($1)" against SQLite and fails at runtime.
+//
 // Join-existing-tx semantics (transaction propagation): if ctx already carries
 // a tx driver (an outer WithTx already opened one), WithTx does NOT open a new
 // transaction and instead runs fn against the outer driver. The outermost call
 // owns commit/rollback. This lets a reused service method (e.g.
 // transaction.SimpleExpense) be wrapped in its own WithTx when invoked directly
 // (D1 entry) OR join an outer holding/debt/template service's WithTx (D2/D3/D4).
-func WithTx(ctx context.Context, db *sql.DB, opts *sql.TxOptions, fn func(context.Context) error) error {
+// The dialect argument is ignored on the join-existing-tx path (the outer
+// driver already carries its dialect).
+func WithTx(ctx context.Context, db *sql.DB, dialect string, opts *sql.TxOptions, fn func(context.Context) error) error {
 	if _, ok := DriverFrom(ctx); ok {
 		// Already inside a transaction; run fn against the outer driver. The
 		// outermost caller owns commit/rollback.
@@ -42,7 +50,7 @@ func WithTx(ctx context.Context, db *sql.DB, opts *sql.TxOptions, fn func(contex
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	drv := newDriver(tx)
+	drv := newDriver(tx, dialect)
 	ctxT := context.WithValue(ctx, ctxKey{}, drv)
 	defer func() {
 		if p := recover(); p != nil {
@@ -74,14 +82,17 @@ func DriverFrom(ctx context.Context) (dialect.Driver, bool) {
 // to ExecContext/QueryContext on the underlying *sql.Tx. Tx() returns a nopTx
 // (defending against nested BeginTx if a caller invokes client.Tx(ctx) on a
 // tx-bound client — a pattern we never use in production but guard against
-// here); Close is nop; Dialect reports "postgres".
+// here); Close is nop; Dialect reports the dialect string passed at construction
+// (configurable so SQLite-backed integration tests get "?" placeholders while
+// production PostgreSQL gets "$1").
 type driver struct {
 	entsql.Conn
-	tx *sql.Tx
+	tx      *sql.Tx
+	dialect string
 }
 
-func newDriver(tx *sql.Tx) *driver {
-	return &driver{Conn: entsql.Conn{ExecQuerier: tx}, tx: tx}
+func newDriver(tx *sql.Tx, dialect string) *driver {
+	return &driver{Conn: entsql.Conn{ExecQuerier: tx}, tx: tx, dialect: dialect}
 }
 
 // Compile-time interface guards. Guards against silent interface drift on
@@ -102,7 +113,7 @@ func (d *driver) Tx(context.Context) (dialect.Tx, error) {
 }
 
 func (d *driver) Close() error    { return nil }
-func (d *driver) Dialect() string { return "postgres" }
+func (d *driver) Dialect() string { return d.dialect }
 
 // nopTx implements dialect.Tx by delegating Exec/Query to the underlying *sql.Tx
 // (via the embedded entsql.Conn) and treating Commit/Rollback as nop. The real

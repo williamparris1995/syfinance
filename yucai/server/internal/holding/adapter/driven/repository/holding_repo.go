@@ -9,6 +9,7 @@ import (
 	holdingent "github.com/yucai/server/internal/holding/ent"
 	"github.com/yucai/server/internal/holding/ent/holding"
 	"github.com/yucai/server/internal/holding/ent/holdingtransaction"
+	"github.com/yucai/server/internal/sqltx"
 )
 
 // HoldingRepository implements domain.HoldingRepository.
@@ -19,6 +20,21 @@ type HoldingRepository struct {
 // NewHoldingRepository creates a new HoldingRepository.
 func NewHoldingRepository(client *holdingent.Client) *HoldingRepository {
 	return &HoldingRepository{client: client}
+}
+
+// clientFor returns the ent client appropriate for ctx: if ctx carries a tx
+// driver (injected by sqltx.WithTx) it returns a tx-bound client whose writes
+// join the outer transaction; otherwise it returns the default r.client (the
+// non-transactional path, preserving backward compatibility).
+//
+// NOTE: defined but NOT yet used by any write method. Tasks 4-7 will switch
+// each write method from r.client to r.clientFor(ctx). Until then this is a
+// no-op helper with zero behavior change.
+func (r *HoldingRepository) clientFor(ctx context.Context) *holdingent.Client {
+	if d, ok := sqltx.DriverFrom(ctx); ok {
+		return holdingent.NewClient(holdingent.Driver(d))
+	}
+	return r.client
 }
 
 func (r *HoldingRepository) SaveOrUpdate(ctx context.Context, h *domain.Holding) error {

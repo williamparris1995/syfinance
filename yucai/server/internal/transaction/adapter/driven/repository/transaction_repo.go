@@ -10,6 +10,7 @@ import (
 
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
+	"github.com/yucai/server/internal/sqltx"
 	"github.com/yucai/server/internal/transaction/domain"
 	txnent "github.com/yucai/server/internal/transaction/ent"
 	"github.com/yucai/server/internal/transaction/ent/transaction"
@@ -73,6 +74,21 @@ func NewTransactionRepository(client *txnent.Client, db *sql.DB) *TransactionRep
 func (r *TransactionRepository) SetDialect(d string) *TransactionRepository {
 	r.rawDialect = d
 	return r
+}
+
+// clientFor returns the ent client appropriate for ctx: if ctx carries a tx
+// driver (injected by sqltx.WithTx) it returns a tx-bound client whose writes
+// join the outer transaction; otherwise it returns the default r.client (the
+// non-transactional path, preserving backward compatibility).
+//
+// NOTE: defined but NOT yet used by any write method. Tasks 4-7 will switch
+// each write method from r.client to r.clientFor(ctx). Until then this is a
+// no-op helper with zero behavior change.
+func (r *TransactionRepository) clientFor(ctx context.Context) *txnent.Client {
+	if d, ok := sqltx.DriverFrom(ctx); ok {
+		return txnent.NewClient(txnent.Driver(d))
+	}
+	return r.client
 }
 
 // Save persists a transaction and its entries in a single operation.

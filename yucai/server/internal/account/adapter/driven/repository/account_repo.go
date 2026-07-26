@@ -9,6 +9,7 @@ import (
 	"github.com/yucai/server/internal/account/domain"
 	"github.com/yucai/server/internal/account/ent"
 	accountent "github.com/yucai/server/internal/account/ent/account"
+	"github.com/yucai/server/internal/sqltx"
 )
 
 // AccountRepository implements domain.AccountRepository using entGo.
@@ -19,6 +20,21 @@ type AccountRepository struct {
 // NewAccountRepository creates a new AccountRepository.
 func NewAccountRepository(client *ent.Client) *AccountRepository {
 	return &AccountRepository{client: client}
+}
+
+// clientFor returns the ent client appropriate for ctx: if ctx carries a tx
+// driver (injected by sqltx.WithTx) it returns a tx-bound client whose writes
+// join the outer transaction; otherwise it returns the default r.client (the
+// non-transactional path, preserving backward compatibility).
+//
+// NOTE: defined but NOT yet used by any write method. Tasks 4-7 will switch
+// each write method from r.client to r.clientFor(ctx). Until then this is a
+// no-op helper with zero behavior change.
+func (r *AccountRepository) clientFor(ctx context.Context) *ent.Client {
+	if d, ok := sqltx.DriverFrom(ctx); ok {
+		return ent.NewClient(ent.Driver(d))
+	}
+	return r.client
 }
 
 // Save persists a new account.

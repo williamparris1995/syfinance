@@ -12,6 +12,11 @@ import (
 	"github.com/yucai/server/internal/sqltx"
 )
 
+// testDialect is the ent dialect string for SQLite (== entgo.io/ent/dialect.SQLite).
+// The sqltx driver forwards it to ent so mutation builders emit "?" placeholders
+// instead of PostgreSQL's "$1".
+const testDialect = "sqlite3"
+
 // newMemDB opens a shared in-memory SQLite database with a single `t(v INTEGER)`
 // table. The DSN "file:<name>?mode=memory" gives a named in-memory DB that is
 // shared across all connections taken from the pool. We pin the pool to a
@@ -54,7 +59,7 @@ func execInTx(t *testing.T, ctx context.Context, query string) {
 func TestWithTx_Commit(t *testing.T) {
 	db := newMemDB(t)
 	called := false
-	err := sqltx.WithTx(context.Background(), db, nil, func(ctx context.Context) error {
+	err := sqltx.WithTx(context.Background(), db, testDialect, nil, func(ctx context.Context) error {
 		called = true
 		if _, ok := sqltx.DriverFrom(ctx); !ok {
 			t.Fatal("DriverFrom should find tx driver inside fn")
@@ -76,7 +81,7 @@ func TestWithTx_Commit(t *testing.T) {
 func TestWithTx_RollbackOnError(t *testing.T) {
 	db := newMemDB(t)
 	sentinel := errors.New("boom")
-	err := sqltx.WithTx(context.Background(), db, nil, func(ctx context.Context) error {
+	err := sqltx.WithTx(context.Background(), db, testDialect, nil, func(ctx context.Context) error {
 		execInTx(t, ctx, "INSERT INTO t(v) VALUES(1)")
 		return sentinel
 	})
@@ -102,7 +107,7 @@ func TestWithTx_RollbackOnPanic(t *testing.T) {
 			t.Fatalf("panic rollback should leave 0 rows, got %d", n)
 		}
 	}()
-	_ = sqltx.WithTx(context.Background(), db, nil, func(ctx context.Context) error {
+	_ = sqltx.WithTx(context.Background(), db, testDialect, nil, func(ctx context.Context) error {
 		execInTx(t, ctx, "INSERT INTO t(v) VALUES(1)")
 		panic("kaboom")
 	})
@@ -115,9 +120,9 @@ func TestWithTx_JoinExistingTx(t *testing.T) {
 	//   (a) the inner DriverFrom returns the SAME driver pointer as the outer,
 	//   (b) a row inserted inside the inner fn is visible after the outer
 	//       commits (proving the inner did not open and commit its own tx).
-	err := sqltx.WithTx(context.Background(), db, nil, func(ctx context.Context) error {
+	err := sqltx.WithTx(context.Background(), db, testDialect, nil, func(ctx context.Context) error {
 		outer, _ := sqltx.DriverFrom(ctx)
-		return sqltx.WithTx(ctx, db, nil, func(ctx context.Context) error {
+		return sqltx.WithTx(ctx, db, testDialect, nil, func(ctx context.Context) error {
 			inner, _ := sqltx.DriverFrom(ctx)
 			if inner != outer {
 				t.Fatal("inner WithTx should reuse outer driver")
