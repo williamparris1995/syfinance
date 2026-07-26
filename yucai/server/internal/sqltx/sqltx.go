@@ -84,6 +84,14 @@ func newDriver(tx *sql.Tx) *driver {
 	return &driver{Conn: entsql.Conn{ExecQuerier: tx}, tx: tx}
 }
 
+// Compile-time interface guards. Guards against silent interface drift on
+// future entgo upgrades (the package would fail to compile rather than
+// surface a runtime type assertion failure inside a builder).
+var (
+	_ dialect.Driver = (*driver)(nil)
+	_ dialect.Tx     = nopTx{}
+)
+
 // Tx returns a nopTx instead of a real nested transaction. ent's query/mutation
 // builders never call driver.Tx() — only client.Tx(ctx) (manual nesting) does.
 // We return a nopTx (rather than an error) so any code path that does touch

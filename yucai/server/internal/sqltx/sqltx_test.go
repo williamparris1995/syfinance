@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"entgo.io/ent/dialect"
 	_ "modernc.org/sqlite"
 
 	"github.com/yucai/server/internal/sqltx"
@@ -136,7 +135,3 @@ func TestWithTx_JoinExistingTx(t *testing.T) {
 		t.Fatalf("expected 1 row committed, got %d", n)
 	}
 }
-
-// Compile-time check: the tx driver returned by DriverFrom satisfies
-// dialect.Driver (guards against interface drift in future entgo upgrades).
-var _ dialect.Driver = (dialect.Driver)(nil)
