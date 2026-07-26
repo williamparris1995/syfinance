@@ -512,9 +512,15 @@ func provideTransactionRecorderAdapter(txnSvc *txnapp.Service) *txnapp.Transacti
 
 // provideTemplateService wires the real TransactionRecorderAdapter into the
 // template Service (Task 5 fills the Task 4 nil placeholder). CRUD is
-// unaffected; RecordTransaction now works end-to-end.
-func provideTemplateService(repo *tmplrepo.TemplateRepository, recorder *txnapp.TransactionRecorderAdapter) *tmplapp.Service {
-	return tmplapp.NewService(repo, recorder)
+// unaffected; RecordTransaction now works end-to-end. db is the shared *sql.DB
+// from Task 1's provideDB: Task 7 injects it so RecordTransaction wraps its
+// recorder.Record + repo.Update in a single sqltx.WithTx (audit D4 atomic —
+// duplicate-record prevention). Mirrors Task 4-6's transaction/holding/debt
+// provider shape.
+func provideTemplateService(repo *tmplrepo.TemplateRepository, recorder *txnapp.TransactionRecorderAdapter, db *sql.DB) *tmplapp.Service {
+	svc := tmplapp.NewService(repo, recorder)
+	svc.SetDB(db) // D4: shared *sql.DB → RecordTransaction wraps in sqltx.WithTx
+	return svc
 }
 func provideTemplateHandler(svc *tmplapp.Service) *tmplgrpc.TemplateHandler {
 	return tmplgrpc.NewTemplateHandler(svc)

@@ -163,9 +163,13 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	// transactionRecorderAdapter backs the template Service's RecordTransaction
 	// via the TransactionRecorder port (template → transaction SimpleExpense/
 	// Income/Transfer). txnService was declared in the Transaction module above.
+	// db (declared in the DB module above) drives the Task 7 D4 atomicity wrap:
+	// RecordTransaction wraps recorder.Record + template NextDate-advance Update
+	// in a single sqltx.WithTx over the shared *sql.DB so a partial failure
+	// rolls back (audit D4 — duplicate-record prevention).
 	transactionRecorderAdapter := provideTransactionRecorderAdapter(txnService)
 	templateRepo := provideTemplateRepo(templateClient)
-	templateService := provideTemplateService(templateRepo, transactionRecorderAdapter)
+	templateService := provideTemplateService(templateRepo, transactionRecorderAdapter, db)
 	templateHandler := provideTemplateHandler(templateService)
 
 	// Holding module

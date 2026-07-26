@@ -27,9 +27,12 @@ func NewTemplateRepository(client *tmplent.Client) *TemplateRepository {
 // join the outer transaction; otherwise it returns the default r.client (the
 // non-transactional path, preserving backward compatibility).
 //
-// NOTE: defined but NOT yet used by any write method. Tasks 4-7 will switch
-// each write method from r.client to r.clientFor(ctx). Until then this is a
-// no-op helper with zero behavior change.
+// Task 7: every write method (Save/Update/Delete/DeleteByTenant) AND every read
+// on the autoRecord tx path (FindByID, FindDue, FindAllForBackup) now routes
+// through clientFor so the outer template Service.RecordTransaction WithTx
+// propagates into this repo. Reads switch too as a self-deadlock guard — under
+// shared in-memory SQLite (SetMaxOpenConns(1)) a read pinned to the default
+// client would block the same physical connection the outer *sql.Tx holds.
 func (r *TemplateRepository) clientFor(ctx context.Context) *tmplent.Client {
 	if d, ok := sqltx.DriverFrom(ctx); ok {
 		return tmplent.NewClient(tmplent.Driver(d))
@@ -39,7 +42,7 @@ func (r *TemplateRepository) clientFor(ctx context.Context) *tmplent.Client {
 
 // Save persists a new template.
 func (r *TemplateRepository) Save(ctx context.Context, t *domain.TransactionTemplate) error {
-	create := r.client.TransactionTemplate.Create().
+	create := r.clientFor(ctx).TransactionTemplate.Create().
 		SetID(t.ID).
 		SetTenantID(t.TenantID).
 		SetName(t.Name).
@@ -77,7 +80,7 @@ func (r *TemplateRepository) Save(ctx context.Context, t *domain.TransactionTemp
 
 // FindByID retrieves a template by ID.
 func (r *TemplateRepository) FindByID(ctx context.Context, tenantID, id uuid.UUID) (*domain.TransactionTemplate, error) {
-	t, err := r.client.TransactionTemplate.Query().
+	t, err := r.clientFor(ctx).TransactionTemplate.Query().
 		Where(
 			transactiontemplate.ID(id),
 			transactiontemplate.TenantID(tenantID),
@@ -91,7 +94,7 @@ func (r *TemplateRepository) FindByID(ctx context.Context, tenantID, id uuid.UUI
 
 // FindAll returns paginated templates with optional paused filter.
 func (r *TemplateRepository) FindAll(ctx context.Context, tenantID uuid.UUID, paused *bool, page domain.PageRequest) (*domain.PaginatedResult[domain.TransactionTemplate], error) {
-	query := r.client.TransactionTemplate.Query().
+	query := r.clientFor(ctx).TransactionTemplate.Query().
 		Where(transactiontemplate.TenantID(tenantID))
 
 	if paused != nil {
@@ -141,7 +144,7 @@ func (r *TemplateRepository) FindAll(ctx context.Context, tenantID uuid.UUID, pa
 
 // FindDue returns templates that are due for execution.
 func (r *TemplateRepository) FindDue(ctx context.Context, today time.Time) ([]domain.TransactionTemplate, error) {
-	results, err := r.client.TransactionTemplate.Query().
+	results, err := r.clientFor(ctx).TransactionTemplate.Query().
 		Where(
 			transactiontemplate.PausedEQ(false),
 			transactiontemplate.NextDateLTE(today),
@@ -159,7 +162,7 @@ func (r *TemplateRepository) FindDue(ctx context.Context, today time.Time) ([]do
 
 // Update persists changes to a template.
 func (r *TemplateRepository) Update(ctx context.Context, t *domain.TransactionTemplate) error {
-	update := r.client.TransactionTemplate.UpdateOneID(t.ID).
+	update := r.clientFor(ctx).TransactionTemplate.UpdateOneID(t.ID).
 		Where(transactiontemplate.Version(t.Version - 1)).
 		SetName(t.Name).
 		SetDescription(t.Description).
@@ -197,7 +200,7 @@ func (r *TemplateRepository) Update(ctx context.Context, t *domain.TransactionTe
 
 // Delete removes a template.
 func (r *TemplateRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
-	err := r.client.TransactionTemplate.DeleteOneID(id).
+	err := r.clientFor(ctx).TransactionTemplate.DeleteOneID(id).
 		Where(transactiontemplate.TenantID(tenantID)).
 		Exec(ctx)
 	if err != nil {
@@ -236,7 +239,7 @@ func toDomainTemplate(t *tmplent.TransactionTemplate) *domain.TransactionTemplat
 // Templates have no DeletedAt column (Delete is hard), so no soft-delete filter
 // is applied — every row is returned.
 func (r *TemplateRepository) FindAllForBackup(ctx context.Context, tenantID uuid.UUID) ([]domain.TransactionTemplate, error) {
-	results, err := r.client.TransactionTemplate.Query().
+	results, err := r.clientFor(ctx).TransactionTemplate.Query().
 		Where(transactiontemplate.TenantID(tenantID)).
 		All(ctx)
 	if err != nil {
@@ -251,7 +254,7 @@ func (r *TemplateRepository) FindAllForBackup(ctx context.Context, tenantID uuid
 
 // DeleteByTenant hard-deletes every template for a tenant.
 func (r *TemplateRepository) DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error {
-	if _, err := r.client.TransactionTemplate.Delete().
+	if _, err := r.clientFor(ctx).TransactionTemplate.Delete().
 		Where(transactiontemplate.TenantID(tenantID)).
 		Exec(ctx); err != nil {
 		return fmt.Errorf("delete templates: %w", err)
