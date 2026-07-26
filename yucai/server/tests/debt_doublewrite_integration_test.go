@@ -87,6 +87,14 @@ func setupDebtDoubleWriteHarness(t *testing.T) (
 
 	debtRepo := debtrepo.NewDebtRepository(debtClient)
 	debtSvc := application.NewService(debtRepo)
+	// Task 6 D3: the RecordPayment cash-side double-write now lives inside the
+	// debt service's sqltx.WithTx via the RepaymentCashRecorder port. Inject
+	// the txn-app adapter so the cash record is recorded atomically with
+	// schedule.Paid + principal persist. debtSvc.db stays nil at the integration
+	// level (real DB atomicity is covered by debt/application/service_tx_test.go
+	// TestRecordPayment_RollbackOnCashRecordFailure); the harness exercises the
+	// happy-path end-to-end cash movement on CreateDebt + (now) RecordPayment.
+	debtSvc.SetCashRecorder(txnapp.NewRepaymentCashRecorderAdapter(txnSvc))
 
 	h = grpcdebt.NewDebtHandler(debtSvc, txnSvc, accountRepo)
 	tenantID = uuid.New()

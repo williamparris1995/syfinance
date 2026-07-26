@@ -403,16 +403,32 @@ func provideDebtSnapshotRepo(client *debtent.Client) debtdomain.DebtSnapshotRepo
 // every debt bucket defaults to CNY — D-currency Task 8 wire requirement.
 // snapshotRepo is injected so GetReceivablesSummary can compute the
 // month-over-month trend and SyncAllDebts can persist snapshots (Task 7).
-// *accountrepo.AccountRepository structurally satisfies debtapp.AccountLookup
-// (FindByID(ctx, tenantID, id) (*accountdomain.Account, error) — exact match).
-func provideDebtService(repo *debtrepo.DebtRepository, accountRepo *accountrepo.AccountRepository, snapshotRepo debtdomain.DebtSnapshotRepository) *debtapp.Service {
+// cashRecorder + db are injected for Task 6 D3 atomicity: RecordPayment wraps
+// schedule.Paid + principal persist + the cash-side double-write in a single
+// sqltx.WithTx over db, with the cash record delegated through the
+// RepaymentCashRecorder port. *accountrepo.AccountRepository structurally
+// satisfies debtapp.AccountLookup (FindByID(ctx, tenantID, id)
+// (*accountdomain.Account, error) — exact match).
+func provideDebtService(repo *debtrepo.DebtRepository, accountRepo *accountrepo.AccountRepository, snapshotRepo debtdomain.DebtSnapshotRepository, cashRecorder debtdomain.RepaymentCashRecorder, db *sql.DB) *debtapp.Service {
 	svc := debtapp.NewService(repo)
 	svc.SetAccountLookup(accountRepo)
 	svc.SetSnapshotRepo(snapshotRepo)
+	svc.SetCashRecorder(cashRecorder) // D3: cash-side repayment double-write (transaction app adapter)
+	svc.SetDB(db)                      // D3: shared *sql.DB → RecordPayment wraps in sqltx.WithTx
 	return svc
 }
 func provideDebtHandler(svc *debtapp.Service, txnSvc *txnapp.Service, accountLookup txnapp.AccountLookup) *debtgrpc.DebtHandler {
 	return debtgrpc.NewDebtHandler(svc, txnSvc, accountLookup)
+}
+
+// provideRepaymentCashRecorderAdapter wraps the transaction application Service
+// in the debt-domain RepaymentCashRecorder port. The adapter is wire-injected
+// into the debt service so RecordPayment can record the cash side of a
+// repayment (debit/credit cash + debt accounts) inside the same sqltx.WithTx
+// as the schedule.Paid + principal persist — D3 atomicity. Mirrors Task 5's
+// provideTradeCashRecorderAdapter.
+func provideRepaymentCashRecorderAdapter(txnSvc *txnapp.Service) debtdomain.RepaymentCashRecorder {
+	return txnapp.NewRepaymentCashRecorderAdapter(txnSvc)
 }
 
 // Goal providers

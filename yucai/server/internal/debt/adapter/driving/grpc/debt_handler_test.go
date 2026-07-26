@@ -337,6 +337,14 @@ func setupRecordPaymentHarness(t *testing.T, debtType domain.DebtType) (
 	txnSvc := txnApp.NewService(txnRepo, accLookup, mutatingBalanceUpdater{lookup: accLookup}, nil)
 
 	debtSvc := application.NewService(debtRepo)
+	// Task 6 D3: the cash-side double-write now lives inside the debt service's
+	// sqltx.WithTx via the RepaymentCashRecorder port. Inject the txn-app
+	// adapter so the cash record is recorded atomically with schedule.Paid +
+	// principal persist (mirrors Task 5's setupBuyHoldingHarness). debtSvc.db
+	// stays nil — the handler-level test relies on the mock debtRepo's
+	// auto-commit behavior; DB-level atomicity is covered by debt/application's
+	// service_tx_test.go (TestRecordPayment_RollbackOnCashRecordFailure).
+	debtSvc.SetCashRecorder(txnApp.NewRepaymentCashRecorderAdapter(txnSvc))
 	h = NewDebtHandler(debtSvc, txnSvc, accLookup)
 	return
 }
@@ -465,34 +473,42 @@ func TestRecordPayment_BorrowedOut(t *testing.T) {
 	}
 }
 
-// TestRecordPayment_BestEffortTxnFailureSwallowed confirms that when the
-// transaction write fails AFTER the debt is already marked paid, RecordPayment
-// still returns success (debt stays paid) — the transaction error is logged,
-// not surfaced. Task 3 will refine failure handling.
-func TestRecordPayment_BestEffortTxnFailureSwallowed(t *testing.T) {
+// TestRecordPayment_CashWriteFailureSurfacesError confirms the Task 6 D3
+// contract: when the cash-side transaction write fails AFTER schedule.Paid +
+// principal persist have succeeded inside the service's sqltx.WithTx fn, the
+// error is surfaced to the caller (no longer best-effort swallowed as in the
+// pre-Task-6 recordPaymentTransaction path). Replaces the deleted
+// TestRecordPayment_BestEffortTxnFailureSwallowed, which asserted the swallow
+// behavior Task 6 removed. DB-level rollback of the debt write is covered by
+// debt/application/service_tx_test.go (TestRecordPayment_RollbackOnCashRecordFailure);
+// this handler-level test asserts the surface contract (error returned).
+func TestRecordPayment_CashWriteFailureSurfacesError(t *testing.T) {
 	h, tenantID, debtID, fromAccID, _, entryID, _, _ :=
 		setupRecordPaymentHarness(t, domain.BorrowedIn)
 
-	// Inject a transaction-write failure by swapping in a txn repo whose Save
-	// always errors. We rebuild the transaction service with the failing repo
-	// but keep the same handler wiring (debt service + account lookup).
+	// Inject a cash-write failure by swapping in a txn repo whose Save always
+	// errors, then re-binding the debt service's cashRecorder to that failing
+	// txn service. The handler-level test relies on mock debtRepo auto-commit
+	// (debtSvc.db is nil), so the in-memory debt write is NOT actually rolled
+	// back here; the application-level rollback test covers that contract.
 	failingRepo := &failingTxnRepo{err: fmt.Errorf("simulated txn write failure")}
-	txnSvc := txnApp.NewService(failingRepo, h.accountLookup, mutatingBalanceUpdater{lookup: h.accountLookup.(*fakeAccountLookup)}, nil)
-	h.transactionSvc = txnSvc
+	failingTxnSvc := txnApp.NewService(failingRepo, h.accountLookup, mutatingBalanceUpdater{lookup: h.accountLookup.(*fakeAccountLookup)}, nil)
+	h.service.SetCashRecorder(txnApp.NewRepaymentCashRecorderAdapter(failingTxnSvc))
 
 	resp, err := h.RecordPayment(ctxWithTenant(tenantID), &pb.RecordPaymentRequest{
 		DebtId:          debtID.String(),
 		ScheduleEntryId: entryID.String(),
 		FromAccountId:   fromAccID.String(),
 	})
-	if err != nil {
-		t.Fatalf("RecordPayment should swallow best-effort txn failure, got: %v", err)
+	if err == nil {
+		t.Fatal("RecordPayment should surface cash-write failure (no longer best-effort swallowed)")
 	}
-	if resp.TransactionId == "" {
-		t.Fatal("RecordPayment returned empty transaction_id (debt-side txn id should still be set)")
+	if resp != nil {
+		t.Errorf("expected nil response on cash-write failure, got %+v", resp)
 	}
-	if !resp.Entry.Paid {
-		t.Error("debt schedule entry should be marked paid despite txn write failure")
+	st, ok := status.FromError(err)
+	if !ok || st.Code() != codes.Internal {
+		t.Errorf("error code: got %v, want Internal", err)
 	}
 }
 

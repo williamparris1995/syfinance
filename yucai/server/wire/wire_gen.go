@@ -134,11 +134,18 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	// debtSnapshotRepo backs GetReceivablesSummary trend + DebtScheduler
 	// (SyncAllDebts writes debt_progress_snapshot). Returns the domain port.
 	debtSnapshotRepo := provideDebtSnapshotRepo(debtClient)
+	// repaymentCashRecorder wraps txnService (Transaction module above) in the
+	// debt-domain RepaymentCashRecorder port — D3 atomicity. RecordPayment will
+	// invoke Record inside its sqltx.WithTx so the schedule.Paid + principal
+	// persist and the cash legs commit or roll back together. db (declared in
+	// the DB module above) is the shared *sql.DB from Task 1's provideDB.
+	repaymentCashRecorder := provideRepaymentCashRecorderAdapter(txnService)
 	// accountRepo is injected into debtService so SumRemainingByCurrency can
 	// resolve each debt's currency from its parent account (D-currency Task 8).
 	// snapshotRepo is injected so GetReceivablesSummary trend + SyncAllDebts
-	// persist (Task 7).
-	debtService := provideDebtService(debtRepo, accountRepo, debtSnapshotRepo)
+	// persist (Task 7). repaymentCashRecorder + db drive the Task 6 D3
+	// RecordPayment atomicity (cash record joins the outer sqltx.WithTx).
+	debtService := provideDebtService(debtRepo, accountRepo, debtSnapshotRepo, repaymentCashRecorder, db)
 	debtHandler := provideDebtHandler(debtService, txnService, accountRepo)
 
 	// Goal module

@@ -47,11 +47,23 @@ type UpdateDebtRequest struct {
 }
 
 // RecordPaymentRequest holds input for recording a payment.
+//
+// CashRecord is the cash-side double-entry transaction recorded atomically
+// with the schedule.Paid + principal persist inside the service's sqltx.WithTx
+// (Task 6 D3): when non-nil AND the service has a RepaymentCashRecorder
+// injected, Record calls recorder.Record(ctxT, *CashRecord) inside the WithTx
+// fn so a cash-write failure rolls back the debt write. Nil (or no recorder) =
+// skip the cash side — used by the seed/test path and by harnesses that don't
+// wire the recorder. Built by the gRPC handler from the validated from/debt
+// account pair (buildPaymentEntries).
 type RecordPaymentRequest struct {
 	TenantID        uuid.UUID
 	DebtID          uuid.UUID
 	ScheduleEntryID uuid.UUID
 	FromAccountID   uuid.UUID
+	// CashRecord optionally carries the cash-side transaction to record inside
+	// the same WithTx. Nil = skip the cash write.
+	CashRecord *domain.RepaymentCashRecordRequest
 }
 
 // ListDebtsRequest holds input for listing debts.

@@ -28,9 +28,13 @@ func NewDebtRepository(client *debtent.Client) *DebtRepository {
 // join the outer transaction; otherwise it returns the default r.client (the
 // non-transactional path, preserving backward compatibility).
 //
-// NOTE: defined but NOT yet used by any write method. Tasks 4-7 will switch
-// each write method from r.client to r.clientFor(ctx). Until then this is a
-// no-op helper with zero behavior change.
+// Used by Save / FindByID / Update / Delete (Task 6 D3): Save+Update+Delete are
+// the writes that must join the outer sqltx.WithTx wrapping RecordPayment, and
+// FindByID is the read issued inside the same WithTx fn — without binding to
+// the tx driver it would self-deadlock on the single pooled connection (same
+// guard as Task 4's account repo / Task 5's holding+lot repos). The other
+// reads (FindAll, FindUpcomingPayments, FindAllForBackup) stay on r.client
+// because they are not invoked inside a WithTx fn.
 func (r *DebtRepository) clientFor(ctx context.Context) *debtent.Client {
 	if d, ok := sqltx.DriverFrom(ctx); ok {
 		return debtent.NewClient(debtent.Driver(d))
@@ -40,7 +44,7 @@ func (r *DebtRepository) clientFor(ctx context.Context) *debtent.Client {
 
 // Save persists a debt and its payment schedule.
 func (r *DebtRepository) Save(ctx context.Context, d *domain.DebtDetails) error {
-	_, err := r.client.DebtDetails.Create().
+	_, err := r.clientFor(ctx).DebtDetails.Create().
 		SetID(d.ID).
 		SetTenantID(d.TenantID).
 		SetAccountID(d.AccountID).
@@ -64,7 +68,7 @@ func (r *DebtRepository) Save(ctx context.Context, d *domain.DebtDetails) error 
 	}
 
 	for _, entry := range d.Schedule {
-		create := r.client.PaymentSchedule.Create().
+		create := r.clientFor(ctx).PaymentSchedule.Create().
 			SetID(entry.ID).
 			SetDebtID(d.ID).
 			SetPaymentDate(entry.PaymentDate).
@@ -85,7 +89,7 @@ func (r *DebtRepository) Save(ctx context.Context, d *domain.DebtDetails) error 
 
 // FindByID retrieves a debt with its payment schedule.
 func (r *DebtRepository) FindByID(ctx context.Context, tenantID, id uuid.UUID) (*domain.DebtDetails, error) {
-	dd, err := r.client.DebtDetails.Query().
+	dd, err := r.clientFor(ctx).DebtDetails.Query().
 		Where(
 			debtdetails.ID(id),
 			debtdetails.TenantID(tenantID),
@@ -95,7 +99,7 @@ func (r *DebtRepository) FindByID(ctx context.Context, tenantID, id uuid.UUID) (
 		return nil, fmt.Errorf("find debt: %w", err)
 	}
 
-	entries, err := r.client.PaymentSchedule.Query().
+	entries, err := r.clientFor(ctx).PaymentSchedule.Query().
 		Where(paymentschedule.DebtID(dd.ID)).
 		Order(debtent.Asc(paymentschedule.FieldPaymentDate)).
 		All(ctx)
@@ -169,7 +173,7 @@ func (r *DebtRepository) FindAll(ctx context.Context, tenantID uuid.UUID, page d
 func (r *DebtRepository) Update(ctx context.Context, d *domain.DebtDetails) error {
 	// Update schedule entries
 	for _, entry := range d.Schedule {
-		update := r.client.PaymentSchedule.UpdateOneID(entry.ID).
+		update := r.clientFor(ctx).PaymentSchedule.UpdateOneID(entry.ID).
 			SetPrincipalCents(entry.PrincipalCents).
 			SetInterestCents(entry.InterestCents).
 			SetTotalCents(entry.TotalCents).
@@ -184,7 +188,7 @@ func (r *DebtRepository) Update(ctx context.Context, d *domain.DebtDetails) erro
 	}
 
 	// Update debt header
-	_, err := r.client.DebtDetails.UpdateOneID(d.ID).
+	_, err := r.clientFor(ctx).DebtDetails.UpdateOneID(d.ID).
 		Where(debtdetails.Version(d.Version - 1)).
 		SetCounterparty(d.Counterparty).
 		SetInterestRate(d.InterestRate).
@@ -203,12 +207,12 @@ func (r *DebtRepository) Update(ctx context.Context, d *domain.DebtDetails) erro
 // Delete removes a debt and its schedule.
 func (r *DebtRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
 	// Delete schedule entries first
-	r.client.PaymentSchedule.Delete().
+	r.clientFor(ctx).PaymentSchedule.Delete().
 		Where(paymentschedule.DebtID(id)).
 		Exec(ctx)
 
 	// Delete debt
-	err := r.client.DebtDetails.DeleteOneID(id).
+	err := r.clientFor(ctx).DebtDetails.DeleteOneID(id).
 		Where(debtdetails.TenantID(tenantID)).
 		Exec(ctx)
 	if err != nil {
