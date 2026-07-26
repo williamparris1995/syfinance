@@ -55,7 +55,7 @@ func (r *fakeHoldingRepoEmpty) SaveOrUpdate(_ context.Context, _ *domain.Holding
 func (r *fakeHoldingRepoEmpty) FindByAccountAndSecurity(_ context.Context, _, _, _ uuid.UUID) (*domain.Holding, error) {
 	return nil, errors.New("not found")
 }
-func (r *fakeHoldingRepoEmpty) FindByID(_ context.Context, _ uuid.UUID) (*domain.Holding, error) {
+func (r *fakeHoldingRepoEmpty) FindByID(_ context.Context, _ uuid.UUID, _ uuid.UUID) (*domain.Holding, error) {
 	return nil, errors.New("not found")
 }
 func (r *fakeHoldingRepoEmpty) FindAll(_ context.Context, _ uuid.UUID, _ *uuid.UUID, _ domain.PageRequest) (*domain.PaginatedResult[domain.Holding], error) {

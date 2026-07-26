@@ -528,7 +528,7 @@ func TestGetHoldingPerformancePriceCurveAndRealized(t *testing.T) {
 	svc := NewService(secRepo, hr, tr)
 	svc.SetPriceHistoryRepository(phRepo)
 
-	perf, err := svc.GetHoldingPerformance(context.Background(), holdingID, "DAY", "CNY")
+	perf, err := svc.GetHoldingPerformance(context.Background(), tenantID, holdingID, "DAY", "CNY")
 	if err != nil {
 		t.Fatalf("GetHoldingPerformance error: %v", err)
 	}
@@ -583,7 +583,7 @@ func TestGetHoldingPerformanceCurrencyConversion(t *testing.T) {
 	svc.SetPriceHistoryRepository(phRepo)
 	svc.SetRateHistoryRepository(&fakeRateRepo{rateByCode: map[string]float64{"USD": 7.0, "CNY": 1.0}})
 
-	perf, err := svc.GetHoldingPerformance(context.Background(), holdingID, "DAY", "USD")
+	perf, err := svc.GetHoldingPerformance(context.Background(), tenantID, holdingID, "DAY", "USD")
 	if err != nil {
 		t.Fatalf("GetHoldingPerformance error: %v", err)
 	}

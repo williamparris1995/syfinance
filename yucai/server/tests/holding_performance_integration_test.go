@@ -157,7 +157,7 @@ func TestS1_SingleHolding_Baseline(t *testing.T) {
 
 	_, holding := seedBaselineHolding(t, ctx, svc, phRepo, holdRepo, tenantID, accountID)
 
-	perf, err := svc.GetHoldingPerformance(ctx, holding.ID, "MONTH", "CNY")
+	perf, err := svc.GetHoldingPerformance(ctx, tenantID, holding.ID, "MONTH", "CNY")
 	if err != nil {
 		t.Fatalf("GetHoldingPerformance: %v", err)
 	}
@@ -195,7 +195,7 @@ func TestS2_WithDividend(t *testing.T) {
 		t.Fatalf("RecordDividend: %v", err)
 	}
 
-	perf, err := svc.GetHoldingPerformance(ctx, holding.ID, "MONTH", "CNY")
+	perf, err := svc.GetHoldingPerformance(ctx, tenantID, holding.ID, "MONTH", "CNY")
 	if err != nil {
 		t.Fatalf("GetHoldingPerformance: %v", err)
 	}
@@ -269,7 +269,7 @@ func TestS3_WithSplit(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("RecordDividend: %v", err)
 	}
-	perfS2, err := svc.GetHoldingPerformance(ctx, holding.ID, "MONTH", "CNY")
+	perfS2, err := svc.GetHoldingPerformance(ctx, tenantID, holding.ID, "MONTH", "CNY")
 	if err != nil {
 		t.Fatalf("GetHoldingPerformance S2: %v", err)
 	}
@@ -299,7 +299,7 @@ func TestS3_WithSplit(t *testing.T) {
 	if err != nil || holding2 == nil {
 		t.Fatalf("find holding post-split: %v", err)
 	}
-	perfS3, err := svc.GetHoldingPerformance(ctx, holding2.ID, "MONTH", "CNY")
+	perfS3, err := svc.GetHoldingPerformance(ctx, tenantID, holding2.ID, "MONTH", "CNY")
 	if err != nil {
 		t.Fatalf("GetHoldingPerformance S3: %v", err)
 	}
@@ -371,7 +371,7 @@ func TestHoldingTWR_SingleBuy_Split(t *testing.T) {
 		t.Fatalf("find holding: %v", err)
 	}
 
-	perf, err := svc.GetHoldingPerformance(ctx, holding.ID, "MONTH", "CNY")
+	perf, err := svc.GetHoldingPerformance(ctx, tenantID, holding.ID, "MONTH", "CNY")
 	if err != nil {
 		t.Fatalf("GetHoldingPerformance: %v", err)
 	}
@@ -582,7 +582,7 @@ func TestRangePeriod_XIRR_CAGR(t *testing.T) {
 	}
 
 	// GetHoldingPerformance + GetPortfolioPerformance (MONTH range).
-	hPerf, err := svc.GetHoldingPerformance(ctx, holding.ID, "MONTH", "CNY")
+	hPerf, err := svc.GetHoldingPerformance(ctx, tenantID, holding.ID, "MONTH", "CNY")
 	if err != nil {
 		t.Fatalf("GetHoldingPerformance: %v", err)
 	}
@@ -606,3 +606,46 @@ func TestRangePeriod_XIRR_CAGR(t *testing.T) {
 	// Holding range CAGR = 0.30 (price ratio 10000→13000).
 	approxFloat(t, hPerf.RangeCagrAnnualizedPct, 0.30, "holding range CAGR")
 }
+
+// TestGetHoldingPerformance_RejectsCrossTenant is the IDOR regression test for
+// the P0 GetHoldingPerformance cross-tenant read (T01 phase-1 hotfix). The
+// holding is seeded under tenantA; a request carrying tenantB's tenantID must
+// fail (NotFound) and return a nil perf — the tenant-scoped FindByID predicate
+// must not leak the holding's existence, cost basis, or price curve to a
+// caller outside the owning tenant.
+//
+// Before the fix, GetHoldingPerformance discarded the tenantID returned by
+// getTenantID (`if _, err := getTenantID(ctx)`) and the repo's FindByID did
+// not filter by tenant — any authenticated user could read another tenant's
+// holding performance by guessing holding_id. This test pins the fix: tenant
+// scoping is threaded handler → service → repo, and a cross-tenant hit
+// surfaces as an error (no existence leak).
+func TestGetHoldingPerformance_RejectsCrossTenant(t *testing.T) {
+	svc, _, phRepo, holdRepo, tenantA, accountA := setupPerformanceHarness(t)
+	ctx := context.Background()
+
+	// Seed tenantA's baseline holding (buy 100 @ ¥100, current ¥130).
+	_, holdingA := seedBaselineHolding(t, ctx, svc, phRepo, holdRepo, tenantA, accountA)
+
+	// Sanity: tenantA can read its own holding performance.
+	ownPerf, err := svc.GetHoldingPerformance(ctx, tenantA, holdingA.ID, "MONTH", "CNY")
+	if err != nil {
+		t.Fatalf("owner read: GetHoldingPerformance: %v", err)
+	}
+	if ownPerf == nil {
+		t.Fatal("owner read: nil perf, want non-nil")
+	}
+
+	// tenantB tries to read tenantA's holding by the same holding_id. Must fail
+	// (tenant-scoped FindByID returns NotFound) and return a nil perf — no
+	// existence leak, no curve, no cost basis.
+	tenantB := uuid.New()
+	crossPerf, err := svc.GetHoldingPerformance(ctx, tenantB, holdingA.ID, "MONTH", "CNY")
+	if err == nil {
+		t.Fatalf("cross-tenant read: expected error (NotFound), got nil; perf=%+v", crossPerf)
+	}
+	if crossPerf != nil {
+		t.Errorf("cross-tenant read: expected nil perf on error, got %+v", crossPerf)
+	}
+}
+

@@ -50,7 +50,7 @@ func (r *fakeHoldingRepoSingle) SaveOrUpdate(_ context.Context, _ *domain.Holdin
 func (r *fakeHoldingRepoSingle) FindByAccountAndSecurity(_ context.Context, _, _, _ uuid.UUID) (*domain.Holding, error) {
 	return &r.h, nil
 }
-func (r *fakeHoldingRepoSingle) FindByID(_ context.Context, _ uuid.UUID) (*domain.Holding, error) {
+func (r *fakeHoldingRepoSingle) FindByID(_ context.Context, _ uuid.UUID, _ uuid.UUID) (*domain.Holding, error) {
 	return &r.h, nil
 }
 func (r *fakeHoldingRepoSingle) FindAll(_ context.Context, _ uuid.UUID, _ *uuid.UUID, _ domain.PageRequest) (*domain.PaginatedResult[domain.Holding], error) {
@@ -141,7 +141,7 @@ func TestHoldingXIRROriginalCurrency(t *testing.T) {
 		priceHistoryRepo: &fakePriceRepo{priceCents: 15000},
 		rateRepo:         &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
 	}
-	full, err := svc.holdingXIRR(context.Background(), holdID, "CNY")
+	full, err := svc.holdingXIRR(context.Background(), uuid.Nil, holdID, "CNY")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

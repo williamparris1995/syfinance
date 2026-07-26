@@ -34,7 +34,9 @@ type SecurityRepository interface {
 type HoldingRepository interface {
 	SaveOrUpdate(ctx context.Context, holding *Holding) error
 	FindByAccountAndSecurity(ctx context.Context, tenantID, accountID, securityID uuid.UUID) (*Holding, error)
-	FindByID(ctx context.Context, holdingID uuid.UUID) (*Holding, error)
+	// FindByID is tenant-scoped: a cross-tenant hit returns NotFound (no
+	// existence leak). Callers must pass the authenticated tenantID.
+	FindByID(ctx context.Context, tenantID, holdingID uuid.UUID) (*Holding, error)
 	FindAll(ctx context.Context, tenantID uuid.UUID, accountID *uuid.UUID, page PageRequest) (*PaginatedResult[Holding], error)
 	// FindAllForBackup returns every non-deleted holding for a tenant plus every
 	// holding transaction (trade ledger) for the same tenant. Two separate queries

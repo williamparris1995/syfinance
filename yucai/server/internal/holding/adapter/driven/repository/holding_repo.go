@@ -22,9 +22,12 @@ func NewHoldingRepository(client *holdingent.Client) *HoldingRepository {
 }
 
 func (r *HoldingRepository) SaveOrUpdate(ctx context.Context, h *domain.Holding) error {
-	// Try to find existing
+	// Try to find existing (tenant-scoped defense-in-depth: a cross-tenant
+	// collision on (accountID, securityID) cannot happen given account is
+	// tenant-scoped, but the predicate guarantees a miss returns NotFound
+	// instead of matching another tenant's row).
 	existing, err := r.client.Holding.Query().
-		Where(holding.AccountID(h.AccountID), holding.SecurityID(h.SecurityID)).
+		Where(holding.TenantID(h.TenantID), holding.AccountID(h.AccountID), holding.SecurityID(h.SecurityID)).
 		Only(ctx)
 	if err != nil {
 		// Create new
@@ -64,12 +67,12 @@ func (r *HoldingRepository) FindByAccountAndSecurity(ctx context.Context, tenant
 	return toDomainHolding(h), nil
 }
 
-// FindByID retrieves a single holding by its primary key. Tenant scope is the
-// caller's responsibility (used by GetHoldingPerformance, where the holdingID
-// is already tenant-scoped at the handler).
-func (r *HoldingRepository) FindByID(ctx context.Context, holdingID uuid.UUID) (*domain.Holding, error) {
+// FindByID retrieves a single holding by its primary key, tenant-scoped. A
+// cross-tenant hit returns NotFound (ent Only semantics) so no existence is
+// leaked to a caller passing another tenant's holdingID.
+func (r *HoldingRepository) FindByID(ctx context.Context, tenantID, holdingID uuid.UUID) (*domain.Holding, error) {
 	h, err := r.client.Holding.Query().
-		Where(holding.ID(holdingID)).
+		Where(holding.ID(holdingID), holding.TenantID(tenantID)).
 		Only(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("find holding by id: %w", err)

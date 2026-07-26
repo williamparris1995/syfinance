@@ -983,7 +983,7 @@ func (s *Service) benchmarkCurve(ctx context.Context, rangeName string) []CurveP
 // curve stays in the security's original currency (single-holding display);
 // unrealized is left in original currency for the same reason. out.Currency
 // reflects the security's original currency (curve/foot currency).
-func (s *Service) GetHoldingPerformance(ctx context.Context, holdingID uuid.UUID, rangeName string, baseCurrency string) (*HoldingPerformance, error) {
+func (s *Service) GetHoldingPerformance(ctx context.Context, tenantID uuid.UUID, holdingID uuid.UUID, rangeName string, baseCurrency string) (*HoldingPerformance, error) {
 	if s.priceHistoryRepo == nil {
 		return nil, fmt.Errorf("holding perf: price history repo not configured")
 	}
@@ -992,7 +992,7 @@ func (s *Service) GetHoldingPerformance(ctx context.Context, holdingID uuid.UUID
 		base = "CNY"
 	}
 	from, to, _ := s.curveWindow(rangeName)
-	h, err := s.holdingRepo.FindByID(ctx, holdingID)
+	h, err := s.holdingRepo.FindByID(ctx, tenantID, holdingID)
 	if err != nil {
 		return nil, fmt.Errorf("holding perf: find holding: %w", err)
 	}
@@ -1020,14 +1020,14 @@ func (s *Service) GetHoldingPerformance(ctx context.Context, holdingID uuid.UUID
 	unrealized := currencydomain.ConvertToBase(unrealizedRaw, rateFrom, rateBase)
 	// XIRR (Task 4): full-period (original currency, no conversion) + range
 	// (rebuilt from price_history endpoint). Both degrade independently to nil.
-	fullXirr, _ := s.holdingXIRR(ctx, holdingID, base)
+	fullXirr, _ := s.holdingXIRR(ctx, tenantID, holdingID, base)
 	rangeStart, _, _ := s.curveWindow(rangeName)
 	// trades fetched once, shared by range XIRR + CAGR (split-adjustment).
 	trades := s.tradesForHolding(ctx, *h)
 	rng := s.computeHoldingRangeXIRR(ctx, *h, *sec, trades, rangeStart, fullXirr)
 	// TWR (Task 4): full-period time-weighted annualized % in original currency,
 	// degrades to nil independently of XIRR.
-	twr, _ := s.holdingTWR(ctx, holdingID)
+	twr, _ := s.holdingTWR(ctx, tenantID, holdingID)
 	// CAGR (Task 1): simple compound annualized (final/initial)^(365/days)-1 in
 	// original currency. Full: first price → current; range: rangeStart price →
 	// current. Independent nil degrade (照 holdingXIRR/holdingTWR).
@@ -1430,9 +1430,9 @@ func uniqueSortedTradeDates(trades []domain.HoldingTransaction) []time.Time {
 // holdingXIRR computes single-holding full-period XIRR (original currency, no
 // conversion). Degrades to nil. Range XIRR is computed separately by Task 4's
 // computeHoldingRangeXIRR (needs price_history endpoint rebuild).
-func (s *Service) holdingXIRR(ctx context.Context, holdingID uuid.UUID, baseCurrency string) (full *float64, err error) {
+func (s *Service) holdingXIRR(ctx context.Context, tenantID uuid.UUID, holdingID uuid.UUID, baseCurrency string) (full *float64, err error) {
 	_ = baseCurrency // holding XIRR is original-currency; retained for Task 4 wiring symmetry
-	h, err := s.holdingRepo.FindByID(ctx, holdingID)
+	h, err := s.holdingRepo.FindByID(ctx, tenantID, holdingID)
 	if err != nil {
 		return nil, fmt.Errorf("holding xirr: find holding: %w", err)
 	}
@@ -1473,8 +1473,8 @@ func (s *Service) holdingXIRR(ctx context.Context, holdingID uuid.UUID, baseCurr
 
 // holdingTWR computes single-holding full-period TWR (original currency, no
 // conversion). Degrades to nil.
-func (s *Service) holdingTWR(ctx context.Context, holdingID uuid.UUID) (*float64, error) {
-	h, err := s.holdingRepo.FindByID(ctx, holdingID)
+func (s *Service) holdingTWR(ctx context.Context, tenantID uuid.UUID, holdingID uuid.UUID) (*float64, error) {
+	h, err := s.holdingRepo.FindByID(ctx, tenantID, holdingID)
 	if err != nil {
 		return nil, fmt.Errorf("holding twr: find holding: %w", err)
 	}

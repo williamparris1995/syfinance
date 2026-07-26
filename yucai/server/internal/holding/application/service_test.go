@@ -133,7 +133,7 @@ func (nilHoldingRepo) SaveOrUpdate(context.Context, *domain.Holding) error {
 func (nilHoldingRepo) FindByAccountAndSecurity(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) (*domain.Holding, error) {
 	panic("not used in SyncPrices test")
 }
-func (nilHoldingRepo) FindByID(context.Context, uuid.UUID) (*domain.Holding, error) {
+func (nilHoldingRepo) FindByID(context.Context, uuid.UUID, uuid.UUID) (*domain.Holding, error) {
 	panic("not used in SyncPrices test")
 }
 func (nilHoldingRepo) FindAll(context.Context, uuid.UUID, *uuid.UUID, domain.PageRequest) (*domain.PaginatedResult[domain.Holding], error) {
@@ -260,8 +260,10 @@ func (r *memHoldingRepo) FindByAccountAndSecurity(_ context.Context, _, accountI
 	return nil, errors.New("not found")
 }
 
-// FindByID returns the holding with the given primary key.
-func (r *memHoldingRepo) FindByID(_ context.Context, holdingID uuid.UUID) (*domain.Holding, error) {
+// FindByID returns the holding with the given primary key. tenantID is accepted
+// to satisfy the repository interface but not enforced (in-memory test fake;
+// cross-tenant rejection is exercised through the real ent repo in tests/).
+func (r *memHoldingRepo) FindByID(_ context.Context, _ uuid.UUID, holdingID uuid.UUID) (*domain.Holding, error) {
 	for _, h := range r.byKey {
 		if h.ID == holdingID {
 			cp := *h

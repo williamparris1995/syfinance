@@ -318,16 +318,19 @@ func (h *HoldingHandler) GetPortfolioPerformance(ctx context.Context, req *pb.Ge
 }
 
 // GetHoldingPerformance builds a single-holding original-currency price curve
-// + foot (realized/unrealized/total). holding_id is required.
+// + foot (realized/unrealized/total). holding_id is required. The holding is
+// resolved tenant-scoped: a holding_id owned by another tenant returns NotFound
+// (no existence leak) — the tid captured here is threaded through to the repo.
 func (h *HoldingHandler) GetHoldingPerformance(ctx context.Context, req *pb.GetHoldingPerformanceRequest) (*pb.HoldingPerformanceResponse, error) {
-	if _, err := getTenantID(ctx); err != nil {
+	tid, err := getTenantID(ctx)
+	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, err.Error())
 	}
 	hid, err := uuid.Parse(req.GetHoldingId())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid holding_id")
 	}
-	perf, err := h.service.GetHoldingPerformance(ctx, hid, curveRangeName(req.GetRange()), req.GetBaseCurrency())
+	perf, err := h.service.GetHoldingPerformance(ctx, tid, hid, curveRangeName(req.GetRange()), req.GetBaseCurrency())
 	if err != nil {
 		return nil, mapError(err)
 	}

@@ -95,7 +95,7 @@ func TestHoldingTWROriginalCurrency(t *testing.T) {
 		priceHistoryRepo: &fakePriceRepo{priceCents: 10000},
 		rateRepo:         &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
 	}
-	twr, err := svc.holdingTWR(context.Background(), holdID)
+	twr, err := svc.holdingTWR(context.Background(), uuid.Nil, holdID)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -546,7 +546,7 @@ func TestHoldingTWRSplitNoPhantomHPR(t *testing.T) {
 		priceHistoryRepo: &splitPriceRepo{splitDay: day1, preSplitCents: 10000, postSplitCents: 5000},
 		rateRepo:         &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
 	}
-	twr, err := svc.holdingTWR(context.Background(), holdID)
+	twr, err := svc.holdingTWR(context.Background(), uuid.Nil, holdID)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -593,7 +593,7 @@ func TestHoldingTWRSplitLastNeutral(t *testing.T) {
 		priceHistoryRepo: &splitPriceRepo{splitDay: day2, preSplitCents: 10000, postSplitCents: 5000},
 		rateRepo:         &fakeRateRepo{rateByCode: map[string]float64{"CNY": 1.0}},
 	}
-	twr, err := svc.holdingTWR(context.Background(), holdID)
+	twr, err := svc.holdingTWR(context.Background(), uuid.Nil, holdID)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

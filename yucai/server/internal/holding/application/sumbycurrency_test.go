@@ -25,7 +25,7 @@ func (r *pagedHoldingRepo) SaveOrUpdate(_ context.Context, h *domain.Holding) er
 func (r *pagedHoldingRepo) FindByAccountAndSecurity(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) (*domain.Holding, error) {
 	panic("not used")
 }
-func (r *pagedHoldingRepo) FindByID(context.Context, uuid.UUID) (*domain.Holding, error) {
+func (r *pagedHoldingRepo) FindByID(context.Context, uuid.UUID, uuid.UUID) (*domain.Holding, error) {
 	panic("not used")
 }
 func (r *pagedHoldingRepo) FindAllForBackup(context.Context, uuid.UUID) ([]domain.Holding, []domain.HoldingTransaction, error) {
