@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/yucai/server/internal/template/ent/schema"
+	"github.com/yucai/server/internal/template/ent/templaterecordlog"
 	"github.com/yucai/server/internal/template/ent/transactiontemplate"
 )
 
@@ -14,6 +15,16 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	templaterecordlogFields := schema.TemplateRecordLog{}.Fields()
+	_ = templaterecordlogFields
+	// templaterecordlogDescCreatedAt is the schema descriptor for created_at field.
+	templaterecordlogDescCreatedAt := templaterecordlogFields[4].Descriptor()
+	// templaterecordlog.DefaultCreatedAt holds the default value on creation for the created_at field.
+	templaterecordlog.DefaultCreatedAt = templaterecordlogDescCreatedAt.Default.(func() time.Time)
+	// templaterecordlogDescID is the schema descriptor for id field.
+	templaterecordlogDescID := templaterecordlogFields[0].Descriptor()
+	// templaterecordlog.DefaultID holds the default value on creation for the id field.
+	templaterecordlog.DefaultID = templaterecordlogDescID.Default.(func() uuid.UUID)
 	transactiontemplateFields := schema.TransactionTemplate{}.Fields()
 	_ = transactiontemplateFields
 	// transactiontemplateDescName is the schema descriptor for name field.

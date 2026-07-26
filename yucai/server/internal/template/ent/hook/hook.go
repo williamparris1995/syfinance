@@ -9,6 +9,18 @@ import (
 	"github.com/yucai/server/internal/template/ent"
 )
 
+// The TemplateRecordLogFunc type is an adapter to allow the use of ordinary
+// function as TemplateRecordLog mutator.
+type TemplateRecordLogFunc func(context.Context, *ent.TemplateRecordLogMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f TemplateRecordLogFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.TemplateRecordLogMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TemplateRecordLogMutation", m)
+}
+
 // The TransactionTemplateFunc type is an adapter to allow the use of ordinary
 // function as TransactionTemplate mutator.
 type TransactionTemplateFunc func(context.Context, *ent.TransactionTemplateMutation) (ent.Value, error)

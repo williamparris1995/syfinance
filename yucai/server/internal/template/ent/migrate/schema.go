@@ -8,6 +8,33 @@ import (
 )
 
 var (
+	// TemplateRecordLogsColumns holds the columns for the "template_record_logs" table.
+	TemplateRecordLogsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID, Comment: "FK to tenants table — data isolation boundary"},
+		{Name: "template_id", Type: field.TypeUUID, Comment: "FK to transaction_template — which template was recorded"},
+		{Name: "record_date", Type: field.TypeTime, Comment: "The template.NextDate that was recorded (idempotency key component)"},
+		{Name: "transaction_id", Type: field.TypeUUID, Nullable: true, Comment: "FK to the recorded transaction; back-filled after recorder.Record"},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// TemplateRecordLogsTable holds the schema information for the "template_record_logs" table.
+	TemplateRecordLogsTable = &schema.Table{
+		Name:       "template_record_logs",
+		Columns:    TemplateRecordLogsColumns,
+		PrimaryKey: []*schema.Column{TemplateRecordLogsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "templaterecordlog_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{TemplateRecordLogsColumns[1]},
+			},
+			{
+				Name:    "templaterecordlog_tenant_id_template_id_record_date",
+				Unique:  true,
+				Columns: []*schema.Column{TemplateRecordLogsColumns[1], TemplateRecordLogsColumns[2], TemplateRecordLogsColumns[3]},
+			},
+		},
+	}
 	// TransactionTemplatesColumns holds the columns for the "transaction_templates" table.
 	TransactionTemplatesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -52,6 +79,7 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		TemplateRecordLogsTable,
 		TransactionTemplatesTable,
 	}
 )

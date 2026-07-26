@@ -169,7 +169,8 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	// rolls back (audit D4 — duplicate-record prevention).
 	transactionRecorderAdapter := provideTransactionRecorderAdapter(txnService)
 	templateRepo := provideTemplateRepo(templateClient)
-	templateService := provideTemplateService(templateRepo, transactionRecorderAdapter, db)
+	templateRecordLogRepo := provideTemplateRecordLogRepo(templateClient)
+	templateService := provideTemplateService(templateRepo, templateRecordLogRepo, transactionRecorderAdapter, db)
 	templateHandler := provideTemplateHandler(templateService)
 
 	// Holding module

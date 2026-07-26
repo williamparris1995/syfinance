@@ -71,6 +71,7 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 		// Template module
 		provideTemplateEntClient,
 		provideTemplateRepo,
+		provideTemplateRecordLogRepo,
 		provideTemplateService,
 		provideTemplateHandler,
 

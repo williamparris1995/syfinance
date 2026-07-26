@@ -6,5 +6,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// TemplateRecordLog is the predicate function for templaterecordlog builders.
+type TemplateRecordLog func(*sql.Selector)
+
 // TransactionTemplate is the predicate function for transactiontemplate builders.
 type TransactionTemplate func(*sql.Selector)

@@ -501,6 +501,15 @@ func provideTemplateRepo(client *tmplent.Client) *tmplrepo.TemplateRepository {
 	return tmplrepo.NewTemplateRepository(client)
 }
 
+// provideTemplateRecordLogRepo backs the Task 8 autoRecord idempotency check
+// (audit C1 + D4 concurrent-tick guard). The repo owns the
+// UNIQUE(tenant_id, template_id, record_date) upsert that downgrades a
+// duplicate scheduler tick or crash-retry to a no-op; injected into the
+// template Service via SetLogRepo. Mirrors the per-module repo provider shape.
+func provideTemplateRecordLogRepo(client *tmplent.Client) *tmplrepo.TemplateRecordLogRepository {
+	return tmplrepo.NewTemplateRecordLogRepository(client)
+}
+
 // provideTransactionRecorderAdapter builds the template/domain.TransactionRecorder
 // adapter backed by the transaction application Service. The adapter translates
 // a RecordRequest into SimpleExpense/SimpleIncome/SimpleTransfer calls. DDD port
@@ -515,11 +524,16 @@ func provideTransactionRecorderAdapter(txnSvc *txnapp.Service) *txnapp.Transacti
 // unaffected; RecordTransaction now works end-to-end. db is the shared *sql.DB
 // from Task 1's provideDB: Task 7 injects it so RecordTransaction wraps its
 // recorder.Record + repo.Update in a single sqltx.WithTx (audit D4 atomic —
-// duplicate-record prevention). Mirrors Task 4-6's transaction/holding/debt
-// provider shape.
-func provideTemplateService(repo *tmplrepo.TemplateRepository, recorder *txnapp.TransactionRecorderAdapter, db *sql.DB) *tmplapp.Service {
+// duplicate-record prevention). Task 8 additionally injects logRepo so the
+// WithTx fn opens with a template_record_log upsert — a UNIQUE conflict on
+// (tenant_id, template_id, record_date) short-circuits recorder.Record and
+// prevents duplicate transactions from a concurrent scheduler tick or
+// crash-retry (audit C1). Mirrors Task 4-6's transaction/holding/debt provider
+// shape.
+func provideTemplateService(repo *tmplrepo.TemplateRepository, logRepo *tmplrepo.TemplateRecordLogRepository, recorder *txnapp.TransactionRecorderAdapter, db *sql.DB) *tmplapp.Service {
 	svc := tmplapp.NewService(repo, recorder)
 	svc.SetDB(db) // D4: shared *sql.DB → RecordTransaction wraps in sqltx.WithTx
+	svc.SetLogRepo(logRepo) // C1: idempotency check active in production
 	return svc
 }
 func provideTemplateHandler(svc *tmplapp.Service) *tmplgrpc.TemplateHandler {

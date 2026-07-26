@@ -371,5 +371,142 @@ func TestRecordTransaction_CommitsOnSuccess(t *testing.T) {
 	}
 }
 
+// TestRecordTransaction_Idempotent_OnSameRecordDate is the headline Task 8
+// guarantee (audit C1 / D4 concurrent-tick guard): a duplicate autoRecord
+// attempt for the same (template, record_date) must NOT create a duplicate
+// transaction. The first record commits both the new transaction AND a
+// template_record_log row keyed by (tenant_id, template_id, NextDate) inside
+// the same WithTx. A second attempt with the same NextDate (simulating a
+// concurrent scheduler tick OR a crash-retry where the NextDate advance did
+// not yet persist) hits the UNIQUE(tenant_id, template_id, record_date)
+// conflict on Upsert → returns inserted=false → autoRecord skips
+// recorder.Record entirely (empty tx commits). Assertion: exactly 1
+// transaction row + exactly 1 log row after both calls.
+//
+// Pre-Task-8 (no log table / no idempotency check), the second call would
+// re-record → 2 transactions + double-spend the asset account, and on the
+// next tick the duplicate would compound. Post-Task-8 the unique index is the
+// mechanism and Upsert is the policy.
+func TestRecordTransaction_Idempotent_OnSameRecordDate(t *testing.T) {
+	db, tmplClient, txnClient, accountClient := setupTemplateTxTestDB(t)
+
+	tenantID := uuid.New()
+	assetID := uuid.New()
+	expenseID := uuid.New()
+	ctx := context.Background()
+
+	seedAccountForTemplateTx(t, ctx, accountClient, assetID, tenantID, "Cash", account.AccountTypeAsset, 1000_00)
+	seedAccountForTemplateTx(t, ctx, accountClient, expenseID, tenantID, "Food", account.AccountTypeExpense, 0)
+
+	tmpl, err := domain.NewTransactionTemplate(
+		tenantID, "Rent", 50_00, domain.DirectionExpense, assetID,
+		domain.CycleMonthly, 1, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("build template: %v", err)
+	}
+	tmpl.Category = expenseID.String()
+	seedTemplateRow(t, ctx, tmplClient, tmpl)
+
+	// Real repos wired over the shared db. tmplClient.TemplateRecordLog is
+	// the Task 8 ent entity; the repo wraps it with the try-insert +
+	// IsConstraintError idempotency pattern.
+	tmplRepo := tmplrepo.NewTemplateRepository(tmplClient)
+	txnRepo := txnrepo.NewTransactionRepository(txnClient, db).SetDialect(txnrepo.DialectSQLite3)
+	accountRepo := accountrepo.NewAccountRepository(accountClient)
+	logRepo := tmplrepo.NewTemplateRecordLogRepository(tmplClient)
+
+	bu := &inlineBalanceUpdater{accountRepo: accountRepo}
+	txnSvc := txnapp.NewService(txnRepo, accountRepo, bu, db)
+	recorder := txnapp.NewTransactionRecorderAdapter(txnSvc)
+
+	tmplSvc := NewService(tmplRepo, recorder)
+	tmplSvc.SetDB(db)       // Task 7: wrap recorder.Record + NextDate in WithTx
+	tmplSvc.SetLogRepo(logRepo) // Task 8: idempotency check active
+
+	// First call: succeeds → 1 transaction + 1 log row (with txnID back-fill)
+	// + NextDate advances + asset balance drops by 50.00.
+	res1, err := tmplSvc.RecordTransaction(ctx, tenantID, tmpl.ID)
+	if err != nil {
+		t.Fatalf("first RecordTransaction: %v", err)
+	}
+	if res1 == nil {
+		t.Fatal("expected non-nil result on first call")
+	}
+
+	// Simulate a duplicate attempt against the SAME record_date. Two real-world
+	// shapes: (a) two scheduler ticks fire concurrently before either commits;
+	// (b) crash between commit and the NextDate-advance persist. Task 7 made
+	// (b) impossible (NextDate-advance is inside the same WithTx), but (a) and
+	// "old scheduler snapshot" are still possible — that's what Task 8 guards.
+	// We reset the persisted NextDate back to the original value to simulate
+	// "the second tick sees the same NextDate as the first". The log row from
+	// call 1 is still keyed on the original NextDate, so the second call's
+	// Upsert conflicts → autoRecord returns nil (skip) inside the WithTx fn.
+	originalNext := tmpl.NextDate // Jan 1 + CycleMonthly/billingDay 1 → Feb 1
+	if _, err := tmplClient.TransactionTemplate.UpdateOneID(tmpl.ID).
+		SetNextDate(originalNext).
+		Save(ctx); err != nil {
+		t.Fatalf("reset NextDate for duplicate-attempt simulation: %v", err)
+	}
+
+	// Second call: same (template, NextDate) → log Upsert hits UNIQUE conflict
+	// → inserted=false → autoRecord returns nil without calling recorder.Record.
+	res2, err := tmplSvc.RecordTransaction(ctx, tenantID, tmpl.ID)
+	if err != nil {
+		t.Fatalf("second RecordTransaction (idempotency hit should not error): %v", err)
+	}
+	if res2 != nil {
+		t.Errorf("expected nil result on idempotency skip, got %+v", res2)
+	}
+
+	// Headline: exactly 1 transaction + 1 log row (no duplicate).
+	headerCount, err := txnClient.Transaction.Query().Count(ctx)
+	if err != nil {
+		t.Fatalf("count transactions: %v", err)
+	}
+	if headerCount != 1 {
+		t.Errorf("transaction should have exactly 1 row (no duplicate), got %d", headerCount)
+	}
+
+	logCount, err := tmplClient.TemplateRecordLog.Query().Count(ctx)
+	if err != nil {
+		t.Fatalf("count log rows: %v", err)
+	}
+	if logCount != 1 {
+		t.Errorf("log should have exactly 1 row, got %d", logCount)
+	}
+
+	// The single log row's transaction_id must equal res1.TransactionID — the
+	// SetTransactionID back-fill ran inside the first WithTx after recorder.Record.
+	logRows, err := tmplClient.TemplateRecordLog.Query().All(ctx)
+	if err != nil {
+		t.Fatalf("query log: %v", err)
+	}
+	if len(logRows) != 1 {
+		t.Fatalf("expected 1 log row, got %d", len(logRows))
+	}
+	if logRows[0].TransactionID == nil || *logRows[0].TransactionID != res1.TransactionID {
+		t.Errorf("log transaction_id should be %s, got %+v", res1.TransactionID, logRows[0].TransactionID)
+	}
+	// Sanity: log row key fields match the original (template, record_date).
+	if logRows[0].TemplateID != tmpl.ID {
+		t.Errorf("log template_id should be %s, got %s", tmpl.ID, logRows[0].TemplateID)
+	}
+	if !logRows[0].RecordDate.Equal(originalNext) {
+		t.Errorf("log record_date should be %v, got %v", originalNext, logRows[0].RecordDate)
+	}
+
+	// Sanity: the asset account was debited exactly once (50.00, not 100.00).
+	// Pre-Task-8 the duplicate would have compounded.
+	asset, err := accountClient.Account.Get(ctx, assetID)
+	if err != nil {
+		t.Fatalf("reload asset account: %v", err)
+	}
+	if asset.CurrentBalanceCents != 950_00 {
+		t.Errorf("asset balance should be 95000 after one 50.00 expense, got %d", asset.CurrentBalanceCents)
+	}
+}
+
 // ensure dialect import is used even if the helper signatures change later.
 var _ = dialect.SQLite
