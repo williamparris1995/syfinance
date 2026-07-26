@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/yucai/server/internal/currency/domain"
@@ -34,7 +35,23 @@ func (r *RateHistoryRepository) FindRate(ctx context.Context, code string, date 
 		First(ctx)
 	if err != nil {
 		if currencyent.IsNotFound(err) {
-			// No history at or before date: assume no conversion (base / fallback).
+			// Distinguish a genuine GAP (currency is tracked — has rows — but history
+			// doesn't reach [date]; usually an old trade date before the rate scheduler
+			// started) from base/unconfigured (no rows at all — e.g. CNY has no rate row
+			// by design, identity 1.0). Gap → warn loudly (the 1.0 fallback produces a
+			// wrong conversion downstream); base/unconfigured → silent.
+			//
+			// Log-only stopgap for missing-rate silence (P1-3); the full fix — degrading
+			// the metric to nil — requires threading base currency through the
+			// portfolio-calc stack and is deferred.
+			if _, probeErr := r.client.RateHistory.Query().
+				Where(ratehistory.CurrencyCodeEQ(code)).
+				Limit(1).First(ctx); probeErr == nil {
+				slog.Warn("exchange rate gap: no row at/before date, falling back to 1.0 (tracked currency — converted amount may be wrong)",
+					slog.String("currency_code", code),
+					slog.String("date", date.Format("2006-01-02")),
+					slog.String("operation", "RateHistoryRepository.FindRate"))
+			}
 			return 1.0, nil
 		}
 		return 0, fmt.Errorf("query rate for %s @ %s: %w", code, date.Format("2006-01-02"), err)

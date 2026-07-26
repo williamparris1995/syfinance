@@ -1,8 +1,11 @@
 package repository_test
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -187,5 +190,89 @@ func seedRate(t *testing.T, client *currencyent.Client, code string, rateDate ti
 		SetCurrencyCode(code).SetRateDate(rateDate).SetExchangeRate(rate).
 		Save(ctx); err != nil {
 		t.Fatalf("seed rate: %v", err)
+	}
+}
+
+// captureSlog swaps the default slog handler for a text handler writing to a
+// buffer (Debug level), restored on t.Cleanup. Returns the buffer for assertion.
+func captureSlog(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var buf bytes.Buffer
+	prev := slog.Default()
+	h := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
+	slog.SetDefault(slog.New(h))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+	return &buf
+}
+
+// TestRateHistoryRepoFindRate_GapWarns covers the P1-3 stopgap: when a TRACKED
+// currency (has rows) is queried at a date its history doesn't reach, FindRate
+// still returns 1.0 (no behavioral change) but emits a warning so the silent
+// fallback becomes observable. Base/unconfigured currencies stay silent.
+func TestRateHistoryRepoFindRate_GapWarns(t *testing.T) {
+	client := setupCurrencyTestDB(t)
+	ctx := context.Background()
+	buf := captureSlog(t)
+
+	// Seed USD at 2024-06-01 (a tracked currency). Querying 2020-01-15 — before
+	// the scheduler started — has no row at/before that date.
+	seedRate(t, client, "USD", day("2024-06-01"), 7.2)
+
+	repo := repository.NewRateHistoryRepository(client)
+	got, err := repo.FindRate(ctx, "USD", day("2020-01-15"))
+	if err != nil {
+		t.Fatalf("FindRate (gap): %v", err)
+	}
+	if got != 1.0 {
+		t.Errorf("FindRate(USD, pre-history) = %v, want 1.0 (fallback unchanged)", got)
+	}
+	if !strings.Contains(buf.String(), "exchange rate gap") {
+		t.Errorf("expected gap warning in slog output, got:\n%s", buf.String())
+	}
+	if !strings.Contains(buf.String(), "currency_code=USD") {
+		t.Errorf("expected currency_code=USD in slog output, got:\n%s", buf.String())
+	}
+}
+
+// TestRateHistoryRepoFindRate_BaseSilent confirms the base/unconfigured path
+// (no rows at all — e.g. CNY) stays SILENT: returns 1.0 with no gap warning.
+func TestRateHistoryRepoFindRate_BaseSilent(t *testing.T) {
+	client := setupCurrencyTestDB(t)
+	ctx := context.Background()
+	buf := captureSlog(t)
+
+	// No CNY rows seeded at all — identity 1.0, no warning.
+	repo := repository.NewRateHistoryRepository(client)
+	got, err := repo.FindRate(ctx, "CNY", day("2024-01-01"))
+	if err != nil {
+		t.Fatalf("FindRate (base): %v", err)
+	}
+	if got != 1.0 {
+		t.Errorf("FindRate(CNY, no history) = %v, want 1.0 (identity)", got)
+	}
+	if strings.Contains(buf.String(), "exchange rate gap") {
+		t.Errorf("expected NO gap warning for base currency, got:\n%s", buf.String())
+	}
+}
+
+// TestRateHistoryRepoFindRate_FoundNoWarn confirms the happy path: an exact or
+// forward-fill hit returns the rate and emits no gap warning.
+func TestRateHistoryRepoFindRate_FoundNoWarn(t *testing.T) {
+	client := setupCurrencyTestDB(t)
+	ctx := context.Background()
+	buf := captureSlog(t)
+
+	seedRate(t, client, "USD", day("2024-06-01"), 7.2)
+
+	repo := repository.NewRateHistoryRepository(client)
+	got, err := repo.FindRate(ctx, "USD", day("2024-06-02"))
+	if err != nil {
+		t.Fatalf("FindRate (found): %v", err)
+	}
+	if got != 7.2 {
+		t.Errorf("FindRate(USD, 2024-06-02) = %v, want 7.2", got)
+	}
+	if strings.Contains(buf.String(), "exchange rate gap") {
+		t.Errorf("expected NO gap warning on found path, got:\n%s", buf.String())
 	}
 }
