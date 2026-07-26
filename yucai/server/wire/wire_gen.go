@@ -178,11 +178,18 @@ func InitializeApp(cfg *config.Config) (*App, error) {
 	priceHistoryRepo := providePriceHistoryRepo(holdingClient)
 	historicalProvider := provideHistoricalProvider()
 	holdingRateRepo := provideHoldingRateRepo(currencyRateHistoryRepo)
+	// tradeCashRecorder wraps txnService (Transaction module above) in the
+	// holding-domain TradeCashRecorder port — D2 atomicity. BuyHolding/
+	// SellHolding will enlist this inside their sqltx.WithTx so the trade and
+	// its cash legs commit or roll back together.
+	tradeCashRecorder := provideTradeCashRecorderAdapter(txnService)
 	// tenantRepo (declared in the Auth module above) satisfies holding's
 	// TenantLister port via its FindAllIDs method — cross-tenant fan-out for
-	// SnapshotAllHoldings.
-	holdingService := provideHoldingService(securityRepo, holdingRepo, tradeRepo, priceRouter, lotRepo, snapshotRepo, priceHistoryRepo, historicalProvider, holdingRateRepo, tenantRepo)
-	holdingHandler := provideHoldingHandler(holdingService, txnService, accountRepo)
+	// SnapshotAllHoldings. db (declared in the DB module above) is the shared
+	// *sql.DB from Task 1's provideDB — drives the service's BuyHolding/
+	// SellHolding WithTx wrap.
+	holdingService := provideHoldingService(securityRepo, holdingRepo, tradeRepo, priceRouter, lotRepo, snapshotRepo, priceHistoryRepo, historicalProvider, holdingRateRepo, tenantRepo, tradeCashRecorder, db)
+	holdingHandler := provideHoldingHandler(holdingService, accountRepo)
 
 	// Goal module (continued): holdingService is the AccountMarketValueSource
 	// port (Investment goals), accountService is the AccountBalanceSource port

@@ -41,6 +41,13 @@ type HoldingTradeRequest struct {
 	FeeCents   int64
 	TradeDate  time.Time
 	Notes      string
+	// CashRecord, when non-nil, triggers a cash-side double-entry transaction
+	// recording inside the same sqltx.WithTx as the holding+trade+lot writes.
+	// The gRPC handler builds it (after validating the from-account) for
+	// production buy/sell so the cash move is atomic with the trade; nil for
+	// seed data, perf tests, and the validate-from-account-skipped path —
+	// preserves the legacy "no cash double-write" behavior those callers rely on.
+	CashRecord *domain.TradeCashRecordRequest
 }
 
 type RecordDividendRequest struct {

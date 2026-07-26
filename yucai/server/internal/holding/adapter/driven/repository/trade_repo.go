@@ -8,6 +8,7 @@ import (
 	"github.com/yucai/server/internal/holding/domain"
 	holdingent "github.com/yucai/server/internal/holding/ent"
 	"github.com/yucai/server/internal/holding/ent/holdingtransaction"
+	"github.com/yucai/server/internal/sqltx"
 )
 
 // TradeRepository implements domain.TradeRepository.
@@ -20,8 +21,21 @@ func NewTradeRepository(client *holdingent.Client) *TradeRepository {
 	return &TradeRepository{client: client}
 }
 
+// clientFor returns the ent client appropriate for ctx: if ctx carries a tx
+// driver (injected by sqltx.WithTx) it returns a tx-bound client whose writes
+// join the outer transaction; otherwise it returns the default r.client (the
+// non-transactional path, preserving backward compatibility). Mirrors
+// HoldingRepository.clientFor — holding+trade+lot share one ent package so the
+// helper shape is identical.
+func (r *TradeRepository) clientFor(ctx context.Context) *holdingent.Client {
+	if d, ok := sqltx.DriverFrom(ctx); ok {
+		return holdingent.NewClient(holdingent.Driver(d))
+	}
+	return r.client
+}
+
 func (r *TradeRepository) Save(ctx context.Context, tr *domain.HoldingTransaction) error {
-	create := r.client.HoldingTransaction.Create().
+	create := r.clientFor(ctx).HoldingTransaction.Create().
 		SetID(tr.ID).SetTenantID(tr.TenantID).
 		SetAccountID(tr.AccountID).SetSecurityID(tr.SecurityID).
 		SetTradeType(tr.TradeType.String()).

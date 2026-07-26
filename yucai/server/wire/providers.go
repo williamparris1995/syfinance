@@ -542,6 +542,8 @@ func provideHoldingService(
 	historicalProvider priceprovider.HistoricalProvider,
 	holdingRateRepo holdingdomain.RateHistoryRepository,
 	tenantLister holdingdomain.TenantLister,
+	cashRecorder holdingdomain.TradeCashRecorder,
+	db *sql.DB,
 ) *holdingapp.Service {
 	svc := holdingapp.NewService(secRepo, hRepo, tRepo)
 	svc.SetPriceRouter(priceRouter)        // wire 注入价格 router；nil 时 SyncPrices 会 error out
@@ -551,10 +553,21 @@ func provideHoldingService(
 	svc.SetHistoricalProvider(historicalProvider) // Sina K-line for BackfillPriceHistory
 	svc.SetRateHistoryRepository(holdingRateRepo) // currency→holding adapter (slice→map)
 	svc.SetTenantLister(tenantLister)             // cross-tenant fan-out for SnapshotAllHoldings
+	svc.SetCashRecorder(cashRecorder)             // D2: cash-side trade double-write (transaction app adapter)
+	svc.SetDB(db)                                 // D2: shared *sql.DB → BuyHolding/SellHolding wrap in sqltx.WithTx
 	return svc
 }
-func provideHoldingHandler(svc *holdingapp.Service, txnSvc *txnapp.Service, accountLookup txnapp.AccountLookup) *holdinggrpc.HoldingHandler {
-	return holdinggrpc.NewHoldingHandler(svc, txnSvc, accountLookup)
+func provideHoldingHandler(svc *holdingapp.Service, accountLookup txnapp.AccountLookup) *holdinggrpc.HoldingHandler {
+	return holdinggrpc.NewHoldingHandler(svc, accountLookup)
+}
+
+// provideTradeCashRecorderAdapter wraps the transaction application Service in
+// the holding-domain TradeCashRecorder port. The adapter is wire-injected into
+// the holding service so BuyHolding/SellHolding can record the cash side of a
+// trade (debit/credit cash + investment accounts) inside the same sqltx.WithTx
+// as the holding+trade+lot writes — D2 atomicity.
+func provideTradeCashRecorderAdapter(txnSvc *txnapp.Service) holdingdomain.TradeCashRecorder {
+	return txnapp.NewTradeCashRecorderAdapter(txnSvc)
 }
 
 // Backup providers

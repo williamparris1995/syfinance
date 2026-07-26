@@ -345,12 +345,12 @@ func setupAuthzMatrix(t *testing.T) (client pb.HoldingServiceClient, svc *applic
 		middleware.TokenBlacklist = prevBL
 	})
 
-	// txnSvc + accountLookup are nil because the matrix only exercises RPCs
-	// that don't touch the transaction double-write or from-account validation
-	// (CreateSecurity, UpdateSecurityPrice, SyncPrices, BackfillPriceHistory,
-	// ListSecurities, GetHoldingPerformance). HoldingHandler accepts nil here
-	// because no method in the matrix dereferences these fields.
-	handler := holdinggrpc.NewHoldingHandler(svc, nil, nil)
+	// accountLookup is nil because the matrix only exercises RPCs that don't
+	// touch the from-account validation / cash double-write (CreateSecurity,
+	// UpdateSecurityPrice, SyncPrices, BackfillPriceHistory, ListSecurities,
+	// GetHoldingPerformance). HoldingHandler accepts nil here because no method
+	// in the matrix dereferences this field.
+	handler := holdinggrpc.NewHoldingHandler(svc, nil)
 
 	lis := bufconn.Listen(1024 * 1024)
 	srv := grpc.NewServer(grpc.ChainUnaryInterceptor(middleware.AuthInterceptor, middleware.RequireAdmin))

@@ -244,7 +244,14 @@ func setupBuyHoldingHarness(t *testing.T) (
 
 	txnRepo = &recordingTxnRepo{}
 	txnSvc := txnApp.NewService(txnRepo, accLookup, mutatingBalanceUpdater{lookup: accLookup}, nil)
-	h = NewHoldingHandler(holdSvc, txnSvc, accLookup)
+	// D2: cash double-write now lives in the holding service, so the recorder
+	// adapter wraps the real txn service and is injected into holdSvc. The
+	// handler is agnostic — it builds a CashRecord from validated accounts and
+	// the service enlists it inside its WithTx (nil db here → runInTx nil-skips
+	// → cash-write still fires, just without tx wrapping, mirroring the
+	// pre-Task-5 harness behavior the test was written against).
+	holdSvc.SetCashRecorder(txnApp.NewTradeCashRecorderAdapter(txnSvc))
+	h = NewHoldingHandler(holdSvc, accLookup)
 	return
 }
 
@@ -373,7 +380,7 @@ func setupSyncPricesHarness(t *testing.T) (h *HoldingHandler, tenantID uuid.UUID
 	holdSvc := application.NewService(secRepo, holdRepo, tradeRepo)
 	holdSvc.SetPriceRouter(&fakePriceRouter{price: 9999})
 
-	h = NewHoldingHandler(holdSvc, nil /*txnSvc*/, nil /*accountLookup*/)
+	h = NewHoldingHandler(holdSvc, nil /*accountLookup*/)
 
 	ctx := ctxWithTenant(tenantID)
 	for _, sym := range []string{"600519", "510300"} {
@@ -466,7 +473,7 @@ func setupPerfHarness(t *testing.T) (
 	holdSvc.SetPriceHistoryRepository(phRepo)
 	// rateRepo intentionally nil: all test holdings are CNY (rate=1.0 default).
 
-	h = NewHoldingHandler(holdSvc, nil /*txnSvc*/, nil /*accountLookup*/)
+	h = NewHoldingHandler(holdSvc, nil /*accountLookup*/)
 	return h, tenantID, accountID, holdRepo, snapRepo, phRepo
 }
 

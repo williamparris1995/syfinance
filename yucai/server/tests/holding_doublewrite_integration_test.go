@@ -96,8 +96,16 @@ func setupHoldingDoubleWriteHarness(t *testing.T) (
 	// tests would silently exercise the moving-weighted fallback).
 	lotRepo = holdingsec.NewLotRepository(holdClient)
 	holdSvc.SetLotRepository(lotRepo)
+	// D2: cash double-write now lives in the holding service. The recorder
+	// adapter wraps the real txn service and is injected into holdSvc; the
+	// handler builds a CashRecord from validated accounts and the service
+	// enlists it inside its WithTx. txnSvc.db stays nil here (mirrors the
+	// pre-Task-5 harness), so runInTx nil-skips and the cash-write fires
+	// without tx wrapping — the test still observes balances moving end-to-end
+	// via the real BalanceUpdater.
+	holdSvc.SetCashRecorder(txnapp.NewTradeCashRecorderAdapter(txnSvc))
 
-	h = holdgrpc.NewHoldingHandler(holdSvc, txnSvc, accountRepo)
+	h = holdgrpc.NewHoldingHandler(holdSvc, accountRepo)
 	tenantID = uuid.New()
 
 	ctx := context.Background()

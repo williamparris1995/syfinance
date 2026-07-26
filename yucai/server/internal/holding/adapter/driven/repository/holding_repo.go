@@ -26,10 +26,6 @@ func NewHoldingRepository(client *holdingent.Client) *HoldingRepository {
 // driver (injected by sqltx.WithTx) it returns a tx-bound client whose writes
 // join the outer transaction; otherwise it returns the default r.client (the
 // non-transactional path, preserving backward compatibility).
-//
-// NOTE: defined but NOT yet used by any write method. Tasks 4-7 will switch
-// each write method from r.client to r.clientFor(ctx). Until then this is a
-// no-op helper with zero behavior change.
 func (r *HoldingRepository) clientFor(ctx context.Context) *holdingent.Client {
 	if d, ok := sqltx.DriverFrom(ctx); ok {
 		return holdingent.NewClient(holdingent.Driver(d))
@@ -38,16 +34,17 @@ func (r *HoldingRepository) clientFor(ctx context.Context) *holdingent.Client {
 }
 
 func (r *HoldingRepository) SaveOrUpdate(ctx context.Context, h *domain.Holding) error {
+	c := r.clientFor(ctx)
 	// Try to find existing (tenant-scoped defense-in-depth: a cross-tenant
 	// collision on (accountID, securityID) cannot happen given account is
 	// tenant-scoped, but the predicate guarantees a miss returns NotFound
 	// instead of matching another tenant's row).
-	existing, err := r.client.Holding.Query().
+	existing, err := c.Holding.Query().
 		Where(holding.TenantID(h.TenantID), holding.AccountID(h.AccountID), holding.SecurityID(h.SecurityID)).
 		Only(ctx)
 	if err != nil {
 		// Create new
-		create := r.client.Holding.Create().
+		create := c.Holding.Create().
 			SetID(h.ID).SetTenantID(h.TenantID).
 			SetAccountID(h.AccountID).SetSecurityID(h.SecurityID).
 			SetQuantity(h.Quantity).SetAvgCostCents(h.AvgCostCents).
@@ -63,7 +60,7 @@ func (r *HoldingRepository) SaveOrUpdate(ctx context.Context, h *domain.Holding)
 		return nil
 	}
 	// Update existing
-	_, err = r.client.Holding.UpdateOneID(existing.ID).
+	_, err = c.Holding.UpdateOneID(existing.ID).
 		SetQuantity(h.Quantity).SetAvgCostCents(h.AvgCostCents).
 		SetVersion(h.Version).SetUpdatedAt(h.UpdatedAt).
 		Save(ctx)
@@ -74,7 +71,7 @@ func (r *HoldingRepository) SaveOrUpdate(ctx context.Context, h *domain.Holding)
 }
 
 func (r *HoldingRepository) FindByAccountAndSecurity(ctx context.Context, tenantID, accountID, securityID uuid.UUID) (*domain.Holding, error) {
-	h, err := r.client.Holding.Query().
+	h, err := r.clientFor(ctx).Holding.Query().
 		Where(holding.TenantID(tenantID), holding.AccountID(accountID), holding.SecurityID(securityID)).
 		Only(ctx)
 	if err != nil {
@@ -173,12 +170,13 @@ func (r *HoldingRepository) FindAllForBackup(ctx context.Context, tenantID uuid.
 // security, no ent FK), then holdings. Both are tenant-scoped so no ID
 // collection is needed.
 func (r *HoldingRepository) DeleteByTenant(ctx context.Context, tenantID uuid.UUID) error {
-	if _, err := r.client.HoldingTransaction.Delete().
+	c := r.clientFor(ctx)
+	if _, err := c.HoldingTransaction.Delete().
 		Where(holdingtransaction.TenantID(tenantID)).
 		Exec(ctx); err != nil {
 		return fmt.Errorf("delete holding transactions: %w", err)
 	}
-	if _, err := r.client.Holding.Delete().
+	if _, err := c.Holding.Delete().
 		Where(holding.TenantID(tenantID)).
 		Exec(ctx); err != nil {
 		return fmt.Errorf("delete holdings: %w", err)

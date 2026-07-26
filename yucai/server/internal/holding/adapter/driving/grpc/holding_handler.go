@@ -2,7 +2,6 @@ package grpc
 
 import (
 	"context"
-	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,12 +21,11 @@ import (
 type HoldingHandler struct {
 	pb.UnimplementedHoldingServiceServer
 	service        *application.Service
-	transactionSvc *txnApp.Service      // double-write: Buy/Sell 创建 transaction 联动 account 余额
-	accountLookup  txnApp.AccountLookup // from_account lookup + balance validation
+	accountLookup  txnApp.AccountLookup // from_account lookup + balance validation; nil = skip validation + skip cash double-write (test/perf path)
 }
 
-func NewHoldingHandler(service *application.Service, txnSvc *txnApp.Service, accountLookup txnApp.AccountLookup) *HoldingHandler {
-	return &HoldingHandler{service: service, transactionSvc: txnSvc, accountLookup: accountLookup}
+func NewHoldingHandler(service *application.Service, accountLookup txnApp.AccountLookup) *HoldingHandler {
+	return &HoldingHandler{service: service, accountLookup: accountLookup}
 }
 
 func (h *HoldingHandler) CreateSecurity(ctx context.Context, req *pb.CreateSecurityRequest) (*pb.SecurityResponse, error) {
@@ -105,7 +103,7 @@ func (h *HoldingHandler) BuyHolding(ctx context.Context, req *pb.HoldingTradeReq
 	// amount = priceCents × quantity (double-write 金额，与 service AmountCents 一致)。
 	amountCents := int64(float64(req.PriceCents) * req.Quantity)
 
-	fromAcc, err := h.validateTradeFromAccount(ctx, tenantID, fromAccountID, holdingAccountID, amountCents, true /*buy*/)
+	fromAcc, holdAcc, err := h.validateTradeFromAccount(ctx, tenantID, fromAccountID, holdingAccountID, amountCents, true /*buy*/)
 	if err != nil {
 		return nil, err
 	}
@@ -115,13 +113,11 @@ func (h *HoldingHandler) BuyHolding(ctx context.Context, req *pb.HoldingTradeReq
 		SecurityID: parseUUID(req.SecurityId), Quantity: req.Quantity,
 		PriceCents: req.PriceCents, FeeCents: req.FeeCents,
 		TradeDate: td, Notes: req.Notes,
+		CashRecord: buildTradeCashRecord(tenantID, fromAcc, holdAcc, domain.TradeTypeBuy, amountCents),
 	})
 	if err != nil {
 		return nil, mapError(err)
 	}
-
-	// Double-write: cash out (from) + investment in (holding). Best-effort.
-	h.recordTradeTransaction(ctx, tenantID, fromAccountID, fromAcc, holdingAccountID, domain.TradeTypeBuy, amountCents)
 
 	return &pb.HoldingTransactionResponse{Transaction: tradeToProto(*resp)}, nil
 }
@@ -144,7 +140,7 @@ func (h *HoldingHandler) SellHolding(ctx context.Context, req *pb.HoldingTradeRe
 	amountCents := int64(float64(req.PriceCents) * req.Quantity)
 
 	// sell: from 不查余额(现金入账),isBuy=false。
-	fromAcc, err := h.validateTradeFromAccount(ctx, tenantID, fromAccountID, holdingAccountID, amountCents, false /*sell*/)
+	fromAcc, holdAcc, err := h.validateTradeFromAccount(ctx, tenantID, fromAccountID, holdingAccountID, amountCents, false /*sell*/)
 	if err != nil {
 		return nil, err
 	}
@@ -154,13 +150,11 @@ func (h *HoldingHandler) SellHolding(ctx context.Context, req *pb.HoldingTradeRe
 		SecurityID: parseUUID(req.SecurityId), Quantity: req.Quantity,
 		PriceCents: req.PriceCents, FeeCents: req.FeeCents,
 		TradeDate: td, Notes: req.Notes,
+		CashRecord: buildTradeCashRecord(tenantID, fromAcc, holdAcc, domain.TradeTypeSell, amountCents),
 	})
 	if err != nil {
 		return nil, mapError(err)
 	}
-
-	// Double-write: cash in (from) + investment out (holding). Best-effort.
-	h.recordTradeTransaction(ctx, tenantID, fromAccountID, fromAcc, holdingAccountID, domain.TradeTypeSell, amountCents)
 
 	return &pb.HoldingTransactionResponse{Transaction: tradeToProto(*resp)}, nil
 }
@@ -495,75 +489,60 @@ func contains(s, sub string) bool {
 
 // validateTradeFromAccount reads the from_account + holding account and enforces
 // the holding-trade invariants BEFORE the trade is recorded, so an invalid
-// from_account fails fast.
+// from_account fails fast. Returns both fetched accounts so the caller can build
+// the cash-side double-entry pair without a redundant lookup.
 //
 //  1. from_account must exist (NotFound).
 //  2. from_account must be asset (InvalidArgument).
 //  3. from_account must differ from holding account (InvalidArgument — no self).
 //  4. from + holding accounts share currency (InvalidArgument).
 //  5. buy: from balance >= amount (FailedPrecondition). sell: 不查余额(现金入账)。
-func (h *HoldingHandler) validateTradeFromAccount(ctx context.Context, tenantID, fromAccountID, holdingAccountID uuid.UUID, amountCents int64, isBuy bool) (*accountdomain.Account, error) {
+//
+// When h.accountLookup is nil the validation is skipped and the returned
+// accounts are both nil — the caller then leaves CashRecord unset so the
+// service-side cash double-write is skipped (test/perf path).
+func (h *HoldingHandler) validateTradeFromAccount(ctx context.Context, tenantID, fromAccountID, holdingAccountID uuid.UUID, amountCents int64, isBuy bool) (*accountdomain.Account, *accountdomain.Account, error) {
 	if h.accountLookup == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 	fromAcc, err := h.accountLookup.FindByID(ctx, tenantID, fromAccountID)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, "from_account not found: "+err.Error())
+		return nil, nil, status.Error(codes.NotFound, "from_account not found: "+err.Error())
 	}
 	if fromAcc.AccountType != accountdomain.AccountTypeAsset {
-		return nil, status.Error(codes.InvalidArgument, "from_account must be asset")
+		return nil, nil, status.Error(codes.InvalidArgument, "from_account must be asset")
 	}
 	if fromAccountID == holdingAccountID {
-		return nil, status.Error(codes.InvalidArgument, "from_account must differ from holding account")
+		return nil, nil, status.Error(codes.InvalidArgument, "from_account must differ from holding account")
 	}
 	holdAcc, err := h.accountLookup.FindByID(ctx, tenantID, holdingAccountID)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, "holding account not found: "+err.Error())
+		return nil, nil, status.Error(codes.NotFound, "holding account not found: "+err.Error())
 	}
 	if fromAcc.CurrencyCode != holdAcc.CurrencyCode {
-		return nil, status.Error(codes.InvalidArgument, "cross-currency, manual handling required")
+		return nil, nil, status.Error(codes.InvalidArgument, "cross-currency, manual handling required")
 	}
 	if isBuy && fromAcc.CurrentBalanceCents < amountCents {
-		return nil, status.Error(codes.FailedPrecondition, "from_account balance insufficient")
+		return nil, nil, status.Error(codes.FailedPrecondition, "from_account balance insufficient")
 	}
-	return fromAcc, nil
+	return fromAcc, holdAcc, nil
 }
 
-// recordTradeTransaction builds the buy/sell double-entry pair and records it via
-// the transaction service. Best-effort: any failure is logged (English structured)
-// and swallowed so the already-recorded trade is not rolled back.
-//
-// fromAcc is the from_account already fetched + validated; passing it in avoids a
-// redundant lookup.
-func (h *HoldingHandler) recordTradeTransaction(ctx context.Context, tenantID, fromAccountID uuid.UUID, fromAcc *accountdomain.Account, holdingAccountID uuid.UUID, tradeType domain.TradeType, amountCents int64) {
-	if h.transactionSvc == nil || h.accountLookup == nil || fromAcc == nil {
-		return
+// buildTradeCashRecord constructs the holding service's cash-side record request
+// for a buy or sell, or returns nil when either account is missing (the
+// accountLookup-skipped path — preserves the legacy "no cash double-write"
+// behavior for tests/perf harnesses that wire NewHoldingHandler with nil
+// accountLookup). The service enlists this record inside its sqltx.WithTx so
+// the cash legs and the trade commit or roll back together (D2 atomicity).
+func buildTradeCashRecord(tenantID uuid.UUID, fromAcc, holdAcc *accountdomain.Account, tradeType domain.TradeType, amountCents int64) *domain.TradeCashRecordRequest {
+	if fromAcc == nil || holdAcc == nil {
+		return nil
 	}
-	holdAcc, err := h.accountLookup.FindByID(ctx, tenantID, holdingAccountID)
-	if err != nil {
-		slog.Error("holding trade double-write: holding account lookup failed",
-			"operation", "holding.recordTradeTransaction",
-			"from_account_id", fromAccountID.String(),
-			"holding_account_id", holdingAccountID.String(),
-			"trade_type", tradeType.String(),
-			"amount_cents", amountCents,
-			"error", err.Error())
-		return
-	}
-	entries := buildTradeEntries(tradeType, *fromAcc, *holdAcc, amountCents)
-	if _, err := h.transactionSvc.RecordTransaction(ctx, txnApp.RecordTransactionRequest{
+	return &domain.TradeCashRecordRequest{
 		TenantID:        tenantID,
 		TransactionDate: time.Now(),
 		Description:     "Holding trade double-write",
-		Entries:         entries,
-	}); err != nil {
-		slog.Error("holding trade double-write: transaction write failed",
-			"operation", "holding.recordTradeTransaction",
-			"from_account_id", fromAccountID.String(),
-			"holding_account_id", holdingAccountID.String(),
-			"trade_type", tradeType.String(),
-			"amount_cents", amountCents,
-			"error", err.Error())
+		Entries:         buildTradeEntries(tradeType, *fromAcc, *holdAcc, amountCents),
 	}
 }
 
@@ -575,15 +554,15 @@ func (h *HoldingHandler) recordTradeTransaction(ctx context.Context, tenantID, f
 //
 // Each entry carries the account's ChartOfAccountCode so the transaction
 // service can persist and route it correctly.
-func buildTradeEntries(tradeType domain.TradeType, fromAcc, holdingAcc accountdomain.Account, amountCents int64) []txnApp.EntryInput {
+func buildTradeEntries(tradeType domain.TradeType, fromAcc, holdingAcc accountdomain.Account, amountCents int64) []domain.TradeCashEntry {
 	if tradeType == domain.TradeTypeSell {
-		return []txnApp.EntryInput{
+		return []domain.TradeCashEntry{
 			{AccountID: fromAcc.ID, ChartOfAccountCode: fromAcc.ChartCode, DebitCents: amountCents},
 			{AccountID: holdingAcc.ID, ChartOfAccountCode: holdingAcc.ChartCode, CreditCents: amountCents},
 		}
 	}
 	// Buy (and default).
-	return []txnApp.EntryInput{
+	return []domain.TradeCashEntry{
 		{AccountID: fromAcc.ID, ChartOfAccountCode: fromAcc.ChartCode, CreditCents: amountCents},
 		{AccountID: holdingAcc.ID, ChartOfAccountCode: holdingAcc.ChartCode, DebitCents: amountCents},
 	}

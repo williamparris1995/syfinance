@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -13,6 +14,7 @@ import (
 	currencydomain "github.com/yucai/server/internal/currency/domain"
 	"github.com/yucai/server/internal/holding/adapter/driven/priceprovider"
 	"github.com/yucai/server/internal/holding/domain"
+	"github.com/yucai/server/internal/sqltx"
 )
 
 // Service orchestrates holding operations.
@@ -27,6 +29,8 @@ type Service struct {
 	historicalProvider priceprovider.HistoricalProvider // C: backfill
 	rateRepo           domain.RateHistoryRepository     // C: portfolio curve CNY折算 (cross-module currency interface)
 	tenantLister       domain.TenantLister              // C: SnapshotAllHoldings fan-out (wire injects auth.TenantRepository)
+	cashRecorder       domain.TradeCashRecorder         // D2: cash-side trade double-write port (nil = skip)
+	db                 *sql.DB                          // D2: shared *sql.DB backing the holding ent client
 	nowFn              func() time.Time                 // perf e2e 注入固定评估日;默认 time.Now (nil → time.Now via now())
 }
 
@@ -89,8 +93,22 @@ func (s *Service) SearchSecurities(ctx context.Context, query string, limit int)
 	return dtos, nil
 }
 
-// BuyHolding records a buy trade and updates the holding position.
+// BuyHolding records a buy trade and updates the holding position. The entire
+// operation — holding upsert, trade insert, lot create, and (when req.CashRecord
+// is non-nil) the cash-side double-entry transaction via cashRecorder — runs
+// inside one sqltx.WithTx so a partial failure rolls back the whole trade. See
+// runInTx for the nil-skip / join-existing-tx semantics.
 func (s *Service) BuyHolding(ctx context.Context, req HoldingTradeRequest) (*HoldingTransactionDTO, error) {
+	return s.runInTx(ctx, func(ctx context.Context) (*HoldingTransactionDTO, error) {
+		return s.buyHolding(ctx, req)
+	})
+}
+
+// buyHolding is the transactional-body implementation of BuyHolding. Every
+// repo call it makes must receive the ctx threaded down from runInTx (either
+// the original ctx on the nil-skip path or the tx-bound ctxT) so the writes
+// join the surrounding transaction.
+func (s *Service) buyHolding(ctx context.Context, req HoldingTradeRequest) (*HoldingTransactionDTO, error) {
 	h, err := s.holdingRepo.FindByAccountAndSecurity(ctx, req.TenantID, req.AccountID, req.SecurityID)
 	if err != nil {
 		// Create new holding
@@ -142,12 +160,36 @@ func (s *Service) BuyHolding(ctx context.Context, req HoldingTradeRequest) (*Hol
 		}
 	}
 
+	// Cash side (D2 atomicity): record the cash + investment legs as a double-
+	// entry transaction inside the same tx. Skipped when CashRecord is nil
+	// (seed/perf/test path) or when no recorder is injected. recorder.Record
+	// delegates to transaction.Service.RecordTransaction whose runInTx join-
+	// existing-tx semantics (Task 4) enlist it in this outer WithTx — so a
+	// cash-write failure rolls back the trade, and a lot/trade failure (above)
+	// means this call never fires.
+	if req.CashRecord != nil && s.cashRecorder != nil {
+		if _, err := s.cashRecorder.Record(ctx, *req.CashRecord); err != nil {
+			return nil, fmt.Errorf("record trade cash: %w", err)
+		}
+	}
+
 	dto := TradeToDTO(trade)
 	return &dto, nil
 }
 
-// SellHolding records a sell trade and updates the holding position.
+// SellHolding records a sell trade and updates the holding position. Like
+// BuyHolding it wraps the entire trade (holding + trade + lot consume + cash
+// double-write) in one sqltx.WithTx so partial failure rolls back atomically.
 func (s *Service) SellHolding(ctx context.Context, req HoldingTradeRequest) (*HoldingTransactionDTO, error) {
+	return s.runInTx(ctx, func(ctx context.Context) (*HoldingTransactionDTO, error) {
+		return s.sellHolding(ctx, req)
+	})
+}
+
+// sellHolding is the transactional-body implementation of SellHolding. Every
+// repo call it makes must receive the ctx threaded down from runInTx so the
+// writes join the surrounding transaction.
+func (s *Service) sellHolding(ctx context.Context, req HoldingTradeRequest) (*HoldingTransactionDTO, error) {
 	h, err := s.holdingRepo.FindByAccountAndSecurity(ctx, req.TenantID, req.AccountID, req.SecurityID)
 	if err != nil {
 		return nil, fmt.Errorf("holding not found: %w", err)
@@ -206,6 +248,14 @@ func (s *Service) SellHolding(ctx context.Context, req HoldingTradeRequest) (*Ho
 	if err := s.tradeRepo.Save(ctx, trade); err != nil {
 		return nil, fmt.Errorf("save trade: %w", err)
 	}
+
+	// Cash side (D2 atomicity) — see buyHolding for the contract.
+	if req.CashRecord != nil && s.cashRecorder != nil {
+		if _, err := s.cashRecorder.Record(ctx, *req.CashRecord); err != nil {
+			return nil, fmt.Errorf("record trade cash: %w", err)
+		}
+	}
+
 	dto := TradeToDTO(trade)
 	return &dto, nil
 }
@@ -391,6 +441,50 @@ func (s *Service) SetPriceRouter(r priceprovider.Router) {
 // SetLotRepository injects the FIFO lot repo (Task 5 C). nil = SellHolding
 // falls back to moving-weighted ApplySell; Buy/Split skip lot maintenance.
 func (s *Service) SetLotRepository(r domain.LotRepository) { s.lotRepo = r }
+
+// SetDB injects the shared *sql.DB backing the holding ent client. BuyHolding
+// and SellHolding wrap their holding+trade+lot (+ optional cash) writes in a
+// single sqltx.WithTx over db so a partial failure rolls back the whole
+// operation (Task 5 / audit D2). Nil preserves the legacy non-transactional
+// behavior that mock-based unit tests rely on; production wire always injects
+// the shared db (Task 1's provideDB).
+func (s *Service) SetDB(db *sql.DB) { s.db = db }
+
+// SetCashRecorder injects the cross-module recorder used to write the cash side
+// of a holding trade (debit/credit the from/cash account + holding investment
+// account) as a double-entry transaction inside the same WithTx as the holding
+// write. Wire binds the transaction application service's adapter; nil = the
+// cash side is skipped (test / seed-data / perf-test path).
+func (s *Service) SetCashRecorder(r domain.TradeCashRecorder) { s.cashRecorder = r }
+
+// runInTx wraps fn in a single sqltx.WithTx over the shared *sql.DB so the
+// holding write, trade write, lot write (and the optional cash-side
+// transaction via cashRecorder) all join one atomic DB transaction. A failure
+// anywhere in fn (e.g. a lot-save error after holding+trade succeeded) rolls
+// back the whole operation.
+//
+// When s.db is nil the wrapper is skipped and fn runs directly against the
+// repos' default (auto-commit) clients. This preserves the legacy
+// non-transactional behavior that mock-based unit tests rely on (they inject
+// mock repos without a *sql.DB); production wire always injects the shared db
+// from Task 1's provideDB, so the rollback guarantee holds in deployment.
+//
+// Join-existing-tx semantics: when ctx already carries a tx driver (an outer
+// WithTx — e.g. seed data invoking BuyHolding from inside another WithTx),
+// sqltx.WithTx runs fn against that outer driver without opening a new
+// transaction; the outermost caller owns commit/rollback.
+func (s *Service) runInTx(ctx context.Context, fn func(ctx context.Context) (*HoldingTransactionDTO, error)) (*HoldingTransactionDTO, error) {
+	if s.db == nil {
+		return fn(ctx)
+	}
+	var dto *HoldingTransactionDTO
+	err := sqltx.WithTx(ctx, s.db, "postgres", nil, func(ctxT context.Context) error {
+		d, e := fn(ctxT)
+		dto = d
+		return e
+	})
+	return dto, err
+}
 
 // SetSnapshotRepository injects the daily snapshot repo (Task 5 C).
 func (s *Service) SetSnapshotRepository(r domain.SnapshotRepository) { s.snapshotRepo = r }
